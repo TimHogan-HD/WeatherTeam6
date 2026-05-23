@@ -1,7 +1,7 @@
 ---
 name: architect-guard
 description: Architecture integrity checker. Use at the start of any session that will add a new feature, modify the schema, add a new API endpoint, or change a background job. Verifies the proposed change against agreed architecture before any code is written.
-model: claude-sonnet-4-20250514
+model: claude-sonnet-4-6
 tools: Read, Grep, Glob
 ---
 

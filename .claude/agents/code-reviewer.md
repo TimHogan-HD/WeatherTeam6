@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: Expert code reviewer for WeatherTeam6. Use proactively before any commit, after completing a phase, or when asked to review code. Checks for architecture drift, TypeScript issues, security problems, and deviation from agreed patterns.
-model: claude-sonnet-4-20250514
+model: claude-sonnet-4-6
 tools: Read, Grep, Glob
 ---
 

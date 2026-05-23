@@ -51,12 +51,6 @@ Jobs must be idempotent. A job crashing and rerunning must not create duplicate 
 - All API calls go through React Query hooks in `apps/mobile/src/hooks/`. Components never call fetch directly.
 - Expo SDK version must not be changed without explicit user approval.
 - No hardcoded API base URLs — use environment config via `expo-constants` or similar.
-- The table list and FK structure in the schema
-- The `resolveUser` auth pattern
-- The monorepo directory layout
-- The API response shape
-- The four BullMQ queues and their schedules
-- The scoring weight order: drying time > upcoming rain > wind > temp > humidity
 
 ## Mobile Navigation
 - Expo Router is the agreed navigation library. Do not use React Navigation or any other router.
