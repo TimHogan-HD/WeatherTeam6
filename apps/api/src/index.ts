@@ -1,12 +1,59 @@
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
+import { createBullBoard } from '@bull-board/api';
+import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
+import { ExpressAdapter } from '@bull-board/express';
 import { logger } from './lib/logger.js';
 import { resolveUser } from './middleware/auth.js';
 import { healthRouter } from './routes/health.js';
+import { forecastSnapshotQueue, rainfallHistoryQueue, alertsPollerQueue, snapshotCleanupQueue } from './jobs/queues.js';
+import './jobs/workers/forecastSnapshot.js';
+import './jobs/workers/rainfallHistory.js';
+import './jobs/workers/alertsPoller.js';
+import './jobs/workers/snapshotCleanup.js';
 
 export function createApp(): Express {
   const app = express();
 
   app.use(express.json());
+
+  const serverAdapter = new ExpressAdapter();
+  serverAdapter.setBasePath('/admin/queues');
+
+  createBullBoard({
+    queues: [
+      new BullMQAdapter(forecastSnapshotQueue),
+      new BullMQAdapter(rainfallHistoryQueue),
+      new BullMQAdapter(alertsPollerQueue),
+      new BullMQAdapter(snapshotCleanupQueue),
+    ],
+    serverAdapter,
+  });
+
+  app.use(
+    '/admin/queues',
+    (req: Request, res: Response, next: NextFunction) => {
+      const adminPassword = process.env.ADMIN_PASSWORD;
+      if (!adminPassword) {
+        next();
+        return;
+      }
+      const auth = req.headers.authorization;
+      if (!auth || !auth.startsWith('Basic ')) {
+        res.setHeader('WWW-Authenticate', 'Basic realm="Bull Board"');
+        res.status(401).json({ data: null, error: 'Unauthorized', status: 401 });
+        return;
+      }
+      const credentials = Buffer.from(auth.slice(6), 'base64').toString('utf-8');
+      const [, password] = credentials.split(':');
+      if (password !== adminPassword) {
+        res.setHeader('WWW-Authenticate', 'Basic realm="Bull Board"');
+        res.status(401).json({ data: null, error: 'Unauthorized', status: 401 });
+        return;
+      }
+      next();
+    },
+    serverAdapter.getRouter(),
+  );
 
   app.use(healthRouter);
 
