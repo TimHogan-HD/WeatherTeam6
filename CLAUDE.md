@@ -32,19 +32,26 @@ packages/
 ```
 
 ## Environment Variables
+
+`.env.example` is the authoritative list — keep this section in sync with it.
+
 ```
-DATABASE_URL
-REDIS_URL
+DATABASE_URL=
+REDIS_URL=
+DEFAULT_USER_ID=                                    # seeded user UUID, set after first migration
 AUTH_ENABLED=false
-DEFAULT_USER_ID=    # seeded user UUID, set after first migration
-TOMORROW_IO_API_KEY=
+ADMIN_PASSWORD=                                     # gates Bull Board at /admin/queues
+NODE_ENV=development
+PORT=3001
 NWS_USER_AGENT=weatherteam6/1.0 your@email.com
-CLOUDFLARE_R2_BUCKET_NAME=
-CLOUDFLARE_R2_ACCESS_KEY_ID=
-CLOUDFLARE_R2_SECRET_ACCESS_KEY=
-CLOUDFLARE_R2_ENDPOINT=
-NODE_ENV=
-PORT=3000
+TOMORROW_IO_API_KEY=
+RAINVIEWER_KEY=
+SHADEMAP_KEY=
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET_NAME=
+API_BASE_URL=                                       # mobile reads via EXPO_PUBLIC_API_BASE_URL
 ```
 
 ## Non-Negotiable Rules
