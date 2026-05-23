@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
 
-export default function RootLayout(): JSX.Element {
+export default function RootLayout() {
   return <Stack />;
 }

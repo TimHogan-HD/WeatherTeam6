@@ -154,4 +154,3 @@ expo-env.d.ts.bak
 # TypeScript build artifacts
 **/dist/
 **/*.tsbuildinfo
-

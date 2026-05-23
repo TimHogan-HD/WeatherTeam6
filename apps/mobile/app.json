@@ -22,9 +22,6 @@
     ],
     "experiments": {
       "typedRoutes": true
-    },
-    "extra": {
-      "apiBaseUrl": "http://localhost:3001"
     }
   }
 }

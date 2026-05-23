@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-export default function Index(): JSX.Element {
+export default function Index() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>WeatherTeam6</Text>

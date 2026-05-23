@@ -7,8 +7,10 @@ export function createApp(): Express {
   const app = express();
 
   app.use(express.json());
-  app.use(resolveUser);
+
   app.use(healthRouter);
+
+  app.use(resolveUser);
 
   app.use((_req: Request, res: Response) => {
     res.status(404).json({ data: null, error: 'Not found', status: 404 });
@@ -21,11 +23,3 @@ export function createApp(): Express {
 
   return app;
 }
-
-const port = Number(process.env.PORT ?? 3001);
-
-const app = createApp();
-
-app.listen(port, () => {
-  logger.info({ port }, 'api listening');
-});
