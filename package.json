@@ -1,0 +1,26 @@
+{
+  "name": "weatherteam6",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "db:generate": "npm run -w @weatherteam6/api db:generate",
+    "db:migrate": "npm run -w @weatherteam6/api db:migrate",
+    "db:studio": "npm run -w @weatherteam6/api db:studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "npm@10.9.7"
+}
