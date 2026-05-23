@@ -139,3 +139,15 @@ const ASPECT_MAP: Record<string, number> = {
 export function aspectToDegrees(aspect: string): number {
   return ASPECT_MAP[aspect.toUpperCase()] ?? 180
 }
+
+// Drizzle's numeric() columns are returned as strings by postgres-js.
+// Use these helpers in API response mappers when converting DB rows to
+// Location, ForecastSnapshot, or any other type with number fields.
+export function parseNumeric(value: string | null): number | null {
+  if (value === null) return null
+  return parseFloat(value)
+}
+
+export function parseNumericRequired(value: string): number {
+  return parseFloat(value)
+}
