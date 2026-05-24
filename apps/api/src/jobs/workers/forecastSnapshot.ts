@@ -1,5 +1,5 @@
 import { Worker, type Job } from 'bullmq'
-import { and, eq, gte, sql } from 'drizzle-orm'
+import { and, eq, gte } from 'drizzle-orm'
 import { aspectToDegrees } from '@weatherteam6/types'
 import { db } from '../../db/index.js'
 import { conditionsScores, forecastSnapshots, locations, rainfallHistory } from '../../db/schema.js'
@@ -164,7 +164,7 @@ export const forecastSnapshotWorker = new Worker(
             component_wind: output.components.wind,
             component_temp: output.components.temp,
             component_humidity: output.components.humidity,
-            score_breakdown: output.breakdown as unknown,
+            score_breakdown: output.breakdown,
             computed_at: now,
           })
         }
