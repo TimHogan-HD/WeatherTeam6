@@ -15,6 +15,7 @@ Climbing conditions platform + general weather app. Core purpose: tell the user 
 ```bash
 npm run dev           # start all services
 npm run build         # build all packages
+npm run test          # run all tests
 npm run typecheck     # typecheck all packages
 npm run lint          # lint all packages
 npm run db:generate   # generate Drizzle migration from schema changes
