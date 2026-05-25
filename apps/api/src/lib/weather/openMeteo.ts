@@ -177,6 +177,54 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
   return { days, model_sources }
 }
 
+export type HistoricalRainfallEntry = {
+  date: string // YYYY-MM-DD
+  precip_mm: number
+}
+
+type HistoricalResponse = {
+  daily?: {
+    time?: string[]
+    precipitation_sum?: (number | null)[]
+  }
+}
+
+export async function fetchHistoricalRainfall(
+  lat: number,
+  lon: number,
+  startDate: string,
+  endDate: string,
+): Promise<HistoricalRainfallEntry[]> {
+  const url = new URL('https://archive-api.open-meteo.com/v1/archive')
+  url.searchParams.set('latitude', String(lat))
+  url.searchParams.set('longitude', String(lon))
+  url.searchParams.set('start_date', startDate)
+  url.searchParams.set('end_date', endDate)
+  url.searchParams.set('daily', 'precipitation_sum')
+
+  logger.debug({ lat, lon, startDate, endDate }, '[openMeteo] fetching historical rainfall')
+
+  const res = await fetchWithRetry(url.toString())
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    logger.debug({ statusCode: res.status, body: body.slice(0, 200) }, '[openMeteo] historical error response')
+    throw new Error(`Open-Meteo archive API returned ${res.status}`)
+  }
+
+  const raw = (await res.json()) as HistoricalResponse
+  const times = raw.daily?.time ?? []
+  const sums = raw.daily?.precipitation_sum ?? []
+
+  const results: HistoricalRainfallEntry[] = []
+  for (let i = 0; i < times.length; i++) {
+    const date = times[i]
+    const val = sums[i]
+    if (!date || val === null || val === undefined) continue
+    results.push({ date, precip_mm: parseFloat(val.toFixed(2)) })
+  }
+  return results
+}
+
 export async function fetchEnsembleForecast(
   lat: number,
   lon: number,
