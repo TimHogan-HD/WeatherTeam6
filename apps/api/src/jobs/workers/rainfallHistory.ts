@@ -1,4 +1,5 @@
 import { Worker, type Job } from 'bullmq'
+import { sql } from 'drizzle-orm'
 import { bullConnection } from '../connection.js'
 import { db } from '../../db/index.js'
 import { locations, rainfallHistory } from '../../db/schema.js'
@@ -43,28 +44,29 @@ export const rainfallHistoryWorker = new Worker(
         }
 
         let entries: Entry[] = []
-        let acisSucceeded = false
+        // acisAttempted tracks whether the HTTP call completed (even if it returned no records).
+        // Only fall back to open-meteo when the HTTP call itself failed — a successful HTTP 200
+        // with no records means ACIS has communicated there is no verified data for this period.
+        let acisAttempted = false
 
         if (loc.asos_station) {
           try {
             const acisData = await fetchAcisRainfall(loc.asos_station, sdate, edate)
-            if (acisData.length > 0) {
-              acisSucceeded = true
-              entries = acisData.map((e) => ({
-                date: e.date,
-                precip_mm: e.precip_mm,
-                source: 'acis' as const,
-                verified: true,
-                station_id: loc.asos_station,
-              }))
-            }
+            acisAttempted = true
+            entries = acisData.map((e) => ({
+              date: e.date,
+              precip_mm: e.precip_mm,
+              source: 'acis' as const,
+              verified: true,
+              station_id: loc.asos_station,
+            }))
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err)
             logger.warn({ locationId: loc.id, err: msg }, '[rainfall-history] ACIS failed, falling back to open-meteo historical')
           }
         }
 
-        if (!acisSucceeded) {
+        if (!acisAttempted) {
           const lat = parseFloat(loc.lat)
           const lon = parseFloat(loc.lon)
           try {
@@ -87,42 +89,46 @@ export const rainfallHistoryWorker = new Worker(
           continue
         }
 
-        for (const entry of entries) {
-          if (entry.verified) {
-            // ACIS is authoritative — always upsert
-            await db
-              .insert(rainfallHistory)
-              .values({
+        // All entries for a location are always the same source (ACIS or open-meteo, never mixed),
+        // so we can batch the entire set in one INSERT statement.
+        if (entries[0]!.verified) {
+          // ACIS is authoritative — batch upsert, overwriting any existing unverified rows
+          await db
+            .insert(rainfallHistory)
+            .values(
+              entries.map((e) => ({
                 location_id: loc.id,
-                date: entry.date,
-                precip_mm: String(entry.precip_mm),
-                source: entry.source,
-                verified: entry.verified,
-                station_id: entry.station_id,
-              })
-              .onConflictDoUpdate({
-                target: [rainfallHistory.location_id, rainfallHistory.date],
-                set: {
-                  precip_mm: String(entry.precip_mm),
-                  source: entry.source,
-                  verified: entry.verified,
-                  station_id: entry.station_id,
-                },
-              })
-          } else {
-            // Open-Meteo fallback — only insert if no row exists (don't overwrite ACIS data)
-            await db
-              .insert(rainfallHistory)
-              .values({
+                date: e.date,
+                precip_mm: String(e.precip_mm),
+                source: e.source,
+                verified: e.verified,
+                station_id: e.station_id,
+              })),
+            )
+            .onConflictDoUpdate({
+              target: [rainfallHistory.location_id, rainfallHistory.date],
+              set: {
+                precip_mm: sql`excluded.precip_mm`,
+                source: sql`excluded.source`,
+                verified: sql`excluded.verified`,
+                station_id: sql`excluded.station_id`,
+              },
+            })
+        } else {
+          // Open-Meteo fallback — batch insert, never overwrite existing rows (ACIS may be there)
+          await db
+            .insert(rainfallHistory)
+            .values(
+              entries.map((e) => ({
                 location_id: loc.id,
-                date: entry.date,
-                precip_mm: String(entry.precip_mm),
-                source: entry.source,
-                verified: entry.verified,
-                station_id: entry.station_id,
-              })
-              .onConflictDoNothing()
-          }
+                date: e.date,
+                precip_mm: String(e.precip_mm),
+                source: e.source,
+                verified: e.verified,
+                station_id: e.station_id,
+              })),
+            )
+            .onConflictDoNothing()
         }
 
         logger.info(

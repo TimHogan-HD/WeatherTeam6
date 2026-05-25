@@ -141,4 +141,17 @@ describe('fetchCurrentObs', () => {
     const obs = await fetchCurrentObs('KPSP', 'CA_ASOS')
     expect(obs).toBeNull()
   })
+
+  it('returns null when the observation is stale (>90 min old at call time)', async () => {
+    // System time is FRESH_UTC = 15:00Z; obs is from 12:30Z = 150 min ago → stale
+    const staleDatum = { ...freshDatum, utc_valid: '2025-05-25T12:30:00Z' }
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: [staleDatum] }),
+    } as Response)
+
+    const obs = await fetchCurrentObs('KPSP', 'CA_ASOS')
+    expect(obs).toBeNull()
+  })
 })
