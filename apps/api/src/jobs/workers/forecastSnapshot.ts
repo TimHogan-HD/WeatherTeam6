@@ -48,6 +48,10 @@ export const forecastSnapshotWorker = new Worker(
           continue
         }
 
+        if (forecast.model_sources.length === 0) {
+          logger.warn({ locationId: loc.id }, '[forecast-snapshot] no recognizable model sources in response — key format may have changed')
+        }
+
         // Batch insert all forecast_snapshots for this location
         const snapshotRows: SnapshotRow[] = await db
           .insert(forecastSnapshots)
@@ -101,6 +105,12 @@ export const forecastSnapshotWorker = new Worker(
 
         // Current conditions from today's snapshot (proxy for live obs until Phase 4)
         const todaySnap = snapshotRows.find((s) => s.forecast_date === todayStr)
+        if (!todaySnap) {
+          logger.warn(
+            { locationId: loc.id, todayStr },
+            '[forecast-snapshot] no snapshot matching today — forecast may start from tomorrow; current-condition proxies will use zero defaults',
+          )
+        }
         const currentWindKmh = parseNum(todaySnap?.wind_kmh_max, 0)
         const todayTempMin = parseNum(todaySnap?.temp_c_min, 0)
         const todayTempMax = parseNum(todaySnap?.temp_c_max, 0)

@@ -38,8 +38,10 @@ async function fetchWithRetry(url: string, maxAttempts = 4): Promise<Response> {
     } catch (err) {
       lastErr = err instanceof Error ? err : new Error(String(err))
     }
-    const delay = Math.pow(2, attempt) * 1000
-    await new Promise<void>((r) => setTimeout(r, delay))
+    if (attempt < maxAttempts - 1) {
+      const delay = Math.pow(2, attempt) * 1000
+      await new Promise<void>((r) => setTimeout(r, delay))
+    }
   }
   throw lastErr
 }
@@ -189,8 +191,10 @@ export async function fetchEnsembleForecast(
 
   const res = await fetchWithRetry(url.toString())
   if (!res.ok) {
+    // Read body only at debug level — never include full response in error message (checklist: no API bodies in prod logs)
     const body = await res.text().catch(() => '')
-    throw new Error(`Open-Meteo ensemble API returned ${res.status}: ${body}`)
+    logger.debug({ statusCode: res.status, body: body.slice(0, 200) }, '[openMeteo] error response')
+    throw new Error(`Open-Meteo ensemble API returned ${res.status}`)
   }
 
   const raw = (await res.json()) as EnsembleResponse
