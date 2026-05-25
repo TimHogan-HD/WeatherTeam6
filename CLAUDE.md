@@ -65,12 +65,38 @@ API_BASE_URL=                                       # mobile reads via EXPO_PUBL
 - Drizzle migrations only — never mutate the DB directly
 - Commit after each completed phase
 
-## Reference Docs (read when relevant)
-- **Data model + schema:** `.claude/docs/data-model.md` — read before any DB work
-- **API sources + quirks:** `.claude/docs/api-sources.md` — read before any weather fetch work
-- **Scoring algorithm:** `.claude/docs/scoring-algorithm.md` — read before any conditions score work
-- **Architecture rules:** `.claude/rules/architecture.md` — read at the start of every session
+## Reference Docs
+
+**MANDATORY reading rules:**
+
+- At the start of EVERY session: read `.claude/rules/architecture.md`
+- Before starting any new phase: read `.claude/docs/plan.md`
+- Before ANY database work: read `.claude/docs/data-model.md` AND `.claude/rules/architecture.md`
+- Before ANY weather fetch work: read `.claude/docs/api-sources.md`
+- Before ANY conditions score work: read `.claude/docs/scoring-algorithm.md`
+
+Full paths:
+- **Data model + schema:** `.claude/docs/data-model.md`
+- **API sources + quirks:** `.claude/docs/api-sources.md`
+- **Scoring algorithm:** `.claude/docs/scoring-algorithm.md`
+- **Architecture rules:** `.claude/rules/architecture.md`
 - **Review checklist:** `.claude/rules/review-checklist.md` — run before every commit
+- **Build plan:** `.claude/docs/plan.md`
+
+## Session Start Protocol
+
+At the start of EVERY session:
+1. Read `.claude/rules/architecture.md`
+2. Read `.claude/docs/session-notes.md` (current state and last completed phase)
+3. Read `.claude/docs/plan.md` (what phase is next)
+4. Run `git log --oneline -5` to confirm where the branch is
+
+## Session End Protocol
+
+Before ending ANY session, append a state update to `.claude/docs/session-notes.md`:
+- Date (YYYY-MM-DD), branch, last commit hash (short)
+- Phase completed this session
+- What is next
 
 ## Initial Setup Requirements
 - Create `.env.example` with all keys from the Environment Variables section above, values blank

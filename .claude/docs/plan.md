@@ -109,10 +109,17 @@ Each phase: implement → acceptance criteria → `npm run typecheck` → `npm r
 | 4 | `phase-4: rainfall history, acis/asos integration, drying model` | acis.ts, iemAsos.ts, dryingModel.ts (with lastRainMm in output), rainfall-history job |
 | 5 | `phase-5: conditions score engine and core API endpoints` | Real conditionsScore.ts, GET /locations, /conditions/:id, /forecast/:id |
 | 6 | `phase-6: nws alerts and alert poller` | nwsAlerts.ts, alerts-poller job, GET /alerts/:id |
-| 7 | `phase-7: mobile core screens` | Home, location/[id], search stub, 4 React Query hooks |
+| 7a | `phase-7a: react-query install and API client scaffold` | `@tanstack/react-query` install, `apps/mobile/src/lib/api.ts` client, `apps/mobile/src/hooks/` directory with base pattern |
+| 7b | `phase-7b: home screen and useLocations hook` | Home screen rendering location cards, `useLocations` hook |
+| 7c | `phase-7c: location detail screen and conditions/forecast hooks` | `location/[id].tsx`, `useConditions` hook, `useForecast` hook |
+| 7d | `phase-7d: search stub screen` | Search screen (UI stub, no backend — real search in Phase 10) |
 | 8 | `phase-8: shade and sun window calculation` | shadeCalc.ts (suncalc), shadeMapCalc.ts (ShadeMap fallback) |
-| 9 | `phase-9: trip planner and forecast evolution` | Trip CRUD API + mobile screens, evolution data embedded in GET /trips/:id |
-| 10 | `phase-10: general weather mode and location search` | POST /locations, GET /search (crags only), importCrags.ts |
+| 9a | `phase-9a: trip CRUD API endpoints` | POST/GET/DELETE `/trips`, POST `/trips/:id/locations` |
+| 9b | `phase-9b: trip mobile screens and hooks` | Trip list screen, trip detail screen, `useTrips` hook, `useTripLocations` hook |
+| 9c | `phase-9c: forecast evolution and mobile chart` | Evolution query embedded in GET `/trips/:id`, `ForecastChart` component |
+| 10a | `phase-10a: POST /locations and GET /search` | POST `/locations` endpoint, GET `/search` querying crags table |
+| 10b | `phase-10b: importCrags seeding utility` | `importCrags.ts` script to seed crags table |
+| 10c | `phase-10c: mobile general weather and search screens` | General weather mode screens, live search screen |
 | 11 | `phase-11: tomorrow.io premium pull` | tomorrowIo.ts (verify endpoint first), POST /premium-pull/:id, mobile button |
 | 12 | `phase-12: rainviewer radar integration` | rainViewer.ts, GET /radar/tiles, mobile overlay |
 | 13 | `phase-13: historical climbability patterns` | Climbability logic in rainfall job, GET /locations/:id/history, mobile history section |
@@ -210,6 +217,7 @@ Seed script is idempotent (upsert by name or fixed UUIDs).
 1. All acceptance criteria from v8 build prompt for that phase
 2. `npm run typecheck` — strict mode, zero errors
 3. `npm run lint` — zero violations
-4. `.claude/rules/review-checklist.md` — all boxes checked
-5. Commit with exact format: `phase-N: <description>`
-6. Stop. Wait for user gate-pass before the next phase.
+4. `npm run test` — all tests pass
+5. `.claude/rules/review-checklist.md` — all boxes checked
+6. Commit with exact format: `phase-N: <description>` (sub-phases use `phase-Na: <description>`)
+7. Stop. Wait for user gate-pass before the next phase.

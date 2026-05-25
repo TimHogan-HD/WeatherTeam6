@@ -38,4 +38,12 @@ if [ "$TOOL" = "Write" ] || [ "$TOOL" = "Edit" ]; then
   fi
 fi
 
+# Print review checklist before every git commit as a reminder (not a block)
+if [ "$TOOL" = "Bash" ]; then
+  if echo "$COMMAND" | grep -q "git commit" && ! echo "$COMMAND" | grep -q "\-\-amend"; then
+    echo "REMINDER: Run through the review checklist before committing:" >&2
+    cat "$(dirname "$0")/../rules/review-checklist.md" >&2
+  fi
+fi
+
 exit 0

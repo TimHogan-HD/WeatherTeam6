@@ -10,6 +10,27 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/post-push-review.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "printf '\\n--- Session ended: %s\\n' \"$(date -u '+%Y-%m-%d %H:%M UTC')\" >> .claude/docs/session-notes.md"
+          }
+        ]
+      }
     ]
   }
 }

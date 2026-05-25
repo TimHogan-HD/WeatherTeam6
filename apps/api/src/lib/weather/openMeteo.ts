@@ -27,7 +27,7 @@ const MODELS = 'gfs_seamless,ecmwf_ifs025,icon_seamless_eps,gem_global'
 const HOURLY_VARS = 'precipitation,temperature_2m,windspeed_10m,relativehumidity_2m'
 const GFS_SUFFIX = '_ncep_gefs_seamless'
 
-async function fetchWithRetry(url: string, maxAttempts = 4): Promise<Response> {
+export async function fetchWithRetry(url: string, maxAttempts = 4): Promise<Response> {
   let lastErr: Error = new Error('no attempts made')
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
@@ -52,7 +52,7 @@ function safeNumberArray(hourly: Record<string, unknown>, key: string): (number 
   return val as (number | null)[]
 }
 
-function buildDateIndex(times: string[]): Map<string, number[]> {
+export function buildDateIndex(times: string[]): Map<string, number[]> {
   const map = new Map<string, number[]>()
   for (let i = 0; i < times.length; i++) {
     const t = times[i]
@@ -68,7 +68,7 @@ function buildDateIndex(times: string[]): Map<string, number[]> {
   return map
 }
 
-function computePercentile(sorted: number[], p: number): number {
+export function computePercentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0
   const idx = (p / 100) * (sorted.length - 1)
   const lo = Math.floor(idx)
@@ -78,7 +78,7 @@ function computePercentile(sorted: number[], p: number): number {
   return a + (b - a) * (idx - lo)
 }
 
-function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult {
+export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult {
   const rawTimes = hourly['time']
   const times: string[] = Array.isArray(rawTimes) ? (rawTimes as string[]) : []
   const dateIndex = buildDateIndex(times)
