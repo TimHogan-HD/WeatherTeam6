@@ -11,6 +11,7 @@
     "dev": "turbo run dev",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
+    "test": "turbo run test",
     "db:generate": "npm run -w apps/api db:generate",
     "db:migrate": "npm run -w apps/api db:migrate",
     "db:studio": "npm run -w apps/api db:studio"

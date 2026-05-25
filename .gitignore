@@ -154,3 +154,6 @@ expo-env.d.ts.bak
 # TypeScript build artifacts
 **/dist/
 **/*.tsbuildinfo
+
+# Claude Code session state (written by Stop hook)
+.claude/docs/session-notes.md
