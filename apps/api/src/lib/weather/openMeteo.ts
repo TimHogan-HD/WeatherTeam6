@@ -9,6 +9,8 @@ export type DailyForecast = {
   temp_c_max: number
   wind_kmh_max: number
   humidity_pct: number
+  dewpoint_c: number
+  shortwave_wm2: number
 }
 
 export type OpenMeteoResult = {
@@ -16,16 +18,45 @@ export type OpenMeteoResult = {
   model_sources: string[]
 }
 
+export type ForecastLocation = {
+  lat: number
+  lon: number
+  elevation_m: number | null
+}
+
 type EnsembleResponse = {
   latitude: number
   longitude: number
+  elevation?: number
   hourly: Record<string, unknown>
 }
 
+type NbmResponse = {
+  latitude: number
+  longitude: number
+  elevation?: number
+  daily?: Record<string, unknown>
+}
+
+const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast'
 const ENSEMBLE_URL = 'https://ensemble-api.open-meteo.com/v1/ensemble'
-const MODELS = 'gfs_seamless,ecmwf_ifs025,icon_seamless_eps,gem_global'
-const HOURLY_VARS = 'precipitation,temperature_2m,windspeed_10m,relativehumidity_2m'
+const ENSEMBLE_MODELS = 'gfs_seamless,ecmwf_ifs025,icon_seamless_eps,gem_global'
+const HOURLY_VARS =
+  'precipitation,temperature_2m,windspeed_10m,relativehumidity_2m,dewpoint_2m,shortwave_radiation'
+const NBM_DAILY_VARS = [
+  'precipitation_sum',
+  'precipitation_p10',
+  'precipitation_p50',
+  'precipitation_p90',
+  'temperature_2m_max',
+  'temperature_2m_min',
+  'wind_speed_10m_max',
+  'relative_humidity_2m_mean',
+  'dewpoint_2m_mean',
+  'shortwave_radiation_sum',
+].join(',')
 const GFS_SUFFIX = '_ncep_gefs_seamless'
+const LAPSE_RATE_C_PER_M = 0.0065
 
 export async function fetchWithRetry(url: string, maxAttempts = 4): Promise<Response> {
   let lastErr: Error = new Error('no attempts made')
@@ -78,6 +109,11 @@ export function computePercentile(sorted: number[], p: number): number {
   return a + (b - a) * (idx - lo)
 }
 
+function mean(values: number[], fallback: number): number {
+  if (values.length === 0) return fallback
+  return values.reduce((a, b) => a + b, 0) / values.length
+}
+
 export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult {
   const rawTimes = hourly['time']
   const times: string[] = Array.isArray(rawTimes) ? (rawTimes as string[]) : []
@@ -97,6 +133,12 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
   )
   const gfsHumidKeys = allKeys.filter(
     (k) => k.startsWith('relativehumidity_2m_member') && k.endsWith(GFS_SUFFIX),
+  )
+  const gfsDewpointKeys = allKeys.filter(
+    (k) => k.startsWith('dewpoint_2m_member') && k.endsWith(GFS_SUFFIX),
+  )
+  const gfsShortwaveKeys = allKeys.filter(
+    (k) => k.startsWith('shortwave_radiation_member') && k.endsWith(GFS_SUFFIX),
   )
 
   const model_sources: string[] = []
@@ -161,6 +203,26 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
       }
     }
 
+    // Dewpoint mean across all GFS members and hours
+    const dewpoints: number[] = []
+    for (const key of gfsDewpointKeys) {
+      const vals = safeNumberArray(hourly, key)
+      for (const i of indices) {
+        const v = vals[i]
+        if (v !== null && v !== undefined) dewpoints.push(v)
+      }
+    }
+
+    // Shortwave mean across all GFS members and hours
+    const shortwaves: number[] = []
+    for (const key of gfsShortwaveKeys) {
+      const vals = safeNumberArray(hourly, key)
+      for (const i of indices) {
+        const v = vals[i]
+        if (v !== null && v !== undefined) shortwaves.push(v)
+      }
+    }
+
     days.push({
       date,
       precip_mm_p10: computePercentile(memberDailySums, 10),
@@ -169,34 +231,133 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
       temp_c_min: temps.length > 0 ? Math.min(...temps) : 0,
       temp_c_max: temps.length > 0 ? Math.max(...temps) : 0,
       wind_kmh_max: winds.length > 0 ? Math.max(...winds) : 0,
-      humidity_pct:
-        humids.length > 0 ? humids.reduce((a, b) => a + b, 0) / humids.length : 50,
+      humidity_pct: mean(humids, 50),
+      dewpoint_c: mean(dewpoints, 0),
+      shortwave_wm2: mean(shortwaves, 0),
     })
   }
 
   return { days, model_sources }
 }
 
-export async function fetchEnsembleForecast(
-  lat: number,
-  lon: number,
-): Promise<OpenMeteoResult> {
+function applyLapseRate(
+  days: DailyForecast[],
+  cragElevation: number | null,
+  modelElevation: number | undefined,
+): void {
+  if (cragElevation === null || modelElevation === undefined) return
+  const elevationDelta = cragElevation - modelElevation
+  if (elevationDelta === 0) return
+  for (const day of days) {
+    day.temp_c_min -= elevationDelta * LAPSE_RATE_C_PER_M
+    day.temp_c_max -= elevationDelta * LAPSE_RATE_C_PER_M
+  }
+}
+
+export async function fetchEnsemble(location: ForecastLocation): Promise<OpenMeteoResult> {
   const url = new URL(ENSEMBLE_URL)
-  url.searchParams.set('latitude', String(lat))
-  url.searchParams.set('longitude', String(lon))
-  url.searchParams.set('models', MODELS)
+  url.searchParams.set('latitude', String(location.lat))
+  url.searchParams.set('longitude', String(location.lon))
+  url.searchParams.set('models', ENSEMBLE_MODELS)
   url.searchParams.set('hourly', HOURLY_VARS)
 
-  logger.debug({ lat, lon }, '[openMeteo] fetching ensemble forecast')
+  logger.debug({ lat: location.lat, lon: location.lon }, '[openMeteo] fetching ensemble forecast')
 
   const res = await fetchWithRetry(url.toString())
   if (!res.ok) {
-    // Read body only at debug level — never include full response in error message (checklist: no API bodies in prod logs)
     const body = await res.text().catch(() => '')
-    logger.debug({ statusCode: res.status, body: body.slice(0, 200) }, '[openMeteo] error response')
+    logger.debug(
+      { statusCode: res.status, body: body.slice(0, 200) },
+      '[openMeteo] ensemble error response',
+    )
     throw new Error(`Open-Meteo ensemble API returned ${res.status}`)
   }
 
   const raw = (await res.json()) as EnsembleResponse
-  return parseEnsemble(raw.hourly)
+  const parsed = parseEnsemble(raw.hourly)
+  applyLapseRate(parsed.days, location.elevation_m, raw.elevation)
+  return parsed
+}
+
+function asNumberArray(daily: Record<string, unknown>, key: string): (number | null)[] {
+  const val = daily[key]
+  if (!Array.isArray(val)) return []
+  return val as (number | null)[]
+}
+
+export async function fetchNBM(
+  location: ForecastLocation,
+): Promise<OpenMeteoResult | null> {
+  const url = new URL(FORECAST_URL)
+  url.searchParams.set('latitude', String(location.lat))
+  url.searchParams.set('longitude', String(location.lon))
+  url.searchParams.set('models', 'ncep_nbm_conus')
+  url.searchParams.set('daily', NBM_DAILY_VARS)
+  url.searchParams.set('timezone', 'UTC')
+
+  logger.debug({ lat: location.lat, lon: location.lon }, '[openMeteo] fetching NBM forecast')
+
+  const res = await fetchWithRetry(url.toString())
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    logger.debug(
+      { statusCode: res.status, body: body.slice(0, 200) },
+      '[openMeteo] NBM error response',
+    )
+    throw new Error(`Open-Meteo NBM API returned ${res.status}`)
+  }
+
+  const raw = (await res.json()) as NbmResponse
+  const daily = raw.daily
+  if (!daily) {
+    logger.debug({}, '[openMeteo] NBM response had no daily payload — falling back to ensemble')
+    return null
+  }
+
+  // Decision rule: return null if either quantile key is missing.
+  if (!Array.isArray(daily['precipitation_p10']) || !Array.isArray(daily['precipitation_p90'])) {
+    logger.debug(
+      {},
+      '[openMeteo] NBM response missing precipitation_p10/p90 — falling back to ensemble',
+    )
+    return null
+  }
+
+  const timesRaw = daily['time']
+  const times: string[] = Array.isArray(timesRaw) ? (timesRaw as string[]) : []
+  if (times.length === 0) return null
+
+  const p10 = asNumberArray(daily, 'precipitation_p10')
+  const p50Arr = asNumberArray(daily, 'precipitation_p50')
+  const p50Fallback = asNumberArray(daily, 'precipitation_sum')
+  const p90 = asNumberArray(daily, 'precipitation_p90')
+  const tMin = asNumberArray(daily, 'temperature_2m_min')
+  const tMax = asNumberArray(daily, 'temperature_2m_max')
+  const wind = asNumberArray(daily, 'wind_speed_10m_max')
+  const humid = asNumberArray(daily, 'relative_humidity_2m_mean')
+  const dew = asNumberArray(daily, 'dewpoint_2m_mean')
+  const shortwave = asNumberArray(daily, 'shortwave_radiation_sum')
+
+  const days: DailyForecast[] = []
+  for (let i = 0; i < times.length; i++) {
+    const date = times[i]
+    if (!date) continue
+    const p50Val = p50Arr[i] ?? p50Fallback[i] ?? 0
+    days.push({
+      date,
+      precip_mm_p10: p10[i] ?? 0,
+      precip_mm_p50: p50Val,
+      precip_mm_p90: p90[i] ?? 0,
+      temp_c_min: tMin[i] ?? 0,
+      temp_c_max: tMax[i] ?? 0,
+      wind_kmh_max: wind[i] ?? 0,
+      humidity_pct: humid[i] ?? 50,
+      dewpoint_c: dew[i] ?? 0,
+      shortwave_wm2: shortwave[i] ?? 0,
+    })
+  }
+
+  applyLapseRate(days, location.elevation_m, raw.elevation)
+
+  return { days, model_sources: ['nbm'] }
 }

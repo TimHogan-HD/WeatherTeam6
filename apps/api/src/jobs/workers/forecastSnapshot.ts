@@ -6,7 +6,12 @@ import { conditionsScores, forecastSnapshots, locations, rainfallHistory } from 
 import { logger } from '../../lib/logger.js'
 import { conditionsScore } from '../../lib/scoring/conditionsScore.js'
 import { dryingModel } from '../../lib/scoring/dryingModel.js'
-import { fetchEnsembleForecast } from '../../lib/weather/openMeteo.js'
+import {
+  fetchEnsemble,
+  fetchNBM,
+  type ForecastLocation,
+  type OpenMeteoResult,
+} from '../../lib/weather/openMeteo.js'
 import { bullConnection } from '../connection.js'
 
 type SnapshotRow = typeof forecastSnapshots.$inferSelect
@@ -40,8 +45,22 @@ export const forecastSnapshotWorker = new Worker(
       try {
         const lat = parseNum(loc.lat, 0)
         const lon = parseNum(loc.lon, 0)
+        const elevM = loc.elevation_m !== null ? parseNum(loc.elevation_m, 0) : null
+        const locCoords: ForecastLocation = { lat, lon, elevation_m: elevM }
 
-        const forecast = await fetchEnsembleForecast(lat, lon)
+        let forecast: OpenMeteoResult | null = null
+        try {
+          forecast = await fetchNBM(locCoords)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          logger.warn(
+            { locationId: loc.id, err: msg },
+            '[forecast-snapshot] NBM fetch failed, falling back to ensemble',
+          )
+        }
+        if (!forecast) {
+          forecast = await fetchEnsemble(locCoords)
+        }
 
         if (forecast.days.length === 0) {
           logger.warn({ locationId: loc.id }, '[forecast-snapshot] no forecast days returned')
@@ -67,6 +86,8 @@ export const forecastSnapshotWorker = new Worker(
               temp_c_max: String(day.temp_c_max),
               wind_kmh_max: String(day.wind_kmh_max),
               humidity_pct: String(day.humidity_pct),
+              dewpoint_c: String(day.dewpoint_c),
+              shortwave_wm2: String(day.shortwave_wm2),
               model_sources: forecast.model_sources,
             })),
           )
