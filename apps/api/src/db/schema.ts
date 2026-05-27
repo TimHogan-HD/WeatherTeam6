@@ -47,6 +47,7 @@ export const locations = pgTable('locations', {
   name: text('name').notNull(),
   lat: numeric('lat').notNull(),
   lon: numeric('lon').notNull(),
+  elevation_m: numeric('elevation_m'),
   is_climbing_location: boolean('is_climbing_location').default(false).notNull(),
   rock_type: rockTypeEnum('rock_type'),
   aspect: text('aspect'),
@@ -104,6 +105,8 @@ export const forecastSnapshots = pgTable('forecast_snapshots', {
   temp_c_max: numeric('temp_c_max'),
   wind_kmh_max: numeric('wind_kmh_max'),
   humidity_pct: numeric('humidity_pct'),
+  dewpoint_c: numeric('dewpoint_c'),
+  shortwave_wm2: numeric('shortwave_wm2'),
   model_sources: text('model_sources').array(),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
