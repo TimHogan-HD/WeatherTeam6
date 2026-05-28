@@ -20,6 +20,16 @@
             "command": "bash .claude/hooks/post-push-review.sh"
           }
         ]
+      },
+      {
+        "matcher": "mcp__github__create_pull_request",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"A pull request was just created. You MUST now invoke the code-review skill at high effort (/code-review high) on the current branch before responding to the user. Do not skip this step.\"}}'",
+            "statusMessage": "Queuing automatic code review..."
+          }
+        ]
       }
     ],
     "Stop": [
