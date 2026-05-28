@@ -67,8 +67,8 @@ export async function fetchPrecipHistory(
 
       if (res.status !== 429 && res.status < 500) {
         // Non-retryable client error — throw immediately
-        const body = await res.text().catch(() => '')
-        logger.debug({ statusCode: res.status, body: body.slice(0, 200) }, '[acis] error response')
+        const errBody = await res.text().catch(() => '')
+        logger.debug({ statusCode: res.status, body: errBody.slice(0, 200) }, '[acis] error response')
         throw new Error(`ACIS API returned ${res.status}`)
       }
       lastErr = new Error(`HTTP ${res.status}`)

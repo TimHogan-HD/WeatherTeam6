@@ -71,6 +71,20 @@ export const forecastSnapshotWorker = new Worker(
           logger.warn({ locationId: loc.id }, '[forecast-snapshot] no recognizable model sources in response — key format may have changed')
         }
 
+        // Idempotency: purge existing snapshots and scores for this location before replacing them.
+        // This ensures a BullMQ retry after a mid-job crash produces a clean, consistent set
+        // rather than a mix of first-run and retry rows.
+        await db
+          .delete(forecastSnapshots)
+          .where(
+            and(eq(forecastSnapshots.location_id, loc.id), gte(forecastSnapshots.forecast_date, todayStr)),
+          )
+        await db
+          .delete(conditionsScores)
+          .where(
+            and(eq(conditionsScores.location_id, loc.id), gte(conditionsScores.forecast_date, todayStr)),
+          )
+
         // Batch insert all forecast_snapshots for this location
         const snapshotRows: SnapshotRow[] = await db
           .insert(forecastSnapshots)
@@ -107,22 +121,20 @@ export const forecastSnapshotWorker = new Worker(
             ),
           )
 
-        let hoursSinceRain = 0
-        let lastRainMm = 0
-
-        if (rainfall.length > 0) {
-          const result = dryingModel({
-            rockType: loc.rock_type ?? 'unknown',
-            cliffAngle: parseNum(loc.cliff_angle, 45),
-            rainfallEvents: rainfall.map((r) => ({
-              date: r.date,
-              precip_mm: parseFloat(r.precip_mm),
-            })),
-            asOf: now,
-          })
-          hoursSinceRain = result.hours_since_significant_rain
-          lastRainMm = result.last_rain_mm
-        }
+        // Call dryingModel unconditionally — it returns the NO_RECENT_RAIN sentinel (720h)
+        // when the events array is empty, so skipping it for empty rainfall would default
+        // hoursSinceRain to 0 ("rained right now") which is wrong for new/data-gap locations.
+        const dryResult = dryingModel({
+          rockType: loc.rock_type ?? 'unknown',
+          cliffAngle: parseNum(loc.cliff_angle, 45),
+          rainfallEvents: rainfall.map((r) => ({
+            date: r.date,
+            precip_mm: parseFloat(r.precip_mm),
+          })),
+          asOf: now,
+        })
+        const hoursSinceRain = dryResult.hours_since_significant_rain
+        const lastRainMm = dryResult.last_rain_mm
 
         // Current conditions from today's snapshot (proxy for live obs until Phase 4)
         const todaySnap = snapshotRows.find((s) => s.forecast_date === todayStr)
@@ -142,13 +154,15 @@ export const forecastSnapshotWorker = new Worker(
         const cliffAngle = parseNum(loc.cliff_angle, 45)
         const aspectDegrees = aspectToDegrees(loc.aspect ?? '')
 
-        // Compute and insert one conditions_score row per forecast day
+        // Compute conditions_score for each forecast day, then batch-insert all rows at once.
+        const todayDate = new Date(todayStr + 'T00:00:00Z')
+        const scoreInserts: (typeof conditionsScores.$inferInsert)[] = []
+
         for (let i = 0; i < snapshotRows.length; i++) {
           const snap = snapshotRows[i]
           if (!snap) continue
 
           const forecastDate = new Date(snap.forecast_date + 'T00:00:00Z')
-          const todayDate = new Date(todayStr + 'T00:00:00Z')
           const forecastDateDaysOut = Math.round(
             (forecastDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24),
           )
@@ -185,7 +199,7 @@ export const forecastSnapshotWorker = new Worker(
             forecastDateDaysOut,
           })
 
-          await db.insert(conditionsScores).values({
+          scoreInserts.push({
             location_id: loc.id,
             forecast_date: snap.forecast_date,
             score: output.score,
@@ -198,6 +212,10 @@ export const forecastSnapshotWorker = new Worker(
             score_breakdown: output.breakdown,
             computed_at: now,
           })
+        }
+
+        if (scoreInserts.length > 0) {
+          await db.insert(conditionsScores).values(scoreInserts)
         }
 
         logger.info(
