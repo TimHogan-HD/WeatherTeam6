@@ -57,3 +57,105 @@ describe('dryingModel (contract test)', () => {
     expect(typeof result.hours_since_significant_rain).toBe('number')
   })
 })
+
+describe('dryingModel (behavior)', () => {
+  // Rainfall date 2025-05-31 ends at 23:59:59Z. With asOf at 2025-06-01T05:00:00Z,
+  // hoursSince = 5h 1s ≈ 5h.
+  const asOfFiveHoursAfter = new Date('2025-06-01T05:00:00Z')
+
+  it('granite, rain 5h ago, cliff_angle=0 → not dry, medium confidence', () => {
+    const result = dryingModel({
+      rockType: 'granite',
+      cliffAngle: 0,
+      rainfallEvents: [{ date: '2025-05-31', precip_mm: 8 }],
+      asOf: asOfFiveHoursAfter,
+    })
+    expect(result.estimated_dry).toBe(false)
+    expect(result.confidence).toBe('medium') // granite minDry=2h, maxDry=12h; 5h is between
+    expect(result.hours_since_significant_rain).toBeCloseTo(5, 0)
+    expect(result.last_rain_mm).toBe(8)
+  })
+
+  it('sandstone, rain 80h ago, cliff_angle=0 → dry, high confidence', () => {
+    // asOf 80h after 2025-05-28T23:59:59Z
+    const asOf = new Date('2025-06-01T07:59:59Z')
+    const result = dryingModel({
+      rockType: 'sandstone',
+      cliffAngle: 0,
+      rainfallEvents: [{ date: '2025-05-28', precip_mm: 12 }],
+      asOf,
+    })
+    expect(result.estimated_dry).toBe(true)
+    expect(result.confidence).toBe('high')
+    expect(result.hours_since_significant_rain).toBeCloseTo(80, 0)
+  })
+
+  it('no rainfall events at all → dry, high confidence, sentinel hours', () => {
+    const result = dryingModel({
+      rockType: 'granite',
+      cliffAngle: 30,
+      rainfallEvents: [],
+      asOf: asOfFiveHoursAfter,
+    })
+    expect(result.estimated_dry).toBe(true)
+    expect(result.hours_since_significant_rain).toBe(720)
+    expect(result.last_rain_mm).toBe(0)
+    expect(result.confidence).toBe('high')
+  })
+
+  it('all events below 2mm threshold → treated as no rain', () => {
+    const result = dryingModel({
+      rockType: 'granite',
+      cliffAngle: 0,
+      rainfallEvents: [
+        { date: '2025-05-31', precip_mm: 0.5 },
+        { date: '2025-05-30', precip_mm: 1.8 },
+      ],
+      asOf: asOfFiveHoursAfter,
+    })
+    expect(result.estimated_dry).toBe(true)
+    expect(result.hours_since_significant_rain).toBe(720)
+    expect(result.last_rain_mm).toBe(0)
+    expect(result.confidence).toBe('high')
+  })
+
+  it('cliff_angle modifier: at 13h elapsed, angle=0 → high, angle=90 → medium', () => {
+    // granite maxDry=12h; at angle=0, factor=1.0, so 13h > 12h → high confidence (dry)
+    // at angle=90, factor=1.3, so maxDry=15.6h → 13h < 15.6h → medium confidence (not dry)
+    const asOf = new Date('2025-06-01T12:59:59Z') // 13h after 2025-05-31T23:59:59Z
+    const events = [{ date: '2025-05-31', precip_mm: 8 }]
+
+    const vertical = dryingModel({
+      rockType: 'granite',
+      cliffAngle: 0,
+      rainfallEvents: events,
+      asOf,
+    })
+    expect(vertical.estimated_dry).toBe(true)
+    expect(vertical.confidence).toBe('high')
+
+    const slab = dryingModel({
+      rockType: 'granite',
+      cliffAngle: 90,
+      rainfallEvents: events,
+      asOf,
+    })
+    expect(slab.estimated_dry).toBe(false)
+    expect(slab.confidence).toBe('medium')
+  })
+
+  it('picks the most recent significant event when multiple are present', () => {
+    const asOf = new Date('2025-06-01T05:00:00Z')
+    const result = dryingModel({
+      rockType: 'granite',
+      cliffAngle: 0,
+      rainfallEvents: [
+        { date: '2025-05-25', precip_mm: 50 }, // older heavier event
+        { date: '2025-05-31', precip_mm: 4 }, // recent smaller event
+      ],
+      asOf,
+    })
+    expect(result.last_rain_mm).toBe(4)
+    expect(result.hours_since_significant_rain).toBeCloseTo(5, 0)
+  })
+})

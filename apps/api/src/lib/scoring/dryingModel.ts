@@ -1,6 +1,7 @@
-// Stub — real implementation built in Phase 4.
+export type RockType = 'sandstone' | 'limestone' | 'granite' | 'basalt' | 'unknown'
+
 export type DryingModelInput = {
-  rockType: 'sandstone' | 'limestone' | 'granite' | 'basalt' | 'unknown'
+  rockType: RockType
   cliffAngle: number
   rainfallEvents: { date: string; precip_mm: number }[]
   asOf: Date
@@ -13,11 +14,64 @@ export type DryingModelOutput = {
   confidence: 'low' | 'medium' | 'high'
 }
 
-export function dryingModel(_input: DryingModelInput): DryingModelOutput {
+const MIN_HOURS: Record<RockType, number> = {
+  sandstone: 24,
+  limestone: 6,
+  granite: 2,
+  basalt: 12,
+  unknown: 24,
+}
+
+const MAX_HOURS: Record<RockType, number> = {
+  sandstone: 72,
+  limestone: 24,
+  granite: 12,
+  basalt: 48,
+  unknown: 48,
+}
+
+const SIGNIFICANT_RAIN_MM = 2
+const NO_RECENT_RAIN_HOURS = 720 // 30 days — well past any rock type's maxDry
+
+export function dryingModel(input: DryingModelInput): DryingModelOutput {
+  const significant = input.rainfallEvents.filter((e) => e.precip_mm > SIGNIFICANT_RAIN_MM)
+
+  if (significant.length === 0) {
+    return {
+      hours_since_significant_rain: NO_RECENT_RAIN_HOURS,
+      last_rain_mm: 0,
+      estimated_dry: true,
+      confidence: 'high',
+    }
+  }
+
+  // Most recent significant event by date string (ISO YYYY-MM-DD sorts correctly)
+  let mostRecent = significant[0]!
+  for (const e of significant) {
+    if (e.date > mostRecent.date) mostRecent = e
+  }
+
+  const eventEnd = new Date(mostRecent.date + 'T23:59:59Z').getTime()
+  const hoursSince = (input.asOf.getTime() - eventEnd) / 3_600_000
+
+  // Cliff angle modifier: 0° vertical = base, 90° slab = 30% longer drying.
+  // Steeper walls (lower angle) drain water faster, so get the base factor.
+  const angleFactor = 1.0 + (input.cliffAngle / 90) * 0.3
+
+  const maxDry = MAX_HOURS[input.rockType] * angleFactor
+  const minDry = MIN_HOURS[input.rockType] * angleFactor
+
+  const estimated_dry = hoursSince >= maxDry
+
+  let confidence: 'low' | 'medium' | 'high'
+  if (hoursSince >= maxDry) confidence = 'high'
+  else if (hoursSince >= minDry) confidence = 'medium'
+  else confidence = 'low'
+
   return {
-    hours_since_significant_rain: 0,
-    last_rain_mm: 0,
-    estimated_dry: false,
-    confidence: 'low',
+    hours_since_significant_rain: hoursSince,
+    last_rain_mm: mostRecent.precip_mm,
+    estimated_dry,
+    confidence,
   }
 }

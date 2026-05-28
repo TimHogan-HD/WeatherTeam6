@@ -1,11 +1,95 @@
 import { Worker, type Job } from 'bullmq'
-import { bullConnection } from '../connection.js'
+import { db } from '../../db/index.js'
+import { locations, rainfallHistory } from '../../db/schema.js'
 import { logger } from '../../lib/logger.js'
+import { fetchPrecipHistory } from '../../lib/weather/acis.js'
+import { bullConnection } from '../connection.js'
+
+const LOOKBACK_DAYS = 7
+
+function toDateString(d: Date): string {
+  return d.toISOString().slice(0, 10)
+}
 
 export const rainfallHistoryWorker = new Worker(
   'rainfall-history',
   async (_job: Job) => {
     logger.info('[rainfall-history] job started')
+
+    const allLocations = await db.select().from(locations)
+    if (allLocations.length === 0) {
+      logger.info('[rainfall-history] no locations to process')
+      return
+    }
+
+    const now = new Date()
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+    const startDate = new Date(now.getTime() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000)
+    const fromDate = toDateString(startDate)
+    const toDate = toDateString(yesterday)
+
+    const errors: Error[] = []
+
+    for (const loc of allLocations) {
+      if (!loc.asos_station) {
+        logger.debug({ locationId: loc.id }, '[rainfall-history] no asos_station, skipping')
+        continue
+      }
+
+      try {
+        const rows = await fetchPrecipHistory(loc.asos_station, fromDate, toDate)
+
+        if (rows.length === 0) {
+          logger.warn(
+            { locationId: loc.id, station: loc.asos_station, fromDate, toDate },
+            '[rainfall-history] ACIS returned no rows — skipping (do not fall back to ASOS for daily totals)',
+          )
+          continue
+        }
+
+        for (const row of rows) {
+          await db
+            .insert(rainfallHistory)
+            .values({
+              location_id: loc.id,
+              date: row.date,
+              precip_mm: String(row.precip_mm),
+              source: 'acis',
+              station_id: loc.asos_station,
+              verified: true,
+            })
+            .onConflictDoUpdate({
+              target: [rainfallHistory.location_id, rainfallHistory.date],
+              set: {
+                precip_mm: String(row.precip_mm),
+                source: 'acis',
+                station_id: loc.asos_station,
+                verified: true,
+              },
+            })
+        }
+
+        logger.info(
+          { locationId: loc.id, station: loc.asos_station, rowCount: rows.length },
+          '[rainfall-history] location processed',
+        )
+      } catch (err) {
+        const e = err instanceof Error ? err : new Error(String(err))
+        logger.error(
+          { locationId: loc.id, station: loc.asos_station, err: e.message },
+          '[rainfall-history] location failed',
+        )
+        errors.push(e)
+      }
+    }
+
+    if (errors.length > 0) {
+      throw new Error(
+        `[rainfall-history] ${errors.length} location(s) failed: ${errors.map((e) => e.message).join('; ')}`,
+      )
+    }
+
+    logger.info('[rainfall-history] job completed')
   },
   { connection: bullConnection, concurrency: 1 },
 )
