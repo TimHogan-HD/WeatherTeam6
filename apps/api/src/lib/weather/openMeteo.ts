@@ -58,11 +58,15 @@ const NBM_DAILY_VARS = [
 const GFS_SUFFIX = '_ncep_gefs_seamless'
 const LAPSE_RATE_C_PER_M = 0.0065
 
-export async function fetchWithRetry(url: string, maxAttempts = 4): Promise<Response> {
+export async function fetchWithRetry(
+  url: string,
+  maxAttempts = 4,
+  headers?: Record<string, string>,
+): Promise<Response> {
   let lastErr: Error = new Error('no attempts made')
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      const res = await fetch(url)
+      const res = await fetch(url, headers ? { headers } : undefined)
       if (res.ok) return res
       if (res.status !== 429 && res.status < 500) return res
       lastErr = new Error(`HTTP ${res.status}`)

@@ -15,6 +15,13 @@
       "when": 1779916134711,
       "tag": "0001_complex_flatman",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1748908800000,
+      "tag": "0002_weather_alerts",
+      "breakpoints": true
     }
   ]
 }

@@ -143,6 +143,20 @@ export function aspectToDegrees(aspect: string): number {
 // Drizzle's numeric() columns are returned as strings by postgres-js.
 // Use these helpers in API response mappers when converting DB rows to
 // Location, ForecastSnapshot, or any other type with number fields.
+export type WeatherAlert = {
+  id: string
+  location_id: string
+  nws_alert_id: string
+  event: string
+  severity: string
+  certainty: string
+  headline: string | null
+  description: string | null
+  effective: string | null
+  expires: string | null
+  created_at: string
+}
+
 export function parseNumeric(value: string | null): number | null {
   if (value === null) return null
   return parseFloat(value)

@@ -8,6 +8,7 @@ import { healthRouter } from './routes/health.js';
 import { locationsRouter } from './routes/locations.js';
 import { conditionsRouter } from './routes/conditions.js';
 import { forecastRouter } from './routes/forecast.js';
+import { alertsRouter } from './routes/alerts.js';
 import { forecastSnapshotQueue, rainfallHistoryQueue, alertsPollerQueue, snapshotCleanupQueue } from './jobs/queues.js';
 import './jobs/workers/forecastSnapshot.js';
 import './jobs/workers/rainfallHistory.js';
@@ -65,6 +66,7 @@ export function createApp(): Express {
   app.use(locationsRouter);
   app.use(conditionsRouter);
   app.use(forecastRouter);
+  app.use(alertsRouter);
 
   app.use((_req: Request, res: Response) => {
     res.status(404).json({ data: null, error: 'Not found', status: 404 });

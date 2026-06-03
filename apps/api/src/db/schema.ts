@@ -211,6 +211,26 @@ export const pushTokens = pgTable('push_tokens', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
+export const weatherAlerts = pgTable(
+  'weather_alerts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    location_id: uuid('location_id')
+      .notNull()
+      .references(() => locations.id),
+    nws_alert_id: text('nws_alert_id').notNull(),
+    event: text('event').notNull(),
+    severity: text('severity').notNull(),
+    certainty: text('certainty').notNull(),
+    headline: text('headline'),
+    description: text('description'),
+    effective: timestamp('effective', { withTimezone: true }),
+    expires: timestamp('expires', { withTimezone: true }),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.location_id, t.nws_alert_id)],
+)
+
 export const userPreferences = pgTable('user_preferences', {
   id: uuid('id').primaryKey().defaultRandom(),
   user_id: uuid('user_id')
