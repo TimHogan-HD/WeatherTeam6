@@ -11,7 +11,9 @@ export const alertsPollerWorker = new Worker(
   async (_job: Job) => {
     logger.info('[alerts-poller] job started')
 
-    const allLocations = await db.select().from(locations)
+    const allLocations = await db
+      .select({ id: locations.id, lat: locations.lat, lon: locations.lon })
+      .from(locations)
     if (allLocations.length === 0) {
       logger.info('[alerts-poller] no locations to process')
       return
@@ -31,8 +33,11 @@ export const alertsPollerWorker = new Worker(
           continue
         }
 
-        if (alerts.length > 0) {
-          for (const alert of alerts) {
+        // Upsert each active alert individually, tolerating insert-level errors so
+        // the pruning DELETE always runs with the full NWS-returned active set.
+        const activeIds = alerts.map((a) => a.nws_alert_id)
+        for (const alert of alerts) {
+          try {
             await db
               .insert(weatherAlerts)
               .values({
@@ -58,9 +63,20 @@ export const alertsPollerWorker = new Worker(
                   expires: alert.expires ? new Date(alert.expires) : null,
                 },
               })
+          } catch (insertErr) {
+            const e = insertErr instanceof Error ? insertErr : new Error(String(insertErr))
+            logger.warn(
+              { locationId: loc.id, nws_alert_id: alert.nws_alert_id, err: e.message },
+              '[alerts-poller] alert upsert failed',
+            )
+            errors.push(e)
           }
+        }
 
-          const activeIds = alerts.map((a) => a.nws_alert_id)
+        // Prune rows no longer in the NWS active set, using the full set returned
+        // by NWS (not just the successfully upserted subset) so we don't retain
+        // alerts that NWS has since cancelled.
+        if (activeIds.length > 0) {
           await db
             .delete(weatherAlerts)
             .where(
@@ -86,7 +102,7 @@ export const alertsPollerWorker = new Worker(
 
     if (errors.length > 0) {
       throw new Error(
-        `[alerts-poller] ${errors.length} location(s) failed: ${errors.map((e) => e.message).join('; ')}`,
+        `[alerts-poller] ${errors.length} error(s): ${errors.map((e) => e.message).join('; ')}`,
       )
     }
 

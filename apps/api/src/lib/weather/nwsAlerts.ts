@@ -1,4 +1,5 @@
 import { logger } from '../logger.js'
+import { fetchWithRetry } from './openMeteo.js'
 
 const NWS_BASE = 'https://api.weather.gov'
 
@@ -31,29 +32,6 @@ type NwsFeatureCollection = {
   }>
 }
 
-async function fetchWithHeadersRetry(
-  url: string,
-  headers: Record<string, string>,
-  maxAttempts = 4,
-): Promise<Response> {
-  let lastErr: Error = new Error('no attempts made')
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    try {
-      const res = await fetch(url, { headers })
-      if (res.ok) return res
-      if (res.status !== 429 && res.status < 500) return res
-      lastErr = new Error(`HTTP ${res.status}`)
-    } catch (err) {
-      lastErr = err instanceof Error ? err : new Error(String(err))
-    }
-    if (attempt < maxAttempts - 1) {
-      const delay = Math.pow(2, attempt) * 1000
-      await new Promise<void>((r) => setTimeout(r, delay))
-    }
-  }
-  throw lastErr
-}
-
 /**
  * Fetch active NWS alerts for a lat/lon point.
  *
@@ -67,7 +45,7 @@ export async function fetchNwsAlerts(lat: number, lon: number): Promise<NwsAlert
 
   let res: Response
   try {
-    res = await fetchWithHeadersRetry(url, { 'User-Agent': userAgent })
+    res = await fetchWithRetry(url, 4, { 'User-Agent': userAgent })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     logger.warn({ lat, lon, err: msg }, '[nwsAlerts] fetch failed')
