@@ -19,7 +19,7 @@ function confidenceFromSpread(
   p90: number,
   daysOut: number,
 ): 'low' | 'medium' | 'high' {
-  if (daysOut > 7) return 'low'
+  if (daysOut >= 7) return 'low'
   const spread = p90 - p10
   if (spread <= 2) return 'high'
   if (spread <= 8) return 'medium'
@@ -30,7 +30,7 @@ export function conditionsScore(input: ScoreInput): ScoreOutput {
   const { forecastDateDaysOut } = input
 
   const window: 'pre' | 'early' | 'decision' =
-    forecastDateDaysOut > 14 ? 'pre' : forecastDateDaysOut > 7 ? 'early' : 'decision'
+    forecastDateDaysOut > 14 ? 'pre' : forecastDateDaysOut >= 7 ? 'early' : 'decision'
 
   const confidence = confidenceFromSpread(
     input.forecastRain72hP10,
@@ -96,11 +96,8 @@ export function conditionsScore(input: ScoreInput): ScoreOutput {
   const temp_score = Math.round(tempRaw)
   const humidity_score = Math.round(humidityRaw)
 
-  const total = clamp(
-    Math.round(dryingRaw + rainRaw + windRaw + tempRaw + humidityRaw),
-    0,
-    100,
-  )
+  // Sum the already-rounded components so breakdown scores always add up to total.
+  const total = clamp(drying_score + rain_score + wind_score + temp_score + humidity_score, 0, 100)
 
   const breakdown: ScoreBreakdown = {
     drying: {

@@ -27,9 +27,8 @@ describe('conditionsScore — forecast windows', () => {
     expect(result.breakdown).toBeNull()
   })
 
-  it('14 days is still pre window', () => {
+  it('14 days is early window (not pre, which requires > 14)', () => {
     const result = conditionsScore({ ...base, forecastDateDaysOut: 14 })
-    // 14 > 7 → early window (not pre, which requires > 14)
     expect(result.window).toBe('early')
   })
 
@@ -43,6 +42,18 @@ describe('conditionsScore — forecast windows', () => {
     expect(result.window).toBe('early')
     expect(result.confidence).toBe('low')
     expect(result.score).not.toBeNull()
+  })
+
+  it('exactly 7 days out is early window with forced low confidence', () => {
+    // Spec: "7-14 days out" → forced low. Boundary check: >= 7 not > 7.
+    const result = conditionsScore({
+      ...base,
+      forecastDateDaysOut: 7,
+      forecastRain72hP10: 0,
+      forecastRain72hP90: 0, // tight spread would give 'high' if not forced
+    })
+    expect(result.window).toBe('early')
+    expect(result.confidence).toBe('low')
   })
 
   it('<7 days is decision window', () => {
@@ -242,6 +253,14 @@ describe('conditionsScore — totals', () => {
   it('breakdown.total matches score', () => {
     const result = conditionsScore(base)
     expect(result.breakdown?.total).toBe(result.score)
+  })
+
+  it('breakdown component scores sum to total', () => {
+    const result = conditionsScore(base)
+    const bd = result.breakdown!
+    const componentSum =
+      bd.drying.score + bd.rain.score + bd.wind.score + bd.temp.score + bd.humidity.score
+    expect(componentSum).toBe(bd.total)
   })
 
   it('all rock types produce valid scores', () => {
