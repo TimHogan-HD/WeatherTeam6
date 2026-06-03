@@ -5,6 +5,9 @@ import { ExpressAdapter } from '@bull-board/express';
 import { logger } from './lib/logger.js';
 import { resolveUser } from './middleware/auth.js';
 import { healthRouter } from './routes/health.js';
+import { locationsRouter } from './routes/locations.js';
+import { conditionsRouter } from './routes/conditions.js';
+import { forecastRouter } from './routes/forecast.js';
 import { forecastSnapshotQueue, rainfallHistoryQueue, alertsPollerQueue, snapshotCleanupQueue } from './jobs/queues.js';
 import './jobs/workers/forecastSnapshot.js';
 import './jobs/workers/rainfallHistory.js';
@@ -58,6 +61,10 @@ export function createApp(): Express {
   app.use(healthRouter);
 
   app.use(resolveUser);
+
+  app.use(locationsRouter);
+  app.use(conditionsRouter);
+  app.use(forecastRouter);
 
   app.use((_req: Request, res: Response) => {
     res.status(404).json({ data: null, error: 'Not found', status: 404 });
