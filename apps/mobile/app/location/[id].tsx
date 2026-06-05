@@ -11,6 +11,7 @@ import type {
   ForecastSnapshot,
   ScoreBreakdown,
 } from '@weatherteam6/types';
+import { SCORE_COMPONENT_MAX } from '@weatherteam6/types';
 import { useConditions } from '../../src/hooks/useConditions';
 import { useForecast } from '../../src/hooks/useForecast';
 import { useLocations } from '../../src/hooks/useLocations';
@@ -20,14 +21,6 @@ const WINDOW_LABEL: Record<NonNullable<ForecastSnapshot['window']>, string> = {
   early: 'Early',
   decision: 'Decision',
 };
-
-const COMPONENT_MAX = {
-  drying: 40,
-  rain: 25,
-  wind: 15,
-  temp: 12,
-  humidity: 8,
-} as const;
 
 function ComponentBar({
   label,
@@ -55,14 +48,14 @@ function ComponentBar({
 function Breakdown({ breakdown }: { breakdown: ScoreBreakdown }) {
   return (
     <View style={styles.breakdown}>
-      <ComponentBar label="Drying" value={breakdown.drying.score} max={COMPONENT_MAX.drying} />
-      <ComponentBar label="Rain" value={breakdown.rain.score} max={COMPONENT_MAX.rain} />
-      <ComponentBar label="Wind" value={breakdown.wind.score} max={COMPONENT_MAX.wind} />
-      <ComponentBar label="Temp" value={breakdown.temp.score} max={COMPONENT_MAX.temp} />
+      <ComponentBar label="Drying" value={breakdown.drying.score} max={SCORE_COMPONENT_MAX.drying} />
+      <ComponentBar label="Rain" value={breakdown.rain.score} max={SCORE_COMPONENT_MAX.rain} />
+      <ComponentBar label="Wind" value={breakdown.wind.score} max={SCORE_COMPONENT_MAX.wind} />
+      <ComponentBar label="Temp" value={breakdown.temp.score} max={SCORE_COMPONENT_MAX.temp} />
       <ComponentBar
         label="Humidity"
         value={breakdown.humidity.score}
-        max={COMPONENT_MAX.humidity}
+        max={SCORE_COMPONENT_MAX.humidity}
       />
     </View>
   );
@@ -164,7 +157,7 @@ export default function LocationDetail() {
           <ActivityIndicator style={styles.loader} />
         ) : forecast.isError ? (
           <Text style={styles.errorText}>{forecast.error.message}</Text>
-        ) : forecast.data.length === 0 ? (
+        ) : !forecast.data || forecast.data.length === 0 ? (
           <Text style={styles.muted}>No forecast available.</Text>
         ) : (
           forecast.data.map((snapshot) => (

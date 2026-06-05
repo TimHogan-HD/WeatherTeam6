@@ -1,16 +1,14 @@
 import type { ApiResponse } from '@weatherteam6/types'
 
-const DEFAULT_BASE_URL = 'http://localhost:3001'
-
 function baseUrl(): string {
-  return process.env.EXPO_PUBLIC_API_BASE_URL ?? DEFAULT_BASE_URL
+  const url = process.env.EXPO_PUBLIC_API_BASE_URL
+  if (url) return url
+  // In production builds a missing env var is a hard misconfiguration.
+  // In development __DEV__ is true, so fall back to localhost for convenience.
+  if (__DEV__) return 'http://localhost:3001'
+  throw new Error('EXPO_PUBLIC_API_BASE_URL is not set')
 }
 
-/**
- * Single fetch helper for all API calls. Returns the unwrapped `data`
- * payload on success and throws on failure so React Query surfaces the
- * error via `isError` / `error` and applies its retry behavior.
- */
 export async function apiFetch<T>(path: string): Promise<T> {
   const res = await fetch(`${baseUrl()}${path}`)
 
@@ -26,5 +24,7 @@ export async function apiFetch<T>(path: string): Promise<T> {
     throw new Error(message)
   }
 
+  // body.data may be null for nullable generics (e.g. apiFetch<ConditionsScore | null>).
+  // Callers that expect non-null arrays will never receive null from the API.
   return body.data as T
 }

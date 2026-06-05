@@ -10,6 +10,8 @@ export const snapshotCleanupWorker = new Worker(
   async (_job: Job) => {
     logger.info('[snapshot-cleanup] job started')
 
+    // Drizzle has no typed helper for date arithmetic against NOW() / CURRENT_DATE,
+    // so the sql template tag is required here.
     const deletedSnapshots = await db
       .delete(forecastSnapshots)
       .where(sql`${forecastSnapshots.captured_at} < NOW() - INTERVAL '30 days'`)

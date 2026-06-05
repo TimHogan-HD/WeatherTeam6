@@ -165,3 +165,11 @@ export function parseNumeric(value: string | null): number | null {
 export function parseNumericRequired(value: string): number {
   return parseFloat(value)
 }
+
+export const SCORE_COMPONENT_MAX = {
+  drying: 40,
+  rain: 25,
+  wind: 15,
+  temp: 12,
+  humidity: 8,
+} as const

@@ -14,7 +14,7 @@ function forecastWindow(forecastDate: string, todayStr: string): 'pre' | 'early'
   const forecast = new Date(forecastDate + 'T00:00:00Z')
   const daysOut = Math.round((forecast.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
   if (daysOut > 14) return 'pre'
-  if (daysOut > 7) return 'early'
+  if (daysOut >= 7) return 'early'
   return 'decision'
 }
 
