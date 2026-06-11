@@ -18,6 +18,14 @@ import './jobs/workers/snapshotCleanup.js';
 export function createApp(): Express {
   const app = express();
 
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
+    if (_req.method === 'OPTIONS') { res.sendStatus(204); return }
+    next()
+  })
+
   app.use(express.json());
 
   const serverAdapter = new ExpressAdapter();
