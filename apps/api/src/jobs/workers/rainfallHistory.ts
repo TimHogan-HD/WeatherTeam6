@@ -1,4 +1,5 @@
 import { Worker, type Job } from 'bullmq'
+import { sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { locations, rainfallHistory } from '../../db/schema.js'
 import { logger } from '../../lib/logger.js'
@@ -47,27 +48,31 @@ export const rainfallHistoryWorker = new Worker(
           continue
         }
 
-        for (const row of rows) {
-          await db
-            .insert(rainfallHistory)
-            .values({
+        // Single batch upsert per location. ACIS returns one row per station-day, so the
+        // batch never contains duplicate (location_id, date) pairs (which ON CONFLICT DO
+        // UPDATE would reject). sql`excluded.*` is Drizzle's documented pattern for
+        // referencing per-row conflict values — it cannot be expressed otherwise.
+        await db
+          .insert(rainfallHistory)
+          .values(
+            rows.map((row) => ({
               location_id: loc.id,
               date: row.date,
               precip_mm: String(row.precip_mm),
-              source: 'acis',
+              source: 'acis' as const,
               station_id: loc.asos_station,
               verified: true,
-            })
-            .onConflictDoUpdate({
-              target: [rainfallHistory.location_id, rainfallHistory.date],
-              set: {
-                precip_mm: String(row.precip_mm),
-                source: 'acis',
-                station_id: loc.asos_station,
-                verified: true,
-              },
-            })
-        }
+            })),
+          )
+          .onConflictDoUpdate({
+            target: [rainfallHistory.location_id, rainfallHistory.date],
+            set: {
+              precip_mm: sql`excluded.precip_mm`,
+              source: sql`excluded.source`,
+              station_id: sql`excluded.station_id`,
+              verified: sql`excluded.verified`,
+            },
+          })
 
         logger.info(
           { locationId: loc.id, station: loc.asos_station, rowCount: rows.length },

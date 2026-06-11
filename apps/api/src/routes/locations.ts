@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { locations } from '../db/schema.js'
 import { parseNumeric } from '@weatherteam6/types'
@@ -35,6 +35,28 @@ locationsRouter.get('/locations', async (req: Request, res: Response) => {
   try {
     const rows = await db.select().from(locations).where(eq(locations.user_id, req.userId))
     const response: ApiResponse<Location[]> = { data: rows.map(mapLocation), error: null, status: 200 }
+    res.status(200).json(response)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    const response: ApiResponse<null> = { data: null, error: message, status: 500 }
+    res.status(500).json(response)
+  }
+})
+
+locationsRouter.get('/locations/:id', async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id ?? ''
+    const rows = await db
+      .select()
+      .from(locations)
+      .where(and(eq(locations.id, id), eq(locations.user_id, req.userId)))
+    const row = rows[0]
+    if (!row) {
+      const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
+      res.status(404).json(response)
+      return
+    }
+    const response: ApiResponse<Location> = { data: mapLocation(row), error: null, status: 200 }
     res.status(200).json(response)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'

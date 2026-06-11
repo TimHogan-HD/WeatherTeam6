@@ -81,10 +81,18 @@ export async function fetchWithRetry(
   throw lastErr
 }
 
-function safeNumberArray(hourly: Record<string, unknown>, key: string): (number | null)[] {
-  const val = hourly[key]
+// Element-validated extraction: Open-Meteo arrays may carry nulls, and a malformed
+// response could carry string sentinels or NaN — anything non-finite becomes null so
+// it can never leak into sums, percentiles, or stored snapshots.
+function toNullableNumberArray(record: Record<string, unknown>, key: string): (number | null)[] {
+  const val = record[key]
   if (!Array.isArray(val)) return []
-  return val as (number | null)[]
+  return val.map((v): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null))
+}
+
+function toStringArray(val: unknown): string[] {
+  if (!Array.isArray(val)) return []
+  return val.filter((t): t is string => typeof t === 'string')
 }
 
 export function buildDateIndex(times: string[]): Map<string, number[]> {
@@ -119,8 +127,7 @@ function mean(values: number[], fallback: number): number {
 }
 
 export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult {
-  const rawTimes = hourly['time']
-  const times: string[] = Array.isArray(rawTimes) ? (rawTimes as string[]) : []
+  const times: string[] = toStringArray(hourly['time'])
   const dateIndex = buildDateIndex(times)
   const dates = [...dateIndex.keys()].sort()
 
@@ -171,7 +178,7 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
     // Daily precip sum per GFS member → percentiles
     const memberDailySums: number[] = []
     for (const key of gfsPrecipKeys) {
-      const vals = safeNumberArray(hourly, key)
+      const vals = toNullableNumberArray(hourly, key)
       const sum = indices.reduce((acc, i) => acc + (vals[i] ?? 0), 0)
       memberDailySums.push(sum)
     }
@@ -180,7 +187,7 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
     // Temperature min/max across all GFS members and hours
     const temps: number[] = []
     for (const key of gfsTempKeys) {
-      const vals = safeNumberArray(hourly, key)
+      const vals = toNullableNumberArray(hourly, key)
       for (const i of indices) {
         const v = vals[i]
         if (v !== null && v !== undefined) temps.push(v)
@@ -190,7 +197,7 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
     // Wind max across all GFS members and hours
     const winds: number[] = []
     for (const key of gfsWindKeys) {
-      const vals = safeNumberArray(hourly, key)
+      const vals = toNullableNumberArray(hourly, key)
       for (const i of indices) {
         const v = vals[i]
         if (v !== null && v !== undefined) winds.push(v)
@@ -200,7 +207,7 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
     // Humidity mean across all GFS members and hours
     const humids: number[] = []
     for (const key of gfsHumidKeys) {
-      const vals = safeNumberArray(hourly, key)
+      const vals = toNullableNumberArray(hourly, key)
       for (const i of indices) {
         const v = vals[i]
         if (v !== null && v !== undefined) humids.push(v)
@@ -210,7 +217,7 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
     // Dewpoint mean across all GFS members and hours
     const dewpoints: number[] = []
     for (const key of gfsDewpointKeys) {
-      const vals = safeNumberArray(hourly, key)
+      const vals = toNullableNumberArray(hourly, key)
       for (const i of indices) {
         const v = vals[i]
         if (v !== null && v !== undefined) dewpoints.push(v)
@@ -220,7 +227,7 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
     // Shortwave mean across all GFS members and hours
     const shortwaves: number[] = []
     for (const key of gfsShortwaveKeys) {
-      const vals = safeNumberArray(hourly, key)
+      const vals = toNullableNumberArray(hourly, key)
       for (const i of indices) {
         const v = vals[i]
         if (v !== null && v !== undefined) shortwaves.push(v)
@@ -258,6 +265,12 @@ function applyLapseRate(
   }
 }
 
+/**
+ * Fetch the multi-model ensemble forecast and reduce it to daily values.
+ *
+ * @throws {Error} on HTTP failure after exhausting fetchWithRetry's 4 attempts, or
+ * immediately on a non-retryable non-ok status. No internal fallback — callers must catch.
+ */
 export async function fetchEnsemble(location: ForecastLocation): Promise<OpenMeteoResult> {
   const url = new URL(ENSEMBLE_URL)
   url.searchParams.set('latitude', String(location.lat))
@@ -283,12 +296,15 @@ export async function fetchEnsemble(location: ForecastLocation): Promise<OpenMet
   return parsed
 }
 
-function asNumberArray(daily: Record<string, unknown>, key: string): (number | null)[] {
-  const val = daily[key]
-  if (!Array.isArray(val)) return []
-  return val as (number | null)[]
-}
-
+/**
+ * Fetch the NBM daily forecast.
+ *
+ * Returns null only for shape problems (missing daily payload, missing p10/p90
+ * quantiles, empty time axis) so the caller can fall back to the ensemble.
+ *
+ * @throws {Error} on HTTP failure after exhausting fetchWithRetry's 4 attempts, or
+ * immediately on a non-retryable non-ok status. No internal fallback — callers must catch.
+ */
 export async function fetchNBM(
   location: ForecastLocation,
 ): Promise<OpenMeteoResult | null> {
@@ -327,20 +343,19 @@ export async function fetchNBM(
     return null
   }
 
-  const timesRaw = daily['time']
-  const times: string[] = Array.isArray(timesRaw) ? (timesRaw as string[]) : []
+  const times: string[] = toStringArray(daily['time'])
   if (times.length === 0) return null
 
-  const p10 = asNumberArray(daily, 'precipitation_p10')
-  const p50Arr = asNumberArray(daily, 'precipitation_p50')
-  const p50Fallback = asNumberArray(daily, 'precipitation_sum')
-  const p90 = asNumberArray(daily, 'precipitation_p90')
-  const tMin = asNumberArray(daily, 'temperature_2m_min')
-  const tMax = asNumberArray(daily, 'temperature_2m_max')
-  const wind = asNumberArray(daily, 'wind_speed_10m_max')
-  const humid = asNumberArray(daily, 'relative_humidity_2m_mean')
-  const dew = asNumberArray(daily, 'dewpoint_2m_mean')
-  const shortwave = asNumberArray(daily, 'shortwave_radiation_sum')
+  const p10 = toNullableNumberArray(daily, 'precipitation_p10')
+  const p50Arr = toNullableNumberArray(daily, 'precipitation_p50')
+  const p50Fallback = toNullableNumberArray(daily, 'precipitation_sum')
+  const p90 = toNullableNumberArray(daily, 'precipitation_p90')
+  const tMin = toNullableNumberArray(daily, 'temperature_2m_min')
+  const tMax = toNullableNumberArray(daily, 'temperature_2m_max')
+  const wind = toNullableNumberArray(daily, 'wind_speed_10m_max')
+  const humid = toNullableNumberArray(daily, 'relative_humidity_2m_mean')
+  const dew = toNullableNumberArray(daily, 'dewpoint_2m_mean')
+  const shortwave = toNullableNumberArray(daily, 'shortwave_radiation_sum')
 
   const days: DailyForecast[] = []
   for (let i = 0; i < times.length; i++) {

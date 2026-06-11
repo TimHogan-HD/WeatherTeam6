@@ -1,5 +1,4 @@
 import { logger } from '../logger.js'
-import { fetchWithRetry } from './openMeteo.js'
 
 const ACIS_URL = 'https://data.rcc-acis.org/StnData'
 
@@ -84,6 +83,3 @@ export async function fetchPrecipHistory(
   }
   throw lastErr
 }
-
-// Re-export fetchWithRetry to keep one transport-retry helper in the module graph.
-export { fetchWithRetry }
