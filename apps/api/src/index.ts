@@ -45,8 +45,9 @@ export function createApp(): Express {
     '/admin/queues',
     (req: Request, res: Response, next: NextFunction) => {
       const adminPassword = process.env.ADMIN_PASSWORD;
+      // Fail closed: an unset ADMIN_PASSWORD must never expose the queue dashboard.
       if (!adminPassword) {
-        next();
+        res.status(503).json({ data: null, error: 'Admin console unavailable: ADMIN_PASSWORD is not configured', status: 503 });
         return;
       }
       const auth = req.headers.authorization;

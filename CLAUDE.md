@@ -52,7 +52,9 @@ R2_ACCOUNT_ID=
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
 R2_BUCKET_NAME=
-API_BASE_URL=                                       # mobile reads via EXPO_PUBLIC_API_BASE_URL
+API_BASE_URL=                                       # server-side base URL (Railway)
+LOG_LEVEL=                                          # pino log level; defaults to info (prod) / debug (dev)
+EXPO_PUBLIC_API_BASE_URL=                           # read by mobile at bundle time (apps/mobile/src/lib/api.ts)
 ```
 
 ## Non-Negotiable Rules
