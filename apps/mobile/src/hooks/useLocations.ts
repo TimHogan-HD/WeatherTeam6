@@ -5,6 +5,6 @@ import { apiFetch } from '../lib/api'
 export function useLocations() {
   return useQuery({
     queryKey: ['locations'],
-    queryFn: () => apiFetch<Location[]>('/locations'),
+    queryFn: async () => (await apiFetch<Location[]>('/locations')) ?? [],
   })
 }
