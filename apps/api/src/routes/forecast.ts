@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { and, asc, eq, gte } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { forecastSnapshots, locations } from '../db/schema.js'
+import { isUuid, sendServerError } from '../lib/http.js'
 import { parseNumeric } from '@weatherteam6/types'
 import type { ApiResponse, ForecastSnapshot } from '@weatherteam6/types'
 
@@ -43,6 +44,10 @@ forecastRouter.get('/forecast/:locationId', async (req: Request, res: Response) 
     res.status(400).json({ data: null, error: 'Missing locationId', status: 400 })
     return
   }
+  if (!isUuid(locationId)) {
+    res.status(404).json({ data: null, error: 'Location not found', status: 404 })
+    return
+  }
 
   try {
     const loc = await db
@@ -76,8 +81,6 @@ forecastRouter.get('/forecast/:locationId', async (req: Request, res: Response) 
     }
     res.status(200).json(response)
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    const response: ApiResponse<null> = { data: null, error: message, status: 500 }
-    res.status(500).json(response)
+    sendServerError(res, err, 'GET /forecast/:locationId')
   }
 })

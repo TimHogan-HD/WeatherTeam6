@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { and, desc, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { conditionsScores, locations } from '../db/schema.js'
+import { isUuid, sendServerError } from '../lib/http.js'
 import type { ApiResponse, ConditionsScore, ScoreBreakdown } from '@weatherteam6/types'
 
 export const conditionsRouter = Router()
@@ -30,6 +31,10 @@ conditionsRouter.get('/conditions/:locationId', async (req: Request, res: Respon
   const locationId = req.params['locationId']
   if (!locationId) {
     res.status(400).json({ data: null, error: 'Missing locationId', status: 400 })
+    return
+  }
+  if (!isUuid(locationId)) {
+    res.status(404).json({ data: null, error: 'Location not found', status: 404 })
     return
   }
 
@@ -66,8 +71,6 @@ conditionsRouter.get('/conditions/:locationId', async (req: Request, res: Respon
     }
     res.status(200).json(response)
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    const response: ApiResponse<null> = { data: null, error: message, status: 500 }
-    res.status(500).json(response)
+    sendServerError(res, err, 'GET /conditions/:locationId')
   }
 })

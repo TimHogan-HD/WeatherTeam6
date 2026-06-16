@@ -21,21 +21,25 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] No API keys or secrets in source code
 - [ ] NWS calls include `User-Agent` header
 - [ ] IEM ASOS obs checked for staleness (reject if >90 min old)
+- [ ] Array fields are element-validated (non-finite/sentinel → null), and index alignment between parallel arrays (e.g. `time[]` vs value arrays) is preserved — never `.filter()` a parallel axis
 
 ## Database
 - [ ] No direct DB mutations outside of Drizzle
 - [ ] No migrations written by hand — use `drizzle-kit generate`
 - [ ] `user_id` included on inserts to tables that have the FK
 - [ ] No N+1 queries — use joins or batch fetches
+- [ ] Route params feeding `uuid`/typed columns are validated (`isUuid`) before the query — an unvalidated id is a leaked-error 500, not a 404
 
 ## Jobs
 - [ ] BullMQ jobs are idempotent — safe to re-run without creating duplicates
+- [ ] Purge-and-replace is wrapped in a single `db.transaction` — a crash leaves the old or new set, never a gap or a mix
 - [ ] Jobs do not throw unhandled exceptions — errors are caught and logged
 - [ ] No new queues added without explicit approval
 
 ## Security
 - [ ] No secrets logged at any log level
 - [ ] No full API response bodies logged in production
+- [ ] 500 handlers return a generic message via `sendServerError` — never raw `err.message` (it leaks DB internals); log the detail server-side
 - [ ] `.env` not committed — `.env.example` has all keys with blank values
 - [ ] R2 presigned URLs used for photo access — no public bucket URLs
 

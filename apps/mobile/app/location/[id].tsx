@@ -14,7 +14,7 @@ import type {
 import { SCORE_COMPONENT_MAX } from '@weatherteam6/types';
 import { useConditions } from '../../src/hooks/useConditions';
 import { useForecast } from '../../src/hooks/useForecast';
-import { useLocations } from '../../src/hooks/useLocations';
+import { useLocation } from '../../src/hooks/useLocation';
 
 const WINDOW_LABEL: Record<NonNullable<ForecastSnapshot['window']>, string> = {
   pre: 'Pre',
@@ -124,7 +124,7 @@ function ForecastRow({ snapshot }: { snapshot: ForecastSnapshot }) {
 
 export default function LocationDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data: locations } = useLocations();
+  const { data: location } = useLocation(id);
   const conditions = useConditions(id);
   const forecast = useForecast(id);
 
@@ -136,7 +136,6 @@ export default function LocationDetail() {
     );
   }
 
-  const location = locations?.find((loc) => loc.id === id);
   const title = location?.name ?? 'Location';
 
   return (
