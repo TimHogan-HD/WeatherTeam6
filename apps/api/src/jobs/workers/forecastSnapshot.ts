@@ -14,8 +14,6 @@ import {
 } from '../../lib/weather/openMeteo.js'
 import { bullConnection } from '../connection.js'
 
-type SnapshotRow = typeof forecastSnapshots.$inferSelect
-
 function parseNum(v: string | null | undefined, fallback: number): number {
   if (v === null || v === undefined) return fallback
   const n = parseFloat(v)
@@ -61,20 +59,37 @@ export const forecastSnapshotWorker = new Worker(
         if (!forecast) {
           forecast = await fetchEnsemble(locCoords)
         }
-        // Const capture so the non-null narrowing survives inside the transaction closure.
-        const forecastData = forecast
 
-        if (forecastData.days.length === 0) {
+        if (forecast.days.length === 0) {
           logger.warn({ locationId: loc.id }, '[forecast-snapshot] no forecast days returned')
           continue
         }
 
-        if (forecastData.model_sources.length === 0) {
+        if (forecast.model_sources.length === 0) {
           logger.warn({ locationId: loc.id }, '[forecast-snapshot] no recognizable model sources in response — key format may have changed')
         }
 
-        // Query rainfall history for drying model (read-only, independent of the rows
-        // replaced below, so it stays outside the transaction)
+        // Sort once, ascending by date — the 72h aggregates below assume this order.
+        const days = [...forecast.days].sort((a, b) => a.date.localeCompare(b.date))
+        const modelSources = forecast.model_sources
+
+        const snapshotValues: (typeof forecastSnapshots.$inferInsert)[] = days.map((day) => ({
+          location_id: loc.id,
+          captured_at: now,
+          forecast_date: day.date,
+          precip_mm_p10: String(day.precip_mm_p10),
+          precip_mm_p50: String(day.precip_mm_p50),
+          precip_mm_p90: String(day.precip_mm_p90),
+          temp_c_min: String(day.temp_c_min),
+          temp_c_max: String(day.temp_c_max),
+          wind_kmh_max: String(day.wind_kmh_max),
+          humidity_pct: String(day.humidity_pct),
+          dewpoint_c: String(day.dewpoint_c),
+          shortwave_wm2: String(day.shortwave_wm2),
+          model_sources: modelSources,
+        }))
+
+        // Query rainfall history for drying model
         const rainfall = await db
           .select({ date: rainfallHistory.date, precip_mm: rainfallHistory.precip_mm })
           .from(rainfallHistory)
@@ -85,46 +100,11 @@ export const forecastSnapshotWorker = new Worker(
             ),
           )
 
-        // Idempotency: atomically purge existing snapshots and scores for this location and
-        // replace them. The transaction guarantees a crash or BullMQ retry leaves either the
-        // old set or the new set — never a mix, and never a window with no rows at all.
-        const dayCount = await db.transaction(async (tx) => {
-          await tx
-            .delete(forecastSnapshots)
-            .where(
-              and(eq(forecastSnapshots.location_id, loc.id), gte(forecastSnapshots.forecast_date, todayStr)),
-            )
-          await tx
-            .delete(conditionsScores)
-            .where(
-              and(eq(conditionsScores.location_id, loc.id), gte(conditionsScores.forecast_date, todayStr)),
-            )
-
-          // Batch insert all forecast_snapshots for this location
-          const snapshotRows: SnapshotRow[] = await tx
-            .insert(forecastSnapshots)
-            .values(
-              forecastData.days.map((day) => ({
-                location_id: loc.id,
-                captured_at: now,
-                forecast_date: day.date,
-                precip_mm_p10: String(day.precip_mm_p10),
-                precip_mm_p50: String(day.precip_mm_p50),
-                precip_mm_p90: String(day.precip_mm_p90),
-                temp_c_min: String(day.temp_c_min),
-                temp_c_max: String(day.temp_c_max),
-                wind_kmh_max: String(day.wind_kmh_max),
-                humidity_pct: String(day.humidity_pct),
-                dewpoint_c: String(day.dewpoint_c),
-                shortwave_wm2: String(day.shortwave_wm2),
-                model_sources: forecastData.model_sources,
-              })),
-            )
-            .returning()
-
-          // Sort by forecast_date ascending
-          snapshotRows.sort((a, b) => a.forecast_date.localeCompare(b.forecast_date))
-
+        // Score computation is pure CPU and runs BEFORE the transaction: a scoring
+        // failure must not discard a freshly fetched forecast — it degrades to
+        // snapshots stored without scores.
+        let scoreInserts: (typeof conditionsScores.$inferInsert)[] = []
+        try {
           // Call dryingModel unconditionally — it returns the NO_RECENT_RAIN sentinel (720h)
           // when the events array is empty, so skipping it for empty rainfall would default
           // hoursSinceRain to 0 ("rained right now") which is wrong for new/data-gap locations.
@@ -140,51 +120,37 @@ export const forecastSnapshotWorker = new Worker(
           const hoursSinceRain = dryResult.hours_since_significant_rain
           const lastRainMm = dryResult.last_rain_mm
 
-          // Current conditions from today's snapshot (proxy for live obs until Phase 4)
-          const todaySnap = snapshotRows.find((s) => s.forecast_date === todayStr)
-          if (!todaySnap) {
+          // Current conditions from today's forecast day (proxy for live obs until Phase 4)
+          const todayDay = days.find((d) => d.date === todayStr)
+          if (!todayDay) {
             logger.warn(
               { locationId: loc.id, todayStr },
-              '[forecast-snapshot] no snapshot matching today — forecast may start from tomorrow; current-condition proxies will use zero defaults',
+              '[forecast-snapshot] no forecast day matching today — forecast may start from tomorrow; current-condition proxies will use zero defaults',
             )
           }
-          const currentWindKmh = parseNum(todaySnap?.wind_kmh_max, 0)
-          const todayTempMin = parseNum(todaySnap?.temp_c_min, 0)
-          const todayTempMax = parseNum(todaySnap?.temp_c_max, 0)
-          const currentTempC = (todayTempMin + todayTempMax) / 2
-          const currentHumidityPct = parseNum(todaySnap?.humidity_pct, 50)
+          const currentWindKmh = todayDay?.wind_kmh_max ?? 0
+          const currentTempC = ((todayDay?.temp_c_min ?? 0) + (todayDay?.temp_c_max ?? 0)) / 2
+          const currentHumidityPct = todayDay?.humidity_pct ?? 50
 
           const rockType = loc.rock_type ?? 'unknown'
           const cliffAngle = parseNum(loc.cliff_angle, 45)
           const aspectDegrees = aspectToDegrees(loc.aspect ?? '')
-
-          // Compute conditions_score for each forecast day, then batch-insert all rows at once.
           const todayDate = new Date(todayStr + 'T00:00:00Z')
-          const scoreInserts: (typeof conditionsScores.$inferInsert)[] = []
 
-          for (let i = 0; i < snapshotRows.length; i++) {
-            const snap = snapshotRows[i]
-            if (!snap) continue
+          for (let i = 0; i < days.length; i++) {
+            const day = days[i]
+            if (!day) continue
 
-            const forecastDate = new Date(snap.forecast_date + 'T00:00:00Z')
+            const forecastDate = new Date(day.date + 'T00:00:00Z')
             const forecastDateDaysOut = Math.round(
               (forecastDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24),
             )
 
             // 72h aggregate: sum this day + next 2 days
-            const next3 = snapshotRows.slice(i, i + 3)
-            const forecastRain72hP10 = next3.reduce(
-              (sum, s) => sum + parseNum(s.precip_mm_p10, 0),
-              0,
-            )
-            const forecastRain72hMm = next3.reduce(
-              (sum, s) => sum + parseNum(s.precip_mm_p50, 0),
-              0,
-            )
-            const forecastRain72hP90 = next3.reduce(
-              (sum, s) => sum + parseNum(s.precip_mm_p90, 0),
-              0,
-            )
+            const next3 = days.slice(i, i + 3)
+            const forecastRain72hP10 = next3.reduce((sum, d) => sum + d.precip_mm_p10, 0)
+            const forecastRain72hMm = next3.reduce((sum, d) => sum + d.precip_mm_p50, 0)
+            const forecastRain72hP90 = next3.reduce((sum, d) => sum + d.precip_mm_p90, 0)
 
             const output = conditionsScore({
               rockType,
@@ -198,14 +164,14 @@ export const forecastSnapshotWorker = new Worker(
               currentWindKmh,
               maxWindKmh24h: currentWindKmh,
               currentTempC,
-              forecastHighC: parseNum(snap.temp_c_max, currentTempC),
+              forecastHighC: day.temp_c_max,
               currentHumidityPct,
               forecastDateDaysOut,
             })
 
             scoreInserts.push({
               location_id: loc.id,
-              forecast_date: snap.forecast_date,
+              forecast_date: day.date,
               score: output.score,
               confidence: output.confidence,
               component_drying_time: output.components.drying_time,
@@ -217,16 +183,37 @@ export const forecastSnapshotWorker = new Worker(
               computed_at: now,
             })
           }
+        } catch (scoreErr) {
+          const msg = scoreErr instanceof Error ? scoreErr.message : String(scoreErr)
+          logger.error(
+            { locationId: loc.id, err: msg },
+            '[forecast-snapshot] score computation failed — storing snapshots without scores',
+          )
+          scoreInserts = []
+        }
 
+        // Idempotency: atomically purge existing snapshots and scores for this location
+        // and replace them. The transaction guarantees a crash or BullMQ retry leaves
+        // either the old set or the new set — never a gap or a mix.
+        await db.transaction(async (tx) => {
+          await tx
+            .delete(forecastSnapshots)
+            .where(
+              and(eq(forecastSnapshots.location_id, loc.id), gte(forecastSnapshots.forecast_date, todayStr)),
+            )
+          await tx
+            .delete(conditionsScores)
+            .where(
+              and(eq(conditionsScores.location_id, loc.id), gte(conditionsScores.forecast_date, todayStr)),
+            )
+          await tx.insert(forecastSnapshots).values(snapshotValues)
           if (scoreInserts.length > 0) {
             await tx.insert(conditionsScores).values(scoreInserts)
           }
-
-          return snapshotRows.length
         })
 
         logger.info(
-          { locationId: loc.id, days: dayCount },
+          { locationId: loc.id, days: days.length },
           '[forecast-snapshot] location processed',
         )
       } catch (err) {

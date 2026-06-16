@@ -83,16 +83,29 @@ export async function fetchWithRetry(
 
 // Element-validated extraction: Open-Meteo arrays may carry nulls, and a malformed
 // response could carry string sentinels or NaN — anything non-finite becomes null so
-// it can never leak into sums, percentiles, or stored snapshots.
+// it can never leak into sums, percentiles, or stored snapshots. Coercions of
+// actual values (not nulls) are logged: they mean the upstream format changed.
 function toNullableNumberArray(record: Record<string, unknown>, key: string): (number | null)[] {
   const val = record[key]
   if (!Array.isArray(val)) return []
-  return val.map((v): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null))
+  let coerced = 0
+  const out = val.map((v): number | null => {
+    if (typeof v === 'number' && Number.isFinite(v)) return v
+    if (v !== null && v !== undefined) coerced++
+    return null
+  })
+  if (coerced > 0) {
+    logger.warn({ key, coerced }, '[openMeteo] non-numeric values coerced to null')
+  }
+  return out
 }
 
+// Preserves array length: time arrays index-align with the value arrays, so a
+// malformed slot becomes '' (skipped by consumers) rather than being filtered
+// out, which would shift every subsequent index onto the wrong timestamp.
 function toStringArray(val: unknown): string[] {
   if (!Array.isArray(val)) return []
-  return val.filter((t): t is string => typeof t === 'string')
+  return val.map((t): string => (typeof t === 'string' ? t : ''))
 }
 
 export function buildDateIndex(times: string[]): Map<string, number[]> {
@@ -169,6 +182,16 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
   )
     model_sources.push('gem_global')
 
+  // Extract and validate each member array once — the same arrays are reused for
+  // every date, so doing this inside the date loop would redo O(hours) validation
+  // per date per key.
+  const gfsPrecipArrs = gfsPrecipKeys.map((k) => toNullableNumberArray(hourly, k))
+  const gfsTempArrs = gfsTempKeys.map((k) => toNullableNumberArray(hourly, k))
+  const gfsWindArrs = gfsWindKeys.map((k) => toNullableNumberArray(hourly, k))
+  const gfsHumidArrs = gfsHumidKeys.map((k) => toNullableNumberArray(hourly, k))
+  const gfsDewpointArrs = gfsDewpointKeys.map((k) => toNullableNumberArray(hourly, k))
+  const gfsShortwaveArrs = gfsShortwaveKeys.map((k) => toNullableNumberArray(hourly, k))
+
   const days: DailyForecast[] = []
 
   for (const date of dates) {
@@ -177,8 +200,7 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
 
     // Daily precip sum per GFS member → percentiles
     const memberDailySums: number[] = []
-    for (const key of gfsPrecipKeys) {
-      const vals = toNullableNumberArray(hourly, key)
+    for (const vals of gfsPrecipArrs) {
       const sum = indices.reduce((acc, i) => acc + (vals[i] ?? 0), 0)
       memberDailySums.push(sum)
     }
@@ -186,8 +208,7 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
 
     // Temperature min/max across all GFS members and hours
     const temps: number[] = []
-    for (const key of gfsTempKeys) {
-      const vals = toNullableNumberArray(hourly, key)
+    for (const vals of gfsTempArrs) {
       for (const i of indices) {
         const v = vals[i]
         if (v !== null && v !== undefined) temps.push(v)
@@ -196,8 +217,7 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
 
     // Wind max across all GFS members and hours
     const winds: number[] = []
-    for (const key of gfsWindKeys) {
-      const vals = toNullableNumberArray(hourly, key)
+    for (const vals of gfsWindArrs) {
       for (const i of indices) {
         const v = vals[i]
         if (v !== null && v !== undefined) winds.push(v)
@@ -206,8 +226,7 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
 
     // Humidity mean across all GFS members and hours
     const humids: number[] = []
-    for (const key of gfsHumidKeys) {
-      const vals = toNullableNumberArray(hourly, key)
+    for (const vals of gfsHumidArrs) {
       for (const i of indices) {
         const v = vals[i]
         if (v !== null && v !== undefined) humids.push(v)
@@ -216,8 +235,7 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
 
     // Dewpoint mean across all GFS members and hours
     const dewpoints: number[] = []
-    for (const key of gfsDewpointKeys) {
-      const vals = toNullableNumberArray(hourly, key)
+    for (const vals of gfsDewpointArrs) {
       for (const i of indices) {
         const v = vals[i]
         if (v !== null && v !== undefined) dewpoints.push(v)
@@ -226,8 +244,7 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
 
     // Shortwave mean across all GFS members and hours
     const shortwaves: number[] = []
-    for (const key of gfsShortwaveKeys) {
-      const vals = toNullableNumberArray(hourly, key)
+    for (const vals of gfsShortwaveArrs) {
       for (const i of indices) {
         const v = vals[i]
         if (v !== null && v !== undefined) shortwaves.push(v)

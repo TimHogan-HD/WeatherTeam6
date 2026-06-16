@@ -8,11 +8,12 @@ export default tseslint.config(
   {
     ignores: [
       '**/dist/**',
-      '**/node_modules/**',
       '**/.expo/**',
       'apps/mobile/expo-env.d.ts',
       'apps/api/drizzle/**',
-      '**/*.js', // babel.config.js etc. — TS sources only
+      // Targeted, not '**/*.js': future plain-JS files (metro.config.js,
+      // scripts) should be linted, not silently exempt.
+      'apps/mobile/babel.config.js',
     ],
   },
   eslint.configs.recommended,

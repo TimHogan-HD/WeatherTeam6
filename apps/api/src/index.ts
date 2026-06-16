@@ -57,7 +57,9 @@ export function createApp(): Express {
         return;
       }
       const credentials = Buffer.from(auth.slice(6), 'base64').toString('utf-8');
-      const [, password] = credentials.split(':');
+      // RFC 7617: the password is everything after the FIRST colon (it may itself contain colons).
+      const sep = credentials.indexOf(':');
+      const password = sep === -1 ? '' : credentials.slice(sep + 1);
       if (password !== adminPassword) {
         res.setHeader('WWW-Authenticate', 'Basic realm="Bull Board"');
         res.status(401).json({ data: null, error: 'Unauthorized', status: 401 });

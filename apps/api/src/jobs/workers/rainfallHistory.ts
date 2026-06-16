@@ -48,14 +48,17 @@ export const rainfallHistoryWorker = new Worker(
           continue
         }
 
-        // Single batch upsert per location. ACIS returns one row per station-day, so the
-        // batch never contains duplicate (location_id, date) pairs (which ON CONFLICT DO
-        // UPDATE would reject). sql`excluded.*` is Drizzle's documented pattern for
-        // referencing per-row conflict values — it cannot be expressed otherwise.
+        // Single batch upsert per location. ON CONFLICT DO UPDATE rejects a batch that
+        // touches the same row twice, and ACIS one-row-per-station-day uniqueness is a
+        // wire-format expectation, not a code guarantee — so dedupe by date first
+        // (last write wins, matching the old per-row loop). sql`excluded.*` is
+        // Drizzle's documented pattern for referencing per-row conflict values — it
+        // cannot be expressed otherwise.
+        const uniqueRows = [...new Map(rows.map((row) => [row.date, row])).values()]
         await db
           .insert(rainfallHistory)
           .values(
-            rows.map((row) => ({
+            uniqueRows.map((row) => ({
               location_id: loc.id,
               date: row.date,
               precip_mm: String(row.precip_mm),
@@ -75,7 +78,7 @@ export const rainfallHistoryWorker = new Worker(
           })
 
         logger.info(
-          { locationId: loc.id, station: loc.asos_station, rowCount: rows.length },
+          { locationId: loc.id, station: loc.asos_station, rowCount: uniqueRows.length },
           '[rainfall-history] location processed',
         )
       } catch (err) {

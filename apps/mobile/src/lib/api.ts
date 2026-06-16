@@ -32,7 +32,9 @@ export async function apiFetch<T>(path: string): Promise<T | null> {
   }
 
   if (!res.ok || body === null || body.error !== null) {
-    throw new ApiError(body?.error ?? `HTTP ${res.status}`, res.status)
+    // Prefer the envelope's status: a proxy may deliver HTTP 200 around a body
+    // that declares an error, and retry policy keys off this value.
+    throw new ApiError(body?.error ?? `HTTP ${res.status}`, body?.status ?? res.status)
   }
 
   return body.data

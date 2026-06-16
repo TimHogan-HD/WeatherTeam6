@@ -113,6 +113,20 @@ describe('parseEnsemble', () => {
     expect(isNaN(day.shortwave_wm2)).toBe(false)
   })
 
+  it('keeps time/value index alignment when the time axis contains malformed slots', () => {
+    const hourly: Record<string, unknown> = {
+      time: ['2025-06-04T00:00', null, '2025-06-04T01:00'],
+      [`precipitation_member01${SUFFIX}`]: [1, 99, 2],
+    }
+    const result = parseEnsemble(hourly)
+    const day = result.days[0]
+    expect(day).toBeDefined()
+    if (!day) return
+
+    // The malformed slot (value 99) is skipped, not shifted onto 01:00.
+    expect(day.precip_mm_p50).toBe(3)
+  })
+
   it('treats string sentinels, NaN, and undefined in member arrays as missing — no NaN leaks', () => {
     const times = makeTimes('2025-06-03', 4)
     const hourly: Record<string, unknown> = {
