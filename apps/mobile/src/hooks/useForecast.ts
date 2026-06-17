@@ -25,7 +25,8 @@ function latestPerDate(rows: ForecastSnapshot[]): ForecastSnapshot[] {
 export function useForecast(locationId: string | undefined) {
   return useQuery({
     queryKey: ['forecast', locationId],
-    queryFn: () => apiFetch<ForecastSnapshot[]>(`/forecast/${locationId}`),
+    queryFn: async () =>
+      (await apiFetch<ForecastSnapshot[]>(`/forecast/${locationId}`)) ?? [],
     enabled: !!locationId,
     select: latestPerDate,
   })

@@ -164,10 +164,10 @@ export default function LocationDetail() {
           <ActivityIndicator style={styles.loader} />
         ) : forecast.isError ? (
           <Text style={styles.errorText}>{forecast.error.message}</Text>
-        ) : forecast.data.length === 0 ? (
+        ) : (forecast.data ?? []).length === 0 ? (
           <Text style={styles.muted}>No forecast available.</Text>
         ) : (
-          forecast.data.map((snapshot) => (
+          (forecast.data ?? []).map((snapshot) => (
             <ForecastRow key={snapshot.forecast_date} snapshot={snapshot} />
           ))
         )}
