@@ -16,8 +16,8 @@ Climbing conditions platform + general weather app. Core purpose: tell the user 
 npm run dev           # start all services
 npm run build         # build all packages
 npm run test          # run all tests
-npm run typecheck     # typecheck all packages
-npm run lint          # lint all packages
+npm run typecheck     # typecheck all packages (tsc --noEmit)
+npm run lint          # ESLint flat config (eslint.config.mjs) — separate from typecheck
 npm run db:generate   # generate Drizzle migration from schema changes
 npm run db:migrate    # apply pending migrations to DB
 npm run db:studio     # open Drizzle Studio
@@ -41,7 +41,7 @@ DATABASE_URL=
 REDIS_URL=
 DEFAULT_USER_ID=                                    # seeded user UUID, set after first migration
 AUTH_ENABLED=false
-ADMIN_PASSWORD=                                     # gates Bull Board at /admin/queues
+ADMIN_PASSWORD=                                     # gates Bull Board at /admin/queues; unset => /admin/queues returns 503 (fails closed)
 NODE_ENV=development
 PORT=3001
 NWS_USER_AGENT=weatherteam6/1.0 your@email.com
@@ -52,7 +52,9 @@ R2_ACCOUNT_ID=
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
 R2_BUCKET_NAME=
-API_BASE_URL=                                       # mobile reads via EXPO_PUBLIC_API_BASE_URL
+API_BASE_URL=                                       # server-side base URL (Railway)
+LOG_LEVEL=                                          # pino log level; defaults to info (prod) / debug (dev)
+EXPO_PUBLIC_API_BASE_URL=                           # read by mobile at bundle time (apps/mobile/src/lib/api.ts)
 ```
 
 ## Non-Negotiable Rules

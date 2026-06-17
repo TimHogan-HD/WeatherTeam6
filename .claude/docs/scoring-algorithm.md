@@ -109,7 +109,7 @@ if spread <= 2mm:    confidence = 'high'
 if spread <= 8mm:    confidence = 'medium'
 else:                confidence = 'low'
 
-Also force confidence = 'low' if forecast_date > 7 days out
+Also force confidence = 'low' if forecast_date >= 7 days out (7-14 days is the low-confidence window per architecture.md)
 ```
 
 ## Score Labels (for UI)

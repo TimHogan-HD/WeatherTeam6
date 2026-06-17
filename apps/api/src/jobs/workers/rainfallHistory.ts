@@ -1,4 +1,5 @@
 import { Worker, type Job } from 'bullmq'
+import { sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { locations, rainfallHistory } from '../../db/schema.js'
 import { logger } from '../../lib/logger.js'
@@ -47,30 +48,37 @@ export const rainfallHistoryWorker = new Worker(
           continue
         }
 
-        for (const row of rows) {
-          await db
-            .insert(rainfallHistory)
-            .values({
+        // Single batch upsert per location. ON CONFLICT DO UPDATE rejects a batch that
+        // touches the same row twice, and ACIS one-row-per-station-day uniqueness is a
+        // wire-format expectation, not a code guarantee — so dedupe by date first
+        // (last write wins, matching the old per-row loop). sql`excluded.*` is
+        // Drizzle's documented pattern for referencing per-row conflict values — it
+        // cannot be expressed otherwise.
+        const uniqueRows = [...new Map(rows.map((row) => [row.date, row])).values()]
+        await db
+          .insert(rainfallHistory)
+          .values(
+            uniqueRows.map((row) => ({
               location_id: loc.id,
               date: row.date,
               precip_mm: String(row.precip_mm),
-              source: 'acis',
+              source: 'acis' as const,
               station_id: loc.asos_station,
               verified: true,
-            })
-            .onConflictDoUpdate({
-              target: [rainfallHistory.location_id, rainfallHistory.date],
-              set: {
-                precip_mm: String(row.precip_mm),
-                source: 'acis',
-                station_id: loc.asos_station,
-                verified: true,
-              },
-            })
-        }
+            })),
+          )
+          .onConflictDoUpdate({
+            target: [rainfallHistory.location_id, rainfallHistory.date],
+            set: {
+              precip_mm: sql`excluded.precip_mm`,
+              source: sql`excluded.source`,
+              station_id: sql`excluded.station_id`,
+              verified: sql`excluded.verified`,
+            },
+          })
 
         logger.info(
-          { locationId: loc.id, station: loc.asos_station, rowCount: rows.length },
+          { locationId: loc.id, station: loc.asos_station, rowCount: uniqueRows.length },
           '[rainfall-history] location processed',
         )
       } catch (err) {

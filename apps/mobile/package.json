@@ -11,7 +11,7 @@
     "build": "tsc --noEmit",
     "dev": "expo start",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit",
+    "lint": "eslint . --max-warnings 0",
     "test": "echo 'no tests' && exit 0"
   },
   "dependencies": {

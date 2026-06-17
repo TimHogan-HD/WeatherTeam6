@@ -13,6 +13,7 @@ Read this at the start of every session. These decisions are final unless explic
 - Scoring logic lives in `apps/api/src/lib/scoring/`.
 - BullMQ job definitions live in `apps/api/src/jobs/`.
 - Auth middleware lives in `apps/api/src/middleware/auth.ts` — `resolveUser` is the only auth function.
+- Route error/validation helpers live in `apps/api/src/lib/http.ts`. Handlers validate `uuid` route params with `isUuid` (return 404, not a Postgres 500) and funnel caught errors through `sendServerError` — never hand-roll `err.message` into the response, which leaks DB internals.
 
 ## Auth Pattern
 - `AUTH_ENABLED=false` means all requests get `req.userId = DEFAULT_USER_ID` injected by `resolveUser`.

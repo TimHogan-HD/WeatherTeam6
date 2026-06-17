@@ -112,6 +112,45 @@ describe('parseEnsemble', () => {
     expect(isNaN(day.dewpoint_c)).toBe(false)
     expect(isNaN(day.shortwave_wm2)).toBe(false)
   })
+
+  it('keeps time/value index alignment when the time axis contains malformed slots', () => {
+    const hourly: Record<string, unknown> = {
+      time: ['2025-06-04T00:00', null, '2025-06-04T01:00'],
+      [`precipitation_member01${SUFFIX}`]: [1, 99, 2],
+    }
+    const result = parseEnsemble(hourly)
+    const day = result.days[0]
+    expect(day).toBeDefined()
+    if (!day) return
+
+    // The malformed slot (value 99) is skipped, not shifted onto 01:00.
+    expect(day.precip_mm_p50).toBe(3)
+  })
+
+  it('treats string sentinels, NaN, and undefined in member arrays as missing — no NaN leaks', () => {
+    const times = makeTimes('2025-06-03', 4)
+    const hourly: Record<string, unknown> = {
+      time: times,
+      [`precipitation_member01${SUFFIX}`]: [1, 'M', NaN, undefined],
+      [`temperature_2m_member01${SUFFIX}`]: ['-', 20, NaN, 22],
+      [`windspeed_10m_member01${SUFFIX}`]: [NaN, 'T', 15, undefined],
+      [`relativehumidity_2m_member01${SUFFIX}`]: ['NaN', NaN, 60, 70],
+    }
+    const result = parseEnsemble(hourly)
+    const day = result.days[0]
+    expect(day).toBeDefined()
+    if (!day) return
+
+    // Only the finite numbers participate: precip sum 1, temps 20/22, wind 15, humidity mean 65
+    expect(day.precip_mm_p50).toBe(1)
+    expect(day.temp_c_min).toBe(20)
+    expect(day.temp_c_max).toBe(22)
+    expect(day.wind_kmh_max).toBe(15)
+    expect(day.humidity_pct).toBe(65)
+    for (const v of Object.values(day)) {
+      if (typeof v === 'number') expect(isNaN(v)).toBe(false)
+    }
+  })
 })
 
 describe('fetchEnsemble', () => {
@@ -396,6 +435,33 @@ describe('fetchNBM', () => {
 
     expect(day.temp_c_max).toBe(25)
     expect(day.temp_c_min).toBe(10)
+  })
+
+  it('falls back to defaults for string sentinels and NaN in daily arrays', async () => {
+    const payload = buildNbmDaily({ withQuantiles: true })
+    payload.daily['wind_speed_10m_max'] = ['M']
+    payload.daily['relative_humidity_2m_mean'] = [NaN]
+    payload.daily['temperature_2m_max'] = ['25']
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => payload,
+    } as Response)
+
+    const result = await fetchNBM({ lat: 34, lon: -116, elevation_m: null })
+    expect(result).not.toBeNull()
+    if (!result) return
+    const day = result.days[0]
+    expect(day).toBeDefined()
+    if (!day) return
+
+    expect(day.wind_kmh_max).toBe(0) // 'M' → null → ?? 0 default
+    expect(day.humidity_pct).toBe(50) // NaN → null → ?? 50 default
+    expect(day.temp_c_max).toBe(0) // numeric string is not a number → default, never the string
+    for (const v of Object.values(day)) {
+      if (typeof v === 'number') expect(isNaN(v)).toBe(false)
+    }
   })
 
   it('throws after exhausting retries on persistent 5xx (caller must catch and fall back)', async () => {

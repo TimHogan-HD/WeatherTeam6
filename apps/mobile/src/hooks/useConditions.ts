@@ -5,7 +5,7 @@ import { apiFetch } from '../lib/api'
 export function useConditions(locationId: string | undefined) {
   return useQuery({
     queryKey: ['conditions', locationId],
-    queryFn: () => apiFetch<ConditionsScore | null>(`/conditions/${locationId}`),
+    queryFn: () => apiFetch<ConditionsScore>(`/conditions/${locationId}`),
     enabled: !!locationId,
   })
 }

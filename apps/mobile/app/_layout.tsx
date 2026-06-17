@@ -19,6 +19,8 @@ export default function RootLayout() {
           name="index"
           options={{ title: 'Locations', headerRight: () => <SearchLink /> }}
         />
+        <Stack.Screen name="location/[id]" options={{ title: 'Location' }} />
+        <Stack.Screen name="search" options={{ title: 'Search' }} />
       </Stack>
     </QueryClientProvider>
   );

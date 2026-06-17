@@ -1,16 +1,25 @@
 import type { ApiResponse } from '@weatherteam6/types'
 
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    public readonly status: number,
-  ) {
-    super(message)
-    this.name = 'ApiError'
-  }
+function baseUrl(): string {
+  const url = process.env.EXPO_PUBLIC_API_BASE_URL
+  if (url) return url
+  // In production builds a missing env var is a hard misconfiguration.
+  // In development __DEV__ is true, so fall back to localhost for simulator
+  // convenience. Physical devices and Android emulators cannot reach
+  // localhost — set EXPO_PUBLIC_API_BASE_URL for those.
+  if (__DEV__) return 'http://localhost:3001'
+  throw new Error('EXPO_PUBLIC_API_BASE_URL is not set')
 }
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? null
+export class ApiError extends Error {
+  readonly status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
 
 const REQUEST_TIMEOUT_MS = 15_000
 
@@ -20,19 +29,12 @@ const REQUEST_TIMEOUT_MS = 15_000
  * on failure so React Query surfaces it via `isError` and applies retry.
  */
 export async function apiFetch<T>(path: string): Promise<T | null> {
-  if (API_BASE_URL === null) {
-    throw new ApiError(
-      'EXPO_PUBLIC_API_BASE_URL is not set — add it to .env.local',
-      0,
-    )
-  }
-
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
   let res: Response
   try {
-    res = await fetch(`${API_BASE_URL}${path}`, { signal: controller.signal })
+    res = await fetch(`${baseUrl()}${path}`, { signal: controller.signal })
   } catch (err) {
     clearTimeout(timer)
     if ((err as Error)?.name === 'AbortError') {
@@ -50,8 +52,9 @@ export async function apiFetch<T>(path: string): Promise<T | null> {
   }
 
   if (!res.ok || body === null || body.error !== null) {
-    const message = body?.error ?? `HTTP ${res.status}`
-    throw new ApiError(message, res.status)
+    // Prefer the envelope's status: a proxy may deliver HTTP 200 around a body
+    // that declares an error, and retry policy keys off this value.
+    throw new ApiError(body?.error ?? `HTTP ${res.status}`, body?.status ?? res.status)
   }
 
   return body.data
