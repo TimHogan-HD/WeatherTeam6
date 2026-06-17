@@ -1,0 +1,145 @@
+/* walls.css — Walls screen + Wall setup flow. Extends the radar.css token set
+   (same .crux-phone scope, tokens, gradient, fonts). Load AFTER radar.css. */
+
+/* ---------- SCREEN SCROLL HEADER ---------- */
+.crux-phone .scr-head { padding: 46px 20px 0; flex-shrink: 0; }
+.crux-phone .scr-back { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--txt-3); }
+.crux-phone .scr-title { font-size: 30px; font-weight: 700; color: var(--txt-1); line-height: 1.02; margin-top: 12px; letter-spacing: -0.01em; }
+.crux-phone .scr-sub { font-family: 'Barlow', sans-serif; font-size: 12px; color: var(--txt-3); margin-top: 5px; }
+
+/* source provenance badges (match the locked vocab) */
+.crux-phone .src-row { display: flex; gap: 6px; flex-wrap: wrap; padding: 12px 20px 0; }
+.crux-phone .src-badge { font-family: 'Barlow', sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 0.04em; padding: 4px 8px; border-radius: 5px; background: rgba(255,255,255,0.05); border: 1px solid var(--line); color: var(--txt-4); }
+
+/* body scroll region inside the frame */
+.crux-phone .scr-body { flex: 1; overflow-y: auto; padding: 14px 20px 8px; display: flex; flex-direction: column; gap: 8px; }
+
+/* ---------- WALL LIST ROW (classic) ---------- */
+.crux-phone .wall-row { display: flex; align-items: center; gap: 13px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 13px; }
+.crux-phone .aspect-badge { width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0; background: rgba(255,255,255,0.05); border: 1px solid var(--line-2); display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+.crux-phone .ab-dir { font-size: 15px; font-weight: 700; color: var(--txt-1); line-height: 1; }
+.crux-phone .ab-tick { position: absolute; width: 3px; height: 7px; border-radius: 2px; background: var(--fair); top: 3px; left: 50%; transform-origin: 50% 21px; }
+.crux-phone .wall-info { flex: 1; min-width: 0; }
+.crux-phone .wall-name { font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--txt-1); }
+.crux-phone .wall-meta { font-family: 'Barlow', sans-serif; font-size: 11px; color: var(--txt-3); margin-top: 2px; line-height: 1.4; }
+.crux-phone .wall-tags { display: flex; gap: 5px; margin-top: 7px; }
+.crux-phone .wtag { font-family: 'Barlow', sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 0.04em; padding: 2px 7px; border-radius: 4px; display: flex; align-items: center; gap: 4px; }
+.crux-phone .wtag.dry { background: rgba(184,245,66,0.10); color: var(--good); }
+.crux-phone .wtag.damp { background: rgba(246,173,85,0.10); color: var(--fair); }
+.crux-phone .wtag.sun { background: rgba(253,186,116,0.10); color: rgba(253,186,116,0.9); }
+.crux-phone .wtag i { display: flex; }
+.crux-phone .wall-score { flex-shrink: 0; text-align: center; }
+.crux-phone .ws-num { font-size: 26px; font-weight: 700; line-height: 1; }
+.crux-phone .ws-num.good { color: var(--good); }
+.crux-phone .ws-num.fair { color: var(--fair); }
+.crux-phone .ws-num.poor { color: var(--poor); }
+.crux-phone .ws-lbl { font-size: 8px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--txt-4); margin-top: 3px; }
+
+/* ---------- WALL CARD (data-forward) with sun arc ---------- */
+.crux-phone .wall-card { background: var(--card); border: 1px solid var(--line); border-radius: 11px; padding: 14px; }
+.crux-phone .wc-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.crux-phone .wc-name { font-size: 17px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--txt-1); }
+.crux-phone .wc-meta { font-family: 'Barlow', sans-serif; font-size: 11px; color: var(--txt-3); margin-top: 2px; }
+.crux-phone .wc-score { display: flex; align-items: baseline; gap: 3px; }
+.crux-phone .wc-score .n { font-size: 30px; font-weight: 700; line-height: 1; }
+.crux-phone .wc-score .n.good { color: var(--good); }
+.crux-phone .wc-score .n.fair { color: var(--fair); }
+.crux-phone .wc-row { display: flex; gap: 18px; margin-top: 13px; align-items: center; }
+.crux-phone .wc-stat { }
+.crux-phone .wc-stat .v { font-size: 15px; font-weight: 700; color: var(--txt-2); }
+.crux-phone .wc-stat .v.sun { color: rgba(253,186,116,0.9); }
+.crux-phone .wc-stat .v.good { color: var(--good); }
+.crux-phone .wc-stat .k { font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-4); margin-top: 3px; }
+
+/* sun arc — half-dome with a travelling sun */
+.crux-phone .sunarc { position: relative; width: 96px; height: 50px; margin-left: auto; flex-shrink: 0; }
+.crux-phone .sunarc svg { width: 100%; height: 100%; overflow: visible; }
+.crux-phone .sa-ends { display: flex; justify-content: space-between; margin-top: 1px; }
+.crux-phone .sa-end { font-size: 8px; font-weight: 600; letter-spacing: 0.06em; color: var(--txt-5); }
+
+/* ---------- SETUP FLOW ---------- */
+.crux-phone .setup-head { padding: 46px 20px 0; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; }
+.crux-phone .setup-step { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--txt-4); }
+.crux-phone .setup-step b { color: var(--good); }
+.crux-phone .stepbar { display: flex; gap: 5px; padding: 14px 20px 0; flex-shrink: 0; }
+.crux-phone .stepbar span { height: 3px; border-radius: 2px; flex: 1; background: rgba(226,232,240,0.12); }
+.crux-phone .stepbar span.done { background: rgba(184,245,66,0.5); }
+.crux-phone .stepbar span.now { background: var(--good); }
+.crux-phone .setup-body { flex: 1; overflow-y: auto; padding: 22px 20px 8px; }
+.crux-phone .setup-q { font-size: 24px; font-weight: 700; color: var(--txt-1); line-height: 1.08; letter-spacing: -0.01em; }
+.crux-phone .setup-hint { font-family: 'Barlow', sans-serif; font-size: 12px; color: var(--txt-3); margin-top: 7px; line-height: 1.5; }
+
+/* ---------- COMPASS DIAL (draggable) ---------- */
+.crux-phone .dial-stage { display: flex; flex-direction: column; align-items: center; margin-top: 26px; }
+.crux-phone .cdial { position: relative; width: 218px; height: 218px; }
+.crux-phone .cdial svg { width: 100%; height: 100%; }
+.crux-phone .cdial-readout { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+.crux-phone .cdial-dir { font-size: 46px; font-weight: 700; color: var(--txt-1); line-height: 1; }
+.crux-phone .cdial-deg { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: var(--txt-3); margin-top: 4px; }
+.crux-phone .cdial-cap { font-family: 'Barlow', sans-serif; font-size: 10px; color: var(--txt-4); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.1em; }
+.crux-phone .cdial-grab { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.crux-phone .grab-knob { width: 26px; height: 26px; border-radius: 50%; background: var(--good); border: 3px solid #0d1117; box-shadow: 0 0 14px rgba(184,245,66,0.5); }
+
+/* ---------- COMPASS ROSE (tappable segments) ---------- */
+.crux-phone .rose { position: relative; width: 220px; height: 220px; margin: 26px auto 0; }
+.crux-phone .rose svg { width: 100%; height: 100%; }
+.crux-phone .rose-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+.crux-phone .rose-dir { font-size: 34px; font-weight: 700; color: var(--txt-1); line-height: 1; }
+.crux-phone .rose-deg { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: var(--txt-4); margin-top: 3px; }
+.crux-phone .seg-label { font-size: 12px; font-weight: 700; fill: var(--txt-3); }
+.crux-phone .seg-label.active { fill: #0d1117; }
+
+/* ---------- TERRAIN SUGGEST CARD ---------- */
+.crux-phone .suggest-card { background: rgba(184,245,66,0.07); border: 1px solid rgba(184,245,66,0.24); border-radius: 11px; padding: 14px; margin-top: 22px; display: flex; gap: 13px; align-items: flex-start; }
+.crux-phone .sg-mini { width: 64px; height: 64px; border-radius: 9px; flex-shrink: 0; position: relative; overflow: hidden; background: #0a0e14; border: 1px solid var(--line); }
+.crux-phone .sg-info { flex: 1; }
+.crux-phone .sg-lbl { font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--good); }
+.crux-phone .sg-dir { font-size: 22px; font-weight: 700; color: var(--txt-1); margin-top: 3px; }
+.crux-phone .sg-note { font-family: 'Barlow', sans-serif; font-size: 11px; color: var(--txt-3); margin-top: 5px; line-height: 1.5; }
+.crux-phone .confirm-row { display: flex; gap: 8px; margin-top: 14px; }
+.crux-phone .btn { flex: 1; text-align: center; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 13px; border-radius: 9px; }
+.crux-phone .btn-ghost { background: var(--card); border: 1px solid var(--line); color: var(--txt-3); }
+.crux-phone .btn-primary { background: var(--good); color: #0d1117; }
+
+/* ---------- ANGLE SIDE-PROFILE ---------- */
+.crux-phone .profile-stage { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-top: 24px; }
+.crux-phone .profile-svg { width: 100%; display: block; }
+.crux-phone .angle-readout { display: flex; align-items: baseline; gap: 8px; justify-content: center; margin-top: 14px; }
+.crux-phone .ar-num { font-size: 40px; font-weight: 700; color: var(--txt-1); line-height: 1; }
+.crux-phone .ar-deg { font-size: 18px; color: var(--txt-3); font-weight: 600; }
+.crux-phone .ar-name { font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--good); }
+
+/* slider */
+.crux-phone .ang-slider { margin-top: 18px; }
+.crux-phone .ang-track { position: relative; height: 6px; border-radius: 3px; background: linear-gradient(90deg, rgba(99,179,237,0.5), rgba(184,245,66,0.5) 45%, rgba(246,173,85,0.6) 80%, rgba(252,129,129,0.7)); }
+.crux-phone .ang-handle { position: absolute; top: 50%; transform: translate(-50%,-50%); width: 22px; height: 22px; border-radius: 50%; background: #f0f4f8; border: 3px solid #0d1117; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+.crux-phone .ang-ticks { display: flex; justify-content: space-between; margin-top: 9px; }
+.crux-phone .ang-tick { font-size: 9px; font-weight: 600; letter-spacing: 0.04em; color: var(--txt-5); }
+
+/* preset chips */
+.crux-phone .presets { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; margin-top: 16px; }
+.crux-phone .preset { text-align: center; padding: 11px 4px; border-radius: 8px; background: var(--card); border: 1px solid var(--line); }
+.crux-phone .preset.active { background: rgba(184,245,66,0.12); border-color: rgba(184,245,66,0.34); }
+.crux-phone .preset .pv { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--txt-2); }
+.crux-phone .preset.active .pv { color: var(--good); }
+.crux-phone .preset .pd { font-size: 8px; color: var(--txt-4); margin-top: 2px; }
+
+/* ---------- REVIEW ---------- */
+.crux-phone .review-card { background: var(--card); border: 1px solid var(--line); border-radius: 11px; overflow: hidden; margin-top: 22px; }
+.crux-phone .rv-row { display: flex; align-items: center; justify-content: space-between; padding: 14px; border-bottom: 1px solid var(--line); }
+.crux-phone .rv-row:last-child { border-bottom: none; }
+.crux-phone .rv-k { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--txt-4); }
+.crux-phone .rv-v { font-size: 15px; font-weight: 700; color: var(--txt-1); display: flex; align-items: center; gap: 8px; }
+.crux-phone .rv-edit { color: var(--txt-4); display: flex; }
+.crux-phone .rv-source { font-family: 'Barlow', sans-serif; font-size: 9px; color: var(--txt-5); margin-top: 2px; font-weight: 500; }
+
+/* sticky bottom action inside frame */
+.crux-phone .setup-foot { flex-shrink: 0; padding: 12px 20px 26px; border-top: 1px solid var(--line); background: rgba(10,12,16,0.5); }
+.crux-phone .setup-foot .btn-primary { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.crux-phone .setup-foot .btn-primary i { display: flex; }
+
+/* text input */
+.crux-phone .field { margin-top: 20px; }
+.crux-phone .field-lbl { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--txt-4); }
+.crux-phone .field-input { margin-top: 8px; background: var(--card); border: 1px solid var(--line-2); border-radius: 9px; padding: 13px 14px; font-size: 17px; font-weight: 600; color: var(--txt-1); display: flex; justify-content: space-between; align-items: center; }
+.crux-phone .field-input .cursor { width: 2px; height: 20px; background: var(--good); }
