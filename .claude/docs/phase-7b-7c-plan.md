@@ -14,7 +14,7 @@ The handoff's main structural changes from what currently exists:
 
 1. **Design tokens**: `packages/design/src/tokens.ts` already exists on branch `claude/modest-heisenberg-t5ed7o` (committed `7cfc2a3`). Do **not** overwrite — only add missing values. Confirmed diff against plan derivation is in "Token diff notes" section below.
 2. **Mockup files**: All 10 JSX/CSS files pushed to repo under `docs/handoffs/design-mockups/`. `weatherteam6UI.html` key sections read directly — Home at lines 1620–1846, Crag Detail at lines 2179–2564. All component structure below reflects the actual HTML, not prose inference.
-3. **Weather obs data**: Mock data in hooks (`useWeatherObservations`). Typed interface, placeholder values. Real API wiring is a follow-up task. Phase 7b/7c is "UI structurally complete, explicitly non-functional for weather-obs and hourly data until backend adds those endpoints." Real today: alerts (`/alerts/:locationId` endpoint exists), daylight (client-side suncalc), 72H chart reshaped from existing ForecastSnapshot. Mocked: weather observations, hourly forecast, model comparison.
+3. **Weather obs data**: Mock data in hooks (`useWeatherObservations`, `useHourlyForecast`). Hooks must return the full `{ data, isLoading, isError }` shape even with hardcoded values — the real endpoint wires in by swapping `queryFn` only, no hook rewrite. Daylight is NOT a hook — it is a synchronous utility (`getDaylight` via suncalc). 72H chart data comes from `useForecast` with a `select` transform, not a new hook. Real today: alerts (`/alerts/:locationId` endpoint exists), daylight (client-side suncalc), 72H chart reshaped from existing ForecastSnapshot. Mocked: weather observations, hourly forecast, model comparison.
 
 ---
 
@@ -41,10 +41,10 @@ Replacing with: Nested `(tabs)/_layout.tsx` with 4 bottom tabs; Stack screens be
 ### Missing hooks (must add)
 - `useCurrentLocation()` — device GPS → nearest location
 - `useAlerts(locationId)` → `/alerts/:locationId` ✅ endpoint exists
-- `useForecasts(locationId)` — 72H ensemble chart (maps to `/forecast/:locationId` with reshaping, or new endpoint)
-- `useHourlyForecast(locationId)` — hourly strip (no backend endpoint)
-- `useDaylight(locationId)` — sunrise/sunset (no backend endpoint)
-- `useWeatherObservations(locationId)` — stat grid (temp, wind, humidity, pressure, UV, cloud cover) — **no backend endpoint**
+- `useHourlyForecast(locationId)` — hourly strip (no backend endpoint; return mock data with full `{ isLoading, isError, data }` shape so real queryFn drops in without hook rewrite)
+- `useWeatherObservations(locationId)` — stat grid (temp, wind, humidity, pressure, UV, cloud cover) — **no backend endpoint**; same mock-but-shaped approach as above
+- **Do NOT create `useForecasts`** — add a `select` transform to the existing `useForecast` hook to bucket ForecastSnapshot[] into 72H pairs. Keeps a single cache key (`['forecast', locationId]`) and avoids duplicate fetches.
+- **Do NOT create `useDaylight`** — daylight is client-side `suncalc`. Use a plain utility `getDaylight(lat: number, lon: number, date: Date)` that returns `{ sunrise, sunset, daylightRemaining }` synchronously. No React Query, no hook.
 
 ---
 
@@ -94,7 +94,7 @@ SafeAreaView
 - `LinearGradient` from `expo-linear-gradient` on every screen
 - Token import: `import { colors, spacing, type, radius } from '@weatherteam6/design/tokens'`
 - 72H precip chart: must fill full time axis with no gaps; x-axis labels: Now/Tue PM/Wed AM/.../Fri PM
-- Pull-to-refresh: `RefreshControl` in ScrollView, calls `queryClient.invalidateQueries()`
+- Pull-to-refresh: `RefreshControl` in ScrollView, calls `queryClient.invalidateQueries({ queryKey: ['forecast', locationId] })` and `queryClient.invalidateQueries({ queryKey: ['alerts', locationId] })` — scoped, not global
 - Barlow + BarlowCondensed fonts load in root `_layout.tsx` via `useFonts` before screens render
 - No climbing scores, no "go/no-go" language anywhere on this screen
 
@@ -168,6 +168,7 @@ Score appears ONLY on the WallsButton row (as tier-colored pills) — nowhere el
 - `apps/mobile/src/components/StatDrillSheet.tsx`
 - `apps/mobile/src/hooks/useAlerts.ts`
 - `apps/mobile/src/hooks/useCurrentLocation.ts`
+- `apps/mobile/src/lib/daylight.ts` — `getDaylight(lat, lon, date)` using suncalc (utility, not a hook)
 
 ### Modified files
 - `apps/mobile/app/_layout.tsx` — add font loading, remove direct screen registrations (move to tab layout)
