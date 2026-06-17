@@ -16,10 +16,15 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5",
+    "@weatherteam6/design": "*",
     "@weatherteam6/types": "*",
+    "@tabler/icons-react-native": "^3.34.0",
     "expo": "~56.0.3",
     "expo-constants": "~18.0.13",
+    "expo-font": "~13.3.0",
+    "expo-linear-gradient": "~14.1.0",
     "expo-linking": "~8.0.11",
+    "expo-location": "~18.1.0",
     "expo-router": "~6.0.23",
     "expo-status-bar": "~56.0.4",
     "react": "19.2.3",
@@ -27,10 +32,13 @@
     "react-native": "0.85.3",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.18.0",
-    "react-native-web": "~0.21.0"
+    "react-native-svg": "~15.11.2",
+    "react-native-web": "~0.21.0",
+    "suncalc": "^1.9.0"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "@types/suncalc": "^1.9.0",
     "typescript": "^5.7.2"
   }
 }
