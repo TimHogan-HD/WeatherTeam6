@@ -62,6 +62,7 @@ export default function HomeScreen() {
 
   function onRefresh() {
     if (!location) return
+    qc.invalidateQueries({ queryKey: ['observations', location.id] })
     qc.invalidateQueries({ queryKey: ['forecast', location.id] })
     qc.invalidateQueries({ queryKey: ['alerts', location.id] })
   }
@@ -83,7 +84,7 @@ export default function HomeScreen() {
             subtitle={location ? `${obs?.stationId ?? ''} · Updated ${obs?.updatedMinutesAgo ?? 0} min ago` : undefined}
           />
 
-          {!location ? (
+          {!location || !obs ? (
             <EmptyState />
           ) : (
             <>

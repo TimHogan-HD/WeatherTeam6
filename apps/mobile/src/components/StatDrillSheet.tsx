@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { DimensionValue } from 'react-native'
 import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native'
 import Svg, { Path } from 'react-native-svg'
 import { colors, radius, spacing, type as t } from '@weatherteam6/design/tokens'
@@ -84,12 +85,13 @@ export function StatDrillSheet({ statType, obs, onDismiss }: Props) {
             {MODELS.map((m) => {
               const val = modelVals[m] ?? 0
               const isObs = m === 'ASOS'
-              const barPct = val / ((modelVals['ASOS'] ?? 1) * 1.5)
+              const asos = modelVals['ASOS'] ?? 0
+              const barPct = asos > 0 ? val / (asos * 1.5) : 0
               return (
                 <View key={m} style={[styles.modelRow, isObs && styles.modelRowHighlight]}>
                   <Text style={[styles.modelName, isObs && styles.modelNameHighlight]}>{m}</Text>
                   <View style={styles.modelBarWrap}>
-                    <View style={[styles.modelBar, { width: `${Math.min(100, barPct * 100)}%` as unknown as number }]} />
+                    <View style={[styles.modelBar, { width: `${Math.min(100, barPct * 100)}%` as DimensionValue }]} />
                   </View>
                   <Text style={[styles.modelVal, isObs && styles.modelValHighlight]}>
                     {Number.isFinite(val) ? val.toFixed(1) : '—'}

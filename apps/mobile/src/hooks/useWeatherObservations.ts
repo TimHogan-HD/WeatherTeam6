@@ -23,9 +23,9 @@ const MOCK_OBS: WeatherObservation = {
 }
 
 export function useWeatherObservations(_locationId: string | undefined): {
-  data: WeatherObservation
-  isLoading: false
-  isError: false
+  data: WeatherObservation | undefined
+  isPending: boolean
+  isError: boolean
 } {
-  return { data: MOCK_OBS, isLoading: false, isError: false }
+  return { data: MOCK_OBS, isPending: false, isError: false }
 }

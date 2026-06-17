@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import type { DimensionValue } from 'react-native'
 import { StyleSheet, Text, View } from 'react-native'
 import { colors, spacing, type as t } from '@weatherteam6/design/tokens'
 import { getDaylight } from '../lib/daylight'
@@ -24,7 +25,7 @@ export function DaylightBar({ lat, lon }: Props) {
         <View style={styles.trackWrap}>
           <View style={styles.track}>
             <View style={[styles.fill, { width: `${pct * 100}%` }]} />
-            <View style={[styles.nowMarker, { left: `${pct * 100}%` as unknown as number }]} />
+            <View style={[styles.nowMarker, { left: `${pct * 100}%` as DimensionValue }]} />
           </View>
         </View>
         <Text style={styles.label}>{info.sunsetLabel}</Text>

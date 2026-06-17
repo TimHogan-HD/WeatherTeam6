@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { colors, radius, spacing, type as t } from '@weatherteam6/design/tokens'
 import { useConditions } from '../hooks/useConditions'
 
-type Props = { locationId: string }
+type Props = { locationId: string; onPress?: () => void }
 
 function scoreColor(score: number | null): string {
   if (score === null) return colors.txt3
@@ -18,20 +18,20 @@ function scoreBg(score: number | null): string {
   return 'rgba(252,129,129,0.12)'
 }
 
-export function WallsButton({ locationId }: Props) {
+export function WallsButton({ locationId, onPress }: Props) {
   const { data: conditions } = useConditions(locationId)
 
   return (
-    <Pressable style={styles.btn}>
+    <Pressable style={styles.btn} onPress={onPress}>
       <Text style={styles.icon}>⛰</Text>
       <View style={styles.info}>
         <Text style={styles.label}>Walls</Text>
         <Text style={styles.meta}>Tap to see climb conditions</Text>
       </View>
-      {conditions?.score !== undefined ? (
+      {conditions?.score != null ? (
         <View style={[styles.pill, { backgroundColor: scoreBg(conditions.score) }]}>
           <Text style={[styles.pillScore, { color: scoreColor(conditions.score) }]}>
-            {conditions.score ?? '—'}
+            {conditions.score}
           </Text>
         </View>
       ) : null}

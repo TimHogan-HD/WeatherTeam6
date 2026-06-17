@@ -1,3 +1,4 @@
+import type { DimensionValue } from 'react-native'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useState } from 'react'
 import { colors, radius, spacing, type as t } from '@weatherteam6/design/tokens'
@@ -33,7 +34,7 @@ export function SevenDayTable({ locationId }: Props) {
           <View key={i} style={styles.row}>
             <Text style={styles.day}>{dayLabel(snap.forecast_date)}</Text>
             <View style={styles.barWrap}>
-              <View style={[styles.bar, { width: `${Math.max(4, barPct * 100)}%` as unknown as number, opacity: 0.4 + barPct * 0.6 }]} />
+              <View style={[styles.bar, { width: `${Math.max(4, barPct * 100)}%` as DimensionValue, opacity: 0.4 + barPct * 0.6 }]} />
             </View>
             <Text style={styles.hilo}>
               {hi !== null ? `${hi}°` : '—'} / {lo !== null ? `${lo}°` : '—'}

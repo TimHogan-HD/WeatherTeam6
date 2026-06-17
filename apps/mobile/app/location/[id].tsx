@@ -58,6 +58,17 @@ export default function LocationDetail() {
     )
   }
 
+  if (!obs) {
+    return (
+      <LinearGradient colors={[colors.bgGradientTop, colors.bgGradientMid, colors.bgGradientBottom]} style={styles.gradient}>
+        <SafeAreaView style={styles.safe} edges={['top']}>
+          <TopBar title={location?.name ?? 'Location'} showBack onBack={() => router.back()} />
+          <View style={styles.center}><Text style={t.bodyMd}>Loading…</Text></View>
+        </SafeAreaView>
+      </LinearGradient>
+    )
+  }
+
   const subtitle = [location?.rock_type, location?.aspect]
     .filter((p): p is string => p !== null && p !== undefined)
     .join(' · ')
@@ -107,7 +118,7 @@ export default function LocationDetail() {
           <NWSAlertBar locationId={id} />
 
           {location?.is_climbing_location ? (
-            <WallsButton locationId={id} />
+            <WallsButton locationId={id} onPress={() => router.push({ pathname: '/walls/[id]' as never, params: { id } })} />
           ) : null}
 
           <Text style={styles.drillHint}>Long press any stat tile for model data</Text>
