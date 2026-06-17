@@ -157,3 +157,6 @@ expo-env.d.ts.bak
 
 # Claude Code session state (written by Stop hook)
 .claude/docs/session-notes.md
+
+# Agent worktree scratch space
+.claude/worktrees/
