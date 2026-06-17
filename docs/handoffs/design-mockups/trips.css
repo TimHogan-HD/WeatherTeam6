@@ -1,0 +1,127 @@
+/* trips.css — Trip creation flow. Same .crux-phone scope + tokens.
+   Reuses setup-head / stepbar / setup-body / setup-foot / btn from walls.css.
+   Load AFTER radar.css and walls.css. */
+
+/* ---------- DESTINATION SEARCH ---------- */
+.crux-phone .search-bar {
+  margin-top: 18px; display: flex; align-items: center; gap: 10px;
+  background: var(--card); border: 1px solid var(--line-2); border-radius: 10px; padding: 13px 14px;
+}
+.crux-phone .search-bar i { color: var(--txt-4); display: flex; }
+.crux-phone .search-bar .ph { font-size: 16px; color: var(--txt-1); font-weight: 600; }
+.crux-phone .search-bar .cursor { width: 2px; height: 18px; background: var(--good); }
+
+.crux-phone .res-lbl { margin-top: 18px; }
+.crux-phone .crag-pick { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.crux-phone .crag-opt {
+  display: flex; align-items: center; gap: 12px; padding: 12px 13px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+}
+.crux-phone .crag-opt.sel { background: rgba(184,245,66,0.08); border-color: rgba(184,245,66,0.30); }
+.crux-phone .pill-score {
+  width: 38px; height: 38px; border-radius: 9px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700; background: rgba(255,255,255,0.05);
+}
+.crux-phone .pill-score.good { color: var(--good); }
+.crux-phone .pill-score.fair { color: var(--fair); }
+.crux-phone .pill-score.unknown { color: var(--txt-4); }
+.crux-phone .crag-opt-info { flex: 1; min-width: 0; }
+.crux-phone .crag-opt-name { font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--txt-1); }
+.crux-phone .crag-opt-meta { font-family: 'Barlow', sans-serif; font-size: 11px; color: var(--txt-3); margin-top: 2px; }
+.crux-phone .crag-check {
+  width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+  border: 1.5px solid var(--line-2); display: flex; align-items: center; justify-content: center; color: transparent;
+}
+.crux-phone .crag-opt.sel .crag-check { background: var(--good); border-color: var(--good); color: #0d1117; }
+
+/* chosen-chips row above the picker */
+.crux-phone .chosen { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+.crux-phone .chosen-chip {
+  display: flex; align-items: center; gap: 6px; white-space: nowrap; font-family: 'Barlow', sans-serif; font-size: 12px; font-weight: 600;
+  background: rgba(184,245,66,0.10); border: 1px solid rgba(184,245,66,0.28); color: var(--good);
+  padding: 6px 10px; border-radius: 7px;
+}
+.crux-phone .chosen-chip i { display: flex; opacity: 0.7; }
+
+/* ---------- CALENDAR (confidence-shaded) ---------- */
+.crux-phone .cal-head { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
+.crux-phone .cal-month { font-size: 17px; font-weight: 700; color: var(--txt-1); letter-spacing: 0.02em; }
+.crux-phone .cal-nav { display: flex; gap: 6px; }
+.crux-phone .cal-nav div { width: 32px; height: 32px; border-radius: 8px; background: var(--card); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; color: var(--txt-3); }
+.crux-phone .cal-dow { display: grid; grid-template-columns: repeat(7,1fr); margin-top: 14px; }
+.crux-phone .cal-dow span { text-align: center; font-size: 9px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--txt-4); }
+.crux-phone .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; margin-top: 8px; }
+.crux-phone .cal-cell {
+  aspect-ratio: 1; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative; font-size: 14px; font-weight: 600; color: var(--txt-2);
+}
+.crux-phone .cal-cell.muted { color: var(--txt-5); }
+.crux-phone .cal-cell .conf-dot { width: 5px; height: 5px; border-radius: 50%; margin-top: 3px; }
+.crux-phone .cal-cell.c-high { background: rgba(184,245,66,0.08); }
+.crux-phone .cal-cell.c-high .conf-dot { background: var(--good); }
+.crux-phone .cal-cell.c-med .conf-dot { background: var(--fair); }
+.crux-phone .cal-cell.c-low .conf-dot { background: rgba(226,232,240,0.30); }
+/* range selection */
+.crux-phone .cal-cell.in-range { background: rgba(184,245,66,0.14); border-radius: 0; }
+.crux-phone .cal-cell.range-start { background: var(--good); color: #0d1117; border-radius: 8px 0 0 8px; }
+.crux-phone .cal-cell.range-end { background: var(--good); color: #0d1117; border-radius: 0 8px 8px 0; }
+.crux-phone .cal-cell.range-start .conf-dot, .crux-phone .cal-cell.range-end .conf-dot { background: #0d1117; }
+.crux-phone .cal-legend { display: flex; gap: 14px; margin-top: 16px; justify-content: center; }
+.crux-phone .cal-leg { display: flex; align-items: center; gap: 6px; font-family: 'Barlow', sans-serif; font-size: 10px; color: var(--txt-3); }
+.crux-phone .cal-leg .d { width: 7px; height: 7px; border-radius: 50%; }
+
+/* ---------- HORIZON TIMELINE (confidence ramp) ---------- */
+.crux-phone .horizon { margin-top: 22px; }
+.crux-phone .horizon-svg { width: 100%; display: block; }
+.crux-phone .horizon-scale { display: flex; justify-content: space-between; margin-top: 7px; }
+.crux-phone .horizon-scale span { font-size: 9px; font-weight: 600; letter-spacing: 0.04em; color: var(--txt-5); }
+.crux-phone .hz-windows { display: flex; flex-direction: column; gap: 6px; margin-top: 20px; }
+.crux-phone .hz-win {
+  display: flex; align-items: center; gap: 12px; padding: 12px 13px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+}
+.crux-phone .hz-win.sel { background: rgba(184,245,66,0.08); border-color: rgba(184,245,66,0.30); }
+.crux-phone .hz-when { flex: 1; }
+.crux-phone .hz-dates { font-size: 15px; font-weight: 700; color: var(--txt-1); }
+.crux-phone .hz-out { font-family: 'Barlow', sans-serif; font-size: 11px; color: var(--txt-3); margin-top: 2px; }
+.crux-phone .hz-conf { text-align: right; flex-shrink: 0; }
+.crux-phone .hz-conf .v { font-size: 13px; font-weight: 700; }
+.crux-phone .hz-conf .v.good { color: var(--good); }
+.crux-phone .hz-conf .v.fair { color: var(--fair); }
+.crux-phone .hz-conf .v.low { color: var(--txt-4); }
+.crux-phone .hz-conf .k { font-size: 8px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-4); margin-top: 2px; }
+
+/* ---------- CONFIDENCE PREVIEW (review step) ---------- */
+.crux-phone .conf-hero {
+  margin-top: 22px; background: rgba(184,245,66,0.06); border: 1px solid rgba(184,245,66,0.22);
+  border-radius: 12px; padding: 16px;
+}
+.crux-phone .ch-top { display: flex; align-items: baseline; justify-content: space-between; }
+.crux-phone .ch-pct { font-size: 40px; font-weight: 700; color: var(--good); line-height: 1; }
+.crux-phone .ch-lvl { font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-1); }
+.crux-phone .ch-track { height: 6px; border-radius: 3px; background: rgba(226,232,240,0.10); margin-top: 13px; position: relative; overflow: hidden; }
+.crux-phone .ch-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--good); }
+.crux-phone .ch-note { font-family: 'Barlow', sans-serif; font-size: 12px; color: var(--txt-2); line-height: 1.55; margin-top: 12px; }
+.crux-phone .ch-rebuild { display: flex; align-items: center; gap: 7px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(184,245,66,0.16); font-family: 'Barlow', sans-serif; font-size: 11px; color: var(--txt-3); }
+.crux-phone .ch-rebuild i { color: var(--good); display: flex; }
+
+/* data-availability rows */
+.crux-phone .avail { margin-top: 18px; display: flex; flex-direction: column; gap: 6px; }
+.crux-phone .avail-row { display: flex; align-items: center; gap: 11px; padding: 11px 13px; background: var(--card); border: 1px solid var(--line); border-radius: 9px; }
+.crux-phone .avail-ic { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.crux-phone .avail-ic.on { background: rgba(184,245,66,0.12); color: var(--good); }
+.crux-phone .avail-ic.off { background: rgba(226,232,240,0.05); color: var(--txt-4); }
+.crux-phone .avail-info { flex: 1; }
+.crux-phone .avail-k { font-size: 13px; font-weight: 700; color: var(--txt-1); }
+.crux-phone .avail-v { font-family: 'Barlow', sans-serif; font-size: 10px; color: var(--txt-3); margin-top: 1px; }
+.crux-phone .avail-stat { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; flex-shrink: 0; }
+.crux-phone .avail-stat.on { color: var(--good); }
+.crux-phone .avail-stat.off { color: var(--txt-4); }
+
+/* trip summary header in review */
+.crux-phone .trip-summary { margin-top: 4px; }
+.crux-phone .ts-name { font-size: 24px; font-weight: 700; color: var(--txt-1); line-height: 1.05; }
+.crux-phone .ts-meta { font-family: 'Barlow', sans-serif; font-size: 13px; color: var(--txt-3); margin-top: 5px; }
+
+/* name field reuse already in walls.css (.field) */

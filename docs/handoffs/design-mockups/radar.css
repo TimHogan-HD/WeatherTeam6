@@ -1,0 +1,275 @@
+/* ============================================================
+   CRUX CONDITIONS — RADAR SCREEN EXPLORATIONS
+   Built on the locked design system. Corrected contrast tokens.
+   ============================================================ */
+
+.crux-phone, .crux-phone *, .crux-phone *::before, .crux-phone *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.crux-phone {
+  --txt-1: #f0f4f8;                       /* hero / primary    */
+  --txt-2: rgba(226,232,240,0.82);        /* body / stat values */
+  --txt-3: rgba(226,232,240,0.62);        /* meta / subtitle    */
+  --txt-4: rgba(226,232,240,0.50);        /* labels / keys      */
+  --txt-5: rgba(226,232,240,0.38);        /* time-axis only     */
+  --card:  rgba(255,255,255,0.07);
+  --card-2: rgba(255,255,255,0.10);
+  --line:  rgba(226,232,240,0.14);
+  --line-2: rgba(226,232,240,0.22);
+  --good:  #b8f542;
+  --fair:  #f6ad55;
+  --poor:  #fc8181;
+  --rain:  rgba(144,205,244,0.95);
+
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #4a5568 0%, #1a202c 45%, #0d1117 100%);
+  font-family: 'Barlow Condensed', sans-serif;
+  color: var(--txt-2);
+  overflow: hidden;
+}
+.crux-phone .body-font { font-family: 'Barlow', sans-serif; }
+
+/* ---------- TOP BAR ---------- */
+.crux-phone .topbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 48px 20px 0; flex-shrink: 0;
+}
+.crux-phone .tb-loc { display: flex; align-items: center; gap: 7px; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; color: var(--txt-1); }
+.crux-phone .tb-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--good); box-shadow: 0 0 8px rgba(184,245,66,0.6); }
+.crux-phone .tb-title { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--txt-1); }
+.crux-phone .tb-right { display: flex; gap: 12px; align-items: center; }
+.crux-phone .tb-time { font-size: 11px; letter-spacing: 0.12em; color: var(--txt-4); font-weight: 500; }
+.crux-phone .tb-icon { font-size: 19px; color: var(--txt-3); }
+
+/* ---------- SECTION LABELS ---------- */
+.crux-phone .lbl { font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--txt-4); }
+.crux-phone .lbl-good { color: var(--good); }
+
+/* ---------- LAYER TOGGLES ---------- */
+.crux-phone .layers { display: flex; gap: 6px; padding: 12px 20px; overflow-x: auto; flex-shrink: 0; }
+.crux-phone .layers::-webkit-scrollbar { display: none; }
+.crux-phone .layer-chip {
+  flex-shrink: 0; display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 7px 12px; border-radius: 7px;
+  background: var(--card); border: 1px solid var(--line); color: var(--txt-3);
+}
+.crux-phone .layer-chip i { font-size: 14px; }
+.crux-phone .layer-chip.active { background: rgba(184,245,66,0.13); border-color: rgba(184,245,66,0.32); color: var(--good); }
+
+/* segmented variant */
+.crux-phone .seg {
+  display: flex; background: var(--card); border: 1px solid var(--line);
+  border-radius: 9px; padding: 3px; gap: 2px; margin: 0 20px;
+}
+.crux-phone .seg-item {
+  flex: 1; text-align: center; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 8px 4px; border-radius: 6px; color: var(--txt-4); display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.crux-phone .seg-item i { font-size: 15px; }
+.crux-phone .seg-item.active { background: var(--card-2); color: var(--txt-1); box-shadow: inset 0 0 0 1px var(--line); }
+
+/* vertical rail */
+.crux-phone .rail {
+  position: absolute; top: 14px; right: 14px; z-index: 6;
+  display: flex; flex-direction: column; gap: 5px;
+  background: rgba(10,12,16,0.55); backdrop-filter: blur(8px);
+  border: 1px solid var(--line); border-radius: 11px; padding: 6px;
+}
+.crux-phone .rail-btn {
+  width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  color: var(--txt-3); font-size: 17px;
+}
+.crux-phone .rail-btn.active { background: rgba(184,245,66,0.15); color: var(--good); }
+
+/* ---------- RADAR MAP ---------- */
+.crux-phone .rmap { position: relative; flex: 1; overflow: hidden; background: #0a0e14; }
+.crux-phone .rmap.fixed { flex: none; }
+.crux-phone .rmap-base {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(120% 90% at 30% 20%, rgba(74,85,104,0.28), transparent 60%),
+    radial-gradient(100% 80% at 80% 90%, rgba(26,32,44,0.5), transparent 55%),
+    #0a0e14;
+}
+/* faint terrain contour placeholder */
+.crux-phone .rmap-base::before {
+  content: ""; position: absolute; inset: 0;
+  background-image:
+    repeating-linear-gradient(56deg, rgba(226,232,240,0.05) 0 1px, transparent 1px 26px),
+    repeating-linear-gradient(-34deg, rgba(226,232,240,0.035) 0 1px, transparent 1px 34px);
+  opacity: 0.9;
+}
+.crux-phone .rmap-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(226,232,240,0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(226,232,240,0.045) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+.crux-phone .basemap-tag {
+  position: absolute; left: 10px; bottom: 8px; z-index: 7;
+  font-family: 'Barlow', sans-serif; font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: rgba(226,232,240,0.30); font-weight: 600;
+}
+
+/* radar precip echoes */
+.crux-phone .rblob { position: absolute; border-radius: 50%; transform: translate(-50%,-50%); filter: blur(4px); mix-blend-mode: screen; pointer-events: none; }
+.crux-phone .rblob.trace  { background: radial-gradient(circle, rgba(144,205,244,0.40), transparent 70%); }
+.crux-phone .rblob.light  { background: radial-gradient(circle, rgba(99,179,237,0.60), rgba(99,179,237,0) 70%); }
+.crux-phone .rblob.mod    { background: radial-gradient(circle, rgba(63,131,248,0.78), rgba(99,179,237,0.2) 60%, transparent 75%); }
+.crux-phone .rblob.heavy  { background: radial-gradient(circle, rgba(246,173,85,0.82), rgba(63,131,248,0.35) 55%, transparent 75%); }
+.crux-phone .rblob.severe { background: radial-gradient(circle, rgba(252,129,129,0.92), rgba(246,173,85,0.5) 45%, rgba(63,131,248,0.2) 68%, transparent 80%); }
+
+/* sweep overlay */
+.crux-phone .sweep {
+  position: absolute; inset: -20%;
+  background: conic-gradient(from var(--sweep-from, -90deg), rgba(184,245,66,0.16), transparent 22%, transparent 100%);
+  mix-blend-mode: screen; pointer-events: none;
+}
+
+/* crag pins */
+.crux-phone .pin { position: absolute; transform: translate(-50%,-50%); z-index: 5; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.crux-phone .pin-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--txt-2); box-shadow: 0 0 0 3px rgba(10,12,16,0.6); }
+.crux-phone .pin-dot.good { background: var(--good); box-shadow: 0 0 0 3px rgba(10,12,16,0.6), 0 0 12px rgba(184,245,66,0.7); }
+.crux-phone .pin-dot.fair { background: var(--fair); box-shadow: 0 0 0 3px rgba(10,12,16,0.6), 0 0 10px rgba(246,173,85,0.6); }
+.crux-phone .pin-chip {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 4px; white-space: nowrap;
+  background: rgba(10,12,16,0.7); border: 1px solid var(--line); color: var(--txt-2);
+}
+/* "you are here" */
+.crux-phone .here { position: absolute; transform: translate(-50%,-50%); z-index: 5; }
+.crux-phone .here-core { width: 12px; height: 12px; border-radius: 50%; background: var(--good); border: 2px solid #0a0e14; }
+.crux-phone .here-ring { position: absolute; top: 50%; left: 50%; width: 34px; height: 34px; transform: translate(-50%,-50%); border-radius: 50%; border: 1.5px solid rgba(184,245,66,0.5); animation: pulsering 2.6s ease-out infinite; }
+@keyframes pulsering { 0% { transform: translate(-50%,-50%) scale(0.5); opacity: 0.9; } 100% { transform: translate(-50%,-50%) scale(1.6); opacity: 0; } }
+
+/* range rings */
+.crux-phone .ring { position: absolute; transform: translate(-50%,-50%); border-radius: 50%; border: 1px solid rgba(226,232,240,0.13); }
+.crux-phone .ring-lbl { position: absolute; transform: translate(-50%,-50%); font-size: 8px; font-weight: 600; letter-spacing: 0.1em; color: var(--txt-5); background: rgba(10,12,16,0.5); padding: 1px 4px; border-radius: 3px; }
+
+/* storm motion vector */
+.crux-phone .vector { position: absolute; height: 2px; transform-origin: left center; background: linear-gradient(90deg, rgba(252,129,129,0.1), rgba(252,129,129,0.85)); z-index: 5; }
+.crux-phone .vector::after { content: ""; position: absolute; right: -1px; top: 50%; transform: translateY(-50%) rotate(45deg); width: 7px; height: 7px; border-top: 2px solid var(--poor); border-right: 2px solid var(--poor); }
+
+/* storm-cell callout */
+.crux-phone .callout {
+  position: absolute; z-index: 6; background: rgba(10,12,16,0.82); backdrop-filter: blur(6px);
+  border: 1px solid rgba(252,129,129,0.4); border-radius: 8px; padding: 7px 9px; max-width: 150px;
+}
+.crux-phone .callout-lbl { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--poor); margin-bottom: 2px; }
+.crux-phone .callout-txt { font-family: 'Barlow', sans-serif; font-size: 10px; line-height: 1.4; color: var(--txt-2); }
+
+/* map-floating readout banner */
+.crux-phone .map-readout {
+  position: absolute; left: 14px; right: 14px; z-index: 6;
+  background: rgba(10,12,16,0.66); backdrop-filter: blur(8px);
+  border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px;
+  display: flex; align-items: center; gap: 11px;
+}
+.crux-phone .mr-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.crux-phone .mr-icon.rain { background: rgba(99,179,237,0.16); color: var(--rain); }
+.crux-phone .mr-icon.warn { background: rgba(246,173,85,0.16); color: var(--fair); }
+.crux-phone .mr-big { font-size: 17px; font-weight: 700; color: var(--txt-1); line-height: 1.1; }
+.crux-phone .mr-sub { font-family: 'Barlow', sans-serif; font-size: 11px; color: var(--txt-3); margin-top: 2px; }
+
+/* ---------- INTENSITY LEGEND ---------- */
+.crux-phone .legend { display: flex; align-items: center; gap: 8px; }
+.crux-phone .legend-bar { flex: 1; height: 5px; border-radius: 3px; background: linear-gradient(90deg, rgba(144,205,244,0.4), rgba(63,131,248,0.85) 45%, rgba(246,173,85,0.85) 78%, rgba(252,129,129,0.95)); }
+.crux-phone .legend-end { font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--txt-4); font-weight: 600; }
+
+/* ---------- TIMELINE SCRUBBER ---------- */
+.crux-phone .scrub {
+  flex-shrink: 0; background: rgba(10,12,16,0.5); border-top: 1px solid var(--line);
+  padding: 13px 16px 14px; display: flex; flex-direction: column; gap: 10px;
+}
+.crux-phone .scrub-head { display: flex; justify-content: space-between; align-items: baseline; }
+.crux-phone .scrub-frame { font-size: 15px; font-weight: 700; color: var(--txt-1); }
+.crux-phone .scrub-frame span { color: var(--rain); }
+.crux-phone .scrub-status { font-family: 'Barlow', sans-serif; font-size: 10px; color: var(--txt-3); }
+.crux-phone .scrub-main { display: flex; align-items: center; gap: 12px; }
+.crux-phone .play-btn {
+  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(184,245,66,0.14); border: 1px solid rgba(184,245,66,0.32);
+  display: flex; align-items: center; justify-content: center; color: var(--good); font-size: 17px;
+}
+.crux-phone .track-wrap { flex: 1; }
+.crux-phone .track { height: 5px; border-radius: 3px; background: rgba(226,232,240,0.10); position: relative; }
+.crux-phone .track-past { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: rgba(99,179,237,0.55); }
+.crux-phone .track-now { position: absolute; top: -3px; width: 2px; height: 11px; background: var(--txt-2); border-radius: 1px; }
+.crux-phone .track-handle { position: absolute; top: 50%; transform: translate(-50%,-50%); width: 15px; height: 15px; border-radius: 50%; background: var(--good); border: 2px solid #0a0e14; box-shadow: 0 0 10px rgba(184,245,66,0.5); }
+.crux-phone .ticks { display: flex; justify-content: space-between; margin-top: 6px; }
+.crux-phone .tick { font-size: 9px; letter-spacing: 0.06em; color: var(--txt-5); font-weight: 500; }
+.crux-phone .tick.now { color: var(--txt-2); font-weight: 700; }
+
+/* ---------- FILMSTRIP ---------- */
+.crux-phone .filmstrip { display: flex; gap: 6px; padding: 12px 16px; overflow-x: auto; }
+.crux-phone .filmstrip::-webkit-scrollbar { display: none; }
+.crux-phone .film {
+  flex-shrink: 0; width: 62px; border-radius: 7px; overflow: hidden;
+  border: 1px solid var(--line); background: #0a0e14;
+}
+.crux-phone .film.active { border-color: rgba(184,245,66,0.6); box-shadow: 0 0 0 1px rgba(184,245,66,0.4); }
+.crux-phone .film-canvas { position: relative; height: 48px; overflow: hidden; }
+.crux-phone .film-time { font-size: 8px; font-weight: 600; letter-spacing: 0.04em; text-align: center; padding: 3px 0; color: var(--txt-4); border-top: 1px solid var(--line); }
+.crux-phone .film.active .film-time { color: var(--good); }
+
+/* ---------- RADIAL ETA DIAL ---------- */
+.crux-phone .dial-wrap { display: flex; align-items: center; gap: 16px; }
+.crux-phone .dial { position: relative; width: 132px; height: 132px; flex-shrink: 0; }
+.crux-phone .dial svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.crux-phone .dial-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.crux-phone .dial-num { font-size: 30px; font-weight: 700; color: var(--txt-1); line-height: 1; }
+.crux-phone .dial-unit { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-4); font-weight: 600; margin-top: 3px; }
+.crux-phone .dial-cap { font-family: 'Barlow', sans-serif; font-size: 10px; color: var(--rain); margin-top: 5px; }
+
+/* ---------- INTENSITY AREA CHART ---------- */
+.crux-phone .chart-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 13px 10px; }
+.crux-phone .chart-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 9px; }
+.crux-phone .chart-svg { width: 100%; display: block; }
+.crux-phone .chart-ticks { display: flex; justify-content: space-between; margin-top: 5px; }
+
+/* ---------- GENERIC STAT TILES ---------- */
+.crux-phone .tiles { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.crux-phone .tile { background: var(--card); border: 1px solid var(--line); border-radius: 7px; padding: 9px 10px; }
+.crux-phone .tile-val { font-size: 17px; font-weight: 700; color: var(--txt-1); line-height: 1; }
+.crux-phone .tile-val.rain { color: var(--rain); }
+.crux-phone .tile-val.warn { color: var(--fair); }
+.crux-phone .tile-key { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--txt-4); margin-top: 5px; }
+
+/* ---------- BOTTOM NAV ---------- */
+.crux-phone .bnav {
+  flex-shrink: 0; background: rgba(10,12,16,0.96); border-top: 1px solid var(--line);
+  display: flex; padding: 11px 0 24px;
+}
+.crux-phone .bnav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.crux-phone .bnav-ic { font-size: 20px; color: var(--txt-4); }
+.crux-phone .bnav-lbl { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-4); font-weight: 600; }
+.crux-phone .bnav-item.active .bnav-ic, .crux-phone .bnav-item.active .bnav-lbl { color: var(--good); }
+
+/* scoped scrollbars off */
+.crux-phone *::-webkit-scrollbar { display: none; }
+
+/* ---------- DESIGN NOTES CARD ---------- */
+.notes-card, .notes-card *, .notes-card *::before, .notes-card *::after { box-sizing: border-box; }
+.notes-card {
+  position: relative; width: 100%; height: 100%; overflow-y: auto;
+  background: #11151c; color: #e2e8f0; padding: 30px 28px;
+  font-family: 'Barlow Condensed', sans-serif;
+}
+.notes-card h1 { font-size: 22px; font-weight: 700; letter-spacing: 0.04em; color: #b8f542; margin-bottom: 4px; }
+.notes-card .nc-sub { font-family: 'Barlow', sans-serif; font-size: 13px; color: rgba(226,232,240,0.6); margin-bottom: 22px; line-height: 1.5; }
+.notes-card h2 { font-size: 11px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(226,232,240,0.5); margin: 20px 0 9px; }
+.notes-card p, .notes-card li { font-family: 'Barlow', sans-serif; font-size: 13px; line-height: 1.6; color: rgba(226,232,240,0.78); }
+.notes-card ul { padding-left: 16px; display: flex; flex-direction: column; gap: 6px; }
+.notes-card li::marker { color: #b8f542; }
+.notes-card strong { color: #f0f4f8; font-weight: 600; }
+.notes-card .swatches { display: flex; gap: 8px; margin: 6px 0 4px; }
+.notes-card .sw { flex: 1; height: 38px; border-radius: 6px; display: flex; align-items: flex-end; padding: 5px; font-size: 9px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }

@@ -12,6 +12,7 @@ export const queryClient = new QueryClient({
         error instanceof ApiError && error.status >= 400 && error.status < 500
           ? false
           : failureCount < 1,
+      retryDelay: (attempt) => Math.min(1_000 * 2 ** attempt, 30_000),
     },
   },
 })

@@ -21,8 +21,28 @@ export class ApiError extends Error {
   }
 }
 
+const REQUEST_TIMEOUT_MS = 15_000
+
+/**
+ * Single fetch helper for all API calls. Returns the unwrapped `data`
+ * payload (or null for legitimate empty-data 200s) and throws ApiError
+ * on failure so React Query surfaces it via `isError` and applies retry.
+ */
 export async function apiFetch<T>(path: string): Promise<T | null> {
-  const res = await fetch(`${baseUrl()}${path}`)
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+  let res: Response
+  try {
+    res = await fetch(`${baseUrl()}${path}`, { signal: controller.signal })
+  } catch (err) {
+    clearTimeout(timer)
+    if ((err as Error)?.name === 'AbortError') {
+      throw new ApiError('Request timed out', 0)
+    }
+    throw err
+  }
+  clearTimeout(timer)
 
   let body: ApiResponse<T> | null = null
   try {
