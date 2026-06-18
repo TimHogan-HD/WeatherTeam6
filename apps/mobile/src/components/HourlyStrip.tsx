@@ -11,14 +11,17 @@ export function HourlyStrip({ locationId }: Props) {
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>Hourly</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        {data.map((slot, i) => (
-          <View key={i} style={styles.cell}>
-            <Text style={styles.time}>{slot.time}</Text>
-            <Text style={styles.temp}>{slot.tempF}°</Text>
-            <Text style={styles.wind}>{slot.windDir} {slot.windSpeedMph}</Text>
-            <Text style={styles.prob}>{slot.precipPct}%</Text>
-          </View>
-        ))}
+        {data.map((slot, i) => {
+          const isNow = i === 0 || slot.time === 'Now'
+          return (
+            <View key={i} style={[styles.cell, isNow && styles.cellNow]}>
+              <Text style={[styles.time, isNow && styles.timeNow]}>{slot.time}</Text>
+              <Text style={styles.temp}>{slot.tempF}°</Text>
+              <Text style={styles.wind}>{slot.windDir} {slot.windSpeedMph}</Text>
+              <Text style={styles.prob}>{slot.precipPct}%</Text>
+            </View>
+          )
+        })}
       </ScrollView>
     </View>
   )
@@ -47,9 +50,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 3,
   },
+  cellNow: {
+    backgroundColor: 'rgba(184,245,66,0.08)',
+    borderColor: 'rgba(184,245,66,0.28)',
+  },
   time: {
     ...t.labelSm,
     color: colors.txt4,
+  },
+  timeNow: {
+    color: colors.good,
   },
   temp: {
     fontFamily: 'BarlowCondensed',

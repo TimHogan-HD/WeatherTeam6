@@ -1,10 +1,12 @@
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
+import { IconMenu2, IconSearch } from '@tabler/icons-react-native'
 import { colors, spacing, type as t } from '@weatherteam6/design/tokens'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCurrentLocation } from '../../src/hooks/useCurrentLocation'
 import { useWeatherObservations } from '../../src/hooks/useWeatherObservations'
+import { useConditions } from '../../src/hooks/useConditions'
 import { TopBar } from '../../src/components/TopBar'
 import { StatGrid } from '../../src/components/StatGrid'
 import { DaylightBar } from '../../src/components/DaylightBar'
@@ -41,9 +43,21 @@ function HeroSection({
   )
 }
 
+function HomeRightElement() {
+  const now = new Date()
+  const timeLabel = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  return (
+    <View style={styles.topBarRight}>
+      <Text style={styles.topBarTime}>{timeLabel}</Text>
+      <IconMenu2 size={20} color={colors.txt3} />
+    </View>
+  )
+}
+
 function EmptyState() {
   return (
     <View style={styles.empty}>
+      <IconSearch size={40} color={colors.txt4} />
       <Text style={styles.emptyTitle}>No Location</Text>
       <Text style={styles.emptyBody}>Add a location to see weather data.</Text>
     </View>
@@ -57,6 +71,9 @@ export default function HomeScreen() {
 
   const obsQ = useWeatherObservations(location?.id)
   const obs = obsQ.data
+
+  // Prefetch conditions so the cache is warm when user navigates to detail
+  useConditions(location?.id)
 
   const isRefreshing = locationQ.isFetching ?? false
 
@@ -82,6 +99,7 @@ export default function HomeScreen() {
           <TopBar
             title={location?.name ?? 'Weather'}
             subtitle={location ? `${obs?.stationId ?? ''} · Updated ${obs?.updatedMinutesAgo ?? 0} min ago` : undefined}
+            rightElement={<HomeRightElement />}
           />
 
           {!location || !obs ? (
@@ -155,9 +173,19 @@ const styles = StyleSheet.create({
   emptyTitle: {
     ...t.screenTitle,
     marginBottom: 8,
+    marginTop: 12,
   },
   emptyBody: {
     ...t.bodyMd,
     textAlign: 'center',
+  },
+  topBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  topBarTime: {
+    ...t.bodySm,
+    color: colors.txt3,
   },
 })

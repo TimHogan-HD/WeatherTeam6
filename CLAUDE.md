@@ -88,7 +88,7 @@ Full paths:
 - **Build plan:** `.claude/docs/plan.md`
 
 **UI Design Handoffs (read before the relevant phase — these are the spec):**
-- `docs/handoffs/weatherteam6-ui-handoff-v1.md` — Home screen + Location Detail (phases 7b/7c)
+- `docs/handoffs/weatherteam6-ui-handoff-v1.md` — ALL remaining UI phases (7b → 7c → 7e → 7f → 7d → 8 → 9 → 9b → 10 → 11 → 12). Read before any mobile UI work. Adds phases 7e (Locations), 7f (Stat Detail Sheets), 9b (Trip Detail), 11 (Hourly Analysis). Phase 8 per this doc = Walls Screen + Setup Flow (not shade calc).
 - `docs/handoffs/design-mockups/README.md` — Radar, Walls, and Trips screen specs (phases 9b/9c, 12, Walls)
 - `docs/handoffs/design-mockups/weatherteam6UI.html` — primary mockup for Home + Location Detail
 - `docs/handoffs/design-mockups/radar-shared.jsx` / `radar-variations.jsx` / `radar.css` — Radar screen (phase 12)

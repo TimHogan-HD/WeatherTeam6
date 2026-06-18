@@ -26,7 +26,7 @@ export function WallsButton({ locationId, onPress }: Props) {
       <Text style={styles.icon}>⛰</Text>
       <View style={styles.info}>
         <Text style={styles.label}>Walls</Text>
-        <Text style={styles.meta}>Tap to see climb conditions</Text>
+        <Text style={styles.meta}>Tap to see conditions</Text>
       </View>
       {conditions?.score != null ? (
         <View style={[styles.pill, { backgroundColor: scoreBg(conditions.score) }]}>

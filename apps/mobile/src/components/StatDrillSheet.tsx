@@ -99,6 +99,28 @@ export function StatDrillSheet({ statType, obs, onDismiss }: Props) {
                 </View>
               )
             })}
+            {(() => {
+              const modelOnly = MODELS.filter((m) => m !== 'ASOS').map((m) => modelVals[m] ?? 0)
+              const observed = modelVals['ASOS'] ?? 0
+              const low  = Math.min(...modelOnly)
+              const high = Math.max(...modelOnly)
+              const spread = high - low
+              return (
+                <View style={styles.spreadRow}>
+                  {([
+                    { label: 'Model Low',  val: low.toFixed(1) },
+                    { label: 'Observed',   val: observed.toFixed(1) },
+                    { label: 'Model High', val: high.toFixed(1) },
+                    { label: 'Spread',     val: `±${(spread / 2).toFixed(1)}` },
+                  ] as const).map(({ label, val }) => (
+                    <View key={label} style={styles.spreadCell}>
+                      <Text style={styles.spreadVal}>{val}</Text>
+                      <Text style={styles.spreadLabel}>{label}</Text>
+                    </View>
+                  ))}
+                </View>
+              )
+            })()}
           </>
         ) : null}
       </Animated.View>
@@ -205,5 +227,28 @@ const styles = StyleSheet.create({
   },
   modelValHighlight: {
     color: colors.good,
+  },
+  spreadRow: {
+    flexDirection: 'row',
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
+  spreadCell: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  spreadVal: {
+    fontFamily: 'BarlowCondensed',
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.txt1,
+  },
+  spreadLabel: {
+    ...t.labelSm,
+    color: colors.txt4,
+    textAlign: 'center',
   },
 })

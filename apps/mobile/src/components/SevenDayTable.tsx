@@ -13,6 +13,9 @@ function dayLabel(dateStr: string): string {
   return DAY_ABBREV[d.getDay()] ?? dateStr
 }
 
+function cToF(c: number): number { return Math.round(c * 9 / 5 + 32) }
+function kmhToMph(k: number): number { return Math.round(k * 0.621371) }
+
 type Props = { locationId: string }
 
 export function SevenDayTable({ locationId }: Props) {
@@ -20,25 +23,59 @@ export function SevenDayTable({ locationId }: Props) {
   const [tab, setTab] = useState<Tab>('rain')
 
   const rows = (data ?? []).slice(0, 7)
-  const maxMm = Math.max(1, ...rows.map((r) => r.precip_mm_p50 ?? 0))
+
+  // Max values per tab for bar scaling
+  const maxMm   = Math.max(1, ...rows.map((r) => r.precip_mm_p50 ?? 0))
+  const maxTemp  = Math.max(1, ...rows.map((r) => r.temp_c_max ?? 0))
+  const maxWind  = Math.max(1, ...rows.map((r) => r.wind_kmh_max ?? 0))
+  const maxHumid = Math.max(1, ...rows.map((r) => r.humidity_pct ?? 0))
+
+  function rowData(snap: (typeof rows)[0]) {
+    const hi = snap.temp_c_max !== null ? cToF(snap.temp_c_max) : null
+    const lo = snap.temp_c_min !== null ? cToF(snap.temp_c_min) : null
+    switch (tab) {
+      case 'rain': {
+        const mm = snap.precip_mm_p50 ?? 0
+        const inVal = (mm * 0.0393701).toFixed(2)
+        return { barPct: mm / maxMm, barColor: colors.rain, right: `${inVal}"` }
+      }
+      case 'temp':
+        return {
+          barPct: (snap.temp_c_max ?? 0) / maxTemp,
+          barColor: colors.sun,
+          right: hi !== null && lo !== null ? `${hi}° / ${lo}°` : '—',
+        }
+      case 'wind': {
+        const mph = snap.wind_kmh_max !== null ? kmhToMph(snap.wind_kmh_max) : null
+        return {
+          barPct: (snap.wind_kmh_max ?? 0) / maxWind,
+          barColor: colors.txt2,
+          right: mph !== null ? `${mph} mph` : '—',
+        }
+      }
+      case 'humid': {
+        const pct = snap.humidity_pct ?? 0
+        return {
+          barPct: pct / maxHumid,
+          barColor: colors.rain,
+          right: `${Math.round(pct)}%`,
+        }
+      }
+    }
+  }
 
   return (
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>7-Day</Text>
       {rows.map((snap, i) => {
-        const mm = snap.precip_mm_p50 ?? 0
-        const barPct = mm / maxMm
-        const hi = snap.temp_c_max !== null ? Math.round(snap.temp_c_max * 9 / 5 + 32) : null
-        const lo = snap.temp_c_min !== null ? Math.round(snap.temp_c_min * 9 / 5 + 32) : null
+        const { barPct, barColor, right } = rowData(snap)
         return (
           <View key={i} style={styles.row}>
             <Text style={styles.day}>{dayLabel(snap.forecast_date)}</Text>
             <View style={styles.barWrap}>
-              <View style={[styles.bar, { width: `${Math.max(4, barPct * 100)}%` as DimensionValue, opacity: 0.4 + barPct * 0.6 }]} />
+              <View style={[styles.bar, { width: `${Math.max(4, barPct * 100)}%` as DimensionValue, backgroundColor: barColor }]} />
             </View>
-            <Text style={styles.hilo}>
-              {hi !== null ? `${hi}°` : '—'} / {lo !== null ? `${lo}°` : '—'}
-            </Text>
+            <Text style={styles.hilo}>{right}</Text>
           </View>
         )
       })}

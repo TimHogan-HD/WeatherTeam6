@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { LinearGradient } from 'expo-linear-gradient'
 import { router, useLocalSearchParams } from 'expo-router'
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { IconDotsVertical, IconHeart } from '@tabler/icons-react-native'
 import { colors, spacing, type as t } from '@weatherteam6/design/tokens'
 import { useLocation } from '../../src/hooks/useLocation'
 import { useWeatherObservations } from '../../src/hooks/useWeatherObservations'
@@ -69,9 +70,13 @@ export default function LocationDetail() {
     )
   }
 
-  const subtitle = [location?.rock_type, location?.aspect]
-    .filter((p): p is string => p !== null && p !== undefined)
-    .join(' · ')
+  const metaParts = [
+    location?.rock_type,
+    location?.aspect,
+    location?.asos_station,
+    obs ? `Updated ${obs.updatedMinutesAgo} min ago` : null,
+  ].filter((p): p is string => p !== null && p !== undefined)
+  const subtitle = metaParts.join(' · ')
 
   const daylight = location ? getDaylight(location.lat, location.lon, new Date()) : null
 
@@ -91,6 +96,16 @@ export default function LocationDetail() {
             subtitle={subtitle || undefined}
             showBack
             onBack={() => router.back()}
+            rightElement={
+              <View style={styles.topBarRight}>
+                <Pressable hitSlop={10}>
+                  <IconHeart size={22} color={colors.txt3} />
+                </Pressable>
+                <Pressable hitSlop={10}>
+                  <IconDotsVertical size={22} color={colors.txt3} />
+                </Pressable>
+              </View>
+            }
           />
 
           <HeroSection
@@ -170,5 +185,10 @@ const styles = StyleSheet.create({
     marginTop: -spacing.sectionTop + 4,
     marginBottom: spacing.sectionTop,
     opacity: 0.2,
+  },
+  topBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
 })
