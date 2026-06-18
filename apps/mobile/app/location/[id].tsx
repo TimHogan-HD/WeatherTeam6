@@ -16,6 +16,7 @@ import { SevenDayTable } from '../../src/components/SevenDayTable'
 import { NWSAlertBar } from '../../src/components/NWSAlertBar'
 import { WallsButton } from '../../src/components/WallsButton'
 import { StatDrillSheet } from '../../src/components/StatDrillSheet'
+import { DetailSheetRouter } from '../../src/components/sheets/DetailSheetRouter'
 import { getDaylight } from '../../src/lib/daylight'
 
 function HeroSection({
@@ -48,6 +49,7 @@ export default function LocationDetail() {
   const obs = obsQ.data
 
   const [drillStat, setDrillStat] = useState<string | null>(null)
+  const [detailStat, setDetailStat] = useState<string | null>(null)
 
   if (!id) {
     return (
@@ -120,6 +122,7 @@ export default function LocationDetail() {
             variant="detail"
             obs={obs}
             daylightHours={daylight?.daylightHours}
+            onTilePress={(stat) => setDetailStat(stat)}
             onTileLongPress={(stat) => setDrillStat(stat)}
           />
 
@@ -143,6 +146,11 @@ export default function LocationDetail() {
           statType={drillStat}
           obs={obs}
           onDismiss={() => setDrillStat(null)}
+        />
+        <DetailSheetRouter
+          stat={detailStat}
+          locationId={id}
+          onDismiss={() => setDetailStat(null)}
         />
       </SafeAreaView>
     </LinearGradient>

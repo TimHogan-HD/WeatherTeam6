@@ -1,4 +1,5 @@
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { IconMenu2, IconSearch } from '@tabler/icons-react-native'
@@ -13,6 +14,7 @@ import { DaylightBar } from '../../src/components/DaylightBar'
 import { EnsemblePrecipChart } from '../../src/components/EnsemblePrecipChart'
 import { HourlyStrip } from '../../src/components/HourlyStrip'
 import { NWSAlertBar } from '../../src/components/NWSAlertBar'
+import { DetailSheetRouter } from '../../src/components/sheets/DetailSheetRouter'
 
 function HeroSection({
   tempF,
@@ -75,6 +77,8 @@ export default function HomeScreen() {
   // Prefetch conditions so the cache is warm when user navigates to detail
   useConditions(location?.id)
 
+  const [detailStat, setDetailStat] = useState<string | null>(null)
+
   const isRefreshing = locationQ.isFetching ?? false
 
   function onRefresh() {
@@ -114,7 +118,11 @@ export default function HomeScreen() {
                 todayHighF={obs.todayHighF}
                 todayLowF={obs.todayLowF}
               />
-              <StatGrid variant="home" obs={obs} />
+              <StatGrid
+                variant="home"
+                obs={obs}
+                onTilePress={(stat) => setDetailStat(stat)}
+              />
               <DaylightBar lat={location.lat} lon={location.lon} />
               <EnsemblePrecipChart locationId={location.id} />
               <HourlyStrip locationId={location.id} />
@@ -122,6 +130,13 @@ export default function HomeScreen() {
             </>
           )}
         </ScrollView>
+        {location ? (
+          <DetailSheetRouter
+            stat={detailStat}
+            locationId={location.id}
+            onDismiss={() => setDetailStat(null)}
+          />
+        ) : null}
       </SafeAreaView>
     </LinearGradient>
   )

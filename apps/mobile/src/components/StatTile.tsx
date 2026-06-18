@@ -7,13 +7,15 @@ type Props = {
   detail?: string
   showBar?: boolean
   barPct?: number
+  onPress?: () => void
   onLongPress?: () => void
   flex?: number
 }
 
-export function StatTile({ label, value, detail, showBar, barPct = 0, onLongPress, flex = 1 }: Props) {
+export function StatTile({ label, value, detail, showBar, barPct = 0, onPress, onLongPress, flex = 1 }: Props) {
   return (
     <Pressable
+      onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={400}
       style={[styles.tile, { flex }]}
