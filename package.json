@@ -25,6 +25,9 @@
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.61.0"
   },
+  "overrides": {
+    "expo-router": "56.0.4"
+  },
   "engines": {
     "node": ">=20.0.0"
   },
