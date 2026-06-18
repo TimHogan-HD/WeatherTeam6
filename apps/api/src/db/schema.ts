@@ -137,7 +137,8 @@ export const trips = pgTable('trips', {
     .notNull()
     .references(() => users.id),
   name: text('name').notNull(),
-  target_date: date('target_date').notNull(),
+  start_date: date('start_date').notNull(),
+  end_date: date('end_date').notNull(),
   notes: text('notes'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updated_at: timestamp('updated_at', { withTimezone: true }),

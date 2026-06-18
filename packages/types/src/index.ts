@@ -195,3 +195,29 @@ export type CreateWallInput = {
   angleBand: 'slab' | 'vertical' | 'steep' | 'roof'
   routeCount?: number
 }
+
+export type TripLocation = {
+  id: string
+  tripId: string
+  locationId: string
+  createdAt: string
+}
+
+export type Trip = {
+  id: string
+  userId: string
+  name: string
+  startDate: string
+  endDate: string
+  notes: string | null
+  createdAt: string
+  updatedAt: string | null
+  locations?: TripLocation[]
+}
+
+export type CreateTripInput = {
+  name: string
+  startDate: string
+  endDate: string
+  cragIds: string[]
+}
