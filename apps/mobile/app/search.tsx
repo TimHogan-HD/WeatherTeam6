@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: spacing.screenH,
-    paddingBottom: 32,
+    paddingBottom: spacing.bottomInset,
   },
   sectionHeader: {
     ...t.label,
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 60,
+    paddingTop: spacing.topSafe,
   },
   emptyText: {
     ...t.bodyMd,
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
   },
   addBtnText: {
     ...t.bodyMd,
-    color: colors.bgGradientBottom,
+    color: colors.onGood,
     fontWeight: '600',
   },
 })
