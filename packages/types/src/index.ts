@@ -173,3 +173,25 @@ export const SCORE_COMPONENT_MAX = {
   temp: 12,
   humidity: 8,
 } as const
+
+export type Wall = {
+  id: string
+  locationId: string
+  name: string
+  aspectDeg: number
+  aspectSource: 'terrain' | 'manual'
+  angleDeg: number
+  angleBand: 'slab' | 'vertical' | 'steep' | 'roof'
+  routeCount: number | null
+  createdAt: string
+}
+
+export type CreateWallInput = {
+  locationId: string
+  name: string
+  aspectDeg: number
+  aspectSource: 'terrain' | 'manual'
+  angleDeg: number
+  angleBand: 'slab' | 'vertical' | 'steep' | 'roof'
+  routeCount?: number
+}

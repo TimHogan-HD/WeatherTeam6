@@ -231,6 +231,24 @@ export const weatherAlerts = pgTable(
   (t) => [unique().on(t.location_id, t.nws_alert_id)],
 )
 
+export const walls = pgTable('walls', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  location_id: uuid('location_id')
+    .notNull()
+    .references(() => locations.id),
+  user_id: uuid('user_id')
+    .notNull()
+    .references(() => users.id),
+  name: text('name').notNull(),
+  aspect_deg: integer('aspect_deg').notNull(),
+  aspect_source: text('aspect_source').notNull(),
+  angle_deg: integer('angle_deg').notNull(),
+  angle_band: text('angle_band').notNull(),
+  route_count: integer('route_count'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true }),
+})
+
 export const userPreferences = pgTable('user_preferences', {
   id: uuid('id').primaryKey().defaultRandom(),
   user_id: uuid('user_id')
