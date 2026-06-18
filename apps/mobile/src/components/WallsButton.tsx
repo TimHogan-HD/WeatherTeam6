@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { router } from 'expo-router'
 import { colors, radius, spacing, type as t } from '@weatherteam6/design/tokens'
 import { useConditions } from '../hooks/useConditions'
 
@@ -21,8 +22,16 @@ function scoreBg(score: number | null): string {
 export function WallsButton({ locationId, onPress }: Props) {
   const { data: conditions } = useConditions(locationId)
 
+  function handlePress() {
+    if (onPress) {
+      onPress()
+    } else {
+      router.push(`/walls/${locationId}`)
+    }
+  }
+
   return (
-    <Pressable style={styles.btn} onPress={onPress}>
+    <Pressable style={styles.btn} onPress={handlePress}>
       <Text style={styles.icon}>⛰</Text>
       <View style={styles.info}>
         <Text style={styles.label}>Walls</Text>

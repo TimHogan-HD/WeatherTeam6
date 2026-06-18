@@ -59,3 +59,64 @@ export async function apiFetch<T>(path: string): Promise<T | null> {
 
   return body.data
 }
+
+export async function apiPost<T>(path: string, body: unknown): Promise<T | null> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+  let res: Response
+  try {
+    res = await fetch(`${baseUrl()}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+  } catch (err) {
+    clearTimeout(timer)
+    if ((err as Error)?.name === 'AbortError') {
+      throw new ApiError('Request timed out', 0)
+    }
+    throw err
+  }
+  clearTimeout(timer)
+
+  let responseBody: ApiResponse<T> | null = null
+  try {
+    responseBody = (await res.json()) as ApiResponse<T>
+  } catch {
+    responseBody = null
+  }
+
+  if (!res.ok || responseBody === null || responseBody.error !== null) {
+    throw new ApiError(responseBody?.error ?? `HTTP ${res.status}`, responseBody?.status ?? res.status)
+  }
+
+  return responseBody.data
+}
+
+export async function apiDelete(path: string): Promise<void> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+  let res: Response
+  try {
+    res = await fetch(`${baseUrl()}${path}`, {
+      method: 'DELETE',
+      signal: controller.signal,
+    })
+  } catch (err) {
+    clearTimeout(timer)
+    if ((err as Error)?.name === 'AbortError') {
+      throw new ApiError('Request timed out', 0)
+    }
+    throw err
+  }
+  clearTimeout(timer)
+
+  if (!res.ok) {
+    let errorBody: ApiResponse<null> | null = null
+    try { errorBody = (await res.json()) as ApiResponse<null> } catch { /* empty */ }
+    throw new ApiError(errorBody?.error ?? `HTTP ${res.status}`, errorBody?.status ?? res.status)
+  }
+}
