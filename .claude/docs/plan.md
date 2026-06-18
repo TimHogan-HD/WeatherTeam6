@@ -113,7 +113,7 @@ Each phase: implement → acceptance criteria → `npm run typecheck` → `npm r
 | 7b | `phase-7b: home screen and useLocations hook` | Home screen rendering location cards, `useLocations` hook |
 | 7c | `phase-7c: location detail screen and conditions/forecast hooks` | `location/[id].tsx`, `useConditions` hook, `useForecast` hook |
 | 7d | `phase-7d: search stub screen` | Search screen (UI stub, no backend — real search in Phase 10) |
-| 8 | `phase-8: shade and sun window calculation` | shadeCalc.ts (suncalc), shadeMapCalc.ts (ShadeMap fallback) |
+| 8 | `phase-8: walls screen and wall setup flow` | Walls screen (classic rows + data cards), wall setup 4-step modal, shadeCalc.ts (suncalc) powering the SunArc SVG — per `docs/handoffs/weatherteam6-ui-handoff-v1.md` Phase 8 and `docs/handoffs/design-mockups/walls-flow.jsx` + `walls-viz.jsx` |
 | 9a | `phase-9a: trip CRUD API endpoints` | POST/GET/DELETE `/trips`, POST `/trips/:id/locations` |
 | 9b | `phase-9b: trip mobile screens and hooks` | Trip list screen, trip detail screen, `useTrips` hook, `useTripLocations` hook |
 | 9c | `phase-9c: forecast evolution and mobile chart` | Evolution query embedded in GET `/trips/:id`, `ForecastChart` component |
