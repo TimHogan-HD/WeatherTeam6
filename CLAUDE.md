@@ -77,6 +77,7 @@ EXPO_PUBLIC_API_BASE_URL=                           # read by mobile at bundle t
 - Before ANY database work: read `.claude/docs/data-model.md` AND `.claude/rules/architecture.md`
 - Before ANY weather fetch work: read `.claude/docs/api-sources.md`
 - Before ANY conditions score work: read `.claude/docs/scoring-algorithm.md`
+- Before ANY mobile UI phase: read the relevant design handoff doc(s) below — the mockups are the spec, not prose descriptions
 
 Full paths:
 - **Data model + schema:** `.claude/docs/data-model.md`
@@ -85,6 +86,14 @@ Full paths:
 - **Architecture rules:** `.claude/rules/architecture.md`
 - **Review checklist:** `.claude/rules/review-checklist.md` — run before every commit
 - **Build plan:** `.claude/docs/plan.md`
+
+**UI Design Handoffs (read before the relevant phase — these are the spec):**
+- `docs/handoffs/weatherteam6-ui-handoff-v1.md` — Home screen + Location Detail (phases 7b/7c)
+- `docs/handoffs/design-mockups/README.md` — Radar, Walls, and Trips screen specs (phases 9b/9c, 12, Walls)
+- `docs/handoffs/design-mockups/weatherteam6UI.html` — primary mockup for Home + Location Detail
+- `docs/handoffs/design-mockups/radar-shared.jsx` / `radar-variations.jsx` / `radar.css` — Radar screen (phase 12)
+- `docs/handoffs/design-mockups/walls-flow.jsx` / `walls-viz.jsx` / `walls.css` — Walls screen + setup flow
+- `docs/handoffs/design-mockups/trips-flow.jsx` / `trips.css` — Trip creation flow (phases 9b/9c)
 
 ## Session Start Protocol
 
