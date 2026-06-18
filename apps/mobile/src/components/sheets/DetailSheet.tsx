@@ -10,22 +10,28 @@ type Props = {
 }
 
 export function DetailSheet({ visible, title, onDismiss, children }: Props) {
-  const [slideAnim] = useState(() => new Animated.Value(500))
+  const [slideAnim] = useState(() => new Animated.Value(visible ? 0 : 500))
+  // Keep modal mounted during close animation; starts open when visible=true
+  const [keepMounted, setKeepMounted] = useState(visible)
+  // Combined: open immediately when visible becomes true; close after animation
+  const modalVisible = visible || keepMounted
 
   useEffect(() => {
-    if (visible) {
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 280,
-        useNativeDriver: true,
-      }).start()
-    } else {
-      slideAnim.setValue(500)
-    }
+    const anim = Animated.timing(slideAnim, {
+      toValue: visible ? 0 : 500,
+      duration: visible ? 280 : 240,
+      useNativeDriver: true,
+    })
+    anim.start(({ finished }) => {
+      if (finished) {
+        setKeepMounted(visible)
+      }
+    })
+    return () => anim.stop()
   }, [visible, slideAnim])
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onDismiss}>
+    <Modal visible={modalVisible} transparent animationType="none" onRequestClose={onDismiss}>
       <Pressable style={styles.overlay} onPress={onDismiss} />
       <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}>
         <View style={styles.handle} />
@@ -57,7 +63,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     maxHeight: '88%',
-    backgroundColor: '#1a202c',
+    backgroundColor: colors.bgGradientMid,
     borderTopLeftRadius: radius.card,
     borderTopRightRadius: radius.card,
     padding: spacing.screenH,
@@ -66,16 +72,16 @@ const styles = StyleSheet.create({
   handle: {
     width: 36,
     height: 4,
-    borderRadius: radius.full,
+    borderRadius: radius.stepBar,
     backgroundColor: colors.line2,
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.sectionGap,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.listGap,
   },
   headerTitle: {
     ...t.navTitle,

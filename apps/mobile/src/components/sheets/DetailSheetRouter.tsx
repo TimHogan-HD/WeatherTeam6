@@ -1,3 +1,4 @@
+import React from 'react'
 import { TemperatureSheet } from './TemperatureSheet'
 import { WindSheet } from './WindSheet'
 import { HumiditySheet } from './HumiditySheet'
@@ -7,57 +8,24 @@ import { VisibilitySheet } from './VisibilitySheet'
 import { UVIndexSheet } from './UVIndexSheet'
 import { CloudCoverSheet } from './CloudCoverSheet'
 
-type Props = {
-  stat: string | null
-  locationId: string
-  onDismiss: () => void
+type SheetProps = { visible: boolean; locationId: string; onDismiss: () => void }
+
+const SHEET_MAP: Record<string, React.ComponentType<SheetProps>> = {
+  temp: TemperatureSheet,
+  wind: WindSheet,
+  humidity: HumiditySheet,
+  precip: PrecipitationSheet,
+  pressure: PressureSheet,
+  visibility: VisibilitySheet,
+  uv: UVIndexSheet,
+  cloud: CloudCoverSheet,
 }
+
+type Props = { stat: string | null; locationId: string; onDismiss: () => void }
 
 export function DetailSheetRouter({ stat, locationId, onDismiss }: Props) {
   if (!stat) return null
-
-  return (
-    <>
-      <TemperatureSheet
-        visible={stat === 'temp'}
-        locationId={locationId}
-        onDismiss={onDismiss}
-      />
-      <WindSheet
-        visible={stat === 'wind'}
-        locationId={locationId}
-        onDismiss={onDismiss}
-      />
-      <HumiditySheet
-        visible={stat === 'humidity'}
-        locationId={locationId}
-        onDismiss={onDismiss}
-      />
-      <PrecipitationSheet
-        visible={stat === 'precip'}
-        locationId={locationId}
-        onDismiss={onDismiss}
-      />
-      <PressureSheet
-        visible={stat === 'pressure'}
-        locationId={locationId}
-        onDismiss={onDismiss}
-      />
-      <VisibilitySheet
-        visible={stat === 'visibility'}
-        locationId={locationId}
-        onDismiss={onDismiss}
-      />
-      <UVIndexSheet
-        visible={stat === 'uv'}
-        locationId={locationId}
-        onDismiss={onDismiss}
-      />
-      <CloudCoverSheet
-        visible={stat === 'cloud'}
-        locationId={locationId}
-        onDismiss={onDismiss}
-      />
-    </>
-  )
+  const Sheet = SHEET_MAP[stat]
+  if (!Sheet) return null
+  return <Sheet visible={true} locationId={locationId} onDismiss={onDismiss} />
 }

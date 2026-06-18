@@ -65,6 +65,7 @@ export const colors = {
   // Radar intensity ramp (precip echoes)
   radarLight: 'rgba(99,179,237,0.65)',
   radarModerate: 'rgba(63,131,248,0.75)',
+  radarBand: 'rgba(59,130,246,0.15)',
   radarHeavy: 'rgba(246,173,85,0.80)',    // amber — maps to --fair language
   radarSevere: 'rgba(252,129,129,0.85)',  // red — maps to --poor language
 
@@ -84,6 +85,11 @@ export const colors = {
   /** Sun tint background */
   sunTint: 'rgba(253,186,116,0.10)',
 } as const;
+
+export const uvScale = [
+  '#4ade80', '#86efac', '#fde047', '#fbbf24', '#fb923c',
+  '#f97316', '#ef4444', '#dc2626', '#b91c1c', '#7c3aed', '#6d28d9',
+] as const
 
 // ─────────────────────────────────────────────
 // TYPOGRAPHY
@@ -299,6 +305,12 @@ export const spacing = {
   bottomNavH: 56,
   /** Micro gap — tight stack spacing (2px) */
   micro: 2,
+  /** Tight gap — 4px nudges */
+  tight: 4,
+  /** Cell internal padding */
+  cellPad: 10,
+  /** Section gap — larger vertical separation */
+  sectionGap: 16,
 } as const;
 
 // ─────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import Svg, { Path, Rect } from 'react-native-svg'
-import { colors, fonts, spacing, type as t } from '@weatherteam6/design/tokens'
+import { colors, fonts, radius, spacing, type as t } from '@weatherteam6/design/tokens'
 import { useWeatherObservations } from '../../hooks/useWeatherObservations'
 import { useHourlyForecast } from '../../hooks/useHourlyForecast'
 import { usePrecipEnsemble } from '../../hooks/usePrecipEnsemble'
@@ -87,7 +87,7 @@ export function PrecipitationSheet({ visible, locationId, onDismiss }: Props) {
       <SectionLabel text="Ensemble Spread" />
       {hasEnsemble ? (
         <Svg width={chartW} height={chartH}>
-          <Path d={bandPath} fill="rgba(59,130,246,0.15)" />
+          <Path d={bandPath} fill={colors.radarBand} />
           <Path d={ensemblePath} stroke={colors.rain} strokeWidth={2} fill="none" />
         </Svg>
       ) : (
@@ -142,13 +142,13 @@ const styles = StyleSheet.create({
   },
   heroCell: {
     flex: 1,
-    paddingVertical: 4,
+    paddingVertical: spacing.tight,
   },
   heroDivider: {
     width: 1,
     backgroundColor: colors.line,
-    marginHorizontal: 12,
-    marginVertical: 4,
+    marginHorizontal: spacing.cardPadSm,
+    marginVertical: spacing.tight,
   },
   heroValue: {
     fontFamily: fonts.display,
@@ -159,12 +159,12 @@ const styles = StyleSheet.create({
   },
   heroSub: {
     ...t.bodySm,
-    marginTop: 2,
+    marginTop: spacing.micro,
   },
   heroDef: {
     ...t.bodySm,
     color: colors.txt4,
-    marginTop: 2,
+    marginTop: spacing.micro,
   },
   percentileRow: {
     flexDirection: 'row',
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.card,
     borderRadius: spacing.listGap,
-    padding: 10,
+    padding: spacing.cellPad,
     alignItems: 'center',
   },
   percentileValue: {
@@ -186,31 +186,31 @@ const styles = StyleSheet.create({
   },
   percentileTitle: {
     ...t.bodySm,
-    marginTop: 2,
+    marginTop: spacing.micro,
     textAlign: 'center',
   },
   percentileLabel: {
     ...t.labelSm,
     color: colors.txt4,
-    marginTop: 1,
+    marginTop: spacing.micro,
   },
   agreementText: {
     ...t.bodyMd,
     color: colors.txt2,
-    marginBottom: 8,
+    marginBottom: spacing.listGap,
   },
   progressTrack: {
-    height: 4,
+    height: spacing.tight,
     backgroundColor: colors.line,
-    borderRadius: 2,
+    borderRadius: radius.stepBar,
     overflow: 'hidden',
     marginBottom: spacing.sectionTop,
   },
   progressFill: {
     width: '71%',
-    height: 4,
+    height: spacing.tight,
     backgroundColor: colors.rain,
-    borderRadius: 2,
+    borderRadius: radius.stepBar,
   },
   historyRow: {
     flexDirection: 'row',

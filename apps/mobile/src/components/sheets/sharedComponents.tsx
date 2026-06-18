@@ -50,7 +50,7 @@ const heroStyles = StyleSheet.create({
   cell: {
     flex: 1,
     alignItems: 'flex-start',
-    paddingVertical: 4,
+    paddingVertical: spacing.tight,
   },
   value: {
     fontFamily: fonts.display,
@@ -61,18 +61,18 @@ const heroStyles = StyleSheet.create({
   },
   subLabel: {
     ...t.bodySm,
-    marginTop: 2,
+    marginTop: spacing.micro,
   },
   definition: {
     ...t.bodySm,
     color: colors.txt4,
-    marginTop: 2,
+    marginTop: spacing.micro,
   },
   divider: {
     width: 1,
     backgroundColor: colors.line,
-    marginHorizontal: 12,
-    marginVertical: 4,
+    marginHorizontal: spacing.cardPadSm,
+    marginVertical: spacing.tight,
   },
 })
 
@@ -86,10 +86,11 @@ type RangeBarProps = {
   value: number
   gradientColors: string[]
   ticks: Tick[]
+  width?: number
 }
 
-export function RangeBar({ min, max, value, gradientColors, ticks }: RangeBarProps) {
-  const W = 280
+export function RangeBar({ min, max, value, gradientColors, ticks, width = 280 }: RangeBarProps) {
+  const W = width
   const H = 12
   const needlePct = Math.min(1, Math.max(0, (value - min) / (max - min)))
   const needleX = needlePct * W
@@ -188,7 +189,7 @@ const gridStyles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.card,
     borderRadius: spacing.listGap,
-    padding: 10,
+    padding: spacing.cellPad,
   },
   value: {
     fontFamily: fonts.display,
@@ -199,7 +200,7 @@ const gridStyles = StyleSheet.create({
   label: {
     ...t.labelSm,
     color: colors.txt4,
-    marginTop: 2,
+    marginTop: spacing.micro,
   },
 })
 
@@ -262,8 +263,8 @@ export function SectionLabel({ text }: { text: string }) {
 const sectionLabelStyles = StyleSheet.create({
   text: {
     ...t.label,
-    marginBottom: 8,
-    marginTop: 4,
+    marginBottom: spacing.listGap,
+    marginTop: spacing.tight,
   },
 })
 
@@ -296,12 +297,12 @@ const hourlyStyles = StyleSheet.create({
   },
   cell: {
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: spacing.sectionGap,
     minWidth: 48,
   },
   time: {
     ...t.timeTick,
-    marginBottom: 4,
+    marginBottom: spacing.tight,
   },
   primary: {
     fontFamily: fonts.display,
@@ -313,6 +314,6 @@ const hourlyStyles = StyleSheet.create({
   secondary: {
     ...t.bodySm,
     textAlign: 'center',
-    marginTop: 1,
+    marginTop: spacing.micro,
   },
 })

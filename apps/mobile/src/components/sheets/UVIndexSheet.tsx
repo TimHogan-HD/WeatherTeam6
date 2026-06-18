@@ -1,6 +1,6 @@
 import { useWindowDimensions } from 'react-native'
 import Svg, { Rect } from 'react-native-svg'
-import { colors, spacing } from '@weatherteam6/design/tokens'
+import { colors, spacing, uvScale } from '@weatherteam6/design/tokens'
 import { useWeatherObservations } from '../../hooks/useWeatherObservations'
 import { DetailSheet } from './DetailSheet'
 import {
@@ -25,19 +25,7 @@ function uvRiskLevel(uv: number): string {
 }
 
 // UV scale: 11 segments from green to purple
-const UV_SEGMENT_COLORS = [
-  '#4ade80', // 0-1 green
-  '#86efac',
-  '#fde047', // 3 yellow
-  '#fbbf24',
-  '#fb923c',
-  '#f97316', // 5-6 orange
-  '#ef4444',
-  '#dc2626', // 7-8 red
-  '#b91c1c',
-  '#7c3aed', // 9-10 purple
-  '#6d28d9',
-]
+const UV_SEGMENT_COLORS = uvScale
 
 function UVScaleBar({ uvIndex, width }: { uvIndex: number; width: number }) {
   const segW = width / 11

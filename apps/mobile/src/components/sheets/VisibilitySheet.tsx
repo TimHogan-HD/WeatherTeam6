@@ -23,12 +23,6 @@ function visibilityCondition(miles: number): string {
   return 'Poor'
 }
 
-function visibilityTag(miles: number): string {
-  if (miles >= 10) return 'Clear'
-  if (miles >= 5) return 'Good'
-  if (miles >= 2) return 'Reduced'
-  return 'Poor'
-}
 
 export function VisibilitySheet({ visible, locationId, onDismiss }: Props) {
   const { data: obs } = useWeatherObservations(locationId)
@@ -44,7 +38,7 @@ export function VisibilitySheet({ visible, locationId, onDismiss }: Props) {
 
   const hourlyCells = hourly.map((h) => ({
     time: h.time,
-    rows: [`${visMiles} mi`, visibilityTag(visMiles)],
+    rows: [`${visMiles} mi`, visibilityCondition(visMiles)],
   }))
 
   return (

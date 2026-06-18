@@ -21,9 +21,9 @@ type Props = {
 
 function beaufortCategory(spd: number): string {
   if (spd === 0) return 'Calm'
-  if (spd <= 11) return 'Light to Moderate'
-  if (spd <= 19) return 'Strong'
-  return 'Near Gale+'
+  if (spd <= 24) return 'Light to Moderate'  // BF1–5
+  if (spd <= 38) return 'Strong'              // BF6–7
+  return 'Near Gale+'                         // BF8+
 }
 
 function WindCompass({ deg }: { deg: number }) {
@@ -139,6 +139,6 @@ const styles = StyleSheet.create({
   compassLabel: {
     ...t.bodySm,
     color: colors.txt3,
-    marginTop: 8,
+    marginTop: spacing.listGap,
   },
 })
