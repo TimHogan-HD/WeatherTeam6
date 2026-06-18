@@ -98,6 +98,7 @@ export function StatGrid(props: Props) {
         <StatTile label="UV Index" value={`${obs.uvIndex}`} detail="Moderate" onPress={() => onTilePress?.('uv')} onLongPress={() => onTileLongPress?.('uv')} />
         <StatTile label="Cloud Cover" value={`${obs.cloudCoverPct}%`} onPress={() => onTilePress?.('cloud')} onLongPress={() => onTileLongPress?.('cloud')} />
         <StatTile label="Precip 1H" value={`${obs.precip1hIn.toFixed(2)}"`} onPress={() => onTilePress?.('precip')} onLongPress={() => onTileLongPress?.('precip')} />
+        {/* Daylight tile: no detail sheet yet — sheet planned for Phase 8 (sun calc) */}
         <StatTile label="Daylight" value={dh !== undefined ? `${dh.toFixed(1)}h` : '—'} onLongPress={() => onTileLongPress?.('daylight')} />
       </View>
     </View>

@@ -113,7 +113,7 @@ export function PrecipitationSheet({ visible, locationId, onDismiss }: Props) {
 
       <SectionLabel text="Model Agreement" />
       <Text style={styles.agreementText}>
-        {'22 of 31 members agree on < 0.1" tomorrow'}
+        {'Model agreement data loading...'}
       </Text>
       <View style={styles.progressTrack}>
         <View style={styles.progressFill} />
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sectionTop,
   },
   progressFill: {
-    width: '71%',
+    width: '0%',
     height: spacing.tight,
     backgroundColor: colors.rain,
     borderRadius: radius.stepBar,
