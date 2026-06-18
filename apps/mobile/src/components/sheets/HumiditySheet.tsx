@@ -87,6 +87,7 @@ export function HumiditySheet({ visible, locationId, onDismiss }: Props) {
           { value: 65, label: 'Humid' },
           { value: 75, label: 'Oppressive' },
         ]}
+        width={chartW}
       />
 
       <SectionLabel text="24H RH & Dew Point" />

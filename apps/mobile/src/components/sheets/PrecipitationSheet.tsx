@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   historyRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 6,
+    paddingVertical: spacing.tight,
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },

@@ -1,4 +1,5 @@
-import { colors } from '@weatherteam6/design/tokens'
+import { useWindowDimensions } from 'react-native'
+import { colors, spacing } from '@weatherteam6/design/tokens'
 import { useWeatherObservations } from '../../hooks/useWeatherObservations'
 import { useHourlyForecast } from '../../hooks/useHourlyForecast'
 import { DetailSheet } from './DetailSheet'
@@ -27,6 +28,8 @@ function visibilityCondition(miles: number): string {
 export function VisibilitySheet({ visible, locationId, onDismiss }: Props) {
   const { data: obs } = useWeatherObservations(locationId)
   const { data: hourly } = useHourlyForecast(locationId)
+  const { width: screenWidth } = useWindowDimensions()
+  const chartW = screenWidth - spacing.screenH * 2
 
   const visMiles = obs?.visibilityMiles ?? 10
   const tempF = obs?.tempF ?? 70
@@ -60,6 +63,7 @@ export function VisibilitySheet({ visible, locationId, onDismiss }: Props) {
           { value: 6, label: 'Haze' },
           { value: 10, label: 'Clear' },
         ]}
+        width={chartW}
       />
 
       <SectionLabel text="Details" />

@@ -77,6 +77,7 @@ export function CloudCoverSheet({ visible, locationId, onDismiss }: Props) {
           { value: 50, label: 'Partly' },
           { value: 90, label: 'Overcast' },
         ]}
+        width={chartW}
       />
 
       <SectionLabel text="Details" />

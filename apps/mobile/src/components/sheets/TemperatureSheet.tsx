@@ -64,6 +64,7 @@ export function TemperatureSheet({ visible, locationId, onDismiss }: Props) {
           { value: 65, label: '65°' },
           { value: todayHighF, label: 'High' },
         ]}
+        width={chartW}
       />
 
       <SectionLabel text="What This Means" />

@@ -104,6 +104,7 @@ export function WindSheet({ visible, locationId, onDismiss }: Props) {
           { value: 25, label: 'Strong' },
           { value: 47, label: 'Dangerous' },
         ]}
+        width={chartW}
       />
 
       <SectionLabel text="Details" />

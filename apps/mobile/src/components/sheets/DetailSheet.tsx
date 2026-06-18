@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
   handle: {
     width: 36,
     height: 4,
-    borderRadius: radius.stepBar,
+    borderRadius: radius.full,
     backgroundColor: colors.line2,
     alignSelf: 'center',
     marginBottom: spacing.sectionGap,

@@ -54,6 +54,7 @@ export function PressureSheet({ visible, locationId, onDismiss }: Props) {
           { value: 29.92, label: 'Normal' },
           { value: 30.5, label: 'Clear High' },
         ]}
+        width={chartW}
       />
 
       <SectionLabel text="Details" />

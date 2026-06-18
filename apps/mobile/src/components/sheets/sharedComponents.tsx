@@ -53,11 +53,7 @@ const heroStyles = StyleSheet.create({
     paddingVertical: spacing.tight,
   },
   value: {
-    fontFamily: fonts.display,
-    fontSize: 36,
-    fontWeight: '700',
-    color: colors.txt1,
-    lineHeight: 38,
+    ...t.bigStat,
   },
   subLabel: {
     ...t.bodySm,
