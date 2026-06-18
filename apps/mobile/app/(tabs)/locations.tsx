@@ -15,7 +15,7 @@ import {
   IconMapPin,
   IconSearch,
 } from '@tabler/icons-react-native'
-import { colors, radius, spacing, type as t } from '@weatherteam6/design/tokens'
+import { colors, fonts, radius, spacing, type as t } from '@weatherteam6/design/tokens'
 import type { Location } from '@weatherteam6/types'
 import { useLocations } from '../../src/hooks/useLocations'
 import { useConditions } from '../../src/hooks/useConditions'
@@ -295,6 +295,8 @@ function CragRow({
 
 export default function LocationsScreen() {
   const [activeTab, setActiveTab] = useState<TabKey>('all')
+  // TODO(Phase-10): 'Climbable' filter requires a consolidated score endpoint.
+  // Filter state is captured for chip visual state; list filtering is deferred.
   const [allFilter, setAllFilter] = useState<AllFilter>('Saved')
   const [cragsFilter, setCragsFilter] = useState<CragsFilter>('Saved')
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -457,7 +459,7 @@ const styles = StyleSheet.create({
   // Search
   searchRow: {
     paddingHorizontal: spacing.screenH,
-    paddingBottom: 10,
+    paddingBottom: spacing.cardPadSm,
   },
   searchBar: {
     flexDirection: 'row',
@@ -466,8 +468,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.card,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    paddingHorizontal: spacing.cardPadSm,
+    paddingVertical: spacing.cardPadSm,
     gap: spacing.inlineGap,
   },
   searchInput: {
@@ -482,7 +484,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: spacing.screenH,
     gap: spacing.chipGap,
-    marginBottom: 8,
+    marginBottom: spacing.listGap,
   },
 
   // Filter chips
@@ -490,13 +492,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: spacing.screenH,
     gap: spacing.chipGap,
-    marginBottom: 12,
+    marginBottom: spacing.cardPadSm,
   },
 
   // Chip
   chip: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: spacing.listGapSm,
+    paddingHorizontal: spacing.cardPadSm,
     borderRadius: radius.chipMd,
     borderWidth: 1,
   },
@@ -509,7 +511,7 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
   chipText: {
-    fontFamily: 'BarlowCondensed',
+    fontFamily: fonts.display,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -526,7 +528,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: spacing.screenH,
-    paddingBottom: 32,
+    paddingBottom: spacing.bottomInset,
   },
 
   // Section header
@@ -534,7 +536,7 @@ const styles = StyleSheet.create({
     ...t.label,
     color: colors.txt4,
     marginTop: spacing.sectionTop,
-    marginBottom: 8,
+    marginBottom: spacing.listGap,
   },
 
   // Row card
@@ -563,7 +565,6 @@ const styles = StyleSheet.create({
     ...t.bodyMd,
     color: colors.txt1,
     fontWeight: '600',
-    fontSize: 14,
   },
   rowSub: {
     ...t.bodySm,
@@ -574,7 +575,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   rowTemp: {
-    fontFamily: 'BarlowCondensed',
+    fontFamily: fonts.display,
     fontSize: 15,
     fontWeight: '700',
     color: colors.txt1,
@@ -597,13 +598,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.line,
     padding: spacing.cardPad,
-    gap: 10,
+    gap: spacing.cardPadSm,
   },
 
   // Stat strip
   statStrip: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.listGap,
   },
   statCell: {
     flex: 1,
@@ -615,7 +616,7 @@ const styles = StyleSheet.create({
     color: colors.txt4,
   },
   statValue: {
-    fontFamily: 'BarlowCondensed',
+    fontFamily: fonts.display,
     fontSize: 15,
     fontWeight: '700',
     color: colors.txt1,
@@ -624,7 +625,7 @@ const styles = StyleSheet.create({
   // 3-day mini strip
   miniStrip: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.listGap,
   },
   miniCell: {
     flex: 1,
@@ -633,7 +634,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: spacing.listGap,
     gap: 2,
   },
   miniDay: {
@@ -641,7 +642,7 @@ const styles = StyleSheet.create({
     color: colors.txt4,
   },
   miniTemp: {
-    fontFamily: 'BarlowCondensed',
+    fontFamily: fonts.display,
     fontSize: 14,
     fontWeight: '700',
     color: colors.txt1,
@@ -657,7 +658,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.card,
-    paddingVertical: 10,
+    paddingVertical: spacing.cardPadSm,
     alignItems: 'center',
   },
   fullBtnText: {
@@ -675,19 +676,19 @@ const styles = StyleSheet.create({
   scoreBadge: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 1,
   },
   scoreNum: {
-    fontFamily: 'BarlowCondensed',
+    fontFamily: fonts.display,
     fontSize: 17,
     fontWeight: '700',
     lineHeight: 18,
   },
   scoreTier: {
-    fontFamily: 'BarlowCondensed',
+    fontFamily: fonts.display,
     fontSize: 9,
     fontWeight: '600',
     textTransform: 'uppercase',
