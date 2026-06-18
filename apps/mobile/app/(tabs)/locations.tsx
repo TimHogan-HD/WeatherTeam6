@@ -196,7 +196,7 @@ function CragRow({
   const score = conditionsQ.data?.score ?? null
 
   const subLabel =
-    [location.rock_type, location.aspect].filter(Boolean).join(' · ') ||
+    [location.rock_type, location.aspect].filter((p): p is string => p !== null && p !== undefined).join(' · ') ||
     'Climbing location'
 
   return (
@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
     flex: 1,
     ...t.bodyMd,
     color: colors.txt3,
-    padding: 0,
+    padding: 0, // neutralize RN TextInput default padding
   },
 
   // Sub-tabs
@@ -503,8 +503,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   chipActive: {
-    backgroundColor: 'rgba(184,245,66,0.10)',
-    borderColor: 'rgba(184,245,66,0.28)',
+    backgroundColor: colors.goodTint,
+    borderColor: colors.goodTintBorder,
   },
   chipInactive: {
     backgroundColor: colors.card,
@@ -568,11 +568,11 @@ const styles = StyleSheet.create({
   },
   rowSub: {
     ...t.bodySm,
-    marginTop: 2,
+    marginTop: spacing.micro,
   },
   rowRight: {
     alignItems: 'flex-end',
-    gap: 2,
+    gap: spacing.micro,
   },
   rowTemp: {
     fontFamily: fonts.display,
@@ -609,7 +609,7 @@ const styles = StyleSheet.create({
   statCell: {
     flex: 1,
     alignItems: 'center',
-    gap: 2,
+    gap: spacing.micro,
   },
   statLabel: {
     ...t.labelSm,
@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     alignItems: 'center',
     paddingVertical: spacing.listGap,
-    gap: 2,
+    gap: spacing.micro,
   },
   miniDay: {
     ...t.labelSm,
@@ -679,7 +679,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 1,
+    gap: 1, /* tighter than micro */
   },
   scoreNum: {
     fontFamily: fonts.display,
@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
   scoreDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
-    marginBottom: 2,
+    borderRadius: radius.tag,
+    marginBottom: spacing.micro,
   },
 })

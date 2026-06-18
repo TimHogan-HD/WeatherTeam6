@@ -297,6 +297,8 @@ export const spacing = {
   bottomInset: 24,
   /** Bottom nav height (approximate) */
   bottomNavH: 56,
+  /** Micro gap — tight stack spacing (2px) */
+  micro: 2,
 } as const;
 
 // ─────────────────────────────────────────────
