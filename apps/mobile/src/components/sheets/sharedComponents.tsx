@@ -8,7 +8,7 @@ import Svg, {
   Stop,
   Text as SvgText,
 } from 'react-native-svg'
-import { colors, fonts, spacing, type as t } from '@weatherteam6/design/tokens'
+import { colors, fonts, radius, spacing, type as t } from '@weatherteam6/design/tokens'
 
 // ─── HeroRow ──────────────────────────────────────────────────────────────────
 
@@ -184,7 +184,7 @@ const gridStyles = StyleSheet.create({
   cell: {
     flex: 1,
     backgroundColor: colors.card,
-    borderRadius: spacing.listGap,
+    borderRadius: radius.inner,
     padding: spacing.cellPad,
   },
   value: {

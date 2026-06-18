@@ -151,11 +151,7 @@ const styles = StyleSheet.create({
     marginVertical: spacing.tight,
   },
   heroValue: {
-    fontFamily: fonts.display,
-    fontSize: 36,
-    fontWeight: '700',
-    color: colors.txt1,
-    lineHeight: 38,
+    ...t.bigStat,
   },
   heroSub: {
     ...t.bodySm,
@@ -174,7 +170,7 @@ const styles = StyleSheet.create({
   percentileCell: {
     flex: 1,
     backgroundColor: colors.card,
-    borderRadius: spacing.listGap,
+    borderRadius: radius.inner,
     padding: spacing.cellPad,
     alignItems: 'center',
   },
