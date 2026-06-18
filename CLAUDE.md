@@ -3,7 +3,7 @@
 Climbing conditions platform + general weather app. Core purpose: tell the user if a crag is climbable now, over the next 7 days, and support trip planning weeks out with improving forecast confidence over time.
 
 ## Stack
-- **Mobile:** React Native + Expo (New Architecture, SDK 55+)
+- **Mobile:** React Native + Expo (New Architecture, SDK 56 — `expo@~56.0.3`, `expo-router@~56.0.0`)
 - **Backend:** Node.js + TypeScript + Express on Railway
 - **ORM:** Drizzle (schema-as-TypeScript, SQL-close queries — never substitute Prisma)
 - **DB:** PostgreSQL on Railway
@@ -93,13 +93,53 @@ At the start of EVERY session:
 2. Read `.claude/docs/session-notes.md` (current state and last completed phase)
 3. Read `.claude/docs/plan.md` (what phase is next)
 4. Run `git log --oneline -5` to confirm where the branch is
+5. Run `npm run build --workspace=packages/types --workspace=packages/design` to ensure shared packages are compiled before typechecking mobile
 
 ## Session End Protocol
 
-Before ending ANY session, append a state update to `.claude/docs/session-notes.md`:
-- Date (YYYY-MM-DD), branch, last commit hash (short)
-- Phase completed this session
-- What is next
+Before ending ANY session, append a full state block to `.claude/docs/session-notes.md`. Use this exact format:
+
+```
+---
+
+## YYYY-MM-DD — branch: <branch> — commit: <short-hash>
+
+**Phase completed:** <phase name and number>
+
+**What was built this session:**
+- <file or feature> — <one-line description>
+- ...
+
+**Known issues / deferred work:**
+- <anything left incomplete, version mismatches noticed, TODOs punted>
+
+**Blockers for next session:**
+- <anything the next session must resolve before proceeding>
+
+**What's next:** <phase name> — <one sentence on where to start>
+```
+
+Stub entries (timestamps only, no content) are noise — never append a session-end line without the full block above.
+
+## Known Gotchas
+
+**Shared packages must be built before mobile typechecks pass.**
+`packages/types` and `packages/design` compile to `dist/`. If `dist/` is missing (fresh clone or after clean), mobile TS will fail with "cannot find module". Fix:
+```bash
+npm run build --workspace=packages/types --workspace=packages/design
+```
+
+**Expo Router version must match the Expo SDK major version.**
+Expo adopted SDK-matching versioning starting at SDK 52. For SDK 56 you need `expo-router@~56.0.0`. If Metro crashes with `Cannot find module 'expo-router/internal/routing'`, the router version is wrong — check `apps/mobile/package.json` and run `npm install`.
+
+**`expo-router/internal/routing` crash is a version mismatch, not a code bug.**
+The `@expo/cli` bundled inside `expo` (the `@expo/router-server` sub-package) requires `expo-router/internal/routing`. This path only exists in expo-router v56+. Earlier versions (4.x, 6.x) crash silently. typecheck passes fine — it's a runtime-only failure.
+
+**Code reviews interrupted by context limits lose their findings.**
+If `/code-review` or the code-review skill runs near the end of a long session and context compresses before the output is written, the findings are lost. Save intermediate review output to `.claude/docs/review-findings.md` before the session ends if verification is still in progress.
+
+**Cloud dev environment blocks ngrok tunnels.**
+`expo start --tunnel` will fail in this environment — ngrok connections are blocked by the network policy. Mobile testing must be done locally. To test on device: clone the repo on a local machine, run `cd apps/mobile && npx expo start`, scan the QR with Expo Go.
 
 ## Initial Setup Requirements
 - Create `.env.example` with all keys from the Environment Variables section above, values blank

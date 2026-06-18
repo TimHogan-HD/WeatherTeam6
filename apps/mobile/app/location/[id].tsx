@@ -1,269 +1,174 @@
-import { Stack, useLocalSearchParams } from 'expo-router';
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import type {
-  ConditionsScore,
-  ForecastSnapshot,
-  ScoreBreakdown,
-} from '@weatherteam6/types';
-import { SCORE_COMPONENT_MAX } from '@weatherteam6/types';
-import { useConditions } from '../../src/hooks/useConditions';
-import { useForecast } from '../../src/hooks/useForecast';
-import { useLocation } from '../../src/hooks/useLocation';
+import { useState } from 'react'
+import { LinearGradient } from 'expo-linear-gradient'
+import { router, useLocalSearchParams } from 'expo-router'
+import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { colors, spacing, type as t } from '@weatherteam6/design/tokens'
+import { useLocation } from '../../src/hooks/useLocation'
+import { useWeatherObservations } from '../../src/hooks/useWeatherObservations'
+import { TopBar } from '../../src/components/TopBar'
+import { StatGrid } from '../../src/components/StatGrid'
+import { DaylightBar } from '../../src/components/DaylightBar'
+import { PrecipLineChart } from '../../src/components/PrecipLineChart'
+import { HourlyStrip } from '../../src/components/HourlyStrip'
+import { SevenDayTable } from '../../src/components/SevenDayTable'
+import { NWSAlertBar } from '../../src/components/NWSAlertBar'
+import { WallsButton } from '../../src/components/WallsButton'
+import { StatDrillSheet } from '../../src/components/StatDrillSheet'
+import { getDaylight } from '../../src/lib/daylight'
 
-const WINDOW_LABEL: Record<NonNullable<ForecastSnapshot['window']>, string> = {
-  pre: 'Pre',
-  early: 'Early',
-  decision: 'Decision',
-};
-
-function ComponentBar({
-  label,
-  value,
-  max,
+function HeroSection({
+  tempF,
+  condition,
+  feelsLikeF,
+  todayHighF,
+  todayLowF,
 }: {
-  label: string;
-  value: number;
-  max: number;
+  tempF: number
+  condition: string
+  feelsLikeF: number
+  todayHighF: number
+  todayLowF: number
 }) {
-  const pct = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
   return (
-    <View style={styles.barRow}>
-      <Text style={styles.barLabel}>{label}</Text>
-      <View style={styles.barTrack}>
-        <View style={[styles.barFill, { width: `${pct * 100}%` }]} />
-      </View>
-      <Text style={styles.barValue}>
-        {value}/{max}
-      </Text>
+    <View style={styles.hero}>
+      <Text style={styles.heroTemp}>{tempF}°</Text>
+      <Text style={styles.heroCondition}>{condition}</Text>
+      <Text style={styles.heroMeta}>Feels like {feelsLikeF}°</Text>
+      <Text style={styles.heroMeta}>H:{todayHighF}°  L:{todayLowF}°</Text>
     </View>
-  );
-}
-
-function Breakdown({ breakdown }: { breakdown: ScoreBreakdown }) {
-  return (
-    <View style={styles.breakdown}>
-      <ComponentBar label="Drying" value={breakdown.drying.score} max={SCORE_COMPONENT_MAX.drying} />
-      <ComponentBar label="Rain" value={breakdown.rain.score} max={SCORE_COMPONENT_MAX.rain} />
-      <ComponentBar label="Wind" value={breakdown.wind.score} max={SCORE_COMPONENT_MAX.wind} />
-      <ComponentBar label="Temp" value={breakdown.temp.score} max={SCORE_COMPONENT_MAX.temp} />
-      <ComponentBar
-        label="Humidity"
-        value={breakdown.humidity.score}
-        max={SCORE_COMPONENT_MAX.humidity}
-      />
-    </View>
-  );
-}
-
-function ConditionsSection({
-  conditions,
-}: {
-  conditions: ConditionsScore | null | undefined;
-}) {
-  if (!conditions) {
-    return (
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Conditions</Text>
-        <Text style={styles.muted}>No score computed yet.</Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Conditions</Text>
-      <View style={styles.scoreRow}>
-        <Text style={styles.scoreValue}>{conditions.score ?? '—'}</Text>
-        <Text style={styles.confidence}>{conditions.confidence} confidence</Text>
-      </View>
-      {conditions.score_breakdown ? (
-        <Breakdown breakdown={conditions.score_breakdown} />
-      ) : null}
-    </View>
-  );
-}
-
-function fmtMm(value: number | null): string {
-  return value === null ? '—' : `${value.toFixed(1)}mm`;
-}
-
-function fmtTemp(value: number | null): string {
-  return value === null ? '—' : `${Math.round(value)}°`;
-}
-
-function ForecastRow({ snapshot }: { snapshot: ForecastSnapshot }) {
-  return (
-    <View style={styles.forecastRow}>
-      <View style={styles.forecastDateCol}>
-        <Text style={styles.forecastDate}>{snapshot.forecast_date}</Text>
-        {snapshot.window ? (
-          <Text style={styles.windowBadge}>{WINDOW_LABEL[snapshot.window]}</Text>
-        ) : null}
-      </View>
-      <View style={styles.forecastMetrics}>
-        <Text style={styles.metric}>
-          Rain {fmtMm(snapshot.precip_mm_p50)} ({fmtMm(snapshot.precip_mm_p10)}–
-          {fmtMm(snapshot.precip_mm_p90)})
-        </Text>
-        <Text style={styles.metric}>
-          Temp {fmtTemp(snapshot.temp_c_min)}/{fmtTemp(snapshot.temp_c_max)} · Wind{' '}
-          {snapshot.wind_kmh_max === null
-            ? '—'
-            : `${Math.round(snapshot.wind_kmh_max)}km/h`}
-        </Text>
-      </View>
-    </View>
-  );
+  )
 }
 
 export default function LocationDetail() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { data: location } = useLocation(id);
-  const conditions = useConditions(id);
-  const forecast = useForecast(id);
+  const { id } = useLocalSearchParams<{ id: string }>()
+  const { data: location } = useLocation(id)
+  const obsQ = useWeatherObservations(id)
+  const obs = obsQ.data
+
+  const [drillStat, setDrillStat] = useState<string | null>(null)
 
   if (!id) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.muted}>Location not found.</Text>
-      </View>
-    );
+      <LinearGradient colors={[colors.bgGradientTop, colors.bgGradientMid, colors.bgGradientBottom]} style={styles.gradient}>
+        <SafeAreaView style={styles.safe} edges={['top']}>
+          <View style={styles.center}><Text style={t.bodyMd}>Location not found.</Text></View>
+        </SafeAreaView>
+      </LinearGradient>
+    )
   }
 
-  const title = location?.name ?? 'Location';
+  if (!obs) {
+    return (
+      <LinearGradient colors={[colors.bgGradientTop, colors.bgGradientMid, colors.bgGradientBottom]} style={styles.gradient}>
+        <SafeAreaView style={styles.safe} edges={['top']}>
+          <TopBar title={location?.name ?? 'Location'} showBack onBack={() => router.back()} />
+          <View style={styles.center}><Text style={t.bodyMd}>Loading…</Text></View>
+        </SafeAreaView>
+      </LinearGradient>
+    )
+  }
+
+  const subtitle = [location?.rock_type, location?.aspect]
+    .filter((p): p is string => p !== null && p !== undefined)
+    .join(' · ')
+
+  const daylight = location ? getDaylight(location.lat, location.lon, new Date()) : null
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <Stack.Screen options={{ title }} />
+    <LinearGradient
+      colors={[colors.bgGradientTop, colors.bgGradientMid, colors.bgGradientBottom]}
+      style={styles.gradient}
+    >
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          <TopBar
+            title={location?.name ?? 'Location'}
+            subtitle={subtitle || undefined}
+            showBack
+            onBack={() => router.back()}
+          />
 
-      {conditions.isPending ? (
-        <ActivityIndicator style={styles.loader} />
-      ) : conditions.isError ? (
-        <Text style={styles.errorText}>{conditions.error.message}</Text>
-      ) : (
-        <ConditionsSection conditions={conditions.data} />
-      )}
+          <HeroSection
+            tempF={obs.tempF}
+            condition={obs.condition}
+            feelsLikeF={obs.feelsLikeF}
+            todayHighF={obs.todayHighF}
+            todayLowF={obs.todayLowF}
+          />
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Forecast</Text>
-        {forecast.isPending ? (
-          <ActivityIndicator style={styles.loader} />
-        ) : forecast.isError ? (
-          <Text style={styles.errorText}>{forecast.error.message}</Text>
-        ) : !forecast.data || forecast.data.length === 0 ? (
-          <Text style={styles.muted}>No forecast available.</Text>
-        ) : (
-          forecast.data.map((snapshot) => (
-            <ForecastRow key={snapshot.forecast_date} snapshot={snapshot} />
-          ))
-        )}
-      </View>
-    </ScrollView>
-  );
+          <StatGrid
+            variant="detail"
+            obs={obs}
+            daylightHours={daylight?.daylightHours}
+            onTileLongPress={(stat) => setDrillStat(stat)}
+          />
+
+          {location ? (
+            <DaylightBar lat={location.lat} lon={location.lon} />
+          ) : null}
+
+          <PrecipLineChart locationId={id} />
+          <HourlyStrip locationId={id} />
+          <SevenDayTable locationId={id} />
+          <NWSAlertBar locationId={id} />
+
+          {location?.is_climbing_location ? (
+            <WallsButton locationId={id} onPress={() => router.push({ pathname: '/walls/[id]' as never, params: { id } })} />
+          ) : null}
+
+          <Text style={styles.drillHint}>Long press any stat tile for model data</Text>
+        </ScrollView>
+
+        <StatDrillSheet
+          statType={drillStat}
+          obs={obs}
+          onDismiss={() => setDrillStat(null)}
+        />
+      </SafeAreaView>
+    </LinearGradient>
+  )
 }
 
 const styles = StyleSheet.create({
-  content: {
-    padding: 16,
-  },
-  centered: {
-    flex: 1,
+  gradient: { flex: 1 },
+  safe: { flex: 1 },
+  scroll: { flex: 1 },
+  content: { paddingBottom: 40 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  hero: {
+    paddingHorizontal: spacing.screenH,
+    paddingVertical: spacing.sectionTop,
+    marginBottom: spacing.sectionTop,
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
   },
-  loader: {
-    marginVertical: 16,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  scoreRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 12,
-    marginBottom: 12,
-  },
-  scoreValue: {
-    fontSize: 48,
+  heroTemp: {
+    fontFamily: 'BarlowCondensed',
+    fontSize: 64,
     fontWeight: '700',
+    color: colors.txt1,
+    lineHeight: 64,
   },
-  confidence: {
-    fontSize: 14,
-    opacity: 0.6,
-    textTransform: 'capitalize',
-  },
-  breakdown: {
-    gap: 8,
-  },
-  barRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  barLabel: {
-    width: 70,
-    fontSize: 13,
-  },
-  barTrack: {
-    flex: 1,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#e4e4e7',
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#2563eb',
-  },
-  barValue: {
-    width: 48,
-    fontSize: 12,
-    textAlign: 'right',
-    opacity: 0.6,
-  },
-  forecastRow: {
-    flexDirection: 'row',
-    paddingVertical: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#e4e4e7',
-  },
-  forecastDateCol: {
-    width: 96,
-  },
-  forecastDate: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  windowBadge: {
-    fontSize: 11,
+  heroCondition: {
+    ...t.screenSub,
+    fontSize: 16,
     marginTop: 4,
-    opacity: 0.5,
+    color: colors.txt2,
   },
-  forecastMetrics: {
-    flex: 1,
-    gap: 4,
+  heroMeta: {
+    ...t.bodyMd,
+    marginTop: 3,
   },
-  metric: {
-    fontSize: 13,
+  drillHint: {
+    ...t.bodySm,
+    textAlign: 'right',
+    paddingHorizontal: spacing.screenH,
+    marginTop: -spacing.sectionTop + 4,
+    marginBottom: spacing.sectionTop,
+    opacity: 0.2,
   },
-  muted: {
-    opacity: 0.6,
-  },
-  errorText: {
-    color: '#b91c1c',
-    marginVertical: 8,
-  },
-});
+})

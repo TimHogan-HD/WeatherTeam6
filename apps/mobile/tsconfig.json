@@ -10,7 +10,10 @@
     "noEmit": true,
     "declaration": false,
     "declarationMap": false,
-    "sourceMap": false
+    "sourceMap": false,
+    "paths": {
+      "@weatherteam6/design/tokens": ["../../packages/design/src/tokens.ts"]
+    }
   },
   "include": [
     "**/*.ts",
