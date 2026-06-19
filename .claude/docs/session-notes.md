@@ -370,3 +370,9 @@
 **Gotchas for next session:**
 - ACIS GridData rejects the `"grid": "ncei-norm:91-20"` string form from the spec — always use `"grid": 1` (NRCC Hi-Res integer ID) for the GridData endpoint
 - The 30-year fetch returns ~360 rows; parsing/averaging is in `computeMonthlyNormals()` in acisNormals.ts — the function returns all 12 months in a single call
+
+--- Session ended: 2026-06-19 15:39 UTC
+
+--- Session ended: 2026-06-19 15:43 UTC
+
+--- Session ended: 2026-06-19 15:47 UTC
