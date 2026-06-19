@@ -376,3 +376,65 @@
 --- Session ended: 2026-06-19 15:43 UTC
 
 --- Session ended: 2026-06-19 15:47 UTC
+
+--- Session ended: 2026-06-19 17:52 UTC
+
+--- Session ended: 2026-06-19 18:13 UTC
+
+--- Session ended: 2026-06-19 18:17 UTC
+
+--- Session ended: 2026-06-19 18:20 UTC
+
+--- Session ended: 2026-06-19 18:24 UTC
+
+--- Session ended: 2026-06-19 18:26 UTC
+
+--- Session ended: 2026-06-19 18:54 UTC
+
+--- Session ended: 2026-06-19 18:56 UTC
+
+---
+
+## 2026-06-19 — branch: phase/12-radar — commit: (see below)
+
+**Phase completed:** Phase 12 — RainViewer Radar Integration
+
+**What was built this session:**
+- `apps/api/src/lib/weather/rainViewer.ts` — `fetchRadarFrames()` fetches weather-maps.json from RainViewer public API, extracts past + nowcast frames (time + path), returns tile URL template (`tilecache.rainviewer.com{path}/{z}/{x}/{y}/4/1_1.png`)
+- `apps/api/src/routes/radar.ts` — `GET /radar/frames` endpoint; returns `{ generated, host, tileUrlTemplate, past[], nowcast[] }` in standard `{ data, error, status }` envelope
+- `apps/api/src/index.ts` — registered `radarRouter`
+- `packages/types/src/index.ts` — added `RadarFrame` and `RadarFramesResponse` types
+- `apps/mobile/src/hooks/useRadarFrames.ts` — React Query hook for `GET /radar/frames`; 5min staleTime, 10min refetch interval
+- `apps/mobile/app/(tabs)/radar.tsx` — full Radar screen (Variation A · Classic):
+  · TopBar with "Radar" title + day/time right element
+  · Horizontal layer chip row (Precip / Temp / Wind / Cloud / Ltng); Precip active by default
+  · Full-bleed map canvas (`#0a0e14`): SVG terrain contour + grid overlay + 7 precip echo blobs (RadialGradient per intensity: trace→light→mod→heavy→severe)
+  · Blobs shift NE across the frame axis to simulate radar loop motion
+  · Three static crag pins (Taylors Falls/fair, Sandstone/good, Interstate/neutral)
+  · "You are here" pulsing ring at 40%/62% via `useState(() => new Animated.Value())` lazy init + `Animated.loop`
+  · Storm cell callout (red border, NE/38k ft/hail warning)
+  · Interactive timeline scrubber: play/pause button, draggable handle via `useMemo`+PanResponder (same pattern as CompassDial — layout in state, no `.current` during render), NOW marker, past fill (info-blue), ticks −2H→+2H
+  · Intensity legend (light→heavy gradient bar)
+
+**Known issues / deferred work:**
+- Crag pins are hardcoded at static CSS-% positions (Taylors Falls, Sandstone, Interstate); real geographic projection tied to map library (Phase 13 or map integration phase)
+- Layer toggles (Temp/Wind/Cloud/Ltng) are UI-only; switching layers doesn't change the map overlay (real data layers require additional RainViewer endpoints or separate weather tile sources)
+- `useLocations()` is called to pre-warm the cache but location data isn't currently used for pin placement
+- `apps/api/src/scripts/seedCrags.json` remains untracked — not committed here
+
+**Blockers for next session:**
+- None — Phase 12 is complete; typecheck 0 errors, lint 0 errors
+
+**What's next:** Phase 13 — Historical Climbability Patterns — `git checkout -b phase/13-history` off `phase/12-radar` (or main after merge) — read `docs/handoffs/weatherteam6-ui-handoff-v1.md` Phase 13 section and `.claude/docs/scoring-algorithm.md` before writing any history logic
+
+**Gotchas for next session:**
+- RainViewer public API (`api.rainviewer.com/public/weather-maps.json`) requires no API key but the `RAINVIEWER_KEY` env var may gate a premium tile endpoint — the Phase 12 implementation uses the public endpoint only
+- Animated.Value in React Native must be initialized with `useState(() => new Animated.Value(x))` (lazy init), NOT `useRef(new Animated.Value(x)).current` — the linter (`react-hooks/refs`) flags `.current` access during render
+- PanResponder in this codebase must follow the CompassDial pattern: `useMemo(() => PanResponder.create({...}).panHandlers, [layout])` with layout stored in state via `setScrubLayout` in `onLayout` — never `useRef(PanResponder.create({...})).current`
+- `DimensionValue` in React Native 0.85 rejects plain `string`; percentage-based track widths/offsets must be computed as numeric pixels from the measured `scrubLayout.width`
+
+--- Session ended: 2026-06-19 19:05 UTC
+
+--- Session ended: 2026-06-19 19:10 UTC
+
+--- Session ended: 2026-06-19 19:13 UTC
