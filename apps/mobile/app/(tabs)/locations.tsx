@@ -16,10 +16,11 @@ import {
   IconSearch,
 } from '@tabler/icons-react-native'
 import { colors, fonts, radius, spacing, type as t } from '@weatherteam6/design/tokens'
-import type { Location } from '@weatherteam6/types'
+import type { Crag, Location } from '@weatherteam6/types'
 import { useLocations } from '../../src/hooks/useLocations'
 import { useConditions } from '../../src/hooks/useConditions'
 import { useNearbyLocations } from '../../src/hooks/useNearbyLocations'
+import { useSaveLocation } from '../../src/hooks/useSaveLocation'
 import { TopBar } from '../../src/components/TopBar'
 
 // ─── Score helpers ──────────────────────────────────────────────────────────
@@ -43,14 +44,6 @@ function tierLabel(s: number | null): string {
   if (s >= 60) return 'Good'
   if (s >= 40) return 'Fair'
   return 'Poor'
-}
-
-// ─── Day abbreviations ──────────────────────────────────────────────────────
-
-function dayAbbrev(offsetDays: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() + offsetDays)
-  return d.toLocaleDateString('en-US', { weekday: 'short' })
 }
 
 // ─── Sub-tab / filter types ─────────────────────────────────────────────────
@@ -93,20 +86,18 @@ function Chip({
 function LocationRow({
   location,
   index,
-  expanded,
-  onToggle,
 }: {
   location: Location
   index: number
-  expanded: boolean
-  onToggle: () => void
 }) {
   const router = useRouter()
 
   return (
-    <View style={styles.rowCard}>
-      <Pressable onPress={onToggle} style={styles.rowMain}>
-        {/* Left icon */}
+    <Pressable
+      style={styles.rowCard}
+      onPress={() => router.push({ pathname: '/location/[id]', params: { id: location.id, from: 'locations' } })}
+    >
+      <View style={styles.rowMain}>
         <View style={styles.rowIcon}>
           {index === 0 ? (
             <IconCurrentLocation size={18} color={colors.good} />
@@ -114,83 +105,21 @@ function LocationRow({
             <IconMapPin size={18} color={colors.txt3} />
           )}
         </View>
-
-        {/* Center */}
         <View style={styles.rowCenter}>
           <Text style={styles.rowName}>{location.name}</Text>
           <Text style={styles.rowSub}>
             {location.asos_station ?? 'Saved location'}
           </Text>
         </View>
-
-        {/* Right */}
-        <View style={styles.rowRight}>
-          <Text style={styles.rowTemp}>{'—°'}</Text>
-          <Text
-            style={[
-              styles.chevron,
-              expanded && styles.chevronExpanded,
-            ]}
-          >
-            {'›'}
-          </Text>
-        </View>
-      </Pressable>
-
-      {expanded && (
-        <View style={styles.expandedContent}>
-          {/* 4-stat strip */}
-          <View style={styles.statStrip}>
-            {[
-              { label: 'Humidity', value: '—%' },
-              { label: 'Wind', value: '— mph' },
-              { label: 'Precip', value: '—"' },
-              { label: 'Visibility', value: '— mi' },
-            ].map((stat) => (
-              <View key={stat.label} style={styles.statCell}>
-                <Text style={styles.statLabel}>{stat.label}</Text>
-                <Text style={styles.statValue}>{stat.value}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* 3-day mini strip */}
-          <View style={styles.miniStrip}>
-            {[0, 1, 2].map((offset) => (
-              <View key={offset} style={styles.miniCell}>
-                <Text style={styles.miniDay}>{dayAbbrev(offset)}</Text>
-                <Text style={styles.miniTemp}>{'—°'}</Text>
-                <Text style={styles.miniPrecip}>{'0%'}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Full Weather button */}
-          <Pressable
-            style={styles.fullBtn}
-            onPress={() =>
-              router.push({ pathname: '/location/[id]', params: { id: location.id } })
-            }
-          >
-            <Text style={styles.fullBtnText}>Full Weather →</Text>
-          </Pressable>
-        </View>
-      )}
-    </View>
+        <Text style={styles.chevron}>{'›'}</Text>
+      </View>
+    </Pressable>
   )
 }
 
 // ─── Crag row ─────────────────────────────────────────────────────────────────
 
-function CragRow({
-  location,
-  expanded,
-  onToggle,
-}: {
-  location: Location
-  expanded: boolean
-  onToggle: () => void
-}) {
+function CragRow({ location }: { location: Location }) {
   const router = useRouter()
   const conditionsQ = useConditions(location.id)
   const score = conditionsQ.data?.score ?? null
@@ -200,15 +129,12 @@ function CragRow({
     'Climbing location'
 
   return (
-    <View style={styles.rowCard}>
-      <Pressable onPress={onToggle} style={styles.rowMain}>
-        {/* Score badge */}
-        <View
-          style={[
-            styles.scoreBadge,
-            { backgroundColor: scoreBg(score) },
-          ]}
-        >
+    <Pressable
+      style={styles.rowCard}
+      onPress={() => router.push({ pathname: '/location/[id]', params: { id: location.id, from: 'locations' } })}
+    >
+      <View style={styles.rowMain}>
+        <View style={[styles.scoreBadge, { backgroundColor: scoreBg(score) }]}>
           <Text style={[styles.scoreNum, { color: scoreColor(score) }]}>
             {conditionsQ.isPending ? '—' : score !== null ? String(score) : '—'}
           </Text>
@@ -218,75 +144,48 @@ function CragRow({
             </Text>
           )}
         </View>
-
-        {/* Center */}
         <View style={styles.rowCenter}>
           <Text style={styles.rowName}>{location.name}</Text>
           <Text style={styles.rowSub}>{subLabel}</Text>
         </View>
+        <Text style={styles.chevron}>{'›'}</Text>
+      </View>
+    </Pressable>
+  )
+}
 
-        {/* Right */}
-        <View style={styles.rowRight}>
-          <Text style={styles.rowTemp}>{'—°'}</Text>
-          <Text style={styles.rowDry}>{'— dry'}</Text>
-          <Text
-            style={[
-              styles.chevron,
-              expanded && styles.chevronExpanded,
-            ]}
-          >
-            {'›'}
-          </Text>
+// ─── Nearby crag row (not yet saved) ─────────────────────────────────────────
+
+function NearbyCragRow({
+  crag,
+  onAdd,
+  saving,
+}: {
+  crag: Crag
+  onAdd: (cragId: string) => void
+  saving: boolean
+}) {
+  const locationParts = [crag.area_name, crag.state].filter(Boolean).join(', ')
+  const subLabel = locationParts || (crag.rock_type ?? 'Climbing area')
+
+  return (
+    <View style={styles.rowCard}>
+      <View style={styles.rowMain}>
+        <View style={styles.rowIcon}>
+          <IconMapPin size={18} color={colors.txt3} />
         </View>
-      </Pressable>
-
-      {expanded && (
-        <View style={styles.expandedContent}>
-          {/* 3-day strip with dot */}
-          <View style={styles.miniStrip}>
-            {[0, 1, 2].map((offset) => (
-              <View key={offset} style={styles.miniCell}>
-                <View
-                  style={[
-                    styles.scoreDot,
-                    { backgroundColor: scoreColor(score) },
-                  ]}
-                />
-                <Text style={styles.miniDay}>{dayAbbrev(offset)}</Text>
-                <Text style={styles.miniTemp}>{'—°'}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* 4-stat row */}
-          <View style={styles.statStrip}>
-            {[
-              { label: 'Humidity', value: '—%' },
-              { label: 'Wind', value: '— mph' },
-              { label: 'Dry Since', value: '— hrs' },
-              { label: '72H Fcst', value: '—"' },
-            ].map((stat) => (
-              <View key={stat.label} style={styles.statCell}>
-                <Text style={styles.statLabel}>{stat.label}</Text>
-                <Text style={styles.statValue}>{stat.value}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Drying status */}
-          <Text style={styles.dryingStatus}>Conditions data loading…</Text>
-
-          {/* Full Conditions button */}
-          <Pressable
-            style={styles.fullBtn}
-            onPress={() =>
-              router.push({ pathname: '/location/[id]', params: { id: location.id } })
-            }
-          >
-            <Text style={styles.fullBtnText}>Full Conditions →</Text>
-          </Pressable>
+        <View style={styles.rowCenter}>
+          <Text style={styles.rowName}>{crag.name}</Text>
+          <Text style={styles.rowSub}>{subLabel}</Text>
         </View>
-      )}
+        <Pressable
+          onPress={() => onAdd(crag.id)}
+          disabled={saving}
+          style={styles.addCragBtn}
+        >
+          <Text style={styles.addCragBtnText}>{saving ? '…' : '+'}</Text>
+        </Pressable>
+      </View>
     </View>
   )
 }
@@ -294,23 +193,19 @@ function CragRow({
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function LocationsScreen() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabKey>('all')
   // TODO(Phase-10): 'Climbable' filter requires a consolidated score endpoint.
   // Filter state is captured for chip visual state; list filtering is deferred.
   const [allFilter, setAllFilter] = useState<AllFilter>('Saved')
   const [cragsFilter, setCragsFilter] = useState<CragsFilter>('Saved')
-  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const locationsQ = useLocations()
   const savedLocations: Location[] = locationsQ.data ?? []
-  const nearbyLocations = useNearbyLocations({ type: 'all' }).data
-  const nearbyCrags = useNearbyLocations({ type: 'crags' }).data
+  const nearbyCrags: Crag[] = useNearbyLocations().data
+  const saveLocation = useSaveLocation()
 
   const savedCrags = savedLocations.filter((l) => l.is_climbing_location)
-
-  function toggleExpanded(id: string) {
-    setExpandedId((prev) => (prev === id ? null : id))
-  }
 
   return (
     <LinearGradient
@@ -321,9 +216,9 @@ export default function LocationsScreen() {
         {/* TopBar */}
         <TopBar title="Locations" rightElement={<LocationsRightElement />} />
 
-        {/* Search bar */}
-        <View style={styles.searchRow}>
-          <View style={styles.searchBar}>
+        {/* Search bar — tappable stub that opens the search screen */}
+        <Pressable style={styles.searchRow} onPress={() => router.push('/search' as never)}>
+          <View style={styles.searchBar} pointerEvents="none">
             <IconSearch size={16} color={colors.txt3} />
             <TextInput
               style={styles.searchInput}
@@ -332,7 +227,7 @@ export default function LocationsScreen() {
               editable={false}
             />
           </View>
-        </View>
+        </Pressable>
 
         {/* Sub-tabs */}
         <View style={styles.tabRow}>
@@ -388,22 +283,18 @@ export default function LocationsScreen() {
                   key={location.id}
                   location={location}
                   index={index}
-                  expanded={expandedId === location.id}
-                  onToggle={() => toggleExpanded(location.id)}
                 />
               ))}
 
-              {/* Nearby section — hidden while stub returns [] */}
-              {nearbyLocations.length > 0 && (
+              {nearbyCrags.length > 0 && (
                 <>
                   <Text style={styles.sectionHeader}>Nearby · Not saved</Text>
-                  {nearbyLocations.map((location, index) => (
-                    <LocationRow
-                      key={location.id}
-                      location={location}
-                      index={index}
-                      expanded={expandedId === location.id}
-                      onToggle={() => toggleExpanded(location.id)}
+                  {nearbyCrags.map((crag) => (
+                    <NearbyCragRow
+                      key={crag.id}
+                      crag={crag}
+                      onAdd={(id) => saveLocation.mutate({ cragId: id })}
+                      saving={saveLocation.isPending}
                     />
                   ))}
                 </>
@@ -416,24 +307,18 @@ export default function LocationsScreen() {
                 {`Saved Crags · ${savedCrags.length} location${savedCrags.length === 1 ? '' : 's'}`}
               </Text>
               {savedCrags.map((location) => (
-                <CragRow
-                  key={location.id}
-                  location={location}
-                  expanded={expandedId === location.id}
-                  onToggle={() => toggleExpanded(location.id)}
-                />
+                <CragRow key={location.id} location={location} />
               ))}
 
-              {/* Nearby crags — hidden while stub returns [] */}
               {nearbyCrags.length > 0 && (
                 <>
                   <Text style={styles.sectionHeader}>Nearby · Not saved</Text>
-                  {nearbyCrags.map((location) => (
-                    <CragRow
-                      key={location.id}
-                      location={location}
-                      expanded={expandedId === location.id}
-                      onToggle={() => toggleExpanded(location.id)}
+                  {nearbyCrags.map((crag) => (
+                    <NearbyCragRow
+                      key={crag.id}
+                      crag={crag}
+                      onAdd={(id) => saveLocation.mutate({ cragId: id })}
+                      saving={saveLocation.isPending}
                     />
                   ))}
                 </>
@@ -701,5 +586,20 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: radius.tag,
     marginBottom: spacing.micro,
+  },
+
+  // Nearby crag row add button
+  addCragBtn: {
+    paddingHorizontal: spacing.cardPad,
+    paddingVertical: spacing.cardPadSm,
+    backgroundColor: colors.goodTint,
+    borderWidth: 1,
+    borderColor: colors.goodTintBorder,
+    borderRadius: radius.tag,
+  },
+  addCragBtnText: {
+    ...t.bodyMd,
+    color: colors.good,
+    fontWeight: '700',
   },
 })

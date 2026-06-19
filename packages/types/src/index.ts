@@ -226,3 +226,7 @@ export type TripForecast = {
   locationId: string
   forecasts: ForecastSnapshot[]
 }
+
+export type CreateLocationInput =
+  | { cragId: string }
+  | { name: string; lat: number; lon: number }
