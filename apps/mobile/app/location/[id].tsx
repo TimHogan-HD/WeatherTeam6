@@ -55,7 +55,7 @@ export default function LocationDetail() {
     if (from === 'locations') {
       router.replace('/(tabs)/locations' as never)
     } else {
-      router.canGoBack() ? router.back() : router.replace('/(tabs)/index' as never)
+      if (router.canGoBack()) { router.back() } else { router.replace('/(tabs)/index' as never) }
     }
   }
 
