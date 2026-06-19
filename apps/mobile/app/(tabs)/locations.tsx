@@ -331,6 +331,7 @@ function NearbyCragRow({
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function LocationsScreen() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabKey>('all')
   // TODO(Phase-10): 'Climbable' filter requires a consolidated score endpoint.
   // Filter state is captured for chip visual state; list filtering is deferred.
@@ -358,9 +359,9 @@ export default function LocationsScreen() {
         {/* TopBar */}
         <TopBar title="Locations" rightElement={<LocationsRightElement />} />
 
-        {/* Search bar */}
-        <View style={styles.searchRow}>
-          <View style={styles.searchBar}>
+        {/* Search bar — tappable stub that opens the search screen */}
+        <Pressable style={styles.searchRow} onPress={() => router.push('/search' as never)}>
+          <View style={styles.searchBar} pointerEvents="none">
             <IconSearch size={16} color={colors.txt3} />
             <TextInput
               style={styles.searchInput}
@@ -369,7 +370,7 @@ export default function LocationsScreen() {
               editable={false}
             />
           </View>
-        </View>
+        </Pressable>
 
         {/* Sub-tabs */}
         <View style={styles.tabRow}>
