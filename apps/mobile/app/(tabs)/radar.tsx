@@ -3,7 +3,6 @@ import {
   View,
   Text,
   Pressable,
-  ScrollView,
   StyleSheet,
   Animated,
   PanResponder,
@@ -20,11 +19,6 @@ import Svg, {
   Line as SvgLine,
 } from 'react-native-svg'
 import {
-  IconDroplet,
-  IconTemperature,
-  IconWind,
-  IconCloud,
-  IconBolt,
   IconPlayerPlay,
   IconPlayerPause,
 } from '@tabler/icons-react-native'
@@ -36,7 +30,6 @@ import { useLocations } from '../../src/hooks/useLocations'
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type BlobKind = 'trace' | 'light' | 'mod' | 'heavy' | 'severe'
-type LayerId  = 'Precip' | 'Temp' | 'Wind' | 'Cloud' | 'Ltng'
 
 type BlobDef = {
   kind: BlobKind
@@ -49,14 +42,6 @@ type BlobDef = {
 type ScrubLayout = { x: number; width: number }
 
 // ─── Static data ─────────────────────────────────────────────────────────────
-
-const LAYERS: Array<{ id: LayerId; Icon: React.ComponentType<{ size: number; color: string }> }> = [
-  { id: 'Precip', Icon: IconDroplet },
-  { id: 'Temp',   Icon: IconTemperature },
-  { id: 'Wind',   Icon: IconWind },
-  { id: 'Cloud',  Icon: IconCloud },
-  { id: 'Ltng',   Icon: IconBolt },
-]
 
 // Blob positions from the mockup's BlobField, converted to SVG 0–100 space.
 // cx/cy = centre (CSS x%/y% already maps to 0–100); rx/ry scaled from px.
@@ -193,7 +178,6 @@ function CragPin({
 // ─── RadarScreen ─────────────────────────────────────────────────────────────
 
 export default function RadarScreen() {
-  const [activeLayer, setActiveLayer] = useState<LayerId>('Precip')
   const [frameIndex, setFrameIndex] = useState(0)
   const [isPlaying, setIsPlaying]   = useState(false)
 
@@ -284,30 +268,6 @@ export default function RadarScreen() {
             <Text style={styles.topTime}>{dayStr} {frameLabel}</Text>
           }
         />
-
-        {/* Layer toggle chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.layerRow}
-          contentContainerStyle={styles.layerRowContent}
-        >
-          {LAYERS.map(({ id, Icon }) => {
-            const active = activeLayer === id
-            return (
-              <Pressable
-                key={id}
-                onPress={() => setActiveLayer(id)}
-                style={[styles.layerChip, active && styles.layerChipActive]}
-              >
-                <Icon size={14} color={active ? colors.good : colors.txt3} />
-                <Text style={[styles.layerChipText, active && styles.layerChipTextActive]}>
-                  {id}
-                </Text>
-              </Pressable>
-            )
-          })}
-        </ScrollView>
 
         {/* ── Full-bleed radar map ─────────────────────────────── */}
         <View style={styles.map}>
@@ -426,40 +386,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.32,
     color: colors.txt4,
     textTransform: 'uppercase',
-  },
-
-  layerRow: { flexShrink: 0 },
-  layerRowContent: {
-    flexDirection: 'row',
-    gap: spacing.chipGapMd,
-    paddingHorizontal: spacing.screenH,
-    paddingVertical: 12,
-  },
-  layerChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: radius.inner,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  layerChipActive: {
-    backgroundColor: 'rgba(184,245,66,0.13)',
-    borderColor: 'rgba(184,245,66,0.32)',
-  },
-  layerChipText: {
-    fontFamily: fonts.display,
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.88,
-    textTransform: 'uppercase',
-    color: colors.txt3,
-  },
-  layerChipTextActive: {
-    color: colors.good,
   },
 
   map: {
