@@ -1,5 +1,5 @@
 import { Worker, type Job } from 'bullmq'
-import { sql, eq, count } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { locations, rainfallHistory, locationNormals } from '../../db/schema.js'
 import { logger } from '../../lib/logger.js'
@@ -95,16 +95,18 @@ export const rainfallHistoryWorker = new Worker(
     // Backfill climatological normals for locations that don't have all 12 months stored yet.
     // Normals are static (1991-2020 NCEI baseline) so we fetch once per location, not per run.
     // All locations qualify — normals only require lat/lon, not an asos_station.
+    // Single batch query to find which locations already have all 12 months — avoids N+1.
+    const fullyPopulated = await db
+      .select({ location_id: locationNormals.location_id })
+      .from(locationNormals)
+      .groupBy(locationNormals.location_id)
+      .having(sql`count(*) >= 12`)
+    const populatedSet = new Set(fullyPopulated.map((r) => r.location_id))
+
     for (const loc of allLocations) {
+      if (populatedSet.has(loc.id)) continue
+
       try {
-        const countResult = await db
-          .select({ value: count() })
-          .from(locationNormals)
-          .where(eq(locationNormals.location_id, loc.id))
-
-        const existingCount = countResult[0]?.value ?? 0
-        if (Number(existingCount) >= 12) continue
-
         const normals = await fetchGriddedNormals(parseFloat(loc.lat), parseFloat(loc.lon))
 
         await db

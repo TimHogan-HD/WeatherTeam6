@@ -196,6 +196,18 @@ locationsRouter.get('/locations/:id/normals', async (req: Request, res: Response
   }
 
   try {
+    const ownerCheck = await db
+      .select({ id: locations.id })
+      .from(locations)
+      .where(and(eq(locations.id, locationId), eq(locations.user_id, req.userId)))
+      .limit(1)
+
+    if (!ownerCheck[0]) {
+      const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
+      res.status(404).json(response)
+      return
+    }
+
     const rows = await db
       .select()
       .from(locationNormals)
