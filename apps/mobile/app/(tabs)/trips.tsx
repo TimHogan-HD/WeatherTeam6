@@ -9,6 +9,7 @@ import {
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { router } from 'expo-router'
 import { colors, spacing, fonts } from '@weatherteam6/design/tokens'
 import { TopBar } from '../../src/components/TopBar'
 import { useTrips } from '../../src/hooks/useTrips'
@@ -57,7 +58,7 @@ function TripCard({ trip }: TripCardProps) {
   const cragCount = trip.locations?.length ?? 0
 
   return (
-    <View style={s.card}>
+    <Pressable style={s.card} onPress={() => router.push(`/trips/${trip.id}` as never)}>
       <View style={s.cardTop}>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={s.tripName} numberOfLines={1}>{trip.name}</Text>
@@ -77,7 +78,7 @@ function TripCard({ trip }: TripCardProps) {
       <View style={s.progressTrack}>
         <View style={[s.progressFill, { width: `${conf.pct}%` as unknown as number, backgroundColor: badgeColor }]} />
       </View>
-    </View>
+    </Pressable>
   )
 }
 

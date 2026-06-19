@@ -221,3 +221,8 @@ export type CreateTripInput = {
   endDate: string
   cragIds: string[]
 }
+
+export type TripForecast = {
+  locationId: string
+  forecasts: ForecastSnapshot[]
+}
