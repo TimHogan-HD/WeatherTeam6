@@ -11,8 +11,6 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Svg, {
   Defs,
-  RadialGradient,
-  Stop,
   Ellipse,
   Pattern,
   Rect,
@@ -55,14 +53,18 @@ const STATIC_BLOBS: BlobDef[] = [
   { kind: 'trace',  cx: 26, cy: 90, rx:  9, ry:  7 },
 ]
 
-// Inner/outer gradient stops per intensity level
-const BLOB_GRADIENT: Record<BlobKind, [string, string]> = {
-  trace:  ['rgba(144,205,244,0.40)', 'rgba(144,205,244,0.08)'],
-  light:  ['rgba(99,179,237,0.60)',  'rgba(99,179,237,0.12)'],
-  mod:    ['rgba(63,131,248,0.78)',  'rgba(99,179,237,0.20)'],
-  heavy:  ['rgba(246,173,85,0.82)',  'rgba(63,131,248,0.28)'],
-  severe: ['rgba(252,129,129,0.92)', 'rgba(246,173,85,0.40)'],
+// Base fill color per intensity level.
+// Blobs are rendered as 3 concentric ellipses (outer→inner, increasing opacity)
+// to simulate a soft radial gradient without SVG <RadialGradient>, which has
+// unreliable cross-platform support in react-native-svg.
+const BLOB_COLOR: Record<BlobKind, string> = {
+  trace:  'rgba(144,205,244,1)',
+  light:  'rgba(99,179,237,1)',
+  mod:    'rgba(63,131,248,1)',
+  heavy:  'rgba(246,173,85,1)',
+  severe: 'rgba(252,129,129,1)',
 }
+const BLOB_OPACITY: [number, number, number] = [0.18, 0.32, 0.52]  // outer, mid, inner ring
 
 // ─── BlobField ───────────────────────────────────────────────────────────────
 // SVG covering the map canvas: terrain contour lines, grid, precip echoes.
@@ -94,29 +96,22 @@ function BlobField({ frameShift }: { frameShift: number }) {
           <SvgLine x1="0" y1="0" x2="12.8" y2="0" stroke="rgba(226,232,240,0.045)" strokeWidth="0.22" />
           <SvgLine x1="0" y1="0" x2="0" y2="12.8" stroke="rgba(226,232,240,0.045)" strokeWidth="0.22" />
         </Pattern>
-        {STATIC_BLOBS.map((blob, i) => {
-          const [inner, outer] = BLOB_GRADIENT[blob.kind]
-          return (
-            <RadialGradient key={i} id={`bg${i}`} cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-              <Stop offset="0%"   stopColor={inner} />
-              <Stop offset="60%"  stopColor={outer} />
-              <Stop offset="100%" stopColor="transparent" />
-            </RadialGradient>
-          )
-        })}
       </Defs>
       <Rect width="100" height="100" fill="url(#terrain)" />
       <Rect width="100" height="100" fill="url(#grid)" />
-      {STATIC_BLOBS.map((blob, i) => (
-        <Ellipse
-          key={i}
-          cx={blob.cx + frameShift * 0.7}
-          cy={blob.cy - frameShift * 0.45}
-          rx={blob.rx}
-          ry={blob.ry}
-          fill={`url(#bg${i})`}
-        />
-      ))}
+      {/* Each blob = 3 concentric ellipses (outer→inner) simulating a soft radial gradient */}
+      {STATIC_BLOBS.map((blob, i) => {
+        const fill = BLOB_COLOR[blob.kind]
+        const cx   = blob.cx + frameShift * 0.7
+        const cy   = blob.cy - frameShift * 0.45
+        return (
+          <React.Fragment key={i}>
+            <Ellipse cx={cx} cy={cy} rx={blob.rx}         ry={blob.ry}         fill={fill} opacity={BLOB_OPACITY[0]} />
+            <Ellipse cx={cx} cy={cy} rx={blob.rx * 0.65}  ry={blob.ry * 0.65}  fill={fill} opacity={BLOB_OPACITY[1]} />
+            <Ellipse cx={cx} cy={cy} rx={blob.rx * 0.35}  ry={blob.ry * 0.35}  fill={fill} opacity={BLOB_OPACITY[2]} />
+          </React.Fragment>
+        )
+      })}
     </Svg>
   )
 }
