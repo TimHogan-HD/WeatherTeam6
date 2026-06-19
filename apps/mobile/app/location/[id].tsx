@@ -43,13 +43,21 @@ function HeroSection({
 }
 
 export default function LocationDetail() {
-  const { id } = useLocalSearchParams<{ id: string }>()
+  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>()
   const { data: location } = useLocation(id)
   const obsQ = useWeatherObservations(id)
   const obs = obsQ.data
 
   const [drillStat, setDrillStat] = useState<string | null>(null)
   const [detailStat, setDetailStat] = useState<string | null>(null)
+
+  function handleBack() {
+    if (from === 'locations') {
+      router.replace('/(tabs)/locations' as never)
+    } else {
+      router.canGoBack() ? router.back() : router.replace('/(tabs)/index' as never)
+    }
+  }
 
   if (!id) {
     return (
@@ -65,7 +73,7 @@ export default function LocationDetail() {
     return (
       <LinearGradient colors={[colors.bgGradientTop, colors.bgGradientMid, colors.bgGradientBottom]} style={styles.gradient}>
         <SafeAreaView style={styles.safe} edges={['top']}>
-          <TopBar title={location?.name ?? 'Location'} showBack onBack={() => router.back()} />
+          <TopBar title={location?.name ?? 'Location'} showBack onBack={handleBack} />
           <View style={styles.center}><Text style={t.bodyMd}>Loading…</Text></View>
         </SafeAreaView>
       </LinearGradient>
@@ -97,7 +105,7 @@ export default function LocationDetail() {
             title={location?.name ?? 'Location'}
             subtitle={subtitle || undefined}
             showBack
-            onBack={() => router.back()}
+            onBack={handleBack}
             rightElement={
               <View style={styles.topBarRight}>
                 <Pressable hitSlop={10}>

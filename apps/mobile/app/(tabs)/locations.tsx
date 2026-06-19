@@ -95,7 +95,7 @@ function LocationRow({
   return (
     <Pressable
       style={styles.rowCard}
-      onPress={() => router.push({ pathname: '/location/[id]', params: { id: location.id } })}
+      onPress={() => router.push({ pathname: '/location/[id]', params: { id: location.id, from: 'locations' } })}
     >
       <View style={styles.rowMain}>
         <View style={styles.rowIcon}>
@@ -131,7 +131,7 @@ function CragRow({ location }: { location: Location }) {
   return (
     <Pressable
       style={styles.rowCard}
-      onPress={() => router.push({ pathname: '/location/[id]', params: { id: location.id } })}
+      onPress={() => router.push({ pathname: '/location/[id]', params: { id: location.id, from: 'locations' } })}
     >
       <View style={styles.rowMain}>
         <View style={[styles.scoreBadge, { backgroundColor: scoreBg(score) }]}>
