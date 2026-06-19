@@ -4,10 +4,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors, spacing } from '@weatherteam6/design/tokens'
 
 const TABS = [
-  { key: 'home',      label: 'HOME',      icon: '⌂', href: '/(tabs)/index'     as const },
-  { key: 'locations', label: 'LOCATIONS', icon: '⊙', href: '/(tabs)/locations'  as const },
-  { key: 'trips',     label: 'TRIPS',     icon: '◈', href: '/(tabs)/trips'      as const },
-  { key: 'radar',     label: 'RADAR',     icon: '⊕', href: '/(tabs)/radar'      as const },
+  { key: 'home',      label: 'HOME',      icon: '⌂', href: '/'           },
+  { key: 'locations', label: 'LOCATIONS', icon: '⊙', href: '/locations'  },
+  { key: 'trips',     label: 'TRIPS',     icon: '◈', href: '/trips'      },
+  { key: 'radar',     label: 'RADAR',     icon: '⊕', href: '/radar'      },
 ] as const
 
 function resolveActiveTab(pathname: string): string {
