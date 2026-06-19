@@ -230,3 +230,14 @@ export type TripForecast = {
 export type CreateLocationInput =
   | { cragId: string }
   | { name: string; lat: number; lon: number }
+
+export type LocationNormal = {
+  id: string
+  locationId: string
+  month: number
+  precipNormalMm: number
+  tempMaxNormalC: number
+  tempMinNormalC: number
+  source: string
+  fetchedAt: string
+}

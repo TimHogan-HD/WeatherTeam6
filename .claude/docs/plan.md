@@ -39,13 +39,6 @@ v8 defines `breakdown: ScoreBreakdown` (not nullable) but the Phase 3 stub retur
 
 **Agreed fix:** In `packages/types`, `ScoreOutput.breakdown` is typed as `ScoreBreakdown | null`. The Phase 3 stub returns `null`; Phase 5 real implementation always returns a populated breakdown.
 
-### Note on Tomorrow.io endpoint (Phase 11)
-
-- api-sources.md says `/v4/weather/forecast`
-- v8 says `/v4/timelines`
-
-These differ. v8 explicitly requires verifying the endpoint before writing Phase 11 code. **Implementation must verify at Phase 11 start — use whichever endpoint is available on the free tier.**
-
 ---
 
 ## Repo State
@@ -120,7 +113,7 @@ Each phase: implement → acceptance criteria → `npm run typecheck` → `npm r
 | 10a | `phase-10a: POST /locations and GET /search` | POST `/locations` endpoint, GET `/search` querying crags table |
 | 10b | `phase-10b: importCrags seeding utility` | `importCrags.ts` script to seed crags table |
 | 10c | `phase-10c: mobile general weather and search screens` | General weather mode screens, live search screen |
-| 11 | `phase-11: tomorrow.io premium pull` | tomorrowIo.ts (verify endpoint first), POST /premium-pull/:id, mobile button |
+| 11 | `phase-11: acis gridded normals replacing tomorrow.io` | acisNormals.ts, location_normals table, normals backfill in rainfall-history job, GET /locations/:id/normals — COMPLETE |
 | 12 | `phase-12: rainviewer radar integration` | rainViewer.ts, GET /radar/tiles, mobile overlay |
 | 13 | `phase-13: historical climbability patterns` | Climbability logic in rainfall job, GET /locations/:id/history, mobile history section |
 

@@ -1,10 +1,10 @@
 import { Router, type Request, type Response } from 'express'
-import { and, eq, ilike, or, sql } from 'drizzle-orm'
+import { and, asc, eq, ilike, or, sql } from 'drizzle-orm'
 import { db } from '../db/index.js'
-import { locations, crags } from '../db/schema.js'
+import { locations, crags, locationNormals } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
 import { parseNumeric } from '@weatherteam6/types'
-import type { ApiResponse, Location, Crag, CreateLocationInput } from '@weatherteam6/types'
+import type { ApiResponse, Location, Crag, CreateLocationInput, LocationNormal } from '@weatherteam6/types'
 
 export const locationsRouter = Router()
 
@@ -184,6 +184,51 @@ locationsRouter.post('/locations', async (req: Request, res: Response) => {
   } else {
     const response: ApiResponse<null> = { data: null, error: 'Must provide cragId or name+lat+lon', status: 400 }
     res.status(400).json(response)
+  }
+})
+
+locationsRouter.get('/locations/:id/normals', async (req: Request, res: Response) => {
+  const locationId = req.params['id']
+  if (!locationId || !isUuid(locationId)) {
+    const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
+    res.status(404).json(response)
+    return
+  }
+
+  try {
+    const ownerCheck = await db
+      .select({ id: locations.id })
+      .from(locations)
+      .where(and(eq(locations.id, locationId), eq(locations.user_id, req.userId)))
+      .limit(1)
+
+    if (!ownerCheck[0]) {
+      const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
+      res.status(404).json(response)
+      return
+    }
+
+    const rows = await db
+      .select()
+      .from(locationNormals)
+      .where(eq(locationNormals.location_id, locationId))
+      .orderBy(asc(locationNormals.month))
+
+    const data: LocationNormal[] = rows.map((r) => ({
+      id: r.id,
+      locationId: r.location_id,
+      month: r.month,
+      precipNormalMm: parseFloat(r.precip_normal_mm),
+      tempMaxNormalC: parseFloat(r.temp_max_normal_c),
+      tempMinNormalC: parseFloat(r.temp_min_normal_c),
+      source: r.source,
+      fetchedAt: r.fetched_at.toISOString(),
+    }))
+
+    const response: ApiResponse<LocationNormal[]> = { data, error: null, status: 200 }
+    res.status(200).json(response)
+  } catch (err) {
+    sendServerError(res, err, 'GET /locations/:id/normals')
   }
 })
 
