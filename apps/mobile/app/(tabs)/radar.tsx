@@ -9,115 +9,14 @@ import {
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import Svg, {
-  Defs,
-  Ellipse,
-  Pattern,
-  Rect,
-  Line as SvgLine,
-} from 'react-native-svg'
-import {
-  IconPlayerPlay,
-  IconPlayerPause,
-} from '@tabler/icons-react-native'
-import { colors, spacing, radius, fonts } from '@weatherteam6/design/tokens'
+import { IconPlayerPlay, IconPlayerPause } from '@tabler/icons-react-native'
+import { colors, spacing, fonts } from '@weatherteam6/design/tokens'
 import { TopBar } from '../../src/components/TopBar'
+import { RadarMapView } from '../../src/components/RadarMapView'
 import { useRadarFrames } from '../../src/hooks/useRadarFrames'
 import { useLocations } from '../../src/hooks/useLocations'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-type BlobKind = 'trace' | 'light' | 'mod' | 'heavy' | 'severe'
-
-type BlobDef = {
-  kind: BlobKind
-  cx: number   // SVG viewBox 0–100 coordinate space
-  cy: number
-  rx: number
-  ry: number
-}
-
-type ScrubLayout = { x: number; width: number }
-
-// ─── Static data ─────────────────────────────────────────────────────────────
-
-// Blob positions from the mockup's BlobField, converted to SVG 0–100 space.
-// cx/cy = centre (CSS x%/y% already maps to 0–100); rx/ry scaled from px.
-const STATIC_BLOBS: BlobDef[] = [
-  { kind: 'light',  cx: 18, cy: 78, rx: 16, ry: 12 },
-  { kind: 'mod',    cx: 34, cy: 64, rx: 20, ry: 15 },
-  { kind: 'heavy',  cx: 46, cy: 56, rx: 12, ry: 11 },
-  { kind: 'severe', cx: 58, cy: 48, rx:  8, ry:  8 },
-  { kind: 'light',  cx: 72, cy: 40, rx: 17, ry: 13 },
-  { kind: 'trace',  cx: 86, cy: 30, rx: 10, ry:  9 },
-  { kind: 'trace',  cx: 26, cy: 90, rx:  9, ry:  7 },
-]
-
-// Base fill color per intensity level.
-// Blobs are rendered as 3 concentric ellipses (outer→inner, increasing opacity)
-// to simulate a soft radial gradient without SVG <RadialGradient>, which has
-// unreliable cross-platform support in react-native-svg.
-const BLOB_COLOR: Record<BlobKind, string> = {
-  trace:  'rgba(144,205,244,1)',
-  light:  'rgba(99,179,237,1)',
-  mod:    'rgba(63,131,248,1)',
-  heavy:  'rgba(246,173,85,1)',
-  severe: 'rgba(252,129,129,1)',
-}
-const BLOB_OPACITY: [number, number, number] = [0.18, 0.32, 0.52]  // outer, mid, inner ring
-
-// ─── BlobField ───────────────────────────────────────────────────────────────
-// SVG covering the map canvas: terrain contour lines, grid, precip echoes.
-// frameShift moves blobs NE to simulate radar loop motion.
-
-function BlobField({ frameShift }: { frameShift: number }) {
-  return (
-    <Svg
-      style={StyleSheet.absoluteFill}
-      viewBox="0 0 100 100"
-      preserveAspectRatio="xMidYMid slice"
-    >
-      <Defs>
-        <Pattern
-          id="terrain"
-          x="0" y="0"
-          width="6.5" height="6.5"
-          patternUnits="userSpaceOnUse"
-          patternTransform="rotate(56)"
-        >
-          <SvgLine x1="0" y1="0" x2="0" y2="6.5" stroke="rgba(226,232,240,0.05)" strokeWidth="0.25" />
-        </Pattern>
-        <Pattern
-          id="grid"
-          x="0" y="0"
-          width="12.8" height="12.8"
-          patternUnits="userSpaceOnUse"
-        >
-          <SvgLine x1="0" y1="0" x2="12.8" y2="0" stroke="rgba(226,232,240,0.045)" strokeWidth="0.22" />
-          <SvgLine x1="0" y1="0" x2="0" y2="12.8" stroke="rgba(226,232,240,0.045)" strokeWidth="0.22" />
-        </Pattern>
-      </Defs>
-      <Rect width="100" height="100" fill="url(#terrain)" />
-      <Rect width="100" height="100" fill="url(#grid)" />
-      {/* Each blob = 3 concentric ellipses (outer→inner) simulating a soft radial gradient */}
-      {STATIC_BLOBS.map((blob, i) => {
-        const fill = BLOB_COLOR[blob.kind]
-        const cx   = blob.cx + frameShift * 0.7
-        const cy   = blob.cy - frameShift * 0.45
-        return (
-          <React.Fragment key={i}>
-            <Ellipse cx={cx} cy={cy} rx={blob.rx}         ry={blob.ry}         fill={fill} opacity={BLOB_OPACITY[0]} />
-            <Ellipse cx={cx} cy={cy} rx={blob.rx * 0.65}  ry={blob.ry * 0.65}  fill={fill} opacity={BLOB_OPACITY[1]} />
-            <Ellipse cx={cx} cy={cy} rx={blob.rx * 0.35}  ry={blob.ry * 0.35}  fill={fill} opacity={BLOB_OPACITY[2]} />
-          </React.Fragment>
-        )
-      })}
-    </Svg>
-  )
-}
-
 // ─── HereMarker ──────────────────────────────────────────────────────────────
-// Uses useState lazy init for Animated.Value — avoids ref access during render.
 
 function HereMarker() {
   const [scale]   = useState(() => new Animated.Value(0.5))
@@ -140,57 +39,27 @@ function HereMarker() {
   )
 }
 
-// ─── CragPin ─────────────────────────────────────────────────────────────────
-
-type PinTone = 'good' | 'fair' | undefined
-
-function CragPin({
-  left,
-  top,
-  label,
-  tone,
-}: {
-  left: `${number}%`
-  top: `${number}%`
-  label?: string
-  tone?: PinTone
-}) {
-  return (
-    <View style={[styles.pin, { left, top }]} pointerEvents="none">
-      <View
-        style={[
-          styles.pinDot,
-          tone === 'good' ? styles.pinGood
-            : tone === 'fair' ? styles.pinFair
-            : styles.pinNeutral,
-        ]}
-      />
-      {label ? <Text style={styles.pinChip}>{label}</Text> : null}
-    </View>
-  )
-}
-
 // ─── RadarScreen ─────────────────────────────────────────────────────────────
+
+type ScrubLayout = { x: number; width: number }
 
 export default function RadarScreen() {
   const [frameIndex, setFrameIndex] = useState(0)
   const [isPlaying, setIsPlaying]   = useState(false)
-
-  // Scrubber track layout stored in state so useMemo can capture it without
-  // ref access during render (same pattern as CompassDial).
   const [scrubLayout, setScrubLayout] = useState<ScrubLayout>({ x: 0, width: 260 })
-
-  // Stable mount time — avoids calling Date.now() / new Date() in render body.
   const [mountMs]   = useState(() => Date.now())
   const [mountDate] = useState(() => new Date())
 
-  const { data: framesData } = useRadarFrames()
-  useLocations()  // pre-warms location cache; crag pins use static layout in Phase 12
+  const trackViewRef = useRef<View>(null)
 
-  const pastFrames    = framesData?.past    ?? []
-  const nowcastFrames = framesData?.nowcast ?? []
-  const allFrames     = [...pastFrames, ...nowcastFrames]
-  const nowIndex      = Math.max(0, pastFrames.length - 1)
+  const { data: framesData } = useRadarFrames()
+  const { data: locations }  = useLocations()
+
+  const allFrames = useMemo(
+    () => [...(framesData?.past ?? []), ...(framesData?.nowcast ?? [])],
+    [framesData],
+  )
+  const nowIndex = Math.max(0, (framesData?.past?.length ?? 1) - 1)
   const totalFrames   = allFrames.length || 12
 
   // Play loop
@@ -202,7 +71,6 @@ export default function RadarScreen() {
     return () => clearInterval(id)
   }, [isPlaying, totalFrames])
 
-  // Current frame time label
   const currentFrame = allFrames[frameIndex]
   const frameDateMs  = currentFrame ? currentFrame.time * 1000 : mountMs
   const frameLabel   = new Date(frameDateMs).toLocaleTimeString('en-US', {
@@ -211,20 +79,13 @@ export default function RadarScreen() {
   })
   const isAtNow = allFrames.length > 0 ? frameIndex === nowIndex : true
 
-  // Blob shift (NE direction) to simulate radar motion across the loop
-  const frameShift = (frameIndex - nowIndex) * 1.2
-
-  // Scrubber fractions
   const handleFraction = totalFrames > 1 ? frameIndex / (totalFrames - 1) : 0
   const nowFraction    = totalFrames > 1 ? nowIndex  / (totalFrames - 1) : 0.5
+  const pastWidthPx    = nowFraction    * scrubLayout.width
+  const nowLeftPx      = nowFraction    * scrubLayout.width - 1
+  const handleLeftPx   = handleFraction * scrubLayout.width - 7
 
-  // Pixel positions for scrubber track elements (computed from measured width)
-  const pastWidthPx  = nowFraction    * scrubLayout.width
-  const nowLeftPx    = nowFraction    * scrubLayout.width - 1
-  const handleLeftPx = handleFraction * scrubLayout.width - 7
-
-  // PanResponder — captures totalFrames and scrubLayout via useMemo closure.
-  // Re-created only when those values change, so the handler always has fresh values.
+  // Scrubber PanResponder
   const panHandlers = useMemo(() => {
     const tw = scrubLayout.width
     const tx = scrubLayout.x
@@ -246,8 +107,6 @@ export default function RadarScreen() {
     }).panHandlers
   }, [totalFrames, scrubLayout])
 
-  const trackViewRef = useRef<View>(null)
-
   const dayStr = mountDate.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()
 
   return (
@@ -256,7 +115,6 @@ export default function RadarScreen() {
       style={styles.gradient}
     >
       <SafeAreaView style={styles.safe} edges={['top']}>
-        {/* Top bar */}
         <TopBar
           title="Radar"
           rightElement={
@@ -265,30 +123,20 @@ export default function RadarScreen() {
         />
 
         {/* ── Full-bleed radar map ─────────────────────────────── */}
-        <View style={styles.map}>
-          <View style={[StyleSheet.absoluteFill, styles.mapBase]} />
+        <View style={styles.mapWrap}>
+          <RadarMapView
+            frames={allFrames}
+            frameIndex={frameIndex}
+            tileUrlTemplate={framesData?.tileUrlTemplate ?? null}
+            locations={locations ?? []}
+          />
 
-          {/* Terrain texture + grid + precip echoes */}
-          <BlobField frameShift={frameShift} />
-
-          {/* Crag pins — static layout for Phase 12; real projection in Phase 13 */}
-          <CragPin left="58%" top="48%" label="Taylors Falls" tone="fair" />
-          <CragPin left="74%" top="73%" label="Sandstone"     tone="good" />
-          <CragPin left="22%" top="42%" label="Interstate" />
-
-          {/* You are here — pulsing ring centred at 40%, 62% */}
+          {/* "You are here" — overlaid on the map, positioned near screen centre */}
           <View style={styles.hereWrap} pointerEvents="none">
             <HereMarker />
           </View>
 
-          {/* Storm cell callout */}
-          <View style={styles.callout}>
-            <Text style={styles.calloutLabel}>Cell · approaching</Text>
-            <Text style={styles.calloutText}>18 mph NE · tops 38k ft · small hail possible</Text>
-          </View>
-
-          {/* Basemap attribution */}
-          <Text style={styles.basemapTag}>Basemap · terrain tiles</Text>
+          <Text style={styles.basemapTag}>Radar © RainViewer · Map © CARTO / OSM</Text>
         </View>
 
         {/* ── Timeline scrubber ───────────────────────────────── */}
@@ -302,7 +150,6 @@ export default function RadarScreen() {
           </View>
 
           <View style={styles.scrubMain}>
-            {/* Play / pause */}
             <Pressable
               style={styles.playBtn}
               onPress={() => setIsPlaying(p => !p)}
@@ -314,31 +161,26 @@ export default function RadarScreen() {
               }
             </Pressable>
 
-            {/* Track */}
             <View style={styles.trackWrap}>
               <View
                 ref={trackViewRef}
                 style={styles.track}
                 onLayout={e => {
                   const { width } = e.nativeEvent.layout
-                  // measure() called in event handler — not during render
                   trackViewRef.current?.measure((_x, _y, _w, _h, px) => {
                     setScrubLayout({ x: px, width })
                   })
                 }}
                 {...panHandlers}
               >
-                <View style={[styles.trackPast, { width: pastWidthPx }]} />
-                <View style={[styles.trackNow,  { left: nowLeftPx    }]} />
-                <View style={[styles.trackHandle,{ left: handleLeftPx }]} />
+                <View style={[styles.trackPast,   { width: pastWidthPx  }]} />
+                <View style={[styles.trackNow,    { left: nowLeftPx     }]} />
+                <View style={[styles.trackHandle, { left: handleLeftPx  }]} />
               </View>
 
               <View style={styles.ticks}>
                 {['-2H', '-1H', 'NOW', '+1H', '+2H'].map(tick => (
-                  <Text
-                    key={tick}
-                    style={[styles.tick, tick === 'NOW' && styles.tickNow]}
-                  >
+                  <Text key={tick} style={[styles.tick, tick === 'NOW' && styles.tickNow]}>
                     {tick}
                   </Text>
                 ))}
@@ -346,7 +188,6 @@ export default function RadarScreen() {
             </View>
           </View>
 
-          {/* Intensity legend */}
           <View style={styles.legend}>
             <Text style={styles.legendEnd}>Light</Text>
             <LinearGradient
@@ -383,19 +224,16 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
 
-  map: {
+  mapWrap: {
     flex: 1,
     overflow: 'hidden',
-    backgroundColor: colors.mapCanvas,
-  },
-  mapBase: {
-    backgroundColor: colors.mapCanvas,
   },
 
   hereWrap: {
     position: 'absolute',
-    left: '40%',
-    top: '62%',
+    left: '50%',
+    top: '50%',
+    pointerEvents: 'none',
   },
   here: {
     width: 34,
@@ -418,64 +256,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: colors.good,
     borderWidth: 2,
-    borderColor: colors.mapCanvas,
-  },
-
-  pin: {
-    position: 'absolute',
-    alignItems: 'center',
-    gap: 4,
-    transform: [{ translateX: -5 }, { translateY: -5 }],
-  },
-  pinDot: {
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
-  },
-  pinGood:    { backgroundColor: colors.good },
-  pinFair:    { backgroundColor: colors.fair },
-  pinNeutral: { backgroundColor: colors.txt2 },
-  pinChip: {
-    fontFamily: fonts.display,
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 0.72,
-    textTransform: 'uppercase',
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderRadius: 4,
-    backgroundColor: 'rgba(10,12,16,0.7)',
-    borderWidth: 1,
-    borderColor: colors.line,
-    color: colors.txt2,
-    overflow: 'hidden',
-  },
-
-  callout: {
-    position: 'absolute',
-    left: '44%',
-    top: '26%',
-    backgroundColor: 'rgba(10,12,16,0.82)',
-    borderWidth: 1,
-    borderColor: 'rgba(252,129,129,0.4)',
-    borderRadius: radius.inner,
-    padding: 9,
-    maxWidth: 150,
-  },
-  calloutLabel: {
-    fontFamily: fonts.display,
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1.0,
-    textTransform: 'uppercase',
-    color: colors.poor,
-    marginBottom: 2,
-  },
-  calloutText: {
-    fontFamily: fonts.body,
-    fontSize: 10,
-    lineHeight: 14,
-    color: colors.txt2,
+    borderColor: '#0d1117',
   },
 
   basemapTag: {
@@ -488,6 +269,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.12,
     textTransform: 'uppercase',
     color: 'rgba(226,232,240,0.30)',
+    pointerEvents: 'none',
   },
 
   scrub: {
@@ -511,9 +293,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.txt1,
   },
-  scrubNow: {
-    color: colors.rain,
-  },
+  scrubNow: { color: colors.rain },
   scrubStatus: {
     fontFamily: fonts.body,
     fontSize: 10,
@@ -568,7 +348,7 @@ const styles = StyleSheet.create({
     borderRadius: 7.5,
     backgroundColor: colors.good,
     borderWidth: 2,
-    borderColor: colors.mapCanvas,
+    borderColor: '#0d1117',
   },
   ticks: {
     flexDirection: 'row',
@@ -586,7 +366,6 @@ const styles = StyleSheet.create({
     color: colors.txt2,
     fontWeight: '700',
   },
-
   legend: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -11,7 +11,7 @@ const TABS = [
 ] as const
 
 function resolveActiveTab(pathname: string): string {
-  if (pathname === '/' || pathname.startsWith('/(tabs)/index') || pathname === '/index') return 'home'
+  if (pathname === '/' || pathname === '/index') return 'home'
   if (pathname.startsWith('/locations') || pathname.startsWith('/location/') || pathname === '/search' || pathname.startsWith('/walls/')) return 'locations'
   if (pathname.startsWith('/trips')) return 'trips'
   if (pathname.startsWith('/radar')) return 'radar'
