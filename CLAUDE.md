@@ -104,6 +104,8 @@ At the start of EVERY session:
 4. Run `git log --oneline -5` to confirm where the branch is
 5. Run `npm run build --workspace=packages/types --workspace=packages/design` to ensure shared packages are compiled before typechecking mobile
 
+**Self-start rule:** If the user's opening message is "next phase", "continue", "do Phase X", or equivalent — complete steps 1–5 above, then state in one sentence what phase you are building and what branch you will create, and proceed. Do not ask for a detailed prompt. The docs are the spec. If a handoff doc section is listed in the session-end block of `session-notes.md`, read it before writing any UI code.
+
 ## Session End Protocol
 
 Before ending ANY session, append a full state block to `.claude/docs/session-notes.md`. Use this exact format:
@@ -125,7 +127,11 @@ Before ending ANY session, append a full state block to `.claude/docs/session-no
 **Blockers for next session:**
 - <anything the next session must resolve before proceeding>
 
-**What's next:** <phase name> — <one sentence on where to start>
+**What's next:** Phase <n> — `git checkout -b phase/<n>-<name>` off `<base branch>` — read `<handoff doc path and section>` before writing any UI
+
+**Gotchas for next session:**
+- <cross-file dependency, ordering constraint, spec gap, or non-obvious detail not captured in the plan or handoff docs>
+- None if nothing to flag
 ```
 
 Stub entries (timestamps only, no content) are noise — never append a session-end line without the full block above.
