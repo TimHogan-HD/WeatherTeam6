@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { LinearGradient } from 'expo-linear-gradient'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,47 +17,28 @@ import {
   IconX,
 } from '@tabler/icons-react-native'
 import { colors, radius, spacing, type as t } from '@weatherteam6/design/tokens'
+import type { Crag, Location } from '@weatherteam6/types'
 import { TopBar } from '../src/components/TopBar'
 import { useLocations } from '../src/hooks/useLocations'
 import { useSaveLocation } from '../src/hooks/useSaveLocation'
-
-// ─────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────
-
-interface SearchResult {
-  id: string
-  name: string
-  region: string
-  rock_type: string
-  distance: string
-  is_climbing_location: boolean
-}
-
-// ─────────────────────────────────────────────
-// Mock data
-// ─────────────────────────────────────────────
-
-const MOCK_RESULTS: SearchResult[] = [
-  { id: 'mock-1', name: 'Red Rock Canyon', region: 'Nevada', rock_type: 'Sandstone', distance: '2.1 mi', is_climbing_location: true },
-  { id: 'mock-2', name: 'Joshua Tree NP', region: 'California', rock_type: 'Granite', distance: '45 mi', is_climbing_location: true },
-  { id: 'mock-3', name: 'Yosemite Valley', region: 'California', rock_type: 'Granite', distance: '220 mi', is_climbing_location: true },
-  { id: 'mock-4', name: 'Smith Rock State Park', region: 'Oregon', rock_type: 'Rhyolite', distance: '380 mi', is_climbing_location: true },
-  { id: 'mock-5', name: 'Rifle Mountain Park', region: 'Colorado', rock_type: 'Limestone', distance: '520 mi', is_climbing_location: true },
-]
+import { useSearchCrags } from '../src/hooks/useSearchCrags'
 
 // ─────────────────────────────────────────────
 // Sub-components
 // ─────────────────────────────────────────────
 
-interface MockResultRowProps {
-  item: SearchResult
+interface CragResultRowProps {
+  item: Crag
   selected: boolean
   onToggle: (id: string) => void
 }
 
-function MockResultRow({ item, selected, onToggle }: MockResultRowProps) {
-  const subLabel = `${item.region} · ${item.rock_type}${item.distance ? ' · ' + item.distance : ''}`
+function CragResultRow({ item, selected, onToggle }: CragResultRowProps) {
+  const subLabel = [
+    item.area_name,
+    item.state,
+    item.rock_type,
+  ].filter(Boolean).join(' · ')
 
   return (
     <Pressable
@@ -66,30 +48,30 @@ function MockResultRow({ item, selected, onToggle }: MockResultRowProps) {
       <IconMapPin size={18} color={selected ? colors.good : colors.txt3} />
       <View style={styles.resultCenter}>
         <Text style={styles.resultName}>{item.name}</Text>
-        <Text style={styles.resultSub}>{subLabel}</Text>
+        {subLabel ? <Text style={styles.resultSub}>{subLabel}</Text> : null}
       </View>
       {selected ? <IconCheck size={18} color={colors.good} /> : null}
     </Pressable>
   )
 }
 
-interface LocationRowProps {
-  id: string
-  name: string
-  subLabel: string
+interface RecentLocationRowProps {
+  location: Location
   selected: boolean
   onToggle: (id: string) => void
 }
 
-function LocationRow({ id, name, subLabel, selected, onToggle }: LocationRowProps) {
+function RecentLocationRow({ location, selected, onToggle }: RecentLocationRowProps) {
+  const subLabel = location.asos_station ?? location.rock_type ?? 'Saved location'
+
   return (
     <Pressable
       style={[styles.resultRow, selected && styles.resultRowSelected]}
-      onPress={() => onToggle(id)}
+      onPress={() => onToggle(location.id)}
     >
       <IconMapPin size={18} color={selected ? colors.good : colors.txt3} />
       <View style={styles.resultCenter}>
-        <Text style={styles.resultName}>{name}</Text>
+        <Text style={styles.resultName}>{location.name}</Text>
         <Text style={styles.resultSub}>{subLabel}</Text>
       </View>
       {selected ? <IconCheck size={18} color={colors.good} /> : null}
@@ -107,14 +89,11 @@ export default function Search() {
 
   const locationsQ = useLocations()
   const saveLocation = useSaveLocation()
+  const searchQ = useSearchCrags(query)
 
-  const locations = locationsQ.data ?? []
-
-  const filteredResults = query.length >= 1
-    ? MOCK_RESULTS.filter(item =>
-        item.name.toLowerCase().includes(query.toLowerCase())
-      )
-    : []
+  const savedLocations = locationsQ.data ?? []
+  const searchResults = searchQ.data ?? []
+  const isSearching = query.trim().length >= 1
 
   function toggleId(id: string) {
     setSelectedIds(prev => {
@@ -125,7 +104,7 @@ export default function Search() {
   }
 
   function handleAdd() {
-    selectedIds.forEach(id => saveLocation.mutate(id))
+    selectedIds.forEach(id => saveLocation.mutate({ cragId: id }))
     setSelectedIds(new Set())
   }
 
@@ -168,17 +147,14 @@ export default function Search() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {query === '' ? (
-            /* Pre-search: recent locations */
-            locations.length > 0 ? (
+          {!isSearching ? (
+            savedLocations.length > 0 ? (
               <>
                 <Text style={styles.sectionHeader}>Recent</Text>
-                {locations.map(loc => (
-                  <LocationRow
+                {savedLocations.map(loc => (
+                  <RecentLocationRow
                     key={loc.id}
-                    id={loc.id}
-                    name={loc.name}
-                    subLabel={loc.asos_station ?? loc.rock_type ?? 'Saved location'}
+                    location={loc}
                     selected={selectedIds.has(loc.id)}
                     onToggle={toggleId}
                   />
@@ -189,31 +165,37 @@ export default function Search() {
                 <Text style={styles.emptyText}>Search for crags and locations</Text>
               </View>
             )
-          ) : (
-            /* Search results */
-            filteredResults.length > 0 ? (
-              filteredResults.map(item => (
-                <MockResultRow
+          ) : searchQ.isPending ? (
+            <View style={styles.emptyState}>
+              <ActivityIndicator color={colors.good} />
+            </View>
+          ) : searchResults.length > 0 ? (
+            <>
+              <Text style={styles.sectionHeader}>Results</Text>
+              {searchResults.map(item => (
+                <CragResultRow
                   key={item.id}
                   item={item}
                   selected={selectedIds.has(item.id)}
                   onToggle={toggleId}
                 />
-              ))
-            ) : (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyText}>{`No results for "${query}"`}</Text>
-              </View>
-            )
+              ))}
+            </>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>{`No results for "${query}"`}</Text>
+            </View>
           )}
         </ScrollView>
 
         {/* Sticky add button */}
         {selectedIds.size > 0 ? (
           <View style={styles.addBar}>
-            <Pressable style={styles.addBtn} onPress={handleAdd}>
+            <Pressable style={styles.addBtn} onPress={handleAdd} disabled={saveLocation.isPending}>
               <Text style={styles.addBtnText}>
-                {`Add ${selectedIds.size} location${selectedIds.size > 1 ? 's' : ''}`}
+                {saveLocation.isPending
+                  ? 'Adding…'
+                  : `Add ${selectedIds.size} location${selectedIds.size > 1 ? 's' : ''}`}
               </Text>
             </Pressable>
           </View>

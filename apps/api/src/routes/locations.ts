@@ -1,14 +1,15 @@
 import { Router, type Request, type Response } from 'express'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, ilike, or, sql } from 'drizzle-orm'
 import { db } from '../db/index.js'
-import { locations } from '../db/schema.js'
+import { locations, crags } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
 import { parseNumeric } from '@weatherteam6/types'
-import type { ApiResponse, Location } from '@weatherteam6/types'
+import type { ApiResponse, Location, Crag, CreateLocationInput } from '@weatherteam6/types'
 
 export const locationsRouter = Router()
 
 type LocationRow = typeof locations.$inferSelect
+type CragRow = typeof crags.$inferSelect
 
 function mapLocation(row: LocationRow): Location {
   return {
@@ -32,6 +33,20 @@ function mapLocation(row: LocationRow): Location {
   }
 }
 
+function mapCrag(row: CragRow): Crag {
+  return {
+    id: row.id,
+    openbeta_id: row.openbeta_id,
+    name: row.name,
+    lat: parseFloat(row.lat),
+    lon: parseFloat(row.lon),
+    rock_type: row.rock_type ?? null,
+    area_name: row.area_name ?? null,
+    state: row.state ?? null,
+    created_at: row.created_at.toISOString(),
+  }
+}
+
 locationsRouter.get('/locations', async (req: Request, res: Response) => {
   try {
     const rows = await db.select().from(locations).where(eq(locations.user_id, req.userId))
@@ -39,6 +54,130 @@ locationsRouter.get('/locations', async (req: Request, res: Response) => {
     res.status(200).json(response)
   } catch (err) {
     sendServerError(res, err, 'GET /locations')
+  }
+})
+
+// Must be registered before GET /locations/:id — Express matches in declaration order
+locationsRouter.get('/locations/search', async (req: Request, res: Response) => {
+  const q = typeof req.query['q'] === 'string' ? req.query['q'].trim() : ''
+  const latStr = typeof req.query['lat'] === 'string' ? req.query['lat'] : null
+  const lonStr = typeof req.query['lon'] === 'string' ? req.query['lon'] : null
+
+  if (q.length < 1 && (!latStr || !lonStr)) {
+    const response: ApiResponse<Crag[]> = { data: [], error: null, status: 200 }
+    res.status(200).json(response)
+    return
+  }
+
+  try {
+    let rows: CragRow[]
+
+    if (q.length >= 1) {
+      rows = await db
+        .select()
+        .from(crags)
+        .where(or(ilike(crags.name, `%${q}%`), ilike(crags.area_name, `%${q}%`)))
+        .limit(20)
+    } else {
+      // Nearby search: sort by Haversine distance from provided lat/lon
+      const lat = parseFloat(latStr!)
+      const lon = parseFloat(lonStr!)
+      if (!isFinite(lat) || !isFinite(lon)) {
+        const response: ApiResponse<Crag[]> = { data: [], error: null, status: 200 }
+        res.status(200).json(response)
+        return
+      }
+      rows = await db
+        .select()
+        .from(crags)
+        .orderBy(
+          sql`(
+            6371 * acos(
+              cos(radians(${lat})) * cos(radians(${crags.lat}::float)) *
+              cos(radians(${crags.lon}::float) - radians(${lon})) +
+              sin(radians(${lat})) * sin(radians(${crags.lat}::float))
+            )
+          )`
+        )
+        .limit(20)
+    }
+
+    const response: ApiResponse<Crag[]> = { data: rows.map(mapCrag), error: null, status: 200 }
+    res.status(200).json(response)
+  } catch (err) {
+    sendServerError(res, err, 'GET /locations/search')
+  }
+})
+
+locationsRouter.post('/locations', async (req: Request, res: Response) => {
+  const body = req.body as Partial<CreateLocationInput>
+
+  if ('cragId' in body && body.cragId) {
+    // Save a climbing location from the crags table
+    const cragId = body.cragId
+    if (!isUuid(cragId)) {
+      const response: ApiResponse<null> = { data: null, error: 'Invalid crag id', status: 400 }
+      res.status(400).json(response)
+      return
+    }
+
+    try {
+      const cragRows = await db.select().from(crags).where(eq(crags.id, cragId)).limit(1)
+      const crag = cragRows[0]
+      if (!crag) {
+        const response: ApiResponse<null> = { data: null, error: 'Crag not found', status: 404 }
+        res.status(404).json(response)
+        return
+      }
+
+      const inserted = await db
+        .insert(locations)
+        .values({
+          user_id: req.userId,
+          name: crag.name,
+          lat: crag.lat,
+          lon: crag.lon,
+          is_climbing_location: true,
+          rock_type: (crag.rock_type as Location['rock_type']) ?? null,
+        })
+        .returning()
+      const row = inserted[0]
+      if (!row) throw new Error('Insert returned no row')
+      const response: ApiResponse<Location> = { data: mapLocation(row), error: null, status: 201 }
+      res.status(201).json(response)
+    } catch (err) {
+      sendServerError(res, err, 'POST /locations (crag)')
+    }
+  } else if ('name' in body && 'lat' in body && 'lon' in body) {
+    // Save a general weather location
+    const { name, lat, lon } = body as { name: string; lat: number; lon: number }
+    if (typeof name !== 'string' || name.trim() === '' || typeof lat !== 'number' || typeof lon !== 'number') {
+      const response: ApiResponse<null> = { data: null, error: 'Invalid location data', status: 400 }
+      res.status(400).json(response)
+      return
+    }
+
+    try {
+      const inserted = await db
+        .insert(locations)
+        .values({
+          user_id: req.userId,
+          name: name.trim(),
+          lat: String(lat),
+          lon: String(lon),
+          is_climbing_location: false,
+        })
+        .returning()
+      const row = inserted[0]
+      if (!row) throw new Error('Insert returned no row')
+      const response: ApiResponse<Location> = { data: mapLocation(row), error: null, status: 201 }
+      res.status(201).json(response)
+    } catch (err) {
+      sendServerError(res, err, 'POST /locations (general)')
+    }
+  } else {
+    const response: ApiResponse<null> = { data: null, error: 'Must provide cragId or name+lat+lon', status: 400 }
+    res.status(400).json(response)
   }
 })
 

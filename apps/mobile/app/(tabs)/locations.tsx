@@ -16,10 +16,11 @@ import {
   IconSearch,
 } from '@tabler/icons-react-native'
 import { colors, fonts, radius, spacing, type as t } from '@weatherteam6/design/tokens'
-import type { Location } from '@weatherteam6/types'
+import type { Crag, Location } from '@weatherteam6/types'
 import { useLocations } from '../../src/hooks/useLocations'
 import { useConditions } from '../../src/hooks/useConditions'
 import { useNearbyLocations } from '../../src/hooks/useNearbyLocations'
+import { useSaveLocation } from '../../src/hooks/useSaveLocation'
 import { TopBar } from '../../src/components/TopBar'
 
 // ─── Score helpers ──────────────────────────────────────────────────────────
@@ -291,6 +292,42 @@ function CragRow({
   )
 }
 
+// ─── Nearby crag row (not yet saved) ─────────────────────────────────────────
+
+function NearbyCragRow({
+  crag,
+  onAdd,
+  saving,
+}: {
+  crag: Crag
+  onAdd: (cragId: string) => void
+  saving: boolean
+}) {
+  const locationParts = [crag.area_name, crag.state].filter(Boolean).join(', ')
+  const subLabel = locationParts || (crag.rock_type ?? 'Climbing area')
+
+  return (
+    <View style={styles.rowCard}>
+      <View style={styles.rowMain}>
+        <View style={styles.rowIcon}>
+          <IconMapPin size={18} color={colors.txt3} />
+        </View>
+        <View style={styles.rowCenter}>
+          <Text style={styles.rowName}>{crag.name}</Text>
+          <Text style={styles.rowSub}>{subLabel}</Text>
+        </View>
+        <Pressable
+          onPress={() => onAdd(crag.id)}
+          disabled={saving}
+          style={styles.addCragBtn}
+        >
+          <Text style={styles.addCragBtnText}>{saving ? '…' : '+'}</Text>
+        </Pressable>
+      </View>
+    </View>
+  )
+}
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function LocationsScreen() {
@@ -303,8 +340,8 @@ export default function LocationsScreen() {
 
   const locationsQ = useLocations()
   const savedLocations: Location[] = locationsQ.data ?? []
-  const nearbyLocations = useNearbyLocations({ type: 'all' }).data
-  const nearbyCrags = useNearbyLocations({ type: 'crags' }).data
+  const nearbyCrags: Crag[] = useNearbyLocations({ type: 'crags' }).data
+  const saveLocation = useSaveLocation()
 
   const savedCrags = savedLocations.filter((l) => l.is_climbing_location)
 
@@ -393,17 +430,15 @@ export default function LocationsScreen() {
                 />
               ))}
 
-              {/* Nearby section — hidden while stub returns [] */}
-              {nearbyLocations.length > 0 && (
+              {nearbyCrags.length > 0 && (
                 <>
                   <Text style={styles.sectionHeader}>Nearby · Not saved</Text>
-                  {nearbyLocations.map((location, index) => (
-                    <LocationRow
-                      key={location.id}
-                      location={location}
-                      index={index}
-                      expanded={expandedId === location.id}
-                      onToggle={() => toggleExpanded(location.id)}
+                  {nearbyCrags.map((crag) => (
+                    <NearbyCragRow
+                      key={crag.id}
+                      crag={crag}
+                      onAdd={(id) => saveLocation.mutate({ cragId: id })}
+                      saving={saveLocation.isPending}
                     />
                   ))}
                 </>
@@ -424,16 +459,15 @@ export default function LocationsScreen() {
                 />
               ))}
 
-              {/* Nearby crags — hidden while stub returns [] */}
               {nearbyCrags.length > 0 && (
                 <>
                   <Text style={styles.sectionHeader}>Nearby · Not saved</Text>
-                  {nearbyCrags.map((location) => (
-                    <CragRow
-                      key={location.id}
-                      location={location}
-                      expanded={expandedId === location.id}
-                      onToggle={() => toggleExpanded(location.id)}
+                  {nearbyCrags.map((crag) => (
+                    <NearbyCragRow
+                      key={crag.id}
+                      crag={crag}
+                      onAdd={(id) => saveLocation.mutate({ cragId: id })}
+                      saving={saveLocation.isPending}
                     />
                   ))}
                 </>
@@ -701,5 +735,20 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: radius.tag,
     marginBottom: spacing.micro,
+  },
+
+  // Nearby crag row add button
+  addCragBtn: {
+    paddingHorizontal: spacing.cardPad,
+    paddingVertical: spacing.cardPadSm,
+    backgroundColor: colors.goodTint,
+    borderWidth: 1,
+    borderColor: colors.goodTintBorder,
+    borderRadius: radius.tag,
+  },
+  addCragBtnText: {
+    ...t.bodyMd,
+    color: colors.good,
+    fontWeight: '700',
   },
 })

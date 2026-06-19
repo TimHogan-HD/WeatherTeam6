@@ -133,7 +133,9 @@ export default function LocationDetail() {
           <PrecipLineChart locationId={id} />
           <HourlyStrip locationId={id} />
           <SevenDayTable locationId={id} />
-          <NWSAlertBar locationId={id} />
+          {location?.is_climbing_location ? (
+            <NWSAlertBar locationId={id} />
+          ) : null}
 
           {location?.is_climbing_location ? (
             <WallsButton locationId={id} onPress={() => router.push({ pathname: '/walls/[id]' as never, params: { id } })} />
