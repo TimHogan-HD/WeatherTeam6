@@ -11,6 +11,12 @@ export const locationsRouter = Router()
 type LocationRow = typeof locations.$inferSelect
 type CragRow = typeof crags.$inferSelect
 
+const VALID_ROCK_TYPES = new Set<string>(['sandstone', 'limestone', 'granite', 'basalt', 'unknown'])
+function parseRockType(v: string | null | undefined): Location['rock_type'] {
+  if (v && VALID_ROCK_TYPES.has(v)) return v as Location['rock_type']
+  return null
+}
+
 function mapLocation(row: LocationRow): Location {
   return {
     id: row.id,
@@ -138,7 +144,7 @@ locationsRouter.post('/locations', async (req: Request, res: Response) => {
           lat: crag.lat,
           lon: crag.lon,
           is_climbing_location: true,
-          rock_type: (crag.rock_type as Location['rock_type']) ?? null,
+          rock_type: parseRockType(crag.rock_type),
         })
         .returning()
       const row = inserted[0]

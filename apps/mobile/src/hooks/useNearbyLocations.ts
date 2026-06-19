@@ -6,7 +6,7 @@ import { apiFetch } from '../lib/api'
 
 type PermissionState = 'pending' | 'granted' | 'denied'
 
-export function useNearbyLocations(_opts?: { type?: 'all' | 'crags' }) {
+export function useNearbyLocations() {
   const [permission, setPermission] = useState<PermissionState>('pending')
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null)
 

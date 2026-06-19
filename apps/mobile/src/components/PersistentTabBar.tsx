@@ -49,7 +49,7 @@ export function PersistentTabBar() {
 const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
-    backgroundColor: '#0d1117',
+    backgroundColor: colors.bgGradientBottom,
     borderTopWidth: 1,
     borderTopColor: colors.line,
     height: 56 + spacing.bottomInset,

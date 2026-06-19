@@ -202,7 +202,7 @@ export default function LocationsScreen() {
 
   const locationsQ = useLocations()
   const savedLocations: Location[] = locationsQ.data ?? []
-  const nearbyCrags: Crag[] = useNearbyLocations({ type: 'crags' }).data
+  const nearbyCrags: Crag[] = useNearbyLocations().data
   const saveLocation = useSaveLocation()
 
   const savedCrags = savedLocations.filter((l) => l.is_climbing_location)

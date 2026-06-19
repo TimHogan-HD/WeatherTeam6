@@ -104,8 +104,9 @@ export default function Search() {
     })
   }
 
-  function handleAdd() {
-    selectedIds.forEach(id => saveLocation.mutate({ cragId: id }))
+  async function handleAdd() {
+    const ids = Array.from(selectedIds)
+    await Promise.allSettled(ids.map(id => saveLocation.mutateAsync({ cragId: id })))
     setSelectedIds(new Set())
   }
 
