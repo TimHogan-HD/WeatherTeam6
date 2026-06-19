@@ -16,6 +16,7 @@ import {
   IconSearch,
   IconX,
 } from '@tabler/icons-react-native'
+import { router } from 'expo-router'
 import { colors, radius, spacing, type as t } from '@weatherteam6/design/tokens'
 import type { Crag, Location } from '@weatherteam6/types'
 import { TopBar } from '../src/components/TopBar'
@@ -115,7 +116,7 @@ export default function Search() {
     >
       <SafeAreaView style={styles.safe} edges={['top']}>
         {/* TopBar */}
-        <TopBar title="Search" />
+        <TopBar title="Search" showBack onBack={() => router.back()} />
 
         {/* Search bar */}
         <View style={styles.searchBarWrap}>
