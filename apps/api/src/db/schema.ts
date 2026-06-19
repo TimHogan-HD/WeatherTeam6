@@ -203,6 +203,23 @@ export const premiumPulls = pgTable('premium_pulls', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
+export const locationNormals = pgTable(
+  'location_normals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    location_id: uuid('location_id')
+      .notNull()
+      .references(() => locations.id),
+    month: integer('month').notNull(),
+    precip_normal_mm: numeric('precip_normal_mm').notNull(),
+    temp_max_normal_c: numeric('temp_max_normal_c').notNull(),
+    temp_min_normal_c: numeric('temp_min_normal_c').notNull(),
+    source: text('source').notNull().default('acis_grid_91_20'),
+    fetched_at: timestamp('fetched_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.location_id, t.month)],
+)
+
 export const pushTokens = pgTable('push_tokens', {
   id: uuid('id').primaryKey().defaultRandom(),
   user_id: uuid('user_id')
