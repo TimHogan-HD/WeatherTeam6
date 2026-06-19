@@ -76,7 +76,7 @@ locationsRouter.get('/locations/search', async (req: Request, res: Response) => 
       rows = await db
         .select()
         .from(crags)
-        .where(or(ilike(crags.name, `%${q}%`), ilike(crags.area_name, `%${q}%`)))
+        .where(or(ilike(crags.name, `%${q}%`), ilike(crags.area_name, `%${q}%`), ilike(crags.state, `%${q}%`)))
         .limit(20)
     } else {
       // Nearby search: sort by Haversine distance from provided lat/lon
