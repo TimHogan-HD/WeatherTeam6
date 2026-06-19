@@ -46,14 +46,6 @@ function tierLabel(s: number | null): string {
   return 'Poor'
 }
 
-// ─── Day abbreviations ──────────────────────────────────────────────────────
-
-function dayAbbrev(offsetDays: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() + offsetDays)
-  return d.toLocaleDateString('en-US', { weekday: 'short' })
-}
-
 // ─── Sub-tab / filter types ─────────────────────────────────────────────────
 
 type TabKey = 'all' | 'crags'
@@ -94,20 +86,18 @@ function Chip({
 function LocationRow({
   location,
   index,
-  expanded,
-  onToggle,
 }: {
   location: Location
   index: number
-  expanded: boolean
-  onToggle: () => void
 }) {
   const router = useRouter()
 
   return (
-    <View style={styles.rowCard}>
-      <Pressable onPress={onToggle} style={styles.rowMain}>
-        {/* Left icon */}
+    <Pressable
+      style={styles.rowCard}
+      onPress={() => router.push({ pathname: '/location/[id]', params: { id: location.id } })}
+    >
+      <View style={styles.rowMain}>
         <View style={styles.rowIcon}>
           {index === 0 ? (
             <IconCurrentLocation size={18} color={colors.good} />
@@ -115,83 +105,21 @@ function LocationRow({
             <IconMapPin size={18} color={colors.txt3} />
           )}
         </View>
-
-        {/* Center */}
         <View style={styles.rowCenter}>
           <Text style={styles.rowName}>{location.name}</Text>
           <Text style={styles.rowSub}>
             {location.asos_station ?? 'Saved location'}
           </Text>
         </View>
-
-        {/* Right */}
-        <View style={styles.rowRight}>
-          <Text style={styles.rowTemp}>{'—°'}</Text>
-          <Text
-            style={[
-              styles.chevron,
-              expanded && styles.chevronExpanded,
-            ]}
-          >
-            {'›'}
-          </Text>
-        </View>
-      </Pressable>
-
-      {expanded && (
-        <View style={styles.expandedContent}>
-          {/* 4-stat strip */}
-          <View style={styles.statStrip}>
-            {[
-              { label: 'Humidity', value: '—%' },
-              { label: 'Wind', value: '— mph' },
-              { label: 'Precip', value: '—"' },
-              { label: 'Visibility', value: '— mi' },
-            ].map((stat) => (
-              <View key={stat.label} style={styles.statCell}>
-                <Text style={styles.statLabel}>{stat.label}</Text>
-                <Text style={styles.statValue}>{stat.value}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* 3-day mini strip */}
-          <View style={styles.miniStrip}>
-            {[0, 1, 2].map((offset) => (
-              <View key={offset} style={styles.miniCell}>
-                <Text style={styles.miniDay}>{dayAbbrev(offset)}</Text>
-                <Text style={styles.miniTemp}>{'—°'}</Text>
-                <Text style={styles.miniPrecip}>{'0%'}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Full Weather button */}
-          <Pressable
-            style={styles.fullBtn}
-            onPress={() =>
-              router.push({ pathname: '/location/[id]', params: { id: location.id } })
-            }
-          >
-            <Text style={styles.fullBtnText}>Full Weather →</Text>
-          </Pressable>
-        </View>
-      )}
-    </View>
+        <Text style={styles.chevron}>{'›'}</Text>
+      </View>
+    </Pressable>
   )
 }
 
 // ─── Crag row ─────────────────────────────────────────────────────────────────
 
-function CragRow({
-  location,
-  expanded,
-  onToggle,
-}: {
-  location: Location
-  expanded: boolean
-  onToggle: () => void
-}) {
+function CragRow({ location }: { location: Location }) {
   const router = useRouter()
   const conditionsQ = useConditions(location.id)
   const score = conditionsQ.data?.score ?? null
@@ -201,15 +129,12 @@ function CragRow({
     'Climbing location'
 
   return (
-    <View style={styles.rowCard}>
-      <Pressable onPress={onToggle} style={styles.rowMain}>
-        {/* Score badge */}
-        <View
-          style={[
-            styles.scoreBadge,
-            { backgroundColor: scoreBg(score) },
-          ]}
-        >
+    <Pressable
+      style={styles.rowCard}
+      onPress={() => router.push({ pathname: '/location/[id]', params: { id: location.id } })}
+    >
+      <View style={styles.rowMain}>
+        <View style={[styles.scoreBadge, { backgroundColor: scoreBg(score) }]}>
           <Text style={[styles.scoreNum, { color: scoreColor(score) }]}>
             {conditionsQ.isPending ? '—' : score !== null ? String(score) : '—'}
           </Text>
@@ -219,76 +144,13 @@ function CragRow({
             </Text>
           )}
         </View>
-
-        {/* Center */}
         <View style={styles.rowCenter}>
           <Text style={styles.rowName}>{location.name}</Text>
           <Text style={styles.rowSub}>{subLabel}</Text>
         </View>
-
-        {/* Right */}
-        <View style={styles.rowRight}>
-          <Text style={styles.rowTemp}>{'—°'}</Text>
-          <Text style={styles.rowDry}>{'— dry'}</Text>
-          <Text
-            style={[
-              styles.chevron,
-              expanded && styles.chevronExpanded,
-            ]}
-          >
-            {'›'}
-          </Text>
-        </View>
-      </Pressable>
-
-      {expanded && (
-        <View style={styles.expandedContent}>
-          {/* 3-day strip with dot */}
-          <View style={styles.miniStrip}>
-            {[0, 1, 2].map((offset) => (
-              <View key={offset} style={styles.miniCell}>
-                <View
-                  style={[
-                    styles.scoreDot,
-                    { backgroundColor: scoreColor(score) },
-                  ]}
-                />
-                <Text style={styles.miniDay}>{dayAbbrev(offset)}</Text>
-                <Text style={styles.miniTemp}>{'—°'}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* 4-stat row */}
-          <View style={styles.statStrip}>
-            {[
-              { label: 'Humidity', value: '—%' },
-              { label: 'Wind', value: '— mph' },
-              { label: 'Dry Since', value: '— hrs' },
-              { label: '72H Fcst', value: '—"' },
-            ].map((stat) => (
-              <View key={stat.label} style={styles.statCell}>
-                <Text style={styles.statLabel}>{stat.label}</Text>
-                <Text style={styles.statValue}>{stat.value}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Drying status */}
-          <Text style={styles.dryingStatus}>Conditions data loading…</Text>
-
-          {/* Full Conditions button */}
-          <Pressable
-            style={styles.fullBtn}
-            onPress={() =>
-              router.push({ pathname: '/location/[id]', params: { id: location.id } })
-            }
-          >
-            <Text style={styles.fullBtnText}>Full Conditions →</Text>
-          </Pressable>
-        </View>
-      )}
-    </View>
+        <Text style={styles.chevron}>{'›'}</Text>
+      </View>
+    </Pressable>
   )
 }
 
@@ -337,7 +199,6 @@ export default function LocationsScreen() {
   // Filter state is captured for chip visual state; list filtering is deferred.
   const [allFilter, setAllFilter] = useState<AllFilter>('Saved')
   const [cragsFilter, setCragsFilter] = useState<CragsFilter>('Saved')
-  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const locationsQ = useLocations()
   const savedLocations: Location[] = locationsQ.data ?? []
@@ -345,10 +206,6 @@ export default function LocationsScreen() {
   const saveLocation = useSaveLocation()
 
   const savedCrags = savedLocations.filter((l) => l.is_climbing_location)
-
-  function toggleExpanded(id: string) {
-    setExpandedId((prev) => (prev === id ? null : id))
-  }
 
   return (
     <LinearGradient
@@ -426,8 +283,6 @@ export default function LocationsScreen() {
                   key={location.id}
                   location={location}
                   index={index}
-                  expanded={expandedId === location.id}
-                  onToggle={() => toggleExpanded(location.id)}
                 />
               ))}
 
@@ -452,12 +307,7 @@ export default function LocationsScreen() {
                 {`Saved Crags · ${savedCrags.length} location${savedCrags.length === 1 ? '' : 's'}`}
               </Text>
               {savedCrags.map((location) => (
-                <CragRow
-                  key={location.id}
-                  location={location}
-                  expanded={expandedId === location.id}
-                  onToggle={() => toggleExpanded(location.id)}
-                />
+                <CragRow key={location.id} location={location} />
               ))}
 
               {nearbyCrags.length > 0 && (
