@@ -116,7 +116,11 @@ export default function Search() {
     >
       <SafeAreaView style={styles.safe} edges={['top']}>
         {/* TopBar */}
-        <TopBar title="Search" showBack onBack={() => router.back()} />
+        <TopBar
+          title="Search"
+          showBack
+          onBack={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/locations' as never)}
+        />
 
         {/* Search bar */}
         <View style={styles.searchBarWrap}>
