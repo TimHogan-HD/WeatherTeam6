@@ -1,10 +1,12 @@
 import { Router, type Request, type Response } from 'express'
-import { and, asc, eq, ilike, or, sql } from 'drizzle-orm'
+import { and, asc, avg, count, eq, ilike, or, sql } from 'drizzle-orm'
 import { db } from '../db/index.js'
-import { locations, crags, locationNormals } from '../db/schema.js'
+import { locations, crags, locationNormals, cragClimbabilityHistory } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
+import { logger } from '../lib/logger.js'
+import { rainfallHistoryQueue } from '../jobs/queues.js'
 import { parseNumeric } from '@weatherteam6/types'
-import type { ApiResponse, Location, Crag, CreateLocationInput, LocationNormal } from '@weatherteam6/types'
+import type { ApiResponse, Location, Crag, CreateLocationInput, LocationNormal, ClimbabilityHistory } from '@weatherteam6/types'
 
 export const locationsRouter = Router()
 
@@ -151,6 +153,17 @@ locationsRouter.post('/locations', async (req: Request, res: Response) => {
       if (!row) throw new Error('Insert returned no row')
       const response: ApiResponse<Location> = { data: mapLocation(row), error: null, status: 201 }
       res.status(201).json(response)
+
+      // Fire-and-forget: populate 10-year climbability history in the background.
+      // Wrapped in .catch() so Redis failure never affects the 201 response.
+      rainfallHistoryQueue
+        .add('backfill', { type: 'backfill', locationId: row.id })
+        .catch((err: unknown) => {
+          logger.warn(
+            { locationId: row.id, err: err instanceof Error ? err.message : String(err) },
+            'POST /locations: failed to queue history backfill',
+          )
+        })
     } catch (err) {
       sendServerError(res, err, 'POST /locations (crag)')
     }
@@ -229,6 +242,40 @@ locationsRouter.get('/locations/:id/normals', async (req: Request, res: Response
     res.status(200).json(response)
   } catch (err) {
     sendServerError(res, err, 'GET /locations/:id/normals')
+  }
+})
+
+// Must be registered before GET /locations/:id — Express matches in declaration order
+locationsRouter.get('/locations/:id/history', async (req: Request, res: Response) => {
+  const { id } = req.params
+  if (!id || !isUuid(id)) {
+    const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
+    res.status(404).json(response)
+    return
+  }
+
+  try {
+    const rows = await db
+      .select({
+        month: cragClimbabilityHistory.month,
+        avg_climbable_days: avg(cragClimbabilityHistory.climbable_days),
+        years_of_data: count(cragClimbabilityHistory.year),
+      })
+      .from(cragClimbabilityHistory)
+      .where(eq(cragClimbabilityHistory.location_id, id))
+      .groupBy(cragClimbabilityHistory.month)
+      .orderBy(asc(cragClimbabilityHistory.month))
+
+    const data: ClimbabilityHistory[] = rows.map((r) => ({
+      month: r.month,
+      avg_climbable_days: parseFloat(r.avg_climbable_days ?? '0'),
+      years_of_data: r.years_of_data,
+    }))
+
+    const response: ApiResponse<ClimbabilityHistory[]> = { data, error: null, status: 200 }
+    res.status(200).json(response)
+  } catch (err) {
+    sendServerError(res, err, 'GET /locations/:id/history')
   }
 })
 
