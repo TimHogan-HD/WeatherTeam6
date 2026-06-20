@@ -21,7 +21,7 @@
     "eslint": "^9.39.4",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "expo-router": "~56.0.4",
+    "expo-router": "~56.2.11",
     "globals": "^16.5.0",
     "turbo": "^2.3.3",
     "typescript": "^5.7.2",
