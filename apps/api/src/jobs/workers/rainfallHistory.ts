@@ -19,45 +19,50 @@ async function runBackfill(locationId: string): Promise<void> {
     return
   }
 
-  const now = new Date()
-  const toDate = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-  const tenYearsAgo = new Date(now)
-  tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10)
-  const fromDate = tenYearsAgo.toISOString().slice(0, 10)
+  try {
+    const now = new Date()
+    const toDate = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const tenYearsAgo = new Date(now)
+    tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10)
+    const fromDate = tenYearsAgo.toISOString().slice(0, 10)
 
-  const lat = parseFloat(loc.lat)
-  const lon = parseFloat(loc.lon)
+    const lat = parseFloat(loc.lat)
+    const lon = parseFloat(loc.lon)
 
-  logger.info({ locationId, lat, lon, fromDate, toDate }, '[rainfall-history] backfill: fetching 10yr precip')
+    logger.info({ locationId, lat, lon, fromDate, toDate }, '[rainfall-history] backfill: fetching 10yr precip')
 
-  const dailyRows = await fetchGriddedPrecipHistory(lat, lon, fromDate, toDate)
-  const monthly = computeClimbabilityHistory(dailyRows, loc.rock_type)
+    const dailyRows = await fetchGriddedPrecipHistory(lat, lon, fromDate, toDate)
+    const monthly = computeClimbabilityHistory(dailyRows, loc.rock_type)
 
-  if (monthly.length === 0) {
-    logger.warn({ locationId }, '[rainfall-history] backfill: no monthly data computed')
-    return
+    if (monthly.length === 0) {
+      logger.warn({ locationId }, '[rainfall-history] backfill: no monthly data computed')
+      return
+    }
+
+    await db
+      .insert(cragClimbabilityHistory)
+      .values(
+        monthly.map((m) => ({
+          location_id: locationId,
+          month: m.month,
+          year: m.year,
+          climbable_days: m.climbable_days,
+          total_days: m.total_days,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: [cragClimbabilityHistory.location_id, cragClimbabilityHistory.month, cragClimbabilityHistory.year],
+        set: {
+          climbable_days: sql`excluded.climbable_days`,
+          total_days: sql`excluded.total_days`,
+        },
+      })
+
+    logger.info({ locationId, monthCount: monthly.length }, '[rainfall-history] backfill: complete')
+  } catch (err) {
+    const e = err instanceof Error ? err : new Error(String(err))
+    logger.error({ locationId, err: e.message }, '[rainfall-history] backfill: unhandled error')
   }
-
-  await db
-    .insert(cragClimbabilityHistory)
-    .values(
-      monthly.map((m) => ({
-        location_id: locationId,
-        month: m.month,
-        year: m.year,
-        climbable_days: m.climbable_days,
-        total_days: m.total_days,
-      })),
-    )
-    .onConflictDoUpdate({
-      target: [cragClimbabilityHistory.location_id, cragClimbabilityHistory.month, cragClimbabilityHistory.year],
-      set: {
-        climbable_days: sql`excluded.climbable_days`,
-        total_days: sql`excluded.total_days`,
-      },
-    })
-
-  logger.info({ locationId, monthCount: monthly.length }, '[rainfall-history] backfill: complete')
 }
 
 function toDateString(d: Date): string {
@@ -192,18 +197,28 @@ export const rainfallHistoryWorker = new Worker(
 
     // Safety-net: dispatch backfill for any climbing location with no history yet.
     // Catches seeded locations on first run and any locations missed by the on-save trigger.
-    const locationsWithHistory = await db
-      .selectDistinct({ location_id: cragClimbabilityHistory.location_id })
-      .from(cragClimbabilityHistory)
+    try {
+      const locationsWithHistory = await db
+        .selectDistinct({ location_id: cragClimbabilityHistory.location_id })
+        .from(cragClimbabilityHistory)
 
-    const withHistorySet = new Set(locationsWithHistory.map((r) => r.location_id))
-    const needsBackfill = allLocations.filter(
-      (loc) => loc.is_climbing_location && !withHistorySet.has(loc.id),
-    )
+      const withHistorySet = new Set(locationsWithHistory.map((r) => r.location_id))
+      const needsBackfill = allLocations.filter(
+        (loc) => loc.is_climbing_location && !withHistorySet.has(loc.id),
+      )
 
-    for (const loc of needsBackfill) {
-      await rainfallHistoryQueue.add('backfill', { type: 'backfill', locationId: loc.id })
-      logger.info({ locationId: loc.id }, '[rainfall-history] queued backfill for location without history')
+      for (const loc of needsBackfill) {
+        try {
+          await rainfallHistoryQueue.add('backfill', { type: 'backfill', locationId: loc.id })
+          logger.info({ locationId: loc.id }, '[rainfall-history] queued backfill for location without history')
+        } catch (err) {
+          const e = err instanceof Error ? err : new Error(String(err))
+          logger.warn({ locationId: loc.id, err: e.message }, '[rainfall-history] failed to queue backfill')
+        }
+      }
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err))
+      logger.warn({ err: e.message }, '[rainfall-history] safety-net pass failed')
     }
 
     if (errors.length > 0) {
