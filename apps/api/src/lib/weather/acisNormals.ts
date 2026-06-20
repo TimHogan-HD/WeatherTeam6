@@ -112,7 +112,7 @@ export async function fetchGriddedPrecipHistory(
     grid: GRID_ID,
     sdate: fromDate,
     edate: toDate,
-    elems: [{ name: 'pcpn', units: 'mm' }],
+    elems: [{ name: 'pcpn' }],
     loc: `${lon},${lat}`,
   }
 
@@ -141,9 +141,9 @@ export async function fetchGriddedPrecipHistory(
             if (trimmed === 'M' || trimmed === 'T' || trimmed === '') continue
             const n = parseFloat(trimmed)
             if (!isFinite(n) || n === ACIS_MISSING) continue
-            out.push({ date, precip_mm: n })
+            out.push({ date, precip_mm: inchesToMm(n) })
           } else if (typeof value === 'number' && isFinite(value) && value !== ACIS_MISSING) {
-            out.push({ date, precip_mm: value })
+            out.push({ date, precip_mm: inchesToMm(value) })
           }
         }
         return out
