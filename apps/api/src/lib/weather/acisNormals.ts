@@ -1,4 +1,5 @@
 import { logger } from '../logger.js'
+import type { DailyPrecip } from '../scoring/climbabilityHistory.js'
 
 const ACIS_GRID_URL = 'https://data.rcc-acis.org/GridData'
 
@@ -22,6 +23,12 @@ type AcisGridRow = [string, number | string, number | string, number | string]
 
 type AcisGridResponse = {
   data?: AcisGridRow[]
+  error?: string
+}
+
+type AcisGridDailyRow = [string, number | string]
+type AcisGridDailyResponse = {
+  data?: AcisGridDailyRow[]
   error?: string
 }
 
@@ -78,6 +85,68 @@ export async function fetchGriddedNormals(
         if (rows.length === 0) throw new Error('ACIS GridData returned empty data array')
 
         return computeMonthlyNormals(rows)
+      }
+
+      if (res.status !== 429 && res.status < 500) {
+        throw new Error(`ACIS GridData returned ${res.status}`)
+      }
+      lastErr = new Error(`HTTP ${res.status}`)
+    } catch (err) {
+      lastErr = err instanceof Error ? err : new Error(String(err))
+      if (lastErr.message.startsWith('ACIS GridData')) throw lastErr
+    }
+    if (attempt < 3) {
+      await new Promise<void>((r) => setTimeout(r, Math.pow(2, attempt) * 1000))
+    }
+  }
+  throw lastErr
+}
+
+export async function fetchGriddedPrecipHistory(
+  lat: number,
+  lon: number,
+  fromDate: string,
+  toDate: string,
+): Promise<DailyPrecip[]> {
+  const body = {
+    grid: GRID_ID,
+    sdate: fromDate,
+    edate: toDate,
+    elems: [{ name: 'pcpn', units: 'mm' }],
+    loc: `${lon},${lat}`,
+  }
+
+  logger.debug({ lat, lon, fromDate, toDate }, '[acisNormals] fetching daily precip history')
+
+  let lastErr: Error = new Error('no attempts made')
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const res = await fetch(ACIS_GRID_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+
+      if (res.ok) {
+        const parsed = (await res.json()) as AcisGridDailyResponse
+        if (parsed.error) throw new Error(`ACIS GridData error: ${parsed.error}`)
+
+        const rows = parsed.data ?? []
+        const out: DailyPrecip[] = []
+        for (const row of rows) {
+          const [date, value] = row
+          if (typeof date !== 'string') continue
+          if (typeof value === 'string') {
+            const trimmed = value.trim()
+            if (trimmed === 'M' || trimmed === 'T' || trimmed === '') continue
+            const n = parseFloat(trimmed)
+            if (!isFinite(n) || n === ACIS_MISSING) continue
+            out.push({ date, precip_mm: n })
+          } else if (typeof value === 'number' && isFinite(value) && value !== ACIS_MISSING) {
+            out.push({ date, precip_mm: value })
+          }
+        }
+        return out
       }
 
       if (res.status !== 429 && res.status < 500) {
