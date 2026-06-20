@@ -725,10 +725,16 @@
 **Blockers for next session:**
 - None
 
-**What's next:** Phase 12b — `git checkout -b phase/12b-radar-native` off `main` — read `apps/api/src/lib/weather/rainViewer.ts`, `apps/mobile/app/(tabs)/radar.tsx`, and `apps/mobile/src/components/RadarMapView.tsx` before writing any native map code. Also read `.claude/rules/architecture.md` § Mobile-First Mandate.
+**What's next:** Phase 14a — `git checkout -b phase/14a-weather-api` off `main` — read `docs/superpowers/specs/2026-06-19-phase14-polish-design.md` §14a before writing any code. Full phase order: 14a → 14b → 14c → 14d → 15 → 16 (radar native rebuild, requires Google Maps API key).
 
 **Gotchas for next session:**
 - `react-native-maps` requires a Google Maps API key for Android. Before starting Phase 12b, verify whether `@rnmapbox/mapbox` (no API key needed) or `react-native-maps` (needs key) is the right choice. `react-native-maps` with Google Maps is the safe default but needs `GOOGLE_MAPS_API_KEY` in `app.config.js` android block and EAS secrets.
 - EAS build runs postinstall which builds `packages/types` and `packages/design`. If you add a new workspace package, add it to the postinstall chain in root `package.json`.
 - The APK build process: `npm run build -w @weatherteam6/types && npm run build -w @weatherteam6/design` must use `-w @packagename` syntax (not `--workspace=path`).
 - EAS log URLs expire in 900 seconds. To read Gradle errors: trigger build with `--no-wait`, immediately query GraphQL for `logFiles`, fetch with `curl -s --compressed "$LOG_URL"` before expiry.
+
+--- Session ended: 2026-06-20 22:37 UTC
+
+--- Session ended: 2026-06-20 22:39 UTC
+
+--- Session ended: 2026-06-20 22:41 UTC

@@ -114,7 +114,7 @@ Each phase: implement → `npm run typecheck` → `npm run lint` → review chec
 
 | Phase | Branch | Deliverables |
 |-------|--------|--------------|
-| **12b** | `phase/12b-radar-native` | **Radar rebuilt for native Android/iOS.** Replace `RadarMapView.tsx` SVG stub with `react-native-maps` MapView + `UrlTile` overlay using the existing RainViewer tile URL template. Scrubber remains; location markers as native map markers. Delete `RadarMapView.web.tsx` or demote it to a genuine web-bonus. Read `apps/api/src/lib/weather/rainViewer.ts` and `apps/mobile/app/(tabs)/radar.tsx` before starting. |
+| **16** | `phase/16-radar-native` | **Radar rebuilt for native Android/iOS.** Replace `RadarMapView.tsx` SVG stub with `react-native-maps` MapView + `UrlTile` overlay using the existing RainViewer tile URL template. Scrubber remains; location markers as native map markers. Delete `RadarMapView.web.tsx` or demote it to a genuine web-bonus. Requires Google Maps API key — add to `app.config.js` android block and EAS secrets before building. Read `apps/api/src/lib/weather/rainViewer.ts` and `apps/mobile/app/(tabs)/radar.tsx` before starting. |
 | **14a** | `phase/14a-weather-api` | Weather API foundation — real `/weather/:id`, `/weather/:id/hourly`, `/weather/:id/precip-history` endpoints. Promote `WeatherObservation` + `HourlySlot` into `packages/types`. ASOS + Open-Meteo blend. Read `docs/superpowers/specs/2026-06-19-phase14-polish-design.md` §14a before starting. |
 | **14b** | `phase/14b-location-detail` | Location Detail overhaul — rebuild `PrecipLineChart` (real layout), add `PastPrecipChart` (7-day look-back), wire `HourlyStrip` to real API data, skeleton loading on every section. Read spec §14b before starting. |
 | **14c** | `phase/14c-shade-map` | **Shade map rebuilt for native.** Replace `ShadeMapEmbed.tsx` WebView with `react-native-maps` MapView. Sun position from `suncalc` (already installed). Time-of-day scrubber drives terrain shade as a native overlay (SVG or canvas — no WebView). Pending Tim's shade session for detailed spec; do not start until that session occurs and a spec is written. |
@@ -122,6 +122,12 @@ Each phase: implement → `npm run typecheck` → `npm run lint` → review chec
 | **15** | `phase/15-wire-stubs` | **Eliminate all remaining mock data.** (1) `TripCreationModal.tsx` — replace `MOCK_CRAGS` with real `GET /search` call via `useSearchCrags` hook. (2) `StatDrillSheet.tsx` — remove `mockModelValues()` and hardcoded `TREND_PATH`; wire to real forecast data or remove the model-comparison row until real data exists. (3) `UVIndexSheet.tsx` — replace bell-curve with real hourly UV from `/weather/:id/hourly` (available after Phase 14a). Do not introduce new mocks. |
 
 ---
+
+### Phase Order Summary
+
+14a → 14b → 14c → 14d → 15 → 16
+
+14c (shade map native) is blocked on Tim's shade session — skip it and continue to 14d if that session hasn't happened yet.
 
 ### Mobile-First Rule for All Upcoming Phases
 
