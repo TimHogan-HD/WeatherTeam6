@@ -24,15 +24,20 @@ const expoRouterTarget = resolveExpoRouterTarget();
 if (!expoRouterTarget) {
   process.exit(0);
 }
+
 const linkLocations = [
   path.join(repoRoot, 'node_modules/expo-router'),
   path.join(repoRoot, 'node_modules/@expo/cli/node_modules/expo-router'),
 ];
 
 function sameSymlinkTarget(linkLocation, targetLocation) {
-  const currentTarget = fs.readlinkSync(linkLocation);
-  const resolvedCurrentTarget = path.resolve(path.dirname(linkLocation), currentTarget);
-  return resolvedCurrentTarget === targetLocation;
+  try {
+    const currentTarget = fs.readlinkSync(linkLocation);
+    const resolvedCurrentTarget = path.resolve(path.dirname(linkLocation), currentTarget);
+    return resolvedCurrentTarget === targetLocation;
+  } catch {
+    return false;
+  }
 }
 
 function getPathStat(linkLocation) {
@@ -44,17 +49,20 @@ function getPathStat(linkLocation) {
 }
 
 for (const linkLocation of linkLocations) {
-  fs.mkdirSync(path.dirname(linkLocation), { recursive: true });
+  try {
+    fs.mkdirSync(path.dirname(linkLocation), { recursive: true });
 
-  const stat = getPathStat(linkLocation);
+    const stat = getPathStat(linkLocation);
 
-  if (stat) {
-    if (stat.isSymbolicLink() && sameSymlinkTarget(linkLocation, expoRouterTarget)) {
-      continue;
+    if (stat) {
+      if (stat.isSymbolicLink() && sameSymlinkTarget(linkLocation, expoRouterTarget)) {
+        continue;
+      }
+      fs.rmSync(linkLocation, { recursive: true, force: true });
     }
 
-    fs.rmSync(linkLocation, { recursive: true, force: true });
+    fs.symlinkSync(expoRouterTarget, linkLocation, 'dir');
+  } catch {
+    // Non-fatal — EAS and some environments don't need this symlink
   }
-
-  fs.symlinkSync(expoRouterTarget, linkLocation, 'dir');
 }

@@ -13,6 +13,7 @@ import { StatGrid } from '../../src/components/StatGrid'
 import { BestMonthsCallout } from '../../src/components/history/BestMonthsCallout'
 import { ClimbabilityChart } from '../../src/components/history/ClimbabilityChart'
 import { DaylightBar } from '../../src/components/DaylightBar'
+import { ShadeMapEmbed } from '../../src/components/ShadeMapEmbed'
 import { PrecipLineChart } from '../../src/components/PrecipLineChart'
 import { HourlyStrip } from '../../src/components/HourlyStrip'
 import { SevenDayTable } from '../../src/components/SevenDayTable'
@@ -142,6 +143,10 @@ export default function LocationDetail() {
 
           {location ? (
             <DaylightBar lat={location.lat} lon={location.lon} />
+          ) : null}
+
+          {location?.is_climbing_location && location.lat != null && location.lon != null ? (
+            <ShadeMapEmbed lat={location.lat} lon={location.lon} />
           ) : null}
 
           <PrecipLineChart locationId={id} />
