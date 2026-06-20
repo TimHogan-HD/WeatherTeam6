@@ -254,3 +254,9 @@ export type RadarFramesResponse = {
   past: RadarFrame[]
   nowcast: RadarFrame[]
 }
+
+export type ClimbabilityHistory = {
+  month: number // 1–12
+  avg_climbable_days: number
+  years_of_data: number
+}
