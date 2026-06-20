@@ -4,11 +4,14 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { IconDotsVertical, IconHeart } from '@tabler/icons-react-native'
-import { colors, spacing, type as t } from '@weatherteam6/design/tokens'
+import { colors, fonts, spacing, type as t } from '@weatherteam6/design/tokens'
 import { useLocation } from '../../src/hooks/useLocation'
 import { useWeatherObservations } from '../../src/hooks/useWeatherObservations'
+import { useClimbabilityHistory } from '../../src/hooks/useClimbabilityHistory'
 import { TopBar } from '../../src/components/TopBar'
 import { StatGrid } from '../../src/components/StatGrid'
+import { BestMonthsCallout } from '../../src/components/history/BestMonthsCallout'
+import { ClimbabilityChart } from '../../src/components/history/ClimbabilityChart'
 import { DaylightBar } from '../../src/components/DaylightBar'
 import { PrecipLineChart } from '../../src/components/PrecipLineChart'
 import { HourlyStrip } from '../../src/components/HourlyStrip'
@@ -47,6 +50,9 @@ export default function LocationDetail() {
   const { data: location } = useLocation(id)
   const obsQ = useWeatherObservations(id)
   const obs = obsQ.data
+  const { data: historyData } = useClimbabilityHistory(
+    location?.is_climbing_location ? location.id : undefined,
+  )
 
   const [drillStat, setDrillStat] = useState<string | null>(null)
   const [detailStat, setDetailStat] = useState<string | null>(null)
@@ -149,6 +155,24 @@ export default function LocationDetail() {
             <WallsButton locationId={id} onPress={() => router.push({ pathname: '/walls/[id]' as never, params: { id } })} />
           ) : null}
 
+          {location?.is_climbing_location && (
+            <View style={styles.historySection}>
+              <Text style={styles.sectionLabel}>SEASONAL CLIMBABILITY</Text>
+              {historyData && historyData.length > 0 ? (
+                <>
+                  <BestMonthsCallout data={historyData} />
+                  <ClimbabilityChart data={historyData} />
+                  <Text style={styles.sourceNote}>
+                    Based on {historyData[0]?.years_of_data ?? 0} year
+                    {(historyData[0]?.years_of_data ?? 0) !== 1 ? 's' : ''} of rain data
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.emptyHistory}>History populating — check back soon.</Text>
+              )}
+            </View>
+          )}
+
           <Text style={styles.drillHint}>Long press any stat tile for model data</Text>
         </ScrollView>
 
@@ -208,5 +232,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  historySection: {
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+  },
+  sectionLabel: {
+    fontFamily: fonts.display,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    color: 'rgba(255,255,255,0.35)',
+    marginBottom: 10,
+  },
+  sourceNote: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.35)',
+    marginTop: 8,
+  },
+  emptyHistory: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.35)',
+    fontStyle: 'italic',
   },
 })
