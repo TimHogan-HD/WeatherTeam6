@@ -60,7 +60,7 @@ export default function RadarScreen() {
     [framesData],
   )
   const nowIndex = Math.max(0, (framesData?.past?.length ?? 1) - 1)
-  const totalFrames   = allFrames.length || 12
+  const totalFrames = allFrames.length || 12  // fallback prevents division-by-zero; only used in math
 
   // Play loop
   useEffect(() => {
@@ -122,7 +122,7 @@ export default function RadarScreen() {
           }
         />
 
-        {/* ── Full-bleed radar map ─────────────────────────────── */}
+        {/* ── Full-bleed radar map + floating scrubber ─────────── */}
         <View style={styles.mapWrap}>
           <RadarMapView
             frames={allFrames}
@@ -137,71 +137,73 @@ export default function RadarScreen() {
           </View>
 
           <Text style={styles.basemapTag}>Radar © RainViewer · Map © CARTO / OSM</Text>
-        </View>
 
-        {/* ── Timeline scrubber ───────────────────────────────── */}
-        <View style={styles.scrub}>
-          <View style={styles.scrubHead}>
-            <Text style={styles.scrubFrame}>
-              {frameLabel}
-              {isAtNow ? <Text style={styles.scrubNow}> · Now</Text> : null}
-            </Text>
-            <Text style={styles.scrubStatus}>Loop −2H → +2H · {totalFrames} frames</Text>
-          </View>
+          {/* ── Timeline scrubber — floats over map bottom ───────── */}
+          <View style={styles.scrub}>
+            <View style={styles.scrubHead}>
+              <Text style={styles.scrubFrame}>
+                {frameLabel}
+                {isAtNow ? <Text style={styles.scrubNow}> · Now</Text> : null}
+              </Text>
+              <Text style={styles.scrubStatus}>
+                {allFrames.length > 0 ? `Loop −2H → +2H · ${allFrames.length} frames` : 'Loading radar…'}
+              </Text>
+            </View>
 
-          <View style={styles.scrubMain}>
-            <Pressable
-              style={styles.playBtn}
-              onPress={() => setIsPlaying(p => !p)}
-              hitSlop={8}
-            >
-              {isPlaying
-                ? <IconPlayerPause size={17} color={colors.good} />
-                : <IconPlayerPlay  size={17} color={colors.good} />
-              }
-            </Pressable>
-
-            <View style={styles.trackWrap}>
-              <View
-                ref={trackViewRef}
-                style={styles.track}
-                onLayout={e => {
-                  const { width } = e.nativeEvent.layout
-                  trackViewRef.current?.measure((_x, _y, _w, _h, px) => {
-                    setScrubLayout({ x: px, width })
-                  })
-                }}
-                {...panHandlers}
+            <View style={styles.scrubMain}>
+              <Pressable
+                style={styles.playBtn}
+                onPress={() => setIsPlaying(p => !p)}
+                hitSlop={8}
               >
-                <View style={[styles.trackPast,   { width: pastWidthPx  }]} />
-                <View style={[styles.trackNow,    { left: nowLeftPx     }]} />
-                <View style={[styles.trackHandle, { left: handleLeftPx  }]} />
-              </View>
+                {isPlaying
+                  ? <IconPlayerPause size={17} color={colors.good} />
+                  : <IconPlayerPlay  size={17} color={colors.good} />
+                }
+              </Pressable>
 
-              <View style={styles.ticks}>
-                {['-2H', '-1H', 'NOW', '+1H', '+2H'].map(tick => (
-                  <Text key={tick} style={[styles.tick, tick === 'NOW' && styles.tickNow]}>
-                    {tick}
-                  </Text>
-                ))}
+              <View style={styles.trackWrap}>
+                <View
+                  ref={trackViewRef}
+                  style={styles.track}
+                  onLayout={e => {
+                    const { width } = e.nativeEvent.layout
+                    trackViewRef.current?.measure((_x, _y, _w, _h, px) => {
+                      setScrubLayout({ x: px, width })
+                    })
+                  }}
+                  {...panHandlers}
+                >
+                  <View style={[styles.trackPast,   { width: pastWidthPx  }]} />
+                  <View style={[styles.trackNow,    { left: nowLeftPx     }]} />
+                  <View style={[styles.trackHandle, { left: handleLeftPx  }]} />
+                </View>
+
+                <View style={styles.ticks}>
+                  {['-2H', '-1H', 'NOW', '+1H', '+2H'].map(tick => (
+                    <Text key={tick} style={[styles.tick, tick === 'NOW' && styles.tickNow]}>
+                      {tick}
+                    </Text>
+                  ))}
+                </View>
               </View>
             </View>
-          </View>
 
-          <View style={styles.legend}>
-            <Text style={styles.legendEnd}>Light</Text>
-            <LinearGradient
-              colors={[
-                'rgba(144,205,244,0.40)',
-                'rgba(63,131,248,0.85)',
-                'rgba(246,173,85,0.85)',
-                'rgba(252,129,129,0.95)',
-              ]}
-              start={{ x: 0, y: 0.5 }}
-              end={{ x: 1, y: 0.5 }}
-              style={styles.legendBar}
-            />
-            <Text style={styles.legendEnd}>Heavy</Text>
+            <View style={styles.legend}>
+              <Text style={styles.legendEnd}>Light</Text>
+              <LinearGradient
+                colors={[
+                  'rgba(144,205,244,0.40)',
+                  'rgba(63,131,248,0.85)',
+                  'rgba(246,173,85,0.85)',
+                  'rgba(252,129,129,0.95)',
+                ]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={styles.legendBar}
+              />
+              <Text style={styles.legendEnd}>Heavy</Text>
+            </View>
           </View>
         </View>
       </SafeAreaView>
@@ -273,13 +275,15 @@ const styles = StyleSheet.create({
   },
 
   scrub: {
-    flexShrink: 0,
-    backgroundColor: 'rgba(10,12,16,0.5)',
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    backgroundColor: 'rgba(10,12,16,0.68)',
     paddingHorizontal: spacing.screenH,
     paddingTop: 13,
-    paddingBottom: 14,
+    paddingBottom: 16,
     gap: 10,
   },
   scrubHead: {

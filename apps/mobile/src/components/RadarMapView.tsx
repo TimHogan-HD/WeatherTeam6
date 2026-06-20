@@ -35,7 +35,8 @@ type Props = {
   locations: Location[]
 }
 
-export function RadarMapView({ frameIndex }: Props) {
+// frames, tileUrlTemplate, locations unused until native map is implemented (future phase).
+export function RadarMapView({ frameIndex, frames: _frames, tileUrlTemplate: _tileUrlTemplate, locations: _locations }: Props) {
   const nowIndex   = 0
   const frameShift = (frameIndex - nowIndex) * 1.2
 

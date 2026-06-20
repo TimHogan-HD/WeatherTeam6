@@ -18,7 +18,7 @@ export type RadarFramesResponse = {
 
 export async function fetchRadarFrames(): Promise<RadarFramesResponse> {
   const res = await fetch(MAPS_API, {
-    headers: { 'User-Agent': process.env.NWS_USER_AGENT ?? 'weatherteam6/1.0' },
+    headers: { 'User-Agent': 'weatherteam6/1.0' },
   });
   if (!res.ok) {
     throw new Error(`RainViewer maps API returned ${res.status}`);
@@ -40,9 +40,9 @@ export async function fetchRadarFrames(): Promise<RadarFramesResponse> {
 
   logger.debug({ pastCount: past.length, nowcastCount: nowcast.length }, 'rainViewer frames fetched');
 
-  // Tile URL template: replace {path} with frame.path, then fill {z}/{x}/{y}
-  // Colour scheme 4 = Original (blue→amber→red), smooth=1, snow=1
-  const tileUrlTemplate = `${TILE_HOST}{path}/{z}/{x}/{y}/4/1_1.png`;
+  // TODO: tileUrlTemplate is consumed by native clients; web builds its own URL using 512px
+  // tiles (size before z/x/y — RainViewer v2 format). Unify once native map is implemented.
+  const tileUrlTemplate = `${TILE_HOST}{path}/512/{z}/{x}/{y}/4/1_1.png`;
 
   return {
     generated: json.generated,
