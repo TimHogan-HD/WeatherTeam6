@@ -111,8 +111,8 @@ async function seed(): Promise<void> {
         toInsert.map((crag) => ({
           user_id: USER_UUID,
           name: crag.name,
-          lat: crag.lat,
-          lon: crag.lon,
+          lat: String(crag.lat),
+          lon: String(crag.lon),
           is_climbing_location: true,
           rock_type: toRockType(crag.rock_type),
         })),
