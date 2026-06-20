@@ -9,7 +9,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
-    "postinstall": "node scripts/fix-expo-router-link.mjs",
+    "postinstall": "node scripts/fix-expo-router-link.mjs && npm run build -w @weatherteam6/types && npm run build -w @weatherteam6/design",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "test": "turbo run test",

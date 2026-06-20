@@ -1,21 +1,3 @@
-const path = require('path');
-
-// Load expo-router plugin via Node.js native require.resolve, which traverses
-// parent directories and finds the hoisted package in the monorepo root
-// node_modules. This bypasses Expo CLI's resolveFrom which fails in some
-// EAS monorepo setups.
-let expoRouterPlugin;
-try {
-  const pluginPath = path.join(
-    path.dirname(require.resolve('expo-router/package.json')),
-    'app.plugin.js',
-  );
-  const mod = require(pluginPath);
-  expoRouterPlugin = typeof mod === 'function' ? mod : mod.default;
-} catch {
-  expoRouterPlugin = 'expo-router';
-}
-
 module.exports = {
   expo: {
     name: 'WeatherTeam6',
@@ -41,8 +23,10 @@ module.exports = {
     web: {
       bundler: 'metro',
     },
+    // expo-router plugin only does iOS-specific native modifications (Info.plist, Podfile)
+    // plus sets extra.router — which we set below. Safe to omit for Android builds.
+    // expo-location plugin is still needed for Android location permissions.
     plugins: [
-      expoRouterPlugin,
       [
         'expo-location',
         {
