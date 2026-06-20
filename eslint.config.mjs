@@ -11,9 +11,11 @@ export default tseslint.config(
       '**/.expo/**',
       'apps/mobile/expo-env.d.ts',
       'apps/api/drizzle/**',
-      // Targeted, not '**/*.js': future plain-JS files (metro.config.js,
-      // scripts) should be linted, not silently exempt.
+      // Targeted, not '**/*.js': future plain-JS files (scripts) should be
+      // linted, not silently exempt. metro.config.js and babel.config.js are
+      // Node.js CommonJS files that use require/module/__dirname legitimately.
       'apps/mobile/babel.config.js',
+      'apps/mobile/metro.config.js',
     ],
   },
   eslint.configs.recommended,

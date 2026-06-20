@@ -241,3 +241,16 @@ export type LocationNormal = {
   source: string
   fetchedAt: string
 }
+
+export type RadarFrame = {
+  time: number
+  path: string
+}
+
+export type RadarFramesResponse = {
+  generated: number
+  host: string
+  tileUrlTemplate: string
+  past: RadarFrame[]
+  nowcast: RadarFrame[]
+}

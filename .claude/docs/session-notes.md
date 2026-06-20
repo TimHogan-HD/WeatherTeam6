@@ -376,3 +376,175 @@
 --- Session ended: 2026-06-19 15:43 UTC
 
 --- Session ended: 2026-06-19 15:47 UTC
+
+--- Session ended: 2026-06-19 17:52 UTC
+
+--- Session ended: 2026-06-19 18:13 UTC
+
+--- Session ended: 2026-06-19 18:17 UTC
+
+--- Session ended: 2026-06-19 18:20 UTC
+
+--- Session ended: 2026-06-19 18:24 UTC
+
+--- Session ended: 2026-06-19 18:26 UTC
+
+--- Session ended: 2026-06-19 18:54 UTC
+
+--- Session ended: 2026-06-19 18:56 UTC
+
+---
+
+## 2026-06-19 — branch: phase/12-radar — commit: (see below)
+
+**Phase completed:** Phase 12 — RainViewer Radar Integration
+
+**What was built this session:**
+- `apps/api/src/lib/weather/rainViewer.ts` — `fetchRadarFrames()` fetches weather-maps.json from RainViewer public API, extracts past + nowcast frames (time + path), returns tile URL template (`tilecache.rainviewer.com{path}/{z}/{x}/{y}/4/1_1.png`)
+- `apps/api/src/routes/radar.ts` — `GET /radar/frames` endpoint; returns `{ generated, host, tileUrlTemplate, past[], nowcast[] }` in standard `{ data, error, status }` envelope
+- `apps/api/src/index.ts` — registered `radarRouter`
+- `packages/types/src/index.ts` — added `RadarFrame` and `RadarFramesResponse` types
+- `apps/mobile/src/hooks/useRadarFrames.ts` — React Query hook for `GET /radar/frames`; 5min staleTime, 10min refetch interval
+- `apps/mobile/app/(tabs)/radar.tsx` — full Radar screen (Variation A · Classic):
+  · TopBar with "Radar" title + day/time right element
+  · Horizontal layer chip row (Precip / Temp / Wind / Cloud / Ltng); Precip active by default
+  · Full-bleed map canvas (`#0a0e14`): SVG terrain contour + grid overlay + 7 precip echo blobs (RadialGradient per intensity: trace→light→mod→heavy→severe)
+  · Blobs shift NE across the frame axis to simulate radar loop motion
+  · Three static crag pins (Taylors Falls/fair, Sandstone/good, Interstate/neutral)
+  · "You are here" pulsing ring at 40%/62% via `useState(() => new Animated.Value())` lazy init + `Animated.loop`
+  · Storm cell callout (red border, NE/38k ft/hail warning)
+  · Interactive timeline scrubber: play/pause button, draggable handle via `useMemo`+PanResponder (same pattern as CompassDial — layout in state, no `.current` during render), NOW marker, past fill (info-blue), ticks −2H→+2H
+  · Intensity legend (light→heavy gradient bar)
+
+**Known issues / deferred work:**
+- Crag pins are hardcoded at static CSS-% positions (Taylors Falls, Sandstone, Interstate); real geographic projection tied to map library (Phase 13 or map integration phase)
+- Layer toggles (Temp/Wind/Cloud/Ltng) are UI-only; switching layers doesn't change the map overlay (real data layers require additional RainViewer endpoints or separate weather tile sources)
+- `useLocations()` is called to pre-warm the cache but location data isn't currently used for pin placement
+- `apps/api/src/scripts/seedCrags.json` remains untracked — not committed here
+
+**Blockers for next session:**
+- None — Phase 12 is complete; typecheck 0 errors, lint 0 errors
+
+**What's next:** Phase 13 — Historical Climbability Patterns — `git checkout -b phase/13-history` off `phase/12-radar` (or main after merge) — read `docs/handoffs/weatherteam6-ui-handoff-v1.md` Phase 13 section and `.claude/docs/scoring-algorithm.md` before writing any history logic
+
+**Gotchas for next session:**
+- RainViewer public API (`api.rainviewer.com/public/weather-maps.json`) requires no API key but the `RAINVIEWER_KEY` env var may gate a premium tile endpoint — the Phase 12 implementation uses the public endpoint only
+- Animated.Value in React Native must be initialized with `useState(() => new Animated.Value(x))` (lazy init), NOT `useRef(new Animated.Value(x)).current` — the linter (`react-hooks/refs`) flags `.current` access during render
+- PanResponder in this codebase must follow the CompassDial pattern: `useMemo(() => PanResponder.create({...}).panHandlers, [layout])` with layout stored in state via `setScrubLayout` in `onLayout` — never `useRef(PanResponder.create({...})).current`
+- `DimensionValue` in React Native 0.85 rejects plain `string`; percentage-based track widths/offsets must be computed as numeric pixels from the measured `scrubLayout.width`
+
+--- Session ended: 2026-06-19 19:05 UTC
+
+--- Session ended: 2026-06-19 19:10 UTC
+
+--- Session ended: 2026-06-19 19:13 UTC
+
+--- Session ended: 2026-06-19 19:38 UTC
+
+--- Session ended: 2026-06-19 19:46 UTC
+
+--- Session ended: 2026-06-19 19:47 UTC
+
+--- Session ended: 2026-06-19 19:54 UTC
+
+--- Session ended: 2026-06-19 19:57 UTC
+
+--- Session ended: 2026-06-19 19:59 UTC
+
+--- Session ended: 2026-06-19 20:19 UTC
+
+--- Session ended: 2026-06-19 20:27 UTC
+
+--- Session ended: 2026-06-19 20:28 UTC
+
+--- Session ended: 2026-06-19 20:45 UTC
+
+--- Session ended: 2026-06-19 20:51 UTC
+
+--- Session ended: 2026-06-19 20:52 UTC
+
+--- Session ended: 2026-06-19 20:56 UTC
+
+--- Session ended: 2026-06-19 20:57 UTC
+
+---
+
+## 2026-06-19 — branch: phase/12-radar — commit: 604dd95
+
+**Phase completed:** Phase 12 — RainViewer Radar Integration (Leaflet web map)
+
+**What was built this session:**
+- `apps/mobile/src/components/RadarMapView.web.tsx` — NEW: Leaflet radar map for web. CartoDB Dark Matter basemap + RainViewer precipitation overlay. Three sequenced `useEffect` hooks gated by a `mapReady` flag: (1) map init, (2) location markers with tooltip labels, (3) radar tile layer swap. The `mapReady` state bridges the async Leaflet init with downstream effects; without it the tile effect ran before the map existed and silently bailed.
+- `apps/mobile/src/components/RadarMapView.tsx` — NEW: native SVG fallback (concentric-ellipse precipitation blobs) for iOS/Android; react-native-maps integration deferred to a later phase.
+- `apps/mobile/metro.config.js` — NEW: monorepo Metro fix. Without `watchFolders` + `nodeModulesPaths`, Metro resolved `expo/AppEntry.js` (looked for `../../App`) instead of `expo-router/entry`, causing a white screen on web.
+- `apps/mobile/app/(tabs)/_layout.tsx` — Changed `<Tabs>` to `<Slot>`. `<Tabs>` pushed the route-group URL `/(tabs)/index` as the browser path, triggering Expo Router's "Unmatched Route" error. `<Slot>` renders children without touching the URL.
+- `apps/mobile/app/(tabs)/radar.tsx` — Rewired to use `RadarMapView` component; `allFrames` wrapped in `useMemo` to stabilise the array reference and prevent the tile-layer effect from firing on every render.
+- `apps/mobile/src/components/PersistentTabBar.tsx` — Removed `/(tabs)/index` from the home-tab path check (no longer emitted after the `_layout` Slot fix).
+- `apps/api/package.json` — `dev` script updated to `tsx watch --env-file=.env src/server.ts` so local dev loads `.env` (Railway env vars).
+
+**Known issues / deferred work:**
+- "Zoom Level Not Supported" appeared in a screenshot during debugging. Confirmed via `curl` that: (a) RainViewer tiles return HTTP 200 at zoom 5-14, (b) the PNG images are valid 256×256 transparent tiles (no rain in CA), (c) the text is NOT from the tile images. Most likely this was a transient state during the race-condition debugging period; the `mapReady` fix should prevent it.
+- RainViewer tiles at zoom 0-4 return 404 (not covered at those scales). Leaflet handles 404s gracefully (shows blank), so no `minZoom` constraint is needed.
+- `apps/api/src/scripts/seedCrags.json` still untracked — carry-over from Phase 10; not related to Phase 12.
+- `apps/api/.env` populated with Railway public proxy URLs for local dev (DATABASE_URL, REDIS_URL, etc.) — never committed, Railway uses internal URLs in production. For each new dev machine, recreate `.env` from Railway dashboard.
+
+**Blockers for next session:**
+- To test the radar screen locally: start the API with `cd apps/api && npm run dev` (requires `.env` with Railway creds), then start mobile with `cd apps/mobile && npx expo start --web`.
+
+**What's next:** Phase 13 — Historical Climbability Patterns — `git checkout -b phase/13-history` off `phase/12-radar` — read `.claude/docs/scoring-algorithm.md` and `.claude/docs/data-model.md` before writing any history logic
+
+**Gotchas for next session:**
+- RainViewer tile path format changed: the API now returns hash-based paths like `/v2/radar/393d808df781` (not Unix timestamp paths). The tile URL is `https://tilecache.rainviewer.com{path}/{z}/{x}/{y}/4/1_1.png` — this is what the API's `tileUrlTemplate` field encodes. The web component constructs the URL itself from `frame.path`; do not change the format.
+- `.web.tsx` platform resolution requires Metro to be running with `expo-router/entry` (not `expo/AppEntry.js`). The `metro.config.js` fix is what enables this. Removing it will break the web build.
+- `mapReady` state is load-bearing: all three Leaflet effects depend on it. Effect 1 sets it; effects 2 and 3 gate on it. Removing or shortcutting this will reintroduce the race condition.
+
+--- Session ended: 2026-06-19 21:29 UTC
+
+--- Session ended: 2026-06-19 21:35 UTC
+
+--- Session ended: 2026-06-19 21:42 UTC
+
+--- Session ended: 2026-06-19 21:52 UTC
+
+--- Session ended: 2026-06-19 21:57 UTC
+
+--- Session ended: 2026-06-19 23:21 UTC
+
+--- Session ended: 2026-06-19 23:33 UTC
+
+--- Session ended: 2026-06-19 23:37 UTC
+
+--- Session ended: 2026-06-19 23:42 UTC
+
+--- Session ended: 2026-06-19 23:50 UTC
+
+--- Session ended: 2026-06-19 23:54 UTC
+
+---
+
+## 2026-06-19 — branch: phase/12-radar — commit: 2667403
+
+**Phase completed:** Phase 12 — RainViewer Radar Integration (bug fixes, polish, code review)
+
+**What was built this session:**
+- `apps/mobile/src/components/RadarMapView.web.tsx` — Fixed "Zoom Level Not Supported" error: root cause was missing `size` parameter in tile URL. RainViewer v2 format requires size BEFORE z/x/y: `{path}/512/{z}/{x}/{y}/4/1_1.png`. Also fixed zoom constraints (`tileSize: 512, zoomOffset: -1, minNativeZoom: 4, maxNativeZoom: 7`) so Leaflet scales tiles instead of requesting out-of-range zoom levels from RainViewer (native range 4–7). Fixed pan/zoom inconsistency by replacing `<View>` container with native `<div>` (React Native Web sets `touch-action: none` on View, blocking all Leaflet events). Split CartoDB basemap into `dark_nolabels` base + `dark_only_labels` pane at zIndex 450 so city labels render above the radar overlay.
+- `apps/mobile/app/(tabs)/radar.tsx` — Moved scrubber inside `mapWrap` as `position: absolute, bottom: 0` with `zIndex: 1000` (Leaflet's highest pane is ~700; without an explicit zIndex Leaflet covered the scrubber). Scrub background set to `rgba(10,12,16,0.68)` for transparency. Status text shows `allFrames.length` when frames are loaded, `'Loading radar…'` when empty.
+- `apps/api/src/lib/weather/rainViewer.ts` — Fixed tile template: `256` → `512` in `tileUrlTemplate`. Fixed User-Agent: changed from `process.env.NWS_USER_AGENT` to literal `'weatherteam6/1.0'` (NWS_USER_AGENT is only for api.weather.gov). Added TODO comment about two sources of truth for tile URL format.
+- `apps/mobile/src/components/RadarMapView.tsx` — Prefixed unused native props with `_` to satisfy TypeScript strict mode: `_frames`, `_tileUrlTemplate`, `_locations`.
+
+**Known issues / deferred work:**
+- `tileUrlTemplate` from the API and the tile URL constructed in `RadarMapView.web.tsx` are two separate sources of truth. The web component ignores `tileUrlTemplate` and constructs the URL itself with `frame.path`. Marked with a TODO in `rainViewer.ts`; unify when native map is implemented.
+- RainViewer tile host (`tilecache.rainviewer.com`) is hardcoded in the web component rather than read from the API response's `host` field. Acceptable for now; address when unifying tile URL sources.
+- Radar pixelation at map zoom 9+ is expected and fundamental: RainViewer's native tile cap is zoom 7. Leaflet upscales zoom-7 tiles to fill higher zoom levels. No fix is possible without a higher-resolution radar source.
+- `apps/api/src/scripts/seedCrags.json` remains untracked.
+
+**Blockers for next session:**
+- None — code review complete, 4 blocking findings fixed, both typechecks clean (apps/api and apps/mobile).
+
+**What's next:** Phase 13 — Historical Climbability Patterns — `git checkout -b phase/13-history` off `main` — read `.claude/docs/scoring-algorithm.md` and `.claude/docs/data-model.md` before writing any history logic
+
+**Gotchas for next session:**
+- RainViewer tile URL format is `{path}/512/{z}/{x}/{y}/4/1_1.png` — size (512 or 256) MUST come before z/x/y. Without it RainViewer returns a 1370-byte error PNG (antialiased "Zoom Level Not Supported" text) for every tile request at every zoom level.
+- `minNativeZoom: 4` and `maxNativeZoom: 7` on the radar TileLayer are load-bearing: without them, zoom-out (0–3) → 404, zoom-in (8+) → error image from server.
+- `zoomOffset: -1` with `tileSize: 512` means at map zoom 8, Leaflet requests tile zoom 7 (within maxNativeZoom) displayed at 512px — crisp native quality. If you remove `zoomOffset` the tile zoom matches map zoom and zoom-8 requests will get the error image.
+- `mapReady` state gate in `RadarMapView.web.tsx` is required: all three Leaflet effects depend on it. Effect 1 sets it; effects 2 and 3 gate on it. Removing it reintroduces the race condition where tile/marker effects run before the map exists.

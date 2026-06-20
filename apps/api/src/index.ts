@@ -11,6 +11,7 @@ import { forecastRouter } from './routes/forecast.js';
 import { alertsRouter } from './routes/alerts.js';
 import { wallsRouter } from './routes/walls.js'
 import { tripsRouter } from './routes/trips.js';
+import { radarRouter } from './routes/radar.js';
 import { forecastSnapshotQueue, rainfallHistoryQueue, alertsPollerQueue, snapshotCleanupQueue } from './jobs/queues.js';
 import './jobs/workers/forecastSnapshot.js';
 import './jobs/workers/rainfallHistory.js';
@@ -82,6 +83,7 @@ export function createApp(): Express {
   app.use(alertsRouter);
   app.use(wallsRouter);
   app.use(tripsRouter);
+  app.use(radarRouter);
 
   app.use((_req: Request, res: Response) => {
     res.status(404).json({ data: null, error: 'Not found', status: 404 });
