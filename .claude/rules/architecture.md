@@ -47,6 +47,16 @@ Four queues, no more:
 
 Jobs must be idempotent. A job crashing and rerunning must not create duplicate data.
 
+## Mobile-First Mandate
+
+**WeatherTeam6 is a native mobile app first and basically only.** Every architectural choice must be native-first. This is non-negotiable.
+
+- **Never use `react-native-webview` to embed a feature that should be native.** WebView is acceptable only for genuinely external web content (e.g. a terms page). A map, a chart, a radar overlay, a shade visualizer — all must be built with native primitives.
+- **`react-native-maps` is the agreed map library** for all map features: radar overlay, shade map, general location maps. Do not use Leaflet, do not use MapView from any other library.
+- **`.web.tsx` platform splits:** the native `.tsx` file must always be the real, complete implementation. The `.web.tsx` is the optional bonus for web preview. Never invert this — a native stub with a working web version is a violation.
+- **No hardcoded mock data in production components.** `MOCK_*` constants, `mockXyz()` functions, and bell-curve approximations in UI files are stubs that must be replaced before a feature is considered complete. Stubs are only acceptable during the phase they are explicitly introduced — they must be wired to real data in the same or the immediately following phase.
+- When in doubt between "faster web approach" and "correct native approach", always take native.
+
 ## Mobile Patterns
 - React Query is the agreed state management layer for all server data. No Redux, no Zustand, no Context for server state.
 - All API calls go through React Query hooks in `apps/mobile/src/hooks/`. Components never call fetch directly.

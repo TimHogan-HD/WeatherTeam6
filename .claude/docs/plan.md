@@ -93,29 +93,39 @@ API_BASE_URL=
 
 Each phase: implement → acceptance criteria → `npm run typecheck` → `npm run lint` → review checklist → commit → **stop and wait for gate-pass**.
 
-| Phase | Commit message | Deliverables |
-|-------|---------------|--------------|
-| 0 | `phase-0: monorepo scaffold` | Turborepo, Express /health, resolveUser middleware, pino logger, .env.example |
-| 1 | `phase-1: drizzle schema, migrations, seed data, and shared types` | 13-table schema + migration, seed (1 user + 3 locations), packages/types fully populated |
-| 2 | `phase-2: bullmq queue infrastructure` | 4 queues + stubs, Bull Board at /admin/queues, lib/redis.ts |
-| 3 | `phase-3: open-meteo integration, forecast snapshot job, snapshot cleanup` | openMeteo.ts, conditionsScore stub, forecast-snapshot job, snapshot-cleanup job |
-| 4 | `phase-4: rainfall history, acis/asos integration, drying model` | acis.ts, iemAsos.ts, dryingModel.ts (with lastRainMm in output), rainfall-history job |
-| 5 | `phase-5: conditions score engine and core API endpoints` | Real conditionsScore.ts, GET /locations, /conditions/:id, /forecast/:id |
-| 6 | `phase-6: nws alerts and alert poller` | nwsAlerts.ts, alerts-poller job, GET /alerts/:id |
-| 7a | `phase-7a: react-query install and API client scaffold` | `@tanstack/react-query` install, `apps/mobile/src/lib/api.ts` client, `apps/mobile/src/hooks/` directory with base pattern |
-| 7b | `phase-7b: home screen and useLocations hook` | Home screen rendering location cards, `useLocations` hook |
-| 7c | `phase-7c: location detail screen and conditions/forecast hooks` | `location/[id].tsx`, `useConditions` hook, `useForecast` hook |
-| 7d | `phase-7d: search stub screen` | Search screen (UI stub, no backend — real search in Phase 10) |
-| 8 | `phase-8: walls screen and wall setup flow` | Walls screen (classic rows + data cards), wall setup 4-step modal, shadeCalc.ts (suncalc) powering the SunArc SVG — per `docs/handoffs/weatherteam6-ui-handoff-v1.md` Phase 8 and `docs/handoffs/design-mockups/walls-flow.jsx` + `walls-viz.jsx` |
-| 9a | `phase-9a: trip CRUD API endpoints` | POST/GET/DELETE `/trips`, POST `/trips/:id/locations` |
-| 9b | `phase-9b: trip mobile screens and hooks` | Trip list screen, trip detail screen, `useTrips` hook, `useTripLocations` hook |
-| 9c | `phase-9c: forecast evolution and mobile chart` | Evolution query embedded in GET `/trips/:id`, `ForecastChart` component |
-| 10a | `phase-10a: POST /locations and GET /search` | POST `/locations` endpoint, GET `/search` querying crags table |
-| 10b | `phase-10b: importCrags seeding utility` | `importCrags.ts` script to seed crags table |
-| 10c | `phase-10c: mobile general weather and search screens` | General weather mode screens, live search screen |
-| 11 | `phase-11: acis gridded normals replacing tomorrow.io` | acisNormals.ts, location_normals table, normals backfill in rainfall-history job, GET /locations/:id/normals — COMPLETE |
-| 12 | `phase-12: rainviewer radar integration` | rainViewer.ts, GET /radar/tiles, mobile overlay |
-| 13 | `phase-13: historical climbability patterns` | Climbability logic in rainfall job, GET /locations/:id/history, mobile history section |
+### Completed (Phases 0–13)
+
+| Phase | Status | Deliverables |
+|-------|--------|--------------|
+| 0–6 | ✅ | Monorepo, schema, queues, scoring engine, NWS alerts |
+| 7a–7d | ✅ | Mobile scaffold, home screen, location detail, search stub |
+| 8 | ✅ | Walls screen, wall setup flow |
+| 9a–9c | ✅ | Trip CRUD API, trip screens, forecast evolution chart |
+| 10a–10c | ✅ | POST /locations, GET /search, crags seeding, general weather screens |
+| 11 | ✅ | ACIS gridded normals replacing Tomorrow.io |
+| 12 | ✅ (API + web) | rainViewer.ts, GET /radar/tiles, Leaflet radar on web — **native radar is Phase 12b** |
+| 13 | ✅ | Historical climbability, GET /locations/:id/history, history section in mobile |
+
+---
+
+### Upcoming Phases
+
+Each phase: implement → `npm run typecheck` → `npm run lint` → review checklist → commit → **stop and wait for gate-pass**.
+
+| Phase | Branch | Deliverables |
+|-------|--------|--------------|
+| **12b** | `phase/12b-radar-native` | **Radar rebuilt for native Android/iOS.** Replace `RadarMapView.tsx` SVG stub with `react-native-maps` MapView + `UrlTile` overlay using the existing RainViewer tile URL template. Scrubber remains; location markers as native map markers. Delete `RadarMapView.web.tsx` or demote it to a genuine web-bonus. Read `apps/api/src/lib/weather/rainViewer.ts` and `apps/mobile/app/(tabs)/radar.tsx` before starting. |
+| **14a** | `phase/14a-weather-api` | Weather API foundation — real `/weather/:id`, `/weather/:id/hourly`, `/weather/:id/precip-history` endpoints. Promote `WeatherObservation` + `HourlySlot` into `packages/types`. ASOS + Open-Meteo blend. Read `docs/superpowers/specs/2026-06-19-phase14-polish-design.md` §14a before starting. |
+| **14b** | `phase/14b-location-detail` | Location Detail overhaul — rebuild `PrecipLineChart` (real layout), add `PastPrecipChart` (7-day look-back), wire `HourlyStrip` to real API data, skeleton loading on every section. Read spec §14b before starting. |
+| **14c** | `phase/14c-shade-map` | **Shade map rebuilt for native.** Replace `ShadeMapEmbed.tsx` WebView with `react-native-maps` MapView. Sun position from `suncalc` (already installed). Time-of-day scrubber drives terrain shade as a native overlay (SVG or canvas — no WebView). Pending Tim's shade session for detailed spec; do not start until that session occurs and a spec is written. |
+| **14d** | `phase/14d-home-polish` | Home screen polish — real temp + condition string on location cards, proper empty state, pull-to-refresh, skeleton loading. Read spec §14d before starting. |
+| **15** | `phase/15-wire-stubs` | **Eliminate all remaining mock data.** (1) `TripCreationModal.tsx` — replace `MOCK_CRAGS` with real `GET /search` call via `useSearchCrags` hook. (2) `StatDrillSheet.tsx` — remove `mockModelValues()` and hardcoded `TREND_PATH`; wire to real forecast data or remove the model-comparison row until real data exists. (3) `UVIndexSheet.tsx` — replace bell-curve with real hourly UV from `/weather/:id/hourly` (available after Phase 14a). Do not introduce new mocks. |
+
+---
+
+### Mobile-First Rule for All Upcoming Phases
+
+See `.claude/rules/architecture.md` § Mobile-First Mandate. The short version: **native `.tsx` is always the real implementation.** No WebView for features that should be native. `react-native-maps` for every map primitive. No mock data left standing after the phase that introduces it.
 
 ---
 

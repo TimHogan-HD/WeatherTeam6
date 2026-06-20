@@ -1,6 +1,37 @@
 
 ---
 
+## 2026-06-19 — branch: phase/13-history — commit: 47074f8
+
+**Phase completed:** Phase 13 — Historical Climbability Patterns
+
+**What was built this session:**
+- `apps/api/src/lib/scoring/climbabilityHistory.ts` — pure function computing monthly climbable-day counts from daily precip rows; lookback windows by rock type (granite/limestone=2d, basalt/sandstone/unknown=3d); 8 Vitest tests
+- `apps/api/src/lib/weather/acisNormals.ts` — added `fetchGriddedPrecipHistory(lat, lon, fromDate, toDate)` using ACIS GridData (lat/lon-based, no asos_station required); returns 10yr daily precip in mm via `inchesToMm()` conversion
+- `apps/api/src/jobs/workers/rainfallHistory.ts` — backfill branch on `job.data?.type === 'backfill'`; safety-net pass queues backfill for climbing locations with no history; both branches error-isolated with try/catch
+- `apps/api/src/routes/locations.ts` — `GET /:id/history` endpoint (groups by month, AVG climbable_days, returns `[]` when no data); fire-and-forget backfill queue dispatch on `POST /locations` for climbing locations
+- `apps/api/src/db/seed.ts` — seeds MN/WI climbing locations from OpenBeta crags table; `toRockType()` helper maps rhyolite→unknown; upsert by name (idempotent)
+- `packages/types/src/index.ts` — `ClimbabilityHistory` type (`month`, `avg_climbable_days`, `years_of_data`)
+- `apps/mobile/src/hooks/useClimbabilityHistory.ts` — React Query hook, staleTime 24h, disabled when no locationId
+- `apps/mobile/src/components/history/BestMonthsCallout.tsx` — top 3 months sorted chronologically in lime text; hidden when data empty
+- `apps/mobile/src/components/history/ClimbabilityChart.tsx` — 12-bar seasonal chart, current month in lime, others at 55% opacity; `fonts.display` (not fonts.condensed)
+- `apps/mobile/app/location/[id].tsx` — history section with BestMonthsCallout + ClimbabilityChart + zero-data state + source note; only shown for climbing locations
+
+**Known issues / deferred work:**
+- MN/WI seed requires running importCrags.ts first to populate the crags table before seed.ts picks them up
+- No UI for manually triggering a backfill retry (non-blocking — safety-net covers it)
+
+**Blockers for next session:**
+- None. Phase 13 merged to main at 47074f8. All 106 tests pass.
+
+**What's next:** No predefined Phase 14 — this was the final phase in the build plan. Next session should brainstorm what to build next (notifications, trip planning detail, auth, production deployment, etc.)
+
+**Gotchas for next session:**
+- ACIS GridData (`data.rcc-acis.org/GridData`) always returns inches regardless of `units` param — use `inchesToMm()` on every value; `units: 'mm'` is silently ignored
+- `fonts.display` is the correct token for BarlowCondensed in the design system — `fonts.condensed` does not exist
+
+---
+
 ## 2026-06-19 — branch: phase/10-search-general-weather — commit: 7706a18
 
 **Phase completed:** Phase 10 — General Weather + Search Wired
@@ -548,3 +579,156 @@
 - `minNativeZoom: 4` and `maxNativeZoom: 7` on the radar TileLayer are load-bearing: without them, zoom-out (0–3) → 404, zoom-in (8+) → error image from server.
 - `zoomOffset: -1` with `tileSize: 512` means at map zoom 8, Leaflet requests tile zoom 7 (within maxNativeZoom) displayed at 512px — crisp native quality. If you remove `zoomOffset` the tile zoom matches map zoom and zoom-8 requests will get the error image.
 - `mapReady` state gate in `RadarMapView.web.tsx` is required: all three Leaflet effects depend on it. Effect 1 sets it; effects 2 and 3 gate on it. Removing it reintroduces the race condition where tile/marker effects run before the map exists.
+
+--- Session ended: 2026-06-20 00:10 UTC
+
+--- Session ended: 2026-06-20 00:15 UTC
+
+--- Session ended: 2026-06-20 00:18 UTC
+
+--- Session ended: 2026-06-20 00:23 UTC
+
+--- Session ended: 2026-06-20 00:27 UTC
+
+--- Session ended: 2026-06-20 00:28 UTC
+
+--- Session ended: 2026-06-20 00:30 UTC
+
+--- Session ended: 2026-06-20 00:33 UTC
+
+--- Session ended: 2026-06-20 00:37 UTC
+
+--- Session ended: 2026-06-20 00:39 UTC
+
+--- Session ended: 2026-06-20 00:43 UTC
+
+--- Session ended: 2026-06-20 00:45 UTC
+
+--- Session ended: 2026-06-20 00:47 UTC
+
+--- Session ended: 2026-06-20 00:50 UTC
+
+--- Session ended: 2026-06-20 00:51 UTC
+
+--- Session ended: 2026-06-20 00:53 UTC
+
+--- Session ended: 2026-06-20 00:54 UTC
+
+--- Session ended: 2026-06-20 00:59 UTC
+
+--- Session ended: 2026-06-20 01:06 UTC
+
+--- Session ended: 2026-06-20 01:46 UTC
+
+--- Session ended: 2026-06-20 01:54 UTC
+
+--- Session ended: 2026-06-20 01:59 UTC
+
+--- Session ended: 2026-06-20 02:04 UTC
+
+--- Session ended: 2026-06-20 02:13 UTC
+
+--- Session ended: 2026-06-20 02:15 UTC
+
+--- Session ended: 2026-06-20 02:18 UTC
+
+--- Session ended: 2026-06-20 02:20 UTC
+
+--- Session ended: 2026-06-20 02:24 UTC
+
+--- Session ended: 2026-06-20 02:25 UTC
+
+--- Session ended: 2026-06-20 02:27 UTC
+
+--- Session ended: 2026-06-20 02:28 UTC
+
+--- Session ended: 2026-06-20 02:30 UTC
+
+--- Session ended: 2026-06-20 02:30 UTC
+
+--- Session ended: 2026-06-20 02:32 UTC
+
+--- Session ended: 2026-06-20 02:34 UTC
+
+--- Session ended: 2026-06-20 02:37 UTC
+
+--- Session ended: 2026-06-20 02:43 UTC
+
+--- Session ended: 2026-06-20 02:45 UTC
+
+--- Session ended: 2026-06-20 02:47 UTC
+
+--- Session ended: 2026-06-20 02:49 UTC
+
+--- Session ended: 2026-06-20 02:54 UTC
+
+--- Session ended: 2026-06-20 15:55 UTC
+
+--- Session ended: 2026-06-20 16:00 UTC
+
+--- Session ended: 2026-06-20 16:00 UTC
+
+--- Session ended: 2026-06-20 16:01 UTC
+
+--- Session ended: 2026-06-20 16:02 UTC
+
+--- Session ended: 2026-06-20 16:03 UTC
+
+--- Session ended: 2026-06-20 16:06 UTC
+
+--- Session ended: 2026-06-20 16:07 UTC
+
+--- Session ended: 2026-06-20 16:13 UTC
+
+--- Session ended: 2026-06-20 16:15 UTC
+
+--- Session ended: 2026-06-20 16:15 UTC
+
+--- Session ended: 2026-06-20 16:21 UTC
+
+--- Session ended: 2026-06-20 16:25 UTC
+
+--- Session ended: 2026-06-20 17:39 UTC
+
+--- Session ended: 2026-06-20 17:47 UTC
+
+--- Session ended: 2026-06-20 21:39 UTC
+
+--- Session ended: 2026-06-20 21:43 UTC
+
+--- Session ended: 2026-06-20 21:45 UTC
+
+--- Session ended: 2026-06-20 21:51 UTC
+
+--- Session ended: 2026-06-20 21:57 UTC
+
+--- Session ended: 2026-06-20 22:00 UTC
+
+---
+
+## 2026-06-20 — branch: main — commit: 1cb64b6
+
+**Phase completed:** EAS Build — first working native Android APK
+
+**What was built this session:**
+- `apps/mobile/eas.json` — EAS build config with base/development/preview/production profiles; `EXPO_USE_METRO_WORKSPACE_ROOT=1` and `NODE_PATH=../../node_modules` in base env
+- `apps/mobile/app.config.js` — replaced `app.json` with dynamic JS config; removed expo-router plugin (iOS-only, caused `resolveFrom` failure on EAS); retained expo-location plugin for Android permissions
+- `scripts/fix-expo-router-link.mjs` — fixed circular symlink bug: original script included `node_modules/expo-router` in `linkLocations`, which IS the real install location; script deleted and re-symlinked it to itself, destroying expo-router on every `npm install`. Fixed to only create `apps/mobile/node_modules/expo-router` symlink.
+- `package.json` (root) — postinstall now builds local workspace packages: `npm run build -w @weatherteam6/types && npm run build -w @weatherteam6/design` so `dist/` exists on EAS before Metro bundles
+- `apps/mobile/package.json` — added `buffer` dep (react-native-svg v15 source imports it); updated all native packages to expo SDK 56 compatible versions: `react-native-svg` 15.11.2→15.15.5 (critical: fixes C++ `ConcreteShadowNode` template mismatch against RN 0.85.3), `expo-router` ~56.0.4→~56.2.11, `react-native-screens` 4.25.0-beta.1→4.25.2, `react-native-safe-area-context` ~5.6.0→~5.7.0
+
+**Known issues / deferred work:**
+- `apps/api/src/scripts/seedCrags.json` remains untracked — commit or gitignore
+- `react-native-webview` deprecation warnings in Gradle (Kotlin `w:`) — harmless but should be addressed when Phase 15 wires real native maps
+- Two sources of truth for RainViewer tile URL format (marked TODO in `rainViewer.ts`) — resolve in Phase 12b
+
+**Blockers for next session:**
+- None
+
+**What's next:** Phase 12b — `git checkout -b phase/12b-radar-native` off `main` — read `apps/api/src/lib/weather/rainViewer.ts`, `apps/mobile/app/(tabs)/radar.tsx`, and `apps/mobile/src/components/RadarMapView.tsx` before writing any native map code. Also read `.claude/rules/architecture.md` § Mobile-First Mandate.
+
+**Gotchas for next session:**
+- `react-native-maps` requires a Google Maps API key for Android. Before starting Phase 12b, verify whether `@rnmapbox/mapbox` (no API key needed) or `react-native-maps` (needs key) is the right choice. `react-native-maps` with Google Maps is the safe default but needs `GOOGLE_MAPS_API_KEY` in `app.config.js` android block and EAS secrets.
+- EAS build runs postinstall which builds `packages/types` and `packages/design`. If you add a new workspace package, add it to the postinstall chain in root `package.json`.
+- The APK build process: `npm run build -w @weatherteam6/types && npm run build -w @weatherteam6/design` must use `-w @packagename` syntax (not `--workspace=path`).
+- EAS log URLs expire in 900 seconds. To read Gradle errors: trigger build with `--no-wait`, immediately query GraphQL for `logFiles`, fetch with `curl -s --compressed "$LOG_URL"` before expiry.
