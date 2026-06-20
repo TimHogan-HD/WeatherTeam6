@@ -1,13 +1,64 @@
 import { Worker, type Job } from 'bullmq'
-import { sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
-import { locations, rainfallHistory, locationNormals } from '../../db/schema.js'
+import { locations, rainfallHistory, locationNormals, cragClimbabilityHistory } from '../../db/schema.js'
 import { logger } from '../../lib/logger.js'
 import { fetchPrecipHistory } from '../../lib/weather/acis.js'
-import { fetchGriddedNormals } from '../../lib/weather/acisNormals.js'
+import { fetchGriddedNormals, fetchGriddedPrecipHistory } from '../../lib/weather/acisNormals.js'
+import { computeClimbabilityHistory } from '../../lib/scoring/climbabilityHistory.js'
+import { rainfallHistoryQueue } from '../queues.js'
 import { bullConnection } from '../connection.js'
 
 const LOOKBACK_DAYS = 7
+
+async function runBackfill(locationId: string): Promise<void> {
+  const locationRows = await db.select().from(locations).where(eq(locations.id, locationId)).limit(1)
+  const loc = locationRows[0]
+  if (!loc) {
+    logger.warn({ locationId }, '[rainfall-history] backfill: location not found')
+    return
+  }
+
+  const now = new Date()
+  const toDate = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const tenYearsAgo = new Date(now)
+  tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10)
+  const fromDate = tenYearsAgo.toISOString().slice(0, 10)
+
+  const lat = parseFloat(loc.lat)
+  const lon = parseFloat(loc.lon)
+
+  logger.info({ locationId, lat, lon, fromDate, toDate }, '[rainfall-history] backfill: fetching 10yr precip')
+
+  const dailyRows = await fetchGriddedPrecipHistory(lat, lon, fromDate, toDate)
+  const monthly = computeClimbabilityHistory(dailyRows, loc.rock_type)
+
+  if (monthly.length === 0) {
+    logger.warn({ locationId }, '[rainfall-history] backfill: no monthly data computed')
+    return
+  }
+
+  await db
+    .insert(cragClimbabilityHistory)
+    .values(
+      monthly.map((m) => ({
+        location_id: locationId,
+        month: m.month,
+        year: m.year,
+        climbable_days: m.climbable_days,
+        total_days: m.total_days,
+      })),
+    )
+    .onConflictDoUpdate({
+      target: [cragClimbabilityHistory.location_id, cragClimbabilityHistory.month, cragClimbabilityHistory.year],
+      set: {
+        climbable_days: sql`excluded.climbable_days`,
+        total_days: sql`excluded.total_days`,
+      },
+    })
+
+  logger.info({ locationId, monthCount: monthly.length }, '[rainfall-history] backfill: complete')
+}
 
 function toDateString(d: Date): string {
   return d.toISOString().slice(0, 10)
@@ -15,7 +66,15 @@ function toDateString(d: Date): string {
 
 export const rainfallHistoryWorker = new Worker(
   'rainfall-history',
-  async (_job: Job) => {
+  async (job: Job) => {
+    // Backfill branch: targeted single-location history population
+    if (job.data?.type === 'backfill') {
+      const { locationId } = job.data as { type: 'backfill'; locationId: string }
+      logger.info({ locationId }, '[rainfall-history] backfill job started')
+      await runBackfill(locationId)
+      return
+    }
+
     logger.info('[rainfall-history] job started')
 
     const allLocations = await db.select().from(locations)
@@ -129,6 +188,22 @@ export const rainfallHistoryWorker = new Worker(
         logger.error({ locationId: loc.id, err: e.message }, '[rainfall-history] normals fetch failed')
         errors.push(e)
       }
+    }
+
+    // Safety-net: dispatch backfill for any climbing location with no history yet.
+    // Catches seeded locations on first run and any locations missed by the on-save trigger.
+    const locationsWithHistory = await db
+      .selectDistinct({ location_id: cragClimbabilityHistory.location_id })
+      .from(cragClimbabilityHistory)
+
+    const withHistorySet = new Set(locationsWithHistory.map((r) => r.location_id))
+    const needsBackfill = allLocations.filter(
+      (loc) => loc.is_climbing_location && !withHistorySet.has(loc.id),
+    )
+
+    for (const loc of needsBackfill) {
+      await rainfallHistoryQueue.add('backfill', { type: 'backfill', locationId: loc.id })
+      logger.info({ locationId: loc.id }, '[rainfall-history] queued backfill for location without history')
     }
 
     if (errors.length > 0) {
