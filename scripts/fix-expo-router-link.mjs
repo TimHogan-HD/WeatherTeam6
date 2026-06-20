@@ -28,6 +28,8 @@ if (!expoRouterTarget) {
 const linkLocations = [
   path.join(repoRoot, 'node_modules/expo-router'),
   path.join(repoRoot, 'node_modules/@expo/cli/node_modules/expo-router'),
+  // EAS runs `expo config` from apps/mobile/ — ensure expo-router is locally resolvable
+  path.join(repoRoot, 'apps/mobile/node_modules/expo-router'),
 ];
 
 function sameSymlinkTarget(linkLocation, targetLocation) {
