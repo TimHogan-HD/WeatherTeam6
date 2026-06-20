@@ -26,9 +26,10 @@ if (!expoRouterTarget) {
 }
 
 const linkLocations = [
-  path.join(repoRoot, 'node_modules/expo-router'),
-  path.join(repoRoot, 'node_modules/@expo/cli/node_modules/expo-router'),
-  // EAS runs `expo config` from apps/mobile/ — ensure expo-router is locally resolvable
+  // EAS runs expo config + Metro from apps/mobile/ — ensure expo-router is locally
+  // resolvable so Metro can find the entry point and expo config can load plugins.
+  // Never add node_modules/expo-router here — that's the real install location and
+  // creating a symlink there causes a circular reference.
   path.join(repoRoot, 'apps/mobile/node_modules/expo-router'),
 ];
 
