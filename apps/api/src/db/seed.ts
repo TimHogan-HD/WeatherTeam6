@@ -1,6 +1,5 @@
-import postgres from 'postgres'
-import { drizzle } from 'drizzle-orm/postgres-js'
 import { logger } from '../lib/logger.js'
+import { db, pool } from './index.js'
 import { users, locations, crags } from './schema.js'
 import { or, eq } from 'drizzle-orm'
 
@@ -54,14 +53,6 @@ function toRockType(
 }
 
 async function seed(): Promise<void> {
-  const url = process.env['DATABASE_URL']
-  if (!url) {
-    throw new Error('DATABASE_URL environment variable is required')
-  }
-
-  const client = postgres(url)
-  const db = drizzle(client)
-
   logger.info('Seeding user…')
   await db
     .insert(users)
@@ -126,7 +117,7 @@ async function seed(): Promise<void> {
   }
 
   logger.info('Seed complete.')
-  await client.end()
+  await pool.end()
 }
 
 seed().catch((err: unknown) => {
