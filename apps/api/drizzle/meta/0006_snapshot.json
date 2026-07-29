@@ -1,0 +1,1505 @@
+{
+  "id": "46eab974-9020-4bbf-af71-f7253942b661",
+  "prevId": "1a76b472-ed35-4cc6-9b34-87d5361f1640",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.conditions_reports": {
+      "name": "conditions_reports",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reported_at": {
+          "name": "reported_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "visited_at": {
+          "name": "visited_at",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "overall_status": {
+          "name": "overall_status",
+          "type": "overall_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rating": {
+          "name": "rating",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "photo_urls": {
+          "name": "photo_urls",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "forecast_matched": {
+          "name": "forecast_matched",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "conditions_reports_location_id_locations_id_fk": {
+          "name": "conditions_reports_location_id_locations_id_fk",
+          "tableFrom": "conditions_reports",
+          "tableTo": "locations",
+          "columnsFrom": [
+            "location_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "conditions_reports_user_id_users_id_fk": {
+          "name": "conditions_reports_user_id_users_id_fk",
+          "tableFrom": "conditions_reports",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.conditions_scores": {
+      "name": "conditions_scores",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "forecast_date": {
+          "name": "forecast_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "score": {
+          "name": "score",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "confidence": {
+          "name": "confidence",
+          "type": "confidence_level",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "component_drying_time": {
+          "name": "component_drying_time",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "component_upcoming_rain": {
+          "name": "component_upcoming_rain",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "component_wind": {
+          "name": "component_wind",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "component_temp": {
+          "name": "component_temp",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "component_humidity": {
+          "name": "component_humidity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "score_breakdown": {
+          "name": "score_breakdown",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "computed_at": {
+          "name": "computed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "conditions_scores_location_id_locations_id_fk": {
+          "name": "conditions_scores_location_id_locations_id_fk",
+          "tableFrom": "conditions_scores",
+          "tableTo": "locations",
+          "columnsFrom": [
+            "location_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.crag_climbability_history": {
+      "name": "crag_climbability_history",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "month": {
+          "name": "month",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "year": {
+          "name": "year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "climbable_days": {
+          "name": "climbable_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "total_days": {
+          "name": "total_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "crag_climbability_history_location_id_locations_id_fk": {
+          "name": "crag_climbability_history_location_id_locations_id_fk",
+          "tableFrom": "crag_climbability_history",
+          "tableTo": "locations",
+          "columnsFrom": [
+            "location_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "crag_climbability_history_location_id_month_year_unique": {
+          "name": "crag_climbability_history_location_id_month_year_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "location_id",
+            "month",
+            "year"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.crags": {
+      "name": "crags",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "openbeta_id": {
+          "name": "openbeta_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lat": {
+          "name": "lat",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lon": {
+          "name": "lon",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rock_type": {
+          "name": "rock_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "area_name": {
+          "name": "area_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "crags_openbeta_id_unique": {
+          "name": "crags_openbeta_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "openbeta_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.forecast_snapshots": {
+      "name": "forecast_snapshots",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "captured_at": {
+          "name": "captured_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "forecast_date": {
+          "name": "forecast_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "precip_mm_p10": {
+          "name": "precip_mm_p10",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "precip_mm_p50": {
+          "name": "precip_mm_p50",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "precip_mm_p90": {
+          "name": "precip_mm_p90",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "temp_c_min": {
+          "name": "temp_c_min",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "temp_c_max": {
+          "name": "temp_c_max",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wind_kmh_max": {
+          "name": "wind_kmh_max",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "humidity_pct": {
+          "name": "humidity_pct",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dewpoint_c": {
+          "name": "dewpoint_c",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "shortwave_wm2": {
+          "name": "shortwave_wm2",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "model_sources": {
+          "name": "model_sources",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "forecast_snapshots_location_id_locations_id_fk": {
+          "name": "forecast_snapshots_location_id_locations_id_fk",
+          "tableFrom": "forecast_snapshots",
+          "tableTo": "locations",
+          "columnsFrom": [
+            "location_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.location_normals": {
+      "name": "location_normals",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "month": {
+          "name": "month",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "precip_normal_mm": {
+          "name": "precip_normal_mm",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "temp_max_normal_c": {
+          "name": "temp_max_normal_c",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "temp_min_normal_c": {
+          "name": "temp_min_normal_c",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'acis_grid_91_20'"
+        },
+        "fetched_at": {
+          "name": "fetched_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "location_normals_location_id_locations_id_fk": {
+          "name": "location_normals_location_id_locations_id_fk",
+          "tableFrom": "location_normals",
+          "tableTo": "locations",
+          "columnsFrom": [
+            "location_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "location_normals_location_id_month_unique": {
+          "name": "location_normals_location_id_month_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "location_id",
+            "month"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.locations": {
+      "name": "locations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lat": {
+          "name": "lat",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lon": {
+          "name": "lon",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "elevation_m": {
+          "name": "elevation_m",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_climbing_location": {
+          "name": "is_climbing_location",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "rock_type": {
+          "name": "rock_type",
+          "type": "rock_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "aspect": {
+          "name": "aspect",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cliff_angle": {
+          "name": "cliff_angle",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "asos_station": {
+          "name": "asos_station",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "asos_network": {
+          "name": "asos_network",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nws_office": {
+          "name": "nws_office",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nws_grid_x": {
+          "name": "nws_grid_x",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nws_grid_y": {
+          "name": "nws_grid_y",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "locations_user_id_users_id_fk": {
+          "name": "locations_user_id_users_id_fk",
+          "tableFrom": "locations",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.premium_pulls": {
+      "name": "premium_pulls",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pulled_at": {
+          "name": "pulled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "raw_response": {
+          "name": "raw_response",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cost_usd": {
+          "name": "cost_usd",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "premium_pulls_location_id_locations_id_fk": {
+          "name": "premium_pulls_location_id_locations_id_fk",
+          "tableFrom": "premium_pulls",
+          "tableTo": "locations",
+          "columnsFrom": [
+            "location_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "premium_pulls_user_id_users_id_fk": {
+          "name": "premium_pulls_user_id_users_id_fk",
+          "tableFrom": "premium_pulls",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.push_tokens": {
+      "name": "push_tokens",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token": {
+          "name": "token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "push_tokens_user_id_users_id_fk": {
+          "name": "push_tokens_user_id_users_id_fk",
+          "tableFrom": "push_tokens",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "push_tokens_token_unique": {
+          "name": "push_tokens_token_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.rainfall_history": {
+      "name": "rainfall_history",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "precip_mm": {
+          "name": "precip_mm",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "rainfall_source",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "station_id": {
+          "name": "station_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "verified": {
+          "name": "verified",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "rainfall_history_location_id_locations_id_fk": {
+          "name": "rainfall_history_location_id_locations_id_fk",
+          "tableFrom": "rainfall_history",
+          "tableTo": "locations",
+          "columnsFrom": [
+            "location_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "rainfall_history_location_id_date_unique": {
+          "name": "rainfall_history_location_id_date_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "location_id",
+            "date"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.trip_locations": {
+      "name": "trip_locations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "trip_id": {
+          "name": "trip_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "trip_locations_trip_id_trips_id_fk": {
+          "name": "trip_locations_trip_id_trips_id_fk",
+          "tableFrom": "trip_locations",
+          "tableTo": "trips",
+          "columnsFrom": [
+            "trip_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "trip_locations_location_id_locations_id_fk": {
+          "name": "trip_locations_location_id_locations_id_fk",
+          "tableFrom": "trip_locations",
+          "tableTo": "locations",
+          "columnsFrom": [
+            "location_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.trips": {
+      "name": "trips",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "trips_user_id_users_id_fk": {
+          "name": "trips_user_id_users_id_fk",
+          "tableFrom": "trips",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_preferences": {
+      "name": "user_preferences",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "temp_unit": {
+          "name": "temp_unit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'F'"
+        },
+        "precip_unit": {
+          "name": "precip_unit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'in'"
+        },
+        "default_rock_type": {
+          "name": "default_rock_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "alert_enabled": {
+          "name": "alert_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "alert_min_score": {
+          "name": "alert_min_score",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 70
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_preferences_user_id_users_id_fk": {
+          "name": "user_preferences_user_id_users_id_fk",
+          "tableFrom": "user_preferences",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "user_preferences_user_id_unique": {
+          "name": "user_preferences_user_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.walls": {
+      "name": "walls",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aspect_deg": {
+          "name": "aspect_deg",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aspect_source": {
+          "name": "aspect_source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "angle_deg": {
+          "name": "angle_deg",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "angle_band": {
+          "name": "angle_band",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "route_count": {
+          "name": "route_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "walls_location_id_locations_id_fk": {
+          "name": "walls_location_id_locations_id_fk",
+          "tableFrom": "walls",
+          "tableTo": "locations",
+          "columnsFrom": [
+            "location_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "walls_user_id_users_id_fk": {
+          "name": "walls_user_id_users_id_fk",
+          "tableFrom": "walls",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.weather_alerts": {
+      "name": "weather_alerts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nws_alert_id": {
+          "name": "nws_alert_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "event": {
+          "name": "event",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "severity": {
+          "name": "severity",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "certainty": {
+          "name": "certainty",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "headline": {
+          "name": "headline",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "effective": {
+          "name": "effective",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires": {
+          "name": "expires",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notified_at": {
+          "name": "notified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "weather_alerts_location_id_locations_id_fk": {
+          "name": "weather_alerts_location_id_locations_id_fk",
+          "tableFrom": "weather_alerts",
+          "tableTo": "locations",
+          "columnsFrom": [
+            "location_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "weather_alerts_location_id_nws_alert_id_unique": {
+          "name": "weather_alerts_location_id_nws_alert_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "location_id",
+            "nws_alert_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.confidence_level": {
+      "name": "confidence_level",
+      "schema": "public",
+      "values": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "public.overall_status": {
+      "name": "overall_status",
+      "schema": "public",
+      "values": [
+        "dry",
+        "damp",
+        "wet",
+        "mixed"
+      ]
+    },
+    "public.rainfall_source": {
+      "name": "rainfall_source",
+      "schema": "public",
+      "values": [
+        "acis",
+        "open_meteo_historical",
+        "iem_asos"
+      ]
+    },
+    "public.rock_type": {
+      "name": "rock_type",
+      "schema": "public",
+      "values": [
+        "sandstone",
+        "limestone",
+        "granite",
+        "basalt",
+        "unknown"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

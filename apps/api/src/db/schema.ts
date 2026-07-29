@@ -244,6 +244,7 @@ export const weatherAlerts = pgTable(
     description: text('description'),
     effective: timestamp('effective', { withTimezone: true }),
     expires: timestamp('expires', { withTimezone: true }),
+    notified_at: timestamp('notified_at', { withTimezone: true }),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [unique().on(t.location_id, t.nws_alert_id)],
