@@ -24,9 +24,16 @@
 - `GET /conditions/:id` and `GET /forecast/:id` only ever read tables the deleted `forecastSnapshot` job populated — "port routes as-is" and "delete forecastSnapshot" can't both be literally true; resolved by computing live per-request (user-confirmed)
 - Deleting `rainfallHistory` with no replacement would have permanently defaulted the drying-time score (the #1-weighted component) to "no recent rain" for every location — resolved by live-fetching recent rainfall per request instead (user-confirmed)
 
+**Code-review fixes applied post-PR-open (PR #20):**
+- `apps/mobile/src/lib/api.ts` `baseUrl()` now appends `/api/v1` — the `/api/v1` remount in `index.ts` had left every mobile hook's unprefixed path (`/locations`, `/conditions/:id`, etc.) 404ing
+- `apps/api/src/routes/trips.ts` `GET /trips/:tripId/forecast` was still reading the dead `forecast_snapshots` table (missed when `conditions.ts`/`forecast.ts` were converted) — now calls `computeLiveForecast` per trip location like the other two routes
+- `apps/api/src/routes/cron.ts` — moved `formatAlertMessage` + the notify/dispatch loop into `lib/alerts/checkAlerts.ts` (`notifyPendingAlerts`), fixed a race (concurrent cron invocations could both read the same unnotified row before either stamped `notified_at`, double-sending) by atomically claiming each row (`UPDATE ... WHERE notified_at IS NULL`) before sending, with the claim released on send failure so it retries next run; also fixed the `x-cron-secret` header read to handle Express's `string[]` case instead of blind-casting to `string`
+- `apps/api/src/routes/telegramWebhook.ts` — moved `statusLabel`/`handleConditions` into `lib/telegram/conditionsReply.ts` (`buildConditionsReply`) per the "route handlers are thin" rule
+
 **Known issues / deferred work:**
 - Tasks 5-7 (Mini App shell + screens, deep links, `apps/mobile` archival) are explicitly out of scope for this session — separate follow-up
 - `computeLiveForecast` does two live upstream fetches (forecast + rainfall) per `/conditions` or `/forecast` request with no caching layer — fine for a single-user bot/app, would need revisiting under real traffic
+- **Pre-existing scoring quirk, not introduced by this PR, not fixed:** `computeLiveForecast` (and the `forecastSnapshot` job it was ported from) computes `currentWindKmh`/`currentTempC`/`currentHumidityPct` once from *today's* forecast day and reuses those same values for every future day's score — a day-7 score's wind/temp/humidity components are anchored to today, not day 7. Carried over verbatim per "port conditionsScore.ts as-is"; flagging for a separate scoring-algorithm review rather than changing behavior in an infra migration PR.
 
 **Blockers for next session:**
 - **Neon migration not actually run yet.** This sandbox's network policy blocks both the WebSocket and raw-TCP paths `drizzle-kit migrate` needs, and `api.c-4.us-east-2.aws.neon.tech` (Neon's HTTP SQL endpoint) isn't allowlisted either — confirmed via `/root/.ccr/README.md` (WebSocket upgrades and raw-TCP databases are explicitly unsupported through the proxy). Someone needs to run `npm run db:migrate` against the Neon **direct** connection string from an unrestricted machine (all 7 migrations, 0000-0006).
@@ -787,5 +794,7 @@
 --- Session ended: 2026-07-29 17:27 UTC
 
 --- Session ended: 2026-07-29 17:27 UTC
+
+--- Session ended: 2026-07-29 17:29 UTC
 
 --- Session ended: 2026-07-29 17:29 UTC

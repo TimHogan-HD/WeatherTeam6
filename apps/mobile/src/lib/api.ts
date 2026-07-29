@@ -2,12 +2,12 @@ import type { ApiResponse } from '@weatherteam6/types'
 
 function baseUrl(): string {
   const url = process.env.EXPO_PUBLIC_API_BASE_URL
-  if (url) return url
+  if (url) return `${url}/api/v1`
   // In production builds a missing env var is a hard misconfiguration.
   // In development __DEV__ is true, so fall back to localhost for simulator
   // convenience. Physical devices and Android emulators cannot reach
   // localhost — set EXPO_PUBLIC_API_BASE_URL for those.
-  if (__DEV__) return 'http://localhost:3001'
+  if (__DEV__) return 'http://localhost:3001/api/v1'
   throw new Error('EXPO_PUBLIC_API_BASE_URL is not set')
 }
 

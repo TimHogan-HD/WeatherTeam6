@@ -1,9 +1,9 @@
 import { Router, type Request, type Response } from 'express'
-import { and, eq, asc, inArray, gte, lte } from 'drizzle-orm'
+import { and, eq, asc, inArray } from 'drizzle-orm'
 import { db } from '../db/index.js'
-import { trips, tripLocations, forecastSnapshots } from '../db/schema.js'
+import { trips, tripLocations, locations } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
-import { parseNumeric } from '@weatherteam6/types'
+import { computeLiveForecast } from '../lib/scoring/liveForecast.js'
 import type { ApiResponse, Trip, TripLocation, CreateTripInput, TripForecast, ForecastSnapshot } from '@weatherteam6/types'
 
 export const tripsRouter = Router()
@@ -210,51 +210,31 @@ tripsRouter.get('/trips/:tripId/forecast', async (req: Request, res: Response) =
 
     const locationIds = locRows.map(r => r.location_id)
 
-    let snapshots: typeof forecastSnapshots.$inferSelect[] = []
-    if (locationIds.length > 0) {
-      snapshots = await db
-        .select()
-        .from(forecastSnapshots)
-        .where(
-          and(
-            inArray(forecastSnapshots.location_id, locationIds),
-            gte(forecastSnapshots.forecast_date, tripRow.start_date),
-            lte(forecastSnapshots.forecast_date, tripRow.end_date),
-          ),
-        )
-        .orderBy(asc(forecastSnapshots.location_id), asc(forecastSnapshots.forecast_date))
-    }
+    const locationRows = locationIds.length > 0
+      ? await db
+          .select({
+            id: locations.id,
+            lat: locations.lat,
+            lon: locations.lon,
+            elevation_m: locations.elevation_m,
+            rock_type: locations.rock_type,
+            cliff_angle: locations.cliff_angle,
+            aspect: locations.aspect,
+            asos_station: locations.asos_station,
+          })
+          .from(locations)
+          .where(inArray(locations.id, locationIds))
+      : []
 
-    // Group snapshots by location, keeping only the latest per (location, date)
-    const latestByKey = new Map<string, typeof forecastSnapshots.$inferSelect>()
-    for (const snap of snapshots) {
-      const key = `${snap.location_id}::${snap.forecast_date}`
-      const existing = latestByKey.get(key)
-      if (!existing || snap.captured_at > existing.captured_at) {
-        latestByKey.set(key, snap)
-      }
-    }
-
+    // computeLiveForecast per trip location, filtered to the trip's date range —
+    // there's no forecast_snapshots table being kept warm by a job anymore.
     const snapsByLocation = new Map<string, ForecastSnapshot[]>()
-    for (const snap of latestByKey.values()) {
-      const mapped: ForecastSnapshot = {
-        id: snap.id,
-        location_id: snap.location_id,
-        captured_at: snap.captured_at.toISOString(),
-        forecast_date: snap.forecast_date,
-        precip_mm_p10: parseNumeric(snap.precip_mm_p10),
-        precip_mm_p50: parseNumeric(snap.precip_mm_p50),
-        precip_mm_p90: parseNumeric(snap.precip_mm_p90),
-        temp_c_min: parseNumeric(snap.temp_c_min),
-        temp_c_max: parseNumeric(snap.temp_c_max),
-        wind_kmh_max: parseNumeric(snap.wind_kmh_max),
-        humidity_pct: parseNumeric(snap.humidity_pct),
-        model_sources: snap.model_sources,
-        created_at: snap.created_at.toISOString(),
-      }
-      const arr = snapsByLocation.get(snap.location_id) ?? []
-      arr.push(mapped)
-      snapsByLocation.set(snap.location_id, arr)
+    for (const location of locationRows) {
+      const { snapshots } = await computeLiveForecast(location)
+      const inRange = snapshots.filter(
+        (s) => s.forecast_date >= tripRow.start_date && s.forecast_date <= tripRow.end_date,
+      )
+      snapsByLocation.set(location.id, inRange)
     }
 
     const data: TripForecast[] = locationIds.map(locationId => ({

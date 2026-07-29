@@ -1,7 +1,8 @@
-import { and, eq, notInArray } from 'drizzle-orm'
+import { and, eq, isNull, notInArray } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { locations, weatherAlerts } from '../../db/schema.js'
 import { logger } from '../logger.js'
+import { sendTelegramMessage } from '../telegram/sendMessage.js'
 import { fetchNwsAlerts } from '../weather/nwsAlerts.js'
 
 /**
@@ -101,4 +102,65 @@ export async function runAlertsCheck(): Promise<void> {
   }
 
   logger.info('[checkAlerts] run completed')
+}
+
+function formatAlertMessage(
+  locationName: string,
+  event: string,
+  severity: string,
+  headline: string | null,
+): string {
+  const tier = severity.charAt(0).toUpperCase() + severity.slice(1).toLowerCase()
+  const reason = headline ?? event
+  return `⚠️ <b>${tier} alert</b> — ${locationName}\n${event}: ${reason}`
+}
+
+/**
+ * Send one Telegram message per not-yet-notified weather_alerts row. Each row
+ * is claimed with a conditional UPDATE (notified_at IS NULL -> now()) before
+ * sending, so two overlapping cron invocations can't both read the same row
+ * and double-send — only the invocation whose UPDATE actually matched a row
+ * sends the message.
+ */
+export async function notifyPendingAlerts(): Promise<{ checked: number; notified: number }> {
+  const unnotified = await db
+    .select({
+      id: weatherAlerts.id,
+      event: weatherAlerts.event,
+      severity: weatherAlerts.severity,
+      headline: weatherAlerts.headline,
+      locationName: locations.name,
+    })
+    .from(weatherAlerts)
+    .innerJoin(locations, eq(weatherAlerts.location_id, locations.id))
+    .where(isNull(weatherAlerts.notified_at))
+
+  let notified = 0
+  for (const alert of unnotified) {
+    const claimed = await db
+      .update(weatherAlerts)
+      .set({ notified_at: new Date() })
+      .where(and(eq(weatherAlerts.id, alert.id), isNull(weatherAlerts.notified_at)))
+      .returning({ id: weatherAlerts.id })
+
+    if (claimed.length === 0) continue // another invocation already claimed this row
+
+    try {
+      await sendTelegramMessage(
+        formatAlertMessage(alert.locationName, alert.event, alert.severity, alert.headline),
+      )
+      notified++
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      logger.error({ alertId: alert.id, err: msg }, '[checkAlerts] failed to notify alert')
+      // Release the claim so the next run retries the send — a failed send
+      // must not be treated as "notified".
+      await db
+        .update(weatherAlerts)
+        .set({ notified_at: null })
+        .where(eq(weatherAlerts.id, alert.id))
+    }
+  }
+
+  return { checked: unnotified.length, notified }
 }
