@@ -4,10 +4,10 @@ Climbing conditions platform + general weather app. Core purpose: tell the user 
 
 ## Stack
 - **Mobile:** React Native + Expo (New Architecture, SDK 56 — `expo@~56.0.3`, `expo-router@~56.0.0`)
-- **Backend:** Node.js + TypeScript + Express on Railway
+- **Backend:** Node.js + TypeScript + Express, wrapped as a single serverless function on Vercel (`apps/api/api/index.ts`)
 - **ORM:** Drizzle (schema-as-TypeScript, SQL-close queries — never substitute Prisma)
-- **DB:** PostgreSQL on Railway
-- **Queue/Cache:** Redis + BullMQ on Railway
+- **DB:** PostgreSQL on Neon (`@neondatabase/serverless`, `drizzle-orm/neon-serverless`)
+- **Background work:** no queue — `alerts-poller` is now `POST /api/cron/check-alerts`, triggered by an external scheduler (cron-job.org); forecast/conditions scoring is computed live per request instead of a snapshot job
 - **Storage:** Cloudflare R2 (conditions report photos)
 - **Monorepo:** Turborepo
 
@@ -37,14 +37,15 @@ packages/
 `.env.example` is the authoritative list — keep this section in sync with it.
 
 ```
-DATABASE_URL=
-REDIS_URL=
+DATABASE_URL=                                       # Neon connection string (pooled for app runtime; direct for migrations)
 DEFAULT_USER_ID=                                    # seeded user UUID, set after first migration
 AUTH_ENABLED=false
-ADMIN_PASSWORD=                                     # gates Bull Board at /admin/queues; unset => /admin/queues returns 503 (fails closed)
 NODE_ENV=development
 PORT=3001
 NWS_USER_AGENT=weatherteam6/1.0 your@email.com
+TELEGRAM_BOT_TOKEN=                                 # Telegram bot token (alerts + /api/telegram/webhook)
+TELEGRAM_CHAT_ID=                                   # single-user chat id — the bot's auth boundary
+CRON_SECRET=                                        # gates POST /api/cron/check-alerts; treat as a credential
 TOMORROW_IO_API_KEY=
 RAINVIEWER_KEY=
 SHADEMAP_KEY=
@@ -52,7 +53,7 @@ R2_ACCOUNT_ID=
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
 R2_BUCKET_NAME=
-API_BASE_URL=                                       # server-side base URL (Railway)
+API_BASE_URL=                                       # server-side base URL (Vercel)
 LOG_LEVEL=                                          # pino log level; defaults to info (prod) / debug (dev)
 EXPO_PUBLIC_API_BASE_URL=                           # read by mobile at bundle time (apps/mobile/src/lib/api.ts)
 ```

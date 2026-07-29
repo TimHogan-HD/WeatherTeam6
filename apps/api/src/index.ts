@@ -1,7 +1,4 @@
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
-import { createBullBoard } from '@bull-board/api';
-import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
-import { ExpressAdapter } from '@bull-board/express';
 import { logger } from './lib/logger.js';
 import { resolveUser } from './middleware/auth.js';
 import { healthRouter } from './routes/health.js';
@@ -12,11 +9,8 @@ import { alertsRouter } from './routes/alerts.js';
 import { wallsRouter } from './routes/walls.js'
 import { tripsRouter } from './routes/trips.js';
 import { radarRouter } from './routes/radar.js';
-import { forecastSnapshotQueue, rainfallHistoryQueue, alertsPollerQueue, snapshotCleanupQueue } from './jobs/queues.js';
-import './jobs/workers/forecastSnapshot.js';
-import './jobs/workers/rainfallHistory.js';
-import './jobs/workers/alertsPoller.js';
-import './jobs/workers/snapshotCleanup.js';
+import { cronRouter } from './routes/cron.js';
+import { telegramWebhookRouter } from './routes/telegramWebhook.js';
 
 export function createApp(): Express {
   const app = express();
@@ -31,59 +25,28 @@ export function createApp(): Express {
 
   app.use(express.json());
 
-  const serverAdapter = new ExpressAdapter();
-  serverAdapter.setBasePath('/admin/queues');
-
-  createBullBoard({
-    queues: [
-      new BullMQAdapter(forecastSnapshotQueue),
-      new BullMQAdapter(rainfallHistoryQueue),
-      new BullMQAdapter(alertsPollerQueue),
-      new BullMQAdapter(snapshotCleanupQueue),
-    ],
-    serverAdapter,
-  });
-
-  app.use(
-    '/admin/queues',
-    (req: Request, res: Response, next: NextFunction) => {
-      const adminPassword = process.env.ADMIN_PASSWORD;
-      // Fail closed: an unset ADMIN_PASSWORD must never expose the queue dashboard.
-      if (!adminPassword) {
-        res.status(503).json({ data: null, error: 'Admin console unavailable: ADMIN_PASSWORD is not configured', status: 503 });
-        return;
-      }
-      const auth = req.headers.authorization;
-      if (!auth || !auth.startsWith('Basic ')) {
-        res.setHeader('WWW-Authenticate', 'Basic realm="Bull Board"');
-        res.status(401).json({ data: null, error: 'Unauthorized', status: 401 });
-        return;
-      }
-      const credentials = Buffer.from(auth.slice(6), 'base64').toString('utf-8');
-      // RFC 7617: the password is everything after the FIRST colon (it may itself contain colons).
-      const sep = credentials.indexOf(':');
-      const password = sep === -1 ? '' : credentials.slice(sep + 1);
-      if (password !== adminPassword) {
-        res.setHeader('WWW-Authenticate', 'Basic realm="Bull Board"');
-        res.status(401).json({ data: null, error: 'Unauthorized', status: 401 });
-        return;
-      }
-      next();
-    },
-    serverAdapter.getRouter(),
-  );
-
   app.use(healthRouter);
+
+  // The cron endpoint authenticates via CRON_SECRET, not req.userId — it acts
+  // across all locations, not a single user's data — so it stays outside resolveUser.
+  app.use('/api/cron', cronRouter);
 
   app.use(resolveUser);
 
-  app.use(locationsRouter);
-  app.use(conditionsRouter);
-  app.use(forecastRouter);
-  app.use(alertsRouter);
-  app.use(wallsRouter);
-  app.use(tripsRouter);
-  app.use(radarRouter);
+  // The Telegram webhook authenticates via chat.id but still needs req.userId
+  // (DEFAULT_USER_ID) to look up the caller's saved locations, same as every other route.
+  app.use('/api/telegram', telegramWebhookRouter);
+
+  app.use(
+    '/api/v1',
+    locationsRouter,
+    conditionsRouter,
+    forecastRouter,
+    alertsRouter,
+    wallsRouter,
+    tripsRouter,
+    radarRouter,
+  );
 
   app.use((_req: Request, res: Response) => {
     res.status(404).json({ data: null, error: 'Not found', status: 404 });
