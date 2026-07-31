@@ -30,11 +30,11 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] No N+1 queries — use joins or batch fetches
 - [ ] Route params feeding `uuid`/typed columns are validated (`isUuid`) before the query — an unvalidated id is a leaked-error 500, not a 404
 
-## Jobs
-- [ ] BullMQ jobs are idempotent — safe to re-run without creating duplicates
-- [ ] Purge-and-replace is wrapped in a single `db.transaction` — a crash leaves the old or new set, never a gap or a mix
-- [ ] Jobs do not throw unhandled exceptions — errors are caught and logged
-- [ ] No new queues added without explicit approval
+## Cron / on-demand compute
+- [ ] No BullMQ/Redis reintroduced — background work is either computed live per-request (`liveForecast.ts`) or an HTTP endpoint on an external schedule (`/api/cron/check-alerts`), never a queue
+- [ ] `/api/cron/*` endpoints are idempotent — safe to call twice without creating duplicates or double-sending notifications
+- [ ] Purge-and-replace across multiple statements is wrapped in a single `db.transaction` — a crash leaves the old or new set, never a gap or a mix
+- [ ] Handlers don't throw unhandled exceptions — errors are caught and logged
 
 ## Security
 - [ ] No secrets logged at any log level

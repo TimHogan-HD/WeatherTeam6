@@ -1,0 +1,8 @@
+# Intentionally empty.
+#
+# Vercel requires an output directory to exist after the build step, but this
+# project serves no static assets — every path is rewritten to the serverless
+# function in api/index.ts (see vercel.json). This directory exists solely to
+# satisfy that check. Keep it empty: vercel.json's catch-all rewrite means
+# anything placed here would be shadowed by the function anyway, and files here
+# would be publicly downloadable.

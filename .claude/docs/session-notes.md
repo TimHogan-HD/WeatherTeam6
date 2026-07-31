@@ -1,6 +1,57 @@
 
 ---
 
+## 2026-07-29 — branch: claude/telegram-crossover-zero-cost-4u8b1h — commit: 6595f9e
+
+**Phase completed:** Telegram Crossover — Backend Migration (Tasks 1-4 of the v4 zero-cost-stack handoff doc)
+
+**What was built this session:**
+- `apps/api/src/db/index.ts` — swapped `postgres`/`postgres-js` for `@neondatabase/serverless` `Pool` + `drizzle-orm/neon-serverless` (WebSocket driver, not the HTTP driver the doc literally named — `trips.ts`'s interactive `db.transaction()` needs it, see Gotchas)
+- `apps/api/src/lib/scoring/liveForecast.ts` — NEW: `computeLiveForecast(location)`, the per-location forecast+scoring orchestration extracted from the deleted `forecastSnapshot` job; called on demand from `conditions.ts`/`forecast.ts` instead of reading snapshot tables a queue used to populate
+- `apps/api/src/lib/weather/openMeteo.ts` — added `fetchArchivePrecip()` (Open-Meteo historical archive API) as the no-ASOS-station fallback for recent rainfall
+- `apps/api/src/lib/alerts/checkAlerts.ts` — NEW: `runAlertsCheck()`, alertsPoller's fetch/upsert/prune logic with the BullMQ wrapper removed
+- `apps/api/src/lib/telegram/sendMessage.ts` — NEW: retry/backoff Telegram Bot API sender
+- `apps/api/src/routes/cron.ts` — NEW: `POST /api/cron/check-alerts`, `CRON_SECRET`-gated, dedups via `weather_alerts.notified_at`
+- `apps/api/src/routes/telegramWebhook.ts` — NEW: `POST /api/telegram/webhook`, chat-id gated, `/start` + `/conditions <name>`
+- `apps/api/api/index.ts` + `apps/api/vercel.json` — wraps the existing Express app as a single Vercel Node serverless function; routes remounted under `/api/v1` in `index.ts`
+- Deleted `apps/api/src/jobs/` entirely (BullMQ workers/queues/scheduler/connection) and `lib/redis.ts`; removed `bullmq`/`ioredis`/`@bull-board/*`/`postgres` deps, added `@neondatabase/serverless`/`ws`/`@vercel/node`
+- Migration `0006` — `weather_alerts.notified_at` (nullable timestamp)
+- `.env.example`, `turbo.json`, `CLAUDE.md` — dropped `REDIS_URL`/`ADMIN_PASSWORD`, added `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`/`CRON_SECRET`
+- `.claude/rules/architecture.md`, `.claude/rules/review-checklist.md` — rewrote Background Jobs / Jobs sections for the no-queue reality
+
+**Corrections found vs. the v4 handoff doc (not blockers, just noted so nobody is surprised):**
+- Repo actually has migrations `0000-0005` (six), not `0000-0002` (three) as the doc claimed — new migration is `0006`
+- `GET /conditions/:id` and `GET /forecast/:id` only ever read tables the deleted `forecastSnapshot` job populated — "port routes as-is" and "delete forecastSnapshot" can't both be literally true; resolved by computing live per-request (user-confirmed)
+- Deleting `rainfallHistory` with no replacement would have permanently defaulted the drying-time score (the #1-weighted component) to "no recent rain" for every location — resolved by live-fetching recent rainfall per request instead (user-confirmed)
+
+**Code-review fixes applied post-PR-open (PR #20):**
+- `apps/mobile/src/lib/api.ts` `baseUrl()` now appends `/api/v1` — the `/api/v1` remount in `index.ts` had left every mobile hook's unprefixed path (`/locations`, `/conditions/:id`, etc.) 404ing
+- `apps/api/src/routes/trips.ts` `GET /trips/:tripId/forecast` was still reading the dead `forecast_snapshots` table (missed when `conditions.ts`/`forecast.ts` were converted) — now calls `computeLiveForecast` per trip location like the other two routes
+- `apps/api/src/routes/cron.ts` — moved `formatAlertMessage` + the notify/dispatch loop into `lib/alerts/checkAlerts.ts` (`notifyPendingAlerts`), fixed a race (concurrent cron invocations could both read the same unnotified row before either stamped `notified_at`, double-sending) by atomically claiming each row (`UPDATE ... WHERE notified_at IS NULL`) before sending, with the claim released on send failure so it retries next run; also fixed the `x-cron-secret` header read to handle Express's `string[]` case instead of blind-casting to `string`
+- `apps/api/src/routes/telegramWebhook.ts` — moved `statusLabel`/`handleConditions` into `lib/telegram/conditionsReply.ts` (`buildConditionsReply`) per the "route handlers are thin" rule
+
+**Known issues / deferred work:**
+- Tasks 5-7 (Mini App shell + screens, deep links, `apps/mobile` archival) are explicitly out of scope for this session — separate follow-up
+- `computeLiveForecast` does two live upstream fetches (forecast + rainfall) per `/conditions` or `/forecast` request with no caching layer — fine for a single-user bot/app, would need revisiting under real traffic
+- **Pre-existing scoring quirk, not introduced by this PR, not fixed:** `computeLiveForecast` (and the `forecastSnapshot` job it was ported from) computes `currentWindKmh`/`currentTempC`/`currentHumidityPct` once from *today's* forecast day and reuses those same values for every future day's score — a day-7 score's wind/temp/humidity components are anchored to today, not day 7. Carried over verbatim per "port conditionsScore.ts as-is"; flagging for a separate scoring-algorithm review rather than changing behavior in an infra migration PR.
+
+**Blockers for next session:**
+- ~~**Neon migration not actually run yet.**~~ **RESOLVED** — user ran `npm run db:migrate` from an unrestricted local machine; all 7 migrations (0000-0006) applied. Note this was *not* verified from inside a sandboxed session (see network constraint below), only reported by the user. If schema-dependent behavior looks wrong later, re-verify the DB state before assuming a code bug.
+  - The underlying constraint still applies to any future sandboxed session: the egress proxy blocks both the WebSocket path (`wss://<project>-pooler.<region>.aws.neon.tech/v2` → 403) and Neon's HTTP SQL API (`api.<region>.aws.neon.tech` → "Host not in allowlist"), per `/root/.ccr/README.md` (WebSocket upgrades and raw-TCP databases are explicitly unsupported). Future migrations must be run from an unrestricted machine, or the environment's egress allowlist must be widened to include `*.aws.neon.tech`.
+- **Vercel project not created/deployed yet.** The Vercel MCP tools available this session (`deploy_to_vercel`, `get_project`, etc.) have no way to set environment variables on a project — deploying without `DATABASE_URL`/`TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`/`CRON_SECRET` set would just crash at import time. Next session (or the user via the Vercel dashboard): import the repo, root directory `apps/api`, set those env vars + `NWS_USER_AGENT`/`DEFAULT_USER_ID`, deploy, then verify `GET /api/v1/locations` and `GET /api/v1/conditions/:id` on the live URL.
+- **Telegram webhook not registered.** Needs the live Vercel URL from the step above — one-off `setWebhook` call pointing at `<url>/api/telegram/webhook`.
+- **cron-job.org not configured.** Manual dashboard step per the doc — POST the deployed `/api/cron/check-alerts` every 15 min with the `CRON_SECRET` header once the secret is set on Vercel.
+
+**What's next:** Once the three blockers above are cleared and Tasks 1-4 are verified live end-to-end, start Tasks 5-7 — `git checkout -b phase/miniapp-shell` off this branch (after merge) or off `main` — no handoff doc section covers the Mini App screens yet beyond the v4 doc's own Task 5/6 bullets; re-read those before writing `apps/miniapp`.
+
+**Gotchas for next session:**
+- `drizzle-orm/neon-serverless` (not `neon-http`) is the runtime driver, specifically because `trips.ts` does an interactive `db.transaction()` (insert, read generated id, insert dependent rows) that the HTTP driver can't express. Don't "simplify" this to `neon-http` without checking `trips.ts` first.
+- `drizzle-kit` auto-detects `@neondatabase/serverless` in `node_modules` and uses its WebSocket driver for `generate`/`migrate` regardless of what our app code uses — this is why migrations can't run from a WS-restricted network, and it's independent of our own driver choice.
+- `apps/api/api/index.ts` is intentionally outside `tsconfig.build.json`'s compile scope (Vercel transpiles it itself) but inside `tsconfig.json`'s `include` (so `npm run typecheck` still catches errors in it).
+- `computeLiveForecast` synthesizes `id` fields as `${locationId}:${date}` since nothing is persisted anymore — don't expect these ids to be stable/lookupable across requests.
+
+---
+
 ## 2026-06-19 — branch: phase/13-history — commit: 47074f8
 
 **Phase completed:** Phase 13 — Historical Climbability Patterns
@@ -732,11 +783,3 @@
 - EAS build runs postinstall which builds `packages/types` and `packages/design`. If you add a new workspace package, add it to the postinstall chain in root `package.json`.
 - The APK build process: `npm run build -w @weatherteam6/types && npm run build -w @weatherteam6/design` must use `-w @packagename` syntax (not `--workspace=path`).
 - EAS log URLs expire in 900 seconds. To read Gradle errors: trigger build with `--no-wait`, immediately query GraphQL for `logFiles`, fetch with `curl -s --compressed "$LOG_URL"` before expiry.
-
---- Session ended: 2026-06-20 22:37 UTC
-
---- Session ended: 2026-06-20 22:39 UTC
-
---- Session ended: 2026-06-20 22:41 UTC
-
---- Session ended: 2026-06-20 22:42 UTC

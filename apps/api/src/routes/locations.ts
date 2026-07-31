@@ -3,8 +3,6 @@ import { and, asc, avg, count, eq, ilike, or, sql } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { locations, crags, locationNormals, cragClimbabilityHistory } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
-import { logger } from '../lib/logger.js'
-import { rainfallHistoryQueue } from '../jobs/queues.js'
 import { parseNumeric } from '@weatherteam6/types'
 import type { ApiResponse, Location, Crag, CreateLocationInput, LocationNormal, ClimbabilityHistory } from '@weatherteam6/types'
 
@@ -153,17 +151,6 @@ locationsRouter.post('/locations', async (req: Request, res: Response) => {
       if (!row) throw new Error('Insert returned no row')
       const response: ApiResponse<Location> = { data: mapLocation(row), error: null, status: 201 }
       res.status(201).json(response)
-
-      // Fire-and-forget: populate 10-year climbability history in the background.
-      // Wrapped in .catch() so Redis failure never affects the 201 response.
-      rainfallHistoryQueue
-        .add('backfill', { type: 'backfill', locationId: row.id })
-        .catch((err: unknown) => {
-          logger.warn(
-            { locationId: row.id, err: err instanceof Error ? err.message : String(err) },
-            'POST /locations: failed to queue history backfill',
-          )
-        })
     } catch (err) {
       sendServerError(res, err, 'POST /locations (crag)')
     }

@@ -39,13 +39,14 @@ Never deviate from this shape.
 - `<7 days out`: full conditions score active, p10/p90 bands shown
 
 ## Background Jobs
-Four queues, no more:
-- `forecast-snapshot` — every 6h
-- `rainfall-history` — daily 06:00 UTC
-- `alerts-poller` — every 5min
-- `snapshot-cleanup` — daily 02:00 UTC
 
-Jobs must be idempotent. A job crashing and rerunning must not create duplicate data.
+There is no queue infrastructure — no BullMQ, no Redis. The API is a single Express app wrapped as one Vercel serverless function (`apps/api/api/index.ts`), so nothing can run on an in-process schedule.
+
+- `forecast-snapshot` and `rainfall-history` were deleted outright, not converted. Forecast/conditions scoring is computed live, per request, in `apps/api/src/lib/scoring/liveForecast.ts` (`computeLiveForecast`) — called directly from `GET /conditions/:id` and `GET /forecast/:id`. Recent (30-day) rainfall for the drying-time component is also live-fetched per request (ACIS via `fetchPrecipHistory` when the location has an `asos_station`, else Open-Meteo's archive API via `fetchArchivePrecip`) — there is no `rainfall_history`-table job keeping that data warm anymore.
+- `alerts-poller` was converted, not deleted: its fetch/upsert/prune logic lives in `apps/api/src/lib/alerts/checkAlerts.ts` (`runAlertsCheck`), invoked by `POST /api/cron/check-alerts` (gated on a `CRON_SECRET` header) on an external schedule (cron-job.org), not a queue.
+- `snapshot-cleanup` was deleted — nothing to clean up once there's no snapshot table being written on a schedule.
+
+Any handler that touches the DB across more than one request-scoped operation must still be safe to run concurrently / retry — the "idempotent, no duplicate data" bar from the old job-based world still applies, it's just enforced per-request now instead of per-job-run.
 
 ## Mobile-First Mandate
 

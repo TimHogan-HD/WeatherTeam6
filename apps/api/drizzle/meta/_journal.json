@@ -43,6 +43,13 @@
       "when": 1781883240063,
       "tag": "0005_flowery_skaar",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785345149197,
+      "tag": "0006_shallow_otto_octavius",
+      "breakpoints": true
     }
   ]
 }

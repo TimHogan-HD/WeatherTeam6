@@ -1,0 +1,1 @@
+ALTER TABLE "weather_alerts" ADD COLUMN "notified_at" timestamp with time zone;

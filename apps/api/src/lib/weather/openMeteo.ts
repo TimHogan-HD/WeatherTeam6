@@ -397,3 +397,61 @@ export async function fetchNBM(
 
   return { days, model_sources: ['nbm'] }
 }
+
+const ARCHIVE_URL = 'https://archive-api.open-meteo.com/v1/archive'
+
+export type ArchiveDailyPrecip = {
+  date: string // YYYY-MM-DD
+  precip_mm: number
+}
+
+/**
+ * Fetch daily precipitation totals from Open-Meteo's historical archive, for
+ * locations with no nearby ASOS station (see fetchPrecipHistory in acis.ts,
+ * which is preferred when a station is available).
+ *
+ * @throws {Error} on HTTP failure after exhausting fetchWithRetry's 4 attempts, or
+ * immediately on a non-retryable non-ok status.
+ */
+export async function fetchArchivePrecip(
+  lat: number,
+  lon: number,
+  fromDate: string,
+  toDate: string,
+): Promise<ArchiveDailyPrecip[]> {
+  const url = new URL(ARCHIVE_URL)
+  url.searchParams.set('latitude', String(lat))
+  url.searchParams.set('longitude', String(lon))
+  url.searchParams.set('start_date', fromDate)
+  url.searchParams.set('end_date', toDate)
+  url.searchParams.set('daily', 'precipitation_sum')
+  url.searchParams.set('timezone', 'UTC')
+
+  logger.debug({ lat, lon, fromDate, toDate }, '[openMeteo] fetching archive precip history')
+
+  const res = await fetchWithRetry(url.toString())
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    logger.debug(
+      { statusCode: res.status, body: body.slice(0, 200) },
+      '[openMeteo] archive error response',
+    )
+    throw new Error(`Open-Meteo archive API returned ${res.status}`)
+  }
+
+  const raw = (await res.json()) as { daily?: Record<string, unknown> }
+  const daily = raw.daily
+  if (!daily) return []
+
+  const times = toStringArray(daily['time'])
+  const precip = toNullableNumberArray(daily, 'precipitation_sum')
+
+  const out: ArchiveDailyPrecip[] = []
+  for (let i = 0; i < times.length; i++) {
+    const date = times[i]
+    const mm = precip[i]
+    if (!date || mm === null || mm === undefined) continue
+    out.push({ date, precip_mm: mm })
+  }
+  return out
+}
