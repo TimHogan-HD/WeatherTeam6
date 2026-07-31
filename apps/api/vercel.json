@@ -1,5 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "echo 'No build step: api/ is compiled by Vercel, workspace packages are built in the root postinstall'",
+  "outputDirectory": "public",
   "functions": {
     "api/index.ts": {
       "maxDuration": 60
