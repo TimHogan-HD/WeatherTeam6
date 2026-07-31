@@ -3,6 +3,7 @@ import { and, eq, asc, inArray } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { trips, tripLocations, locations } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
+import { logger } from '../lib/logger.js'
 import { computeLiveForecast } from '../lib/scoring/liveForecast.js'
 import type { ApiResponse, Trip, TripLocation, CreateTripInput, TripForecast, ForecastSnapshot } from '@weatherteam6/types'
 
@@ -228,13 +229,38 @@ tripsRouter.get('/trips/:tripId/forecast', async (req: Request, res: Response) =
 
     // computeLiveForecast per trip location, filtered to the trip's date range —
     // there's no forecast_snapshots table being kept warm by a job anymore.
+    //
+    // Run in parallel: each call makes up to three retrying upstream fetches
+    // (NBM, ensemble fallback, rainfall), so serializing them across a
+    // multi-location trip stacks their backoff windows and risks a function
+    // timeout. One location's failure must not sink the whole trip, so each
+    // is settled independently and a failed location returns no forecasts.
+    const results = await Promise.allSettled(
+      locationRows.map(async (location) => {
+        const { snapshots } = await computeLiveForecast(location)
+        return {
+          locationId: location.id,
+          snapshots: snapshots.filter(
+            (s) => s.forecast_date >= tripRow.start_date && s.forecast_date <= tripRow.end_date,
+          ),
+        }
+      }),
+    )
+
     const snapsByLocation = new Map<string, ForecastSnapshot[]>()
-    for (const location of locationRows) {
-      const { snapshots } = await computeLiveForecast(location)
-      const inRange = snapshots.filter(
-        (s) => s.forecast_date >= tripRow.start_date && s.forecast_date <= tripRow.end_date,
-      )
-      snapsByLocation.set(location.id, inRange)
+    for (const [i, result] of results.entries()) {
+      if (result.status === 'fulfilled') {
+        snapsByLocation.set(result.value.locationId, result.value.snapshots)
+      } else {
+        const failed = locationRows[i]
+        logger.warn(
+          {
+            locationId: failed?.id,
+            err: result.reason instanceof Error ? result.reason.message : String(result.reason),
+          },
+          'GET /trips/:tripId/forecast: live forecast failed for location',
+        )
+      }
     }
 
     const data: TripForecast[] = locationIds.map(locationId => ({

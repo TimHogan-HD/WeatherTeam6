@@ -154,11 +154,24 @@ export async function notifyPendingAlerts(): Promise<{ checked: number; notified
       const msg = err instanceof Error ? err.message : String(err)
       logger.error({ alertId: alert.id, err: msg }, '[checkAlerts] failed to notify alert')
       // Release the claim so the next run retries the send — a failed send
-      // must not be treated as "notified".
-      await db
-        .update(weatherAlerts)
-        .set({ notified_at: null })
-        .where(eq(weatherAlerts.id, alert.id))
+      // must not be treated as "notified". Guarded: if the release itself fails
+      // we log and keep going, rather than letting it escape and abort the
+      // remaining alerts in this run. Worst case the row stays claimed and is
+      // skipped until an operator clears it.
+      try {
+        await db
+          .update(weatherAlerts)
+          .set({ notified_at: null })
+          .where(eq(weatherAlerts.id, alert.id))
+      } catch (releaseErr) {
+        logger.error(
+          {
+            alertId: alert.id,
+            err: releaseErr instanceof Error ? releaseErr.message : String(releaseErr),
+          },
+          '[checkAlerts] failed to release claim after send failure — row will stay claimed',
+        )
+      }
     }
   }
 

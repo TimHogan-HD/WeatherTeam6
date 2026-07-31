@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { Router, type Request, type Response } from 'express'
 import { sendServerError } from '../lib/http.js'
+import { logger } from '../lib/logger.js'
 import { runAlertsCheck, notifyPendingAlerts } from '../lib/alerts/checkAlerts.js'
 import type { ApiResponse } from '@weatherteam6/types'
 
@@ -30,11 +31,22 @@ cronRouter.post('/check-alerts', async (req: Request, res: Response) => {
   }
 
   try {
-    await runAlertsCheck()
+    // Refresh failures must not gate notification: runAlertsCheck throws if ANY
+    // location errored, and alerts already sitting unnotified in the DB (possibly
+    // from earlier runs) still need to go out. Catch here so a single bad location
+    // can't wedge delivery indefinitely.
+    let refreshError: string | null = null
+    try {
+      await runAlertsCheck()
+    } catch (err) {
+      refreshError = err instanceof Error ? err.message : String(err)
+      logger.error({ err: refreshError }, '[cron] alerts refresh failed — notifying anyway')
+    }
+
     const result = await notifyPendingAlerts()
 
-    const response: ApiResponse<{ checked: number; notified: number }> = {
-      data: result,
+    const response: ApiResponse<{ checked: number; notified: number; refreshFailed: boolean }> = {
+      data: { ...result, refreshFailed: refreshError !== null },
       error: null,
       status: 200,
     }
