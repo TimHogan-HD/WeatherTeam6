@@ -3,7 +3,8 @@
 Climbing conditions platform + general weather app. Core purpose: tell the user if a crag is climbable now, over the next 7 days, and support trip planning weeks out with improving forecast confidence over time.
 
 ## Stack
-- **Mobile:** React Native + Expo (New Architecture, SDK 56 — `expo@~56.0.3`, `expo-router@~56.0.0`)
+- **Client:** Telegram bot + Telegram Mini App (`apps/miniapp`, Vite + React — not yet built, see Crossover Tasks 5-7)
+- **Mobile (ARCHIVED):** React Native + Expo lives in `apps/mobile`. Superseded by the Mini App as of 2026-07-31 — code retained, out of the build, do not add features to it.
 - **Backend:** Node.js + TypeScript + Express, wrapped as a single serverless function on Vercel (`apps/api/api/index.ts`)
 - **ORM:** Drizzle (schema-as-TypeScript, SQL-close queries — never substitute Prisma)
 - **DB:** PostgreSQL on Neon (`@neondatabase/serverless`, `drizzle-orm/neon-serverless`)
@@ -78,7 +79,7 @@ EXPO_PUBLIC_API_BASE_URL=                           # read by mobile at bundle t
 - Before ANY database work: read `.claude/docs/data-model.md` AND `.claude/rules/architecture.md`
 - Before ANY weather fetch work: read `.claude/docs/api-sources.md`
 - Before ANY conditions score work: read `.claude/docs/scoring-algorithm.md`
-- Before ANY mobile UI phase: read the relevant design handoff doc(s) below — the mockups are the spec, not prose descriptions
+- Before ANY Mini App UI phase: read `docs/handoffs/miniapp-design-v1.md` (once it exists) AND the §Design System section of `docs/handoffs/weatherteam6-ui-handoff-v1.md` — the mockups are the spec, not prose descriptions
 
 Full paths:
 - **Data model + schema:** `.claude/docs/data-model.md`
@@ -88,13 +89,16 @@ Full paths:
 - **Review checklist:** `.claude/rules/review-checklist.md` — run before every commit
 - **Build plan:** `.claude/docs/plan.md`
 
-**UI Design Handoffs (read before the relevant phase — these are the spec):**
-- `docs/handoffs/weatherteam6-ui-handoff-v1.md` — ALL remaining UI phases (7b → 7c → 7e → 7f → 7d → 8 → 9 → 9b → 10 → 11 → 12). Read before any mobile UI work. Adds phases 7e (Locations), 7f (Stat Detail Sheets), 9b (Trip Detail), 11 (Hourly Analysis). Phase 8 per this doc = Walls Screen + Setup Flow (not shade calc).
-- `docs/handoffs/design-mockups/README.md` — Radar, Walls, and Trips screen specs (phases 9b/9c, 12, Walls)
-- `docs/handoffs/design-mockups/weatherteam6UI.html` — primary mockup for Home + Location Detail
-- `docs/handoffs/design-mockups/radar-shared.jsx` / `radar-variations.jsx` / `radar.css` — Radar screen (phase 12)
-- `docs/handoffs/design-mockups/walls-flow.jsx` / `walls-viz.jsx` / `walls.css` — Walls screen + setup flow
-- `docs/handoffs/design-mockups/trips-flow.jsx` / `trips.css` — Trip creation flow (phases 9b/9c)
+**Direction (read first):**
+- `docs/handoffs/telegram-crossover-v4.md` — **authoritative product direction.** Telegram bot + Mini App replaces the native app. Tasks 1-4 complete; Tasks 5-7 (Mini App) are next.
+
+**UI Design Handoffs:**
+- `docs/handoffs/weatherteam6-ui-handoff-v1.md` — written for the archived mobile app, but its **§Design System is still in force and client-agnostic**: locked contrast rules, layout constants, and copy rules. Read before any Mini App UI work. §7b (Home), §7c (Location Detail), §7e (Locations) are the closest existing specs to the Mini App's two screens.
+- `docs/handoffs/design-mockups/weatherteam6UI.html` — primary mockup for Home + Location Detail; the nearest thing to a Mini App design that exists.
+- `docs/handoffs/miniapp-design-v1.md` — **does not exist yet.** Phase B0 deliverable; must be written and agreed before any Mini App code.
+
+**Mobile-only mockups (archived — reference only, not being built):**
+- `docs/handoffs/design-mockups/README.md`, `radar-*.jsx/css`, `walls-*.jsx/css`, `trips-*.jsx/css` — Radar, Walls, and Trips screens. Out of scope for the Mini App per the Crossover doc's two-screen surface.
 
 ## Session Start Protocol
 
@@ -139,25 +143,36 @@ Stub entries (timestamps only, no content) are noise — never append a session-
 
 ## Known Gotchas
 
-**Shared packages must be built before mobile typechecks pass.**
-`packages/types` and `packages/design` compile to `dist/`. If `dist/` is missing (fresh clone or after clean), mobile TS will fail with "cannot find module". Fix:
+**Shared packages must be built before typechecks pass.**
+`packages/types` and `packages/design` compile to `dist/`. If `dist/` is missing (fresh clone or after clean), consuming workspaces fail with "cannot find module". Fix:
 ```bash
 npm run build --workspace=packages/types --workspace=packages/design
 ```
 
-**Expo Router version must match the Expo SDK major version.**
-Expo adopted SDK-matching versioning starting at SDK 52. For SDK 56 you need `expo-router@~56.0.0`. If Metro crashes with `Cannot find module 'expo-router/internal/routing'`, the router version is wrong — check `apps/mobile/package.json` and run `npm install`.
+**Never set `NODE_ENV=production` as a Vercel environment variable.**
+npm omits devDependencies when it's set, `typescript` is a devDependency, and the root postinstall (which builds `packages/types` and `packages/design`) then dies with `tsc: command not found`. Vercel manages `NODE_ENV` itself.
 
-**`expo-router/internal/routing` crash is a version mismatch, not a code bug.**
-The `@expo/cli` bundled inside `expo` (the `@expo/router-server` sub-package) requires `expo-router/internal/routing`. This path only exists in expo-router v56+. Earlier versions (4.x, 6.x) crash silently. typecheck passes fine — it's a runtime-only failure.
+**Vercel framework preset must be "Other", not the auto-detected "Express".**
+Vercel's Express preset expects the entry file to `export default app` or call `app.listen()`. `apps/api/api/index.ts` exports a `handler(req, res)` that forwards into the app, and `apps/api/package.json`'s `main` points at a module exporting `createApp` — a factory, not an app instance. The preset fails confusingly at runtime rather than at build.
+
+**`apps/api/vercel.json` skips the build step deliberately.**
+`buildCommand` is a no-op and `outputDirectory` points at an intentionally empty `public/`. Vercel's Node builder compiles `api/` itself and the workspace packages are built in the root postinstall, so `turbo run build` there only produced an unused `apps/api/dist`. Without the empty `public/`, deploys fail with "No Output Directory named public found".
+
+**Neon cannot be reached from this cloud dev environment.**
+The egress proxy blocks both Neon's WebSocket path (403) and its HTTP SQL API host (not allowlisted). `drizzle-kit` auto-detects `@neondatabase/serverless` and uses the WebSocket driver regardless of app code, so **migrations must be run from an unrestricted machine**, or the environment's egress allowlist widened to `*.aws.neon.tech`.
 
 **Code reviews interrupted by context limits lose their findings.**
 If `/code-review` or the code-review skill runs near the end of a long session and context compresses before the output is written, the findings are lost. Save intermediate review output to `.claude/docs/review-findings.md` before the session ends if verification is still in progress.
 
-**Cloud dev environment blocks ngrok tunnels.**
-`expo start --tunnel` will fail in this environment — ngrok connections are blocked by the network policy. Mobile testing must be done locally. To test on device: clone the repo on a local machine, run `cd apps/mobile && npx expo start`, scan the QR with Expo Go.
+### Archived — mobile gotchas (`apps/mobile` is out of the build)
+
+**Expo Router version must match the Expo SDK major version.** For SDK 56 you need `expo-router@~56.0.0`. If Metro crashes with `Cannot find module 'expo-router/internal/routing'`, the router version is wrong.
+
+**`expo-router/internal/routing` crash is a version mismatch, not a code bug.** That path only exists in expo-router v56+; earlier versions crash silently. typecheck passes — it's runtime-only.
+
+**Cloud dev environment blocks ngrok tunnels.** `expo start --tunnel` fails here. Mobile testing had to be done locally via Expo Go.
 
 ## Initial Setup Requirements
 - Create `.env.example` with all keys from the Environment Variables section above, values blank
-- Never create a `.env` file with real values — use Railway env vars for production
+- Never create a `.env` file with real values — use Vercel project env vars for production
 - Run `npm run db:generate` before `npm run db:migrate` — never run `drizzle-kit push`

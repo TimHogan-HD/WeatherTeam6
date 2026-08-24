@@ -108,30 +108,51 @@ Each phase: implement → acceptance criteria → `npm run typecheck` → `npm r
 
 ---
 
-### Upcoming Phases
+### Upcoming Phases — Telegram Crossover
+
+**Direction changed 2026-07-31.** The product is now a Telegram bot + Telegram Mini App, not a React Native app. `apps/mobile` is being archived. The authoritative spec is `docs/handoffs/telegram-crossover-v4.md`; the near-term roadmap with sequencing constraints is in the Telegram Crossover roadmap (Tasks 5–7).
 
 Each phase: implement → `npm run typecheck` → `npm run lint` → review checklist → commit → **stop and wait for gate-pass**.
 
-| Phase | Branch | Deliverables |
-|-------|--------|--------------|
-| **16** | `phase/16-radar-native` | **Radar rebuilt for native Android/iOS.** Replace `RadarMapView.tsx` SVG stub with `react-native-maps` MapView + `UrlTile` overlay using the existing RainViewer tile URL template. Scrubber remains; location markers as native map markers. Delete `RadarMapView.web.tsx` or demote it to a genuine web-bonus. Requires Google Maps API key — add to `app.config.js` android block and EAS secrets before building. Read `apps/api/src/lib/weather/rainViewer.ts` and `apps/mobile/app/(tabs)/radar.tsx` before starting. |
-| **14a** | `phase/14a-weather-api` | Weather API foundation — real `/weather/:id`, `/weather/:id/hourly`, `/weather/:id/precip-history` endpoints. Promote `WeatherObservation` + `HourlySlot` into `packages/types`. ASOS + Open-Meteo blend. Read `docs/superpowers/specs/2026-06-19-phase14-polish-design.md` §14a before starting. |
-| **14b** | `phase/14b-location-detail` | Location Detail overhaul — rebuild `PrecipLineChart` (real layout), add `PastPrecipChart` (7-day look-back), wire `HourlyStrip` to real API data, skeleton loading on every section. Read spec §14b before starting. |
-| **14c** | `phase/14c-shade-map` | **Shade map rebuilt for native.** Replace `ShadeMapEmbed.tsx` WebView with `react-native-maps` MapView. Sun position from `suncalc` (already installed). Time-of-day scrubber drives terrain shade as a native overlay (SVG or canvas — no WebView). Pending Tim's shade session for detailed spec; do not start until that session occurs and a spec is written. |
-| **14d** | `phase/14d-home-polish` | Home screen polish — real temp + condition string on location cards, proper empty state, pull-to-refresh, skeleton loading. Read spec §14d before starting. |
-| **15** | `phase/15-wire-stubs` | **Eliminate all remaining mock data.** (1) `TripCreationModal.tsx` — replace `MOCK_CRAGS` with real `GET /search` call via `useSearchCrags` hook. (2) `StatDrillSheet.tsx` — remove `mockModelValues()` and hardcoded `TREND_PATH`; wire to real forecast data or remove the model-comparison row until real data exists. (3) `UVIndexSheet.tsx` — replace bell-curve with real hourly UV from `/weather/:id/hourly` (available after Phase 14a). Do not introduce new mocks. |
+| Phase | Deliverables |
+|-------|--------------|
+| **Tasks 1–4** | ✅ **Complete.** Neon migration, API on Vercel as a single serverless function, live per-request scoring, alerts cron endpoint, Telegram bot webhook. Merged as `adb19a6`, verified live. |
+| **B0 — Mini App design spec** | **Do this before any Mini App code.** Produce `docs/handoffs/miniapp-design-v1.md`: theming decision (Telegram `themeParams` vs. the locked `packages/design` palette), screens + navigation, content hierarchy, units (copy rules lock imperial; the API returns metric), loading/empty/error states, and explicit non-goals. Mine `weatherteam6-ui-handoff-v1.md` §Design System and §7b/7c/7e plus `weatherteam6UI.html` — do not redesign from scratch. Also settle the copy-rule violation described below. |
+| **Task 5 — Mini App shell** | New `apps/miniapp` workspace (Vite + React, static build), separate Vercel project, `telegram-web-app.js`, register with @BotFather. **Read https://core.telegram.org/bots/webapps first** — that API changed repeatedly through 2026. Origin lockdown means production domain only; preview URLs will not work. |
+| **Task 6 — Mini App screens + auth** | Location list + location detail, wired to the existing `/api/v1/*` endpoints. **`initData` HMAC validation is a prerequisite, not a finishing touch** — see the sequencing constraint below. Build to the B0 spec; no design decisions in code. |
+| **Task 7 — Deep link + archive mobile** | `web_app` inline keyboard button on alert messages (`startapp` deep link into location detail). Remove `apps/mobile` from `turbo.json` and workspace scripts, leave the code in place, add `apps/mobile/ARCHIVED.md`. Also removes the long-standing `apps/mobile` ESLint failure from CI. |
 
 ---
 
-### Phase Order Summary
+### ⚠️ Sequencing constraint — Mini App auth
 
-14a → 14b → 14c → 14d → 15 → 16
+The Mini App is a browser client inside Telegram's webview. The API sits behind **Vercel SSO protection**, which a webview has no cookies for — every `fetch` will redirect to a login page. The automation bypass secret cannot be used, because it would ship in a public client bundle.
 
-14c (shade map native) is blocked on Tim's shade session — skip it and continue to 14d if that session hasn't happened yet.
+So `initData` HMAC validation must land **before or with** removing SSO protection, and those two changes ship together. SSO off without HMAC leaves the API fully open on a public URL. Build it as route-level middleware on `/api/v1/*`, not per-endpoint checks — per-endpoint is easy to half-apply. The cron and webhook routes are mounted outside `/api/v1` and keep their own gates.
 
-### Mobile-First Rule for All Upcoming Phases
+### ⚠️ Known copy-rule violation — settle in B0
 
-See `.claude/rules/architecture.md` § Mobile-First Mandate. The short version: **native `.tsx` is always the real implementation.** No WebView for features that should be native. `react-native-maps` for every map primitive. No mock data left standing after the phase that introduces it.
+`weatherteam6-ui-handoff-v1.md` locks two rules: *"No climbing opinions ('go / don't go')"* and *"Score is a derived signal, never the headline — weather leads on every screen."*
+
+The shipped bot reply is `"looks great — go climb (score 85, confidence high)"` — a climbing opinion, score as headline, no weather. This is live today (see issue #21) and the Mini App would inherit the same framing. Fix the copy model once in B0 and apply it to both surfaces.
+
+### Abandoned — superseded by the Telegram Crossover
+
+The phases below were the React Native roadmap. They are **not being built**. Kept for reference only; `apps/mobile` code remains in the repo but is out of the build.
+
+<details>
+<summary>Phases 14a–16 (abandoned)</summary>
+
+| Phase | Branch | Deliverables |
+|-------|--------|--------------|
+| **16** | `phase/16-radar-native` | Radar rebuilt for native Android/iOS with `react-native-maps` + `UrlTile` over the RainViewer template. |
+| **14a** | `phase/14a-weather-api` | Weather API foundation — `/weather/:id`, `/weather/:id/hourly`, `/weather/:id/precip-history`. **Note:** the API-side portion may still be worth building for the Mini App; the mobile UI portion is not. |
+| **14b** | `phase/14b-location-detail` | Location Detail overhaul — `PrecipLineChart`, `PastPrecipChart`, `HourlyStrip`, skeleton loading. |
+| **14c** | `phase/14c-shade-map` | Shade map rebuilt native. Was already blocked on a design session that never happened. |
+| **14d** | `phase/14d-home-polish` | Home screen polish — real temp on cards, empty state, pull-to-refresh. |
+| **15** | `phase/15-wire-stubs` | Eliminate remaining mock data in `TripCreationModal`, `StatDrillSheet`, `UVIndexSheet`. |
+
+</details>
 
 ---
 

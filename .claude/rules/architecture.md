@@ -48,23 +48,25 @@ There is no queue infrastructure — no BullMQ, no Redis. The API is a single Ex
 
 Any handler that touches the DB across more than one request-scoped operation must still be safe to run concurrently / retry — the "idempotent, no duplicate data" bar from the old job-based world still applies, it's just enforced per-request now instead of per-job-run.
 
-## Mobile-First Mandate
+## Client Mandate — Telegram Mini App
 
-**WeatherTeam6 is a native mobile app first and basically only.** Every architectural choice must be native-first. This is non-negotiable.
+**Direction changed 2026-07-31.** WeatherTeam6 was a native-mobile-first app; it is now a **Telegram bot + Telegram Mini App**. `apps/mobile` is being archived (Crossover Task 7) — its code stays in the repo but leaves the build. The old Mobile-First Mandate (never use WebView, `react-native-maps` for every map, native `.tsx` always real) is **superseded** and no longer applies. See `docs/handoffs/telegram-crossover-v4.md`.
 
-- **Never use `react-native-webview` to embed a feature that should be native.** WebView is acceptable only for genuinely external web content (e.g. a terms page). A map, a chart, a radar overlay, a shade visualizer — all must be built with native primitives.
-- **`react-native-maps` is the agreed map library** for all map features: radar overlay, shade map, general location maps. Do not use Leaflet, do not use MapView from any other library.
-- **`.web.tsx` platform splits:** the native `.tsx` file must always be the real, complete implementation. The `.web.tsx` is the optional bonus for web preview. Never invert this — a native stub with a working web version is a violation.
-- **No hardcoded mock data in production components.** `MOCK_*` constants, `mockXyz()` functions, and bell-curve approximations in UI files are stubs that must be replaced before a feature is considered complete. Stubs are only acceptable during the phase they are explicitly introduced — they must be wired to real data in the same or the immediately following phase.
-- When in doubt between "faster web approach" and "correct native approach", always take native.
+- **The Mini App is the client.** `apps/miniapp` (Vite + React, static build) is the real, complete implementation of every user-facing screen. There is no second client to keep in parity.
+- **Do not add features to `apps/mobile`.** It is archived. If something there is worth keeping, port it into the Mini App rather than reviving the app.
+- **Design tokens come from `packages/design`.** Do not redefine colors, spacing, or type scale in the Mini App. The locked contrast, layout, and copy rules in `docs/handoffs/weatherteam6-ui-handoff-v1.md` §Design System still apply — they are client-agnostic.
+- **Telegram theming.** The Mini App reads `themeParams` and must be legible in the user's own Telegram theme. How that reconciles with the locked palette is settled in the Mini App design spec — do not improvise it per-component.
+- **No hardcoded mock data in production components.** `MOCK_*` constants, `mockXyz()` functions, and bell-curve approximations are stubs that must be replaced before a feature is complete. Stubs are only acceptable during the phase that explicitly introduces them, and must be wired to real data in that phase or the immediately following one.
+- **Auth:** the Mini App authenticates via `Telegram.WebApp.initData` validated server-side by HMAC, as route-level middleware on `/api/v1/*`. The bot token never reaches the client bundle. See the sequencing constraint in `.claude/docs/plan.md` — this must ship together with removing Vercel SSO protection from the API.
 
-## Mobile Patterns
-- React Query is the agreed state management layer for all server data. No Redux, no Zustand, no Context for server state.
-- All API calls go through React Query hooks in `apps/mobile/src/hooks/`. Components never call fetch directly.
-- Expo SDK version must not be changed without explicit user approval.
-- No hardcoded API base URLs — use environment config via `expo-constants` or similar.
+## Client Patterns (Mini App)
+- **React Query** remains the agreed state management layer for server data. No Redux, no Zustand, no Context for server state.
+- All API calls go through React Query hooks. Components never call `fetch` directly — the same rule that applied to `apps/mobile/src/hooks/`, now in `apps/miniapp`.
+- No hardcoded API base URLs — use build-time env config (`VITE_API_BASE_URL`).
+- Navigation is the Mini App's own routing, integrated with Telegram's `BackButton`. The `startapp` deep-link parameter must be able to land directly on location detail.
 
-## Mobile Navigation
-- Expo Router is the agreed navigation library. Do not use React Navigation or any other router.
-- File-based routing under `apps/mobile/app/`. Screens are files, layouts are `_layout.tsx`.
-- No imperative navigation outside of Expo Router's `router` API.
+## Archived — Mobile Patterns (no longer in force)
+Kept for context while `apps/mobile` remains in the repo. Do not apply these to new work.
+- React Query hooks in `apps/mobile/src/hooks/`; components never called fetch directly.
+- Expo SDK version was not to be changed without explicit approval.
+- Expo Router was the agreed navigation library; file-based routing under `apps/mobile/app/`, screens as files, layouts as `_layout.tsx`; no imperative navigation outside the `router` API.
