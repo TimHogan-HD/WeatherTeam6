@@ -27,11 +27,16 @@ npm run db:studio     # open Drizzle Studio
 ## Structure
 ```
 apps/
-  api/              # Node.js + TypeScript + Express backend
-  mobile/           # React Native + Expo
+  api/              # Express API + Vercel serverless entry (api/index.ts)
+  miniapp/          # Telegram Mini App — NOT YET BUILT (Crossover Task 5)
+  mobile/           # ARCHIVED — React Native + Expo. No new features.
+                    #   Still in workspaces/turbo until Task 7 removes it.
 packages/
   types/            # Shared TypeScript types (never duplicate across apps)
+  design/           # Design tokens — colors, spacing, type scale
 ```
+
+Both `packages/*` compile to `dist/` and must be built before consuming workspaces typecheck.
 
 ## Environment Variables
 
@@ -41,23 +46,25 @@ packages/
 DATABASE_URL=                                       # Neon connection string (pooled for app runtime; direct for migrations)
 DEFAULT_USER_ID=                                    # seeded user UUID, set after first migration
 AUTH_ENABLED=false
-NODE_ENV=development
+NODE_ENV=development                                # NEVER set this on Vercel — see Known Gotchas
 PORT=3001
 NWS_USER_AGENT=weatherteam6/1.0 your@email.com
-TELEGRAM_BOT_TOKEN=                                 # Telegram bot token (alerts + /api/telegram/webhook)
+TELEGRAM_BOT_TOKEN=                                 # bot token (alerts + /api/telegram/webhook); never reaches a client bundle
 TELEGRAM_CHAT_ID=                                   # single-user chat id — the bot's auth boundary
 CRON_SECRET=                                        # gates POST /api/cron/check-alerts; treat as a credential
-TOMORROW_IO_API_KEY=
-RAINVIEWER_KEY=
-SHADEMAP_KEY=
+EXPO_PUBLIC_SHADEMAP_KEY=                           # archived — apps/mobile only
 R2_ACCOUNT_ID=
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
 R2_BUCKET_NAME=
 API_BASE_URL=                                       # server-side base URL (Vercel)
 LOG_LEVEL=                                          # pino log level; defaults to info (prod) / debug (dev)
-EXPO_PUBLIC_API_BASE_URL=                           # read by mobile at bundle time (apps/mobile/src/lib/api.ts)
+EXPO_PUBLIC_API_BASE_URL=                           # archived — read by mobile at bundle time
 ```
+
+The Mini App will add `VITE_API_BASE_URL` when `apps/miniapp` is built (Crossover Task 5).
+`TOMORROW_IO_API_KEY` and `RAINVIEWER_KEY` are **not** in `.env.example` — Tomorrow.io was
+replaced by ACIS in Phase 11, and RainViewer's key is unused by the current code.
 
 ## Non-Negotiable Rules
 - TypeScript strict mode everywhere. No `any`.

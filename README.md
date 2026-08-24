@@ -19,7 +19,7 @@ Conditions are scored from five weighted components — drying time, upcoming ra
 | Background work | **No queue.** Live per-request compute, plus one HTTP cron endpoint on an external schedule |
 | Monorepo | Turborepo |
 
-`apps/mobile` (React Native + Expo) is **archived** as of 2026-07-31 — superseded by the Mini App. Code retained, out of the build, no new features.
+`apps/mobile` (React Native + Expo) is **archived** as of 2026-07-31 — superseded by the Mini App. Do not add features to it. Note it is still wired into the workspace and Turborepo pipeline; removing it from the build is Crossover Task 7, not yet done. (That's also why CI currently fails on an `apps/mobile` ESLint error unrelated to any change.)
 
 ## Layout
 
@@ -62,7 +62,7 @@ npm run db:migrate  # apply pending migrations
 | Review before committing | `.claude/rules/review-checklist.md` |
 | See where things stand | `.claude/docs/session-notes.md` |
 
-Documents describing the archived React Native app carry an ⚠️ banner at the top. If you don't see one, the document is current.
+Documents describing the archived React Native app carry an ⚠️ banner at the top. Absence of a banner means the document is *maintained*, not that every line is current — long reference docs can still carry stale passages, so trust the code over the prose when they disagree.
 
 ## Configuration
 

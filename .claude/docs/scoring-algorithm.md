@@ -121,7 +121,12 @@ Also force confidence = 'low' if forecast_date >= 7 days out (7-14 days is the l
 0-19:    Do Not Climb
 ```
 
-## score_breakdown Shape (stored in conditions_scores.score_breakdown)
+## score_breakdown Shape
+
+Returned in the API response. **Not persisted** — `conditions_scores` has no writer since
+the `forecast-snapshot` job was removed; scores are computed live per request. The
+authoritative type is `ScoreBreakdown` in `packages/types`; if this doc and that type
+disagree, the type wins.
 ```typescript
 {
   drying: {
@@ -129,7 +134,9 @@ Also force confidence = 'low' if forecast_date >= 7 days out (7-14 days is the l
     hours_since_rain: number,
     hours_remaining: number,
     rock_type: string,
-    modifiers: { angle: number, shade: number, wind: number, humidity: number }
+    modifiers: { angle: number, wind: number, humidity: number }
+    // NOTE: no `shade` modifier — aspect/sun-exposure was specced but never implemented.
+    // ScoreBreakdown in packages/types is authoritative.
   },
   rain: {
     score: number,

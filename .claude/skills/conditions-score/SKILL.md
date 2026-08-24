@@ -8,45 +8,38 @@ description: Use when implementing or modifying the conditions quality score cal
 Always read `.claude/docs/scoring-algorithm.md` before implementing. This skill covers the code structure only.
 
 ## File Location
-`apps/api/src/lib/scoring/`
+`apps/api/src/lib/scoring/` — the actual layout:
 
 ```
 scoring/
-  index.ts           # main computeScore() export
-  drying.ts          # drying time calculation + modifiers
-  components.ts      # rain, wind, temp, humidity component scores
-  confidence.ts      # ensemble spread → confidence label
-  types.ts           # ScoreInput, ScoreOutput, ScoreBreakdown types
+  conditionsScore.ts   # conditionsScore(input: ScoreInput): ScoreOutput — the 5 components
+  dryingModel.ts       # dryingModel(input): hours since significant rain, dryness estimate
+  liveForecast.ts      # computeLiveForecast(location) — orchestration: fetch, score, return
+  climbabilityHistory.ts
 ```
+
+Types (`ScoreInput`, `ScoreOutput`, `ScoreBreakdown`) live in **`packages/types`**, not in
+a local `types.ts`. Never redeclare them here — shared types are single-source by rule.
 
 ## Main Function Signature
 ```typescript
-// scoring/index.ts
-import type { ScoreInput, ScoreOutput } from './types'
+// apps/api/src/lib/scoring/conditionsScore.ts
+import type { ScoreInput, ScoreOutput } from '@weatherteam6/types'
 
-export async function computeScore(input: ScoreInput): Promise<ScoreOutput> {
-  const drying = computeDryingScore(input)
-  const rain = computeRainScore(input)
-  const wind = computeWindScore(input)
-  const temp = computeTempScore(input)
-  const humidity = computeHumidityScore(input)
-  const confidence = computeConfidence(input)
-
-  const total = Math.min(100, Math.max(0,
-    drying.score + rain.score + wind.score + temp.score + humidity.score
-  ))
-
-  return {
-    score: total,
-    confidence,
-    breakdown: { drying, rain, wind, temp, humidity, total, confidence, computed_at: new Date().toISOString() }
-  }
-}
+// Synchronous and pure — no I/O, no persistence. All five components are computed
+// inline in this one function, not delegated to per-component modules.
+export function conditionsScore(input: ScoreInput): ScoreOutput
 ```
+
+Returns `score: null` with zeroed components when the forecast window is `'pre'`
+(>14 days out) — a null score means "too far out to score", not "unclimbable".
+
+Callers get here through `computeLiveForecast()` in `liveForecast.ts`, which does the
+fetching and calls this per forecast day.
 
 ## Input Type
 ```typescript
-// scoring/types.ts
+// packages/types — NOT a local types.ts
 export type ScoreInput = {
   rockType: 'sandstone' | 'limestone' | 'granite' | 'basalt' | 'unknown'
   cliffAngle: number           // degrees from vertical (0 = vertical, 90 = slab)
@@ -62,7 +55,6 @@ export type ScoreInput = {
   forecastHighC: number
   currentHumidityPct: number
   forecastDateDaysOut: number  // how far out is this forecast
-  sunExposureHours: number     // from suncalc shade window
 }
 ```
 
@@ -79,7 +71,10 @@ const BASE_DRY_HOURS = {
 
 function applyModifiers(base: number, input: ScoreInput): number {
   let hours = base
-  if (input.maxWindKmh24h > 20) hours *= 0.8        // wind accelerates drying
+  if (input.currentWindKmh > 20) hours *= 0.8       // wind accelerates drying
+  // NOTE: implementation keys off currentWindKmh, not maxWindKmh24h. Today both are
+  // passed the same value by liveForecast.ts, so the distinction is inert — but don't
+  // assume maxWindKmh24h is what drives the drying modifier.
   if (input.currentHumidityPct > 80) hours *= 1.3   // high humidity slows drying
   // cliffAngle = degrees from vertical. 0 = vertical wall (drains fast), 90 = flat slab (drains slow).
   // Higher angle = more slab = slower drainage = longer drying time. This is correct.

@@ -3,9 +3,10 @@
 Read this at the start of every session. These decisions are final unless explicitly overridden by the user.
 
 ## Monorepo Structure
-- Turborepo. Two apps: `apps/api`, `apps/mobile`. One shared package: `packages/types`.
+- Turborepo. Apps: `apps/api` (live), `apps/miniapp` (planned — Crossover Task 5), `apps/mobile` (archived, still in the workspace until Task 7). Shared packages: `packages/types`, `packages/design`.
 - Shared TypeScript types live in `packages/types` only. Never duplicate type definitions across apps.
-- `apps/api` imports from `packages/types`. `apps/mobile` imports from `packages/types`.
+- Design tokens live in `packages/design` only. Never redefine colors, spacing, or type scale in an app.
+- Both shared packages compile to `dist/` and must be built before consuming workspaces typecheck.
 
 ## Backend Patterns
 - Express route handlers are thin. Business logic lives in `src/lib/`, not in route files.
