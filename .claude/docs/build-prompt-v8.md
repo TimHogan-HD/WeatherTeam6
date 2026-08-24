@@ -1,4 +1,15 @@
 # WeatherTeam6: Claude Code Build Prompt
+
+> ## ⚠️ HISTORICAL — the original build prompt, superseded in several places
+>
+> This produced phases 0-13 and is kept for provenance. Significant parts are now wrong:
+> the BullMQ/Redis queues described here were removed, Railway was replaced by Vercel +
+> Neon, and the React Native client is archived in favour of a Telegram Mini App.
+>
+> Do not follow this document for new work. Current direction:
+> `docs/handoffs/telegram-crossover-v4.md`. Current architecture rules:
+> `.claude/rules/architecture.md`.
+
 Version: v8
 Date: 2026-05-22
 Status: Ready for Handoff

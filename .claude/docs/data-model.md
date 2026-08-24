@@ -2,22 +2,43 @@
 
 Read this before any database work. This is the source of truth for the schema.
 
+## ⚠️ Four tables currently have no writer
+
+The Telegram Crossover migration (PR #20) deleted the BullMQ workers that populated these. The tables still exist and are still read — they just never fill up. **Do not assume a query against them returns data.**
+
+| Table | Status |
+|-------|--------|
+| `forecast_snapshots` | **Intentionally dead.** Forecasts are computed live per request (`lib/scoring/liveForecast.ts`). Nothing writes here by design. |
+| `conditions_scores` | **Intentionally dead.** Same — scores are computed live and returned in-memory. |
+| `crag_climbability_history` | **Unintentionally dead — see issue #25.** The `rainfallHistory` worker's backfill branch was its only writer. `GET /locations/:id/history` therefore returns `[]` forever. |
+| `location_normals` | **Unintentionally dead — see issue #25.** Same worker was the only writer. `GET /locations/:id/normals` returns `[]` forever. |
+
+`rainfall_history` is also no longer written on a schedule; recent precipitation is fetched live per request instead (ACIS when the location has an `asos_station`, else Open-Meteo's archive API).
+
+Migrations are at `0006` (`weather_alerts.notified_at`). Note `weather_alerts.notified_at` lives on the row, so **any code path that deletes and re-inserts alert rows also resets notification dedup state** — see issue #26.
+
 ## Table List (in dependency order)
 ```
 users
 locations
 crags
 rainfall_history
-forecast_snapshots
-conditions_scores
+forecast_snapshots      -- no writer (by design)
+conditions_scores       -- no writer (by design)
 trips
 trip_locations
-crag_climbability_history
+crag_climbability_history   -- no writer (regression, issue #25)
 conditions_reports
 premium_pulls
+location_normals        -- no writer (regression, issue #25)
 push_tokens
 user_preferences
+walls
+weather_alerts
 ```
+
+16 tables. `walls`, `location_normals`, and `weather_alerts` were added after the
+original 13-table spec (migrations 0002, 0003, 0005).
 
 ## Tables
 
@@ -27,7 +48,7 @@ id          uuid PK default gen_random_uuid()
 name        text
 created_at  timestamptz default now()
 ```
-Single row in production. Seeded on first deploy. UUID stored as `DEFAULT_USER_ID` in Railway env.
+Single row in production. Seeded on first deploy. UUID stored as `DEFAULT_USER_ID` in the Vercel project's environment variables (currently `00000000-0000-0000-0000-000000000001`).
 
 ### locations
 User-saved locations (crags or general weather spots).
@@ -37,7 +58,7 @@ user_id         uuid FK → users.id
 name            text
 lat             numeric
 lon             numeric
-is_crag         boolean default false
+is_climbing_location  boolean default false   -- renamed from is_crag
 rock_type       text    -- 'sandstone' | 'limestone' | 'granite' | 'basalt' | null
 aspect          text    -- wall facing direction e.g. 'NW', used for shade calc
 cliff_angle     numeric -- degrees from vertical, used for drying calc
@@ -78,7 +99,7 @@ UNIQUE(location_id, date)
 ```
 
 ### forecast_snapshots
-Point-in-time forecast captures. Retained 30 days, pruned by snapshot-cleanup job.
+Point-in-time forecast captures. **No longer written** — the `forecast-snapshot` job and the `snapshot-cleanup` job that pruned this table were both deleted. Forecasts are computed live per request in `lib/scoring/liveForecast.ts` and returned in-memory.
 ```typescript
 id              uuid PK
 location_id     uuid FK → locations.id
@@ -96,11 +117,11 @@ created_at      timestamptz default now()
 ```
 
 ### conditions_scores
-Computed conditions score per location. Recalculated by forecast-snapshot job.
+Computed conditions score per location. **No longer written** — scores are computed live per request in `lib/scoring/liveForecast.ts` and returned in-memory, never persisted.
 ```typescript
 id              uuid PK
 location_id     uuid FK → locations.id
-scored_at       timestamptz
+computed_at     timestamptz
 score           int         -- 0-100
 confidence      text        -- 'high' | 'medium' | 'low'
 drying_hours_remaining  numeric
@@ -122,7 +143,8 @@ User trip projects with forecast tracking.
 id          uuid PK
 user_id     uuid FK → users.id
 name        text
-target_date date
+start_date  date
+end_date    date
 notes       text
 created_at  timestamptz default now()
 ```
@@ -183,6 +205,58 @@ user_id     uuid FK → users.id
 token       text UNIQUE
 created_at  timestamptz default now()
 ```
+
+### walls
+Individual walls within a climbing location (added migration 0003).
+```typescript
+id              uuid PK
+location_id     uuid FK → locations.id
+user_id         uuid FK → users.id
+name            text
+aspect_deg      int         -- 0-359, wall facing direction
+aspect_source   text        -- how aspect was determined
+angle_deg       int         -- degrees from vertical
+angle_band      text        -- categorical band
+route_count     int
+created_at      timestamptz default now()
+updated_at      timestamptz
+```
+
+### location_normals
+30-year ACIS gridded climatological normals per location per month (added migration 0005).
+**No writer — see issue #25.**
+```typescript
+id                  uuid PK
+location_id         uuid FK → locations.id
+month               int     -- 1-12
+precip_normal_mm    numeric
+temp_max_normal_c   numeric
+temp_min_normal_c   numeric
+source              text default 'acis_grid_91_20'
+fetched_at          timestamptz default now()
+UNIQUE(location_id, month)
+```
+
+### weather_alerts
+Active NWS alerts per location (added migration 0002; `notified_at` added 0006).
+```typescript
+id              uuid PK
+location_id     uuid FK → locations.id
+nws_alert_id    text
+event           text
+severity        text
+certainty       text
+headline        text
+description     text
+effective       timestamptz
+expires         timestamptz
+notified_at     timestamptz -- NULL until sent to Telegram; the dedup key
+created_at      timestamptz default now()
+UNIQUE(location_id, nws_alert_id)
+```
+Written by `runAlertsCheck()` in `lib/alerts/checkAlerts.ts`, driven by
+`POST /api/cron/check-alerts`. **`notified_at` lives on the row**, so pruning and
+re-inserting a row resets its notification state — see issue #26.
 
 ### user_preferences
 ```typescript

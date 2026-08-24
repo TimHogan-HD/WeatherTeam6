@@ -8,45 +8,38 @@ description: Use when implementing or modifying the conditions quality score cal
 Always read `.claude/docs/scoring-algorithm.md` before implementing. This skill covers the code structure only.
 
 ## File Location
-`apps/api/src/lib/scoring/`
+`apps/api/src/lib/scoring/` — the actual layout:
 
 ```
 scoring/
-  index.ts           # main computeScore() export
-  drying.ts          # drying time calculation + modifiers
-  components.ts      # rain, wind, temp, humidity component scores
-  confidence.ts      # ensemble spread → confidence label
-  types.ts           # ScoreInput, ScoreOutput, ScoreBreakdown types
+  conditionsScore.ts   # conditionsScore(input: ScoreInput): ScoreOutput — the 5 components
+  dryingModel.ts       # dryingModel(input): hours since significant rain, dryness estimate
+  liveForecast.ts      # computeLiveForecast(location) — orchestration: fetch, score, return
+  climbabilityHistory.ts
 ```
+
+Types (`ScoreInput`, `ScoreOutput`, `ScoreBreakdown`) live in **`packages/types`**, not in
+a local `types.ts`. Never redeclare them here — shared types are single-source by rule.
 
 ## Main Function Signature
 ```typescript
-// scoring/index.ts
-import type { ScoreInput, ScoreOutput } from './types'
+// apps/api/src/lib/scoring/conditionsScore.ts
+import type { ScoreInput, ScoreOutput } from '@weatherteam6/types'
 
-export async function computeScore(input: ScoreInput): Promise<ScoreOutput> {
-  const drying = computeDryingScore(input)
-  const rain = computeRainScore(input)
-  const wind = computeWindScore(input)
-  const temp = computeTempScore(input)
-  const humidity = computeHumidityScore(input)
-  const confidence = computeConfidence(input)
-
-  const total = Math.min(100, Math.max(0,
-    drying.score + rain.score + wind.score + temp.score + humidity.score
-  ))
-
-  return {
-    score: total,
-    confidence,
-    breakdown: { drying, rain, wind, temp, humidity, total, confidence, computed_at: new Date().toISOString() }
-  }
-}
+// Synchronous and pure — no I/O, no persistence. All five components are computed
+// inline in this one function, not delegated to per-component modules.
+export function conditionsScore(input: ScoreInput): ScoreOutput
 ```
+
+Returns `score: null` with zeroed components when the forecast window is `'pre'`
+(>14 days out) — a null score means "too far out to score", not "unclimbable".
+
+Callers get here through `computeLiveForecast()` in `liveForecast.ts`, which does the
+fetching and calls this per forecast day.
 
 ## Input Type
 ```typescript
-// scoring/types.ts
+// packages/types — NOT a local types.ts
 export type ScoreInput = {
   rockType: 'sandstone' | 'limestone' | 'granite' | 'basalt' | 'unknown'
   cliffAngle: number           // degrees from vertical (0 = vertical, 90 = slab)
@@ -62,7 +55,6 @@ export type ScoreInput = {
   forecastHighC: number
   currentHumidityPct: number
   forecastDateDaysOut: number  // how far out is this forecast
-  sunExposureHours: number     // from suncalc shade window
 }
 ```
 
@@ -79,7 +71,10 @@ const BASE_DRY_HOURS = {
 
 function applyModifiers(base: number, input: ScoreInput): number {
   let hours = base
-  if (input.maxWindKmh24h > 20) hours *= 0.8        // wind accelerates drying
+  if (input.currentWindKmh > 20) hours *= 0.8       // wind accelerates drying
+  // NOTE: implementation keys off currentWindKmh, not maxWindKmh24h. Today both are
+  // passed the same value by liveForecast.ts, so the distinction is inert — but don't
+  // assume maxWindKmh24h is what drives the drying modifier.
   if (input.currentHumidityPct > 80) hours *= 1.3   // high humidity slows drying
   // cliffAngle = degrees from vertical. 0 = vertical wall (drains fast), 90 = flat slab (drains slow).
   // Higher angle = more slab = slower drainage = longer drying time. This is correct.
@@ -89,22 +84,26 @@ function applyModifiers(base: number, input: ScoreInput): number {
 }
 ```
 
-## Persisting the Score
-Write to `conditions_scores` table after computing. Called by `forecast-snapshot` job:
+## Scores are NOT persisted
+
+**The `forecast-snapshot` job that used to write `conditions_scores` was deleted** in the Telegram Crossover migration (PR #20). Scores are computed **live, per request**, and returned in-memory — nothing is written to `conditions_scores` or `forecast_snapshots` anymore. Those tables still exist in the schema but have no writer.
+
+The orchestration lives in `apps/api/src/lib/scoring/liveForecast.ts`:
+
 ```typescript
-await db.delete(conditionsScores).where(eq(conditionsScores.locationId, locationId))
-await db.insert(conditionsScores).values({
-  locationId,
-  scoredAt: new Date(),
-  score: output.score,
-  confidence: output.confidence,
-  scoreBreakdown: output.breakdown,
-  // ... individual component fields
-})
+// Called directly from GET /conditions/:id, GET /forecast/:id,
+// GET /trips/:id/forecast, and the Telegram bot's /conditions command.
+const { snapshots, scores } = await computeLiveForecast(location)
 ```
+
+`computeLiveForecast` synthesizes `id` fields as `` `${locationId}:${date}` `` since nothing is persisted — **do not treat these as stable or lookupable** across requests.
+
+If you ever need persistence back (caching, history), that is a design change — read `.claude/rules/architecture.md` § Background Jobs first, and do not reintroduce a queue to do it.
 
 ## Gotchas
 - `forecastDateDaysOut` must force `confidence = 'low'` when >7, regardless of spread
 - Score = 0 does not mean "no data" — use null for missing data, 0 for genuinely unclimbable
 - `hoursSinceRain` should be 0 if it is currently raining, not negative
-- Always clamp final score between 0 and 100 before persisting
+- Always clamp the final score between 0 and 100
+- **Known issue #21:** the temp component is capped at 12 of 100 points, so a location at 39.9°C (unclimbable) still scores ~85. The plain-language label then reads "looks great — go climb", which also violates the locked copy rules in `docs/handoffs/weatherteam6-ui-handoff-v1.md` (no climbing opinions; score is never the headline). Don't propagate that framing into new surfaces.
+- **Known issue:** `computeLiveForecast` derives current wind/temp/humidity once from *today's* forecast day and reuses them for every future day, so a day-7 score's wind/temp/humidity components describe today's weather, not day 7's.

@@ -43,40 +43,45 @@ v8 defines `breakdown: ScoreBreakdown` (not nullable) but the Phase 3 stub retur
 
 ## Repo State
 
-- `apps/api/`, `apps/mobile/`, `packages/types/` — do not exist
-- No `package.json`, `turbo.json`, `.env.example`
-- Documentation complete: `.claude/docs/`, `.claude/rules/`, `.claude/skills/`
+> The block below described the repo at the time this plan was written (empty).
+> **Current state:** phases 0–13 plus Crossover Tasks 1–4 are built and deployed.
+> `apps/api` is live on Vercel + Neon, `apps/mobile` is archived, `apps/miniapp` does
+> not exist yet. See `.claude/docs/session-notes.md` for the running record.
 
 ---
 
 ## Key Design Decisions
 
 1. **13 tables** — schema matches v8 spec. data-model.md column names that differ from v8 (`is_crag` → `is_climbing_location`, `scored_at` → `computed_at`) follow v8.
-2. **`conditions_scores` has NO unique constraint** — INSERT not upsert. Multiple rows per `(location_id, forecast_date)` accumulate for evolution tracking.
+2. ~~**`conditions_scores` has NO unique constraint**~~ — moot: nothing writes to `conditions_scores` anymore. Scores are computed live and returned in-memory.
 3. **`dryingModel()` scope** — only inputs: `rock_type, cliff_angle, rainfall_events, as_of`. Wind + humidity modifiers live in `conditionsScore.ts`.
-4. **Aspect conversion** — `aspectToDegrees()` called once in the forecast-snapshot job. `conditionsScore` receives pre-converted `aspectDegrees: number`.
+4. **Aspect conversion** — `aspectToDegrees()` called once in `lib/scoring/liveForecast.ts` (formerly the forecast-snapshot job). `conditionsScore` receives pre-converted `aspectDegrees: number`.
 5. **Forecast window** — computed at read time from `(forecast_date - CURRENT_DATE)`, never stored.
-6. **`GET /conditions/:locationId`** — latest row by `computed_at DESC` for today's `forecast_date`.
-7. **Evolution query** — uses `computed_at` (not `captured_at`).
-8. **Alerts-poller** — fetches all locations by lat/lon, no nws_office filter.
-9. **Mobile screen** — `location/[id].tsx` (not `crag/[id].tsx`).
+6. **`GET /conditions/:locationId`** — computes live via `computeLiveForecast()` and returns today's score. (Was: latest persisted row by `computed_at DESC`.)
+7. ~~**Evolution query**~~ — moot: forecast evolution tracking depended on accumulated `conditions_scores` rows, which are no longer written.
+8. **Alerts check** — fetches all locations by lat/lon, no nws_office filter. Now `runAlertsCheck()` behind `POST /api/cron/check-alerts`, not a queue worker.
+9. ~~**Mobile screen**~~ — `apps/mobile` is archived. The Mini App's routing is defined in its own design spec (Phase B0).
 10. **Geocoding** — out of scope. Climbing search via `crags` table only. Non-climbing locations require known lat/lon.
 11. **`crag_climbability_history`** — no `avg_precip_mm` column (data-model.md is stale here).
 12. **`premium_pulls`** — includes `raw_response jsonb` (v8 adds this, used to cache Tomorrow.io response).
 
 ---
 
-## .env.example Keys (exact, from v8)
+## .env.example Keys
+
+`.env.example` at the repo root is authoritative — this list is a convenience copy and
+can drift. `REDIS_URL` and `ADMIN_PASSWORD` were **removed** with BullMQ and Bull Board.
 
 ```
-DATABASE_URL=
-REDIS_URL=
+DATABASE_URL=          # Neon: pooled for runtime, direct for migrations
 DEFAULT_USER_ID=
 AUTH_ENABLED=false
-ADMIN_PASSWORD=
 NODE_ENV=development
 PORT=3001
 NWS_USER_AGENT=weatherteam6/1.0 your@email.com
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+CRON_SECRET=
 TOMORROW_IO_API_KEY=
 RAINVIEWER_KEY=
 SHADEMAP_KEY=
@@ -85,6 +90,7 @@ R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
 R2_BUCKET_NAME=
 API_BASE_URL=
+LOG_LEVEL=
 ```
 
 ---

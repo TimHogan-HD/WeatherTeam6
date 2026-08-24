@@ -1,4 +1,18 @@
 # WeatherTeam6: UI Build Handoff
+
+> ## ⚠️ PARTIALLY IN FORCE — read this first
+>
+> Written for the React Native app, which is **archived**. Its per-screen phases (7b, 7c,
+> 7e, 7f, 8-12) describe mobile screens that are no longer being built.
+>
+> **§Design System is still in force and client-agnostic** — the locked contrast rules,
+> layout constants, and copy rules apply to the Telegram Mini App exactly as written.
+> §7b (Home), §7c (Location Detail) and §7e (Locations) remain the closest existing specs
+> to the Mini App's two screens and should be mined, not ignored.
+>
+> The Mini App's own spec (`docs/handoffs/miniapp-design-v1.md`) does not exist yet — it is
+> the Phase B0 deliverable in `.claude/docs/plan.md`.
+
 Version: v1
 Date: 2026-06-11
 Status: Ready for Handoff

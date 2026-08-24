@@ -1,5 +1,15 @@
 # Phase 13 — Historical Climbability Patterns Implementation Plan
 
+> ## ⚠️ ARCHIVED — describes the React Native app, which is no longer being built
+>
+> Direction changed **2026-07-31**: WeatherTeam6 is now a Telegram bot + Telegram Mini App.
+> `apps/mobile` is archived and out of the build. This document is retained as a historical
+> record of the mobile-era design and **must not be used as a spec for new work**.
+>
+> Current direction: `docs/handoffs/telegram-crossover-v4.md`. Current roadmap:
+> `.claude/docs/plan.md`.
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Populate monthly climbable-day history per climbing location from 10 years of ACIS gridded precip data, expose it via `GET /locations/:id/history`, and display a seasonal bar chart on the Location Detail screen.

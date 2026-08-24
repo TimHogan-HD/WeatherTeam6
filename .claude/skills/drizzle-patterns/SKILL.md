@@ -93,15 +93,26 @@ npm run db:migrate    # applies pending migrations to DB
 ```
 
 ## DB Client Setup
-`apps/api/src/db/index.ts`:
+`apps/api/src/db/index.ts` — Neon serverless, **WebSocket** driver:
 ```typescript
-import { drizzle } from 'drizzle-orm/node-postgres'
-import { Pool } from 'pg'
-import * as schema from './schema'
+import { neonConfig, Pool } from '@neondatabase/serverless'
+import { drizzle } from 'drizzle-orm/neon-serverless'
+import ws from 'ws'
+import * as schema from './schema.js'
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+// Node runtime has no native WebSocket; Neon's driver needs one.
+neonConfig.webSocketConstructor = ws
+
+export const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 export const db = drizzle(pool, { schema })
 ```
+
+**Do not "simplify" this to `drizzle-orm/neon-http`.** `apps/api/src/routes/trips.ts` uses an interactive `db.transaction()` (insert a trip, read back its generated id, insert dependent rows). The HTTP driver only supports pre-batched, non-interactive transactions and cannot express that without rewriting the route.
+
+**Do not use `pg` / `node-postgres`.** Standard TCP pooling does not work correctly from Vercel serverless functions.
+
+### Migrations cannot run from the cloud dev sandbox
+`drizzle-kit` auto-detects `@neondatabase/serverless` and uses its WebSocket driver regardless of app code. This environment's egress proxy blocks that (403), and Neon's HTTP SQL API host is not allowlisted either. **Run `npm run db:migrate` from an unrestricted machine**, or widen the environment's allowlist to `*.aws.neon.tech`.
 
 ## drizzle.config.ts (repo root of apps/api)
 ```typescript

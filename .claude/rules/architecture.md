@@ -3,15 +3,17 @@
 Read this at the start of every session. These decisions are final unless explicitly overridden by the user.
 
 ## Monorepo Structure
-- Turborepo. Two apps: `apps/api`, `apps/mobile`. One shared package: `packages/types`.
+- Turborepo. Apps: `apps/api` (live), `apps/miniapp` (planned — Crossover Task 5), `apps/mobile` (archived, still in the workspace until Task 7). Shared packages: `packages/types`, `packages/design`.
 - Shared TypeScript types live in `packages/types` only. Never duplicate type definitions across apps.
-- `apps/api` imports from `packages/types`. `apps/mobile` imports from `packages/types`.
+- Design tokens live in `packages/design` only. Never redefine colors, spacing, or type scale in an app.
+- Both shared packages compile to `dist/` and must be built before consuming workspaces typecheck.
 
 ## Backend Patterns
 - Express route handlers are thin. Business logic lives in `src/lib/`, not in route files.
 - Weather fetch functions live in `apps/api/src/lib/weather/` — one file per source.
-- Scoring logic lives in `apps/api/src/lib/scoring/`.
-- BullMQ job definitions live in `apps/api/src/jobs/`.
+- Scoring logic lives in `apps/api/src/lib/scoring/` — orchestration in `liveForecast.ts`, pure math in `conditionsScore.ts` / `dryingModel.ts`.
+- **There is no `apps/api/src/jobs/`.** It was deleted with BullMQ. Scheduled work is an HTTP route under `/api/cron/*` with its logic in `src/lib/` — see § Background Jobs.
+- Telegram helpers live in `apps/api/src/lib/telegram/`; alert fetch/upsert/notify logic in `apps/api/src/lib/alerts/`.
 - Auth middleware lives in `apps/api/src/middleware/auth.ts` — `resolveUser` is the only auth function.
 - Route error/validation helpers live in `apps/api/src/lib/http.ts`. Handlers validate `uuid` route params with `isUuid` (return 404, not a Postgres 500) and funnel caught errors through `sendServerError` — never hand-roll `err.message` into the response, which leaks DB internals.
 
