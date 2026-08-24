@@ -1,5 +1,15 @@
 # Plan: Phase 7b (Home) + Phase 7c (Location Detail)
 
+> ## ⚠️ ARCHIVED — describes the React Native app, which is no longer being built
+>
+> Direction changed **2026-07-31**: WeatherTeam6 is now a Telegram bot + Telegram Mini App.
+> `apps/mobile` is archived and out of the build. This document is retained as a historical
+> record of the mobile-era design and **must not be used as a spec for new work**.
+>
+> Current direction: `docs/handoffs/telegram-crossover-v4.md`. Current roadmap:
+> `.claude/docs/plan.md`.
+
+
 ## Context
 WeatherTeam6 mobile app (React Native + Expo, Expo Router). Phase 7 previously produced React Query infra, an API client, and a basic home/location-detail shell. That shell needs to be replaced with weather-first screens that match the handoff spec.
 

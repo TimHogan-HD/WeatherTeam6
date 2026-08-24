@@ -1,5 +1,15 @@
 # Handoff: WeatherTeam6 — Radar, Walls & Trip Creation
 
+> ## ⚠️ ARCHIVED — describes the React Native app, which is no longer being built
+>
+> Direction changed **2026-07-31**: WeatherTeam6 is now a Telegram bot + Telegram Mini App.
+> `apps/mobile` is archived and out of the build. This document is retained as a historical
+> record of the mobile-era design and **must not be used as a spec for new work**.
+>
+> Current direction: `docs/handoffs/telegram-crossover-v4.md`. Current roadmap:
+> `.claude/docs/plan.md`.
+
+
 ## Overview
 WeatherTeam6 is a **climbing-specific weather app** (React Native + Expo front end; Node/TypeScript + Postgres back end). It tells a climber whether a crag is climbable now, over the next 7 days, and helps plan trips weeks out as forecast confidence builds. **Weather data always leads; the climbing score is a derived signal, never the headline.**
 

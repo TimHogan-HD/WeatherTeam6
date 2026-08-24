@@ -54,7 +54,7 @@ v8 defines `breakdown: ScoreBreakdown` (not nullable) but the Phase 3 stub retur
 1. **13 tables** — schema matches v8 spec. data-model.md column names that differ from v8 (`is_crag` → `is_climbing_location`, `scored_at` → `computed_at`) follow v8.
 2. **`conditions_scores` has NO unique constraint** — INSERT not upsert. Multiple rows per `(location_id, forecast_date)` accumulate for evolution tracking.
 3. **`dryingModel()` scope** — only inputs: `rock_type, cliff_angle, rainfall_events, as_of`. Wind + humidity modifiers live in `conditionsScore.ts`.
-4. **Aspect conversion** — `aspectToDegrees()` called once in the forecast-snapshot job. `conditionsScore` receives pre-converted `aspectDegrees: number`.
+4. **Aspect conversion** — `aspectToDegrees()` called once in `lib/scoring/liveForecast.ts` (formerly the forecast-snapshot job). `conditionsScore` receives pre-converted `aspectDegrees: number`.
 5. **Forecast window** — computed at read time from `(forecast_date - CURRENT_DATE)`, never stored.
 6. **`GET /conditions/:locationId`** — latest row by `computed_at DESC` for today's `forecast_date`.
 7. **Evolution query** — uses `computed_at` (not `captured_at`).

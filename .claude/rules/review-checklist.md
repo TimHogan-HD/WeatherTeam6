@@ -43,10 +43,17 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] `.env` not committed — `.env.example` has all keys with blank values
 - [ ] R2 presigned URLs used for photo access — no public bucket URLs
 
-## Mobile
+## Client (Mini App)
 - [ ] No direct API calls from components — all fetches go through React Query hooks
-- [ ] No hardcoded API base URLs — use environment config
-- [ ] Expo SDK version not changed without explicit approval
+- [ ] No hardcoded API base URLs — use build-time env config (`VITE_API_BASE_URL`)
+- [ ] Colors/spacing/type come from `packages/design` — not redefined locally
+- [ ] Copy follows the locked rules in `docs/handoffs/weatherteam6-ui-handoff-v1.md` §Design System — no climbing opinions, score is never the headline, imperial units
+- [ ] `TELEGRAM_BOT_TOKEN` never reaches the client bundle — `initData` is validated server-side
+- [ ] No new features added to `apps/mobile` — it is archived
+
+## Telegram surfaces
+- [ ] Any text interpolated into a `parse_mode: 'HTML'` message is escaped (`&`, `<`, `>`) — NWS headlines and user-entered location names routinely contain them, and a malformed message is a non-retryable 400
+- [ ] Webhook auth does not rely solely on request-body fields
 
 ## General
 - [ ] No `console.log` left in committed code — use the logger

@@ -89,22 +89,26 @@ function applyModifiers(base: number, input: ScoreInput): number {
 }
 ```
 
-## Persisting the Score
-Write to `conditions_scores` table after computing. Called by `forecast-snapshot` job:
+## Scores are NOT persisted
+
+**The `forecast-snapshot` job that used to write `conditions_scores` was deleted** in the Telegram Crossover migration (PR #20). Scores are computed **live, per request**, and returned in-memory — nothing is written to `conditions_scores` or `forecast_snapshots` anymore. Those tables still exist in the schema but have no writer.
+
+The orchestration lives in `apps/api/src/lib/scoring/liveForecast.ts`:
+
 ```typescript
-await db.delete(conditionsScores).where(eq(conditionsScores.locationId, locationId))
-await db.insert(conditionsScores).values({
-  locationId,
-  scoredAt: new Date(),
-  score: output.score,
-  confidence: output.confidence,
-  scoreBreakdown: output.breakdown,
-  // ... individual component fields
-})
+// Called directly from GET /conditions/:id, GET /forecast/:id,
+// GET /trips/:id/forecast, and the Telegram bot's /conditions command.
+const { snapshots, scores } = await computeLiveForecast(location)
 ```
+
+`computeLiveForecast` synthesizes `id` fields as `` `${locationId}:${date}` `` since nothing is persisted — **do not treat these as stable or lookupable** across requests.
+
+If you ever need persistence back (caching, history), that is a design change — read `.claude/rules/architecture.md` § Background Jobs first, and do not reintroduce a queue to do it.
 
 ## Gotchas
 - `forecastDateDaysOut` must force `confidence = 'low'` when >7, regardless of spread
 - Score = 0 does not mean "no data" — use null for missing data, 0 for genuinely unclimbable
 - `hoursSinceRain` should be 0 if it is currently raining, not negative
-- Always clamp final score between 0 and 100 before persisting
+- Always clamp the final score between 0 and 100
+- **Known issue #21:** the temp component is capped at 12 of 100 points, so a location at 39.9°C (unclimbable) still scores ~85. The plain-language label then reads "looks great — go climb", which also violates the locked copy rules in `docs/handoffs/weatherteam6-ui-handoff-v1.md` (no climbing opinions; score is never the headline). Don't propagate that framing into new surfaces.
+- **Known issue:** `computeLiveForecast` derives current wind/temp/humidity once from *today's* forecast day and reuses them for every future day, so a day-7 score's wind/temp/humidity components describe today's weather, not day 7's.

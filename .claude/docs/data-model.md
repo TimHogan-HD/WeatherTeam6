@@ -2,6 +2,21 @@
 
 Read this before any database work. This is the source of truth for the schema.
 
+## ⚠️ Four tables currently have no writer
+
+The Telegram Crossover migration (PR #20) deleted the BullMQ workers that populated these. The tables still exist and are still read — they just never fill up. **Do not assume a query against them returns data.**
+
+| Table | Status |
+|-------|--------|
+| `forecast_snapshots` | **Intentionally dead.** Forecasts are computed live per request (`lib/scoring/liveForecast.ts`). Nothing writes here by design. |
+| `conditions_scores` | **Intentionally dead.** Same — scores are computed live and returned in-memory. |
+| `crag_climbability_history` | **Unintentionally dead — see issue #25.** The `rainfallHistory` worker's backfill branch was its only writer. `GET /locations/:id/history` therefore returns `[]` forever. |
+| `location_normals` | **Unintentionally dead — see issue #25.** Same worker was the only writer. `GET /locations/:id/normals` returns `[]` forever. |
+
+`rainfall_history` is also no longer written on a schedule; recent precipitation is fetched live per request instead (ACIS when the location has an `asos_station`, else Open-Meteo's archive API).
+
+Migrations are at `0006` (`weather_alerts.notified_at`). Note `weather_alerts.notified_at` lives on the row, so **any code path that deletes and re-inserts alert rows also resets notification dedup state** — see issue #26.
+
 ## Table List (in dependency order)
 ```
 users
@@ -27,7 +42,7 @@ id          uuid PK default gen_random_uuid()
 name        text
 created_at  timestamptz default now()
 ```
-Single row in production. Seeded on first deploy. UUID stored as `DEFAULT_USER_ID` in Railway env.
+Single row in production. Seeded on first deploy. UUID stored as `DEFAULT_USER_ID` in the Vercel project's environment variables (currently `00000000-0000-0000-0000-000000000001`).
 
 ### locations
 User-saved locations (crags or general weather spots).

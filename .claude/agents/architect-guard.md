@@ -12,10 +12,11 @@ When invoked, read:
 2. `.claude/docs/data-model.md`
 3. The proposed change described by the user
 
-Then answer three questions only:
+Then answer four questions only:
 1. Does this conflict with any agreed architectural decision? If yes, name the specific rule and the conflict.
 2. Does this require schema changes? If yes, list which tables are affected and what changes are needed.
-3. Does this require new background jobs or changes to existing queues? If yes, flag it — new queues require explicit approval.
+3. Does this require background work? **There is no queue** — BullMQ and Redis were removed and the API is a single Vercel serverless function, so nothing can run on an in-process schedule. Only two patterns are sanctioned: computed live per request (`lib/scoring/liveForecast.ts`) or an HTTP endpoint on an external schedule (`/api/cron/*`, gated on `CRON_SECRET`). Flag any proposal that implies a queue, worker, or scheduler.
+4. Does this add a client surface? The Mini App (`apps/miniapp`) is the only client. `apps/mobile` is archived — flag any proposal that adds features there.
 
 If no conflicts: "No architecture conflicts found. Proceed."
 If conflicts found: list them clearly and stop. Do not suggest workarounds. Let the user decide.
