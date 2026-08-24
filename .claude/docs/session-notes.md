@@ -1,6 +1,48 @@
 
 ---
 
+## 2026-08-24 — branch: claude/telegram-crossover-zero-cost-4u8b1h — commit: 3ea7301
+
+**Phase completed:** Post-migration documentation reconciliation (PRs #24, #28). No code changes.
+
+**Why this was needed:** after the Tasks 1-4 migration merged, the project's own docs still described the pre-migration architecture. `plan.md` laid out React Native phases 14a-16, `architecture.md` carried the Mobile-First Mandate, and — worst — `.claude/skills/bullmq-jobs/SKILL.md` would have auto-triggered on any job-shaped work and guided a future session into rebuilding the queue infrastructure that had just been removed.
+
+**What was built this session:**
+- `docs/handoffs/telegram-crossover-v4.md` — NEW. The authoritative Crossover spec previously existed **only in a chat transcript**. Committed with a status header recording where the implementation diverged from it (migration numbering, route prefix, WebSocket vs HTTP Neon driver, and the two internal contradictions resolved during the build).
+- `.claude/skills/bullmq-jobs/` → `background-work/` — rewritten around the two sanctioned patterns (live per-request compute; HTTP cron endpoint), the claim-before-you-act idempotency rule, and why a queue is structurally impossible on a single serverless function.
+- `skills/drizzle-patterns` — corrected from `node-postgres`/`pg` to the Neon WebSocket driver, with why `neon-http` can't be substituted and why migrations can't run from a restricted network.
+- `skills/conditions-score` — documented a five-file layout, a `computeScore()` export, and a local `types.ts` that never existed. Corrected to the real four-file layout with types in `packages/types`, plus the fact that scores are never persisted.
+- `agents/architect-guard`, `agents/code-reviewer` — stack descriptions and the "new queues require approval" question updated.
+- `rules/review-checklist` — `## Mobile` → `## Client (Mini App)`; new `## Telegram surfaces` section covering HTML escaping and webhook auth (both live bugs).
+- `docs/data-model.md` — flagged the four tables with no writer; corrected `target_date`→`start_date`/`end_date`, `scored_at`→`computed_at`, `is_crag`→`is_climbing_location`; documented `walls`, `location_normals`, `weather_alerts` (previously absent entirely).
+- `docs/plan.md`, `CLAUDE.md`, `README.md` — roadmap replaced with B0 → Tasks 5-7; env lists synced to `.env.example`; README rewritten as a real front door.
+- Eight mobile-era documents given ⚠️ banners. `weatherteam6-ui-handoff-v1.md` got a deliberately different "partially in force" banner — its per-screen phases are dead but its **§Design System is client-agnostic and still binding** for the Mini App.
+
+**Doc convention now in force:** a ⚠️ banner means mobile-era history. No banner means the doc is *maintained* — not that every line is current. Trust the code over the prose when they disagree.
+
+**Known issues / deferred work — all filed:**
+- **#25** — regression: deleting the `rainfallHistory` worker removed the only writer for `crag_climbability_history` and `location_normals`, so `/history` and `/normals` return `[]` forever. Needs a design call on where the write goes.
+- **#26** — alert path: `fetchNwsAlerts` returns `[]` (not `null`) on a malformed 200, which prunes the location's rows and destroys `notified_at` dedup state → re-send. Plus unescaped HTML in `parse_mode: 'HTML'` messages — in **two** places, not one: `formatAlertMessage` (an NWS headline containing `&` fails permanently, retrying every 15 min) *and* `conditionsReply.ts`'s `` `<b>${location.name}</b>` `` (a location named "Bear & Cub" makes `/conditions` fail with a 400 the webhook swallows, so the bot goes silent). Fixing only the alert path leaves the bot broken.
+- **#27** — hardening: bot auth reads `chat.id` from the request body (forgeable; `secret_token` is the fix), no `update_id` dedupe, and `runAlertsCheck` is serial in the way `trips.ts` was already fixed for.
+- **#21** — 104°F scores 85 and the bot says "looks great — go climb", violating two locked copy rules. **Settle inside B0**, not after — Task 6 would otherwise inherit the same framing.
+- **#22** — Open-Meteo NBM 400s on every request; always falls back to ensemble.
+- **Not filed:** `computeLiveForecast` reuses *today's* wind/temp/humidity for every future day, so a day-7 score's wind/temp/humidity describe today. Worse in the edge case: when no forecast day matches today (the feed starts tomorrow), the `?? 0` fallbacks score **every** day at 0 km/h wind and 0 °C — and 0 °C zeroes the temp component outright. A `logger.warn` for that case was restored in this session; it had been dropped when the logic moved out of `forecastSnapshot`.
+- **No test coverage** on ~480 lines of new backend logic. All 106 passing tests predate the migration.
+
+**Blockers for next session:**
+- **Task 6 is blocked on Task 5's auth work** — do not build Mini App screens before `initData` HMAC middleware exists and Vercel SSO is removed, or every call 401s. See the first gotcha below; this is a hard ordering constraint, not advice.
+- One operational item outstanding: **cron-job.org** is not yet scheduled (POST `/api/cron/check-alerts` every 15 min with `x-cron-secret` + `x-vercel-protection-bypass`). Verified working by hand; just needs registering.
+
+**What's next:** **Phase B0 — write `docs/handoffs/miniapp-design-v1.md` before any Mini App code.** Then Tasks 5 → 6 → 7. Branch off `main`. Read `docs/handoffs/telegram-crossover-v4.md` and `.claude/docs/plan.md` first.
+
+**Gotchas for next session:**
+- **The Mini App cannot reach the API as things stand.** It's a browser client with no Vercel SSO cookies, and the bypass secret can't ship in a public bundle. `initData` HMAC validation must land **in the same change** that removes SSO protection, as route-level middleware on `/api/v1/*`. SSO off without HMAC leaves the API wide open.
+- **Verify the Telegram Mini App contract before coding.** The Crossover doc warns that surface changed repeatedly through 2026. Origin lockdown also means production domain only — preview URLs will not work.
+- **`apps/mobile` is still in `workspaces` and `turbo.json`.** Archived in intent, not yet in build config — that's Task 7. It is also the cause of the standing CI lint failure (`app.config.js` → `'module' is not defined`), which fails identically on `main` and on every branch. Task 7 removes it for free.
+- Every significant bug in the migration was caught by review, not by careful writing — four of six findings in the first round, three in the second, fifteen in the docs round. Keep `/code-review` non-optional.
+
+---
+
 ## 2026-07-29 — branch: claude/telegram-crossover-zero-cost-4u8b1h — commit: 6595f9e
 
 **Phase completed:** Telegram Crossover — Backend Migration (Tasks 1-4 of the v4 zero-cost-stack handoff doc)
