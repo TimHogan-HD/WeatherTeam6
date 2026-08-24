@@ -1,6 +1,36 @@
 
 ---
 
+## 2026-08-24 — branch: claude/telegram-crossover-zero-cost-4u8b1h — commit: 37b13ed
+
+**Phase completed:** Mini App build handoff (PR #30). Docs only, no code changes.
+
+**What was built this session:**
+- `docs/handoffs/weatherteam6-miniapp-handoff-v1.md` — NEW. Standalone handoff covering Phase B0 through Crossover Tasks 5-7, written so a fresh session can start from it with no prior context. Consolidates what previously lived across `session-notes.md`, `plan.md`, and a chat transcript: current live state, all five open issues plus the unfiled day-N scoring quirk with file locations, per-phase acceptance criteria and git checkpoints, the full `/api/v1` endpoint inventory, and the environment gotchas that cost time during the migration.
+
+**Corrections the code review forced into the doc — each one was a wrong instruction a future session would have followed:**
+- **Removing Vercel SSO in B3 also exposes `POST /api/telegram/webhook`.** Its only gate is the forgeable body `chat.id`; SSO is what actually keeps strangers out today, and Telegram itself reaches it via the protection-bypass secret in the registered URL. Issue #27's `secret_token` fix is therefore part of B3, not deferred hardening. The first draft said non-`/api/v1` routes "keep their own gates", which is true of `CRON_SECRET` and false of the webhook.
+- **Task 7's turbo instruction was backwards.** The `@weatherteam6/mobile#build` override exists only to set `outputs: []`; deleting it makes the package fall through to the generic `build` task and still run `tsc --noEmit`. Lint is worse — `turbo.json` has a bare `lint: {}`, and mobile declares `eslint . --max-warnings 0`, so no turbo edit silences it. Turbo runs whatever scripts a workspace member declares. The doc now lists the three actions that would actually work and says to verify rather than assume.
+- **`VITE_API_BASE_URL` needs `turbo.json`'s `globalEnv`,** not just `.env.example` and Vercel. Miss it and turbo does not treat the variable as part of the cache key, so changing the API base URL silently reuses a bundle built against the old one.
+- **CORS will masquerade as an auth bug in B3.** `createApp()` sets a fixed `Access-Control-Allow-Headers: Content-Type, Authorization`, so a custom `X-Telegram-Init-Data` header fails preflight before the HMAC middleware ever runs.
+- **Issue #26 was described imprecisely.** The claim-and-release race is already fixed (`e2c67d3`). The live bug is the prune path: `fetchNwsAlerts` returns `[]` on a malformed 200, `runAlertsCheck` then deletes every row for that location, and `notified_at` goes with it.
+- Upstream fetch count corrected from two to three per request (NBM, ensemble fallback, rainfall), six for a detail screen loading conditions and forecast.
+
+**Known issues / deferred work:**
+- Unchanged from the previous entry. All five issues (#21, #22, #25, #26, #27) remain open, and the day-N `computeLiveForecast` quirk is still unfiled.
+- Standing CI lint failure (`apps/mobile/app.config.js` -> `'module' is not defined`) still fails identically on `main` and every branch. Re-confirmed this session with `npx eslint app.config.js`.
+
+**Blockers for next session:**
+- None new. The two carried forward still hold: Task 6 is blocked on Task 5's auth work, and cron-job.org is still unregistered.
+
+**What's next:** **Phase B0 — write `docs/handoffs/miniapp-design-v1.md` before any Mini App code.** Then Tasks 5 -> 6 -> 7. Branch off `main`. Read `docs/handoffs/weatherteam6-miniapp-handoff-v1.md` first; it points at everything else.
+
+**Gotchas for next session:**
+- The handoff doc is a build spec a session is meant to follow verbatim, so it was reviewed as executable, not as prose. Six of its load-bearing claims were wrong on first draft. If you extend it, re-check the claims against the code rather than against the doc.
+- Turbo does not decide what runs; workspace `package.json` scripts do. Any future "remove X from the build" task should start there, not in `turbo.json`.
+
+---
+
 ## 2026-08-24 — branch: claude/telegram-crossover-zero-cost-4u8b1h — commit: 3ea7301
 
 **Phase completed:** Post-migration documentation reconciliation (PRs #24, #28). No code changes.

@@ -40,7 +40,7 @@ The Telegram Crossover migration (Tasks 1-4) is finished, merged, and verified r
 | Item | Effect | Where |
 | --- | --- | --- |
 | CI lint failure | `'module' is not defined` in `apps/mobile/app.config.js`. Fails identically on `main` and every branch. Task 7 removes it for free. | `apps/mobile` |
-| Issue #26 | Alert double-send plus unescaped HTML in **two** places. Recommended first fix. | `checkAlerts.ts`, `conditionsReply.ts` |
+| Issue #26 | `fetchNwsAlerts` returns `[]` (not `null`) on a malformed 200, and `runAlertsCheck` then deletes every row for that location, wiping `notified_at` and re-sending when the alert reappears. The separate claim-and-release race is already fixed; this prune path is not. Plus unescaped HTML in **two** places. Recommended first fix. | `checkAlerts.ts:87`, `conditionsReply.ts` |
 | Issue #25 | `crag_climbability_history` and `location_normals` have no writer. `/history` and `/normals` return `[]` forever. | `locations.ts` |
 | Issue #27 | Bot auth reads forgeable `chat.id` from the body, no `update_id` dedupe, `runAlertsCheck` is serial. | `telegramWebhook.ts`, `checkAlerts.ts` |
 | Issue #21 | 104F scores 85 and the bot says "looks great, go climb". Violates two locked copy rules. **Settle inside B0.** | `conditionsScore.ts`, `conditionsReply.ts` |
@@ -115,7 +115,9 @@ The Mini App is a browser client inside Telegram's webview. The API currently si
 
 **`initData` HMAC validation is a prerequisite, not a finishing touch.** It must land in the same change that removes SSO protection from the API project. SSO off without HMAC leaves the API fully open on a public URL.
 
-Build it as **route-level middleware on `/api/v1/*`**, not per-endpoint checks. Per-endpoint is easy to half-apply, and that is exactly how auth gaps happen. The cron and webhook routes are mounted outside `/api/v1` and keep their own gates.
+Build it as **route-level middleware on `/api/v1/*`**, not per-endpoint checks. Per-endpoint is easy to half-apply, and that is exactly how auth gaps happen. The cron and webhook routes are mounted outside `/api/v1`, so the middleware will not cover them.
+
+**That is a problem, and it makes issue #27 part of B3 rather than deferred cleanup.** `POST /api/cron/check-alerts` is fine: `CRON_SECRET` is a real credential, compared with `timingSafeEqual`. `POST /api/telegram/webhook` is not. Its only gate is the `chat.id` field in the request body, which anyone can forge. Today SSO is what actually keeps strangers out, and Telegram itself gets through using the protection-bypass secret carried in the registered webhook URL. Remove SSO and that gate is all that remains. Ship #27's `secret_token` fix in the same change, or B3 trades one open door for another.
 
 **Task 6 is blocked on Task 5's auth work.** Do not build screens first and bolt auth on after.
 
@@ -148,6 +150,8 @@ Build it as **route-level middleware on `/api/v1/*`**, not per-endpoint checks. 
 - Middleware validating `Telegram.WebApp.initData` via HMAC using `TELEGRAM_BOT_TOKEN`. Token stays server-side.
 - Mount on `/api/v1/*` in `apps/api/src/index.ts`, after `resolveUser`.
 - Turn off Vercel SSO on the API project in the same change.
+- Fix #27's webhook `secret_token` in the same change (see the constraint block above).
+- **Check CORS before choosing how `initData` reaches the server.** `createApp()` sets a fixed `Access-Control-Allow-Headers: Content-Type, Authorization`. A custom header such as `X-Telegram-Init-Data` will fail preflight and present as an auth bug rather than a CORS bug. Either add the header to that list or pass `initData` in the body.
 
 **Acceptance criteria**
 
@@ -186,13 +190,20 @@ Build to the B0 spec. No design decisions get made here. If something was not se
 **What to build**
 
 - A `web_app` inline keyboard button on alert messages in `formatAlertMessage` (`apps/api/src/lib/alerts/checkAlerts.ts`), deep-linking to that location's detail screen via `startapp`.
-- Remove `apps/mobile` from `turbo.json` (the `@weatherteam6/mobile#build` override) and from workspace dev and build scripts. **Leave the code in place.** Add `apps/mobile/ARCHIVED.md` with the date and reason.
+- Remove `apps/mobile` from the build. **Leave the source in place.** Add `apps/mobile/ARCHIVED.md` with the date and reason.
+
+**Do not just delete the `@weatherteam6/mobile#build` override from `turbo.json`.** That override exists only to set `outputs: []`; deleting it makes the package fall through to the generic `build` task, which still runs its `tsc --noEmit`. The same is true of lint: `turbo.json` has a bare `lint: {}` task, and mobile's own `lint` script is `eslint . --max-warnings 0`, so no turbo edit silences it. Turbo runs whatever scripts a workspace member declares.
+
+Pick one of these instead, and verify rather than assume:
+- Narrow the root `workspaces` globs so `apps/mobile` is not a workspace member (currently `apps/*`, which would need listing members explicitly), or
+- Remove or neutralize the `build`, `lint`, `typecheck`, and `test` scripts in `apps/mobile/package.json`, or
+- Add `apps/mobile/eslint.config.mjs` overrides if the goal is only to clear the lint failure.
 
 **Acceptance criteria**
 
 - Tapping the button on an alert message opens the Mini App directly on that location's detail screen.
-- `turbo build` no longer touches `apps/mobile`.
-- CI lint is green: the `'module' is not defined` failure is gone.
+- `npm run build` output contains no `@weatherteam6/mobile` task.
+- `npm run lint` exits 0 locally, and the CI check is green for the first time since the migration. Run both before claiming this.
 
 **Git checkpoint:** commit, then confirm CI is green for the first time since the migration.
 
@@ -241,7 +252,11 @@ The Mini App's two screens need only `/locations`, `/conditions/:id`, `/forecast
 <7 days      : full conditions score active, p10/p90 bands shown
 ```
 
-**New environment variable this work adds:** `VITE_API_BASE_URL` in the new `apps/miniapp` Vercel project. Add it to `.env.example` and to the Environment Variables section of `CLAUDE.md`, which are kept in sync by rule.
+**New environment variable this work adds:** `VITE_API_BASE_URL` in the new `apps/miniapp` Vercel project. Three places need it, not one:
+
+1. `.env.example`, and the Environment Variables section of `CLAUDE.md`, which are kept in sync by rule.
+2. The `apps/miniapp` Vercel project settings.
+3. **`turbo.json`'s `globalEnv` array.** Miss this and turbo will not treat the variable as part of the cache key, so changing the API base URL silently reuses a stale bundle built against the old one. Every other runtime variable in this repo is already listed there.
 
 ---
 
@@ -264,7 +279,7 @@ The Mini App's two screens need only `/locations`, `/conditions/:id`, `/forecast
 2. **Where unit conversion lives** (B0 decision 4): client-side in the Mini App, or a shared helper in `packages/types` so the bot can use it too. The bot currently shows no units at all, which is its own small bug.
 3. **Issue #25** needs a design call on where the `crag_climbability_history` and `location_normals` writes go now that the worker that did them is gone. Options are a new `/api/cron/*` endpoint or live compute; both are sanctioned patterns.
 4. **Test coverage** has no owner yet. Highest value targets are `notifyPendingAlerts`'s claim-and-release logic (the concurrency correctness the whole alerts design rests on) and the `CRON_SECRET` comparison (the only guard on a public URL).
-5. **Caching.** `computeLiveForecast` makes two upstream fetches per request. Fine at one user; revisit if the Mini App gets real traffic.
+5. **Caching.** `computeLiveForecast` makes three upstream fetches per request in steady state: NBM (which 400s, issue #22), the ensemble fallback, and rainfall history. A detail screen that loads conditions and forecast together doubles that to six. Fine at one user; revisit if the Mini App gets real traffic, and note that fixing #22 removes one of the three for free.
 
 ---
 
