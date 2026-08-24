@@ -7,7 +7,7 @@
 
 **Why this was needed:** after the Tasks 1-4 migration merged, the project's own docs still described the pre-migration architecture. `plan.md` laid out React Native phases 14a-16, `architecture.md` carried the Mobile-First Mandate, and — worst — `.claude/skills/bullmq-jobs/SKILL.md` would have auto-triggered on any job-shaped work and guided a future session into rebuilding the queue infrastructure that had just been removed.
 
-**What was done:**
+**What was built this session:**
 - `docs/handoffs/telegram-crossover-v4.md` — NEW. The authoritative Crossover spec previously existed **only in a chat transcript**. Committed with a status header recording where the implementation diverged from it (migration numbering, route prefix, WebSocket vs HTTP Neon driver, and the two internal contradictions resolved during the build).
 - `.claude/skills/bullmq-jobs/` → `background-work/` — rewritten around the two sanctioned patterns (live per-request compute; HTTP cron endpoint), the claim-before-you-act idempotency rule, and why a queue is structurally impossible on a single serverless function.
 - `skills/drizzle-patterns` — corrected from `node-postgres`/`pg` to the Neon WebSocket driver, with why `neon-http` can't be substituted and why migrations can't run from a restricted network.
@@ -22,15 +22,16 @@
 
 **Known issues / deferred work — all filed:**
 - **#25** — regression: deleting the `rainfallHistory` worker removed the only writer for `crag_climbability_history` and `location_normals`, so `/history` and `/normals` return `[]` forever. Needs a design call on where the write goes.
-- **#26** — alert path: `fetchNwsAlerts` returns `[]` (not `null`) on a malformed 200, which prunes the location's rows and destroys `notified_at` dedup state → re-send. Plus unescaped HTML in `parse_mode: 'HTML'` messages, which fails permanently on any NWS headline containing `&`.
+- **#26** — alert path: `fetchNwsAlerts` returns `[]` (not `null`) on a malformed 200, which prunes the location's rows and destroys `notified_at` dedup state → re-send. Plus unescaped HTML in `parse_mode: 'HTML'` messages — in **two** places, not one: `formatAlertMessage` (an NWS headline containing `&` fails permanently, retrying every 15 min) *and* `conditionsReply.ts`'s `` `<b>${location.name}</b>` `` (a location named "Bear & Cub" makes `/conditions` fail with a 400 the webhook swallows, so the bot goes silent). Fixing only the alert path leaves the bot broken.
 - **#27** — hardening: bot auth reads `chat.id` from the request body (forgeable; `secret_token` is the fix), no `update_id` dedupe, and `runAlertsCheck` is serial in the way `trips.ts` was already fixed for.
 - **#21** — 104°F scores 85 and the bot says "looks great — go climb", violating two locked copy rules. **Settle inside B0**, not after — Task 6 would otherwise inherit the same framing.
 - **#22** — Open-Meteo NBM 400s on every request; always falls back to ensemble.
-- **Not filed:** `computeLiveForecast` reuses *today's* wind/temp/humidity for every future day, so a day-7 score's wind/temp/humidity describe today.
+- **Not filed:** `computeLiveForecast` reuses *today's* wind/temp/humidity for every future day, so a day-7 score's wind/temp/humidity describe today. Worse in the edge case: when no forecast day matches today (the feed starts tomorrow), the `?? 0` fallbacks score **every** day at 0 km/h wind and 0 °C — and 0 °C zeroes the temp component outright. A `logger.warn` for that case was restored in this session; it had been dropped when the logic moved out of `forecastSnapshot`.
 - **No test coverage** on ~480 lines of new backend logic. All 106 passing tests predate the migration.
 
 **Blockers for next session:**
-- None for code. One operational item outstanding: **cron-job.org** is not yet scheduled (POST `/api/cron/check-alerts` every 15 min with `x-cron-secret` + `x-vercel-protection-bypass`). Verified working by hand; just needs registering.
+- **Task 6 is blocked on Task 5's auth work** — do not build Mini App screens before `initData` HMAC middleware exists and Vercel SSO is removed, or every call 401s. See the first gotcha below; this is a hard ordering constraint, not advice.
+- One operational item outstanding: **cron-job.org** is not yet scheduled (POST `/api/cron/check-alerts` every 15 min with `x-cron-secret` + `x-vercel-protection-bypass`). Verified working by hand; just needs registering.
 
 **What's next:** **Phase B0 — write `docs/handoffs/miniapp-design-v1.md` before any Mini App code.** Then Tasks 5 → 6 → 7. Branch off `main`. Read `docs/handoffs/telegram-crossover-v4.md` and `.claude/docs/plan.md` first.
 

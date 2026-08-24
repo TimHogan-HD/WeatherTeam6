@@ -116,6 +116,15 @@ export async function computeLiveForecast(
     const lastRainMm = dryResult.last_rain_mm
 
     const todayDay = days.find((d) => d.date === todayStr)
+    if (!todayDay) {
+      // Not cosmetic: the ?? fallbacks below score EVERY day at 0 km/h wind and
+      // 0 °C, and 0 °C zeroes the temp component outright. Without this warning
+      // that degradation is invisible in the response.
+      logger.warn(
+        { locationId: location.id, todayStr },
+        '[liveForecast] no forecast day matching today — forecast may start from tomorrow; current-condition proxies will use zero defaults',
+      )
+    }
     const currentWindKmh = todayDay?.wind_kmh_max ?? 0
     const currentTempC = ((todayDay?.temp_c_min ?? 0) + (todayDay?.temp_c_max ?? 0)) / 2
     const currentHumidityPct = todayDay?.humidity_pct ?? 50
