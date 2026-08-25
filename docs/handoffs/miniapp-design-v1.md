@@ -98,7 +98,7 @@ Empty state, error state, and loading per §5. No search, no add-location, no so
 One scroll, no internal tabs — carried from the mockup's Crag Detail treatment.
 
 1. **Alert banner** — full-width, top, if any active alert. Event, severity, and the NWS headline. Above everything, always.
-2. **Today** — the hero. Today's high, max wind, humidity, and hours since rain, as labeled values.
+2. **Today** — the hero. Today's high, max wind, humidity, and hours since rain, as labeled values. **Hours since rain is capped in display — see the rule below.**
 3. **7-day forecast** — one row per day: date, high, low, wind, precipitation. **Weather only — no per-day score chip.** See the constraint below.
 4. **Score and breakdown** — last section, collapsed by default. Today's score only, with the five components and their weights. This is where a score is allowed to be prominent, because the user has scrolled to it deliberately.
 5. **Sources footer** — required by the locked rule "always quote data sources by name." **Nothing in this list may be hardcoded**, because two of the three sources vary per request:
@@ -110,6 +110,10 @@ One scroll, no internal tabs — carried from the mockup's Crag Detail treatment
    Naming a source that never ran is a false attribution, which is the precise thing the locked rule exists to prevent.
 
 **Note on maxima vs. current readings.** `temp_c_max` and `wind_kmh_max` are **daily maxima**, not present conditions — Red Rock's `39.5°C` is today's high, not the temperature right now. There is no current-observation field in any response. Label accordingly: *"High 103°F"*, *"Wind to 21 mph"*. Presenting a daily max as a live reading is a factual error, not a wording preference.
+
+**Rule: hours since rain is capped at "30+ days" in display, everywhere.** `breakdown.drying.hours_since_rain` carries a sentinel. When the rainfall lookup returns nothing — because it genuinely has not rained, **or because the ACIS / Open-Meteo-archive fetch threw and `liveForecast.ts:96` swallowed it** — `dryingModel.ts:34,41` returns exactly `720`, flagged `estimated_dry: true` with `confidence: 'high'`. Both paths produce the identical value, so **no surface can tell a dry month from an upstream outage**, and neither may be rendered as a precise measurement.
+
+Binding: any value at or above `720` renders as *"no rain in 30+ days"* — never *"no rain in 720h"*, never a computed day count. Below `720`, render the real figure. This is a display cap, not a data fix; the underlying ambiguity is filed as §10.5. It applies to the bot reply in §7 as much as to the detail screen, since both read the same field.
 
 **Constraint: per-day scores do not exist over the API.** `computeLiveForecast` scores all seven days, but no endpoint returns them — `GET /conditions/:id` keeps only the row matching today (`routes/conditions.ts`) and `GET /forecast/:id` returns `snapshots`, which carry no score or confidence field. Verified against production: `/forecast/:id` returns 7 objects whose keys are `id, location_id, captured_at, forecast_date, precip_mm_p10/p50/p90, temp_c_min, temp_c_max, wind_kmh_max, humidity_pct, model_sources, created_at, window`.
 
@@ -154,7 +158,13 @@ export const formatPrecipIn = (mm: number | null): string => {
 
 **Re-export from `index.ts`.** `packages/types/package.json` declares only a `"."` entry in its `exports` map and the repo uses NodeNext resolution, so `@weatherteam6/types/units` will not resolve. Add `export * from './units.js'` to `packages/types/src/index.ts`. Same for `conditionsCopy.ts` in §7.
 
-**Why `packages/types` and not `packages/design`:** the bot needs these, and `apps/api` importing from a design package would be wrong on its face. `apps/api` already depends on `packages/types`, and that package already ships runtime code — `aspectToDegrees`, `parseNumeric`, `parseNumericRequired`, and `SCORE_COMPONENT_MAX` all live there today — so pure helpers are consistent with it, not an exception to it. The unit *labels* stay in `packages/design`'s `units` export, which is where a designer would look for them; the *math* lives with the shared contracts.
+**Why `packages/types` and not `packages/design`:** the bot needs these, and `apps/api` importing from a design package would be wrong on its face. `apps/api` already depends on `packages/types`, and that package already ships runtime code — `aspectToDegrees`, `parseNumeric`, `parseNumericRequired`, and `SCORE_COMPONENT_MAX` all live there today — so pure helpers are consistent with it, not an exception to it.
+
+**Where the unit labels live — the formatters own rendered text.** An earlier draft said the *labels* stay in `packages/design`'s `units` export while only the *math* moves to `packages/types`. That is not what the code above does, and the two cannot both be true: the formatters emit `°F`, `mph`, `%` and `in` as literals, `packages/design/src/tokens.ts:607` defines those same four strings, and `packages/types` **cannot import `packages/design`** — the paragraph above forbids exactly that. Left as written, the labels are defined twice in two packages, which is the duplication the architecture rule exists to stop.
+
+Splitting them the other way is worse, not better. A formatter returning a bare `"72"` forces every call site to know that `°F` closes up (`72°F`) while `mph` takes a space (`21 mph`) — spacing rules restated at every call site are a far likelier source of drift than one shared literal.
+
+**Decision: `packages/types/src/units.ts` is authoritative for any string a user reads.** `packages/design`'s `units` export is superseded for rendered text and must not be used to build one; it stays only as a reference for a designer reading the token file, and for axis or legend labels where no formatter is involved. If it drifts from the formatters, the formatters win.
 
 **This fixes a live bug for free.** The bot currently displays no units at all. Once these exist, `conditionsReply.ts` uses them (§7).
 
@@ -173,6 +183,21 @@ Live scoring is slow. A measured `GET /api/v1/conditions/:id` against production
 | **Error** | Inline within the card or section that failed, not a whole-screen takeover. The list must still render locations whose conditions call failed. Copy: *"Couldn't load conditions. Tap to retry."* Never surface an HTTP status code or a raw error string. |
 | **Stale / offline** | React Query serves cached data and shows a `txt4` timestamp line: *"Updated 12 min ago."* Do not blank the screen on a refetch failure. |
 | **Partial** | A location with a score but no alert data renders the score. A section that failed shows its own error; siblings render normally. |
+| **No score for today** | `GET /conditions/:id` returns **`200` with `data: null`** when no computed row matches today's date (`routes/conditions.ts:45`). This is a success response carrying nothing, not an error, and it is reachable whenever the forecast feed starts at tomorrow. Guard on `data === null` *before* reading `data.score` — the §7 ladder takes a null `score`, not a null response object, and a bare `label(data.score)` throws here. **Do not reuse the ladder's *"Too far out to score"* copy:** that describes a date beyond the scoring window, and this is today. Render *"No conditions for today yet."* and still show the 7-day weather, which is unaffected. |
+
+**Silently degraded — a known blind spot, written down rather than papered over.**
+
+When the forecast feed contains no row for today, `liveForecast.ts:126-130` substitutes current-condition proxies. The effect is the **opposite** of degrading the score:
+
+| Fallback | Value | Effect |
+| --- | --- | --- |
+| `currentWindKmh ?? 0` → `maxWindKmh24h` | `0` | `conditionsScore.ts:69` awards **full 15/15** — 0 km/h is inside the `<= 15` band |
+| `currentHumidityPct ?? 50` | `50` | `conditionsScore.ts:81` awards **full 8/8** — 50% is inside the `<= 50` band |
+| `currentTempC` | `0` | Dead field, never read (§7 rule 4) |
+
+So the score comes back **inflated, with every component non-zero** — invisible to a suppression rule that keys on zeros, and indistinguishable from a genuinely excellent day. The API exposes no flag for it; the only signal is a server-side `logger.warn`. **The client cannot detect this state in v1.** It is recorded here so the next person does not mistake it for a Mini App bug, and it is filed as §10.4. Do not invent a client-side heuristic for it.
+
+A closely related case **is** partly visible: when the rainfall fetch fails, `liveForecast.ts:96` leaves the event list empty and `dryingModel.ts:39-46` returns the `720`-hour sentinel with `estimated_dry: true` and `confidence: 'high'`, which earns the full 40/40 drying component. A genuine month-long dry spell produces the same 720, so the two are not separable — but the display rule in §3 keeps either from rendering as a false precise fact.
 
 React Query configuration: `staleTime` 5 minutes, `gcTime` 30 minutes, `retry: 1`, no `refetchOnWindowFocus` — a Telegram webview fires focus events on every keyboard dismissal.
 
@@ -188,7 +213,13 @@ The architecture rule states three windows:
 <7 days      : full conditions score active, p10/p90 bands shown
 ```
 
-**Only the third is reachable in the Mini App v1, and the spec says so rather than leaving a builder to discover it.** The detail screen shows 7 days (§3), so the 7–14 day row never renders. The `>14 day` row depends on `/normals`, which returns `[]` forever until issue #25 has a writer, and §9 forbids calling it. Building either branch in Task 6 means building against data that cannot arrive.
+**Only the third is reachable in the Mini App v1, and the spec says so rather than leaving a builder to discover it.**
+
+The reason is narrower than "the detail screen only shows 7 days", and an earlier draft got it wrong. `forecastDateDaysOut` is measured from **today**, not from the first row returned (`liveForecast.ts:134-137`). So when the feed starts at tomorrow, the seven rows run `daysOut` 1..7 and the last one does land in the `early` window at `confidence: 'low'` (`conditionsScore.ts:22,31`). The 7–14 day band is reachable in the data.
+
+It is nonetheless unreachable **on screen**, because of where scores are allowed to appear: the 7-day list is weather-only (§3), and the single score shown is today's, which is `daysOut` 0 by construction. On the one path that produces an `early`-window row, `/conditions/:id` returns `data: null` anyway (§5, *No score for today*) and no score renders at all. The `>14 day` row depends on `/normals`, which returns `[]` forever until issue #25 has a writer, and §9 forbids calling it.
+
+The conclusion holds; do not rely on the wrong reason for it, because it stops holding the moment a per-day score chip is added.
 
 **Binding for v1:** render the `<7 days` treatment only. Leave the other two unimplemented — do not stub them with placeholder copy. When the forecast range extends or #25 gains a writer, this section is the spec for what to add.
 
@@ -245,7 +276,11 @@ The defect is not that heat forces a low score; it is that heat **costs at most 
    Three details the implementation must not improvise:
 
    - **Applies only when `score !== null`.** A day outside the scoring window has all five components at 0 and `score: null`. That is not a limited day, it is an unscored one — it takes the ladder's *"Too far out to score"* and suppression does not run.
-   - **Never attribute the known degradation bug to weather.** When the forecast feed contains no row for today, `liveForecast.ts` falls back to `?? 0` and scores every day at 0 °C, which zeroes `component_temp` while leaving `score` non-null. Un-guarded, this rule would then print *"limited by temperature"* for every location on those days — explaining a data bug as if it were the weather, which is worse than saying nothing. Treat `component_temp === 0` **combined with** a `temp_c_max` that is absent or above 0 °C as the degradation signature, and fall back to the plain ladder label. This is the unfiled `computeLiveForecast` bug in the build handoff's "Known broken" table; the guard is a workaround, not a fix.
+   - **No degradation guard. Suppression runs unconditionally whenever a component is 0.** An earlier draft of this rule carved out an exception, on the belief that `liveForecast.ts`'s missing-today-row fallback zeroes `component_temp` and would make every location read *"limited by temperature"*. **That belief is false, and the exception it produced was actively harmful.** The temperature component is computed from `input.forecastHighC` (`conditionsScore.ts:76`), which `liveForecast.ts:163` supplies as the real per-day `day.temp_c_max`. The `currentTempC` value built from the `?? 0` fallback (`liveForecast.ts:129`) is passed into `conditionsScore` and **never read** — it is a dead field on `ScoreInput`. So the fallback cannot zero the temp component under any input.
+
+     The exception's stated signature — `component_temp === 0` together with a `temp_c_max` at or above 0 °C — is not a degradation signature at all. It is an exact description of **Red Rock at 39.5 °C**, where `component_temp` is 0 because `conditionsScore.ts:77` zeroes any `temp > 35`. A builder implementing that carve-out would suppress the suppression on the one case this whole section exists for, and ship *"Dry, settled"* against a 103 °F Extreme Heat Warning. Do not reintroduce it in any form.
+
+     What the missing-today-row fallback actually does is the opposite of degrading the score — see §5, *Silently degraded*.
    - **Tie-break when several components are 0.** Name the one with the highest `SCORE_COMPONENT_MAX` — drying, then rain, then wind, then temp, then humidity — so the phrasing is deterministic. Never list two.
    - **A `Severe`+ alert names the alert, not a component:** `Score 80 (high confidence) — see heat warning above`.
 5. **Alerts outrank everything.** An active NWS alert renders above the score on every surface, bot included. A `Severe`+ alert is never omitted for space.
@@ -319,6 +354,8 @@ Not in the Mini App, in v1 or later without a new spec:
    So the choice is: seed `crags` and build the search picker (a third screen, breaking the two-screen constraint), add a bot command, or ship v1 read-only and say so. **Needs a product call before Task 6 writes the empty state** — §5 is blocked on it.
 2. **The scoring fix behind issue #21.** §7 makes the copy honest; the score itself still charges at most 12 points for any amount of heat, so a settled dry spell scores in the 80s at 103°F. Options: cap the total when any component is 0, apply a multiplicative safety factor, or re-weight temperature above 12. This is a scoring-math change with test implications and belongs in its own change, not in Task 6.
 3. **Caching.** Six upstream fetches for one detail screen. Fine at one user. Fixing issue #22 removes one of three per request for free.
+4. **Degraded scores are invisible to any client.** When the forecast feed has no row for today, `liveForecast.ts` substitutes proxies that award full wind (15/15) and full humidity (8/8) marks, inflating the score with no component zeroed and nothing in the response to say so — only a server-side `logger.warn` (§5, *Silently degraded*). Every surface, bot included, will present that score as ordinary. Making it detectable means adding a field to the conditions response, which is an API change and breaks the build handoff's "no API changes needed"; it therefore sits outside B0 and outside Task 6. **Not a Mini App bug — do not let Task 6 invent a heuristic for it.** Needs filing as its own issue alongside #21.
+5. **A dry month and a failed rainfall fetch are the same value.** `dryingModel` returns the `720`-hour sentinel with `estimated_dry: true` and `confidence: 'high'` for both a genuine 30-day dry spell and a swallowed ACIS / archive error (§3, display-cap rule). The full 40/40 drying component follows in both cases, so the largest single component in the score is, in the failure case, unearned and asserted confidently. §3's cap stops it rendering as a false precise fact; it does not stop it inflating the score. The fix is a distinguishable no-data result from `dryingModel` — a scoring-layer change with test implications, sized like §10.2 and out of scope here.
 
 ---
 

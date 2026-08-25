@@ -80,6 +80,13 @@ export type ScoreInput = {
   forecastRain72hP90: number
   currentWindKmh: number
   maxWindKmh24h: number
+  /**
+   * UNUSED — `conditionsScore` never reads this. The temperature component is
+   * computed from `forecastHighC` alone. Kept only to avoid churning every
+   * call site and test fixture; do not reason about scoring behaviour from it.
+   * A B0 design-spec draft assumed this field drove the temp component and
+   * derived a suppression rule that would have hidden a 103 °F heat warning.
+   */
   currentTempC: number
   forecastHighC: number
   currentHumidityPct: number

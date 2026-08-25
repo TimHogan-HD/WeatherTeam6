@@ -117,12 +117,17 @@ export async function computeLiveForecast(
 
     const todayDay = days.find((d) => d.date === todayStr)
     if (!todayDay) {
-      // Not cosmetic: the ?? fallbacks below score EVERY day at 0 km/h wind and
-      // 0 °C, and 0 °C zeroes the temp component outright. Without this warning
-      // that degradation is invisible in the response.
+      // Not cosmetic, but note the direction: these fallbacks INFLATE the score,
+      // they don't zero it. 0 km/h wind sits inside conditionsScore's `<= 15`
+      // band (full 15/15) and the 50% humidity default sits inside its `<= 50`
+      // band (full 8/8), so every day comes back with no component zeroed and
+      // nothing in the response marking it degraded. currentTempC is unaffected
+      // either way — conditionsScore reads forecastHighC for the temp component
+      // and never reads currentTempC at all. This warning is the only signal
+      // that any of it happened.
       logger.warn(
         { locationId: location.id, todayStr },
-        '[liveForecast] no forecast day matching today — forecast may start from tomorrow; current-condition proxies will use zero defaults',
+        '[liveForecast] no forecast day matching today — forecast may start from tomorrow; wind/humidity proxies will fall back to full-credit defaults',
       )
     }
     const currentWindKmh = todayDay?.wind_kmh_max ?? 0
