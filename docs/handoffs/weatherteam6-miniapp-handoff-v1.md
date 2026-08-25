@@ -20,26 +20,30 @@ The Telegram Crossover migration (Tasks 1-4) is finished, merged, and verified r
 
 ### What is live and working
 
+*(Snapshot from when this doc was written. `main` has moved several times since — B0, the `/api/v1` auth gate, and Task 5a have all landed. **`.claude/docs/session-notes.md` is the current record;** where it and this section disagree, it wins.)*
+
 - **Repo:** `TimHogan-HD/weatherteam6`, `main` @ `9cc71bd`, clean tree, no open PRs.
 - **API:** `https://weather-team6-api.vercel.app`, Express wrapped as one Vercel serverless function at `apps/api/api/index.ts`.
 - **DB:** Neon Postgres, `@neondatabase/serverless` **WebSocket** driver via `drizzle-orm/neon-serverless`. Migrations at `0006`. Seeded with 1 user and 3 locations. `DEFAULT_USER_ID` is `00000000-0000-0000-0000-000000000001`.
 - **Scoring:** computed live per request in `apps/api/src/lib/scoring/liveForecast.ts`. Nothing is persisted to `forecast_snapshots` or `conditions_scores`.
 - **Alerts:** `POST /api/cron/check-alerts`, gated on a `CRON_SECRET` header, logic in `apps/api/src/lib/alerts/checkAlerts.ts`. Dedup verified by hand (two consecutive calls returned `notified: 2` then `notified: 0`).
 - **Bot:** `POST /api/telegram/webhook`, registered and answering. Two commands exist: `/start` and `/conditions <name>`.
-- **Checks:** `npm run typecheck` clean, 106 tests passing, `npm run lint` has one known failure (below).
+- **Checks:** `npm run typecheck` clean, 106 tests passing, `npm run lint` has one known failure (below). *(2026-08-25: now 147 tests, and lint passes — the failure below was fixed in `3117020`.)*
 
 ### What does not exist yet
 
-- `apps/miniapp` (the entire Mini App)
-- `docs/handoffs/miniapp-design-v1.md` (the Phase B0 deliverable)
-- `initData` HMAC middleware
-- Any test coverage for the roughly 480 lines of backend logic added during the migration
+*(Accurate as of 2026-07-31; corrected 2026-08-25 — two of these have since landed.)*
+
+- `apps/miniapp` (the entire Mini App) — still true, Task 5
+- ~~`docs/handoffs/miniapp-design-v1.md`~~ — **written and merged** (`14c9757`). Binding spec.
+- `initData` HMAC middleware — still true, and still the hard prerequisite for Task 6
+- ~~Any test coverage for the backend logic added during the migration~~ — **partly addressed.** 147 tests now pass; `checkAddLocationApi.ts` covers the add flow against a real database, which vitest cannot (it mocks `fetch` and never connects)
 
 ### Known broken or degraded
 
 | Item | Effect | Where |
 | --- | --- | --- |
-| CI lint failure | `'module' is not defined` in `apps/mobile/app.config.js`. Fails identically on `main` and every branch. Task 7 removes it for free. | `apps/mobile` |
+| ~~CI lint failure~~ **FIXED `3117020`** | Was `'module' is not defined` in `apps/mobile/app.config.js`, red on `main` and every branch. The ignore list now exempts it, so a red CI means something again. | `apps/mobile` |
 | Issue #26 | `fetchNwsAlerts` returns `[]` (not `null`) on a malformed 200, and `runAlertsCheck` then deletes every row for that location, wiping `notified_at` and re-sending when the alert reappears. The separate claim-and-release race is already fixed; this prune path is not. Plus unescaped HTML in **two** places. Recommended first fix. | `checkAlerts.ts:87`, `conditionsReply.ts` |
 | Issue #25 | `crag_climbability_history` and `location_normals` have no writer. `/history` and `/normals` return `[]` forever. | `locations.ts` |
 | Issue #27 | Bot auth reads forgeable `chat.id` from the body, no `update_id` dedupe, `runAlertsCheck` is serial. | `telegramWebhook.ts`, `checkAlerts.ts` |
@@ -51,7 +55,7 @@ The Telegram Crossover migration (Tasks 1-4) is finished, merged, and verified r
 
 ## Objective
 
-Ship the Telegram Mini App as the project's only client: a two-screen surface (location list, location detail) reading the existing API, authenticated by `initData` HMAC, deep-linkable from alert messages, with `apps/mobile` removed from the build.
+Ship the Telegram Mini App as the project's only client: a three-route surface (location list, location detail, and the `/add` flow added by `miniapp-design-v1.md` §12) reading the existing API, authenticated by `initData` HMAC, deep-linkable from alert messages, with `apps/mobile` removed from the build.
 
 ---
 
@@ -59,7 +63,7 @@ Ship the Telegram Mini App as the project's only client: a two-screen surface (l
 
 - **No new features in `apps/mobile`.** It is archived in intent. Port, do not revive.
 - **No queue.** No BullMQ, no Redis, no in-process schedulers. Background work is either live per-request compute or an HTTP endpoint on an external schedule. Read `.claude/skills/background-work/SKILL.md` before writing anything job-shaped.
-- **Two screens only.** Radar, walls, trips, and shade map exist in the archived mobile app and are out of scope for the Mini App. Do not let them creep back in.
+- **Three routes, and no more.** `/` (list), `/location/:id` (detail), `/add` (search and add). This read "two screens only" until `miniapp-design-v1.md` §12 added the add flow on 2026-08-25 — **`/add` is in scope and its API is already built**, so do not treat it as creep. Radar, walls, trips, and shade map exist in the archived mobile app and remain out of scope; those are the ones not to let back in.
 - **No mock data in production components.** `MOCK_*` constants and bell-curve approximations are stubs, acceptable only inside the phase that introduces them.
 - **No login UI, no Clerk, no sessions.** `AUTH_ENABLED` stays as-is; `resolveUser` remains the only auth function for user identity.
 - **State management is React Query.** No Redux, no Zustand, no Context for server state. Components never call `fetch` directly.
@@ -80,7 +84,12 @@ Ship the Telegram Mini App as the project's only client: a two-screen surface (l
 
 ## Phases
 
-### Phase B0: Design spec (no code)
+### Phase B0: Design spec (no code) — ✅ COMPLETE (`14c9757`)
+
+> **Historical from here to the end of this phase.** Every question below was answered in
+> `docs/handoffs/miniapp-design-v1.md`; read the answers there rather than re-deciding
+> them. Note §12 of that spec added a third route, `/add`, so this phase's "two screens"
+> framing is superseded.
 
 **Deliverable:** `docs/handoffs/miniapp-design-v1.md`, agreed before any scaffold exists.
 
@@ -221,9 +230,12 @@ POST /api/cron/check-alerts           (x-cron-secret header)
 POST /api/telegram/webhook            (chat.id gate; see issue #27)
 
 GET  /api/v1/locations
-GET  /api/v1/locations/search
-POST /api/v1/locations
+GET  /api/v1/locations/search         (crags table only — empty; not the add-flow search)
+GET  /api/v1/geocode?q=               (place-name search, Open-Meteo proxy — Task 5a)
+GET  /api/v1/preview?lat=&lon=&elevation=   (unsaved location's forecast; persists nothing — Task 5a)
+POST /api/v1/locations                (takes is_climbing_location, rock_type, elevation_m, timezone)
 GET  /api/v1/locations/:id
+DEL  /api/v1/locations/:id            (cascades to dependents — Task 5a)
 GET  /api/v1/locations/:id/normals    (returns [] forever, issue #25)
 GET  /api/v1/locations/:id/history    (returns [] forever, issue #25)
 GET  /api/v1/conditions/:locationId
@@ -240,7 +252,12 @@ GET  /api/v1/trips/:tripId/forecast
 GET  /api/v1/radar/frames
 ```
 
-The Mini App's two screens need only `/locations`, `/conditions/:id`, `/forecast/:id`, and `/alerts/:id`.
+The list and detail screens need only `/locations`, `/conditions/:id`, `/forecast/:id`, and `/alerts/:id`.
+
+**Updated 2026-08-25:** there is a **third** screen. `miniapp-design-v1.md` §12 added the add-location flow — route `/add`, plus the detail screen in unsaved mode — which uses `/geocode`, `/preview`, `POST /locations`, and `DELETE /locations/:id`. Those four shipped in Task 5a (`a90613f`) and are live; do not mock them. Two more notes on them:
+
+- `/preview` returns the same windowed `ForecastSnapshot[]` as `/forecast/:id`, so both modes of the detail screen share one rendering path. It deliberately returns **no score** — drive the score section off the mode, not off "score is null".
+- Preview and save must carry the **same** `elevation`: the geocoder's value goes to `/preview?elevation=` and then to `POST /locations` as `elevation_m`. Skip it in either place and the same location reports different temperatures before and after saving.
 
 **Synthesized IDs:** `computeLiveForecast` builds `id` as `` `${locationId}:${date}` `` because nothing is persisted. Do not treat these as stable or lookupable across requests.
 

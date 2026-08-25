@@ -413,6 +413,14 @@ Mapping to the build handoff's own numbering:
 
 ## 12. Adding a location (closes §10.1)
 
+> **Status: the API half is built.** Task 5a shipped all five §12.3 changes on 2026-08-25
+> (`a90613f`, PR #37) and they are live in production. §12.3 below is written in the
+> future tense because it was a specification; read it now as a description of what
+> exists. Verify against the code with `npm run check:add-location`. **The UI half —
+> `/add`, unsaved mode, the save bar, the delete affordance — is not built** and belongs
+> to Task 6. Two behaviours the UI must respect: `/preview` returns no score by design,
+> and the geocoder's `elevation` must be passed to both `/preview` and `POST /locations`.
+
 **Product call, 2026-08-25:** this works like saving a location in any ordinary weather app. Search a place by name, see its weather, decide whether to keep it. Climbing is a property of a saved location, not a precondition for saving one.
 
 This is a deliberate widening of the product surface. WeatherTeam6's stated purpose in `CLAUDE.md` has always been "climbing conditions platform **+ general weather app**", but every flow built so far assumed the climbing half. This section is where the general half becomes real, and it is why §3 gains the "non-climbing locations never show a score" rule.

@@ -27,6 +27,7 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] No direct DB mutations outside of Drizzle
 - [ ] No migrations written by hand — use `drizzle-kit generate`
 - [ ] `user_id` included on inserts to tables that have the FK
+- [ ] New table with a `location_id` FK? It is added to `DEPENDENT_TABLES` in `lib/locations/deleteLocation.ts` — no FK declares `onDelete`, so a missing entry turns `DELETE /locations/:id` into a 500 that only appears once real data exists
 - [ ] No N+1 queries — use joins or batch fetches
 - [ ] Route params feeding `uuid`/typed columns are validated (`isUuid`) before the query — an unvalidated id is a leaked-error 500, not a 404
 

@@ -3,7 +3,7 @@
 Read this at the start of every session. These decisions are final unless explicitly overridden by the user.
 
 ## Monorepo Structure
-- Turborepo. Apps: `apps/api` (live), `apps/miniapp` (planned — Crossover Task 5), `apps/mobile` (archived, still in the workspace until Task 7). Shared packages: `packages/types`, `packages/design`.
+- Turborepo. Apps: `apps/api` (live; the add-location API landed 2026-08-25, Task 5a), `apps/miniapp` (planned — Crossover Task 5, not yet scaffolded), `apps/mobile` (archived, still in the workspace until Task 7). Shared packages: `packages/types`, `packages/design`.
 - Shared TypeScript types live in `packages/types` only. Never duplicate type definitions across apps.
 - Design tokens live in `packages/design` only. Never redefine colors, spacing, or type scale in an app.
 - Both shared packages compile to `dist/` and must be built before consuming workspaces typecheck.
@@ -17,7 +17,9 @@ Read this at the start of every session. These decisions are final unless explic
 - Auth middleware lives in `apps/api/src/middleware/`. `resolveUser` (`auth.ts`) resolves *who* the caller is; `requireApiAuth` (`apiAuth.ts`) decides *whether* they may call `/api/v1/*` at all.
 - **`/api/v1/*` is gated by `requireApiAuth`** — `Authorization: Bearer $API_SHARED_SECRET`, fail-closed if the secret is unset. It exists because `resolveUser` hands every unauthenticated caller `DEFAULT_USER_ID`, i.e. owner rights on a public URL, and Vercel's production alias is not covered by Standard Protection (protecting it needs a paid plan). Do not move the gate to Vercel; do not remove it when Mini App auth lands — `initData` validation is added as a **second accepted scheme on the same `Authorization` header**, not a replacement. `/api/cron/*` (CRON_SECRET) and `/api/telegram/*` (chat.id) keep their own auth and stay outside it.
 - The credential must travel in `Authorization`. The CORS layer in `index.ts` allows only `Content-Type, Authorization`, so a custom header fails browser preflight.
-- Route error/validation helpers live in `apps/api/src/lib/http.ts`. Handlers validate `uuid` route params with `isUuid` (return 404, not a Postgres 500) and funnel caught errors through `sendServerError` — never hand-roll `err.message` into the response, which leaks DB internals.
+- Route error/validation helpers live in `apps/api/src/lib/http.ts`. Handlers validate `uuid` route params with `isUuid` (return 404, not a Postgres 500) and funnel caught errors through `sendServerError` — never hand-roll `err.message` into the response, which leaks DB internals. `sendServerError` logs through `describeError`, which reads only known-safe fields; never widen it to serialise an error object wholesale, because driver errors can carry the connection string.
+- **External APIs are proxied, never called from the client.** `GET /api/v1/geocode` (Open-Meteo place search) and `GET /api/v1/radar/frames` follow this: the fetch lives in `src/lib/weather/`, wrapped in the shared `fetchWithRetry`, and the route is a thin pass-through returning `{ data, error, status }`. A client calling a third-party API directly bypasses the retry policy and the response contract both.
+- `GET /api/v1/preview?lat=&lon=&elevation=` serves weather for a location that has **no row and no UUID** — the add flow's pre-save step. It runs `computeLiveForecast` over a synthetic `LiveForecastLocation` and **persists nothing**; `location.id` is the placeholder `"preview"`, used only for log lines and synthesized snapshot ids. It deliberately returns no conditions score: nothing has been classified as a climbing location yet.
 
 ## Auth Pattern
 - `AUTH_ENABLED=false` means all requests get `req.userId = DEFAULT_USER_ID` injected by `resolveUser`.
@@ -29,6 +31,8 @@ Read this at the start of every session. These decisions are final unless explic
 - All migrations via `drizzle-kit`. Never run raw SQL against the DB directly.
 - All queries go through Drizzle. No raw `pg` queries unless Drizzle cannot express it.
 - `user_id` FK exists on: `locations`, `trips`, `conditions_reports`, `push_tokens`, `premium_pulls`, `user_preferences`. This is intentional even though auth is off.
+- **No FK in the schema declares `onDelete`**, so Postgres refuses to delete any row another table still references. Deletes therefore clear their dependents explicitly, in one transaction: `DELETE /locations/:id` goes through `deleteLocationCascade` (`src/lib/locations/deleteLocation.ts`), which walks `DEPENDENT_TABLES`. **Adding a table with a `location_id` FK means adding it to that list** — omit it and delete becomes a foreign-key violation surfacing as a generic 500, and only once real data exists. Do not "fix" this by adding cascades to the schema without deciding what it means for every other delete.
+- **Known gap:** `DELETE /trips/:tripId` has this same problem and has not been fixed — `trip_locations` references `trips`, so deleting a trip that has locations 500s. It is inconsistent with the locations delete on purpose only in the sense that nobody has done it yet.
 
 ## API Response Shape
 All endpoints return:

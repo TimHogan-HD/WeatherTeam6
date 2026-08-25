@@ -19,7 +19,7 @@ Conditions are scored from five weighted components — drying time, upcoming ra
 | Background work | **No queue.** Live per-request compute, plus one HTTP cron endpoint on an external schedule |
 | Monorepo | Turborepo |
 
-`apps/mobile` (React Native + Expo) is **archived** as of 2026-07-31 — superseded by the Mini App. Do not add features to it. Note it is still wired into the workspace and Turborepo pipeline; removing it from the build is Crossover Task 7, not yet done. (That's also why CI currently fails on an `apps/mobile` ESLint error unrelated to any change.)
+`apps/mobile` (React Native + Expo) is **archived** as of 2026-07-31 — superseded by the Mini App. Do not add features to it. Note it is still wired into the workspace and Turborepo pipeline; removing it from the build is Crossover Task 7, not yet done. (The long-standing `apps/mobile` ESLint failure that made CI red on every branch was fixed separately in `3117020` — a red CI now means something.)
 
 ## Layout
 

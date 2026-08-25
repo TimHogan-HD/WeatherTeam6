@@ -23,6 +23,22 @@ Read this before any weather fetch work. Every source has gotchas that will wast
 - Use for past 1-7 days precip when ACIS is unavailable
 - Data lags ~5 days for full QC. For yesterday use IEM ASOS obs instead.
 
+## Open-Meteo Geocoding (Place-Name Search)
+- **Endpoint:** `https://geocoding-api.open-meteo.com/v1/search?name=&count=&language=en&format=json`
+- **Client:** `apps/api/src/lib/weather/geocode.ts`, proxied as `GET /api/v1/geocode?q=`
+- **No API key.** Adds nothing to `.env.example`.
+- Returns `elevation` alongside lat/lon — required, because `applyLapseRate` needs it and
+  a bare coordinate entry cannot supply it. Persist it on save or the saved location
+  disagrees with its own preview by the full lapse-rate correction.
+- Also returns `timezone`, `admin1`, `country`. **`admin1` + `country` are not optional
+  decoration:** `?name=Red Rock Canyon` returns three real places — a state park in
+  Oklahoma (480 m), another in California (738 m), and the National Conservation Area in
+  Nevada (1200 m). Rendering `name` alone makes the choice a coin flip, and picking wrong
+  is silent: a real forecast for the wrong state.
+- A no-match search is a **200 with the `results` key absent entirely**, not an empty
+  array. A query under 2 characters always returns nothing, so it is short-circuited
+  client-side before a request is spent.
+
 ## Open-Meteo Air Quality
 - **Endpoint:** `https://air-quality-api.open-meteo.com/v1/air-quality`
 - **Variables:** `us_aqi,pm2_5,pm10`

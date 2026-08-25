@@ -87,7 +87,7 @@ replaced by ACIS in Phase 11, and RainViewer's key is unused by the current code
 - Before ANY database work: read `.claude/docs/data-model.md` AND `.claude/rules/architecture.md`
 - Before ANY weather fetch work: read `.claude/docs/api-sources.md`
 - Before ANY conditions score work: read `.claude/docs/scoring-algorithm.md`
-- Before ANY Mini App UI phase: read `docs/handoffs/miniapp-design-v1.md` (once it exists) AND the §Design System section of `docs/handoffs/weatherteam6-ui-handoff-v1.md` — the mockups are the spec, not prose descriptions
+- Before ANY Mini App UI phase: read `docs/handoffs/miniapp-design-v1.md` AND the §Design System section of `docs/handoffs/weatherteam6-ui-handoff-v1.md` — the mockups are the spec, not prose descriptions
 
 Full paths:
 - **Data model + schema:** `.claude/docs/data-model.md`
@@ -98,15 +98,15 @@ Full paths:
 - **Build plan:** `.claude/docs/plan.md`
 
 **Direction (read first):**
-- `docs/handoffs/telegram-crossover-v4.md` — **authoritative product direction.** Telegram bot + Mini App replaces the native app. Tasks 1-4 complete; Tasks 5-7 (Mini App) are next.
+- `docs/handoffs/telegram-crossover-v4.md` — **authoritative product direction.** Telegram bot + Mini App replaces the native app. Tasks 1-4 complete, plus **Task 5a (add-location API, merged `a90613f`)** — a task added later and listed in that doc between Tasks 5 and 6, despite its name it is backend work unrelated to Task 5. **Task 5 (Mini App shell) is next**, then Task 6, then Task 7.
 
 **UI Design Handoffs:**
-- `docs/handoffs/weatherteam6-ui-handoff-v1.md` — written for the archived mobile app, but its **§Design System is still in force and client-agnostic**: locked contrast rules, layout constants, and copy rules. Read before any Mini App UI work. §7b (Home), §7c (Location Detail), §7e (Locations) are the closest existing specs to the Mini App's two screens.
-- `docs/handoffs/design-mockups/weatherteam6UI.html` — primary mockup for Home + Location Detail; the nearest thing to a Mini App design that exists.
-- `docs/handoffs/miniapp-design-v1.md` — **does not exist yet.** Phase B0 deliverable; must be written and agreed before any Mini App code.
+- `docs/handoffs/weatherteam6-ui-handoff-v1.md` — written for the archived mobile app, but its **§Design System is still in force and client-agnostic**: locked contrast rules, layout constants, and copy rules. Read before any Mini App UI work. §7b (Home), §7c (Location Detail), §7e (Locations) are the closest existing specs to the Mini App's screens. Note the Mini App has **three** routes, not two — §12 added `/add`; the "two screens" phrasing predates it.
+- `docs/handoffs/design-mockups/weatherteam6UI.html` — primary mockup for Home + Location Detail. Visual reference only; where it and `miniapp-design-v1.md` disagree, the spec wins.
+- `docs/handoffs/miniapp-design-v1.md` — **the Mini App spec, and it is binding.** Written and agreed in Phase B0 (merged `14c9757`). Screens, theming, units, states, copy model, and §12 the add-location flow. Read before any Mini App code; it supersedes this repo's older two-screen sketches.
 
 **Mobile-only mockups (archived — reference only, not being built):**
-- `docs/handoffs/design-mockups/README.md`, `radar-*.jsx/css`, `walls-*.jsx/css`, `trips-*.jsx/css` — Radar, Walls, and Trips screens. Out of scope for the Mini App per the Crossover doc's two-screen surface.
+- `docs/handoffs/design-mockups/README.md`, `radar-*.jsx/css`, `walls-*.jsx/css`, `trips-*.jsx/css` — Radar, Walls, and Trips screens. Out of scope for the Mini App — its surface is three routes (list, detail, `/add`) and these are none of them.
 
 ## Session Start Protocol
 

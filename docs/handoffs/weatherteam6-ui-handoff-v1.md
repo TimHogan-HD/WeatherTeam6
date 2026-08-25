@@ -10,8 +10,10 @@
 > §7b (Home), §7c (Location Detail) and §7e (Locations) remain the closest existing specs
 > to the Mini App's two screens and should be mined, not ignored.
 >
-> The Mini App's own spec (`docs/handoffs/miniapp-design-v1.md`) does not exist yet — it is
-> the Phase B0 deliverable in `.claude/docs/plan.md`.
+> **Updated 2026-08-25:** the Mini App's own spec (`docs/handoffs/miniapp-design-v1.md`)
+> now exists and is binding — Phase B0, merged `14c9757`. Read it first; where it and this
+> document disagree, it wins. It also added a third route, `/add` (§12), so "two screens"
+> above is out of date.
 
 Version: v1
 Date: 2026-06-11
