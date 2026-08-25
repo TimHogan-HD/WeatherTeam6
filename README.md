@@ -15,7 +15,7 @@ Conditions are scored from five weighted components — drying time, upcoming ra
 | API | Node.js + TypeScript + Express, wrapped as one Vercel serverless function (`apps/api/api/index.ts`) |
 | Database | PostgreSQL on Neon (`@neondatabase/serverless`, WebSocket driver) |
 | ORM | Drizzle — schema-as-TypeScript, migrations only, never `push` |
-| Client | Telegram bot + Telegram Mini App (`apps/miniapp` — not yet built) |
+| Client | Telegram bot + Telegram Mini App (`apps/miniapp` — Vite + React; shell built, screens are Task 6, not yet deployed) |
 | Background work | **No queue.** Live per-request compute, plus one HTTP cron endpoint on an external schedule |
 | Monorepo | Turborepo |
 

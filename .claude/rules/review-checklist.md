@@ -48,6 +48,11 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] No direct API calls from components — all fetches go through React Query hooks
 - [ ] No hardcoded API base URLs — use build-time env config (`VITE_API_BASE_URL`)
 - [ ] Colors/spacing/type come from `packages/design` — not redefined locally
+- [ ] `type`, `shadow` and `layout` come from `src/theme/tokens.css.ts`, never straight from `@weatherteam6/design/tokens` — they are React Native shaped, and the RN font family name silently falls back to the system font in CSS
+- [ ] No hand-written `--wt6-*` declaration — the `:root` block is generated from the tokens by `src/theme/cssVars.ts`
+- [ ] Every `--tg-*` var reference has a fallback (`var(--tg-safe-area-inset-top, 0px)`) — CSS drops the whole declaration when a `var()` resolves to nothing
+- [ ] The screen still renders with `getWebApp()` returning `null` — a plain browser, or `telegram-web-app.js` failing to load
+- [ ] Each Telegram API call is gated at its own version floor, not a shared one
 - [ ] Copy follows the locked rules in `docs/handoffs/weatherteam6-ui-handoff-v1.md` §Design System — no climbing opinions, score is never the headline, imperial units
 - [ ] `TELEGRAM_BOT_TOKEN` never reaches the client bundle — `initData` is validated server-side
 - [ ] No new features added to `apps/mobile` — it is archived
