@@ -52,8 +52,9 @@ export function requireApiAuth(req: Request, res: Response, next: NextFunction):
     return;
   }
 
-  const rawHeader = req.headers.authorization;
-  const provided = bearerToken(Array.isArray(rawHeader) ? rawHeader[0] : rawHeader);
+  // `authorization` is single-valued in Node's parser (string | undefined), unlike
+  // the repeatable headers elsewhere in this codebase that need an Array.isArray guard.
+  const provided = bearerToken(req.headers.authorization);
 
   if (provided === null || !secretMatches(provided, expected)) {
     // Never log the provided value, and never say which half was wrong.
