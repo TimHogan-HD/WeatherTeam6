@@ -1,6 +1,54 @@
 
 ---
 
+## 2026-08-25 — branch: claude/miniapp-design-b0 — commit: 995f1f0
+
+**Phase completed:** Phase B0 — Mini App design spec. Docs only, no code changes.
+
+**What was built this session:**
+- `docs/handoffs/miniapp-design-v1.md` — NEW. The design contract Tasks 5-7 build to. Answers all seven decisions the build handoff required: theming, navigation, content hierarchy, units, states, non-goals, and the copy model resolving #21.
+
+**Decisions made (previously open):**
+- **Theming — hybrid rejected.** The build handoff recommended "take light/dark from Telegram, apply WeatherTeam6 tokens within it." That is not implementable: the palette in `tokens.ts` is dark-only, there is no light token set, and every locked contrast rule is expressed as a minimum opacity of near-white on dark. Building one would mean authoring ~40 colors in the app, which the architecture rule forbids. Decision: WeatherTeam6 dark for all content, `themeParams` used only to harmonize Telegram's own chrome.
+- **Units — pure helpers in `packages/types`,** consumed by both the bot and the Mini App. Not a deviation from the types-only convention: that package already ships `aspectToDegrees`, `parseNumeric`, and `SCORE_COMPONENT_MAX`.
+- **Copy model (#21) — score-to-opinion mapping deleted outright.** `statusLabel()` goes; a five-rung ladder describes *conditions* ("Dry, settled") not suitability. Adds a suppression rule: when any component scores 0 or a Severe+ alert is active, the score is never shown as a summary — the limiting factor is named instead.
+
+**Verified against production, not assumed:**
+- **Issue #21 reproduced live.** Red Rock on 2026-08-24: `temp_c 39.5` (**103°F**), `component_temp: 0`, total **80**, confidence high, with an active NWS **Extreme Heat Warning** through Aug 28 that the reply never mentions. The shipped bot text for that state is "looks great — go climb".
+- **Root cause characterised.** Scoring is additive with no veto: drying 40 + rain 25 + wind 15 + temp 12 + humidity 8. Heat costs *at most 12 points* and saturates (`>35°C → 0`, so 96°F and 130°F are identical), so any settled dry spell lands in the 80s regardless of air temperature. The score is behaving as designed; the design is wrong. The copy model makes the surface honest — it does not fix the score.
+- **Per-day scores are not exposed by the API.** `computeLiveForecast` scores all 7 days but `/conditions/:id` keeps only today and `/forecast/:id` returns scoreless snapshots. The spec drops per-day score chips so that "no API changes needed" stays true.
+- **`crags` table is empty** — `/locations/search?q=rock` returns `[]` against production, so the crag-picker add flow has no data behind it.
+- **All three seeded locations have an `asos_station`** (KPSP / KLAS / KCNY), so the Open-Meteo-archive rainfall fallback is never exercised by seed data and will not appear in manual testing.
+- **NBM fallback confirmed (#22).** Live `model_sources` comes back `["gfs_seamless","ecmwf_ifs025","icon_seamless_eps","gem_global"]` — the ensemble, never NBM.
+
+**Corrections to inherited docs — each was a wrong instruction a future session would have followed:**
+- **`tokens.ts` is not "framework-agnostic".** Its own header says `Target: React Native`. `shadow` is RN-only (`shadowOffset`/`elevation`, no CSS meaning), `layout` uses `flex`/`paddingHorizontal`, `fonts` names are `expo-font` families that do not match the Google Fonts family `"Barlow Condensed"`. Only `colors`, `spacing`, `radius`, `units`, `uvScale` port directly. The Mini App needs an adapter layer.
+- **§Design System is not entirely client-agnostic** despite its banner. Four subsections name React Native explicitly (`LinearGradient`, `react-native-svg`, tabler RN icons, "no CSS vars"). Binding parts are the token-source rule, contrast rules, layout constants, and copy rules.
+- **`bottomNav` must not be imported** — it declares four tabs, three of them out of scope.
+
+**Known issues / deferred work:**
+- All five issues (#21, #22, #25, #26, #27) remain open. The spec resolves #21's *copy* only.
+- **The scoring fix behind #21 is not done** and needs its own change: cap the total when a component is 0, apply a multiplicative safety factor, or re-weight temperature above 12.
+- Empty-state copy is deliberately unwritten, blocked on the add-location product call.
+- Still no test coverage on the ~480 lines of migration-era backend logic.
+
+**Blockers for next session:**
+- **§10.1 — how does a user add a location?** Two screens means no add flow, the `crags` table is empty, and the manual `{name, lat, lon}` path forces `is_climbing_location: false`. Task 6 can build both screens; only the no-locations empty state waits on this call.
+- Task 6 still blocked on Task 5's auth work.
+- cron-job.org still unregistered.
+
+**What's next:** Phase B2 / Task 5 — `git checkout -b claude/miniapp-scaffold` off `main` — read `docs/handoffs/miniapp-design-v1.md` §0a and §8 before writing any UI, because the token adapter has to exist before the first component.
+
+**Gotchas for next session:**
+- **The API is not actually behind Vercel SSO.** The handoff, the previous session notes, and correction #1 all assume every Mini App fetch 302s to a login page. It does not: `GET /api/v1/locations` returns **200 with real data** to an unauthenticated public request, and `POST /api/telegram/webhook` answers a public POST. Vercel reports `ssoProtection: enabled` with `deploymentType: "all_except_custom_domains"`, but the production alias serves straight through. B2 is therefore unblocked — and the API is open *right now*, which inverts B3's urgency from "prevent a future exposure" to "close a current one". Confirm in the Vercel dashboard before scoping B3 around a wall that isn't there.
+- **CORS confirmed empirically:** `Access-Control-Allow-Headers: Content-Type, Authorization` and `Access-Control-Allow-Origin: *`. A custom `X-Telegram-Init-Data` header will fail preflight, exactly as the handoff's correction #4 predicted.
+- **Telegram contract re-verified against live docs.** HMAC-SHA256 with the `WebAppData` secret derivation still holds. New since the docs were written: an Ed25519 third-party signature path (not needed — we hold the bot token), injected `--tg-theme-*` CSS variables plus `--tg-color-scheme` and safe-area insets, and `startapp` surfacing as both `start_param` and the `tgWebAppStartParam` GET parameter. Script pins at `?63`.
+- **`startapp` permits hyphens** (`A-Z a-z 0-9 _ -`), so pass UUIDs through intact. Stripping and reinserting dashes turns a corrupted parameter into a well-formed *wrong* UUID that 404s instead of falling back to the list.
+- **`setHeaderColor` and `setBackgroundColor` have different version floors** — hex from 6.9 and 6.1 respectively. Do not gate them together, and do not fall back to the `bg_color` keyword: it resolves to the user's light-theme white, which is the failure the theming decision exists to prevent.
+- **Two review rounds found 24 wrong claims in this spec's own drafts** (11 then 13) — including a score floor/ceiling inversion, formatters that would render `32°F` for null, and a suppression rule that would have blamed the weather for the known `liveForecast` zero-default bug on every location. A third round was cut short by a session limit and did not run. **Re-review this document as executable before building from it.**
+
+---
+
 ## 2026-08-24 — branch: claude/telegram-crossover-zero-cost-4u8b1h — commit: 37b13ed
 
 **Phase completed:** Mini App build handoff (PR #30). Docs only, no code changes.
