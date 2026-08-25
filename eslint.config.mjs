@@ -16,6 +16,11 @@ export default tseslint.config(
       // Node.js CommonJS files that use require/module/__dirname legitimately.
       'apps/mobile/babel.config.js',
       'apps/mobile/metro.config.js',
+      // Added when app.json was replaced by app.config.js (fa567a7). Same
+      // category as the two above — CommonJS `module.exports` — but it was
+      // never added here, so `npm run lint` has failed on every branch and on
+      // main ever since, making CI red by default and its signal worthless.
+      'apps/mobile/app.config.js',
     ],
   },
   eslint.configs.recommended,
