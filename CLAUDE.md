@@ -24,6 +24,12 @@ npm run db:migrate    # apply pending migrations to DB
 npm run db:studio     # open Drizzle Studio
 ```
 
+From `apps/api`, against a real database (`DATABASE_URL` set in the shell, no `.env` file):
+```bash
+npm run db:seed             # seed the user + 3 locations
+npm run check:add-location  # acceptance check for the add-location flow (Task 5a)
+```
+
 ## Structure
 ```
 apps/
@@ -71,8 +77,8 @@ replaced by ACIS in Phase 11, and RainViewer's key is unused by the current code
 - TypeScript strict mode everywhere. No `any`.
 - All API responses use shape: `{ data, error, status }`
 - All external API calls wrapped in try/catch with exponential backoff retry
-- Never log secrets, tokens, or full API responses in production
-- Never commit `.env` — use `.env.example` with blank values
+- Never log secrets, tokens, or full API responses in production. Never serialise an error object wholesale into a log — database driver errors can carry the connection string; go through `describeError` in `lib/http.ts`, which reads only known-safe fields
+- Never commit `.env`, and **do not create one at all** — use `.env.example` with blank values, and set variables in the shell for the one command that needs them (see § Verification Standards)
 - Auth is toggled via `AUTH_ENABLED` env var. Do not build a login UI.
 - `DEFAULT_USER_ID` is injected by `resolveUser` middleware — never hardcode it in route handlers
 - Drizzle migrations only — never mutate the DB directly
@@ -149,6 +155,40 @@ Before ending ANY session, append a full state block to `.claude/docs/session-no
 
 Stub entries (timestamps only, no content) are noise — never append a session-end line without the full block above.
 
+**Then reconcile the docs the block just made stale.** The session block is a record, not a substitute — the files agents are *told to read* must not contradict what shipped. Before ending, grep for every reference to what you changed and fix each one:
+
+- A completed task is marked complete **in both places the task list lives** — `docs/handoffs/telegram-crossover-v4.md` (the canonical list) and `.claude/docs/plan.md` (the same list with detail). A task recorded in only one of them is effectively unfindable in the other.
+- A new endpoint is added to the inventory in `docs/handoffs/weatherteam6-miniapp-handoff-v1.md`.
+- A new external API is added to `.claude/docs/api-sources.md`.
+- A new invariant future work must uphold goes in `.claude/rules/architecture.md`, and as a checkbox in `.claude/rules/review-checklist.md` if it can rot silently.
+- **Specs written in the future tense get a status banner once built**, rather than being left to read as unbuilt work.
+- Anything a doc says is missing, broken, or "does not exist yet" that now exists.
+
+This is not tidying. A stale rule is worse than a missing one: "Two screens only — do not let them creep back in" survived three weeks past the spec that added a third screen, and any agent obeying it would have refused to build a feature that was already specified and whose API was already merged.
+
+**After a squash merge, correct the commit hash in the block you just wrote.** The branch commit it names ceases to exist; record the squashed hash on `main` instead.
+
+## Verification Standards
+
+Typecheck and lint prove a change compiles. They do not prove it works, and reporting a feature done on their strength alone has produced shipped-broken code in this repo before.
+
+- **Exercise the real path before calling something complete.** For an endpoint that calls an external API, run it and read the response. For one that touches the database, run it against the database.
+- **`npm run test` cannot cover database behaviour.** Vitest mocks `fetch` and never opens a connection, so foreign-key violations, values that silently fail to persist, and constraint errors are all invisible to it. That class of failure needs a script under `apps/api/src/scripts/`, exposed as an `npm run check:*` command — `check:add-location` is the worked example. Write one when you add a flow whose failures only appear against real Postgres.
+- **Run the API locally against the real database when you need to.** No `.env` file is required, and none should be created:
+  ```powershell
+  cd apps/api
+  $env:DATABASE_URL = "<Neon pooled connection string>"   # keep the quotes: the string contains &
+  npm run check:add-location
+  ```
+  `DEFAULT_USER_ID` is optional — it can be read from the `users` table. The seeded user is `00000000-0000-0000-0000-000000000001`.
+- **State plainly what was and was not verified.** "Typechecks, but never run against a database" is a useful sentence; omitting it is how an untested endpoint becomes a dependency.
+
+## Reporting Work
+
+- Lead with what happened and what it means, not the mechanism. A caveat does not need its justification attached — say what breaks, and keep the reasoning for when it is asked for.
+- Say what failed, what was skipped, and what remains unverified, without being asked.
+- Do not describe a problem in schema or driver terms when a plain sentence covers it.
+
 ## Known Gotchas
 
 **Shared packages must be built before typechecks pass.**
@@ -168,6 +208,15 @@ Vercel's Express preset expects the entry file to `export default app` or call `
 
 **Neon cannot be reached from this cloud dev environment.**
 The egress proxy blocks both Neon's WebSocket path (403) and its HTTP SQL API host (not allowlisted). `drizzle-kit` auto-detects `@neondatabase/serverless` and uses the WebSocket driver regardless of app code, so **migrations must be run from an unrestricted machine**, or the environment's egress allowlist widened to `*.aws.neon.tech`.
+
+**This repo is checked out on Windows, and the working tree is CRLF.**
+Multi-line `sed`/`perl` replacements silently match nothing — they fail quietly, report success, and leave the file untouched. Use the Edit tool for anything spanning more than one line; single-line `sed -i` is fine. **Python is not installed**; reach for Node or PowerShell instead. `gh` is installed but not always on `PATH` — the full path is `C:\Program Files\GitHub CLI\gh.exe`.
+
+**Vercel will not give you a secret back.**
+`DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, and the other credentials are marked sensitive in the Vercel project: the dashboard refuses to copy them and `vercel env pull` cannot recover them either. Go to the source instead — Neon's dashboard for `DATABASE_URL` (use the **pooled** string for app runtime, direct only for migrations). Do not ask the user to paste a secret into the conversation; have them set it in their own shell.
+
+**An unauthenticated 401 from production proves `DEFAULT_USER_ID` is set.**
+`resolveUser` runs before `requireApiAuth`, so a server missing `DEFAULT_USER_ID` answers 500 "Server misconfigured" even without credentials. A 401 therefore confirms the variable is present — a config check that needs no secret. Note the converse: **every** `/api/v1/*` path returns 401 unauthenticated, existing or not, so a 401 is *not* evidence that a route was deployed. Check the deployment's commit SHA for that.
 
 **Code reviews interrupted by context limits lose their findings.**
 If `/code-review` or the code-review skill runs near the end of a long session and context compresses before the output is written, the findings are lost. Save intermediate review output to `.claude/docs/review-findings.md` before the session ends if verification is still in progress.

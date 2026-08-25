@@ -56,7 +56,18 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] Any text interpolated into a `parse_mode: 'HTML'` message is escaped (`&`, `<`, `>`) — NWS headlines and user-entered location names routinely contain them, and a malformed message is a non-retryable 400
 - [ ] Webhook auth does not rely solely on request-body fields
 
+## Verification
+- [ ] The change was **run**, not just compiled — an external-API call had its response read, a database write was made and read back
+- [ ] If the flow can only fail against real Postgres, a `check:*` script under `apps/api/src/scripts/` covers it and was run
+- [ ] What was *not* verified is stated explicitly, in the commit or the session notes
+
+## Docs
+- [ ] A completed task is marked complete in **both** `docs/handoffs/telegram-crossover-v4.md` and `.claude/docs/plan.md`
+- [ ] New endpoint added to the inventory in `docs/handoffs/weatherteam6-miniapp-handoff-v1.md`; new external API added to `.claude/docs/api-sources.md`
+- [ ] No doc still describes the shipped thing as missing, planned, or "does not exist yet" — a stale rule misdirects the next agent more than a missing one does
+- [ ] A new invariant future work must uphold is written into `.claude/rules/architecture.md`, not just the session notes
+
 ## General
-- [ ] No `console.log` left in committed code — use the logger
+- [ ] No `console.log` left in committed code — use the logger (`src/scripts/` is the documented exception)
 - [ ] No commented-out code committed
 - [ ] Feature matches the agreed spec — no scope added silently

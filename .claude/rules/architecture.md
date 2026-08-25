@@ -21,6 +21,12 @@ Read this at the start of every session. These decisions are final unless explic
 - **External APIs are proxied, never called from the client.** `GET /api/v1/geocode` (Open-Meteo place search) and `GET /api/v1/radar/frames` follow this: the fetch lives in `src/lib/weather/`, wrapped in the shared `fetchWithRetry`, and the route is a thin pass-through returning `{ data, error, status }`. A client calling a third-party API directly bypasses the retry policy and the response contract both.
 - `GET /api/v1/preview?lat=&lon=&elevation=` serves weather for a location that has **no row and no UUID** — the add flow's pre-save step. It runs `computeLiveForecast` over a synthetic `LiveForecastLocation` and **persists nothing**; `location.id` is the placeholder `"preview"`, used only for log lines and synthesized snapshot ids. It deliberately returns no conditions score: nothing has been classified as a climbing location yet.
 
+## Operator Scripts
+- One-off and verification scripts live in `apps/api/src/scripts/`, are plain TypeScript run with `tsx`, and are exposed as npm scripts (`db:seed`, `check:add-location`). They are the only place `console` is used instead of the logger — their output *is* the result.
+- **Acceptance scripts exist because the test suite cannot reach the database.** Vitest mocks `fetch` and never connects, so FK violations, values that fail to persist, and constraint errors never surface there. A flow whose failures only appear against real Postgres gets a `check:*` script; see `checkAddLocationApi.ts`.
+- Such a script must be safe to run against production data: create rows under an obvious prefix, clean up in a `finally` block even when a step fails, and say so loudly if cleanup did not work.
+- Defer runtime imports of `../db/index.js` inside the entry function. It throws at import time when `DATABASE_URL` is unset, which pre-empts any friendlier message with a stack trace.
+
 ## Auth Pattern
 - `AUTH_ENABLED=false` means all requests get `req.userId = DEFAULT_USER_ID` injected by `resolveUser`.
 - Route handlers always use `req.userId`. Never reference `DEFAULT_USER_ID` directly in routes.
