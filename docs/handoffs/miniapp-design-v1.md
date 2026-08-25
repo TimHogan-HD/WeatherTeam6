@@ -61,7 +61,7 @@ So:
 
 ## 2. Navigation
 
-**Decision: two routes, Telegram `BackButton` as the only back affordance.**
+**Decision: three routes, Telegram `BackButton` as the only back affordance.** (Two until §12 added `/add`.)
 
 ```
 /                    location list   (root)
@@ -70,7 +70,18 @@ So:
 ```
 
 - Client-side routing, no server routes. The Vercel project rewrites all paths to `index.html`.
-- **`BackButton`:** `show()` on detail, `hide()` on list. `onClick` → navigate to `/`. Never call `WebApp.close()` ourselves; from the list, Telegram's own chrome closes the app.
+- **`BackButton`:** `hide()` on the list only; `show()` on every other route. Never call `WebApp.close()` ourselves; from the list, Telegram's own chrome closes the app.
+
+  **Where it goes is per-route — a blanket "navigate to `/`" is wrong.** An earlier draft said exactly that, which would have stranded the §12 flow: pressing back from a preview would jump to the list and silently discard the search the user had just run.
+
+  | Route | `BackButton` target |
+  | --- | --- |
+  | `/` list | hidden |
+  | `/location/:id` (saved) | `/` |
+  | `/add` | `/` |
+  | `/add` preview (unsaved detail) | back to `/add` **with the query and results intact** — treat preview as a step within `/add`, not a sibling of it |
+
+- **After a successful save**, replace history rather than pushing: go to `/location/:id` for the newly created location, with `/` beneath it. Back from there lands on the list, not on the preview of a place already saved. The `POST /locations` response returns the created `Location` including its new `id` (`routes/locations.ts` returns `mapLocation(row)` with `201`), so no extra fetch is needed.
 - **No in-app back arrow.** One back affordance, and it is Telegram's. A second one is a bug.
 - **Deep link.** `startapp` surfaces two ways — `initDataUnsafe.start_param` and the `tgWebAppStartParam` GET parameter. Read `start_param`; fall back to the query parameter.
   - Format: `loc_<uuid>`, dashes intact. Telegram's `startapp` charset is `A-Z a-z 0-9 _ -`, which **includes the hyphen**, so a UUID passes through unchanged. Do not strip and reinsert dashes: reinsertion at fixed offsets turns a corrupted parameter into a *well-formed but wrong* UUID, which reaches the API and 404s instead of falling back to the list.
@@ -92,7 +103,7 @@ One card per location. Top to bottom inside a card:
 3. **Alert pill** — only if an active alert exists. `poor` tint, event name only ("Extreme Heat Warning"). Tapping the card, not the pill, opens detail.
 4. **Score chip** — bottom-right, small, labeled. Format: `Score 80 · high`. Never bare. Never the largest element. Subject to the suppression rule in §7.
 
-Empty state, error state, and loading per §5. No search, no add-location, no sort controls in v1.
+Empty state, error state, and loading per §5. No sort or filter controls in v1. **An add affordance does belong here** — a single action in the list header routing to `/add` (§12). An earlier draft of this line read "no search, no add-location", which §12 reversed; the list is the only place a user with saved locations can reach the add flow from, so without it §12 is unreachable except from the empty state.
 
 ### Location detail (`/location/:id`)
 
@@ -123,7 +134,7 @@ When `is_climbing_location` is false, on every surface including the bot:
 
 **Rule: hours since rain is capped at "30+ days" in display, everywhere.** `breakdown.drying.hours_since_rain` carries a sentinel. When the rainfall lookup returns nothing — because it genuinely has not rained, **or because the ACIS / Open-Meteo-archive fetch threw and `liveForecast.ts:96` swallowed it** — `dryingModel.ts:34,41` returns exactly `720`, flagged `estimated_dry: true` with `confidence: 'high'`. Both paths produce the identical value, so **no surface can tell a dry month from an upstream outage**, and neither may be rendered as a precise measurement.
 
-Binding: any value at or above `720` renders as *"no rain in 30+ days"* — never *"no rain in 720h"*, never a computed day count. Below `720`, render the real figure. This is a display cap, not a data fix; the underlying ambiguity is filed as §10.5. It applies to the bot reply in §7 as much as to the detail screen, since both read the same field.
+Binding: any value at or above `720` renders as *"no rain in 30+ days"* — never *"no rain in 720h"*, never a computed day count. Below `720`, render the real figure. This is a display cap, not a data fix; the underlying ambiguity is filed as §10.6. It applies to the bot reply in §7 as much as to the detail screen, since both read the same field.
 
 **Constraint: per-day scores do not exist over the API.** `computeLiveForecast` scores all seven days, but no endpoint returns them — `GET /conditions/:id` keeps only the row matching today (`routes/conditions.ts`) and `GET /forecast/:id` returns `snapshots`, which carry no score or confidence field. Verified against production: `/forecast/:id` returns 7 objects whose keys are `id, location_id, captured_at, forecast_date, precip_mm_p10/p50/p90, temp_c_min, temp_c_max, wind_kmh_max, humidity_pct, model_sources, created_at, window`.
 
@@ -297,7 +308,8 @@ The defect is not that heat forces a low score; it is that heat **costs at most 
    - **A `Severe`+ alert names the alert, not a component:** `Score 80 (high confidence) — see heat warning above`.
 5. **Alerts outrank everything.** An active NWS alert renders above the score on every surface, bot included. A `Severe`+ alert is never omitted for space.
 6. **Sources named**, on detail and in the bot reply, built per the location-dependent rule in §3 — never a hardcoded list.
-7. **No dead-client copy.** The bot's not-found reply currently says *"Save it in the app first"*, referring to the archived mobile app. Replace with wording that points at a surface that exists.
+7. **No dead-client copy.** The bot's not-found reply currently says *"Save it in the app first"*, referring to the archived mobile app. Replace with wording that points at a surface that exists — once §12 ships, that is the Mini App's `/add` screen, reachable from the bot's own `web_app` button.
+8. **The bot obeys §3's non-climbing rule too.** `buildConditionsReply` calls `computeLiveForecast` and reports a score for whatever it matched, with no check on `is_climbing_location`. Once general weather locations exist (§12), `/conditions Chicago` would answer with a rock-drying score. For a non-climbing location the reply is weather, alerts, and sources only — no score line, no drying, no state label. Its existing query (`conditionsReply.ts:17-30`) selects an explicit column list that does **not** include `is_climbing_location` — add it to that list rather than issuing a second query.
 
 ### The bot reply, rewritten
 
@@ -367,7 +379,8 @@ Not in the Mini App, in v1 or later without a new spec:
 2. **The scoring fix behind issue #21.** §7 makes the copy honest; the score itself still charges at most 12 points for any amount of heat, so a settled dry spell scores in the 80s at 103°F. Options: cap the total when any component is 0, apply a multiplicative safety factor, or re-weight temperature above 12. This is a scoring-math change with test implications and belongs in its own change, not in Task 6.
 3. **Caching.** Six upstream fetches for one detail screen. Fine at one user. Fixing issue #22 removes one of three per request for free.
 4. **Degraded scores are invisible to any client.** When the forecast feed has no row for today, `liveForecast.ts` substitutes proxies that award full wind (15/15) and full humidity (8/8) marks, inflating the score with no component zeroed and nothing in the response to say so — only a server-side `logger.warn` (§5, *Silently degraded*). Every surface, bot included, will present that score as ordinary. Making it detectable means adding a field to the conditions response. That was previously ruled out for breaking the build handoff's "no API changes needed" — **but §12.3 breaks that anyway, so the objection is gone and the marginal cost is now small.** Strong candidate to ride along with Task 5a rather than wait for its own change. Either way it stays out of Task 6's UI work: **not a Mini App bug — do not let Task 6 invent a client-side heuristic for it.** Still needs filing as its own issue alongside #21.
-5. **A dry month and a failed rainfall fetch are the same value.** `dryingModel` returns the `720`-hour sentinel with `estimated_dry: true` and `confidence: 'high'` for both a genuine 30-day dry spell and a swallowed ACIS / archive error (§3, display-cap rule). The full 40/40 drying component follows in both cases, so the largest single component in the score is, in the failure case, unearned and asserted confidently. §3's cap stops it rendering as a false precise fact; it does not stop it inflating the score. The fix is a distinguishable no-data result from `dryingModel` — a scoring-layer change with test implications, sized like §10.2 and out of scope here.
+5. **"Today" is a UTC date, not the location's local date.** `liveForecast.ts:47` computes `todayStr` as `now.toISOString().slice(0,10)`, and both Open-Meteo calls set `timezone=UTC` (`openMeteo.ts:333,428`), so every daily bucket is a UTC day. For anywhere in the Americas that means the day labelled "today" rolls over in the **late afternoon local time**: at 18:00 in Las Vegas it is already tomorrow in UTC, so "today's high" is drawn from a bucket spanning tonight and tomorrow afternoon. The `locations` table has a `timezone` column (`schema.ts:60`) and the API returns it, but **nothing reads it** — it is captured and ignored. This is pre-existing and not introduced by §12, but §12 makes it much more visible: a general weather app is checked in the evening far more often than a crag is, and "today's high" being tomorrow's is the kind of error a user notices immediately and cannot explain. Fixing it means passing the location's timezone to Open-Meteo and deriving `todayStr` in that zone. Sized like §10.2; needs its own issue.
+6. **A dry month and a failed rainfall fetch are the same value.** `dryingModel` returns the `720`-hour sentinel with `estimated_dry: true` and `confidence: 'high'` for both a genuine 30-day dry spell and a swallowed ACIS / archive error (§3, display-cap rule). The full 40/40 drying component follows in both cases, so the largest single component in the score is, in the failure case, unearned and asserted confidently. §3's cap stops it rendering as a false precise fact; it does not stop it inflating the score. The fix is a distinguishable no-data result from `dryingModel` — a scoring-layer change with test implications, sized like §10.2 and out of scope here.
 
 ---
 
@@ -375,7 +388,7 @@ Not in the Mini App, in v1 or later without a new spec:
 
 Someone else can build the Mini App from this document without asking a design question. ~~with one declared exception: the empty-state copy (§5)~~ — **that exception is closed.** §10.1 was answered on 2026-08-25 and §12 specifies the add flow, which unblocks §5's empty state. Every decision required by the build handoff now has a written answer, and so does the one the build handoff did not think to ask.
 
-The remaining constraint is a sequencing one, not a design gap: §12 requires four API changes (§12.3), and the UI cannot be built honestly against endpoints that do not exist. See §12.5.
+The remaining constraint is a sequencing one, not a design gap: §12 requires five API changes (§12.3), and the UI cannot be built honestly against endpoints that do not exist. See §12.5.
 
 Mapping to the build handoff's own numbering:
 
@@ -388,6 +401,7 @@ Mapping to the build handoff's own numbering:
 | States | 5 | Loading, empty, error, stale, partial |
 | Non-goals | 9 | Written explicitly |
 | Copy model (#21) | 7 | One ladder, suppression rule, applied to bot and Mini App together |
+| *(not asked by the handoff)* | 12 | Adding a location — search, preview, save, delete; climbing as an explicit toggle |
 
 **Two constraints this spec discovered that Task 6 must not rediscover the hard way:**
 
@@ -430,9 +444,13 @@ Use **Open-Meteo's geocoding API** (`geocoding-api.open-meteo.com/v1/search`). R
 
 The endpoint is proxied server-side as `GET /api/v1/geocode?q=`, not called from the client, so it obeys the same retry/backoff and `{ data, error, status }` rules as every other external call.
 
+**Result rows must be disambiguated, and this is not optional.** Verified live on 2026-08-25: `?name=Red Rock Canyon` returns **three** different places — a state park in Oklahoma (elev 480 m), another in California (738 m), and the National Conservation Area in Nevada (1200 m, the one a Vegas climber means). Their names are near-identical. A result list showing only `name` makes the choice a coin flip, and picking wrong is silent — you get a real forecast for the wrong state.
+
+Each row renders `name`, then `admin1` and `country` as secondary text ("Nevada, United States"). The response also carries `elevation` and `timezone`; both are captured and passed through to save (§12.3 change 5). Nothing reads `timezone` today — see §10.5 — but it is free here and the column already exists.
+
 **The `crags` table stays out of v1 search.** It is empty, and populating it from OpenBeta is its own project. Nothing here forecloses merging crag results into the same result list later; the result shape should simply not assume a geocoder is the only possible source.
 
-### 12.3 The four API changes this requires
+### 12.3 The five API changes this requires
 
 | # | Change | Why it cannot be skipped |
 | --- | --- | --- |
@@ -440,6 +458,7 @@ The endpoint is proxied server-side as `GET /api/v1/geocode?q=`, not called from
 | 2 | **`GET /preview?lat=&lon=&elevation=`** — new | Step 2 shows weather for a location that has no row and no UUID yet. `/conditions/:id` and `/forecast/:id` both key on a saved id. Internally this is `computeLiveForecast` over a synthetic `LiveForecastLocation` — it only uses `location.id` for log lines and snapshot ids, so a placeholder is safe. **Nothing is persisted.** |
 | 3 | **`POST /locations`** — changed | `routes/locations.ts:174` hardcodes `is_climbing_location: false` on the `{name, lat, lon}` branch, so a manually added crag can never be a crag. Must accept `is_climbing_location` and optional `rock_type`. `CreateLocationInput` in `packages/types` changes with it. |
 | 4 | **`DELETE /locations/:id`** — new | **There is no delete endpoint at all.** A save flow without an unsave is a trap: one mistyped search result is permanent. This is table stakes for the flow, not a nice-to-have. |
+| 5 | **`POST /locations` must persist `elevation_m`** — changed | **Caught in review; without it the flow is visibly broken.** Neither insert branch sets `elevation_m`, though the column exists (`schema.ts:50`) and the seed populates it. `applyLapseRate` (`openMeteo.ts:271-283`) returns early when it is null, so **preview would show elevation-corrected temperatures and the saved location would not** — the same place, different numbers, before and after tapping Save. At the standard lapse rate that is roughly 6.5 °C per 1000 m of difference from the model grid elevation; for a mountain crag, comfortably 10 °F. Persist the geocoder's `elevation` on save, and on the manual-coordinates path accept a null and let the correction be skipped consistently in both preview and detail. |
 
 Note that change 2 finally exercises the `fetchArchivePrecip` branch of `liveForecast.ts`. All three seeded locations have an `asos_station`, so the archive fallback has never run in manual testing — a previewed location will have no station and will take it every time. Expect that path to be where the first bug appears.
 
@@ -453,4 +472,4 @@ Note that change 2 finally exercises the `fetchArchivePrecip` branch of `liveFor
 
 The API work in §12.3 is a **prerequisite** for the UI, not a companion to it. It is also entirely independent of the `initData` auth work that Task 6 is blocked on, so it can proceed in parallel rather than waiting.
 
-Recommended: take §12.3 as its own backend task — **Task 5a** — landing before or alongside Task 5's shell work. Task 6 then builds `/add`, the detail screen's unsaved mode, the save bar, and the delete affordance against endpoints that already exist. Building the UI first would mean mocking four endpoints, and `.claude/rules/architecture.md` forbids leaving mock data in a finished feature.
+Recommended: take §12.3 as its own backend task — **Task 5a** — landing before or alongside Task 5's shell work. Task 6 then builds `/add`, the detail screen's unsaved mode, the save bar, and the delete affordance against endpoints that already exist. Building the UI first would mean mocking the whole surface, and `.claude/rules/architecture.md` forbids leaving mock data in a finished feature.

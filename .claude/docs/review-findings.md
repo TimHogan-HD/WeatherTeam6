@@ -26,6 +26,76 @@ Verified after the changes: `npm run typecheck` 6/6 tasks, `npm run test` 106/10
 
 ---
 
+---
+
+# Round 4 — review of §12 (the add-location flow) and of round 3's own edits
+
+Run 2026-08-25 at the user's request, before starting Task 5a. Five findings, all applied.
+
+## R1 — HIGH. `POST /locations` never persists `elevation_m`, so preview and the saved location would disagree on temperature.
+
+`schema.ts:50` has the column and `seed.ts:14,26,38` populates it, but **neither insert branch of `POST /locations` sets it** (`routes/locations.ts:140-152, 166-178`). §12's preview step passes the geocoder's `elevation` into `computeLiveForecast`, so `applyLapseRate` (`openMeteo.ts:271-283`) corrects the temperatures. After save, `elevation_m` is null, `applyLapseRate` returns early at `:276`, and the correction silently stops.
+
+Same place, different temperature, before and after tapping Save. At `LAPSE_RATE_C_PER_M` that is ~6.5 °C per 1000 m of difference from the model grid elevation — comfortably 10 °F for a mountain crag, and inexplicable to the user.
+
+**Applied:** added as change 5 in §12.3; propagated to `plan.md`'s Task 5a row and the session-notes blocker list. This was my own error in the §12 draft, not a pre-existing one.
+
+## R2 — MEDIUM. §3 still forbade what §12 requires.
+
+The location-list section ended *"No search, no add-location, no sort controls in v1."* §12 puts an add affordance in the list header. Left as written, the two sections contradict each other and the list becomes the one place a user with saved locations cannot reach `/add` from.
+
+**Applied:** §3 now permits the add affordance explicitly and still forbids sort/filter.
+
+## R3 — MEDIUM. §2's navigation rules did not survive the third route.
+
+Three problems, all introduced by adding `/add` without revisiting the section:
+- The heading still read **"Decision: two routes."**
+- `BackButton` was specified as *"`show()` on detail, `hide()` on list"* — `/add` is neither.
+- **`onClick` → navigate to `/` is wrong from preview.** It would jump to the list and discard the search the user just ran.
+- Post-save destination was unspecified.
+
+**Applied:** §2 now carries a per-route `BackButton` target table, treats preview as a step *within* `/add`, and specifies a history-replacing transition to the new location's detail on save (the `201` response already returns the created `Location`, so no extra fetch).
+
+## R4 — MEDIUM. "Today" is a UTC date, not the location's local date. (Pre-existing.)
+
+`liveForecast.ts:47` derives `todayStr` from `now.toISOString()`, and both Open-Meteo calls pass `timezone=UTC` (`openMeteo.ts:333,428`), so every daily bucket is a UTC day. In the Americas the "today" label rolls over in **late afternoon local time** — at 18:00 in Las Vegas, "today's high" comes from a bucket spanning tonight and tomorrow afternoon.
+
+`locations.timezone` exists (`schema.ts:60`) and is returned by the API, but nothing reads it — the only `timezone` values in the codebase are the hardcoded `'UTC'` query params.
+
+Not introduced by §12, but §12 makes it far more visible: a general weather app gets checked in the evening much more than a crag does.
+
+**Applied:** filed as §10.5 (new), which renumbered the drying-sentinel question to §10.6; both stale cross-references were repointed.
+
+## R5 — LOW. Geocoder results are ambiguous without region labels.
+
+Verified live: `?name=Red Rock Canyon` returns **three** near-identically named places — Oklahoma (480 m), California (738 m), Nevada NCA (1200 m). A result row showing only `name` makes the choice a coin flip, and picking wrong fails silently with a real forecast for the wrong state.
+
+**Applied:** §12.2 now requires `admin1` + `country` as secondary text on each row, and notes that the response also carries `elevation` and `timezone` for R1/R4.
+
+## Also applied in round 4
+
+- **§7 gains rule 8** — the bot has no `is_climbing_location` check either, so `/conditions Chicago` would return a rock-drying score once general locations exist. Its select list (`conditionsReply.ts:17-30`) does not currently include the column; add it there rather than issuing a second query.
+- **§11's mapping table** gains a row for §12, marked as a decision the build handoff did not think to ask for.
+- **Change counts** corrected from four to five across the spec, `plan.md`, and the session notes.
+
+## Verified during round 4 and found correct
+
+| Claim | Verified |
+| --- | --- |
+| Open-Meteo geocoding needs no API key | Live request, 200 with results |
+| …and returns `elevation` | `1200.0` for Red Rock NCA |
+| …and returns `timezone`, `admin1`, `country` | all present in the live response |
+| `build-prompt-v8.md:761` already named this API as the intended path | quoted verbatim, accurate |
+| `fetchArchivePrecip(lat, lon, …)` needs no station, so previewed locations work | `openMeteo.ts:416-421` |
+| `runAlertsCheck` selects **all** locations with no filter, so general locations get alerts | `checkAlerts.ts:17-19` |
+| `computeLiveForecast` uses `location.id` only for log lines and snapshot ids, so a synthetic id is safe for preview | `liveForecast.ts:75, 173` |
+| `MAX_HOURS` sandstone 72 h vs granite 12 h — the rock-type argument in §12.1 | `dryingModel.ts:25-31` |
+| `POST /locations` returns the created `Location` with `201` | `routes/locations.ts:151-152` |
+
+---
+
+# Round 3 — the spec as executable
+
 ## F1 — CRITICAL. §7 rule 4's degradation guard fires on the exact case §7 exists to serve.
 
 **The spec says** (§7 rule 4, second bullet):

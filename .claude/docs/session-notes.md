@@ -18,6 +18,13 @@
 - `packages/types/src/index.ts` — `ScoreInput.currentTempC` marked `UNUSED` with the reason, so a dead field cannot mislead a third time.
 - `.claude/docs/review-findings.md` — NEW. All six findings with file:line evidence, plus an appendix of 22 claims verified correct so round 4 does not redo them.
 
+**Round 4 — review of §12 itself, run before starting Task 5a.** Five more findings, all applied; full detail in `review-findings.md`.
+- **R1 (high, my own error):** `POST /locations` never persists `elevation_m`, so §12's preview would show lapse-rate-corrected temperatures and the saved location would not — same place, ~10 °F apart, before and after Save. Now change 5 in §12.3.
+- **R2/R3:** §12 contradicted two sections it did not revisit. §3 still said "no add-location"; §2 still said "two routes" and specified a `BackButton` that would have discarded the user's search on back from preview. Both rewritten, with a per-route back-target table.
+- **R4 (pre-existing):** "today" is a **UTC** date (`liveForecast.ts:47` plus `timezone=UTC` on both Open-Meteo calls), so in the Americas "today's high" rolls over in the late afternoon. `locations.timezone` exists and nothing reads it. Filed as §10.5.
+- **R5:** live geocoder check returned three different "Red Rock Canyon" parks in three states — result rows need `admin1` + `country` or the choice is a coin flip.
+- Also: §7 gains rule 8 (the bot has no `is_climbing_location` check either), and the Open-Meteo geocoder was verified live rather than assumed — keyless, and it returns `elevation` and `timezone`.
+
 **Verification:** `npm run typecheck` 6/6 tasks pass, `npm run test` 106/106 pass.
 
 **Known issues / deferred work:**
@@ -33,7 +40,7 @@
 
 **Blockers for next session:**
 - **None on design.** The spec is complete and no longer has a declared exception.
-- **New prerequisite: Task 5a (backend).** §12 needs four API changes — `GET /geocode`, `GET /preview`, a changed `POST /locations`, and `DELETE /locations/:id`. Added to `plan.md`'s phase table. It is **independent of the `initData` auth work**, so it can start immediately.
+- **New prerequisite: Task 5a (backend).** §12 needs five API changes — `GET /geocode`, `GET /preview`, a changed `POST /locations`, `DELETE /locations/:id`, and **persisting `elevation_m` on save** (found in the round-4 self-review; without it preview and the saved location disagree on temperature). Added to `plan.md`'s phase table. It is **independent of the `initData` auth work**, so it can start immediately.
 - Task 6's screens still blocked on Task 5's auth work, and now also on Task 5a.
 - cron-job.org still unregistered.
 
