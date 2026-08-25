@@ -1021,7 +1021,7 @@
 
 ---
 
-## 2026-08-25 — branch: claude/miniapp-scaffold — commit: PENDING
+## 2026-08-25 — branch: claude/miniapp-scaffold — commit: 79e5331
 
 **Phase completed:** Task 5 — Mini App shell (code complete; **not deployed, not registered with @BotFather**)
 
