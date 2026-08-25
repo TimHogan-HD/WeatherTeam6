@@ -1,6 +1,111 @@
 
 ---
 
+## 2026-08-25 — branch: claude/miniapp-design-b0 — commit: 9a19ecc — PR #31 (open)
+
+**Phase completed:** Phase B0 review round 3 — the round the previous session began and lost when its context ran out. Spec corrected, plus two code comments that were the original source of the error.
+
+**Recovery note:** nothing was lost from disk. Both B0 commits were intact on the branch; only the review conversation was gone, and no `review-findings.md` had been written — the exact failure the CLAUDE.md gotcha warns about. Findings were written to disk **before** any fix this time.
+
+**What was fixed this session:**
+- `docs/handoffs/miniapp-design-v1.md` §7 rule 4 — **the ship-breaking one.** The score-suppression carve-out was built on the belief that `liveForecast`'s missing-today-row fallback zeroes `component_temp`. It does not: `conditionsScore.ts:76` reads `forecastHighC`, and `currentTempC` is never read by any scorer. The carve-out's signature (`component_temp === 0` + `temp_c_max` above 0 °C) describes **Red Rock at 39.5 °C**, so it would have fired on the one case §7 exists for and shipped *"Dry, settled"* against a 103 °F Extreme Heat Warning. Deleted, with an explicit do-not-reintroduce note.
+- `miniapp-design-v1.md` §5 — new *Silently degraded* subsection. The fallback's real effect is the **opposite** of degrading: 0 km/h wind and the 50% humidity default both sit inside `conditionsScore`'s full-credit bands, so scores come back inflated with no component zeroed and no response field marking it. Not client-detectable in v1; filed as §10.4.
+- `miniapp-design-v1.md` §3 — new binding display cap. `hours_since_rain` at or above `720` renders as *"no rain in 30+ days"*, never a precise figure: a swallowed ACIS/archive fetch and a genuine dry month both produce that sentinel with `estimated_dry: true, confidence: 'high'`. Filed as §10.5.
+- `miniapp-design-v1.md` §5 — new *No score for today* row. `GET /conditions/:id` returns `200` with `data: null` when nothing matches today; no section handled it, and `label(data.score)` throws. Must not reuse the ladder's *"Too far out to score"* copy — that describes a far-out date, this is today.
+- `miniapp-design-v1.md` §4 — resolved the unit labels being defined in both `packages/types` and `packages/design`. Formatters are authoritative for anything a user reads; `design.units` is superseded for rendered text.
+- `miniapp-design-v1.md` §6 — conclusion unchanged, reasoning replaced. The 7–14 day window *is* reachable in the data (`daysOut` is measured from today, so a feed starting tomorrow puts row 7 at `daysOut` 7), just never on screen.
+- `apps/api/src/lib/scoring/liveForecast.ts:120-131` — the comment and log message asserted the same falsehood the spec inherited from them. Corrected to state the true direction of the degradation.
+- `packages/types/src/index.ts` — `ScoreInput.currentTempC` marked `UNUSED` with the reason, so a dead field cannot mislead a third time.
+- `.claude/docs/review-findings.md` — NEW. All six findings with file:line evidence, plus an appendix of 22 claims verified correct so round 4 does not redo them.
+
+**Round 4 — review of §12 itself, run before starting Task 5a.** Five more findings, all applied; full detail in `review-findings.md`.
+- **R1 (high, my own error):** `POST /locations` never persists `elevation_m`, so §12's preview would show lapse-rate-corrected temperatures and the saved location would not — same place, ~10 °F apart, before and after Save. Now change 5 in §12.3.
+- **R2/R3:** §12 contradicted two sections it did not revisit. §3 still said "no add-location"; §2 still said "two routes" and specified a `BackButton` that would have discarded the user's search on back from preview. Both rewritten, with a per-route back-target table.
+- **R4 (pre-existing):** "today" is a **UTC** date (`liveForecast.ts:47` plus `timezone=UTC` on both Open-Meteo calls), so in the Americas "today's high" rolls over in the late afternoon. `locations.timezone` exists and nothing reads it. Filed as §10.5.
+- **R5:** live geocoder check returned three different "Red Rock Canyon" parks in three states — result rows need `admin1` + `country` or the choice is a coin flip.
+- Also: §7 gains rule 8 (the bot has no `is_climbing_location` check either), and the Open-Meteo geocoder was verified live rather than assumed — keyless, and it returns `elevation` and `timezone`.
+
+**Verification:** `npm run typecheck` 6/6 tasks pass, `npm run test` 106/106 pass.
+
+**Known issues / deferred work:**
+- Unchanged from the entry below: all five issues (#21, #22, #25, #26, #27) still open, the scoring fix behind #21 still undone, still no test coverage on the migration-era backend logic.
+- Two new open questions added to the spec, both out of scope for B0 and both needing their own issue: §10.4 (degraded scores invisible to any client — needs an API field) and §10.5 (dry month indistinguishable from a failed rainfall fetch — needs a distinguishable `dryingModel` result).
+
+**§10.1 answered — the last design blocker is closed, and it widened the product:**
+- **Product call:** locations work like any ordinary weather app. Search any place by name, see its weather first, then choose to save it. Climbing is a **property of a saved location, set by an explicit toggle**, not a precondition for saving one. The user confirmed they intend to use this for general weather, not only climbing.
+- Written up as **`miniapp-design-v1.md` §12**. Closes §10.1, unblocks §5's empty state, reverses the "location search or creation" non-goal in §9, and adds a third route `/add`.
+- **New rule in §3: non-climbing locations never show a score, anywhere.** `computeLiveForecast` does not branch on `is_climbing_location`, so `/conditions/:id` will return a rock-drying score for Chicago if asked. The client must simply not ask. Side benefit: skipping that call drops two of the three upstream fetches, so general locations load faster.
+- **Only one genuinely new screen.** The preview step reuses the detail screen in an unsaved mode with a save bar, rather than adding a fourth design.
+- **Rock type is captured at save time**, behind the climbing toggle, optional, defaulting to *not sure*. It is the biggest single lever on the score (72 h sandstone vs 12 h granite against a 40-point component) and there is no edit screen, so save is the only chance to get it.
+
+**Blockers for next session:**
+- **None on design.** The spec is complete and no longer has a declared exception.
+- **New prerequisite: Task 5a (backend).** §12 needs five API changes — `GET /geocode`, `GET /preview`, a changed `POST /locations`, `DELETE /locations/:id`, and **persisting `elevation_m` on save** (found in the round-4 self-review; without it preview and the saved location disagree on temperature). Added to `plan.md`'s phase table. It is **independent of the `initData` auth work**, so it can start immediately.
+- Task 6's screens still blocked on Task 5's auth work, and now also on Task 5a.
+- cron-job.org still unregistered.
+
+**What's next:** **Task 5a — the add-location API** — `git checkout -b claude/add-location-api` off `main` — read `docs/handoffs/miniapp-design-v1.md` §12.3 first. Backend only, no auth dependency, and it unblocks the largest new piece of Task 6. Then Task 5 (shell) and Task 6 (screens); before any UI read §0a and §8, because the token adapter has to exist before the first component. **B0 is pushed as PR #31 and still unmerged — merge it first, or everything branches off a `main` that has no design spec.**
+
+**Gotchas for next session:**
+- **The spec is now closed for review.** Three rounds, 30 corrections. Build from it; do not re-audit it.
+- **Do not reintroduce a "degradation guard" into §7's suppression rule** in any form. It has been proposed once and was actively harmful. The suppression rule runs unconditionally whenever a component is 0 and `score !== null`.
+- **`currentTempC` is dead.** Three separate documents reasoned about scoring behaviour from it before anyone checked whether `conditionsScore` reads it. It does not. Same for anything else on `ScoreInput` — verify the consumer before reasoning from the producer.
+- **Write review findings to `.claude/docs/review-findings.md` as you find them, not at the end.** This session existed because the last one didn't.
+- **`GET /preview` will be the first code to exercise `fetchArchivePrecip`.** All three seeded locations have an `asos_station`, so `liveForecast`'s Open-Meteo-archive fallback has never run in manual testing. A previewed location has no station and takes it every time — expect the first Task 5a bug there.
+- **`plan.md` decision 10 (geocoding out of scope) is reversed**, not merely outdated. If a doc still says climbing search via `crags` only, it is stale — `build-prompt-v8.md:761` and `weatherteam6-ui-handoff-v1.md:533` both still carry the old framing and were left alone as historical build records.
+- **Do not seed or import `crags` for the add flow.** It is still empty and stays out of v1 search; the geocoder covers both climbing and non-climbing places. §12.2.
+- The gotchas in the entry below still stand — chiefly that **the API is not actually behind Vercel SSO** and is open right now, which inverts B3's urgency.
+
+---
+
+## 2026-08-25 — branch: claude/miniapp-design-b0 — commit: 995f1f0
+
+**Phase completed:** Phase B0 — Mini App design spec. Docs only, no code changes.
+
+**What was built this session:**
+- `docs/handoffs/miniapp-design-v1.md` — NEW. The design contract Tasks 5-7 build to. Answers all seven decisions the build handoff required: theming, navigation, content hierarchy, units, states, non-goals, and the copy model resolving #21.
+
+**Decisions made (previously open):**
+- **Theming — hybrid rejected.** The build handoff recommended "take light/dark from Telegram, apply WeatherTeam6 tokens within it." That is not implementable: the palette in `tokens.ts` is dark-only, there is no light token set, and every locked contrast rule is expressed as a minimum opacity of near-white on dark. Building one would mean authoring ~40 colors in the app, which the architecture rule forbids. Decision: WeatherTeam6 dark for all content, `themeParams` used only to harmonize Telegram's own chrome.
+- **Units — pure helpers in `packages/types`,** consumed by both the bot and the Mini App. Not a deviation from the types-only convention: that package already ships `aspectToDegrees`, `parseNumeric`, and `SCORE_COMPONENT_MAX`.
+- **Copy model (#21) — score-to-opinion mapping deleted outright.** `statusLabel()` goes; a five-rung ladder describes *conditions* ("Dry, settled") not suitability. Adds a suppression rule: when any component scores 0 or a Severe+ alert is active, the score is never shown as a summary — the limiting factor is named instead.
+
+**Verified against production, not assumed:**
+- **Issue #21 reproduced live.** Red Rock on 2026-08-24: `temp_c 39.5` (**103°F**), `component_temp: 0`, total **80**, confidence high, with an active NWS **Extreme Heat Warning** through Aug 28 that the reply never mentions. The shipped bot text for that state is "looks great — go climb".
+- **Root cause characterised.** Scoring is additive with no veto: drying 40 + rain 25 + wind 15 + temp 12 + humidity 8. Heat costs *at most 12 points* and saturates (`>35°C → 0`, so 96°F and 130°F are identical), so any settled dry spell lands in the 80s regardless of air temperature. The score is behaving as designed; the design is wrong. The copy model makes the surface honest — it does not fix the score.
+- **Per-day scores are not exposed by the API.** `computeLiveForecast` scores all 7 days but `/conditions/:id` keeps only today and `/forecast/:id` returns scoreless snapshots. The spec drops per-day score chips so that "no API changes needed" stays true.
+- **`crags` table is empty** — `/locations/search?q=rock` returns `[]` against production, so the crag-picker add flow has no data behind it.
+- **All three seeded locations have an `asos_station`** (KPSP / KLAS / KCNY), so the Open-Meteo-archive rainfall fallback is never exercised by seed data and will not appear in manual testing.
+- **NBM fallback confirmed (#22).** Live `model_sources` comes back `["gfs_seamless","ecmwf_ifs025","icon_seamless_eps","gem_global"]` — the ensemble, never NBM.
+
+**Corrections to inherited docs — each was a wrong instruction a future session would have followed:**
+- **`tokens.ts` is not "framework-agnostic".** Its own header says `Target: React Native`. `shadow` is RN-only (`shadowOffset`/`elevation`, no CSS meaning), `layout` uses `flex`/`paddingHorizontal`, `fonts` names are `expo-font` families that do not match the Google Fonts family `"Barlow Condensed"`. Only `colors`, `spacing`, `radius`, `units`, `uvScale` port directly. The Mini App needs an adapter layer.
+- **§Design System is not entirely client-agnostic** despite its banner. Four subsections name React Native explicitly (`LinearGradient`, `react-native-svg`, tabler RN icons, "no CSS vars"). Binding parts are the token-source rule, contrast rules, layout constants, and copy rules.
+- **`bottomNav` must not be imported** — it declares four tabs, three of them out of scope.
+
+**Known issues / deferred work:**
+- All five issues (#21, #22, #25, #26, #27) remain open. The spec resolves #21's *copy* only.
+- **The scoring fix behind #21 is not done** and needs its own change: cap the total when a component is 0, apply a multiplicative safety factor, or re-weight temperature above 12.
+- Empty-state copy is deliberately unwritten, blocked on the add-location product call.
+- Still no test coverage on the ~480 lines of migration-era backend logic.
+
+**Blockers for next session:**
+- **§10.1 — how does a user add a location?** Two screens means no add flow, the `crags` table is empty, and the manual `{name, lat, lon}` path forces `is_climbing_location: false`. Task 6 can build both screens; only the no-locations empty state waits on this call.
+- Task 6 still blocked on Task 5's auth work.
+- cron-job.org still unregistered.
+
+**What's next:** Phase B2 / Task 5 — `git checkout -b claude/miniapp-scaffold` off `main` — read `docs/handoffs/miniapp-design-v1.md` §0a and §8 before writing any UI, because the token adapter has to exist before the first component.
+
+**Gotchas for next session:**
+- **The API is not actually behind Vercel SSO.** The handoff, the previous session notes, and correction #1 all assume every Mini App fetch 302s to a login page. It does not: `GET /api/v1/locations` returns **200 with real data** to an unauthenticated public request, and `POST /api/telegram/webhook` answers a public POST. Vercel reports `ssoProtection: enabled` with `deploymentType: "all_except_custom_domains"`, but the production alias serves straight through. B2 is therefore unblocked — and the API is open *right now*, which inverts B3's urgency from "prevent a future exposure" to "close a current one". Confirm in the Vercel dashboard before scoping B3 around a wall that isn't there.
+- **CORS confirmed empirically:** `Access-Control-Allow-Headers: Content-Type, Authorization` and `Access-Control-Allow-Origin: *`. A custom `X-Telegram-Init-Data` header will fail preflight, exactly as the handoff's correction #4 predicted.
+- **Telegram contract re-verified against live docs.** HMAC-SHA256 with the `WebAppData` secret derivation still holds. New since the docs were written: an Ed25519 third-party signature path (not needed — we hold the bot token), injected `--tg-theme-*` CSS variables plus `--tg-color-scheme` and safe-area insets, and `startapp` surfacing as both `start_param` and the `tgWebAppStartParam` GET parameter. Script pins at `?63`.
+- **`startapp` permits hyphens** (`A-Z a-z 0-9 _ -`), so pass UUIDs through intact. Stripping and reinserting dashes turns a corrupted parameter into a well-formed *wrong* UUID that 404s instead of falling back to the list.
+- **`setHeaderColor` and `setBackgroundColor` have different version floors** — hex from 6.9 and 6.1 respectively. Do not gate them together, and do not fall back to the `bg_color` keyword: it resolves to the user's light-theme white, which is the failure the theming decision exists to prevent.
+- **Three review rounds found 30 wrong claims in this spec's own drafts** (11, then 13, then 6) — including a score floor/ceiling inversion, formatters that would render `32°F` for null, and a suppression rule that would have blamed the weather for a `liveForecast` degradation that does not work the way three separate documents claimed. ~~A third round was cut short by a session limit and did not run.~~ **Round 3 ran on 2026-08-25 and is closed — see `.claude/docs/review-findings.md`.** No further re-review is needed before building.
+
+---
+
 ## 2026-08-24 — branch: claude/telegram-crossover-zero-cost-4u8b1h — commit: 37b13ed
 
 **Phase completed:** Mini App build handoff (PR #30). Docs only, no code changes.
