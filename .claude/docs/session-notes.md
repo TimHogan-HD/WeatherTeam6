@@ -974,7 +974,7 @@
 
 ---
 
-## 2026-08-25 — branch: claude/add-location-api — commit: e228fe7
+## 2026-08-25 — branch: claude/add-location-api (merged to `main`) — commit: a90613f
 
 **Phase completed:** Task 5a — the add-location API (all five changes in `miniapp-design-v1.md` §12.3)
 
@@ -1004,7 +1004,7 @@
 **Blockers for next session:**
 - None for Task 5 (shell). Task 6 still needs `initData` HMAC validation before any screen is wired.
 
-**What's next:** Task 5 — Mini App shell — `git checkout -b claude/miniapp-scaffold` off `main` (after this branch merges) — read `docs/handoffs/miniapp-design-v1.md` §0a and §8 before writing any UI, because the token adapter has to exist before the first component.
+**What's next:** Task 5 — Mini App shell — `git checkout -b claude/miniapp-scaffold` off `main` — Task 5a is merged (PR #37, squashed to `a90613f`), so branch straight off it — read `docs/handoffs/miniapp-design-v1.md` §0a and §8 before writing any UI, because the token adapter has to exist before the first component.
 
 **Gotchas for next session:**
 - **`GET /preview` returns no conditions score, deliberately** (§12.1 unsaved mode). If the Task 6 detail screen shares a data hook between saved and unsaved modes, the score section has to be driven by mode, not by "score is null".
