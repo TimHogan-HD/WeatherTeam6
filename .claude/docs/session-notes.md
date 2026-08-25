@@ -1,7 +1,7 @@
 
 ---
 
-## 2026-08-25 — branch: claude/miniapp-design-b0 — commit: 151d1a0
+## 2026-08-25 — branch: claude/miniapp-design-b0 — commit: 9a19ecc — PR #31 (open)
 
 **Phase completed:** Phase B0 review round 3 — the round the previous session began and lost when its context ran out. Spec corrected, plus two code comments that were the original source of the error.
 
@@ -44,7 +44,7 @@
 - Task 6's screens still blocked on Task 5's auth work, and now also on Task 5a.
 - cron-job.org still unregistered.
 
-**What's next:** **Task 5a — the add-location API** — `git checkout -b claude/add-location-api` off `main` — read `docs/handoffs/miniapp-design-v1.md` §12.3 first. Backend only, no auth dependency, and it unblocks the largest new piece of Task 6. Then Task 5 (shell) and Task 6 (screens); before any UI read §0a and §8, because the token adapter has to exist before the first component. **The B0 branch is still unmerged — merge it first, or everything branches off a `main` that has no design spec.**
+**What's next:** **Task 5a — the add-location API** — `git checkout -b claude/add-location-api` off `main` — read `docs/handoffs/miniapp-design-v1.md` §12.3 first. Backend only, no auth dependency, and it unblocks the largest new piece of Task 6. Then Task 5 (shell) and Task 6 (screens); before any UI read §0a and §8, because the token adapter has to exist before the first component. **B0 is pushed as PR #31 and still unmerged — merge it first, or everything branches off a `main` that has no design spec.**
 
 **Gotchas for next session:**
 - **The spec is now closed for review.** Three rounds, 30 corrections. Build from it; do not re-audit it.
