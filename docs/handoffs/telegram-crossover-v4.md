@@ -12,6 +12,19 @@
 rest of this document is preserved as the source of truth for **Tasks 5–7**, which are
 not started.
 
+> **Update 2026-08-25.** Two more things have landed since, neither of them in the
+> original seven:
+>
+> - **Phase B0 — the Mini App design spec**, `docs/handoffs/miniapp-design-v1.md`
+>   (PR #31, `14c9757`). Task 6 builds to that spec, not to this document's two-screen
+>   sketch. Read it first.
+> - **Task 5a — the add-location API** (PR #37, `a90613f`), added as its own section
+>   below, between Tasks 5 and 6.
+>
+> Task 5 itself is still not started. The running record of what is built is
+> `.claude/docs/session-notes.md`; the phase table in `.claude/docs/plan.md` mirrors
+> this task list with more implementation detail.
+
 What actually shipped differs from this doc in a few places. Where they disagree, the
 notes below win:
 
@@ -170,6 +183,37 @@ plain-language status. ✅
   API changed repeatedly through 2026**
 
 **Acceptance:** Bot's menu button opens the Mini App inside Telegram, themed correctly.
+
+## ✅ Task 5a — Add-location API (COMPLETE)
+
+**Added 2026-08-25, after this document was written.** It is not one of the original
+seven tasks. The number reflects only that it had to land before Task 6 — it is
+backend work with nothing to do with the Mini App shell in Task 5, and the two can
+proceed in either order.
+
+**Why it exists:** the design spec settled how a user adds a location (search a place
+by name, see its weather, decide whether to keep it) and that flow turned out to need
+five API changes nothing had accounted for. Specified in
+`docs/handoffs/miniapp-design-v1.md` §12.3:
+
+- `GET /api/v1/geocode?q=` — place-name search, Open-Meteo, keyless, proxied
+  server-side. Nothing turned a name into coordinates before.
+- `GET /api/v1/preview?lat=&lon=&elevation=` — weather for a location with no row and
+  no UUID yet. Persists nothing.
+- `POST /locations` accepting `is_climbing_location` and `rock_type` — it hardcoded
+  `is_climbing_location: false`, so a hand-added crag could never be a crag.
+- `DELETE /locations/:id` — none existed, so every save was permanent.
+- `POST /locations` persisting `elevation_m` — without it a saved location reports
+  different temperatures than its own pre-save preview did.
+
+**Also settled a product question:** climbing is a property of a saved location, not a
+precondition for saving one. Any place can be searched and saved; `is_climbing_location`
+is an explicit toggle at save time, default off. This is where the "+ general weather
+app" half of the product becomes real. `plan.md` decision 10 ("geocoding — out of
+scope") is reversed by it.
+
+**Acceptance:** `npm run check:add-location` — boots the API against a real database and
+walks the whole flow. 16 checks, all passing. ✅ Merged as `a90613f` (PR #37).
 
 ## ⬜ Task 6 — Mini App screens (NOT STARTED)
 
