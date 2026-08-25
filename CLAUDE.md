@@ -52,6 +52,7 @@ NWS_USER_AGENT=weatherteam6/1.0 your@email.com
 TELEGRAM_BOT_TOKEN=                                 # bot token (alerts + /api/telegram/webhook); never reaches a client bundle
 TELEGRAM_CHAT_ID=                                   # single-user chat id — the bot's auth boundary
 CRON_SECRET=                                        # gates POST /api/cron/check-alerts; treat as a credential
+API_SHARED_SECRET=                                  # gates ALL of /api/v1/* via `Authorization: Bearer`; fail-closed — unset means 503, never open
 EXPO_PUBLIC_SHADEMAP_KEY=                           # archived — apps/mobile only
 R2_ACCOUNT_ID=
 R2_ACCESS_KEY_ID=
