@@ -39,6 +39,10 @@ export const users = pgTable('users', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
+// Adding a table with a `location_id` FK? Add it to DEPENDENT_TABLES in
+// `lib/locations/deleteLocation.ts` too. No FK here declares `onDelete`, so a
+// dependent table left off that list turns DELETE /locations/:id into a
+// foreign-key violation — a 500 that only appears once real data exists.
 export const locations = pgTable('locations', {
   id: uuid('id').primaryKey().defaultRandom(),
   user_id: uuid('user_id')

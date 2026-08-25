@@ -3,6 +3,7 @@ import { and, asc, avg, count, eq, ilike, or, sql } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { locations, crags, locationNormals, cragClimbabilityHistory } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
+import { deleteLocationCascade } from '../lib/locations/deleteLocation.js'
 import { parseNumeric } from '@weatherteam6/types'
 import type { ApiResponse, Location, Crag, CreateLocationInput, LocationNormal, ClimbabilityHistory } from '@weatherteam6/types'
 
@@ -17,6 +18,99 @@ function parseRockType(v: string | null | undefined): Location['rock_type'] {
   return null
 }
 
+/** Elevations outside this range are data errors, not places. Mirrors GET /preview. */
+const MIN_ELEVATION_M = -500
+const MAX_ELEVATION_M = 9000
+
+type GeneralLocationInput = {
+  name: string
+  lat: number
+  lon: number
+  elevation_m: number | null
+  timezone: string | null
+  is_climbing_location: boolean
+  rock_type: Location['rock_type']
+}
+
+/**
+ * Validate the `{name, lat, lon}` branch of POST /locations.
+ *
+ * Coordinates are range-checked, not merely type-checked: this branch now
+ * carries hand-entered lat/lon from the add flow's "enter coordinates instead"
+ * affordance, and an out-of-range pair inserts happily and then produces
+ * nonsense forecasts rather than an error.
+ *
+ * An unrecognised `rock_type` is rejected rather than coerced to null. Coercing
+ * it would silently fall back to `unknown` (48h drying) — the single largest
+ * lever on the score, and with no edit screen there is no way to notice or
+ * correct it later.
+ */
+function parseGeneralLocationInput(
+  body: Partial<CreateLocationInput>,
+): GeneralLocationInput | { error: string } {
+  const raw = body as {
+    name?: unknown
+    lat?: unknown
+    lon?: unknown
+    elevation_m?: unknown
+    timezone?: unknown
+    is_climbing_location?: unknown
+    rock_type?: unknown
+  }
+
+  if (typeof raw.name !== 'string' || raw.name.trim() === '') {
+    return { error: 'Invalid location data' }
+  }
+  if (typeof raw.lat !== 'number' || !Number.isFinite(raw.lat) || raw.lat < -90 || raw.lat > 90) {
+    return { error: 'lat must be a number between -90 and 90' }
+  }
+  if (typeof raw.lon !== 'number' || !Number.isFinite(raw.lon) || raw.lon < -180 || raw.lon > 180) {
+    return { error: 'lon must be a number between -180 and 180' }
+  }
+
+  let elevation: number | null = null
+  if (raw.elevation_m !== undefined && raw.elevation_m !== null) {
+    if (
+      typeof raw.elevation_m !== 'number' ||
+      !Number.isFinite(raw.elevation_m) ||
+      raw.elevation_m < MIN_ELEVATION_M ||
+      raw.elevation_m > MAX_ELEVATION_M
+    ) {
+      return { error: 'elevation_m must be a number in metres between -500 and 9000' }
+    }
+    elevation = raw.elevation_m
+  }
+
+  if (raw.timezone !== undefined && raw.timezone !== null && typeof raw.timezone !== 'string') {
+    return { error: 'timezone must be a string' }
+  }
+
+  if (raw.is_climbing_location !== undefined && typeof raw.is_climbing_location !== 'boolean') {
+    return { error: 'is_climbing_location must be a boolean' }
+  }
+  const isClimbing = raw.is_climbing_location ?? false
+
+  let rockType: Location['rock_type'] = null
+  if (raw.rock_type !== undefined && raw.rock_type !== null) {
+    if (typeof raw.rock_type !== 'string' || !VALID_ROCK_TYPES.has(raw.rock_type)) {
+      return { error: 'rock_type must be one of sandstone, limestone, granite, basalt, unknown' }
+    }
+    rockType = raw.rock_type as Location['rock_type']
+  }
+
+  return {
+    name: raw.name.trim(),
+    lat: raw.lat,
+    lon: raw.lon,
+    elevation_m: elevation,
+    timezone: typeof raw.timezone === 'string' && raw.timezone.trim() !== '' ? raw.timezone : null,
+    is_climbing_location: isClimbing,
+    // A rock type on a non-climbing location would be dead data that the drying
+    // model never reads; drop it rather than store a contradiction.
+    rock_type: isClimbing ? rockType : null,
+  }
+}
+
 function mapLocation(row: LocationRow): Location {
   return {
     id: row.id,
@@ -24,6 +118,7 @@ function mapLocation(row: LocationRow): Location {
     name: row.name,
     lat: parseFloat(row.lat),
     lon: parseFloat(row.lon),
+    elevation_m: parseNumeric(row.elevation_m),
     is_climbing_location: row.is_climbing_location,
     rock_type: row.rock_type ?? null,
     aspect: row.aspect,
@@ -155,10 +250,12 @@ locationsRouter.post('/locations', async (req: Request, res: Response) => {
       sendServerError(res, err, 'POST /locations (crag)')
     }
   } else if ('name' in body && 'lat' in body && 'lon' in body) {
-    // Save a general weather location
-    const { name, lat, lon } = body as { name: string; lat: number; lon: number }
-    if (typeof name !== 'string' || name.trim() === '' || typeof lat !== 'number' || typeof lon !== 'number') {
-      const response: ApiResponse<null> = { data: null, error: 'Invalid location data', status: 400 }
+    // Save a location from the add flow: a geocoder result, or hand-entered
+    // coordinates. Climbing is a property of the saved location, not a
+    // precondition for saving one — see miniapp-design-v1.md §12.
+    const parsed = parseGeneralLocationInput(body)
+    if ('error' in parsed) {
+      const response: ApiResponse<null> = { data: null, error: parsed.error, status: 400 }
       res.status(400).json(response)
       return
     }
@@ -168,10 +265,16 @@ locationsRouter.post('/locations', async (req: Request, res: Response) => {
         .insert(locations)
         .values({
           user_id: req.userId,
-          name: name.trim(),
-          lat: String(lat),
-          lon: String(lon),
-          is_climbing_location: false,
+          name: parsed.name,
+          lat: String(parsed.lat),
+          lon: String(parsed.lon),
+          // Persisted so the saved location and its own pre-save preview agree
+          // on temperature: applyLapseRate returns early when this is null, so
+          // dropping it shifts every reading by the full lapse-rate correction.
+          elevation_m: parsed.elevation_m === null ? null : String(parsed.elevation_m),
+          timezone: parsed.timezone,
+          is_climbing_location: parsed.is_climbing_location,
+          rock_type: parsed.rock_type,
         })
         .returning()
       const row = inserted[0]
@@ -184,6 +287,37 @@ locationsRouter.post('/locations', async (req: Request, res: Response) => {
   } else {
     const response: ApiResponse<null> = { data: null, error: 'Must provide cragId or name+lat+lon', status: 400 }
     res.status(400).json(response)
+  }
+})
+
+/**
+ * Unsave a location. A save flow without this is a trap — one mistyped search
+ * result would be permanent, and there is no edit screen either (§12.4).
+ *
+ * A location owned by someone else returns 404, not 403: existence is not
+ * disclosed. Deleting also removes every dependent row (alerts, reports, walls,
+ * trip memberships) in one transaction — see deleteLocationCascade.
+ */
+locationsRouter.delete('/locations/:id', async (req: Request, res: Response) => {
+  const id = req.params['id']
+  if (!id || !isUuid(id)) {
+    const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
+    res.status(404).json(response)
+    return
+  }
+
+  try {
+    const deleted = await deleteLocationCascade(id, req.userId)
+    if (!deleted) {
+      const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
+      res.status(404).json(response)
+      return
+    }
+
+    const response: ApiResponse<null> = { data: null, error: null, status: 200 }
+    res.status(200).json(response)
+  } catch (err) {
+    sendServerError(res, err, 'DELETE /locations/:id')
   }
 })
 
