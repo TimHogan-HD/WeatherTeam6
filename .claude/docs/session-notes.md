@@ -24,18 +24,29 @@
 - Unchanged from the entry below: all five issues (#21, #22, #25, #26, #27) still open, the scoring fix behind #21 still undone, still no test coverage on the migration-era backend logic.
 - Two new open questions added to the spec, both out of scope for B0 and both needing their own issue: §10.4 (degraded scores invisible to any client — needs an API field) and §10.5 (dry month indistinguishable from a failed rainfall fetch — needs a distinguishable `dryingModel` result).
 
+**§10.1 answered — the last design blocker is closed, and it widened the product:**
+- **Product call:** locations work like any ordinary weather app. Search any place by name, see its weather first, then choose to save it. Climbing is a **property of a saved location, set by an explicit toggle**, not a precondition for saving one. The user confirmed they intend to use this for general weather, not only climbing.
+- Written up as **`miniapp-design-v1.md` §12**. Closes §10.1, unblocks §5's empty state, reverses the "location search or creation" non-goal in §9, and adds a third route `/add`.
+- **New rule in §3: non-climbing locations never show a score, anywhere.** `computeLiveForecast` does not branch on `is_climbing_location`, so `/conditions/:id` will return a rock-drying score for Chicago if asked. The client must simply not ask. Side benefit: skipping that call drops two of the three upstream fetches, so general locations load faster.
+- **Only one genuinely new screen.** The preview step reuses the detail screen in an unsaved mode with a save bar, rather than adding a fourth design.
+- **Rock type is captured at save time**, behind the climbing toggle, optional, defaulting to *not sure*. It is the biggest single lever on the score (72 h sandstone vs 12 h granite against a 40-point component) and there is no edit screen, so save is the only chance to get it.
+
 **Blockers for next session:**
-- **§10.1 — how does a user add a location?** Unchanged and still the one thing blocking Task 6's empty state. Everything else in the spec is now buildable.
-- Task 6 still blocked on Task 5's auth work.
+- **None on design.** The spec is complete and no longer has a declared exception.
+- **New prerequisite: Task 5a (backend).** §12 needs four API changes — `GET /geocode`, `GET /preview`, a changed `POST /locations`, and `DELETE /locations/:id`. Added to `plan.md`'s phase table. It is **independent of the `initData` auth work**, so it can start immediately.
+- Task 6's screens still blocked on Task 5's auth work, and now also on Task 5a.
 - cron-job.org still unregistered.
 
-**What's next:** Phase B2 / Task 5 — `git checkout -b claude/miniapp-scaffold` off `main` — read `docs/handoffs/miniapp-design-v1.md` §0a and §8 before writing any UI, because the token adapter has to exist before the first component. **The B0 branch is still unmerged — merge it first, or B2 branches off a `main` that has no design spec.**
+**What's next:** **Task 5a — the add-location API** — `git checkout -b claude/add-location-api` off `main` — read `docs/handoffs/miniapp-design-v1.md` §12.3 first. Backend only, no auth dependency, and it unblocks the largest new piece of Task 6. Then Task 5 (shell) and Task 6 (screens); before any UI read §0a and §8, because the token adapter has to exist before the first component. **The B0 branch is still unmerged — merge it first, or everything branches off a `main` that has no design spec.**
 
 **Gotchas for next session:**
 - **The spec is now closed for review.** Three rounds, 30 corrections. Build from it; do not re-audit it.
 - **Do not reintroduce a "degradation guard" into §7's suppression rule** in any form. It has been proposed once and was actively harmful. The suppression rule runs unconditionally whenever a component is 0 and `score !== null`.
 - **`currentTempC` is dead.** Three separate documents reasoned about scoring behaviour from it before anyone checked whether `conditionsScore` reads it. It does not. Same for anything else on `ScoreInput` — verify the consumer before reasoning from the producer.
 - **Write review findings to `.claude/docs/review-findings.md` as you find them, not at the end.** This session existed because the last one didn't.
+- **`GET /preview` will be the first code to exercise `fetchArchivePrecip`.** All three seeded locations have an `asos_station`, so `liveForecast`'s Open-Meteo-archive fallback has never run in manual testing. A previewed location has no station and takes it every time — expect the first Task 5a bug there.
+- **`plan.md` decision 10 (geocoding out of scope) is reversed**, not merely outdated. If a doc still says climbing search via `crags` only, it is stale — `build-prompt-v8.md:761` and `weatherteam6-ui-handoff-v1.md:533` both still carry the old framing and were left alone as historical build records.
+- **Do not seed or import `crags` for the add flow.** It is still empty and stays out of v1 search; the geocoder covers both climbing and non-climbing places. §12.2.
 - The gotchas in the entry below still stand — chiefly that **the API is not actually behind Vercel SSO** and is open right now, which inverts B3's urgency.
 
 ---
