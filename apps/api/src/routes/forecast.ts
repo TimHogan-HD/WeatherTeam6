@@ -4,18 +4,10 @@ import { db } from '../db/index.js'
 import { locations } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
 import { computeLiveForecast } from '../lib/scoring/liveForecast.js'
+import { toWindowedForecast } from '../lib/scoring/forecastWindow.js'
 import type { ApiResponse, ForecastSnapshot } from '@weatherteam6/types'
 
 export const forecastRouter = Router()
-
-function forecastWindow(forecastDate: string, todayStr: string): 'pre' | 'early' | 'decision' {
-  const today = new Date(todayStr + 'T00:00:00Z')
-  const forecast = new Date(forecastDate + 'T00:00:00Z')
-  const daysOut = Math.round((forecast.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-  if (daysOut > 14) return 'pre'
-  if (daysOut >= 7) return 'early'
-  return 'decision'
-}
 
 forecastRouter.get('/forecast/:locationId', async (req: Request, res: Response) => {
   const locationId = req.params['locationId']
@@ -53,10 +45,7 @@ forecastRouter.get('/forecast/:locationId', async (req: Request, res: Response) 
 
     const todayStr = new Date().toISOString().slice(0, 10)
     const { snapshots } = await computeLiveForecast(location)
-    const withWindow = snapshots
-      .filter((s) => s.forecast_date >= todayStr)
-      .sort((a, b) => a.forecast_date.localeCompare(b.forecast_date))
-      .map((s) => ({ ...s, window: forecastWindow(s.forecast_date, todayStr) }))
+    const withWindow = toWindowedForecast(snapshots, todayStr)
 
     const response: ApiResponse<ForecastSnapshot[]> = {
       data: withWindow,

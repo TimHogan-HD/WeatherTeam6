@@ -10,6 +10,8 @@ import { alertsRouter } from './routes/alerts.js';
 import { wallsRouter } from './routes/walls.js'
 import { tripsRouter } from './routes/trips.js';
 import { radarRouter } from './routes/radar.js';
+import { geocodeRouter } from './routes/geocode.js';
+import { previewRouter } from './routes/preview.js';
 import { cronRouter } from './routes/cron.js';
 import { telegramWebhookRouter } from './routes/telegramWebhook.js';
 
@@ -51,6 +53,8 @@ export function createApp(): Express {
     wallsRouter,
     tripsRouter,
     radarRouter,
+    geocodeRouter,
+    previewRouter,
   );
 
   app.use((_req: Request, res: Response) => {

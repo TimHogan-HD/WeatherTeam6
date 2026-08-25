@@ -4,14 +4,17 @@ export type ApiResponse<T> = {
   status: number
 }
 
+export type RockType = 'sandstone' | 'limestone' | 'granite' | 'basalt' | 'unknown'
+
 export type Location = {
   id: string
   user_id: string
   name: string
   lat: number
   lon: number
+  elevation_m: number | null
   is_climbing_location: boolean
-  rock_type: 'sandstone' | 'limestone' | 'granite' | 'basalt' | 'unknown' | null
+  rock_type: RockType | null
   aspect: string | null
   cliff_angle: number | null
   asos_station: string | null
@@ -236,7 +239,35 @@ export type TripForecast = {
 
 export type CreateLocationInput =
   | { cragId: string }
-  | { name: string; lat: number; lon: number }
+  | {
+      name: string
+      lat: number
+      lon: number
+      // Carried through from the geocoder, or null on the manual-coordinate path.
+      // Without it applyLapseRate returns early and a saved location reports
+      // different temperatures than its own pre-save preview did.
+      elevation_m?: number | null
+      timezone?: string | null
+      is_climbing_location?: boolean
+      // Only meaningful when is_climbing_location is true. Left unset it resolves
+      // to 'unknown' — 48h drying — see miniapp-design-v1.md §12.1.
+      rock_type?: RockType | null
+    }
+
+/** One place from GET /api/v1/geocode — Open-Meteo's geocoding API, proxied server-side. */
+export type GeocodeResult = {
+  /** Open-Meteo's own place id. Unique within a response; use it as the list key. */
+  id: number
+  name: string
+  lat: number
+  lon: number
+  elevation_m: number | null
+  /** Secondary line in the result list. Near-identical place names are common,
+   *  so admin1 + country are not optional decoration — see §12.2. */
+  admin1: string | null
+  country: string | null
+  timezone: string | null
+}
 
 export type LocationNormal = {
   id: string
