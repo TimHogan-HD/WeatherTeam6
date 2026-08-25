@@ -1,6 +1,45 @@
 
 ---
 
+## 2026-08-25 — branch: claude/miniapp-design-b0 — commit: 151d1a0
+
+**Phase completed:** Phase B0 review round 3 — the round the previous session began and lost when its context ran out. Spec corrected, plus two code comments that were the original source of the error.
+
+**Recovery note:** nothing was lost from disk. Both B0 commits were intact on the branch; only the review conversation was gone, and no `review-findings.md` had been written — the exact failure the CLAUDE.md gotcha warns about. Findings were written to disk **before** any fix this time.
+
+**What was fixed this session:**
+- `docs/handoffs/miniapp-design-v1.md` §7 rule 4 — **the ship-breaking one.** The score-suppression carve-out was built on the belief that `liveForecast`'s missing-today-row fallback zeroes `component_temp`. It does not: `conditionsScore.ts:76` reads `forecastHighC`, and `currentTempC` is never read by any scorer. The carve-out's signature (`component_temp === 0` + `temp_c_max` above 0 °C) describes **Red Rock at 39.5 °C**, so it would have fired on the one case §7 exists for and shipped *"Dry, settled"* against a 103 °F Extreme Heat Warning. Deleted, with an explicit do-not-reintroduce note.
+- `miniapp-design-v1.md` §5 — new *Silently degraded* subsection. The fallback's real effect is the **opposite** of degrading: 0 km/h wind and the 50% humidity default both sit inside `conditionsScore`'s full-credit bands, so scores come back inflated with no component zeroed and no response field marking it. Not client-detectable in v1; filed as §10.4.
+- `miniapp-design-v1.md` §3 — new binding display cap. `hours_since_rain` at or above `720` renders as *"no rain in 30+ days"*, never a precise figure: a swallowed ACIS/archive fetch and a genuine dry month both produce that sentinel with `estimated_dry: true, confidence: 'high'`. Filed as §10.5.
+- `miniapp-design-v1.md` §5 — new *No score for today* row. `GET /conditions/:id` returns `200` with `data: null` when nothing matches today; no section handled it, and `label(data.score)` throws. Must not reuse the ladder's *"Too far out to score"* copy — that describes a far-out date, this is today.
+- `miniapp-design-v1.md` §4 — resolved the unit labels being defined in both `packages/types` and `packages/design`. Formatters are authoritative for anything a user reads; `design.units` is superseded for rendered text.
+- `miniapp-design-v1.md` §6 — conclusion unchanged, reasoning replaced. The 7–14 day window *is* reachable in the data (`daysOut` is measured from today, so a feed starting tomorrow puts row 7 at `daysOut` 7), just never on screen.
+- `apps/api/src/lib/scoring/liveForecast.ts:120-131` — the comment and log message asserted the same falsehood the spec inherited from them. Corrected to state the true direction of the degradation.
+- `packages/types/src/index.ts` — `ScoreInput.currentTempC` marked `UNUSED` with the reason, so a dead field cannot mislead a third time.
+- `.claude/docs/review-findings.md` — NEW. All six findings with file:line evidence, plus an appendix of 22 claims verified correct so round 4 does not redo them.
+
+**Verification:** `npm run typecheck` 6/6 tasks pass, `npm run test` 106/106 pass.
+
+**Known issues / deferred work:**
+- Unchanged from the entry below: all five issues (#21, #22, #25, #26, #27) still open, the scoring fix behind #21 still undone, still no test coverage on the migration-era backend logic.
+- Two new open questions added to the spec, both out of scope for B0 and both needing their own issue: §10.4 (degraded scores invisible to any client — needs an API field) and §10.5 (dry month indistinguishable from a failed rainfall fetch — needs a distinguishable `dryingModel` result).
+
+**Blockers for next session:**
+- **§10.1 — how does a user add a location?** Unchanged and still the one thing blocking Task 6's empty state. Everything else in the spec is now buildable.
+- Task 6 still blocked on Task 5's auth work.
+- cron-job.org still unregistered.
+
+**What's next:** Phase B2 / Task 5 — `git checkout -b claude/miniapp-scaffold` off `main` — read `docs/handoffs/miniapp-design-v1.md` §0a and §8 before writing any UI, because the token adapter has to exist before the first component. **The B0 branch is still unmerged — merge it first, or B2 branches off a `main` that has no design spec.**
+
+**Gotchas for next session:**
+- **The spec is now closed for review.** Three rounds, 30 corrections. Build from it; do not re-audit it.
+- **Do not reintroduce a "degradation guard" into §7's suppression rule** in any form. It has been proposed once and was actively harmful. The suppression rule runs unconditionally whenever a component is 0 and `score !== null`.
+- **`currentTempC` is dead.** Three separate documents reasoned about scoring behaviour from it before anyone checked whether `conditionsScore` reads it. It does not. Same for anything else on `ScoreInput` — verify the consumer before reasoning from the producer.
+- **Write review findings to `.claude/docs/review-findings.md` as you find them, not at the end.** This session existed because the last one didn't.
+- The gotchas in the entry below still stand — chiefly that **the API is not actually behind Vercel SSO** and is open right now, which inverts B3's urgency.
+
+---
+
 ## 2026-08-25 — branch: claude/miniapp-design-b0 — commit: 995f1f0
 
 **Phase completed:** Phase B0 — Mini App design spec. Docs only, no code changes.
@@ -45,7 +84,7 @@
 - **Telegram contract re-verified against live docs.** HMAC-SHA256 with the `WebAppData` secret derivation still holds. New since the docs were written: an Ed25519 third-party signature path (not needed — we hold the bot token), injected `--tg-theme-*` CSS variables plus `--tg-color-scheme` and safe-area insets, and `startapp` surfacing as both `start_param` and the `tgWebAppStartParam` GET parameter. Script pins at `?63`.
 - **`startapp` permits hyphens** (`A-Z a-z 0-9 _ -`), so pass UUIDs through intact. Stripping and reinserting dashes turns a corrupted parameter into a well-formed *wrong* UUID that 404s instead of falling back to the list.
 - **`setHeaderColor` and `setBackgroundColor` have different version floors** — hex from 6.9 and 6.1 respectively. Do not gate them together, and do not fall back to the `bg_color` keyword: it resolves to the user's light-theme white, which is the failure the theming decision exists to prevent.
-- **Two review rounds found 24 wrong claims in this spec's own drafts** (11 then 13) — including a score floor/ceiling inversion, formatters that would render `32°F` for null, and a suppression rule that would have blamed the weather for the known `liveForecast` zero-default bug on every location. A third round was cut short by a session limit and did not run. **Re-review this document as executable before building from it.**
+- **Three review rounds found 30 wrong claims in this spec's own drafts** (11, then 13, then 6) — including a score floor/ceiling inversion, formatters that would render `32°F` for null, and a suppression rule that would have blamed the weather for a `liveForecast` degradation that does not work the way three separate documents claimed. ~~A third round was cut short by a session limit and did not run.~~ **Round 3 ran on 2026-08-25 and is closed — see `.claude/docs/review-findings.md`.** No further re-review is needed before building.
 
 ---
 
