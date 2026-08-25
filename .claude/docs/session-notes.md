@@ -971,3 +971,38 @@
 - EAS build runs postinstall which builds `packages/types` and `packages/design`. If you add a new workspace package, add it to the postinstall chain in root `package.json`.
 - The APK build process: `npm run build -w @weatherteam6/types && npm run build -w @weatherteam6/design` must use `-w @packagename` syntax (not `--workspace=path`).
 - EAS log URLs expire in 900 seconds. To read Gradle errors: trigger build with `--no-wait`, immediately query GraphQL for `logFiles`, fetch with `curl -s --compressed "$LOG_URL"` before expiry.
+
+---
+
+## 2026-08-25 — branch: claude/add-location-api — commit: e228fe7
+
+**Phase completed:** Task 5a — the add-location API (all five changes in `miniapp-design-v1.md` §12.3)
+
+**What was built this session:**
+- `apps/api/src/lib/weather/geocode.ts` — Open-Meteo geocoding client (`searchPlaces`, `parseGeocodeResults`). Keyless, so `.env.example` is unchanged. Row-level validation: a row missing name/id/coords is dropped, a row missing `elevation` is kept (the lapse-rate correction is simply skipped).
+- `apps/api/src/routes/geocode.ts` — `GET /api/v1/geocode?q=`. A query under 2 chars is an empty 200, not a 400 — the client calls this per keystroke.
+- `apps/api/src/lib/scoring/previewForecast.ts` — `computePreviewForecast`, a synthetic `LiveForecastLocation` (id `"preview"`) through `computeLiveForecast`. Persists nothing, returns no scores.
+- `apps/api/src/routes/preview.ts` — `GET /api/v1/preview?lat=&lon=&elevation=`. Returns the same windowed `ForecastSnapshot[]` as `/forecast/:id`.
+- `apps/api/src/lib/scoring/forecastWindow.ts` — `forecastWindow` + `toWindowedForecast`, lifted out of `routes/forecast.ts` now that two endpoints label snapshots.
+- `apps/api/src/lib/locations/deleteLocation.ts` — `deleteLocationCascade`, one transaction over all ten `location_id` dependents plus the location.
+- `apps/api/src/routes/locations.ts` — `DELETE /locations/:id`; `POST /locations` now takes `is_climbing_location`, `rock_type`, `elevation_m`, `timezone` and range-validates coordinates; `mapLocation` returns `elevation_m`.
+- `packages/types/src/index.ts` — `GeocodeResult`, exported `RockType`, `Location.elevation_m`, widened `CreateLocationInput`.
+- `apps/api/src/lib/weather/geocode.test.ts` — 12 tests. Suite is 127 passing.
+
+**Known issues / deferred work:**
+- **`POST` and `DELETE` were never run against a database.** No `DATABASE_URL` is reachable from this machine and there is no local `.env`, so both are covered by typecheck, lint, and the code path only. `GET /geocode` and `GET /preview` were exercised live (they touch no DB). **Someone must run one real save + delete before Task 6 depends on them.**
+- **`DELETE /trips/:tripId` has the same FK bug this task fixed for locations** — `trip_locations` rows reference `trips` with no `onDelete`, so deleting a trip that has locations raises a foreign-key violation and returns a generic 500. Pre-existing, untouched here, and now inconsistent with `DELETE /locations/:id`.
+- Deleting a location removes its `conditions_reports` rows but not the photo objects those rows point at in R2. Orphaned objects accumulate; no cleanup pass exists.
+- `rock_type` is dropped when `is_climbing_location` is false, rather than stored and ignored. Deliberate — the drying model never reads it — but it means the toggle is not losslessly reversible, and there is no edit screen (§12.4).
+
+**Blockers for next session:**
+- None for Task 5 (shell). Task 6 still needs `initData` HMAC validation before any screen is wired.
+
+**What's next:** Task 5 — Mini App shell — `git checkout -b claude/miniapp-scaffold` off `main` (after this branch merges) — read `docs/handoffs/miniapp-design-v1.md` §0a and §8 before writing any UI, because the token adapter has to exist before the first component.
+
+**Gotchas for next session:**
+- **`GET /preview` returns no conditions score, deliberately** (§12.1 unsaved mode). If the Task 6 detail screen shares a data hook between saved and unsaved modes, the score section has to be driven by mode, not by "score is null".
+- **Preview and save must pass the *same* `elevation`.** The geocoder's `elevation` goes into `/preview?elevation=` and then into `POST /locations` as `elevation_m`. Skipping it in either place reintroduces exactly the temperature mismatch §12.3 change 5 exists to prevent. Confirmed live: Red Rock NV reads 37.7 °C with `elevation=1200` and 37.3 °C without.
+- `POST /locations` rejects an unrecognised `rock_type` with a 400 rather than coercing it to null — a typo in the picker's values will fail loudly, which is intended.
+- The `preview` snapshots carry `id: "preview:<date>"` and `location_id: "preview"`. Do not use either as a React key assumption that survives saving; after save the ids are real UUID-based.
+- `resolveUser` runs before `requireApiAuth`, so an unauthenticated request to `/api/v1/*` on a server missing `DEFAULT_USER_ID` returns 500 "Server misconfigured", not 401. Only shows up in misconfigured local setups, but it is confusing when it does.
