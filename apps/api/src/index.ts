@@ -1,6 +1,7 @@
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import { logger } from './lib/logger.js';
 import { resolveUser } from './middleware/auth.js';
+import { requireApiAuth } from './middleware/apiAuth.js';
 import { healthRouter } from './routes/health.js';
 import { locationsRouter } from './routes/locations.js';
 import { conditionsRouter } from './routes/conditions.js';
@@ -37,8 +38,12 @@ export function createApp(): Express {
   // (DEFAULT_USER_ID) to look up the caller's saved locations, same as every other route.
   app.use('/api/telegram', telegramWebhookRouter);
 
+  // requireApiAuth sits inside the /api/v1 mount, so /api/cron and /api/telegram
+  // keep their own auth (CRON_SECRET / chat.id) and are unaffected. OPTIONS is
+  // already short-circuited by the CORS layer above, so preflight never reaches here.
   app.use(
     '/api/v1',
+    requireApiAuth,
     locationsRouter,
     conditionsRouter,
     forecastRouter,
