@@ -10,7 +10,7 @@ Read this before any weather fetch work. Every source has gotchas that will wast
 - ~~**31-member GFS** is the primary ensemble. ECMWF and ICON add spread context.~~ **Corrected 2026-08-26.** All four models are pooled unweighted: **143 members live** (GFS 30, ECMWF 50, ICON 39, GEM 20, plus one control each). Until that date the parser filtered every array to GFS, so the other three contributed nothing while being named as sources.
 - **p10/p50/p90** must be computed from raw member arrays — the API does not return percentiles directly
 - **A daily high is not `Math.max` over the payload.** That returns the hottest hour of the hottest member — 102 °F against a 143-member median of 99 °F on real data. Take each member's own daily extreme, then the median across members (`ensembleMedian`).
-- **Defaults to `timezone=GMT` when the param is omitted.** Set `timezone=UTC` explicitly; every "today" in this codebase is a UTC day and relying on the upstream default is a silent dependency.
+- **Defaults to `timezone=GMT` when the param is omitted.** Every call sets `timezone=auto`, so buckets are the location's own calendar days and the response carries `utc_offset_seconds` (issue #33). Requesting UTC — or relying on the default — made "today" roll over in the late afternoon anywhere in the Americas.
 - **Free tier:** 10,000 calls/day. ~~Do not poll per-user on demand — use the background job.~~ **There is no background job** — forecasts are computed live per request (`liveForecast.ts`). Note `GET /forecast/:id` and `GET /conditions/:id` each run their own `computeLiveForecast`, so one detail view is two ensemble calls.
 - **Rate limit:** No hard limit stated, but batch locations into a single call using `&latitude=x,y&longitude=a,b`
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { ForecastSnapshot, WeatherAlert } from '@weatherteam6/types'
 import {
   findToday,
@@ -7,7 +7,6 @@ import {
   rainfallSourceLabel,
   severeAlertEvent,
   sortBySeverity,
-  todayUtcIso,
 } from './forecast.js'
 
 function day(date: string, models: string[] | null = null): ForecastSnapshot {
@@ -44,34 +43,47 @@ function alert(event: string, severity: string): WeatherAlert {
   }
 }
 
-describe('todayUtcIso', () => {
-  it('uses the UTC date, matching how the API buckets its days', () => {
-    // Late evening in Las Vegas is already the next day in UTC. The client must
-    // agree with the API's definition or it looks for a row that is not there —
-    // the underlying wrongness for the user is tracked as §10.5.
-    expect(todayUtcIso(new Date('2026-08-25T23:30:00.000Z'))).toBe('2026-08-25')
-    expect(todayUtcIso(new Date('2026-08-26T00:30:00.000Z'))).toBe('2026-08-26')
-  })
-})
-
 describe('findToday', () => {
-  const now = new Date('2026-08-25T12:00:00.000Z')
+  /** A row as the API now sends it, with the server's is_today decision. */
+  function flagged(date: string, isToday: boolean): ForecastSnapshot {
+    return { ...day(date), is_today: isToday }
+  }
 
-  it('finds the row whose forecast_date is today', () => {
-    const rows = [day('2026-08-25'), day('2026-08-26')]
-    expect(findToday(rows, now)?.forecast_date).toBe('2026-08-25')
+  it('takes the row the server flagged, whatever the client clock says', () => {
+    const rows = [flagged('2026-08-25', true), flagged('2026-08-26', false)]
+    expect(findToday(rows)?.forecast_date).toBe('2026-08-25')
+  })
+
+  it('trusts the flag over the date — this is the whole point of #33', () => {
+    // Las Vegas at 18:00 local on the 25th is already the 26th in UTC. The old
+    // client compared against its own UTC date and picked the 26th: tomorrow's
+    // high, rendered as today's. The server says otherwise and wins.
+    const rows = [flagged('2026-08-25', true), flagged('2026-08-26', false)]
+    const realNow = new Date('2026-08-26T01:00:00.000Z')
+    vi.setSystemTime(realNow)
+    expect(findToday(rows)?.forecast_date).toBe('2026-08-25')
+    vi.useRealTimers()
   })
 
   it('returns null when the feed starts at tomorrow, rather than the first row', () => {
     // Returning rows[0] here would relabel tomorrow's numbers as today's, which
     // is a factual error, not a fallback.
-    const rows = [day('2026-08-26'), day('2026-08-27')]
-    expect(findToday(rows, now)).toBeNull()
+    const rows = [flagged('2026-08-26', false), flagged('2026-08-27', false)]
+    expect(findToday(rows)).toBeNull()
+  })
+
+  it('falls back to the UTC date when no row carries the flag at all', () => {
+    // A response cached from before #33 shipped. A missing flag is unknown, not
+    // false — treating it as false would blank the hero for every such feed.
+    vi.setSystemTime(new Date('2026-08-25T12:00:00.000Z'))
+    const rows = [day('2026-08-25'), day('2026-08-26')]
+    expect(findToday(rows)?.forecast_date).toBe('2026-08-25')
+    vi.useRealTimers()
   })
 
   it('returns null for undefined and empty data', () => {
-    expect(findToday(undefined, now)).toBeNull()
-    expect(findToday([], now)).toBeNull()
+    expect(findToday(undefined)).toBeNull()
+    expect(findToday([])).toBeNull()
   })
 })
 

@@ -2,37 +2,45 @@ import type { ForecastSnapshot, WeatherAlert } from '@weatherteam6/types'
 import { isSevereAlert } from '@weatherteam6/types'
 
 /**
- * "Today" as the API defines it: a **UTC** date.
- *
- * `liveForecast.ts` derives its own `todayStr` from `new Date().toISOString()`
- * and both Open-Meteo calls request `timezone=UTC`, so every daily bucket is a
- * UTC day. The client has to use the same definition or it will look for a row
- * the API never labelled that way.
- *
- * This is knowingly wrong for the user, not for the code: in the Americas the
- * day labelled "today" rolls over in the late afternoon local time. The fix is
- * server-side — pass `locations.timezone`, which is stored and read by nothing —
- * and is tracked as miniapp-design-v1.md §10.5. Do not paper over it here by
- * picking a different day than the API scored.
- */
-export function todayUtcIso(now: Date = new Date()): string {
-  return now.toISOString().slice(0, 10)
-}
-
-/**
  * The row for today, or `null` when the feed starts at tomorrow.
  *
- * `null` is a real state, not an error: it must render as "no reading for today
- * yet" rather than as an em-dash row that reads like missing instrumentation,
+ * **The server decides which row this is, and the client must not re-derive
+ * it** (issue #33, fixed 2026-08-26). `forecast_date` is now the location's own
+ * local calendar day — Open-Meteo is asked for `timezone=auto` — so a client
+ * comparing against a date built from its own clock cannot get this right for
+ * any location outside its own timezone.
+ *
+ * What it used to do was worse than merely wrong: it matched a UTC date against
+ * UTC buckets, so client and server were wrong *in the same direction* and
+ * agreed with each other. Nothing could detect it, and in the Americas today's
+ * high silently became tomorrow's every afternoon.
+ *
+ * `is_today` is optional on the type for compatibility with a response cached
+ * from before the fix. A row that does not carry it is **unknown, not false** —
+ * hence the fallback, which reproduces the old behaviour rather than reporting
+ * "no reading for today yet" for a whole feed.
+ *
+ * `null` remains a real state, not an error: it renders as "no reading for
+ * today yet" rather than an em-dash row that reads like missing instrumentation,
  * and never by relabelling tomorrow's numbers as today's.
  */
 export function findToday(
   snapshots: readonly ForecastSnapshot[] | undefined,
-  now?: Date,
 ): ForecastSnapshot | null {
   if (snapshots === undefined) return null
-  const today = todayUtcIso(now)
-  return snapshots.find((s) => s.forecast_date === today) ?? null
+
+  const flagged = snapshots.find((s) => s.is_today === true)
+  if (flagged !== undefined) return flagged
+
+  // No row carries the flag at all — a pre-fix cached response. Fall back to the
+  // old UTC comparison rather than showing an empty screen.
+  if (snapshots.every((s) => s.is_today === undefined)) {
+    const utcToday = new Date().toISOString().slice(0, 10)
+    return snapshots.find((s) => s.forecast_date === utcToday) ?? null
+  }
+
+  // Rows are flagged and none is today: the feed genuinely starts tomorrow.
+  return null
 }
 
 /** `Tue Aug 25`, formatted in UTC to match the bucket the date came from. */

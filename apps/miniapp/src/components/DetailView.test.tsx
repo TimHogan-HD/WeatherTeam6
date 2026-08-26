@@ -2,7 +2,6 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { ConditionsScore, ForecastSnapshot, WeatherAlert } from '@weatherteam6/types'
 import { DetailView } from './DetailView.js'
-import { todayUtcIso } from '../lib/forecast.js'
 
 /**
  * What the detail screen actually puts on screen, rendered for real.
@@ -14,13 +13,17 @@ import { todayUtcIso } from '../lib/forecast.js'
  */
 
 /**
- * The real current UTC date, not a fixed one: `findToday` matches against the
- * API's own UTC day, so a hardcoded fixture date would make every "today"
- * assertion here start failing tomorrow.
+ * Fixed dates, safely — `findToday` now reads the server's `is_today` flag
+ * rather than comparing against the client's clock (#33), so the fixture no
+ * longer has to track the real date to keep its "today" assertions meaningful.
+ *
+ * These were derived from `Date.now()` precisely because the old client matched
+ * on a UTC date it computed itself; a hardcoded date would have started failing
+ * the next day. That coupling is gone.
  */
-const TODAY = todayUtcIso()
-const TOMORROW = todayUtcIso(new Date(Date.now() + 86_400_000))
-const DAY_AFTER = todayUtcIso(new Date(Date.now() + 2 * 86_400_000))
+const TODAY = '2026-08-25'
+const TOMORROW = '2026-08-26'
+const DAY_AFTER = '2026-08-27'
 
 function day(date: string, over: Partial<ForecastSnapshot> = {}): ForecastSnapshot {
   return {
@@ -37,6 +40,8 @@ function day(date: string, over: Partial<ForecastSnapshot> = {}): ForecastSnapsh
     humidity_pct: 17,
     model_sources: ['gfs_seamless', 'ecmwf_ifs025'],
     created_at: `${date}T00:00:00.000Z`,
+    // The server's decision, as the API now sends it.
+    is_today: date === TODAY,
     ...over,
   }
 }

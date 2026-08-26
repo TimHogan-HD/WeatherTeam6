@@ -42,9 +42,9 @@ conditionsRouter.get('/conditions/:locationId', async (req: Request, res: Respon
       return
     }
 
-    const today = new Date().toISOString().slice(0, 10)
-    const { scores } = await computeLiveForecast(location)
-    const todayScore = scores.find((s) => s.forecast_date === today) ?? null
+    // The location's local day, not this server's (#33).
+    const { scores, todayStr } = await computeLiveForecast(location)
+    const todayScore = scores.find((s) => s.forecast_date === todayStr) ?? null
 
     const response: ApiResponse<ConditionsScore | null> = {
       data: todayScore,

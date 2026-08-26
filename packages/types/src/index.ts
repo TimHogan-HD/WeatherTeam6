@@ -62,6 +62,19 @@ export type ForecastSnapshot = {
   model_sources: string[] | null
   created_at: string
   window?: 'pre' | 'early' | 'decision'
+  /**
+   * Whether this row is the location's **local** today, decided server-side.
+   *
+   * `forecast_date` is a local calendar day (Open-Meteo `timezone=auto`), so a
+   * client cannot identify today from its own clock — which is exactly what the
+   * Mini App used to do, matching a UTC date against UTC buckets. Both sides
+   * were wrong in the same direction, so neither could detect it and today's
+   * high became tomorrow's every afternoon in the Americas (issue #33).
+   *
+   * Optional only for backward compatibility with a cached response from before
+   * this shipped; treat a missing value as "unknown", never as `false`.
+   */
+  is_today?: boolean
 }
 
 export type ConditionsScore = {

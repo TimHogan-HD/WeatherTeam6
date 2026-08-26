@@ -43,8 +43,9 @@ forecastRouter.get('/forecast/:locationId', async (req: Request, res: Response) 
       return
     }
 
-    const todayStr = new Date().toISOString().slice(0, 10)
-    const { snapshots } = await computeLiveForecast(location)
+    // `todayStr` comes back from the compute rather than being derived here: it
+    // is the *location's* local day, which this route has no way to know (#33).
+    const { snapshots, todayStr } = await computeLiveForecast(location)
     const withWindow = toWindowedForecast(snapshots, todayStr)
 
     const response: ApiResponse<ForecastSnapshot[]> = {
