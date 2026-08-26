@@ -5,7 +5,6 @@ import { fetchPrecipHistory } from '../weather/acis.js'
 import {
   fetchArchivePrecip,
   fetchEnsemble,
-  fetchNBM,
   type ForecastLocation,
   type OpenMeteoResult,
 } from '../weather/openMeteo.js'
@@ -49,19 +48,31 @@ export async function computeLiveForecast(
     .toISOString()
     .slice(0, 10)
 
-  let forecast: OpenMeteoResult | null = null
-  try {
-    forecast = await fetchNBM(locCoords)
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    logger.warn(
-      { locationId: location.id, err: msg },
-      '[liveForecast] NBM fetch failed, falling back to ensemble',
-    )
-  }
-  if (!forecast) {
-    forecast = await fetchEnsemble(locCoords)
-  }
+  /**
+   * The ensemble is the only forecast source. NBM used to be tried first and is
+   * no longer called — see issue #22, diagnosed 2026-08-26.
+   *
+   * `fetchNBM` requests `precipitation_p10` / `_p50` / `_p90`, and Open-Meteo
+   * does not define those as daily variables. Verified against the live API:
+   * every other variable in that list returns 200 on its own and each quantile
+   * returns 400 with *"Cannot initialize ForecastVariableDaily from invalid
+   * String value precipitation_p10"*. No renamed equivalent exists either —
+   * `precipitation_sum_p10`, `precipitation_percentile_10` and the hourly forms
+   * are all 400; the only probabilistic variable NBM exposes is
+   * `precipitation_probability`, which is not a quantile.
+   *
+   * So the NBM branch has never once returned data, and calling it spent one
+   * wasted round trip per request plus a `logger.warn` that read like an
+   * intermittent upstream problem rather than a permanent misconfiguration.
+   * Removing it changes no response — the ensemble already served 100% of them
+   * — and drops upstream fetches per request from three to two.
+   *
+   * **`fetchNBM` is deliberately left in place**, tested and unused. Restoring
+   * it is a one-line change *if* Open-Meteo ever exposes NBM quantiles; without
+   * them NBM offers nothing the ensemble does not, since p10/p90 are the whole
+   * reason it was preferred.
+   */
+  const forecast: OpenMeteoResult = await fetchEnsemble(locCoords)
 
   if (forecast.days.length === 0) {
     return { snapshots: [], scores: [] }
@@ -160,10 +171,23 @@ export async function computeLiveForecast(
         forecastRain72hMm,
         forecastRain72hP10,
         forecastRain72hP90,
+        // `currentWindKmh` and `currentHumidityPct` feed the *drying* modifiers,
+        // which look backwards from now, so today's readings are the right
+        // input for every day — the rock either dried or it did not.
         currentWindKmh,
-        maxWindKmh24h: currentWindKmh,
+        // The wind *component*, though, is meant to describe the day being
+        // scored. It was fed `currentWindKmh` — today's wind — so a day-7 score
+        // reported a wind rating measured six days earlier, and every day in the
+        // response carried an identical wind component no matter what the
+        // forecast said. Each day now scores its own wind.
+        maxWindKmh24h: day.wind_kmh_max,
         currentTempC,
         forecastHighC: day.temp_c_max,
+        // NOT changed to `day.humidity_pct`, deliberately. `ScoreInput` uses one
+        // field for both the humidity component and the drying humidity
+        // modifier, so making it per-day would silently move the drying
+        // calculation too. Separating them is a `ScoreInput` change with its own
+        // test implications — see the note in .claude/docs/plan.md.
         currentHumidityPct,
         forecastDateDaysOut,
       })
