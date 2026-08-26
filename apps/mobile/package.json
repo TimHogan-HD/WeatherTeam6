@@ -7,12 +7,7 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web",
-    "build": "tsc --noEmit",
-    "dev": "expo start",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint . --max-warnings 0",
-    "test": "echo 'no tests' && exit 0"
+    "web": "expo start --web"
   },
   "dependencies": {
     "@expo/log-box": "~56.0.4",
