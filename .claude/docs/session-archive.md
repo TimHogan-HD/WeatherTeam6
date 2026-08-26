@@ -1824,3 +1824,30 @@ Also still open and unfiled: `GET /forecast/:id` and `GET /conditions/:id` each 
 - **`PIPESTATUS[0]` in a three-stage pipeline is the first command, not the middle one.** Cost one wrong reading of a hook's exit code this session. Capture into a variable instead.
 
 **Does the user need to do anything?** **Yes — one thing, unchanged.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project to a long random string, then re-run Telegram's `setWebhook` with `secret_token` set to the same value. Nothing else is waiting on them.
+
+---
+
+## 2026-08-26 — branch: fix/hook-check-ambient-branch (squash-merged to `main`) — commit: see PR #51
+
+**Phase completed:** follow-up fix. `check:hooks` was branch-dependent; now it is not.
+
+**Why this session happened:** the post-merge audit on `main` — run because the user asked whether everything was reviewed, PR'd and merged — found `npm run check:hooks` **failing on `main` while passing on the feature branch it shipped from.**
+
+**The defect:** three cases carried `git commit` payloads and ran with the real repo as cwd. Once the default-branch guard landed in `516b438`, their verdict became a function of which branch happened to be checked out — ALLOW on a feature branch, BLOCK on `main`.
+
+**This was the second time the same bug shipped in this file.** The first pass moved the two cases that were obvious; these three had `git commit` buried inside a longer payload and were missed. **Fixing instances is not fixing a category** — class 11 in `defect-patterns.md`.
+
+**The fix is categorical, not instance-level.** Before any case runs, the harness scans `cases` for a `git commit` payload expecting ALLOW and fails with a `[meta]` error naming the case and where it belongs. Sabotage-tested: re-introducing the bug produces exactly that failure and nothing else moves. The three cases moved to `gitScenarios` on feature branches, so what they now measure is `stripInertText` rather than the branch guard.
+
+**Verified:** 49/49 on a feature branch **and** 49/49 with `main` checked out — the case that was failing. Plus typecheck 6/6, lint 4/4, test 315/315, CI green.
+
+**Blockers for next session:** none.
+
+**What's next:** the **chat interface**. Design conversation first.
+
+**Gotchas for next session:**
+
+- **A test that runs against the real repo inherits the real repo's state.** `check-hooks.mjs` has two tables for this reason: `cases` (ambient cwd, for payloads whose verdict cannot depend on git state) and `gitScenarios` (scratch repo, branch controlled). If a new case involves git state at all, it goes in the second.
+- **Run `npm run check:hooks` on `main` after merging, not only on the branch.** The branch run structurally could not see this failure. The post-merge audit is what caught it.
+
+**Does the user need to do anything?** **Yes — one thing, unchanged.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project to a long random string, then re-run Telegram's `setWebhook` with `secret_token` set to the same value.
