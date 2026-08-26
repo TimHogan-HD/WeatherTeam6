@@ -77,28 +77,14 @@ const cases = [
   ['npm run test', PRE, bash('npm run test'), ALLOW],
   ['empty stdin does not block', PRE, null, ALLOW],
 
-  // ---- prose about a forbidden command is not that command --------------
-  // The first real commit under this hook was blocked by its own commit
-  // message, which described the drizzle-kit guard.
-  [
-    'commit message naming drizzle-kit push',
-    PRE,
-    bash("git commit -m 'fix: block drizzle-kit push properly'"),
-    ALLOW,
-  ],
-  [
-    'heredoc commit body naming rm -rf and DROP TABLE',
-    PRE,
-    bash("git commit -F - <<'EOF'\nfix: guard rm -rf and DROP TABLE\nEOF"),
-    ALLOW,
-  ],
-  [
-    'unterminated heredoc body',
-    PRE,
-    bash("git commit -F - <<'EOF'\nnotes about drizzle-kit push"),
-    ALLOW,
-  ],
-  // ...but a real command after a message is still caught.
+  // NOTE: the "prose about a forbidden command" cases used to live here. They
+  // carry `git commit` payloads, so once the default-branch guard landed their
+  // verdict depended on the ambient checked-out branch — they passed on a
+  // feature branch and failed on `main`. Moved to `gitScenarios`. The assertion
+  // below stops the category from coming back.
+
+  // A real command after a message is still caught. These block regardless of
+  // branch, so ambient state cannot change the verdict.
   [
     'real rm -rf after a commit message',
     PRE,
@@ -130,6 +116,29 @@ const cases = [
 
 let failures = 0
 let passes = 0
+
+/* ------------------------------------------------------------------ *
+ * Categorical guard against the ambient-state bug.
+ *
+ * Cases in `cases` run with the *real* repo as cwd, so any payload whose
+ * verdict depends on git state gives a different answer depending on which
+ * branch happens to be checked out. That shipped twice: `git commit` cases
+ * expecting ALLOW passed on a feature branch and failed on `main` once the
+ * default-branch guard landed. Fixing the instances was not enough — this
+ * asserts the category.
+ *
+ * A `git commit` case expecting ALLOW belongs in `gitScenarios`, which controls
+ * the branch. One expecting BLOCK is fine here only if it blocks for a reason
+ * unrelated to the branch.
+ * ------------------------------------------------------------------ */
+for (const [name, , payload, expectedCode] of cases) {
+  const command = payload?.tool_input?.command ?? ''
+  if (/\bgit\s+commit\b/.test(command) && expectedCode === ALLOW) {
+    failures += 1
+    console.log(`  FAIL  [meta] "${name}" carries a git-commit payload expecting ALLOW`)
+    console.log('          Its verdict depends on the ambient branch. Move it to gitScenarios.')
+  }
+}
 
 for (const [name, hook, payload, expectedCode, fragment] of cases) {
   const result =
@@ -297,6 +306,35 @@ const gitScenarios = [
     bash('git commit --amend --no-edit'),
     BLOCK,
     'default branch',
+  ],
+
+  // ---- prose about a forbidden command is not that command ----------------
+  // The first real commit under these hooks was blocked by its own commit
+  // message, which described the drizzle-kit guard. These run on a feature
+  // branch so the default-branch guard is not what is being measured.
+  [
+    'inert: commit message naming drizzle-kit push is allowed',
+    (w) => g(w, 'checkout', '-b', 'feat/inert-a'),
+    PRE,
+    bash("git commit -m 'fix: block drizzle-kit push properly'"),
+    ALLOW,
+    null,
+  ],
+  [
+    'inert: heredoc commit body naming rm -rf and DROP TABLE is allowed',
+    (w) => g(w, 'checkout', '-b', 'feat/inert-b'),
+    PRE,
+    bash("git commit -F - <<'EOF'\nfix: guard rm -rf and DROP TABLE\nEOF"),
+    ALLOW,
+    null,
+  ],
+  [
+    'inert: unterminated heredoc body is allowed',
+    (w) => g(w, 'checkout', '-b', 'feat/inert-c'),
+    PRE,
+    bash("git commit -F - <<'EOF'\nnotes about drizzle-kit push"),
+    ALLOW,
+    null,
   ],
 ]
 
