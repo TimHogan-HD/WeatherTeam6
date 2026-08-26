@@ -1,6 +1,6 @@
 ---
 
-## 2026-08-26 — branch: claude/task-7-deep-link-archive — commit: <pending squash to main>
+## 2026-08-26 — branch: claude/task-7-deep-link-archive — squashed to `main` as `51937d5` (PR #42)
 
 **Phase completed:** Crossover Task 7 — alert deep link + `apps/mobile` archived. **This
 was the last task in `telegram-crossover-v4.md`; the crossover is finished.**
