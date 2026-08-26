@@ -1,5 +1,38 @@
 ---
 
+---
+
+## 2026-08-26 — merged and verified in production — `main` @ `7fc962d`
+
+**Both PRs merged:** #39 (auth) as `f48bad0`, #41 (screens + ten fixes) as `63b92dd`.
+PR #40 was auto-closed by GitHub when the auth branch was deleted on merge; #41 is the
+same work rebased onto `main`. Both Vercel projects deployed `7fc962d` successfully.
+
+**Verified against production, not assumed:**
+
+- **The `tma` scheme is live and fully configured.** A forged-hash probe to
+  `GET /api/v1/locations` logged `"why":"tma invalid: hash mismatch"` — **not**
+  `"tma unconfigured"`. That one field proves three things at once: the new code is
+  deployed (the field exists only in it), `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`
+  are both present in the API project (otherwise it short-circuits before validating),
+  and the HMAC validator ran and rejected the forgery. The earlier unauthenticated
+  probe logged `"bad or missing bearer"`, so the Bearer path is intact alongside it.
+- **The deployed Mini App bundle is the Task 6 build.** Every marker present —
+  `tma `, `Dry, settled`, `limited by `, `No conditions for today yet`,
+  `Climbing area`, `Enter coordinates instead`, `no rain in 30+ days` — and the Task 5
+  placeholder string is gone. **Zero credentials in it.**
+- `API_SHARED_SECRET` and `DEFAULT_USER_ID` are both set: an unauthenticated call
+  returns 401, not the 503 of a missing secret or the 500 of a missing user id.
+
+**Still not verified, and it needs a phone:** nothing has been opened inside Telegram.
+The list and saved-detail screens have still never rendered real data — every probe
+above stops at the auth boundary, because there is no way to hold a valid `initData`
+outside a real Telegram launch.
+
+**What is next:** Task 7 — deep link + archive `apps/mobile`. It needs `/newapp` run in
+@BotFather first. cron-job.org is still unregistered, which means `weather_alerts` is
+not being populated — worth doing before judging the alert surfaces, since both
+clients read that table.
 ## 2026-08-26 (continued) — branch: claude/task-6-miniapp-screens — squashed to `main` as `63b92dd` (PR #41)
 
 **Phase completed:** continuous review of Task 6 and of the wider codebase, with fixes. No new features.
