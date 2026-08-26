@@ -20,6 +20,19 @@
  * Every guard here is covered by `npm run check:hooks`.
  */
 
+import { currentBranch, defaultBranch, isGitRepo } from './lib/gitState.mjs'
+
+/**
+ * Branch lookups, guarded. A hook must not block a tool call because a git
+ * command failed — if the branch cannot be determined, the guard stands down.
+ */
+function currentBranchName() {
+  return isGitRepo() ? currentBranch() : null
+}
+function defaultBranchName() {
+  return isGitRepo() ? defaultBranch() : null
+}
+
 const CHECKLIST_POINTER = `REMINDER — Gate 0 of the review checklist:
   Read the actual diff, hunk by hunk, as prose. Not the checklist, not the test
   output. For each hunk ask what it renders or does when the input is null, 0,
@@ -177,7 +190,30 @@ if (tool === 'Write' || tool === 'Edit' || tool === 'NotebookEdit') {
 }
 
 /* ---------------------------------------------------------------- *
- * 5. Pre-commit reminder. Not a block.
+ * 5. Committing on the default branch.
+ *
+ *    CLAUDE.md has always said work lands via a branch and a PR, and on
+ *    2026-08-26 a session-record commit went straight to `main` anyway. A
+ *    written rule that is followed most of the time is the failure mode this
+ *    repo's tooling exists to remove, so it is a gate now.
+ *
+ *    `--amend` on an already-pushed default-branch commit is a different and
+ *    worse operation, so it is caught too.
+ * ---------------------------------------------------------------- */
+if (tool === 'Bash' && /\bgit\s+commit\b/.test(command)) {
+  const branch = currentBranchName()
+  const base = defaultBranchName()
+  if (branch && base && branch === base) {
+    block(
+      `You are on "${branch}", the default branch. Work lands through a branch and a PR — ` +
+        `create one first:  git checkout -b <type>/<name>\n` +
+        'If this is genuinely a direct-to-default commit the user asked for, they can run it themselves.',
+    )
+  }
+}
+
+/* ---------------------------------------------------------------- *
+ * 6. Pre-commit reminder. Not a block.
  *    Deliberately a pointer, not the full checklist: dumping ~2,800 tokens of
  *    markdown into context on every commit is the sort of always-on cost
  *    Stage 1 exists to remove. Gate 0 is the part that has actually caught

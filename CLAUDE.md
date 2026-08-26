@@ -93,7 +93,19 @@ replaced by ACIS in Phase 11, and RainViewer's key is unused by the current code
 - Auth is toggled via `AUTH_ENABLED` env var. Do not build a login UI.
 - `DEFAULT_USER_ID` is injected by `resolveUser` middleware — never hardcode it in route handlers
 - Drizzle migrations only — never mutate the DB directly
-- Commit after each completed phase
+- **Finish the delivery, don't hand it back.** Work reaches `main` through a branch, a PR,
+  green CI and a squash merge — all of it done by you, not the user. Do not end a turn with
+  uncommitted changes, unpushed commits, a pushed branch with no PR, or a green mergeable PR
+  left open.
+
+  This is **enforced, not advisory**. `git commit` on the default branch is blocked by a
+  PreToolUse hook, and a Stop hook refuses to end the turn while any of the above is
+  outstanding. Both are covered by `npm run check:hooks`. If the user explicitly asks you to
+  pause mid-change, `touch .claude/.wip` to suppress the gate and delete it when work
+  resumes.
+
+  It is written as a gate because it failed as prose: on 2026-08-26 a session-record commit
+  went straight to `main` with no PR while this file already said not to.
 
 ## Reference Docs
 
