@@ -73,9 +73,12 @@ Task 7's deep link into location detail needs a named Mini App registered separa
 
 - **`initData` HMAC validation.** The Mini App's credential is
   `Telegram.WebApp.initData`, validated server-side as middleware on `/api/v1/*`. It is
-  a hard prerequisite for Task 6, and it ships in the same change that removes Vercel
-  SSO protection from the API — SSO off without HMAC leaves the API open on a public
-  URL. `API_SHARED_SECRET` must never reach this bundle.
+  a hard prerequisite for Task 6. It is added as a **second accepted scheme on the same
+  `Authorization` header**, alongside `API_SHARED_SECRET` — not a replacement for it,
+  which is what keeps the API closed while this lands. There is no Vercel SSO to remove
+  first: SSO covers preview deployments only, and the production alias already answers
+  unauthenticated requests with our own Express 401. See the corrected sequencing note
+  in `.claude/docs/plan.md`. `API_SHARED_SECRET` must never reach this bundle.
 - **The three screens.** Task 6.
 - **Deep link.** `startapp` → `/location/:id`, with `/` pushed beneath it so
   `BackButton` reaches the list rather than closing the app. Task 7, spec in §2.

@@ -169,7 +169,15 @@ Build it as **route-level middleware on `/api/v1/*`**, not per-endpoint checks. 
 - Both must hold before this is considered done.
 - `POST /api/cron/check-alerts` still works with `x-cron-secret`, and the bot webhook still answers. Neither is under `/api/v1`, so neither should be affected.
 
-**Git checkpoint:** commit auth plus SSO removal together, never separately.
+~~**Git checkpoint:** commit auth plus SSO removal together, never separately.~~
+**Corrected 2026-08-25 — there is no SSO removal to pair it with.** Both Vercel projects
+have `ssoProtection.enabled: true` with `deploymentType: "all_except_custom_domains"`,
+which on this Hobby plan does not cover the primary production alias: an unauthenticated
+`GET https://weather-team6-api.vercel.app/api/v1/locations` reaches Express and returns
+our own `{"data":null,"error":"Unauthorized","status":401}`. SSO protects *preview*
+deployments — keep it, both because it is doing useful work and because it is why there
+is no preview-URL path for testing the Mini App inside Telegram. `initData` validation is
+a self-contained change, layered as a second scheme alongside `API_SHARED_SECRET`.
 
 ---
 

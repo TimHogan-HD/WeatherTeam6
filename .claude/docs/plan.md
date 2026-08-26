@@ -135,9 +135,20 @@ Each phase: implement → `npm run typecheck` → `npm run lint` → review chec
 
 ### ⚠️ Sequencing constraint — Mini App auth
 
-The Mini App is a browser client inside Telegram's webview. The API sits behind **Vercel SSO protection**, which a webview has no cookies for — every `fetch` will redirect to a login page. The automation bypass secret cannot be used, because it would ship in a public client bundle.
+> **Corrected 2026-08-25 against the live projects — read this before acting on the paragraph below.**
+> The premise turned out to be false, and acting on it would mean turning off a protection that is doing useful work.
+>
+> Both Vercel projects do have `ssoProtection.enabled: true`, but with `deploymentType: "all_except_custom_domains"`, and on this Hobby plan **that does not cover the primary production alias**. Verified: an unauthenticated `GET https://weather-team6-api.vercel.app/api/v1/locations` reaches Express and returns our own `{"data":null,"error":"Unauthorized","status":401}` with `X-Powered-By: Express` — not a Vercel login page, not a redirect. So a Telegram webview can already reach the API today.
+>
+> **Consequences:**
+> - **There is no SSO to remove, and it must not be removed.** What SSO still protects is *preview* deployments, which is worth keeping — and it is why there is no preview-URL path for testing the Mini App inside Telegram.
+> - **The thing actually holding the door shut is `requireApiAuth` + `API_SHARED_SECRET`**, which exists precisely because the production alias is open. Weakening or bypassing it is the real hazard, not an SSO toggle.
+> - **The two changes no longer have to ship together**, because one of them does not exist. `initData` HMAC validation is a self-contained change.
+> - `initData` is added as a **second accepted scheme on the same `Authorization` header**, alongside the shared secret — not a replacement for it. See `.claude/rules/architecture.md`.
 
-So `initData` HMAC validation must land **before or with** removing SSO protection, and those two changes ship together. SSO off without HMAC leaves the API fully open on a public URL. Build it as route-level middleware on `/api/v1/*`, not per-endpoint checks — per-endpoint is easy to half-apply. The cron and webhook routes are mounted outside `/api/v1` and keep their own gates.
+The Mini App is a browser client inside Telegram's webview, and the automation bypass secret cannot be used to authenticate it because it would ship in a public client bundle.
+
+Build `initData` validation as route-level middleware on `/api/v1/*`, not per-endpoint checks — per-endpoint is easy to half-apply. The cron and webhook routes are mounted outside `/api/v1` and keep their own gates.
 
 ### ⚠️ Known copy-rule violation — settle in B0
 

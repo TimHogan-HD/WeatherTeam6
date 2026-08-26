@@ -273,9 +273,12 @@ score, forecast, alert state. No mock data anywhere.
 > **Note added 2026-07-31:** the "two screens already designed" were designed in the
 > session that produced this doc and are **not in the repo**. Treat the existing mobile
 > mockups (`docs/handoffs/weatherteam6UI.html`, `weatherteam6-ui-handoff-v1.md` §7b/7c/7e)
-> as the design basis instead. Also note the API is currently behind Vercel SSO
-> protection, which a Telegram webview cannot authenticate against — the `initData` HMAC
-> middleware must ship together with removing that protection.
+> as the design basis instead. **The claim that used to follow here — that the API sits
+> behind Vercel SSO and the `initData` middleware must ship together with removing it —
+> is wrong, and was corrected 2026-08-25.** SSO covers preview deployments only; the
+> production alias answers unauthenticated requests with our own Express 401. There is
+> nothing to remove, and `initData` is a self-contained change layered alongside
+> `API_SHARED_SECRET`. See the sequencing note in `.claude/docs/plan.md`.
 
 ## ⬜ Task 7 — Deep link + cleanup (NOT STARTED)
 
