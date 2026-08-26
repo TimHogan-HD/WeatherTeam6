@@ -6,7 +6,7 @@
 when you need the reasoning behind a specific past decision, never at session start. It
 used to be mandatory reading, which cost ~41,000 tokens before any work began.
 
-Last updated: 2026-08-26 · `main` @ `432b25f`
+Last updated: 2026-08-26 · `main` @ `9d7015c`
 
 ---
 
@@ -22,6 +22,11 @@ confirmed working on a real device: bot, Mini App, alerts, deep links, auth.
 
 Baseline: `npm run test` 315 passing, `npm run typecheck` clean, `npm run check:hooks` 58 passing.
 
+Always-loaded instruction budget: **46,145 chars / ~11,536 est. tokens** (`CLAUDE.md` +
+`.claude/rules/*`). It was 56,043 before `9d7015c`. Anthropic's guidance is that a bloated
+`CLAUDE.md` causes its own rules to be ignored — if you are about to add a paragraph to it,
+check first whether the fact is derivable from the repo, or belongs in a skill or the archive.
+
 **You did not have to read this file.** The `SessionStart` hook injected it, along with the
 branch, working tree, unpushed commits, open PRs, open issues, and whether CI on `main` is
 green. If you are reading it because that block was absent, the hook did not fire — say so.
@@ -32,10 +37,19 @@ green. If you are reading it because that block was absent, the hook did not fir
 
 The user's direction, set 2026-08-26 and revised the same day:
 
-1. ~~**Agent-systems cleanup**~~ — **done.** `b954e9f` (PR #48): working hooks, a
-   permissions allowlist, current models on the review agents, session-start context cut
-   from 66,532 to 14,685 tokens. `516b438` (PR #49): the finish-the-delivery rule turned
-   into a gate — see *Delivery is enforced* below.
+1. ~~**Agent-systems cleanup**~~ — **done.** `b954e9f` (#48): working hooks, a permissions
+   allowlist, session-start context cut from 66,532 to 14,685 tokens. `516b438` (#49): the
+   finish-the-delivery rule turned into a gate. `432b25f` (#53): CI made to actually run the
+   checks. `d4db003` (#55): five plugins matched to this repo's defect classes —
+   `pr-review-toolkit` (its `silent-failure-hunter` **is** defect class 2), `neon`,
+   `claude-code-setup`, `hookify`, `mattpocock-skills`. `9d7015c` (#56): the always-loaded
+   markdown trimmed, and the PR reviewer's tool allowlist fixed.
+
+   **Not done, and it is the highest-value item left here: mutation testing.** Stryker plus
+   `@stryker-mutator/vitest-runner` is the mechanical answer to defect-patterns class 11 —
+   "which line of the implementation would have to change for this test to fail?" is the
+   definition of a mutation score. 26 test files, 670 assertions, and at least three tests
+   already documented as constraining nothing. Nothing blocks starting it.
 2. **The chat interface is the priority.** The user wants to ask in plain language and get
    an answer, plus slash commands that pull specific information about a location or a span
    of time. This is the headline feature direction from here.
@@ -118,9 +132,15 @@ reached `main` the same day anyway:
   the automatic version of the manual sweep the user had to ask for.
 - **`.github/workflows/claude-review.yml`** runs an independent reviewer on every non-draft
   PR — outside the session that wrote the code, so it does not share its blind spot.
-  **Live since 2026-08-26 20:51 UTC**, when `CLAUDE_CODE_OAUTH_TOKEN` was registered. If it
-  ever completes in ~3 seconds it skipped for a missing credential, and says so as a GitHub
-  notice; that is not a clean review.
+  **Treat its verdict with suspicion until it has produced a real finding.** It was broken
+  from the day it shipped to `9d7015c`: `--allowedTools` *replaces* the default allowlist
+  rather than extending it, so the reviewer could post comments but could not Read, Grep,
+  Glob or run git. It went green twice on diffs small enough to review from the prompt text
+  alone, then died on the first real one (32 permission denials, 8m15s, \$4.23). Fixed in
+  `9d7015c`; **the fix has not yet been exercised** — no run has completed under it.
+  Two failure signatures to watch for: a ~3-second pass means it skipped for a missing
+  credential (it says so as a GitHub notice), and a nonzero `permission_denials_count` in
+  the run log means it is being denied tools it needs.
 
 **Do not treat any of this as bureaucracy to route around.** If a gate fires, finish the
 work; if it misfires, add a case to `check-hooks.mjs` rather than loosening the guard. Do
