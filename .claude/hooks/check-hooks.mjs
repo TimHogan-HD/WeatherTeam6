@@ -19,6 +19,7 @@ import { dirname, join } from 'node:path'
 const here = dirname(fileURLToPath(import.meta.url))
 const PRE = join(here, 'pre-tool-safety.mjs')
 const POST = join(here, 'post-push-review.mjs')
+const STOP = join(here, 'session-finish-check.mjs')
 
 const BLOCK = 2
 const ALLOW = 0
@@ -117,9 +118,9 @@ const cases = [
     BLOCK,
   ],
 
-  // ---- advisory (allow, but must say something) -------------------------
-  ['git commit prints Gate 0', PRE, bash('git commit -m "x"'), ALLOW, 'Gate 0'],
-  ['git commit --amend stays quiet', PRE, bash('git commit --amend --no-edit'), ALLOW],
+  // Note: the `git commit` advisory cases are NOT here. The default-branch
+  // guard reads real git state, so their verdict depends on which branch the
+  // repo happens to be on — they live in `gitScenarios` with a controlled repo.
 
   // ---- post-push --------------------------------------------------------
   ['gh pr create asks for review', POST, bash('gh pr create --fill'), ALLOW, 'code-review high'],
@@ -160,8 +161,170 @@ for (const [name, hook, payload, expectedCode, fragment] of cases) {
   }
 }
 
+/* ------------------------------------------------------------------ *
+ * Git-state guards.
+ *
+ * The default-branch commit guard and the Stop hook read real git state, so
+ * they are exercised against scratch repositories rather than mocked. Each
+ * scenario builds a bare "origin", clones it, and puts the clone into the state
+ * under test.
+ * ------------------------------------------------------------------ */
+
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+
+function g(cwd, ...args) {
+  spawnSync('git', args, { cwd, encoding: 'utf8', stdio: 'ignore' })
+}
+
+/** A clone with an origin, one commit on the default branch, and origin/HEAD set. */
+function makeRepo() {
+  const root = mkdtempSync(join(tmpdir(), 'wt6-hook-'))
+  const origin = join(root, 'origin.git')
+  const work = join(root, 'work')
+  mkdirSync(origin)
+  spawnSync('git', ['init', '--bare', '--initial-branch=main', origin], { stdio: 'ignore' })
+  spawnSync('git', ['clone', origin, work], { stdio: 'ignore' })
+  g(work, 'config', 'user.email', 'test@example.com')
+  g(work, 'config', 'user.name', 'Hook Test')
+  writeFileSync(join(work, 'README.md'), '# scratch\n')
+  g(work, 'add', '-A')
+  g(work, 'commit', '-m', 'initial')
+  g(work, 'push', '-u', 'origin', 'main')
+  g(work, 'remote', 'set-head', 'origin', 'main')
+  return { root, work }
+}
+
+function runIn(cwd, hookPath, payload) {
+  const r = spawnSync(process.execPath, [hookPath], {
+    cwd,
+    input: JSON.stringify(payload ?? {}),
+    encoding: 'utf8',
+  })
+  return { code: r.status, out: (r.stdout ?? '') + (r.stderr ?? '') }
+}
+
+const gitScenarios = [
+  [
+    'Stop: clean and synced on main allows the turn to end',
+    (w) => {},
+    STOP,
+    {},
+    ALLOW,
+    null,
+  ],
+  [
+    'Stop: uncommitted changes block the turn',
+    (w) => writeFileSync(join(w, 'dirty.txt'), 'x'),
+    STOP,
+    {},
+    BLOCK,
+    'uncommitted changes',
+  ],
+  [
+    'Stop: .claude/.wip suppresses the block',
+    (w) => {
+      writeFileSync(join(w, 'dirty.txt'), 'x')
+      mkdirSync(join(w, '.claude'), { recursive: true })
+      writeFileSync(join(w, '.claude', '.wip'), '')
+    },
+    STOP,
+    {},
+    ALLOW,
+    null,
+  ],
+  [
+    'Stop: unpushed commits on main block the turn',
+    (w) => {
+      writeFileSync(join(w, 'a.txt'), 'a')
+      g(w, 'add', '-A')
+      g(w, 'commit', '-m', 'direct to main')
+    },
+    STOP,
+    {},
+    BLOCK,
+    'have not been pushed',
+  ],
+  [
+    'Stop: unpushed commits on a feature branch block the turn',
+    (w) => {
+      g(w, 'checkout', '-b', 'feat/x')
+      writeFileSync(join(w, 'a.txt'), 'a')
+      g(w, 'add', '-A')
+      g(w, 'commit', '-m', 'work')
+    },
+    STOP,
+    {},
+    BLOCK,
+    'unpushed commit',
+  ],
+  [
+    'PreToolUse: git commit on the default branch is blocked',
+    (w) => {},
+    PRE,
+    bash('git commit -m "x"'),
+    BLOCK,
+    'default branch',
+  ],
+  [
+    'PreToolUse: git commit on a feature branch is allowed',
+    (w) => g(w, 'checkout', '-b', 'feat/y'),
+    PRE,
+    bash('git commit -m "x"'),
+    ALLOW,
+    null,
+  ],
+  [
+    'PreToolUse: git commit on a feature branch still prints Gate 0',
+    (w) => g(w, 'checkout', '-b', 'feat/z'),
+    PRE,
+    bash('git commit -m "x"'),
+    ALLOW,
+    'Gate 0',
+  ],
+  [
+    'PreToolUse: git commit --amend on a feature branch stays quiet',
+    (w) => g(w, 'checkout', '-b', 'feat/w'),
+    PRE,
+    bash('git commit --amend --no-edit'),
+    ALLOW,
+    null,
+  ],
+  [
+    'PreToolUse: git commit --amend on the default branch is still blocked',
+    (w) => {},
+    PRE,
+    bash('git commit --amend --no-edit'),
+    BLOCK,
+    'default branch',
+  ],
+]
+
+for (const [name, setup, hook, payload, expectedCode, fragment] of gitScenarios) {
+  const { root, work } = makeRepo()
+  try {
+    setup(work)
+    const result = runIn(work, hook, payload)
+    const codeOk = result.code === expectedCode
+    const fragmentOk = fragment ? result.out.includes(fragment) : true
+    if (codeOk && fragmentOk) {
+      passes += 1
+      console.log(`  PASS  ${name}`)
+    } else {
+      failures += 1
+      console.log(`  FAIL  ${name}`)
+      if (!codeOk) console.log(`          expected exit ${expectedCode}, got ${result.code}`)
+      if (!fragmentOk) console.log(`          expected output to contain: ${fragment}`)
+      if (result.out.trim()) console.log(`          output: ${result.out.trim().slice(0, 300)}`)
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+}
+
+const total = cases.length + gitScenarios.length
 console.log('')
-console.log(`  ${passes} passed, ${failures} failed, ${cases.length} total`)
+console.log(`  ${passes} passed, ${failures} failed, ${total} total`)
 
 if (failures > 0) {
   console.log('')

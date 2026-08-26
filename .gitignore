@@ -164,3 +164,6 @@ apps/mobile/ios/
 
 # Agent worktree scratch space
 .claude/worktrees/
+
+# Stop-hook escape hatch: suppresses the unfinished-work gate for a deliberate pause.
+.claude/.wip
