@@ -280,8 +280,11 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
    *
    * Rendered verbatim in the Mini App's sources footer and the bot reply, and
    * §3 forbids naming a source that did not contribute. Derived from the models
-   * that actually yielded member arrays, so a model missing from a partial
-   * upstream response drops out of the attribution instead of being claimed.
+   * that yielded **precipitation** members specifically — not the union across
+   * variables — so a model missing from a partial upstream response drops out of
+   * the attribution instead of being claimed. Precipitation is the right axis to
+   * key on: it is the variable the score leans on hardest, and under-claiming a
+   * model that returned only temperature is the safe direction of error.
    *
    * It previously listed ECMWF, ICON and GEM whenever their keys were merely
    * *present*, while every extraction filtered to GFS — three models named that
