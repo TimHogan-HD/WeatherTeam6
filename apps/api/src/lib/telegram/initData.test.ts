@@ -62,11 +62,36 @@ describe('validateInitData', () => {
     });
   });
 
-  it('ignores a `signature` field, which Telegram excludes from this check', () => {
-    // Signed WITHOUT the signature field, then sent WITH it — exactly what a
-    // client new enough to carry an Ed25519 signature does.
-    const raw = `${signInitData(validFields())}&signature=abc123`;
-    expect(validateInitData(raw, BOT_TOKEN)).toMatchObject({ ok: true });
+  /**
+   * The regression that matters. This test previously asserted the opposite —
+   * it signed a payload WITHOUT `signature`, appended one, and expected the
+   * launch to validate. That is the Ed25519 third-party rule, not the bot-token
+   * rule, and applying it here meant the check string was missing a field on
+   * every launch from a Bot API 7.10+ client: **every Mini App request 401'd
+   * from the day auth shipped.** The suite stayed green because the helper
+   * signed payloads with the same mistake.
+   *
+   * `signInitData` now signs whatever fields it is given, so passing
+   * `signature` through it reproduces what a real client sends.
+   */
+  it('includes `signature` in the check string — Telegram signs it with everything else', () => {
+    const raw = signInitData(validFields({ signature: 'kJ8_Ed25519SignatureFromTelegram' }));
+    expect(raw).toContain('signature=');
+    expect(validateInitData(raw, BOT_TOKEN)).toMatchObject({ ok: true, user: { id: OWNER_ID } });
+  });
+
+  it('rejects a payload whose `signature` was signed and then altered', () => {
+    const raw = signInitData(validFields({ signature: 'original' })).replace(
+      /signature=[^&]*/,
+      'signature=tampered',
+    );
+    expect(validateInitData(raw, BOT_TOKEN)).toEqual({ ok: false, reason: 'hash mismatch' });
+  });
+
+  it('still accepts a launch with no `signature` at all — older clients send none', () => {
+    const raw = signInitData(validFields());
+    expect(raw).not.toContain('signature=');
+    expect(validateInitData(raw, BOT_TOKEN)).toMatchObject({ ok: true, user: { id: OWNER_ID } });
   });
 
   it('rejects initData older than the maximum age', () => {
