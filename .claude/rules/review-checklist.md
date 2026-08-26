@@ -66,7 +66,9 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] No new features added to `apps/mobile` — it is archived
 
 ## Telegram surfaces
-- [ ] Any text interpolated into a `parse_mode: 'HTML'` message is escaped (`&`, `<`, `>`) — NWS headlines and user-entered location names routinely contain them, and a malformed message is a non-retryable 400
+- [ ] Any text interpolated into a `parse_mode: 'HTML'` message is escaped with `escapeTelegramHtml` — NWS headlines and user-entered location names routinely contain `&`, and a malformed message is a non-retryable 400 the webhook swallows
+- [ ] **A string literal in the source counts too.** `/start` and the usage reply both shipped containing `<location name>`, which Telegram rejects as an unsupported start tag — neither had ever been delivered
+- [ ] Score-to-text goes through `summarizeConditions` — no surface writes its own mapping, or the bot and the Mini App drift apart
 - [ ] Webhook auth does not rely solely on request-body fields
 
 ## Verification
