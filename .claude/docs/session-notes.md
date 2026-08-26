@@ -1,6 +1,6 @@
 ---
 
-## 2026-08-26 (continued) — branch: claude/task-6-miniapp-screens — commits: 2edb9fe, f5f1e3d, 3353f6f
+## 2026-08-26 (continued) — branch: claude/task-6-miniapp-screens — commits: 899462f, 76dc4a6, 4e71f21
 
 **Phase completed:** continuous review of Task 6 and of the wider codebase, with fixes. No new features.
 
@@ -38,13 +38,13 @@
 - **Check the whole file's line endings before scripting a multi-line replacement.** One `sed`-style edit left a lone `` mid-line that typechecked fine and read as a merged import.
 ---
 
-## 2026-08-26 — branch: claude/task-6-miniapp-screens — commit: 4c05941 (screens), 133c756 (auth)
+## 2026-08-26 — branch: claude/task-6-miniapp-screens — commit: 8a2c430 (screens), f48bad0 (auth, squashed to `main` as PR #39)
 
 **Phase completed:** Crossover Task 6 — Mini App screens + `initData` auth. Two commits, auth first and on its own.
 
 **What was built this session:**
 
-*Auth (`133c756`, branched as `claude/miniapp-initdata-auth`):*
+*Auth (merged to `main` as `f48bad0`, PR #39 — branch `claude/miniapp-initdata-auth`, since deleted):*
 - `apps/api/src/lib/telegram/initData.ts` — NEW. `validateInitData(raw, botToken, nowMs?)`, pure: no env reads, no Express types. HMAC-SHA256 with the `WebAppData`-derived secret key.
 - `apps/api/src/middleware/apiAuth.ts` — a **second accepted scheme** on the same header: `Authorization: tma <initDataRaw>` alongside `Bearer $API_SHARED_SECRET`. The Bearer path is unchanged and an unset shared secret still 503s under **both** schemes.
 - The signed `user.id` is checked against `TELEGRAM_CHAT_ID`. Without it, any Telegram account that found the bot would hold `DEFAULT_USER_ID`'s rights.
