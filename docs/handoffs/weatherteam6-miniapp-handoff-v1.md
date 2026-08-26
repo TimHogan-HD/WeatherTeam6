@@ -120,13 +120,19 @@ This is not a from-scratch design exercise. Mine what already exists:
 
 ### ⚠️ Hard ordering constraint, read before scoping B2 and B3
 
-The Mini App is a browser client inside Telegram's webview. The API currently sits behind **Vercel SSO deployment protection**, which a webview has no cookies for, so every `fetch` 302s to a login page. The protection-bypass secret cannot be used, because it would ship inside a public client bundle.
+> **Corrected 2026-08-26. The paragraph struck through below rested on a false premise;
+> the constraint it stated survives, its reason does not.** `initData` HMAC validation
+> shipped as its own change on 2026-08-26 — see the B3 section for what exists.
 
-**`initData` HMAC validation is a prerequisite, not a finishing touch.** It must land in the same change that removes SSO protection from the API project. SSO off without HMAC leaves the API fully open on a public URL.
+~~The Mini App is a browser client inside Telegram's webview. The API currently sits behind **Vercel SSO deployment protection**, which a webview has no cookies for, so every `fetch` 302s to a login page. The protection-bypass secret cannot be used, because it would ship inside a public client bundle.~~
 
-Build it as **route-level middleware on `/api/v1/*`**, not per-endpoint checks. Per-endpoint is easy to half-apply, and that is exactly how auth gaps happen. The cron and webhook routes are mounted outside `/api/v1`, so the middleware will not cover them.
+**There is no SSO in the way and none to remove.** `ssoProtection.deploymentType` is `all_except_custom_domains`, which on this Hobby plan leaves the production alias serving straight through — a Telegram webview could always reach the API. What holds the door shut is `requireApiAuth` + `API_SHARED_SECRET`, and that is the thing not to weaken. The protection-bypass secret still cannot be used, because it would ship inside a public client bundle.
 
-**That is a problem, and it makes issue #27 part of B3 rather than deferred cleanup.** `POST /api/cron/check-alerts` is fine: `CRON_SECRET` is a real credential, compared with `timingSafeEqual`. `POST /api/telegram/webhook` is not. Its only gate is the `chat.id` field in the request body, which anyone can forge. Today SSO is what actually keeps strangers out, and Telegram itself gets through using the protection-bypass secret carried in the registered webhook URL. Remove SSO and that gate is all that remains. Ship #27's `secret_token` fix in the same change, or B3 trades one open door for another.
+**`initData` HMAC validation is a prerequisite for Task 6, not a finishing touch** — a Mini App that cannot authenticate has nothing to render. It is a self-contained change, added as a **second accepted scheme on the same `Authorization` header** alongside `Bearer`, never a replacement for it.
+
+Build it as **route-level middleware on `/api/v1/*`**, not per-endpoint checks. Per-endpoint is easy to half-apply, and that is exactly how auth gaps happen. The cron and webhook routes are mounted outside `/api/v1`, so the middleware will not cover them — they keep their own gates (`CRON_SECRET`, `chat.id`).
+
+**Issue #27 is not made urgent by this change, and was never made urgent by SSO removal.** `POST /api/telegram/webhook` is gated only by the forgeable `chat.id` in the request body, and it is reachable today exactly as it was before — SSO never covered it. The `secret_token` fix is still worth doing; it is simply neither a prerequisite nor a consequence of the auth work here.
 
 **Task 6 is blocked on Task 5's auth work.** Do not build screens first and bolt auth on after.
 
@@ -154,20 +160,27 @@ Build it as **route-level middleware on `/api/v1/*`**, not per-endpoint checks. 
 
 ### Phase B3 / Task 5: Server-side auth
 
-**What to build**
+> **Status: built 2026-08-26.** `apps/api/src/lib/telegram/initData.ts` (pure validator)
+> and the second scheme in `apps/api/src/middleware/apiAuth.ts`. Read this section now as
+> a description of what exists.
 
-- Middleware validating `Telegram.WebApp.initData` via HMAC using `TELEGRAM_BOT_TOKEN`. Token stays server-side.
-- Mount on `/api/v1/*` in `apps/api/src/index.ts`, after `resolveUser`.
-- Turn off Vercel SSO on the API project in the same change.
-- Fix #27's webhook `secret_token` in the same change (see the constraint block above).
-- **Check CORS before choosing how `initData` reaches the server.** `createApp()` sets a fixed `Access-Control-Allow-Headers: Content-Type, Authorization`. A custom header such as `X-Telegram-Init-Data` will fail preflight and present as an auth bug rather than a CORS bug. Either add the header to that list or pass `initData` in the body.
+**What was built**
 
-**Acceptance criteria**
+- `validateInitData(raw, botToken)` — HMAC-SHA256 with the `WebAppData`-derived secret key, in `src/lib/telegram/initData.ts`. Pure: no env reads, no Express types.
+- A second accepted scheme in `requireApiAuth`: `Authorization: tma <initDataRaw>`, alongside `Bearer <API_SHARED_SECRET>`. `Bearer` is unchanged and is still what keeps the production alias closed.
+- **The signed user id is checked against `TELEGRAM_CHAT_ID`.** A valid signature only proves the launch came from *a* Telegram user, and anyone who finds the bot can open its menu button — without this the second scheme would hand `DEFAULT_USER_ID`'s rights to any Telegram account.
+- No Vercel SSO change: there is none to make (see the corrected constraint block above).
+- Issue #27's webhook `secret_token` is **not** part of this change — it is unaffected either way.
+- The credential travels in `Authorization`, which `createApp()`'s CORS layer already allows. A custom header such as `X-Telegram-Init-Data` would fail preflight and present as an auth bug rather than a CORS bug.
 
-- `curl` against `/api/v1/locations` **without** valid `initData` returns 401.
-- The same call **with** valid `initData` returns data.
-- Both must hold before this is considered done.
-- `POST /api/cron/check-alerts` still works with `x-cron-secret`, and the bot webhook still answers. Neither is under `/api/v1`, so neither should be affected.
+**Acceptance criteria — all verified over real HTTP against a locally run API**
+
+- `curl` against `/api/v1/*` **without** a credential returns 401. ✅
+- The same call **with** signed owner `initData` under `tma` returns data. ✅
+- Signed `initData` for a **different Telegram user** returns 401. ✅
+- `initData` older than 24 h, or with any field tampered, returns 401. ✅
+- `Bearer $API_SHARED_SECRET` still returns data, and an unset `API_SHARED_SECRET` still fails closed with 503 under **both** schemes. ✅
+- `POST /api/cron/check-alerts` still answers on `CRON_SECRET` and the bot webhook still answers. Neither is under `/api/v1`, so neither is affected. ✅
 
 ~~**Git checkpoint:** commit auth plus SSO removal together, never separately.~~
 **Corrected 2026-08-25 — there is no SSO removal to pair it with.** Both Vercel projects
