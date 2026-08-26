@@ -107,6 +107,42 @@ describe('validateInitData', () => {
     expect(validateInitData(raw, BOT_TOKEN, nowMs)).toMatchObject({ ok: true });
   });
 
+  it('caps the age at 24 hours, stated as a number rather than as itself', () => {
+    // Every other age test above is written in terms of the constant, so all of
+    // them stay green if the constant changes. Divide it down to 24 seconds and
+    // the Mini App 401s a minute after launch; multiply it up and an old
+    // initData stays valid indefinitely. Neither is visible from a test that
+    // measures the constant against the constant. Found by mutation testing.
+    expect(INIT_DATA_MAX_AGE_SECONDS).toBe(86_400);
+  });
+
+  it('rejects an empty hash value, not just a missing or duplicated one', () => {
+    const raw = new URLSearchParams({ ...validFields(), hash: '' }).toString();
+    expect(validateInitData(raw, BOT_TOKEN)).toEqual({
+      ok: false,
+      reason: 'missing or duplicated hash',
+    });
+  });
+
+  it('rejects a signed payload whose user id is not an integer', () => {
+    // These are signed, so they cost the bot token to produce — but the return
+    // type promises a number, and `apiAuth` compares `String(user.id)` to the
+    // owner id. A string "42" would satisfy that comparison while defeating the
+    // type. Both halves of the guard need a case: a non-number, and a number
+    // that is not an integer.
+    for (const id of ['42', 42.5, null] as const) {
+      const raw = signInitData(validFields({ user: JSON.stringify({ id, first_name: 'Tim' }) }));
+      expect(validateInitData(raw, BOT_TOKEN)).toEqual({ ok: false, reason: 'no user in initData' });
+    }
+  });
+
+  it('rejects a signed payload whose user field is not a JSON object', () => {
+    for (const user of ['42', '"tim"', 'null', 'not-json-at-all']) {
+      const raw = signInitData(validFields({ user }));
+      expect(validateInitData(raw, BOT_TOKEN)).toEqual({ ok: false, reason: 'no user in initData' });
+    }
+  });
+
   it('rejects a signed payload with no user — it cannot be attributed to the owner', () => {
     const { user: _user, ...withoutUser } = validFields();
     const raw = signInitData(withoutUser);

@@ -146,6 +146,19 @@ describe('requireApiAuth', () => {
       expect(res.statusCode).toBeNull();
     });
 
+    it('tolerates whitespace around TELEGRAM_CHAT_ID', () => {
+      // A pasted Vercel value picks up a trailing newline or space easily, and
+      // without the trim every Mini App request 401s with "not the owner" while
+      // the dashboard shows the id looking correct. Nothing asserted the trim.
+      // Found by mutation testing.
+      process.env['TELEGRAM_CHAT_ID'] = ` ${String(OWNER_ID)}\n`;
+      const next = vi.fn() as unknown as NextFunction;
+      const res = makeRes();
+      requireApiAuth(makeReq(`tma ${signInitData(OWNER_ID)}`), res, next);
+      expect(next).toHaveBeenCalledOnce();
+      expect(res.statusCode).toBeNull();
+    });
+
     it('rejects a valid signature from a different Telegram user', () => {
       // The signature proves the launch came from Telegram, not that it came
       // from the owner. Anyone can open the bot's menu button.

@@ -33,6 +33,39 @@ describe('fetchNwsAlerts', () => {
     expect(result).toBeNull()
   })
 
+  it('returns null for a non-ok response even when its body parses as a FeatureCollection', async () => {
+    // The 404 case above has a body that fails the FeatureCollection check
+    // anyway, so removing the `res.ok` guard entirely left it passing. NWS
+    // serves JSON on its error paths, and a 503 carrying a stale or empty
+    // collection would be read as "NWS confirms no active alerts" — which
+    // deletes every stored row for the location, `notified_at` included.
+    // Found by mutation testing.
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ type: 'FeatureCollection', features: [] }), { status: 503 }),
+    )
+    const resultPromise = fetchNwsAlerts(36.0, -115.0)
+    await vi.runAllTimersAsync()
+    expect(await resultPromise).toBeNull()
+  })
+
+  it('skips a feature carrying no properties rather than reading through it', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          type: 'FeatureCollection',
+          features: [
+            { id: 'urn:oid:no-props' },
+            { id: 'urn:oid:real', properties: { event: 'Flood Warning', severity: 'Severe' } },
+          ],
+        }),
+        { status: 200 },
+      ),
+    )
+    const result = await fetchNwsAlerts(36.0, -115.0)
+    expect(result).toHaveLength(1)
+    expect(result?.[0]?.nws_alert_id).toBe('urn:oid:real')
+  })
+
   it('returns null when a 200 response has no features array', async () => {
     // This expectation was `[]` and that was the bug (issue #26). `[]` means
     // "NWS confirms no active alerts", and `runAlertsCheck` acts on it by

@@ -98,6 +98,20 @@ describe('computeLiveForecast — forecast source', () => {
     expect(fetchArchivePrecip).toHaveBeenCalledOnce()
     expect(fetchPrecipHistory).not.toHaveBeenCalled()
   })
+
+  it('asks for the 30 days BEFORE now, on both rainfall paths', async () => {
+    // Only the call count was asserted, so the window itself was free: flip the
+    // sign and the range runs 30 days into the future, which comes back empty.
+    // An empty rainfall history is not distinguishable downstream from a dry
+    // month — dryingModel returns its 720h sentinel either way — so the score
+    // inflates and the Mini App renders "no rain in 720h" as a measurement.
+    // Found by mutation testing.
+    await computeLiveForecast(location, NOW)
+    expect(fetchArchivePrecip).toHaveBeenCalledWith(36.15, -115.45, iso(-30), iso(0))
+
+    await computeLiveForecast({ ...location, asos_station: 'KLAS' }, NOW)
+    expect(fetchPrecipHistory).toHaveBeenCalledWith('KLAS', iso(-30), iso(0))
+  })
 })
 
 describe('computeLiveForecast — per-day scoring', () => {
@@ -118,6 +132,24 @@ describe('computeLiveForecast — per-day scoring', () => {
 
     expect(scores[0]?.component_wind).toBe(15)
     expect(scores[1]?.component_wind).toBe(0)
+  })
+
+  it('takes the humidity proxy from today’s day, not from whichever day comes first', async () => {
+    // `currentHumidityPct` is looked up with `days.find(d => d.date === todayStr)`
+    // and then applied to every day's score. Invert that comparison and it
+    // silently reads a different day: with every fixture day sharing one
+    // humidity, nothing could tell. Here today is humid and the rest are dry,
+    // so the wrong day scores full marks instead of zero.
+    fetchEnsemble.mockResolvedValue({
+      days: [day(0, { humidity_pct: 95 }), day(1, { humidity_pct: 20 }), day(2, { humidity_pct: 20 })],
+      model_sources: ['gfs_seamless'],
+      utc_offset_seconds: 0,
+    })
+
+    const { scores } = await computeLiveForecast(location, NOW)
+
+    expect(scores).not.toHaveLength(0)
+    for (const s of scores) expect(s.component_humidity).toBe(0)
   })
 
   it('still scores temperature per day', async () => {

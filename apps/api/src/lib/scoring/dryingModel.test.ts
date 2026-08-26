@@ -172,4 +172,39 @@ describe('dryingModel (behavior)', () => {
     expect(result.last_rain_mm).toBe(4)
     expect(result.hours_since_significant_rain).toBeCloseTo(5, 0)
   })
+
+  it('picks the most recent event even when the list is not in date order', () => {
+    // The case above lists events oldest-first, so "take the latest" and "take
+    // the last one in the array" give the same answer and the date comparison
+    // is asserted by nothing — replace it with `true` and every test stays
+    // green. Real input has no ordering guarantee: ACIS and the Open-Meteo
+    // archive are separate sources and neither promises one. Reversed here, the
+    // unguarded version reports the older, heavier event and a wall that rained
+    // yesterday reads as seven days dry. Found by mutation testing.
+    const asOf = new Date('2025-06-01T05:00:00Z')
+    const result = dryingModel({
+      rockType: 'granite',
+      cliffAngle: 0,
+      rainfallEvents: [
+        { date: '2025-05-31', precip_mm: 4 }, // recent, listed first
+        { date: '2025-05-25', precip_mm: 50 }, // older and heavier, listed last
+      ],
+      asOf,
+    })
+    expect(result.last_rain_mm).toBe(4)
+    expect(result.hours_since_significant_rain).toBeCloseTo(5, 0)
+  })
+
+  it('treats exactly 2mm as not significant — the threshold is strict', () => {
+    // The "below threshold" case uses values well under 2mm, so the boundary
+    // itself is untested and `>` can become `>=` unnoticed.
+    const result = dryingModel({
+      rockType: 'granite',
+      cliffAngle: 0,
+      rainfallEvents: [{ date: '2025-05-31', precip_mm: 2 }],
+      asOf: new Date('2025-06-01T05:00:00Z'),
+    })
+    expect(result.last_rain_mm).toBe(0)
+    expect(result.hours_since_significant_rain).toBe(720)
+  })
 })
