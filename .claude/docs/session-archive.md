@@ -1851,3 +1851,52 @@ Also still open and unfiled: `GET /forecast/:id` and `GET /conditions/:id` each 
 - **Run `npm run check:hooks` on `main` after merging, not only on the branch.** The branch run structurally could not see this failure. The post-merge audit is what caught it.
 
 **Does the user need to do anything?** **Yes — one thing, unchanged.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project to a long random string, then re-run Telegram's `setWebhook` with `secret_token` set to the same value.
+
+---
+
+## 2026-08-26 — branch: fix/verification-is-enforced — commit: 432b25f
+
+**Phase completed:** Agent systems — verification enforcement (the second half of the enforcement work begun in `516b438`)
+
+**Why this session happened:** the user asked, after the previous session's enforcement work, what the point of those systems was when the very next thing that happened was a missed defect and a manual request for another sweep. That is a fair question and it had a mechanical answer.
+
+**The diagnosis:**
+
+- **CI never ran `check:hooks`.** It reported `success` on `bfe1e83` while `check:hooks` was failing **46 of its 49 cases** on `main`. The gate written that morning was real; no machine ran it. `check:hooks` appeared **zero** times in `ci.yml`.
+- **`main` had no branch protection and no rulesets.** `gh pr merge` would merge a red PR, and only a local PreToolUse hook stood between a commit and the default branch. That is what let `918ccaa` happen.
+- **`npm run build` was never in CI**, so the Mini App's Vite build was unverified before merge.
+- **Nothing reported a red run on `main`.**
+- The Stop hook's own source said *"Deliberately NOT checked here: whether tests pass. That belongs to CI"* — correctness was delegated to a CI that had never been audited.
+
+**What was built this session:**
+
+- `.github/workflows/ci.yml` — now runs `build`, `typecheck`, `lint`, `test`, and **every root-level `check:*` script enumerated from `package.json`** rather than listed in the workflow. `--if-present` dropped from `test` so a vanished script fails loudly. `fetch-depth: 0` so ambient-cwd git readers behave like a real clone instead of standing down and passing without measuring anything.
+- `.claude/hooks/session-start-state.mjs` — SessionStart hook injecting branch, working tree, unpushed commits, open PRs with CI status, open issues, **default-branch CI health**, and `STATE.md` verbatim. Replaces steps 1–2 of the Session Start Protocol, which were steps an agent had to remember.
+- `.claude/hooks/check-hooks.mjs` — 49 → 58 cases. Five SessionStart scenarios plus a **categorical `[meta]` assertion that every hook `settings.json` registers is exercised by some scenario**. An untested hook is now unmergeable.
+- `.github/workflows/claude-review.yml` — independent reviewer on every non-draft PR, running outside the session that wrote the code. Skips with a visible GitHub **notice** when the credential is absent, so a 3-second green cannot be mistaken for "reviewed clean".
+- `REVIEW.md` — severity calibration for managed Code Review, written against this repo's real defect classes.
+- `.claude/settings.json` — SessionStart registered; `typescript-lsp` and `security-guidance` enabled at project scope.
+- **Branch protection on `main`** (repo settings, applied with the user's explicit approval): PR required, `ci` required and strict, linear history, no force-push, no deletion, **enforced for admins**. `delete_branch_on_merge` turned on.
+
+**Verification:** 58/58 hook cases locally **and on the CI runner** (confirmed by reading the job log, not by trusting the green). build/typecheck/lint/test all green. Every new assertion sabotage-tested — registering an uncovered hook, omitting the branch, reporting a dirty tree as clean, never inlining `STATE.md`, and exiting non-zero each failed exactly the assertions that should care.
+
+**One probe was invalid and is worth recording.** The first sabotage of the branch assertion renamed the *label* (`branch:` → `br:`) and nothing failed — correctly, because the assertion checks the branch **name** reaches context, not its label. The probe was replaced, not the test. A sabotage that does not break the property under test proves nothing about the test.
+
+**Known issues / deferred work:**
+
+- Branch protection was verified by GitHub's API reporting it active, **not** by attempting a push and watching it be rejected. The failure mode of being wrong was an unwanted commit on a branch that now refuses force-pushes.
+- `typescript-lsp` and `security-guidance` were installed from the shell, so they do not load until Claude Code restarts or `/reload-plugins` runs.
+- Managed **Code Review** (multi-agent, inline comments, \$15–25/PR) is Team/Enterprise only and was not enabled. `REVIEW.md` is inert until it is.
+
+**Blockers for next session:** none.
+
+**What's next:** the **chat interface** — plain-language questions plus slash commands over a location or a span of time. Design conversation first; do not spec it unilaterally.
+
+**Gotchas for next session:**
+
+- **The previous session's gotcha "run `check:hooks` on `main` after merging, not only on the branch" is superseded.** CI now runs it on every push and PR, including pushes to `main`, and a red run on `main` is reported at session start. Doing it by hand is no longer the control.
+- **Session start is injected, not read.** If the `# Injected session state` block is absent, the hook did not fire — say so rather than silently falling back, because everything downstream assumes it ran.
+- **A root-level `check:*` script is expected to be hermetic.** CI runs all of them with no `DATABASE_URL`. Anything needing a real database stays a workspace-level script (`apps/api`'s `check:add-location`, `check:delete-trip`).
+- **Do not disable branch protection to land something.** If a gate fires, fix the red check.
+
+**Does the user need to do anything?** **Yes — one thing, and it is the same one as the last three sessions.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project, then re-run Telegram's `setWebhook` with a matching `secret_token`. `CLAUDE_CODE_OAUTH_TOKEN` is **done** — registered 2026-08-26 20:51 UTC, so the independent reviewer is live. Worth doing once, but not owed: restart Claude Code so the two new plugins load.
