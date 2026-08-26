@@ -24,15 +24,32 @@ export async function runAlertsCheck(): Promise<void> {
     return
   }
 
-  const errors: Error[] = []
-
-  for (const loc of allLocations) {
-    try {
+  /**
+   * Locations run in parallel, not sequentially (issue #27 part 3).
+   *
+   * Each iteration makes an NWS call through `fetchWithRetry`, which sleeps
+   * 1s + 2s + 4s across its four attempts. Serially, an NWS outage cost ~7s per
+   * location: about ten locations would exceed the function's `maxDuration: 60`
+   * and the request would die **before `notifyPendingAlerts()` ever ran**, so
+   * already-pending alerts stayed undelivered across every retry. The failure
+   * got worse precisely as more locations were added.
+   *
+   * `Promise.allSettled` so one location's failure cannot sink the others —
+   * the same shape as `GET /trips/:tripId/forecast`, where this was fixed and
+   * then not carried across.
+   *
+   * Safe to run concurrently: each location only ever touches its own rows
+   * (`weather_alerts` is unique on `location_id, nws_alert_id`), so no two
+   * iterations contend for the same row.
+   */
+  const settled = await Promise.allSettled(
+    allLocations.map(async (loc) => {
+      const errors: Error[] = []
       const alerts = await fetchNwsAlerts(parseFloat(loc.lat), parseFloat(loc.lon))
 
       if (alerts === null) {
         logger.warn({ locationId: loc.id }, '[checkAlerts] NWS fetch unavailable, skipping location')
-        continue
+        return errors
       }
 
       // Upsert each active alert individually, tolerating insert-level errors so
@@ -92,9 +109,24 @@ export async function runAlertsCheck(): Promise<void> {
       }
 
       logger.info({ locationId: loc.id, alertCount: alerts.length }, '[checkAlerts] location processed')
-    } catch (err) {
-      const e = err instanceof Error ? err : new Error(String(err))
-      logger.error({ locationId: loc.id, err: e.message }, '[checkAlerts] location failed')
+      return errors
+    }),
+  )
+
+  // Upsert-level errors are carried out of each task as a list; a task that
+  // threw outright is a rejection. Both still make the run report failure, so
+  // the cron response's `refreshFailed` flag keeps meaning what it did.
+  const errors: Error[] = []
+  for (const [i, result] of settled.entries()) {
+    if (result.status === 'fulfilled') {
+      errors.push(...result.value)
+    } else {
+      const e =
+        result.reason instanceof Error ? result.reason : new Error(String(result.reason))
+      logger.error(
+        { locationId: allLocations[i]?.id, err: e.message },
+        '[checkAlerts] location failed',
+      )
       errors.push(e)
     }
   }
