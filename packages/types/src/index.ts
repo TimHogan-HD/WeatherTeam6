@@ -1,3 +1,11 @@
+// Runtime helpers shared by apps/api and apps/miniapp. They live in their own
+// modules and are re-exported here because package.json declares only a "."
+// entry in its exports map — under NodeNext resolution a deep import such as
+// `@weatherteam6/types/units` does not resolve.
+export * from './scoreComponents.js'
+export * from './units.js'
+export * from './conditionsCopy.js'
+
 export type ApiResponse<T> = {
   data: T | null
   error: string | null
@@ -175,14 +183,6 @@ export function parseNumeric(value: string | null): number | null {
 export function parseNumericRequired(value: string): number {
   return parseFloat(value)
 }
-
-export const SCORE_COMPONENT_MAX = {
-  drying: 40,
-  rain: 25,
-  wind: 15,
-  temp: 12,
-  humidity: 8,
-} as const
 
 export type Wall = {
   id: string

@@ -1,0 +1,124 @@
+import { spacing } from '@weatherteam6/design/tokens'
+import { formatHoursSinceRain } from '@weatherteam6/types'
+import type { ConditionsScore, ForecastSnapshot, WeatherAlert } from '@weatherteam6/types'
+import { type } from '../theme/tokens.css.js'
+import { stack } from '../theme/styles.js'
+import { forecastSourceLabel, findToday, rainfallSourceLabel, severeAlertEvent } from '../lib/forecast.js'
+import { AlertBanner } from './Alerts.js'
+import { ScoreSection } from './ScoreSection.js'
+import { SourcesFooter } from './SourcesFooter.js'
+import { InlineError, Skeleton } from './States.js'
+import { ForecastList, TodayHero } from './Weather.js'
+
+/**
+ * One scroll, no internal tabs (§3), in a fixed order: alert banner, today,
+ * 7-day, score, sources.
+ *
+ * Shared by the saved detail screen and the add flow's preview step — the
+ * preview is this screen in unsaved mode with its chrome swapped, which is why
+ * `/add` is the only genuinely new screen in §12.
+ *
+ * Sections fail independently. A location whose alerts call failed still shows
+ * its weather; the screen is never a whole-screen error takeover (§5).
+ */
+
+export type DetailViewProps = {
+  /** Unsaved preview: no score section regardless of type — nothing has been classified yet. */
+  unsaved?: boolean
+  isClimbingLocation: boolean
+  /** `null` on the preview path and on hand-entered coordinates. */
+  asosStation: string | null
+
+  forecast: {
+    data: ForecastSnapshot[] | undefined
+    isPending: boolean
+    isError: boolean
+    refetch: () => void
+  }
+  alerts?: {
+    data: WeatherAlert[] | undefined
+    isError: boolean
+  }
+  conditions?: {
+    /** A 200 with `data: null` is the documented "no row for today" answer, not an error (§5). */
+    data: ConditionsScore | null | undefined
+    isPending: boolean
+    isError: boolean
+    refetch: () => void
+  }
+}
+
+export function DetailView({
+  unsaved = false,
+  isClimbingLocation,
+  asosStation,
+  forecast,
+  alerts,
+  conditions,
+}: DetailViewProps) {
+  const today = findToday(forecast.data)
+  const alertEvent = severeAlertEvent(alerts?.data)
+  const showScore = !unsaved && isClimbingLocation
+
+  // Hours since rain belongs to the hero, not the breakdown, and only to a
+  // climbing location — a city has no drying story (§3). The shared formatter
+  // caps it at "30+ days" so a swallowed rainfall fetch cannot render as a
+  // precise measurement.
+  const hoursSinceRain = showScore
+    ? (conditions?.data?.score_breakdown?.drying.hours_since_rain ?? null)
+    : null
+  const rainLine = hoursSinceRain === null ? undefined : formatHoursSinceRain(hoursSinceRain)
+
+  const sources = [
+    forecastSourceLabel(forecast.data),
+    showScore ? rainfallSourceLabel(asosStation) : null,
+    // Only claim NWS when the alerts call actually returned. Naming a source
+    // for data we do not have is the same false attribution as hardcoding one.
+    alerts?.data === undefined ? null : 'NWS',
+  ].filter((s): s is string => s !== null)
+
+  return (
+    <div style={{ ...stack(spacing.sectionGap), marginTop: `${spacing.sectionTop}px` }}>
+      {alerts?.isError === true ? (
+        // Alerts outrank everything (§7 rule 5), so their absence must be
+        // visible rather than looking like "no alerts".
+        <InlineError message="Couldn't load alerts." />
+      ) : alerts?.data === undefined ? null : (
+        <AlertBanner alerts={alerts.data} />
+      )}
+
+      {forecast.isPending ? (
+        <Skeleton height={110} />
+      ) : forecast.isError ? (
+        <InlineError message="Couldn't load the forecast." onRetry={forecast.refetch} />
+      ) : (
+        <>
+          {today === null ? (
+            <p style={type.bodyMd}>No reading for today yet.</p>
+          ) : (
+            <TodayHero day={today} rainLine={rainLine} />
+          )}
+          {forecast.data === undefined || forecast.data.length === 0 ? null : (
+            <ForecastList days={forecast.data} />
+          )}
+        </>
+      )}
+
+      {showScore && conditions !== undefined ? (
+        conditions.isPending ? (
+          <Skeleton height={90} />
+        ) : conditions.isError ? (
+          <InlineError message="Couldn't load conditions." onRetry={conditions.refetch} />
+        ) : conditions.data === null ? (
+          // Distinct from the ladder's "Too far out to score", which describes a
+          // date beyond the scoring window. This is today, and it has no row.
+          <p style={type.bodyMd}>No conditions for today yet.</p>
+        ) : conditions.data === undefined ? null : (
+          <ScoreSection score={conditions.data} severeAlertEvent={alertEvent} />
+        )
+      ) : null}
+
+      <SourcesFooter sources={sources} />
+    </div>
+  )
+}

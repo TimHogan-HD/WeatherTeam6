@@ -51,8 +51,15 @@ function parseColor(color: string): Rgba | null {
  * RN carries opacity as a separate `shadowOpacity` prop; CSS has to fold it into
  * the color. An alpha already present in the token colour is multiplied, not
  * replaced, so `goodDot` (a 0.6-alpha colour at opacity 1) keeps its 0.6.
+ *
+ * Exported because the palette has `goodTint`, `fairTint` and `sunTint` but no
+ * `poorTint`, and the alert treatment needs one. Deriving it from `colors.poor`
+ * keeps the value traceable to the token; writing the equivalent `rgba(...)`
+ * into a component would be redefining a colour in the app, which the
+ * architecture rule forbids. **Only ever pass an imported token as `color`** —
+ * a literal here is the same violation wearing a function call.
  */
-function withOpacity(color: string, opacity: number): string {
+export function withOpacity(color: string, opacity: number): string {
   const parsed = parseColor(color)
   if (parsed === null) {
     // Returning the colour unchanged would discard `shadowOpacity` and render a
