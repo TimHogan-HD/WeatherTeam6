@@ -3,96 +3,66 @@
 Climbing conditions platform + general weather app. Core purpose: tell the user if a crag is climbable now, over the next 7 days, and support trip planning weeks out with improving forecast confidence over time.
 
 ## Stack
-- **Client:** Telegram bot + Telegram Mini App (`apps/miniapp`, Vite + React — live at https://weatherteam6.vercel.app, opened from the bot's menu button. All three screens built in Task 6; authenticated by `initData` HMAC as a second `Authorization` scheme)
-- **Mobile (ARCHIVED):** React Native + Expo lives in `apps/mobile`. Superseded by the Mini App as of 2026-07-31 — code retained, out of the build, do not add features to it.
-- **Backend:** Node.js + TypeScript + Express, wrapped as a single serverless function on Vercel (`apps/api/api/index.ts`)
-- **ORM:** Drizzle (schema-as-TypeScript, SQL-close queries — never substitute Prisma)
-- **DB:** PostgreSQL on Neon (`@neondatabase/serverless`, `drizzle-orm/neon-serverless`)
-- **Background work:** no queue — `alerts-poller` is now `POST /api/cron/check-alerts`, triggered by an external scheduler (cron-job.org); forecast/conditions scoring is computed live per request instead of a snapshot job
-- **Storage:** Cloudflare R2 (conditions report photos)
-- **Monorepo:** Turborepo
+
+`package.json` and the workspace manifests are the authoritative record of what is installed. What they cannot tell you:
+
+- **Drizzle is the ORM and the choice is final** — schema-as-TypeScript, SQL-close queries. Never substitute Prisma.
+- **`apps/mobile` is ARCHIVED and out of the build** since 2026-08-26. Code retained, do not add features to it.
+- **There is no queue.** No BullMQ, no Redis. Scheduled work is an HTTP route under `/api/cron/*` triggered by an external scheduler (cron-job.org). Forecast/conditions scoring is computed live per request, not by a snapshot job.
+- **The API is one serverless function** on Vercel — `apps/api/api/index.ts` wraps the whole Express app.
+- **The Mini App is the client.** `apps/miniapp` (Vite + React) is live at https://weatherteam6.vercel.app, opened from the bot's menu button, authenticated by `initData` HMAC as a second `Authorization` scheme.
 
 ## Commands
+
+Root scripts are in `package.json` — `npm run dev|build|test|typecheck|lint`, `db:generate|db:migrate|db:studio`, `check:hooks`. The ones you would not guess:
+
 ```bash
-npm run dev           # start all services
-npm run build         # build all packages
-npm run test          # run all tests
-npm run typecheck     # typecheck all packages (tsc --noEmit)
-npm run lint          # ESLint flat config (eslint.config.mjs) — separate from typecheck
-npm run db:generate   # generate Drizzle migration from schema changes
-npm run db:migrate    # apply pending migrations to DB
-npm run db:studio     # open Drizzle Studio
+npm run build --workspace=packages/types --workspace=packages/design   # must run before consuming workspaces typecheck
 ```
 
-From `apps/api`, against a real database (`DATABASE_URL` set in the shell, no `.env` file):
+From `apps/api`, against a real database (`DATABASE_URL` set **in the shell**, no `.env` file):
+
 ```bash
 npm run db:seed             # seed the user + 3 locations
 npm run check:add-location  # acceptance check for the add-location flow (Task 5a)
 npm run check:delete-trip   # acceptance check for DELETE /trips/:tripId (its FK cascade)
 ```
 
-## Structure
-```
-apps/
-  api/              # Express API + Vercel serverless entry (api/index.ts)
-  miniapp/          # Telegram Mini App — Vite + React. All three real
-                    #   screens (list, detail, /add). See apps/miniapp/README.md.
-                    #   Token adapter: src/theme/tokens.css.ts — never import
-                    #   `type`/`shadow`/`layout` from packages/design directly.
-  mobile/           # ARCHIVED — React Native + Expo. No new features.
-                    #   Out of the build since 2026-08-26 (Task 7): it declares
-                    #   no build/dev/typecheck/lint/test script, so turbo skips
-                    #   it. Still a workspace member so npm install resolves its
-                    #   deps. See apps/mobile/ARCHIVED.md.
-packages/
-  types/            # Shared TypeScript types (never duplicate across apps)
-  design/           # Design tokens — colors, spacing, type scale
-```
+Run `npm run db:generate` before `npm run db:migrate` — never `drizzle-kit push`.
 
-Both `packages/*` compile to `dist/` and must be built before consuming workspaces typecheck.
+## Structure
+
+`ls` shows the layout. What it does not show:
+
+- **`packages/types` and `packages/design` are the only homes** for shared types and design tokens. Never duplicate a type across apps or redefine a colour, spacing value or type scale in one. Both compile to `dist/` and must be built before consuming workspaces typecheck.
+- **`apps/miniapp` reaches design tokens through `src/theme/tokens.css.ts`** — never import `type`/`shadow`/`layout` from `packages/design` directly. See `apps/miniapp/README.md`.
+- **`apps/mobile` declares no `build`/`dev`/`typecheck`/`lint`/`test` script**, which is what makes turbo skip it. It is still a workspace member so `npm install` resolves its deps. See `apps/mobile/ARCHIVED.md`.
 
 ## Environment Variables
 
-`.env.example` is the authoritative list — keep this section in sync with it.
+**`.env.example` is the authoritative list. Read it — do not maintain a second copy here.**
 
-```
-DATABASE_URL=                                       # Neon connection string (pooled for app runtime; direct for migrations)
-DEFAULT_USER_ID=                                    # seeded user UUID, set after first migration
-AUTH_ENABLED=false
-NODE_ENV=development                                # NEVER set this on Vercel — see Known Gotchas
-PORT=3001
-NWS_USER_AGENT=weatherteam6/1.0 your@email.com
-TELEGRAM_BOT_TOKEN=                                 # bot token (alerts + /api/telegram/webhook); never reaches a client bundle
-TELEGRAM_CHAT_ID=                                   # single-user chat id — the auth boundary for BOTH the bot webhook and the Mini App's `tma` scheme. Must be the private-chat id (= the owner's Telegram user id); a group id would make every Mini App request 401
-CRON_SECRET=                                        # gates POST /api/cron/check-alerts; treat as a credential
-TELEGRAM_WEBHOOK_SECRET=                            # `secret_token` for POST /api/telegram/webhook. Must equal the value passed to setWebhook. Unset = the check is skipped and the forgeable chat.id is the only gate
-API_SHARED_SECRET=                                  # gates ALL of /api/v1/* via `Authorization: Bearer`; fail-closed — unset means 503, never open
-EXPO_PUBLIC_SHADEMAP_KEY=                           # archived — apps/mobile only
-R2_ACCOUNT_ID=
-R2_ACCESS_KEY_ID=
-R2_SECRET_ACCESS_KEY=
-R2_BUCKET_NAME=
-API_BASE_URL=                                       # server-side base URL (Vercel)
-LOG_LEVEL=                                          # pino log level; defaults to info (prod) / debug (dev)
-EXPO_PUBLIC_API_BASE_URL=                           # archived — read by mobile at bundle time
-VITE_API_BASE_URL=                                  # Mini App's API base URL; inlined into a PUBLIC bundle at build time
-```
+What `.env.example` cannot tell you:
 
-`VITE_API_BASE_URL` is the Mini App's API base URL. It is **inlined into a public client
-bundle at build time** — set it in the Mini App's own Vercel project, and never put a
-credential in any `VITE_*` variable.
-`TOMORROW_IO_API_KEY` and `RAINVIEWER_KEY` are **not** in `.env.example` — Tomorrow.io was
-replaced by ACIS in Phase 11, and RainViewer's key is unused by the current code.
+- **`VITE_API_BASE_URL` is inlined into a PUBLIC client bundle at build time.** Set it in the Mini App's own Vercel project. Never put a credential in any `VITE_*` variable.
+- **`TELEGRAM_CHAT_ID` must be the private-chat id** (= the owner's Telegram user id). It is the auth boundary for both the bot webhook and the Mini App's `tma` scheme; a group id would make every Mini App request 401.
+- **`API_SHARED_SECRET` is fail-closed** — unset means 503 on all of `/api/v1/*`, never an open door. `CRON_SECRET` and `TELEGRAM_BOT_TOKEN` are credentials; the bot token must never reach a client bundle.
+- **`TELEGRAM_WEBHOOK_SECRET` unset means the check is skipped** and the forgeable `chat.id` is the only gate.
+- **Never set `NODE_ENV` on Vercel** — see Known Gotchas.
+- **`TOMORROW_IO_API_KEY` and `RAINVIEWER_KEY` are deliberately absent.** Tomorrow.io was replaced by ACIS in Phase 11; RainViewer's key is unused by the current code.
+
+Never commit `.env`, and **do not create one at all** — set variables in the shell for the one command that needs them.
 
 ## Non-Negotiable Rules
+
 - TypeScript strict mode everywhere. No `any`.
 - All API responses use shape: `{ data, error, status }`
 - All external API calls wrapped in try/catch with exponential backoff retry
 - Never log secrets, tokens, or full API responses in production. Never serialise an error object wholesale into a log — database driver errors can carry the connection string; go through `describeError` in `lib/http.ts`, which reads only known-safe fields
-- Never commit `.env`, and **do not create one at all** — use `.env.example` with blank values, and set variables in the shell for the one command that needs them (see § Verification Standards)
 - Auth is toggled via `AUTH_ENABLED` env var. Do not build a login UI.
 - `DEFAULT_USER_ID` is injected by `resolveUser` middleware — never hardcode it in route handlers
 - Drizzle migrations only — never mutate the DB directly
+
 - **Finish the delivery, don't hand it back.** Work reaches `main` through a branch, a PR,
   green CI and a squash merge — all of it done by you, not the user. Do not end a turn with
   uncommitted changes, unpushed commits, a pushed branch with no PR, or a green mergeable PR
@@ -101,32 +71,24 @@ replaced by ACIS in Phase 11, and RainViewer's key is unused by the current code
   This is **enforced, not advisory**. `git commit` on the default branch is blocked by a
   PreToolUse hook, and a Stop hook refuses to end the turn while any of the above is
   outstanding. Both are covered by `npm run check:hooks`. If the user explicitly asks you to
-  pause mid-change, `touch .claude/.wip` to suppress the gate and delete it when work
-  resumes.
-
-  It is written as a gate because it failed as prose: on 2026-08-26 a session-record commit
-  went straight to `main` with no PR while this file already said not to.
+  pause mid-change, `touch .claude/.wip` to suppress the gate and delete it when work resumes.
 
 - **A check nothing runs is not a check.** Every root-level `check:*` script in
   `package.json` is executed by CI, enumerated from `package.json` rather than listed in
   the workflow, so a new one is covered the moment it exists. Every hook `.claude/settings.json`
   registers must be exercised by `npm run check:hooks`, which fails if it is not.
 
-  Both exist because `check:hooks` — a real gate, written the same day — was absent from
-  CI, and CI therefore reported **success** on commit `bfe1e83` while `check:hooks` was
-  failing 46 of its 49 cases on `main`. The gate was fine. Nothing ran it.
-
   `main` is protected on GitHub: pull request required, CI required to pass, force-push and
   deletion refused, and the rules apply to admins. Do not route around this by disabling
   protection; fix the red check.
+
+Both gates exist because the prose version failed in production. The incidents are recorded in `.claude/docs/session-archive.md` — grep it if you need the reasoning.
 
 ## Reference Docs
 
 **MANDATORY reading rules:**
 
-Everything in `.claude/rules/` is loaded automatically at session start — you do not need
-to open those files, and telling you to "read" them costs context without changing
-anything. The rules below are the ones that require a **deliberate** read.
+Everything in `.claude/rules/` is loaded automatically at session start — you do not need to open those files.
 
 - At the start of EVERY session: read `.claude/docs/STATE.md`
 - Before starting any new phase: read `.claude/docs/plan.md`
@@ -136,25 +98,16 @@ anything. The rules below are the ones that require a **deliberate** read.
 - **Before reviewing any diff, and before reporting any work complete: read `.claude/rules/defect-patterns.md`**
 - Before ANY Mini App UI phase: read `docs/handoffs/miniapp-design-v1.md` AND the §Design System section of `docs/handoffs/weatherteam6-ui-handoff-v1.md` — the mockups are the spec, not prose descriptions
 
-Full paths:
-- **Data model + schema:** `.claude/docs/data-model.md`
-- **API sources + quirks:** `.claude/docs/api-sources.md`
-- **Scoring algorithm:** `.claude/docs/scoring-algorithm.md`
-- **Architecture rules:** `.claude/rules/architecture.md`
-- **Review checklist:** `/review-checklist` — a skill, loads on demand. Run before every commit
-- **Defect patterns:** `.claude/rules/defect-patterns.md` — the classes that have actually shipped here, and what to grep for
-- **Build plan:** `.claude/docs/plan.md`
+Skills load on demand: **`/review-checklist`** (run before every commit), **`/session-end`** (the session-end protocol), plus `miniapp-patterns`, `drizzle-patterns`, `background-work` and `conditions-score`, which load themselves when you touch the matching files.
 
 **Direction (read first):**
-- `docs/handoffs/telegram-crossover-v4.md` — **authoritative product direction.** Telegram bot + Mini App replaces the native app. Tasks 1-4 complete, plus **Task 5a (add-location API, merged `a90613f`)** — a task added later and listed in that doc between Tasks 5 and 6, despite its name it is backend work unrelated to Task 5. **All seven tasks are complete as of 2026-08-26; the crossover is finished and there is no Task 8.** Remaining work lives in the open issues and `.claude/docs/plan.md`, not in that doc.
+- `docs/handoffs/telegram-crossover-v4.md` — **authoritative product direction.** Telegram bot + Mini App replaces the native app. **All seven tasks complete as of 2026-08-26; the crossover is finished and there is no Task 8.** Remaining work lives in the open issues and `.claude/docs/plan.md`, not in that doc.
 
 **UI Design Handoffs:**
-- `docs/handoffs/weatherteam6-ui-handoff-v1.md` — written for the archived mobile app, but its **§Design System is still in force and client-agnostic**: locked contrast rules, layout constants, and copy rules. Read before any Mini App UI work. §7b (Home), §7c (Location Detail), §7e (Locations) are the closest existing specs to the Mini App's screens. Note the Mini App has **three** routes, not two — §12 added `/add`; the "two screens" phrasing predates it.
+- `docs/handoffs/weatherteam6-ui-handoff-v1.md` — written for the archived mobile app, but its **§Design System is still in force and client-agnostic**: locked contrast rules, layout constants, copy rules. §7b (Home), §7c (Location Detail), §7e (Locations) are the closest existing specs to the Mini App's screens. Note the Mini App has **three** routes, not two — §12 added `/add`.
+- `docs/handoffs/miniapp-design-v1.md` — **the Mini App spec, and it is binding.** Screens, theming, units, states, copy model, and §12 the add-location flow. It supersedes this repo's older two-screen sketches.
 - `docs/handoffs/design-mockups/weatherteam6UI.html` — primary mockup for Home + Location Detail. Visual reference only; where it and `miniapp-design-v1.md` disagree, the spec wins.
-- `docs/handoffs/miniapp-design-v1.md` — **the Mini App spec, and it is binding.** Written and agreed in Phase B0 (merged `14c9757`). Screens, theming, units, states, copy model, and §12 the add-location flow. Read before any Mini App code; it supersedes this repo's older two-screen sketches.
-
-**Mobile-only mockups (archived — reference only, not being built):**
-- `docs/handoffs/design-mockups/README.md`, `radar-*.jsx/css`, `walls-*.jsx/css`, `trips-*.jsx/css` — Radar, Walls, and Trips screens. Out of scope for the Mini App — its surface is three routes (list, detail, `/add`) and these are none of them.
+- Mobile-only mockups (`radar-*`, `walls-*`, `trips-*`) are **archived reference, not being built.**
 
 ## Session Start Protocol
 
@@ -166,7 +119,7 @@ gave you instead of re-running `git log`, `gh issue list`, or opening `STATE.md`
 
 One step is still yours, because it changes the working tree rather than reporting on it:
 
-1. Run `npm run build --workspace=packages/types --workspace=packages/design` to ensure shared packages are compiled before typechecking `apps/api` and `apps/miniapp`
+1. Run `npm run build --workspace=packages/types --workspace=packages/design`
 
 If the injected block is missing (the hook failed, or you are running somewhere it does not
 fire), fall back to reading `STATE.md` and running `git log --oneline -5` by hand.
@@ -180,86 +133,18 @@ That is the whole protocol. Everything else is read **when the work needs it**:
 | `.claude/docs/session-archive.md` | never at session start. Grep it for the reasoning behind one specific past decision |
 | the domain skills | they load themselves when you touch the matching files |
 
-**Why this is short.** It used to mandate reading `session-archive.md` (41,000 tokens) and
-`plan.md` (7,300) up front, which together with the always-loaded rules put ~66,500 tokens
-in context before the first question. Performance degrades as context fills, and almost
-none of it was relevant to the task at hand.
-
-**Self-start rule:** If the user's opening message is "next phase", "continue", "do Phase X", or equivalent — complete steps 1–3 above, then state in one sentence what phase you are building and what branch you will create, and proceed. Do not ask for a detailed prompt. The docs are the spec. If `STATE.md` names a handoff doc section for the work you are picking up, read it before writing any code.
+**Self-start rule:** If the user's opening message is "next phase", "continue", "do Phase X", or equivalent — complete the step above, then state in one sentence what phase you are building and what branch you will create, and proceed. Do not ask for a detailed prompt. The docs are the spec. If `STATE.md` names a handoff doc section for the work you are picking up, read it before writing any code.
 
 ## Session End Protocol
 
-Two files, and they do different jobs. Getting this backwards is what produced a 165KB
-document that was mandatory reading.
-
-**1. Rewrite `.claude/docs/STATE.md`.** It describes the project *now*. You **replace** the
-stale parts rather than appending — if a gotcha stopped being true, delete it; if the
-direction changed, rewrite it. There is exactly one current version by construction, so it
-cannot develop the two-ends-newest ordering problem the old log had. Keep it short enough
-to be read at every session start: if it is growing past ~1,500 words, something in it is
-history and belongs in the archive.
-
-**2. Append a full state block to `.claude/docs/session-archive.md`.** This is the
-permanent record and is **never read at session start** — it is grepped when someone needs
-the reasoning behind one specific past decision. Append; never prepend. Use this exact
-format:
-
-```
----
-
-## YYYY-MM-DD — branch: <branch> — commit: <short-hash>
-
-**Phase completed:** <phase name and number>
-
-**What was built this session:**
-- <file or feature> — <one-line description>
-- ...
-
-**Known issues / deferred work:**
-- <anything left incomplete, version mismatches noticed, TODOs punted>
-
-**Blockers for next session:**
-- <anything the next session must resolve before proceeding>
-
-**What's next:** Phase <n> — `git checkout -b phase/<n>-<name>` off `<base branch>` — read `<handoff doc path and section>` before writing any UI
-
-**Gotchas for next session:**
-- <cross-file dependency, ordering constraint, spec gap, or non-obvious detail not captured in the plan or handoff docs>
-- None if nothing to flag
-
-**Does the user need to do anything?** <Yes/No, then the specific actions only they can do — a credential, a dashboard setting, a phone, a product decision. "No" is a valid and useful answer; never manufacture one.>
-```
-
-Stub entries (timestamps only, no content) are noise — never append a session-end line without the full block above.
-
-**Then reconcile the docs the block just made stale.** The session block is a record, not a substitute — the files agents are *told to read* must not contradict what shipped. Before ending, grep for every reference to what you changed and fix each one:
-
-- A completed task is marked complete **in both places the task list lives** — `docs/handoffs/telegram-crossover-v4.md` (the canonical list) and `.claude/docs/plan.md` (the same list with detail). A task recorded in only one of them is effectively unfindable in the other.
-- A new endpoint is added to the inventory in `docs/handoffs/weatherteam6-miniapp-handoff-v1.md`.
-- A new external API is added to `.claude/docs/api-sources.md`.
-- A new invariant future work must uphold goes in `.claude/rules/architecture.md`, and as a checkbox in the `/review-checklist` skill if it can rot silently.
-- **Specs written in the future tense get a status banner once built**, rather than being left to read as unbuilt work.
-- Anything a doc says is missing, broken, or "does not exist yet" that now exists.
-
-This is not tidying. A stale rule is worse than a missing one: "Two screens only — do not let them creep back in" survived three weeks past the spec that added a third screen, and any agent obeying it would have refused to build a feature that was already specified and whose API was already merged.
-
-**But prefer deleting the copy to maintaining it.** Every item above is a place a fact has
-to be mirrored by hand, and hand-mirroring is what failed: 66% of the last thirty commits
-were documentation repairing other documentation, and the most recent one — titled
-*"record the corrected issue state"* — touched one file and left `plan.md` wrong. Before
-adding a fact to a second document, ask whether the first can simply be **read** instead.
-Issue state is now `gh issue list` for exactly this reason. A fact that lives in one place
-cannot drift.
-
-**After a squash merge, correct the commit hash in the block you just wrote.** The branch commit it names ceases to exist; record the squashed hash on `main` instead.
+**Invoke the `/session-end` skill.** It carries the full protocol: rewrite `STATE.md`, append a state block to `session-archive.md`, reconcile the docs the block made stale, and correct the commit hash after a squash merge.
 
 ## Verification Standards
 
-Typecheck and lint prove a change compiles. They do not prove it works, and reporting a feature done on their strength alone has produced shipped-broken code in this repo before.
+Typecheck and lint prove a change compiles. They do not prove it works.
 
-- **Read the diff before reporting anything done. This is not optional and it is not the checklist.** On 2026-08-26 one session found **ten defects** in code that had already passed typecheck, lint and the full suite — three of them live in production, one meaning the bot's `/start` had never once worked. An earlier session found six the same way. The defects this project ships are not type errors; they are correct-looking code that says a wrong thing, and no tool in the repo can see them. `.claude/rules/defect-patterns.md` catalogues the classes with real examples — read it before reviewing a diff.
+- **Read the diff before reporting anything done. This is not optional and it is not the checklist.** The defects this project ships are not type errors; they are correct-looking code that says a wrong thing, and no tool in the repo can see them. `.claude/rules/defect-patterns.md` catalogues the classes with real examples — read it before reviewing a diff.
 - **When a check passes, ask what it would have caught.** A green suite over an untested path is not evidence.
-
 - **Exercise the real path before calling something complete.** For an endpoint that calls an external API, run it and read the response. For one that touches the database, run it against the database.
 - **`npm run test` cannot cover database behaviour.** Vitest mocks `fetch` and never opens a connection, so foreign-key violations, values that silently fail to persist, and constraint errors are all invisible to it. That class of failure needs a script under `apps/api/src/scripts/`, exposed as an `npm run check:*` command — `check:add-location` is the worked example. Write one when you add a flow whose failures only appear against real Postgres.
 - **Run the API locally against the real database when you need to.** No `.env` file is required, and none should be created:
@@ -279,7 +164,7 @@ Typecheck and lint prove a change compiles. They do not prove it works, and repo
 
 ### MANDATORY: every piece of finished work ends with a handoff block
 
-**This applies to every recap, every summary, every PR body, and every message that ends a stretch of work** — not just session ends. The user should never have to read back through a report to work out whether a ball is in their court.
+**This applies to every recap, every summary, every PR body, and every message that ends a stretch of work.** The user should never have to read back through a report to work out whether a ball is in their court.
 
 Use this exact structure, last, under a heading:
 
@@ -298,7 +183,7 @@ plainly and do not pad it.>
 Rules for it:
 
 - **Answer the yes/no first, in bold.** Anything else buries it.
-- **"Yes" is only for things the user alone can do** — running `/newapp` in @BotFather, registering cron-job.org, setting a Vercel env var, choosing between design options, testing on a real phone. Work that is merely *unstarted* is not a user action; it goes under Next step.
+- **"Yes" is only for things the user alone can do** — a credential, a dashboard setting, a real phone, a product decision. Work that is merely *unstarted* is not a user action; it goes under Next step.
 - **Do not manufacture a "yes".** If nothing needs them, "No" is the correct and useful answer.
 - **One next step, not a backlog.** Rank if there are several; name the single one that comes first.
 - A blocked next step still gets named, along with what it is blocked on.
@@ -315,8 +200,7 @@ npm run build --workspace=packages/types --workspace=packages/design
 `apps/api`'s vitest 2 pulls in vite 5, which npm hoists to the root. `@vitejs/plugin-react`
 hoists too, and it resolved that vite 5 instead of `apps/miniapp`'s vite 8 — the build
 died with `Package subpath './internal' is not defined`. The root `package.json` now
-declares `vite` directly, so the hoisted copy is the one the Mini App wants and vitest
-gets its own nested vite 5. Do not remove that devDependency because "nothing at the
+declares `vite` directly. Do not remove that devDependency because "nothing at the
 root uses it".
 
 **Never set `NODE_ENV=production` as a Vercel environment variable.**
@@ -326,32 +210,21 @@ npm omits devDependencies when it's set, `typescript` is a devDependency, and th
 Vercel's Express preset expects the entry file to `export default app` or call `app.listen()`. `apps/api/api/index.ts` exports a `handler(req, res)` that forwards into the app, and `apps/api/package.json`'s `main` points at a module exporting `createApp` — a factory, not an app instance. The preset fails confusingly at runtime rather than at build.
 
 **`apps/api/vercel.json` skips the build step deliberately.**
-`buildCommand` is a no-op and `outputDirectory` points at an intentionally empty `public/`. Vercel's Node builder compiles `api/` itself and the workspace packages are built in the root postinstall, so `turbo run build` there only produced an unused `apps/api/dist`. Without the empty `public/`, deploys fail with "No Output Directory named public found".
+`buildCommand` is a no-op and `outputDirectory` points at an intentionally empty `public/`. Vercel's Node builder compiles `api/` itself and the workspace packages are built in the root postinstall. Without the empty `public/`, deploys fail with "No Output Directory named public found".
 
 **Neon cannot be reached from this cloud dev environment.**
-The egress proxy blocks both Neon's WebSocket path (403) and its HTTP SQL API host (not allowlisted). `drizzle-kit` auto-detects `@neondatabase/serverless` and uses the WebSocket driver regardless of app code, so **migrations must be run from an unrestricted machine**, or the environment's egress allowlist widened to `*.aws.neon.tech`.
+The egress proxy blocks both Neon's WebSocket path (403) and its HTTP SQL API host. `drizzle-kit` auto-detects `@neondatabase/serverless` and uses the WebSocket driver regardless of app code, so **migrations must be run from an unrestricted machine**, or the environment's egress allowlist widened to `*.aws.neon.tech`.
 
 **This repo is checked out on Windows, and the working tree is CRLF.**
-Multi-line `sed`/`perl` replacements silently match nothing — they fail quietly, report success, and leave the file untouched. Use the Edit tool for anything spanning more than one line; single-line `sed -i` is fine. **Python is not installed**; reach for Node or PowerShell instead. `gh` is installed but not always on `PATH` — the full path is `C:\Program Files\GitHub CLI\gh.exe`.
+Multi-line `sed`/`perl` replacements silently match nothing — they fail quietly, report success, and leave the file untouched. Use the Edit tool for anything spanning more than one line; single-line `sed -i` is fine. **Python is not installed** (`python3` resolves to the Windows Store stub, which prints an advert and exits 0 — it does not fail loudly); reach for Node or PowerShell instead. `gh` is installed but not always on `PATH` — the full path is `C:\Program Files\GitHub CLI\gh.exe`.
 
 **Vercel will not give you a secret back.**
-`DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, and the other credentials are marked sensitive in the Vercel project: the dashboard refuses to copy them and `vercel env pull` cannot recover them either. Go to the source instead — Neon's dashboard for `DATABASE_URL` (use the **pooled** string for app runtime, direct only for migrations). Do not ask the user to paste a secret into the conversation; have them set it in their own shell.
+`DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, and the other credentials are marked sensitive: the dashboard refuses to copy them and `vercel env pull` cannot recover them. Go to the source instead — Neon's dashboard for `DATABASE_URL` (use the **pooled** string for app runtime, direct only for migrations). Do not ask the user to paste a secret into the conversation; have them set it in their own shell.
 
 **An unauthenticated 401 from production proves `DEFAULT_USER_ID` is set.**
-`resolveUser` runs before `requireApiAuth`, so a server missing `DEFAULT_USER_ID` answers 500 "Server misconfigured" even without credentials. A 401 therefore confirms the variable is present — a config check that needs no secret. Note the converse: **every** `/api/v1/*` path returns 401 unauthenticated, existing or not, so a 401 is *not* evidence that a route was deployed. Check the deployment's commit SHA for that.
+`resolveUser` runs before `requireApiAuth`, so a server missing `DEFAULT_USER_ID` answers 500 "Server misconfigured" even without credentials. Note the converse: **every** `/api/v1/*` path returns 401 unauthenticated, existing or not, so a 401 is *not* evidence that a route was deployed. Check the deployment's commit SHA for that.
 
 **Code reviews interrupted by context limits lose their findings.**
 If `/code-review` or the code-review skill runs near the end of a long session and context compresses before the output is written, the findings are lost. Save intermediate review output to `.claude/docs/review-findings.md` before the session ends if verification is still in progress.
 
-### Archived — mobile gotchas (`apps/mobile` is out of the build)
-
-**Expo Router version must match the Expo SDK major version.** For SDK 56 you need `expo-router@~56.0.0`. If Metro crashes with `Cannot find module 'expo-router/internal/routing'`, the router version is wrong.
-
-**`expo-router/internal/routing` crash is a version mismatch, not a code bug.** That path only exists in expo-router v56+; earlier versions crash silently. typecheck passes — it's runtime-only.
-
-**Cloud dev environment blocks ngrok tunnels.** `expo start --tunnel` fails here. Mobile testing had to be done locally via Expo Go.
-
-## Initial Setup Requirements
-- Create `.env.example` with all keys from the Environment Variables section above, values blank
-- Never create a `.env` file with real values — use Vercel project env vars for production
-- Run `npm run db:generate` before `npm run db:migrate` — never run `drizzle-kit push`
+Mobile-specific gotchas live in `apps/mobile/ARCHIVED.md` — that workspace is out of the build.

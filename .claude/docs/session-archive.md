@@ -1900,3 +1900,85 @@ Also still open and unfiled: `GET /forecast/:id` and `GET /conditions/:id` each 
 - **Do not disable branch protection to land something.** If a gate fires, fix the red check.
 
 **Does the user need to do anything?** **Yes — one thing, and it is the same one as the last three sessions.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project, then re-run Telegram's `setWebhook` with a matching `secret_token`. `CLAUDE_CODE_OAUTH_TOKEN` is **done** — registered 2026-08-26 20:51 UTC, so the independent reviewer is live. Worth doing once, but not owed: restart Claude Code so the two new plugins load.
+
+---
+
+## 2026-08-26 — branch: chore/trim-always-loaded-md — commit: (pending squash)
+
+**Phase completed:** Agent systems — trimming the always-loaded instruction set
+
+**Why this session happened:** `/doctor` measured ~14,000 est. tokens of markdown loading into
+every session before the first message. Anthropic's own best-practices guidance names that as
+the cause of a specific symptom this repo keeps hitting: *"Bloated CLAUDE.md files cause Claude
+to ignore your actual instructions"* and *"if Claude keeps doing something you don't want
+despite having a rule against it, the file is probably too long and the rule is getting lost."*
+
+**What changed:**
+- `CLAUDE.md` — 26,896 to 17,711 chars. Cuts listed below. Every safety-critical prohibition
+  was verified present after the rewrite.
+- `.claude/rules/architecture.md` — 19,904 to 19,199 chars. Only 705 chars of resolved history
+  were removable; the file is overwhelmingly genuine invariants. The pre-trim estimate of
+  ~2,500 was wrong and is recorded here as wrong.
+- `.claude/skills/session-end/SKILL.md` — new. The Session End Protocol moved out of
+  `CLAUDE.md` (the single largest block in it) into a skill that loads only when invoked.
+- `apps/mobile/ARCHIVED.md` — received the mobile gotchas that had been always-loaded in every
+  session long after that workspace left the build.
+- `.claude/rules/defect-patterns.md` — untouched. Already lean, and the highest value per token
+  in the repo.
+
+**The incident history removed from `CLAUDE.md`, preserved here:**
+
+- *Why the delivery gate is a hook and not prose:* on 2026-08-26 a session-record commit went
+  straight to `main` with no PR while `CLAUDE.md` already said not to. The rule was correct and
+  followed most of the time; most of the time is not a gate.
+- *Why every root-level `check:*` script is enumerated by CI:* `check:hooks` — a real gate,
+  written that same morning — was absent from `ci.yml`, so CI reported **success** on commit
+  `bfe1e83` while `check:hooks` was failing **46 of its 49 cases** on `main`. The gate was fine.
+  Nothing ran it.
+- *Why the Verification Standards section existed at that length:* on 2026-08-26 one session
+  found **ten defects** in code that had already passed typecheck, lint and the full suite —
+  three live in production, one meaning the bot's `/start` had never once worked. An earlier
+  session found six the same way. This is the same argument `defect-patterns.md` makes at
+  length, and it was being loaded twice per session.
+- *Why the Session Start Protocol carried a "Why this is short" note:* it used to mandate
+  reading `session-archive.md` (41,000 tokens) and `plan.md` (7,300) up front, putting ~66,500
+  tokens in context before the first question.
+
+**The incident history removed from `architecture.md`, preserved here:**
+
+- `DELETE /trips/:tripId` had the same missing-cascade problem as `DELETE /locations/:id` and
+  was fixed 2026-08-26. Because `POST /trips` requires at least one location, *every* trip hit
+  the foreign-key violation — the endpoint had never once succeeded.
+- The `initData` rule previously stated the **opposite** of the truth: it said "`signature` is
+  excluded from the check string", which is the Ed25519 third-party rule, not the bot-token one
+  this app uses. That left the check string a field short and **every Mini App request 401'd
+  from the day auth shipped (2026-08-26)**. Corrected the same day against
+  core.telegram.org/bots/webapps.
+- The `timezone=auto` rule said `timezone=UTC` earlier on 2026-08-26 and was superseded by the
+  issue #33 fix.
+- The `Promise.allSettled` concurrency rule was applied to `GET /trips/:tripId/forecast` first
+  and not carried across for months; `runAlertsCheck` caught up 2026-08-26.
+
+**Known issues / deferred work:**
+- Mutation testing (Stryker + `@stryker-mutator/vitest-runner`) is still not wired up. It is the
+  mechanical answer to defect-patterns class 11 — "which line of the implementation would have
+  to change for this test to fail?" is the definition of a mutation score. 26 test files, 670
+  assertions, and at least three tests already known to constrain nothing.
+
+**Blockers for next session:** none.
+
+**What's next:** mutation testing, then the chat interface (design conversation first — do not
+spec it unilaterally).
+
+**Gotchas for next session:**
+- **The Session End Protocol is now a skill, not a section of `CLAUDE.md`.** Invoke
+  `/session-end`. If you go looking for it in `CLAUDE.md` you will find only a pointer.
+- **Do not re-add a copy of `.env.example` to `CLAUDE.md`.** The two were verified byte-for-byte
+  identical across all 16 keys, which is exactly the hand-mirroring that keeps drifting here.
+  `CLAUDE.md` now holds only the four things `.env.example` cannot say.
+- **A heredoc could not write the new `CLAUDE.md`** — the content's mix of backticks and
+  apostrophes broke Bash parsing. Write the file with the Write tool and `cp` it into place.
+
+**Does the user need to do anything?** **Yes — one thing, unchanged from the last four
+sessions.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project and re-run Telegram's
+`setWebhook` with a matching `secret_token`.
