@@ -76,7 +76,8 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] The sources footer is derived from `model_sources` and `asos_station`, and omits a source rather than guessing one — including NWS when the alerts call failed
 - [ ] "Today" comes from the server's `is_today` flag, never a date the client derived — and a missing row says so rather than falling back to the first row
 - [ ] No route derives its own `todayStr` — `computeLiveForecast` returns the location's local day and every caller uses it
-- [ ] No route derives its own `todayStr` — `computeLiveForecast` returns the location's local day and every caller uses it
+- [ ] A swallowed upstream error does not become a favourable input — an unmeasurable value withholds the score (`scoreUnavailable`) rather than scoring as its best case
+- [ ] "The call failed" and "the call returned nothing" are handled separately — a genuine empty result still scores
 - [ ] No interactive element is nested inside another (`LocationCard` is a `div` with `role="button"` for exactly this reason)
 - [ ] `TELEGRAM_BOT_TOKEN` never reaches the client bundle — `initData` is validated server-side
 - [ ] A deep-link parameter is validated and never repaired — `loc_<uuid>` with dashes intact, anything else lands on `/` silently and renders no error

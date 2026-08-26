@@ -147,12 +147,37 @@ describe('computeLiveForecast — per-day scoring', () => {
     expect(result).toEqual({ snapshots: [], scores: [], todayStr: '' })
   })
 
-  it('survives a rainfall fetch that throws', async () => {
-    // Swallowed on purpose — the drying model falls back to its no-data
-    // sentinel. The display cap in the clients is what keeps that from
-    // rendering as a precise fact.
+  it('withholds the score when the rainfall fetch throws, and says why (#34)', async () => {
+    // This used to assert `scores` still had three entries. That WAS the bug:
+    // an empty rainfall list is indistinguishable from a dry month, and
+    // dryingModel's 720-hour sentinel is worth 40 of 100 points — so an
+    // upstream outage raised the score and the day could read "Dry, settled"
+    // for rock nothing had checked.
     fetchArchivePrecip.mockRejectedValue(new Error('ACIS down'))
-    const { scores } = await computeLiveForecast(location, NOW)
+
+    const { snapshots, scores, scoreUnavailable } = await computeLiveForecast(location, NOW)
+
+    expect(scores).toEqual([])
+    expect(scoreUnavailable).toBe('rainfall_unavailable')
+    // The weather is unaffected — only the score is withheld.
+    expect(snapshots).toHaveLength(3)
+  })
+
+  it('withholds it on the ASOS path too, not just the archive fallback', async () => {
+    fetchPrecipHistory.mockRejectedValue(new Error('ACIS down'))
+    const { scoreUnavailable } = await computeLiveForecast(
+      { ...location, asos_station: 'KLAS' },
+      NOW,
+    )
+    expect(scoreUnavailable).toBe('rainfall_unavailable')
+  })
+
+  it('scores normally when rainfall came back empty but the fetch succeeded', async () => {
+    // A genuine dry month must still score. The distinction this fix introduces
+    // is "the call failed", not "the call returned nothing".
+    fetchArchivePrecip.mockResolvedValue([])
+    const { scores, scoreUnavailable } = await computeLiveForecast(location, NOW)
+    expect(scoreUnavailable).toBeUndefined()
     expect(scores).toHaveLength(3)
   })
 })

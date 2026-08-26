@@ -7,6 +7,7 @@ import {
   formatWindMph,
   isSevereAlert,
   rainfallSourceLabel,
+  scoreUnavailableLine,
   summarizeConditions,
 } from '@weatherteam6/types'
 import type { ConditionsScore, ForecastSnapshot } from '@weatherteam6/types'
@@ -46,6 +47,12 @@ export type ConditionsReplyInput = {
   /** `null` when the forecast feed has no row for today. */
   today: ForecastSnapshot | null
   todayScore: ConditionsScore | null
+  /**
+   * Set when the score was withheld because an input could not be measured
+   * (issue #34) — as opposed to simply having no row for today. The two must
+   * not read the same: one is "not yet", the other is "we couldn't check".
+   */
+  scoreUnavailable?: 'rainfall_unavailable' | null
   activeAlerts: readonly ActiveAlert[]
   snapshots: readonly ForecastSnapshot[]
 }
@@ -61,8 +68,16 @@ function weatherLine(day: ForecastSnapshot, rainLine: string | null): string {
 }
 
 export function formatConditionsReply(input: ConditionsReplyInput): string {
-  const { locationName, isClimbingLocation, asosStation, today, todayScore, activeAlerts, snapshots } =
-    input
+  const {
+    locationName,
+    isClimbingLocation,
+    asosStation,
+    today,
+    todayScore,
+    scoreUnavailable,
+    activeAlerts,
+    snapshots,
+  } = input
 
   const severeEvent = activeAlerts.find((a) => isSevereAlert(a.severity))?.event ?? null
 
@@ -104,7 +119,11 @@ export function formatConditionsReply(input: ConditionsReplyInput): string {
           })
 
     lines.push('')
-    if (summary === null) {
+    if (scoreUnavailable) {
+      // Withheld, not absent. Says what happened rather than implying a dry
+      // spell — which is exactly what the sentinel used to be credited as.
+      lines.push(scoreUnavailableLine(scoreUnavailable))
+    } else if (summary === null) {
       lines.push('No conditions for today yet.')
     } else {
       // `label` is null exactly when suppression is in force. Substituting one

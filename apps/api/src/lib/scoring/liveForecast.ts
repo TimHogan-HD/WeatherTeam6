@@ -34,6 +34,15 @@ export type LiveForecastResult = {
    * `''` when the forecast came back empty and there was no offset to resolve.
    */
   todayStr: string
+  /**
+   * Set when the score was deliberately **withheld** rather than simply absent —
+   * currently only when the rainfall lookup failed (issue #34). `scores` is
+   * empty while `snapshots` is complete: the weather is fine, the score is not.
+   *
+   * Distinct from an empty `scores` with no reason, which means the days fell
+   * outside the scoring window.
+   */
+  scoreUnavailable?: 'rainfall_unavailable' | null
 }
 
 function parseNum(v: string | null | undefined, fallback: number): number {
@@ -132,16 +141,33 @@ export async function computeLiveForecast(
   // else fall back to Open-Meteo's archive API — both live-fetched per request
   // since there's no longer a rainfall_history table being kept warm by a job.
   let rainfallEvents: { date: string; precip_mm: number }[] = []
+  /**
+   * Issue #34. A failed lookup used to leave `rainfallEvents` empty, which
+   * `dryingModel` cannot tell from a genuinely dry month — it returns the same
+   * 720-hour sentinel for both, worth **40 of 100 points**. An upstream outage
+   * therefore *raised* the score, and the day could read "Dry, settled" for rock
+   * nothing had checked.
+   *
+   * Tracked rather than swallowed, so the day is left unscored instead of scored
+   * on a guess. The weather is unaffected and still returned in full — only the
+   * score is withheld.
+   */
+  let rainfallAvailable = true
   try {
     rainfallEvents = location.asos_station
       ? await fetchPrecipHistory(location.asos_station, thirtyDaysAgoStr, todayStr)
       : await fetchArchivePrecip(lat, lon, thirtyDaysAgoStr, todayStr)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
+    rainfallAvailable = false
     logger.warn(
       { locationId: location.id, err: msg },
-      '[liveForecast] recent rainfall fetch failed — scoring drying time as no-recent-data',
+      '[liveForecast] recent rainfall fetch failed — withholding the conditions score rather than crediting a dry spell',
     )
+  }
+
+  if (!rainfallAvailable) {
+    return { snapshots, scores: [], todayStr, scoreUnavailable: 'rainfall_unavailable' }
   }
 
   let scores: ConditionsScore[] = []

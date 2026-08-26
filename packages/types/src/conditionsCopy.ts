@@ -150,6 +150,24 @@ export function summarizeConditions(input: {
 export const DRY_SENTINEL_HOURS = 720;
 
 /**
+ * What both surfaces say when a day could not be scored because an input was
+ * never measured (issue #34).
+ *
+ * Deliberately **not** a ladder rung and not a suppression qualifier: those
+ * describe rock and weather, and this describes *us*. It also must not read as
+ * "no rain" — the whole defect was that an outage looked like a dry spell.
+ *
+ * Distinct from `stateLabel(null)`'s "Too far out to score", which is a real
+ * statement about the date. This is a statement about the data.
+ */
+export function scoreUnavailableLine(reason: 'rainfall_unavailable'): string {
+  switch (reason) {
+    case 'rainfall_unavailable':
+      return "Can't score right now — no rainfall data.";
+  }
+}
+
+/**
  * §3's binding display cap. At or above the sentinel, no surface may render a
  * precise figure: a dry month and an upstream outage are indistinguishable in
  * the data, and printing *"no rain in 720h"* asserts a measurement that may

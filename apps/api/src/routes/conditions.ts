@@ -43,7 +43,38 @@ conditionsRouter.get('/conditions/:locationId', async (req: Request, res: Respon
     }
 
     // The location's local day, not this server's (#33).
-    const { scores, todayStr } = await computeLiveForecast(location)
+    const { scores, todayStr, scoreUnavailable } = await computeLiveForecast(location)
+
+    // A withheld score is reported as such, not as an absent one (#34). `data:
+    // null` means "no row for today"; this means "we could not measure it", and
+    // a client that cannot tell them apart says the wrong thing about both.
+    if (scoreUnavailable) {
+      const nowIso = new Date().toISOString()
+      const unavailable: ConditionsScore = {
+        id: `${location.id}:${todayStr}`,
+        location_id: location.id,
+        forecast_date: todayStr,
+        score: null,
+        confidence: 'low',
+        component_drying_time: null,
+        component_upcoming_rain: null,
+        component_wind: null,
+        component_temp: null,
+        component_humidity: null,
+        score_breakdown: null,
+        computed_at: nowIso,
+        created_at: nowIso,
+        unavailable_reason: scoreUnavailable,
+      }
+      const response: ApiResponse<ConditionsScore> = {
+        data: unavailable,
+        error: null,
+        status: 200,
+      }
+      res.status(200).json(response)
+      return
+    }
+
     const todayScore = scores.find((s) => s.forecast_date === todayStr) ?? null
 
     const response: ApiResponse<ConditionsScore | null> = {

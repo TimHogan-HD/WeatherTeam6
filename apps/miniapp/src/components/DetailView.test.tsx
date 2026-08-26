@@ -390,3 +390,83 @@ describe('DetailView — partial and missing data', () => {
     expect(html).not.toMatch(/\b(401|404|500|503)\b/)
   })
 })
+
+/**
+ * Issue #34. A failed rainfall lookup used to score as a 30-day dry spell — the
+ * heaviest component at full marks — so a detail screen could read "Dry,
+ * settled" for rock nothing had checked.
+ */
+describe('DetailView — a withheld score (#34)', () => {
+  function withheld() {
+    return redRockScore({
+      score: null,
+      component_drying_time: null,
+      component_upcoming_rain: null,
+      component_wind: null,
+      component_temp: null,
+      component_humidity: null,
+      score_breakdown: null,
+      unavailable_reason: 'rainfall_unavailable',
+    })
+  }
+
+  it('says why there is no score', () => {
+    const html = render(
+      <DetailView
+        isClimbingLocation
+        asosStation="KLAS"
+        forecast={ok([day(TODAY)])}
+        alerts={alertsOk([])}
+        conditions={ok(withheld())}
+      />,
+    )
+    // Not the full sentence: renderToStaticMarkup escapes the apostrophe to
+    // &#x27;, so asserting the raw copy string would fail on the escaping
+    // rather than on the behaviour.
+    expect(html).toContain('no rainfall data')
+  })
+
+  it('shows no score, no ladder label and no breakdown', () => {
+    const html = render(
+      <DetailView
+        isClimbingLocation
+        asosStation="KLAS"
+        forecast={ok([day(TODAY)])}
+        alerts={alertsOk([])}
+        conditions={ok(withheld())}
+      />,
+    )
+    expect(html).not.toContain('Dry, settled')
+    expect(html).not.toContain('Score ')
+    expect(html).not.toContain('Show breakdown')
+  })
+
+  it('never implies it has not rained', () => {
+    // The hero's rain line is driven by score_breakdown, which is null here.
+    // "no rain in 30+ days" during a rainfall outage is the exact false
+    // statement this issue is about.
+    const html = render(
+      <DetailView
+        isClimbingLocation
+        asosStation="KLAS"
+        forecast={ok([day(TODAY)])}
+        alerts={alertsOk([])}
+        conditions={ok(withheld())}
+      />,
+    )
+    expect(html).not.toContain('no rain in')
+  })
+
+  it('still shows the weather — only the score is withheld', () => {
+    const html = render(
+      <DetailView
+        isClimbingLocation
+        asosStation="KLAS"
+        forecast={ok([day(TODAY)])}
+        alerts={alertsOk([])}
+        conditions={ok(withheld())}
+      />,
+    )
+    expect(html).toContain('103°F')
+  })
+})

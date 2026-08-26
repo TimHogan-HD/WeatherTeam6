@@ -91,6 +91,21 @@ export type ConditionsScore = {
   score_breakdown: ScoreBreakdown | null
   computed_at: string
   created_at: string
+  /**
+   * Why there is no score, when there is none for a reason other than the date
+   * being outside the scoring window (issue #34).
+   *
+   * A failed rainfall lookup is indistinguishable in the data from a genuinely
+   * dry month — `dryingModel` returns the same 720-hour sentinel for both — and
+   * that sentinel is worth **40 of 100 points**, the heaviest component. So an
+   * upstream outage used to *raise* the score, and a day could read "Dry,
+   * settled" for rock nothing had checked.
+   *
+   * When set, `score` and every component are `null`: the day is not scored at
+   * all rather than scored on a guess. Distinct from `score: null` with no
+   * reason, which means the date is beyond the scoring window.
+   */
+  unavailable_reason?: 'rainfall_unavailable' | null
 }
 
 export type ScoreInput = {
