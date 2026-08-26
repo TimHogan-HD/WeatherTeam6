@@ -1,5 +1,84 @@
 ---
 
+## 2026-08-26 (later) — branch: fix/initdata-signature-in-check-string — squashed to `main` as `5c41a44` (PR #43)
+
+**Phase completed:** production incident. The Mini App had never once been able to call
+the API; found by reading Vercel runtime logs after the first real Telegram launch.
+
+**Symptom:** the alert deep link opened the Mini App on the right screen and it said
+"Couldn't load this location." Logs: **17 × 401 in two hours, every one
+`tma invalid: hash mismatch`** — the menu button's `GET /locations` as well as the deep
+link's three calls. Not a Task 7 bug; it predates it.
+
+**Cause.** Telegram documents two validations that exclude different fields:
+- bot-token HMAC-SHA256 (what this app does): "a chain of **all** received fields",
+  minus `hash` only.
+- Ed25519 third-party (what this app does **not** do): all fields "except `hash` and
+  `signature`".
+
+`buildDataCheckString` applied the Ed25519 exclusion. Clients from Bot API 7.10 on send
+`signature` on every launch, so the check string was a field short and the HMAC never
+matched.
+
+**Why nothing caught it — the part worth remembering.** `signInitData` in
+`initData.test.ts` built the check string with the *same* mistake, so 11 tests passed
+against a validator that could not validate anything real. One of them,
+`ignores a 'signature' field, which Telegram excludes from this check`, asserted the bug
+as intended behaviour. **A crypto validator tested only against its own signing helper
+proves nothing.** The Task 6 note claiming auth was "verified over real HTTP" was true
+only of synthetic payloads.
+
+**What changed:**
+- `initData.ts` — the filter now excludes `hash` only.
+- `initData.test.ts` — the helper signs whatever fields it is given, so the replacement
+  test signs a payload *with* `signature` the way a real client does. Two more: a
+  tampered `signature` is rejected, and a launch with no `signature` still validates
+  (older clients).
+- `apiAuth.ts` — on a hash mismatch, logs the initData field **names** (never values).
+  A mismatch is otherwise undiagnosable from outside; this would have pointed straight
+  at `signature`.
+- `architecture.md` — the invariant said `signature` is excluded. That is the rule the
+  implementation was written from. Replaced, plus the self-generated-fixture warning.
+
+**What was verified, and how:**
+- **Fail-then-pass, not just green.** Reintroducing the old filter makes the new test
+  fail (`1 failed | 12 passed`); restoring the fix passes 13. A green suite over this
+  path proved nothing before, so it was checked in the direction that matters.
+- **The fix is live and serving.** Production deployment `dpl_94Xx…` (`5c41a44`) holds
+  the alias, and a forged-hash probe produced the new log line
+  `"fields":"auth_date,hash,signature,user"` — which proves the new code is the one
+  answering, with no credential involved.
+- 210 API tests pass; typecheck 4/4, lint 5/5, build 4/4.
+
+**Known issues / deferred work:**
+- **A real Telegram launch has still not succeeded.** Only a real client can mint valid
+  `initData`, so the last step needs one tap. The Vercel runtime logs will show 200s
+  where they showed 401s.
+- If it still 401s, the new `fields` line names exactly what Telegram sent — start there.
+- The list and saved-detail screens have therefore *still* never rendered real data.
+
+**Blockers for next session:** none in code. One tap in Telegram closes the loop.
+
+**What's next:** confirm the launch in the logs, then **issue #21's scoring half** — heat
+costs at most 12 of 100 points and saturates above 35 °C.
+
+**Gotchas for next session:**
+- **Vercel runtime logs are the debugging tool this project was missing.** Two hours of
+  401s with a precise `why` field turned an unreproducible "it doesn't work" into a
+  one-line fix. Reach for them before theorising.
+- **Check `dep=` in a log line before trusting a probe.** The first probe after merging
+  hit the *previous* deployment — the alias had not flipped yet — and would have read as
+  "the fix didn't work".
+- **`git` pathspecs are relative to the shell's cwd**, which persists across Bash calls.
+  A `git diff -- apps/...` after an earlier `cd apps/miniapp` silently matched nothing
+  and printed an empty diff, which looks exactly like "no changes".
+
+**Does the user need to do anything?** **Yes.** Open the Mini App once — the alert's
+"View forecast" button or the menu button, either exercises the fixed path. Registering
+cron-job.org is done; that half is confirmed working.
+
+---
+
 ## 2026-08-26 — branch: claude/task-7-deep-link-archive — squashed to `main` as `51937d5` (PR #42)
 
 **Phase completed:** Crossover Task 7 — alert deep link + `apps/mobile` archived. **This
