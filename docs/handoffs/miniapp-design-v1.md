@@ -1,7 +1,7 @@
 # WeatherTeam6 Mini App — Design Spec
 Version: v1
 Date: 2026-08-24
-Status: Phase B0 deliverable — agreed before scaffold
+Status: Phase B0 deliverable — agreed before scaffold. **Built as of 2026-08-26** (Tasks 5, 5a and 6); this document is now both the contract and the description of what exists.
 Supersedes for the Mini App: nothing. Extends `weatherteam6-ui-handoff-v1.md` §Design System.
 
 ## Purpose
@@ -211,7 +211,7 @@ Live scoring is slow. A measured `GET /api/v1/conditions/:id` against production
 | State | Treatment |
 | --- | --- |
 | **Loading** | Skeleton cards at the real final dimensions, `card` background, no spinner. Four seconds of spinner reads as broken; a skeleton reads as loading. Never a blocking full-screen loader. |
-| **Empty** | No saved locations. **Unblocked as of 2026-08-25 — §10.1 is answered and the flow is specified in §12.** Copy: *"No locations yet."* with a primary action **"Add a location"** routing to `/add`. This was previously left unwritten because every candidate wording pointed at a dead path; it now points at a real screen, so the §7 rule 7 objection no longer applies. Do not ship the action until `/add` exists — a button to nowhere is the same defect in a new place. |
+| **Empty** | No saved locations. **Unblocked as of 2026-08-25 — §10.1 is answered and the flow is specified in §12.** Copy: *"No locations yet."* with a primary action **"Add a location"** routing to `/add`. This was previously left unwritten because every candidate wording pointed at a dead path; it now points at a real screen, so the §7 rule 7 objection no longer applies. `/add` shipped with Task 6 on 2026-08-26, so the action points somewhere real. |
 | **Error** | Inline within the card or section that failed, not a whole-screen takeover. The list must still render locations whose conditions call failed. Copy: *"Couldn't load conditions. Tap to retry."* Never surface an HTTP status code or a raw error string. |
 | **Stale / offline** | React Query serves cached data and shows a `txt4` timestamp line: *"Updated 12 min ago."* Do not blank the screen on a refetch failure. |
 | **Partial** | A location with a score but no alert data renders the score. A section that failed shows its own error; siblings render normally. |
@@ -422,13 +422,18 @@ Mapping to the build handoff's own numbering:
 
 ## 12. Adding a location (closes §10.1)
 
-> **Status: the API half is built.** Task 5a shipped all five §12.3 changes on 2026-08-25
-> (`a90613f`, PR #37) and they are live in production. §12.3 below is written in the
-> future tense because it was a specification; read it now as a description of what
-> exists. Verify against the code with `npm run check:add-location`. **The UI half —
-> `/add`, unsaved mode, the save bar, the delete affordance — is not built** and belongs
-> to Task 6. Two behaviours the UI must respect: `/preview` returns no score by design,
-> and the geocoder's `elevation` must be passed to both `/preview` and `POST /locations`.
+> **Status: built, both halves.** Task 5a shipped all five §12.3 changes on 2026-08-25
+> (`a90613f`, PR #37); Task 6 shipped the UI on 2026-08-26 — `/add` with geocoder search
+> and coordinate entry, the preview in unsaved mode, the save bar with the climbing
+> toggle and rock-type picker, and the delete affordance on saved detail. §12.3 below is
+> written in the future tense because it was a specification; read it now as a
+> description of what exists, and verify with `npm run check:add-location`.
+>
+> **Two implementation notes worth keeping.** The preview is held in component state
+> inside `/add`, **not a fourth route** — routing to a separate path and navigating back
+> would discard the search, which is exactly what §2's back-target table forbids. And
+> `/preview` has no alerts endpoint to call (alerts key on a saved location id), so an
+> unsaved preview shows no alert banner and does not claim NWS as a source.
 
 **Product call, 2026-08-25:** this works like saving a location in any ordinary weather app. Search a place by name, see its weather, decide whether to keep it. Climbing is a property of a saved location, not a precondition for saving one.
 

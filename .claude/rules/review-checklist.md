@@ -56,6 +56,12 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] The screen still renders with `getWebApp()` returning `null` — a plain browser, or `telegram-web-app.js` failing to load
 - [ ] Each Telegram API call is gated at its own version floor, not a shared one
 - [ ] Copy follows the locked rules in `docs/handoffs/weatherteam6-ui-handoff-v1.md` §Design System — no climbing opinions, score is never the headline, imperial units
+- [ ] Nothing formats a nullable weather value by hand — the `packages/types` formatters return an em dash, and `null` coerced to `0` renders a plausible `32°F` / `0 mph` instead of a visible gap
+- [ ] The state label and suppression come from `conditionsCopy.ts`, not reimplemented — and no "degradation guard" has been added to the suppression rule
+- [ ] `GET /conditions/:id` is not called for a non-climbing location, and no score, breakdown or hours-since-rain renders for one
+- [ ] The sources footer is derived from `model_sources` and `asos_station`, and omits a source rather than guessing one — including NWS when the alerts call failed
+- [ ] "Today" is matched against the API's UTC day, and a missing row says so rather than falling back to the first row
+- [ ] No interactive element is nested inside another (`LocationCard` is a `div` with `role="button"` for exactly this reason)
 - [ ] `TELEGRAM_BOT_TOKEN` never reaches the client bundle — `initData` is validated server-side
 - [ ] No new features added to `apps/mobile` — it is archived
 
