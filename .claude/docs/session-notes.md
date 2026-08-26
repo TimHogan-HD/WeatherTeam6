@@ -1074,7 +1074,7 @@ Verification added with the fixes: a 40-check adapter harness that converts **ev
 
 ---
 
-## 2026-08-25 — branch: main — commit: PENDING3
+## 2026-08-25 — branch: main — commit: 5cbbed0
 
 **Phase completed:** Task 5 — Mini App shell **deployed and confirmed inside Telegram**. Acceptance criterion met; the task is now complete, not just merged.
 
