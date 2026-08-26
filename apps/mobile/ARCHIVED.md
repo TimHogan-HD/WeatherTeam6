@@ -57,3 +57,22 @@ and neither is expected to keep passing as the shared packages evolve.
   a code bug: that path exists only in expo-router v56+, and typecheck passes either way.
 - `expo start --tunnel` does not work from the cloud dev environment; testing was done
   locally via Expo Go.
+
+## Historical gotchas (moved out of the root `CLAUDE.md`, 2026-08-26)
+
+These were always-loaded in every session long after this workspace left the build. They are
+kept here because they are still true of this code, and are only relevant to someone working
+on it.
+
+**Expo Router version must match the Expo SDK major version.** For SDK 56 you need
+`expo-router@~56.0.0`. If Metro crashes with `Cannot find module 'expo-router/internal/routing'`,
+the router version is wrong.
+
+**`expo-router/internal/routing` crash is a version mismatch, not a code bug.** That path only
+exists in expo-router v56+; earlier versions crash silently. typecheck passes — it's runtime-only.
+
+**Cloud dev environment blocks ngrok tunnels.** `expo start --tunnel` fails here. Mobile
+testing had to be done locally via Expo Go.
+
+**`EXPO_PUBLIC_SHADEMAP_KEY` and `EXPO_PUBLIC_API_BASE_URL`** are read by this app at bundle
+time and are archived along with it.
