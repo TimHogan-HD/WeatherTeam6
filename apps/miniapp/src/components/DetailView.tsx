@@ -37,6 +37,8 @@ export type DetailViewProps = {
   }
   alerts?: {
     data: WeatherAlert[] | undefined
+    /** Gates the score section: suppression cannot be decided before this settles. */
+    isPending: boolean
     isError: boolean
   }
   conditions?: {
@@ -105,7 +107,13 @@ export function DetailView({
       )}
 
       {showScore && conditions !== undefined ? (
-        conditions.isPending ? (
+        // The score waits on the alerts query as well as its own. Suppression
+        // keys on whether a Severe+ alert is active, so rendering the summary
+        // before alerts settle briefly shows an unsuppressed score for a
+        // location under an active warning — the state §7 rule 4 exists to
+        // prevent. An alerts error settles the query, and component-based
+        // suppression still runs.
+        conditions.isPending || alerts?.isPending === true ? (
           <Skeleton height={90} />
         ) : conditions.isError ? (
           <InlineError message="Couldn't load conditions." onRetry={conditions.refetch} />

@@ -94,6 +94,10 @@ function ok<T>(data: T) {
   return { data, isPending: false, isError: false, refetch: () => {} }
 }
 
+function alertsOk(data: WeatherAlert[]) {
+  return { data, isPending: false, isError: false }
+}
+
 function render(node: Parameters<typeof renderToStaticMarkup>[0]): string {
   return renderToStaticMarkup(node)
 }
@@ -107,7 +111,7 @@ describe('DetailView — a climbing location', () => {
         isClimbingLocation
         asosStation="KLAS"
         forecast={forecast}
-        alerts={{ data: [], isError: false }}
+        alerts={alertsOk([])}
         conditions={ok(redRockScore())}
       />,
     )
@@ -124,7 +128,7 @@ describe('DetailView — a climbing location', () => {
         isClimbingLocation
         asosStation="KLAS"
         forecast={forecast}
-        alerts={{ data: [], isError: false }}
+        alerts={alertsOk([])}
         conditions={ok(redRockScore())}
       />,
     )
@@ -138,7 +142,7 @@ describe('DetailView — a climbing location', () => {
         isClimbingLocation
         asosStation="KLAS"
         forecast={forecast}
-        alerts={{ data: [heatWarning], isError: false }}
+        alerts={alertsOk([heatWarning])}
         conditions={ok(redRockScore())}
       />,
     )
@@ -149,13 +153,46 @@ describe('DetailView — a climbing location', () => {
     expect(html.indexOf('Extreme Heat Warning')).toBeLessThan(html.indexOf('Score 80'))
   })
 
+  it('withholds the score until the alerts query settles', () => {
+    // Suppression keys on whether a Severe+ alert is active. Rendering the
+    // summary first shows an unsuppressed score for a location under an active
+    // warning — briefly, but that is the state the rule exists to prevent.
+    const html = render(
+      <DetailView
+        isClimbingLocation
+        asosStation="KLAS"
+        forecast={forecast}
+        alerts={{ data: undefined, isPending: true, isError: false }}
+        conditions={ok(redRockScore())}
+      />,
+    )
+    expect(html).not.toContain('Score 80')
+    // The weather is not held up by it.
+    expect(html).toContain('103°F')
+  })
+
+  it('still shows the score when the alerts query settled as an error', () => {
+    const html = render(
+      <DetailView
+        isClimbingLocation
+        asosStation="KLAS"
+        forecast={forecast}
+        alerts={{ data: undefined, isPending: false, isError: true }}
+        conditions={ok(redRockScore())}
+      />,
+    )
+    // Component-based suppression still runs; only the alert half is unknown.
+    expect(html).toContain('Score 80 (high confidence) — limited by temperature')
+    expect(html).toContain('load alerts')
+  })
+
   it('never states a climbing opinion', () => {
     const html = render(
       <DetailView
         isClimbingLocation
         asosStation="KLAS"
         forecast={forecast}
-        alerts={{ data: [heatWarning], isError: false }}
+        alerts={alertsOk([heatWarning])}
         conditions={ok(redRockScore())}
       />,
     )
@@ -171,7 +208,7 @@ describe('DetailView — a climbing location', () => {
         isClimbingLocation
         asosStation="KLAS"
         forecast={forecast}
-        alerts={{ data: [], isError: false }}
+        alerts={alertsOk([])}
         conditions={ok({
           ...base,
           score_breakdown: {
@@ -191,7 +228,7 @@ describe('DetailView — a climbing location', () => {
         isClimbingLocation
         asosStation="KLAS"
         forecast={forecast}
-        alerts={{ data: [], isError: false }}
+        alerts={alertsOk([])}
         conditions={ok(redRockScore())}
       />,
     )
@@ -206,7 +243,7 @@ describe('DetailView — a climbing location', () => {
         isClimbingLocation
         asosStation={null}
         forecast={forecast}
-        alerts={{ data: [], isError: false }}
+        alerts={alertsOk([])}
         conditions={ok(redRockScore())}
       />,
     )
@@ -220,7 +257,7 @@ describe('DetailView — a climbing location', () => {
         isClimbingLocation
         asosStation="KLAS"
         forecast={forecast}
-        alerts={{ data: [], isError: false }}
+        alerts={alertsOk([])}
         conditions={{ data: null, isPending: false, isError: false, refetch: () => {} }}
       />,
     )
@@ -241,7 +278,7 @@ describe('DetailView — a non-climbing location', () => {
         isClimbingLocation={false}
         asosStation={null}
         forecast={forecast}
-        alerts={{ data: [], isError: false }}
+        alerts={alertsOk([])}
         conditions={ok(redRockScore())}
       />,
     )
@@ -258,7 +295,7 @@ describe('DetailView — a non-climbing location', () => {
         isClimbingLocation={false}
         asosStation="KLAS"
         forecast={forecast}
-        alerts={{ data: [], isError: false }}
+        alerts={alertsOk([])}
         conditions={ok(redRockScore())}
       />,
     )
@@ -316,7 +353,7 @@ describe('DetailView — partial and missing data', () => {
         isClimbingLocation
         asosStation="KLAS"
         forecast={ok([day(TODAY)])}
-        alerts={{ data: [], isError: false }}
+        alerts={alertsOk([])}
         conditions={{ data: undefined, isPending: false, isError: true, refetch: () => {} }}
       />,
     )

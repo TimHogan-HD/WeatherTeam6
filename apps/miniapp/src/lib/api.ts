@@ -59,7 +59,15 @@ async function readBody(res: Response): Promise<ApiResponse<unknown> | null> {
   }
 }
 
-async function request<T>(path: string, init: RequestInit): Promise<T> {
+/**
+ * `headers` is narrowed to a plain object on purpose. `RequestInit` also allows
+ * a `Headers` instance or an array of pairs, and spreading either of those
+ * yields nothing — which would drop the Authorization header silently and turn
+ * every call into a 401 that looks like an auth bug.
+ */
+type JsonRequestInit = Omit<RequestInit, 'headers'> & { headers?: Record<string, string> }
+
+async function request<T>(path: string, init: JsonRequestInit): Promise<T> {
   const res = await fetch(endpoint(path), {
     ...init,
     headers: { ...authHeaders(), ...init.headers },
