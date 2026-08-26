@@ -9,13 +9,14 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
-    "postinstall": "node scripts/fix-expo-router-link.mjs && npm run build -w @weatherteam6/types && npm run build -w @weatherteam6/design",
+    "postinstall": "node scripts/postinstall.mjs",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "db:generate": "npm run -w apps/api db:generate",
     "db:migrate": "npm run -w apps/api db:migrate",
-    "db:studio": "npm run -w apps/api db:studio"
+    "db:studio": "npm run -w apps/api db:studio",
+    "check:hooks": "node .claude/hooks/check-hooks.mjs"
   },
   "devDependencies": {
     "eslint": "^9.39.4",
