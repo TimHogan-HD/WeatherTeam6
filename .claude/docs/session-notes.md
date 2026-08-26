@@ -1,5 +1,51 @@
 ---
 
+## 2026-08-26 — Task 6 closed out — `main`
+
+**Phase completed:** Task 6 is merged, deployed and verified. Docs reconciled. Task 7 unblocked but **not started** — the user stopped it deliberately so it can run in a fresh session.
+
+**`/newapp` is done.** The Direct Link Mini App is registered with short name **`Alert`**:
+
+```
+https://t.me/WeatherTeam6_bot/Alert?startapp=<param>
+```
+
+Every doc that said "`/newapp` has not been run" is corrected. This was Task 7's only
+hard blocker.
+
+**Telegram contract settled for Task 7, so it does not get re-derived:**
+- **Use a plain `url` inline keyboard button** pointing at the t.me link — **not a
+  `web_app` button.** `startapp` is a Direct Link Mini App mechanism; a `web_app` button
+  opens an inline-button Mini App and does not deliver `start_param`.
+- **`initData` IS populated on a direct-link launch** (verified against
+  core.telegram.org/bots/webapps). Load-bearing: if it were not, the deep link would open
+  the app and every `/api/v1/*` call would 401 against the `tma` scheme with nothing on
+  screen to explain it.
+- The parameter arrives twice — `initDataUnsafe.start_param` and the `tgWebAppStartParam`
+  GET parameter. Read the first, fall back to the second.
+
+**A misstep worth recording:** I sent the user to run `/newapp` without first checking
+whether a `web_app` button carrying `https://weatherteam6.vercel.app/location/<uuid>`
+would have done the job without it. It would have — the app's own router handles that
+path. The work was not wasted (the direct link is shareable and is what §2 specifies, and
+`web_app` would not deliver `start_param` anyway), but the ordering was wrong: verify the
+API surface before asking the user to configure something.
+
+**Known issues / deferred work:** unchanged from the entries below. #21's scoring half,
+#25 and #27 are open; cron-job.org is still unregistered, so `weather_alerts` is never
+populated and both clients' alert surfaces remain untestable.
+
+**What is next:** Task 7 — `git checkout -b claude/task-7-deep-link-archive` off `main`.
+Read `docs/handoffs/telegram-crossover-v4.md` § Task 7 first; the settled Telegram detail
+is there rather than in this entry.
+
+**Does the user need to do anything?** Not for Task 7 — it is fully unblocked. Two things
+remain theirs and neither blocks it: **registering cron-job.org** (without it
+`weather_alerts` is empty, so a deep link from an alert cannot be tested end to end), and
+**opening the Mini App on a real phone** — all three Task 6 screens are live and have
+never been seen inside Telegram.
+---
+
 ## 2026-08-26 — process hardening — `main`
 
 **Phase completed:** two standing rules written into the docs, at the user's request. No code.

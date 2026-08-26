@@ -28,8 +28,8 @@ not started.
 >
 > **Update 2026-08-26. Task 6 is COMPLETE** — `initData` HMAC auth landed as its own
 > change, then the three screens. **Task 7 is the only one left.** Note that Task 7
-> needs `/newapp` run in @BotFather for the `startapp` deep link; that has still not
-> been done.
+> needed `/newapp` run in @BotFather for the `startapp` deep link — **done 2026-08-26**,
+> short name `Alert`. Task 7 is unblocked.
 >
 > The running record of what is built is
 > `.claude/docs/session-notes.md`; the phase table in `.claude/docs/plan.md` mirrors
@@ -226,9 +226,10 @@ a desktop browser all came out right: Telegram's header takes the gradient's top
 network in the webview rather than falling back, nothing is clipped by the notch or the
 home indicator, and the header shows no in-app back arrow on the list route.
 
-**Still open, and only needed for Task 7:** `/newapp` has not been run. The menu button
-does not provide a `startapp` parameter, so the deep link into location detail needs a
-named Mini App registered separately.
+~~**Still open, and only needed for Task 7:** `/newapp` has not been run.~~
+**Done 2026-08-26.** The menu button carries no `startapp` parameter, so a Direct Link
+Mini App was registered separately: short name **`Alert`**, giving the deep link base
+`https://t.me/WeatherTeam6_bot/Alert?startapp=<param>`. Task 7 is unblocked.
 
 ## ✅ Task 5a — Add-location API (COMPLETE)
 
@@ -308,8 +309,32 @@ escaping fix (#26).
 
 ## ⬜ Task 7 — Deep link + cleanup (NOT STARTED)
 
-- Add a `web_app` inline keyboard button to alert messages from Task 3, deep-linking to
-  that location's detail screen via a `startapp` parameter
+- Add an inline keyboard button to alert messages from Task 3, deep-linking to that
+  location's detail screen via a `startapp` parameter.
+
+  **Settled 2026-08-26, so Task 7 does not have to re-derive it:**
+  - The Direct Link Mini App is registered — short name **`Alert`**. The deep link base
+    is `https://t.me/WeatherTeam6_bot/Alert?startapp=<param>`.
+  - **Use a plain `url` inline keyboard button pointing at that t.me link, not a
+    `web_app` button.** `startapp` is a Direct Link Mini App mechanism; a `web_app`
+    button opens an inline-button Mini App and does **not** deliver `start_param`.
+    Encoding the location in a `web_app` URL path instead would work, but the Mini App
+    is already built to read `start_param` (`miniapp-design-v1.md` §2).
+  - **`initData` IS populated on a direct-link launch** — verified against
+    core.telegram.org/bots/webapps. This is the load-bearing one: if it were not, the
+    deep link would open the app and every `/api/v1/*` call would 401 against the `tma`
+    scheme, with nothing on screen to explain it.
+  - The parameter arrives **two ways** — `initDataUnsafe.start_param` and the
+    `tgWebAppStartParam` GET parameter. Read the first, fall back to the second.
+  - Format `loc_<uuid>`, dashes intact — `startapp` permits `A-Z a-z 0-9 _ -`. Do not
+    strip and reinsert dashes: reinsertion at fixed offsets turns a corrupted parameter
+    into a well-formed *wrong* UUID that 404s instead of falling back to the list.
+  - Validate against a UUID regex before routing; anything that fails lands on `/`
+    silently. Never render an error for a bad deep link.
+  - **On boot with a valid `start_param`, push `/` into history first, then
+    `/location/:id`**, so Telegram's BackButton reaches the list rather than closing the
+    app. This is the one case the naive implementation gets wrong, and it is the
+    acceptance criterion.
 - Remove `apps/mobile` from `turbo.json` pipeline and workspace dev/build scripts, leave
   the code in place
 - Add `apps/mobile/ARCHIVED.md` noting the date
