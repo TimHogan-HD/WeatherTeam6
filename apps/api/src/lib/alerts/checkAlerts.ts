@@ -3,6 +3,7 @@ import { db } from '../../db/index.js'
 import { locations, weatherAlerts } from '../../db/schema.js'
 import { logger } from '../logger.js'
 import { formatAlertMessage } from '../telegram/alertMessage.js'
+import { alertKeyboard } from '../telegram/deepLink.js'
 import { sendTelegramMessage } from '../telegram/sendMessage.js'
 import { fetchNwsAlerts } from '../weather/nwsAlerts.js'
 
@@ -116,6 +117,10 @@ export async function notifyPendingAlerts(): Promise<{ checked: number; notified
   const unnotified = await db
     .select({
       id: weatherAlerts.id,
+      // Carries the deep link. The alert names a location the user cannot
+      // otherwise reach in one tap — the Mini App's menu button opens the list
+      // and carries no `startapp` parameter.
+      locationId: weatherAlerts.location_id,
       event: weatherAlerts.event,
       severity: weatherAlerts.severity,
       headline: weatherAlerts.headline,
@@ -138,6 +143,7 @@ export async function notifyPendingAlerts(): Promise<{ checked: number; notified
     try {
       await sendTelegramMessage(
         formatAlertMessage(alert.locationName, alert.event, alert.severity, alert.headline),
+        alertKeyboard(alert.locationId),
       )
       notified++
     } catch (err) {

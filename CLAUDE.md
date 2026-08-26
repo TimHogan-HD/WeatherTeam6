@@ -39,7 +39,10 @@ apps/
                     #   Token adapter: src/theme/tokens.css.ts — never import
                     #   `type`/`shadow`/`layout` from packages/design directly.
   mobile/           # ARCHIVED — React Native + Expo. No new features.
-                    #   Still in workspaces/turbo until Task 7 removes it.
+                    #   Out of the build since 2026-08-26 (Task 7): it declares
+                    #   no build/dev/typecheck/lint/test script, so turbo skips
+                    #   it. Still a workspace member so npm install resolves its
+                    #   deps. See apps/mobile/ARCHIVED.md.
 packages/
   types/            # Shared TypeScript types (never duplicate across apps)
   design/           # Design tokens — colors, spacing, type scale
@@ -112,7 +115,7 @@ Full paths:
 - **Build plan:** `.claude/docs/plan.md`
 
 **Direction (read first):**
-- `docs/handoffs/telegram-crossover-v4.md` — **authoritative product direction.** Telegram bot + Mini App replaces the native app. Tasks 1-4 complete, plus **Task 5a (add-location API, merged `a90613f`)** — a task added later and listed in that doc between Tasks 5 and 6, despite its name it is backend work unrelated to Task 5. **Tasks 5, 5a and 6 are complete; Task 7 is the only one left.**
+- `docs/handoffs/telegram-crossover-v4.md` — **authoritative product direction.** Telegram bot + Mini App replaces the native app. Tasks 1-4 complete, plus **Task 5a (add-location API, merged `a90613f`)** — a task added later and listed in that doc between Tasks 5 and 6, despite its name it is backend work unrelated to Task 5. **All seven tasks are complete as of 2026-08-26; the crossover is finished and there is no Task 8.** Remaining work lives in the open issues and `.claude/docs/plan.md`, not in that doc.
 
 **UI Design Handoffs:**
 - `docs/handoffs/weatherteam6-ui-handoff-v1.md` — written for the archived mobile app, but its **§Design System is still in force and client-agnostic**: locked contrast rules, layout constants, and copy rules. Read before any Mini App UI work. §7b (Home), §7c (Location Detail), §7e (Locations) are the closest existing specs to the Mini App's screens. Note the Mini App has **three** routes, not two — §12 added `/add`; the "two screens" phrasing predates it.
@@ -129,7 +132,7 @@ At the start of EVERY session:
 2. Read `.claude/docs/session-notes.md` (current state and last completed phase)
 3. Read `.claude/docs/plan.md` (what phase is next)
 4. Run `git log --oneline -5` to confirm where the branch is
-5. Run `npm run build --workspace=packages/types --workspace=packages/design` to ensure shared packages are compiled before typechecking mobile
+5. Run `npm run build --workspace=packages/types --workspace=packages/design` to ensure shared packages are compiled before typechecking `apps/api` and `apps/miniapp`
 
 **Self-start rule:** If the user's opening message is "next phase", "continue", "do Phase X", or equivalent — complete steps 1–5 above, then state in one sentence what phase you are building and what branch you will create, and proceed. Do not ask for a detailed prompt. The docs are the spec. If a handoff doc section is listed in the session-end block of `session-notes.md`, read it before writing any UI code.
 

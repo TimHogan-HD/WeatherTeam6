@@ -1,5 +1,114 @@
 ---
 
+## 2026-08-26 — branch: claude/task-7-deep-link-archive — commit: <pending squash to main>
+
+**Phase completed:** Crossover Task 7 — alert deep link + `apps/mobile` archived. **This
+was the last task in `telegram-crossover-v4.md`; the crossover is finished.**
+
+**What was built this session:**
+
+*(b) Archive — done first, it is mechanical:*
+- `apps/mobile/package.json` — `build`, `dev`, `typecheck`, `lint` and `test` scripts
+  removed. Only the four Expo launch commands remain. **This is the whole fix.** Turbo
+  runs whatever scripts a workspace member declares, so a package with none is skipped.
+- `turbo.json` — the `@weatherteam6/mobile#build` override deleted as dead config. It
+  only ever zeroed the task's *outputs*; `tsc --noEmit` kept running underneath it.
+  Confirmed before touching anything: `turbo run build --dry` showed
+  `@weatherteam6/mobile#build | tsc --noEmit`.
+- `apps/mobile/ARCHIVED.md` — date, reason, what "left the build" means, and what was
+  left in place on purpose (workspace membership, the `fix-expo-router-link` postinstall,
+  the `apps/mobile/**` block in `eslint.config.mjs`).
+
+*(a) Deep link — API:*
+- `apps/api/src/lib/telegram/deepLink.ts` — NEW, pure. `locationDeepLink` and
+  `alertKeyboard`. Base `https://t.me/WeatherTeam6_bot/Alert` is a constant: neither the
+  bot username nor the Direct Link short name is derivable from `TELEGRAM_BOT_TOKEN`, and
+  making it an env var would have added a deploy step for a value that never changes.
+- `apps/api/src/lib/telegram/sendMessage.ts` — optional `replyMarkup`, typed narrowly as
+  rows of url buttons. Omitted from the body entirely when absent.
+- `apps/api/src/lib/alerts/checkAlerts.ts` — `notifyPendingAlerts` now selects
+  `location_id` and passes `alertKeyboard(alert.locationId)`. Per-alert, not hoisted.
+
+*(a) Deep link — Mini App:*
+- `apps/miniapp/src/lib/deepLink.ts` — NEW. `parseLocationStartParam`, `readStartParam`,
+  `applyDeepLink`. Pure apart from `applyDeepLink`, which takes the History object rather
+  than reaching for `window` — that is what makes the back-stack behaviour testable in a
+  workspace with no DOM.
+- `apps/miniapp/src/main.tsx` — one line, **before** `createRoot`.
+
+**Two decisions worth knowing:**
+- **`alertKeyboard` returns `null` for a non-uuid id rather than a best-effort url.** A
+  malformed button url is a 400; `sendTelegramMessage` treats 400 as non-retryable;
+  `notifyPendingAlerts` then releases the claim and re-sends the identical broken message
+  forever. A bad link would cost the whole alert, not just the button.
+- **The deep link runs pre-mount, not in an effect.** `BrowserRouter` then reads
+  `/location/:id` as its initial location so the list never flashes, and a `<StrictMode>`
+  double-invoked effect cannot push the detail entry twice — which would have left
+  BackButton going from detail to detail.
+
+**What was verified, and how:**
+- **The archive half is genuinely confirmed.** `turbo run build|typecheck|lint|test|dev`
+  now resolve `@weatherteam6/mobile` to `<NONEXISTENT>` and skip it; `turbo run build`
+  executes four tasks instead of five.
+- **The t.me link resolves, with no credential needed.** `curl` on
+  `https://t.me/WeatherTeam6_bot/Alert?startapp=loc_<uuid>` returns
+  `tg://resolve?domain=WeatherTeam6_bot&appname=Alert&startapp=loc_<uuid>` — the bot
+  username exists and the UUID survives Telegram's own parsing **with its dashes**.
+  **What that check does NOT prove:** a control request with `NoSuchApp` returned the
+  same 200 and echoed the bogus name, so t.me does not validate the short name
+  server-side. That `Alert` is registered rests on the user having run `/newapp`.
+- The built bundle contains the deep-link code, and `vite preview` serves `/`,
+  `/location/<uuid>` and `/?tgWebAppStartParam=…` all as 200 (SPA rewrite intact).
+- 25 new tests. Repo total 275 (was 250), all passing. Typecheck 4/4, lint 5/5, build 4/4.
+
+**Known issues / deferred work:**
+- **Nothing has been seen inside Telegram.** No preview-deploy path, so the round trip
+  only happens after this reaches production.
+- **No real alert has carried the button.** `weather_alerts` is empty because
+  cron-job.org is still unregistered. The wiring in `notifyPendingAlerts` is the one line
+  in this change with no test behind it — it imports `db`, so vitest cannot reach it.
+- **The bot username is hardcoded.** If `@WeatherTeam6_bot` is ever renamed, the button
+  silently links nowhere. Documented at the constant.
+- The "standing CI ESLint failure" this task was expected to clear **was already fixed**
+  before the session — `npm run lint` was green at `7d6ee55`. Removing mobile from the
+  run is still right, but it did not clear a live failure.
+- All five issues (#21, #22, #25, #26, #27) unchanged by this session.
+
+**Blockers for next session:**
+- None. There is no next crossover task.
+
+**What's next:** the crossover is done, so the next session is issue work rather than a
+phase. Ranked: **#21's scoring half** (heat costs at most 12 of 100 points and saturates
+above 35 °C — the copy is honest about it, the number is still wrong), then #25/#27.
+Register cron-job.org first if any alert-surface work is planned, since nothing about
+alerts can be observed until `weather_alerts` is populated.
+
+**Gotchas for next session:**
+- **The CRLF scripting trap bit again, and it reported success.** A Node script doing
+  three string replacements on CRLF files matched only the single-line one; the two
+  multi-line searches silently failed, and the guard (`if (s === orig)`) still passed
+  because *one* replacement had landed. The result typechecked as a reference to an
+  undeclared `replyMarkup`. **Use the Edit tool for anything spanning more than one
+  line**, and if you must script it, assert every replacement individually.
+- **`turbo.json` cannot remove a workspace from a task graph.** Verified, not assumed.
+  The override that looked like it did the job only set `outputs: []`.
+- **t.me will echo any Direct Link short name back at you with a 200.** It is a useful
+  check for the *bot username* and for parameter passthrough, and worthless as a check
+  that the app is registered.
+- `LocationDetail`'s BackButton calls `navigate('/')` — a push, not `history.back()`. So
+  the acceptance criterion holds through that path regardless of stack depth; the
+  `replaceState('/')` matters for the *platform* back gesture, which is what would
+  otherwise close the Mini App.
+
+**Does the user need to do anything?** **Yes.** Two, both only they can do:
+1. **Open an alert deep link on a real phone** once this is on production — that is the
+   only way the tap half of the acceptance criterion gets confirmed.
+2. **Register cron-job.org** to hit `POST /api/cron/check-alerts` with `CRON_SECRET`.
+   Until then `weather_alerts` stays empty and no alert message — button or not — is
+   ever sent.
+
+---
+
 ## 2026-08-26 — Task 6 closed out — `main`
 
 **Phase completed:** Task 6 is merged, deployed and verified. Docs reconciled. Task 7 unblocked but **not started** — the user stopped it deliberately so it can run in a fresh session.

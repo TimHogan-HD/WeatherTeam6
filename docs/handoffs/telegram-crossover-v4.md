@@ -27,9 +27,13 @@ not started.
 > what was confirmed on real hardware.
 >
 > **Update 2026-08-26. Task 6 is COMPLETE** — `initData` HMAC auth landed as its own
-> change, then the three screens. **Task 7 is the only one left.** Note that Task 7
-> needed `/newapp` run in @BotFather for the `startapp` deep link — **done 2026-08-26**,
-> short name `Alert`. Task 7 is unblocked.
+> change, then the three screens. Note that Task 7 needed `/newapp` run in @BotFather
+> for the `startapp` deep link — **done 2026-08-26**, short name `Alert`.
+>
+> **Update 2026-08-26 (later the same day). Task 7 is COMPLETE, and with it every task
+> in this document.** The alert deep link and the `apps/mobile` archive both shipped.
+> The crossover is finished; there is no Task 8. Remaining work is tracked as issues
+> (#21, #25, #26, #27) and in `.claude/docs/plan.md`, not here.
 >
 > The running record of what is built is
 > `.claude/docs/session-notes.md`; the phase table in `.claude/docs/plan.md` mirrors
@@ -307,7 +311,27 @@ escaping fix (#26).
 > nothing to remove, and `initData` is a self-contained change layered alongside
 > `API_SHARED_SECRET`. See the sequencing note in `.claude/docs/plan.md`.
 
-## ⬜ Task 7 — Deep link + cleanup (NOT STARTED)
+## ✅ Task 7 — Deep link + cleanup (COMPLETE 2026-08-26)
+
+**Both halves shipped.** The settled contract below was implemented as written; it is
+kept for reference, not as outstanding work.
+
+*(a) Deep link.* `apps/api/src/lib/telegram/deepLink.ts` builds
+`https://t.me/WeatherTeam6_bot/Alert?startapp=loc_<uuid>` and the one-button inline
+keyboard; `notifyPendingAlerts` attaches it to every alert message. On the client,
+`apps/miniapp/src/lib/deepLink.ts` reads the parameter and seats history, called from
+`main.tsx` **before React mounts** — so `BrowserRouter` reads `/location/:id` as its
+initial location, the list never flashes, and a `<StrictMode>` double-invoked effect
+cannot push the detail entry twice. A bad id returns `null` at every stage: no button on
+the message, no navigation in the client, and never an error on screen.
+
+*(b) Archive.* `apps/mobile/package.json` no longer declares `build`, `dev`, `typecheck`,
+`lint` or `test`, so turbo skips the workspace in all five graphs; the dead
+`@weatherteam6/mobile#build` override was removed from `turbo.json` at the same time.
+`apps/mobile/ARCHIVED.md` records the date and what was deliberately left in place.
+
+**Not verified:** nothing has been seen inside Telegram. `weather_alerts` is empty
+because cron-job.org is still unregistered, so no real alert has carried the button.
 
 - Add an inline keyboard button to alert messages from Task 3, deep-linking to that
   location's detail screen via a `startapp` parameter.
@@ -337,10 +361,20 @@ escaping fix (#26).
     acceptance criterion.
 - Remove `apps/mobile` from `turbo.json` pipeline and workspace dev/build scripts, leave
   the code in place
+
+  **The fix is in `apps/mobile/package.json`'s scripts, not `turbo.json`.** Turbo runs
+  whatever scripts a workspace member declares: the `@weatherteam6/mobile#build` override
+  only zeroed the task's *outputs*, and deleting it on its own would have made the
+  package fall through to the generic `build` task and keep running `tsc --noEmit`.
 - Add `apps/mobile/ARCHIVED.md` noting the date
 
 **Acceptance:** Tapping an alert opens the Mini App on that location's detail screen.
 `turbo build` no longer touches `apps/mobile`.
+
+**Acceptance result:** the build half is confirmed — `turbo run build|typecheck|lint|test|dev`
+now resolve `@weatherteam6/mobile` to `<NONEXISTENT>` and skip it, and `turbo run build`
+executes four tasks instead of five. The tap half has **not** been confirmed on a phone;
+see the "not verified" note above.
 
 ---
 

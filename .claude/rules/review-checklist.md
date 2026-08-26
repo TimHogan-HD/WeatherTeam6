@@ -76,13 +76,17 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] "Today" is matched against the API's UTC day, and a missing row says so rather than falling back to the first row
 - [ ] No interactive element is nested inside another (`LocationCard` is a `div` with `role="button"` for exactly this reason)
 - [ ] `TELEGRAM_BOT_TOKEN` never reaches the client bundle — `initData` is validated server-side
-- [ ] No new features added to `apps/mobile` — it is archived
+- [ ] A deep-link parameter is validated and never repaired — `loc_<uuid>` with dashes intact, anything else lands on `/` silently and renders no error
+- [ ] Deep-link history is seated before React mounts, `/` then `/location/:id` — not in an effect, and not detail alone (the platform back gesture would close the app)
+- [ ] No new features added to `apps/mobile` — it is archived and out of the build. It leaves the build through its own `package.json` scripts; a `turbo.json` override cannot silence a script that exists
 
 ## Telegram surfaces
 - [ ] Any text interpolated into a `parse_mode: 'HTML'` message is escaped with `escapeTelegramHtml` — NWS headlines and user-entered location names routinely contain `&`, and a malformed message is a non-retryable 400 the webhook swallows
 - [ ] **A string literal in the source counts too.** `/start` and the usage reply both shipped containing `<location name>`, which Telegram rejects as an unsupported start tag — neither had ever been delivered
 - [ ] Score-to-text goes through `summarizeConditions` — no surface writes its own mapping, or the bot and the Mini App drift apart
 - [ ] Webhook auth does not rely solely on request-body fields
+- [ ] An inline keyboard deep link is a `url` button, not `web_app` — `web_app` never delivers `start_param`
+- [ ] A button that cannot be built correctly is omitted, not approximated — a malformed url is a non-retryable 400 that costs the whole message
 
 ## Verification
 - [ ] The change was **run**, not just compiled — an external-API call had its response read, a database write was made and read back

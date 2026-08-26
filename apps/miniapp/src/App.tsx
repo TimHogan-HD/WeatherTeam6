@@ -13,8 +13,10 @@ const queryClient = createQueryClient()
  * `index.html` (miniapp-design-v1.md §2). An unrecognised path lands on the
  * list silently; the Mini App never renders an error for a bad URL.
  *
- * Deep-link handling (`startapp` → `/location/:id`, with `/` pushed beneath it
- * so BackButton reaches the list) belongs to Task 7 and is not wired here.
+ * Deep-link handling (`startapp` → `/location/:id`, with `/` seated beneath it
+ * so BackButton reaches the list) runs in `main.tsx` before this mounts, so by
+ * the time `BrowserRouter` reads the URL the work is already done — see
+ * `lib/deepLink.ts`.
  */
 export function App() {
   useTelegramChrome()

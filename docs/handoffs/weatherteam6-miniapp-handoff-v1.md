@@ -232,11 +232,32 @@ a self-contained change, layered as a second scheme alongside `API_SHARED_SECRET
 
 ---
 
-### Phase B5 / Task 7: Deep link and archive mobile
+### Phase B5 / Task 7: Deep link and archive mobile — ✅ COMPLETE 2026-08-26
+
+> **Shipped.** What follows is the original brief, kept for context, with two
+> corrections marked inline. What actually landed:
+>
+> - `apps/api/src/lib/telegram/deepLink.ts` (new) builds
+>   `https://t.me/WeatherTeam6_bot/Alert?startapp=loc_<uuid>` and a one-button inline
+>   keyboard; `sendTelegramMessage` gained an optional `replyMarkup`; and
+>   `notifyPendingAlerts` — not `formatAlertMessage` — attaches it, because the keyboard
+>   is a `reply_markup` field on the API call, not part of the message text.
+> - `apps/miniapp/src/lib/deepLink.ts` (new), called from `main.tsx` before React mounts.
+> - `apps/mobile/package.json` lost its `build`, `dev`, `typecheck`, `lint` and `test`
+>   scripts; the dead `@weatherteam6/mobile#build` override left `turbo.json`;
+>   `apps/mobile/ARCHIVED.md` added.
+>
+> **Not verified:** nothing seen inside Telegram, and no real alert has carried the
+> button — `weather_alerts` is empty while cron-job.org is unregistered.
 
 **What to build**
 
-- A `web_app` inline keyboard button on alert messages in `formatAlertMessage` (`apps/api/src/lib/alerts/checkAlerts.ts`), deep-linking to that location's detail screen via `startapp`.
+- ~~A `web_app` inline keyboard button~~ — **wrong, corrected 2026-08-26.** It must be a
+  plain **`url`** button pointing at the Direct Link Mini App
+  (`https://t.me/WeatherTeam6_bot/Alert?startapp=loc_<uuid>`). A `web_app` button opens
+  an inline-button Mini App and does **not** deliver `start_param` at all. The keyboard
+  is attached in `notifyPendingAlerts` (`apps/api/src/lib/alerts/checkAlerts.ts`), not in
+  `formatAlertMessage`, which formats only the message text.
 - Remove `apps/mobile` from the build. **Leave the source in place.** Add `apps/mobile/ARCHIVED.md` with the date and reason.
 
 **Do not just delete the `@weatherteam6/mobile#build` override from `turbo.json`.** That override exists only to set `outputs: []`; deleting it makes the package fall through to the generic `build` task, which still runs its `tsc --noEmit`. The same is true of lint: `turbo.json` has a bare `lint: {}` task, and mobile's own `lint` script is `eslint . --max-warnings 0`, so no turbo edit silences it. Turbo runs whatever scripts a workspace member declares.
@@ -251,6 +272,19 @@ Pick one of these instead, and verify rather than assume:
 - Tapping the button on an alert message opens the Mini App directly on that location's detail screen.
 - `npm run build` output contains no `@weatherteam6/mobile` task.
 - `npm run lint` exits 0 locally, and the CI check is green for the first time since the migration. Run both before claiming this.
+
+**Acceptance result (2026-08-26):**
+
+- **Build/lint — met.** `turbo run build` executes four tasks, not five;
+  `build`/`typecheck`/`lint`/`test`/`dev` all resolve `@weatherteam6/mobile` to
+  `<NONEXISTENT>` and skip it. `npm run lint` exits 0.
+- **Correction to the third criterion:** lint was **already** green before this task.
+  Mobile's ESLint failure was fixed earlier by adding `apps/mobile/app.config.js` to the
+  ignores in `eslint.config.mjs`; this change did not clear a live failure, it removed
+  the workspace from the run.
+- **Tap — not met, and not testable here.** No real alert has carried the button:
+  `weather_alerts` is empty while cron-job.org is unregistered, and there is no
+  preview-deploy path for testing inside Telegram.
 
 **Git checkpoint:** commit, then confirm CI is green for the first time since the migration.
 

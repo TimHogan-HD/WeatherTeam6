@@ -1,10 +1,31 @@
 import { logger } from '../logger.js'
 
 /**
+ * The only `reply_markup` shape this app sends: rows of URL buttons.
+ *
+ * Narrow on purpose. Telegram's `InlineKeyboardButton` is a union where exactly
+ * one optional field may be set, and a wider type here would let a caller send
+ * a button with none of them — which Telegram answers with a 400, i.e. a
+ * non-retryable failure that costs the whole message. See `deepLink.ts` for why
+ * `url` specifically and not `web_app`.
+ */
+export type InlineKeyboardMarkup = {
+  readonly inline_keyboard: ReadonlyArray<
+    ReadonlyArray<{ readonly text: string; readonly url: string }>
+  >
+}
+
+/**
  * Send a plain-text message to the single configured Telegram chat, with
  * exponential backoff retry on transport failures and 429/5xx responses.
+ *
+ * `replyMarkup` is left out of the request body entirely when absent, rather
+ * than sent as `reply_markup: undefined`.
  */
-export async function sendTelegramMessage(text: string): Promise<void> {
+export async function sendTelegramMessage(
+  text: string,
+  replyMarkup?: InlineKeyboardMarkup | null,
+): Promise<void> {
   const token = process.env['TELEGRAM_BOT_TOKEN']
   const chatId = process.env['TELEGRAM_CHAT_ID']
   if (!token || !chatId) {
@@ -20,7 +41,11 @@ export async function sendTelegramMessage(text: string): Promise<void> {
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+        body: JSON.stringify(
+          replyMarkup
+            ? { chat_id: chatId, text, parse_mode: 'HTML', reply_markup: replyMarkup }
+            : { chat_id: chatId, text, parse_mode: 'HTML' },
+        ),
       })
       if (res.ok) return
       if (res.status !== 429 && res.status < 500) {
