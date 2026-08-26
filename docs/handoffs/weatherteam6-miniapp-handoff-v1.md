@@ -10,7 +10,7 @@ The Telegram Crossover migration (Tasks 1-4) is finished, merged, and verified r
 **Read these in the repo before writing any code:**
 
 1. `.claude/rules/architecture.md` (mandatory at every session start)
-2. `.claude/docs/session-notes.md` (newest entry is at the **top** of the file, not the bottom)
+2. `.claude/docs/STATE.md` (current state — short, and the only state document)
 3. `docs/handoffs/telegram-crossover-v4.md` (authoritative product direction)
 4. `.claude/docs/plan.md` (phase order)
 
@@ -20,7 +20,7 @@ The Telegram Crossover migration (Tasks 1-4) is finished, merged, and verified r
 
 ### What is live and working
 
-*(Snapshot from when this doc was written. `main` has moved several times since — B0, the `/api/v1` auth gate, and Task 5a have all landed. **`.claude/docs/session-notes.md` is the current record;** where it and this section disagree, it wins.)*
+*(Snapshot from when this doc was written. `main` has moved several times since — B0, the `/api/v1` auth gate, and Task 5a have all landed. **`.claude/docs/STATE.md` is the current record;** where it and this section disagree, it wins.)*
 
 - **Repo:** `TimHogan-HD/weatherteam6`, `main` @ `9cc71bd`, clean tree, no open PRs.
 - **API:** `https://weather-team6-api.vercel.app`, Express wrapped as one Vercel serverless function at `apps/api/api/index.ts`.
@@ -78,7 +78,7 @@ Ship the Telegram Mini App as the project's only client: a three-route surface (
 - [ ] Build shared packages first, or typechecks fail with "cannot find module":
       `npm run build --workspace=packages/types --workspace=packages/design`
 - [ ] Read `docs/handoffs/weatherteam6-ui-handoff-v1.md` §Design System. Its per-screen phases are dead, but the Design System section is client-agnostic and still binding.
-- [ ] Check `.claude/docs/session-notes.md` top entry for anything that landed after this doc was written.
+- [ ] Check `.claude/docs/STATE.md` for anything that landed after this doc was written.
 
 ---
 
@@ -356,9 +356,9 @@ The list and detail screens need only `/locations`, `/conditions/:id`, `/forecas
 - **The API project's Vercel framework preset must be "Other", not "Express".** The Express preset expects `export default app` or `app.listen()`. `apps/api/api/index.ts` exports a `handler(req, res)`, and `apps/api/package.json`'s `main` points at a factory. The preset fails confusingly at runtime, not at build.
 - **`apps/api/vercel.json` skips the build step deliberately,** with a no-op `buildCommand` and an intentionally empty `public/`. Without the empty `public/`, deploys fail with "No Output Directory named public found".
 - **The Neon driver cannot be swapped to `neon-http`.** `trips.ts` uses an interactive `db.transaction()`, which the HTTP driver does not support.
-- **Session notes are newest-first.** Reading the tail of `.claude/docs/session-notes.md` gives you a June 2026 mobile entry and a misleading picture.
+- **Do not read `.claude/docs/session-archive.md` for current state.** It is 165KB of dated history in inconsistent order — it accumulated entries at both ends. `.claude/docs/STATE.md` is the current record; grep the archive only for the reasoning behind one specific past decision.
 - **A ⚠️ banner on a repo doc means mobile-era history.** No banner means the doc is maintained, not that every line is current. Trust the code over the prose when they disagree.
-- **Every significant bug in the migration was caught by review, not by careful writing:** four of six findings in the first round, three in the second, fifteen in the docs round. Keep `/code-review` non-optional before each commit, and run `.claude/rules/review-checklist.md`.
+- **Every significant bug in the migration was caught by review, not by careful writing:** four of six findings in the first round, three in the second, fifteen in the docs round. Keep `/code-review` non-optional before each commit, and run the `/review-checklist` skill (`.claude/skills/review-checklist/SKILL.md`).
 
 ---
 

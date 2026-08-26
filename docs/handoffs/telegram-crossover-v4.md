@@ -36,7 +36,7 @@ not started.
 > (#21, #25, #26, #27) and in `.claude/docs/plan.md`, not here.
 >
 > The running record of what is built is
-> `.claude/docs/session-notes.md`; the phase table in `.claude/docs/plan.md` mirrors
+> `.claude/docs/session-archive.md`; the phase table in `.claude/docs/plan.md` mirrors
 > this task list with more implementation detail.
 
 What actually shipped differs from this doc in a few places. Where they disagree, the
@@ -60,7 +60,7 @@ notes below win:
      highest-weighted scoring component. Resolved by live-fetching recent precipitation
      (ACIS when a location has an `asos_station`, else Open-Meteo's archive API).
 
-See `.claude/docs/session-notes.md` for the full implementation record, deployment
+See `.claude/docs/session-archive.md` for the full implementation record, deployment
 state, and Vercel configuration gotchas.
 
 ---

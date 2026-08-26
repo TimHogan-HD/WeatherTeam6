@@ -59,8 +59,8 @@ npm run db:migrate  # apply pending migrations
 | Touch the database | `.claude/docs/data-model.md` |
 | Touch scoring | `.claude/docs/scoring-algorithm.md` |
 | Add a weather source | `.claude/docs/api-sources.md` |
-| Review before committing | `.claude/rules/review-checklist.md` |
-| See where things stand | `.claude/docs/session-notes.md` |
+| Review before committing | `/review-checklist` |
+| See where things stand | `.claude/docs/STATE.md` |
 
 Documents describing the archived React Native app carry an ⚠️ banner at the top. Absence of a banner means the document is *maintained*, not that every line is current — long reference docs can still carry stale passages, so trust the code over the prose when they disagree.
 

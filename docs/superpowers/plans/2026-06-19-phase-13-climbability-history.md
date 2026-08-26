@@ -1106,7 +1106,7 @@ Expected: 0 violations.
 
 - [ ] **Run review checklist**
 
-Read `.claude/rules/review-checklist.md` and verify every item passes.
+Read the `/review-checklist` skill (`.claude/skills/review-checklist/SKILL.md`) and verify every item passes.
 
 - [ ] **Final commit if any loose files**
 
@@ -1116,4 +1116,4 @@ git status
 
 Confirm clean working tree. If anything uncommitted, commit it now.
 
-- [ ] **Append session-end block to `.claude/docs/session-notes.md`** per the session end protocol in `CLAUDE.md`.
+- [ ] **Append session-end block to `.claude/docs/session-archive.md`** per the session end protocol in `CLAUDE.md`.
