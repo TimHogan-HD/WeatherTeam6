@@ -1547,7 +1547,7 @@ Verification added with the fixes: a 40-check adapter harness that converts **ev
 
 ---
 
-## 2026-08-26 — branch: chore/deep-review-cleanup — commit: (pending)
+## 2026-08-26 — branch: chore/deep-review-cleanup (squash-merged to `main`) — commit: 07bc7c5
 
 **Phase completed:** Deep review, debug and cleanup pass — the session the previous block briefed, and the item the user put ahead of everything else.
 
