@@ -1727,3 +1727,58 @@ Also still open and unfiled: `GET /forecast/:id` and `GET /conditions/:id` each 
 - **GitHub Actions was backed up ~40 minutes earlier today** and PRs #45/#46 were merged on local verification. All of it has since gone green on `main` retroactively. #47 waited for real CI.
 
 **Does the user need to do anything?** **Yes — one thing, still the same one.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project to a long random string, then re-run Telegram's `setWebhook` with `secret_token` set to the same value. Nothing else outstanding needs them; #25 needs a decision from them but only when they want to pick it up.
+
+---
+
+## 2026-08-26 — branch: chore/agent-systems-stage-0-1 (squash-merged to `main`) — commit: b954e9f (PR #48)
+
+**Phase completed:** Agent-systems review, Stage 0 and Stage 1. Process infrastructure only — no product code touched.
+
+**Why this session happened:** the user asked for a review of *how we work* rather than what we built — "our systems of coding, you and my interactions, agent automation, architecture" — plus research into current practice, ahead of a run of feature work. The stated symptom was "a lot of human interaction at times".
+
+**What the review found (ten findings, evidence in PR #48 and the published report):**
+
+- **Every hook was a silent no-op and always had been.** Both scripts parsed stdin with `python3`, which on this machine is the Windows Store stub — it prints an advert and exits 0. `rm -rf /`, `DROP TABLE users` and the drizzle push guard all returned exit 0. CLAUDE.md already said Python is not installed; the hooks were written against an assumption the project had documented as false.
+- **Two guards were broken a second way:** they read `tool_input.path`, but Write/Edit send `file_path`. They could not have fired even with a working Python.
+- **A third hook was dead:** `settings.json` matched `mcp__github__create_pull_request`, but no GitHub MCP server is configured here — PRs are opened with `gh`.
+- **66,532 tokens were spent before the first question** — ~33% of a 200k window. `session-notes.md` alone was 41,223.
+- **The session log had newest entries at both ends** (line 3 and line 1689 both 2026-08-26). Some sessions appended, some prepended. A handoff doc had already written a workaround for it.
+- **Docs-only commits: 31% lifetime, 56% of the last 60, 66% of the last 30** — accelerating, which is the signature of upkeep growing with its own size.
+- **The reconciliation protocol failed on its own most recent run.** `a20bfc1`, titled *"record the corrected issue state"*, touched only the session log; `plan.md` still said six issues open when GitHub said four, and still marked #33/#34 open after both were fixed.
+- **No permissions allowlist existed at all** — the direct cause of the interaction the user complained about.
+- **Both review agents were pinned to `claude-sonnet-4-6`**, a previous generation, on a project whose defining problem is defects that pass every automated gate.
+- **The Mini App is 90 inline styles and 0 classNames** — one `:focus-visible` in the whole app, no hover, transition, keyframe or media query, because inline styles cannot express them.
+
+**What was built this session:**
+
+- `.claude/hooks/pre-tool-safety.mjs`, `post-push-review.mjs` — rewritten in Node; the two `.sh` files deleted.
+- `.claude/hooks/check-hooks.mjs` + `npm run check:hooks` — 41 cases, real payloads over stdin, exit codes and output asserted. Includes over-blocking regressions.
+- `.claude/settings.json` — permissions allowlist (allow / ask / deny), hooks rewired.
+- `.claude/docs/STATE.md` — NEW. The only state document.
+- `session-notes.md` → `session-archive.md` (this file). Never read at session start.
+- `.claude/skills/review-checklist/SKILL.md`, `.claude/skills/miniapp-patterns/SKILL.md` — moved out of always-loaded rules; the second is `paths`-scoped.
+- `scripts/postinstall.mjs` — the Expo Router fixup is now conditional on `apps/mobile` being installed.
+- Deleted: `railway.json` (project deploys to Vercel; its `startCommand` ran migrations on boot), `.claude/docs/review-findings.md` (a closed round-3 review).
+
+**Verified:** `check:hooks` 41/41, `typecheck` 6/6, `lint` 4/4, `test` 315/315, CI green on the PR. Every `.claude/`/`docs/`/`scripts/` path referenced in markdown checked for existence. Every rule extracted into `miniapp-patterns` confirmed present in the skill and absent from `architecture.md`.
+
+**Not verified:** nothing was run against the database or production — this branch touches no code that reaches either.
+
+**Known issues / deferred work:**
+
+- **Stage 2 as originally proposed is cancelled.** It was a CSS architecture, a motion system and a Chrome-based visual review loop for the Mini App. The user downgraded Mini App design the same day — *"I overstated the design portion… the Mini App doesn't need to be super fancy."* The inline-style ceiling is real and documented in `miniapp-patterns`, but lifting it is **not authorised**.
+- `apps/mobile` still in the repo — 9,833 LOC, 42% of all TypeScript here. Out of the build, so it costs nothing at runtime; removing it is a separate decision nobody has asked for.
+- CLAUDE.md is still 6,118 tokens and could be pruned further. The deployment-gotchas section is largely situational and would suit a skill.
+
+**Blockers for next session:** none.
+
+**What's next:** the **chat interface** — plain-language questions to the bot, plus slash commands that pull specific information about a location or a span of time. The user wants this design conversation **before** any spec is written. Do not spec it unilaterally.
+
+**Gotchas for next session:**
+
+- **The hooks are live now, and they block.** If a `git commit` is refused, read the message — a commit body that *describes* a forbidden command used to trip it, and `stripInertText` now handles heredocs and `-m` payloads. If a new false positive appears, add a case to `check-hooks.mjs` rather than loosening a guard.
+- **Do not re-add a status table for issues anywhere.** `gh issue list` is the source. This was the single most persistent drift in the repo's history.
+- **STATE.md is rewritten, not appended.** If it starts growing past ~1,500 words, something in it is history and belongs down here.
+- **A skill's body does not load until it triggers.** `review-checklist` is invoked with `/review-checklist`; `miniapp-patterns` loads on `apps/miniapp/**`. If a rule seems to have vanished, it is in a skill, not deleted.
+
+**Does the user need to do anything?** **Yes — one thing, and it is the same one as last session.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project to a long random string, then re-run Telegram's `setWebhook` with `secret_token` set to the same value. Separately, `gh pr merge` is now in the permissions allowlist — that was a deliberate reading of the standing "Claude merges, not the user" preference, and it is one word to reverse if unwanted.

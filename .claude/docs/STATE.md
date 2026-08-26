@@ -6,7 +6,7 @@
 when you need the reasoning behind a specific past decision, never at session start. It
 used to be mandatory reading, which cost ~41,000 tokens before any work began.
 
-Last updated: 2026-08-26 · `main` @ `3aba1fe`
+Last updated: 2026-08-26 · `main` @ `b954e9f`
 
 ---
 
@@ -28,8 +28,9 @@ Baseline: `npm run test` 315 passing, `npm run typecheck` clean, `npm run check:
 
 The user's direction, set 2026-08-26 and revised the same day:
 
-1. **Agent-systems cleanup** — in progress, this branch. Stage 0 (working hooks,
-   permissions, agent models) is merged; Stage 1 (context cost) is what produced this file.
+1. ~~**Agent-systems cleanup**~~ — **done, merged as `b954e9f` (PR #48).** Working hooks
+   with a 41-case acceptance check, a permissions allowlist, current models on the review
+   agents, and session-start context cut from 66,532 to 14,685 tokens.
 2. **The chat interface is the priority.** The user wants to ask in plain language and get
    an answer, plus slash commands that pull specific information about a location or a span
    of time. This is the headline feature direction from here.
