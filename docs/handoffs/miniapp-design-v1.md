@@ -1,7 +1,7 @@
 # WeatherTeam6 Mini App — Design Spec
 Version: v1
 Date: 2026-08-24
-Status: Phase B0 deliverable — agreed before scaffold
+Status: Phase B0 deliverable — agreed before scaffold. **Built as of 2026-08-26** (Tasks 5, 5a and 6); this document is now both the contract and the description of what exists.
 Supersedes for the Mini App: nothing. Extends `weatherteam6-ui-handoff-v1.md` §Design System.
 
 ## Purpose
@@ -124,7 +124,7 @@ One scroll, no internal tabs — carried from the mockup's Crag Detail treatment
 4. **Score and breakdown** — last section, collapsed by default. Today's score only, with the five components and their weights. This is where a score is allowed to be prominent, because the user has scrolled to it deliberately. **Omitted entirely when `is_climbing_location` is false — see the rule below.**
 5. **Sources footer** — required by the locked rule "always quote data sources by name." **Nothing in this list may be hardcoded**, because two of the three sources vary per request:
 
-   - **Forecast model** — read it from the response. `ForecastSnapshot.model_sources` is returned by `/forecast/:id` and says what actually ran. `computeLiveForecast` prefers NBM and falls back to the ensemble; today NBM 400s on every request (issue #22), so live responses come back `["gfs_seamless","ecmwf_ifs025","icon_seamless_eps","gem_global"]`. Writing "Open-Meteo ensemble" as a constant is correct only by accident, and becomes false the moment #22 is fixed.
+   - **Forecast model** — read it from the response. `ForecastSnapshot.model_sources` is returned by `/forecast/:id` and says what actually ran. `computeLiveForecast` calls the ensemble only, as of 2026-08-26 — **issue #22 was diagnosed and the NBM call removed**: Open-Meteo does not define `precipitation_p10/p50/p90` as daily variables and exposes no NBM quantiles under any name, so that branch could never have returned data. Live responses come back `["gfs_seamless","ecmwf_ifs025","icon_seamless_eps","gem_global"]`. Reading the field is still right: writing "Open-Meteo ensemble" as a constant would become false the moment a second source is added.
    - **Rainfall history** — ACIS via `fetchPrecipHistory` when the location has an `asos_station`, else Open-Meteo's archive via `fetchArchivePrecip`. The column is nullable, so branch on it.
    - **Alerts** — always NWS.
 
@@ -206,12 +206,12 @@ Splitting them the other way is worse, not better. A formatter returning a bare 
 
 ## 5. States
 
-Live scoring is slow. A measured `GET /api/v1/conditions/:id` against production took roughly four seconds, because `computeLiveForecast` makes three upstream fetches per request (NBM, which 400s per issue #22, the ensemble fallback, and rainfall history). A detail screen loading conditions and forecast together makes six.
+Live scoring is slow. A measured `GET /api/v1/conditions/:id` against production took roughly four seconds, because `computeLiveForecast` made three upstream fetches per request. **Two as of 2026-08-26** — the ensemble and rainfall history; the NBM call was removed with issue #22. A detail screen loading conditions and forecast together makes four. Treat the four-second figure as still roughly right until it is re-measured.
 
 | State | Treatment |
 | --- | --- |
 | **Loading** | Skeleton cards at the real final dimensions, `card` background, no spinner. Four seconds of spinner reads as broken; a skeleton reads as loading. Never a blocking full-screen loader. |
-| **Empty** | No saved locations. **Unblocked as of 2026-08-25 — §10.1 is answered and the flow is specified in §12.** Copy: *"No locations yet."* with a primary action **"Add a location"** routing to `/add`. This was previously left unwritten because every candidate wording pointed at a dead path; it now points at a real screen, so the §7 rule 7 objection no longer applies. Do not ship the action until `/add` exists — a button to nowhere is the same defect in a new place. |
+| **Empty** | No saved locations. **Unblocked as of 2026-08-25 — §10.1 is answered and the flow is specified in §12.** Copy: *"No locations yet."* with a primary action **"Add a location"** routing to `/add`. This was previously left unwritten because every candidate wording pointed at a dead path; it now points at a real screen, so the §7 rule 7 objection no longer applies. `/add` shipped with Task 6 on 2026-08-26, so the action points somewhere real. |
 | **Error** | Inline within the card or section that failed, not a whole-screen takeover. The list must still render locations whose conditions call failed. Copy: *"Couldn't load conditions. Tap to retry."* Never surface an HTTP status code or a raw error string. |
 | **Stale / offline** | React Query serves cached data and shows a `txt4` timestamp line: *"Updated 12 min ago."* Do not blank the screen on a refetch failure. |
 | **Partial** | A location with a score but no alert data renders the score. A section that failed shows its own error; siblings render normally. |
@@ -386,7 +386,7 @@ Not in the Mini App, in v1 or later without a new spec:
 
    ~~So the choice is: seed `crags` and build the search picker, add a bot command, or ship v1 read-only.~~ **ANSWERED 2026-08-25. Neither option above was taken.** The product call is that this behaves like an ordinary weather app: search any place by name, see its weather first, then choose to save it — with an explicit "is this a climbing area?" toggle rather than the flag being inferred. Full specification in **§12**. This closes the last blocker on §5's empty state, and it reverses the "location search or creation" non-goal in §9.
 2. **The scoring fix behind issue #21.** §7 makes the copy honest; the score itself still charges at most 12 points for any amount of heat, so a settled dry spell scores in the 80s at 103°F. Options: cap the total when any component is 0, apply a multiplicative safety factor, or re-weight temperature above 12. This is a scoring-math change with test implications and belongs in its own change, not in Task 6.
-3. **Caching.** Six upstream fetches for one detail screen. Fine at one user. Fixing issue #22 removes one of three per request for free.
+3. **Caching.** Four upstream fetches for one detail screen, down from six — issue #22 removed one of three per request on 2026-08-26. Fine at one user; still unaddressed as a general concern.
 4. **Degraded scores are invisible to any client.** When the forecast feed has no row for today, `liveForecast.ts` substitutes proxies that award full wind (15/15) and full humidity (8/8) marks, inflating the score with no component zeroed and nothing in the response to say so — only a server-side `logger.warn` (§5, *Silently degraded*). Every surface, bot included, will present that score as ordinary. Making it detectable means adding a field to the conditions response. That was previously ruled out for breaking the build handoff's "no API changes needed" — **but §12.3 breaks that anyway, so the objection is gone and the marginal cost is now small.** Strong candidate to ride along with Task 5a rather than wait for its own change. Either way it stays out of Task 6's UI work: **not a Mini App bug — do not let Task 6 invent a client-side heuristic for it.** Still needs filing as its own issue alongside #21.
 5. **"Today" is a UTC date, not the location's local date.** `liveForecast.ts:47` computes `todayStr` as `now.toISOString().slice(0,10)`, and both Open-Meteo calls set `timezone=UTC` (`openMeteo.ts:333,428`), so every daily bucket is a UTC day. For anywhere in the Americas that means the day labelled "today" rolls over in the **late afternoon local time**: at 18:00 in Las Vegas it is already tomorrow in UTC, so "today's high" is drawn from a bucket spanning tonight and tomorrow afternoon. The `locations` table has a `timezone` column (`schema.ts:60`) and the API returns it, but **nothing reads it** — it is captured and ignored. This is pre-existing and not introduced by §12, but §12 makes it much more visible: a general weather app is checked in the evening far more often than a crag is, and "today's high" being tomorrow's is the kind of error a user notices immediately and cannot explain. Fixing it means passing the location's timezone to Open-Meteo and deriving `todayStr` in that zone. Sized like §10.2; needs its own issue.
 6. **A dry month and a failed rainfall fetch are the same value.** `dryingModel` returns the `720`-hour sentinel with `estimated_dry: true` and `confidence: 'high'` for both a genuine 30-day dry spell and a swallowed ACIS / archive error (§3, display-cap rule). The full 40/40 drying component follows in both cases, so the largest single component in the score is, in the failure case, unearned and asserted confidently. §3's cap stops it rendering as a false precise fact; it does not stop it inflating the score. The fix is a distinguishable no-data result from `dryingModel` — a scoring-layer change with test implications, sized like §10.2 and out of scope here.
@@ -422,13 +422,18 @@ Mapping to the build handoff's own numbering:
 
 ## 12. Adding a location (closes §10.1)
 
-> **Status: the API half is built.** Task 5a shipped all five §12.3 changes on 2026-08-25
-> (`a90613f`, PR #37) and they are live in production. §12.3 below is written in the
-> future tense because it was a specification; read it now as a description of what
-> exists. Verify against the code with `npm run check:add-location`. **The UI half —
-> `/add`, unsaved mode, the save bar, the delete affordance — is not built** and belongs
-> to Task 6. Two behaviours the UI must respect: `/preview` returns no score by design,
-> and the geocoder's `elevation` must be passed to both `/preview` and `POST /locations`.
+> **Status: built, both halves.** Task 5a shipped all five §12.3 changes on 2026-08-25
+> (`a90613f`, PR #37); Task 6 shipped the UI on 2026-08-26 — `/add` with geocoder search
+> and coordinate entry, the preview in unsaved mode, the save bar with the climbing
+> toggle and rock-type picker, and the delete affordance on saved detail. §12.3 below is
+> written in the future tense because it was a specification; read it now as a
+> description of what exists, and verify with `npm run check:add-location`.
+>
+> **Two implementation notes worth keeping.** The preview is held in component state
+> inside `/add`, **not a fourth route** — routing to a separate path and navigating back
+> would discard the search, which is exactly what §2's back-target table forbids. And
+> `/preview` has no alerts endpoint to call (alerts key on a saved location id), so an
+> unsaved preview shows no alert banner and does not claim NWS as a source.
 
 **Product call, 2026-08-25:** this works like saving a location in any ordinary weather app. Search a place by name, see its weather, decide whether to keep it. Climbing is a property of a saved location, not a precondition for saving one.
 

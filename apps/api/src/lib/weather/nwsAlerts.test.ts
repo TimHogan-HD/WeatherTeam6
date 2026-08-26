@@ -33,12 +33,24 @@ describe('fetchNwsAlerts', () => {
     expect(result).toBeNull()
   })
 
-  it('returns empty array when features key is absent from response', async () => {
+  it('returns null when a 200 response has no features array', async () => {
+    // This expectation was `[]` and that was the bug (issue #26). `[]` means
+    // "NWS confirms no active alerts", and `runAlertsCheck` acts on it by
+    // deleting every stored row for the location — taking `notified_at` with
+    // them, so the same alert is re-sent when it reappears. A 200 that is not a
+    // FeatureCollection is an unparseable response, which is what null is for.
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ type: 'FeatureCollection' }), { status: 200 }),
     )
     const result = await fetchNwsAlerts(36.0, -115.0)
-    expect(result).toEqual([])
+    expect(result).toBeNull()
+  })
+
+  it('returns null when a 200 response is an NWS error object', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ title: 'Service Unavailable', status: 503 }), { status: 200 }),
+    )
+    expect(await fetchNwsAlerts(36.0, -115.0)).toBeNull()
   })
 
   it('returns empty array when features is an empty array', async () => {

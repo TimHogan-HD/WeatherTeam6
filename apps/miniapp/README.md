@@ -5,18 +5,36 @@ Vite + React, static build. This is the project's only client; `apps/mobile` is 
 The design contract is `docs/handoffs/miniapp-design-v1.md` and it is binding. Read it
 before writing a screen — if a decision is not written there, it is not settled.
 
-## What is here (Crossover Task 5 — the shell)
+## What is here (Tasks 5 and 6 — the shell and all three screens)
 
 | Path | Purpose |
 | --- | --- |
 | `src/theme/tokens.css.ts` | Web adapter for `@weatherteam6/design/tokens`. `type`, `shadow` and `layout` are React Native shaped and cannot be used directly (§0a). |
+| `src/theme/styles.ts` | The per-entry `components` audit §0a asks for, plus the alert tint derived from `colors.poor` (the palette has `goodTint` and `fairTint` but no `poorTint`). |
 | `src/theme/fonts.ts` | Maps the `expo-font` family names onto CSS families and fallback stacks. `BarlowCondensed` → `"Barlow Condensed"`. |
 | `src/theme/cssVars.ts` | Renders the tokens as `:root` custom properties. Served through the `virtual:wt6-tokens.css` module built in `vite.config.ts`, so the block lands in the bundled stylesheet rather than being injected after first paint. |
 | `src/theme/globals.css` | Gradient surface, safe-area padding, viewport height. Every `--tg-*` reference carries a fallback (§1). |
 | `src/telegram/` | Typed `Telegram.WebApp` surface, chrome bootstrap with per-method version gating, and the `BackButton` hook. |
-| `src/routes/` | The three routes (§2). Bodies are placeholders — Task 6 fills them in. |
+| `src/routes/` | The three routes (§2): `LocationList`, `LocationDetail`, `AddLocation`. |
+| `src/components/` | `DetailView` is shared by saved detail and the add flow's preview — the preview is that screen in unsaved mode, which is why `/add` is the only new screen §12 needed. |
+| `src/hooks/` | Every API call. Components never call `fetch`. |
+| `src/lib/api.ts` | The only place that calls `fetch`. Attaches `Authorization: tma <initData>`. |
+| `src/lib/forecast.ts` | Today's row, date labels, and the source attribution — the logic that renders a wrong *value* rather than an error, so it is the part under test. |
 | `src/lib/queryClient.ts` | React Query defaults fixed by §5. |
 | `src/config/env.ts` | `VITE_API_BASE_URL`. Nothing secret may be read here — this bundle is public. |
+
+`VITE_API_BASE_URL` is the API **origin**; `src/lib/api.ts` appends `/api/v1`. A value
+that already ends in `/api/v1` is accepted rather than doubled, because the docs
+describing this variable are not unanimous and the failure mode is a 404 inside
+Telegram, where there is no preview deployment to debug against.
+
+## Auth
+
+The Mini App sends `Telegram.WebApp.initData` as `Authorization: tma <initData>`. The
+API validates it by HMAC against `TELEGRAM_BOT_TOKEN` and checks the signed `user.id`
+against `TELEGRAM_CHAT_ID`; the token never reaches this bundle. **Outside Telegram
+there is no initData and every call returns 401** — that is expected, and the screens
+render their error states rather than crashing.
 
 ## Commands
 
@@ -24,6 +42,7 @@ before writing a screen — if a decision is not written there, it is not settle
 npm run dev -w @weatherteam6/miniapp        # Vite dev server on :5173
 npm run build -w @weatherteam6/miniapp      # tsc --noEmit && vite build → dist/
 npm run preview -w @weatherteam6/miniapp    # serve dist/ on :4173
+npm run test -w @weatherteam6/miniapp       # vitest, node environment
 ```
 
 `packages/types` and `packages/design` must be built first (`npm run build --workspace=packages/types --workspace=packages/design`). The root `postinstall` does this.

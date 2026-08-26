@@ -65,8 +65,15 @@ export async function fetchNwsAlerts(lat: number, lon: number): Promise<NwsAlert
     return null
   }
 
+  // A 200 whose body is not a FeatureCollection is an unparseable response, not
+  // a confirmation that nothing is active — an NWS error object, a maintenance
+  // page, or a schema change all land here. Returning [] would tell the caller
+  // "NWS says no alerts", and `runAlertsCheck` would delete every stored row for
+  // the location. That destroys `notified_at` along with them, so when the same
+  // alert reappears it is re-inserted unnotified and sent to the user again.
   if (!Array.isArray(data.features)) {
-    return []
+    logger.warn({ lat, lon }, '[nwsAlerts] 200 response was not a FeatureCollection')
+    return null
   }
 
   return data.features.flatMap((feature) => {

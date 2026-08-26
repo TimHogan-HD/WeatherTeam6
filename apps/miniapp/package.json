@@ -9,9 +9,10 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
-    "test": "echo 'no tests' && exit 0"
+    "test": "vitest run"
   },
   "dependencies": {
+    "@tabler/icons-react": "^3.46.0",
     "@tanstack/react-query": "^5.102.3",
     "@weatherteam6/design": "*",
     "@weatherteam6/types": "*",
@@ -24,6 +25,7 @@
     "@types/react-dom": "~19.2.5",
     "@vitejs/plugin-react": "^6.1.0",
     "typescript": "^5.7.2",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "vitest": "^2.0.0"
   }
 }

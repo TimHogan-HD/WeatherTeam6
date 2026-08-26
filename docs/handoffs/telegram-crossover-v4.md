@@ -23,9 +23,13 @@ not started.
 >
 > **Update 2026-08-25 (later the same day).** **Task 5 is COMPLETE.** The shell merged as
 > `b06ebed` (PR #38), deployed to https://weatherteam6.vercel.app, registered as the
-> bot's menu button, and confirmed open inside Telegram. Tasks 1–5 and 5a are now all
-> done; **Task 6 is next and is blocked only on `initData` HMAC validation.** See Task
-> 5's section below for what was confirmed on real hardware.
+> bot's menu button, and confirmed open inside Telegram. See Task 5's section below for
+> what was confirmed on real hardware.
+>
+> **Update 2026-08-26. Task 6 is COMPLETE** — `initData` HMAC auth landed as its own
+> change, then the three screens. **Task 7 is the only one left.** Note that Task 7
+> needs `/newapp` run in @BotFather for the `startapp` deep link; that has still not
+> been done.
 >
 > The running record of what is built is
 > `.claude/docs/session-notes.md`; the phase table in `.claude/docs/plan.md` mirrors
@@ -202,7 +206,7 @@ open inside Telegram on Android.
   maps `BarlowCondensed` → `"Barlow Condensed"`, plus a generated `:root` block of
   custom properties. Every value derives from an import.
 - ✅ All three routes from §2 with Telegram's `BackButton` as the only back affordance,
-  per-route rather than a blanket "navigate to `/`". Screens are placeholders — Task 6.
+  per-route rather than a blanket "navigate to `/`". Screens were placeholders here; Task 6 replaced them.
 - ✅ React Query provider on §5's settings.
 
 **Deployed:**
@@ -257,18 +261,40 @@ scope") is reversed by it.
 **Acceptance:** `npm run check:add-location` — boots the API against a real database and
 walks the whole flow. 16 checks, all passing. ✅ Merged as `a90613f` (PR #37).
 
-## ⬜ Task 6 — Mini App screens (NOT STARTED)
+## ✅ Task 6 — Mini App screens + auth (COMPLETE 2026-08-26)
 
-- Port the two screens already designed (location list; location detail with factor
-  breakdown, confidence, 7-day forecast table)
-- Wire to Task 2's endpoints
-- Validate `Telegram.WebApp.initData` server-side via HMAC using `TELEGRAM_BOT_TOKEN`
-  before returning data — token stays server-side only, never in the client bundle
-- Score stays non-headline: plain-language status leads, numeric score small and
-  secondary
+Built to `miniapp-design-v1.md`, which supersedes the two-screen sketch below — the
+Mini App has **three** routes, because §12 added `/add`.
 
-**Acceptance:** Mini App shows the real saved-location list; tapping through shows real
-score, forecast, alert state. No mock data anywhere.
+- **`initData` HMAC validation shipped first, as its own change.** A second accepted
+  scheme (`Authorization: tma <initData>`) alongside `Bearer $API_SHARED_SECRET`,
+  never replacing it. The signed `user.id` is also checked against
+  `TELEGRAM_CHAT_ID` — a valid signature only proves the launch came from *a*
+  Telegram user, and anyone who finds the bot can open its menu button. The token
+  stays server-side; the built bundle carries no credential.
+- **Location list** — one card per location, weather-first, small score chip last.
+  The conditions call is skipped for a non-climbing location, so a city never gets a
+  rock-drying score.
+- **Location detail** — alert banner, today, 7-day weather, collapsed score and
+  breakdown, computed sources footer. Plus the delete affordance.
+- **`/add`** — geocoder search with `admin1, country` disambiguation, a hand-entered
+  coordinate path, preview in unsaved mode, and the save bar with the climbing
+  toggle and rock-type picker.
+- Score stays non-headline, and is **suppressed as a summary** whenever a component
+  is 0 or a Severe+ alert is active — the state ladder and that rule live in
+  `packages/types/src/conditionsCopy.ts` so the bot can share them.
+
+**Acceptance:** the add flow was run end to end against the real API and real
+upstreams. `GET /geocode` returned the three different "Red Rock Canyon" parks;
+`/preview` with the Nevada result's elevation returned seven days in 3.9 s and
+exercised `fetchArchivePrecip`, which no seeded location reaches. 50 new tests cover
+the copy model, the formatters, and the detail screen rendered for real. **Not
+verified:** the list and saved-detail screens against real data — both need a
+database and there is no local one.
+
+**Still open from this task's own copy rule:** the bot's `statusLabel()` still maps
+score to an opinion. That is issue #21's other half and travels with the HTML
+escaping fix (#26).
 
 > **Note added 2026-07-31:** the "two screens already designed" were designed in the
 > session that produced this doc and are **not in the repo**. Treat the existing mobile

@@ -3,7 +3,7 @@
 Climbing conditions platform + general weather app. Core purpose: tell the user if a crag is climbable now, over the next 7 days, and support trip planning weeks out with improving forecast confidence over time.
 
 ## Stack
-- **Client:** Telegram bot + Telegram Mini App (`apps/miniapp`, Vite + React — Task 5 shell live at https://weatherteam6.vercel.app, opened from the bot's menu button; screens are Task 6)
+- **Client:** Telegram bot + Telegram Mini App (`apps/miniapp`, Vite + React — live at https://weatherteam6.vercel.app, opened from the bot's menu button. All three screens built in Task 6; authenticated by `initData` HMAC as a second `Authorization` scheme)
 - **Mobile (ARCHIVED):** React Native + Expo lives in `apps/mobile`. Superseded by the Mini App as of 2026-07-31 — code retained, out of the build, do not add features to it.
 - **Backend:** Node.js + TypeScript + Express, wrapped as a single serverless function on Vercel (`apps/api/api/index.ts`)
 - **ORM:** Drizzle (schema-as-TypeScript, SQL-close queries — never substitute Prisma)
@@ -34,8 +34,8 @@ npm run check:add-location  # acceptance check for the add-location flow (Task 5
 ```
 apps/
   api/              # Express API + Vercel serverless entry (api/index.ts)
-  miniapp/          # Telegram Mini App — Vite + React. Shell built (Task 5);
-                    #   screens are Task 6. See apps/miniapp/README.md.
+  miniapp/          # Telegram Mini App — Vite + React. All three real
+                    #   screens (list, detail, /add). See apps/miniapp/README.md.
                     #   Token adapter: src/theme/tokens.css.ts — never import
                     #   `type`/`shadow`/`layout` from packages/design directly.
   mobile/           # ARCHIVED — React Native + Expo. No new features.
@@ -110,7 +110,7 @@ Full paths:
 - **Build plan:** `.claude/docs/plan.md`
 
 **Direction (read first):**
-- `docs/handoffs/telegram-crossover-v4.md` — **authoritative product direction.** Telegram bot + Mini App replaces the native app. Tasks 1-4 complete, plus **Task 5a (add-location API, merged `a90613f`)** — a task added later and listed in that doc between Tasks 5 and 6, despite its name it is backend work unrelated to Task 5. **Task 5 (Mini App shell) is next**, then Task 6, then Task 7.
+- `docs/handoffs/telegram-crossover-v4.md` — **authoritative product direction.** Telegram bot + Mini App replaces the native app. Tasks 1-4 complete, plus **Task 5a (add-location API, merged `a90613f`)** — a task added later and listed in that doc between Tasks 5 and 6, despite its name it is backend work unrelated to Task 5. **Tasks 5, 5a and 6 are complete; Task 7 is the only one left.**
 
 **UI Design Handoffs:**
 - `docs/handoffs/weatherteam6-ui-handoff-v1.md` — written for the archived mobile app, but its **§Design System is still in force and client-agnostic**: locked contrast rules, layout constants, and copy rules. Read before any Mini App UI work. §7b (Home), §7c (Location Detail), §7e (Locations) are the closest existing specs to the Mini App's screens. Note the Mini App has **three** routes, not two — §12 added `/add`; the "two screens" phrasing predates it.

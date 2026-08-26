@@ -1,3 +1,90 @@
+---
+
+## 2026-08-26 (continued) — branch: claude/task-6-miniapp-screens — commits: 899462f, 76dc4a6, 4e71f21
+
+**Phase completed:** continuous review of Task 6 and of the wider codebase, with fixes. No new features.
+
+**Nine defects found and fixed. Every one passed typecheck, lint and the test suite.**
+
+*In this session's own Task 6 code (`2edb9fe`):*
+- Keyboard activation of the list card's retry button opened the location instead of retrying — keydown bubbles to the card, and its `preventDefault()` cancelled the inner button. Now ignores key events not originating on the card.
+- The score could render before the alerts query settled, briefly showing an unsuppressed score for a location under an active Severe+ warning — the exact state §7 rule 4 exists to prevent. Both the card and the detail screen now wait.
+- A failed alerts fetch read as "no alerts" on the list card.
+- `request()` accepted a `Headers` instance it would silently discard, dropping the Authorization header and turning every call into a 401 that looks like an auth bug.
+
+*Live Telegram bugs (`f5f1e3d`):*
+- **Unescaped HTML in every outgoing message (#26).** An `&` in an NWS headline is a 400, which is non-retryable, so `notifyPendingAlerts` released the claim and retried the identical broken message every 15 minutes forever.
+- **`/start` and the usage reply had never been delivered.** Both contain `<location name>`, which Telegram rejects as an unsupported start tag. Not previously filed — found while auditing the escaping.
+- **A malformed 200 from NWS deleted every stored alert (#26).** `fetchNwsAlerts` returned `[]`, contradicting its own contract, and `runAlertsCheck` acted on it by deleting the location's rows — `notified_at` with them, so the same alert re-sends.
+
+*Forecast and scoring (`3353f6f`):*
+- **#22 diagnosed and closed.** Open-Meteo defines no NBM precipitation quantiles under any name — verified variable by variable against the live API. The NBM branch could never have returned data; the call is removed. Two upstream fetches per request now, not three.
+- **Every day's wind component was computed from today's wind.** A day-7 score reported a wind rating measured six days earlier, and all seven days carried an identical wind component.
+
+**Also done:** the §7 copy model applied to the bot (`statusLabel()` deleted, shared ladder and suppression imported, sources computed, no score for a non-climbing location). Two pure modules extracted — `lib/telegram/alertMessage.ts` and `conditionsMessage.ts` — because `checkAlerts.ts` and `conditionsReply.ts` import `db`, which throws at import time without `DATABASE_URL` and takes any test importing it down.
+
+**Test coverage went from 215 to 250.** `computeLiveForecast` had none at all despite being the path every conditions and forecast response takes; it has 10 now.
+
+**Known issues / deferred work:**
+- **#21's scoring half is still open** and is the one that matters most: heat costs at most 12 of 100 points and saturates above 35 °C. The copy is honest about it now; the number is still wrong.
+- **#25 and #27 untouched.**
+- **New, filed in plan.md:** `ScoreInput` uses one field for both the humidity component and the drying humidity modifier, so per-day humidity cannot be fixed without moving the drying calculation too.
+- Still nothing confirmed inside Telegram, and the list and saved-detail screens still have not run against real data.
+
+**Gotchas for next session:**
+- **Nothing here was caught by a tool.** Nine defects, all passing typecheck, lint and the suite. Reading the diff is the control that works.
+- **`fetchNBM` is still exported and still tested, and is called by nothing.** That is deliberate — restoring it is one line if Open-Meteo ever exposes quantiles. Do not "clean it up" without reading the comment at its old call site.
+- **A string literal needs HTML escaping too.** `/start` proves it.
+- **Check the whole file's line endings before scripting a multi-line replacement.** One `sed`-style edit left a lone `` mid-line that typechecked fine and read as a merged import.
+---
+
+## 2026-08-26 — branch: claude/task-6-miniapp-screens — commit: 8a2c430 (screens), f48bad0 (auth, squashed to `main` as PR #39)
+
+**Phase completed:** Crossover Task 6 — Mini App screens + `initData` auth. Two commits, auth first and on its own.
+
+**What was built this session:**
+
+*Auth (merged to `main` as `f48bad0`, PR #39 — branch `claude/miniapp-initdata-auth`, since deleted):*
+- `apps/api/src/lib/telegram/initData.ts` — NEW. `validateInitData(raw, botToken, nowMs?)`, pure: no env reads, no Express types. HMAC-SHA256 with the `WebAppData`-derived secret key.
+- `apps/api/src/middleware/apiAuth.ts` — a **second accepted scheme** on the same header: `Authorization: tma <initDataRaw>` alongside `Bearer $API_SHARED_SECRET`. The Bearer path is unchanged and an unset shared secret still 503s under **both** schemes.
+- The signed `user.id` is checked against `TELEGRAM_CHAT_ID`. Without it, any Telegram account that found the bot would hold `DEFAULT_USER_ID`'s rights.
+- 27 tests across `initData.test.ts` and `apiAuth.test.ts`.
+
+*Screens (`8a2c430`):*
+- `packages/types/src/units.ts` — §4 formatters, every input `number | null`.
+- `packages/types/src/conditionsCopy.ts` — §7 state ladder, suppression rule, `formatHoursSinceRain`'s 30-day cap. Shared so the bot can use them.
+- `packages/types/src/scoreComponents.ts` — `SCORE_COMPONENT_MAX` moved out of `index.ts` so the copy model imports it without a cycle. Still re-exported.
+- `apps/miniapp/src/lib/api.ts`, `src/hooks/*` — the only `fetch` in the app, and every call through a React Query hook.
+- `apps/miniapp/src/components/*` — `DetailView` (shared by saved detail and the unsaved preview), `LocationCard`, `ScoreSection`, `Weather`, `Alerts`, `SaveBar`, `SourcesFooter`, `States`, `Icons`.
+- `apps/miniapp/src/routes/*` — all three real; `ScreenScaffold.tsx` deleted.
+- `apps/miniapp/src/theme/styles.ts` — the per-entry `components` audit §0a asks for. `withOpacity` exported from the adapter so the alert tint derives from `colors.poor` rather than introducing a colour.
+- `vitest` added to `packages/types` and `apps/miniapp`, node environment only.
+
+**What was verified, and how:**
+- **Auth, over real HTTP against a locally run API:** no credential 401, owner `initData` 200, another Telegram user's *validly signed* initData 401, stale (>24 h) and tampered initData 401, `Bearer` still 200, unset `API_SHARED_SECRET` 503 under both schemes, and `/api/cron/*` + `/api/telegram/*` unaffected.
+- **The add flow, end to end against real upstreams:** `GET /geocode?q=red rock canyon` returned the three different parks (Oklahoma 480 m, California 738 m, Nevada 1200 m); `GET /preview` with the Nevada elevation returned 7 days in 3.9 s; the client's own helpers formatted every row. **This exercised `fetchArchivePrecip` for the first time** — the previously-unrun branch the last session's gotcha predicted a bug in. No bug; the lapse-rate correction showed as 104 °F vs 103 °F with and without elevation.
+- 50 new tests (22 in `packages/types`, 28 in `apps/miniapp`). Repo total 215, all passing. Typecheck 7/7, lint 5/5, Mini App bundle builds and contains no credential.
+
+**Known issues / deferred work:**
+- **The list and saved-detail screens have never been run against real data.** Both need a database and there is no local one. Their display logic is covered by fixture-based render tests; the wiring to `/locations`, `/conditions/:id` and `/alerts/:id` is not.
+- **Nothing has been opened inside Telegram yet.** There is no preview-deploy path, so the Telegram round trip only happens after this ships to production.
+- **The bot's `statusLabel()` is untouched** and still maps score to an opinion, violating §7 rule 1 on that surface. It is issue #21's other half and travels with #26's HTML escaping fix — doing it here would have turned a UI task into a live-bot change.
+- An unsaved preview shows **no alert banner**: `/alerts/:id` keys on a saved location id and there is no preview equivalent. It correctly does not claim NWS as a source either.
+- All five issues (#21, #22, #25, #26, #27) still open. #22 re-confirmed live this session — `model_sources` came back as the ensemble, never NBM.
+- cron-job.org still unregistered. `/newapp` still not run in @BotFather (Task 7 needs it).
+
+**Blockers for next session:**
+- None for Task 7. It needs `/newapp` run in @BotFather before the `startapp` deep link can be tested.
+
+**What's next:** Task 7 — `git checkout -b claude/task-7-deep-link-archive` off `main` — read `docs/handoffs/telegram-crossover-v4.md` § Task 7 and the turbo/lint correction in the 2026-08-24 entry below (removing `apps/mobile` from the build is a `package.json` scripts change, not a `turbo.json` one).
+
+**Gotchas for next session:**
+- **Four defects in this session's own code were found by reviewing the diff, not by any tool.** All four passed typecheck, lint, and the test suite: a `<button>` nested inside the card's `<button>`, a fixed save bar with a guessed 260px clearance that the rock-type row would have overflowed, alerts failing silently instead of visibly, and `NWS` named as a source when the alerts call had failed. Read the diff.
+- **A fifth was found by a test, and only because the test existed:** `formatForecastDate` rendered the literal string `Invalid Date` for an unparseable input, because the guard checked `undefined` and `Number('not')` is `NaN`.
+- **The Mini App's tests deliberately have no DOM.** `renderToStaticMarkup` needs none, and adding jsdom or a testing library would pull more of a browser stack into a workspace whose vite resolution is already delicate (the root `vite` pin). A test needing a click does not belong there as things stand.
+- **`TELEGRAM_CHAT_ID` must be the private-chat id** — which equals the owner's Telegram user id. A group chat id would make every Mini App request 401 with nothing on screen to explain why. Noted in CLAUDE.md's env table.
+- **Both Vercel projects deploy from one PR and neither check says anything about the other.** The auth change only affects the API project; the screens only affect the Mini App project.
+
 
 ---
 

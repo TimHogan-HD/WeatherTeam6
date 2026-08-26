@@ -1,0 +1,6 @@
+{
+  // Tests stay inside src so `tsc --noEmit` typechecks them, but they must not
+  // be emitted into dist and shipped to consumers. Mirrors apps/api's split.
+  "extends": "./tsconfig.json",
+  "exclude": ["src/**/*.test.ts"]
+}
