@@ -180,7 +180,7 @@ plain-language status. ✅
 
 ## 🟡 Task 5 — Mini App shell (CODE COMPLETE, NOT YET DEPLOYED)
 
-**Updated 2026-08-25.** The scaffold is built and merged. The two steps that need a
+**Updated 2026-08-25.** The scaffold is built and merged — `b06ebed` (PR #38). The two steps that need a
 Vercel dashboard and @BotFather are outstanding, and until they are done the task's
 acceptance criterion is unmet — do not record it as complete.
 
