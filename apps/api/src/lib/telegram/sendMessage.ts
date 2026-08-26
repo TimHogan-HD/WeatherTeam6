@@ -16,11 +16,34 @@ export type InlineKeyboardMarkup = {
 }
 
 /**
+ * A rejection Telegram will give identically on every future attempt — a 4xx
+ * other than 429, e.g. the 400 an unsupported HTML tag or a malformed button
+ * URL earns.
+ *
+ * Callers need to tell this apart from a transient failure. `notifyPendingAlerts`
+ * releases its claim on a failed send so the next cron run retries; without this
+ * distinction it released the claim for permanent failures too and re-sent the
+ * identical rejected message on every run, forever.
+ */
+export class TelegramPermanentError extends Error {
+  readonly status: number
+
+  constructor(status: number) {
+    super(`Telegram sendMessage returned ${status}`)
+    this.name = 'TelegramPermanentError'
+    this.status = status
+  }
+}
+
+/**
  * Send a plain-text message to the single configured Telegram chat, with
  * exponential backoff retry on transport failures and 429/5xx responses.
  *
  * `replyMarkup` is left out of the request body entirely when absent, rather
  * than sent as `reply_markup: undefined`.
+ *
+ * @throws {TelegramPermanentError} on a non-429 4xx — retrying is pointless.
+ * @throws {Error} on transport failure or 429/5xx after all attempts.
  */
 export async function sendTelegramMessage(
   text: string,
@@ -51,12 +74,15 @@ export async function sendTelegramMessage(
       if (res.status !== 429 && res.status < 500) {
         const body = await res.text().catch(() => '')
         logger.warn({ statusCode: res.status, body: body.slice(0, 200) }, '[telegram] sendMessage rejected')
-        throw new Error(`Telegram sendMessage returned ${res.status}`)
+        throw new TelegramPermanentError(res.status)
       }
       lastErr = new Error(`HTTP ${res.status}`)
     } catch (err) {
       lastErr = err instanceof Error ? err : new Error(String(err))
-      if (lastErr.message.startsWith('Telegram sendMessage returned')) throw lastErr
+      // Rethrow by type, not by message prefix — a message-shape check breaks
+      // silently the moment the wording changes, and "breaks silently" here
+      // means retrying a rejection three more times.
+      if (lastErr instanceof TelegramPermanentError) throw lastErr
     }
     if (attempt < maxAttempts - 1) {
       const delay = Math.pow(2, attempt) * 1000

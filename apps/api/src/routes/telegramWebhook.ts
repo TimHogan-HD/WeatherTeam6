@@ -3,6 +3,7 @@ import { logger } from '../lib/logger.js'
 import { escapeTelegramHtml } from '@weatherteam6/types'
 import { buildConditionsReply } from '../lib/telegram/conditionsReply.js'
 import { sendTelegramMessage } from '../lib/telegram/sendMessage.js'
+import { webhookSecretAccepted } from '../lib/telegram/webhookAuth.js'
 
 export const telegramWebhookRouter = Router()
 
@@ -14,11 +15,29 @@ type TelegramUpdate = {
 }
 
 telegramWebhookRouter.post('/webhook', async (req: Request, res: Response) => {
+  // Always ack with 200, whatever the reason for refusing: a non-200 makes
+  // Telegram redeliver the same update, and revealing that this endpoint exists
+  // to an unauthorized caller is the thing being avoided.
+  const webhookSecret = process.env['TELEGRAM_WEBHOOK_SECRET']
+  if (!webhookSecret) {
+    logger.warn(
+      '[telegramWebhook] TELEGRAM_WEBHOOK_SECRET is not set — falling back to the forgeable chat.id check alone',
+    )
+  }
+  if (!webhookSecretAccepted(req.headers['x-telegram-bot-api-secret-token'], webhookSecret)) {
+    logger.warn('[telegramWebhook] rejected update: bad or missing secret token')
+    res.sendStatus(200)
+    return
+  }
+
   const update = req.body as TelegramUpdate
   const chatId = update.message?.chat?.id
-  const expectedChatId = process.env['TELEGRAM_CHAT_ID']
+  const expectedChatId = process.env['TELEGRAM_CHAT_ID']?.trim()
 
   // This IS the auth boundary for the bot (single-user) — the API itself stays AUTH_ENABLED=false.
+  // Trimmed to match `requireApiAuth`, which trims the same variable: an
+  // accidental trailing space in the Vercel value would otherwise authorize the
+  // Mini App and silently reject every bot command.
   if (!expectedChatId || String(chatId) !== expectedChatId) {
     res.sendStatus(200) // ack silently — never reveal to an unauthorized chat that this endpoint exists
     return

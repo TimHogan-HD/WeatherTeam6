@@ -163,8 +163,24 @@ describe('formatHoursSinceRain', () => {
 
   it('renders real figures below the sentinel', () => {
     expect(formatHoursSinceRain(72)).toBe('no rain in 72h');
-    expect(formatHoursSinceRain(0)).toBe('no rain in 0h');
-    expect(formatHoursSinceRain(719.6)).toBe('no rain in 720h');
+    expect(formatHoursSinceRain(1)).toBe('no rain in 1h');
+  });
+
+  it('never prints the sentinel figure itself, however the rounding falls', () => {
+    // §3 is binding: "never no rain in 720h". Testing the raw value before
+    // rounding let 719.5–719.99 through the cap and then printed exactly that.
+    expect(formatHoursSinceRain(719.6)).toBe('no rain in 30+ days');
+    expect(formatHoursSinceRain(719.5)).toBe('no rain in 30+ days');
+    expect(formatHoursSinceRain(719.4)).toBe('no rain in 719h');
+  });
+
+  it('says it rained rather than reporting negative hours', () => {
+    // dryingModel measures from the end of the rain day (23:59:59Z), so rain
+    // dated today is in the future relative to now: at midday that is -14h.
+    // "no rain in -14h" states the opposite of what happened.
+    expect(formatHoursSinceRain(-14)).toBe('rain today');
+    expect(formatHoursSinceRain(0)).toBe('rain today');
+    expect(formatHoursSinceRain(0.4)).toBe('rain today');
   });
 
   it('renders an em dash for null', () => {

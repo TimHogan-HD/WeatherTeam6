@@ -67,6 +67,33 @@ describe('parseEnsemble', () => {
     expect(result.model_sources).toContain('gfs_seamless')
   })
 
+  it('names only the models it actually reads, not every model in the payload', () => {
+    // Regression for a false attribution that reached the Mini App's sources
+    // footer. `model_sources` used to list ecmwf/icon/gem whenever their member
+    // keys were merely present, but every extraction filters on the GFS suffix,
+    // so those models contribute to no percentile, min/max or mean.
+    //
+    // It survived because `buildSyntheticHourly` only ever emits GFS keys — the
+    // three wrong branches were unreachable from the fixture. The suffixes below
+    // are the real ones, verified against the live ensemble API 2026-08-26.
+    const hourly = buildSyntheticHourly(3, '2025-06-01')
+    for (const suffix of ['_ecmwf_ifs025_ensemble', '_icon_seamless_eps', '_gem_global_ensemble']) {
+      hourly[`precipitation_member01${suffix}`] = Array(24).fill(99)
+      hourly[`temperature_2m_member01${suffix}`] = Array(24).fill(99)
+    }
+
+    const result = parseEnsemble(hourly)
+
+    expect(result.model_sources).toEqual(['gfs_seamless'])
+    // And the values are unmoved by the members it does not read.
+    expect(result.days[0]?.temp_c_max).toBe(23)
+  })
+
+  it('reports no model sources when the payload carries no GFS members', () => {
+    const result = parseEnsemble({ time: makeTimes('2025-06-01') })
+    expect(result.model_sources).toEqual([])
+  })
+
   it('satisfies p10 <= p50 <= p90 ordering on precipitation', () => {
     const hourly = buildSyntheticHourly(10, '2025-06-01')
     const result = parseEnsemble(hourly)

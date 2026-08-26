@@ -157,8 +157,21 @@ export const DRY_SENTINEL_HOURS = 720;
  */
 export function formatHoursSinceRain(hours: number | null): string {
   if (hours === null) return EM_DASH;
-  if (hours >= DRY_SENTINEL_HOURS) return 'no rain in 30+ days';
-  return `no rain in ${Math.round(hours)}h`;
+
+  // Round *before* testing the cap, not after. §3 is binding that no surface may
+  // render "no rain in 720h"; testing the raw value let 719.5–719.99 past the
+  // cap and then printed exactly that figure.
+  const rounded = Math.round(hours);
+  if (rounded >= DRY_SENTINEL_HOURS) return 'no rain in 30+ days';
+
+  // Zero and negative are routine, not corruption. `dryingModel` measures from
+  // the *end* of the rain day (23:59:59Z), so significant rain dated today is
+  // still in the future relative to now and yields a negative figure — about
+  // -14h at midday. Rendering that as "no rain in -14h" states the opposite of
+  // what happened, on precisely the day the answer matters most.
+  if (rounded <= 0) return 'rain today';
+
+  return `no rain in ${rounded}h`;
 }
 
 /**

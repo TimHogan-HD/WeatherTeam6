@@ -1544,3 +1544,57 @@ Verification added with the fixes: a 40-check adapter harness that converts **ev
 - **`VITE_API_BASE_URL` is the API origin with no `/api/v1` suffix and no trailing slash** (`env.ts` strips trailing slashes but not a path). Task 6's hooks append the prefix. It is inlined into a public bundle at build time — never put a credential in a `VITE_*` variable.
 - **There is no preview-deploy path for testing inside Telegram.** Origin lockdown plus per-deployment preview URLs mean the only way to see a change in Telegram is to ship it to the production domain. Plan Task 6 around that: verify in a browser first, because the Telegram round trip is slow and unbatched.
 - The four Telegram-only behaviours above are now confirmed working. If a later change breaks the header colour, the fonts, or the safe areas, it is a regression with a known-good baseline — not an untested unknown.
+
+---
+
+## 2026-08-26 — branch: chore/deep-review-cleanup — commit: (pending)
+
+**Phase completed:** Deep review, debug and cleanup pass — the session the previous block briefed, and the item the user put ahead of everything else.
+
+**What was built this session:**
+
+Seven defects fixed, all of which had passed typecheck, lint and the full suite:
+
+- `packages/types/src/conditionsCopy.ts` — `formatHoursSinceRain` rendered **"no rain in -14h"** whenever it had rained today, and **"no rain in 720h"** for raw values 719.5–719.99. The second violates a §3 rule that is written as binding. Both proven by running the code, not by reading it.
+- `apps/api/src/lib/scoring/dryingModel.ts` — clamped `hours_since_significant_rain` at 0. It measures from the *end* of the rain day (23:59:59Z), so rain dated today was still in the future relative to `asOf` and produced a negative elapsed time. Changes no score: `conditionsScore` already floors the drying component at `hoursSinceRain <= 0`.
+- `apps/api/src/routes/trips.ts` — `DELETE /trips/:tripId` now clears `trip_locations` in the same transaction. It had **never once succeeded**: `POST /trips` requires at least one location, so every trip hit the foreign-key violation and got a generic 500.
+- `apps/api/src/lib/weather/openMeteo.ts` — `model_sources` reported ECMWF, ICON and GEM as forecast sources. Every extraction in `parseEnsemble` filters on `GFS_SUFFIX`, so those three contribute to no number on screen. The list is rendered verbatim in the Mini App footer and the bot reply, so this was a false attribution in production.
+- `apps/api/src/lib/weather/openMeteo.ts` — `fetchEnsemble` now sets `timezone=UTC` explicitly. Three comments already claimed it did; it was relying on Open-Meteo's GMT default.
+- `apps/api/src/lib/telegram/sendMessage.ts` + `lib/alerts/checkAlerts.ts` — added `TelegramPermanentError`. `notifyPendingAlerts` released its claim on *every* failed send, so a message Telegram rejects identically every time (a 400 from a bad tag or button URL) was re-sent on every cron run forever. Permanent rejections now keep the claim.
+- `apps/api/src/lib/telegram/webhookAuth.ts` (new) — issue #27. `secret_token` verification, pure and separately tested, in its own module because importing the route pulls in the database client.
+
+Supporting work:
+
+- `apps/api/src/scripts/checkDeleteTrip.ts` + `npm run check:delete-trip` — the trips fix is a Postgres constraint error, which vitest cannot see.
+- 36 new tests (255 → 291). Two of them replace assertions that could not fail.
+- `sendMessage.test.ts` retry tests moved to fake timers: 14,088ms → 23ms.
+
+**Known issues / deferred work — found, deliberately NOT fixed:**
+
+- **`GET /forecast/:id` and `GET /conditions/:id` each run `computeLiveForecast` independently.** Opening one location detail therefore makes 2 ensemble + 2 rainfall upstream fetches; the list screen makes 3 requests per card, so N climbing locations cost 2N of each. Fixing it means a request-scoped cache or a combined endpoint — an API change, not a cleanup.
+- **The ensemble request asks for four models and reads one.** 859 hourly keys downloaded and parsed per call, roughly three quarters discarded. Narrowing the request and widening `parseEnsemble` to actually use all four are the two ends of one decision, and the second moves every score. **Needs the user.**
+- **A swallowed rainfall fetch still scores as full drying credit.** `liveForecast` catches the ACIS/archive error, leaves `rainfallEvents` empty, and `dryingModel` returns the 720 sentinel — 40/40 on the heaviest component. The *display* is honest ("no rain in 30+ days"); the *score* is not. Distinguishing "no rain found" from "never asked" is a scoring change, so it was left alone.
+- **`parseEnsemble` substitutes `0` for a missing temperature and `50` for missing humidity**, and `DailyForecast` types them non-nullable. `ForecastSnapshot` is `number | null` and the formatters return an em dash — but that path is unreachable from the live forecast, so a partial upstream response renders as a plausible **32°F / 0 mph** rather than a visible gap. Fixing it means making `DailyForecast` nullable and deciding what the scorers do with a null, which touches `ScoreInput`.
+- **#25 unchanged** — `/history` and `/normals` still return `[]` forever. Still needs a design call on where the write goes.
+- **#27 half-closed** — no `update_id` dedupe. It needs a table to record seen ids, so it is a schema change. Exposure is small: Telegram only redelivers when it times out waiting for our 200, and the route always answers 200.
+- **Cosmetic, user's call:** the Mini App's `Wind to` label still renders uppercased as **"WIND TO"**. Left alone, as the previous block asked.
+- **The score algorithm (#21's open half) was not touched**, per the standing instruction.
+
+**Blockers for next session:**
+
+- None for the code. The webhook fix is inert until `TELEGRAM_WEBHOOK_SECRET` is set in Vercel *and* `setWebhook` is re-run with the same value — see the user question below.
+
+**What's next:** the user's stated order — polish and Mini App adjustments, then new bot commands and text-based weather updates (a design conversation, not a spec to write alone), then the in-app feedback button.
+
+**Gotchas for next session:**
+
+- **`npm run test` was green for every one of the seven defects above.** The two that mattered most were caught by *running* the function on a boundary input and by *calling the live upstream API* — not by reading code and not by any gate in the repo.
+- **A test can assert an invariant it never exercises.** `dryingModel.test.ts` had "hours_since_significant_rain is non-negative" running against an empty event list, which takes the early-return sentinel branch and never reaches the subtraction. `openMeteo.test.ts`'s fixture only ever emitted GFS keys, so the three wrong `model_sources` branches were unreachable. Written up as class 11 in `defect-patterns.md`.
+- **Importing a route module pulls in the database client**, which throws at import time without `DATABASE_URL` and takes the whole test file with it. That is why `webhookSecretAccepted` lives in `lib/telegram/`, not in the route — same reason as `validateInitData` and `conditionsMessage`.
+- **The Bash tool's working directory persists between calls.** A failed `cd apps/api` left later relative paths resolving against the wrong root and produced a "file not found" that looked like a missing file. Use absolute paths.
+
+**Does the user need to do anything?** **Yes — two things, both only they can do.**
+1. Set `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project to a long random string, then re-run Telegram's `setWebhook` with `secret_token` set to the same value. Until both are done the #27 fix is inert by design and the bot keeps working exactly as before.
+2. Decide the ensemble question: use all four models (changes every score) or request only GFS (no behaviour change, ~4x less payload per request).
+
+Optionally, run `npm run check:delete-trip` from `apps/api` with `DATABASE_URL` set — the trips fix has not been exercised against a real database.
