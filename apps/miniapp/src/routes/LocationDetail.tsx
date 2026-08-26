@@ -62,7 +62,7 @@ export function LocationDetail() {
           isError: forecast.isError,
           refetch: () => void forecast.refetch(),
         }}
-        alerts={{ data: alerts.data, isError: alerts.isError }}
+        alerts={{ data: alerts.data, isPending: alerts.isPending, isError: alerts.isError }}
         conditions={{
           data: conditions.data,
           isPending: conditions.isPending,

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { spacing } from '@weatherteam6/design/tokens'
 import { summarizeConditions, type Location } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
@@ -20,6 +21,16 @@ import { WeatherLine } from './Weather.js'
  * asked, so the client does not ask. That also drops two of the three upstream
  * fetches, so general locations load noticeably faster (§3).
  */
+
+/**
+ * Wraps a control that lives inside the card's own tap target, so activating it
+ * does not also open the location. Click only — the card's key handler already
+ * ignores events that did not originate on the card itself.
+ */
+function CardControl({ children }: { children: ReactNode }) {
+  return <span onClick={(e) => e.stopPropagation()}>{children}</span>
+}
+
 export function LocationCard({
   location,
   onOpen,
@@ -33,8 +44,15 @@ export function LocationCard({
 
   const today = findToday(forecast.data)
 
+  /**
+   * Suppression keys on the alert state, so the summary must not be computed
+   * until the alerts query has settled. Rendering it early shows a bare score
+   * chip for a location under an active Severe+ warning — briefly, but that is
+   * exactly the state §7 rule 4 exists to prevent. On an alerts *error* the
+   * query has settled with no data, and component-based suppression still runs.
+   */
   const summary =
-    conditions.data == null
+    conditions.data == null || alerts.isPending
       ? null
       : summarizeConditions({
           score: conditions.data.score,
@@ -60,6 +78,11 @@ export function LocationCard({
       style={{ ...card, ...stack(spacing.cellPad), cursor: 'pointer' }}
       onClick={() => onOpen(location.id)}
       onKeyDown={(e) => {
+        // Only when the card itself has focus. Without this check, Enter or
+        // Space on the retry button inside would open the location instead of
+        // retrying — the keydown bubbles, and preventDefault here would cancel
+        // the inner button's own activation.
+        if (e.target !== e.currentTarget) return
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
           onOpen(location.id)
@@ -74,16 +97,22 @@ export function LocationCard({
       {forecast.isPending ? (
         <Skeleton height={34} />
       ) : forecast.isError ? (
-        <span onClick={(e) => e.stopPropagation()}>
+        <CardControl>
           <InlineError message="Couldn't load weather." onRetry={() => void forecast.refetch()} />
-        </span>
+        </CardControl>
       ) : today === null ? (
         <span style={type.bodyMd}>No reading for today yet.</span>
       ) : (
         <WeatherLine day={today} />
       )}
 
-      {alerts.data === undefined ? null : <AlertPill alerts={alerts.data} />}
+      {/* An alert that failed to load must not read as "no alerts" — alerts
+          outrank everything, so their absence is stated (§7 rule 5). */}
+      {alerts.isError ? (
+        <span style={type.sourceBadge}>Alerts unavailable</span>
+      ) : alerts.data === undefined ? null : (
+        <AlertPill alerts={alerts.data} />
+      )}
 
       {/* The chip is never the largest element and never bare. When suppression
           is in force the qualifier rides with it — a score is not presented as
