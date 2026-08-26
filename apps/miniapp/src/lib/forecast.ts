@@ -71,26 +71,8 @@ export function severeAlertEvent(alerts: readonly WeatherAlert[] | undefined): s
 }
 
 /**
- * The forecast sources actually used for this response, per §3's rule that
- * nothing in the sources footer may be hardcoded.
- *
- * `model_sources` says what ran: `["nbm"]` when NBM answered, or the ensemble
- * member list when it fell back. Writing "Open-Meteo ensemble" as a constant is
- * correct only by accident today and becomes false the moment issue #22 is
- * fixed. Open-Meteo itself is named because it is the API that was called on
- * both branches, not because of which models it returned.
+ * Source attribution now lives in `@weatherteam6/types` — the bot must name the
+ * same sources for the same location, and one implementation is the only way
+ * that stays true. Re-exported so the screens keep a single import site.
  */
-export function forecastSourceLabel(snapshots: readonly ForecastSnapshot[] | undefined): string | null {
-  const models = snapshots?.find((s) => s.model_sources !== null && s.model_sources.length > 0)
-    ?.model_sources
-  if (models === undefined || models === null || models.length === 0) return null
-  return `Open-Meteo (${models.join(', ')})`
-}
-
-/**
- * Which rainfall source the drying model used for this location. The column is
- * nullable and the branch is per-location, so this cannot be a constant either.
- */
-export function rainfallSourceLabel(asosStation: string | null): string {
-  return asosStation === null ? 'Open-Meteo archive' : `ACIS (${asosStation})`
-}
+export { forecastSourceLabel, rainfallSourceLabel } from '@weatherteam6/types'

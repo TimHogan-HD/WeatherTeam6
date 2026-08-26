@@ -2,6 +2,7 @@ import { and, eq, isNull, notInArray } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { locations, weatherAlerts } from '../../db/schema.js'
 import { logger } from '../logger.js'
+import { formatAlertMessage } from '../telegram/alertMessage.js'
 import { sendTelegramMessage } from '../telegram/sendMessage.js'
 import { fetchNwsAlerts } from '../weather/nwsAlerts.js'
 
@@ -102,17 +103,6 @@ export async function runAlertsCheck(): Promise<void> {
   }
 
   logger.info('[checkAlerts] run completed')
-}
-
-function formatAlertMessage(
-  locationName: string,
-  event: string,
-  severity: string,
-  headline: string | null,
-): string {
-  const tier = severity.charAt(0).toUpperCase() + severity.slice(1).toLowerCase()
-  const reason = headline ?? event
-  return `⚠️ <b>${tier} alert</b> — ${locationName}\n${event}: ${reason}`
 }
 
 /**
