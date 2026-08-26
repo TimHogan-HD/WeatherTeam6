@@ -3,9 +3,10 @@
  * time, so it is public — nothing secret may be read here.
  *
  * In particular `API_SHARED_SECRET` must never appear in this bundle. The Mini
- * App's credential is `Telegram.WebApp.initData`, validated server-side by HMAC
- * as middleware on `/api/v1/*`; that work is a prerequisite for Task 6 and ships
- * together with removing Vercel SSO protection from the API.
+ * App's credential is `Telegram.WebApp.initData`, sent as `Authorization: tma
+ * <initData>` and validated server-side by HMAC as middleware on `/api/v1/*`.
+ * There is no Vercel SSO in the way and none to remove — see the corrected
+ * sequencing note in `.claude/docs/plan.md`.
  */
 
 const raw = import.meta.env.VITE_API_BASE_URL

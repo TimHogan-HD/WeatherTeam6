@@ -59,7 +59,7 @@ NODE_ENV=development                                # NEVER set this on Vercel �
 PORT=3001
 NWS_USER_AGENT=weatherteam6/1.0 your@email.com
 TELEGRAM_BOT_TOKEN=                                 # bot token (alerts + /api/telegram/webhook); never reaches a client bundle
-TELEGRAM_CHAT_ID=                                   # single-user chat id — the bot's auth boundary
+TELEGRAM_CHAT_ID=                                   # single-user chat id — the auth boundary for BOTH the bot webhook and the Mini App's `tma` scheme. Must be the private-chat id (= the owner's Telegram user id); a group id would make every Mini App request 401
 CRON_SECRET=                                        # gates POST /api/cron/check-alerts; treat as a credential
 API_SHARED_SECRET=                                  # gates ALL of /api/v1/* via `Authorization: Bearer`; fail-closed — unset means 503, never open
 EXPO_PUBLIC_SHADEMAP_KEY=                           # archived — apps/mobile only
