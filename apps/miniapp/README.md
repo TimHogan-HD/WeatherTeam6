@@ -43,9 +43,13 @@ in a component. Import them from `src/theme/tokens.css.js`. `colors`, `spacing`,
 properties, so §0a's "audit per-entry" applies. Use the exported `boxStyle` /
 `textStyle` helpers on the entries you need.
 
-## Deploying (not yet done)
+## Deployment
 
-The Mini App is its own Vercel project, separate from the API.
+**Live at https://weatherteam6.vercel.app**, opened from the bot's menu button.
+Confirmed inside Telegram on 2026-08-25.
+
+The Mini App is its own Vercel project, separate from the API. The settings it was
+created with, since they are easy to get wrong if it is ever recreated:
 
 1. New Vercel project on this repo, **Root Directory `apps/miniapp`**, with
    *Include source files outside of the Root Directory* enabled — the build imports
@@ -58,9 +62,12 @@ The Mini App is its own Vercel project, separate from the API.
 5. `vercel.json` here already rewrites every path to `index.html`, which the three
    client-side routes need.
 
-Then register the production URL with @BotFather (`/newapp`, or `/setmenubutton` for
-the menu-button entry point). Telegram's origin lockdown means the registered
-production domain only — Vercel preview URLs will not open as a Mini App.
+The production URL is registered with @BotFather via `/setmenubutton`. Telegram's origin
+lockdown means the registered production domain only — Vercel preview URLs will not open
+as a Mini App, so there is no preview-deploy path for testing inside Telegram.
+
+**`/newapp` has not been run.** The menu button carries no `startapp` parameter, so
+Task 7's deep link into location detail needs a named Mini App registered separately.
 
 ## Not built yet
 

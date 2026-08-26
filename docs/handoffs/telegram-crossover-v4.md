@@ -21,10 +21,11 @@ not started.
 > - **Task 5a — the add-location API** (PR #37, `a90613f`), added as its own section
 >   below, between Tasks 5 and 6.
 >
-> **Update 2026-08-25 (later the same day).** Task 5's scaffold is built and merged —
-> `apps/miniapp` exists, with the token adapter, the three routes, `BackButton` wiring
-> and Telegram chrome. The Vercel project and the @BotFather registration are still
-> outstanding, so the task is **code complete, not deployed**. See its section below.
+> **Update 2026-08-25 (later the same day).** **Task 5 is COMPLETE.** The shell merged as
+> `b06ebed` (PR #38), deployed to https://weatherteam6.vercel.app, registered as the
+> bot's menu button, and confirmed open inside Telegram. Tasks 1–5 and 5a are now all
+> done; **Task 6 is next and is blocked only on `initData` HMAC validation.** See Task
+> 5's section below for what was confirmed on real hardware.
 >
 > The running record of what is built is
 > `.claude/docs/session-notes.md`; the phase table in `.claude/docs/plan.md` mirrors
@@ -178,11 +179,11 @@ plain-language status. ✅
 
 ---
 
-## 🟡 Task 5 — Mini App shell (CODE COMPLETE, NOT YET DEPLOYED)
+## ✅ Task 5 — Mini App shell (COMPLETE)
 
-**Updated 2026-08-25.** The scaffold is built and merged — `b06ebed` (PR #38). The two steps that need a
-Vercel dashboard and @BotFather are outstanding, and until they are done the task's
-acceptance criterion is unmet — do not record it as complete.
+**Completed 2026-08-25.** Scaffold merged as `b06ebed` (PR #38), deployed to
+**https://weatherteam6.vercel.app**, and registered as the bot's menu button. Confirmed
+open inside Telegram on Android.
 
 **Built:**
 
@@ -204,17 +205,26 @@ acceptance criterion is unmet — do not record it as complete.
   per-route rather than a blanket "navigate to `/`". Screens are placeholders — Task 6.
 - ✅ React Query provider on §5's settings.
 
-**Outstanding — needs the repo owner:**
+**Deployed:**
 
-- ⬜ Create the separate Vercel project (root directory `apps/miniapp`, *Include source
-  files outside of the Root Directory* on, framework preset **Vite**, no `NODE_ENV`).
-  Steps are in `apps/miniapp/README.md`.
-- ⬜ Register the production URL with @BotFather (`/newapp` or `/setmenubutton`).
-  Origin lockdown means the production domain only — preview URLs will not open.
+- ✅ Vercel project separate from the API — root directory `apps/miniapp`, *Include
+  source files outside of the Root Directory* on, framework preset **Vite**, no
+  `NODE_ENV`, `VITE_API_BASE_URL` pointing at the API origin. The production domain is
+  **https://weatherteam6.vercel.app**; `vercel.json`'s rewrite was confirmed serving
+  `index.html` on `/add` and `/location/:id`, which the client-side routes need.
+- ✅ Registered with @BotFather as the menu button (`/setmenubutton`). Origin lockdown
+  means the production domain only — preview URLs will not open.
 
-**Acceptance:** Bot's menu button opens the Mini App inside Telegram, themed correctly.
-**Not yet met** — the shell has been verified in a real browser (routing, BackButton
-wiring, version gating, and the adapter's computed styles), never inside Telegram.
+**Acceptance: met.** The menu button opens the Mini App inside Telegram, themed
+correctly. Confirmed on Android 2026-08-25 — four things that could not be tested from
+a desktop browser all came out right: Telegram's header takes the gradient's top colour
+(so that client is ≥6.9 and the hex was accepted), Barlow Condensed loads over the
+network in the webview rather than falling back, nothing is clipped by the notch or the
+home indicator, and the header shows no in-app back arrow on the list route.
+
+**Still open, and only needed for Task 7:** `/newapp` has not been run. The menu button
+does not provide a `startapp` parameter, so the deep link into location detail needs a
+named Mini App registered separately.
 
 ## ✅ Task 5a — Add-location API (COMPLETE)
 

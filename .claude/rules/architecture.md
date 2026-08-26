@@ -3,7 +3,7 @@
 Read this at the start of every session. These decisions are final unless explicitly overridden by the user.
 
 ## Monorepo Structure
-- Turborepo. Apps: `apps/api` (live; the add-location API landed 2026-08-25, Task 5a), `apps/miniapp` (Vite + React; shell scaffolded 2026-08-25, Task 5 — screens are Task 6, and it is not deployed or registered with BotFather yet), `apps/mobile` (archived, still in the workspace until Task 7). Shared packages: `packages/types`, `packages/design`.
+- Turborepo. Apps: `apps/api` (live; the add-location API landed 2026-08-25, Task 5a), `apps/miniapp` (Vite + React; Task 5 shell shipped 2026-08-25 — live at https://weatherteam6.vercel.app as the bot's menu button, screens are Task 6), `apps/mobile` (archived, still in the workspace until Task 7). Shared packages: `packages/types`, `packages/design`.
 - Shared TypeScript types live in `packages/types` only. Never duplicate type definitions across apps.
 - Design tokens live in `packages/design` only. Never redefine colors, spacing, or type scale in an app.
 - Both shared packages compile to `dist/` and must be built before consuming workspaces typecheck.

@@ -3,7 +3,7 @@
 Climbing conditions platform + general weather app. Core purpose: tell the user if a crag is climbable now, over the next 7 days, and support trip planning weeks out with improving forecast confidence over time.
 
 ## Stack
-- **Client:** Telegram bot + Telegram Mini App (`apps/miniapp`, Vite + React — shell scaffolded 2026-08-25, Task 5; screens are Task 6)
+- **Client:** Telegram bot + Telegram Mini App (`apps/miniapp`, Vite + React — Task 5 shell live at https://weatherteam6.vercel.app, opened from the bot's menu button; screens are Task 6)
 - **Mobile (ARCHIVED):** React Native + Expo lives in `apps/mobile`. Superseded by the Mini App as of 2026-07-31 — code retained, out of the build, do not add features to it.
 - **Backend:** Node.js + TypeScript + Express, wrapped as a single serverless function on Vercel (`apps/api/api/index.ts`)
 - **ORM:** Drizzle (schema-as-TypeScript, SQL-close queries — never substitute Prisma)

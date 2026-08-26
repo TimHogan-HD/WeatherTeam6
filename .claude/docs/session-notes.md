@@ -1071,3 +1071,38 @@ Verification added with the fixes: a 40-check adapter harness that converts **ev
 - **`GET /preview` returns no conditions score, deliberately** (§12.1). If Task 6's detail screen shares a hook between saved and unsaved modes, drive the score section by mode, not by "score is null".
 - **Preview and save must pass the same `elevation`.** Unchanged from Task 5a, and still the trap: skipping it in either place reintroduces the temperature mismatch §12.3 change 5 exists to prevent.
 - **`npm run check:add-location` is the gate for any change to the add flow**, and the in-repo script has been run against the database (Tim, 2026-08-25) — it is no longer the untested copy the Task 5a notes warned about. Re-run it after touching the add flow; vitest mocks `fetch` and never opens a connection, so FK violations and values that fail to persist are invisible to it.
+
+---
+
+## 2026-08-25 — branch: main — commit: PENDING3
+
+**Phase completed:** Task 5 — Mini App shell **deployed and confirmed inside Telegram**. Acceptance criterion met; the task is now complete, not just merged.
+
+**What happened this session:**
+- PR #38 squash-merged to `main` as `b06ebed`, branch deleted, CI green on the merge commit and on the follow-up docs commit.
+- Vercel project created — separate from the API, root directory `apps/miniapp`, *Include source files outside of the Root Directory* on, framework preset **Vite**, `VITE_API_BASE_URL` set to the API origin, no `NODE_ENV`. Production domain **https://weatherteam6.vercel.app**.
+- Registered with @BotFather via `/setmenubutton`, label "Locations".
+- Deploy verified before registration: the served HTML carries the same asset hashes as the local build (`index-BBoz2RJj.js`, `index-CE-Lr_Hj.css`), and `vercel.json`'s rewrite returns `index.html` for `/add` and `/location/:id` rather than a 404 — which the client-side routes depend on. No Vercel SSO wall on the production domain, so the webview loads it without cookies.
+
+**Confirmed inside Telegram (Android), which is what nothing before this could test:**
+- **Telegram's header takes the gradient's top colour** — so that client is Bot API ≥6.9 and the arbitrary hex was accepted. The 6.9 gate in `useTelegramChrome` is doing the right thing on real hardware, not just against the shim.
+- **Barlow Condensed loads over the network in the webview** — the title renders condensed, the subtitle in regular Barlow. The fallback stack is not being used, so `fonts.ts`'s family-name derivation is correct against Google Fonts.
+- **Nothing is clipped** by the notch or the home indicator — the `--tg-safe-area-inset-*` padding with its `0px` fallbacks behaves.
+- **No in-app back arrow on the list route** — `useBackButton(null)` hides Telegram's BackButton and nothing else draws one, which is §2's "one back affordance, and it is Telegram's".
+- **`spacing.topSafe` (48px) reads correctly**, not as excess air. This was flagged as the most likely thing to need changing — it does not. §8's layout constants stand as written.
+
+**Known issues / deferred work:**
+- **`/newapp` has not been run.** The menu button carries no `startapp` parameter, so Task 7's deep link into location detail needs a named Mini App registered separately. Not a Task 5 gap — the acceptance criterion is the menu button — but Task 7 starts blocked on it.
+- Only one client was tested (Android, ≥6.9). The sub-6.9 header path — where `setHeaderColor` is deliberately skipped and Telegram's default header is accepted — has been exercised only against the test shim at version 6.5, never on a real old client. It is the conservative branch, so a wrong outcome there is cosmetic.
+- Everything from the merge still stands: no test suite in `apps/miniapp`, and `disableVerticalSwipes()` deliberately not called (decide in Task 6, before there is scrollable content).
+
+**Blockers for next session:**
+- **Task 6 is blocked on `initData` HMAC validation**, unchanged and now the only thing in the way. It must land as route-level middleware on `/api/v1/*` and ship in the same change that removes Vercel SSO protection — SSO off without HMAC leaves the API open on a public URL, and the automation bypass secret cannot be used because it would ship in a public bundle.
+
+**What's next:** Task 6 — but land `initData` HMAC middleware **first**, in its own change together with the SSO removal. Then the three screens. Read `docs/handoffs/miniapp-design-v1.md` §3, §5, §7 and §12, plus `weatherteam6-ui-handoff-v1.md` §7b/§7c/§7e, before writing any UI.
+
+**Gotchas for next session:**
+- **The Mini App is a second Vercel project on the same repo.** PRs now get two Vercel checks; a failure on one says nothing about the other. The API project must stay framework preset "Other"; the Mini App must stay "Vite".
+- **`VITE_API_BASE_URL` is the API origin with no `/api/v1` suffix and no trailing slash** (`env.ts` strips trailing slashes but not a path). Task 6's hooks append the prefix. It is inlined into a public bundle at build time — never put a credential in a `VITE_*` variable.
+- **There is no preview-deploy path for testing inside Telegram.** Origin lockdown plus per-deployment preview URLs mean the only way to see a change in Telegram is to ship it to the production domain. Plan Task 6 around that: verify in a browser first, because the Telegram round trip is slow and unbatched.
+- The four Telegram-only behaviours above are now confirmed working. If a later change breaks the header colour, the fonts, or the safe areas, it is a regression with a known-good baseline — not an untested unknown.
