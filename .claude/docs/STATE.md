@@ -6,7 +6,7 @@
 when you need the reasoning behind a specific past decision, never at session start. It
 used to be mandatory reading, which cost ~41,000 tokens before any work began.
 
-Last updated: 2026-08-26 · `main` @ `b954e9f`
+Last updated: 2026-08-26 · `main` @ `516b438`
 
 ---
 
@@ -20,7 +20,7 @@ confirmed working on a real device: bot, Mini App, alerts, deep links, auth.
 - **Bot** — commands, alerts, deep links into the Mini App.
 - **`apps/mobile`** — archived, out of the build. Do not add features to it.
 
-Baseline: `npm run test` 315 passing, `npm run typecheck` clean, `npm run check:hooks` 41 passing.
+Baseline: `npm run test` 315 passing, `npm run typecheck` clean, `npm run check:hooks` 49 passing.
 
 ---
 
@@ -28,9 +28,10 @@ Baseline: `npm run test` 315 passing, `npm run typecheck` clean, `npm run check:
 
 The user's direction, set 2026-08-26 and revised the same day:
 
-1. ~~**Agent-systems cleanup**~~ — **done, merged as `b954e9f` (PR #48).** Working hooks
-   with a 41-case acceptance check, a permissions allowlist, current models on the review
-   agents, and session-start context cut from 66,532 to 14,685 tokens.
+1. ~~**Agent-systems cleanup**~~ — **done.** `b954e9f` (PR #48): working hooks, a
+   permissions allowlist, current models on the review agents, session-start context cut
+   from 66,532 to 14,685 tokens. `516b438` (PR #49): the finish-the-delivery rule turned
+   into a gate — see *Delivery is enforced* below.
 2. **The chat interface is the priority.** The user wants to ask in plain language and get
    an answer, plus slash commands that pull specific information about a location or a span
    of time. This is the headline feature direction from here.
@@ -81,6 +82,29 @@ Standing context that is *not* on the issues themselves:
 - **A layer below #34:** ACIS can return a *successful* response whose rows are all `'M'`
   sentinels, yielding `[]` — indistinguishable from a dry month. The #34 fix catches a
   failed call, not a call that succeeded with no usable data.
+
+---
+
+## Delivery is enforced, not remembered
+
+The user's standing instruction: **only interact when it is absolutely needed.** Design
+decisions qualify. Chasing an unmerged PR does not.
+
+Two hooks make that structural rather than a promise:
+
+- **`git commit` on the default branch is blocked** (PreToolUse). Branch first. The default
+  branch is read from `origin/HEAD`, not assumed.
+- **The turn cannot end** (Stop hook) while there are uncommitted changes, unpushed commits,
+  a pushed branch with no PR, or a green mergeable PR still open. It hands back the reason
+  so the work gets finished.
+
+Escape hatch for a deliberate pause: `touch .claude/.wip`, delete it when work resumes.
+Both gates are covered by `npm run check:hooks` and were sabotage-tested.
+
+**Do not treat these as bureaucracy to route around.** They exist because the rule was in
+CLAUDE.md, was followed most of the time, and a session-record commit still went straight
+to `main`. If a gate fires, finish the work; if it misfires, add a case to
+`check-hooks.mjs` rather than loosening the guard.
 
 ---
 
