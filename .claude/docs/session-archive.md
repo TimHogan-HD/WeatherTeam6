@@ -1782,3 +1782,45 @@ Also still open and unfiled: `GET /forecast/:id` and `GET /conditions/:id` each 
 - **A skill's body does not load until it triggers.** `review-checklist` is invoked with `/review-checklist`; `miniapp-patterns` loads on `apps/miniapp/**`. If a rule seems to have vanished, it is in a skill, not deleted.
 
 **Does the user need to do anything?** **Yes — one thing, and it is the same one as last session.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project to a long random string, then re-run Telegram's `setWebhook` with `secret_token` set to the same value. Separately, `gh pr merge` is now in the permissions allowlist — that was a deliberate reading of the standing "Claude merges, not the user" preference, and it is one word to reverse if unwanted.
+
+---
+
+## 2026-08-26 — branch: chore/enforce-finish-discipline (squash-merged to `main`) — commit: 516b438 (PR #49)
+
+**Phase completed:** the finish-the-delivery rule turned into an enforced gate. Process infrastructure only.
+
+**Why this session happened:** the user asked whether everything had been reviewed, PR'd and merged, then said — *"If you keep forgetting those steps then I need those rules integrated somehow. I only want to interact when it is ABSOLUTELY needed."*
+
+**What the audit of repo state actually found:**
+
+- **One real slip.** `918ccaa`, the previous session's own record, was committed and pushed **straight to `main` with no PR**, while CLAUDE.md already said work lands via a branch and a PR. Confirmed by matching it against the merge commits of PRs #46–#48 — it corresponds to none of them.
+- **One false alarm.** `origin/chore/agent-systems-stage-0-1` appeared in `git branch -r` after `gh pr merge --delete-branch`. It was a stale *local tracking ref*; the remote had already deleted it. `git fetch --prune` cleared it. Worth recording because the first read of the evidence was wrong.
+- Everything else was clean: no open PRs, working tree clean, `main` in sync, CI green.
+
+**What was built this session:**
+
+- `.claude/hooks/lib/gitState.mjs` — shared git/`gh` readers. Every call timeout-bounded (5s git, 10s gh) and returns a neutral value on failure. A hook that hangs or throws is worse than one that does not fire, and the Stop hook runs every turn.
+- **PreToolUse guard: `git commit` on the default branch is blocked.** Default branch read from `origin/HEAD`, not assumed, so it does not misfire on a `master` repo. `--amend` caught too. Stands down if git state cannot be determined.
+- **`.claude/hooks/session-finish-check.mjs` — a Stop hook.** Blocks the turn from ending on: uncommitted changes, unpushed commits (including on the default branch, with instructions to move them), a pushed branch with no PR, or a green mergeable PR left open. Exit 2 hands the reason back so the work gets finished rather than the user having to notice. Claude Code overrides after 8 consecutive blocks — the deadlock valve. `.claude/.wip` suppresses it; gitignored.
+- `check:hooks` 41 → 49. The seven git-state scenarios build **scratch repositories** (bare origin + clone) rather than mocking.
+
+**Verified:** check:hooks 49/49, typecheck 6/6, lint 4/4, CI green on the PR. Both new guards sabotage-tested — disabling the dirty-tree check failed exactly 1 case, disabling the default-branch guard failed exactly 2, nothing else moved. The Stop hook was also exercised live in the real repo: exit 2 with a dirty tree, exit 0 once clean.
+
+**A defect introduced and caught in the same session:** adding the default-branch guard made two existing `check-hooks` cases ambient-dependent — they ran `git commit` against the *real* repo, so the same payload passed on a feature branch and blocked on `main`. That is class 11 in `defect-patterns.md`, a fixture that does not control what it claims to test. Both moved into controlled repos, and two `--amend` cases added alongside.
+
+**Known issues / deferred work:**
+
+- The Stop hook does **not** check whether tests pass. That is deliberate — CI and the review checklist own correctness; this hook owns delivery. Do not merge the two concerns.
+- If `gh` is unavailable the PR checks are skipped rather than guessed, so on an offline or unauthenticated machine the "pushed branch with no PR" and "green PR left open" gates are inert. Acceptable: they cannot deadlock a session, which matters more.
+
+**Blockers for next session:** none.
+
+**What's next:** the **chat interface** — plain-language questions plus slash commands for a location or a span of time. The design conversation comes first; do not spec it unilaterally.
+
+**Gotchas for next session:**
+
+- **You cannot commit on `main` any more.** Branch first. This is not advisory.
+- **The turn will not end with work outstanding.** If the Stop hook fires, finish the work — commit, push, PR, merge. If it misfires, add a case to `check-hooks.mjs`; do not loosen the guard.
+- **`PIPESTATUS[0]` in a three-stage pipeline is the first command, not the middle one.** Cost one wrong reading of a hook's exit code this session. Capture into a variable instead.
+
+**Does the user need to do anything?** **Yes — one thing, unchanged.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project to a long random string, then re-run Telegram's `setWebhook` with `secret_token` set to the same value. Nothing else is waiting on them.
