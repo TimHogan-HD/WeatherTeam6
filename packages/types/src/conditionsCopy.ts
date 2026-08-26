@@ -160,3 +160,42 @@ export function formatHoursSinceRain(hours: number | null): string {
   if (hours >= DRY_SENTINEL_HOURS) return 'no rain in 30+ days';
   return `no rain in ${Math.round(hours)}h`;
 }
+
+/**
+ * The forecast sources actually used for a response, per §3's rule that nothing
+ * in a sources footer may be hardcoded.
+ *
+ * `model_sources` says what ran: `['nbm']` when NBM answered, or the ensemble
+ * member list when it fell back. Writing "Open-Meteo ensemble" as a constant is
+ * correct only by accident today and becomes false the moment issue #22 is
+ * fixed. Open-Meteo itself is named because it is the API that was called on
+ * both branches, not because of which models it returned.
+ *
+ * Returns `null` when the response says nothing — a source is omitted rather
+ * than guessed, because naming one that never ran is a false attribution.
+ *
+ * Shared by the bot and the Mini App: both must name the same sources for the
+ * same location, and the branch is per-request, not per-surface.
+ */
+export function forecastSourceLabel(
+  snapshots: readonly { model_sources: string[] | null }[] | undefined,
+): string | null {
+  const models = snapshots?.find(
+    (s) => s.model_sources !== null && s.model_sources.length > 0,
+  )?.model_sources;
+  if (models === undefined || models === null || models.length === 0) return null;
+  return `Open-Meteo (${models.join(', ')})`;
+}
+
+/**
+ * Which rainfall source the drying model used. The column is nullable and the
+ * branch is per-location, so this cannot be a constant either.
+ */
+export function rainfallSourceLabel(asosStation: string | null): string {
+  return asosStation === null ? 'Open-Meteo archive' : `ACIS (${asosStation})`;
+}
+
+/** Escapes text for Telegram's `parse_mode: 'HTML'`. `&` must be replaced first. */
+export function escapeTelegramHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}

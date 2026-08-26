@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express'
 import { logger } from '../lib/logger.js'
+import { escapeTelegramHtml } from '@weatherteam6/types'
 import { buildConditionsReply } from '../lib/telegram/conditionsReply.js'
 import { sendTelegramMessage } from '../lib/telegram/sendMessage.js'
 
@@ -27,11 +28,18 @@ telegramWebhookRouter.post('/webhook', async (req: Request, res: Response) => {
 
   try {
     if (text === '/start') {
-      await sendTelegramMessage("Hi! Send /conditions <location name> and I'll check it for you.")
+      await sendTelegramMessage(
+        // Escaped, not incidentally: sendTelegramMessage uses parse_mode HTML,
+        // and Telegram rejects <location name> as an unsupported start tag with
+        // a 400. This reply and the usage line below have both been failing
+        // silently since they were written — the webhook catches and logs the
+        // error, so the bot simply never answers /start.
+        escapeTelegramHtml("Hi! Send /conditions <location name> and I'll check it for you."),
+      )
     } else if (text.startsWith('/conditions')) {
       const name = text.slice('/conditions'.length).trim()
       if (!name) {
-        await sendTelegramMessage('Usage: /conditions <location name>')
+        await sendTelegramMessage(escapeTelegramHtml('Usage: /conditions <location name>'))
       } else {
         const reply = await buildConditionsReply(req.userId, name)
         await sendTelegramMessage(reply)

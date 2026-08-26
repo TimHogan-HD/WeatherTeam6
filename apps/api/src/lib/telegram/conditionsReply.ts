@@ -1,17 +1,14 @@
-import { and, eq, ilike } from 'drizzle-orm'
+import { and, eq, gt, ilike, isNull, or } from 'drizzle-orm'
 import { db } from '../../db/index.js'
-import { locations } from '../../db/schema.js'
+import { locations, weatherAlerts } from '../../db/schema.js'
 import { computeLiveForecast } from '../scoring/liveForecast.js'
+import { formatConditionsReply, formatLocationNotFound } from './conditionsMessage.js'
 
-function statusLabel(score: number | null): string {
-  if (score === null) return 'no score yet — this date is too far out for a reliable forecast'
-  if (score >= 80) return 'looks great — go climb'
-  if (score >= 60) return 'climbable, minor concerns'
-  if (score >= 40) return 'marginal — check the details'
-  return 'not recommended right now'
-}
-
-/** Builds the /conditions <name> reply text for the Telegram bot. */
+/**
+ * Data-gathering half of the `/conditions <name>` reply. All the copy decisions
+ * — and every test covering them — live in `conditionsMessage.ts`, which is
+ * pure and has no database import.
+ */
 export async function buildConditionsReply(userId: string, name: string): Promise<string> {
   const rows = await db
     .select({
@@ -24,19 +21,45 @@ export async function buildConditionsReply(userId: string, name: string): Promis
       cliff_angle: locations.cliff_angle,
       aspect: locations.aspect,
       asos_station: locations.asos_station,
+      // §7 rule 8: selected here rather than in a second query. Without it the
+      // bot reports a rock-drying score for a city, which the Mini App is
+      // already forbidden from doing.
+      is_climbing_location: locations.is_climbing_location,
     })
     .from(locations)
     .where(and(eq(locations.user_id, userId), ilike(locations.name, `%${name}%`)))
     .limit(1)
 
   const location = rows[0]
-  if (!location) {
-    return `I don't have a saved location matching "${name}". Save it in the app first.`
-  }
+  if (!location) return formatLocationNotFound(name)
 
-  const todayStr = new Date().toISOString().slice(0, 10)
-  const { scores } = await computeLiveForecast(location)
-  const todayScore = scores.find((s) => s.forecast_date === todayStr) ?? null
+  const now = new Date()
+  const todayStr = now.toISOString().slice(0, 10)
 
-  return `<b>${location.name}</b>\n${statusLabel(todayScore?.score ?? null)}${todayScore ? ` (score ${todayScore.score ?? 'n/a'}, confidence ${todayScore.confidence})` : ''}`
+  const [{ snapshots, scores }, activeAlerts] = await Promise.all([
+    computeLiveForecast(location),
+    db
+      .select({
+        event: weatherAlerts.event,
+        severity: weatherAlerts.severity,
+        headline: weatherAlerts.headline,
+      })
+      .from(weatherAlerts)
+      .where(
+        and(
+          eq(weatherAlerts.location_id, location.id),
+          or(isNull(weatherAlerts.expires), gt(weatherAlerts.expires, now)),
+        ),
+      ),
+  ])
+
+  return formatConditionsReply({
+    locationName: location.name,
+    isClimbingLocation: location.is_climbing_location,
+    asosStation: location.asos_station,
+    today: snapshots.find((s) => s.forecast_date === todayStr) ?? null,
+    todayScore: scores.find((s) => s.forecast_date === todayStr) ?? null,
+    activeAlerts,
+    snapshots,
+  })
 }
