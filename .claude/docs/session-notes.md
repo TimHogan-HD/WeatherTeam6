@@ -1572,7 +1572,7 @@ Supporting work:
 **Known issues / deferred work — found, deliberately NOT fixed:**
 
 - **`GET /forecast/:id` and `GET /conditions/:id` each run `computeLiveForecast` independently.** Opening one location detail therefore makes 2 ensemble + 2 rainfall upstream fetches; the list screen makes 3 requests per card, so N climbing locations cost 2N of each. Fixing it means a request-scoped cache or a combined endpoint — an API change, not a cleanup.
-- **The ensemble request asks for four models and reads one.** 859 hourly keys downloaded and parsed per call, roughly three quarters discarded. Narrowing the request and widening `parseEnsemble` to actually use all four are the two ends of one decision, and the second moves every score. **Needs the user.**
+- ~~**The ensemble request asks for four models and reads one.**~~ — **resolved the same day.** The user chose accuracy: *"I want to be using all the models possible… truthfully the score isn't a priority right now and I mainly want a functional chat/weather app."* All four are now pooled — **30 members → 143** — and a second, larger defect surfaced while doing it: `temp_c_max` was `Math.max()` across every member *and* hour, i.e. the hottest hour of the hottest member. Live on 2026-08-26 it put **102 °F** on screen labelled "High" while the median member said **99 °F**, and pooling more models would only have pushed it further. Highs, lows and peak wind are now the ensemble median of each member's own daily extreme. See the follow-up block below.
 - **A swallowed rainfall fetch still scores as full drying credit.** `liveForecast` catches the ACIS/archive error, leaves `rainfallEvents` empty, and `dryingModel` returns the 720 sentinel — 40/40 on the heaviest component. The *display* is honest ("no rain in 30+ days"); the *score* is not. Distinguishing "no rain found" from "never asked" is a scoring change, so it was left alone.
 - **`parseEnsemble` substitutes `0` for a missing temperature and `50` for missing humidity**, and `DailyForecast` types them non-nullable. `ForecastSnapshot` is `number | null` and the formatters return an em dash — but that path is unreachable from the live forecast, so a partial upstream response renders as a plausible **32°F / 0 mph** rather than a visible gap. Fixing it means making `DailyForecast` nullable and deciding what the scorers do with a null, which touches `ScoreInput`.
 - **#25 unchanged** — `/history` and `/normals` still return `[]` forever. Still needs a design call on where the write goes.
@@ -1598,3 +1598,45 @@ Supporting work:
 2. Decide the ensemble question: use all four models (changes every score) or request only GFS (no behaviour change, ~4x less payload per request).
 
 Optionally, run `npm run check:delete-trip` from `apps/api` with `DATABASE_URL` set — the trips fix has not been exercised against a real database.
+
+---
+
+## 2026-08-26 — branch: fix/pool-all-ensemble-models — commit: (pending)
+
+**Phase completed:** Ensemble accuracy — all four models pooled, and the displayed high/low/wind changed from an extreme to a central estimate.
+
+**Why:** the user's call on the open question from the review pass. Their words: *"I want to be using all the models possible so we have accuracy. truthfully the score isn't a priority right now and I mainly want a functional chat/weather app… the score adjustments and tweaks are a future task."*
+
+**What was built this session:**
+
+- `apps/api/src/lib/weather/openMeteo.ts` — `parseEnsemble` now pools members from all four models via `ENSEMBLE_MODEL_SUFFIXES`, instead of filtering everything to GFS. **30 members → 143.** Control runs (`precipitation_<model>`, no `_memberNN`) count as members; the old filter matched the literal `_member` prefix and dropped all four.
+- **`temp_c_max` / `temp_c_min` / `wind_kmh_max` are now `ensembleMedian` of each member's own daily extreme.** This was not in the ask, and it is the bigger of the two changes for a user: the old global `Math.max` reported the hottest hour of the hottest member. Pooling four models would have made it strictly worse, since a maximum can only rise as members are added.
+- `model_sources` is derived from the models that actually yielded arrays, so a partial upstream response drops a model instead of claiming it.
+- 4 tests changed or added (291 → 293). Three existing assertions encoded the old extreme-value semantics and were updated deliberately, not worked around.
+
+**Measured against the live API, Red Rock, 2026-08-26, one payload, before vs after:**
+
+| | members | high | low | peak wind | precip p50 | precip p90 |
+|---|---|---|---|---|---|---|
+| GFS only, global extremes | 30 | 102°F | 82°F | 13 mph | 0.00 mm | 0.30 mm |
+| Four models, median of member extremes | 143 | **99°F** | **78°F** | **9 mph** | **0.10 mm** | **1.48 mm** |
+
+The low is the interesting row: the four-model median (78°F) is *below* GFS's own coldest member-hour (82°F), because the other three models genuinely run cooler here. GFS alone also saw essentially no precipitation where the full ensemble sees a real p90. That disagreement was previously invisible.
+
+**Known issues / deferred work:**
+
+- **Scores move**, and the user has accepted that in advance. Wider p10/p90 spreads mean `confidenceFromSpread` returns `medium`/`low` more often — which is more honest — and the wind and rain components shift. #21's scoring half is still untouched.
+- Everything else deferred in the previous block stands: the duplicated `computeLiveForecast` per detail view, the swallowed rainfall fetch scoring as full drying credit, `parseEnsemble` substituting `0`/`50` for missing values, #25, and #27's `update_id` dedupe.
+- Members are pooled **unweighted**, so ECMWF's 50 members carry more weight than GEM's 20. That is the ordinary multi-model convention and is recorded as a deliberate choice in `architecture.md`, not an oversight.
+
+**Blockers for next session:** none.
+
+**What's next:** polish and Mini App adjustments, then new bot commands and text-based weather updates (a design conversation the user wants to have), then the in-app feedback button.
+
+**Gotchas for next session:**
+
+- **A model's key suffix is not its name and cannot be derived from it** — `gfs_seamless` → `_ncep_gefs_seamless`, `ecmwf_ifs025` → `_ecmwf_ifs025_ensemble`. Adding a model to `ENSEMBLE_MODELS` without adding it to `ENSEMBLE_MODEL_SUFFIXES` means it is fetched and silently ignored, which is exactly the state this branch found.
+- **`computePercentile` interpolates.** The median of six values sits *between* the third and fourth, not on one of them. A test asserting the lower-middle element will fail, and the code is right — this cost one wrong expectation here.
+- **Escaping a regex through `node -e` in this shell mangles `\d` into `d`.** A throwaway reproduction "proved" the member regex was broken when the real source was correct. Verify against the actual file or a passing test, not a shell-escaped rewrite of it.
+
+**Does the user need to do anything?** **No.** The one thing outstanding from the previous block — `TELEGRAM_WEBHOOK_SECRET` in Vercel plus re-running `setWebhook` — is unchanged and still theirs to do when convenient. Nothing new here needs them.

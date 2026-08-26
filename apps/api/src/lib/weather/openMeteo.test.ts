@@ -67,29 +67,56 @@ describe('parseEnsemble', () => {
     expect(result.model_sources).toContain('gfs_seamless')
   })
 
-  it('names only the models it actually reads, not every model in the payload', () => {
-    // Regression for a false attribution that reached the Mini App's sources
-    // footer. `model_sources` used to list ecmwf/icon/gem whenever their member
-    // keys were merely present, but every extraction filters on the GFS suffix,
-    // so those models contribute to no percentile, min/max or mean.
+  it('pools members from all four models and names each one it read', () => {
+    // The four models are requested AND read (changed 2026-08-26). This
+    // previously listed ecmwf/icon/gem as sources whenever their keys were
+    // merely present, while every extraction filtered to GFS — three models
+    // named that moved no number on screen. Now they genuinely move numbers.
     //
-    // It survived because `buildSyntheticHourly` only ever emits GFS keys — the
-    // three wrong branches were unreachable from the fixture. The suffixes below
-    // are the real ones, verified against the live ensemble API 2026-08-26.
+    // The suffixes are the real ones, verified against the live ensemble API:
+    // they are not the model names and cannot be derived from them.
     const hourly = buildSyntheticHourly(3, '2025-06-01')
     for (const suffix of ['_ecmwf_ifs025_ensemble', '_icon_seamless_eps', '_gem_global_ensemble']) {
-      hourly[`precipitation_member01${suffix}`] = Array(24).fill(99)
-      hourly[`temperature_2m_member01${suffix}`] = Array(24).fill(99)
+      hourly[`precipitation_member01${suffix}`] = Array(24).fill(0)
+      hourly[`temperature_2m_member01${suffix}`] = Array(24).fill(40)
     }
 
     const result = parseEnsemble(hourly)
 
-    expect(result.model_sources).toEqual(['gfs_seamless'])
-    // And the values are unmoved by the members it does not read.
-    expect(result.days[0]?.temp_c_max).toBe(23)
+    expect(result.model_sources).toEqual([
+      'gfs_seamless',
+      'ecmwf_ifs025',
+      'icon_seamless_eps',
+      'gem_global',
+    ])
+    // GFS members are flat 21/22/23; the three added members are flat 40. Six
+    // member-highs sorted → [21,22,23,40,40,40]. `computePercentile` interpolates,
+    // so p50 sits between indices 2 and 3: 23 + (40-23) * 0.5 = 31.5. A GFS-only
+    // parse would have said 23, so this pins the pooling and not just the label.
+    expect(result.days[0]?.temp_c_max).toBe(31.5)
   })
 
-  it('reports no model sources when the payload carries no GFS members', () => {
+  it('drops a model from the attribution when it returned no members', () => {
+    // A partial upstream response must not be reported as a full ensemble.
+    const hourly = buildSyntheticHourly(2, '2025-06-01')
+    hourly['precipitation_member01_gem_global_ensemble'] = Array(24).fill(1)
+
+    const result = parseEnsemble(hourly)
+
+    expect(result.model_sources).toEqual(['gfs_seamless', 'gem_global'])
+  })
+
+  it('counts a control run as a member, not just the perturbed ones', () => {
+    // `precipitation_<model>` with no `_memberNN` is the unperturbed control
+    // run. The old filter matched on the literal `_member` prefix and dropped it.
+    const hourly = buildSyntheticHourly(1, '2025-06-01')
+    hourly['temperature_2m_ncep_gefs_seamless'] = Array(24).fill(31)
+
+    // One perturbed member at 21, one control at 31 → median of [21,31] is 26.
+    expect(parseEnsemble(hourly).days[0]?.temp_c_max).toBe(26)
+  })
+
+  it('reports no model sources when the payload carries no members at all', () => {
     const result = parseEnsemble({ time: makeTimes('2025-06-01') })
     expect(result.model_sources).toEqual([])
   })
@@ -247,9 +274,13 @@ describe('fetchEnsemble', () => {
     expect(day).toBeDefined()
     if (!day) return
 
+    // Members 1,2,3 each hold a flat 21/22/23 °C, so every member's daily high
+    // equals its low and the ensemble median of both is the middle member: 22.
+    // This used to assert 23/21 — the max and min across every member *and*
+    // hour, i.e. the most extreme member rather than the central estimate.
     // elevationDelta = 2000 - 500 = 1500m → correction = 1500 * 0.0065 = 9.75°C reduction
-    expect(day.temp_c_max).toBeCloseTo(23 - 9.75, 2)
-    expect(day.temp_c_min).toBeCloseTo(21 - 9.75, 2)
+    expect(day.temp_c_max).toBeCloseTo(22 - 9.75, 2)
+    expect(day.temp_c_min).toBeCloseTo(22 - 9.75, 2)
   })
 
   it('skips lapse-rate correction when location elevation_m is null', async () => {
@@ -270,9 +301,10 @@ describe('fetchEnsemble', () => {
     expect(day).toBeDefined()
     if (!day) return
 
-    // Members 1,2,3 with temps 21,22,23 → min=21, max=23, no correction
-    expect(day.temp_c_max).toBe(23)
-    expect(day.temp_c_min).toBe(21)
+    // Members 1,2,3 with flat temps 21,22,23 → the median member is 22 for both
+    // the high and the low, and no lapse-rate correction is applied.
+    expect(day.temp_c_max).toBe(22)
+    expect(day.temp_c_min).toBe(22)
   })
 
   it('lapse-rate is applied to temp only — precip, wind, dewpoint, shortwave unchanged', async () => {

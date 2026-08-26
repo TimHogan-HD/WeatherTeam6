@@ -5,10 +5,13 @@ Read this before any weather fetch work. Every source has gotchas that will wast
 ## Open-Meteo Ensemble
 - **Endpoint:** `https://ensemble-api.open-meteo.com/v1/ensemble`
 - **Models param:** `models=gfs_seamless,ecmwf_ifs025,icon_seamless_eps,gem_global`
-- **Member key format:** `temperature_2m_member01_ncep_gefs_seamless` — suffix varies by model
-- **31-member GFS** is the primary ensemble. ECMWF and ICON add spread context.
+- **Member key format:** `temperature_2m_member01_ncep_gefs_seamless`. The suffix varies by model and is **not the model name** — it cannot be derived from the `models` param. Verified live 2026-08-26: `gfs_seamless` → `_ncep_gefs_seamless`, `ecmwf_ifs025` → `_ecmwf_ifs025_ensemble`, `icon_seamless_eps` → `_icon_seamless_eps`, `gem_global` → `_gem_global_ensemble`. The mapping is `ENSEMBLE_MODEL_SUFFIXES` in `openMeteo.ts`; a model missing from it is fetched and silently ignored.
+- **A control run has no `_memberNN`** — `temperature_2m_ncep_gefs_seamless` is the model's unperturbed forecast and counts as a member.
+- ~~**31-member GFS** is the primary ensemble. ECMWF and ICON add spread context.~~ **Corrected 2026-08-26.** All four models are pooled unweighted: **143 members live** (GFS 30, ECMWF 50, ICON 39, GEM 20, plus one control each). Until that date the parser filtered every array to GFS, so the other three contributed nothing while being named as sources.
 - **p10/p50/p90** must be computed from raw member arrays — the API does not return percentiles directly
-- **Free tier:** 10,000 calls/day. Do not poll per-user on demand — use the background job.
+- **A daily high is not `Math.max` over the payload.** That returns the hottest hour of the hottest member — 102 °F against a 143-member median of 99 °F on real data. Take each member's own daily extreme, then the median across members (`ensembleMedian`).
+- **Defaults to `timezone=GMT` when the param is omitted.** Set `timezone=UTC` explicitly; every "today" in this codebase is a UTC day and relying on the upstream default is a silent dependency.
+- **Free tier:** 10,000 calls/day. ~~Do not poll per-user on demand — use the background job.~~ **There is no background job** — forecasts are computed live per request (`liveForecast.ts`). Note `GET /forecast/:id` and `GET /conditions/:id` each run their own `computeLiveForecast`, so one detail view is two ensemble calls.
 - **Rate limit:** No hard limit stated, but batch locations into a single call using `&latitude=x,y&longitude=a,b`
 
 ## Open-Meteo Forecast (Deterministic)

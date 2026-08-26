@@ -88,6 +88,8 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] Webhook auth does not rely solely on request-body fields — `secret_token` is verified via `webhookSecretAccepted`, and every refusal still answers 200 so Telegram does not redeliver
 - [ ] A failed send is classified before the claim is released — `TelegramPermanentError` (non-429 4xx) keeps its claim; releasing it re-sends an identically-rejected message on every cron run forever. Branch on the error **type**, never on its message text
 - [ ] A user-visible source list is derived from what was actually *read*, not what was requested — `model_sources` reports only the models `parseEnsemble` consumes
+- [ ] A model added to `ENSEMBLE_MODELS` also has an entry in `ENSEMBLE_MODEL_SUFFIXES` — the key suffix is not derivable from the model name, and a missing entry means the model is fetched and silently ignored
+- [ ] A per-day figure a user reads as a forecast (high, low, peak wind) is `ensembleMedian` of per-member daily extremes — **not** a global `Math.max`/`Math.min` across members and hours, which reports the single most extreme member
 - [ ] An inline keyboard deep link is a `url` button, not `web_app` — `web_app` never delivers `start_param`
 - [ ] A button that cannot be built correctly is omitted, not approximated — a malformed url is a non-retryable 400 that costs the whole message
 

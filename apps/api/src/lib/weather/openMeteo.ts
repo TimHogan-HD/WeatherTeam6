@@ -41,16 +41,28 @@ type NbmResponse = {
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast'
 const ENSEMBLE_URL = 'https://ensemble-api.open-meteo.com/v1/ensemble'
 /**
- * Four models are requested; **only the GFS members are read.** Every extraction
- * in `parseEnsemble` filters on `GFS_SUFFIX`, so ECMWF, ICON and GEM members are
- * downloaded, JSON-parsed and thrown away — roughly three quarters of an 859-key
- * hourly payload, on every forecast and every conditions request.
- *
- * Left as-is on purpose: narrowing this to `gfs_seamless` and widening
- * `parseEnsemble` to use all four are the two ends of the same open decision,
- * and the second one moves every score. Flagged for the user, not chosen here.
+ * All four models are requested **and all four are read** (2026-08-26). Until
+ * that date `parseEnsemble` filtered every array to GFS, so three quarters of
+ * the payload was downloaded, parsed and discarded while the sources footer
+ * named all four.
  */
 const ENSEMBLE_MODELS = 'gfs_seamless,ecmwf_ifs025,icon_seamless_eps,gem_global'
+
+/**
+ * The suffix Open-Meteo appends to each model's member keys. Verified against
+ * the live API 2026-08-26 — they are **not** the model names from
+ * `ENSEMBLE_MODELS` and cannot be derived from them (`gfs_seamless` →
+ * `_ncep_gefs_seamless`, `ecmwf_ifs025` → `_ecmwf_ifs025_ensemble`).
+ *
+ * Keys are the names reported in `model_sources`, so they must stay the
+ * `ENSEMBLE_MODELS` spelling that a reader would recognise.
+ */
+const ENSEMBLE_MODEL_SUFFIXES: Record<string, string> = {
+  gfs_seamless: '_ncep_gefs_seamless',
+  ecmwf_ifs025: '_ecmwf_ifs025_ensemble',
+  icon_seamless_eps: '_icon_seamless_eps',
+  gem_global: '_gem_global_ensemble',
+}
 const HOURLY_VARS =
   'precipitation,temperature_2m,windspeed_10m,relativehumidity_2m,dewpoint_2m,shortwave_radiation'
 const NBM_DAILY_VARS = [
@@ -65,7 +77,6 @@ const NBM_DAILY_VARS = [
   'dewpoint_2m_mean',
   'shortwave_radiation_sum',
 ].join(',')
-const GFS_SUFFIX = '_ncep_gefs_seamless'
 const LAPSE_RATE_C_PER_M = 0.0065
 
 export async function fetchWithRetry(
@@ -149,6 +160,79 @@ function mean(values: number[], fallback: number): number {
   return values.reduce((a, b) => a + b, 0) / values.length
 }
 
+/**
+ * Every member array for one variable, from one model.
+ *
+ * Two key shapes are collected, both of which are real members:
+ * `precipitation_member01_ncep_gefs_seamless` (a perturbed member) and
+ * `precipitation_ncep_gefs_seamless` (the model's **control run** — the
+ * unperturbed forecast, which the old GFS-only filter dropped because it
+ * matched on the literal `_member` prefix).
+ *
+ * The suffixes in `ENSEMBLE_MODEL_SUFFIXES` are literal constants with no regex
+ * metacharacters, so they are interpolated directly.
+ */
+function memberArraysFor(
+  hourly: Record<string, unknown>,
+  allKeys: string[],
+  variable: string,
+  suffix: string,
+): (number | null)[][] {
+  const pattern = new RegExp(`^${variable}(_member\\d+)?${suffix}$`)
+  return allKeys.filter((k) => pattern.test(k)).map((k) => toNullableNumberArray(hourly, k))
+}
+
+/** The value at each member's own daily extreme, one entry per member. */
+function perMemberDaily(
+  arrays: (number | null)[][],
+  indices: number[],
+  reduce: (values: number[]) => number,
+): number[] {
+  const out: number[] = []
+  for (const vals of arrays) {
+    const dayValues: number[] = []
+    for (const i of indices) {
+      const v = vals[i]
+      if (v !== null && v !== undefined) dayValues.push(v)
+    }
+    if (dayValues.length > 0) out.push(reduce(dayValues))
+  }
+  return out
+}
+
+/** Every hourly value from every member, flattened — for the mean-based fields. */
+function allHourlyValues(arrays: (number | null)[][], indices: number[]): number[] {
+  const out: number[] = []
+  for (const vals of arrays) {
+    for (const i of indices) {
+      const v = vals[i]
+      if (v !== null && v !== undefined) out.push(v)
+    }
+  }
+  return out
+}
+
+/**
+ * The ensemble's central estimate for a per-member daily figure.
+ *
+ * **This is the change that matters for what a user reads.** `temp_c_max` used
+ * to be `Math.max()` over every member *and* every hour — i.e. the single
+ * hottest hour of the single hottest member. Against 139 live members on
+ * 2026-08-26 that read **39.1 °C (102.4 °F)** for Red Rock while the median
+ * member's daily high was **37.0 °C (98.6 °F)**: the screen was showing a worst
+ * case and labelling it "High". Pooling four models instead of one would have
+ * made that strictly worse, since the maximum can only rise as members are
+ * added.
+ *
+ * Taking the median of each member's own daily extreme is the standard ensemble
+ * central estimate and is robust to one wild member. `computePercentile` is
+ * reused so the interpolation matches the precipitation quantiles.
+ */
+function ensembleMedian(perMember: number[], fallback: number): number {
+  if (perMember.length === 0) return fallback
+  return computePercentile([...perMember].sort((a, b) => a - b), 50)
+}
+
 export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult {
   const times: string[] = toStringArray(hourly['time'])
   const dateIndex = buildDateIndex(times)
@@ -156,54 +240,54 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
 
   const allKeys = Object.keys(hourly)
 
-  const gfsPrecipKeys = allKeys.filter(
-    (k) => k.startsWith('precipitation_member') && k.endsWith(GFS_SUFFIX),
-  )
-  const gfsTempKeys = allKeys.filter(
-    (k) => k.startsWith('temperature_2m_member') && k.endsWith(GFS_SUFFIX),
-  )
-  const gfsWindKeys = allKeys.filter(
-    (k) => k.startsWith('windspeed_10m_member') && k.endsWith(GFS_SUFFIX),
-  )
-  const gfsHumidKeys = allKeys.filter(
-    (k) => k.startsWith('relativehumidity_2m_member') && k.endsWith(GFS_SUFFIX),
-  )
-  const gfsDewpointKeys = allKeys.filter(
-    (k) => k.startsWith('dewpoint_2m_member') && k.endsWith(GFS_SUFFIX),
-  )
-  const gfsShortwaveKeys = allKeys.filter(
-    (k) => k.startsWith('shortwave_radiation_member') && k.endsWith(GFS_SUFFIX),
-  )
+  /**
+   * **All four models are pooled**, not just GFS (changed 2026-08-26 on the
+   * user's call: "I want to be using all the models possible so we have
+   * accuracy"). Live member counts: GFS 30, ECMWF 50, ICON 39, GEM 20, plus one
+   * control run each — 143 members against 30 before.
+   *
+   * Members are pooled unweighted, so a model contributes in proportion to how
+   * many members it runs and ECMWF carries the most weight. That is the ordinary
+   * multi-model ensemble convention, and it is a deliberate choice rather than
+   * an oversight — equal-weighting the four models would need a documented
+   * reason to override member counts.
+   *
+   * Extract and validate each member array once: the same arrays are reused for
+   * every date, so doing this inside the date loop would redo O(hours)
+   * validation per date per key.
+   */
+  const byVariable = (variable: string): { model: string; arrays: (number | null)[][] }[] =>
+    Object.entries(ENSEMBLE_MODEL_SUFFIXES)
+      .map(([model, suffix]) => ({
+        model,
+        arrays: memberArraysFor(hourly, allKeys, variable, suffix),
+      }))
+      .filter((entry) => entry.arrays.length > 0)
+
+  const precipByModel = byVariable('precipitation')
+  const flatten = (variable: string): (number | null)[][] =>
+    byVariable(variable).flatMap((entry) => entry.arrays)
+
+  const precipArrs = precipByModel.flatMap((entry) => entry.arrays)
+  const tempArrs = flatten('temperature_2m')
+  const windArrs = flatten('windspeed_10m')
+  const humidArrs = flatten('relativehumidity_2m')
+  const dewpointArrs = flatten('dewpoint_2m')
+  const shortwaveArrs = flatten('shortwave_radiation')
 
   /**
-   * **What was actually used, not what was asked for.**
+   * **What was actually read, never what was asked for.**
    *
-   * `model_sources` is rendered verbatim in the Mini App's sources footer, and
-   * §3 forbids naming a source that did not contribute. This previously listed
-   * `ecmwf_ifs025`, `icon_seamless_eps` and `gem_global` whenever their member
-   * keys were merely *present* in the response — but every array read below is
-   * filtered to `GFS_SUFFIX`, so those three models contribute to no
-   * percentile, no min/max and no mean. The footer was naming three models that
-   * had no effect on a single number on screen.
+   * Rendered verbatim in the Mini App's sources footer and the bot reply, and
+   * §3 forbids naming a source that did not contribute. Derived from the models
+   * that actually yielded member arrays, so a model missing from a partial
+   * upstream response drops out of the attribution instead of being claimed.
    *
-   * Verified against the live API 2026-08-26: all four models do return members
-   * (859 hourly keys), and 30 of each variable's arrays are GFS. The other three
-   * quarters of the payload is downloaded, parsed and discarded — see the note
-   * on ENSEMBLE_MODELS. Widening the computation to all four models is a
-   * forecasting change (it moves the p10/p90 spread, hence confidence, hence
-   * every score) and is deliberately NOT bundled here.
+   * It previously listed ECMWF, ICON and GEM whenever their keys were merely
+   * *present*, while every extraction filtered to GFS — three models named that
+   * moved no number on screen. Now they genuinely do.
    */
-  const model_sources: string[] = gfsPrecipKeys.length > 0 ? ['gfs_seamless'] : []
-
-  // Extract and validate each member array once — the same arrays are reused for
-  // every date, so doing this inside the date loop would redo O(hours) validation
-  // per date per key.
-  const gfsPrecipArrs = gfsPrecipKeys.map((k) => toNullableNumberArray(hourly, k))
-  const gfsTempArrs = gfsTempKeys.map((k) => toNullableNumberArray(hourly, k))
-  const gfsWindArrs = gfsWindKeys.map((k) => toNullableNumberArray(hourly, k))
-  const gfsHumidArrs = gfsHumidKeys.map((k) => toNullableNumberArray(hourly, k))
-  const gfsDewpointArrs = gfsDewpointKeys.map((k) => toNullableNumberArray(hourly, k))
-  const gfsShortwaveArrs = gfsShortwaveKeys.map((k) => toNullableNumberArray(hourly, k))
+  const model_sources: string[] = precipByModel.map((entry) => entry.model)
 
   const days: DailyForecast[] = []
 
@@ -211,67 +295,31 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
     const indices = dateIndex.get(date) ?? []
     if (indices.length === 0) continue
 
-    // Daily precip sum per GFS member → percentiles
-    const memberDailySums: number[] = []
-    for (const vals of gfsPrecipArrs) {
-      const sum = indices.reduce((acc, i) => acc + (vals[i] ?? 0), 0)
-      memberDailySums.push(sum)
-    }
+    // Daily precip total per member, pooled across models → percentiles. The
+    // p10/p90 spread is what `confidenceFromSpread` reads, so a genuine
+    // multi-model disagreement now shows up as lower confidence instead of
+    // being hidden behind one model's internal agreement.
+    const memberDailySums: number[] = precipArrs.map((vals) =>
+      indices.reduce((acc, i) => acc + (vals[i] ?? 0), 0),
+    )
     memberDailySums.sort((a, b) => a - b)
 
-    // Temperature min/max across all GFS members and hours
-    const temps: number[] = []
-    for (const vals of gfsTempArrs) {
-      for (const i of indices) {
-        const v = vals[i]
-        if (v !== null && v !== undefined) temps.push(v)
-      }
-    }
+    const memberHighs = perMemberDaily(tempArrs, indices, (v) => Math.max(...v))
+    const memberLows = perMemberDaily(tempArrs, indices, (v) => Math.min(...v))
+    const memberPeakWinds = perMemberDaily(windArrs, indices, (v) => Math.max(...v))
 
-    // Wind max across all GFS members and hours
-    const winds: number[] = []
-    for (const vals of gfsWindArrs) {
-      for (const i of indices) {
-        const v = vals[i]
-        if (v !== null && v !== undefined) winds.push(v)
-      }
-    }
-
-    // Humidity mean across all GFS members and hours
-    const humids: number[] = []
-    for (const vals of gfsHumidArrs) {
-      for (const i of indices) {
-        const v = vals[i]
-        if (v !== null && v !== undefined) humids.push(v)
-      }
-    }
-
-    // Dewpoint mean across all GFS members and hours
-    const dewpoints: number[] = []
-    for (const vals of gfsDewpointArrs) {
-      for (const i of indices) {
-        const v = vals[i]
-        if (v !== null && v !== undefined) dewpoints.push(v)
-      }
-    }
-
-    // Shortwave mean across all GFS members and hours
-    const shortwaves: number[] = []
-    for (const vals of gfsShortwaveArrs) {
-      for (const i of indices) {
-        const v = vals[i]
-        if (v !== null && v !== undefined) shortwaves.push(v)
-      }
-    }
+    const humids = allHourlyValues(humidArrs, indices)
+    const dewpoints = allHourlyValues(dewpointArrs, indices)
+    const shortwaves = allHourlyValues(shortwaveArrs, indices)
 
     days.push({
       date,
       precip_mm_p10: computePercentile(memberDailySums, 10),
       precip_mm_p50: computePercentile(memberDailySums, 50),
       precip_mm_p90: computePercentile(memberDailySums, 90),
-      temp_c_min: temps.length > 0 ? Math.min(...temps) : 0,
-      temp_c_max: temps.length > 0 ? Math.max(...temps) : 0,
-      wind_kmh_max: winds.length > 0 ? Math.max(...winds) : 0,
+      temp_c_min: ensembleMedian(memberLows, 0),
+      temp_c_max: ensembleMedian(memberHighs, 0),
+      wind_kmh_max: ensembleMedian(memberPeakWinds, 0),
       humidity_pct: mean(humids, 50),
       dewpoint_c: mean(dewpoints, 0),
       shortwave_wm2: mean(shortwaves, 0),
