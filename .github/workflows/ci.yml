@@ -5,11 +5,25 @@ on:
     branches: ["**"]
   pull_request:
 
+# A second push to a branch cancels the run still going for the first.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # check:hooks runs most of its scenarios against scratch repos in the
+          # temp dir, which do not need this. But a handful run against the
+          # checkout itself, and gitState.defaultBranch() reads origin/HEAD and
+          # falls back to origin/main. A depth-1 checkout has neither, so those
+          # readers return null and the guards they feed quietly stand down —
+          # passing without testing anything. Cheap insurance against a green
+          # check that measured nothing.
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -20,6 +34,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # makeRepo() sets user.email/user.name on each scratch repo itself, so
+      # this is belt and braces — but a scenario that forgets to would fail on a
+      # runner with no global identity and pass locally, which is the exact
+      # environment-dependent failure this file exists to stop.
+      - name: Configure git identity for hook scenarios
+        run: |
+          git config --global user.email "ci@example.com"
+          git config --global user.name "CI"
+          git config --global init.defaultBranch main
+
+      - name: Build
+        run: npm run build
+
       - name: Typecheck
         run: npm run typecheck
 
@@ -27,4 +54,36 @@ jobs:
         run: npm run lint
 
       - name: Test
-        run: npm run test --if-present
+        run: npm run test
+
+      # Every root-level `check:*` script, enumerated from package.json rather
+      # than listed here.
+      #
+      # This is the whole reason this job exists. `check:hooks` was a real gate
+      # that no machine ran: CI listed its steps by hand, nobody added it, and
+      # on 2026-08-26 CI reported success on commit bfe1e83 while check:hooks
+      # was failing 46 of its 49 cases on main.
+      #
+      # A hand-maintained list of checks drifts exactly like a hand-maintained
+      # list of issues did. Deriving it means a new root `check:*` script is in
+      # CI the moment it exists.
+      #
+      # Workspace-level `check:*` scripts (apps/api's check:add-location,
+      # check:delete-trip) are deliberately NOT run here: they need a real
+      # DATABASE_URL. The convention is that a root-level check is hermetic.
+      - name: Repo checks (all root check:* scripts)
+        run: |
+          set -euo pipefail
+          mapfile -t checks < <(node -e "
+            const s = require('./package.json').scripts ?? {};
+            for (const k of Object.keys(s)) if (k.startsWith('check:')) console.log(k);
+          ")
+          if [ ${#checks[@]} -eq 0 ]; then
+            echo "No root check:* scripts found — that is almost certainly wrong."
+            exit 1
+          fi
+          for c in "${checks[@]}"; do
+            echo "::group::npm run $c"
+            npm run "$c"
+            echo "::endgroup::"
+          done
