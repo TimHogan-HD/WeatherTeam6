@@ -42,14 +42,28 @@ function hashesMatch(provided: string, expected: string): boolean {
 }
 
 /**
- * Everything except `hash` itself, and except `signature` — that field carries
- * Telegram's separate Ed25519 third-party signature and is explicitly excluded
- * from the bot-token check. Including it would fail every launch from a client
- * new enough to send one.
+ * Every received field except `hash` itself — including `signature`.
+ *
+ * **`signature` must be in here, and getting that backwards broke every real
+ * launch for a week.** Telegram documents two different validations and they
+ * exclude different fields:
+ *
+ * - *This* one, HMAC-SHA256 with the bot-token-derived key, takes "a chain of
+ *   **all** received fields, sorted alphabetically" minus `hash`.
+ * - The separate Ed25519 third-party check — which this app does not do — is
+ *   the one that excludes "all received fields (except `hash` and
+ *   `signature`)".
+ *
+ * The Ed25519 rule was applied here to the wrong algorithm. Clients from Bot
+ * API 7.10 on send `signature` on every launch, so the check string was missing
+ * a field and the hash never matched: every Mini App request 401'd from the day
+ * auth shipped, while the unit tests passed because they signed payloads the
+ * same wrong way. Verified against core.telegram.org/bots/webapps on
+ * 2026-08-26.
  */
 function buildDataCheckString(entries: readonly (readonly [string, string])[]): string {
   return entries
-    .filter(([key]) => key !== 'hash' && key !== 'signature')
+    .filter(([key]) => key !== 'hash')
     .map(([key, value]) => `${key}=${value}`)
     .sort()
     .join('\n');

@@ -69,6 +69,19 @@ function initDataAccepted(req: Request, res: Response, initData: string): boolea
 
   const result = validateInitData(initData, botToken);
   if (!result.ok) {
+    // Field *names* only, never values — the payload is the credential.
+    //
+    // This exists because a hash mismatch is otherwise undiagnosable from the
+    // outside, and one cost a full release cycle: `signature` was being
+    // excluded from the check string (that is the Ed25519 rule, not the
+    // bot-token rule), so every launch from a Bot API 7.10+ client 401'd while
+    // the unit tests stayed green. A list of the keys Telegram actually sent
+    // would have pointed straight at it.
+    const fields =
+      result.reason === 'hash mismatch'
+        ? [...new Set([...new URLSearchParams(initData).keys()])].sort().join(',')
+        : undefined;
+    logger.warn({ fields }, '[apiAuth] initData fields present at rejection');
     reject(req, res, `tma invalid: ${result.reason}`);
     return false;
   }
