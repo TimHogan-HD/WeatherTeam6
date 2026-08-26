@@ -6,7 +6,7 @@
 when you need the reasoning behind a specific past decision, never at session start. It
 used to be mandatory reading, which cost ~41,000 tokens before any work began.
 
-Last updated: 2026-08-26 · `main` @ `204a2cf`
+Last updated: 2026-08-26 · `main` @ `432b25f`
 
 ---
 
@@ -117,9 +117,10 @@ reached `main` the same day anyway:
 - **A red CI run on `main` is reported at session start** by the SessionStart hook. That is
   the automatic version of the manual sweep the user had to ask for.
 - **`.github/workflows/claude-review.yml`** runs an independent reviewer on every non-draft
-  PR — outside the session that wrote the code, so it does not share its blind spot. It is
-  **dormant until `CLAUDE_CODE_OAUTH_TOKEN` is set** as a repository secret, and skips with
-  a notice rather than failing.
+  PR — outside the session that wrote the code, so it does not share its blind spot.
+  **Live since 2026-08-26 20:51 UTC**, when `CLAUDE_CODE_OAUTH_TOKEN` was registered. If it
+  ever completes in ~3 seconds it skipped for a missing credential, and says so as a GitHub
+  notice; that is not a clean review.
 
 **Do not treat any of this as bureaucracy to route around.** If a gate fires, finish the
 work; if it misfires, add a case to `check-hooks.mjs` rather than loosening the guard. Do
@@ -152,16 +153,12 @@ Only things that are still true and still bite. Historical gotchas are in the ar
 
 ## What the user owes
 
-**Two things, both 2026-08-26.**
+**One thing, outstanding since 2026-08-26.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's
+Vercel project to a long random string, then re-run Telegram's `setWebhook` with
+`secret_token` set to the same value. Until then the webhook's secret check is skipped and
+the forgeable `chat.id` is the only gate.
 
-1. **`TELEGRAM_WEBHOOK_SECRET`** — set it in the API's Vercel project to a long random
-   string, then re-run Telegram's `setWebhook` with `secret_token` set to the same value.
-   Until then the webhook's secret check is skipped and the forgeable `chat.id` is the only
-   gate.
-2. **`CLAUDE_CODE_OAUTH_TOKEN`** — run `claude setup-token` and add the result as a
-   repository secret (`gh secret set CLAUDE_CODE_OAUTH_TOKEN`). This turns on the
-   independent PR reviewer in `claude-review.yml`. Only they can generate it: the command
-   is interactive and tied to their subscription. Optional, but it is the piece that catches
-   what the authoring session misses.
+`CLAUDE_CODE_OAUTH_TOKEN` was registered 2026-08-26 20:51 UTC — the independent PR reviewer
+is live and needs nothing further.
 
 Nothing else is waiting on them. #25 needs a decision, but only when they choose to pick it up.
