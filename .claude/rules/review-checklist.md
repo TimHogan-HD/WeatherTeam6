@@ -50,6 +50,8 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] Colors/spacing/type come from `packages/design` — not redefined locally
 - [ ] `type`, `shadow` and `layout` come from `src/theme/tokens.css.ts`, never straight from `@weatherteam6/design/tokens` — they are React Native shaped, and the RN font family name silently falls back to the system font in CSS
 - [ ] No hand-written `--wt6-*` declaration — the `:root` block is generated from the tokens by `src/theme/cssVars.ts`
+- [ ] A token property added in `packages/design` has a mapping in the adapter — not a widened type or a silenced throw; RN/CSS defaults differ (flex `column` vs `row`, `border-width` needing `border-style`) and a missing mapping renders wrong rather than failing
+- [ ] Vertical spacing comes from tokens, not browser default margins — `globals.css` resets them, and a new text element that needs spacing gets it from the type scale
 - [ ] Every `--tg-*` var reference has a fallback (`var(--tg-safe-area-inset-top, 0px)`) — CSS drops the whole declaration when a `var()` resolves to nothing
 - [ ] The screen still renders with `getWebApp()` returning `null` — a plain browser, or `telegram-web-app.js` failing to load
 - [ ] Each Telegram API call is gated at its own version floor, not a shared one

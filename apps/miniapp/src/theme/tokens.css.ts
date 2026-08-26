@@ -54,9 +54,40 @@ function parseColor(color: string): Rgba | null {
  */
 function withOpacity(color: string, opacity: number): string {
   const parsed = parseColor(color)
-  if (parsed === null) return color
+  if (parsed === null) {
+    // Returning the colour unchanged would discard `shadowOpacity` and render a
+    // glow at full strength with nothing to say so. `parseColor` handles the two
+    // notations the tokens use today; an 8-digit hex or `hsl()` needs adding.
+    throw new Error(`Cannot apply opacity to unrecognised color "${color}" — extend parseColor.`)
+  }
   const alpha = Number((parsed.a * opacity).toFixed(3))
   return `rgba(${parsed.r},${parsed.g},${parsed.b},${alpha})`
+}
+
+/**
+ * A token property with no web mapping would otherwise be dropped silently,
+ * producing a style that looks applied and is not. Two layers stop that, and
+ * they cover different cases:
+ *
+ * 1. **Compile time**, for `type`, `layout` and `shadow` — they are converted
+ *    wholesale just below, so a new property in `packages/design` fails
+ *    `tsc --noEmit` with "has no properties in common with type RnBoxStyle".
+ *    Verified by adding one and watching the build fail.
+ * 2. **Runtime**, for `components` — those are converted per-entry by Task 6,
+ *    and TypeScript will not catch a stray property there: excess-property
+ *    checking applies only to object literals, and the argument is always an
+ *    imported token object. Hence the check below.
+ *
+ * This is what makes §0a's "audit per-entry" instruction enforceable.
+ */
+function assertMapped(style: object, known: ReadonlySet<string>, converter: string): void {
+  for (const key of Object.keys(style)) {
+    if (!known.has(key)) {
+      throw new Error(
+        `${converter}: no web mapping for token property "${key}". Add one — dropping it renders a style that looks applied but is not.`,
+      )
+    }
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -76,7 +107,19 @@ type RnTextStyle = {
   marginTop?: number
 }
 
+const TEXT_KEYS: ReadonlySet<string> = new Set([
+  'fontFamily',
+  'fontSize',
+  'fontWeight',
+  'letterSpacing',
+  'lineHeight',
+  'color',
+  'textTransform',
+  'marginTop',
+] satisfies (keyof RnTextStyle)[])
+
 export function textStyle(t: RnTextStyle): CSSProperties {
+  assertMapped(t, TEXT_KEYS, 'textStyle')
   const out: CSSProperties = {}
   if (t.fontFamily !== undefined) out.fontFamily = stackForFamily(t.fontFamily)
   if (t.fontSize !== undefined) out.fontSize = px(t.fontSize)
@@ -89,6 +132,9 @@ export function textStyle(t: RnTextStyle): CSSProperties {
   return out
 }
 
+// The cast on each of the three groups below is only to recover key names:
+// `Object.fromEntries` widens them to `string`. The value type is checked, and
+// the input type is what makes an unmapped token a compile error.
 export const type: { [K in keyof typeof rnType]: CSSProperties } = Object.fromEntries(
   Object.entries(rnType).map(([name, style]) => [name, textStyle(style)]),
 ) as { [K in keyof typeof rnType]: CSSProperties }
@@ -113,19 +159,58 @@ type RnBoxStyle = {
   borderWidth?: number
   borderColor?: string
   borderRadius?: number
+  borderTopLeftRadius?: number
+  borderTopRightRadius?: number
+  borderBottomLeftRadius?: number
+  borderBottomRightRadius?: number
   backgroundColor?: string
 }
+
+const BOX_KEYS: ReadonlySet<string> = new Set([
+  'flex',
+  'flexDirection',
+  'alignItems',
+  'justifyContent',
+  'gap',
+  'padding',
+  'paddingHorizontal',
+  'paddingVertical',
+  'paddingTop',
+  'marginTop',
+  'width',
+  'height',
+  'borderWidth',
+  'borderColor',
+  'borderRadius',
+  'borderTopLeftRadius',
+  'borderTopRightRadius',
+  'borderBottomLeftRadius',
+  'borderBottomRightRadius',
+  'backgroundColor',
+] satisfies (keyof RnBoxStyle)[])
 
 /**
  * Exported so Task 6 can convert individual `components` entries as it needs
  * them. `components` is deliberately *not* pre-converted here: several entries
  * mix text and box props (`btnPrimaryText` spreads `type.navLabel`), so §0a's
  * "audit per-entry" applies and a blanket conversion would be wrong.
+ *
+ * Two RN/CSS defaults differ in ways that produce a wrong result rather than an
+ * error, and both are corrected here:
+ *
+ * - **Flex direction.** RN flex containers default to `column`; CSS defaults to
+ *   `row`. `components.btnPrimary` sets only `alignItems: 'center'`, which
+ *   centres its label horizontally in RN and *vertically* in CSS — the label
+ *   would sit flush left in a button that looks otherwise correct.
+ * - **Border style.** RN needs only a width and a colour. CSS starts at
+ *   `border-style: none`, which zeroes the width, so `components.card`, `input`,
+ *   `layerChip`, `sourceBadge` and `chosenChip` would all draw no border at all.
  */
 export function boxStyle(b: RnBoxStyle): CSSProperties {
+  assertMapped(b, BOX_KEYS, 'boxStyle')
+
   const out: CSSProperties = {}
   if (b.flex !== undefined) out.flex = b.flex
-  if (b.flexDirection !== undefined) out.flexDirection = b.flexDirection
   if (b.alignItems !== undefined) out.alignItems = b.alignItems
   if (b.justifyContent !== undefined) out.justifyContent = b.justifyContent
   if (b.gap !== undefined) out.gap = px(b.gap)
@@ -136,12 +221,26 @@ export function boxStyle(b: RnBoxStyle): CSSProperties {
   if (b.marginTop !== undefined) out.marginTop = px(b.marginTop)
   if (b.width !== undefined) out.width = px(b.width)
   if (b.height !== undefined) out.height = px(b.height)
-  if (b.borderWidth !== undefined) out.borderWidth = px(b.borderWidth)
-  if (b.borderColor !== undefined) out.borderColor = b.borderColor
   if (b.borderRadius !== undefined) out.borderRadius = px(b.borderRadius)
+  if (b.borderTopLeftRadius !== undefined) out.borderTopLeftRadius = px(b.borderTopLeftRadius)
+  if (b.borderTopRightRadius !== undefined) out.borderTopRightRadius = px(b.borderTopRightRadius)
+  if (b.borderBottomLeftRadius !== undefined) {
+    out.borderBottomLeftRadius = px(b.borderBottomLeftRadius)
+  }
+  if (b.borderBottomRightRadius !== undefined) {
+    out.borderBottomRightRadius = px(b.borderBottomRightRadius)
+  }
   if (b.backgroundColor !== undefined) out.backgroundColor = b.backgroundColor
-  // RN views are flex containers by default; CSS blocks are not. Any style that
-  // sets a flex property has to say `display: flex` for it to mean anything.
+
+  if (b.borderWidth !== undefined) {
+    out.borderWidth = px(b.borderWidth)
+    out.borderStyle = 'solid'
+  }
+  if (b.borderColor !== undefined) out.borderColor = b.borderColor
+
+  // RN views are flex containers by default; CSS blocks are not. A style that
+  // sets any container property has to say `display: flex` for it to mean
+  // anything — and then carry RN's `column` default with it.
   if (
     b.flexDirection !== undefined ||
     b.alignItems !== undefined ||
@@ -149,7 +248,9 @@ export function boxStyle(b: RnBoxStyle): CSSProperties {
     b.gap !== undefined
   ) {
     out.display = 'flex'
+    out.flexDirection = b.flexDirection ?? 'column'
   }
+
   return out
 }
 

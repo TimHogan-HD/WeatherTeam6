@@ -17,6 +17,29 @@
   box-sizing: border-box;
 }
 
+/*
+ * Browser default margins have to go, or they stack on top of the layout
+ * constants and quietly override them. Measured before this reset: `<h1>`
+ * carried a 20.1px margin, so `spacing.topSafe` (48) rendered as 68, and the
+ * 20.1px bottom margin collapsed over `type.screenSub`'s 5px `marginTop` and
+ * swallowed it whole. Vertical spacing comes from the tokens, nowhere else.
+ */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+figure,
+blockquote,
+dl,
+dd,
+ul,
+ol {
+  margin: 0;
+}
+
 html {
   /* The gradient is painted here as well as on body so an overscroll past the
      end of a short page shows the app's own colour, not white. */

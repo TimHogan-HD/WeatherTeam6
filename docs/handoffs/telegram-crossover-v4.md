@@ -192,9 +192,10 @@ acceptance criterion is unmet — do not record it as complete.
 - ✅ `telegram-web-app.js` loaded synchronously ahead of the app module, `ready()` and
   `expand()` on mount, chrome harmonized per `miniapp-design-v1.md` §1 —
   `setBackgroundColor` gated at Bot API 6.1 and `setHeaderColor` at 6.9, separately,
-  with no `bg_color` keyword fallback. `themeParams` is read but **nothing branches on
-  it**: §1 fixes the content surface to the WeatherTeam6 dark palette, because the
-  palette has no light variant and every locked contrast rule assumes dark.
+  with no `bg_color` keyword fallback. `themeParams` is on the typed surface and is
+  **deliberately never read** — §1 fixes the content surface to the WeatherTeam6 dark
+  palette, because the palette has no light variant and every locked contrast rule
+  assumes dark.
 - ✅ The token adapter §0a requires *before the first component* —
   `src/theme/tokens.css.ts` re-expresses `type`, `shadow` and `layout` for the web and
   maps `BarlowCondensed` → `"Barlow Condensed"`, plus a generated `:root` block of

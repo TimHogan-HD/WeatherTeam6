@@ -27,7 +27,18 @@ export const fontStacks = {
   body: `${quoted(fonts.body)}, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`,
 } as const
 
-/** Maps an `expo-font` family token onto the stack the web should use for it. */
+/**
+ * Maps an `expo-font` family token onto the stack the web should use for it.
+ *
+ * Throws on anything else rather than defaulting to the body stack. Defaulting
+ * would reintroduce exactly what this module exists to prevent: a third or
+ * renamed family in `packages/design` would silently drop headings to the
+ * non-condensed face, and nothing would report it.
+ */
 export function stackForFamily(expoFamily: string): string {
-  return expoFamily === fonts.display ? fontStacks.display : fontStacks.body
+  if (expoFamily === fonts.display) return fontStacks.display
+  if (expoFamily === fonts.body) return fontStacks.body
+  throw new Error(
+    `No web font stack for family "${expoFamily}". Add one to fontStacks — falling back silently renders the wrong face with no error.`,
+  )
 }
