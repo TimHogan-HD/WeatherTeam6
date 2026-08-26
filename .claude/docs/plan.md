@@ -51,7 +51,7 @@ v8 defines `breakdown: ScoreBreakdown` (not nullable) but the Phase 3 stub retur
 > `apps/miniapp` is live at https://weatherteam6.vercel.app, opened from the bot's menu
 > button. Its three screens are real as of 2026-08-26 (Task 6) — **written and merged,
 > but not yet confirmed inside Telegram**, because there is no preview-deploy path for
-> testing there. See `.claude/docs/session-notes.md` for the running record.
+> testing there. See `.claude/docs/session-archive.md` for the running record.
 
 ---
 
@@ -144,19 +144,33 @@ Each phase: implement → `npm run typecheck` → `npm run lint` → review chec
 
 ### Direction after the crossover — set by the user 2026-08-26
 
-The seven crossover tasks are done and the whole stack is confirmed working on a real
-device. The user's stated order from here, and it is **not** the issue table's order:
+> **Revised by the user 2026-08-26, later the same day, after the agent-systems review.**
+> The Mini App design work below was explicitly downgraded and the chat interface promoted.
+> Where this section and the original ordering disagree, this note wins.
 
-1. **A deep review, debug and cleanup pass — next session, and it comes first.** The
-   goal is "a clean base and polished repo to move forward with feature updates". Nothing
-   new gets built until that lands. See the brief in `session-notes.md`.
-2. **Polish, and adjust the Mini App where needed.**
-3. **New bot commands and text-based weather updates.** The user wants weather to arrive
-   as *text*, not only through the Mini App and alert replies. This is a design
-   conversation the user wants to have first — do not spec it unilaterally.
-4. **An in-app feedback button.** Press it, type a note in the moment, and the note lands
+The seven crossover tasks are done and the whole stack is confirmed working on a real
+device. The user's stated order from here:
+
+1. **An agent-systems cleanup pass — it comes first.** Not the app: the hooks, rules,
+   agents, docs and review loops. Stage 0 (working hooks, a permissions allowlist, current
+   models on the review agents) and Stage 1 (session-start context cost) are what this
+   branch does. The goal is "a clean base and polished repo to move forward with feature
+   updates".
+2. **The chat interface — this is the priority feature.** The user wants to **ask in plain
+   language and get a response**, and to use **slash commands to pull specific information
+   about a location or a span of time**. Weather should arrive as *text*, not only through
+   the Mini App and alert replies. This is a design conversation the user wants to have
+   first — **do not spec it unilaterally.**
+3. **An in-app feedback button.** Press it, type a note in the moment, and the note lands
    **somewhere in this repo** to be addressed later. The destination and mechanism are
-   undecided; the requirement is that it is capturable without breaking flow.
+   undecided; the requirement is that it is capturable without breaking flow. Also a design
+   conversation to have first.
+4. **Mini App polish — deliberately downgraded.** The user's words: *"I overstated the
+   design portion… the Mini App doesn't need to be super fancy."* An earlier version of
+   this plan proposed a CSS architecture, a motion system and a browser-based visual
+   review loop for it. **That work is not authorised.** The Mini App is styled entirely
+   with inline styles, which cannot express hover, transitions or breakpoints — that is a
+   real ceiling, but it is not one the user wants lifted yet. Revisit only if asked.
 
 **Deliberately deferred by the user, not forgotten:** the conditions score algorithm,
 i.e. the open half of **#21**. Quote: *"right now I don't really want to worry about that
@@ -167,39 +181,30 @@ change.** It needs a product decision the user has chosen not to make yet.
 
 ---
 
-### Issue status — checked 2026-08-26
+### Issue status
 
-**Reconciled against GitHub 2026-08-26.** This table used to track five issues while the
-tracker held eight, and listed #22 and #26 as "Closed" while both were still open on
-GitHub — the docs and the tracker had drifted apart in both directions. #22 and #26 are
-now genuinely closed, with the evidence in the closing comments.
+**Read it from GitHub: `gh issue list`. There is deliberately no table here.**
 
-**Six open: #21, #25, #27 (parts 2 and 4), #32, #33, #34.** Several were partly fixed
-without being closed, so "open" alone is misleading — read the state column.
+A transcribed status table used to live at this spot and it drifted in both directions —
+it claimed six issues open when four were, and marked #33 and #34 open after both had been
+fixed and closed. The commit that claimed to correct it touched only the session record and
+left this file wrong. Copied state goes stale; derived state cannot.
 
-| Issue | State |
-| --- | --- |
-| **#21** — heat scores 80+ | **Half fixed.** The copy half is done: no surface maps a score to an opinion, and `summarizeConditions` suppresses the score as a summary when a component is 0 or a Severe+ alert is active. **The scoring half is open**, and **live production data on 2026-08-26 shows it is worse than this entry said.** All three seeded locations rendered at once: Indian Creek 96 °F → **86**, Joshua Tree 103 °F → **78**, Red Rock 106 °F under an active Severe Extreme Heat Warning → **85**.<br><br>The sharp version of the defect: **the temperature component is already 0 for all three** (`temp > 35 °C → tempRaw = 0`, and 96 °F is 35.6 °C). It is saturated across the entire list, so it distinguishes nothing — 96 °F and 106 °F score identically on temperature. **Re-weighting or steepening the temperature curve therefore cannot fix this**; the component is already bottomed out and the score is still 85. The 12-point cap is the whole problem.<br><br>Worse, desert heat *inflates* the other four components: no rain (25/25), a long dry spell (40/40), low humidity (8/8) — **73 of 100 points handed out precisely because it is brutally hot and dry.** The remaining spread between the three is wind alone (Joshua Tree's 24 mph costs ~8 points; Red Rock's 3 °F of extra heat costs nothing). The model cannot express "dangerous" at all.<br><br>So the two viable options are the ones that act on the *total*: cap it when a component is 0, or apply a multiplicative safety factor. Re-weighting temperature is off the table. |
-| **#22** — NBM 400s | **Closed on GitHub 2026-08-26.** Root cause: Open-Meteo does not define `precipitation_p10/p50/p90` as daily variables and exposes no NBM quantiles under any name (verified against the live API). The NBM branch could never have returned data, so the call was removed. `fetchNBM` remains in `openMeteo.ts`, tested and unused. The spread NBM was wanted for now comes from the ensemble itself, which pools all four models as of `a6487e1`. |
-| **#25** — `/history` and `/normals` return `[]` forever | **Open, unchanged.** Deleting the `rainfallHistory` worker removed the only writer for `crag_climbability_history` and `location_normals`. Needs a design call on where the write goes. Both routes are on the clients' do-not-call list. |
-| **#26** — Telegram HTML + alert pruning | **Closed 2026-08-26.** Every interpolated value is escaped in both message paths, and `fetchNwsAlerts` now returns `null` rather than `[]` for a 200 that is not a FeatureCollection — the case that deleted stored rows and destroyed `notified_at`. A third bug was found in the same audit and fixed with it: `/start` and the usage reply both contained `<location name>`, which Telegram rejects as an unsupported start tag, so neither had ever been delivered. |
-| **#27** — webhook hardening | **Mostly closed 2026-08-26.** `secret_token` is now verified by `webhookSecretAccepted` (`lib/telegram/webhookAuth.ts`, pure and separately tested), and `TELEGRAM_CHAT_ID` is trimmed on both sides so a stray space cannot authorize the Mini App while silently rejecting every bot command. **It only takes effect once `TELEGRAM_WEBHOOK_SECRET` is set in Vercel and `setWebhook` is re-run with the same value** — deliberately permissive when unset, or deploying it would take the bot offline in the gap. **Still open:** no `update_id` dedupe. That needs a table to record seen ids, so it is a schema change and a design call, not a patch. Duplicate delivery only happens when Telegram times out waiting for our 200, and the route always answers 200, so the exposure is small. |
+Standing context that is *not* recorded on the issues themselves lives in
+`.claude/docs/STATE.md` — which of them are deferred by the user, which need a product
+decision rather than code, and which are blocked on a migration this environment cannot run.
 
-| **#32** — a missing today-row inflates the score | **Open.** When no forecast day matches today, `liveForecast` substitutes `currentWindKmh = 0` and `currentHumidityPct = 50`, both inside their full-credit bands, and nothing in the response marks the result degraded. Same family as #34. |
-| **#33** — "Today" is a UTC date | **Open.** Today's high becomes tomorrow's in the late afternoon in the Americas. The fix is server-side — pass `locations.timezone`, which is stored and read by nothing. **Do not paper over it in the client**; `todayUtcIso` deliberately mirrors the API's definition. |
-| **#34** — a failed rainfall fetch reads as a dry month | **Open, and the display half is now guarded.** `formatHoursSinceRain` caps at "no rain in 30+ days", and two boundary bugs in that cap were fixed in `07bc7c5` (it printed the literal "no rain in 720h" for 719.5–719.99, and "no rain in -14h" when it had rained today). **The scoring half is untouched:** a swallowed ACIS/archive error still awards 40/40 on drying time, the heaviest component, so an upstream outage *raises* the score. |
+The diagnosis for **#21** is the one thing worth keeping in prose, because it is long and it
+is not in the issue: see *Direction after the crossover* above. Its short form — the
+temperature component is already saturated at 0 across every hot location, so re-weighting
+temperature cannot fix it; only something acting on the total can.
 
-**Two more, unfiled:**
-
-- **`ScoreInput` conflates the humidity component with the drying humidity modifier** in one field, so per-day humidity cannot be fixed without moving the drying calculation too. Found 2026-08-26 while fixing the per-day wind component; needs its own change.
-- **`GET /forecast/:id` and `GET /conditions/:id` each run their own `computeLiveForecast`.** One detail view is two ensemble calls plus two rainfall calls; a list of N climbing locations is 2N of each. Fixing it means a request-scoped cache or a combined endpoint — an API change.
-
-**A note on the pattern, worth keeping in view when #21 is finally picked up:** #21, #32 and
-#34 are the same defect wearing three hats. **Every degradation path in the scorer
-inflates.** A missing rainfall fetch is full drying credit; a missing today-row is full
-wind and humidity credit; brutal heat maxes out four of five components. Whatever is done
-about the score should start from "what does this say when the inputs are missing", not
-from re-weighting temperature.
+**A note on the pattern, worth keeping in view when #21 is picked up:** #21, #32 and #34 are
+the same defect wearing three hats. **Every degradation path in the scorer inflates.** A
+missing rainfall fetch is full drying credit; a missing today-row is full wind and humidity
+credit; brutal heat maxes out four of five components. Whatever is done about the score
+should start from "what does this say when the inputs are missing", not from re-weighting
+temperature.
 
 ---
 ### ⚠️ Sequencing constraint — Mini App auth
@@ -337,6 +342,6 @@ Seed script is idempotent (upsert by name or fixed UUIDs).
 2. `npm run typecheck` — strict mode, zero errors
 3. `npm run lint` — zero violations
 4. `npm run test` — all tests pass
-5. `.claude/rules/review-checklist.md` — all boxes checked
+5. the `/review-checklist` skill (`.claude/skills/review-checklist/SKILL.md`) — all boxes checked
 6. Commit with exact format: `phase-N: <description>` (sub-phases use `phase-Na: <description>`)
 7. Stop. Wait for user gate-pass before the next phase.

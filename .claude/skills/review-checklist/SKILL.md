@@ -1,3 +1,8 @@
+---
+name: review-checklist
+description: The pre-commit review checklist for WeatherTeam6. Use before every commit, before opening a PR, when reviewing a diff, and before reporting any work complete. Covers Gate 0 (read the diff as prose), TypeScript, architecture drift, external API calls, database and FK-cascade rules, cron idempotency, security, Mini App client rules, Telegram surfaces, verification standards, and the mandatory handoff block.
+---
+
 # Review Checklist
 
 Run through this before every commit. Flag any failures before proceeding.

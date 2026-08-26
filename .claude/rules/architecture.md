@@ -1,11 +1,19 @@
 # Architecture Rules
 
-> **Two companion rules, both mandatory:** `.claude/rules/review-checklist.md` before
-> every commit, and `.claude/rules/defect-patterns.md` before reviewing any diff. The
-> second exists because every defect this project has shipped passed every automated
-> gate in the repo.
+> **Two companion rules, both mandatory:**
+> - **`/review-checklist`** before every commit and before opening a PR. It is a skill, so
+>   it loads on demand rather than costing ~2,800 tokens in every session. Invoke it.
+> - **`.claude/rules/defect-patterns.md`** before reviewing any diff. It loads
+>   automatically — it stays always-on because it is the highest-value document here and
+>   the cheapest of the rules. It exists because every defect this project has shipped
+>   passed every automated gate in the repo.
+>
+> Domain patterns live in **skills** that load when you touch the matching files:
+> `miniapp-patterns` (`apps/miniapp/**`), `drizzle-patterns`, `background-work`,
+> `conditions-score`.
 
-Read this at the start of every session. These decisions are final unless explicitly overridden by the user.
+This file loads automatically at session start — you do not need to open it. These
+decisions are final unless explicitly overridden by the user.
 
 ## Monorepo Structure
 - Turborepo. Apps: `apps/api` (live; the add-location API landed 2026-08-25, Task 5a), `apps/miniapp` (Vite + React; live at https://weatherteam6.vercel.app as the bot's menu button — shell shipped 2026-08-25, all three screens 2026-08-26), `apps/mobile` (archived and **out of the build** since 2026-08-26 — it declares no `build`/`dev`/`typecheck`/`lint`/`test` script, which is what makes turbo skip it; still a workspace member so `npm install` resolves its dependencies). Shared packages: `packages/types`, `packages/design`.
@@ -87,43 +95,25 @@ There is no queue infrastructure — no BullMQ, no Redis. The API is a single Ex
 
 Any handler that touches the DB across more than one request-scoped operation must still be safe to run concurrently / retry — the "idempotent, no duplicate data" bar from the old job-based world still applies, it's just enforced per-request now instead of per-job-run.
 
-## Client Mandate — Telegram Mini App
+## Client — Telegram Mini App
 
-**Direction changed 2026-07-31.** WeatherTeam6 was a native-mobile-first app; it is now a **Telegram bot + Telegram Mini App**. `apps/mobile` is being archived (Crossover Task 7) — its code stays in the repo but leaves the build. The old Mobile-First Mandate (never use WebView, `react-native-maps` for every map, native `.tsx` always real) is **superseded** and no longer applies. See `docs/handoffs/telegram-crossover-v4.md`.
+**The Mini App is the client.** `apps/miniapp` (Vite + React, static build) is the real,
+complete implementation of every user-facing screen. There is no second client to keep in
+parity. `apps/mobile` is archived — **do not add features to it.**
 
-- **The Mini App is the client.** `apps/miniapp` (Vite + React, static build) is the real, complete implementation of every user-facing screen. There is no second client to keep in parity.
-- **Do not add features to `apps/mobile`.** It is archived. If something there is worth keeping, port it into the Mini App rather than reviving the app.
-- **`apps/mobile` leaves the build through its own `package.json`, not `turbo.json`.** Turbo runs whatever scripts a workspace member declares, so a package with no `build` script is skipped and a `turbo.json` task override cannot silence one that exists — the old `@weatherteam6/mobile#build` override only zeroed the task's *outputs* while `tsc --noEmit` kept running. If mobile ever reappears in a task graph, look at its scripts. See `apps/mobile/ARCHIVED.md`.
-- **Design tokens come from `packages/design`.** Do not redefine colors, spacing, or type scale in the Mini App. The locked contrast, layout, and copy rules in `docs/handoffs/weatherteam6-ui-handoff-v1.md` §Design System still apply — they are client-agnostic.
-- **Telegram theming.** The Mini App reads `themeParams` and must be legible in the user's own Telegram theme. How that reconciles with the locked palette is settled in the Mini App design spec — do not improvise it per-component.
-- **No hardcoded mock data in production components.** `MOCK_*` constants, `mockXyz()` functions, and bell-curve approximations are stubs that must be replaced before a feature is complete. Stubs are only acceptable during the phase that explicitly introduces them, and must be wired to real data in that phase or the immediately following one.
-- **Auth (shipped 2026-08-26):** the Mini App authenticates via `Telegram.WebApp.initData` validated server-side by HMAC, as route-level middleware on `/api/v1/*` — see § Backend Patterns for the invariants. The bot token never reaches the client bundle. It is a **second accepted scheme on the same `Authorization` header**, added alongside `API_SHARED_SECRET` and never replacing it. **There is no Vercel SSO to remove and it must not be removed:** SSO covers preview deployments only, and the production alias already answers unauthenticated requests with our own Express 401 (verified 2026-08-25). The "ship it together with removing SSO" instruction that used to live here was based on a false premise; see the corrected sequencing note in `.claude/docs/plan.md`.
+The Mini App's own patterns — the design-token adapter, Telegram theming and
+capability gating, deep links, React Query rules, null-safe formatting, score suppression,
+the `is_today` flag, and the archived mobile patterns — live in the **`miniapp-patterns`
+skill**, which loads automatically when you touch `apps/miniapp/**` or `packages/design/**`.
+They are unchanged and still binding; they were moved out of this file because they cost
+~2,000 tokens in every session, including the majority that never open the Mini App.
 
-## Client Patterns (Mini App)
-- **Design tokens reach the web through the adapter, never directly.** `packages/design` targets React Native. `colors`, `spacing`, `radius`, `uvScale` and `units` are plain data and are imported straight from `@weatherteam6/design/tokens`; **`type`, `shadow` and `layout` are RN-shaped and must come from `apps/miniapp/src/theme/tokens.css.ts`** — RN's unitless `fontSize`, string `fontWeight`, `shadowColor`/`shadowOffset`/`shadowOpacity`, `flex: 1` and `paddingHorizontal` have no CSS meaning, and `fonts.display` (`'BarlowCondensed'`) matches no CSS family, so it falls back to the system font without saying so. The adapter **derives** every value from an import and never restates a literal — that is what keeps it inside "never redefine colors, spacing, or type scale in an app". A component that hardcodes a hex, a px size, or a font name has broken this rule even if it looks right on screen.
-- **The adapter must map every token property, and it is wired to say so.** RN and CSS disagree in ways that render wrong rather than error — CSS flex defaults to `row` where RN defaults to `column`, and `border-width` without `border-style` computes to `0`, so a card silently loses its border. Both are corrected in `boxStyle`. A property with no mapping is a compile error for `type`/`layout`/`shadow` (converted wholesale) and a thrown error for `components` (converted per-entry, where TypeScript's excess-property check does not apply). **Do not "fix" either by widening a type or swallowing the throw** — add the mapping.
-- **Browser default margins are reset in `globals.css`, and vertical spacing comes only from tokens.** `<h1>`'s UA margin was adding 20px on top of `spacing.topSafe` and collapsing over `type.screenSub`'s `marginTop` entirely, so the locked layout constants were not what rendered.
-- **Token custom properties are emitted once, from the tokens.** `src/theme/cssVars.ts` renders the `:root` block and `vite.config.ts` serves it as `virtual:wt6-tokens.css`. Do not hand-write a `--wt6-*` declaration anywhere else, and do not add a second source of custom properties.
-- **Every `--tg-*` reference needs a fallback value.** Not all Telegram clients inject them, and CSS drops the entire declaration when a `var()` resolves to nothing — a bare `padding-top: var(--tg-safe-area-inset-top)` silently loses the padding. Always `var(--tg-safe-area-inset-top, 0px)`, `var(--tg-viewport-stable-height, 100dvh)`.
-- **The app must render with no Telegram SDK present.** `getWebApp()` returns `null` in a plain browser and when `telegram-web-app.js` fails to load. Every caller handles that — otherwise the Mini App cannot be developed or debugged outside Telegram.
-- **Telegram capability checks are per-method, not one version gate.** `setBackgroundColor` takes a hex from Bot API 6.1; `setHeaderColor` takes one only from 6.9, and its pre-6.9 `bg_color` keyword resolves to the *user's* theme background — white on a light theme, the exact flash the call exists to prevent. Gate each call at its own floor and accept the default rather than shipping a wrong colour.
-- **An input that could not be measured withholds the score; it never scores as a favourable value** (issue #34). `computeLiveForecast` tracks whether the rainfall lookup *succeeded*, not merely whether it returned rows, and returns `scores: []` plus `scoreUnavailable: 'rainfall_unavailable'` when it failed. `dryingModel` cannot tell a failed fetch from a dry month — both produce the 720-hour sentinel, worth **40 of 100 points** — so swallowing the error made an upstream outage *raise* the score. The weather is unaffected and still returned in full. **A genuinely empty result still scores**: the distinction is "the call failed", not "the call returned nothing".
-- **A withheld score and an absent one are different answers and must read differently.** `ConditionsScore.unavailable_reason` carries the first; `data: null` from `/conditions/:id` remains the second ("no row for today"). The copy for both lives in `packages/types` (`scoreUnavailableLine`) so the bot and the Mini App cannot drift.
-- **The client never asks for a score it must not show.** `computeLiveForecast` does not branch on `is_climbing_location` — `GET /conditions/:id` returns a rock-drying score for a city if asked. `useConditions` is therefore gated on the location being a climbing location, and the score section, the score chip and hours-since-rain are all absent otherwise. Do not "fix" a missing score by relaxing that gate.
-- **The sources footer is computed from the response, never written down.** The forecast models come from `model_sources` (which is `['nbm']` or the ensemble list, depending on what actually ran) and the rainfall branch from whether the location has an `asos_station`. A source is omitted rather than guessed when the data is absent — including NWS when the alerts call failed. Naming a source that never ran is a false attribution, which is what the "quote data sources by name" rule exists to prevent.
-- **"Today" is whichever row the server flagged `is_today`, and the client must not re-derive it** (issue #33, fixed 2026-08-26 — `todayUtcIso` is deleted). `findToday` reads the flag. It falls back to a UTC date comparison **only** when no row in the response carries the flag at all, which means a response cached from before the fix; a row that simply has `is_today: false` is a real answer. When nothing matches, the screen says so — it must never fall back to the first row, which relabels tomorrow's numbers as today's.
-- **The state ladder and score suppression live in `packages/types/src/conditionsCopy.ts`**, because the bot and the Mini App must say the same thing. Suppression runs unconditionally whenever a component is 0 or a Severe+ alert is active; there is no degradation guard and one must not be added (see the do-not-reintroduce note in that file).
-- **A card that is itself a tap target must not be a `<button>`** if anything inside it is interactive. `LocationCard` contains a retry control, and a `<button>` inside a `<button>` is invalid markup the browser reparses, moving the inner control out of the card.
-- **React Query** remains the agreed state management layer for server data. No Redux, no Zustand, no Context for server state.
-- All API calls go through React Query hooks. Components never call `fetch` directly — the same rule that applied to `apps/mobile/src/hooks/`, now in `apps/miniapp`.
-- No hardcoded API base URLs — use build-time env config (`VITE_API_BASE_URL`).
-- Navigation is the Mini App's own routing, integrated with Telegram's `BackButton`. The `startapp` deep-link parameter lands directly on location detail — shipped 2026-08-26, `src/lib/deepLink.ts`.
-- **The deep link seats two history entries, list first, and does it before React mounts.** `applyDeepLink` runs from `main.tsx`, not an effect: `replaceState('/')` then `pushState('/location/:id')`. Pushing only the detail entry leaves it first in the stack, so the platform back gesture closes the Mini App instead of revealing the list — that is the acceptance criterion for the whole feature. Running it pre-mount also means `BrowserRouter` reads the detail route as its initial location (no list flash) and a `<StrictMode>` double-invoked effect cannot push the entry twice.
-- **A deep-link parameter is validated, never repaired.** `loc_<uuid>` with the dashes exactly as they arrived; anything failing the UUID test returns `null` and the app boots on `/` silently. Stripping and reinserting dashes at fixed offsets turns a corrupted parameter into a well-formed but *wrong* UUID, which reaches the API and 404s instead of falling back to the list. **Never render an error for a bad deep link.**
-- **The parameter has two sources, in a fixed order:** `initDataUnsafe.start_param` first, then the `tgWebAppStartParam` launch parameter (looked for in the query string and the hash, because Telegram has delivered its `tgWebApp*` parameters in the fragment too). The second source is also how the path is exercised in a plain browser, where `getWebApp()` is `null`.
+Two that stay here because they constrain the **API**, not the client:
 
-## Archived — Mobile Patterns (no longer in force)
-Kept for context while `apps/mobile` remains in the repo. Do not apply these to new work.
-- React Query hooks in `apps/mobile/src/hooks/`; components never called fetch directly.
-- Expo SDK version was not to be changed without explicit approval.
-- Expo Router was the agreed navigation library; file-based routing under `apps/mobile/app/`, screens as files, layouts as `_layout.tsx`; no imperative navigation outside the `router` API.
+- **The server marks the today row; the client never computes it.** `ForecastSnapshot.is_today`
+  is set in `computeLiveForecast`. A missing value is **unknown, not `false`**.
+- **An input that could not be measured withholds the score; it never scores as a favourable
+  value** (issue #34). `computeLiveForecast` returns `scores: []` plus
+  `scoreUnavailable: 'rainfall_unavailable'` when the rainfall lookup *failed*. A genuinely
+  empty result still scores.
+

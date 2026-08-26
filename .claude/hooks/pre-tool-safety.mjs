@@ -20,12 +20,12 @@
  * Every guard here is covered by `npm run check:hooks`.
  */
 
-const CHECKLIST_POINTER = `REMINDER — Gate 0 of .claude/rules/review-checklist.md:
+const CHECKLIST_POINTER = `REMINDER — Gate 0 of the review checklist:
   Read the actual diff, hunk by hunk, as prose. Not the checklist, not the test
   output. For each hunk ask what it renders or does when the input is null, 0,
   absent, or the network fails.
   Every defect this project has shipped passed typecheck, lint and the suite.
-  Full checklist: .claude/rules/review-checklist.md`
+  Full checklist: run the /review-checklist skill.`
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -50,14 +50,6 @@ function normalisePath(p) {
   return String(p ?? '').replace(/\\/g, '/')
 }
 
-/**
- * True when the command contains an `rm` that is both recursive and forced.
- *
- * Written as flag inspection rather than a literal `rm -rf` match: `-fr`,
- * `-r -f` and `--recursive --force` are the same command and the old hook
- * caught none of them. Each `rm` in a compound command is checked separately,
- * so `rm -r a && rm -f b` is not treated as `rm -rf`.
- */
 /**
  * Strip the parts of a command line that are data rather than executable text:
  * heredoc bodies, and `-m`/`--message` payloads.
@@ -86,6 +78,14 @@ function stripInertText(cmd) {
   return out
 }
 
+/**
+ * True when the command contains an `rm` that is both recursive and forced.
+ *
+ * Written as flag inspection rather than a literal `rm -rf` match: `-fr`,
+ * `-r -f` and `--recursive --force` are the same command and the old hook
+ * caught none of them. Each `rm` in a compound command is checked separately,
+ * so `rm -r a && rm -f b` is not treated as `rm -rf`.
+ */
 function isRecursiveForceRemove(cmd) {
   const invocation = /(?:^|[;&|(]\s*|\s)rm\s+((?:-{1,2}[a-zA-Z-]+\s+)*)/g
   let match

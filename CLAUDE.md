@@ -99,7 +99,11 @@ replaced by ACIS in Phase 11, and RainViewer's key is unused by the current code
 
 **MANDATORY reading rules:**
 
-- At the start of EVERY session: read `.claude/rules/architecture.md`
+Everything in `.claude/rules/` is loaded automatically at session start — you do not need
+to open those files, and telling you to "read" them costs context without changing
+anything. The rules below are the ones that require a **deliberate** read.
+
+- At the start of EVERY session: read `.claude/docs/STATE.md`
 - Before starting any new phase: read `.claude/docs/plan.md`
 - Before ANY database work: read `.claude/docs/data-model.md` AND `.claude/rules/architecture.md`
 - Before ANY weather fetch work: read `.claude/docs/api-sources.md`
@@ -112,7 +116,7 @@ Full paths:
 - **API sources + quirks:** `.claude/docs/api-sources.md`
 - **Scoring algorithm:** `.claude/docs/scoring-algorithm.md`
 - **Architecture rules:** `.claude/rules/architecture.md`
-- **Review checklist:** `.claude/rules/review-checklist.md` — run before every commit
+- **Review checklist:** `/review-checklist` — a skill, loads on demand. Run before every commit
 - **Defect patterns:** `.claude/rules/defect-patterns.md` — the classes that have actually shipped here, and what to grep for
 - **Build plan:** `.claude/docs/plan.md`
 
@@ -130,17 +134,42 @@ Full paths:
 ## Session Start Protocol
 
 At the start of EVERY session:
-1. Read `.claude/rules/architecture.md`
-2. Read `.claude/docs/session-notes.md` (current state and last completed phase)
-3. Read `.claude/docs/plan.md` (what phase is next)
-4. Run `git log --oneline -5` to confirm where the branch is
-5. Run `npm run build --workspace=packages/types --workspace=packages/design` to ensure shared packages are compiled before typechecking `apps/api` and `apps/miniapp`
+1. Read `.claude/docs/STATE.md` — where the project is, what is next, live gotchas, what the user owes. **This is the only state document.**
+2. Run `git log --oneline -5` to confirm where the branch is
+3. Run `npm run build --workspace=packages/types --workspace=packages/design` to ensure shared packages are compiled before typechecking `apps/api` and `apps/miniapp`
 
-**Self-start rule:** If the user's opening message is "next phase", "continue", "do Phase X", or equivalent — complete steps 1–5 above, then state in one sentence what phase you are building and what branch you will create, and proceed. Do not ask for a detailed prompt. The docs are the spec. If a handoff doc section is listed in the session-end block of `session-notes.md`, read it before writing any UI code.
+That is the whole protocol. Everything else is read **when the work needs it**:
+
+| Read this | When |
+| --- | --- |
+| `.claude/docs/plan.md` | before starting a new phase, or when you need the #21 diagnosis |
+| `gh issue list` | whenever you need issue state — **never a table in a document** |
+| `.claude/docs/session-archive.md` | never at session start. Grep it for the reasoning behind one specific past decision |
+| the domain skills | they load themselves when you touch the matching files |
+
+**Why this is short.** It used to mandate reading `session-archive.md` (41,000 tokens) and
+`plan.md` (7,300) up front, which together with the always-loaded rules put ~66,500 tokens
+in context before the first question. Performance degrades as context fills, and almost
+none of it was relevant to the task at hand.
+
+**Self-start rule:** If the user's opening message is "next phase", "continue", "do Phase X", or equivalent — complete steps 1–3 above, then state in one sentence what phase you are building and what branch you will create, and proceed. Do not ask for a detailed prompt. The docs are the spec. If `STATE.md` names a handoff doc section for the work you are picking up, read it before writing any code.
 
 ## Session End Protocol
 
-Before ending ANY session, append a full state block to `.claude/docs/session-notes.md`. Use this exact format:
+Two files, and they do different jobs. Getting this backwards is what produced a 165KB
+document that was mandatory reading.
+
+**1. Rewrite `.claude/docs/STATE.md`.** It describes the project *now*. You **replace** the
+stale parts rather than appending — if a gotcha stopped being true, delete it; if the
+direction changed, rewrite it. There is exactly one current version by construction, so it
+cannot develop the two-ends-newest ordering problem the old log had. Keep it short enough
+to be read at every session start: if it is growing past ~1,500 words, something in it is
+history and belongs in the archive.
+
+**2. Append a full state block to `.claude/docs/session-archive.md`.** This is the
+permanent record and is **never read at session start** — it is grepped when someone needs
+the reasoning behind one specific past decision. Append; never prepend. Use this exact
+format:
 
 ```
 ---
@@ -175,11 +204,19 @@ Stub entries (timestamps only, no content) are noise — never append a session-
 - A completed task is marked complete **in both places the task list lives** — `docs/handoffs/telegram-crossover-v4.md` (the canonical list) and `.claude/docs/plan.md` (the same list with detail). A task recorded in only one of them is effectively unfindable in the other.
 - A new endpoint is added to the inventory in `docs/handoffs/weatherteam6-miniapp-handoff-v1.md`.
 - A new external API is added to `.claude/docs/api-sources.md`.
-- A new invariant future work must uphold goes in `.claude/rules/architecture.md`, and as a checkbox in `.claude/rules/review-checklist.md` if it can rot silently.
+- A new invariant future work must uphold goes in `.claude/rules/architecture.md`, and as a checkbox in the `/review-checklist` skill if it can rot silently.
 - **Specs written in the future tense get a status banner once built**, rather than being left to read as unbuilt work.
 - Anything a doc says is missing, broken, or "does not exist yet" that now exists.
 
 This is not tidying. A stale rule is worse than a missing one: "Two screens only — do not let them creep back in" survived three weeks past the spec that added a third screen, and any agent obeying it would have refused to build a feature that was already specified and whose API was already merged.
+
+**But prefer deleting the copy to maintaining it.** Every item above is a place a fact has
+to be mirrored by hand, and hand-mirroring is what failed: 66% of the last thirty commits
+were documentation repairing other documentation, and the most recent one — titled
+*"record the corrected issue state"* — touched one file and left `plan.md` wrong. Before
+adding a fact to a second document, ask whether the first can simply be **read** instead.
+Issue state is now `gh issue list` for exactly this reason. A fact that lives in one place
+cannot drift.
 
 **After a squash merge, correct the commit hash in the block you just wrote.** The branch commit it names ceases to exist; record the squashed hash on `main` instead.
 
