@@ -261,7 +261,7 @@ scope") is reversed by it.
 **Acceptance:** `npm run check:add-location` — boots the API against a real database and
 walks the whole flow. 16 checks, all passing. ✅ Merged as `a90613f` (PR #37).
 
-## ✅ Task 6 — Mini App screens + auth (COMPLETE 2026-08-26)
+## ✅ Task 6 — Mini App screens + auth (COMPLETE 2026-08-26 — merged `f48bad0` + `63b92dd`)
 
 Built to `miniapp-design-v1.md`, which supersedes the two-screen sketch below — the
 Mini App has **three** routes, because §12 added `/add`.

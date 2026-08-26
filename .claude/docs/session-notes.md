@@ -1,23 +1,23 @@
 ---
 
-## 2026-08-26 (continued) — branch: claude/task-6-miniapp-screens — commits: 899462f, 76dc4a6, 4e71f21
+## 2026-08-26 (continued) — branch: claude/task-6-miniapp-screens — squashed to `main` as `63b92dd` (PR #41)
 
 **Phase completed:** continuous review of Task 6 and of the wider codebase, with fixes. No new features.
 
 **Nine defects found and fixed. Every one passed typecheck, lint and the test suite.**
 
-*In this session's own Task 6 code (`2edb9fe`):*
+*In this session's own Task 6 code:*
 - Keyboard activation of the list card's retry button opened the location instead of retrying — keydown bubbles to the card, and its `preventDefault()` cancelled the inner button. Now ignores key events not originating on the card.
 - The score could render before the alerts query settled, briefly showing an unsuppressed score for a location under an active Severe+ warning — the exact state §7 rule 4 exists to prevent. Both the card and the detail screen now wait.
 - A failed alerts fetch read as "no alerts" on the list card.
 - `request()` accepted a `Headers` instance it would silently discard, dropping the Authorization header and turning every call into a 401 that looks like an auth bug.
 
-*Live Telegram bugs (`f5f1e3d`):*
+*Live Telegram bugs:*
 - **Unescaped HTML in every outgoing message (#26).** An `&` in an NWS headline is a 400, which is non-retryable, so `notifyPendingAlerts` released the claim and retried the identical broken message every 15 minutes forever.
 - **`/start` and the usage reply had never been delivered.** Both contain `<location name>`, which Telegram rejects as an unsupported start tag. Not previously filed — found while auditing the escaping.
 - **A malformed 200 from NWS deleted every stored alert (#26).** `fetchNwsAlerts` returned `[]`, contradicting its own contract, and `runAlertsCheck` acted on it by deleting the location's rows — `notified_at` with them, so the same alert re-sends.
 
-*Forecast and scoring (`3353f6f`):*
+*Forecast and scoring:*
 - **#22 diagnosed and closed.** Open-Meteo defines no NBM precipitation quantiles under any name — verified variable by variable against the live API. The NBM branch could never have returned data; the call is removed. Two upstream fetches per request now, not three.
 - **Every day's wind component was computed from today's wind.** A day-7 score reported a wind rating measured six days earlier, and all seven days carried an identical wind component.
 
@@ -38,7 +38,7 @@
 - **Check the whole file's line endings before scripting a multi-line replacement.** One `sed`-style edit left a lone `` mid-line that typechecked fine and read as a merged import.
 ---
 
-## 2026-08-26 — branch: claude/task-6-miniapp-screens — commit: 8a2c430 (screens), f48bad0 (auth, squashed to `main` as PR #39)
+## 2026-08-26 — branch: claude/task-6-miniapp-screens — commits: `63b92dd` (screens, PR #41), `f48bad0` (auth, PR #39)
 
 **Phase completed:** Crossover Task 6 — Mini App screens + `initData` auth. Two commits, auth first and on its own.
 
@@ -50,7 +50,7 @@
 - The signed `user.id` is checked against `TELEGRAM_CHAT_ID`. Without it, any Telegram account that found the bot would hold `DEFAULT_USER_ID`'s rights.
 - 27 tests across `initData.test.ts` and `apiAuth.test.ts`.
 
-*Screens (`8a2c430`):*
+*Screens (merged to `main` as `63b92dd`, PR #41):*
 - `packages/types/src/units.ts` — §4 formatters, every input `number | null`.
 - `packages/types/src/conditionsCopy.ts` — §7 state ladder, suppression rule, `formatHoursSinceRain`'s 30-day cap. Shared so the bot can use them.
 - `packages/types/src/scoreComponents.ts` — `SCORE_COMPONENT_MAX` moved out of `index.ts` so the copy model imports it without a cycle. Still re-exported.
