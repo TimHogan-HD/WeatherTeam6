@@ -1547,7 +1547,7 @@ Verification added with the fixes: a 40-check adapter harness that converts **ev
 
 ---
 
-## 2026-08-26 — branch: chore/deep-review-cleanup (squash-merged to `main`) — commit: 07bc7c5
+## 2026-08-26 — branch: chore/deep-review-cleanup (squash-merged to `main`) — commit: 07bc7c5 (PR #44)
 
 **Phase completed:** Deep review, debug and cleanup pass — the session the previous block briefed, and the item the user put ahead of everything else.
 
@@ -1601,7 +1601,7 @@ Optionally, run `npm run check:delete-trip` from `apps/api` with `DATABASE_URL` 
 
 ---
 
-## 2026-08-26 — branch: fix/pool-all-ensemble-models — commit: (pending)
+## 2026-08-26 — branch: fix/pool-all-ensemble-models (squash-merged to `main`) — commit: a6487e1 (PR #45)
 
 **Phase completed:** Ensemble accuracy — all four models pooled, and the displayed high/low/wind changed from an extreme to a central estimate.
 
@@ -1640,3 +1640,46 @@ The low is the interesting row: the four-model median (78°F) is *below* GFS's o
 - **Escaping a regex through `node -e` in this shell mangles `\d` into `d`.** A throwaway reproduction "proved" the member regex was broken when the real source was correct. Verify against the actual file or a passing test, not a shell-escaped rewrite of it.
 
 **Does the user need to do anything?** **No.** The one thing outstanding from the previous block — `TELEGRAM_WEBHOOK_SECRET` in Vercel plus re-running `setWebhook` — is unchanged and still theirs to do when convenient. Nothing new here needs them.
+
+---
+
+## 2026-08-26 — branch: fix/parallel-alerts-check (squash-merged to `main`) — commit: cf32960 (PR #46)
+
+**Phase completed:** Alerts cron hardening — #27 part 3 — and the repo brought to a clean base for planning.
+
+**What was built this session:**
+
+- `apps/api/src/lib/alerts/checkAlerts.ts` — `runAlertsCheck` now fans out over locations with `Promise.allSettled` instead of looping serially. Each iteration carries up to ~7s of `fetchWithRetry` backoff, so an NWS outage across ~10 locations exceeded the function's `maxDuration: 60` and **killed the request before `notifyPendingAlerts()` ran** — alerts already pending stayed undelivered across every retry, and it got worse as locations were added. Error aggregation is preserved exactly, so the cron response's `refreshFailed` flag still means what it did.
+- `apps/api/src/lib/alerts/checkAlerts.test.ts` — first tests for the module (6). The concurrency one asserts start/end ordering directly, because a serial regression changes no output and breaks no type.
+
+**Repo hygiene, so the next session starts clean:**
+
+- **#22 closed** (NBM — the branch could never have returned data; verified against the live API) and **#26 closed** (both alert-path bugs, plus the `/start` HTML defect found with them). Both had been recorded as closed in `plan.md` while still open on GitHub — the docs and the tracker had drifted apart.
+- **#27 commented** with a part-by-part status: parts 1 and 3 done, parts 2 (`update_id` dedupe) and 4 (Neon `Pool` lifecycle) still open with reasons.
+- **#34 commented** with the precise current shape: display is guarded, scoring is not.
+- All feature branches merged and pruned; `main` is the only branch and no PRs are open.
+
+**Known issues / deferred work — the actual open list is 6, not the 5 `plan.md` used to track:**
+
+| Issue | State |
+| --- | --- |
+| #21 | Scoring half open. **Deferred by the user**, twice, explicitly. |
+| #25 | `/history` and `/normals` return `[]` forever. Needs a design call on where the write goes. |
+| #27 | Parts 2 and 4 open: `update_id` dedupe (needs a table, so a schema change) and Neon `Pool` lifecycle (unmeasured — no dead-client 500 seen in the logs yet). |
+| #32 | A missing today-row inflates the score via full-credit fallbacks. Same family as #34. |
+| #33 | "Today" is a UTC date, so today's high becomes tomorrow's in the late afternoon. Server-side fix; do not paper over it in the client. |
+| #34 | A swallowed rainfall fetch awards 40/40 drying credit. Display guarded, scoring not. |
+
+Also still open and unfiled: `GET /forecast/:id` and `GET /conditions/:id` each run their own `computeLiveForecast`, so one detail view is two ensemble calls and a list of N climbing locations is 2N; and `parseEnsemble` substitutes `0`/`50` for missing values, making the em-dash formatters unreachable from the live forecast.
+
+**Blockers for next session:** none.
+
+**What's next:** the user's stated order — polish and Mini App adjustments; then new bot commands and text-based weather updates (**a design conversation they want to have, not a spec to write alone**); then an in-app feedback button that writes a note into this repo.
+
+**Gotchas for next session:**
+
+- **GitHub Actions was backed up for 25+ minutes** on 2026-08-26 and both PRs were merged on local verification instead. CI is exactly `npm ci` + `typecheck` + `lint` + `test`, so the local gate is equivalent apart from the Node version (CI pins 20, this machine runs 24). Both merges were additionally re-run with `npx turbo run … --force` to defeat the turbo cache, and both Vercel projects built. If something surfaces that only CI would have caught, that Node gap is the first place to look.
+- **Prove a test fails before trusting it.** The concurrency test's first draft gated resolution on all three locations having started, which *deadlocked* against serial code rather than failing — it would have hung CI instead of reporting the regression. Rewritten to assert ordering, it fails in 132ms. Running a new test against the old implementation is cheap and is the only thing that shows it can fail.
+- **A branch cut from `main` while another PR is open needs a rebase before merging**, and the combined state re-verified — `fix/parallel-alerts-check` and `fix/pool-all-ensemble-models` touched different files but only the rebase proved the suite was green with both.
+
+**Does the user need to do anything?** **Yes — one thing, unchanged from earlier today.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project to a long random string, then re-run Telegram's `setWebhook` with `secret_token` set to the same value. The #27 part-1 fix is deliberately inert until both are done, and the bot works exactly as before in the meantime.
