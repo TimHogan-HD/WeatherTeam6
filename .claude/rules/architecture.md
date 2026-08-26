@@ -1,5 +1,12 @@
 # Architecture Rules
 
+> **Verification is enforced by machines, not by memory.** CI runs `build`, `typecheck`,
+> `lint`, `test` and every root-level `check:*` script (enumerated from `package.json`, not
+> listed by hand). `main` requires a passing CI run and a pull request, for admins too.
+> `npm run check:hooks` fails if `.claude/settings.json` registers a hook that no scenario
+> exercises. Adding a check without wiring it into CI, or a hook without covering it, is the
+> failure this repo has shipped most often — both are now impossible to merge.
+>
 > **Two companion rules, both mandatory:**
 > - **`/review-checklist`** before every commit and before opening a PR. It is a skill, so
 >   it loads on demand rather than costing ~2,800 tokens in every session. Invoke it.

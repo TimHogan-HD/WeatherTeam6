@@ -64,6 +64,10 @@
       "WebSearch",
       "TodoWrite"
     ],
+    "deny": [
+      "Write(./.env)",
+      "Edit(./.env)"
+    ],
     "ask": [
       "Bash(git push --force:*)",
       "Bash(git push -f:*)",
@@ -71,10 +75,6 @@
       "Bash(git clean:*)",
       "Bash(npm run db:migrate:*)",
       "Bash(npm run db:seed:*)"
-    ],
-    "deny": [
-      "Write(./.env)",
-      "Edit(./.env)"
     ]
   },
   "hooks": {
@@ -110,6 +110,21 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/session-start-state.mjs\""
+          }
+        ]
+      }
     ]
+  },
+  "enabledPlugins": {
+    "typescript-lsp@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true
   }
 }

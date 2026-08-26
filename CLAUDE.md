@@ -107,6 +107,19 @@ replaced by ACIS in Phase 11, and RainViewer's key is unused by the current code
   It is written as a gate because it failed as prose: on 2026-08-26 a session-record commit
   went straight to `main` with no PR while this file already said not to.
 
+- **A check nothing runs is not a check.** Every root-level `check:*` script in
+  `package.json` is executed by CI, enumerated from `package.json` rather than listed in
+  the workflow, so a new one is covered the moment it exists. Every hook `.claude/settings.json`
+  registers must be exercised by `npm run check:hooks`, which fails if it is not.
+
+  Both exist because `check:hooks` — a real gate, written the same day — was absent from
+  CI, and CI therefore reported **success** on commit `bfe1e83` while `check:hooks` was
+  failing 46 of its 49 cases on `main`. The gate was fine. Nothing ran it.
+
+  `main` is protected on GitHub: pull request required, CI required to pass, force-push and
+  deletion refused, and the rules apply to admins. Do not route around this by disabling
+  protection; fix the red check.
+
 ## Reference Docs
 
 **MANDATORY reading rules:**
@@ -145,10 +158,18 @@ Full paths:
 
 ## Session Start Protocol
 
-At the start of EVERY session:
-1. Read `.claude/docs/STATE.md` — where the project is, what is next, live gotchas, what the user owes. **This is the only state document.**
-2. Run `git log --oneline -5` to confirm where the branch is
-3. Run `npm run build --workspace=packages/types --workspace=packages/design` to ensure shared packages are compiled before typechecking `apps/api` and `apps/miniapp`
+**Steps 1 and 2 are no longer yours to remember.** The `SessionStart` hook
+(`.claude/hooks/session-start-state.mjs`) injects them into context before your first
+turn: current branch, working tree, unpushed commits, open PRs with their CI status, open
+issues, whether CI on `main` is green, and `.claude/docs/STATE.md` verbatim. Read what it
+gave you instead of re-running `git log`, `gh issue list`, or opening `STATE.md`.
+
+One step is still yours, because it changes the working tree rather than reporting on it:
+
+1. Run `npm run build --workspace=packages/types --workspace=packages/design` to ensure shared packages are compiled before typechecking `apps/api` and `apps/miniapp`
+
+If the injected block is missing (the hook failed, or you are running somewhere it does not
+fire), fall back to reading `STATE.md` and running `git log --oneline -5` by hand.
 
 That is the whole protocol. Everything else is read **when the work needs it**:
 

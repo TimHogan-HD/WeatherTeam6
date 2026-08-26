@@ -20,6 +20,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 const PRE = join(here, 'pre-tool-safety.mjs')
 const POST = join(here, 'post-push-review.mjs')
 const STOP = join(here, 'session-finish-check.mjs')
+const SESSION_START = join(here, 'session-start-state.mjs')
 
 const BLOCK = 2
 const ALLOW = 0
@@ -179,7 +180,10 @@ for (const [name, hook, payload, expectedCode, fragment] of cases) {
  * under test.
  * ------------------------------------------------------------------ */
 
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs'
+
+/** How many settings.json-coverage assertions ran; set by the meta block below. */
+let metaCoverageCount = 0
 import { tmpdir } from 'node:os'
 
 function g(cwd, ...args) {
@@ -360,7 +364,165 @@ for (const [name, setup, hook, payload, expectedCode, fragment] of gitScenarios)
   }
 }
 
-const total = cases.length + gitScenarios.length
+
+/* ------------------------------------------------------------------ *
+ * SessionStart context injection.
+ *
+ * This hook cannot block anything, so the property under test is not an exit
+ * code: it is that the JSON is well formed, that the state it reports is the
+ * state the repo is actually in, and that it never fails loudly. A SessionStart
+ * hook that throws costs a whole session.
+ * ------------------------------------------------------------------ */
+
+function withState(work, body) {
+  mkdirSync(join(work, '.claude', 'docs'), { recursive: true })
+  writeFileSync(join(work, '.claude', 'docs', 'STATE.md'), body)
+}
+
+const sessionScenarios = [
+  [
+    'SessionStart: emits valid JSON naming the current branch',
+    (w) => {
+      g(w, 'checkout', '-b', 'feat/session-a')
+      withState(w, '# Current state\nSENTINEL_STATE_BODY\n')
+    },
+    (out) => {
+      const parsed = JSON.parse(out)
+      const ctx = parsed.hookSpecificOutput.additionalContext
+      if (parsed.hookSpecificOutput.hookEventName !== 'SessionStart') return 'wrong hookEventName'
+      if (!ctx.includes('feat/session-a')) return 'did not name the current branch'
+      if (!ctx.includes('SENTINEL_STATE_BODY')) return 'did not inline STATE.md'
+      return null
+    },
+  ],
+  [
+    'SessionStart: flags the default branch as a place not to commit',
+    (w) => withState(w, '# s'),
+    (out) => {
+      const ctx = JSON.parse(out).hookSpecificOutput.additionalContext
+      return ctx.includes('DEFAULT BRANCH') ? null : 'did not flag the default branch'
+    },
+  ],
+  [
+    'SessionStart: reports uncommitted changes rather than claiming clean',
+    (w) => {
+      withState(w, '# s')
+      writeFileSync(join(w, 'dirty.txt'), 'x')
+    },
+    (out) => {
+      const ctx = JSON.parse(out).hookSpecificOutput.additionalContext
+      if (ctx.includes('working tree: clean')) return 'claimed a dirty tree was clean'
+      return ctx.includes('dirty.txt') ? null : 'did not list the changed file'
+    },
+  ],
+  [
+    'SessionStart: a missing STATE.md is reported, not fatal',
+    (w) => {},
+    (out) => {
+      const ctx = JSON.parse(out).hookSpecificOutput.additionalContext
+      return ctx.includes('could not be read') ? null : 'did not report the missing state doc'
+    },
+  ],
+  [
+    'SessionStart: an oversized STATE.md is truncated with a warning',
+    (w) => withState(w, 'x'.repeat(30000)),
+    (out) => {
+      const ctx = JSON.parse(out).hookSpecificOutput.additionalContext
+      return ctx.includes('TRUNCATED') ? null : 'did not truncate an oversized state doc'
+    },
+  ],
+]
+
+for (const [name, setup, assertion] of sessionScenarios) {
+  const { root, work } = makeRepo()
+  try {
+    setup(work)
+    const r = spawnSync(process.execPath, [SESSION_START], {
+      cwd: work,
+      input: JSON.stringify({ hook_event_name: 'SessionStart', matcher: 'startup' }),
+      encoding: 'utf8',
+    })
+    let problem = null
+    if (r.status !== ALLOW) problem = 'exited ' + r.status + ', must always exit 0'
+    else if ((r.stderr ?? '').trim()) problem = 'wrote to stderr: ' + r.stderr.trim().slice(0, 200)
+    else {
+      try {
+        problem = assertion(r.stdout ?? '')
+      } catch (err) {
+        problem = 'output was not the expected JSON: ' + err.message
+      }
+    }
+    if (problem === null) {
+      passes += 1
+      console.log('  PASS  ' + name)
+    } else {
+      failures += 1
+      console.log('  FAIL  ' + name)
+      console.log('          ' + problem)
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Categorical guard: every hook settings.json registers is exercised here.
+ *
+ * The failure this repo keeps repeating is not a broken guard, it is a guard
+ * that nothing runs. Four project hooks were dead for their whole lives because
+ * they shelled out to a python3 that does not exist here, and "check:hooks"
+ * itself was absent from CI during the window it was failing on main.
+ *
+ * Fixing instances does not fix the category. So: if settings.json points at a
+ * hook script that no scenario above executes, this fails, and because CI runs
+ * check:hooks the PR cannot merge. Adding an untested hook stops being possible.
+ * ------------------------------------------------------------------ */
+{
+  const basename = (h) => h.replace(/\\/g, '/').split('/').pop()
+  const exercised = new Set(
+    [...cases.map((c) => c[1]), ...gitScenarios.map((c) => c[2]), SESSION_START].map(basename),
+  )
+
+  let settings
+  try {
+    settings = JSON.parse(readFileSync(join(here, '..', 'settings.json'), 'utf8'))
+  } catch (err) {
+    failures += 1
+    console.log('  FAIL  [meta] .claude/settings.json could not be read: ' + err.message)
+    settings = { hooks: {} }
+  }
+
+  const registered = new Set()
+  for (const entries of Object.values(settings.hooks ?? {})) {
+    for (const entry of entries ?? []) {
+      for (const h of entry.hooks ?? []) {
+        for (const m of String(h.command ?? '').matchAll(/([A-Za-z0-9._-]+\.mjs)/g)) {
+          registered.add(m[1])
+        }
+      }
+    }
+  }
+
+  if (registered.size === 0) {
+    failures += 1
+    console.log('  FAIL  [meta] settings.json registers no hooks — that cannot be right')
+  }
+
+  for (const hook of [...registered].sort()) {
+    if (exercised.has(hook)) {
+      passes += 1
+      console.log('  PASS  [meta] ' + hook + ' is registered and exercised')
+    } else {
+      failures += 1
+      console.log('  FAIL  [meta] settings.json registers ' + hook + ', but no scenario runs it')
+      console.log('          Add coverage before merging. An untested hook is a dead hook.')
+    }
+  }
+
+  metaCoverageCount = registered.size === 0 ? 1 : registered.size
+}
+
+const total = cases.length + gitScenarios.length + sessionScenarios.length + metaCoverageCount
 console.log('')
 console.log(`  ${passes} passed, ${failures} failed, ${total} total`)
 

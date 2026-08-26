@@ -6,7 +6,7 @@
 when you need the reasoning behind a specific past decision, never at session start. It
 used to be mandatory reading, which cost ~41,000 tokens before any work began.
 
-Last updated: 2026-08-26 · `main` @ `516b438`
+Last updated: 2026-08-26 · `main` @ `204a2cf`
 
 ---
 
@@ -20,7 +20,11 @@ confirmed working on a real device: bot, Mini App, alerts, deep links, auth.
 - **Bot** — commands, alerts, deep links into the Mini App.
 - **`apps/mobile`** — archived, out of the build. Do not add features to it.
 
-Baseline: `npm run test` 315 passing, `npm run typecheck` clean, `npm run check:hooks` 49 passing.
+Baseline: `npm run test` 315 passing, `npm run typecheck` clean, `npm run check:hooks` 58 passing.
+
+**You did not have to read this file.** The `SessionStart` hook injected it, along with the
+branch, working tree, unpushed commits, open PRs, open issues, and whether CI on `main` is
+green. If you are reading it because that block was absent, the hook did not fire — say so.
 
 ---
 
@@ -85,26 +89,41 @@ Standing context that is *not* on the issues themselves:
 
 ---
 
-## Delivery is enforced, not remembered
+## Delivery and verification are enforced, not remembered
 
 The user's standing instruction: **only interact when it is absolutely needed.** Design
-decisions qualify. Chasing an unmerged PR does not.
+decisions qualify. Chasing an unmerged PR, or asking them to notice a broken check, does not.
 
-Two hooks make that structural rather than a promise:
+**Delivery** — two local hooks:
 
 - **`git commit` on the default branch is blocked** (PreToolUse). Branch first. The default
   branch is read from `origin/HEAD`, not assumed.
 - **The turn cannot end** (Stop hook) while there are uncommitted changes, unpushed commits,
-  a pushed branch with no PR, or a green mergeable PR still open. It hands back the reason
-  so the work gets finished.
+  a pushed branch with no PR, or a green mergeable PR still open.
 
 Escape hatch for a deliberate pause: `touch .claude/.wip`, delete it when work resumes.
-Both gates are covered by `npm run check:hooks` and were sabotage-tested.
 
-**Do not treat these as bureaucracy to route around.** They exist because the rule was in
-CLAUDE.md, was followed most of the time, and a session-record commit still went straight
-to `main`. If a gate fires, finish the work; if it misfires, add a case to
-`check-hooks.mjs` rather than loosening the guard.
+**Verification** — because the delivery gates above shipped on 2026-08-26 and a defect
+reached `main` the same day anyway:
+
+- **CI runs `build`, `typecheck`, `lint`, `test`, and every root-level `check:*` script**,
+  enumerated from `package.json` rather than listed in the workflow. `check:hooks` was a
+  real gate that CI never ran — CI reported success on `bfe1e83` while it was failing 46 of
+  49 cases on `main`.
+- **`main` is protected**: PR required, CI required to pass, no force-push, no deletion,
+  enforced for admins. A red PR cannot be merged, by anyone, including with `--admin`.
+- **`check:hooks` fails if `.claude/settings.json` registers a hook no scenario exercises.**
+  Adding an untested hook is now unmergeable.
+- **A red CI run on `main` is reported at session start** by the SessionStart hook. That is
+  the automatic version of the manual sweep the user had to ask for.
+- **`.github/workflows/claude-review.yml`** runs an independent reviewer on every non-draft
+  PR — outside the session that wrote the code, so it does not share its blind spot. It is
+  **dormant until `CLAUDE_CODE_OAUTH_TOKEN` is set** as a repository secret, and skips with
+  a notice rather than failing.
+
+**Do not treat any of this as bureaucracy to route around.** If a gate fires, finish the
+work; if it misfires, add a case to `check-hooks.mjs` rather than loosening the guard. Do
+not disable branch protection to land something.
 
 ---
 
@@ -133,9 +152,16 @@ Only things that are still true and still bite. Historical gotchas are in the ar
 
 ## What the user owes
 
-**One thing, outstanding since 2026-08-26.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's
-Vercel project to a long random string, then re-run Telegram's `setWebhook` with
-`secret_token` set to the same value. Until then the webhook's secret check is skipped and
-the forgeable `chat.id` is the only gate.
+**Two things, both 2026-08-26.**
+
+1. **`TELEGRAM_WEBHOOK_SECRET`** — set it in the API's Vercel project to a long random
+   string, then re-run Telegram's `setWebhook` with `secret_token` set to the same value.
+   Until then the webhook's secret check is skipped and the forgeable `chat.id` is the only
+   gate.
+2. **`CLAUDE_CODE_OAUTH_TOKEN`** — run `claude setup-token` and add the result as a
+   repository secret (`gh secret set CLAUDE_CODE_OAUTH_TOKEN`). This turns on the
+   independent PR reviewer in `claude-review.yml`. Only they can generate it: the command
+   is interactive and tied to their subscription. Optional, but it is the piece that catches
+   what the authoring session misses.
 
 Nothing else is waiting on them. #25 needs a decision, but only when they choose to pick it up.
