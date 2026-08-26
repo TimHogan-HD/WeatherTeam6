@@ -61,6 +61,7 @@ export function DetailView({
   const today = findToday(forecast.data)
   const alertEvent = severeAlertEvent(alerts?.data)
   const showScore = !unsaved && isClimbingLocation
+  const activeAlertCount = alerts?.data?.length ?? 0
 
   // Hours since rain belongs to the hero, not the breakdown, and only to a
   // climbing location — a city has no drying story (§3). The shared formatter
@@ -74,9 +75,14 @@ export function DetailView({
   const sources = [
     forecastSourceLabel(forecast.data),
     showScore ? rainfallSourceLabel(asosStation) : null,
-    // Only claim NWS when the alerts call actually returned. Naming a source
-    // for data we do not have is the same false attribution as hardcoding one.
-    alerts?.data === undefined ? null : 'NWS',
+    // Only claim NWS when an alert is actually being shown.
+    //
+    // An empty result is not "NWS says no alerts": `/alerts/:id` reads the
+    // `weather_alerts` table, which is populated by a cron that is not yet
+    // registered, so an empty array can equally mean NWS has never been asked.
+    // Naming it then asserts a check that may not have happened. The bot uses
+    // the same rule — the two must not disagree about the same location.
+    activeAlertCount > 0 ? 'NWS' : null,
   ].filter((s): s is string => s !== null)
 
   return (

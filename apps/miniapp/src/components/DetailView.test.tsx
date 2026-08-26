@@ -228,13 +228,31 @@ describe('DetailView — a climbing location', () => {
         isClimbingLocation
         asosStation="KLAS"
         forecast={forecast}
-        alerts={alertsOk([])}
+        alerts={alertsOk([heatWarning])}
         conditions={ok(redRockScore())}
       />,
     )
     expect(html).toContain('Open-Meteo (gfs_seamless, ecmwf_ifs025)')
     expect(html).toContain('ACIS (KLAS)')
     expect(html).toContain('NWS')
+  })
+
+  it('does not claim NWS when no alert is being shown', () => {
+    // An empty result is not "NWS says no alerts": /alerts/:id reads the
+    // weather_alerts table, populated by a cron that is not yet registered, so
+    // empty can equally mean NWS has never been asked. The bot uses the same
+    // rule and the two must not disagree about the same location.
+    const html = render(
+      <DetailView
+        isClimbingLocation
+        asosStation="KLAS"
+        forecast={forecast}
+        alerts={alertsOk([])}
+        conditions={ok(redRockScore())}
+      />,
+    )
+    expect(html).toContain('ACIS (KLAS)')
+    expect(html).not.toContain('NWS')
   })
 
   it('names the archive branch when the location has no ASOS station', () => {
