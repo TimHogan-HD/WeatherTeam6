@@ -3,7 +3,7 @@
 Climbing conditions platform + general weather app. Core purpose: tell the user if a crag is climbable now, over the next 7 days, and support trip planning weeks out with improving forecast confidence over time.
 
 ## Stack
-- **Client:** Telegram bot + Telegram Mini App (`apps/miniapp`, Vite + React — not yet built, see Crossover Tasks 5-7)
+- **Client:** Telegram bot + Telegram Mini App (`apps/miniapp`, Vite + React — shell scaffolded 2026-08-25, Task 5; screens are Task 6)
 - **Mobile (ARCHIVED):** React Native + Expo lives in `apps/mobile`. Superseded by the Mini App as of 2026-07-31 — code retained, out of the build, do not add features to it.
 - **Backend:** Node.js + TypeScript + Express, wrapped as a single serverless function on Vercel (`apps/api/api/index.ts`)
 - **ORM:** Drizzle (schema-as-TypeScript, SQL-close queries — never substitute Prisma)
@@ -34,7 +34,10 @@ npm run check:add-location  # acceptance check for the add-location flow (Task 5
 ```
 apps/
   api/              # Express API + Vercel serverless entry (api/index.ts)
-  miniapp/          # Telegram Mini App — NOT YET BUILT (Crossover Task 5)
+  miniapp/          # Telegram Mini App — Vite + React. Shell built (Task 5);
+                    #   screens are Task 6. See apps/miniapp/README.md.
+                    #   Token adapter: src/theme/tokens.css.ts — never import
+                    #   `type`/`shadow`/`layout` from packages/design directly.
   mobile/           # ARCHIVED — React Native + Expo. No new features.
                     #   Still in workspaces/turbo until Task 7 removes it.
 packages/
@@ -67,9 +70,12 @@ R2_BUCKET_NAME=
 API_BASE_URL=                                       # server-side base URL (Vercel)
 LOG_LEVEL=                                          # pino log level; defaults to info (prod) / debug (dev)
 EXPO_PUBLIC_API_BASE_URL=                           # archived — read by mobile at bundle time
+VITE_API_BASE_URL=                                  # Mini App's API base URL; inlined into a PUBLIC bundle at build time
 ```
 
-The Mini App will add `VITE_API_BASE_URL` when `apps/miniapp` is built (Crossover Task 5).
+`VITE_API_BASE_URL` is the Mini App's API base URL. It is **inlined into a public client
+bundle at build time** — set it in the Mini App's own Vercel project, and never put a
+credential in any `VITE_*` variable.
 `TOMORROW_IO_API_KEY` and `RAINVIEWER_KEY` are **not** in `.env.example` — Tomorrow.io was
 replaced by ACIS in Phase 11, and RainViewer's key is unused by the current code.
 
@@ -196,6 +202,14 @@ Typecheck and lint prove a change compiles. They do not prove it works, and repo
 ```bash
 npm run build --workspace=packages/types --workspace=packages/design
 ```
+
+**`vite` is pinned at the repo root so the Mini App's plugins resolve the right copy.**
+`apps/api`'s vitest 2 pulls in vite 5, which npm hoists to the root. `@vitejs/plugin-react`
+hoists too, and it resolved that vite 5 instead of `apps/miniapp`'s vite 8 — the build
+died with `Package subpath './internal' is not defined`. The root `package.json` now
+declares `vite` directly, so the hoisted copy is the one the Mini App wants and vitest
+gets its own nested vite 5. Do not remove that devDependency because "nothing at the
+root uses it".
 
 **Never set `NODE_ENV=production` as a Vercel environment variable.**
 npm omits devDependencies when it's set, `typescript` is a devDependency, and the root postinstall (which builds `packages/types` and `packages/design`) then dies with `tsc: command not found`. Vercel manages `NODE_ENV` itself.

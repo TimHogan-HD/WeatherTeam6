@@ -1,0 +1,29 @@
+{
+  "name": "@weatherteam6/miniapp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && vite build",
+    "dev": "vite",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "test": "echo 'no tests' && exit 0"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.102.3",
+    "@weatherteam6/design": "*",
+    "@weatherteam6/types": "*",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-router-dom": "^7.18.2"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "@types/react-dom": "~19.2.5",
+    "@vitejs/plugin-react": "^6.1.0",
+    "typescript": "^5.7.2",
+    "vite": "^8.2.2"
+  }
+}

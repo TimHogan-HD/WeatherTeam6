@@ -34,7 +34,7 @@ The Telegram Crossover migration (Tasks 1-4) is finished, merged, and verified r
 
 *(Accurate as of 2026-07-31; corrected 2026-08-25 — two of these have since landed.)*
 
-- `apps/miniapp` (the entire Mini App) — still true, Task 5
+- ~~`apps/miniapp` (the entire Mini App)~~ — **the shell landed 2026-08-25** (Task 5): workspace, token adapter, three routes, `BackButton`, Telegram chrome, React Query. The **screens** are still Task 6, and the Vercel project + @BotFather registration are still outstanding
 - ~~`docs/handoffs/miniapp-design-v1.md`~~ — **written and merged** (`14c9757`). Binding spec.
 - `initData` HMAC middleware — still true, and still the hard prerequisite for Task 6
 - ~~Any test coverage for the backend logic added during the migration~~ — **partly addressed.** 147 tests now pass; `checkAddLocationApi.ts` covers the add flow against a real database, which vitest cannot (it mocks `fetch` and never connects)

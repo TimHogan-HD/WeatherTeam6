@@ -1,0 +1,87 @@
+/*
+ * Global surface for the Mini App.
+ *
+ * Colors, spacing and radii come from `virtual:wt6-tokens.css`, which is
+ * generated from `@weatherteam6/design/tokens` at build time. Nothing in this
+ * file may introduce a colour, a type size or a spacing value of its own.
+ *
+ * Every `--tg-*` reference carries a fallback on purpose: not all Telegram
+ * clients inject them, and CSS drops the whole declaration when a `var()`
+ * resolves to nothing — a bare `padding-top: var(--tg-safe-area-inset-top)`
+ * silently loses its padding (miniapp-design-v1.md §1).
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/*
+ * Browser default margins have to go, or they stack on top of the layout
+ * constants and quietly override them. Measured before this reset: `<h1>`
+ * carried a 20.1px margin, so `spacing.topSafe` (48) rendered as 68, and the
+ * 20.1px bottom margin collapsed over `type.screenSub`'s 5px `marginTop` and
+ * swallowed it whole. Vertical spacing comes from the tokens, nowhere else.
+ */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+figure,
+blockquote,
+dl,
+dd,
+ul,
+ol {
+  margin: 0;
+}
+
+html {
+  /* The gradient is painted here as well as on body so an overscroll past the
+     end of a short page shows the app's own colour, not white. */
+  background-color: var(--wt6-color-bg-gradient-bottom);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: var(--tg-viewport-stable-height, 100dvh);
+  background-image: linear-gradient(
+    180deg,
+    var(--wt6-color-bg-gradient-top) 0%,
+    var(--wt6-color-bg-gradient-mid) 45%,
+    var(--wt6-color-bg-gradient-bottom) 100%
+  );
+  background-attachment: fixed;
+  background-color: var(--wt6-color-bg-gradient-bottom);
+  color: var(--wt6-color-txt1);
+  font-family: var(--wt6-font-body);
+  /* A Telegram webview bounces on overscroll and exposes the page behind it. */
+  overscroll-behavior-y: none;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: var(--tg-viewport-stable-height, 100dvh);
+  padding-top: var(--tg-safe-area-inset-top, 0px);
+  padding-right: var(--tg-safe-area-inset-right, 0px);
+  padding-bottom: var(--tg-safe-area-inset-bottom, 0px);
+  padding-left: var(--tg-safe-area-inset-left, 0px);
+}
+
+/* Telegram's own back affordance is the only one (§2), so nothing here should
+   look tappable-but-inert. Kill the tap highlight, keep focus visible. */
+a,
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--wt6-color-good);
+  outline-offset: 2px;
+}

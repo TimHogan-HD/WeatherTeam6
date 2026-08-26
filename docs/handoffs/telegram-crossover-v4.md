@@ -21,7 +21,12 @@ not started.
 > - **Task 5a — the add-location API** (PR #37, `a90613f`), added as its own section
 >   below, between Tasks 5 and 6.
 >
-> Task 5 itself is still not started. The running record of what is built is
+> **Update 2026-08-25 (later the same day).** Task 5's scaffold is built and merged —
+> `apps/miniapp` exists, with the token adapter, the three routes, `BackButton` wiring
+> and Telegram chrome. The Vercel project and the @BotFather registration are still
+> outstanding, so the task is **code complete, not deployed**. See its section below.
+>
+> The running record of what is built is
 > `.claude/docs/session-notes.md`; the phase table in `.claude/docs/plan.md` mirrors
 > this task list with more implementation detail.
 
@@ -173,16 +178,43 @@ plain-language status. ✅
 
 ---
 
-## ⬜ Task 5 — Mini App shell (NOT STARTED)
+## 🟡 Task 5 — Mini App shell (CODE COMPLETE, NOT YET DEPLOYED)
 
-- New Turborepo app `apps/miniapp` — Vite + React, static build
-- Separate Vercel project, root directory `apps/miniapp`
-- Include `telegram-web-app.js`, call `Telegram.WebApp.ready()`, read `themeParams`
-- Register the production URL with @BotFather (`/newapp` or `/setmenubutton`) — **check
-  current Mini App requirements at https://core.telegram.org/bots/webapps first, this
-  API changed repeatedly through 2026**
+**Updated 2026-08-25.** The scaffold is built and merged. The two steps that need a
+Vercel dashboard and @BotFather are outstanding, and until they are done the task's
+acceptance criterion is unmet — do not record it as complete.
+
+**Built:**
+
+- ✅ New Turborepo app `apps/miniapp` — Vite + React, static build. `vercel.json`
+  rewrites every path to `index.html`; `VITE_API_BASE_URL` is the only env var, and it
+  is inlined into a public bundle.
+- ✅ `telegram-web-app.js` loaded synchronously ahead of the app module, `ready()` and
+  `expand()` on mount, chrome harmonized per `miniapp-design-v1.md` §1 —
+  `setBackgroundColor` gated at Bot API 6.1 and `setHeaderColor` at 6.9, separately,
+  with no `bg_color` keyword fallback. `themeParams` is on the typed surface and is
+  **deliberately never read** — §1 fixes the content surface to the WeatherTeam6 dark
+  palette, because the palette has no light variant and every locked contrast rule
+  assumes dark.
+- ✅ The token adapter §0a requires *before the first component* —
+  `src/theme/tokens.css.ts` re-expresses `type`, `shadow` and `layout` for the web and
+  maps `BarlowCondensed` → `"Barlow Condensed"`, plus a generated `:root` block of
+  custom properties. Every value derives from an import.
+- ✅ All three routes from §2 with Telegram's `BackButton` as the only back affordance,
+  per-route rather than a blanket "navigate to `/`". Screens are placeholders — Task 6.
+- ✅ React Query provider on §5's settings.
+
+**Outstanding — needs the repo owner:**
+
+- ⬜ Create the separate Vercel project (root directory `apps/miniapp`, *Include source
+  files outside of the Root Directory* on, framework preset **Vite**, no `NODE_ENV`).
+  Steps are in `apps/miniapp/README.md`.
+- ⬜ Register the production URL with @BotFather (`/newapp` or `/setmenubutton`).
+  Origin lockdown means the production domain only — preview URLs will not open.
 
 **Acceptance:** Bot's menu button opens the Mini App inside Telegram, themed correctly.
+**Not yet met** — the shell has been verified in a real browser (routing, BackButton
+wiring, version gating, and the adapter's computed styles), never inside Telegram.
 
 ## ✅ Task 5a — Add-location API (COMPLETE)
 

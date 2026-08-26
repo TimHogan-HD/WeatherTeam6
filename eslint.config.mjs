@@ -36,8 +36,20 @@ export default tseslint.config(
     },
   },
   {
-    files: ['apps/api/**/*.ts', 'packages/types/**/*.ts'],
+    files: ['apps/api/**/*.ts', 'packages/types/**/*.ts', 'apps/miniapp/vite.config.ts'],
     languageOptions: { globals: globals.node },
+  },
+  {
+    files: ['apps/miniapp/**/*.{ts,tsx}'],
+    plugins: { react, 'react-hooks': reactHooks },
+    languageOptions: { globals: globals.browser },
+    settings: { react: { version: 'detect' } },
+    rules: {
+      ...react.configs.flat.recommended.rules,
+      ...react.configs.flat['jsx-runtime'].rules,
+      ...reactHooks.configs['recommended-latest'].rules,
+      'react/prop-types': 'off', // TypeScript covers prop validation
+    },
   },
   {
     files: ['apps/mobile/**/*.{ts,tsx}'],

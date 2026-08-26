@@ -30,6 +30,15 @@ Three claims carried into B0 from earlier documents are wrong against the code a
 
 **Consequence:** the Mini App needs a thin adapter module, `apps/miniapp/src/theme/tokens.css.ts`, that re-expresses `type`, `shadow`, and `layout` for the web. It **derives** from the imported tokens; it never restates a literal value. Deriving is not redefining — the architecture rule ("never redefine colors, spacing, or type scale in an app") is satisfied as long as every number traces back to an import.
 
+> **Status: built.** Task 5 shipped it on 2026-08-25, along with `src/theme/fonts.ts`
+> (the family-name mapping, derived by inserting the space rather than hard-coding
+> `"Barlow Condensed"`) and `src/theme/cssVars.ts`, which renders the tokens as a
+> `:root` block served through the `virtual:wt6-tokens.css` module. `components` is
+> deliberately *not* pre-converted — the "audit per-entry" note above still stands, and
+> exported `boxStyle` / `textStyle` helpers are there to convert the entries a screen
+> actually uses. Verified in a real browser: `screenTitle` computes to 30px/700/-0.3px
+> in Barlow Condensed and the gradient's custom properties resolve.
+
 **b. §Design System is not entirely client-agnostic.** Its banner says it is. Four of its subsections name React Native explicitly: the `LinearGradient` screen background, `react-native-svg`, `@tabler/icons-react-native`, and the instruction "Do not copy web-specific patterns (no CSS vars, no className)". Binding for the Mini App are the **token source rule, contrast rules, layout constants, and copy rules**. The library choices are RN implementation detail and are re-decided in §8 below. CSS custom properties are not only permitted in the Mini App, they are required — Telegram injects its own.
 
 **c. The palette has no light variant.** `bgGradientTop/Mid/Bottom` are `#4a5568 → #1a202c → #0d1117`; `txt1` is `#f0f4f8`; cards are `rgba(255,255,255,0.07)`. Every contrast rule is expressed as a minimum opacity of a near-white on dark. There is no light-mode token set, and the contrast rules would invert nonsensically against one. This decides §1.
@@ -406,7 +415,7 @@ Mapping to the build handoff's own numbering:
 **Two constraints this spec discovered that Task 6 must not rediscover the hard way:**
 
 1. **Per-day scores are not available over the API** (§3). The build handoff says "no API changes needed"; that holds only because this spec drops per-day score chips. Adding them later is an API change.
-2. **`tokens.ts` is not directly importable for the web** (§0a). `shadow`, `layout`, and `fonts` need an adapter before a single component is written. Budget for it in the scaffold, not mid-screen.
+2. ~~**`tokens.ts` is not directly importable for the web** (§0a). `shadow`, `layout`, and `fonts` need an adapter before a single component is written. Budget for it in the scaffold, not mid-screen.~~ **Done in Task 5** — the adapter is `apps/miniapp/src/theme/tokens.css.ts`. What Task 6 must not rediscover is the rule that survives it: import `type`, `shadow` and `layout` *from the adapter*, never from `@weatherteam6/design/tokens`. Importing `fonts.display` straight into a `font-family` matches nothing and falls back to the system font without erroring.
 3. **"No API changes needed" is dead as of §12.** The add-location flow requires two new endpoints, one changed endpoint, and one new one for deletion. The API work is a prerequisite for the UI work, not a companion to it — sequencing in §12.5.
 
 ---
