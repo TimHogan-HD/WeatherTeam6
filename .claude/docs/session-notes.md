@@ -1683,3 +1683,47 @@ Also still open and unfiled: `GET /forecast/:id` and `GET /conditions/:id` each 
 - **A branch cut from `main` while another PR is open needs a rebase before merging**, and the combined state re-verified — `fix/parallel-alerts-check` and `fix/pool-all-ensemble-models` touched different files but only the rebase proved the suite was green with both.
 
 **Does the user need to do anything?** **Yes — one thing, unchanged from earlier today.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project to a long random string, then re-run Telegram's `setWebhook` with `secret_token` set to the same value. The #27 part-1 fix is deliberately inert until both are done, and the bot works exactly as before in the meantime.
+
+---
+
+## 2026-08-26 — branch: fix/local-day-forecast (squash-merged to `main`) — commit: 804930b (PR #47)
+
+**Phase completed:** #33 and #34 fixed, plus #27 part 4. Prompted by the user asking, fairly, why the open issues weren't being fixed.
+
+**Why this session happened:** the previous block deferred #32/#33/#34 as "scoring", sweeping them into the user's #21 deferral. That was wrong. #21 is *tuning* — the user deferred that twice and it stays deferred. #33 and #34 are **correctness bugs where missing data renders as good news**, which is a different thing and squarely inside "I mainly want a functional chat/weather app".
+
+**What was built this session:**
+
+- **#33 — "today" is the location's local day.** Open-Meteo is asked for `timezone=auto`, so it buckets the hourly series into local calendar days and reports `utc_offset_seconds` back. `computeLiveForecast` returns `todayStr` and flags the row with `is_today`; no route derives a date and no client computes one. **The duplication was the bug** — the API (in three routes), the Mini App and the bot each derived a UTC date and compared it to UTC buckets, so all four were wrong in the same direction, agreed with each other, and nothing could detect it.
+- **#34 — a failed rainfall lookup withholds the score.** Tracks whether the call *succeeded*, not whether it returned rows. Weather still returned in full; a genuinely empty result still scores. Both surfaces say the same thing from one string in `packages/types`.
+- **#27 part 4, the half that is not a guess** — an `'error'` listener on the Neon pool. `pg`'s `Pool` is an `EventEmitter` and an `'error'` event with no listener **crashes the process**; it fires for faults on an idle client, which on a thawed serverless instance is the connection Neon already dropped. Pool sizing and idle timeouts deliberately untouched — flagged as "worth a look rather than an assumed fix", and no dead-client 500 has appeared in the logs.
+- Tests 299 → 315.
+
+**Verified against the live API**, 16:41 UTC: Red Rock (UTC−7) → `2026-08-26`, Sydney (UTC+10) → `2026-08-27`, exactly one row flagged each. The old code said the 26th for both.
+
+**Issue state — 4 open, down from 6:**
+
+| Issue | State |
+| --- | --- |
+| #21 | Scoring half open. **Deferred by the user, twice.** Do not start it. |
+| #25 | Open. **Needs a product decision**, not code: nothing writes `crag_climbability_history` or `location_normals` any more, so it is either a new cron or deleting the two endpoints. |
+| #27 | Parts 1, 3, 4 done. **Part 2 open** — `update_id` dedupe needs a table to record seen ids, so a migration, which cannot be applied from here. |
+| #32 | Open, but materially less likely now that today's row reliably exists. **Entangled with the unfiled `ScoreInput` split** — `currentHumidityPct` feeds both the humidity component and the drying modifier, so fixing one moves the other. |
+
+**Known issues / deferred work:**
+
+- **A layer below #34:** ACIS can return a *successful* response whose rows are all `'M'` sentinels, yielding `[]` — indistinguishable from a dry month again. This fix catches a failed *call*, not a call that succeeded with no usable data. Worth its own issue if it appears in the logs.
+- Still unfiled: the `ScoreInput` humidity conflation, and `GET /forecast/:id` + `GET /conditions/:id` each running their own `computeLiveForecast` (one detail view is two ensemble calls; a list of N climbing locations is 2N).
+
+**Blockers for next session:** none.
+
+**What's next:** polish and Mini App adjustments, then the bot-commands design conversation, then the feedback button.
+
+**Gotchas for next session:**
+
+- **`timezone=auto` supersedes a rule written earlier the same day.** `architecture.md` said "every Open-Meteo call sets `timezone=UTC` explicitly" — correct for the design at the time, wrong now. If a doc and the code disagree about timezone, the code and issue #33 are right.
+- **`computePercentile` interpolates**, and `renderToStaticMarkup` escapes apostrophes to `&#x27;`. Both cost a wrong test expectation this session — assert on a substring without the apostrophe.
+- **A module mock replaces the whole module.** `vi.mock('../weather/openMeteo.js', () => ({...}))` hid `localDateString` and broke ten tests. Use `importOriginal` and spread — reimplementing a pure helper inside the mock is the class-11 trap.
+- **GitHub Actions was backed up ~40 minutes earlier today** and PRs #45/#46 were merged on local verification. All of it has since gone green on `main` retroactively. #47 waited for real CI.
+
+**Does the user need to do anything?** **Yes — one thing, still the same one.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project to a long random string, then re-run Telegram's `setWebhook` with `secret_token` set to the same value. Nothing else outstanding needs them; #25 needs a decision from them but only when they want to pick it up.
