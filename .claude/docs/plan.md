@@ -136,6 +136,31 @@ Each phase: implement → `npm run typecheck` → `npm run lint` → review chec
 
 ---
 
+### Direction after the crossover — set by the user 2026-08-26
+
+The seven crossover tasks are done and the whole stack is confirmed working on a real
+device. The user's stated order from here, and it is **not** the issue table's order:
+
+1. **A deep review, debug and cleanup pass — next session, and it comes first.** The
+   goal is "a clean base and polished repo to move forward with feature updates". Nothing
+   new gets built until that lands. See the brief in `session-notes.md`.
+2. **Polish, and adjust the Mini App where needed.**
+3. **New bot commands and text-based weather updates.** The user wants weather to arrive
+   as *text*, not only through the Mini App and alert replies. This is a design
+   conversation the user wants to have first — do not spec it unilaterally.
+4. **An in-app feedback button.** Press it, type a note in the moment, and the note lands
+   **somewhere in this repo** to be addressed later. The destination and mechanism are
+   undecided; the requirement is that it is capturable without breaking flow.
+
+**Deliberately deferred by the user, not forgotten:** the conditions score algorithm,
+i.e. the open half of **#21**. Quote: *"right now I don't really want to worry about that
+algorithm behind the score… we can worry about the algorithm and the score in the
+future."* The diagnosis below is complete and the two viable options are named, so it is
+ready to pick up — **but do not start it, and do not let it ride along inside another
+change.** It needs a product decision the user has chosen not to make yet.
+
+---
+
 ### Issue status — checked 2026-08-26
 
 The five filed issues, and what is actually left of each. Several were partly fixed
