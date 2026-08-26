@@ -99,6 +99,7 @@ replaced by ACIS in Phase 11, and RainViewer's key is unused by the current code
 - Before ANY database work: read `.claude/docs/data-model.md` AND `.claude/rules/architecture.md`
 - Before ANY weather fetch work: read `.claude/docs/api-sources.md`
 - Before ANY conditions score work: read `.claude/docs/scoring-algorithm.md`
+- **Before reviewing any diff, and before reporting any work complete: read `.claude/rules/defect-patterns.md`**
 - Before ANY Mini App UI phase: read `docs/handoffs/miniapp-design-v1.md` AND the §Design System section of `docs/handoffs/weatherteam6-ui-handoff-v1.md` — the mockups are the spec, not prose descriptions
 
 Full paths:
@@ -107,6 +108,7 @@ Full paths:
 - **Scoring algorithm:** `.claude/docs/scoring-algorithm.md`
 - **Architecture rules:** `.claude/rules/architecture.md`
 - **Review checklist:** `.claude/rules/review-checklist.md` — run before every commit
+- **Defect patterns:** `.claude/rules/defect-patterns.md` — the classes that have actually shipped here, and what to grep for
 - **Build plan:** `.claude/docs/plan.md`
 
 **Direction (read first):**
@@ -157,6 +159,8 @@ Before ending ANY session, append a full state block to `.claude/docs/session-no
 **Gotchas for next session:**
 - <cross-file dependency, ordering constraint, spec gap, or non-obvious detail not captured in the plan or handoff docs>
 - None if nothing to flag
+
+**Does the user need to do anything?** <Yes/No, then the specific actions only they can do — a credential, a dashboard setting, a phone, a product decision. "No" is a valid and useful answer; never manufacture one.>
 ```
 
 Stub entries (timestamps only, no content) are noise — never append a session-end line without the full block above.
@@ -178,6 +182,9 @@ This is not tidying. A stale rule is worse than a missing one: "Two screens only
 
 Typecheck and lint prove a change compiles. They do not prove it works, and reporting a feature done on their strength alone has produced shipped-broken code in this repo before.
 
+- **Read the diff before reporting anything done. This is not optional and it is not the checklist.** On 2026-08-26 one session found **ten defects** in code that had already passed typecheck, lint and the full suite — three of them live in production, one meaning the bot's `/start` had never once worked. An earlier session found six the same way. The defects this project ships are not type errors; they are correct-looking code that says a wrong thing, and no tool in the repo can see them. `.claude/rules/defect-patterns.md` catalogues the classes with real examples — read it before reviewing a diff.
+- **When a check passes, ask what it would have caught.** A green suite over an untested path is not evidence.
+
 - **Exercise the real path before calling something complete.** For an endpoint that calls an external API, run it and read the response. For one that touches the database, run it against the database.
 - **`npm run test` cannot cover database behaviour.** Vitest mocks `fetch` and never opens a connection, so foreign-key violations, values that silently fail to persist, and constraint errors are all invisible to it. That class of failure needs a script under `apps/api/src/scripts/`, exposed as an `npm run check:*` command — `check:add-location` is the worked example. Write one when you add a flow whose failures only appear against real Postgres.
 - **Run the API locally against the real database when you need to.** No `.env` file is required, and none should be created:
@@ -194,6 +201,32 @@ Typecheck and lint prove a change compiles. They do not prove it works, and repo
 - Lead with what happened and what it means, not the mechanism. A caveat does not need its justification attached — say what breaks, and keep the reasoning for when it is asked for.
 - Say what failed, what was skipped, and what remains unverified, without being asked.
 - Do not describe a problem in schema or driver terms when a plain sentence covers it.
+
+### MANDATORY: every piece of finished work ends with a handoff block
+
+**This applies to every recap, every summary, every PR body, and every message that ends a stretch of work** — not just session ends. The user should never have to read back through a report to work out whether a ball is in their court.
+
+Use this exact structure, last, under a heading:
+
+```
+## Do you need to do anything?
+
+**Yes / No.** <If yes: the specific actions, each one a thing only they can do —
+a credential, a dashboard setting, a phone, a product decision. If no, say so
+plainly and do not pad it.>
+
+## Next step
+
+<The single next action, and who does it. If it is blocked, say what on.>
+```
+
+Rules for it:
+
+- **Answer the yes/no first, in bold.** Anything else buries it.
+- **"Yes" is only for things the user alone can do** — running `/newapp` in @BotFather, registering cron-job.org, setting a Vercel env var, choosing between design options, testing on a real phone. Work that is merely *unstarted* is not a user action; it goes under Next step.
+- **Do not manufacture a "yes".** If nothing needs them, "No" is the correct and useful answer.
+- **One next step, not a backlog.** Rank if there are several; name the single one that comes first.
+- A blocked next step still gets named, along with what it is blocked on.
 
 ## Known Gotchas
 

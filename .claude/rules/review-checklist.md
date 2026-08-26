@@ -2,6 +2,19 @@
 
 Run through this before every commit. Flag any failures before proceeding.
 
+## Gate 0 — read the diff (do this first, and do not skip it)
+
+- [ ] **The actual diff has been read, hunk by hunk, as prose** — not the checklist, not the test output
+- [ ] `.claude/rules/defect-patterns.md` was read before that review
+- [ ] For each hunk: what does it render or do when the input is `null`, `0`, absent, or the network fails?
+- [ ] For each "passing" check: what would it actually have caught?
+
+> **This gate is first because it is the only one that has ever worked.** On 2026-08-26 a
+> single session found **ten defects** in code that had already passed typecheck, lint and
+> the full suite — three live in production, one meaning the bot's `/start` had never once
+> worked. An earlier session found six the same way. Every automated gate below was green
+> for all of them.
+
 ## TypeScript
 - [ ] No `any` types anywhere
 - [ ] No `as unknown as X` casts unless absolutely necessary and commented
@@ -81,6 +94,11 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] New endpoint added to the inventory in `docs/handoffs/weatherteam6-miniapp-handoff-v1.md`; new external API added to `.claude/docs/api-sources.md`
 - [ ] No doc still describes the shipped thing as missing, planned, or "does not exist yet" — a stale rule misdirects the next agent more than a missing one does
 - [ ] A new invariant future work must uphold is written into `.claude/rules/architecture.md`, not just the session notes
+
+## Reporting
+- [ ] The report ends with a **handoff block**: does the user need to do anything (yes/no, in bold, first), and the single next step — see CLAUDE.md § Reporting Work. Applies to recaps, summaries and PR bodies alike
+- [ ] "Yes" names only things the user alone can do — a credential, a dashboard setting, a phone, a product decision. Unstarted work is a next step, not a user action
+- [ ] What was **not** verified is stated without being asked
 
 ## General
 - [ ] No `console.log` left in committed code — use the logger (`src/scripts/` is the documented exception)

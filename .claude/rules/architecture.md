@@ -1,5 +1,10 @@
 # Architecture Rules
 
+> **Two companion rules, both mandatory:** `.claude/rules/review-checklist.md` before
+> every commit, and `.claude/rules/defect-patterns.md` before reviewing any diff. The
+> second exists because every defect this project has shipped passed every automated
+> gate in the repo.
+
 Read this at the start of every session. These decisions are final unless explicitly overridden by the user.
 
 ## Monorepo Structure

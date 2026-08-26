@@ -1,5 +1,35 @@
 ---
 
+## 2026-08-26 — process hardening — `main`
+
+**Phase completed:** two standing rules written into the docs, at the user's request. No code.
+
+**1. `.claude/rules/defect-patterns.md` — NEW, and mandatory reading before reviewing any diff.**
+A catalogue of the ten defect *classes* that have actually shipped here, each with a real
+example and what to grep for: a missing value rendered as a plausible one, a failure state
+that reads as success, attribution not backed by the data, one value reused across a loop
+needing per-item values, a string literal that needs escaping, nested interactive elements,
+state read before it settles, a permissive type that silently discards data, an upstream
+call that can never succeed, and a dead field reasoned about as if it were live.
+
+It exists because **every defect this project has shipped passed every automated gate in
+the repo.** Ten in one session on 2026-08-26, six the session before. Reading the diff is
+the only control that has ever caught them, and it is now Gate 0 of the review checklist
+rather than a step at the end.
+
+**2. Every report ends with a handoff block.** CLAUDE.md § Reporting Work now requires a
+"Do you need to do anything?" section (Yes/No, in bold, first) and a "Next step" section
+on every recap, summary and PR body — not just session ends. "Yes" is reserved for what
+the user alone can do; unstarted work is a next step, not a user action. The session-end
+block format gained the same line, and the checklist gained a Reporting section.
+
+**Why:** the user was having to read full reports to work out whether a ball was in their
+court, and twice said nothing in a recap looked like it needed them.
+
+**Files touched:** `.claude/rules/defect-patterns.md` (new), `CLAUDE.md`,
+`.claude/rules/review-checklist.md`, `.claude/rules/architecture.md`.
+---
+
 ---
 
 ## 2026-08-26 — merged and verified in production — `main` @ `7fc962d`
