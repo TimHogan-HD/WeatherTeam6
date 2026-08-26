@@ -2,7 +2,6 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { ConditionsScore, ForecastSnapshot, WeatherAlert } from '@weatherteam6/types'
 import { DetailView } from './DetailView.js'
-import { todayUtcIso } from '../lib/forecast.js'
 
 /**
  * What the detail screen actually puts on screen, rendered for real.
@@ -14,13 +13,17 @@ import { todayUtcIso } from '../lib/forecast.js'
  */
 
 /**
- * The real current UTC date, not a fixed one: `findToday` matches against the
- * API's own UTC day, so a hardcoded fixture date would make every "today"
- * assertion here start failing tomorrow.
+ * Fixed dates, safely — `findToday` now reads the server's `is_today` flag
+ * rather than comparing against the client's clock (#33), so the fixture no
+ * longer has to track the real date to keep its "today" assertions meaningful.
+ *
+ * These were derived from `Date.now()` precisely because the old client matched
+ * on a UTC date it computed itself; a hardcoded date would have started failing
+ * the next day. That coupling is gone.
  */
-const TODAY = todayUtcIso()
-const TOMORROW = todayUtcIso(new Date(Date.now() + 86_400_000))
-const DAY_AFTER = todayUtcIso(new Date(Date.now() + 2 * 86_400_000))
+const TODAY = '2026-08-25'
+const TOMORROW = '2026-08-26'
+const DAY_AFTER = '2026-08-27'
 
 function day(date: string, over: Partial<ForecastSnapshot> = {}): ForecastSnapshot {
   return {
@@ -37,6 +40,8 @@ function day(date: string, over: Partial<ForecastSnapshot> = {}): ForecastSnapsh
     humidity_pct: 17,
     model_sources: ['gfs_seamless', 'ecmwf_ifs025'],
     created_at: `${date}T00:00:00.000Z`,
+    // The server's decision, as the API now sends it.
+    is_today: date === TODAY,
     ...over,
   }
 }
@@ -383,5 +388,85 @@ describe('DetailView — partial and missing data', () => {
     // the coordinates inside the icons' SVG path data.
     expect(html).not.toContain('Request failed')
     expect(html).not.toMatch(/\b(401|404|500|503)\b/)
+  })
+})
+
+/**
+ * Issue #34. A failed rainfall lookup used to score as a 30-day dry spell — the
+ * heaviest component at full marks — so a detail screen could read "Dry,
+ * settled" for rock nothing had checked.
+ */
+describe('DetailView — a withheld score (#34)', () => {
+  function withheld() {
+    return redRockScore({
+      score: null,
+      component_drying_time: null,
+      component_upcoming_rain: null,
+      component_wind: null,
+      component_temp: null,
+      component_humidity: null,
+      score_breakdown: null,
+      unavailable_reason: 'rainfall_unavailable',
+    })
+  }
+
+  it('says why there is no score', () => {
+    const html = render(
+      <DetailView
+        isClimbingLocation
+        asosStation="KLAS"
+        forecast={ok([day(TODAY)])}
+        alerts={alertsOk([])}
+        conditions={ok(withheld())}
+      />,
+    )
+    // Not the full sentence: renderToStaticMarkup escapes the apostrophe to
+    // &#x27;, so asserting the raw copy string would fail on the escaping
+    // rather than on the behaviour.
+    expect(html).toContain('no rainfall data')
+  })
+
+  it('shows no score, no ladder label and no breakdown', () => {
+    const html = render(
+      <DetailView
+        isClimbingLocation
+        asosStation="KLAS"
+        forecast={ok([day(TODAY)])}
+        alerts={alertsOk([])}
+        conditions={ok(withheld())}
+      />,
+    )
+    expect(html).not.toContain('Dry, settled')
+    expect(html).not.toContain('Score ')
+    expect(html).not.toContain('Show breakdown')
+  })
+
+  it('never implies it has not rained', () => {
+    // The hero's rain line is driven by score_breakdown, which is null here.
+    // "no rain in 30+ days" during a rainfall outage is the exact false
+    // statement this issue is about.
+    const html = render(
+      <DetailView
+        isClimbingLocation
+        asosStation="KLAS"
+        forecast={ok([day(TODAY)])}
+        alerts={alertsOk([])}
+        conditions={ok(withheld())}
+      />,
+    )
+    expect(html).not.toContain('no rain in')
+  })
+
+  it('still shows the weather — only the score is withheld', () => {
+    const html = render(
+      <DetailView
+        isClimbingLocation
+        asosStation="KLAS"
+        forecast={ok([day(TODAY)])}
+        alerts={alertsOk([])}
+        conditions={ok(withheld())}
+      />,
+    )
+    expect(html).toContain('103°F')
   })
 })

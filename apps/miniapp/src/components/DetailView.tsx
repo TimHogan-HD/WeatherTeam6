@@ -1,5 +1,5 @@
 import { spacing } from '@weatherteam6/design/tokens'
-import { formatHoursSinceRain } from '@weatherteam6/types'
+import { formatHoursSinceRain, scoreUnavailableLine } from '@weatherteam6/types'
 import type { ConditionsScore, ForecastSnapshot, WeatherAlert } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { stack } from '../theme/styles.js'
@@ -127,6 +127,14 @@ export function DetailView({
           // Distinct from the ladder's "Too far out to score", which describes a
           // date beyond the scoring window. This is today, and it has no row.
           <p style={type.bodyMd}>No conditions for today yet.</p>
+        ) : conditions.data?.unavailable_reason ? (
+          // Withheld, not missing (§#34). The rainfall lookup failed, and its
+          // sentinel is worth 40 of 100 points — scoring anyway would credit a
+          // dry spell nobody measured. Says what happened rather than implying
+          // it has not rained.
+          <p style={type.bodyMd}>
+            {scoreUnavailableLine(conditions.data.unavailable_reason)}
+          </p>
         ) : conditions.data === undefined ? null : (
           <ScoreSection score={conditions.data} severeAlertEvent={alertEvent} />
         )

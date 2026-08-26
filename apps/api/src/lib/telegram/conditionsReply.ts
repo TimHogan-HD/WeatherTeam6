@@ -34,9 +34,8 @@ export async function buildConditionsReply(userId: string, name: string): Promis
   if (!location) return formatLocationNotFound(name)
 
   const now = new Date()
-  const todayStr = now.toISOString().slice(0, 10)
 
-  const [{ snapshots, scores }, activeAlerts] = await Promise.all([
+  const [{ snapshots, scores, todayStr, scoreUnavailable }, activeAlerts] = await Promise.all([
     computeLiveForecast(location),
     db
       .select({
@@ -57,8 +56,14 @@ export async function buildConditionsReply(userId: string, name: string): Promis
     locationName: location.name,
     isClimbingLocation: location.is_climbing_location,
     asosStation: location.asos_station,
-    today: snapshots.find((s) => s.forecast_date === todayStr) ?? null,
+    // The location's local day, decided server-side — this used to derive its
+    // own UTC date, the same #33 bug the Mini App had.
+    today: snapshots.find((s) => s.is_today === true) ?? null,
     todayScore: scores.find((s) => s.forecast_date === todayStr) ?? null,
+    // The bot and the Mini App must say the same thing about the same location,
+    // so the withheld-score case is passed through rather than reading as "no
+    // conditions yet" on one surface and something else on the other (#34).
+    scoreUnavailable: scoreUnavailable ?? null,
     activeAlerts,
     snapshots,
   })

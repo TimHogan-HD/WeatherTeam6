@@ -16,6 +16,15 @@ export type DailyForecast = {
 export type OpenMeteoResult = {
   days: DailyForecast[]
   model_sources: string[]
+  /**
+   * The location's offset from UTC, as Open-Meteo resolved it from the
+   * coordinates (`timezone=auto`). `0` when the upstream did not report one.
+   *
+   * Carried out of here because `date` on every `DailyForecast` is now a **local**
+   * calendar day, so the caller cannot work out which of them is "today" from
+   * `new Date()` alone — see issue #33.
+   */
+  utc_offset_seconds: number
 }
 
 export type ForecastLocation = {
@@ -28,6 +37,7 @@ type EnsembleResponse = {
   latitude: number
   longitude: number
   elevation?: number
+  utc_offset_seconds?: number
   hourly: Record<string, unknown>
 }
 
@@ -329,7 +339,10 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
     })
   }
 
-  return { days, model_sources }
+  // Offset is filled in by the caller, which is the only place the envelope is
+  // visible. `parseEnsemble` is given `hourly` alone so it stays directly
+  // testable against a fixture.
+  return { days, model_sources, utc_offset_seconds: 0 }
 }
 
 function applyLapseRate(
@@ -358,14 +371,20 @@ export async function fetchEnsemble(location: ForecastLocation): Promise<OpenMet
   url.searchParams.set('longitude', String(location.lon))
   url.searchParams.set('models', ENSEMBLE_MODELS)
   url.searchParams.set('hourly', HOURLY_VARS)
-  // Explicit, not inherited. Every "today" in this codebase is a UTC day —
-  // `liveForecast.ts` derives `todayStr` from `toISOString()` and the Mini App's
-  // `todayUtcIso` mirrors it — and three separate comments already claimed this
-  // call requested UTC. It did not; it was relying on Open-Meteo defaulting to
-  // GMT (confirmed live: `timezone: "GMT"`, `utc_offset_seconds: 0`). An
-  // upstream default change would have silently shifted every daily bucket and
-  // made `findToday` miss.
-  url.searchParams.set('timezone', 'UTC')
+  /**
+   * **Local days, resolved from the coordinates** (issue #33).
+   *
+   * This requested `timezone=UTC` until 2026-08-26, so every daily bucket was a
+   * UTC day: for anywhere in the Americas "today" rolled over in the late
+   * afternoon local time and the screen relabelled tomorrow's high as today's.
+   * `timezone=auto` makes Open-Meteo bucket the hourly series into the
+   * location's own calendar days and report `utc_offset_seconds` back.
+   *
+   * `auto` rather than the stored `locations.timezone` deliberately: it needs no
+   * timezone database in-process, and it is the only option that also works for
+   * `GET /preview`, where there is no saved row to read a timezone from.
+   */
+  url.searchParams.set('timezone', 'auto')
 
   logger.debug({ lat: location.lat, lon: location.lon }, '[openMeteo] fetching ensemble forecast')
 
@@ -382,7 +401,31 @@ export async function fetchEnsemble(location: ForecastLocation): Promise<OpenMet
   const raw = (await res.json()) as EnsembleResponse
   const parsed = parseEnsemble(raw.hourly)
   applyLapseRate(parsed.days, location.elevation_m, raw.elevation)
+  // Falls back to 0 (i.e. UTC) rather than guessing. A missing offset with local
+  // day buckets would misidentify "today" by at most one day, which is the old
+  // behaviour — not worse than it, and never a fabricated timezone.
+  parsed.utc_offset_seconds =
+    typeof raw.utc_offset_seconds === 'number' && Number.isFinite(raw.utc_offset_seconds)
+      ? raw.utc_offset_seconds
+      : 0
   return parsed
+}
+
+/**
+ * The location's current calendar date, given its offset from UTC.
+ *
+ * Shifting the epoch and then reading the **UTC** date of the shifted instant is
+ * what makes this correct without a timezone database: it is exactly what
+ * Open-Meteo did to bucket the hourly series, so the string this returns matches
+ * one of the `date` values in the same response.
+ */
+export function localDateString(now: Date, utcOffsetSeconds: number): string {
+  // A non-finite offset would make the shifted Date invalid and `toISOString()`
+  // throw — or, if it were merely sliced, put the literal "Invalid Date" into a
+  // forecast_date comparison. Treat anything unusable as UTC: that is the old
+  // behaviour, which is wrong by at most a day, rather than a crash.
+  const offset = Number.isFinite(utcOffsetSeconds) ? utcOffsetSeconds : 0
+  return new Date(now.getTime() + offset * 1000).toISOString().slice(0, 10)
 }
 
 /**
@@ -467,7 +510,9 @@ export async function fetchNBM(
 
   applyLapseRate(days, location.elevation_m, raw.elevation)
 
-  return { days, model_sources: ['nbm'] }
+  // NBM is unused (issue #22). It kept requesting timezone=UTC, so 0 is the
+  // honest offset for the buckets it would produce.
+  return { days, model_sources: ['nbm'], utc_offset_seconds: 0 }
 }
 
 const ARCHIVE_URL = 'https://archive-api.open-meteo.com/v1/archive'
@@ -497,7 +542,11 @@ export async function fetchArchivePrecip(
   url.searchParams.set('start_date', fromDate)
   url.searchParams.set('end_date', toDate)
   url.searchParams.set('daily', 'precipitation_sum')
-  url.searchParams.set('timezone', 'UTC')
+  // Local days, matching the forecast call. A rain "day" must mean the same
+  // thing on both sides of the drying model: bucketing rainfall by UTC day while
+  // the forecast is bucketed locally would put an evening shower on the wrong
+  // date and shift hours-since-rain by up to a day.
+  url.searchParams.set('timezone', 'auto')
 
   logger.debug({ lat, lon, fromDate, toDate }, '[openMeteo] fetching archive precip history')
 

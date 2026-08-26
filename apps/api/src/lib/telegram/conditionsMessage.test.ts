@@ -222,3 +222,47 @@ describe('formatConditionsReply — missing data', () => {
     expect(reply).not.toContain('Open-Meteo (')
   })
 })
+
+/**
+ * Issue #34. The bot and the Mini App must say the same thing about the same
+ * location, so a withheld score cannot read as "no conditions yet" on one
+ * surface and as a score on the other.
+ */
+describe('formatConditionsReply — a withheld score (#34)', () => {
+  const base = {
+    locationName: 'Red Rock',
+    isClimbingLocation: true,
+    asosStation: 'KLAS',
+    today: null,
+    todayScore: null,
+    activeAlerts: [],
+    snapshots: [],
+  }
+
+  it('says the rainfall data is missing, not that there are no conditions yet', () => {
+    const reply = formatConditionsReply({ ...base, scoreUnavailable: 'rainfall_unavailable' })
+    expect(reply).toContain("Can't score right now — no rainfall data.")
+    expect(reply).not.toContain('No conditions for today yet.')
+  })
+
+  it('never implies a dry spell — that is the defect it exists for', () => {
+    const reply = formatConditionsReply({ ...base, scoreUnavailable: 'rainfall_unavailable' })
+    expect(reply).not.toContain('no rain in')
+    expect(reply).not.toContain('Dry, settled')
+  })
+
+  it('still falls back to the ordinary wording when nothing was withheld', () => {
+    const reply = formatConditionsReply({ ...base, scoreUnavailable: null })
+    expect(reply).toContain('No conditions for today yet.')
+  })
+
+  it('says nothing about scoring at all for a non-climbing location', () => {
+    // A city has no drying story, so a rainfall outage is not its problem.
+    const reply = formatConditionsReply({
+      ...base,
+      isClimbingLocation: false,
+      scoreUnavailable: 'rainfall_unavailable',
+    })
+    expect(reply).not.toContain("Can't score right now")
+  })
+})

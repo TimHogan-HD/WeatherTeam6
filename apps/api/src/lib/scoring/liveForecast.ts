@@ -5,6 +5,7 @@ import { fetchPrecipHistory } from '../weather/acis.js'
 import {
   fetchArchivePrecip,
   fetchEnsemble,
+  localDateString,
   type ForecastLocation,
   type OpenMeteoResult,
 } from '../weather/openMeteo.js'
@@ -20,6 +21,28 @@ export type LiveForecastLocation = Pick<
 export type LiveForecastResult = {
   snapshots: ForecastSnapshot[]
   scores: ConditionsScore[]
+  /**
+   * The location's **local** calendar date, resolved from the offset Open-Meteo
+   * returned for these coordinates (issue #33).
+   *
+   * Every caller must use this rather than deriving its own date. Until
+   * 2026-08-26 each route computed `new Date().toISOString().slice(0, 10)`
+   * independently and the buckets were UTC days, so anywhere west of Greenwich
+   * "today" rolled over during the afternoon and the screen relabelled
+   * tomorrow's high as today's.
+   *
+   * `''` when the forecast came back empty and there was no offset to resolve.
+   */
+  todayStr: string
+  /**
+   * Set when the score was deliberately **withheld** rather than simply absent —
+   * currently only when the rainfall lookup failed (issue #34). `scores` is
+   * empty while `snapshots` is complete: the weather is fine, the score is not.
+   *
+   * Distinct from an empty `scores` with no reason, which means the days fell
+   * outside the scoring window.
+   */
+  scoreUnavailable?: 'rainfall_unavailable' | null
 }
 
 function parseNum(v: string | null | undefined, fallback: number): number {
@@ -42,11 +65,6 @@ export async function computeLiveForecast(
   const lon = parseNum(location.lon, 0)
   const elevM = location.elevation_m !== null ? parseNum(location.elevation_m, 0) : null
   const locCoords: ForecastLocation = { lat, lon, elevation_m: elevM }
-
-  const todayStr = now.toISOString().slice(0, 10)
-  const thirtyDaysAgoStr = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10)
 
   /**
    * The ensemble is the only forecast source. NBM used to be tried first and is
@@ -75,8 +93,23 @@ export async function computeLiveForecast(
   const forecast: OpenMeteoResult = await fetchEnsemble(locCoords)
 
   if (forecast.days.length === 0) {
-    return { snapshots: [], scores: [] }
+    return { snapshots: [], scores: [], todayStr: '' }
   }
+
+  /**
+   * "Today" is now the **location's** calendar day, not UTC (issue #33).
+   *
+   * `fetchEnsemble` requests `timezone=auto`, so `day.date` is a local date and
+   * `utc_offset_seconds` is what Open-Meteo resolved for these coordinates.
+   * Deriving the date the same way it did is what makes this string match one of
+   * the buckets in the same response. The rainfall window uses the same offset
+   * so a rain "day" means the same thing on both sides of the drying model.
+   */
+  const todayStr = localDateString(now, forecast.utc_offset_seconds)
+  const thirtyDaysAgoStr = localDateString(
+    new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+    forecast.utc_offset_seconds,
+  )
 
   // Sort once, ascending by date — the 72h aggregates below assume this order.
   const days = [...forecast.days].sort((a, b) => a.date.localeCompare(b.date))
@@ -95,6 +128,11 @@ export async function computeLiveForecast(
     wind_kmh_max: day.wind_kmh_max,
     humidity_pct: day.humidity_pct,
     model_sources: modelSources,
+    // Marked server-side so no client has to work out which row is "today" from
+    // a date it derived itself. That duplication is what made this wrong: the
+    // API bucketed by UTC day and the Mini App matched against its own UTC day,
+    // so both were consistently wrong together and neither could detect it.
+    is_today: day.date === todayStr,
     created_at: now.toISOString(),
   }))
 
@@ -103,16 +141,33 @@ export async function computeLiveForecast(
   // else fall back to Open-Meteo's archive API — both live-fetched per request
   // since there's no longer a rainfall_history table being kept warm by a job.
   let rainfallEvents: { date: string; precip_mm: number }[] = []
+  /**
+   * Issue #34. A failed lookup used to leave `rainfallEvents` empty, which
+   * `dryingModel` cannot tell from a genuinely dry month — it returns the same
+   * 720-hour sentinel for both, worth **40 of 100 points**. An upstream outage
+   * therefore *raised* the score, and the day could read "Dry, settled" for rock
+   * nothing had checked.
+   *
+   * Tracked rather than swallowed, so the day is left unscored instead of scored
+   * on a guess. The weather is unaffected and still returned in full — only the
+   * score is withheld.
+   */
+  let rainfallAvailable = true
   try {
     rainfallEvents = location.asos_station
       ? await fetchPrecipHistory(location.asos_station, thirtyDaysAgoStr, todayStr)
       : await fetchArchivePrecip(lat, lon, thirtyDaysAgoStr, todayStr)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
+    rainfallAvailable = false
     logger.warn(
       { locationId: location.id, err: msg },
-      '[liveForecast] recent rainfall fetch failed — scoring drying time as no-recent-data',
+      '[liveForecast] recent rainfall fetch failed — withholding the conditions score rather than crediting a dry spell',
     )
+  }
+
+  if (!rainfallAvailable) {
+    return { snapshots, scores: [], todayStr, scoreUnavailable: 'rainfall_unavailable' }
   }
 
   let scores: ConditionsScore[] = []
@@ -218,5 +273,5 @@ export async function computeLiveForecast(
     scores = []
   }
 
-  return { snapshots, scores }
+  return { snapshots, scores, todayStr }
 }

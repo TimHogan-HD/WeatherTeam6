@@ -48,6 +48,9 @@ export async function computePreviewForecast(
     asos_station: null,
   }
 
-  const { snapshots } = await computeLiveForecast(synthetic, now)
-  return toWindowedForecast(snapshots, now.toISOString().slice(0, 10))
+  // The previewed place's own local day (#33). This is the path that could not
+  // have used `locations.timezone` even if it were read — there is no saved row
+  // yet — which is why the offset is resolved from the coordinates upstream.
+  const { snapshots, todayStr } = await computeLiveForecast(synthetic, now)
+  return toWindowedForecast(snapshots, todayStr)
 }

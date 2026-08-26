@@ -15,7 +15,13 @@ const fetchNBM = vi.hoisted(() => vi.fn())
 const fetchArchivePrecip = vi.hoisted(() => vi.fn())
 const fetchPrecipHistory = vi.hoisted(() => vi.fn())
 
-vi.mock('../weather/openMeteo.js', () => ({ fetchEnsemble, fetchNBM, fetchArchivePrecip }))
+// The fetches are stubbed; `localDateString` is the real one. Reimplementing it
+// in the mock would make these tests agree with a copy of the logic rather than
+// with the logic — the failure mode catalogued as class 11 in defect-patterns.md.
+vi.mock('../weather/openMeteo.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../weather/openMeteo.js')>()
+  return { ...actual, fetchEnsemble, fetchNBM, fetchArchivePrecip }
+})
 vi.mock('../weather/acis.js', () => ({ fetchPrecipHistory }))
 
 const { computeLiveForecast } = await import('./liveForecast.js')
@@ -59,6 +65,7 @@ beforeEach(() => {
   fetchEnsemble.mockResolvedValue({
     days: [day(0), day(1), day(2)],
     model_sources: ['gfs_seamless'],
+    utc_offset_seconds: 0,
   })
 })
 
@@ -104,6 +111,7 @@ describe('computeLiveForecast — per-day scoring', () => {
         day(1, { wind_kmh_max: 60 }), // gale tomorrow -> zero
       ],
       model_sources: ['gfs_seamless'],
+    utc_offset_seconds: 0,
     })
 
     const { scores } = await computeLiveForecast(location, NOW)
@@ -116,6 +124,7 @@ describe('computeLiveForecast — per-day scoring', () => {
     fetchEnsemble.mockResolvedValue({
       days: [day(0, { temp_c_max: 18 }), day(1, { temp_c_max: 40 })],
       model_sources: ['gfs_seamless'],
+    utc_offset_seconds: 0,
     })
 
     const { scores } = await computeLiveForecast(location, NOW)
@@ -133,17 +142,42 @@ describe('computeLiveForecast — per-day scoring', () => {
   })
 
   it('returns nothing when the forecast is empty, rather than throwing', async () => {
-    fetchEnsemble.mockResolvedValue({ days: [], model_sources: [] })
+    fetchEnsemble.mockResolvedValue({ days: [], model_sources: [], utc_offset_seconds: 0 })
     const result = await computeLiveForecast(location, NOW)
-    expect(result).toEqual({ snapshots: [], scores: [] })
+    expect(result).toEqual({ snapshots: [], scores: [], todayStr: '' })
   })
 
-  it('survives a rainfall fetch that throws', async () => {
-    // Swallowed on purpose — the drying model falls back to its no-data
-    // sentinel. The display cap in the clients is what keeps that from
-    // rendering as a precise fact.
+  it('withholds the score when the rainfall fetch throws, and says why (#34)', async () => {
+    // This used to assert `scores` still had three entries. That WAS the bug:
+    // an empty rainfall list is indistinguishable from a dry month, and
+    // dryingModel's 720-hour sentinel is worth 40 of 100 points — so an
+    // upstream outage raised the score and the day could read "Dry, settled"
+    // for rock nothing had checked.
     fetchArchivePrecip.mockRejectedValue(new Error('ACIS down'))
-    const { scores } = await computeLiveForecast(location, NOW)
+
+    const { snapshots, scores, scoreUnavailable } = await computeLiveForecast(location, NOW)
+
+    expect(scores).toEqual([])
+    expect(scoreUnavailable).toBe('rainfall_unavailable')
+    // The weather is unaffected — only the score is withheld.
+    expect(snapshots).toHaveLength(3)
+  })
+
+  it('withholds it on the ASOS path too, not just the archive fallback', async () => {
+    fetchPrecipHistory.mockRejectedValue(new Error('ACIS down'))
+    const { scoreUnavailable } = await computeLiveForecast(
+      { ...location, asos_station: 'KLAS' },
+      NOW,
+    )
+    expect(scoreUnavailable).toBe('rainfall_unavailable')
+  })
+
+  it('scores normally when rainfall came back empty but the fetch succeeded', async () => {
+    // A genuine dry month must still score. The distinction this fix introduces
+    // is "the call failed", not "the call returned nothing".
+    fetchArchivePrecip.mockResolvedValue([])
+    const { scores, scoreUnavailable } = await computeLiveForecast(location, NOW)
+    expect(scoreUnavailable).toBeUndefined()
     expect(scores).toHaveLength(3)
   })
 })
@@ -153,11 +187,91 @@ describe('computeLiveForecast — a feed that starts tomorrow', () => {
     fetchEnsemble.mockResolvedValue({
       days: [day(1), day(2)],
       model_sources: ['gfs_seamless'],
+    utc_offset_seconds: 0,
     })
     const { snapshots, scores } = await computeLiveForecast(location, NOW)
     expect(snapshots.map((s) => s.forecast_date)).toEqual([iso(1), iso(2)])
     // Nothing matches today, which is what makes GET /conditions/:id answer
     // 200 with data: null.
     expect(scores.find((s) => s.forecast_date === iso(0))).toBeUndefined()
+  })
+})
+
+/**
+ * Issue #33. "Today" used to be a UTC date derived independently by the API and
+ * by the Mini App, while the buckets were UTC days — so both were wrong in the
+ * same direction, agreed with each other, and nothing could detect it. West of
+ * Greenwich the day rolled over in the afternoon and today's high was rendered
+ * as tomorrow's.
+ */
+describe('computeLiveForecast — local days (#33)', () => {
+  /** 19:00 in Las Vegas on the 25th is already 02:00 on the 26th in UTC. */
+  const LATE_AFTERNOON_PT = new Date('2026-08-26T02:00:00.000Z')
+  const PT_OFFSET = -7 * 3600
+
+  function pacificFeed() {
+    fetchEnsemble.mockResolvedValue({
+      days: [
+        { ...day(0), date: '2026-08-25' },
+        { ...day(0), date: '2026-08-26' },
+        { ...day(0), date: '2026-08-27' },
+      ],
+      model_sources: ['gfs_seamless'],
+      utc_offset_seconds: PT_OFFSET,
+    })
+  }
+
+  it('reports the location’s local day, not the server’s UTC day', async () => {
+    pacificFeed()
+    const result = await computeLiveForecast(location, LATE_AFTERNOON_PT)
+
+    // UTC says the 26th. Las Vegas says the 25th, and Las Vegas is right.
+    expect(result.todayStr).toBe('2026-08-25')
+  })
+
+  it('flags exactly one snapshot as today, and it is the local one', async () => {
+    pacificFeed()
+    const { snapshots } = await computeLiveForecast(location, LATE_AFTERNOON_PT)
+
+    const flagged = snapshots.filter((s) => s.is_today === true)
+    expect(flagged).toHaveLength(1)
+    expect(flagged[0]?.forecast_date).toBe('2026-08-25')
+  })
+
+  it('scores the local day as day zero, so days-out is not off by one', async () => {
+    pacificFeed()
+    const { scores } = await computeLiveForecast(location, LATE_AFTERNOON_PT)
+
+    // The 25th is today, so the 27th is two days out — under the old UTC
+    // reckoning the 25th was in the past and the 27th only one day out.
+    expect(scores.find((s) => s.forecast_date === '2026-08-27')?.confidence).toBeDefined()
+    expect(scores[0]?.forecast_date).toBe('2026-08-25')
+  })
+
+  it('flags no snapshot when the feed genuinely starts tomorrow', async () => {
+    fetchEnsemble.mockResolvedValue({
+      days: [
+        { ...day(0), date: '2026-08-26' },
+        { ...day(0), date: '2026-08-27' },
+      ],
+      model_sources: ['gfs_seamless'],
+      utc_offset_seconds: PT_OFFSET,
+    })
+    const { snapshots } = await computeLiveForecast(location, LATE_AFTERNOON_PT)
+
+    expect(snapshots.every((s) => s.is_today === false)).toBe(true)
+  })
+
+  it('treats a missing offset as UTC rather than producing an invalid date', async () => {
+    // An upstream that stops sending utc_offset_seconds must degrade to the old
+    // behaviour — wrong by at most a day — not to "Invalid Date".
+    fetchEnsemble.mockResolvedValue({
+      days: [{ ...day(0), date: '2026-08-26' }],
+      model_sources: ['gfs_seamless'],
+      utc_offset_seconds: undefined as unknown as number,
+    })
+    const result = await computeLiveForecast(location, LATE_AFTERNOON_PT)
+
+    expect(result.todayStr).toBe('2026-08-26')
   })
 })
