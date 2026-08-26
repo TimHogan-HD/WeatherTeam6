@@ -28,6 +28,7 @@ From `apps/api`, against a real database (`DATABASE_URL` set in the shell, no `.
 ```bash
 npm run db:seed             # seed the user + 3 locations
 npm run check:add-location  # acceptance check for the add-location flow (Task 5a)
+npm run check:delete-trip   # acceptance check for DELETE /trips/:tripId (its FK cascade)
 ```
 
 ## Structure
@@ -64,6 +65,7 @@ NWS_USER_AGENT=weatherteam6/1.0 your@email.com
 TELEGRAM_BOT_TOKEN=                                 # bot token (alerts + /api/telegram/webhook); never reaches a client bundle
 TELEGRAM_CHAT_ID=                                   # single-user chat id — the auth boundary for BOTH the bot webhook and the Mini App's `tma` scheme. Must be the private-chat id (= the owner's Telegram user id); a group id would make every Mini App request 401
 CRON_SECRET=                                        # gates POST /api/cron/check-alerts; treat as a credential
+TELEGRAM_WEBHOOK_SECRET=                            # `secret_token` for POST /api/telegram/webhook. Must equal the value passed to setWebhook. Unset = the check is skipped and the forgeable chat.id is the only gate
 API_SHARED_SECRET=                                  # gates ALL of /api/v1/* via `Authorization: Bearer`; fail-closed — unset means 503, never open
 EXPO_PUBLIC_SHADEMAP_KEY=                           # archived — apps/mobile only
 R2_ACCOUNT_ID=

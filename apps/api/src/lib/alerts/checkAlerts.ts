@@ -4,7 +4,7 @@ import { locations, weatherAlerts } from '../../db/schema.js'
 import { logger } from '../logger.js'
 import { formatAlertMessage } from '../telegram/alertMessage.js'
 import { alertKeyboard } from '../telegram/deepLink.js'
-import { sendTelegramMessage } from '../telegram/sendMessage.js'
+import { sendTelegramMessage, TelegramPermanentError } from '../telegram/sendMessage.js'
 import { fetchNwsAlerts } from '../weather/nwsAlerts.js'
 
 /**
@@ -149,11 +149,25 @@ export async function notifyPendingAlerts(): Promise<{ checked: number; notified
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       logger.error({ alertId: alert.id, err: msg }, '[checkAlerts] failed to notify alert')
-      // Release the claim so the next run retries the send — a failed send
-      // must not be treated as "notified". Guarded: if the release itself fails
-      // we log and keep going, rather than letting it escape and abort the
-      // remaining alerts in this run. Worst case the row stays claimed and is
-      // skipped until an operator clears it.
+
+      // A permanent rejection keeps its claim. Telegram answers a malformed
+      // message — an unsupported HTML tag, a bad button URL — with a 400 on
+      // every attempt, so releasing the claim meant this run's identical
+      // message went out again on the next run, and the next, indefinitely.
+      // Keeping the row claimed costs one alert; releasing it costs a loop that
+      // only stops when someone notices.
+      if (err instanceof TelegramPermanentError) {
+        logger.error(
+          { alertId: alert.id, statusCode: err.status },
+          '[checkAlerts] Telegram rejected this alert permanently — leaving it claimed rather than re-sending forever',
+        )
+        continue
+      }
+
+      // Transient failure: release the claim so the next run retries the send.
+      // Guarded — if the release itself fails we log and keep going, rather than
+      // letting it escape and abort the remaining alerts in this run. Worst case
+      // the row stays claimed and is skipped until an operator clears it.
       try {
         await db
           .update(weatherAlerts)

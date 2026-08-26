@@ -51,8 +51,14 @@ export function dryingModel(input: DryingModelInput): DryingModelOutput {
     if (e.date > mostRecent.date) mostRecent = e
   }
 
+  // Measured from the END of the rain day. An event dated today therefore ends
+  // in the future relative to `asOf`, which made the raw figure negative — about
+  // -14h at midday. Clamped, because every consumer treats this as an elapsed
+  // duration: `conditionsScore` already floors the drying component at
+  // `hoursSinceRain <= 0`, so the clamp changes no score, and the display cap in
+  // `formatHoursSinceRain` no longer has to render "no rain in -14h".
   const eventEnd = new Date(mostRecent.date + 'T23:59:59Z').getTime()
-  const hoursSince = (input.asOf.getTime() - eventEnd) / 3_600_000
+  const hoursSince = Math.max(0, (input.asOf.getTime() - eventEnd) / 3_600_000)
 
   // Cliff angle modifier: 0° vertical = base, 90° slab = 30% longer drying.
   // Steeper walls (lower angle) drain water faster, so get the base factor.

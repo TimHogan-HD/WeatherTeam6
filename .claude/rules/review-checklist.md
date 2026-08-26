@@ -41,6 +41,7 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] No migrations written by hand — use `drizzle-kit generate`
 - [ ] `user_id` included on inserts to tables that have the FK
 - [ ] New table with a `location_id` FK? It is added to `DEPENDENT_TABLES` in `lib/locations/deleteLocation.ts` — no FK declares `onDelete`, so a missing entry turns `DELETE /locations/:id` into a 500 that only appears once real data exists
+- [ ] New table with a `trip_id` FK? `DELETE /trips/:tripId` clears it too. That endpoint 500'd on **every** trip until 2026-08-26 for exactly this reason — `trip_locations` was never cleared and `POST /trips` requires at least one location
 - [ ] No N+1 queries — use joins or batch fetches
 - [ ] Route params feeding `uuid`/typed columns are validated (`isUuid`) before the query — an unvalidated id is a leaked-error 500, not a 404
 
@@ -84,7 +85,9 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] Any text interpolated into a `parse_mode: 'HTML'` message is escaped with `escapeTelegramHtml` — NWS headlines and user-entered location names routinely contain `&`, and a malformed message is a non-retryable 400 the webhook swallows
 - [ ] **A string literal in the source counts too.** `/start` and the usage reply both shipped containing `<location name>`, which Telegram rejects as an unsupported start tag — neither had ever been delivered
 - [ ] Score-to-text goes through `summarizeConditions` — no surface writes its own mapping, or the bot and the Mini App drift apart
-- [ ] Webhook auth does not rely solely on request-body fields
+- [ ] Webhook auth does not rely solely on request-body fields — `secret_token` is verified via `webhookSecretAccepted`, and every refusal still answers 200 so Telegram does not redeliver
+- [ ] A failed send is classified before the claim is released — `TelegramPermanentError` (non-429 4xx) keeps its claim; releasing it re-sends an identically-rejected message on every cron run forever. Branch on the error **type**, never on its message text
+- [ ] A user-visible source list is derived from what was actually *read*, not what was requested — `model_sources` reports only the models `parseEnsemble` consumes
 - [ ] An inline keyboard deep link is a `url` button, not `web_app` — `web_app` never delivers `start_param`
 - [ ] A button that cannot be built correctly is omitted, not approximated — a malformed url is a non-retryable 400 that costs the whole message
 

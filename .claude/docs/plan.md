@@ -77,25 +77,31 @@ v8 defines `breakdown: ScoreBreakdown` (not nullable) but the Phase 3 stub retur
 `.env.example` at the repo root is authoritative — this list is a convenience copy and
 can drift. `REDIS_URL` and `ADMIN_PASSWORD` were **removed** with BullMQ and Bull Board.
 
+Reconciled against the real file 2026-08-26 — it had drifted three keys in each
+direction. `TOMORROW_IO_API_KEY` (replaced by ACIS in Phase 11), `RAINVIEWER_KEY`
+(unused by the current code) and `SHADEMAP_KEY` are **not** in `.env.example`.
+
 ```
 DATABASE_URL=          # Neon: pooled for runtime, direct for migrations
 DEFAULT_USER_ID=
 AUTH_ENABLED=false
-NODE_ENV=development
+NODE_ENV=development   # NEVER set this on Vercel — see CLAUDE.md § Known Gotchas
 PORT=3001
 NWS_USER_AGENT=weatherteam6/1.0 your@email.com
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
 CRON_SECRET=
-TOMORROW_IO_API_KEY=
-RAINVIEWER_KEY=
-SHADEMAP_KEY=
+TELEGRAM_WEBHOOK_SECRET=   # added 2026-08-26 with the #27 fix; must match setWebhook's secret_token
+EXPO_PUBLIC_SHADEMAP_KEY=  # archived — apps/mobile only
 R2_ACCOUNT_ID=
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
 R2_BUCKET_NAME=
 API_BASE_URL=
 LOG_LEVEL=
+EXPO_PUBLIC_API_BASE_URL=  # archived — apps/mobile only
+API_SHARED_SECRET=         # gates ALL of /api/v1/*; fail-closed
+VITE_API_BASE_URL=         # inlined into a PUBLIC bundle — never a credential
 ```
 
 ---
@@ -172,7 +178,7 @@ without being closed, so "open" alone is misleading.
 | **#22** — NBM 400s | **Closed 2026-08-26.** Root cause: Open-Meteo does not define `precipitation_p10/p50/p90` as daily variables and exposes no NBM quantiles under any name (verified against the live API). The NBM branch could never have returned data, so the call was removed. `fetchNBM` remains in `openMeteo.ts`, tested and unused. |
 | **#25** — `/history` and `/normals` return `[]` forever | **Open, unchanged.** Deleting the `rainfallHistory` worker removed the only writer for `crag_climbability_history` and `location_normals`. Needs a design call on where the write goes. Both routes are on the clients' do-not-call list. |
 | **#26** — Telegram HTML + alert pruning | **Closed 2026-08-26.** Every interpolated value is escaped in both message paths, and `fetchNwsAlerts` now returns `null` rather than `[]` for a 200 that is not a FeatureCollection — the case that deleted stored rows and destroyed `notified_at`. A third bug was found in the same audit and fixed with it: `/start` and the usage reply both contained `<location name>`, which Telegram rejects as an unsupported start tag, so neither had ever been delivered. |
-| **#27** — webhook hardening | **Open, unchanged.** `POST /api/telegram/webhook` is gated only by the forgeable `chat.id` in the request body; `secret_token` is the fix. No `update_id` dedupe either. Note this was never made urgent by the auth work — SSO never covered that route. |
+| **#27** — webhook hardening | **Mostly closed 2026-08-26.** `secret_token` is now verified by `webhookSecretAccepted` (`lib/telegram/webhookAuth.ts`, pure and separately tested), and `TELEGRAM_CHAT_ID` is trimmed on both sides so a stray space cannot authorize the Mini App while silently rejecting every bot command. **It only takes effect once `TELEGRAM_WEBHOOK_SECRET` is set in Vercel and `setWebhook` is re-run with the same value** — deliberately permissive when unset, or deploying it would take the bot offline in the gap. **Still open:** no `update_id` dedupe. That needs a table to record seen ids, so it is a schema change and a design call, not a patch. Duplicate delivery only happens when Telegram times out waiting for our 200, and the route always answers 200, so the exposure is small. |
 
 **Filed since:** `ScoreInput` conflates the humidity component with the drying humidity
 modifier in one field, so per-day humidity cannot be fixed without moving the drying

@@ -136,6 +136,34 @@ upstream variable by variable rather than assuming the docs.
 **How to find it:** verify the consumer before reasoning from the producer. Grep for
 where a field is *read*, not where it is set.
 
+### 11. A test whose fixture cannot reach the branch it claims to cover
+
+The generalisation of the `initData` failure, and it shipped three more times.
+The test is green, the name describes the right property, and the input never
+reaches the code that would break it.
+
+- `dryingModel.test.ts` had **"hours_since_significant_rain is non-negative"**
+  running against `rainfallEvents: []` — the early-return sentinel branch. It
+  never touched the subtraction. The invariant was false: rain dated *today*
+  ends at `23:59:59Z`, in the future relative to `asOf`, so the real answer was
+  about **-14h**, and the Mini App rendered *"no rain in -14h"* on exactly the
+  day it had rained.
+- `openMeteo.test.ts` asserted `model_sources` with `toContain('gfs_seamless')`
+  against a fixture that **only ever emitted GFS keys**. The three other
+  branches — which named ECMWF, ICON and GEM as sources that contribute to no
+  number on screen — were unreachable from the fixture and wrong in production.
+- `signInitData` and `validateInitData` shared one misunderstanding, so 11 green
+  tests covered a validator that could not validate a real launch.
+
+**How to find it:** for each assertion, ask *which line of the implementation
+would have to change for this to fail?* If you cannot name one, the fixture does
+not reach it. Then ask the harder version: **was this fixture built by the same
+understanding as the code it checks?** A helper that constructs the input by
+mirroring the implementation proves only that the code agrees with itself.
+
+**The rule:** an invariant worth asserting is worth asserting on the input that
+threatens it. Boundary cases go in the fixture, not the test name.
+
 ---
 
 ## Two process rules that follow from all of this

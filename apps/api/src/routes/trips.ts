@@ -164,10 +164,30 @@ tripsRouter.delete('/trips/:tripId', async (req: Request, res: Response) => {
   }
 
   try {
-    const rows = await db
-      .delete(trips)
-      .where(and(eq(trips.id, tripId), eq(trips.user_id, req.userId)))
-      .returning()
+    // `trip_locations.trip_id` references `trips` and no FK in the schema
+    // declares `onDelete`, so deleting the trip row directly raised a
+    // foreign-key violation for any trip that had locations — i.e. every trip,
+    // since POST /trips requires at least one. It surfaced as a generic 500.
+    //
+    // Same shape as `deleteLocationCascade`: clear dependents first, in one
+    // transaction, so a mid-way failure leaves the trip whole rather than
+    // stripped of its locations.
+    const rows = await db.transaction(async (tx) => {
+      const owned = await tx
+        .select({ id: trips.id })
+        .from(trips)
+        .where(and(eq(trips.id, tripId), eq(trips.user_id, req.userId)))
+        .limit(1)
+
+      if (!owned[0]) return []
+
+      await tx.delete(tripLocations).where(eq(tripLocations.trip_id, tripId))
+
+      return tx
+        .delete(trips)
+        .where(and(eq(trips.id, tripId), eq(trips.user_id, req.userId)))
+        .returning()
+    })
 
     if (rows.length === 0) {
       const response: ApiResponse<null> = { data: null, error: 'Trip not found', status: 404 }

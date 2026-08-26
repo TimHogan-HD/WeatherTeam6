@@ -40,6 +40,16 @@ type NbmResponse = {
 
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast'
 const ENSEMBLE_URL = 'https://ensemble-api.open-meteo.com/v1/ensemble'
+/**
+ * Four models are requested; **only the GFS members are read.** Every extraction
+ * in `parseEnsemble` filters on `GFS_SUFFIX`, so ECMWF, ICON and GEM members are
+ * downloaded, JSON-parsed and thrown away — roughly three quarters of an 859-key
+ * hourly payload, on every forecast and every conditions request.
+ *
+ * Left as-is on purpose: narrowing this to `gfs_seamless` and widening
+ * `parseEnsemble` to use all four are the two ends of the same open decision,
+ * and the second one moves every score. Flagged for the user, not chosen here.
+ */
 const ENSEMBLE_MODELS = 'gfs_seamless,ecmwf_ifs025,icon_seamless_eps,gem_global'
 const HOURLY_VARS =
   'precipitation,temperature_2m,windspeed_10m,relativehumidity_2m,dewpoint_2m,shortwave_radiation'
@@ -165,22 +175,25 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
     (k) => k.startsWith('shortwave_radiation_member') && k.endsWith(GFS_SUFFIX),
   )
 
-  const model_sources: string[] = []
-  if (gfsPrecipKeys.length > 0) model_sources.push('gfs_seamless')
-  if (allKeys.some((k) => k.includes('ecmwf_ifs025') && k.includes('member')))
-    model_sources.push('ecmwf_ifs025')
-  if (
-    allKeys.some(
-      (k) => k.includes('icon') && k.includes('member') && !k.endsWith(GFS_SUFFIX),
-    )
-  )
-    model_sources.push('icon_seamless_eps')
-  if (
-    allKeys.some(
-      (k) => k.includes('gem') && k.includes('member') && !k.endsWith(GFS_SUFFIX),
-    )
-  )
-    model_sources.push('gem_global')
+  /**
+   * **What was actually used, not what was asked for.**
+   *
+   * `model_sources` is rendered verbatim in the Mini App's sources footer, and
+   * §3 forbids naming a source that did not contribute. This previously listed
+   * `ecmwf_ifs025`, `icon_seamless_eps` and `gem_global` whenever their member
+   * keys were merely *present* in the response — but every array read below is
+   * filtered to `GFS_SUFFIX`, so those three models contribute to no
+   * percentile, no min/max and no mean. The footer was naming three models that
+   * had no effect on a single number on screen.
+   *
+   * Verified against the live API 2026-08-26: all four models do return members
+   * (859 hourly keys), and 30 of each variable's arrays are GFS. The other three
+   * quarters of the payload is downloaded, parsed and discarded — see the note
+   * on ENSEMBLE_MODELS. Widening the computation to all four models is a
+   * forecasting change (it moves the p10/p90 spread, hence confidence, hence
+   * every score) and is deliberately NOT bundled here.
+   */
+  const model_sources: string[] = gfsPrecipKeys.length > 0 ? ['gfs_seamless'] : []
 
   // Extract and validate each member array once — the same arrays are reused for
   // every date, so doing this inside the date loop would redo O(hours) validation
@@ -294,6 +307,14 @@ export async function fetchEnsemble(location: ForecastLocation): Promise<OpenMet
   url.searchParams.set('longitude', String(location.lon))
   url.searchParams.set('models', ENSEMBLE_MODELS)
   url.searchParams.set('hourly', HOURLY_VARS)
+  // Explicit, not inherited. Every "today" in this codebase is a UTC day —
+  // `liveForecast.ts` derives `todayStr` from `toISOString()` and the Mini App's
+  // `todayUtcIso` mirrors it — and three separate comments already claimed this
+  // call requested UTC. It did not; it was relying on Open-Meteo defaulting to
+  // GMT (confirmed live: `timezone: "GMT"`, `utc_offset_seconds: 0`). An
+  // upstream default change would have silently shifted every daily bucket and
+  // made `findToday` miss.
+  url.searchParams.set('timezone', 'UTC')
 
   logger.debug({ lat: location.lat, lon: location.lon }, '[openMeteo] fetching ensemble forecast')
 

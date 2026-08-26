@@ -22,9 +22,23 @@ describe('dryingModel (contract test)', () => {
     expect(['low', 'medium', 'high']).toContain(result.confidence)
   })
 
-  it('hours_since_significant_rain is non-negative', () => {
-    const result = dryingModel(baseInput)
-    expect(result.hours_since_significant_rain).toBeGreaterThanOrEqual(0)
+  // These ran against `baseInput`, whose `rainfallEvents` is empty — so they
+  // exercised only the 720 sentinel branch and never touched the arithmetic that
+  // can actually go negative. The invariant they claimed to check was false:
+  // rain dated today ends at 23:59:59Z, in the future relative to `asOf`, and
+  // produced about -14h, which the Mini App rendered as "no rain in -14h".
+  it('hours_since_significant_rain is non-negative — including for rain dated today', () => {
+    expect(dryingModel(baseInput).hours_since_significant_rain).toBeGreaterThanOrEqual(0)
+
+    const rainedToday = dryingModel({
+      ...baseInput,
+      rainfallEvents: [{ date: '2025-06-01', precip_mm: 15 }],
+      asOf: new Date('2025-06-01T10:00:00Z'),
+    })
+    expect(rainedToday.hours_since_significant_rain).toBe(0)
+    expect(rainedToday.last_rain_mm).toBe(15)
+    expect(rainedToday.estimated_dry).toBe(false)
+    expect(rainedToday.confidence).toBe('low')
   })
 
   it('last_rain_mm is non-negative', () => {
