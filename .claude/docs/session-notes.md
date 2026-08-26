@@ -50,7 +50,7 @@
 - The signed `user.id` is checked against `TELEGRAM_CHAT_ID`. Without it, any Telegram account that found the bot would hold `DEFAULT_USER_ID`'s rights.
 - 27 tests across `initData.test.ts` and `apiAuth.test.ts`.
 
-*Screens (`4c05941`):*
+*Screens (`8a2c430`):*
 - `packages/types/src/units.ts` — §4 formatters, every input `number | null`.
 - `packages/types/src/conditionsCopy.ts` — §7 state ladder, suppression rule, `formatHoursSinceRain`'s 30-day cap. Shared so the bot can use them.
 - `packages/types/src/scoreComponents.ts` — `SCORE_COMPONENT_MAX` moved out of `index.ts` so the copy model imports it without a cycle. Still re-exported.
