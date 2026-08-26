@@ -50,14 +50,30 @@ only of synthetic payloads.
   answering, with no credential involved.
 - 210 API tests pass; typecheck 4/4, lint 5/5, build 4/4.
 
-**Known issues / deferred work:**
-- **A real Telegram launch has still not succeeded.** Only a real client can mint valid
-  `initData`, so the last step needs one tap. The Vercel runtime logs will show 200s
-  where they showed 401s.
-- If it still 401s, the new `fields` line names exactly what Telegram sent — start there.
-- The list and saved-detail screens have therefore *still* never rendered real data.
+**✅ CONFIRMED ON A REAL DEVICE, 12:52 the same day.** The fix works. Runtime logs for the
+20 minutes after it went live: **25 × 200 and one 201, no `tma` 401s.** Everything below
+ran inside Telegram against the real database, all of it for the first time:
+- `GET /locations` — the list screen, three seeded locations with live weather.
+- `GET /locations/:id`, `GET /forecast/:id`, `GET /alerts/:id` — saved detail, including
+  a real Severe NWS alert banner and the computed sources footer
+  (`Open-Meteo (gfs_seamless, ecmwf_ifs025, icon_seamless_eps, gem_global)`, `ACIS (KLAS)`,
+  `NWS` — NWS named only because an alert was genuinely present).
+- `GET /geocode`, `GET /preview`, `POST /locations` (**201**) — the add flow, run by the
+  user end to end.
+- `DELETE /locations/:id` (**200**) — **the first real exercise of
+  `deleteLocationCascade`.** It returned 200, not the foreign-key 500 that path exists to
+  prevent. That code had never run against real data with dependents.
 
-**Blockers for next session:** none in code. One tap in Telegram closes the loop.
+So the two long-standing "never verified" items from Task 6 are now closed, and the alert
+deep link is confirmed end to end: cron → alert message → `url` button → detail screen
+with data.
+
+**Known issues / deferred work:**
+- **Issue #21 is now visible on screen, and it is worse than the note said.** See the
+  next session block's ranking — the temperature component is *already saturated at
+  zero* for all three locations, so it distinguishes nothing.
+
+**Blockers for next session:** none.
 
 **What's next:** confirm the launch in the logs, then **issue #21's scoring half** — heat
 costs at most 12 of 100 points and saturates above 35 °C.
