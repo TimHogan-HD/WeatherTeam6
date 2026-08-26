@@ -196,22 +196,39 @@ a self-contained change, layered as a second scheme alongside `API_SHARED_SECRET
 
 ### Phase B4 / Task 6: Screens
 
-**What to build**
+> **Status: built 2026-08-26.** Read this section as a description of what exists.
+> Two corrections to what it originally said: there are **three** screens, not two
+> (§12 added `/add`), and **API changes were needed** — Task 5a shipped them.
 
-Build to the B0 spec. No design decisions get made here. If something was not settled in B0, go back and settle it rather than improvising in code.
+**What was built**
 
-- Location list and location detail.
-- Wire to existing endpoints through React Query hooks. All are verified working; no API changes needed.
-- Import tokens from `packages/design`.
+- All three routes real: `LocationList`, `LocationDetail`, `AddLocation` (search →
+  preview → save), plus the shared `DetailView` the preview reuses in unsaved mode.
+- Every call goes through a React Query hook in `src/hooks/`. No component calls
+  `fetch`; `src/lib/api.ts` is the only place that does, and it attaches the
+  `tma` credential.
+- Tokens come from `packages/design` through the adapter. `src/theme/styles.ts` is
+  the per-entry `components` audit §0a asked for; nothing restates a literal. The
+  one derived value is the alert tint, computed from `colors.poor` because the
+  palette has no `poorTint`.
+- The §4 formatters and the §7 ladder + suppression rule live in `packages/types`
+  (`units.ts`, `conditionsCopy.ts`) so the bot can share one implementation.
 
-**Acceptance criteria**
+**Acceptance criteria — what holds and what does not**
 
-- The list shows the 3 real seeded locations, not fixtures.
-- Detail shows a real score, forecast, and alert state from the live API.
-- No `MOCK_*` constants remain in shipped components.
-- Copy matches the B0 model, on both bot and Mini App.
-
-**Git checkpoint:** commit per screen.
+- No `MOCK_*` constants, and no stub data, in any shipped component. ✅
+- The add flow runs against the real API and real upstreams: geocode returns the
+  three "Red Rock Canyon" parks, `/preview` returns seven days, and every client
+  formatter was run over that response. ✅
+- Copy matches the B0 model in the Mini App, verified by rendering the detail screen
+  and asserting on the output — including the 103 °F suppression case. ✅
+- ~~The list shows the 3 real seeded locations~~ and ~~detail shows a real score,
+  forecast, and alert state from the live API~~ — **not verified.** Both need a
+  database, and there is no local one; the display logic is covered by fixture-based
+  render tests instead.
+- ~~Copy matches the B0 model on **both** bot and Mini App~~ — **the bot is
+  unchanged.** `statusLabel()` still maps score to an opinion. Deleting it is issue
+  #21's other half and travels with #26's HTML escaping fix.
 
 ---
 

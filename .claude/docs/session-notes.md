@@ -1,3 +1,52 @@
+---
+
+## 2026-08-26 — branch: claude/task-6-miniapp-screens — commit: 4c05941 (screens), 133c756 (auth)
+
+**Phase completed:** Crossover Task 6 — Mini App screens + `initData` auth. Two commits, auth first and on its own.
+
+**What was built this session:**
+
+*Auth (`133c756`, branched as `claude/miniapp-initdata-auth`):*
+- `apps/api/src/lib/telegram/initData.ts` — NEW. `validateInitData(raw, botToken, nowMs?)`, pure: no env reads, no Express types. HMAC-SHA256 with the `WebAppData`-derived secret key.
+- `apps/api/src/middleware/apiAuth.ts` — a **second accepted scheme** on the same header: `Authorization: tma <initDataRaw>` alongside `Bearer $API_SHARED_SECRET`. The Bearer path is unchanged and an unset shared secret still 503s under **both** schemes.
+- The signed `user.id` is checked against `TELEGRAM_CHAT_ID`. Without it, any Telegram account that found the bot would hold `DEFAULT_USER_ID`'s rights.
+- 27 tests across `initData.test.ts` and `apiAuth.test.ts`.
+
+*Screens (`4c05941`):*
+- `packages/types/src/units.ts` — §4 formatters, every input `number | null`.
+- `packages/types/src/conditionsCopy.ts` — §7 state ladder, suppression rule, `formatHoursSinceRain`'s 30-day cap. Shared so the bot can use them.
+- `packages/types/src/scoreComponents.ts` — `SCORE_COMPONENT_MAX` moved out of `index.ts` so the copy model imports it without a cycle. Still re-exported.
+- `apps/miniapp/src/lib/api.ts`, `src/hooks/*` — the only `fetch` in the app, and every call through a React Query hook.
+- `apps/miniapp/src/components/*` — `DetailView` (shared by saved detail and the unsaved preview), `LocationCard`, `ScoreSection`, `Weather`, `Alerts`, `SaveBar`, `SourcesFooter`, `States`, `Icons`.
+- `apps/miniapp/src/routes/*` — all three real; `ScreenScaffold.tsx` deleted.
+- `apps/miniapp/src/theme/styles.ts` — the per-entry `components` audit §0a asks for. `withOpacity` exported from the adapter so the alert tint derives from `colors.poor` rather than introducing a colour.
+- `vitest` added to `packages/types` and `apps/miniapp`, node environment only.
+
+**What was verified, and how:**
+- **Auth, over real HTTP against a locally run API:** no credential 401, owner `initData` 200, another Telegram user's *validly signed* initData 401, stale (>24 h) and tampered initData 401, `Bearer` still 200, unset `API_SHARED_SECRET` 503 under both schemes, and `/api/cron/*` + `/api/telegram/*` unaffected.
+- **The add flow, end to end against real upstreams:** `GET /geocode?q=red rock canyon` returned the three different parks (Oklahoma 480 m, California 738 m, Nevada 1200 m); `GET /preview` with the Nevada elevation returned 7 days in 3.9 s; the client's own helpers formatted every row. **This exercised `fetchArchivePrecip` for the first time** — the previously-unrun branch the last session's gotcha predicted a bug in. No bug; the lapse-rate correction showed as 104 °F vs 103 °F with and without elevation.
+- 50 new tests (22 in `packages/types`, 28 in `apps/miniapp`). Repo total 215, all passing. Typecheck 7/7, lint 5/5, Mini App bundle builds and contains no credential.
+
+**Known issues / deferred work:**
+- **The list and saved-detail screens have never been run against real data.** Both need a database and there is no local one. Their display logic is covered by fixture-based render tests; the wiring to `/locations`, `/conditions/:id` and `/alerts/:id` is not.
+- **Nothing has been opened inside Telegram yet.** There is no preview-deploy path, so the Telegram round trip only happens after this ships to production.
+- **The bot's `statusLabel()` is untouched** and still maps score to an opinion, violating §7 rule 1 on that surface. It is issue #21's other half and travels with #26's HTML escaping fix — doing it here would have turned a UI task into a live-bot change.
+- An unsaved preview shows **no alert banner**: `/alerts/:id` keys on a saved location id and there is no preview equivalent. It correctly does not claim NWS as a source either.
+- All five issues (#21, #22, #25, #26, #27) still open. #22 re-confirmed live this session — `model_sources` came back as the ensemble, never NBM.
+- cron-job.org still unregistered. `/newapp` still not run in @BotFather (Task 7 needs it).
+
+**Blockers for next session:**
+- None for Task 7. It needs `/newapp` run in @BotFather before the `startapp` deep link can be tested.
+
+**What's next:** Task 7 — `git checkout -b claude/task-7-deep-link-archive` off `main` — read `docs/handoffs/telegram-crossover-v4.md` § Task 7 and the turbo/lint correction in the 2026-08-24 entry below (removing `apps/mobile` from the build is a `package.json` scripts change, not a `turbo.json` one).
+
+**Gotchas for next session:**
+- **Four defects in this session's own code were found by reviewing the diff, not by any tool.** All four passed typecheck, lint, and the test suite: a `<button>` nested inside the card's `<button>`, a fixed save bar with a guessed 260px clearance that the rock-type row would have overflowed, alerts failing silently instead of visibly, and `NWS` named as a source when the alerts call had failed. Read the diff.
+- **A fifth was found by a test, and only because the test existed:** `formatForecastDate` rendered the literal string `Invalid Date` for an unparseable input, because the guard checked `undefined` and `Number('not')` is `NaN`.
+- **The Mini App's tests deliberately have no DOM.** `renderToStaticMarkup` needs none, and adding jsdom or a testing library would pull more of a browser stack into a workspace whose vite resolution is already delicate (the root `vite` pin). A test needing a click does not belong there as things stand.
+- **`TELEGRAM_CHAT_ID` must be the private-chat id** — which equals the owner's Telegram user id. A group chat id would make every Mini App request 401 with nothing on screen to explain why. Noted in CLAUDE.md's env table.
+- **Both Vercel projects deploy from one PR and neither check says anything about the other.** The auth change only affects the API project; the screens only affect the Mini App project.
+
 
 ---
 
