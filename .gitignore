@@ -167,3 +167,8 @@ apps/mobile/ios/
 
 # Stop-hook escape hatch: suppresses the unfinished-work gate for a deliberate pause.
 .claude/.wip
+
+# Stryker mutation testing — HTML/JSON reports and its sandbox scratch dir.
+# The report is a build artifact; the finding it produced belongs in a doc.
+**/reports/mutation/
+.stryker-tmp/

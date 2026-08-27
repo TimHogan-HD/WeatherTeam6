@@ -25,6 +25,15 @@ describe('locationDeepLink', () => {
     expect(locationDeepLink(UUID.replace(/-/g, ''))).toBeNull()
   })
 
+  it('returns null for a uuid with junk in front of it, not just behind it', () => {
+    // Both anchors need their own case. The suffix above is caught by `$`; with
+    // only that, dropping `^` from UUID_RE leaves every test green while a
+    // prefixed id builds a link to `loc_junk<uuid>`. Found by mutation testing.
+    expect(locationDeepLink(`junk${UUID}`)).toBeNull()
+    expect(locationDeepLink(` ${UUID}`)).toBeNull()
+    expect(alertKeyboard(`junk${UUID}`)).toBeNull()
+  })
+
   it('accepts an uppercase uuid', () => {
     expect(locationDeepLink(UUID.toUpperCase())).toContain(UUID.toUpperCase())
   })

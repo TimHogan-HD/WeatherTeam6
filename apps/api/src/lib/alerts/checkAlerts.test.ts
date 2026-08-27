@@ -22,10 +22,11 @@ const fetchNwsAlerts = vi.fn()
 //   await db.insert(t).values(v).onConflictDoUpdate(s)
 //   await db.delete(t).where(w)
 const selectFrom = vi.fn()
+const deleteWhere = vi.fn((_where: unknown) => Promise.resolve(undefined))
 const db = {
   select: () => ({ from: selectFrom }),
   insert: () => ({ values: () => ({ onConflictDoUpdate: () => Promise.resolve(undefined) }) }),
-  delete: () => ({ where: () => Promise.resolve(undefined) }),
+  delete: () => ({ where: deleteWhere }),
 }
 
 vi.mock('../../db/index.js', () => ({ db, pool: {} }))
@@ -112,4 +113,77 @@ describe('runAlertsCheck', () => {
     fetchNwsAlerts.mockResolvedValue(null)
     await expect(runAlertsCheck()).resolves.toBeUndefined()
   })
+
+  // The three below are the assertions the comment above was already making in
+  // prose. Without them, replacing `if (alerts === null)` with `if (true)` —
+  // i.e. never trusting NWS at all, never pruning anything — left this whole
+  // file green. Found by mutation testing.
+
+  it('does NOT prune when the fetch was unavailable', async () => {
+    // The prune deletes stored rows, and `notified_at` goes with them, so an
+    // alert that reappears re-notifies. A failed fetch must never reach it.
+    fetchNwsAlerts.mockResolvedValue(null)
+    await runAlertsCheck()
+    expect(deleteWhere).not.toHaveBeenCalled()
+  })
+
+  it('DOES prune when NWS confirms there are no active alerts', async () => {
+    // `[]` is a measurement, not a gap: NWS was asked and said none. Anything
+    // still stored has been cancelled and must go.
+    fetchNwsAlerts.mockResolvedValue([])
+    await runAlertsCheck()
+    expect(deleteWhere).toHaveBeenCalledTimes(LOCATIONS.length)
+  })
+
+  it('scopes the prune to the alerts NWS did not return, not to the whole location', async () => {
+    // The `activeIds.length > 0` branch matters: taking the empty-set path with
+    // active alerts present would delete the rows just upserted — `notified_at`
+    // included — and re-send every live alert on the next run.
+    fetchNwsAlerts.mockResolvedValue([])
+    await runAlertsCheck()
+    const wholeLocation = boundValues(deleteWhere.mock.calls[0]?.[0])
+
+    vi.clearAllMocks()
+    selectFrom.mockResolvedValue(LOCATIONS)
+    fetchNwsAlerts.mockResolvedValue([
+      {
+        nws_alert_id: 'urn:oid:2.49.0.1.840.0.abc123',
+        event: 'Flash Flood Warning',
+        severity: 'Severe',
+        certainty: 'Likely',
+        headline: 'Flash Flood Warning',
+        description: 'Water',
+        effective: null,
+        expires: null,
+      },
+    ])
+    await runAlertsCheck()
+    const scoped = boundValues(deleteWhere.mock.calls[0]?.[0])
+
+    expect(scoped).not.toEqual(wholeLocation)
+    expect(scoped).toContain('urn:oid:2.49.0.1.840.0.abc123')
+  })
 })
+
+/**
+ * The literal values Drizzle bound into a `where` clause.
+ *
+ * Walks `SQL.queryChunks` rather than serialising the object: a Drizzle SQL
+ * node holds a reference to its table, and the table's columns point back at
+ * it, so `JSON.stringify` throws on the cycle.
+ */
+function boundValues(clause: unknown): unknown[] {
+  const out: unknown[] = []
+  const visit = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      for (const child of node) visit(child)
+      return
+    }
+    if (node === null || typeof node !== 'object') return
+    const rec = node as { queryChunks?: unknown; value?: unknown }
+    if (rec.queryChunks !== undefined) visit(rec.queryChunks)
+    else if ('value' in rec) out.push(rec.value)
+  }
+  visit(clause)
+  return out.flat()
+}

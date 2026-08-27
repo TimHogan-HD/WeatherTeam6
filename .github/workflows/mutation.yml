@@ -1,0 +1,56 @@
+name: Mutation
+
+# Mutation testing over apps/api, on a schedule and on demand.
+#
+# NOT on every push, and that is deliberate. The full sweep is ~13 minutes on a
+# 4-way local machine and longer on a 2-core runner; adding that to every PR
+# would buy a slow gate that people learn to ignore. The score moves when tests
+# change, which is rare, so weekly is the right cadence and `workflow_dispatch`
+# covers the case where you have just rewritten a test file and want to know now.
+#
+# It is still a real gate: `thresholds.break` in apps/api/stryker.config.mjs
+# makes Stryker exit non-zero below the baseline, so a run that reports success
+# has actually measured something. Verified both directions on 2026-08-26 —
+# break 99 against a file scoring 81.82 exits 1, break 50 exits 0.
+
+on:
+  schedule:
+    # Mondays, 04:00 UTC.
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      # The root postinstall builds packages/types and packages/design, which
+      # apps/api needs before vitest can resolve @weatherteam6/types.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Mutation test
+        run: npm run test:mutation --workspace=apps/api
+
+      # Uploaded whichever way the run went — a failing run is precisely when
+      # you want the survivor list.
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: apps/api/reports/mutation/
+          retention-days: 14
+          if-no-files-found: warn

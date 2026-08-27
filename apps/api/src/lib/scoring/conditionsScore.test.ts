@@ -189,6 +189,25 @@ describe('conditionsScore — wind component', () => {
     const result = conditionsScore({ ...base, maxWindKmh24h: 55 })
     expect(result.components.wind).toBe(0)
   })
+
+  it('scales between 15 and 50 km/h instead of stepping straight to zero', () => {
+    // Only the two ends were pinned, so the whole interpolation was unasserted:
+    // replacing the `>= 50` test with `true` collapses every breezy day to a
+    // zero wind component and nothing failed. Found by mutation testing.
+    expect(conditionsScore({ ...base, maxWindKmh24h: 25 }).components.wind).toBe(11)
+    expect(conditionsScore({ ...base, maxWindKmh24h: 40 }).components.wind).toBe(4)
+  })
+
+  it('reaches 15 at 15 km/h and 0 at 50 km/h', () => {
+    // Endpoint values, not operator discrimination. The piecewise function is
+    // continuous at both knots — at 15 the interpolation also yields 15, and at
+    // 50 it also yields 0 — so `<=`/`>=` and `<`/`>` are indistinguishable here
+    // whatever the name says. The `<= 15` and `>= 50` mutants are killed by the
+    // "scales between" test above; this one pins the band's endpoints against a
+    // change to the constants.
+    expect(conditionsScore({ ...base, maxWindKmh24h: 15 }).components.wind).toBe(15)
+    expect(conditionsScore({ ...base, maxWindKmh24h: 50 }).components.wind).toBe(0)
+  })
 })
 
 describe('conditionsScore — temperature component', () => {
@@ -223,6 +242,18 @@ describe('conditionsScore — humidity component', () => {
 
   it('>=90% → humidity score = 0', () => {
     expect(conditionsScore({ ...base, currentHumidityPct: 95 }).components.humidity).toBe(0)
+  })
+
+  it('scales between 50% and 90% instead of stepping straight to zero', () => {
+    expect(conditionsScore({ ...base, currentHumidityPct: 70 }).components.humidity).toBe(4)
+    expect(conditionsScore({ ...base, currentHumidityPct: 60 }).components.humidity).toBe(6)
+  })
+
+  it('reaches 8 at 50% and 0 at 90%', () => {
+    // Endpoint values, not operator discrimination — same continuity as the
+    // wind band above.
+    expect(conditionsScore({ ...base, currentHumidityPct: 50 }).components.humidity).toBe(8)
+    expect(conditionsScore({ ...base, currentHumidityPct: 90 }).components.humidity).toBe(0)
   })
 })
 
