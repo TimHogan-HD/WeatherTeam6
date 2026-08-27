@@ -1982,3 +1982,95 @@ spec it unilaterally).
 **Does the user need to do anything?** **Yes — one thing, unchanged from the last four
 sessions.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project and re-run Telegram's
 `setWebhook` with a matching `secret_token`.
+
+---
+
+## 2026-08-26 — branch: chore/mutation-testing — commit: 8269be1
+
+**Phase completed:** Agent systems — mutation testing (the last item in that workstream)
+
+**What was built this session:**
+- `apps/api/stryker.config.mjs` — Stryker 9.6.1 + `@stryker-mutator/vitest-runner`, exposed
+  as `npm run test:mutation --workspace=apps/api`. 1,917 mutants over the 20 source files
+  that have tests.
+- `.github/workflows/mutation.yml` — the sweep on a Monday schedule and `workflow_dispatch`.
+- 23 new tests across `checkAlerts`, `sendMessage`, `nwsAlerts`, `liveForecast`,
+  `dryingModel`, `initData`, `conditionsScore`, `apiAuth` and `deepLink` — every survivor
+  that falsified a rule already written down in `architecture.md` or in the test's own
+  comment. Score 63.43% -> **66.09%** total, 72.17% -> **74.49%** covered; survivors 469 ->
+  434; killed 1206 -> 1257.
+- `CLAUDE.md` and `.claude/rules/defect-patterns.md` — mutation testing recorded where it
+  belongs, under class 11.
+
+**The findings worth remembering:**
+
+- **`checkAlerts` was the worst.** The test file's own comment said `[]` "triggers the
+  pruning delete" and `null` does not. Nothing asserted either, so `if (alerts === null)`
+  could be replaced with `if (true)` — never trust NWS, never prune anything — and all six
+  tests stayed green. Also unasserted: the *scope* of the prune. Taking the empty-set path
+  with alerts present deletes the rows just upserted, `notified_at` included, and re-sends
+  every live alert next run.
+- **`sendMessage`'s permanent/transient split was tested only through HTTP statuses**, which
+  never reach the rethrow. Only a rejected `fetch` lands in the catch beside
+  `TelegramPermanentError`, so nothing could tell `instanceof` from `true`.
+- **`liveForecast`'s rainfall window had no assertion on its sign.** Flipped, it asks for the
+  30 days *ahead*, gets nothing, and `dryingModel`'s 720h sentinel renders that as "no rain
+  in 720h" on screen — a fabricated measurement.
+- **`dryingModel`'s "picks the most recent significant event" listed its fixture
+  oldest-first**, so "latest by date" and "last in the array" agreed and the comparison was
+  asserted by nothing.
+- **`initData`'s age tests were all written in terms of `INIT_DATA_MAX_AGE_SECONDS`**, so the
+  constant measured itself.
+
+**Two mistakes made and corrected this session, both worth keeping:**
+
+- **I nearly shipped an unverified gate.** I "confirmed" `thresholds.break` with
+  `npx stryker run --thresholds.break 99` and read exit 1 as the threshold firing. That flag
+  does not exist — the run never happened and the exit code was a CLI parser error. Verified
+  properly afterwards with a real config-file override: break 99 against a file scoring 81.82
+  exits 1, break 50 exits 0. Stryker's config-file argument is **positional**
+  (`stryker run <file>`), not `--config-file`.
+- **The PR reviewer caught me committing the exact defect class the PR was fixing.** My new
+  `nwsAlerts` test mocked a 503 to reach the `!res.ok` guard, but `fetchWithRetry` never
+  returns a 5xx or 429 to its caller — it retries four times and throws — so the response
+  landed in the caller's `catch` and the guard was never evaluated. It was the network-error
+  test again under a different name. Fixed with a 403. It also caught two tests named "pins
+  both boundaries exactly" that cannot: the wind and humidity curves are continuous at their
+  knots, so `<=`/`>=` and `<`/`>` are indistinguishable at 15/50 and 50/90 whatever the test
+  is called. Renamed to what they actually assert.
+
+**Known issues / deferred work:**
+- **434 surviving mutants**, deliberately not chased. Mostly log-message string literals and
+  `>=`/`>` swaps on score components. A few are genuine equivalent mutants —
+  `webhookAuth`'s `value === ''` can be deleted with no observable change, because an empty
+  string fails the hash comparison anyway.
+- **216 mutants in code no test reaches at all.** That is a coverage problem, not a fake-test
+  problem, and it is separate work.
+- The PR reviewer still logs `permission_denials_count: 1` on a clean run and the log does
+  not name the denied command. Not blocking; the allowlist may be one entry short.
+
+**Blockers for next session:** none.
+
+**What's next:** the chat interface — **a design conversation with the user first.** Plain-language
+questions plus slash commands over a location or a span of time. Do not spec it unilaterally.
+The solo alternative, needing no decision, is the 216 uncovered mutants.
+
+**Gotchas for next session:**
+- **`fetchWithRetry` does not hand every response back to its caller.** Only `res.ok`, or a
+  non-429 status below 500. A 5xx or a 429 exhausts all four attempts and throws. Any test
+  mocking a 503 to reach a `!res.ok` branch is testing the `catch` instead.
+- **Stryker's `vitest.related` must stay off** in `stryker.config.mjs`. With the default, vitest
+  finds no test files for a mutated source — the tests import through an ESM `./foo.js`
+  specifier that resolves to `foo.ts` — and Stryker exits with "No tests were executed"
+  before mutating anything. It reads as a config error, not as the silent no-op it is.
+- **Stryker 9.6.1, not 10.** Stryker 10 needs Node >= 22; CI runs Node 20.
+- **A gitignore pattern with a mid-path slash is anchored to the repo root.**
+  `reports/mutation/` does not match `apps/api/reports/mutation/`; `**/reports/mutation/`
+  does. `git check-ignore -v <path>` settles it in one command.
+- **Nested backticks inside a `node -e` string in Bash will hang the shell**, not error. The
+  repo's existing advice — use the Edit tool for multi-line replacements — covers this too.
+
+**Does the user need to do anything?** **Yes — one thing, unchanged since 2026-08-26.** Set
+`TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project to a long random string, then re-run
+Telegram's `setWebhook` with `secret_token` set to the same value. Until then the webhook's
+secret check is skipped and the forgeable `chat.id` is the only gate.

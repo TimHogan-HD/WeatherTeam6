@@ -2,11 +2,10 @@
 
 **This is the only state document. Read it at session start; do not read the archive.**
 
-`session-archive.md` is 165KB of dated session blocks. It is history, not state — grep it
-when you need the reasoning behind a specific past decision, never at session start. It
-used to be mandatory reading, which cost ~41,000 tokens before any work began.
+`session-archive.md` is history, not state — grep it for the reasoning behind one specific
+past decision, never at session start.
 
-Last updated: 2026-08-26 · `main` @ `9d7015c`
+Last updated: 2026-08-26 · `main` @ `8269be1`
 
 ---
 
@@ -20,9 +19,11 @@ confirmed working on a real device: bot, Mini App, alerts, deep links, auth.
 - **Bot** — commands, alerts, deep links into the Mini App.
 - **`apps/mobile`** — archived, out of the build. Do not add features to it.
 
-Baseline: `npm run test` 315 passing, `npm run typecheck` clean, `npm run check:hooks` 58 passing.
+Baseline: `npm run test` 338 passing (264 api, 50 miniapp, 24 types), `npm run typecheck`
+clean, `npm run check:hooks` 58 passing. **Mutation score 66.09%** —
+`npm run test:mutation --workspace=apps/api`, and see § Mutation testing below.
 
-Always-loaded instruction budget: **46,145 chars / ~11,536 est. tokens** (`CLAUDE.md` +
+Always-loaded instruction budget: **47,426 chars / ~11,857 est. tokens** (`CLAUDE.md` +
 `.claude/rules/*`). It was 56,043 before `9d7015c`. Anthropic's guidance is that a bloated
 `CLAUDE.md` causes its own rules to be ignored — if you are about to add a paragraph to it,
 check first whether the fact is derivable from the repo, or belongs in a skill or the archive.
@@ -37,20 +38,11 @@ green. If you are reading it because that block was absent, the hook did not fir
 
 The user's direction, set 2026-08-26 and revised the same day:
 
-1. ~~**Agent-systems cleanup**~~ — **done.** `b954e9f` (#48): working hooks, a permissions
-   allowlist, session-start context cut from 66,532 to 14,685 tokens. `516b438` (#49): the
-   finish-the-delivery rule turned into a gate. `432b25f` (#53): CI made to actually run the
-   checks. `d4db003` (#55): five plugins matched to this repo's defect classes —
-   `pr-review-toolkit` (its `silent-failure-hunter` **is** defect class 2), `neon`,
-   `claude-code-setup`, `hookify`, `mattpocock-skills`. `9d7015c` (#56): the always-loaded
-   markdown trimmed, and the PR reviewer's tool allowlist fixed.
-
-   **Not done, and it is the highest-value item left here: mutation testing.** Stryker plus
-   `@stryker-mutator/vitest-runner` is the mechanical answer to defect-patterns class 11 —
-   "which line of the implementation would have to change for this test to fail?" is the
-   definition of a mutation score. 26 test files, 670 assertions, and at least three tests
-   already documented as constraining nothing. Nothing blocks starting it.
-2. **The chat interface is the priority.** The user wants to ask in plain language and get
+1. ~~**Agent-systems cleanup**~~ — **done**, #48 through #58. What it produced is described
+   where it operates: the delivery and verification gates below, and § Mutation testing.
+   Ordinary follow-up remains — 434 surviving mutants, and 216 more in code no test reaches
+   at all — but it is no longer a phase.
+2. **The chat interface is the priority, and it is now the top of the list.** The user wants to ask in plain language and get
    an answer, plus slash commands that pull specific information about a location or a span
    of time. This is the headline feature direction from here.
 3. **An in-app feedback button.** Press it, type a note, and the note lands somewhere in
@@ -73,12 +65,8 @@ product decision the user has chosen not to make yet.
 
 ## Open issues
 
-**Read them from GitHub — `gh issue list`. Do not trust a table in a document.**
-
-A transcribed status table lived in `plan.md` and drifted in both directions: it claimed
-six open when four were, and marked #33 and #34 open after both were fixed and closed. The
-commit that claimed to correct it touched only the archive. Derived state cannot go stale;
-copied state always does.
+**Read them from GitHub — `gh issue list`. Do not trust a table in a document.** One lived
+in `plan.md` and drifted in both directions.
 
 Standing context that is *not* on the issues themselves:
 
@@ -94,9 +82,8 @@ Standing context that is *not* on the issues themselves:
 
 - **`ScoreInput` conflates the humidity component with the drying humidity modifier** in one
   field, so per-day humidity cannot be fixed without moving the drying calculation too.
-- **`GET /forecast/:id` and `GET /conditions/:id` each run their own `computeLiveForecast`.**
-  One detail view is two ensemble calls plus two rainfall calls; a list of N climbing
-  locations is 2N of each.
+- **`GET /forecast/:id` and `GET /conditions/:id` each run their own `computeLiveForecast`** —
+  one detail view costs two ensemble calls plus two rainfall calls.
 - **A layer below #34:** ACIS can return a *successful* response whose rows are all `'M'`
   sentinels, yielding `[]` — indistinguishable from a dry month. The #34 fix catches a
   failed call, not a call that succeeded with no usable data.
@@ -105,8 +92,8 @@ Standing context that is *not* on the issues themselves:
 
 ## Delivery and verification are enforced, not remembered
 
-The user's standing instruction: **only interact when it is absolutely needed.** Design
-decisions qualify. Chasing an unmerged PR, or asking them to notice a broken check, does not.
+Standing instruction: **only interact when it is absolutely needed.** Design decisions
+qualify; chasing an unmerged PR or a broken check does not.
 
 **Delivery** — two local hooks:
 
@@ -115,36 +102,42 @@ decisions qualify. Chasing an unmerged PR, or asking them to notice a broken che
 - **The turn cannot end** (Stop hook) while there are uncommitted changes, unpushed commits,
   a pushed branch with no PR, or a green mergeable PR still open.
 
-Escape hatch for a deliberate pause: `touch .claude/.wip`, delete it when work resumes.
+Escape hatch: `touch .claude/.wip`, delete it when work resumes.
 
-**Verification** — because the delivery gates above shipped on 2026-08-26 and a defect
-reached `main` the same day anyway:
+**Verification:**
 
 - **CI runs `build`, `typecheck`, `lint`, `test`, and every root-level `check:*` script**,
-  enumerated from `package.json` rather than listed in the workflow. `check:hooks` was a
-  real gate that CI never ran — CI reported success on `bfe1e83` while it was failing 46 of
-  49 cases on `main`.
+  enumerated from `package.json` rather than listed in the workflow, so a new one is covered
+  the moment it exists.
 - **`main` is protected**: PR required, CI required to pass, no force-push, no deletion,
   enforced for admins. A red PR cannot be merged, by anyone, including with `--admin`.
 - **`check:hooks` fails if `.claude/settings.json` registers a hook no scenario exercises.**
   Adding an untested hook is now unmergeable.
-- **A red CI run on `main` is reported at session start** by the SessionStart hook. That is
-  the automatic version of the manual sweep the user had to ask for.
+- **A red CI run on `main` is reported at session start** by the SessionStart hook.
 - **`.github/workflows/claude-review.yml`** runs an independent reviewer on every non-draft
   PR — outside the session that wrote the code, so it does not share its blind spot.
-  **Treat its verdict with suspicion until it has produced a real finding.** It was broken
-  from the day it shipped to `9d7015c`: `--allowedTools` *replaces* the default allowlist
-  rather than extending it, so the reviewer could post comments but could not Read, Grep,
-  Glob or run git. It went green twice on diffs small enough to review from the prompt text
-  alone, then died on the first real one (32 permission denials, 8m15s, \$4.23). Fixed in
-  `9d7015c`; **the fix has not yet been exercised** — no run has completed under it.
-  Two failure signatures to watch for: a ~3-second pass means it skipped for a missing
-  credential (it says so as a GitHub notice), and a nonzero `permission_denials_count` in
-  the run log means it is being denied tools it needs.
+  **It works, and it is now proven:** on #58 it found a new test that could not reach the
+  branch it named — defect class 11, in the PR whose purpose was fixing defect class 11.
+  Take its findings seriously. Two failure signatures: a ~3-second pass means it skipped for
+  a missing credential, and a large `permission_denials_count` means the allowlist is short
+  (`--allowedTools` *replaces* the default, it does not extend it). A count of 1 is routine.
 
-**Do not treat any of this as bureaucracy to route around.** If a gate fires, finish the
-work; if it misfires, add a case to `check-hooks.mjs` rather than loosening the guard. Do
-not disable branch protection to land something.
+### Mutation testing
+
+`npm run test:mutation --workspace=apps/api` — Stryker. The rationale is in
+`.claude/rules/defect-patterns.md` §11; the operational facts:
+
+- **Baseline 66.09% total / 74.49% covered.** `thresholds.break: 65` fails the run below
+  that. Raise it when the score rises; lowering it to make a run pass is what it prevents.
+- **Weekly and on demand, not per-PR** — `.github/workflows/mutation.yml`. ~13 minutes.
+- **The mutate list is derived from the filesystem**, every source file with a sibling
+  `*.test.ts`. Do not replace it with a hand-written list.
+- **A rising score is not the goal.** Act on the survivors that contradict something this
+  repo has written down about itself; the rest are mostly log strings or equivalent.
+
+**None of this is bureaucracy to route around.** If a gate fires, finish the work; if it
+misfires, add a case to `check-hooks.mjs` rather than loosening the guard. Never disable
+branch protection to land something.
 
 ---
 
@@ -168,6 +161,10 @@ Only things that are still true and still bite. Historical gotchas are in the ar
   hide a pure helper and break unrelated tests.
 - **`timezone=auto`, not `UTC`.** If a doc says otherwise it predates issue #33; the code and
   #33 are right.
+- **`fetchWithRetry` does not hand every response back.** It returns only `res.ok` or a
+  non-429 below 500; a 5xx or a 429 exhausts four attempts and *throws*. A test that mocks a
+  503 to reach a `!res.ok` branch reaches the caller's `catch` instead, and the branch it
+  names is never evaluated. Use 403.
 
 ---
 
@@ -178,7 +175,7 @@ Vercel project to a long random string, then re-run Telegram's `setWebhook` with
 `secret_token` set to the same value. Until then the webhook's secret check is skipped and
 the forgeable `chat.id` is the only gate.
 
-`CLAUDE_CODE_OAUTH_TOKEN` was registered 2026-08-26 20:51 UTC — the independent PR reviewer
-is live and needs nothing further.
+`CLAUDE_CODE_OAUTH_TOKEN` is registered and the independent PR reviewer is live, working
+and needs nothing further.
 
 Nothing else is waiting on them. #25 needs a decision, but only when they choose to pick it up.
