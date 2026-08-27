@@ -58,4 +58,13 @@ export default {
   tempDirName: 'node_modules/.stryker-tmp',
   timeoutMS: 20000,
   concurrency: 4,
+
+  // `break` is the only one of these that does anything: below it, the run
+  // exits non-zero. 65 sits just under the 66.09 measured on 2026-08-26, which
+  // makes this a ratchet against regression rather than a target — it is not a
+  // claim that 65% is good. `high`/`low` only colour the HTML report.
+  //
+  // Raise `break` when the score rises. Lowering it to make a run pass is the
+  // move this file exists to prevent.
+  thresholds: { high: 85, low: 70, break: 65 },
 }

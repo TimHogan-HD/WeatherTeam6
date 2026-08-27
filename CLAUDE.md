@@ -146,6 +146,10 @@ Typecheck and lint prove a change compiles. They do not prove it works.
 - **Read the diff before reporting anything done. This is not optional and it is not the checklist.** The defects this project ships are not type errors; they are correct-looking code that says a wrong thing, and no tool in the repo can see them. `.claude/rules/defect-patterns.md` catalogues the classes with real examples — read it before reviewing a diff.
 - **When a check passes, ask what it would have caught.** A green suite over an untested path is not evidence.
 - **Exercise the real path before calling something complete.** For an endpoint that calls an external API, run it and read the response. For one that touches the database, run it against the database.
+- **A green suite is not a suite that constrains anything.** `npm run test:mutation
+  --workspace=apps/api` reports which lines of the implementation could change without
+  a single test noticing. Baseline 66.09% (2026-08-26); `thresholds.break` fails the run
+  below 65. Weekly in CI, on demand locally. See `.claude/rules/defect-patterns.md` §11.
 - **`npm run test` cannot cover database behaviour.** Vitest mocks `fetch` and never opens a connection, so foreign-key violations, values that silently fail to persist, and constraint errors are all invisible to it. That class of failure needs a script under `apps/api/src/scripts/`, exposed as an `npm run check:*` command — `check:add-location` is the worked example. Write one when you add a flow whose failures only appear against real Postgres.
 - **Run the API locally against the real database when you need to.** No `.env` file is required, and none should be created:
   ```powershell

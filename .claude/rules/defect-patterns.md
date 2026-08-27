@@ -164,6 +164,17 @@ mirroring the implementation proves only that the code agrees with itself.
 **The rule:** an invariant worth asserting is worth asserting on the input that
 threatens it. Boundary cases go in the fixture, not the test name.
 
+**There is now a machine for this class.** `npm run test:mutation --workspace=apps/api`
+runs Stryker, which changes one line of the implementation at a time and reports
+which changes no test noticed. A surviving mutant *is* an assertion that
+constrains nothing. It found the `checkAlerts` prune (the file's own comment
+described the property; nothing asserted it), the `dryingModel` most-recent-event
+comparison (fixture listed oldest-first, so "latest by date" and "last in the
+array" agreed), and the `liveForecast` rainfall window's sign. It runs weekly in
+CI and on demand — not per-PR, because it takes ~13 minutes. Two caveats: a
+survivor is sometimes an equivalent mutant with no observable behaviour, and a
+rising score is not the goal — the survivors that contradict a written rule are.
+
 ---
 
 ## Two process rules that follow from all of this
