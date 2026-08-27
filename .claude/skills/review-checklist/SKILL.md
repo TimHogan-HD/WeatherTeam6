@@ -13,6 +13,11 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] `.claude/rules/defect-patterns.md` was read before that review
 - [ ] For each hunk: what does it render or do when the input is `null`, `0`, absent, or the network fails?
 - [ ] For each "passing" check: what would it actually have caught?
+- [ ] **For each test added or changed: which line of the implementation would have to change
+      for this to fail?** If you cannot name one, the fixture does not reach it. Then the
+      harder version: was this fixture built by the same understanding as the code it checks?
+      `npm run test:mutation --workspace=apps/api` answers the first question mechanically —
+      but it runs weekly, so on a commit you ask it yourself.
 
 > **This gate is first because it is the only one that has ever worked.** On 2026-08-26 a
 > single session found **ten defects** in code that had already passed typecheck, lint and
