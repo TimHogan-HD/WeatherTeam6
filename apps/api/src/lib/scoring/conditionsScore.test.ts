@@ -198,7 +198,13 @@ describe('conditionsScore — wind component', () => {
     expect(conditionsScore({ ...base, maxWindKmh24h: 40 }).components.wind).toBe(4)
   })
 
-  it('pins both boundaries exactly, not just values either side of them', () => {
+  it('reaches 15 at 15 km/h and 0 at 50 km/h', () => {
+    // Endpoint values, not operator discrimination. The piecewise function is
+    // continuous at both knots — at 15 the interpolation also yields 15, and at
+    // 50 it also yields 0 — so `<=`/`>=` and `<`/`>` are indistinguishable here
+    // whatever the name says. The `<= 15` and `>= 50` mutants are killed by the
+    // "scales between" test above; this one pins the band's endpoints against a
+    // change to the constants.
     expect(conditionsScore({ ...base, maxWindKmh24h: 15 }).components.wind).toBe(15)
     expect(conditionsScore({ ...base, maxWindKmh24h: 50 }).components.wind).toBe(0)
   })
@@ -243,7 +249,9 @@ describe('conditionsScore — humidity component', () => {
     expect(conditionsScore({ ...base, currentHumidityPct: 60 }).components.humidity).toBe(6)
   })
 
-  it('pins both boundaries exactly, not just values either side of them', () => {
+  it('reaches 8 at 50% and 0 at 90%', () => {
+    // Endpoint values, not operator discrimination — same continuity as the
+    // wind band above.
     expect(conditionsScore({ ...base, currentHumidityPct: 50 }).components.humidity).toBe(8)
     expect(conditionsScore({ ...base, currentHumidityPct: 90 }).components.humidity).toBe(0)
   })

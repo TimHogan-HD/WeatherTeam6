@@ -40,12 +40,17 @@ describe('fetchNwsAlerts', () => {
     // collection would be read as "NWS confirms no active alerts" — which
     // deletes every stored row for the location, `notified_at` included.
     // Found by mutation testing.
-    fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ type: 'FeatureCollection', features: [] }), { status: 503 }),
+    //
+    // 403, not 503: `fetchWithRetry` only hands a response back to the caller
+    // when `res.ok` or the status is a non-429 below 500. A 503 exhausts all
+    // four attempts and throws, so it lands in the `catch` above and returns
+    // null without the `res.ok` guard ever being evaluated — which is the
+    // network-error test again under a different name, and exactly the class 11
+    // fixture problem this file is otherwise fixing.
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ type: 'FeatureCollection', features: [] }), { status: 403 }),
     )
-    const resultPromise = fetchNwsAlerts(36.0, -115.0)
-    await vi.runAllTimersAsync()
-    expect(await resultPromise).toBeNull()
+    expect(await fetchNwsAlerts(36.0, -115.0)).toBeNull()
   })
 
   it('skips a feature carrying no properties rather than reading through it', async () => {
