@@ -2144,3 +2144,39 @@ secret check is skipped and the forgeable `chat.id` is the only gate.
 - **Rich Messages need `blocks` on `InputRichMessage`, added in 10.2**, not 10.1. Exactly one of `blocks`, `html` or `markdown` may be set, and a `RichText` may be a plain string — which is what makes a table cell one line rather than a tree.
 
 **Does the user need to do anything?** **Yes — two things.** (1) Run `npm run probe:telegram-render --workspace=apps/api` with `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` set in the shell, then look at the chat on a phone, a desktop client and web.telegram.org and fill the Observations table in `.claude/docs/telegram-render.md`. It decides whether rich tables ever ship. (2) Still outstanding since 2026-08-26: set `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project and re-run `setWebhook` with a matching `secret_token`.
+
+---
+
+## 2026-08-31 — branch: docs/probe-b-observations — commit: PENDING_SQUASH
+
+**Phase completed:** Phase 0 — Probe B run 1. Ten specimens sent to the live bot, all accepted; phone and desktop observed, web still unobserved.
+
+**What was built this session:**
+- `.claude/docs/telegram-render.md` — §2 Observations filled for phone and desktop, plus a § What run 1 settled section and the outcome-rule table marked where run 1 landed
+- `.claude/docs/telegram-precision-interface-plan.md` — the unverified-claims box annotated with what is now disproven, the `DisabledButton` paragraph withdrawn, and the Model buttons / Rendering rows in § Settled decisions rewritten
+- `.claude/docs/STATE.md` — § What Phase 0 found rewritten around the measurements; § What the user owes reduced to the web tab
+
+**What Probe B run 1 found:**
+- **Rich tables render and survive an in-place edit.** Specimen 7 edited specimen 6's message id with `rich_message` and came back a table with new values on both clients. The second-hand "editing destroys rich formatting" claim is false there.
+- **`DisabledButton` is accepted by the API and invisible in the UI.** HRRR looked identical to GFS and ECMWF on phone and desktop, so it cannot carry "this model does not reach here". Phase 1 uses a labelled non-button row; omitting the model stays forbidden.
+- **Rich blocks need no HTML escaping** — `&` and `<>` survived unaltered, because blocks are structured JSON. The `<pre>` path still needs `escapeTelegramHtml`.
+- **Nine columns fit on the phone** with no wrap and no horizontal scroll. Phase 3's column sets are not width-limited to five.
+- The `<pre>` fallback renders correctly on both clients, columns aligned.
+
+**Known issues / deferred work:**
+- **Web is unobserved**, and it is the client the remaining unverified claim is about. Until then `<pre>` ships first and rich tables stay an opt-in upgrade.
+- **Client build numbers were not recorded.** Rich Messages are weeks old, so a future contradiction is more likely a version difference than a mistake — record them next run.
+- Whether the disabled button is *inert* when tapped was not tested. It does not change the decision: a control that looks tappable and does nothing is worse than a labelled row.
+
+**Blockers for next session:**
+- None. Phase 1 is unblocked.
+
+**What's next:** Phase 1 — `git checkout -b phase/1-interaction` off `main` — read `.claude/docs/telegram-precision-interface-plan.md` § Phase 1 and § Traps. `callback_query` auth is a new hole: **both** `callback_query.from.id` and `callback_query.message.chat.id` must be checked against `TELEGRAM_CHAT_ID`, and every refusal still answers 200.
+
+**Gotchas for next session:**
+- **`sendRichMessage` and `sendMessage` have different escaping rules.** Escaping a rich block would put literal `&amp;` on screen; not escaping a `<pre>` is a 400 the webhook swallows. The path decides, not the content.
+- **`disabled` on an inline button compiles, sends, and does nothing visible.** Do not reach for it to express absence.
+- **A rich table's `caption` renders as a centred title above the table**, not as a footer — it is the natural home for the "Red Rock · HRRR · 3-hourly" header line.
+- **The `<pre>` fallback renders as a copyable code block** with a COPY CODE affordance on both clients, which is a small bonus for a data table and worth keeping in mind before replacing it.
+
+**Does the user need to do anything?** **Yes — one small thing.** Open web.telegram.org and look at the four specimens already in the chat (messages 70, 71, 74, 77): real tables, or an "unsupported message" card? It is the last input to whether rich tables become the primary rendering. Separately, still outstanding since 2026-08-26: set `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project and re-run `setWebhook` with a matching `secret_token`.
