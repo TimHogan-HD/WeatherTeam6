@@ -2206,3 +2206,42 @@ secret check is skipped and the forgeable `chat.id` is the only gate.
 - **Do not re-raise the web check.** It was declined, and asking again is how a settled answer turns back into an open question.
 
 **Does the user need to do anything?** **No.** The only remaining item is the long-standing `TELEGRAM_WEBHOOK_SECRET` in Vercel plus a matching `setWebhook` re-run, which is unchanged and not blocking anything.
+
+---
+
+## 2026-08-31 — branch: phase-1-telegram-interaction-layer — commit: f66b278
+
+**Phase completed:** Phase 1 — the interaction layer of the Telegram precision interface.
+
+**What was built this session:**
+- `lib/telegram/sendMessage.ts` — button type widened to a two-arm union closed with `?: never`; retry loop extracted into `callTelegram(method, body, tolerate?)`; `editTelegramMessage` and `answerCallbackQuery` added. `sendTelegramMessage` keeps its signature and its request body byte for byte.
+- `lib/telegram/callbackData.ts` (new, pure) — `<verb>:<stateId>:<field>=<value>` inside the 64-byte ceiling; `null` rather than an approximation, and row builders drop the button.
+- `lib/telegram/commands.ts` (new, pure) — bounded command parsing with the `@botname` suffix, plus `BOT_COMMANDS` and `formatHelp`.
+- `lib/telegram/panelState.ts` + the `panel_states` table (migration `0007`) — create / load / update / prune, scoped by `user_id` as well as id.
+- `lib/telegram/panels.ts` (new, pure) and `lib/telegram/panelViews.ts` (new, db) — `{ text, keyboard }` per view, Simple/Advanced split, an expired state that says so.
+- `routes/telegramWebhook.ts` — dispatches `message` **and** `callback_query`; `/start`, `/help`, `/locations`, `/conditions`, `/alerts` all on the new machinery.
+- `lib/telegram/conditionsReply.ts` — split into `findLocationByName` / `findLocationById` / `buildConditionsInput` so the typed reply and the tapped panel share one data path.
+- `scripts/setBotCommands.ts` (`bot:set-commands`) and `scripts/checkPanelState.ts` (`check:panel-state`).
+- Tests: `callbackData`, `commands`, `panels`, plus `editTelegramMessage` / `answerCallbackQuery` bodies and a `@ts-expect-error` assertion that the button union cannot widen. 264 → 317 api tests.
+
+**Known issues / deferred work:**
+- **`check:panel-state` has never been run.** It needs `DATABASE_URL`. Migration `0007` is written but **unapplied**, so every panel command 500s on production until `npm run db:migrate` runs.
+- **Nothing has been driven from a real device.** The `initData` lesson applies: a protocol path green only against its own fixtures proves nothing.
+- `panel_states` carries `model`, `interval_hours`, `column_set`, `day_offset`, `lat`, `lon`, `place_name` that nothing reads yet — Phase 2–5's, present now so the migration is not run twice.
+- `prunePanelStates()` rides along on `/api/cron/check-alerts` rather than owning a route, because a new route needs a new cron-job.org registration. It moves to `/api/cron/prune-runs` in Phase 2.
+- `/conditions <name>` costs two location queries — one by name to resolve it, one by id when the panel renders.
+- The independent PR reviewer ran (0 permission denials, no findings) but took only 4 turns over a 3,700-line diff. Treat its silence here as weak evidence.
+
+**Blockers for next session:**
+- **Phase 2 must not start before migration `0007` is applied** — it adds three more tables to the same database and stacking an unapplied migration on an unapplied migration is how a schema drifts from the code silently.
+
+**What's next:** Phase 2 — `git checkout -b phase/2-data-layer` off `main` — read `.claude/docs/telegram-precision-interface-plan.md` § Phase 2, § Schema and § Traps, and `.claude/docs/model-matrix.md` before choosing a model or a variable.
+
+**Gotchas for next session:**
+- **The plan's `panel_states` column names are not the shipped ones.** `interval` → `interval_hours`, `columns` → `column_set`; both of the plan's names are Postgres keywords that only work quoted.
+- **`weather_runs` needs the bespoke ordered cascade the plan describes**, not a `DEPENDENT_TABLES` entry — `weather_run_hours` and `weather_ensemble_hours` key off `run_id` and cannot be added to that list at all; it would not compile.
+- **Escaping has two opposite rules on this surface.** Message text is HTML and everything interpolated is escaped, `<pre>` included; **button labels are plain text**, so escaping one puts a literal `&amp;` on the button.
+- **`editMessageText` tolerates exactly one 400** — "message is not modified", matched by description. Do not widen that predicate: every other 400 there is an escaping failure that must stay visible.
+- **A button tap is authorized on two ids**, `callback_query.from.id` and `callback_query.message.chat.id`. Any new callback surface inherits that or it ships unauthenticated.
+
+**Does the user need to do anything?** **Yes — two things, both needing credentials this session did not have.** (1) From `apps/api`, with `DATABASE_URL` set in the shell: `npm run db:migrate`, then `npm run check:panel-state` to prove the round trip, the scope predicate, the prune cutoff and the location-delete cascade against real Postgres. (2) `$env:TELEGRAM_BOT_TOKEN = "..."` then `npm run bot:set-commands`, so the client's command menu matches what the bot answers. Unchanged from before: `TELEGRAM_WEBHOOK_SECRET` in Vercel plus a matching `setWebhook` re-run.

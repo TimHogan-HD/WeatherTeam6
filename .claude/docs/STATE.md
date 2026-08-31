@@ -5,7 +5,7 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-08-31 · `main` @ `ca9c054`
+Last updated: 2026-08-31 · `main` @ `f66b278`
 
 ---
 
@@ -19,11 +19,15 @@ confirmed working on a real device: bot, Mini App, alerts, deep links, auth.
 - **Bot** — commands, alerts, deep links into the Mini App.
 - **`apps/mobile`** — archived, out of the build. Do not add features to it.
 
-Baseline: `npm run test` 338 passing (264 api, 50 miniapp, 24 types), `npm run typecheck`
-clean, `npm run check:hooks` 58 passing. **Mutation score 66.09%** —
+Baseline: `npm run test` 391 passing (317 api, 50 miniapp, 24 types), `npm run typecheck`
+clean, `npm run check:hooks` 58 passing. **Mutation score 66.09%**, last measured
+2026-08-26 and *not* re-measured since Phase 1 —
 `npm run test:mutation --workspace=apps/api`, and see § Mutation testing below.
 
-Always-loaded instruction budget: **47,426 chars / ~11,857 est. tokens** (`CLAUDE.md` +
+**Migration `0007` (`panel_states`) is written and unapplied.** Until `npm run db:migrate`
+runs, every bot panel command fails in production. See § What the user owes.
+
+Always-loaded instruction budget: **49,302 chars / ~12,326 est. tokens** (`CLAUDE.md` +
 `.claude/rules/*`). It was 56,043 before `9d7015c`. Anthropic's guidance is that a bloated
 `CLAUDE.md` causes its own rules to be ignored — if you are about to add a paragraph to it,
 check first whether the fact is derivable from the repo, or belongs in a skill or the archive.
@@ -38,11 +42,7 @@ green. If you are reading it because that block was absent, the hook did not fir
 
 The user's direction, set 2026-08-26 and revised the same day:
 
-1. ~~**Agent-systems cleanup**~~ — **done**, #48 through #58. What it produced is described
-   where it operates: the delivery and verification gates below, and § Mutation testing.
-   Ordinary follow-up remains — 434 surviving mutants, and 216 more in code no test reaches
-   at all — but it is no longer a phase.
-2. **The chat interface is the priority, it is designed, and the plan is approved.** Read
+1. **The chat interface is the priority, it is designed, and the plan is approved.** Read
    **`.claude/docs/telegram-precision-interface-plan.md`** — it is the spec, settled over a
    long design conversation on 2026-08-31, and it supersedes the one-line description this
    entry used to carry.
@@ -52,18 +52,23 @@ The user's direction, set 2026-08-26 and revised the same day:
    run-to-run trend — on a panel message edited in place. Deep UI for this data does **not**
    get built in the Mini App.
 
-   **Phase 0 is done and Phase 1 is next** — the interaction layer: `sendMessage.ts` widened
-   to a two-arm button union, `callbackData.ts`, `commands.ts`, `panelState.ts`, `panels.ts`,
-   `callback_query` dispatch in the webhook, and `setMyCommands`. No new data yet. See
-   § What Phase 0 found, below, for the four measurements it must build on.
-3. **An in-app feedback button.** Press it, type a note, and the note lands somewhere in
+   **Phases 0 and 1 are done; Phase 2 is next** — the data layer: hourly retention on
+   `openMeteo.ts`, per-model ensemble output, the new variables, the `weather_runs` /
+   `weather_run_hours` / `weather_ensemble_hours` tables, and the collect/prune crons. See
+   § What Phase 0 found for the four measurements it must build on, and § What Phase 1
+   shipped for what it now builds on top of.
+
+   **Do not start Phase 2 until migration `0007` is applied.** It adds three more tables to
+   the same database, and stacking an unapplied migration on an unapplied one is how the
+   schema and the code drift apart silently.
+2. **An in-app feedback button.** Press it, type a note, and the note lands somewhere in
    this repo. Destination and mechanism undecided.
-4. **Mini App polish** — deliberately downgraded. The user's words: *"the Mini App doesn't
+3. **Mini App polish** — deliberately downgraded. The user's words: *"the Mini App doesn't
    need to be super fancy."* Do not start a design system, a motion system or a CSS
    architecture for it on the strength of the old plan.
 
-**Item 3 is still a design conversation the user wants to have first. Do not spec it
-unilaterally.** Item 2 has had that conversation — build to the plan, do not re-litigate it.
+**Item 2 is still a design conversation the user wants to have first. Do not spec it
+unilaterally.** Item 1 has had that conversation — build to the plan, do not re-litigate it.
 
 ### What Phase 0 found
 
@@ -83,21 +88,37 @@ The four measurements that constrain every later phase:
 - **Out-of-coverage is a 400, not nulls** — that is what the disabled model button derives
   from. Ensemble confirmed at 143 members (ECMWF 51, ICON 40, GFS 31, GEM 21).
 
-**Probe B ran on 2026-08-31. All ten specimens accepted; phone and desktop observed; web
-still unobserved.** What it settled, in `.claude/docs/telegram-render.md` §2:
+**`<pre>` monospace is the rendering, by decision.** Probe B's ten specimens all rendered
+on phone and desktop, in-place edit included, but the web check was declined on 2026-08-31
+— do not re-raise it, and do not adopt rich tables on evidence from two clients out of
+three. The one finding that still constrains new code: **`DisabledButton` is invisible**,
+so a model that does not reach a point gets a labelled non-button row, never silence. Full
+results in `.claude/docs/telegram-render.md` §2.
 
-- **Rich tables render and survive an in-place edit** on phone and desktop — the same
-  message id, edited with `rich_message`, came back a table. The "editing destroys rich
-  formatting" claim is false on both.
-- **`DisabledButton` is invisible.** The API accepts it and both clients draw it exactly
-  like an enabled button, so an unavailable model gets a **labelled non-button row**, not
-  a greyed button. Omitting it is still forbidden.
-- **Rich blocks need no HTML escaping**; the `<pre>` path still does. Two paths, two rules.
-- **Nine columns fit on the phone** with no wrap and no scroll — width is not the
-  constraint the plan assumed.
+### What Phase 1 shipped
 
-**`<pre>` monospace still ships first.** Promoting rich tables to primary needs web —
-one tab at web.telegram.org, specimens 2, 3, 7 and 9. Phase 1 is not blocked on it.
+The bot now receives button taps. One panel message, edited in place, with `/start`,
+`/help`, `/locations`, `/conditions` and `/alerts` on it. No new weather data — that is
+Phase 2. The rules it established are in `.claude/rules/architecture.md`; the four that
+constrain what comes next:
+
+- **A button carries an 8-hex state id, not state.** `callback_data` is 64 bytes.
+  `panel_states` holds the rest and the panel is **re-rendered from what was written**,
+  never patched in memory. A gone row says *expired* and never guesses.
+- **A tap is authorized on two ids** — `callback_query.from.id` **and**
+  `callback_query.message.chat.id`. Any new callback surface inherits that.
+- **`editMessageText` tolerates exactly one 400**, "message is not modified". Do not widen
+  that predicate: every other 400 there is an escaping failure that must stay visible.
+- **Escaping has two opposite rules.** Message text is HTML, `<pre>` included; **button
+  labels are plain text**, so escaping one puts a literal `&amp;` on the button.
+
+The plan's `panel_states` column names are not the shipped ones: `interval` →
+`interval_hours`, `columns` → `column_set`, because both are Postgres keywords.
+`model`, `interval_hours`, `column_set`, `day_offset`, `lat`, `lon` and `place_name` exist
+but nothing reads them yet — they are Phase 2–5's.
+
+**Neither `check:panel-state` nor a real device has exercised any of it.** It typechecks,
+lints, and every panel was rendered and read, but nothing has touched Postgres or Telegram.
 
 ### Deliberately deferred, not forgotten
 
@@ -214,6 +235,17 @@ Only things that are still true and still bite. Historical gotchas are in the ar
 ---
 
 ## What the user owes
+
+**Blocking Phase 2, new on 2026-08-31.** Two commands, both needing a credential no session
+has. From `apps/api`, with `DATABASE_URL` set **in the shell**:
+
+```powershell
+npm run db:migrate          # applies 0007 — panel_states. Until this runs, every panel command 500s
+npm run check:panel-state   # round trip, user scoping, prune cutoff, location-delete cascade
+```
+
+and, with `TELEGRAM_BOT_TOKEN` set in the shell, `npm run bot:set-commands` so the client's
+command menu matches what the bot answers.
 
 **The web half of Probe B was declined by the user on 2026-08-31. Do not ask again.**
 The consequence is already the plan's default: `<pre>` monospace is the rendering, and

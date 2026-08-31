@@ -2,6 +2,11 @@
 
 ## Context
 
+> **This section describes the bot as it was on 2026-08-31, before Phase 1.** Every "today"
+> in it is now history: the webhook dispatches `callback_query`, the button type is a
+> two-arm union, and command parsing is bounded. See § Phase 1 for what shipped. It is kept
+> because it is why the work was specified.
+
 The bot is the only surface reachable without opening the Mini App, and today it is barely an
 interface: [`telegramWebhook.ts`](../../apps/api/src/routes/telegramWebhook.ts) handles `/start` and
 `/conditions <name>`, both requiring a typed location name, and **cannot receive a button tap
