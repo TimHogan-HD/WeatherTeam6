@@ -2108,7 +2108,7 @@ secret check is skipped and the forgeable `chat.id` is the only gate.
 
 ---
 
-## 2026-08-31 — branch: phase0-probes — commit: PENDING_SQUASH
+## 2026-08-31 — branch: phase0-probes — commit: 5544fe6
 
 **Phase completed:** Phase 0 — probes. Probe A complete; Probe B's API half complete, its client-observation half outstanding and assigned to the user.
 
