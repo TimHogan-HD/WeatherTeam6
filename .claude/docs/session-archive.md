@@ -2074,3 +2074,34 @@ The solo alternative, needing no decision, is the 216 uncovered mutants.
 `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project to a long random string, then re-run
 Telegram's `setWebhook` with `secret_token` set to the same value. Until then the webhook's
 secret check is skipped and the forgeable `chat.id` is the only gate.
+
+---
+
+## 2026-08-31 — branch: docs/telegram-precision-interface-plan — commit: PENDING
+
+**Phase completed:** None. Design only — Phase 0 of the Telegram precision interface is specified but not started.
+
+**What was built this session:**
+- `.claude/docs/telegram-precision-interface-plan.md` — the approved spec for the Telegram precision interface, settled over five rounds of questions plus web research. No code.
+- `.claude/docs/STATE.md` — direction item 2 rewritten from a one-line description to a pointer at the plan, plus a § What Phase 0 is for section
+- `.claude/docs/plan.md` — banner marking it as the original 13-phase build plan and pointing at the new doc for current direction
+- `CLAUDE.md` — one line added to the MANDATORY reading rules for Telegram/chat work
+
+**Known issues / deferred work:**
+- **Two rendering claims in the plan are unverified.** That Telegram Web shows an unsupported-message card for rich messages, and that the "editing destroys rich formatting" report is a client-library bug rather than an API limit, both rest on third-party issue trackers (an LLM-agent project), not on Telegram's own sources. Probe B exists to settle them. The independent PR reviewer caught this and the plan now labels both as unverified.
+- Retention is 14 days parsed / 48h raw, so a trip four weeks out has no trend history until it comes inside the window. Accepted, not a defect.
+- The conditions score algorithm (open half of #21) stays deferred and must not ride along inside this work.
+
+**Blockers for next session:**
+- None for Phase 0. Probe B sends real messages through the bot, so `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` must be set in the shell for that script.
+
+**What's next:** Phase 0 — `git checkout -b phase/0-probes` off `main` — read `.claude/docs/telegram-precision-interface-plan.md` §Phase 0 before writing any code. Two throwaway probe scripts producing `.claude/docs/model-matrix.md` and `.claude/docs/telegram-render.md`. Nothing else in the plan may start before both land.
+
+**Gotchas for next session:**
+- **A plan file written in plan mode lives outside the repo** at `~/.claude/plans/<generated-name>.md`, and a fresh session will never find it. Copy it into `.claude/docs/` and point STATE.md at it before the session ends, or the work is lost.
+- **Relative links in `.claude/docs/*.md` need `../../` to reach repo-root paths.** GitHub resolves them against the containing directory, so `apps/api/...` 404s from a file in `.claude/docs/`. The reviewer caught nine of these.
+- **`DEPENDENT_TABLES` cannot hold a table without a `location_id` column.** The loop in `deleteLocationCascade` does `eq(table.location_id, locationId)` directly. The planned `weather_run_hours` / `weather_ensemble_hours` key off `run_id`, so they need a bespoke delete ordered *before* `weather_runs` — the plan now spells this out. Following the flat rule literally would produce the FK violation the rule exists to prevent, one level down.
+- **A direction message naming a feature area is not a build order.** This session opened by building off one, was stopped, and the plan that emerged from five rounds of questions is nothing like what that first hour produced.
+- **Two file cards with the same filename are indistinguishable in a transcript.** The user read v1 and reported the plan had not changed; it had.
+
+**Does the user need to do anything?** **Yes — one thing, unchanged since 2026-08-26.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project to a long random string, then re-run Telegram's `setWebhook` with `secret_token` set to the same value. Until then the webhook's secret check is skipped and the forgeable `chat.id` is the only gate. Probe B sends test messages through that same bot, so it is worth doing before Phase 0 rather than after.

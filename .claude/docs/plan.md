@@ -1,5 +1,13 @@
 # WeatherTeam6 Build Plan
 
+> **This is the original 13-phase build plan and it is history for most purposes** — the
+> application it describes as having "zero application code" has shipped. Keep reading it for
+> the schema, scoring and sequencing decisions it records, and for the issue #21 diagnosis.
+>
+> **The current feature direction is not here.** It is
+> **`.claude/docs/telegram-precision-interface-plan.md`** — the approved plan for the
+> Telegram precision interface, which is the priority work as of 2026-08-31.
+
 ## Context
 
 WeatherTeam6 is a climbing-specific weather platform (13-phase gated build). The repo has complete documentation but zero application code. This plan is based on the v8 build prompt, with two blocking spec gaps resolved below.
