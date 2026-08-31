@@ -2183,7 +2183,7 @@ secret check is skipped and the forgeable `chat.id` is the only gate.
 
 ---
 
-## 2026-08-31 — branch: docs/close-web-check — commit: PENDING_SQUASH
+## 2026-08-31 — branch: docs/close-web-check — commit: ca9c054
 
 **Phase completed:** None — a decision recorded, closing Phase 0.
 
