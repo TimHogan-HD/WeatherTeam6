@@ -50,6 +50,13 @@
       "when": 1785345149197,
       "tag": "0006_shallow_otto_octavius",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788208885289,
+      "tag": "0007_orange_sunset_bain",
+      "breakpoints": true
     }
   ]
 }

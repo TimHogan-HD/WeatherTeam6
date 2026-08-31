@@ -242,6 +242,23 @@ and every model, variable and rendering constant traces to a line in them.
 
 ### Phase 1 — Interaction layer
 
+> **Status, 2026-08-31: built and merged.** Everything below shipped, with three
+> deviations, each deliberate:
+>
+> - **`panel_states` columns are `interval_hours` and `column_set`**, not `interval` and
+>   `columns`. Both of the plan's names are Postgres keywords that only work quoted.
+> - **The state row lifecycle carries `model`, `interval_hours`, `column_set`, `day_offset`,
+>   `lat`, `lon` and `place_name` but nothing reads them yet.** They are Phase 2–5's, and
+>   they are in the table now so the migration is not run twice.
+> - **`prunePanelStates()` rides along on `/api/cron/check-alerts`** rather than getting its
+>   own route. A new route needs a new cron-job.org registration, which is a task for the
+>   user; the 7-day retention rule is real this way and moves to `/api/cron/prune-runs`
+>   when Phase 2 adds it.
+>
+> Not verified: nothing has driven this from a real device, and
+> `npm run check:panel-state` needs a `DATABASE_URL` — **the migration is unapplied**, so
+> every panel command fails until `npm run db:migrate` runs.
+
 - **`sendMessage.ts`** — widen the button type to a two-arm union, each arm closing the other
   with `?: never` (TypeScript's excess-property check against a union otherwise permits both
   `url` and `callback_data`, which Telegram answers with a 400). Extract the retry loop into

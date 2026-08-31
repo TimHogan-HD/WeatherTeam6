@@ -1,17 +1,74 @@
 import { Router, type Request, type Response } from 'express'
-import { logger } from '../lib/logger.js'
 import { escapeTelegramHtml } from '@weatherteam6/types'
-import { buildConditionsReply } from '../lib/telegram/conditionsReply.js'
-import { sendTelegramMessage } from '../lib/telegram/sendMessage.js'
+import { logger } from '../lib/logger.js'
+import { isUuid } from '../lib/http.js'
+import { decodeAction } from '../lib/telegram/callbackData.js'
+import { formatHelp, parseCommand } from '../lib/telegram/commands.js'
+import { formatLocationNotFound } from '../lib/telegram/conditionsMessage.js'
+import { findLocationByName } from '../lib/telegram/conditionsReply.js'
+import {
+  buildNoticePanel,
+  EXPIRED_PANEL_TEXT,
+  VERB_MODE,
+  VERB_OPEN,
+  VERB_REFRESH,
+  VERB_VIEW,
+} from '../lib/telegram/panels.js'
+import {
+  createPanelState,
+  isPanelMode,
+  isPanelView,
+  loadPanelState,
+  updatePanelState,
+  type PanelState,
+} from '../lib/telegram/panelState.js'
+import { renderPanel } from '../lib/telegram/panelViews.js'
+import {
+  answerCallbackQuery,
+  editTelegramMessage,
+  sendTelegramMessage,
+} from '../lib/telegram/sendMessage.js'
 import { webhookSecretAccepted } from '../lib/telegram/webhookAuth.js'
 
 export const telegramWebhookRouter = Router()
 
+type TelegramChat = { id?: number }
+
 type TelegramUpdate = {
   message?: {
-    chat?: { id?: number }
+    chat?: TelegramChat
     text?: string
   }
+  callback_query?: {
+    id?: string
+    data?: string
+    /** Who tapped. Distinct from the chat the message lives in — both are checked. */
+    from?: { id?: number }
+    message?: {
+      message_id?: number
+      chat?: TelegramChat
+    }
+  }
+}
+
+/**
+ * The single-user auth boundary for the bot. The API itself stays
+ * `AUTH_ENABLED=false`.
+ *
+ * Trimmed to match `requireApiAuth`, which trims the same variable: an
+ * accidental trailing space in the Vercel value would otherwise authorize the
+ * Mini App and silently reject every bot command.
+ *
+ * Returns `null` when the variable is unset, which refuses everything — the same
+ * fail-closed posture `API_SHARED_SECRET` has.
+ */
+function expectedChatId(): string | null {
+  const value = process.env['TELEGRAM_CHAT_ID']?.trim()
+  return value === undefined || value === '' ? null : value
+}
+
+function matchesChat(id: number | undefined, expected: string): boolean {
+  return id !== undefined && String(id) === expected
 }
 
 telegramWebhookRouter.post('/webhook', async (req: Request, res: Response) => {
@@ -31,37 +88,24 @@ telegramWebhookRouter.post('/webhook', async (req: Request, res: Response) => {
   }
 
   const update = req.body as TelegramUpdate
-  const chatId = update.message?.chat?.id
-  const expectedChatId = process.env['TELEGRAM_CHAT_ID']?.trim()
-
-  // This IS the auth boundary for the bot (single-user) — the API itself stays AUTH_ENABLED=false.
-  // Trimmed to match `requireApiAuth`, which trims the same variable: an
-  // accidental trailing space in the Vercel value would otherwise authorize the
-  // Mini App and silently reject every bot command.
-  if (!expectedChatId || String(chatId) !== expectedChatId) {
-    res.sendStatus(200) // ack silently — never reveal to an unauthorized chat that this endpoint exists
-    return
-  }
-
-  const text = update.message?.text?.trim() ?? ''
+  const expected = expectedChatId()
 
   try {
-    if (text === '/start') {
-      await sendTelegramMessage(
-        // Escaped, not incidentally: sendTelegramMessage uses parse_mode HTML,
-        // and Telegram rejects <location name> as an unsupported start tag with
-        // a 400. This reply and the usage line below have both been failing
-        // silently since they were written — the webhook catches and logs the
-        // error, so the bot simply never answers /start.
-        escapeTelegramHtml("Hi! Send /conditions <location name> and I'll check it for you."),
-      )
-    } else if (text.startsWith('/conditions')) {
-      const name = text.slice('/conditions'.length).trim()
-      if (!name) {
-        await sendTelegramMessage(escapeTelegramHtml('Usage: /conditions <location name>'))
-      } else {
-        const reply = await buildConditionsReply(req.userId, name)
-        await sendTelegramMessage(reply)
+    if (expected === null) {
+      logger.warn('[telegramWebhook] TELEGRAM_CHAT_ID is not set — refusing every update')
+    } else if (update.callback_query) {
+      // **Both** identities are checked. A tap carries `from.id` (who pressed)
+      // and `message.chat.id` (where the panel lives), and checking only the
+      // chat would let anyone who can reach a forwarded panel drive it, while
+      // checking only `from` would accept a tap in a chat this bot never posted
+      // to. The whole button surface is new, so both are new holes.
+      const q = update.callback_query
+      if (matchesChat(q.from?.id, expected) && matchesChat(q.message?.chat?.id, expected)) {
+        await handleCallbackQuery(req.userId, q)
+      }
+    } else if (update.message) {
+      if (matchesChat(update.message.chat?.id, expected)) {
+        await handleMessage(req.userId, update.message.text?.trim() ?? '')
       }
     }
   } catch (err) {
@@ -71,3 +115,168 @@ telegramWebhookRouter.post('/webhook', async (req: Request, res: Response) => {
 
   res.sendStatus(200)
 })
+
+/**
+ * Send a panel as a new message. Used by every command; a tap edits instead.
+ */
+async function sendPanel(userId: string, state: PanelState): Promise<void> {
+  const panel = await renderPanel(userId, state)
+  await sendTelegramMessage(panel.text, panel.keyboard)
+}
+
+async function handleMessage(userId: string, text: string): Promise<void> {
+  const command = parseCommand(text)
+  // Not a command. Staying silent is deliberate: this is a private chat with a
+  // single user, and answering every stray line with usage text is noise.
+  if (command === null) return
+
+  // The `@botname` suffix is accepted and ignored. The bot's username is not
+  // derivable from `TELEGRAM_BOT_TOKEN`, and in a single-user private chat there
+  // is no second bot for a command to be addressed to.
+  switch (command.name) {
+    case 'start':
+    case 'help':
+      await sendPanel(userId, await createPanelState(userId, { view: 'help' }))
+      return
+
+    case 'locations':
+      await sendPanel(userId, await createPanelState(userId, { view: 'list' }))
+      return
+
+    case 'alerts':
+      await sendPanel(userId, await createPanelState(userId, { view: 'alerts' }))
+      return
+
+    case 'conditions': {
+      if (command.args === '') {
+        // No name given — the picker answers the question rather than a usage
+        // line the user then has to retype.
+        await sendPanel(userId, await createPanelState(userId, { view: 'list' }))
+        return
+      }
+      const location = await findLocationByName(userId, command.args)
+      if (location === null) {
+        await sendTelegramMessage(formatLocationNotFound(command.args))
+        return
+      }
+      await sendPanel(
+        userId,
+        await createPanelState(userId, { view: 'conditions', locationId: location.id }),
+      )
+      return
+    }
+
+    default:
+      // Named, not ignored: an unregistered command typed by hand otherwise
+      // looks like the bot is down.
+      await sendTelegramMessage(
+        `${escapeTelegramHtml(`I don't know /${command.name}.`)}\n\n${formatHelp()}`,
+      )
+      return
+  }
+}
+
+type CallbackQuery = NonNullable<TelegramUpdate['callback_query']>
+
+async function handleCallbackQuery(userId: string, q: CallbackQuery): Promise<void> {
+  const queryId = q.id
+  if (queryId === undefined) return
+
+  // **Answered before any work.** The client spins until the query is answered
+  // and gives up at about 15 seconds; a conditions render is an ensemble fetch
+  // plus a rainfall fetch, which can outlast that, and a user watching a dead
+  // button taps it again.
+  await answerCallbackQuery(queryId)
+
+  const messageId = q.message?.message_id
+  if (messageId === undefined) {
+    // Nothing to edit — Telegram omits the message once it is too old. Say so on
+    // a new message rather than silently doing nothing.
+    await sendTelegramMessage(EXPIRED_PANEL_TEXT)
+    return
+  }
+
+  const action = q.data === undefined ? null : decodeAction(q.data)
+  if (action === null) {
+    await editTelegramMessage(messageId, EXPIRED_PANEL_TEXT, null)
+    return
+  }
+
+  const state = await loadPanelState(action.stateId, userId)
+  if (state === null) {
+    // Pruned at 7 days, or an id from another chat. Never a guess at what the
+    // panel used to be showing.
+    await editTelegramMessage(messageId, EXPIRED_PANEL_TEXT, null)
+    return
+  }
+
+  const next = await applyAction(userId, state, action.verb, action.field, action.value)
+  if (next === null) {
+    await editTelegramMessage(messageId, EXPIRED_PANEL_TEXT, null)
+    return
+  }
+
+  let panel
+  try {
+    panel = await renderPanel(userId, next)
+  } catch (err) {
+    // A tapped button that changes nothing on screen reads as a broken bot. The
+    // outer handler logs, but the user has to be told something happened —
+    // rendering a conditions panel is an upstream fetch and it can fail.
+    logger.error(
+      { err: err instanceof Error ? err.message : String(err) },
+      '[telegramWebhook] failed to render a panel',
+    )
+    // Keeps its navigation, because the copy tells the user to tap Refresh —
+    // stripping the keyboard here would leave a message naming a button that is
+    // no longer on it.
+    const notice = buildNoticePanel(next.id, 'Could not load that just now. Tap 🔄 to try again.')
+    await editTelegramMessage(messageId, notice.text, notice.keyboard)
+    return
+  }
+
+  // A re-tap of the tab already showing produces byte-identical text and markup,
+  // which Telegram calls a 400 "message is not modified". `editTelegramMessage`
+  // tolerates exactly that one.
+  await editTelegramMessage(messageId, panel.text, panel.keyboard)
+}
+
+/**
+ * Apply one button's worth of change and return the state to render, or `null`
+ * when the button cannot be honoured — an unknown verb from an older deploy, a
+ * value this build does not recognise, or a row that vanished mid-update.
+ *
+ * Every branch re-reads the state from the write rather than patching the object
+ * in memory, so what renders is what was stored.
+ */
+async function applyAction(
+  userId: string,
+  state: PanelState,
+  verb: string,
+  field: string | null,
+  value: string | null,
+): Promise<PanelState | null> {
+  switch (verb) {
+    case VERB_REFRESH:
+      // Nothing to write. The render is the refresh: every panel reads live.
+      return state
+
+    case VERB_OPEN: {
+      if (field !== 'loc' || value === null || !isUuid(value)) return null
+      return updatePanelState(state.id, userId, { view: 'conditions', locationId: value })
+    }
+
+    case VERB_VIEW: {
+      if (field !== 'v' || value === null || !isPanelView(value)) return null
+      return updatePanelState(state.id, userId, { view: value })
+    }
+
+    case VERB_MODE: {
+      if (field !== 'm' || value === null || !isPanelMode(value)) return null
+      return updatePanelState(state.id, userId, { mode: value })
+    }
+
+    default:
+      return null
+  }
+}

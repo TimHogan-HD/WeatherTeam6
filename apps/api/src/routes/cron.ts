@@ -3,6 +3,7 @@ import { Router, type Request, type Response } from 'express'
 import { sendServerError } from '../lib/http.js'
 import { logger } from '../lib/logger.js'
 import { runAlertsCheck, notifyPendingAlerts } from '../lib/alerts/checkAlerts.js'
+import { prunePanelStates } from '../lib/telegram/panelState.js'
 import type { ApiResponse } from '@weatherteam6/types'
 
 export const cronRouter = Router()
@@ -45,8 +46,31 @@ cronRouter.post('/check-alerts', async (req: Request, res: Response) => {
 
     const result = await notifyPendingAlerts()
 
-    const response: ApiResponse<{ checked: number; notified: number; refreshFailed: boolean }> = {
-      data: { ...result, refreshFailed: refreshError !== null },
+    // Housekeeping, riding along on the one schedule that is already registered
+    // with cron-job.org. `panel_states` has a 7-day retention rule, and a
+    // retention rule nothing enforces is not a retention rule — a new route
+    // would need a new registration, which is a task for the user rather than a
+    // line of code. When Phase 2 adds `/api/cron/prune-runs`, this moves there.
+    //
+    // Its own try/catch: a housekeeping failure must not wedge alert delivery,
+    // the same reason the refresh above is caught separately.
+    let pruned = 0
+    try {
+      pruned = await prunePanelStates()
+    } catch (err) {
+      logger.error(
+        { err: err instanceof Error ? err.message : String(err) },
+        '[cron] panel-state prune failed — alerts were still delivered',
+      )
+    }
+
+    const response: ApiResponse<{
+      checked: number
+      notified: number
+      refreshFailed: boolean
+      panelStatesPruned: number
+    }> = {
+      data: { ...result, refreshFailed: refreshError !== null, panelStatesPruned: pruned },
       error: null,
       status: 200,
     }
