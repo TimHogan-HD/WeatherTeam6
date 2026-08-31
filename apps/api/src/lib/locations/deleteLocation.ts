@@ -7,6 +7,7 @@ import {
   forecastSnapshots,
   locationNormals,
   locations,
+  panelStates,
   premiumPulls,
   rainfallHistory,
   tripLocations,
@@ -37,6 +38,11 @@ const DEPENDENT_TABLES = [
   locationNormals,
   weatherAlerts,
   walls,
+  // A bot panel left open on a location the user then deletes. The FK is
+  // nullable but it is still an FK: without this the delete raises a
+  // foreign-key violation that `sendServerError` reports as a generic 500,
+  // and only once someone has actually opened a panel.
+  panelStates,
 ] as const
 
 /**
@@ -47,7 +53,7 @@ const DEPENDENT_TABLES = [
  * missing one.
  *
  * Idempotent: a second call for the same id finds nothing and returns false
- * without touching anything. All eleven statements share one transaction, so a
+ * without touching anything. All twelve statements share one transaction, so a
  * mid-way failure leaves the location and its dependents fully intact rather
  * than a location whose history has been half-removed.
  *
