@@ -5,7 +5,7 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-08-26 · `main` @ `8269be1`
+Last updated: 2026-08-31 · `main` @ `PENDING`
 
 ---
 
@@ -42,17 +42,43 @@ The user's direction, set 2026-08-26 and revised the same day:
    where it operates: the delivery and verification gates below, and § Mutation testing.
    Ordinary follow-up remains — 434 surviving mutants, and 216 more in code no test reaches
    at all — but it is no longer a phase.
-2. **The chat interface is the priority, and it is now the top of the list.** The user wants to ask in plain language and get
-   an answer, plus slash commands that pull specific information about a location or a span
-   of time. This is the headline feature direction from here.
+2. **The chat interface is the priority, it is designed, and the plan is approved.** Read
+   **`.claude/docs/telegram-precision-interface-plan.md`** — it is the spec, settled over a
+   long design conversation on 2026-08-31, and it supersedes the one-line description this
+   entry used to carry.
+
+   The short version: **the Mini App is the snapshot, the bot is the instrument.** SpotWX-class
+   precision in chat — per-model hourly tables, ensemble spread, `/rain`, `/insight`, `/afd`,
+   run-to-run trend — on a panel message edited in place. Deep UI for this data does **not**
+   get built in the Mini App.
+
+   **Next action is Phase 0, and it is two probe scripts, not features.** Nothing else in that
+   plan may start before both probe outputs are committed. See § What Phase 0 is for, below.
 3. **An in-app feedback button.** Press it, type a note, and the note lands somewhere in
    this repo. Destination and mechanism undecided.
 4. **Mini App polish** — deliberately downgraded. The user's words: *"the Mini App doesn't
    need to be super fancy."* Do not start a design system, a motion system or a CSS
    architecture for it on the strength of the old plan.
 
-**Both 2 and 3 are design conversations the user wants to have first. Do not spec either
-unilaterally.**
+**Item 3 is still a design conversation the user wants to have first. Do not spec it
+unilaterally.** Item 2 has had that conversation — build to the plan, do not re-litigate it.
+
+### What Phase 0 is for
+
+Two throwaway probe scripts, both first, both producing a committed document.
+
+- **Probe A — Open-Meteo.** Which models and variables actually return data, per point.
+  This exists because `fetchNBM` requested `precipitation_p10/p50/p90`, daily variables
+  Open-Meteo **does not define under any name**, so the branch never once returned data and
+  warned on every request for months. Output: `.claude/docs/model-matrix.md`.
+- **Probe B — Telegram rendering.** Bot API 10.1–10.3 added native tables
+  (`RichBlockTable`), expandable blockquotes and `DisabledButton`. They would be a real
+  upgrade over monospace `<pre>`, **but Telegram Web is reported to render an
+  unsupported-message card** rather than degrading. Send one of each to the real account and
+  look at it on phone, desktop and web. Output: `.claude/docs/telegram-render.md`.
+
+`<pre>` monospace ships first either way. Every model, variable and rendering constant in
+later phases must trace to a line in one of those two documents.
 
 ### Deliberately deferred, not forgotten
 

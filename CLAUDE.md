@@ -91,6 +91,7 @@ Both gates exist because the prose version failed in production. The incidents a
 Everything in `.claude/rules/` is loaded automatically at session start — you do not need to open those files.
 
 - At the start of EVERY session: read `.claude/docs/STATE.md`
+- Before any Telegram bot or chat-interface work: read `.claude/docs/telegram-precision-interface-plan.md` — the approved spec for the priority feature direction
 - Before starting any new phase: read `.claude/docs/plan.md`
 - Before ANY database work: read `.claude/docs/data-model.md` AND `.claude/rules/architecture.md`
 - Before ANY weather fetch work: read `.claude/docs/api-sources.md`

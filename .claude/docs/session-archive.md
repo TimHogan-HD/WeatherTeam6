@@ -2074,3 +2074,77 @@ The solo alternative, needing no decision, is the 216 uncovered mutants.
 `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project to a long random string, then re-run
 Telegram's `setWebhook` with `secret_token` set to the same value. Until then the webhook's
 secret check is skipped and the forgeable `chat.id` is the only gate.
+
+---
+
+## 2026-08-31 — The Telegram precision interface, designed
+
+**No code was written.** The whole session was a design conversation plus research, and the
+output is `.claude/docs/telegram-precision-interface-plan.md`.
+
+**What changed about the product.** The direction recorded on 2026-08-26 — "ask in plain
+language, plus slash commands" — was sharpened considerably by the user: **the Mini App is the
+snapshot, the bot is the instrument.** The reference point is SpotWX, not a weather app. Deep
+interactive UI for dense meteorological data is explicitly *not* being built in the Mini App
+because it is expensive there and a chat surface carries it better. The user's framing: *"This
+isn't some random glance low info weather app. This is an advanced look to create precision
+knowledge."*
+
+**The false start worth recording.** The session opened by building — a branch and a rewritten
+`sendMessage.ts` — off a one-line direction message. The user stopped it: *"woah woah I didn't
+say build anything."* The branch was deleted and the file restored. A direction message naming
+a feature area is not a build order, and the plan that came out of five rounds of questions is
+nothing like what that first hour was producing.
+
+**Five rounds of questions settled ~24 decisions.** The ones that will be re-litigated if they
+are not written down:
+
+- **Both** deterministic per-model tables **and** the 143-member ensemble — not one or the other.
+- **`<pre>` monospace tables**, user-selectable column sets, one local day per message.
+- **`/insight` computes statistics and emits no prose.** Spec §9 forbids generated commentary
+  and it stays forbidden; the four computations are model disagreement, ensemble distribution,
+  run-to-run trend, and confidence by lead time.
+- **Data surfaces carry no conditions score.** `/forecast`, `/rain`, `/insight`, `/afd` are
+  meteorology; the score stays on `/conditions`.
+- **Runs are persisted** — raw JSON plus parsed rows, 14 days parsed / 48h raw. This is what
+  makes run-to-run trend possible at all, and it is why a cron writer exists.
+- **Panel state lives in a DB row behind an 8-character id.** Six dimensions of state do not
+  fit in 64 bytes of `callback_data`, and ad-hoc geocoded points do not fit at all.
+
+**What the research changed.** Four things, all sourced in the plan:
+
+- **The Bot API is four major versions ahead of this repo's assumptions.** 10.1 (June 2026)
+  added `RichBlockTable` — real native tables. 10.3 (24 Aug 2026) added expandable
+  blockquotes, `DisabledButton`, and streaming controls. `editMessageText` gained a
+  `rich_message` parameter, so edit-in-place survives; the widely-reported "editing destroys
+  rich formatting" is a client-library bug, not an API limit.
+- **But Telegram Web renders an unsupported-message card** for rich messages and some Desktop
+  builds error rather than degrade. Hence Probe B, and hence `<pre>` shipping first.
+- **`DisabledButton` beat a decision already made.** A model with no coverage was going to be
+  omitted; greying it out says "HRRR exists and does not reach here", which is the *name what
+  is absent* rule done properly.
+- **The NWS Area Forecast Discussion is free, keyless, and `locations.nws_office` already
+  stores the key for it.** It is the local forecaster writing down where they think the models
+  are wrong — the one thing raw model output cannot produce. Added as `/afd`.
+
+Also added: **pressure tendency** (a 3 mb fall in 3 h leads weather by 12–24 h), and Unicode
+block sparklines to encode model agreement as density, which is meteoblue's trick and needs no
+API support at all. **Freezing level and per-level cloud were considered and dropped.**
+
+**Phase 0 is two probe scripts and nothing else may start before both land.** Probe A asks
+Open-Meteo what actually returns data; it exists because `fetchNBM` requested daily variables
+Open-Meteo does not define under any name and warned on every request for months. Probe B asks
+the user's own Telegram clients what actually renders.
+
+**Gotchas for next session:**
+- **A plan file written in plan mode lives outside the repo** at
+  `~/.claude/plans/<generated-name>.md` and a fresh session will never find it. Copy it into
+  `.claude/docs/` and point STATE.md at it before the session ends, or the work is lost.
+- **Two file cards with the same filename are indistinguishable in the transcript.** The user
+  read v1 and reported the plan had not changed; it had. Re-sending with a distinguishing
+  caption resolved it.
+
+**Does the user need to do anything?** **Yes — one thing, unchanged since 2026-08-26.** Set
+`TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project to a long random string, then re-run
+Telegram's `setWebhook` with `secret_token` set to the same value. Probe B will send test
+messages through that same bot, so it is worth doing before Phase 0 rather than after.
