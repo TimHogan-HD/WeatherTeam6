@@ -17,6 +17,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx src/db/seed.ts",
+    "probe:models": "tsx src/scripts/probeModels.ts",
+    "probe:telegram-render": "tsx src/scripts/probeTelegramRender.ts",
     "check:add-location": "tsx src/scripts/checkAddLocationApi.ts",
     "check:delete-trip": "tsx src/scripts/checkDeleteTrip.ts"
   },
