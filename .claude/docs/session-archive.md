@@ -2077,7 +2077,7 @@ secret check is skipped and the forgeable `chat.id` is the only gate.
 
 ---
 
-## 2026-08-31 — branch: docs/telegram-precision-interface-plan — commit: PENDING
+## 2026-08-31 — branch: docs/telegram-precision-interface-plan — commit: ad97073
 
 **Phase completed:** None. Design only — Phase 0 of the Telegram precision interface is specified but not started.
 
