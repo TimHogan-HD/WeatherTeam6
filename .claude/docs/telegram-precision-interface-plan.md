@@ -24,8 +24,10 @@ Findings that altered the design, with the evidence behind them.
 
 **The Bot API is four major versions ahead of this repo's assumptions.** Rich Messages
 (10.1, June 2026) introduce `RichBlockTable` — a real styled table with per-cell styling,
-`is_bordered` / `is_striped` / `is_compact` and a caption, rendered natively on mobile,
-desktop and web. 10.3 (24 Aug 2026) added `RichBlockExpandableBlockQuotation` for collapsible
+`is_bordered` / `is_striped` / `is_compact` and a caption. *(Corrected 2026-08-31: this
+paragraph used to say "rendered natively on mobile, desktop and web". The reference
+defines the request, not the rendering, and which clients draw it is precisely the open
+question — see § What the probes changed.)* 10.3 (24 Aug 2026) added `RichBlockExpandableBlockQuotation` for collapsible
 sections, `DisabledButton`, and `can_stop` / `keep_on_stop` on `sendMessageDraft`. **Editing
 survives** — this one is verified against Telegram's own changelog, which adds *"the parameter
 `rich_message` to the method `editMessageText`, allowing bots to edit rich messages"*.
@@ -77,6 +79,44 @@ uses and the reason its interface is cited as good.
 
 ---
 
+## What the probes changed
+
+Measured, not assumed — every line traces to `.claude/docs/model-matrix.md` or
+`.claude/docs/telegram-render.md`.
+
+**`precipitation_probability` is not the selected model's field.** Under
+`ncep_hrrr_conus` it runs 276 h against a 54 h model and is byte-identical to
+`ncep_nbm_conus`'s series; under `gem_seamless` it runs 384 h against a 255 h model. A
+per-model table must not print it in a column headed with that model's name — that is
+exactly the attribution defect this repo keeps shipping. `/rain`'s probability comes
+from the ensemble members crossing a threshold, as already specified.
+
+**NBM has no pressure.** It defines `surface_pressure` and `pressure_msl` and returns
+384 nulls for both, so pressure tendency cannot come from NBM at all, and a null there
+renders as a plausible `0 mb` if nothing checks.
+
+**No model run time is exposed.** The response carries `generationtime_ms` — how long
+Open-Meteo spent answering — and nothing else resembling an initialization time. Headers
+therefore say *fetched 14:05Z*, never *12Z run*. That was Phase 0's stated condition and
+it is now decided.
+
+**Coverage is a 400, not nulls.** Outside CONUS both `ncep_hrrr_conus` and
+`ncep_nbm_conus` reject the whole request with `No data is available for this location`.
+That is the signal the model row's enabled/disabled state is built from, and it costs
+one request per model to learn.
+
+**The ensemble is confirmed at 143 members** — ECMWF 51, ICON 40, GFS 31, GEM 21, over a
+168 h horizon, matching `ENSEMBLE_MODEL_SUFFIXES`.
+
+**The Rich Messages API is real and does support editing.** `sendRichMessage`,
+`InputRichBlockTable` with `is_bordered` / `is_striped` / `is_compact`,
+`expandable_blockquote`, `InlineKeyboardButton.disabled`, and `rich_message` on
+`editMessageText` are all verified against Telegram's own reference. **What no
+documentation can answer is what the clients draw** — that is Probe B §2, still
+outstanding.
+
+---
+
 ## What it looks like
 
 One panel message, edited in place. Simple mode by default; Advanced reveals the rest.
@@ -119,7 +159,7 @@ Cached 14m ago
 | Data surfaces | Pure meteorology — no conditions score, no state label, no drying |
 | `/insight` | Computed statistics only. **No generated prose** (spec §9) |
 | Human forecast | NWS AFD via `/afd`, referenced from `/insight` |
-| Variables | Existing six, plus wind gusts, wind direction, cloud cover, precip probability, **surface pressure + computed 3h tendency**. Freezing level and per-level cloud are out |
+| Variables | Existing six, plus wind gusts, wind direction, cloud cover, precip probability, **surface pressure + computed 3h tendency**. Freezing level and per-level cloud are out. **Probe A: precip probability is not per-model and NBM carries no pressure — neither is labelled with the table's model** |
 | Persistence | Runs persisted: raw JSON + parsed rows. 14 days parsed, 48h raw |
 | History writer | `/api/cron/*` over saved locations, plus write-on-read for ad-hoc points |
 | Panel state | Short state row in the DB, 8-char id in the button |
@@ -150,6 +190,14 @@ Registered via `setMyCommands` from one `BOT_COMMANDS` constant that `/help` als
 ## Phases
 
 ### Phase 0 — Probe. Two probes, both throwaway, both first.
+
+> **Status, 2026-08-31.** Both scripts are written and both output documents exist.
+> **Probe A is complete** — `.claude/docs/model-matrix.md` is a real measurement, and it
+> already contradicts two assumptions below (see § What the probes changed).
+> **Probe B is half-complete**: `.claude/docs/telegram-render.md` §1 is the verified API
+> surface, but §2 — what the clients actually draw — needs the bot token and three real
+> clients, so it is the one thing still outstanding. `<pre>` ships either way, so Phase 1
+> is not blocked on §2; the *rich upgrade* is.
 
 **Probe A — Open-Meteo.** `apps/api/src/scripts/probeModels.ts`: for each seeded location plus
 one European point, request every candidate model and variable and record **what actually comes

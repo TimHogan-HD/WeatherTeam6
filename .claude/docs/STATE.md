@@ -52,8 +52,10 @@ The user's direction, set 2026-08-26 and revised the same day:
    run-to-run trend — on a panel message edited in place. Deep UI for this data does **not**
    get built in the Mini App.
 
-   **Next action is Phase 0, and it is two probe scripts, not features.** Nothing else in that
-   plan may start before both probe outputs are committed. See § What Phase 0 is for, below.
+   **Phase 0 is done and Phase 1 is next** — the interaction layer: `sendMessage.ts` widened
+   to a two-arm button union, `callbackData.ts`, `commands.ts`, `panelState.ts`, `panels.ts`,
+   `callback_query` dispatch in the webhook, and `setMyCommands`. No new data yet. See
+   § What Phase 0 found, below, for the four measurements it must build on.
 3. **An in-app feedback button.** Press it, type a note, and the note lands somewhere in
    this repo. Destination and mechanism undecided.
 4. **Mini App polish** — deliberately downgraded. The user's words: *"the Mini App doesn't
@@ -63,24 +65,32 @@ The user's direction, set 2026-08-26 and revised the same day:
 **Item 3 is still a design conversation the user wants to have first. Do not spec it
 unilaterally.** Item 2 has had that conversation — build to the plan, do not re-litigate it.
 
-### What Phase 0 is for
+### What Phase 0 found
 
-Two throwaway probe scripts, both first, both producing a committed document.
+Both probes are written and both output documents are committed. **Read the documents, not
+this summary, before using a model or a variable** — `.claude/docs/model-matrix.md` and
+`.claude/docs/telegram-render.md`. Regenerate the matrix (`npm run probe:models
+--workspace=apps/api`) rather than editing it; upstream coverage changes.
 
-- **Probe A — Open-Meteo.** Which models and variables actually return data, per point.
-  This exists because `fetchNBM` requested `precipitation_p10/p50/p90`, daily variables
-  Open-Meteo **does not define under any name**, so the branch never once returned data and
-  warned on every request for months. Output: `.claude/docs/model-matrix.md`.
-- **Probe B — Telegram rendering.** Bot API 10.1–10.3 added native tables
-  (`RichBlockTable`), expandable blockquotes and `DisabledButton` — a real upgrade over
-  monospace `<pre>`. There is a **second-hand, unverified** report that Telegram Web renders
-  an unsupported-message card instead of degrading; the only source is an unrelated
-  LLM-agent project's issue tracker, so treat it as a risk to rule out, **not** as fact.
-  Send one of each to the real account and look on phone, desktop and web. Output:
-  `.claude/docs/telegram-render.md`.
+The four measurements that constrain every later phase:
 
-`<pre>` monospace ships first either way. Every model, variable and rendering constant in
-later phases must trace to a line in one of those two documents.
+- **`precipitation_probability` is not the selected model's field.** Under
+  `ncep_hrrr_conus` it runs 276h against a 54h model and is byte-identical to NBM's series.
+  Never print it in a column headed with the selected model.
+- **NBM returns 384 nulls for both pressure variables**, so pressure tendency cannot come
+  from it — and an unchecked null there renders as a plausible `0 mb`.
+- **No model run time is exposed.** Headers say *fetched 14:05Z*, never *12Z run*.
+- **Out-of-coverage is a 400, not nulls** — that is what the disabled model button derives
+  from. Ensemble confirmed at 143 members (ECMWF 51, ICON 40, GFS 31, GEM 21).
+
+**Probe B is half done, and the outstanding half is the user's.** §1 of
+`telegram-render.md` verifies the Bot API surface against Telegram's own reference — rich
+tables, expandable blockquotes, `DisabledButton` and `rich_message` on `editMessageText`
+all exist, so the panel-edited-in-place design is not blocked. §2 — what the clients
+actually *draw* — is empty and stays empty until someone runs
+`npm run probe:telegram-render --workspace=apps/api` with the bot token and looks at a
+phone, a desktop client and web. **`<pre>` monospace ships either way**, so Phase 1 is not
+blocked on it; only the rich-table upgrade is.
 
 ### Deliberately deferred, not forgotten
 
@@ -198,7 +208,18 @@ Only things that are still true and still bite. Historical gotchas are in the ar
 
 ## What the user owes
 
-**One thing, outstanding since 2026-08-26.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's
+**New, 2026-08-31 — Probe B §2.** Run, from a shell holding the bot token:
+
+```powershell
+$env:TELEGRAM_BOT_TOKEN = "<from BotFather>"; $env:TELEGRAM_CHAT_ID = "<owner user id>"
+npm run probe:telegram-render --workspace=apps/api
+```
+
+Then look at the chat on a phone, a desktop client and web.telegram.org, and fill the
+Observations table in `.claude/docs/telegram-render.md`. It decides whether rich tables
+ever ship; nothing else is waiting on it, because `<pre>` ships regardless.
+
+**Outstanding since 2026-08-26.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's
 Vercel project to a long random string, then re-run Telegram's `setWebhook` with
 `secret_token` set to the same value. Until then the webhook's secret check is skipped and
 the forgeable `chat.id` is the only gate.
