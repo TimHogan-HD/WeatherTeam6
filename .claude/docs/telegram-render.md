@@ -7,12 +7,13 @@ Two halves, and they are not equally settled:
 
 - **§1 The API surface** is verified against Telegram's own reference and changelog
   (read 2026-08-31). It is finished.
-- **§2 Observations** is the half only a human with three clients can fill in. It is
-  **empty** until `npm run probe:telegram-render --workspace=apps/api` has been run
-  and the chat looked at on a phone, a desktop client and web.telegram.org.
+- **§2 Observations** is the half only a human with the clients in front of them can
+  fill in. Run 1 (2026-08-31) covered **phone and desktop**; **web is still unobserved**,
+  and web is the client the unverified claim is about.
 
-Until §2 is filled, **`<pre>` monospace is what ships**, which is what the plan says
-anyway. The rich upgrade is gated on the observations, not on the API existing.
+**`<pre>` monospace still ships first.** Rich tables cleared both clients tested,
+including surviving an in-place edit, but promoting them to primary needs web — one
+tab, four specimens. The rich upgrade is gated on that, not on the API existing.
 
 ---
 
@@ -71,32 +72,51 @@ It sends nine specimens, prints which ones the API accepted, and prints what to 
 for in each. **An API rejection is a finding** — record the status and Telegram's own
 `description` verbatim; the script prints them.
 
-Then open the chat on all three clients and fill this in. `—` means "not looked at
-yet", which is not the same as "fine".
+**Run 1 — 2026-08-31. All ten specimens accepted by the API; nothing was rejected.**
+Phone and desktop observed. **Web has not been looked at**, and it is the client the
+unverified claim is about, so the primary-rendering decision is not made yet.
 
 | # | Specimen | Phone | Desktop | Web |
 | --- | --- | --- | --- | --- |
-| 1 | `<pre>` monospace table (the fallback) | — | — | — |
-| 2 | `RichBlockTable`, bordered + striped + compact | — | — | — |
-| 3 | `RichBlockTable`, no styling flags | — | — | — |
-| 4 | Expandable blockquote | — | — | — |
-| 5 | Inline keyboard with a `DisabledButton` | — | — | — |
-| 6 | Rich table, before edit | — | — | — |
-| 7 | The same message after `editMessageText` | — | — | — |
-| 8a | `&` and `<>` unescaped in a rich block | — | — | — |
-| 8b | The same characters through the `<pre>` path | — | — | — |
-| 9 | Nine-column table (worst-case width) | — | — | — |
+| 1 | `<pre>` monospace table (the fallback) | Code block, columns aligned, `COPY CODE` affordance | Code block, columns aligned, copy header | — |
+| 2 | `RichBlockTable`, bordered + striped + compact | **Real table.** Grid lines, caption centred above it, fits the width | **Real table**, same | — |
+| 3 | `RichBlockTable`, no styling flags | Table, no grid lines, roomier rows — the flags do something | Same | — |
+| 4 | Expandable blockquote | Collapsed by default, chevron to expand, text fades at the cut | Collapsed, chevron, `credit` shown as a link-coloured line | — |
+| 5 | Inline keyboard with a `DisabledButton` | **Identical to the enabled buttons.** No greying, no visual difference at all | **Identical.** Same | — |
+| 6 | Rich table, before edit | Table | Table | — |
+| 7 | The same message after `editMessageText` | **Still a table.** Same message id, values changed, layout intact | **Still a table** | — |
+| 8a | `&` and `<>` unescaped in a rich block | `Bear & Cub <north face>` intact in the paragraph, `Bear & Cub` intact in the cell | Intact | — |
+| 8b | The same characters through the `<pre>` path | Correct inside the code block | Correct | — |
+| 9 | Nine-column table (worst-case width) | **Fits.** `HH temp dew RH wind gust dir cld pop` on one row, no wrap, no scroll | Fits | — |
 
-Also record, because later phases need the numbers rather than an impression:
+Builds were not recorded. Rich Messages are weeks old, so a future contradiction is more
+likely to be a version difference than a mistake here — record the build next run.
 
-- **Client versions and platforms** actually looked at — a rendering answer is only
-  about the builds tested, and Rich Messages are weeks old.
-- **The widest table that stays readable on the phone**, in columns. This is the
-  constant Phase 3's column sets are chosen against.
-- **Whether a wide table scrolls, shrinks or wraps** on the phone. Wrapping is a
-  failure: a reflowed table is not a table.
-- **Whether the `<pre>` fallback's columns stay aligned** on each client — the whole
-  fallback depends on a monospace font actually being monospace.
+### What run 1 settled
+
+- **Rich tables render, and they survive an in-place edit.** Specimen 7 is the same
+  message id as 6, re-rendered as a table with new values on both clients. The
+  second-hand claim that editing destroys rich formatting is **false** for phone and
+  desktop. It says nothing about web yet.
+- **`DisabledButton` is accepted by the API and invisible in the UI.** HRRR looks exactly
+  like GFS and ECMWF on both clients. It therefore **cannot carry "HRRR exists and does
+  not reach here"** — the reason the plan chose it over omitting the button. Phase 1 must
+  say it in text instead; see the decision rules below. Whether the button is *inert* when
+  tapped is untested and does not change this: a control that looks tappable and does
+  nothing is worse than a labelled row, not better.
+- **Rich blocks need no HTML escaping.** `&` and `<>` passed through unaltered — blocks
+  are structured JSON, not markup. **The `<pre>` path still needs `escapeTelegramHtml`.**
+  Two paths, two rules, and mixing them up is a 400 the webhook swallows.
+- **Width is not the constraint it was assumed to be.** Nine columns fit on the phone
+  with no wrapping and no horizontal scroll. Phase 3's column sets are not forced down to
+  five by the device.
+- **The `<pre>` fallback renders correctly on both clients**, columns aligned, so nothing
+  about shipping it first is in doubt.
+
+### Still outstanding
+
+- **Web.** One tab at web.telegram.org, specimens 2, 3, 7 and 9. It decides whether rich
+  tables become the primary rendering or stay a phone/desktop-only upgrade.
 
 ### What each outcome means for the build
 
@@ -105,7 +125,7 @@ Also record, because later phases need the numbers rather than an impression:
 | Specimens 2, 3, 6 **and** 7 render as tables on all three clients | The claims are wrong. Rich tables become the primary rendering; delete the warning box from the plan and record the client versions here. |
 | 2 and 3 render but 7 degrades after the edit | Rich tables are usable only for messages that are never edited. The panel is edited in place, so the panel stays `<pre>` — a split worth stating rather than discovering later. |
 | Web shows an unsupported card | `<pre>` for everything. A panel that is unreadable on one of the owner's own clients is not a panel. |
-| Specimen 5's button is not visibly disabled | Fall back to a labelled non-button row naming the model and why it is unavailable — **never** to omitting it (defect class 3). |
+| Specimen 5's button is not visibly disabled | Fall back to a labelled non-button row naming the model and why it is unavailable — **never** to omitting it (defect class 3). **Run 1 hit this**: HRRR was indistinguishable from GFS on both clients, so Phase 1 builds the labelled row and does not use `disabled`. |
 | Specimen 8a is rejected | Rich blocks need the same escaping as HTML. Escape literal strings too: `/start` has been dead since it was written over exactly this. |
 
 Nothing in §2 may be summarised as "works" from an API acceptance. The script reports

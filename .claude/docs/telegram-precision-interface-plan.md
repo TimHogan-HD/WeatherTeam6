@@ -34,12 +34,16 @@ survives** — this one is verified against Telegram's own changelog, which adds
 
 **But client support is unverified, and it is the reason Probe B exists.**
 
-> **These two claims are UNVERIFIED. Do not repeat them as fact anywhere.**
+> **Status after Probe B run 1 (2026-08-31): claim 2 is disproven, claim 1 is half open.**
 >
 > 1. Telegram **Web** renders an *unsupported message* card for rich messages, and some
->    Desktop builds error rather than degrade.
+>    Desktop builds error rather than degrade. — **Desktop is disproven**: it renders a
+>    real table. **Web is still unobserved**, so the claim stands for web alone.
 > 2. The widely-reported "editing destroys rich formatting" behaviour is a **client-library**
->    bug rather than an API limitation.
+>    bug rather than an API limitation. — **Disproven on phone and desktop.** The same
+>    message id, edited via `editMessageText` with `rich_message`, came back a table.
+>
+> The original wording of this box is kept below because it is why the probe exists.
 >
 > **The only sources found for either are the issue tracker of `NousResearch/hermes-agent`,
 > an LLM-agent project — not Telegram, not a Telegram client, not a Bot API library.** They
@@ -55,9 +59,11 @@ Because claim 1 might be true, `<pre>` monospace ships first and rich tables sta
 upgrade gated on **Probe B testing the real clients**. If Probe B shows rich messages render
 cleanly everywhere, that is the evidence, and this box gets deleted.
 
-**`DisabledButton` improves a decision we had already made.** A model with no coverage at a
-point was going to be *omitted*; greying it out instead says "HRRR exists and does not reach
-here", which is the *name what is absent* rule done properly rather than approximately.
+~~**`DisabledButton` improves a decision we had already made.**~~ *(Withdrawn 2026-08-31 by
+Probe B run 1: the API accepts `disabled`, and phone and desktop both draw the button
+exactly like an enabled one. It cannot say "HRRR exists and does not reach here", so the
+model that is absent gets a labelled non-button row instead. Omitting it remains
+forbidden.)*
 
 **The NWS Area Forecast Discussion is free, keyless, and the key for it is already stored.**
 `api.weather.gov/products/types/AFD/locations/{office}` returns the local forecaster's own
@@ -111,9 +117,26 @@ one request per model to learn.
 **The Rich Messages API is real and does support editing.** `sendRichMessage`,
 `InputRichBlockTable` with `is_bordered` / `is_striped` / `is_compact`,
 `expandable_blockquote`, `InlineKeyboardButton.disabled`, and `rich_message` on
-`editMessageText` are all verified against Telegram's own reference. **What no
-documentation can answer is what the clients draw** — that is Probe B §2, still
-outstanding.
+`editMessageText` are all verified against Telegram's own reference, and all ten
+specimens were accepted by the live API on the real bot.
+
+**Rich tables render, and they survive an in-place edit — on phone and desktop.**
+Specimen 7 re-rendered the *same message id* as a table with new values. Claim 2 above
+is false on both clients tested. **Web has not been looked at**, so `<pre>` still ships
+first and the box stays until it has been.
+
+**`DisabledButton` does not work as the plan assumed.** The API accepts it; both clients
+draw it identically to an enabled button. It cannot say "HRRR exists and does not reach
+here", so Phase 1 states that in a **labelled non-button row** instead — omitting the
+model is still forbidden.
+
+**Rich blocks need no HTML escaping** — `&` and `<>` passed through intact, because
+blocks are structured JSON rather than markup. The `<pre>` path still needs
+`escapeTelegramHtml`. Two paths, two rules.
+
+**Width is not the constraint it was assumed to be.** Nine columns fit on the phone with
+no wrapping and no horizontal scroll, so Phase 3's column sets are not forced down to
+five by the device.
 
 ---
 
@@ -153,8 +176,8 @@ Cached 14m ago
 | Interaction | One panel message, edited in place |
 | Models | Deterministic per-model tables **and** the 143-member ensemble for spread |
 | Model set | GFS, ECMWF, ICON, GEM globally; HRRR and NBM where CONUS coverage exists |
-| Model buttons | **Derived from coverage.** No data → `DisabledButton`, never omitted |
-| Rendering | `<pre>` monospace first. `RichBlockTable` only if Phase 0 proves it renders everywhere |
+| Model buttons | **Derived from coverage.** No data → a labelled non-button row saying the model does not reach the point, never omitted. **Not** `DisabledButton`: Probe B run 1 showed both clients draw it identically to an enabled button |
+| Rendering | `<pre>` monospace first. `RichBlockTable` cleared phone and desktop in Probe B run 1, edit-in-place included; promoting it to primary waits on web |
 | Panel controls | Simple mode default (day, model, refresh); Advanced adds interval, columns, units |
 | Data surfaces | Pure meteorology — no conditions score, no state label, no drying |
 | `/insight` | Computed statistics only. **No generated prose** (spec §9) |

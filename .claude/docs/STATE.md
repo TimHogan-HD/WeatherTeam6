@@ -83,14 +83,21 @@ The four measurements that constrain every later phase:
 - **Out-of-coverage is a 400, not nulls** — that is what the disabled model button derives
   from. Ensemble confirmed at 143 members (ECMWF 51, ICON 40, GFS 31, GEM 21).
 
-**Probe B is half done, and the outstanding half is the user's.** §1 of
-`telegram-render.md` verifies the Bot API surface against Telegram's own reference — rich
-tables, expandable blockquotes, `DisabledButton` and `rich_message` on `editMessageText`
-all exist, so the panel-edited-in-place design is not blocked. §2 — what the clients
-actually *draw* — is empty and stays empty until someone runs
-`npm run probe:telegram-render --workspace=apps/api` with the bot token and looks at a
-phone, a desktop client and web. **`<pre>` monospace ships either way**, so Phase 1 is not
-blocked on it; only the rich-table upgrade is.
+**Probe B ran on 2026-08-31. All ten specimens accepted; phone and desktop observed; web
+still unobserved.** What it settled, in `.claude/docs/telegram-render.md` §2:
+
+- **Rich tables render and survive an in-place edit** on phone and desktop — the same
+  message id, edited with `rich_message`, came back a table. The "editing destroys rich
+  formatting" claim is false on both.
+- **`DisabledButton` is invisible.** The API accepts it and both clients draw it exactly
+  like an enabled button, so an unavailable model gets a **labelled non-button row**, not
+  a greyed button. Omitting it is still forbidden.
+- **Rich blocks need no HTML escaping**; the `<pre>` path still does. Two paths, two rules.
+- **Nine columns fit on the phone** with no wrap and no scroll — width is not the
+  constraint the plan assumed.
+
+**`<pre>` monospace still ships first.** Promoting rich tables to primary needs web —
+one tab at web.telegram.org, specimens 2, 3, 7 and 9. Phase 1 is not blocked on it.
 
 ### Deliberately deferred, not forgotten
 
@@ -208,16 +215,12 @@ Only things that are still true and still bite. Historical gotchas are in the ar
 
 ## What the user owes
 
-**New, 2026-08-31 — Probe B §2.** Run, from a shell holding the bot token:
-
-```powershell
-$env:TELEGRAM_BOT_TOKEN = "<from BotFather>"; $env:TELEGRAM_CHAT_ID = "<owner user id>"
-npm run probe:telegram-render --workspace=apps/api
-```
-
-Then look at the chat on a phone, a desktop client and web.telegram.org, and fill the
-Observations table in `.claude/docs/telegram-render.md`. It decides whether rich tables
-ever ship; nothing else is waiting on it, because `<pre>` ships regardless.
+**Small, 2026-08-31 — the web half of Probe B.** The specimens are already sitting in the
+chat with the bot; open web.telegram.org and look at messages 70, 71, 74 and 77
+(specimens 2, 3, 7, 9). Real tables, or an "unsupported message" card? That is the only
+thing standing between rich tables and being promoted from opt-in to primary. Re-send
+them with `npm run probe:telegram-render --workspace=apps/api` if the chat has been
+cleared. Nothing is blocked on it — `<pre>` ships regardless.
 
 **Outstanding since 2026-08-26.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's
 Vercel project to a long random string, then re-run Telegram's `setWebhook` with
