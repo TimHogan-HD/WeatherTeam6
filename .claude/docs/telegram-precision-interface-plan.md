@@ -3,10 +3,10 @@
 ## Context
 
 The bot is the only surface reachable without opening the Mini App, and today it is barely an
-interface: [`telegramWebhook.ts`](apps/api/src/routes/telegramWebhook.ts) handles `/start` and
+interface: [`telegramWebhook.ts`](../../apps/api/src/routes/telegramWebhook.ts) handles `/start` and
 `/conditions <name>`, both requiring a typed location name, and **cannot receive a button tap
 at all** — it reads `update.message` only, and
-[`sendMessage.ts:11-16`](apps/api/src/lib/telegram/sendMessage.ts#L11-L16) narrows
+[`sendMessage.ts:11-16`](../../apps/api/src/lib/telegram/sendMessage.ts#L11-L16) narrows
 `InlineKeyboardMarkup` to url buttons on purpose.
 
 The product decision driving this work: **the Mini App is the snapshot, the bot is the
@@ -26,15 +26,32 @@ Findings that altered the design, with the evidence behind them.
 (10.1, June 2026) introduce `RichBlockTable` — a real styled table with per-cell styling,
 `is_bordered` / `is_striped` / `is_compact` and a caption, rendered natively on mobile,
 desktop and web. 10.3 (24 Aug 2026) added `RichBlockExpandableBlockQuotation` for collapsible
-sections, `DisabledButton`, and `can_stop` / `keep_on_stop` on `sendMessageDraft`. Editing
-survives: the changelog adds *"the parameter `rich_message` to the method `editMessageText`,
-allowing bots to edit rich messages"* — the widely-reported "editing destroys rich formatting"
-problem is a client-library bug, not an API limitation.
+sections, `DisabledButton`, and `can_stop` / `keep_on_stop` on `sendMessageDraft`. **Editing
+survives** — this one is verified against Telegram's own changelog, which adds *"the parameter
+`rich_message` to the method `editMessageText`, allowing bots to edit rich messages"*.
 
-**But client support is not settled.** Telegram Web renders an *unsupported message* card for
-rich messages, some Desktop builds error rather than degrade, and rich body text is reported
-rendering oversized against normal bot messages. So `<pre>` monospace ships first and rich
-tables are an opt-in upgrade, gated on Phase 0 verifying them on the clients actually used.
+**But client support is unverified, and it is the reason Probe B exists.**
+
+> **These two claims are UNVERIFIED. Do not repeat them as fact anywhere.**
+>
+> 1. Telegram **Web** renders an *unsupported message* card for rich messages, and some
+>    Desktop builds error rather than degrade.
+> 2. The widely-reported "editing destroys rich formatting" behaviour is a **client-library**
+>    bug rather than an API limitation.
+>
+> **The only sources found for either are the issue tracker of `NousResearch/hermes-agent`,
+> an LLM-agent project — not Telegram, not a Telegram client, not a Bot API library.** They
+> are second-hand reports about someone else's integration. They may be wrong, out of date,
+> or specific to that codebase. Nothing in Telegram's own documentation was found that
+> confirms or denies either.
+>
+> Claim 1 is exactly the kind of "attribution not backed by the data" this repo keeps
+> shipping (defect class 3). It is recorded because it is a plausible risk worth spending
+> half a day to rule out — **not** because it is established.
+
+Because claim 1 might be true, `<pre>` monospace ships first and rich tables stay an opt-in
+upgrade gated on **Probe B testing the real clients**. If Probe B shows rich messages render
+cleanly everywhere, that is the evidence, and this box gets deleted.
 
 **`DisabledButton` improves a decision we had already made.** A model with no coverage at a
 point was going to be *omitted*; greying it out instead says "HRRR exists and does not reach
@@ -65,7 +82,7 @@ uses and the reason its interface is cited as good.
 One panel message, edited in place. Simple mode by default; Advanced reveals the rest.
 
 ```
-Red Rock · HRRR · hourly
+Red Rock · HRRR · 3-hourly
 Thu 28 Aug · fetched 14:05Z
 
  HH  temp  dew   wind    cld
@@ -75,9 +92,10 @@ Thu 28 Aug · fetched 14:05Z
  21   86F  35F   S 8g14  85%
 
 Pressure 1014mb, falling 3.2mb/3h
-Rain, 143 members, next 48h
+
+Rain odds · 143 members
+3h steps · Thu 00 → Sat 00
  ▁▁▁▂▃▅▇█▇▅▃▂▁▁▁▁
- 00  06  12  18  00
 
 Cached 14m ago
 
@@ -162,7 +180,7 @@ and every model, variable and rendering constant traces to a line in them.
 - **`callbackData.ts`** (new, pure) — `<verb>:<stateId>:<field>=<value>`, ~20 bytes, well inside
   the 64-byte ceiling. `encodeAction` returns `null` when it cannot produce a valid value and
   row builders drop the button — the *omit, never approximate* rule
-  [`alertKeyboard`](apps/api/src/lib/telegram/deepLink.ts) already follows.
+  [`alertKeyboard`](../../apps/api/src/lib/telegram/deepLink.ts) already follows.
 - **`commands.ts`** (new, pure) — bounded parsing
   (`/^\/([A-Za-z0-9_]{1,32})(?:@[\w]{1,32})?(?:\s+(.*))?$/`), accepting the `@botname` suffix.
   The shipped `startsWith('/conditions')` matches `/conditionsfoo` and would permanently shadow
@@ -183,7 +201,7 @@ Ships `/locations`, `/conditions`, `/alerts` on the new machinery. No new data y
   alongside today's `DailyForecast[]`, which scoring keeps consuming unchanged.
 - **Per-model ensemble output** — `parseEnsemble` already builds `byVariable()` grouped per
   model and then flattens it
-  ([openMeteo.ts:270-281](apps/api/src/lib/weather/openMeteo.ts#L270-L281)). Stop flattening.
+  ([openMeteo.ts:270-281](../../apps/api/src/lib/weather/openMeteo.ts#L270-L281)). Stop flattening.
 - **New variables** per Probe A: wind direction, gusts, cloud cover, precipitation probability,
   surface pressure. Tendency is computed, not fetched.
 - **Persistence** (§Schema), **`/api/cron/collect-runs`** gated on `CRON_SECRET` with
@@ -211,12 +229,12 @@ confidence by lead time. Expandable blockquotes if Probe B cleared them; otherwi
 
 ### Phase 5 — `/weather` anywhere, and save/remove
 
-Geocoded lookup via [`searchPlaces`](apps/api/src/lib/weather/geocode.ts) and
-[`computePreviewForecast`](apps/api/src/lib/scoring/previewForecast.ts). Two explicit save
+Geocoded lookup via [`searchPlaces`](../../apps/api/src/lib/weather/geocode.ts) and
+[`computePreviewForecast`](../../apps/api/src/lib/scoring/previewForecast.ts). Two explicit save
 buttons — climbing area vs weather place, because §12 requires the flag be stated, never
 inferred — reusing `parseGeneralLocationInput` from
-[`locations.ts`](apps/api/src/routes/locations.ts). `/remove` behind a confirm over
-[`deleteLocationCascade`](apps/api/src/lib/locations/deleteLocation.ts).
+[`locations.ts`](../../apps/api/src/routes/locations.ts). `/remove` behind a confirm over
+[`deleteLocationCascade`](../../apps/api/src/lib/locations/deleteLocation.ts).
 
 ---
 
@@ -238,10 +256,35 @@ per run; the 48h raw JSON is the re-derivation path.
 **`panel_states`** — 8-char id PK, `user_id`, point fields, `view`, `model`, `interval`,
 `day_offset`, `columns`, `units`, `mode` (simple/advanced), timestamps. Pruned after ~7 days.
 
-Every new table with a `location_id` FK **must be added to `DEPENDENT_TABLES`** in
-[`deleteLocation.ts`](apps/api/src/lib/locations/deleteLocation.ts), or deleting a location
-becomes a foreign-key violation surfacing as a generic 500, discovered only once real data
-exists.
+### Deleting a location now needs an ordered cascade, not a list entry
+
+**The existing flat rule is not sufficient here, and following it literally reproduces the
+exact bug it exists to prevent, one level down.**
+
+`DEPENDENT_TABLES` in [`deleteLocation.ts`](../../apps/api/src/lib/locations/deleteLocation.ts)
+is a flat list, and the loop is `tx.delete(table).where(eq(table.location_id, locationId))`.
+Two consequences:
+
+- Only **`weather_runs`** has a `location_id`. `weather_run_hours` and
+  `weather_ensemble_hours` key off `run_id`, so they are not reachable by that rule at all —
+  and because the loop dereferences `table.location_id` directly, they **cannot be added to
+  the list**; it would not compile.
+- Adding `weather_runs` to `DEPENDENT_TABLES` and stopping there deletes the parent while its
+  children still reference it — a foreign-key violation surfacing as a generic 500, which is
+  precisely what the rule was written to avoid.
+
+So `deleteLocationCascade` needs a **bespoke step, ordered before** the `DEPENDENT_TABLES`
+loop: delete from `weather_ensemble_hours` and `weather_run_hours` where `run_id` is in
+`(select id from weather_runs where location_id = $1)`, and only then let the loop remove
+`weather_runs`. All of it inside the existing transaction.
+
+**`/api/cron/prune-runs` has the identical ordering constraint** — children before parents, or
+the prune fails on the first row with retained hours. Retention is expressed in terms of
+`weather_runs.fetched_at`, so the child deletes must be driven by a subquery over the parent
+rows being pruned, not by their own timestamps.
+
+This is the one part of the schema that `npm run test` cannot see at all — vitest never opens a
+connection. It needs a `check:*` script exercising delete and prune against real Postgres.
 
 ---
 
@@ -322,9 +365,13 @@ comes inside the window. Widening that is a retention change, not a design chang
 Telegram: [Bot API changelog](https://core.telegram.org/bots/api-changelog),
 [Bot API reference](https://core.telegram.org/bots/api),
 [Bot features](https://core.telegram.org/bots/features),
+**Second-hand and unverified** — all three are issues on `NousResearch/hermes-agent`, an
+LLM-agent project, describing *its own* Telegram integration. They are not Telegram sources
+and nothing here should be treated as established until Probe B:
 [rich-message edit bug](https://github.com/NousResearch/hermes-agent/issues/46009),
-[Telegram Web cannot render rich messages](https://github.com/NousResearch/hermes-agent/issues/45785),
-[oversized rich body text](https://github.com/NousResearch/hermes-agent/issues/45762),
+[claim: Telegram Web cannot render rich messages](https://github.com/NousResearch/hermes-agent/issues/45785),
+[claim: oversized rich body text](https://github.com/NousResearch/hermes-agent/issues/45762).
+Verified Telegram sources:
 [10 Best UX Practices for Telegram Bots](https://medium.com/@bsideeffect/10-best-ux-practices-for-telegram-bots-79ffed24b6de),
 [inline keyboard guide](https://botnamefinder.com/blog/telegram-inline-keyboard-builder-guide).
 

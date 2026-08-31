@@ -2077,74 +2077,31 @@ secret check is skipped and the forgeable `chat.id` is the only gate.
 
 ---
 
-## 2026-08-31 — The Telegram precision interface, designed
+## 2026-08-31 — branch: docs/telegram-precision-interface-plan — commit: PENDING
 
-**No code was written.** The whole session was a design conversation plus research, and the
-output is `.claude/docs/telegram-precision-interface-plan.md`.
+**Phase completed:** None. Design only — Phase 0 of the Telegram precision interface is specified but not started.
 
-**What changed about the product.** The direction recorded on 2026-08-26 — "ask in plain
-language, plus slash commands" — was sharpened considerably by the user: **the Mini App is the
-snapshot, the bot is the instrument.** The reference point is SpotWX, not a weather app. Deep
-interactive UI for dense meteorological data is explicitly *not* being built in the Mini App
-because it is expensive there and a chat surface carries it better. The user's framing: *"This
-isn't some random glance low info weather app. This is an advanced look to create precision
-knowledge."*
+**What was built this session:**
+- `.claude/docs/telegram-precision-interface-plan.md` — the approved spec for the Telegram precision interface, settled over five rounds of questions plus web research. No code.
+- `.claude/docs/STATE.md` — direction item 2 rewritten from a one-line description to a pointer at the plan, plus a § What Phase 0 is for section
+- `.claude/docs/plan.md` — banner marking it as the original 13-phase build plan and pointing at the new doc for current direction
+- `CLAUDE.md` — one line added to the MANDATORY reading rules for Telegram/chat work
 
-**The false start worth recording.** The session opened by building — a branch and a rewritten
-`sendMessage.ts` — off a one-line direction message. The user stopped it: *"woah woah I didn't
-say build anything."* The branch was deleted and the file restored. A direction message naming
-a feature area is not a build order, and the plan that came out of five rounds of questions is
-nothing like what that first hour was producing.
+**Known issues / deferred work:**
+- **Two rendering claims in the plan are unverified.** That Telegram Web shows an unsupported-message card for rich messages, and that the "editing destroys rich formatting" report is a client-library bug rather than an API limit, both rest on third-party issue trackers (an LLM-agent project), not on Telegram's own sources. Probe B exists to settle them. The independent PR reviewer caught this and the plan now labels both as unverified.
+- Retention is 14 days parsed / 48h raw, so a trip four weeks out has no trend history until it comes inside the window. Accepted, not a defect.
+- The conditions score algorithm (open half of #21) stays deferred and must not ride along inside this work.
 
-**Five rounds of questions settled ~24 decisions.** The ones that will be re-litigated if they
-are not written down:
+**Blockers for next session:**
+- None for Phase 0. Probe B sends real messages through the bot, so `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` must be set in the shell for that script.
 
-- **Both** deterministic per-model tables **and** the 143-member ensemble — not one or the other.
-- **`<pre>` monospace tables**, user-selectable column sets, one local day per message.
-- **`/insight` computes statistics and emits no prose.** Spec §9 forbids generated commentary
-  and it stays forbidden; the four computations are model disagreement, ensemble distribution,
-  run-to-run trend, and confidence by lead time.
-- **Data surfaces carry no conditions score.** `/forecast`, `/rain`, `/insight`, `/afd` are
-  meteorology; the score stays on `/conditions`.
-- **Runs are persisted** — raw JSON plus parsed rows, 14 days parsed / 48h raw. This is what
-  makes run-to-run trend possible at all, and it is why a cron writer exists.
-- **Panel state lives in a DB row behind an 8-character id.** Six dimensions of state do not
-  fit in 64 bytes of `callback_data`, and ad-hoc geocoded points do not fit at all.
-
-**What the research changed.** Four things, all sourced in the plan:
-
-- **The Bot API is four major versions ahead of this repo's assumptions.** 10.1 (June 2026)
-  added `RichBlockTable` — real native tables. 10.3 (24 Aug 2026) added expandable
-  blockquotes, `DisabledButton`, and streaming controls. `editMessageText` gained a
-  `rich_message` parameter, so edit-in-place survives; the widely-reported "editing destroys
-  rich formatting" is a client-library bug, not an API limit.
-- **But Telegram Web renders an unsupported-message card** for rich messages and some Desktop
-  builds error rather than degrade. Hence Probe B, and hence `<pre>` shipping first.
-- **`DisabledButton` beat a decision already made.** A model with no coverage was going to be
-  omitted; greying it out says "HRRR exists and does not reach here", which is the *name what
-  is absent* rule done properly.
-- **The NWS Area Forecast Discussion is free, keyless, and `locations.nws_office` already
-  stores the key for it.** It is the local forecaster writing down where they think the models
-  are wrong — the one thing raw model output cannot produce. Added as `/afd`.
-
-Also added: **pressure tendency** (a 3 mb fall in 3 h leads weather by 12–24 h), and Unicode
-block sparklines to encode model agreement as density, which is meteoblue's trick and needs no
-API support at all. **Freezing level and per-level cloud were considered and dropped.**
-
-**Phase 0 is two probe scripts and nothing else may start before both land.** Probe A asks
-Open-Meteo what actually returns data; it exists because `fetchNBM` requested daily variables
-Open-Meteo does not define under any name and warned on every request for months. Probe B asks
-the user's own Telegram clients what actually renders.
+**What's next:** Phase 0 — `git checkout -b phase/0-probes` off `main` — read `.claude/docs/telegram-precision-interface-plan.md` §Phase 0 before writing any code. Two throwaway probe scripts producing `.claude/docs/model-matrix.md` and `.claude/docs/telegram-render.md`. Nothing else in the plan may start before both land.
 
 **Gotchas for next session:**
-- **A plan file written in plan mode lives outside the repo** at
-  `~/.claude/plans/<generated-name>.md` and a fresh session will never find it. Copy it into
-  `.claude/docs/` and point STATE.md at it before the session ends, or the work is lost.
-- **Two file cards with the same filename are indistinguishable in the transcript.** The user
-  read v1 and reported the plan had not changed; it had. Re-sending with a distinguishing
-  caption resolved it.
+- **A plan file written in plan mode lives outside the repo** at `~/.claude/plans/<generated-name>.md`, and a fresh session will never find it. Copy it into `.claude/docs/` and point STATE.md at it before the session ends, or the work is lost.
+- **Relative links in `.claude/docs/*.md` need `../../` to reach repo-root paths.** GitHub resolves them against the containing directory, so `apps/api/...` 404s from a file in `.claude/docs/`. The reviewer caught nine of these.
+- **`DEPENDENT_TABLES` cannot hold a table without a `location_id` column.** The loop in `deleteLocationCascade` does `eq(table.location_id, locationId)` directly. The planned `weather_run_hours` / `weather_ensemble_hours` key off `run_id`, so they need a bespoke delete ordered *before* `weather_runs` — the plan now spells this out. Following the flat rule literally would produce the FK violation the rule exists to prevent, one level down.
+- **A direction message naming a feature area is not a build order.** This session opened by building off one, was stopped, and the plan that emerged from five rounds of questions is nothing like what that first hour produced.
+- **Two file cards with the same filename are indistinguishable in a transcript.** The user read v1 and reported the plan had not changed; it had.
 
-**Does the user need to do anything?** **Yes — one thing, unchanged since 2026-08-26.** Set
-`TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project to a long random string, then re-run
-Telegram's `setWebhook` with `secret_token` set to the same value. Probe B will send test
-messages through that same bot, so it is worth doing before Phase 0 rather than after.
+**Does the user need to do anything?** **Yes — one thing, unchanged since 2026-08-26.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project to a long random string, then re-run Telegram's `setWebhook` with `secret_token` set to the same value. Until then the webhook's secret check is skipped and the forgeable `chat.id` is the only gate. Probe B sends test messages through that same bot, so it is worth doing before Phase 0 rather than after.

@@ -72,10 +72,12 @@ Two throwaway probe scripts, both first, both producing a committed document.
   Open-Meteo **does not define under any name**, so the branch never once returned data and
   warned on every request for months. Output: `.claude/docs/model-matrix.md`.
 - **Probe B — Telegram rendering.** Bot API 10.1–10.3 added native tables
-  (`RichBlockTable`), expandable blockquotes and `DisabledButton`. They would be a real
-  upgrade over monospace `<pre>`, **but Telegram Web is reported to render an
-  unsupported-message card** rather than degrading. Send one of each to the real account and
-  look at it on phone, desktop and web. Output: `.claude/docs/telegram-render.md`.
+  (`RichBlockTable`), expandable blockquotes and `DisabledButton` — a real upgrade over
+  monospace `<pre>`. There is a **second-hand, unverified** report that Telegram Web renders
+  an unsupported-message card instead of degrading; the only source is an unrelated
+  LLM-agent project's issue tracker, so treat it as a risk to rule out, **not** as fact.
+  Send one of each to the real account and look on phone, desktop and web. Output:
+  `.claude/docs/telegram-render.md`.
 
 `<pre>` monospace ships first either way. Every model, variable and rendering constant in
 later phases must trace to a line in one of those two documents.
