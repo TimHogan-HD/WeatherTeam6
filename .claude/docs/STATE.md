@@ -215,12 +215,12 @@ Only things that are still true and still bite. Historical gotchas are in the ar
 
 ## What the user owes
 
-**Small, 2026-08-31 — the web half of Probe B.** The specimens are already sitting in the
-chat with the bot; open web.telegram.org and look at messages 70, 71, 74 and 77
-(specimens 2, 3, 7, 9). Real tables, or an "unsupported message" card? That is the only
-thing standing between rich tables and being promoted from opt-in to primary. Re-send
-them with `npm run probe:telegram-render --workspace=apps/api` if the chat has been
-cleared. Nothing is blocked on it — `<pre>` ships regardless.
+**The web half of Probe B was declined by the user on 2026-08-31. Do not ask again.**
+The consequence is already the plan's default: `<pre>` monospace is the rendering, and
+rich tables are **not adopted** — they cleared phone and desktop but no one has looked at
+web, so promoting them would be a claim about a client nobody tested. If that changes,
+`npm run probe:telegram-render --workspace=apps/api` re-sends the specimens and
+`.claude/docs/telegram-render.md` §2 has the empty column waiting.
 
 **Outstanding since 2026-08-26.** Set `TELEGRAM_WEBHOOK_SECRET` in the API's
 Vercel project to a long random string, then re-run Telegram's `setWebhook` with

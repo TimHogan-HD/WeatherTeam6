@@ -2180,3 +2180,29 @@ secret check is skipped and the forgeable `chat.id` is the only gate.
 - **The `<pre>` fallback renders as a copyable code block** with a COPY CODE affordance on both clients, which is a small bonus for a data table and worth keeping in mind before replacing it.
 
 **Does the user need to do anything?** **Yes — one small thing.** Open web.telegram.org and look at the four specimens already in the chat (messages 70, 71, 74, 77): real tables, or an "unsupported message" card? It is the last input to whether rich tables become the primary rendering. Separately, still outstanding since 2026-08-26: set `TELEGRAM_WEBHOOK_SECRET` in the API's Vercel project and re-run `setWebhook` with a matching `secret_token`.
+
+---
+
+## 2026-08-31 — branch: docs/close-web-check — commit: PENDING_SQUASH
+
+**Phase completed:** None — a decision recorded, closing Phase 0.
+
+**What was built this session:**
+- `.claude/docs/telegram-render.md` — § Still outstanding replaced by § The web column stays empty, by decision
+- `.claude/docs/telegram-precision-interface-plan.md` — the Rendering row in § Settled decisions changed from "`<pre>` first" to "`<pre>`, and that is the answer"
+- `.claude/docs/STATE.md` — the web tab removed from § What the user owes and recorded as declined
+
+**The decision:** the user declined the web half of Probe B. Rich tables cleared phone and desktop, in-place edit included, but **they are not adopted** — promoting them would assert something about a client nobody has looked at, which is the attribution defect this repo keeps shipping. `<pre>` monospace is the rendering. Reopening it costs one browser tab and the Web column in `telegram-render.md` §2 is waiting.
+
+**Known issues / deferred work:**
+- Rich tables remain a real, evidenced upgrade that is simply not adopted. The evidence is in `telegram-render.md` §2 if the question is reopened.
+
+**Blockers for next session:**
+- None.
+
+**What's next:** Phase 1 — `git checkout -b phase/1-interaction` off `main` — read `.claude/docs/telegram-precision-interface-plan.md` § Phase 1 and § Traps.
+
+**Gotchas for next session:**
+- **Do not re-raise the web check.** It was declined, and asking again is how a settled answer turns back into an open question.
+
+**Does the user need to do anything?** **No.** The only remaining item is the long-standing `TELEGRAM_WEBHOOK_SECRET` in Vercel plus a matching `setWebhook` re-run, which is unchanged and not blocking anything.
