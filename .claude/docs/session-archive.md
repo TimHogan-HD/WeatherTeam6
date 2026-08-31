@@ -2147,7 +2147,7 @@ secret check is skipped and the forgeable `chat.id` is the only gate.
 
 ---
 
-## 2026-08-31 — branch: docs/probe-b-observations — commit: PENDING_SQUASH
+## 2026-08-31 — branch: docs/probe-b-observations — commit: 745bb61
 
 **Phase completed:** Phase 0 — Probe B run 1. Ten specimens sent to the live bot, all accepted; phone and desktop observed, web still unobserved.
 
