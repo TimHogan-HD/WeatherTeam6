@@ -167,8 +167,12 @@ device. The user's stated order from here:
 2. **The chat interface — this is the priority feature.** The user wants to **ask in plain
    language and get a response**, and to use **slash commands to pull specific information
    about a location or a span of time**. Weather should arrive as *text*, not only through
-   the Mini App and alert replies. This is a design conversation the user wants to have
-   first — **do not spec it unilaterally.**
+   the Mini App and alert replies.
+
+   > **Superseded 2026-08-31 — the design conversation happened.** The spec is
+   > `.claude/docs/telegram-precision-interface-plan.md` and it is approved. **Phases 0 and
+   > 1 are built and merged; Phase 2 is next.** Build to that document; do not re-spec this
+   > from the paragraph above, and do not treat it as an open design question any more.
 3. **An in-app feedback button.** Press it, type a note in the moment, and the note lands
    **somewhere in this repo** to be addressed later. The destination and mechanism are
    undecided; the requirement is that it is capturable without breaking flow. Also a design
