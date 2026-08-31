@@ -113,10 +113,20 @@ likely to be a version difference than a mistake here — record the build next 
 - **The `<pre>` fallback renders correctly on both clients**, columns aligned, so nothing
   about shipping it first is in doubt.
 
-### Still outstanding
+### The web column stays empty, by decision
 
-- **Web.** One tab at web.telegram.org, specimens 2, 3, 7 and 9. It decides whether rich
-  tables become the primary rendering or stay a phone/desktop-only upgrade.
+**The user declined the web check on 2026-08-31.** That is a settled answer, not a task
+waiting to be picked up — do not re-raise it.
+
+So the decision it was gating goes the conservative way: **`<pre>` monospace is the
+rendering, and rich tables are not adopted.** They cleared phone and desktop, edit
+included, but adopting them would assert something about a client nobody has looked at —
+the same "attribution not backed by the data" this repo keeps shipping. The evidence for
+them is real and recorded above; it is simply not complete, and incomplete is not a
+licence.
+
+Reopening it costs one browser tab: `npm run probe:telegram-render --workspace=apps/api`
+re-sends the specimens, and the Web column above is waiting.
 
 ### What each outcome means for the build
 

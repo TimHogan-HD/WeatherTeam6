@@ -177,7 +177,7 @@ Cached 14m ago
 | Models | Deterministic per-model tables **and** the 143-member ensemble for spread |
 | Model set | GFS, ECMWF, ICON, GEM globally; HRRR and NBM where CONUS coverage exists |
 | Model buttons | **Derived from coverage.** No data → a labelled non-button row saying the model does not reach the point, never omitted. **Not** `DisabledButton`: Probe B run 1 showed both clients draw it identically to an enabled button |
-| Rendering | `<pre>` monospace first. `RichBlockTable` cleared phone and desktop in Probe B run 1, edit-in-place included; promoting it to primary waits on web |
+| Rendering | **`<pre>` monospace, and that is now the answer, not a first step.** `RichBlockTable` cleared phone and desktop in Probe B run 1, edit-in-place included, but the web check was declined — adopting it would assert something about an untested client |
 | Panel controls | Simple mode default (day, model, refresh); Advanced adds interval, columns, units |
 | Data surfaces | Pure meteorology — no conditions score, no state label, no drying |
 | `/insight` | Computed statistics only. **No generated prose** (spec §9) |
