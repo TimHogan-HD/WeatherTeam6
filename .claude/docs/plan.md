@@ -170,8 +170,9 @@ device. The user's stated order from here:
    the Mini App and alert replies.
 
    > **Superseded 2026-08-31 — the design conversation happened.** The spec is
-   > `.claude/docs/telegram-precision-interface-plan.md` and it is approved. **Phases 0, 1 and 2 are built;
-   > Phase 3 (`/forecast` and `/rain`) is next.** Build to that document; do not re-spec this
+   > `.claude/docs/telegram-precision-interface-plan.md` and it is approved. **Phases 0 to 3 are built
+   > — `/forecast` and `/rain` shipped 2026-09-01; Phase 4 (`/insight` and `/afd`) is next.**
+   > Build to that document; do not re-spec this
    > from the paragraph above, and do not treat it as an open design question any more.
 3. **An in-app feedback button.** Press it, type a note in the moment, and the note lands
    **somewhere in this repo** to be addressed later. The destination and mechanism are
