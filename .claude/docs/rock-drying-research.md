@@ -4,7 +4,7 @@ Research notes for improving the drying model. **This document does not change t
 scoring algorithm.** `.claude/docs/scoring-algorithm.md` is agreed and locked; §7 below
 is a *proposal* that needs explicit approval before any of it reaches code.
 
-Last updated: 2026-09-01 (eighth pass: §4.11 European limestone, and the tufa-as-fossil-seep predictor)
+Last updated: 2026-09-01 (ninth pass: §6.9 and §6.10 — two verified defects in importCrags.ts found while tracing the rock-type data path)
 
 ## How to read the confidence markers
 
@@ -1113,6 +1113,52 @@ already fetched and stored.
 that community guidance treats aspect as the difference between 24h and 72h, it is likely
 worth more than any refinement to the rock-type constants.
 
+**6.9 `importCrags.ts`'s upsert is a no-op on conflict, and says otherwise.** The `set` clause
+assigns every column to itself:
+
+```ts
+.onConflictDoUpdate({
+  target: crags.openbeta_id,
+  set: { name: crags.name, lat: crags.lat, rock_type: crags.rock_type, /* … */ },
+})
+```
+
+`crags.name` is the column reference, so this compiles to `SET name = "crags"."name"` — the
+existing value. Postgres needs the `excluded` pseudo-table to take the incoming row. **The repo
+already knows this**: `sqlExcluded()` in `lib/runs/storeRun.ts` exists for exactly this purpose,
+with a docstring naming it, and is used at three upserts there; `checkAlerts.ts` passes the
+incoming values directly, which is also correct. Only `importCrags.ts` self-assigns.
+
+The script's header says *"Rows are upserted by openbeta_id — safe to re-run."* It is safe, but
+it can never update an existing row, and the run still prints `Upserted: N`. That is
+`defect-patterns.md` §2 — a failure state that reads as success — and it means correcting crag
+data upstream and re-importing would silently do nothing.
+
+**6.10 `crags.rock_type` is probably not a rock type.** Two problems stacked.
+
+First, `rock_type: e.type ?? null` assumes an OpenBeta area record carries lithology. OpenBeta's
+documented schema has `type` on **routes**, meaning the *climbing discipline* (`trad`, `sport`),
+while area records document `area_name`, `children` and `metadata{lat,lng}`
+([OpenBeta climbing-data](https://github.com/OpenBeta/climbing-data),
+[openbeta-graphql](https://github.com/OpenBeta/openbeta-graphql)). So `e.type` is either absent —
+in which case every imported crag gets `rock_type = null` — or it is the discipline, in which
+case the lithology column fills with `"trad"`. **Not verified against a real export**, which is
+the check to run first; but neither outcome is a rock type.
+
+Second, **`crags.rock_type` is `text`, while `locations.rock_type` is `rockTypeEnum`.** Nothing
+constrains the crag values, and `packages/types` mirrors the split (`Crag.rock_type: string | null`
+against `Location.rock_type: RockType | null`). Whatever the importer writes will be accepted.
+
+Chained with §6.2, the consequence is concrete: an unlabelled crag falls to `unknown`, which has
+a **48 h** maximum against sandstone's **72 h** — so a bulk import of crags with no usable
+lithology produces the *least* conservative drying answer available, silently, at scale.
+
+**A better source exists for the field.** OpenStreetMap's climbing schema includes a
+**`climbing:rock`** key for the rock type at a crag, alongside the `sport=climbing` +
+`climbing=crag` site relations ([OSM Climbing wiki](https://wiki.openstreetmap.org/wiki/Climbing)).
+Coverage is uneven and it is user-contributed, but unlike OpenBeta it is the right field for the
+question — and §4.11's tufa test is the kind of thing a user can answer even where OSM is blank.
+
 ---
 
 ## 7. Proposed taxonomy — NOT APPROVED, NOT IMPLEMENTED
@@ -1425,3 +1471,10 @@ Eighth pass — European limestone (§4.11):
 [UKC — Chulilla](https://www.ukclimbing.com/articles/destinations/chulilla-6242) ·
 [UKC — Siurana revisited](https://www.ukclimbing.com/articles/destinations/siurana_revisited-3709) ·
 [Climb Europe — Arco](https://climb-europe.com/pages/rock-climbing-italy-arco)
+
+Ninth pass — tropical areas, dataset schemas, importer findings (§6.9, §6.10):
+[Basecamp Tonsai — best time of year](https://basecamptonsai.substack.com/p/when-is-the-best-time-of-year-for) ·
+[Just Climb Thailand — best season](https://justclimbthailand.com/rock-climbing-thailand-best-season/) ·
+[OpenBeta — climbing-data](https://github.com/OpenBeta/climbing-data) ·
+[OpenBeta — openbeta-graphql](https://github.com/OpenBeta/openbeta-graphql) ·
+[OSM Climbing wiki](https://wiki.openstreetmap.org/wiki/Climbing)
