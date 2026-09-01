@@ -4,7 +4,7 @@ import {
   buildAlertsPanel,
   buildConditionsPanel,
   buildListPanel,
-  formatOutlook,
+  clockLabel,
   weekdayLabel,
 } from './panels.js'
 import type { ConditionsReplyInput } from './conditionsMessage.js'
@@ -47,45 +47,56 @@ const STATE = 'a1b2c3d4'
 describe('buildListPanel', () => {
   it('says the list is empty rather than showing bare navigation', () => {
     const panel = buildListPanel(STATE, [])
-    expect(panel.text).toContain('no saved locations')
+    expect(panel.text).toContain('No saved locations')
     // Only the nav row, and it drops the button for the view already showing.
     expect(panel.keyboard?.inline_keyboard).toHaveLength(1)
     expect(panel.keyboard?.inline_keyboard[0]).toHaveLength(2)
   })
 
-  it('gives each location its own row and lists them all in the text', () => {
+  it('gives each location its own row and does not also list it in the text', () => {
     const panel = buildListPanel(STATE, [
       { id: '3f2504e0-4f89-41d3-9a0c-0305e82c3301', name: 'Red Rock' },
       { id: '3f2504e0-4f89-41d3-9a0c-0305e82c3302', name: 'Indian Creek' },
     ])
-    expect(panel.text).toContain('Red Rock')
-    expect(panel.text).toContain('Indian Creek')
-    // Two location rows plus the nav row.
+    // The buttons are the list. Printing the names above them as well put every
+    // location on screen twice.
+    expect(panel.text).not.toContain('Red Rock')
+    expect(panel.text).not.toContain('Indian Creek')
+    // Two location rows plus the footer row.
     expect(panel.keyboard?.inline_keyboard).toHaveLength(3)
     expect(panel.keyboard?.inline_keyboard[0]).toHaveLength(1)
+    expect(panel.keyboard?.inline_keyboard[0]?.[0]).toMatchObject({ text: 'Red Rock' })
   })
 
-  it('escapes the name in the text and leaves the button label alone', () => {
-    // The two rules are opposites, and getting either backwards is visible to
-    // the user: an unescaped `&` in HTML text is a 400 that costs the whole
-    // message, and an escaped one on a button reads as a literal "&amp;".
+  it('leaves an ampersand alone on a button label', () => {
+    // Button labels are not parsed by Telegram, so escaping one would put a
+    // literal "&amp;" on the button. The opposite rule governs the text.
     const panel = buildListPanel(STATE, [
       { id: '3f2504e0-4f89-41d3-9a0c-0305e82c3301', name: 'Bear & Cub' },
     ])
-    expect(panel.text).toContain('Bear &amp; Cub')
     expect(panel.keyboard?.inline_keyboard[0]?.[0]).toMatchObject({ text: 'Bear & Cub' })
   })
 
-  it('drops only the button when an id will not encode — never the location', () => {
+  it('names a location in the text when its button could not be built', () => {
     // 40 characters, past the value ceiling, so `encodeAction` returns null. A
     // missing button is a control the user can work around; a missing location
-    // is the bot claiming they never saved it.
+    // is the bot claiming they never saved it. Since the names are no longer
+    // listed above the buttons, this line is the only thing standing between
+    // that location and disappearing from the panel altogether.
     const panel = buildListPanel(STATE, [{ id: 'x'.repeat(40), name: 'Unencodable' }])
     expect(panel.text).toContain('Unencodable')
-    // The nav row survives on its own — the list panel drops its own
-    // "Locations" button, so what is left starts with Alerts.
+    expect(panel.text).toContain('Open the app')
+    // The footer row survives on its own — the list panel offers Alerts rather
+    // than a button back to the view already showing.
     expect(panel.keyboard?.inline_keyboard).toHaveLength(1)
-    expect(panel.keyboard?.inline_keyboard[0]?.[0]).toMatchObject({ text: '⚠️ Alerts' })
+    expect(panel.keyboard?.inline_keyboard[0]?.[1]).toMatchObject({ text: '⚠️ Alerts' })
+  })
+
+  it('escapes an unencodable name in the text, where HTML rules apply', () => {
+    // The same name, on the path that puts it in the message body rather than
+    // on a button. An unescaped `&` there is a 400 that costs the whole panel.
+    const panel = buildListPanel(STATE, [{ id: 'x'.repeat(40), name: 'Bear & Cub' }])
+    expect(panel.text).toContain('Bear &amp; Cub')
   })
 })
 
@@ -118,64 +129,78 @@ describe('weekdayLabel', () => {
   })
 })
 
-describe('formatOutlook', () => {
-  it('renders a row with no readings as gaps, not as a mild sunny day', () => {
-    // Every field here is null, which is the shipped shape of ForecastSnapshot.
-    // `cToF(null)` is 32°F, `kmhToMph(null)` is 0 mph and `mmToIn(null)` is
-    // 0.00 in — three numbers a user would believe.
-    const out = String(formatOutlook([snapshot()]))
-    expect(out).toContain('—')
-    expect(out).not.toContain('32°F')
-    expect(out).not.toContain('0 mph')
-    expect(out).not.toContain('0.00 in')
+describe('clockLabel', () => {
+  it('reads the clock the way a person says it', () => {
+    expect(clockLabel(15)).toBe('3pm')
+    expect(clockLabel(9)).toBe('9am')
+    expect(clockLabel(23)).toBe('11pm')
   })
 
-  it('labels the today row from the server flag', () => {
-    const out = String(formatOutlook([snapshot({ is_today: true, temp_c_max: 37 })]))
-    expect(out).toContain('Today')
-    expect(out).toContain('99°F')
+  it('names the two hours that have words rather than numbers', () => {
+    // `12am` and `0am` are both wrong, and `12pm` is the one people misread.
+    expect(clockLabel(0)).toBe('midnight')
+    expect(clockLabel(12)).toBe('noon')
   })
 
-  it('labels a row with no flag by weekday — a missing flag is unknown, not false', () => {
-    const out = String(formatOutlook([snapshot({ forecast_date: '2026-08-31' })]))
-    expect(out).not.toContain('Today')
-    expect(out).toContain('Mon')
-  })
-
-  it('returns null for an empty feed rather than a header with no rows', () => {
-    expect(formatOutlook([])).toBeNull()
+  it('refuses anything that is not an hour of the day', () => {
+    // The caller falls back to the 24-hour form. Returning a string here would
+    // put `NaNpm` in a sentence.
+    expect(clockLabel(24)).toBeNull()
+    expect(clockLabel(-1)).toBeNull()
+    expect(clockLabel(9.5)).toBeNull()
+    expect(clockLabel(Number.NaN)).toBeNull()
   })
 })
 
 describe('buildConditionsPanel', () => {
-  it('shows no outlook in simple mode, and offers the way in', () => {
-    const panel = buildConditionsPanel({
-      stateId: STATE,
-      mode: 'simple',
-      conditions: conditions({ snapshots: [snapshot({ is_today: true })] }),
-    })
-    expect(panel.text).not.toContain('Next days')
-    expect(panel.keyboard?.inline_keyboard[0]?.[0]).toMatchObject({ text: '⚙ Advanced' })
+  const panel = buildConditionsPanel({
+    stateId: STATE,
+    locationId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301',
+    conditions: conditions({ snapshots: [snapshot({ is_today: true })] }),
   })
 
-  it('adds the outlook in advanced mode, and offers the way back', () => {
-    const panel = buildConditionsPanel({
-      stateId: STATE,
-      mode: 'advanced',
-      conditions: conditions({ snapshots: [snapshot({ is_today: true, temp_c_max: 20 })] }),
-    })
-    expect(panel.text).toContain('Next days')
-    expect(panel.text).toContain('<pre>')
-    expect(panel.keyboard?.inline_keyboard[0]?.[0]).toMatchObject({ text: '◀ Simple' })
+  it('keeps the whole panel to two rows of buttons', () => {
+    // The redesign's binding constraint. The panel this replaced carried five
+    // rows and up to thirteen buttons under three lines of text.
+    expect(panel.keyboard?.inline_keyboard).toHaveLength(2)
+    for (const row of panel.keyboard?.inline_keyboard ?? []) {
+      expect(row.length).toBeLessThanOrEqual(3)
+    }
   })
 
-  it('omits the outlook heading entirely when there are no rows to put under it', () => {
-    const panel = buildConditionsPanel({
+  it('offers the other two views of the same location, and never itself', () => {
+    const labels = panel.keyboard?.inline_keyboard[0]?.map((b) => b.text)
+    expect(labels).toEqual(['⏱ Hourly', '🌧 Rain', '🔄'])
+  })
+
+  it('deep-links the app to this location rather than to the list', () => {
+    const open = panel.keyboard?.inline_keyboard[1]?.[0]
+    expect(open).toMatchObject({ text: '📲 Open in app' })
+    // `startapp=loc_<uuid>` is what carries the location through a Direct Link.
+    // Without it the app opens on the list with no idea which one was meant.
+    expect(open?.url).toContain('startapp=loc_3f2504e0-4f89-41d3-9a0c-0305e82c3301')
+  })
+
+  it('falls back to the app’s list when there is no location to link', () => {
+    const noLocation = buildConditionsPanel({
       stateId: STATE,
-      mode: 'advanced',
-      conditions: conditions({ snapshots: [] }),
+      locationId: null,
+      conditions: conditions(),
     })
+    const open = noLocation.keyboard?.inline_keyboard[1]?.[0]
+    // A button, still — the base link is a constant and always valid. Only the
+    // `startapp` parameter can fail to build.
+    expect(open?.url).not.toContain('startapp')
+    expect(open?.url).toContain('t.me/')
+  })
+
+  it('no longer carries the seven-day outlook or a mode toggle', () => {
+    // Both moved to the Mini App. The hourly panel's day pager walks the same
+    // week one day at a time.
     expect(panel.text).not.toContain('Next days')
+    const labels = panel.keyboard?.inline_keyboard.flat().map((b) => b.text) ?? []
+    expect(labels).not.toContain('⚙ Advanced')
+    expect(labels).not.toContain('◀ Simple')
   })
 })
 

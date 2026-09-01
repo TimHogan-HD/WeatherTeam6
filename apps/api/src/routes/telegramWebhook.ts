@@ -6,18 +6,12 @@ import { decodeAction } from '../lib/telegram/callbackData.js'
 import { formatHelp, parseCommand } from '../lib/telegram/commands.js'
 import { formatLocationNotFound } from '../lib/telegram/conditionsMessage.js'
 import { findLocationByName } from '../lib/telegram/conditionsReply.js'
-import {
-  isColumnSet,
-  isIntervalHours,
-  isTableUnits,
-} from '../lib/telegram/forecastTable.js'
+import { isIntervalHours, isTableUnits } from '../lib/telegram/forecastTable.js'
 import {
   buildNoticePanel,
   EXPIRED_PANEL_TEXT,
-  FIELD_COLUMNS,
   FIELD_DAY,
   FIELD_INTERVAL,
-  FIELD_MODEL,
   FIELD_UNITS,
   VERB_MODE,
   VERB_OPEN,
@@ -34,7 +28,6 @@ import {
   updatePanelState,
   type PanelState,
 } from '../lib/telegram/panelState.js'
-import { DETERMINISTIC_MODELS } from '../lib/weather/openMeteo.js'
 import { renderPanel } from '../lib/telegram/panelViews.js'
 import {
   answerCallbackQuery,
@@ -326,19 +319,10 @@ async function applyAction(
           if (!Number.isInteger(day) || day < 0 || day > MAX_DAY_OFFSET) return null
           return updatePanelState(state.id, userId, { dayOffset: day })
         }
-        case FIELD_MODEL: {
-          const models: readonly string[] = DETERMINISTIC_MODELS
-          if (!models.includes(value)) return null
-          return updatePanelState(state.id, userId, { model: value })
-        }
         case FIELD_INTERVAL: {
           const hours = Number(value)
           if (!Number.isInteger(hours) || !isIntervalHours(hours)) return null
           return updatePanelState(state.id, userId, { intervalHours: hours })
-        }
-        case FIELD_COLUMNS: {
-          if (!isColumnSet(value)) return null
-          return updatePanelState(state.id, userId, { columnSet: value })
         }
         case FIELD_UNITS: {
           if (!isTableUnits(value)) return null

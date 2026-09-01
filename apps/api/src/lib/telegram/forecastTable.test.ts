@@ -4,14 +4,15 @@ import {
   buildRows,
   compassPoint,
   dayHasData,
-  isColumnSet,
+  DETAIL_AIR_COLUMNS,
+  DETAIL_WIND_COLUMNS,
   isIntervalHours,
   isTableUnits,
   localDays,
   modelLabel,
   precipCell,
-  probabilityNote,
   renderTable,
+  SIMPLE_COLUMNS,
   stepNote,
 } from './forecastTable.js'
 
@@ -192,60 +193,59 @@ describe('renderTable', () => {
     // `cToF(null)` is 32 and `kmhToMph(null)` is 0: both read as measurements.
     // The 00:00 row has no hour behind it at all, which is the row that would
     // carry them.
-    const empty = renderTable({ rows, columnSet: 'all', units: 'imperial' })?.split('\n')[1]
+    const empty = renderTable({ rows, columns: SIMPLE_COLUMNS, units: 'imperial' })?.split('\n')[1]
     expect(empty?.startsWith('00')).toBe(true)
     expect(empty).not.toContain('32')
-    // Five value columns in the `all` set, and every one of them a gap: a `0`
+    // Four value columns in the default set, and every one of them a gap: a `0`
     // for wind or `32` for temperature would take one of these away.
-    expect(empty?.match(/—/g)).toHaveLength(5)
+    expect(empty?.match(/—/g)).toHaveLength(SIMPLE_COLUMNS.length)
   })
 
   it('converts to Fahrenheit under imperial and leaves Celsius under metric', () => {
-    expect(renderTable({ rows, columnSet: 'all', units: 'imperial' })).toContain('86')
-    expect(renderTable({ rows, columnSet: 'all', units: 'metric' })).toContain('30')
+    expect(renderTable({ rows, columns: SIMPLE_COLUMNS, units: 'imperial' })).toContain('86')
+    expect(renderTable({ rows, columns: SIMPLE_COLUMNS, units: 'metric' })).toContain('30')
   })
 
   it('heads the temperature column with the unit it is showing', () => {
-    expect(renderTable({ rows, columnSet: 'all', units: 'imperial' })?.split('\n')[0]).toContain(
+    expect(renderTable({ rows, columns: SIMPLE_COLUMNS, units: 'imperial' })?.split('\n')[0]).toContain(
       '°F',
     )
-    expect(renderTable({ rows, columnSet: 'all', units: 'metric' })?.split('\n')[0]).toContain('°C')
+    expect(renderTable({ rows, columns: SIMPLE_COLUMNS, units: 'metric' })?.split('\n')[0]).toContain('°C')
   })
 
-  it('stays inside a phone width at its widest column set', () => {
+  it('stays inside a phone width in every set, including the detail ones', () => {
     // The nine-column measurement in telegram-render.md is a *rich table*; the
     // `<pre>` path scrolls sideways instead of wrapping, so width still binds
     // here and nothing in run 1 says otherwise.
-    for (const set of ['all', 'temp', 'wind', 'rain'] as const) {
-      const table = renderTable({ rows, columnSet: set, units: 'imperial' })
+    //
+    // This is the assertion that forced `⚙ More` to draw two stacked tables:
+    // the single nine-column detail table it replaced measured 50 characters
+    // and this test is what caught it.
+    for (const columns of [SIMPLE_COLUMNS, DETAIL_AIR_COLUMNS, DETAIL_WIND_COLUMNS]) {
+      const table = renderTable({ rows, columns, units: 'imperial' })
       for (const line of table?.split('\n') ?? []) expect(line.length).toBeLessThanOrEqual(32)
     }
   })
 
+  it('renders every stored hourly variable across the three sets but one', () => {
+    // The redesign's claim is that `⚙ More` moved variables off the first
+    // screen without removing them. This is the assertion behind it: the union
+    // of the three sets is every column `COLUMNS` defines. `pop` is the single
+    // deliberate exclusion — a blended field the rain panel answers better —
+    // and naming it here means dropping a *second* one cannot pass silently.
+    const rendered = new Set<string>([
+      ...SIMPLE_COLUMNS,
+      ...DETAIL_AIR_COLUMNS,
+      ...DETAIL_WIND_COLUMNS,
+    ])
+    expect([...rendered].sort()).toEqual(
+      ['cloud', 'dew', 'dir', 'gust', 'precip', 'pressure', 'rh', 'temp', 'wind'].sort(),
+    )
+  })
+
   it('has no table at all for a day with no rows', () => {
     // A header with nothing under it reads as no wind, no rain and no cloud.
-    expect(renderTable({ rows: [], columnSet: 'all', units: 'imperial' })).toBeNull()
-  })
-})
-
-describe('probabilityNote', () => {
-  it('withholds the attribution when the flag is unknown', () => {
-    // Null is "the question was not answered", not "no". A stored run from
-    // before the flag existed lands here.
-    expect(probabilityNote('rain', null)).not.toBeNull()
-  })
-
-  it('caveats a shared probability column', () => {
-    expect(probabilityNote('rain', true)).not.toBeNull()
-  })
-
-  it('says nothing when the column is measurably this model’s own', () => {
-    expect(probabilityNote('rain', false)).toBeNull()
-  })
-
-  it('says nothing at all when no probability column is on screen', () => {
-    expect(probabilityNote('all', true)).toBeNull()
-    expect(probabilityNote('wind', null)).toBeNull()
+    expect(renderTable({ rows: [], columns: SIMPLE_COLUMNS, units: 'imperial' })).toBeNull()
   })
 })
 
@@ -254,13 +254,6 @@ describe('guards', () => {
     expect(isIntervalHours(3)).toBe(true)
     expect(isIntervalHours(2)).toBe(false)
     expect(isIntervalHours(0)).toBe(false)
-  })
-
-  it('accepts only the four column sets', () => {
-    expect(isColumnSet('wind')).toBe(true)
-    expect(isColumnSet('everything')).toBe(false)
-    // Inherited property names must not pass for column sets.
-    expect(isColumnSet('constructor')).toBe(false)
   })
 
   it('accepts only the two unit systems', () => {
@@ -279,7 +272,7 @@ describe('labels', () => {
   })
 
   it('states which way the rain in a row is counted', () => {
-    expect(stepNote(3)).toContain('3 h after')
+    expect(stepNote(3)).toContain('3 hours after')
     expect(stepNote(1)).toContain('hour after')
   })
 })

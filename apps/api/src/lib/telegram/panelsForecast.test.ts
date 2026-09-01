@@ -24,20 +24,17 @@ const FETCHED = new Date('2026-09-04T13:51:00Z')
 function forecastInput(over: Partial<ForecastPanelInput> = {}): ForecastPanelInput {
   return {
     stateId: STATE,
+    locationId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301',
     mode: 'simple',
     locationName: 'Red Rock',
     units: 'imperial',
     interval: 3,
-    columnSet: 'all',
     model: 'ncep_hrrr_conus',
     days: ['2026-09-04', '2026-09-05', '2026-09-06'],
     dayIndex: 0,
     // A row with at least one real value: an all-gap day is the "does not reach
     // this day" case, and every other assertion here needs a table on screen.
     rows: [{ hour: 12, at: null, precip_mm: 1.2 }],
-    modelsAvailable: ['gfs_seamless', 'ncep_hrrr_conus'],
-    modelsUnavailable: [],
-    probabilityIsShared: false,
     rainDay: null,
     fetchedAt: FETCHED,
     now: NOW,
@@ -112,30 +109,58 @@ describe('formatAge', () => {
 })
 
 describe('buildForecastPanel', () => {
-  it('heads the panel with the model, the step and the fetch time', () => {
+  it('heads the panel with the place and the day, and nothing else', () => {
+    // The header used to read `Red Rock · HRRR · 3-hourly`, which put the
+    // vocabulary of the data source in the first line the reader sees. The
+    // model is still named — at the foot, where the evidence goes.
     const panel = buildForecastPanel(forecastInput())
-    expect(panel.text).toContain('HRRR')
-    expect(panel.text).toContain('3-hourly')
+    const header = panel.text.split('\n')[0]
+    expect(header).toContain('Red Rock')
+    expect(header).toContain('Fri 4 Sep')
+    expect(header).not.toContain('HRRR')
+    expect(header).not.toContain('hourly')
+  })
+
+  it('keeps the attribution and the age, at the foot', () => {
+    const panel = buildForecastPanel(forecastInput())
+    expect(panel.text).toContain('HRRR model')
     // Probe A found no run initialization time is exposed at all, so this may
     // say when it was fetched and never which run it came from.
-    expect(panel.text).toContain('fetched 13:51Z')
+    expect(panel.text).toContain('13:51Z')
     expect(panel.text).toContain('14m ago')
-    expect(panel.text).not.toContain('12Z')
+    expect(panel.text).not.toContain('12Z run')
+  })
+
+  it('keeps the whole panel to three rows of buttons in its default state', () => {
+    const panel = buildForecastPanel(forecastInput())
+    expect(panel.keyboard?.inline_keyboard).toHaveLength(3)
+    // No model row: six model buttons was the single biggest source of the
+    // clutter, and switching models is the Mini App's job now.
+    const labels = panel.keyboard?.inline_keyboard.flat().map((b) => b.text) ?? []
+    expect(labels).not.toContain('GFS')
+    expect(labels).not.toContain('HRRR')
+  })
+
+  it('reveals the detail tables and the settings behind one More button', () => {
+    const simple = buildForecastPanel(forecastInput())
+    expect(simple.keyboard?.inline_keyboard.flat().map((b) => b.text)).toContain('⚙ More')
+    expect(simple.text).not.toContain('Air')
+
+    const detail = buildForecastPanel(forecastInput({ mode: 'advanced' }))
+    // Two stacked narrow tables, not one wide one — a nine-column table is 50
+    // characters and `<pre>` scrolls sideways rather than wrapping.
+    expect(detail.text).toContain('Air')
+    expect(detail.text).toContain('Wind and rain')
+    const labels = detail.keyboard?.inline_keyboard.flat().map((b) => b.text) ?? []
+    expect(labels).toContain('✕ Less')
+    expect(labels).toContain('• 3h')
+    expect(labels).toContain('°C / mm')
   })
 
   it('escapes the location name in the text', () => {
     const panel = buildForecastPanel(forecastInput({ locationName: 'Bear & Cub' }))
     expect(panel.text).toContain('Bear &amp; Cub')
     expect(panel.text).not.toContain('Bear & Cub')
-  })
-
-  it('names a model that does not reach the point instead of dropping it', () => {
-    // `DisabledButton` draws identically to an enabled one on both clients
-    // Probe B tested, so the only honest form is a line of text.
-    const panel = buildForecastPanel(
-      forecastInput({ modelsUnavailable: ['ncep_hrrr_conus', 'ncep_nbm_conus'] }),
-    )
-    expect(panel.text).toContain('No data at this point: HRRR, NBM')
   })
 
   it('says a model does not reach the day rather than drawing a table of dashes', () => {
@@ -147,7 +172,7 @@ describe('buildForecastPanel', () => {
     expect(empty).toHaveLength(8)
 
     const panel = buildForecastPanel(forecastInput({ rows: empty, dayIndex: 2 }))
-    expect(panel.text).toContain('HRRR does not reach Sun 6 Sep')
+    expect(panel.text).toContain('The HRRR model does not reach Sun 6 Sep')
     expect(panel.text).not.toContain('<pre>')
   })
 
@@ -177,26 +202,30 @@ describe('buildForecastPanel', () => {
     expect(panel.text).not.toContain('does not reach')
   })
 
-  it('carries the shared-probability caveat only when it is needed', () => {
-    const shared = buildForecastPanel(
-      forecastInput({ columnSet: 'rain', probabilityIsShared: true }),
-    )
-    expect(shared.text).toContain('blended probability')
-
-    const own = buildForecastPanel(forecastInput({ columnSet: 'rain', probabilityIsShared: false }))
-    expect(own.text).not.toContain('blended probability')
-
-    const unknown = buildForecastPanel(
-      forecastInput({ columnSet: 'rain', probabilityIsShared: null }),
-    )
-    expect(unknown.text).toContain('blended probability')
+  it('never shows the blended probability column, in either mode', () => {
+    // `precipitation_probability` belongs to no single model — Probe A measured
+    // it running 276 h against a 54 h model and byte-identical to another
+    // model's series — so a column in a table headed with one model's name
+    // needed a footnote saying it was not that model's figure. The rain panel
+    // answers the same question from the members themselves, which is a real
+    // proportion of real forecasts, so the column and its caveat both went.
+    for (const mode of ['simple', 'advanced'] as const) {
+      const panel = buildForecastPanel(forecastInput({ mode }))
+      expect(panel.text).not.toContain('pop')
+      expect(panel.text).not.toContain('blended')
+    }
   })
 
   it('draws the agreement bar only when a member reached the day', () => {
     const withBar = buildForecastPanel(forecastInput({ rainDay: rainDay() }))
-    // Named as the ensemble's: the panel is headed with one deterministic
-    // model and this bar is not that model's opinion.
-    expect(withBar.text).toContain('Rain odds · ensemble, 143 members')
+    expect(withBar.text).toContain('Chance of rain through the day')
+    // Attributed to the ensemble, not to the table's model: the bar comes from
+    // a different fetch, and one source line naming only HRRR would credit it
+    // with a number it did not produce. "forecasts", not "members" — the count
+    // is what makes the percentage trustworthy and the reader should not need
+    // the word to use it.
+    expect(withBar.text).toContain('Rain chance from 143 forecasts')
+    expect(withBar.text).toContain('HRRR model')
 
     // Every hour unmeasured. A row of low bars here would be a forecast of no
     // rain drawn from no members at all.
@@ -215,14 +244,17 @@ describe('buildForecastPanel', () => {
       member_min: null,
       member_max: null,
     })
-    expect(buildForecastPanel(forecastInput({ rainDay: noMembers })).text).not.toContain('Rain odds')
+    const bare = buildForecastPanel(forecastInput({ rainDay: noMembers }))
+    expect(bare.text).not.toContain('Chance of rain')
+    // And the source line must not claim an ensemble contributed either.
+    expect(bare.text).not.toContain('Rain chance from')
   })
 
-  it('shows a member range while models drop out', () => {
+  it('shows a range while models drop out through the day', () => {
     const panel = buildForecastPanel(
       forecastInput({ rainDay: rainDay({ member_min: 92, member_max: 143 }) }),
     )
-    expect(panel.text).toContain('92–143 members')
+    expect(panel.text).toContain('92–143 forecasts')
   })
 
   it('offers the day pager without arrows past the ends', () => {
@@ -233,24 +265,12 @@ describe('buildForecastPanel', () => {
     expect(last.keyboard?.inline_keyboard[0]?.map((b) => b.text)).toEqual(['◀ Sat', 'Sun 6 Sep'])
   })
 
-  it('marks the model on screen and offers only the ones that answered', () => {
-    const panel = buildForecastPanel(forecastInput())
-    expect(panel.keyboard?.inline_keyboard[1]?.map((b) => b.text)).toEqual(['GFS', '• HRRR'])
-  })
-
-  it('keeps the step, column and unit controls behind Advanced', () => {
+  it('keeps the step and unit controls behind More', () => {
     const simple = buildForecastPanel(forecastInput({ mode: 'simple' }))
     const simpleLabels = simple.keyboard?.inline_keyboard.flat().map((b) => b.text) ?? []
     expect(simpleLabels).not.toContain('6h')
     expect(simpleLabels).not.toContain('°C / mm')
-    expect(simpleLabels).toContain('⚙ Advanced')
-
-    const advanced = buildForecastPanel(forecastInput({ mode: 'advanced' }))
-    const labels = advanced.keyboard?.inline_keyboard.flat().map((b) => b.text) ?? []
-    expect(labels).toContain('• 3h')
-    expect(labels).toContain('• Overview')
-    // The toggle names the units it switches *to*.
-    expect(labels).toContain('°C / mm')
+    expect(simpleLabels).toContain('⚙ More')
   })
 
   it('offers the other two views of the same location, never the one on screen', () => {
@@ -258,31 +278,56 @@ describe('buildForecastPanel', () => {
       buildForecastPanel(forecastInput())
         .keyboard?.inline_keyboard.flat()
         .map((b) => b.text) ?? []
-    expect(labels).toContain('🧗 Conditions')
+    expect(labels).toContain('🧗 Now')
     expect(labels).toContain('🌧 Rain')
-    expect(labels).not.toContain('📊 Forecast')
+    expect(labels).not.toContain('⏱ Hourly')
   })
 })
 
 describe('timingLine', () => {
   it('separates a day nobody forecast from a dry one', () => {
-    expect(timingLine(rainDay({ peak_odds_pct: null, peak_hour: null }), 'imperial')).toContain(
-      'No ensemble member reaches',
-    )
-    expect(timingLine(rainDay({ peak_odds_pct: 0, peak_hour: null }), 'imperial')).toContain(
-      'No member has measurable rain',
+    // These two must not read the same. "No rain expected" is a forecast; a day
+    // no member reached is the absence of one, and rendering it as the former
+    // is defect class 2 — a failure state that reads as success.
+    //
+    // The empty day is `EMPTY_RAIN_DAY`, not the shared fixture with its
+    // `peak_odds_pct` nulled out: that fixture's rows carry real totals, so it
+    // is a day the ensemble *did* reach and saying otherwise about it would be
+    // asserting the right sentence against the wrong state.
+    expect(timingLine(EMPTY_RAIN_DAY, 'imperial')).toBe('No forecast reaches this day yet.')
+    expect(timingLine(rainDay({ peak_odds_pct: 0, peak_hour: null }), 'imperial')).toBe(
+      'No rain expected.',
     )
   })
 
-  it('names the hour, the share of members and the day total', () => {
+  it('withholds the chance for a run with amounts but no wet count', () => {
+    // `members_wet` is nullable and null means unknown, not zero — a run stored
+    // before that column existed. The amounts are real and are still reported;
+    // the chance is not invented, and the day is not called unforecast either.
+    const line = timingLine(rainDay({ peak_odds_pct: null, peak_hour: null }), 'imperial')
+    expect(line).toContain('No chance-of-rain figure')
+    expect(line).not.toContain('0%')
+    expect(line).not.toContain('No forecast reaches')
+  })
+
+  it('reads the clock aloud and gives a plain chance and amount', () => {
     const line = timingLine(rainDay(), 'imperial')
-    expect(line).toContain('12:00')
-    expect(line).toContain('60% of members wet')
+    expect(line).toContain('noon')
+    expect(line).not.toContain('12:00')
+    // "60% chance", not "60% of members wet" — the same number, said the way a
+    // forecast is normally said.
+    expect(line).toContain('60% chance')
+    expect(line).not.toContain('members')
     expect(line).toContain('0.05 in')
   })
 
-  it('says the total is unavailable rather than reporting no rain', () => {
-    expect(timingLine(rainDay({ total_mm: null }), 'imperial')).toContain('not available')
+  it('drops the amount rather than claiming there is none', () => {
+    // A missing total is unknown. Saying "0.00 in" would be defect class 1 and
+    // the old copy's "not available" was a phrase in the middle of a sentence.
+    const line = timingLine(rainDay({ total_mm: null }), 'imperial')
+    expect(line).toContain('60% chance')
+    expect(line).not.toContain('Expect')
+    expect(line).not.toContain('0.00')
   })
 })
 
@@ -290,6 +335,7 @@ describe('buildRainPanel', () => {
   function rainInput(over: Partial<RainPanelInput> = {}): RainPanelInput {
     return {
       stateId: STATE,
+      locationId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301',
       mode: 'simple',
       locationName: 'Red Rock',
       units: 'imperial',
@@ -307,24 +353,57 @@ describe('buildRainPanel', () => {
     }
   }
 
-  it('shows the odds table, the bar and the timing', () => {
+  it('leads with the answer, then the table', () => {
     const panel = buildRainPanel(rainInput())
-    expect(panel.text).toContain('<pre>')
-    expect(panel.text).toContain('143 members')
-    expect(panel.text).toContain('Wettest around 12:00')
-    expect(panel.text).toContain('Last rain: 2026-08-31')
+    // The sentence a reader came for is above the numbers, not under them.
+    const answerAt = panel.text.indexOf('Rain most likely around noon')
+    const tableAt = panel.text.indexOf('<pre>')
+    expect(answerAt).toBeGreaterThan(-1)
+    expect(answerAt).toBeLessThan(tableAt)
+    expect(panel.text).toContain('Last rain: 4 days ago (2026-08-31)')
+  })
+
+  it('says chance and rain in the default table, and no percentiles', () => {
+    const panel = buildRainPanel(rainInput())
+    expect(panel.text).toContain('chance')
+    expect(panel.text).not.toContain('p10')
+    expect(panel.text).not.toContain('p50')
+    expect(panel.text).not.toContain('p90')
+  })
+
+  it('puts the spread behind More, in words rather than percentiles', () => {
+    const panel = buildRainPanel(rainInput({ mode: 'advanced' }))
+    // The same three numbers, headed as what they mean rather than as what
+    // they are called.
+    expect(panel.text).toContain('low')
+    expect(panel.text).toContain('mid')
+    expect(panel.text).toContain('high')
+    expect(panel.text).not.toContain('p90')
+    expect(panel.text).toContain('dry, middle or wet side')
   })
 
   it('says the rainfall record failed rather than implying a dry spell', () => {
     const panel = buildRainPanel(rainInput({ lastRain: null, lastRainFailed: true }))
-    expect(panel.text).toContain('could not be read')
-    expect(panel.text).not.toContain('none recorded')
+    expect(panel.text).toContain('couldn’t check')
+    expect(panel.text).not.toContain('none in the past')
   })
 
-  it('says there are no hours rather than drawing an empty table', () => {
+  it('says there is no forecast once, rather than drawing an empty table', () => {
     const panel = buildRainPanel(rainInput({ day: EMPTY_RAIN_DAY }))
-    expect(panel.text).toContain('No ensemble hours')
+    expect(panel.text).toContain('No forecast reaches this day yet.')
     expect(panel.text).not.toContain('<pre>')
+    // Once, not twice: the panel used to state it in the timing line and then
+    // again where the table would have gone.
+    expect(panel.text.match(/No forecast/g)).toHaveLength(1)
+  })
+
+  it('still says how old the fetch is when no forecast reaches the day', () => {
+    // The count is absent, so the source line drops it — but the panel *was*
+    // fetched, and "Based on no forecasts reach this day, just now" is what
+    // interpolating the absent case produced before.
+    const panel = buildRainPanel(rainInput({ day: EMPTY_RAIN_DAY }))
+    expect(panel.text).toContain('Updated 14m ago')
+    expect(panel.text).not.toContain('Based on')
   })
 
   it('offers the other two views of the same location', () => {
@@ -332,7 +411,8 @@ describe('buildRainPanel', () => {
       buildRainPanel(rainInput())
         .keyboard?.inline_keyboard.flat()
         .map((b) => b.text) ?? []
-    expect(labels).toContain('📊 Forecast')
+    expect(labels).toContain('⏱ Hourly')
+    expect(labels).toContain('🧗 Now')
     expect(labels).not.toContain('🌧 Rain')
   })
 })
