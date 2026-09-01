@@ -4,7 +4,7 @@ Research notes for improving the drying model. **This document does not change t
 scoring algorithm.** `.claude/docs/scoring-algorithm.md` is agreed and locked; §7 below
 is a *proposal* that needs explicit approval before any of it reaches code.
 
-Last updated: 2026-09-01 (thirteenth pass: §9 — what the competing products do and what to take from them; ET₀ replaces the soil-moisture proposal)
+Last updated: 2026-09-01 (fourteenth pass: §9.5 — the window view is bot-first, and most of it is already built)
 
 ## How to read the confidence markers
 
@@ -1512,6 +1512,59 @@ crag.day uses three words after ten years of local calibration, and the Felsampe
 light backed by sensors on the rock. Confidence in the interface should track confidence in the
 model, and ours is currently a forecast-only model with five unmodelled limiters.
 
+
+### 9.5 The window view is closer than it looks — and the bot is ahead of the Mini App
+
+Checked against the code rather than assumed. The rendering half of CragReport's best idea is
+**already built**, and it is built in the bot, not in the Mini App.
+
+`apps/api/src/lib/telegram/` already has:
+
+- **`forecastTable.ts`** — a monospace hourly table with selectable **column sets**, **intervals
+  of 1 / 3 / 6 / 12 hours**, day slicing and a units toggle. Its own docstring notes 1 h is 24
+  rows and "fits a phone screen inside `<pre>`". That is a 24-row hourly grid, which is the
+  shape a window view needs.
+- **`sparkline.ts`** — eight Unicode block levels with an explicit `SPARK_GAP` (`·`) for a
+  missing value, sized against a max. Its docstring already makes the argument for this whole
+  approach: *"meteoblue encodes model agreement as bar density and eight block characters carry
+  the same information inside a `<pre>` block that every Telegram client already renders."*
+- **`panels.ts` / `panelViews.ts` / `panelState.ts`** — a tabbed panel (list, forecast,
+  conditions, rain, alerts, help) on one message edited in place, re-rendered from stored state
+  on every tap so the paths cannot diverge.
+
+**So the gap is not rendering. It is that there is no per-hour conditions value to render.**
+Per §3 of `miniapp-design-v1.md`, verified against production, `/conditions/:id` keeps only
+today's row and `/forecast/:id` returns snapshots with no score field at all. Scores are daily
+and today-only by design.
+
+Three consequences follow, and they change the ordering in §9.3.
+
+**First, a weather-led window needs no score and no API change to the score.** "Dry, sheltered,
+in the shade" is derivable per hour from data already fetched or already proposed: hourly
+precipitation (stored in `weather_run_hours`), ET₀ (§7 companion change 4), `shortwave_radiation`
+(already stored), wind, and dewpoint. That satisfies the locked rule directly — it *is* weather,
+led by weather — rather than needing the per-day-score decision reopened.
+
+**Second, Telegram has no colour, and the existing code already solved that.** CragReport's
+blue/green/yellow/red bands cannot survive into a `<pre>` block. But the sparkline's answer —
+encode the band as **glyph density** rather than hue — is already the house pattern, tested, and
+argued for in its own docstring. A row of eight-level blocks under a 24-hour axis carries the
+same "scan for the window" affordance that the colour grid does.
+
+**Third, and this is the rule the rest of this document demands: the grid needs an explicit
+"unknown" glyph, and `SPARK_GAP` is already it.** `sparkline.ts` states the invariant plainly —
+*"The one thing it must never do is draw a bar for a value it does not have."* Given §4.13's five
+unmodelled limiters, §2.5's invisible pore-water body and §8.1's finding that a local's ranking
+beats our model, a window grid that renders confident bars across hours we cannot actually see
+would be the exact `defect-patterns.md` §1 failure at 24× the resolution. The gap character is
+not a nicety here; it is the thing that makes the view honest.
+
+**Revised recommendation.** The hourly window view is a **bot-first feature**, not a Mini App
+one, and it is nearer than §9.3 implied — the table, the intervals, the glyph scale, the
+missing-data character and the tab machinery all exist. What it needs is an hourly dryness
+series to plot, which is exactly what the ET₀ water balance in §7 produces. Those two changes
+are the same project, and doing them in that order gets the feature the user liked out of
+already-written code.
 
 ## Sources
 
