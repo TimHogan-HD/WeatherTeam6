@@ -1817,6 +1817,35 @@ Two further observations from reading the file, neither of them new defects:
   correctly flags that separating the two is a `ScoreInput` change; this adds the physical reason
   it is worth making, rather than only the ergonomic one.
 
+**6.14 Two of the three drying modifiers are binary steps, and the physics under both is
+continuous.** §6.13 covered humidity. The same shape appears next to it:
+
+```
+const angleFactor    = 1.0 + (input.cliffAngle / 90) * 0.3   // continuous
+const windFactor     = input.currentWindKmh > 20 ? 0.8 : 1.0  // step
+const humidityFactor = input.currentHumidityPct > 80 ? 1.3 : 1.0 // step
+```
+
+Angle is already a ramp. Wind is not, and evaporation's dependence on wind speed is continuous and
+monotone — it is one of the four terms in the FAO-56 Penman-Monteith reference evapotranspiration
+that §5.1 already identified as available from Open-Meteo. A step at 20 km/h says a 21 km/h breeze
+and a 60 km/h gale dry a wall identically, and that 19 km/h does nothing at all. §8.1's community
+evidence points the same way: on Eastern Grit the stated driver of fast drying is *wind exposure*,
+with a crag drying fastest *"when wind blows directly onto it"* — a quantity with a direction and a
+magnitude, reduced here to one bit.
+
+Three notes on why this is recorded and not proposed as a patch:
+
+1. **The multiplicative form is doing real work.** `angleFactor * windFactor * humidityFactor`
+   composes cleanly and each factor is independently interpretable in `breakdown.modifiers`. A
+   curve keeps that; a rewrite into an evaporation model does not.
+2. **Smoothing a step changes every score**, including days that currently sit exactly at the
+   boundary, so it needs the score-ladder question from §9.2 answered first — a more accurate
+   modifier under an unchanged 80–100 *Excellent* band moves crags between labels for reasons a
+   user cannot see.
+3. **`scoring-algorithm.md` is locked.** These constants are agreed. This is a finding about them,
+   and the decision to change one is the user's.
+
 ## 7. Proposed taxonomy — NOT APPROVED, NOT IMPLEMENTED
 
 `scoring-algorithm.md` is locked and this section changes nothing. It exists so the research
@@ -1942,7 +1971,9 @@ in the UK it is close to a structured dataset.
   This is worth taking seriously as a **feature**, not just folklore: soil moisture is an
   available forecast product, it integrates antecedent rainfall and evaporative demand
   automatically, and it is exactly the quantity §6.3 says our most-recent-event model throws
-  away. Probably the single cheapest fix for that gap.
+  away. ~~Probably the single cheapest fix for that gap.~~ **Corrected in §8.2** — the heuristic
+  is sound but a modelled grid-cell soil moisture is not the quantity the climber is reading,
+  and it is not cheap.
 - **Prior art exists for this product, at one crag.** [crag.day](https://crag.day/) grades
   dryness and friction for Squamish granite from rain data plus local calibration, and states
   its own limitation plainly: local seepage, shade and microclimates still vary. That is the
@@ -1961,6 +1992,55 @@ product should not pretend otherwise.
 ---
 
 ---
+
+### 8.2 Correction to §8.1 — the ground-dampness proxy does not survive being turned into an API call
+
+§8.1 called modelled soil moisture *"probably the single cheapest fix"* for the antecedent-rainfall
+gap. That recommendation conflated two different things, and the second one is much weaker than the
+first.
+
+**What the community actually does is a measurement.** Joe's Valley guidance — *"if the ground is
+still damp then the rock is still wet"* — is a person standing at the crag, looking at the actual
+ground, at the actual base of the actual wall, on the day. It integrates antecedent rainfall,
+evaporative demand, shading and drainage because it *is* the outcome of all of them at that spot.
+
+**What an API would supply is a model output, and the substitution is not clean.** Three findings
+against it:
+
+- **Soil moisture near an outcrop is systematically biased by the outcrop.** Measured around bare
+  rock outcrops: *"the soil moisture north and east of the rocks was higher compared to the other
+  directions and to the control plot, attributed to the shading by the rocks"*, present in all
+  seasons and **strongest in the dry season**
+  ([Springer EES — soil moisture around bare rock outcrops](https://link.springer.com/article/10.1007/s12665-016-6290-1)) **[M]**.
+  The quantity the climber reads is *created* by the cliff. A grid cell does not know the cliff is
+  there.
+- **Modelled wetness proxies can have very low explanatory power while looking authoritative.**
+  The topographic wetness index — a different proxy, but the cautionary case — predicts measured
+  soil moisture with r² of only **23.7% (1 m²) and 27.2% (100 m²)**, and performs *"poor to
+  moderate"* overall, best when conditions are neither saturated nor dry — i.e. worst at both ends
+  that matter here
+  ([Riihimäki et al., *Water Resources Research*](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2021WR029871)) **[M]**.
+- **It inherits §9.7's grid-cell problem exactly.** §9.7 established that Open-Meteo's
+  `shortwave_radiation` is a grid-cell value that knows nothing about the wall, and needs a horizon
+  correction to mean anything at a crag. Soil moisture is the same class of variable with the same
+  defect, and unlike shortwave there is no equivalent of a horizon profile to correct it with.
+
+**What survives the correction.** The *reasoning* in §8.1 still holds: an integrating variable beats
+a most-recent-event lookup, because it carries antecedent wetting and evaporative demand together —
+that is §6.3's gap and §2.2's two-stage model in one number. What does not hold is that soil
+moisture is a **cheap** way to get one. Two better routes now that §2.7 and §2.8 exist:
+
+- **Sum the rainfall the app already has**, weighted by recency, rather than reading only the most
+  recent event. No new upstream, no new grid-cell problem, and it addresses §6.3 head-on.
+- **Subtract an evaporative term the app can already get.** ET₀ (`et0_fao_evapotranspiration`) is a
+  point quantity computed from temperature, humidity, wind and radiation — the same four inputs
+  §2.2's constant-rate stage depends on — and a running rainfall-minus-ET₀ balance is a real water
+  budget rather than a proxy for one.
+
+**And the honest note about this correction itself:** §8.1's recommendation was reached by reading
+a community heuristic and finding a forecast variable with a matching name. That is exactly the
+move `defect-patterns.md` §3 warns about — attribution not backed by the data — applied to a data
+source rather than a label. The heuristic is good; the variable is not the heuristic.
 
 ## 9. What the competing products do, and what to take from them
 
@@ -2570,3 +2650,9 @@ Twenty-fourth pass — sorption closes the humidity gap (§2.8, §6.13):
 [Krus & Kießl — determination of moisture storage characteristics](https://wufi.de/literatur/Krus,%20Kie%C3%9Fl%201998%20-%20Determination%20of%20the%20moisture%20storage.pdf) ·
 [Springer EES — moisture expansion of tuff stones and sandstones](https://link.springer.com/article/10.1007/s12665-023-10809-2) ·
 [Elsevier Geomorphology — stone temperature and moisture variability, implications for sandstone weathering](https://www.sciencedirect.com/science/article/abs/pii/S0169555X16303555)
+
+Twenty-fifth pass — correcting the soil-moisture recommendation (§8.2, §6.14):
+[Springer EES — soil moisture distribution around bare rock outcrops](https://link.springer.com/article/10.1007/s12665-016-6290-1) ·
+[Riihimäki et al., WRR — topographic wetness index as a proxy for soil moisture](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2021WR029871) ·
+[MDPI Land — TWI as a proxy in a hillslope catena](https://www.mdpi.com/2073-445X/11/11/2018) ·
+[Nature Sci. Rep. — soil particles around bedrock outcrops](https://www.nature.com/articles/s41598-024-68710-2)
