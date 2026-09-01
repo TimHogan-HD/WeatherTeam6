@@ -355,6 +355,46 @@ to the model's signature and its callers, not a condition added to an input it a
 *produced* rather than where it is *read* is how three documents derived scoring behaviour from
 `currentTempC`, which no scorer reads either.
 
+### 2.7 Snow is not rain with a different label, and the drying clock starts in the wrong place
+
+§2.6 covered what freezing does to the rock. This is the separate problem of what falls on it.
+The Access Fund's page is titled *"How to Assess Sandstone After Rain **or Snow**"* for a reason:
+*"winter soaking or snowmelt requires a significantly longer waiting period due to low evaporation
+rates"* **[C]**, and two independent effects compound to produce that.
+
+**First, the water arrives late and keeps arriving.** Rain wets a wall over hours. A snowpack on a
+ledge, in a crack or on the ground below meters out its water over days or weeks, and a *ripe*
+snowpack (isothermal at 0 °C) releases it continuously; the pack itself holds only **3–5% of its
+snow water equivalent** as liquid before passing the rest on
+([Missoula Avalanche](https://missoulaavalanche.org/2021/01/what-is-swe-snow-water-equivalent/),
+[HEC-HMS snowmelt methods](https://www.hec.usace.army.mil/confluence/hmsdocs/hmsum/4.10/subbasin-elements/selecting-a-snowmelt-method)) **[M]**.
+So the wetting event is not the snowfall date; it is every warm afternoon afterwards.
+
+**Second, the drying side is at its weakest exactly then.** §2.2's constant-rate period is driven by
+evaporative demand, which in a Midwestern or Front Range January is near its annual floor. Slow
+supply against slow removal is the worst combination in the two-stage model, and it is why the
+community answer for winter is *weeks*, not the 48–72 h the same sources give for a summer soaking
+**[C]**.
+
+**Third — and this is the one that has a number on it — the depth of snow on a ledge is not
+recoverable from the precipitation record.** The snow-to-liquid ratio averages **10:1 but ranges
+3:1 to 40:1**, and warm snow near 0 °C falls at **8:1 or even 5:1**
+([NWS La Crosse](https://www.weather.gov/arx/why_snowratios),
+[Davis Instruments](https://www.davisinstruments.com/blogs/newsletter/meteorology-101-which-has-more-water-my-snow-or-yours)) **[M]**.
+Two days recorded as 20 mm of precipitation can be 10 cm of dense wet snow that is gone by noon, or
+**80 cm of cold powder still sitting on every ledge in the crag a fortnight later.** A single
+liquid-equivalent figure cannot tell them apart, and the second one is the one that keeps a wall wet.
+
+**And the inverse case is the extreme wetting event that looks small in the record.** Rain on a ripe
+snowpack produces runoff that can **exceed the precipitation itself by 3–5×** **[M]** — the day's
+precipitation total understates the water delivered by most of an order of magnitude, at the exact
+moment the rock is already saturated and above freezing. That is the §2.6 thaw hazard and this one
+arriving together, and it is a normal March in every region this project's user climbs in.
+
+**The honest summary is that a snow-fed wetting event and a rain-fed one differ in start time,
+duration, magnitude and drying rate — all four — and the current model treats them as the same
+number on the same date.**
+
 ## 3. Reference table: absorption and drying by rock family
 
 Porosity values from engineering-geology compilations [M]
@@ -1670,6 +1710,35 @@ below the >90% outliers, and consistent with both.
 Fund's own answer is a conditional on the weather since the rain, which is precisely the data
 `liveForecast` already fetches and `dryingModel` currently reduces to one number.
 
+**6.12 Both rainfall sources hand the drying model snow disguised as rain, and neither asks for the
+variable that would separate them.** Verified in the code, not inferred:
+
+- `fetchArchivePrecip` (`openMeteo.ts`) sets `daily=precipitation_sum` — **total** precipitation, in
+  which snow appears as its liquid water equivalent. Open-Meteo also exposes `rain_sum` and
+  `snowfall_sum`; neither is requested.
+- `fetchPrecipHistory` (`acis.ts`) requests `elems: [{ name: 'pcpn', units: 'mm' }]` — likewise
+  liquid-equivalent precipitation. ACIS carries separate snowfall and snow-depth elements; neither
+  is requested.
+
+So `dryingModel` receives a `{ date, precip_mm }[]` in which 20 mm of February snow and 20 mm of
+July rain are the same input, and it starts its clock at the **end of the day the snow fell**
+(`new Date(date + 'T23:59:59Z')`). Per §2.7 that is the moment before the wetting begins, not after
+it ends: the model counts a fortnight of snow-covered ledges as a fortnight of drying, and reports
+`estimated_dry` true well inside it.
+
+This is the same class as §6.3 (antecedent rainfall discarded) but strictly worse, because §6.3
+loses magnitude while this one has the **sign of the elapsed time wrong**. It is also the finding
+most specific to this user's regions: Minnesota, Wisconsin, South Dakota, Wyoming and Colorado all
+spend three to five months a year in the state it mishandles, and it will never be visible at Red
+Rock or Bishop.
+
+The fix is not conceptually hard — request `snowfall_sum` alongside `precipitation_sum`, and treat a
+day with snow as an event that has not finished rather than one that ended at 23:59 — but it is a
+change to both fetchers, the model's input type and its clock, so it is recorded here as a finding
+rather than sketched as a patch. **What must not happen is adding snow to the input and leaving the
+clock alone**, which would make a snowy day count as a bigger rain event that still finished on
+time, i.e. wrong in a new way while looking more sophisticated.
+
 ## 7. Proposed taxonomy — NOT APPROVED, NOT IMPLEMENTED
 
 `scoring-algorithm.md` is locked and this section changes nothing. It exists so the research
@@ -1760,6 +1829,14 @@ output is a withheld estimate, not the most conservative number wearing a confid
 - **Vertical variation within a cliff** (the Nuttall result) is real and I have no way to
   model it — the app has one rock type per location and a route-level property would be a
   much larger change.
+- **Nothing in this document was verified against live weather data, and that was tested,
+  not assumed.** A direct probe of `archive-api.open-meteo.com` from this environment was
+  refused at the gateway (`connect_rejected`, 403 to CONNECT — a policy denial, not a network
+  fault). The app's own upstream is therefore unreachable from here, so claims about what a
+  variable actually returns — §2.7's snow-to-liquid spread among them — rest on documentation
+  and literature rather than a response body. Everything in §6 that is stated as *verified* was
+  verified by **reading this repository's source**, which is a different and weaker kind of
+  evidence than running it.
 
 ### 8.1 Update — community data partly closes the first gap
 
@@ -2396,3 +2473,11 @@ Twenty-second pass — freeze–thaw and the Access Fund bracket (§2.6, §6.11)
 [Frontiers — damage evolution of frozen-thawed granite by CT](https://www.frontiersin.org/journals/earth-science/articles/10.3389/feart.2022.912356/full) ·
 [Access Fund — how to assess sandstone after rain or snow](https://www.accessfund.org/latest-news/open-gate-blog/how-to-assess-sandstone-after-rain-or-snow) ·
 [Climbing — reducing rockfall risk](https://www.climbing.com/skills/rockfall-risk-safety-tips/)
+
+Twenty-third pass — snow as a distinct wetting mechanism (§2.7, §6.12):
+[NWS La Crosse — why snow ratios vary](https://www.weather.gov/arx/why_snowratios) ·
+[Davis Instruments — snow-to-liquid ratio](https://www.davisinstruments.com/blogs/newsletter/meteorology-101-which-has-more-water-my-snow-or-yours) ·
+[Missoula Avalanche — what is SWE](https://missoulaavalanche.org/2021/01/what-is-swe-snow-water-equivalent/) ·
+[HEC-HMS — selecting a snowmelt method](https://www.hec.usace.army.mil/confluence/hmsdocs/hmsum/4.10/subbasin-elements/selecting-a-snowmelt-method) ·
+[Mountain Hardwear — climbing after a wet weather event](https://www.mountainhardwear.com/learn/know-how/rock-climbing/rock-n-rain.html) ·
+[Open-Meteo — historical weather API](https://open-meteo.com/en/docs/historical-weather-api)
