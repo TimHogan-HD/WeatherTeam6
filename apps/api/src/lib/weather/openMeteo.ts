@@ -1140,11 +1140,38 @@ export type EnsembleHour = {
   wind_kmh_p10: number | null
   wind_kmh_p50: number | null
   wind_kmh_p90: number | null
+  /**
+   * The ensemble **mean** hourly accumulation, over the members that reported.
+   *
+   * Kept alongside the percentiles because it is the only one of the four that
+   * adds up: the mean of the members' daily totals is the sum of the hourly
+   * means, whereas a sum of hourly medians is not the median of anything.
+   * `/rain` totals a step or a day with this and reads the spread from the
+   * percentiles.
+   */
+  precip_mm_mean: number | null
+  /**
+   * How many members have **measurable** precipitation this hour, i.e. at least
+   * `MEASURABLE_PRECIP_MM`.
+   *
+   * `members_wet / member_count` is a probability computed from the members
+   * themselves. It is not `precipitation_probability`, which Probe A measured to
+   * be a blended field shared between models and attributable to none of them.
+   */
+  members_wet: number
   /** Members reporting precipitation at this hour — the count falls as models drop out. */
   member_count: number
   /** The same count split by model, so a reader can say which models still reach this hour. */
   model_member_counts: Record<string, number>
 }
+
+/**
+ * The threshold a member has to cross to count as wet.
+ *
+ * 0.1 mm is Open-Meteo's own precipitation resolution, so anything below it is
+ * a member reporting nothing rather than a member reporting a trace.
+ */
+export const MEASURABLE_PRECIP_MM = 0.1
 
 /**
  * A percentile over the members that actually reported.
@@ -1219,6 +1246,10 @@ export function parseEnsembleHourly(hourly: Record<string, unknown>): EnsembleHo
       wind_kmh_p10: percentileOrNull(wind, 10),
       wind_kmh_p50: percentileOrNull(wind, 50),
       wind_kmh_p90: percentileOrNull(wind, 90),
+      // No members left past a model's horizon: a mean of nothing is null, not
+      // 0 mm, and 0 wet of 0 members must not become a 0% chance of rain.
+      precip_mm_mean: precip.length === 0 ? null : precip.reduce((a, b) => a + b, 0) / precip.length,
+      members_wet: precip.filter((v) => v >= MEASURABLE_PRECIP_MM).length,
       member_count: precip.length,
       model_member_counts,
     })

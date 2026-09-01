@@ -454,6 +454,23 @@ export const weatherEnsembleHours = pgTable(
     wind_kmh_p10: doublePrecision('wind_kmh_p10'),
     wind_kmh_p50: doublePrecision('wind_kmh_p50'),
     wind_kmh_p90: doublePrecision('wind_kmh_p90'),
+    /**
+     * The ensemble mean hourly accumulation — the only precipitation figure here
+     * that can be added up. A step or a day total comes from summing this;
+     * summing `precip_mm_p50` would be the median of nothing.
+     */
+    precip_mm_mean: doublePrecision('precip_mm_mean'),
+    /**
+     * Members at or above 0.1 mm this hour. With `member_count` this is a
+     * probability of measurable rain derived from the members themselves —
+     * unlike `weather_run_hours.precip_prob_pct`, which is a blended upstream
+     * field no single model owns.
+     *
+     * **Nullable, and null means unknown**: a row written before this column
+     * existed has no wet count, and a reader must withhold the probability
+     * rather than render 0%.
+     */
+    members_wet: integer('members_wet'),
     member_count: integer('member_count').notNull(),
     /** `{ gfs_seamless: 31, ecmwf_ifs025: 51, ... }` for this hour. */
     model_member_counts: jsonb('model_member_counts').notNull(),

@@ -17,8 +17,15 @@ import { panelStates } from '../../db/schema.js'
  * against real Postgres.
  */
 
-export const PANEL_VIEWS = ['list', 'conditions', 'alerts', 'help'] as const
+export const PANEL_VIEWS = ['list', 'conditions', 'alerts', 'help', 'forecast', 'rain'] as const
 export type PanelView = (typeof PANEL_VIEWS)[number]
+
+/**
+ * How far the day buttons can page. Seven days is what
+ * `fetchDeterministicHourly` asks for and the ensemble's own 168 h horizon, so a
+ * larger offset would page into days no model answered for.
+ */
+export const MAX_DAY_OFFSET = 6
 
 export const PANEL_MODES = ['simple', 'advanced'] as const
 export type PanelMode = (typeof PANEL_MODES)[number]

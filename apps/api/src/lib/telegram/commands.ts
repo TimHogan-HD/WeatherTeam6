@@ -54,12 +54,15 @@ export type BotCommand = {
 /**
  * The commands registered with `setMyCommands` and rendered by `/help`.
  *
- * **Only commands this build actually answers.** The plan's command surface
- * lists `/forecast`, `/rain`, `/insight`, `/afd`, `/weather` and `/remove`;
- * those arrive in Phases 3 to 5 and are absent here on purpose. Registering a
+ * **Only commands this build actually answers.** `/insight`, `/afd`, `/weather`
+ * and `/remove` are Phases 4 and 5 and are absent here on purpose. Registering a
  * command the bot does not handle puts it in the client's command menu, where
  * tapping it produces silence — the same class of false attribution as naming a
  * source that never answered.
+ *
+ * A command added here does not reach the client's menu until someone runs
+ * `npm run bot:set-commands` with the bot token: the list is registered with
+ * Telegram, not derived from this file at runtime.
  *
  * Descriptions carry no angle brackets. `/start` was dead from the day it was
  * written because its reply contained a literal `<location name>`, which
@@ -70,6 +73,8 @@ export const BOT_COMMANDS: readonly BotCommand[] = [
   { command: 'start', description: 'Open the bot panel' },
   { command: 'locations', description: 'Pick one of your saved locations' },
   { command: 'conditions', description: 'Conditions for a saved location by name' },
+  { command: 'forecast', description: 'Hour by hour, one model at a time' },
+  { command: 'rain', description: 'Rain odds and amounts from the ensemble' },
   { command: 'alerts', description: 'Active weather alerts across your locations' },
   { command: 'help', description: 'What this bot can do' },
 ]

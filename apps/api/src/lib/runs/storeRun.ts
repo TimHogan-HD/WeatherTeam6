@@ -227,6 +227,8 @@ export async function storeEnsembleRun(
           wind_kmh_p10: sqlExcluded('wind_kmh_p10'),
           wind_kmh_p50: sqlExcluded('wind_kmh_p50'),
           wind_kmh_p90: sqlExcluded('wind_kmh_p90'),
+          precip_mm_mean: sqlExcluded('precip_mm_mean'),
+          members_wet: sqlExcluded('members_wet'),
           member_count: sqlExcluded('member_count'),
           model_member_counts: sqlExcluded('model_member_counts'),
         },
@@ -253,6 +255,8 @@ function ensembleRow(
     wind_kmh_p10: h.wind_kmh_p10,
     wind_kmh_p50: h.wind_kmh_p50,
     wind_kmh_p90: h.wind_kmh_p90,
+    precip_mm_mean: h.precip_mm_mean,
+    members_wet: h.members_wet,
     member_count: h.member_count,
     model_member_counts: h.model_member_counts,
   }

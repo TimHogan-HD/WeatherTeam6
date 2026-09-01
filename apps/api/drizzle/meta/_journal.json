@@ -64,6 +64,13 @@
       "when": 1788228837197,
       "tag": "0008_ambiguous_marvel_zombies",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788233894786,
+      "tag": "0009_bumpy_vulcan",
+      "breakpoints": true
     }
   ]
 }
