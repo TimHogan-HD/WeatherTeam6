@@ -1189,6 +1189,75 @@ partial win, and this is the sentence that stops it being oversold.
 
 ---
 
+### 4.17 Within granite, the variables are grain size and feldspar chemistry — not hardness
+
+§4.3 established that granite is friction-limited rather than integrity-limited, and §3.1 that its
+low porosity is what makes it slick. Neither said what makes one granite different from another.
+A study of mineralogical variation across granitic rocks answers it, and the answer has nothing
+to do with Mohs:
+
+- **Water absorption reaches 0.34%, apparent porosity 0.77%** across the granites measured — two
+  orders of magnitude below Hinckley sandstone's 6–20%, and consistent with everything in §3.
+- **Increasing albite (sodic plagioclase) content increases water absorption.**
+- **Increasing grain size increases apparent porosity and *decreases* mechanical properties.**
+  ([NIH PMC — mineralogical variations in granitic rocks](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10293192/)) **[M]**
+
+Every mineral involved sits at Mohs 6–7. Quartz is 7, orthoclase 6, albite 6–6.5. The spread in
+absorption within that family is therefore invisible to hardness by construction — the hardness
+range is under one Mohs unit while the absorption range is a factor of several. This is the
+§1 premise failing again, now *inside* the one family where it should have been safest. **[I]**
+
+**The corollary that reaches actual crags.** Grain size and plagioclase content are exactly the
+two axes that separate the plutonic climbing areas:
+
+| Rock | Grain size | Plagioclase | Expected absorption |
+| --- | --- | --- | --- |
+| Adirondack anorthosite | very coarse | ~90%+ of the rock | highest of the plutonics **[I]** |
+| Bohus granite (Bohuslän) | coarse, porphyritic | moderate | moderate **[I]** |
+| Sierra granodiorite | medium–coarse | moderate–high | moderate **[I]** |
+| Aplite / fine-grained dikes | fine | low | lowest **[I]** |
+
+Anorthosite is the extreme case and the Adirondacks are the climbing area built on it: a rock that
+is essentially *all* plagioclase, coarse-grained, and therefore at the top of both trends the study
+identified. That is an inference from the trend, not a measurement of Adirondack rock, and it is
+marked as such. It predicts the Adirondacks should dry more slowly than Sierra granite of the same
+aspect — testable, and worth testing before any constant is derived from it.
+
+**Bohuslän is the useful control on the weather side.** Swedish granite trad on "extremely solid"
+Bohus granite, and the community's drying complaint is not about the rock at all: *"Skälefjäll crag
+is in the shade until around 4pm, and things will take longer to dry and can sometimes feel a bit
+greasy"* ([UKC destination guide](https://www.ukclimbing.com/articles/destinations/bohuslan_sweden-10050)) **[C]**.
+Aspect and shade decide it; the granite itself holds no water worth discussing. That is §5's ranking
+holding at 58°N, and it is the same sentence Devil's Lake and Big Cottonwood produced — **on
+low-porosity rock the rock type stops being the variable and the modifiers become the whole answer.**
+
+### 4.18 El Salto decouples the shelter rule from the tufa rule
+
+§4.16 corrected the tufa rule to sufficient-but-not-necessary: tufa proves water has moved over the
+face, but its absence proves nothing. El Salto, Nuevo León supplies the other half of the test —
+a wall that has tufa **and** is sheltered enough that rain never reaches it.
+
+- **The rock.** *"One of the few climbing areas in northern Mexico where overhanging limestone full
+  of tufa can be found"* ([Wikipedia](https://en.wikipedia.org/wiki/El_Salto_(climbing_area))) **[C]**.
+  Tufa present, so by §4.14's rule water has run over that face.
+- **The shelter.** *"Due to the wall inclination at La Boca wall, whenever there is a rainy day,
+  water will not hit the wall nor will it drip from the holds, unless it is really pouring"* **[C]**.
+- **The climate.** 911 mm annual, September wettest at 266 mm, January driest at 25 mm; season late
+  October to March **[C]**. The area is named for a waterfall *"that you only see in raining
+  season"* — the tufa-forming water is seasonal and the season is deliberately climbed around.
+
+So the two mechanisms are orthogonal and both are real here. Tufa says *this face has had water on
+it*; overhang says *today's rain is not that water*. A model that reads tufa as "seepage-prone,
+suppress" would be wrong at La Boca for five months of the year, and a model that reads overhang as
+"always dry" would be wrong in September. **The rock-type constant cannot resolve either of them;
+only a per-crag flag with a season on it can.**
+
+**And the hazard here is not the wall.** *"In wetter years most of the intermittent watercourses are
+still flowing, meaning that wading was required to access several of the crags"* **[C]**. That is
+the §4.13 pattern — Index's river, Wild Iris's snowmelt, Willow River's dam — recurring on a third
+continent: **for a meaningful minority of crags the thing rain closes is the approach, not the
+rock**, and no drying model of any sophistication will ever see it.
+
 ## 5. Non-rock modifiers that frequently dominate the rock type
 
 Ranked by how often they decide the answer, most-often first:
@@ -1867,6 +1936,79 @@ That makes terrain shading materially cheaper to adopt than the per-location see
 knowledge in §4.13, which cannot be computed at all. Of everything in §9, this is the item with
 the best ratio of value to architectural disruption.
 
+### 9.8 The other half of the field: report platforms, and the decay problem none of them solves
+
+§9.1 sorted the field by output shape, and every row in it computes a number — BlocWeather included,
+where the report button *feeds the algorithm* rather than being the output. There is a second family
+that table does not describe, and it is the one closest to what a Telegram bot can do: platforms whose
+output **is** the human report.
+
+| Product | Output | Distribution | The interesting part |
+| --- | --- | --- | --- |
+| **IceClimb.org** | Per-crag status on a map | *"Subscribe to favourite crags for instant push notifications when new reports drop"* | Three states: **green in, red out, grey unknown** |
+| **Climb Lines** | Per-route condition reports | Subscribe to routes, regions **and climbers** | Founded 2023, unfunded; the subscribable unit is finer than a crag |
+| **Avalanche centres** (NWAC, UAC, Taos, AAIC, Hatcher Pass) | Public observations feed | Web + mobile, anonymous permitted | The form design is the deliberate part |
+
+**Three things to take from this family, in order of value.**
+
+**1. IceClimb's third state is the rule this repo already enforces, shipped in a competitor's UI.**
+Green in, red out, **grey unknown** — a crag nobody has reported is not reported as "out". That is
+`defect-patterns.md` §1 and §2 stated as a product decision, and it is the same rule as
+`ForecastSnapshot.is_today` being optional because *a missing value is unknown, not `false`*, and
+the same rule as `scoreUnavailable: 'rainfall_unavailable'` from issue #34. A competitor arriving
+independently at the repo's own hardest-won invariant is the strongest evidence yet that the
+invariant is right — and that the honest three-state answer is a *feature*, not an apology.
+
+**2. The avalanche centres have already solved the "how do you ask" problem, and the answer is
+tiered, not short.** Their forms are built so that *"anyone can share useful information, regardless
+of experience level or avalanche training"*: required fields kept minimal, **yes/no prompts**,
+drop-downs that *"help formulate thoughts"* rather than free text, optional photos, free text last,
+and **anonymous submission permitted**
+([NWAC](https://nwac.us/2020/11/13/field-observations-sharing-information-helps-build-a-better-avalanche-forecast/),
+[UAC](https://utahavalanchecenter.org/observations-avalanches/submit)) **[C]**. The design principle
+is that the *first* question must be answerable by someone with no training, and depth is optional
+below it. Mapped onto a bot, the first question is one tap — **Dry / Damp / Wet / Seeping** — and
+everything else (which sector, photo, free text) is a follow-up the user may ignore. §9.2 called
+the unprompted ask the strongest differentiator found; this is the evidence for how to phrase it,
+from a domain that has been refining the same question for decades under much higher stakes.
+
+**3. The decay problem, which is the actual gap — and the one thing here WeatherTeam6 is already
+equipped to close.** Report platforms all share a defect they state openly: *"ice climbing
+conditions reports may not reflect current ice conditions due to the fluid nature of the medium"*
+**[C]**. A report is a measurement with a timestamp, and every one of these products renders it
+with **age alone** as the freshness signal — three days old, five days old — leaving the reader to
+judge what happened in between.
+
+That is the wrong denominator. **A report's half-life is set by the weather since it, not by the
+clock.** A five-day-old "bone dry" under five days of sun is still true. An hour-old "dry" with
+18 mm falling since is already false. The correct freshness statement is not *"reported 3 days ago"*
+but *"reported dry 3 days ago; 0 mm since"* — or *"reported dry 3 days ago; 22 mm since, treat as
+unknown"*.
+
+This is the rare item in §9 where the repo is **ahead on inputs and behind on nothing**. The
+rainfall record needed to compute it is already fetched per request by `loadLastRain` in
+`panelViews.ts` over the same 30-day window the drying model uses, and it already distinguishes a
+failed lookup from a dry spell (issue #34, `lastRainFailed`). A stored report would need only a
+timestamp and a state; the decay is then a subtraction against data the panel already has in hand.
+
+Two constraints on it, stated now so they are not discovered later:
+
+- **The threshold that decays a report is not the drying model's 2 mm.** `SIGNIFICANT_RAIN_MM = 2`
+  answers "did enough fall to wet the rock"; report decay answers "did *anything* happen that could
+  have changed the answer", which per §2.2's constant-rate stage includes a heavy dew night and a
+  freeze-thaw cycle that fall well under 2 mm of precipitation. Reusing the constant would silently
+  hold reports valid through weather that invalidated them.
+- **Decay must produce *unknown*, never *wet*.** Rain since a dry report means the report no longer
+  answers the question — it does not mean the crag is wet, which is the model's job to estimate.
+  Collapsing the two would put a human's authority behind a number they never gave, which is
+  §2 of the defect catalogue exactly.
+
+**What not to take from this family.** Climb Lines subscribes at *route* granularity and to
+*individual climbers*. Both are wrong at this scale: a single-user deployment has no climber graph
+to follow, and a route-level report is a report about one line's seepage, which §2.3 already says
+is local knowledge that does not generalise even to the next route over. The crag is the right
+unit, and it is the unit the bot's panels are already built around.
+
 ## Sources
 
 Peer-reviewed and technical:
@@ -2147,3 +2289,15 @@ Twentieth pass — porosity and friction (§3.1):
 [Hall et al., ESPL — rock albedo and thermal conditions](https://onlinelibrary.wiley.com/doi/abs/10.1002/esp.1189) ·
 [MDPI — rock emissivity measurement for IR thermography](https://www.mdpi.com/2076-3417/11/9/3773) ·
 [ResearchGate — chalk and the finger–hold friction coefficient](https://www.researchgate.net/publication/233116824_The_effect_of_chalk_on_the_finger-hold_friction_coefficient_in_rock_climbing)
+
+Twenty-first pass — granite mineralogy, El Salto, report platforms (§4.17, §4.18, §9.8):
+[NIH PMC — mineralogical variations in granitic rocks](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10293192/) ·
+[UKC — destination guide, Bohuslän](https://www.ukclimbing.com/articles/destinations/bohuslan_sweden-10050) ·
+[Wikipedia — Bohus granite](https://en.wikipedia.org/wiki/Bohus_granite) ·
+[Wikipedia — El Salto climbing area](https://en.wikipedia.org/wiki/El_Salto_(climbing_area)) ·
+[MP — El Salto, Nuevo León](https://www.mountainproject.com/area/105963765/el-salto) ·
+[IceClimb.org — App Store listing](https://apps.apple.com/us/app/iceclimb-org/id6741681678) ·
+[Climb Lines](https://www.climblines.com/) ·
+[NWAC — field observations](https://nwac.us/2020/11/13/field-observations-sharing-information-helps-build-a-better-avalanche-forecast/) ·
+[Utah Avalanche Center — submit observation](https://utahavalanchecenter.org/observations-avalanches/submit) ·
+[Taos Avalanche Center — how to submit](https://taosavalanchecenter.org/observations-archive/public/how-to-submit-observation/)
