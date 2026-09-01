@@ -4,7 +4,7 @@ Research notes for improving the drying model. **This document does not change t
 scoring algorithm.** `.claude/docs/scoring-algorithm.md` is agreed and locked; §7 below
 is a *proposal* that needs explicit approval before any of it reaches code.
 
-Last updated: 2026-09-01 (tenth pass: §4.12 rest of world; the Rocklands question resolved; alpine permafrost as a cement problem)
+Last updated: 2026-09-01 (eleventh pass: §5.3 — anchor stress corrosion cracking, which inverts the rain-shelter advice at coastal crags)
 
 ## How to read the confidence markers
 
@@ -1128,6 +1128,55 @@ nearly the inverse of the drying question and shares the freeze–thaw zero-cros
 
 ---
 
+### 5.3 The hazard that inverts the shelter rule — bolt stress corrosion cracking
+
+Wet-weather conditions research keeps arriving at the same practical advice: when it rains, go
+to the steep sheltered sector. At coastal and tropical crags that advice is in direct tension
+with a second, slower hazard, and the tension is worth stating because nothing else in this
+document points the same way twice.
+
+**Stainless steel climbing anchors fail by chloride stress corrosion cracking (SCC) in marine
+and tropical environments, on timescales far shorter than their nominal life.** A 316L anchor
+in seaside Thai limestone failed by transgranular chloride SCC after ten years; at Railay,
+stainless bolts began failing after only a few years, prompting the large-scale titanium
+rebolting of the Thaitanium Project; on Cayman Brac, stainless bolts and hangers have failed in
+**as little as 18 months**. In marine settings, steel expected to last 20 years can degrade in
+**as little as three months**, while titanium is credited with up to 200 years
+([UIAA — corrosion and SCC of climbing anchors](https://theuiaa.org/documents/safety/09122020_UIAA_ClimbingAnchors_Update_123.pdf),
+[Climbing — saltwater-corroded bolts](https://www.climbing.com/community/why-do-seaside-crags-around-the-world-still-have-so-many-bad-bolts/),
+[Climb Cayman Brac — bolt safety](https://www.climbcaymanbrac.com/safety/)).
+
+**Two details make this a conditions problem rather than a gear problem.**
+
+**First, the driver is not constant wetness — it is salt that deposits and then concentrates.**
+The UIAA names elevated temperature, **low humidity**, and the formation of magnesium- or
+calcium-rich chloride deposits **at unwashed locations** [C]. That reads backwards until you
+consider the mechanism: a deliquescent chloride film is most aggressive when it is a
+concentrated brine, which is a drying condition, not a soaking one. Salt spray plus a drying
+cycle is worse than salt spray plus rain.
+
+**Second, and this is the inversion: rain washes salt off, so the sheltered overhangs are the
+worst place for it.** The steep, rain-protected sectors this research repeatedly identifies as
+the wet-weather answer — Bob Marley at the Red (§4.10), Foster Falls' roofs (§4.10), Sikati Cave
+at Kalymnos (§4.2), Thailand's overhangs (§4.12) — are, at a coastal crag, precisely the
+"unwashed locations" where chloride accumulates [I]. **"Stays dry in the rain" is a
+bolt-safety liability at a sea cliff.**
+
+**Third, rock type matters again — and the ranking is different from the drying one.**
+Limestone and dolomite are worse than sandstone or granite for SCC, with **karst the worst
+case** [C]. Compare that to §3, where limestone is the *benign* family for wet strength and
+sandstone the dangerous one. The same crag can be low-risk for hold breakage and high-risk for
+anchor failure, and a single "conditions" number cannot carry both.
+
+**What this means for the product.** Nothing here belongs in a drying score, and pretending
+otherwise would be worse than silence — this is a fixed-gear hazard on a multi-year timescale,
+not a today question. But it is a real reason to be careful about how confidently a sheltered
+coastal sector is recommended, and if the app ever carries per-location notes it is exactly the
+kind of thing a local flag should say. Recorded here so that a future "best sheltered option in
+the rain" feature does not cheerfully send someone to a sea cave on 18-month-old stainless.
+
+---
+
 ## 6. What this means for WeatherTeam6 — gap analysis
 
 Read against `apps/api/src/lib/scoring/dryingModel.ts` and `scoring-algorithm.md` as they
@@ -1551,3 +1600,9 @@ Tenth pass — rest of world and alpine permafrost (§4.12):
 [Gruber & Haeberli — permafrost in steep bedrock slopes](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2006JF000547) ·
 [ESP — permafrost degradation and high mountain rockfall](https://onlinelibrary.wiley.com/doi/10.1002/esp.70063) ·
 [ESurf — temperature-dependent stability model for degrading permafrost rock slopes](https://esurf.copernicus.org/articles/9/1125/2021/)
+
+Eleventh pass — anchor stress corrosion cracking (§5.3):
+[UIAA — corrosion and stress corrosion cracking of climbing anchors](https://theuiaa.org/documents/safety/09122020_UIAA_ClimbingAnchors_Update_123.pdf) ·
+[Climbing — why seaside crags still have bad bolts](https://www.climbing.com/community/why-do-seaside-crags-around-the-world-still-have-so-many-bad-bolts/) ·
+[Climb Cayman Brac — bolt safety](https://www.climbcaymanbrac.com/safety/) ·
+[MountaiNow — stress corrosion cracking](https://www.mountainow.net/en/2022/06/watch-your-anchor-stress-corrosion-cracking-could-be-next/)
