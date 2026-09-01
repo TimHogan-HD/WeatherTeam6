@@ -4,7 +4,7 @@ Research notes for improving the drying model. **This document does not change t
 scoring algorithm.** `.claude/docs/scoring-algorithm.md` is agreed and locked; §7 below
 is a *proposal* that needs explicit approval before any of it reaches code.
 
-Last updated: 2026-09-01 (eleventh pass: §5.3 — anchor stress corrosion cracking, which inverts the rain-shelter advice at coastal crags)
+Last updated: 2026-09-01 (twelfth pass: §4.13 PNW and Sierra — vegetation and road access as non-weather limiters)
 
 ## How to read the confidence markers
 
@@ -946,6 +946,41 @@ product, but it confirms §5.2's conclusion that "conditions" is at least three 
 
 ---
 
+### 4.13 Pacific Northwest and the Sierra — two limiters that are not weather
+
+- **Darrington, WA — vegetation is the drying limiter on granite.** The area is *"heavily
+  vegetated with trees growing even on boulders or granite domes,"* and many climbs *"may remain
+  wet for a day or two after a prolonged wet period"*
+  ([WCC](https://washingtonclimbers.org/index.php/2015/10/13/darrington/),
+  [MP](https://www.mountainproject.com/area/106006698/darrington)). Granite at ~1% porosity
+  taking two days to dry is not the rock — it is canopy drip, moss and shade, the same mechanism
+  as Squamish (§4.8) and the lichen finding in §5.1. **In a temperate rainforest, the biology
+  sets the drying time and the lithology is nearly irrelevant** [I].
+- **Index, WA** — Yosemite-like granite above the Skykomish, and notable for the *opposite*
+  reason to most entries here: being west of the Cascade crest keeps it **cool when the east
+  side is over 90 °F** ([AAI](https://www.alpineinstitute.com/programs/guided-rock-climbing-at-index-wa/)).
+  A rain-shadow boundary can put two crags an hour apart in different seasons.
+- **Tuolumne Meadows, CA — the limiter is a road.** The season runs roughly June to October
+  because **Tioga Pass (Highway 120) closes on the first snow, usually November, and reopens
+  late May to June depending on the snow year**
+  ([MP](https://www.mountainproject.com/area/105833384/tuolumne-meadows),
+  [Planetmountain](https://www.planetmountain.com/en/crags/tuolumne-meadows-yosemite.html)).
+
+**That last one is a limiter class this document has not had: access infrastructure.** The rock
+can be bone dry and the answer still "no", because the road is shut. It is not weather, not rock,
+and not seepage — and unlike the ski-field above Céüse (§4.11) or the snowmelt at Wild Iris
+(§4.9), it does not even correlate with conditions at the crag once the road is open.
+
+Collected across the document, the app's honest answer now depends on at least **five things it
+does not model**: seepage catchment (§2.3), access rules and closures (§4.9), river level and
+farmed ice (§4.7), road and pass status (here), and fixed-gear condition (§5.3). Each is
+per-location, none is derivable from a forecast, and all of them can turn a green score into a
+wasted drive. That is the strongest argument in this research for the per-location notes field
+proposed in §7 — not as a refinement of the score, but as the only place the app can be honest
+about what it cannot see.
+
+---
+
 ## 5. Non-rock modifiers that frequently dominate the rock type
 
 Ranked by how often they decide the answer, most-often first:
@@ -1606,3 +1641,10 @@ Eleventh pass — anchor stress corrosion cracking (§5.3):
 [Climbing — why seaside crags still have bad bolts](https://www.climbing.com/community/why-do-seaside-crags-around-the-world-still-have-so-many-bad-bolts/) ·
 [Climb Cayman Brac — bolt safety](https://www.climbcaymanbrac.com/safety/) ·
 [MountaiNow — stress corrosion cracking](https://www.mountainow.net/en/2022/06/watch-your-anchor-stress-corrosion-cracking-could-be-next/)
+
+Twelfth pass — PNW and Sierra (§4.13):
+[WCC — Darrington](https://washingtonclimbers.org/index.php/2015/10/13/darrington/) ·
+[MP — Darrington](https://www.mountainproject.com/area/106006698/darrington) ·
+[AAI — guided climbing at Index](https://www.alpineinstitute.com/programs/guided-rock-climbing-at-index-wa/) ·
+[MP — Tuolumne Meadows](https://www.mountainproject.com/area/105833384/tuolumne-meadows) ·
+[Planetmountain — Tuolumne Meadows](https://www.planetmountain.com/en/crags/tuolumne-meadows-yosemite.html)
