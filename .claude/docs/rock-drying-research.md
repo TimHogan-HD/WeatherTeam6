@@ -4,7 +4,7 @@ Research notes for improving the drying model. **This document does not change t
 scoring algorithm.** `.claude/docs/scoring-algorithm.md` is agreed and locked; §7 below
 is a *proposal* that needs explicit approval before any of it reaches code.
 
-Last updated: 2026-09-01 (fifth pass: §2.5 — rock-moisture instrumentation, the Saxony climbing-area study, and the "rock traffic lights" prior art)
+Last updated: 2026-09-01 (sixth pass: §2.5a — the Felsampel, a production rock-conditions system running since 2015, and what it instrumented)
 
 ## How to read the confidence markers
 
@@ -207,14 +207,24 @@ A companion Saxony survey found a non-monotonic depth profile — slightly wet a
 **drier at 5–15 cm**, moderately wet at 20–30 cm
 ([EGU21](https://meetingorganizer.copernicus.org/EGU21/EGU21-14871.html)).
 
-If that generalises, an hours-since-rain model is tracking the wrong reservoir. It would
-explain a great deal that this document has recorded as unexplained: why seepage dominates at
-so many crags, why cliff bases stay wet, and why community drying times vary so much more
-between crags than between rock types. It also raises the possibility that the surface layer —
-the only part that carries a hold — responds on a much shorter timescale than the 24–72 hour
-rules imply, while the bulk stays wet far longer. **Do not act on this without the full paper.**
-It is read here from an abstract, it is one massif of soft Saxon sandstone, and it may not
-transfer to a quartz arenite or a desert eolian sandstone.
+A second, independent account of Saxon measurements resolves what that means, and it is
+better news for the model than the abstract alone suggested: **the outer five to ten inches
+of rock dries out after each rain, while the deeper layers remain more or less saturated**,
+and the upper parts of walls are drier inside than the bottoms **because water drains top to
+bottom** ([Climbing](https://www.climbing.com/travel/wet-sandstone/), reporting measurements
+made by climbers themselves).
+
+So there are two reservoirs, and they behave differently. The **outer ~12–25 cm responds to
+weather on the timescale the drying rules assume, and it is the only part that carries a
+hold.** The deep pore-water body is largely decoupled from any individual rain event, and it
+is what produces persistent seepage, wet cliff bases, and the "wetness is not from
+precipitation" conclusion. An hours-since-rain model is therefore tracking the right layer —
+but it explains only that layer, and it should not be expected to predict base-of-cliff
+seepage at all. That is a per-location property, exactly as §2.3 argued.
+
+Still read from abstracts and secondary reporting rather than the full papers, and still one
+soft Saxon sandstone; the depth figures should not be transferred to a quartz arenite or a
+desert eolian sandstone without checking.
 
 **Fourth: the lab correlation did not survive the field.** Schmidt Hammer rebound tracked
 moisture cleanly in the laboratory (wetter → lower rebound) but **not in the field, where the
@@ -238,6 +248,41 @@ see also [physics-informed ML on the same problem, HESS 2023](https://hess.coper
 The condensation term proposed in §7 is therefore not only a friction correction — it is a
 **wetting input**, and Cathedral/Whitehorse's "humidity feels like climbing in the rain"
 (§4.10) has a physical mechanism behind it.
+
+#### 2.5a The Felsampel — a decade-old production system, and what it chose to build
+
+The "rock traffic light" has a name, a history and an architecture, and all three matter.
+
+**What it is.** The **Felsampel** is an online indicator showing when climbing in Saxon
+Switzerland is likely possible again after precipitation. It has been initiated, designed and
+operated **since 2015** by the volunteer *Projektgruppe Felsampel* of the Sächsischer
+Bergsteigerbund (SBB) ([ASD-DAV](https://www.asd-dav.de/service/felsampel-des-elbsandsteingebirges/),
+[DAV Dessau](https://www.dav-dessau.de/bergsport/klettern/felsampel),
+[SBB, SSI 36](https://bergsteigerbund.de/wp-content/uploads/2022/09/SSI-Heft-36_Die-Felsampel-eine-Erfolgsstory-im-Ehrenamt.pdf)).
+Its stated purpose is exactly ours: protect fragile sandstone and prevent accidents. It is
+explicit that wetness costs **both** friction (slipping) and strength (hold breakage) — the
+two-failure-mode split this document arrived at separately.
+
+**What it is built from, and this is the finding.** Each measurement point carries
+**moisture sensors on the rock itself**, plus **wind, rain and temperature instruments**;
+ten such points are planned across Saxon Switzerland [C]
+([ASD-DAV](https://www.asd-dav.de/service/felsampel-des-elbsandsteingebirges/)).
+
+The people who have worked hardest on this problem, for a decade, on the rock type where
+getting it wrong does the most damage, **did not build a forecast-only model. They
+instrumented the rock**, and paired each sensor with the three variables §2.2 identifies as
+setting the stage-1 drying rate: wind, temperature and rain.
+
+That is worth stating plainly rather than filing away. It sets a realistic ceiling on what
+WeatherTeam6 can claim from gridded forecast data alone, and it suggests the honest framing
+for our output is a **likelihood that conditions have recovered**, not an assertion that a
+crag is dry. It also points at a cheap future option: a single sensor at one crag would
+calibrate the model for that crag far better than any refinement of the rock-type constants.
+
+**Note also that Saxony is chalk-free** ([OCÚN](https://www.ocun.com/news/saxony-from-iii-to-xii-chalk-free)),
+joining Garden of the Gods and the MN North Shore in §4.9's list of crags where a humid day
+cannot be mitigated.
+
 
 **Why nobody has published crag drying curves, restated honestly.** It is not neglect. A
 laboratory comparison of **eight sensor types** — 1D and 2D resistivity, TDR, borehole
@@ -1218,3 +1263,12 @@ Fifth pass — rock-moisture instrumentation and the Saxony climbing-area study 
 [Geomorphology — ERT and San rock art deterioration, Golden Gate Highlands](https://www.sciencedirect.com/science/article/abs/pii/S0169555X10000346) ·
 [npj Heritage Science — remote monitoring of rock art shelters, Albarracín](https://www.nature.com/articles/s40494-025-02123-w) ·
 [ScienceDirect — fibre Bragg grating moisture sensor for sandstone](https://www.sciencedirect.com/science/article/abs/pii/S0925400525004666)
+
+Sixth pass — the Felsampel system (§2.5a):
+[ASD-DAV — Felsampel des Elbsandsteingebirges](https://www.asd-dav.de/service/felsampel-des-elbsandsteingebirges/) ·
+[DAV Dessau — Felsampel](https://www.dav-dessau.de/bergsport/klettern/felsampel) ·
+[SBB SSI Heft 36 — Die Felsampel, eine Erfolgsstory im Ehrenamt](https://bergsteigerbund.de/wp-content/uploads/2022/09/SSI-Heft-36_Die-Felsampel-eine-Erfolgsstory-im-Ehrenamt.pdf) ·
+[Nationalpark Sächsische Schweiz — climbing](https://nationalpark-saechsische-schweiz.de/en/climbing) ·
+[Sandsteinblogger — Zu nass zum Klettern](https://www.sandsteinblogger.de/2016/12/zu-nass-zum-klettern/) ·
+[OCÚN — Saxony chalk-free](https://www.ocun.com/news/saxony-from-iii-to-xii-chalk-free) ·
+[Climbing — wet sandstone (Saxon depth measurements)](https://www.climbing.com/travel/wet-sandstone/)
