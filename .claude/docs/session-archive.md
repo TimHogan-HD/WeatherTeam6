@@ -2335,3 +2335,44 @@ secret check is skipped and the forgeable `chat.id` is the only gate.
 - The always-loaded instruction budget rose to **~56,500 chars** with this session's five `architecture.md` invariants.
 
 **Does the user need to do anything?** **Yes — the same one command, now covering three migrations.** From `apps/api`, with `DATABASE_URL` set in the shell: `npm run db:migrate` applies `0007`, `0008` and `0009` together, then `npm run check:panel-state` and `npm run check:weather-runs`. Registering `/api/cron/collect-runs` and `/api/cron/prune-runs` with cron-job.org now has a reader and is worth doing. Unchanged: `npm run bot:set-commands` with `TELEGRAM_BOT_TOKEN` set — needed again, because `/forecast` and `/rain` are new entries in the command menu — and `TELEGRAM_WEBHOOK_SECRET` in Vercel plus a matching `setWebhook` re-run.
+
+---
+
+## 2026-09-01 — branch: claude/rock-absorption-drying-research-8b5cnw — commit: `e4f7559`
+
+**Phase completed:** None. This was a research session, not a phase — it ships documentation only and touches no code path.
+
+**What was built this session:**
+- `.claude/docs/rock-drying-research.md` — 2,666 lines over 25 research passes: the absorption/drying physics behind the rock-type constants, ~65 crags across six rock families, non-rock modifiers, a gap analysis against `dryingModel.ts` and `conditionsScore.ts`, a proposed taxonomy (**NOT APPROVED**), and a survey of the competing products.
+- `CLAUDE.md` — one line in Reference Docs making it mandatory reading before any drying-model or rock-type work.
+- PR #75, open as a draft. `scoring-algorithm.md` untouched and still locked.
+
+**What the session established that the plan did not know:**
+- **The Mohs premise is half right and the useful half is the cement.** Grain hardness does not predict absorption — Navajo Sandstone is ~28% porosity on Mohs-7 quartz, micritic limestone ~1% on Mohs-3 calcite. Redirected at the cement it works, because hardness orders with solubility and swelling: silica 7 → iron oxide 5–6 → calcite 3 → clay 1–2. §4.17 shows it failing *inside* one family: granitic rocks all sit within one Mohs unit while absorption varies by a factor of several, driven by grain size and plagioclase content.
+- **Variation within a rock family exceeds variation between families.** Navajo facies span 100 mD to 0.265 mD inside one formation; Bishop Tuff runs 38–60% porosity non-welded against near-granitic welded; basalt spans 0.1% to 50%.
+- **Porosity governs drying and friction with opposite signs** (§3.1). The property that makes rock dangerous wet makes it grippy dry. This is why reporting dryness and friction separately is correct and averaging them describes nothing.
+- **Freeze–thaw is a state the model cannot express** (§2.6). Frozen sandstone is *stronger* — ice cements the pores — so the hazard is the thaw. Cycles also raise saturated water content 15.6–60.0% and cut strength 7.3–38.0% permanently, which means porosity is not a constant and §3's table describes fresh rock only.
+- **Snow is not rain with a different label** (§2.7, §6.12). Verified in the code: `fetchArchivePrecip` requests `precipitation_sum` and `fetchPrecipHistory` requests ACIS `pcpn`, both liquid-equivalent, so the model starts its clock at the *end of the snowfall day* — before the wetting begins rather than after it ends. A fortnight of covered ledges counts as a fortnight of drying.
+- **The Access Fund brackets `MAX_HOURS.sandstone = 72` on both sides** (§6.11): 24–48 h after light rain in the sun, up to a week after a cool humid downpour. A factor of seven, wrong at both ends, and the deciders it names — aspect, wind, season, precipitation amount — are none of them inputs today.
+- **Humidity alone re-wets rock** (§2.8), closing a gap §8 had listed as open. Sorption: Type II sigmoidal isotherm, regime break near 75% RH, surface equilibrates almost instantly, hysteresis makes uptake path-dependent. `humidityFactor`'s 80% threshold is the only constant found in 25 passes that literature *supports*; its binary shape is still wrong for a sigmoid.
+
+**Known issues / deferred work:**
+- **§7's taxonomy is a proposal and is NOT APPROVED.** 17+ rock classes, a `seepage_prone` flag, a condensation term and an ET₀ water balance. `scoring-algorithm.md` is agreed and must not change without the user saying so.
+- **Two live code defects are recorded and unfixed**, both outside this PR's scope: `unknown` (48 h) is less conservative than `sandstone` (72 h), contradicting its own docstring and making a *correct* rock type more cautious than no rock type; and `importCrags.ts`'s `onConflictDoUpdate` assigns each column to itself, so the upsert is a silent no-op on conflict — `storeRun.ts`'s `sqlExcluded` helper is the pattern it should use.
+- **`crags.rock_type` is `text`, not the enum**, and probably does not hold rock types at all. Unverified against a real OpenBeta export.
+- **Nothing was verified against live weather data.** A direct probe of `archive-api.open-meteo.com` was refused at the gateway (`connect_rejected`, 403 to CONNECT). Where §6 says *verified*, it means read from this repository's source. Every figure carries a confidence marker — [M] peer-reviewed, [S] stone-industry, [C] community, [I] inference — and §8 says any figure destined for a constant must be re-checked from an unrestricted machine.
+- **CI had not reported on `e4f7559`** when the session ended; every prior commit on the branch was green and the change is documentation only.
+
+**Blockers for next session:**
+- None. Nothing here blocks Phase 4, and nothing here should be implemented without the user approving §7 first.
+
+**What's next:** Phase 4 is still next and is unaffected — `git checkout -b phase/4-insight-afd` off `main`, read `.claude/docs/telegram-precision-interface-plan.md` § Phase 4 and § Traps 7 and 10. If instead the drying model is picked up, §6.2 (the `unknown`/`sandstone` inversion) is the smallest correct first change and needs no new input.
+
+**Gotchas for next session:**
+- **Read `rock-drying-research.md` §6 before touching `dryingModel.ts`.** Fourteen findings against the current implementation are recorded there, several of which look like improvements and are not: §6.12 notes that adding `snowfall_sum` without moving the clock makes a snowy day a *bigger rain event that still finished on time*.
+- **Open-Meteo's snowfall is water-equivalent at a fixed 1 mm : 7 cm factor**, so it is `precipitation_sum` times a constant and recovers none of the 3:1–40:1 depth spread. Snow *depth* is the separate observation, and it is missing from some models.
+- **§8.2 retracts §8.1's soil-moisture recommendation.** A modelled grid-cell soil moisture is not the ground a climber is looking at — measured soil moisture near an outcrop is biased by the outcrop's own shading, and modelled wetness proxies carry r² in the 20s while looking authoritative. Recency-weighted rainfall the app already holds, or a rainfall-minus-ET₀ balance, are the better routes.
+- **§9.7 is the best value-to-disruption item found**: a horizon profile is a property of a fixed point, so it precomputes once per crag when a location is saved and corrects the `shortwave_wm2` already being stored. No per-request DEM work.
+- The doc is long. It is structured so §6 and §9 are readable alone; §2–§5 are the evidence behind them.
+
+**Does the user need to do anything?** **Yes — two things, and only the first is about this session.** (1) PR #75 is an open draft and needs their review and merge; I cannot merge from this environment. (2) Unchanged from the last session and unrelated to this work: `npm run db:migrate` from `apps/api` with `DATABASE_URL` set applies `0007`, `0008` and `0009`, without which every bot panel command still fails in production.

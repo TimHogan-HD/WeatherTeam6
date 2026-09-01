@@ -5,7 +5,7 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-09-01 · `main` @ `e1e4067`
+Last updated: 2026-09-01 · `main` @ `e1e4067` · one open draft PR (#75, docs only)
 
 ---
 
@@ -28,6 +28,14 @@ clean, `npm run check:hooks` 58 passing. **Mutation score 66.09%**, last measure
 `weather_*` run tables) and `0009` (two ensemble columns).** Until `npm run db:migrate`
 runs, every bot panel command fails in production, `/forecast` and `/rain` included, and
 `/api/cron/collect-runs` 500s. See § What the user owes.
+
+**PR #75 is open as a draft and is documentation only** — `.claude/docs/rock-drying-research.md`,
+the absorption/drying research behind the rock-type constants. It changes no code path and
+`scoring-algorithm.md` stays locked, but it records **fourteen findings against `dryingModel.ts`
+and `conditionsScore.ts`**, two live defects elsewhere (`unknown` is less conservative than
+`sandstone`; `importCrags.ts`'s upsert is a no-op on conflict), and a taxonomy proposal in §7 that
+is **NOT APPROVED**. CLAUDE.md now makes §6 mandatory reading before any drying-model or rock-type
+work — read it there rather than summarising it here.
 
 Always-loaded instruction budget: **~56,500 chars / ~14,100 est. tokens** (`CLAUDE.md` +
 `.claude/rules/*`). It was 52,754 before Phase 3 added its five invariants. Anthropic's guidance is that a bloated
