@@ -4,7 +4,7 @@ Research notes for improving the drying model. **This document does not change t
 scoring algorithm.** `.claude/docs/scoring-algorithm.md` is agreed and locked; §7 below
 is a *proposal* that needs explicit approval before any of it reaches code.
 
-Last updated: 2026-09-01 (sixth pass: §2.5a — the Felsampel, a production rock-conditions system running since 2015, and what it instrumented)
+Last updated: 2026-09-01 (seventh pass: §5.2 — prior art. CragReport ships the physics model this research recommends, on the same data source)
 
 ## How to read the confidence markers
 
@@ -941,6 +941,82 @@ Gogarth, Swanage and Pembroke are all in this category.
 | River level (Willow River, Carderock) | NOAA water gauges | Public, per-gauge, US only |
 | Tides and swell (sea cliffs) | Not investigated | Would need a separate provider |
 
+### 5.2 Prior art — what shipping climbing-conditions models actually compute
+
+The Felsampel (§2.5a) is not the only one, and the closest peer is much closer than expected.
+
+**CragReport** ([how it works](https://www.cragreport.com/how-it-works),
+[FAQ](https://www.cragreport.com/faq)) publishes hourly conditions for thousands of crags
+worldwide from a **physics-based model of rock surface temperature, friction and dryness** —
+and it is built on **Open-Meteo**, the same source this app uses, plus **NOAA MRMS radar
+within 1 km of the crag**.
+
+Its stated rock-surface-temperature model uses thermal radiation, convection and solar
+exposure, from:
+
+- **sun on the wall** — time of day plus the wall's **aspect and tilt**
+- **terrain and face shading** when the sun is behind the wall
+- **shortwave radiation**, hourly
+- **wind cooling, stronger when the wind hits the wall head-on**
+- **sky cooling** — clear skies cool the wall more than cloudy ones
+- **surface traits** — rock tone / emissivity, and snow on the ground raising reflectivity
+- **thermal inertia** — the wall warms and cools gradually rather than tracking the hour
+
+Dryness is tracked with **rock-type-specific drying rates**, a **dew risk** derived from
+dewpoint depression and preferring **rock surface temperature** over air temperature, and a
+separate slickness term because *"some rocks feel slick at high humidity even without dew."*
+
+**This independently validates almost every gap this document identified** — rock temperature
+over air temperature (§5.1), aspect and solar (§5, §4.9), condensation as a first-class term
+(§2.5, §7), rock-type-specific drying rates (§7), and humidity slickness distinct from wetness
+(§5.1's chalk finding). It also names **five inputs we do not model, three of which this
+research had not identified at all:**
+
+| Input | Status here |
+| --- | --- |
+| **Wind *direction* relative to the wall** | **Not previously identified.** Our wind component is a scalar `max_wind_kmh`; cooling and drying are strongest head-on, so the same wind speed does different work depending on aspect. |
+| **Cloud cover / sky radiative cooling** | **Not previously identified.** Clear nights cool a wall below air temperature, which drives condensation — the §2.5 mechanism. Not currently fetched. |
+| **Rock tone / emissivity, and snow albedo** | **Not previously identified.** A rock-type property that is nothing to do with porosity: dark rock heats faster and dries faster. Every rock class in §7 could carry an albedo alongside its drying hours. |
+| Thermal inertia | §5.1 found the lag; they model it explicitly. |
+| Wall aspect and tilt | Known gap. `cliff_angle` is stored; aspect is not. |
+
+**And one data-source finding worth acting on: they use radar for observed precipitation.**
+NOAA MRMS at 1 km resolution answers "did it actually rain on this crag", where our daily
+totals from ACIS or the Open-Meteo archive answer only "did it rain in this grid cell today".
+That is the §2.1 storm-duration gap and the §6.5 architectural limitation, both addressed by a
+source we are already adjacent to — `GET /api/v1/radar/frames` exists in this codebase.
+
+**The wider field**, for context on how crowded this is:
+
+- **Prime Condies** ([GitHub, Apache-2.0](https://github.com/mnaylor5/prime-condies)) — open
+  source and therefore readable. Scores hourly forecasts against user-set ideal/acceptable
+  bands for **temperature, humidity and precipitation chance**, reporting *how many of the next
+  24 hours are at least decent*. Data from the **NWS API**, locations from **OpenBeta's open
+  dataset**. Self-described as an early wireframe. Notable mostly for the framing: a *count of
+  good hours* rather than a single score, which is arguably a more honest output shape than a
+  0–100 number.
+- **ClimbingWeather.com** — 300+ US areas.
+- **Meteo & Climb**, **BlocWeather**, **Climbit**, and per-crag pages such as
+  [jareddillard.com](https://www.jareddillard.com/crags/vantage-washington-weather).
+
+The differentiator for this project therefore cannot be "weather, for crags" — that exists
+several times over, and one competitor already implements the physics this research
+recommends. The defensible ground is the parts that are hard to copy: per-location seepage and
+shelter knowledge (§8.1), the honest withholding rules in §7, and the Telegram-native
+interface.
+
+**Alpine crags are a different problem again.** In Chamonix the governing variable is the
+**overnight refreeze**, not drying: a good freeze holds routes together, and warming that
+prevents proper refreezing at night makes rockfall hazard severe early in the day
+([UKC](https://www.ukclimbing.com/forums/expedition+alpine/best_month_to_go_to_chamonix_for_alpine_rock_and_mixed_climbing-673030),
+[phys.org on alpine rockfall and climate](https://phys.org/news/2019-07-alpine-climbing-routes-crumble-climate.html)).
+La Chamoniarde publishes a regional conditions page during summer. For an alpine location the
+useful output is a **minimum overnight temperature and a refreeze/no-refreeze call**, which is
+nearly the inverse of the drying question and shares the freeze–thaw zero-crossing count from
+§5.1. Out of scope for now, but it means "conditions" is not one model.
+
+---
+
 ## 6. What this means for WeatherTeam6 — gap analysis
 
 Read against `apps/api/src/lib/scoring/dryingModel.ts` and `scoring-algorithm.md` as they
@@ -1272,3 +1348,15 @@ Sixth pass — the Felsampel system (§2.5a):
 [Sandsteinblogger — Zu nass zum Klettern](https://www.sandsteinblogger.de/2016/12/zu-nass-zum-klettern/) ·
 [OCÚN — Saxony chalk-free](https://www.ocun.com/news/saxony-from-iii-to-xii-chalk-free) ·
 [Climbing — wet sandstone (Saxon depth measurements)](https://www.climbing.com/travel/wet-sandstone/)
+
+Seventh pass — prior art and competing implementations (§5.2):
+[CragReport — how it works](https://www.cragreport.com/how-it-works) ·
+[CragReport — FAQ](https://www.cragreport.com/faq) ·
+[Prime Condies — open source, GitHub](https://github.com/mnaylor5/prime-condies) ·
+[ClimbingWeather.com](https://climbingweather.com/) ·
+[BlocWeather](https://blocweather.com/) ·
+[Climbit](https://climbitscore.com/) ·
+[Meteo & Climb](https://play.google.com/store/apps/details?id=com.tomito.climbapp) ·
+[jareddillard.com — per-crag weather](https://www.jareddillard.com/crags/vantage-washington-weather) ·
+[UKC — Chamonix alpine rock conditions](https://www.ukclimbing.com/forums/expedition+alpine/best_month_to_go_to_chamonix_for_alpine_rock_and_mixed_climbing-673030) ·
+[phys.org — alpine routes and climate change](https://phys.org/news/2019-07-alpine-climbing-routes-crumble-climate.html)
