@@ -315,6 +315,30 @@ Ships `/locations`, `/conditions`, `/alerts` on the new machinery. No new data y
 
 ### Phase 3 — `/forecast` and `/rain`
 
+> **Built 2026-09-01.** Everything below shipped. Four departures, each forced by a
+> measurement:
+>
+> - **A percentile is not additive, so the ensemble needed two more columns.** A step or a
+>   day total is the sum of hourly **means** (`weather_ensemble_hours.precip_mm_mean`) —
+>   summing p50 across three hours is the median of nothing. The member-derived probability
+>   needed a wet count (`members_wet`), which is likewise not derivable from percentiles.
+>   Migration `0009`; both nullable, and **null there means unknown, not zero**.
+> - **A step's p10/p50/p90 are one hour's**, the wettest of the step by ensemble mean, and
+>   the panel says so. Summing them would have printed three to twelve times the rain.
+> - **Rain belongs to the step *after* its row.** Open-Meteo stamps hourly precipitation at
+>   the end of the hour it fell in, so a 12:00 row with a 3 h step sums the hours stamped
+>   13, 14 and 15. Both views use that convention or they disagree about the same shower.
+> - **"The model does not reach this day" is rows that are all gaps, not absent rows.**
+>   Measured live: `ncep_hrrr_conus` returns **168 hours of which 66 carry temperature**,
+>   padded out to the longest horizon in the request. The first implementation tested for
+>   absent rows and would have drawn 24 em dashes instead — found by running it, not by any
+>   test. `precip_prob_pct` is excluded from that check, because it runs past the horizon of
+>   the model it was requested with and belongs to none.
+>
+> **Not verified: nothing has touched Postgres.** The pure rendering was exercised against a
+> live Open-Meteo response at Red Rock; the read path (`lib/runs/latestRuns.ts`) is covered
+> by `npm run check:weather-runs`, which is unrun because the migrations are unapplied.
+
 Table rendering, four column sets, four intervals, day paging, unit toggle, coverage-derived
 model row, and the Unicode-block agreement sparkline. `/rain` carries probability of measurable
 rain (share of the 143 members crossing the threshold — a real probability from real members,

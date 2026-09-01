@@ -86,6 +86,9 @@ async function run(): Promise<void> {
   const { deleteRunsForPoint, storeDeterministicRun, storeEnsembleRun } = await import(
     '../lib/runs/storeRun.js'
   )
+  const { loadStoredDeterministic, loadStoredEnsemble } = await import(
+    '../lib/runs/latestRuns.js'
+  )
   const { pruneWeatherRuns, PARSED_RETENTION_DAYS, RAW_RETENTION_HOURS } = await import(
     '../lib/runs/pruneRuns.js'
   )
@@ -237,6 +240,8 @@ async function run(): Promise<void> {
           wind_kmh_p10: 4,
           wind_kmh_p50: 8,
           wind_kmh_p90: 15,
+          precip_mm_mean: 0.4,
+          members_wet: 96,
           member_count: 143,
           model_member_counts: { gfs_seamless: 31, ecmwf_ifs025: 51 },
         },
@@ -252,6 +257,8 @@ async function run(): Promise<void> {
           wind_kmh_p10: null,
           wind_kmh_p50: null,
           wind_kmh_p90: null,
+          precip_mm_mean: null,
+          members_wet: 0,
           member_count: 0,
           model_member_counts: {},
         },
@@ -267,11 +274,70 @@ async function run(): Promise<void> {
       .where(eq(weatherEnsembleHours.run_id, ens?.run_id ?? ''))
     check('member counts persisted', ensHours[0]?.member_count === 143)
     check(
+      'the wet-member count persisted',
+      ensHours[0]?.members_wet === 96,
+      String(ensHours[0]?.members_wet),
+    )
+    check(
+      'and the mean accumulation, which is the only additive one',
+      ensHours[0]?.precip_mm_mean === 0.4,
+      String(ensHours[0]?.precip_mm_mean),
+    )
+    check(
       'the per-model split persisted as an object',
       JSON.stringify(ensHours[0]?.model_member_counts) ===
         JSON.stringify({ gfs_seamless: 31, ecmwf_ifs025: 51 }),
       JSON.stringify(ensHours[0]?.model_member_counts),
     )
+
+    console.log('\nReading the freshest run back — what a panel renders from')
+    const fresh = await loadStoredDeterministic(adHocKey, new Date(Date.now() - 60 * 60 * 1000))
+    check('the stored batch came back', fresh !== null)
+    check(
+      'the fetch time is the run’s own, not now',
+      fresh?.fetched_at?.getTime() === fetchedAt.getTime(),
+      `got ${String(fresh?.fetched_at?.toISOString())}`,
+    )
+    check(
+      'a null column survives the read as null',
+      fresh?.models[0]?.hours[0]?.pressure_hpa === null,
+      `got ${String(fresh?.models[0]?.hours[0]?.pressure_hpa)}`,
+    )
+    check(
+      'the shared-probability flag survives as a boolean',
+      fresh?.models[0]?.probability_is_shared === true,
+      `got ${String(fresh?.models[0]?.probability_is_shared)}`,
+    )
+    check(
+      'models with no stored run are named, not silently missing',
+      (fresh?.unavailable_models.includes('ncep_hrrr_conus') ?? false) &&
+        !(fresh?.unavailable_models.includes('ncep_nbm_conus') ?? true),
+      fresh?.unavailable_models.join(',') ?? 'none',
+    )
+    check(
+      'the hours come back in time order',
+      (fresh?.models[0]?.hours ?? []).every(
+        (h, i, all) => i === 0 || h.valid_at >= (all[i - 1]?.valid_at ?? h.valid_at),
+      ),
+    )
+
+    const ensRead = await loadStoredEnsemble(adHocKey, new Date(Date.now() - 60 * 60 * 1000))
+    check('the ensemble run came back too', ensRead !== null)
+    check(
+      'the wet count survives the read',
+      ensRead?.hours[0]?.members_wet === 96,
+      String(ensRead?.hours[0]?.members_wet),
+    )
+    check(
+      'the per-model counts come back as numbers, not strings',
+      typeof Object.values(ensRead?.hours[0]?.model_member_counts ?? {})[0] === 'number',
+    )
+
+    // The cutoff is the whole point of the read path: a run older than it must
+    // not be served as current. A cutoff in the future proves it cuts, where a
+    // cutoff an hour back would pass whether or not the comparison worked.
+    const stale = await loadStoredDeterministic(adHocKey, new Date(Date.now() + 60 * 1000))
+    check('a run older than the cutoff is not served', stale === null, stale ? 'served it' : '')
 
     console.log('\nPruning — children before parents, or this is a foreign-key violation')
     // Backdated by hand, because the cutoff is what is under test: pruning a row
@@ -315,6 +381,8 @@ async function run(): Promise<void> {
           wind_kmh_p10: 1,
           wind_kmh_p50: 2,
           wind_kmh_p90: 3,
+          precip_mm_mean: 0.4,
+          members_wet: 96,
           member_count: 143,
           model_member_counts: { gfs_seamless: 31 },
         },

@@ -7,11 +7,22 @@ import { formatHelp, parseCommand } from '../lib/telegram/commands.js'
 import { formatLocationNotFound } from '../lib/telegram/conditionsMessage.js'
 import { findLocationByName } from '../lib/telegram/conditionsReply.js'
 import {
+  isColumnSet,
+  isIntervalHours,
+  isTableUnits,
+} from '../lib/telegram/forecastTable.js'
+import {
   buildNoticePanel,
   EXPIRED_PANEL_TEXT,
+  FIELD_COLUMNS,
+  FIELD_DAY,
+  FIELD_INTERVAL,
+  FIELD_MODEL,
+  FIELD_UNITS,
   VERB_MODE,
   VERB_OPEN,
   VERB_REFRESH,
+  VERB_SET,
   VERB_VIEW,
 } from '../lib/telegram/panels.js'
 import {
@@ -19,9 +30,11 @@ import {
   isPanelMode,
   isPanelView,
   loadPanelState,
+  MAX_DAY_OFFSET,
   updatePanelState,
   type PanelState,
 } from '../lib/telegram/panelState.js'
+import { DETERMINISTIC_MODELS } from '../lib/weather/openMeteo.js'
 import { renderPanel } from '../lib/telegram/panelViews.js'
 import {
   answerCallbackQuery,
@@ -146,6 +159,30 @@ async function handleMessage(userId: string, text: string): Promise<void> {
     case 'alerts':
       await sendPanel(userId, await createPanelState(userId, { view: 'alerts' }))
       return
+
+    case 'forecast':
+    case 'rain': {
+      // Same shape as `/conditions`: a name opens that location's panel, no name
+      // opens the picker rather than a usage line the user has to retype. The
+      // view the picker then opens is `conditions` — one tap from either.
+      if (command.args === '') {
+        await sendPanel(userId, await createPanelState(userId, { view: 'list' }))
+        return
+      }
+      const location = await findLocationByName(userId, command.args)
+      if (location === null) {
+        await sendTelegramMessage(formatLocationNotFound(command.args))
+        return
+      }
+      await sendPanel(
+        userId,
+        await createPanelState(userId, {
+          view: command.name === 'rain' ? 'rain' : 'forecast',
+          locationId: location.id,
+        }),
+      )
+      return
+    }
 
     case 'conditions': {
       if (command.args === '') {
@@ -274,6 +311,42 @@ async function applyAction(
     case VERB_MODE: {
       if (field !== 'm' || value === null || !isPanelMode(value)) return null
       return updatePanelState(state.id, userId, { mode: value })
+    }
+
+    /**
+     * One setting per tap. Every value is validated against the same predicate
+     * the renderer uses, so a payload from an older deploy — or one typed by
+     * hand — reads as expired instead of writing a value nothing can render.
+     */
+    case VERB_SET: {
+      if (value === null) return null
+      switch (field) {
+        case FIELD_DAY: {
+          const day = Number(value)
+          if (!Number.isInteger(day) || day < 0 || day > MAX_DAY_OFFSET) return null
+          return updatePanelState(state.id, userId, { dayOffset: day })
+        }
+        case FIELD_MODEL: {
+          const models: readonly string[] = DETERMINISTIC_MODELS
+          if (!models.includes(value)) return null
+          return updatePanelState(state.id, userId, { model: value })
+        }
+        case FIELD_INTERVAL: {
+          const hours = Number(value)
+          if (!Number.isInteger(hours) || !isIntervalHours(hours)) return null
+          return updatePanelState(state.id, userId, { intervalHours: hours })
+        }
+        case FIELD_COLUMNS: {
+          if (!isColumnSet(value)) return null
+          return updatePanelState(state.id, userId, { columnSet: value })
+        }
+        case FIELD_UNITS: {
+          if (!isTableUnits(value)) return null
+          return updatePanelState(state.id, userId, { units: value })
+        }
+        default:
+          return null
+      }
     }
 
     default:

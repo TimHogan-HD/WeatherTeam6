@@ -228,6 +228,47 @@ describe('parseEnsembleHourly', () => {
     expect(noTemp[0]?.precip_mm_p50).toBe(1)
   })
 
+  it('counts the members over the measurable threshold, not the ones above zero', () => {
+    const hours = parseEnsembleHourly({
+      time: TIMES,
+      // 0.05 mm is below Open-Meteo's own 0.1 mm resolution: a member reporting
+      // it is a member reporting nothing, and counting it would put a chance of
+      // rain on a dry hour.
+      precipitation_ncep_gefs_seamless: [0, 0.05, 0.1],
+      precipitation_member01_ncep_gefs_seamless: [0, 2, 2],
+    })
+
+    expect(hours.map((h) => h.members_wet)).toEqual([0, 1, 2])
+    expect(hours.map((h) => h.member_count)).toEqual([2, 2, 2])
+  })
+
+  it('keeps the ensemble mean, which is the only precipitation figure that adds up', () => {
+    const hours = parseEnsembleHourly({
+      time: TIMES,
+      precipitation_ncep_gefs_seamless: [0, 0, 4],
+      precipitation_member01_ncep_gefs_seamless: [0, 2, 0],
+    })
+
+    // A p50 of these hours is 0, 1, 2 — summing those is the median of nothing.
+    // The means sum to the mean of the members' totals, which is what a day
+    // total is built from.
+    expect(hours.map((h) => h.precip_mm_mean)).toEqual([0, 1, 2])
+  })
+
+  it('has no mean and no wet count past the horizon, rather than zero of each', () => {
+    const hours = parseEnsembleHourly({
+      time: TIMES,
+      precipitation_ncep_gefs_seamless: [1, null, null],
+    })
+
+    // Constrains the `precip.length === 0` guard. A mean of an empty array is
+    // NaN and a sum seeded at 0 would be 0 mm — a forecast of no rain for an
+    // hour no member reached.
+    expect(hours[1]?.precip_mm_mean).toBeNull()
+    expect(hours[1]?.member_count).toBe(0)
+    expect(hours[1]?.members_wet).toBe(0)
+  })
+
   it('skips a time slot that could not be read', () => {
     const hours = parseEnsembleHourly({
       time: ['2026-09-01T00:00', 42, '2026-09-01T02:00'],
