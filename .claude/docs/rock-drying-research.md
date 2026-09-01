@@ -4,7 +4,7 @@ Research notes for improving the drying model. **This document does not change t
 scoring algorithm.** `.claude/docs/scoring-algorithm.md` is agreed and locked; §7 below
 is a *proposal* that needs explicit approval before any of it reaches code.
 
-Last updated: 2026-09-01 (eighteenth pass: §4.15 — the water-feature rule tested against four areas it was not built from)
+Last updated: 2026-09-01 (nineteenth pass: §4.16 — Rifle supplies a within-crag control, and the tufa rule is sufficient but not necessary)
 
 ## How to read the confidence markers
 
@@ -1079,6 +1079,56 @@ mode is a rule that looks confirmed because the cases were chosen to confirm it.
 
 ---
 
+### 4.16 Rifle supplies the missing control — and the rule is one-directional
+
+§4.15 closed by admitting the tufa rule rested on a single uncontaminated negative. Rifle
+supplies a better test than any of the between-crag comparisons, because it holds climate,
+catchment and rock formation constant and varies only the sector.
+
+**Rifle's wettest sector is its tufa sector.** The rock is Leadville Formation limestone that
+*"varies both in quality and aspect from wall to wall."* **The Wasteland** offers *"short power
+routes on **pocket and tufa-riddled stone** similar to the good stuff in Europe"*, and the
+Arsenal has *"miniature tufas"*
+([theCrag](https://www.thecrag.com/en/climbing/united-states/rifle-mountain-park),
+[MP](https://www.mountainproject.com/area/105744310/rifle-mountain-park)). §4.9 recorded, from a
+separate source, that *"oftentimes **the Wasteland** and the left side of the Project Wall do not
+dry out until June."*
+
+**Same canyon, same limestone, same spring runoff — and the tufa-riddled sector is the named
+wet one.** That is a within-crag confirmation, which is worth more than the seven between-crag
+cases in §4.15 combined, because everything except the rock face itself is held constant.
+
+**But the second half of this pass corrects the rule's logic, and the correction matters more
+than the confirmation.** Tufa forms where carbonate *precipitates* out of water, which needs
+residence time and evaporative conditions. Water moving through limestone along **joints and
+bedding planes** enlarges them and drains away without depositing anything
+([BGS](https://www2.bgs.ac.uk/mendips/caveskarst/caveform.htm),
+[Dales Rocks](https://dalesrocks.org.uk/ribblesdale/rock-formation/great-scar-limestone/),
+[Tufa](https://en.wikipedia.org/wiki/Tufa)). Seepage can therefore be heavy and leave no trace
+on the face.
+
+So the rule is **sufficient, not necessary**:
+
+- **Tufa present ⇒ water flows down that face.** High confidence, now with a within-crag control.
+- **Tufa absent ⇏ the crag is dry.** No confidence at all.
+
+In screening terms: high positive predictive value, low negative predictive value. **A "yes" is
+informative and a "no" is nearly worthless**, and any UI asking the §7 question must not let a
+"no" read as reassurance.
+
+**That also separates two seepage mechanisms this document had been treating as one:**
+
+| | Leaves features | Example |
+| --- | --- | --- |
+| **Face flow** — water moving over the exposed face, with residence time | Tufa, eyebrows, solution pockets (§4.14) | Rodellar, Kalymnos, Yangshuo, Rifle's Wasteland |
+| **Conduit and catchment** — water routed through joints, bedding planes or from a body above | Nothing on the face | Céüse (ski field), Wild Iris (snowmelt), Willow River (river level), Red Wing (loess cap) |
+
+The observable proxy only sees the first. **The second — which is most of §4.13's list — remains
+exactly what §2.3 said it was: local knowledge, not inference.** The tufa question is a cheap
+partial win, and this is the sentence that stops it being oversold.
+
+---
+
 ## 5. Non-rock modifiers that frequently dominate the rock type
 
 Ranked by how often they decide the answer, most-often first:
@@ -1447,7 +1497,8 @@ Four companion changes that the research says matter more than the table itself:
    rock type. It cannot be derived from rock type or from weather — but §4.11 gives one
    observable proxy that can be asked of a user or read from a guidebook: **does the crag have
    tufas or stalactites?** A tufa is a deposit formed by flowing water, so it is direct
-   evidence of a drainage line.
+   evidence of a drainage line. **Per §4.16 the proxy is one-directional** — a yes is
+   informative, a no means nothing, and the UI must not let a no read as reassurance.
 3. **Add a condensation check** from the already-stored dewpoint against an estimated rock
    surface temperature.
 4. **Drive drying from ET₀ rather than from elapsed hours.** Open-Meteo serves
@@ -2022,3 +2073,10 @@ Eighteenth pass — testing the water-feature rule (§4.15):
 [Two Dirtbags — Geyikbayırı](https://twodirtbags.com/climbing-geyikbayiri-turkey/) ·
 [57hours — El Potrero Chico](https://57hours.com/review/el-potrero-chico-climbing/) ·
 [potrerochico.org](https://potrerochico.org/)
+
+Nineteenth pass — Rifle as within-crag control (§4.16):
+[theCrag — Rifle Mountain Park](https://www.thecrag.com/en/climbing/united-states/rifle-mountain-park) ·
+[MP — Rifle Mountain Park](https://www.mountainproject.com/area/105744310/rifle-mountain-park) ·
+[BGS — how caves form](https://www2.bgs.ac.uk/mendips/caveskarst/caveform.htm) ·
+[Dales Rocks — joints and bedding planes](https://dalesrocks.org.uk/ribblesdale/rock-formation/great-scar-limestone/) ·
+[Wikipedia — Tufa](https://en.wikipedia.org/wiki/Tufa)
