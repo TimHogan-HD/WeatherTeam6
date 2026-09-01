@@ -4,7 +4,7 @@ Research notes for improving the drying model. **This document does not change t
 scoring algorithm.** `.claude/docs/scoring-algorithm.md` is agreed and locked; §7 below
 is a *proposal* that needs explicit approval before any of it reaches code.
 
-Last updated: 2026-09-01 (seventh pass: §5.2 — prior art. CragReport ships the physics model this research recommends, on the same data source)
+Last updated: 2026-09-01 (eighth pass: §4.11 European limestone, and the tufa-as-fossil-seep predictor)
 
 ## How to read the confidence markers
 
@@ -835,6 +835,56 @@ are beaded with water"** ([MP](https://www.mountainproject.com/area/106091151/bo
 Two things follow. Condensation is crag-specific within one gorge on one day, so it cannot be
 derived from a grid-cell forecast. And the `seepage_prone` / rain-shelter flag proposed in §7
 is not a novel schema invention — **guidebook publishers already ship that field.**
+### 4.11 European limestone — and a morphological seepage predictor
+
+- **Frankenjura, Germany — limestone below, dolomite above.** Laminated lime structures in the
+  lower layers, magnesium-enriched dolomite above
+  ([SummitPost](https://www.summitpost.org/frankenjura/311566)). Three findings, all community:
+  **dry rock can be found in almost any weather**, and there is a known list of crags that stay
+  dry through long rainy spells and "almost never get wet"; in August **the humidity makes you
+  grease straight off the holds**; and the shaded forest walls are the hot-humid-day answer
+  ([UKC](https://www.ukclimbing.com/articles/destinations/frankenjura_-_limestone_in_the_limelight-2742),
+  [MP](https://www.mountainproject.com/area/106172652/frankenjura)). Mountain Project carries a
+  curated sub-area literally named **["Sheltered and also fast drying"](https://www.mountainproject.com/area/111969104/sheltered-and-also-fast-drying)** —
+  a third instance, after the SWCW wiki (§8.1) and the RRG guidebook icons (§4.10), of the
+  community maintaining structured drying metadata. And the August greasing is the **third
+  independent report** of humidity alone ruining conditions, after Cathedral/Whitehorse (§4.10)
+  and the chalk mechanism (§5.1).
+- **Céüse, France — the catchment argument made literal.** ~2,100 m, season late spring to
+  autumn, and the warning is explicit: do not go too early after a heavy-snow winter, because
+  **the area above the crag is a ski area** and seepage plus cornice danger follow
+  ([UKC](https://www.ukclimbing.com/articles/destinations/ceuse_-_summer_sport_climbing_in_france-118),
+  [climbingaway](https://climbingaway.fr/en/climbing-areas/ceuse)). The thing draining onto the
+  wall is a snowfield. Alongside Willow River's river level (§4.7) and Wild Iris's snowmelt
+  (§4.9), that is three crags whose limiting input is neither rain nor rock.
+- **Rodellar, Spain — tufa-lined, and it seeps.** Too hot in summer, and *"the crag is tufa
+  lined and consequently suffers seepage after extended periods of rain,"* with high danger of
+  seeping tufas in spring ([Planetmountain](https://www.planetmountain.com/english/Rock/crags/falesia.html?idfalesia=90)).
+- **Chulilla, Spain — the opposite.** One of the warmest and driest European winter
+  destinations; September and October are the wettest months but **the rock dries very quickly**
+  ([theCrag](https://www.thecrag.com/en/climbing/spain/chulilla),
+  [UKC](https://www.ukclimbing.com/articles/destinations/chulilla-6242)).
+- **Siurana** has few tufas — L'Olla is called an anomaly — and correspondingly is not
+  described as a seepage crag ([UKC](https://www.ukclimbing.com/articles/destinations/siurana_revisited-3709)).
+- **Arco, Italy** — 5,000+ routes on high-quality limestone north of Lake Garda, climbable most
+  of the year and the standard fallback when the Dolomites are wet
+  ([Climb Europe](https://climb-europe.com/pages/rock-climbing-italy-arco)).
+
+**The pattern across all of them gives a seepage predictor that needs no local knowledge: a
+tufa is a fossil seep.** A tufa or stalactite is a mineral deposit *formed by flowing water*,
+so its presence is direct morphological evidence that water drains down that line. The
+correlation holds everywhere this document has looked — Rodellar is tufa-lined and seeps,
+Kalymnos's tufas seep after a wet winter while the rest of the crag dries fast (§4.2), Siurana
+has almost no tufas and no seepage reputation, Chulilla has none and dries very quickly.
+
+That matters because it is **inferable from a guidebook photograph or a route description**,
+unlike the catchment above a cliff. If the app ever asks a user to characterise a crag, "does
+it have tufas / stalactites?" is a far better seepage question than "is it seepage-prone?" —
+it is observable, it is in every guidebook, and it points at the mechanism rather than the
+symptom [I].
+
+---
+
 ## 5. Non-rock modifiers that frequently dominate the rock type
 
 Ranked by how often they decide the answer, most-often first:
@@ -1105,7 +1155,10 @@ Four companion changes that the research says matter more than the table itself:
 1. **Accumulate antecedent rainfall** over a rock-type-dependent window (say 7 days for the
    eolian classes, 48h for arenites) instead of reading only the most recent event.
 2. **Add a per-location `seepage_prone` boolean.** At limestone crags it will outweigh the
-   rock type. It cannot be derived from rock type or from weather.
+   rock type. It cannot be derived from rock type or from weather — but §4.11 gives one
+   observable proxy that can be asked of a user or read from a guidebook: **does the crag have
+   tufas or stalactites?** A tufa is a deposit formed by flowing water, so it is direct
+   evidence of a drainage line.
 3. **Add a condensation check** from the already-stored dewpoint against an estimated rock
    surface temperature.
 4. **Fetch soil moisture and use it as the drying proxy.** This is the community's own test —
@@ -1360,3 +1413,15 @@ Seventh pass — prior art and competing implementations (§5.2):
 [jareddillard.com — per-crag weather](https://www.jareddillard.com/crags/vantage-washington-weather) ·
 [UKC — Chamonix alpine rock conditions](https://www.ukclimbing.com/forums/expedition+alpine/best_month_to_go_to_chamonix_for_alpine_rock_and_mixed_climbing-673030) ·
 [phys.org — alpine routes and climate change](https://phys.org/news/2019-07-alpine-climbing-routes-crumble-climate.html)
+
+Eighth pass — European limestone (§4.11):
+[UKC — Frankenjura destination guide](https://www.ukclimbing.com/articles/destinations/frankenjura_-_limestone_in_the_limelight-2742) ·
+[MP — Frankenjura "Sheltered and also fast drying"](https://www.mountainproject.com/area/111969104/sheltered-and-also-fast-drying) ·
+[SummitPost — Frankenjura](https://www.summitpost.org/frankenjura/311566) ·
+[UKC — Céüse, summer sport climbing in France](https://www.ukclimbing.com/articles/destinations/ceuse_-_summer_sport_climbing_in_france-118) ·
+[climbingaway — Céüse](https://climbingaway.fr/en/climbing-areas/ceuse) ·
+[Planetmountain — Rodellar](https://www.planetmountain.com/english/Rock/crags/falesia.html?idfalesia=90) ·
+[theCrag — Chulilla](https://www.thecrag.com/en/climbing/spain/chulilla) ·
+[UKC — Chulilla](https://www.ukclimbing.com/articles/destinations/chulilla-6242) ·
+[UKC — Siurana revisited](https://www.ukclimbing.com/articles/destinations/siurana_revisited-3709) ·
+[Climb Europe — Arco](https://climb-europe.com/pages/rock-climbing-italy-arco)
