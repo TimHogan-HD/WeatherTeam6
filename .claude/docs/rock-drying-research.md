@@ -4,7 +4,7 @@ Research notes for improving the drying model. **This document does not change t
 scoring algorithm.** `.claude/docs/scoring-algorithm.md` is agreed and locked; §7 below
 is a *proposal* that needs explicit approval before any of it reaches code.
 
-Last updated: 2026-09-01 (nineteenth pass: §4.16 — Rifle supplies a within-crag control, and the tufa rule is sufficient but not necessary)
+Last updated: 2026-09-01 (twentieth pass: §3.1 — porosity governs friction too, with the opposite sign)
 
 ## How to read the confidence markers
 
@@ -324,6 +324,66 @@ Two rows in that table should be alarming given the current five-value `RockType
 `basalt` spans 0.1% to 50% porosity depending on whether you are on a column or a flow top,
 and tuff — which the enum does not have at all — spans low-porosity welded rock to 38–60%
 porosity non-welded rock, and both are famous bouldering venues.
+
+---
+
+### 3.1 Porosity governs friction too — with the opposite sign
+
+Nineteen passes of this document treat porosity as the drying variable. It is also the
+**friction** variable, and it points the other way. That inversion unifies the two failure modes
+the Felsampel names (§2.5a) under a single rock property, and it is the most useful single idea
+here.
+
+**The mechanism.** Porous sedimentary rock acts as *"a geologic sponge, with space between
+grains to wick away sweat and trap chalk dust"*. Low-porosity intrusive rock has an interlocking
+crystal structure and *"an effectively sealed surface where sweat and chalk cannot soak into the
+rock but instead pool on the surface"*
+([Rock Climbing Realms — friction by rock type](https://rockclimbingrealms.com/coefficient-friction-chalk-rock-types/),
+[Climbing — friction science](https://www.climbing.com/skills/learn-this-friction-science/)).
+
+**So the same property that makes a rock dangerous when wet makes it grippy when dry:**
+
+| | Drying (§2, §3) | Friction |
+| --- | --- | --- |
+| **High porosity** | absorbs, weakens, slow to dry — **bad** | wicks sweat, holds chalk — **good** |
+| **Low porosity** | sheds water, dries fast, no strength loss — **good** | sweat and chalk pool on a sealed surface — **bad** |
+
+**Every case in this document fits, including the ones recorded before the pattern was
+visible.** Slate has no pore space and is *"notoriously frictionless"* (§4.8). Devil's Lake
+quartzite is near-zero matrix porosity and famous for an *"almost complete lack of friction"*
+(§4.10). Granite at 0.5–1.5% is safe to climb wet and the limitation is that *"the rubber on
+your shoe may not stick"* (§4.3). Big Cottonwood quartzite is *"slippery"* (§4.10). At the other
+end, Horseshoe Canyon Ranch sandstone is prized as *"high-friction when dry"* (§4.7) and
+Fontainebleau's silica-cemented but anomalously porous grit is the friction standard (§4.1).
+Marble and polished limestone — calcite at Mohs 3 (§1) — sit at the sealed end by wear rather
+than by origin.
+
+**This resolves the tension in §9.2 about a single conditions number.** Dryness and friction are
+not two arbitrary outputs that happen to both matter; they are **the same variable read in
+opposite directions**. A crag cannot be optimal on both. That is a reason to report them
+separately, as crag.day does, rather than to average them into one score — averaging a rock's
+best property with its worst is how you get a number that describes nothing.
+
+**Two corollaries worth recording.**
+
+**Traffic moves a hold down the porosity axis.** Chalk, shoe rubber, skin and dirt *"fill the
+tiny pores and crystals that give a hold its grip"*, and a build-up *"smooths out those
+friction-enhancing micro-edges"*. Polish and chalk-glaze progressively convert a porous hold
+into a sealed one — so a popular route on porous rock drifts, over years, toward the friction
+behaviour of a rock it is not made of. That is a per-route property no forecast can see, and
+another entry for §4.13's list.
+
+**Albedo differentiates rock thermally; emissivity does not.** §5.2 recorded CragReport modelling
+"rock tone / emissivity". Measured emissivities are tightly clustered — granite 0.92, sandstone
+0.925, limestone 0.95, with rocks generally 0.89–0.99 — so emissivity is nearly a constant across
+climbing rock. **Albedo is the variable that actually differs**: light granite ~0.6 against dark
+surfaces near 0.04, and *"rocks with low albedos will warm both faster and to higher temperatures
+than rocks with high albedos"*
+([Hall et al., ESPL — rock albedo and thermal conditions](https://onlinelibrary.wiley.com/doi/abs/10.1002/esp.1189),
+[MDPI — rock emissivity for IR thermography](https://www.mdpi.com/2076-3417/11/9/3773)).
+If §7's taxonomy carries a thermal field it should be **albedo, not emissivity**. Measured
+short-term thermal buffering also runs opposite to intuition: limestone 0.70 °C against granite
+1.63 °C, so granite damps 15–30 minute fluctuations more, not less.
 
 ---
 
@@ -2080,3 +2140,10 @@ Nineteenth pass — Rifle as within-crag control (§4.16):
 [BGS — how caves form](https://www2.bgs.ac.uk/mendips/caveskarst/caveform.htm) ·
 [Dales Rocks — joints and bedding planes](https://dalesrocks.org.uk/ribblesdale/rock-formation/great-scar-limestone/) ·
 [Wikipedia — Tufa](https://en.wikipedia.org/wiki/Tufa)
+
+Twentieth pass — porosity and friction (§3.1):
+[Rock Climbing Realms — coefficient of friction by rock type](https://rockclimbingrealms.com/coefficient-friction-chalk-rock-types/) ·
+[Climbing — friction science](https://www.climbing.com/skills/learn-this-friction-science/) ·
+[Hall et al., ESPL — rock albedo and thermal conditions](https://onlinelibrary.wiley.com/doi/abs/10.1002/esp.1189) ·
+[MDPI — rock emissivity measurement for IR thermography](https://www.mdpi.com/2076-3417/11/9/3773) ·
+[ResearchGate — chalk and the finger–hold friction coefficient](https://www.researchgate.net/publication/233116824_The_effect_of_chalk_on_the_finger-hold_friction_coefficient_in_rock_climbing)
