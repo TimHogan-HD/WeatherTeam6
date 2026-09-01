@@ -4,6 +4,8 @@ import {
   buildAlertsPanel,
   buildConditionsPanel,
   buildListPanel,
+  buildNoticePanel,
+  buildRetryPanel,
   clockLabel,
   weekdayLabel,
 } from './panels.js'
@@ -201,6 +203,39 @@ describe('buildConditionsPanel', () => {
     const labels = panel.keyboard?.inline_keyboard.flat().map((b) => b.text) ?? []
     expect(labels).not.toContain('⚙ Advanced')
     expect(labels).not.toContain('◀ Simple')
+  })
+})
+
+describe('buildRetryPanel', () => {
+  it('carries the button its own copy names', () => {
+    // The defect this replaced: the copy lived in `telegramWebhook.ts` and the
+    // keyboard was built here, so when the nav row lost its 🔄 the message went
+    // on telling the user to tap a button that was no longer on it. Neither
+    // file was wrong alone, which is why nothing caught it.
+    const panel = buildRetryPanel(STATE)
+    expect(panel.text).toContain('🔄')
+    const labels = panel.keyboard?.inline_keyboard.flat().map((b) => b.text) ?? []
+    expect(labels.some((l) => l.includes('🔄'))).toBe(true)
+  })
+
+  it('drops the promise along with the button when the id will not encode', () => {
+    // `encodeAction` refuses a state id that is not 8 hex characters. Keeping
+    // the copy while losing the button is exactly the mismatch above, one layer
+    // down.
+    const panel = buildRetryPanel('not-a-state-id')
+    expect(panel.text).not.toContain('🔄')
+    expect(panel.text).toContain('/locations')
+    const labels = panel.keyboard?.inline_keyboard.flat().map((b) => b.text) ?? []
+    expect(labels.some((l) => l.includes('🔄'))).toBe(false)
+  })
+
+  it('does not put a retry on a plain notice, which would redraw the same words', () => {
+    // A deleted location re-renders the identical notice, so a retry there is a
+    // button that visibly does nothing — the reason `DisabledButton` was
+    // rejected in the first place.
+    const notice = buildNoticePanel(STATE, 'That location is no longer saved.')
+    const labels = notice.keyboard?.inline_keyboard.flat().map((b) => b.text) ?? []
+    expect(labels.some((l) => l.includes('🔄'))).toBe(false)
   })
 })
 

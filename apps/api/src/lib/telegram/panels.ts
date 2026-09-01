@@ -802,3 +802,33 @@ export function buildNoticePanel(stateId: string, notice: string): Panel {
     keyboard: keyboardOf([footerRow(stateId, null, 'other')]),
   }
 }
+
+/**
+ * The panel shown when rendering one failed — an upstream fetch that did not
+ * answer, which the next tap may well survive.
+ *
+ * **The copy and the button it names live in the same function on purpose.**
+ * They used to be a message string in `telegramWebhook.ts` and a keyboard built
+ * here, and when the nav row lost its `🔄` in the plain-language rebuild the
+ * text went on telling the user to tap a button that was no longer on the
+ * message. Nothing could catch that: neither file was wrong on its own. Split
+ * across two modules the mismatch is invisible, and together it is one
+ * assertion.
+ *
+ * Distinct from `buildNoticePanel`, which carries no retry: refreshing a
+ * deleted location re-renders the identical notice, and a button that visibly
+ * does nothing is the thing `DisabledButton` was rejected for.
+ */
+export function buildRetryPanel(stateId: string): Panel {
+  const retry = encodeAction(VERB_REFRESH, stateId)
+  // No encodable retry means no button, so the copy must not promise one.
+  const text =
+    retry === null
+      ? 'Could not load that just now. Send /locations to start again.'
+      : 'Could not load that just now. Tap 🔄 to try again.'
+  const row = retry === null ? [] : [{ text: '🔄 Try again', callback_data: retry }]
+  return {
+    text: escapeTelegramHtml(text),
+    keyboard: keyboardOf([row, footerRow(stateId, null, 'other')]),
+  }
+}

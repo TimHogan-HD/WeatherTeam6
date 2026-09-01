@@ -8,7 +8,7 @@ import { formatLocationNotFound } from '../lib/telegram/conditionsMessage.js'
 import { findLocationByName } from '../lib/telegram/conditionsReply.js'
 import { isIntervalHours, isTableUnits } from '../lib/telegram/forecastTable.js'
 import {
-  buildNoticePanel,
+  buildRetryPanel,
   EXPIRED_PANEL_TEXT,
   FIELD_DAY,
   FIELD_INTERVAL,
@@ -257,10 +257,11 @@ async function handleCallbackQuery(userId: string, q: CallbackQuery): Promise<vo
       { err: err instanceof Error ? err.message : String(err) },
       '[telegramWebhook] failed to render a panel',
     )
-    // Keeps its navigation, because the copy tells the user to tap Refresh —
-    // stripping the keyboard here would leave a message naming a button that is
-    // no longer on it.
-    const notice = buildNoticePanel(next.id, 'Could not load that just now. Tap 🔄 to try again.')
+    // The copy and the retry button are built together in `panels.ts`, not
+    // assembled here from a string plus whichever keyboard that module happens
+    // to attach. That split is what let the message tell the user to tap a 🔄
+    // the nav row had stopped carrying.
+    const notice = buildRetryPanel(next.id)
     await editTelegramMessage(messageId, notice.text, notice.keyboard)
     return
   }
