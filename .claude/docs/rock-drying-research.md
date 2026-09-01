@@ -4,7 +4,7 @@ Research notes for improving the drying model. **This document does not change t
 scoring algorithm.** `.claude/docs/scoring-algorithm.md` is agreed and locked; §7 below
 is a *proposal* that needs explicit approval before any of it reaches code.
 
-Last updated: 2026-09-01 (sixteenth pass: §9.7 — terrain shading precomputes per location, the best value-to-disruption ratio in §9)
+Last updated: 2026-09-01 (seventeenth pass: §4.14 — the tufa rule generalises, where the holds were made by water, water still goes there)
 
 ## How to read the confidence markers
 
@@ -981,6 +981,57 @@ about what it cannot see.
 
 ---
 
+### 4.14 Appalachia and Ontario — and the tufa rule generalises
+
+**Looking Glass Rock, NC — the holds are made of seepage.** Looking Glass is an exfoliating
+dome of ~390 Ma Whiteside granite, and its famous "eyebrows" are *"thousands of horizontal
+wrinkles in the granite veneer, **weathered by water seeping into the metamorphosed feldspar and
+mica**"* ([WNC Magazine](https://wncmagazine.com/climb_looking_glass_rock),
+[Wikipedia](https://en.wikipedia.org/wiki/Looking_Glass_Rock)). The feature climbers pull on is
+the record of where water runs.
+
+**That generalises §4.11's tufa rule, and it is the most portable thing in this document.** A
+tufa is a fossil seep because it is a deposit left by flowing water. An eyebrow is a fossil seep
+because it is *erosion* by flowing water. Either way the mechanism is the same and so is the
+inference:
+
+| Feature | Rock | Formed by |
+| --- | --- | --- |
+| Tufa, stalactite | limestone | water **depositing** carbonate (§4.11) |
+| Eyebrow | granite | water **weathering** feldspar and mica (here) |
+| Solution pocket | dolomite, limestone | water **dissolving** carbonate (§4.7, §4.9) |
+| Hueco | syenite, sandstone | water **pooling and weathering** (§4.8) |
+| Weathering pit | granite slab | water **standing** (§4.3) |
+
+**The rule: where the holds were made by water, water still goes there.** That is worth stating
+as a general principle rather than five separate area notes, because it turns an unanswerable
+question — "is this crag seepage-prone?", which §2.3 says needs local knowledge — into an
+**observable** one that a guidebook photo answers. It also explains why so many of the best
+crags seep: the same water that made the features keeps using the same path.
+
+The corollary is uncomfortable and worth writing down: **a heavily featured wall is more likely
+to seep than a blank one**, and the features climbers travel for are the evidence.
+
+- **Rumbling Bald, NC** — the other Carolina granite, and Looking Glass's exfoliation is the
+  shared mechanism ([Carolina Climbers Coalition](https://carolinaclimbers.org/climbing-areas/looking-glass-rock.html)).
+  Looking Glass also earns its name from **verglas** after freezing rain, which is the §5.1
+  freeze–thaw case at a crag whose whole surface is a thin exfoliating veneer.
+- **The Niagara Escarpment, Ontario — Silurian dolomite**, a 700 km UNESCO escarpment of
+  limestone and dolostone ([Britannica](https://www.britannica.com/place/Niagara-Escarpment),
+  [uWaterloo](https://uwaterloo.ca/wat-on-earth/news/what-niagara-escarpment)). **Lion's Head** is
+  *"undercut in most places, with access normally from above by rappel to a hanging belay at the
+  lip of the overhang"* ([OAC](https://www.ontarioallianceofclimbers.ca/land-managers/understanding-rock-climbing/),
+  [SAIL](https://www.sail.ca/blog/top-5-places-to-rock-climb-in-southern-ontario/)) — so it is
+  rain-sheltered by geometry, on dolomite, above Georgian Bay. Per §5.3 that combination — a
+  sheltered, unwashed carbonate crag near a large water body — is the pattern that concentrates
+  chloride on fixed gear, though fresh water is not sea spray and the risk is not the same.
+- **Bon Echo, Ontario — Canadian Shield granite**, up to 300 ft out of Mazinaw Lake, and *some
+  climbs start out of the lake, so you canoe in* ([MP](https://www.mountainproject.com/area/105948616/ontario)).
+  A sixth entry for §4.13's list of limiters that are not weather: the approach is a boat, and
+  lake state governs it.
+
+---
+
 ## 5. Non-rock modifiers that frequently dominate the rock type
 
 Ranked by how often they decide the answer, most-often first:
@@ -1907,3 +1958,12 @@ Sixteenth pass — terrain shading (§9.7):
 [USGS SRTMGL1_003 30 m](https://developers.google.com/earth-engine/datasets/catalog/USGS_SRTMGL1_003) ·
 [OpenTopography download tool](https://mapscaping.com/global-elevation-data-download-tool/) ·
 [Mapscaping — solar analysis and cast shadow](https://mapscaping.com/solar-analysis-hunting-slopes/)
+
+Seventeenth pass — Appalachia and Ontario (§4.14):
+[WNC Magazine — climb Looking Glass Rock](https://wncmagazine.com/climb_looking_glass_rock) ·
+[Wikipedia — Looking Glass Rock](https://en.wikipedia.org/wiki/Looking_Glass_Rock) ·
+[Carolina Climbers Coalition — Looking Glass](https://carolinaclimbers.org/climbing-areas/looking-glass-rock.html) ·
+[Britannica — Niagara Escarpment](https://www.britannica.com/place/Niagara-Escarpment) ·
+[uWaterloo — what is the Niagara Escarpment](https://uwaterloo.ca/wat-on-earth/news/what-niagara-escarpment) ·
+[Ontario Alliance of Climbers](https://www.ontarioallianceofclimbers.ca/land-managers/understanding-rock-climbing/) ·
+[MP — Ontario](https://www.mountainproject.com/area/105948616/ontario)
