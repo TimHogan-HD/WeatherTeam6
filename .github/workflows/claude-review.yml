@@ -70,8 +70,30 @@ jobs:
           # from the prompt text alone — a green check that never exercised the
           # path it claims to cover.
           #
+          # On PR #72 it did it again: 28 denials over 16 turns, $1.55, no review
+          # posted. The list above covers the tools the reviewer *reads* with but
+          # not the ones the `/code-review` skill *works* with — it plans with
+          # TodoWrite and fans verification out to subagents, and a denied Task
+          # is denied once per agent it tried to spawn, which is why the count
+          # arrives in batches rather than singly.
+          #
           # Read-only tools only. The reviewer must never be able to mutate the
-          # repo: no Edit/Write, and no `gh pr merge`/`git push` via Bash.
+          # repo: no Edit/Write, and no `gh pr merge`/`git push` via Bash. Task
+          # is safe to add because a subagent inherits this same allowlist —
+          # it can fan out, but only over read-only tools.
           claude_args: >-
             --allowedTools
-            "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status),Bash(git merge-base:*),mcp__github_inline_comment__create_inline_comment"
+            "Read,Grep,Glob,Task,TodoWrite,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status),Bash(git merge-base:*),Bash(git rev-parse:*),Bash(git ls-files:*),Bash(ls:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(wc:*),mcp__github_inline_comment__create_inline_comment"
+
+      # The run log records `permission_denials_count` and nothing about *which*
+      # tool was denied, so the two failures above were both diagnosed by
+      # guessing. The execution output has the tool stream in it; keeping it on a
+      # failed run means the next one is read rather than inferred.
+      - name: Keep the execution output when the reviewer fails
+        if: failure() && steps.cred.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-review-execution-output
+          path: ${{ runner.temp }}/claude-execution-output.json
+          if-no-files-found: warn
+          retention-days: 14
