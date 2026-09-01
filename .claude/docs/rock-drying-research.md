@@ -4,7 +4,7 @@ Research notes for improving the drying model. **This document does not change t
 scoring algorithm.** `.claude/docs/scoring-algorithm.md` is agreed and locked; §7 below
 is a *proposal* that needs explicit approval before any of it reaches code.
 
-Last updated: 2026-09-01 (ninth pass: §6.9 and §6.10 — two verified defects in importCrags.ts found while tracing the rock-type data path)
+Last updated: 2026-09-01 (tenth pass: §4.12 rest of world; the Rocklands question resolved; alpine permafrost as a cement problem)
 
 ## How to read the confidence markers
 
@@ -646,8 +646,9 @@ per-location flag than any rock-type refinement.
   large-grained sandstone; the standard "never climb wet sandstone" warning applies, yet
   *"it seems common in Rocklands to climb after rain, which is definitely not the case at
   sandstone climbing areas in the U.S."* ([MadBoulder](https://www.madboulder.org/rocklands)).
-  Worth flagging rather than resolving: either the rock genuinely tolerates it, or the local
-  ethic is looser than the US one. Do not export a US waiting period there without evidence.
+  **Resolved in §4.12: the rock genuinely tolerates it** — Table Mountain Sandstone is partially
+  metamorphosed to a hard quartzitic sandstone, so it belongs with the arenites, not the eolian
+  class the US waiting periods were written for.
 - **Blue Mountains, AU** — sandstone, fragile and more so after rain; local guidance is **at
   least 24h, more for heavy rain**, and the softness drives a glue-in bolting norm
   ([theCrag](https://www.thecrag.com/en/climbing/australia/blue-mountains)).
@@ -882,6 +883,66 @@ unlike the catchment above a cliff. If the app ever asks a user to characterise 
 it have tufas / stalactites?" is a far better seepage question than "is it seepage-prone?" —
 it is observable, it is in every guidebook, and it points at the mechanism rather than the
 symptom [I].
+
+---
+
+### 4.12 Rest of world — and the Rocklands question resolved
+
+**Rocklands: the dissenting local norm was right, and §4.8 can be closed.** §4.8 recorded that
+climbers at Rocklands commonly climb after rain, "which is definitely not the case at sandstone
+climbing areas in the U.S.", and left open whether the rock tolerates it or the ethic is simply
+looser. The answer is the rock. Table Mountain Sandstone was **compressed and partially
+metamorphosed into very hard quartzitic sandstone**
+([Wikipedia](https://en.wikipedia.org/wiki/Table_Mountain_Sandstone)). That places it at the
+quartz-arenite/quartzite end of §4.1(a) — the class with **~0% measured strength loss when wet**
+— not with the calcite-and-clay-cemented eolian sandstones the US 24–48 h rules were written
+for. The local norm is defensible, and the general lesson is the one this document keeps
+returning to: **"sandstone" is not a wet-weather class**, and exporting a waiting period across
+formations is how a correct rule becomes a wrong one.
+
+- **Castle Hill / Kura Tāwhiti, NZ — very soft Oligocene limestone**, weather-sculptured, and
+  **prone to polishing quickly** ([NZ Geographic](https://www.nzgeo.com/stories/the-rocks-of-castle-hill/),
+  [theCrag](https://www.thecrag.com/en/climbing/new-zealand/castle-hill-basin)). The polish
+  mechanism from §1 — calcite at Mohs 3 under traffic — at its most extreme.
+- **Rio de Janeiro — granite and gneiss ending in the ocean.** Pedra da Gávea, 844 m, tropical
+  savanna climate. The conditions rule is not about drying: afternoon thunderstorms and heat
+  make **early starts essential to avoid thunderstorms and slick rock**
+  ([SummitPost](https://www.summitpost.org/pedra-da-g-vea/150534),
+  [climbgrades](https://www.climbgrades.com/seasons/brazil)). Low-porosity rock, and the
+  limiting variables are convective-storm timing and humidity — a *time-of-day* answer, which
+  a daily score cannot express.
+- **Ogawayama, Japan — granite slabs at ~1,600 m.** Season July to mid-October, cold from
+  mid-October to May, and **autumn is markedly drier** than spring
+  ([UKC](https://www.ukclimbing.com/articles/destinations/ogawayama_bouldering-264),
+  [theCrag](https://www.thecrag.com/en/climbing/japan/ogawayama)). Altitude gates the season,
+  as at Wild Iris (§4.9) and Céüse (§4.11).
+- **Tonsai / Railay, Thailand — condensation without rain.** Peak season December–February when
+  humidity is lowest; monsoon roughly June–September leaves routes **seeping for days**. The
+  finding that matters: **in La Niña conditions condensation seeps out of tufa streaks even when
+  it is not raining**, and standard chalk **turns to sludge** in the humidity
+  ([Basecamp Tonsai](https://basecamptonsai.substack.com/p/when-is-the-best-time-of-year-for),
+  [Just Climb Thailand](https://justclimbthailand.com/rock-climbing-thailand-best-season/)).
+  That single sentence fuses three separate threads of this research: §2.5's condensation-as-
+  liquid-water mechanism, §4.11's tufa-as-fossil-seep predictor, and §5.1's hygroscopic chalk.
+  It is also the fourth independent report of humidity alone deciding conditions.
+
+**Alpine rock has a different cement, and it is melting.** In high mountains the ice filling
+cracks *acts as cement* holding the rock mass together, so permafrost degradation is
+directly a strength problem — the same framing as §1's cement argument, with ice in the role of
+silica or calcite. Published anchors worth recording: the **zero-degree isotherm** normally sits
+at **3,500–4,000 m** in an Alpine summer and reached **5,500–5,800 m in July 2026**; permafrost
+temperatures are rising at nearly **+0.1 °C per year**; and rockfall activity in freshly
+deglaciated rockwall sections has increased by **an order of magnitude**
+([Gruber & Haeberli, JGR Earth Surface](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2006JF000547),
+[ESP 2026](https://onlinelibrary.wiley.com/doi/10.1002/esp.70063),
+[ESurf — temperature-dependent stability model](https://esurf.copernicus.org/articles/9/1125/2021/)).
+Thaw by **advection along fractures** goes deeper and faster than conduction, which is why a
+single hot spell can destabilise large volumes.
+
+For an alpine location the useful conditions output is therefore neither a drying time nor a
+friction score but a **freeze-line altitude relative to the route**, plus the overnight-refreeze
+call from §5.2. Both are computable from data already fetched. Out of scope for the current
+product, but it confirms §5.2's conclusion that "conditions" is at least three different models.
 
 ---
 
@@ -1478,3 +1539,15 @@ Ninth pass — tropical areas, dataset schemas, importer findings (§6.9, §6.10
 [OpenBeta — climbing-data](https://github.com/OpenBeta/climbing-data) ·
 [OpenBeta — openbeta-graphql](https://github.com/OpenBeta/openbeta-graphql) ·
 [OSM Climbing wiki](https://wiki.openstreetmap.org/wiki/Climbing)
+
+Tenth pass — rest of world and alpine permafrost (§4.12):
+[Wikipedia — Table Mountain Sandstone](https://en.wikipedia.org/wiki/Table_Mountain_Sandstone) ·
+[NZ Geographic — the rocks of Castle Hill](https://www.nzgeo.com/stories/the-rocks-of-castle-hill/) ·
+[theCrag — Kura Tāwhiti / Castle Hill Basin](https://www.thecrag.com/en/climbing/new-zealand/castle-hill-basin) ·
+[SummitPost — Pedra da Gávea](https://www.summitpost.org/pedra-da-g-vea/150534) ·
+[climbgrades — best time to visit Brazil](https://www.climbgrades.com/seasons/brazil) ·
+[UKC — Ogawayama bouldering](https://www.ukclimbing.com/articles/destinations/ogawayama_bouldering-264) ·
+[theCrag — Ogawayama](https://www.thecrag.com/en/climbing/japan/ogawayama) ·
+[Gruber & Haeberli — permafrost in steep bedrock slopes](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2006JF000547) ·
+[ESP — permafrost degradation and high mountain rockfall](https://onlinelibrary.wiley.com/doi/10.1002/esp.70063) ·
+[ESurf — temperature-dependent stability model for degrading permafrost rock slopes](https://esurf.copernicus.org/articles/9/1125/2021/)
