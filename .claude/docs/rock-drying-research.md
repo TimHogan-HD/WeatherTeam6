@@ -4,7 +4,7 @@ Research notes for improving the drying model. **This document does not change t
 scoring algorithm.** `.claude/docs/scoring-algorithm.md` is agreed and locked; §7 below
 is a *proposal* that needs explicit approval before any of it reaches code.
 
-Last updated: 2026-09-01 (seventeenth pass: §4.14 — the tufa rule generalises, where the holds were made by water, water still goes there)
+Last updated: 2026-09-01 (eighteenth pass: §4.15 — the water-feature rule tested against four areas it was not built from)
 
 ## How to read the confidence markers
 
@@ -1032,6 +1032,53 @@ to seep than a blank one**, and the features climbers travel for are the evidenc
 
 ---
 
+### 4.15 Testing the water-feature rule on areas it was not built from
+
+§4.11 proposed tufa-as-fossil-seep and §4.14 generalised it. Both were formed from Rodellar,
+Kalymnos, Siurana and Chulilla. Here it is checked against four areas that were not in that set.
+
+**Yangshuo, China — the strongest confirmation in the document, and it states the mechanism
+outright.** Karst limestone, heavily tufa'd, and the local account is explicit: *"Even caves get
+wet as the rain seeps into the mountain (**this is how most of the epic tufa form**), and it can
+get so intense it's like it's raining in the cave interior"*
+([UKC](https://www.ukclimbing.com/articles/destinations/sport_climbing_in_yangshuo_china-6046),
+[The Wandering Climber](https://www.thewanderingclimber.com/climbing-yangshuo/)). The tufas are
+named as the *product* of the seepage, by climbers, without prompting. Season is
+September–December with November best; the April–September monsoon is out.
+
+Note the second half of that quote as well: **it is the caves — the sheltered places — that rain
+inside.** That is §5.3's inversion arriving from a different direction. At a karst crag, shelter
+from the sky is not shelter from the water, because the water is coming through the roof.
+
+**Geyikbayırı, Turkey — tufa-defined, and it seeps.** *"The steeper routes tend to follow
+brilliant orange tufas of all sizes"*, and *"seepage can be an issue here in the winter months
+**as snow melts on the mountain above**"*
+([UKC](https://www.ukclimbing.com/articles/destinations/antalya-134),
+[Two Dirtbags](https://twodirtbags.com/climbing-geyikbayiri-turkey/)). Both halves of the
+prediction, plus the Céüse catchment pattern (§4.11) a third time — the thing draining onto the
+wall is a snowfield above it.
+
+**El Potrero Chico, Mexico — the negative case.** Limestone with pockets, crimps and *"some of
+this tufa climbing but it is not prevalent"*, in a semi-arid climate where *"rain is uncommon
+and when it does rain it's often brief"*
+([57hours](https://57hours.com/review/el-potrero-chico-climbing/),
+[potrerochico.org](https://potrerochico.org/)). Low tufa, no seepage reputation.
+
+**Scorecard, and the honest weakness.** Seven areas now: Rodellar, Kalymnos, Yangshuo and
+Geyikbayırı are tufa-rich and all four seep; Siurana, Chulilla and Potrero Chico are
+tufa-poor and none has a seepage reputation. **But two of those three negatives are arid**, and
+aridity independently produces both fewer tufas and less seepage — so Chulilla and Potrero Chico
+are confounded and are not real evidence. **Siurana is the only clean control**: Mediterranean,
+in the same region and climate as tufa-rich Rodellar, with tufas called an anomaly and no
+seepage reputation.
+
+So the rule survives its first test but rests on one uncontaminated negative. That is enough to
+justify asking a user *"does it have tufas?"* as a cheap proxy (§7), and **not** enough to treat
+the answer as decisive. Recorded that way deliberately: this document's own §11-style failure
+mode is a rule that looks confirmed because the cases were chosen to confirm it.
+
+---
+
 ## 5. Non-rock modifiers that frequently dominate the rock type
 
 Ranked by how often they decide the answer, most-often first:
@@ -1967,3 +2014,11 @@ Seventeenth pass — Appalachia and Ontario (§4.14):
 [uWaterloo — what is the Niagara Escarpment](https://uwaterloo.ca/wat-on-earth/news/what-niagara-escarpment) ·
 [Ontario Alliance of Climbers](https://www.ontarioallianceofclimbers.ca/land-managers/understanding-rock-climbing/) ·
 [MP — Ontario](https://www.mountainproject.com/area/105948616/ontario)
+
+Eighteenth pass — testing the water-feature rule (§4.15):
+[UKC — sport climbing in Yangshuo](https://www.ukclimbing.com/articles/destinations/sport_climbing_in_yangshuo_china-6046) ·
+[The Wandering Climber — Yangshuo](https://www.thewanderingclimber.com/climbing-yangshuo/) ·
+[UKC — Antalya / Geyikbayırı](https://www.ukclimbing.com/articles/destinations/antalya-134) ·
+[Two Dirtbags — Geyikbayırı](https://twodirtbags.com/climbing-geyikbayiri-turkey/) ·
+[57hours — El Potrero Chico](https://57hours.com/review/el-potrero-chico-climbing/) ·
+[potrerochico.org](https://potrerochico.org/)
