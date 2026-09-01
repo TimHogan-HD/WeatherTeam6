@@ -4,7 +4,7 @@ Research notes for improving the drying model. **This document does not change t
 scoring algorithm.** `.claude/docs/scoring-algorithm.md` is agreed and locked; §7 below
 is a *proposal* that needs explicit approval before any of it reaches code.
 
-Last updated: 2026-09-01
+Last updated: 2026-09-01 (second pass: §4.7, §4.8, §8.1 added — regional worked set and community drying data)
 
 ## How to read the confidence markers
 
@@ -421,6 +421,127 @@ mode is a **cobble pulling out of a softened matrix**, so **the drying time is t
 and it is invisible from the surface** [I]. Conglomerate needs its own class, keyed to
 matrix type, and it should be conservative.
 
+### 4.7 Worked regional set — Upper Midwest, and why guidebook labels mislead
+
+Four areas that look like one region and are four different drying problems. Three of them
+are commonly described as "sandstone" and only one is.
+
+- **Red Wing, MN (He Mni Can / Barn Bluff) — Oneota Dolomite, not sandstone.** The bluff is
+  Cambrian shale/siltstone/glauconitic sandstone → Jordan Sandstone → **Oneota Dolomite** cap,
+  under ~35 ft of glacial sand, gravel and loess. The climbing is on the dolomite cap; the
+  sandstone sits below the routes ([Wikipedia](https://en.wikipedia.org/wiki/Barn_Bluff_(Red_Wing,_Minnesota)),
+  [MP](https://www.mountainproject.com/area/105812663/red-wing-aka-he-mni-can-barn-bluff)).
+  Two things follow. The Oneota's defining feature is **highly variable chert** — nodules,
+  lenses, thin irregular beds, tripolitic quartz between dolomite rhombs
+  ([IGWS](https://legacy.igws.indiana.edu/compendium/oneota-dolomite)) — so it is a
+  **two-material rock**: dolomite (Mohs 3.5–4, moderate porosity) studded with chert (Mohs 7,
+  ~zero porosity). That is §4.6's conglomerate problem at nodule scale, and the interface is
+  a plausible mechanism for the loose flakes and choss bands climbers report [I]. And the
+  loess/gravel cap on steep slopes above the cliff line is a **catchment**: the face
+  surface-dries in hours, the crag can stay damp much longer, worst at spring thaw [I].
+  A fault visible from Hwy 61 is credited with making this Oneota better for climbing than
+  the same unit elsewhere — within-formation variation from structure, not facies.
+- **It is not Ten Sleep dolomite.** Same mineral name, different rock. Ten Sleep's Bighorn is
+  massive, cliff-forming, mildly overhung, and defined by **pockets** (monos to jugs) with a
+  surface soft enough that "comfortizing" edges is a local norm
+  ([Common Climber](https://www.commonclimber.com/ten-sleep.html),
+  [Access Fund](https://www.accessfund.org/latest-news/open-gate-blog/what-we-can-learn-from-the-ten-sleep-controversy)).
+  Red Wing is bedded, cherty, and **crimpy** — "incredibly crimpy, super technical, very
+  temperature dependent". Pockets hold standing water; crimps and edges shed it. Reasoning
+  about one from the other gets the drying behaviour backwards.
+- **Willow River State Park (Wisconsin, not MN) — dolomite, and the best documented seepage
+  case found.** A steep sport amphitheatre in the Willow Falls gorge
+  ([MP](https://www.mountainproject.com/area/105795588/willow-river-state-park)). Community
+  guidance names **four** inputs: *"certain combinations of humidity, precipitation, snowmelt,
+  and/or river levels can leave the cliff wet and unclimbable due to seep"*
+  ([Forged Guides](https://www.climbforged.com/blog/forged-guides-and-the-midwest-what-safety-measures-are-essential-for-rock-climbing)).
+  We model one of the four. Snowmelt is unmodelled and river level has no data source.
+- **Taylors Falls / Interstate State Park, MN — basalt.** Midcontinent Rift flood basalt,
+  ~1.1 Ga, eroded into the St. Croix Dalles with the famous glacial potholes
+  ([MN DNR](https://files.dnr.state.mn.us/destinations/state_parks/interstate/interstate_geology.pdf)).
+  Dense columnar type, so 0.1–1.0% porosity: hours, not days, and no integrity risk. The
+  potholes and river-level base still pond water independently of the rock.
+- **Robinson Park, Sandstone MN — Hinckley Sandstone, in a quarry.** Trad, sport, boulder,
+  ice and mixed in one footprint; mostly 5.9–5.11b
+  ([MP](https://www.mountainproject.com/area/105812719/robinson-park)). Three unusual
+  properties. **Quarried faces have no case hardening** — fresh-cut rock has no protective
+  rind, which removes the thin-shell failure mode of §4.1(d) but also removes the armour [I].
+  Hinckley was **selected commercially as a structural building stone** for its strength
+  ([Star Tribune](https://www.startribune.com/curious-minnesota-sandstone-history-quarry-banning-state-park/601862816)),
+  a strong signal it sits near the well-lithified end rather than the friable one [I] — no
+  porosity or absorption figures were found for it. And the **ice park is farmed**: four
+  managed areas are deliberately watered all winter ([MCA](https://www.mnclimbers.org/sandstone-ice-park)),
+  so those walls take annual full saturation plus freeze–thaw by design, and in shoulder
+  season can be soaking for reasons no forecast can see.
+- **Horseshoe Canyon Ranch, AR** — Pennsylvanian Hale and Bloyd formations, the only genuine
+  sandstone of the set ([MP](https://www.mountainproject.com/area/105903004/horseshoe-canyon-ranch)).
+  Mid-spectrum Ozark sandstone: 24–48h after moderate rain, longer for prolonged storms, and
+  the humid Ozark summer suppresses the stage-1 evaporation rate that does most of the work.
+
+**Three of these have a wetness input outside the weather model entirely** — Willow River's
+river level, Robinson's farmed ice, Red Wing's loess cap. That is a stronger argument for a
+per-location flag than any rock-type refinement.
+
+### 4.8 Further areas, and the cases that break the family rules
+
+- **Mount Arapiles vs the Grampians — the cleanest natural experiment available.** Same
+  original sediment; a volcanic incursion ~400 Ma contact-metamorphosed the Arapiles rock to
+  **quartzite** while the Grampians stayed **sandstone**, "often of a softer variety"
+  ([UKC](https://www.ukclimbing.com/articles/destinations/mount_arapiles_-_australia-6830),
+  [Wikipedia](https://en.wikipedia.org/wiki/Mount_Arapiles)). Adjacent areas, one protolith,
+  opposite wet-weather rules. Nothing about the sediment predicted it; the thermal history did.
+- **Slate — Llanberis / Dinorwig — the fast-drying champion.** The community states the
+  mechanism itself: *"the layering of minerals means that water can't easily penetrate...
+  slate doesn't have pore spaces like sandstone does. So in the absence of crack systems
+  slate dries quickly"* ([UKC geology series](https://www.ukclimbing.com/articles/series/the_geology_of_britain/the_geology_of_britain_-_a_climbers_perspective_part_3_-_metamorphic_rocks-11874)).
+  Note the qualifier — fracture drainage is the exception, exactly as §4.5. The limiter is
+  friction: slate slabs are notoriously frictionless with no protruding crystals.
+- **Hueco Tanks — syenite porphyry, and it breaks the igneous rule.** Described as **highly
+  porous**, collecting rainwater "like stony sponges", and the huecos themselves **hold water
+  for several days to several months** depending on pool size and shelter
+  ([TPW magazine](https://tpwmagazine.com/archive/2004/sept/ed_4/),
+  [Texas Beyond History](https://www.texasbeyondhistory.net/hueco/setting.html)). Climbers are
+  warned the syenite "becomes fragile with extra humidity from rain". An igneous rock with a
+  real wet-weather ethic — do not assume plutonic means climbable wet.
+- **Eldorado Canyon / Flatirons — Fountain Formation arkose.** Coarse feldspar-rich
+  conglomeratic sandstone ([Wikipedia](https://en.wikipedia.org/wiki/Fountain_Formation)).
+  Guide-service framing is precise and matches the taxonomy: *"harder and less fragile than
+  many desert sandstones, but wet stone is slick, **flakes can seep**"*
+  ([Skyward](https://www.skywardmountaineering.com/rock-climbing/boulder-colorado)). A
+  sandstone whose limiter is friction and seepage, not structure.
+- **Devil's Lake, WI — Baraboo Quartzite.** ~1.6 Ga, "flint-hard", glassy, and it **dries
+  quickly** — but its defining property to climbers is an "almost complete lack of friction"
+  ([Climbing](https://www.climbing.com/travel/rock-climbing-devils-lake-wisconsin/),
+  [KAYA](https://blog.kayaclimb.com/devils-lake-bouldering-guide-how-when-and-where/)).
+  Friction-limited, and temperature/humidity matter more than hours-since-rain.
+- **Rifle Mountain Park — sector-level, month-scale seepage.** *"Oftentimes, the Wasteland and
+  the left side of the Project Wall do not dry out until June"*
+  ([ClimbingHouse](https://climbinghouse.com/rifle-mountain-park-colorado-guide/)). Spring
+  runoff is the driver, and the same seepage is what farms the canyon's winter ice. No
+  rock-type constant can produce a per-sector June date.
+- **Squamish — low-porosity granite that still dries slowly.** Exposed sun-and-wind areas can
+  dry in minutes; shaded rainforest boulders take a day or more in April even in good weather
+  ([Mountain Life](https://www.mountainlifemedia.ca/2018/11/where-to-climb-when-its-raining-in-squamish/)).
+  Moss, seepage and shade dominate a rock with ~1% porosity.
+- **Rocklands, South Africa — Table Mountain Sandstone, and a dissenting local norm.** Coarse
+  large-grained sandstone; the standard "never climb wet sandstone" warning applies, yet
+  *"it seems common in Rocklands to climb after rain, which is definitely not the case at
+  sandstone climbing areas in the U.S."* ([MadBoulder](https://www.madboulder.org/rocklands)).
+  Worth flagging rather than resolving: either the rock genuinely tolerates it, or the local
+  ethic is looser than the US one. Do not export a US waiting period there without evidence.
+- **Blue Mountains, AU** — sandstone, fragile and more so after rain; local guidance is **at
+  least 24h, more for heavy rain**, and the softness drives a glue-in bolting norm
+  ([theCrag](https://www.thecrag.com/en/climbing/australia/blue-mountains)).
+- **Chattanooga / TAG sandstone (Stone Fort, Rocktown, LRC)** — Pennsylvanian sandstone with
+  an unusually explicit community ethic: *"Never climb on wet sandstone — it damages the rock
+  permanently by pulling off crystals... If it rained in the last 24 to 48 hours, stick to the
+  gym. This is not a suggestion"* ([NoogaFinder](https://noogafinder.com/blog/rock-climbing-chattanooga-guide)).
+- **Poke-O-Moonshine, Adirondacks — anorthosite.** Glacially polished, ~1000 ft, plagioclase-
+  dominated plutonic rock with gneiss interfingering and an unusual chert-like rock welded into
+  it ([theCrag](https://www.thecrag.com/en/climbing/united-states/adirondacks/poke-o-moonshine),
+  [SummitPost](https://www.summitpost.org/poke-o-moonshine/150972)). Behaves as dense plutonic
+  rock for drying; glacial polish makes it friction-limited on the slabs.
+
 ---
 
 ## 5. Non-rock modifiers that frequently dominate the rock type
@@ -511,7 +632,9 @@ on a vertical wall, before the existing angle/wind/humidity modifiers.
 | --- | --- | --- | --- |
 | `granite` (fresh plutonic) | 1 | 6 | 0.5–1.5% porosity; friction-limited [M] |
 | `granite_weathered` (grussy, coarse, biotite-rich) | 3 | 12 | Grus rind retains water [I] |
+| `syenite_porous` (Hueco-type) | 12 | 48 | Highly porous plutonic; huecos hold water days–months. Breaks the igneous rule [C] |
 | `quartzite` | 1 | 6 | Near-zero matrix porosity [M] |
+| `slate` | 1 | 4 | No pore space; fastest-drying rock in community rankings. Friction-limited [C] |
 | `gneiss_schist` | 2 | 12 | Low matrix porosity, foliation drainage [M/I] |
 | `basalt_dense` (columnar) | 2 | 8 | 0.1–1.0% porosity [M] |
 | `basalt_vesicular` | 12 | 48 | 30–50% porosity [M] |
@@ -522,12 +645,13 @@ on a vertical wall, before the existing angle/wind/humidity modifiers.
 | `limestone_porous` / chalk / tufa | 24 | 72 | Up to 12% absorption; tufa softens and breaks [S/C] |
 | `sandstone_quartz_arenite` (silica-cemented) | 6 | 24 | ~0% strength loss measured for clean quartz-rich sandstone [M] |
 | `sandstone_ferruginous` (iron-cemented, case-hardened) | 12 | 48 | Intermediate; Corbin-type [I] |
+| `sandstone_arkose` (feldspathic — Fountain, Millstone Grit) | 12 | 48 | Slick and seep-prone when wet, but far less fragile than eolian [C] |
 | `sandstone_eolian` (calcite/clay-cemented) | 36 | 96 | 50–75% strength loss; land-manager 24–48h is the floor, not the answer [M/C] |
 | `sandstone_soft` (weakly cemented) | 48 | 120 | Elbsandstein / Southern Sandstone class [C] |
 | `conglomerate` | 24 | 72 | Matrix-controlled and invisible from the surface [I] |
 | `unknown` | 48 | 120 | Must be the **most** conservative row, not a middle one |
 
-Three companion changes that the research says matter more than the table itself:
+Four companion changes that the research says matter more than the table itself:
 
 1. **Accumulate antecedent rainfall** over a rock-type-dependent window (say 7 days for the
    eolian classes, 48h for arenites) instead of reading only the most recent event.
@@ -535,6 +659,12 @@ Three companion changes that the research says matter more than the table itself
    rock type. It cannot be derived from rock type or from weather.
 3. **Add a condensation check** from the already-stored dewpoint against an estimated rock
    surface temperature.
+4. **Fetch soil moisture and use it as the drying proxy.** This is the community's own test —
+   *"if the ground is still damp then the rock is still wet"* (§8.1). It integrates antecedent
+   rainfall and evaporative demand for free, which is exactly what §6.3's most-recent-event
+   model discards, and [Open-Meteo exposes soil moisture at multiple depths](https://open-meteo.com/en/docs) on the
+   same forecast endpoint we already call (confirm the exact depth bands before relying on one).
+   Likely the cheapest high-value change here.
 
 And one warning about how to display any of this: per
 `.claude/rules/defect-patterns.md` §1 and §3, a drying estimate derived from a *guessed*
@@ -557,6 +687,44 @@ output is a withheld estimate, not the most conservative number wearing a confid
 - **Vertical variation within a cliff** (the Nuttall result) is real and I have no way to
   model it — the app has one rock type per location and a route-level property would be a
   much larger change.
+
+### 8.1 Update — community data partly closes the first gap
+
+The first bullet above is now too pessimistic. Crag-level drying evidence **does** exist; it
+is just not in the scientific literature. Climbers have been maintaining it for decades, and
+in the UK it is close to a structured dataset.
+
+- **Ranked crag drying lists.** The South Wales climbing wiki maintains a dedicated
+  [Seepage / Quick drying](https://swcw.org.uk/wiki/Seepage/Quick_drying) page; Warwick's club
+  publishes a [quick-drying crags](https://warwickclimbersunion.co.uk/quick_drying_crags.html)
+  list; UKC has recurring threads that converge on consistent orderings. Sample consensus:
+  **slate is the quickest-drying rock type**, Trowbarrow and the Llanberis slate crags being
+  the reliable options; on Eastern Grit, **Stanage and Derwent dry fastest, then Burbage**;
+  on Peak limestone, **Beeston Tor and High Tor seep little**, and **Chee Tor dries much
+  faster than the steep Chee Dale crags**. The stated drivers are wind exposure and a
+  south-facing aspect, with a crag drying fastest when wind blows directly onto it
+  ([UKC](https://www.ukclimbing.com/forums/rock_talk/fastest_drying_rock-513137)).
+- **The community's own proxy for rock moisture is ground moisture.** Joe's Valley guidance:
+  wait 48–72h, and *"if the ground is still damp then the rock is still wet"*
+  ([KAYA](https://blog.kayaclimb.com/joes-valley-bouldering-guide-how-when-and-where/)).
+  This is worth taking seriously as a **feature**, not just folklore: soil moisture is an
+  available forecast product, it integrates antecedent rainfall and evaporative demand
+  automatically, and it is exactly the quantity §6.3 says our most-recent-event model throws
+  away. Probably the single cheapest fix for that gap.
+- **Prior art exists for this product, at one crag.** [crag.day](https://crag.day/) grades
+  dryness and friction for Squamish granite from rain data plus local calibration, and states
+  its own limitation plainly: local seepage, shade and microclimates still vary. That is the
+  same wall we hit in §2.3, reached independently.
+- **Local climbing organisations publish conditions guidance** — e.g. Rifle Climbers'
+  [weather page](https://rifleclimbers.org/weather/), SNCC's rain page. These are the natural
+  source for a per-location seepage flag, and they are human-curated rather than derivable.
+
+What this changes: the honest framing is not "no data exists" but **"the data exists as
+per-crag community knowledge, is qualitative and ranked rather than measured, and is
+strongest in the UK."** For the app that means a seepage/drying-class field should be
+**editable per location and seeded from local knowledge**, not computed. It also means a
+"days since rain" number will always be a weaker signal than a resident's ranking, and the
+product should not pretend otherwise.
 
 ---
 
@@ -631,3 +799,35 @@ Climbing community and land managers:
 [PYB — interpreting the weather forecast for rock climbing](https://info.pyb.co.uk/blog/interpreting-the-weather-forecast-for-rock-climbing) ·
 [WV Explorer — Seneca Rocks](https://wvexplorer.com/recreation/rock-climbing/west-virginia-crag/article-seneca-offers-climbers-a-taste-of-the-alps/) ·
 [RRG Tourism — winter and sandstone](https://redrivergorgetourism.com/the-science-of-sandstone-how-winter-shapes-the-red-river-gorge/)
+
+Community drying data and crag conditions (second pass):
+[SWCW wiki — Seepage / Quick drying](https://swcw.org.uk/wiki/Seepage/Quick_drying) ·
+[WUCU — quick-drying crags](https://warwickclimbersunion.co.uk/quick_drying_crags.html) ·
+[UKC — fastest drying rock](https://www.ukclimbing.com/forums/rock_talk/fastest_drying_rock-513137) ·
+[UKC — quick drying Peak limestone](https://www.ukclimbing.com/forums/destinations/quick_drying_peak_limestone_crags-57007) ·
+[UKC — geology for climbers, metamorphic rocks](https://www.ukclimbing.com/articles/series/the_geology_of_britain/the_geology_of_britain_-_a_climbers_perspective_part_3_-_metamorphic_rocks-11874) ·
+[crag.day — Squamish conditions](https://crag.day/) ·
+[Mountain Life — climbing in the rain in Squamish](https://www.mountainlifemedia.ca/2018/11/where-to-climb-when-its-raining-in-squamish/) ·
+[Rifle Climbers — weather](https://rifleclimbers.org/weather/) ·
+[ClimbingHouse — Rifle guide](https://climbinghouse.com/rifle-mountain-park-colorado-guide/) ·
+[KAYA — Joe's Valley guide](https://blog.kayaclimb.com/joes-valley-bouldering-guide-how-when-and-where/) ·
+[KAYA — Devil's Lake guide](https://blog.kayaclimb.com/devils-lake-bouldering-guide-how-when-and-where/) ·
+[Climbing — Devil's Lake](https://www.climbing.com/travel/rock-climbing-devils-lake-wisconsin/) ·
+[MadBoulder — Rocklands](https://www.madboulder.org/rocklands) ·
+[theCrag — Blue Mountains](https://www.thecrag.com/en/climbing/australia/blue-mountains) ·
+[UKC — Mount Arapiles](https://www.ukclimbing.com/articles/destinations/mount_arapiles_-_australia-6830) ·
+[NoogaFinder — Chattanooga climbing guide](https://noogafinder.com/blog/rock-climbing-chattanooga-guide) ·
+[Skyward — Boulder / Eldorado](https://www.skywardmountaineering.com/rock-climbing/boulder-colorado) ·
+[Forged Guides — Midwest safety](https://www.climbforged.com/blog/forged-guides-and-the-midwest-what-safety-measures-are-essential-for-rock-climbing) ·
+[MCA — Sandstone ice park](https://www.mnclimbers.org/sandstone-ice-park) ·
+[MP — Robinson Park](https://www.mountainproject.com/area/105812719/robinson-park) ·
+[MP — Willow River State Park](https://www.mountainproject.com/area/105795588/willow-river-state-park) ·
+[MP — Red Wing / Barn Bluff](https://www.mountainproject.com/area/105812663/red-wing-aka-he-mni-can-barn-bluff) ·
+[MN DNR — Interstate State Park geology](https://files.dnr.state.mn.us/destinations/state_parks/interstate/interstate_geology.pdf) ·
+[IGWS — Oneota Dolomite](https://legacy.igws.indiana.edu/compendium/oneota-dolomite) ·
+[Star Tribune — Sandstone quarry history](https://www.startribune.com/curious-minnesota-sandstone-history-quarry-banning-state-park/601862816) ·
+[TPW magazine — Hueco Tanks](https://tpwmagazine.com/archive/2004/sept/ed_4/) ·
+[Texas Beyond History — Hueco Tanks setting](https://www.texasbeyondhistory.net/hueco/setting.html) ·
+[Wikipedia — Fountain Formation](https://en.wikipedia.org/wiki/Fountain_Formation) ·
+[theCrag — Poke-O-Moonshine](https://www.thecrag.com/en/climbing/united-states/adirondacks/poke-o-moonshine) ·
+[Open-Meteo docs](https://open-meteo.com/en/docs)
