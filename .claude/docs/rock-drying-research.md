@@ -1513,7 +1513,7 @@ Gogarth, Swanage and Pembroke are all in this category.
 | Gap | Source | Status |
 | --- | --- | --- |
 | Aspect / solar exposure | `shortwave_radiation` | **Already fetched and stored** as `shortwave_wm2` (`openMeteo.ts`). The aspect term is blocked on geometry, not data. |
-| Antecedent wetness (§8.1) | Open-Meteo soil moisture | Available on the endpoint already called |
+| Antecedent wetness (§8.1) | ~~Open-Meteo soil moisture~~ → recency-weighted rainfall the app already has, or a rainfall-minus-ET₀ balance | **Corrected in §8.2.** Soil moisture is a grid-cell model output biased by the outcrop itself, not the ground the climber is looking at |
 | Snowmelt (Willow River, Wild Iris) | Open-Meteo snowfall / snow depth | Available but **model-dependent** — snow depth is missing from some models, and snowfall is water-equivalent at a fixed 1 mm : 7 cm factor |
 | River level (Willow River, Carderock) | NOAA water gauges | Public, per-gauge, US only |
 | Tides and swell (sea cliffs) | Not investigated | Would need a separate provider |
@@ -1784,10 +1784,18 @@ most specific to this user's regions: Minnesota, Wisconsin, South Dakota, Wyomin
 spend three to five months a year in the state it mishandles, and it will never be visible at Red
 Rock or Bishop.
 
-The fix is not conceptually hard — request `snowfall_sum` alongside `precipitation_sum`, and treat a
-day with snow as an event that has not finished rather than one that ended at 23:59 — but it is a
-change to both fetchers, the model's input type and its clock, so it is recorded here as a finding
-rather than sketched as a patch. **What must not happen is adding snow to the input and leaving the
+**But the obvious fix is half a fix, and §7's own source table says why.** It records that
+Open-Meteo's snowfall is *"water-equivalent at a fixed 1 mm : 7 cm factor"* — so `snowfall_sum` is
+not an independent measurement, it is `precipitation_sum` multiplied by a constant. Requesting it
+recovers **which days were snowy** and recovers **nothing at all** about §2.7's 3:1-to-40:1 depth
+spread: a fixed ratio is exactly the assumption that spread contradicts. That is worth stating
+plainly, because a `snowfall_sum` column on a chart looks like new information and is not.
+
+So the useful half is the **clock**, not the magnitude: knowing a day fell as snow is enough to stop
+counting it as drying time, which is the sign error, while knowing how deep it lay would need snow
+*depth* — a genuinely separate observation, model-dependent and absent from some models per the
+same table. The full change touches both fetchers, the model's input type and its clock, so it is
+recorded here as a finding rather than sketched as a patch. **What must not happen is adding snow to the input and leaving the
 clock alone**, which would make a snowy day count as a bigger rain event that still finished on
 time, i.e. wrong in a new way while looking more sophisticated.
 
