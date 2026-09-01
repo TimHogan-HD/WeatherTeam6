@@ -2245,3 +2245,47 @@ secret check is skipped and the forgeable `chat.id` is the only gate.
 - **A button tap is authorized on two ids**, `callback_query.from.id` and `callback_query.message.chat.id`. Any new callback surface inherits that or it ships unauthenticated.
 
 **Does the user need to do anything?** **Yes — two things, both needing credentials this session did not have.** (1) From `apps/api`, with `DATABASE_URL` set in the shell: `npm run db:migrate`, then `npm run check:panel-state` to prove the round trip, the scope predicate, the prune cutoff and the location-delete cascade against real Postgres. (2) `$env:TELEGRAM_BOT_TOKEN = "..."` then `npm run bot:set-commands`, so the client's command menu matches what the bot answers. Unchanged from before: `TELEGRAM_WEBHOOK_SECRET` in Vercel plus a matching `setWebhook` re-run.
+
+---
+
+## 2026-08-31 — branch: phase-2-data-layer — commit: fcc4b5a
+
+**Phase completed:** Phase 2 — the data layer, from `.claude/docs/telegram-precision-interface-plan.md`
+
+**What was built this session:**
+- `lib/weather/openMeteo.ts` — `fetchDeterministicHourly` (six models in one request, hourly series retained), `parseDeterministicHourly` / `markSharedProbability` / `localTimeToUtc` (all pure), `parseEnsembleHourly`, `fetchEnsembleRun`. The daily reduction was extracted into `computeDays` and is now run pooled **and** per model.
+- `OpenMeteoResult` gains `by_model` and `partial_models`. `parseEnsemble` stops flattening the per-model grouping it had already built.
+- `db/schema.ts` + migration `0008` — `weather_runs`, `weather_run_hours`, `weather_ensemble_hours`.
+- `lib/runs/` (new) — `pointKey.ts`, `storeRun.ts` (upserts, chunked writes, `deleteRunsForPoint`), `pruneRuns.ts`, `collectRuns.ts`.
+- `routes/cron.ts` — `POST /api/cron/collect-runs` and `POST /api/cron/prune-runs`, behind a shared `cronGateFailed` guard extracted from the alerts route.
+- `lib/locations/deleteLocation.ts` — the bespoke ordered step the plan called for, before the `DEPENDENT_TABLES` loop.
+- `scripts/checkWeatherRuns.ts` (`check:weather-runs`).
+- Tests: `openMeteoHourly.test.ts`, `pointKey.test.ts`. 317 → 339 api tests, 391 → 413 overall.
+
+**What the session measured that the plan did not know:**
+- **A multi-model `/v1/forecast` response suffixes its hourly keys only while more than one requested model has coverage.** `models=gfs_seamless,ncep_hrrr_conus` in Chamonix answers **200** with a bare `temperature_2m` — HRRR dropped silently, the survivor unlabelled — while HRRR alone there is a 400. The plan assumed the ensemble's suffix pattern carried over. Trusting the bare column would have labelled it with whichever model was listed first, on every column of every Phase 3 table.
+- **`precipitation_probability` sharing is wider than Probe A found.** Live at Red Rock, `gfs_seamless` shares the series with HRRR and NBM. Hardcoding the pair from the probe would have mis-attributed GFS.
+
+**Known issues / deferred work:**
+- **Nothing has touched Postgres.** `check:weather-runs` is written and unrun; migrations `0007` **and** `0008` are both unapplied, so `weather_runs` does not exist and `/api/cron/collect-runs` 500s today.
+- **Neither cron route is registered with cron-job.org**, so nothing collects on a schedule. `prunePanelStates` therefore **stays on `/check-alerts`** rather than moving to `/prune-runs` as Phase 1's block predicted — moving it when the route exists rather than when its registration does would stop it running at all.
+- **`storeDeterministicRun` writes no `raw`**, departing from the plan's "raw JSON + parsed rows". Every deterministic variable requested has a column, so the parsed hours are the whole payload, and storing it per model would write one six-model response six times to preserve nothing. The ensemble keeps its raw, where three percentiles genuinely discard 143 members.
+- The ensemble `raw` payload is the largest thing this writes — one per location per collection, cleared at 48h. Nobody has measured what that costs in Neon with a real schedule running.
+- Nothing reads any of these tables yet. That is Phase 3.
+- The independent PR reviewer passed but ran **3 turns** over a ~900-line diff and posted no review. Treat its silence as no evidence at all.
+
+**Blockers for next session:**
+- None for writing Phase 3's rendering against the parsed types. But **Phase 3 cannot be verified end to end until the migrations are applied** — there will be no stored runs to render.
+
+**What's next:** Phase 3 — `git checkout -b phase/3-forecast-rain` off `main` — read `.claude/docs/telegram-precision-interface-plan.md` § Phase 3 and § What it looks like, and `.claude/docs/telegram-render.md` §2 before choosing a rendering.
+
+**Gotchas for next session:**
+- **`ModelHourly.probability_is_shared` gates the probability column.** A table must not head a probability column with a model name when it is set, and `weather_runs.precip_prob_is_shared` is **null for an ensemble run** — null means the question does not apply, not "no".
+- **`unavailable_models` is the coverage signal, and it must be rendered.** Probe B killed `DisabledButton`, so a model that does not reach the point gets a **labelled non-button row**, never silence.
+- **A model past its horizon returns nulls, not a shorter array of hours.** Live: HRRR at Red Rock gave 72 hours of which 66 carried temperature. Every `HourlyPoint` field is `number | null` and a formatter must render an em dash.
+- **NBM has no pressure at all** — 72 of 72 nulls, live. Pressure tendency cannot come from it.
+- **`weather_run_hours.valid_at` is a real UTC instant**, converted through `localTimeToUtc`. The strings Open-Meteo returns are local wall-clock with no zone; do not compare them directly.
+- **Hourly percentiles are not daily figures.** `weather_ensemble_hours` carries p10/p50/p90 per hour; `temp_c_max` stays `ensembleMedian` of each member's own daily extreme.
+- The always-loaded instruction budget rose to **52,754 chars / ~13,189 est. tokens** with this session's `architecture.md` additions.
+
+**Does the user need to do anything?** **Yes — one command, needing a credential no session has.** From `apps/api`, with `DATABASE_URL` set in the shell: `npm run db:migrate` applies `0007` and `0008` together, then `npm run check:panel-state` and `npm run check:weather-runs` prove both against real Postgres. Registering `/api/cron/collect-runs` and `/api/cron/prune-runs` with cron-job.org is theirs too, but it can wait until Phase 3 gives the data a reader. Unchanged from before: `bot:set-commands` with `TELEGRAM_BOT_TOKEN` set, and `TELEGRAM_WEBHOOK_SECRET` in Vercel plus a matching `setWebhook` re-run.
