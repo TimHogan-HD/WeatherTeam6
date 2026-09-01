@@ -97,6 +97,9 @@ Run through this before every commit. Flag any failures before proceeding.
 ## Telegram surfaces
 - [ ] Any text interpolated into a `parse_mode: 'HTML'` message is escaped with `escapeTelegramHtml` — NWS headlines and user-entered location names routinely contain `&`, and a malformed message is a non-retryable 400 the webhook swallows
 - [ ] **A string literal in the source counts too.** `/start` and the usage reply both shipped containing `<location name>`, which Telegram rejects as an unsupported start tag — neither had ever been delivered
+- [ ] A precipitation **total** over more than one hour comes from `precip_mm_mean`, never from summing `precip_mm_p10/p50/p90` — a percentile is not additive, and a summed p50 is the median of nothing. A percentile shown against a multi-hour step describes **one hour** of it, and the surface says so
+- [ ] A chance of rain is `members_wet / member_count`, never `precipitation_probability` — and a null wet count or a zero member count **withholds** the figure rather than showing 0%
+- [ ] "This model has no data here" is decided on the **values**, not on rows being absent — Open-Meteo pads every model out to the longest horizon in the request, so a model past its own returns real rows full of nulls. `dayHasData` is the check, and it excludes `precip_prob_pct` because that series outlives the model it was requested with
 - [ ] Score-to-text goes through `summarizeConditions` — no surface writes its own mapping, or the bot and the Mini App drift apart
 - [ ] Webhook auth does not rely solely on request-body fields — `secret_token` is verified via `webhookSecretAccepted`, and every refusal still answers 200 so Telegram does not redeliver
 - [ ] A failed send is classified before the claim is released — `TelegramPermanentError` (non-429 4xx) keeps its claim; releasing it re-sends an identically-rejected message on every cron run forever. Branch on the error **type**, never on its message text

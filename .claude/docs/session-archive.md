@@ -2289,3 +2289,49 @@ secret check is skipped and the forgeable `chat.id` is the only gate.
 - The always-loaded instruction budget rose to **52,754 chars / ~13,189 est. tokens** with this session's `architecture.md` additions.
 
 **Does the user need to do anything?** **Yes — one command, needing a credential no session has.** From `apps/api`, with `DATABASE_URL` set in the shell: `npm run db:migrate` applies `0007` and `0008` together, then `npm run check:panel-state` and `npm run check:weather-runs` prove both against real Postgres. Registering `/api/cron/collect-runs` and `/api/cron/prune-runs` with cron-job.org is theirs too, but it can wait until Phase 3 gives the data a reader. Unchanged from before: `bot:set-commands` with `TELEGRAM_BOT_TOKEN` set, and `TELEGRAM_WEBHOOK_SECRET` in Vercel plus a matching `setWebhook` re-run.
+
+---
+
+## 2026-09-01 — branch: feat/phase-3-forecast-rain — commit: e1e4067
+
+**Phase completed:** Phase 3 of the Telegram precision interface — `/forecast` and `/rain`
+
+**What was built this session:**
+- `lib/telegram/forecastTable.ts` (new, pure) — four column sets, four steps, local-day slicing, unit-aware cells, `dayHasData`, `probabilityNote`.
+- `lib/telegram/rainMessage.ts` (new, pure) — member-derived odds, per-step rows, the day total, `formatLastRain`.
+- `lib/telegram/sparkline.ts` (new, pure) — the eight-level agreement bar, with a distinct character for "no data".
+- `lib/runs/latestRuns.ts` (new) — the read side of `weather_runs`: a stored batch younger than 60 minutes, or fetch-and-write-back.
+- `lib/telegram/panels.ts` — `buildForecastPanel`, `buildRainPanel`, `dayLabel`, `formatAge`, `timingLine`, the day/model/step/column/units rows, and a conditions↔forecast↔rain row on all three.
+- `lib/telegram/panelViews.ts` — the database half of both views; `panelState.ts` gains the two views and `MAX_DAY_OFFSET`.
+- `routes/telegramWebhook.ts` — `/forecast` and `/rain`, and one `set` verb carrying whichever field a button changes.
+- `weather/openMeteo.ts` + migration `0009` — `precip_mm_mean` and `members_wet` on the ensemble hour.
+- Tests: `forecastTable`, `rainMessage`, `sparkline`, `panelsForecast`, plus four in `openMeteoHourly`. 339 → 438 api tests, 413 → 512 overall.
+- `.github/workflows/claude-review.yml` (PR #73, merged first) — the reviewer's allowlist and a failure artifact.
+
+**What the session measured that the plan did not know:**
+- **A percentile does not add up, and no amount of care in the renderer fixes that.** A step or day total had to come from a *mean*, so `weather_ensemble_hours` gained `precip_mm_mean`; the member-derived probability needed a wet count, which percentiles cannot yield either. Both nullable, both meaning unknown rather than zero. This is the one place Phase 3 changed the schema.
+- **HRRR at Red Rock returns 168 hours of which 66 carry temperature.** Open-Meteo pads every model to the longest horizon in the request, so "the model does not reach this day" is rows whose *values* are all gaps — not absent rows. The first implementation tested for absent rows and would have drawn 24 em dashes under an HRRR header on every day past 54 h. **No test caught it; running the real path did**, which is the whole argument for the verification standard.
+- **`precipitation_probability` cannot be the evidence that a model answered.** It runs past the horizon of the model it was requested with, so `dayHasData` excludes it. Live at Red Rock the series is shared by GFS, HRRR *and* NBM — which also means the default model carries the caveat, not an edge case.
+
+**Known issues / deferred work:**
+- **Nothing has touched Postgres, and now three migrations are stacked** — `0007`, `0008`, `0009`. Until they are applied every panel command fails in production, including the two built this session.
+- `check:weather-runs` covers the new read path (batch selection, the freshness cutoff, nulls surviving, the wet count) and is **unrun**.
+- No panel has been driven from a real device.
+- The `tot` column shows `t` on a nearly dry day, because an ensemble mean of 0.005 mm is a genuine trace. Accurate, and noisier than it looks on screen; revisit if the user finds it so.
+- `/forecast` with no argument opens the picker, which then opens the *conditions* panel — one extra tap to the forecast.
+- Neither cron route is registered, so every panel currently pays a live fetch on a cold cache and writes the run back itself.
+
+**Blockers for next session:**
+- None for Phase 4. `/insight` needs run-to-run history, which needs the migrations applied *and* `/api/cron/collect-runs` registered — until then there is one run per point and no trend to compute.
+
+**What's next:** Phase 4 — `git checkout -b phase/4-insight-afd` off `main` — read `.claude/docs/telegram-precision-interface-plan.md` § Phase 4 and § Traps 7 and 10 before writing the trend comparator or the AFD splitter.
+
+**Gotchas for next session:**
+- **The row owns the step *after* it.** Open-Meteo stamps hourly precipitation at the end of the hour it fell in, so a 12:00 row at a 3 h step sums the hours stamped 13, 14, 15. `buildRows` and `buildRainDay` both do this; a third view that does not would disagree with them about the same shower.
+- **A step's p10/p50/p90 are one hour's** — the wettest by mean — and the panel says so. `/insight` must not sum them either.
+- **`members_wet` is nullable and null means unknown.** `oddsPct` returns null for it and for a zero member count; 0/0 must never reach the screen as 0%.
+- **`renderPanel` now takes `now`.** The two new views need it for the age line and the location's today; it defaults, so existing callers are unchanged.
+- **The independent reviewer was broken and is now fixed.** `--allowedTools` was missing `Task`/`TodoWrite`, so the `/code-review` skill could not spawn its verification agents: 28 denials, $1.55, no review, twice (#56, #72). It now completes — 20 turns, 3 denials, and it posted no findings on the Phase 3 diff. A failed run keeps `claude-execution-output.json` as an artifact, so the next failure can be read instead of guessed at.
+- The always-loaded instruction budget rose to **~56,500 chars** with this session's five `architecture.md` invariants.
+
+**Does the user need to do anything?** **Yes — the same one command, now covering three migrations.** From `apps/api`, with `DATABASE_URL` set in the shell: `npm run db:migrate` applies `0007`, `0008` and `0009` together, then `npm run check:panel-state` and `npm run check:weather-runs`. Registering `/api/cron/collect-runs` and `/api/cron/prune-runs` with cron-job.org now has a reader and is worth doing. Unchanged: `npm run bot:set-commands` with `TELEGRAM_BOT_TOKEN` set — needed again, because `/forecast` and `/rain` are new entries in the command menu — and `TELEGRAM_WEBHOOK_SECRET` in Vercel plus a matching `setWebhook` re-run.

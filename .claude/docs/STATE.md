@@ -5,7 +5,7 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-08-31 · `main` @ `fcc4b5a`
+Last updated: 2026-09-01 · `main` @ `e1e4067`
 
 ---
 
@@ -19,17 +19,18 @@ confirmed working on a real device: bot, Mini App, alerts, deep links, auth.
 - **Bot** — commands, alerts, deep links into the Mini App.
 - **`apps/mobile`** — archived, out of the build. Do not add features to it.
 
-Baseline: `npm run test` 413 passing (339 api, 50 miniapp, 24 types), `npm run typecheck`
+Baseline: `npm run test` 512 passing (438 api, 50 miniapp, 24 types), `npm run typecheck`
 clean, `npm run check:hooks` 58 passing. **Mutation score 66.09%**, last measured
-2026-08-26 and *not* re-measured since Phases 1 or 2 —
+2026-08-26 and *not* re-measured since Phases 1, 2 or 3 —
 `npm run test:mutation --workspace=apps/api`, and see § Mutation testing below.
 
-**Migrations `0007` (`panel_states`) and `0008` (the three `weather_*` run tables) are both
-written and unapplied.** Until `npm run db:migrate` runs, every bot panel command fails in
-production and `/api/cron/collect-runs` 500s. See § What the user owes.
+**Three migrations are stacked and unapplied — `0007` (`panel_states`), `0008` (the three
+`weather_*` run tables) and `0009` (two ensemble columns).** Until `npm run db:migrate`
+runs, every bot panel command fails in production, `/forecast` and `/rain` included, and
+`/api/cron/collect-runs` 500s. See § What the user owes.
 
-Always-loaded instruction budget: **52,754 chars / ~13,189 est. tokens** (`CLAUDE.md` +
-`.claude/rules/*`). It was 49,302 before Phase 2 added its invariants. Anthropic's guidance is that a bloated
+Always-loaded instruction budget: **~56,500 chars / ~14,100 est. tokens** (`CLAUDE.md` +
+`.claude/rules/*`). It was 52,754 before Phase 3 added its five invariants. Anthropic's guidance is that a bloated
 `CLAUDE.md` causes its own rules to be ignored — if you are about to add a paragraph to it,
 check first whether the fact is derivable from the repo, or belongs in a skill or the archive.
 
@@ -53,13 +54,14 @@ The user's direction, set 2026-08-26 and revised the same day:
    run-to-run trend — on a panel message edited in place. Deep UI for this data does **not**
    get built in the Mini App.
 
-   **Phases 0, 1 and 2 are done; Phase 3 is next** — `/forecast` and `/rain`: table
-   rendering, four column sets, four intervals, day paging, the unit toggle, the
-   coverage-derived model row, and the agreement sparkline. See § What Phase 0 found for the
-   measurements it must build on, and § What Phase 2 shipped for the data it now reads.
+   **Phases 0 to 3 are done; Phase 4 is next** — `/insight` and `/afd`: model disagreement,
+   ensemble distribution, run-to-run trend, confidence by lead time, and the NWS forecaster's
+   own discussion by section. See § What Phases 0 to 2 left behind for the measurements it
+   must build on, and § What Phase 3 shipped for the rendering it extends.
 
-   **Phase 3 can be written against the parsed types today, but it cannot be verified end to
-   end until the migrations are applied** — there will be no stored runs to render.
+   **`/insight`'s run-to-run trend needs history that does not exist yet.** It needs the
+   migrations applied *and* `/api/cron/collect-runs` registered — until both, there is one
+   run per point and no trend to compute. The other three sections work from a single run.
 2. **An in-app feedback button.** Press it, type a note, and the note lands somewhere in
    this repo. Destination and mechanism undecided.
 3. **Mini App polish** — deliberately downgraded. The user's words: *"the Mini App doesn't
@@ -69,83 +71,58 @@ The user's direction, set 2026-08-26 and revised the same day:
 **Item 2 is still a design conversation the user wants to have first. Do not spec it
 unilaterally.** Item 1 has had that conversation — build to the plan, do not re-litigate it.
 
-### What Phase 0 found
+### What Phases 0 to 2 left behind
 
-Both probes are written and both output documents are committed. **Read the documents, not
-this summary, before using a model or a variable** — `.claude/docs/model-matrix.md` and
-`.claude/docs/telegram-render.md`. Regenerate the matrix (`npm run probe:models
---workspace=apps/api`) rather than editing it; upstream coverage changes.
+**Every rule from them is in `.claude/rules/architecture.md`, which loads automatically. Do
+not re-derive them from here.** The measurements are in `.claude/docs/model-matrix.md` and
+`.claude/docs/telegram-render.md` — read those, not a summary, before using a model or a
+variable. Regenerate the matrix (`npm run probe:models --workspace=apps/api`) rather than
+editing it; upstream coverage changes.
 
-The four measurements that constrain every later phase:
+What is built: **Phase 0** measured Open-Meteo and the Telegram clients. **Phase 1** made
+the bot receive button taps — one panel message edited in place, with `/start`, `/help`,
+`/locations`, `/conditions` and `/alerts`. **Phase 2** built the data layer —
+`fetchDeterministicHourly`, `fetchEnsembleRun`, the three `weather_*` tables and the two
+cron routes.
 
-- **`precipitation_probability` is not the selected model's field.** Under
-  `ncep_hrrr_conus` it runs 276h against a 54h model and is byte-identical to NBM's series.
-  Never print it in a column headed with the selected model.
-- **NBM returns 384 nulls for both pressure variables**, so pressure tendency cannot come
-  from it — and an unchecked null there renders as a plausible `0 mb`.
-- **No model run time is exposed.** Headers say *fetched 14:05Z*, never *12Z run*.
-- **Out-of-coverage is a 400, not nulls** — that is what the disabled model button derives
-  from. Ensemble confirmed at 143 members (ECMWF 51, ICON 40, GFS 31, GEM 21).
+Five facts that are not rules and live nowhere else:
 
-**`<pre>` monospace is the rendering, by decision.** Probe B's ten specimens all rendered
-on phone and desktop, in-place edit included, but the web check was declined on 2026-08-31
-— do not re-raise it, and do not adopt rich tables on evidence from two clients out of
-three. The one finding that still constrains new code: **`DisabledButton` is invisible**,
-so a model that does not reach a point gets a labelled non-button row, never silence. Full
-results in `.claude/docs/telegram-render.md` §2.
+- **`<pre>` monospace is the rendering, by decision, and the web half of Probe B was
+  declined.** Do not re-raise it, and do not adopt rich tables on evidence from two clients
+  out of three. `.claude/docs/telegram-render.md` §2 has the empty column waiting.
+- **The nine-column width finding was measured on a *rich* table, not on `<pre>`.** A `<pre>`
+  block scrolls sideways on a phone rather than wrapping, so width still binds on the path
+  that actually ships; Phase 3's tables are held to 32 characters and tested for it.
+- **No model run time is exposed anywhere in the response.** A header says *fetched 14:05Z*
+  and never *12Z run*.
+- **`panel_states` column names are not the plan's** — `interval` → `interval_hours`,
+  `columns` → `column_set`; both of the plan's names are Postgres keywords.
+- **`lat`, `lon` and `place_name` on `panel_states` are still unread.** They are Phase 5's,
+  and they are in the table now so the migration is not run twice.
 
-### What Phase 1 shipped
+### What Phase 3 shipped
 
-The bot receives button taps. One panel message, edited in place, with `/start`, `/help`,
-`/locations`, `/conditions` and `/alerts` on it.
+`/forecast` and `/rain`, on the Phase 1 panel, reading the Phase 2 tables through
+`lib/runs/latestRuns.ts` — a stored batch younger than 60 minutes, or a fetch written back.
 
-**Its four binding rules — the 8-hex state id, the two-id authorization, the single
-tolerated `editMessageText` 400, and HTML message text against plain-text button labels —
-are in `.claude/rules/architecture.md`**, which loads automatically. Do not re-derive them
-from here.
+Its five invariants are in **`.claude/rules/architecture.md`**, which loads automatically:
+the non-additive percentile and why `precip_mm_mean` exists, `members_wet` as the only
+honest probability, the row owning the step *after* it, `dayHasData` versus padded hours,
+and the stored-run freshness rule. Do not re-derive them from here.
 
-Two facts that are not rules: the plan's `panel_states` column names are not the shipped
-ones (`interval` → `interval_hours`, `columns` → `column_set`; both are Postgres keywords),
-and `model`, `interval_hours`, `column_set`, `day_offset`, `lat`, `lon` and `place_name`
-exist but nothing reads them yet — they are Phase 3–5's.
+Three facts that are not rules:
 
-**Neither `check:panel-state` nor a real device has exercised any of it.** It typechecks,
-lints, and every panel was rendered and read, but nothing has touched Postgres or Telegram.
+- **Migration `0009` adds `precip_mm_mean` and `members_wet` to `weather_ensemble_hours`.**
+  Phase 3 was meant to change no schema; a percentile that cannot be summed forced it.
+- **The one defect found was found by running the real path, not by a test.** HRRR returns
+  168 hours of which 66 carry temperature, so "does not reach this day" had to test the
+  *values*, not the presence of rows. It typechecked, linted and passed 94 new tests while
+  wrong.
+- **The independent PR reviewer was broken for two PRs and is now fixed** — see § Delivery
+  and verification.
 
-### What Phase 2 shipped
-
-The data layer. No user-facing surface changes — nothing renders any of it yet.
-
-- **`fetchDeterministicHourly`** keeps the hourly series for up to six models in one request,
-  with wind direction, gusts, cloud cover, precipitation probability and surface pressure
-  added. **`fetchEnsembleRun`** adds per-hour percentiles; `fetchEnsemble` is untouched so
-  the per-request scoring path does not pay for them.
-- **`parseEnsemble` returns `by_model` as well as the pooled days**, both through one
-  extracted `computeDays` so they cannot drift. A model with precipitation members but not
-  all six variables is named in `partial_models` rather than given a fabricated row.
-- **`weather_runs` / `weather_run_hours` / `weather_ensemble_hours`** (migration `0008`),
-  written by `lib/runs/`, collected by `/api/cron/collect-runs` and pruned by
-  `/api/cron/prune-runs`.
-
-Four things that constrain Phase 3, beyond the rules now in `architecture.md`:
-
-- **A multi-model `/v1/forecast` response labels its columns only while more than one
-  requested model has coverage.** Outside CONUS, `gfs_seamless,ncep_hrrr_conus` answers a
-  **200** carrying a bare `temperature_2m` — HRRR dropped with no mention, the survivor
-  unlabelled. The plan assumed the ensemble's suffix pattern carried over; it does not.
-  `parseDeterministicHourly` reports `ambiguous` and the fetch re-asks one model at a time.
-- **`precipitation_probability` sharing is wider than Probe A found** — live at Red Rock GFS
-  shares the series with HRRR and NBM. It is derived per response, never hardcoded.
-- **`unavailable_models` is the coverage signal and must be rendered** as a labelled
-  non-button row. A model past its horizon returns **nulls, not fewer hours**: HRRR gave 72
-  hours of which 66 carried temperature.
-- **Only the ensemble run stores `raw`.** A deterministic response's parsed hours are its
-  whole payload, and storing it per model would write one response six times.
-
-**Nothing has touched Postgres.** `check:weather-runs` is written and unrun. Neither cron
-route is registered, so `prunePanelStates` **stays on `/check-alerts`** rather than moving to
-`/prune-runs` — moving it when the route exists rather than when its registration does would
-stop it running at all.
+**Nothing has been driven from a real device, and `check:weather-runs` — extended to cover
+the new read path — is still unrun.**
 
 ### Deliberately deferred, not forgotten
 
@@ -211,9 +188,15 @@ Escape hatch: `touch .claude/.wip`, delete it when work resumes.
   PR — outside the session that wrote the code, so it does not share its blind spot.
   **It works, and it is now proven:** on #58 it found a new test that could not reach the
   branch it named — defect class 11, in the PR whose purpose was fixing defect class 11.
-  Take its findings seriously. Two failure signatures: a ~3-second pass means it skipped for
-  a missing credential, and a large `permission_denials_count` means the allowlist is short
-  (`--allowedTools` *replaces* the default, it does not extend it). A count of 1 is routine.
+  Take its findings seriously. Three failure signatures, all seen: a ~3-second pass means it
+  skipped for a missing credential; a large `permission_denials_count` means the allowlist is
+  short (`--allowedTools` *replaces* the default, it does not extend it), and a count of 1 to
+  3 is routine; and `Failed to install Claude Code` with a curl 403 is the installer being
+  unreachable — transient, re-run the job.
+  **Fixed 2026-09-01 (#73):** the list was missing `Task` and `TodoWrite`, so the
+  `/code-review` skill could not spawn its verification agents — 28 denials, $1.55 and no
+  review, twice. A **failed** run now keeps `claude-execution-output.json` as an artifact,
+  because the log records the denial *count* and never which tool was denied.
 
 ### Mutation testing
 
@@ -263,20 +246,22 @@ Only things that are still true and still bite. Historical gotchas are in the ar
 
 ## What the user owes
 
-**Two migrations are stacked and unapplied.** From `apps/api`, with `DATABASE_URL` set **in
-the shell** — one command applies both, then two checks prove them:
+**Three migrations are stacked and unapplied.** From `apps/api`, with `DATABASE_URL` set
+**in the shell** — one command applies all three, then two checks prove them:
 
 ```powershell
-npm run db:migrate          # applies 0007 (panel_states) and 0008 (the weather_* run tables)
+npm run db:migrate          # applies 0007 (panel_states), 0008 (the weather_* run tables), 0009 (two ensemble columns)
 npm run check:panel-state   # round trip, user scoping, prune cutoff, location-delete cascade
-npm run check:weather-runs  # storage, nulls surviving as nulls, prune ordering, the run cascade
+npm run check:weather-runs  # storage, the read path and its freshness cutoff, nulls surviving as nulls, prune ordering, the run cascade
 ```
 
-Registering `/api/cron/collect-runs` and `/api/cron/prune-runs` with cron-job.org is also
-theirs, but it can wait until Phase 3 gives the data a reader.
+**Registering `/api/cron/collect-runs` and `/api/cron/prune-runs` with cron-job.org is now
+worth doing**, and it was not before: Phase 3 reads these tables. Without a schedule every
+panel pays a live upstream fetch on a cold cache and writes the run back itself, and
+`/insight`'s run-to-run trend in Phase 4 has no history to compare.
 
-and, with `TELEGRAM_BOT_TOKEN` set in the shell, `npm run bot:set-commands` so the client's
-command menu matches what the bot answers.
+and, with `TELEGRAM_BOT_TOKEN` set in the shell, `npm run bot:set-commands` — needed again,
+because `/forecast` and `/rain` are new entries in the client's command menu.
 
 **The web half of Probe B was declined by the user on 2026-08-31. Do not ask again.**
 The consequence is already the plan's default: `<pre>` monospace is the rendering, and
