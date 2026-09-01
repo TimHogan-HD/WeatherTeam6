@@ -5,7 +5,7 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-08-31 · `main` @ `f66b278`
+Last updated: 2026-08-31 · `main` @ `fcc4b5a`
 
 ---
 
@@ -19,16 +19,17 @@ confirmed working on a real device: bot, Mini App, alerts, deep links, auth.
 - **Bot** — commands, alerts, deep links into the Mini App.
 - **`apps/mobile`** — archived, out of the build. Do not add features to it.
 
-Baseline: `npm run test` 391 passing (317 api, 50 miniapp, 24 types), `npm run typecheck`
+Baseline: `npm run test` 413 passing (339 api, 50 miniapp, 24 types), `npm run typecheck`
 clean, `npm run check:hooks` 58 passing. **Mutation score 66.09%**, last measured
-2026-08-26 and *not* re-measured since Phase 1 —
+2026-08-26 and *not* re-measured since Phases 1 or 2 —
 `npm run test:mutation --workspace=apps/api`, and see § Mutation testing below.
 
-**Migration `0007` (`panel_states`) is written and unapplied.** Until `npm run db:migrate`
-runs, every bot panel command fails in production. See § What the user owes.
+**Migrations `0007` (`panel_states`) and `0008` (the three `weather_*` run tables) are both
+written and unapplied.** Until `npm run db:migrate` runs, every bot panel command fails in
+production and `/api/cron/collect-runs` 500s. See § What the user owes.
 
-Always-loaded instruction budget: **49,302 chars / ~12,326 est. tokens** (`CLAUDE.md` +
-`.claude/rules/*`). It was 56,043 before `9d7015c`. Anthropic's guidance is that a bloated
+Always-loaded instruction budget: **52,754 chars / ~13,189 est. tokens** (`CLAUDE.md` +
+`.claude/rules/*`). It was 49,302 before Phase 2 added its invariants. Anthropic's guidance is that a bloated
 `CLAUDE.md` causes its own rules to be ignored — if you are about to add a paragraph to it,
 check first whether the fact is derivable from the repo, or belongs in a skill or the archive.
 
@@ -52,15 +53,13 @@ The user's direction, set 2026-08-26 and revised the same day:
    run-to-run trend — on a panel message edited in place. Deep UI for this data does **not**
    get built in the Mini App.
 
-   **Phases 0 and 1 are done; Phase 2 is next** — the data layer: hourly retention on
-   `openMeteo.ts`, per-model ensemble output, the new variables, the `weather_runs` /
-   `weather_run_hours` / `weather_ensemble_hours` tables, and the collect/prune crons. See
-   § What Phase 0 found for the four measurements it must build on, and § What Phase 1
-   shipped for what it now builds on top of.
+   **Phases 0, 1 and 2 are done; Phase 3 is next** — `/forecast` and `/rain`: table
+   rendering, four column sets, four intervals, day paging, the unit toggle, the
+   coverage-derived model row, and the agreement sparkline. See § What Phase 0 found for the
+   measurements it must build on, and § What Phase 2 shipped for the data it now reads.
 
-   **Do not start Phase 2 until migration `0007` is applied.** It adds three more tables to
-   the same database, and stacking an unapplied migration on an unapplied one is how the
-   schema and the code drift apart silently.
+   **Phase 3 can be written against the parsed types today, but it cannot be verified end to
+   end until the migrations are applied** — there will be no stored runs to render.
 2. **An in-app feedback button.** Press it, type a note, and the note lands somewhere in
    this repo. Destination and mechanism undecided.
 3. **Mini App polish** — deliberately downgraded. The user's words: *"the Mini App doesn't
@@ -97,28 +96,56 @@ results in `.claude/docs/telegram-render.md` §2.
 
 ### What Phase 1 shipped
 
-The bot now receives button taps. One panel message, edited in place, with `/start`,
-`/help`, `/locations`, `/conditions` and `/alerts` on it. No new weather data — that is
-Phase 2. The rules it established are in `.claude/rules/architecture.md`; the four that
-constrain what comes next:
+The bot receives button taps. One panel message, edited in place, with `/start`, `/help`,
+`/locations`, `/conditions` and `/alerts` on it.
 
-- **A button carries an 8-hex state id, not state.** `callback_data` is 64 bytes.
-  `panel_states` holds the rest and the panel is **re-rendered from what was written**,
-  never patched in memory. A gone row says *expired* and never guesses.
-- **A tap is authorized on two ids** — `callback_query.from.id` **and**
-  `callback_query.message.chat.id`. Any new callback surface inherits that.
-- **`editMessageText` tolerates exactly one 400**, "message is not modified". Do not widen
-  that predicate: every other 400 there is an escaping failure that must stay visible.
-- **Escaping has two opposite rules.** Message text is HTML, `<pre>` included; **button
-  labels are plain text**, so escaping one puts a literal `&amp;` on the button.
+**Its four binding rules — the 8-hex state id, the two-id authorization, the single
+tolerated `editMessageText` 400, and HTML message text against plain-text button labels —
+are in `.claude/rules/architecture.md`**, which loads automatically. Do not re-derive them
+from here.
 
-The plan's `panel_states` column names are not the shipped ones: `interval` →
-`interval_hours`, `columns` → `column_set`, because both are Postgres keywords.
-`model`, `interval_hours`, `column_set`, `day_offset`, `lat`, `lon` and `place_name` exist
-but nothing reads them yet — they are Phase 2–5's.
+Two facts that are not rules: the plan's `panel_states` column names are not the shipped
+ones (`interval` → `interval_hours`, `columns` → `column_set`; both are Postgres keywords),
+and `model`, `interval_hours`, `column_set`, `day_offset`, `lat`, `lon` and `place_name`
+exist but nothing reads them yet — they are Phase 3–5's.
 
 **Neither `check:panel-state` nor a real device has exercised any of it.** It typechecks,
 lints, and every panel was rendered and read, but nothing has touched Postgres or Telegram.
+
+### What Phase 2 shipped
+
+The data layer. No user-facing surface changes — nothing renders any of it yet.
+
+- **`fetchDeterministicHourly`** keeps the hourly series for up to six models in one request,
+  with wind direction, gusts, cloud cover, precipitation probability and surface pressure
+  added. **`fetchEnsembleRun`** adds per-hour percentiles; `fetchEnsemble` is untouched so
+  the per-request scoring path does not pay for them.
+- **`parseEnsemble` returns `by_model` as well as the pooled days**, both through one
+  extracted `computeDays` so they cannot drift. A model with precipitation members but not
+  all six variables is named in `partial_models` rather than given a fabricated row.
+- **`weather_runs` / `weather_run_hours` / `weather_ensemble_hours`** (migration `0008`),
+  written by `lib/runs/`, collected by `/api/cron/collect-runs` and pruned by
+  `/api/cron/prune-runs`.
+
+Four things that constrain Phase 3, beyond the rules now in `architecture.md`:
+
+- **A multi-model `/v1/forecast` response labels its columns only while more than one
+  requested model has coverage.** Outside CONUS, `gfs_seamless,ncep_hrrr_conus` answers a
+  **200** carrying a bare `temperature_2m` — HRRR dropped with no mention, the survivor
+  unlabelled. The plan assumed the ensemble's suffix pattern carried over; it does not.
+  `parseDeterministicHourly` reports `ambiguous` and the fetch re-asks one model at a time.
+- **`precipitation_probability` sharing is wider than Probe A found** — live at Red Rock GFS
+  shares the series with HRRR and NBM. It is derived per response, never hardcoded.
+- **`unavailable_models` is the coverage signal and must be rendered** as a labelled
+  non-button row. A model past its horizon returns **nulls, not fewer hours**: HRRR gave 72
+  hours of which 66 carried temperature.
+- **Only the ensemble run stores `raw`.** A deterministic response's parsed hours are its
+  whole payload, and storing it per model would write one response six times.
+
+**Nothing has touched Postgres.** `check:weather-runs` is written and unrun. Neither cron
+route is registered, so `prunePanelStates` **stays on `/check-alerts`** rather than moving to
+`/prune-runs` — moving it when the route exists rather than when its registration does would
+stop it running at all.
 
 ### Deliberately deferred, not forgotten
 
@@ -236,13 +263,17 @@ Only things that are still true and still bite. Historical gotchas are in the ar
 
 ## What the user owes
 
-**Blocking Phase 2, new on 2026-08-31.** Two commands, both needing a credential no session
-has. From `apps/api`, with `DATABASE_URL` set **in the shell**:
+**Two migrations are stacked and unapplied.** From `apps/api`, with `DATABASE_URL` set **in
+the shell** — one command applies both, then two checks prove them:
 
 ```powershell
-npm run db:migrate          # applies 0007 — panel_states. Until this runs, every panel command 500s
+npm run db:migrate          # applies 0007 (panel_states) and 0008 (the weather_* run tables)
 npm run check:panel-state   # round trip, user scoping, prune cutoff, location-delete cascade
+npm run check:weather-runs  # storage, nulls surviving as nulls, prune ordering, the run cascade
 ```
+
+Registering `/api/cron/collect-runs` and `/api/cron/prune-runs` with cron-job.org is also
+theirs, but it can wait until Phase 3 gives the data a reader.
 
 and, with `TELEGRAM_BOT_TOKEN` set in the shell, `npm run bot:set-commands` so the client's
 command menu matches what the bot answers.
