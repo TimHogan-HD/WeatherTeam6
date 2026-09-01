@@ -4,7 +4,7 @@ Research notes for improving the drying model. **This document does not change t
 scoring algorithm.** `.claude/docs/scoring-algorithm.md` is agreed and locked; §7 below
 is a *proposal* that needs explicit approval before any of it reaches code.
 
-Last updated: 2026-09-01 (fourteenth pass: §9.5 — the window view is bot-first, and most of it is already built)
+Last updated: 2026-09-01 (fifteenth pass: §9.6 — meteoblue agreement encoding, and elevation bands as the answer to Sinks Canyon)
 
 ## How to read the confidence markers
 
@@ -1566,6 +1566,51 @@ series to plot, which is exactly what the ET₀ water balance in §7 produces. T
 are the same project, and doing them in that order gets the feature the user liked out of
 already-written code.
 
+### 9.6 Two more patterns worth stealing — from meteoblue and mountain-forecast
+
+**meteoblue encodes model *agreement*, and states a design philosophy worth adopting whole.**
+`sparkline.ts` already cites meteoblue as its model; the underlying idea goes further than the
+glyph. In the MultiModel meteogram, **the darker the precipitation bar, the more models predict
+that sum** — a light bar is a total only one model produced
+([meteoblue](https://content.meteoblue.com/en/private-customers/website-help/forecast/multimodel-ensemble),
+[MultiModel improvements](https://www.meteoblue.com/en/blog/article/show/40341_MultiModel+Meteogram+Improvements)).
+And the stated purpose is the part to take: *"the goal of the MultiModel is not to make local
+predictions for the selected place, but to show the possible divergence of the evolutions of the
+weather."*
+
+That is the same conclusion this document reached from the other end. §2.5 and §4.13 say the
+model cannot see the pore-water body or five per-location limiters; §9.4 says confidence in the
+interface should track confidence in the model. **Showing divergence rather than asserting an
+answer is the interface expression of that.** The raw material is already stored: four ensemble
+models and 143 members pooled through `parseEnsemble`, p10/p50/p90 on the run tables, and
+`precip_prob_is_shared` recording when a probability column is not the named model's own. What
+is missing is only the decision to *render* spread rather than collapse it to p50.
+
+**mountain-forecast.com answers the Sinks Canyon problem with a UI pattern, not a schema change.**
+It publishes forecasts for **up to eight elevation bands per summit**, ~19,000 summits, with a
+toggle down the side of the page
+([mountain-forecast.com](https://www.mountain-forecast.com/)). §4.9 recorded Sinks Canyon as
+breaking the one-location-one-rock-type model — sandstone to limestone to granite with height in
+one canyon — and concluded the schema could not express it. **An elevation-band selector
+sidesteps that entirely**: the user picks the band they are climbing at, and the location carries
+a rock type per band rather than one for the whole canyon.
+
+The machinery is largely present. `openMeteo.ts` already applies a standard environmental lapse
+rate — `LAPSE_RATE_C_PER_M = 0.0065`, applied to `temp_c_min` and `temp_c_max` against the delta
+between the crag's `elevation_m` and the model's resolved elevation — and `model_elevation_m` is
+stored per run. Elevation is currently a fixed property of a saved location; making it a
+selectable band is a smaller change than it sounds, and it also serves the alpine freeze-line
+output proposed in §4.12 and the altitude-gated seasons at Wild Iris and Céüse.
+
+Two cautions, both from this document. The lapse rate is applied to **temperature only** — the
+code and its test say so explicitly, and precipitation, wind, dewpoint and shortwave are
+unchanged with elevation. So an elevation band is honest about temperature and silent about
+everything else, which must not be presented as a full per-band forecast. And per §5.1,
+cold-air pooling means the near-surface lapse rate in a valley routinely **exceeds** the free-air
+rate — measured spatial variability over 15 °C at 15-minute intervals — so a constant 6.5 °C/km
+is a reasonable default and a poor description of exactly the canyon crags this pattern would
+serve.
+
 ## Sources
 
 Peer-reviewed and technical:
@@ -1802,3 +1847,8 @@ Thirteenth pass — competing products, UI, and ET₀ (§9, §7 companion change
 [Prime Condies](https://github.com/mnaylor5/prime-condies) ·
 [Open-Meteo — reference evapotranspiration](https://openmeteo.substack.com/p/reference-evapotranspiration-for) ·
 [FAO-56 — Penman-Monteith equation](https://www.fao.org/4/X0490E/x0490e08.htm)
+
+Fifteenth pass — meteoblue and mountain-forecast patterns (§9.6):
+[meteoblue — MultiModel Ensemble](https://content.meteoblue.com/en/private-customers/website-help/forecast/multimodel-ensemble) ·
+[meteoblue — MultiModel meteogram improvements](https://www.meteoblue.com/en/blog/article/show/40341_MultiModel+Meteogram+Improvements) ·
+[mountain-forecast.com](https://www.mountain-forecast.com/)
