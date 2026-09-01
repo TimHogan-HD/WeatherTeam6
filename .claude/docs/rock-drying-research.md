@@ -4,7 +4,7 @@ Research notes for improving the drying model. **This document does not change t
 scoring algorithm.** `.claude/docs/scoring-algorithm.md` is agreed and locked; §7 below
 is a *proposal* that needs explicit approval before any of it reaches code.
 
-Last updated: 2026-09-01 (second pass: §4.7, §4.8, §8.1 added — regional worked set and community drying data)
+Last updated: 2026-09-01 (third pass: §4.9 adds a US regional survey — MN, WI, SD, WY, CO)
 
 ## How to read the confidence markers
 
@@ -544,6 +544,109 @@ per-location flag than any rock-type refinement.
 
 ---
 
+### 4.9 US focus — Minnesota, Wisconsin, South Dakota, Wyoming, Colorado
+
+**Minnesota alone spans six rock families**, which is the clearest possible argument against
+any regional or state-level default: dolomite (Red Wing), basalt (Taylors Falls), sandstone
+(Robinson Park / Banning), **rhyolite** (North Shore), **anorthosite** (Carlton Peak) and
+**quartzite** (Blue Mounds). Nothing about "a Minnesota crag" predicts drying behaviour.
+
+- **North Shore — Palisade Head and Shovel Point (Tettegouche SP).** Midcontinent Rift
+  **rhyolite**, radiometrically dated 1,096.6 Ma, capping softer basalt
+  ([MN Earth Science Guy](https://mnearthscienceguy.blogspot.com/2012/07/minnesota-geology-monday-palisade-head.html),
+  [Grokipedia](https://grokipedia.com/page/Palisade_Head)). Dense fine-grained volcanic rock:
+  low porosity, fast-drying, friction-limited. The real conditions inputs are **Lake Superior
+  spray and fog**, not rainfall — these are lake cliffs climbed on rappel. A **strict no-chalk
+  ethic** applies and a free state-park permit is required
+  ([MP](https://www.mountainproject.com/area/105812783/tettegouche-sp-north-shore)).
+- **Carlton Peak — anorthosite**, described as abrasive; anorthosite blocks that punched
+  through the rift magma, the surrounding melt becoming diabase
+  ([SummitPost](https://www.summitpost.org/carlton-peak/627635),
+  [Wikipedia](https://en.wikipedia.org/wiki/Carlton_Peak)). Same family as Poke-O-Moonshine
+  (§4.8): dense plutonic, drying-trivial, friction-led.
+- **Blue Mounds SP — Sioux Quartzite** escarpment on the prairie, Precambrian, pink
+  ([MN DNR](https://www.dnr.state.mn.us/state_parks/blue_mounds/geology_details.html)).
+  Near-zero matrix porosity; fracture drainage only.
+
+**South Dakota — two areas, two completely different problems.**
+
+- **The Needles, Custer State Park — Harney Peak Granite**, ~1.8 Ga. The key fact is grain
+  size, and it varies **within the same batholith**: fine-grained at Mount Rushmore, coarse
+  with abundant **pegmatite crystals** at the Needles, and those crystals *are* the holds —
+  climbers pinch, crimp and jug individual feldspar and quartz crystals
+  ([LiveAbout](https://www.liveabout.com/facts-about-the-needles-756164)). Drying is trivial
+  (granite), but the wet-failure vector is unusual: when the hold is a single crystal, hold
+  loss is crystal detachment rather than surface spalling [I].
+- **Spearfish Canyon — Pahasapa Limestone** (Mississippian, equivalent to the Madison),
+  475–600 ft of capstone, ~600 routes over ~19 crags. Texture is the interesting part:
+  **finely crystalline beds interspersed by chert lenses and solution breccias**, giving the
+  cavernous, pocketed character
+  ([Grokipedia](https://grokipedia.com/page/spearfish_canyon),
+  [Climbing](https://www.climbing.com/places/spearfish-south-dakota-climbing-destination-guide/)).
+  Community conditions note: **spring through June can be wet**, though usually partly
+  climbable. Rock quality improves further up the canyon — a within-crag gradient again.
+- **Chert in carbonate is now a repeated pattern, not a one-off.** Oneota at Red Wing (§4.7)
+  and Pahasapa here both interleave near-zero-porosity chert with moderately porous carbonate.
+  Two materials, different absorption and thermal response, and the interface is where holds
+  loosen [I]. Worth treating as a carbonate sub-class rather than an oddity.
+
+**Wyoming.**
+
+- **Vedauwoo — Sherman Granite**, ~1.4 Ga, coarse-grained and famously sharp: alkali feldspar
+  crystals 1–2 cm across with "scalpel-like edges", and the landscape shaped by differential
+  weathering along ENE joints
+  ([Geology of Wyoming](https://www.geowyo.com/vedauwoo.html),
+  [turnstone.ca](https://turnstone.ca/vedauwoo.htm)). Offwidth country. Drying is granite-fast;
+  the coarse texture means skin, not conditions, is the limiter.
+- **Wild Iris — pocketed dolomite at ~2,600 m.** Season **begins when the snow melts (early
+  June)** and runs to late autumn ([theCrag](https://www.thecrag.com/en/climbing/united-states/wyoming-wild-iris)).
+  **Altitude gates the season here, not rainfall** — a conditions model that answers "dry" in
+  April is answering the wrong question.
+- **Sinks Canyon breaks the one-location-one-rock-type model outright.** *"The rock type
+  changes from sandstone to limestone to granite the higher you go"*
+  ([Outpost Wilderness](https://outpostwilderness.com/sinks-canyon-wild-iris-climbing-your-guide-to-limestone-more-in-lander/)).
+  One canyon, one lat/lon, three drying classes stacked vertically. Our schema cannot express
+  it, and averaging them would be wrong in both directions.
+
+**Colorado.**
+
+- **Garden of the Gods names a mechanism our model does not have.** Park guidance: sandstone
+  *"absorbs water like a sponge, and the rock **swells and decompresses as it dries**. During
+  this process, it is extremely fragile"*
+  ([gardenofthegodscolorado.com](https://gardenofthegodscolorado.com/how-to-climb-in-garden-of-the-gods/),
+  [City of Colorado Springs](https://coloradosprings.gov/rock-climbing)). If that is right, the
+  **drying transient is its own hazard state** rather than a monotonic improvement from wet to
+  dry — which sits awkwardly against §2.4's critical-saturation band and against the score's
+  smooth linear ramp. Flagged as land-manager guidance [C], **not lab-verified**; worth
+  checking against the swelling-clay literature before it influences anything.
+  Operational data point: a local guide service reschedules for **at least 24h after
+  significant precipitation, and 2–3 days after snow, cloud or persistent rain**. All chalk and
+  substitutes are banned and a free annual permit is mandatory.
+- **Penitente Canyon — Fish Canyon Tuff**, welded, from the La Garita Caldera ~28 Ma
+  ([StephAbegg](https://stephabegg.com/trip-reports/colorado/penitente/),
+  [MP](https://www.mountainproject.com/area/105744316/penitente-canyon)). Described as
+  **"bulletproof rock with great friction"**, textured by quartz and sanidine crystals, with
+  hueco-ridden walls. A second welded-tuff datapoint alongside Smith Rock, and it confirms the
+  §4.4 welding spectrum: densely welded tuff behaves near-granitic, non-welded Bishop Tuff does
+  not. The huecos hold water independently, as at Hueco Tanks.
+- **Shelf Road is the aspect-planning crag.** 1,000+ limestone sport routes, ~250 sunny days,
+  winter highs in the 40s–50s °F, and the explicit local strategy is **aspect rotation**: climb
+  the sun-facing walls in winter and the shaded ones in summer
+  ([ClimbingHouse](https://climbinghouse.com/shelf-road-rock-guide/),
+  [MP](https://www.mountainproject.com/area/105744267/shelf-road)). The unimplemented
+  aspect/solar term is not a refinement here — it *is* the product. Note also that trad is
+  considered dangerous because the limestone is brittle, so "dry" and "safe" are not the same
+  claim.
+- **Clear Creek Canyon — migmatitic biotite gneiss and gneissic granite**, locally "sandy
+  granite", distinct from Boulder Canyon's granite sweeps
+  ([MP](https://www.mountainproject.com/area/105744243/clear-creek-canyon)). Metamorphic
+  drainage behaviour per §4.5: low matrix porosity, water tracking along foliation and folds.
+
+**One cross-cutting finding: access rules are conditions-adjacent, and we model none of them.**
+Garden of the Gods and the North Shore ban chalk; Palisade Head needs a permit and rappel
+access; Willow River closes on Saturdays and restricts Fri/Sun (§4.7). A conditions score that
+says "excellent" for a day the crag is closed, or for a climber who cannot use chalk on a
+humid day, is answering a narrower question than the user asked [I].
 ## 5. Non-rock modifiers that frequently dominate the rock type
 
 Ranked by how often they decide the answer, most-often first:
@@ -631,6 +734,8 @@ on a vertical wall, before the existing angle/wind/humidity modifiers.
 | Proposed type | min h | max h | Basis |
 | --- | --- | --- | --- |
 | `granite` (fresh plutonic) | 1 | 6 | 0.5–1.5% porosity; friction-limited [M] |
+| `rhyolite` / dense felsic volcanic | 2 | 8 | Fine-grained, low porosity. MN North Shore [I] |
+| `anorthosite` | 1 | 6 | Dense plutonic; abrasive, friction-led. Carlton Peak, Poke-O [I] |
 | `granite_weathered` (grussy, coarse, biotite-rich) | 3 | 12 | Grus rind retains water [I] |
 | `syenite_porous` (Hueco-type) | 12 | 48 | Highly porous plutonic; huecos hold water days–months. Breaks the igneous rule [C] |
 | `quartzite` | 1 | 6 | Near-zero matrix porosity [M] |
@@ -642,6 +747,7 @@ on a vertical wall, before the existing angle/wind/humidity modifiers.
 | `tuff_nonwelded` | 36 | 96 | 38–60% porosity — more than any sandstone [M] |
 | `limestone_dense` | 4 | 18 | Low porosity; seepage handled separately [M/C] |
 | `dolomite` | 6 | 24 | Higher porosity than parent limestone; pocket water [M/I] |
+| `carbonate_cherty` (chert lenses / nodules) | 6 | 24 | Two materials in one wall; holds loosen at the interface. Oneota, Pahasapa [I] |
 | `limestone_porous` / chalk / tufa | 24 | 72 | Up to 12% absorption; tufa softens and breaks [S/C] |
 | `sandstone_quartz_arenite` (silica-cemented) | 6 | 24 | ~0% strength loss measured for clean quartz-rich sandstone [M] |
 | `sandstone_ferruginous` (iron-cemented, case-hardened) | 12 | 48 | Intermediate; Corbin-type [I] |
@@ -831,3 +937,22 @@ Community drying data and crag conditions (second pass):
 [Wikipedia — Fountain Formation](https://en.wikipedia.org/wiki/Fountain_Formation) ·
 [theCrag — Poke-O-Moonshine](https://www.thecrag.com/en/climbing/united-states/adirondacks/poke-o-moonshine) ·
 [Open-Meteo docs](https://open-meteo.com/en/docs)
+
+US regional pass (§4.9):
+[MP — Tettegouche / North Shore](https://www.mountainproject.com/area/105812783/tettegouche-sp-north-shore) ·
+[MN Earth Science Guy — Palisade Head Rhyolite](https://mnearthscienceguy.blogspot.com/2012/07/minnesota-geology-monday-palisade-head.html) ·
+[SummitPost — Carlton Peak](https://www.summitpost.org/carlton-peak/627635) ·
+[MN DNR — Blue Mounds geology](https://www.dnr.state.mn.us/state_parks/blue_mounds/geology_details.html) ·
+[LiveAbout — The Needles](https://www.liveabout.com/facts-about-the-needles-756164) ·
+[Climbing — Spearfish destination guide](https://www.climbing.com/places/spearfish-south-dakota-climbing-destination-guide/) ·
+[Geology of Wyoming — Vedauwoo](https://www.geowyo.com/vedauwoo.html) ·
+[turnstone.ca — Granites of the Vedauwoo Rocks](https://turnstone.ca/vedauwoo.htm) ·
+[theCrag — Wild Iris](https://www.thecrag.com/en/climbing/united-states/wyoming-wild-iris) ·
+[Outpost Wilderness — Sinks Canyon & Wild Iris](https://outpostwilderness.com/sinks-canyon-wild-iris-climbing-your-guide-to-limestone-more-in-lander/) ·
+[Garden of the Gods — how to climb](https://gardenofthegodscolorado.com/how-to-climb-in-garden-of-the-gods/) ·
+[City of Colorado Springs — rock climbing](https://coloradosprings.gov/rock-climbing) ·
+[StephAbegg — Penitente Canyon](https://stephabegg.com/trip-reports/colorado/penitente/) ·
+[MP — Penitente Canyon](https://www.mountainproject.com/area/105744316/penitente-canyon) ·
+[ClimbingHouse — Shelf Road](https://climbinghouse.com/shelf-road-rock-guide/) ·
+[MP — Shelf Road](https://www.mountainproject.com/area/105744267/shelf-road) ·
+[MP — Clear Creek Canyon](https://www.mountainproject.com/area/105744243/clear-creek-canyon)
