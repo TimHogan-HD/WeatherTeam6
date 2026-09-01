@@ -4,7 +4,7 @@ Research notes for improving the drying model. **This document does not change t
 scoring algorithm.** `.claude/docs/scoring-algorithm.md` is agreed and locked; §7 below
 is a *proposal* that needs explicit approval before any of it reaches code.
 
-Last updated: 2026-09-01 (fourth pass: §4.10 more US areas, §5.1 modifiers quantified — rock temperature, friction, chalk, lichen, cold-air pooling, tides)
+Last updated: 2026-09-01 (fifth pass: §2.5 — rock-moisture instrumentation, the Saxony climbing-area study, and the "rock traffic lights" prior art)
 
 ## How to read the confidence markers
 
@@ -173,6 +173,80 @@ over saturation), but the mapping from one to the other is not linear and we cur
 assume it is.
 
 ---
+### 2.5 The study this project was looking for — and it challenges the model
+
+Fifth-pass research found peer-reviewed rock-moisture work carried out **at a climbing area,
+explicitly to support climbing-conditions decisions**. It is the closest thing to ground truth
+in this whole document, and three of its findings cut against how we model drying.
+
+**"Investigating rock moisture at a sandstone massif in the Saxonian Switzerland climbing
+area"** ([Journal of Geomorphology](https://www.schweizerbart.de/papers/jgeomorphology/detail/prepub/100842/Investigating_rock_moisture_at_a_sandstone_massif_in_the_Saxonian_Switzerland_climbing_area);
+method context in [Weiss & Sass, Geomorphology 2022](https://www.sciencedirect.com/science/article/abs/pii/S0169555X22003233)).
+Six sites on the Gohrisch massif, measured in four cardinal directions at the wall base and
+near the summit, using microwave and 2D-resistivity moisture sensing plus Schmidt Hammer for
+surface strength.
+
+**First: the product already exists, as a public-safety system.** Saxonian Switzerland runs
+**"rock traffic lights"** — visitor-guidance measures that temporarily stop climbing on rocks
+that are too wet — and the study's stated aim is to assess the spatial distribution of rock
+moisture *to support those measures*. §4.1(d) recorded the local rule (no climbing on rain
+days or the day after) as folklore; it is in fact backed by instrumentation and research.
+This is the strongest prior art found anywhere for what WeatherTeam6 is building.
+
+**Second, and independently confirming §2.4: the sandstone loses stability mainly between
+60% and 100% pore saturation** [M]. That is a different method — Schmidt Hammer rebound —
+reaching the same threshold as the UCS literature's 60–80% critical-saturation band. Two
+independent lines converging is the strongest single result in this document, and it says
+the wet/dry transition is a **step over saturation**, not a ramp over elapsed time.
+
+**Third, and this is the uncomfortable one: the water may not be coming from the rain.**
+The study reports the **interior of the rock wetter than the surface in most cases**, the
+**foot of the rock face wetter than the summits**, and concludes that wetness *"seems to
+derive from a pore water body inside the rock rather than from direct precipitation"* [M].
+A companion Saxony survey found a non-monotonic depth profile — slightly wet at the surface,
+**drier at 5–15 cm**, moderately wet at 20–30 cm
+([EGU21](https://meetingorganizer.copernicus.org/EGU21/EGU21-14871.html)).
+
+If that generalises, an hours-since-rain model is tracking the wrong reservoir. It would
+explain a great deal that this document has recorded as unexplained: why seepage dominates at
+so many crags, why cliff bases stay wet, and why community drying times vary so much more
+between crags than between rock types. It also raises the possibility that the surface layer —
+the only part that carries a hold — responds on a much shorter timescale than the 24–72 hour
+rules imply, while the bulk stays wet far longer. **Do not act on this without the full paper.**
+It is read here from an abstract, it is one massif of soft Saxon sandstone, and it may not
+transfer to a quartz arenite or a desert eolian sandstone.
+
+**Fourth: the lab correlation did not survive the field.** Schmidt Hammer rebound tracked
+moisture cleanly in the laboratory (wetter → lower rebound) but **not in the field, where the
+wetter site showed the highest rebound**. The authors attribute the summits' lower rebound to
+cumulative weathering from more dry–wet cycles. So surface strength is a function of
+weathering *history*, not just current moisture — and a field measurement of "how wet is it"
+does not straightforwardly predict "how strong is it". This is the same failure mode
+`defect-patterns.md` §11 warns about, arriving from the geomorphology side.
+
+Related, and it strengthens §5.1's rock-temperature finding: 2D-resistivity and Schmidt Hammer
+found **surface-parallel zones of weakness at every site exposed to solar radiation**,
+attributed to thermal weathering. Aspect therefore affects not only how fast a wall dries but
+how damaged it is.
+
+**Condensation puts liquid water into rock, not just onto it.** Five years of simulated rock
+water content in a sandstone cave found the **maximum wetting-and-drying depth was only 1.2 m**,
+and that on high-vapour days the positive flux into the rock is dominated by **liquid water
+flow** from infiltrating condensed water, driven by cool interior walls favouring condensation
+([Engineering Geology 2025](https://www.sciencedirect.com/science/article/abs/pii/S0013795225002819);
+see also [physics-informed ML on the same problem, HESS 2023](https://hess.copernicus.org/articles/27/2579/2023/)).
+The condensation term proposed in §7 is therefore not only a friction correction — it is a
+**wetting input**, and Cathedral/Whitehorse's "humidity feels like climbing in the rain"
+(§4.10) has a physical mechanism behind it.
+
+**Why nobody has published crag drying curves, restated honestly.** It is not neglect. A
+laboratory comparison of **eight sensor types** — 1D and 2D resistivity, TDR, borehole
+humidity, microwave reflectance, capacitance, IR thermography and uranine probes — through
+wetting, drying and freeze–thaw cycles concluded that measuring dielectric properties is the
+best available proxy, while noting that **no sensor yet meets all of non-destructiveness,
+reliability, repeatability and field applicability** [M]. In the Gohrisch fieldwork,
+lab-to-field calibration **failed outright**: many field readings fell outside the calibration
+curves. Rock moisture is genuinely hard to measure, which is the real reason §8's gap exists.
 
 ## 3. Reference table: absorption and drying by rock family
 
@@ -1132,3 +1206,15 @@ Fourth pass — modifiers and further US areas (§4.10, §5.1):
 [MP — Bob Marley, RRG](https://www.mountainproject.com/area/106091151/bob-marley) ·
 [Wolverine Publishing — Red River Gorge Select](https://www.wolverinepublishing.com/shop-all-guidebooks/p/red-river-gorge-select) ·
 [MP — Turkey Rocks](https://www.mountainproject.com/area/105797943/turkey-rocks)
+
+Fifth pass — rock-moisture instrumentation and the Saxony climbing-area study (§2.5):
+[Investigating rock moisture at a sandstone massif in the Saxonian Switzerland climbing area — Journal of Geomorphology](https://www.schweizerbart.de/papers/jgeomorphology/detail/prepub/100842/Investigating_rock_moisture_at_a_sandstone_massif_in_the_Saxonian_Switzerland_climbing_area) ·
+[Weiss & Sass — the challenge of measuring rock moisture, eight sensor types](https://www.sciencedirect.com/science/article/abs/pii/S0169555X22003233) ·
+[EGU21 — measuring rock moisture in the sandstone area of Saxony](https://meetingorganizer.copernicus.org/EGU21/EGU21-14871.html) ·
+[Engineering Geology 2025 — rock moisture dynamics in sandstone caves](https://www.sciencedirect.com/science/article/abs/pii/S0013795225002819) ·
+[HESS 2023 — physics-informed ML for rock moisture in a sandstone cave](https://hess.copernicus.org/articles/27/2579/2023/) ·
+[Vadose Zone Journal — soil moisture sensors in weathered limestone](https://acsess.onlinelibrary.wiley.com/doi/10.1002/vzj2.20164) ·
+[Env. Earth Sciences — ERT monitoring of capillary rise and drying in sandstone](https://link.springer.com/article/10.1007/s12665-012-1858-x) ·
+[Geomorphology — ERT and San rock art deterioration, Golden Gate Highlands](https://www.sciencedirect.com/science/article/abs/pii/S0169555X10000346) ·
+[npj Heritage Science — remote monitoring of rock art shelters, Albarracín](https://www.nature.com/articles/s40494-025-02123-w) ·
+[ScienceDirect — fibre Bragg grating moisture sensor for sandstone](https://www.sciencedirect.com/science/article/abs/pii/S0925400525004666)
