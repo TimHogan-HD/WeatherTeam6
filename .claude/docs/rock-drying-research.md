@@ -293,6 +293,68 @@ reliability, repeatability and field applicability** [M]. In the Gohrisch fieldw
 lab-to-field calibration **failed outright**: many field readings fell outside the calibration
 curves. Rock moisture is genuinely hard to measure, which is the real reason §8's gap exists.
 
+### 2.6 Freeze–thaw — the state the model cannot express, and the one that changes the rock
+
+Everything above treats the rock as a fixed material getting wet and drying out. Below freezing
+that is wrong twice over, and it is wrong in exactly the states where this project's own regions
+spend a third of the year.
+
+**Frozen rock is *stronger*, not weaker.** *"The dynamic tensile strength of saturated water
+sandstone gradually decreases with an increase in the number of freeze–thaw cycles, while that of
+**frozen** sandstone gradually **increases**"*
+([Scientific Reports](https://www.nature.com/articles/s41598-024-72974-z)) **[M]**. Ice cements the
+pore network: a saturated sandstone at −5 °C behaves as a stiffer, stronger material than the same
+rock at +5 °C. This inverts the entire §2.4 story for as long as it stays frozen.
+
+**Which means the hazard is the thaw, not the freeze — and the model has no way to say so.**
+`dryingModel` counts hours since rain. It has no concept of a wall that was safe at dawn because it
+was frozen solid and is at its weakest by mid-afternoon, saturated and above zero, with the meltwater
+of its own ice still in the pores. That is a **within-day inversion of the score**, on the one input
+(`temp_c`) the model already has. It is also the single most likely state to be experienced at Red
+Wing, Willow River, Taylors Falls, Robinson Park and every Front Range sandstone crag in March.
+
+**And freeze–thaw does not leave the rock as it found it.** Measured across cycles: **saturated
+water content rises 15.6–60.0%**, tensile and compressive strength fall **7.3–38.0%**, and elastic
+modulus falls **6.4–40.9%**
+([Scientific Reports](https://www.nature.com/articles/s41598-021-91842-8)) **[M]**. The mechanism is
+frost heave — the ~9% volume expansion of the water–ice phase change — driving *"increased porosity,
+crack initiation, and particle falling"* **[M]**.
+
+Two consequences that matter more than the numbers:
+
+- **Porosity is not a constant, and a per-rock-type constant silently assumes it is.** A crag's
+  absorption is a function of how many freeze–thaw cycles that face has been through, which is a
+  function of its aspect and its latitude. §4.17's grain-size trend and §3's porosity table both
+  describe fresh rock. Weathered, north-facing, high-latitude rock of the same formation is more
+  porous and weaker than the table says — which is the direction that hurts.
+- **It is a self-accelerating loop.** More cycles → more porosity → more water held → more ice →
+  more cycles' worth of damage per winter. This is why two faces of one crag can diverge over
+  decades, and it is a second reason (beyond §5's shading) that aspect is not a cosmetic input.
+
+**The third hazard is not the wall's strength at all.** *"Rockfall is more common during times of
+the year when freeze–thaw cycles are active, as ice wedging — wherein water freezes in cracks
+overnight — can exert immense pressure on the rock"*
+([Climbing](https://www.climbing.com/skills/rockfall-risk-safety-tips/)) **[C]**. That is an
+objective hazard over a climber's head, independent of whether the holds they are pulling on are
+dry. Nothing in a dryness score addresses it, and a score reading *Excellent* on a bluebird March
+afternoon after a hard freeze is, on this evidence, at its most misleading precisely then.
+
+**What this does not license.** A freeze–thaw term is a real gap, but it is not a constant waiting
+to be typed in: the papers measure laboratory cycles on cored samples, not a wall, and the count of
+cycles a given face has seen is not something this app can know. The honest first version is
+narrower and follows from the frozen-is-stronger result alone — **do not report a wall as drying
+while it is below freezing**, because it is not drying, it is frozen, and the hours accumulating in
+`hoursSince` are not drying hours.
+
+**And that is not free, so the cost is stated rather than assumed.** `DryingModelInput` today is
+`{ rockType, cliffAngle, rainfallEvents, asOf }` — **there is no temperature in it**. The air
+temperature exists upstream (fetched by `openMeteo.ts`, stored on `weather_run_hours`, carried
+through `computeLiveForecast`) but it does not reach this function, so the freeze check is a change
+to the model's signature and its callers, not a condition added to an input it already has. Per
+`defect-patterns.md` §10 that distinction is the whole point: reasoning from where a field is
+*produced* rather than where it is *read* is how three documents derived scoring behaviour from
+`currentTempC`, which no scorer reads either.
+
 ## 3. Reference table: absorption and drying by rock family
 
 Porosity values from engineering-geology compilations [M]
@@ -1583,6 +1645,31 @@ question — and §4.11's tufa test is the kind of thing a user can answer even 
 
 ---
 
+**6.11 The Access Fund's own guidance brackets `sandstone: 72` on both sides — and names the
+reason it cannot be a constant.** The US climbing-access organisation's field guidance is:
+
+> *"If it's a bright sunny day after a light rainfall, with dry conditions, the rock may only need
+> **24 to 48 hours** to be climbable. However, if it's humid and cool following a downpour, you may
+> need to wait **several days or even a week**."*
+> — [Access Fund, *How to Assess Sandstone After Rain or Snow*](https://www.accessfund.org/latest-news/open-gate-blog/how-to-assess-sandstone-after-rain-or-snow) **[C]**
+
+`MAX_HOURS.sandstone` is 72. The Access Fund's range for the *same rock family* runs from 24 to
+about 168 — a factor of seven, with our single value sitting in the middle and wrong at both ends.
+In the good case the model holds a dry crag closed for two extra days; in the bad case it opens a
+crag that needs another four. And the same page names what decides it: *"many factors such as
+**aspect, wind, season, and amount of precipitation** have an impact on how long it will take
+sandstone to truly dry off"* **[C]** — which is §5's modifier list, and none of the four is an input
+to `dryingModel` today. Precipitation *amount* is the sharpest of them, because §6.3 already
+establishes the model discards it beyond a 2 mm threshold.
+
+It also supplies a figure the §2.4 range should carry: *"western sandstone from Utah to California
+can lose up to **75% of its strength while wet**"* **[C]** — above the 55% Pennant measurement and
+below the >90% outliers, and consistent with both.
+
+**The takeaway is not a better constant.** It is that a constant is the wrong shape: the Access
+Fund's own answer is a conditional on the weather since the rain, which is precisely the data
+`liveForecast` already fetches and `dryingModel` currently reduces to one number.
+
 ## 7. Proposed taxonomy — NOT APPROVED, NOT IMPLEMENTED
 
 `scoring-algorithm.md` is locked and this section changes nothing. It exists so the research
@@ -2301,3 +2388,11 @@ Twenty-first pass — granite mineralogy, El Salto, report platforms (§4.17, §
 [NWAC — field observations](https://nwac.us/2020/11/13/field-observations-sharing-information-helps-build-a-better-avalanche-forecast/) ·
 [Utah Avalanche Center — submit observation](https://utahavalanchecenter.org/observations-avalanches/submit) ·
 [Taos Avalanche Center — how to submit](https://taosavalanchecenter.org/observations-archive/public/how-to-submit-observation/)
+
+Twenty-second pass — freeze–thaw and the Access Fund bracket (§2.6, §6.11):
+[Scientific Reports — strength degradation of sandstone under freeze–thaw cycles](https://www.nature.com/articles/s41598-024-72974-z) ·
+[Scientific Reports — freeze–thaw effect on physical and mechanical properties of sandstone](https://www.nature.com/articles/s41598-021-91842-8) ·
+[Springer BEGE — cyclic freezing and thawing, dried vs saturated sandstone](https://link.springer.com/article/10.1007/s10064-019-01586-z) ·
+[Frontiers — damage evolution of frozen-thawed granite by CT](https://www.frontiersin.org/journals/earth-science/articles/10.3389/feart.2022.912356/full) ·
+[Access Fund — how to assess sandstone after rain or snow](https://www.accessfund.org/latest-news/open-gate-blog/how-to-assess-sandstone-after-rain-or-snow) ·
+[Climbing — reducing rockfall risk](https://www.climbing.com/skills/rockfall-risk-safety-tips/)
