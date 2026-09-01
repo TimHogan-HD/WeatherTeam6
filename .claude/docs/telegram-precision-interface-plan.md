@@ -288,6 +288,18 @@ Ships `/locations`, `/conditions`, `/alerts` on the new machinery. No new data y
 
 ### Phase 2 — Data layer
 
+> **Built 2026-08-31.** One measurement changed the design of the fetch: a multi-model
+> `/v1/forecast` request **suffixes its hourly keys only while more than one requested model
+> has coverage**. Ask for `gfs_seamless,ncep_hrrr_conus` outside CONUS and the answer is a
+> 200 carrying a bare `temperature_2m` — HRRR dropped with no mention, the survivor
+> unlabelled. `parseDeterministicHourly` therefore reports `ambiguous` and the fetch re-asks
+> one model at a time; trusting the bare column would have labelled it with whichever model
+> was listed first. Two smaller departures: `precipitation_probability` sharing is
+> **derived** per response (`markSharedProbability`) rather than hardcoded to HRRR/NBM —
+> live at Red Rock GFS shares it too — and **only the ensemble run stores `raw`**, because a
+> deterministic response's parsed hours are its whole payload and storing it per model would
+> write it six times to preserve nothing.
+
 - **`openMeteo.ts`** — stop discarding hourly. Add a deterministic fetch against `/v1/forecast`
   with `models=` (multiple models in **one** request, returning suffixed keys — the pattern
   `ENSEMBLE_MODEL_SUFFIXES` already handles). Retain hourly series on a new result type

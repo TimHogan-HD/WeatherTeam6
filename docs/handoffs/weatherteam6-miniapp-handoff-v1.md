@@ -299,6 +299,8 @@ Every endpoint returns `{ data, error, status }`. Never deviate from this shape.
 ```
 GET  /health                          (unauthenticated, outside /api/v1)
 POST /api/cron/check-alerts           (x-cron-secret header)
+POST /api/cron/collect-runs           (x-cron-secret header; unregistered with the scheduler)
+POST /api/cron/prune-runs             (x-cron-secret header; unregistered with the scheduler)
 POST /api/telegram/webhook            (chat.id gate; see issue #27)
 
 GET  /api/v1/locations

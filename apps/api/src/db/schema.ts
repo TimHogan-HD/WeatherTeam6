@@ -10,6 +10,9 @@ import {
   date,
   jsonb,
   unique,
+  doublePrecision,
+  primaryKey,
+  index,
 } from 'drizzle-orm/pg-core'
 
 // Enum types
@@ -329,3 +332,131 @@ export const panelStates = pgTable('panel_states', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
+
+/**
+ * One fetch of one model at one point — the parent of every stored hour.
+ *
+ * `point_key` is what makes an ad-hoc `/weather <place>` lookup storable: it is
+ * `loc:<uuid>` for a saved location and `pt:<lat4>,<lon4>` for a geocoded point
+ * that has no row (`pointKey()` in `lib/runs/pointKey.ts` is the only place that
+ * spelling is built). `location_id` is set as well whenever there is one, because
+ * that is the FK a location delete has to walk.
+ *
+ * `fetched_at` is when **this process asked**, not when the model initialized.
+ * Probe A found Open-Meteo exposes no run time under any name, so nothing here
+ * may be labelled "12Z run".
+ *
+ * `raw` holds the upstream payload for 48 hours and is the re-derivation path
+ * for anything the parsed rows dropped. **Never log it or serialise it into an
+ * error** — go through `describeError`.
+ */
+export const weatherRuns = pgTable(
+  'weather_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** `loc:<uuid>` or `pt:<lat4>,<lon4>`. Present even when `location_id` is. */
+    point_key: text('point_key').notNull(),
+    location_id: uuid('location_id').references(() => locations.id),
+    /** A deterministic model name, or `'ensemble'` for the pooled ensemble run. */
+    model: text('model').notNull(),
+    /** `'deterministic'` or `'ensemble'` — which child table carries this run's hours. */
+    kind: text('kind').notNull(),
+    fetched_at: timestamp('fetched_at', { withTimezone: true }).notNull(),
+    utc_offset_seconds: integer('utc_offset_seconds').notNull(),
+    /** Open-Meteo's resolved elevation for the point — one value per request, not per model. */
+    model_elevation_m: doublePrecision('model_elevation_m'),
+    /**
+     * True when this model's `precipitation_probability` series was byte-identical
+     * to another model's in the same response, so the column cannot be attributed
+     * to it. **Null means the question does not apply** (an ensemble run), not
+     * "no" — a renderer must treat null as unknown and withhold the model name.
+     */
+    precip_prob_is_shared: boolean('precip_prob_is_shared'),
+    raw: jsonb('raw'),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // Re-collecting the same point/model at the same instant is the retry case:
+    // the write is an upsert on this key, so a cron that runs twice leaves one row.
+    unique('weather_runs_point_model_fetch').on(t.point_key, t.model, t.fetched_at),
+    // Both the prune and "the most recent run for this point" read this way.
+    index('weather_runs_point_fetched_at_idx').on(t.point_key, t.fetched_at),
+    index('weather_runs_fetched_at_idx').on(t.fetched_at),
+  ],
+)
+
+/**
+ * One hour of one deterministic run.
+ *
+ * **Every value is nullable and that is the point.** Past a model's own horizon
+ * the upstream arrays simply stop, and NBM returns 384 nulls for
+ * `surface_pressure` at every point measured. A null stored as 0 is a
+ * temperature of 0 °C, a wind of 0 km/h and a pressure of 0 mb that no reader
+ * can tell from a measurement.
+ *
+ * `valid_at` is a real UTC instant, converted from the response's local
+ * wall-clock strings through `localTimeToUtc`. Storing the local string would
+ * make two points in different zones incomparable.
+ *
+ * Keyed off `run_id`, **not** `location_id`, so this table is unreachable by
+ * `DEPENDENT_TABLES` in `deleteLocation.ts` — see the ordered cascade there.
+ */
+export const weatherRunHours = pgTable(
+  'weather_run_hours',
+  {
+    run_id: uuid('run_id')
+      .notNull()
+      .references(() => weatherRuns.id),
+    valid_at: timestamp('valid_at', { withTimezone: true }).notNull(),
+    temp_c: doublePrecision('temp_c'),
+    dewpoint_c: doublePrecision('dewpoint_c'),
+    humidity_pct: doublePrecision('humidity_pct'),
+    precip_mm: doublePrecision('precip_mm'),
+    wind_kmh: doublePrecision('wind_kmh'),
+    wind_gust_kmh: doublePrecision('wind_gust_kmh'),
+    wind_dir_deg: doublePrecision('wind_dir_deg'),
+    cloud_pct: doublePrecision('cloud_pct'),
+    /** Not necessarily this model's own field — see `weather_runs.precip_prob_is_shared`. */
+    precip_prob_pct: doublePrecision('precip_prob_pct'),
+    pressure_hpa: doublePrecision('pressure_hpa'),
+  },
+  (t) => [primaryKey({ columns: [t.run_id, t.valid_at] })],
+)
+
+/**
+ * One hour of the pooled ensemble, as percentiles rather than members.
+ *
+ * **Not per-member rows.** 143 members across 384 hours is ~55,000 rows per run;
+ * the 48-hour `weather_runs.raw` payload is the re-derivation path if a member
+ * level view is ever needed.
+ *
+ * `member_count` falls as models reach their horizons, and
+ * `model_member_counts` splits it by model so a reader can say *which* models
+ * still reach an hour — naming a model that contributed nothing is the
+ * attribution defect this repo keeps shipping.
+ *
+ * These are **hourly** percentiles. They are not the daily figures: `temp_c_max`
+ * stays the median of each member's own daily extreme.
+ */
+export const weatherEnsembleHours = pgTable(
+  'weather_ensemble_hours',
+  {
+    run_id: uuid('run_id')
+      .notNull()
+      .references(() => weatherRuns.id),
+    valid_at: timestamp('valid_at', { withTimezone: true }).notNull(),
+    precip_mm_p10: doublePrecision('precip_mm_p10'),
+    precip_mm_p50: doublePrecision('precip_mm_p50'),
+    precip_mm_p90: doublePrecision('precip_mm_p90'),
+    temp_c_p10: doublePrecision('temp_c_p10'),
+    temp_c_p50: doublePrecision('temp_c_p50'),
+    temp_c_p90: doublePrecision('temp_c_p90'),
+    wind_kmh_p10: doublePrecision('wind_kmh_p10'),
+    wind_kmh_p50: doublePrecision('wind_kmh_p50'),
+    wind_kmh_p90: doublePrecision('wind_kmh_p90'),
+    member_count: integer('member_count').notNull(),
+    /** `{ gfs_seamless: 31, ecmwf_ifs025: 51, ... }` for this hour. */
+    model_member_counts: jsonb('model_member_counts').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.run_id, t.valid_at] })],
+)
