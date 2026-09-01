@@ -4,7 +4,7 @@ Research notes for improving the drying model. **This document does not change t
 scoring algorithm.** `.claude/docs/scoring-algorithm.md` is agreed and locked; §7 below
 is a *proposal* that needs explicit approval before any of it reaches code.
 
-Last updated: 2026-09-01 (twelfth pass: §4.13 PNW and Sierra — vegetation and road access as non-weather limiters)
+Last updated: 2026-09-01 (thirteenth pass: §9 — what the competing products do and what to take from them; ET₀ replaces the soil-moisture proposal)
 
 ## How to read the confidence markers
 
@@ -1352,12 +1352,27 @@ Four companion changes that the research says matter more than the table itself:
    evidence of a drainage line.
 3. **Add a condensation check** from the already-stored dewpoint against an estimated rock
    surface temperature.
-4. **Fetch soil moisture and use it as the drying proxy.** This is the community's own test —
-   *"if the ground is still damp then the rock is still wet"* (§8.1). It integrates antecedent
-   rainfall and evaporative demand for free, which is exactly what §6.3's most-recent-event
-   model discards, and [Open-Meteo exposes soil moisture at multiple depths](https://open-meteo.com/en/docs) on the
-   same forecast endpoint we already call (confirm the exact depth bands before relying on one).
-   Likely the cheapest high-value change here.
+4. **Drive drying from ET₀ rather than from elapsed hours.** Open-Meteo serves
+   **`et0_fao_evapotranspiration`** — FAO-56 Penman-Monteith reference evapotranspiration, hourly
+   and daily, in **mm/hour** — computed from temperature, wind speed, humidity and solar
+   irradiation ([Open-Meteo](https://openmeteo.substack.com/p/reference-evapotranspiration-for),
+   [FAO-56](https://www.fao.org/4/X0490E/x0490e08.htm)). Those are exactly the four variables
+   §2.2 identifies as setting the stage-1 constant-rate drying period, combined by the
+   international standard method rather than by our multiplicative wind and humidity modifiers.
+
+   Because it is a **rate in the same units as the rain**, it permits a water balance instead of
+   a countdown: accumulate precipitation in, accumulate ET₀ out, and treat the surface layer as
+   dry when cumulative ET₀ since the event exceeds the input times a rock-type factor. That one
+   change addresses **three** findings at once — §6.3 (only the most recent event is read, since
+   a balance is inherently cumulative), §2.1 (storm duration, since both sides are hourly), and
+   the crudeness of the separate wind and humidity modifiers.
+
+   Two honest limits. ET₀ is defined for a well-watered **grass** reference surface, so it
+   measures *atmospheric drying demand*, not what a rock does — the rock-type factor carries real
+   weight and is unmeasured. And it describes stage 1 only; the stage-2 falling-rate tail is
+   rock-controlled (§2.2) and ET₀ says nothing about it. It also does nothing for seepage, which
+   §2.5 confirms is a separate reservoir. **Supersedes the soil-moisture suggestion in §8.1**,
+   which is a proxy for the same physics — ET₀ is the drying-side term itself.
 
 And one warning about how to display any of this: per
 `.claude/rules/defect-patterns.md` §1 and §3, a drying estimate derived from a *guessed*
@@ -1420,6 +1435,83 @@ strongest in the UK."** For the app that means a seepage/drying-class field shou
 product should not pretend otherwise.
 
 ---
+
+---
+
+## 9. What the competing products do, and what to take from them
+
+§5.2 established that this space is crowded and that CragReport already ships the physics this
+research recommends. This section is the follow-up question: **what should our interface do
+differently as a result?** Compared against `docs/handoffs/miniapp-design-v1.md`, which is
+binding and whose locked rule is *"score is a derived signal, never the headline — weather leads
+on every screen."*
+
+### 9.1 The field, by output shape
+
+| Product | What it outputs | Scale | Its edge |
+| --- | --- | --- | --- |
+| **[CragReport](https://www.cragreport.com/how-it-works)** | Hourly scores, 5 days, colour-banded — you scan for **windows** | 90–100 blue *excellent*, 80–89 green *good*, 60–79 yellow *fair*, <60 red *poor* | Physics rock-temperature model; **user sets wall aspect (N/NE/…/W), tilt (slab/vertical/overhang), site (valley/ridge/canyon) and canyon axis** |
+| **[crag.day](https://crag.day/)** | Per-hour **dryness and friction, separately, in words** | *"wet"* / *"drying slowly"* / *"climbable"*; friction *"Good"* | One crag, done properly: measured rain gauge, three models, **ten years of local calibration** |
+| **[Climbit](https://climbitscore.com/)** | Hourly, 0–5 stars, **side-by-side crag comparison** | 0–5 stars | 47,000 spots; terrain-based shade |
+| **[BlocWeather](https://blocweather.com/)** | Rock wetness (beta) | — | **A "report current conditions" button on every crag page, feeding the algorithm** |
+| **[Prime Condies](https://github.com/mnaylor5/prime-condies)** | *How many of the next 24 hours are decent* | user-set bands | open source |
+| **WeatherTeam6 today** | One score, today only, collapsed by default | 80–100 Excellent … 0–19 Do Not Climb | Telegram-native |
+
+### 9.2 Three things to take now — none of which touch the locked rule
+
+**1. Two outputs in words, not one number: dryness and friction.** crag.day says *"wet"*,
+*"drying slowly"*, *"climbable"*, and rates friction separately. That is better than our single
+0–100 for three independent reasons. It matches the **two failure modes** this research keeps
+finding — the Felsampel names both explicitly (§2.5a), limestone fails on friction while
+sandstone fails on strength (§3), and SCC inverts them again (§5.3). It matches §7's copy rules,
+which already forbid false precision. And a three-state word is honest about a model that §2.5
+shows cannot see the pore-water body, §4.13 shows cannot see five separate limiters, and §8.1
+shows is weaker than a local's ranking. **A number implies a resolution we do not have.**
+
+**2. A "was it dry?" button — and Telegram makes this our strongest move.** BlocWeather asks
+climbers to report conditions and feeds it back into the algorithm. §2.5a's conclusion was that
+the people who solved this properly instrumented the rock, which we cannot do. This is the other
+way to get ground truth, and it is the one thing **a bot does better than a website**: a website
+needs the user to navigate back; a bot can ask *"you saved Red Wing — was it dry yesterday?"*
+in one tap, unprompted, at the right moment. Every other product here has to hope the user
+returns. Ours can ask. That is a real differentiator and it directly closes the §8 gap.
+
+**3. The score ladder is probably too generous, and there are now two independent signals.**
+CragReport — which models *more* inputs than we do — places *excellent* at **90+** and calls
+**below 60 poor**. We call **80 Excellent** and only reach *Do Not Climb* below 20. Our own
+open question §10.2 of the design spec records that a settled dry spell at **103 °F scores in
+the 80s**. An independent product with a better model being harsher than us, plus our own known
+inflation bug, is enough to say the bands want revisiting. That is a scoring change and belongs
+with issue #21, not here.
+
+### 9.3 Two things to take after the input work, in this order
+
+**4. Unblock the per-location editor.** §12 of the design spec defers *"editing a saved location
+afterwards (rock type, aspect, cliff angle)"*. **That deferral is now the single biggest blocker
+on this entire research document.** CragReport collects aspect, tilt, site type and canyon axis
+from the user with toggles — no import, no dataset, just asking. That one screen would unblock
+the aspect/solar term (§5.1, and `shortwave_radiation` is already stored), wind direction
+relative to the wall (§5.2), cold-air pooling via site type (§5.1), the seepage flag and its
+tufa proxy (§4.11), and the rock-type taxonomy (§7). Everything else in §7 is downstream of it.
+
+**5. Then hourly windows.** CragReport's real UI advantage is that you scan a coloured 5-day
+hourly grid for a window, rather than reading one number for today. This research says the time
+structure matters: Rio is a *morning* answer (§4.12), Shelf Road rotates aspect through the day
+(§4.9), dew burns off (§2.5), and convective storms are an afternoon problem. **A window view
+can be built weather-led rather than score-led** — showing when it is dry, sheltered and in the
+shade — which satisfies the locked rule rather than fighting it. Note §3 of the design spec
+closed per-day score chips deliberately and calls reopening it *"an API change and its own
+task"*; that reasoning still stands and this does not reopen it by the back door.
+
+### 9.4 What not to copy
+
+Climbit's 0–5 stars and CragReport's 0–100 both assert a resolution we cannot support, and our
+spec was right to bury the score. **The lesson from the field is not "lead with a score" — it is
+that the two products with the most defensible models express themselves most cautiously:**
+crag.day uses three words after ten years of local calibration, and the Felsampel is a traffic
+light backed by sensors on the rock. Confidence in the interface should track confidence in the
+model, and ours is currently a forecast-only model with five unmodelled limiters.
+
 
 ## Sources
 
@@ -1648,3 +1740,12 @@ Twelfth pass — PNW and Sierra (§4.13):
 [AAI — guided climbing at Index](https://www.alpineinstitute.com/programs/guided-rock-climbing-at-index-wa/) ·
 [MP — Tuolumne Meadows](https://www.mountainproject.com/area/105833384/tuolumne-meadows) ·
 [Planetmountain — Tuolumne Meadows](https://www.planetmountain.com/en/crags/tuolumne-meadows-yosemite.html)
+
+Thirteenth pass — competing products, UI, and ET₀ (§9, §7 companion change 4):
+[CragReport — how it works](https://www.cragreport.com/how-it-works) ·
+[crag.day](https://crag.day/) ·
+[Climbit](https://climbitscore.com/) · [Climbit — compare](https://climbitscore.com/compare) ·
+[BlocWeather](https://blocweather.com/) ·
+[Prime Condies](https://github.com/mnaylor5/prime-condies) ·
+[Open-Meteo — reference evapotranspiration](https://openmeteo.substack.com/p/reference-evapotranspiration-for) ·
+[FAO-56 — Penman-Monteith equation](https://www.fao.org/4/X0490E/x0490e08.htm)
