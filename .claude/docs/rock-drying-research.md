@@ -395,6 +395,58 @@ arriving together, and it is a normal March in every region this project's user 
 duration, magnitude and drying rate — all four — and the current model treats them as the same
 number on the same date.**
 
+### 2.8 Humidity alone re-wets rock — closing §8's open question
+
+§8 listed *"nothing on how fast rock re-wets from high humidity alone"* as a gap. It is not a gap in
+the literature; it is a well-studied field with its own name — **sorption** — and it answers the
+"it never really came into condition" complaint directly.
+
+**The mechanism is a three-stage isotherm, and it is sharply non-linear.** Porous stone follows a
+**Type II sigmoidal** sorption isotherm: monolayer adsorption first, then multilayer, then
+**capillary condensation**, which is what gives these materials *"high moisture capacity at high
+relative humidity"*. Sandstone specifically (dynamic vapour sorption on Obernkirchener sandstone)
+is *"sigmoidal type II with hysteresis in the high-humidity range"*, and vapour transmission
+behaves differently below and above a break at **RH ≈ 75%**
+([Keppert et al., *Water Vapor Diffusion and Adsorption of Sandstones*](https://onlinelibrary.wiley.com/doi/10.1155/2016/8039748),
+[Krus & Kießl, moisture storage characteristics](https://wufi.de/literatur/Krus,%20Kie%C3%9Fl%201998%20-%20Determination%20of%20the%20moisture%20storage.pdf)) **[M]**.
+Below ~75% RH the rock takes up very little; above it, uptake climbs steeply toward saturation.
+
+**Three consequences, each of which changes what the app should say.**
+
+**1. The surface — the only part a climber touches — equilibrates almost immediately.** *"Porous
+natural building material reacts instantly to changes and interacts with atmospheric humidity, with
+moisture exchange in the outer part occurring with very small changes in air humidity"*, and
+*"sorption–desorption processes respond spontaneously on even small humidity changes"*
+([Moisture content of natural stone: static and dynamic equilibrium](https://link.springer.com/article/10.1007/s00254-004-1040-1)) **[M]**.
+So a wall whose bulk is bone dry can still be greasy on a humid morning. This is the mechanism
+behind Bohuslän's *"a bit greasy"* (§4.17) and behind every humid-crag friction complaint in §3.1 —
+and note it is a **friction** failure on rock that is genuinely dry, which is exactly why §9.2's
+two-outputs recommendation is not cosmetic.
+
+**2. Equilibrium is never reached outdoors, so an instantaneous reading is not a state.**
+*"The equilibrium between atmospheric moisture and material moisture is only approached, but not
+reached, since relative humidity continuously changes during daytime"* **[M]**. The rock is always
+chasing the air and never catching it. A single current-RH number describes the target, not the
+rock.
+
+**3. Hysteresis makes it path-dependent — the same RH means different water depending on the
+direction of travel.** A face drying down from saturation holds more water at 80% RH than the same
+face wetting up from dry does at 80% RH **[M]**. That is a real, measured mechanism for a crag that
+"never came in" despite a forecast that looked fine, and **no instantaneous humidity value can
+express it**: it needs the humidity *history*, which is the same shape of input §6.3 already asks
+for on rainfall. The two gaps have one fix.
+
+**And a fourth finding that connects to §4.9's Garden of the Gods note.** Hygric expansion —
+dimensional change *from humidity alone*, no liquid water — is measured across the 0–95% RH range,
+and *"clay minerals and zeolites that expand due to high relative humidity or moisture uptake play
+a significant role in the damage and deterioration of natural stones such as volcanic tuffs and
+sandstones"*
+([Moisture expansion of tuff stones and sandstones](https://link.springer.com/article/10.1007/s12665-023-10809-2)) **[M]**.
+The park's warning that its rock *"swells and decompresses as it dries"* was recorded in §4.9 as
+community claim needing lab support. This is the lab support for the swelling half: clay-bearing
+sandstone genuinely changes dimension with humidity, without rain. The *"fragile while
+decompressing"* half remains unverified.
+
 ## 3. Reference table: absorption and drying by rock family
 
 Porosity values from engineering-geology compilations [M]
@@ -1739,6 +1791,32 @@ rather than sketched as a patch. **What must not happen is adding snow to the in
 clock alone**, which would make a snowy day count as a bigger rain event that still finished on
 time, i.e. wrong in a new way while looking more sophisticated.
 
+**6.13 The humidity threshold is the first constant in this document that the literature
+*supports* — and its shape is still wrong.** `conditionsScore` applies
+`humidityFactor = currentHumidityPct > 80 ? 1.3 : 1.0` to `maxDry`. §2.8 puts the sorption
+regime change at **RH ≈ 75%**, so a threshold at 80 is in the right neighbourhood and slightly
+late — the only constant checked so far that is not off by a factor.
+
+What is wrong is that a **binary step models a sigmoid**. Type II sorption is shallow below the
+break and steep above it, rising toward saturation; `1.0 / 1.3` treats 81% RH and 98% RH as the
+same condition, understating the second and overstating the first. A monotone curve keyed at ~75%
+would be closer, and would cost nothing but the shape of one expression.
+
+Two further observations from reading the file, neither of them new defects:
+
+- **Two thresholds for one variable.** The drying modifier steps at **80%**; the humidity
+  *component* is full credit at ≤50%, zero at ≥90%, linear between. Both are defensible in
+  isolation and they describe different physics — §2.8 says so explicitly, bulk drying versus
+  surface condition — but nothing in the code says that is why they differ, so the next reader
+  will reasonably take one of them for a typo.
+- **The single `currentHumidityPct` field is documented as deliberate and the reasoning holds for
+  today only.** `liveForecast.ts` says today's reading is right for every day because *"the rock
+  either dried or it did not"*. That is true of the backward-looking part. It is not true of a
+  day-7 score, whose drying depends on the humidity of days 1–7, which has not happened yet — and
+  §2.8's hysteresis result says the *path* matters, not just the endpoint. The existing note
+  correctly flags that separating the two is a `ScoreInput` change; this adds the physical reason
+  it is worth making, rather than only the ergonomic one.
+
 ## 7. Proposed taxonomy — NOT APPROVED, NOT IMPLEMENTED
 
 `scoring-algorithm.md` is locked and this section changes nothing. It exists so the research
@@ -1824,8 +1902,12 @@ output is a withheld estimate, not the most conservative number wearing a confid
 - **The 41% (Millstone Grit) and 75% ("western sandstone") figures are climbing-media
   numbers** whose primary sources I could not reach. Treat as indicative. The peer-reviewed
   0–55%-with-outliers-above-90% range is the defensible one.
-- **Nothing on how fast rock re-wets from high humidity alone**, which is the mechanism
-  behind "it never really came into condition" at humid crags.
+- ~~**Nothing on how fast rock re-wets from high humidity alone**, which is the mechanism
+  behind "it never really came into condition" at humid crags.~~ **Closed in §2.8** — the field
+  is called sorption, the isotherm is Type II sigmoidal with a break near 75% RH, the surface
+  equilibrates near-instantly, and hysteresis makes it path-dependent. What remains open is
+  narrower: no measurement of *how long* a dry wall stays greasy after a humid night, which is
+  the number a user would actually want.
 - **Vertical variation within a cliff** (the Nuttall result) is real and I have no way to
   model it — the app has one rock type per location and a route-level property would be a
   much larger change.
@@ -2481,3 +2563,10 @@ Twenty-third pass — snow as a distinct wetting mechanism (§2.7, §6.12):
 [HEC-HMS — selecting a snowmelt method](https://www.hec.usace.army.mil/confluence/hmsdocs/hmsum/4.10/subbasin-elements/selecting-a-snowmelt-method) ·
 [Mountain Hardwear — climbing after a wet weather event](https://www.mountainhardwear.com/learn/know-how/rock-climbing/rock-n-rain.html) ·
 [Open-Meteo — historical weather API](https://open-meteo.com/en/docs/historical-weather-api)
+
+Twenty-fourth pass — sorption closes the humidity gap (§2.8, §6.13):
+[Keppert et al., Wiley AMSE — water vapour diffusion and adsorption of sandstones](https://onlinelibrary.wiley.com/doi/10.1155/2016/8039748) ·
+[Springer Env. Geology — moisture content of natural stone, static and dynamic equilibrium](https://link.springer.com/article/10.1007/s00254-004-1040-1) ·
+[Krus & Kießl — determination of moisture storage characteristics](https://wufi.de/literatur/Krus,%20Kie%C3%9Fl%201998%20-%20Determination%20of%20the%20moisture%20storage.pdf) ·
+[Springer EES — moisture expansion of tuff stones and sandstones](https://link.springer.com/article/10.1007/s12665-023-10809-2) ·
+[Elsevier Geomorphology — stone temperature and moisture variability, implications for sandstone weathering](https://www.sciencedirect.com/science/article/abs/pii/S0169555X16303555)
