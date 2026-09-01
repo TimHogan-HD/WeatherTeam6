@@ -13,9 +13,32 @@ export type DailyForecast = {
   shortwave_wm2: number
 }
 
+/** One ensemble model's own view of the same days, and how many members it ran. */
+export type EnsembleModelDays = {
+  model: string
+  /** Members that reported precipitation — the axis `model_sources` is keyed on. */
+  member_count: number
+  days: DailyForecast[]
+}
+
 export type OpenMeteoResult = {
   days: DailyForecast[]
   model_sources: string[]
+  /**
+   * The same days computed **per model** instead of pooled, for the bot's
+   * model-disagreement views. `parseEnsemble` used to flatten the per-model
+   * grouping it had already built and throw the attribution away.
+   *
+   * Absent on results that have no ensemble behind them at all (`fetchNBM`) —
+   * **a missing value is unknown here, not "one model"**.
+   */
+  by_model?: EnsembleModelDays[]
+  /**
+   * Models that returned precipitation members but not all six variables, so no
+   * honest daily row can be built for them. Named rather than dropped: silently
+   * omitting one makes `by_model` look like the whole ensemble.
+   */
+  partial_models?: string[]
   /**
    * The location's offset from UTC, as Open-Meteo resolved it from the
    * coordinates (`timezone=auto`). `0` when the upstream did not report one.
@@ -243,6 +266,72 @@ function ensembleMedian(perMember: number[], fallback: number): number {
   return computePercentile([...perMember].sort((a, b) => a - b), 50)
 }
 
+/** Member arrays for one variable, grouped by the model that produced them. */
+type ModelArrays = { model: string; arrays: (number | null)[][] }
+
+/** The six variables the daily reduction reads, each as a set of member arrays. */
+type MemberArrays = {
+  precip: (number | null)[][]
+  temp: (number | null)[][]
+  wind: (number | null)[][]
+  humid: (number | null)[][]
+  dewpoint: (number | null)[][]
+  shortwave: (number | null)[][]
+}
+
+/**
+ * Reduce a set of member arrays to one `DailyForecast` per local day.
+ *
+ * Extracted so the pooled ensemble and each individual model go through
+ * **exactly** the same reduction — a per-model view computed by a second,
+ * similar-looking loop is how two numbers that should agree drift apart.
+ */
+function computeDays(
+  dates: string[],
+  dateIndex: Map<string, number[]>,
+  arrs: MemberArrays,
+): DailyForecast[] {
+  const days: DailyForecast[] = []
+
+  for (const date of dates) {
+    const indices = dateIndex.get(date) ?? []
+    if (indices.length === 0) continue
+
+    // Daily precip total per member → percentiles. Called with every model's
+    // members pooled, the p10/p90 spread is what `confidenceFromSpread` reads,
+    // so a genuine multi-model disagreement shows up as lower confidence instead
+    // of being hidden behind one model's internal agreement. Called with one
+    // model's members it is that model's own spread.
+    const memberDailySums: number[] = arrs.precip.map((vals) =>
+      indices.reduce((acc, i) => acc + (vals[i] ?? 0), 0),
+    )
+    memberDailySums.sort((a, b) => a - b)
+
+    const memberHighs = perMemberDaily(arrs.temp, indices, (v) => Math.max(...v))
+    const memberLows = perMemberDaily(arrs.temp, indices, (v) => Math.min(...v))
+    const memberPeakWinds = perMemberDaily(arrs.wind, indices, (v) => Math.max(...v))
+
+    const humids = allHourlyValues(arrs.humid, indices)
+    const dewpoints = allHourlyValues(arrs.dewpoint, indices)
+    const shortwaves = allHourlyValues(arrs.shortwave, indices)
+
+    days.push({
+      date,
+      precip_mm_p10: computePercentile(memberDailySums, 10),
+      precip_mm_p50: computePercentile(memberDailySums, 50),
+      precip_mm_p90: computePercentile(memberDailySums, 90),
+      temp_c_min: ensembleMedian(memberLows, 0),
+      temp_c_max: ensembleMedian(memberHighs, 0),
+      wind_kmh_max: ensembleMedian(memberPeakWinds, 0),
+      humidity_pct: mean(humids, 50),
+      dewpoint_c: mean(dewpoints, 0),
+      shortwave_wm2: mean(shortwaves, 0),
+    })
+  }
+
+  return days
+}
+
 export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult {
   const times: string[] = toStringArray(hourly['time'])
   const dateIndex = buildDateIndex(times)
@@ -275,15 +364,14 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
       .filter((entry) => entry.arrays.length > 0)
 
   const precipByModel = byVariable('precipitation')
-  const flatten = (variable: string): (number | null)[][] =>
-    byVariable(variable).flatMap((entry) => entry.arrays)
+  const tempByModel = byVariable('temperature_2m')
+  const windByModel = byVariable('windspeed_10m')
+  const humidByModel = byVariable('relativehumidity_2m')
+  const dewpointByModel = byVariable('dewpoint_2m')
+  const shortwaveByModel = byVariable('shortwave_radiation')
 
-  const precipArrs = precipByModel.flatMap((entry) => entry.arrays)
-  const tempArrs = flatten('temperature_2m')
-  const windArrs = flatten('windspeed_10m')
-  const humidArrs = flatten('relativehumidity_2m')
-  const dewpointArrs = flatten('dewpoint_2m')
-  const shortwaveArrs = flatten('shortwave_radiation')
+  const flatten = (entries: ModelArrays[]): (number | null)[][] =>
+    entries.flatMap((entry) => entry.arrays)
 
   /**
    * **What was actually read, never what was asked for.**
@@ -302,47 +390,56 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
    */
   const model_sources: string[] = precipByModel.map((entry) => entry.model)
 
-  const days: DailyForecast[] = []
+  const days = computeDays(dates, dateIndex, {
+    precip: flatten(precipByModel),
+    temp: flatten(tempByModel),
+    wind: flatten(windByModel),
+    humid: flatten(humidByModel),
+    dewpoint: flatten(dewpointByModel),
+    shortwave: flatten(shortwaveByModel),
+  })
 
-  for (const date of dates) {
-    const indices = dateIndex.get(date) ?? []
-    if (indices.length === 0) continue
+  /**
+   * The same reduction run per model, so a caller can say **which** models
+   * disagree rather than only that the pooled spread is wide.
+   *
+   * A model is included only when it yielded members for all six variables.
+   * `computeDays` falls back to 0 / 50 for a variable with no members — correct
+   * for the pooled case, where the alternative is no row at all, but for one
+   * model it would put a fabricated 0 °C high under that model's name. Models
+   * that fail the test are named in `partial_models` instead of vanishing.
+   */
+  const arraysFor = (entries: ModelArrays[], model: string): (number | null)[][] =>
+    entries.find((e) => e.model === model)?.arrays ?? []
 
-    // Daily precip total per member, pooled across models → percentiles. The
-    // p10/p90 spread is what `confidenceFromSpread` reads, so a genuine
-    // multi-model disagreement now shows up as lower confidence instead of
-    // being hidden behind one model's internal agreement.
-    const memberDailySums: number[] = precipArrs.map((vals) =>
-      indices.reduce((acc, i) => acc + (vals[i] ?? 0), 0),
-    )
-    memberDailySums.sort((a, b) => a - b)
+  const by_model: EnsembleModelDays[] = []
+  const partial_models: string[] = []
 
-    const memberHighs = perMemberDaily(tempArrs, indices, (v) => Math.max(...v))
-    const memberLows = perMemberDaily(tempArrs, indices, (v) => Math.min(...v))
-    const memberPeakWinds = perMemberDaily(windArrs, indices, (v) => Math.max(...v))
-
-    const humids = allHourlyValues(humidArrs, indices)
-    const dewpoints = allHourlyValues(dewpointArrs, indices)
-    const shortwaves = allHourlyValues(shortwaveArrs, indices)
-
-    days.push({
-      date,
-      precip_mm_p10: computePercentile(memberDailySums, 10),
-      precip_mm_p50: computePercentile(memberDailySums, 50),
-      precip_mm_p90: computePercentile(memberDailySums, 90),
-      temp_c_min: ensembleMedian(memberLows, 0),
-      temp_c_max: ensembleMedian(memberHighs, 0),
-      wind_kmh_max: ensembleMedian(memberPeakWinds, 0),
-      humidity_pct: mean(humids, 50),
-      dewpoint_c: mean(dewpoints, 0),
-      shortwave_wm2: mean(shortwaves, 0),
+  for (const entry of precipByModel) {
+    const model = entry.model
+    const arrs: MemberArrays = {
+      precip: entry.arrays,
+      temp: arraysFor(tempByModel, model),
+      wind: arraysFor(windByModel, model),
+      humid: arraysFor(humidByModel, model),
+      dewpoint: arraysFor(dewpointByModel, model),
+      shortwave: arraysFor(shortwaveByModel, model),
+    }
+    if (Object.values(arrs).some((a) => a.length === 0)) {
+      partial_models.push(model)
+      continue
+    }
+    by_model.push({
+      model,
+      member_count: entry.arrays.length,
+      days: computeDays(dates, dateIndex, arrs),
     })
   }
 
   // Offset is filled in by the caller, which is the only place the envelope is
   // visible. `parseEnsemble` is given `hourly` alone so it stays directly
   // testable against a fixture.
-  return { days, model_sources, utc_offset_seconds: 0 }
+  return { days, model_sources, by_model, partial_models, utc_offset_seconds: 0 }
 }
 
 function applyLapseRate(
@@ -365,7 +462,7 @@ function applyLapseRate(
  * @throws {Error} on HTTP failure after exhausting fetchWithRetry's 4 attempts, or
  * immediately on a non-retryable non-ok status. No internal fallback — callers must catch.
  */
-export async function fetchEnsemble(location: ForecastLocation): Promise<OpenMeteoResult> {
+function buildEnsembleUrl(location: ForecastLocation): URL {
   const url = new URL(ENSEMBLE_URL)
   url.searchParams.set('latitude', String(location.lat))
   url.searchParams.set('longitude', String(location.lon))
@@ -385,6 +482,11 @@ export async function fetchEnsemble(location: ForecastLocation): Promise<OpenMet
    * `GET /preview`, where there is no saved row to read a timezone from.
    */
   url.searchParams.set('timezone', 'auto')
+  return url
+}
+
+export async function fetchEnsemble(location: ForecastLocation): Promise<OpenMeteoResult> {
+  const url = buildEnsembleUrl(location)
 
   logger.debug({ lat: location.lat, lon: location.lon }, '[openMeteo] fetching ensemble forecast')
 
@@ -575,4 +677,592 @@ export async function fetchArchivePrecip(
     out.push({ date, precip_mm: mm })
   }
   return out
+}
+
+// ---------------------------------------------------------------------------
+// Deterministic hourly — the data layer behind the bot's per-model tables.
+// ---------------------------------------------------------------------------
+
+/**
+ * The deterministic models the bot offers, spelled exactly as
+ * `.claude/docs/model-matrix.md` measured them.
+ *
+ * **These are not the ensemble spellings.** The ensemble runs
+ * `icon_seamless_eps` and `gem_global`; the deterministic `/v1/forecast`
+ * endpoint runs `icon_seamless` and `gem_seamless`. One list for both is how a
+ * model gets fetched and silently ignored.
+ */
+export const GLOBAL_DETERMINISTIC_MODELS = [
+  'gfs_seamless',
+  'ecmwf_ifs025',
+  'icon_seamless',
+  'gem_seamless',
+] as const
+
+/** CONUS-only. Outside their domain the API answers 400, never nulls. */
+export const CONUS_DETERMINISTIC_MODELS = ['ncep_hrrr_conus', 'ncep_nbm_conus'] as const
+
+export const DETERMINISTIC_MODELS = [
+  ...GLOBAL_DETERMINISTIC_MODELS,
+  ...CONUS_DETERMINISTIC_MODELS,
+] as const
+
+export type DeterministicModel = (typeof DETERMINISTIC_MODELS)[number]
+
+/**
+ * Every hourly variable the deterministic fetch asks for, in the spelling the
+ * `/v1/forecast` endpoint uses (`dew_point_2m`, not the ensemble endpoint's
+ * `dewpoint_2m`). Each one is a measured column in the model matrix — asking for
+ * a name a model rejects fails the **whole** request, not that column.
+ */
+const DETERMINISTIC_HOURLY_VARS = [
+  'temperature_2m',
+  'dew_point_2m',
+  'relative_humidity_2m',
+  'precipitation',
+  'wind_speed_10m',
+  'wind_gusts_10m',
+  'wind_direction_10m',
+  'cloud_cover',
+  'precipitation_probability',
+  'surface_pressure',
+] as const
+
+/** One hour of one model's deterministic output. Every field is nullable on purpose. */
+export type HourlyPoint = {
+  /**
+   * Local wall-clock time exactly as Open-Meteo returned it under
+   * `timezone=auto` — `YYYY-MM-DDTHH:mm`, with no zone designator. Pair it with
+   * `utc_offset_seconds` through `localTimeToUtc` before storing or comparing.
+   */
+  valid_at_local: string
+  temp_c: number | null
+  dewpoint_c: number | null
+  humidity_pct: number | null
+  precip_mm: number | null
+  wind_kmh: number | null
+  wind_gust_kmh: number | null
+  wind_dir_deg: number | null
+  cloud_pct: number | null
+  precip_prob_pct: number | null
+  pressure_hpa: number | null
+}
+
+export type ModelHourly = {
+  model: string
+  hours: HourlyPoint[]
+  /**
+   * **True when this model's `precipitation_probability` series is byte-identical
+   * to another model's in the same response**, which means at most one of them is
+   * that model's own field and neither can be attributed.
+   *
+   * Probe A measured exactly this for `ncep_hrrr_conus` and `ncep_nbm_conus`:
+   * identical arrays, running 276h against HRRR's 54h horizon. A renderer must
+   * not head a probability column with a model name when this is set — that is
+   * the attribution defect (`defect-patterns.md` section 3), and it is derived
+   * here rather than hardcoded because which models share a series is an
+   * upstream decision that can change.
+   */
+  probability_is_shared: boolean
+}
+
+export type DeterministicResult = {
+  models: ModelHourly[]
+  /**
+   * Requested models that returned no series at this point — the coverage signal
+   * Phase 3's model row is built from. **Named, never dropped**: a silently
+   * omitted model makes a table look like it read everything it asked for.
+   */
+  unavailable_models: string[]
+  utc_offset_seconds: number
+  /** The elevation Open-Meteo resolved for the point — one value for the whole request, not per model. */
+  model_elevation_m: number | null
+  /**
+   * When this was fetched. **Not a run initialization time** — Probe A found the
+   * API exposes none, so a header may say "fetched 14:05Z" and never "12Z run".
+   */
+  fetched_at: Date
+}
+
+type DeterministicResponse = {
+  utc_offset_seconds?: number
+  elevation?: number
+  hourly?: Record<string, unknown>
+}
+
+/**
+ * Convert a local wall-clock timestamp from a `timezone=auto` response into the
+ * real UTC instant.
+ *
+ * Open-Meteo returns `2026-09-01T12:00` with no zone: parsing it directly is
+ * implementation-defined, and parsing it as UTC is wrong by the offset. Reading
+ * it as UTC and then subtracting the offset is the exact inverse of what
+ * `localDateString` does, so a value stored through here and a day bucketed by
+ * Open-Meteo describe the same instant.
+ *
+ * Returns null rather than an `Invalid Date` for an unparseable string — a
+ * malformed slot is a gap, and a gap that becomes the epoch is a fabricated
+ * measurement.
+ */
+export function localTimeToUtc(local: string, utcOffsetSeconds: number): Date | null {
+  if (!local) return null
+  const asUtc = Date.parse(`${local}Z`)
+  if (!Number.isFinite(asUtc)) return null
+  const offset = Number.isFinite(utcOffsetSeconds) ? utcOffsetSeconds : 0
+  return new Date(asUtc - offset * 1000)
+}
+
+/**
+ * Group one model's hourly arrays into per-hour points.
+ *
+ * `suffix` is empty when the response came back unsuffixed — see
+ * `parseDeterministicHourly` for when that happens and why it is only safe for a
+ * single-model request.
+ */
+function hoursForModel(
+  hourly: Record<string, unknown>,
+  times: string[],
+  suffix: string,
+): HourlyPoint[] {
+  const col = (variable: string): (number | null)[] =>
+    toNullableNumberArray(hourly, `${variable}${suffix}`)
+
+  const temp = col('temperature_2m')
+  const dew = col('dew_point_2m')
+  const rh = col('relative_humidity_2m')
+  const precip = col('precipitation')
+  const wind = col('wind_speed_10m')
+  const gust = col('wind_gusts_10m')
+  const dir = col('wind_direction_10m')
+  const cloud = col('cloud_cover')
+  const pop = col('precipitation_probability')
+  const pressure = col('surface_pressure')
+
+  const out: HourlyPoint[] = []
+  for (let i = 0; i < times.length; i++) {
+    const valid_at_local = times[i]
+    if (!valid_at_local) continue
+    out.push({
+      valid_at_local,
+      // Nullish to null, never to 0: past a model's own horizon these arrays are
+      // shorter than `time`, and a missing hour that reads as 0 is a temperature
+      // of 0 degrees and a wind of 0 km/h that nothing can tell from a
+      // measurement (`defect-patterns.md` section 1).
+      temp_c: temp[i] ?? null,
+      dewpoint_c: dew[i] ?? null,
+      humidity_pct: rh[i] ?? null,
+      precip_mm: precip[i] ?? null,
+      wind_kmh: wind[i] ?? null,
+      wind_gust_kmh: gust[i] ?? null,
+      wind_dir_deg: dir[i] ?? null,
+      cloud_pct: cloud[i] ?? null,
+      precip_prob_pct: pop[i] ?? null,
+      pressure_hpa: pressure[i] ?? null,
+    })
+  }
+  return out
+}
+
+/** Which requested models the response actually carries a suffixed column for. */
+function suffixedModels(hourly: Record<string, unknown>, requested: readonly string[]): string[] {
+  const keys = new Set(Object.keys(hourly))
+  return requested.filter((model) =>
+    DETERMINISTIC_HOURLY_VARS.some((variable) => keys.has(`${variable}_${model}`)),
+  )
+}
+
+function hasUnsuffixedColumns(hourly: Record<string, unknown>): boolean {
+  const keys = new Set(Object.keys(hourly))
+  return DETERMINISTIC_HOURLY_VARS.some((variable) => keys.has(variable))
+}
+
+export type ParsedDeterministic = {
+  models: ModelHourly[]
+  unavailable: string[]
+  /**
+   * True when the response cannot be attributed to the models that were
+   * requested, so the caller must re-ask one model at a time.
+   */
+  ambiguous: boolean
+}
+
+/**
+ * Attribute a multi-model `/v1/forecast` response to the models that were asked for.
+ *
+ * **Measured 2026-08-31, and it is the trap in this endpoint:** Open-Meteo
+ * suffixes hourly keys with the model name (`temperature_2m_gfs_seamless`) only
+ * while **more than one** requested model has coverage at the point. Ask for
+ * `gfs_seamless,ncep_hrrr_conus` in Chamonix and the answer is a **200** whose
+ * only key is a bare `temperature_2m` — HRRR is dropped with no mention of it,
+ * and the surviving series is unlabelled. Ask for `ncep_hrrr_conus` alone there
+ * and the whole request is a 400.
+ *
+ * So a bare column is attributable only when exactly one model was requested.
+ * Anything else is reported `ambiguous` and re-asked per model, which costs
+ * extra requests only in the degraded case.
+ */
+export function parseDeterministicHourly(
+  hourly: Record<string, unknown>,
+  requested: readonly string[],
+): ParsedDeterministic {
+  const times = toStringArray(hourly['time'])
+  const withSuffix = suffixedModels(hourly, requested)
+
+  if (withSuffix.length === 0) {
+    if (!hasUnsuffixedColumns(hourly)) {
+      return { models: [], unavailable: [...requested], ambiguous: false }
+    }
+    const only = requested.length === 1 ? requested[0] : undefined
+    if (only === undefined) return { models: [], unavailable: [], ambiguous: true }
+    return {
+      models: [
+        { model: only, hours: hoursForModel(hourly, times, ''), probability_is_shared: false },
+      ],
+      unavailable: [],
+      ambiguous: false,
+    }
+  }
+
+  const models: ModelHourly[] = withSuffix.map((model) => ({
+    model,
+    hours: hoursForModel(hourly, times, `_${model}`),
+    probability_is_shared: false,
+  }))
+
+  return {
+    models,
+    unavailable: requested.filter((m) => !withSuffix.includes(m)),
+    ambiguous: false,
+  }
+}
+
+/**
+ * Mark every model whose probability series is byte-identical to another's.
+ *
+ * Two independent models agreeing on several hundred integers to the digit does
+ * not happen; a shared upstream series does, and Probe A caught it. Comparing
+ * the values is what makes this a measurement rather than a hardcoded list of
+ * the two models that happened to share it on the day the probe ran.
+ *
+ * A model with no probability values at all is left unmarked — an absent series
+ * is not a shared one, and it already renders as a gap.
+ */
+export function markSharedProbability(models: ModelHourly[]): void {
+  const seen = new Map<string, string[]>()
+  for (const m of models) {
+    const values = m.hours.map((h) => h.precip_prob_pct)
+    if (values.every((v) => v === null)) continue
+    const key = JSON.stringify(values)
+    const bucket = seen.get(key)
+    if (bucket) bucket.push(m.model)
+    else seen.set(key, [m.model])
+  }
+  const shared = new Set<string>()
+  for (const bucket of seen.values()) {
+    if (bucket.length > 1) for (const model of bucket) shared.add(model)
+  }
+  for (const m of models) m.probability_is_shared = shared.has(m.model)
+}
+
+const NO_COVERAGE_REASON = 'No data is available for this location'
+
+function buildDeterministicUrl(
+  location: ForecastLocation,
+  models: readonly string[],
+  forecastDays: number,
+): URL {
+  const url = new URL(FORECAST_URL)
+  url.searchParams.set('latitude', String(location.lat))
+  url.searchParams.set('longitude', String(location.lon))
+  url.searchParams.set('models', models.join(','))
+  url.searchParams.set('hourly', DETERMINISTIC_HOURLY_VARS.join(','))
+  url.searchParams.set('forecast_days', String(forecastDays))
+  // Same reason as the ensemble call (issue #33): local days resolved from the
+  // coordinates, so hour buckets and day buckets agree across every fetch here.
+  url.searchParams.set('timezone', 'auto')
+  return url
+}
+
+type DeterministicFetch = { kind: 'ok'; body: DeterministicResponse } | { kind: 'no-coverage' }
+
+/**
+ * One `/v1/forecast` request.
+ *
+ * A 400 whose reason is the coverage message is **not** an error: it is how the
+ * API says none of these models reaches this point, and it is the only way it
+ * says so. Every other non-ok status throws, as everywhere else in this file.
+ */
+async function requestDeterministic(
+  location: ForecastLocation,
+  models: readonly string[],
+  forecastDays: number,
+): Promise<DeterministicFetch> {
+  const url = buildDeterministicUrl(location, models, forecastDays)
+  const res = await fetchWithRetry(url.toString())
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    if (res.status === 400 && body.includes(NO_COVERAGE_REASON)) {
+      logger.debug(
+        { models: models.join(','), lat: location.lat, lon: location.lon },
+        '[openMeteo] no coverage for requested models',
+      )
+      return { kind: 'no-coverage' }
+    }
+    logger.debug(
+      { statusCode: res.status, body: body.slice(0, 200) },
+      '[openMeteo] deterministic error response',
+    )
+    throw new Error(`Open-Meteo forecast API returned ${res.status}`)
+  }
+
+  return { kind: 'ok', body: (await res.json()) as DeterministicResponse }
+}
+
+function offsetOf(body: DeterministicResponse): number {
+  return typeof body.utc_offset_seconds === 'number' && Number.isFinite(body.utc_offset_seconds)
+    ? body.utc_offset_seconds
+    : 0
+}
+
+function elevationOf(body: DeterministicResponse): number | null {
+  return typeof body.elevation === 'number' && Number.isFinite(body.elevation)
+    ? body.elevation
+    : null
+}
+
+/**
+ * Fetch hourly deterministic output for a set of models at one point.
+ *
+ * Retains the hourly series rather than reducing it to daily values — that is
+ * the whole point of this function, and why it exists alongside `fetchEnsemble`,
+ * which scoring keeps consuming unchanged.
+ *
+ * **The upstream payload is not carried out.** Every variable requested becomes
+ * a column on `HourlyPoint`, so the parsed hours lose nothing a re-derivation
+ * would need — unlike the ensemble, where 143 members collapse into three
+ * percentiles. Returning it would mean a multi-model response stored once per
+ * model, six times over, to preserve nothing.
+ *
+ * @throws {Error} on an HTTP failure that is not the coverage 400.
+ */
+export async function fetchDeterministicHourly(
+  location: ForecastLocation,
+  models: readonly string[] = DETERMINISTIC_MODELS,
+  forecastDays = 7,
+): Promise<DeterministicResult> {
+  const fetched_at = new Date()
+  const empty = {
+    models: [] as ModelHourly[],
+    utc_offset_seconds: 0,
+    model_elevation_m: null,
+    fetched_at,
+  }
+  if (models.length === 0) return { ...empty, unavailable_models: [] }
+
+  const first = await requestDeterministic(location, models, forecastDays)
+  if (first.kind === 'no-coverage') return { ...empty, unavailable_models: [...models] }
+
+  const parsed = parseDeterministicHourly(first.body.hourly ?? {}, models)
+
+  if (!parsed.ambiguous) {
+    markSharedProbability(parsed.models)
+    return {
+      models: parsed.models,
+      unavailable_models: parsed.unavailable,
+      utc_offset_seconds: offsetOf(first.body),
+      model_elevation_m: elevationOf(first.body),
+      fetched_at,
+    }
+  }
+
+  /**
+   * The degraded shape: one model survived and the response cannot say which.
+   * Re-ask each model on its own, where a bare column is unambiguous and a 400
+   * is a definite "does not reach here". `allSettled` so one model's transport
+   * failure does not lose the models that answered — the same rule as
+   * `runAlertsCheck`.
+   */
+  logger.debug(
+    { models: models.join(',') },
+    '[openMeteo] unsuffixed multi-model response — re-asking per model',
+  )
+
+  const settled = await Promise.allSettled(
+    models.map(async (model) => ({
+      model,
+      result: await requestDeterministic(location, [model], forecastDays),
+    })),
+  )
+
+  const out: ModelHourly[] = []
+  const unavailable: string[] = []
+  let offset = 0
+  let elevation: number | null = null
+
+  for (const entry of settled) {
+    if (entry.status === 'rejected') continue
+    const { model, result } = entry.value
+    if (result.kind === 'no-coverage') {
+      unavailable.push(model)
+      continue
+    }
+    offset = offsetOf(result.body)
+    elevation = elevationOf(result.body)
+    const one = parseDeterministicHourly(result.body.hourly ?? {}, [model])
+    out.push(...one.models)
+    unavailable.push(...one.unavailable)
+  }
+
+  markSharedProbability(out)
+  return {
+    models: out,
+    unavailable_models: unavailable,
+    utc_offset_seconds: offset,
+    model_elevation_m: elevation,
+    fetched_at,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Ensemble, hour by hour
+// ---------------------------------------------------------------------------
+
+/** One hour of the pooled ensemble. Percentiles are null when no member reported. */
+export type EnsembleHour = {
+  valid_at_local: string
+  precip_mm_p10: number | null
+  precip_mm_p50: number | null
+  precip_mm_p90: number | null
+  temp_c_p10: number | null
+  temp_c_p50: number | null
+  temp_c_p90: number | null
+  wind_kmh_p10: number | null
+  wind_kmh_p50: number | null
+  wind_kmh_p90: number | null
+  /** Members reporting precipitation at this hour — the count falls as models drop out. */
+  member_count: number
+  /** The same count split by model, so a reader can say which models still reach this hour. */
+  model_member_counts: Record<string, number>
+}
+
+/**
+ * A percentile over the members that actually reported.
+ *
+ * `computePercentile` answers 0 for an empty array, which past a model's horizon
+ * reads as "0 mm of rain, 0 degrees, 0 km/h" rather than "no members left" — the
+ * null-as-a-plausible-value defect. This never returns a number it did not
+ * compute.
+ */
+function percentileOrNull(values: number[], p: number): number | null {
+  if (values.length === 0) return null
+  return computePercentile([...values].sort((a, b) => a - b), p)
+}
+
+function valuesAtHour(arrays: (number | null)[][], i: number): number[] {
+  const out: number[] = []
+  for (const vals of arrays) {
+    const v = vals[i]
+    if (v !== null && v !== undefined) out.push(v)
+  }
+  return out
+}
+
+/**
+ * Per-hour percentiles across every ensemble member, pooled over all four models.
+ *
+ * **Hourly percentiles must never be reused as daily figures.** `temp_c_max`
+ * stays the median of each member's own daily extreme (`ensembleMedian`); the
+ * p90 of one hour is a different statistic, and confusing the two is how a
+ * 143-member median of 99F once reached the screen as 102F.
+ */
+export function parseEnsembleHourly(hourly: Record<string, unknown>): EnsembleHour[] {
+  const times = toStringArray(hourly['time'])
+  const allKeys = Object.keys(hourly)
+
+  const byModel = (variable: string): { model: string; arrays: (number | null)[][] }[] =>
+    Object.entries(ENSEMBLE_MODEL_SUFFIXES)
+      .map(([model, suffix]) => ({
+        model,
+        arrays: memberArraysFor(hourly, allKeys, variable, suffix),
+      }))
+      .filter((entry) => entry.arrays.length > 0)
+
+  const precipByModel = byModel('precipitation')
+  const precipArrs = precipByModel.flatMap((e) => e.arrays)
+  const tempArrs = byModel('temperature_2m').flatMap((e) => e.arrays)
+  const windArrs = byModel('windspeed_10m').flatMap((e) => e.arrays)
+
+  const out: EnsembleHour[] = []
+  for (let i = 0; i < times.length; i++) {
+    const valid_at_local = times[i]
+    if (!valid_at_local) continue
+
+    const precip = valuesAtHour(precipArrs, i)
+    const temp = valuesAtHour(tempArrs, i)
+    const wind = valuesAtHour(windArrs, i)
+
+    const model_member_counts: Record<string, number> = {}
+    for (const entry of precipByModel) {
+      const n = valuesAtHour(entry.arrays, i).length
+      if (n > 0) model_member_counts[entry.model] = n
+    }
+
+    out.push({
+      valid_at_local,
+      precip_mm_p10: percentileOrNull(precip, 10),
+      precip_mm_p50: percentileOrNull(precip, 50),
+      precip_mm_p90: percentileOrNull(precip, 90),
+      temp_c_p10: percentileOrNull(temp, 10),
+      temp_c_p50: percentileOrNull(temp, 50),
+      temp_c_p90: percentileOrNull(temp, 90),
+      wind_kmh_p10: percentileOrNull(wind, 10),
+      wind_kmh_p50: percentileOrNull(wind, 50),
+      wind_kmh_p90: percentileOrNull(wind, 90),
+      member_count: precip.length,
+      model_member_counts,
+    })
+  }
+  return out
+}
+
+export type EnsembleRun = {
+  daily: OpenMeteoResult
+  hours: EnsembleHour[]
+  fetched_at: Date
+  /** The upstream payload, for the 48h raw retention. Never log or serialise this. */
+  raw: unknown
+}
+
+/**
+ * Fetch the ensemble once and keep **both** reductions — the daily figures
+ * scoring already consumes, and the hourly percentiles the bot's spread views
+ * need.
+ *
+ * Separate from `fetchEnsemble` so the per-request scoring path does not pay for
+ * 384 hours of sorting it never reads.
+ *
+ * @throws {Error} on HTTP failure, exactly as `fetchEnsemble` does.
+ */
+export async function fetchEnsembleRun(location: ForecastLocation): Promise<EnsembleRun> {
+  const fetched_at = new Date()
+  const res = await fetchWithRetry(buildEnsembleUrl(location).toString())
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    logger.debug(
+      { statusCode: res.status, body: body.slice(0, 200) },
+      '[openMeteo] ensemble error response',
+    )
+    throw new Error(`Open-Meteo ensemble API returned ${res.status}`)
+  }
+
+  const raw = (await res.json()) as EnsembleResponse
+  const daily = parseEnsemble(raw.hourly)
+  applyLapseRate(daily.days, location.elevation_m, raw.elevation)
+  daily.utc_offset_seconds =
+    typeof raw.utc_offset_seconds === 'number' && Number.isFinite(raw.utc_offset_seconds)
+      ? raw.utc_offset_seconds
+      : 0
+
+  return { daily, hours: parseEnsembleHourly(raw.hourly), fetched_at, raw }
 }
