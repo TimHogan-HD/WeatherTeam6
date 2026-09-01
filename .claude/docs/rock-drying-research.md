@@ -4,7 +4,7 @@ Research notes for improving the drying model. **This document does not change t
 scoring algorithm.** `.claude/docs/scoring-algorithm.md` is agreed and locked; §7 below
 is a *proposal* that needs explicit approval before any of it reaches code.
 
-Last updated: 2026-09-01 (fifteenth pass: §9.6 — meteoblue agreement encoding, and elevation bands as the answer to Sinks Canyon)
+Last updated: 2026-09-01 (sixteenth pass: §9.7 — terrain shading precomputes per location, the best value-to-disruption ratio in §9)
 
 ## How to read the confidence markers
 
@@ -1611,6 +1611,53 @@ rate — measured spatial variability over 15 °C at 15-minute intervals — so 
 is a reasonable default and a poor description of exactly the canyon crags this pattern would
 serve.
 
+### 9.7 Terrain shading — the input both leaders have, and it precomputes
+
+Both CragReport (terrain shading, "face/terrain shading when the sun is behind the wall") and
+Climbit ("terrain-based shade") model **cast shadow from surrounding terrain**, not just the
+wall's own aspect. The distinction is real and it matters most at exactly the crags this document
+keeps returning to: *"many simpler implementations approximate solar exposure from aspect alone,
+ignoring the cast shadows from adjacent terrain"*
+([Mapscaping](https://mapscaping.com/solar-analysis-hunting-slopes/)). **In a canyon, the opposite
+wall governs the sun more than the crag's own bearing does** — Rifle, Clear Creek, Sinks,
+Spearfish, Willow River and Frenchman Coulee are all canyons.
+
+**The quantities and how they are computed.** From a DEM you derive slope, aspect, a **horizon
+angle per azimuth**, and a **sky view factor**; the fraction of light an inclined surface
+intercepts is the cosine of the angle between the surface normal and the sun direction, so a
+shadow map and a **correction factor for downwelling direct shortwave** follow for any sun
+position ([HORAYZON](https://github.com/ChristianSteger/HORAYZON),
+[Corripio, vectorial algebra for terrain insolation](https://meteoexploration.com/R/insol/data/Corripio03_IJGIS.pdf)).
+
+Two of those map onto findings already in this document:
+
+- **The horizon profile is the aspect term.** Open-Meteo's `shortwave_radiation` — which §5.1
+  confirmed is already fetched and stored as `shortwave_wm2` — is a **grid-cell** value that
+  knows nothing about the wall. The horizon profile is precisely the correction factor to apply
+  to it. That closes the gap §5.1 identified without a new data source.
+- **Sky view factor is the sky-cooling term from §5.2.** CragReport models clear skies cooling a
+  wall more than cloudy ones; a canyon with a low sky view factor radiates to less sky, cools
+  less at night, and therefore condenses less — which is the §2.5 condensation mechanism with a
+  topographic control on it.
+
+**Free data exists.** SRTM 30 m (USGS `SRTMGL1_003`), SRTM 90 m (CGIAR), ALOS World 3D, and
+OpenTopography's API with a free key
+([GIS Geography](https://gisgeography.com/free-global-dem-data-sources/),
+[OpenTopography via Mapscaping](https://mapscaping.com/global-elevation-data-download-tool/)).
+
+**And the architectural point, which is the reason this is worth recording at all: a horizon
+profile is a property of a fixed point, so it precomputes once and never changes.** That matters
+because `.claude/rules/architecture.md` is explicit that there is no queue, the API is a single
+serverless function, and `fetchWithRetry` sleeps 1+2+4 s so per-request upstream work is already
+tight against `maxDuration: 60`. A per-request DEM fetch and ray-trace is out of the question.
+Computing the horizon once **when a location is saved** — in the `POST /locations` path or a
+`check:*`-style script — and storing, say, 16 or 36 horizon angles on the row, is a small, bounded,
+cacheable change that fits the existing shape. The expensive part happens once per crag, ever.
+
+That makes terrain shading materially cheaper to adopt than the per-location seepage and access
+knowledge in §4.13, which cannot be computed at all. Of everything in §9, this is the item with
+the best ratio of value to architectural disruption.
+
 ## Sources
 
 Peer-reviewed and technical:
@@ -1852,3 +1899,11 @@ Fifteenth pass — meteoblue and mountain-forecast patterns (§9.6):
 [meteoblue — MultiModel Ensemble](https://content.meteoblue.com/en/private-customers/website-help/forecast/multimodel-ensemble) ·
 [meteoblue — MultiModel meteogram improvements](https://www.meteoblue.com/en/blog/article/show/40341_MultiModel+Meteogram+Improvements) ·
 [mountain-forecast.com](https://www.mountain-forecast.com/)
+
+Sixteenth pass — terrain shading (§9.7):
+[HORAYZON — horizon, sky view factor and shadow maps from DEM](https://github.com/ChristianSteger/HORAYZON) ·
+[Corripio — vectorial algebra algorithms for terrain insolation](https://meteoexploration.com/R/insol/data/Corripio03_IJGIS.pdf) ·
+[GIS Geography — free global DEM sources](https://gisgeography.com/free-global-dem-data-sources/) ·
+[USGS SRTMGL1_003 30 m](https://developers.google.com/earth-engine/datasets/catalog/USGS_SRTMGL1_003) ·
+[OpenTopography download tool](https://mapscaping.com/global-elevation-data-download-tool/) ·
+[Mapscaping — solar analysis and cast shadow](https://mapscaping.com/solar-analysis-hunting-slopes/)
