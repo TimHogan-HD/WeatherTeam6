@@ -4,7 +4,7 @@ Research notes for improving the drying model. **This document does not change t
 scoring algorithm.** `.claude/docs/scoring-algorithm.md` is agreed and locked; §7 below
 is a *proposal* that needs explicit approval before any of it reaches code.
 
-Last updated: 2026-09-01 (third pass: §4.9 adds a US regional survey — MN, WI, SD, WY, CO)
+Last updated: 2026-09-01 (fourth pass: §4.10 more US areas, §5.1 modifiers quantified — rock temperature, friction, chalk, lichen, cold-air pooling, tides)
 
 ## How to read the confidence markers
 
@@ -647,6 +647,75 @@ Garden of the Gods and the North Shore ban chalk; Palisade Head needs a permit a
 access; Willow River closes on Saturdays and restricts Fri/Sun (§4.7). A conditions score that
 says "excellent" for a day the crag is closed, or for a climber who cannot use chalk on a
 humid day, is answering a narrower question than the user asked [I].
+### 4.10 Further US areas, and two that break the model in new ways
+
+- **Fisher Towers, UT — the climbing surface is not the rock.** The towers are hard Cutler
+  sandstone capped by Moenkopi, **draped in mud curtains**; the rock is "actually very hard"
+  but what you climb is a thick mud layer, giving mud chimneys, bolts protruding inches from
+  erosion, and fixed slings drilled through rock
+  ([MP](https://www.mountainproject.com/area/105716787/fisher-towers),
+  [Wikipedia](https://en.wikipedia.org/wiki/Fisher_Towers)). A drying model keyed to rock type
+  is meaningless here — dried mud rehydrates on a completely different curve from the sandstone
+  under it [I]. The most extreme "rock type is the wrong variable" case in this document.
+- **Pinnacles NP, CA — volcanic breccia**, and the NPS says plainly it is **"very weak compared
+  to the granite and basalt of many climbing areas"**, brittle, loose on the West Side, with
+  many old or incorrectly installed bolts ([NPS](https://www.nps.gov/pinn/planyourvisit/climbadv.htm)).
+  A distinct class: angular fragments in a finer matrix, so like conglomerate the matrix governs.
+- **Frenchman Coulee / Vantage, WA** — columnar Columbia River basalt carved by the Ice Age
+  floods, 600+ routes, and explicitly **"one of Washington's great winter crags"**
+  ([MP](https://www.mountainproject.com/area/105792231/frenchman-coulee-vantage),
+  [WCC](https://washingtonclimbers.org/index.php/2015/10/13/vantage/)). Dense columnar basalt
+  as the wet-season option, exactly as §4.4 predicts.
+- **Big vs Little Cottonwood, UT — adjacent canyons, different rock.** Big Cottonwood is
+  **quartzite**, described as slippery and hard; Little Cottonwood is **quartz monzonite**
+  ([MP BCC](https://www.mountainproject.com/area/105739280/big-cottonwood-canyon),
+  [Visit Utah](https://www.visitutah.com/articles/where-to-climb-near-salt-lake)). Both dry
+  fast; both are friction-limited; they are not interchangeable.
+- **Cochise Stronghold, AZ — "plated granite."** The plates and chickenheads are the holds
+  ([Brice Pollock](https://www.bricepollock.com/wilderness-granite-plates-in-west-cochise-stronghold/)),
+  the same structural situation as the Needles' crystals: hold loss is a discrete feature
+  detaching, not surface spalling. **Queen Creek / Oak Flat** nearby is pocketed **volcanic
+  tuff** — a third welded-tuff datapoint after Smith Rock and Penitente
+  ([57hours](https://57hours.com/best-of/rock-climbing-arizona/)).
+- **Enchanted Rock, TX — an exfoliation dome**, emplaced 1,082 Ma, peeling in concentric
+  sheets like an onion as confining pressure is released
+  ([BEG, UT Austin](https://www.beg.utexas.edu/texas-through-time/enchanted-rock.html),
+  [Wikipedia](https://en.wikipedia.org/wiki/Enchanted_Rock)). Water gets *behind* exfoliation
+  sheets, so the drying-relevant volume is not the surface [I]. Granite domes generally
+  (City of Rocks, Wichitas, Stone Mountain) share this.
+- **Cathedral / Whitehorse, NH — humidity alone produces rain-equivalent conditions.** On
+  New England granite slabs, climbers report *"the biggest problem is heat and humidity; the
+  effect is very similar to climbing in the rain here... slick and slippery"*
+  ([UKC](https://www.ukclimbing.com/forums/destinations/whitehorsecathedral_ledges_new_hampshire-413031)).
+  Low-porosity rock, zero rainfall, unclimbable conditions — a precipitation-driven score
+  cannot see this at all.
+- **Carderock / Great Falls, MD-VA — mica schist**, "very slippery and not conducive to placing
+  solid trad gear" ([Potomac Mountain Club](https://potomacmountainclub.org/climbing-crags-beta/virginia-crags/great-falls-national-park-rocktr/)).
+  River-level dependent, and **NOAA publishes Potomac gauges**
+  ([water.noaa.gov](https://water.noaa.gov/gauges/gtnd2)) — a real data source for the
+  river-level input Willow River (§4.7) needs.
+- **NJ Palisades — diabase sill**, feldspar plus augite, salt-and-pepper, ~500 ft above the
+  Hudson ([NJGS](https://dep.nj.gov/wp-content/uploads/njgws/reports/ofreport/ofr92-1.pdf)).
+  Dense intrusive: 0.1–0.5% porosity per §3.
+- **Obed and Foster Falls, TN — Pennsylvanian sandstone**, hard and high quality
+  ([NPS Geodiversity Atlas](https://www.nps.gov/articles/nps-geodiversity-atlas-obed-wild-and-scenic-river-tennessee.htm)).
+  Community summary is precisely the shape this document keeps finding: *"can take a while to
+  dry after a storm, but the large overhanging roofs at Foster's keep some routes dry even in
+  the pouring rain."* Geometry beats rock type.
+- **Turkey Rocks, South Platte, CO** — bomber Pikes Peak granite, and the feature climbers
+  name first is a **"friendly southerly aspect"**
+  ([MP](https://www.mountainproject.com/area/105797943/turkey-rocks)). Aspect again.
+- **Mount Charleston, NV** — limestone, and the high-altitude summer counterpart to Red Rock.
+
+**The Red River Gorge shows that per-crag conditions metadata already exists commercially.**
+Guidebooks for the Red carry **per-crag icons for sun exposure and rain protection** alongside
+driving and walking times ([Wolverine Publishing](https://www.wolverinepublishing.com/shop-all-guidebooks/p/red-river-gorge-select)).
+And the community distinguishes crags at a fine grain: Bob Marley cave is *"surely one of the
+driest locations in the Red,"* with a breeze that keeps condensation away **"when other crags
+are beaded with water"** ([MP](https://www.mountainproject.com/area/106091151/bob-marley)).
+Two things follow. Condensation is crag-specific within one gorge on one day, so it cannot be
+derived from a grid-cell forecast. And the `seepage_prone` / rain-shelter flag proposed in §7
+is not a novel schema invention — **guidebook publishers already ship that field.**
 ## 5. Non-rock modifiers that frequently dominate the rock type
 
 Ranked by how often they decide the answer, most-often first:
@@ -674,6 +743,84 @@ Ranked by how often they decide the answer, most-often first:
 10. **Elevation** — already stored; affects temperature and therefore drying rate.
 
 ---
+
+### 5.1 The modifiers, quantified — and one that undercuts the score's temperature term
+
+Fourth-pass research put numbers on several of the modifiers above, and turned up three the
+list did not have at all.
+
+**Rock temperature is not air temperature, and the gap is large.** Long-term infrared
+thermography of a rock face measured surface temperatures from **−11.7 °C to +40.2 °C**, with
+change rates up to **+20 °C/hour** heating and **−13.7 °C/hour** cooling, and found the cliff
+**colder than air in winter and hotter in summer, with the extremes not aligned in time or in
+magnitude** [M]
+([JGR Earth Surface](https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2025JF008816),
+[solar-induced thermal stress](https://pages.charlotte.edu/eric-delmelle/wp-content/uploads/sites/150/2012/12/Deciphering-the-role-of-solar-induced-thermal-stresses-in-rock-weathering.pdf)).
+South-facing surfaces warmed ~1.3 °C in 15 minutes under changing cloud. Everything the score
+does with `temp_c` — the temperature component, the drying rate, and any future condensation
+check — is using a proxy that is demonstrably not the quantity of interest.
+
+**The score's optimal temperature band may be modelling comfort rather than friction.**
+Climbing rubber reaches maximum friction just below a molecular transition at roughly
+**0–5 °C (32–41 °F)**; below that it is too hard to conform to the rock, above it too soft and
+it deforms and slips [C]
+([Climbing](https://www.climbing.com/skills/science-friction-the-truth-behind-perfect-climbing-conditions/),
+[Tribonet](https://www.tribonet.org/news/friction-the-key-to-rock-climbing/)). Our temperature
+component awards full marks over **10–22 °C** and scales *down* above 22 °C only. Those are
+different claims: 10–22 °C is a pleasant day, 0–5 °C is when the shoe works best. This is a
+tension to resolve deliberately, not silently — a "conditions" score for climbing performance
+and a "comfort" score are not the same product, and the current curve is the latter wearing
+the former's name.
+
+**Chalk is hygroscopic, so humidity degrades it before it touches skin.** Climbing chalk is
+magnesium carbonate, which draws water from the air; in humid conditions the chalk in the bag
+absorbs moisture before use, and builds up unevenly on holds mixed with skin oils to give a
+polished, greasy feel [C]
+([FrictionLabs](https://shop.frictionlabs.com/blogs/climb-your-impossible/the-ultimate-climber-s-guide-for-using-chalk-in-any-condition)).
+Humidity therefore has a friction cost that is independent of both rainfall and rock moisture.
+Note the interaction with §4.9's access rules: at a chalk-banned crag (Garden of the Gods, the
+MN North Shore) a humid day cannot be mitigated at all.
+
+**Lichen is a moisture-tracking friction variable.** Wet lichen "turns on" and grows; dry
+lichen goes brittle and dormant [C]
+([MDC](https://mdc.mo.gov/discover-nature/field-guide/stippleback-lichens-dermatocarpon-lichens)).
+Crustose lichen is embedded in the rock and cannot be removed without removing rock
+([UKC](https://www.ukclimbing.com/forums/rock_talk/cleaning_moss_and_lichen_off_routes-599675)),
+so on shaded, damp, north-facing or seepy faces it is a permanent modifier rather than a
+transient one, and it worsens in exactly the conditions the drying model already flags.
+
+**Cold-air pooling breaks grid-cell temperature in canyons.** Radiative cooling drives dense
+air downslope into valleys and basins; measured spatial temperature variability exceeds
+**15 °C at 15-minute intervals**, with near-surface lapse rates steeper than the free-air rate
+[M] ([cold-air pooling](https://pmc.ncbi.nlm.nih.gov/articles/PMC10985370/),
+[UBC ATSC](https://www.eoas.ubc.ca/courses/atsc113/snow/met_concepts/06-met_concepts/06a-cold-air-pooling/)).
+Most crags in this document sit in canyons — Rifle, Clear Creek, Sinks, Spearfish, Boulder,
+Willow River, Taylors Falls, Frenchman Coulee — so this is the common case, not the exception.
+
+**Freeze–thaw is a countable daily cycle, not a season.** Ice wedging does its damage where
+nights fall below freezing and days rise above, so the damaging quantity is the **number of
+zero-crossings**, which is directly computable from the hourly forecast already stored
+([SLCC](https://slcc.pressbooks.pub/physicalgeography/chapter/5-1/)). Coastal measurement found
+freeze–thaw conditions present nearly six months of the year [M].
+
+**Tides and swell are an entire missing dimension for sea cliffs.** Tidal range reaches ~8 m at
+Pembroke; spring versus neap tides change *which routes exist* on a given day; swell swamps
+tidal platforms; and **salt spray greases the rock without any rain at all**, while chloride
+corrodes fixed gear [C]
+([UKC — judging sea cliff conditions](https://www.ukclimbing.com/forums/rock_talk/judging_sea_cliff_conditions-769275),
+[UKC — Pembroke](https://www.ukclimbing.com/articles/destinations/beginners_pembroke-10261)).
+Nothing in a precipitation-and-temperature model reaches any of it. Acadia, the MN North Shore,
+Gogarth, Swanage and Pembroke are all in this category.
+
+**Three data sources that would close gaps, all already reachable:**
+
+| Gap | Source | Status |
+| --- | --- | --- |
+| Aspect / solar exposure | `shortwave_radiation` | **Already fetched and stored** as `shortwave_wm2` (`openMeteo.ts`). The aspect term is blocked on geometry, not data. |
+| Antecedent wetness (§8.1) | Open-Meteo soil moisture | Available on the endpoint already called |
+| Snowmelt (Willow River, Wild Iris) | Open-Meteo snowfall / snow depth | Available but **model-dependent** — snow depth is missing from some models, and snowfall is water-equivalent at a fixed 1 mm : 7 cm factor |
+| River level (Willow River, Carderock) | NOAA water gauges | Public, per-gauge, US only |
+| Tides and swell (sea cliffs) | Not investigated | Would need a separate provider |
 
 ## 6. What this means for WeatherTeam6 — gap analysis
 
@@ -755,6 +902,7 @@ on a vertical wall, before the existing angle/wind/humidity modifiers.
 | `sandstone_eolian` (calcite/clay-cemented) | 36 | 96 | 50–75% strength loss; land-manager 24–48h is the floor, not the answer [M/C] |
 | `sandstone_soft` (weakly cemented) | 48 | 120 | Elbsandstein / Southern Sandstone class [C] |
 | `conglomerate` | 24 | 72 | Matrix-controlled and invisible from the surface [I] |
+| `volcanic_breccia` (Pinnacles-type) | 12 | 48 | Angular clasts in finer matrix; NPS calls it very weak vs granite/basalt [C] |
 | `unknown` | 48 | 120 | Must be the **most** conservative row, not a middle one |
 
 Four companion changes that the research says matter more than the table itself:
@@ -956,3 +1104,31 @@ US regional pass (§4.9):
 [ClimbingHouse — Shelf Road](https://climbinghouse.com/shelf-road-rock-guide/) ·
 [MP — Shelf Road](https://www.mountainproject.com/area/105744267/shelf-road) ·
 [MP — Clear Creek Canyon](https://www.mountainproject.com/area/105744243/clear-creek-canyon)
+
+Fourth pass — modifiers and further US areas (§4.10, §5.1):
+[JGR Earth Surface — rock face temperature from IR thermography](https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2025JF008816) ·
+[Solar-induced thermal stresses in rock weathering](https://pages.charlotte.edu/eric-delmelle/wp-content/uploads/sites/150/2012/12/Deciphering-the-role-of-solar-induced-thermal-stresses-in-rock-weathering.pdf) ·
+[Cold-air pooling drives forest composition](https://pmc.ncbi.nlm.nih.gov/articles/PMC10985370/) ·
+[UBC ATSC — cold air pooling](https://www.eoas.ubc.ca/courses/atsc113/snow/met_concepts/06-met_concepts/06a-cold-air-pooling/) ·
+[Climbing — science of friction and shoe rubber temperature](https://www.climbing.com/skills/science-friction-the-truth-behind-perfect-climbing-conditions/) ·
+[Tribonet — friction and rock climbing](https://www.tribonet.org/news/friction-the-key-to-rock-climbing/) ·
+[FrictionLabs — chalk in any condition](https://shop.frictionlabs.com/blogs/climb-your-impossible/the-ultimate-climber-s-guide-for-using-chalk-in-any-condition) ·
+[UKC — cleaning moss and lichen](https://www.ukclimbing.com/forums/rock_talk/cleaning_moss_and_lichen_off_routes-599675) ·
+[MDC — stippleback lichens](https://mdc.mo.gov/discover-nature/field-guide/stippleback-lichens-dermatocarpon-lichens) ·
+[SLCC — weathering and ice wedging](https://slcc.pressbooks.pub/physicalgeography/chapter/5-1/) ·
+[UKC — judging sea cliff conditions](https://www.ukclimbing.com/forums/rock_talk/judging_sea_cliff_conditions-769275) ·
+[UKC — beginners' Pembroke](https://www.ukclimbing.com/articles/destinations/beginners_pembroke-10261) ·
+[MP — Fisher Towers](https://www.mountainproject.com/area/105716787/fisher-towers) ·
+[NPS — Pinnacles climber safety advisory](https://www.nps.gov/pinn/planyourvisit/climbadv.htm) ·
+[MP — Frenchman Coulee](https://www.mountainproject.com/area/105792231/frenchman-coulee-vantage) ·
+[MP — Big Cottonwood Canyon](https://www.mountainproject.com/area/105739280/big-cottonwood-canyon) ·
+[Brice Pollock — plated granite, West Cochise](https://www.bricepollock.com/wilderness-granite-plates-in-west-cochise-stronghold/) ·
+[BEG UT Austin — Enchanted Rock](https://www.beg.utexas.edu/texas-through-time/enchanted-rock.html) ·
+[UKC — Whitehorse/Cathedral](https://www.ukclimbing.com/forums/destinations/whitehorsecathedral_ledges_new_hampshire-413031) ·
+[Potomac Mountain Club — Great Falls](https://potomacmountainclub.org/climbing-crags-beta/virginia-crags/great-falls-national-park-rocktr/) ·
+[NOAA — Potomac gauge](https://water.noaa.gov/gauges/gtnd2) ·
+[NJGS — Palisades Sill and Watchung Basalt](https://dep.nj.gov/wp-content/uploads/njgws/reports/ofreport/ofr92-1.pdf) ·
+[NPS Geodiversity Atlas — Obed](https://www.nps.gov/articles/nps-geodiversity-atlas-obed-wild-and-scenic-river-tennessee.htm) ·
+[MP — Bob Marley, RRG](https://www.mountainproject.com/area/106091151/bob-marley) ·
+[Wolverine Publishing — Red River Gorge Select](https://www.wolverinepublishing.com/shop-all-guidebooks/p/red-river-gorge-select) ·
+[MP — Turkey Rocks](https://www.mountainproject.com/area/105797943/turkey-rocks)
