@@ -312,8 +312,8 @@ describe('bar', () => {
   })
 
   it('fills proportionally between the ends', () => {
-    expect(bar(0, 0, 100, 10)).toBe('░░░░░░░░░░')
-    expect(bar(50, 0, 100, 10)).toBe('█████░░░░░')
+    expect(bar(0, 0, 100, 10)).toBe('          ')
+    expect(bar(50, 0, 100, 10)).toBe('█████     ')
     expect(bar(100, 0, 100, 10)).toBe('██████████')
   })
 

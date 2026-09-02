@@ -7,6 +7,8 @@ import {
   buildNoticePanel,
   buildRetryPanel,
   clockLabel,
+  OPEN_FIELDS,
+  PICK_VIEWS,
   weekdayLabel,
 } from './panels.js'
 import type { ConditionsReplyInput } from './conditionsMessage.js'
@@ -267,5 +269,59 @@ describe('buildAlertsPanel', () => {
     ])
     expect(panel.text).not.toContain('null')
     expect(panel.text).toContain('Wind Advisory')
+  })
+})
+
+describe('buildListPanel — the picker remembers what opened it', () => {
+  const choices = [{ id: '3f2504e0-4f89-41d3-9a0c-0305e82c3301', name: 'Willow River' }]
+
+  /**
+   * The defect this covers, reported from a real device: `/forecast` with no
+   * location opened a picker whose buttons all carried `loc`, which
+   * `applyAction` maps to `conditions`. Tapping your crag therefore landed on
+   * the conditions panel, and `/conditions`, `/forecast` and `/rain` appeared to
+   * do the same thing.
+   *
+   * The three pickers render the same list, so nothing but the button payload
+   * distinguishes them — which is exactly why it went unnoticed.
+   */
+  it('carries a different destination field per picker', () => {
+    const seen = new Map<string, string>()
+    for (const field of ['loc', 'locf', 'locr'] as const) {
+      const data = buildListPanel(STATE, choices, field).keyboard?.inline_keyboard[0]?.[0]
+      const payload = data && 'callback_data' in data ? data.callback_data : ''
+      seen.set(field, payload ?? '')
+      expect(payload).toContain(`${field}=`)
+    }
+    // Three distinct payloads. If two ever collide, two commands land in the
+    // same place again and no other assertion here would notice.
+    expect(new Set(seen.values()).size).toBe(3)
+  })
+
+  it('keeps every payload inside Telegram’s 64-byte ceiling', () => {
+    // `open:a1b2c3d4:locf=<36-char uuid>` is 55 bytes. A longer field name would
+    // silently drop the button rather than fail loudly.
+    for (const field of ['loc', 'locf', 'locr'] as const) {
+      const data = buildListPanel(STATE, choices, field).keyboard?.inline_keyboard[0]?.[0]
+      const payload = data && 'callback_data' in data ? (data.callback_data ?? '') : ''
+      expect(payload).not.toBe('')
+      expect(Buffer.byteLength(payload, 'utf8')).toBeLessThanOrEqual(64)
+    }
+  })
+
+  it('says where the tap will land, so the three pickers are not identical screens', () => {
+    expect(buildListPanel(STATE, choices, 'locf').text).toContain('Hour by hour')
+    expect(buildListPanel(STATE, choices, 'locr').text).toContain('Rain')
+    expect(buildListPanel(STATE, choices, 'loc').text).toContain('Your locations')
+  })
+
+  it('maps every picker view to a field, and every field to a view', () => {
+    // The two maps are the whole routing table. A view added to one and not the
+    // other is a picker whose buttons open the wrong panel.
+    for (const field of Object.values(PICK_VIEWS)) {
+      expect(Object.prototype.hasOwnProperty.call(OPEN_FIELDS, field)).toBe(true)
+    }
+    expect(Object.keys(PICK_VIEWS).sort()).toEqual(['list', 'pick_forecast', 'pick_rain'])
+    expect(Object.values(OPEN_FIELDS).sort()).toEqual(['conditions', 'forecast', 'rain'])
   })
 })

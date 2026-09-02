@@ -411,11 +411,11 @@ describe('buildRainPanel', () => {
     const panel = buildRainPanel(rainInput({ mode: 'advanced' }))
     // The same three numbers, headed as what they mean rather than as what they
     // are called, with the unit in the header instead of a sentence below it.
-    expect(panel.text).toContain('dry in')
-    expect(panel.text).toContain('mid in')
-    expect(panel.text).toContain('wet in')
+    expect(panel.text).toContain('least')
+    expect(panel.text).toContain('likely')
+    expect(panel.text).toContain('most')
     expect(panel.text).not.toContain('p90')
-    expect(panel.text).toContain('Dry/mid/wet')
+    expect(panel.text).toContain('If it rains, how much')
   })
 
   it('says the rainfall record failed rather than implying a dry spell', () => {
