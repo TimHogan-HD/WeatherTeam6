@@ -2335,3 +2335,134 @@ secret check is skipped and the forgeable `chat.id` is the only gate.
 - The always-loaded instruction budget rose to **~56,500 chars** with this session's five `architecture.md` invariants.
 
 **Does the user need to do anything?** **Yes — the same one command, now covering three migrations.** From `apps/api`, with `DATABASE_URL` set in the shell: `npm run db:migrate` applies `0007`, `0008` and `0009` together, then `npm run check:panel-state` and `npm run check:weather-runs`. Registering `/api/cron/collect-runs` and `/api/cron/prune-runs` with cron-job.org now has a reader and is worth doing. Unchanged: `npm run bot:set-commands` with `TELEGRAM_BOT_TOKEN` set — needed again, because `/forecast` and `/rain` are new entries in the command menu — and `TELEGRAM_WEBHOOK_SECRET` in Vercel plus a matching `setWebhook` re-run.
+
+---
+
+## 2026-09-02 — The chat interface was rebuilt in plain language, and the plan's product decision was reversed
+
+`main` @ `2208e59` (PR #76, squashed)
+
+**What prompted it:** the user opened with *"I really hate the look and feel of the telegram
+chat interface"* — no ask attached. The diagnosis was that nothing was broken: the panel was
+`.claude/docs/telegram-precision-interface-plan.md` working exactly as written. That doc's
+premise is *"the Mini App is the snapshot, **the bot is the instrument** … SpotWX-class
+precision — model-explicit, hourly, variable-rich — **not a glanceable summary**."* Phases
+1–3 delivered it: five keyboard rows, up to thirteen buttons under an eight-line table, a
+header of dot-separated metadata, two footnote sentences per view, `p10/p50/p90` as three of
+six columns on `/rain`.
+
+**The decision the user made**, over two rounds of questions: the bot answers the question,
+the Mini App carries the depth — but with *"some quick deeper forecasting ability in the
+chat"*, and *"this needs to be human readable and simple to understand for people who don't
+understand p10/p50/p90 — leave the heavy weather jargon out where possible, replace it with
+common language."* They chose a three-line answer, and Hourly + Rain as the two in-chat
+deeper views. **They were offered the seven-day glance and did not take it**, so it left chat
+for the Mini App; the hourly panel's day pager still walks the same week one day at a time.
+They also did not take in-chat model comparison.
+
+**Why this is recorded as a reversal, not a drift.** The plan doc is the approved spec and it
+says the opposite of what now ships. Its top box carries the reversal, § What it looks like is
+marked superseded, and the Panel-controls and command-surface rows are struck through. The
+measurements, traps and schema in it all still stand — only the interface decisions are
+superseded. **`/insight` (Phase 4, unbuilt) now needs re-specifying**: "model disagreement,
+ensemble distribution, outlier, confidence by lead time" is precisely the vocabulary this
+removed. `/afd` is unaffected and improves — it is a human forecaster writing plain English.
+
+**What the rebuild is, in one line each:**
+- Conditions: two button rows, an `📲 Open in app` deep link, no mode toggle. The text is
+  `formatConditionsReply` **unchanged** — it was already built to §7 and was never the part
+  that read badly.
+- Hourly: place and day in the header, four columns (`°F mph in sky`), the model named at the
+  foot rather than in the headline. No model row, no column-set picker.
+- Rain: leads with a sentence — *"Rain most likely around 9pm — 100% chance. Expect about
+  0.29 in over the day."* — over a two-column table of `chance` and `rain`.
+- One `⚙ More` per panel adds the detail tables, the step picker and the unit toggle.
+
+**Four defects, and where each came from.** Three were found by **rendering the panels
+against a live Open-Meteo fetch** — at Red Rock, and then at Bergen because Red Rock's week
+was too dry to exercise the wet copy. None was visible to typecheck, lint or 440 green tests:
+
+1. The rain panel drew eight rows of em dashes directly under *"No forecast reaches this day
+   yet."* Open-Meteo pads every model to the longest horizon in the request, so past the
+   ensemble's reach `buildRainDay` still emits eight rows, every value null — `rows.length`
+   was never 0. `rainDayHasData` is the check, and it is the lesson `dayHasData` had already
+   learned one file over.
+2. `membersLabel` returned a sentence where a noun phrase was needed, and the source line
+   rendered *"Based on no forecasts reach this day, just now."* It returns `null` now.
+3. `timingLine` keyed on `peak_odds_pct` alone. `members_wet` is nullable and null means
+   unknown, so a run stored before that column existed has real amounts and no chance — and
+   was reported as a day no forecast reached, above a table of those amounts.
+
+The fourth came from **the independent reviewer, and it is the most instructive one this
+repo has produced.** `buildNoticePanel`'s keyboard moved from `navRow` to `footerRow`, which
+carries no `🔄`; the webhook's copy still said *"Tap 🔄 to try again."* **Neither file was
+wrong on its own** — the copy lived in `telegramWebhook.ts` and the keyboard was built in
+`panels.ts`, so no single-file review could see it. `buildRetryPanel` now owns both, and
+drops the promise along with the button when the state id will not encode.
+
+Two more were caught by the **existing** 32-character width assertion: a nine-column detail
+table measures 50 characters and the rain spread bolted onto its table measured 36. `<pre>`
+scrolls sideways rather than wrapping, so both would have gone off the edge of a phone
+silently. Both `⚙ More` views draw two narrow stacked tables instead.
+
+**`pop` was removed outright**, the only variable that left the product.
+`precipitation_probability` belongs to no single model (Probe A: 276 h against a 54 h model,
+byte-identical to another's series), so it needed a footnote disowning it, and the rain panel
+answers the same question from `members_wet / member_count`. It is still fetched, stored and
+flagged; `.claude/rules/architecture.md` now says no surface renders it, so that rule is not
+mistaken for a description of live code.
+
+**A test-fixture lesson, defect class 11 again.** Suppressing the all-gap rain table made
+three existing assertions pass vacuously — their fixture was `buildRainDay([], …)`, which now
+renders no table at all, so *"renders missing odds as a gap"* would have been asserting
+against `undefined`. They were rebuilt on a **partially** covered day, which is the state
+that actually threatens the invariant.
+
+**Verified:** `typecheck`, `lint`, `check:hooks` (58) green; `npm run test` **520 passing**
+(446 api, 50 miniapp, 24 types), up from 512. The panels were rendered against live
+Open-Meteo in both default and `⚙ More` states.
+
+**Not verified:** nothing has been driven from a real Telegram client. The `📲 Open in app`
+button is the one thing that cannot be proven locally — the URL format is the one the alert
+path already uses in production, but this is its first use on a panel keyboard mixing `url`
+and `callback_data` buttons in one row.
+
+**A CI failure that was not a code failure, worth recognising next time.** The `review` check
+failed twice after the fix commit — 2m22s then 1m29s, shrinking on each retry, with
+`permission_denials_count` of 1 and 3. Both looked like the allowlist problem #73 fixed, and
+both were misread that way at first. The retained `claude-execution-output.json` artifact —
+added by #73 for exactly this — held the real answer: a `rate_limit_event` and *"You've hit
+your session limit · resets 11pm (UTC)"*. **STATE.md already said a denial count of 1–3 is
+routine**, which was the clue that the count was not the cause. The signature to learn: a run
+that gets *shorter* on each retry is exhausting a quota, not hitting a wall in the repo. It
+passed on its own once the limit reset.
+
+**Blockers for next session:** none new. The three unapplied migrations and the two
+unregistered cron routes are unchanged and still the gate on Phase 4's trend comparator.
+
+**What's next:** Phase 4, but **re-spec `/insight` first** — the plan's four sections are
+written in the vocabulary this session removed. `/afd` can be built as specified.
+
+**Gotchas for next session:**
+- **`panels.ts`'s module comment is the panels' spec now**, not the plan doc's § What it
+  looks like. Three rules: plain language over the vocabulary of the data source; at most
+  three button rows and three a row, except the one opt-in `More`; nothing removed from the
+  product, only from the first screen.
+- **`⚙ More` reuses `panel_states.mode`** (`advanced` is what it writes) but means something
+  narrower than the old Simple/Advanced tier.
+- **The Mini App does not yet have the model switching chat gave up.** That is a real gap,
+  not a completed migration, and it is the strongest argument for the next Mini App work.
+- **A wide `<pre>` table fails silently.** Both width assertions earn their keep; add one for
+  any new table rather than eyeballing it.
+- **Render a panel against a live fetch before calling it done.** Three of this session's
+  four defects came from that and none from the suite. Red Rock's week was too dry to
+  exercise the wet copy — pick a wet point too.
+
+**Does the user need to do anything?** **Yes, and one item is new.** `npm run bot:set-commands`
+with `TELEGRAM_BOT_TOKEN` set is now needed for a second reason: the rebuild reworded
+`/conditions`, `/forecast` and `/rain`, and the list is registered with Telegram rather than
+read from the code, so the menu keeps the old wording until it runs. Unchanged and still
+owed: `npm run db:migrate` from `apps/api` with `DATABASE_URL` set (applies `0007`, `0008`,
+`0009`), then `check:panel-state` and `check:weather-runs`; registering
+`/api/cron/collect-runs` and `/api/cron/prune-runs` with cron-job.org; and
+`TELEGRAM_WEBHOOK_SECRET` in Vercel with a matching `setWebhook` re-run.
