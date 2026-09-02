@@ -34,12 +34,10 @@ function conditions(over: Partial<ConditionsReplyInput> = {}): ConditionsReplyIn
   return {
     locationName: 'Red Rock',
     isClimbingLocation: true,
-    asosStation: null,
     today: null,
     todayScore: null,
     scoreUnavailable: null,
     activeAlerts: [],
-    snapshots: [],
     ...over,
   }
 }
@@ -158,7 +156,7 @@ describe('buildConditionsPanel', () => {
   const panel = buildConditionsPanel({
     stateId: STATE,
     locationId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301',
-    conditions: conditions({ snapshots: [snapshot({ is_today: true })] }),
+    conditions: conditions({ today: snapshot({ is_today: true }) }),
   })
 
   it('keeps the whole panel to two rows of buttons', () => {

@@ -6,7 +6,13 @@ import { getDeterministicRuns, getEnsembleRuns } from '../runs/latestRuns.js'
 import type { DeterministicRuns, ModelRun } from '../runs/latestRuns.js'
 import { pointKeyForLocation } from '../runs/pointKey.js'
 import { fetchPrecipHistory } from '../weather/acis.js'
-import { fetchArchivePrecip, localDateString, type ForecastLocation } from '../weather/openMeteo.js'
+import {
+  fetchArchivePrecip,
+  fetchRecentHourlyPrecip,
+  localDateString,
+  MEASURABLE_PRECIP_MM,
+  type ForecastLocation,
+} from '../weather/openMeteo.js'
 import { formatHelp } from './commands.js'
 import { buildConditionsInput, findLocationById, type ConditionsLocation } from './conditionsReply.js'
 import {
@@ -27,7 +33,13 @@ import {
   buildRainPanel,
   type Panel,
 } from './panels.js'
-import { buildRainDay, EMPTY_RAIN_DAY, type LastRain } from './rainMessage.js'
+import {
+  buildRainDay,
+  EMPTY_RAIN_DAY,
+  lastRainEpisode,
+  type LastRain,
+  type RainEpisode,
+} from './rainMessage.js'
 import type { PanelState } from './panelState.js'
 
 /**
@@ -235,12 +247,14 @@ async function renderRain(
   const pointKey = pointKeyForLocation(location.id)
   const { interval, units } = settingsOf(state)
 
-  // The rainfall record and the ensemble are independent upstreams, so they go
-  // together rather than one after the other — a tap already carries two round
-  // trips and the client gives up at about 15 seconds.
-  const [ensemble, rainfall] = await Promise.all([
+  // Three independent upstreams, so they go together rather than one after the
+  // other — the client gives up at about 15 seconds, and `fetchWithRetry`
+  // sleeps 1s + 2s + 4s across its attempts, so serialising them would put a
+  // single slow upstream over the budget on its own.
+  const [ensemble, rainfall, lastRainAt] = await Promise.all([
     getEnsembleRuns(point, pointKey, location.id, now),
     loadLastRain(location, now),
+    loadLastRainAt(location, now),
   ])
   const offset = ensemble.utc_offset_seconds
   const today = localDateString(now, offset)
@@ -263,12 +277,64 @@ async function renderRain(
     day:
       date === undefined ? EMPTY_RAIN_DAY : buildRainDay(ensemble.hours, offset, date, interval),
     lastRain: rainfall.lastRain,
+    lastRainAt,
     lastRainFailed: rainfall.failed,
     rainWindowDays: RAIN_WINDOW_DAYS,
     today,
     fetchedAt: ensemble.fetched_at,
     now,
   })
+}
+
+/**
+ * How far back the *hourly* series is asked for.
+ *
+ * Shorter than `RAIN_WINDOW_DAYS` on purpose. The value of an hour-precise
+ * answer decays fast — "it stopped at 3am" changes what you do today, "it
+ * stopped at 3am eleven days ago" does not — and a shorter window is a smaller
+ * response on a path that already makes two upstream calls inside a callback
+ * the client abandons at about 15 seconds.
+ */
+const RAIN_HOURLY_WINDOW_DAYS = 7
+
+/**
+ * The last run of wet hours, or `null` when the hourly series did not reach it.
+ *
+ * **A failure here is not a failure of the panel.** The daily lookup is the
+ * fallback and it answers on its own, so this is caught and degraded rather
+ * than propagated — losing the clock time costs precision, and propagating
+ * would cost the whole view.
+ */
+async function loadLastRainAt(
+  location: ConditionsLocation,
+  now: Date,
+): Promise<RainEpisode | null> {
+  try {
+    const recent = await fetchRecentHourlyPrecip(
+      Number(location.lat),
+      Number(location.lon),
+      RAIN_HOURLY_WINDOW_DAYS,
+    )
+    // Hours after "now" are forecast, not record. `forecast_days=1` means the
+    // response runs to the end of today, and counting rain that has not fallen
+    // yet as the last rain would report the future as the past.
+    const offset = recent.utc_offset_seconds
+    const cutoff = `${localDateString(now, offset)}T${hourStamp(now, offset)}`
+    const past = recent.hours.filter((h) => h.valid_at_local <= cutoff)
+    return lastRainEpisode(past, MEASURABLE_PRECIP_MM)
+  } catch (err) {
+    logger.warn(
+      { locationId: location.id, err: err instanceof Error ? err.message : String(err) },
+      '[panelViews] hourly rainfall unavailable — falling back to the daily record',
+    )
+    return null
+  }
+}
+
+/** `HH:mm` of `now` in the location's own zone, for a string comparison against local stamps. */
+function hourStamp(now: Date, utcOffsetSeconds: number): string {
+  const shifted = new Date(now.getTime() + utcOffsetSeconds * 1000)
+  return `${String(shifted.getUTCHours()).padStart(2, '0')}:00`
 }
 
 /**
@@ -281,6 +347,11 @@ async function renderRain(
  * **A failed lookup is tracked, not swallowed** — issue #34. An empty list and a
  * failed request are the same value and mean opposite things, and the one that
  * reads as a dry spell is the wrong one to guess.
+ *
+ * This is the *fallback* now: `loadLastRainAt` answers with a clock time when
+ * the hourly window reached the rain, and this answers with a day when it did
+ * not. The two never appear together — a gauge day-total and a reanalysed
+ * hourly total disagree for the same date.
  */
 async function loadLastRain(
   location: ConditionsLocation,

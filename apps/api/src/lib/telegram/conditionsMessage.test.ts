@@ -76,15 +76,12 @@ const heatWarning: ActiveAlert = {
 }
 
 function input(over: Partial<ConditionsReplyInput> = {}): ConditionsReplyInput {
-  const snapshots = [day()]
   return {
     locationName: 'Red Rock',
     isClimbingLocation: true,
-    asosStation: 'KLAS',
-    today: snapshots[0] ?? null,
+    today: day(),
     todayScore: redRockScore(),
     activeAlerts: [],
-    snapshots,
     ...over,
   }
 }
@@ -115,15 +112,28 @@ describe('formatConditionsReply — the locked copy rules', () => {
     expect(reply.indexOf('Extreme Heat Warning')).toBeLessThan(reply.indexOf('Score 80'))
   })
 
-  it('names the sources the response reports', () => {
-    const reply = formatConditionsReply(input({ activeAlerts: [heatWarning] }))
-    expect(reply).toContain('Sources: Open-Meteo (gfs_seamless, ecmwf_ifs025) · ACIS (KLAS) · NWS')
+  it('carries no sources footer at all', () => {
+    // What this used to print: `Sources: Open-Meteo (gfs_seamless,
+    // ecmwf_ifs025, icon_seamless_eps, gem_global) · Open-Meteo archive` —
+    // four raw API model keys and a repeated vendor name, on the panel whose
+    // whole job is three readable lines.
+    //
+    // §7 rule 6 requires a named source to be *computed* rather than hardcoded;
+    // it does not require one to be shown. `forecastSourceLabel` and
+    // `rainfallSourceLabel` are untouched and the Mini App still renders them.
+    const reply = formatConditionsReply(input())
+    expect(reply).not.toContain('Sources:')
+    expect(reply).not.toContain('gfs_seamless')
+    expect(reply).not.toContain('Open-Meteo')
+    expect(reply).not.toContain('ACIS')
   })
 
-  it('names the archive branch when the location has no ASOS station', () => {
-    const reply = formatConditionsReply(input({ asosStation: null }))
-    expect(reply).toContain('Open-Meteo archive')
-    expect(reply).not.toContain('ACIS')
+  it('still names NWS on the alert itself, where the attribution carries meaning', () => {
+    // The footer went; this did not. An alert is a claim about the world made
+    // by a specific agency, and dropping that would be the attribution defect
+    // rather than a tidier panel.
+    const reply = formatConditionsReply(input({ activeAlerts: [heatWarning] }))
+    expect(reply).toContain('(NWS)')
   })
 
   it('caps hours since rain at the sentinel', () => {
@@ -144,7 +154,7 @@ describe('formatConditionsReply — the locked copy rules', () => {
 })
 
 describe('formatConditionsReply — a non-climbing location', () => {
-  it('reports weather, alerts and sources but no score of any kind', () => {
+  it('reports weather and alerts but no score of any kind', () => {
     const reply = formatConditionsReply(
       input({ isClimbingLocation: false, locationName: 'Chicago', activeAlerts: [heatWarning] }),
     )
@@ -216,11 +226,6 @@ describe('formatConditionsReply — missing data', () => {
     expect(reply).not.toContain('Too far out to score')
   })
 
-  it('names no forecast source when the response reports none', () => {
-    const snapshots = [day({ model_sources: null })]
-    const reply = formatConditionsReply(input({ snapshots, today: snapshots[0] ?? null }))
-    expect(reply).not.toContain('Open-Meteo (')
-  })
 })
 
 /**
@@ -236,7 +241,6 @@ describe('formatConditionsReply — a withheld score (#34)', () => {
     today: null,
     todayScore: null,
     activeAlerts: [],
-    snapshots: [],
   }
 
   it('says the rainfall data is missing, not that there are no conditions yet', () => {

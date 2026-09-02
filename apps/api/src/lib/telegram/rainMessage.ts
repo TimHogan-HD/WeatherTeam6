@@ -1,8 +1,11 @@
 import type { EnsembleRunHour } from '../runs/latestRuns.js'
 import {
+  bar,
+  clockCell,
   HOUR_IN_MS,
   localHourInstant,
   precipCell,
+  TIME_COL_WIDTH,
   type IntervalHours,
   type TableUnits,
 } from './forecastTable.js'
@@ -231,17 +234,36 @@ export function renderRainTable(day: RainDay, units: TableUnits): string | null 
   if (!rainDayHasData(day)) return null
 
   const unit = units === 'imperial' ? 'in' : 'mm'
-  const header = ['hh', 'chance'.padStart(6), `rain ${unit}`.padStart(8)].join(' ')
+  const header = [
+    'time'.padStart(TIME_COL_WIDTH),
+    'chance'.padStart(6),
+    ' '.repeat(CHANCE_BAR_WIDTH),
+    `rain ${unit}`.padStart(8),
+  ]
   const body = day.rows.map((row) =>
     [
-      String(row.hour).padStart(2, '0'),
+      clockCell(row.hour),
       oddsCell(row.odds_pct).padStart(6),
+      // 0–100 is a real fixed scale, unlike the temperature bar's — a chance
+      // needs no "spans this day" caveat because the ends mean the same thing
+      // every day.
+      bar(row.odds_pct, 0, 100, CHANCE_BAR_WIDTH),
       precipCell(row.total_mm, units, 8),
     ].join(' '),
   )
 
-  return [header, ...body].join('\n')
+  return [header.join(' '), ...body].join('\n')
 }
+
+/**
+ * How wide the chance bar is.
+ *
+ * The bar replaced a standalone sparkline that drew the same eight values as an
+ * unlabelled row of blocks above the table. Beside the number, in the row whose
+ * clock time labels it, the same shape needs no legend and no axis: the hour is
+ * the x label and the percentage is the y label, both already on screen.
+ */
+const CHANCE_BAR_WIDTH = 10
 
 /**
  * The `⚙ More` table: how much rain the step's wettest hour brings at the dry,
@@ -260,13 +282,19 @@ export function renderRainTable(day: RainDay, units: TableUnits): string | null 
 export function renderRainSpreadTable(day: RainDay, units: TableUnits): string | null {
   if (!rainDayHasData(day)) return null
 
-  const header = ['hh', 'low'.padStart(5), 'mid'.padStart(5), 'high'.padStart(5)].join(' ')
+  const unit = units === 'imperial' ? 'in' : 'mm'
+  const header = [
+    'time'.padStart(TIME_COL_WIDTH),
+    `dry ${unit}`.padStart(7),
+    `mid ${unit}`.padStart(7),
+    `wet ${unit}`.padStart(7),
+  ].join(' ')
   const body = day.rows.map((row) =>
     [
-      String(row.hour).padStart(2, '0'),
-      precipCell(row.precip_mm_p10, units, 5),
-      precipCell(row.precip_mm_p50, units, 5),
-      precipCell(row.precip_mm_p90, units, 5),
+      clockCell(row.hour),
+      precipCell(row.precip_mm_p10, units, 7),
+      precipCell(row.precip_mm_p50, units, 7),
+      precipCell(row.precip_mm_p90, units, 7),
     ].join(' '),
   )
 
@@ -281,13 +309,12 @@ export function renderRainSpreadTable(day: RainDay, units: TableUnits): string |
  * twelve times the rain they represent.
  */
 export function rainTableNote(interval: IntervalHours, detail: boolean): string {
-  const span = interval === 1 ? 'hour' : `${interval} hours`
   const base =
     interval === 1
-      ? 'Chance is for the hour after each row, and rain is the total for it.'
-      : `Chance is the wettest single hour in the ${span} after each row; rain is the total for all of them.`
+      ? 'Each row covers the hour after it.'
+      : `Each row covers the ${interval} h after it — chance is its wettest hour, rain is the whole step.`
   return detail
-    ? `${base} Low, mid and high are how much that wettest hour brings if the forecasts land on the dry, middle or wet side.`
+    ? `${base} Dry/mid/wet are that hour at the dry, middle and wet end of the forecasts.`
     : base
 }
 
@@ -309,6 +336,103 @@ export type LastRain = {
   /** `YYYY-MM-DD`, the local calendar day the rain was recorded against. */
   readonly date: string
   readonly precip_mm: number
+}
+
+/**
+ * The last unbroken run of wet hours in a recent hourly series.
+ *
+ * **Why an episode and not just the last wet hour:** "it rained at 3am" and "it
+ * rained from 11pm to 3am" are different facts about how wet the rock is, and
+ * the second one is the one a climber needs. The run is extended backwards only
+ * across hours that are *consecutive* — the series drops unmeasured hours, so
+ * adjacency in the array is not adjacency in time, and treating it as such
+ * would merge two separate showers into one long one.
+ *
+ * `total_mm` is the sum over the episode and comes from this same series, never
+ * from the daily lookup. A gauge day-total and a reanalysed hourly total
+ * disagree for the same date, and quoting one against the other's clock time
+ * would put two sources in one sentence.
+ */
+export type RainEpisode = {
+  /** Local date the episode ended on, `YYYY-MM-DD`. */
+  readonly date: string
+  /**
+   * Local wall-clock hour the rain **began**, 0–23.
+   *
+   * **One hour before the first wet stamp**, because Open-Meteo stamps hourly
+   * precipitation at the *end* of the hour it fell in — the same convention
+   * `buildRows` and `buildRainDay` already follow. Wet stamps at 02:00 and
+   * 03:00 are rain falling from 01:00 to 03:00, so reporting the stamps
+   * verbatim would say "2am–3am" for a shower that started at 1am and
+   * understate how long the rock has been wet.
+   *
+   * It can be later than `endHour` when the episode crossed midnight; `date` is
+   * the day it *ended*, and the phrasing stays readable either way.
+   */
+  readonly startHour: number
+  /** Local wall-clock hour the rain stopped, 0–23 — the last wet stamp. */
+  readonly endHour: number
+  readonly total_mm: number
+}
+
+type HourlyPrecipPoint = {
+  /** `YYYY-MM-DDTHH:mm`, local. */
+  readonly valid_at_local: string
+  readonly precip_mm: number
+}
+
+/** `2026-09-02T03:00` → epoch ms read as UTC, for adjacency only. `null` if unparseable. */
+function localStampMs(stamp: string): number | null {
+  const ms = Date.parse(`${stamp}:00Z`)
+  return Number.isFinite(ms) ? ms : null
+}
+
+export function lastRainEpisode(
+  hours: readonly HourlyPrecipPoint[],
+  thresholdMm: number,
+): RainEpisode | null {
+  let end = -1
+  for (let i = hours.length - 1; i >= 0; i--) {
+    const h = hours[i]
+    if (h !== undefined && h.precip_mm >= thresholdMm) {
+      end = i
+      break
+    }
+  }
+  if (end < 0) return null
+
+  const last = hours[end]
+  if (last === undefined) return null
+  const lastMs = localStampMs(last.valid_at_local)
+  if (lastMs === null) return null
+
+  let start = end
+  let total = last.precip_mm
+  for (let i = end - 1; i >= 0; i--) {
+    const h = hours[i]
+    if (h === undefined || h.precip_mm < thresholdMm) break
+    const ms = localStampMs(h.valid_at_local)
+    const prevMs = localStampMs(hours[i + 1]?.valid_at_local ?? '')
+    // Consecutive in *time*, not merely adjacent in the array.
+    if (ms === null || prevMs === null || prevMs - ms !== HOUR_IN_MS) break
+    start = i
+    total += h.precip_mm
+  }
+
+  const startStamp = hours[start]?.valid_at_local
+  if (startStamp === undefined) return null
+
+  const firstStamp = Number(startStamp.slice(11, 13))
+  const endHour = Number(last.valid_at_local.slice(11, 13))
+  if (!Number.isInteger(firstStamp) || !Number.isInteger(endHour)) return null
+
+  return {
+    date: last.valid_at_local.slice(0, 10),
+    // The stamp is the *end* of the hour the rain fell in. See `RainEpisode`.
+    startHour: (firstStamp - 1 + 24) % 24,
+    endHour,
+    total_mm: total,
+  }
 }
 
 /**
@@ -335,19 +459,44 @@ export function formatLastRain(
   if (lastRain === null) return `Last rain: none in the past ${windowDays} days.`
 
   const amount = describePrecip(lastRain.precip_mm, units)
-  const days = daysBetween(lastRain.date, today)
-  // The date is kept alongside the plain phrasing rather than replaced by it:
-  // "4 days ago" is what a reader wants, and the date is what they check it
-  // against when the answer matters.
-  const when =
-    days === null
-      ? lastRain.date
-      : days <= 0
-        ? `today (${lastRain.date})`
-        : days === 1
-          ? `yesterday (${lastRain.date})`
-          : `${days} days ago (${lastRain.date})`
-  return `Last rain: ${when}, ${amount}.`
+  return `Last rain: ${relativeDay(lastRain.date, today)}, ${amount}.`
+}
+
+/** `today` / `yesterday` / `4 days ago`, each keeping the date it stands for. */
+function relativeDay(date: string, today: string): string {
+  const days = daysBetween(date, today)
+  if (days === null) return date
+  if (days <= 0) return `today (${date})`
+  if (days === 1) return `yesterday (${date})`
+  return `${days} days ago (${date})`
+}
+
+/**
+ * The last-rain line when an hourly series reached it — a clock time instead of
+ * a calendar day.
+ *
+ * *"Last rain: today"* was the complaint that produced this: rain that stopped
+ * at 3am and rain still falling at 5pm read identically, and they are opposite
+ * answers to "has the rock had time to dry". A single wet hour reads
+ * *"3am today"*; a run reads *"11pm–3am"*, because how long it rained for
+ * matters as much as when it stopped.
+ *
+ * The hour is rendered by `formatClockHour`, which the caller injects rather
+ * than this module importing `panels.ts` — that import would be a cycle, since
+ * `panels.ts` already imports this file.
+ */
+export function formatLastRainAt(
+  episode: RainEpisode,
+  today: string,
+  units: TableUnits,
+  formatClockHour: (hour: number) => string,
+): string {
+  const when = relativeDay(episode.date, today)
+  const amount = describePrecip(episode.total_mm, units)
+  // Always a span, never a single hour: one wet stamp still covers a whole
+  // hour of rain, and `startHour` already accounts for the stamp convention.
+  const span = `${formatClockHour(episode.startHour)}–${formatClockHour(episode.endHour)}`
+  return `Last rain: ${span} ${when}, ${amount}.`
 }
 
 /**

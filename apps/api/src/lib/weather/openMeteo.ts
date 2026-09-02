@@ -680,6 +680,105 @@ export async function fetchArchivePrecip(
 }
 
 // ---------------------------------------------------------------------------
+// Recent hourly rainfall — so "when did it last rain" can answer with a clock
+// time instead of a calendar day.
+// ---------------------------------------------------------------------------
+
+/** One past hour of measured/reanalysed precipitation, stamped in local wall-clock time. */
+export type RecentPrecipHour = {
+  /** `YYYY-MM-DDTHH:mm`, local, exactly as Open-Meteo returned it under `timezone=auto`. */
+  readonly valid_at_local: string
+  readonly precip_mm: number
+}
+
+export type RecentPrecip = {
+  readonly hours: readonly RecentPrecipHour[]
+  readonly utc_offset_seconds: number
+  /** The oldest local date the window covers, so a caller knows what a miss means. */
+  readonly from_date: string | null
+}
+
+/**
+ * Hourly precipitation over the past `pastDays`, from `/v1/forecast`'s
+ * `past_days`.
+ *
+ * **Why this exists at all:** the rainfall record behind the drying model is a
+ * *daily* series — ACIS day totals, or the archive API's `precipitation_sum` —
+ * so the most it could ever say was "it rained today". That is useless to
+ * someone deciding whether the rock has had time to dry: rain that stopped at
+ * 3am and rain still falling at 5pm are the same sentence.
+ *
+ * **The timing and the amount must come from this same series.** The daily
+ * lookup at a station can report a different total for the same day (a gauge
+ * against a model reanalysis), and quoting one number beside the other's
+ * timestamp would put two sources in one sentence — the attribution defect this
+ * repo keeps shipping. The caller reports either this series or the daily one,
+ * never halves of both.
+ *
+ * `past_days` is capped at 92 upstream. Anything older is the daily lookup's
+ * job, and the caller falls back to it rather than reporting no rain.
+ *
+ * @throws {Error} on HTTP failure, like every other fetch here. A caller must
+ *   distinguish that from "no rain in the window" (issue #34).
+ */
+export async function fetchRecentHourlyPrecip(
+  lat: number,
+  lon: number,
+  pastDays: number,
+): Promise<RecentPrecip> {
+  const url = new URL(FORECAST_URL)
+  url.searchParams.set('latitude', String(lat))
+  url.searchParams.set('longitude', String(lon))
+  url.searchParams.set('hourly', 'precipitation')
+  url.searchParams.set('past_days', String(Math.max(1, Math.min(92, Math.trunc(pastDays)))))
+  // One forecast day, not zero: the current hour lives in it, and rain that is
+  // falling right now is the case this whole function exists for.
+  url.searchParams.set('forecast_days', '1')
+  // Local hours, matching every other call. Issue #33.
+  url.searchParams.set('timezone', 'auto')
+
+  logger.debug({ lat, lon, pastDays }, '[openMeteo] fetching recent hourly precip')
+
+  const res = await fetchWithRetry(url.toString())
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    logger.debug(
+      { statusCode: res.status, body: body.slice(0, 200) },
+      '[openMeteo] recent hourly precip error response',
+    )
+    throw new Error(`Open-Meteo hourly precip returned ${res.status}`)
+  }
+
+  const raw = (await res.json()) as {
+    hourly?: Record<string, unknown>
+    utc_offset_seconds?: unknown
+  }
+  const hourly = raw.hourly
+  const offset = typeof raw.utc_offset_seconds === 'number' ? raw.utc_offset_seconds : 0
+  if (!hourly) return { hours: [], utc_offset_seconds: offset, from_date: null }
+
+  const times = toStringArray(hourly['time'])
+  const precip = toNullableNumberArray(hourly, 'precipitation')
+
+  const hours: RecentPrecipHour[] = []
+  for (let i = 0; i < times.length; i++) {
+    const at = times[i]
+    const mm = precip[i]
+    // A null hour is not a dry hour. Dropping it is right here because the
+    // caller only ever looks for the *last wet* hour — an absent reading can
+    // never be that, and keeping it as 0 would assert a dry hour nobody measured.
+    if (!at || mm === null || mm === undefined) continue
+    hours.push({ valid_at_local: at, precip_mm: mm })
+  }
+
+  return {
+    hours,
+    utc_offset_seconds: offset,
+    from_date: times[0]?.slice(0, 10) ?? null,
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Deterministic hourly — the data layer behind the bot's per-model tables.
 // ---------------------------------------------------------------------------
 

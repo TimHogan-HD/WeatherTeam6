@@ -6,6 +6,8 @@ import {
   describePrecip,
   EMPTY_RAIN_DAY,
   formatLastRain,
+  formatLastRainAt,
+  lastRainEpisode,
   oddsPct,
   rainTableNote,
   renderRainSpreadTable,
@@ -205,7 +207,7 @@ describe('renderRainTable', () => {
     const table = renderRainTable(partialDay(12), 'imperial')
     // Row 1 is the 00:00 step, which no hour reached.
     const empty = table?.split('\n')[1]
-    expect(empty?.startsWith('00')).toBe(true)
+    expect(empty?.trimStart().startsWith('12am')).toBe(true)
     expect(empty).toContain('—')
     expect(empty).not.toContain('0%')
     // And the step that *was* reached still carries its real numbers, so this
@@ -224,15 +226,16 @@ describe('renderRainTable', () => {
   it('keeps the spread out of the default table and names it in words', () => {
     const day = partialDay(12)
     const simple = renderRainTable(day, 'imperial')?.split('\n')[0] ?? ''
-    expect(simple).not.toContain('low')
-    expect(simple).not.toContain('high')
+    expect(simple).not.toContain('dry')
+    expect(simple).not.toContain('wet')
 
-    // The `⚙ More` table, headed as what the numbers mean. `p10`/`p50`/`p90`
-    // are the vocabulary of the data source and never reach the screen.
+    // The `⚙ More` table, headed as what the numbers mean and carrying the unit
+    // in the header rather than in a sentence underneath. `p10`/`p50`/`p90` are
+    // the vocabulary of the data source and never reach the screen.
     const spread = renderRainSpreadTable(day, 'imperial')?.split('\n')[0] ?? ''
-    expect(spread).toContain('low')
-    expect(spread).toContain('mid')
-    expect(spread).toContain('high')
+    expect(spread).toContain('dry in')
+    expect(spread).toContain('mid in')
+    expect(spread).toContain('wet in')
     expect(spread).not.toContain('p10')
     expect(spread).not.toContain('p90')
     // The percentiles themselves are in the body, not just the header.
@@ -262,11 +265,11 @@ describe('renderRainTable', () => {
   it('says which hour the chance describes, and explains the spread only when shown', () => {
     // The distinction is worth a sentence: a reader who takes the chance for
     // the whole step reads a 3 h window as a single hour's odds.
-    expect(rainTableNote(3, false)).toContain('wettest single hour')
-    expect(rainTableNote(1, false)).toContain('the hour after each row')
+    expect(rainTableNote(3, false)).toContain('wettest hour')
+    expect(rainTableNote(1, false)).toContain('the hour after it')
     // No columns for it, so no sentence about it.
-    expect(rainTableNote(3, false)).not.toContain('dry, middle or wet')
-    expect(rainTableNote(3, true)).toContain('dry, middle or wet')
+    expect(rainTableNote(3, false)).not.toContain('Dry/mid/wet')
+    expect(rainTableNote(3, true)).toContain('Dry/mid/wet')
   })
 })
 
@@ -339,5 +342,98 @@ describe('daysBetween', () => {
 
   it('is null for anything that is not a date', () => {
     expect(daysBetween('not-a-date', '2026-09-04')).toBeNull()
+  })
+})
+
+describe('lastRainEpisode', () => {
+  const wet = (stamp: string, mm: number) => ({ valid_at_local: stamp, precip_mm: mm })
+
+  it('reports the hour the rain began, not the stamp of its first wet hour', () => {
+    // Open-Meteo stamps hourly precipitation at the END of the hour it fell in,
+    // the same convention `buildRows` and `buildRainDay` follow. Stamps at
+    // 02:00 and 03:00 are rain falling from 01:00 to 03:00 — reporting them
+    // verbatim would say "2am–3am" for a shower that started at 1am and
+    // understate how long the rock has been wet.
+    const e = lastRainEpisode(
+      [
+        wet('2026-09-02T01:00', 0),
+        wet('2026-09-02T02:00', 0.7),
+        wet('2026-09-02T03:00', 0.4),
+      ],
+      0.1,
+    )
+    expect(e).not.toBeNull()
+    expect(e?.startHour).toBe(1)
+    expect(e?.endHour).toBe(3)
+    expect(e?.total_mm).toBeCloseTo(1.1, 10)
+    expect(e?.date).toBe('2026-09-02')
+  })
+
+  it('still spans an hour when only one stamp is wet', () => {
+    const e = lastRainEpisode([wet('2026-09-02T03:00', 0.4)], 0.1)
+    expect(e?.startHour).toBe(2)
+    expect(e?.endHour).toBe(3)
+  })
+
+  it('wraps to the previous day rather than reporting hour -1', () => {
+    // A stamp of 00:00 is rain that fell from 23:00. `(0 - 1 + 24) % 24` is the
+    // guard; without it the hour is -1 and `clockLabel` refuses it.
+    const e = lastRainEpisode([wet('2026-09-02T00:00', 0.5)], 0.1)
+    expect(e?.startHour).toBe(23)
+    expect(e?.endHour).toBe(0)
+  })
+
+  it('does not merge two showers separated by a dry hour', () => {
+    const e = lastRainEpisode(
+      [wet('2026-09-02T01:00', 2), wet('2026-09-02T02:00', 0), wet('2026-09-02T03:00', 0.4)],
+      0.1,
+    )
+    // Only the 03:00 stamp, so 2am–3am — not 12am–3am across the dry hour.
+    expect(e?.startHour).toBe(2)
+    expect(e?.total_mm).toBeCloseTo(0.4, 10)
+  })
+
+  it('does not merge across a gap in the series', () => {
+    // Unmeasured hours are dropped before this runs, so array adjacency is not
+    // time adjacency. 03:00 and 06:00 sit side by side in the array and are
+    // three hours apart in fact.
+    const e = lastRainEpisode([wet('2026-09-02T03:00', 2), wet('2026-09-02T06:00', 0.4)], 0.1)
+    expect(e?.startHour).toBe(5)
+    expect(e?.endHour).toBe(6)
+    expect(e?.total_mm).toBeCloseTo(0.4, 10)
+  })
+
+  it('is null for a window with nothing over the threshold', () => {
+    // A trace is not rain. Returning an episode here would put a clock time on
+    // a shower that never happened.
+    expect(lastRainEpisode([wet('2026-09-02T03:00', 0.05)], 0.1)).toBeNull()
+    expect(lastRainEpisode([], 0.1)).toBeNull()
+  })
+})
+
+describe('formatLastRainAt', () => {
+  const clock = (h: number) => (h === 0 ? 'midnight' : h === 12 ? 'noon' : h < 12 ? `${h}am` : `${h - 12}pm`)
+
+  it('gives a clock span instead of a bare day', () => {
+    // "Last rain: today" was the complaint: rain that stopped at 3am and rain
+    // still falling at 5pm read identically, and they are opposite answers to
+    // whether the rock has had time to dry.
+    const line = formatLastRainAt(
+      { date: '2026-09-02', startHour: 1, endHour: 3, total_mm: 1.1 },
+      '2026-09-02',
+      'imperial',
+      clock,
+    )
+    expect(line).toBe('Last rain: 1am–3am today (2026-09-02), 0.04 in.')
+  })
+
+  it('keeps the relative day for older rain', () => {
+    const line = formatLastRainAt(
+      { date: '2026-08-30', startHour: 14, endHour: 16, total_mm: 5 },
+      '2026-09-02',
+      'imperial',
+      clock,
+    )
+    expect(line).toContain('2pm–4pm 3 days ago')
   })
 })
