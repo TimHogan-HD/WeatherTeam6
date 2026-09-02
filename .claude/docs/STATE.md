@@ -5,7 +5,7 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-09-01 · `main` @ `e1e4067`
+Last updated: 2026-09-02 · `main` @ `2208e59`
 
 ---
 
@@ -225,15 +225,21 @@ Escape hatch: `touch .claude/.wip`, delete it when work resumes.
   PR — outside the session that wrote the code, so it does not share its blind spot.
   **It works, and it is now proven:** on #58 it found a new test that could not reach the
   branch it named — defect class 11, in the PR whose purpose was fixing defect class 11.
-  Take its findings seriously. Three failure signatures, all seen: a ~3-second pass means it
+  Take its findings seriously. Four failure signatures, all seen: a ~3-second pass means it
   skipped for a missing credential; a large `permission_denials_count` means the allowlist is
   short (`--allowedTools` *replaces* the default, it does not extend it), and a count of 1 to
-  3 is routine; and `Failed to install Claude Code` with a curl 403 is the installer being
-  unreachable — transient, re-run the job.
+  3 is routine; `Failed to install Claude Code` with a curl 403 is the installer being
+  unreachable — transient, re-run the job; and **a run that gets *shorter* on each retry is
+  exhausting the account's usage quota, not hitting anything in this repo.**
   **Fixed 2026-09-01 (#73):** the list was missing `Task` and `TodoWrite`, so the
   `/code-review` skill could not spawn its verification agents — 28 denials, $1.55 and no
   review, twice. A **failed** run now keeps `claude-execution-output.json` as an artifact,
   because the log records the denial *count* and never which tool was denied.
+  **The artifact earned its keep on 2026-09-02 (#76):** two failures at 2m22s and 1m29s with
+  1 and 3 denials looked like the #73 allowlist bug and were misread that way twice. The
+  artifact held a `rate_limit_event` and *"You've hit your session limit"*. The tell was
+  already written above — 1 to 3 denials is routine, so the count was never the cause.
+  **Read the artifact before re-running; a retry on a spent quota costs money and fails.**
 
 ### Mutation testing
 
