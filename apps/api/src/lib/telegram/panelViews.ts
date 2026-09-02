@@ -31,6 +31,7 @@ import {
   buildListPanel,
   buildNoticePanel,
   buildRainPanel,
+  PICK_VIEWS,
   type Panel,
 } from './panels.js'
 import {
@@ -56,8 +57,12 @@ export async function renderPanel(
   now: Date = new Date(),
 ): Promise<Panel> {
   switch (state.view) {
+    // The three pickers render the same list; only the view their buttons open
+    // differs, and `PICK_VIEWS` is the single place that mapping lives.
     case 'list':
-      return buildListPanel(state.id, await listChoices(userId))
+    case 'pick_forecast':
+    case 'pick_rain':
+      return buildListPanel(state.id, await listChoices(userId), PICK_VIEWS[state.view])
 
     case 'conditions': {
       const location = await panelLocation(userId, state)

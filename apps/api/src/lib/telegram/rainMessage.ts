@@ -1,11 +1,11 @@
 import type { EnsembleRunHour } from '../runs/latestRuns.js'
 import {
   bar,
-  clockCell,
+  clockRangeCell,
   HOUR_IN_MS,
   localHourInstant,
   precipCell,
-  TIME_COL_WIDTH,
+  RANGE_COL_WIDTH,
   type IntervalHours,
   type TableUnits,
 } from './forecastTable.js'
@@ -230,19 +230,23 @@ export function rainDayHasData(day: RainDay): boolean {
   return day.rows.some((r) => r.odds_pct !== null || r.total_mm !== null)
 }
 
-export function renderRainTable(day: RainDay, units: TableUnits): string | null {
+export function renderRainTable(
+  day: RainDay,
+  units: TableUnits,
+  interval: IntervalHours,
+): string | null {
   if (!rainDayHasData(day)) return null
 
   const unit = units === 'imperial' ? 'in' : 'mm'
   const header = [
-    'time'.padStart(TIME_COL_WIDTH),
+    'time'.padStart(RANGE_COL_WIDTH),
     'chance'.padStart(6),
     ' '.repeat(CHANCE_BAR_WIDTH),
     `rain ${unit}`.padStart(8),
   ]
   const body = day.rows.map((row) =>
     [
-      clockCell(row.hour),
+      clockRangeCell(row.hour, interval),
       oddsCell(row.odds_pct).padStart(6),
       // 0–100 is a real fixed scale, unlike the temperature bar's — a chance
       // needs no "spans this day" caveat because the ends mean the same thing
@@ -279,19 +283,25 @@ const CHANCE_BAR_WIDTH = 10
  * `null` for a day with no steps at all, matching `renderRainTable` — a header
  * with nothing under it reads as a day with no rain rather than no data.
  */
-export function renderRainSpreadTable(day: RainDay, units: TableUnits): string | null {
+export function renderRainSpreadTable(
+  day: RainDay,
+  units: TableUnits,
+  interval: IntervalHours,
+): string | null {
   if (!rainDayHasData(day)) return null
 
-  const unit = units === 'imperial' ? 'in' : 'mm'
+  // `least` / `likely` / `most`, not `dry` / `mid` / `wet` and certainly not
+  // p10/p50/p90. The unit is stated once in the heading above the table, which
+  // buys the width to spell the columns out.
   const header = [
-    'time'.padStart(TIME_COL_WIDTH),
-    `dry ${unit}`.padStart(7),
-    `mid ${unit}`.padStart(7),
-    `wet ${unit}`.padStart(7),
+    'time'.padStart(RANGE_COL_WIDTH),
+    'least'.padStart(7),
+    'likely'.padStart(7),
+    'most'.padStart(7),
   ].join(' ')
   const body = day.rows.map((row) =>
     [
-      clockCell(row.hour),
+      clockRangeCell(row.hour, interval),
       precipCell(row.precip_mm_p10, units, 7),
       precipCell(row.precip_mm_p50, units, 7),
       precipCell(row.precip_mm_p90, units, 7),
@@ -308,14 +318,13 @@ export function renderRainSpreadTable(day: RainDay, units: TableUnits): string |
  * reader who assumes the percentiles are step totals would read them as three to
  * twelve times the rain they represent.
  */
-export function rainTableNote(interval: IntervalHours, detail: boolean): string {
-  const base =
-    interval === 1
-      ? 'Each row covers the hour after it.'
-      : `Each row covers the ${interval} h after it — chance is its wettest hour, rain is the whole step.`
+export function rainTableNote(_interval: IntervalHours, detail: boolean): string | null {
+  // **Nothing to say in the simple case.** The row label is a window now, so
+  // "each row covers the 3 h after it" — which was reported as confusing —
+  // explains something the table already states.
   return detail
-    ? `${base} Dry/mid/wet are that hour at the dry, middle and wet end of the forecasts.`
-    : base
+    ? 'Least, likely and most are the range of amounts the forecasts give for that window.'
+    : null
 }
 
 /**

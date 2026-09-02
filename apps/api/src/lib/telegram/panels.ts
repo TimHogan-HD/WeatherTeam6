@@ -92,6 +92,32 @@ export const FIELD_INTERVAL = 'iv'
 export const FIELD_UNITS = 'u'
 
 /**
+ * The picker's location buttons, one field per view they open.
+ *
+ * **The field carries the destination, because the button is the only place it
+ * can.** A picker opened by `/forecast` and one opened by `/conditions` render
+ * identically, so without this every location button opened conditions — which
+ * is exactly what "conditions and forecast are the same" meant when it was
+ * reported from a real device.
+ *
+ * `open:a1b2c3d4:locf=<uuid>` is 55 bytes, inside the 64-byte ceiling.
+ */
+export const OPEN_FIELDS = {
+  loc: 'conditions',
+  locf: 'forecast',
+  locr: 'rain',
+} as const satisfies Record<string, 'conditions' | 'forecast' | 'rain'>
+
+export type OpenField = keyof typeof OPEN_FIELDS
+
+/** Which picker view opens which target, and therefore which field its buttons carry. */
+export const PICK_VIEWS = {
+  list: 'loc',
+  pick_forecast: 'locf',
+  pick_rain: 'locr',
+} as const satisfies Record<string, OpenField>
+
+/**
  * What a button whose state row is gone says. A redeploy does not clear these
  * rows, but the 7-day prune does, and an id from another chat reads the same
  * way — so the honest answer is that the panel expired, never a guess at what
@@ -111,8 +137,12 @@ export type LocationChoice = {
  * from the *list*. A missing button is a control the user can work around; a
  * missing location is the bot claiming they do not have it.
  */
-function locationButton(stateId: string, choice: LocationChoice): InlineKeyboardButton | null {
-  const data = encodeAction(VERB_OPEN, stateId, 'loc', choice.id)
+function locationButton(
+  stateId: string,
+  choice: LocationChoice,
+  field: OpenField,
+): InlineKeyboardButton | null {
+  const data = encodeAction(VERB_OPEN, stateId, field, choice.id)
   if (data === null) return null
   return { text: choice.name, callback_data: data }
 }
@@ -165,8 +195,20 @@ function keyboardOf(rows: InlineKeyboardButton[][]): InlineKeyboardMarkup | null
   return populated.length === 0 ? null : { inline_keyboard: populated }
 }
 
-export function buildListPanel(stateId: string, choices: readonly LocationChoice[]): Panel {
-  const lines = ['<b>Your locations</b>', '']
+export function buildListPanel(
+  stateId: string,
+  choices: readonly LocationChoice[],
+  field: OpenField = 'loc',
+): Panel {
+  // The heading says where the tap will land, so the picker is not three
+  // identical screens that behave differently.
+  const heading =
+    field === 'locf'
+      ? 'Hour by hour — pick a place'
+      : field === 'locr'
+        ? 'Rain — pick a place'
+        : '<b>Your locations</b>'
+  const lines = [field === 'loc' ? heading : `<b>${escapeTelegramHtml(heading)}</b>`, '']
 
   // The buttons *are* the list. Printing the names as bullets above them as
   // well put every location on screen twice, which was half the height of this
@@ -176,7 +218,7 @@ export function buildListPanel(stateId: string, choices: readonly LocationChoice
   // name whose id will not encode gets no button, and if the text said nothing
   // either the bot would be claiming the user does not have it. So the ones
   // that could not be drawn are named, and only those.
-  const drawn = choices.map((c) => ({ choice: c, button: locationButton(stateId, c) }))
+  const drawn = choices.map((c) => ({ choice: c, button: locationButton(stateId, c, field) }))
   const undrawable = drawn.filter((d) => d.button === null).map((d) => d.choice.name)
 
   if (choices.length === 0) {
@@ -677,19 +719,23 @@ export function buildRainPanel(input: RainPanelInput): Panel {
   // No `else`. `renderRainTable` returns null exactly when the day has no data,
   // which is the case `timingLine` above has already stated — a second sentence
   // saying the same thing was the panel telling the reader twice.
-  const table = renderRainTable(input.day, input.units)
+  const table = renderRainTable(input.day, input.units, input.interval)
   if (table !== null) {
-    // No standalone bar above the table any more. It drew the same eight values
-    // as an unlabelled row of blocks; they are now a bar *inside* each row,
-    // where the clock time labels the x and the percentage labels the y.
+    // No standalone bar above the table any more. It drew the same values as an
+    // unlabelled row of blocks; they are now a bar *inside* each row, where the
+    // window labels the x and the percentage labels the y.
     lines.push(pre(table))
     if (detail) {
       // A second narrow table, not three more columns: the combined form
-      // measured 36 characters against a 32-character phone width.
-      const spread = renderRainSpreadTable(input.day, input.units)
-      if (spread !== null) lines.push(escapeTelegramHtml('How much, if it lands'), pre(spread))
+      // measured 36 characters against the phone width.
+      const spread = renderRainSpreadTable(input.day, input.units, input.interval)
+      if (spread !== null) {
+        const unit = input.units === 'imperial' ? 'inches' : 'mm'
+        lines.push(escapeTelegramHtml(`If it rains, how much (${unit})`), pre(spread))
+      }
     }
-    lines.push(escapeTelegramHtml(rainTableNote(input.interval, detail)))
+    const note = rainTableNote(input.interval, detail)
+    if (note !== null) lines.push(escapeTelegramHtml(note))
   }
 
   // **The clock time wins when an hourly series reached the rain.** "Last rain:

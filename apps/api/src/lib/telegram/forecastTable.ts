@@ -104,9 +104,40 @@ export function clockCell(hour: number): string {
   return cell(`${h12}${suffix}`, TIME_COL_WIDTH)
 }
 
-/** Filled and empty cells of an inline bar. Both are Block Elements, so both are one column wide. */
+/**
+ * The window a step covers, at table width: `12a-3a`, `9a-12p`.
+ *
+ * **The label is the explanation.** A column headed `time` showing `12am` meant
+ * "the three hours after this", which needed a sentence underneath and was
+ * reported from a real device as confusing. A range needs no sentence.
+ *
+ * Single-letter meridiem because `12am-3am` is eight characters against a seven
+ * character column, and a column that shifts is worse than a terse one.
+ */
+export const RANGE_COL_WIDTH = 7
+
+function shortHour(hour: number): string {
+  const h = ((hour % 24) + 24) % 24
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return `${h12}${h < 12 ? 'a' : 'p'}`
+}
+
+export function clockRangeCell(hour: number, intervalHours: number): string {
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23) return cell('—', RANGE_COL_WIDTH)
+  return cell(`${shortHour(hour)}-${shortHour(hour + intervalHours)}`, RANGE_COL_WIDTH)
+}
+
+/**
+ * Filled and empty cells of an inline bar.
+ *
+ * **The empty cell is a space, not `░`.** On a real phone a run of `░` rendered
+ * as a dense dithered slab that swamped the `█` beside it — the bar read as one
+ * grey block rather than as a proportion, which was worse than drawing nothing.
+ * Blank track, solid fill, no ambiguity. A genuine 0% and an unmeasured hour are
+ * told apart by the number column, which shows `0%` against an em dash.
+ */
 const BAR_FULL = '█'
-const BAR_EMPTY = '░'
+const BAR_EMPTY = ' '
 
 /**
  * A proportional bar, `width` characters, scaled between `min` and `max`.
@@ -125,7 +156,11 @@ export function bar(value: number | null, min: number, max: number, width: numbe
   const span = max - min
   const fraction = span <= 0 ? 1 : (value - min) / span
   const clamped = Math.max(0, Math.min(1, fraction))
-  const filled = Math.round(clamped * width)
+  // **Anything above the floor gets at least one block.** Rounding alone drew
+  // nothing for a 4% chance, so a column of small-but-real values looked
+  // identical to a column of nothing at all.
+  const scaled = Math.round(clamped * width)
+  const filled = scaled === 0 && clamped > 0 ? 1 : scaled
   return BAR_FULL.repeat(filled) + BAR_EMPTY.repeat(width - filled)
 }
 

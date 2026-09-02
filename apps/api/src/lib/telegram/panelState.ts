@@ -17,7 +17,30 @@ import { panelStates } from '../../db/schema.js'
  * against real Postgres.
  */
 
-export const PANEL_VIEWS = ['list', 'conditions', 'alerts', 'help', 'forecast', 'rain'] as const
+/**
+ * The panel views.
+ *
+ * **'pick_forecast' and 'pick_rain' are the location picker remembering what
+ * was asked for.** Before them, `/forecast` with no location opened a picker
+ * whose buttons all opened *conditions*, so typing `/forecast` and tapping your
+ * crag landed you on the conditions panel — reported from a real device as
+ * "conditions and forecast are the same it seems". They render the same list;
+ * only the view their buttons open differs.
+ *
+ * `view` is a plain text column validated here, so adding a value needs no
+ * migration, and `mapRow` degrades a value this build does not know rather than
+ * typing it as something it is not.
+ */
+export const PANEL_VIEWS = [
+  'list',
+  'pick_forecast',
+  'pick_rain',
+  'conditions',
+  'alerts',
+  'help',
+  'forecast',
+  'rain',
+] as const
 export type PanelView = (typeof PANEL_VIEWS)[number]
 
 /**

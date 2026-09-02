@@ -189,8 +189,8 @@ describe('renderRainTable', () => {
     )
 
   it('has no table for a day the ensemble said nothing about', () => {
-    expect(renderRainTable(EMPTY_RAIN_DAY, 'imperial')).toBeNull()
-    expect(renderRainSpreadTable(EMPTY_RAIN_DAY, 'imperial')).toBeNull()
+    expect(renderRainTable(EMPTY_RAIN_DAY, 'imperial', 3)).toBeNull()
+    expect(renderRainSpreadTable(EMPTY_RAIN_DAY, 'imperial', 3)).toBeNull()
   })
 
   it('has no table for a day past the horizon, where the rows exist but are empty', () => {
@@ -199,15 +199,15 @@ describe('renderRainTable', () => {
     // the sentence "No forecast reaches this day yet", which contradicts it.
     const beyond = buildRainDay([], OFFSET, '2026-09-04', 3)
     expect(beyond.rows).toHaveLength(8)
-    expect(renderRainTable(beyond, 'imperial')).toBeNull()
-    expect(renderRainSpreadTable(beyond, 'imperial')).toBeNull()
+    expect(renderRainTable(beyond, 'imperial', 3)).toBeNull()
+    expect(renderRainSpreadTable(beyond, 'imperial', 3)).toBeNull()
   })
 
   it('renders a step the data does not reach as a gap rather than 0%', () => {
-    const table = renderRainTable(partialDay(12), 'imperial')
+    const table = renderRainTable(partialDay(12), 'imperial', 12)
     // Row 1 is the 00:00 step, which no hour reached.
     const empty = table?.split('\n')[1]
-    expect(empty?.trimStart().startsWith('12am')).toBe(true)
+    expect(empty?.trimStart().startsWith('12a-12p')).toBe(true)
     expect(empty).toContain('—')
     expect(empty).not.toContain('0%')
     // And the step that *was* reached still carries its real numbers, so this
@@ -217,29 +217,29 @@ describe('renderRainTable', () => {
 
   it('heads the columns in words, with the unit it is showing', () => {
     const day = partialDay(12)
-    const imperial = renderRainTable(day, 'imperial')?.split('\n')[0]
+    const imperial = renderRainTable(day, 'imperial', 12)?.split('\n')[0]
     expect(imperial).toContain('chance')
     expect(imperial).toContain('rain in')
-    expect(renderRainTable(day, 'metric')?.split('\n')[0]).toContain('rain mm')
+    expect(renderRainTable(day, 'metric', 12)?.split('\n')[0]).toContain('rain mm')
   })
 
   it('keeps the spread out of the default table and names it in words', () => {
     const day = partialDay(12)
-    const simple = renderRainTable(day, 'imperial')?.split('\n')[0] ?? ''
-    expect(simple).not.toContain('dry')
-    expect(simple).not.toContain('wet')
+    const simple = renderRainTable(day, 'imperial', 12)?.split('\n')[0] ?? ''
+    expect(simple).not.toContain('least')
+    expect(simple).not.toContain('most')
 
     // The `⚙ More` table, headed as what the numbers mean and carrying the unit
     // in the header rather than in a sentence underneath. `p10`/`p50`/`p90` are
     // the vocabulary of the data source and never reach the screen.
-    const spread = renderRainSpreadTable(day, 'imperial')?.split('\n')[0] ?? ''
-    expect(spread).toContain('dry in')
-    expect(spread).toContain('mid in')
-    expect(spread).toContain('wet in')
+    const spread = renderRainSpreadTable(day, 'imperial', 12)?.split('\n')[0] ?? ''
+    expect(spread).toContain('least')
+    expect(spread).toContain('likely')
+    expect(spread).toContain('most')
     expect(spread).not.toContain('p10')
     expect(spread).not.toContain('p90')
     // The percentiles themselves are in the body, not just the header.
-    expect(renderRainSpreadTable(day, 'metric')).toContain('3.0')
+    expect(renderRainSpreadTable(day, 'metric', 12)).toContain('3.0')
   })
 
   it('stays inside a phone width in both tables', () => {
@@ -249,27 +249,36 @@ describe('renderRainTable', () => {
     // of the phone silently.
     const day = partialDay(1)
     const tables = [
-      renderRainTable(day, 'imperial'),
-      renderRainSpreadTable(day, 'imperial'),
-      renderRainTable(day, 'metric'),
-      renderRainSpreadTable(day, 'metric'),
+      renderRainTable(day, 'imperial', 12),
+      renderRainSpreadTable(day, 'imperial', 12),
+      renderRainTable(day, 'metric', 12),
+      renderRainSpreadTable(day, 'metric', 12),
     ]
     for (const table of tables) {
       expect(table).not.toBeNull()
       for (const line of table?.split('\n') ?? []) {
-        expect(line.length).toBeLessThanOrEqual(32)
+        expect(line.length).toBeLessThanOrEqual(40)
       }
     }
   })
 
-  it('says which hour the chance describes, and explains the spread only when shown', () => {
-    // The distinction is worth a sentence: a reader who takes the chance for
-    // the whole step reads a 3 h window as a single hour's odds.
-    expect(rainTableNote(3, false)).toContain('wettest hour')
-    expect(rainTableNote(1, false)).toContain('the hour after it')
-    // No columns for it, so no sentence about it.
-    expect(rainTableNote(3, false)).not.toContain('Dry/mid/wet')
-    expect(rainTableNote(3, true)).toContain('Dry/mid/wet')
+  it('labels each row with the window it covers, so no sentence has to', () => {
+    // "Each row covers the 3 h after it" was reported as confusing from a real
+    // device. A range in the row label says the same thing where the reader is
+    // already looking, which is why the simple note is now nothing at all.
+    const rows = renderRainTable(partialDay(12), 'imperial', 12)?.split('\n') ?? []
+    expect(rows[1]?.trim()).toMatch(/^12a-12p/)
+    expect(rows[2]?.trim()).toMatch(/^12p-12a/)
+    expect(rainTableNote(3, false)).toBeNull()
+  })
+
+  it('explains the spread only where the spread is shown', () => {
+    const note = rainTableNote(3, true)
+    expect(note).toContain('Least, likely and most')
+    expect(note).toContain('range of amounts')
+    // The vocabulary of the data source never reaches the screen.
+    expect(note).not.toContain('p50')
+    expect(note).not.toContain('percentile')
   })
 })
 

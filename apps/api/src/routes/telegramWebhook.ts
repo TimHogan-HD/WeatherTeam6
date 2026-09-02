@@ -13,11 +13,13 @@ import {
   FIELD_DAY,
   FIELD_INTERVAL,
   FIELD_UNITS,
+  OPEN_FIELDS,
   VERB_MODE,
   VERB_OPEN,
   VERB_REFRESH,
   VERB_SET,
   VERB_VIEW,
+  type OpenField,
 } from '../lib/telegram/panels.js'
 import {
   createPanelState,
@@ -155,11 +157,20 @@ async function handleMessage(userId: string, text: string): Promise<void> {
 
     case 'forecast':
     case 'rain': {
-      // Same shape as `/conditions`: a name opens that location's panel, no name
-      // opens the picker rather than a usage line the user has to retype. The
-      // view the picker then opens is `conditions` — one tap from either.
+      // A name opens that location's panel; no name opens the picker rather than
+      // a usage line the user has to retype.
+      //
+      // **The picker remembers which command opened it.** It used to open a
+      // plain `list`, whose buttons all opened *conditions* — so typing
+      // `/forecast` and tapping your crag landed on the conditions panel, and
+      // all three commands appeared to do the same thing.
       if (command.args === '') {
-        await sendPanel(userId, await createPanelState(userId, { view: 'list' }))
+        await sendPanel(
+          userId,
+          await createPanelState(userId, {
+            view: command.name === 'rain' ? 'pick_rain' : 'pick_forecast',
+          }),
+        )
         return
       }
       const location = await findLocationByName(userId, command.args)
@@ -293,8 +304,12 @@ async function applyAction(
       return state
 
     case VERB_OPEN: {
-      if (field !== 'loc' || value === null || !isUuid(value)) return null
-      return updatePanelState(state.id, userId, { view: 'conditions', locationId: value })
+      // The field names the destination — `loc` conditions, `locf` hourly,
+      // `locr` rain — so the picker opened by `/forecast` lands on the forecast.
+      if (field === null || value === null || !isUuid(value)) return null
+      if (!Object.prototype.hasOwnProperty.call(OPEN_FIELDS, field)) return null
+      const target = OPEN_FIELDS[field as OpenField]
+      return updatePanelState(state.id, userId, { view: target, locationId: value })
     }
 
     case VERB_VIEW: {
