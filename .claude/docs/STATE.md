@@ -5,7 +5,7 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-09-02 · `main` @ `2ef5d6a`
+Last updated: 2026-09-02 · `main` @ `52aa3b2`
 
 ---
 
@@ -19,15 +19,22 @@ confirmed working on a real device: bot, Mini App, alerts, deep links, auth.
 - **Bot** — commands, alerts, deep links into the Mini App.
 - **`apps/mobile`** — archived, out of the build. Do not add features to it.
 
-Baseline: `npm run test` 530 passing (456 api, 50 miniapp, 24 types), `npm run typecheck`
+Baseline: `npm run test` 535 passing (461 api, 50 miniapp, 24 types), `npm run typecheck`
 clean, `npm run check:hooks` 58 passing. **Mutation score 66.09%**, last measured
 2026-08-26 and *not* re-measured since Phases 1, 2, 3 or the 2026-09-01 rebuild —
 `npm run test:mutation --workspace=apps/api`, and see § Mutation testing below.
 
-**Three migrations are stacked and unapplied — `0007` (`panel_states`), `0008` (the three
-`weather_*` run tables) and `0009` (two ensemble columns).** Until `npm run db:migrate`
-runs, every bot panel command fails in production, `/forecast` and `/rain` included, and
-`/api/cron/collect-runs` 500s. See § What the user owes.
+**The migrations are applied (2026-09-02) and both acceptance checks pass** — `0007`
+(`panel_states`), `0008` (the three `weather_*` run tables) and `0009` (two ensemble
+columns). `check:panel-state` 17/17 and `check:weather-runs` 40/40 against the real
+database. Every bot panel command works in production.
+
+**`check:weather-runs` failed on its first ever run, on correct data.** It compared a
+`jsonb` column with `JSON.stringify` on both sides, and Postgres reorders jsonb keys by
+length then bytewise — so it compared key *order*, which jsonb never promised, and could
+only ever fail. Fixed in `ff7165d`. The lesson is the one this repo keeps relearning: an
+assertion written beside the code it checks and **never executed** proves nothing, and
+these scripts exist precisely where vitest cannot look.
 
 Always-loaded instruction budget: **~56,500 chars / ~14,100 est. tokens** (`CLAUDE.md` +
 `.claude/rules/*`). It was 52,754 before Phase 3 added its five invariants. Anthropic's guidance is that a bloated
@@ -94,7 +101,9 @@ Five facts that are not rules and live nowhere else:
   out of three. `.claude/docs/telegram-render.md` §2 has the empty column waiting.
 - **The nine-column width finding was measured on a *rich* table, not on `<pre>`.** A `<pre>`
   block scrolls sideways on a phone rather than wrapping, so width still binds on the path
-  that actually ships; Phase 3's tables are held to 32 characters and tested for it.
+  that actually ships. The tables are held to **40** characters and tested for it — raised
+  from 32 on 2026-09-02 on the evidence of a screenshot of the real bot, in which a
+  24-character table left most of the message bubble blank.
 - **No model run time is exposed anywhere in the response.** A header says *fetched 14:05Z*
   and never *12Z run*.
 - **`panel_states` column names are not the plan's** — `interval` → `interval_hours`,
@@ -123,8 +132,36 @@ Three facts that are not rules:
 - **The independent PR reviewer was broken for two PRs and is now fixed** — see § Delivery
   and verification.
 
-**Nothing has been driven from a real device, and `check:weather-runs` — extended to cover
-the new read path — is still unrun.**
+**Both of those gaps are now closed:** the panels have been driven from a real device
+(2026-09-02) and `check:weather-runs` passes 40/40 against the real database.
+
+### What a real device found (2026-09-02)
+
+Three reports, and the first two had one cause:
+
+- **"conditions and forecast are the same it seems."** They were. `/forecast` and `/rain`
+  with no location opened a plain `list` picker, and every location button on it carried
+  the field `loc`, which `applyAction` maps to `conditions` — so all three commands,
+  followed by the obvious next tap, landed on the same panel. **The picker now remembers
+  which command opened it** (`pick_forecast` / `pick_rain`, buttons carrying `locf` /
+  `locr`), and its heading says where the tap will land. `view` is a plain text column
+  validated in the app, so no migration.
+- **The inline bar drew as a dithered slab.** A run of `░` rendered as a dense speckled
+  block that swamped the `█` beside it. The empty cell is a **space** now, and any non-zero
+  value gets at least one block — at 1–12% everything was rounding to nothing and the
+  column looked identical to no data.
+- **"the row covers the 3 h after is confusing."** The rain rows are labelled with the
+  window itself now (`12a-3a`, `9a-12p`), so the sentence that explained it is gone
+  entirely. `rainTableNote` returns `null` in the simple case on purpose.
+
+**A fourth finding is unresolved and needs a decision — see § What the user owes.** The
+drying model and the rain panel read *different Open-Meteo products* and they disagree
+badly. Measured at Willow River: `archive-api` reports 11.3 mm on 29 Aug and 11.0 mm on
+30 Aug; the forecast API's `past_days` reports **90.8 mm** on 29 Aug and **0** on 30 Aug —
+low-resolution reanalysis smearing one convective storm across two days. That is why
+`/conditions` said *"no rain in 62h"* beside `/rain` saying *"4 days ago"*. **The 62h
+figure feeds the conditions score**, so switching the source changes every score ever
+shown. Left alone deliberately.
 
 ### What the rebuild changed (2026-09-01)
 
@@ -333,14 +370,21 @@ Only things that are still true and still bite. Historical gotchas are in the ar
 
 ## What the user owes
 
-**Three migrations are stacked and unapplied.** From `apps/api`, with `DATABASE_URL` set
-**in the shell** — one command applies all three, then two checks prove them:
+**The migrations are done (2026-09-02).** `0007`, `0008` and `0009` are applied and both
+checks pass — nothing is owed here any more.
 
-```powershell
-npm run db:migrate          # applies 0007 (panel_states), 0008 (the weather_* run tables), 0009 (two ensemble columns)
-npm run check:panel-state   # round trip, user scoping, prune cutoff, location-delete cascade
-npm run check:weather-runs  # storage, the read path and its freshness cutoff, nulls surviving as nulls, prune ordering, the run cascade
-```
+**A product decision is owed, and it is the only one on this list that is not a
+credential.** The drying model reads `archive-api.open-meteo.com` (daily, ERA5 reanalysis)
+while the rain panel reads the forecast API's `past_days` (hourly, higher resolution). They
+disagree badly — 11.3 mm against 90.8 mm for the same day at the same point — and the
+archive's version visibly smeared one storm across two days. The higher-resolution product
+looks more trustworthy, **but `hours_since_rain` feeds the conditions score**, so switching
+changes every score the app has ever shown and touches
+`.claude/docs/scoring-algorithm.md`. Do not switch it unilaterally.
+
+**Rotate the Neon password.** The connection string was pasted into a chat transcript on
+2026-09-02. Neon dashboard → Roles → reset, then update `DATABASE_URL` in both Vercel
+projects.
 
 **Registering `/api/cron/collect-runs` and `/api/cron/prune-runs` with cron-job.org is now
 worth doing**, and it was not before: Phase 3 reads these tables. Without a schedule every
