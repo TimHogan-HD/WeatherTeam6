@@ -6,18 +6,12 @@ import { decodeAction } from '../lib/telegram/callbackData.js'
 import { formatHelp, parseCommand } from '../lib/telegram/commands.js'
 import { formatLocationNotFound } from '../lib/telegram/conditionsMessage.js'
 import { findLocationByName } from '../lib/telegram/conditionsReply.js'
+import { isIntervalHours, isTableUnits } from '../lib/telegram/forecastTable.js'
 import {
-  isColumnSet,
-  isIntervalHours,
-  isTableUnits,
-} from '../lib/telegram/forecastTable.js'
-import {
-  buildNoticePanel,
+  buildRetryPanel,
   EXPIRED_PANEL_TEXT,
-  FIELD_COLUMNS,
   FIELD_DAY,
   FIELD_INTERVAL,
-  FIELD_MODEL,
   FIELD_UNITS,
   VERB_MODE,
   VERB_OPEN,
@@ -34,7 +28,6 @@ import {
   updatePanelState,
   type PanelState,
 } from '../lib/telegram/panelState.js'
-import { DETERMINISTIC_MODELS } from '../lib/weather/openMeteo.js'
 import { renderPanel } from '../lib/telegram/panelViews.js'
 import {
   answerCallbackQuery,
@@ -264,10 +257,11 @@ async function handleCallbackQuery(userId: string, q: CallbackQuery): Promise<vo
       { err: err instanceof Error ? err.message : String(err) },
       '[telegramWebhook] failed to render a panel',
     )
-    // Keeps its navigation, because the copy tells the user to tap Refresh —
-    // stripping the keyboard here would leave a message naming a button that is
-    // no longer on it.
-    const notice = buildNoticePanel(next.id, 'Could not load that just now. Tap 🔄 to try again.')
+    // The copy and the retry button are built together in `panels.ts`, not
+    // assembled here from a string plus whichever keyboard that module happens
+    // to attach. That split is what let the message tell the user to tap a 🔄
+    // the nav row had stopped carrying.
+    const notice = buildRetryPanel(next.id)
     await editTelegramMessage(messageId, notice.text, notice.keyboard)
     return
   }
@@ -326,19 +320,10 @@ async function applyAction(
           if (!Number.isInteger(day) || day < 0 || day > MAX_DAY_OFFSET) return null
           return updatePanelState(state.id, userId, { dayOffset: day })
         }
-        case FIELD_MODEL: {
-          const models: readonly string[] = DETERMINISTIC_MODELS
-          if (!models.includes(value)) return null
-          return updatePanelState(state.id, userId, { model: value })
-        }
         case FIELD_INTERVAL: {
           const hours = Number(value)
           if (!Number.isInteger(hours) || !isIntervalHours(hours)) return null
           return updatePanelState(state.id, userId, { intervalHours: hours })
-        }
-        case FIELD_COLUMNS: {
-          if (!isColumnSet(value)) return null
-          return updatePanelState(state.id, userId, { columnSet: value })
         }
         case FIELD_UNITS: {
           if (!isTableUnits(value)) return null

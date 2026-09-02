@@ -211,27 +211,59 @@ function oddsCell(pct: number | null): string {
  * `null` for a day with no steps at all — a header with nothing under it reads
  * as a day with no rain rather than a day with no data.
  */
+/**
+ * Whether the ensemble said anything at all about this day.
+ *
+ * **Rows exist for every step whether or not the data reaches them** — the same
+ * padding `dayHasData` guards against on the forecast side. Past the ensemble's
+ * 168 h horizon `buildRainDay` still emits eight rows, every value null, and
+ * `day.rows.length === 0` is false for all of them. Drawing that table put
+ * eight rows of em dashes under the sentence *"No forecast reaches this day
+ * yet"*, which contradicts itself.
+ *
+ * Found by rendering the panel against a live fetch, not by any test.
+ */
+export function rainDayHasData(day: RainDay): boolean {
+  return day.rows.some((r) => r.odds_pct !== null || r.total_mm !== null)
+}
+
 export function renderRainTable(day: RainDay, units: TableUnits): string | null {
-  if (day.rows.length === 0) return null
+  if (!rainDayHasData(day)) return null
 
-  // Five-wide value columns, so the whole row is 32 characters. A `<pre>` block
-  // scrolls sideways on a phone rather than wrapping, and the nine-column width
-  // finding in telegram-render.md was measured on a *rich* table, not this path.
   const unit = units === 'imperial' ? 'in' : 'mm'
-  const header = [
-    'hh',
-    'odds'.padStart(5),
-    `tot${unit}`.padStart(5),
-    'p10'.padStart(5),
-    'p50'.padStart(5),
-    'p90'.padStart(5),
-  ].join(' ')
-
+  const header = ['hh', 'chance'.padStart(6), `rain ${unit}`.padStart(8)].join(' ')
   const body = day.rows.map((row) =>
     [
       String(row.hour).padStart(2, '0'),
-      oddsCell(row.odds_pct),
-      precipCell(row.total_mm, units, 5),
+      oddsCell(row.odds_pct).padStart(6),
+      precipCell(row.total_mm, units, 8),
+    ].join(' '),
+  )
+
+  return [header, ...body].join('\n')
+}
+
+/**
+ * The `⚙ More` table: how much rain the step's wettest hour brings at the dry,
+ * middle and wet end of the forecasts — p10, p50 and p90 without ever printing
+ * those names.
+ *
+ * **A second narrow table rather than three more columns on the first one.**
+ * Bolting them on measured 36 characters against the 32 the width test asserts,
+ * and `<pre>` scrolls sideways rather than wrapping, so the extra columns would
+ * have gone off the edge of a phone silently. The forecast panel's `⚙ More`
+ * splits for the same reason and the two now read the same way.
+ *
+ * `null` for a day with no steps at all, matching `renderRainTable` — a header
+ * with nothing under it reads as a day with no rain rather than no data.
+ */
+export function renderRainSpreadTable(day: RainDay, units: TableUnits): string | null {
+  if (!rainDayHasData(day)) return null
+
+  const header = ['hh', 'low'.padStart(5), 'mid'.padStart(5), 'high'.padStart(5)].join(' ')
+  const body = day.rows.map((row) =>
+    [
+      String(row.hour).padStart(2, '0'),
       precipCell(row.precip_mm_p10, units, 5),
       precipCell(row.precip_mm_p50, units, 5),
       precipCell(row.precip_mm_p90, units, 5),
@@ -248,9 +280,15 @@ export function renderRainTable(day: RainDay, units: TableUnits): string | null 
  * reader who assumes the percentiles are step totals would read them as three to
  * twelve times the rain they represent.
  */
-export function rainTableNote(interval: IntervalHours): string {
-  const span = interval === 1 ? 'the hour' : `the ${interval} h`
-  return `odds and p10/p50/p90 are the wettest hour of ${span} after each row; tot is that whole step.`
+export function rainTableNote(interval: IntervalHours, detail: boolean): string {
+  const span = interval === 1 ? 'hour' : `${interval} hours`
+  const base =
+    interval === 1
+      ? 'Chance is for the hour after each row, and rain is the total for it.'
+      : `Chance is the wettest single hour in the ${span} after each row; rain is the total for all of them.`
+  return detail
+    ? `${base} Low, mid and high are how much that wettest hour brings if the forecasts land on the dry, middle or wet side.`
+    : base
 }
 
 /**
@@ -293,14 +331,23 @@ export function formatLastRain(
   today: string,
   units: TableUnits,
 ): string {
-  if (lookupFailed) return 'Last rain: the rainfall record could not be read just now.'
-  if (lastRain === null) return `Last rain: none recorded in the past ${windowDays} days.`
+  if (lookupFailed) return 'Last rain: couldn’t check the rainfall record just now.'
+  if (lastRain === null) return `Last rain: none in the past ${windowDays} days.`
 
   const amount = describePrecip(lastRain.precip_mm, units)
   const days = daysBetween(lastRain.date, today)
+  // The date is kept alongside the plain phrasing rather than replaced by it:
+  // "4 days ago" is what a reader wants, and the date is what they check it
+  // against when the answer matters.
   const when =
-    days === null ? '' : days <= 0 ? ' (today)' : days === 1 ? ' (yesterday)' : ` (${days} days ago)`
-  return `Last rain: ${lastRain.date}, ${amount}${when}.`
+    days === null
+      ? lastRain.date
+      : days <= 0
+        ? `today (${lastRain.date})`
+        : days === 1
+          ? `yesterday (${lastRain.date})`
+          : `${days} days ago (${lastRain.date})`
+  return `Last rain: ${when}, ${amount}.`
 }
 
 /**

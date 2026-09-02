@@ -1,5 +1,42 @@
 # A precision weather interface in Telegram
 
+> ## ⚠️ The product decision in this document was reversed on 2026-09-01.
+>
+> This doc's premise is *"the Mini App is the snapshot, **the bot is the instrument**… The
+> target is SpotWX-class precision — model-explicit, hourly, variable-rich — **not a
+> glanceable summary.**"* Phases 1–3 built exactly that, and the result was a chat surface
+> the owner could not read: five keyboard rows and up to thirteen buttons under an
+> eight-line table, a header of dot-separated metadata, and two footnote sentences per view.
+>
+> **The direction is now the opposite one, and it is the owner's call, not a drift:**
+>
+> | | Before | Now |
+> | --- | --- | --- |
+> | The bot | the instrument | **answers the question** — three lines, two button rows |
+> | The Mini App | the snapshot | **carries the depth** — model comparison, full spread |
+> | Vocabulary | model-explicit, SpotWX-class | **plain language**; no p10/p50/p90, no "ensemble members", no "blended probability" |
+> | Chat depth | four column sets, four steps, six models | **one `⚙ More` toggle** per panel |
+>
+> What that removed from chat, all of it still reachable in the Mini App: the six-model
+> switcher, the four-way column-set picker, the seven-day outlook block, the `pop` column,
+> and the `Simple/Advanced` tier (`⚙ More` replaces it and means something narrower).
+> **Nothing was removed from the data layer** — Phase 2's schema, fetches and retention are
+> untouched, and every stored variable except `precip_prob_pct` is still rendered under
+> `⚙ More`.
+>
+> **What this means for the phases below.** Phases 0–2 are unaffected: they are the probes
+> and the data layer, and both stand. Phase 3 shipped and was then rebuilt — read
+> `panels.ts`'s module comment for the rules that now bind, not § What it looks like below.
+> **Phase 4's `/insight` needs re-specifying** before it is built: "model disagreement,
+> named models, spread, outlier" is precisely the vocabulary this reversal removed, and it
+> should become a plain-language confidence statement. **`/afd` is unaffected and gets
+> better** — it is a human forecaster writing plain English, which is now the house style.
+> Phase 5 is unaffected.
+>
+> Everything below is kept because it is the measured evidence — the probes, the traps and
+> the schema are all still correct, and the model matrix is still the authority on what
+> Open-Meteo actually returns. Only the *interface* decisions are superseded.
+
 ## Context
 
 > **This section describes the bot as it was on 2026-08-31, before Phase 1.** Every "today"
@@ -147,6 +184,12 @@ five by the device.
 
 ## What it looks like
 
+> **Superseded 2026-09-01 — see the box at the top of this file.** The panel below is what
+> Phase 3 shipped and what the rebuild replaced. It is kept as the record of what was
+> rejected and why: the header is three pieces of metadata before the place name, the model
+> row is six buttons, and `HH temp dew wind cld` is the vocabulary of the data source. The
+> panels that ship today are specified by `panels.ts`'s module comment.
+
 One panel message, edited in place. Simple mode by default; Advanced reveals the rest.
 
 ```
@@ -183,7 +226,7 @@ Cached 14m ago
 | Model set | GFS, ECMWF, ICON, GEM globally; HRRR and NBM where CONUS coverage exists |
 | Model buttons | **Derived from coverage.** No data → a labelled non-button row saying the model does not reach the point, never omitted. **Not** `DisabledButton`: Probe B run 1 showed both clients draw it identically to an enabled button |
 | Rendering | **`<pre>` monospace, and that is now the answer, not a first step.** `RichBlockTable` cleared phone and desktop in Probe B run 1, edit-in-place included, but the web check was declined — adopting it would assert something about an untested client |
-| Panel controls | Simple mode default (day, model, refresh); Advanced adds interval, columns, units |
+| Panel controls | ~~Simple mode default (day, model, refresh); Advanced adds interval, columns, units~~ **Superseded 2026-09-01:** day pager, the two sibling views, and one `⚙ More` that adds the detail tables, the step picker and the unit toggle. No model row, no column-set picker. |
 | Data surfaces | Pure meteorology — no conditions score, no state label, no drying |
 | `/insight` | Computed statistics only. **No generated prose** (spec §9) |
 | Human forecast | NWS AFD via `/afd`, referenced from `/insight` |
@@ -202,9 +245,9 @@ Cached 14m ago
 
 | Command | Does |
 | --- | --- |
-| `/forecast [place] [interval]` | Per-model table, one day per screen |
-| `/rain [place] [window]` | Probability, accumulation p10/p50/p90, timing, time since last rain |
-| `/insight [place] [when]` | Model disagreement, ensemble distribution, run-to-run trend, lead-time confidence |
+| `/forecast [place] [interval]` | Hour by hour, one day per screen. ~~Per-model table~~ — one model, named at the foot; switching models is the Mini App's |
+| `/rain [place] [window]` | Chance, amount, timing, time since last rain. ~~p10/p50/p90~~ — those are behind `⚙ More`, headed low/mid/high |
+| `/insight [place] [when]` | **Needs re-specifying** — model disagreement, ensemble distribution, run-to-run trend and lead-time confidence are the vocabulary the 2026-09-01 reversal removed |
 | `/afd [place]` | The local NWS forecaster's discussion, by section |
 | `/weather <place>` | Any point on earth via geocoding, no save required |
 | `/conditions [place]` | The existing climbing reply — unchanged in substance |

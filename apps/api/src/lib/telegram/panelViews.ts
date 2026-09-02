@@ -11,11 +11,9 @@ import { formatHelp } from './commands.js'
 import { buildConditionsInput, findLocationById, type ConditionsLocation } from './conditionsReply.js'
 import {
   buildRows,
-  isColumnSet,
   isIntervalHours,
   isTableUnits,
   localDays,
-  type ColumnSet,
   type IntervalHours,
   type TableUnits,
 } from './forecastTable.js'
@@ -54,7 +52,7 @@ export async function renderPanel(
       if (typeof location === 'string') return buildNoticePanel(state.id, location)
       return buildConditionsPanel({
         stateId: state.id,
-        mode: state.mode,
+        locationId: location.id,
         conditions: await buildConditionsInput(location),
       })
     }
@@ -116,7 +114,6 @@ function coordsOf(location: ConditionsLocation): ForecastLocation {
  */
 function settingsOf(state: PanelState): {
   interval: IntervalHours
-  columnSet: ColumnSet
   units: TableUnits
 } {
   return {
@@ -124,7 +121,6 @@ function settingsOf(state: PanelState): {
       state.intervalHours !== null && isIntervalHours(state.intervalHours)
         ? state.intervalHours
         : 3,
-    columnSet: state.columnSet !== null && isColumnSet(state.columnSet) ? state.columnSet : 'all',
     units: isTableUnits(state.units) ? state.units : 'imperial',
   }
 }
@@ -179,7 +175,7 @@ async function renderForecast(
 ): Promise<Panel> {
   const point = coordsOf(location)
   const pointKey = pointKeyForLocation(location.id)
-  const { interval, columnSet, units } = settingsOf(state)
+  const { interval, units } = settingsOf(state)
 
   // The ensemble is the sparkline only. A forecast table that fails because the
   // agreement bar could not be drawn would be a working panel lost to an
@@ -208,19 +204,16 @@ async function renderForecast(
 
   return buildForecastPanel({
     stateId: state.id,
+    locationId: location.id,
     mode: state.mode,
     locationName: location.name,
     units,
     interval,
-    columnSet,
     model: model?.model ?? '',
     days,
     dayIndex,
     rows:
       model === null || date === undefined ? [] : buildRows(model.hours, offset, date, interval),
-    modelsAvailable: deterministic.models.map((m) => m.model),
-    modelsUnavailable: deterministic.unavailable_models,
-    probabilityIsShared: model?.probability_is_shared ?? null,
     rainDay:
       ensemble === null || date === undefined
         ? null
@@ -257,6 +250,7 @@ async function renderRain(
 
   return buildRainPanel({
     stateId: state.id,
+    locationId: location.id,
     mode: state.mode,
     locationName: location.name,
     units,

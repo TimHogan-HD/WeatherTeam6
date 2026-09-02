@@ -8,6 +8,7 @@ import {
   formatLastRain,
   oddsPct,
   rainTableNote,
+  renderRainSpreadTable,
   renderRainTable,
 } from './rainMessage.js'
 
@@ -154,33 +155,118 @@ describe('buildRainDay', () => {
 })
 
 describe('renderRainTable', () => {
+  /**
+   * A day the ensemble reaches for **part** of, which is the fixture every
+   * gap assertion below needs.
+   *
+   * `buildRainDay` emits a row per step whether or not the data reaches it, so
+   * an all-empty day is now suppressed entirely — meaning a fixture built from
+   * `[]` would render no table at all and every "renders a gap" assertion under
+   * it would pass vacuously against `undefined`. Defect class 11, and it is how
+   * these three tests were written before the suppression existed.
+   *
+   * The single hour at 13:00 lands in the 12:00 step at a 12 h interval; the
+   * 00:00 step has nothing and is the row that must show gaps.
+   */
+  const partialDay = (interval: 1 | 12) =>
+    buildRainDay(
+      [
+        hour({
+          valid_at: at(13),
+          precip_mm_mean: 0.9,
+          members_wet: 60,
+          member_count: 100,
+          precip_mm_p10: 0,
+          precip_mm_p50: 0.5,
+          precip_mm_p90: 3,
+        }),
+      ],
+      OFFSET,
+      '2026-09-04',
+      interval,
+    )
+
   it('has no table for a day the ensemble said nothing about', () => {
     expect(renderRainTable(EMPTY_RAIN_DAY, 'imperial')).toBeNull()
+    expect(renderRainSpreadTable(EMPTY_RAIN_DAY, 'imperial')).toBeNull()
   })
 
-  it('renders missing odds as a gap rather than 0%', () => {
-    const day = buildRainDay([], OFFSET, '2026-09-04', 12)
-    const table = renderRainTable(day, 'imperial')
-    expect(table).toContain('—')
-    expect(table).not.toContain('0%')
+  it('has no table for a day past the horizon, where the rows exist but are empty', () => {
+    // The case a `rows.length === 0` check misses entirely: padded rows are
+    // real rows full of nulls. Drawing them put eight rows of em dashes under
+    // the sentence "No forecast reaches this day yet", which contradicts it.
+    const beyond = buildRainDay([], OFFSET, '2026-09-04', 3)
+    expect(beyond.rows).toHaveLength(8)
+    expect(renderRainTable(beyond, 'imperial')).toBeNull()
+    expect(renderRainSpreadTable(beyond, 'imperial')).toBeNull()
   })
 
-  it('heads the total column with the unit it is showing', () => {
-    const day = buildRainDay([], OFFSET, '2026-09-04', 12)
-    expect(renderRainTable(day, 'imperial')?.split('\n')[0]).toContain('totin')
-    expect(renderRainTable(day, 'metric')?.split('\n')[0]).toContain('totmm')
+  it('renders a step the data does not reach as a gap rather than 0%', () => {
+    const table = renderRainTable(partialDay(12), 'imperial')
+    // Row 1 is the 00:00 step, which no hour reached.
+    const empty = table?.split('\n')[1]
+    expect(empty?.startsWith('00')).toBe(true)
+    expect(empty).toContain('—')
+    expect(empty).not.toContain('0%')
+    // And the step that *was* reached still carries its real numbers, so this
+    // is not passing because the whole table is blank.
+    expect(table).toContain('60%')
   })
 
-  it('stays inside a phone width', () => {
-    const day = buildRainDay([], OFFSET, '2026-09-04', 1)
-    for (const line of renderRainTable(day, 'imperial')?.split('\n') ?? []) {
-      expect(line.length).toBeLessThanOrEqual(32)
+  it('heads the columns in words, with the unit it is showing', () => {
+    const day = partialDay(12)
+    const imperial = renderRainTable(day, 'imperial')?.split('\n')[0]
+    expect(imperial).toContain('chance')
+    expect(imperial).toContain('rain in')
+    expect(renderRainTable(day, 'metric')?.split('\n')[0]).toContain('rain mm')
+  })
+
+  it('keeps the spread out of the default table and names it in words', () => {
+    const day = partialDay(12)
+    const simple = renderRainTable(day, 'imperial')?.split('\n')[0] ?? ''
+    expect(simple).not.toContain('low')
+    expect(simple).not.toContain('high')
+
+    // The `⚙ More` table, headed as what the numbers mean. `p10`/`p50`/`p90`
+    // are the vocabulary of the data source and never reach the screen.
+    const spread = renderRainSpreadTable(day, 'imperial')?.split('\n')[0] ?? ''
+    expect(spread).toContain('low')
+    expect(spread).toContain('mid')
+    expect(spread).toContain('high')
+    expect(spread).not.toContain('p10')
+    expect(spread).not.toContain('p90')
+    // The percentiles themselves are in the body, not just the header.
+    expect(renderRainSpreadTable(day, 'metric')).toContain('3.0')
+  })
+
+  it('stays inside a phone width in both tables', () => {
+    // This assertion is what forced the spread into its own table: bolted onto
+    // the first one it measured 36 characters, and `<pre>` scrolls sideways
+    // rather than wrapping, so the extra columns would have gone off the edge
+    // of the phone silently.
+    const day = partialDay(1)
+    const tables = [
+      renderRainTable(day, 'imperial'),
+      renderRainSpreadTable(day, 'imperial'),
+      renderRainTable(day, 'metric'),
+      renderRainSpreadTable(day, 'metric'),
+    ]
+    for (const table of tables) {
+      expect(table).not.toBeNull()
+      for (const line of table?.split('\n') ?? []) {
+        expect(line.length).toBeLessThanOrEqual(32)
+      }
     }
   })
 
-  it('says which hour the percentiles describe', () => {
-    expect(rainTableNote(3)).toContain('wettest hour')
-    expect(rainTableNote(1)).toContain('the hour')
+  it('says which hour the chance describes, and explains the spread only when shown', () => {
+    // The distinction is worth a sentence: a reader who takes the chance for
+    // the whole step reads a 3 h window as a single hour's odds.
+    expect(rainTableNote(3, false)).toContain('wettest single hour')
+    expect(rainTableNote(1, false)).toContain('the hour after each row')
+    // No columns for it, so no sentence about it.
+    expect(rainTableNote(3, false)).not.toContain('dry, middle or wet')
+    expect(rainTableNote(3, true)).toContain('dry, middle or wet')
   })
 })
 
@@ -200,8 +286,8 @@ describe('formatLastRain', () => {
     // Issue #34, in a second place: an upstream outage that renders as "no rain
     // in 30 days" is an outage that improves the forecast.
     const line = formatLastRain(null, true, 30, '2026-09-04', 'imperial')
-    expect(line).toContain('could not be read')
-    expect(line).not.toContain('none recorded')
+    expect(line).toContain('couldn’t check')
+    expect(line).not.toContain('none in the past')
   })
 
   it('names the window when the record really is empty', () => {
@@ -218,7 +304,7 @@ describe('formatLastRain', () => {
       '2026-09-04',
       'imperial',
     )
-    expect(line).toContain('(today)')
+    expect(line).toContain('today (2026-09-04)')
     expect(line).not.toMatch(/\(-\d/)
   })
 
@@ -236,7 +322,7 @@ describe('formatLastRain', () => {
   it('says yesterday rather than 1 days ago', () => {
     expect(
       formatLastRain({ date: '2026-09-03', precip_mm: 5 }, false, 30, '2026-09-04', 'imperial'),
-    ).toContain('(yesterday)')
+    ).toContain('yesterday (2026-09-03)')
   })
 
   it('carries the amount in the selected units', () => {

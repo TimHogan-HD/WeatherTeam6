@@ -295,7 +295,10 @@ const COLUMNS = {
     render: (r) => cell(compassPoint(r.at?.wind_dir_deg ?? null) ?? GAP, 4),
   },
   cloud: {
-    header: () => 'cld',
+    // 'sky', not 'cld'. The chat table is read by someone deciding whether to
+    // drive to a crag, and an abbreviation that has to be decoded is the thing
+    // this panel was rebuilt to remove.
+    header: () => 'sky',
     width: 4,
     render: (r) => pctCell(r.at?.cloud_pct ?? null, 4),
   },
@@ -303,16 +306,6 @@ const COLUMNS = {
     header: (u) => (u === 'imperial' ? 'in' : 'mm'),
     width: 5,
     render: (r, u) => precipCell(r.precip_mm, u, 5),
-  },
-  /**
-   * The blended probability from `weather_run_hours.precip_prob_pct`. The header
-   * is deliberately not the model's name and the caller adds the footnote — see
-   * `probabilityNote`.
-   */
-  pop: {
-    header: () => 'pop',
-    width: 4,
-    render: (r) => pctCell(r.at?.precip_prob_pct ?? null, 4),
   },
   pressure: {
     header: () => 'mb',
@@ -326,56 +319,79 @@ const COLUMNS = {
   },
 } satisfies Record<string, Column>
 
-type ColumnKey = keyof typeof COLUMNS
+/** The name of one renderable column. Exported so a caller can hold a column list. */
+export type ForecastColumn = keyof typeof COLUMNS
+
+type ColumnKey = ForecastColumn
 
 /**
- * The four column sets a panel can switch between.
+ * The column sets, and there is deliberately no picker between them.
  *
- * Probe B measured nine columns fitting a phone with no wrap, so these are not
- * cut to fit a width that was never the constraint — they are cut so each set
- * answers one question.
+ * The panel used to offer four sets, four intervals, six models and a units
+ * toggle — thirteen buttons under an eight-line table, which is what made the
+ * chat surface unreadable. The default is now the four columns that answer
+ * "can I climb": how warm, how windy, how wet, how sunny.
+ *
+ * **`⚙ More` draws two narrow tables rather than one wide one.** Every set here
+ * stays inside the 32-character width `renderTable`'s own test asserts: the
+ * `<pre>` path scrolls sideways rather than wrapping, and a single nine-column
+ * detail table measures 50 characters, so it would have moved the reader's
+ * problem from "too many buttons" to "half the numbers are off screen". Probe
+ * B's nine-columns-fit finding was measured on a *rich* table, not this path.
+ *
+ * Between the three sets, every variable `weather_run_hours` stores is rendered
+ * except `precip_prob_pct` — see `precipCell`'s neighbours and the note below.
  */
-export const COLUMN_SETS = {
-  all: { label: 'Overview', columns: ['temp', 'dew', 'wind', 'cloud', 'precip'] },
-  temp: { label: 'Air', columns: ['temp', 'dew', 'rh', 'pressure'] },
-  wind: { label: 'Wind', columns: ['wind', 'gust', 'dir', 'temp'] },
-  rain: { label: 'Rain', columns: ['precip', 'pop', 'cloud', 'rh'] },
-} satisfies Record<string, { label: string; columns: readonly ColumnKey[] }>
+export const SIMPLE_COLUMNS = [
+  'temp',
+  'wind',
+  'precip',
+  'cloud',
+] as const satisfies readonly ColumnKey[]
 
-export type ColumnSet = keyof typeof COLUMN_SETS
+/** `⚙ More`, first table: everything about the air. 24 characters wide. */
+export const DETAIL_AIR_COLUMNS = [
+  'temp',
+  'dew',
+  'rh',
+  'pressure',
+] as const satisfies readonly ColumnKey[]
 
-export const COLUMN_SET_KEYS = Object.keys(COLUMN_SETS) as ColumnSet[]
-
-export function isColumnSet(value: string): value is ColumnSet {
-  return Object.prototype.hasOwnProperty.call(COLUMN_SETS, value)
-}
+/** `⚙ More`, second table: everything that moves or falls. 28 characters wide. */
+export const DETAIL_WIND_COLUMNS = [
+  'wind',
+  'gust',
+  'dir',
+  'precip',
+  'cloud',
+] as const satisfies readonly ColumnKey[]
 
 /**
- * The caveat a `pop` column carries, or `null` when there is none to make.
+ * **`precipitation_probability` is not rendered by any set above, on purpose.**
  *
- * Probe A measured `precipitation_probability` running 276 h against HRRR's 54 h
- * horizon and byte-identical to NBM's series: it is a blended field that belongs
- * to no single model, and `markSharedProbability` derives per response which
- * models share one. So the column may only be read as this model's own when the
- * flag is explicitly `false`.
+ * It is still fetched and still stored on `weather_run_hours.precip_prob_pct` —
+ * this is a rendering decision, not a data one. Three reasons it lost its
+ * column:
  *
- * **`null` is unknown, not "no".** A run stored before the flag existed gets the
- * caveat, because withholding an attribution costs a sentence and asserting a
- * wrong one is the defect.
+ * 1. Probe A measured it running 276 h against HRRR's 54 h horizon and
+ *    byte-identical to NBM's series. It is a blended field belonging to no
+ *    single model, so a column in a table headed with one model's name needed a
+ *    footnote saying it was not that model's figure — the exact kind of caveat
+ *    this redesign exists to remove.
+ * 2. The `🌧 Rain` panel already answers the same question better and with an
+ *    attribution that holds: `members_wet / member_count` from the ensemble is
+ *    a real proportion of real forecasts.
+ * 3. Two differently-derived "chance of rain" numbers on two panels of the same
+ *    bot invite the reader to reconcile them, and they do not reconcile.
+ *
+ * `probability_is_shared` is still carried on the run and still reaches the
+ * database. Nothing about the honesty machinery was removed — only the column
+ * that needed it.
  */
-export function probabilityNote(
-  columnSet: ColumnSet,
-  probabilityIsShared: boolean | null,
-): string | null {
-  const columns: readonly string[] = COLUMN_SETS[columnSet].columns
-  if (!columns.includes('pop')) return null
-  if (probabilityIsShared === false) return null
-  return 'pop is a blended probability, not this model’s own field.'
-}
 
 export type TableInput = {
   readonly rows: readonly ForecastRow[]
-  readonly columnSet: ColumnSet
+  readonly columns: readonly ColumnKey[]
   readonly units: TableUnits
 }
 
@@ -388,7 +404,7 @@ export type TableInput = {
 export function renderTable(input: TableInput): string | null {
   if (input.rows.length === 0) return null
 
-  const columns = COLUMN_SETS[input.columnSet].columns.map((key) => COLUMNS[key])
+  const columns = input.columns.map((key) => COLUMNS[key])
   const header = ['hh', ...columns.map((c) => cell(c.header(input.units), c.width))].join(' ')
   const body = input.rows.map((row) =>
     [
@@ -407,6 +423,6 @@ export function renderTable(input: TableInput): string | null {
  */
 export function stepNote(interval: IntervalHours): string {
   return interval === 1
-    ? 'Values are at the hour; rain is the total for the hour after it.'
-    : `Values are at the hour; rain is the total for the ${interval} h after it.`
+    ? 'Each row is the reading at that time. Rain is the total for the hour after it.'
+    : `Each row is the reading at that time. Rain is the total for the ${interval} hours after it.`
 }

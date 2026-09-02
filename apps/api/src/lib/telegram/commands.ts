@@ -72,9 +72,9 @@ export type BotCommand = {
 export const BOT_COMMANDS: readonly BotCommand[] = [
   { command: 'start', description: 'Open the bot panel' },
   { command: 'locations', description: 'Pick one of your saved locations' },
-  { command: 'conditions', description: 'Conditions for a saved location by name' },
-  { command: 'forecast', description: 'Hour by hour, one model at a time' },
-  { command: 'rain', description: 'Rain odds and amounts from the ensemble' },
+  { command: 'conditions', description: 'How a place is looking right now' },
+  { command: 'forecast', description: 'Hour by hour for one day' },
+  { command: 'rain', description: 'When rain arrives, and how much' },
   { command: 'alerts', description: 'Active weather alerts across your locations' },
   { command: 'help', description: 'What this bot can do' },
 ]
