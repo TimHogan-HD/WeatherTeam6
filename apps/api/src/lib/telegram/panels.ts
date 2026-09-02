@@ -3,6 +3,8 @@ import { encodeAction } from './callbackData.js'
 import { formatConditionsReply, type ConditionsReplyInput } from './conditionsMessage.js'
 import { locationDeepLink, MINI_APP_DIRECT_LINK } from './deepLink.js'
 import {
+  barScaleNote,
+  clockLabel,
   dayHasData,
   DETAIL_AIR_COLUMNS,
   DETAIL_WIND_COLUMNS,
@@ -19,14 +21,15 @@ import {
 import {
   describePrecip,
   formatLastRain,
+  formatLastRainAt,
   rainDayHasData,
   rainTableNote,
   renderRainSpreadTable,
   renderRainTable,
   type LastRain,
   type RainDay,
+  type RainEpisode,
 } from './rainMessage.js'
-import { sparkline } from './sparkline.js'
 import type { InlineKeyboardButton, InlineKeyboardMarkup } from './sendMessage.js'
 import type { PanelMode } from './panelState.js'
 
@@ -255,21 +258,23 @@ export function dayLabel(localDate: string): string {
 }
 
 /**
- * A local wall-clock hour as a person says it: `3pm`, `midnight`, `noon`.
- *
- * The tables keep 24-hour `hh` labels, because they are a column and have to
- * align. A *sentence* saying "wettest around 15:00" is reading the clock aloud
- * in the data's format rather than the reader's, which is the same class of
- * problem as printing `p50`.
- *
- * Returns `null` for anything that is not an hour of the day, so a caller
- * omits the phrase rather than printing `NaNpm`.
+ * Re-exported from `forecastTable.ts`, where it lives so the tables and the
+ * rain copy can both reach it without importing this module — `panels.ts`
+ * already imports them, and the other direction would be a cycle.
  */
-export function clockLabel(hour: number): string | null {
-  if (!Number.isInteger(hour) || hour < 0 || hour > 23) return null
-  if (hour === 0) return 'midnight'
-  if (hour === 12) return 'noon'
-  return hour < 12 ? `${hour}am` : `${hour - 12}pm`
+export { clockLabel }
+
+/** How wide the temperature bar is on the hourly panel. */
+const TEMP_BAR_WIDTH = 9
+
+/**
+ * An hour for a *sentence*, always a string. `clockLabel` returns `null` for a
+ * non-hour so a caller can omit a phrase; a table row and the last-rain line
+ * need something to print, and the 24-hour form is a worse answer than `3pm`
+ * but a much better one than `NaNpm`.
+ */
+function formatClockHour(hour: number): string {
+  return clockLabel(hour) ?? `${String(hour).padStart(2, '0')}:00`
 }
 
 /**
@@ -498,7 +503,17 @@ export function buildForecastPanel(input: ForecastPanelInput): Panel {
   const table = (columns: readonly ForecastColumn[]): string | null =>
     hasData ? renderTable({ rows: input.rows, columns, units: input.units }) : null
 
-  const simple = table(SIMPLE_COLUMNS)
+  const simple = hasData
+    ? renderTable({
+        rows: input.rows,
+        columns: SIMPLE_COLUMNS,
+        units: input.units,
+        // The temperature bar. It replaced a standalone row of blocks that had
+        // no axis, no scale and no labels — beside the number, in the row whose
+        // clock time labels it, the same shape is readable without either.
+        bar: { after: 'temp', width: TEMP_BAR_WIDTH },
+      })
+    : null
   if (simple === null) {
     lines.push(
       escapeTelegramHtml(
@@ -517,24 +532,33 @@ export function buildForecastPanel(input: ForecastPanelInput): Panel {
     if (wind !== null) lines.push(escapeTelegramHtml('Wind and rain'), pre(wind))
     lines.push(escapeTelegramHtml(stepNote(input.interval)))
   } else {
-    lines.push(pre(simple), escapeTelegramHtml(stepNote(input.interval)))
+    lines.push(pre(simple))
+    // **The bar's scale is stated wherever the bar is drawn.** It is the day's
+    // own range, not an absolute one, so without this the shape means nothing —
+    // which is exactly what was wrong with the row of blocks it replaced.
+    const scale = barScaleNote(input.rows, 'temp', input.units)
+    if (scale !== null) lines.push(escapeTelegramHtml(scale))
+    lines.push(escapeTelegramHtml(stepNote(input.interval)))
   }
 
-  if (input.rainDay !== null) {
-    const odds = input.rainDay.rows.map((r) => r.odds_pct)
-    // Omitted rather than drawn flat when no member reached the day: a row of
-    // low bars is a forecast of no rain, and no members is not a forecast.
-    if (odds.some((o) => o !== null)) {
-      lines.push('', escapeTelegramHtml('Chance of rain through the day'), pre(sparkline(odds, 100)))
-    }
+  // The attribution is `⚙ More` only. It is derived, never guessed, and it is
+  // still one tap away — but a model name and a member count under every
+  // default panel is a footer the reader has already read, on a surface whose
+  // whole problem was that the furniture outweighed the content.
+  if (detail) {
+    lines.push(
+      '',
+      escapeTelegramHtml(
+        ensembleSourceSuffix(sourceLine(input.model, input.fetchedAt, input.now), input.rainDay),
+      ),
+    )
+  } else {
+    // Age stays on the default panel. It is the one piece of provenance that
+    // changes what the reader should do: a three-hour-old panel is worth a tap
+    // of 🔄, and a fresh one is not.
+    const age = formatAge(input.fetchedAt, input.now)
+    if (age !== null) lines.push('', escapeTelegramHtml(`Updated ${age}`))
   }
-
-  lines.push(
-    '',
-    escapeTelegramHtml(
-      ensembleSourceSuffix(sourceLine(input.model, input.fetchedAt, input.now), input.rainDay),
-    ),
-  )
 
   const rows: InlineKeyboardButton[][] = [dayRow(input.stateId, input.days, input.dayIndex)]
 
@@ -609,6 +633,15 @@ export type RainPanelInput = {
   readonly dayIndex: number
   readonly day: RainDay
   readonly lastRain: LastRain | null
+  /**
+   * The last run of wet hours, when an hourly series reached it — preferred over
+   * `lastRain`, because it can say *when* rather than only *which day*.
+   *
+   * `null` means the hourly window did not cover the rain (or could not be
+   * read), and the daily `lastRain` answers instead. It is never a claim that
+   * it did not rain.
+   */
+  readonly lastRainAt: RainEpisode | null
   /** True when the rainfall record could not be read — never rendered as a dry spell (#34). */
   readonly lastRainFailed: boolean
   readonly rainWindowDays: number
@@ -646,8 +679,9 @@ export function buildRainPanel(input: RainPanelInput): Panel {
   // saying the same thing was the panel telling the reader twice.
   const table = renderRainTable(input.day, input.units)
   if (table !== null) {
-    const odds = input.day.rows.map((r) => r.odds_pct)
-    if (odds.some((o) => o !== null)) lines.push(pre(sparkline(odds, 100)))
+    // No standalone bar above the table any more. It drew the same eight values
+    // as an unlabelled row of blocks; they are now a bar *inside* each row,
+    // where the clock time labels the x and the percentage labels the y.
     lines.push(pre(table))
     if (detail) {
       // A second narrow table, not three more columns: the combined form
@@ -658,19 +692,32 @@ export function buildRainPanel(input: RainPanelInput): Panel {
     lines.push(escapeTelegramHtml(rainTableNote(input.interval, detail)))
   }
 
+  // **The clock time wins when an hourly series reached the rain.** "Last rain:
+  // today" cannot distinguish rain that stopped at 3am from rain still falling
+  // at 5pm, which are opposite answers to whether the rock has dried. The daily
+  // lookup remains the fallback for rain older than the hourly window, and for
+  // the failure case — which still reads differently from a dry spell (#34).
   lines.push(
     '',
     escapeTelegramHtml(
-      formatLastRain(
-        input.lastRain,
-        input.lastRainFailed,
-        input.rainWindowDays,
-        input.today,
-        input.units,
-      ),
+      input.lastRainAt !== null && !input.lastRainFailed
+        ? formatLastRainAt(input.lastRainAt, input.today, input.units, formatClockHour)
+        : formatLastRain(
+            input.lastRain,
+            input.lastRainFailed,
+            input.rainWindowDays,
+            input.today,
+            input.units,
+          ),
     ),
-    escapeTelegramHtml(rainSourceLine(input.day, input.fetchedAt, input.now)),
   )
+
+  if (detail) {
+    lines.push(escapeTelegramHtml(rainSourceLine(input.day, input.fetchedAt, input.now)))
+  } else {
+    const age = formatAge(input.fetchedAt, input.now)
+    if (age !== null) lines.push(escapeTelegramHtml(`Updated ${age}`))
+  }
 
   const rows: InlineKeyboardButton[][] = [dayRow(input.stateId, input.days, input.dayIndex)]
 

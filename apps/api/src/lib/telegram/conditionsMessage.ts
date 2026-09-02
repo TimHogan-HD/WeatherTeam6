@@ -1,12 +1,10 @@
 import {
   escapeTelegramHtml,
-  forecastSourceLabel,
   formatHoursSinceRain,
   formatHumidity,
   formatTempF,
   formatWindMph,
   isSevereAlert,
-  rainfallSourceLabel,
   scoreUnavailableLine,
   summarizeConditions,
 } from '@weatherteam6/types'
@@ -41,9 +39,8 @@ export type ActiveAlert = {
 
 export type ConditionsReplyInput = {
   locationName: string
-  /** A city gets weather, alerts and sources — never a rock-drying score (§7 rule 8). */
+  /** A city gets weather and alerts — never a rock-drying score (§7 rule 8). */
   isClimbingLocation: boolean
-  asosStation: string | null
   /** `null` when the forecast feed has no row for today. */
   today: ForecastSnapshot | null
   todayScore: ConditionsScore | null
@@ -54,7 +51,6 @@ export type ConditionsReplyInput = {
    */
   scoreUnavailable?: 'rainfall_unavailable' | null
   activeAlerts: readonly ActiveAlert[]
-  snapshots: readonly ForecastSnapshot[]
 }
 
 function weatherLine(day: ForecastSnapshot, rainLine: string | null): string {
@@ -71,12 +67,10 @@ export function formatConditionsReply(input: ConditionsReplyInput): string {
   const {
     locationName,
     isClimbingLocation,
-    asosStation,
     today,
     todayScore,
     scoreUnavailable,
     activeAlerts,
-    snapshots,
   } = input
 
   const severeEvent = activeAlerts.find((a) => isSevereAlert(a.severity))?.event ?? null
@@ -132,17 +126,17 @@ export function formatConditionsReply(input: ConditionsReplyInput): string {
     }
   }
 
-  // Sources are named, and computed — never a hardcoded list (§7 rule 6).
-  const sources = [
-    forecastSourceLabel(snapshots),
-    isClimbingLocation ? rainfallSourceLabel(asosStation) : null,
-    activeAlerts.length > 0 ? 'NWS' : null,
-  ].filter((s): s is string => s !== null)
-
-  if (sources.length > 0) {
-    lines.push('', `Sources: ${escapeTelegramHtml(sources.join(' · '))}`)
-  }
-
+  // **No sources footer on this panel.** §7 rule 6 requires that any source
+  // named be *computed* rather than hardcoded — it does not require that one be
+  // shown, and this is a display decision on one surface. What it printed was
+  // `Sources: Open-Meteo (gfs_seamless, ecmwf_ifs025, icon_seamless_eps,
+  // gem_global) · Open-Meteo archive`: four raw API model keys and a repeated
+  // vendor name, on the panel whose entire job is three readable lines.
+  //
+  // Nothing is being hidden. `forecastSourceLabel` and `rainfallSourceLabel`
+  // are unchanged, the Mini App still renders them, and the two attributions
+  // that carry meaning are still here — NWS is named inline on every alert
+  // above, and the hourly panel names its model under `⚙ More`.
   return lines.join('\n')
 }
 

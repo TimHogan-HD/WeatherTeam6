@@ -121,14 +121,20 @@ describe('buildForecastPanel', () => {
     expect(header).not.toContain('hourly')
   })
 
-  it('keeps the attribution and the age, at the foot', () => {
-    const panel = buildForecastPanel(forecastInput())
-    expect(panel.text).toContain('HRRR model')
+  it('shows only the age by default, and the attribution under More', () => {
+    // Age stays because it changes what the reader does — a three-hour-old
+    // panel is worth a tap of 🔄. The model name and member count do not, and
+    // a footer under every default panel was furniture.
+    const simple = buildForecastPanel(forecastInput())
+    expect(simple.text).toContain('Updated 14m ago')
+    expect(simple.text).not.toContain('HRRR model')
+
+    const detail = buildForecastPanel(forecastInput({ mode: 'advanced' }))
+    expect(detail.text).toContain('HRRR model')
     // Probe A found no run initialization time is exposed at all, so this may
     // say when it was fetched and never which run it came from.
-    expect(panel.text).toContain('13:51Z')
-    expect(panel.text).toContain('14m ago')
-    expect(panel.text).not.toContain('12Z run')
+    expect(detail.text).toContain('13:51Z')
+    expect(detail.text).not.toContain('12Z run')
   })
 
   it('keeps the whole panel to three rows of buttons in its default state', () => {
@@ -216,11 +222,10 @@ describe('buildForecastPanel', () => {
     }
   })
 
-  it('draws the agreement bar only when a member reached the day', () => {
-    const withBar = buildForecastPanel(forecastInput({ rainDay: rainDay() }))
-    expect(withBar.text).toContain('Chance of rain through the day')
-    // Attributed to the ensemble, not to the table's model: the bar comes from
-    // a different fetch, and one source line naming only HRRR would credit it
+  it('attributes the ensemble separately from the table’s model, under More', () => {
+    const withBar = buildForecastPanel(forecastInput({ rainDay: rainDay(), mode: 'advanced' }))
+    // Attributed to the ensemble, not to the table's model: it comes from a
+    // different fetch, and one source line naming only HRRR would credit it
     // with a number it did not produce. "forecasts", not "members" — the count
     // is what makes the percentage trustworthy and the reader should not need
     // the word to use it.
@@ -244,17 +249,46 @@ describe('buildForecastPanel', () => {
       member_min: null,
       member_max: null,
     })
-    const bare = buildForecastPanel(forecastInput({ rainDay: noMembers }))
-    expect(bare.text).not.toContain('Chance of rain')
-    // And the source line must not claim an ensemble contributed either.
+    // The source line must not claim an ensemble contributed when none did.
+    const bare = buildForecastPanel(forecastInput({ rainDay: noMembers, mode: 'advanced' }))
     expect(bare.text).not.toContain('Rain chance from')
   })
 
   it('shows a range while models drop out through the day', () => {
     const panel = buildForecastPanel(
-      forecastInput({ rainDay: rainDay({ member_min: 92, member_max: 143 }) }),
+      forecastInput({ rainDay: rainDay({ member_min: 92, member_max: 143 }), mode: 'advanced' }),
     )
     expect(panel.text).toContain('92–143 forecasts')
+  })
+
+  it('states the scale of the temperature bar wherever it draws one', () => {
+    // An unlabelled bar is a shape with no meaning — the complaint that removed
+    // the standalone sparkline. The scale is the *day's own* range, so without
+    // this sentence the same bar means different things on different days.
+    const rows = buildRows(
+      [6, 12, 18].map((h) => ({
+        valid_at: new Date(Date.parse(`2026-09-04T${String(h).padStart(2, '0')}:00:00Z`) + 25200000),
+        temp_c: h === 6 ? 10 : h === 12 ? 20 : 30,
+        dewpoint_c: null,
+        humidity_pct: null,
+        precip_mm: null,
+        wind_kmh: null,
+        wind_gust_kmh: null,
+        wind_dir_deg: null,
+        cloud_pct: null,
+        precip_prob_pct: null,
+        pressure_hpa: null,
+      })),
+      -25200,
+      '2026-09-04',
+      6,
+    )
+    const panel = buildForecastPanel(forecastInput({ rows }))
+    expect(panel.text).toContain('Bar spans this day only')
+    // 10 °C and 30 °C in Fahrenheit — the bar and its stated scale must be in
+    // the units on screen, not the units the data arrived in.
+    expect(panel.text).toContain('50°F')
+    expect(panel.text).toContain('86°F')
   })
 
   it('offers the day pager without arrows past the ends', () => {
@@ -344,6 +378,8 @@ describe('buildRainPanel', () => {
       dayIndex: 0,
       day: rainDay(),
       lastRain: { date: '2026-08-31', precip_mm: 12 },
+      // The daily fallback by default; the hourly path is asserted separately.
+      lastRainAt: null,
       lastRainFailed: false,
       rainWindowDays: 30,
       today: '2026-09-04',
@@ -373,13 +409,13 @@ describe('buildRainPanel', () => {
 
   it('puts the spread behind More, in words rather than percentiles', () => {
     const panel = buildRainPanel(rainInput({ mode: 'advanced' }))
-    // The same three numbers, headed as what they mean rather than as what
-    // they are called.
-    expect(panel.text).toContain('low')
-    expect(panel.text).toContain('mid')
-    expect(panel.text).toContain('high')
+    // The same three numbers, headed as what they mean rather than as what they
+    // are called, with the unit in the header instead of a sentence below it.
+    expect(panel.text).toContain('dry in')
+    expect(panel.text).toContain('mid in')
+    expect(panel.text).toContain('wet in')
     expect(panel.text).not.toContain('p90')
-    expect(panel.text).toContain('dry, middle or wet side')
+    expect(panel.text).toContain('Dry/mid/wet')
   })
 
   it('says the rainfall record failed rather than implying a dry spell', () => {
