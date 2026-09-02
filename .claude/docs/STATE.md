@@ -5,7 +5,7 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-09-02 · `main` @ `52aa3b2`
+Last updated: 2026-09-02 · `main` @ `c60d8be`
 
 ---
 
@@ -19,7 +19,7 @@ confirmed working on a real device: bot, Mini App, alerts, deep links, auth.
 - **Bot** — commands, alerts, deep links into the Mini App.
 - **`apps/mobile`** — archived, out of the build. Do not add features to it.
 
-Baseline: `npm run test` 535 passing (461 api, 50 miniapp, 24 types), `npm run typecheck`
+Baseline: `npm run test` 533 passing (459 api, 50 miniapp, 24 types), `npm run typecheck`
 clean, `npm run check:hooks` 58 passing. **Mutation score 66.09%**, last measured
 2026-08-26 and *not* re-measured since Phases 1, 2, 3 or the 2026-09-01 rebuild —
 `npm run test:mutation --workspace=apps/api`, and see § Mutation testing below.
@@ -248,6 +248,51 @@ Facts that are not rules and live nowhere else:
   it is the only provenance that changes what the reader should do.
 - **`ConditionsReplyInput` lost `asosStation` and `snapshots`**, dead once the
   footer went. Defect class 10 is about exactly that.
+
+### The panels are native Telegram tables now (2026-09-02, third pass)
+
+**`<pre>` is no longer the rendering.** The grey box and `COPY CODE` footer are
+Telegram's code-block chrome, and they are what made the panels read as *"this
+shitty .md looking section"*. Monospace right-alignment is also why a wide header
+sprawled left of a narrow number — a header and its values share only a right
+edge, and nothing else lines up.
+
+The evidence was already in `.claude/docs/telegram-render.md` §2 run 1: specimen
+2 drew a **real table with grid lines** on this bot's own phone, and specimen 7
+re-rendered the same message id as a table after an `editMessageText`. It had
+been held back solely because nobody checked Telegram Web. **The owner accepted
+that risk knowingly on 2026-09-02**; every report driving this design came from a
+phone.
+
+Facts that are not rules and live nowhere else:
+
+- **The HTML path is still there, as an automatic fallback on a permanent
+  rejection.** `sendRichMessage` is Bot API 10.1 and nothing in this repo can
+  exercise it without the token, so a 4xx must not cost the panel. A transient
+  failure still throws.
+- **Nothing in this repo has ever made a `sendRichMessage` call.** Probe B proved
+  the API accepts the shape and the phone draws it — but that was the probe
+  script, not this path. **Confirm on a real device before trusting it.**
+- **Escaping happens in exactly one place: `panelToHtml`.** Rich blocks are JSON
+  and need none. Escaping in the builders would put a literal `&amp;` in the
+  native table, which is issue #26 in reverse.
+- **Every plain-text reply in the webhook goes through `sendPlain`.** Found
+  reviewing the diff: the copy modules stopped escaping for the rich path, but
+  three replies are not panels and still go out as HTML — two of them
+  interpolating a user-typed name. `/conditions Bear & Cub` with no match would
+  have been a silent 400. The rule is structural now, which is the only version
+  of it that has ever held here.
+- **Fixed column widths are gone.** A native table sizes itself; the fallback
+  measures header and values and pads to the widest, so a value can never exceed
+  its column. `TIME_COL_WIDTH`, `RANGE_COL_WIDTH` and every hardcoded width are
+  deleted.
+- **Units live on the value, never in the header** (`6 mph`, `976 mb`, `0 in`),
+  `t` is the word `trace`, and `0 mph` reads `calm`.
+
+**Three attempts at an inline chart all failed and all were removed** — a
+sparkline, a dithered bar, a block bar. The pattern was trying to *use* the
+horizontal space rather than asking what belonged in it; the answer was words.
+Do not add a fourth without the owner asking for one.
 
 ### Deliberately deferred, not forgotten
 

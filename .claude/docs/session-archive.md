@@ -2573,3 +2573,94 @@ db:migrate` from `apps/api` with `DATABASE_URL` set (applies `0007`, `0008`, `00
 `TELEGRAM_BOT_TOKEN` set, now needed for the reworded command descriptions as well as the new
 commands; registering `/api/cron/collect-runs` and `/api/cron/prune-runs` with cron-job.org;
 and `TELEGRAM_WEBHOOK_SECRET` in Vercel with a matching `setWebhook` re-run.
+
+---
+
+## 2026-09-02 (third pass) — Four rounds of device feedback, ending in native Telegram tables
+
+`main` @ `c60d8be` (PRs #81, #84, #85, squashed)
+
+**The shape of the day.** The owner ran the bot on a phone and sent screenshots four
+times. Each round found something the round before had not, and the last one rejected the
+whole rendering approach. Every fix was correct for the complaint it answered and
+insufficient for the one underneath it.
+
+| Round | Reported | Cause |
+| --- | --- | --- |
+| 1 | *"conditions and forecast are the same"* | Every picker button carried `loc`, which maps to `conditions` — so all three commands landed on the same panel |
+| 2 | *"rain bars are showing blank"*, *"the wavy chart is weird"* | The temperature bar scaled to the day's own range, so the coldest row drew **zero** blocks; the rain bar drew one block on every row because 1–12% of 0–100 all rounds the same |
+| 3 | *"we have a lot of horizontal space but you are cutting off words"* | Fixed column widths chosen for a constraint that was never measured |
+| 4 | *"there has to be a better way… it looks awful"* | `<pre>`. The grey box and `COPY CODE` are Telegram's **code-block chrome** |
+
+**The lesson worth keeping: three attempts at an inline chart all failed and all were
+removed.** A sparkline, then a dithered `░` bar, then a `█` bar with a blank track. The
+pattern was trying to *use* the horizontal space rather than asking what belonged in it,
+and the owner's third report — "you are cutting off words" — was the answer the whole
+time. Do not add a fourth chart without being asked for one.
+
+**The answer to round 4 was already in this repo, measured, and shelved.**
+`telegram-render.md` §2 run 1 (2026-08-31) recorded specimen 2 drawing a *real table with
+grid lines* on this bot's own phone, and specimen 7 re-rendering the same message id as a
+table after an `editMessageText` — which the panel design depends on. It was held back
+only because nobody had checked Telegram Web. Every report driving this design came from
+a phone, so the owner accepted that risk knowingly and the tables went native. **The
+lesson is not "adopt rich tables"; it is that a measurement sitting unused in a doc is
+worth re-reading when the thing it was gating becomes the problem.**
+
+**Defects found by reading the diff, after a reviewer pass that did not.** The
+independent reviewer returned green on #85 in **4 turns** — it had run 35 on a comparable
+diff — so its verdict carried no weight, and reading the diff found a real one:
+
+- The copy modules correctly stopped escaping when panels became rich messages (blocks are
+  JSON). But **three replies in the webhook are not panels** and still go out with
+  `parse_mode: 'HTML'`, two of them interpolating a user-typed location name.
+  `/conditions Bear & Cub` with no match would have been a **400 the webhook swallows** —
+  silence, not an error. Issue #26 reintroduced in the gap between two rendering paths.
+  Every plain reply now goes through `sendPlain`.
+- Earlier the same day: the picker routing bug, and an episode span off by an hour because
+  Open-Meteo stamps precipitation at the *end* of the hour it fell in.
+
+**A reviewer's green is worth what its turn count says it is.** Check `num_turns` in the
+run log before treating a pass as coverage; a 4-turn pass on a 900-line diff is a skip
+with a tick next to it.
+
+**Verified:** `typecheck`, `lint`, `check:hooks` (58) green; **533 passing** (459 api).
+Every panel rendered against live Open-Meteo at the owner's own coordinates, in both
+modes, with the blocks drawn as a grid.
+
+**Not verified, and it is the important one:** **nothing in this repo has ever made a
+`sendRichMessage` call.** Probe B proved Telegram accepts the payload shape and that the
+phone draws it, but that was the probe script, not this path, and there is no bot token
+here. The HTML fallback exists for exactly that gap: a permanent rejection degrades to the
+old rendering rather than to no panel. **Confirm on a real device before trusting it** —
+three outcomes, three meanings: a bordered table means it worked, the old grey code block
+means Telegram rejected the rich message and the fallback caught it, and an "unsupported
+message" card means the Web concern applies to the phone too and this should revert to
+plain text.
+
+**Blockers for next session:** none new.
+
+**What's next:** issue **#82** (the geocode picker cannot tell a town from a state park —
+"Willow River" saved a Minnesota town when Willow River State Park in Wisconsin was meant,
+90 miles away), then **Phase 5**, which the owner asked for directly and which is where
+add/remove/update of locations from chat lives. #82 first: Phase 5 *is* a location picker,
+and building it before #82 reproduces the fault on a smaller screen.
+
+**Gotchas for next session:**
+- **Escaping has exactly two homes and they are opposites.** Rich blocks: never. HTML
+  (`panelToHtml`, `sendPlain`, `alertMessage`): always. Getting it backwards prints a
+  literal `&amp;` or silently drops a message.
+- **No fixed column widths.** The table sizes itself; the fallback measures.
+- **`clockLabel` for sentences, `clockShort` for cells.** "midnight" in a column widens
+  the whole thing.
+- **This file is CRLF and scripted multi-line replacements silently match nothing.**
+  Several went wrong today before being normalised; `\n` in a search string does not match
+  `\r\n`. Use the Edit tool, or normalise first.
+- **Check `num_turns` before trusting a green reviewer.**
+
+**Does the user need to do anything?** **Yes, four, and one is time-sensitive.** Rotate
+the Neon password — the connection string was pasted into a chat transcript on 2026-09-02.
+Then, unchanged: `npm run bot:set-commands` with `TELEGRAM_BOT_TOKEN` set; registering
+`/api/cron/collect-runs` and `/api/cron/prune-runs` with cron-job.org; and
+`TELEGRAM_WEBHOOK_SECRET` in Vercel with a matching `setWebhook` re-run. The migrations
+are done.
