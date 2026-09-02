@@ -127,42 +127,6 @@ export function clockRangeCell(hour: number, intervalHours: number): string {
   return cell(`${shortHour(hour)}-${shortHour(hour + intervalHours)}`, RANGE_COL_WIDTH)
 }
 
-/**
- * Filled and empty cells of an inline bar.
- *
- * **The empty cell is a space, not `░`.** On a real phone a run of `░` rendered
- * as a dense dithered slab that swamped the `█` beside it — the bar read as one
- * grey block rather than as a proportion, which was worse than drawing nothing.
- * Blank track, solid fill, no ambiguity. A genuine 0% and an unmeasured hour are
- * told apart by the number column, which shows `0%` against an em dash.
- */
-const BAR_FULL = '█'
-const BAR_EMPTY = ' '
-
-/**
- * A proportional bar, `width` characters, scaled between `min` and `max`.
- *
- * **A missing value draws nothing at all** — not an empty bar, which is a
- * drawn zero. The row's number column already shows an em dash; a `░░░░░░░░░░`
- * beside it would contradict it.
- *
- * A zero-width range (every row identical) fills the bar rather than leaving it
- * empty: the value is at the top of its own range, and drawing it as the
- * minimum would misreport a flat warm day as a cold one.
- */
-export function bar(value: number | null, min: number, max: number, width: number): string {
-  if (value === null || !Number.isFinite(value)) return ' '.repeat(width)
-  if (!Number.isFinite(min) || !Number.isFinite(max)) return ' '.repeat(width)
-  const span = max - min
-  const fraction = span <= 0 ? 1 : (value - min) / span
-  const clamped = Math.max(0, Math.min(1, fraction))
-  // **Anything above the floor gets at least one block.** Rounding alone drew
-  // nothing for a 4% chance, so a column of small-but-real values looked
-  // identical to a column of nothing at all.
-  const scaled = Math.round(clamped * width)
-  const filled = scaled === 0 && clamped > 0 ? 1 : scaled
-  return BAR_FULL.repeat(filled) + BAR_EMPTY.repeat(width - filled)
-}
 
 function round(value: number): string {
   return String(Math.round(value))
@@ -357,6 +321,15 @@ type Column = {
   readonly render: (row: ForecastRow, units: TableUnits) => string
 }
 
+/**
+ * **Headers are words, and the unit is in the header.**
+ *
+ * `dew`, `RH`, `gst`, `dir`, `sky`, `mb` were abbreviations that had to be
+ * decoded, and they were cut short to fit a width that was never the
+ * constraint — measured on a real phone, a 26-character table used well under
+ * half the message bubble. Reported as *"we have a lot of horizontal space but
+ * you are cutting off words"*. Spend the width on the words.
+ */
 const COLUMNS = {
   temp: {
     header: (u) => (u === 'imperial' ? '°F' : '°C'),
@@ -364,51 +337,50 @@ const COLUMNS = {
     render: (r, u) => tempCell(r.at?.temp_c ?? null, u, 4),
   },
   dew: {
-    header: () => 'dew',
-    width: 4,
-    render: (r, u) => tempCell(r.at?.dewpoint_c ?? null, u, 4),
+    header: (u) => (u === 'imperial' ? 'dew °F' : 'dew °C'),
+    width: 6,
+    render: (r, u) => tempCell(r.at?.dewpoint_c ?? null, u, 6),
   },
   rh: {
-    header: () => 'RH',
-    width: 4,
-    render: (r) => pctCell(r.at?.humidity_pct ?? null, 4),
+    header: () => 'humidity %',
+    width: 10,
+    render: (r) => pctCell(r.at?.humidity_pct ?? null, 10),
   },
   wind: {
-    header: (u) => (u === 'imperial' ? 'mph' : 'kmh'),
-    width: 4,
-    render: (r, u) => windCell(r.at?.wind_kmh ?? null, u, 4),
+    header: (u) => (u === 'imperial' ? 'wind mph' : 'wind kmh'),
+    width: 8,
+    render: (r, u) => windCell(r.at?.wind_kmh ?? null, u, 8),
   },
   gust: {
-    header: () => 'gst',
-    width: 4,
-    render: (r, u) => windCell(r.at?.wind_gust_kmh ?? null, u, 4),
+    header: (u) => (u === 'imperial' ? 'gusts mph' : 'gusts kmh'),
+    width: 9,
+    render: (r, u) => windCell(r.at?.wind_gust_kmh ?? null, u, 9),
   },
   dir: {
-    header: () => 'dir',
+    // "from", because that is what a compass point on a wind reading means and
+    // "dir" made the reader work it out.
+    header: () => 'from',
     width: 4,
     render: (r) => cell(compassPoint(r.at?.wind_dir_deg ?? null) ?? GAP, 4),
   },
   cloud: {
-    // 'sky', not 'cld'. The chat table is read by someone deciding whether to
-    // drive to a crag, and an abbreviation that has to be decoded is the thing
-    // this panel was rebuilt to remove.
-    header: () => 'sky',
-    width: 4,
-    render: (r) => pctCell(r.at?.cloud_pct ?? null, 4),
+    header: () => 'cloud %',
+    width: 7,
+    render: (r) => pctCell(r.at?.cloud_pct ?? null, 7),
   },
   precip: {
-    header: (u) => (u === 'imperial' ? 'in' : 'mm'),
-    width: 5,
-    render: (r, u) => precipCell(r.precip_mm, u, 5),
+    header: (u) => (u === 'imperial' ? 'rain in' : 'rain mm'),
+    width: 7,
+    render: (r, u) => precipCell(r.precip_mm, u, 7),
   },
   pressure: {
-    header: () => 'mb',
-    width: 6,
+    header: () => 'pressure mb',
+    width: 11,
     // NBM answers 384 nulls for this at every point measured, so the gap is the
     // common case rather than the edge one.
     render: (r) => {
       const hpa = r.at?.pressure_hpa ?? null
-      return hpa === null ? cell(GAP, 6) : cell(round(hpa), 6)
+      return hpa === null ? cell(GAP, 11) : cell(round(hpa), 11)
     },
   },
 } satisfies Record<string, Column>
@@ -487,88 +459,6 @@ export type TableInput = {
   readonly rows: readonly ForecastRow[]
   readonly columns: readonly ColumnKey[]
   readonly units: TableUnits
-  /**
-   * Draw a proportional bar immediately after this column, scaled across the
-   * day's own range.
-   *
-   * **The scale is the day's, not a fixed one**, so the bar shows the shape of
-   * *this* day rather than where it sits against some absolute. That is only
-   * honest if the range is stated, which is why `barScaleNote` exists and why
-   * the caller must print it — an unlabelled bar was the thing being replaced.
-   */
-  readonly bar?: { readonly after: ColumnKey; readonly width: number }
-}
-
-/** The min and max of one column across the rows, or `null` when nothing was measured. */
-export function columnRange(
-  rows: readonly ForecastRow[],
-  key: ColumnKey,
-  units: TableUnits,
-): { min: number; max: number } | null {
-  const values: number[] = []
-  for (const row of rows) {
-    const raw = rawValue(row, key)
-    if (raw === null) continue
-    values.push(displayValue(raw, key, units))
-  }
-  if (values.length === 0) return null
-  return { min: Math.min(...values), max: Math.max(...values) }
-}
-
-/** The unconverted value behind a column, for range and bar maths. */
-function rawValue(row: ForecastRow, key: ColumnKey): number | null {
-  switch (key) {
-    case 'temp':
-      return row.at?.temp_c ?? null
-    case 'dew':
-      return row.at?.dewpoint_c ?? null
-    case 'rh':
-      return row.at?.humidity_pct ?? null
-    case 'wind':
-      return row.at?.wind_kmh ?? null
-    case 'gust':
-      return row.at?.wind_gust_kmh ?? null
-    case 'dir':
-      return row.at?.wind_dir_deg ?? null
-    case 'cloud':
-      return row.at?.cloud_pct ?? null
-    case 'precip':
-      return row.precip_mm
-    case 'pressure':
-      return row.at?.pressure_hpa ?? null
-  }
-}
-
-/** The same value in the units on screen, so a bar and its number agree. */
-function displayValue(raw: number, key: ColumnKey, units: TableUnits): number {
-  if (units !== 'imperial') return raw
-  if (key === 'temp' || key === 'dew') return cToF(raw)
-  if (key === 'wind' || key === 'gust') return kmhToMph(raw)
-  if (key === 'precip') return mmToIn(raw)
-  return raw
-}
-
-/**
- * What the bar is scaled to, in words. **The caller must print this whenever it
- * draws a bar.**
- *
- * A bar with no stated scale is a shape with no meaning — the complaint that
- * removed the standalone sparkline. `null` when nothing was measured, in which
- * case no bar was drawn either.
- */
-export function barScaleNote(
-  rows: readonly ForecastRow[],
-  key: ColumnKey,
-  units: TableUnits,
-): string | null {
-  const range = columnRange(rows, key, units)
-  if (range === null) return null
-  const unit = COLUMNS[key].header(units)
-  const lo = Math.round(range.min)
-  const hi = Math.round(range.max)
-  return lo === hi
-    ? `Bar: flat at ${lo}${unit} all day.`
-    : `Bar spans this day only, ${lo}${unit} to ${hi}${unit}.`
 }
 
 /**
@@ -580,42 +470,27 @@ export function barScaleNote(
 export function renderTable(input: TableInput): string | null {
   if (input.rows.length === 0) return null
 
-  const spec = input.bar
-  const range = spec ? columnRange(input.rows, spec.after, input.units) : null
-  // No range means nothing was measured, so no bar is drawn and none is
-  // reserved — a column of blanks would be a chart of nothing.
-  const barWidth = spec !== undefined && range !== null ? spec.width : 0
+  /**
+   * **No inline bar.** One was drawn here and it was wrong twice: as `░` it
+   * rendered on a real phone as a dithered slab, and as `█` with a blank track
+   * it became a solid white staircase whose lowest row was empty — the day's
+   * minimum scales to zero blocks. Reported as *"the wavy chart is weird"* and
+   * *"bars are showing blank in areas"*, alongside *"we have a lot of
+   * horizontal space but you are cutting off words"*. The width is spent on
+   * spelled-out headers instead, which is what was actually asked for.
+   */
+  const headerCells = [
+    cell('time', TIME_COL_WIDTH),
+    ...input.columns.map((key) => cell(COLUMNS[key].header(input.units), COLUMNS[key].width)),
+  ]
 
-  const headerCells = [cell('time', TIME_COL_WIDTH)]
-  for (const key of input.columns) {
-    headerCells.push(cell(COLUMNS[key].header(input.units), COLUMNS[key].width))
-    // The bar carries no header of its own: it is the column beside it, drawn.
-    // A word there would be a legend for a thing that already has one.
-    if (barWidth > 0 && spec !== undefined && key === spec.after) {
-      headerCells.push(' '.repeat(barWidth))
-    }
-  }
+  const body = input.rows.map((row) =>
+    [clockCell(row.hour), ...input.columns.map((key) => COLUMNS[key].render(row, input.units))].join(
+      ' ',
+    ),
+  )
 
-  const body = input.rows.map((row) => {
-    const cells = [clockCell(row.hour)]
-    for (const key of input.columns) {
-      cells.push(COLUMNS[key].render(row, input.units))
-      if (barWidth > 0 && spec !== undefined && range !== null && key === spec.after) {
-        const raw = rawValue(row, key)
-        cells.push(
-          bar(
-            raw === null ? null : displayValue(raw, key, input.units),
-            range.min,
-            range.max,
-            barWidth,
-          ),
-        )
-      }
-    }
-    return cells.join(' ').trimEnd()
-  })
-
-  return [headerCells.join(' ').trimEnd(), ...body].join('\n')
+  return [headerCells.join(' '), ...body].join('\n')
 }
 
 /**

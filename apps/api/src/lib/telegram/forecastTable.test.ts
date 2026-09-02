@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RunHour } from '../runs/latestRuns.js'
 import {
-  bar,
-  barScaleNote,
   buildRows,
   clockCell,
   compassPoint,
@@ -228,29 +226,44 @@ describe('renderTable', () => {
     // the single nine-column detail table it replaced measured 50 characters
     // and this test is what caught it.
     //
-    // **40, raised from 32 on 2026-09-02.** The old figure was inherited
+    // **52, raised from 40 on 2026-09-02 (second measurement).** The old figure was inherited
     // caution; the evidence for the new one is a screenshot of the real bot on
     // the real phone, in which a 24-character table occupied well under half
     // the message bubble. The whole reason the panel gained a bar is that the
     // space to its right was empty.
     for (const columns of [SIMPLE_COLUMNS, DETAIL_AIR_COLUMNS, DETAIL_WIND_COLUMNS]) {
       const table = renderTable({ rows, columns, units: 'imperial' })
-      for (const line of table?.split('\n') ?? []) expect(line.length).toBeLessThanOrEqual(40)
+      for (const line of table?.split('\n') ?? []) expect(line.length).toBeLessThanOrEqual(52)
     }
   })
 
-  it('stays inside that width once the bar is drawn too', () => {
-    // The bar is added by the *panel*, not by the sets above, so the assertion
-    // over column sets alone never sees the widest thing that reaches a phone.
-    // This is the shape `buildForecastPanel` actually renders.
-    const table = renderTable({
-      rows,
-      columns: SIMPLE_COLUMNS,
-      units: 'imperial',
-      bar: { after: 'temp', width: 9 },
-    })
-    expect(table).not.toBeNull()
-    for (const line of table?.split('\n') ?? []) expect(line.length).toBeLessThanOrEqual(40)
+  it('spells its headers out rather than abbreviating them', () => {
+    // Reported from a real device: "we have a lot of horizontal space but you
+    // are cutting off words". `dew`, `RH`, `gst`, `dir`, `sky` and `mb` were
+    // abbreviations cut to fit a width that was never the constraint.
+    const air = renderTable({ rows, columns: DETAIL_AIR_COLUMNS, units: 'imperial' })
+    expect(air).toContain('dew °F')
+    expect(air).toContain('humidity %')
+    expect(air).toContain('pressure mb')
+    expect(air).not.toMatch(/\bRH\b/)
+
+    const wind = renderTable({ rows, columns: DETAIL_WIND_COLUMNS, units: 'imperial' })
+    expect(wind).toContain('wind mph')
+    expect(wind).toContain('gusts mph')
+    expect(wind).toContain('cloud %')
+    expect(wind).toContain('rain in')
+    expect(wind).not.toMatch(/\bgst\b/)
+    expect(wind).not.toMatch(/\bsky\b/)
+  })
+
+  it('carries the unit in the header, and switches it with the units', () => {
+    // The value cells stay bare, so the unit has exactly one home. A metric
+    // table heading `mph` would be the wrong number under the right word.
+    const metric = renderTable({ rows, columns: DETAIL_WIND_COLUMNS, units: 'metric' })
+    expect(metric).toContain('wind kmh')
+    expect(metric).toContain('rain mm')
+    expect(metric).not.toContain('mph')
+    expect(metric).not.toContain('rain in')
   })
 
   it('renders every stored hourly variable across the three sets but one', () => {
@@ -303,33 +316,6 @@ describe('labels', () => {
   })
 })
 
-describe('bar', () => {
-  it('draws nothing at all for a value that was never measured', () => {
-    // Not an empty bar — `░░░░░░░░` beside an em dash is a drawn zero, which
-    // contradicts the gap in the number column next to it. Defect class 1.
-    expect(bar(null, 0, 100, 8)).toBe('        ')
-    expect(bar(Number.NaN, 0, 100, 8)).toBe('        ')
-  })
-
-  it('fills proportionally between the ends', () => {
-    expect(bar(0, 0, 100, 10)).toBe('          ')
-    expect(bar(50, 0, 100, 10)).toBe('█████     ')
-    expect(bar(100, 0, 100, 10)).toBe('██████████')
-  })
-
-  it('clamps rather than overflowing the column', () => {
-    // An out-of-range value would otherwise emit more characters than the
-    // header reserved and shift every column to its right for that row only.
-    expect(bar(150, 0, 100, 10)).toHaveLength(10)
-    expect(bar(-50, 0, 100, 10)).toHaveLength(10)
-  })
-
-  it('fills a flat range rather than emptying it', () => {
-    // Every hour identical. The value is at the top of its own range, and
-    // drawing it as the minimum would render a flat warm day as a cold one.
-    expect(bar(70, 70, 70, 5)).toBe('█████')
-  })
-})
 
 describe('clockCell', () => {
   it('reads the clock at a fixed column width', () => {
@@ -348,40 +334,5 @@ describe('clockCell', () => {
     for (const h of [0, 1, 9, 10, 12, 13, 23, 24]) {
       expect(clockCell(h)).toHaveLength(TIME_COL_WIDTH)
     }
-  })
-})
-
-describe('barScaleNote', () => {
-  const dayRows = buildRows(
-    [6, 18].map((h) => ({
-      valid_at: new Date(Date.parse(`2026-09-04T${String(h).padStart(2, '0')}:00:00Z`) + 25200000),
-      temp_c: h === 6 ? 10 : 30,
-      dewpoint_c: null,
-      humidity_pct: null,
-      precip_mm: null,
-      wind_kmh: null,
-      wind_gust_kmh: null,
-      wind_dir_deg: null,
-      cloud_pct: null,
-      precip_prob_pct: null,
-      pressure_hpa: null,
-    })),
-    -25200,
-    '2026-09-04',
-    6,
-  )
-
-  it('states the range in the units on screen, not the units the data arrived in', () => {
-    // The bar is drawn from converted values, so a note quoting Celsius beside
-    // a Fahrenheit column would describe a different chart.
-    expect(barScaleNote(dayRows, 'temp', 'imperial')).toBe(
-      'Bar spans this day only, 50°F to 86°F.',
-    )
-    expect(barScaleNote(dayRows, 'temp', 'metric')).toBe('Bar spans this day only, 10°C to 30°C.')
-  })
-
-  it('says so when the day is flat rather than implying a range', () => {
-    const flat = buildRows([], -25200, '2026-09-04', 6)
-    expect(barScaleNote(flat, 'temp', 'imperial')).toBeNull()
   })
 })

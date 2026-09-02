@@ -3,7 +3,6 @@ import { encodeAction } from './callbackData.js'
 import { formatConditionsReply, type ConditionsReplyInput } from './conditionsMessage.js'
 import { locationDeepLink, MINI_APP_DIRECT_LINK } from './deepLink.js'
 import {
-  barScaleNote,
   clockLabel,
   dayHasData,
   DETAIL_AIR_COLUMNS,
@@ -24,7 +23,6 @@ import {
   formatLastRainAt,
   rainDayHasData,
   rainTableNote,
-  renderRainSpreadTable,
   renderRainTable,
   type LastRain,
   type RainDay,
@@ -306,9 +304,6 @@ export function dayLabel(localDate: string): string {
  */
 export { clockLabel }
 
-/** How wide the temperature bar is on the hourly panel. */
-const TEMP_BAR_WIDTH = 9
-
 /**
  * An hour for a *sentence*, always a string. `clockLabel` returns `null` for a
  * non-hour so a caller can omit a phrase; a table row and the last-rain line
@@ -545,17 +540,7 @@ export function buildForecastPanel(input: ForecastPanelInput): Panel {
   const table = (columns: readonly ForecastColumn[]): string | null =>
     hasData ? renderTable({ rows: input.rows, columns, units: input.units }) : null
 
-  const simple = hasData
-    ? renderTable({
-        rows: input.rows,
-        columns: SIMPLE_COLUMNS,
-        units: input.units,
-        // The temperature bar. It replaced a standalone row of blocks that had
-        // no axis, no scale and no labels — beside the number, in the row whose
-        // clock time labels it, the same shape is readable without either.
-        bar: { after: 'temp', width: TEMP_BAR_WIDTH },
-      })
-    : null
+  const simple = table(SIMPLE_COLUMNS)
   if (simple === null) {
     lines.push(
       escapeTelegramHtml(
@@ -574,13 +559,7 @@ export function buildForecastPanel(input: ForecastPanelInput): Panel {
     if (wind !== null) lines.push(escapeTelegramHtml('Wind and rain'), pre(wind))
     lines.push(escapeTelegramHtml(stepNote(input.interval)))
   } else {
-    lines.push(pre(simple))
-    // **The bar's scale is stated wherever the bar is drawn.** It is the day's
-    // own range, not an absolute one, so without this the shape means nothing —
-    // which is exactly what was wrong with the row of blocks it replaced.
-    const scale = barScaleNote(input.rows, 'temp', input.units)
-    if (scale !== null) lines.push(escapeTelegramHtml(scale))
-    lines.push(escapeTelegramHtml(stepNote(input.interval)))
+    lines.push(pre(simple), escapeTelegramHtml(stepNote(input.interval)))
   }
 
   // The attribution is `⚙ More` only. It is derived, never guessed, and it is
@@ -719,21 +698,12 @@ export function buildRainPanel(input: RainPanelInput): Panel {
   // No `else`. `renderRainTable` returns null exactly when the day has no data,
   // which is the case `timingLine` above has already stated — a second sentence
   // saying the same thing was the panel telling the reader twice.
-  const table = renderRainTable(input.day, input.units, input.interval)
+  // One table, widened by More rather than joined by a second one underneath.
+  // Two tables of eight rows describing the same eight windows was reported as
+  // hard to follow, and the width to avoid it was there all along.
+  const table = renderRainTable(input.day, input.units, input.interval, detail)
   if (table !== null) {
-    // No standalone bar above the table any more. It drew the same values as an
-    // unlabelled row of blocks; they are now a bar *inside* each row, where the
-    // window labels the x and the percentage labels the y.
     lines.push(pre(table))
-    if (detail) {
-      // A second narrow table, not three more columns: the combined form
-      // measured 36 characters against the phone width.
-      const spread = renderRainSpreadTable(input.day, input.units, input.interval)
-      if (spread !== null) {
-        const unit = input.units === 'imperial' ? 'inches' : 'mm'
-        lines.push(escapeTelegramHtml(`If it rains, how much (${unit})`), pre(spread))
-      }
-    }
     const note = rainTableNote(input.interval, detail)
     if (note !== null) lines.push(escapeTelegramHtml(note))
   }

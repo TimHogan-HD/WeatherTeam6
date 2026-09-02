@@ -261,36 +261,6 @@ describe('buildForecastPanel', () => {
     expect(panel.text).toContain('92–143 forecasts')
   })
 
-  it('states the scale of the temperature bar wherever it draws one', () => {
-    // An unlabelled bar is a shape with no meaning — the complaint that removed
-    // the standalone sparkline. The scale is the *day's own* range, so without
-    // this sentence the same bar means different things on different days.
-    const rows = buildRows(
-      [6, 12, 18].map((h) => ({
-        valid_at: new Date(Date.parse(`2026-09-04T${String(h).padStart(2, '0')}:00:00Z`) + 25200000),
-        temp_c: h === 6 ? 10 : h === 12 ? 20 : 30,
-        dewpoint_c: null,
-        humidity_pct: null,
-        precip_mm: null,
-        wind_kmh: null,
-        wind_gust_kmh: null,
-        wind_dir_deg: null,
-        cloud_pct: null,
-        precip_prob_pct: null,
-        pressure_hpa: null,
-      })),
-      -25200,
-      '2026-09-04',
-      6,
-    )
-    const panel = buildForecastPanel(forecastInput({ rows }))
-    expect(panel.text).toContain('Bar spans this day only')
-    // 10 °C and 30 °C in Fahrenheit — the bar and its stated scale must be in
-    // the units on screen, not the units the data arrived in.
-    expect(panel.text).toContain('50°F')
-    expect(panel.text).toContain('86°F')
-  })
-
   it('offers the day pager without arrows past the ends', () => {
     const first = buildForecastPanel(forecastInput({ dayIndex: 0 }))
     expect(first.keyboard?.inline_keyboard[0]?.map((b) => b.text)).toEqual(['Fri 4 Sep', 'Sat ▶'])
@@ -415,7 +385,7 @@ describe('buildRainPanel', () => {
     expect(panel.text).toContain('likely')
     expect(panel.text).toContain('most')
     expect(panel.text).not.toContain('p90')
-    expect(panel.text).toContain('If it rains, how much')
+    expect(panel.text).not.toContain('If it rains, how much')
   })
 
   it('says the rainfall record failed rather than implying a dry spell', () => {
