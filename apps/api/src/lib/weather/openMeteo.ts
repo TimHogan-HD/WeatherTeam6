@@ -1115,7 +1115,33 @@ async function requestDeterministic(
     throw new Error(`Open-Meteo forecast API returned ${res.status}`)
   }
 
-  return { kind: 'ok', body: (await res.json()) as DeterministicResponse }
+  /**
+   * **A 2xx whose body is not JSON gets its body logged, not just its parse
+   * error.**
+   *
+   * Production spent 2026-09-02 failing every deterministic fetch with
+   * `Unexpected token 'U', "Unexpected"... is not valid JSON` — a `res.json()`
+   * throw on an `ok` response — and the body was nowhere, because the only
+   * place that reads it is the `!res.ok` branch above. The message named the
+   * symptom and withheld the one fact that identifies the cause.
+   *
+   * Read as text first, then parse: `res.json()` consumes the body, so there is
+   * no second chance at it after a throw.
+   */
+  const raw = await res.text()
+  try {
+    return { kind: 'ok', body: JSON.parse(raw) as DeterministicResponse }
+  } catch (err) {
+    logger.warn(
+      {
+        statusCode: res.status,
+        contentType: res.headers.get('content-type'),
+        body: raw.slice(0, 200),
+      },
+      '[openMeteo] deterministic response was not JSON',
+    )
+    throw err instanceof Error ? err : new Error(String(err))
+  }
 }
 
 function offsetOf(body: DeterministicResponse): number {
