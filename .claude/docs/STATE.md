@@ -19,9 +19,9 @@ confirmed working on a real device: bot, Mini App, alerts, deep links, auth.
 - **Bot** — commands, alerts, deep links into the Mini App.
 - **`apps/mobile`** — archived, out of the build. Do not add features to it.
 
-Baseline: `npm run test` 512 passing (438 api, 50 miniapp, 24 types), `npm run typecheck`
+Baseline: `npm run test` 520 passing (446 api, 50 miniapp, 24 types), `npm run typecheck`
 clean, `npm run check:hooks` 58 passing. **Mutation score 66.09%**, last measured
-2026-08-26 and *not* re-measured since Phases 1, 2 or 3 —
+2026-08-26 and *not* re-measured since Phases 1, 2, 3 or the 2026-09-01 rebuild —
 `npm run test:mutation --workspace=apps/api`, and see § Mutation testing below.
 
 **Three migrations are stacked and unapplied — `0007` (`panel_states`), `0008` (the three
@@ -44,20 +44,22 @@ green. If you are reading it because that block was absent, the hook did not fir
 
 The user's direction, set 2026-08-26 and revised the same day:
 
-1. **The chat interface is the priority, it is designed, and the plan is approved.** Read
-   **`.claude/docs/telegram-precision-interface-plan.md`** — it is the spec, settled over a
-   long design conversation on 2026-08-31, and it supersedes the one-line description this
-   entry used to carry.
+1. **The chat interface is the priority — and its product decision was reversed on
+   2026-09-01.** Read **`.claude/docs/telegram-precision-interface-plan.md`**, whose top
+   box carries the reversal; the measurements, traps and schema in it all still stand, only
+   the interface decisions are superseded.
 
-   The short version: **the Mini App is the snapshot, the bot is the instrument.** SpotWX-class
-   precision in chat — per-model hourly tables, ensemble spread, `/rain`, `/insight`, `/afd`,
-   run-to-run trend — on a panel message edited in place. Deep UI for this data does **not**
-   get built in the Mini App.
+   The old direction was *"the Mini App is the snapshot, the bot is the instrument"* —
+   SpotWX-class precision in chat. Phases 1–3 built exactly that and the owner could not
+   read the result: five keyboard rows, up to thirteen buttons, `p10/p50/p90` as three of
+   six columns. **The bot now answers the question and the Mini App carries the depth**,
+   in plain language, with one `⚙ More` per panel. See § What the rebuild changed.
 
-   **Phases 0 to 3 are done; Phase 4 is next** — `/insight` and `/afd`: model disagreement,
-   ensemble distribution, run-to-run trend, confidence by lead time, and the NWS forecaster's
-   own discussion by section. See § What Phases 0 to 2 left behind for the measurements it
-   must build on, and § What Phase 3 shipped for the rendering it extends.
+   **Phases 0 to 3 are done and Phase 3 has been rebuilt. Phase 4 is next, but `/insight`
+   needs re-specifying before it is built** — "model disagreement, ensemble distribution,
+   outlier, confidence by lead time" is precisely the vocabulary the reversal removed, and
+   it should become a plain-language confidence statement. **`/afd` is unaffected and gets
+   better**: it is a human forecaster writing plain English, which is now the house style.
 
    **`/insight`'s run-to-run trend needs history that does not exist yet.** It needs the
    migrations applied *and* `/api/cron/collect-runs` registered — until both, there is one
@@ -123,6 +125,41 @@ Three facts that are not rules:
 
 **Nothing has been driven from a real device, and `check:weather-runs` — extended to cover
 the new read path — is still unrun.**
+
+### What the rebuild changed (2026-09-01)
+
+The panels' binding spec is now **`panels.ts`'s module comment**, not § What it looks like
+in the plan doc. Three rules: plain language over the vocabulary of the data source; at
+most three button rows and three buttons a row, except the one opt-in `More` row; and
+nothing removed from the product, only from the first screen.
+
+Facts that are not rules and live nowhere else:
+
+- **`⚙ More` reuses `panel_states.mode`** (`advanced` is what it writes) but means something
+  narrower than the old Simple/Advanced tier: the detail tables, the step picker and the
+  unit toggle, nothing else.
+- **Both `More` views draw two narrow stacked tables, not one wide one.** A nine-column
+  forecast table measures 50 characters and the rain spread bolted onto its table measured
+  36, against the 32 the width tests assert. `<pre>` scrolls sideways rather than wrapping,
+  so either would have gone off the edge of a phone silently. The existing width assertion
+  caught both.
+- **The `pop` column was removed outright and `probability_is_shared` now has no renderer.**
+  The field is still fetched, stored and flagged; `.claude/rules/architecture.md` says so,
+  so the rule there is not mistaken for a description of live code.
+- **Model switching, the column-set picker and the seven-day outlook left chat for the Mini
+  App** — but the Mini App does not have model switching today. That is a real gap, not a
+  completed migration.
+- **Three defects were found by rendering the panels against a live Open-Meteo fetch**, none
+  by a test: eight rows of em dashes under "No forecast reaches this day yet" (padded rows
+  are real rows full of nulls, so `rows.length` was never 0 — `rainDayHasData` is the
+  check); a sentence interpolated where a noun phrase belonged, giving "Based on no
+  forecasts reach this day, just now"; and `timingLine` keying on `peak_odds_pct` alone, so
+  a run with amounts but a null `members_wet` was called a day no forecast reached, above a
+  table of those amounts.
+- **A fourth came from the independent reviewer, and it is the most instructive.** The
+  retry copy lived in `telegramWebhook.ts` and its keyboard was built in `panels.ts`; when
+  the nav row lost its `🔄`, the message went on telling the user to tap a button that was
+  no longer there. Neither file was wrong alone. `buildRetryPanel` now owns both.
 
 ### Deliberately deferred, not forgotten
 
@@ -261,7 +298,10 @@ panel pays a live upstream fetch on a cold cache and writes the run back itself,
 `/insight`'s run-to-run trend in Phase 4 has no history to compare.
 
 and, with `TELEGRAM_BOT_TOKEN` set in the shell, `npm run bot:set-commands` — needed again,
-because `/forecast` and `/rain` are new entries in the client's command menu.
+because `/forecast` and `/rain` are new entries in the client's command menu, and because
+the 2026-09-01 rebuild reworded `/conditions`, `/forecast` and `/rain`. The list is
+registered with Telegram, not read from the code at runtime, so the menu keeps the old
+wording until that runs.
 
 **The web half of Probe B was declined by the user on 2026-08-31. Do not ask again.**
 The consequence is already the plan's default: `<pre>` monospace is the rendering, and
