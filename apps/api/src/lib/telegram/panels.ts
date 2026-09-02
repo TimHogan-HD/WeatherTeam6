@@ -9,8 +9,10 @@ import {
   DETAIL_WIND_COLUMNS,
   INTERVAL_HOURS,
   modelLabel,
-  renderTable,
+  padGrid,
   SIMPLE_COLUMNS,
+  tableGrid,
+  toRichCells,
   stepNote,
   type ForecastColumn,
   type ForecastRow,
@@ -22,13 +24,13 @@ import {
   formatLastRain,
   formatLastRainAt,
   rainDayHasData,
+  rainGrid,
   rainTableNote,
-  renderRainTable,
   type LastRain,
   type RainDay,
   type RainEpisode,
 } from './rainMessage.js'
-import type { InlineKeyboardButton, InlineKeyboardMarkup } from './sendMessage.js'
+import type { InlineKeyboardButton, InlineKeyboardMarkup, RichBlock } from './sendMessage.js'
 import type { PanelMode } from './panelState.js'
 
 /**
@@ -69,8 +71,59 @@ import type { PanelMode } from './panelState.js'
  */
 
 export type Panel = {
-  readonly text: string
+  readonly blocks: readonly RichBlock[]
   readonly keyboard: InlineKeyboardMarkup | null
+}
+
+/**
+ * One piece of a panel: a line of prose, or a table as a grid of strings.
+ * Consecutive lines merge into one paragraph, so a builder still reads as a
+ * list of lines rather than as block construction.
+ */
+export type PanelPart = string | { readonly grid: readonly (readonly string[])[] }
+
+/**
+ * Assemble parts into rich blocks.
+ *
+ * Trailing blank lines are dropped before each flush: a builder that pushes an
+ * empty separator before a table would otherwise end the paragraph with a blank
+ * line, which a rich message renders as real vertical space.
+ */
+export function buildBlocks(parts: readonly PanelPart[]): RichBlock[] {
+  const blocks: RichBlock[] = []
+  let lines: string[] = []
+  const flush = (): void => {
+    while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop()
+    if (lines.length > 0) blocks.push({ type: 'paragraph', text: lines.join('\n') })
+    lines = []
+  }
+  for (const part of parts) {
+    if (typeof part === 'string') {
+      lines.push(part)
+    } else {
+      flush()
+      blocks.push({ type: 'table', cells: toRichCells(part.grid), is_bordered: true, is_compact: true })
+    }
+  }
+  flush()
+  return blocks
+}
+
+/**
+ * The same panel as HTML, for the `sendMessage` fallback.
+ *
+ * **Escaping happens here and nowhere else.** Rich blocks are JSON and need
+ * none; this path is markup and needs all of it. Escaping in the builders would
+ * put a literal `&amp;` in the native table — issue #26 in reverse.
+ */
+export function panelToHtml(blocks: readonly RichBlock[]): string {
+  return blocks
+    .map((b) =>
+      b.type === 'paragraph'
+        ? escapeTelegramHtml(b.text)
+        : `<pre>${escapeTelegramHtml(padGrid(b.cells.map((r) => r.map((c) => c.text))))}</pre>`,
+    )
+    .join('\n')
 }
 
 /** Verbs the webhook dispatches on. Short because they are spent on the 64-byte budget. */
@@ -121,9 +174,7 @@ export const PICK_VIEWS = {
  * way — so the honest answer is that the panel expired, never a guess at what
  * it used to be showing.
  */
-export const EXPIRED_PANEL_TEXT = escapeTelegramHtml(
-  'That panel has expired. Send /locations to open a new one.',
-)
+export const EXPIRED_PANEL_TEXT = 'That panel has expired. Send /locations to open a new one.'
 
 export type LocationChoice = {
   readonly id: string
@@ -205,8 +256,8 @@ export function buildListPanel(
       ? 'Hour by hour — pick a place'
       : field === 'locr'
         ? 'Rain — pick a place'
-        : '<b>Your locations</b>'
-  const lines = [field === 'loc' ? heading : `<b>${escapeTelegramHtml(heading)}</b>`, '']
+        : 'Your locations'
+  const parts: PanelPart[] = [heading, '']
 
   // The buttons *are* the list. Printing the names as bullets above them as
   // well put every location on screen twice, which was half the height of this
@@ -220,24 +271,22 @@ export function buildListPanel(
   const undrawable = drawn.filter((d) => d.button === null).map((d) => d.choice.name)
 
   if (choices.length === 0) {
-    lines.push(escapeTelegramHtml('No saved locations yet. Open the app to add one.'))
+    parts.push('No saved locations yet. Open the app to add one.')
   } else {
-    lines.push(escapeTelegramHtml('Tap one to see how it is looking.'))
+    parts.push('Tap one to see how it is looking.')
   }
 
   if (undrawable.length > 0) {
-    lines.push(
+    parts.push(
       '',
-      escapeTelegramHtml(
-        `Saved but not tappable here: ${undrawable.join(', ')}. Open the app to reach ${
-          undrawable.length === 1 ? 'it' : 'them'
-        }.`,
-      ),
+      `Saved but not tappable here: ${undrawable.join(', ')}. Open the app to reach ${
+        undrawable.length === 1 ? 'it' : 'them'
+      }.`,
     )
   }
 
   return {
-    text: lines.join('\n'),
+    blocks: buildBlocks(parts),
     // One per row: a location name is as long as the user made it, and two of
     // them side by side truncate to initials on a phone.
     keyboard: keyboardOf([
@@ -352,11 +401,6 @@ function sourceLine(model: string, fetchedAt: Date | null, now: Date): string {
   const age = formatAge(fetchedAt, now)
   const when = age === null ? `fetched ${stamp}` : `updated ${age} (${stamp})`
   return name === null ? when : `${name} model, ${when}`
-}
-
-/** A `<pre>` block. Escaped inside, because "Bear &amp; Cub" is a 400 in a code block too. */
-function pre(body: string): string {
-  return `<pre>${escapeTelegramHtml(body)}</pre>`
 }
 
 /**
@@ -474,7 +518,7 @@ export function buildConditionsPanel(input: ConditionsPanelInput): Panel {
   if (refresh !== null) viewRow.push({ text: '🔄', callback_data: refresh })
 
   return {
-    text: formatConditionsReply(conditions),
+    blocks: buildBlocks([formatConditionsReply(conditions)]),
     keyboard: keyboardOf([viewRow, footerRow(stateId, locationId, 'other')]),
   }
 }
@@ -521,10 +565,8 @@ export function buildForecastPanel(input: ForecastPanelInput): Panel {
   // as a rendering fault, and naming one that did not answer is the attribution
   // defect.
   const modelName = input.model === '' ? 'no model' : modelLabel(input.model)
-  const lines = [
-    `<b>${escapeTelegramHtml(input.locationName)}</b> · ${escapeTelegramHtml(
-      day === undefined ? 'No day selected' : dayLabel(day),
-    )}`,
+  const parts: PanelPart[] = [
+    `${input.locationName} · ${day === undefined ? 'No day selected' : dayLabel(day)}`,
     '',
   ]
 
@@ -537,29 +579,26 @@ export function buildForecastPanel(input: ForecastPanelInput): Panel {
    * there is. See `dayHasData`.
    */
   const hasData = dayHasData(input.rows)
-  const table = (columns: readonly ForecastColumn[]): string | null =>
-    hasData ? renderTable({ rows: input.rows, columns, units: input.units }) : null
+  const grid = (columns: readonly ForecastColumn[]): string[][] | null =>
+    hasData ? tableGrid({ rows: input.rows, columns, units: input.units }) : null
 
-  const simple = table(SIMPLE_COLUMNS)
+  const simple = grid(SIMPLE_COLUMNS)
   if (simple === null) {
-    lines.push(
-      escapeTelegramHtml(
-        day === undefined
-          ? 'No forecast days are available for this point yet.'
-          : `The ${modelName} model does not reach ${dayLabel(day)}.`,
-      ),
+    parts.push(
+      day === undefined
+        ? 'No forecast days are available for this point yet.'
+        : `The ${modelName} model does not reach ${dayLabel(day)}.`,
     )
   } else if (detail) {
-    // Two narrow tables, not one wide one. A single nine-column table is 50
-    // characters and `<pre>` scrolls sideways rather than wrapping, which would
-    // put half the numbers off the edge of a phone.
-    const air = table(DETAIL_AIR_COLUMNS)
-    const wind = table(DETAIL_WIND_COLUMNS)
-    if (air !== null) lines.push(escapeTelegramHtml('Air'), pre(air))
-    if (wind !== null) lines.push(escapeTelegramHtml('Wind and rain'), pre(wind))
-    lines.push(escapeTelegramHtml(stepNote(input.interval)))
+    // Two tables rather than one of nine columns: a native table sizes itself,
+    // but nine columns of readings is more than one glance can hold.
+    const air = grid(DETAIL_AIR_COLUMNS)
+    const wind = grid(DETAIL_WIND_COLUMNS)
+    if (air !== null) parts.push('Air', { grid: air })
+    if (wind !== null) parts.push('Wind and rain', { grid: wind })
+    parts.push(stepNote(input.interval))
   } else {
-    lines.push(pre(simple), escapeTelegramHtml(stepNote(input.interval)))
+    parts.push({ grid: simple }, stepNote(input.interval))
   }
 
   // The attribution is `⚙ More` only. It is derived, never guessed, and it is
@@ -567,18 +606,16 @@ export function buildForecastPanel(input: ForecastPanelInput): Panel {
   // default panel is a footer the reader has already read, on a surface whose
   // whole problem was that the furniture outweighed the content.
   if (detail) {
-    lines.push(
+    parts.push(
       '',
-      escapeTelegramHtml(
-        ensembleSourceSuffix(sourceLine(input.model, input.fetchedAt, input.now), input.rainDay),
-      ),
+      ensembleSourceSuffix(sourceLine(input.model, input.fetchedAt, input.now), input.rainDay),
     )
   } else {
     // Age stays on the default panel. It is the one piece of provenance that
     // changes what the reader should do: a three-hour-old panel is worth a tap
     // of 🔄, and a fresh one is not.
     const age = formatAge(input.fetchedAt, input.now)
-    if (age !== null) lines.push('', escapeTelegramHtml(`Updated ${age}`))
+    if (age !== null) parts.push('', `Updated ${age}`)
   }
 
   const rows: InlineKeyboardButton[][] = [dayRow(input.stateId, input.days, input.dayIndex)]
@@ -597,7 +634,7 @@ export function buildForecastPanel(input: ForecastPanelInput): Panel {
 
   rows.push(footerRow(input.stateId, input.locationId, 'other'))
 
-  return { text: lines.join('\n'), keyboard: keyboardOf(rows) }
+  return { blocks: buildBlocks(parts), keyboard: keyboardOf(rows) }
 }
 
 /**
@@ -686,12 +723,10 @@ export type RainPanelInput = {
 export function buildRainPanel(input: RainPanelInput): Panel {
   const date = input.days[input.dayIndex]
   const detail = input.mode === 'advanced'
-  const lines = [
-    `<b>${escapeTelegramHtml(input.locationName)}</b> · ${escapeTelegramHtml(
-      date === undefined ? 'No day selected' : dayLabel(date),
-    )}`,
+  const parts: PanelPart[] = [
+    `${input.locationName} · ${date === undefined ? 'No day selected' : dayLabel(date)}`,
     '',
-    escapeTelegramHtml(timingLine(input.day, input.units)),
+    timingLine(input.day, input.units),
     '',
   ]
 
@@ -701,11 +736,11 @@ export function buildRainPanel(input: RainPanelInput): Panel {
   // One table, widened by More rather than joined by a second one underneath.
   // Two tables of eight rows describing the same eight windows was reported as
   // hard to follow, and the width to avoid it was there all along.
-  const table = renderRainTable(input.day, input.units, input.interval, detail)
-  if (table !== null) {
-    lines.push(pre(table))
+  const rain = rainGrid(input.day, input.units, input.interval, detail)
+  if (rain !== null) {
+    parts.push({ grid: rain })
     const note = rainTableNote(input.interval, detail)
-    if (note !== null) lines.push(escapeTelegramHtml(note))
+    if (note !== null) parts.push(note)
   }
 
   // **The clock time wins when an hourly series reached the rain.** "Last rain:
@@ -713,26 +748,24 @@ export function buildRainPanel(input: RainPanelInput): Panel {
   // at 5pm, which are opposite answers to whether the rock has dried. The daily
   // lookup remains the fallback for rain older than the hourly window, and for
   // the failure case — which still reads differently from a dry spell (#34).
-  lines.push(
+  parts.push(
     '',
-    escapeTelegramHtml(
-      input.lastRainAt !== null && !input.lastRainFailed
-        ? formatLastRainAt(input.lastRainAt, input.today, input.units, formatClockHour)
-        : formatLastRain(
-            input.lastRain,
-            input.lastRainFailed,
-            input.rainWindowDays,
-            input.today,
-            input.units,
-          ),
-    ),
+    input.lastRainAt !== null && !input.lastRainFailed
+      ? formatLastRainAt(input.lastRainAt, input.today, input.units, formatClockHour)
+      : formatLastRain(
+          input.lastRain,
+          input.lastRainFailed,
+          input.rainWindowDays,
+          input.today,
+          input.units,
+        ),
   )
 
   if (detail) {
-    lines.push(escapeTelegramHtml(rainSourceLine(input.day, input.fetchedAt, input.now)))
+    parts.push(rainSourceLine(input.day, input.fetchedAt, input.now))
   } else {
     const age = formatAge(input.fetchedAt, input.now)
-    if (age !== null) lines.push(escapeTelegramHtml(`Updated ${age}`))
+    if (age !== null) parts.push(`Updated ${age}`)
   }
 
   const rows: InlineKeyboardButton[][] = [dayRow(input.stateId, input.days, input.dayIndex)]
@@ -751,7 +784,7 @@ export function buildRainPanel(input: RainPanelInput): Panel {
 
   rows.push(footerRow(input.stateId, input.locationId, 'other'))
 
-  return { text: lines.join('\n'), keyboard: keyboardOf(rows) }
+  return { blocks: buildBlocks(parts), keyboard: keyboardOf(rows) }
 }
 
 /**
@@ -826,31 +859,25 @@ export type PanelAlert = {
  * that once let a failed fetch render as all-clear.
  */
 export function buildAlertsPanel(stateId: string, alerts: readonly PanelAlert[]): Panel {
-  const lines = ['<b>Active alerts</b>', '']
+  const parts: PanelPart[] = ['Active alerts', '']
 
   if (alerts.length === 0) {
-    lines.push(
-      escapeTelegramHtml(
-        'Nothing on file for your locations. Alerts arrive from a background NWS check, so an empty list means none has been recorded — not that NWS was asked just now.',
-      ),
+    parts.push(
+      'Nothing on file for your locations. Alerts arrive from a background NWS check, so an empty list means none has been recorded — not that NWS was asked just now.',
     )
   } else {
     for (const a of alerts) {
       const detail = a.headline ?? a.event
-      lines.push(
-        `⚠️ <b>${escapeTelegramHtml(a.locationName)}</b> — ${escapeTelegramHtml(a.event)} (${escapeTelegramHtml(a.severity)})`,
-        escapeTelegramHtml(detail),
-        '',
-      )
+      parts.push(`⚠️ ${a.locationName} — ${a.event} (${a.severity})`, detail, '')
     }
-    lines.push(escapeTelegramHtml('Source: NWS'))
+    parts.push('Source: NWS')
   }
 
-  return { text: lines.join('\n'), keyboard: keyboardOf([footerRow(stateId, null, 'other')]) }
+  return { blocks: buildBlocks(parts), keyboard: keyboardOf([footerRow(stateId, null, 'other')]) }
 }
 
 export function buildHelpPanel(stateId: string, helpText: string): Panel {
-  return { text: helpText, keyboard: keyboardOf([footerRow(stateId, null, 'other')]) }
+  return { blocks: buildBlocks([helpText]), keyboard: keyboardOf([footerRow(stateId, null, 'other')]) }
 }
 
 /**
@@ -861,7 +888,7 @@ export function buildHelpPanel(stateId: string, helpText: string): Panel {
  */
 export function buildNoticePanel(stateId: string, notice: string): Panel {
   return {
-    text: escapeTelegramHtml(notice),
+    blocks: buildBlocks([notice]),
     keyboard: keyboardOf([footerRow(stateId, null, 'other')]),
   }
 }
@@ -891,7 +918,7 @@ export function buildRetryPanel(stateId: string): Panel {
       : 'Could not load that just now. Tap 🔄 to try again.'
   const row = retry === null ? [] : [{ text: '🔄 Try again', callback_data: retry }]
   return {
-    text: escapeTelegramHtml(text),
+    blocks: buildBlocks([text]),
     keyboard: keyboardOf([row, footerRow(stateId, null, 'other')]),
   }
 }

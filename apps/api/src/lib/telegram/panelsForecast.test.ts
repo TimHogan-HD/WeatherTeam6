@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildForecastPanel,
+  panelToHtml,
   buildRainPanel,
   dayLabel,
   formatAge,
@@ -114,7 +115,7 @@ describe('buildForecastPanel', () => {
     // vocabulary of the data source in the first line the reader sees. The
     // model is still named — at the foot, where the evidence goes.
     const panel = buildForecastPanel(forecastInput())
-    const header = panel.text.split('\n')[0]
+    const header = panelToHtml(panel.blocks).split('\n')[0]
     expect(header).toContain('Red Rock')
     expect(header).toContain('Fri 4 Sep')
     expect(header).not.toContain('HRRR')
@@ -126,15 +127,15 @@ describe('buildForecastPanel', () => {
     // panel is worth a tap of 🔄. The model name and member count do not, and
     // a footer under every default panel was furniture.
     const simple = buildForecastPanel(forecastInput())
-    expect(simple.text).toContain('Updated 14m ago')
-    expect(simple.text).not.toContain('HRRR model')
+    expect(panelToHtml(simple.blocks)).toContain('Updated 14m ago')
+    expect(panelToHtml(simple.blocks)).not.toContain('HRRR model')
 
     const detail = buildForecastPanel(forecastInput({ mode: 'advanced' }))
-    expect(detail.text).toContain('HRRR model')
+    expect(panelToHtml(detail.blocks)).toContain('HRRR model')
     // Probe A found no run initialization time is exposed at all, so this may
     // say when it was fetched and never which run it came from.
-    expect(detail.text).toContain('13:51Z')
-    expect(detail.text).not.toContain('12Z run')
+    expect(panelToHtml(detail.blocks)).toContain('13:51Z')
+    expect(panelToHtml(detail.blocks)).not.toContain('12Z run')
   })
 
   it('keeps the whole panel to three rows of buttons in its default state', () => {
@@ -150,13 +151,13 @@ describe('buildForecastPanel', () => {
   it('reveals the detail tables and the settings behind one More button', () => {
     const simple = buildForecastPanel(forecastInput())
     expect(simple.keyboard?.inline_keyboard.flat().map((b) => b.text)).toContain('⚙ More')
-    expect(simple.text).not.toContain('Air')
+    expect(panelToHtml(simple.blocks)).not.toContain('Air')
 
     const detail = buildForecastPanel(forecastInput({ mode: 'advanced' }))
     // Two stacked narrow tables, not one wide one — a nine-column table is 50
     // characters and `<pre>` scrolls sideways rather than wrapping.
-    expect(detail.text).toContain('Air')
-    expect(detail.text).toContain('Wind and rain')
+    expect(panelToHtml(detail.blocks)).toContain('Air')
+    expect(panelToHtml(detail.blocks)).toContain('Wind and rain')
     const labels = detail.keyboard?.inline_keyboard.flat().map((b) => b.text) ?? []
     expect(labels).toContain('✕ Less')
     expect(labels).toContain('• 3h')
@@ -165,8 +166,8 @@ describe('buildForecastPanel', () => {
 
   it('escapes the location name in the text', () => {
     const panel = buildForecastPanel(forecastInput({ locationName: 'Bear & Cub' }))
-    expect(panel.text).toContain('Bear &amp; Cub')
-    expect(panel.text).not.toContain('Bear & Cub')
+    expect(panelToHtml(panel.blocks)).toContain('Bear &amp; Cub')
+    expect(panelToHtml(panel.blocks)).not.toContain('Bear & Cub')
   })
 
   it('says a model does not reach the day rather than drawing a table of dashes', () => {
@@ -178,8 +179,8 @@ describe('buildForecastPanel', () => {
     expect(empty).toHaveLength(8)
 
     const panel = buildForecastPanel(forecastInput({ rows: empty, dayIndex: 2 }))
-    expect(panel.text).toContain('The HRRR model does not reach Sun 6 Sep')
-    expect(panel.text).not.toContain('<pre>')
+    expect(panelToHtml(panel.blocks)).toContain('The HRRR model does not reach Sun 6 Sep')
+    expect(panelToHtml(panel.blocks)).not.toContain('<pre>')
   })
 
   it('draws the table as soon as one value in the day is real', () => {
@@ -204,8 +205,8 @@ describe('buildForecastPanel', () => {
       3,
     )
     const panel = buildForecastPanel(forecastInput({ rows: partial, dayIndex: 2 }))
-    expect(panel.text).toContain('<pre>')
-    expect(panel.text).not.toContain('does not reach')
+    expect(panelToHtml(panel.blocks)).toContain('<pre>')
+    expect(panelToHtml(panel.blocks)).not.toContain('does not reach')
   })
 
   it('never shows the blended probability column, in either mode', () => {
@@ -217,8 +218,8 @@ describe('buildForecastPanel', () => {
     // proportion of real forecasts, so the column and its caveat both went.
     for (const mode of ['simple', 'advanced'] as const) {
       const panel = buildForecastPanel(forecastInput({ mode }))
-      expect(panel.text).not.toContain('pop')
-      expect(panel.text).not.toContain('blended')
+      expect(panelToHtml(panel.blocks)).not.toContain('pop')
+      expect(panelToHtml(panel.blocks)).not.toContain('blended')
     }
   })
 
@@ -229,8 +230,8 @@ describe('buildForecastPanel', () => {
     // with a number it did not produce. "forecasts", not "members" — the count
     // is what makes the percentage trustworthy and the reader should not need
     // the word to use it.
-    expect(withBar.text).toContain('Rain chance from 143 forecasts')
-    expect(withBar.text).toContain('HRRR model')
+    expect(panelToHtml(withBar.blocks)).toContain('Rain chance from 143 forecasts')
+    expect(panelToHtml(withBar.blocks)).toContain('HRRR model')
 
     // Every hour unmeasured. A row of low bars here would be a forecast of no
     // rain drawn from no members at all.
@@ -251,14 +252,14 @@ describe('buildForecastPanel', () => {
     })
     // The source line must not claim an ensemble contributed when none did.
     const bare = buildForecastPanel(forecastInput({ rainDay: noMembers, mode: 'advanced' }))
-    expect(bare.text).not.toContain('Rain chance from')
+    expect(panelToHtml(bare.blocks)).not.toContain('Rain chance from')
   })
 
   it('shows a range while models drop out through the day', () => {
     const panel = buildForecastPanel(
       forecastInput({ rainDay: rainDay({ member_min: 92, member_max: 143 }), mode: 'advanced' }),
     )
-    expect(panel.text).toContain('92–143 forecasts')
+    expect(panelToHtml(panel.blocks)).toContain('92–143 forecasts')
   })
 
   it('offers the day pager without arrows past the ends', () => {
@@ -362,45 +363,45 @@ describe('buildRainPanel', () => {
   it('leads with the answer, then the table', () => {
     const panel = buildRainPanel(rainInput())
     // The sentence a reader came for is above the numbers, not under them.
-    const answerAt = panel.text.indexOf('Rain most likely around noon')
-    const tableAt = panel.text.indexOf('<pre>')
+    const answerAt = panelToHtml(panel.blocks).indexOf('Rain most likely around noon')
+    const tableAt = panelToHtml(panel.blocks).indexOf('<pre>')
     expect(answerAt).toBeGreaterThan(-1)
     expect(answerAt).toBeLessThan(tableAt)
-    expect(panel.text).toContain('Last rain: 4 days ago (2026-08-31)')
+    expect(panelToHtml(panel.blocks)).toContain('Last rain: 4 days ago (2026-08-31)')
   })
 
   it('says chance and rain in the default table, and no percentiles', () => {
     const panel = buildRainPanel(rainInput())
-    expect(panel.text).toContain('chance')
-    expect(panel.text).not.toContain('p10')
-    expect(panel.text).not.toContain('p50')
-    expect(panel.text).not.toContain('p90')
+    expect(panelToHtml(panel.blocks)).toContain('chance')
+    expect(panelToHtml(panel.blocks)).not.toContain('p10')
+    expect(panelToHtml(panel.blocks)).not.toContain('p50')
+    expect(panelToHtml(panel.blocks)).not.toContain('p90')
   })
 
   it('puts the spread behind More, in words rather than percentiles', () => {
     const panel = buildRainPanel(rainInput({ mode: 'advanced' }))
     // The same three numbers, headed as what they mean rather than as what they
     // are called, with the unit in the header instead of a sentence below it.
-    expect(panel.text).toContain('least')
-    expect(panel.text).toContain('likely')
-    expect(panel.text).toContain('most')
-    expect(panel.text).not.toContain('p90')
-    expect(panel.text).not.toContain('If it rains, how much')
+    expect(panelToHtml(panel.blocks)).toContain('least')
+    expect(panelToHtml(panel.blocks)).toContain('likely')
+    expect(panelToHtml(panel.blocks)).toContain('most')
+    expect(panelToHtml(panel.blocks)).not.toContain('p90')
+    expect(panelToHtml(panel.blocks)).not.toContain('If it rains, how much')
   })
 
   it('says the rainfall record failed rather than implying a dry spell', () => {
     const panel = buildRainPanel(rainInput({ lastRain: null, lastRainFailed: true }))
-    expect(panel.text).toContain('couldn’t check')
-    expect(panel.text).not.toContain('none in the past')
+    expect(panelToHtml(panel.blocks)).toContain('couldn’t check')
+    expect(panelToHtml(panel.blocks)).not.toContain('none in the past')
   })
 
   it('says there is no forecast once, rather than drawing an empty table', () => {
     const panel = buildRainPanel(rainInput({ day: EMPTY_RAIN_DAY }))
-    expect(panel.text).toContain('No forecast reaches this day yet.')
-    expect(panel.text).not.toContain('<pre>')
+    expect(panelToHtml(panel.blocks)).toContain('No forecast reaches this day yet.')
+    expect(panelToHtml(panel.blocks)).not.toContain('<pre>')
     // Once, not twice: the panel used to state it in the timing line and then
     // again where the table would have gone.
-    expect(panel.text.match(/No forecast/g)).toHaveLength(1)
+    expect(panelToHtml(panel.blocks).match(/No forecast/g)).toHaveLength(1)
   })
 
   it('still says how old the fetch is when no forecast reaches the day', () => {
@@ -408,8 +409,8 @@ describe('buildRainPanel', () => {
     // fetched, and "Based on no forecasts reach this day, just now" is what
     // interpolating the absent case produced before.
     const panel = buildRainPanel(rainInput({ day: EMPTY_RAIN_DAY }))
-    expect(panel.text).toContain('Updated 14m ago')
-    expect(panel.text).not.toContain('Based on')
+    expect(panelToHtml(panel.blocks)).toContain('Updated 14m ago')
+    expect(panelToHtml(panel.blocks)).not.toContain('Based on')
   })
 
   it('offers the other two views of the same location', () => {

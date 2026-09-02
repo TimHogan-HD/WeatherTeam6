@@ -1,5 +1,4 @@
 import {
-  escapeTelegramHtml,
   formatHoursSinceRain,
   formatHumidity,
   formatTempF,
@@ -80,7 +79,7 @@ export function formatConditionsReply(input: ConditionsReplyInput): string {
     : null
   const rainLine = hoursSinceRain === null ? null : formatHoursSinceRain(hoursSinceRain)
 
-  const lines: string[] = [`<b>${escapeTelegramHtml(locationName)}</b>`]
+  const lines: string[] = [locationName]
 
   // Weather leads (§7 rule 2). A feed that starts tomorrow has no row for today,
   // and saying so beats relabelling tomorrow's numbers as today's.
@@ -91,7 +90,7 @@ export function formatConditionsReply(input: ConditionsReplyInput): string {
     lines.push('')
     for (const alert of activeAlerts) {
       const detail = alert.headline ?? alert.event
-      lines.push(`⚠️ ${escapeTelegramHtml(alert.event)} (NWS) — ${escapeTelegramHtml(detail)}`)
+      lines.push(`⚠️ ${alert.event} (NWS) — ${detail}`)
     }
   }
 
@@ -143,8 +142,9 @@ export function formatConditionsReply(input: ConditionsReplyInput): string {
 /**
  * The not-found reply. The old copy said "Save it in the app first", pointing at
  * the archived mobile app; the Mini App's `/add` screen is the surface that
- * exists (§7 rule 7). The name is user input and is escaped.
+ * exists (§7 rule 7). The name is user input; the rich path needs no escaping
+ * and the HTML fallback escapes it on the way out.
  */
 export function formatLocationNotFound(name: string): string {
-  return `I don't have a saved location matching "${escapeTelegramHtml(name)}". Open the app from the menu button and add it.`
+  return `I don't have a saved location matching "${name}". Open the app from the menu button and add it.`
 }

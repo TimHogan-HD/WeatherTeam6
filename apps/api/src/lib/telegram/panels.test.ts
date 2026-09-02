@@ -5,9 +5,11 @@ import {
   buildConditionsPanel,
   buildListPanel,
   buildNoticePanel,
+  buildBlocks,
   buildRetryPanel,
   clockLabel,
   OPEN_FIELDS,
+  panelToHtml,
   PICK_VIEWS,
   weekdayLabel,
 } from './panels.js'
@@ -49,7 +51,7 @@ const STATE = 'a1b2c3d4'
 describe('buildListPanel', () => {
   it('says the list is empty rather than showing bare navigation', () => {
     const panel = buildListPanel(STATE, [])
-    expect(panel.text).toContain('No saved locations')
+    expect(panelToHtml(panel.blocks)).toContain('No saved locations')
     // Only the nav row, and it drops the button for the view already showing.
     expect(panel.keyboard?.inline_keyboard).toHaveLength(1)
     expect(panel.keyboard?.inline_keyboard[0]).toHaveLength(2)
@@ -62,8 +64,8 @@ describe('buildListPanel', () => {
     ])
     // The buttons are the list. Printing the names above them as well put every
     // location on screen twice.
-    expect(panel.text).not.toContain('Red Rock')
-    expect(panel.text).not.toContain('Indian Creek')
+    expect(panelToHtml(panel.blocks)).not.toContain('Red Rock')
+    expect(panelToHtml(panel.blocks)).not.toContain('Indian Creek')
     // Two location rows plus the footer row.
     expect(panel.keyboard?.inline_keyboard).toHaveLength(3)
     expect(panel.keyboard?.inline_keyboard[0]).toHaveLength(1)
@@ -86,8 +88,8 @@ describe('buildListPanel', () => {
     // listed above the buttons, this line is the only thing standing between
     // that location and disappearing from the panel altogether.
     const panel = buildListPanel(STATE, [{ id: 'x'.repeat(40), name: 'Unencodable' }])
-    expect(panel.text).toContain('Unencodable')
-    expect(panel.text).toContain('Open the app')
+    expect(panelToHtml(panel.blocks)).toContain('Unencodable')
+    expect(panelToHtml(panel.blocks)).toContain('Open the app')
     // The footer row survives on its own — the list panel offers Alerts rather
     // than a button back to the view already showing.
     expect(panel.keyboard?.inline_keyboard).toHaveLength(1)
@@ -98,7 +100,7 @@ describe('buildListPanel', () => {
     // The same name, on the path that puts it in the message body rather than
     // on a button. An unescaped `&` there is a 400 that costs the whole panel.
     const panel = buildListPanel(STATE, [{ id: 'x'.repeat(40), name: 'Bear & Cub' }])
-    expect(panel.text).toContain('Bear &amp; Cub')
+    expect(panelToHtml(panel.blocks)).toContain('Bear &amp; Cub')
   })
 })
 
@@ -199,7 +201,7 @@ describe('buildConditionsPanel', () => {
   it('no longer carries the seven-day outlook or a mode toggle', () => {
     // Both moved to the Mini App. The hourly panel's day pager walks the same
     // week one day at a time.
-    expect(panel.text).not.toContain('Next days')
+    expect(panelToHtml(panel.blocks)).not.toContain('Next days')
     const labels = panel.keyboard?.inline_keyboard.flat().map((b) => b.text) ?? []
     expect(labels).not.toContain('⚙ Advanced')
     expect(labels).not.toContain('◀ Simple')
@@ -213,7 +215,7 @@ describe('buildRetryPanel', () => {
     // on telling the user to tap a button that was no longer on it. Neither
     // file was wrong alone, which is why nothing caught it.
     const panel = buildRetryPanel(STATE)
-    expect(panel.text).toContain('🔄')
+    expect(panelToHtml(panel.blocks)).toContain('🔄')
     const labels = panel.keyboard?.inline_keyboard.flat().map((b) => b.text) ?? []
     expect(labels.some((l) => l.includes('🔄'))).toBe(true)
   })
@@ -223,8 +225,8 @@ describe('buildRetryPanel', () => {
     // the copy while losing the button is exactly the mismatch above, one layer
     // down.
     const panel = buildRetryPanel('not-a-state-id')
-    expect(panel.text).not.toContain('🔄')
-    expect(panel.text).toContain('/locations')
+    expect(panelToHtml(panel.blocks)).not.toContain('🔄')
+    expect(panelToHtml(panel.blocks)).toContain('/locations')
     const labels = panel.keyboard?.inline_keyboard.flat().map((b) => b.text) ?? []
     expect(labels.some((l) => l.includes('🔄'))).toBe(false)
   })
@@ -245,8 +247,8 @@ describe('buildAlertsPanel', () => {
     // asked, and naming a source that did not answer is the attribution defect
     // this repo keeps shipping.
     const panel = buildAlertsPanel(STATE, [])
-    expect(panel.text).toContain('background NWS check')
-    expect(panel.text).not.toContain('Source: NWS')
+    expect(panelToHtml(panel.blocks)).toContain('background NWS check')
+    expect(panelToHtml(panel.blocks)).not.toContain('Source: NWS')
   })
 
   it('names NWS only when there is an alert that came from it, and escapes the name', () => {
@@ -258,17 +260,17 @@ describe('buildAlertsPanel', () => {
         headline: 'Highs 105 to 110',
       },
     ])
-    expect(panel.text).toContain('Source: NWS')
-    expect(panel.text).toContain('Bear &amp; Cub')
-    expect(panel.text).toContain('Highs 105 to 110')
+    expect(panelToHtml(panel.blocks)).toContain('Source: NWS')
+    expect(panelToHtml(panel.blocks)).toContain('Bear &amp; Cub')
+    expect(panelToHtml(panel.blocks)).toContain('Highs 105 to 110')
   })
 
   it('falls back to the event when there is no headline, rather than printing null', () => {
     const panel = buildAlertsPanel(STATE, [
       { locationName: 'Red Rock', event: 'Wind Advisory', severity: 'Moderate', headline: null },
     ])
-    expect(panel.text).not.toContain('null')
-    expect(panel.text).toContain('Wind Advisory')
+    expect(panelToHtml(panel.blocks)).not.toContain('null')
+    expect(panelToHtml(panel.blocks)).toContain('Wind Advisory')
   })
 })
 
@@ -310,9 +312,9 @@ describe('buildListPanel — the picker remembers what opened it', () => {
   })
 
   it('says where the tap will land, so the three pickers are not identical screens', () => {
-    expect(buildListPanel(STATE, choices, 'locf').text).toContain('Hour by hour')
-    expect(buildListPanel(STATE, choices, 'locr').text).toContain('Rain')
-    expect(buildListPanel(STATE, choices, 'loc').text).toContain('Your locations')
+    expect(panelToHtml(buildListPanel(STATE, choices, 'locf').blocks)).toContain('Hour by hour')
+    expect(panelToHtml(buildListPanel(STATE, choices, 'locr').blocks)).toContain('Rain')
+    expect(panelToHtml(buildListPanel(STATE, choices, 'loc').blocks)).toContain('Your locations')
   })
 
   it('maps every picker view to a field, and every field to a view', () => {
@@ -323,5 +325,42 @@ describe('buildListPanel — the picker remembers what opened it', () => {
     }
     expect(Object.keys(PICK_VIEWS).sort()).toEqual(['list', 'pick_forecast', 'pick_rain'])
     expect(Object.values(OPEN_FIELDS).sort()).toEqual(['conditions', 'forecast', 'rain'])
+  })
+})
+
+describe('panelToHtml — the one place escaping happens', () => {
+  /**
+   * The rich path sends structured JSON and must not escape; the `<pre>`
+   * fallback is markup and must. Escaping in both would put a literal `&amp;`
+   * on screen, which is issue #26 in reverse — so the contract is that the
+   * builders emit raw text and this function is the only escaper.
+   */
+  it('escapes an ampersand and angle brackets in a paragraph', () => {
+    const html = panelToHtml(buildBlocks(['Bear & Cub <north face>']))
+    expect(html).toContain('Bear &amp; Cub &lt;north face&gt;')
+    expect(html).not.toContain('<north')
+  })
+
+  it('escapes inside the table too, and wraps it in a code block', () => {
+    // A location name reaches a cell on the alerts panel, and "escape only what
+    // looks dangerous" is how `/start` shipped dead for months.
+    const html = panelToHtml(buildBlocks([{ grid: [['place'], ['Bear & Cub']] }]))
+    expect(html).toContain('<pre>')
+    expect(html).toContain('Bear &amp; Cub')
+  })
+
+  it('aligns the fallback table on its own content', () => {
+    // Widths are measured, not declared, so a value can never be wider than the
+    // space reserved for it.
+    const html = panelToHtml(buildBlocks([{ grid: [['time', 'temp'], ['12am', '100°F']] }]))
+    const body = html.replace(/<\/?pre>/g, '').split('\n')
+    expect(body[0]?.length).toBe(body[1]?.length)
+  })
+
+  it('keeps a table out of the paragraph either side of it', () => {
+    const blocks = buildBlocks(['before', '', { grid: [['a'], ['b']] }, 'after'])
+    expect(blocks.map((b) => b.type)).toEqual(['paragraph', 'table', 'paragraph'])
+    // The blank separator is dropped rather than becoming real vertical space.
+    expect(blocks[0]).toMatchObject({ type: 'paragraph', text: 'before' })
   })
 })

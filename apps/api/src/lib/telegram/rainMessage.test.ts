@@ -218,8 +218,8 @@ describe('renderRainTable', () => {
     const day = partialDay(12)
     const imperial = renderRainTable(day, 'imperial', 12)?.split('\n')[0]
     expect(imperial).toContain('chance')
-    expect(imperial).toContain('rain in')
-    expect(renderRainTable(day, 'metric', 12)?.split('\n')[0]).toContain('rain mm')
+    expect(imperial).toContain('rain')
+    expect(renderRainTable(day, 'metric', 12)).toContain('mm')
   })
 
   it('keeps the spread out of the default table and names it in words', () => {

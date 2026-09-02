@@ -167,13 +167,24 @@ describe('formatConditionsReply — a non-climbing location', () => {
   })
 })
 
-describe('formatConditionsReply — HTML escaping (issue #26)', () => {
-  it('escapes an ampersand in the location name', () => {
+describe('formatConditionsReply — plain text, not markup (issue #26)', () => {
+  /**
+   * **Escaping moved, it did not go away.** The panel is a rich message now,
+   * whose blocks are structured JSON — Probe B specimen 8a put
+   * `Bear & Cub <north face>` through unaltered. Escaping here as well would put
+   * a literal `&amp;` in the native table, which is issue #26 in reverse.
+   *
+   * `panelToHtml` is the one place that escapes, on the `<pre>` fallback path,
+   * and `panels.test.ts` asserts it there. These tests hold the other half of
+   * that contract: this module must emit the characters as they came.
+   */
+  it('leaves an ampersand in the location name alone', () => {
     const reply = formatConditionsReply(input({ locationName: 'Bear & Cub' }))
-    expect(reply).toContain('<b>Bear &amp; Cub</b>')
+    expect(reply).toContain('Bear & Cub')
+    expect(reply).not.toContain('&amp;')
   })
 
-  it('escapes an ampersand in an NWS headline', () => {
+  it('leaves an ampersand in an NWS headline alone', () => {
     const reply = formatConditionsReply(
       input({
         activeAlerts: [
@@ -181,21 +192,24 @@ describe('formatConditionsReply — HTML escaping (issue #26)', () => {
         ],
       }),
     )
-    expect(reply).toContain('Rivers &amp; streams')
-    expect(reply).not.toMatch(/Rivers & streams/)
+    expect(reply).toContain('Rivers & streams')
+    expect(reply).not.toContain('&amp;')
   })
 
-  it('escapes angle brackets so no value can inject markup', () => {
+  it('emits no markup of its own, so a value cannot be mistaken for one', () => {
     const reply = formatConditionsReply(input({ locationName: '<i>x</i>' }))
-    expect(reply).toContain('&lt;i&gt;x&lt;/i&gt;')
-    expect(reply.match(/<b>/g)).toHaveLength(1)
+    // The name comes through as typed, and the module adds no tags around it —
+    // so there is nothing for a reader of the rich path to confuse.
+    expect(reply).toContain('<i>x</i>')
+    expect(reply).not.toContain('<b>')
   })
 
-  it('escapes the searched name in the not-found reply', () => {
-    // User input, straight from the /conditions command.
+  it('leaves the searched name alone in the not-found reply', () => {
+    // User input, straight from the /conditions command. It reaches the rich
+    // path unaltered and the HTML fallback escapes it on the way out.
     const reply = formatLocationNotFound('Bear & <b>Cub</b>')
-    expect(reply).toContain('Bear &amp; &lt;b&gt;Cub&lt;/b&gt;')
-    expect(reply).not.toContain('<b>')
+    expect(reply).toContain('Bear & <b>Cub</b>')
+    expect(reply).not.toContain('&amp;')
   })
 
   it('points at a surface that exists, not the archived mobile app', () => {
