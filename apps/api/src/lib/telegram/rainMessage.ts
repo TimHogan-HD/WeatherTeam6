@@ -1,6 +1,5 @@
 import type { EnsembleRunHour } from '../runs/latestRuns.js'
 import {
-  bar,
   clockRangeCell,
   HOUR_IN_MS,
   localHourInstant,
@@ -234,6 +233,7 @@ export function renderRainTable(
   day: RainDay,
   units: TableUnits,
   interval: IntervalHours,
+  detail = false,
 ): string | null {
   if (!rainDayHasData(day)) return null
 
@@ -241,74 +241,34 @@ export function renderRainTable(
   const header = [
     'time'.padStart(RANGE_COL_WIDTH),
     'chance'.padStart(6),
-    ' '.repeat(CHANCE_BAR_WIDTH),
-    `rain ${unit}`.padStart(8),
+    `rain ${unit}`.padStart(9),
   ]
-  const body = day.rows.map((row) =>
-    [
-      clockRangeCell(row.hour, interval),
-      oddsCell(row.odds_pct).padStart(6),
-      // 0–100 is a real fixed scale, unlike the temperature bar's — a chance
-      // needs no "spans this day" caveat because the ends mean the same thing
-      // every day.
-      bar(row.odds_pct, 0, 100, CHANCE_BAR_WIDTH),
-      precipCell(row.total_mm, units, 8),
-    ].join(' '),
-  )
+  const body = day.rows.map((row) => [
+    clockRangeCell(row.hour, interval),
+    oddsCell(row.odds_pct).padStart(6),
+    precipCell(row.total_mm, units, 9),
+  ])
 
-  return [header.join(' '), ...body].join('\n')
-}
+  /**
+   * **`⚙ More` widens this table rather than adding a second one.**
+   *
+   * The spread used to be a separate `If it rains, how much` table underneath,
+   * which meant two tables of eight rows describing the same eight windows —
+   * reported as hard to follow. There was never a width problem: the phone
+   * fits far more than the 32 characters that split them, and this comes to 46.
+   */
+  if (detail) {
+    header.push('least'.padStart(6), 'likely'.padStart(7), 'most'.padStart(6))
+    day.rows.forEach((row, i) => {
+      body[i]?.push(
+        precipCell(row.precip_mm_p10, units, 6),
+        precipCell(row.precip_mm_p50, units, 7),
+        precipCell(row.precip_mm_p90, units, 6),
+      )
+    })
+  }
 
-/**
- * How wide the chance bar is.
- *
- * The bar replaced a standalone sparkline that drew the same eight values as an
- * unlabelled row of blocks above the table. Beside the number, in the row whose
- * clock time labels it, the same shape needs no legend and no axis: the hour is
- * the x label and the percentage is the y label, both already on screen.
- */
-const CHANCE_BAR_WIDTH = 10
-
-/**
- * The `⚙ More` table: how much rain the step's wettest hour brings at the dry,
- * middle and wet end of the forecasts — p10, p50 and p90 without ever printing
- * those names.
- *
- * **A second narrow table rather than three more columns on the first one.**
- * Bolting them on measured 36 characters against the 32 the width test asserts,
- * and `<pre>` scrolls sideways rather than wrapping, so the extra columns would
- * have gone off the edge of a phone silently. The forecast panel's `⚙ More`
- * splits for the same reason and the two now read the same way.
- *
- * `null` for a day with no steps at all, matching `renderRainTable` — a header
- * with nothing under it reads as a day with no rain rather than no data.
- */
-export function renderRainSpreadTable(
-  day: RainDay,
-  units: TableUnits,
-  interval: IntervalHours,
-): string | null {
-  if (!rainDayHasData(day)) return null
-
-  // `least` / `likely` / `most`, not `dry` / `mid` / `wet` and certainly not
-  // p10/p50/p90. The unit is stated once in the heading above the table, which
-  // buys the width to spell the columns out.
-  const header = [
-    'time'.padStart(RANGE_COL_WIDTH),
-    'least'.padStart(7),
-    'likely'.padStart(7),
-    'most'.padStart(7),
-  ].join(' ')
-  const body = day.rows.map((row) =>
-    [
-      clockRangeCell(row.hour, interval),
-      precipCell(row.precip_mm_p10, units, 7),
-      precipCell(row.precip_mm_p50, units, 7),
-      precipCell(row.precip_mm_p90, units, 7),
-    ].join(' '),
-  )
-
-  return [header, ...body].join('\n')
+  return [header.join(' '), ...body.map((r) => r.join(' '))].join('\n')
 }
 
 /**
@@ -326,6 +286,7 @@ export function rainTableNote(_interval: IntervalHours, detail: boolean): string
     ? 'Least, likely and most are the range of amounts the forecasts give for that window.'
     : null
 }
+
 
 /**
  * An amount of precipitation as prose, for a sentence rather than a cell.

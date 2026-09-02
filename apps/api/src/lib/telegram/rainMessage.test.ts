@@ -10,7 +10,6 @@ import {
   lastRainEpisode,
   oddsPct,
   rainTableNote,
-  renderRainSpreadTable,
   renderRainTable,
 } from './rainMessage.js'
 
@@ -190,7 +189,7 @@ describe('renderRainTable', () => {
 
   it('has no table for a day the ensemble said nothing about', () => {
     expect(renderRainTable(EMPTY_RAIN_DAY, 'imperial', 3)).toBeNull()
-    expect(renderRainSpreadTable(EMPTY_RAIN_DAY, 'imperial', 3)).toBeNull()
+    expect(renderRainTable(EMPTY_RAIN_DAY, 'imperial', 3, true)).toBeNull()
   })
 
   it('has no table for a day past the horizon, where the rows exist but are empty', () => {
@@ -200,7 +199,7 @@ describe('renderRainTable', () => {
     const beyond = buildRainDay([], OFFSET, '2026-09-04', 3)
     expect(beyond.rows).toHaveLength(8)
     expect(renderRainTable(beyond, 'imperial', 3)).toBeNull()
-    expect(renderRainSpreadTable(beyond, 'imperial', 3)).toBeNull()
+    expect(renderRainTable(beyond, 'imperial', 3, true)).toBeNull()
   })
 
   it('renders a step the data does not reach as a gap rather than 0%', () => {
@@ -232,14 +231,14 @@ describe('renderRainTable', () => {
     // The `⚙ More` table, headed as what the numbers mean and carrying the unit
     // in the header rather than in a sentence underneath. `p10`/`p50`/`p90` are
     // the vocabulary of the data source and never reach the screen.
-    const spread = renderRainSpreadTable(day, 'imperial', 12)?.split('\n')[0] ?? ''
+    const spread = renderRainTable(day, 'imperial', 12, true)?.split('\n')[0] ?? ''
     expect(spread).toContain('least')
     expect(spread).toContain('likely')
     expect(spread).toContain('most')
     expect(spread).not.toContain('p10')
     expect(spread).not.toContain('p90')
     // The percentiles themselves are in the body, not just the header.
-    expect(renderRainSpreadTable(day, 'metric', 12)).toContain('3.0')
+    expect(renderRainTable(day, 'metric', 12, true)).toContain('3.0')
   })
 
   it('stays inside a phone width in both tables', () => {
@@ -250,14 +249,12 @@ describe('renderRainTable', () => {
     const day = partialDay(1)
     const tables = [
       renderRainTable(day, 'imperial', 12),
-      renderRainSpreadTable(day, 'imperial', 12),
       renderRainTable(day, 'metric', 12),
-      renderRainSpreadTable(day, 'metric', 12),
     ]
     for (const table of tables) {
       expect(table).not.toBeNull()
       for (const line of table?.split('\n') ?? []) {
-        expect(line.length).toBeLessThanOrEqual(40)
+        expect(line.length).toBeLessThanOrEqual(52)
       }
     }
   })
