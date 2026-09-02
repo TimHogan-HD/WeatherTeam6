@@ -2466,3 +2466,110 @@ owed: `npm run db:migrate` from `apps/api` with `DATABASE_URL` set (applies `000
 `0009`), then `check:panel-state` and `check:weather-runs`; registering
 `/api/cron/collect-runs` and `/api/cron/prune-runs` with cron-job.org; and
 `TELEGRAM_WEBHOOK_SECRET` in Vercel with a matching `setWebhook` re-run.
+
+---
+
+## 2026-09-02 (second pass) — The data section was made readable, from screenshots of the live bot
+
+`main` @ `2ef5d6a` (PR #78, squashed)
+
+**What prompted it:** the user opened the rebuilt bot on their phone and sent two
+screenshots. The clutter was gone and the *data* was still unreadable. Four complaints,
+quoted because each one names a distinct failure:
+
+> "so much empty space in the data section of messages. could be filled out so that the data
+> is clearer and easier to understand."
+> "the rain graph is ridiculous. that doesn't show anything of value. if we are going to use
+> a chart it needs labels and actual information."
+> "none of the data is explained well it's just random numbers it feels. the charts have no
+> legends or axis labels at all. last rain 'today' is also not helpful. we need times/hour of
+> day."
+> "you don't need to put the source of the data constantly. it's just dumb filler."
+
+**The lesson under all four:** the first rebuild optimised the *furniture* and left the
+*content* alone. Removing buttons made the panel shorter without making a single number
+easier to read. "Fewer controls" and "clearer data" are different problems and the first one
+does not solve the second.
+
+**What shipped:**
+
+- **The empty space became a chart.** An inline bar per row — temperature on the hourly
+  panel, chance of rain on the rain panel. It fills the width that was blank *and* makes the
+  day's shape readable at a glance, which the numbers alone did not.
+- **The standalone sparkline was deleted**, and `sparkline.ts` with it. Eight block
+  characters with no axis, no scale and no labels is not a chart. The same values inside the
+  rows need no legend: the clock time is the x label and the number is the y label, both
+  already on screen. **`barScaleNote` is mandatory wherever a bar is drawn** — the bar is
+  scaled to the day's own range, so without the stated scale it means nothing, which is
+  precisely what was wrong with what it replaced.
+- **`hh` became a clock time** in every table. `00`/`03` is a timestamp; `12am`/`3am` is a
+  time of day.
+- **Headers carry their units** (`rain in`, `dry in`/`mid in`/`wet in`), which let the
+  footnote prose shrink. The complaint was "not explained well", and the fix was to move the
+  explanation into the labels rather than to add more sentences under them.
+- **"Last rain" gained a clock.** New `fetchRecentHourlyPrecip`.
+
+**The width limit rose from 32 to 40 characters, and the screenshot is the evidence.** The
+old figure was inherited caution; the user's own photo shows a 24-character table using well
+under half the bubble. A measurement of the real client beats a measurement of a different
+rendering path.
+
+**The honesty problem this created, and how it was resolved.** The rainfall record behind
+the drying model is a *daily* series, so "it rained today" was the most it could ever say —
+the request was for something the existing source could not honestly provide. Open-Meteo's
+`/v1/forecast` with `past_days` was **probed live before any code was written** (defect class
+9: a branch that can never succeed is not resilience) and does return hourly past
+precipitation. But the two sources disagree: measured at Willow River, the ACIS gauge said
+**0.23 in** for the day and the hourly reanalysis said **0.04 in**. So the episode reports
+timing *and* amount from the hourly series, and the daily lookup answers alone when the
+hourly window did not reach the rain. Halves of both in one sentence would have been the
+attribution defect.
+
+**One defect, found reading the diff.** The episode span was off by an hour. Open-Meteo
+stamps precipitation at the *end* of the hour it fell in — the convention `buildRows` and
+`buildRainDay` already follow, and which this repo has written down twice — so wet stamps at
+02:00 and 03:00 are rain falling from 01:00. Printing the stamps verbatim said "2am–3am" for
+a shower that began at 1am, understating how long the rock had been wet. The live render
+showed "2am–3am" and looked entirely plausible; only checking it against the repo's own
+stated convention caught it.
+
+**The sources footer went, and the rule it appeared to violate did not.** §7 rule 6 requires
+a named source to be *computed* rather than hardcoded. It does not require one to be
+*shown*, and which surface shows it is a display decision. `forecastSourceLabel` and
+`rainfallSourceLabel` are untouched and the Mini App still renders them; NWS is still named
+inline on every alert, which is the attribution that carries meaning; the model name is
+under `⚙ More`. **The age stays on the default panel** because it is the only piece of
+provenance that changes what the reader should do.
+
+**Verified:** `typecheck`, `lint`, `check:hooks` (58) green; `npm run test` **530 passing**
+(456 api, 50 miniapp, 24 types). Both panels rendered against a live Open-Meteo fetch at the
+reporter's own location, in both modes, before and after the hour fix. The independent
+reviewer ran 35 turns and posted no findings.
+
+**Not verified:** nothing has been driven from a real Telegram client since the change. `█`
+and `░` are the same Block Elements family as the sparkline glyphs that rendered correctly in
+the reporter's screenshots, but their alignment in Telegram's monospace font has not been
+seen firsthand.
+
+**Blockers for next session:** unchanged. The three migrations and the two cron
+registrations are still the gate on any of this appearing on a phone.
+
+**Gotchas for next session:**
+- **A bar with no stated scale is forbidden.** `barScaleNote` exists for that and the caller
+  prints it. The scale is the day's own range, not an absolute one.
+- **`bar(null, …)` draws blanks, not an empty bar.** `░░░░░░` beside an em dash is a drawn
+  zero contradicting the gap next to it.
+- **The width assertion is 40 now, and the bar is added by the *panel*, not the column set** —
+  so the set-level width test never sees the widest thing that reaches a phone. There is a
+  second assertion for the bar-inclusive shape; keep it if the layout changes again.
+- **Fewer controls is not clearer data.** The first rebuild fixed the furniture and the
+  numbers stayed unreadable. Ask both questions separately.
+- **Render it, then check the render against the repo's written conventions.** The live
+  output looked right and was off by an hour; the stamp-at-end rule is what caught it.
+
+**Does the user need to do anything?** **Yes, unchanged from the last entry.** `npm run
+db:migrate` from `apps/api` with `DATABASE_URL` set (applies `0007`, `0008`, `0009`), then
+`check:panel-state` and `check:weather-runs`; `npm run bot:set-commands` with
+`TELEGRAM_BOT_TOKEN` set, now needed for the reworded command descriptions as well as the new
+commands; registering `/api/cron/collect-runs` and `/api/cron/prune-runs` with cron-job.org;
+and `TELEGRAM_WEBHOOK_SECRET` in Vercel with a matching `setWebhook` re-run.

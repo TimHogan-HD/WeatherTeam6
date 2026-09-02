@@ -5,7 +5,7 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-09-02 · `main` @ `2208e59`
+Last updated: 2026-09-02 · `main` @ `2ef5d6a`
 
 ---
 
@@ -19,7 +19,7 @@ confirmed working on a real device: bot, Mini App, alerts, deep links, auth.
 - **Bot** — commands, alerts, deep links into the Mini App.
 - **`apps/mobile`** — archived, out of the build. Do not add features to it.
 
-Baseline: `npm run test` 520 passing (446 api, 50 miniapp, 24 types), `npm run typecheck`
+Baseline: `npm run test` 530 passing (456 api, 50 miniapp, 24 types), `npm run typecheck`
 clean, `npm run check:hooks` 58 passing. **Mutation score 66.09%**, last measured
 2026-08-26 and *not* re-measured since Phases 1, 2, 3 or the 2026-09-01 rebuild —
 `npm run test:mutation --workspace=apps/api`, and see § Mutation testing below.
@@ -160,6 +160,50 @@ Facts that are not rules and live nowhere else:
   retry copy lived in `telegramWebhook.ts` and its keyboard was built in `panels.ts`; when
   the nav row lost its `🔄`, the message went on telling the user to tap a button that was
   no longer there. Neither file was wrong alone. `buildRetryPanel` now owns both.
+
+### What the second pass changed (2026-09-02, from a real device)
+
+The first rebuild fixed the clutter and left the *data* unreadable. Four
+complaints, from screenshots of the live bot, all acted on:
+
+- **Tables used under half the bubble width.** That space now carries an inline
+  bar — temperature on the hourly panel, chance of rain on the rain panel. The
+  width assertion rose from **32 to 40 characters**, and the evidence is the
+  screenshot itself: a 24-character table left most of the bubble blank. That is
+  a measurement of the real client, which beats the 32 it replaced.
+- **The standalone sparkline showed nothing** — eight blocks, no axis, no scale,
+  no labels. Deleted, and `sparkline.ts` with it. The same values are a bar
+  inside each row, where the clock time is the x label and the number is the y
+  label, so it needs no legend. **A bar without a stated scale is forbidden**:
+  `barScaleNote` exists for that and the caller must print it.
+- **`hh` became a clock time.** `00`/`03` is a timestamp; `12am`/`3am` is a time
+  of day. `clockCell` is fixed-width so the column cannot shift; `clockLabel`
+  is the sentence form and lives in `forecastTable.ts` because `panels.ts`
+  already imports it and the other direction is a cycle.
+- **"Last rain: today" could not distinguish 3am from 5pm.** New
+  `fetchRecentHourlyPrecip` (`/v1/forecast` + `past_days`, probed live first)
+  gives an episode: *"Last rain: 1am–3am today (2026-09-02), 0.03 in."*
+
+Facts that are not rules and live nowhere else:
+
+- **The episode's timing and amount must come from the same hourly series.**
+  Measured at Willow River: the ACIS gauge said 0.23 in for the day and the
+  hourly reanalysis said 0.04 in. Quoting one against the other's clock time is
+  two sources in one sentence. The daily lookup stays as the fallback for rain
+  older than the 7-day hourly window and for the failure case.
+- **An episode's start is one hour before its first wet stamp.** Open-Meteo
+  stamps precipitation at the *end* of the hour it fell in — the convention
+  `buildRows` and `buildRainDay` already follow — so stamps at 02:00 and 03:00
+  are rain from 01:00. Printing the stamps verbatim said "2am–3am" for a shower
+  that began at 1am. Caught reading the diff, not by a test.
+- **The sources footer left the conditions panel.** §7 rule 6 requires a named
+  source to be *computed*, not that one be *shown*; this is a display decision
+  on one surface. `forecastSourceLabel` and `rainfallSourceLabel` are untouched
+  and the Mini App still renders them. NWS is still named inline on every alert,
+  and the model name is under `⚙ More`. **The age stays on the default panel** —
+  it is the only provenance that changes what the reader should do.
+- **`ConditionsReplyInput` lost `asosStation` and `snapshots`**, dead once the
+  footer went. Defect class 10 is about exactly that.
 
 ### Deliberately deferred, not forgotten
 
