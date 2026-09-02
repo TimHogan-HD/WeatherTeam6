@@ -170,6 +170,21 @@ async function sendPanel(userId: string, state: PanelState): Promise<void> {
   await deliverPanel(await renderPanel(userId, state))
 }
 
+/**
+ * A one-off plain-text reply — not a panel.
+ *
+ * **Every plain string in this route goes through here, and that is the point.**
+ * The copy modules stopped escaping when the panels became rich messages, but
+ * these replies still go out with `parse_mode: 'HTML'`, so the escape has to
+ * happen somewhere. Leaving it to each call site is how
+ * `formatLocationNotFound` briefly shipped unescaped with a user-typed name in
+ * it — `/conditions Bear & Cub` is a 400 the webhook swallows, and the user
+ * gets silence. Issue #26, in the gap between the two rendering paths.
+ */
+async function sendPlain(text: string): Promise<void> {
+  await sendTelegramMessage(escapeTelegramHtml(text))
+}
+
 async function handleMessage(userId: string, text: string): Promise<void> {
   const command = parseCommand(text)
   // Not a command. Staying silent is deliberate: this is a private chat with a
@@ -213,7 +228,7 @@ async function handleMessage(userId: string, text: string): Promise<void> {
       }
       const location = await findLocationByName(userId, command.args)
       if (location === null) {
-        await sendTelegramMessage(formatLocationNotFound(command.args))
+        await sendPlain(formatLocationNotFound(command.args))
         return
       }
       await sendPanel(
@@ -235,7 +250,7 @@ async function handleMessage(userId: string, text: string): Promise<void> {
       }
       const location = await findLocationByName(userId, command.args)
       if (location === null) {
-        await sendTelegramMessage(formatLocationNotFound(command.args))
+        await sendPlain(formatLocationNotFound(command.args))
         return
       }
       await sendPanel(
@@ -248,9 +263,7 @@ async function handleMessage(userId: string, text: string): Promise<void> {
     default:
       // Named, not ignored: an unregistered command typed by hand otherwise
       // looks like the bot is down.
-      await sendTelegramMessage(
-        `${escapeTelegramHtml(`I don't know /${command.name}.`)}\n\n${formatHelp()}`,
-      )
+      await sendPlain(`I don't know /${command.name}.\n\n${formatHelp()}`)
       return
   }
 }
@@ -271,7 +284,7 @@ async function handleCallbackQuery(userId: string, q: CallbackQuery): Promise<vo
   if (messageId === undefined) {
     // Nothing to edit — Telegram omits the message once it is too old. Say so on
     // a new message rather than silently doing nothing.
-    await sendTelegramMessage(escapeTelegramHtml(EXPIRED_PANEL_TEXT))
+    await sendPlain(EXPIRED_PANEL_TEXT)
     return
   }
 
