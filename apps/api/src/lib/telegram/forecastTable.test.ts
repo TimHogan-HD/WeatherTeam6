@@ -11,7 +11,7 @@ import {
   isTableUnits,
   localDays,
   modelLabel,
-  precipCell,
+  precipValue,
   renderTable,
   SIMPLE_COLUMNS,
   stepNote,
@@ -46,28 +46,33 @@ function hour(over: Partial<RunHour> & { valid_at: Date }): RunHour {
   }
 }
 
-describe('precipCell', () => {
+describe('precipValue', () => {
   it('renders a missing amount as a gap, not as zero rain', () => {
     // The whole reason the formatters take `number | null`: 0 in this column
     // means "it will not rain", and that is not what a gap means.
-    expect(precipCell(null, 'imperial', 5).trim()).toBe('—')
+    expect(precipValue(null, 'imperial')).toBe('—')
   })
 
   it('distinguishes a real zero from a trace', () => {
-    expect(precipCell(0, 'imperial', 5).trim()).toBe('0')
+    expect(precipValue(0, 'imperial')).toBe('0 in')
     // 0.1 mm is 0.0039 in, which `toFixed(2)` would print as 0.00 — the same
     // string as no rain at all.
-    expect(precipCell(0.1, 'imperial', 5).trim()).toBe('t')
+    expect(precipValue(0.1, 'imperial')).toBe('trace')
   })
 
   it('converts to inches under imperial and stays in millimetres under metric', () => {
-    expect(precipCell(25.4, 'imperial', 5).trim()).toBe('1.00')
-    expect(precipCell(25.4, 'metric', 5).trim()).toBe('25.4')
+    expect(precipValue(25.4, 'imperial')).toBe('1.00 in')
+    expect(precipValue(25.4, 'metric')).toBe('25.4 mm')
   })
 
-  it('pads to the requested width so a column cannot shift', () => {
-    expect(precipCell(25.4, 'imperial', 6)).toHaveLength(6)
-    expect(precipCell(null, 'imperial', 6)).toHaveLength(6)
+  it('carries its unit, so the header never has to', () => {
+    // "the mph and in should just be on the number data" — reported from a real
+    // device, and it is also what fixed the alignment: a wide unit-bearing
+    // header over a two-character value sprawled across the neighbouring column.
+    expect(precipValue(25.4, 'imperial')).toContain('in')
+    expect(precipValue(25.4, 'metric')).toContain('mm')
+    // The gap carries no unit. "— in" would read as a measured zero.
+    expect(precipValue(null, 'imperial')).toBe('—')
   })
 })
 
@@ -206,15 +211,19 @@ describe('renderTable', () => {
   })
 
   it('converts to Fahrenheit under imperial and leaves Celsius under metric', () => {
-    expect(renderTable({ rows, columns: SIMPLE_COLUMNS, units: 'imperial' })).toContain('86')
-    expect(renderTable({ rows, columns: SIMPLE_COLUMNS, units: 'metric' })).toContain('30')
+    expect(renderTable({ rows, columns: SIMPLE_COLUMNS, units: 'imperial' })).toContain('86°F')
+    expect(renderTable({ rows, columns: SIMPLE_COLUMNS, units: 'metric' })).toContain('30°C')
   })
 
-  it('heads the temperature column with the unit it is showing', () => {
-    expect(renderTable({ rows, columns: SIMPLE_COLUMNS, units: 'imperial' })?.split('\n')[0]).toContain(
-      '°F',
-    )
-    expect(renderTable({ rows, columns: SIMPLE_COLUMNS, units: 'metric' })?.split('\n')[0]).toContain('°C')
+  it('heads with a word and puts the unit on the value', () => {
+    // "the mph and in should just be on the number data." It also fixed the
+    // alignment: a unit-bearing header is far wider than its values, and
+    // right-aligned it sprawled across the neighbouring column's whitespace.
+    const table = renderTable({ rows, columns: SIMPLE_COLUMNS, units: 'imperial' })
+    const header = table?.split('\n')[0]
+    expect(header).toContain('temp')
+    expect(header).not.toContain('°F')
+    expect(table).toContain('86°F')
   })
 
   it('stays inside a phone width in every set, including the detail ones', () => {
@@ -242,28 +251,26 @@ describe('renderTable', () => {
     // are cutting off words". `dew`, `RH`, `gst`, `dir`, `sky` and `mb` were
     // abbreviations cut to fit a width that was never the constraint.
     const air = renderTable({ rows, columns: DETAIL_AIR_COLUMNS, units: 'imperial' })
-    expect(air).toContain('dew °F')
-    expect(air).toContain('humidity %')
-    expect(air).toContain('pressure mb')
+    expect(air).toContain('dew')
+    expect(air).toContain('humidity')
+    expect(air).toContain('pressure')
     expect(air).not.toMatch(/\bRH\b/)
 
     const wind = renderTable({ rows, columns: DETAIL_WIND_COLUMNS, units: 'imperial' })
-    expect(wind).toContain('wind mph')
-    expect(wind).toContain('gusts mph')
-    expect(wind).toContain('cloud %')
-    expect(wind).toContain('rain in')
+    expect(wind).toContain('wind')
+    expect(wind).toContain('gusts')
+    expect(wind).toContain('cloud')
+    expect(wind).toContain('rain')
     expect(wind).not.toMatch(/\bgst\b/)
     expect(wind).not.toMatch(/\bsky\b/)
   })
 
-  it('carries the unit in the header, and switches it with the units', () => {
-    // The value cells stay bare, so the unit has exactly one home. A metric
-    // table heading `mph` would be the wrong number under the right word.
+  it('switches the unit on the value with the unit system', () => {
+    // The unit has exactly one home — the value — so a metric table must not
+    // print mph anywhere, header or cell.
     const metric = renderTable({ rows, columns: DETAIL_WIND_COLUMNS, units: 'metric' })
-    expect(metric).toContain('wind kmh')
-    expect(metric).toContain('rain mm')
+    expect(metric).toContain('20 kmh')
     expect(metric).not.toContain('mph')
-    expect(metric).not.toContain('rain in')
   })
 
   it('renders every stored hourly variable across the three sets but one', () => {

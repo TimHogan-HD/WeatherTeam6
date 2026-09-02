@@ -10,6 +10,7 @@ import { isIntervalHours, isTableUnits } from '../lib/telegram/forecastTable.js'
 import {
   buildRetryPanel,
   EXPIRED_PANEL_TEXT,
+  panelToHtml,
   FIELD_DAY,
   FIELD_INTERVAL,
   FIELD_UNITS,
@@ -20,6 +21,7 @@ import {
   VERB_SET,
   VERB_VIEW,
   type OpenField,
+  type Panel,
 } from '../lib/telegram/panels.js'
 import {
   createPanelState,
@@ -33,8 +35,11 @@ import {
 import { renderPanel } from '../lib/telegram/panelViews.js'
 import {
   answerCallbackQuery,
+  editRichPanel,
   editTelegramMessage,
+  sendRichPanel,
   sendTelegramMessage,
+  TelegramPermanentError,
 } from '../lib/telegram/sendMessage.js'
 import { webhookSecretAccepted } from '../lib/telegram/webhookAuth.js'
 
@@ -126,10 +131,58 @@ telegramWebhookRouter.post('/webhook', async (req: Request, res: Response) => {
 
 /**
  * Send a panel as a new message. Used by every command; a tap edits instead.
+ *
+ * **Rich first, HTML if the rich call is permanently rejected.** The native
+ * table is the rendering the owner chose, and Probe B saw it draw on this bot's
+ * own phone — but `sendRichMessage` is a Bot API 10.1 method and nothing in this
+ * repo can exercise it without the token, so a permanent rejection must not cost
+ * the panel. `TelegramPermanentError` is a non-429 4xx, which is exactly the
+ * shape of "this method or field is not available"; a transient failure still
+ * throws, because retrying is the right answer to that.
  */
+async function deliverPanel(panel: Panel): Promise<void> {
+  try {
+    await sendRichPanel(panel.blocks, panel.keyboard)
+  } catch (err) {
+    if (!(err instanceof TelegramPermanentError)) throw err
+    logger.warn(
+      { err: err.message },
+      '[telegramWebhook] rich message rejected — falling back to the HTML panel',
+    )
+    await sendTelegramMessage(panelToHtml(panel.blocks), panel.keyboard)
+  }
+}
+
+async function editPanel(messageId: number, panel: Panel): Promise<void> {
+  try {
+    await editRichPanel(messageId, panel.blocks, panel.keyboard)
+  } catch (err) {
+    if (!(err instanceof TelegramPermanentError)) throw err
+    logger.warn(
+      { err: err.message },
+      '[telegramWebhook] rich edit rejected — falling back to the HTML panel',
+    )
+    await editTelegramMessage(messageId, panelToHtml(panel.blocks), panel.keyboard)
+  }
+}
+
 async function sendPanel(userId: string, state: PanelState): Promise<void> {
-  const panel = await renderPanel(userId, state)
-  await sendTelegramMessage(panel.text, panel.keyboard)
+  await deliverPanel(await renderPanel(userId, state))
+}
+
+/**
+ * A one-off plain-text reply — not a panel.
+ *
+ * **Every plain string in this route goes through here, and that is the point.**
+ * The copy modules stopped escaping when the panels became rich messages, but
+ * these replies still go out with `parse_mode: 'HTML'`, so the escape has to
+ * happen somewhere. Leaving it to each call site is how
+ * `formatLocationNotFound` briefly shipped unescaped with a user-typed name in
+ * it — `/conditions Bear & Cub` is a 400 the webhook swallows, and the user
+ * gets silence. Issue #26, in the gap between the two rendering paths.
+ */
+async function sendPlain(text: string): Promise<void> {
+  await sendTelegramMessage(escapeTelegramHtml(text))
 }
 
 async function handleMessage(userId: string, text: string): Promise<void> {
@@ -175,7 +228,7 @@ async function handleMessage(userId: string, text: string): Promise<void> {
       }
       const location = await findLocationByName(userId, command.args)
       if (location === null) {
-        await sendTelegramMessage(formatLocationNotFound(command.args))
+        await sendPlain(formatLocationNotFound(command.args))
         return
       }
       await sendPanel(
@@ -197,7 +250,7 @@ async function handleMessage(userId: string, text: string): Promise<void> {
       }
       const location = await findLocationByName(userId, command.args)
       if (location === null) {
-        await sendTelegramMessage(formatLocationNotFound(command.args))
+        await sendPlain(formatLocationNotFound(command.args))
         return
       }
       await sendPanel(
@@ -210,9 +263,7 @@ async function handleMessage(userId: string, text: string): Promise<void> {
     default:
       // Named, not ignored: an unregistered command typed by hand otherwise
       // looks like the bot is down.
-      await sendTelegramMessage(
-        `${escapeTelegramHtml(`I don't know /${command.name}.`)}\n\n${formatHelp()}`,
-      )
+      await sendPlain(`I don't know /${command.name}.\n\n${formatHelp()}`)
       return
   }
 }
@@ -233,13 +284,13 @@ async function handleCallbackQuery(userId: string, q: CallbackQuery): Promise<vo
   if (messageId === undefined) {
     // Nothing to edit — Telegram omits the message once it is too old. Say so on
     // a new message rather than silently doing nothing.
-    await sendTelegramMessage(EXPIRED_PANEL_TEXT)
+    await sendPlain(EXPIRED_PANEL_TEXT)
     return
   }
 
   const action = q.data === undefined ? null : decodeAction(q.data)
   if (action === null) {
-    await editTelegramMessage(messageId, EXPIRED_PANEL_TEXT, null)
+    await editTelegramMessage(messageId, escapeTelegramHtml(EXPIRED_PANEL_TEXT), null)
     return
   }
 
@@ -247,13 +298,13 @@ async function handleCallbackQuery(userId: string, q: CallbackQuery): Promise<vo
   if (state === null) {
     // Pruned at 7 days, or an id from another chat. Never a guess at what the
     // panel used to be showing.
-    await editTelegramMessage(messageId, EXPIRED_PANEL_TEXT, null)
+    await editTelegramMessage(messageId, escapeTelegramHtml(EXPIRED_PANEL_TEXT), null)
     return
   }
 
   const next = await applyAction(userId, state, action.verb, action.field, action.value)
   if (next === null) {
-    await editTelegramMessage(messageId, EXPIRED_PANEL_TEXT, null)
+    await editTelegramMessage(messageId, escapeTelegramHtml(EXPIRED_PANEL_TEXT), null)
     return
   }
 
@@ -272,15 +323,14 @@ async function handleCallbackQuery(userId: string, q: CallbackQuery): Promise<vo
     // assembled here from a string plus whichever keyboard that module happens
     // to attach. That split is what let the message tell the user to tap a 🔄
     // the nav row had stopped carrying.
-    const notice = buildRetryPanel(next.id)
-    await editTelegramMessage(messageId, notice.text, notice.keyboard)
+    await editPanel(messageId, buildRetryPanel(next.id))
     return
   }
 
   // A re-tap of the tab already showing produces byte-identical text and markup,
   // which Telegram calls a 400 "message is not modified". `editTelegramMessage`
   // tolerates exactly that one.
-  await editTelegramMessage(messageId, panel.text, panel.keyboard)
+  await editPanel(messageId, panel)
 }
 
 /**

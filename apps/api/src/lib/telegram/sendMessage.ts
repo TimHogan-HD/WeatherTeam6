@@ -193,6 +193,94 @@ export async function sendTelegramMessage(
 }
 
 /**
+ * One block of a rich message.
+ *
+ * **Rich blocks are structured JSON, not markup, so nothing here is escaped** —
+ * Probe B specimen 8a put `Bear & Cub <north face>` through this path unaltered
+ * on both clients. The `<pre>`/HTML path still needs `escapeTelegramHtml`, and
+ * mixing the two rules up is a 400 the webhook swallows. Two paths, two rules.
+ */
+export type RichBlock =
+  | { readonly type: 'paragraph'; readonly text: string }
+  | {
+      readonly type: 'table'
+      readonly cells: readonly (readonly RichCell[])[]
+      readonly is_bordered?: boolean
+      readonly is_striped?: boolean
+      readonly is_compact?: boolean
+    }
+
+export type RichCell = {
+  readonly text: string
+  readonly is_header?: boolean
+  /** Numeric columns are right-aligned so the digits line up under the header. */
+  readonly align?: 'left' | 'center' | 'right'
+  readonly valign?: 'top' | 'middle' | 'bottom'
+}
+
+/**
+ * Send a panel as a **native Telegram table** rather than a `<pre>` code block.
+ *
+ * Adopted 2026-09-02 on the owner's decision. The `<pre>` path renders inside
+ * Telegram's code-block chrome — a grey box with a `COPY CODE` footer — which
+ * was reported as *"this shitty .md looking section"*, and its monospace
+ * right-alignment is what made a wide header sprawl left of a narrow number.
+ * Neither is fixable without leaving `<pre>`.
+ *
+ * **This is measured, not hoped for.** `.claude/docs/telegram-render.md` §2 run
+ * 1: specimen 2 drew a *real table with grid lines* on phone and desktop, and
+ * specimen 7 re-rendered the same message id as a table after an
+ * `editMessageText` — which the whole panel-edited-in-place design depends on.
+ *
+ * **The accepted risk is Telegram Web**, which nobody has looked at, and which
+ * a second-hand report claims shows an "unsupported message" card. The owner
+ * accepted that knowingly; every piece of feedback driving this design has come
+ * from a phone. If web ever matters, `sendTelegramMessage` is still here and
+ * still correct.
+ */
+export async function sendRichPanel(
+  blocks: readonly RichBlock[],
+  replyMarkup?: InlineKeyboardMarkup | null,
+): Promise<void> {
+  const token = process.env['TELEGRAM_BOT_TOKEN']
+  const chat = process.env['TELEGRAM_CHAT_ID']
+  if (!token || !chat) {
+    throw new Error('TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID environment variables are required')
+  }
+
+  await callTelegram(
+    'sendRichMessage',
+    replyMarkup
+      ? { chat_id: chat, rich_message: { blocks }, reply_markup: replyMarkup }
+      : { chat_id: chat, rich_message: { blocks } },
+  )
+}
+
+/**
+ * Replace a rich panel in place. The rich counterpart of `editTelegramMessage`,
+ * with the same "not modified" tolerance for the same reason.
+ *
+ * `editMessageText` takes `rich_message` *instead of* `text` — verified in the
+ * Bot API reference and exercised by Probe B specimen 7.
+ */
+export async function editRichPanel(
+  messageId: number,
+  blocks: readonly RichBlock[],
+  replyMarkup?: InlineKeyboardMarkup | null,
+): Promise<void> {
+  await callTelegram(
+    'editMessageText',
+    {
+      chat_id: chatId(),
+      message_id: messageId,
+      rich_message: { blocks },
+      reply_markup: replyMarkup ?? { inline_keyboard: [] },
+    },
+    isNotModified,
+  )
+}
+
+/**
  * True for the one rejection an in-place panel edit produces on its own: the new
  * text and markup are byte-identical to what is already on the message, which
  * Telegram calls a 400. Re-tapping the day or model already selected does

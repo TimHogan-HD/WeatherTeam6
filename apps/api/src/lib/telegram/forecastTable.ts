@@ -1,5 +1,6 @@
 import { cToF, kmhToMph, mmToIn } from '@weatherteam6/types'
 import type { RunHour } from '../runs/latestRuns.js'
+import type { RichCell } from './sendMessage.js'
 import { localDateString } from '../weather/openMeteo.js'
 
 /**
@@ -98,10 +99,19 @@ export function clockLabel(hour: number): string | null {
 export const TIME_COL_WIDTH = 5
 
 export function clockCell(hour: number): string {
-  if (!Number.isInteger(hour) || hour < 0 || hour > 23) return cell('—', TIME_COL_WIDTH)
-  const suffix = hour < 12 ? 'am' : 'pm'
-  const h12 = hour % 12 === 0 ? 12 : hour % 12
-  return cell(`${h12}${suffix}`, TIME_COL_WIDTH)
+  return cell(clockShort(hour), TIME_COL_WIDTH)
+}
+
+/**
+ * The hour for a table cell: `12am`, `3pm`, `12pm`.
+ *
+ * **Not `clockLabel`.** That returns "midnight" and "noon", which read well in
+ * a sentence and badly in a column of four-character times — a native table
+ * would widen the whole column to fit one of them.
+ */
+export function clockShort(hour: number): string {
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23) return GAP
+  return `${hour % 12 === 0 ? 12 : hour % 12}${hour < 12 ? 'am' : 'pm'}`
 }
 
 /**
@@ -132,34 +142,55 @@ function round(value: number): string {
   return String(Math.round(value))
 }
 
-function tempCell(c: number | null, units: TableUnits, width: number): string {
-  if (c === null) return cell(GAP, width)
-  return cell(round(units === 'imperial' ? cToF(c) : c), width)
+/**
+ * **The unit lives on the value, not in the header.**
+ *
+ * A unit-bearing header meant a ten-character `humidity %` sitting over a
+ * two-character `85`; right-aligned in monospace, the header sprawled left
+ * across the neighbouring column's whitespace and was reported as *"headers are
+ * weirdly off center related to data"*. `6 mph` needs no header to explain it,
+ * and a native table sizes the column to whichever of the two is wider.
+ */
+export function tempValue(c: number | null, units: TableUnits): string {
+  if (c === null) return GAP
+  return `${round(units === 'imperial' ? cToF(c) : c)}°${units === 'imperial' ? 'F' : 'C'}`
 }
 
-function windCell(kmh: number | null, units: TableUnits, width: number): string {
-  if (kmh === null) return cell(GAP, width)
-  return cell(round(units === 'imperial' ? kmhToMph(kmh) : kmh), width)
+export function windValue(kmh: number | null, units: TableUnits): string {
+  if (kmh === null) return GAP
+  const n = round(units === 'imperial' ? kmhToMph(kmh) : kmh)
+  // "calm", not "0 mph". Still a measurement, and the one wind reading a
+  // climber reads as a state rather than a number.
+  if (n === '0') return 'calm'
+  return `${n} ${units === 'imperial' ? 'mph' : 'kmh'}`
 }
 
 /**
- * Two decimals in inches, one in millimetres, and **`t` for a trace** — a
+ * Two decimals in inches, one in millimetres, and **the word `trace`** — a
  * measurable amount that rounds to zero must not print as `0`, which is the
  * value that means "no rain at all".
+ *
+ * It was the letter `t` until 2026-09-02, when the reader asked *"what does t
+ * mean for rain amounts?"* — which is the whole answer. A one-letter code in a
+ * column of numbers is a legend the table never printed.
  */
-export function precipCell(mm: number | null, units: TableUnits, width: number): string {
-  if (mm === null) return cell(GAP, width)
-  if (mm === 0) return cell('0', width)
+export function precipValue(mm: number | null, units: TableUnits): string {
+  if (mm === null) return GAP
+  const unit = units === 'imperial' ? 'in' : 'mm'
+  if (mm === 0) return `0 ${unit}`
   if (units === 'imperial') {
     const inches = mmToIn(mm)
-    return cell(inches < 0.01 ? 't' : inches.toFixed(2), width)
+    return inches < 0.01 ? 'trace' : `${inches.toFixed(2)} ${unit}`
   }
-  return cell(mm < 0.1 ? 't' : mm.toFixed(1), width)
+  return mm < 0.1 ? 'trace' : `${mm.toFixed(1)} ${unit}`
 }
 
-function pctCell(pct: number | null, width: number): string {
-  if (pct === null) return cell(GAP, width)
-  return cell(round(pct), width)
+export function pctValue(pct: number | null): string {
+  return pct === null ? GAP : `${round(pct)}%`
+}
+
+export function pressureValue(hpa: number | null): string {
+  return hpa === null ? GAP : `${round(hpa)} mb`
 }
 
 /** 16-point compass. `null` is a gap; 0° is due north and a real reading. */
@@ -316,9 +347,9 @@ export function dayHasData(rows: readonly ForecastRow[]): boolean {
 // ---------------------------------------------------------------------------
 
 type Column = {
-  readonly header: (units: TableUnits) => string
-  readonly width: number
-  readonly render: (row: ForecastRow, units: TableUnits) => string
+  /** A short word. The unit is on the value, so a header never carries one. */
+  readonly header: string
+  readonly value: (row: ForecastRow, units: TableUnits) => string
 }
 
 /**
@@ -330,59 +361,24 @@ type Column = {
  * half the message bubble. Reported as *"we have a lot of horizontal space but
  * you are cutting off words"*. Spend the width on the words.
  */
+/**
+ * **No widths.** A native Telegram table sizes each column to its own content,
+ * and the `<pre>` fallback measures header and values and pads to the widest —
+ * so a value can never be wider than the space reserved for it, which is the
+ * one thing the fixed widths were protecting against.
+ */
 const COLUMNS = {
-  temp: {
-    header: (u) => (u === 'imperial' ? '°F' : '°C'),
-    width: 4,
-    render: (r, u) => tempCell(r.at?.temp_c ?? null, u, 4),
-  },
-  dew: {
-    header: (u) => (u === 'imperial' ? 'dew °F' : 'dew °C'),
-    width: 6,
-    render: (r, u) => tempCell(r.at?.dewpoint_c ?? null, u, 6),
-  },
-  rh: {
-    header: () => 'humidity %',
-    width: 10,
-    render: (r) => pctCell(r.at?.humidity_pct ?? null, 10),
-  },
-  wind: {
-    header: (u) => (u === 'imperial' ? 'wind mph' : 'wind kmh'),
-    width: 8,
-    render: (r, u) => windCell(r.at?.wind_kmh ?? null, u, 8),
-  },
-  gust: {
-    header: (u) => (u === 'imperial' ? 'gusts mph' : 'gusts kmh'),
-    width: 9,
-    render: (r, u) => windCell(r.at?.wind_gust_kmh ?? null, u, 9),
-  },
-  dir: {
-    // "from", because that is what a compass point on a wind reading means and
-    // "dir" made the reader work it out.
-    header: () => 'from',
-    width: 4,
-    render: (r) => cell(compassPoint(r.at?.wind_dir_deg ?? null) ?? GAP, 4),
-  },
-  cloud: {
-    header: () => 'cloud %',
-    width: 7,
-    render: (r) => pctCell(r.at?.cloud_pct ?? null, 7),
-  },
-  precip: {
-    header: (u) => (u === 'imperial' ? 'rain in' : 'rain mm'),
-    width: 7,
-    render: (r, u) => precipCell(r.precip_mm, u, 7),
-  },
-  pressure: {
-    header: () => 'pressure mb',
-    width: 11,
-    // NBM answers 384 nulls for this at every point measured, so the gap is the
-    // common case rather than the edge one.
-    render: (r) => {
-      const hpa = r.at?.pressure_hpa ?? null
-      return hpa === null ? cell(GAP, 11) : cell(round(hpa), 11)
-    },
-  },
+  temp: { header: 'temp', value: (r, u) => tempValue(r.at?.temp_c ?? null, u) },
+  dew: { header: 'dew', value: (r, u) => tempValue(r.at?.dewpoint_c ?? null, u) },
+  rh: { header: 'humidity', value: (r) => pctValue(r.at?.humidity_pct ?? null) },
+  wind: { header: 'wind', value: (r, u) => windValue(r.at?.wind_kmh ?? null, u) },
+  gust: { header: 'gusts', value: (r, u) => windValue(r.at?.wind_gust_kmh ?? null, u) },
+  dir: { header: 'from', value: (r) => compassPoint(r.at?.wind_dir_deg ?? null) ?? GAP },
+  cloud: { header: 'cloud', value: (r) => pctValue(r.at?.cloud_pct ?? null) },
+  precip: { header: 'rain', value: (r, u) => precipValue(r.precip_mm, u) },
+  // NBM answers 384 nulls for this at every point measured, so the gap is the
+  // common case rather than the edge one.
+  pressure: { header: 'pressure', value: (r) => pressureValue(r.at?.pressure_hpa ?? null) },
 } satisfies Record<string, Column>
 
 /** The name of one renderable column. Exported so a caller can hold a column list. */
@@ -462,35 +458,63 @@ export type TableInput = {
 }
 
 /**
- * The table body, unescaped and without the `<pre>` wrapper.
+ * The table as a grid of strings — header row first, then one row per step.
+ *
+ * **One source of truth for what a cell says.** `toRichCells` turns this into a
+ * native Telegram table and `renderTable` pads it into the `<pre>` fallback, so
+ * the two renderings cannot drift about a value or a gap.
  *
  * Returns `null` for a day with no rows at all rather than a header with nothing
  * under it — an empty table reads as "no wind, no rain, no cloud" for the day.
  */
-export function renderTable(input: TableInput): string | null {
+export function tableGrid(input: TableInput): string[][] | null {
   if (input.rows.length === 0) return null
-
-  /**
-   * **No inline bar.** One was drawn here and it was wrong twice: as `░` it
-   * rendered on a real phone as a dithered slab, and as `█` with a blank track
-   * it became a solid white staircase whose lowest row was empty — the day's
-   * minimum scales to zero blocks. Reported as *"the wavy chart is weird"* and
-   * *"bars are showing blank in areas"*, alongside *"we have a lot of
-   * horizontal space but you are cutting off words"*. The width is spent on
-   * spelled-out headers instead, which is what was actually asked for.
-   */
-  const headerCells = [
-    cell('time', TIME_COL_WIDTH),
-    ...input.columns.map((key) => cell(COLUMNS[key].header(input.units), COLUMNS[key].width)),
+  return [
+    ['time', ...input.columns.map((key) => COLUMNS[key].header)],
+    ...input.rows.map((row) => [
+      clockShort(row.hour),
+      ...input.columns.map((key) => COLUMNS[key].value(row, input.units)),
+    ]),
   ]
+}
 
-  const body = input.rows.map((row) =>
-    [clockCell(row.hour), ...input.columns.map((key) => COLUMNS[key].render(row, input.units))].join(
-      ' ',
+/**
+ * The `<pre>` fallback, auto-sized from the content.
+ *
+ * Widths are measured rather than declared, so a value can never be wider than
+ * the space reserved for it — the one thing the fixed widths protected against,
+ * now impossible by construction.
+ */
+export function renderTable(input: TableInput): string | null {
+  const grid = tableGrid(input)
+  if (grid === null) return null
+  return padGrid(grid)
+}
+
+/**
+ * A grid as native table cells, right-aligned.
+ *
+ * **Right-aligned because every column but the first is a number**, and a
+ * native table sizes each column to its own widest cell — so a header and its
+ * values share an edge instead of the header sprawling across the gap, which is
+ * what monospace could not avoid.
+ */
+export function toRichCells(grid: readonly (readonly string[])[]): RichCell[][] {
+  return grid.map((row, i) =>
+    row.map(
+      (text): RichCell => ({ text, is_header: i === 0, align: 'right', valign: 'middle' }),
     ),
   )
+}
 
-  return [headerCells.join(' '), ...body].join('\n')
+/** Pad a grid into aligned monospace rows. Shared by both fallback tables. */
+export function padGrid(grid: readonly (readonly string[])[]): string {
+  const widths = (grid[0] ?? []).map((_, i) =>
+    Math.max(...grid.map((row) => (row[i] ?? '').length)),
+  )
+  return grid
+    .map((row) => row.map((c, i) => c.padStart(widths[i] ?? c.length)).join('  '))
+    .join('\n')
 }
 
 /**

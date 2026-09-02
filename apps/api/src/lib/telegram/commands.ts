@@ -1,4 +1,3 @@
-import { escapeTelegramHtml } from '@weatherteam6/types'
 
 /**
  * Command parsing and the registered command list.
@@ -84,10 +83,10 @@ export const BOT_COMMANDS: readonly BotCommand[] = [
  * literal string needs that as much as an interpolated one does.
  */
 export function formatHelp(): string {
-  const lines = ['<b>WeatherTeam6</b>', '']
+  const lines = ['WeatherTeam6', '']
   for (const c of BOT_COMMANDS) {
-    lines.push(`/${escapeTelegramHtml(c.command)} — ${escapeTelegramHtml(c.description)}`)
+    lines.push(`/${c.command} — ${c.description}`)
   }
-  lines.push('', escapeTelegramHtml('Tip: /conditions red rock — a partial name is enough.'))
+  lines.push('', 'Tip: /conditions red rock — a partial name is enough.')
   return lines.join('\n')
 }

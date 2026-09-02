@@ -1,10 +1,9 @@
 import type { EnsembleRunHour } from '../runs/latestRuns.js'
 import {
-  clockRangeCell,
   HOUR_IN_MS,
   localHourInstant,
-  precipCell,
-  RANGE_COL_WIDTH,
+  padGrid,
+  precipValue,
   type IntervalHours,
   type TableUnits,
 } from './forecastTable.js'
@@ -203,8 +202,24 @@ export function buildRainDay(
 
 const GAP = '—'
 
-function oddsCell(pct: number | null): string {
-  return (pct === null ? GAP : `${Math.round(pct)}%`).padStart(5)
+function oddsValue(pct: number | null): string {
+  return pct === null ? GAP : `${Math.round(pct)}%`
+}
+
+/**
+ * The window a row covers: `12a-3a`, `9a-12p`.
+ *
+ * **The label is the explanation.** A column headed `time` showing `12am` meant
+ * "the three hours after this", which needed a sentence underneath and was
+ * reported as confusing. A range needs no sentence.
+ */
+function clockRange(hour: number, intervalHours: number): string {
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23) return GAP
+  const short = (h: number): string => {
+    const n = ((h % 24) + 24) % 24
+    return `${n % 12 === 0 ? 12 : n % 12}${n < 12 ? 'a' : 'p'}`
+  }
+  return `${short(hour)}-${short(hour + intervalHours)}`
 }
 
 /**
@@ -229,46 +244,51 @@ export function rainDayHasData(day: RainDay): boolean {
   return day.rows.some((r) => r.odds_pct !== null || r.total_mm !== null)
 }
 
+export function rainGrid(
+  day: RainDay,
+  units: TableUnits,
+  interval: IntervalHours,
+  detail = false,
+): string[][] | null {
+  if (!rainDayHasData(day)) return null
+
+  const header = ['time', 'chance', 'rain']
+  const body = day.rows.map((row) => [
+    clockRange(row.hour, interval),
+    oddsValue(row.odds_pct),
+    precipValue(row.total_mm, units),
+  ])
+
+  /**
+   * **`⚙ More` widens this table rather than adding a second one.**
+   *
+   * The spread used to be a separate "If it rains, how much" table underneath,
+   * which meant two tables of eight rows describing the same eight windows —
+   * reported as hard to follow. There was never a width problem to justify it.
+   */
+  if (detail) {
+    header.push('least', 'likely', 'most')
+    day.rows.forEach((row, i) => {
+      body[i]?.push(
+        precipValue(row.precip_mm_p10, units),
+        precipValue(row.precip_mm_p50, units),
+        precipValue(row.precip_mm_p90, units),
+      )
+    })
+  }
+
+  return [header, ...body]
+}
+
+/** The `<pre>` fallback for the rain table. */
 export function renderRainTable(
   day: RainDay,
   units: TableUnits,
   interval: IntervalHours,
   detail = false,
 ): string | null {
-  if (!rainDayHasData(day)) return null
-
-  const unit = units === 'imperial' ? 'in' : 'mm'
-  const header = [
-    'time'.padStart(RANGE_COL_WIDTH),
-    'chance'.padStart(6),
-    `rain ${unit}`.padStart(9),
-  ]
-  const body = day.rows.map((row) => [
-    clockRangeCell(row.hour, interval),
-    oddsCell(row.odds_pct).padStart(6),
-    precipCell(row.total_mm, units, 9),
-  ])
-
-  /**
-   * **`⚙ More` widens this table rather than adding a second one.**
-   *
-   * The spread used to be a separate `If it rains, how much` table underneath,
-   * which meant two tables of eight rows describing the same eight windows —
-   * reported as hard to follow. There was never a width problem: the phone
-   * fits far more than the 32 characters that split them, and this comes to 46.
-   */
-  if (detail) {
-    header.push('least'.padStart(6), 'likely'.padStart(7), 'most'.padStart(6))
-    day.rows.forEach((row, i) => {
-      body[i]?.push(
-        precipCell(row.precip_mm_p10, units, 6),
-        precipCell(row.precip_mm_p50, units, 7),
-        precipCell(row.precip_mm_p90, units, 6),
-      )
-    })
-  }
-
-  return [header.join(' '), ...body.map((r) => r.join(' '))].join('\n')
+  const grid = rainGrid(day, units, interval, detail)
+  return grid === null ? null : padGrid(grid)
 }
 
 /**
@@ -291,15 +311,13 @@ export function rainTableNote(_interval: IntervalHours, detail: boolean): string
 /**
  * An amount of precipitation as prose, for a sentence rather than a cell.
  *
- * Wraps `precipCell` so the table and the lines under it round identically, and
- * turns its `t` into words — "t in" is not a sentence, and the distinction it
- * marks is worth keeping: a trace is not `0.00 in`, which is the value that
- * means it did not rain.
+ * Wraps `precipValue` so the table and the lines under it round identically.
+ * The cell already carries its unit, so the only difference is the article:
+ * "a trace" reads as a sentence where the bare word reads as a cell.
  */
 export function describePrecip(mm: number, units: TableUnits): string {
-  const cell = precipCell(mm, units, 0).trim()
-  if (cell === 't') return 'a trace'
-  return `${cell} ${units === 'imperial' ? 'in' : 'mm'}`
+  const value = precipValue(mm, units)
+  return value === 'trace' ? 'a trace' : value
 }
 
 export type LastRain = {
