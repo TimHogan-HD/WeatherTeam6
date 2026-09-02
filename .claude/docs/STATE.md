@@ -71,6 +71,13 @@ The user's direction, set 2026-08-26 and revised the same day:
    **`/insight`'s run-to-run trend needs history that does not exist yet.** It needs the
    migrations applied *and* `/api/cron/collect-runs` registered — until both, there is one
    run per point and no trend to compute. The other three sections work from a single run.
+   **Phase 5 now outranks Phase 4.** Asked for directly on 2026-09-02: *"I would like to be
+   able to add remove and update locations from the chat rather than only in the app."*
+   That is Phase 5 — `/weather` anywhere, save with an explicit climbing-or-weather flag,
+   and `/remove` behind a confirm. Read its two **amendments** in the plan doc before
+   building: the result list has to distinguish its results (issue #82, the Willow River
+   fault), and "update" needs a decision because §12.4 still excludes rock type / aspect /
+   cliff angle while *correcting a mis-saved location* is not addressed at all.
 2. **An in-app feedback button.** Press it, type a note, and the note lands somewhere in
    this repo. Destination and mechanism undecided.
 3. **Mini App polish** — deliberately downgraded. The user's words: *"the Mini App doesn't

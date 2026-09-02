@@ -401,12 +401,34 @@ confidence by lead time. Expandable blockquotes if Probe B cleared them; otherwi
 
 ### Phase 5 — `/weather` anywhere, and save/remove
 
+> **Requested directly on 2026-09-02:** *"I would like to be able to add remove and update
+> locations from the chat rather than only in the app."* That is this phase, and it moves
+> ahead of Phase 4 in priority. Two amendments below came out of the same session.
+
 Geocoded lookup via [`searchPlaces`](../../apps/api/src/lib/weather/geocode.ts) and
 [`computePreviewForecast`](../../apps/api/src/lib/scoring/previewForecast.ts). Two explicit save
 buttons — climbing area vs weather place, because §12 requires the flag be stated, never
 inferred — reusing `parseGeneralLocationInput` from
 [`locations.ts`](../../apps/api/src/routes/locations.ts). `/remove` behind a confirm over
 [`deleteLocationCascade`](../../apps/api/src/lib/locations/deleteLocation.ts).
+
+**Amendment 1 — the result list must distinguish its results, or this phase ships the bug
+it is meant to solve.** Issue #82: a location saved as "Willow River" resolved to the
+*town* in Minnesota when the intent was Willow River State Park in Wisconsin, 90 miles
+away, and every forecast for it since has been for the wrong place. Open-Meteo returns
+five near-identical rows for that query and tags each with a `feature_code` (`PPL` town,
+`PRK` park, `DAM` dam) — which `parseGeocodeResults` **discards**. A chat picker showing
+five lines that differ only by state reproduces the fault on a smaller screen. Carry
+`feature_code` through and render it as a plain-language kind beside each result.
+
+**Amendment 2 — "update" needs a decision, because the plan currently answers only half of
+it.** § Explicitly out excludes editing rock type / aspect / cliff angle (§12.4), and that
+still holds. But *correcting a mis-saved location* — renaming it, or re-pointing it at the
+right coordinates — is not addressed anywhere, and Willow River is the standing proof that
+it is needed. The cheap version is remove-then-add, which Phase 5 already provides; a
+`/rename` would need multi-step text input that the button-driven panel state machine does
+not do today. **Decide which before building, and do not let "update" quietly mean
+§12.4.**
 
 ---
 
