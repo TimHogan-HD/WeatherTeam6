@@ -289,7 +289,10 @@ async function handleMessage(userId: string, text: string): Promise<void> {
         return
       }
       if (results.length === 0) {
-        await sendPlain(`No place found matching "${command.args}".`)
+        // searchPlaces already retries a comma-less "City State" once on its
+        // own. This still fires for a genuine miss (a typo, an obscure name),
+        // so the tip names the one format change most likely to help next.
+        await sendPlain(`No place found matching "${command.args}". Try "City, State" or "City, Country".`)
         return
       }
 

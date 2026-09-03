@@ -70,17 +70,7 @@ export function parseGeocodeResults(raw: unknown): GeocodeResult[] {
   return out
 }
 
-/**
- * Place-name search, proxied server-side so it obeys the same retry/backoff as
- * every other external call. Keyless — Open-Meteo geocoding needs no credential,
- * which is why it adds nothing to `.env.example` (§12.2).
- *
- * @throws {Error} on HTTP failure after exhausting fetchWithRetry's 4 attempts.
- */
-export async function searchPlaces(query: string, count = DEFAULT_COUNT): Promise<GeocodeResult[]> {
-  const q = query.trim()
-  if (q.length < MIN_QUERY_LENGTH) return []
-
+async function fetchPlaces(q: string, count: number): Promise<GeocodeResult[]> {
   const url = new URL(GEOCODE_URL)
   url.searchParams.set('name', q)
   url.searchParams.set('count', String(Math.min(Math.max(count, 1), MAX_COUNT)))
@@ -104,4 +94,33 @@ export async function searchPlaces(query: string, count = DEFAULT_COUNT): Promis
   // A no-match search is a 200 with the `results` key absent entirely, not an
   // empty array — parseGeocodeResults treats both as [].
   return parseGeocodeResults(await res.json())
+}
+
+/**
+ * Place-name search, proxied server-side so it obeys the same retry/backoff as
+ * every other external call. Keyless — Open-Meteo geocoding needs no credential,
+ * which is why it adds nothing to `.env.example` (§12.2).
+ *
+ * **Open-Meteo's own matching is comma-sensitive for "City State" queries.**
+ * Measured live: `Minneapolis, MN` returns a match and the plain `Minneapolis MN`
+ * does not, for the identical two words — confirmed from a real device, where a
+ * user typed the comma-less form first and got "no place found". A query with an
+ * internal space and no comma gets one retry with a comma inserted before the
+ * last word before giving up; it only fires on a genuinely empty first result,
+ * so it can never override or second-guess a match that already came back.
+ *
+ * @throws {Error} on HTTP failure after exhausting fetchWithRetry's 4 attempts.
+ */
+export async function searchPlaces(query: string, count = DEFAULT_COUNT): Promise<GeocodeResult[]> {
+  const q = query.trim()
+  if (q.length < MIN_QUERY_LENGTH) return []
+
+  const results = await fetchPlaces(q, count)
+  if (results.length > 0) return results
+
+  const lastSpace = q.lastIndexOf(' ')
+  if (lastSpace <= 0 || q.includes(',')) return results
+
+  const withComma = `${q.slice(0, lastSpace)},${q.slice(lastSpace)}`
+  return fetchPlaces(withComma, count)
 }
