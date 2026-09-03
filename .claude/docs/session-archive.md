@@ -2664,3 +2664,28 @@ Then, unchanged: `npm run bot:set-commands` with `TELEGRAM_BOT_TOKEN` set; regis
 `/api/cron/collect-runs` and `/api/cron/prune-runs` with cron-job.org; and
 `TELEGRAM_WEBHOOK_SECRET` in Vercel with a matching `setWebhook` re-run. The migrations
 are done.
+
+---
+
+## 2026-09-03 -- branch: main -- commit: 4176026
+
+**Phase completed:** Phase 3 hardening (`collectWeatherRuns` honest failure reporting) and end-to-end real-device verification of the 2026-09-02 native-table rebuild.
+
+**What was built this session:**
+- `apps/api/src/lib/runs/collectRuns.ts` (PR #87) -- `CollectResult` gained `deterministicFailed`/`ensembleFailed`, separate from `failed`. Production had logged `locations: 5, runsStored: 5, hoursStored: 840, failed: 0` while every deterministic fetch failed and only the ensemble half was stored -- `failed` only counted a location when *both* upstreams failed, so a one-sided systematic failure was invisible. A partial collection now logs at `warn`; a clean one at `info`.
+- `apps/api/src/lib/weather/openMeteo.ts` -- `requestDeterministic` reads the response body via `res.text()` and logs the first 200 chars on a JSON-parse failure (`statusCode`, `content-type`, body snippet), so the next occurrence is diagnosable instead of just `Unexpected token 'U'...`.
+- No further code changes this session -- the rest of the work was operational verification, done by the owner and reported back.
+
+**Known issues / deferred work:**
+- The root cause of the deterministic JSON-parse failures is still unconfirmed. Working theory: Open-Meteo rate-limiting Vercel's shared egress IP. Vercel's Hobby-plan log retention (~1 hour) means the diagnostic line has to be checked within minutes of a scheduled `collect-runs` run, not after a wait -- this was learned the hard way (an earlier "wait an hour, then check" instruction was backwards).
+- Neon database password still not rotated. The connection string was pasted into this chat's own transcript on 2026-09-02 and remains a live exposure.
+- Issue #82 (geocode picker can't distinguish a town from a state park) still open, still blocking Phase 5.
+
+**Blockers for next session:** none new.
+
+**What's next:** Issue **#82** first -- `git checkout -b fix/82-geocode-feature-code` off `main` -- then **Phase 5** (`git checkout -b phase/5-chat-locations`), reading `.claude/docs/telegram-precision-interface-plan.md` §Phase 5 and its two amendments before writing any UI.
+
+**Gotchas for next session:**
+- None new -- see the 2026-09-02 (third pass) entry above for the still-live rendering gotchas (escaping's two homes, no fixed widths, `clockLabel` vs `clockShort`).
+
+**Does the user need to do anything?** **Yes, one item, unchanged from last time: rotate the Neon password.** Everything else that was outstanding is now confirmed done -- cron jobs (`collect-runs`, `prune-runs`) are registered and running, and the native Telegram tables were confirmed rendering correctly on the owner's own phone (2026-09-03), closing the one claim in the previous entry that had shipped unverified.
