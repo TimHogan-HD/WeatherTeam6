@@ -170,10 +170,13 @@ device. The user's stated order from here:
    the Mini App and alert replies.
 
    > **Superseded 2026-08-31 — the design conversation happened.** The spec is
-   > `.claude/docs/telegram-precision-interface-plan.md` and it is approved. **Phases 0 to 3 are built
-   > — `/forecast` and `/rain` shipped 2026-09-01; Phase 4 (`/insight` and `/afd`) is next.**
-   > Build to that document; do not re-spec this
-   > from the paragraph above, and do not treat it as an open design question any more.
+   > `.claude/docs/telegram-precision-interface-plan.md` and it is approved. **Phases 0 to 3 are
+   > built and the chat rendering has been rebuilt twice more since, on real-device feedback —
+   > see `.claude/docs/STATE.md` for the current state.** Next up, in order: issue #82 (the
+   > geocode picker), then **Phase 5** (add/remove/update locations from chat, requested
+   > directly by the owner), then Phase 4 (`/insight` needs re-specifying first; `/afd` is
+   > buildable standalone). Build to the plan document; do not re-spec this from the paragraph
+   > above, and do not treat it as an open design question any more.
 3. **An in-app feedback button.** Press it, type a note in the moment, and the note lands
    **somewhere in this repo** to be addressed later. The destination and mechanism are
    undecided; the requirement is that it is capturable without breaking flow. Also a design
