@@ -2723,7 +2723,7 @@ are done.
 
 ---
 
-## 2026-09-03 (later) — branch: docs/migration-0010-applied — commit: (pending)
+## 2026-09-03 (later) — branch: docs/migration-0010-applied — squashed to `main` as `702f8e4` (PR #94)
 
 **Phase completed:** not a phase — closing the one gap the Phase 5 entry above left open.
 
