@@ -1,7 +1,9 @@
 import { and, asc, eq, gt, isNull, or } from 'drizzle-orm'
+import type { ForecastSnapshot } from '@weatherteam6/types'
 import { db } from '../../db/index.js'
 import { locations, weatherAlerts } from '../../db/schema.js'
 import { logger } from '../logger.js'
+import { computePreviewForecast } from '../scoring/previewForecast.js'
 import { getDeterministicRuns, getEnsembleRuns } from '../runs/latestRuns.js'
 import type { DeterministicRuns, ModelRun } from '../runs/latestRuns.js'
 import { pointKeyForLocation } from '../runs/pointKey.js'
@@ -31,6 +33,8 @@ import {
   buildListPanel,
   buildNoticePanel,
   buildRainPanel,
+  buildRemoveConfirmPanel,
+  buildWeatherPreviewPanel,
   PICK_VIEWS,
   type Panel,
 } from './panels.js'
@@ -57,11 +61,12 @@ export async function renderPanel(
   now: Date = new Date(),
 ): Promise<Panel> {
   switch (state.view) {
-    // The three pickers render the same list; only the view their buttons open
+    // The four pickers render the same list; only the view their buttons open
     // differs, and `PICK_VIEWS` is the single place that mapping lives.
     case 'list':
     case 'pick_forecast':
     case 'pick_rain':
+    case 'pick_remove':
       return buildListPanel(state.id, await listChoices(userId), PICK_VIEWS[state.view])
 
     case 'conditions': {
@@ -91,7 +96,65 @@ export async function renderPanel(
 
     case 'help':
       return buildHelpPanel(state.id, formatHelp())
+
+    // Never sent by a real button on this panel — the initial send is built
+    // directly by the webhook, because it needs the live `GeocodeResult[]`
+    // that nothing here persists. Kept only so the switch stays exhaustive
+    // and a stray tap reads as a real (if unhelpful) state, not a crash.
+    case 'weather_search':
+      return buildNoticePanel(state.id, 'Search again with /weather <place>.')
+
+    case 'weather_preview':
+      return renderWeatherPreview(state)
+
+    case 'remove_confirm': {
+      const location = await panelLocation(userId, state)
+      if (typeof location === 'string') return buildNoticePanel(state.id, location)
+      return buildRemoveConfirmPanel(state.id, location.id, location.name)
+    }
+
+    case 'removed':
+      return buildNoticePanel(state.id, `Removed "${state.placeName ?? 'that location'}".`)
   }
+}
+
+/**
+ * The `/weather <place>` answer for one geocoded point. Everything it needs —
+ * lat, lon, elevation, feature_code, place name — was written onto this state
+ * row when the search result was picked (`panelState.createPanelState` in the
+ * webhook), because none of it fits in `callback_data`.
+ *
+ * **A preview fetch failing is not a failure of the panel.** `today` is left
+ * `null` and `buildWeatherPreviewPanel` already knows how to say "no reading"
+ * — the same degrade `formatConditionsReply` uses for a saved location whose
+ * feed has no row yet.
+ */
+async function renderWeatherPreview(state: PanelState): Promise<Panel> {
+  if (state.lat === null || state.lon === null || state.placeName === null) {
+    return buildNoticePanel(state.id, 'That search result is no longer available. Send /weather again.')
+  }
+
+  let today: ForecastSnapshot | null = null
+  try {
+    const snapshots = await computePreviewForecast({
+      lat: state.lat,
+      lon: state.lon,
+      elevationM: state.elevationM,
+    })
+    today = snapshots.find((s) => s.is_today === true) ?? null
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      '[panelViews] preview forecast unavailable — weather preview panel shows no reading',
+    )
+  }
+
+  return buildWeatherPreviewPanel({
+    stateId: state.id,
+    placeName: state.placeName,
+    featureCode: state.featureCode,
+    today,
+  })
 }
 
 /**

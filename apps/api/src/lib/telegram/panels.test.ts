@@ -1,12 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { ForecastSnapshot } from '@weatherteam6/types'
+import type { ForecastSnapshot, GeocodeResult } from '@weatherteam6/types'
 import {
   buildAlertsPanel,
   buildConditionsPanel,
   buildListPanel,
   buildNoticePanel,
   buildBlocks,
+  buildRemoveConfirmPanel,
   buildRetryPanel,
+  buildWeatherPreviewPanel,
+  buildWeatherSearchPanel,
   clockLabel,
   OPEN_FIELDS,
   panelToHtml,
@@ -311,9 +314,10 @@ describe('buildListPanel — the picker remembers what opened it', () => {
     }
   })
 
-  it('says where the tap will land, so the three pickers are not identical screens', () => {
+  it('says where the tap will land, so the four pickers are not identical screens', () => {
     expect(panelToHtml(buildListPanel(STATE, choices, 'locf').blocks)).toContain('Hour by hour')
     expect(panelToHtml(buildListPanel(STATE, choices, 'locr').blocks)).toContain('Rain')
+    expect(panelToHtml(buildListPanel(STATE, choices, 'locrm').blocks)).toContain('Remove')
     expect(panelToHtml(buildListPanel(STATE, choices, 'loc').blocks)).toContain('Your locations')
   })
 
@@ -323,8 +327,8 @@ describe('buildListPanel — the picker remembers what opened it', () => {
     for (const field of Object.values(PICK_VIEWS)) {
       expect(Object.prototype.hasOwnProperty.call(OPEN_FIELDS, field)).toBe(true)
     }
-    expect(Object.keys(PICK_VIEWS).sort()).toEqual(['list', 'pick_forecast', 'pick_rain'])
-    expect(Object.values(OPEN_FIELDS).sort()).toEqual(['conditions', 'forecast', 'rain'])
+    expect(Object.keys(PICK_VIEWS).sort()).toEqual(['list', 'pick_forecast', 'pick_rain', 'pick_remove'])
+    expect(Object.values(OPEN_FIELDS).sort()).toEqual(['conditions', 'forecast', 'rain', 'remove_confirm'])
   })
 })
 
@@ -362,5 +366,115 @@ describe('panelToHtml — the one place escaping happens', () => {
     expect(blocks.map((b) => b.type)).toEqual(['paragraph', 'table', 'paragraph'])
     // The blank separator is dropped rather than becoming real vertical space.
     expect(blocks[0]).toMatchObject({ type: 'paragraph', text: 'before' })
+  })
+})
+
+function geocodeResult(over: Partial<GeocodeResult> = {}): GeocodeResult {
+  return {
+    id: 1,
+    name: 'Willow River',
+    lat: 45.02,
+    lon: -92.62,
+    elevation_m: 300,
+    admin1: 'Wisconsin',
+    country: 'United States',
+    timezone: 'America/Chicago',
+    feature_code: null,
+    ...over,
+  }
+}
+
+describe('buildWeatherSearchPanel — issue #82', () => {
+  it('tells apart two same-named results by their kind and admin1', () => {
+    // Exactly the Willow River bug: a town and a state park sharing a name.
+    const panel = buildWeatherSearchPanel(
+      STATE,
+      'willow river',
+      [
+        geocodeResult({ feature_code: 'PPL', admin1: 'Minnesota' }),
+        geocodeResult({ feature_code: 'PRK', admin1: 'Wisconsin' }),
+      ],
+      ['aaaaaaaa', 'bbbbbbbb'],
+    )
+    const labels = panel.keyboard?.inline_keyboard.slice(0, 2).map((row) => row[0]?.text)
+    expect(labels).toEqual([
+      'Willow River — Town · Minnesota, United States',
+      'Willow River — Park · Wisconsin, United States',
+    ])
+  })
+
+  it("each button opens its own result's pre-created state, not a shared one", () => {
+    const panel = buildWeatherSearchPanel(STATE, 'q', [geocodeResult()], ['cccccccc'])
+    const button = panel.keyboard?.inline_keyboard[0]?.[0]
+    const payload = button && 'callback_data' in button ? button.callback_data : null
+    expect(payload).toBe('go:cccccccc')
+  })
+
+  it('names the search query in the heading', () => {
+    const panel = buildWeatherSearchPanel(STATE, 'bishop, ca', [geocodeResult()], ['aaaaaaaa'])
+    expect(panelToHtml(panel.blocks)).toContain('bishop, ca')
+  })
+})
+
+describe('buildWeatherPreviewPanel', () => {
+  it('carries no conditions score — nothing has been classified as a climbing location yet', () => {
+    const panel = buildWeatherPreviewPanel({
+      stateId: STATE,
+      placeName: 'Willow River State Park',
+      featureCode: 'PRK',
+      today: snapshot({ is_today: true, temp_c_max: 20 }),
+    })
+    const text = panelToHtml(panel.blocks)
+    expect(text).not.toContain('score')
+  })
+
+  it('names the kind beside the place, from the same map the Mini App uses', () => {
+    const panel = buildWeatherPreviewPanel({
+      stateId: STATE,
+      placeName: 'Willow River State Park',
+      featureCode: 'PRK',
+      today: null,
+    })
+    expect(panelToHtml(panel.blocks)).toContain('Willow River State Park · Park')
+  })
+
+  it('offers two explicit save buttons, never a default', () => {
+    const panel = buildWeatherPreviewPanel({
+      stateId: STATE,
+      placeName: 'Bishop',
+      featureCode: null,
+      today: null,
+    })
+    const row = panel.keyboard?.inline_keyboard[0]
+    expect(row?.map((b) => b.text)).toEqual(['🧗 Save as climbing area', '📍 Save as weather place'])
+    const climb = row?.[0]
+    const place = row?.[1]
+    expect(climb && 'callback_data' in climb ? climb.callback_data : null).toBe(`save:${STATE}:k=climb`)
+    expect(place && 'callback_data' in place ? place.callback_data : null).toBe(`save:${STATE}:k=place`)
+  })
+})
+
+describe('buildRemoveConfirmPanel', () => {
+  const panel = buildRemoveConfirmPanel(STATE, '3f2504e0-4f89-41d3-9a0c-0305e82c3301', 'Red Rock')
+
+  it('names the location and warns it cannot be undone', () => {
+    const text = panelToHtml(panel.blocks)
+    expect(text).toContain('Red Rock')
+    expect(text).toContain('cannot be undone')
+  })
+
+  it('offers Remove and Cancel, and Cancel just switches the view back', () => {
+    const row = panel.keyboard?.inline_keyboard[0]
+    expect(row?.map((b) => b.text)).toEqual(['🗑 Remove', 'Cancel'])
+    const remove = row?.[0]
+    const cancel = row?.[1]
+    expect(remove && 'callback_data' in remove ? remove.callback_data : null).toBe(`rm:${STATE}`)
+    // The same generic `view` verb the footer nav uses — no bespoke verb for Cancel.
+    expect(cancel && 'callback_data' in cancel ? cancel.callback_data : null).toBe(`view:${STATE}:v=conditions`)
+  })
+
+  it('escapes an ampersand in the location name in the text', () => {
+    const withAmpersand = buildRemoveConfirmPanel(STATE, '3f2504e0-4f89-41d3-9a0c-0305e82c3301', 'Bear & Cub')
+    expect(panelToHtml(withAmpersand.blocks)).toContain('Bear &amp; Cub')
   })
 })
