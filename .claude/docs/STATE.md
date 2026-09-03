@@ -5,44 +5,53 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-09-03 · `main` @ `b02eac3`
+Last updated: 2026-09-03 · `main` @ `b29e503`
 
 ---
 
 ## Where the project is
 
 The Telegram crossover is **complete**, and the chat interface has been rebuilt three times
-from real-device feedback since. Current state, confirmed on a real device 2026-09-03:
+from real-device feedback since. Phase 5 (add/remove/update locations from chat) shipped
+2026-09-03. Current state:
 
 - **API** — Express on Vercel, one serverless function. Live.
 - **Mini App** — three routes (list, detail, `/add`), live at https://weatherteam6.vercel.app
 - **Bot** — `/start`, `/help`, `/locations`, `/conditions`, `/forecast`, `/rain`, `/alerts`,
-  rendered as **native Telegram Rich Message tables** (Bot API 10.1+), with an HTML fallback
-  on a permanent rejection. **Confirmed working on the owner's phone 2026-09-03** — this had
-  been the one unverified claim after the 2026-09-02 rebuild; it's closed.
+  `/weather`, `/remove`, rendered as **native Telegram Rich Message tables** (Bot API 10.1+),
+  with an HTML fallback on a permanent rejection. `/weather`, `/remove` and the Save flow are
+  **unverified against a real device** — see below. Everything else was confirmed working on
+  the owner's phone 2026-09-03.
 - **`/api/cron/collect-runs`** and **`/api/cron/prune-runs`** are registered with
   cron-job.org and **confirmed running** (2026-09-03). `collect-runs` sometimes still shows
   "timeout" in cron-job.org's own UI at its 30s job timeout, but Vercel completes the work
   to its own 60s `maxDuration` regardless — that reads as a reporting artifact, not a real
   failure, unless the honest per-location failure counts (see below) say otherwise.
 - **`apps/mobile`** — archived, out of the build. Do not add features to it.
+- **Phase 5 shipped 2026-09-03** (PR #91, on top of #82 part 1's `feature_code` plumbing from
+  PR #90). `placeSubtitle` — the picker's plain-language kind, e.g. "Park · Wisconsin, United
+  States" — moved into `packages/types/geocodeCopy.ts` so the Mini App's `/add` and the bot's
+  `/weather` share one implementation instead of two that can drift. "Update" a mis-saved
+  location is remove-then-add — `/help` says so; no separate edit flow exists.
 
-Baseline: `npm run test` 533 passing (459 api, 50 miniapp, 24 types), `npm run typecheck`
+Baseline: `npm run test` 550 passing (469 api, 50 miniapp, 31 types), `npm run typecheck`
 clean, `npm run check:hooks` 58 passing. **Mutation score 66.09%**, last measured
 2026-08-26 — not re-measured since. `npm run test:mutation --workspace=apps/api`.
 
 Migrations `0007`–`0009` are applied and both acceptance checks pass (`check:panel-state`
-17/17, `check:weather-runs` 40/40) against the real database.
+17/17, `check:weather-runs` 40/40) against the real database. **Migration `0010`
+(`panel_states.elevation_m`, `.feature_code` — Phase 5) is generated but unapplied**: no
+`DATABASE_URL` was reachable in the session that wrote it. `npm run db:migrate` from a
+machine that can reach Neon, then `npm run check:chat-locations`, is the next step before
+`/weather` can work in production — until then every `/weather` and Save tap will 500 on the
+missing columns.
 
-**`collectWeatherRuns` used to report a half-collection as a clean run** — production once
-logged `failed: 0` while every deterministic fetch had actually failed and only the
-ensemble half was stored. Fixed in `4176026`: `CollectResult` now separates
-`deterministicFailed`/`ensembleFailed` from `failed`, and a partial collection logs at
-`warn`, not `info`. **The underlying cause of the deterministic JSON-parse failures is
-still unconfirmed** — working theory is Open-Meteo rate-limiting Vercel's shared egress IP.
-Vercel's Hobby-plan log retention is short (roughly an hour), so catching the
-`[openMeteo] deterministic response was not JSON` line means checking the dashboard within
-minutes of a scheduled run, not after a wait.
+**A half-collection can no longer report as a clean run** (fixed `4176026`/PR #87 — see the
+archive for detail). **The underlying cause of the deterministic JSON-parse failures it
+surfaced is still unconfirmed** — working theory is Open-Meteo rate-limiting Vercel's shared
+egress IP; Hobby-plan log retention is short (~1h), so catching
+`[openMeteo] deterministic response was not JSON` means checking the dashboard right after a
+scheduled run.
 
 Always-loaded instruction budget: `CLAUDE.md` + `.claude/rules/*`. If you're about to add a
 paragraph to either, check first whether the fact is derivable from the repo, or belongs in
@@ -56,24 +65,18 @@ green. If you are reading it because that block was absent, the hook did not fir
 
 ## What is next
 
-Direction set 2026-08-26, revised 2026-09-01, current as of 2026-09-03:
+Direction set 2026-08-26, revised 2026-09-01, current as of 2026-09-03. Phase 5 and issue
+#82 part 1 are **done** — see § Where the project is; they're not repeated here.
 
-1. **Issue #82, part 1 — shipped.** `GeocodeResult.feature_code` now carries Open-Meteo's
-   GeoNames code through, and `apps/miniapp/src/routes/AddLocation.tsx`'s picker renders it
-   as a plain-language kind (`geocodeKindLabel` in `packages/types`) — "Park · Wisconsin,
-   United States" beside "Town · Minnesota, United States" for a "Willow River" search,
-   instead of two rows differing only by state. **Part 2 — ranking climbing-relevant
-   features (`PRK`, `MT`, `CLF`, `RK`, `RESV`) above `PPL` — is still open**, still a product
-   decision (helps crags, could hurt city lookups), not started.
-2. **Phase 5** — asked for directly by the owner: *"I would like to be able to add remove
-   and update locations from the chat rather than only in the app."* `/weather` anywhere,
-   save with an explicit climbing-or-weather flag, `/remove` behind a confirm. Read
-   `.claude/docs/telegram-precision-interface-plan.md` §Phase 5 and its two amendments
-   before building: the result list distinguishing its results is now the same fix as #82
-   part 1 above — reuse `geocodeKindLabel`, don't reimplement it for chat. "Update" still
-   needs a decision because §12.4 excludes rock type/aspect/cliff angle while *correcting a
-   mis-saved location* isn't addressed at all.
-3. **Phase 4** (`/insight`, `/afd`) — after Phase 5. `/insight` needs re-specifying in plain
+1. **Apply migration 0010 and verify Phase 5 for real** — before anything else touches
+   `apps/api/src/lib/telegram/`. `npm run db:migrate` (needs `DATABASE_URL` for a machine
+   that can reach Neon), then `npm run check:chat-locations`, then drive `/weather <place>`,
+   both Save buttons, and `/remove` from the owner's phone. Nothing in this flow has touched
+   real Postgres or a real client yet.
+2. **Issue #82, part 2** — ranking climbing-relevant features (`PRK`, `MT`, `CLF`, `RK`,
+   `RESV`) above `PPL`. Still a product decision (helps crags, could hurt city lookups), not
+   started.
+3. **Phase 4** (`/insight`, `/afd`) — next up. `/insight` needs re-specifying in plain
    language first: "model disagreement, ensemble distribution, outlier, confidence by lead
    time" is exactly the vocabulary the 2026-09-01 reversal removed. `/afd` is unaffected
    (a human forecaster's plain-English text) and could be built standalone if wanted sooner.
@@ -118,7 +121,7 @@ Standing context not on the issues themselves:
   environment).
 - **#32** — materially less likely since #33 landed. Entangled with the unfiled
   `ScoreInput` split below.
-- **#82** — see § What is next, item 1.
+- **#82** — part 1 shipped; part 2 is § What is next, item 2.
 
 ### Unfiled, worth filing when touched
 
@@ -200,9 +203,14 @@ Only things that are still true and still bite. Historical gotchas are in the ar
 
 **Rotate the Neon password.** Still outstanding — the connection string was pasted into a
 chat transcript on 2026-09-02. Neon dashboard → Roles → reset, then update `DATABASE_URL`
-in Vercel. This is the only credential/dashboard action left; everything else in the old
-list (migrations, `bot:set-commands`, `TELEGRAM_WEBHOOK_SECRET` + `setWebhook`, the two cron
-registrations) is done and confirmed working.
+in Vercel. Everything else in the old list (`bot:set-commands`, `TELEGRAM_WEBHOOK_SECRET` +
+`setWebhook`, the two cron registrations) is done and confirmed working.
+
+**Run migration 0010.** From `apps/api`, with `$env:DATABASE_URL` set to the pooled Neon
+string in the shell (never a `.env` file): `npm run db:migrate`, then
+`npm run check:chat-locations`. No session this week has had a reachable `DATABASE_URL`, so
+this is a "run it in your own shell" task, not a design decision — but it is the one thing
+standing between Phase 5 and actually working in production.
 
 **A product decision is owed, not a credential.** The drying model reads
 `archive-api.open-meteo.com` (daily, ERA5 reanalysis) while the rain panel reads the
