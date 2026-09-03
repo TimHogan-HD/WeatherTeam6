@@ -304,6 +304,13 @@ export const userPreferences = pgTable('user_preferences', {
  * panel open would otherwise fail to delete with a foreign-key violation
  * surfacing as a generic 500.
  *
+ * `elevation_m` and `feature_code` are Phase 5's, for the same unsaved-point
+ * case: the `/weather <place>` preview needs elevation so its temperature
+ * agrees with the location it becomes after Save (`applyLapseRate` returns
+ * early when it is null), and `feature_code` is what lets the preview panel
+ * name the kind of place it is (`geocodeKindLabel`) — the same disambiguation
+ * issue #82 fixed for the Mini App's picker.
+ *
  * Named `interval_hours` and `column_set` rather than the plan's `interval` and
  * `columns`: both of those are Postgres keywords that only work quoted, and a
  * column that must always be quoted is a trap for the first raw statement
@@ -322,6 +329,8 @@ export const panelStates = pgTable('panel_states', {
   lat: numeric('lat'),
   lon: numeric('lon'),
   place_name: text('place_name'),
+  elevation_m: numeric('elevation_m'),
+  feature_code: text('feature_code'),
   view: text('view').notNull(),
   model: text('model'),
   interval_hours: integer('interval_hours'),

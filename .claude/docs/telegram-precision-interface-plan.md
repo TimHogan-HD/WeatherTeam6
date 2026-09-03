@@ -404,6 +404,24 @@ confidence by lead time. Expandable blockquotes if Probe B cleared them; otherwi
 > **Requested directly on 2026-09-02:** *"I would like to be able to add remove and update
 > locations from the chat rather than only in the app."* That is this phase, and it moves
 > ahead of Phase 4 in priority. Two amendments below came out of the same session.
+>
+> **Status, 2026-09-03: built.** `/weather <place>` geocodes via
+> [`searchPlaces`](../../apps/api/src/lib/weather/geocode.ts), creates one `panel_states` row
+> per result up front (migration 0010 added `elevation_m`/`feature_code` to that table for
+> exactly this — none of it fits in `callback_data`), and opens a preview
+> ([`computePreviewForecast`](../../apps/api/src/lib/scoring/previewForecast.ts)) with two
+> explicit Save buttons. The insert is [`insertGeneralLocation`](../../apps/api/src/lib/locations/createLocation.ts),
+> factored out of `POST /locations` so the two surfaces share one write. `/remove` opens a
+> confirm panel over
+> [`deleteLocationCascade`](../../apps/api/src/lib/locations/deleteLocation.ts). Amendment 1
+> shipped as planned — `placeSubtitle` moved to `packages/types/geocodeCopy.ts` so the Mini
+> App's `/add` picker and this one share the same disambiguation, not two implementations of
+> it. Amendment 2's decision: **remove-then-add is the whole answer** — no third "edit" flow
+> was built; `/help` says so directly (*"saved the wrong place? /remove it, then /weather it
+> again"*). **Not verified: migration 0010 is unapplied** (no `DATABASE_URL` reachable this
+> session) and nothing has been driven from a real device yet — `npm run check:chat-locations`
+> exercises the DB-only-visible parts (the new columns' round trip, the insert, the
+> delete-cascade ordering) once the migration is applied.
 
 Geocoded lookup via [`searchPlaces`](../../apps/api/src/lib/weather/geocode.ts) and
 [`computePreviewForecast`](../../apps/api/src/lib/scoring/previewForecast.ts). Two explicit save

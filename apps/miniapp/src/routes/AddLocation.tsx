@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { spacing } from '@weatherteam6/design/tokens'
-import { geocodeKindLabel, type GeocodeResult, type RockType } from '@weatherteam6/types'
+import { placeSubtitle, type GeocodeResult, type RockType } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { bareButton, card, chip, inputBox, stack } from '../theme/styles.js'
 import { useBackButton } from '../telegram/useBackButton.js'
@@ -46,20 +46,6 @@ function fromGeocode(result: GeocodeResult): Candidate {
     elevationM: result.elevation_m,
     timezone: result.timezone,
   }
-}
-
-/**
- * `Park · Nevada, United States` — near-identical place names are common
- * (§12.2), and admin1/country alone weren't enough: "Willow River" returned a
- * Minnesota town and a Wisconsin state park 90 miles apart with nothing but
- * the name to go on (issue #82). The kind is omitted, not shown as a raw
- * GeoNames code, when `feature_code` is unmapped or absent.
- */
-export function placeSubtitle(result: GeocodeResult): string {
-  const kind = geocodeKindLabel(result.feature_code)
-  const place = [result.admin1, result.country].filter((part) => part !== null && part !== '').join(', ')
-  if (kind === null) return place
-  return place === '' ? kind : `${kind} · ${place}`
 }
 
 export function AddLocation() {

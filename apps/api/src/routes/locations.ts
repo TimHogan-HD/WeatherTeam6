@@ -3,6 +3,7 @@ import { and, asc, avg, count, eq, ilike, or, sql } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { locations, crags, locationNormals, cragClimbabilityHistory } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
+import { insertGeneralLocation } from '../lib/locations/createLocation.js'
 import { deleteLocationCascade } from '../lib/locations/deleteLocation.js'
 import { parseNumeric } from '@weatherteam6/types'
 import type { ApiResponse, Location, Crag, CreateLocationInput, LocationNormal, ClimbabilityHistory } from '@weatherteam6/types'
@@ -261,24 +262,16 @@ locationsRouter.post('/locations', async (req: Request, res: Response) => {
     }
 
     try {
-      const inserted = await db
-        .insert(locations)
-        .values({
-          user_id: req.userId,
-          name: parsed.name,
-          lat: String(parsed.lat),
-          lon: String(parsed.lon),
-          // Persisted so the saved location and its own pre-save preview agree
-          // on temperature: applyLapseRate returns early when this is null, so
-          // dropping it shifts every reading by the full lapse-rate correction.
-          elevation_m: parsed.elevation_m === null ? null : String(parsed.elevation_m),
-          timezone: parsed.timezone,
-          is_climbing_location: parsed.is_climbing_location,
-          rock_type: parsed.rock_type,
-        })
-        .returning()
-      const row = inserted[0]
-      if (!row) throw new Error('Insert returned no row')
+      const row = await insertGeneralLocation({
+        user_id: req.userId,
+        name: parsed.name,
+        lat: parsed.lat,
+        lon: parsed.lon,
+        elevation_m: parsed.elevation_m,
+        timezone: parsed.timezone,
+        is_climbing_location: parsed.is_climbing_location,
+        rock_type: parsed.rock_type,
+      })
       const response: ApiResponse<Location> = { data: mapLocation(row), error: null, status: 201 }
       res.status(201).json(response)
     } catch (err) {

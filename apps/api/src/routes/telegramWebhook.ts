@@ -2,22 +2,30 @@ import { Router, type Request, type Response } from 'express'
 import { escapeTelegramHtml } from '@weatherteam6/types'
 import { logger } from '../lib/logger.js'
 import { isUuid } from '../lib/http.js'
+import { insertGeneralLocation } from '../lib/locations/createLocation.js'
+import { deleteLocationCascade } from '../lib/locations/deleteLocation.js'
 import { decodeAction } from '../lib/telegram/callbackData.js'
 import { formatHelp, parseCommand } from '../lib/telegram/commands.js'
 import { formatLocationNotFound } from '../lib/telegram/conditionsMessage.js'
-import { findLocationByName } from '../lib/telegram/conditionsReply.js'
+import { findLocationById, findLocationByName } from '../lib/telegram/conditionsReply.js'
 import { isIntervalHours, isTableUnits } from '../lib/telegram/forecastTable.js'
+import { searchPlaces } from '../lib/weather/geocode.js'
 import {
   buildRetryPanel,
+  buildWeatherSearchPanel,
   EXPIRED_PANEL_TEXT,
   panelToHtml,
   FIELD_DAY,
   FIELD_INTERVAL,
+  FIELD_KIND,
   FIELD_UNITS,
   OPEN_FIELDS,
+  VERB_GOTO,
   VERB_MODE,
   VERB_OPEN,
   VERB_REFRESH,
+  VERB_REMOVE,
+  VERB_SAVE,
   VERB_SET,
   VERB_VIEW,
   type OpenField,
@@ -42,6 +50,9 @@ import {
   TelegramPermanentError,
 } from '../lib/telegram/sendMessage.js'
 import { webhookSecretAccepted } from '../lib/telegram/webhookAuth.js'
+
+/** `/weather` shows at most this many results — Telegram inline keyboards get unwieldy past a handful. */
+const MAX_WEATHER_RESULTS = 6
 
 export const telegramWebhookRouter = Router()
 
@@ -260,6 +271,81 @@ async function handleMessage(userId: string, text: string): Promise<void> {
       return
     }
 
+    case 'weather': {
+      if (command.args === '') {
+        await sendPlain('Tell me a place — e.g. /weather Bishop, CA')
+        return
+      }
+
+      let results
+      try {
+        results = await searchPlaces(command.args)
+      } catch (err) {
+        logger.warn(
+          { err: err instanceof Error ? err.message : String(err) },
+          '[telegramWebhook] geocode search failed',
+        )
+        await sendPlain('Could not search for that place just now. Try again in a moment.')
+        return
+      }
+      if (results.length === 0) {
+        await sendPlain(`No place found matching "${command.args}".`)
+        return
+      }
+
+      // Each result gets its own panel state up front — a search result's
+      // lat/lon/elevation/feature_code do not fit in callback_data, so the
+      // button for a result has to point at a row that already carries them.
+      const capped = results.slice(0, MAX_WEATHER_RESULTS)
+      const children = await Promise.all(
+        capped.map((r) =>
+          createPanelState(userId, {
+            view: 'weather_preview',
+            lat: r.lat,
+            lon: r.lon,
+            placeName: r.name,
+            elevationM: r.elevation_m,
+            featureCode: r.feature_code,
+          }),
+        ),
+      )
+
+      // One match, no ambiguity to resolve — skip straight to the preview
+      // rather than a results screen with a single row on it.
+      if (children.length === 1 && children[0] !== undefined) {
+        await sendPanel(userId, children[0])
+        return
+      }
+
+      const searchState = await createPanelState(userId, { view: 'weather_search' })
+      await deliverPanel(
+        buildWeatherSearchPanel(
+          searchState.id,
+          command.args,
+          capped,
+          children.map((c) => c.id),
+        ),
+      )
+      return
+    }
+
+    case 'remove': {
+      if (command.args === '') {
+        await sendPanel(userId, await createPanelState(userId, { view: 'pick_remove' }))
+        return
+      }
+      const location = await findLocationByName(userId, command.args)
+      if (location === null) {
+        await sendPlain(formatLocationNotFound(command.args))
+        return
+      }
+      await sendPanel(
+        userId,
+        await createPanelState(userId, { view: 'remove_confirm', locationId: location.id }),
+      )
+      return
+    }
+
     default:
       // Named, not ignored: an unregistered command typed by hand otherwise
       // looks like the bot is down.
@@ -370,6 +456,58 @@ async function applyAction(
     case VERB_MODE: {
       if (field !== 'm' || value === null || !isPanelMode(value)) return null
       return updatePanelState(state.id, userId, { mode: value })
+    }
+
+    case VERB_GOTO:
+      // The tapped button already named the state to open — a `/weather`
+      // search result's own pre-created preview row, loaded above by its own
+      // id. Nothing to change here, just render what was loaded.
+      return state
+
+    case VERB_SAVE: {
+      // The flag is the field's value, never a default — §12 requires it be
+      // stated. `lat`/`lon`/`placeName` are missing only if this state was
+      // never a weather-preview row, which no button on this build points at.
+      if (field !== FIELD_KIND || value === null) return null
+      if (value !== 'climb' && value !== 'place') return null
+      if (state.lat === null || state.lon === null || state.placeName === null) return null
+      // Already saved once — a double-tap before the edited message reaches
+      // the client must not insert a second location at the same coordinates.
+      // `handleCallbackQuery` re-reads this row fresh per tap, so a save that
+      // already landed is visible here on the very next request.
+      if (state.locationId !== null) return state
+
+      const row = await insertGeneralLocation({
+        user_id: userId,
+        name: state.placeName,
+        lat: state.lat,
+        lon: state.lon,
+        elevation_m: state.elevationM,
+        timezone: null,
+        is_climbing_location: value === 'climb',
+        // 'unknown' rather than null when climbing — the same default the Mini
+        // App's save bar starts from — because there is no rock-type picker in
+        // chat (§12.4 stays out of scope) and 'unknown' is a real, scoreable
+        // value (48h drying), not a placeholder for "not asked yet".
+        rock_type: value === 'climb' ? 'unknown' : null,
+      })
+      return updatePanelState(state.id, userId, { locationId: row.id, view: 'conditions' })
+    }
+
+    case VERB_REMOVE: {
+      // "Update" a mis-saved location is remove-then-add — /weather already
+      // saves under any name, so a bad save is fixed by removing it here and
+      // searching again, not by a separate edit flow (§12.4 stays out of scope).
+      if (state.locationId === null) return null
+      const location = await findLocationById(userId, state.locationId)
+      if (location === null) return null // already gone — reads as expired below
+      const deleted = await deleteLocationCascade(state.locationId, userId)
+      if (!deleted) return null
+      // Not `updatePanelState(state.id, ...)`: `deleteLocationCascade` just
+      // deleted this very row along with the location it pointed at —
+      // `panel_states` is one of `DEPENDENT_TABLES`. A fresh row is what
+      // carries the confirmation forward.
+      return createPanelState(userId, { view: 'removed', placeName: location.name })
     }
 
     /**

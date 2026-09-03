@@ -1,4 +1,5 @@
-import { escapeTelegramHtml } from '@weatherteam6/types'
+import { escapeTelegramHtml, geocodeKindLabel, placeSubtitle } from '@weatherteam6/types'
+import type { ForecastSnapshot, GeocodeResult } from '@weatherteam6/types'
 import { encodeAction } from './callbackData.js'
 import { formatConditionsReply, type ConditionsReplyInput } from './conditionsMessage.js'
 import { locationDeepLink, MINI_APP_DIRECT_LINK } from './deepLink.js'
@@ -137,10 +138,24 @@ export const VERB_REFRESH = 'refresh'
  * would spend the 64-byte budget on saying the same thing three ways.
  */
 export const VERB_SET = 'set'
+/**
+ * A `/weather` search result opening its own pre-created preview state.
+ * Behaves identically to `VERB_REFRESH` — the loaded state already names what
+ * to render — but it is a distinct verb because "refresh" means "redraw this
+ * same panel" everywhere else it appears, and reusing it here would read as
+ * if tapping a different result did nothing.
+ */
+export const VERB_GOTO = 'go'
+/** Save a previewed, unsaved point as a location. `FIELD_KIND` carries which flag — never inferred (miniapp-design-v1.md §12). */
+export const VERB_SAVE = 'save'
+/** Delete the location a `remove_confirm` panel is about. */
+export const VERB_REMOVE = 'rm'
 
 export const FIELD_DAY = 'd'
 export const FIELD_INTERVAL = 'iv'
 export const FIELD_UNITS = 'u'
+/** `'climb'` or `'place'` — the explicit save flag `VERB_SAVE` carries. */
+export const FIELD_KIND = 'k'
 
 /**
  * The picker's location buttons, one field per view they open.
@@ -157,7 +172,8 @@ export const OPEN_FIELDS = {
   loc: 'conditions',
   locf: 'forecast',
   locr: 'rain',
-} as const satisfies Record<string, 'conditions' | 'forecast' | 'rain'>
+  locrm: 'remove_confirm',
+} as const satisfies Record<string, 'conditions' | 'forecast' | 'rain' | 'remove_confirm'>
 
 export type OpenField = keyof typeof OPEN_FIELDS
 
@@ -166,6 +182,7 @@ export const PICK_VIEWS = {
   list: 'loc',
   pick_forecast: 'locf',
   pick_rain: 'locr',
+  pick_remove: 'locrm',
 } as const satisfies Record<string, OpenField>
 
 /**
@@ -256,7 +273,9 @@ export function buildListPanel(
       ? 'Hour by hour — pick a place'
       : field === 'locr'
         ? 'Rain — pick a place'
-        : 'Your locations'
+        : field === 'locrm'
+          ? 'Remove which location?'
+          : 'Your locations'
   const parts: PanelPart[] = [heading, '']
 
   // The buttons *are* the list. Printing the names as bullets above them as
@@ -878,6 +897,116 @@ export function buildAlertsPanel(stateId: string, alerts: readonly PanelAlert[])
 
 export function buildHelpPanel(stateId: string, helpText: string): Panel {
   return { blocks: buildBlocks([helpText]), keyboard: keyboardOf([footerRow(stateId, null, 'other')]) }
+}
+
+/**
+ * The `/weather <place>` result picker. One button per result, each pointing
+ * at a **different, already-created** panel state — not this one — because a
+ * search result carries lat/lon/elevation/feature_code, none of which fit in
+ * `callback_data`, and re-deriving them from a re-run search at tap time could
+ * answer with a different set of results. `panelViews.ts` creates one child
+ * state per result before this panel is sent; tapping a button just opens the
+ * child state that already names that exact point (`VERB_GOTO`).
+ *
+ * The subtitle is the fix for issue #82: `placeSubtitle` (shared with the Mini
+ * App's `/add` picker) renders the GeoNames kind beside admin1/country, so a
+ * town and a state park sharing a name read as two different rows rather than
+ * duplicates.
+ */
+export function buildWeatherSearchPanel(
+  stateId: string,
+  query: string,
+  results: readonly GeocodeResult[],
+  childStateIds: readonly string[],
+): Panel {
+  const parts: PanelPart[] = [`Results for "${query}"`, '']
+  const rows: InlineKeyboardButton[][] = []
+
+  results.forEach((result, i) => {
+    const childId = childStateIds[i]
+    if (childId === undefined) return
+    const data = encodeAction(VERB_GOTO, childId)
+    if (data === null) return
+    const subtitle = placeSubtitle(result)
+    rows.push([{ text: subtitle === '' ? result.name : `${result.name} — ${subtitle}`, callback_data: data }])
+  })
+
+  if (rows.length === 0) {
+    parts.push('None of those results could be shown here. Try a more specific search.')
+  }
+
+  rows.push(footerRow(stateId, null, 'other'))
+  return { blocks: buildBlocks(parts), keyboard: keyboardOf(rows) }
+}
+
+export type WeatherPreviewPanelInput = {
+  readonly stateId: string
+  readonly placeName: string
+  /** GeoNames `feature_code` from the geocoder, or `null` for a hand-entered point. */
+  readonly featureCode: string | null
+  readonly today: ForecastSnapshot | null
+}
+
+/**
+ * A geocoded, unsaved point's weather — the answer to `/weather <place>`, and
+ * the step before Save. Reuses `formatConditionsReply` with
+ * `isClimbingLocation: false`, exactly like `GET /preview`'s Mini App
+ * counterpart: no conditions score, because nothing has been classified as a
+ * climbing location yet, and no alerts, because none are stored for a point
+ * with no saved row.
+ *
+ * **Two explicit Save buttons, never a default.** §12 requires the
+ * climbing-or-not flag be stated, not inferred — there is deliberately no
+ * single "Save" button that assumes either answer.
+ */
+export function buildWeatherPreviewPanel(input: WeatherPreviewPanelInput): Panel {
+  const { stateId, placeName, featureCode, today } = input
+  const kind = geocodeKindLabel(featureCode)
+  const heading = kind === null ? placeName : `${placeName} · ${kind}`
+  const text = formatConditionsReply({
+    locationName: heading,
+    isClimbingLocation: false,
+    today,
+    todayScore: null,
+    activeAlerts: [],
+  })
+
+  const saveClimb = encodeAction(VERB_SAVE, stateId, FIELD_KIND, 'climb')
+  const savePlace = encodeAction(VERB_SAVE, stateId, FIELD_KIND, 'place')
+  const saveRow: InlineKeyboardButton[] = []
+  if (saveClimb !== null) saveRow.push({ text: '🧗 Save as climbing area', callback_data: saveClimb })
+  if (savePlace !== null) saveRow.push({ text: '📍 Save as weather place', callback_data: savePlace })
+
+  const rows: InlineKeyboardButton[][] = []
+  if (saveRow.length > 0) rows.push(saveRow)
+  rows.push(footerRow(stateId, null, 'other'))
+
+  return { blocks: buildBlocks([text]), keyboard: keyboardOf(rows) }
+}
+
+/**
+ * Confirm before deleting. A save flow with no way back is a trap — the same
+ * reason `DELETE /locations/:id` exists in the Mini App — and chat has no
+ * separate confirm dialog, so this panel *is* the confirmation: tapping
+ * "Remove" is the destructive action itself, not a step before one.
+ */
+export function buildRemoveConfirmPanel(stateId: string, locationId: string, locationName: string): Panel {
+  const parts: PanelPart[] = [`Remove "${locationName}"?`, 'This deletes its saved data and cannot be undone.']
+
+  const remove = encodeAction(VERB_REMOVE, stateId)
+  // Cancel just switches this same row's view back — the generic `VERB_VIEW`
+  // handler already does exactly this for the footer's Locations/Alerts
+  // buttons, so no new verb is needed here either.
+  const cancel = encodeAction(VERB_VIEW, stateId, 'v', 'conditions')
+  const row: InlineKeyboardButton[] = []
+  if (remove !== null) row.push({ text: '🗑 Remove', callback_data: remove })
+  if (cancel !== null) row.push({ text: 'Cancel', callback_data: cancel })
+
+  const rows: InlineKeyboardButton[][] = []
+  if (row.length > 0) rows.push(row)
+  rows.push(footerRow(stateId, locationId, 'other'))
+
+  return { blocks: buildBlocks(parts), keyboard: keyboardOf(rows) }
 }
 
 /**

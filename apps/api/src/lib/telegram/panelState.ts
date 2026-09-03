@@ -35,11 +35,17 @@ export const PANEL_VIEWS = [
   'list',
   'pick_forecast',
   'pick_rain',
+  'pick_remove',
   'conditions',
   'alerts',
   'help',
   'forecast',
   'rain',
+  // Phase 5 — `/weather <place>`, save, and `/remove`.
+  'weather_search',
+  'weather_preview',
+  'remove_confirm',
+  'removed',
 ] as const
 export type PanelView = (typeof PANEL_VIEWS)[number]
 
@@ -63,6 +69,10 @@ export type PanelState = {
   readonly lat: number | null
   readonly lon: number | null
   readonly placeName: string | null
+  /** Geocoded elevation for an unsaved point (Phase 5) — `null` when absent or not yet known. */
+  readonly elevationM: number | null
+  /** GeoNames `feature_code` for an unsaved point (Phase 5) — feed to `geocodeKindLabel`. */
+  readonly featureCode: string | null
   readonly view: PanelView
   readonly model: string | null
   readonly intervalHours: number | null
@@ -116,6 +126,8 @@ function mapRow(row: PanelStateRow): PanelState {
     lat: toNumber(row.lat),
     lon: toNumber(row.lon),
     placeName: row.place_name,
+    elevationM: toNumber(row.elevation_m),
+    featureCode: row.feature_code,
     view: isPanelView(row.view) ? row.view : 'help',
     model: row.model,
     intervalHours: row.interval_hours,
@@ -132,6 +144,8 @@ export type PanelStateInit = {
   readonly lat?: number | null
   readonly lon?: number | null
   readonly placeName?: string | null
+  readonly elevationM?: number | null
+  readonly featureCode?: string | null
   readonly mode?: PanelMode
 }
 
@@ -158,6 +172,9 @@ export async function createPanelState(
         lat: init.lat === null || init.lat === undefined ? null : String(init.lat),
         lon: init.lon === null || init.lon === undefined ? null : String(init.lon),
         place_name: init.placeName ?? null,
+        elevation_m:
+          init.elevationM === null || init.elevationM === undefined ? null : String(init.elevationM),
+        feature_code: init.featureCode ?? null,
         view: init.view,
         mode: init.mode ?? 'simple',
       })
