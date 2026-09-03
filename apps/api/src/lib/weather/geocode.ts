@@ -60,6 +60,7 @@ export function parseGeocodeResults(raw: unknown): GeocodeResult[] {
       admin1: str(place['admin1']),
       country: str(place['country']),
       timezone: str(place['timezone']),
+      feature_code: str(place['feature_code']),
     })
   }
 

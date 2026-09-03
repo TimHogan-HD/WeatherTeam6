@@ -5,6 +5,7 @@
 export * from './scoreComponents.js'
 export * from './units.js'
 export * from './conditionsCopy.js'
+export * from './geocodeCopy.js'
 
 export type ApiResponse<T> = {
   data: T | null
@@ -295,6 +296,11 @@ export type GeocodeResult = {
   admin1: string | null
   country: string | null
   timezone: string | null
+  /** GeoNames feature code (`PPL`, `PRK`, `DAM`, ...) — feed to `geocodeKindLabel`
+   *  for a plain-language kind. Without it, near-identical results across
+   *  categories (a town, its dam, and a state park all named "Willow River")
+   *  are indistinguishable in the picker — see issue #82. */
+  feature_code: string | null
 }
 
 export type LocationNormal = {
