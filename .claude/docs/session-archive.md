@@ -2689,3 +2689,34 @@ are done.
 - None new -- see the 2026-09-02 (third pass) entry above for the still-live rendering gotchas (escaping's two homes, no fixed widths, `clockLabel` vs `clockShort`).
 
 **Does the user need to do anything?** **Yes, one item, unchanged from last time: rotate the Neon password.** Everything else that was outstanding is now confirmed done -- cron jobs (`collect-runs`, `prune-runs`) are registered and running, and the native Telegram tables were confirmed rendering correctly on the owner's own phone (2026-09-03), closing the one claim in the previous entry that had shipped unverified.
+
+---
+
+## 2026-09-03 — branch: phase-5-chat-add-remove-locations — commit: b29e503
+
+**Phase completed:** Phase 5 — add/remove locations from Telegram chat (PR #91), the feature requested directly by the owner on 2026-09-02: *"I would like to be able to add remove and update locations from the chat rather than only in the app."*
+
+**What was built this session:**
+- `apps/api/src/db/schema.ts` (migration 0010) — `panel_states` gained `elevation_m` (numeric) and `feature_code` (text). Neither fits in Telegram's 64-byte `callback_data`, so a `/weather` search result's own panel state row carries them instead of re-deriving them from a rerun search at tap time.
+- `apps/api/src/routes/telegramWebhook.ts` — `/weather <place>` (geocodes via `searchPlaces`, creates one child `panel_states` row per result up front, skips straight to the preview when there's exactly one match) and `/remove` (confirm-before-delete over the existing `deleteLocationCascade`). New `applyAction` verbs: `VERB_GOTO` (open a pre-created child state — distinct from `VERB_REFRESH` for readability, though it behaves identically), `VERB_SAVE` (insert the location, guarded against a double-tap creating two rows at the same coordinates by checking `state.locationId !== null` before inserting), `VERB_REMOVE` (delete, then create a **fresh** `removed` panel state rather than updating the tapped one — `deleteLocationCascade` already deleted that row, since `panel_states` is itself a `DEPENDENT_TABLES` entry).
+- `apps/api/src/lib/telegram/panels.ts` — `buildWeatherSearchPanel`, `buildWeatherPreviewPanel` (two explicit Save buttons, never a default — §12), `buildRemoveConfirmPanel` (Cancel reuses the existing generic `VERB_VIEW` handler, no bespoke verb needed).
+- `apps/api/src/lib/locations/createLocation.ts` (new) — `insertGeneralLocation`, factored out of `POST /locations`'s inline insert so the HTTP and chat Save paths write through one function, not two that can drift.
+- `packages/types/src/geocodeCopy.ts` — `placeSubtitle` moved here from `apps/miniapp/src/routes/AddLocation.tsx` (which had it as a private, untested-independently function) so the Mini App's `/add` picker and the bot's new `/weather` picker share one implementation of the issue #82 disambiguation fix. `AddLocation.test.ts` deleted; its four cases moved into `packages/types/src/geocodeCopy.test.ts`.
+- `apps/api/src/scripts/checkChatLocations.ts` (new, `npm run check:chat-locations`) — the DB-only-visible parts: `elevation_m`/`feature_code` round-tripping through the new numeric/text columns, `insertGeneralLocation` actually writing a row, and the delete-cascade ordering when a location a chat panel points at is removed.
+- 9 new tests in `panels.test.ts` for the three new builders (issue #82 disambiguation, the two explicit Save buttons, Cancel's reused verb), plus the `PICK_VIEWS`/`OPEN_FIELDS` exhaustiveness test updated for the fourth picker (`pick_remove`).
+
+**Known issues / deferred work:**
+- **Migration 0010 is unapplied.** No `DATABASE_URL` was reachable this session (this environment could not reach Neon), so `db:generate` ran against a placeholder connection string (safe — `generate` diffs the schema file against migration metadata, it does not connect) but `db:migrate` was never run. `/weather` and Save will 500 on the missing columns until someone runs it.
+- **Nothing in this flow has been driven from a real device or against real Postgres.** `check:chat-locations` was written but not run, for the same reason.
+- Amendment 2's decision (remove-then-add is the whole "update" answer, no `/rename`) was made unilaterally this session, reasoning from the plan doc's own framing ("the cheap version is remove-then-add, which Phase 5 already provides") rather than asked back to the owner. Worth a sentence of confirmation next time they're in the loop, though nothing suggests they'd want the heavier `/rename` alternative.
+
+**Blockers for next session:** Migration 0010 must be applied (`npm run db:migrate` with a reachable `DATABASE_URL`) before `/weather` can work in production at all — this is the first thing to check, not just the first thing to do.
+
+**What's next:** Phase 4 (`/insight`, `/afd`) — off `main`, after migration 0010 is applied and Phase 5 verified on a real device. Read `.claude/docs/telegram-precision-interface-plan.md` §Phase 4 first; `/insight` needs re-specifying in plain language before it's built (the "model disagreement, ensemble distribution" vocabulary the 2026-09-01 reversal removed).
+
+**Gotchas for next session:**
+- `npm run db:generate` needs `DATABASE_URL` set (even to a placeholder value) purely to satisfy `drizzle.config.ts`'s validation — it does not actually connect for `generate`, only for `migrate`/`studio`. Don't mistake the requirement for a real connectivity need.
+- `apps/miniapp/src/routes/AddLocation.test.ts` no longer exists — its coverage lives in `packages/types/src/geocodeCopy.test.ts` now. If it reappears (e.g. from a stale branch merge), that's duplicate coverage to remove, not a regression to fix.
+- The Bash and PowerShell tools in this session tracked *different* working directories (one drifted into `apps/api`, the other stayed at repo root) despite being "the same shell" conceptually — cheap to verify with `pwd`/`Get-Location` before a command that depends on cwd, expensive to debug from a confusing error otherwise.
+
+**Does the user need to do anything?** **Yes, two things.** First, unchanged: rotate the Neon password (connection string exposed in a chat transcript on 2026-09-02). Second, new: run migration 0010 from a shell that can reach Neon (`$env:DATABASE_URL = "<pooled string>"; npm run db:migrate` from `apps/api`), then ideally `npm run check:chat-locations`, then try `/weather`, both Save buttons, and `/remove` from the phone — this is the one feature in the whole crossover that has shipped with zero real-world verification of any kind.
