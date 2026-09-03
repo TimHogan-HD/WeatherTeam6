@@ -5,7 +5,7 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-09-03 · `main` @ `57ea830`
+Last updated: 2026-09-03 · `main` @ `702f8e4`
 
 ---
 
