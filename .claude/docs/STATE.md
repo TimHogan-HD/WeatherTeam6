@@ -20,8 +20,9 @@ from real-device feedback since. Phase 5 (add/remove/update locations from chat)
 - **Bot** — `/start`, `/help`, `/locations`, `/conditions`, `/forecast`, `/rain`, `/alerts`,
   `/weather`, `/remove`, rendered as **native Telegram Rich Message tables** (Bot API 10.1+),
   with an HTML fallback on a permanent rejection. `/weather`, `/remove` and the Save flow are
-  **unverified against a real device** — see below. Everything else was confirmed working on
-  the owner's phone 2026-09-03.
+  verified against real Postgres (`check:chat-locations` 8/8) but **still unverified against
+  a real device** — see below. Everything else was confirmed working on the owner's phone
+  2026-09-03.
 - **`/api/cron/collect-runs`** and **`/api/cron/prune-runs`** are registered with
   cron-job.org and **confirmed running** (2026-09-03). `collect-runs` sometimes still shows
   "timeout" in cron-job.org's own UI at its 30s job timeout, but Vercel completes the work
@@ -38,13 +39,10 @@ Baseline: `npm run test` 550 passing (469 api, 50 miniapp, 31 types), `npm run t
 clean, `npm run check:hooks` 58 passing. **Mutation score 66.09%**, last measured
 2026-08-26 — not re-measured since. `npm run test:mutation --workspace=apps/api`.
 
-Migrations `0007`–`0009` are applied and both acceptance checks pass (`check:panel-state`
-17/17, `check:weather-runs` 40/40) against the real database. **Migration `0010`
-(`panel_states.elevation_m`, `.feature_code` — Phase 5) is generated but unapplied**: no
-`DATABASE_URL` was reachable in the session that wrote it. `npm run db:migrate` from a
-machine that can reach Neon, then `npm run check:chat-locations`, is the next step before
-`/weather` can work in production — until then every `/weather` and Save tap will 500 on the
-missing columns.
+Migrations `0007`–`0010` are all applied and every acceptance check passes against the real
+database: `check:panel-state` 17/17, `check:weather-runs` 40/40, `check:chat-locations`
+(new, Phase 5) 8/8 — run by the owner 2026-09-03, closing out the one gap Phase 5 shipped
+with.
 
 **A half-collection can no longer report as a clean run** (fixed `4176026`/PR #87 — see the
 archive for detail). **The underlying cause of the deterministic JSON-parse failures it
@@ -68,11 +66,11 @@ green. If you are reading it because that block was absent, the hook did not fir
 Direction set 2026-08-26, revised 2026-09-01, current as of 2026-09-03. Phase 5 and issue
 #82 part 1 are **done** — see § Where the project is; they're not repeated here.
 
-1. **Apply migration 0010 and verify Phase 5 for real** — before anything else touches
-   `apps/api/src/lib/telegram/`. `npm run db:migrate` (needs `DATABASE_URL` for a machine
-   that can reach Neon), then `npm run check:chat-locations`, then drive `/weather <place>`,
-   both Save buttons, and `/remove` from the owner's phone. Nothing in this flow has touched
-   real Postgres or a real client yet.
+1. **Drive Phase 5 from a real device** — before anything else touches
+   `apps/api/src/lib/telegram/`. Migration 0010 is applied and `check:chat-locations` is
+   8/8, but nothing has driven `/weather <place>`, both Save buttons, or `/remove` from an
+   actual Telegram client yet — the panel/keyboard rendering and the rich-message fallback
+   path are still unconfirmed for these three new views.
 2. **Issue #82, part 2** — ranking climbing-relevant features (`PRK`, `MT`, `CLF`, `RK`,
    `RESV`) above `PPL`. Still a product decision (helps crags, could hurt city lookups), not
    started.
@@ -204,13 +202,11 @@ Only things that are still true and still bite. Historical gotchas are in the ar
 **Rotate the Neon password.** Still outstanding — the connection string was pasted into a
 chat transcript on 2026-09-02. Neon dashboard → Roles → reset, then update `DATABASE_URL`
 in Vercel. Everything else in the old list (`bot:set-commands`, `TELEGRAM_WEBHOOK_SECRET` +
-`setWebhook`, the two cron registrations) is done and confirmed working.
+`setWebhook`, the two cron registrations, migration 0010) is done and confirmed working.
 
-**Run migration 0010.** From `apps/api`, with `$env:DATABASE_URL` set to the pooled Neon
-string in the shell (never a `.env` file): `npm run db:migrate`, then
-`npm run check:chat-locations`. No session this week has had a reachable `DATABASE_URL`, so
-this is a "run it in your own shell" task, not a design decision — but it is the one thing
-standing between Phase 5 and actually working in production.
+**Try Phase 5 from your phone.** `/weather <place>`, both Save buttons, `/remove`. The
+migration and the database-level checks are done; a real Telegram client trying the three
+new panels is the one thing left.
 
 **A product decision is owed, not a credential.** The drying model reads
 `archive-api.open-meteo.com` (daily, ERA5 reanalysis) while the rain panel reads the

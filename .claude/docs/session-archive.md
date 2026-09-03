@@ -2720,3 +2720,22 @@ are done.
 - The Bash and PowerShell tools in this session tracked *different* working directories (one drifted into `apps/api`, the other stayed at repo root) despite being "the same shell" conceptually — cheap to verify with `pwd`/`Get-Location` before a command that depends on cwd, expensive to debug from a confusing error otherwise.
 
 **Does the user need to do anything?** **Yes, two things.** First, unchanged: rotate the Neon password (connection string exposed in a chat transcript on 2026-09-02). Second, new: run migration 0010 from a shell that can reach Neon (`$env:DATABASE_URL = "<pooled string>"; npm run db:migrate` from `apps/api`), then ideally `npm run check:chat-locations`, then try `/weather`, both Save buttons, and `/remove` from the phone — this is the one feature in the whole crossover that has shipped with zero real-world verification of any kind.
+
+---
+
+## 2026-09-03 (later) — branch: docs/migration-0010-applied — commit: (pending)
+
+**Phase completed:** not a phase — closing the one gap the Phase 5 entry above left open.
+
+**What was built this session:** nothing. The owner ran `npm run db:migrate` and `npm run check:chat-locations` from their own shell, unprompted for the run itself (this session only asked them to). All 8 checks passed: `elevation_m`/`feature_code` round-trip on `panel_states`, `insertGeneralLocation` writing a real row (with `elevation_m` persisted on the location), the panel state attaching to the saved location the way `VERB_SAVE` leaves it, and `deleteLocationCascade` removing both the location and its attached panel state cleanly. STATE.md updated to drop migration 0010 from both "unapplied" and "what the user owes."
+
+**Known issues / deferred work:** none new.
+
+**Blockers for next session:** none.
+
+**What's next:** Phase 5 still needs a real Telegram client driving `/weather <place>`, both Save buttons, and `/remove` — the panel/keyboard rendering and rich-message fallback for the three new views (`weather_search`, `weather_preview`, `remove_confirm`) are unconfirmed on any actual client. After that, Phase 4 (`/insight`, `/afd`) — `git checkout -b phase-4-insight-afd` off `main`, read `.claude/docs/telegram-precision-interface-plan.md` §Phase 4, and re-specify `/insight` in plain language first.
+
+**Gotchas for next session:**
+- None new.
+
+**Does the user need to do anything?** **Yes, one item, unchanged: rotate the Neon password.** Migration 0010 is done. Trying `/weather`, Save, and `/remove` from the phone is still worth doing but is no longer blocking anything — it's verification, not a dependency.
