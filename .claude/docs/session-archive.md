@@ -2667,7 +2667,7 @@ are done.
 
 ---
 
-## 2026-09-03 -- branch: main -- commit: 4176026
+## 2026-09-03 -- branch: main -- commit: b02eac3
 
 **Phase completed:** Phase 3 hardening (`collectWeatherRuns` honest failure reporting) and end-to-end real-device verification of the 2026-09-02 native-table rebuild.
 
