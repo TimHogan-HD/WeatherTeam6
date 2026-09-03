@@ -58,17 +58,21 @@ green. If you are reading it because that block was absent, the hook did not fir
 
 Direction set 2026-08-26, revised 2026-09-01, current as of 2026-09-03:
 
-1. **Issue #82** — the geocode picker cannot tell a town from a state park ("Willow River"
-   saved a Minnesota town when Willow River State Park, Wisconsin was meant). Fix this
-   *before* Phase 5: Phase 5 is a location picker too, and building it first reproduces the
-   fault on a smaller screen.
+1. **Issue #82, part 1 — shipped.** `GeocodeResult.feature_code` now carries Open-Meteo's
+   GeoNames code through, and `apps/miniapp/src/routes/AddLocation.tsx`'s picker renders it
+   as a plain-language kind (`geocodeKindLabel` in `packages/types`) — "Park · Wisconsin,
+   United States" beside "Town · Minnesota, United States" for a "Willow River" search,
+   instead of two rows differing only by state. **Part 2 — ranking climbing-relevant
+   features (`PRK`, `MT`, `CLF`, `RK`, `RESV`) above `PPL` — is still open**, still a product
+   decision (helps crags, could hurt city lookups), not started.
 2. **Phase 5** — asked for directly by the owner: *"I would like to be able to add remove
    and update locations from the chat rather than only in the app."* `/weather` anywhere,
    save with an explicit climbing-or-weather flag, `/remove` behind a confirm. Read
    `.claude/docs/telegram-precision-interface-plan.md` §Phase 5 and its two amendments
-   before building: the result list must distinguish its results (this is what #82 fixes),
-   and "update" needs a decision because §12.4 still excludes rock type/aspect/cliff angle
-   while *correcting a mis-saved location* isn't addressed at all.
+   before building: the result list distinguishing its results is now the same fix as #82
+   part 1 above — reuse `geocodeKindLabel`, don't reimplement it for chat. "Update" still
+   needs a decision because §12.4 excludes rock type/aspect/cliff angle while *correcting a
+   mis-saved location* isn't addressed at all.
 3. **Phase 4** (`/insight`, `/afd`) — after Phase 5. `/insight` needs re-specifying in plain
    language first: "model disagreement, ensemble distribution, outlier, confidence by lead
    time" is exactly the vocabulary the 2026-09-01 reversal removed. `/afd` is unaffected
