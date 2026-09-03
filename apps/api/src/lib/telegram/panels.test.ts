@@ -397,10 +397,23 @@ describe('buildWeatherSearchPanel — issue #82', () => {
       ['aaaaaaaa', 'bbbbbbbb'],
     )
     const labels = panel.keyboard?.inline_keyboard.slice(0, 2).map((row) => row[0]?.text)
-    expect(labels).toEqual([
-      'Willow River — Town · Minnesota, United States',
-      'Willow River — Park · Wisconsin, United States',
-    ])
+    // Country is dropped — admin1 alone already tells these apart, and a
+    // Telegram button is single-line on a phone; repeating "United States" on
+    // every row of an all-US result set was reported as crowded/wrapping from
+    // a real device.
+    expect(labels).toEqual(['Willow River — Town · Minnesota', 'Willow River — Park · Wisconsin'])
+  })
+
+  it('falls back to country when a result has no admin1', () => {
+    const panel = buildWeatherSearchPanel(
+      STATE,
+      'q',
+      [geocodeResult({ feature_code: 'PPLC', admin1: null, country: 'Singapore' })],
+      ['aaaaaaaa'],
+    )
+    expect(panel.keyboard?.inline_keyboard[0]?.[0]).toMatchObject({
+      text: 'Willow River — Capital · Singapore',
+    })
   })
 
   it("each button opens its own result's pre-created state, not a shared one", () => {

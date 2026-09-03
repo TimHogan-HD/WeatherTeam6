@@ -1,4 +1,4 @@
-import { escapeTelegramHtml, geocodeKindLabel, placeSubtitle } from '@weatherteam6/types'
+import { escapeTelegramHtml, geocodeKindLabel } from '@weatherteam6/types'
 import type { ForecastSnapshot, GeocodeResult } from '@weatherteam6/types'
 import { encodeAction } from './callbackData.js'
 import { formatConditionsReply, type ConditionsReplyInput } from './conditionsMessage.js'
@@ -900,6 +900,22 @@ export function buildHelpPanel(stateId: string, helpText: string): Panel {
 }
 
 /**
+ * The disambiguating half of a search result's button label, kept short on
+ * purpose — a Telegram button is single-line on a phone, and `placeSubtitle`
+ * (the Mini App's fuller `Kind · Admin1, Country` form) wraps or crowds once
+ * results start repeating the same country. Country is dropped whenever
+ * `admin1` alone can carry the distinction — six US "Minneapolis" results
+ * only ever differ by state — and kept only as a fallback for a result with
+ * no `admin1` at all (a country with no first-level subdivision).
+ */
+function weatherResultLabel(result: GeocodeResult): string {
+  const kind = geocodeKindLabel(result.feature_code)
+  const place = result.admin1 ?? result.country
+  const detail = [kind, place].filter((s): s is string => s !== null && s !== '').join(' · ')
+  return detail === '' ? result.name : `${result.name} — ${detail}`
+}
+
+/**
  * The `/weather <place>` result picker. One button per result, each pointing
  * at a **different, already-created** panel state — not this one — because a
  * search result carries lat/lon/elevation/feature_code, none of which fit in
@@ -908,10 +924,9 @@ export function buildHelpPanel(stateId: string, helpText: string): Panel {
  * state per result before this panel is sent; tapping a button just opens the
  * child state that already names that exact point (`VERB_GOTO`).
  *
- * The subtitle is the fix for issue #82: `placeSubtitle` (shared with the Mini
- * App's `/add` picker) renders the GeoNames kind beside admin1/country, so a
- * town and a state park sharing a name read as two different rows rather than
- * duplicates.
+ * The label is the fix for issue #82: naming the GeoNames kind beside the
+ * disambiguating region — see `weatherResultLabel` — so a town and a state
+ * park sharing a name read as two different rows rather than duplicates.
  */
 export function buildWeatherSearchPanel(
   stateId: string,
@@ -927,8 +942,7 @@ export function buildWeatherSearchPanel(
     if (childId === undefined) return
     const data = encodeAction(VERB_GOTO, childId)
     if (data === null) return
-    const subtitle = placeSubtitle(result)
-    rows.push([{ text: subtitle === '' ? result.name : `${result.name} — ${subtitle}`, callback_data: data }])
+    rows.push([{ text: weatherResultLabel(result), callback_data: data }])
   })
 
   if (rows.length === 0) {

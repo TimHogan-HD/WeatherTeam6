@@ -158,4 +158,44 @@ describe('searchPlaces', () => {
 
     await expect(searchPlaces('Bishop')).rejects.toThrow('Open-Meteo geocoding API returned 400')
   })
+
+  it('retries once with a comma inserted before the last word on an empty first result — real-device report', async () => {
+    // Measured live: "Minneapolis, MN" matched and the comma-less
+    // "Minneapolis MN" did not, for the identical two words.
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response(JSON.stringify({}), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ results: [RED_ROCK_NV] }), { status: 200 }))
+
+    const results = await searchPlaces('Minneapolis MN')
+
+    expect(results).toHaveLength(1)
+    expect(fetch).toHaveBeenCalledTimes(2)
+    const firstUrl = new URL(vi.mocked(fetch).mock.calls[0]?.[0] as string)
+    const secondUrl = new URL(vi.mocked(fetch).mock.calls[1]?.[0] as string)
+    expect(firstUrl.searchParams.get('name')).toBe('Minneapolis MN')
+    expect(secondUrl.searchParams.get('name')).toBe('Minneapolis, MN')
+  })
+
+  it('does not retry when the query already has a comma', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }))
+
+    await expect(searchPlaces('Minneapolis, MN')).resolves.toEqual([])
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not retry a single-word query — there is nowhere to put the comma', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }))
+
+    await expect(searchPlaces('Minneapolis')).resolves.toEqual([])
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not retry once the first attempt already found something', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ results: [RED_ROCK_NV] }), { status: 200 }),
+    )
+
+    await searchPlaces('Red Rock Canyon')
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
 })
