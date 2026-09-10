@@ -100,7 +100,7 @@ survive as a reference. Binding for Phases 2-4:
 **Both are reversed by this document**, on the owner's decision of 2026-09-04. The bot
 chat interface stays a first-class surface and is not being deprecated — the owner's words
 were that chat "could get really clunky" for this kind of data and they want **both**
-surfaces functioning. Phase 4 reconciles the two documents; until it lands, this file is
+surfaces functioning. Phase 5 reconciles the two documents; until it lands, this file is
 the newer authority.
 
 ## Objective
@@ -139,16 +139,17 @@ the newer authority.
 
 **Out of scope for this document:**
 
-- **Per-hour or per-day conditions scores** — the coloured ribbon in the reference app.
-  No endpoint returns a per-day score and `miniapp-design-v1.md` §3 rules it its own task.
-  Not blocked, just not this.
+- **Per-hour conditions scores** — the coloured ribbon in the reference app. Nothing scores
+  an hour, and doing so is a scoring-algorithm change, not a rendering one.
+  (**Per-*day* scores are no longer a non-goal** — they are Decision 2 and Phase 1b.)
 - **Rock surface temperature.** Nothing in the repo computes it. It needs a thermal model
   taking aspect, cliff angle and shortwave radiation; that is a scoring-layer change.
 - **Sun position / shade strip.** No solar geometry exists in the repo.
 - **Snowfall rate and snow depth panels.** Not collected, and the reference app renders
   them as flat zero lines with axis labels reading "1 in / 1 in / 0 in" at a Caribbean
   crag. Do not reproduce.
-- **Model switching UI.** See § Open Questions 1.
+- **Model switching UI.** The `?models=all` parameter exists so it never needs an API
+  change (§ Decisions taken 1); building the control itself is Phase 3's and optional.
 - **Radar, walls, trips, history, normals.** Unchanged non-goals.
 - **`apps/mobile`.** Archived. Do not add anything to it.
 
@@ -263,9 +264,19 @@ in the PR body. If either is bad, § Open Questions 2 is the lever.
 Small, separate, and independent of Phase 1 — do it in the same PR only if Phase 1 lands
 clean.
 
-**Build:** `ForecastSnapshot` gains `score: number | null`, `confidence` and
-`unavailable_reason`. `computeLiveForecast` already returns a scored row per day;
-`toWindowedForecast` currently drops the score on the floor. Carry it through.
+**Build:** `ForecastSnapshot` gains `score: number | null`, `confidence`,
+`unavailable_reason`, **and the five `component_*` fields**. `computeLiveForecast` already
+returns a scored row per day; `toWindowedForecast` currently drops all of it on the floor.
+Carry it through.
+
+**The components are not optional, and an earlier draft of this phase omitted them.**
+`summarizeConditions` (`packages/types/src/conditionsCopy.ts:111`) takes
+`components: ScoreComponents` and runs `limitingComponent(components)` to produce the
+*"limited by drying time"* qualifier — that is how half of suppression works, and it is the
+half that fires on a component scoring 0. Ship `score` alone and a client can only call
+`summarizeConditions` with null components for days 2-7, so **the component trigger can
+never fire** and only the alert half of suppression works. The server already computes the
+breakdown for every day and discards it.
 
 **Three rules it must not break:**
 
@@ -280,10 +291,16 @@ clean.
   `packages/types/conditionsCopy.ts` and run unconditionally. Seven chips means seven
   chances to show an unsuppressed score under an active warning.
 
-**Acceptance:** `/forecast/:id` for a climbing location returns seven rows each carrying a
-score or a stated reason for not having one; the same call for a city returns seven rows
-with no score field populated. A day inside an active Severe+ alert renders suppressed in
-the Mini App.
+**Acceptance:**
+
+- `/forecast/:id` for a climbing location returns seven rows each carrying a score or a
+  stated reason for not having one; the same call for a city returns seven rows with no
+  score field populated.
+- A day inside an active Severe+ alert renders suppressed in the Mini App.
+- **A day with a zeroed component renders *"limited by &lt;component&gt;"*.** This is the
+  half of suppression that the missing breakdown would have silently disabled, so it needs
+  its own case rather than riding on the alert test — a fixture where every component is
+  non-zero exercises neither trigger (defect class 11).
 
 ---
 
@@ -318,7 +335,7 @@ gap and not a line to zero.
 - **Hourly** — the chart column for the selected day, with the continuous multi-day series
   reachable by scrolling or paging.
 
-**This revises `miniapp-design-v1.md` §3's "one scroll, no internal tabs".** Phase 4
+**This revises `miniapp-design-v1.md` §3's "one scroll, no internal tabs".** Phase 5
 rewrites that section rather than leaving two documents disagreeing.
 
 **Acceptance:** tapping a day in Daily lands on that day in Hourly; Telegram's `BackButton`
@@ -337,10 +354,24 @@ between the two tables and getting it wrong produces a plausible, silently wrong
 **Build:** selecting a wall re-scores the forecast against that wall's `aspect_deg` and
 `angle_deg` instead of the location's `aspect` and `cliff_angle`.
 
-The plumbing is closer than it looks: `ScoreInput` already takes `aspectDegrees` and
-`cliffAngle` as plain numbers, and `walls` already stores both per wall. The work is
-threading a wall id through `computeLiveForecast` and the two routes that call it — plus
-resolving the convention clash.
+**The plumbing is not as close as it looks, and an earlier draft of this section said it
+was.** Two corrections, both load-bearing:
+
+- **`aspectDegrees` is a dead field.** `liveForecast.ts:205,222` computes it and sets it on
+  `ScoreInput`, and **neither `conditionsScore.ts` nor `dryingModel.ts` ever reads it** —
+  only `cliffAngle` reaches the drying formula. This is defect class 10 in
+  `.claude/rules/defect-patterns.md` (*"a dead field reasoned about as if it were live"*),
+  the same trap `ScoreInput.currentTempC` set for three earlier documents. So the angle
+  half of a wall is genuinely short work; **the aspect half does not exist yet.** Making a
+  wall's aspect change its score means adding an aspect term to the drying model first —
+  new scoring-algorithm work with its own tests, `.claude/docs/scoring-algorithm.md`
+  updates, and a re-baselined mutation score.
+- **`computeLiveForecast` has five callers, not two:** `routes/conditions.ts`,
+  `routes/forecast.ts`, `routes/trips.ts`, `lib/telegram/conditionsReply.ts` and
+  `lib/scoring/previewForecast.ts`. Three have no wall concept at all — the bot reply has
+  no picker, `trips.ts` calls it per location inside a `.map()`, and `previewForecast.ts`
+  runs against a synthetic location with no row and therefore no walls. Each needs an
+  explicit decision about what to pass, not a mechanical thread-through.
 
 **What does not exist:** anything that *populates* `walls`. There is full CRUD
 (`GET /walls/:locationId`, `POST /walls`, `DELETE /walls/:wallId`) and no seed, no
@@ -348,9 +379,13 @@ importer, and no UI. The table is empty in practice. So this phase needs a way t
 a wall before it has anything to select, and that is a product decision — hand entry,
 OpenBeta import, or derived from terrain — not a build task.
 
-**Acceptance:** two walls at one location with different aspects return different scores
-for the same day, in the direction the drying model predicts; a location with no walls
-behaves exactly as it does today.
+**Acceptance:** two walls at one location with different **angles** return different scores
+for the same day, in the direction the drying model predicts, with the conversion from
+§ Known Risks 10 applied; a location with no walls behaves exactly as it does today.
+
+**Not an acceptance criterion until the drying model has an aspect term:** two walls with
+different *aspects* returning different scores. As specified above that cannot pass, and an
+earlier draft of this phase listed it as if it could.
 
 ---
 
@@ -497,6 +532,21 @@ export type HourlyModel = {
   confidence?: 'low' | 'medium' | 'high'
   /** Withheld, not missing (issue #34). Same values and meaning as on `ConditionsScore`. */
   unavailable_reason?: 'rainfall_unavailable' | null
+
+  /**
+   * The five components behind `score`, same names and scales as `ConditionsScore`.
+   *
+   * **Required for suppression, not a nicety.** `summarizeConditions` reads these to find
+   * the limiting component; without them a client can only pass nulls and the
+   * "any component is 0" trigger never fires. Null means not measured — and
+   * `limitingComponent` skips nulls deliberately, so a component that was never measured
+   * is never named as the cause.
+   */
+  component_drying_time?: number | null
+  component_upcoming_rain?: number | null
+  component_wind?: number | null
+  component_temp?: number | null
+  component_humidity?: number | null
 ```
 
 ## Known Risks / Watch Points
@@ -516,10 +566,10 @@ export type HourlyModel = {
    rate-limiting Vercel's shared egress IP. Hobby-plan log retention is ~1 hour, so a
    `[openMeteo] deterministic response was not JSON` has to be caught right after a
    scheduled run. This endpoint adds request-time pressure on the same upstream.
-5. **`panels.ts:578` says "Model switching is the Mini App's."** This plan returns one
-   model. That is a deliberate narrowing for Phase 1, not a contradiction — but it means
-   the comment describes something that still does not exist. See Open Questions 1.
-6. **Two documents currently forbid this work** (§ Current State). Until Phase 4, anyone
+5. **`panels.ts:578` says "Model switching is the Mini App's."** `?models=all` makes that
+   true at the API (§ Decisions taken 1). The *control* still does not exist, so the
+   comment describes an intention rather than a shipped feature until Phase 3 builds one.
+6. **Two documents currently forbid this work** (§ Current State). Until Phase 5, anyone
    reading `STATE.md` or `miniapp-patterns` will believe Mini App investment is
    unauthorised.
 7. **`.claude/settings.json` hooks are enforced.** The turn cannot end with uncommitted
@@ -531,27 +581,51 @@ export type HourlyModel = {
    not installed.
 9. **Why six models is opt-in and not the default.** Bytes are the smaller half of the
    argument — six models is roughly 200-250 KB of JSON against 50-60 KB, and weather
-   series gzip well, so the wire cost lands near 35 KB. The real problem is that **the six
-   models do not cover the same span.** HRRR reaches ~48 h and NBM ~264 h, so past day two
-   a switcher greys out most of its own options, and past day three only the four global
-   models answer at all. A control that is mostly disabled teaches the user it is broken.
-   Default to one; let the client ask for six when it has a UI that can explain the gaps.
-   **Measure the real payload in Phase 1 and record both figures in the PR** rather than
-   trusting the estimate above.
-10. **`cliff_angle` and `walls.angle_deg` almost certainly use opposite conventions, and
-    the failure is silent.** `conditionsScore.ts:54` reads
-    `angleFactor = 1.0 + (input.cliffAngle / 90) * 0.3`, and its own comment says *"slab
-    (90°) dries 30% slower than vertical wall (0°)"* — so `cliffAngle` is measured **from
-    vertical**: `0` is a vertical wall, `90` is a slab. Climbers say the opposite: a 90°
-    wall is vertical and anything past that overhangs. `walls.angle_deg` ships beside
-    `angle_band`, which is climber vocabulary.
+   series gzip well, so the wire cost lands near 35 KB.
 
-    Pass `walls.angle_deg` straight into `cliffAngle` and a vertical wall (90 to a
-    climber) becomes a slab (90 to the scorer) and dries 30% slower — a plausible number,
-    in the wrong direction, on the heaviest component in the score. Nothing typechecks
-    differently; both are numbers. **Establish which convention `walls.angle_deg` actually
-    holds before Phase 4 converts anything**, and if it is the climber one, convert at the
-    boundary with a named helper rather than inline arithmetic.
+   The real problem is that **the six models do not cover the same span**, so a switcher
+   offers options that are not equivalent and go dead at different depths. **This repo has
+   measured exactly one horizon**: `ncep_hrrr_conus` came back with 168 hours of which 66
+   carried temperature (`.claude/rules/architecture.md`, and it is why `dayHasData` exists
+   at all). The other five are not measured anywhere here, and an earlier draft of this
+   item invented figures for them and then drew a conclusion its own numbers contradicted.
+
+   The argument survives without them: at least one model of six stops inside three days,
+   the client cannot know which without asking, and a control whose options silently expire
+   is worse than no control. Default to one; let the client ask for six once it has a UI
+   that can show where each model ends.
+
+   **Phase 1 must measure and record, in the PR body: the real payload at both settings,
+   and each model's actual horizon at a test point.** Do not restate the estimates above as
+   if they were measurements.
+10. **`cliff_angle` and `walls.angle_deg` share an origin and run in opposite directions.
+    Both are "degrees from vertical", so the clash is invisible in every doc that
+    describes them.**
+
+    An earlier draft of this item claimed the two used *different origins* — that a
+    climber's 90 (vertical) would be read as the scorer's 90 (slab). **That was wrong**,
+    and wrong in the most dangerous way: an implementer who checked the cited docs would
+    have found them agreeing, concluded no conversion was needed, and passed the value
+    straight through. The real mismatch is a sign, not a remap.
+
+    What the sources actually say:
+
+    - `conditionsScore.ts:54` — `angleFactor = 1.0 + (input.cliffAngle / 90) * 0.3`, with
+      the comment *"slab (90°) dries 30% slower than vertical wall (0°)"*. So `cliffAngle`
+      counts **slab** as positive, and has no defined negative domain.
+    - `.claude/docs/data-model.md:218` — `angle_deg int -- degrees from vertical`.
+    - `weatherteam6-ui-handoff-v1.md:400` — `angleDeg: number // degrees past vertical;
+      0 = vertical, 90 = cave`, with `angleBand: 'slab' | 'vertical' | 'steep' | 'roof'`.
+      So `walls.angle_deg` counts **overhang** as positive.
+
+    Same zero, opposite directions. Pass `walls.angle_deg` straight into `cliffAngle` and
+    a **roof** (90, the most sheltered rock at the crag and the fastest to dry) is scored
+    as a **slab** — 30% *slower* drying, on the heaviest component in the score. Exactly
+    backwards, entirely plausible on screen, and nothing typechecks differently.
+
+    **Before Phase 4 converts anything:** confirm against real rows what `walls.angle_deg`
+    holds, decide whether `cliffAngle` gains a negative domain or walls are clamped, and
+    put the conversion in one named helper with a test per quadrant. Do not do it inline.
 
 ## Open Questions
 
