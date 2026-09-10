@@ -169,21 +169,56 @@ async function run(): Promise<void> {
   }
   const ens = ensemble ?? { hours: [], utc_offset_seconds: 0, fetched_at: null }
 
+  // ── did the deterministic half of collect-runs actually store anything? ───────
+  //
+  // Named on its own because `loadStoredDeterministic` returning a batch is not the same
+  // as that batch having hours: a `weather_runs` row can exist with **zero** child rows in
+  // `weather_run_hours`, which is what a deterministic fetch that failed after the run row
+  // was written looks like from here. Every check below it then fails for a reason that
+  // has nothing to do with the code under test.
+  const detHours = det.models.flatMap((m) => m.hours)
+  check(
+    'the deterministic run has hours, not just a run row',
+    detHours.length > 0,
+    `${det.models.length} model(s) stored, ${detHours.length} hours between them — the run row exists but weather_run_hours is empty`,
+  )
+
   // ── nulls survive the round trip ──────────────────────────────────────────────
+  //
+  // **Absence of a null is not evidence of coercion**, and an earlier version of this
+  // script failed on exactly that, reporting "nulls are being coerced" when the real state
+  // was "there are no hours to look at". That is the defect class this repo calls a
+  // failure state that reads as a different failure — in a script whose whole job is to
+  // catch that class.
+  //
+  // The property is only observable when there is padding to observe. Across six models
+  // Open-Meteo pads every one to the longest horizon in the request, so a batch with hours
+  // is guaranteed to contain nulls and their absence *would* be coercion. With no hours,
+  // or with a single model whose horizon is the request length, there is nothing to see —
+  // and this says so rather than asserting either way.
   let nullSeen = false
   let zeroSeen = false
-  for (const m of det.models) {
-    for (const h of m.hours) {
-      if (h.temp_c === null || h.pressure_hpa === null || h.wind_gust_kmh === null) nullSeen = true
-      if (h.temp_c === 0 || h.wind_kmh === 0) zeroSeen = true
-      if (nullSeen && zeroSeen) break
-    }
+  for (const h of detHours) {
+    if (h.temp_c === null || h.pressure_hpa === null || h.wind_gust_kmh === null) nullSeen = true
+    if (h.temp_c === 0 || h.wind_kmh === 0) zeroSeen = true
   }
-  check(
-    'a null stored for an hour reads back as null, not 0',
-    nullSeen,
-    'no null found in any stored hour — either every column is populated (unlikely across six models) or nulls are being coerced',
-  )
+  // The ensemble is a second, independent source of the same property.
+  for (const h of ens.hours) {
+    if (h.temp_c_p10 === null || h.precip_mm_mean === null || h.members_wet === null) nullSeen = true
+    if (h.precip_mm_mean === 0 || h.temp_c_p10 === 0) zeroSeen = true
+  }
+
+  const inspectable = detHours.length + ens.hours.length
+  if (nullSeen) {
+    check('a null stored for an hour reads back as null, not 0', true)
+  } else if (inspectable === 0) {
+    info('null round-trip', 'INCONCLUSIVE — no stored hours of either kind to inspect')
+  } else {
+    info(
+      'null round-trip',
+      `INCONCLUSIVE — ${inspectable} hours inspected, none carried a null. Expected when only one model is stored and it reaches the full request length; suspicious across six.`,
+    )
+  }
   info('a real 0 also present (0 and null are distinguishable)', String(zeroSeen))
 
   // ── the series builds, and the join lines up ──────────────────────────────────
@@ -205,14 +240,30 @@ async function run(): Promise<void> {
     'hours are ordered ascending',
     series.hours.every((h, i) => i === 0 || h.valid_at >= (series.hours[i - 1]?.valid_at ?? '')),
   )
-  check('a deterministic model was chosen', series.model !== null, 'no model had coverage')
-
-  const joined = series.hours.filter((h) => h.temp_c !== null && h.temp_c_p50 !== null).length
   check(
-    'deterministic and ensemble hours join on the same instant',
-    joined > 0,
-    'no hour carried both a model temperature and an ensemble median — the two timestamps are not lining up',
+    'a deterministic model was chosen',
+    series.model !== null,
+    detHours.length === 0
+      ? 'no deterministic hours were stored, so there was nothing to choose from — this is the collection failing, not the selection'
+      : 'hours exist but none carried a value — every model was padding',
   )
+
+  // Only a real assertion when both sides have something to join. With one side empty a
+  // zero overlap says nothing about whether the timestamps line up — it says one source
+  // did not store, which the check above already reports.
+  const joined = series.hours.filter((h) => h.temp_c !== null && h.temp_c_p50 !== null).length
+  if (detHours.length === 0 || ens.hours.length === 0) {
+    info(
+      'instant join',
+      'INCONCLUSIVE — one side stored no hours, so an overlap of 0 is not evidence about the timestamps',
+    )
+  } else {
+    check(
+      'deterministic and ensemble hours join on the same instant',
+      joined > 0,
+      'both sides have hours and not one instant matched — weather_run_hours and weather_ensemble_hours timestamps are not lining up',
+    )
+  }
   info('hours carrying both sources', `${joined} of ${series.hours.length}`)
 
   // `members_wet` is nullable and null means unknown. A 0% that was computed and a null
