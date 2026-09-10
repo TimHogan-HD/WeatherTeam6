@@ -6,6 +6,7 @@ import { healthRouter } from './routes/health.js';
 import { locationsRouter } from './routes/locations.js';
 import { conditionsRouter } from './routes/conditions.js';
 import { forecastRouter } from './routes/forecast.js';
+import { hourlyRouter } from './routes/hourly.js';
 import { alertsRouter } from './routes/alerts.js';
 import { wallsRouter } from './routes/walls.js'
 import { tripsRouter } from './routes/trips.js';
@@ -49,6 +50,7 @@ export function createApp(): Express {
     locationsRouter,
     conditionsRouter,
     forecastRouter,
+    hourlyRouter,
     alertsRouter,
     wallsRouter,
     tripsRouter,
