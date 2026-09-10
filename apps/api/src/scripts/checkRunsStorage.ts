@@ -25,6 +25,13 @@
  * matters against a project cap — `pg_relation_size` alone would under-report the
  * hours tables badly, since both are mostly primary-key index.
  *
+ * **Sizes here do not fall when rows are deleted, and that is not a bug in the
+ * prune.** A DELETE marks tuples dead; the relation keeps its pages. Measured on
+ * 2026-09-10: a prune removed 4,953 runs and 705,600 hour rows and every size in
+ * this report was byte-identical afterwards. The dead-tuple section below is what
+ * distinguishes that from a database that is genuinely full, because the two look
+ * the same here and need opposite actions.
+ *
  * console rather than the logger is deliberate — this is an operator CLI and its
  * output is the result.
  */
@@ -141,11 +148,55 @@ async function run(): Promise<void> {
     console.log('    storage failure, not of an upstream one. These are rows, not errors:')
     console.log('    they make a point look collected when nothing was stored.')
   }
-
   console.log('')
-  if (totalMb > 460) {
-    console.log('  Next: run the prune, then re-check. Space returns only after autovacuum,')
-    console.log('  so a first collect-runs straight afterwards can still fail.')
+
+  // ── dead tuples: the difference between "full" and "deleted, not yet vacuumed" ──
+  //
+  // Without this the report cannot tell those two apart, and they need opposite
+  // actions. A DELETE marks tuples dead; it does not shrink the relation and does
+  // not, on its own, let Postgres reuse the space. `pg_total_relation_size` is
+  // therefore unchanged immediately after a large prune, which reads as "the prune
+  // did nothing" when in fact it did all of it.
+  //
+  // What actually unblocks writes is a plain VACUUM: it makes the dead space
+  // reusable *inside* the existing pages, so Postgres stops needing to extend the
+  // file — and "could not extend file" is the exact error a full project throws.
+  // The file stays the same size; that is fine and is not what the write path cares
+  // about.
+  const dead = await db.execute(sql`
+    SELECT relname AS name,
+           n_live_tup::bigint AS live,
+           n_dead_tup::bigint AS dead,
+           last_vacuum,
+           last_autovacuum
+    FROM pg_stat_user_tables
+    WHERE relname IN ('weather_runs', 'weather_run_hours', 'weather_ensemble_hours')
+    ORDER BY n_dead_tup DESC
+  `)
+
+  let totalDead = 0
+  console.log('  Dead tuples awaiting vacuum:')
+  for (const d of dead.rows as Row[]) {
+    totalDead += num(d['dead'])
+    const vac = d['last_vacuum'] ?? d['last_autovacuum']
+    console.log(
+      `    ${str(d['name']).padEnd(26)} ${str(d['dead']).padStart(9)} dead / ${str(d['live']).padStart(9)} live   last vacuum ${ago(vac)}`,
+    )
+  }
+  console.log('')
+
+  if (totalDead > 10_000) {
+    console.log('  ** Space has been freed logically but not yet made reusable. **')
+    console.log('  A DELETE does not shrink a relation and the size above will not move.')
+    console.log('  Run this, then re-check — plain VACUUM, never VACUUM FULL, which')
+    console.log('  rewrites each table and needs as much free space as the table itself:')
+    console.log('')
+    console.log('    VACUUM (ANALYZE) weather_runs, weather_run_hours, weather_ensemble_hours;')
+    console.log('')
+    console.log('  Autovacuum will get there on its own, but it is throttled.')
+  } else if (totalMb > 460) {
+    console.log('  ** Near the cap with little dead space — pruning will not help. **')
+    console.log('  Either fewer stored hours per run, or a larger plan.')
   }
   console.log('')
 }
