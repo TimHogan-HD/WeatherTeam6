@@ -24,9 +24,15 @@
  * `models` settings, and each model's real horizon at this point.
  *
  * **Read-only.** Unlike the other `check:*` scripts this creates nothing, so there is
- * nothing to clean up — it reads whatever `collect-runs` has already stored. If no fresh
- * run exists it says so and exits non-zero rather than triggering a six-model upstream
- * fetch as a side effect of a check.
+ * nothing to clean up — it reads whatever `collect-runs` has already stored. It never
+ * fetches upstream: a check that repairs the state it is measuring cannot measure it, and
+ * a six-model fetch is not a side effect worth having behind an npm script.
+ *
+ * **It reads the newest stored run regardless of age, and reports freshness separately.**
+ * An earlier version refused to run at all when nothing was younger than
+ * `RUN_MAX_AGE_MINUTES`, which meant the correctness properties above went unverified for
+ * exactly as long as the cron was unhealthy — precisely when they matter most. Staleness
+ * is now a failing assertion with a printed age per location, not a precondition.
  *
  * console rather than the logger is deliberate — this is an operator CLI and its output
  * is the result.
@@ -83,38 +89,75 @@ async function run(): Promise<void> {
   }
 
   const now = new Date()
-  const cutoff = new Date(now.getTime() - RUN_MAX_AGE_MINUTES * 60_000)
 
-  // Find the first location that actually has a stored batch. A location added since the
-  // last collect-runs has none, and that is not a failure of this endpoint.
+  /**
+   * Deliberately **not** `RUN_MAX_AGE_MINUTES`.
+   *
+   * That cutoff answers "is this fresh enough to render a panel without re-fetching",
+   * which is a different question from "does a stored row round-trip with its nulls
+   * intact and does the join line up". A four-hour-old run proves both just as well as a
+   * four-minute-old one, and refusing to look at it means the correctness properties go
+   * unverified for exactly as long as the cron is unhealthy — when they matter most.
+   *
+   * Freshness is still checked, separately and loudly, below.
+   */
+  const ANY_AGE = new Date(0)
+  const freshCutoff = new Date(now.getTime() - RUN_MAX_AGE_MINUTES * 60_000)
+
+  // Pick the location with the newest stored batch, rather than the first one that has
+  // any. With six locations collected together they should be within seconds of each
+  // other; if they are not, that is worth seeing.
   let picked: { id: string; name: string } | null = null
   let deterministic = null as Awaited<ReturnType<typeof loadStoredDeterministic>>
   let ensemble = null as Awaited<ReturnType<typeof loadStoredEnsemble>>
+  let newest = 0
+
+  const ages: { name: string; fetched: Date | null }[] = []
 
   for (const row of rows) {
     const key = pointKeyForLocation(row.id)
     const [d, e] = await Promise.all([
-      loadStoredDeterministic(key, cutoff),
-      loadStoredEnsemble(key, cutoff),
+      loadStoredDeterministic(key, ANY_AGE),
+      loadStoredEnsemble(key, ANY_AGE),
     ])
-    if (d !== null || e !== null) {
+    const fetched = d?.fetched_at ?? e?.fetched_at ?? null
+    ages.push({ name: row.name, fetched })
+    if (fetched !== null && fetched.getTime() > newest) {
+      newest = fetched.getTime()
       picked = row
       deterministic = d
       ensemble = e
-      break
     }
   }
 
+  console.log('  Newest stored run per location:')
+  for (const a of ages) {
+    const age =
+      a.fetched === null
+        ? 'never collected'
+        : `${((now.getTime() - a.fetched.getTime()) / 3_600_000).toFixed(1)}h ago`
+    console.log(`    ${a.name.padEnd(28)} ${age}`)
+  }
+  console.log('')
+
   if (picked === null) {
-    console.error(
-      `No stored run younger than ${RUN_MAX_AGE_MINUTES} minutes for any of ${rows.length} locations.`,
-    )
+    console.error(`No stored run at all for any of ${rows.length} locations.`)
     console.error('Trigger /api/cron/collect-runs and re-run. This check does not fetch upstream.')
     process.exitCode = 1
     return
   }
 
-  console.log(`Location: ${picked.name} (${picked.id})\n`)
+  // Freshness is a real assertion, not a precondition. A stale run means every Mini App
+  // request takes the cold path — six deterministic models plus 143 ensemble members
+  // inside the function's 60 s ceiling — which is the endpoint's stated worst case.
+  const ageMin = (now.getTime() - newest) / 60_000
+  check(
+    `a run exists that is fresher than RUN_MAX_AGE_MINUTES (${RUN_MAX_AGE_MINUTES}m)`,
+    newest >= freshCutoff.getTime(),
+    `newest is ${(ageMin / 60).toFixed(1)}h old — collect-runs is not keeping up, so every request re-fetches`,
+  )
+
+  console.log(`\nLocation: ${picked.name} (${picked.id})\n`)
   check('a stored deterministic batch exists', deterministic !== null)
   check('a stored ensemble run exists', ensemble !== null)
 
