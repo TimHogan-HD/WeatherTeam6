@@ -231,7 +231,7 @@ Cached 14m ago
 | `/insight` | Computed statistics only. **No generated prose** (spec §9) |
 | Human forecast | NWS AFD via `/afd`, referenced from `/insight` |
 | Variables | Existing six, plus wind gusts, wind direction, cloud cover, precip probability, **surface pressure + computed 3h tendency**. Freezing level and per-level cloud are out. **Probe A: precip probability is not per-model and NBM carries no pressure — neither is labelled with the table's model** |
-| Persistence | Runs persisted: raw JSON + parsed rows. 14 days parsed, 48h raw |
+| Persistence | Runs persisted: raw JSON + parsed rows. 2 days parsed, 48h raw (cut from 14 on 2026-09-10 — Neon 512 MB cap) |
 | History writer | `/api/cron/*` over saved locations, plus write-on-read for ad-hoc points |
 | Panel state | Short state row in the DB, 8-char id in the button |
 | Time frames | Buttons, relative shorthand (`48h`, `3d`), and natural-language dates |
@@ -567,8 +567,13 @@ Freezing level and per-level cloud cover.
 
 ## Known cost, accepted
 
-Retention is 14 days parsed / 48h raw, so a trip four weeks out has no trend history until it
-comes inside the window. Widening that is a retention change, not a design change.
+Retention is 2 days parsed / 48h raw, so there is effectively no run-to-run trend history at
+all. **This was 14 days until 2026-09-10, and 14 never fitted:** Neon's free tier caps a
+project at 512 MB, production reached it, and every write then failed with `could not extend
+file` while the panels logged a warning and rendered anyway.
+
+Widening it again is no longer just a retention change — it needs a paid plan or fewer stored
+hours per run. The arithmetic is in `pruneRuns.ts`.
 
 ---
 
