@@ -25,7 +25,8 @@
     "check:delete-trip": "tsx src/scripts/checkDeleteTrip.ts",
     "check:panel-state": "tsx src/scripts/checkPanelState.ts",
     "check:weather-runs": "tsx src/scripts/checkWeatherRuns.ts",
-    "check:hourly": "tsx src/scripts/checkHourly.ts"
+    "check:hourly": "tsx src/scripts/checkHourly.ts",
+    "check:runs-storage": "tsx src/scripts/checkRunsStorage.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
