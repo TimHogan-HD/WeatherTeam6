@@ -2,6 +2,7 @@ import { cToF, kmhToMph, mmToIn } from '@weatherteam6/types'
 import type { RunHour } from '../runs/latestRuns.js'
 import type { RichCell } from './sendMessage.js'
 import { localDateString } from '../weather/openMeteo.js'
+import { hourHasModelData } from '../runs/hourlySeries.js'
 
 /**
  * The monospace forecast table: column sets, steps, day slicing and the cell
@@ -327,19 +328,14 @@ export function buildRows(
  * for a day is that one has not reached the day.
  */
 export function dayHasData(rows: readonly ForecastRow[]): boolean {
-  return rows.some(
-    (r) =>
-      r.precip_mm !== null ||
-      r.at?.temp_c != null ||
-      r.at?.dewpoint_c != null ||
-      r.at?.humidity_pct != null ||
-      r.at?.precip_mm != null ||
-      r.at?.wind_kmh != null ||
-      r.at?.wind_gust_kmh != null ||
-      r.at?.wind_dir_deg != null ||
-      r.at?.cloud_pct != null ||
-      r.at?.pressure_hpa != null,
-  )
+  // The per-hour half is `hourHasModelData`, shared with the hourly endpoint rather than
+  // restated here. Two copies of this field list would drift the moment `RunHour` gained
+  // a column: one surface would start counting it as coverage and the other would not,
+  // and the two would disagree about where the same model's horizon ends.
+  //
+  // `precip_mm` on the row is separate because it is the *step* sum — the hours after
+  // this row up to the next — which no single `RunHour` carries.
+  return rows.some((r) => r.precip_mm !== null || (r.at !== null && hourHasModelData(r.at)))
 }
 
 // ---------------------------------------------------------------------------

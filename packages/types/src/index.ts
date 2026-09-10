@@ -6,6 +6,7 @@ export * from './scoreComponents.js'
 export * from './units.js'
 export * from './conditionsCopy.js'
 export * from './geocodeCopy.js'
+export * from './hourly.js'
 
 export type ApiResponse<T> = {
   data: T | null

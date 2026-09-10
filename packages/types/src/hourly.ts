@@ -1,0 +1,156 @@
+/**
+ * The wire shape of `GET /api/v1/hourly/:locationId`.
+ *
+ * Deliberately distinct from `HourlyPoint` in `apps/api/src/lib/weather/openMeteo.ts`,
+ * which is the *parse* type for an upstream response. The two differ in ways that matter:
+ * this one carries a server-derived `local_date`, drops `precip_prob_pct`, and joins the
+ * pooled ensemble's percentiles onto the same instant. Naming them the same thing would
+ * invite one to be passed where the other is meant.
+ *
+ * **Every weather field is nullable and that is load-bearing.** Open-Meteo pads every
+ * model's arrays out to the longest horizon in the request, so an hour past a model's own
+ * reach arrives with every value null rather than being absent. A renderer that treats a
+ * null as 0 draws a temperature of 0 °C, a wind of 0 km/h and no rain — all of them
+ * plausible readings, none of them measurements. See defect class 1 in
+ * `.claude/rules/defect-patterns.md`.
+ */
+
+/** One hour, at a real UTC instant, with the chosen deterministic model and the ensemble joined. */
+export type HourlySample = {
+  /** UTC instant, ISO 8601. The join key between the two sources. */
+  valid_at: string
+  /**
+   * The location's own calendar day this hour falls in (`YYYY-MM-DD`).
+   *
+   * **Server-derived, and a client must not recompute it.** `utc_offset_seconds` is the
+   * location's, not the viewer's. Issue #33 is what happened the last time both sides
+   * derived a date: they used the same wrong rule, agreed with each other, and nothing
+   * could detect it — today's high became tomorrow's every afternoon in the Americas.
+   */
+  local_date: string
+
+  // ── deterministic: the single model named in `HourlySeries.model` ───────────────
+  temp_c: number | null
+  dewpoint_c: number | null
+  humidity_pct: number | null
+  precip_mm: number | null
+  wind_kmh: number | null
+  wind_gust_kmh: number | null
+  wind_dir_deg: number | null
+  cloud_pct: number | null
+  pressure_hpa: number | null
+
+  // ── ensemble: pooled across every model's members ───────────────────────────────
+  temp_c_p10: number | null
+  temp_c_p50: number | null
+  temp_c_p90: number | null
+  wind_kmh_p10: number | null
+  wind_kmh_p50: number | null
+  wind_kmh_p90: number | null
+  /**
+   * The ensemble **mean** hourly accumulation — the only precipitation figure here that
+   * can be added up. A step or day total sums this; summing `precip_mm_p50` would be the
+   * median of nothing and reads three to twelve times high.
+   */
+  precip_mm_mean: number | null
+  /**
+   * Share of members at or above 0.1 mm this hour, 0-100, rounded to a whole percent.
+   *
+   * **Null means unknown, not 0%.** A row stored before `members_wet` existed has no wet
+   * count, and so does an hour no member reached. A 0 there would be a confident "no
+   * chance of rain" that nobody computed.
+   *
+   * Derived server-side so `members_wet / member_count` is divided in exactly one place
+   * rather than by every client with its own rounding rule. This is deliberately **not**
+   * Open-Meteo's `precipitation_probability`, which is a blended field no single model
+   * owns — see `.claude/rules/architecture.md`.
+   */
+  precip_chance_pct: number | null
+  /** How many ensemble members reached this hour. The spread's own sample size. */
+  member_count: number | null
+}
+
+/**
+ * One deterministic model's own hours, returned only under `?models=all`.
+ *
+ * Carries **only** the fields that vary by model. The ensemble columns are pooled across
+ * every model and belong to none of them, so repeating them here — six times, always
+ * null — would be pure payload and would invite a reader to think each model has its own
+ * ensemble.
+ */
+export type HourlyModelSample = {
+  /** UTC instant, ISO 8601. Aligned to the same axis as `HourlySeries.hours`. */
+  valid_at: string
+  temp_c: number | null
+  dewpoint_c: number | null
+  humidity_pct: number | null
+  precip_mm: number | null
+  wind_kmh: number | null
+  wind_gust_kmh: number | null
+  wind_dir_deg: number | null
+  cloud_pct: number | null
+  pressure_hpa: number | null
+}
+
+export type HourlyModel = {
+  /** Open-Meteo's model id, e.g. `gfs_seamless`. */
+  model: string
+  /**
+   * **Null means unknown, not "no".** A stored run written before the flag existed cannot
+   * say whether `precipitation_probability` was this model's own. A renderer must then
+   * withhold the model's name from that column rather than claim it.
+   */
+  probability_is_shared: boolean | null
+  /**
+   * How many hours in the window carry at least one non-null value from this model.
+   *
+   * **Measured, not assumed.** The models do not reach the same distance — an hour that
+   * exists in the array is not an hour the model answered for. A switcher built on this
+   * must show where each model stops instead of implying they are interchangeable.
+   */
+  hours_with_data: number
+  hours: HourlyModelSample[]
+}
+
+/** One local calendar day in the window, and which sources actually reached it. */
+export type HourlyDay = {
+  /** `YYYY-MM-DD` in the location's local calendar. */
+  local_date: string
+  /** Whether the model named in `HourlySeries.model` said anything about this day. */
+  has_deterministic: boolean
+  /** Whether any ensemble member reached this day. */
+  has_ensemble: boolean
+}
+
+export type HourlySeries = {
+  location_id: string
+  /** Seconds to add to a UTC instant to get the location's wall clock. */
+  utc_offset_seconds: number
+  /**
+   * When the run was fetched from upstream — **not** a model initialisation time.
+   * Null when no run carried one.
+   */
+  fetched_at: string | null
+  /**
+   * The deterministic model the columns in `hours` came from, chosen by measured coverage.
+   *
+   * `null` when no model answered at this point, in which case every deterministic column
+   * in `hours` is null — never quietly filled from another model's numbers.
+   */
+  model: string | null
+  /**
+   * Requested models with nothing to show at this point. **Named, never dropped**: a model
+   * that silently disappears makes the response look like it read everything it asked for.
+   */
+  unavailable_models: string[]
+  /** Ordered by `valid_at`, ascending. */
+  hours: HourlySample[]
+  /** Ordered by date, ascending. What a Daily view may offer a drill-down for. */
+  days: HourlyDay[]
+  /**
+   * Every deterministic model that answered — present **only** under `?models=all`,
+   * absent otherwise. `hours` is populated either way, so a client that ignores the
+   * parameter needs no branch.
+   */
+  models?: HourlyModel[]
+}
