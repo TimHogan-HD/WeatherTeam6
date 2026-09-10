@@ -4,13 +4,38 @@ import { weatherEnsembleHours, weatherRunHours, weatherRuns } from '../../db/sch
 import { logger } from '../logger.js'
 
 /**
- * Parsed hours are kept for 14 days; the raw upstream payload for 48 hours.
+ * Parsed hours are kept for 2 days; the raw upstream payload for 48 hours.
  *
- * The accepted consequence (plan, § Known cost): a trip four weeks out has no
- * run-to-run trend until it comes inside the window. Widening it is a retention
- * change, not a design change.
+ * **Cut from 14 days on 2026-09-10, because 14 never fitted.** Neon's free tier
+ * caps a project at 512 MB, and production hit it: every write began failing
+ * with `could not extend file because project size limit (512 MB) has been
+ * exceeded`, stored runs went 11-16 hours stale, and `weather_runs` rows were
+ * left with no `weather_run_hours` behind them. The storage failure is caught
+ * and logged as a warning by `latestRuns` — correct for a panel render, which
+ * should still show data it could not cache — so nothing surfaced until a
+ * `check:hourly` run went looking.
+ *
+ * The arithmetic, so the next person can redo it before changing this number.
+ * Six locations, hourly collection, six deterministic models each stored to its
+ * own horizon (padding is dropped, so roughly 1,500 hours per location per run
+ * across the six):
+ *
+ *     6 locations x 1,500 hours x 24 runs/day x 14 days ~ 3.0M rows
+ *     3.0M x ~170 bytes with its primary-key index      ~ 510 MB
+ *
+ * That is the whole quota in `weather_run_hours` alone, before
+ * `weather_ensemble_hours` and the raw payloads. At 2 days it is ~73 MB.
+ *
+ * **The cost is run-over-run trend history, and nothing renders it today.** The
+ * ensemble spread that the Mini App's confidence band draws comes from *within*
+ * a single run — percentiles across 143 members at each lead time — not from
+ * comparing runs, so that is unaffected. What is lost is the ability to say how
+ * a forecast for a given day changed between yesterday's run and today's.
+ *
+ * Raising this again means either a paid Neon plan or fewer stored hours per
+ * run; it is a capacity decision, not a preference.
  */
-export const PARSED_RETENTION_DAYS = 14
+export const PARSED_RETENTION_DAYS = 2
 export const RAW_RETENTION_HOURS = 48
 
 /**
