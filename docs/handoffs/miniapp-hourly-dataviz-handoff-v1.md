@@ -1,7 +1,11 @@
 # WeatherTeam6 Mini App: Hourly Data Visualisation Handoff
-Version: v1
-Date: 2026-09-04
-Status: Draft — Phase 1 authorised, Phases 2-4 pending review
+Version: v2
+Date: 2026-09-10 (v1: 2026-09-04)
+Status: Phase 1 unblocked and ready to write · Phases 2-5 specified
+
+**Revised in place rather than forked to a `-v2.md` file.** Two documents describing the
+same unbuilt plan is the exact failure this doc's own Phase 5 exists to clean up
+elsewhere. The version line above is the history; `git log` on this file is the rest.
 
 ## Context
 
@@ -11,6 +15,51 @@ around a Daily tab and an Hourly tab with drill-down from a day into its hours.
 
 Prompted by CragReport's forecast screens (screenshots reviewed 2026-09-04). The reference
 is the *legibility* of a stacked chart column, not the feature list — see § Constraints.
+
+## Decisions taken 2026-09-10
+
+Three questions v1 left open are now answered by the owner. All three widen the work.
+
+1. **Return all six deterministic models — but behind an opt-in parameter.** The literal
+   ask was "six if it makes sense". It does not make sense as the default: see
+   § Known Risks 9 for the measured reasoning. `GET /hourly/:id` returns one
+   coverage-chosen model by default and every model that answered under
+   `?models=all`. One endpoint, no second API change when the switcher is built, and
+   the common screen does not pay for a control it is not showing.
+2. **Per-day climbing scores are in.** `/forecast/:id` gains `score`, `confidence` and
+   `unavailable_reason` per day. The server already computes all seven and discards six
+   of them. This **reverses `miniapp-design-v1.md` §3**, which ruled per-day scores out
+   on a design argument; Phase 5 rewrites that section.
+3. **Selecting a wall re-scores the forecast** against that wall's own aspect and angle —
+   not a filter. The owner's caveat ("which we may not have quite yet") is half right and
+   the half that is wrong matters: see § Known Risks 10.
+
+### Design direction settled over three mockup rounds
+
+Recorded here because the mockup is a published artifact, not a repo file, and will not
+survive as a reference. Binding for Phases 2-4:
+
+- **Location identity leads.** Rock, aspect, wall angle, elevation, coordinates and the
+  rainfall station — all existing `locations` columns the Mini App has never shown. The
+  current temperature is one line, not a 36px hero.
+- **A wall / area picker** sits under the identity block.
+- **Switching to Hourly condenses identity and rain history to two lines.** Nothing is
+  hidden behind a tap; it stops competing with the charts.
+- **Daily rows carry a metric toggle** — temperature, rain, climbing score — and a range
+  bar on a scale **shared by all seven rows**, so days are comparable to each other. An
+  earlier draft normalised each row to its own min/max, which drew the identical curve on
+  every row regardless of the values. Do not reintroduce a per-row scale.
+- **Hourly is bars, one per hour**, coloured by value; the ensemble spread is a whisker on
+  each bar rather than a shaded band.
+- **Temperature colour is a diverging ramp centred on the location's ideal temperature**,
+  not a decorative gradient. Neutral at ideal, cool below, warm above, one fixed scale so
+  the same value is always the same colour. Colours are token hues
+  (`radarLight` → ink neutral → `fair` → `poor`). Validated for colour-blind separation
+  (ΔE 25.7 normal, 21.4 protan) and contrast; it fails the generic lightness band because
+  the repo's palette is deliberately bright marks on a near-black ground, and the locked
+  design system outranks a default band.
+- **Absences are drawn, not omitted.** Rock temperature and sun/shade appear as explicit
+  gaps.
 
 ## Current State
 
@@ -106,7 +155,8 @@ the newer authority.
 ## Pre-Implementation Checklist
 
 - [ ] `npm run build --workspace=packages/types --workspace=packages/design`
-- [ ] Confirm the branch is `claude/mini-app-data-viz-kgmuse`
+- [ ] Branch from current `main`. The v1 branch (`claude/mini-app-data-viz-kgmuse`) was
+      squash-merged as `6e4baa1` and is gone
 - [ ] **Verify a stored run exists for a seeded location before designing against it.**
       Run `check:weather-runs` against the real database. If `collect-runs` has not fired
       for the point, every request takes the cold path (six models plus 143 ensemble
@@ -156,6 +206,14 @@ Behaviour:
    `DETERMINISTIC_MODELS` order. Name the winner in `model`. When no model answered,
    `model` is `null` and the deterministic columns are all null — never a silent fallback
    to another model's numbers.
+
+   **`?models=all` returns every model that answered**, each as its own entry in
+   `models[]` carrying its own hours and its own `probability_is_shared` flag. `model`
+   still names the coverage-chosen default so a client that ignores the parameter behaves
+   identically. The switcher UI is Phase 3's and optional; the parameter exists now so
+   building it never needs another API change. Anything other than `all` — including
+   a comma-separated list — is **rejected with a 400 rather than silently ignored**, so a
+   typo cannot look like a working request that quietly returns one model.
 5. Carry `unavailable_models` through from `DeterministicRuns` unchanged. A model that
    returned nothing is named, never dropped.
 6. Join deterministic and ensemble hours on the UTC instant into one array ordered by
@@ -197,6 +255,35 @@ arrays, and any field the Mini App has no drawn use for.
 in the PR body. If either is bad, § Open Questions 2 is the lever.
 
 **Git checkpoint:** commit, push, draft PR. **Review before Phase 2 begins.**
+
+---
+
+### Phase 1b: Per-day scores on `/forecast/:id`
+
+Small, separate, and independent of Phase 1 — do it in the same PR only if Phase 1 lands
+clean.
+
+**Build:** `ForecastSnapshot` gains `score: number | null`, `confidence` and
+`unavailable_reason`. `computeLiveForecast` already returns a scored row per day;
+`toWindowedForecast` currently drops the score on the floor. Carry it through.
+
+**Three rules it must not break:**
+
+- **A non-climbing location still gets no score anywhere.** The client does not ask, and
+  now the forecast route must not volunteer one either — `computeLiveForecast` does not
+  branch on `is_climbing_location` and will happily score Chicago.
+- **A withheld score and an absent one stay different answers.** `unavailable_reason:
+  'rainfall_unavailable'` means the rainfall lookup *failed* and the day is deliberately
+  unscored; `score: null` with no reason means the date is outside the scoring window.
+  Both already exist on `ConditionsScore`; reuse them rather than inventing a third state.
+- **Suppression still applies per day.** The ladder and the Severe-alert rule live in
+  `packages/types/conditionsCopy.ts` and run unconditionally. Seven chips means seven
+  chances to show an unsuppressed score under an active warning.
+
+**Acceptance:** `/forecast/:id` for a climbing location returns seven rows each carrying a
+score or a stated reason for not having one; the same call for a city returns seven rows
+with no score field populated. A day inside an active Severe+ alert renders suppressed in
+the Mini App.
 
 ---
 
@@ -242,14 +329,40 @@ returns to Daily rather than closing the Mini App; a day flagged without coverag
 
 ---
 
-### Phase 4: Recent rain + document reconciliation (not authorised yet)
+### Phase 4: Wall-aware scoring (not authorised yet)
+
+**Read § Known Risks 10 before writing a line of this.** The angle convention is inverted
+between the two tables and getting it wrong produces a plausible, silently wrong score.
+
+**Build:** selecting a wall re-scores the forecast against that wall's `aspect_deg` and
+`angle_deg` instead of the location's `aspect` and `cliff_angle`.
+
+The plumbing is closer than it looks: `ScoreInput` already takes `aspectDegrees` and
+`cliffAngle` as plain numbers, and `walls` already stores both per wall. The work is
+threading a wall id through `computeLiveForecast` and the two routes that call it — plus
+resolving the convention clash.
+
+**What does not exist:** anything that *populates* `walls`. There is full CRUD
+(`GET /walls/:locationId`, `POST /walls`, `DELETE /walls/:wallId`) and no seed, no
+importer, and no UI. The table is empty in practice. So this phase needs a way to create
+a wall before it has anything to select, and that is a product decision — hand entry,
+OpenBeta import, or derived from terrain — not a build task.
+
+**Acceptance:** two walls at one location with different aspects return different scores
+for the same day, in the direction the drying model predicts; a location with no walls
+behaves exactly as it does today.
+
+---
+
+### Phase 5: Recent rain + document reconciliation (not authorised yet)
 
 **Build:**
 
 - A recent-rain bar chart from `fetchRecentHourlyPrecip`, behind its **own** endpoint and
   its own React Query hook, so its upstream fetch cannot delay the rest of the screen.
   Sections fail independently — that rule is already in `DetailView.tsx`.
-- Rewrite `miniapp-design-v1.md` §3 (tabs) and §9 (non-goals).
+- Rewrite `miniapp-design-v1.md` §3 — for **three** reversals now, not one: internal tabs,
+  per-day scores, and the location-identity header. Also §9 (non-goals).
 - Rewrite the scope note in `.claude/skills/miniapp-patterns/SKILL.md` and the "Mini App
   polish — deliberately downgraded" item in `.claude/docs/STATE.md`, recording that the
   reversal is the owner's 2026-09-04 decision and that the bot remains first-class.
@@ -336,11 +449,54 @@ export type HourlySeries = {
   model: string | null
   /** Requested models with nothing at this point. Named, never dropped. */
   unavailable_models: string[]
-  /** Ordered by `valid_at`. */
+  /** Ordered by `valid_at`. The model named in `model`, joined with the ensemble. */
   hours: HourlySample[]
   /** Ordered by date. What the Daily tab may offer a drill-down for. */
   days: HourlyDay[]
+  /**
+   * Every deterministic model that answered — **only under `?models=all`**, absent
+   * otherwise. `hours` above stays populated either way, so a client that ignores the
+   * parameter needs no branch.
+   *
+   * Each entry carries its own coverage: the models do not span the same horizon
+   * (HRRR ~48 h, NBM ~264 h, the globals further), so a switcher built on this must show
+   * where each one stops rather than implying they are interchangeable.
+   */
+  models?: HourlyModel[]
 }
+
+export type HourlyModel = {
+  model: string
+  /**
+   * **Null means unknown, not "no".** A stored row predating the flag cannot say whether
+   * `precipitation_probability` was this model's own, and a renderer must then withhold
+   * the model's name from that column rather than claim it.
+   */
+  probability_is_shared: boolean | null
+  /** Same shape and same ordering as `hours`; ensemble columns are null throughout. */
+  hours: HourlySample[]
+}
+```
+
+### Per-day scores — the `ForecastSnapshot` additions (Phase 1b)
+
+```ts
+// packages/types/src/index.ts — added to the existing ForecastSnapshot
+
+  /**
+   * The day's conditions score, 0-100.
+   *
+   * `null` with no `unavailable_reason` means the date is outside the scoring window.
+   * `null` *with* one means the day is deliberately unscored — see below. Never 0 for
+   * either case: 0 is a real score meaning conditions are bad.
+   *
+   * Absent entirely for a non-climbing location. A rock-drying score for a city is
+   * meaningless and must not be rendered anywhere.
+   */
+  score?: number | null
+  confidence?: 'low' | 'medium' | 'high'
+  /** Withheld, not missing (issue #34). Same values and meaning as on `ConditionsScore`. */
+  unavailable_reason?: 'rainfall_unavailable' | null
 ```
 
 ## Known Risks / Watch Points
@@ -373,14 +529,40 @@ export type HourlySeries = {
 8. **The working tree is CRLF.** Multi-line `sed`/`perl` replacements match nothing and
    report success. Use the Edit tool for anything spanning more than one line. Python is
    not installed.
+9. **Why six models is opt-in and not the default.** Bytes are the smaller half of the
+   argument — six models is roughly 200-250 KB of JSON against 50-60 KB, and weather
+   series gzip well, so the wire cost lands near 35 KB. The real problem is that **the six
+   models do not cover the same span.** HRRR reaches ~48 h and NBM ~264 h, so past day two
+   a switcher greys out most of its own options, and past day three only the four global
+   models answer at all. A control that is mostly disabled teaches the user it is broken.
+   Default to one; let the client ask for six when it has a UI that can explain the gaps.
+   **Measure the real payload in Phase 1 and record both figures in the PR** rather than
+   trusting the estimate above.
+10. **`cliff_angle` and `walls.angle_deg` almost certainly use opposite conventions, and
+    the failure is silent.** `conditionsScore.ts:54` reads
+    `angleFactor = 1.0 + (input.cliffAngle / 90) * 0.3`, and its own comment says *"slab
+    (90°) dries 30% slower than vertical wall (0°)"* — so `cliffAngle` is measured **from
+    vertical**: `0` is a vertical wall, `90` is a slab. Climbers say the opposite: a 90°
+    wall is vertical and anything past that overhangs. `walls.angle_deg` ships beside
+    `angle_band`, which is climber vocabulary.
+
+    Pass `walls.angle_deg` straight into `cliffAngle` and a vertical wall (90 to a
+    climber) becomes a slab (90 to the scorer) and dries 30% slower — a plausible number,
+    in the wrong direction, on the heaviest component in the score. Nothing typechecks
+    differently; both are numbers. **Establish which convention `walls.angle_deg` actually
+    holds before Phase 4 converts anything**, and if it is the climber one, convert at the
+    boundary with a named helper rather than inline arithmetic.
 
 ## Open Questions
 
-1. **Should the Hourly tab let the user switch deterministic models?** We store six, the
-   bot deliberately shows one, and `panels.ts` says switching is the Mini App's job.
-   Phase 1 as specified returns one model chosen by coverage, which forecloses it without
-   an API change. Cheap to keep open: return every model that answered and let the client
-   pick. Costs payload. **Decision needed before Phase 1 is written.**
+**Answered 2026-09-10 — see § Decisions taken:** model switching (opt-in `?models=all`),
+per-day scores (in), wall selection (re-scores, does not filter).
+
+1. **What convention does `walls.angle_deg` hold, and who fills the table?** Two questions
+   with one owner. The convention clash is § Known Risks 10 and is a correctness issue.
+   The population question is a product one: `walls` has full CRUD and no writer, so the
+   picker has nothing to pick until walls can be created — by hand, by OpenBeta import, or
+   derived from terrain. **Blocks Phase 4, nothing earlier.**
 2. **How many days should the Hourly tab reach?** The ensemble runs to 384 h (16 days),
    the daily tab shows 7. Phase 1 windows to 7 for consistency. A trip-planning view would
    want the full 16.
