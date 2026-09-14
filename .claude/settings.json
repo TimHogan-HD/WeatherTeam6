@@ -6,6 +6,7 @@
       "Bash(npm run typecheck:*)",
       "Bash(npm run lint:*)",
       "Bash(npm run check:hooks:*)",
+      "Bash(npm run check:*)",
       "Bash(npm run db:generate:*)",
       "Bash(npm ci:*)",
       "Bash(npm install:*)",
