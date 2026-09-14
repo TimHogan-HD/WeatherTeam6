@@ -31,6 +31,10 @@ forecastRouter.get('/forecast/:locationId', async (req: Request, res: Response) 
         cliff_angle: locations.cliff_angle,
         aspect: locations.aspect,
         asos_station: locations.asos_station,
+        // Selected only to decide whether a score may be attached at all. The
+        // scorer itself never sees it — `computeLiveForecast` does not branch on
+        // it and will score a city if asked.
+        is_climbing_location: locations.is_climbing_location,
       })
       .from(locations)
       .where(and(eq(locations.id, locationId), eq(locations.user_id, req.userId)))
@@ -45,8 +49,17 @@ forecastRouter.get('/forecast/:locationId', async (req: Request, res: Response) 
 
     // `todayStr` comes back from the compute rather than being derived here: it
     // is the *location's* local day, which this route has no way to know (#33).
-    const { snapshots, todayStr } = await computeLiveForecast(location)
-    const withWindow = toWindowedForecast(snapshots, todayStr)
+    const { snapshots, scores, todayStr, scoreUnavailable } = await computeLiveForecast(location)
+
+    // A city gets weather and nothing else. The merge argument is simply not
+    // passed, so no score field appears on any row — there is no flag to forget
+    // and no `is_climbing_location` check anywhere downstream.
+    const withWindow = location.is_climbing_location
+      ? toWindowedForecast(snapshots, todayStr, {
+          scores,
+          unavailableReason: scoreUnavailable ?? null,
+        })
+      : toWindowedForecast(snapshots, todayStr)
 
     const response: ApiResponse<ForecastSnapshot[]> = {
       data: withWindow,

@@ -7,7 +7,7 @@ import {
   scoreUnavailableLine,
   summarizeConditions,
 } from '@weatherteam6/types'
-import type { ConditionsScore, ForecastSnapshot } from '@weatherteam6/types'
+import type { ConditionsScore, ForecastSnapshot, ScoreUnavailableReason } from '@weatherteam6/types'
 
 /**
  * The `/conditions <name>` reply text, built to miniapp-design-v1.md §7.
@@ -48,7 +48,7 @@ export type ConditionsReplyInput = {
    * (issue #34) — as opposed to simply having no row for today. The two must
    * not read the same: one is "not yet", the other is "we couldn't check".
    */
-  scoreUnavailable?: 'rainfall_unavailable' | null
+  scoreUnavailable?: ScoreUnavailableReason | null
   activeAlerts: readonly ActiveAlert[]
 }
 

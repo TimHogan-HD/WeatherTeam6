@@ -160,10 +160,33 @@ export const DRY_SENTINEL_HOURS = 720;
  * Distinct from `stateLabel(null)`'s "Too far out to score", which is a real
  * statement about the date. This is a statement about the data.
  */
-export function scoreUnavailableLine(reason: 'rainfall_unavailable'): string {
+/**
+ * Why a day has no score, when the reason is something other than the date being
+ * outside the scoring window.
+ *
+ * **Named once here because it was written out as a literal union in seven
+ * places**, and the eighth reading of it is how `score_error` came to be missing:
+ * `liveForecast`'s generic catch set `scores = []` and no reason at all, so a
+ * thrown scoring error arrived indistinguishable from "this date is too far out".
+ * With a 7-day horizon the honest version of that state is never reached in live
+ * compute, so in practice every occurrence was a swallowed error being rendered
+ * as a legitimate empty result — defect class 2.
+ *
+ * Adding a member here is deliberately a compile error in `scoreUnavailableLine`
+ * until it has copy of its own. A reason with no sentence is a reason no reader
+ * ever sees.
+ */
+export type ScoreUnavailableReason = 'rainfall_unavailable' | 'score_error';
+
+export function scoreUnavailableLine(reason: ScoreUnavailableReason): string {
   switch (reason) {
     case 'rainfall_unavailable':
       return "Can't score right now — no rainfall data.";
+    case 'score_error':
+      // Deliberately does not name rainfall. The rainfall lookup may have been
+      // perfectly fine; something in the scoring itself threw, and saying which
+      // input failed when we do not know is the attribution defect (class 3).
+      return "Can't score right now — the calculation failed.";
   }
 }
 
