@@ -6,6 +6,7 @@ import { bareButton, chip, stack } from '../theme/styles.js'
 import { useBackButton } from '../telegram/useBackButton.js'
 import { useDeleteLocation, useLocation } from '../hooks/useLocations.js'
 import { useAlerts, useConditions, useForecast } from '../hooks/useWeather.js'
+import { useHourly } from '../hooks/useHourly.js'
 import { Screen } from '../components/Screen.js'
 import { DetailView } from '../components/DetailView.js'
 import { InlineError, Skeleton } from '../components/States.js'
@@ -22,6 +23,7 @@ export function LocationDetail() {
   const forecast = useForecast(id)
   const alerts = useAlerts(id)
   const conditions = useConditions(id, location.data?.is_climbing_location)
+  const hourly = useHourly(id)
 
   const remove = useDeleteLocation()
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -68,6 +70,12 @@ export function LocationDetail() {
           isPending: conditions.isPending,
           isError: conditions.isError,
           refetch: () => void conditions.refetch(),
+        }}
+        hourly={{
+          data: hourly.data,
+          isPending: hourly.isPending,
+          isError: hourly.isError,
+          refetch: () => void hourly.refetch(),
         }}
       />
 
