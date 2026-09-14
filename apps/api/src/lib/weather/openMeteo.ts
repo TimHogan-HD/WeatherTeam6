@@ -1386,7 +1386,7 @@ export type EnsembleRun = {
   daily: OpenMeteoResult
   hours: EnsembleHour[]
   fetched_at: Date
-  /** The upstream payload, for the 48h raw retention. Never log or serialise this. */
+  /** The upstream payload, for the raw retention window (`RAW_RETENTION_HOURS`). Never log or serialise this. */
   raw: unknown
 }
 

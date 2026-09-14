@@ -231,7 +231,7 @@ Cached 14m ago
 | `/insight` | Computed statistics only. **No generated prose** (spec §9) |
 | Human forecast | NWS AFD via `/afd`, referenced from `/insight` |
 | Variables | Existing six, plus wind gusts, wind direction, cloud cover, precip probability, **surface pressure + computed 3h tendency**. Freezing level and per-level cloud are out. **Probe A: precip probability is not per-model and NBM carries no pressure — neither is labelled with the table's model** |
-| Persistence | Runs persisted: raw JSON + parsed rows. 2 days parsed, 48h raw (cut from 14 on 2026-09-10 — Neon 512 MB cap) |
+| Persistence | Runs persisted: raw JSON + parsed rows. 2 days parsed, 6h raw (cut from 14d/48h on 2026-09-10..14 — Neon 512 MB cap) |
 | History writer | `/api/cron/*` over saved locations, plus write-on-read for ad-hoc points |
 | Panel state | Short state row in the DB, 8-char id in the button |
 | Time frames | Buttons, relative shorthand (`48h`, `3d`), and natural-language dates |
@@ -463,7 +463,7 @@ Drizzle only, `db:generate` then `db:migrate`, never `drizzle-kit push`.
 
 **`weather_ensemble_hours`** — per run per hour: p10/p50/p90 for precip, temp and wind, member
 counts, per-model member counts. **Not per-member rows** — 143 members × 384 hours is 55k rows
-per run; the 48h raw JSON is the re-derivation path.
+per run; the 6h raw JSON is the re-derivation path.
 
 **`panel_states`** — 8-char id PK, `user_id`, point fields, `view`, `model`, `interval`,
 `day_offset`, `columns`, `units`, `mode` (simple/advanced), timestamps. Pruned after ~7 days.
@@ -567,7 +567,7 @@ Freezing level and per-level cloud cover.
 
 ## Known cost, accepted
 
-Retention is 2 days parsed / 48h raw, so there is effectively no run-to-run trend history at
+Retention is 2 days parsed / 6h raw, so there is effectively no run-to-run trend history at
 all. **This was 14 days until 2026-09-10, and 14 never fitted:** Neon's free tier caps a
 project at 512 MB, production reached it, and every write then failed with `could not extend
 file` while the panels logged a warning and rendered anyway.
