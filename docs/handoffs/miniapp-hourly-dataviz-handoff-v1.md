@@ -1,7 +1,18 @@
 # WeatherTeam6 Mini App: Hourly Data Visualisation Handoff
 Version: v2
 Date: 2026-09-10 (v1: 2026-09-04)
-Status: Phase 1 unblocked and ready to write · Phases 2-5 specified
+Status: **Phase 1 and 1b shipped and verified in production** · Phases 2-5 specified
+
+Phase 1 merged as `9ea6da8`, verified 13/13 by `npm run check:hourly` against real stored
+runs and 12/12 against the deployed endpoint on 2026-09-14. Two of this document's own
+estimates were wrong and are corrected in § Known Risks 9 with the measured values.
+
+**Phase 1 also surfaced a production outage that had nothing to do with it:** Neon was at
+its 512 MB cap, every write was failing with `could not extend file`, and `collect-runs`
+had been reporting `200 OK` while storing nothing for roughly a day. Retention is now
+2 days parsed / 6h raw (PRs #102, #105) and the database sits at 12 MB. The write failure
+was logged at `warn` and swallowed by design — correct for a panel render, invisible for a
+collection job. See § Open Questions 5.
 
 **Revised in place rather than forked to a `-v2.md` file.** Two documents describing the
 same unbuilt plan is the exact failure this doc's own Phase 5 exists to clean up
@@ -579,25 +590,31 @@ export type HourlyModel = {
 8. **The working tree is CRLF.** Multi-line `sed`/`perl` replacements match nothing and
    report success. Use the Edit tool for anything spanning more than one line. Python is
    not installed.
-9. **Why six models is opt-in and not the default.** Bytes are the smaller half of the
-   argument — six models is roughly 200-250 KB of JSON against 50-60 KB, and weather
-   series gzip well, so the wire cost lands near 35 KB.
+9. **Why six models is opt-in and not the default — now measured, and weaker than first
+   claimed.** Measured 2026-09-14 by `npm run check:hourly` against a real stored batch at
+   Clarks Grove, Minnesota:
 
-   The real problem is that **the six models do not cover the same span**, so a switcher
-   offers options that are not equivalent and go dead at different depths. **This repo has
-   measured exactly one horizon**: `ncep_hrrr_conus` came back with 168 hours of which 66
-   carried temperature (`.claude/rules/architecture.md`, and it is why `dayHasData` exists
-   at all). The other five are not measured anywhere here, and an earlier draft of this
-   item invented figures for them and then drew a conclusion its own numbers contradicted.
+   | | |
+   | --- | --- |
+   | payload, default | **69.7 KB** |
+   | payload, `?models=all` | **263.0 KB** (3.8x, not 6x) |
+   | `gfs_seamless` / `ecmwf_ifs025` / `icon_seamless` / `gem_seamless` / `ncep_nbm_conus` | **168 of 168 hours** |
+   | `ncep_hrrr_conus` | **56 of 168 hours** |
 
-   The argument survives without them: at least one model of six stops inside three days,
-   the client cannot know which without asking, and a control whose options silently expire
-   is worse than no control. Default to one; let the client ask for six once it has a UI
-   that can show where each model ends.
+   **Two claims in earlier drafts of this item were wrong and are corrected here.** It said
+   a switcher "greys out most of its own options past day two" — only HRRR stops early, one
+   of six. And it said "past day three only the four global models answer", while NBM
+   reaches the full window. A reviewer challenged both on PR #98 with nothing but internal
+   arithmetic and was right; the measurement confirms it.
 
-   **Phase 1 must measure and record, in the PR body: the real payload at both settings,
-   and each model's actual horizon at a test point.** Do not restate the estimates above as
-   if they were measurements.
+   `?models=all` is also cheaper than estimated: 3.8x rather than 6x, because the ensemble
+   columns are shared and do not repeat per model.
+
+   **What survives:** one model of six goes dead inside three days, a client cannot know
+   which without asking, and a control with a silently expiring option is worse than none.
+   That is a thinner argument than the original, and it is enough for *opt-in* — which
+   costs nothing and forecloses nothing — but it would not carry a decision to hide the
+   data outright.
 10. **`cliff_angle` and `walls.angle_deg` share an origin and run in opposite directions.
     Both are "degrees from vertical", so the clash is invisible in every doc that
     describes them.**
@@ -647,3 +664,15 @@ per-day scores (in), wall selection (re-scores, does not filter).
    `STATE.md`; the chart must not settle it by accident.
 4. **Does the today hero survive the tab split, or fold into Daily?** Phase 3 assumes it
    stays outside the tabs.
+5. **Should `collect-runs` fail loudly when it persists nothing?** It reported `200 OK` and
+   green ticks on cron-job.org for roughly a day while every write was rejected, because
+   `latestRuns` catches a storage failure and logs a warning — right for a panel render,
+   which should still show data it could not cache, and wrong for a job whose entire
+   purpose is persistence. Raised three times during Phase 1 and never answered; it is a
+   behaviour change to a production cron, so it stays unmade.
+
+   Related and worth doing with it: **Vercel's error level is unusable as a signal here.**
+   Measured 2026-09-14 — 19 of 19 error-level lines in three hours were the same
+   `DEP0169 url.parse()` deprecation warning, because Vercel files anything on stderr as an
+   error. A real failure logged at `warn` sat below a floor already flooded with noise,
+   which is the mechanism by which a day-long outage went unseen.
