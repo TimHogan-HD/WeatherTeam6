@@ -36,7 +36,32 @@ import { logger } from '../logger.js'
  * run; it is a capacity decision, not a preference.
  */
 export const PARSED_RETENTION_DAYS = 2
-export const RAW_RETENTION_HOURS = 48
+
+/**
+ * How long the raw upstream payload is kept. **Cut from 48h to 6h on 2026-09-14.**
+ *
+ * `raw` is the single most expensive thing in this database and it was invisible in
+ * the arithmetic that justified cutting `PARSED_RETENTION_DAYS`. Measured on the
+ * real database: `weather_runs` held **274 MB across 6,181 rows** — 56% of the
+ * whole project — because 938 of those rows carried an ensemble payload averaging
+ * **~292 KB** each. 143 members over 384 hours is a very large JSON document.
+ *
+ * Only the ensemble run stores `raw` at all, so this is ~1 row per location per
+ * collection. At 48h that is 6 locations x 24 hours x 2 days x 292 KB ~ **84 MB**
+ * of steady state, against a 512 MB project cap. At 6h it is ~10 MB.
+ *
+ * **Nothing reads it.** `architecture.md` describes it as the re-derivation path
+ * for a member-level view, and no such view exists on any surface. If one is ever
+ * built, it needs this window widened *and* a storage plan that can pay for it —
+ * the two are the same decision, which is why the number lives here with its cost
+ * attached rather than as a bare constant.
+ *
+ * Note the interaction with `PARSED_RETENTION_DAYS`: while both were 48h the
+ * raw-clearing UPDATE was a no-op, because anything old enough to clear was
+ * already old enough to delete outright. At 6h it does real work again on rows
+ * aged 6-48h, which is the point.
+ */
+export const RAW_RETENTION_HOURS = 6
 
 /**
  * A run is only pruned in chunks so a long-neglected schedule cannot build one
