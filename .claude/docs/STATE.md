@@ -234,15 +234,21 @@ Only things that are still true and still bite. Historical gotchas are in the ar
 
 ## What the user owes
 
-**Rotate the Neon password.** Still outstanding after four sessions — the connection string
-was pasted into a chat transcript on 2026-09-02 and is still live. Neon dashboard → Roles →
-reset, then update `DATABASE_URL` in Vercel **and** re-run `setx DATABASE_URL` locally,
-since it is now a Windows user environment variable too. Everything else in the old list
-(`bot:set-commands`, `TELEGRAM_WEBHOOK_SECRET` + `setWebhook`, the two cron registrations,
-migration 0010) is done and confirmed working.
+**Nothing.** The list is empty.
 
-**Never ask the owner to paste a secret into the conversation** — that is how this one
-leaked. Have them set it in their own shell.
+**The Neon password rotation is closed — declined by the owner on 2026-09-14.** The
+connection string was pasted into a chat transcript on 2026-09-02 and has not been rotated;
+the owner has decided that is acceptable and **does not want this raised again.** It is
+recorded here so it stays closed rather than being rediscovered and re-raised every session,
+which is what happened for four of them. Do not re-add it to this list. If it ever needs
+revisiting, that is the owner's call to make, not a session's to prompt.
+
+Everything else in the old list (`bot:set-commands`, `TELEGRAM_WEBHOOK_SECRET` +
+`setWebhook`, the two cron registrations, migration 0010) is done and confirmed working.
+
+**Still never ask the owner to paste a secret into the conversation.** That is a separate
+rule and it stands: secrets go in their own shell via `setx`, or in the gitignored
+`.claude/settings.local.json`. This is how the 2026-09-02 leak happened in the first place.
 
 **Try Phase 5 from your phone.** `/weather <place>`, both Save buttons, `/remove`. The
 migration and the database-level checks are done; a real Telegram client trying the three

@@ -2812,8 +2812,8 @@ skill before the first line of chart code.
   (69.7 KB → 263.0 KB), not 6×; and **only HRRR** stops early (56 of 168 hours) — GFS,
   ECMWF, ICON, GEM and NBM all reach the full window.
 
-**Does the user need to do anything?** **Yes, one item, unchanged from the last three
-sessions: rotate the Neon password.** It was pasted into a chat transcript on 2026-09-02 and
-is still live. `DATABASE_URL`, `CRON_SECRET` and `API_SHARED_SECRET` are now set as Windows
-user environment variables, so rotating means updating Neon, Vercel, and the local `setx`.
-Everything else this session needed from them is done.
+**Does the user need to do anything?** **No.** The Neon password rotation — carried as owed
+since 2026-09-02 — was **declined by the owner on 2026-09-14** and is closed. It is not to be
+re-raised. Everything else this session needed from them is done: they set `DATABASE_URL`,
+`CRON_SECRET` and `API_SHARED_SECRET` as Windows user environment variables, which is what
+lets the acceptance checks run unattended.
