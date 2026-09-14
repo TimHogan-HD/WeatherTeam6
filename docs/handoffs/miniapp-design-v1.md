@@ -145,6 +145,14 @@ When `is_climbing_location` is false, on every surface including the bot:
 
 Binding: any value at or above `720` renders as *"no rain in 30+ days"* — never *"no rain in 720h"*, never a computed day count. Below `720`, render the real figure. This is a display cap, not a data fix; the underlying ambiguity is filed as §10.6. It applies to the bot reply in §7 as much as to the detail screen, since both read the same field.
 
+> **SUPERSEDED 2026-09-14.** Per-day scores **do** exist over the API now: `GET /forecast/:id`
+> carries `score`, `confidence`, `unavailable_reason` and five `component_*` fields per day
+> (PR #107). The owner reversed this on 2026-09-04 and asked for a score toggle on the Daily
+> tab. The paragraph below is kept because its *reasoning* is still the record of why it was
+> ruled out, and because the sentence it ends on — "if per-day scores are ever wanted, that
+> is an API change and its own task" — is exactly what happened. Do not act on its
+> conclusion. See `docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` § Decisions taken 2.
+
 **Constraint: per-day scores do not exist over the API.** `computeLiveForecast` scores all seven days, but no endpoint returns them — `GET /conditions/:id` keeps only the row matching today (`routes/conditions.ts`) and `GET /forecast/:id` returns `snapshots`, which carry no score or confidence field. Verified against production: `/forecast/:id` returns 7 objects whose keys are `id, location_id, captured_at, forecast_date, precip_mm_p10/p50/p90, temp_c_min, temp_c_max, wind_kmh_max, humidity_pct, model_sources, created_at, window`.
 
 This contradicts the build handoff's "no API changes needed." The resolution is to **need no API change here**: forecast rows show weather, and the score appears exactly once, for today, in section 4. That is also the stricter reading of "score is a derived signal, never the headline." If per-day scores are ever wanted, that is an API change and its own task.

@@ -5,18 +5,36 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-09-03 · `main` @ `702f8e4`
+Last updated: 2026-09-14 · `main` @ `54ef8f4`
 
 ---
 
 ## Where the project is
 
-The Telegram crossover is **complete**, and the chat interface has been rebuilt three times
-from real-device feedback since. Phase 5 (add/remove/update locations from chat) shipped
-2026-09-03. Current state:
+The Telegram crossover is complete and the bot is stable. **The active work is the Mini App
+hourly data visualisation** — a five-phase plan in
+`docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md`, of which Phases 1 and 1b shipped
+2026-09-14. **Phase 2 is next and nothing blocks it.**
+
+That plan reverses two older decisions, deliberately and on the owner's call: Mini App
+polish is no longer downgraded, and location detail gains internal tabs against
+`miniapp-design-v1.md` §3. **The bot stays first-class and is not being deprecated.** Those
+documents still carry the old positions; the handoff's § Phase 5 is where they get rewritten.
+
+Current state:
 
 - **API** — Express on Vercel, one serverless function. Live.
-- **Mini App** — three routes (list, detail, `/add`), live at https://weatherteam6.vercel.app
+- **Mini App** — three routes (list, detail, `/add`), live at https://weatherteam6.vercel.app.
+  **Unchanged on screen since 2026-09-03** — Phases 1 and 1b are API only. Phase 3 is the
+  first one a user sees.
+- **`GET /api/v1/hourly/:locationId`** (new, #99) — one deterministic model chosen by
+  measured coverage, joined to the pooled ensemble on the UTC instant, seven local days.
+  `?models=all` adds every model that answered; anything else is a 400. Verified 13/13 by
+  `npm run check:hourly` and 12/12 against production.
+- **`GET /forecast/:id` now carries per-day scores** (new, #107) — `score`, `confidence`,
+  `unavailable_reason` and the five `component_*` fields, merged by `forecast_date`. A
+  non-climbing location gets none of them, because the route omits the merge argument rather
+  than checking a flag downstream. Verified 8/8 against production.
 - **Bot** — `/start`, `/help`, `/locations`, `/conditions`, `/forecast`, `/rain`, `/alerts`,
   `/weather`, `/remove`, rendered as **native Telegram Rich Message tables** (Bot API 10.1+),
   with an HTML fallback on a permanent rejection. `/weather`, `/remove` and the Save flow are
@@ -24,20 +42,30 @@ from real-device feedback since. Phase 5 (add/remove/update locations from chat)
   a real device** — see below. Everything else was confirmed working on the owner's phone
   2026-09-03.
 - **`/api/cron/collect-runs`** and **`/api/cron/prune-runs`** are registered with
-  cron-job.org and **confirmed running** (2026-09-03). `collect-runs` sometimes still shows
-  "timeout" in cron-job.org's own UI at its 30s job timeout, but Vercel completes the work
-  to its own 60s `maxDuration` regardless — that reads as a reporting artifact, not a real
-  failure, unless the honest per-location failure counts (see below) say otherwise.
-- **`apps/mobile`** — archived, out of the build. Do not add features to it.
-- **Phase 5 shipped 2026-09-03** (PR #91, on top of #82 part 1's `feature_code` plumbing from
-  PR #90). `placeSubtitle` — the picker's plain-language kind, e.g. "Park · Wisconsin, United
-  States" — moved into `packages/types/geocodeCopy.ts` so the Mini App's `/add` and the bot's
-  `/weather` share one implementation instead of two that can drift. "Update" a mis-saved
-  location is remove-then-add — `/help` says so; no separate edit flow exists.
+  cron-job.org and running. Confirmed healthy 2026-09-14: `runsStored: 42, hoursStored:
+  7056, failed: 0` and the database at **12 MB**.
 
-Baseline: `npm run test` 550 passing (469 api, 50 miniapp, 31 types), `npm run typecheck`
+  **It was silently broken for a day first**: Neon hit its 512 MB cap, every write failed,
+  and `collect-runs` still answered `200 OK` because a storage failure is caught and logged
+  at `warn` — right for a panel render, invisible for a collection job. Retention is now 2
+  days parsed / 6h raw. Whether `collect-runs` should fail loudly when it persists nothing
+  is § Open Question 5 in the handoff and is **undecided**. (Full post-mortem in the archive,
+  2026-09-14.)
+- **`apps/mobile`** — archived, out of the build. Do not add features to it.
+- **"Update" a mis-saved location is remove-then-add.** `/help` says so; no separate edit
+  flow exists, deliberately. (Phase 5's build detail is in the archive under 2026-09-03.)
+
+Baseline: `npm run test` **591 passing** (510 api, 50 miniapp, 31 types), `npm run typecheck`
 clean, `npm run check:hooks` 58 passing. **Mutation score 66.09%**, last measured
-2026-08-26 — not re-measured since. `npm run test:mutation --workspace=apps/api`.
+2026-08-26 — not re-measured since, and two sessions of new scoring code have landed under
+it. `npm run test:mutation --workspace=apps/api`.
+
+**Claude can now run the acceptance checks unattended.** `DATABASE_URL`, `CRON_SECRET` and
+`API_SHARED_SECRET` are set as Windows user environment variables, `Bash(npm run check:*)`
+is allowlisted, and the Vercel MCP serves runtime logs and deployments. So `check:hourly`,
+`check:runs-storage`, triggering a cron, and probing production are all self-service — do
+not ask the owner to paste output. **Never echo a credential**, and
+`.claude/settings.local.json` is gitignored for the same reason.
 
 Migrations `0007`–`0010` are all applied and every acceptance check passes against the real
 database: `check:panel-state` 17/17, `check:weather-runs` 40/40, `check:chat-locations`
@@ -63,46 +91,44 @@ green. If you are reading it because that block was absent, the hook did not fir
 
 ## What is next
 
-Direction set 2026-08-26, revised 2026-09-01, current as of 2026-09-03. Phase 5 and issue
-#82 part 1 are **done** — see § Where the project is; they're not repeated here.
+Direction set 2026-09-04, current as of 2026-09-14. The Mini App data-visualisation work is
+**the active line**; everything below it is parked, not cancelled.
 
-1. **Drive Phase 5 from a real device** — before anything else touches
-   `apps/api/src/lib/telegram/`. Migration 0010 is applied and `check:chat-locations` is
-   8/8, but nothing has driven `/weather <place>`, both Save buttons, or `/remove` from an
-   actual Telegram client yet — the panel/keyboard rendering and the rich-message fallback
-   path are still unconfirmed for these three new views.
-2. **Issue #82, part 2** — ranking climbing-relevant features (`PRK`, `MT`, `CLF`, `RK`,
-   `RESV`) above `PPL`. Still a product decision (helps crags, could hurt city lookups), not
-   started.
-3. **Phase 4** (`/insight`, `/afd`) — next up. `/insight` needs re-specifying in plain
-   language first: "model disagreement, ensemble distribution, outlier, confidence by lead
-   time" is exactly the vocabulary the 2026-09-01 reversal removed. `/afd` is unaffected
-   (a human forecaster's plain-English text) and could be built standalone if wanted sooner.
-4. **An in-app feedback button** — destination and mechanism undecided, still a design
+1. **Phase 2 — chart primitives.** `git checkout -b phase/2-chart-primitives` off `main`.
+   Read `docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` § Phase 2 **and** § Decisions
+   taken — the second carries the design direction settled over three mockup rounds, and the
+   mockup itself is a published artifact that will not survive as a repo reference. **Load
+   the `dataviz` skill before the first line of chart code.** Inline SVG, no chart library.
+2. **Phase 3 — Daily / Hourly tabs.** The first phase a user sees.
+3. **Issue #108** — `hours_since_rain` never advances, so days 2-7 all score
+   `component_drying_time: 0` and are capped at 60 of 100. Filed 2026-09-14. Not a
+   blocker, but Phase 3 will draw it as a flat zero column.
+4. **Issue #82, part 2** — ranking climbing-relevant features above `PPL`. Still a product
+   decision, not started.
+5. **Phase 4 of the *bot* plan** (`/insight`, `/afd`) — parked. `/insight` needs
+   re-specifying in plain language first; `/afd` is unaffected and could be built standalone.
+6. **An in-app feedback button** — destination and mechanism undecided, still a design
    conversation the owner wants to have first. Do not spec it unilaterally.
-5. **Mini App polish** — deliberately downgraded. The owner's words: *"the Mini App doesn't
-   need to be super fancy."* Do not start a design system, motion system, or CSS
-   architecture for it.
+
+**"Mini App polish is deliberately downgraded" is no longer true** and has been removed
+from this list. It was reversed on 2026-09-04. The `miniapp-patterns` skill still says a
+CSS or motion architecture is "not authorised" — that line is stale and the handoff's
+§ Phase 5 rewrites it.
 
 ### Facts about the current chat rendering still in force
 
-Full history of how the panels got here (four rounds of device feedback, three rebuilds) is
-in the archive — grep `session-archive.md` for "native Telegram tables" and "the rebuild
-changed" if you need the reasoning. What's still load-bearing for anyone touching
-`apps/api/src/lib/telegram/`:
+Load-bearing for anyone touching `apps/api/src/lib/telegram/`. Reasoning and the four rounds
+of device feedback behind them are in the archive — grep for "native Telegram tables".
 
 - **Escaping has exactly two homes and they are opposites.** Rich blocks (JSON): never
   escape. HTML (`panelToHtml`, `sendPlain`, `alertMessage`): always escape. Every plain-text
-  reply in the webhook — not just panels — goes through `sendPlain` for this reason; three
-  of them didn't, once, and it reintroduced issue #26.
-- **No fixed column widths anywhere.** A native table sizes itself; the HTML fallback
-  measures header and values and pads to the widest.
-- **Units live on the value, never the header** (`6 mph`, not a "mph" column head), `t`
-  means the word `trace`, `0 mph` reads `calm`.
-- **`clockLabel` is for sentences, `clockShort`/`clockCell` for table cells.** "midnight" in
-  a column widens the whole table.
+  reply goes through `sendPlain`; three once didn't, and it reintroduced issue #26.
+- **No fixed column widths.** Units live on the value, never the header (`6 mph`); `t` means
+  `trace`; `0 mph` reads `calm`. `clockLabel` is for sentences, `clockShort`/`clockCell` for
+  cells — "midnight" in a column widens the whole table.
 - **Three inline-chart attempts (sparkline, dithered bar, block bar) all failed on a real
-  device and were all removed.** Don't add a fourth without the owner asking for one.
+  device and were removed.** Don't add a fourth without the owner asking. **This does not
+  apply to the Mini App** — SVG charts there are Phase 2 and explicitly wanted.
 
 ---
 
@@ -137,24 +163,21 @@ Standing context not on the issues themselves:
 Standing instruction: **only interact when it is absolutely needed.** Design decisions
 qualify; chasing an unmerged PR or a broken check does not.
 
-**Delivery** — two local hooks: `git commit` on the default branch is blocked
-(PreToolUse) — branch first; the turn cannot end (Stop hook) with uncommitted changes,
-unpushed commits, a pushed branch with no PR, or a green mergeable PR still open. Escape
-hatch: `touch .claude/.wip`, delete it when work resumes.
+**The hooks, branch protection and CI enumeration are described in `CLAUDE.md`**, which is
+always loaded — not restated here. What is *not* there, and matters every session:
 
-**Verification:** CI runs `build`, `typecheck`, `lint`, `test`, and every root-level
-`check:*` script, enumerated from `package.json`. `main` is protected — PR required, CI
-required, no force-push, no deletion, enforced for admins. `check:hooks` fails if
-`.claude/settings.json` registers a hook no scenario exercises.
+`.github/workflows/claude-review.yml` runs an independent reviewer on every non-draft PR,
+and **its depth varies enormously on identical configuration.** Measured across one session:
+78 turns finding two real defects on one commit, then 4 turns finding nothing on the next.
+**A green tick carries almost no information — `num_turns` in the run log is the signal**,
+and a 4-turn pass over a large diff is a skip with a tick next to it. It has caught defects
+CI could not, twice, so it is worth reading; it is not worth trusting unread.
 
-`.github/workflows/claude-review.yml` runs an independent reviewer on every non-draft PR.
-**Check `num_turns` in the run log before trusting a green pass** — a 4-turn pass on a
-900-line diff is a skip with a tick next to it, and it has missed a real defect this way
-before. Failure signatures: ~3s pass = missing credential; large
-`permission_denials_count` = allowlist too short (`--allowedTools` *replaces* the default,
-doesn't extend it) — 1 to 3 denials is routine; `Failed to install Claude Code` with curl
-403 = transient, re-run; a run that gets *shorter* on each retry = spent usage quota, not
-a repo problem — read the `claude-execution-output.json` artifact before re-running.
+Failure signatures: ~3s pass = missing credential; `is_error: true` with `num_turns: 1` and
+an internal "directory mismatch" = infrastructure, re-run once; large
+`permission_denials_count` = allowlist too short (`--allowedTools` *replaces* the default) —
+1 to 3 denials is routine; `Failed to install Claude Code` with curl 403 = transient,
+re-run; a run that gets *shorter* on each retry = spent usage quota, not a repo problem.
 
 ### Mutation testing
 
@@ -176,6 +199,18 @@ Only things that are still true and still bite. Historical gotchas are in the ar
 
 - **Python is not installed.** `python3` resolves to the Windows Store stub, which prints an
   advert and exits 0 — it does not fail loudly. Use Node.
+- **`jq` is not installed either.** A pipeline through it fails silently, and with a
+  `|| echo '[]'` fallback it loops emitting nothing. Use `node -e` or `gh --jq`.
+- **`DELETE` does not free Neon space.** A prune removing 700k rows leaves every size in
+  `check:runs-storage` unchanged — not a failure. `TRUNCATE` reclaims; plain `VACUUM` makes
+  space reusable so writes resume; `VACUUM FULL` needs as much free space as the table and
+  cannot run at the cap. `check:runs-storage` prints which case you are in.
+- **A fresh merge is not a deploy.** A probe 45s after merging reported three failures that
+  were the old code. Check `list_deployments` (Vercel MCP) first — as with a 401, which
+  proves the gate, not the route.
+- **Vercel's error level is noise** — anything on stderr counts, and the `DEP0169
+  url.parse()` warning filled 19 of 19 error lines in three hours. Filter by message; a real
+  failure may be at `warn`. Wide log queries time out: use `group_by` or a narrow `since`.
 - **The working tree is CRLF.** Multi-line `sed`/`perl` replacements match nothing and report
   success. Use the Edit tool for anything spanning more than one line.
 - **`gh` is installed but not always on `PATH`** — full path `C:\Program Files\GitHub CLI\gh.exe`.
@@ -199,10 +234,21 @@ Only things that are still true and still bite. Historical gotchas are in the ar
 
 ## What the user owes
 
-**Rotate the Neon password.** Still outstanding — the connection string was pasted into a
-chat transcript on 2026-09-02. Neon dashboard → Roles → reset, then update `DATABASE_URL`
-in Vercel. Everything else in the old list (`bot:set-commands`, `TELEGRAM_WEBHOOK_SECRET` +
+**Nothing.** The list is empty.
+
+**The Neon password rotation is closed — declined by the owner on 2026-09-14.** The
+connection string was pasted into a chat transcript on 2026-09-02 and has not been rotated;
+the owner has decided that is acceptable and **does not want this raised again.** It is
+recorded here so it stays closed rather than being rediscovered and re-raised every session,
+which is what happened for four of them. Do not re-add it to this list. If it ever needs
+revisiting, that is the owner's call to make, not a session's to prompt.
+
+Everything else in the old list (`bot:set-commands`, `TELEGRAM_WEBHOOK_SECRET` +
 `setWebhook`, the two cron registrations, migration 0010) is done and confirmed working.
+
+**Still never ask the owner to paste a secret into the conversation.** That is a separate
+rule and it stands: secrets go in their own shell via `setx`, or in the gitignored
+`.claude/settings.local.json`. This is how the 2026-09-02 leak happened in the first place.
 
 **Try Phase 5 from your phone.** `/weather <place>`, both Save buttons, `/remove`. The
 migration and the database-level checks are done; a real Telegram client trying the three
