@@ -2739,3 +2739,81 @@ are done.
 - None new.
 
 **Does the user need to do anything?** **Yes, one item, unchanged: rotate the Neon password.** Migration 0010 is done. Trying `/weather`, Save, and `/remove` from the phone is still worth doing but is no longer blocking anything — it's verification, not a dependency.
+
+---
+
+## 2026-09-14 — branch: claude/per-day-scores (and eight others) — commit: `54ef8f4`
+
+**Phase completed:** Mini App hourly data visualisation, Phases 1 and 1b — plus an
+unplanned production outage found by Phase 1's own acceptance check.
+
+**What was built this session:**
+- `docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` — the five-phase plan (#97), revised
+  twice as measurement contradicted it (#98, #107)
+- `packages/types/src/hourly.ts` — `HourlySample` / `HourlyModel` / `HourlyDay` /
+  `HourlySeries`, the wire shape for the hourly endpoint
+- `apps/api/src/lib/runs/hourlySeries.ts` — the pure builder: model selection by measured
+  coverage, the instant join, local-day bucketing, the window
+- `apps/api/src/lib/runs/fetchHourlySeries.ts` — the impure half, split out because
+  `latestRuns` reaches `db/index.ts` and makes the builder unloadable under vitest
+- `apps/api/src/routes/hourly.ts` — `GET /api/v1/hourly/:locationId`, with `?models=all`
+- `apps/api/src/scripts/checkHourly.ts` + `checkRunsStorage.ts` — acceptance and storage
+  diagnostics, both read-only
+- `ForecastSnapshot` gains `score`, `confidence`, `unavailable_reason` and five
+  `component_*` fields; `toWindowedForecast` merges them by `forecast_date` (#107)
+- `ScoreUnavailableReason` in `conditionsCopy.ts` — one named union replacing a literal
+  written out in seven places, with an exhaustive switch so a new member needs copy
+- Retention cut 14 days → 2 (#102) and raw 48h → 6h (#105)
+- `.claude/settings.json` allows `Bash(npm run check:*)`; `.claude/settings.local.json` is
+  now gitignored (#106)
+
+**Known issues / deferred work:**
+- **Issue #108, filed this session** — `hours_since_rain` never advances, so every future
+  day scores `component_drying_time: 0`. Drying is 40 of 100 points, so days 2-7 are capped
+  at 60. Same defect class as the wind bug already fixed in the same loop. Per-day scores
+  are what made it visible.
+- **Open Question 5 in the handoff** — should `collect-runs` fail loudly when it persists
+  nothing? Raised three times this session, never answered. It changes a production cron's
+  behaviour, so it stays unmade.
+- Vercel's error level is unusable as a signal: 19 of 19 error-level lines in three hours
+  were the same `DEP0169 url.parse()` deprecation warning, because anything on stderr is
+  filed as an error. A real failure logged at `warn` sat below a floor already flooded.
+- Phases 2-5 (chart primitives, Daily/Hourly tabs, wall-aware scoring, recent rain + doc
+  reconciliation) are specified and not started.
+
+**Blockers for next session:**
+- None. Phase 2 can start immediately.
+
+**What's next:** Phase 2 — `git checkout -b phase/2-chart-primitives` off `main` — read
+`docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` § Phase 2 **and** § Decisions taken
+(the design direction from three mockup rounds) before writing any UI. Load the `dataviz`
+skill before the first line of chart code.
+
+**Gotchas for next session:**
+- **The database outage was the real story.** Neon hit its 512 MB cap, every write failed
+  with `could not extend file`, and `collect-runs` reported `200 OK` with green ticks on
+  cron-job.org for roughly a day while storing nothing. `latestRuns` catches a storage
+  failure and logs a warning — right for a panel render, invisible for a collection job.
+  Nothing surfaced it until `check:hourly` went looking.
+- **`weather_runs.raw` was 56% of the database** — 274 MB across 938 rows at ~292 KB each.
+  The estimate that justified cutting `PARSED_RETENTION_DAYS` put the space in
+  `weather_run_hours` and was wrong. Measure before acting on storage.
+- **`DELETE` does not shrink a relation.** A prune removing 4,953 runs and 705,600 hour rows
+  left every size in `check:runs-storage` byte-identical, which reads as "the prune did
+  nothing". `TRUNCATE` is what reclaims; plain `VACUUM` is what makes space reusable.
+  `VACUUM FULL` needs as much free space as the table and cannot run at the cap.
+- **The independent reviewer's depth varies wildly on identical configuration** — 78 turns
+  and two real defects on one commit, 4 turns and nothing on the next. A green tick from it
+  carries almost no information; `num_turns` is the only signal. It caught two defects this
+  session that CI could not, and both were real.
+- **Check the deployed commit SHA before probing production.** A probe run 45 seconds after
+  merge reported three failures that were entirely the old code still being served.
+- Measured, replacing estimates in the plan: `?models=all` is **3.8×** the default payload
+  (69.7 KB → 263.0 KB), not 6×; and **only HRRR** stops early (56 of 168 hours) — GFS,
+  ECMWF, ICON, GEM and NBM all reach the full window.
+
+**Does the user need to do anything?** **Yes, one item, unchanged from the last three
+sessions: rotate the Neon password.** It was pasted into a chat transcript on 2026-09-02 and
+is still live. `DATABASE_URL`, `CRON_SECRET` and `API_SHARED_SECRET` are now set as Windows
+user environment variables, so rotating means updating Neon, Vercel, and the local `setx`.
+Everything else this session needed from them is done.

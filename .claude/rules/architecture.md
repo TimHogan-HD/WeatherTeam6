@@ -138,6 +138,24 @@ Two that stay here because they constrain the **API**, not the client:
 
 - **The server marks the today row; the client never computes it.** `ForecastSnapshot.is_today`
   is set in `computeLiveForecast`. A missing value is **unknown, not `false`**.
+- **A score reaches a snapshot only because the route passed a merge argument, and that is
+  the whole protection.** `GET /forecast/:id` hands `toWindowedForecast` a `ScoreMerge` only
+  when `is_climbing_location`; `GET /preview` never does. There is no `is_climbing_location`
+  check downstream to forget, because a city's rows simply have no score fields on them —
+  drive off their absence, never off `score === null`. `computeLiveForecast` does not branch
+  on the flag and will score Chicago if asked.
+- **Three states, not two: scored, outside the window, and withheld.** `score: null` with no
+  `unavailable_reason` means the date is beyond the scoring window. `score: null` **with**
+  one means an input could not be measured and the day is deliberately unscored.
+  `ScoreUnavailableReason` (`packages/types/conditionsCopy.ts`) is the single named union —
+  it was a literal in seven places, which is how `liveForecast`'s generic catch came to
+  return `scores: []` with no reason at all and render a thrown error as "nothing to say".
+  `scoreUnavailableLine` switches exhaustively, so a new member will not compile without
+  copy of its own.
+- **The per-day score join is on `forecast_date`, never array position.** `scores` and
+  `snapshots` are built by different paths in `computeLiveForecast`; positional alignment
+  holds until the first day one side drops and then misattributes every score after it while
+  still looking plausible.
 - **An input that could not be measured withholds the score; it never scores as a favourable
   value** (issue #34). `computeLiveForecast` returns `scores: []` plus
   `scoreUnavailable: 'rainfall_unavailable'` when the rainfall lookup *failed*. A genuinely

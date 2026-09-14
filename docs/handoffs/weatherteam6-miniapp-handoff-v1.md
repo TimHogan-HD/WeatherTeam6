@@ -314,6 +314,7 @@ GET  /api/v1/locations/:id/normals    (returns [] forever, issue #25)
 GET  /api/v1/locations/:id/history    (returns [] forever, issue #25)
 GET  /api/v1/conditions/:locationId
 GET  /api/v1/forecast/:locationId
+GET  /api/v1/hourly/:locationId          # added 2026-09-14
 GET  /api/v1/alerts/:locationId
 GET  /api/v1/walls/:locationId
 POST /api/v1/walls
@@ -334,6 +335,15 @@ The list and detail screens need only `/locations`, `/conditions/:id`, `/forecas
 - Preview and save must carry the **same** `elevation`: the geocoder's value goes to `/preview?elevation=` and then to `POST /locations` as `elevation_m`. Skip it in either place and the same location reports different temperatures before and after saving.
 
 **Synthesized IDs:** `computeLiveForecast` builds `id` as `` `${locationId}:${date}` `` because nothing is persisted. Do not treat these as stable or lookupable across requests.
+
+**Updated 2026-09-14 — two changes, both live:**
+
+- **`GET /hourly/:locationId`** is new. One deterministic model chosen by measured coverage, joined to the pooled ensemble on the UTC instant, windowed to seven of the location's local days. `?models=all` adds every model that answered; **any other value is a 400**, not a silent fallback. Shape is `HourlySeries` in `packages/types/src/hourly.ts`. Spec: `docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` § Phase 1.
+- **`GET /forecast/:id` now carries per-day scores** — `score`, `confidence`, `unavailable_reason` and five `component_*` fields. The components are **not optional**: `summarizeConditions` needs them for the "limited by X" qualifier, which is the half of suppression that fires on a zeroed component.
+
+  The line above saying the detail screen "needs only `/locations`, `/conditions/:id`, `/forecast/:id`, `/alerts/:id`" now understates it — a per-day score chip no longer requires `/conditions/:id`, and the hourly view requires `/hourly/:id`.
+
+  **A non-climbing location carries none of those fields at all**, because the route omits the merge rather than checking a flag downstream. Drive off their absence, not off `score === null` — `null` is a real answer meaning either "outside the scoring window" or, with `unavailable_reason`, "deliberately withheld".
 
 **Forecast window state machine** (from `.claude/rules/architecture.md`):
 
