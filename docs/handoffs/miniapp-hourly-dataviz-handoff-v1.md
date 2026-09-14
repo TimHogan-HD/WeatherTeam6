@@ -1,11 +1,17 @@
 # WeatherTeam6 Mini App: Hourly Data Visualisation Handoff
 Version: v2
 Date: 2026-09-10 (v1: 2026-09-04)
-Status: **Phase 1 and 1b shipped and verified in production** · Phases 2-5 specified
+Status: **Phase 1 shipped and verified in production** · Phase 1b merged, production probe
+pending · Phases 2-5 specified
 
 Phase 1 merged as `9ea6da8`, verified 13/13 by `npm run check:hourly` against real stored
 runs and 12/12 against the deployed endpoint on 2026-09-14. Two of this document's own
 estimates were wrong and are corrected in § Known Risks 9 with the measured values.
+
+**Phase 1b's own verification is unit tests only so far** — an earlier draft of this line
+claimed both phases were "verified in production" and cited Phase 1's evidence for it,
+which says nothing about the per-day score merge. That is the attribution defect this repo
+keeps shipping (class 3), caught in review of the change itself.
 
 **Phase 1 also surfaced a production outage that had nothing to do with it:** Neon was at
 its 512 MB cap, every write was failing with `could not extend file`, and `collect-runs`

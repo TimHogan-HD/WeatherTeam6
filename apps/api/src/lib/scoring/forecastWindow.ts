@@ -1,4 +1,4 @@
-import type { ConditionsScore, ForecastSnapshot } from '@weatherteam6/types'
+import type { ConditionsScore, ForecastSnapshot, ScoreUnavailableReason } from '@weatherteam6/types'
 
 export type ForecastWindow = 'pre' | 'early' | 'decision'
 
@@ -43,7 +43,7 @@ export type ScoreMerge = {
    * differently to a person: "we could not measure this" against "this date is
    * beyond the scoring window".
    */
-  unavailableReason?: 'rainfall_unavailable' | null
+  unavailableReason?: ScoreUnavailableReason | null
 }
 
 /**

@@ -4,6 +4,7 @@ import {
   formatHoursSinceRain,
   isSevereAlert,
   limitingComponent,
+  scoreUnavailableLine,
   stateLabel,
   summarizeConditions,
   type ScoreComponents,
@@ -185,5 +186,21 @@ describe('formatHoursSinceRain', () => {
 
   it('renders an em dash for null', () => {
     expect(formatHoursSinceRain(null)).toBe(EM_DASH);
+  });
+});
+
+describe('scoreUnavailableLine — score_error', () => {
+  it('does not blame rainfall when the failure was the scorer itself', () => {
+    // The rainfall lookup may have been perfectly fine. Naming it when we do not
+    // know what threw is defect class 3 — attribution the data does not support.
+    const line = scoreUnavailableLine('score_error');
+    expect(line).not.toMatch(/rainfall/i);
+    expect(line.length).toBeGreaterThan(0);
+  });
+
+  it('says something different from the rainfall case', () => {
+    expect(scoreUnavailableLine('score_error')).not.toBe(
+      scoreUnavailableLine('rainfall_unavailable'),
+    );
   });
 });

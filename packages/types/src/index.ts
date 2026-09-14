@@ -2,6 +2,8 @@
 // modules and are re-exported here because package.json declares only a "."
 // entry in its exports map — under NodeNext resolution a deep import such as
 // `@weatherteam6/types/units` does not resolve.
+import type { ScoreUnavailableReason } from './conditionsCopy.js'
+
 export * from './scoreComponents.js'
 export * from './units.js'
 export * from './conditionsCopy.js'
@@ -105,7 +107,7 @@ export type ForecastSnapshot = {
    * is worth 40 of 100 points, so scoring anyway would credit a dry spell
    * nobody measured. Render `scoreUnavailableLine`, never a score.
    */
-  unavailable_reason?: 'rainfall_unavailable' | null
+  unavailable_reason?: ScoreUnavailableReason | null
 
   /**
    * The five components behind `score`, same scales as on `ConditionsScore`.
@@ -154,7 +156,7 @@ export type ConditionsScore = {
    * all rather than scored on a guess. Distinct from `score: null` with no
    * reason, which means the date is beyond the scoring window.
    */
-  unavailable_reason?: 'rainfall_unavailable' | null
+  unavailable_reason?: ScoreUnavailableReason | null
 }
 
 export type ScoreInput = {

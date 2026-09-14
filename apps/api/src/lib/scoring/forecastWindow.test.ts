@@ -185,3 +185,41 @@ describe('toWindowedForecast — per-day scores', () => {
     expect(rows[0]?.window).toBe('decision')
   })
 })
+
+describe('toWindowedForecast — a scoring error is not "nothing to say"', () => {
+  it('marks days withheld when the scorer threw, not merely unscored', () => {
+    // The finding from review of this change. liveForecast's generic catch used
+    // to return scores: [] with NO reason, which lands in the same branch as a
+    // date outside the scoring window and is documented on ForecastSnapshot.score
+    // as "nothing was withheld; there is nothing to say".
+    //
+    // With a 7-day horizon `window: 'pre'` is never reached in live compute, so
+    // in practice every bare empty array WAS a swallowed error being rendered as
+    // a legitimate empty result — defect class 2. The catch now sets
+    // 'score_error' and this is the assertion that keeps it set.
+    const rows = toWindowedForecast([snapshot('2026-08-25'), snapshot('2026-08-26')], TODAY, {
+      scores: [],
+      unavailableReason: 'score_error',
+    })
+    expect(rows).toHaveLength(2)
+    for (const r of rows) {
+      expect(r.score).toBeNull()
+      expect(r.unavailable_reason).toBe('score_error')
+    }
+  })
+
+  it('keeps score_error distinct from rainfall_unavailable', () => {
+    // Both withhold, and they are not the same claim: one says the rainfall
+    // lookup failed, the other says we do not know what failed. Naming rainfall
+    // when the rainfall call was fine is the attribution defect (class 3).
+    const [rain] = toWindowedForecast([snapshot(TODAY)], TODAY, {
+      scores: [],
+      unavailableReason: 'rainfall_unavailable',
+    })
+    const [err] = toWindowedForecast([snapshot(TODAY)], TODAY, {
+      scores: [],
+      unavailableReason: 'score_error',
+    })
+    expect(rain?.unavailable_reason).not.toBe(err?.unavailable_reason)
+  })
+})
