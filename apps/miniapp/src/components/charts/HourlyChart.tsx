@@ -55,6 +55,15 @@ export type HourlyChartProps = {
    * carry it alone.
    */
   referenceBand?: { from: number; to: number; fill: string }
+  /**
+   * Overrides the measured vertical domain.
+   *
+   * For a series whose scale is **defined rather than observed** — chance of
+   * rain is 0-100 whatever the day did. Measuring it instead would stretch a
+   * quiet day's 0-12% across the full height and draw a near-certain downpour,
+   * the same defect as a per-row scale on the daily list.
+   */
+  domain?: Extent
 }
 
 /** A tick label needs this much room to its right, or it runs off the chart. */
@@ -140,6 +149,7 @@ export function HourlyChart({
   axis = 'day',
   utcOffsetSeconds,
   referenceBand,
+  domain: fixedDomain,
 }: HourlyChartProps) {
   const times = timeExtent(data)
   // The labels and the summary describe the **series itself**, not the band
@@ -147,7 +157,7 @@ export function HourlyChart({
   // labelling its outer edge as the high says the forecast reached a value the
   // median never does — one member's worst hour printed as the temperature.
   const measured = extent(data.map((d) => d.value))
-  const domain = verticalDomain(data, kind, referenceBand)
+  const domain = fixedDomain ?? verticalDomain(data, kind, referenceBand)
   if (times === null || measured === null || domain === null) return null
 
   // Each kind needs a different window, because each mark sits differently

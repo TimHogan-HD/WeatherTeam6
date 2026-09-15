@@ -4,12 +4,11 @@ import {
   SCORE_BANDS,
   formatPrecipIn,
   formatTempF,
-  formatWindMph,
   type ForecastSnapshot,
 } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { bareButton, card, row, stack } from '../theme/styles.js'
-import { formatForecastDate } from '../lib/forecast.js'
+import { formatWeekday } from '../lib/forecast.js'
 import { extent, linearScale, type Extent } from './charts/geometry.js'
 import { tempColor } from './charts/chartStyle.js'
 import { Segmented } from './Segmented.js'
@@ -28,21 +27,49 @@ import { Segmented } from './Segmented.js'
  */
 
 /**
- * **Wind is a fourth option the design direction did not list.** It named
- * temperature, rain and climbing score. The row it replaces showed a wind
- * figure on every day, and a toggle without it would have quietly deleted the
- * only place six of the seven days' wind was readable — a regression dressed as
- * a redesign. It is a daily maximum from the same response, on the same shared
- * scale as the others.
+ * Three metrics, as the mockup specifies.
+ *
+ * A fourth, wind, was added in the first build because the row this replaced
+ * carried a wind figure on every day and dropping it would have deleted the
+ * only place six of the seven days' wind could be read. **The Hourly tab now
+ * has a wind chart of its own**, with gusts, so that reason is gone and the
+ * toggle is back to three.
  */
-export type DailyMetric = 'temperature' | 'rain' | 'wind' | 'score'
+export type DailyMetric = 'temperature' | 'rain' | 'score'
 
 const METRIC_OPTIONS: readonly { value: DailyMetric; label: string }[] = [
   { value: 'temperature', label: 'Temp' },
   { value: 'rain', label: 'Rain' },
-  { value: 'wind', label: 'Wind' },
   { value: 'score', label: 'Climbing' },
 ]
+
+/**
+ * What the shared scale runs between, written under the rows.
+ *
+ * **The scale being shared is the whole point of the list, and it is invisible
+ * without this.** Seven bars at different widths look like seven bars until
+ * something says they are measured against one ruler; then they are a week.
+ */
+function axisNote(
+  days: readonly ForecastSnapshot[],
+  domain: Extent | null,
+  metric: DailyMetric,
+): [string, string, string] | null {
+  if (domain === null) return null
+  if (metric === 'temperature') {
+    return [formatTempF(domain.min), 'shared scale', formatTempF(domain.max)]
+  }
+  if (metric === 'rain') {
+    // **`sharedDomain` substitutes a placeholder `max: 1` mm for a dry week**,
+    // so the scale has a width to draw against. Printing that back as a bound
+    // states "0.04 in" as the week's wettest day when nothing measured it. The
+    // measured maximum is the only figure this line may quote.
+    const wettest = extent(days.map((d) => d.precip_mm_p50))
+    if (wettest === null || wettest.max <= 0) return ['0 in', 'no rain forecast', '']
+    return ['0 in', 'rain, shared scale', formatPrecipIn(wettest.max)]
+  }
+  return ['0', 'climbing score', '100']
+}
 
 /**
  * What one row's bar spans, in the metric's own units, or `null` when the day
@@ -64,10 +91,6 @@ export function rowSpan(day: ForecastSnapshot, metric: DailyMetric): { from: num
     if (day.precip_mm_p50 === null) return null
     return { from: 0, to: day.precip_mm_p50 }
   }
-  if (metric === 'wind') {
-    if (day.wind_kmh_max === null) return null
-    return { from: 0, to: day.wind_kmh_max }
-  }
   // `score` is optional on the type and **absent entirely** for a non-climbing
   // location — the route omits the merge rather than sending nulls. `null` with
   // an `unavailable_reason` means withheld, and both are "no bar", never a zero
@@ -82,7 +105,6 @@ function rowValue(day: ForecastSnapshot, metric: DailyMetric): string {
     return `${formatTempF(day.temp_c_max)} / ${formatTempF(day.temp_c_min)}`
   }
   if (metric === 'rain') return formatPrecipIn(day.precip_mm_p50)
-  if (metric === 'wind') return formatWindMph(day.wind_kmh_max)
   // Not `formatX(null)`: the shared formatters' em dash is for a *measurement*
   // that is missing, and a score is not a measurement. Same glyph, and it has
   // to be the same glyph, but it is reached by its own branch so a future
@@ -100,12 +122,10 @@ function rowValue(day: ForecastSnapshot, metric: DailyMetric): string {
  */
 export function sharedDomain(days: readonly ForecastSnapshot[], metric: DailyMetric): Extent | null {
   if (metric === 'score') return { min: 0, max: 100 }
-
   const spans = days.map((d) => rowSpan(d, metric)).filter((s): s is { from: number; to: number } => s !== null)
   const measured = extent([...spans.map((s) => s.from), ...spans.map((s) => s.to)])
   if (measured === null) return null
-
-  if (metric === 'rain' || metric === 'wind') {
+  if (metric === 'rain') {
     return { min: 0, max: measured.max > 0 ? measured.max : 1 }
   }
   // A week that never varies still needs a width, or every bar is a hairline at
@@ -122,6 +142,7 @@ function RangeBar({
   span,
   domain,
   fill,
+  gradient,
 }: {
   span: { from: number; to: number } | null
   /**
@@ -132,6 +153,8 @@ function RangeBar({
    */
   domain: Extent | null
   fill: string
+  /** Overrides the flat fill — temperature runs from the day's low to its high. */
+  gradient?: string
 }) {
   // A day with no value keeps its track and draws no bar. The empty track is
   // the "absences are drawn, not omitted" rule: a row that simply lost its bar
@@ -139,7 +162,6 @@ function RangeBar({
   const scale = domain === null ? null : linearScale(domain, 0, 100)
   const left = span === null || scale === null ? 0 : Math.min(scale(span.from), scale(span.to))
   const right = span === null || scale === null ? 0 : Math.max(scale(span.from), scale(span.to))
-
   return (
     <div
       style={{
@@ -162,7 +184,7 @@ function RangeBar({
             // a zero-height bar. One percent keeps it on screen.
             width: `${Math.max(1, right - left)}%`,
             borderRadius: `${radius.stepBar}px`,
-            backgroundColor: fill,
+            background: gradient ?? fill,
           }}
         />
       )}
@@ -179,13 +201,26 @@ function RangeBar({
  * accent rather than the intensity ramp: a daily total is not an hourly rate,
  * and the ramp's thresholds are rates.
  */
+
+/**
+ * The temperature bar is a **gradient from the day's low to its high**, so the
+ * bar shows the day's swing rather than one colour standing in for both ends.
+ *
+ * `null` for every other metric: rain, wind and score are magnitudes from zero,
+ * where the whole bar means one value and a gradient across it would imply a
+ * range nobody forecast.
+ */
+function gradientFor(day: ForecastSnapshot, metric: DailyMetric): string | null {
+  if (metric !== 'temperature') return null
+  if (day.temp_c_min === null || day.temp_c_max === null) return null
+  return `linear-gradient(90deg, ${tempColor(day.temp_c_min)}, ${tempColor(day.temp_c_max)})`
+}
+
 function barFill(day: ForecastSnapshot, metric: DailyMetric): string {
   if (metric === 'temperature') {
     return day.temp_c_max === null ? colors.line2 : tempColor(day.temp_c_max)
   }
   if (metric === 'rain') return colors.rain
-  if (metric === 'wind') return colors.txt3
-
   // Score is the one metric the status colours are *for* — this bar is the
   // conditions ladder. The rungs come from `SCORE_BANDS`, the same constant
   // `stateLabel` switches on, so a bar can never go amber on a day the words
@@ -231,7 +266,7 @@ export function DailyList({
 }: DailyListProps) {
   const options = showScoreMetric ? METRIC_OPTIONS : METRIC_OPTIONS.filter((o) => o.value !== 'score')
   const domain = sharedDomain(days, metric)
-
+  const note = axisNote(days, domain, metric)
   return (
     <section style={stack(spacing.listGapSm)}>
       <div style={{ ...row(spacing.chipGapMd), justifyContent: 'space-between', flexWrap: 'wrap' }}>
@@ -244,16 +279,28 @@ export function DailyList({
           onChange={onMetricChange}
         />
       </div>
-
       {days.map((day) => {
         const tappable =
           onSelectDay !== undefined && drawableDates?.has(day.forecast_date) === true
         const body = (
           <div style={{ ...row(spacing.chipGapMd), width: '100%' }}>
-            <span style={{ ...type.calDay, minWidth: '86px' }}>
-              {formatForecastDate(day.forecast_date)}
+            {/*
+              The weekday alone. Seven rows never repeat one, and the full date
+              cost 86px of a 335px row — a third of the width — to say something
+              the position already says. The open day's full date is in the
+              Hourly pager, where there is room for it.
+            */}
+            <span style={{ ...type.calDay, minWidth: '30px' }}>
+              {formatWeekday(day.forecast_date)}
             </span>
-            <RangeBar span={rowSpan(day, metric)} domain={domain} fill={barFill(day, metric)} />
+            <RangeBar
+              span={rowSpan(day, metric)}
+              domain={domain}
+              fill={barFill(day, metric)}
+              {...(gradientFor(day, metric) === null
+                ? {}
+                : { gradient: gradientFor(day, metric) as string })}
+            />
             <span
               style={{
                 ...type.bodyMd,
@@ -267,12 +314,10 @@ export function DailyList({
             </span>
           </div>
         )
-
         const rowStyle = {
           ...card,
           padding: `${spacing.cellPad}px ${spacing.cardPadSm}px`,
         }
-
         // A row is a `<button>` only when it is tappable, and it contains no
         // interactive descendant either way — a control inside a control is
         // markup the browser reparses, which is how the list card's retry
@@ -292,12 +337,30 @@ export function DailyList({
           </div>
         )
       })}
+      {/*
+        What the bars are measured against. Without it seven bars at seven
+        widths are just seven bars; with it they are a week on one ruler, which
+        is the only thing this list is for.
+      */}
+      {note === null ? null : (
+        <div
+          style={{
+            ...row(spacing.chipGap),
+            justifyContent: 'space-between',
+            ...type.labelSm,
+            color: colors.txt5,
+          }}
+        >
+          <span>{note[0]}</span>
+          <span>{note[1]}</span>
+          <span>{note[2]}</span>
+        </div>
+      )}
 
       {/*
         Why some rows do not open. Said once, under the list, rather than as a
         per-row marker: the reason is the same for all of them and a repeated
         badge would compete with the bars.
-
         The copy is a string expression rather than JSX text so it can keep the
         straight apostrophe every other message in this app uses (`Couldn't
         load…`) without tripping react/no-unescaped-entities. `&rsquo;` put two
@@ -313,4 +376,3 @@ export function DailyList({
     </section>
   )
 }
-

@@ -217,3 +217,82 @@ export function dayIsDrawable(day: HourlyDay): boolean {
 export function firstDrawableDay(days: readonly HourlyDay[]): string | null {
   return days.find(dayIsDrawable)?.local_date ?? null
 }
+
+/**
+ * Chance of rain, as a percentage of ensemble members.
+ *
+ * `precip_chance_pct` is `members_wet / member_count`, divided **server-side** so
+ * there is one rounding rule rather than one per client. It is deliberately not
+ * Open-Meteo's `precipitation_probability`, which is a blended field no single
+ * model owns (architecture rule).
+ *
+ * **Null means unknown, not 0%** — a row stored before `members_wet` existed has
+ * no wet count, and so does an hour no member reached. `toDatum` carries the
+ * null through and every mark drops it, so an unknown hour is a gap rather than
+ * a confident "no chance of rain".
+ */
+export function chanceSeries(hours: readonly HourlySample[]): SeriesDatum[] {
+  return hours
+    .map((h) => toDatum(h, h.precip_chance_pct, null, null))
+    .filter((d): d is SeriesDatum => d !== null)
+}
+
+/**
+ * Wind, as the ensemble median with the **deterministic gust** as the upper edge.
+ *
+ * `low` is the median itself rather than `wind_kmh_p10`, so the mark spans
+ * sustained-to-gusting rather than the ensemble spread — that is what the
+ * design asks for, and it is the pair a climber reads together.
+ *
+ * **Two sources in one mark, and it is labelled as such.** `wind_kmh_p50` is
+ * pooled across members; `wind_gust_kmh` is the single chosen deterministic
+ * model, because the ensemble carries no gust field at all. A gust below the
+ * median is the two disagreeing, and the edge is clamped rather than drawn
+ * inverted — an upside-down whisker would read as a negative gust.
+ */
+export function windSeries(hours: readonly HourlySample[]): SeriesDatum[] {
+  return hours
+    .map((h) => {
+      const sustained = h.wind_kmh_p50
+      if (sustained === null) return toDatum(h, null, null, null)
+      const gust = h.wind_gust_kmh
+      const top = gust === null ? null : Math.max(gust, sustained)
+      return toDatum(h, sustained, top === null ? null : sustained, top)
+    })
+    .filter((d): d is SeriesDatum => d !== null)
+}
+
+/** How far from `now` an hour may be and still be called the current conditions. */
+export const CURRENT_HOUR_TOLERANCE_MS = 90 * 60_000
+
+/**
+ * The hour covering `now`, or `null` when the run does not reach it.
+ *
+ * **This is the first thing in the app entitled to say "now".** Every other
+ * surface shows `temp_c_max`, a daily *maximum*, and labelling that a present
+ * reading is a factual error the design spec names explicitly — Red Rock's
+ * 39.5 °C is today's high, not the temperature outside. The hourly run is the
+ * first source with an hour in it.
+ *
+ * `null` rather than the nearest hour when nothing is close: a stored run can be
+ * an hour old and a stale one much older, and "now" attached to a reading from
+ * three hours ago is the same class of claim as naming a model that did not
+ * answer. The caller shows the daily figures instead.
+ */
+export function currentHour(
+  hours: readonly HourlySample[],
+  now: number,
+): HourlySample | null {
+  let best: HourlySample | null = null
+  let bestDistance = Number.POSITIVE_INFINITY
+  for (const hour of hours) {
+    const t = Date.parse(hour.valid_at)
+    if (!Number.isFinite(t)) continue
+    const distance = Math.abs(t - now)
+    if (distance < bestDistance) {
+      bestDistance = distance
+      best = hour
+    }
+  }
+  return bestDistance <= CURRENT_HOUR_TOLERANCE_MS ? best : null
+}

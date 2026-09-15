@@ -15,14 +15,15 @@ import { AlertBanner } from './Alerts.js'
 import { ScoreSection } from './ScoreSection.js'
 import { SourcesFooter } from './SourcesFooter.js'
 import { InlineError, Skeleton } from './States.js'
-import { TodayHero } from './Weather.js'
+import { NowLine } from './NowLine.js'
 import { DailyList, type DailyMetric } from './DailyList.js'
 import { LocationIdentity } from './LocationIdentity.js'
 import { Segmented, type SegmentedOption } from './Segmented.js'
 import { HourlySection } from './charts/HourlySection.js'
 import { DayCharts } from './charts/DayCharts.js'
-import { dayIsDrawable } from './charts/hourlySeries.js'
+import { currentHour, dayIsDrawable } from './charts/hourlySeries.js'
 import { TEMP_VIEW_H } from './charts/chartStyle.js'
+import { useNow } from '../hooks/useNow.js'
 
 /**
  * The detail screen: **Daily and Hourly tabs**, with the alert banner, the
@@ -152,11 +153,14 @@ export function DetailView({
   location,
 }: DetailViewProps) {
   const [metric, setMetric] = useState<DailyMetric>('temperature')
+  const now = useNow()
   const today = findToday(forecast.data)
   const alertEvent = severeAlertEvent(alerts?.data)
   const showScore = !unsaved && isClimbingLocation
   const activeAlertCount = alerts?.data?.length ?? 0
   const tabs = hourly?.tabs
+  // The hour covering right now, or null when the run does not reach it.
+  const nowHour = hourly?.data === undefined ? null : currentHour(hourly.data.hours, now)
   const onHourly = tabs?.active === 'hourly'
 
   // Which daily rows open a drill-down. **Driven by `days[]`, not by the rows
@@ -218,14 +222,29 @@ export function DetailView({
         <LocationIdentity location={location} condensed={onHourly} />
       )}
 
+      {/*
+        Current conditions as one line, not a 36px hero. The hero led with
+        `temp_c_max` — a daily *maximum* — as the largest element on the screen;
+        `NowLine` leads with the hour covering now, from the hourly run, which
+        is the only field in any response entitled to the word.
+      */}
       {forecast.isPending ? (
-        <Skeleton height={110} />
+        <Skeleton height={64} />
       ) : forecast.isError ? (
         <InlineError message="Couldn't load the forecast." onRetry={forecast.refetch} />
-      ) : today === null ? (
+      ) : today === null && nowHour === null ? (
         <p style={type.bodyMd}>No reading for today yet.</p>
       ) : (
-        <TodayHero day={today} rainLine={rainLine} />
+        <>
+          <NowLine
+            hour={nowHour}
+            today={today}
+            severeAlertEvent={alertEvent}
+            alertsPending={alerts?.isPending === true}
+            showScore={showScore}
+          />
+          {rainLine === undefined ? null : <span style={type.bodySm}>{rainLine}</span>}
+        </>
       )}
 
       {/*
@@ -278,12 +297,6 @@ export function DetailView({
                   onSelectDate={tabs.onSelectDate}
                 />
               )}
-              {/*
-                The whole window, under the single day — "reachable by
-                scrolling", which is what the seven-day strip is for. It is the
-                Phase 2 section unchanged, and it draws its own empty states.
-              */}
-              <HourlySection series={hourly.data} />
             </div>
           )
         ) : forecast.isPending || forecast.isError ? (
@@ -305,6 +318,15 @@ export function DetailView({
                     drawableDates,
                   })}
             />
+            {/*
+              The continuous seven-day series, **on Daily and not on Hourly.**
+              It is a chart about comparing days, which is what this tab is for;
+              on the Hourly tab it sat under one day's hours answering a
+              question that tab does not ask, and pushed the charts that do
+              answer it off the screen.
+            */}
+            {hourly?.data === undefined ? null : <HourlySection series={hourly.data} />}
+
             {/*
               Why the rows are not opening, when the reason is this section
               rather than the forecast. The Hourly tab shows the same failure
