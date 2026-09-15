@@ -181,3 +181,13 @@ describe('niceTicks', () => {
     expect(niceTicks({ min: 0, max: Number.NaN }, 3)).toEqual([])
   })
 })
+
+describe('niceTicks — fewer ticks on a short plot', () => {
+  it('honours the count it is asked for, so the caller can cut it down', () => {
+    // `VALUE_TICKS` is an aim, not a promise: the 70-unit chance chart asked
+    // for four and got six, 8.8 units apart under a 10px label. The caller
+    // divides its plot height by `MIN_TICK_GAP` and asks for fewer.
+    expect(niceTicks({ min: 0, max: 100 }, 2)).toEqual([0, 50, 100])
+    expect(niceTicks({ min: 0, max: 100 }, 4)).toEqual([0, 20, 40, 60, 80, 100])
+  })
+})

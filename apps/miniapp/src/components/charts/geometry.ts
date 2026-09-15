@@ -153,7 +153,7 @@ export function bandPath(upper: readonly Point[], lower: readonly Point[]): stri
  * **Rounded, not evenly divided.** Slicing a domain into thirds gives ticks
  * like 51.7 / 59.3 / 66.9 — arithmetically even and useless to read a bar
  * against. A reader estimates a value by its distance from a round number, so
- * the step is snapped to 1, 2, 2.5 or 5 times a power of ten first.
+ * the step is snapped to 1, 2, 5 or 10 times a power of ten first.
  *
  * Returns only the ticks that actually fall inside the domain, so a narrow span
  * yields fewer than asked for rather than ticks drawn off the frame.

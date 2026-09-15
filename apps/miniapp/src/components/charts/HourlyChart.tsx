@@ -11,6 +11,7 @@ import {
   PAD_LEFT,
   PAD_RIGHT,
   PAD_TOP,
+  MIN_TICK_GAP,
   VALUE_TICKS,
   VIEW_W,
   chartColors,
@@ -86,6 +87,14 @@ const EDGE_TOLERANCE = 3
 /** Every sixth hour: four labels across one day, which is what fits at 375px. */
 const HOUR_TICK_STEP = 6
 
+/**
+ * How close the readout's centre may come to either edge, as a percentage.
+ *
+ * The chip is centred on its mark, so at the first and last hour half of it
+ * would sit outside the card — and nothing in this app clips overflow.
+ */
+const READOUT_EDGE_PCT = 14
+
 function verticalDomain(data: readonly SeriesDatum[], kind: SeriesKind): Extent | null {
   // **The band counts toward the top even for bars.** A `whiskers` caller that
   // does not pass its own domain would otherwise stroke whiskers above the
@@ -152,6 +161,22 @@ export function HourlyChart({
   // Which hour the pointer is over. `null` when nothing is.
   const [hover, setHover] = useState<number | null>(null)
 
+  // **Forget the hovered hour when the series changes underneath it.** The day
+  // pager swaps `data` without remounting this component, so an index held from
+  // the previous day would carry over and point at another day's hour.
+  //
+  // Adjusted during render rather than in an effect — React's own guidance, and
+  // the lint rule enforces it: an effect that calls `setState` synchronously
+  // renders once with the stale value before correcting it. Keyed on the first
+  // timestamp and the length rather than on `data`, which is a fresh array on
+  // every render and would reset the readout continuously.
+  const seriesKey = `${data[0]?.t ?? ''}-${data.length}`
+  const [lastSeries, setLastSeries] = useState(seriesKey)
+  if (lastSeries !== seriesKey) {
+    setLastSeries(seriesKey)
+    setHover(null)
+  }
+
   const times = timeExtent(data)
   const measured = extent(data.map((d) => d.value))
   const domain = fixedDomain ?? verticalDomain(data, kind)
@@ -175,6 +200,17 @@ export function HourlyChart({
   const plotBottom = viewHeight - PAD_BOTTOM
   const x = linearScale(xDomain, PAD_LEFT, VIEW_W - PAD_RIGHT)
   const y = linearScale(domain, plotBottom, PAD_TOP)
+
+  /**
+   * Where an hour's mark is centred, in user units.
+   *
+   * A line is drawn at its instant; an **accumulation** bar covers the hour
+   * before its timestamp, so its centre is half a slot to the left. Both the
+   * readout's hit-testing and the crosshair read this, so they cannot disagree
+   * with the mark they point at.
+   */
+  const markCentre = (t: number): number =>
+    kind === 'bar' && placement === 'accumulation' ? (x(t) + x(t - HOUR_MS)) / 2 : x(t)
 
   // The hour axis needs the location's offset; without it the ticks would be
   // read on the viewer's clock, which is worse than having none. An axis with
@@ -216,9 +252,20 @@ export function HourlyChart({
   // both round to "0.01 in" — two rules at different heights carrying the same
   // number, which reads as a rendering fault. Rounding is a display decision,
   // so the de-duplication has to happen on the *written* label, not the value.
-  const valueTicks = niceTicks(displayDomain, VALUE_TICKS).filter((value, i, all) => {
-    const previous = all[i - 1]
-    return previous === undefined || writeTick(previous) !== writeTick(value)
+  //
+  // **Of a run that writes the same string, the *last* is kept, not the first.**
+  // Keeping the first draws the rule at 0.005 in and labels it "0.01 in" — a
+  // gridline at one height carrying another value's number, which is worse than
+  // the duplicate it was fixing. The last tick in a run is the one whose value
+  // the shared label actually rounds from.
+  //
+  // The tick count also drops on a short plot: four ticks over the 70-unit
+  // chance chart come back as six, 8.8 units apart under a 10px label.
+  const plotHeight = plotBottom - PAD_TOP
+  const wanted = Math.max(2, Math.min(VALUE_TICKS, Math.floor(plotHeight / MIN_TICK_GAP)))
+  const valueTicks = niceTicks(displayDomain, wanted).filter((value, i, all) => {
+    const next = all[i + 1]
+    return next === undefined || writeTick(next) !== writeTick(value)
   })
 
   /**
@@ -235,7 +282,14 @@ export function HourlyChart({
     let bestDistance = Number.POSITIVE_INFINITY
     data.forEach((d, i) => {
       if (d.value === null) return
-      const distance = Math.abs(x(d.t) - units)
+      // **The mark's centre, not its timestamp.** An accumulation bar spans
+      // `x(t-1h)` to `x(t)`, so its middle is half a slot left of `x(t)`;
+      // measuring from the timestamp put the whole left half of every rain bar
+      // on the *previous* hour's reading, and drew the crosshair down the bar's
+      // boundary instead of through it. Same hour-early class as the placement
+      // bug in `Series.tsx`.
+      const centre = markCentre(d.t)
+      const distance = Math.abs(centre - units)
       if (distance < bestDistance) {
         bestDistance = distance
         best = i
@@ -244,7 +298,19 @@ export function HourlyChart({
     return best
   }
 
-  const active = hover === null ? undefined : data[hover]
+  // **The index is validated, not trusted.** `hover` indexes `data`, and `data`
+  // changes under it when the day pager moves — leaving it pointing at another
+  // day's hour, or past the end of a shorter series. A stale index draws a
+  // crosshair with no readout beside it, or worse, the right-looking number for
+  // the wrong day.
+  const hovered = hover === null ? undefined : data[hover]
+  const active = hovered !== undefined && hovered.value !== null ? hovered : undefined
+
+  // Keeps the readout inside the card. At the last hour the chip's centre sits
+  // at ~99% of the width, which put roughly half of it outside — and nothing in
+  // this app clips overflow, so it simply hung over the edge.
+  const readoutCentre = active === undefined ? 0 : (markCentre(active.t) / VIEW_W) * 100
+  const readoutLeft = Math.min(100 - READOUT_EDGE_PCT, Math.max(READOUT_EDGE_PCT, readoutCentre))
   const activeLabel =
     active === undefined || active.value === null
       ? null
@@ -272,7 +338,10 @@ export function HourlyChart({
           setHover(hourAt(touch.clientX, e.currentTarget.getBoundingClientRect()))
         }
       }}
-      onTouchEnd={() => setHover(null)}
+      // **The readout is not cleared on touch end.** Lifting a finger is how a
+      // phone reader finishes looking at a value; clearing here made the number
+      // vanish at the exact moment they wanted to read it. The next touch moves
+      // it, and leaving the chart with a mouse still clears it.
     >
       <svg
         viewBox={`0 0 ${VIEW_W} ${viewHeight}`}
@@ -339,8 +408,8 @@ export function HourlyChart({
         {/* The hour under the pointer, marked on the plot itself. */}
         {active === undefined ? null : (
           <line
-            x1={x(active.t)}
-            x2={x(active.t)}
+            x1={markCentre(active.t)}
+            x2={markCentre(active.t)}
             y1={PAD_TOP}
             y2={plotBottom}
             stroke={chartColors.crosshair}
@@ -383,7 +452,7 @@ export function HourlyChart({
             ...type.bodySm,
             color: colors.txt1,
             position: 'absolute',
-            left: pctX(x(active.t)),
+            left: `${readoutLeft}%`,
             top: 0,
             transform: 'translateX(-50%)',
             backgroundColor: colors.mapCanvas,

@@ -111,10 +111,22 @@ export function rainColor(mm: number): string {
 // SINGLE-DAY VIEW
 // ─────────────────────────────────────────────
 
-/** One day's 24 bars get more height than the seven-day strip, which is a shape. */
-/** How many labelled value gridlines a chart aims for. Snapped to round numbers. */
+/**
+ * How many labelled value gridlines a chart aims for, before the plot's own
+ * height cuts it down. Snapped to round numbers by `niceTicks`.
+ */
 export const VALUE_TICKS = 4
 
+/**
+ * The least vertical room between two value gridlines.
+ *
+ * A label is 10px tall, so ticks closer than this overlap each other — and the
+ * short charts are where it bites: four ticks asked for on the 70-unit chance
+ * chart came back as six, 8.8 units apart under a 10px label.
+ */
+export const MIN_TICK_GAP = 24
+
+/** One day's 24 bars get more height than the seven-day strip, which is a shape. */
 export const DAY_VIEW_H = 122
 /** Chance of rain is a 0-100 scale with no outliers, so it needs less room. */
 export const CHANCE_VIEW_H = 70

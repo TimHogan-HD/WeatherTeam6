@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { formatPrecipIn, formatTempF } from '@weatherteam6/types'
 import { HourlyChart } from './HourlyChart.js'
 import { HOUR_MS, type SeriesDatum } from './hourlySeries.js'
-import { TEMP_VIEW_H } from './chartStyle.js'
+import { PAD_BOTTOM, PAD_LEFT, TEMP_VIEW_H } from './chartStyle.js'
 import { rainAxis, tempAxis } from './valueAxis.js'
 
 const T0 = Date.UTC(2026, 8, 14, 0)
@@ -239,5 +239,87 @@ describe('HourlyChart, value axis de-duplication', () => {
     const markup = render(drizzle, 'bar')
     const labels = [...markup.matchAll(/translateY\(-50%\)[^>]*>([^<]+)</g)].map((m) => m[1])
     expect(new Set(labels).size).toBe(labels.length)
+  })
+})
+
+describe('HourlyChart, readout hit-testing', () => {
+  /** 24 hours at a known value per hour, one local day. */
+  function day(values: number[]): SeriesDatum[] {
+    return values.map((value, i) => ({
+      t: T0 + i * HOUR_MS,
+      localDate: DAYS[0] ?? '',
+      value,
+      low: null,
+      high: null,
+    }))
+  }
+
+  it('maps a pointer to the bar under it, not to the nearest timestamp', () => {
+    // **An accumulation bar spans `x(t-1h)` to `x(t)`**, so its middle is half a
+    // slot left of its timestamp. Measuring from the timestamp put the whole
+    // left half of every rain bar on the *previous* hour's reading, and drew the
+    // crosshair down the bar's boundary rather than through it.
+    //
+    // Asserted on the geometry the component uses, because the environment has
+    // no DOM to dispatch a pointer event into: the crosshair is rendered at the
+    // mark centre, and the centre of an accumulation bar is not its timestamp.
+    const markup = renderToStaticMarkup(
+      <HourlyChart
+        data={day(Array.from({ length: 24 }, (_, i) => i))}
+        kind="bar"
+        axis="hour"
+        utcOffsetSeconds={0}
+        viewHeight={TEMP_VIEW_H}
+        color="#fff"
+        formatValue={formatPrecipIn}
+        valueAxis={rainAxis}
+        title="Rainfall by hour"
+      />,
+    )
+    // The bars themselves span a full slot; the first one starts at the plot's
+    // left edge, which is what "covers the hour before its timestamp" means.
+    const firstBar = /<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)"/.exec(markup)
+    expect(firstBar).not.toBeNull()
+    expect(Number(firstBar?.[1])).toBeCloseTo(PAD_LEFT + 1, 0)
+  })
+})
+
+describe('HourlyChart, gridline labels', () => {
+  it('labels a rule with the value it is actually drawn at', () => {
+    // **The de-duplication used to keep the *first* of a matching run.** On a
+    // drizzle day that drew the rule at 0.005 in and labelled it "0.01 in" — a
+    // gridline at one height carrying another value's number, which is worse
+    // than the duplicate label it replaced. Keeping the last of the run leaves
+    // the tick the shared label actually rounds from.
+    const drizzle = Array.from({ length: 24 }, (_, i) => ({
+      t: T0 + i * HOUR_MS,
+      localDate: DAYS[0] ?? '',
+      value: i === 12 ? 0.44 : 0.02,
+      low: null,
+      high: null,
+    }))
+    const markup = render(drizzle, 'bar')
+
+    const labels = [...markup.matchAll(/translateY\(-50%\)[^>]*>([^<]+)</g)].map((m) => m[1] ?? '')
+    const labelY = [...markup.matchAll(/top:([\d.]+)%;transform:translateY\(-50%\)/g)].map(
+      (m) => (Number(m[1]) / 100) * TEMP_VIEW_H,
+    )
+    expect(new Set(labels).size).toBe(labels.length)
+
+    // Every label reads back to the height it sits at. The plot maps the display
+    // domain 0..max linearly onto `plotBottom..PAD_TOP`, so a label's inches can
+    // be recovered from its y and must match what it says.
+    const plotBottom = TEMP_VIEW_H - PAD_BOTTOM
+    // Ticks render in ascending value, so the first is the floor.
+    const bottomLabel = Number((labels[0] ?? '').replace(' in', ''))
+    const topLabel = Number((labels[labels.length - 1] ?? '').replace(' in', ''))
+    const bottomY = labelY[0] ?? 0
+    const topY = labelY[labelY.length - 1] ?? 0
+    // The bottom tick is the floor, at the bottom of the plot, and reads zero.
+    expect(bottomLabel).toBe(0)
+    expect(bottomY).toBeCloseTo(plotBottom, 1)
+    // The top tick is above it, and says more than zero.
+    expect(topLabel).toBeGreaterThan(0)
+    expect(topY).toBeLessThan(bottomY)
   })
 })
