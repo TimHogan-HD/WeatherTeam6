@@ -87,6 +87,8 @@ export const chartColors = {
   wind: colors.txt2,
   /** A mark whose value could not be read — a visible absence, not a colour. */
   noData: withOpacity(colors.txt1, 0.18),
+  /** The rule marking the hour under the pointer. Brighter than a gridline. */
+  crosshair: withOpacity(colors.txt1, 0.45),
 } as const
 
 /**
@@ -108,6 +110,21 @@ export function rainColor(mm: number): string {
 // ─────────────────────────────────────────────
 // SINGLE-DAY VIEW
 // ─────────────────────────────────────────────
+
+/**
+ * How many labelled value gridlines a chart aims for, before the plot's own
+ * height cuts it down. Snapped to round numbers by `niceTicks`.
+ */
+export const VALUE_TICKS = 4
+
+/**
+ * The least vertical room between two value gridlines.
+ *
+ * A label is 10px tall, so ticks closer than this overlap each other — and the
+ * short charts are where it bites: four ticks asked for on the 70-unit chance
+ * chart came back as six, 8.8 units apart under a 10px label.
+ */
+export const MIN_TICK_GAP = 24
 
 /** One day's 24 bars get more height than the seven-day strip, which is a shape. */
 export const DAY_VIEW_H = 122

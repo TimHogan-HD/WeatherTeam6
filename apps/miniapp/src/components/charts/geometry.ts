@@ -146,3 +146,38 @@ export function bandPath(upper: readonly Point[], lower: readonly Point[]): stri
   const back = [...lower].reverse().map((p) => `L${round(p.x)},${round(p.y)}`)
   return `${forward.join(' ')} ${back.join(' ')} Z`
 }
+
+/**
+ * Round values spanning a domain, for labelled gridlines.
+ *
+ * **Rounded, not evenly divided.** Slicing a domain into thirds gives ticks
+ * like 51.7 / 59.3 / 66.9 — arithmetically even and useless to read a bar
+ * against. A reader estimates a value by its distance from a round number, so
+ * the step is snapped to 1, 2, 5 or 10 times a power of ten first.
+ *
+ * Returns only the ticks that actually fall inside the domain, so a narrow span
+ * yields fewer than asked for rather than ticks drawn off the frame.
+ */
+export function niceTicks(domain: Extent, count: number): number[] {
+  const span = domain.max - domain.min
+  if (!Number.isFinite(span) || span <= 0 || count < 1) return []
+
+  const rough = span / count
+  const magnitude = 10 ** Math.floor(Math.log10(rough))
+  const normalised = rough / magnitude
+  // The conventional 1/2/5/10 breakpoints. A finer table (adding 2.5) makes the
+  // *step* rounder but the labels worse — 2.5-degree gridlines are not numbers
+  // anyone estimates against.
+  const step = (normalised <= 1.5 ? 1 : normalised <= 3 ? 2 : normalised <= 7 ? 5 : 10) * magnitude
+
+  const out: number[] = []
+  // Start at the first step at or above the floor. `Math.ceil` on a value that
+  // is already a multiple can land one step early through float error, so the
+  // membership test below is what decides, not the starting point.
+  for (let v = Math.ceil(domain.min / step) * step; v <= domain.max + step / 1e6; v += step) {
+    // -0 prints as "-0" through a formatter; normalise it away.
+    const value = v === 0 ? 0 : v
+    if (value >= domain.min - step / 1e6) out.push(value)
+  }
+  return out
+}

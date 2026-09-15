@@ -8,6 +8,7 @@ import { useNow } from '../../hooks/useNow.js'
 import { HourlyChart } from './HourlyChart.js'
 import { RAIN_VIEW_H, TEMP_VIEW_H, chartColors, rainColor } from './chartStyle.js'
 import { hasValues, rainSeries, temperatureSeries, uniformMemberCount } from './hourlySeries.js'
+import { rainAxis, tempAxis } from './valueAxis.js'
 
 /**
  * The hourly charts on the detail screen: temperature with its ensemble band,
@@ -95,6 +96,7 @@ export function HourlySection({ series, now }: { series: HourlySeries; now?: num
             color={chartColors.temperature}
             bandColor={chartColors.temperatureBand}
             formatValue={formatTempF}
+            valueAxis={tempAxis}
             title="Hourly temperature"
           />
         ) : (
@@ -111,6 +113,7 @@ export function HourlySection({ series, now }: { series: HourlySeries; now?: num
             color={chartColors.rain}
             colorForValue={rainColor}
             formatValue={formatPrecipIn}
+            valueAxis={rainAxis}
             title="Hourly rainfall"
           />
         ) : (
