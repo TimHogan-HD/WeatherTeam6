@@ -2817,3 +2817,80 @@ since 2026-09-02 — was **declined by the owner on 2026-09-14** and is closed. 
 re-raised. Everything else this session needed from them is done: they set `DATABASE_URL`,
 `CRON_SECRET` and `API_SHARED_SECRET` as Windows user environment variables, which is what
 lets the acceptance checks run unattended.
+
+---
+
+## 2026-09-15 — branch: phase/2-chart-primitives — commit: 675ac89
+
+**Phase completed:** Phase 2 — chart primitives (Mini App hourly data visualisation)
+
+**What was built this session:**
+- `apps/miniapp/src/components/charts/geometry.ts` — pure scales, extents, run detection and
+  path building. No React, no tokens, so every coordinate decision is directly testable.
+- `apps/miniapp/src/components/charts/hourlySeries.ts` — `HourlySeries` → drawable data.
+  Where a gap is decided, and where the ensemble size is either vouched for or withheld.
+- `apps/miniapp/src/components/charts/Series.tsx` — the marks: a line with an optional
+  p10–p90 band, or bars. Knows nothing about axes or the wire shape.
+- `apps/miniapp/src/components/charts/HourlyChart.tsx` — one chart: viewBox, day rules, and
+  labels as HTML positioned over the SVG.
+- `apps/miniapp/src/components/charts/HourlySection.tsx` — temperature with its band and
+  hourly rain, on the saved-location screen. **Not** the Hourly tab.
+- `apps/miniapp/src/components/charts/chartStyle.ts` — the module's colours (all derived from
+  tokens) and its mark geometry.
+- `useHourly` (React Query hook for `GET /hourly/:locationId`), `useNow` (lifted out of
+  `UpdatedAt`), `formatRunAge`, `formatWeekday`.
+- 67 new tests. Mini App suite 50 → 117; repo total 591 → 660.
+
+**Known issues / deferred work:**
+- **Not seen on a device.** Phase 2's own acceptance criterion is the charts rendering on the
+  owner's phone, inside Telegram, in their theme. Everything else is verified; this is not.
+- The independent PR reviewer **never ran** on #110 — it died on an Anthropic session limit
+  (`is_error: true`, `num_turns: 11`, quota resets 00:40 UTC) before reading the diff. CI was
+  green and `review` is not a required check, so the merge was not blocked. This diff has had
+  one reviewer, not two.
+- No hover or tap readout on the charts. Inline styles cannot express hover and a touch
+  screen has none; a value readout belongs with Phase 3's drill-down.
+- `useNow` re-renders the section every 30 s, recomputing both 168-hour series. Measured cost
+  is negligible; memoise if a third chart lands.
+
+**Blockers for next session:** None. Phase 3 can start immediately.
+
+**What's next:** Phase 3 — `git checkout -b phase/3-daily-hourly-tabs` off `main` — read
+`docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` § Phase 3 **and** § Decisions taken
+before writing any UI. Look at the charts on a phone first: a shape change is cheap now and
+expensive once tabs are built on them.
+
+**Gotchas for next session:**
+- **A rain bar covers the hour *before* its timestamp.** Precipitation is stamped at the end
+  of the hour it fell in, so the 02:00 sample describes 01:00–02:00. `Series.tsx` draws it
+  that way and the bot's `buildRows` reads it the same way. Drawing it forward moves every
+  shower an hour later — plausible on screen, wrong, and nothing typechecks differently.
+  This is the one assertion in the new tests whose correctness rests on the documented
+  convention rather than on measured data.
+- **Two different things break a series and both are real gaps**: a null value, and a missing
+  row. An hour with no values at all is never stored, so its absence is a two-hour step
+  between two good rows. `contiguousRuns` takes an adjacency predicate for exactly this.
+- **A one-point path paints nothing.** `M x,y` with no line command is invisible at any
+  stroke width, so `linePath` returns `''` for a single point and the caller draws a dot.
+  Same class of silence as a NaN coordinate, which is why `extent` skips non-finite values.
+- **A zero-height bar and an absent bar are the same picture.** The rain baseline runs only
+  under hours that have a reading, which is what separates "no rain" from "no forecast".
+- **Chart values stay in °C and mm.** Only the formatter converts. Converting in the adapter
+  would force every threshold (the rain-intensity ramp) to be restated in the other unit.
+- **The value labels describe the median, not the band.** The domain has to cover p10–p90 or
+  it clips, but labelling its outer edge prints one member's worst hour as the forecast. An
+  earlier draft did exactly that and put 66 °F on a series that never passes 63 °F.
+- **`good`/`fair`/`poor` are not available for data marks.** They are the conditions ladder's
+  status colours. Temperature uses `sun`; rain uses the `radar*` intensity ramp.
+- The design-system rule "no px in a component" has no answer for a viewBox size or a stroke
+  width. Those live in `chartStyle.ts` and are explicitly *not* pretending to be tokens.
+- Measured on real production data (Red Wing, 2026-09-14): 168 hours, 7 local days,
+  `gfs_seamless`, 143 members in every hour, 587 ms, and the p10–p90 spread widening from
+  **3.2 °C on day 1 to 8.0 °C on day 7** — the band narrowing toward the present is the
+  product's stated purpose, and it is visible.
+
+**Does the user need to do anything?** **Yes — one thing.** Open a saved climbing location in
+the Mini App on their phone and look at the two charts: whether the band reads as confidence
+or as a smudge, whether the day labels are legible, and whether 168 rain bars are too thin to
+see. Phase 3 builds on these, so a shape change is cheap now. Nothing else is owed — no
+credential, no dashboard setting.

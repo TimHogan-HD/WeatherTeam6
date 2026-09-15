@@ -11,11 +11,45 @@ paths: apps/miniapp/**, packages/design/**
 > never touch the Mini App. They are unchanged in substance and still binding — they now
 > load when you actually open a file they govern.
 
-**Current scope note:** the user downgraded Mini App design work on 2026-08-26 —
-*"the Mini App doesn't need to be super fancy."* The app is styled entirely with inline
-styles, which cannot express hover, transitions, keyframes or breakpoints. That is a real
-ceiling and it is documented, but lifting it is **not authorised**. Do not start a CSS
-architecture or a motion system unless asked.
+**Current scope note — revised 2026-09-15.** The 2026-08-26 downgrade (*"the Mini App
+doesn't need to be super fancy"*) was **reversed by the owner on 2026-09-04**; the Mini App
+data visualisation is the active line of work and Phase 2's charts shipped on 2026-09-15.
+What is still true is the mechanism: the app is styled entirely with **inline styles**,
+which cannot express hover, transitions, keyframes or breakpoints. That ceiling is real and
+it is why the charts carry no hover layer. **Starting a CSS or motion architecture is still
+not authorised** — that is a separate decision from drawing charts, and Phase 5 of
+`docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` is where it gets settled.
+
+## Charts (`apps/miniapp/src/components/charts/`)
+
+Inline SVG, no chart library — `miniapp-design-v1.md` §8. Shipped 2026-09-15. The rules
+below are the ones that are wrong-but-plausible if broken, which is the only kind worth
+always-loading:
+
+- **A rain bar covers the hour *before* its timestamp.** Precipitation is stamped at the end
+  of the hour it fell in, so an 02:00 sample describes 01:00-02:00 — the same convention the
+  bot's `buildRows` follows. Drawing it forward moves every shower an hour later and nothing
+  typechecks differently.
+- **Two different things break a series, and both are real gaps**: a null value, and a
+  missing row. An hour with no values at all is never stored, so its absence is a two-hour
+  step between two good rows. `contiguousRuns` takes an adjacency predicate for that.
+- **A one-point path paints nothing.** `M x,y` with no line command is invisible at any
+  stroke width, so `linePath` returns `''` and the caller draws a dot. Same family as a
+  `NaN` coordinate, which is why `extent` skips non-finite values and `linearScale` answers
+  a zero-width domain with the middle of the range.
+- **A zero-height bar and an absent bar are the same picture**, so the rain baseline runs
+  only under hours that have a reading. That line is what separates "no rain" from "no
+  forecast".
+- **Values stay in the API's metric units; only the formatter converts.** Converting in the
+  adapter forces every threshold to be restated in the other unit.
+- **Labels describe the series, not the band around it.** The domain must cover p10-p90 or
+  it clips, but labelling its outer edge prints one member's worst hour as the forecast.
+- **The ensemble size is quoted only when every hour reported the same one** — the far end
+  of the window is reached by fewer members.
+- **`good`, `fair` and `poor` are the conditions ladder's status colours and are not
+  available for data marks.** Temperature uses `sun`; rain uses the `radar*` intensity ramp.
+- **A chart that cannot be drawn says so.** A dropped section reads as a forecast of
+  nothing, because a reader cannot notice a section they were never shown.
 ## Client Mandate — Telegram Mini App
 
 **Direction changed 2026-07-31.** WeatherTeam6 was a native-mobile-first app; it is now a **Telegram bot + Telegram Mini App**. `apps/mobile` is being archived (Crossover Task 7) — its code stays in the repo but leaves the build. The old Mobile-First Mandate (never use WebView, `react-native-maps` for every map, native `.tsx` always real) is **superseded** and no longer applies. See `docs/handoffs/telegram-crossover-v4.md`.
