@@ -314,6 +314,8 @@ GET  /api/v1/locations/:id/normals    (returns [] forever, issue #25)
 GET  /api/v1/locations/:id/history    (returns [] forever, issue #25)
 GET  /api/v1/conditions/:locationId
 GET  /api/v1/forecast/:locationId
+GET  /api/v1/hourly/:locationId          # added 2026-09-14
+GET  /api/v1/recent-precip/:locationId   # added 2026-09-15
 GET  /api/v1/alerts/:locationId
 GET  /api/v1/walls/:locationId
 POST /api/v1/walls
@@ -334,6 +336,32 @@ The list and detail screens need only `/locations`, `/conditions/:id`, `/forecas
 - Preview and save must carry the **same** `elevation`: the geocoder's value goes to `/preview?elevation=` and then to `POST /locations` as `elevation_m`. Skip it in either place and the same location reports different temperatures before and after saving.
 
 **Synthesized IDs:** `computeLiveForecast` builds `id` as `` `${locationId}:${date}` `` because nothing is persisted. Do not treat these as stable or lookupable across requests.
+
+**Updated 2026-09-14 — two changes, both live:**
+
+- **`GET /hourly/:locationId`** is new. One deterministic model chosen by measured coverage, joined to the pooled ensemble on the UTC instant, windowed to seven of the location's local days. `?models=all` adds every model that answered; **any other value is a 400**, not a silent fallback. Shape is `HourlySeries` in `packages/types/src/hourly.ts`. Spec: `docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` § Phase 1.
+- **`GET /forecast/:id` now carries per-day scores** — `score`, `confidence`, `unavailable_reason` and five `component_*` fields. The components are **not optional**: `summarizeConditions` needs them for the "limited by X" qualifier, which is the half of suppression that fires on a zeroed component.
+
+  The line above saying the detail screen "needs only `/locations`, `/conditions/:id`, `/forecast/:id`, `/alerts/:id`" now understates it — a per-day score chip no longer requires `/conditions/:id`, and the hourly view requires `/hourly/:id`.
+
+  **As of 2026-09-15 the detail screen does call `/hourly/:id`** — `useHourly`, feeding the Hourly tab in `apps/miniapp/src/components/charts/` (one day's hours plus the continuous seven-day strip), and also deciding **which daily rows are tappable**, via `days[].has_ensemble`. It is its own section and fails on its own: it is the slowest query on the screen (the cold path fetches six deterministic models and 143 ensemble members) and must never hold up the rest of it. The preview path does **not** call it — there is no saved row to read a run for.
+
+  **A non-climbing location carries none of those fields at all**, because the route omits the merge rather than checking a flag downstream. Drive off their absence, not off `score === null` — `null` is a real answer meaning either "outside the scoring window" or, with `unavailable_reason`, "deliberately withheld".
+
+**Updated 2026-09-15 — `GET /recent-precip/:locationId`:**
+
+Hourly rainfall over the past five days for a saved location, shape `RecentPrecip` in `packages/types/src/recentPrecip.ts`. A thin proxy over `fetchRecentHourlyPrecip`, which the bot's rain panel already used; the Mini App's drying card draws the same record.
+
+- **The response is trimmed to hours that have happened.** The upstream fetch asks for `forecast_days=1` on purpose — the bot reads it to find rain falling *now* — so the tail of the raw series is a forecast. `trimToObservedHours` cuts it at the location's own clock. A renderer must not re-add the forecast tail from somewhere else and caption it as measured rain.
+- **`hours` may be shorter than five days**, and a caller must caption what it got rather than what the route asks for. `from_date` is the oldest local date the window covers, so "no rain" means "none in this window", never "none ever".
+- **`valid_at_local` is local wall-clock, not a UTC instant** (`YYYY-MM-DDTHH:mm`). Re-reading it in the viewer's timezone is issue #33 again.
+- Its own endpoint, not a field on `/conditions/:id`: it costs an upstream call and must not delay the rest of the screen.
+
+**Updated 2026-09-15 — `HourlySample` gains `precip_mm_p10` and `precip_mm_p90`:**
+
+The spread behind `precip_mm_mean`, per hour, from columns `weather_ensemble_hours` has always stored. They exist so a chart can shade the disagreement; **neither may be summed or printed as a total**, and the mean can legitimately sit outside them. See the architecture rule.
+
+Any surface reading a newly added column must treat an absent one as a gap: the API and the client deploy separately, so `undefined` arrives for a while and is not `null`.
 
 **Forecast window state machine** (from `.claude/rules/architecture.md`):
 

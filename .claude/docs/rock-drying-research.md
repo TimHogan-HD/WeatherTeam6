@@ -4,7 +4,47 @@ Research notes for improving the drying model. **This document does not change t
 scoring algorithm.** `.claude/docs/scoring-algorithm.md` is agreed and locked; §7 below
 is a *proposal* that needs explicit approval before any of it reaches code.
 
-Last updated: 2026-09-01 (twentieth pass: §3.1 — porosity governs friction too, with the opposite sign)
+Last updated: 2026-09-01 (twenty-fifth pass). Merged 2026-09-15 — see the status banner below.
+
+> ## Status, re-checked 2026-09-15
+>
+> **The research was written on 2026-09-01 against `main` @ `e0f49e3`. It is being merged
+> two weeks and ~46 commits later, against `main` @ `039b6f7`.** It sat unmerged on a branch
+> the whole time, which is the only reason this banner is needed — read it before acting on
+> anything below.
+>
+> **What is not dated.** §1–§5 and §8 are rock physics, petrophysics and crag-by-crag
+> community knowledge. Nothing in the codebase can age them. That is the bulk of the
+> document and it is why it is worth keeping.
+>
+> **What I re-verified against `039b6f7` on 2026-09-15 — both still live:**
+> - **§6.2** — `MAX_HOURS.unknown` is still `48` against `sandstone`'s `72` in
+>   `dryingModel.ts`. Supplying a *correct* rock type still makes the app more cautious than
+>   leaving it unknown, which is backwards and contradicts the constant's own docstring.
+> - **§6.9** — `importCrags.ts`'s `onConflictDoUpdate` still sets every column to itself
+>   (`name: crags.name`, …), so the upsert is still a silent no-op on conflict.
+>   `storeRun.ts`'s `sqlExcluded` is still the pattern it should use.
+>
+> **What is superseded, and must not be acted on as written:**
+> - **§9.5 is wrong now.** It argues the hourly window view is a *bot-first* feature because
+>   "the bot is ahead of the Mini App". PR #76 then reversed the "bot is the instrument"
+>   decision at the owner's direction — depth moved to the Mini App — and `sparkline.ts` has
+>   since left `apps/api/src/lib/telegram/` entirely. Read §9.5 as a record of what the
+>   rendering primitives could do, not as a recommendation about where to build.
+> - **§9.1–§9.4's UI comparisons** predate the Mini App chart rebuild (#116–#123). The
+>   competitor facts stand; the "what we should do instead" conclusions were written against
+>   a UI that no longer exists.
+>
+> **The live payoff, and the reason this was worth not losing.** `DryingCard.tsx` on current
+> `main` states in its own docstring that it omits the mockup's `SURFACE: Dry` line because
+> *"nothing in the repo computes a surface-moisture state distinct from the core."*
+> **§2.8 is that physics.** Sorption gives a Type II sigmoidal isotherm with its regime break
+> near **75% RH**, and the surface — the only part a climber touches — equilibrates with the
+> air almost instantly while the bulk stays dry. A wall can be genuinely dry through and
+> still be greasy on a humid morning. That is a surface state distinct from the core, it has
+> a measured threshold, and the input it needs (`humidity_pct`) is already fetched and stored.
+> §6.13 and §2.8 together are the closest thing here to a ready piece of work.
+
 
 ## How to read the confidence markers
 

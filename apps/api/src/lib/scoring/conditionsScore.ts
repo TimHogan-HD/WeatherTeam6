@@ -1,3 +1,4 @@
+import { TEMP_BAND_C } from '@weatherteam6/types'
 import type { ScoreInput, ScoreOutput, ScoreBreakdown } from '@weatherteam6/types'
 
 type RockType = ScoreInput['rockType']
@@ -77,12 +78,19 @@ export function conditionsScore(input: ScoreInput): ScoreOutput {
   else windRaw = 15 * (1 - (input.maxWindKmh24h - 15) / 35)
 
   // Step 4: Temperature (0-12)
+  //
+  // The breakpoints are `TEMP_BAND_C` in `packages/types` rather than literals,
+  // because the Mini App's diverging temperature ramp is centred on the same
+  // band. Two copies would let the chart paint an hour neutral on a day the
+  // score docked for being too warm, and nothing would detect it.
   const temp = input.forecastHighC
+  const { min, idealMin, idealMax, max } = TEMP_BAND_C
   let tempRaw: number
-  if (temp < 0 || temp > 35) tempRaw = 0
-  else if (temp >= 10 && temp <= 22) tempRaw = 12
-  else if (temp < 10) tempRaw = (temp / 10) * 12
-  else tempRaw = 12 - ((temp - 22) / 13) * 6 // 22–35°C: linear scale 12→6
+  if (temp < min || temp > max) tempRaw = 0
+  else if (temp >= idealMin && temp <= idealMax) tempRaw = 12
+  else if (temp < idealMin) tempRaw = ((temp - min) / (idealMin - min)) * 12
+  // idealMax–max: linear scale 12→6
+  else tempRaw = 12 - ((temp - idealMax) / (max - idealMax)) * 6
 
   // Step 5: Humidity (0-8)
   let humidityRaw: number

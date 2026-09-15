@@ -2,9 +2,15 @@
 // modules and are re-exported here because package.json declares only a "."
 // entry in its exports map — under NodeNext resolution a deep import such as
 // `@weatherteam6/types/units` does not resolve.
+import type { ScoreUnavailableReason } from './conditionsCopy.js'
+
 export * from './scoreComponents.js'
 export * from './units.js'
 export * from './conditionsCopy.js'
+export * from './geocodeCopy.js'
+export * from './hourly.js'
+export * from './compass.js'
+export * from './recentPrecip.js'
 
 export type ApiResponse<T> = {
   data: T | null
@@ -75,6 +81,53 @@ export type ForecastSnapshot = {
    * this shipped; treat a missing value as "unknown", never as `false`.
    */
   is_today?: boolean
+
+  /**
+   * The day's conditions score, 0-100.
+   *
+   * **Three states, and they are not interchangeable:**
+   *
+   * - a number — the day was scored.
+   * - `null` with no `unavailable_reason` — the date is outside the scoring
+   *   window (`window: 'pre'`). Nothing was withheld; there is nothing to say.
+   * - `null` **with** `unavailable_reason` — the day is deliberately unscored
+   *   because an input could not be measured. See that field.
+   *
+   * Never `0` for either null case. `0` is a real score meaning conditions are
+   * as bad as they get, and collapsing "unknown" into it is defect class 1.
+   *
+   * **Absent entirely for a non-climbing location.** `computeLiveForecast` does
+   * not branch on `is_climbing_location` and will happily score a city, so the
+   * route withholds it instead. A rock-drying score for Chicago is meaningless
+   * and must not render anywhere.
+   */
+  score?: number | null
+  confidence?: 'low' | 'medium' | 'high'
+  /**
+   * Withheld, not missing (issue #34). Same values and meaning as on
+   * `ConditionsScore`: the rainfall lookup *failed*, and its 720-hour sentinel
+   * is worth 40 of 100 points, so scoring anyway would credit a dry spell
+   * nobody measured. Render `scoreUnavailableLine`, never a score.
+   */
+  unavailable_reason?: ScoreUnavailableReason | null
+
+  /**
+   * The five components behind `score`, same scales as on `ConditionsScore`.
+   *
+   * **Required for suppression, not a nicety.** `summarizeConditions` reads
+   * these through `limitingComponent` to produce the "limited by drying time"
+   * qualifier — that is the half of suppression which fires when a component
+   * scores 0. Ship `score` without them and a client can only pass nulls, so
+   * that trigger can never fire and only the alert half works.
+   *
+   * `null` means not measured, and `limitingComponent` skips nulls deliberately:
+   * a component nobody measured is never named as the cause.
+   */
+  component_drying_time?: number | null
+  component_upcoming_rain?: number | null
+  component_wind?: number | null
+  component_temp?: number | null
+  component_humidity?: number | null
 }
 
 export type ConditionsScore = {
@@ -105,7 +158,7 @@ export type ConditionsScore = {
    * all rather than scored on a guess. Distinct from `score: null` with no
    * reason, which means the date is beyond the scoring window.
    */
-  unavailable_reason?: 'rainfall_unavailable' | null
+  unavailable_reason?: ScoreUnavailableReason | null
 }
 
 export type ScoreInput = {
@@ -295,6 +348,11 @@ export type GeocodeResult = {
   admin1: string | null
   country: string | null
   timezone: string | null
+  /** GeoNames feature code (`PPL`, `PRK`, `DAM`, ...) — feed to `geocodeKindLabel`
+   *  for a plain-language kind. Without it, near-identical results across
+   *  categories (a town, its dam, and a state park all named "Willow River")
+   *  are indistinguishable in the picker — see issue #82. */
+  feature_code: string | null
 }
 
 export type LocationNormal = {

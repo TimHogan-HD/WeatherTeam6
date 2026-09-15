@@ -10,6 +10,7 @@ const RED_ROCK_NV = {
   country: 'United States',
   admin1: 'Nevada',
   timezone: 'America/Los_Angeles',
+  feature_code: 'PRK',
 }
 
 const RED_ROCK_OK = {
@@ -21,6 +22,7 @@ const RED_ROCK_OK = {
   country: 'United States',
   admin1: 'Oklahoma',
   timezone: 'America/Chicago',
+  feature_code: 'PPL',
 }
 
 describe('parseGeocodeResults', () => {
@@ -46,6 +48,7 @@ describe('parseGeocodeResults', () => {
         admin1: 'Nevada',
         country: 'United States',
         timezone: 'America/Los_Angeles',
+        feature_code: 'PRK',
       },
     ])
   })
@@ -55,6 +58,17 @@ describe('parseGeocodeResults', () => {
     expect(parsed).toHaveLength(2)
     expect(parsed.map((p) => p.admin1)).toEqual(['Nevada', 'Oklahoma'])
     expect(parsed.map((p) => p.elevation_m)).toEqual([1200, 480])
+    expect(parsed.map((p) => p.feature_code)).toEqual(['PRK', 'PPL'])
+  })
+
+  it('distinguishes a park from the town sharing its name — issue #82', () => {
+    // "Willow River" returned a Minnesota town (PPL) and a Wisconsin state
+    // park (PRK) 90 miles apart under the same admin1-less near-identical
+    // name; only feature_code told them apart.
+    const willowRiverTown = { ...RED_ROCK_OK, name: 'Willow River', feature_code: 'PPL' }
+    const willowRiverPark = { ...RED_ROCK_NV, name: 'Willow River State Park', feature_code: 'PRK' }
+    const parsed = parseGeocodeResults({ results: [willowRiverTown, willowRiverPark] })
+    expect(parsed.map((p) => p.feature_code)).toEqual(['PPL', 'PRK'])
   })
 
   it('keeps a row with no elevation — the lapse-rate correction is simply skipped', () => {
@@ -65,9 +79,14 @@ describe('parseGeocodeResults', () => {
   })
 
   it('nulls out missing or non-string secondary fields', () => {
-    const { admin1: _a, country: _c, timezone: _t, ...bare } = RED_ROCK_NV
+    const { admin1: _a, country: _c, timezone: _t, feature_code: _f, ...bare } = RED_ROCK_NV
     const parsed = parseGeocodeResults({ results: [{ ...bare, admin1: 42 }] })
-    expect(parsed[0]).toMatchObject({ admin1: null, country: null, timezone: null })
+    expect(parsed[0]).toMatchObject({
+      admin1: null,
+      country: null,
+      timezone: null,
+      feature_code: null,
+    })
   })
 
   it('drops rows missing an identity field rather than emitting nulls', () => {
@@ -138,5 +157,45 @@ describe('searchPlaces', () => {
     vi.mocked(fetch).mockResolvedValue(new Response('upstream detail', { status: 400 }))
 
     await expect(searchPlaces('Bishop')).rejects.toThrow('Open-Meteo geocoding API returned 400')
+  })
+
+  it('retries once with a comma inserted before the last word on an empty first result — real-device report', async () => {
+    // Measured live: "Minneapolis, MN" matched and the comma-less
+    // "Minneapolis MN" did not, for the identical two words.
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response(JSON.stringify({}), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ results: [RED_ROCK_NV] }), { status: 200 }))
+
+    const results = await searchPlaces('Minneapolis MN')
+
+    expect(results).toHaveLength(1)
+    expect(fetch).toHaveBeenCalledTimes(2)
+    const firstUrl = new URL(vi.mocked(fetch).mock.calls[0]?.[0] as string)
+    const secondUrl = new URL(vi.mocked(fetch).mock.calls[1]?.[0] as string)
+    expect(firstUrl.searchParams.get('name')).toBe('Minneapolis MN')
+    expect(secondUrl.searchParams.get('name')).toBe('Minneapolis, MN')
+  })
+
+  it('does not retry when the query already has a comma', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }))
+
+    await expect(searchPlaces('Minneapolis, MN')).resolves.toEqual([])
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not retry a single-word query — there is nowhere to put the comma', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }))
+
+    await expect(searchPlaces('Minneapolis')).resolves.toEqual([])
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not retry once the first attempt already found something', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ results: [RED_ROCK_NV] }), { status: 200 }),
+    )
+
+    await searchPlaces('Red Rock Canyon')
+    expect(fetch).toHaveBeenCalledTimes(1)
   })
 })

@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   DRY_SENTINEL_HOURS,
   formatHoursSinceRain,
+  formatLastRain,
   isSevereAlert,
   limitingComponent,
+  scoreUnavailableLine,
   stateLabel,
   summarizeConditions,
   type ScoreComponents,
@@ -185,5 +187,50 @@ describe('formatHoursSinceRain', () => {
 
   it('renders an em dash for null', () => {
     expect(formatHoursSinceRain(null)).toBe(EM_DASH);
+  });
+});
+
+describe('scoreUnavailableLine — score_error', () => {
+  it('does not blame rainfall when the failure was the scorer itself', () => {
+    // The rainfall lookup may have been perfectly fine. Naming it when we do not
+    // know what threw is defect class 3 — attribution the data does not support.
+    const line = scoreUnavailableLine('score_error');
+    expect(line).not.toMatch(/rainfall/i);
+    expect(line.length).toBeGreaterThan(0);
+  });
+
+  it('says something different from the rainfall case', () => {
+    expect(scoreUnavailableLine('score_error')).not.toBe(
+      scoreUnavailableLine('rainfall_unavailable'),
+    );
+  });
+});
+
+describe('formatLastRain', () => {
+  it('caps at the sentinel rather than counting days from an outage', () => {
+    // 720 is returned both for a genuinely dry month and for a rainfall fetch
+    // that failed. "about 30 days ago" would state a date nobody measured.
+    expect(formatLastRain(DRY_SENTINEL_HOURS)).toBe('over 30 days ago');
+    expect(formatLastRain(5000)).toBe('over 30 days ago');
+  });
+
+  it('counts hours inside two days and days beyond them', () => {
+    expect(formatLastRain(21)).toBe('about 21 hours ago');
+    expect(formatLastRain(47)).toBe('about 47 hours ago');
+    expect(formatLastRain(48)).toBe('about 2 days ago');
+    expect(formatLastRain(100)).toBe('about 4 days ago');
+  });
+
+  it('says today rather than a figure pointing the wrong way', () => {
+    // `dryingModel` measures from the end of the rain day, so rain dated today
+    // is in the future relative to now — about -14h at midday.
+    expect(formatLastRain(0)).toBe('earlier today');
+    expect(formatLastRain(-14)).toBe('earlier today');
+  });
+
+  it('has nothing to say when nothing was measured', () => {
+    // `null`, not an em dash: the caller omits the whole line rather than
+    // printing a label with a dash beside it.
+    expect(formatLastRain(null)).toBeNull();
   });
 });

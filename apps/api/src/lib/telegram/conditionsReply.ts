@@ -96,7 +96,6 @@ export async function buildConditionsInput(
   return {
     locationName: location.name,
     isClimbingLocation: location.is_climbing_location,
-    asosStation: location.asos_station,
     // The location's local day, decided server-side — this used to derive its
     // own UTC date, the same #33 bug the Mini App had.
     today: snapshots.find((s) => s.is_today === true) ?? null,
@@ -106,7 +105,6 @@ export async function buildConditionsInput(
     // conditions yet" on one surface and something else on the other (#34).
     scoreUnavailable: scoreUnavailable ?? null,
     activeAlerts,
-    snapshots,
   }
 }
 

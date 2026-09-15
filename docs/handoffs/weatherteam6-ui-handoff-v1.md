@@ -159,7 +159,20 @@ Complete the existing Home screen shell. Weather-first entry point for the devic
 ## Phase 7c: Location Detail Screen
 
 ### What to build
-Single crag detail. Weather leads, full page is one scroll — no internal tabs. Score never appears on this screen; it lives in the Walls button and on the Walls screen itself (Phase 8).
+
+> **Superseded for the Mini App, 2026-09-14.** CLAUDE.md points here as the closest existing
+> spec for location detail, so read this first: the shipped screen has **Daily / Hourly
+> tabs**, and per-day climbing scores are a metric on the Daily rows. "One scroll, no
+> internal tabs" and "score never appears on this screen" were both reversed on the owner's
+> 2026-09-04 decision — see `docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md`
+> (§ Decisions taken, § Phase 3), which is the authority.
+>
+> **What below is still in force:** weather leads, and the score is never the headline — it
+> is one metric among four on the Daily rows and a collapsed section at the foot of the
+> screen, never the largest element. The § Design System rules are untouched and remain
+> client-agnostic. The Walls screen referred to below was never built and is not planned.
+
+Single crag detail. Weather leads, ~~full page is one scroll — no internal tabs~~. ~~Score never appears on this screen; it lives in the Walls button and on the Walls screen itself (Phase 8).~~
 
 ### Screen
 **Location Detail** (`/locations/:id`)

@@ -2,7 +2,8 @@ import type { EnsembleRunHour } from '../runs/latestRuns.js'
 import {
   HOUR_IN_MS,
   localHourInstant,
-  precipCell,
+  padGrid,
+  precipValue,
   type IntervalHours,
   type TableUnits,
 } from './forecastTable.js'
@@ -201,8 +202,24 @@ export function buildRainDay(
 
 const GAP = '—'
 
-function oddsCell(pct: number | null): string {
-  return (pct === null ? GAP : `${Math.round(pct)}%`).padStart(5)
+function oddsValue(pct: number | null): string {
+  return pct === null ? GAP : `${Math.round(pct)}%`
+}
+
+/**
+ * The window a row covers: `12a-3a`, `9a-12p`.
+ *
+ * **The label is the explanation.** A column headed `time` showing `12am` meant
+ * "the three hours after this", which needed a sentence underneath and was
+ * reported as confusing. A range needs no sentence.
+ */
+function clockRange(hour: number, intervalHours: number): string {
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23) return GAP
+  const short = (h: number): string => {
+    const n = ((h % 24) + 24) % 24
+    return `${n % 12 === 0 ? 12 : n % 12}${n < 12 ? 'a' : 'p'}`
+  }
+  return `${short(hour)}-${short(hour + intervalHours)}`
 }
 
 /**
@@ -211,34 +228,67 @@ function oddsCell(pct: number | null): string {
  * `null` for a day with no steps at all — a header with nothing under it reads
  * as a day with no rain rather than a day with no data.
  */
-export function renderRainTable(day: RainDay, units: TableUnits): string | null {
-  if (day.rows.length === 0) return null
+/**
+ * Whether the ensemble said anything at all about this day.
+ *
+ * **Rows exist for every step whether or not the data reaches them** — the same
+ * padding `dayHasData` guards against on the forecast side. Past the ensemble's
+ * 168 h horizon `buildRainDay` still emits eight rows, every value null, and
+ * `day.rows.length === 0` is false for all of them. Drawing that table put
+ * eight rows of em dashes under the sentence *"No forecast reaches this day
+ * yet"*, which contradicts itself.
+ *
+ * Found by rendering the panel against a live fetch, not by any test.
+ */
+export function rainDayHasData(day: RainDay): boolean {
+  return day.rows.some((r) => r.odds_pct !== null || r.total_mm !== null)
+}
 
-  // Five-wide value columns, so the whole row is 32 characters. A `<pre>` block
-  // scrolls sideways on a phone rather than wrapping, and the nine-column width
-  // finding in telegram-render.md was measured on a *rich* table, not this path.
-  const unit = units === 'imperial' ? 'in' : 'mm'
-  const header = [
-    'hh',
-    'odds'.padStart(5),
-    `tot${unit}`.padStart(5),
-    'p10'.padStart(5),
-    'p50'.padStart(5),
-    'p90'.padStart(5),
-  ].join(' ')
+export function rainGrid(
+  day: RainDay,
+  units: TableUnits,
+  interval: IntervalHours,
+  detail = false,
+): string[][] | null {
+  if (!rainDayHasData(day)) return null
 
-  const body = day.rows.map((row) =>
-    [
-      String(row.hour).padStart(2, '0'),
-      oddsCell(row.odds_pct),
-      precipCell(row.total_mm, units, 5),
-      precipCell(row.precip_mm_p10, units, 5),
-      precipCell(row.precip_mm_p50, units, 5),
-      precipCell(row.precip_mm_p90, units, 5),
-    ].join(' '),
-  )
+  const header = ['time', 'chance', 'rain']
+  const body = day.rows.map((row) => [
+    clockRange(row.hour, interval),
+    oddsValue(row.odds_pct),
+    precipValue(row.total_mm, units),
+  ])
 
-  return [header, ...body].join('\n')
+  /**
+   * **`⚙ More` widens this table rather than adding a second one.**
+   *
+   * The spread used to be a separate "If it rains, how much" table underneath,
+   * which meant two tables of eight rows describing the same eight windows —
+   * reported as hard to follow. There was never a width problem to justify it.
+   */
+  if (detail) {
+    header.push('least', 'likely', 'most')
+    day.rows.forEach((row, i) => {
+      body[i]?.push(
+        precipValue(row.precip_mm_p10, units),
+        precipValue(row.precip_mm_p50, units),
+        precipValue(row.precip_mm_p90, units),
+      )
+    })
+  }
+
+  return [header, ...body]
+}
+
+/** The `<pre>` fallback for the rain table. */
+export function renderRainTable(
+  day: RainDay,
+  units: TableUnits,
+  interval: IntervalHours,
+  detail = false,
+): string | null {
+  const grid = rainGrid(day, units, interval, detail)
+  return grid === null ? null : padGrid(grid)
 }
 
 /**
@@ -248,29 +298,129 @@ export function renderRainTable(day: RainDay, units: TableUnits): string | null 
  * reader who assumes the percentiles are step totals would read them as three to
  * twelve times the rain they represent.
  */
-export function rainTableNote(interval: IntervalHours): string {
-  const span = interval === 1 ? 'the hour' : `the ${interval} h`
-  return `odds and p10/p50/p90 are the wettest hour of ${span} after each row; tot is that whole step.`
+export function rainTableNote(_interval: IntervalHours, detail: boolean): string | null {
+  // **Nothing to say in the simple case.** The row label is a window now, so
+  // "each row covers the 3 h after it" — which was reported as confusing —
+  // explains something the table already states.
+  return detail
+    ? 'Least, likely and most are the range of amounts the forecasts give for that window.'
+    : null
 }
+
 
 /**
  * An amount of precipitation as prose, for a sentence rather than a cell.
  *
- * Wraps `precipCell` so the table and the lines under it round identically, and
- * turns its `t` into words — "t in" is not a sentence, and the distinction it
- * marks is worth keeping: a trace is not `0.00 in`, which is the value that
- * means it did not rain.
+ * Wraps `precipValue` so the table and the lines under it round identically.
+ * The cell already carries its unit, so the only difference is the article:
+ * "a trace" reads as a sentence where the bare word reads as a cell.
  */
 export function describePrecip(mm: number, units: TableUnits): string {
-  const cell = precipCell(mm, units, 0).trim()
-  if (cell === 't') return 'a trace'
-  return `${cell} ${units === 'imperial' ? 'in' : 'mm'}`
+  const value = precipValue(mm, units)
+  return value === 'trace' ? 'a trace' : value
 }
 
 export type LastRain = {
   /** `YYYY-MM-DD`, the local calendar day the rain was recorded against. */
   readonly date: string
   readonly precip_mm: number
+}
+
+/**
+ * The last unbroken run of wet hours in a recent hourly series.
+ *
+ * **Why an episode and not just the last wet hour:** "it rained at 3am" and "it
+ * rained from 11pm to 3am" are different facts about how wet the rock is, and
+ * the second one is the one a climber needs. The run is extended backwards only
+ * across hours that are *consecutive* — the series drops unmeasured hours, so
+ * adjacency in the array is not adjacency in time, and treating it as such
+ * would merge two separate showers into one long one.
+ *
+ * `total_mm` is the sum over the episode and comes from this same series, never
+ * from the daily lookup. A gauge day-total and a reanalysed hourly total
+ * disagree for the same date, and quoting one against the other's clock time
+ * would put two sources in one sentence.
+ */
+export type RainEpisode = {
+  /** Local date the episode ended on, `YYYY-MM-DD`. */
+  readonly date: string
+  /**
+   * Local wall-clock hour the rain **began**, 0–23.
+   *
+   * **One hour before the first wet stamp**, because Open-Meteo stamps hourly
+   * precipitation at the *end* of the hour it fell in — the same convention
+   * `buildRows` and `buildRainDay` already follow. Wet stamps at 02:00 and
+   * 03:00 are rain falling from 01:00 to 03:00, so reporting the stamps
+   * verbatim would say "2am–3am" for a shower that started at 1am and
+   * understate how long the rock has been wet.
+   *
+   * It can be later than `endHour` when the episode crossed midnight; `date` is
+   * the day it *ended*, and the phrasing stays readable either way.
+   */
+  readonly startHour: number
+  /** Local wall-clock hour the rain stopped, 0–23 — the last wet stamp. */
+  readonly endHour: number
+  readonly total_mm: number
+}
+
+type HourlyPrecipPoint = {
+  /** `YYYY-MM-DDTHH:mm`, local. */
+  readonly valid_at_local: string
+  readonly precip_mm: number
+}
+
+/** `2026-09-02T03:00` → epoch ms read as UTC, for adjacency only. `null` if unparseable. */
+function localStampMs(stamp: string): number | null {
+  const ms = Date.parse(`${stamp}:00Z`)
+  return Number.isFinite(ms) ? ms : null
+}
+
+export function lastRainEpisode(
+  hours: readonly HourlyPrecipPoint[],
+  thresholdMm: number,
+): RainEpisode | null {
+  let end = -1
+  for (let i = hours.length - 1; i >= 0; i--) {
+    const h = hours[i]
+    if (h !== undefined && h.precip_mm >= thresholdMm) {
+      end = i
+      break
+    }
+  }
+  if (end < 0) return null
+
+  const last = hours[end]
+  if (last === undefined) return null
+  const lastMs = localStampMs(last.valid_at_local)
+  if (lastMs === null) return null
+
+  let start = end
+  let total = last.precip_mm
+  for (let i = end - 1; i >= 0; i--) {
+    const h = hours[i]
+    if (h === undefined || h.precip_mm < thresholdMm) break
+    const ms = localStampMs(h.valid_at_local)
+    const prevMs = localStampMs(hours[i + 1]?.valid_at_local ?? '')
+    // Consecutive in *time*, not merely adjacent in the array.
+    if (ms === null || prevMs === null || prevMs - ms !== HOUR_IN_MS) break
+    start = i
+    total += h.precip_mm
+  }
+
+  const startStamp = hours[start]?.valid_at_local
+  if (startStamp === undefined) return null
+
+  const firstStamp = Number(startStamp.slice(11, 13))
+  const endHour = Number(last.valid_at_local.slice(11, 13))
+  if (!Number.isInteger(firstStamp) || !Number.isInteger(endHour)) return null
+
+  return {
+    date: last.valid_at_local.slice(0, 10),
+    // The stamp is the *end* of the hour the rain fell in. See `RainEpisode`.
+    startHour: (firstStamp - 1 + 24) % 24,
+    endHour,
+    total_mm: total,
+  }
 }
 
 /**
@@ -293,14 +443,48 @@ export function formatLastRain(
   today: string,
   units: TableUnits,
 ): string {
-  if (lookupFailed) return 'Last rain: the rainfall record could not be read just now.'
-  if (lastRain === null) return `Last rain: none recorded in the past ${windowDays} days.`
+  if (lookupFailed) return 'Last rain: couldn’t check the rainfall record just now.'
+  if (lastRain === null) return `Last rain: none in the past ${windowDays} days.`
 
   const amount = describePrecip(lastRain.precip_mm, units)
-  const days = daysBetween(lastRain.date, today)
-  const when =
-    days === null ? '' : days <= 0 ? ' (today)' : days === 1 ? ' (yesterday)' : ` (${days} days ago)`
-  return `Last rain: ${lastRain.date}, ${amount}${when}.`
+  return `Last rain: ${relativeDay(lastRain.date, today)}, ${amount}.`
+}
+
+/** `today` / `yesterday` / `4 days ago`, each keeping the date it stands for. */
+function relativeDay(date: string, today: string): string {
+  const days = daysBetween(date, today)
+  if (days === null) return date
+  if (days <= 0) return `today (${date})`
+  if (days === 1) return `yesterday (${date})`
+  return `${days} days ago (${date})`
+}
+
+/**
+ * The last-rain line when an hourly series reached it — a clock time instead of
+ * a calendar day.
+ *
+ * *"Last rain: today"* was the complaint that produced this: rain that stopped
+ * at 3am and rain still falling at 5pm read identically, and they are opposite
+ * answers to "has the rock had time to dry". A single wet hour reads
+ * *"3am today"*; a run reads *"11pm–3am"*, because how long it rained for
+ * matters as much as when it stopped.
+ *
+ * The hour is rendered by `formatClockHour`, which the caller injects rather
+ * than this module importing `panels.ts` — that import would be a cycle, since
+ * `panels.ts` already imports this file.
+ */
+export function formatLastRainAt(
+  episode: RainEpisode,
+  today: string,
+  units: TableUnits,
+  formatClockHour: (hour: number) => string,
+): string {
+  const when = relativeDay(episode.date, today)
+  const amount = describePrecip(episode.total_mm, units)
+  // Always a span, never a single hour: one wet stamp still covers a whole
+  // hour of rain, and `startHour` already accounts for the stamp convention.
+  const span = `${formatClockHour(episode.startHour)}–${formatClockHour(episode.endHour)}`
+  return `Last rain: ${span} ${when}, ${amount}.`
 }
 
 /**

@@ -2,28 +2,34 @@ import { Router, type Request, type Response } from 'express'
 import { escapeTelegramHtml } from '@weatherteam6/types'
 import { logger } from '../lib/logger.js'
 import { isUuid } from '../lib/http.js'
+import { insertGeneralLocation } from '../lib/locations/createLocation.js'
+import { deleteLocationCascade } from '../lib/locations/deleteLocation.js'
 import { decodeAction } from '../lib/telegram/callbackData.js'
 import { formatHelp, parseCommand } from '../lib/telegram/commands.js'
 import { formatLocationNotFound } from '../lib/telegram/conditionsMessage.js'
-import { findLocationByName } from '../lib/telegram/conditionsReply.js'
+import { findLocationById, findLocationByName } from '../lib/telegram/conditionsReply.js'
+import { isIntervalHours, isTableUnits } from '../lib/telegram/forecastTable.js'
+import { searchPlaces } from '../lib/weather/geocode.js'
 import {
-  isColumnSet,
-  isIntervalHours,
-  isTableUnits,
-} from '../lib/telegram/forecastTable.js'
-import {
-  buildNoticePanel,
+  buildRetryPanel,
+  buildWeatherSearchPanel,
   EXPIRED_PANEL_TEXT,
-  FIELD_COLUMNS,
+  panelToHtml,
   FIELD_DAY,
   FIELD_INTERVAL,
-  FIELD_MODEL,
+  FIELD_KIND,
   FIELD_UNITS,
+  OPEN_FIELDS,
+  VERB_GOTO,
   VERB_MODE,
   VERB_OPEN,
   VERB_REFRESH,
+  VERB_REMOVE,
+  VERB_SAVE,
   VERB_SET,
   VERB_VIEW,
+  type OpenField,
+  type Panel,
 } from '../lib/telegram/panels.js'
 import {
   createPanelState,
@@ -34,14 +40,19 @@ import {
   updatePanelState,
   type PanelState,
 } from '../lib/telegram/panelState.js'
-import { DETERMINISTIC_MODELS } from '../lib/weather/openMeteo.js'
 import { renderPanel } from '../lib/telegram/panelViews.js'
 import {
   answerCallbackQuery,
+  editRichPanel,
   editTelegramMessage,
+  sendRichPanel,
   sendTelegramMessage,
+  TelegramPermanentError,
 } from '../lib/telegram/sendMessage.js'
 import { webhookSecretAccepted } from '../lib/telegram/webhookAuth.js'
+
+/** `/weather` shows at most this many results — Telegram inline keyboards get unwieldy past a handful. */
+const MAX_WEATHER_RESULTS = 6
 
 export const telegramWebhookRouter = Router()
 
@@ -131,10 +142,58 @@ telegramWebhookRouter.post('/webhook', async (req: Request, res: Response) => {
 
 /**
  * Send a panel as a new message. Used by every command; a tap edits instead.
+ *
+ * **Rich first, HTML if the rich call is permanently rejected.** The native
+ * table is the rendering the owner chose, and Probe B saw it draw on this bot's
+ * own phone — but `sendRichMessage` is a Bot API 10.1 method and nothing in this
+ * repo can exercise it without the token, so a permanent rejection must not cost
+ * the panel. `TelegramPermanentError` is a non-429 4xx, which is exactly the
+ * shape of "this method or field is not available"; a transient failure still
+ * throws, because retrying is the right answer to that.
  */
+async function deliverPanel(panel: Panel): Promise<void> {
+  try {
+    await sendRichPanel(panel.blocks, panel.keyboard)
+  } catch (err) {
+    if (!(err instanceof TelegramPermanentError)) throw err
+    logger.warn(
+      { err: err.message },
+      '[telegramWebhook] rich message rejected — falling back to the HTML panel',
+    )
+    await sendTelegramMessage(panelToHtml(panel.blocks), panel.keyboard)
+  }
+}
+
+async function editPanel(messageId: number, panel: Panel): Promise<void> {
+  try {
+    await editRichPanel(messageId, panel.blocks, panel.keyboard)
+  } catch (err) {
+    if (!(err instanceof TelegramPermanentError)) throw err
+    logger.warn(
+      { err: err.message },
+      '[telegramWebhook] rich edit rejected — falling back to the HTML panel',
+    )
+    await editTelegramMessage(messageId, panelToHtml(panel.blocks), panel.keyboard)
+  }
+}
+
 async function sendPanel(userId: string, state: PanelState): Promise<void> {
-  const panel = await renderPanel(userId, state)
-  await sendTelegramMessage(panel.text, panel.keyboard)
+  await deliverPanel(await renderPanel(userId, state))
+}
+
+/**
+ * A one-off plain-text reply — not a panel.
+ *
+ * **Every plain string in this route goes through here, and that is the point.**
+ * The copy modules stopped escaping when the panels became rich messages, but
+ * these replies still go out with `parse_mode: 'HTML'`, so the escape has to
+ * happen somewhere. Leaving it to each call site is how
+ * `formatLocationNotFound` briefly shipped unescaped with a user-typed name in
+ * it — `/conditions Bear & Cub` is a 400 the webhook swallows, and the user
+ * gets silence. Issue #26, in the gap between the two rendering paths.
+ */
+async function sendPlain(text: string): Promise<void> {
+  await sendTelegramMessage(escapeTelegramHtml(text))
 }
 
 async function handleMessage(userId: string, text: string): Promise<void> {
@@ -162,16 +221,25 @@ async function handleMessage(userId: string, text: string): Promise<void> {
 
     case 'forecast':
     case 'rain': {
-      // Same shape as `/conditions`: a name opens that location's panel, no name
-      // opens the picker rather than a usage line the user has to retype. The
-      // view the picker then opens is `conditions` — one tap from either.
+      // A name opens that location's panel; no name opens the picker rather than
+      // a usage line the user has to retype.
+      //
+      // **The picker remembers which command opened it.** It used to open a
+      // plain `list`, whose buttons all opened *conditions* — so typing
+      // `/forecast` and tapping your crag landed on the conditions panel, and
+      // all three commands appeared to do the same thing.
       if (command.args === '') {
-        await sendPanel(userId, await createPanelState(userId, { view: 'list' }))
+        await sendPanel(
+          userId,
+          await createPanelState(userId, {
+            view: command.name === 'rain' ? 'pick_rain' : 'pick_forecast',
+          }),
+        )
         return
       }
       const location = await findLocationByName(userId, command.args)
       if (location === null) {
-        await sendTelegramMessage(formatLocationNotFound(command.args))
+        await sendPlain(formatLocationNotFound(command.args))
         return
       }
       await sendPanel(
@@ -193,7 +261,7 @@ async function handleMessage(userId: string, text: string): Promise<void> {
       }
       const location = await findLocationByName(userId, command.args)
       if (location === null) {
-        await sendTelegramMessage(formatLocationNotFound(command.args))
+        await sendPlain(formatLocationNotFound(command.args))
         return
       }
       await sendPanel(
@@ -203,12 +271,88 @@ async function handleMessage(userId: string, text: string): Promise<void> {
       return
     }
 
+    case 'weather': {
+      if (command.args === '') {
+        await sendPlain('Tell me a place — e.g. /weather Bishop, CA')
+        return
+      }
+
+      let results
+      try {
+        results = await searchPlaces(command.args)
+      } catch (err) {
+        logger.warn(
+          { err: err instanceof Error ? err.message : String(err) },
+          '[telegramWebhook] geocode search failed',
+        )
+        await sendPlain('Could not search for that place just now. Try again in a moment.')
+        return
+      }
+      if (results.length === 0) {
+        // searchPlaces already retries a comma-less "City State" once on its
+        // own. This still fires for a genuine miss (a typo, an obscure name),
+        // so the tip names the one format change most likely to help next.
+        await sendPlain(`No place found matching "${command.args}". Try "City, State" or "City, Country".`)
+        return
+      }
+
+      // Each result gets its own panel state up front — a search result's
+      // lat/lon/elevation/feature_code do not fit in callback_data, so the
+      // button for a result has to point at a row that already carries them.
+      const capped = results.slice(0, MAX_WEATHER_RESULTS)
+      const children = await Promise.all(
+        capped.map((r) =>
+          createPanelState(userId, {
+            view: 'weather_preview',
+            lat: r.lat,
+            lon: r.lon,
+            placeName: r.name,
+            elevationM: r.elevation_m,
+            featureCode: r.feature_code,
+          }),
+        ),
+      )
+
+      // One match, no ambiguity to resolve — skip straight to the preview
+      // rather than a results screen with a single row on it.
+      if (children.length === 1 && children[0] !== undefined) {
+        await sendPanel(userId, children[0])
+        return
+      }
+
+      const searchState = await createPanelState(userId, { view: 'weather_search' })
+      await deliverPanel(
+        buildWeatherSearchPanel(
+          searchState.id,
+          command.args,
+          capped,
+          children.map((c) => c.id),
+        ),
+      )
+      return
+    }
+
+    case 'remove': {
+      if (command.args === '') {
+        await sendPanel(userId, await createPanelState(userId, { view: 'pick_remove' }))
+        return
+      }
+      const location = await findLocationByName(userId, command.args)
+      if (location === null) {
+        await sendPlain(formatLocationNotFound(command.args))
+        return
+      }
+      await sendPanel(
+        userId,
+        await createPanelState(userId, { view: 'remove_confirm', locationId: location.id }),
+      )
+      return
+    }
+
     default:
       // Named, not ignored: an unregistered command typed by hand otherwise
       // looks like the bot is down.
-      await sendTelegramMessage(
-        `${escapeTelegramHtml(`I don't know /${command.name}.`)}\n\n${formatHelp()}`,
-      )
+      await sendPlain(`I don't know /${command.name}.\n\n${formatHelp()}`)
       return
   }
 }
@@ -229,13 +373,13 @@ async function handleCallbackQuery(userId: string, q: CallbackQuery): Promise<vo
   if (messageId === undefined) {
     // Nothing to edit — Telegram omits the message once it is too old. Say so on
     // a new message rather than silently doing nothing.
-    await sendTelegramMessage(EXPIRED_PANEL_TEXT)
+    await sendPlain(EXPIRED_PANEL_TEXT)
     return
   }
 
   const action = q.data === undefined ? null : decodeAction(q.data)
   if (action === null) {
-    await editTelegramMessage(messageId, EXPIRED_PANEL_TEXT, null)
+    await editTelegramMessage(messageId, escapeTelegramHtml(EXPIRED_PANEL_TEXT), null)
     return
   }
 
@@ -243,13 +387,13 @@ async function handleCallbackQuery(userId: string, q: CallbackQuery): Promise<vo
   if (state === null) {
     // Pruned at 7 days, or an id from another chat. Never a guess at what the
     // panel used to be showing.
-    await editTelegramMessage(messageId, EXPIRED_PANEL_TEXT, null)
+    await editTelegramMessage(messageId, escapeTelegramHtml(EXPIRED_PANEL_TEXT), null)
     return
   }
 
   const next = await applyAction(userId, state, action.verb, action.field, action.value)
   if (next === null) {
-    await editTelegramMessage(messageId, EXPIRED_PANEL_TEXT, null)
+    await editTelegramMessage(messageId, escapeTelegramHtml(EXPIRED_PANEL_TEXT), null)
     return
   }
 
@@ -264,18 +408,18 @@ async function handleCallbackQuery(userId: string, q: CallbackQuery): Promise<vo
       { err: err instanceof Error ? err.message : String(err) },
       '[telegramWebhook] failed to render a panel',
     )
-    // Keeps its navigation, because the copy tells the user to tap Refresh —
-    // stripping the keyboard here would leave a message naming a button that is
-    // no longer on it.
-    const notice = buildNoticePanel(next.id, 'Could not load that just now. Tap 🔄 to try again.')
-    await editTelegramMessage(messageId, notice.text, notice.keyboard)
+    // The copy and the retry button are built together in `panels.ts`, not
+    // assembled here from a string plus whichever keyboard that module happens
+    // to attach. That split is what let the message tell the user to tap a 🔄
+    // the nav row had stopped carrying.
+    await editPanel(messageId, buildRetryPanel(next.id))
     return
   }
 
   // A re-tap of the tab already showing produces byte-identical text and markup,
   // which Telegram calls a 400 "message is not modified". `editTelegramMessage`
   // tolerates exactly that one.
-  await editTelegramMessage(messageId, panel.text, panel.keyboard)
+  await editPanel(messageId, panel)
 }
 
 /**
@@ -299,8 +443,12 @@ async function applyAction(
       return state
 
     case VERB_OPEN: {
-      if (field !== 'loc' || value === null || !isUuid(value)) return null
-      return updatePanelState(state.id, userId, { view: 'conditions', locationId: value })
+      // The field names the destination — `loc` conditions, `locf` hourly,
+      // `locr` rain — so the picker opened by `/forecast` lands on the forecast.
+      if (field === null || value === null || !isUuid(value)) return null
+      if (!Object.prototype.hasOwnProperty.call(OPEN_FIELDS, field)) return null
+      const target = OPEN_FIELDS[field as OpenField]
+      return updatePanelState(state.id, userId, { view: target, locationId: value })
     }
 
     case VERB_VIEW: {
@@ -311,6 +459,58 @@ async function applyAction(
     case VERB_MODE: {
       if (field !== 'm' || value === null || !isPanelMode(value)) return null
       return updatePanelState(state.id, userId, { mode: value })
+    }
+
+    case VERB_GOTO:
+      // The tapped button already named the state to open — a `/weather`
+      // search result's own pre-created preview row, loaded above by its own
+      // id. Nothing to change here, just render what was loaded.
+      return state
+
+    case VERB_SAVE: {
+      // The flag is the field's value, never a default — §12 requires it be
+      // stated. `lat`/`lon`/`placeName` are missing only if this state was
+      // never a weather-preview row, which no button on this build points at.
+      if (field !== FIELD_KIND || value === null) return null
+      if (value !== 'climb' && value !== 'place') return null
+      if (state.lat === null || state.lon === null || state.placeName === null) return null
+      // Already saved once — a double-tap before the edited message reaches
+      // the client must not insert a second location at the same coordinates.
+      // `handleCallbackQuery` re-reads this row fresh per tap, so a save that
+      // already landed is visible here on the very next request.
+      if (state.locationId !== null) return state
+
+      const row = await insertGeneralLocation({
+        user_id: userId,
+        name: state.placeName,
+        lat: state.lat,
+        lon: state.lon,
+        elevation_m: state.elevationM,
+        timezone: null,
+        is_climbing_location: value === 'climb',
+        // 'unknown' rather than null when climbing — the same default the Mini
+        // App's save bar starts from — because there is no rock-type picker in
+        // chat (§12.4 stays out of scope) and 'unknown' is a real, scoreable
+        // value (48h drying), not a placeholder for "not asked yet".
+        rock_type: value === 'climb' ? 'unknown' : null,
+      })
+      return updatePanelState(state.id, userId, { locationId: row.id, view: 'conditions' })
+    }
+
+    case VERB_REMOVE: {
+      // "Update" a mis-saved location is remove-then-add — /weather already
+      // saves under any name, so a bad save is fixed by removing it here and
+      // searching again, not by a separate edit flow (§12.4 stays out of scope).
+      if (state.locationId === null) return null
+      const location = await findLocationById(userId, state.locationId)
+      if (location === null) return null // already gone — reads as expired below
+      const deleted = await deleteLocationCascade(state.locationId, userId)
+      if (!deleted) return null
+      // Not `updatePanelState(state.id, ...)`: `deleteLocationCascade` just
+      // deleted this very row along with the location it pointed at —
+      // `panel_states` is one of `DEPENDENT_TABLES`. A fresh row is what
+      // carries the confirmation forward.
+      return createPanelState(userId, { view: 'removed', placeName: location.name })
     }
 
     /**
@@ -326,19 +526,10 @@ async function applyAction(
           if (!Number.isInteger(day) || day < 0 || day > MAX_DAY_OFFSET) return null
           return updatePanelState(state.id, userId, { dayOffset: day })
         }
-        case FIELD_MODEL: {
-          const models: readonly string[] = DETERMINISTIC_MODELS
-          if (!models.includes(value)) return null
-          return updatePanelState(state.id, userId, { model: value })
-        }
         case FIELD_INTERVAL: {
           const hours = Number(value)
           if (!Number.isInteger(hours) || !isIntervalHours(hours)) return null
           return updatePanelState(state.id, userId, { intervalHours: hours })
-        }
-        case FIELD_COLUMNS: {
-          if (!isColumnSet(value)) return null
-          return updatePanelState(state.id, userId, { columnSet: value })
         }
         case FIELD_UNITS: {
           if (!isTableUnits(value)) return null

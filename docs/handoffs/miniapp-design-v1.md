@@ -116,11 +116,22 @@ Empty state, error state, and loading per §5. No sort or filter controls in v1.
 
 ### Location detail (`/location/:id`)
 
-One scroll, no internal tabs — carried from the mockup's Crag Detail treatment.
+~~One scroll, no internal tabs~~ — **superseded 2026-09-14 and shipped.** The screen now
+carries **Daily and Hourly tabs**, and the daily rows carry per-day scores, both reversed
+on the owner's 2026-09-04 decision. The authority is
+`docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` (§ Decisions taken, § Phase 3); this
+section is rewritten wholesale in its Phase 5, not here.
+
+What the list below still governs, unchanged: **the order, and what sits outside the
+tabs.** The alert banner is above everything always, the today hero follows it, and the
+score and sources footer stay below the tabs where switching cannot hide them. A location
+identity block (rock, aspect, wall angle, elevation, coordinates, rainfall station) is new
+and sits between the banner and the hero. Item 3 below now reads "the Daily tab", and its
+"no per-day score chip" constraint is the part Decision 2 reversed.
 
 1. **Alert banner** — full-width, top, if any active alert. Event, severity, and the NWS headline. Above everything, always.
 2. **Today** — the hero. Today's high, max wind, humidity, and hours since rain, as labeled values. **Hours since rain is capped in display — see the rule below.**
-3. **7-day forecast** — one row per day: date, high, low, wind, precipitation. **Weather only — no per-day score chip.** See the constraint below.
+3. **7-day forecast** — now **the Daily tab**: one row per day, each tappable into that day's hours, with a metric toggle (temperature, rain, wind, climbing score) and a range bar on a scale shared by all seven rows. ~~**Weather only — no per-day score chip.**~~ **Reversed 2026-09-14** by Decision 2 of the dataviz handoff: `/forecast/:id` now returns per-day scores and the Daily rows render them. The constraint below explains why it *used* to say that; the reason it gave — that no endpoint returned them — is no longer true.
 4. **Score and breakdown** — last section, collapsed by default. Today's score only, with the five components and their weights. This is where a score is allowed to be prominent, because the user has scrolled to it deliberately. **Omitted entirely when `is_climbing_location` is false — see the rule below.**
 5. **Sources footer** — required by the locked rule "always quote data sources by name." **Nothing in this list may be hardcoded**, because two of the three sources vary per request:
 
@@ -144,6 +155,14 @@ When `is_climbing_location` is false, on every surface including the bot:
 **Rule: hours since rain is capped at "30+ days" in display, everywhere.** `breakdown.drying.hours_since_rain` carries a sentinel. When the rainfall lookup returns nothing — because it genuinely has not rained, **or because the ACIS / Open-Meteo-archive fetch threw and `liveForecast.ts:96` swallowed it** — `dryingModel.ts:34,41` returns exactly `720`, flagged `estimated_dry: true` with `confidence: 'high'`. Both paths produce the identical value, so **no surface can tell a dry month from an upstream outage**, and neither may be rendered as a precise measurement.
 
 Binding: any value at or above `720` renders as *"no rain in 30+ days"* — never *"no rain in 720h"*, never a computed day count. Below `720`, render the real figure. This is a display cap, not a data fix; the underlying ambiguity is filed as §10.6. It applies to the bot reply in §7 as much as to the detail screen, since both read the same field.
+
+> **SUPERSEDED 2026-09-14.** Per-day scores **do** exist over the API now: `GET /forecast/:id`
+> carries `score`, `confidence`, `unavailable_reason` and five `component_*` fields per day
+> (PR #107). The owner reversed this on 2026-09-04 and asked for a score toggle on the Daily
+> tab. The paragraph below is kept because its *reasoning* is still the record of why it was
+> ruled out, and because the sentence it ends on — "if per-day scores are ever wanted, that
+> is an API change and its own task" — is exactly what happened. Do not act on its
+> conclusion. See `docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` § Decisions taken 2.
 
 **Constraint: per-day scores do not exist over the API.** `computeLiveForecast` scores all seven days, but no endpoint returns them — `GET /conditions/:id` keeps only the row matching today (`routes/conditions.ts`) and `GET /forecast/:id` returns `snapshots`, which carry no score or confidence field. Verified against production: `/forecast/:id` returns 7 objects whose keys are `id, location_id, captured_at, forecast_date, precip_mm_p10/p50/p90, temp_c_min, temp_c_max, wind_kmh_max, humidity_pct, model_sources, created_at, window`.
 

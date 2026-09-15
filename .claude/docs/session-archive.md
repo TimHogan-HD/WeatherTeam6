@@ -2338,41 +2338,814 @@ secret check is skipped and the forgeable `chat.id` is the only gate.
 
 ---
 
-## 2026-09-01 — branch: claude/rock-absorption-drying-research-8b5cnw — commit: `e4f7559`
+## 2026-09-02 — The chat interface was rebuilt in plain language, and the plan's product decision was reversed
 
-**Phase completed:** None. This was a research session, not a phase — it ships documentation only and touches no code path.
+`main` @ `2208e59` (PR #76, squashed)
 
-**What was built this session:**
-- `.claude/docs/rock-drying-research.md` — 2,666 lines over 25 research passes: the absorption/drying physics behind the rock-type constants, ~65 crags across six rock families, non-rock modifiers, a gap analysis against `dryingModel.ts` and `conditionsScore.ts`, a proposed taxonomy (**NOT APPROVED**), and a survey of the competing products.
-- `CLAUDE.md` — one line in Reference Docs making it mandatory reading before any drying-model or rock-type work.
-- PR #75, open as a draft. `scoring-algorithm.md` untouched and still locked.
+**What prompted it:** the user opened with *"I really hate the look and feel of the telegram
+chat interface"* — no ask attached. The diagnosis was that nothing was broken: the panel was
+`.claude/docs/telegram-precision-interface-plan.md` working exactly as written. That doc's
+premise is *"the Mini App is the snapshot, **the bot is the instrument** … SpotWX-class
+precision — model-explicit, hourly, variable-rich — **not a glanceable summary**."* Phases
+1–3 delivered it: five keyboard rows, up to thirteen buttons under an eight-line table, a
+header of dot-separated metadata, two footnote sentences per view, `p10/p50/p90` as three of
+six columns on `/rain`.
 
-**What the session established that the plan did not know:**
-- **The Mohs premise is half right and the useful half is the cement.** Grain hardness does not predict absorption — Navajo Sandstone is ~28% porosity on Mohs-7 quartz, micritic limestone ~1% on Mohs-3 calcite. Redirected at the cement it works, because hardness orders with solubility and swelling: silica 7 → iron oxide 5–6 → calcite 3 → clay 1–2. §4.17 shows it failing *inside* one family: granitic rocks all sit within one Mohs unit while absorption varies by a factor of several, driven by grain size and plagioclase content.
-- **Variation within a rock family exceeds variation between families.** Navajo facies span 100 mD to 0.265 mD inside one formation; Bishop Tuff runs 38–60% porosity non-welded against near-granitic welded; basalt spans 0.1% to 50%.
-- **Porosity governs drying and friction with opposite signs** (§3.1). The property that makes rock dangerous wet makes it grippy dry. This is why reporting dryness and friction separately is correct and averaging them describes nothing.
-- **Freeze–thaw is a state the model cannot express** (§2.6). Frozen sandstone is *stronger* — ice cements the pores — so the hazard is the thaw. Cycles also raise saturated water content 15.6–60.0% and cut strength 7.3–38.0% permanently, which means porosity is not a constant and §3's table describes fresh rock only.
-- **Snow is not rain with a different label** (§2.7, §6.12). Verified in the code: `fetchArchivePrecip` requests `precipitation_sum` and `fetchPrecipHistory` requests ACIS `pcpn`, both liquid-equivalent, so the model starts its clock at the *end of the snowfall day* — before the wetting begins rather than after it ends. A fortnight of covered ledges counts as a fortnight of drying.
-- **The Access Fund brackets `MAX_HOURS.sandstone = 72` on both sides** (§6.11): 24–48 h after light rain in the sun, up to a week after a cool humid downpour. A factor of seven, wrong at both ends, and the deciders it names — aspect, wind, season, precipitation amount — are none of them inputs today.
-- **Humidity alone re-wets rock** (§2.8), closing a gap §8 had listed as open. Sorption: Type II sigmoidal isotherm, regime break near 75% RH, surface equilibrates almost instantly, hysteresis makes uptake path-dependent. `humidityFactor`'s 80% threshold is the only constant found in 25 passes that literature *supports*; its binary shape is still wrong for a sigmoid.
+**The decision the user made**, over two rounds of questions: the bot answers the question,
+the Mini App carries the depth — but with *"some quick deeper forecasting ability in the
+chat"*, and *"this needs to be human readable and simple to understand for people who don't
+understand p10/p50/p90 — leave the heavy weather jargon out where possible, replace it with
+common language."* They chose a three-line answer, and Hourly + Rain as the two in-chat
+deeper views. **They were offered the seven-day glance and did not take it**, so it left chat
+for the Mini App; the hourly panel's day pager still walks the same week one day at a time.
+They also did not take in-chat model comparison.
 
-**Known issues / deferred work:**
-- **§7's taxonomy is a proposal and is NOT APPROVED.** 17+ rock classes, a `seepage_prone` flag, a condensation term and an ET₀ water balance. `scoring-algorithm.md` is agreed and must not change without the user saying so.
-- **Two live code defects are recorded and unfixed**, both outside this PR's scope: `unknown` (48 h) is less conservative than `sandstone` (72 h), contradicting its own docstring and making a *correct* rock type more cautious than no rock type; and `importCrags.ts`'s `onConflictDoUpdate` assigns each column to itself, so the upsert is a silent no-op on conflict — `storeRun.ts`'s `sqlExcluded` helper is the pattern it should use.
-- **`crags.rock_type` is `text`, not the enum**, and probably does not hold rock types at all. Unverified against a real OpenBeta export.
-- **Nothing was verified against live weather data.** A direct probe of `archive-api.open-meteo.com` was refused at the gateway (`connect_rejected`, 403 to CONNECT). Where §6 says *verified*, it means read from this repository's source. Every figure carries a confidence marker — [M] peer-reviewed, [S] stone-industry, [C] community, [I] inference — and §8 says any figure destined for a constant must be re-checked from an unrestricted machine.
-- **CI had not reported on `e4f7559`** when the session ended; every prior commit on the branch was green and the change is documentation only.
+**Why this is recorded as a reversal, not a drift.** The plan doc is the approved spec and it
+says the opposite of what now ships. Its top box carries the reversal, § What it looks like is
+marked superseded, and the Panel-controls and command-surface rows are struck through. The
+measurements, traps and schema in it all still stand — only the interface decisions are
+superseded. **`/insight` (Phase 4, unbuilt) now needs re-specifying**: "model disagreement,
+ensemble distribution, outlier, confidence by lead time" is precisely the vocabulary this
+removed. `/afd` is unaffected and improves — it is a human forecaster writing plain English.
 
-**Blockers for next session:**
-- None. Nothing here blocks Phase 4, and nothing here should be implemented without the user approving §7 first.
+**What the rebuild is, in one line each:**
+- Conditions: two button rows, an `📲 Open in app` deep link, no mode toggle. The text is
+  `formatConditionsReply` **unchanged** — it was already built to §7 and was never the part
+  that read badly.
+- Hourly: place and day in the header, four columns (`°F mph in sky`), the model named at the
+  foot rather than in the headline. No model row, no column-set picker.
+- Rain: leads with a sentence — *"Rain most likely around 9pm — 100% chance. Expect about
+  0.29 in over the day."* — over a two-column table of `chance` and `rain`.
+- One `⚙ More` per panel adds the detail tables, the step picker and the unit toggle.
 
-**What's next:** Phase 4 is still next and is unaffected — `git checkout -b phase/4-insight-afd` off `main`, read `.claude/docs/telegram-precision-interface-plan.md` § Phase 4 and § Traps 7 and 10. If instead the drying model is picked up, §6.2 (the `unknown`/`sandstone` inversion) is the smallest correct first change and needs no new input.
+**Four defects, and where each came from.** Three were found by **rendering the panels
+against a live Open-Meteo fetch** — at Red Rock, and then at Bergen because Red Rock's week
+was too dry to exercise the wet copy. None was visible to typecheck, lint or 440 green tests:
+
+1. The rain panel drew eight rows of em dashes directly under *"No forecast reaches this day
+   yet."* Open-Meteo pads every model to the longest horizon in the request, so past the
+   ensemble's reach `buildRainDay` still emits eight rows, every value null — `rows.length`
+   was never 0. `rainDayHasData` is the check, and it is the lesson `dayHasData` had already
+   learned one file over.
+2. `membersLabel` returned a sentence where a noun phrase was needed, and the source line
+   rendered *"Based on no forecasts reach this day, just now."* It returns `null` now.
+3. `timingLine` keyed on `peak_odds_pct` alone. `members_wet` is nullable and null means
+   unknown, so a run stored before that column existed has real amounts and no chance — and
+   was reported as a day no forecast reached, above a table of those amounts.
+
+The fourth came from **the independent reviewer, and it is the most instructive one this
+repo has produced.** `buildNoticePanel`'s keyboard moved from `navRow` to `footerRow`, which
+carries no `🔄`; the webhook's copy still said *"Tap 🔄 to try again."* **Neither file was
+wrong on its own** — the copy lived in `telegramWebhook.ts` and the keyboard was built in
+`panels.ts`, so no single-file review could see it. `buildRetryPanel` now owns both, and
+drops the promise along with the button when the state id will not encode.
+
+Two more were caught by the **existing** 32-character width assertion: a nine-column detail
+table measures 50 characters and the rain spread bolted onto its table measured 36. `<pre>`
+scrolls sideways rather than wrapping, so both would have gone off the edge of a phone
+silently. Both `⚙ More` views draw two narrow stacked tables instead.
+
+**`pop` was removed outright**, the only variable that left the product.
+`precipitation_probability` belongs to no single model (Probe A: 276 h against a 54 h model,
+byte-identical to another's series), so it needed a footnote disowning it, and the rain panel
+answers the same question from `members_wet / member_count`. It is still fetched, stored and
+flagged; `.claude/rules/architecture.md` now says no surface renders it, so that rule is not
+mistaken for a description of live code.
+
+**A test-fixture lesson, defect class 11 again.** Suppressing the all-gap rain table made
+three existing assertions pass vacuously — their fixture was `buildRainDay([], …)`, which now
+renders no table at all, so *"renders missing odds as a gap"* would have been asserting
+against `undefined`. They were rebuilt on a **partially** covered day, which is the state
+that actually threatens the invariant.
+
+**Verified:** `typecheck`, `lint`, `check:hooks` (58) green; `npm run test` **520 passing**
+(446 api, 50 miniapp, 24 types), up from 512. The panels were rendered against live
+Open-Meteo in both default and `⚙ More` states.
+
+**Not verified:** nothing has been driven from a real Telegram client. The `📲 Open in app`
+button is the one thing that cannot be proven locally — the URL format is the one the alert
+path already uses in production, but this is its first use on a panel keyboard mixing `url`
+and `callback_data` buttons in one row.
+
+**A CI failure that was not a code failure, worth recognising next time.** The `review` check
+failed twice after the fix commit — 2m22s then 1m29s, shrinking on each retry, with
+`permission_denials_count` of 1 and 3. Both looked like the allowlist problem #73 fixed, and
+both were misread that way at first. The retained `claude-execution-output.json` artifact —
+added by #73 for exactly this — held the real answer: a `rate_limit_event` and *"You've hit
+your session limit · resets 11pm (UTC)"*. **STATE.md already said a denial count of 1–3 is
+routine**, which was the clue that the count was not the cause. The signature to learn: a run
+that gets *shorter* on each retry is exhausting a quota, not hitting a wall in the repo. It
+passed on its own once the limit reset.
+
+**Blockers for next session:** none new. The three unapplied migrations and the two
+unregistered cron routes are unchanged and still the gate on Phase 4's trend comparator.
+
+**What's next:** Phase 4, but **re-spec `/insight` first** — the plan's four sections are
+written in the vocabulary this session removed. `/afd` can be built as specified.
 
 **Gotchas for next session:**
-- **Read `rock-drying-research.md` §6 before touching `dryingModel.ts`.** Fourteen findings against the current implementation are recorded there, several of which look like improvements and are not: §6.12 notes that adding `snowfall_sum` without moving the clock makes a snowy day a *bigger rain event that still finished on time*.
-- **Open-Meteo's snowfall is water-equivalent at a fixed 1 mm : 7 cm factor**, so it is `precipitation_sum` times a constant and recovers none of the 3:1–40:1 depth spread. Snow *depth* is the separate observation, and it is missing from some models.
-- **§8.2 retracts §8.1's soil-moisture recommendation.** A modelled grid-cell soil moisture is not the ground a climber is looking at — measured soil moisture near an outcrop is biased by the outcrop's own shading, and modelled wetness proxies carry r² in the 20s while looking authoritative. Recency-weighted rainfall the app already holds, or a rainfall-minus-ET₀ balance, are the better routes.
-- **§9.7 is the best value-to-disruption item found**: a horizon profile is a property of a fixed point, so it precomputes once per crag when a location is saved and corrects the `shortwave_wm2` already being stored. No per-request DEM work.
-- The doc is long. It is structured so §6 and §9 are readable alone; §2–§5 are the evidence behind them.
+- **`panels.ts`'s module comment is the panels' spec now**, not the plan doc's § What it
+  looks like. Three rules: plain language over the vocabulary of the data source; at most
+  three button rows and three a row, except the one opt-in `More`; nothing removed from the
+  product, only from the first screen.
+- **`⚙ More` reuses `panel_states.mode`** (`advanced` is what it writes) but means something
+  narrower than the old Simple/Advanced tier.
+- **The Mini App does not yet have the model switching chat gave up.** That is a real gap,
+  not a completed migration, and it is the strongest argument for the next Mini App work.
+- **A wide `<pre>` table fails silently.** Both width assertions earn their keep; add one for
+  any new table rather than eyeballing it.
+- **Render a panel against a live fetch before calling it done.** Three of this session's
+  four defects came from that and none from the suite. Red Rock's week was too dry to
+  exercise the wet copy — pick a wet point too.
 
-**Does the user need to do anything?** **Yes — two things, and only the first is about this session.** (1) PR #75 is an open draft and needs their review and merge; I cannot merge from this environment. (2) Unchanged from the last session and unrelated to this work: `npm run db:migrate` from `apps/api` with `DATABASE_URL` set applies `0007`, `0008` and `0009`, without which every bot panel command still fails in production.
+**Does the user need to do anything?** **Yes, and one item is new.** `npm run bot:set-commands`
+with `TELEGRAM_BOT_TOKEN` set is now needed for a second reason: the rebuild reworded
+`/conditions`, `/forecast` and `/rain`, and the list is registered with Telegram rather than
+read from the code, so the menu keeps the old wording until it runs. Unchanged and still
+owed: `npm run db:migrate` from `apps/api` with `DATABASE_URL` set (applies `0007`, `0008`,
+`0009`), then `check:panel-state` and `check:weather-runs`; registering
+`/api/cron/collect-runs` and `/api/cron/prune-runs` with cron-job.org; and
+`TELEGRAM_WEBHOOK_SECRET` in Vercel with a matching `setWebhook` re-run.
+
+---
+
+## 2026-09-02 (second pass) — The data section was made readable, from screenshots of the live bot
+
+`main` @ `2ef5d6a` (PR #78, squashed)
+
+**What prompted it:** the user opened the rebuilt bot on their phone and sent two
+screenshots. The clutter was gone and the *data* was still unreadable. Four complaints,
+quoted because each one names a distinct failure:
+
+> "so much empty space in the data section of messages. could be filled out so that the data
+> is clearer and easier to understand."
+> "the rain graph is ridiculous. that doesn't show anything of value. if we are going to use
+> a chart it needs labels and actual information."
+> "none of the data is explained well it's just random numbers it feels. the charts have no
+> legends or axis labels at all. last rain 'today' is also not helpful. we need times/hour of
+> day."
+> "you don't need to put the source of the data constantly. it's just dumb filler."
+
+**The lesson under all four:** the first rebuild optimised the *furniture* and left the
+*content* alone. Removing buttons made the panel shorter without making a single number
+easier to read. "Fewer controls" and "clearer data" are different problems and the first one
+does not solve the second.
+
+**What shipped:**
+
+- **The empty space became a chart.** An inline bar per row — temperature on the hourly
+  panel, chance of rain on the rain panel. It fills the width that was blank *and* makes the
+  day's shape readable at a glance, which the numbers alone did not.
+- **The standalone sparkline was deleted**, and `sparkline.ts` with it. Eight block
+  characters with no axis, no scale and no labels is not a chart. The same values inside the
+  rows need no legend: the clock time is the x label and the number is the y label, both
+  already on screen. **`barScaleNote` is mandatory wherever a bar is drawn** — the bar is
+  scaled to the day's own range, so without the stated scale it means nothing, which is
+  precisely what was wrong with what it replaced.
+- **`hh` became a clock time** in every table. `00`/`03` is a timestamp; `12am`/`3am` is a
+  time of day.
+- **Headers carry their units** (`rain in`, `dry in`/`mid in`/`wet in`), which let the
+  footnote prose shrink. The complaint was "not explained well", and the fix was to move the
+  explanation into the labels rather than to add more sentences under them.
+- **"Last rain" gained a clock.** New `fetchRecentHourlyPrecip`.
+
+**The width limit rose from 32 to 40 characters, and the screenshot is the evidence.** The
+old figure was inherited caution; the user's own photo shows a 24-character table using well
+under half the bubble. A measurement of the real client beats a measurement of a different
+rendering path.
+
+**The honesty problem this created, and how it was resolved.** The rainfall record behind
+the drying model is a *daily* series, so "it rained today" was the most it could ever say —
+the request was for something the existing source could not honestly provide. Open-Meteo's
+`/v1/forecast` with `past_days` was **probed live before any code was written** (defect class
+9: a branch that can never succeed is not resilience) and does return hourly past
+precipitation. But the two sources disagree: measured at Willow River, the ACIS gauge said
+**0.23 in** for the day and the hourly reanalysis said **0.04 in**. So the episode reports
+timing *and* amount from the hourly series, and the daily lookup answers alone when the
+hourly window did not reach the rain. Halves of both in one sentence would have been the
+attribution defect.
+
+**One defect, found reading the diff.** The episode span was off by an hour. Open-Meteo
+stamps precipitation at the *end* of the hour it fell in — the convention `buildRows` and
+`buildRainDay` already follow, and which this repo has written down twice — so wet stamps at
+02:00 and 03:00 are rain falling from 01:00. Printing the stamps verbatim said "2am–3am" for
+a shower that began at 1am, understating how long the rock had been wet. The live render
+showed "2am–3am" and looked entirely plausible; only checking it against the repo's own
+stated convention caught it.
+
+**The sources footer went, and the rule it appeared to violate did not.** §7 rule 6 requires
+a named source to be *computed* rather than hardcoded. It does not require one to be
+*shown*, and which surface shows it is a display decision. `forecastSourceLabel` and
+`rainfallSourceLabel` are untouched and the Mini App still renders them; NWS is still named
+inline on every alert, which is the attribution that carries meaning; the model name is
+under `⚙ More`. **The age stays on the default panel** because it is the only piece of
+provenance that changes what the reader should do.
+
+**Verified:** `typecheck`, `lint`, `check:hooks` (58) green; `npm run test` **530 passing**
+(456 api, 50 miniapp, 24 types). Both panels rendered against a live Open-Meteo fetch at the
+reporter's own location, in both modes, before and after the hour fix. The independent
+reviewer ran 35 turns and posted no findings.
+
+**Not verified:** nothing has been driven from a real Telegram client since the change. `█`
+and `░` are the same Block Elements family as the sparkline glyphs that rendered correctly in
+the reporter's screenshots, but their alignment in Telegram's monospace font has not been
+seen firsthand.
+
+**Blockers for next session:** unchanged. The three migrations and the two cron
+registrations are still the gate on any of this appearing on a phone.
+
+**Gotchas for next session:**
+- **A bar with no stated scale is forbidden.** `barScaleNote` exists for that and the caller
+  prints it. The scale is the day's own range, not an absolute one.
+- **`bar(null, …)` draws blanks, not an empty bar.** `░░░░░░` beside an em dash is a drawn
+  zero contradicting the gap next to it.
+- **The width assertion is 40 now, and the bar is added by the *panel*, not the column set** —
+  so the set-level width test never sees the widest thing that reaches a phone. There is a
+  second assertion for the bar-inclusive shape; keep it if the layout changes again.
+- **Fewer controls is not clearer data.** The first rebuild fixed the furniture and the
+  numbers stayed unreadable. Ask both questions separately.
+- **Render it, then check the render against the repo's written conventions.** The live
+  output looked right and was off by an hour; the stamp-at-end rule is what caught it.
+
+**Does the user need to do anything?** **Yes, unchanged from the last entry.** `npm run
+db:migrate` from `apps/api` with `DATABASE_URL` set (applies `0007`, `0008`, `0009`), then
+`check:panel-state` and `check:weather-runs`; `npm run bot:set-commands` with
+`TELEGRAM_BOT_TOKEN` set, now needed for the reworded command descriptions as well as the new
+commands; registering `/api/cron/collect-runs` and `/api/cron/prune-runs` with cron-job.org;
+and `TELEGRAM_WEBHOOK_SECRET` in Vercel with a matching `setWebhook` re-run.
+
+---
+
+## 2026-09-02 (third pass) — Four rounds of device feedback, ending in native Telegram tables
+
+`main` @ `c60d8be` (PRs #81, #84, #85, squashed)
+
+**The shape of the day.** The owner ran the bot on a phone and sent screenshots four
+times. Each round found something the round before had not, and the last one rejected the
+whole rendering approach. Every fix was correct for the complaint it answered and
+insufficient for the one underneath it.
+
+| Round | Reported | Cause |
+| --- | --- | --- |
+| 1 | *"conditions and forecast are the same"* | Every picker button carried `loc`, which maps to `conditions` — so all three commands landed on the same panel |
+| 2 | *"rain bars are showing blank"*, *"the wavy chart is weird"* | The temperature bar scaled to the day's own range, so the coldest row drew **zero** blocks; the rain bar drew one block on every row because 1–12% of 0–100 all rounds the same |
+| 3 | *"we have a lot of horizontal space but you are cutting off words"* | Fixed column widths chosen for a constraint that was never measured |
+| 4 | *"there has to be a better way… it looks awful"* | `<pre>`. The grey box and `COPY CODE` are Telegram's **code-block chrome** |
+
+**The lesson worth keeping: three attempts at an inline chart all failed and all were
+removed.** A sparkline, then a dithered `░` bar, then a `█` bar with a blank track. The
+pattern was trying to *use* the horizontal space rather than asking what belonged in it,
+and the owner's third report — "you are cutting off words" — was the answer the whole
+time. Do not add a fourth chart without being asked for one.
+
+**The answer to round 4 was already in this repo, measured, and shelved.**
+`telegram-render.md` §2 run 1 (2026-08-31) recorded specimen 2 drawing a *real table with
+grid lines* on this bot's own phone, and specimen 7 re-rendering the same message id as a
+table after an `editMessageText` — which the panel design depends on. It was held back
+only because nobody had checked Telegram Web. Every report driving this design came from
+a phone, so the owner accepted that risk knowingly and the tables went native. **The
+lesson is not "adopt rich tables"; it is that a measurement sitting unused in a doc is
+worth re-reading when the thing it was gating becomes the problem.**
+
+**Defects found by reading the diff, after a reviewer pass that did not.** The
+independent reviewer returned green on #85 in **4 turns** — it had run 35 on a comparable
+diff — so its verdict carried no weight, and reading the diff found a real one:
+
+- The copy modules correctly stopped escaping when panels became rich messages (blocks are
+  JSON). But **three replies in the webhook are not panels** and still go out with
+  `parse_mode: 'HTML'`, two of them interpolating a user-typed location name.
+  `/conditions Bear & Cub` with no match would have been a **400 the webhook swallows** —
+  silence, not an error. Issue #26 reintroduced in the gap between two rendering paths.
+  Every plain reply now goes through `sendPlain`.
+- Earlier the same day: the picker routing bug, and an episode span off by an hour because
+  Open-Meteo stamps precipitation at the *end* of the hour it fell in.
+
+**A reviewer's green is worth what its turn count says it is.** Check `num_turns` in the
+run log before treating a pass as coverage; a 4-turn pass on a 900-line diff is a skip
+with a tick next to it.
+
+**Verified:** `typecheck`, `lint`, `check:hooks` (58) green; **533 passing** (459 api).
+Every panel rendered against live Open-Meteo at the owner's own coordinates, in both
+modes, with the blocks drawn as a grid.
+
+**Not verified, and it is the important one:** **nothing in this repo has ever made a
+`sendRichMessage` call.** Probe B proved Telegram accepts the payload shape and that the
+phone draws it, but that was the probe script, not this path, and there is no bot token
+here. The HTML fallback exists for exactly that gap: a permanent rejection degrades to the
+old rendering rather than to no panel. **Confirm on a real device before trusting it** —
+three outcomes, three meanings: a bordered table means it worked, the old grey code block
+means Telegram rejected the rich message and the fallback caught it, and an "unsupported
+message" card means the Web concern applies to the phone too and this should revert to
+plain text.
+
+**Blockers for next session:** none new.
+
+**What's next:** issue **#82** (the geocode picker cannot tell a town from a state park —
+"Willow River" saved a Minnesota town when Willow River State Park in Wisconsin was meant,
+90 miles away), then **Phase 5**, which the owner asked for directly and which is where
+add/remove/update of locations from chat lives. #82 first: Phase 5 *is* a location picker,
+and building it before #82 reproduces the fault on a smaller screen.
+
+**Gotchas for next session:**
+- **Escaping has exactly two homes and they are opposites.** Rich blocks: never. HTML
+  (`panelToHtml`, `sendPlain`, `alertMessage`): always. Getting it backwards prints a
+  literal `&amp;` or silently drops a message.
+- **No fixed column widths.** The table sizes itself; the fallback measures.
+- **`clockLabel` for sentences, `clockShort` for cells.** "midnight" in a column widens
+  the whole thing.
+- **This file is CRLF and scripted multi-line replacements silently match nothing.**
+  Several went wrong today before being normalised; `\n` in a search string does not match
+  `\r\n`. Use the Edit tool, or normalise first.
+- **Check `num_turns` before trusting a green reviewer.**
+
+**Does the user need to do anything?** **Yes, four, and one is time-sensitive.** Rotate
+the Neon password — the connection string was pasted into a chat transcript on 2026-09-02.
+Then, unchanged: `npm run bot:set-commands` with `TELEGRAM_BOT_TOKEN` set; registering
+`/api/cron/collect-runs` and `/api/cron/prune-runs` with cron-job.org; and
+`TELEGRAM_WEBHOOK_SECRET` in Vercel with a matching `setWebhook` re-run. The migrations
+are done.
+
+---
+
+## 2026-09-03 -- branch: main -- commit: b02eac3
+
+**Phase completed:** Phase 3 hardening (`collectWeatherRuns` honest failure reporting) and end-to-end real-device verification of the 2026-09-02 native-table rebuild.
+
+**What was built this session:**
+- `apps/api/src/lib/runs/collectRuns.ts` (PR #87) -- `CollectResult` gained `deterministicFailed`/`ensembleFailed`, separate from `failed`. Production had logged `locations: 5, runsStored: 5, hoursStored: 840, failed: 0` while every deterministic fetch failed and only the ensemble half was stored -- `failed` only counted a location when *both* upstreams failed, so a one-sided systematic failure was invisible. A partial collection now logs at `warn`; a clean one at `info`.
+- `apps/api/src/lib/weather/openMeteo.ts` -- `requestDeterministic` reads the response body via `res.text()` and logs the first 200 chars on a JSON-parse failure (`statusCode`, `content-type`, body snippet), so the next occurrence is diagnosable instead of just `Unexpected token 'U'...`.
+- No further code changes this session -- the rest of the work was operational verification, done by the owner and reported back.
+
+**Known issues / deferred work:**
+- The root cause of the deterministic JSON-parse failures is still unconfirmed. Working theory: Open-Meteo rate-limiting Vercel's shared egress IP. Vercel's Hobby-plan log retention (~1 hour) means the diagnostic line has to be checked within minutes of a scheduled `collect-runs` run, not after a wait -- this was learned the hard way (an earlier "wait an hour, then check" instruction was backwards).
+- Neon database password still not rotated. The connection string was pasted into this chat's own transcript on 2026-09-02 and remains a live exposure.
+- Issue #82 (geocode picker can't distinguish a town from a state park) still open, still blocking Phase 5.
+
+**Blockers for next session:** none new.
+
+**What's next:** Issue **#82** first -- `git checkout -b fix/82-geocode-feature-code` off `main` -- then **Phase 5** (`git checkout -b phase/5-chat-locations`), reading `.claude/docs/telegram-precision-interface-plan.md` §Phase 5 and its two amendments before writing any UI.
+
+**Gotchas for next session:**
+- None new -- see the 2026-09-02 (third pass) entry above for the still-live rendering gotchas (escaping's two homes, no fixed widths, `clockLabel` vs `clockShort`).
+
+**Does the user need to do anything?** **Yes, one item, unchanged from last time: rotate the Neon password.** Everything else that was outstanding is now confirmed done -- cron jobs (`collect-runs`, `prune-runs`) are registered and running, and the native Telegram tables were confirmed rendering correctly on the owner's own phone (2026-09-03), closing the one claim in the previous entry that had shipped unverified.
+
+---
+
+## 2026-09-03 — branch: phase-5-chat-add-remove-locations — commit: b29e503
+
+**Phase completed:** Phase 5 — add/remove locations from Telegram chat (PR #91), the feature requested directly by the owner on 2026-09-02: *"I would like to be able to add remove and update locations from the chat rather than only in the app."*
+
+**What was built this session:**
+- `apps/api/src/db/schema.ts` (migration 0010) — `panel_states` gained `elevation_m` (numeric) and `feature_code` (text). Neither fits in Telegram's 64-byte `callback_data`, so a `/weather` search result's own panel state row carries them instead of re-deriving them from a rerun search at tap time.
+- `apps/api/src/routes/telegramWebhook.ts` — `/weather <place>` (geocodes via `searchPlaces`, creates one child `panel_states` row per result up front, skips straight to the preview when there's exactly one match) and `/remove` (confirm-before-delete over the existing `deleteLocationCascade`). New `applyAction` verbs: `VERB_GOTO` (open a pre-created child state — distinct from `VERB_REFRESH` for readability, though it behaves identically), `VERB_SAVE` (insert the location, guarded against a double-tap creating two rows at the same coordinates by checking `state.locationId !== null` before inserting), `VERB_REMOVE` (delete, then create a **fresh** `removed` panel state rather than updating the tapped one — `deleteLocationCascade` already deleted that row, since `panel_states` is itself a `DEPENDENT_TABLES` entry).
+- `apps/api/src/lib/telegram/panels.ts` — `buildWeatherSearchPanel`, `buildWeatherPreviewPanel` (two explicit Save buttons, never a default — §12), `buildRemoveConfirmPanel` (Cancel reuses the existing generic `VERB_VIEW` handler, no bespoke verb needed).
+- `apps/api/src/lib/locations/createLocation.ts` (new) — `insertGeneralLocation`, factored out of `POST /locations`'s inline insert so the HTTP and chat Save paths write through one function, not two that can drift.
+- `packages/types/src/geocodeCopy.ts` — `placeSubtitle` moved here from `apps/miniapp/src/routes/AddLocation.tsx` (which had it as a private, untested-independently function) so the Mini App's `/add` picker and the bot's new `/weather` picker share one implementation of the issue #82 disambiguation fix. `AddLocation.test.ts` deleted; its four cases moved into `packages/types/src/geocodeCopy.test.ts`.
+- `apps/api/src/scripts/checkChatLocations.ts` (new, `npm run check:chat-locations`) — the DB-only-visible parts: `elevation_m`/`feature_code` round-tripping through the new numeric/text columns, `insertGeneralLocation` actually writing a row, and the delete-cascade ordering when a location a chat panel points at is removed.
+- 9 new tests in `panels.test.ts` for the three new builders (issue #82 disambiguation, the two explicit Save buttons, Cancel's reused verb), plus the `PICK_VIEWS`/`OPEN_FIELDS` exhaustiveness test updated for the fourth picker (`pick_remove`).
+
+**Known issues / deferred work:**
+- **Migration 0010 is unapplied.** No `DATABASE_URL` was reachable this session (this environment could not reach Neon), so `db:generate` ran against a placeholder connection string (safe — `generate` diffs the schema file against migration metadata, it does not connect) but `db:migrate` was never run. `/weather` and Save will 500 on the missing columns until someone runs it.
+- **Nothing in this flow has been driven from a real device or against real Postgres.** `check:chat-locations` was written but not run, for the same reason.
+- Amendment 2's decision (remove-then-add is the whole "update" answer, no `/rename`) was made unilaterally this session, reasoning from the plan doc's own framing ("the cheap version is remove-then-add, which Phase 5 already provides") rather than asked back to the owner. Worth a sentence of confirmation next time they're in the loop, though nothing suggests they'd want the heavier `/rename` alternative.
+
+**Blockers for next session:** Migration 0010 must be applied (`npm run db:migrate` with a reachable `DATABASE_URL`) before `/weather` can work in production at all — this is the first thing to check, not just the first thing to do.
+
+**What's next:** Phase 4 (`/insight`, `/afd`) — off `main`, after migration 0010 is applied and Phase 5 verified on a real device. Read `.claude/docs/telegram-precision-interface-plan.md` §Phase 4 first; `/insight` needs re-specifying in plain language before it's built (the "model disagreement, ensemble distribution" vocabulary the 2026-09-01 reversal removed).
+
+**Gotchas for next session:**
+- `npm run db:generate` needs `DATABASE_URL` set (even to a placeholder value) purely to satisfy `drizzle.config.ts`'s validation — it does not actually connect for `generate`, only for `migrate`/`studio`. Don't mistake the requirement for a real connectivity need.
+- `apps/miniapp/src/routes/AddLocation.test.ts` no longer exists — its coverage lives in `packages/types/src/geocodeCopy.test.ts` now. If it reappears (e.g. from a stale branch merge), that's duplicate coverage to remove, not a regression to fix.
+- The Bash and PowerShell tools in this session tracked *different* working directories (one drifted into `apps/api`, the other stayed at repo root) despite being "the same shell" conceptually — cheap to verify with `pwd`/`Get-Location` before a command that depends on cwd, expensive to debug from a confusing error otherwise.
+
+**Does the user need to do anything?** **Yes, two things.** First, unchanged: rotate the Neon password (connection string exposed in a chat transcript on 2026-09-02). Second, new: run migration 0010 from a shell that can reach Neon (`$env:DATABASE_URL = "<pooled string>"; npm run db:migrate` from `apps/api`), then ideally `npm run check:chat-locations`, then try `/weather`, both Save buttons, and `/remove` from the phone — this is the one feature in the whole crossover that has shipped with zero real-world verification of any kind.
+
+---
+
+## 2026-09-03 (later) — branch: docs/migration-0010-applied — squashed to `main` as `702f8e4` (PR #94)
+
+**Phase completed:** not a phase — closing the one gap the Phase 5 entry above left open.
+
+**What was built this session:** nothing. The owner ran `npm run db:migrate` and `npm run check:chat-locations` from their own shell, unprompted for the run itself (this session only asked them to). All 8 checks passed: `elevation_m`/`feature_code` round-trip on `panel_states`, `insertGeneralLocation` writing a real row (with `elevation_m` persisted on the location), the panel state attaching to the saved location the way `VERB_SAVE` leaves it, and `deleteLocationCascade` removing both the location and its attached panel state cleanly. STATE.md updated to drop migration 0010 from both "unapplied" and "what the user owes."
+
+**Known issues / deferred work:** none new.
+
+**Blockers for next session:** none.
+
+**What's next:** Phase 5 still needs a real Telegram client driving `/weather <place>`, both Save buttons, and `/remove` — the panel/keyboard rendering and rich-message fallback for the three new views (`weather_search`, `weather_preview`, `remove_confirm`) are unconfirmed on any actual client. After that, Phase 4 (`/insight`, `/afd`) — `git checkout -b phase-4-insight-afd` off `main`, read `.claude/docs/telegram-precision-interface-plan.md` §Phase 4, and re-specify `/insight` in plain language first.
+
+**Gotchas for next session:**
+- None new.
+
+**Does the user need to do anything?** **Yes, one item, unchanged: rotate the Neon password.** Migration 0010 is done. Trying `/weather`, Save, and `/remove` from the phone is still worth doing but is no longer blocking anything — it's verification, not a dependency.
+
+---
+
+## 2026-09-14 — branch: claude/per-day-scores (and eight others) — commit: `54ef8f4`
+
+**Phase completed:** Mini App hourly data visualisation, Phases 1 and 1b — plus an
+unplanned production outage found by Phase 1's own acceptance check.
+
+**What was built this session:**
+- `docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` — the five-phase plan (#97), revised
+  twice as measurement contradicted it (#98, #107)
+- `packages/types/src/hourly.ts` — `HourlySample` / `HourlyModel` / `HourlyDay` /
+  `HourlySeries`, the wire shape for the hourly endpoint
+- `apps/api/src/lib/runs/hourlySeries.ts` — the pure builder: model selection by measured
+  coverage, the instant join, local-day bucketing, the window
+- `apps/api/src/lib/runs/fetchHourlySeries.ts` — the impure half, split out because
+  `latestRuns` reaches `db/index.ts` and makes the builder unloadable under vitest
+- `apps/api/src/routes/hourly.ts` — `GET /api/v1/hourly/:locationId`, with `?models=all`
+- `apps/api/src/scripts/checkHourly.ts` + `checkRunsStorage.ts` — acceptance and storage
+  diagnostics, both read-only
+- `ForecastSnapshot` gains `score`, `confidence`, `unavailable_reason` and five
+  `component_*` fields; `toWindowedForecast` merges them by `forecast_date` (#107)
+- `ScoreUnavailableReason` in `conditionsCopy.ts` — one named union replacing a literal
+  written out in seven places, with an exhaustive switch so a new member needs copy
+- Retention cut 14 days → 2 (#102) and raw 48h → 6h (#105)
+- `.claude/settings.json` allows `Bash(npm run check:*)`; `.claude/settings.local.json` is
+  now gitignored (#106)
+
+**Known issues / deferred work:**
+- **Issue #108, filed this session** — `hours_since_rain` never advances, so every future
+  day scores `component_drying_time: 0`. Drying is 40 of 100 points, so days 2-7 are capped
+  at 60. Same defect class as the wind bug already fixed in the same loop. Per-day scores
+  are what made it visible.
+- **Open Question 5 in the handoff** — should `collect-runs` fail loudly when it persists
+  nothing? Raised three times this session, never answered. It changes a production cron's
+  behaviour, so it stays unmade.
+- Vercel's error level is unusable as a signal: 19 of 19 error-level lines in three hours
+  were the same `DEP0169 url.parse()` deprecation warning, because anything on stderr is
+  filed as an error. A real failure logged at `warn` sat below a floor already flooded.
+- Phases 2-5 (chart primitives, Daily/Hourly tabs, wall-aware scoring, recent rain + doc
+  reconciliation) are specified and not started.
+
+**Blockers for next session:**
+- None. Phase 2 can start immediately.
+
+**What's next:** Phase 2 — `git checkout -b phase/2-chart-primitives` off `main` — read
+`docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` § Phase 2 **and** § Decisions taken
+(the design direction from three mockup rounds) before writing any UI. Load the `dataviz`
+skill before the first line of chart code.
+
+**Gotchas for next session:**
+- **The database outage was the real story.** Neon hit its 512 MB cap, every write failed
+  with `could not extend file`, and `collect-runs` reported `200 OK` with green ticks on
+  cron-job.org for roughly a day while storing nothing. `latestRuns` catches a storage
+  failure and logs a warning — right for a panel render, invisible for a collection job.
+  Nothing surfaced it until `check:hourly` went looking.
+- **`weather_runs.raw` was 56% of the database** — 274 MB across 938 rows at ~292 KB each.
+  The estimate that justified cutting `PARSED_RETENTION_DAYS` put the space in
+  `weather_run_hours` and was wrong. Measure before acting on storage.
+- **`DELETE` does not shrink a relation.** A prune removing 4,953 runs and 705,600 hour rows
+  left every size in `check:runs-storage` byte-identical, which reads as "the prune did
+  nothing". `TRUNCATE` is what reclaims; plain `VACUUM` is what makes space reusable.
+  `VACUUM FULL` needs as much free space as the table and cannot run at the cap.
+- **The independent reviewer's depth varies wildly on identical configuration** — 78 turns
+  and two real defects on one commit, 4 turns and nothing on the next. A green tick from it
+  carries almost no information; `num_turns` is the only signal. It caught two defects this
+  session that CI could not, and both were real.
+- **Check the deployed commit SHA before probing production.** A probe run 45 seconds after
+  merge reported three failures that were entirely the old code still being served.
+- Measured, replacing estimates in the plan: `?models=all` is **3.8×** the default payload
+  (69.7 KB → 263.0 KB), not 6×; and **only HRRR** stops early (56 of 168 hours) — GFS,
+  ECMWF, ICON, GEM and NBM all reach the full window.
+
+**Does the user need to do anything?** **No.** The Neon password rotation — carried as owed
+since 2026-09-02 — was **declined by the owner on 2026-09-14** and is closed. It is not to be
+re-raised. Everything else this session needed from them is done: they set `DATABASE_URL`,
+`CRON_SECRET` and `API_SHARED_SECRET` as Windows user environment variables, which is what
+lets the acceptance checks run unattended.
+
+---
+
+## 2026-09-15 — branch: phase/2-chart-primitives — commit: 675ac89
+
+**Phase completed:** Phase 2 — chart primitives (Mini App hourly data visualisation)
+
+**What was built this session:**
+- `apps/miniapp/src/components/charts/geometry.ts` — pure scales, extents, run detection and
+  path building. No React, no tokens, so every coordinate decision is directly testable.
+- `apps/miniapp/src/components/charts/hourlySeries.ts` — `HourlySeries` → drawable data.
+  Where a gap is decided, and where the ensemble size is either vouched for or withheld.
+- `apps/miniapp/src/components/charts/Series.tsx` — the marks: a line with an optional
+  p10–p90 band, or bars. Knows nothing about axes or the wire shape.
+- `apps/miniapp/src/components/charts/HourlyChart.tsx` — one chart: viewBox, day rules, and
+  labels as HTML positioned over the SVG.
+- `apps/miniapp/src/components/charts/HourlySection.tsx` — temperature with its band and
+  hourly rain, on the saved-location screen. **Not** the Hourly tab.
+- `apps/miniapp/src/components/charts/chartStyle.ts` — the module's colours (all derived from
+  tokens) and its mark geometry.
+- `useHourly` (React Query hook for `GET /hourly/:locationId`), `useNow` (lifted out of
+  `UpdatedAt`), `formatRunAge`, `formatWeekday`.
+- 67 new tests. Mini App suite 50 → 117; repo total 591 → 660.
+
+**Known issues / deferred work:**
+- **Not seen on a device.** Phase 2's own acceptance criterion is the charts rendering on the
+  owner's phone, inside Telegram, in their theme. Everything else is verified; this is not.
+- The independent PR reviewer **never ran** on #110 — it died on an Anthropic session limit
+  (`is_error: true`, `num_turns: 11`) before reading the diff. CI was green and `review` is
+  not a required check, so the merge was not blocked.
+
+  **Resolved the same session.** The quota reset within the hour and `/code-review` was run
+  against the merged commit. It found **three defects**, all of them the same family — the
+  chart asserting something the data does not support — and all fixed in `6b41709` (PR
+  #112), whose own reviewer ran 27 turns and found nothing:
+  1. the accessible summary counted days the chart did not draw ("over 7 days" for five),
+     and the test that named that property had a value on every hour of its fixture;
+  2. `HourlySeries.fetched_at` preferred the deterministic run's timestamp while both
+     charts draw ensemble columns, so the age line could be an hour optimistic — now the
+     **older** of the two runs, fixed in the API so one honest timestamp reaches the wire;
+  3. "No hourly forecast for this location yet" fired on an empty ensemble, over a response
+     that can still carry a full deterministic forecast — the whole-section state is gone
+     and each block now says what it could not draw.
+- No hover or tap readout on the charts. Inline styles cannot express hover and a touch
+  screen has none; a value readout belongs with Phase 3's drill-down.
+- `useNow` re-renders the section every 30 s, recomputing both 168-hour series. Measured cost
+  is negligible; memoise if a third chart lands.
+
+**Blockers for next session:** None. Phase 3 can start immediately.
+
+**What's next:** Phase 3 — `git checkout -b phase/3-daily-hourly-tabs` off `main` — read
+`docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` § Phase 3 **and** § Decisions taken
+before writing any UI. Look at the charts on a phone first: a shape change is cheap now and
+expensive once tabs are built on them.
+
+**Gotchas for next session:**
+- **A rain bar covers the hour *before* its timestamp.** Precipitation is stamped at the end
+  of the hour it fell in, so the 02:00 sample describes 01:00–02:00. `Series.tsx` draws it
+  that way and the bot's `buildRows` reads it the same way. Drawing it forward moves every
+  shower an hour later — plausible on screen, wrong, and nothing typechecks differently.
+  This is the one assertion in the new tests whose correctness rests on the documented
+  convention rather than on measured data.
+- **Two different things break a series and both are real gaps**: a null value, and a missing
+  row. An hour with no values at all is never stored, so its absence is a two-hour step
+  between two good rows. `contiguousRuns` takes an adjacency predicate for exactly this.
+- **A one-point path paints nothing.** `M x,y` with no line command is invisible at any
+  stroke width, so `linePath` returns `''` for a single point and the caller draws a dot.
+  Same class of silence as a NaN coordinate, which is why `extent` skips non-finite values.
+- **A zero-height bar and an absent bar are the same picture.** The rain baseline runs only
+  under hours that have a reading, which is what separates "no rain" from "no forecast".
+- **Chart values stay in °C and mm.** Only the formatter converts. Converting in the adapter
+  would force every threshold (the rain-intensity ramp) to be restated in the other unit.
+- **The value labels describe the median, not the band.** The domain has to cover p10–p90 or
+  it clips, but labelling its outer edge prints one member's worst hour as the forecast. An
+  earlier draft did exactly that and put 66 °F on a series that never passes 63 °F.
+- **`good`/`fair`/`poor` are not available for data marks.** They are the conditions ladder's
+  status colours. Temperature uses `sun`; rain uses the `radar*` intensity ramp.
+- The design-system rule "no px in a component" has no answer for a viewBox size or a stroke
+  width. Those live in `chartStyle.ts` and are explicitly *not* pretending to be tokens.
+- Measured on real production data (Red Wing, 2026-09-14): 168 hours, 7 local days,
+  `gfs_seamless`, 143 members in every hour, 587 ms, and the p10–p90 spread widening from
+  **3.2 °C on day 1 to 8.0 °C on day 7** — the band narrowing toward the present is the
+  product's stated purpose, and it is visible.
+
+**Does the user need to do anything?** **Yes — one thing.** Open a saved climbing location in
+the Mini App on their phone and look at the two charts: whether the band reads as confidence
+or as a smudge, whether the day labels are legible, and whether 168 rain bars are too thin to
+see. Phase 3 builds on these, so a shape change is cheap now. Nothing else is owed — no
+credential, no dashboard setting.
+
+---
+
+## 2026-09-15 — branch: phase/3-daily-hourly-tabs — commit: 03b6d00
+
+**Phase completed:** Phase 3 — Daily / Hourly tabs and the day drill-down
+(`docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md`)
+
+**What was built this session:**
+- `components/Segmented.tsx` — the tab bar and the metric toggle. One control, **two ARIA
+  personalities**: a tab switches which region of the page is shown, a radio group picks a
+  value inside a region already there. The caller says which; a tab that controls no panel
+  is a lie about the page structure.
+- `components/DailyList.tsx` — the seven rows, now tappable, with a metric toggle
+  (temp / rain / **wind** / climbing score) and a range bar per row on **one scale shared by
+  all seven**. Replaces `ForecastList`, which was deleted.
+- `components/LocationIdentity.tsx` — rock, aspect, wall angle, elevation, coordinates,
+  rainfall station. Full on Daily, condensed to one line on Hourly.
+- `components/charts/DayCharts.tsx` — one local day's hours: temperature as a floating
+  range mark, rain as bars, with a day picker.
+- `charts/Series.tsx` — a third mark kind, `range`. `charts/HourlyChart.tsx` — an `hour`
+  axis and a `referenceBand`. `charts/chartStyle.ts` — `tempColor`, the diverging ramp.
+- `packages/types`: `TEMP_BAND_C` (extracted from `conditionsScore.ts`), `SCORE_BANDS`
+  (extracted from `stateLabel`), `formatElevationFt`. `lib/format.ts`: `formatLocalHour`.
+- 48 new tests. 167 miniapp / 712 total.
+
+**Known issues / deferred work:**
+- **The ramp's cold side has one step where the warm side has two**, so -15 °C and +5 °C are
+  the same blue though the scorer gives them 0 and 6. A fifth stop would have to borrow
+  `radarModerate`, the rain ramp's own step, which would read as rain in a weather app.
+  Asserted as deliberate in `chartStyle.test.ts` so a change is a conscious one.
+- **The today hero was not demoted.** § Decisions taken says identity leads and the current
+  temperature is "one line, not a 36px hero"; § Phase 3 says the hero keeps its order.
+  Identity now leads; the hero's type scale was left alone as a design change this phase's
+  build did not ask for.
+- **The wall / area picker is not built.** It belongs with Phase 4 — selecting a wall
+  re-scores the forecast — and nothing populates `walls`, so the control would have nothing
+  to pick.
+- The legend on the day chart does not quote the ensemble size, though `uniformMemberCount`
+  could supply it. The seven-day section directly below already says "143 forecast runs".
+
+**Blockers for next session:**
+- None for building. Phase 4 is blocked on a **product decision** (how a wall gets created)
+  and on the drying model having no aspect term — both recorded in § Phase 4.
+
+**What's next:** Issue #108 — `hours_since_rain` never advances, so days 2-7 all score
+`component_drying_time: 0` and cap at 60 of 100. It was a background annoyance; **Phase 3
+draws it**, as a visibly flat Climbing column across six of the seven rows. Read
+`.claude/docs/scoring-algorithm.md` and the `conditions-score` skill before touching it.
+
+**Gotchas for next session:**
+- **An accumulation and an instantaneous reading are placed differently on the same axis,
+  and the rain rule does not generalise.** This shipped wrong and was caught by review, not
+  by any gate. `precip_mm_mean` at 15:00 is the rain that fell 14:00–15:00, so its bar spans
+  the hour *before* its timestamp. `temp_c_p50` at 15:00 is the temperature *at* 15:00 and is
+  **centred** on it. Reusing `barLeft` for both put the day's peak an hour early under a
+  correct-looking axis. `Series.tsx` now has one helper per convention —
+  `accumulationLeft` / `instantLeft` — and `HourlyChart` widens the x-window to match.
+- **The test asserting that placement was written from the same misunderstanding as the
+  code**, so it went green asserting the bug (defect class 11). When a fixture and an
+  implementation share an author and an idea, the only real check is measured data: the fix
+  was confirmed by rendering real hours and finding the 15:00 peak at 67.0% of the plot,
+  which is the 12 PM tick (55.8%) plus three hours at 3.74% each.
+- **A set derived from a response that has not arrived is not an empty set, it is unknown.**
+  `drawableDates` was computed unconditionally, so while `/hourly/:id` was in flight — the
+  slowest query on the screen — the Daily list stated "days without an hour-by-hour forecast
+  can't be opened", and after an error that was permanent. Defect class 2. It is now
+  `undefined` until a response lands.
+- **Measured, and it contradicts § Decisions taken:** `fair` and `poor` are **ΔE 13.0** apart
+  to normal vision against the card ground (`dataviz`'s `validate_palette.js`,
+  `--mode dark --surface #1a202c`) — below the 15 floor for telling two hues apart. The
+  handoff's "ΔE 25.7 normal, 21.4 protan" does not hold for that adjacent pair. The hot end
+  of the ramp is therefore **not colour-alone**: the shaded ideal-range band carries it, and
+  the vertical domain must keep covering that band even when no hour is inside it.
+- **`TEMP_BAND_C` and `SCORE_BANDS` exist so two readers cannot drift.** The chart's neutral
+  zone is the scorer's full-points plateau; the score bar's rungs are `stateLabel`'s rungs.
+  Copy either into a component and the chart will eventually contradict the words beside it
+  with nothing able to detect it. The `conditionsScore.ts` refactor is behaviour-preserving —
+  verified identical at every 0.001 °C from -50 to +60.
+- **`vitest.config.ts` is a `node` environment with no DOM and no testing library, on
+  purpose** (the vite pin in CLAUDE.md is why). A behaviour that needs a click has to be
+  extracted into a named exported function to be testable at all — `openDayInHourly` is that,
+  and its call order *is* the acceptance criterion.
+- **A JSX comment cannot sit inside an expression branch.** `? null : ( {/* … */} <span/> )`
+  is a parse error, and vitest reports it as **three test files failing to collect while
+  still printing "123 passed"** — a green-looking number over a suite that shrank by 44. When
+  a test count drops, read the file count.
+- `npm run test:mutation --workspace=apps/api` has **still not been re-measured** since
+  2026-08-26 (66.09%). Three sessions of new code have now landed under that baseline.
+
+**Does the user need to do anything?** **Yes — one trip to the phone, now covering three
+things.** Open a saved crag in the Mini App: (1) press back on the Hourly tab — it must
+return to Daily, not close the app, and that is the one acceptance criterion no test in this
+workspace can reach; (2) look at whether "warm" and "too hot" are distinguishable on the
+temperature ramp, given the ΔE 13.0 measurement above and that the shaded band is what
+carries the judgement; (3) the Phase 2 charts, still outstanding — whether the band reads as
+confidence or as a smudge and whether 168 rain bars are too thin to see. No credential, no
+dashboard setting, no product decision.
+
+---
+
+## 2026-09-15 — branch: fix/phase-3-match-mockup — commit: 6302eab
+
+**Phase completed:** Phase 3, rebuilt — the screen now matches the mockup artifact
+
+**Why there is a second block for one phase:** the first build (`03b6d00`) worked from
+§ Decisions taken's **prose summary** of the design rather than the artifact it links. The
+owner sent a screenshot with two corrections — the seven-day chart was on the wrong tab,
+and "you didnt really build it how the artifact looks?" — and both were right.
+
+**What was built this session:**
+- `NowLine.tsx` — current conditions as one line, replacing the 36px `TodayHero`. Reads
+  `currentHour` from the hourly run: the first field in any response entitled to say "now".
+- `charts/DayCharts.tsx` — rewritten. A **day pager** (`‹ Wed, Sep 16 ›` + "3 days out")
+  replacing seven weekday chips, and **four** charts instead of two: temperature, rain,
+  **chance of rain**, **wind with gusts**. Both new series came from fields already on the
+  wire (`precip_chance_pct`, `wind_kmh_p50` + `wind_gust_kmh`).
+- `packages/design`: `tempScale`, `windScale`, `chanceScale` — every data ramp is now a
+  named scale there, beside the older `uvScale`.
+- `LocationIdentity.tsx` — a labelled three-column fact grid, not bare chips.
+- `DailyList.tsx` — weekday-only labels, gradient tracks, an axis note stating the shared
+  scale, three metrics.
+- The seven-day strip moved from Hourly to **Daily**.
+
+**Known issues / deferred work:**
+- **The wall picker is still not built** (Phase 4 — nothing populates `walls`) and neither
+  is the **drying card with its recent-rain sparkline** (Phase 5 — needs its own endpoint).
+  Both are in the mockup and both are correctly later phases.
+- **"Ideal temperature" is 16 °C rather than a per-location config field.** The mockup
+  calls it "a real config field, 50°F by default"; no such column exists. `IDEAL_TEMP_C`
+  is the single place one replaces.
+- **No hover readout.** The mockup has a crosshair and tooltip on every chart, driven by
+  `mousemove`/`touchmove`. React could do this — the earlier "no hover on touch" reasoning
+  was weak — but it is a new interaction layer and was not attempted here.
+
+**Blockers for next session:**
+- None for building.
+
+**What's next:** Issue #108 — `hours_since_rain` never advances, so days 2-7 all score
+`component_drying_time: 0` and cap at 60 of 100. The Climbing metric now draws it as a flat
+column across six of seven rows.
+
+**Gotchas for next session:**
+- **A mockup artifact is the spec; its prose summary is not.** This is the whole lesson of
+  the session. § Decisions taken's summary is *accurate* and still loses the design — it
+  cannot tell you there is a pager rather than chips, four charts rather than two, or that
+  the ramp is continuous. Open the artifact.
+- **The stepped ramp was the wrong fix and I defended it at length.** Measuring `fair` and
+  `poor` at ΔE 13.0 was correct; the conclusion — add a shaded band to compensate — was
+  not. The mockup's **continuous** ramp dissolves the problem: neighbouring values in a
+  continuous scale are meant to be similar, only the ends must separate. It also removed
+  the cold-side asymmetry I had documented as an accepted flaw. A careful justification for
+  a worse design is still a worse design.
+- **A test measuring "warmth" as red-minus-blue is wrong for this ramp.** Amber carries
+  *less* blue than the red stop, so r−b falls across the warm segment while the ramp is
+  plainly getting hotter. r−g tracks the hue rotation the eye reads.
+- **Nine defects in the rebuild, found by review, none visible to any gate.** Two mattered:
+  the day's high/low rendered as **two bare unlabelled numbers**, so with no current hour
+  the screen showed `103°F  79°F` with `temp_c_max` first — the §3 error `NowLine` exists
+  to prevent, recreated inside it; and the **score chip rendered through a pending alerts
+  query**, where `severeAlertEvent` is null exactly as for "no alert" and the banner shows
+  nothing. Anything new that renders a score must gate on `isPending`.
+- **The GitHub reviewer passed a 1,400-line diff in 52 seconds.** Run length remains the
+  only signal. A 15-minute run on the previous PR was a real read; this was not. Run
+  `/code-review` rather than trusting the tick.
+- **`sed -i '/^$/{ /./!d }'` deletes every blank line in a file.** Restoring them by rule
+  then detached every JSDoc from its declaration. Use the Edit tool.
+- **The shell eats backticks and `${}` in heredocs and `node -e`.** Several doc edits
+  silently lost code spans. Write the block to a scratchpad file and splice it with Node.
+
+**Does the user need to do anything?** **Yes — the phone check, now worth more than it was.**
+The screen changed shape twice today. (1) Back on the Hourly tab must return to Daily, not
+close the app — no test here can reach it. (2) Does the continuous temperature ramp
+separate "warm" from "too hot"? Second attempt at that. (3) The Phase 2 charts, now at the
+foot of Daily. (4) Does the day pager beat the seven chips? No credential, no dashboard
+setting, no product decision.
+
+---
+
+## 2026-09-15 — branch: fix/phase-3-chart-marks — commit: a3bada1
+
+**Phase completed:** Phase 3, third pass — the hourly **marks** rebuilt to the mockup
+
+**Why a third block for one phase:** the owner sent a screenshot of the live Hourly tab
+beside the mockup. The second pass had matched the *structure* (pager, four charts,
+continuous ramp) and still drew the wrong **marks**: a column of pale translucent boxes
+where the mockup has a legible orange-to-red bar profile.
+
+**What was built this session:**
+- `Series.tsx` — the `range` kind is gone. `kind` is `line | bar` again, and `placement`
+  (`accumulation` | `instant`) carries the rain-versus-temperature distinction as a named
+  prop. Bars take `whiskers`.
+- Temperature and wind are now **bars from a caller-supplied floor with a whisker over
+  them**. `BAR_MIN_H` gives every measured hour a visible stub.
+- `HourlyChart.tsx` — edge labels are the domain for bars and the series for lines;
+  compact `12a`/`6a`/`12p` ticks; `verticalDomain` covers the band.
+- `DayCharts.tsx` — a day figure right-aligned in each chart heading; `DayCharts.test.tsx`
+  created (there was none).
+- `referenceBand` deleted — it existed only to compensate for the stepped ramp.
+
+**Known issues / deferred work:**
+- Still no hover readout. The mockup has a crosshair and tooltip on every chart via
+  `mousemove`/`touchmove`. React can do it; it is a new interaction layer and was not
+  attempted.
+- The wall picker (Phase 4) and the drying card with its recent-rain sparkline (Phase 5)
+  remain unbuilt, both correctly later phases.
+
+**Blockers for next session:** None.
+
+**What's next:** Issue #108 — `hours_since_rain` never advances, so days 2-7 cap at 60 of
+100 and the Climbing metric draws a flat column across six of seven rows.
+
+**Gotchas for next session:**
+- **A screenshot beside the mockup found in one pass what three readings of the spec did
+  not.** When a screen is meant to match an artifact and the owner says it does not, ask
+  for an image rather than re-reading the prose. This is now the second lesson of its kind
+  in one day; the first was "the artifact is the spec, not its summary".
+- **"Technically defensible" is not a defence.** I refused a truncated baseline for
+  temperature on the grounds that a temperature has no meaningful zero. True, and the
+  conclusion did not follow: the answer is to set a floor and **print it on the axis**, not
+  to stop drawing bars. The floating-box version covered a fraction of the plot where bars
+  now span 15-81 units of 106. I then wrote a careful justification for the unreadable one
+  — the same shape as the stepped-ramp mistake earlier the same day.
+- **Fixing one chart broke the other.** Moving the edge labels to the domain bounds is
+  right for a bar chart, whose caller prints a heading figure; the seven-day *line* chart
+  has no heading, so its labels became band edges — 113°F over a median that never passes
+  63°F. That was exactly what the test I had deleted guarded. **Deleting a test because its
+  subject changed shape is how a guarded invariant becomes unguarded.**
+- **A relative colour ramp lies.** Shading rain by each day's own peak made 0.3 mm paint
+  `radarSevere` beside a header reading `0.02 in`, and put the same hour in two colours on
+  two charts. Height carries shape; colour carries magnitude.
+- **`card` carries `padding: 14px`.** Spread into a 28px pager button it pushes the glyph
+  clean out of the box — the arrows rendered as empty rounded squares, visible in the
+  owner's screenshot and missed in my own offline renders because I was reading text, not
+  looking at geometry.
+- **A component with no test file is where the defects are.** `DayCharts` had none, and
+  two of the seven review findings lived in it.
+
+**Does the user need to do anything?** **Yes — look at the Hourly tab again, and send a
+screenshot if it is still wrong.** Comparing images is what has actually been working. Also
+still outstanding from earlier: back on the Hourly tab must return to Daily rather than
+closing the app (no test here can reach it), and whether the continuous temperature ramp
+separates "warm" from "too hot" on a real screen. No credential, no dashboard setting.

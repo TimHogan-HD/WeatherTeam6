@@ -1,6 +1,11 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import type { ConditionsScore, ForecastSnapshot, WeatherAlert } from '@weatherteam6/types'
+import type {
+  ConditionsScore,
+  ForecastSnapshot,
+  RecentPrecip,
+  WeatherAlert,
+} from '@weatherteam6/types'
 import { DetailView } from './DetailView.js'
 
 /**
@@ -103,6 +108,22 @@ function alertsOk(data: WeatherAlert[]) {
   return { data, isPending: false, isError: false }
 }
 
+/** A settled five-day rain window with one wet hour in it. */
+function recentOk(): { data: RecentPrecip; isPending: boolean; isError: boolean } {
+  return {
+    data: {
+      hours: [
+        { valid_at_local: '2026-08-23T14:00', precip_mm: 3.2 },
+        { valid_at_local: '2026-08-23T15:00', precip_mm: 0 },
+      ],
+      utc_offset_seconds: -7 * 3600,
+      from_date: '2026-08-20',
+    },
+    isPending: false,
+    isError: false,
+  }
+}
+
 function render(node: Parameters<typeof renderToStaticMarkup>[0]): string {
   return renderToStaticMarkup(node)
 }
@@ -121,8 +142,12 @@ describe('DetailView — a climbing location', () => {
       />,
     )
     expect(html).toContain('103°F')
-    expect(html).toContain('21 mph')
-    expect(html).toContain('17%')
+    // **Wind and humidity moved, and that is the design.** They were the day's
+    // *maxima* sitting in a hero that read as present conditions. The now-line
+    // carries the current hour's readings instead — absent here, because this
+    // fixture passes no hourly data — and the day's wind is the Hourly tab's
+    // own chart. The day's high and low are still on this line.
+    expect(html).toContain('79°F')
     // Weather appears before the score section in document order.
     expect(html.indexOf('103°F')).toBeLessThan(html.indexOf('Score 80'))
   })
@@ -214,6 +239,7 @@ describe('DetailView — a climbing location', () => {
         asosStation="KLAS"
         forecast={forecast}
         alerts={alertsOk([])}
+        recentPrecip={recentOk()}
         conditions={ok({
           ...base,
           score_breakdown: {
@@ -223,8 +249,42 @@ describe('DetailView — a climbing location', () => {
         })}
       />,
     )
-    expect(html).toContain('no rain in 30+ days')
+    expect(html).toContain('over 30 days ago')
     expect(html).not.toContain('720')
+  })
+
+  it('still shows the rain history when the forecast failed to load', () => {
+    // Sections fail independently (§5). A forecast request that died says
+    // nothing about whether it rained on Sunday, and the drying card reads
+    // neither the forecast nor its query — nesting it under that branch would
+    // hide a measurement because an unrelated call failed.
+    const html = render(
+      <DetailView
+        isClimbingLocation
+        asosStation="KLAS"
+        forecast={{ data: undefined, isPending: false, isError: true, refetch: () => {} }}
+        alerts={alertsOk([])}
+        recentPrecip={recentOk()}
+        conditions={ok(redRockScore())}
+      />,
+    )
+    expect(html).toContain("Couldn&#x27;t load the forecast.")
+    expect(html).toContain('Last rain')
+  })
+
+  it('draws no drying card at all until the rain window is wired in', () => {
+    // The `/add` preview passes no `recentPrecip`. A card with an empty chart
+    // there would assert a window nobody asked for.
+    const html = render(
+      <DetailView
+        isClimbingLocation
+        asosStation="KLAS"
+        forecast={forecast}
+        alerts={alertsOk([])}
+        conditions={ok(redRockScore())}
+      />,
+    )
+    expect(html).not.toContain('Precipitation')
   })
 
   it('names the sources the response reports, not a hardcoded list', () => {

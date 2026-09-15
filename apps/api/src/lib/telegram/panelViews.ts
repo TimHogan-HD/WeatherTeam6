@@ -1,21 +1,27 @@
 import { and, asc, eq, gt, isNull, or } from 'drizzle-orm'
+import type { ForecastSnapshot } from '@weatherteam6/types'
 import { db } from '../../db/index.js'
 import { locations, weatherAlerts } from '../../db/schema.js'
 import { logger } from '../logger.js'
+import { computePreviewForecast } from '../scoring/previewForecast.js'
 import { getDeterministicRuns, getEnsembleRuns } from '../runs/latestRuns.js'
 import type { DeterministicRuns, ModelRun } from '../runs/latestRuns.js'
 import { pointKeyForLocation } from '../runs/pointKey.js'
 import { fetchPrecipHistory } from '../weather/acis.js'
-import { fetchArchivePrecip, localDateString, type ForecastLocation } from '../weather/openMeteo.js'
+import {
+  fetchArchivePrecip,
+  fetchRecentHourlyPrecip,
+  localDateString,
+  MEASURABLE_PRECIP_MM,
+  type ForecastLocation,
+} from '../weather/openMeteo.js'
 import { formatHelp } from './commands.js'
 import { buildConditionsInput, findLocationById, type ConditionsLocation } from './conditionsReply.js'
 import {
   buildRows,
-  isColumnSet,
   isIntervalHours,
   isTableUnits,
   localDays,
-  type ColumnSet,
   type IntervalHours,
   type TableUnits,
 } from './forecastTable.js'
@@ -27,9 +33,18 @@ import {
   buildListPanel,
   buildNoticePanel,
   buildRainPanel,
+  buildRemoveConfirmPanel,
+  buildWeatherPreviewPanel,
+  PICK_VIEWS,
   type Panel,
 } from './panels.js'
-import { buildRainDay, EMPTY_RAIN_DAY, type LastRain } from './rainMessage.js'
+import {
+  buildRainDay,
+  EMPTY_RAIN_DAY,
+  lastRainEpisode,
+  type LastRain,
+  type RainEpisode,
+} from './rainMessage.js'
 import type { PanelState } from './panelState.js'
 
 /**
@@ -46,15 +61,20 @@ export async function renderPanel(
   now: Date = new Date(),
 ): Promise<Panel> {
   switch (state.view) {
+    // The four pickers render the same list; only the view their buttons open
+    // differs, and `PICK_VIEWS` is the single place that mapping lives.
     case 'list':
-      return buildListPanel(state.id, await listChoices(userId))
+    case 'pick_forecast':
+    case 'pick_rain':
+    case 'pick_remove':
+      return buildListPanel(state.id, await listChoices(userId), PICK_VIEWS[state.view])
 
     case 'conditions': {
       const location = await panelLocation(userId, state)
       if (typeof location === 'string') return buildNoticePanel(state.id, location)
       return buildConditionsPanel({
         stateId: state.id,
-        mode: state.mode,
+        locationId: location.id,
         conditions: await buildConditionsInput(location),
       })
     }
@@ -76,7 +96,65 @@ export async function renderPanel(
 
     case 'help':
       return buildHelpPanel(state.id, formatHelp())
+
+    // Never sent by a real button on this panel — the initial send is built
+    // directly by the webhook, because it needs the live `GeocodeResult[]`
+    // that nothing here persists. Kept only so the switch stays exhaustive
+    // and a stray tap reads as a real (if unhelpful) state, not a crash.
+    case 'weather_search':
+      return buildNoticePanel(state.id, 'Search again with /weather <place>.')
+
+    case 'weather_preview':
+      return renderWeatherPreview(state)
+
+    case 'remove_confirm': {
+      const location = await panelLocation(userId, state)
+      if (typeof location === 'string') return buildNoticePanel(state.id, location)
+      return buildRemoveConfirmPanel(state.id, location.id, location.name)
+    }
+
+    case 'removed':
+      return buildNoticePanel(state.id, `Removed "${state.placeName ?? 'that location'}".`)
   }
+}
+
+/**
+ * The `/weather <place>` answer for one geocoded point. Everything it needs —
+ * lat, lon, elevation, feature_code, place name — was written onto this state
+ * row when the search result was picked (`panelState.createPanelState` in the
+ * webhook), because none of it fits in `callback_data`.
+ *
+ * **A preview fetch failing is not a failure of the panel.** `today` is left
+ * `null` and `buildWeatherPreviewPanel` already knows how to say "no reading"
+ * — the same degrade `formatConditionsReply` uses for a saved location whose
+ * feed has no row yet.
+ */
+async function renderWeatherPreview(state: PanelState): Promise<Panel> {
+  if (state.lat === null || state.lon === null || state.placeName === null) {
+    return buildNoticePanel(state.id, 'That search result is no longer available. Send /weather again.')
+  }
+
+  let today: ForecastSnapshot | null = null
+  try {
+    const snapshots = await computePreviewForecast({
+      lat: state.lat,
+      lon: state.lon,
+      elevationM: state.elevationM,
+    })
+    today = snapshots.find((s) => s.is_today === true) ?? null
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      '[panelViews] preview forecast unavailable — weather preview panel shows no reading',
+    )
+  }
+
+  return buildWeatherPreviewPanel({
+    stateId: state.id,
+    placeName: state.placeName,
+    featureCode: state.featureCode,
+    today,
+  })
 }
 
 /**
@@ -116,7 +194,6 @@ function coordsOf(location: ConditionsLocation): ForecastLocation {
  */
 function settingsOf(state: PanelState): {
   interval: IntervalHours
-  columnSet: ColumnSet
   units: TableUnits
 } {
   return {
@@ -124,7 +201,6 @@ function settingsOf(state: PanelState): {
       state.intervalHours !== null && isIntervalHours(state.intervalHours)
         ? state.intervalHours
         : 3,
-    columnSet: state.columnSet !== null && isColumnSet(state.columnSet) ? state.columnSet : 'all',
     units: isTableUnits(state.units) ? state.units : 'imperial',
   }
 }
@@ -179,7 +255,7 @@ async function renderForecast(
 ): Promise<Panel> {
   const point = coordsOf(location)
   const pointKey = pointKeyForLocation(location.id)
-  const { interval, columnSet, units } = settingsOf(state)
+  const { interval, units } = settingsOf(state)
 
   // The ensemble is the sparkline only. A forecast table that fails because the
   // agreement bar could not be drawn would be a working panel lost to an
@@ -208,19 +284,16 @@ async function renderForecast(
 
   return buildForecastPanel({
     stateId: state.id,
+    locationId: location.id,
     mode: state.mode,
     locationName: location.name,
     units,
     interval,
-    columnSet,
     model: model?.model ?? '',
     days,
     dayIndex,
     rows:
       model === null || date === undefined ? [] : buildRows(model.hours, offset, date, interval),
-    modelsAvailable: deterministic.models.map((m) => m.model),
-    modelsUnavailable: deterministic.unavailable_models,
-    probabilityIsShared: model?.probability_is_shared ?? null,
     rainDay:
       ensemble === null || date === undefined
         ? null
@@ -242,12 +315,14 @@ async function renderRain(
   const pointKey = pointKeyForLocation(location.id)
   const { interval, units } = settingsOf(state)
 
-  // The rainfall record and the ensemble are independent upstreams, so they go
-  // together rather than one after the other — a tap already carries two round
-  // trips and the client gives up at about 15 seconds.
-  const [ensemble, rainfall] = await Promise.all([
+  // Three independent upstreams, so they go together rather than one after the
+  // other — the client gives up at about 15 seconds, and `fetchWithRetry`
+  // sleeps 1s + 2s + 4s across its attempts, so serialising them would put a
+  // single slow upstream over the budget on its own.
+  const [ensemble, rainfall, lastRainAt] = await Promise.all([
     getEnsembleRuns(point, pointKey, location.id, now),
     loadLastRain(location, now),
+    loadLastRainAt(location, now),
   ])
   const offset = ensemble.utc_offset_seconds
   const today = localDateString(now, offset)
@@ -257,6 +332,7 @@ async function renderRain(
 
   return buildRainPanel({
     stateId: state.id,
+    locationId: location.id,
     mode: state.mode,
     locationName: location.name,
     units,
@@ -269,12 +345,64 @@ async function renderRain(
     day:
       date === undefined ? EMPTY_RAIN_DAY : buildRainDay(ensemble.hours, offset, date, interval),
     lastRain: rainfall.lastRain,
+    lastRainAt,
     lastRainFailed: rainfall.failed,
     rainWindowDays: RAIN_WINDOW_DAYS,
     today,
     fetchedAt: ensemble.fetched_at,
     now,
   })
+}
+
+/**
+ * How far back the *hourly* series is asked for.
+ *
+ * Shorter than `RAIN_WINDOW_DAYS` on purpose. The value of an hour-precise
+ * answer decays fast — "it stopped at 3am" changes what you do today, "it
+ * stopped at 3am eleven days ago" does not — and a shorter window is a smaller
+ * response on a path that already makes two upstream calls inside a callback
+ * the client abandons at about 15 seconds.
+ */
+const RAIN_HOURLY_WINDOW_DAYS = 7
+
+/**
+ * The last run of wet hours, or `null` when the hourly series did not reach it.
+ *
+ * **A failure here is not a failure of the panel.** The daily lookup is the
+ * fallback and it answers on its own, so this is caught and degraded rather
+ * than propagated — losing the clock time costs precision, and propagating
+ * would cost the whole view.
+ */
+async function loadLastRainAt(
+  location: ConditionsLocation,
+  now: Date,
+): Promise<RainEpisode | null> {
+  try {
+    const recent = await fetchRecentHourlyPrecip(
+      Number(location.lat),
+      Number(location.lon),
+      RAIN_HOURLY_WINDOW_DAYS,
+    )
+    // Hours after "now" are forecast, not record. `forecast_days=1` means the
+    // response runs to the end of today, and counting rain that has not fallen
+    // yet as the last rain would report the future as the past.
+    const offset = recent.utc_offset_seconds
+    const cutoff = `${localDateString(now, offset)}T${hourStamp(now, offset)}`
+    const past = recent.hours.filter((h) => h.valid_at_local <= cutoff)
+    return lastRainEpisode(past, MEASURABLE_PRECIP_MM)
+  } catch (err) {
+    logger.warn(
+      { locationId: location.id, err: err instanceof Error ? err.message : String(err) },
+      '[panelViews] hourly rainfall unavailable — falling back to the daily record',
+    )
+    return null
+  }
+}
+
+/** `HH:mm` of `now` in the location's own zone, for a string comparison against local stamps. */
+function hourStamp(now: Date, utcOffsetSeconds: number): string {
+  const shifted = new Date(now.getTime() + utcOffsetSeconds * 1000)
+  return `${String(shifted.getUTCHours()).padStart(2, '0')}:00`
 }
 
 /**
@@ -287,6 +415,11 @@ async function renderRain(
  * **A failed lookup is tracked, not swallowed** — issue #34. An empty list and a
  * failed request are the same value and mean opposite things, and the one that
  * reads as a dry spell is the wrong one to guess.
+ *
+ * This is the *fallback* now: `loadLastRainAt` answers with a clock time when
+ * the hourly window reached the rain, and this answers with a day when it did
+ * not. The two never appear together — a gauge day-total and a reanalysed
+ * hourly total disagree for the same date.
  */
 async function loadLastRain(
   location: ConditionsLocation,

@@ -283,11 +283,35 @@ async function run(): Promise<void> {
       ensHours[0]?.precip_mm_mean === 0.4,
       String(ensHours[0]?.precip_mm_mean),
     )
+    /**
+     * Compared **field by field, never as serialised JSON.**
+     *
+     * `model_member_counts` is a `jsonb` column, and Postgres does not store
+     * jsonb as the text it was given — it parses it and reorders the keys, by
+     * length and then bytewise. `gfs_seamless` and `ecmwf_ifs025` are both
+     * twelve characters, so `e` sorts before `g` and the object always reads
+     * back as `{"ecmwf_ifs025":51,"gfs_seamless":31}` however it went in.
+     *
+     * `JSON.stringify(a) === JSON.stringify(b)` therefore compared key *order*,
+     * which jsonb never promised, and failed on completely correct data. It
+     * was written in the same session as the code and never run — the
+     * migrations it needs were unapplied until 2026-09-02 — so the first real
+     * execution was its first honest test. Defect class 11, in a script whose
+     * entire purpose is to catch what vitest cannot.
+     */
+    const stored_counts: Record<string, number> = {}
+    const rawCounts: unknown = ensHours[0]?.model_member_counts
+    if (typeof rawCounts === 'object' && rawCounts !== null && !Array.isArray(rawCounts)) {
+      for (const [model, count] of Object.entries(rawCounts)) {
+        if (typeof count === 'number') stored_counts[model] = count
+      }
+    }
     check(
       'the per-model split persisted as an object',
-      JSON.stringify(ensHours[0]?.model_member_counts) ===
-        JSON.stringify({ gfs_seamless: 31, ecmwf_ifs025: 51 }),
-      JSON.stringify(ensHours[0]?.model_member_counts),
+      stored_counts['gfs_seamless'] === 31 &&
+        stored_counts['ecmwf_ifs025'] === 51 &&
+        Object.keys(stored_counts).length === 2,
+      JSON.stringify(stored_counts),
     )
 
     console.log('\nReading the freshest run back — what a panel renders from')

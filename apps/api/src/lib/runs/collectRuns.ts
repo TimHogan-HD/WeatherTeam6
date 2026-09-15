@@ -16,6 +16,20 @@ export type CollectResult = {
   hoursStored: number
   /** Locations whose collection threw. Named so a partial run cannot read as a complete one. */
   failed: string[]
+  /**
+   * Locations whose **deterministic** fetch failed while the ensemble succeeded,
+   * and the reverse.
+   *
+   * **`failed` alone reported a half-collection as a clean run.** It counts only
+   * locations where *both* upstreams failed, so on 2026-09-02 production logged
+   * `locations: 5, runsStored: 5, hoursStored: 840, failed: 0` and answered
+   * 200 — while every deterministic fetch had failed and the only thing stored
+   * was the ensemble. A collection missing half its models is not a success, and
+   * a summary that cannot say so is defect class 2: a failure state that reads
+   * as one.
+   */
+  deterministicFailed: string[]
+  ensembleFailed: string[]
 }
 
 /**
@@ -48,7 +62,14 @@ export async function collectWeatherRuns(): Promise<CollectResult> {
 
   if (saved.length === 0) {
     logger.info('[collectRuns] no locations to collect')
-    return { locations: 0, runsStored: 0, hoursStored: 0, failed: [] }
+    return {
+      locations: 0,
+      runsStored: 0,
+      hoursStored: 0,
+      failed: [],
+      deterministicFailed: [],
+      ensembleFailed: [],
+    }
   }
 
   const settled = await Promise.allSettled(
@@ -107,7 +128,12 @@ export async function collectWeatherRuns(): Promise<CollectResult> {
         throw new Error(`both fetches failed for location ${loc.id}`)
       }
 
-      return { runsStored, hoursStored }
+      return {
+        runsStored,
+        hoursStored,
+        deterministicOk: deterministic.status === 'fulfilled',
+        ensembleOk: ensemble.status === 'fulfilled',
+      }
     }),
   )
 
@@ -116,6 +142,8 @@ export async function collectWeatherRuns(): Promise<CollectResult> {
     runsStored: 0,
     hoursStored: 0,
     failed: [],
+    deterministicFailed: [],
+    ensembleFailed: [],
   }
 
   settled.forEach((entry, i) => {
@@ -123,6 +151,10 @@ export async function collectWeatherRuns(): Promise<CollectResult> {
     if (entry.status === 'fulfilled') {
       result.runsStored += entry.value.runsStored
       result.hoursStored += entry.value.hoursStored
+      // A location that stored *one* of its two runs is a partial collection,
+      // and saying so is the whole point — see `CollectResult`.
+      if (!entry.value.deterministicOk) result.deterministicFailed.push(loc?.id ?? 'unknown')
+      if (!entry.value.ensembleOk) result.ensembleFailed.push(loc?.id ?? 'unknown')
       return
     }
     result.failed.push(loc?.id ?? 'unknown')
@@ -132,10 +164,21 @@ export async function collectWeatherRuns(): Promise<CollectResult> {
     )
   })
 
-  logger.info(
-    { ...result, failed: result.failed.length },
-    '[collectRuns] collection complete',
-  )
+  const partial = result.deterministicFailed.length + result.ensembleFailed.length
+  const summary = {
+    ...result,
+    failed: result.failed.length,
+    deterministicFailed: result.deterministicFailed.length,
+    ensembleFailed: result.ensembleFailed.length,
+  }
+  // **A half-collection logs at warn, not info.** It answered 200 and read as a
+  // clean run for as long as nobody compared `hoursStored` against what a full
+  // one produces.
+  if (partial > 0 || result.failed.length > 0) {
+    logger.warn(summary, '[collectRuns] collection incomplete')
+  } else {
+    logger.info(summary, '[collectRuns] collection complete')
+  }
   return result
 }
 

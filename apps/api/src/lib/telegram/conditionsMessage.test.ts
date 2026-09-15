@@ -76,15 +76,12 @@ const heatWarning: ActiveAlert = {
 }
 
 function input(over: Partial<ConditionsReplyInput> = {}): ConditionsReplyInput {
-  const snapshots = [day()]
   return {
     locationName: 'Red Rock',
     isClimbingLocation: true,
-    asosStation: 'KLAS',
-    today: snapshots[0] ?? null,
+    today: day(),
     todayScore: redRockScore(),
     activeAlerts: [],
-    snapshots,
     ...over,
   }
 }
@@ -115,15 +112,28 @@ describe('formatConditionsReply — the locked copy rules', () => {
     expect(reply.indexOf('Extreme Heat Warning')).toBeLessThan(reply.indexOf('Score 80'))
   })
 
-  it('names the sources the response reports', () => {
-    const reply = formatConditionsReply(input({ activeAlerts: [heatWarning] }))
-    expect(reply).toContain('Sources: Open-Meteo (gfs_seamless, ecmwf_ifs025) · ACIS (KLAS) · NWS')
+  it('carries no sources footer at all', () => {
+    // What this used to print: `Sources: Open-Meteo (gfs_seamless,
+    // ecmwf_ifs025, icon_seamless_eps, gem_global) · Open-Meteo archive` —
+    // four raw API model keys and a repeated vendor name, on the panel whose
+    // whole job is three readable lines.
+    //
+    // §7 rule 6 requires a named source to be *computed* rather than hardcoded;
+    // it does not require one to be shown. `forecastSourceLabel` and
+    // `rainfallSourceLabel` are untouched and the Mini App still renders them.
+    const reply = formatConditionsReply(input())
+    expect(reply).not.toContain('Sources:')
+    expect(reply).not.toContain('gfs_seamless')
+    expect(reply).not.toContain('Open-Meteo')
+    expect(reply).not.toContain('ACIS')
   })
 
-  it('names the archive branch when the location has no ASOS station', () => {
-    const reply = formatConditionsReply(input({ asosStation: null }))
-    expect(reply).toContain('Open-Meteo archive')
-    expect(reply).not.toContain('ACIS')
+  it('still names NWS on the alert itself, where the attribution carries meaning', () => {
+    // The footer went; this did not. An alert is a claim about the world made
+    // by a specific agency, and dropping that would be the attribution defect
+    // rather than a tidier panel.
+    const reply = formatConditionsReply(input({ activeAlerts: [heatWarning] }))
+    expect(reply).toContain('(NWS)')
   })
 
   it('caps hours since rain at the sentinel', () => {
@@ -144,7 +154,7 @@ describe('formatConditionsReply — the locked copy rules', () => {
 })
 
 describe('formatConditionsReply — a non-climbing location', () => {
-  it('reports weather, alerts and sources but no score of any kind', () => {
+  it('reports weather and alerts but no score of any kind', () => {
     const reply = formatConditionsReply(
       input({ isClimbingLocation: false, locationName: 'Chicago', activeAlerts: [heatWarning] }),
     )
@@ -157,13 +167,24 @@ describe('formatConditionsReply — a non-climbing location', () => {
   })
 })
 
-describe('formatConditionsReply — HTML escaping (issue #26)', () => {
-  it('escapes an ampersand in the location name', () => {
+describe('formatConditionsReply — plain text, not markup (issue #26)', () => {
+  /**
+   * **Escaping moved, it did not go away.** The panel is a rich message now,
+   * whose blocks are structured JSON — Probe B specimen 8a put
+   * `Bear & Cub <north face>` through unaltered. Escaping here as well would put
+   * a literal `&amp;` in the native table, which is issue #26 in reverse.
+   *
+   * `panelToHtml` is the one place that escapes, on the `<pre>` fallback path,
+   * and `panels.test.ts` asserts it there. These tests hold the other half of
+   * that contract: this module must emit the characters as they came.
+   */
+  it('leaves an ampersand in the location name alone', () => {
     const reply = formatConditionsReply(input({ locationName: 'Bear & Cub' }))
-    expect(reply).toContain('<b>Bear &amp; Cub</b>')
+    expect(reply).toContain('Bear & Cub')
+    expect(reply).not.toContain('&amp;')
   })
 
-  it('escapes an ampersand in an NWS headline', () => {
+  it('leaves an ampersand in an NWS headline alone', () => {
     const reply = formatConditionsReply(
       input({
         activeAlerts: [
@@ -171,21 +192,24 @@ describe('formatConditionsReply — HTML escaping (issue #26)', () => {
         ],
       }),
     )
-    expect(reply).toContain('Rivers &amp; streams')
-    expect(reply).not.toMatch(/Rivers & streams/)
+    expect(reply).toContain('Rivers & streams')
+    expect(reply).not.toContain('&amp;')
   })
 
-  it('escapes angle brackets so no value can inject markup', () => {
+  it('emits no markup of its own, so a value cannot be mistaken for one', () => {
     const reply = formatConditionsReply(input({ locationName: '<i>x</i>' }))
-    expect(reply).toContain('&lt;i&gt;x&lt;/i&gt;')
-    expect(reply.match(/<b>/g)).toHaveLength(1)
+    // The name comes through as typed, and the module adds no tags around it —
+    // so there is nothing for a reader of the rich path to confuse.
+    expect(reply).toContain('<i>x</i>')
+    expect(reply).not.toContain('<b>')
   })
 
-  it('escapes the searched name in the not-found reply', () => {
-    // User input, straight from the /conditions command.
+  it('leaves the searched name alone in the not-found reply', () => {
+    // User input, straight from the /conditions command. It reaches the rich
+    // path unaltered and the HTML fallback escapes it on the way out.
     const reply = formatLocationNotFound('Bear & <b>Cub</b>')
-    expect(reply).toContain('Bear &amp; &lt;b&gt;Cub&lt;/b&gt;')
-    expect(reply).not.toContain('<b>')
+    expect(reply).toContain('Bear & <b>Cub</b>')
+    expect(reply).not.toContain('&amp;')
   })
 
   it('points at a surface that exists, not the archived mobile app', () => {
@@ -216,11 +240,6 @@ describe('formatConditionsReply — missing data', () => {
     expect(reply).not.toContain('Too far out to score')
   })
 
-  it('names no forecast source when the response reports none', () => {
-    const snapshots = [day({ model_sources: null })]
-    const reply = formatConditionsReply(input({ snapshots, today: snapshots[0] ?? null }))
-    expect(reply).not.toContain('Open-Meteo (')
-  })
 })
 
 /**
@@ -236,7 +255,6 @@ describe('formatConditionsReply — a withheld score (#34)', () => {
     today: null,
     todayScore: null,
     activeAlerts: [],
-    snapshots: [],
   }
 
   it('says the rainfall data is missing, not that there are no conditions yet', () => {

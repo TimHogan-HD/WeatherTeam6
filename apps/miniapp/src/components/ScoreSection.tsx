@@ -10,9 +10,14 @@ import { type } from '../theme/tokens.css.js'
 import { bareButton, card, row, stack } from '../theme/styles.js'
 
 /**
- * The score and its breakdown — **the last section on the detail screen, and
- * collapsed by default.** This is the one place a score is allowed to be
- * prominent, because the user has scrolled to it deliberately (§3).
+ * The score and its breakdown — **near the top of the Daily tab, with the
+ * breakdown collapsed.**
+ *
+ * It was the last section on the screen until 2026-09-15, on §3's rule that a
+ * score may be prominent only where the reader scrolled to it deliberately.
+ * The owner reversed that: it is the question the app exists to answer, and it
+ * had ended up below four charts where it read as a footnote. The breakdown
+ * stays collapsed, which is the half of that rule still doing work.
  *
  * The section is not rendered at all for a non-climbing location. A rock-drying
  * score for a city is meaningless, and presenting one is the same class of

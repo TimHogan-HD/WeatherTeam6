@@ -1,16 +1,13 @@
 import {
-  escapeTelegramHtml,
-  forecastSourceLabel,
   formatHoursSinceRain,
   formatHumidity,
   formatTempF,
   formatWindMph,
   isSevereAlert,
-  rainfallSourceLabel,
   scoreUnavailableLine,
   summarizeConditions,
 } from '@weatherteam6/types'
-import type { ConditionsScore, ForecastSnapshot } from '@weatherteam6/types'
+import type { ConditionsScore, ForecastSnapshot, ScoreUnavailableReason } from '@weatherteam6/types'
 
 /**
  * The `/conditions <name>` reply text, built to miniapp-design-v1.md §7.
@@ -41,9 +38,8 @@ export type ActiveAlert = {
 
 export type ConditionsReplyInput = {
   locationName: string
-  /** A city gets weather, alerts and sources — never a rock-drying score (§7 rule 8). */
+  /** A city gets weather and alerts — never a rock-drying score (§7 rule 8). */
   isClimbingLocation: boolean
-  asosStation: string | null
   /** `null` when the forecast feed has no row for today. */
   today: ForecastSnapshot | null
   todayScore: ConditionsScore | null
@@ -52,9 +48,8 @@ export type ConditionsReplyInput = {
    * (issue #34) — as opposed to simply having no row for today. The two must
    * not read the same: one is "not yet", the other is "we couldn't check".
    */
-  scoreUnavailable?: 'rainfall_unavailable' | null
+  scoreUnavailable?: ScoreUnavailableReason | null
   activeAlerts: readonly ActiveAlert[]
-  snapshots: readonly ForecastSnapshot[]
 }
 
 function weatherLine(day: ForecastSnapshot, rainLine: string | null): string {
@@ -71,12 +66,10 @@ export function formatConditionsReply(input: ConditionsReplyInput): string {
   const {
     locationName,
     isClimbingLocation,
-    asosStation,
     today,
     todayScore,
     scoreUnavailable,
     activeAlerts,
-    snapshots,
   } = input
 
   const severeEvent = activeAlerts.find((a) => isSevereAlert(a.severity))?.event ?? null
@@ -86,7 +79,7 @@ export function formatConditionsReply(input: ConditionsReplyInput): string {
     : null
   const rainLine = hoursSinceRain === null ? null : formatHoursSinceRain(hoursSinceRain)
 
-  const lines: string[] = [`<b>${escapeTelegramHtml(locationName)}</b>`]
+  const lines: string[] = [locationName]
 
   // Weather leads (§7 rule 2). A feed that starts tomorrow has no row for today,
   // and saying so beats relabelling tomorrow's numbers as today's.
@@ -97,7 +90,7 @@ export function formatConditionsReply(input: ConditionsReplyInput): string {
     lines.push('')
     for (const alert of activeAlerts) {
       const detail = alert.headline ?? alert.event
-      lines.push(`⚠️ ${escapeTelegramHtml(alert.event)} (NWS) — ${escapeTelegramHtml(detail)}`)
+      lines.push(`⚠️ ${alert.event} (NWS) — ${detail}`)
     }
   }
 
@@ -132,25 +125,26 @@ export function formatConditionsReply(input: ConditionsReplyInput): string {
     }
   }
 
-  // Sources are named, and computed — never a hardcoded list (§7 rule 6).
-  const sources = [
-    forecastSourceLabel(snapshots),
-    isClimbingLocation ? rainfallSourceLabel(asosStation) : null,
-    activeAlerts.length > 0 ? 'NWS' : null,
-  ].filter((s): s is string => s !== null)
-
-  if (sources.length > 0) {
-    lines.push('', `Sources: ${escapeTelegramHtml(sources.join(' · '))}`)
-  }
-
+  // **No sources footer on this panel.** §7 rule 6 requires that any source
+  // named be *computed* rather than hardcoded — it does not require that one be
+  // shown, and this is a display decision on one surface. What it printed was
+  // `Sources: Open-Meteo (gfs_seamless, ecmwf_ifs025, icon_seamless_eps,
+  // gem_global) · Open-Meteo archive`: four raw API model keys and a repeated
+  // vendor name, on the panel whose entire job is three readable lines.
+  //
+  // Nothing is being hidden. `forecastSourceLabel` and `rainfallSourceLabel`
+  // are unchanged, the Mini App still renders them, and the two attributions
+  // that carry meaning are still here — NWS is named inline on every alert
+  // above, and the hourly panel names its model under `⚙ More`.
   return lines.join('\n')
 }
 
 /**
  * The not-found reply. The old copy said "Save it in the app first", pointing at
  * the archived mobile app; the Mini App's `/add` screen is the surface that
- * exists (§7 rule 7). The name is user input and is escaped.
+ * exists (§7 rule 7). The name is user input; the rich path needs no escaping
+ * and the HTML fallback escapes it on the way out.
  */
 export function formatLocationNotFound(name: string): string {
-  return `I don't have a saved location matching "${escapeTelegramHtml(name)}". Open the app from the menu button and add it.`
+  return `I don't have a saved location matching "${name}". Open the app from the menu button and add it.`
 }

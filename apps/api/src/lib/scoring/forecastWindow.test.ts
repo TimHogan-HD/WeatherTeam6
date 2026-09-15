@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { forecastWindow, toWindowedForecast } from './forecastWindow.js'
-import type { ForecastSnapshot } from '@weatherteam6/types'
+import type { ConditionsScore, ForecastSnapshot } from '@weatherteam6/types'
 
 const TODAY = '2026-08-25'
 
@@ -68,5 +68,158 @@ describe('toWindowedForecast', () => {
     const input = [snapshot('2026-08-25')]
     toWindowedForecast(input, TODAY)
     expect(input[0]?.window).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Per-day scores (Phase 1b)
+// ---------------------------------------------------------------------------
+
+function score(date: string, over: Partial<ConditionsScore> = {}): ConditionsScore {
+  return {
+    id: `s:${date}`,
+    location_id: 'x',
+    forecast_date: date,
+    score: 72,
+    confidence: 'high',
+    component_drying_time: 40,
+    component_upcoming_rain: 20,
+    component_wind: 12,
+    component_temp: 8,
+    component_humidity: 6,
+    score_breakdown: null,
+    computed_at: `${TODAY}T00:00:00.000Z`,
+    created_at: `${TODAY}T00:00:00.000Z`,
+    ...over,
+  }
+}
+
+describe('toWindowedForecast — per-day scores', () => {
+  it('attaches no score field at all when no merge is given', () => {
+    // This is the whole protection for a non-climbing location: the route omits
+    // the argument. If a score ever leaks onto a city it will be because someone
+    // made this default to merging.
+    const [row] = toWindowedForecast([snapshot(TODAY)], TODAY)
+    expect(row).toBeDefined()
+    expect(row && 'score' in row).toBe(false)
+    expect(row && 'component_drying_time' in row).toBe(false)
+  })
+
+  it('joins on forecast_date, not array position', () => {
+    // The scores arrive in a different order and are missing the first day.
+    // A positional merge would put day 2's score on day 1 and be wrong on every
+    // row after it, while still producing a plausible-looking response.
+    const rows = toWindowedForecast(
+      [snapshot('2026-08-25'), snapshot('2026-08-26'), snapshot('2026-08-27')],
+      TODAY,
+      { scores: [score('2026-08-27', { score: 33 }), score('2026-08-26', { score: 55 })] },
+    )
+    expect(rows.map((r) => r.score)).toEqual([null, 55, 33])
+  })
+
+  it('carries every component through, because suppression needs them', () => {
+    // `summarizeConditions` reads these via `limitingComponent`. Shipping `score`
+    // alone leaves the "a component is 0" trigger permanently unreachable.
+    const [row] = toWindowedForecast([snapshot(TODAY)], TODAY, { scores: [score(TODAY)] })
+    expect(row).toMatchObject({
+      component_drying_time: 40,
+      component_upcoming_rain: 20,
+      component_wind: 12,
+      component_temp: 8,
+      component_humidity: 6,
+      confidence: 'high',
+    })
+  })
+
+  it('preserves a zeroed component rather than nulling it', () => {
+    // The case the acceptance criteria previously never exercised. A 0 here is a
+    // real measurement and the one that fires suppression; a null means "not
+    // measured" and `limitingComponent` skips it. Collapsing the two silently
+    // disables half of suppression.
+    const [row] = toWindowedForecast([snapshot(TODAY)], TODAY, {
+      scores: [score(TODAY, { score: 41, component_drying_time: 0 })],
+    })
+    expect(row?.component_drying_time).toBe(0)
+    expect(row?.component_drying_time).not.toBeNull()
+  })
+
+  it('a day outside the scoring window is unscored, not withheld', () => {
+    // `score: null` with NO reason. The ladder's "too far out to score" copy.
+    const rows = toWindowedForecast([snapshot('2026-09-20')], TODAY, { scores: [] })
+    expect(rows[0]?.score).toBeNull()
+    expect(rows[0]?.unavailable_reason).toBeNull()
+    expect(rows[0]?.window).toBe('pre')
+  })
+
+  it('marks every day withheld when the rainfall lookup failed', () => {
+    // computeLiveForecast returns scores: [] plus a reason. Without the reason
+    // these rows are indistinguishable from "beyond the window", and the reader
+    // is told the wrong thing about why there is no number (issue #34).
+    const rows = toWindowedForecast([snapshot('2026-08-25'), snapshot('2026-08-26')], TODAY, {
+      scores: [],
+      unavailableReason: 'rainfall_unavailable',
+    })
+    expect(rows).toHaveLength(2)
+    for (const r of rows) {
+      expect(r.score).toBeNull()
+      expect(r.unavailable_reason).toBe('rainfall_unavailable')
+    }
+  })
+
+  it('keeps a score of 0, which is a real score and not a missing one', () => {
+    const [row] = toWindowedForecast([snapshot(TODAY)], TODAY, {
+      scores: [score(TODAY, { score: 0, component_drying_time: 0, component_wind: 0 })],
+    })
+    expect(row?.score).toBe(0)
+    expect(row?.unavailable_reason).toBeNull()
+  })
+
+  it('still drops past days and labels windows when merging', () => {
+    const rows = toWindowedForecast(
+      [snapshot('2026-08-24'), snapshot('2026-08-25')],
+      TODAY,
+      { scores: [score('2026-08-24', { score: 99 }), score('2026-08-25')] },
+    )
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.forecast_date).toBe('2026-08-25')
+    expect(rows[0]?.window).toBe('decision')
+  })
+})
+
+describe('toWindowedForecast — a scoring error is not "nothing to say"', () => {
+  it('marks days withheld when the scorer threw, not merely unscored', () => {
+    // The finding from review of this change. liveForecast's generic catch used
+    // to return scores: [] with NO reason, which lands in the same branch as a
+    // date outside the scoring window and is documented on ForecastSnapshot.score
+    // as "nothing was withheld; there is nothing to say".
+    //
+    // With a 7-day horizon `window: 'pre'` is never reached in live compute, so
+    // in practice every bare empty array WAS a swallowed error being rendered as
+    // a legitimate empty result — defect class 2. The catch now sets
+    // 'score_error' and this is the assertion that keeps it set.
+    const rows = toWindowedForecast([snapshot('2026-08-25'), snapshot('2026-08-26')], TODAY, {
+      scores: [],
+      unavailableReason: 'score_error',
+    })
+    expect(rows).toHaveLength(2)
+    for (const r of rows) {
+      expect(r.score).toBeNull()
+      expect(r.unavailable_reason).toBe('score_error')
+    }
+  })
+
+  it('keeps score_error distinct from rainfall_unavailable', () => {
+    // Both withhold, and they are not the same claim: one says the rainfall
+    // lookup failed, the other says we do not know what failed. Naming rainfall
+    // when the rainfall call was fine is the attribution defect (class 3).
+    const [rain] = toWindowedForecast([snapshot(TODAY)], TODAY, {
+      scores: [],
+      unavailableReason: 'rainfall_unavailable',
+    })
+    const [err] = toWindowedForecast([snapshot(TODAY)], TODAY, {
+      scores: [],
+      unavailableReason: 'score_error',
+    })
+    expect(rain?.unavailable_reason).not.toBe(err?.unavailable_reason)
   })
 })

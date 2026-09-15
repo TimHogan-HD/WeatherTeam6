@@ -1,4 +1,3 @@
-import { escapeTelegramHtml } from '@weatherteam6/types'
 
 /**
  * Command parsing and the registered command list.
@@ -54,11 +53,11 @@ export type BotCommand = {
 /**
  * The commands registered with `setMyCommands` and rendered by `/help`.
  *
- * **Only commands this build actually answers.** `/insight`, `/afd`, `/weather`
- * and `/remove` are Phases 4 and 5 and are absent here on purpose. Registering a
- * command the bot does not handle puts it in the client's command menu, where
- * tapping it produces silence — the same class of false attribution as naming a
- * source that never answered.
+ * **Only commands this build actually answers.** `/insight` and `/afd` are
+ * Phase 4 and are absent here on purpose. Registering a command the bot does
+ * not handle puts it in the client's command menu, where tapping it produces
+ * silence — the same class of false attribution as naming a source that never
+ * answered.
  *
  * A command added here does not reach the client's menu until someone runs
  * `npm run bot:set-commands` with the bot token: the list is registered with
@@ -71,11 +70,13 @@ export type BotCommand = {
  */
 export const BOT_COMMANDS: readonly BotCommand[] = [
   { command: 'start', description: 'Open the bot panel' },
+  { command: 'weather', description: 'Weather for any place, saved or not' },
   { command: 'locations', description: 'Pick one of your saved locations' },
-  { command: 'conditions', description: 'Conditions for a saved location by name' },
-  { command: 'forecast', description: 'Hour by hour, one model at a time' },
-  { command: 'rain', description: 'Rain odds and amounts from the ensemble' },
+  { command: 'conditions', description: 'How a place is looking right now' },
+  { command: 'forecast', description: 'Hour by hour for one day' },
+  { command: 'rain', description: 'When rain arrives, and how much' },
   { command: 'alerts', description: 'Active weather alerts across your locations' },
+  { command: 'remove', description: 'Delete a saved location' },
   { command: 'help', description: 'What this bot can do' },
 ]
 
@@ -84,10 +85,14 @@ export const BOT_COMMANDS: readonly BotCommand[] = [
  * literal string needs that as much as an interpolated one does.
  */
 export function formatHelp(): string {
-  const lines = ['<b>WeatherTeam6</b>', '']
+  const lines = ['WeatherTeam6', '']
   for (const c of BOT_COMMANDS) {
-    lines.push(`/${escapeTelegramHtml(c.command)} — ${escapeTelegramHtml(c.description)}`)
+    lines.push(`/${c.command} — ${c.description}`)
   }
-  lines.push('', escapeTelegramHtml('Tip: /conditions red rock — a partial name is enough.'))
+  lines.push(
+    '',
+    'Tip: /conditions red rock — a partial name is enough.',
+    'Tip: saved the wrong place? /remove it, then /weather it again to save it right.',
+  )
   return lines.join('\n')
 }

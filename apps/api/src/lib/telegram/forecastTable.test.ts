@@ -2,17 +2,19 @@ import { describe, expect, it } from 'vitest'
 import type { RunHour } from '../runs/latestRuns.js'
 import {
   buildRows,
-  compassPoint,
+  clockCell,
   dayHasData,
-  isColumnSet,
+  DETAIL_AIR_COLUMNS,
+  DETAIL_WIND_COLUMNS,
   isIntervalHours,
   isTableUnits,
   localDays,
   modelLabel,
-  precipCell,
-  probabilityNote,
+  precipValue,
   renderTable,
+  SIMPLE_COLUMNS,
   stepNote,
+  TIME_COL_WIDTH,
 } from './forecastTable.js'
 
 /**
@@ -43,46 +45,33 @@ function hour(over: Partial<RunHour> & { valid_at: Date }): RunHour {
   }
 }
 
-describe('precipCell', () => {
+describe('precipValue', () => {
   it('renders a missing amount as a gap, not as zero rain', () => {
     // The whole reason the formatters take `number | null`: 0 in this column
     // means "it will not rain", and that is not what a gap means.
-    expect(precipCell(null, 'imperial', 5).trim()).toBe('—')
+    expect(precipValue(null, 'imperial')).toBe('—')
   })
 
   it('distinguishes a real zero from a trace', () => {
-    expect(precipCell(0, 'imperial', 5).trim()).toBe('0')
+    expect(precipValue(0, 'imperial')).toBe('0 in')
     // 0.1 mm is 0.0039 in, which `toFixed(2)` would print as 0.00 — the same
     // string as no rain at all.
-    expect(precipCell(0.1, 'imperial', 5).trim()).toBe('t')
+    expect(precipValue(0.1, 'imperial')).toBe('trace')
   })
 
   it('converts to inches under imperial and stays in millimetres under metric', () => {
-    expect(precipCell(25.4, 'imperial', 5).trim()).toBe('1.00')
-    expect(precipCell(25.4, 'metric', 5).trim()).toBe('25.4')
+    expect(precipValue(25.4, 'imperial')).toBe('1.00 in')
+    expect(precipValue(25.4, 'metric')).toBe('25.4 mm')
   })
 
-  it('pads to the requested width so a column cannot shift', () => {
-    expect(precipCell(25.4, 'imperial', 6)).toHaveLength(6)
-    expect(precipCell(null, 'imperial', 6)).toHaveLength(6)
-  })
-})
-
-describe('compassPoint', () => {
-  it('reads due north as a real direction rather than a missing one', () => {
-    // 0 is falsy, and a truthiness check here would render north as a gap.
-    expect(compassPoint(0)).toBe('N')
-  })
-
-  it('wraps at 360 and rounds to the nearest of sixteen', () => {
-    expect(compassPoint(359)).toBe('N')
-    expect(compassPoint(202.5)).toBe('SSW')
-    expect(compassPoint(-90)).toBe('W')
-  })
-
-  it('has no direction for a missing reading', () => {
-    expect(compassPoint(null)).toBeNull()
-    expect(compassPoint(Number.NaN)).toBeNull()
+  it('carries its unit, so the header never has to', () => {
+    // "the mph and in should just be on the number data" — reported from a real
+    // device, and it is also what fixed the alignment: a wide unit-bearing
+    // header over a two-character value sprawled across the neighbouring column.
+    expect(precipValue(25.4, 'imperial')).toContain('in')
+    expect(precipValue(25.4, 'metric')).toContain('mm')
+    // The gap carries no unit. "— in" would read as a measured zero.
+    expect(precipValue(null, 'imperial')).toBe('—')
   })
 })
 
@@ -192,60 +181,98 @@ describe('renderTable', () => {
     // `cToF(null)` is 32 and `kmhToMph(null)` is 0: both read as measurements.
     // The 00:00 row has no hour behind it at all, which is the row that would
     // carry them.
-    const empty = renderTable({ rows, columnSet: 'all', units: 'imperial' })?.split('\n')[1]
-    expect(empty?.startsWith('00')).toBe(true)
+    const empty = renderTable({ rows, columns: SIMPLE_COLUMNS, units: 'imperial' })?.split('\n')[1]
+    // The row label is a clock time now, not a 24-hour stamp: `hh` said `00`
+    // where a reader wanted `12am`.
+    expect(empty?.trimStart().startsWith('12am')).toBe(true)
     expect(empty).not.toContain('32')
-    // Five value columns in the `all` set, and every one of them a gap: a `0`
+    // Four value columns in the default set, and every one of them a gap: a `0`
     // for wind or `32` for temperature would take one of these away.
-    expect(empty?.match(/—/g)).toHaveLength(5)
+    expect(empty?.match(/—/g)).toHaveLength(SIMPLE_COLUMNS.length)
   })
 
   it('converts to Fahrenheit under imperial and leaves Celsius under metric', () => {
-    expect(renderTable({ rows, columnSet: 'all', units: 'imperial' })).toContain('86')
-    expect(renderTable({ rows, columnSet: 'all', units: 'metric' })).toContain('30')
+    expect(renderTable({ rows, columns: SIMPLE_COLUMNS, units: 'imperial' })).toContain('86°F')
+    expect(renderTable({ rows, columns: SIMPLE_COLUMNS, units: 'metric' })).toContain('30°C')
   })
 
-  it('heads the temperature column with the unit it is showing', () => {
-    expect(renderTable({ rows, columnSet: 'all', units: 'imperial' })?.split('\n')[0]).toContain(
-      '°F',
-    )
-    expect(renderTable({ rows, columnSet: 'all', units: 'metric' })?.split('\n')[0]).toContain('°C')
+  it('heads with a word and puts the unit on the value', () => {
+    // "the mph and in should just be on the number data." It also fixed the
+    // alignment: a unit-bearing header is far wider than its values, and
+    // right-aligned it sprawled across the neighbouring column's whitespace.
+    const table = renderTable({ rows, columns: SIMPLE_COLUMNS, units: 'imperial' })
+    const header = table?.split('\n')[0]
+    expect(header).toContain('temp')
+    expect(header).not.toContain('°F')
+    expect(table).toContain('86°F')
   })
 
-  it('stays inside a phone width at its widest column set', () => {
+  it('stays inside a phone width in every set, including the detail ones', () => {
     // The nine-column measurement in telegram-render.md is a *rich table*; the
     // `<pre>` path scrolls sideways instead of wrapping, so width still binds
     // here and nothing in run 1 says otherwise.
-    for (const set of ['all', 'temp', 'wind', 'rain'] as const) {
-      const table = renderTable({ rows, columnSet: set, units: 'imperial' })
-      for (const line of table?.split('\n') ?? []) expect(line.length).toBeLessThanOrEqual(32)
+    //
+    // This is the assertion that forced `⚙ More` to draw two stacked tables:
+    // the single nine-column detail table it replaced measured 50 characters
+    // and this test is what caught it.
+    //
+    // **52, raised from 40 on 2026-09-02 (second measurement).** The old figure was inherited
+    // caution; the evidence for the new one is a screenshot of the real bot on
+    // the real phone, in which a 24-character table occupied well under half
+    // the message bubble. The whole reason the panel gained a bar is that the
+    // space to its right was empty.
+    for (const columns of [SIMPLE_COLUMNS, DETAIL_AIR_COLUMNS, DETAIL_WIND_COLUMNS]) {
+      const table = renderTable({ rows, columns, units: 'imperial' })
+      for (const line of table?.split('\n') ?? []) expect(line.length).toBeLessThanOrEqual(52)
     }
+  })
+
+  it('spells its headers out rather than abbreviating them', () => {
+    // Reported from a real device: "we have a lot of horizontal space but you
+    // are cutting off words". `dew`, `RH`, `gst`, `dir`, `sky` and `mb` were
+    // abbreviations cut to fit a width that was never the constraint.
+    const air = renderTable({ rows, columns: DETAIL_AIR_COLUMNS, units: 'imperial' })
+    expect(air).toContain('dew')
+    expect(air).toContain('humidity')
+    expect(air).toContain('pressure')
+    expect(air).not.toMatch(/\bRH\b/)
+
+    const wind = renderTable({ rows, columns: DETAIL_WIND_COLUMNS, units: 'imperial' })
+    expect(wind).toContain('wind')
+    expect(wind).toContain('gusts')
+    expect(wind).toContain('cloud')
+    expect(wind).toContain('rain')
+    expect(wind).not.toMatch(/\bgst\b/)
+    expect(wind).not.toMatch(/\bsky\b/)
+  })
+
+  it('switches the unit on the value with the unit system', () => {
+    // The unit has exactly one home — the value — so a metric table must not
+    // print mph anywhere, header or cell.
+    const metric = renderTable({ rows, columns: DETAIL_WIND_COLUMNS, units: 'metric' })
+    expect(metric).toContain('20 kmh')
+    expect(metric).not.toContain('mph')
+  })
+
+  it('renders every stored hourly variable across the three sets but one', () => {
+    // The redesign's claim is that `⚙ More` moved variables off the first
+    // screen without removing them. This is the assertion behind it: the union
+    // of the three sets is every column `COLUMNS` defines. `pop` is the single
+    // deliberate exclusion — a blended field the rain panel answers better —
+    // and naming it here means dropping a *second* one cannot pass silently.
+    const rendered = new Set<string>([
+      ...SIMPLE_COLUMNS,
+      ...DETAIL_AIR_COLUMNS,
+      ...DETAIL_WIND_COLUMNS,
+    ])
+    expect([...rendered].sort()).toEqual(
+      ['cloud', 'dew', 'dir', 'gust', 'precip', 'pressure', 'rh', 'temp', 'wind'].sort(),
+    )
   })
 
   it('has no table at all for a day with no rows', () => {
     // A header with nothing under it reads as no wind, no rain and no cloud.
-    expect(renderTable({ rows: [], columnSet: 'all', units: 'imperial' })).toBeNull()
-  })
-})
-
-describe('probabilityNote', () => {
-  it('withholds the attribution when the flag is unknown', () => {
-    // Null is "the question was not answered", not "no". A stored run from
-    // before the flag existed lands here.
-    expect(probabilityNote('rain', null)).not.toBeNull()
-  })
-
-  it('caveats a shared probability column', () => {
-    expect(probabilityNote('rain', true)).not.toBeNull()
-  })
-
-  it('says nothing when the column is measurably this model’s own', () => {
-    expect(probabilityNote('rain', false)).toBeNull()
-  })
-
-  it('says nothing at all when no probability column is on screen', () => {
-    expect(probabilityNote('all', true)).toBeNull()
-    expect(probabilityNote('wind', null)).toBeNull()
+    expect(renderTable({ rows: [], columns: SIMPLE_COLUMNS, units: 'imperial' })).toBeNull()
   })
 })
 
@@ -254,13 +281,6 @@ describe('guards', () => {
     expect(isIntervalHours(3)).toBe(true)
     expect(isIntervalHours(2)).toBe(false)
     expect(isIntervalHours(0)).toBe(false)
-  })
-
-  it('accepts only the four column sets', () => {
-    expect(isColumnSet('wind')).toBe(true)
-    expect(isColumnSet('everything')).toBe(false)
-    // Inherited property names must not pass for column sets.
-    expect(isColumnSet('constructor')).toBe(false)
   })
 
   it('accepts only the two unit systems', () => {
@@ -279,7 +299,28 @@ describe('labels', () => {
   })
 
   it('states which way the rain in a row is counted', () => {
-    expect(stepNote(3)).toContain('3 h after')
+    expect(stepNote(3)).toContain('3 hours after')
     expect(stepNote(1)).toContain('hour after')
+  })
+})
+
+
+describe('clockCell', () => {
+  it('reads the clock at a fixed column width', () => {
+    expect(clockCell(0)).toBe(' 12am')
+    expect(clockCell(9)).toBe('  9am')
+    expect(clockCell(12)).toBe(' 12pm')
+    expect(clockCell(15)).toBe('  3pm')
+  })
+
+  it('is a gap, not a guess, for something that is not an hour', () => {
+    expect(clockCell(24).trim()).toBe('—')
+    expect(clockCell(Number.NaN).trim()).toBe('—')
+  })
+
+  it('every cell is the same width, so the column cannot shift', () => {
+    for (const h of [0, 1, 9, 10, 12, 13, 23, 24]) {
+      expect(clockCell(h)).toHaveLength(TIME_COL_WIDTH)
+    }
   })
 })

@@ -18,15 +18,33 @@ import { EM_DASH } from './units.js';
 export type Confidence = 'low' | 'medium' | 'high';
 
 /**
+ * The score at which each state label takes over.
+ *
+ * Named rather than left as literals in `stateLabel` because a surface that
+ * *colours* a score has to use the same rungs the words use. The Mini App's
+ * daily list does exactly that, and a second set of thresholds living in a
+ * component is how a bar goes amber on a day the text calls "Mostly dry" with
+ * nothing able to detect the disagreement.
+ */
+export const SCORE_BANDS = {
+  /** 'Dry, settled' at or above. */
+  settled: 80,
+  /** 'Mostly dry' at or above. */
+  mostlyDry: 60,
+  /** 'Mixed' at or above; below it, 'Wet or unsettled'. */
+  mixed: 40,
+} as const;
+
+/**
  * The permitted state labels. They describe **rock and weather**, never
  * suitability — "Mixed" is a condition, "marginal, check the details" was
  * advice. Do not add a rung that reads as a recommendation.
  */
 export function stateLabel(score: number | null): string {
   if (score === null) return 'Too far out to score';
-  if (score >= 80) return 'Dry, settled';
-  if (score >= 60) return 'Mostly dry';
-  if (score >= 40) return 'Mixed';
+  if (score >= SCORE_BANDS.settled) return 'Dry, settled';
+  if (score >= SCORE_BANDS.mostlyDry) return 'Mostly dry';
+  if (score >= SCORE_BANDS.mixed) return 'Mixed';
   return 'Wet or unsettled';
 }
 
@@ -160,10 +178,33 @@ export const DRY_SENTINEL_HOURS = 720;
  * Distinct from `stateLabel(null)`'s "Too far out to score", which is a real
  * statement about the date. This is a statement about the data.
  */
-export function scoreUnavailableLine(reason: 'rainfall_unavailable'): string {
+/**
+ * Why a day has no score, when the reason is something other than the date being
+ * outside the scoring window.
+ *
+ * **Named once here because it was written out as a literal union in seven
+ * places**, and the eighth reading of it is how `score_error` came to be missing:
+ * `liveForecast`'s generic catch set `scores = []` and no reason at all, so a
+ * thrown scoring error arrived indistinguishable from "this date is too far out".
+ * With a 7-day horizon the honest version of that state is never reached in live
+ * compute, so in practice every occurrence was a swallowed error being rendered
+ * as a legitimate empty result — defect class 2.
+ *
+ * Adding a member here is deliberately a compile error in `scoreUnavailableLine`
+ * until it has copy of its own. A reason with no sentence is a reason no reader
+ * ever sees.
+ */
+export type ScoreUnavailableReason = 'rainfall_unavailable' | 'score_error';
+
+export function scoreUnavailableLine(reason: ScoreUnavailableReason): string {
   switch (reason) {
     case 'rainfall_unavailable':
       return "Can't score right now — no rainfall data.";
+    case 'score_error':
+      // Deliberately does not name rainfall. The rainfall lookup may have been
+      // perfectly fine; something in the scoring itself threw, and saying which
+      // input failed when we do not know is the attribution defect (class 3).
+      return "Can't score right now — the calculation failed.";
   }
 }
 
@@ -190,6 +231,32 @@ export function formatHoursSinceRain(hours: number | null): string {
   if (rounded <= 0) return 'rain today';
 
   return `no rain in ${rounded}h`;
+}
+
+/**
+ * When it last rained, as a sentence rather than as a chart caption.
+ *
+ * **The same §3 cap as `formatHoursSinceRain`, and for the same reason.** A dry
+ * month and a swallowed rainfall fetch are indistinguishable in the data, so at
+ * or above the sentinel no surface may state a figure — "over 30 days ago" is
+ * the most that can honestly be said. Kept beside its sibling so the cap cannot
+ * be reimplemented without it.
+ *
+ * The phrasing is deliberately approximate. `dryingModel` measures from the
+ * **end** of the rain day, so this is accurate to a day and not to an hour;
+ * "about" says so, and "rain today" is what a zero or negative figure means
+ * rather than a number pointing the wrong way.
+ */
+export function formatLastRain(hours: number | null): string | null {
+  if (hours === null) return null;
+
+  const rounded = Math.round(hours);
+  if (rounded >= DRY_SENTINEL_HOURS) return 'over 30 days ago';
+  if (rounded <= 0) return 'earlier today';
+  if (rounded < 48) return `about ${rounded} hours ago`;
+
+  const days = Math.round(rounded / 24);
+  return `about ${days} days ago`;
 }
 
 /**

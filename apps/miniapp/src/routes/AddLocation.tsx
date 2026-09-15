@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { spacing } from '@weatherteam6/design/tokens'
-import type { GeocodeResult, RockType } from '@weatherteam6/types'
+import { placeSubtitle, type GeocodeResult, type RockType } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { bareButton, card, chip, inputBox, stack } from '../theme/styles.js'
 import { useBackButton } from '../telegram/useBackButton.js'
@@ -46,11 +46,6 @@ function fromGeocode(result: GeocodeResult): Candidate {
     elevationM: result.elevation_m,
     timezone: result.timezone,
   }
-}
-
-/** `Nevada, United States` — near-identical place names are common (§12.2). */
-function placeSubtitle(result: GeocodeResult): string {
-  return [result.admin1, result.country].filter((part) => part !== null && part !== '').join(', ')
 }
 
 export function AddLocation() {

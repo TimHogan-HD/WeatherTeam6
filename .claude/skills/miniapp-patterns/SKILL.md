@@ -11,11 +11,145 @@ paths: apps/miniapp/**, packages/design/**
 > never touch the Mini App. They are unchanged in substance and still binding — they now
 > load when you actually open a file they govern.
 
-**Current scope note:** the user downgraded Mini App design work on 2026-08-26 —
-*"the Mini App doesn't need to be super fancy."* The app is styled entirely with inline
-styles, which cannot express hover, transitions, keyframes or breakpoints. That is a real
-ceiling and it is documented, but lifting it is **not authorised**. Do not start a CSS
-architecture or a motion system unless asked.
+**Current scope note — revised 2026-09-15.** The 2026-08-26 downgrade (*"the Mini App
+doesn't need to be super fancy"*) was **reversed by the owner on 2026-09-04**; the Mini App
+data visualisation is the active line of work and Phase 2's charts shipped on 2026-09-15.
+What is still true is the mechanism: the app is styled entirely with **inline styles**,
+which cannot express hover, transitions, keyframes or breakpoints. That ceiling is real and
+it is why the charts carry no hover layer. **Starting a CSS or motion architecture is still
+not authorised** — that is a separate decision from drawing charts, and Phase 5 of
+`docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` is where it gets settled.
+
+## Charts (`apps/miniapp/src/components/charts/`)
+
+Inline SVG, no chart library — `miniapp-design-v1.md` §8. Shipped 2026-09-15. The rules
+below are the ones that are wrong-but-plausible if broken, which is the only kind worth
+always-loading:
+
+- **A rain bar covers the hour *before* its timestamp.** Precipitation is stamped at the end
+  of the hour it fell in, so an 02:00 sample describes 01:00-02:00 — the same convention the
+  bot's `buildRows` follows. Drawing it forward moves every shower an hour later and nothing
+  typechecks differently.
+- **Two different things break a series, and both are real gaps**: a null value, and a
+  missing row. An hour with no values at all is never stored, so its absence is a two-hour
+  step between two good rows. `contiguousRuns` takes an adjacency predicate for that.
+- **A one-point path paints nothing.** `M x,y` with no line command is invisible at any
+  stroke width, so `linePath` returns `''` and the caller draws a dot. Same family as a
+  `NaN` coordinate, which is why `extent` skips non-finite values and `linearScale` answers
+  a zero-width domain with the middle of the range.
+- **A zero-height bar and an absent bar are the same picture**, so the rain baseline runs
+  only under hours that have a reading. That line is what separates "no rain" from "no
+  forecast".
+- **Values stay in the API's metric units; only the formatter converts.** Converting in the
+  adapter forces every threshold to be restated in the other unit.
+- **Labels describe the series, not the band around it.** The domain must cover p10-p90 or
+  it clips, but labelling its outer edge prints one member's worst hour as the forecast.
+- **The ensemble size is quoted only when every hour reported the same one** — the far end
+  of the window is reached by fewer members.
+- **`good`, `fair` and `poor` are the conditions ladder's status colours and are not
+  available for data marks.** Temperature uses `sun`; rain uses the `radar*` intensity ramp.
+- **A chart that cannot be drawn says so — and says only what *it* could not draw.** A
+  dropped section reads as a forecast of nothing, because a reader cannot notice a section
+  they were never shown. But these charts draw the **ensemble**, and a response with no
+  ensemble columns can still carry a full deterministic forecast, so "no hourly forecast
+  for this location" is a claim about the response that the section is not entitled to
+  make. There is deliberately no whole-section empty state.
+- **The accessible summary counts what was drawn.** "over N days" over a padded window is
+  the same false claim as naming a model that did not answer, and it is the only part of a
+  chart a screen-reader user gets.
+- **`HourlySeries.fetched_at` is the older of the two runs behind the response**, not the
+  run that produced any particular column. The deterministic and ensemble runs are cached
+  independently and can be an hour apart; an age line is a freshness claim about what the
+  reader is looking at, and the staler half bounds it.
+
+Added by Phase 3 (2026-09-14), same test — wrong-but-plausible if broken:
+
+- **An accumulation and an instantaneous reading are placed differently on the same axis,
+  and the rain rule does not generalise.** `precip_mm_mean` at 15:00 is the rain that fell
+  between 14:00 and 15:00, so its bar spans the hour *before* its timestamp. `temp_c_p50`
+  at 15:00 is the temperature *at* 15:00, so its mark is **centred** on it. Reusing the
+  rain placement for temperature put the peak an hour early under a correct-looking axis —
+  self-consistent, and caught by review rather than by any gate. `Series.tsx` has one
+  helper per convention (`accumulationLeft`, `instantLeft`) so the choice is made
+  explicitly; `HourlyChart` widens the x-window to match (an hour back for bars, half a
+  slot each side for range marks).
+- **Temperature is a bar rising from a *labelled non-zero floor*, with a whisker over it.**
+  The reasoning that produced a floating translucent box instead was sound and the
+  conclusion was wrong: a temperature genuinely has no meaningful zero, but the answer is
+  to set the floor just under the coldest p10 **and print it on the axis**, not to stop
+  drawing bars. The floating version was technically defensible and visually unreadable —
+  pale boxes covering a fraction of the plot where bars now span 15-81 units of 106. Rain,
+  chance of rain and wind are real magnitudes and keep a zero floor.
+- **`BAR_MIN_H` gives every measured hour a visible stub**, which is what keeps "no rain"
+  and "no forecast" different pictures. It replaced a run-length baseline: a per-hour stub
+  says which *hours* were measured, where a line under a run only said where the run was.
+- **What the two edge labels say depends on whether anything else states the series.** A
+  bar chart's caller prints the day's range in the heading, so the labels are the *scale* —
+  and for a non-zero floor they must be, because the floor is the one thing the picture
+  cannot show. A line chart (the seven-day strip) has no heading figure, so its labels are
+  the series' own extremes; labelling its padded domain there put **113°F on screen over a
+  median that never passes 63°F**.
+- **A ramp built for one quantity keeps its own scale.** Rain was briefly shaded relative
+  to each day's peak so a light day would show a shape; 0.3 mm then painted `radarSevere`
+  beside a header reading `0.02 in`, and the same hour was a different colour on the
+  seven-day strip. Bar *height* already carries the day's shape, because the domain is the
+  day's own peak. Colour means what the ramp says it means.
+- **`colorForValue` is fed the median, never a band edge.** Colouring by p90 paints an hour
+  as too hot on the strength of one member's worst run.
+- **The temperature ramp is centred on `IDEAL_TEMP_C`, derived from `TEMP_BAND_C` in
+  `packages/types`, which `conditionsScore.ts` also reads.** Copy the band into a component
+  and the chart will eventually paint an hour neutral on a day the score docked for being
+  too warm, with nothing able to detect the disagreement. `SCORE_BANDS` is the same
+  arrangement for the daily score bar against `stateLabel`'s rungs.
+- **Every data ramp is a named scale in `packages/design`** — `tempScale`, `windScale`,
+  `chanceScale`, beside the older `uvScale`. A ramp is one encoding; splitting it into
+  loose colours lets a consumer use half of it, and writing its stops as hex in a component
+  breaks the tokens rule however sensible the values look.
+- **A ramp built for one quantity does not colour another.** Chance of rain was briefly
+  drawn with `rainColor(pct / 100)`; that ramp's thresholds are *rates* in mm/h, so two of
+  its four steps were unreachable and every value above 50% came out identical. A
+  probability is not a rate.
+- **The temperature ramp is continuous, and that is what makes `fair` and `poor` safe
+  inside it.** As four discrete steps they measured **ΔE 13.0** apart to normal vision —
+  below the floor for telling two hues apart — and the cold side had one band where the
+  warm side had two, so -15 °C and +5 °C came out identical. Interpolating fixes both:
+  neighbouring values in a continuous scale are *meant* to be similar, and only the ends
+  must separate. Do not re-step it.
+- **The daily rows' bar scale is shared by all seven.** Normalising each row to its own
+  min/max draws the identical bar on every row whatever the values are — a chart that
+  cannot be wrong. Score is a **fixed** 0-100, because its scale is defined rather than
+  measured.
+- **An hourly axis reads the location's clock, from `utc_offset_seconds`.** The four labels
+  are the same strings either way, so only their *positions* move — a chart on the viewer's
+  clock prints a correct-looking axis against the wrong hours. Issue #33's shape exactly.
+- **A legend swatch is drawn the way its mark is drawn.** The keys briefly pointed at
+  colours no mark on either chart used. A key naming a colour that is not in the chart is
+  worse than no key: it sends the reader looking for something absent.
+- **A header figure says which figure it is.** "gusts 21 mph" and "peak 70%" are labelled;
+  a bare "70%" beside *Chance of rain* reads as the day's chance when it is one hour's.
+  And a total built with `?? 0` across null hours reports a measured zero — an all-null day
+  printed "none", a forecast of a dry day, beside its own "no hourly rainfall for this day".
+- **Do not spread `card` into a small fixed-size control.** It carries `padding: 14px`,
+  which inside a 28px pager button pushes the glyph out of the box entirely — the arrows
+  rendered as empty rounded squares. Take the surface piece by piece at that size.
+- **Only the current hour may be called "now".** Every daily field is an extreme —
+  `temp_c_max` is a *maximum*, and labelling it a present reading is the factual error §3
+  names. `currentHour` reads the hour covering this moment from the hourly run and returns
+  `null` past `CURRENT_HOUR_TOLERANCE_MS` rather than the nearest one. **And a day's high
+  and low are labelled wherever they appear beside it**: unlabelled, the pair reads as the
+  headline the moment the current reading is absent, which is a pending query away.
+- **A score is never shown before the alerts query settles.** `severeAlertEvent` answers
+  `null` for a query in flight exactly as it does for "no severe alert", and the banner
+  renders nothing in that window — so a location under a Severe+ warning shows an
+  unsuppressed score with nothing above it. Both the score section and the now-line's chip
+  gate on `isPending`; anything new that renders a score must too.
+- **A day is tappable on `has_ensemble`, not on a forecast row existing.** `/forecast/:id`
+  returns seven days whatever the hourly models reached; these charts draw the ensemble, so
+  a day it never reached opens two empty charts. A selected day is also dropped once the
+  window stops covering it.
+- **`hourly` and its `tabs` are one prop, nested.** Apart, they admit two silent failures:
+  hourly data with no tabs renders no charts at all, and tabs with no hourly data offer a
+  second tab that can never have anything in it. Neither changes a type.
 ## Client Mandate — Telegram Mini App
 
 **Direction changed 2026-07-31.** WeatherTeam6 was a native-mobile-first app; it is now a **Telegram bot + Telegram Mini App**. `apps/mobile` is being archived (Crossover Task 7) — its code stays in the repo but leaves the build. The old Mobile-First Mandate (never use WebView, `react-native-maps` for every map, native `.tsx` always real) is **superseded** and no longer applies. See `docs/handoffs/telegram-crossover-v4.md`.

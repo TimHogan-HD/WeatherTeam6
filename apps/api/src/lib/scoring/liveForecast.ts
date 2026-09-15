@@ -1,5 +1,5 @@
 import { aspectToDegrees } from '@weatherteam6/types'
-import type { ConditionsScore, ForecastSnapshot } from '@weatherteam6/types'
+import type { ConditionsScore, ForecastSnapshot, ScoreUnavailableReason } from '@weatherteam6/types'
 import { logger } from '../logger.js'
 import { fetchPrecipHistory } from '../weather/acis.js'
 import {
@@ -42,7 +42,7 @@ export type LiveForecastResult = {
    * Distinct from an empty `scores` with no reason, which means the days fell
    * outside the scoring window.
    */
-  scoreUnavailable?: 'rainfall_unavailable' | null
+  scoreUnavailable?: ScoreUnavailableReason | null
 }
 
 function parseNum(v: string | null | undefined, fallback: number): number {
@@ -270,7 +270,13 @@ export async function computeLiveForecast(
       { locationId: location.id, err: msg },
       '[liveForecast] score computation failed — returning snapshots without scores',
     )
-    scores = []
+    // `scores: []` alone is indistinguishable from "no day was inside the scoring
+    // window", and a caller that renders the difference then tells the reader
+    // there is nothing to say when in fact something threw. With a 7-day horizon
+    // the honest version of that state is never reached in live compute, so every
+    // occurrence of the bare empty array was this error wearing its clothes —
+    // defect class 2, found in review of the per-day score merge.
+    return { snapshots, scores: [], todayStr, scoreUnavailable: 'score_error' }
   }
 
   return { snapshots, scores, todayStr }
