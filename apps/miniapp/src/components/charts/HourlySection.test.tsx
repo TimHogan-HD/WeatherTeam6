@@ -55,13 +55,16 @@ function render(s: HourlySeries): string {
 }
 
 describe('HourlySection', () => {
-  it('says there is no hourly forecast rather than drawing an empty one', () => {
-    // Every model padded out past its horizon returns exactly this: a full
-    // window of hours with nothing in them. Two empty charts would read as a
-    // forecast of no weather.
-    const markup = render(series(Array.from({ length: 48 }, (_, i) => hour(i))))
-    expect(markup).toContain('No hourly forecast for this location yet.')
+  it('draws no chart, and claims nothing about the forecast, when the ensemble is empty', () => {
+    // These charts draw the ensemble. A response with no ensemble columns can still carry
+    // a full deterministic hourly forecast — `model` is named right here in the fixture —
+    // so "no hourly forecast for this location" would be a claim about the response
+    // rather than about what could be drawn.
+    const markup = render(series(Array.from({ length: 48 }, (_, i) => hour(i, { temp_c: 14 }))))
     expect(markup).not.toContain('<svg')
+    expect(markup).toContain('No hourly temperature from the forecast runs yet.')
+    expect(markup).toContain('No hourly rainfall from the forecast runs yet.')
+    expect(markup).not.toMatch(/No hourly forecast/)
   })
 
   it('says a chart is missing rather than dropping it', () => {
@@ -69,15 +72,15 @@ describe('HourlySection', () => {
     // undrawn rain chart would read as a forecast of no rain.
     const markup = render(series(warm))
     expect(markup).toContain('>Rain<')
-    expect(markup).toContain('No hourly rainfall in this forecast.')
+    expect(markup).toContain('No hourly rainfall from the forecast runs yet.')
     expect(markup).not.toContain('<rect')
   })
 
   it('does not legend a band it did not draw', () => {
     const dry = warm.map((h) => ({ ...h, temp_c_p50: null, precip_mm_mean: 1 }))
     const markup = render(series(dry))
-    expect(markup).toContain('No hourly temperature in this forecast.')
-    expect(markup).not.toContain('forecast runs')
+    expect(markup).toContain('No hourly temperature from the forecast runs yet.')
+    expect(markup).not.toContain('where 8 in 10 land')
   })
 
   it('draws the rain chart once there is rain data, including a measured zero', () => {

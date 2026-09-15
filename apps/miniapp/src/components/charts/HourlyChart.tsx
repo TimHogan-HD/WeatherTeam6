@@ -86,7 +86,13 @@ export function HourlyChart({
   const y = linearScale(domain, plotBottom, PAD_TOP)
 
   const days = dayStarts(data)
-  const summary = `${title}: ${formatValue(measured.min)} to ${formatValue(measured.max)} over ${days.length} days.`
+  // **Days with a drawn value, not days present in the window.** Open-Meteo pads every
+  // model out to the longest horizon in the request, so a 7-day window routinely contains
+  // local days that are entirely null. "over 7 days" for a chart that draws five is the
+  // same false claim as naming a model that did not answer — and it is the only part of
+  // this component a screen-reader user has.
+  const coveredDays = new Set(data.filter((d) => d.value !== null).map((d) => d.localDate)).size
+  const summary = `${title}: ${formatValue(measured.min)} to ${formatValue(measured.max)} over ${coveredDays} ${coveredDays === 1 ? 'day' : 'days'}.`
 
   const pctX = (value: number): string => `${(value / VIEW_W) * 100}%`
   const pctY = (value: number): string => `${(value / viewHeight) * 100}%`
