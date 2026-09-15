@@ -268,6 +268,47 @@ export function DetailView({
       )}
 
       {/*
+        **The score, at the top, on Daily only.**
+
+        It used to be the last section on the screen, collapsed, on the rule
+        that a score should be prominent only where the reader scrolled to it
+        deliberately (§3). The owner reversed that on 2026-09-15: it is the
+        question the app exists to answer and it sat below four charts.
+
+        **Not on Hourly**, and that is not a layout preference. This summary is
+        about *today*; the Hourly tab pages through seven days, and today's
+        verdict at the top of a screen showing Saturday is a claim about the
+        wrong day. The pager carries that day's own chip instead.
+      */}
+      {showScore && !onHourly && conditions !== undefined ? (
+        // The score waits on the alerts query as well as its own. Suppression
+        // keys on whether a Severe+ alert is active, so rendering the summary
+        // before alerts settle briefly shows an unsuppressed score for a
+        // location under an active warning — the state §7 rule 4 exists to
+        // prevent. An alerts error settles the query, and component-based
+        // suppression still runs.
+        conditions.isPending || alerts?.isPending === true ? (
+          <Skeleton height={90} />
+        ) : conditions.isError ? (
+          <InlineError message="Couldn't load conditions." onRetry={conditions.refetch} />
+        ) : conditions.data === null ? (
+          // Distinct from the ladder's "Too far out to score", which describes a
+          // date beyond the scoring window. This is today, and it has no row.
+          <p style={type.bodyMd}>No conditions for today yet.</p>
+        ) : conditions.data?.unavailable_reason ? (
+          // Withheld, not missing (§#34). The rainfall lookup failed, and its
+          // sentinel is worth 40 of 100 points — scoring anyway would credit a
+          // dry spell nobody measured. Says what happened rather than implying
+          // it has not rained.
+          <p style={type.bodyMd}>
+            {scoreUnavailableLine(conditions.data.unavailable_reason)}
+          </p>
+        ) : conditions.data === undefined ? null : (
+          <ScoreSection score={conditions.data} severeAlertEvent={alertEvent} />
+        )
+      ) : null}
+
+      {/*
         Rain and drying. **Outside the forecast branch above**, because it reads
         neither of that branch's two queries: a forecast that failed to load
         says nothing about whether it rained on Tuesday, and hiding the record
@@ -384,34 +425,6 @@ export function DetailView({
           </>
         )}
       </div>
-
-      {showScore && conditions !== undefined ? (
-        // The score waits on the alerts query as well as its own. Suppression
-        // keys on whether a Severe+ alert is active, so rendering the summary
-        // before alerts settle briefly shows an unsuppressed score for a
-        // location under an active warning — the state §7 rule 4 exists to
-        // prevent. An alerts error settles the query, and component-based
-        // suppression still runs.
-        conditions.isPending || alerts?.isPending === true ? (
-          <Skeleton height={90} />
-        ) : conditions.isError ? (
-          <InlineError message="Couldn't load conditions." onRetry={conditions.refetch} />
-        ) : conditions.data === null ? (
-          // Distinct from the ladder's "Too far out to score", which describes a
-          // date beyond the scoring window. This is today, and it has no row.
-          <p style={type.bodyMd}>No conditions for today yet.</p>
-        ) : conditions.data?.unavailable_reason ? (
-          // Withheld, not missing (§#34). The rainfall lookup failed, and its
-          // sentinel is worth 40 of 100 points — scoring anyway would credit a
-          // dry spell nobody measured. Says what happened rather than implying
-          // it has not rained.
-          <p style={type.bodyMd}>
-            {scoreUnavailableLine(conditions.data.unavailable_reason)}
-          </p>
-        ) : conditions.data === undefined ? null : (
-          <ScoreSection score={conditions.data} severeAlertEvent={alertEvent} />
-        )
-      ) : null}
 
       <SourcesFooter sources={sources} />
     </div>

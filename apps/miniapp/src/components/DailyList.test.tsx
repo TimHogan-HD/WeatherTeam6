@@ -2,7 +2,14 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { ForecastSnapshot } from '@weatherteam6/types'
 import type { HourlySample, HourlySeries } from '@weatherteam6/types'
-import { DailyList, rowSpan, rowSpread, sharedDomain } from './DailyList.js'
+import {
+  DailyList,
+  dayRainChance,
+  rowFigures,
+  rowSpan,
+  rowSpread,
+  sharedDomain,
+} from './DailyList.js'
 
 /**
  * The daily list's two load-bearing claims: the bar scale is shared by all
@@ -51,14 +58,16 @@ function render(node: Parameters<typeof renderToStaticMarkup>[0]): string {
  * Each drawn bar's placement, in order: its left edge and its width, as
  * percentages of the shared scale.
  *
- * Matched on the bar's own 6px height, which is what separates it from the
- * full-height band behind it and from the 1px gridlines. As a **pair** rather
- * than on width alone, too — a tappable row is a
- * `bareButton`, which carries its own `width:100%`, and matching that too
- * reported six marks for three days.
+ * **Matched on `background:`, which is the bar's and only the bar's.** The band
+ * behind it is now the same height and shape — that is the point of it — so
+ * geometry cannot tell them apart any more. The bar takes a flat fill or a
+ * gradient through `background`; the band takes `backgroundColor`, which React
+ * serialises as `background-color`. Matched as a **pair** rather than on width
+ * alone, too: a tappable row is a `bareButton` carrying its own `width:100%`,
+ * and matching that reported six marks for three days.
  */
 function barPlacements(html: string): { left: number; width: number }[] {
-  return [...html.matchAll(/height:6px;left:([0-9.]+)%;width:([0-9.]+)%/g)].map((m) => ({
+  return [...html.matchAll(/left:([0-9.]+)%;width:([0-9.]+)%;background:/g)].map((m) => ({
     left: Number(m[1]),
     width: Number(m[2]),
   }))
@@ -225,14 +234,15 @@ describe('DailyList', () => {
     // over the whole markup now catches the axis labels' "0", which is the left
     // end of the 0-100 scale and entirely correct — an assertion that fails on
     // a right answer is worse than no assertion.
-    const values = rowValues(html)
-    expect(values).toEqual(['—', '72'])
+    // The score sits at the bar's start and its word at the end, so a day
+    // with no score is a dash and an empty end rather than a zero-length bar.
+    expect(rowFigureText(html)).toEqual(['—', '', '72', 'Mostly dry'])
   })
 })
 
-/** The right-hand value cell of each row, in order. */
-function rowValues(html: string): string[] {
-  return [...html.matchAll(/align-items:flex-end[^>]*>(?:<span[^>]*>)([^<]*)</g)].map((m) => m[1] ?? '')
+/** The figure at each end of each row's bar, in order: start, end, start, end. */
+function rowFigureText(html: string): string[] {
+  return [...html.matchAll(/text-align:(?:right|left)[^>]*>([^<]*)</g)].map((m) => m[1] ?? '')
 }
 
 /** The tick labels under the rows, in order. */
@@ -378,9 +388,9 @@ function hourly(spreadByDate: Record<string, number>): HourlySeries {
   }
 }
 
-/** The band placements only — full-height marks, as against the 6px bars. */
+/** The band placements only — `background-color`, as against the bar's `background`. */
 function bandPlacements(html: string): { left: number; width: number }[] {
-  return [...html.matchAll(/top:0;bottom:0;left:([0-9.]+)%;width:([0-9.]+)%/g)].map((m) => ({
+  return [...html.matchAll(/left:([0-9.]+)%;width:([0-9.]+)%;background-color:/g)].map((m) => ({
     left: Number(m[1]),
     width: Number(m[2]),
   }))
@@ -457,5 +467,62 @@ describe('DailyList — the spread on screen', () => {
       <DailyList days={[day(DATES[0])]} metric="temperature" onMetricChange={() => {}} showScoreMetric />,
     )
     expect(bandPlacements(html)).toHaveLength(0)
+  })
+})
+
+describe('rowFigures — a figure at each end of the bar', () => {
+  const hours = hourly({ [DATES[0]]: 1 }).hours
+
+  it('puts the day’s low at the bar’s start and its high at the end', () => {
+    // The bar then spans the distance the two figures name, instead of floating
+    // beside a pair of them. This is the reference app's arrangement.
+    const figures = rowFigures(day(DATES[0], { temp_c_min: 10, temp_c_max: 20 }), 'temperature', hours)
+    expect(figures).toEqual({ start: '50°F', end: '68°F' })
+  })
+
+  it('pairs the rain chance with the amount, because neither says it alone', () => {
+    // 0.01 in at a 60% chance is a drizzle that is fairly likely; the same
+    // amount at 5% is one run out of twenty. The bar draws the second figure.
+    const wet = hourly({ [DATES[0]]: 1 })
+    const withChance = wet.hours.map((h, i) => ({ ...h, precip_chance_pct: i === 5 ? 60 : 10 }))
+    const figures = rowFigures(day(DATES[0], { precip_mm_p50: 1 }), 'rain', withChance)
+    expect(figures).toEqual({ start: '60%', end: '0.04 in' })
+  })
+
+  it('has no chance to show when no hour carries a wet count', () => {
+    // `precip_chance_pct` is null for an hour no member reached, and "0%" there
+    // is a confidence nobody computed.
+    expect(rowFigures(day(DATES[0]), 'rain', hours).start).toBeNull()
+  })
+
+  it('pairs the score with the word the same bands give it', () => {
+    expect(rowFigures(day(DATES[0], { score: 85 }), 'score', hours)).toEqual({
+      start: '85',
+      end: 'Dry, settled',
+    })
+  })
+
+  it('writes a dash for a score that is absent or withheld, never a zero', () => {
+    expect(rowFigures(day(DATES[0], { score: null }), 'score', hours).start).toBe('—')
+    expect(rowFigures(day(DATES[0]), 'score', hours).start).toBe('—')
+  })
+})
+
+describe('dayRainChance', () => {
+  it('takes the day’s likeliest hour, and only that day’s hours', () => {
+    const mixed = [
+      ...hourly({ [DATES[0]]: 1 }).hours.map((h, i) => ({
+        ...h,
+        precip_chance_pct: i === 3 ? 45 : 10,
+      })),
+      ...hourly({ [DATES[1]]: 1 }).hours.map((h) => ({ ...h, precip_chance_pct: 90 })),
+    ]
+    expect(dayRainChance(mixed, DATES[0])).toBe(45)
+    expect(dayRainChance(mixed, DATES[1])).toBe(90)
+  })
+
+  it('is null when nothing on that day carries a wet count', () => {
+    expect(dayRainChance(hourly({ [DATES[0]]: 1 }).hours, DATES[0])).toBeNull()
+    expect(dayRainChance([], DATES[0])).toBeNull()
   })
 })

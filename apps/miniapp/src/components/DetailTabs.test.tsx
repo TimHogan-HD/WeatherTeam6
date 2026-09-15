@@ -213,7 +213,7 @@ describe('DetailView — tabs', () => {
     )
   })
 
-  it('keeps the alert banner, the score and the sources footer outside the tabs', () => {
+  it('keeps the alert banner and the sources footer outside the tabs', () => {
     // A warning a reader can switch away from is the state §7 rule 5 exists to
     // prevent, and the sources footer describes the location rather than one
     // view of it.
@@ -237,9 +237,37 @@ describe('DetailView — tabs', () => {
         />,
       )
       expect(html).toContain('Extreme Heat Warning')
-      expect(html).toContain('Score 72')
       expect(html).toContain('gfs_seamless')
     }
+  })
+
+  it('puts today’s score on Daily and keeps it off Hourly', () => {
+    // **The score summary is about today, and Hourly is a day pager.** Today's
+    // verdict at the top of a screen showing Saturday is a claim about the
+    // wrong day; the pager carries that day's own chip instead. Moved out of
+    // the test above when the section came up from the foot of the screen.
+    const render = (active: 'daily' | 'hourly'): string =>
+      renderToStaticMarkup(
+        <DetailView
+          isClimbingLocation
+          asosStation="KRGK"
+          forecast={ok([day(DAY_1), day(DAY_2), day(DAY_3)])}
+          alerts={{ data: [], isPending: false, isError: false }}
+          conditions={ok(score)}
+          hourly={{
+            ...ok(series),
+            tabs: {
+              active,
+              onTabChange: () => {},
+              selectedDate: DAY_1,
+              onSelectDate: () => {},
+            },
+          }}
+        />,
+      )
+
+    expect(render('daily')).toContain('Score 72')
+    expect(render('hourly')).not.toContain('Score 72')
   })
 
   it('says so when no day in the window can be drawn, rather than showing blank charts', () => {

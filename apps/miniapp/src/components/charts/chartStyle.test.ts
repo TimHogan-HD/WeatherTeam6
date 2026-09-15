@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { colors } from '@weatherteam6/design/tokens'
 import { cToF } from '@weatherteam6/types'
-import { IDEAL_TEMP_C, chanceColor, rainColor, tempColor, windColor } from './chartStyle.js'
+import { IDEAL_TEMP_C, tempColor } from './chartStyle.js'
 
 /**
  * The temperature ramp is **continuous**, so the properties worth asserting are
@@ -84,48 +83,5 @@ describe('tempColor', () => {
 
   it('answers a non-finite temperature with the no-data colour, never a real one', () => {
     expect(tempColor(Number.NaN)).not.toMatch(/^rgb\(/)
-  })
-})
-
-describe('windColor', () => {
-  it('runs light-to-bright across the scorer’s own calm and strong thresholds', () => {
-    // A single hue, because wind is a magnitude with no ideal to diverge around
-    // — the wind component is monotonic, full marks at 15 km/h and zero at 50.
-    const calm = channels(windColor(15))
-    const strong = channels(windColor(50))
-    expect(strong[0]).toBeGreaterThan(calm[0])
-    // Clamped at both ends rather than running off the scale.
-    expect(windColor(0)).toBe(windColor(15))
-    expect(windColor(120)).toBe(windColor(50))
-  })
-})
-
-describe('rainColor', () => {
-  it('steps at the conventional rain-rate bands', () => {
-    expect(rainColor(0.49)).toBe(colors.radarLight)
-    expect(rainColor(0.5)).toBe(colors.radarModerate)
-    expect(rainColor(2.5)).toBe(colors.radarHeavy)
-    expect(rainColor(7.6)).toBe(colors.radarSevere)
-  })
-})
-
-describe('chanceColor', () => {
-  it('uses the whole 0-100 range instead of a rain-rate ramp’s two lowest steps', () => {
-    // The bug this replaces fed a percentage into `rainColor`, whose thresholds
-    // are mm/h: only two of four steps were reachable, with a hard break at
-    // exactly 50% above which every value was identical.
-    const steps = [0, 25, 50, 75, 100].map(chanceColor)
-    expect(new Set(steps).size).toBe(5)
-    expect(chanceColor(51)).not.toBe(chanceColor(100))
-  })
-
-  it('gets brighter as more members agree it will rain', () => {
-    const low = channels(chanceColor(10))
-    const high = channels(chanceColor(90))
-    expect(high[2]).toBeGreaterThan(low[2])
-  })
-
-  it('is not the rain-rate ramp', () => {
-    expect(chanceColor(50)).not.toBe(rainColor(50))
   })
 })

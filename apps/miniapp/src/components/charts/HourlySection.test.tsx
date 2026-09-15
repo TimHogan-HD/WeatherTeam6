@@ -75,7 +75,7 @@ describe('HourlySection', () => {
     const markup = render(series(warm))
     expect(markup).toContain('>Rain<')
     expect(markup).toContain('No hourly rainfall from the forecast runs yet.')
-    expect(markup).not.toContain('<rect')
+    expect(markup).not.toContain('aria-label="Hourly rainfall')
   })
 
   it('does not legend a band it did not draw', () => {
@@ -89,13 +89,13 @@ describe('HourlySection', () => {
     expect(markup).not.toContain('Line: the middle')
   })
 
-  it('calls the rain mark an average, not a middle', () => {
+  it('calls the rain line an average, not a middle', () => {
     // `precip_mm_mean` is a mean and the band is p10-p90, so the bars are not
     // the centre of their own band: on a day nine runs in ten leave dry, the
     // band lies flat on zero under bars that do not. "The middle" would make
     // that read as a broken chart rather than as the disagreement it is.
     const markup = render(series(warm.map((h, i) => ({ ...h, precip_mm_mean: i === 3 ? 2.2 : 0 }))))
-    expect(markup).toContain('Bars: the average')
+    expect(markup).toContain('Line: the average')
     // Both blocks legend their own band, and the two sentences are not the same.
     expect(markup).toContain('Line: the middle')
   })
@@ -115,7 +115,10 @@ describe('HourlySection', () => {
     const wet = warm.map((h, i) => ({ ...h, precip_mm_mean: i === 3 ? 2.2 : 0 }))
     const markup = render(series(wet))
     expect(markup).toContain('>Rain<')
-    expect(markup).toContain('<rect')
+    // A line now, not bars. The measured zeros are what make it a line at all:
+    // an hour with no reading breaks the run, an hour measured at zero does not.
+    expect(markup).toContain('aria-label="Hourly rainfall')
+    expect(markup).toContain('<path')
   })
 
   it('prints how old the run behind the charts is', () => {
