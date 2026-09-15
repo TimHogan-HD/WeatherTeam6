@@ -1,5 +1,6 @@
 import { colors, spacing } from '@weatherteam6/design/tokens'
 import {
+  EM_DASH,
   formatPrecipIn,
   formatTempF,
   formatWindMph,
@@ -10,14 +11,16 @@ import { type } from '../../theme/tokens.css.js'
 import { bareButton, card, row, stack } from '../../theme/styles.js'
 import { formatForecastDate } from '../../lib/forecast.js'
 import { HourlyChart } from './HourlyChart.js'
+import { extent, type Extent } from './geometry.js'
 import {
   CHANCE_VIEW_H,
   DAY_VIEW_H,
   RAIN_VIEW_H,
   WIND_VIEW_H,
   IDEAL_TEMP_C,
-  LINE_W,
-  RANGE_FILL_OPACITY,
+  RAIN_RAMP_TOP_MM,
+  TEMP_FLOOR_PAD_C,
+  WHISKER_W,
   chanceColor,
   chartColors,
   rainColor,
@@ -25,12 +28,14 @@ import {
   windColor,
 } from './chartStyle.js'
 import {
+  type SeriesDatum,
   chanceSeries,
   dayIsDrawable,
   hasValues,
   hoursOnDay,
   rainSeries,
   temperatureSeries,
+  valueExtent,
   windSeries,
 } from './hourlySeries.js'
 
@@ -128,6 +133,39 @@ export type DayChartsProps = {
   onSelectDate: (localDate: string) => void
 }
 
+
+/**
+ * The vertical domain for the temperature bars.
+ *
+ * **A labelled non-zero floor**, just under the coldest p10 and just over the
+ * warmest p90, so the day's shape fills the plot. A temperature has no
+ * meaningful zero — measured from 0 °F a September day is twenty-four
+ * near-identical full-height bars, which is exactly why the axis prints this
+ * floor rather than leaving it implied.
+ */
+function temperatureDomain(data: readonly SeriesDatum[]): Extent | null {
+  const span = valueExtent(data)
+  if (span === null) return null
+  return { min: span.min - TEMP_FLOOR_PAD_C, max: span.max + TEMP_FLOOR_PAD_C }
+}
+
+/** Wind rises from a real zero — calm is a meaningful reading, unlike 0 °F. */
+function windDomain(data: readonly SeriesDatum[]): Extent | null {
+  const span = valueExtent(data)
+  if (span === null) return null
+  return { min: 0, max: span.max > 0 ? span.max : 1 }
+}
+
+/** The day's own range for a chart header, or null when there is nothing to state. */
+function headerRange(
+  data: readonly SeriesDatum[],
+  write: (v: number) => string,
+): string | null {
+  const span = extent(data.map((d) => d.value))
+  if (span === null) return null
+  return span.min === span.max ? write(span.max) : `${write(span.min)} – ${write(span.max)}`
+}
+
 export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps) {
   const hours = hoursOnDay(series.hours, selectedDate)
   const temperature = temperatureSeries(hours)
@@ -137,6 +175,25 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
   const out = daysOutLabel(series.days, selectedDate)
 
   const axis = { axis: 'hour' as const, utcOffsetSeconds: series.utc_offset_seconds }
+
+  // The day's total rainfall. **`precip_mm_mean` is the only precipitation
+  // figure that may be summed** — a sum of hourly p50s is the median of nothing
+  // and reads three to twelve times high (architecture rule). `rainSeries`
+  // reads exactly that column.
+  const rainTotal = rain.reduce((sum, d) => sum + (d.value ?? 0), 0)
+  const chancePeak = extent(chance.map((d) => d.value))
+  const gustPeak = extent(wind.map((d) => d.high))
+
+  // Rain is coloured **relative to the day's own peak**. On the absolute mm/h
+  // ramp a drizzle day comes out uniformly pale and the chart says nothing
+  // about when it rained; the header states the real total, so the shape can be
+  // relative without the figure being.
+  const rainPeak = extent(rain.map((d) => d.value))?.max ?? 0
+  const rainShade = (mm: number): string =>
+    rainColor(rainPeak > 0 ? (mm / rainPeak) * RAIN_RAMP_TOP_MM : mm)
+
+  const tempDomain = temperatureDomain(temperature)
+  const gustDomain = windDomain(wind)
 
   return (
     <section style={{ ...card, ...stack(spacing.sectionTop) }}>
@@ -160,9 +217,7 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
           How far out, in words. A date alone makes the reader count, and the
           confidence story this app is built on is about distance from now.
         */}
-        {out === null ? null : (
-          <span style={{ ...type.bodySm, marginLeft: 'auto' }}>{out}</span>
-        )}
+        {out === null ? null : <span style={{ ...type.bodySm, marginLeft: 'auto' }}>{out}</span>}
       </div>
 
       <div
@@ -171,43 +226,41 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
         aria-labelledby={`${DAY_PANEL_ID}-label`}
         style={stack(spacing.sectionTop)}
       >
-        <ChartBlock label="Temperature" unit="°F" empty="No hourly temperature for this day.">
+        <ChartBlock
+          label="Temperature"
+          unit="°F"
+          value={headerRange(temperature, (v) => formatTempF(v))}
+          empty="No hourly temperature for this day."
+        >
           {hasValues(temperature) ? (
             <>
               <HourlyChart
                 data={temperature}
-                kind="range"
+                kind="bar"
+                placement="instant"
+                whiskers
                 {...axis}
+                {...(tempDomain === null ? {} : { domain: tempDomain })}
                 viewHeight={DAY_VIEW_H}
                 color={chartColors.temperature}
                 colorForValue={tempColor}
                 formatValue={formatTempF}
                 title="Temperature by hour"
               />
-              {/*
-                Two keys, because the mark carries two things and neither is
-                guessable: a colour that means a temperature, and a length that
-                means disagreement. p10/p90 stay out of it — the locked copy
-                rule allows them in a chart legend and it reads better without.
-              */}
               <div style={{ ...row(spacing.sectionGap), flexWrap: 'wrap' }}>
-                <LegendKey label="Cool → hot" swatch="ramp" sample={tempColor(IDEAL_TEMP_C)} />
-                <LegendKey
-                  label="Bar: where 8 in 10 land"
-                  swatch="spread"
-                  sample={tempColor(IDEAL_TEMP_C)}
-                />
-                <LegendKey
-                  label="Line: the middle"
-                  swatch="median"
-                  sample={tempColor(IDEAL_TEMP_C)}
-                />
+                <LegendKey label="Cool → hot" swatch="ramp" />
+                <LegendKey label="Model spread" swatch="whisker" />
               </div>
             </>
           ) : null}
         </ChartBlock>
 
-        <ChartBlock label="Rain" unit="in / hr" empty="No hourly rainfall for this day.">
+        <ChartBlock
+          label="Rain"
+          unit="in / hr"
+          value={rainTotal > 0 ? formatPrecipIn(rainTotal) : 'none'}
+          empty="No hourly rainfall for this day."
+        >
           {hasValues(rain) ? (
             <HourlyChart
               data={rain}
@@ -215,7 +268,7 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
               {...axis}
               viewHeight={RAIN_VIEW_H}
               color={chartColors.rain}
-              colorForValue={rainColor}
+              colorForValue={rainShade}
               formatValue={formatPrecipIn}
               title="Rainfall by hour"
             />
@@ -225,6 +278,7 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
         <ChartBlock
           label="Chance of rain"
           unit="% of members"
+          value={chancePeak === null ? null : `${Math.round(chancePeak.max)}%`}
           empty="No chance of rain for this day — the forecast runs carry no wet count."
         >
           {hasValues(chance) ? (
@@ -236,20 +290,28 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
               color={chartColors.rain}
               colorForValue={chanceColor}
               // A whole-percent count of members, not a measurement in a unit.
-              formatValue={(v) => (v === null ? '—' : `${Math.round(v)}%`)}
+              formatValue={(v) => (v === null ? EM_DASH : `${Math.round(v)}%`)}
               domain={{ min: 0, max: 100 }}
               title="Chance of rain by hour"
             />
           ) : null}
         </ChartBlock>
 
-        <ChartBlock label="Wind" unit="mph" empty="No hourly wind for this day.">
+        <ChartBlock
+          label="Wind"
+          unit="mph"
+          value={gustPeak === null ? null : `gusts ${formatWindMph(gustPeak.max)}`}
+          empty="No hourly wind for this day."
+        >
           {hasValues(wind) ? (
             <>
               <HourlyChart
                 data={wind}
-                kind="range"
+                kind="bar"
+                placement="instant"
+                whiskers
                 {...axis}
+                {...(gustDomain === null ? {} : { domain: gustDomain })}
                 viewHeight={WIND_VIEW_H}
                 color={chartColors.wind}
                 colorForValue={windColor}
@@ -257,8 +319,8 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
                 title="Wind by hour"
               />
               <div style={{ ...row(spacing.sectionGap), flexWrap: 'wrap' }}>
-                <LegendKey label="Line: sustained" swatch="median" sample={windColor(20)} />
-                <LegendKey label="Bar: up to gusts" swatch="spread" sample={windColor(20)} />
+                <LegendKey label="Sustained" swatch="wind" />
+                <LegendKey label="To gusts" swatch="whisker" />
               </div>
             </>
           ) : null}
@@ -269,7 +331,8 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
 }
 
 /**
- * A chart, its heading, and what it says when it cannot be drawn.
+ * A chart, its heading, the day's own figure for it, and what it says when it
+ * cannot be drawn.
  *
  * **The empty state is per chart, never for the section.** These read different
  * columns of the same response — an hour can carry a temperature and no wet
@@ -279,19 +342,31 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
 function ChartBlock({
   label,
   unit,
+  value,
   empty,
   children,
 }: {
   label: string
   unit: string
+  /** The day's headline figure for this series. Omitted when there is none. */
+  value: string | null
   empty: string
   children: React.ReactNode
 }) {
   return (
     <div style={stack(spacing.tight)}>
-      <div style={row(spacing.chipGap)}>
+      <div style={{ ...row(spacing.chipGap), width: '100%' }}>
         <span style={type.label}>{label}</span>
         <span style={{ ...type.labelSm, color: colors.txt5 }}>{unit}</span>
+        {/*
+          The day's own figure, right-aligned — the number a reader wants off a
+          24-hour chart. The axis labels state the **scale**; this states the
+          **series**. Confusing the two is how a chart's floor gets read as the
+          day's low, which is the failure the old left-edge labels invited.
+        */}
+        {value === null ? null : (
+          <span style={{ ...type.calDay, color: colors.txt1, marginLeft: 'auto' }}>{value}</span>
+        )}
       </div>
       {children === null ? <p style={type.bodyMd}>{empty}</p> : children}
     </div>
@@ -301,37 +376,22 @@ function ChartBlock({
 /**
  * A legend key, drawn **the way the mark it names is actually drawn.**
  *
- * An earlier version used `chartColors.rangeEdge` and `chartColors.wind` for
- * these, and no mark on either chart uses either colour — `RangeMarks` fills
- * everything with `colorForValue(median)` at `RANGE_FILL_OPACITY` and rules the
- * median across it at full strength. A key pointing at a colour that never
- * appears in the chart is worse than no key: it invites the reader to look for
- * something that is not there.
+ * An earlier version pointed at colours no mark used. The ramp key is the ramp
+ * itself; the whisker key is a whisker at its real width and colour.
  */
-function LegendKey({
-  label,
-  swatch,
-  sample,
-}: {
-  label: string
-  swatch: 'ramp' | 'spread' | 'median'
-  /** The colour the real mark would be at a representative value. */
-  sample: string
-}) {
+function LegendKey({ label, swatch }: { label: string; swatch: 'ramp' | 'whisker' | 'wind' }) {
   const bar =
-    swatch === 'ramp'
-      ? {
+    swatch === 'whisker'
+      ? { width: `${WHISKER_W}px`, height: '11px', background: chartColors.whisker }
+      : {
           width: '14px',
           height: '4px',
-          // The ramp's own ends, so the key *is* the scale rather than a
-          // decorative gradient that happens to resemble it.
-          background: `linear-gradient(90deg, ${tempColor(-10)}, ${tempColor(IDEAL_TEMP_C)}, ${tempColor(38)})`,
+          background:
+            swatch === 'wind'
+              ? // The wind ramp's own ends, which is what the bars are painted from.
+                `linear-gradient(90deg, ${windColor(0)}, ${windColor(50)})`
+              : `linear-gradient(90deg, ${tempColor(-10)}, ${tempColor(IDEAL_TEMP_C)}, ${tempColor(38)})`,
         }
-      : swatch === 'spread'
-        ? // The body of a range mark: the fill, at the opacity it is drawn with.
-          { width: '8px', height: '12px', background: sample, opacity: RANGE_FILL_OPACITY }
-        : // The median rule: the same hue, full strength, the height it is drawn at.
-          { width: '12px', height: `${LINE_W}px`, background: sample }
 
   return (
     <span style={{ ...row(spacing.chipGap), ...type.labelSm }}>

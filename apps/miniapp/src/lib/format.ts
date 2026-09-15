@@ -69,3 +69,21 @@ export function formatLocalHour(t: number, utcOffsetSeconds: number): string | n
   const twelve = hour % 12 === 0 ? 12 : hour % 12
   return `${twelve} ${suffix}`
 }
+
+/**
+ * The same hour, compact enough for an axis tick: `12a`, `6a`, `12p`, `11p`.
+ *
+ * Four of these fit across a 24-hour chart at 375px where `12 AM` crowds. The
+ * long form stays for anywhere a label is read as words rather than scanned as
+ * a position.
+ */
+export function formatLocalHourShort(t: number, utcOffsetSeconds: number): string | null {
+  if (!Number.isFinite(t) || !Number.isFinite(utcOffsetSeconds)) return null
+
+  const hour = new Date(t + utcOffsetSeconds * 1000).getUTCHours()
+  if (!Number.isFinite(hour)) return null
+
+  const suffix = hour < 12 ? 'a' : 'p'
+  const twelve = hour % 12 === 0 ? 12 : hour % 12
+  return `${twelve}${suffix}`
+}

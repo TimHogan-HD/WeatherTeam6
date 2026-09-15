@@ -66,14 +66,37 @@ describe('HourlyChart', () => {
     expect(markup.split('<line').length - 1).toBe(2)
   })
 
-  it('labels the forecast, not the outer edge of its spread', () => {
-    // The band has to fit inside the plot, so the domain covers it. But a label
-    // reading 104°F because one member of 143 got there, over a median that
-    // never passes 63°F, is a temperature nobody forecast.
+  it('labels the axis with the domain it drew against', () => {
+    // **The two labels are the scale, not the series.** They sit at the top and
+    // bottom of the plot and say what the marks are measured against — which,
+    // for a bar chart on a non-zero floor, is the one thing a reader cannot
+    // infer from the picture.
+    //
+    // The series' own extremes are the caller's job: `ChartBlock` prints them
+    // right-aligned in the heading, where a figure can be labelled. An earlier
+    // version printed the measured min and max *at their own heights* inside
+    // the plot, which reads as annotations floating in the chart and says
+    // nothing about where the bars begin.
+    //
+    // The fixture's medians run 50-63°F and its band runs wider, so a domain
+    // label must sit *outside* the series range. Asserting that rather than a
+    // literal is what distinguishes "labels the scale" from "labels the
+    // series"; a test pinned to two numbers would pass either way.
+    const markup = render(threeDays())
+    const labels = [...markup.matchAll(/white-space:nowrap">(-?\d+)°F</g)].map((m) => Number(m[1]))
+    expect(labels).toHaveLength(2)
+    const [top, bottom] = labels as [number, number]
+    expect(top).toBeGreaterThan(63)
+    expect(bottom).toBeLessThan(50)
+  })
+
+  it('still reports the series, not the domain, to a screen reader', () => {
+    // The accessible summary is the one place the *forecast* range has to
+    // survive, because a screen-reader user gets no heading figure and no
+    // visual scale. A band edge quoted there would be a temperature nobody
+    // forecast.
     const wide = threeDays().map((d) => ({ ...d, low: -20, high: 40 }))
-    const markup = render(wide)
-    expect(markup).toContain('>63°F<')
-    expect(markup).not.toContain('>104°F<')
+    expect(render(wide)).toContain('aria-label="Hourly temperature: 50°F to 63°F')
   })
 
   it('draws nothing at all rather than an empty frame when no hour has a value', () => {
@@ -119,7 +142,7 @@ describe('HourlyChart, hour axis', () => {
     return renderToStaticMarkup(
       <HourlyChart
         data={data}
-        kind="range"
+        kind="bar" placement="instant" whiskers
         axis="hour"
         utcOffsetSeconds={utcOffsetSeconds}
         viewHeight={TEMP_VIEW_H}
@@ -132,15 +155,15 @@ describe('HourlyChart, hour axis', () => {
 
   /** Every axis label, in order, with the x it was placed at. */
   function tickLabels(markup: string): { at: string; label: string }[] {
-    return [...markup.matchAll(/left:([\d.]+)%[^>]*>([\d]{1,2} [AP]M)</g)].map((m) => ({
+    return [...markup.matchAll(/left:([\d.]+)%[^>]*>([\d]{1,2}[ap])</g)].map((m) => ({
       at: m[1] ?? '',
       label: m[2] ?? '',
     }))
   }
 
   it('ticks on the location clock, not on UTC', () => {
-    // **The labels are the same four strings either way** — 12 AM, 6 AM, 12 PM,
-    // 6 PM — so asserting on their text proves nothing at all. What moves is
+    // **The labels are the same four strings either way** — 12a, 6a, 12p, 6p
+    // — so asserting on their text proves nothing at all. What moves is
     // *where* they sit: at UTC-5 the six-hourly local boundaries are the UTC
     // 05/11/17/23 samples, five hours along from where UTC puts them. A chart
     // reading the viewer's clock would print a correct-looking axis against the
@@ -148,11 +171,12 @@ describe('HourlyChart, hour axis', () => {
     const shifted = tickLabels(renderHours(oneDay(), -5 * 3600))
     const utc = tickLabels(renderHours(oneDay(), 0))
 
-    expect(utc.map((t) => t.label)).toEqual(['12 AM', '6 AM', '12 PM', '6 PM'])
-    // One fewer at UTC-5: the same four ticks are all ruled, but the last sits
-    // close enough to the right edge that its label would run off the chart, so
-    // the existing overflow guard drops it. The rule stays.
-    expect(shifted.map((t) => t.label)).toEqual(['12 AM', '6 AM', '12 PM'])
+    expect(utc.map((t) => t.label)).toEqual(['12a', '6a', '12p', '6p'])
+    // One fewer at UTC-5: all four ticks are ruled, but the last sits close
+    // enough to the right edge that its label would run off the chart, so the
+    // overflow guard drops it. The rule stays. Compact labels did not change
+    // this — the tick is five hours further right, not merely wider.
+    expect(shifted.map((t) => t.label)).toEqual(['12a', '6a', '12p'])
     expect(shifted.map((t) => t.at)).not.toEqual(utc.map((t) => t.at))
     // Five hours of a 24-hour window, as a percentage of the plot.
     expect(Number(shifted[0]?.at) - Number(utc[0]?.at)).toBeCloseTo((5 / 24) * (301 / 335) * 100, 1)
@@ -170,7 +194,7 @@ describe('HourlyChart, hour axis', () => {
     const markup = renderToStaticMarkup(
       <HourlyChart
         data={oneDay()}
-        kind="range"
+        kind="bar" placement="instant" whiskers
         axis="hour"
         viewHeight={TEMP_VIEW_H}
         color="#fff"
@@ -184,30 +208,5 @@ describe('HourlyChart, hour axis', () => {
     expect(markup).toContain('<rect')
   })
 
-  it('keeps the ideal-temperature band on screen even when no hour is in it', () => {
-    // The band says which part of the scale scores best. If the domain did not
-    // cover it, a cold day would clip it away and "too cold" would have nothing
-    // to be too cold *of* — the hot end's `fair`/`poor` pair is only ΔE 13
-    // apart, so the band is what carries the judgement, not the hue alone.
-    const cold = oneDay().map((d) => ({ ...d, value: -5, low: -7, high: -3 }))
-    const markup = renderToStaticMarkup(
-      <HourlyChart
-        data={cold}
-        kind="range"
-        axis="hour"
-        utcOffsetSeconds={0}
-        viewHeight={TEMP_VIEW_H}
-        color="#fff"
-        formatValue={formatTempF}
-        title="Temperature by hour"
-        referenceBand={{ from: 10, to: 22, fill: '#band' }}
-      />,
-    )
-    expect(markup).toContain('#band')
-    // Inside the plot, not clipped to a sliver at the frame.
-    const height = /fill="#band"/.test(markup)
-      ? Number(/height="([\d.]+)"[^>]*fill="#band"/.exec(markup)?.[1] ?? 0)
-      : 0
-    expect(height).toBeGreaterThan(10)
-  })
+
 })

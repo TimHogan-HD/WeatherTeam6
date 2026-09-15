@@ -90,19 +90,19 @@ describe('Series, bars', () => {
     expect(markup).toContain('width="8"')
   })
 
-  it('draws no bar for a measured zero, but keeps the baseline under it', () => {
-    const markup = bars([datum(1, 0), datum(2, 0)])
-    expect(count(markup, '<rect')).toBe(0)
-    expect(count(markup, '<line')).toBe(1)
+  it('draws a measured zero as a stub, and an unmeasured hour as nothing', () => {
+    // **"No rain" and "no forecast" must not be the same picture**, and this is
+    // now the mechanism: `BAR_MIN_H` gives every hour that has a reading a
+    // visible mark, however small. The run-length baseline that used to carry
+    // this was replaced by it — a per-hour stub says which *hours* were
+    // measured, where a line under a run only said where the run was.
+    const markup = bars([datum(1, 0), datum(2, 0), datum(3, null), datum(4, null)])
+    expect(count(markup, '<rect')).toBe(2)
+    expect(markup).toContain('height="1.5"')
   })
 
-  it('stops the baseline where the forecast stops', () => {
-    // The whole point of the baseline: "no rain" and "no forecast" both draw
-    // nothing otherwise, and they are not the same answer.
-    const markup = bars([datum(1, 0), datum(2, 0), datum(3, null), datum(4, null)])
-    expect(count(markup, '<line')).toBe(1)
-    expect(markup).toContain('x1="0"')
-    expect(markup).toContain('x2="20"')
+  it('draws nothing at all for a window with no readings', () => {
+    expect(count(bars([datum(1, null), datum(2, null)]), '<rect')).toBe(0)
   })
 
   it('colours each bar by its own value', () => {
@@ -122,61 +122,69 @@ describe('Series, bars', () => {
   })
 })
 
-describe('Series, range', () => {
-  it('draws one mark per hour, spanning p10 to p90 with the median ruled across it', () => {
-    const data = [datum(0, 15, 12, 18), datum(1, 16, 13, 19)]
-    const markup = render(<Series data={data} kind="range" x={x} y={y} color="#fff" />)
+
+describe('Series, instant bars with whiskers', () => {
+  /** Temperature and wind: centred on the instant, floor supplied by the caller. */
+  const marks = (data: SeriesDatum[], baseY = 100) =>
+    render(
+      <Series
+        data={data}
+        kind="bar"
+        placement="instant"
+        whiskers
+        x={x}
+        y={y}
+        color="#fff"
+        baseY={baseY}
+      />,
+    )
+
+  it('draws a bar to the median with a whisker over it from p10 to p90', () => {
+    const markup = marks([datum(0, 15, 12, 18), datum(1, 16, 13, 19)])
     expect(count(markup, '<rect')).toBe(2)
     expect(count(markup, '<line')).toBe(2)
-    // y = 100 - value, so p90 of 18 is the top at 82 and p10 of 12 is 88.
-    expect(markup).toContain('y="82"')
-    expect(markup).toContain('height="6"')
+    // y = 100 - value, so the first bar's top is at 85 and its whisker runs
+    // from p90 = 18 (y 82) down to p10 = 12 (y 88).
+    expect(markup).toContain('y="85"')
+    expect(markup).toContain('y1="82"')
+    expect(markup).toContain('y2="88"')
   })
 
-  it('never measures from a baseline, so a below-zero hour still draws', () => {
-    // This is the whole reason the temperature mark is not a bar. A bar from
-    // zero clamps a negative value to no height at all, so the coldest hour of
-    // the week is the one that disappears.
-    const data = [datum(0, -4, -6, -2)]
-    const markup = render(<Series data={data} kind="range" x={x} y={y} color="#fff" />)
+  it('rises from the floor the caller set, not from zero', () => {
+    // **The floor is the point.** A temperature has no meaningful zero, so the
+    // caller passes a floor just under the coldest p10 and the axis prints it.
+    // Measured from zero, a September day is twenty-four near-identical bars.
+    const markup = marks([datum(0, 15, 12, 18)], 90)
+    expect(markup).toContain('height="5"')
+  })
+
+  it('draws the bar with no whisker when the hour has no band', () => {
+    // Both edges or neither: a whisker from p10 to the bar's own top shows half
+    // a spread as if it were the whole one.
+    const markup = marks([datum(0, 15, null, null)])
     expect(count(markup, '<rect')).toBe(1)
-    expect(markup).toContain('height="4"')
+    expect(count(markup, '<line')).toBe(0)
   })
 
-  it('keeps an hour the ensemble agreed on exactly, instead of painting nothing', () => {
-    // p10 === p90 is the most confident forecast there is; a zero-height rect
-    // paints nothing at any fill, which would make it the one hour that
-    // vanishes.
-    const data = [datum(0, 15, 15, 15)]
-    const markup = render(<Series data={data} kind="range" x={x} y={y} color="#fff" />)
-    expect(markup).toContain('height="1"')
-  })
-
-  it('draws the median alone when the hour has no band, rather than borrowing one', () => {
-    const data = [datum(0, 15, null, null)]
-    const markup = render(<Series data={data} kind="range" x={x} y={y} color="#fff" />)
-    expect(count(markup, '<rect')).toBe(0)
-    expect(count(markup, '<line')).toBe(1)
-  })
-
-  it('draws nothing for an hour with no median, because there is no value to colour', () => {
-    const data = [datum(0, null, 12, 18)]
-    const markup = render(<Series data={data} kind="range" x={x} y={y} color="#fff" />)
+  it('draws nothing for an hour with no value, because there is nothing to colour', () => {
+    const markup = marks([datum(0, null, 12, 18)])
     expect(count(markup, '<rect')).toBe(0)
     expect(count(markup, '<line')).toBe(0)
   })
 
-  it('colours by the median and never by a band edge', () => {
+  it('colours by the value and never by a band edge', () => {
     // Colouring by p90 paints an hour as too hot on the strength of one
     // member's worst run.
-    const data = [datum(0, 15, 12, 40)]
     const markup = render(
       <Series
-        data={data}
-        kind="range"
+        data={[datum(0, 15, 12, 40)]}
+        kind="bar"
+        placement="instant"
+        whiskers
         x={x}
         y={y}
         color="#fff"
+        baseY={100}
         colorForValue={(v) => (v > 30 ? '#hot' : '#mild')}
       />,
     )
@@ -191,23 +199,21 @@ describe('Series, range', () => {
     // placement here, which put the 16:00 reading under the axis label reading
     // "3 PM" — the day's peak an hour early, and self-consistent enough that
     // nothing else disagreed with it.
-    const data = [datum(1, 15, 12, 18)]
-    const markup = render(<Series data={data} kind="range" x={x} y={y} color="#fff" />)
+    const markup = marks([datum(1, 15, 12, 18)])
     // Hour 1 is at x=10; a width-8 mark centred there starts at 6.
     expect(markup).toContain('x="6"')
     expect(markup).toContain('width="8"')
-    // The median rule spans the same slot, so the value and its spread agree.
-    expect(markup).toContain('x1="6"')
-    expect(markup).toContain('x2="14"')
+    // The whisker sits on the same centre.
+    expect(markup).toContain('x1="10"')
+    expect(markup).toContain('x2="10"')
   })
 
   it('places its mark at the same x the line chart draws the same hour', () => {
-    // The line is drawn at `x(t)`; the range mark's centre must be the same
-    // instant. Two views of one series that disagree about when an hour was are
-    // worse than either alone.
-    const data = [datum(3, 15, 12, 18)]
-    const range = render(<Series data={data} kind="range" x={x} y={y} color="#fff" />)
-    const centre = Number(/x="([\d.]+)"/.exec(range)?.[1]) + 8 / 2
-    expect(centre).toBe(x(datum(3, 15).t))
+    // The line is drawn at `x(t)`; the bar's centre must be the same instant.
+    // Two views of one series that disagree about when an hour was are worse
+    // than either alone.
+    const markup = marks([datum(3, 15, 12, 18)])
+    const left = Number(/x="([\d.]+)"/.exec(markup)?.[1])
+    expect(left + 8 / 2).toBe(x(T0 + 3 * HOUR_MS))
   })
 })

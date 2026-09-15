@@ -13,7 +13,7 @@ import {
 } from './chartStyle.js'
 import { type } from '../../theme/tokens.css.js'
 import { formatWeekday } from '../../lib/forecast.js'
-import { formatLocalHour } from '../../lib/format.js'
+import { formatLocalHourShort } from '../../lib/format.js'
 
 /**
  * One chart: a viewBox, day gridlines, the marks, and labels.
@@ -47,15 +47,6 @@ export type HourlyChartProps = {
   /** Required by, and only read by, `axis: 'hour'`. Seconds, from `HourlySeries`. */
   utcOffsetSeconds?: number
   /**
-   * A shaded horizontal reference range behind the marks, in the data's own
-   * units — the conditions score's ideal temperature band.
-   *
-   * It is an annotation, not a series: it says which part of the scale is good,
-   * so a mark's **position** carries "too warm" rather than its hue having to
-   * carry it alone.
-   */
-  referenceBand?: { from: number; to: number; fill: string }
-  /**
    * Overrides the measured vertical domain.
    *
    * For a series whose scale is **defined rather than observed** — chance of
@@ -64,12 +55,16 @@ export type HourlyChartProps = {
    * the same defect as a per-row scale on the daily list.
    */
   domain?: Extent
+  /** Passed through to the marks. See `SeriesProps.placement`. */
+  placement?: 'accumulation' | 'instant'
+  /** Passed through to the marks: draw the p10-p90 spread over each bar. */
+  whiskers?: boolean
 }
 
 /** A tick label needs this much room to its right, or it runs off the chart. */
 const DAY_LABEL_W = 28
-/** `12 AM` is wider than `Tue`, and there are more of them in a day. */
-const HOUR_LABEL_W = 34
+/** A compact `12a` is about as wide as `Tue`, but a day holds more of them. */
+const HOUR_LABEL_W = 22
 
 /** Degenerate spans: a flat line needs a domain of its own or it sits on the frame. */
 const MIN_SPAN = 2
@@ -80,11 +75,7 @@ const EDGE_TOLERANCE = 3
 /** Every sixth hour: four labels across one day, which is what fits at 375px. */
 const HOUR_TICK_STEP = 6
 
-function verticalDomain(
-  data: readonly SeriesDatum[],
-  kind: SeriesKind,
-  referenceBand: HourlyChartProps['referenceBand'],
-): Extent | null {
+function verticalDomain(data: readonly SeriesDatum[], kind: SeriesKind): Extent | null {
   const measured =
     kind === 'bar'
       ? // Rain is read against zero and has no band, so its own values are the
@@ -100,17 +91,7 @@ function verticalDomain(
     return { min: 0, max: measured.max > 0 ? measured.max * 1.1 : 1 }
   }
 
-  // The reference band is only worth drawing if it is on screen, and clipping
-  // it would move where "ideal" appears to sit. Including it in the domain
-  // costs vertical room on a mild day and is what keeps the annotation honest.
-  const withBand =
-    referenceBand === undefined
-      ? measured
-      : {
-          min: Math.min(measured.min, referenceBand.from),
-          max: Math.max(measured.max, referenceBand.to),
-        }
-  return padExtent(withBand, 0.08, MIN_SPAN)
+  return padExtent(measured, 0.08, MIN_SPAN)
 }
 
 /**
@@ -130,7 +111,7 @@ function hourTicks(
   for (const d of data) {
     const shifted = new Date(d.t + utcOffsetSeconds * 1000)
     if (shifted.getUTCHours() % HOUR_TICK_STEP !== 0) continue
-    const label = formatLocalHour(d.t, utcOffsetSeconds)
+    const label = formatLocalHourShort(d.t, utcOffsetSeconds)
     if (label === null) continue
     out.push({ key: `${d.localDate}-${shifted.getUTCHours()}`, t: d.t, label })
   }
@@ -148,8 +129,9 @@ export function HourlyChart({
   title,
   axis = 'day',
   utcOffsetSeconds,
-  referenceBand,
   domain: fixedDomain,
+  placement = 'accumulation',
+  whiskers = false,
 }: HourlyChartProps) {
   const times = timeExtent(data)
   // The labels and the summary describe the **series itself**, not the band
@@ -157,22 +139,21 @@ export function HourlyChart({
   // labelling its outer edge as the high says the forecast reached a value the
   // median never does — one member's worst hour printed as the temperature.
   const measured = extent(data.map((d) => d.value))
-  const domain = fixedDomain ?? verticalDomain(data, kind, referenceBand)
+  const domain = fixedDomain ?? verticalDomain(data, kind)
   if (times === null || measured === null || domain === null) return null
 
-  // Each kind needs a different window, because each mark sits differently
-  // against its timestamp:
+  // The window follows how the mark sits against its timestamp, not what kind
+  // it is:
   //
-  // - `line` is drawn at the instant and needs no room.
-  // - `bar` is rain, an **accumulation** covering the hour *before* its
-  //   timestamp, so the window opens an hour early or the first bar is half
-  //   outside the plot.
-  // - `range` is temperature, an **instantaneous** reading centred on its
-  //   timestamp, so it needs half a slot of room at *each* end.
+  // - a line is drawn at the instant and needs no room;
+  // - an **accumulation** bar covers the hour *before* its timestamp, so the
+  //   window opens an hour early or the first bar is half outside the plot;
+  // - an **instant** bar is centred on its timestamp, so it needs half a slot
+  //   at *each* end.
   const xDomain: Extent =
     kind === 'line'
       ? times
-      : kind === 'bar'
+      : placement === 'accumulation'
         ? { min: times.min - HOUR_MS, max: times.max }
         : { min: times.min - HOUR_MS / 2, max: times.max + HOUR_MS / 2 }
 
@@ -217,25 +198,6 @@ export function HourlyChart({
         role="img"
         aria-label={summary}
       >
-        {/*
-          Behind the marks, so it reads as ground rather than as a series. Its
-          edges are clamped to the plot: the domain already covers the band, but
-          a caller passing one that does not must not paint outside the frame.
-        */}
-        {referenceBand === undefined ? null : (
-          <rect
-            x={PAD_LEFT}
-            width={VIEW_W - PAD_RIGHT - PAD_LEFT}
-            y={Math.max(PAD_TOP, Math.min(y(referenceBand.to), y(referenceBand.from)))}
-            height={Math.max(
-              0,
-              Math.min(plotBottom, Math.max(y(referenceBand.to), y(referenceBand.from))) -
-                Math.max(PAD_TOP, Math.min(y(referenceBand.to), y(referenceBand.from))),
-            )}
-            fill={referenceBand.fill}
-          />
-        )}
-
         {ticks.map((tick) => {
           const at = x(tick.t)
           // The first tick sits at the left edge — a rule there reads as the
@@ -266,24 +228,33 @@ export function HourlyChart({
           {...(bandColor === undefined ? {} : { bandColor })}
           {...(colorForValue === undefined ? {} : { colorForValue })}
           baseY={y(domain.min)}
+          placement={placement}
+          whiskers={whiskers}
         />
       </svg>
 
       {/*
-        The measured extremes, at their own height — the two values worth
-        reading off a seven-day chart. Not a number on every point: 168 of them
-        is a table, and a worse one than the daily rows above.
+        **The axis bounds, at the top and bottom of the plot** — what the marks
+        are measured against, which for a bar chart on a non-zero floor is the
+        thing a reader cannot infer. The earlier version printed the measured
+        min and max *at their own heights*, which reads as two annotations
+        floating in the plot rather than as a scale, and says nothing about
+        where the bars start.
+
+        The series' own extremes are the caller's header value, where there is
+        room for a labelled figure. Not a number on every point: 24 of them is a
+        table, and a worse one than the daily rows.
       */}
-      {(measured.max === measured.min ? [measured.max] : [measured.max, measured.min]).map((value, i) => (
+      {[domain.max, domain.min].map((value, i) => (
         <span
-          key={i === 0 ? 'high' : 'low'}
+          key={i === 0 ? 'top' : 'bottom'}
           style={{
             ...type.label,
             color: chartColors.valueLabel,
             position: 'absolute',
             left: 0,
             top: pctY(y(value)),
-            transform: 'translateY(-50%)',
+            transform: i === 0 ? 'translateY(-10%)' : 'translateY(-90%)',
             whiteSpace: 'nowrap',
           }}
         >
