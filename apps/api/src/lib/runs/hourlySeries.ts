@@ -123,6 +123,22 @@ export function precipChancePct(membersWet: number | null, memberCount: number |
   return Math.round((membersWet / memberCount) * 100)
 }
 
+/**
+ * The **older** of the two runs behind the joined series, skipping a null.
+ *
+ * The response is one object built from two runs that are cached and refetched
+ * independently (`RUN_MAX_AGE_MINUTES` each), so they can be up to an hour apart. A
+ * surface printing this as "fetched N min ago" is making a freshness claim about what the
+ * reader is looking at, and the older run is what bounds that: preferring the deterministic
+ * one — which is what this did until 2026-09-15 — let a chart drawn entirely from ensemble
+ * columns report the age of a run it does not draw.
+ */
+export function olderFetch(a: Date | null, b: Date | null): Date | null {
+  if (a === null) return b
+  if (b === null) return a
+  return a.getTime() <= b.getTime() ? a : b
+}
+
 function toSample(
   validAt: Date,
   localDate: string,
@@ -250,7 +266,7 @@ export function buildHourlySeries(input: BuildInput): HourlySeries {
   const series: HourlySeries = {
     location_id: locationId,
     utc_offset_seconds: offset,
-    fetched_at: (deterministic.fetched_at ?? ensemble.fetched_at)?.toISOString() ?? null,
+    fetched_at: olderFetch(deterministic.fetched_at, ensemble.fetched_at)?.toISOString() ?? null,
     model: chosen?.model ?? null,
     unavailable_models: [...deterministic.unavailable_models],
     hours,

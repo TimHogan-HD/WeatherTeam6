@@ -34,10 +34,26 @@ function render(data: readonly SeriesDatum[], kind: 'line' | 'bar' = 'line'): st
 
 describe('HourlyChart', () => {
   it('names the series and its measured range for a screen reader', () => {
-    // Derived from the data, not written down: a summary that says "7 days"
-    // for a window that only reached three is the same false claim as naming a
-    // model that did not answer.
     expect(render(threeDays())).toContain('aria-label="Hourly temperature: 50°F to 63°F over 3 days."')
+  })
+
+  it('counts the days it drew, not the days in the window', () => {
+    // Open-Meteo pads every model out to the longest horizon in the request, so a window
+    // routinely holds local days that are entirely null. Saying "3 days" over a chart that
+    // drew two is the same false claim as naming a model that did not answer — and the
+    // summary is the only part of this component a screen-reader user gets.
+    const shortRun = threeDays().map((d) =>
+      d.localDate === DAYS[2] ? { ...d, value: null, low: null, high: null } : d,
+    )
+    expect(render(shortRun)).toContain('over 2 days.')
+    // The blank day keeps its rule and its label: the axis is a timeline, and which day
+    // is empty is worth knowing.
+    expect(render(shortRun)).toContain('>Wed<')
+  })
+
+  it('says day, not days, for a single one', () => {
+    const oneDay = threeDays().filter((d) => d.localDate === DAYS[0])
+    expect(render(oneDay)).toContain('over 1 day.')
   })
 
   it('labels each local day and rules between them, not at the frame', () => {

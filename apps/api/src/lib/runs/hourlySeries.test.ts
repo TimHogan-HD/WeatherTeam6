@@ -355,6 +355,36 @@ describe('buildHourlySeries', () => {
     expect(series.hours[0]?.member_count).toBe(143)
     expect(series.hours[1]?.precip_chance_pct).toBeNull()
   })
+
+  it('reports the older of the two runs as fetched_at', () => {
+    // The two runs are cached and refetched independently, so they can be an hour apart.
+    // A surface printing "fetched N min ago" is making a claim about what the reader is
+    // looking at, and the staler half bounds it. Preferring the deterministic run — what
+    // this did until 2026-09-15 — let a chart drawn entirely from ensemble columns report
+    // the age of a run it does not draw. The fixture puts the deterministic run *newer*,
+    // which is the ordering the old code got wrong.
+    const at = new Date('2026-09-08T20:00:00Z')
+    const series = buildHourlySeries({
+      locationId: 'loc-1',
+      deterministic: runs([model('gfs_seamless', [det({ valid_at: at, temp_c: 20 })])], new Date('2026-09-08T19:00:00Z')),
+      ensemble: ensRuns([ens({ valid_at: at, temp_c_p50: 21 })], new Date('2026-09-08T18:00:00Z')),
+      allModels: false,
+      now,
+    })
+    expect(series.fetched_at).toBe('2026-09-08T18:00:00.000Z')
+  })
+
+  it('takes whichever run carried a timestamp when the other did not', () => {
+    const at = new Date('2026-09-08T20:00:00Z')
+    const series = buildHourlySeries({
+      locationId: 'loc-1',
+      deterministic: runs([model('gfs_seamless', [det({ valid_at: at, temp_c: 20 })])], null),
+      ensemble: ensRuns([ens({ valid_at: at, temp_c_p50: 21 })], new Date('2026-09-08T18:00:00Z')),
+      allModels: false,
+      now,
+    })
+    expect(series.fetched_at).toBe('2026-09-08T18:00:00.000Z')
+  })
 })
 
 describe('buildHourlySeries — offset selection', () => {

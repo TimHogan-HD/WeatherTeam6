@@ -68,17 +68,11 @@ export function HourlySection({ series, now }: { series: HourlySeries; now?: num
   const hasTemperature = hasValues(temperature)
   const hasRain = hasValues(rain)
 
-  // Nothing drawable. Said once, plainly — two empty frames would read as a
-  // forecast of nothing rather than as an absence of one.
-  if (!hasTemperature && !hasRain) {
-    return (
-      <section style={{ ...card, ...stack(spacing.tight) }}>
-        <span style={type.label}>Hour by hour</span>
-        <p style={type.bodyMd}>No hourly forecast for this location yet.</p>
-      </section>
-    )
-  }
-
+  // There is deliberately no whole-section "no hourly forecast" state. These charts draw
+  // the **ensemble**, and a response with no ensemble columns can still carry a full
+  // deterministic hourly forecast with `series.model` named — saying no forecast exists
+  // would be a claim about the response, not about what could be drawn. Each block says
+  // what it could not draw instead.
   return (
     <section style={{ ...card, ...stack(spacing.sectionTop) }}>
       <span style={type.label}>Hour by hour</span>
@@ -104,7 +98,7 @@ export function HourlySection({ series, now }: { series: HourlySeries; now?: num
             title="Hourly temperature"
           />
         ) : (
-          <p style={type.bodyMd}>No hourly temperature in this forecast.</p>
+          <p style={type.bodyMd}>No hourly temperature from the forecast runs yet.</p>
         )}
       </ChartBlock>
 
@@ -120,7 +114,7 @@ export function HourlySection({ series, now }: { series: HourlySeries; now?: num
             title="Hourly rainfall"
           />
         ) : (
-          <p style={type.bodyMd}>No hourly rainfall in this forecast.</p>
+          <p style={type.bodyMd}>No hourly rainfall from the forecast runs yet.</p>
         )}
       </ChartBlock>
 

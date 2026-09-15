@@ -129,8 +129,15 @@ export type HourlySeries = {
   /**
    * When the run was fetched from upstream — **not** a model initialisation time.
    * Null when no run carried one.
+   *
+   * **The older of the two runs behind this response.** The deterministic and ensemble
+   * runs are cached and refetched independently, so they can be an hour apart; a surface
+   * printing "fetched N min ago" is making a claim about what the reader is looking at,
+   * and the staler half is what bounds it. It is deliberately *not* the run that produced
+   * any particular column.
    */
   fetched_at: string | null
+
   /**
    * The deterministic model the columns in `hours` came from, chosen by measured coverage.
    *
