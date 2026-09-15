@@ -315,6 +315,7 @@ GET  /api/v1/locations/:id/history    (returns [] forever, issue #25)
 GET  /api/v1/conditions/:locationId
 GET  /api/v1/forecast/:locationId
 GET  /api/v1/hourly/:locationId          # added 2026-09-14
+GET  /api/v1/recent-precip/:locationId   # added 2026-09-15
 GET  /api/v1/alerts/:locationId
 GET  /api/v1/walls/:locationId
 POST /api/v1/walls
@@ -346,6 +347,15 @@ The list and detail screens need only `/locations`, `/conditions/:id`, `/forecas
   **As of 2026-09-15 the detail screen does call `/hourly/:id`** — `useHourly`, feeding the Hourly tab in `apps/miniapp/src/components/charts/` (one day's hours plus the continuous seven-day strip), and also deciding **which daily rows are tappable**, via `days[].has_ensemble`. It is its own section and fails on its own: it is the slowest query on the screen (the cold path fetches six deterministic models and 143 ensemble members) and must never hold up the rest of it. The preview path does **not** call it — there is no saved row to read a run for.
 
   **A non-climbing location carries none of those fields at all**, because the route omits the merge rather than checking a flag downstream. Drive off their absence, not off `score === null` — `null` is a real answer meaning either "outside the scoring window" or, with `unavailable_reason`, "deliberately withheld".
+
+**Updated 2026-09-15 — `GET /recent-precip/:locationId`:**
+
+Hourly rainfall over the past five days for a saved location, shape `RecentPrecip` in `packages/types/src/recentPrecip.ts`. A thin proxy over `fetchRecentHourlyPrecip`, which the bot's rain panel already used; the Mini App's drying card draws the same record.
+
+- **The response is trimmed to hours that have happened.** The upstream fetch asks for `forecast_days=1` on purpose — the bot reads it to find rain falling *now* — so the tail of the raw series is a forecast. `trimToObservedHours` cuts it at the location's own clock. A renderer must not re-add the forecast tail from somewhere else and caption it as measured rain.
+- **`hours` may be shorter than five days**, and a caller must caption what it got rather than what the route asks for. `from_date` is the oldest local date the window covers, so "no rain" means "none in this window", never "none ever".
+- **`valid_at_local` is local wall-clock, not a UTC instant** (`YYYY-MM-DDTHH:mm`). Re-reading it in the viewer's timezone is issue #33 again.
+- Its own endpoint, not a field on `/conditions/:id`: it costs an upstream call and must not delay the rest of the screen.
 
 **Forecast window state machine** (from `.claude/rules/architecture.md`):
 
