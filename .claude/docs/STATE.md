@@ -5,7 +5,7 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-09-15 · `main` @ `6b41709`
+Last updated: 2026-09-15 · `main` @ `03b6d00`
 
 ---
 
@@ -13,30 +13,33 @@ Last updated: 2026-09-15 · `main` @ `6b41709`
 
 The Telegram crossover is complete and the bot is stable. **The active work is the Mini App
 hourly data visualisation** — a five-phase plan in
-`docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md`, of which Phases 1, 1b and 2 have
-shipped. **Phase 3 is next and nothing blocks it** — but look at the Phase 2 charts on a
-phone first, because Phase 3 builds on their shape.
+`docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md`, of which Phases 1, 1b, 2 and **3**
+have shipped. **Phase 4 is next on that plan but is blocked on a product decision** (see
+§ What is next); issue #108 is the unblocked build.
 
 That plan reverses two older decisions, deliberately and on the owner's call: Mini App
 polish is no longer downgraded, and location detail gains internal tabs against
-`miniapp-design-v1.md` §3. **The bot stays first-class and is not being deprecated.** Those
-documents still carry the old positions; the handoff's § Phase 5 is where they get rewritten.
+`miniapp-design-v1.md` §3. **The bot stays first-class and is not being deprecated.** §3 now
+carries a superseded banner; the handoff's § Phase 5 is where it and the rest get rewritten
+in full.
 
 Current state:
 
 - **API** — Express on Vercel, one serverless function. Live.
 - **Mini App** — three routes (list, detail, `/add`), live at https://weatherteam6.vercel.app.
-  Location detail now carries **two hourly charts** (Phase 2, `675ac89`): temperature as the
-  ensemble median with its p10-p90 band, and hourly rain as bars. Inline SVG, no chart
-  library, in `apps/miniapp/src/components/charts/`. **Nobody has seen them on a phone
-  yet** — that is Phase 2's own acceptance criterion and the one thing outstanding.
-- **Chart invariants worth knowing before touching `charts/`** (the rest is in the archive,
-  2026-09-15): a rain bar covers the hour *before* its timestamp; a null value and a missing
-  row both break a series; a one-point path paints nothing, so it renders as a dot; the rain
-  baseline stops where the forecast does, which is what separates "no rain" from "no
-  forecast"; values stay in °C and mm and only the formatter converts; labels describe the
-  median, never the band's outer edge; `good`/`fair`/`poor` are status colours and are not
-  available for data marks.
+  Location detail is now **Daily / Hourly tabs** (Phase 3, `03b6d00`). Daily: a location
+  identity block, the today hero, then seven tappable rows with a metric toggle
+  (temp / rain / wind / climbing score) and a range bar on **one scale shared by all seven**.
+  Hourly: the tapped day's hours — temperature as a floating p10-p90 range mark with the
+  median ruled across it, rain as bars — with the continuous seven-day strip below it. The
+  alert banner, the score and the sources footer sit outside the tabs. Inline SVG, no chart
+  library. **Nobody has seen any of it on a phone** — see § What the user owes.
+- **The chart invariants are in the `miniapp-patterns` skill, which loads itself when you
+  open `apps/miniapp/**`.** They are not repeated here: they were, and a copy in two places
+  is the drift this document keeps having to repair. The one to know before reading any of
+  it — because it shipped wrong and no gate saw it — is that **an accumulation and an
+  instantaneous reading sit differently on the same axis**: a rain bar spans the hour
+  *before* its timestamp, a temperature mark is centred on its own.
 - **`GET /api/v1/hourly/:locationId`** (new, #99) — one deterministic model chosen by
   measured coverage, joined to the pooled ensemble on the UTC instant, seven local days.
   `?models=all` adds every model that answered; anything else is a 400. Verified 13/13 by
@@ -64,10 +67,15 @@ Current state:
 - **"Update" a mis-saved location is remove-then-add.** `/help` says so; no separate edit
   flow exists, deliberately. (Phase 5's build detail is in the archive under 2026-09-03.)
 
-Baseline: `npm run test` **664 passing** (512 api, 119 miniapp, 33 types), `npm run typecheck`
+Baseline: `npm run test` **712 passing** (512 api, 167 miniapp, 33 types), `npm run typecheck`
 clean, `npm run check:hooks` 58 passing. **Mutation score 66.09%**, last measured
-2026-08-26 — not re-measured since, and two sessions of new scoring code have landed under
+2026-08-26 — not re-measured since, and **three** sessions of new code have landed under
 it. `npm run test:mutation --workspace=apps/api`.
+
+**A falling test count can hide behind a green number.** `apps/miniapp`'s vitest reported
+*"123 passed"* while three test files failed to collect on a JSX parse error — the suite had
+shrunk by 44 and still printed a green figure. Read the **file** count, not just the test
+count.
 
 **Claude can now run the acceptance checks unattended.** `DATABASE_URL`, `CRON_SECRET` and
 `API_SHARED_SECRET` are set as Windows user environment variables, `Bash(npm run check:*)`
@@ -88,6 +96,14 @@ Always-loaded instruction budget: `CLAUDE.md` + `.claude/rules/*`. If you're abo
 paragraph to either, check first whether the fact is derivable from the repo, or belongs in
 a skill or the archive — a bloated always-loaded file causes its own rules to be ignored.
 
+**This file is itself over budget: ~3,100 words against the ~1,500 the `session-end` skill
+asks for, and it was already ~2,760 before 2026-09-15.** Not repaired this session because
+deleting a load-bearing rule at the end of a long one is the worse failure. The clearest
+candidate is § Facts about the current chat rendering — ~450 words of **bot** rendering
+rules that every Mini App session also loads, and the only domain without a skill of its
+own. Moving them into a `telegram-patterns` skill scoped to `apps/api/src/lib/telegram/**`
+would cut the file by a third and put them in front of the sessions that need them.
+
 **You did not have to read this file.** The `SessionStart` hook injects it, along with the
 branch, working tree, unpushed commits, open PRs, open issues, and whether CI on `main` is
 green. If you are reading it because that block was absent, the hook did not fire — say so.
@@ -99,21 +115,27 @@ green. If you are reading it because that block was absent, the hook did not fir
 Direction set 2026-09-04, current as of 2026-09-15. The Mini App data-visualisation work is
 **the active line**; everything below it is parked, not cancelled.
 
-1. **Phase 3 — Daily / Hourly tabs.** `git checkout -b phase/3-daily-hourly-tabs` off
-   `main`. Read `docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` § Phase 3 **and**
-   § Decisions taken — the second carries the design direction settled over three mockup
-   rounds, and the mockup itself is a published artifact that will not survive as a repo
-   reference. **Load the `dataviz` skill before touching chart code.** The Phase 2
-   primitives (`apps/miniapp/src/components/charts/`) are what it builds on; look at them on
-   a phone before reshaping the screen around them.
-2. **Issue #108** — `hours_since_rain` never advances, so days 2-7 all score
-   `component_drying_time: 0` and are capped at 60 of 100. Filed 2026-09-14. Not a
-   blocker, but Phase 3 will draw it as a flat zero column.
-3. **Issue #82, part 2** — ranking climbing-relevant features above `PPL`. Still a product
+1. **Issue #108 — `hours_since_rain` never advances**, so days 2-7 all score
+   `component_drying_time: 0` and cap at 60 of 100. Filed 2026-09-14. It used to be a
+   background annoyance; **Phase 3 now draws it**, as a visibly flat Climbing column across
+   six of the seven daily rows, so it is the first thing a look at the new screen will raise.
+   Read `.claude/docs/scoring-algorithm.md` and let the `conditions-score` skill load.
+2. **Phase 4 — wall-aware scoring — is blocked on a product decision, not on code.**
+   Nothing populates `walls`: there is full CRUD and no seed, no importer and no UI, so the
+   table is empty and a wall picker would have nothing to pick. How a wall gets created —
+   hand entry, OpenBeta import, or derived from terrain — is the owner's call. Separately,
+   **the aspect half of the phase does not exist yet**: `aspectDegrees` is a dead field that
+   no scorer reads, so making a wall's aspect change its score means adding an aspect term
+   to the drying model first. Both are in § Phase 4 of the handoff. Do not start it.
+3. **Phase 5 — recent rain + document reconciliation.** Unblocked and mostly documentation:
+   a recent-rain chart behind its own endpoint, and rewriting `miniapp-design-v1.md` §3 and
+   §9 in full (§3 currently carries a superseded banner, not a rewrite). This is also where
+   a CSS or motion architecture gets decided.
+4. **Issue #82, part 2** — ranking climbing-relevant features above `PPL`. Still a product
    decision, not started.
-4. **Phase 4 of the *bot* plan** (`/insight`, `/afd`) — parked. `/insight` needs
+5. **Phase 4 of the *bot* plan** (`/insight`, `/afd`) — parked. `/insight` needs
    re-specifying in plain language first; `/afd` is unaffected and could be built standalone.
-5. **An in-app feedback button** — destination and mechanism undecided, still a design
+6. **An in-app feedback button** — destination and mechanism undecided, still a design
    conversation the owner wants to have first. Do not spec it unilaterally.
 
 **"Mini App polish is deliberately downgraded" is no longer true** and has been removed
@@ -256,14 +278,24 @@ Only things that are still true and still bite. Historical gotchas are in the ar
 
 ## What the user owes
 
-**One look at the charts on a phone.** Nothing else — no credential, no dashboard setting.
+**One trip to the phone, now covering three things.** Nothing else — no credential, no
+dashboard setting, no product decision. **Open a saved climbing location in the Mini App, on
+your own phone, in your own theme.**
 
-**Look at the Phase 2 charts in the Mini App, on your phone, in your own theme.** A saved
-climbing location now shows temperature with its ensemble band and hourly rain bars. The
-questions are whether the band reads as confidence or as a smudge, whether the day labels
-are legible, and whether 168 rain bars are too thin to see. Phase 3 reshapes the screen
-around these, so a change of shape is cheap now and expensive later. It is the acceptance
-criterion Phase 2 shipped without.
+1. **Press back on the Hourly tab.** It must return to Daily, not close the Mini App. This is
+   a Phase 3 acceptance criterion and **no test in this workspace can reach it** —
+   `useBackButton` registers with Telegram's SDK, and `vitest.config.ts` is a `node`
+   environment with no DOM, deliberately.
+2. **Can you tell "warm" from "too hot" on the temperature ramp?** Measured with the
+   `dataviz` validator, `fair` and `poor` are only **ΔE 13.0** apart against the card ground
+   — below the floor for distinguishing two hues with full colour vision, and the handoff's
+   claimed 25.7 does not hold for that pair. The shaded ideal-range band was added to carry
+   that judgement instead of the hue. The question is whether it does.
+3. **The Phase 2 charts, still outstanding** — now the seven-day strip below the single day.
+   Whether the band reads as confidence or as a smudge, and whether 168 rain bars are too
+   thin to see.
+
+Phase 5 rewrites the design docs around all of this, so a change of shape is still cheap.
 
 **The Neon password rotation is closed — declined by the owner on 2026-09-14.** The
 connection string was pasted into a chat transcript on 2026-09-02 and has not been rotated;

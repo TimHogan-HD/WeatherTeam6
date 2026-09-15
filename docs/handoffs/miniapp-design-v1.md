@@ -131,7 +131,7 @@ and sits between the banner and the hero. Item 3 below now reads "the Daily tab"
 
 1. **Alert banner** — full-width, top, if any active alert. Event, severity, and the NWS headline. Above everything, always.
 2. **Today** — the hero. Today's high, max wind, humidity, and hours since rain, as labeled values. **Hours since rain is capped in display — see the rule below.**
-3. **7-day forecast** — one row per day: date, high, low, wind, precipitation. **Weather only — no per-day score chip.** See the constraint below.
+3. **7-day forecast** — now **the Daily tab**: one row per day, each tappable into that day's hours, with a metric toggle (temperature, rain, wind, climbing score) and a range bar on a scale shared by all seven rows. ~~**Weather only — no per-day score chip.**~~ **Reversed 2026-09-14** by Decision 2 of the dataviz handoff: `/forecast/:id` now returns per-day scores and the Daily rows render them. The constraint below explains why it *used* to say that; the reason it gave — that no endpoint returned them — is no longer true.
 4. **Score and breakdown** — last section, collapsed by default. Today's score only, with the five components and their weights. This is where a score is allowed to be prominent, because the user has scrolled to it deliberately. **Omitted entirely when `is_climbing_location` is false — see the rule below.**
 5. **Sources footer** — required by the locked rule "always quote data sources by name." **Nothing in this list may be hardcoded**, because two of the three sources vary per request:
 
