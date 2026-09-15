@@ -1,8 +1,8 @@
 # WeatherTeam6 Mini App: Hourly Data Visualisation Handoff
 Version: v2
 Date: 2026-09-10 (v1: 2026-09-04)
-Status: **Phase 1 shipped and verified in production** · Phase 1b merged, production probe
-pending · Phases 2-5 specified
+Status: **Phases 1, 1b and 2 shipped** · Phase 2's device check outstanding ·
+Phases 3-5 specified
 
 Phase 1 merged as `9ea6da8`, verified 13/13 by `npm run check:hourly` against real stored
 runs and 12/12 against the deployed endpoint on 2026-09-14. Two of this document's own
@@ -108,9 +108,11 @@ survive as a reference. Binding for Phases 2-4:
 
 ### What is decided but not yet written down anywhere
 
-- `.claude/docs/STATE.md` records Mini App polish as **deliberately downgraded**
+- ~~`.claude/docs/STATE.md` records Mini App polish as **deliberately downgraded**
   ("the Mini App doesn't need to be super fancy"), and `.claude/skills/miniapp-patterns`
-  says a CSS or motion architecture is "not authorised".
+  says a CSS or motion architecture is "not authorised".~~ **Both corrected 2026-09-15**
+  when Phase 2 shipped. The *chart* half is settled; a CSS or motion architecture is
+  genuinely still unauthorised and stays for Phase 5.
 - `docs/handoffs/miniapp-design-v1.md` §3 specifies location detail as **"one scroll, no
   internal tabs"**.
 
@@ -321,7 +323,34 @@ breakdown for every day and discards it.
 
 ---
 
-### Phase 2: Chart primitives (not authorised yet)
+### Phase 2: Chart primitives — **SHIPPED 2026-09-15 (`675ac89`, PR #110)**
+
+**Shipped as specified, plus one thing the spec did not ask for and one it did not answer.**
+
+- `geometry.ts` (pure), `hourlySeries.ts` (the adapter), `Series.tsx` (the marks),
+  `HourlyChart.tsx` (one chart), `HourlySection.tsx` (both charts on the detail screen),
+  `chartStyle.ts` (colours and mark geometry). Plus `useHourly`, `useNow`, `formatRunAge`,
+  `formatWeekday`. 67 tests.
+- **Added:** a rain bar chart alongside temperature. The spec listed "bars for
+  precipitation" as a primitive, and a primitive with no call site is unverified.
+- **Answered:** the spec says "an optional p10-p90 band behind the **p50** line", so the
+  temperature line is the ensemble median, not the deterministic model. A line from one
+  source inside a band from another agrees with it only by luck.
+- **Deviated, deliberately:** no hover or tap readout, which the `dataviz` skill wants by
+  default. There is no hover on a touch screen, inline styles cannot express one, and a
+  value readout belongs with Phase 3's drill-down.
+- **Deviated, deliberately:** no table view. The seven daily rows above the charts are the
+  same forecast in a table, and a second one of 168 rows is not an accessibility win.
+- **Not done:** the diverging temperature ramp from § Decisions taken. A ramp colours a
+  *bar by value*; the temperature chart is a line, and the rain bars use the palette's own
+  radar intensity ramp. It lands with Phase 3's per-day hourly bars.
+
+**Verified** against the deployed `GET /hourly/:locationId` for Red Wing: 168 hours, 7
+local days, 143 members throughout, rendered offline through the real components — 49-73°F,
+peak rain hour 0.14 in, band widening 3.2°C to 8.0°C across the window, no `NaN` in the
+markup. **Not verified on a device**, which is this phase's acceptance criterion below.
+
+The original specification follows.
 
 **Build:** `apps/miniapp/src/components/charts/` — one `<Series>` component in inline SVG,
 `viewBox`-scaled and responsive, handling:

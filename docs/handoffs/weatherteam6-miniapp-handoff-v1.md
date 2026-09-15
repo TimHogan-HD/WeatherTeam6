@@ -343,6 +343,8 @@ The list and detail screens need only `/locations`, `/conditions/:id`, `/forecas
 
   The line above saying the detail screen "needs only `/locations`, `/conditions/:id`, `/forecast/:id`, `/alerts/:id`" now understates it — a per-day score chip no longer requires `/conditions/:id`, and the hourly view requires `/hourly/:id`.
 
+  **As of 2026-09-15 the detail screen does call `/hourly/:id`** — `useHourly`, feeding the two charts in `apps/miniapp/src/components/charts/`. It is its own section and fails on its own: it is the slowest query on the screen (the cold path fetches six deterministic models and 143 ensemble members) and must never hold up the rest of it. The preview path does **not** call it — there is no saved row to read a run for.
+
   **A non-climbing location carries none of those fields at all**, because the route omits the merge rather than checking a flag downstream. Drive off their absence, not off `score === null` — `null` is a real answer meaning either "outside the scoring window" or, with `unavailable_reason`, "deliberately withheld".
 
 **Forecast window state machine** (from `.claude/rules/architecture.md`):

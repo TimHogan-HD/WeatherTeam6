@@ -5,7 +5,7 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-09-14 · `main` @ `54ef8f4`
+Last updated: 2026-09-15 · `main` @ `675ac89`
 
 ---
 
@@ -13,8 +13,9 @@ Last updated: 2026-09-14 · `main` @ `54ef8f4`
 
 The Telegram crossover is complete and the bot is stable. **The active work is the Mini App
 hourly data visualisation** — a five-phase plan in
-`docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md`, of which Phases 1 and 1b shipped
-2026-09-14. **Phase 2 is next and nothing blocks it.**
+`docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md`, of which Phases 1, 1b and 2 have
+shipped. **Phase 3 is next and nothing blocks it** — but look at the Phase 2 charts on a
+phone first, because Phase 3 builds on their shape.
 
 That plan reverses two older decisions, deliberately and on the owner's call: Mini App
 polish is no longer downgraded, and location detail gains internal tabs against
@@ -25,8 +26,17 @@ Current state:
 
 - **API** — Express on Vercel, one serverless function. Live.
 - **Mini App** — three routes (list, detail, `/add`), live at https://weatherteam6.vercel.app.
-  **Unchanged on screen since 2026-09-03** — Phases 1 and 1b are API only. Phase 3 is the
-  first one a user sees.
+  Location detail now carries **two hourly charts** (Phase 2, `675ac89`): temperature as the
+  ensemble median with its p10-p90 band, and hourly rain as bars. Inline SVG, no chart
+  library, in `apps/miniapp/src/components/charts/`. **Nobody has seen them on a phone
+  yet** — that is Phase 2's own acceptance criterion and the one thing outstanding.
+- **Chart invariants worth knowing before touching `charts/`** (the rest is in the archive,
+  2026-09-15): a rain bar covers the hour *before* its timestamp; a null value and a missing
+  row both break a series; a one-point path paints nothing, so it renders as a dot; the rain
+  baseline stops where the forecast does, which is what separates "no rain" from "no
+  forecast"; values stay in °C and mm and only the formatter converts; labels describe the
+  median, never the band's outer edge; `good`/`fair`/`poor` are status colours and are not
+  available for data marks.
 - **`GET /api/v1/hourly/:locationId`** (new, #99) — one deterministic model chosen by
   measured coverage, joined to the pooled ensemble on the UTC instant, seven local days.
   `?models=all` adds every model that answered; anything else is a 400. Verified 13/13 by
@@ -45,17 +55,16 @@ Current state:
   cron-job.org and running. Confirmed healthy 2026-09-14: `runsStored: 42, hoursStored:
   7056, failed: 0` and the database at **12 MB**.
 
-  **It was silently broken for a day first**: Neon hit its 512 MB cap, every write failed,
-  and `collect-runs` still answered `200 OK` because a storage failure is caught and logged
-  at `warn` — right for a panel render, invisible for a collection job. Retention is now 2
-  days parsed / 6h raw. Whether `collect-runs` should fail loudly when it persists nothing
-  is § Open Question 5 in the handoff and is **undecided**. (Full post-mortem in the archive,
-  2026-09-14.)
+  Retention is 2 days parsed / 6h raw. **`collect-runs` answers `200 OK` when it persists
+  nothing** — a storage failure is caught and logged at `warn`, which is right for a panel
+  render and invisible for a collection job; it hid a day-long outage on 2026-09-13.
+  Whether to change that is § Open Question 5 in the handoff and is **undecided**.
+  (Post-mortem in the archive, 2026-09-14.)
 - **`apps/mobile`** — archived, out of the build. Do not add features to it.
 - **"Update" a mis-saved location is remove-then-add.** `/help` says so; no separate edit
   flow exists, deliberately. (Phase 5's build detail is in the archive under 2026-09-03.)
 
-Baseline: `npm run test` **591 passing** (510 api, 50 miniapp, 31 types), `npm run typecheck`
+Baseline: `npm run test` **660 passing** (510 api, 117 miniapp, 33 types), `npm run typecheck`
 clean, `npm run check:hooks` 58 passing. **Mutation score 66.09%**, last measured
 2026-08-26 — not re-measured since, and two sessions of new scoring code have landed under
 it. `npm run test:mutation --workspace=apps/api`.
@@ -67,17 +76,13 @@ is allowlisted, and the Vercel MCP serves runtime logs and deployments. So `chec
 not ask the owner to paste output. **Never echo a credential**, and
 `.claude/settings.local.json` is gitignored for the same reason.
 
-Migrations `0007`–`0010` are all applied and every acceptance check passes against the real
-database: `check:panel-state` 17/17, `check:weather-runs` 40/40, `check:chat-locations`
-(new, Phase 5) 8/8 — run by the owner 2026-09-03, closing out the one gap Phase 5 shipped
-with.
+Migrations `0007`–`0010` are applied and every acceptance check passes against the real
+database.
 
-**A half-collection can no longer report as a clean run** (fixed `4176026`/PR #87 — see the
-archive for detail). **The underlying cause of the deterministic JSON-parse failures it
-surfaced is still unconfirmed** — working theory is Open-Meteo rate-limiting Vercel's shared
-egress IP; Hobby-plan log retention is short (~1h), so catching
-`[openMeteo] deterministic response was not JSON` means checking the dashboard right after a
-scheduled run.
+**The cause of the deterministic JSON-parse failures is still unconfirmed** — working
+theory is Open-Meteo rate-limiting Vercel's shared egress IP. Hobby-plan log retention is
+~1h, so catching `[openMeteo] deterministic response was not JSON` means checking the
+dashboard right after a scheduled run.
 
 Always-loaded instruction budget: `CLAUDE.md` + `.claude/rules/*`. If you're about to add a
 paragraph to either, check first whether the fact is derivable from the repo, or belongs in
@@ -91,29 +96,31 @@ green. If you are reading it because that block was absent, the hook did not fir
 
 ## What is next
 
-Direction set 2026-09-04, current as of 2026-09-14. The Mini App data-visualisation work is
+Direction set 2026-09-04, current as of 2026-09-15. The Mini App data-visualisation work is
 **the active line**; everything below it is parked, not cancelled.
 
-1. **Phase 2 — chart primitives.** `git checkout -b phase/2-chart-primitives` off `main`.
-   Read `docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` § Phase 2 **and** § Decisions
-   taken — the second carries the design direction settled over three mockup rounds, and the
-   mockup itself is a published artifact that will not survive as a repo reference. **Load
-   the `dataviz` skill before the first line of chart code.** Inline SVG, no chart library.
-2. **Phase 3 — Daily / Hourly tabs.** The first phase a user sees.
-3. **Issue #108** — `hours_since_rain` never advances, so days 2-7 all score
+1. **Phase 3 — Daily / Hourly tabs.** `git checkout -b phase/3-daily-hourly-tabs` off
+   `main`. Read `docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` § Phase 3 **and**
+   § Decisions taken — the second carries the design direction settled over three mockup
+   rounds, and the mockup itself is a published artifact that will not survive as a repo
+   reference. **Load the `dataviz` skill before touching chart code.** The Phase 2
+   primitives (`apps/miniapp/src/components/charts/`) are what it builds on; look at them on
+   a phone before reshaping the screen around them.
+2. **Issue #108** — `hours_since_rain` never advances, so days 2-7 all score
    `component_drying_time: 0` and are capped at 60 of 100. Filed 2026-09-14. Not a
    blocker, but Phase 3 will draw it as a flat zero column.
-4. **Issue #82, part 2** — ranking climbing-relevant features above `PPL`. Still a product
+3. **Issue #82, part 2** — ranking climbing-relevant features above `PPL`. Still a product
    decision, not started.
-5. **Phase 4 of the *bot* plan** (`/insight`, `/afd`) — parked. `/insight` needs
+4. **Phase 4 of the *bot* plan** (`/insight`, `/afd`) — parked. `/insight` needs
    re-specifying in plain language first; `/afd` is unaffected and could be built standalone.
-6. **An in-app feedback button** — destination and mechanism undecided, still a design
+5. **An in-app feedback button** — destination and mechanism undecided, still a design
    conversation the owner wants to have first. Do not spec it unilaterally.
 
 **"Mini App polish is deliberately downgraded" is no longer true** and has been removed
-from this list. It was reversed on 2026-09-04. The `miniapp-patterns` skill still says a
-CSS or motion architecture is "not authorised" — that line is stale and the handoff's
-§ Phase 5 rewrites it.
+from this list. It was reversed on 2026-09-04, and the `miniapp-patterns` skill was
+corrected to match on 2026-09-15. **A CSS or motion architecture is still not authorised**
+— that is a separate decision from drawing charts, and Phase 5 of the dataviz handoff is
+where it gets settled.
 
 ### Facts about the current chat rendering still in force
 
@@ -179,6 +186,15 @@ an internal "directory mismatch" = infrastructure, re-run once; large
 1 to 3 denials is routine; `Failed to install Claude Code` with curl 403 = transient,
 re-run; a run that gets *shorter* on each retry = spent usage quota, not a repo problem.
 
+**A quota failure says so, but only in the artifact.** On PR #110 the job log showed
+`is_error: true`, `num_turns: 11`, `permission_denials_count: 12` and nothing else; the
+actual reason — *"You've hit your session limit"* — was in the uploaded
+`claude-review-execution-output` artifact. `gh run download <id> -n
+claude-review-execution-output` before concluding anything from the summary numbers. Note
+that `review` is **not** a required check (only `ci` is), so a red reviewer does not block
+a merge — it means the diff got one reviewer instead of two, and that is worth saying out
+loud rather than quietly merging.
+
 ### Mutation testing
 
 `npm run test:mutation --workspace=apps/api` — Stryker. Rationale in
@@ -234,7 +250,14 @@ Only things that are still true and still bite. Historical gotchas are in the ar
 
 ## What the user owes
 
-**Nothing.** The list is empty.
+**One look at the charts on a phone.** Nothing else — no credential, no dashboard setting.
+
+**Look at the Phase 2 charts in the Mini App, on your phone, in your own theme.** A saved
+climbing location now shows temperature with its ensemble band and hourly rain bars. The
+questions are whether the band reads as confidence or as a smudge, whether the day labels
+are legible, and whether 168 rain bars are too thin to see. Phase 3 reshapes the screen
+around these, so a change of shape is cheap now and expensive later. It is the acceptance
+criterion Phase 2 shipped without.
 
 **The Neon password rotation is closed — declined by the owner on 2026-09-14.** The
 connection string was pasted into a chat transcript on 2026-09-02 and has not been rotated;
@@ -250,9 +273,10 @@ Everything else in the old list (`bot:set-commands`, `TELEGRAM_WEBHOOK_SECRET` +
 rule and it stands: secrets go in their own shell via `setx`, or in the gitignored
 `.claude/settings.local.json`. This is how the 2026-09-02 leak happened in the first place.
 
-**Try Phase 5 from your phone.** `/weather <place>`, both Save buttons, `/remove`. The
-migration and the database-level checks are done; a real Telegram client trying the three
-new panels is the one thing left.
+**Also still open from the bot's Phase 5:** `/weather <place>`, both Save buttons,
+`/remove` from a real Telegram client. The migration and the database-level checks are
+done; a device trying the three panels is what is missing. Same trip to the phone as the
+charts above.
 
 **A product decision is owed, not a credential.** The drying model reads
 `archive-api.open-meteo.com` (daily, ERA5 reanalysis) while the rain panel reads the
