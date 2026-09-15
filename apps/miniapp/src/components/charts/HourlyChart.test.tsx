@@ -102,3 +102,112 @@ describe('HourlyChart', () => {
     expect(shortest / tallest).toBeGreaterThan(0.75)
   })
 })
+
+describe('HourlyChart, hour axis', () => {
+  /** 24 hours of one local day, starting at midnight UTC. */
+  function oneDay(): SeriesDatum[] {
+    return Array.from({ length: 24 }, (_, i) => ({
+      t: T0 + i * HOUR_MS,
+      localDate: DAYS[0] ?? '',
+      value: 10 + i * 0.5,
+      low: 8 + i * 0.5,
+      high: 12 + i * 0.5,
+    }))
+  }
+
+  function renderHours(data: readonly SeriesDatum[], utcOffsetSeconds: number): string {
+    return renderToStaticMarkup(
+      <HourlyChart
+        data={data}
+        kind="range"
+        axis="hour"
+        utcOffsetSeconds={utcOffsetSeconds}
+        viewHeight={TEMP_VIEW_H}
+        color="#fff"
+        formatValue={formatTempF}
+        title="Temperature by hour"
+      />,
+    )
+  }
+
+  /** Every axis label, in order, with the x it was placed at. */
+  function tickLabels(markup: string): { at: string; label: string }[] {
+    return [...markup.matchAll(/left:([\d.]+)%[^>]*>([\d]{1,2} [AP]M)</g)].map((m) => ({
+      at: m[1] ?? '',
+      label: m[2] ?? '',
+    }))
+  }
+
+  it('ticks on the location clock, not on UTC', () => {
+    // **The labels are the same four strings either way** — 12 AM, 6 AM, 12 PM,
+    // 6 PM — so asserting on their text proves nothing at all. What moves is
+    // *where* they sit: at UTC-5 the six-hourly local boundaries are the UTC
+    // 05/11/17/23 samples, five hours along from where UTC puts them. A chart
+    // reading the viewer's clock would print a correct-looking axis against the
+    // wrong hours, which is the exact shape of issue #33.
+    const shifted = tickLabels(renderHours(oneDay(), -5 * 3600))
+    const utc = tickLabels(renderHours(oneDay(), 0))
+
+    expect(utc.map((t) => t.label)).toEqual(['12 AM', '6 AM', '12 PM', '6 PM'])
+    // One fewer at UTC-5: the same four ticks are all ruled, but the last sits
+    // close enough to the right edge that its label would run off the chart, so
+    // the existing overflow guard drops it. The rule stays.
+    expect(shifted.map((t) => t.label)).toEqual(['12 AM', '6 AM', '12 PM'])
+    expect(shifted.map((t) => t.at)).not.toEqual(utc.map((t) => t.at))
+    // Five hours of a 24-hour window, as a percentage of the plot.
+    expect(Number(shifted[0]?.at) - Number(utc[0]?.at)).toBeCloseTo((5 / 24) * (301 / 335) * 100, 1)
+  })
+
+  it('counts hours, not days, in its summary', () => {
+    expect(renderHours(oneDay(), 0)).toContain('over 24 hours.')
+  })
+
+  it('draws no ticks at all rather than ticks on the viewer clock', () => {
+    // `utcOffsetSeconds` is required by this axis. Falling back to the local
+    // machine would put a label under every hour that happened to be a multiple
+    // of six *there* — a plausible-looking axis that is wrong for anyone
+    // outside the crag's timezone.
+    const markup = renderToStaticMarkup(
+      <HourlyChart
+        data={oneDay()}
+        kind="range"
+        axis="hour"
+        viewHeight={TEMP_VIEW_H}
+        color="#fff"
+        formatValue={formatTempF}
+        title="Temperature by hour"
+      />,
+    )
+    expect(markup).not.toContain('AM<')
+    expect(markup).not.toContain('PM<')
+    // The marks are still drawn — an axis with no labels is not an empty chart.
+    expect(markup).toContain('<rect')
+  })
+
+  it('keeps the ideal-temperature band on screen even when no hour is in it', () => {
+    // The band says which part of the scale scores best. If the domain did not
+    // cover it, a cold day would clip it away and "too cold" would have nothing
+    // to be too cold *of* — the hot end's `fair`/`poor` pair is only ΔE 13
+    // apart, so the band is what carries the judgement, not the hue alone.
+    const cold = oneDay().map((d) => ({ ...d, value: -5, low: -7, high: -3 }))
+    const markup = renderToStaticMarkup(
+      <HourlyChart
+        data={cold}
+        kind="range"
+        axis="hour"
+        utcOffsetSeconds={0}
+        viewHeight={TEMP_VIEW_H}
+        color="#fff"
+        formatValue={formatTempF}
+        title="Temperature by hour"
+        referenceBand={{ from: 10, to: 22, fill: '#band' }}
+      />,
+    )
+    expect(markup).toContain('#band')
+    // Inside the plot, not clipped to a sliver at the frame.
+    const height = /fill="#band"/.test(markup)
+      ? Number(/height="([\d.]+)"[^>]*fill="#band"/.exec(markup)?.[1] ?? 0)
+      : 0
+    expect(height).toBeGreaterThan(10)
+  })
+})

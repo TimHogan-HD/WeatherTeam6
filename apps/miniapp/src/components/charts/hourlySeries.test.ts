@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import type { HourlySample } from '@weatherteam6/types'
+import type { HourlyDay, HourlySample } from '@weatherteam6/types'
 import {
   bandRuns,
+  dayIsDrawable,
   dayStarts,
+  firstDrawableDay,
   hasValues,
+  hoursOnDay,
   rainSeries,
   temperatureSeries,
   timeExtent,
@@ -203,5 +206,60 @@ describe('hasValues', () => {
 
   it('is true as soon as one hour has a reading', () => {
     expect(hasValues(temperatureSeries([hour(0), hour(1, { temp_c_p50: 4 })]))).toBe(true)
+  })
+})
+
+describe('hoursOnDay', () => {
+  it('filters on the server-derived local date, not on the instant', () => {
+    // The day boundary belongs to the crag's timezone. Re-bucketing the UTC
+    // instants here is issue #33 rebuilt in a filter: it would agree with the
+    // server for anyone in the crag's own timezone and be a day out elsewhere.
+    const hours = [
+      hour(0, { local_date: '2026-09-13', temp_c_p50: 5 }),
+      hour(1, { local_date: '2026-09-14', temp_c_p50: 6 }),
+      hour(2, { local_date: '2026-09-14', temp_c_p50: 7 }),
+    ]
+    expect(hoursOnDay(hours, '2026-09-14').map((h) => h.temp_c_p50)).toEqual([6, 7])
+    expect(hoursOnDay(hours, '2026-09-20')).toEqual([])
+  })
+})
+
+describe('dayIsDrawable', () => {
+  const day = (over: Partial<HourlyDay>): HourlyDay => ({
+    local_date: '2026-09-14',
+    has_deterministic: false,
+    has_ensemble: false,
+    ...over,
+  })
+
+  it('asks about the ensemble, because that is what these charts draw', () => {
+    // A day the deterministic model reached but no ensemble member did would
+    // open a drill-down with two empty charts in it. `days[]` carries both
+    // flags precisely because they answer different questions.
+    expect(dayIsDrawable(day({ has_ensemble: true, has_deterministic: false }))).toBe(true)
+    expect(dayIsDrawable(day({ has_ensemble: false, has_deterministic: true }))).toBe(false)
+  })
+})
+
+describe('firstDrawableDay', () => {
+  const day = (date: string, ensemble: boolean): HourlyDay => ({
+    local_date: date,
+    has_deterministic: true,
+    has_ensemble: ensemble,
+  })
+
+  it('skips a leading day the ensemble never reached', () => {
+    // `days[0]` is routinely the tail of a run that has already passed. Opening
+    // on it shows two empty charts for a location whose forecast is fine — and
+    // an assertion against a list whose first day is drawable would never
+    // notice.
+    expect(
+      firstDrawableDay([day('2026-09-14', false), day('2026-09-15', true), day('2026-09-16', true)]),
+    ).toBe('2026-09-15')
+  })
+
+  it('is null when no day in the window is drawable', () => {
+    expect(firstDrawableDay([day('2026-09-14', false)])).toBeNull()
+    expect(firstDrawableDay([])).toBeNull()
   })
 })

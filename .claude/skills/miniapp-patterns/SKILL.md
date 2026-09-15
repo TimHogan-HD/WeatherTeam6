@@ -61,6 +61,48 @@ always-loading:
   run that produced any particular column. The deterministic and ensemble runs are cached
   independently and can be an hour apart; an age line is a freshness claim about what the
   reader is looking at, and the staler half bounds it.
+
+Added by Phase 3 (2026-09-14), same test — wrong-but-plausible if broken:
+
+- **An accumulation and an instantaneous reading are placed differently on the same axis,
+  and the rain rule does not generalise.** `precip_mm_mean` at 15:00 is the rain that fell
+  between 14:00 and 15:00, so its bar spans the hour *before* its timestamp. `temp_c_p50`
+  at 15:00 is the temperature *at* 15:00, so its mark is **centred** on it. Reusing the
+  rain placement for temperature put the peak an hour early under a correct-looking axis —
+  self-consistent, and caught by review rather than by any gate. `Series.tsx` has one
+  helper per convention (`accumulationLeft`, `instantLeft`) so the choice is made
+  explicitly; `HourlyChart` widens the x-window to match (an hour back for bars, half a
+  slot each side for range marks).
+- **Temperature is never a bar from a baseline; it is a floating `range` mark.** 0 °C is a
+  different place on the scale from 0 °F, so a column measured from zero encodes the unit
+  as much as the weather, and `Math.max(0, …)` draws no bar at all for a below-zero hour —
+  the coldest hour of the week becomes the one that vanishes. Truncating the axis instead
+  is the classic bar lie. Rain is a real magnitude and keeps its zero baseline.
+- **`colorForValue` is fed the median, never a band edge.** Colouring by p90 paints an hour
+  as too hot on the strength of one member's worst run.
+- **The temperature ramp's stops are `TEMP_BAND_C` in `packages/types`, which
+  `conditionsScore.ts` also reads.** Copy them into a component and the chart will
+  eventually paint an hour neutral on a day the score docked for being too warm, with
+  nothing able to detect the disagreement. `SCORE_BANDS` is the same arrangement for the
+  daily score bar against `stateLabel`'s rungs.
+- **The hot end of that ramp is not colour-alone.** `fair` and `poor` are ΔE 13.0 apart to
+  normal vision against the card — below the 15 floor. The shaded ideal-range band is what
+  carries "too warm", so the vertical domain must keep covering it even when no hour is
+  inside it.
+- **The daily rows' bar scale is shared by all seven.** Normalising each row to its own
+  min/max draws the identical bar on every row whatever the values are — a chart that
+  cannot be wrong. Score is a **fixed** 0-100, because its scale is defined rather than
+  measured.
+- **An hourly axis reads the location's clock, from `utc_offset_seconds`.** The four labels
+  are the same strings either way, so only their *positions* move — a chart on the viewer's
+  clock prints a correct-looking axis against the wrong hours. Issue #33's shape exactly.
+- **A day is tappable on `has_ensemble`, not on a forecast row existing.** `/forecast/:id`
+  returns seven days whatever the hourly models reached; these charts draw the ensemble, so
+  a day it never reached opens two empty charts. A selected day is also dropped once the
+  window stops covering it.
+- **`hourly` and its `tabs` are one prop, nested.** Apart, they admit two silent failures:
+  hourly data with no tabs renders no charts at all, and tabs with no hourly data offer a
+  second tab that can never have anything in it. Neither changes a type.
 ## Client Mandate — Telegram Mini App
 
 **Direction changed 2026-07-31.** WeatherTeam6 was a native-mobile-first app; it is now a **Telegram bot + Telegram Mini App**. `apps/mobile` is being archived (Crossover Task 7) — its code stays in the repo but leaves the build. The old Mobile-First Mandate (never use WebView, `react-native-maps` for every map, native `.tsx` always real) is **superseded** and no longer applies. See `docs/handoffs/telegram-crossover-v4.md`.

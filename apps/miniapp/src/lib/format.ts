@@ -41,3 +41,31 @@ export function formatRunAge(fetchedAt: string | null, now: number): string | nu
   if (minutes < 60) return `Forecast fetched ${minutes} min ago`
   return `Forecast fetched ${Math.floor(minutes / 60)} h ago`
 }
+
+/**
+ * The wall-clock hour at the **location**, for an hourly axis tick.
+ *
+ * `utcOffsetSeconds` comes from `HourlySeries`, which got it from Open-Meteo's
+ * `timezone=auto` for that point. The viewer's own offset is never used: the
+ * hours belong to the crag, and reading them in the phone's timezone is how a
+ * 3 PM hour becomes 11 PM for anyone travelling — the same class of mistake as
+ * issue #33, and the reason `local_date` is server-derived too.
+ *
+ * Implemented by shifting the instant and reading it back in UTC, which is
+ * exactly how the server bucketed the days. `Intl` with a timezone name is not
+ * an option: the response carries an offset, not a zone id.
+ *
+ * Returns `null` for an instant or an offset that cannot be read, rather than
+ * the literal string `Invalid Date` or `NaN AM`.
+ */
+export function formatLocalHour(t: number, utcOffsetSeconds: number): string | null {
+  if (!Number.isFinite(t) || !Number.isFinite(utcOffsetSeconds)) return null
+
+  const shifted = new Date(t + utcOffsetSeconds * 1000)
+  const hour = shifted.getUTCHours()
+  if (!Number.isFinite(hour)) return null
+
+  const suffix = hour < 12 ? 'AM' : 'PM'
+  const twelve = hour % 12 === 0 ? 12 : hour % 12
+  return `${twelve} ${suffix}`
+}

@@ -1,4 +1,4 @@
-import type { HourlySample } from '@weatherteam6/types'
+import type { HourlyDay, HourlySample } from '@weatherteam6/types'
 import { contiguousRuns, extent, unionExtent, type Extent, type Run } from './geometry.js'
 
 /**
@@ -177,4 +177,43 @@ export function dayStarts(data: readonly SeriesDatum[]): SeriesDatum[] {
     }
   }
   return out
+}
+
+/**
+ * The hours belonging to one local calendar day.
+ *
+ * Filters on the server's `local_date` rather than re-bucketing the instants,
+ * for the reason that field exists at all: the day boundary belongs to the
+ * crag's timezone, not the viewer's (issue #33).
+ */
+export function hoursOnDay(
+  hours: readonly HourlySample[],
+  localDate: string,
+): HourlySample[] {
+  return hours.filter((h) => h.local_date === localDate)
+}
+
+/**
+ * Whether a day has anything the charts can draw.
+ *
+ * **`has_ensemble`, not `has_deterministic`.** Both charts on this screen read
+ * the pooled ensemble — the median with its band, and `precip_mm_mean` — so a
+ * day the deterministic model reached but no ensemble member did would open a
+ * drill-down with two empty charts in it. `days[]` carries both flags precisely
+ * because they answer different questions; this is the one the drill-down asks.
+ */
+export function dayIsDrawable(day: HourlyDay): boolean {
+  return day.has_ensemble
+}
+
+/**
+ * The first day a drill-down should open on: the first drawable one, or `null`
+ * when none is.
+ *
+ * Not simply `days[0]` — the window's first local day is routinely the tail of
+ * a run that has already passed, and opening on a day with nothing in it is the
+ * same failure as making it tappable.
+ */
+export function firstDrawableDay(days: readonly HourlyDay[]): string | null {
+  return days.find(dayIsDrawable)?.local_date ?? null
 }
