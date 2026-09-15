@@ -87,6 +87,8 @@ export const chartColors = {
   wind: colors.txt2,
   /** A mark whose value could not be read — a visible absence, not a colour. */
   noData: withOpacity(colors.txt1, 0.18),
+  /** The rule marking the hour under the pointer. Brighter than a gridline. */
+  crosshair: withOpacity(colors.txt1, 0.45),
 } as const
 
 /**
@@ -110,6 +112,9 @@ export function rainColor(mm: number): string {
 // ─────────────────────────────────────────────
 
 /** One day's 24 bars get more height than the seven-day strip, which is a shape. */
+/** How many labelled value gridlines a chart aims for. Snapped to round numbers. */
+export const VALUE_TICKS = 4
+
 export const DAY_VIEW_H = 122
 /** Chance of rain is a 0-100 scale with no outliers, so it needs less room. */
 export const CHANCE_VIEW_H = 70

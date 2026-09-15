@@ -4,6 +4,7 @@ import { formatPrecipIn, formatTempF } from '@weatherteam6/types'
 import { HourlyChart } from './HourlyChart.js'
 import { HOUR_MS, type SeriesDatum } from './hourlySeries.js'
 import { TEMP_VIEW_H } from './chartStyle.js'
+import { rainAxis, tempAxis } from './valueAxis.js'
 
 const T0 = Date.UTC(2026, 8, 14, 0)
 const DAYS = ['2026-09-14', '2026-09-15', '2026-09-16']
@@ -27,6 +28,11 @@ function render(data: readonly SeriesDatum[], kind: 'line' | 'bar' = 'line'): st
       viewHeight={TEMP_VIEW_H}
       color="#fff"
       formatValue={kind === 'line' ? formatTempF : formatPrecipIn}
+      // **Passed because every real caller passes one**, and it changes the
+      // answer: ticks are chosen round in the *display* unit, so a °C domain
+      // yields 45/50/55/60/65°F rather than 10°C and 15°C — which are round
+      // only in a unit nobody on this screen sees.
+      valueAxis={kind === 'line' ? tempAxis : rainAxis}
       title="Hourly temperature"
     />,
   )
@@ -62,54 +68,44 @@ describe('HourlyChart', () => {
     expect(markup).toContain('>Tue<')
     expect(markup).toContain('>Wed<')
     // Three days, two boundaries: the first day starts at the left edge, where
-    // a rule would just be the frame.
-    expect(markup.split('<line').length - 1).toBe(2)
+    // a rule would just be the frame. Counted as *vertical* rules — the value
+    // gridlines are horizontal and share the element name.
+    const vertical = [...markup.matchAll(/<line x1="([\d.]+)" x2="\1"/g)]
+    expect(vertical).toHaveLength(2)
   })
 
-  it('labels a line chart with the series, because nothing else states it', () => {
-    // **The seven-day strip has no heading figure**, so these two labels are
-    // the only numbers on screen. Its domain is padded around the p10-p90 band,
-    // so labelling the domain here prints one member's worst hour as the
-    // forecast — measured on this fixture, 113°F over a median that never
-    // passes 63°F.
-    const wide = threeDays().map((d) => ({ ...d, low: -20, high: 40 }))
-    const markup = render(wide)
-    expect(markup).toContain('>63°F<')
-    expect(markup).not.toContain('>104°F<')
-    expect(markup).not.toContain('>113°F<')
+  it('labels the value axis with round gridlines a mark can be read against', () => {
+    // **Two floating labels at the extremes were the whole problem.** They gave
+    // the scale's ends and nothing about the mark under your eye, so a bar in
+    // the middle had to be interpolated across the plot. Round gridlines let a
+    // reader estimate from the nearest one.
+    const markup = render(threeDays())
+    const labels = [...markup.matchAll(/white-space:nowrap">(-?\d+)°F</g)].map((m) => Number(m[1]))
+    // Round numbers in the unit the reader sees, not arithmetic slices of a
+    // domain carried in °C. Asserted exactly, so a change in the tick rule is
+    // visible rather than merely still-divisible-by-five.
+    expect(labels).toEqual([45, 50, 55, 60, 65])
+    // Each label has a rule **at its own height**. Asserting the two agree, not
+    // merely that both exist: the rule and the label are positioned by separate
+    // expressions, and one of them was scaled in °C while its value was in °F —
+    // which puts a 45°F gridline where 45 °C would be, off the plot and
+    // invisible, because SVG does not clip. Counting elements missed it.
+    const ruleY = [...markup.matchAll(/<line x1="30" x2="331" y1="([\d.]+)" y2="\1"/g)].map((m) =>
+      Number(m[1]),
+    )
+    const labelY = [...markup.matchAll(/top:([\d.]+)%;transform:translateY\(-50%\)/g)].map(
+      (m) => (Number(m[1]) / 100) * TEMP_VIEW_H,
+    )
+    expect(ruleY).toHaveLength(labels.length)
+    expect(labelY).toHaveLength(labels.length)
+    labelY.forEach((at, i) => expect(at).toBeCloseTo(ruleY[i] ?? -1, 6))
   })
 
-  it('labels a bar chart with the domain it drew against', () => {
-    // **The two labels are the scale, not the series.** They sit at the top and
-    // bottom of the plot and say what the marks are measured against — which,
-    // for a bar chart on a non-zero floor, is the one thing a reader cannot
-    // infer from the picture.
-    //
-    // The series' own extremes are the caller's job: `ChartBlock` prints them
-    // right-aligned in the heading, where a figure can be labelled. An earlier
-    // version printed the measured min and max *at their own heights* inside
-    // the plot, which reads as annotations floating in the chart and says
-    // nothing about where the bars begin.
-    //
-    // The fixture's medians run 50-63°F and its band runs wider, so a domain
-    // label must sit *outside* the series range. Asserting that rather than a
-    // literal is what distinguishes "labels the scale" from "labels the
-    // series"; a test pinned to two numbers would pass either way.
-    // A bar chart *is* accompanied by a heading figure — `DayCharts` prints the
-    // day's own range — so the labels are free to be the scale, and for a bar
-    // they have to be: the floor is the one thing the picture cannot show.
-    // Rain's floor is zero whatever the data does.
-    const rain = threeDays().map((d) => ({ ...d, value: 3, low: null, high: null }))
-    const markup = render(rain, 'bar')
-    const labels = [...markup.matchAll(/white-space:nowrap">([^<]*in)</g)].map((m) => m[1])
-    expect(labels).toEqual(['0.13 in', '0 in'])
-  })
-
-  it('still reports the series, not the domain, to a screen reader', () => {
-    // The accessible summary is the one place the *forecast* range has to
-    // survive, because a screen-reader user gets no heading figure and no
-    // visual scale. A band edge quoted there would be a temperature nobody
-    // forecast.
+  it('still reports the series, not the axis, to a screen reader', () => {
+    // The axis runs past the data by design — that is what an axis does, and it
+    // is why gridlines are safe where two floating edge labels were not. The
+    // accessible summary is where the *forecast* range has to survive, because
+    // a screen-reader user gets no gridlines at all.
     const wide = threeDays().map((d) => ({ ...d, low: -20, high: 40 }))
     expect(render(wide)).toContain('aria-label="Hourly temperature: 50°F to 63°F')
   })
@@ -224,4 +220,24 @@ describe('HourlyChart, hour axis', () => {
   })
 
 
+})
+
+describe('HourlyChart, value axis de-duplication', () => {
+  it('drops a gridline whose label repeats the one below it', () => {
+    // **Measured on real data.** A drizzle day spans about 0.016 in, so nice
+    // ticks land at 0.005 and 0.010 — both "0.01 in" at two decimals. Two rules
+    // at different heights carrying the same number reads as a rendering fault,
+    // and rounding is a display decision, so this has to be caught on the
+    // written label rather than on the value.
+    const drizzle = Array.from({ length: 24 }, (_, i) => ({
+      t: T0 + i * HOUR_MS,
+      localDate: DAYS[0] ?? '',
+      value: i === 12 ? 0.4 : 0.05,
+      low: null,
+      high: null,
+    }))
+    const markup = render(drizzle, 'bar')
+    const labels = [...markup.matchAll(/translateY\(-50%\)[^>]*>([^<]+)</g)].map((m) => m[1])
+    expect(new Set(labels).size).toBe(labels.length)
+  })
 })

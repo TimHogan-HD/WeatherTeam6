@@ -12,6 +12,7 @@ import { bareButton, card, row, stack } from '../../theme/styles.js'
 import { formatForecastDate } from '../../lib/forecast.js'
 import { HourlyChart } from './HourlyChart.js'
 import { extent, type Extent } from './geometry.js'
+import { identityAxis, rainAxis, tempAxis, windAxis } from './valueAxis.js'
 import {
   CHANCE_VIEW_H,
   DAY_VIEW_H,
@@ -250,6 +251,7 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
                 color={chartColors.temperature}
                 colorForValue={tempColor}
                 formatValue={formatTempF}
+                valueAxis={tempAxis}
                 title="Temperature by hour"
               />
               <div style={{ ...row(spacing.sectionGap), flexWrap: 'wrap' }}>
@@ -275,6 +277,7 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
               color={chartColors.rain}
               colorForValue={rainColor}
               formatValue={formatPrecipIn}
+              valueAxis={rainAxis}
               title="Rainfall by hour"
             />
           ) : null}
@@ -297,6 +300,7 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
               // A whole-percent count of members, not a measurement in a unit.
               formatValue={(v) => (v === null ? EM_DASH : `${Math.round(v)}%`)}
               domain={{ min: 0, max: 100 }}
+              valueAxis={identityAxis('%')}
               title="Chance of rain by hour"
             />
           ) : null}
@@ -321,6 +325,7 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
                 color={chartColors.wind}
                 colorForValue={windColor}
                 formatValue={formatWindMph}
+                valueAxis={windAxis}
                 title="Wind by hour"
               />
               <div style={{ ...row(spacing.sectionGap), flexWrap: 'wrap' }}>

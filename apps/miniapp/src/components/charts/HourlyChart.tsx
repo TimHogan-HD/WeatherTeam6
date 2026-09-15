@@ -1,13 +1,17 @@
-import { spacing } from '@weatherteam6/design/tokens'
-import { extent, linearScale, padExtent, type Extent } from './geometry.js'
+import { useState } from 'react'
+import { colors, radius, spacing } from '@weatherteam6/design/tokens'
+import { extent, linearScale, niceTicks, padExtent, type Extent } from './geometry.js'
 import { dayStarts, timeExtent, valueExtent, HOUR_MS, type SeriesDatum } from './hourlySeries.js'
 import { Series, type SeriesKind } from './Series.js'
+import type { ValueAxis } from './valueAxis.js'
 import {
   GRID_W,
+  LINE_W,
   PAD_BOTTOM,
   PAD_LEFT,
   PAD_RIGHT,
   PAD_TOP,
+  VALUE_TICKS,
   VIEW_W,
   chartColors,
 } from './chartStyle.js'
@@ -59,6 +63,13 @@ export type HourlyChartProps = {
   placement?: 'accumulation' | 'instant'
   /** Passed through to the marks: draw the p10-p90 spread over each bar. */
   whiskers?: boolean
+  /**
+   * How the value gridlines are chosen and written. See `ValueAxis`.
+   *
+   * Omitted means the canonical unit is already what the reader sees, and the
+   * ticks are written with `formatValue`.
+   */
+  valueAxis?: ValueAxis
 }
 
 /** A tick label needs this much room to its right, or it runs off the chart. */
@@ -136,26 +147,15 @@ export function HourlyChart({
   domain: fixedDomain,
   placement = 'accumulation',
   whiskers = false,
+  valueAxis,
 }: HourlyChartProps) {
+  // Which hour the pointer is over. `null` when nothing is.
+  const [hover, setHover] = useState<number | null>(null)
+
   const times = timeExtent(data)
   const measured = extent(data.map((d) => d.value))
   const domain = fixedDomain ?? verticalDomain(data, kind)
   if (times === null || measured === null || domain === null) return null
-
-  // **What the two edge labels say depends on whether anything else states the
-  // series**, and getting this wrong printed a temperature nobody forecast.
-  //
-  // A **bar** chart is drawn by `DayCharts`, which prints the day's own range
-  // right-aligned in the heading. The labels are then free to be the *scale* —
-  // and for a bar on a non-zero floor they have to be, because the floor is the
-  // one thing a reader cannot infer from the picture.
-  //
-  // A **line** chart is the seven-day strip in `HourlySection`, which has no
-  // heading figure. Its domain is padded around the p10-p90 band, so labelling
-  // its edges puts one member's worst hour on screen as the forecast: on the
-  // measured fixture, 113°F over a median that never passes 63°F. There, the
-  // labels stay the series' own extremes.
-  const edgeLabels = kind === 'bar' ? domain : measured
 
   // The window follows how the mark sits against its timestamp, not what kind
   // it is:
@@ -204,8 +204,76 @@ export function HourlyChart({
   const pctX = (value: number): string => `${(value / VIEW_W) * 100}%`
   const pctY = (value: number): string => `${(value / viewHeight) * 100}%`
 
+  // **Round gridlines, so a bar in the middle can be read.** Two labels at the
+  // extremes tell you the scale's ends and nothing about the mark you are
+  // looking at; the reader had to interpolate by eye across the whole plot.
+  const toDisplay = valueAxis?.toDisplay ?? ((v: number) => v)
+  const writeTick = valueAxis === undefined ? formatValue : valueAxis.write
+  const displayDomain = { min: toDisplay(domain.min), max: toDisplay(domain.max) }
+  const yDisplay = linearScale(displayDomain, plotBottom, PAD_TOP)
+  // **Two gridlines that write the same string are one gridline and a lie.** On
+  // a drizzle day the rain domain spans 0.016 in, so ticks at 0.005 and 0.010
+  // both round to "0.01 in" — two rules at different heights carrying the same
+  // number, which reads as a rendering fault. Rounding is a display decision,
+  // so the de-duplication has to happen on the *written* label, not the value.
+  const valueTicks = niceTicks(displayDomain, VALUE_TICKS).filter((value, i, all) => {
+    const previous = all[i - 1]
+    return previous === undefined || writeTick(previous) !== writeTick(value)
+  })
+
+  /**
+   * Which hour the pointer is over, from a clientX.
+   *
+   * Reads the element's own box rather than the viewBox, because the SVG is
+   * scaled to the device width — a coordinate in user units would be wrong by
+   * the scale factor on every phone but the 375px reference.
+   */
+  const hourAt = (clientX: number, box: DOMRect): number | null => {
+    if (box.width === 0) return null
+    const units = ((clientX - box.left) / box.width) * VIEW_W
+    let best: number | null = null
+    let bestDistance = Number.POSITIVE_INFINITY
+    data.forEach((d, i) => {
+      if (d.value === null) return
+      const distance = Math.abs(x(d.t) - units)
+      if (distance < bestDistance) {
+        bestDistance = distance
+        best = i
+      }
+    })
+    return best
+  }
+
+  const active = hover === null ? undefined : data[hover]
+  const activeLabel =
+    active === undefined || active.value === null
+      ? null
+      : axis === 'hour' && utcOffsetSeconds !== undefined
+        ? formatLocalHourShort(active.t, utcOffsetSeconds)
+        : formatWeekday(active.localDate)
+
   return (
-    <div style={{ position: 'relative', width: '100%' }}>
+    <div
+      style={{ position: 'relative', width: '100%', touchAction: 'pan-y' }}
+      onMouseMove={(e) => setHover(hourAt(e.clientX, e.currentTarget.getBoundingClientRect()))}
+      onMouseLeave={() => setHover(null)}
+      // `touchAction: pan-y` above keeps the page scrollable while a horizontal
+      // drag reads the chart; without it the browser claims the gesture and the
+      // readout never moves.
+      onTouchStart={(e) => {
+        const touch = e.touches[0]
+        if (touch !== undefined) {
+          setHover(hourAt(touch.clientX, e.currentTarget.getBoundingClientRect()))
+        }
+      }}
+      onTouchMove={(e) => {
+        const touch = e.touches[0]
+        if (touch !== undefined) {
+          setHover(hourAt(touch.clientX, e.currentTarget.getBoundingClientRect()))
+        }
+      }}
+      onTouchEnd={() => setHover(null)}
+    >
       <svg
         viewBox={`0 0 ${VIEW_W} ${viewHeight}`}
         width="100%"
@@ -213,6 +281,27 @@ export function HourlyChart({
         role="img"
         aria-label={summary}
       >
+        {/*
+          Value gridlines, behind everything. Recessive on purpose — they are a
+          reading aid, not data, and a grid that competes with the marks is the
+          commonest way a chart stops being readable.
+        */}
+        {valueTicks.map((value) => (
+          <line
+            key={`value-${value}`}
+            x1={PAD_LEFT}
+            x2={VIEW_W - PAD_RIGHT}
+            // **`yDisplay`, not `y`.** The tick is in the reader's unit; `y`
+            // maps the canonical one. Mixing them puts a 45°F gridline at the
+            // height of 45 °C — off the plot entirely, and invisible because
+            // SVG does not clip.
+            y1={yDisplay(value)}
+            y2={yDisplay(value)}
+            stroke={chartColors.grid}
+            strokeWidth={GRID_W}
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
         {ticks.map((tick) => {
           const at = x(tick.t)
           // The first tick sits at the left edge — a rule there reads as the
@@ -246,24 +335,70 @@ export function HourlyChart({
           placement={placement}
           whiskers={whiskers}
         />
+
+        {/* The hour under the pointer, marked on the plot itself. */}
+        {active === undefined ? null : (
+          <line
+            x1={x(active.t)}
+            x2={x(active.t)}
+            y1={PAD_TOP}
+            y2={plotBottom}
+            stroke={chartColors.crosshair}
+            strokeWidth={LINE_W}
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
       </svg>
 
-      {[edgeLabels.max, edgeLabels.min].map((value, i) => (
+      {valueTicks.map((value) => (
         <span
-          key={i === 0 ? 'top' : 'bottom'}
+          key={`value-label-${value}`}
           style={{
             ...type.label,
             color: chartColors.valueLabel,
             position: 'absolute',
             left: 0,
-            top: pctY(y(value)),
-            transform: i === 0 ? 'translateY(-10%)' : 'translateY(-90%)',
+            // Same scale as the rule it labels — see the note on the gridline.
+            top: pctY(yDisplay(value)),
+            transform: 'translateY(-50%)',
             whiteSpace: 'nowrap',
           }}
         >
-          {formatValue(value)}
+          {writeTick(value)}
         </span>
       ))}
+
+      {/*
+        **The readout, which is the only way to get a bar's own number.** The
+        charts draw 24 marks and label none of them; before this the reader had
+        two figures at the scale's ends and had to interpolate by eye.
+
+        It is driven by pointer and touch events rather than CSS `:hover`,
+        because the app is styled with inline styles that cannot express hover
+        *and* because there is no hover on a phone. A touch drag scrubs it.
+      */}
+      {active === undefined || active.value === null || activeLabel === null ? null : (
+        <span
+          style={{
+            ...type.bodySm,
+            color: colors.txt1,
+            position: 'absolute',
+            left: pctX(x(active.t)),
+            top: 0,
+            transform: 'translateX(-50%)',
+            backgroundColor: colors.mapCanvas,
+            borderStyle: 'solid',
+            borderWidth: '1px',
+            borderColor: colors.line2,
+            borderRadius: `${radius.chip}px`,
+            padding: `${spacing.micro}px ${spacing.chipGapMd}px`,
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+          }}
+        >
+          {activeLabel} · {formatValue(active.value)}
+        </span>
+      )}
 
       {ticks.map((tick) => {
         const at = x(tick.t)
