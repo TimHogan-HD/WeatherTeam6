@@ -13,7 +13,7 @@ import {
 } from './chartStyle.js'
 import { type } from '../../theme/tokens.css.js'
 import { formatWeekday } from '../../lib/forecast.js'
-import { formatLocalHour } from '../../lib/format.js'
+import { formatLocalHourShort } from '../../lib/format.js'
 
 /**
  * One chart: a viewBox, day gridlines, the marks, and labels.
@@ -47,15 +47,6 @@ export type HourlyChartProps = {
   /** Required by, and only read by, `axis: 'hour'`. Seconds, from `HourlySeries`. */
   utcOffsetSeconds?: number
   /**
-   * A shaded horizontal reference range behind the marks, in the data's own
-   * units — the conditions score's ideal temperature band.
-   *
-   * It is an annotation, not a series: it says which part of the scale is good,
-   * so a mark's **position** carries "too warm" rather than its hue having to
-   * carry it alone.
-   */
-  referenceBand?: { from: number; to: number; fill: string }
-  /**
    * Overrides the measured vertical domain.
    *
    * For a series whose scale is **defined rather than observed** — chance of
@@ -64,12 +55,16 @@ export type HourlyChartProps = {
    * the same defect as a per-row scale on the daily list.
    */
   domain?: Extent
+  /** Passed through to the marks. See `SeriesProps.placement`. */
+  placement?: 'accumulation' | 'instant'
+  /** Passed through to the marks: draw the p10-p90 spread over each bar. */
+  whiskers?: boolean
 }
 
 /** A tick label needs this much room to its right, or it runs off the chart. */
 const DAY_LABEL_W = 28
-/** `12 AM` is wider than `Tue`, and there are more of them in a day. */
-const HOUR_LABEL_W = 34
+/** A compact `12a` is about as wide as `Tue`, but a day holds more of them. */
+const HOUR_LABEL_W = 22
 
 /** Degenerate spans: a flat line needs a domain of its own or it sits on the frame. */
 const MIN_SPAN = 2
@@ -80,37 +75,27 @@ const EDGE_TOLERANCE = 3
 /** Every sixth hour: four labels across one day, which is what fits at 375px. */
 const HOUR_TICK_STEP = 6
 
-function verticalDomain(
-  data: readonly SeriesDatum[],
-  kind: SeriesKind,
-  referenceBand: HourlyChartProps['referenceBand'],
-): Extent | null {
-  const measured =
-    kind === 'bar'
-      ? // Rain is read against zero and has no band, so its own values are the
-        // whole domain.
-        extent(data.map((d) => d.value))
-      : valueExtent(data)
+function verticalDomain(data: readonly SeriesDatum[], kind: SeriesKind): Extent | null {
+  // **The band counts toward the top even for bars.** A `whiskers` caller that
+  // does not pass its own domain would otherwise stroke whiskers above the
+  // frame — silently, because SVG does not clip by default and the overflow
+  // lands under the next element. Both current callers pass a domain, so this
+  // is the latent case rather than the live one.
+  const measured = valueExtent(data)
   if (measured === null) return null
 
   if (kind === 'bar') {
-    // Bars are read against zero, so the baseline is zero whatever the data does
-    // — a rain chart scaled to its own minimum would draw a dry hour as a
+    // Bars are read against zero, so the floor is zero whatever the data does —
+    // a rain chart scaled to its own minimum would draw a dry hour as a
     // full-height bar. A window with no rain in it still needs a span.
+    //
+    // Temperature is the exception and passes an explicit domain: it has no
+    // meaningful zero, so its floor is set just under the coldest reading and
+    // printed on the axis.
     return { min: 0, max: measured.max > 0 ? measured.max * 1.1 : 1 }
   }
 
-  // The reference band is only worth drawing if it is on screen, and clipping
-  // it would move where "ideal" appears to sit. Including it in the domain
-  // costs vertical room on a mild day and is what keeps the annotation honest.
-  const withBand =
-    referenceBand === undefined
-      ? measured
-      : {
-          min: Math.min(measured.min, referenceBand.from),
-          max: Math.max(measured.max, referenceBand.to),
-        }
-  return padExtent(withBand, 0.08, MIN_SPAN)
+  return padExtent(measured, 0.08, MIN_SPAN)
 }
 
 /**
@@ -130,7 +115,7 @@ function hourTicks(
   for (const d of data) {
     const shifted = new Date(d.t + utcOffsetSeconds * 1000)
     if (shifted.getUTCHours() % HOUR_TICK_STEP !== 0) continue
-    const label = formatLocalHour(d.t, utcOffsetSeconds)
+    const label = formatLocalHourShort(d.t, utcOffsetSeconds)
     if (label === null) continue
     out.push({ key: `${d.localDate}-${shifted.getUTCHours()}`, t: d.t, label })
   }
@@ -148,31 +133,42 @@ export function HourlyChart({
   title,
   axis = 'day',
   utcOffsetSeconds,
-  referenceBand,
   domain: fixedDomain,
+  placement = 'accumulation',
+  whiskers = false,
 }: HourlyChartProps) {
   const times = timeExtent(data)
-  // The labels and the summary describe the **series itself**, not the band
-  // around it. The domain has to cover the band or it would be clipped, but
-  // labelling its outer edge as the high says the forecast reached a value the
-  // median never does — one member's worst hour printed as the temperature.
   const measured = extent(data.map((d) => d.value))
-  const domain = fixedDomain ?? verticalDomain(data, kind, referenceBand)
+  const domain = fixedDomain ?? verticalDomain(data, kind)
   if (times === null || measured === null || domain === null) return null
 
-  // Each kind needs a different window, because each mark sits differently
-  // against its timestamp:
+  // **What the two edge labels say depends on whether anything else states the
+  // series**, and getting this wrong printed a temperature nobody forecast.
   //
-  // - `line` is drawn at the instant and needs no room.
-  // - `bar` is rain, an **accumulation** covering the hour *before* its
-  //   timestamp, so the window opens an hour early or the first bar is half
-  //   outside the plot.
-  // - `range` is temperature, an **instantaneous** reading centred on its
-  //   timestamp, so it needs half a slot of room at *each* end.
+  // A **bar** chart is drawn by `DayCharts`, which prints the day's own range
+  // right-aligned in the heading. The labels are then free to be the *scale* —
+  // and for a bar on a non-zero floor they have to be, because the floor is the
+  // one thing a reader cannot infer from the picture.
+  //
+  // A **line** chart is the seven-day strip in `HourlySection`, which has no
+  // heading figure. Its domain is padded around the p10-p90 band, so labelling
+  // its edges puts one member's worst hour on screen as the forecast: on the
+  // measured fixture, 113°F over a median that never passes 63°F. There, the
+  // labels stay the series' own extremes.
+  const edgeLabels = kind === 'bar' ? domain : measured
+
+  // The window follows how the mark sits against its timestamp, not what kind
+  // it is:
+  //
+  // - a line is drawn at the instant and needs no room;
+  // - an **accumulation** bar covers the hour *before* its timestamp, so the
+  //   window opens an hour early or the first bar is half outside the plot;
+  // - an **instant** bar is centred on its timestamp, so it needs half a slot
+  //   at *each* end.
   const xDomain: Extent =
     kind === 'line'
       ? times
-      : kind === 'bar'
+      : placement === 'accumulation'
         ? { min: times.min - HOUR_MS, max: times.max }
         : { min: times.min - HOUR_MS / 2, max: times.max + HOUR_MS / 2 }
 
@@ -217,25 +213,6 @@ export function HourlyChart({
         role="img"
         aria-label={summary}
       >
-        {/*
-          Behind the marks, so it reads as ground rather than as a series. Its
-          edges are clamped to the plot: the domain already covers the band, but
-          a caller passing one that does not must not paint outside the frame.
-        */}
-        {referenceBand === undefined ? null : (
-          <rect
-            x={PAD_LEFT}
-            width={VIEW_W - PAD_RIGHT - PAD_LEFT}
-            y={Math.max(PAD_TOP, Math.min(y(referenceBand.to), y(referenceBand.from)))}
-            height={Math.max(
-              0,
-              Math.min(plotBottom, Math.max(y(referenceBand.to), y(referenceBand.from))) -
-                Math.max(PAD_TOP, Math.min(y(referenceBand.to), y(referenceBand.from))),
-            )}
-            fill={referenceBand.fill}
-          />
-        )}
-
         {ticks.map((tick) => {
           const at = x(tick.t)
           // The first tick sits at the left edge — a rule there reads as the
@@ -266,24 +243,21 @@ export function HourlyChart({
           {...(bandColor === undefined ? {} : { bandColor })}
           {...(colorForValue === undefined ? {} : { colorForValue })}
           baseY={y(domain.min)}
+          placement={placement}
+          whiskers={whiskers}
         />
       </svg>
 
-      {/*
-        The measured extremes, at their own height — the two values worth
-        reading off a seven-day chart. Not a number on every point: 168 of them
-        is a table, and a worse one than the daily rows above.
-      */}
-      {(measured.max === measured.min ? [measured.max] : [measured.max, measured.min]).map((value, i) => (
+      {[edgeLabels.max, edgeLabels.min].map((value, i) => (
         <span
-          key={i === 0 ? 'high' : 'low'}
+          key={i === 0 ? 'top' : 'bottom'}
           style={{
             ...type.label,
             color: chartColors.valueLabel,
             position: 'absolute',
             left: 0,
             top: pctY(y(value)),
-            transform: 'translateY(-50%)',
+            transform: i === 0 ? 'translateY(-10%)' : 'translateY(-90%)',
             whiteSpace: 'nowrap',
           }}
         >

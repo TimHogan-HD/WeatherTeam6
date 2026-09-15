@@ -81,10 +81,10 @@ export const chartColors = {
    * a **mark**, read at bar size against the card, not a caption.
    */
   neutralMark: colors.txt2,
+  /** The ensemble whisker over a bar. Bright enough to read against any ramp step. */
+  whisker: withOpacity(colors.txt1, 0.6),
   /** Wind. A neutral ink, because wind is not a status and has no ramp of its own. */
   wind: colors.txt2,
-  /** The upper edge of a range mark — the spread, drawn lighter than the value. */
-  rangeEdge: withOpacity(colors.txt1, 0.55),
   /** A mark whose value could not be read — a visible absence, not a colour. */
   noData: withOpacity(colors.txt1, 0.18),
 } as const
@@ -115,22 +115,39 @@ export const DAY_VIEW_H = 122
 export const CHANCE_VIEW_H = 70
 export const WIND_VIEW_H = 88
 
-/**
- * The floating range mark's fill opacity. The mark is a **spread**, not a
- * measurement, so it sits back; the median rule across it is drawn at full
- * strength in the same hue and is what the eye reads as the value.
- */
-export const RANGE_FILL_OPACITY = 0.35
+/** Corner radius on a bar — the rounded data-end the dataviz guidance asks for. */
+export const BAR_RADIUS = 3.5
 
 /**
- * The shortest a range mark may be drawn.
+ * The shortest a bar may be drawn.
  *
- * An ensemble whose members agree exactly gives p10 === p90, and a zero-height
- * rect paints nothing at any fill — the same disappearing-mark failure as a
- * one-point path. Perfect agreement is the most confident forecast there is and
- * must not be the one hour that vanishes.
+ * A zero-height rect paints nothing, so a measured 0% chance of rain would look
+ * identical to an hour the models never reached. A stub says "measured, and it
+ * is nothing" — a different statement from silence.
  */
-export const RANGE_MIN_H = 1
+export const BAR_MIN_H = 1.5
+
+/** The ensemble whisker over a bar, in CSS pixels like the other strokes. */
+export const WHISKER_W = 1.4
+
+/**
+ * How much room the temperature floor sits below the coldest p10, in °C.
+ *
+ * Temperature bars rise from a **labelled non-zero floor**: a temperature has
+ * no meaningful zero, so a column measured from 0 °F is twenty near-identical
+ * full-height bars. The axis prints the floor and the reader compares tops.
+ */
+export const TEMP_FLOOR_PAD_C = 0.5
+
+/**
+ * **`rainColor` is absolute and stays absolute.** A day chart briefly shaded
+ * each bar by its share of that day's own peak, so the shape of a drizzle day
+ * would show. Two things were wrong with it: 0.3 mm of drizzle came out
+ * `radarSevere` beside a header reading `0.02 in`, and the same hour was a
+ * different colour on the seven-day strip, which shades absolutely. Bar
+ * *height* already carries the day's shape — the domain is the day's own peak —
+ * so the colour is free to mean what the ramp says it means.
+ */
 
 // ─────────────────────────────────────────────
 // TEMPERATURE RAMP
