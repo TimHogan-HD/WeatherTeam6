@@ -1,4 +1,4 @@
-import { cToF, kmhToMph, mmToIn } from '@weatherteam6/types'
+import { cToF, compassPoint, kmhToMph, mmToIn } from '@weatherteam6/types'
 import type { RunHour } from '../runs/latestRuns.js'
 import type { RichCell } from './sendMessage.js'
 import { localDateString } from '../weather/openMeteo.js'
@@ -194,31 +194,6 @@ export function pressureValue(hpa: number | null): string {
   return hpa === null ? GAP : `${round(hpa)} mb`
 }
 
-/** 16-point compass. `null` is a gap; 0° is due north and a real reading. */
-const COMPASS = [
-  'N',
-  'NNE',
-  'NE',
-  'ENE',
-  'E',
-  'ESE',
-  'SE',
-  'SSE',
-  'S',
-  'SSW',
-  'SW',
-  'WSW',
-  'W',
-  'WNW',
-  'NW',
-  'NNW',
-] as const
-
-export function compassPoint(deg: number | null): string | null {
-  if (deg === null || !Number.isFinite(deg)) return null
-  const index = Math.round((((deg % 360) + 360) % 360) / 22.5) % 16
-  return COMPASS[index] ?? null
-}
 
 // ---------------------------------------------------------------------------
 // Local-time bucketing

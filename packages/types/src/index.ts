@@ -9,6 +9,8 @@ export * from './units.js'
 export * from './conditionsCopy.js'
 export * from './geocodeCopy.js'
 export * from './hourly.js'
+export * from './compass.js'
+export * from './recentPrecip.js'
 
 export type ApiResponse<T> = {
   data: T | null

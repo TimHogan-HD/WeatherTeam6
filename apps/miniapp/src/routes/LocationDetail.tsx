@@ -7,6 +7,8 @@ import { useBackButton } from '../telegram/useBackButton.js'
 import { useDeleteLocation, useLocation } from '../hooks/useLocations.js'
 import { useAlerts, useConditions, useForecast } from '../hooks/useWeather.js'
 import { useHourly } from '../hooks/useHourly.js'
+import { useRecentPrecip } from '../hooks/useRecentPrecip.js'
+import { useWalls } from '../hooks/useWalls.js'
 import { Screen } from '../components/Screen.js'
 import { DetailView, type DetailTab } from '../components/DetailView.js'
 import { dayIsDrawable, firstDrawableDay } from '../components/charts/hourlySeries.js'
@@ -25,6 +27,8 @@ export function LocationDetail() {
   const alerts = useAlerts(id)
   const conditions = useConditions(id, location.data?.is_climbing_location)
   const hourly = useHourly(id)
+  const recentPrecip = useRecentPrecip(id, location.data?.is_climbing_location)
+  const walls = useWalls(id, location.data?.is_climbing_location)
 
   // The tabs live here rather than inside `DetailView` because `BackButton` is
   // registered per route (§2) and has to be able to pop the tab. Holding them
@@ -120,6 +124,12 @@ export function LocationDetail() {
             onSelectDate: setSelectedDate,
           },
         }}
+        recentPrecip={{
+          data: recentPrecip.data,
+          isPending: recentPrecip.isPending,
+          isError: recentPrecip.isError,
+        }}
+        walls={walls.data}
         location={location.data}
       />
 

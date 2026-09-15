@@ -3,7 +3,6 @@ import type { RunHour } from '../runs/latestRuns.js'
 import {
   buildRows,
   clockCell,
-  compassPoint,
   dayHasData,
   DETAIL_AIR_COLUMNS,
   DETAIL_WIND_COLUMNS,
@@ -73,24 +72,6 @@ describe('precipValue', () => {
     expect(precipValue(25.4, 'metric')).toContain('mm')
     // The gap carries no unit. "— in" would read as a measured zero.
     expect(precipValue(null, 'imperial')).toBe('—')
-  })
-})
-
-describe('compassPoint', () => {
-  it('reads due north as a real direction rather than a missing one', () => {
-    // 0 is falsy, and a truthiness check here would render north as a gap.
-    expect(compassPoint(0)).toBe('N')
-  })
-
-  it('wraps at 360 and rounds to the nearest of sixteen', () => {
-    expect(compassPoint(359)).toBe('N')
-    expect(compassPoint(202.5)).toBe('SSW')
-    expect(compassPoint(-90)).toBe('W')
-  })
-
-  it('has no direction for a missing reading', () => {
-    expect(compassPoint(null)).toBeNull()
-    expect(compassPoint(Number.NaN)).toBeNull()
   })
 })
 

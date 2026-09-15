@@ -1,3 +1,4 @@
+import type { RecentPrecip, RecentPrecipHour } from '@weatherteam6/types'
 import { logger } from '../logger.js'
 
 export type DailyForecast = {
@@ -684,19 +685,15 @@ export async function fetchArchivePrecip(
 // time instead of a calendar day.
 // ---------------------------------------------------------------------------
 
-/** One past hour of measured/reanalysed precipitation, stamped in local wall-clock time. */
-export type RecentPrecipHour = {
-  /** `YYYY-MM-DDTHH:mm`, local, exactly as Open-Meteo returned it under `timezone=auto`. */
-  readonly valid_at_local: string
-  readonly precip_mm: number
-}
-
-export type RecentPrecip = {
-  readonly hours: readonly RecentPrecipHour[]
-  readonly utc_offset_seconds: number
-  /** The oldest local date the window covers, so a caller knows what a miss means. */
-  readonly from_date: string | null
-}
+/**
+ * **The shape lives in `packages/types` now**, because the Mini App reads it
+ * too — one definition, per the architecture rule, rather than a copy that
+ * drifts. Re-exported here so the existing import sites keep resolving.
+ *
+ * It is the same type on the wire as in this parse, unusually: the route over
+ * this function is a thin pass-through with nothing to reshape.
+ */
+export type { RecentPrecip, RecentPrecipHour } from '@weatherteam6/types'
 
 /**
  * Hourly precipitation over the past `pastDays`, from `/v1/forecast`'s

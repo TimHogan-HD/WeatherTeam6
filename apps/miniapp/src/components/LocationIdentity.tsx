@@ -1,7 +1,7 @@
-import { colors, spacing } from '@weatherteam6/design/tokens'
-import { formatElevationFt, type Location } from '@weatherteam6/types'
+import { colors, radius, spacing } from '@weatherteam6/design/tokens'
+import { compassPoint, formatElevationFt, type Location, type Wall } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
-import { card, stack } from '../theme/styles.js'
+import { card, row, stack } from '../theme/styles.js'
 
 /**
  * What this place *is* — rock, aspect, wall angle, elevation, coordinates and
@@ -98,8 +98,83 @@ function capitalise(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
+/**
+ * One wall, as a line of the facts the table actually stores.
+ *
+ * **The angle is named by its band, not by its degrees, and that is a safety
+ * decision.** `walls.angle_deg` has no writer anywhere in the repo — no seed,
+ * no importer, no UI — so nothing establishes whether it is measured from
+ * vertical (the convention `conditionsScore.ts` uses, where 0 is a vertical
+ * wall) or from horizontal (what a climber means by "vertical is 90"). Printing
+ * "14° off vert" would pick one of those on no evidence, and it is the reading
+ * the heaviest component of the score depends on. `angle_band` is a four-value
+ * enum the schema defines outright, so it cannot be read backwards.
+ */
+function wallSummary(wall: Wall): string {
+  const parts = [compassPoint(wall.aspectDeg), wall.angleBand]
+  if (wall.routeCount !== null && wall.routeCount > 0) {
+    parts.push(`${wall.routeCount} route${wall.routeCount === 1 ? '' : 's'}`)
+  }
+  return parts.filter((p): p is string => p !== null).join(' · ')
+}
+
+/**
+ * The walls of this crag, as a scrolling strip.
+ *
+ * **Read-only, and the note says why.** The mockup draws this as a picker whose
+ * chips re-score the forecast against the selected wall's own aspect and angle;
+ * that is a decided feature and it is not built. A chip that highlights on tap
+ * and changes no number would look exactly like the built version — the reader
+ * would come away believing the score in front of them was for the wall they
+ * picked. Showing the same facts without the affordance says the true thing.
+ */
+function WallStrip({ walls }: { walls: readonly Wall[] }) {
+  return (
+    <div
+      style={{
+        ...stack(spacing.chipGap),
+        borderTopStyle: 'solid',
+        borderTopWidth: '1px',
+        borderTopColor: colors.line,
+        paddingTop: `${spacing.listGap}px`,
+      }}
+    >
+      <div style={{ ...row(spacing.chipGapMd), justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <span style={{ ...type.labelSm, color: colors.txt5 }}>Walls</span>
+        <span style={{ ...type.labelSm, color: colors.txt5 }}>Score is crag-wide</span>
+      </div>
+      <div style={{ ...row(spacing.chipGap), overflowX: 'auto' }}>
+        {walls.map((wall) => (
+          <div
+            key={wall.id}
+            style={{
+              ...stack(0),
+              flex: '0 0 auto',
+              borderStyle: 'solid',
+              borderWidth: '1px',
+              borderColor: colors.line,
+              borderRadius: `${radius.chip}px`,
+              padding: `${spacing.chipGap}px ${spacing.chipGapMd}px`,
+            }}
+          >
+            <span style={{ ...type.calDay, whiteSpace: 'nowrap' }}>{wall.name}</span>
+            <span style={{ ...type.labelSm, color: colors.txt5, whiteSpace: 'nowrap' }}>
+              {wallSummary(wall)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export type LocationIdentityProps = {
   location: Location
+  /**
+   * The crag's named walls. Empty for every location today — the table has no
+   * writer — and an empty list draws nothing rather than an empty heading.
+   */
+  walls?: readonly Wall[]
   /**
    * The Hourly tab condenses this to a single line, so the charts get the
    * screen. Nothing is hidden behind a tap — it just stops competing.
@@ -107,7 +182,7 @@ export type LocationIdentityProps = {
   condensed?: boolean
 }
 
-export function LocationIdentity({ location, condensed = false }: LocationIdentityProps) {
+export function LocationIdentity({ location, walls = [], condensed = false }: LocationIdentityProps) {
   const rows = facts(location)
 
   // **The name is not repeated here.** `Screen` already renders it as the page
@@ -124,7 +199,7 @@ export function LocationIdentity({ location, condensed = false }: LocationIdenti
     return <span style={type.labelSm}>{summary.join(' · ')}</span>
   }
 
-  if (rows.length === 0) return null
+  if (rows.length === 0 && walls.length === 0) return null
 
   return (
     <section style={{ ...card, ...stack(spacing.cellPad) }}>
@@ -164,6 +239,8 @@ export function LocationIdentity({ location, condensed = false }: LocationIdenti
           </div>
         ))}
       </div>
+
+      {walls.length === 0 ? null : <WallStrip walls={walls} />}
     </section>
   )
 }
