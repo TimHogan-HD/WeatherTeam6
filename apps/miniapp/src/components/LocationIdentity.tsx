@@ -26,25 +26,18 @@ import { card, stack } from '../theme/styles.js'
  * here would be a third flow.
  */
 
-const ASPECT_WORDS: Readonly<Record<string, string>> = {
-  N: 'north',
-  NE: 'north-east',
-  E: 'east',
-  SE: 'south-east',
-  S: 'south',
-  SW: 'south-west',
-  W: 'west',
-  NW: 'north-west',
-}
-
 /**
  * `aspect` is stored as free text and reaches us as whatever was entered. A
  * compass point is shown as-is in the grid (where the key already says
  * "Aspect"); anything else is passed through verbatim rather than guessed at.
  */
 function aspectValue(aspect: string): string {
-  const key = aspect.toUpperCase()
-  return ASPECT_WORDS[key] === undefined ? aspect : key
+  const key = aspect.trim().toUpperCase()
+  // Uppercase anything shaped like a compass bearing, not only the eight a
+  // lookup table would list — otherwise `NE` and `nne` sit in the same column
+  // looking like two different kinds of thing. Anything else is passed through
+  // untouched rather than guessed at or dropped.
+  return /^[NSEW]{1,3}$/.test(key) ? key : aspect
 }
 
 /**
@@ -55,7 +48,7 @@ function coordValue(lat: number, lon: number): string {
   return `${lat.toFixed(4)}, ${lon.toFixed(4)}`
 }
 
-type Fact = { key: string; value: string; mono?: boolean }
+type Fact = { key: string; value: string; mono?: boolean; wide?: boolean }
 
 function facts(location: Location): Fact[] {
   const out: Fact[] = []
@@ -83,7 +76,12 @@ function facts(location: Location): Fact[] {
     out.push({ key: 'Elevation', value: formatElevationFt(location.elevation_m) })
   }
 
-  out.push({ key: 'Coordinates', value: coordValue(location.lat, location.lon), mono: true })
+  out.push({
+    key: 'Coordinates',
+    value: coordValue(location.lat, location.lon),
+    mono: true,
+    wide: true,
+  })
 
   // Named only when there is one. The station is what `fetchPrecipHistory`
   // reads for the drying model; a location without one falls back to the
@@ -138,7 +136,18 @@ export function LocationIdentity({ location, condensed = false }: LocationIdenti
         }}
       >
         {rows.map((fact) => (
-          <div key={fact.key} style={{ ...stack(0), minWidth: 0 }}>
+          <div
+            key={fact.key}
+            style={{
+              ...stack(0),
+              minWidth: 0,
+              // **Coordinates get two columns.** One third of a 375px row is
+              // about 98px, and `36.1215, -115.4567` at this size needs ~105 —
+              // so with `nowrap` and an ellipsis it silently lost digits, which
+              // is worse than wrapping and much worse than not showing it.
+              ...(fact.wide === true ? { gridColumn: 'span 2' } : {}),
+            }}
+          >
             <span style={{ ...type.labelSm, color: colors.txt5 }}>{fact.key}</span>
             <span
               style={{

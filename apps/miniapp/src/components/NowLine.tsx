@@ -37,6 +37,17 @@ export type NowLineProps = {
    * might act on. The banner directly above says what is happening instead.
    */
   severeAlertEvent: string | null
+  /**
+   * Whether the alerts query has settled.
+   *
+   * **The chip waits for it, and that is not a nicety.** `severeAlertEvent`
+   * answers `null` for a query still in flight exactly as it does for "no
+   * severe alert", and `AlertBanner` renders nothing in that window — so a
+   * location under an Excessive Heat Warning would show a lime score chip with
+   * no banner above it, and then have both change. Defect class 7, and the
+   * score section below already guards on the same thing for the same reason.
+   */
+  alertsPending: boolean
   /** Hides the chip for a location that has no score at all — a city. */
   showScore: boolean
 }
@@ -63,10 +74,20 @@ function Chip({ score, confidence }: { score: number; confidence?: string }) {
   )
 }
 
-export function NowLine({ hour, today, severeAlertEvent, showScore }: NowLineProps) {
+export function NowLine({
+  hour,
+  today,
+  severeAlertEvent,
+  alertsPending,
+  showScore,
+}: NowLineProps) {
   const score = today?.score
   const chipVisible =
-    showScore && severeAlertEvent === null && score !== null && score !== undefined
+    showScore &&
+    !alertsPending &&
+    severeAlertEvent === null &&
+    score !== null &&
+    score !== undefined
 
   // Each part is omitted when its value is missing rather than rendered as an
   // em dash: this is a sentence of conditions, and a dash inside one reads as a
@@ -94,9 +115,21 @@ export function NowLine({ hour, today, severeAlertEvent, showScore }: NowLinePro
         <span style={{ ...type.bodySm, flex: 1, minWidth: '110px' }}>{meta.join(' · ')}</span>
       )}
 
+      {/*
+        **Labelled, always.** The mockup leaves this pair bare because its
+        current temperature is always present to the left, so the two read as
+        secondary figures. Ours can be absent — a pending hourly query, the
+        `/add` preview, a run that does not reach this hour — and then a bare
+        `103°F 79°F` sits alone at the top of the screen with `temp_c_max`
+        first, in the slot the 36px hero used to occupy. That is precisely the
+        §3 factual error this component exists to stop, distinguished only by
+        opacity.
+      */}
       {today === null ? null : (
         <span style={{ ...row(spacing.chipGap), ...type.calDay }}>
+          <span style={type.labelSm}>High</span>
           <span style={{ color: colors.txt1 }}>{formatTempF(today.temp_c_max)}</span>
+          <span style={type.labelSm}>Low</span>
           <span style={{ color: colors.txt4 }}>{formatTempF(today.temp_c_min)}</span>
         </span>
       )}

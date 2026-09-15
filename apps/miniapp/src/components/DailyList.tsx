@@ -50,12 +50,24 @@ const METRIC_OPTIONS: readonly { value: DailyMetric; label: string }[] = [
  * without this.** Seven bars at different widths look like seven bars until
  * something says they are measured against one ruler; then they are a week.
  */
-function axisNote(domain: Extent | null, metric: DailyMetric): [string, string, string] | null {
+function axisNote(
+  days: readonly ForecastSnapshot[],
+  domain: Extent | null,
+  metric: DailyMetric,
+): [string, string, string] | null {
   if (domain === null) return null
   if (metric === 'temperature') {
     return [formatTempF(domain.min), 'shared scale', formatTempF(domain.max)]
   }
-  if (metric === 'rain') return ['0 in', 'rain, shared scale', formatPrecipIn(domain.max)]
+  if (metric === 'rain') {
+    // **`sharedDomain` substitutes a placeholder `max: 1` mm for a dry week**,
+    // so the scale has a width to draw against. Printing that back as a bound
+    // states "0.04 in" as the week's wettest day when nothing measured it. The
+    // measured maximum is the only figure this line may quote.
+    const wettest = extent(days.map((d) => d.precip_mm_p50))
+    if (wettest === null || wettest.max <= 0) return ['0 in', 'no rain forecast', '']
+    return ['0 in', 'rain, shared scale', formatPrecipIn(wettest.max)]
+  }
   return ['0', 'climbing score', '100']
 }
 
@@ -254,7 +266,7 @@ export function DailyList({
 }: DailyListProps) {
   const options = showScoreMetric ? METRIC_OPTIONS : METRIC_OPTIONS.filter((o) => o.value !== 'score')
   const domain = sharedDomain(days, metric)
-  const note = axisNote(domain, metric)
+  const note = axisNote(days, domain, metric)
   return (
     <section style={stack(spacing.listGapSm)}>
       <div style={{ ...row(spacing.chipGapMd), justifyContent: 'space-between', flexWrap: 'wrap' }}>

@@ -15,6 +15,10 @@ import {
   DAY_VIEW_H,
   RAIN_VIEW_H,
   WIND_VIEW_H,
+  IDEAL_TEMP_C,
+  LINE_W,
+  RANGE_FILL_OPACITY,
+  chanceColor,
   chartColors,
   rainColor,
   tempColor,
@@ -66,8 +70,16 @@ export function stepDay(
   direction: 1 | -1,
 ): string | null {
   const from = days.findIndex((d) => d.local_date === selectedDate)
-  if (from < 0) return null
-  for (let i = from + direction; i >= 0 && i < days.length; i += direction) {
+
+  // **A day that is no longer in the window must not strand the reader.** The
+  // window rolls forward as runs are collected, so a date held in route state
+  // can drop out of `days[]` — and a pager with both arrows dead is a screen
+  // with no way off it. Stepping from outside the window walks in from the
+  // matching end instead. The chip picker this replaced could not reach that
+  // state, so the pager has to handle it deliberately.
+  const start = from < 0 ? (direction === 1 ? -1 : days.length) : from
+
+  for (let i = start + direction; i >= 0 && i < days.length; i += direction) {
     const day = days[i]
     if (day !== undefined && dayIsDrawable(day)) return day.local_date
   }
@@ -179,8 +191,17 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
                 rule allows them in a chart legend and it reads better without.
               */}
               <div style={{ ...row(spacing.sectionGap), flexWrap: 'wrap' }}>
-                <LegendKey label="Cool → hot" swatch="ramp" />
-                <LegendKey label="Where 8 in 10 land" swatch="spread" />
+                <LegendKey label="Cool → hot" swatch="ramp" sample={tempColor(IDEAL_TEMP_C)} />
+                <LegendKey
+                  label="Bar: where 8 in 10 land"
+                  swatch="spread"
+                  sample={tempColor(IDEAL_TEMP_C)}
+                />
+                <LegendKey
+                  label="Line: the middle"
+                  swatch="median"
+                  sample={tempColor(IDEAL_TEMP_C)}
+                />
               </div>
             </>
           ) : null}
@@ -213,7 +234,7 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
               {...axis}
               viewHeight={CHANCE_VIEW_H}
               color={chartColors.rain}
-              colorForValue={(v) => rainColor(v / 100)}
+              colorForValue={chanceColor}
               // A whole-percent count of members, not a measurement in a unit.
               formatValue={(v) => (v === null ? '—' : `${Math.round(v)}%`)}
               domain={{ min: 0, max: 100 }}
@@ -236,8 +257,8 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
                 title="Wind by hour"
               />
               <div style={{ ...row(spacing.sectionGap), flexWrap: 'wrap' }}>
-                <LegendKey label="Sustained" swatch="wind" />
-                <LegendKey label="To gusts" swatch="spread" />
+                <LegendKey label="Line: sustained" swatch="median" sample={windColor(20)} />
+                <LegendKey label="Bar: up to gusts" swatch="spread" sample={windColor(20)} />
               </div>
             </>
           ) : null}
@@ -277,20 +298,41 @@ function ChartBlock({
   )
 }
 
-function LegendKey({ label, swatch }: { label: string; swatch: 'ramp' | 'spread' | 'wind' }) {
+/**
+ * A legend key, drawn **the way the mark it names is actually drawn.**
+ *
+ * An earlier version used `chartColors.rangeEdge` and `chartColors.wind` for
+ * these, and no mark on either chart uses either colour — `RangeMarks` fills
+ * everything with `colorForValue(median)` at `RANGE_FILL_OPACITY` and rules the
+ * median across it at full strength. A key pointing at a colour that never
+ * appears in the chart is worse than no key: it invites the reader to look for
+ * something that is not there.
+ */
+function LegendKey({
+  label,
+  swatch,
+  sample,
+}: {
+  label: string
+  swatch: 'ramp' | 'spread' | 'median'
+  /** The colour the real mark would be at a representative value. */
+  sample: string
+}) {
   const bar =
-    swatch === 'spread'
-      ? { width: '2px', height: '11px', background: chartColors.rangeEdge }
-      : {
-          width: '12px',
-          height: '3px',
-          background:
-            swatch === 'wind'
-              ? chartColors.wind
-              : // The ramp's own ends, so the key is the scale rather than a
-                // decorative gradient that happens to look similar.
-                `linear-gradient(90deg, ${tempColor(-10)}, ${tempColor(16)}, ${tempColor(38)})`,
+    swatch === 'ramp'
+      ? {
+          width: '14px',
+          height: '4px',
+          // The ramp's own ends, so the key *is* the scale rather than a
+          // decorative gradient that happens to resemble it.
+          background: `linear-gradient(90deg, ${tempColor(-10)}, ${tempColor(IDEAL_TEMP_C)}, ${tempColor(38)})`,
         }
+      : swatch === 'spread'
+        ? // The body of a range mark: the fill, at the opacity it is drawn with.
+          { width: '8px', height: '12px', background: sample, opacity: RANGE_FILL_OPACITY }
+        : // The median rule: the same hue, full strength, the height it is drawn at.
+          { width: '12px', height: `${LINE_W}px`, background: sample }
+
   return (
     <span style={{ ...row(spacing.chipGap), ...type.labelSm }}>
       <span style={{ ...bar, borderRadius: '2px', display: 'block' }} />

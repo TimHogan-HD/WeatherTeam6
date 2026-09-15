@@ -92,6 +92,26 @@ export const uvScale = [
 ] as const
 
 /**
+ * Wind speed, as a single-hue magnitude ramp: calm to strong.
+ *
+ * **Not diverging, and not the status hues.** There is no ideal wind to diverge
+ * around — the score's wind component is monotonic, full marks at or below
+ * 15 km/h and zero at or above 50 — so one hue getting brighter is the honest
+ * encoding of a magnitude. Two stops, interpolated like `tempScale`.
+ */
+export const windScale = ['#a0aec0', '#f0f4f8'] as const;
+
+/**
+ * Chance of rain, as a single-hue ramp across 0-100% of ensemble members.
+ *
+ * **Its own scale, and it has to be.** The radar intensity ramp's thresholds
+ * are *rates* in mm/h; feeding a percentage into it reaches two of its four
+ * steps and puts a hard break at exactly 50%, above which 51% and 100% are the
+ * same colour. A probability is not a rate.
+ */
+export const chanceScale = ['#2c5282', '#63b3ed'] as const;
+
+/**
  * Air temperature, as a **diverging ramp around the ideal climbing temperature**.
  *
  * A named scale rather than five loose colours, exactly as `uvScale` above is — it is one

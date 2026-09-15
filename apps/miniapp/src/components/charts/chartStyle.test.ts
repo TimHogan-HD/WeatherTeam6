@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { colors } from '@weatherteam6/design/tokens'
 import { cToF } from '@weatherteam6/types'
-import { IDEAL_TEMP_C, rainColor, tempColor, windColor } from './chartStyle.js'
+import { IDEAL_TEMP_C, chanceColor, rainColor, tempColor, windColor } from './chartStyle.js'
 
 /**
  * The temperature ramp is **continuous**, so the properties worth asserting are
@@ -106,5 +106,26 @@ describe('rainColor', () => {
     expect(rainColor(0.5)).toBe(colors.radarModerate)
     expect(rainColor(2.5)).toBe(colors.radarHeavy)
     expect(rainColor(7.6)).toBe(colors.radarSevere)
+  })
+})
+
+describe('chanceColor', () => {
+  it('uses the whole 0-100 range instead of a rain-rate ramp’s two lowest steps', () => {
+    // The bug this replaces fed a percentage into `rainColor`, whose thresholds
+    // are mm/h: only two of four steps were reachable, with a hard break at
+    // exactly 50% above which every value was identical.
+    const steps = [0, 25, 50, 75, 100].map(chanceColor)
+    expect(new Set(steps).size).toBe(5)
+    expect(chanceColor(51)).not.toBe(chanceColor(100))
+  })
+
+  it('gets brighter as more members agree it will rain', () => {
+    const low = channels(chanceColor(10))
+    const high = channels(chanceColor(90))
+    expect(high[2]).toBeGreaterThan(low[2])
+  })
+
+  it('is not the rain-rate ramp', () => {
+    expect(chanceColor(50)).not.toBe(rainColor(50))
   })
 })

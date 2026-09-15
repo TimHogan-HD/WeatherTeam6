@@ -1,4 +1,4 @@
-import { colors, tempScale } from '@weatherteam6/design/tokens'
+import { chanceScale, colors, tempScale, windScale } from '@weatherteam6/design/tokens'
 import { TEMP_BAND_C, cToF } from '@weatherteam6/types'
 import { withOpacity } from '../../theme/tokens.css.js'
 
@@ -208,26 +208,42 @@ export function tempColor(c: number): string {
   return mix(last.color, last.color, 0)
 }
 
-/**
- * Wind, as a single-hue ramp from calm to strong.
- *
- * **Not a diverging ramp and not the status colours.** There is no "ideal" wind
- * to diverge around — wind helps a crag dry and hurts once it is strong enough
- * to be unpleasant, and the scorer's own curve is monotonic (full marks at or
- * below 15 km/h, zero at or above 50). A single hue getting lighter is the
- * honest encoding of a magnitude.
- *
- * Takes km/h, the unit the API returns, and reads against the scorer's own
- * endpoints so the colour and the wind component agree.
- */
-export function windColor(kmh: number): string {
-  const t = Math.max(0, Math.min(1, (kmh - WIND_CALM_KMH) / (WIND_STRONG_KMH - WIND_CALM_KMH)))
-  return mix(WIND_RAMP_FROM, WIND_RAMP_TO, t)
+/** Interpolates a two-or-more-stop hex scale at `t` in 0..1, clamped. */
+function rampAt(scale: readonly string[], t: number): string {
+  const clamped = Math.max(0, Math.min(1, t))
+  const last = scale.length - 1
+  if (last < 1) return scale[0] ?? chartColors.noData
+  const span = clamped * last
+  const i = Math.min(last - 1, Math.floor(span))
+  const a = scale[i]
+  const b = scale[i + 1]
+  if (a === undefined || b === undefined) return chartColors.noData
+  return mix(a, b, span - i)
 }
 
-/** The wind component scores full marks at or below this, and zero at or above the next. */
+/**
+ * The wind component scores full marks at or below this, and zero at or above
+ * the next. The ramp reads against the scorer's own endpoints so the colour and
+ * the wind component cannot disagree about what "strong" is.
+ */
 const WIND_CALM_KMH = 15
 const WIND_STRONG_KMH = 50
-/** `txt4` to `txt1` as hex — the ink scale, which is what a non-status magnitude wears. */
-const WIND_RAMP_FROM = '#a0aec0'
-const WIND_RAMP_TO = '#f0f4f8'
+
+/** Wind in km/h, on `packages/design`'s `windScale`. Clamped at both ends. */
+export function windColor(kmh: number): string {
+  if (!Number.isFinite(kmh)) return chartColors.noData
+  return rampAt(windScale, (kmh - WIND_CALM_KMH) / (WIND_STRONG_KMH - WIND_CALM_KMH))
+}
+
+/**
+ * Chance of rain, 0-100, on `packages/design`'s `chanceScale`.
+ *
+ * **Deliberately not `rainColor`.** That ramp's thresholds are rates in mm/h;
+ * a percentage pushed through it reaches two of its four steps and breaks hard
+ * at 50%, so 51% and 100% come out the same colour. A probability is not a
+ * rate and does not share its scale.
+ */
+export function chanceColor(pct: number): string {
+  if (!Number.isFinite(pct)) return chartColors.noData
+  return rampAt(chanceScale, pct / 100)
+}

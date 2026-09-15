@@ -240,6 +240,7 @@ export function DetailView({
             hour={nowHour}
             today={today}
             severeAlertEvent={alertEvent}
+            alertsPending={alerts?.isPending === true}
             showScore={showScore}
           />
           {rainLine === undefined ? null : <span style={type.bodySm}>{rainLine}</span>}
