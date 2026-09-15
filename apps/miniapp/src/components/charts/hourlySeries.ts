@@ -44,13 +44,11 @@ export const HOUR_MS = 3_600_000
 export const MAX_JOIN_MS = 90 * 60_000
 
 /**
- * Drops any hour whose instant cannot be read.
+ * One hour's mark: the instant, and every gap normalised to `null`.
  *
- * `Date.parse` answers `NaN` for a malformed timestamp, and a NaN x coordinate
- * takes the whole path with it rather than just its own point.
- */
-/**
- * One hour's mark, with every gap normalised to `null`.
+ * Drops any hour whose instant cannot be read. `Date.parse` answers `NaN` for a
+ * malformed timestamp, and a NaN x coordinate takes the whole path with it
+ * rather than just its own point.
  *
  * **`?? null` is not belt-and-braces here, and it was found in production.**
  * The types say `number | null`, but a response served by an API deployment
