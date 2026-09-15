@@ -73,11 +73,27 @@ Added by Phase 3 (2026-09-14), same test — wrong-but-plausible if broken:
   helper per convention (`accumulationLeft`, `instantLeft`) so the choice is made
   explicitly; `HourlyChart` widens the x-window to match (an hour back for bars, half a
   slot each side for range marks).
-- **Temperature is never a bar from a baseline; it is a floating `range` mark.** 0 °C is a
-  different place on the scale from 0 °F, so a column measured from zero encodes the unit
-  as much as the weather, and `Math.max(0, …)` draws no bar at all for a below-zero hour —
-  the coldest hour of the week becomes the one that vanishes. Truncating the axis instead
-  is the classic bar lie. Rain is a real magnitude and keeps its zero baseline.
+- **Temperature is a bar rising from a *labelled non-zero floor*, with a whisker over it.**
+  The reasoning that produced a floating translucent box instead was sound and the
+  conclusion was wrong: a temperature genuinely has no meaningful zero, but the answer is
+  to set the floor just under the coldest p10 **and print it on the axis**, not to stop
+  drawing bars. The floating version was technically defensible and visually unreadable —
+  pale boxes covering a fraction of the plot where bars now span 15-81 units of 106. Rain,
+  chance of rain and wind are real magnitudes and keep a zero floor.
+- **`BAR_MIN_H` gives every measured hour a visible stub**, which is what keeps "no rain"
+  and "no forecast" different pictures. It replaced a run-length baseline: a per-hour stub
+  says which *hours* were measured, where a line under a run only said where the run was.
+- **What the two edge labels say depends on whether anything else states the series.** A
+  bar chart's caller prints the day's range in the heading, so the labels are the *scale* —
+  and for a non-zero floor they must be, because the floor is the one thing the picture
+  cannot show. A line chart (the seven-day strip) has no heading figure, so its labels are
+  the series' own extremes; labelling its padded domain there put **113°F on screen over a
+  median that never passes 63°F**.
+- **A ramp built for one quantity keeps its own scale.** Rain was briefly shaded relative
+  to each day's peak so a light day would show a shape; 0.3 mm then painted `radarSevere`
+  beside a header reading `0.02 in`, and the same hour was a different colour on the
+  seven-day strip. Bar *height* already carries the day's shape, because the domain is the
+  day's own peak. Colour means what the ramp says it means.
 - **`colorForValue` is fed the median, never a band edge.** Colouring by p90 paints an hour
   as too hot on the strength of one member's worst run.
 - **The temperature ramp is centred on `IDEAL_TEMP_C`, derived from `TEMP_BAND_C` in
@@ -107,9 +123,15 @@ Added by Phase 3 (2026-09-14), same test — wrong-but-plausible if broken:
   are the same strings either way, so only their *positions* move — a chart on the viewer's
   clock prints a correct-looking axis against the wrong hours. Issue #33's shape exactly.
 - **A legend swatch is drawn the way its mark is drawn.** The keys briefly pointed at
-  `chartColors.rangeEdge` and `chartColors.wind`, and no mark on either chart uses either —
-  `RangeMarks` fills everything with `colorForValue(median)`. A key naming a colour that is
-  not in the chart is worse than no key: it sends the reader looking for something absent.
+  colours no mark on either chart used. A key naming a colour that is not in the chart is
+  worse than no key: it sends the reader looking for something absent.
+- **A header figure says which figure it is.** "gusts 21 mph" and "peak 70%" are labelled;
+  a bare "70%" beside *Chance of rain* reads as the day's chance when it is one hour's.
+  And a total built with `?? 0` across null hours reports a measured zero — an all-null day
+  printed "none", a forecast of a dry day, beside its own "no hourly rainfall for this day".
+- **Do not spread `card` into a small fixed-size control.** It carries `padding: 14px`,
+  which inside a 28px pager button pushes the glyph out of the box entirely — the arrows
+  rendered as empty rounded squares. Take the surface piece by piece at that size.
 - **Only the current hour may be called "now".** Every daily field is an extreme —
   `temp_c_max` is a *maximum*, and labelling it a present reading is the factual error §3
   names. `currentHour` reads the hour covering this moment from the hourly run and returns
