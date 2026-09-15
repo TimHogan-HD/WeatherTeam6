@@ -2906,3 +2906,101 @@ the Mini App on their phone and look at the two charts: whether the band reads a
 or as a smudge, whether the day labels are legible, and whether 168 rain bars are too thin to
 see. Phase 3 builds on these, so a shape change is cheap now. Nothing else is owed — no
 credential, no dashboard setting.
+
+---
+
+## 2026-09-15 — branch: phase/3-daily-hourly-tabs — commit: 03b6d00
+
+**Phase completed:** Phase 3 — Daily / Hourly tabs and the day drill-down
+(`docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md`)
+
+**What was built this session:**
+- `components/Segmented.tsx` — the tab bar and the metric toggle. One control, **two ARIA
+  personalities**: a tab switches which region of the page is shown, a radio group picks a
+  value inside a region already there. The caller says which; a tab that controls no panel
+  is a lie about the page structure.
+- `components/DailyList.tsx` — the seven rows, now tappable, with a metric toggle
+  (temp / rain / **wind** / climbing score) and a range bar per row on **one scale shared by
+  all seven**. Replaces `ForecastList`, which was deleted.
+- `components/LocationIdentity.tsx` — rock, aspect, wall angle, elevation, coordinates,
+  rainfall station. Full on Daily, condensed to one line on Hourly.
+- `components/charts/DayCharts.tsx` — one local day's hours: temperature as a floating
+  range mark, rain as bars, with a day picker.
+- `charts/Series.tsx` — a third mark kind, `range`. `charts/HourlyChart.tsx` — an `hour`
+  axis and a `referenceBand`. `charts/chartStyle.ts` — `tempColor`, the diverging ramp.
+- `packages/types`: `TEMP_BAND_C` (extracted from `conditionsScore.ts`), `SCORE_BANDS`
+  (extracted from `stateLabel`), `formatElevationFt`. `lib/format.ts`: `formatLocalHour`.
+- 48 new tests. 167 miniapp / 712 total.
+
+**Known issues / deferred work:**
+- **The ramp's cold side has one step where the warm side has two**, so -15 °C and +5 °C are
+  the same blue though the scorer gives them 0 and 6. A fifth stop would have to borrow
+  `radarModerate`, the rain ramp's own step, which would read as rain in a weather app.
+  Asserted as deliberate in `chartStyle.test.ts` so a change is a conscious one.
+- **The today hero was not demoted.** § Decisions taken says identity leads and the current
+  temperature is "one line, not a 36px hero"; § Phase 3 says the hero keeps its order.
+  Identity now leads; the hero's type scale was left alone as a design change this phase's
+  build did not ask for.
+- **The wall / area picker is not built.** It belongs with Phase 4 — selecting a wall
+  re-scores the forecast — and nothing populates `walls`, so the control would have nothing
+  to pick.
+- The legend on the day chart does not quote the ensemble size, though `uniformMemberCount`
+  could supply it. The seven-day section directly below already says "143 forecast runs".
+
+**Blockers for next session:**
+- None for building. Phase 4 is blocked on a **product decision** (how a wall gets created)
+  and on the drying model having no aspect term — both recorded in § Phase 4.
+
+**What's next:** Issue #108 — `hours_since_rain` never advances, so days 2-7 all score
+`component_drying_time: 0` and cap at 60 of 100. It was a background annoyance; **Phase 3
+draws it**, as a visibly flat Climbing column across six of the seven rows. Read
+`.claude/docs/scoring-algorithm.md` and the `conditions-score` skill before touching it.
+
+**Gotchas for next session:**
+- **An accumulation and an instantaneous reading are placed differently on the same axis,
+  and the rain rule does not generalise.** This shipped wrong and was caught by review, not
+  by any gate. `precip_mm_mean` at 15:00 is the rain that fell 14:00–15:00, so its bar spans
+  the hour *before* its timestamp. `temp_c_p50` at 15:00 is the temperature *at* 15:00 and is
+  **centred** on it. Reusing `barLeft` for both put the day's peak an hour early under a
+  correct-looking axis. `Series.tsx` now has one helper per convention —
+  `accumulationLeft` / `instantLeft` — and `HourlyChart` widens the x-window to match.
+- **The test asserting that placement was written from the same misunderstanding as the
+  code**, so it went green asserting the bug (defect class 11). When a fixture and an
+  implementation share an author and an idea, the only real check is measured data: the fix
+  was confirmed by rendering real hours and finding the 15:00 peak at 67.0% of the plot,
+  which is the 12 PM tick (55.8%) plus three hours at 3.74% each.
+- **A set derived from a response that has not arrived is not an empty set, it is unknown.**
+  `drawableDates` was computed unconditionally, so while `/hourly/:id` was in flight — the
+  slowest query on the screen — the Daily list stated "days without an hour-by-hour forecast
+  can't be opened", and after an error that was permanent. Defect class 2. It is now
+  `undefined` until a response lands.
+- **Measured, and it contradicts § Decisions taken:** `fair` and `poor` are **ΔE 13.0** apart
+  to normal vision against the card ground (`dataviz`'s `validate_palette.js`,
+  `--mode dark --surface #1a202c`) — below the 15 floor for telling two hues apart. The
+  handoff's "ΔE 25.7 normal, 21.4 protan" does not hold for that adjacent pair. The hot end
+  of the ramp is therefore **not colour-alone**: the shaded ideal-range band carries it, and
+  the vertical domain must keep covering that band even when no hour is inside it.
+- **`TEMP_BAND_C` and `SCORE_BANDS` exist so two readers cannot drift.** The chart's neutral
+  zone is the scorer's full-points plateau; the score bar's rungs are `stateLabel`'s rungs.
+  Copy either into a component and the chart will eventually contradict the words beside it
+  with nothing able to detect it. The `conditionsScore.ts` refactor is behaviour-preserving —
+  verified identical at every 0.001 °C from -50 to +60.
+- **`vitest.config.ts` is a `node` environment with no DOM and no testing library, on
+  purpose** (the vite pin in CLAUDE.md is why). A behaviour that needs a click has to be
+  extracted into a named exported function to be testable at all — `openDayInHourly` is that,
+  and its call order *is* the acceptance criterion.
+- **A JSX comment cannot sit inside an expression branch.** `? null : ( {/* … */} <span/> )`
+  is a parse error, and vitest reports it as **three test files failing to collect while
+  still printing "123 passed"** — a green-looking number over a suite that shrank by 44. When
+  a test count drops, read the file count.
+- `npm run test:mutation --workspace=apps/api` has **still not been re-measured** since
+  2026-08-26 (66.09%). Three sessions of new code have now landed under that baseline.
+
+**Does the user need to do anything?** **Yes — one trip to the phone, now covering three
+things.** Open a saved crag in the Mini App: (1) press back on the Hourly tab — it must
+return to Daily, not close the app, and that is the one acceptance criterion no test in this
+workspace can reach; (2) look at whether "warm" and "too hot" are distinguishable on the
+temperature ramp, given the ΔE 13.0 measurement above and that the shaded band is what
+carries the judgement; (3) the Phase 2 charts, still outstanding — whether the band reads as
+confidence or as a smudge and whether 168 rain bars are too thin to see. No credential, no
+dashboard setting, no product decision.
