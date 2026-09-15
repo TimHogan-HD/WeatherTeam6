@@ -241,6 +241,16 @@ describe('DayCharts — the score belongs to the day on screen', () => {
  * green against an implementation with the feature removed, which is the whole
  * of defect class 11.
  */
+/** The `d` of the first `<path>` painted with `fill`, or an empty string. */
+function pathWithFill(svg: string, fill: string): string {
+  const at = svg.indexOf(`fill="${fill}"`)
+  if (at < 0) return ''
+  const open = svg.lastIndexOf(' d="', at)
+  if (open < 0) return ''
+  const start = open + 4
+  return svg.slice(start, svg.indexOf('"', start))
+}
+
 function chartSvg(html: string, title: string): string {
   // The title reaches the markup as the start of the SVG's `aria-label`.
   const from = html.indexOf(`aria-label="${title}:`)
@@ -249,21 +259,20 @@ function chartSvg(html: string, title: string): string {
 }
 
 describe('DayCharts — the spread is drawn on every series that has one', () => {
-  it('whiskers the rain bars from their own percentiles', () => {
-    // The bar is the members' mean and the whisker their p10-p90, so an hour
-    // nine runs in ten leave dry draws a bar with a whisker flat underneath it.
+  it('shades the rain spread under its line', () => {
+    // The line is the members' mean and the band their p10-p90, so an hour nine
+    // runs in ten leave dry draws a line lifting off a band flat underneath it.
     const spread = Array.from({ length: 24 }, (_, i) =>
       hour(i, DAY_1, { precip_mm_mean: 0.4, precip_mm_p10: 0, precip_mm_p90: 4 }),
     )
     const svg = chartSvg(render(series(spread)), 'Rainfall by hour')
-    // **The whisker's own stroke, not just "a line".** Every chart on this page
-    // is full of `<line>` gridlines, so a bare tag assertion passes with the
-    // feature deleted.
-    expect(svg).toContain(`stroke="${chartColors.whisker}"`)
+    // **The band's own fill, not just "a path".** The line is a `<path>` too,
+    // so a bare tag assertion passes with the band deleted.
+    expect(svg).toContain(`fill="${chartColors.rainBand}"`)
     expect(render(series(spread))).toContain('Where 8 in 10 runs land')
   })
 
-  it('shades the wind spread behind the bars, and keeps the gust whisker', () => {
+  it('shades the wind spread under the line, and keeps the gusts as their own', () => {
     // Two different things: the band is how much the runs *disagree*, the
     // whisker is how hard it may gust inside any one of them. The fixture puts
     // the ensemble's p90 (60 km/h, 37 mph) well above the gusts (20 km/h, 12
@@ -279,27 +288,23 @@ describe('DayCharts — the spread is drawn on every series that has one', () =>
     )
     const html = render(series(windy))
     const svg = chartSvg(html, 'Wind by hour')
-    expect(svg).toContain('<path')
-    expect(svg).toContain(`stroke="${chartColors.whisker}"`)
-    // **The bars are drawn against a scale that fits the whole band.** The
-    // sustained 12 km/h is a fifth of the ensemble's 60 km/h top, so its bar is
-    // a fifth of the 62-unit plot. Taking the band from the gust range instead
-    // would make the same bar three fifths tall — and fill the real ribbon off
-    // the top of the frame, where SVG does not clip it.
-    const barHeights = [...svg.matchAll(/<rect[^>]*height="([0-9.]+)"/g)].map((m) => Number(m[1]))
-    expect(barHeights.length).toBeGreaterThan(0)
-    expect(Math.max(...barHeights)).toBeLessThan(20)
-
-    // **And the ribbon is the ensemble's, not the gust range wearing its
-    // colour.** Both are filled with the same token, and the chart's scale is
-    // set by the caller either way, so only the ribbon's own reach separates
-    // them: p90 at 60 km/h is the top of the plot, the gusts' 20 km/h is two
-    // thirds of the way down it.
-    const ribbon = /<path d="([^"]+)"/.exec(svg)?.[1] ?? ''
-    const ys = [...ribbon.matchAll(/[ ,]([0-9.]+)(?=[ LM]|$)/g)].map((m) => Number(m[1]))
+    // Three marks, each its own: the ribbon, the sustained line, the gust line.
+    expect(svg).toContain(`fill="${chartColors.windBand}"`)
+    expect(svg).toContain(`stroke="${chartColors.wind}"`)
+    expect(svg).toContain(`stroke="${chartColors.gust}"`)
+    // **The ribbon is the ensemble's, not the gust range wearing its colour.**
+    // The chart's scale is set by the caller either way, so only the ribbon's
+    // own reach separates them: p90 at 60 km/h is the top of the plot, and the
+    // gusts' 20 km/h is two thirds of the way down it.
+    // Located by string, never by a regex built from the colour: an `rgba()`
+    // token is full of regex metacharacters, and the pattern quietly matched
+    // nothing rather than failing.
+    const ribbon = pathWithFill(svg, chartColors.windBand)
+    // `bandPath` writes `M x,y L x,y … Z`, so every second number is a y.
+    const ys = [...ribbon.matchAll(/,(-?[0-9.]+)/g)].map((m) => Number(m[1]))
     expect(ys.length).toBeGreaterThan(0)
     expect(Math.min(...ys)).toBeLessThan(15)
-    expect(html).toContain('To gusts')
+    expect(html).toContain('Gusts')
     expect(html).toContain('Where 8 in 10 runs land')
   })
 })

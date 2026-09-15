@@ -249,7 +249,7 @@ describe('DetailView — a climbing location', () => {
         })}
       />,
     )
-    expect(html).toContain('no rain in 30+ days')
+    expect(html).toContain('over 30 days ago')
     expect(html).not.toContain('720')
   })
 
@@ -269,7 +269,7 @@ describe('DetailView — a climbing location', () => {
       />,
     )
     expect(html).toContain("Couldn&#x27;t load the forecast.")
-    expect(html).toContain('Recent rain')
+    expect(html).toContain('Last rain')
   })
 
   it('draws no drying card at all until the rain window is wired in', () => {

@@ -234,6 +234,32 @@ export function formatHoursSinceRain(hours: number | null): string {
 }
 
 /**
+ * When it last rained, as a sentence rather than as a chart caption.
+ *
+ * **The same §3 cap as `formatHoursSinceRain`, and for the same reason.** A dry
+ * month and a swallowed rainfall fetch are indistinguishable in the data, so at
+ * or above the sentinel no surface may state a figure — "over 30 days ago" is
+ * the most that can honestly be said. Kept beside its sibling so the cap cannot
+ * be reimplemented without it.
+ *
+ * The phrasing is deliberately approximate. `dryingModel` measures from the
+ * **end** of the rain day, so this is accurate to a day and not to an hour;
+ * "about" says so, and "rain today" is what a zero or negative figure means
+ * rather than a number pointing the wrong way.
+ */
+export function formatLastRain(hours: number | null): string | null {
+  if (hours === null) return null;
+
+  const rounded = Math.round(hours);
+  if (rounded >= DRY_SENTINEL_HOURS) return 'over 30 days ago';
+  if (rounded <= 0) return 'earlier today';
+  if (rounded < 48) return `about ${rounded} hours ago`;
+
+  const days = Math.round(rounded / 24);
+  return `about ${days} days ago`;
+}
+
+/**
  * The forecast sources actually used for a response, per §3's rule that nothing
  * in a sources footer may be hardcoded.
  *

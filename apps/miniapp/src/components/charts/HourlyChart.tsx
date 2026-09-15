@@ -44,6 +44,15 @@ export type HourlyChartProps = {
    * wider than the bars is not stroked off the top of the frame.
    */
   bandData?: readonly SeriesDatum[]
+  /**
+   * A second line over the first, for a series that is a different variable
+   * rather than a spread.
+   *
+   * Wind only: the sustained line is the ensemble median and this is the gust,
+   * which is neither an upper percentile of it nor a disagreement between runs.
+   * Counted in the vertical domain, like the band.
+   */
+  overlay?: { data: readonly SeriesDatum[]; color: string }
   colorForValue?: (value: number) => string
   /** Takes the canonical metric value and writes the displayed unit. */
   formatValue: (value: number | null) => string
@@ -155,6 +164,7 @@ export function HourlyChart({
   color,
   bandColor,
   bandData,
+  overlay,
   colorForValue,
   formatValue,
   title,
@@ -190,7 +200,11 @@ export function HourlyChart({
   // reaching past the gusts would otherwise be filled outside the frame, where
   // SVG happily paints it over whatever is next on the page.
   const domain =
-    fixedDomain ?? verticalDomain(bandData === undefined ? data : [...data, ...bandData], kind)
+    fixedDomain ??
+    verticalDomain(
+      [...data, ...(bandData ?? []), ...(overlay?.data ?? [])],
+      kind,
+    )
   if (times === null || measured === null || domain === null) return null
 
   // The window follows how the mark sits against its timestamp, not what kind
@@ -416,6 +430,14 @@ export function HourlyChart({
           placement={placement}
           whiskers={whiskers}
         />
+
+        {/*
+          The overlay, drawn after the main series so it reads as the line on
+          top rather than as one the first is hiding.
+        */}
+        {overlay === undefined ? null : (
+          <Series data={overlay.data} kind="line" x={x} y={y} color={overlay.color} />
+        )}
 
         {/* The hour under the pointer, marked on the plot itself. */}
         {active === undefined ? null : (

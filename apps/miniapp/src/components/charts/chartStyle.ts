@@ -1,4 +1,4 @@
-import { chanceScale, colors, tempScale, windScale } from '@weatherteam6/design/tokens'
+import { colors, tempScale } from '@weatherteam6/design/tokens'
 import { SCORE_BANDS, TEMP_BAND_C, cToF } from '@weatherteam6/types'
 import { withOpacity } from '../../theme/tokens.css.js'
 
@@ -96,27 +96,13 @@ export const chartColors = {
    */
   rainBand: withOpacity(colors.rain, 0.18),
   windBand: withOpacity(colors.txt2, 0.18),
+  /** The gust line over the sustained one. Dimmer: it is the outer case, not the forecast. */
+  gust: withOpacity(colors.txt1, 0.45),
   /** A mark whose value could not be read — a visible absence, not a colour. */
   noData: withOpacity(colors.txt1, 0.18),
   /** The rule marking the hour under the pointer. Brighter than a gridline. */
   crosshair: withOpacity(colors.txt1, 0.45),
 } as const
-
-/**
- * Rainfall intensity, in mm in the hour, on the palette's radar ramp — the one
- * group of tokens defined for precipitation echoes.
- *
- * The thresholds are the conventional rain-rate bands (light below 2.5 mm/h,
- * heavy above 7.6). They describe how a bar is *coloured* and nothing else: no
- * threshold here decides whether an hour counts as wet, which is
- * `members_wet / member_count` on the server and is not re-derived in a client.
- */
-export function rainColor(mm: number): string {
-  if (mm < 0.5) return colors.radarLight
-  if (mm < 2.5) return colors.radarModerate
-  if (mm < 7.6) return colors.radarHeavy
-  return colors.radarSevere
-}
 
 // ─────────────────────────────────────────────
 // SINGLE-DAY VIEW
@@ -166,16 +152,6 @@ export const WHISKER_W = 1.4
  * full-height bars. The axis prints the floor and the reader compares tops.
  */
 export const TEMP_FLOOR_PAD_C = 0.5
-
-/**
- * **`rainColor` is absolute and stays absolute.** A day chart briefly shaded
- * each bar by its share of that day's own peak, so the shape of a drizzle day
- * would show. Two things were wrong with it: 0.3 mm of drizzle came out
- * `radarSevere` beside a header reading `0.02 in`, and the same hour was a
- * different colour on the seven-day strip, which shades absolutely. Bar
- * *height* already carries the day's shape — the domain is the day's own peak —
- * so the colour is free to mean what the ramp says it means.
- */
 
 // ─────────────────────────────────────────────
 // TEMPERATURE RAMP
@@ -251,46 +227,6 @@ export function tempColor(c: number): string {
     }
   }
   return mix(last.color, last.color, 0)
-}
-
-/** Interpolates a two-or-more-stop hex scale at `t` in 0..1, clamped. */
-function rampAt(scale: readonly string[], t: number): string {
-  const clamped = Math.max(0, Math.min(1, t))
-  const last = scale.length - 1
-  if (last < 1) return scale[0] ?? chartColors.noData
-  const span = clamped * last
-  const i = Math.min(last - 1, Math.floor(span))
-  const a = scale[i]
-  const b = scale[i + 1]
-  if (a === undefined || b === undefined) return chartColors.noData
-  return mix(a, b, span - i)
-}
-
-/**
- * The wind component scores full marks at or below this, and zero at or above
- * the next. The ramp reads against the scorer's own endpoints so the colour and
- * the wind component cannot disagree about what "strong" is.
- */
-const WIND_CALM_KMH = 15
-const WIND_STRONG_KMH = 50
-
-/** Wind in km/h, on `packages/design`'s `windScale`. Clamped at both ends. */
-export function windColor(kmh: number): string {
-  if (!Number.isFinite(kmh)) return chartColors.noData
-  return rampAt(windScale, (kmh - WIND_CALM_KMH) / (WIND_STRONG_KMH - WIND_CALM_KMH))
-}
-
-/**
- * Chance of rain, 0-100, on `packages/design`'s `chanceScale`.
- *
- * **Deliberately not `rainColor`.** That ramp's thresholds are rates in mm/h;
- * a percentage pushed through it reaches two of its four steps and breaks hard
- * at 50%, so 51% and 100% come out the same colour. A probability is not a
- * rate and does not share its scale.
- */
-export function chanceColor(pct: number): string {
-  if (!Number.isFinite(pct)) return chartColors.noData
-  return rampAt(chanceScale, pct / 100)
 }
 
 /**

@@ -6,7 +6,7 @@ import { card, stack } from '../../theme/styles.js'
 import { formatRunAge } from '../../lib/format.js'
 import { useNow } from '../../hooks/useNow.js'
 import { HourlyChart } from './HourlyChart.js'
-import { RAIN_VIEW_H, TEMP_VIEW_H, chartColors, rainColor } from './chartStyle.js'
+import { RAIN_VIEW_H, TEMP_VIEW_H, chartColors } from './chartStyle.js'
 import { hasValues, rainSeries, temperatureSeries, uniformMemberCount } from './hourlySeries.js'
 import { rainAxis, tempAxis } from './valueAxis.js'
 
@@ -39,15 +39,15 @@ export function bandLegend(memberCount: number | null): string {
  * The rain band's legend, and it says **average**, not middle.
  *
  * `precip_mm_mean` is a mean and the band is p10-p90, so unlike temperature the
- * mark is not the centre of its own band: on a day nine runs in ten leave dry,
+ * line is not the centre of its own band: on a day nine runs in ten leave dry,
  * the band lies flat on zero while the bars do not. Calling that line "the
  * middle" would make the picture look like a bug in the chart rather than the
  * disagreement it is.
  */
 export function rainBandLegend(memberCount: number | null): string {
   return memberCount === null
-    ? 'Bars: the average across runs · Band: where 8 in 10 land'
-    : `Bars: the average across ${memberCount} runs · Band: where 8 in 10 land`
+    ? 'Line: the average across runs · Band: where 8 in 10 land'
+    : `Line: the average across ${memberCount} runs · Band: where 8 in 10 land`
 }
 
 function ChartBlock({
@@ -126,11 +126,10 @@ export function HourlySection({ series, now }: { series: HourlySeries; now?: num
         {hasRain ? (
           <HourlyChart
             data={rain}
-            kind="bar"
+            kind="line"
             viewHeight={RAIN_VIEW_H}
             color={chartColors.rain}
             bandColor={chartColors.rainBand}
-            colorForValue={rainColor}
             formatValue={formatPrecipIn}
             valueAxis={rainAxis}
             title="Hourly rainfall"

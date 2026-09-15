@@ -67,8 +67,15 @@ function toDatum(
 ): SeriesDatum | null {
   const t = Date.parse(hour.valid_at)
   if (!Number.isFinite(t)) return null
-  return { t, localDate: hour.local_date, value: value ?? null, low: low ?? null, high: high ?? null }
+  return {
+    t,
+    localDate: hour.local_date,
+    value: value ?? null,
+    low: low ?? null,
+    high: high ?? null,
+  }
 }
+
 
 /**
  * Temperature as the **ensemble median with its p10-p90 band**, in °C.
@@ -87,6 +94,15 @@ export function temperatureSeries(hours: readonly HourlySample[]): SeriesDatum[]
 
 /**
  * Hourly rainfall in mm, from the ensemble **mean**.
+ *
+ * **A point marks the hour it is stamped at, which is the hour it *ends*.**
+ * Rain stamped 15:00 fell between 14:00 and 15:00 (architecture rule); as bars
+ * these spanned that interval, and as a line they sit at its end. Plotting them
+ * half an hour earlier — the bar's old centre — is more faithful to a single
+ * point but shifts this chart's whole x-domain half a slot against the
+ * temperature chart stacked above it, which is worse on a phone than thirty
+ * minutes on a 24-hour axis. The axis is labelled and the convention is the
+ * API's own.
  *
  * `precip_mm_mean` is the only precipitation figure in the response that can be
  * added up: the mean of the members' totals is the total of the hourly means,
@@ -269,13 +285,7 @@ export function chanceSeries(hours: readonly HourlySample[]): SeriesDatum[] {
  */
 export function windSeries(hours: readonly HourlySample[]): SeriesDatum[] {
   return hours
-    .map((h) => {
-      const sustained = h.wind_kmh_p50
-      if (sustained === null) return toDatum(h, null, null, null)
-      const gust = h.wind_gust_kmh
-      const top = gust === null ? null : Math.max(gust, sustained)
-      return toDatum(h, sustained, top === null ? null : sustained, top)
-    })
+    .map((h) => toDatum(h, h.wind_kmh_p50, null, null))
     .filter((d): d is SeriesDatum => d !== null)
 }
 
@@ -355,4 +365,27 @@ export function daySpread(
   const high = extent(own.map((h) => h.temp_c_p90))
   if (low === null || high === null) return null
   return { from: low.min, to: high.max }
+}
+
+/**
+ * The gusts, as their own line over the sustained one.
+ *
+ * **A second series rather than a second field, because the charts are lines
+ * now and a line has one value per hour.** The gust used to be the upper end of
+ * a whisker over each bar; with bars gone it needs somewhere to live, and the
+ * band under it is the ensemble's disagreement — a different thing that must
+ * not be confused with how hard it may blow.
+ */
+export function gustSeries(hours: readonly HourlySample[]): SeriesDatum[] {
+  return hours
+    .map((h) => {
+      const gust = h.wind_gust_kmh
+      const sustained = h.wind_kmh_p50
+      // A gust below the sustained wind is not a gust. Clamping rather than
+      // dropping it keeps the line continuous through an hour where the
+      // deterministic model and the ensemble median disagree slightly.
+      const top = gust === null || sustained === null ? gust : Math.max(gust, sustained)
+      return toDatum(h, top, null, null)
+    })
+    .filter((d): d is SeriesDatum => d !== null)
 }

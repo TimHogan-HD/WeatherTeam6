@@ -1,8 +1,10 @@
-import { colors, spacing, radius } from '@weatherteam6/design/tokens'
+import { IconCloud, IconCloudRain, IconSun, IconSunLow } from '@tabler/icons-react'
+import { colors, spacing } from '@weatherteam6/design/tokens'
 import {
   EM_DASH,
   formatPrecipIn,
   formatTempF,
+  stateLabel,
   type ForecastSnapshot,
   type HourlySample,
   type HourlySeries,
@@ -14,6 +16,7 @@ import { linearScale, niceTicks, unionExtent, type Extent } from './charts/geome
 import { chartColors, scoreColor, tempColor } from './charts/chartStyle.js'
 import { identityAxis, rainAxis, tempAxis, type ValueAxis } from './charts/valueAxis.js'
 import { daySpread } from './charts/hourlySeries.js'
+import { dayCondition, type DayCondition } from './charts/dayCondition.js'
 import { Segmented } from './Segmented.js'
 
 /**
@@ -136,17 +139,126 @@ export function rowSpread(
   return null
 }
 
-/** The metric's value, written in the unit a reader sees. */
-function rowValue(day: ForecastSnapshot, metric: DailyMetric): string {
+/**
+ * **The band and the bar are the same height, and that is the fix.** They were
+ * 14px and 6px, which drew them as two unrelated objects — a thin bar with a
+ * separate grey slab behind it, which the reader called sloppy and was. One
+ * height makes the band read as the bar's own tail: the forecast, solid, and
+ * the room around it in the same shape.
+ */
+const BAR_TRACK_H = 10
+/** The weekday, the condition icon, and the figure either side of the bar. */
+const DOW_W = 30
+const ICON_W = 18
+const SIDE_W = 44
+
+/** Both end figures wear the same box, so seven rows line their bars up. */
+const SIDE = {
+  ...type.bodyMd,
+  minWidth: `${SIDE_W}px`,
+  whiteSpace: 'nowrap' as const,
+  overflow: 'hidden' as const,
+  textOverflow: 'ellipsis' as const,
+}
+
+/**
+ * The day's sky, as one small glyph.
+ *
+ * **A fifth icon, and the design system says four.** `miniapp-design-v1.md`
+ * §8 names a 1:1 `ICONS` map of `map-pin`, `droplet`, `temperature` and
+ * `wind`, and that rule is why the alert banner uses a coloured bar rather than
+ * `alert-triangle`. This is the owner's explicit call on 2026-09-15, and it is
+ * drawn from the same `@tabler/icons-react` the map is built on rather than
+ * from a second library.
+ *
+ * **`null` draws a blank of the same width, not a sun.** An icon is a claim
+ * about the sky; a day the forecast run does not reach has no sky to claim, and
+ * dropping the element instead would shunt every bar on that row sideways.
+ */
+function ConditionIcon({ condition }: { condition: DayCondition | null }) {
+  const box = { width: `${ICON_W}px`, height: `${ICON_W}px`, flex: '0 0 auto' as const }
+  if (condition === null) return <span style={box} aria-hidden="true" />
+
+  const size = ICON_W - 2
+  const common = { size, stroke: 1.6, 'aria-hidden': true as const }
+  return (
+    <span style={{ ...box, color: condition === 'rain' ? colors.rain : colors.txt4 }}>
+      {condition === 'rain' ? (
+        <IconCloudRain {...common} />
+      ) : condition === 'cloud' ? (
+        <IconCloud {...common} />
+      ) : condition === 'partly' ? (
+        <IconSunLow {...common} />
+      ) : (
+        <IconSun {...common} />
+      )}
+    </span>
+  )
+}
+
+/**
+ * The two figures a row carries, one at each end of its bar.
+ *
+ * **Both ends, because a bar between two numbers can be read and a bar beside
+ * one cannot.** This follows the reference app the owner pointed at: the low at
+ * the bar's start, the high at its end, so the mark spans the distance the two
+ * figures name instead of floating next to a pair of them.
+ *
+ * Each metric's pair is the two things a reader actually wants off that row:
+ *
+ * - **temperature** — the day's low, then its high.
+ * - **rain** — the chance at its likeliest hour, then how much is forecast.
+ *   Different questions, and the bar answers the second one; a row reading
+ *   "0.01 in" beside a 60% chance is a drizzle that is fairly likely, which
+ *   neither figure says alone.
+ * - **score** — the number, then the word for it, from the same `SCORE_BANDS`
+ *   the colour uses.
+ */
+export function rowFigures(
+  day: ForecastSnapshot,
+  metric: DailyMetric,
+  hours: readonly HourlySample[],
+): { start: string | null; end: string | null } {
   if (metric === 'temperature') {
-    return `${formatTempF(day.temp_c_max)} / ${formatTempF(day.temp_c_min)}`
+    return { start: formatTempF(day.temp_c_min), end: formatTempF(day.temp_c_max) }
   }
-  if (metric === 'rain') return formatPrecipIn(day.precip_mm_p50)
+  if (metric === 'rain') {
+    const chance = dayRainChance(hours, day.forecast_date)
+    return {
+      // No wet count is not a zero chance — `precip_chance_pct` is null for an
+      // hour no member reached, and "0%" there is a confidence nobody computed.
+      start: chance === null ? null : `${chance}%`,
+      end: formatPrecipIn(day.precip_mm_p50),
+    }
+  }
   // Not `formatX(null)`: the shared formatters' em dash is for a *measurement*
   // that is missing, and a score is not a measurement. Same glyph, and it has
   // to be the same glyph, but it is reached by its own branch so a future
   // "withheld" wording lands here and not in a unit formatter.
-  return day.score === null || day.score === undefined ? EM_DASH : `${day.score}`
+  const score = day.score
+  if (score === null || score === undefined) return { start: EM_DASH, end: null }
+  return { start: `${score}`, end: stateLabel(score) }
+}
+
+/**
+ * The day's chance of rain at its likeliest hour, 0-100, or `null`.
+ *
+ * **The peak, and it is labelled as a share of the runs rather than as a daily
+ * probability.** `precip_chance_pct` is `members_wet / member_count` for one
+ * hour; the chance of rain *at some point* in a day is a larger number that
+ * nothing in the response computes, because different members can be wet in
+ * different hours. Taking the maximum is the closest honest figure and it is
+ * never an overstatement.
+ */
+export function dayRainChance(
+  hours: readonly HourlySample[],
+  localDate: string,
+): number | null {
+  const chances = hours
+    .filter((h) => h.local_date === localDate)
+    .map((h) => h.precip_chance_pct)
+    .filter((v): v is number => v !== null)
+  return chances.length === 0 ? null : Math.round(Math.max(...chances))
 }
 
 /**
@@ -195,11 +307,6 @@ export function sharedDomain(
  * viewBox here — but the axis under the list has to line its labels up with the
  * same track, which is what the two gutters are for.
  */
-const BAR_TRACK_H = 14
-const BAR_H = 6
-/** The weekday column, and the value column on the right. */
-const DOW_W = 30
-const VALUE_W = 78
 
 /**
  * One row's track: gridlines, the ensemble band, and the forecast bar.
@@ -259,14 +366,15 @@ function RangeBar({
   const bar = place(span)
   const band = place(spread)
 
+  const segment = {
+    position: 'absolute' as const,
+    top: 0,
+    bottom: 0,
+    borderRadius: `${BAR_TRACK_H / 2}px`,
+  }
+
   return (
-    <div
-      style={{
-        position: 'relative',
-        flex: 1,
-        height: `${BAR_TRACK_H}px`,
-      }}
-    >
+    <div style={{ position: 'relative', flex: 1, height: `${BAR_TRACK_H}px` }}>
       {/* The scale itself, behind everything. */}
       {scale === null
         ? null
@@ -285,18 +393,15 @@ function RangeBar({
           ))}
 
       {/*
-        The spread. Full height, under the bar, so the bar is never dimmed by
-        it — the bar is the forecast and this is the doubt around it.
+        The spread, under the bar and the same shape as it, so the two read as
+        one mark rather than as a bar sitting on a slab.
       */}
       {band === null ? null : (
         <div
           style={{
-            position: 'absolute',
-            top: 0,
-            bottom: 0,
+            ...segment,
             left: `${band.left}%`,
             width: `${band.width}%`,
-            borderRadius: `${radius.stepBar}px`,
             backgroundColor: bandColor,
           }}
         />
@@ -310,12 +415,9 @@ function RangeBar({
       {bar === null ? null : (
         <div
           style={{
-            position: 'absolute',
-            top: `${(BAR_TRACK_H - BAR_H) / 2}px`,
-            height: `${BAR_H}px`,
+            ...segment,
             left: `${bar.left}%`,
             width: `${bar.width}%`,
-            borderRadius: `${radius.stepBar}px`,
             background: gradient ?? fill,
           }}
         />
@@ -418,6 +520,9 @@ export function DailyList({
 }: DailyListProps) {
   const options = showScoreMetric ? METRIC_OPTIONS : METRIC_OPTIONS.filter((o) => o.value !== 'score')
   const hours = hourly?.hours ?? []
+  // The location's own clock, for the daylight window the condition icon reads.
+  // Zero when there is no run: with no hours there is no icon to place either.
+  const utcOffsetSeconds = hourly?.utc_offset_seconds ?? 0
   const valueAxis = axisFor(metric)
 
   // **Everything below this line is in display units.** The domain, the ticks,
@@ -447,8 +552,9 @@ export function DailyList({
       {days.map((day) => {
         const tappable =
           onSelectDay !== undefined && drawableDates?.has(day.forecast_date) === true
+        const figures = rowFigures(day, metric, hours)
         const body = (
-          <div style={{ ...row(spacing.chipGapMd), width: '100%' }}>
+          <div style={{ ...row(spacing.chipGap), width: '100%' }}>
             {/*
               The weekday alone. Seven rows never repeat one, and the full date
               cost 86px of a 335px row — a third of the width — to say something
@@ -458,6 +564,14 @@ export function DailyList({
             <span style={{ ...type.calDay, minWidth: `${DOW_W}px` }}>
               {formatWeekday(day.forecast_date)}
             </span>
+
+            <ConditionIcon condition={dayCondition(hours, day.forecast_date, utcOffsetSeconds)} />
+
+            {/* The figure the bar starts at. */}
+            <span style={{ ...SIDE, textAlign: 'right', color: colors.txt4 }}>
+              {figures.start}
+            </span>
+
             <RangeBar
               span={rowSpan(day, metric)}
               spread={rowSpread(day, metric, hours)}
@@ -470,26 +584,9 @@ export function DailyList({
                 ? {}
                 : { gradient: gradientFor(day, metric) as string })}
             />
-            <span
-              style={{
-                ...stack(0),
-                minWidth: `${VALUE_W}px`,
-                alignItems: 'flex-end',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <span style={{ ...type.bodyMd, color: colors.txt2 }}>{rowValue(day, metric)}</span>
-              {/*
-                How much the score is worth, in the scorer's own word.
-                **Only on the score metric**, because that is the only thing
-                `confidence` describes — the other two carry their uncertainty
-                as a band, which is a measurement rather than a label. Absent
-                entirely for a city, whose rows have no score fields at all.
-              */}
-              {metric === 'score' && day.confidence !== undefined ? (
-                <span style={{ ...type.labelSm, color: colors.txt5 }}>{day.confidence}</span>
-              ) : null}
-            </span>
+
+            {/* The figure it ends at. */}
+            <span style={{ ...SIDE, textAlign: 'left', color: colors.txt1 }}>{figures.end}</span>
           </div>
         )
         const rowStyle = {
@@ -532,8 +629,8 @@ export function DailyList({
           style={{
             position: 'relative',
             height: '12px',
-            marginLeft: `${DOW_W + spacing.chipGapMd + spacing.cardPadSm}px`,
-            marginRight: `${VALUE_W + spacing.chipGapMd + spacing.cardPadSm}px`,
+            marginLeft: `${DOW_W + ICON_W + SIDE_W + spacing.chipGap * 3 + spacing.cardPadSm}px`,
+            marginRight: `${SIDE_W + spacing.chipGap + spacing.cardPadSm}px`,
           }}
         >
           {ticks.map((tick, i) => {

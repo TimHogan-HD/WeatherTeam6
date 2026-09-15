@@ -22,12 +22,8 @@ import {
   WIND_VIEW_H,
   IDEAL_TEMP_C,
   TEMP_FLOOR_PAD_C,
-  WHISKER_W,
-  chanceColor,
   chartColors,
-  rainColor,
   tempColor,
-  windColor,
 } from './chartStyle.js'
 import {
   type SeriesDatum,
@@ -40,6 +36,7 @@ import {
   valueExtent,
   windSeries,
   windSpreadSeries,
+  gustSeries,
 } from './hourlySeries.js'
 
 /**
@@ -203,6 +200,7 @@ export function DayCharts({ series, selectedDate, onSelectDate, score }: DayChar
   const chance = chanceSeries(hours)
   const wind = windSeries(hours)
   const windSpread = windSpreadSeries(hours)
+  const gusts = gustSeries(hours)
   const out = daysOutLabel(series.days, selectedDate)
 
   // **Matched on the date, never on position.** `series.days` and the forecast
@@ -225,10 +223,10 @@ export function DayCharts({ series, selectedDate, onSelectDate, score }: DayChar
   const rainHours = rain.filter((d) => d.value !== null)
   const rainTotal = rainHours.length === 0 ? null : rainHours.reduce((s, d) => s + (d.value ?? 0), 0)
   const chancePeak = extent(chance.map((d) => d.value))
-  const gustPeak = extent(wind.map((d) => d.high))
+  const gustPeak = extent(gusts.map((d) => d.value))
 
   const tempDomain = temperatureDomain(temperature)
-  const gustDomain = windDomain([...wind, ...windSpread])
+  const gustDomain = windDomain([...wind, ...windSpread, ...gusts])
 
   return (
     <section style={{ ...card, ...stack(spacing.sectionTop) }}>
@@ -279,22 +277,17 @@ export function DayCharts({ series, selectedDate, onSelectDate, score }: DayChar
             <>
               <HourlyChart
                 data={temperature}
-                kind="bar"
-                placement="instant"
-                whiskers
+                kind="line"
                 {...axis}
                 {...(tempDomain === null ? {} : { domain: tempDomain })}
                 viewHeight={DAY_VIEW_H}
                 color={chartColors.temperature}
-                colorForValue={tempColor}
+                bandColor={chartColors.temperatureBand}
                 formatValue={formatTempF}
                 valueAxis={tempAxis}
                 title="Temperature by hour"
               />
-              <div style={{ ...row(spacing.sectionGap), flexWrap: 'wrap' }}>
-                <LegendKey label="Cool → hot" swatch="ramp" />
-                <LegendKey label="Model spread" swatch="whisker" />
-              </div>
+              <LegendKey label="Where 8 in 10 runs land" swatch="tempBand" />
             </>
           ) : null}
         </ChartBlock>
@@ -309,25 +302,24 @@ export function DayCharts({ series, selectedDate, onSelectDate, score }: DayChar
             <>
               <HourlyChart
                 data={rain}
-                kind="bar"
-                whiskers
+                kind="line"
                 {...axis}
                 viewHeight={RAIN_VIEW_H}
                 color={chartColors.rain}
-                colorForValue={rainColor}
+                bandColor={chartColors.rainBand}
                 formatValue={formatPrecipIn}
                 valueAxis={rainAxis}
                 title="Rainfall by hour"
               />
               {/*
-                **The whisker can start on the floor while the bar does not.**
-                The bar is the members' mean and the whisker their 10th to 90th
+                **The band can lie on the floor while the line does not.** The
+                line is the members' mean and the band their 10th to 90th
                 percentile, so an hour where nine runs in ten stay dry draws a
-                bar with a whisker flat underneath it. That is the forecast, not
-                a drawing error, and it is the single most useful thing this
-                chart says.
+                line lifting off a band flat underneath it. That is the
+                forecast, not a drawing error, and it is the single most useful
+                thing this chart says.
               */}
-              <LegendKey label="Where 8 in 10 runs land" swatch="whisker" />
+              <LegendKey label="Where 8 in 10 runs land" swatch="rainBand" />
             </>
           ) : null}
         </ChartBlock>
@@ -341,11 +333,10 @@ export function DayCharts({ series, selectedDate, onSelectDate, score }: DayChar
           {hasValues(chance) ? (
             <HourlyChart
               data={chance}
-              kind="bar"
+              kind="line"
               {...axis}
               viewHeight={CHANCE_VIEW_H}
               color={chartColors.rain}
-              colorForValue={chanceColor}
               // A whole-percent count of members, not a measurement in a unit.
               formatValue={(v) => (v === null ? EM_DASH : `${Math.round(v)}%`)}
               domain={{ min: 0, max: 100 }}
@@ -365,23 +356,21 @@ export function DayCharts({ series, selectedDate, onSelectDate, score }: DayChar
             <>
               <HourlyChart
                 data={wind}
-                kind="bar"
-                placement="instant"
-                whiskers
+                kind="line"
                 {...axis}
                 {...(gustDomain === null ? {} : { domain: gustDomain })}
                 viewHeight={WIND_VIEW_H}
                 color={chartColors.wind}
                 bandColor={chartColors.windBand}
                 bandData={windSpread}
-                colorForValue={windColor}
+                overlay={{ data: gusts, color: chartColors.gust }}
                 formatValue={formatWindMph}
                 valueAxis={windAxis}
                 title="Wind by hour"
               />
               <div style={{ ...row(spacing.sectionGap), flexWrap: 'wrap' }}>
                 <LegendKey label="Sustained" swatch="wind" />
-                <LegendKey label="To gusts" swatch="whisker" />
+                <LegendKey label="Gusts" swatch="gust" />
                 <LegendKey label="Where 8 in 10 runs land" swatch="band" />
               </div>
             </>
@@ -446,23 +435,27 @@ function LegendKey({
   swatch,
 }: {
   label: string
-  swatch: 'ramp' | 'whisker' | 'wind' | 'band'
+  swatch: 'ramp' | 'wind' | 'gust' | 'band' | 'tempBand' | 'rainBand'
 }) {
+  // Each ribbon at its own fill and each line at its own stroke, so a key looks
+  // like the thing it names. An earlier version pointed at colours no mark used.
   const bar =
-    swatch === 'whisker'
-      ? { width: `${WHISKER_W}px`, height: '11px', background: chartColors.whisker }
-      : swatch === 'band'
-        ? // The ribbon at its own fill, so the key looks like the thing it names.
-          { width: '14px', height: '11px', background: chartColors.windBand }
-        : {
-          width: '14px',
-          height: '4px',
-          background:
-            swatch === 'wind'
-              ? // The wind ramp's own ends, which is what the bars are painted from.
-                `linear-gradient(90deg, ${windColor(0)}, ${windColor(50)})`
-              : `linear-gradient(90deg, ${tempColor(-10)}, ${tempColor(IDEAL_TEMP_C)}, ${tempColor(38)})`,
-        }
+    swatch === 'band'
+      ? { width: '14px', height: '11px', background: chartColors.windBand }
+      : swatch === 'tempBand'
+        ? { width: '14px', height: '11px', background: chartColors.temperatureBand }
+        : swatch === 'rainBand'
+          ? { width: '14px', height: '11px', background: chartColors.rainBand }
+          : swatch === 'gust'
+            ? { width: '14px', height: '2px', background: chartColors.gust }
+            : {
+                width: '14px',
+                height: '4px',
+                background:
+                  swatch === 'wind'
+                    ? chartColors.wind
+                    : `linear-gradient(90deg, ${tempColor(-10)}, ${tempColor(IDEAL_TEMP_C)}, ${tempColor(38)})`,
+              }
 
   return (
     <span style={{ ...row(spacing.chipGap), ...type.labelSm }}>
