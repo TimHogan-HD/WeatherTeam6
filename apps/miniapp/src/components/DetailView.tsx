@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { spacing } from '@weatherteam6/design/tokens'
-import { formatHoursSinceRain, scoreUnavailableLine } from '@weatherteam6/types'
+import { scoreUnavailableLine } from '@weatherteam6/types'
 import type {
   ConditionsScore,
   ForecastSnapshot,
   HourlySeries,
   Location,
+  RecentPrecip,
+  Wall,
   WeatherAlert,
 } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
@@ -16,6 +18,7 @@ import { ScoreSection } from './ScoreSection.js'
 import { SourcesFooter } from './SourcesFooter.js'
 import { InlineError, Skeleton } from './States.js'
 import { NowLine } from './NowLine.js'
+import { DryingCard } from './DryingCard.js'
 import { DailyList, type DailyMetric } from './DailyList.js'
 import { LocationIdentity } from './LocationIdentity.js'
 import { Segmented, type SegmentedOption } from './Segmented.js'
@@ -108,6 +111,27 @@ export type DetailViewProps = {
     }
   }
   /**
+   * The past few days' rainfall, for the drying card.
+   *
+   * Absent on the preview path, which has no saved row for the endpoint to read
+   * coordinates from — the same reason `hourly` is absent there. Its own query
+   * because it costs an upstream call and must not delay the rest of the page.
+   */
+  recentPrecip?: {
+    data: RecentPrecip | undefined
+    isPending: boolean
+    isError: boolean
+  }
+  /**
+   * The crag's named walls, for the identity block's strip.
+   *
+   * Not wrapped in query state like the others: an empty strip and a strip
+   * still loading look identical, and the strip is one line of a card that has
+   * already rendered. Absent on the preview path with everything else that
+   * needs a saved row.
+   */
+  walls?: readonly Wall[]
+  /**
    * The saved row behind this screen, for the identity block. Absent on the
    * preview path, which has a candidate rather than a row — it has no id, no
    * rock type and no rainfall station to show.
@@ -150,6 +174,8 @@ export function DetailView({
   alerts,
   conditions,
   hourly,
+  recentPrecip,
+  walls,
   location,
 }: DetailViewProps) {
   const [metric, setMetric] = useState<DailyMetric>('temperature')
@@ -182,14 +208,11 @@ export function DetailView({
       ? undefined
       : new Set(hourlyDays.filter(dayIsDrawable).map((d) => d.local_date))
 
-  // Hours since rain belongs to the hero, not the breakdown, and only to a
-  // climbing location — a city has no drying story (§3). The shared formatter
-  // caps it at "30+ days" so a swallowed rainfall fetch cannot render as a
-  // precise measurement.
-  const hoursSinceRain = showScore
-    ? (conditions?.data?.score_breakdown?.drying.hours_since_rain ?? null)
-    : null
-  const rainLine = hoursSinceRain === null ? undefined : formatHoursSinceRain(hoursSinceRain)
+  // The drying card replaces the bare hours-since-rain line the hero used to
+  // carry. It is shown **only for a climbing location** — a city has no drying
+  // story (§3) — and only on Daily, because the Hourly tab's whole point is
+  // that the charts get the screen.
+  const showDrying = showScore && !onHourly
 
   const sources = [
     forecastSourceLabel(forecast.data),
@@ -219,7 +242,7 @@ export function DetailView({
         to it. Condensed on Hourly so it stops competing with the charts.
       */}
       {location === undefined ? null : (
-        <LocationIdentity location={location} condensed={onHourly} />
+        <LocationIdentity location={location} walls={walls} condensed={onHourly} />
       )}
 
       {/*
@@ -235,17 +258,25 @@ export function DetailView({
       ) : today === null && nowHour === null ? (
         <p style={type.bodyMd}>No reading for today yet.</p>
       ) : (
-        <>
-          <NowLine
-            hour={nowHour}
-            today={today}
-            severeAlertEvent={alertEvent}
-            alertsPending={alerts?.isPending === true}
-            showScore={showScore}
-          />
-          {rainLine === undefined ? null : <span style={type.bodySm}>{rainLine}</span>}
-        </>
+        <NowLine
+          hour={nowHour}
+          today={today}
+          severeAlertEvent={alertEvent}
+          alertsPending={alerts?.isPending === true}
+          showScore={showScore}
+        />
       )}
+
+      {/*
+        Rain and drying. **Outside the forecast branch above**, because it reads
+        neither of that branch's two queries: a forecast that failed to load
+        says nothing about whether it rained on Tuesday, and hiding the record
+        because a different request failed is the whole-screen error takeover §5
+        forbids.
+      */}
+      {showDrying && recentPrecip !== undefined ? (
+        <DryingCard score={conditions?.data ?? null} recent={recentPrecip} />
+      ) : null}
 
       {/*
         The tab bar exists only when there is a second tab to reach. Without
