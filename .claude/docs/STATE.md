@@ -5,7 +5,7 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-09-15 · `main` @ `03b6d00`
+Last updated: 2026-09-15 · `main` @ `6302eab`
 
 ---
 
@@ -27,19 +27,33 @@ Current state:
 
 - **API** — Express on Vercel, one serverless function. Live.
 - **Mini App** — three routes (list, detail, `/add`), live at https://weatherteam6.vercel.app.
-  Location detail is now **Daily / Hourly tabs** (Phase 3, `03b6d00`). Daily: a location
-  identity block, the today hero, then seven tappable rows with a metric toggle
-  (temp / rain / wind / climbing score) and a range bar on **one scale shared by all seven**.
-  Hourly: the tapped day's hours — temperature as a floating p10-p90 range mark with the
-  median ruled across it, rain as bars — with the continuous seven-day strip below it. The
-  alert banner, the score and the sources footer sit outside the tabs. Inline SVG, no chart
-  library. **Nobody has seen any of it on a phone** — see § What the user owes.
+  Location detail is **Daily / Hourly tabs** (Phase 3, `03b6d00`, rebuilt against the
+  mockup in `6302eab`).
+  - **Daily**: a labelled identity grid, a one-line current-conditions row (the hour
+    covering now, the day's **labelled** high/low, a score chip), a three-metric toggle
+    (Temp / Rain / Climbing), seven weekday rows with gradient tracks on **one scale shared
+    by all seven** plus an axis note saying what that scale is, then the continuous
+    seven-day strip.
+  - **Hourly**: the identity condensed to a line, a **day pager**, then four charts —
+    temperature as a p10-p90 range mark with the median ruled across it, rain, chance of
+    rain, and wind with gusts — on an hour axis read from the crag's clock.
+  - The alert banner, the score section and the sources footer sit outside the tabs.
+    Inline SVG, no chart library. **Nobody has seen any of it on a phone** — see § What the
+    user owes.
+  - **The first build did not match the mockup** — it worked from the handoff's prose
+    summary. The artifact is the spec; § Phase 3 as built records the gap and the rebuild.
 - **The chart invariants are in the `miniapp-patterns` skill, which loads itself when you
   open `apps/miniapp/**`.** They are not repeated here: they were, and a copy in two places
   is the drift this document keeps having to repair. The one to know before reading any of
   it — because it shipped wrong and no gate saw it — is that **an accumulation and an
   instantaneous reading sit differently on the same axis**: a rain bar spans the hour
   *before* its timestamp, a temperature mark is centred on its own.
+- **A mockup artifact is the spec; its prose summary is not.** Phase 3 was built twice
+  because the first pass read § Decisions taken's *description* of the design rather than
+  opening the artifact it links. That summary is accurate and still loses the design — it
+  cannot tell you there is a day pager rather than seven chips, four charts rather than
+  two, or that the temperature ramp is continuous. **Open the artifact before building a
+  screen it covers**, and say so if it is unreachable rather than working from the prose.
 - **`GET /api/v1/hourly/:locationId`** (new, #99) — one deterministic model chosen by
   measured coverage, joined to the pooled ensemble on the UTC instant, seven local days.
   `?models=all` adds every model that answered; anything else is a 400. Verified 13/13 by
@@ -67,7 +81,7 @@ Current state:
 - **"Update" a mis-saved location is remove-then-add.** `/help` says so; no separate edit
   flow exists, deliberately. (Phase 5's build detail is in the archive under 2026-09-03.)
 
-Baseline: `npm run test` **712 passing** (512 api, 167 miniapp, 33 types), `npm run typecheck`
+Baseline: `npm run test` **729 passing** (512 api, 184 miniapp, 33 types), `npm run typecheck`
 clean, `npm run check:hooks` 58 passing. **Mutation score 66.09%**, last measured
 2026-08-26 — not re-measured since, and **three** sessions of new code have landed under
 it. `npm run test:mutation --workspace=apps/api`.
@@ -96,7 +110,7 @@ Always-loaded instruction budget: `CLAUDE.md` + `.claude/rules/*`. If you're abo
 paragraph to either, check first whether the fact is derivable from the repo, or belongs in
 a skill or the archive — a bloated always-loaded file causes its own rules to be ignored.
 
-**This file is itself over budget: ~3,100 words against the ~1,500 the `session-end` skill
+**This file is itself over budget: ~3,350 words against the ~1,500 the `session-end` skill
 asks for, and it was already ~2,760 before 2026-09-15.** Not repaired this session because
 deleting a load-bearing rule at the end of a long one is the worse failure. The clearest
 candidate is § Facts about the current chat rendering — ~450 words of **bot** rendering
@@ -286,14 +300,18 @@ your own phone, in your own theme.**
    a Phase 3 acceptance criterion and **no test in this workspace can reach it** —
    `useBackButton` registers with Telegram's SDK, and `vitest.config.ts` is a `node`
    environment with no DOM, deliberately.
-2. **Can you tell "warm" from "too hot" on the temperature ramp?** Measured with the
-   `dataviz` validator, `fair` and `poor` are only **ΔE 13.0** apart against the card ground
-   — below the floor for distinguishing two hues with full colour vision, and the handoff's
-   claimed 25.7 does not hold for that pair. The shaded ideal-range band was added to carry
-   that judgement instead of the hue. The question is whether it does.
-3. **The Phase 2 charts, still outstanding** — now the seven-day strip below the single day.
-   Whether the band reads as confidence or as a smudge, and whether 168 rain bars are too
-   thin to see.
+2. **Does the temperature ramp read?** It is a continuous blue → neutral → amber → red
+   scale centred on 16 °C, on both the hourly marks and the daily rows' gradient tracks.
+   This is the **second** attempt: the stepped version it replaced had its two warm steps
+   only **ΔE 13.0** apart — below the floor for telling two hues apart with full colour
+   vision — so the question is whether the continuous one actually separates "warm" from
+   "too hot" on a phone.
+3. **The Phase 2 charts, still outstanding** — now the seven-day strip at the foot of the
+   **Daily** tab. Whether the band reads as confidence or as a smudge, and whether 168 rain
+   bars are too thin to see.
+4. **Does the day pager beat the seven chips it replaced?** `‹ Wed, Sep 16 ›` with "3 days
+   out" beside it. Two arrows instead of seven tap targets, and it skips days the ensemble
+   never reached rather than showing them greyed.
 
 Phase 5 rewrites the design docs around all of this, so a change of shape is still cheap.
 

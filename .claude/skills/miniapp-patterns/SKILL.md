@@ -80,15 +80,25 @@ Added by Phase 3 (2026-09-14), same test — wrong-but-plausible if broken:
   is the classic bar lie. Rain is a real magnitude and keeps its zero baseline.
 - **`colorForValue` is fed the median, never a band edge.** Colouring by p90 paints an hour
   as too hot on the strength of one member's worst run.
-- **The temperature ramp's stops are `TEMP_BAND_C` in `packages/types`, which
-  `conditionsScore.ts` also reads.** Copy them into a component and the chart will
-  eventually paint an hour neutral on a day the score docked for being too warm, with
-  nothing able to detect the disagreement. `SCORE_BANDS` is the same arrangement for the
-  daily score bar against `stateLabel`'s rungs.
-- **The hot end of that ramp is not colour-alone.** `fair` and `poor` are ΔE 13.0 apart to
-  normal vision against the card — below the 15 floor. The shaded ideal-range band is what
-  carries "too warm", so the vertical domain must keep covering it even when no hour is
-  inside it.
+- **The temperature ramp is centred on `IDEAL_TEMP_C`, derived from `TEMP_BAND_C` in
+  `packages/types`, which `conditionsScore.ts` also reads.** Copy the band into a component
+  and the chart will eventually paint an hour neutral on a day the score docked for being
+  too warm, with nothing able to detect the disagreement. `SCORE_BANDS` is the same
+  arrangement for the daily score bar against `stateLabel`'s rungs.
+- **Every data ramp is a named scale in `packages/design`** — `tempScale`, `windScale`,
+  `chanceScale`, beside the older `uvScale`. A ramp is one encoding; splitting it into
+  loose colours lets a consumer use half of it, and writing its stops as hex in a component
+  breaks the tokens rule however sensible the values look.
+- **A ramp built for one quantity does not colour another.** Chance of rain was briefly
+  drawn with `rainColor(pct / 100)`; that ramp's thresholds are *rates* in mm/h, so two of
+  its four steps were unreachable and every value above 50% came out identical. A
+  probability is not a rate.
+- **The temperature ramp is continuous, and that is what makes `fair` and `poor` safe
+  inside it.** As four discrete steps they measured **ΔE 13.0** apart to normal vision —
+  below the floor for telling two hues apart — and the cold side had one band where the
+  warm side had two, so -15 °C and +5 °C came out identical. Interpolating fixes both:
+  neighbouring values in a continuous scale are *meant* to be similar, and only the ends
+  must separate. Do not re-step it.
 - **The daily rows' bar scale is shared by all seven.** Normalising each row to its own
   min/max draws the identical bar on every row whatever the values are — a chart that
   cannot be wrong. Score is a **fixed** 0-100, because its scale is defined rather than
@@ -96,6 +106,21 @@ Added by Phase 3 (2026-09-14), same test — wrong-but-plausible if broken:
 - **An hourly axis reads the location's clock, from `utc_offset_seconds`.** The four labels
   are the same strings either way, so only their *positions* move — a chart on the viewer's
   clock prints a correct-looking axis against the wrong hours. Issue #33's shape exactly.
+- **A legend swatch is drawn the way its mark is drawn.** The keys briefly pointed at
+  `chartColors.rangeEdge` and `chartColors.wind`, and no mark on either chart uses either —
+  `RangeMarks` fills everything with `colorForValue(median)`. A key naming a colour that is
+  not in the chart is worse than no key: it sends the reader looking for something absent.
+- **Only the current hour may be called "now".** Every daily field is an extreme —
+  `temp_c_max` is a *maximum*, and labelling it a present reading is the factual error §3
+  names. `currentHour` reads the hour covering this moment from the hourly run and returns
+  `null` past `CURRENT_HOUR_TOLERANCE_MS` rather than the nearest one. **And a day's high
+  and low are labelled wherever they appear beside it**: unlabelled, the pair reads as the
+  headline the moment the current reading is absent, which is a pending query away.
+- **A score is never shown before the alerts query settles.** `severeAlertEvent` answers
+  `null` for a query in flight exactly as it does for "no severe alert", and the banner
+  renders nothing in that window — so a location under a Severe+ warning shows an
+  unsuppressed score with nothing above it. Both the score section and the now-line's chip
+  gate on `isPending`; anything new that renders a score must too.
 - **A day is tappable on `has_ensemble`, not on a forecast row existing.** `/forecast/:id`
   returns seven days whatever the hourly models reached; these charts draw the ensemble, so
   a day it never reached opens two empty charts. A selected day is also dropped once the
