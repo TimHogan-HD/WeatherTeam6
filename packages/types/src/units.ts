@@ -43,3 +43,18 @@ export const formatPrecipIn = (mm: number | null): string => {
   const inches = mmToIn(mm);
   return inches < 0.01 ? 'trace' : `${inches.toFixed(2)} in`;
 };
+
+export const mToFt = (m: number): number => m * 3.280839895;
+
+/**
+ * Elevation, in feet — `packages/design`'s unit table says feet, like the other
+ * four.
+ *
+ * Here rather than in the Mini App component that needed it first, for the same
+ * reason the other formatters are here: the bot's `/weather` panel shows the
+ * same column, and a second copy is how two surfaces start disagreeing about
+ * the same crag. Thousands are separated, because a bare `10500` at label size
+ * is read wrong.
+ */
+export const formatElevationFt = (m: number | null): string =>
+  m === null ? EM_DASH : `${Math.round(mToFt(m)).toLocaleString('en-US')} ft`;

@@ -18,15 +18,33 @@ import { EM_DASH } from './units.js';
 export type Confidence = 'low' | 'medium' | 'high';
 
 /**
+ * The score at which each state label takes over.
+ *
+ * Named rather than left as literals in `stateLabel` because a surface that
+ * *colours* a score has to use the same rungs the words use. The Mini App's
+ * daily list does exactly that, and a second set of thresholds living in a
+ * component is how a bar goes amber on a day the text calls "Mostly dry" with
+ * nothing able to detect the disagreement.
+ */
+export const SCORE_BANDS = {
+  /** 'Dry, settled' at or above. */
+  settled: 80,
+  /** 'Mostly dry' at or above. */
+  mostlyDry: 60,
+  /** 'Mixed' at or above; below it, 'Wet or unsettled'. */
+  mixed: 40,
+} as const;
+
+/**
  * The permitted state labels. They describe **rock and weather**, never
  * suitability — "Mixed" is a condition, "marginal, check the details" was
  * advice. Do not add a rung that reads as a recommendation.
  */
 export function stateLabel(score: number | null): string {
   if (score === null) return 'Too far out to score';
-  if (score >= 80) return 'Dry, settled';
-  if (score >= 60) return 'Mostly dry';
-  if (score >= 40) return 'Mixed';
+  if (score >= SCORE_BANDS.settled) return 'Dry, settled';
+  if (score >= SCORE_BANDS.mostlyDry) return 'Mostly dry';
+  if (score >= SCORE_BANDS.mixed) return 'Mixed';
   return 'Wet or unsettled';
 }
 

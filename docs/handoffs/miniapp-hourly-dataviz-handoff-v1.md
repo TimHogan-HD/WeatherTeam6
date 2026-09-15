@@ -378,7 +378,56 @@ gap and not a line to zero.
 
 ---
 
-### Phase 3: Daily / Hourly tabs (not authorised yet)
+### Phase 3: Daily / Hourly tabs — **SHIPPED 2026-09-14**
+
+**Shipped as specified, plus the parts of § Decisions taken that bear on these two tabs.**
+
+- `Segmented.tsx` (the tab bar and the metric toggle, one control with two ARIA
+  personalities), `DailyList.tsx` (tappable rows, metric toggle, shared-scale range bars),
+  `LocationIdentity.tsx` (full and condensed), `charts/DayCharts.tsx` (one day's hours),
+  plus a `range` mark, an `hour` axis and a reference band on the Phase 2 primitives.
+  45 new tests.
+- **The diverging temperature ramp landed**, centred on `TEMP_BAND_C` — extracted from
+  `conditionsScore.ts` into `packages/types` so the ramp's neutral zone and the scorer's
+  full-points plateau are one definition. The scorer's arithmetic is unchanged; verified
+  identical at every 0.001 °C from -50 to +60.
+- **Deviated, deliberately: temperature is a floating range mark, not a bar from a
+  baseline.** § Decisions taken says "Hourly is bars, one per hour, coloured by value; the
+  ensemble spread is a whisker on each bar". Temperature has no meaningful zero — 0 °C is a
+  different place on the scale from 0 °F — so a column measured from one encodes the unit
+  as much as the weather, and a below-zero hour draws nothing at all. Truncating the axis
+  instead is the classic bar-chart lie. The mark is a p10-p90 bar with the median ruled
+  across it: one mark per hour, coloured by value, spread visible, and no origin to get
+  wrong. Rain keeps real zero-baselined bars.
+- **Deviated, deliberately: a fourth metric, wind.** The direction named temperature, rain
+  and climbing score. The row being replaced showed a wind figure on every day, and a
+  toggle without it would have deleted the only place six of the seven days' wind was
+  readable.
+- **Measured, and it changes the design:** `fair` and `poor` are only **ΔE 13.0** apart to
+  normal vision against the card ground (`dataviz`'s own validator, `--mode dark --surface
+  #1a202c`) — below the 15 floor for telling two hues apart. § Decisions taken's claim of
+  "ΔE 25.7 normal, 21.4 protan" does not hold for that adjacent pair. So the hot end is
+  **not** colour-alone: a shaded reference band marks the ideal range, and a mark's
+  position against it carries "too warm". Worth a look on a device.
+- **Known asymmetry, documented in `chartStyle.ts`:** the ramp has two warm steps and one
+  cool one, so -15 °C and +5 °C are the same blue though the scorer gives them 0 and 6. A
+  fifth stop would need `radarModerate`, which is the rain ramp's own step.
+- **Not done, deliberately:** the wall / area picker from § Decisions taken. Selecting a
+  wall re-scores the forecast, which is Phase 4, and nothing populates `walls` — the table
+  is empty in practice, so the control would have nothing to pick.
+- **Not done, deliberately:** demoting the today hero to one line. § Decisions taken says
+  identity leads and the current temperature is "one line, not a 36px hero"; § Phase 3
+  says the hero keeps its current order. Identity now leads; the hero's type scale was left
+  alone, because changing it is a design change this phase's build did not ask for.
+
+**Verified** by rendering the real components against the deployed `/forecast/:id` and
+`/hourly/:locationId` for Finland, MN: 7 days, 168 hours, `utc_offset_seconds: -18000`, day
+and hour axes, both tabs — no `NaN`, no `Invalid Date`, no `undefined` in the markup, and
+the hour ticks at 12 AM / 6 AM / 12 PM / 6 PM on the crag's clock rather than UTC.
+**Not verified on a device**, including `BackButton` — see the acceptance criterion below,
+which a `node` test environment with no DOM cannot reach.
+
+The original specification follows.
 
 **Build:** location detail becomes two tabs.
 

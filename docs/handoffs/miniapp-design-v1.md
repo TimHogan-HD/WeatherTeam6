@@ -116,7 +116,18 @@ Empty state, error state, and loading per §5. No sort or filter controls in v1.
 
 ### Location detail (`/location/:id`)
 
-One scroll, no internal tabs — carried from the mockup's Crag Detail treatment.
+~~One scroll, no internal tabs~~ — **superseded 2026-09-14 and shipped.** The screen now
+carries **Daily and Hourly tabs**, and the daily rows carry per-day scores, both reversed
+on the owner's 2026-09-04 decision. The authority is
+`docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` (§ Decisions taken, § Phase 3); this
+section is rewritten wholesale in its Phase 5, not here.
+
+What the list below still governs, unchanged: **the order, and what sits outside the
+tabs.** The alert banner is above everything always, the today hero follows it, and the
+score and sources footer stay below the tabs where switching cannot hide them. A location
+identity block (rock, aspect, wall angle, elevation, coordinates, rainfall station) is new
+and sits between the banner and the hero. Item 3 below now reads "the Daily tab", and its
+"no per-day score chip" constraint is the part Decision 2 reversed.
 
 1. **Alert banner** — full-width, top, if any active alert. Event, severity, and the NWS headline. Above everything, always.
 2. **Today** — the hero. Today's high, max wind, humidity, and hours since rain, as labeled values. **Hours since rain is capped in display — see the rule below.**
