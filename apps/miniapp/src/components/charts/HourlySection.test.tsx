@@ -27,6 +27,8 @@ function hour(index: number, over: Partial<HourlySample> = {}): HourlySample {
     wind_kmh_p50: null,
     wind_kmh_p90: null,
     precip_mm_mean: null,
+    precip_mm_p10: null,
+    precip_mm_p90: null,
     precip_chance_pct: null,
     member_count: null,
     ...over,
@@ -77,10 +79,36 @@ describe('HourlySection', () => {
   })
 
   it('does not legend a band it did not draw', () => {
+    // Each block legends its own band. The rain block below still draws one, so
+    // this asserts on the temperature legend's own wording rather than on the
+    // shared phrase — an assertion that fails on a right answer is worse than
+    // no assertion.
     const dry = warm.map((h) => ({ ...h, temp_c_p50: null, precip_mm_mean: 1 }))
     const markup = render(series(dry))
     expect(markup).toContain('No hourly temperature from the forecast runs yet.')
-    expect(markup).not.toContain('where 8 in 10 land')
+    expect(markup).not.toContain('Line: the middle')
+  })
+
+  it('calls the rain mark an average, not a middle', () => {
+    // `precip_mm_mean` is a mean and the band is p10-p90, so the bars are not
+    // the centre of their own band: on a day nine runs in ten leave dry, the
+    // band lies flat on zero under bars that do not. "The middle" would make
+    // that read as a broken chart rather than as the disagreement it is.
+    const markup = render(series(warm.map((h, i) => ({ ...h, precip_mm_mean: i === 3 ? 2.2 : 0 }))))
+    expect(markup).toContain('Bars: the average')
+    // Both blocks legend their own band, and the two sentences are not the same.
+    expect(markup).toContain('Line: the middle')
+  })
+
+  it('shades the rain spread, not only the average', () => {
+    // p10 0, p90 4 mm on one hour: a band with a top and a floor. Without the
+    // percentiles the chart said "0.4 mm" and nothing about how wrong that
+    // could be.
+    const spread = warm.map((h, i) =>
+      i === 3 ? { ...h, precip_mm_mean: 0.4, precip_mm_p10: 0, precip_mm_p90: 4 } : h,
+    )
+    const markup = render(series(spread))
+    expect(markup).toContain('<path')
   })
 
   it('draws the rain chart once there is rain data, including a measured zero', () => {

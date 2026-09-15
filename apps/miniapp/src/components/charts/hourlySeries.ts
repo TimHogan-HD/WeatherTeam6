@@ -44,20 +44,30 @@ export const HOUR_MS = 3_600_000
 export const MAX_JOIN_MS = 90 * 60_000
 
 /**
- * Drops any hour whose instant cannot be read.
+ * One hour's mark: the instant, and every gap normalised to `null`.
  *
- * `Date.parse` answers `NaN` for a malformed timestamp, and a NaN x coordinate
- * takes the whole path with it rather than just its own point.
+ * Drops any hour whose instant cannot be read. `Date.parse` answers `NaN` for a
+ * malformed timestamp, and a NaN x coordinate takes the whole path with it
+ * rather than just its own point.
+ *
+ * **`?? null` is not belt-and-braces here, and it was found in production.**
+ * The types say `number | null`, but a response served by an API deployment
+ * older than the client simply omits a column that has just been added — and
+ * `undefined` is not `null`, so every `=== null` guard downstream waves it
+ * through. The rain whiskers went straight to `y(undefined)` and stroked
+ * `y1="NaN"`: no error, no warning in the browser, just a chart missing marks
+ * it believed it had drawn. The two deploys are never simultaneous, so this
+ * window happens on every release that adds a field.
  */
 function toDatum(
   hour: HourlySample,
-  value: number | null,
-  low: number | null,
-  high: number | null,
+  value: number | null | undefined,
+  low: number | null | undefined,
+  high: number | null | undefined,
 ): SeriesDatum | null {
   const t = Date.parse(hour.valid_at)
   if (!Number.isFinite(t)) return null
-  return { t, localDate: hour.local_date, value, low, high }
+  return { t, localDate: hour.local_date, value: value ?? null, low: low ?? null, high: high ?? null }
 }
 
 /**
@@ -83,10 +93,17 @@ export function temperatureSeries(hours: readonly HourlySample[]): SeriesDatum[]
  * whereas a sum of hourly p50s is the median of nothing and reads three to
  * twelve times high (architecture rule). The bars are per-hour, but the moment a
  * reader adds two of them by eye the same rule applies.
+ *
+ * **The band is `precip_mm_p10`-`precip_mm_p90` for that one hour**, and the
+ * mean can sit outside it. When nine members in ten are dry and one forecasts a
+ * downpour, both percentiles are 0 while the mean is not — a band flat on the
+ * floor under a line that lifts off it, which is exactly the disagreement a
+ * reader needs to see. Neither percentile may be summed or printed as a total;
+ * see `HourlySample`.
  */
 export function rainSeries(hours: readonly HourlySample[]): SeriesDatum[] {
   return hours
-    .map((h) => toDatum(h, h.precip_mm_mean, null, null))
+    .map((h) => toDatum(h, h.precip_mm_mean, h.precip_mm_p10, h.precip_mm_p90))
     .filter((d): d is SeriesDatum => d !== null)
 }
 
@@ -262,6 +279,24 @@ export function windSeries(hours: readonly HourlySample[]): SeriesDatum[] {
     .filter((d): d is SeriesDatum => d !== null)
 }
 
+/**
+ * The ensemble's own spread in sustained wind — p10 to p90 for each hour.
+ *
+ * **A separate series from `windSeries`, because the two mean different
+ * things.** That one's low/high are sustained-to-gust: a gust is a different
+ * variable, not a disagreement between forecasts. This one is the
+ * disagreement, and the chart draws both — a band for how much the runs differ,
+ * a whisker for how hard it may blow inside any one of them.
+ *
+ * `value` carries p50 so the band and the marks line up on the same hours; the
+ * chart reads only `low` and `high` from it.
+ */
+export function windSpreadSeries(hours: readonly HourlySample[]): SeriesDatum[] {
+  return hours
+    .map((h) => toDatum(h, h.wind_kmh_p50, h.wind_kmh_p10, h.wind_kmh_p90))
+    .filter((d): d is SeriesDatum => d !== null)
+}
+
 /** How far from `now` an hour may be and still be called the current conditions. */
 export const CURRENT_HOUR_TOLERANCE_MS = 90 * 60_000
 
@@ -295,4 +330,29 @@ export function currentHour(
     }
   }
   return bestDistance <= CURRENT_HOUR_TOLERANCE_MS ? best : null
+}
+
+/**
+ * One local day's ensemble spread in temperature, from the hourly run.
+ *
+ * **The daily rows have no spread of their own to draw.** `ForecastSnapshot`
+ * carries `temp_c_min`/`temp_c_max`, which are already the *median* of each
+ * member's own daily extreme (architecture rule — never a global `Math.max`),
+ * so there is no p10 or p90 on that row to widen them with. The hourly
+ * response, which the Daily tab already fetches for its drill-down, has one per
+ * hour; the coldest p10 and the warmest p90 of a day are that day's spread.
+ *
+ * `null` when the run does not reach the day, which is the common case for the
+ * far end of the week — and it must stay distinguishable from a day the models
+ * agree exactly on, where the band is real and narrow.
+ */
+export function daySpread(
+  hours: readonly HourlySample[],
+  localDate: string,
+): { from: number; to: number } | null {
+  const own = hours.filter((h) => h.local_date === localDate)
+  const low = extent(own.map((h) => h.temp_c_p10))
+  const high = extent(own.map((h) => h.temp_c_p90))
+  if (low === null || high === null) return null
+  return { from: low.min, to: high.max }
 }

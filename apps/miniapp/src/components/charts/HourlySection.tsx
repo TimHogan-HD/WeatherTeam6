@@ -35,6 +35,21 @@ export function bandLegend(memberCount: number | null): string {
     : `Line: the middle of ${memberCount} forecast runs · Band: where 8 in 10 land`
 }
 
+/**
+ * The rain band's legend, and it says **average**, not middle.
+ *
+ * `precip_mm_mean` is a mean and the band is p10-p90, so unlike temperature the
+ * mark is not the centre of its own band: on a day nine runs in ten leave dry,
+ * the band lies flat on zero while the bars do not. Calling that line "the
+ * middle" would make the picture look like a bug in the chart rather than the
+ * disagreement it is.
+ */
+export function rainBandLegend(memberCount: number | null): string {
+  return memberCount === null
+    ? 'Bars: the average across runs · Band: where 8 in 10 land'
+    : `Bars: the average across ${memberCount} runs · Band: where 8 in 10 land`
+}
+
 function ChartBlock({
   label,
   legend,
@@ -104,13 +119,17 @@ export function HourlySection({ series, now }: { series: HourlySeries; now?: num
         )}
       </ChartBlock>
 
-      <ChartBlock label="Rain">
+      <ChartBlock
+        label="Rain"
+        {...(hasRain ? { legend: rainBandLegend(uniformMemberCount(series.hours)) } : {})}
+      >
         {hasRain ? (
           <HourlyChart
             data={rain}
             kind="bar"
             viewHeight={RAIN_VIEW_H}
             color={chartColors.rain}
+            bandColor={chartColors.rainBand}
             colorForValue={rainColor}
             formatValue={formatPrecipIn}
             valueAxis={rainAxis}

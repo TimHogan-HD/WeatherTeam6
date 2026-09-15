@@ -357,6 +357,12 @@ Hourly rainfall over the past five days for a saved location, shape `RecentPreci
 - **`valid_at_local` is local wall-clock, not a UTC instant** (`YYYY-MM-DDTHH:mm`). Re-reading it in the viewer's timezone is issue #33 again.
 - Its own endpoint, not a field on `/conditions/:id`: it costs an upstream call and must not delay the rest of the screen.
 
+**Updated 2026-09-15 — `HourlySample` gains `precip_mm_p10` and `precip_mm_p90`:**
+
+The spread behind `precip_mm_mean`, per hour, from columns `weather_ensemble_hours` has always stored. They exist so a chart can shade the disagreement; **neither may be summed or printed as a total**, and the mean can legitimately sit outside them. See the architecture rule.
+
+Any surface reading a newly added column must treat an absent one as a gap: the API and the client deploy separately, so `undefined` arrives for a while and is not `null`.
+
 **Forecast window state machine** (from `.claude/rules/architecture.md`):
 
 ```

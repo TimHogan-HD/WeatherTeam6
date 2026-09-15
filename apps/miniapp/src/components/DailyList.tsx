@@ -1,16 +1,19 @@
 import { colors, spacing, radius } from '@weatherteam6/design/tokens'
 import {
   EM_DASH,
-  SCORE_BANDS,
   formatPrecipIn,
   formatTempF,
   type ForecastSnapshot,
+  type HourlySample,
+  type HourlySeries,
 } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { bareButton, card, row, stack } from '../theme/styles.js'
 import { formatWeekday } from '../lib/forecast.js'
-import { extent, linearScale, type Extent } from './charts/geometry.js'
-import { tempColor } from './charts/chartStyle.js'
+import { linearScale, niceTicks, unionExtent, type Extent } from './charts/geometry.js'
+import { chartColors, scoreColor, tempColor } from './charts/chartStyle.js'
+import { identityAxis, rainAxis, tempAxis, type ValueAxis } from './charts/valueAxis.js'
+import { daySpread } from './charts/hourlySeries.js'
 import { Segmented } from './Segmented.js'
 
 /**
@@ -44,31 +47,34 @@ const METRIC_OPTIONS: readonly { value: DailyMetric; label: string }[] = [
 ]
 
 /**
- * What the shared scale runs between, written under the rows.
+ * How each metric is labelled on the axis under the rows.
  *
- * **The scale being shared is the whole point of the list, and it is invisible
- * without this.** Seven bars at different widths look like seven bars until
- * something says they are measured against one ruler; then they are a week.
+ * Ticks are chosen and positioned in **display** units, never in canonical
+ * ones: 10 °C is a round number and 50°F is the one the reader sees. Doing half
+ * of this in each space is a bug this module has already shipped twice — the
+ * rule and its label drawn at different heights, invisible because SVG does not
+ * clip.
  */
-function axisNote(
-  days: readonly ForecastSnapshot[],
-  domain: Extent | null,
-  metric: DailyMetric,
-): [string, string, string] | null {
-  if (domain === null) return null
-  if (metric === 'temperature') {
-    return [formatTempF(domain.min), 'shared scale', formatTempF(domain.max)]
-  }
-  if (metric === 'rain') {
-    // **`sharedDomain` substitutes a placeholder `max: 1` mm for a dry week**,
-    // so the scale has a width to draw against. Printing that back as a bound
-    // states "0.04 in" as the week's wettest day when nothing measured it. The
-    // measured maximum is the only figure this line may quote.
-    const wettest = extent(days.map((d) => d.precip_mm_p50))
-    if (wettest === null || wettest.max <= 0) return ['0 in', 'no rain forecast', '']
-    return ['0 in', 'rain, shared scale', formatPrecipIn(wettest.max)]
-  }
-  return ['0', 'climbing score', '100']
+function axisFor(metric: DailyMetric): ValueAxis {
+  if (metric === 'temperature') return tempAxis
+  if (metric === 'rain') return rainAxis
+  // A score is already the number a reader sees, and carries no unit.
+  return identityAxis('')
+}
+
+/**
+ * How many gridlines the row track gets.
+ *
+ * Three. `niceTicks` rounds the step outward, so asking for four returns six on
+ * a 0-100 score — six labels across a ~200px track, which collide. Asking for
+ * three returns three or four, and fewer still when no round step fits, which is
+ * the common case for a week whose highs span six degrees.
+ */
+const AXIS_TICKS = 3
+
+/** A tick's position across the track, as a percentage. Display units in, percent out. */
+function tickScale(domain: Extent, tick: number): number {
+  return linearScale(domain, 0, 100)(tick)
 }
 
 /**
@@ -99,6 +105,37 @@ export function rowSpan(day: ForecastSnapshot, metric: DailyMetric): { from: num
   return { from: 0, to: day.score }
 }
 
+/**
+ * The ensemble's spread for one row — the band behind the bar.
+ *
+ * **This is the answer to "what else could happen", and it is the only part of
+ * a daily row that changes as the week goes on.** Two days at the same forecast
+ * high are not the same forecast if one of them is three days out.
+ *
+ * Where each metric's spread comes from, and why they differ:
+ *
+ * - **temperature** — from the hourly run, because `temp_c_min`/`temp_c_max`
+ *   on the row are already medians of the members' own extremes and have no
+ *   percentiles beside them. `null` when the run does not reach the day.
+ * - **rain** — `precip_mm_p10`-`precip_mm_p90`, which the row does carry.
+ * - **score** — nothing. A conditions score has no ensemble; its uncertainty is
+ *   `confidence`, which the row prints as a word instead.
+ */
+export function rowSpread(
+  day: ForecastSnapshot,
+  metric: DailyMetric,
+  hours: readonly HourlySample[],
+): { from: number; to: number } | null {
+  if (metric === 'temperature') return daySpread(hours, day.forecast_date)
+  if (metric === 'rain') {
+    // Both ends or neither: a band from a known p10 to an unknown p90 would
+    // draw a narrow, confident-looking forecast out of half a measurement.
+    if (day.precip_mm_p10 === null || day.precip_mm_p90 === null) return null
+    return { from: day.precip_mm_p10, to: day.precip_mm_p90 }
+  }
+  return null
+}
+
 /** The metric's value, written in the unit a reader sees. */
 function rowValue(day: ForecastSnapshot, metric: DailyMetric): string {
   if (metric === 'temperature') {
@@ -120,10 +157,28 @@ function rowValue(day: ForecastSnapshot, metric: DailyMetric): string {
  * day. Temperature and rain are measured across the whole week so the rows are
  * comparable; rain is anchored at zero for the same reason its hourly bars are.
  */
-export function sharedDomain(days: readonly ForecastSnapshot[], metric: DailyMetric): Extent | null {
+export function sharedDomain(
+  days: readonly ForecastSnapshot[],
+  metric: DailyMetric,
+  hours: readonly HourlySample[] = [],
+): Extent | null {
   if (metric === 'score') return { min: 0, max: 100 }
-  const spans = days.map((d) => rowSpan(d, metric)).filter((s): s is { from: number; to: number } => s !== null)
-  const measured = extent([...spans.map((s) => s.from), ...spans.map((s) => s.to)])
+  const pick = (
+    fn: (d: ForecastSnapshot) => { from: number; to: number } | null,
+  ): (Extent | null)[] =>
+    days.map((d) => {
+      const span = fn(d)
+      return span === null ? null : { min: Math.min(span.from, span.to), max: Math.max(span.from, span.to) }
+    })
+
+  // **The band is inside the domain, not clipped by it.** A p90 beyond the
+  // week's warmest median would otherwise run off the end of every track it
+  // touches — and because these are plain divs with no overflow, it would run
+  // off silently, drawing a narrow band where the widest one belongs.
+  const measured = unionExtent([
+    ...pick((d) => rowSpan(d, metric)),
+    ...pick((d) => rowSpread(d, metric, hours)),
+  ])
   if (measured === null) return null
   if (metric === 'rain') {
     return { min: 0, max: measured.max > 0 ? measured.max : 1 }
@@ -135,54 +190,131 @@ export function sharedDomain(days: readonly ForecastSnapshot[], metric: DailyMet
     : measured
 }
 
-/** Bars are drawn in percentages of the row's own width, so there is no viewBox here. */
-const BAR_TRACK_H = 6
+/**
+ * Row geometry. Bars are percentages of the row's own width, so there is no
+ * viewBox here — but the axis under the list has to line its labels up with the
+ * same track, which is what the two gutters are for.
+ */
+const BAR_TRACK_H = 14
+const BAR_H = 6
+/** The weekday column, and the value column on the right. */
+const DOW_W = 30
+const VALUE_W = 78
 
+/**
+ * One row's track: gridlines, the ensemble band, and the forecast bar.
+ *
+ * **The bar alone was the thing the reader called decorative, and they were
+ * right.** A filled track scaled to the week's own high and low says only
+ * "warmer than Tuesday, cooler than Saturday" — which the numbers to its right
+ * already say, in degrees. What it could not say was how much any of it is
+ * worth. The band says that: it is where 8 in 10 forecast runs land, it widens
+ * with every day further out, and two days with the same forecast high stop
+ * looking like the same forecast.
+ *
+ * The gridlines are the other half. A bar that starts and ends nowhere in
+ * particular cannot be read off; one crossing a labelled 90° line can.
+ */
 function RangeBar({
   span,
+  spread,
   domain,
+  ticks,
+  toDisplay,
   fill,
+  bandColor,
   gradient,
 }: {
   span: { from: number; to: number } | null
+  /** The ensemble's range. `null` for a metric or a day that has none. */
+  spread: { from: number; to: number } | null
   /**
    * `null` when **no** day in the week has this metric, in which case there is
    * no scale to draw against and every row is an empty track. The track still
    * renders: dropping it collapses the row layout, which reads as a glitch
-   * rather than as a week with no wind reading in it.
+   * rather than as a week with no reading in it.
+   *
+   * In **display** units, like everything else positioned here.
    */
   domain: Extent | null
+  ticks: readonly number[]
+  toDisplay: (canonical: number) => number
   fill: string
+  bandColor: string
   /** Overrides the flat fill — temperature runs from the day's low to its high. */
   gradient?: string
 }) {
-  // A day with no value keeps its track and draws no bar. The empty track is
-  // the "absences are drawn, not omitted" rule: a row that simply lost its bar
-  // is indistinguishable from a row whose value happened to be zero.
   const scale = domain === null ? null : linearScale(domain, 0, 100)
-  const left = span === null || scale === null ? 0 : Math.min(scale(span.from), scale(span.to))
-  const right = span === null || scale === null ? 0 : Math.max(scale(span.from), scale(span.to))
+  const place = (range: { from: number; to: number } | null): { left: number; width: number } | null => {
+    if (range === null || scale === null) return null
+    const a = scale(toDisplay(range.from))
+    const b = scale(toDisplay(range.to))
+    const left = Math.min(a, b)
+    // A single-point range — a flat day, or a zero-rain day — would be a
+    // zero-width div, which paints nothing: the same vanishing mark as a
+    // zero-height bar. One percent keeps it on screen.
+    return { left, width: Math.max(1, Math.max(a, b) - left) }
+  }
+
+  const bar = place(span)
+  const band = place(spread)
+
   return (
     <div
       style={{
         position: 'relative',
         flex: 1,
         height: `${BAR_TRACK_H}px`,
-        borderRadius: `${radius.stepBar}px`,
-        backgroundColor: colors.line,
       }}
     >
-      {span === null || scale === null ? null : (
+      {/* The scale itself, behind everything. */}
+      {scale === null
+        ? null
+        : ticks.map((tick) => (
+            <div
+              key={tick}
+              style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                left: `${scale(tick)}%`,
+                width: '1px',
+                backgroundColor: chartColors.grid,
+              }}
+            />
+          ))}
+
+      {/*
+        The spread. Full height, under the bar, so the bar is never dimmed by
+        it — the bar is the forecast and this is the doubt around it.
+      */}
+      {band === null ? null : (
         <div
           style={{
             position: 'absolute',
             top: 0,
             bottom: 0,
-            left: `${left}%`,
-            // A single-point span (a flat day, or a zero-rain day) would be a
-            // zero-width div, which paints nothing — the same vanishing mark as
-            // a zero-height bar. One percent keeps it on screen.
-            width: `${Math.max(1, right - left)}%`,
+            left: `${band.left}%`,
+            width: `${band.width}%`,
+            borderRadius: `${radius.stepBar}px`,
+            backgroundColor: bandColor,
+          }}
+        />
+      )}
+
+      {/*
+        A day with no value keeps its track and draws no bar. The empty track is
+        the "absences are drawn, not omitted" rule: a row that simply lost its
+        bar is indistinguishable from a row whose value happened to be zero.
+      */}
+      {bar === null ? null : (
+        <div
+          style={{
+            position: 'absolute',
+            top: `${(BAR_TRACK_H - BAR_H) / 2}px`,
+            height: `${BAR_H}px`,
+            left: `${bar.left}%`,
+            width: `${bar.width}%`,
             borderRadius: `${radius.stepBar}px`,
             background: gradient ?? fill,
           }}
@@ -231,9 +363,17 @@ function barFill(day: ForecastSnapshot, metric: DailyMetric): string {
   // the only thing a colour can say here.
   const score = day.score
   if (score === null || score === undefined) return colors.line2
-  if (score >= SCORE_BANDS.mostlyDry) return colors.good
-  if (score >= SCORE_BANDS.mixed) return colors.fair
-  return colors.poor
+  return scoreColor(score)
+}
+
+/**
+ * The band's colour, matched to the bar it sits behind.
+ *
+ * Score has no band and never reaches here; the fallback exists so a future
+ * metric cannot fail silently by drawing a transparent one.
+ */
+function bandColorFor(metric: DailyMetric): string {
+  return metric === 'rain' ? chartColors.rainBand : chartColors.temperatureBand
 }
 
 export type DailyListProps = {
@@ -254,6 +394,17 @@ export type DailyListProps = {
   drawableDates?: ReadonlySet<string>
   /** Hides the climbing-score option for a location that has no score at all. */
   showScoreMetric: boolean
+  /**
+   * The hourly run, for the temperature band behind each row.
+   *
+   * **Not for drawing hours** — the rows show days. It is here because the
+   * ensemble's daily spread exists nowhere else: `temp_c_min`/`temp_c_max` on
+   * a forecast row are already medians of the members' own extremes, with no
+   * percentiles beside them. Absent on the `/add` preview, and absent while the
+   * query is in flight, which draws the rows with no band rather than with a
+   * narrow one.
+   */
+  hourly?: HourlySeries
 }
 
 export function DailyList({
@@ -263,10 +414,24 @@ export function DailyList({
   onSelectDay,
   drawableDates,
   showScoreMetric,
+  hourly,
 }: DailyListProps) {
   const options = showScoreMetric ? METRIC_OPTIONS : METRIC_OPTIONS.filter((o) => o.value !== 'score')
-  const domain = sharedDomain(days, metric)
-  const note = axisNote(days, domain, metric)
+  const hours = hourly?.hours ?? []
+  const valueAxis = axisFor(metric)
+
+  // **Everything below this line is in display units.** The domain, the ticks,
+  // the bars and the bands all go through `toDisplay` once, here or in
+  // `RangeBar`, and nothing mixes the two spaces. Positioning a label in one
+  // and its rule in the other is a bug this module has shipped twice, and both
+  // times it was invisible: the mark landed off-plot, where nothing clips it.
+  const canonical = sharedDomain(days, metric, hours)
+  const domain: Extent | null =
+    canonical === null
+      ? null
+      : { min: valueAxis.toDisplay(canonical.min), max: valueAxis.toDisplay(canonical.max) }
+  const ticks = domain === null ? [] : niceTicks(domain, AXIS_TICKS)
+  const bandColor = bandColorFor(metric)
   return (
     <section style={stack(spacing.listGapSm)}>
       <div style={{ ...row(spacing.chipGapMd), justifyContent: 'space-between', flexWrap: 'wrap' }}>
@@ -290,27 +455,40 @@ export function DailyList({
               the position already says. The open day's full date is in the
               Hourly pager, where there is room for it.
             */}
-            <span style={{ ...type.calDay, minWidth: '30px' }}>
+            <span style={{ ...type.calDay, minWidth: `${DOW_W}px` }}>
               {formatWeekday(day.forecast_date)}
             </span>
             <RangeBar
               span={rowSpan(day, metric)}
+              spread={rowSpread(day, metric, hours)}
               domain={domain}
+              ticks={ticks}
+              toDisplay={valueAxis.toDisplay}
               fill={barFill(day, metric)}
+              bandColor={bandColor}
               {...(gradientFor(day, metric) === null
                 ? {}
                 : { gradient: gradientFor(day, metric) as string })}
             />
             <span
               style={{
-                ...type.bodyMd,
-                color: colors.txt2,
-                minWidth: '72px',
-                textAlign: 'right',
+                ...stack(0),
+                minWidth: `${VALUE_W}px`,
+                alignItems: 'flex-end',
                 whiteSpace: 'nowrap',
               }}
             >
-              {rowValue(day, metric)}
+              <span style={{ ...type.bodyMd, color: colors.txt2 }}>{rowValue(day, metric)}</span>
+              {/*
+                How much the score is worth, in the scorer's own word.
+                **Only on the score metric**, because that is the only thing
+                `confidence` describes — the other two carry their uncertainty
+                as a band, which is a measurement rather than a label. Absent
+                entirely for a city, whose rows have no score fields at all.
+              */}
+              {metric === 'score' && day.confidence !== undefined ? (
+                <span style={{ ...type.labelSm, color: colors.txt5 }}>{day.confidence}</span>
+              ) : null}
             </span>
           </div>
         )
@@ -338,23 +516,63 @@ export function DailyList({
         )
       })}
       {/*
-        What the bars are measured against. Without it seven bars at seven
-        widths are just seven bars; with it they are a week on one ruler, which
-        is the only thing this list is for.
+        The ruler the seven tracks share, labelled where they are ruled.
+
+        **The three-part note this replaces was the problem the reader named.**
+        "68° · shared scale · 102°" put the ends of the week under the rows and
+        left everything between them to be guessed at, so a bar three fifths of
+        the way along said nothing a number could be read off. These labels sit
+        at the same percentages as the gridlines inside every track above.
+
+        Inset by the two columns the tracks are inset by, or every label would
+        be a weekday's width adrift — near enough to look deliberate.
       */}
-      {note === null ? null : (
+      {domain === null || ticks.length === 0 ? null : (
         <div
           style={{
-            ...row(spacing.chipGap),
-            justifyContent: 'space-between',
-            ...type.labelSm,
-            color: colors.txt5,
+            position: 'relative',
+            height: '12px',
+            marginLeft: `${DOW_W + spacing.chipGapMd + spacing.cardPadSm}px`,
+            marginRight: `${VALUE_W + spacing.chipGapMd + spacing.cardPadSm}px`,
           }}
         >
-          <span>{note[0]}</span>
-          <span>{note[1]}</span>
-          <span>{note[2]}</span>
+          {ticks.map((tick, i) => {
+            const pct = tickScale(domain, tick)
+            return (
+              <span
+                key={tick}
+                style={{
+                  ...type.labelSm,
+                  color: colors.txt5,
+                  position: 'absolute',
+                  left: `${pct}%`,
+                  // The outermost labels are pulled inside the track instead of
+                  // centred on it, so neither hangs over a neighbouring column.
+                  transform:
+                    i === 0 && pct < 5
+                      ? 'none'
+                      : i === ticks.length - 1 && pct > 95
+                        ? 'translateX(-100%)'
+                        : 'translateX(-50%)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {valueAxis.write(tick)}
+              </span>
+            )
+          })}
         </div>
+      )}
+
+      {/*
+        What the band behind each bar is. Said once, under the list: it means
+        the same thing on every row and on every chart in the app, and a reader
+        who learns it here has learnt the hourly charts too.
+      */}
+      {metric === 'score' ? null : (
+        <span style={{ ...type.labelSm, color: colors.txt5 }}>
+          {'Band: where 8 in 10 forecast runs land — it widens further out'}
+        </span>
       )}
 
       {/*

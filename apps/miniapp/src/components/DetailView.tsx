@@ -326,6 +326,16 @@ export function DetailView({
                   series={hourly.data}
                   selectedDate={tabs.selectedDate}
                   onSelectDate={tabs.onSelectDate}
+                  {...(forecast.data === undefined
+                    ? {}
+                    : {
+                        score: {
+                          days: forecast.data,
+                          severeAlertEvent: alertEvent,
+                          alertsPending: alerts?.isPending === true,
+                          showScore,
+                        },
+                      })}
                 />
               )}
             </div>
@@ -342,6 +352,7 @@ export function DetailView({
               metric={metric}
               onMetricChange={setMetric}
               showScoreMetric={showScore}
+              {...(hourly?.data === undefined ? {} : { hourly: hourly.data })}
               {...(tabs === undefined || drawableDates === undefined
                 ? {}
                 : {

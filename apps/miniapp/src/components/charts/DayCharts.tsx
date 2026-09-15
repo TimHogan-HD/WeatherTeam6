@@ -4,6 +4,7 @@ import {
   formatPrecipIn,
   formatTempF,
   formatWindMph,
+  type ForecastSnapshot,
   type HourlyDay,
   type HourlySeries,
 } from '@weatherteam6/types'
@@ -11,6 +12,7 @@ import { type } from '../../theme/tokens.css.js'
 import { bareButton, card, row, stack } from '../../theme/styles.js'
 import { formatForecastDate } from '../../lib/forecast.js'
 import { HourlyChart } from './HourlyChart.js'
+import { ScoreChip } from '../ScoreChip.js'
 import { extent, type Extent } from './geometry.js'
 import { identityAxis, rainAxis, tempAxis, windAxis } from './valueAxis.js'
 import {
@@ -37,6 +39,7 @@ import {
   temperatureSeries,
   valueExtent,
   windSeries,
+  windSpreadSeries,
 } from './hourlySeries.js'
 
 /**
@@ -139,6 +142,25 @@ export type DayChartsProps = {
   /** The local date currently open. Always one the caller checked is drawable. */
   selectedDate: string
   onSelectDate: (localDate: string) => void
+  /**
+   * The climbing score for **the day on screen**, beside the pager.
+   *
+   * The score section at the foot of the screen answers a different question —
+   * it is about today — and on this tab it sat three charts below a day that
+   * might be Thursday. A reader paging to Saturday is asking whether Saturday
+   * is climbable; the answer belongs in the row where they picked it.
+   *
+   * Absent on the `/add` preview, which has no score at all, and the whole
+   * group is optional rather than four loose props because the suppression
+   * rules only make sense together.
+   */
+  score?: {
+    /** All seven rows, matched on `forecast_date`. */
+    days: readonly ForecastSnapshot[]
+    severeAlertEvent: string | null
+    alertsPending: boolean
+    showScore: boolean
+  }
 }
 
 
@@ -174,13 +196,20 @@ function headerRange(
   return span.min === span.max ? write(span.max) : `${write(span.min)} – ${write(span.max)}`
 }
 
-export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps) {
+export function DayCharts({ series, selectedDate, onSelectDate, score }: DayChartsProps) {
   const hours = hoursOnDay(series.hours, selectedDate)
   const temperature = temperatureSeries(hours)
   const rain = rainSeries(hours)
   const chance = chanceSeries(hours)
   const wind = windSeries(hours)
+  const windSpread = windSpreadSeries(hours)
   const out = daysOutLabel(series.days, selectedDate)
+
+  // **Matched on the date, never on position.** `series.days` and the forecast
+  // rows are built by different paths and windowed separately; lining them up
+  // by index holds until one side drops a day and then puts Saturday's score on
+  // Friday while still looking right.
+  const scoreDay = score?.days.find((d) => d.forecast_date === selectedDate) ?? null
 
   const axis = { axis: 'hour' as const, utcOffsetSeconds: series.utc_offset_seconds }
 
@@ -199,7 +228,7 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
   const gustPeak = extent(wind.map((d) => d.high))
 
   const tempDomain = temperatureDomain(temperature)
-  const gustDomain = windDomain(wind)
+  const gustDomain = windDomain([...wind, ...windSpread])
 
   return (
     <section style={{ ...card, ...stack(spacing.sectionTop) }}>
@@ -224,6 +253,14 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
           confidence story this app is built on is about distance from now.
         */}
         {out === null ? null : <span style={{ ...type.bodySm, marginLeft: 'auto' }}>{out}</span>}
+        {score === undefined ? null : (
+          <ScoreChip
+            day={scoreDay}
+            severeAlertEvent={score.severeAlertEvent}
+            alertsPending={score.alertsPending}
+            showScore={score.showScore}
+          />
+        )}
       </div>
 
       <div
@@ -269,17 +306,29 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
           empty="No hourly rainfall for this day."
         >
           {hasValues(rain) ? (
-            <HourlyChart
-              data={rain}
-              kind="bar"
-              {...axis}
-              viewHeight={RAIN_VIEW_H}
-              color={chartColors.rain}
-              colorForValue={rainColor}
-              formatValue={formatPrecipIn}
-              valueAxis={rainAxis}
-              title="Rainfall by hour"
-            />
+            <>
+              <HourlyChart
+                data={rain}
+                kind="bar"
+                whiskers
+                {...axis}
+                viewHeight={RAIN_VIEW_H}
+                color={chartColors.rain}
+                colorForValue={rainColor}
+                formatValue={formatPrecipIn}
+                valueAxis={rainAxis}
+                title="Rainfall by hour"
+              />
+              {/*
+                **The whisker can start on the floor while the bar does not.**
+                The bar is the members' mean and the whisker their 10th to 90th
+                percentile, so an hour where nine runs in ten stay dry draws a
+                bar with a whisker flat underneath it. That is the forecast, not
+                a drawing error, and it is the single most useful thing this
+                chart says.
+              */}
+              <LegendKey label="Where 8 in 10 runs land" swatch="whisker" />
+            </>
           ) : null}
         </ChartBlock>
 
@@ -323,6 +372,8 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
                 {...(gustDomain === null ? {} : { domain: gustDomain })}
                 viewHeight={WIND_VIEW_H}
                 color={chartColors.wind}
+                bandColor={chartColors.windBand}
+                bandData={windSpread}
                 colorForValue={windColor}
                 formatValue={formatWindMph}
                 valueAxis={windAxis}
@@ -331,6 +382,7 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
               <div style={{ ...row(spacing.sectionGap), flexWrap: 'wrap' }}>
                 <LegendKey label="Sustained" swatch="wind" />
                 <LegendKey label="To gusts" swatch="whisker" />
+                <LegendKey label="Where 8 in 10 runs land" swatch="band" />
               </div>
             </>
           ) : null}
@@ -389,11 +441,20 @@ function ChartBlock({
  * An earlier version pointed at colours no mark used. The ramp key is the ramp
  * itself; the whisker key is a whisker at its real width and colour.
  */
-function LegendKey({ label, swatch }: { label: string; swatch: 'ramp' | 'whisker' | 'wind' }) {
+function LegendKey({
+  label,
+  swatch,
+}: {
+  label: string
+  swatch: 'ramp' | 'whisker' | 'wind' | 'band'
+}) {
   const bar =
     swatch === 'whisker'
       ? { width: `${WHISKER_W}px`, height: '11px', background: chartColors.whisker }
-      : {
+      : swatch === 'band'
+        ? // The ribbon at its own fill, so the key looks like the thing it names.
+          { width: '14px', height: '11px', background: chartColors.windBand }
+        : {
           width: '14px',
           height: '4px',
           background:

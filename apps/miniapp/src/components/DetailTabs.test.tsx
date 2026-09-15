@@ -50,6 +50,8 @@ function hour(index: number, localDate: string, over: Partial<HourlySample> = {}
     wind_kmh_p50: null,
     wind_kmh_p90: null,
     precip_mm_mean: 0.4,
+    precip_mm_p10: null,
+    precip_mm_p90: null,
     precip_chance_pct: 30,
     member_count: 143,
     ...over,

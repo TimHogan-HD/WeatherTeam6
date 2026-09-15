@@ -1,7 +1,13 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import type { HourlyDay, HourlySample, HourlySeries } from '@weatherteam6/types'
+import type {
+  ForecastSnapshot,
+  HourlyDay,
+  HourlySample,
+  HourlySeries,
+} from '@weatherteam6/types'
 import { DayCharts, stepDay } from './DayCharts.js'
+import { chartColors } from './chartStyle.js'
 import { HOUR_MS } from './hourlySeries.js'
 
 /**
@@ -38,6 +44,8 @@ function hour(index: number, localDate: string, over: Partial<HourlySample> = {}
     wind_kmh_p50: 8,
     wind_kmh_p90: null,
     precip_mm_mean: 0.4,
+    precip_mm_p10: null,
+    precip_mm_p90: null,
     precip_chance_pct: 30,
     member_count: 143,
     ...over,
@@ -141,5 +149,157 @@ describe('DayCharts pager', () => {
   it('names how far out the open day is, counted from the window’s own first day', () => {
     const html = render(series(fullDay, week), DAY_1)
     expect(html).toContain('today')
+  })
+})
+
+function forecastDay(date: string, over: Partial<ForecastSnapshot> = {}): ForecastSnapshot {
+  return {
+    id: `snap-${date}`,
+    location_id: 'loc',
+    captured_at: `${date}T00:00:00.000Z`,
+    forecast_date: date,
+    precip_mm_p10: null,
+    precip_mm_p50: null,
+    precip_mm_p90: null,
+    temp_c_min: 10,
+    temp_c_max: 20,
+    wind_kmh_max: null,
+    humidity_pct: null,
+    model_sources: null,
+    created_at: `${date}T00:00:00.000Z`,
+    ...over,
+  }
+}
+
+const OPEN_SCORE = { severeAlertEvent: null, alertsPending: false, showScore: true }
+
+describe('DayCharts — the score belongs to the day on screen', () => {
+  const week = [
+    forecastDay(DAY_1, { score: 30, confidence: 'high' }),
+    forecastDay(DAY_2, { score: 85, confidence: 'low' }),
+  ]
+
+  function withScore(date: string, days = week): string {
+    return renderToStaticMarkup(
+      <DayCharts
+        series={series(
+          [...Array.from({ length: 24 }, (_, i) => hour(i, DAY_1)),
+           ...Array.from({ length: 24 }, (_, i) => hour(i + 24, DAY_2))],
+          [day(DAY_1), day(DAY_2)],
+        )}
+        selectedDate={date}
+        onSelectDate={() => {}}
+        score={{ days, ...OPEN_SCORE }}
+      />,
+    )
+  }
+
+  it('shows the paged day’s own score, not the first row’s', () => {
+    // The reader paged to Wednesday to ask about Wednesday. The score section
+    // at the foot of the screen is about today and cannot answer that.
+    expect(withScore(DAY_2)).toContain('>85<')
+    expect(withScore(DAY_2)).not.toContain('>30<')
+    expect(withScore(DAY_1)).toContain('>30<')
+  })
+
+  it('matches the score to the day by date, never by position', () => {
+    // The hourly window and the forecast rows are built by different paths and
+    // windowed separately. Lining them up by index holds until one side drops a
+    // day, and then puts the wrong score on every day after it while still
+    // looking right.
+    const shifted = [forecastDay(DAY_2, { score: 85, confidence: 'low' })]
+    expect(withScore(DAY_2, shifted)).toContain('>85<')
+    expect(withScore(DAY_1, shifted)).not.toContain('>85<')
+  })
+
+  it('draws no chip for a day the forecast has no row for', () => {
+    expect(withScore(DAY_1, [])).not.toContain('>30<')
+  })
+
+  it('drops the chip under a severe alert rather than recolouring it', () => {
+    const html = renderToStaticMarkup(
+      <DayCharts
+        series={series(Array.from({ length: 24 }, (_, i) => hour(i, DAY_1)))}
+        selectedDate={DAY_1}
+        onSelectDate={() => {}}
+        score={{ days: week, severeAlertEvent: 'Excessive Heat Warning', alertsPending: false, showScore: true }}
+      />,
+    )
+    expect(html).not.toContain('>30<')
+  })
+
+  it('draws no chip at all on the preview path, which has no score', () => {
+    expect(render(series(fullDay))).not.toContain('>30<')
+  })
+})
+
+/**
+ * One chart's own SVG, by the accessible title it carries.
+ *
+ * **Scoped, because the page is four charts.** A bare `toContain('<line')`
+ * passes on the temperature chart's whiskers however the rain chart is drawn —
+ * green against an implementation with the feature removed, which is the whole
+ * of defect class 11.
+ */
+function chartSvg(html: string, title: string): string {
+  // The title reaches the markup as the start of the SVG's `aria-label`.
+  const from = html.indexOf(`aria-label="${title}:`)
+  if (from < 0) throw new Error(`no chart titled ${title}`)
+  return html.slice(from, html.indexOf('</svg>', from))
+}
+
+describe('DayCharts — the spread is drawn on every series that has one', () => {
+  it('whiskers the rain bars from their own percentiles', () => {
+    // The bar is the members' mean and the whisker their p10-p90, so an hour
+    // nine runs in ten leave dry draws a bar with a whisker flat underneath it.
+    const spread = Array.from({ length: 24 }, (_, i) =>
+      hour(i, DAY_1, { precip_mm_mean: 0.4, precip_mm_p10: 0, precip_mm_p90: 4 }),
+    )
+    const svg = chartSvg(render(series(spread)), 'Rainfall by hour')
+    // **The whisker's own stroke, not just "a line".** Every chart on this page
+    // is full of `<line>` gridlines, so a bare tag assertion passes with the
+    // feature deleted.
+    expect(svg).toContain(`stroke="${chartColors.whisker}"`)
+    expect(render(series(spread))).toContain('Where 8 in 10 runs land')
+  })
+
+  it('shades the wind spread behind the bars, and keeps the gust whisker', () => {
+    // Two different things: the band is how much the runs *disagree*, the
+    // whisker is how hard it may gust inside any one of them. The fixture puts
+    // the ensemble's p90 (60 km/h, 37 mph) well above the gusts (20 km/h, 12
+    // mph), so the two cannot be confused for one another — a band taken from
+    // the gust range instead would leave the chart topping out around 12 mph.
+    const windy = Array.from({ length: 24 }, (_, i) =>
+      hour(i, DAY_1, {
+        wind_kmh_p10: 5,
+        wind_kmh_p50: 12,
+        wind_kmh_p90: 60,
+        wind_gust_kmh: 20,
+      }),
+    )
+    const html = render(series(windy))
+    const svg = chartSvg(html, 'Wind by hour')
+    expect(svg).toContain('<path')
+    expect(svg).toContain(`stroke="${chartColors.whisker}"`)
+    // **The bars are drawn against a scale that fits the whole band.** The
+    // sustained 12 km/h is a fifth of the ensemble's 60 km/h top, so its bar is
+    // a fifth of the 62-unit plot. Taking the band from the gust range instead
+    // would make the same bar three fifths tall — and fill the real ribbon off
+    // the top of the frame, where SVG does not clip it.
+    const barHeights = [...svg.matchAll(/<rect[^>]*height="([0-9.]+)"/g)].map((m) => Number(m[1]))
+    expect(barHeights.length).toBeGreaterThan(0)
+    expect(Math.max(...barHeights)).toBeLessThan(20)
+
+    // **And the ribbon is the ensemble's, not the gust range wearing its
+    // colour.** Both are filled with the same token, and the chart's scale is
+    // set by the caller either way, so only the ribbon's own reach separates
+    // them: p90 at 60 km/h is the top of the plot, the gusts' 20 km/h is two
+    // thirds of the way down it.
+    const ribbon = /<path d="([^"]+)"/.exec(svg)?.[1] ?? ''
+    const ys = [...ribbon.matchAll(/[ ,]([0-9.]+)(?=[ LM]|$)/g)].map((m) => Number(m[1]))
+    expect(ys.length).toBeGreaterThan(0)
+    expect(Math.min(...ys)).toBeLessThan(15)
+    expect(html).toContain('To gusts')
+    expect(html).toContain('Where 8 in 10 runs land')
   })
 })

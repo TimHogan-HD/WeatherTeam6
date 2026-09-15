@@ -32,8 +32,25 @@ export type SeriesProps = {
   /** Value to user units, inverted by the caller. */
   y: Scale
   color: string
-  /** Omitted when there is no band to draw, which is every series but temperature. */
+  /**
+   * The p10-p90 ribbon. Omitted where the series has no spread to draw — the
+   * chance of rain, which is itself a measure of agreement and has no band of
+   * its own.
+   *
+   * Drawn **behind** bars as well as under a line. On bars it is the only way
+   * to read spread at seven days' width: a whisker on each of 168 two-pixel
+   * bars is a hedge, not a chart. Per-day charts have room for the whiskers and
+   * use both.
+   */
   bandColor?: string
+  /**
+   * The series the band is taken from, when it is not the marks' own.
+   *
+   * Wind is the only caller: its whisker runs from sustained to gust — a
+   * different variable, not a spread — so the ensemble p10-p90 has nowhere to
+   * live on the same datum. Defaults to `data`, which is every other chart.
+   */
+  bandData?: readonly SeriesDatum[]
   /** Bars only. A bar's colour follows its own value; a line has one colour. */
   colorForValue?: (value: number) => string
   /** Bars only: the y of the plot floor they grow from. */
@@ -73,15 +90,16 @@ function pointsIn(
   return out
 }
 
-function LineMarks({ data, x, y, color, bandColor }: Omit<SeriesProps, 'kind'>) {
-  const bands = bandColor === undefined ? [] : bandRuns(data)
+function LineMarks({ data, x, y, color, bandColor, bandData }: Omit<SeriesProps, 'kind'>) {
+  const source = bandData ?? data
+  const bands = bandColor === undefined ? [] : bandRuns(source)
   const lines = valueRuns(data)
 
   return (
     <>
       {bands.map((run) => {
-        const upper = pointsIn(data, run.start, run.end, x, y, (d) => d.high)
-        const lower = pointsIn(data, run.start, run.end, x, y, (d) => d.low)
+        const upper = pointsIn(source, run.start, run.end, x, y, (d) => d.high)
+        const lower = pointsIn(source, run.start, run.end, x, y, (d) => d.low)
         const path = bandPath(upper, lower)
         // A one-hour band is a ribbon of zero width — nothing to fill. The line
         // still draws its dot there, so the hour is not lost.
@@ -173,6 +191,8 @@ function BarMarks({
   x,
   y,
   color,
+  bandColor,
+  bandData,
   colorForValue,
   baseY,
   placement = 'accumulation',
@@ -182,9 +202,24 @@ function BarMarks({
 
   const { gap, width } = barGeometry(x)
   const half = width / 2
+  const bandSource = bandData ?? data
+  const bands = bandColor === undefined ? [] : bandRuns(bandSource)
 
   return (
     <>
+      {/*
+        The spread, behind the bars. Drawn first so a bar is never dimmed by the
+        ribbon over it — the bar is the forecast and the band is the doubt
+        around it, and reversing that reads as a confident chart of nothing.
+      */}
+      {bands.map((run) => {
+        const upper = pointsIn(bandSource, run.start, run.end, x, y, (d) => d.high)
+        const lower = pointsIn(bandSource, run.start, run.end, x, y, (d) => d.low)
+        const path = bandPath(upper, lower)
+        if (path === '') return null
+        return <path key={`band-${run.start}`} d={path} fill={bandColor} stroke="none" />
+      })}
+
       {data.map((d) => {
         if (d.value === null) return null
         const left =
