@@ -2845,9 +2845,21 @@ lets the acceptance checks run unattended.
 - **Not seen on a device.** Phase 2's own acceptance criterion is the charts rendering on the
   owner's phone, inside Telegram, in their theme. Everything else is verified; this is not.
 - The independent PR reviewer **never ran** on #110 — it died on an Anthropic session limit
-  (`is_error: true`, `num_turns: 11`, quota resets 00:40 UTC) before reading the diff. CI was
-  green and `review` is not a required check, so the merge was not blocked. This diff has had
-  one reviewer, not two.
+  (`is_error: true`, `num_turns: 11`) before reading the diff. CI was green and `review` is
+  not a required check, so the merge was not blocked.
+
+  **Resolved the same session.** The quota reset within the hour and `/code-review` was run
+  against the merged commit. It found **three defects**, all of them the same family — the
+  chart asserting something the data does not support — and all fixed in `6b41709` (PR
+  #112), whose own reviewer ran 27 turns and found nothing:
+  1. the accessible summary counted days the chart did not draw ("over 7 days" for five),
+     and the test that named that property had a value on every hour of its fixture;
+  2. `HourlySeries.fetched_at` preferred the deterministic run's timestamp while both
+     charts draw ensemble columns, so the age line could be an hour optimistic — now the
+     **older** of the two runs, fixed in the API so one honest timestamp reaches the wire;
+  3. "No hourly forecast for this location yet" fired on an empty ensemble, over a response
+     that can still carry a full deterministic forecast — the whole-section state is gone
+     and each block now says what it could not draw.
 - No hover or tap readout on the charts. Inline styles cannot express hover and a touch
   screen has none; a value readout belongs with Phase 3's drill-down.
 - `useNow` re-renders the section every 30 s, recomputing both 168-hour series. Measured cost

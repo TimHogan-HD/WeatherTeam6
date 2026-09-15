@@ -5,7 +5,7 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-09-15 · `main` @ `675ac89`
+Last updated: 2026-09-15 · `main` @ `6b41709`
 
 ---
 
@@ -64,7 +64,7 @@ Current state:
 - **"Update" a mis-saved location is remove-then-add.** `/help` says so; no separate edit
   flow exists, deliberately. (Phase 5's build detail is in the archive under 2026-09-03.)
 
-Baseline: `npm run test` **660 passing** (510 api, 117 miniapp, 33 types), `npm run typecheck`
+Baseline: `npm run test` **664 passing** (512 api, 119 miniapp, 33 types), `npm run typecheck`
 clean, `npm run check:hooks` 58 passing. **Mutation score 66.09%**, last measured
 2026-08-26 — not re-measured since, and two sessions of new scoring code have landed under
 it. `npm run test:mutation --workspace=apps/api`.
@@ -194,6 +194,12 @@ claude-review-execution-output` before concluding anything from the summary numb
 that `review` is **not** a required check (only `ci` is), so a red reviewer does not block
 a merge — it means the diff got one reviewer instead of two, and that is worth saying out
 loud rather than quietly merging.
+
+**When that happens, re-run the review afterwards rather than writing it off.** On #110 the
+quota reset within the hour; the `/code-review` skill run against the merged commit found
+**three real defects** the in-session review had missed, all of them the chart claiming
+something the data did not support. Fixed in `6b41709` (PR #112). A merged commit is not
+past reviewing.
 
 ### Mutation testing
 
