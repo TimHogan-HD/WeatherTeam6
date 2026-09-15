@@ -1,6 +1,6 @@
 import { spacing } from '@weatherteam6/design/tokens'
 import { formatHoursSinceRain, scoreUnavailableLine } from '@weatherteam6/types'
-import type { ConditionsScore, ForecastSnapshot, WeatherAlert } from '@weatherteam6/types'
+import type { ConditionsScore, ForecastSnapshot, HourlySeries, WeatherAlert } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { stack } from '../theme/styles.js'
 import { forecastSourceLabel, findToday, rainfallSourceLabel, severeAlertEvent } from '../lib/forecast.js'
@@ -9,6 +9,8 @@ import { ScoreSection } from './ScoreSection.js'
 import { SourcesFooter } from './SourcesFooter.js'
 import { InlineError, Skeleton } from './States.js'
 import { ForecastList, TodayHero } from './Weather.js'
+import { HourlySection } from './charts/HourlySection.js'
+import { TEMP_VIEW_H } from './charts/chartStyle.js'
 
 /**
  * One scroll, no internal tabs (§3), in a fixed order: alert banner, today,
@@ -48,6 +50,16 @@ export type DetailViewProps = {
     isError: boolean
     refetch: () => void
   }
+  /**
+   * The hourly charts. Absent on the preview path, which has no saved row for
+   * `/hourly/:locationId` to read.
+   */
+  hourly?: {
+    data: HourlySeries | undefined
+    isPending: boolean
+    isError: boolean
+    refetch: () => void
+  }
 }
 
 export function DetailView({
@@ -57,6 +69,7 @@ export function DetailView({
   forecast,
   alerts,
   conditions,
+  hourly,
 }: DetailViewProps) {
   const today = findToday(forecast.data)
   const alertEvent = severeAlertEvent(alerts?.data)
@@ -110,6 +123,20 @@ export function DetailView({
             <ForecastList days={forecast.data} />
           )}
         </>
+      )}
+
+      {/*
+        The charts are their own section and fail on their own. `/hourly/:id`
+        takes the cold path — six deterministic models and 143 ensemble members
+        — for any location collected since the last `collect-runs` run, so this
+        is the slowest query on the screen and must not hold up the rest of it.
+      */}
+      {hourly === undefined ? null : hourly.isPending ? (
+        <Skeleton height={TEMP_VIEW_H} />
+      ) : hourly.isError ? (
+        <InlineError message="Couldn't load the hourly forecast." onRetry={hourly.refetch} />
+      ) : hourly.data === undefined ? null : (
+        <HourlySection series={hourly.data} />
       )}
 
       {showScore && conditions !== undefined ? (

@@ -43,11 +43,14 @@ export function findToday(
   return null
 }
 
-/** `Tue Aug 25`, formatted in UTC to match the bucket the date came from. */
-export function formatForecastDate(isoDate: string): string {
+/**
+ * `YYYY-MM-DD` as a UTC instant, or `null` when it is not one.
+ *
+ * Finiteness, not just presence: `Number('not')` is NaN, and a NaN date part
+ * renders the literal string "Invalid Date" on screen.
+ */
+function parseIsoDate(isoDate: string): Date | null {
   const [year, month, day] = isoDate.split('-').map(Number)
-  // Finiteness, not just presence: `Number('not')` is NaN, and a NaN date part
-  // renders the literal string "Invalid Date" on screen.
   if (
     year === undefined ||
     month === undefined ||
@@ -56,14 +59,34 @@ export function formatForecastDate(isoDate: string): string {
     !Number.isFinite(month) ||
     !Number.isFinite(day)
   ) {
-    return isoDate
+    return null
   }
-  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString('en-US', {
+  return new Date(Date.UTC(year, month - 1, day))
+}
+
+/** `Tue Aug 25`, formatted in UTC to match the bucket the date came from. */
+export function formatForecastDate(isoDate: string): string {
+  const date = parseIsoDate(isoDate)
+  if (date === null) return isoDate
+  return date.toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
     timeZone: 'UTC',
   })
+}
+
+/**
+ * `Tue` — the chart's x-axis tick, where the full date would not fit.
+ *
+ * Same UTC reading as `formatForecastDate`: `local_date` is the *location's*
+ * calendar day, already decided by the server, and re-reading it in the
+ * viewer's timezone is how a date shifts by one (issue #33).
+ */
+export function formatWeekday(isoDate: string): string {
+  const date = parseIsoDate(isoDate)
+  if (date === null) return isoDate
+  return date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })
 }
 
 /** Severe and Extreme first, so the banner order matches the ranking §7 uses. */
