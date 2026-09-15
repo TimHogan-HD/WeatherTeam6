@@ -66,7 +66,20 @@ describe('HourlyChart', () => {
     expect(markup.split('<line').length - 1).toBe(2)
   })
 
-  it('labels the axis with the domain it drew against', () => {
+  it('labels a line chart with the series, because nothing else states it', () => {
+    // **The seven-day strip has no heading figure**, so these two labels are
+    // the only numbers on screen. Its domain is padded around the p10-p90 band,
+    // so labelling the domain here prints one member's worst hour as the
+    // forecast — measured on this fixture, 113°F over a median that never
+    // passes 63°F.
+    const wide = threeDays().map((d) => ({ ...d, low: -20, high: 40 }))
+    const markup = render(wide)
+    expect(markup).toContain('>63°F<')
+    expect(markup).not.toContain('>104°F<')
+    expect(markup).not.toContain('>113°F<')
+  })
+
+  it('labels a bar chart with the domain it drew against', () => {
     // **The two labels are the scale, not the series.** They sit at the top and
     // bottom of the plot and say what the marks are measured against — which,
     // for a bar chart on a non-zero floor, is the one thing a reader cannot
@@ -82,12 +95,14 @@ describe('HourlyChart', () => {
     // label must sit *outside* the series range. Asserting that rather than a
     // literal is what distinguishes "labels the scale" from "labels the
     // series"; a test pinned to two numbers would pass either way.
-    const markup = render(threeDays())
-    const labels = [...markup.matchAll(/white-space:nowrap">(-?\d+)°F</g)].map((m) => Number(m[1]))
-    expect(labels).toHaveLength(2)
-    const [top, bottom] = labels as [number, number]
-    expect(top).toBeGreaterThan(63)
-    expect(bottom).toBeLessThan(50)
+    // A bar chart *is* accompanied by a heading figure — `DayCharts` prints the
+    // day's own range — so the labels are free to be the scale, and for a bar
+    // they have to be: the floor is the one thing the picture cannot show.
+    // Rain's floor is zero whatever the data does.
+    const rain = threeDays().map((d) => ({ ...d, value: 3, low: null, high: null }))
+    const markup = render(rain, 'bar')
+    const labels = [...markup.matchAll(/white-space:nowrap">([^<]*in)</g)].map((m) => m[1])
+    expect(labels).toEqual(['0.13 in', '0 in'])
   })
 
   it('still reports the series, not the domain, to a screen reader', () => {

@@ -1,4 +1,4 @@
-import { colors, spacing } from '@weatherteam6/design/tokens'
+import { colors, radius, spacing } from '@weatherteam6/design/tokens'
 import {
   EM_DASH,
   formatPrecipIn,
@@ -18,7 +18,6 @@ import {
   RAIN_VIEW_H,
   WIND_VIEW_H,
   IDEAL_TEMP_C,
-  RAIN_RAMP_TOP_MM,
   TEMP_FLOOR_PAD_C,
   WHISKER_W,
   chanceColor,
@@ -113,11 +112,19 @@ function PagerButton({
       }}
       style={{
         ...bareButton,
-        ...card,
+        // **Not `...card`.** That token carries `padding: 14px`, which inside a
+        // 28px box pushes the glyph out of it entirely — the arrows rendered as
+        // empty rounded squares. The surface is taken piece by piece instead.
+        backgroundColor: colors.card,
+        borderStyle: 'solid',
+        borderWidth: '1px',
+        borderColor: colors.line,
+        borderRadius: `${radius.chip}px`,
         width: '28px',
         height: '28px',
+        lineHeight: '26px',
         textAlign: 'center',
-        color: colors.txt3,
+        color: colors.txt2,
         ...(disabled ? { opacity: 0.35, cursor: 'default' } : {}),
       }}
     >
@@ -176,21 +183,19 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
 
   const axis = { axis: 'hour' as const, utcOffsetSeconds: series.utc_offset_seconds }
 
-  // The day's total rainfall. **`precip_mm_mean` is the only precipitation
-  // figure that may be summed** — a sum of hourly p50s is the median of nothing
-  // and reads three to twelve times high (architecture rule). `rainSeries`
-  // reads exactly that column.
-  const rainTotal = rain.reduce((sum, d) => sum + (d.value ?? 0), 0)
+  // The day's total rainfall, or `null` when nothing was measured.
+  //
+  // **`?? 0` on every hour would make an all-null day read "none"** — a
+  // forecast of a dry day — directly beside the block's own "no hourly rainfall
+  // for this day". Summing only the hours that have a value, and answering null
+  // when there are none, keeps "dry" and "unknown" apart. `precip_mm_mean` is
+  // also the only precipitation figure that may be summed at all: a sum of
+  // hourly p50s is the median of nothing and reads three to twelve times high
+  // (architecture rule), and `rainSeries` reads exactly that column.
+  const rainHours = rain.filter((d) => d.value !== null)
+  const rainTotal = rainHours.length === 0 ? null : rainHours.reduce((s, d) => s + (d.value ?? 0), 0)
   const chancePeak = extent(chance.map((d) => d.value))
   const gustPeak = extent(wind.map((d) => d.high))
-
-  // Rain is coloured **relative to the day's own peak**. On the absolute mm/h
-  // ramp a drizzle day comes out uniformly pale and the chart says nothing
-  // about when it rained; the header states the real total, so the shape can be
-  // relative without the figure being.
-  const rainPeak = extent(rain.map((d) => d.value))?.max ?? 0
-  const rainShade = (mm: number): string =>
-    rainColor(rainPeak > 0 ? (mm / rainPeak) * RAIN_RAMP_TOP_MM : mm)
 
   const tempDomain = temperatureDomain(temperature)
   const gustDomain = windDomain(wind)
@@ -258,7 +263,7 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
         <ChartBlock
           label="Rain"
           unit="in / hr"
-          value={rainTotal > 0 ? formatPrecipIn(rainTotal) : 'none'}
+          value={rainTotal === null ? null : formatPrecipIn(rainTotal)}
           empty="No hourly rainfall for this day."
         >
           {hasValues(rain) ? (
@@ -268,7 +273,7 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
               {...axis}
               viewHeight={RAIN_VIEW_H}
               color={chartColors.rain}
-              colorForValue={rainShade}
+              colorForValue={rainColor}
               formatValue={formatPrecipIn}
               title="Rainfall by hour"
             />
@@ -278,7 +283,7 @@ export function DayCharts({ series, selectedDate, onSelectDate }: DayChartsProps
         <ChartBlock
           label="Chance of rain"
           unit="% of members"
-          value={chancePeak === null ? null : `${Math.round(chancePeak.max)}%`}
+          value={chancePeak === null ? null : `peak ${Math.round(chancePeak.max)}%`}
           empty="No chance of rain for this day — the forecast runs carry no wet count."
         >
           {hasValues(chance) ? (

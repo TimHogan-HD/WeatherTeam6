@@ -140,14 +140,14 @@ export const WHISKER_W = 1.4
 export const TEMP_FLOOR_PAD_C = 0.5
 
 /**
- * The mm/h the rain ramp reaches its top step at.
- *
- * The day chart shades each bar by its share of the *day peak* rather than by
- * an absolute rate: on the absolute ramp a drizzle day is uniformly pale and
- * says nothing about when it rained. The header states the real total, so the
- * shading can be relative without any figure being.
+ * **`rainColor` is absolute and stays absolute.** A day chart briefly shaded
+ * each bar by its share of that day's own peak, so the shape of a drizzle day
+ * would show. Two things were wrong with it: 0.3 mm of drizzle came out
+ * `radarSevere` beside a header reading `0.02 in`, and the same hour was a
+ * different colour on the seven-day strip, which shades absolutely. Bar
+ * *height* already carries the day's shape — the domain is the day's own peak —
+ * so the colour is free to mean what the ramp says it means.
  */
-export const RAIN_RAMP_TOP_MM = 7.6
 
 // ─────────────────────────────────────────────
 // TEMPERATURE RAMP

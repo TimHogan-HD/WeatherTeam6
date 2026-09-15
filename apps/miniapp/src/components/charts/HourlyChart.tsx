@@ -76,18 +76,22 @@ const EDGE_TOLERANCE = 3
 const HOUR_TICK_STEP = 6
 
 function verticalDomain(data: readonly SeriesDatum[], kind: SeriesKind): Extent | null {
-  const measured =
-    kind === 'bar'
-      ? // Rain is read against zero and has no band, so its own values are the
-        // whole domain.
-        extent(data.map((d) => d.value))
-      : valueExtent(data)
+  // **The band counts toward the top even for bars.** A `whiskers` caller that
+  // does not pass its own domain would otherwise stroke whiskers above the
+  // frame — silently, because SVG does not clip by default and the overflow
+  // lands under the next element. Both current callers pass a domain, so this
+  // is the latent case rather than the live one.
+  const measured = valueExtent(data)
   if (measured === null) return null
 
   if (kind === 'bar') {
-    // Bars are read against zero, so the baseline is zero whatever the data does
-    // — a rain chart scaled to its own minimum would draw a dry hour as a
+    // Bars are read against zero, so the floor is zero whatever the data does —
+    // a rain chart scaled to its own minimum would draw a dry hour as a
     // full-height bar. A window with no rain in it still needs a span.
+    //
+    // Temperature is the exception and passes an explicit domain: it has no
+    // meaningful zero, so its floor is set just under the coldest reading and
+    // printed on the axis.
     return { min: 0, max: measured.max > 0 ? measured.max * 1.1 : 1 }
   }
 
@@ -134,13 +138,24 @@ export function HourlyChart({
   whiskers = false,
 }: HourlyChartProps) {
   const times = timeExtent(data)
-  // The labels and the summary describe the **series itself**, not the band
-  // around it. The domain has to cover the band or it would be clipped, but
-  // labelling its outer edge as the high says the forecast reached a value the
-  // median never does — one member's worst hour printed as the temperature.
   const measured = extent(data.map((d) => d.value))
   const domain = fixedDomain ?? verticalDomain(data, kind)
   if (times === null || measured === null || domain === null) return null
+
+  // **What the two edge labels say depends on whether anything else states the
+  // series**, and getting this wrong printed a temperature nobody forecast.
+  //
+  // A **bar** chart is drawn by `DayCharts`, which prints the day's own range
+  // right-aligned in the heading. The labels are then free to be the *scale* —
+  // and for a bar on a non-zero floor they have to be, because the floor is the
+  // one thing a reader cannot infer from the picture.
+  //
+  // A **line** chart is the seven-day strip in `HourlySection`, which has no
+  // heading figure. Its domain is padded around the p10-p90 band, so labelling
+  // its edges puts one member's worst hour on screen as the forecast: on the
+  // measured fixture, 113°F over a median that never passes 63°F. There, the
+  // labels stay the series' own extremes.
+  const edgeLabels = kind === 'bar' ? domain : measured
 
   // The window follows how the mark sits against its timestamp, not what kind
   // it is:
@@ -233,19 +248,7 @@ export function HourlyChart({
         />
       </svg>
 
-      {/*
-        **The axis bounds, at the top and bottom of the plot** — what the marks
-        are measured against, which for a bar chart on a non-zero floor is the
-        thing a reader cannot infer. The earlier version printed the measured
-        min and max *at their own heights*, which reads as two annotations
-        floating in the plot rather than as a scale, and says nothing about
-        where the bars start.
-
-        The series' own extremes are the caller's header value, where there is
-        room for a labelled figure. Not a number on every point: 24 of them is a
-        table, and a worse one than the daily rows.
-      */}
-      {[domain.max, domain.min].map((value, i) => (
+      {[edgeLabels.max, edgeLabels.min].map((value, i) => (
         <span
           key={i === 0 ? 'top' : 'bottom'}
           style={{
