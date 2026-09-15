@@ -3082,3 +3082,70 @@ close the app — no test here can reach it. (2) Does the continuous temperature
 separate "warm" from "too hot"? Second attempt at that. (3) The Phase 2 charts, now at the
 foot of Daily. (4) Does the day pager beat the seven chips? No credential, no dashboard
 setting, no product decision.
+
+---
+
+## 2026-09-15 — branch: fix/phase-3-chart-marks — commit: a3bada1
+
+**Phase completed:** Phase 3, third pass — the hourly **marks** rebuilt to the mockup
+
+**Why a third block for one phase:** the owner sent a screenshot of the live Hourly tab
+beside the mockup. The second pass had matched the *structure* (pager, four charts,
+continuous ramp) and still drew the wrong **marks**: a column of pale translucent boxes
+where the mockup has a legible orange-to-red bar profile.
+
+**What was built this session:**
+- `Series.tsx` — the `range` kind is gone. `kind` is `line | bar` again, and `placement`
+  (`accumulation` | `instant`) carries the rain-versus-temperature distinction as a named
+  prop. Bars take `whiskers`.
+- Temperature and wind are now **bars from a caller-supplied floor with a whisker over
+  them**. `BAR_MIN_H` gives every measured hour a visible stub.
+- `HourlyChart.tsx` — edge labels are the domain for bars and the series for lines;
+  compact `12a`/`6a`/`12p` ticks; `verticalDomain` covers the band.
+- `DayCharts.tsx` — a day figure right-aligned in each chart heading; `DayCharts.test.tsx`
+  created (there was none).
+- `referenceBand` deleted — it existed only to compensate for the stepped ramp.
+
+**Known issues / deferred work:**
+- Still no hover readout. The mockup has a crosshair and tooltip on every chart via
+  `mousemove`/`touchmove`. React can do it; it is a new interaction layer and was not
+  attempted.
+- The wall picker (Phase 4) and the drying card with its recent-rain sparkline (Phase 5)
+  remain unbuilt, both correctly later phases.
+
+**Blockers for next session:** None.
+
+**What's next:** Issue #108 — `hours_since_rain` never advances, so days 2-7 cap at 60 of
+100 and the Climbing metric draws a flat column across six of seven rows.
+
+**Gotchas for next session:**
+- **A screenshot beside the mockup found in one pass what three readings of the spec did
+  not.** When a screen is meant to match an artifact and the owner says it does not, ask
+  for an image rather than re-reading the prose. This is now the second lesson of its kind
+  in one day; the first was "the artifact is the spec, not its summary".
+- **"Technically defensible" is not a defence.** I refused a truncated baseline for
+  temperature on the grounds that a temperature has no meaningful zero. True, and the
+  conclusion did not follow: the answer is to set a floor and **print it on the axis**, not
+  to stop drawing bars. The floating-box version covered a fraction of the plot where bars
+  now span 15-81 units of 106. I then wrote a careful justification for the unreadable one
+  — the same shape as the stepped-ramp mistake earlier the same day.
+- **Fixing one chart broke the other.** Moving the edge labels to the domain bounds is
+  right for a bar chart, whose caller prints a heading figure; the seven-day *line* chart
+  has no heading, so its labels became band edges — 113°F over a median that never passes
+  63°F. That was exactly what the test I had deleted guarded. **Deleting a test because its
+  subject changed shape is how a guarded invariant becomes unguarded.**
+- **A relative colour ramp lies.** Shading rain by each day's own peak made 0.3 mm paint
+  `radarSevere` beside a header reading `0.02 in`, and put the same hour in two colours on
+  two charts. Height carries shape; colour carries magnitude.
+- **`card` carries `padding: 14px`.** Spread into a 28px pager button it pushes the glyph
+  clean out of the box — the arrows rendered as empty rounded squares, visible in the
+  owner's screenshot and missed in my own offline renders because I was reading text, not
+  looking at geometry.
+- **A component with no test file is where the defects are.** `DayCharts` had none, and
+  two of the seven review findings lived in it.
+
+**Does the user need to do anything?** **Yes — look at the Hourly tab again, and send a
+screenshot if it is still wrong.** Comparing images is what has actually been working. Also
+still outstanding from earlier: back on the Hourly tab must return to Daily rather than
+closing the app (no test here can reach it), and whether the continuous temperature ramp
+separates "warm" from "too hot" on a real screen. No credential, no dashboard setting.

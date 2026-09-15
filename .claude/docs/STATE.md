@@ -5,7 +5,7 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-09-15 · `main` @ `6302eab`
+Last updated: 2026-09-15 · `main` @ `a3bada1`
 
 ---
 
@@ -35,7 +35,7 @@ Current state:
     by all seven** plus an axis note saying what that scale is, then the continuous
     seven-day strip.
   - **Hourly**: the identity condensed to a line, a **day pager**, then four charts —
-    temperature as a p10-p90 range mark with the median ruled across it, rain, chance of
+    temperature as a bar from a labelled floor with a p10-p90 whisker, rain, chance of
     rain, and wind with gusts — on an hour axis read from the crag's clock.
   - The alert banner, the score section and the sources footer sit outside the tabs.
     Inline SVG, no chart library. **Nobody has seen any of it on a phone** — see § What the
@@ -81,7 +81,7 @@ Current state:
 - **"Update" a mis-saved location is remove-then-add.** `/help` says so; no separate edit
   flow exists, deliberately. (Phase 5's build detail is in the archive under 2026-09-03.)
 
-Baseline: `npm run test` **729 passing** (512 api, 184 miniapp, 33 types), `npm run typecheck`
+Baseline: `npm run test` **740 passing** (512 api, 195 miniapp, 33 types), `npm run typecheck`
 clean, `npm run check:hooks` 58 passing. **Mutation score 66.09%**, last measured
 2026-08-26 — not re-measured since, and **three** sessions of new code have landed under
 it. `npm run test:mutation --workspace=apps/api`.
