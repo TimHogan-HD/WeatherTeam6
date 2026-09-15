@@ -162,11 +162,21 @@ export function DetailView({
   // Which daily rows open a drill-down. **Driven by `days[]`, not by the rows
   // themselves**: a forecast row exists for all seven days whatever the hourly
   // models reached, so tapping one the ensemble never covered would open two
-  // empty charts. An empty set while the hourly query is still loading is
-  // correct — nothing is tappable until the response says what it can draw.
-  const drawableDates = new Set(
-    (hourly?.data?.days ?? []).filter(dayIsDrawable).map((d) => d.local_date),
-  )
+  // empty charts.
+  //
+  // **Computed only once a response has arrived, and that distinction is the
+  // point.** The set is also what tells `DailyList` to say "days without an
+  // hour-by-hour forecast can't be opened" — a statement about the forecast. An
+  // empty set derived from a request still in flight, or one that failed, turns
+  // a loading spinner and a network error into that same confident claim, which
+  // after an error is permanent. `/hourly/:id` is the slowest query on this
+  // screen, so the in-flight window is not brief. Defect class 2: a failure
+  // state that reads as a fact.
+  const hourlyDays = hourly?.data?.days
+  const drawableDates =
+    hourlyDays === undefined
+      ? undefined
+      : new Set(hourlyDays.filter(dayIsDrawable).map((d) => d.local_date))
 
   // Hours since rain belongs to the hero, not the breakdown, and only to a
   // climbing location — a city has no drying story (§3). The shared formatter
@@ -282,18 +292,32 @@ export function DetailView({
           // reads as two failures.
           null
         ) : forecast.data === undefined || forecast.data.length === 0 ? null : (
-          <DailyList
-            days={forecast.data}
-            metric={metric}
-            onMetricChange={setMetric}
-            showScoreMetric={showScore}
-            {...(tabs === undefined
-              ? {}
-              : {
-                  onSelectDay: (localDate: string) => openDayInHourly(tabs, localDate),
-                  drawableDates,
-                })}
-          />
+          <>
+            <DailyList
+              days={forecast.data}
+              metric={metric}
+              onMetricChange={setMetric}
+              showScoreMetric={showScore}
+              {...(tabs === undefined || drawableDates === undefined
+                ? {}
+                : {
+                    onSelectDay: (localDate: string) => openDayInHourly(tabs, localDate),
+                    drawableDates,
+                  })}
+            />
+            {/*
+              Why the rows are not opening, when the reason is this section
+              rather than the forecast. The Hourly tab shows the same failure
+              with its retry; here it is one line, because the reader came for
+              the daily rows and got them.
+            */}
+            {hourly?.isError === true ? (
+              <InlineError
+                message="Couldn't load the hour-by-hour forecast."
+                onRetry={hourly.refetch}
+              />
+            ) : null}
+          </>
         )}
       </div>
 

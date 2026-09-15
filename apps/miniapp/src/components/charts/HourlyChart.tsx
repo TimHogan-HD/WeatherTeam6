@@ -150,10 +150,21 @@ export function HourlyChart({
   const domain = verticalDomain(data, kind, referenceBand)
   if (times === null || measured === null || domain === null) return null
 
-  // A bar and a range mark both cover the hour *before* their timestamp, so the
-  // window has to start an hour earlier or the first one is drawn half outside
-  // the plot. A line is drawn at its own instant and needs no room.
-  const xDomain: Extent = kind === 'line' ? times : { min: times.min - HOUR_MS, max: times.max }
+  // Each kind needs a different window, because each mark sits differently
+  // against its timestamp:
+  //
+  // - `line` is drawn at the instant and needs no room.
+  // - `bar` is rain, an **accumulation** covering the hour *before* its
+  //   timestamp, so the window opens an hour early or the first bar is half
+  //   outside the plot.
+  // - `range` is temperature, an **instantaneous** reading centred on its
+  //   timestamp, so it needs half a slot of room at *each* end.
+  const xDomain: Extent =
+    kind === 'line'
+      ? times
+      : kind === 'bar'
+        ? { min: times.min - HOUR_MS, max: times.max }
+        : { min: times.min - HOUR_MS / 2, max: times.max + HOUR_MS / 2 }
 
   const plotBottom = viewHeight - PAD_BOTTOM
   const x = linearScale(xDomain, PAD_LEFT, VIEW_W - PAD_RIGHT)

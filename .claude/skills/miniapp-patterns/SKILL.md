@@ -64,6 +64,15 @@ always-loading:
 
 Added by Phase 3 (2026-09-14), same test — wrong-but-plausible if broken:
 
+- **An accumulation and an instantaneous reading are placed differently on the same axis,
+  and the rain rule does not generalise.** `precip_mm_mean` at 15:00 is the rain that fell
+  between 14:00 and 15:00, so its bar spans the hour *before* its timestamp. `temp_c_p50`
+  at 15:00 is the temperature *at* 15:00, so its mark is **centred** on it. Reusing the
+  rain placement for temperature put the peak an hour early under a correct-looking axis —
+  self-consistent, and caught by review rather than by any gate. `Series.tsx` has one
+  helper per convention (`accumulationLeft`, `instantLeft`) so the choice is made
+  explicitly; `HourlyChart` widens the x-window to match (an hour back for bars, half a
+  slot each side for range marks).
 - **Temperature is never a bar from a baseline; it is a floating `range` mark.** 0 °C is a
   different place on the scale from 0 °F, so a column measured from zero encodes the unit
   as much as the weather, and `Math.max(0, …)` draws no bar at all for a below-zero hour —

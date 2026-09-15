@@ -2,14 +2,12 @@ import type { ReactNode } from 'react'
 import { spacing } from '@weatherteam6/design/tokens'
 import {
   formatHumidity,
-  formatPrecipIn,
   formatTempF,
   formatWindMph,
   type ForecastSnapshot,
 } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { card, row, stack } from '../theme/styles.js'
-import { formatForecastDate } from '../lib/forecast.js'
 import { DropletIcon, TemperatureIcon, WindIcon } from './Icons.js'
 
 /**
@@ -72,43 +70,3 @@ export function TodayHero({ day, rainLine }: { day: ForecastSnapshot; rainLine?:
   )
 }
 
-/**
- * The 7-day list. **Weather only — no per-day score chip.**
- *
- * Not a layout preference: `computeLiveForecast` scores all seven days but no
- * endpoint returns them. `/forecast/:id` carries no score or confidence field
- * at all, so a per-day chip would be an API change and its own task (§3).
- *
- * p10/p90 never appear in prose (locked copy rule), so the row shows the p50
- * figure alone.
- */
-export function ForecastList({ days }: { days: readonly ForecastSnapshot[] }) {
-  return (
-    <section style={stack(spacing.listGapSm)}>
-      <span style={type.label}>Next 7 days</span>
-      {days.map((day) => (
-        <div
-          key={day.forecast_date}
-          style={{
-            ...card,
-            ...row(spacing.chipGapMd),
-            justifyContent: 'space-between',
-            padding: `${spacing.cellPad}px ${spacing.cardPadSm}px`,
-          }}
-        >
-          <span style={type.calDay}>{formatForecastDate(day.forecast_date)}</span>
-          <div style={row(spacing.sectionGap)}>
-            <span style={{ ...type.bodyMd, ...row(spacing.tight) }}>
-              <DropletIcon />
-              {formatPrecipIn(day.precip_mm_p50)}
-            </span>
-            <span style={type.bodyMd}>{formatWindMph(day.wind_kmh_max)}</span>
-            <span style={type.calDay}>
-              {formatTempF(day.temp_c_max)} / {formatTempF(day.temp_c_min)}
-            </span>
-          </div>
-        </div>
-      ))}
-    </section>
-  )
-}

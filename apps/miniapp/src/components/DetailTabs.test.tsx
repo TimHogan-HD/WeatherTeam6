@@ -181,7 +181,7 @@ describe('DetailView — tabs', () => {
     const html = render({ active: 'daily' })
     const rowButtons = [...html.matchAll(/<button type="button" style="appearance:none[^>]*>/g)]
     expect(rowButtons).toHaveLength(2)
-    expect(html).toContain('Days without an hour-by-hour forecast can’t be opened.')
+    expect(html).toContain('Days without an hour-by-hour forecast can&#x27;t be opened.')
   })
 
   it('opens the tapped day, not whichever day the tab happened to be on', () => {
@@ -256,6 +256,60 @@ describe('DetailView — tabs', () => {
       />,
     )
     expect(html).toContain('No hour-by-hour forecast for this location yet.')
+  })
+
+  it('does not claim the days have no forecast while the request is still in flight', () => {
+    // `/hourly/:id` is the slowest query on the screen. Deriving "which days can
+    // be opened" from a response that has not arrived turns a loading state into
+    // a confident statement about the forecast.
+    const html = renderToStaticMarkup(
+      <DetailView
+        isClimbingLocation
+        asosStation={null}
+        forecast={ok([day(DAY_1), day(DAY_2), day(DAY_3)])}
+        hourly={{
+          data: undefined,
+          isPending: true,
+          isError: false,
+          refetch: () => {},
+          tabs: {
+            active: 'daily',
+            onTabChange: () => {},
+            selectedDate: null,
+            onSelectDate: () => {},
+          },
+        }}
+      />,
+    )
+    expect(html).toContain('Next 7 days')
+    expect(html).not.toContain('can&#x27;t be opened')
+  })
+
+  it('says the hourly request failed rather than that the days have no forecast', () => {
+    // After an error the untappable state is permanent, so the wrong version of
+    // this is not a flicker — it is a network failure permanently displayed as a
+    // fact about the weather.
+    const html = renderToStaticMarkup(
+      <DetailView
+        isClimbingLocation
+        asosStation={null}
+        forecast={ok([day(DAY_1), day(DAY_2), day(DAY_3)])}
+        hourly={{
+          data: undefined,
+          isPending: false,
+          isError: true,
+          refetch: () => {},
+          tabs: {
+            active: 'daily',
+            onTabChange: () => {},
+            selectedDate: null,
+            onSelectDate: () => {},
+          },
+        }}
+      />,
+    )
+    expect(html).not.toContain('can&#x27;t be opened')
+    expect(html).toContain('Couldn&#x27;t load the hour-by-hour forecast.')
   })
 
   it('shows no tab bar at all on the preview path', () => {

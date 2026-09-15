@@ -420,10 +420,33 @@ gap and not a line to zero.
   says the hero keeps its current order. Identity now leads; the hero's type scale was left
   alone, because changing it is a design change this phase's build did not ask for.
 
+**Four defects found by review before the merge**, none of them visible to typecheck, lint
+or the suite — the same pattern this repo keeps recording:
+
+1. **The temperature mark was placed on the rain convention.** Rain covers the hour *before*
+   its timestamp because it is an accumulation; a temperature is instantaneous and belongs
+   centred on its own. The 16:00 reading was landing in the slot the axis heads "3 PM" — the
+   day's peak an hour early, under a correct-looking axis. **A test asserted the wrong
+   behaviour**, having been written from the same misunderstanding as the code (defect
+   class 11). Now `accumulationLeft` / `instantLeft`, with the x-window widened to match.
+2. **A loading state read as a fact about the weather.** `drawableDates` was derived from
+   `days[]` unconditionally, so while `/hourly/:id` was in flight — the slowest query on the
+   screen — every row was untappable and the list printed *"days without an hour-by-hour
+   forecast can't be opened"*. After an error that state was permanent. Now the set is
+   `undefined` until a response arrives, and an hourly error says so on the Daily tab.
+3. **A null shared domain dropped the bar track**, contradicting the component's own
+   "absences are drawn, not omitted" rule and collapsing the row layout.
+4. **`ForecastList` was left orphaned**, carrying a duplicate copy of the daily-row rules.
+   Deleted.
+
 **Verified** by rendering the real components against the deployed `/forecast/:id` and
 `/hourly/:locationId` for Finland, MN: 7 days, 168 hours, `utc_offset_seconds: -18000`, day
 and hour axes, both tabs — no `NaN`, no `Invalid Date`, no `undefined` in the markup, and
-the hour ticks at 12 AM / 6 AM / 12 PM / 6 PM on the crag's clock rather than UTC.
+the hour ticks at 12 AM / 6 AM / 12 PM / 6 PM on the crag's clock rather than UTC. The
+placement fix was checked the same way: the day's 15:00 peak lands at 67.0% of the plot,
+which is the 12 PM tick (55.8%) plus three hours at 3.74% each — an hour to the right of
+where it sat before.
+
 **Not verified on a device**, including `BackButton` — see the acceptance criterion below,
 which a `node` test environment with no DOM cannot reach.
 

@@ -124,15 +124,21 @@ function RangeBar({
   fill,
 }: {
   span: { from: number; to: number } | null
-  domain: Extent
+  /**
+   * `null` when **no** day in the week has this metric, in which case there is
+   * no scale to draw against and every row is an empty track. The track still
+   * renders: dropping it collapses the row layout, which reads as a glitch
+   * rather than as a week with no wind reading in it.
+   */
+  domain: Extent | null
   fill: string
 }) {
-  const scale = linearScale(domain, 0, 100)
   // A day with no value keeps its track and draws no bar. The empty track is
   // the "absences are drawn, not omitted" rule: a row that simply lost its bar
   // is indistinguishable from a row whose value happened to be zero.
-  const left = span === null ? 0 : Math.min(scale(span.from), scale(span.to))
-  const right = span === null ? 0 : Math.max(scale(span.from), scale(span.to))
+  const scale = domain === null ? null : linearScale(domain, 0, 100)
+  const left = span === null || scale === null ? 0 : Math.min(scale(span.from), scale(span.to))
+  const right = span === null || scale === null ? 0 : Math.max(scale(span.from), scale(span.to))
 
   return (
     <div
@@ -144,7 +150,7 @@ function RangeBar({
         backgroundColor: colors.line,
       }}
     >
-      {span === null ? null : (
+      {span === null || scale === null ? null : (
         <div
           style={{
             position: 'absolute',
@@ -247,9 +253,7 @@ export function DailyList({
             <span style={{ ...type.calDay, minWidth: '86px' }}>
               {formatForecastDate(day.forecast_date)}
             </span>
-            {domain === null ? null : (
-              <RangeBar span={rowSpan(day, metric)} domain={domain} fill={barFill(day, metric)} />
-            )}
+            <RangeBar span={rowSpan(day, metric)} domain={domain} fill={barFill(day, metric)} />
             <span
               style={{
                 ...type.bodyMd,
@@ -293,12 +297,17 @@ export function DailyList({
         Why some rows do not open. Said once, under the list, rather than as a
         per-row marker: the reason is the same for all of them and a repeated
         badge would compete with the bars.
+
+        The copy is a string expression rather than JSX text so it can keep the
+        straight apostrophe every other message in this app uses (`Couldn't
+        load…`) without tripping react/no-unescaped-entities. `&rsquo;` put two
+        different apostrophes on the same screen.
       */}
       {onSelectDay === undefined ||
       drawableDates === undefined ||
       days.every((d) => drawableDates.has(d.forecast_date)) ? null : (
         <span style={type.bodySm}>
-          Days without an hour-by-hour forecast can&rsquo;t be opened.
+          {"Days without an hour-by-hour forecast can't be opened."}
         </span>
       )}
     </section>

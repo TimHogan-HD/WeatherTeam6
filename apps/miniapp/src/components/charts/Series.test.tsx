@@ -184,13 +184,30 @@ describe('Series, range', () => {
     expect(markup).not.toContain('#hot')
   })
 
-  it('covers the hour before its timestamp, the same way a rain bar does', () => {
-    // Two marks at the same x have to mean the same hour, or the temperature
-    // chart and the rain chart disagree about when a shower was.
+  it('is centred on its timestamp, because a temperature is instantaneous', () => {
+    // **Not the rain convention.** `precip_mm_mean` at 15:00 is an accumulation
+    // over 14:00-15:00, so its bar spans the hour before it. `temp_c_p50` at
+    // 15:00 is the temperature *at* 15:00. An earlier draft reused the rain
+    // placement here, which put the 16:00 reading under the axis label reading
+    // "3 PM" — the day's peak an hour early, and self-consistent enough that
+    // nothing else disagreed with it.
     const data = [datum(1, 15, 12, 18)]
     const markup = render(<Series data={data} kind="range" x={x} y={y} color="#fff" />)
-    // Hour 1 occupies x 0-10; the gap of 2 puts the mark at x=1, width 8.
-    expect(markup).toContain('x="1"')
+    // Hour 1 is at x=10; a width-8 mark centred there starts at 6.
+    expect(markup).toContain('x="6"')
     expect(markup).toContain('width="8"')
+    // The median rule spans the same slot, so the value and its spread agree.
+    expect(markup).toContain('x1="6"')
+    expect(markup).toContain('x2="14"')
+  })
+
+  it('places its mark at the same x the line chart draws the same hour', () => {
+    // The line is drawn at `x(t)`; the range mark's centre must be the same
+    // instant. Two views of one series that disagree about when an hour was are
+    // worse than either alone.
+    const data = [datum(3, 15, 12, 18)]
+    const range = render(<Series data={data} kind="range" x={x} y={y} color="#fff" />)
+    const centre = Number(/x="([\d.]+)"/.exec(range)?.[1]) + 8 / 2
+    expect(centre).toBe(x(datum(3, 15).t))
   })
 })

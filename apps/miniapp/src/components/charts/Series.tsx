@@ -104,22 +104,39 @@ function LineMarks({ data, x, y, color, bandColor }: Omit<SeriesProps, 'kind'>) 
   )
 }
 
-/**
- * The horizontal slot one hour occupies, and the bar drawn inside it.
- *
- * A bar covers the hour **before** its timestamp, both here and in `RangeMarks`
- * — precipitation is stamped at the end of the hour it fell in (architecture
- * rule), and temperature is read on the same axis, so two marks at the same x
- * have to mean the same hour.
- */
+/** The horizontal slot one hour occupies, and the mark drawn inside it. */
 function barGeometry(x: Scale): { gap: number; width: number } {
   const slot = Math.abs(x(HOUR_MS) - x(0))
   const gap = slot >= BAR_GAP_MIN_W ? BAR_GAP : 0
   return { gap, width: Math.max(BAR_MIN_W, slot - gap) }
 }
 
-function barLeft(t: number, x: Scale, gap: number): number {
+/**
+ * A **rain** bar's left edge: it covers the hour *before* its timestamp.
+ *
+ * Precipitation is an accumulation — `precip_mm_mean` at 15:00 is the rain that
+ * fell between 14:00 and 15:00 (architecture rule) — so the mark has to span
+ * the hour it accumulated over. Drawing it forward moves every shower an hour
+ * later.
+ */
+function accumulationLeft(t: number, x: Scale, gap: number): number {
   return Math.min(x(t), x(t - HOUR_MS)) + gap / 2
+}
+
+/**
+ * An **instantaneous** mark's left edge: it is centred on its timestamp.
+ *
+ * `temp_c_p50` at 15:00 is the temperature *at* 15:00, not an average over the
+ * hour before it, so it does not span a preceding hour the way rain does.
+ *
+ * **These two placements must stay different, and an earlier draft of this file
+ * had them the same.** Reusing the accumulation rule here put the 16:00 reading
+ * in the slot the axis heads "3 PM", so the day's peak read an hour early —
+ * plausible, self-consistent, and wrong. Phase 2's temperature *line* has always
+ * been drawn at `x(t)`; this is the same instant, given width.
+ */
+function instantLeft(t: number, x: Scale, width: number): number {
+  return x(t) - width / 2
 }
 
 function BarMarks({ data, x, y, color, colorForValue, baseY }: Omit<SeriesProps, 'kind'>) {
@@ -161,7 +178,7 @@ function BarMarks({ data, x, y, color, colorForValue, baseY }: Omit<SeriesProps,
         return (
           <rect
             key={`bar-${d.t}`}
-            x={barLeft(d.t, x, gap)}
+            x={accumulationLeft(d.t, x, gap)}
             y={baseY - height}
             width={width}
             height={height}
@@ -190,7 +207,7 @@ function BarMarks({ data, x, y, color, colorForValue, baseY }: Omit<SeriesProps,
  * paint an hour as too hot on the strength of one member's worst run.
  */
 function RangeMarks({ data, x, y, color, colorForValue }: Omit<SeriesProps, 'kind'>) {
-  const { gap, width } = barGeometry(x)
+  const { width } = barGeometry(x)
   const fillFor = (value: number): string =>
     colorForValue === undefined ? color : colorForValue(value)
 
@@ -201,7 +218,7 @@ function RangeMarks({ data, x, y, color, colorForValue }: Omit<SeriesProps, 'kin
         // an unlabelled grey box. The two come from the same ensemble parse, so
         // this is a defensive case rather than an expected one.
         if (d.value === null) return null
-        const left = barLeft(d.t, x, gap)
+        const left = instantLeft(d.t, x, width)
         const mid = y(d.value)
 
         // An hour with a median but no band — a real state, not an error. Drawn

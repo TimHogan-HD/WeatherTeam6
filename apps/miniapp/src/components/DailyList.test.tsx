@@ -176,7 +176,7 @@ describe('DailyList', () => {
       // the four metric chips plus the two tappable rows
       6,
     )
-    expect(html).toContain('Days without an hour-by-hour forecast can’t be opened.')
+    expect(html).toContain('Days without an hour-by-hour forecast can&#x27;t be opened.')
   })
 
   it('says nothing about untappable days when every day is tappable', () => {
@@ -190,7 +190,7 @@ describe('DailyList', () => {
         drawableDates={new Set(DATES)}
       />,
     )
-    expect(html).not.toContain('can’t be opened')
+    expect(html).not.toContain('can&#x27;t be opened')
   })
 
   it('renders no row as a button when there is no hourly data at all', () => {
