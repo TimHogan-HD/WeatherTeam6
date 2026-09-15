@@ -1,7 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { ForecastSnapshot } from '@weatherteam6/types'
-import { DailyList, rowSpan, sharedDomain } from './DailyList.js'
+import type { HourlySample, HourlySeries } from '@weatherteam6/types'
+import { DailyList, rowSpan, rowSpread, sharedDomain } from './DailyList.js'
 
 /**
  * The daily list's two load-bearing claims: the bar scale is shared by all
@@ -50,12 +51,14 @@ function render(node: Parameters<typeof renderToStaticMarkup>[0]): string {
  * Each drawn bar's placement, in order: its left edge and its width, as
  * percentages of the shared scale.
  *
- * Matched as a **pair** rather than on width alone — a tappable row is a
+ * Matched on the bar's own 6px height, which is what separates it from the
+ * full-height band behind it and from the 1px gridlines. As a **pair** rather
+ * than on width alone, too — a tappable row is a
  * `bareButton`, which carries its own `width:100%`, and matching that too
  * reported six marks for three days.
  */
 function barPlacements(html: string): { left: number; width: number }[] {
-  return [...html.matchAll(/left:([\d.]+)%;width:([\d.]+)%/g)].map((m) => ({
+  return [...html.matchAll(/height:6px;left:([0-9.]+)%;width:([0-9.]+)%/g)].map((m) => ({
     left: Number(m[1]),
     width: Number(m[2]),
   }))
@@ -219,18 +222,30 @@ describe('DailyList', () => {
       />,
     )
     // Read the row **value cells** specifically. A bare `not.toContain('>0<')`
-    // over the whole markup now catches the axis note's "0", which is the left
+    // over the whole markup now catches the axis labels' "0", which is the left
     // end of the 0-100 scale and entirely correct — an assertion that fails on
     // a right answer is worse than no assertion.
-    const values = [...html.matchAll(/text-align:right[^>]*>([^<]*)</g)].map((m) => m[1])
+    const values = rowValues(html)
     expect(values).toEqual(['—', '72'])
   })
 })
 
+/** The right-hand value cell of each row, in order. */
+function rowValues(html: string): string[] {
+  return [...html.matchAll(/align-items:flex-end[^>]*>(?:<span[^>]*>)([^<]*)</g)].map((m) => m[1] ?? '')
+}
+
+/** The tick labels under the rows, in order. */
+function axisLabels(html: string): string[] {
+  const axis = html.slice(html.indexOf('position:relative;height:12px'))
+  return [...axis.matchAll(/position:absolute;left:[^"]*">([^<]*)</g)].map((m) => m[1] ?? '')
+}
+
 describe('DailyList — the shared scale is stated, not implied', () => {
-  it('writes what the bars are measured against, in the metric’s own unit', () => {
+  it('labels the ruler where it is actually ruled, in the metric’s own unit', () => {
     // Seven bars at seven widths are only a comparison if something says they
-    // share a ruler. Without this line the list looks like seven unrelated bars.
+    // share a ruler — and the ends of it alone leave everything in between to
+    // be guessed at, which is what the three-part note under the rows did.
     const html = render(
       <DailyList
         days={[
@@ -242,9 +257,28 @@ describe('DailyList — the shared scale is stated, not implied', () => {
         showScoreMetric
       />,
     )
-    expect(html).toContain('shared scale')
-    expect(html).toContain('32°F')
-    expect(html).toContain('95°F')
+    // Round degrees Fahrenheit, not round Celsius: 10 °C is round and 50°F is
+    // the number on screen. The domain is 32-95°F, so a 20° step is what fits.
+    const ticks = axisLabels(html)
+    expect(ticks).toEqual(['40°F', '60°F', '80°F'])
+  })
+
+  it('labels each tick at its own position on the track, not at even thirds', () => {
+    const html = render(
+      <DailyList
+        days={[day(DATES[0], { temp_c_min: 0, temp_c_max: 5 }), day(DATES[1], { temp_c_min: 30, temp_c_max: 35 })]}
+        metric="temperature"
+        onMetricChange={() => {}}
+        showScoreMetric
+      />,
+    )
+    // 32-95°F across the track: 40°F is (40-32)/63 of the way along. Evenly
+    // spacing three labels would put it at 0%, which is a whole bar adrift and
+    // stays adrift in the same direction for every week.
+    const lefts = [...html.matchAll(/position:absolute;left:([0-9.]+)%;transform/g)].map((m) =>
+      Number(m[1]),
+    )
+    expect(lefts).toContain(((40 - 32) / (95 - 32)) * 100)
   })
 
   it('states the score scale as the fixed 0-100 it is', () => {
@@ -256,8 +290,23 @@ describe('DailyList — the shared scale is stated, not implied', () => {
         showScoreMetric
       />,
     )
-    expect(html).toContain('climbing score')
-    expect(html).toContain('>100<')
+    expect(axisLabels(html)).toEqual(['0', '50', '100'])
+  })
+
+  it('does not promise a band on the score metric, which has no ensemble', () => {
+    // A conditions score is not an ensemble of anything. Its uncertainty is
+    // `confidence`, and a legend offering "where 8 in 10 runs land" beside it
+    // would describe a spread nothing computed.
+    const html = render(
+      <DailyList
+        days={[day(DATES[0], { score: 20, confidence: 'low' })]}
+        metric="score"
+        onMetricChange={() => {}}
+        showScoreMetric
+      />,
+    )
+    expect(html).not.toContain('8 in 10')
+    expect(html).toContain('low')
   })
 
   it('paints the temperature bar from the day’s low to its high', () => {
@@ -284,5 +333,129 @@ describe('DailyList — the shared scale is stated, not implied', () => {
       />,
     )
     expect(html).not.toContain('linear-gradient')
+  })
+})
+
+/** An hourly run whose members disagree by `spreadC` either side of 15 °C. */
+function hourly(spreadByDate: Record<string, number>): HourlySeries {
+  const hours: HourlySample[] = []
+  for (const [local_date, spread] of Object.entries(spreadByDate)) {
+    for (let i = 0; i < 24; i++) {
+      hours.push({
+        valid_at: `${local_date}T${String(i).padStart(2, '0')}:00:00.000Z`,
+        local_date,
+        temp_c: null,
+        dewpoint_c: null,
+        humidity_pct: null,
+        precip_mm: null,
+        wind_kmh: null,
+        wind_gust_kmh: null,
+        wind_dir_deg: null,
+        cloud_pct: null,
+        pressure_hpa: null,
+        temp_c_p10: 15 - spread,
+        temp_c_p50: 15,
+        temp_c_p90: 15 + spread,
+        wind_kmh_p10: null,
+        wind_kmh_p50: null,
+        wind_kmh_p90: null,
+        precip_mm_mean: null,
+        precip_mm_p10: null,
+        precip_mm_p90: null,
+        precip_chance_pct: null,
+        member_count: 143,
+      })
+    }
+  }
+  return {
+    location_id: 'loc',
+    utc_offset_seconds: 0,
+    fetched_at: '2026-09-14T00:00:00.000Z',
+    model: 'gfs_seamless',
+    unavailable_models: [],
+    hours,
+    days: [],
+  }
+}
+
+/** The band placements only — full-height marks, as against the 6px bars. */
+function bandPlacements(html: string): { left: number; width: number }[] {
+  return [...html.matchAll(/top:0;bottom:0;left:([0-9.]+)%;width:([0-9.]+)%/g)].map((m) => ({
+    left: Number(m[1]),
+    width: Number(m[2]),
+  }))
+}
+
+describe('rowSpread — the band is the only thing on a row that changes with lead time', () => {
+  const hours = hourly({ [DATES[0]]: 1, [DATES[3]]: 6 }).hours
+
+  it('widens for a day further out, from the run the screen already has', () => {
+    const near = rowSpread(day(DATES[0]), 'temperature', hours)
+    const far = rowSpread(day(DATES[3]), 'temperature', hours)
+    expect(near).toEqual({ from: 14, to: 16 })
+    expect(far).toEqual({ from: 9, to: 21 })
+  })
+
+  it('has no band for a day the run does not reach, rather than a narrow one', () => {
+    // A missing band and a band of zero width are opposite claims: "we don't
+    // know" against "every run agrees exactly".
+    expect(rowSpread(day(DATES[5]), 'temperature', hours)).toBeNull()
+  })
+
+  it('reads rain from the row itself, and needs both ends of it', () => {
+    expect(rowSpread(day(DATES[0]), 'rain', hours)).toEqual({ from: 0, to: 4 })
+    expect(rowSpread(day(DATES[0], { precip_mm_p90: null }), 'rain', hours)).toBeNull()
+  })
+
+  it('has no band for the score, which is not an ensemble of anything', () => {
+    expect(rowSpread(day(DATES[0], { score: 60 }), 'score', hours)).toBeNull()
+  })
+})
+
+describe('DailyList — the spread on screen', () => {
+  it('draws a wider band for a day further out, on the shared scale', () => {
+    const html = render(
+      <DailyList
+        days={[day(DATES[0]), day(DATES[3])]}
+        metric="temperature"
+        onMetricChange={() => {}}
+        showScoreMetric
+        hourly={hourly({ [DATES[0]]: 1, [DATES[3]]: 6 })}
+      />,
+    )
+    const bands = bandPlacements(html)
+    expect(bands).toHaveLength(2)
+    expect(bands[1]!.width).toBeGreaterThan(bands[0]!.width * 2)
+  })
+
+  it('keeps the whole band inside the scale it is drawn against', () => {
+    // 9-21 °C is wider than the rows' own 10-20 medians. A domain measured from
+    // the medians alone would run the band off both ends of every track —
+    // silently, because these are plain divs that do not clip.
+    const days = [day(DATES[0])]
+    const hours = hourly({ [DATES[0]]: 6 }).hours
+    expect(sharedDomain(days, 'temperature', hours)).toEqual({ min: 9, max: 21 })
+
+    const bands = bandPlacements(
+      render(
+        <DailyList
+          days={days}
+          metric="temperature"
+          onMetricChange={() => {}}
+          showScoreMetric
+          hourly={hourly({ [DATES[0]]: 6 })}
+        />,
+      ),
+    )
+    expect(bands[0]).toEqual({ left: 0, width: 100 })
+  })
+
+  it('draws no band at all when the hourly run has not arrived', () => {
+    // The `/add` preview, and the window before the slowest query on the screen
+    // settles. A band drawn from nothing would be the narrowest on the page.
+    const html = render(
+      <DailyList days={[day(DATES[0])]} metric="temperature" onMetricChange={() => {}} showScoreMetric />,
+    )
+    expect(bandPlacements(html)).toHaveLength(0)
   })
 })

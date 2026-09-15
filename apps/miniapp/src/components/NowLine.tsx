@@ -1,4 +1,4 @@
-import { colors, spacing, radius } from '@weatherteam6/design/tokens'
+import { colors, spacing } from '@weatherteam6/design/tokens'
 import {
   formatHumidity,
   formatTempF,
@@ -9,6 +9,7 @@ import {
 import { type } from '../theme/tokens.css.js'
 import { card, row } from '../theme/styles.js'
 import { tempColor } from './charts/chartStyle.js'
+import { ScoreChip } from './ScoreChip.js'
 
 /**
  * Current conditions as **one line**, not a 36px hero.
@@ -52,28 +53,6 @@ export type NowLineProps = {
   showScore: boolean
 }
 
-function Chip({ score, confidence }: { score: number; confidence?: string }) {
-  return (
-    <span
-      style={{
-        ...row(spacing.chipGap),
-        alignItems: 'baseline',
-        backgroundColor: colors.goodTint,
-        borderStyle: 'solid',
-        borderWidth: '1px',
-        borderColor: colors.goodTintBorder,
-        borderRadius: `${radius.chipMd}px`,
-        padding: `${spacing.tight}px ${spacing.inlineGap}px`,
-      }}
-    >
-      <span style={{ ...type.cardTitle, color: colors.good }}>{score}</span>
-      {confidence === undefined ? null : (
-        <span style={{ ...type.labelSm }}>{confidence}</span>
-      )}
-    </span>
-  )
-}
-
 export function NowLine({
   hour,
   today,
@@ -81,14 +60,6 @@ export function NowLine({
   alertsPending,
   showScore,
 }: NowLineProps) {
-  const score = today?.score
-  const chipVisible =
-    showScore &&
-    !alertsPending &&
-    severeAlertEvent === null &&
-    score !== null &&
-    score !== undefined
-
   // Each part is omitted when its value is missing rather than rendered as an
   // em dash: this is a sentence of conditions, and a dash inside one reads as a
   // broken screen where a shorter sentence reads as less to say.
@@ -134,7 +105,17 @@ export function NowLine({
         </span>
       )}
 
-      {chipVisible ? <Chip score={score} {...(today?.confidence === undefined ? {} : { confidence: today.confidence })} /> : null}
+      {/*
+        The score, from the shared chip so the Hourly pager's cannot disagree
+        with it. Every suppression rule lives in there; this passes the two
+        facts only the screen knows.
+      */}
+      <ScoreChip
+        day={today}
+        severeAlertEvent={severeAlertEvent}
+        alertsPending={alertsPending}
+        showScore={showScore}
+      />
     </section>
   )
 }

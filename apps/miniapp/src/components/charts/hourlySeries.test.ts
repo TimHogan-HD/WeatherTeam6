@@ -44,6 +44,8 @@ function hour(index: number, over: Partial<HourlySample> = {}): HourlySample {
     wind_kmh_p50: null,
     wind_kmh_p90: null,
     precip_mm_mean: null,
+    precip_mm_p10: null,
+    precip_mm_p90: null,
     precip_chance_pct: null,
     member_count: null,
     ...over,
@@ -261,5 +263,26 @@ describe('firstDrawableDay', () => {
   it('is null when no day in the window is drawable', () => {
     expect(firstDrawableDay([day('2026-09-14', false)])).toBeNull()
     expect(firstDrawableDay([])).toBeNull()
+  })
+})
+
+describe('a column an older API deployment does not send', () => {
+  it('reads as a gap, not as a value the chart can position', () => {
+    // **Found in production, not by this suite.** The types say
+    // `number | null`, so nothing here could have caught it: a response served
+    // by an API older than the client omits a newly added column entirely, and
+    // `undefined === null` is false. Every guard downstream waved it through
+    // and the rain whiskers stroked `y1="NaN"` — no thrown error, no browser
+    // warning, just marks silently missing from a chart that believed it had
+    // drawn them. Every release that adds a field has this window.
+    const stale = { ...hour(0), precip_mm_mean: 1.4 } as Record<string, unknown>
+    delete stale['precip_mm_p10']
+    delete stale['precip_mm_p90']
+
+    const [datum] = rainSeries([stale as unknown as HourlySample])
+    expect(datum?.low).toBeNull()
+    expect(datum?.high).toBeNull()
+    // The value still arrives, so the bar is drawn; only its spread is absent.
+    expect(datum?.value).toBe(1.4)
   })
 })

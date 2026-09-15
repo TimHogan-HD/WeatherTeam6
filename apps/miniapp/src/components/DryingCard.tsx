@@ -22,8 +22,16 @@ import { chartColors, rainColor } from './charts/chartStyle.js'
  * from the whole app for the same reason.
  */
 
-/** The bar chart is drawn in percentages of its own width, so there is no viewBox. */
-const SPARK_H = 40
+/**
+ * The bar chart is drawn in percentages of its own width, so there is no
+ * viewBox.
+ *
+ * **56px, up from 40.** At 40 a 5-day window put a real afternoon of rain about
+ * eight pixels high next to nothing at all, on the card a climber reads first —
+ * this is the question "is the rock dry", and it was the quietest thing on the
+ * screen.
+ */
+const SPARK_H = 56
 /** Under this the bar is invisible; a measured hour of rain must not vanish. */
 const SPARK_MIN_H = 2
 /** Room for one line of `type.timeTick` under the bars. */
@@ -214,6 +222,32 @@ export function DryingCard({ score, recent }: DryingCardProps) {
       </div>
 
       {/*
+        **The verdict leads the card.** It used to be the last line, under the
+        chart, at label size — the one sentence a climber opens this app to
+        read, set smaller than the axis beneath it. The chart is the evidence
+        for it and now sits below it, where evidence goes.
+      */}
+      {drying === null ? null : (
+        <div style={{ ...row(spacing.chipGapMd), flexWrap: 'wrap', alignItems: 'baseline' }}>
+          {drying.hours_remaining <= 0 ? (
+            <span style={{ ...type.cardTitleLg, color: colors.good }}>Climbable now</span>
+          ) : (
+            <>
+              <span style={{ ...type.cardTitleLg, color: colors.fair }}>
+                Climbable in ~{Math.round(drying.hours_remaining)}h
+              </span>
+              {/*
+                Why it is still drying, in the model's own terms. `rock_type` is
+                what sets the maximum drying hours, so naming it explains the
+                number rather than decorating it.
+              */}
+              <span style={type.bodySm}>{drying.rock_type} still drying</span>
+            </>
+          )}
+        </div>
+      )}
+
+      {/*
         The history. Three states, and they are different answers: still
         loading, could not be fetched, and fetched with nothing in it. The last
         one is the only one that may say "no rain".
@@ -229,7 +263,9 @@ export function DryingCard({ score, recent }: DryingCardProps) {
           <div style={{ ...row(spacing.chipGap), justifyContent: 'space-between' }}>
             <span style={{ ...type.labelSm, color: colors.txt5 }}>{windowLabel(hours)}</span>
             {hasRain ? (
-              <span style={{ ...type.labelSm, color: colors.txt5 }}>{formatPrecipIn(total)}</span>
+              // The window's total, at reading size rather than as a caption:
+              // how much fell is half of what "is it dry" depends on.
+              <span style={{ ...type.calDay, color: colors.txt1 }}>{formatPrecipIn(total)}</span>
             ) : null}
           </div>
           {hasRain ? (
@@ -239,27 +275,6 @@ export function DryingCard({ score, recent }: DryingCardProps) {
             // why the distinction is available at all: the window has an edge,
             // and rain before it is real rain this chart cannot see.
             <span style={type.bodySm}>No rain in {spanWords(hours)}.</span>
-          )}
-        </div>
-      )}
-
-      {drying === null ? null : (
-        <div style={{ ...row(spacing.chipGapMd), flexWrap: 'wrap' }}>
-          <span style={{ ...type.labelSm, color: colors.txt5 }}>Climbable</span>
-          {drying.hours_remaining <= 0 ? (
-            <span style={{ ...type.calDay, color: colors.good }}>now</span>
-          ) : (
-            <>
-              <span style={{ ...type.calDay, color: colors.fair }}>
-                in ~{Math.round(drying.hours_remaining)}h
-              </span>
-              {/*
-                Why it is still drying, in the model's own terms. `rock_type` is
-                what sets the maximum drying hours, so naming it explains the
-                number rather than decorating it.
-              */}
-              <span style={type.bodySm}>{drying.rock_type} still drying</span>
-            </>
           )}
         </div>
       )}

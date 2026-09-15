@@ -166,6 +166,11 @@ function toSample(
     wind_kmh_p50: ens?.wind_kmh_p50 ?? null,
     wind_kmh_p90: ens?.wind_kmh_p90 ?? null,
     precip_mm_mean: ens?.precip_mm_mean ?? null,
+    // The spread behind the mean. Stored per hour since the column existed;
+    // exposed here so a chart can draw it. See the type for why they must never
+    // be summed.
+    precip_mm_p10: ens?.precip_mm_p10 ?? null,
+    precip_mm_p90: ens?.precip_mm_p90 ?? null,
     precip_chance_pct:
       ens === undefined ? null : precipChancePct(ens.members_wet, ens.member_count),
     member_count: ens?.member_count ?? null,

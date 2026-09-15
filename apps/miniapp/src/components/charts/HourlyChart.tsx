@@ -38,6 +38,12 @@ export type HourlyChartProps = {
   viewHeight: number
   color: string
   bandColor?: string
+  /**
+   * The spread to shade, when it is not on `data` itself. Wind only — see
+   * `Series`. Counted in the vertical domain like any other mark, so a band
+   * wider than the bars is not stroked off the top of the frame.
+   */
+  bandData?: readonly SeriesDatum[]
   colorForValue?: (value: number) => string
   /** Takes the canonical metric value and writes the displayed unit. */
   formatValue: (value: number | null) => string
@@ -148,6 +154,7 @@ export function HourlyChart({
   viewHeight,
   color,
   bandColor,
+  bandData,
   colorForValue,
   formatValue,
   title,
@@ -179,7 +186,11 @@ export function HourlyChart({
 
   const times = timeExtent(data)
   const measured = extent(data.map((d) => d.value))
-  const domain = fixedDomain ?? verticalDomain(data, kind)
+  // **The band counts, even when it lives on its own series.** A wind band
+  // reaching past the gusts would otherwise be filled outside the frame, where
+  // SVG happily paints it over whatever is next on the page.
+  const domain =
+    fixedDomain ?? verticalDomain(bandData === undefined ? data : [...data, ...bandData], kind)
   if (times === null || measured === null || domain === null) return null
 
   // The window follows how the mark sits against its timestamp, not what kind
@@ -399,6 +410,7 @@ export function HourlyChart({
           y={y}
           color={color}
           {...(bandColor === undefined ? {} : { bandColor })}
+          {...(bandData === undefined ? {} : { bandData })}
           {...(colorForValue === undefined ? {} : { colorForValue })}
           baseY={y(domain.min)}
           placement={placement}

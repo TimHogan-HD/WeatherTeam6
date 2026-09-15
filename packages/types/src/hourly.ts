@@ -54,6 +54,25 @@ export type HourlySample = {
    */
   precip_mm_mean: number | null
   /**
+   * The 10th and 90th percentiles of this **one hour's** accumulation across the members —
+   * the spread behind `precip_mm_mean`, and the only honest way to draw "how much rain is
+   * this, really".
+   *
+   * **Never add these up, and never print one as a day's or a step's rain.** A sum of
+   * hourly p90s is the total of a storm that no single member forecast; measured against
+   * the pooled members it reads three to twelve times high. `precip_mm_mean` is the only
+   * precipitation figure on this type that can be summed (architecture rule, § A
+   * precipitation percentile does not add up). These two are for a band or a whisker on
+   * one hour's mark and nothing else.
+   *
+   * **The mean can sit outside them, and that is real rather than a bug.** When 9 in 10
+   * members are dry and one forecasts a downpour, p10 and p90 are both 0 while the mean is
+   * not — which is precisely the thing a reader wants to see, and precisely what a p50
+   * alone would hide.
+   */
+  precip_mm_p10: number | null
+  precip_mm_p90: number | null
+  /**
    * Share of members at or above 0.1 mm this hour, 0-100, rounded to a whole percent.
    *
    * **Null means unknown, not 0%.** A row stored before `members_wet` existed has no wet

@@ -75,8 +75,8 @@ describe('DryingCard — the three ways of not having a rain history', () => {
     // The reserved height is the branch. Without it the card is short, then
     // grows by 40px under the reader's thumb the moment the fetch lands — and
     // an empty fragment would pass every assertion above.
-    // 40px of bars + 12px of axis + the 2px gap between them.
-    expect(html).toContain('height:54px')
+    // 56px of bars + 12px of axis + the 2px gap between them.
+    expect(html).toContain('height:70px')
   })
 
   it('says the history could not be loaded, not that there was no rain', () => {
@@ -117,7 +117,8 @@ describe('DryingCard — the figures', () => {
   })
 
   it('draws a measured hour of drizzle beside a downpour rather than losing it', () => {
-    // 0.1 mm against a 40 mm peak is 0.1px at the chart's height. The floor is
+    // 0.1 mm against a 40 mm peak is a seventh of a pixel at the chart's
+    // height. The floor is
     // what keeps "it rained a little on Friday" on the screen at all.
     const html = renderToStaticMarkup(
       <DryingCard score={score()} recent={{ data: recent([40, 0.1]), ...SETTLED }} />,
@@ -127,7 +128,7 @@ describe('DryingCard — the figures', () => {
     const bars = [...html.matchAll(/flex:1;min-width:0;height:([0-9.]+)px/g)].map((m) =>
       Number(m[1]),
     )
-    expect(bars).toEqual([40, 2])
+    expect(bars).toEqual([56, 2])
   })
 
   it('renders nothing about drying when there is no breakdown to read it from', () => {

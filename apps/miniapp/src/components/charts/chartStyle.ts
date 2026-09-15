@@ -1,5 +1,5 @@
 import { chanceScale, colors, tempScale, windScale } from '@weatherteam6/design/tokens'
-import { TEMP_BAND_C, cToF } from '@weatherteam6/types'
+import { SCORE_BANDS, TEMP_BAND_C, cToF } from '@weatherteam6/types'
 import { withOpacity } from '../../theme/tokens.css.js'
 
 /**
@@ -85,6 +85,17 @@ export const chartColors = {
   whisker: withOpacity(colors.txt1, 0.6),
   /** Wind. A neutral ink, because wind is not a status and has no ramp of its own. */
   wind: colors.txt2,
+  /**
+   * The p10-p90 ribbons behind the other three series.
+   *
+   * **One opacity for all four bands, and it is the temperature band's.** The
+   * band means the same thing on every chart — where 8 in 10 members land — so
+   * a reader who has learnt to read one has learnt to read all of them. A band
+   * drawn fainter on rain than on temperature would say the rain forecast was
+   * more certain than it is.
+   */
+  rainBand: withOpacity(colors.rain, 0.18),
+  windBand: withOpacity(colors.txt2, 0.18),
   /** A mark whose value could not be read — a visible absence, not a colour. */
   noData: withOpacity(colors.txt1, 0.18),
   /** The rule marking the hour under the pointer. Brighter than a gridline. */
@@ -280,4 +291,22 @@ export function windColor(kmh: number): string {
 export function chanceColor(pct: number): string {
   if (!Number.isFinite(pct)) return chartColors.noData
   return rampAt(chanceScale, pct / 100)
+}
+
+/**
+ * The conditions ladder's colour for a score.
+ *
+ * **Driven by `SCORE_BANDS`, the same constant `stateLabel` switches on**, so a
+ * chip can never go amber on a day the words call "Mostly dry". Four rungs onto
+ * three colours: 'Dry, settled' and 'Mostly dry' share lime, because the
+ * palette has three status hues and those two rungs agree about the only thing
+ * a colour can say.
+ *
+ * This is the one place in the chart module that reaches for `good`/`fair`/
+ * `poor` — the ladder is what they are *for*, and it is never a data mark.
+ */
+export function scoreColor(score: number): string {
+  if (score >= SCORE_BANDS.mostlyDry) return colors.good
+  if (score >= SCORE_BANDS.mixed) return colors.fair
+  return colors.poor
 }
