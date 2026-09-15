@@ -74,13 +74,9 @@ describe('sharedDomain', () => {
     expect(sharedDomain(days, 'temperature')).toEqual({ min: 0, max: 35 })
   })
 
-  it('anchors rain and wind at zero, so a dry day is a short bar and not a full one', () => {
+  it('anchors rain at zero, so a dry day is a short bar and not a full one', () => {
     const days = [day(DATES[0], { precip_mm_p50: 0.2 }), day(DATES[1], { precip_mm_p50: 8 })]
     expect(sharedDomain(days, 'rain')).toEqual({ min: 0, max: 8 })
-    expect(sharedDomain([day(DATES[0], { wind_kmh_max: 30 })], 'wind')).toEqual({
-      min: 0,
-      max: 30,
-    })
   })
 
   it('keeps score on a fixed 0-100 scale rather than stretching a bad week', () => {
@@ -156,7 +152,8 @@ describe('DailyList', () => {
       />,
     )
     expect(barPlacements(html)).toHaveLength(1)
-    expect(html).toContain('Mon, Sep 14')
+    // The row keeps its weekday and its track; only the bar is gone.
+    expect(html).toContain('>Mon<')
     expect(html).toContain('—')
   })
 
@@ -171,11 +168,8 @@ describe('DailyList', () => {
         drawableDates={new Set([DATES[0], DATES[1]])}
       />,
     )
-    // Seven rows, two of them buttons.
-    expect(html.match(/<button/g)?.length).toBe(
-      // the four metric chips plus the two tappable rows
-      6,
-    )
+    // Three metric chips plus the two tappable rows.
+    expect(html.match(/<button/g)?.length).toBe(5)
     expect(html).toContain('Days without an hour-by-hour forecast can&#x27;t be opened.')
   })
 
@@ -199,7 +193,7 @@ describe('DailyList', () => {
     const html = render(
       <DailyList days={week} metric="temperature" onMetricChange={() => {}} showScoreMetric />,
     )
-    expect(html.match(/<button/g)?.length).toBe(4)
+    expect(html.match(/<button/g)?.length).toBe(3)
   })
 
   it('hides the climbing metric for a location that has no score', () => {
@@ -224,8 +218,71 @@ describe('DailyList', () => {
         showScoreMetric
       />,
     )
-    expect(html).toContain('—')
-    expect(html).toContain('>72<')
-    expect(html).not.toContain('>0<')
+    // Read the row **value cells** specifically. A bare `not.toContain('>0<')`
+    // over the whole markup now catches the axis note's "0", which is the left
+    // end of the 0-100 scale and entirely correct — an assertion that fails on
+    // a right answer is worse than no assertion.
+    const values = [...html.matchAll(/text-align:right[^>]*>([^<]*)</g)].map((m) => m[1])
+    expect(values).toEqual(['—', '72'])
+  })
+})
+
+describe('DailyList — the shared scale is stated, not implied', () => {
+  it('writes what the bars are measured against, in the metric’s own unit', () => {
+    // Seven bars at seven widths are only a comparison if something says they
+    // share a ruler. Without this line the list looks like seven unrelated bars.
+    const html = render(
+      <DailyList
+        days={[
+          day(DATES[0], { temp_c_min: 0, temp_c_max: 5 }),
+          day(DATES[1], { temp_c_min: 30, temp_c_max: 35 }),
+        ]}
+        metric="temperature"
+        onMetricChange={() => {}}
+        showScoreMetric
+      />,
+    )
+    expect(html).toContain('shared scale')
+    expect(html).toContain('32°F')
+    expect(html).toContain('95°F')
+  })
+
+  it('states the score scale as the fixed 0-100 it is', () => {
+    const html = render(
+      <DailyList
+        days={[day(DATES[0], { score: 20 })]}
+        metric="score"
+        onMetricChange={() => {}}
+        showScoreMetric
+      />,
+    )
+    expect(html).toContain('climbing score')
+    expect(html).toContain('>100<')
+  })
+
+  it('paints the temperature bar from the day’s low to its high', () => {
+    // One colour for a day that ran 0 °C to 35 °C would pick an end and call it
+    // the day. The gradient is the swing.
+    const html = render(
+      <DailyList
+        days={[day(DATES[0], { temp_c_min: 0, temp_c_max: 35 })]}
+        metric="temperature"
+        onMetricChange={() => {}}
+        showScoreMetric
+      />,
+    )
+    expect(html).toContain('linear-gradient(90deg')
+  })
+
+  it('does not gradient a magnitude bar, which has only one value', () => {
+    const html = render(
+      <DailyList
+        days={[day(DATES[0], { precip_mm_p50: 4 })]}
+        metric="rain"
+        onMetricChange={() => {}}
+        showScoreMetric
+      />,
+    )
+    expect(html).not.toContain('linear-gradient')
   })
 })

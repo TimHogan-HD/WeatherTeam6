@@ -121,8 +121,12 @@ describe('DetailView — a climbing location', () => {
       />,
     )
     expect(html).toContain('103°F')
-    expect(html).toContain('21 mph')
-    expect(html).toContain('17%')
+    // **Wind and humidity moved, and that is the design.** They were the day's
+    // *maxima* sitting in a hero that read as present conditions. The now-line
+    // carries the current hour's readings instead — absent here, because this
+    // fixture passes no hourly data — and the day's wind is the Hourly tab's
+    // own chart. The day's high and low are still on this line.
+    expect(html).toContain('79°F')
     // Weather appears before the score section in document order.
     expect(html.indexOf('103°F')).toBeLessThan(html.indexOf('Score 80'))
   })

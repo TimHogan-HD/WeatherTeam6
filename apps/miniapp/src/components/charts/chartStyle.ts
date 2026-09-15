@@ -1,5 +1,5 @@
-import { colors } from '@weatherteam6/design/tokens'
-import { TEMP_BAND_C } from '@weatherteam6/types'
+import { colors, tempScale } from '@weatherteam6/design/tokens'
+import { TEMP_BAND_C, cToF } from '@weatherteam6/types'
 import { withOpacity } from '../../theme/tokens.css.js'
 
 /**
@@ -81,6 +81,12 @@ export const chartColors = {
    * a **mark**, read at bar size against the card, not a caption.
    */
   neutralMark: colors.txt2,
+  /** Wind. A neutral ink, because wind is not a status and has no ramp of its own. */
+  wind: colors.txt2,
+  /** The upper edge of a range mark — the spread, drawn lighter than the value. */
+  rangeEdge: withOpacity(colors.txt1, 0.55),
+  /** A mark whose value could not be read — a visible absence, not a colour. */
+  noData: withOpacity(colors.txt1, 0.18),
 } as const
 
 /**
@@ -104,7 +110,10 @@ export function rainColor(mm: number): string {
 // ─────────────────────────────────────────────
 
 /** One day's 24 bars get more height than the seven-day strip, which is a shape. */
-export const DAY_VIEW_H = 148
+export const DAY_VIEW_H = 122
+/** Chance of rain is a 0-100 scale with no outliers, so it needs less room. */
+export const CHANCE_VIEW_H = 70
+export const WIND_VIEW_H = 88
 
 /**
  * The floating range mark's fill opacity. The mark is a **spread**, not a
@@ -128,44 +137,97 @@ export const RANGE_MIN_H = 1
 // ─────────────────────────────────────────────
 
 /**
- * The reference band behind the temperature bars: the range the conditions
- * score gives full marks for.
+ * The ideal climbing temperature, in °C, that the ramp diverges around.
  *
- * `goodTint` is a **surface** token ("active lime tint background"), not a data
- * mark, so this does not breach the rule above — the band is an annotation that
- * says "this range is good", which is exactly what the lime tint means
- * everywhere else in the app. The bars themselves are still never painted
- * `good`, `fair` or `poor` as an identity.
+ * **The mockup calls this "a real config field, 50°F by default" — and no such
+ * column exists.** `locations` has no ideal-temperature field, and adding one is
+ * a migration plus a product decision about who sets it. Until then this is the
+ * midpoint of the conditions score's own full-marks plateau (`TEMP_BAND_C`,
+ * 10-22 °C), which is 16 °C / 61 °F.
  *
- * It is also what stops the ramp's hot end being colour-alone. `fair` and
- * `poor` are only ΔE 13.0 apart to normal vision (measured with the `dataviz`
- * validator against the card ground, below the 15 floor for telling two hues
- * apart), so a bar's *position* relative to this band has to carry "too warm",
- * not its hue on its own.
+ * That is deliberately **not** the mockup's 50 °F. 50 °F is 10 °C, the *bottom*
+ * of the plateau, so a ramp centred there would paint the whole of the range
+ * the scorer likes best as "warm". Centring on the middle of the band is the
+ * closest honest reading of "ideal" from data that exists. When the config
+ * field lands, this constant is the one place it replaces.
  */
-export const tempIdealBandFill = colors.goodTint
+export const IDEAL_TEMP_C = (TEMP_BAND_C.idealMin + TEMP_BAND_C.idealMax) / 2
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t
+}
+
+/** `#rrggbb` to its three channels. The scale is authored as hex, like `uvScale`. */
+function channels(hex: string): [number, number, number] {
+  const v = Number.parseInt(hex.slice(1), 16)
+  return [(v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff]
+}
+
+function mix(a: string, b: string, t: number): string {
+  const [r1, g1, b1] = channels(a)
+  const [r2, g2, b2] = channels(b)
+  return `rgb(${Math.round(lerp(r1, r2, t))},${Math.round(lerp(g1, g2, t))},${Math.round(lerp(b1, b2, t))})`
+}
 
 /**
- * Air temperature on a diverging ramp centred on the conditions score's own
- * ideal band (`TEMP_BAND_C` in `packages/types`) — cool below, neutral inside,
- * warm then hot above. One fixed scale, so the same temperature is the same
- * colour on every chart and on every location.
+ * Air temperature on the **continuous** diverging ramp in
+ * `packages/design`'s `tempScale`: neutral at ideal, cool below, warm then hot
+ * above. One fixed scale, so the same temperature is the same colour on every
+ * chart, every row and every location.
  *
- * **The stops are the scorer's plateaus, not decoration.** Inside the band the
- * temperature component scores full marks; above `idealMax` it degrades; above
- * `max` (and below `min`) it is zero. A reader comparing a bar's colour with
- * the day's score is comparing two views of the same rule.
+ * **Continuous, not stepped, and that is the whole point.** The first build of
+ * this used four discrete steps, which put `fair` and `poor` adjacent as
+ * separate categories — ΔE 13.0 apart to normal vision, below the floor for
+ * telling two hues apart, measured with the `dataviz` validator. In a
+ * continuous ramp neighbouring values are *meant* to be similar; what has to be
+ * distinguishable is the ends, and blue to red is not a close call. The stepped
+ * version also gave the cold side one band where the warm side had two, so
+ * -15 °C and +5 °C came out identical. Neither problem survives interpolation.
  *
- * **Known asymmetry, deliberate:** the cold side has one step where the warm
- * side has two, so -15 °C and +5 °C are the same blue even though the scorer
- * gives them 0 and 6. The design direction names exactly four token hues and
- * the palette's only colder blue is `radarModerate`, which is the rain-intensity
- * ramp's own step — borrowing it would read as rain in a weather app. Worth
- * revisiting on a device if sub-zero hours turn out to matter.
+ * Takes °C and converts internally, because the scale's stops are offsets in °F
+ * — the unit the reader sees, and the unit the mockup specified them in.
  */
 export function tempColor(c: number): string {
-  if (c < TEMP_BAND_C.idealMin) return colors.radarLight
-  if (c <= TEMP_BAND_C.idealMax) return chartColors.neutralMark
-  if (c <= TEMP_BAND_C.max) return colors.fair
-  return colors.poor
+  if (!Number.isFinite(c)) return chartColors.noData
+  const offsetF = cToF(c) - cToF(IDEAL_TEMP_C)
+
+  const first = tempScale[0]
+  const last = tempScale[tempScale.length - 1]
+  if (first === undefined || last === undefined) return chartColors.noData
+  if (offsetF <= first.offsetF) return mix(first.color, first.color, 0)
+  if (offsetF >= last.offsetF) return mix(last.color, last.color, 0)
+
+  for (let i = 0; i < tempScale.length - 1; i += 1) {
+    const a = tempScale[i]
+    const b = tempScale[i + 1]
+    if (a === undefined || b === undefined) continue
+    if (offsetF <= b.offsetF) {
+      return mix(a.color, b.color, (offsetF - a.offsetF) / (b.offsetF - a.offsetF))
+    }
+  }
+  return mix(last.color, last.color, 0)
 }
+
+/**
+ * Wind, as a single-hue ramp from calm to strong.
+ *
+ * **Not a diverging ramp and not the status colours.** There is no "ideal" wind
+ * to diverge around — wind helps a crag dry and hurts once it is strong enough
+ * to be unpleasant, and the scorer's own curve is monotonic (full marks at or
+ * below 15 km/h, zero at or above 50). A single hue getting lighter is the
+ * honest encoding of a magnitude.
+ *
+ * Takes km/h, the unit the API returns, and reads against the scorer's own
+ * endpoints so the colour and the wind component agree.
+ */
+export function windColor(kmh: number): string {
+  const t = Math.max(0, Math.min(1, (kmh - WIND_CALM_KMH) / (WIND_STRONG_KMH - WIND_CALM_KMH)))
+  return mix(WIND_RAMP_FROM, WIND_RAMP_TO, t)
+}
+
+/** The wind component scores full marks at or below this, and zero at or above the next. */
+const WIND_CALM_KMH = 15
+const WIND_STRONG_KMH = 50
+/** `txt4` to `txt1` as hex — the ink scale, which is what a non-status magnitude wears. */
+const WIND_RAMP_FROM = '#a0aec0'
+const WIND_RAMP_TO = '#f0f4f8'

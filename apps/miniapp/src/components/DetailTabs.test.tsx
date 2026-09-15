@@ -166,13 +166,19 @@ describe('DetailView — tabs', () => {
   it('shows the daily rows on Daily and the day charts on Hourly', () => {
     const daily = render({ active: 'daily' })
     expect(daily).toContain('Next 7 days')
-    expect(daily).not.toContain('Hour by hour')
+    // **The continuous seven-day strip lives here, not on Hourly.** It is a
+    // chart about comparing days, which is what this tab is for; on Hourly it
+    // answered a question that tab does not ask and pushed the charts that do
+    // answer it off the screen.
+    expect(daily).toContain('Hour by hour')
 
     const hourly = render({ active: 'hourly' })
     expect(hourly).not.toContain('Next 7 days')
-    // The single day, then the whole window below it.
+    expect(hourly).not.toContain('Hour by hour')
+    // One day, named in full by the pager, with its four charts.
     expect(hourly).toContain('Mon, Sep 14')
-    expect(hourly).toContain('Hour by hour')
+    expect(hourly).toContain('Chance of rain')
+    expect(hourly).toContain('Wind')
   })
 
   it('makes only the days the ensemble reached tappable', () => {

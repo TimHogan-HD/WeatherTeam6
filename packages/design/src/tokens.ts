@@ -91,6 +91,29 @@ export const uvScale = [
   '#f97316', '#ef4444', '#dc2626', '#b91c1c', '#7c3aed', '#6d28d9',
 ] as const
 
+/**
+ * Air temperature, as a **diverging ramp around the ideal climbing temperature**.
+ *
+ * A named scale rather than five loose colours, exactly as `uvScale` above is — it is one
+ * encoding, and splitting it across five token names would let a consumer use half of it.
+ *
+ * Offsets are **degrees Fahrenheit from ideal**, matching the mockup this was lifted from:
+ * neutral at ideal, cool below, warm then hot above. Interpolate *between* the stops — the
+ * ramp is continuous, which is what lets `fair` and `poor` sit next to each other in it
+ * without being confusable. As discrete steps they measure ΔE 13.0 apart, below the floor
+ * for telling two hues apart, and that was a real defect in the first Phase 3 build.
+ *
+ * `rain`, `fair` and `poor` are the palette's own values, repeated here as literals only
+ * because a ramp has to be a flat list of stops. The two ends are new.
+ */
+export const tempScale = [
+  { offsetF: -25, color: '#4299e1' },  // deep blue — too cold to pull hard
+  { offsetF: -8,  color: '#90cdf4' },  // = colors.rain
+  { offsetF: 0,   color: '#cbd5e0' },  // neutral ink — ideal
+  { offsetF: 22,  color: '#f6ad55' },  // = colors.fair
+  { offsetF: 48,  color: '#fc8181' },  // = colors.poor — too hot for the rubber
+] as const
+
 // ─────────────────────────────────────────────
 // TYPOGRAPHY
 // ─────────────────────────────────────────────
