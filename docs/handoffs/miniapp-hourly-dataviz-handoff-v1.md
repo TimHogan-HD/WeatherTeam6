@@ -350,6 +350,13 @@ local days, 143 members throughout, rendered offline through the real components
 peak rain hour 0.14 in, band widening 3.2°C to 8.0°C across the window, no `NaN` in the
 markup. **Not verified on a device**, which is this phase's acceptance criterion below.
 
+**Three defects found by review after the merge and fixed in `6b41709` (PR #112)**, all of
+them the chart claiming more than the data supports: the accessible summary counted days it
+had not drawn; `HourlySeries.fetched_at` named the deterministic run while the charts draw
+the ensemble (now the **older** of the two runs — an API change, documented on the type);
+and a whole-section "no hourly forecast" state fired on an empty ensemble over a response
+that can still carry a deterministic one. Detail in the archive, 2026-09-15.
+
 The original specification follows.
 
 **Build:** `apps/miniapp/src/components/charts/` — one `<Series>` component in inline SVG,

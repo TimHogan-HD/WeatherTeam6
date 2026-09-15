@@ -48,8 +48,19 @@ always-loading:
   of the window is reached by fewer members.
 - **`good`, `fair` and `poor` are the conditions ladder's status colours and are not
   available for data marks.** Temperature uses `sun`; rain uses the `radar*` intensity ramp.
-- **A chart that cannot be drawn says so.** A dropped section reads as a forecast of
-  nothing, because a reader cannot notice a section they were never shown.
+- **A chart that cannot be drawn says so — and says only what *it* could not draw.** A
+  dropped section reads as a forecast of nothing, because a reader cannot notice a section
+  they were never shown. But these charts draw the **ensemble**, and a response with no
+  ensemble columns can still carry a full deterministic forecast, so "no hourly forecast
+  for this location" is a claim about the response that the section is not entitled to
+  make. There is deliberately no whole-section empty state.
+- **The accessible summary counts what was drawn.** "over N days" over a padded window is
+  the same false claim as naming a model that did not answer, and it is the only part of a
+  chart a screen-reader user gets.
+- **`HourlySeries.fetched_at` is the older of the two runs behind the response**, not the
+  run that produced any particular column. The deterministic and ensemble runs are cached
+  independently and can be an hour apart; an age line is a freshness claim about what the
+  reader is looking at, and the staler half bounds it.
 ## Client Mandate — Telegram Mini App
 
 **Direction changed 2026-07-31.** WeatherTeam6 was a native-mobile-first app; it is now a **Telegram bot + Telegram Mini App**. `apps/mobile` is being archived (Crossover Task 7) — its code stays in the repo but leaves the build. The old Mobile-First Mandate (never use WebView, `react-native-maps` for every map, native `.tsx` always real) is **superseded** and no longer applies. See `docs/handoffs/telegram-crossover-v4.md`.
