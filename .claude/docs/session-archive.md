@@ -3004,3 +3004,81 @@ temperature ramp, given the ΔE 13.0 measurement above and that the shaded band 
 carries the judgement; (3) the Phase 2 charts, still outstanding — whether the band reads as
 confidence or as a smudge and whether 168 rain bars are too thin to see. No credential, no
 dashboard setting, no product decision.
+
+---
+
+## 2026-09-15 — branch: fix/phase-3-match-mockup — commit: 6302eab
+
+**Phase completed:** Phase 3, rebuilt — the screen now matches the mockup artifact
+
+**Why there is a second block for one phase:** the first build (`03b6d00`) worked from
+§ Decisions taken's **prose summary** of the design rather than the artifact it links. The
+owner sent a screenshot with two corrections — the seven-day chart was on the wrong tab,
+and "you didnt really build it how the artifact looks?" — and both were right.
+
+**What was built this session:**
+- `NowLine.tsx` — current conditions as one line, replacing the 36px `TodayHero`. Reads
+  `currentHour` from the hourly run: the first field in any response entitled to say "now".
+- `charts/DayCharts.tsx` — rewritten. A **day pager** (`‹ Wed, Sep 16 ›` + "3 days out")
+  replacing seven weekday chips, and **four** charts instead of two: temperature, rain,
+  **chance of rain**, **wind with gusts**. Both new series came from fields already on the
+  wire (`precip_chance_pct`, `wind_kmh_p50` + `wind_gust_kmh`).
+- `packages/design`: `tempScale`, `windScale`, `chanceScale` — every data ramp is now a
+  named scale there, beside the older `uvScale`.
+- `LocationIdentity.tsx` — a labelled three-column fact grid, not bare chips.
+- `DailyList.tsx` — weekday-only labels, gradient tracks, an axis note stating the shared
+  scale, three metrics.
+- The seven-day strip moved from Hourly to **Daily**.
+
+**Known issues / deferred work:**
+- **The wall picker is still not built** (Phase 4 — nothing populates `walls`) and neither
+  is the **drying card with its recent-rain sparkline** (Phase 5 — needs its own endpoint).
+  Both are in the mockup and both are correctly later phases.
+- **"Ideal temperature" is 16 °C rather than a per-location config field.** The mockup
+  calls it "a real config field, 50°F by default"; no such column exists. `IDEAL_TEMP_C`
+  is the single place one replaces.
+- **No hover readout.** The mockup has a crosshair and tooltip on every chart, driven by
+  `mousemove`/`touchmove`. React could do this — the earlier "no hover on touch" reasoning
+  was weak — but it is a new interaction layer and was not attempted here.
+
+**Blockers for next session:**
+- None for building.
+
+**What's next:** Issue #108 — `hours_since_rain` never advances, so days 2-7 all score
+`component_drying_time: 0` and cap at 60 of 100. The Climbing metric now draws it as a flat
+column across six of seven rows.
+
+**Gotchas for next session:**
+- **A mockup artifact is the spec; its prose summary is not.** This is the whole lesson of
+  the session. § Decisions taken's summary is *accurate* and still loses the design — it
+  cannot tell you there is a pager rather than chips, four charts rather than two, or that
+  the ramp is continuous. Open the artifact.
+- **The stepped ramp was the wrong fix and I defended it at length.** Measuring `fair` and
+  `poor` at ΔE 13.0 was correct; the conclusion — add a shaded band to compensate — was
+  not. The mockup's **continuous** ramp dissolves the problem: neighbouring values in a
+  continuous scale are meant to be similar, only the ends must separate. It also removed
+  the cold-side asymmetry I had documented as an accepted flaw. A careful justification for
+  a worse design is still a worse design.
+- **A test measuring "warmth" as red-minus-blue is wrong for this ramp.** Amber carries
+  *less* blue than the red stop, so r−b falls across the warm segment while the ramp is
+  plainly getting hotter. r−g tracks the hue rotation the eye reads.
+- **Nine defects in the rebuild, found by review, none visible to any gate.** Two mattered:
+  the day's high/low rendered as **two bare unlabelled numbers**, so with no current hour
+  the screen showed `103°F  79°F` with `temp_c_max` first — the §3 error `NowLine` exists
+  to prevent, recreated inside it; and the **score chip rendered through a pending alerts
+  query**, where `severeAlertEvent` is null exactly as for "no alert" and the banner shows
+  nothing. Anything new that renders a score must gate on `isPending`.
+- **The GitHub reviewer passed a 1,400-line diff in 52 seconds.** Run length remains the
+  only signal. A 15-minute run on the previous PR was a real read; this was not. Run
+  `/code-review` rather than trusting the tick.
+- **`sed -i '/^$/{ /./!d }'` deletes every blank line in a file.** Restoring them by rule
+  then detached every JSDoc from its declaration. Use the Edit tool.
+- **The shell eats backticks and `${}` in heredocs and `node -e`.** Several doc edits
+  silently lost code spans. Write the block to a scratchpad file and splice it with Node.
+
+**Does the user need to do anything?** **Yes — the phone check, now worth more than it was.**
+The screen changed shape twice today. (1) Back on the Hourly tab must return to Daily, not
+close the app — no test here can reach it. (2) Does the continuous temperature ramp
+separate "warm" from "too hot"? Second attempt at that. (3) The Phase 2 charts, now at the
+foot of Daily. (4) Does the day pager beat the seven chips? No credential, no dashboard
+setting, no product decision.

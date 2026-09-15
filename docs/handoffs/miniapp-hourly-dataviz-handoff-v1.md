@@ -399,26 +399,11 @@ gap and not a line to zero.
   instead is the classic bar-chart lie. The mark is a p10-p90 bar with the median ruled
   across it: one mark per hour, coloured by value, spread visible, and no origin to get
   wrong. Rain keeps real zero-baselined bars.
-- **Deviated, deliberately: a fourth metric, wind.** The direction named temperature, rain
-  and climbing score. The row being replaced showed a wind figure on every day, and a
-  toggle without it would have deleted the only place six of the seven days' wind was
-  readable.
-- **Measured, and it changes the design:** `fair` and `poor` are only **ΔE 13.0** apart to
-  normal vision against the card ground (`dataviz`'s own validator, `--mode dark --surface
-  #1a202c`) — below the 15 floor for telling two hues apart. § Decisions taken's claim of
-  "ΔE 25.7 normal, 21.4 protan" does not hold for that adjacent pair. So the hot end is
-  **not** colour-alone: a shaded reference band marks the ideal range, and a mark's
-  position against it carries "too warm". Worth a look on a device.
-- **Known asymmetry, documented in `chartStyle.ts`:** the ramp has two warm steps and one
-  cool one, so -15 °C and +5 °C are the same blue though the scorer gives them 0 and 6. A
-  fifth stop would need `radarModerate`, which is the rain ramp's own step.
-- **Not done, deliberately:** the wall / area picker from § Decisions taken. Selecting a
-  wall re-scores the forecast, which is Phase 4, and nothing populates `walls` — the table
-  is empty in practice, so the control would have nothing to pick.
-- **Not done, deliberately:** demoting the today hero to one line. § Decisions taken says
-  identity leads and the current temperature is "one line, not a 36px hero"; § Phase 3
-  says the hero keeps its current order. Identity now leads; the hero's type scale was left
-  alone, because changing it is a design change this phase's build did not ask for.
+- **Superseded by the mockup-matching pass (`6302eab`).** The bullets that stood here —
+  a fourth metric (wind), a shaded band compensating for the ΔE 13.0 gap, a documented
+  cold-side asymmetry, and the today hero left undemoted — described the **first** build,
+  which worked from this section’s prose rather than the mockup artifact. The owner
+  compared the two and the screen was rebuilt. See § Phase 3 as built, below.
 
 **Four defects found by review before the merge**, none of them visible to typecheck, lint
 or the suite — the same pattern this repo keeps recording:
@@ -449,6 +434,59 @@ where it sat before.
 
 **Not verified on a device**, including `BackButton` — see the acceptance criterion below,
 which a `node` test environment with no DOM cannot reach.
+
+
+#### Phase 3 as built (`6302eab`) — after the mockup comparison
+
+The first build (`03b6d00`) worked from § Decisions taken's prose and got the concepts
+without the design. The owner compared it against the mockup artifact and it was rebuilt.
+**This is what is on screen.**
+
+- **Daily**: identity block (labelled 3-column fact grid — rock, aspect, angle "off vert",
+  elevation, coordinates across two columns, rain station), a one-line current-conditions
+  row carrying the day's **labelled** high/low and a score chip, the tab bar, a
+  three-metric toggle (Temp / Rain / Climbing), seven weekday-only rows with gradient
+  tracks on one shared scale, an axis note stating what that scale runs between, then the
+  continuous seven-day strip.
+- **Hourly**: the identity condensed to one line, the same now-line, a **day pager**
+  (`‹ Wed, Sep 16 ›` with "tomorrow" / "3 days out"), then four charts — temperature,
+  rain, **chance of rain**, **wind** — each on an hour axis read from the location's clock.
+- **The seven-day strip is on Daily, not Hourly.** It is a chart about comparing days.
+
+Corrections the rebuild made to the first build's own reasoning:
+
+- **The ramp is continuous, not four discrete steps.** That dissolves the ΔE 13.0 problem
+  rather than compensating for it with a shaded reference band, and removes the cold-side
+  asymmetry at the same time. It lives in `packages/design` as `tempScale`, beside new
+  `windScale` and `chanceScale` — every data ramp is a named scale there now.
+- **The today hero is gone.** It led with `temp_c_max` — a daily *maximum* — as the largest
+  element on the screen. `currentHour` reads the hour covering now from the hourly run, the
+  first field in any response entitled to the word, and returns null past
+  `CURRENT_HOUR_TOLERANCE_MS` rather than the nearest hour.
+- **Wind left the daily toggle**, because the Hourly tab now has a wind chart with gusts.
+
+Deviating from the mockup, deliberately:
+
+- **The name is not repeated in the identity card.** `Screen` renders it as the page `h1`;
+  the mockup's device frame only has Telegram's small title bar, so it shows it twice.
+- **"Ideal temperature" is 16 °C, not the mockup's 50 °F.** The mockup calls it "a real
+  config field" and no such column exists on `locations`. 50 °F is 10 °C —
+  `TEMP_BAND_C.idealMin`, the *bottom* of the score's full-marks plateau — so centring
+  there paints the whole range the scorer likes best as warm. `IDEAL_TEMP_C` is the single
+  place a config field replaces if one is ever added.
+- **Still not built:** the wall picker (Phase 4 — nothing populates `walls`) and the drying
+  card with its recent-rain sparkline (Phase 5 — needs its own endpoint).
+
+**Nine more defects found by review before that merge**, the GitHub reviewer having passed
+it in 52 seconds over a 1,400-line diff. The two that mattered: the day's high and low
+rendered as **two bare unlabelled numbers**, so with no current hour the screen showed
+`103°F  79°F` alone with `temp_c_max` first — the same §3 error `NowLine` exists to
+prevent, recreated inside it; and **the score chip rendered through a pending alerts
+query**, where `severeAlertEvent` answers null exactly as it does for "no alert" and the
+banner shows nothing. The rest: chance of rain coloured by a mm/h ramp (51% and 100%
+identical), legend swatches naming colours no mark draws, hardcoded hex in the wind ramp,
+clipped coordinates, a pager that could dead-end, a fabricated rain bound on a dry week,
+and `ASPECT_WORDS` left dead by a refactor.
 
 The original specification follows.
 
