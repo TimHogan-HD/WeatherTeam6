@@ -206,6 +206,23 @@ export type ConditionsScore = {
 
 export type ScoreInput = {
   rockType: RockType
+  /**
+   * UNUSED — `conditionsScore` never reads this, and no component of the score
+   * depends on sun, aspect or shade in any way. `liveForecast` derives it from
+   * `locations.aspect` and passes it in; nothing on the other side looks at it.
+   *
+   * This is the same defect as `currentTempC` below, and the comment exists for
+   * the same reason: the field is set, typed and plumbed, so a reader has every
+   * reason to assume it is live. It is not. **Sun direction contributes zero
+   * points today.** Do not reason about scoring behaviour from it.
+   *
+   * Two shipped competitors handle sun by feeding solar radiation into a "feels
+   * like" temperature rather than by scoring an aspect field, and this repo
+   * already fetches that radiation on every request (`shortwave_wm2` in
+   * `openMeteo.ts`) and then drops it — nothing reads it, and its only column
+   * sits on `forecast_snapshots`, which nothing writes. See §21.3 and §21.6 of
+   * `.claude/docs/climbing-terminology-research.md` before designing anything here.
+   */
   aspectDegrees: number
   cliffAngle: number
   hoursSinceRain: number
