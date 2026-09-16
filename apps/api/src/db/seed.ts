@@ -1,3 +1,4 @@
+import { isRockType, type RockType } from '@weatherteam6/types'
 import { logger } from '../lib/logger.js'
 import { db, pool } from './index.js'
 import { users, locations, crags } from './schema.js'
@@ -44,12 +45,16 @@ const SEED_LOCATIONS = [
   },
 ]
 
-function toRockType(
-  v: string | null | undefined,
-): 'sandstone' | 'limestone' | 'granite' | 'basalt' | 'unknown' {
-  const valid = ['sandstone', 'limestone', 'granite', 'basalt'] as const
-  if (valid.includes(v as (typeof valid)[number])) return v as (typeof valid)[number]
-  return 'unknown'
+/**
+ * A crag's free-text `rock_type`, narrowed to one this build knows.
+ *
+ * Anything unrecognised becomes `unknown` rather than being dropped — these are
+ * imported strings and "granodiorite" is a real answer that is simply not one of
+ * ours. `unknown` is the conservative row, so a miss costs a longer drying
+ * window, never a shorter one.
+ */
+function toRockType(v: string | null | undefined): RockType {
+  return isRockType(v) ? v : 'unknown'
 }
 
 async function seed(): Promise<void> {

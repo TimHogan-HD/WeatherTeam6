@@ -1,5 +1,11 @@
 import { colors, radius, spacing } from '@weatherteam6/design/tokens'
-import { compassPoint, formatElevationFt, type Location, type Wall } from '@weatherteam6/types'
+import {
+  compassPoint,
+  formatElevationFt,
+  rockTypeLabel,
+  type Location,
+  type Wall,
+} from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { card, row, stack } from '../theme/styles.js'
 
@@ -57,7 +63,10 @@ function facts(location: Location): Fact[] {
     // `'unknown'` is the column's default and means nobody entered one — an
     // absent value wearing a word, so the omission rule above applies to it.
     if (location.rock_type !== null && location.rock_type !== 'unknown') {
-      out.push({ key: 'Rock', value: capitalise(location.rock_type) })
+      // `rockTypeLabel`, not `capitalise` — the values stopped being single
+      // lowercase words when basalt split, and `capitalise` renders
+      // `basalt_vesicular` as "Basalt_vesicular".
+      out.push({ key: 'Rock', value: rockTypeLabel(location.rock_type) })
     }
     if (location.aspect !== null) {
       out.push({ key: 'Aspect', value: aspectValue(location.aspect) })
@@ -92,10 +101,6 @@ function facts(location: Location): Fact[] {
   }
 
   return out
-}
-
-function capitalise(text: string): string {
-  return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
 /**

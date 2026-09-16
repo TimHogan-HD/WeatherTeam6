@@ -24,12 +24,35 @@ Read this before any work on the conditions score. The algorithm is agreed and m
 
 ## Drying Time Rules (by rock type)
 ```
-sandstone:  24-72h after rain before climbable
-limestone:   6-24h after rain before climbable
-granite:     2-12h after rain before climbable
-basalt:     12-48h after rain before climbable
-unknown:    24-48h (use sandstone-conservative default)
+sandstone:         24-72h after rain before climbable
+limestone:          6-24h after rain before climbable
+granite:            2-12h after rain before climbable
+basalt:            12-48h  kind not recorded — takes the slower of the two below
+basalt_dense:       2-8h   columnar / massive
+basalt_vesicular:  12-48h  scoriaceous flow top
+unknown:           24-48h (use sandstone-conservative default)
 ```
+
+**Why basalt is three rows.** Porosity across the family runs **0.1-1.0% for dense
+columnar rock and 30-50% for a vesicular flow top** — a wider spread than the gap
+between granite and sandstone, and wider than any other family in this enum
+(`.claude/docs/rock-drying-research.md` §3). One value had to be wrong for one of
+them.
+
+`basalt` is retained and does **not** mean "average basalt" — it means the kind was
+never recorded, which is what every row written before this change holds. It keeps
+12-48h so no existing location's score moved, and because an unrecorded kind should
+read as caution rather than as a guess. That is the rule `unknown` follows, applied
+inside one family.
+
+Note `basalt_dense` at 8h is now the fastest-drying row, ahead of granite's 12h.
+That follows the porosity (dense basalt is *less* porous than granite); granite's
+12h is unchanged and was not re-examined here.
+
+**Known issue, unchanged by the above:** `unknown` at 48h is still less conservative
+than `sandstone` at 72h, so supplying a correct rock type can make the app *more*
+cautious than leaving it unset — the opposite of what the comment intends. See
+`rock-drying-research.md` §6.2.
 
 Drying time is modified by:
 - **Cliff angle:** steeper = dries faster (water runs off)
