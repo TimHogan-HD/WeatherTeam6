@@ -57,12 +57,18 @@ the difference matters if any of them end up as constants in `dryingModel.ts`.
 | **[S]** | Stone-industry standard test data (ASTM C97 and similar) |
 | **[C]** | Climbing-community convention or land-manager guidance — widely held, rarely measured |
 | **[I]** | My inference from the above, not stated by any source |
+| **[X]** | **The cited source was opened and does not support this claim** — added 2026-09-16. Not "probably false": the number may well be right and simply attributed to the wrong paper. It means nobody can currently point at where it came from. |
 
-**A caveat that applies to the whole document.** This environment's egress proxy blocked
-every domain I tried to fetch directly (climbing.com, ukclimbing.com, accessfund.org, a
-university PDF). Everything here came through search-result summaries, so the numbers are
-attributed but **not read at source**. Before any figure becomes a constant in the scoring
-code, it should be re-verified against the primary paper from an unrestricted machine.
+**A caveat that applied to the whole document, and now applies to most of it.** The session
+that wrote everything above §10 ran behind an egress proxy that blocked every domain it tried
+to fetch (climbing.com, ukclimbing.com, accessfund.org, a university PDF). Those numbers are
+attributed but **were not read at source**.
+
+**§10 is the verification pass**, run 2026-09-16 from a machine that can reach them. It covers
+the nine figures most likely to become constants. Each one it checked now carries a dated note
+in place; **everything it did not check is still in the state this caveat describes.** Before
+any figure becomes a constant in the scoring code, check §10 first, and if it is not there,
+read the primary source.
 
 ---
 
@@ -190,13 +196,29 @@ Four mechanisms, all documented, and they stack:
 
 | Finding | Value | Source |
 | --- | --- | --- |
-| Strength loss range across sandstones | **0% (quartz-rich, clay-free) to 55% (Pennant sandstone)**, with extreme cases of UCS dropping >90% | [M] [Springer](https://link.springer.com/article/10.1007/s10064-022-02822-9) |
+| Strength loss range across sandstones | **0% (quartz-rich, clay-free) to 55% (Pennant sandstone)**, with extreme cases of UCS dropping >90% | **[X]** attribution unverified — see the note below |
 | Critical saturation band | **60–80%** — most of the strength loss happens crossing it, then the curve flattens | [M] [Springer](https://link.springer.com/article/10.1007/s10064-022-02822-9) |
 | Fracture toughness reduction | 6–35% | [M] [Elsevier](https://www.sciencedirect.com/science/article/pii/S1365160921003002) |
 | Fracture energy reduction | 21–52% | [M] same |
 | Static friction coefficient reduction | 0–19% | [M] same |
 | Millstone Grit (Peak District) | ~41% weaker when wet | [C] reported via [Climbing](https://www.climbing.com/travel/wet-sandstone/) |
 | "Western sandstone" | up to 75% strength loss while wet | [C] [Climbing](https://www.climbing.com/travel/wet-sandstone/) / Access Fund |
+
+> **Checked at source 2026-09-16 (§10.2).** The **critical saturation band confirms verbatim**:
+> *"the critical water saturation level at which considerable strength loss due to the
+> water-weakening effect is produced is 60 ~ 80%"*.
+>
+> **The strength-loss range does not.** That paper is a study of **four clay-bearing
+> sandstones**, not a survey across the family, and its abstract carries no 0–55% range and no
+> Pennant sandstone. Its full text is paywalled, so the figures may be in there — but they may
+> equally have come from somewhere else entirely, and the row is marked **[X]** until someone
+> reads the paper or finds the real source. The fracture-toughness, fracture-energy and
+> friction rows below it are unverified for a different reason: sciencedirect.com answers 403
+> to every tool available here.
+>
+> The "first" point below — that sandstone is not a strength-loss class — does **not** rest on
+> that range alone. §4.1's measured Navajo facies spread and Keppert's clay-and-surface-area
+> finding (§10.4) both support it independently.
 
 Two things follow, and both contradict how the app currently models this.
 
@@ -342,9 +364,15 @@ spend a third of the year.
 **Frozen rock is *stronger*, not weaker.** *"The dynamic tensile strength of saturated water
 sandstone gradually decreases with an increase in the number of freeze–thaw cycles, while that of
 **frozen** sandstone gradually **increases**"*
-([Scientific Reports](https://www.nature.com/articles/s41598-024-72974-z)) **[M]**. Ice cements the
+([Scientific Reports](https://www.nature.com/articles/s41598-024-72974-z)) **[C]**. Ice cements the
 pore network: a saturated sandstone at −5 °C behaves as a stiffer, stronger material than the same
 rock at +5 °C. This inverts the entire §2.4 story for as long as it stays frozen.
+
+> **Checked at source 2026-09-16 (§10.3), and downgraded from [M] to [C].** That sentence is
+> in the paper's **introduction**, citing **Xiong et al.** The paper itself tests only
+> water-saturated specimens and never compares frozen with thawed. The claim is very likely
+> right and the argument below does not depend on the citation being first-hand — but nobody
+> has read the paper that measured it.
 
 **Which means the hazard is the thaw, not the freeze — and the model has no way to say so.**
 `dryingModel` counts hours since rain. It has no concept of a wall that was safe at dawn because it
@@ -354,9 +382,14 @@ of its own ice still in the pores. That is a **within-day inversion of the score
 Wing, Willow River, Taylors Falls, Robinson Park and every Front Range sandstone crag in March.
 
 **And freeze–thaw does not leave the rock as it found it.** Measured across cycles: **saturated
-water content rises 15.6–60.0%**, tensile and compressive strength fall **7.3–38.0%**, and elastic
+water content rises 15.6–60.0%**, triaxial compressive strength falls **7.3–38.0%**, and elastic
 modulus falls **6.4–40.9%**
-([Scientific Reports](https://www.nature.com/articles/s41598-021-91842-8)) **[M]**. The mechanism is
+([Scientific Reports](https://www.nature.com/articles/s41598-021-91842-8)) **[M]**.
+
+> **Verified at source 2026-09-16 (§10.2).** All three figures confirm verbatim against the
+> full text. One correction applied above: this read "tensile and compressive strength" — the
+> paper reports these percentages for **triaxial compressive strength** and gives no tensile
+> percentage at all. The mechanism is
 frost heave — the ~9% volume expansion of the water–ice phase change — driving *"increased porosity,
 crack initiation, and particle falling"* **[M]**.
 
@@ -417,12 +450,21 @@ community answer for winter is *weeks*, not the 48–72 h the same sources give 
 **[C]**.
 
 **Third — and this is the one that has a number on it — the depth of snow on a ledge is not
-recoverable from the precipitation record.** The snow-to-liquid ratio averages **10:1 but ranges
-3:1 to 40:1**, and warm snow near 0 °C falls at **8:1 or even 5:1**
+recoverable from the precipitation record.** The 10:1 rule of thumb is a rule of thumb: the two
+sources below put the average at **12:1 for the Upper Midwest** and **13:1 for the US**, with heavy
+wet snow at 35 °F at **5:1** and dry snow near 0 °F at **50:1**
 ([NWS La Crosse](https://www.weather.gov/arx/why_snowratios),
-[Davis Instruments](https://www.davisinstruments.com/blogs/newsletter/meteorology-101-which-has-more-water-my-snow-or-yours)) **[M]**.
+[Davis Instruments](https://www.davisinstruments.com/blogs/newsletter/meteorology-101-which-has-more-water-my-snow-or-yours)) **[C]**.
+
+> **Corrected at source 2026-09-16 (§10.3).** This previously read *"averages 10:1 but ranges
+> 3:1 to 40:1"* with warm snow at *"8:1 or even 5:1"*, marked **[M]**. Neither cited page gives
+> 3:1, 40:1 or 8:1, and both put the average **above** 10:1. The figures above are what they
+> actually say. The marker drops to **[C]**: a forecast-office explainer and a manufacturer's
+> blog are not measurements. The argument in this section is unaffected and slightly stronger —
+> 5:1 to 50:1 is a tenfold spread on one liquid-equivalent number. **12:1 is the figure to use
+> for this project's home region**, and it is the local forecast office saying so.
 Two days recorded as 20 mm of precipitation can be 10 cm of dense wet snow that is gone by noon, or
-**80 cm of cold powder still sitting on every ledge in the crag a fortnight later.** A single
+**100 cm of cold powder still sitting on every ledge in the crag a fortnight later.** A single
 liquid-equivalent figure cannot tell them apart, and the second one is the one that keeps a wall wet.
 
 **And the inverse case is the extreme wetting event that looks small in the record.** Rain on a ripe
@@ -450,6 +492,20 @@ behaves differently below and above a break at **RH ≈ 75%**
 ([Keppert et al., *Water Vapor Diffusion and Adsorption of Sandstones*](https://onlinelibrary.wiley.com/doi/10.1155/2016/8039748),
 [Krus & Kießl, moisture storage characteristics](https://wufi.de/literatur/Krus,%20Kie%C3%9Fl%201998%20-%20Determination%20of%20the%20moisture%20storage.pdf)) **[M]**.
 Below ~75% RH the rock takes up very little; above it, uptake climbs steeply toward saturation.
+
+> **Not verified, and the citation is on the wrong paper — 2026-09-16 (§10.4).**
+> onlinelibrary.wiley.com and sciencedirect.com both answer 403 here, so neither source was
+> opened and the **RH ≈ 75% break is unverified**. Separately, the *"sigmoidal type II with
+> hysteresis in the high-humidity range"* quote describes the **Obernkirchener sandstone DVS
+> study** (Pichler, Lackner, Bader & Perfler) that the prose above names — but the link points
+> at Keppert et al. instead. Marker held at **[M]** pending a read of either.
+>
+> **Keppert's own headline finding is more useful to us than the isotherm label**, and this
+> document did not record it: sorption behaviour is governed by **specific surface area and the
+> presence of a clay matrix**, while the diffusion resistance factor tracks total porosity. That
+> is §2.4's "sandstone is not a strength-loss class" on a second axis — greasiness tracks clay
+> and surface area, not the porosity number in §3's table. Recorded from a search summary
+> **[X]**; the paper is still unread and is an inbox candidate.
 
 **Three consequences, each of which changes what the app should say.**
 
@@ -489,11 +545,31 @@ decompressing"* half remains unverified.
 
 ## 3. Reference table: absorption and drying by rock family
 
-Porosity values from engineering-geology compilations [M]
+Porosity values from engineering-geology compilations [S]
 ([Liverpool table of porosities](https://geohubliverpool.org.uk/wp-content/uploads/2020/01/Table-of-porosities.pdf),
 [Leeds petrophysics ch.2](https://homepages.see.leeds.ac.uk/~earpwjg/PG_EN/CD%20Contents/GGL-66565%20Petrophysics%20English/Chapter%202.PDF));
 absorption from ASTM C97 practice [S]
 ([Natural Stone Institute](https://www.naturalstoneinstitute.org/designprofessionals/astm/)).
+
+> **Read at source 2026-09-16 (§10.3), and this table did not survive it intact.** Three rows
+> match the Liverpool table verbatim (granite, dense basalt, marble); **five are not in it at
+> all** (the sandstone 30% ceiling, the limestone 1% floor, schist, tuff, and the vesicular
+> basalt figure); and **one is contradicted by it** — Liverpool puts dolomite at 1.0–5.0% and
+> limestone at 5.0–20.0%, i.e. dolomite *lower* than its parent limestone, where the row below
+> says "often higher".
+>
+> Two things about the source itself, neither of which was visible from a search summary. It is
+> a **teaching aid** compiled from Attewell & Farmer (1975), Scheidegger (1957) and Pettijohn
+> (1957) — so **[M]** was wrong and it is now **[S]**. And its column is **effective** porosity,
+> not total. That is what makes its `Vesicular basalt — very small` compatible with the
+> 30–50% in the row below: the vesicles are largely sealed, so total porosity is high and the
+> connected fraction is not. **Both numbers are right and they measure different things** —
+> though that reconciliation is **[I]**, standard hydrogeology rather than a sentence either
+> source writes.
+>
+> **Which of the two governs drying is now an open question** — see §8. It does not undo the
+> `basalt_dense` / `basalt_vesicular` split, which rests on a real difference, but the split's
+> code comment cites this section for a figure this section cannot source.
 
 | Family | Porosity | Absorption (ASTM C97) | Wet strength loss | Dominant wet-weather limiter |
 | --- | --- | --- | --- | --- |
@@ -649,6 +725,13 @@ The arenite/wacke split is the one that predicts wet behaviour.
 
   That is a **~400×** permeability spread inside one formation — the kind of difference you
   can walk past between two sectors of one canyon. No rock-type label can express it.
+
+  > **Confirmed 2026-09-16 (§10.2), and given the citation it never had.** All three rows match.
+  > They come from the Utah Geological Survey / AAPG outcrop-analog study of the Navajo in the
+  > central Utah thrust belt — this table was marked **[M]** with no source attached at all.
+  > Two caveats: the wavy algal-matted figure rests on **four samples**, and archives.datapages.com
+  > answers 403, so this was confirmed from a search summary quoting the study rather than from
+  > the study itself.
 - **Indian Creek — Wingate Sandstone** (Late Triassic eolian), with **Cedar Mesa Sandstone**
   below. The homogeneous composition and cementation is exactly what produces the splitter
   joint systems, and the cementing agents binding the quartz grains — **calcite and clay** —
@@ -1396,6 +1479,11 @@ to do with Mohs:
 - **Increasing grain size increases apparent porosity and *decreases* mechanical properties.**
   ([NIH PMC — mineralogical variations in granitic rocks](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10293192/)) **[M]**
 
+  > **Confirmed verbatim 2026-09-16 (§10.2)**, with one refinement: *"the maximum water
+  > absorption and apparent porosity values are 0.34% and 0.77%, respectively"* — 0.34% is the
+  > **top** of a measured 0.06–0.34% range, not a typical granite. Both trends confirm word for
+  > word.
+
 Every mineral involved sits at Mohs 6–7. Quartz is 7, orthoclase 6, albite 6–6.5. The spread in
 absorption within that family is therefore invisible to hardness by construction — the hardness
 range is under one Mohs unit while the absorption range is a factor of several. This is the
@@ -1794,6 +1882,11 @@ reason it cannot be a constant.** The US climbing-access organisation's field gu
 > need to wait **several days or even a week**."*
 > — [Access Fund, *How to Assess Sandstone After Rain or Snow*](https://www.accessfund.org/latest-news/open-gate-blog/how-to-assess-sandstone-after-rain-or-snow) **[C]**
 
+> **Confirmed at source 2026-09-16 (§10.2).** This page was `EGRESS_BLOCKED` when the section
+> was written; it reads fine now, and the quote above is accurate. The page also carries the
+> *"up to 75% of its strength"* figure for western sandstone in its own voice — see §8. The
+> **[C]** marker is right and should stay: the Access Fund cites no source for any of it.
+
 `MAX_HOURS.sandstone` is 72. The Access Fund's range for the *same rock family* runs from 24 to
 about 168 — a factor of seven, with our single value sitting in the middle and wrong at both ends.
 In the good case the model holds a dry crag closed for two extra days; in the bad case it opens a
@@ -1986,8 +2079,29 @@ output is a withheld estimate, not the most conservative number wearing a confid
   strength loss and porosity, not "hours until a cliff is climbable". The gap between the
   two is currently bridged by folklore, including in our own model.
 - **The 41% (Millstone Grit) and 75% ("western sandstone") figures are climbing-media
-  numbers** whose primary sources I could not reach. Treat as indicative. The peer-reviewed
-  0–55%-with-outliers-above-90% range is the defensible one.
+  numbers** whose primary sources I could not reach. Treat as indicative. ~~The peer-reviewed
+  0–55%-with-outliers-above-90% range is the defensible one.~~
+
+  > **Updated 2026-09-16 (§10.2, §10.3).** Half of this closed and half of it got worse.
+  >
+  > The **75% figure now has a source read at first hand** — the Access Fund's own page, in
+  > its own words: *"western sandstone from Utah to California can lose up to 75% of its
+  > strength while wet"*. That is as far as it goes: the Access Fund cites nobody, so it stays
+  > **[C]**, an advocacy organisation's round number. The **41% Millstone Grit figure is still
+  > unreached** — climbing.com sits behind an Outside Online login wall. Inbox candidate.
+  >
+  > **The struck-through sentence is no longer true.** The 0–55%/>90% range is not in the paper
+  > it was attributed to, and that paper's full text is paywalled. It is currently the *least*
+  > defensible number of the three, not the most.
+
+- **Which porosity governs drying — total or effective — is unresolved, and it is the most
+  consequential open question in this document.** Raised by §3's verification: a vesicular
+  basalt has 30–50% *total* porosity and "very small" *effective* porosity, because its
+  vesicles are largely sealed. Water held in a sealed vesicle is not water moving through a
+  connected pore network, and the two should dry on completely different clocks. `dryingModel`
+  has one number per rock type and no way to express the difference. This matters beyond
+  basalt: it is the same question for scoria, for pumice-bearing tuff, and for any rock whose
+  guidebook description is about what the surface looks like rather than how it conducts.
 - ~~**Nothing on how fast rock re-wets from high humidity alone**, which is the mechanism
   behind "it never really came into condition" at humid crags.~~ **Closed in §2.8** — the field
   is called sorption, the isotherm is Type II sigmoidal with a break near 75% RH, the surface
@@ -2391,6 +2505,199 @@ Two constraints on it, stated now so they are not discovered later:
 to follow, and a route-level report is a report about one line's seepage, which §2.3 already says
 is local knowledge that does not generalise even to the next route over. The crag is the right
 unit, and it is the unit the bot's panels are already built around.
+
+## 10. Source verification pass — 2026-09-16
+
+Everything above this section was researched in a cloud session whose egress proxy blocked
+every content domain, so each published figure came from a **search-result summary** rather
+than from the source. This section is Phase 1 of
+`docs/handoffs/climbing-research-brief-v1.md`: the same figures, opened at source from a
+machine that can reach them.
+
+**Read this before trusting a number above.** Where a claim was corrected, the claim itself
+carries a dated note in place; this section is the record of what was checked and how.
+
+### 10.1 The verdicts
+
+| # | Claim | Where | Verdict |
+| --- | --- | --- | --- |
+| 1 | Sandstone strength loss 0–55%, outliers >90%, most across 60–80% saturation | §2.4 | **Split** — the saturation band confirms verbatim; the strength range is **not in the cited paper** |
+| 2 | Navajo ~28% porosity, 100 mD → 0.265 mD | §4.1 | **Confirmed**, and it now has the citation it never had |
+| 3 | Porosity/absorption table by family | §3 | **Mixed** — 3 rows verbatim, 5 not in the cited source, 1 **contradicted by it** |
+| 4 | Freeze–thaw: water content +15.6–60%, strength −7.3–38%, modulus −6.4–40.9% | §2.6 | **Confirmed verbatim** from full text; one word wrong |
+| 5 | Frozen rock is *stronger* | §2.6 | **Real, but secondhand** — it is another paper's result quoted in an introduction |
+| 6 | Sorption isotherm Type II, break at RH ≈ 75% | §2.8 | **Not verified** — both hosts blocked, and the quote is attached to the wrong paper |
+| 7 | Granite absorption 0.34%, albite and grain-size trends | §4.17 | **Confirmed verbatim** |
+| 8 | Snow-to-liquid ratio 3:1–40:1 | §2.7 | **Corrected** — neither cited source gives that range |
+| 9 | Access Fund 24–48 h, up to a week | §6.11 | **Confirmed verbatim** — and the host is reachable now |
+
+Eight of these are the rock rows the brief listed; the ninth is §2.6's "frozen rock is
+stronger", checked because the section builds an argument on it. **Six of the nine moved.**
+The three that did not are Navajo, granite and the Access Fund — and Navajo gained a citation
+it had never had.
+
+### 10.2 What confirmed, with the quotes
+
+**Freeze–thaw (§2.6) — full text, three figures, all three match.**
+*"saturated water content of sandstone increases by 15.56–60.00%"*, *"peak strength…were
+7.28–37.96% less than for the control"*, *"elastic modulus…6.38–40.87% less than for the
+control"*
+([Sci Rep, *Effect of freeze–thaw cycle on physical and mechanical properties and damage
+characteristics of sandstone*](https://www.nature.com/articles/s41598-021-91842-8)) **[M]**.
+
+**One word of §2.6 is wrong.** It reads *"tensile and compressive strength fall 7.3–38.0%"*.
+The paper reports those percentages for **triaxial compressive strength** and gives no
+tensile percentage at all. Corrected in place.
+
+**Granite (§4.17) — verbatim, and one useful refinement.** *"the maximum water absorption and
+apparent porosity values are 0.34% and 0.77%, respectively"* — so 0.34% is a **maximum**, over
+a measured range of 0.06–0.34%, not a typical value. Both trends confirm verbatim: *"the
+increase in albite content led to an increase in water absorption"* and *"the increase in the
+grain size led to an increase in apparent porosity and a decrease in mechanical properties"*
+([PMC10293192](https://pmc.ncbi.nlm.nih.gov/articles/PMC10293192/)) **[M]**.
+
+**Access Fund (§6.11) — the page the rock doc recorded as `EGRESS_BLOCKED` reads fine.**
+*"staying off the stone for 24 to 48 hours after it rains is a no-brainer"*, and for cold,
+shady or heavily-rained-on stone *"you may need to wait several days or even a week"*. It
+also carries the "western sandstone" figure as its own claim: *"western sandstone from Utah
+to California can lose up to 75% of its strength while wet"*
+([Access Fund — How to Assess Sandstone After Rain or
+Snow](https://www.accessfund.org/latest-news/open-gate-blog/how-to-assess-sandstone-after-rain-or-snow)) **[C]**.
+
+That last one **half-closes a §8 gap**. The 75% figure's source is the Access Fund, read at
+source — but the Access Fund gives no citation for it, so it stays **[C]**. It is an advocacy
+organisation's round number, not a measurement, and it should never be written down as one.
+
+**Critical saturation (§2.4) — verbatim, from the abstract.** *"the critical water saturation
+level at which considerable strength loss due to the water-weakening effect is produced is
+60 ~ 80%"*, and *"a remarkable strength loss occurred when the water saturation increased from
+0 to 60% ~ 80%"*
+([Springer, s10064-022-02822-9](https://link.springer.com/article/10.1007/s10064-022-02822-9))
+**[M]**. The §2.4 reading of it — a step, not a ramp — survives.
+
+**Navajo facies (§4.1) — confirmed, and now attributable.** All three rows match: dune ~28% /
+100 mD, interdune ~18% / 29 mD, wavy algal-matted 10% / **0.265 mD**. The doc marked them
+**[M]** with **no citation whatsoever**; they come from the Utah Geological Survey / AAPG
+outcrop-analog study of the Navajo in the central Utah thrust belt, and the WAM figure rests
+on **four samples**. The host answers 403, so this is confirmed from a search summary that
+quotes it, not from the page — better than it was, not as good as the rows above.
+
+### 10.3 What corrected
+
+**The snow-to-liquid range (§2.7) is not in either source it cites.**
+
+The doc says *"averages 10:1 but ranges 3:1 to 40:1"*, with warm snow at *"8:1 or even 5:1"*,
+marked **[M]**. What the two cited pages actually say:
+
+| Source | What it gives |
+| --- | --- |
+| [NWS La Crosse](https://www.weather.gov/arx/why_snowratios) | the 10:1 rule of thumb, and *"a 12:1 ratio might be more representative (on average) for the Upper Midwest"* |
+| [Davis Instruments](https://www.davisinstruments.com/blogs/newsletter/meteorology-101-which-has-more-water-my-snow-or-yours) | *"10 to 1"* rule of thumb, *"a ratio of 5 to 1"* for heavy wet snow at 35 °F, *"a ratio of 50 to 1"* for dry snow near 0 °F, and a US average *"more like 13 to 1"* |
+
+So: **3:1 does not appear anywhere**, **40:1 is too low** (Davis says 50:1), **8:1 does not
+appear**, and **both sources put the average above 10:1**, not at it. The 5:1 warm-snow figure
+is the one part that confirms.
+
+§2.7's actual argument gets *stronger*, not weaker — a 5:1-to-50:1 spread is a tenfold range
+on the same liquid-equivalent number, which is the point it was making. But the figure was
+marked **[M]** on a manufacturer's blog and a forecast-office explainer, neither of which is a
+measurement, and the range was not in either. Corrected in place, and downgraded to **[C]**.
+
+**The most useful thing here is a number the doc did not have**: NWS La Crosse's **12:1 for
+the Upper Midwest** is regionally specific to exactly where this project's user climbs, and
+it is a forecast office speaking about its own county warning area.
+
+**"Frozen rock is stronger" (§2.6) is real but it is not that paper's finding.** The sentence
+quoted — *"the dynamic tensile strength of saturated water sandstone gradually decreases with
+an increase in the number of freeze–thaw cycles, while that of frozen sandstone gradually
+increases"* — is in the **introduction** of
+[Sci Rep s41598-024-72974-z](https://www.nature.com/articles/s41598-024-72974-z), citing
+**Xiong et al.** The paper itself tests only water-saturated specimens and never makes a
+frozen-versus-thawed comparison of its own.
+
+The claim is probably right and the §2.6 argument does not depend on the citation being
+first-hand. But **[M]** on a secondhand sentence is the marker doing the opposite of its job,
+and the primary source — Xiong et al. — has not been read. Downgraded in place.
+
+**The family porosity table (§3) is the one that should worry us.**
+
+The Liverpool table was opened and read. It is a **teaching aid** — "information that teachers
+may find it useful to have available when discussing porosity with students" — compiled from
+Attewell & Farmer (1975), Scheidegger (1957) and Pettijohn (1957), i.e. sources 50–70 years
+old. It reports **effective porosity**, which is not the same quantity as total porosity.
+
+| §3 row | Liverpool says | Verdict |
+| --- | --- | --- |
+| Granite 0.5–1.5% | `Granite 0.5 - 1.5` | **verbatim** |
+| Basalt (dense) 0.1–1.0% | `Basalt 0.1 - 1.0` | **verbatim** |
+| Marble up to 2% | `Marble 0.5 - 2.0` | **verbatim** |
+| Quartzite near-zero | `Metaquartzite 0.1 - 0.5` | fair paraphrase |
+| Gneiss/schist "low matrix" | `Gneiss 0.5 - 1.5`; schist absent | fair for gneiss, unsourced for schist |
+| Gabbro/diabase 0.1–0.5% | `Gabbro 0.1 - 0.2`, `Dolerite 0.1 - 0.5` | two rows merged, wider range taken |
+| Sandstone split 5–15% / **18–30%** | `Sandstone 5.0 - 25.0` | the 30% ceiling is **not in the source** |
+| Limestone (dense micrite) **~1–10%** | `Limestone 5.0 - 20.0` | the 1% floor is **not in the source** |
+| Dolomite "often higher than parent limestone" | `Dolomite 1.0 - 5.0` vs `Limestone 5.0 - 20.0` | **contradicted** — the source puts dolomite *lower* |
+| Non-welded tuff 38–60% | tuff absent entirely | **not in the source** |
+| **Basalt (vesicular) 30–50%+** | `Vesicular basalt — very small` | **contradicted, and this is the important one** |
+
+**On vesicular basalt, read the column heading before concluding the doc is wrong.** Liverpool
+reports **effective** porosity — the interconnected fraction that fluid can move through. A
+vesicular basalt's vesicles are largely **sealed from one another**, so its *total* porosity is
+genuinely 30–50% while its *effective* porosity is genuinely very small. Both figures are
+correct and they describe different things. **[I]** — that reconciliation is standard
+hydrogeology but it is mine, not a sentence either source writes; no source found states both
+numbers together.
+
+What is wrong is the citation and the quantity. §3's table is headed "Porosity" with Liverpool
+cited beneath it, and the number in the vesicular row is a total porosity that Liverpool does
+not report. **The split of `basalt` into `basalt_dense` and `basalt_vesicular` (shipped in
+#124) is not undermined by this** — the two really do differ by two orders of magnitude on
+total porosity, and the code comment's reasoning stands. But the comment cites "§3" for a
+figure §3 cannot support, and **which** porosity governs drying is now an open question worth
+more than the split was: sealed vesicles that hold water but do not conduct it are a different
+drying problem from a connected pore network, and the model treats them as the latter.
+
+Filed as a new gap in §8, not acted on. `scoring-algorithm.md` is locked and the constants
+were approved on the family distinction, which survives.
+
+### 10.4 What could not be reached
+
+| Source | Status |
+| --- | --- |
+| sciencedirect.com | 403 to every tool — the §2.4 fracture-toughness and fracture-energy rows are unverified |
+| academic.oup.com | 403 — the GJI brittle-failure row is unverified |
+| onlinelibrary.wiley.com | 403 — Keppert et al. (§2.8) unverified |
+| climbing.com | behind an Outside Online login wall — the Millstone Grit 41% row is unverified |
+
+These four are the inbox's purpose (`.claude/research-inbox/README.md`). They need a browser
+and a human, and the extracted claim comes back here with its citation.
+
+**§2.8's citation is also attached to the wrong paper.** The quote *"sigmoidal type II with
+hysteresis in the high-humidity range"* describes the **Obernkirchener sandstone DVS study**
+(Pichler, Lackner, Bader & Perfler), which §2.8's prose names but whose link points at Keppert
+et al. instead. Keppert's own headline finding is different, and more useful to us than the
+isotherm label: *sorption behaviour is governed by specific surface area and the presence of a
+clay matrix, while the diffusion resistance factor tracks total porosity.* That is §2.4's
+"sandstone is not a strength-loss class" argument arriving on a second axis — greasiness
+tracks clay and surface area, not the porosity number in §3's table. **Recorded from a search
+summary; the paper itself is still unread**, and the RH ≈ 75% break is unverified.
+
+### 10.5 What this pass says about the method
+
+Six of nine rows moved, and **not one of them moved because the underlying claim was false.**
+They moved because:
+
+- the figure was in a different paper than the one linked (§2.6, §2.8),
+- the figure was in no cited paper at all (§2.7, and the strength range in §2.4),
+- the source was a compilation of 1950s–70s textbooks presented as current (§3),
+- or **[M]** was applied to an advocacy page, a manufacturer's blog, or a sentence in
+  someone's introduction (§2.7, §2.6, §6.11).
+
+The pattern is that **the confidence marker degraded faster than the number did.** The numbers
+in this document are mostly fine. What was not fine was the claim, attached to each one, that
+somebody had measured it — and that is the claim a constant in `dryingModel.ts` would inherit.
+
+---
 
 ## Sources
 

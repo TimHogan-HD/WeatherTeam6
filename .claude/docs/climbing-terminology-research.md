@@ -17,7 +17,9 @@ actually track, and how climbing places are structured.
    wall; we read it as a low-angle slab. The default is `45`, the most confusable value on
    the scale, and nothing can ever overwrite it.
 2. **§10 — we store `dewpoint_c` and score relative humidity.** Dew point is the variable
-   the community actually uses, with a usable threshold, and no scorer reads ours.
+   the community actually uses, and no scorer reads ours. (**The specific 60 °F threshold did
+   not survive §17.2** — but the finding does, and the variable the readable sources actually
+   describe, dew-point *spread*, needs no threshold at all.)
 3. **§9 — the temperature band is calibrated for a comfortable day out**, not for climbing.
    It scores zero at the temperature where shoe rubber grips best.
 4. **§13 — 85 to 100 US crags are legally closed for months each year** and nothing in the
@@ -32,11 +34,17 @@ actually track, and how climbing places are structured.
 | **[C]** | Climbing-community usage, widely held and rarely written down |
 | **[R]** | Read directly from this repository's source |
 | **[?]** | My inference, not stated by any source |
+| **[X]** | **The cited source was opened and does not support this claim** — added 2026-09-16. Not "false": the number may be right and simply attributed to the wrong place. It means nobody can point at where it came from. Same meaning as in the rock doc. |
 
-**The same caveat as the rock research applies.** This environment's egress proxy blocks
-direct page fetches, so published sources came through search-result summaries — attributed
-but **not read at source**. Everything marked **[R]** is the exception: that was read from
-the files in this repo and is the most reliable material here.
+**The same caveat as the rock research applied, and §17 is the start of lifting it.** The
+session that wrote §1–§16 was behind an egress proxy that blocked direct page fetches, so
+published sources came through search-result summaries — attributed but **not read at
+source**. Everything marked **[R]** is the exception: that was read from the files in this
+repo and is the most reliable material here.
+
+**§17 (2026-09-16) opened the three figures most likely to become constants.** One confirmed
+and two do not say what they were cited as saying. Claims it checked carry a dated note in
+place; **everything it did not check is still in the state this caveat describes.**
 
 ---
 
@@ -72,7 +80,13 @@ the rock wall, measured **from horizontal**:
 | **overhanging** | 95–165° |
 | **roof** | ≥ 165° |
 
-([Springer — Content-Based Recommendations for Crags and Climbing Routes](https://link.springer.com/chapter/10.1007/978-3-030-94751-4_33)) **[M]**
+([Springer — Content-Based Recommendations for Crags and Climbing Routes](https://link.springer.com/chapter/10.1007/978-3-030-94751-4_33)) **[C]**
+
+> **Confirmed verbatim at source 2026-09-16 (§17.1), and downgraded from [M] to [C].** The
+> chapter is readable in full and prints *"slab (≤88°), vertical (88°–95°), overhanging
+> (95°–165°), roof (≥165°)"* exactly. But it takes the scheme from the **8a.nu e-guidebook** —
+> it is a website's tagging convention that a paper adopted, not thresholds anyone measured.
+> The argument below is unaffected; a convention is what §5 wants.
 
 Two things to take from it. The **vertical band is only 7° wide** — climbers treat
 "vertical" as a narrow category, not a midpoint. And **overhanging occupies 70° of the
@@ -359,7 +373,17 @@ What climbers actually seek:
 - **Climbing-shoe rubber reaches maximum friction at roughly 32–41 °F (0–5 °C)**, just before
   its glass transition
   ([Climbing — science friction](https://www.climbing.com/skills/science-friction-the-truth-behind-perfect-climbing-conditions/),
-  [Friction Labs — the science behind send temps](https://shop.frictionlabs.com/blogs/climb-your-impossible/the-science-behind-send-temps)) **[C]**.
+  [Friction Labs — the science behind send temps](https://shop.frictionlabs.com/blogs/climb-your-impossible/the-science-behind-send-temps)) **[X]**.
+
+> **Attribution fails — checked at source 2026-09-16 (§17.3).** The Friction Labs article
+> mentions **no** rubber friction, **no** glass transition and **no** optimal send temperature.
+> It compares finger-flexor endurance at 50 °F versus 80 °F, suggests a 4 °C drink for heat
+> stress, and concludes that *"humidity seems to have a larger indirect effect on our
+> performance"* than temperature. The other source, climbing.com, is behind a login wall and
+> was not read — the rubber claim may be there.
+>
+> The band below is still the community's view and the argument about `TEMP_BAND_C`'s inverted
+> floor still stands on that. But it now rests on convention alone, not on two named articles.
 - **Roped climbing tolerates far more: 32–80 °F (0–27 °C)** **[C]**.
 - *"Splitter conditions"* is described as **a sunny, low-humidity 60 °F (15.5 °C) day** **[C]**.
 
@@ -393,9 +417,21 @@ blunt and usable: **above a dew point of 60 °F (15.6 °C) conditions are poor r
 relative humidity** — there is simply too much moisture present
 ([UKC — can anyone explain humidity](https://www.ukclimbing.com/forums/rock_talk/can_anyone_explain_humidity_to_me-678224),
 [The Climbing Journal — monitoring climbing conditions](https://theclimbingjournal.com/learn/climbing-conditions/),
-[Plas y Brenin — interpreting the forecast](https://info.pyb.co.uk/blog/interpreting-the-weather-forecast-for-rock-climbing)) **[C]**.
+[Plas y Brenin — interpreting the forecast](https://info.pyb.co.uk/blog/interpreting-the-weather-forecast-for-rock-climbing)) **[X]**.
 The stated reason is exactly the mechanism: lower atmospheric moisture lets sweat evaporate
 and reduces condensation on the rock.
+
+> **Attribution fails — checked at source 2026-09-16 (§17.2).** Two of those three sources are
+> reachable and **neither states a 60 °F threshold**. Plas y Brenin only defines dew point. The
+> Climbing Journal describes the **gap between dew point and air temperature** closing, and
+> explicitly declines to prescribe a universal number. UKC is the third and ukclimbing.com is
+> blocked here, so the threshold may be in that forum thread — unread.
+>
+> **The finding this section rests on is unharmed**: relative humidity is still the wrong
+> variable, dew point is still what climbers track, and we still store it without scoring it.
+> What is unsupported is **the constant**. Do not put `60` in `conditionsScore.ts` on this
+> citation. The mechanism the readable sources describe — **dew-point spread** — needs no
+> threshold constant at all and comes from two columns we already have.
 
 **And we already have it.** `dewpoint_c` is a column on **both** `forecast_snapshots` and
 `weather_ensemble_hours` **[R]**. Grepping `apps/api/src/lib/scoring/` for `dewpoint` returns
@@ -543,14 +579,130 @@ draw on them rather than invent a scale.
 ## 16. What I still could not establish
 
 - **No source quantifies overhang versus wetting** (carried from §7, still open).
-- **No agreed numeric threshold for "good conditions"** beyond the dew-point 60 °F rule.
-  Everything else is personal calibration, and several sources say so explicitly.
-- **The temperature-versus-humidity weighting is contested.** §10's closing caveat: one
-  friction source says temperature barely matters for skin and humidity dominates, against a
-  community that treats temperature as decisive. Unresolved, and it would change the score's
-  component weights if settled.
+- **No agreed numeric threshold for "good conditions" at all.** ~~beyond the dew-point 60 °F
+  rule.~~ Everything else is personal calibration, and several sources say so explicitly.
+  **Updated 2026-09-16 (§17.2): the 60 °F rule is not an exception** — it is not in either
+  reachable source, and the one that discusses dew point most directly declines to give a
+  number on purpose.
+- **The temperature-versus-humidity weighting is contested, and §17.3 changed which side has
+  the evidence.** §10's closing caveat: one friction source says temperature barely matters
+  for skin and humidity dominates, against a community that treats temperature as decisive.
+  Unresolved, and it would change the score's component weights if settled. **Updated
+  2026-09-16:** that one source is Friction Labs, it was read at first hand, and it says
+  exactly that. The claims it was cited *against* — the 0–5 °C rubber peak and the 0–10 °C
+  bouldering band — come from sources nobody here can open. The caveat is now better sourced
+  than the position it qualifies.
 - **Nothing on how bouldering landings dry**, which is a separate surface from the wall and
   the thing that actually closes a boulder after rain.
 - **No data on closure schedules in machine-readable form.** Every source found is a land
   manager's web page in prose. Whether Access Fund or a regional org publishes a feed is
-  unknown — this environment cannot fetch pages to check.
+  ~~unknown — this environment cannot fetch pages to check.~~ **still unknown as of
+  2026-09-16, but the reason has changed: accessfund.org is reachable now** (§17), so this is
+  a Phase 4 question someone can actually answer rather than a blocked one.
+
+---
+
+## 17. Source verification pass — 2026-09-16
+
+Phase 1 of `docs/handoffs/climbing-research-brief-v1.md`. This document was written in a
+session that could not reach any content domain, so its figures were attributed from
+search-result summaries. Three of them were named in the brief as headed for constants. All
+three were opened at source.
+
+**Two of the three do not say what they are cited as saying.**
+
+| Claim | Where | Verdict |
+| --- | --- | --- |
+| Steepness bands: slab ≤88°, vertical 88–95°, overhanging 95–165°, roof ≥165° | §1.1 | **Confirmed verbatim** — but it is not a measurement |
+| Dew point above 60 °F means poor conditions | §10 | **Attribution fails** — neither reachable source says it |
+| Ideal bouldering 0–10 °C; shoe rubber peaks at 0–5 °C | §9 | **Attribution fails** — the cited source says neither, and argues the opposite emphasis |
+
+### 17.1 The steepness bands confirm, and the marker is still wrong
+
+The Springer chapter is readable in full, and the classification is there word for word:
+
+> *"slab (≤88°), vertical (88°–95°), overhanging (95°–165°), roof (≥165°)"*
+> — [Content-Based Recommendations for Crags and Climbing Routes](https://link.springer.com/chapter/10.1007/978-3-030-94751-4_33)
+
+**But the paper is not the origin of it.** The chapter takes the scheme from the **8a.nu
+e-guidebook**, where it is a website's category system for tagging routes. It is a convention
+that an academic paper adopted, not thresholds that anyone measured. §1.1 marks it **[M]**;
+it is **[C]** — a community convention with unusually precise edges, which is exactly what you
+would expect from a dropdown menu.
+
+That does not weaken §1.1's argument. A convention is precisely what §5 needs, and 8a.nu's is
+better evidence of what climbers mean than a measurement would be. **Corrected in place.**
+
+### 17.2 The dew-point 60 °F rule has no source we can reach
+
+§10 calls this *"the strongest single finding in this document"* and cites three sources.
+Two of them are reachable and **neither gives a threshold**:
+
+- **Plas y Brenin** defines dew point — *"the atmospheric temperature where moisture in the
+  air condenses"* — and uses it to explain why coastal venues are drier. **No number, and no
+  statement about conditions above or below one.**
+- **The Climbing Journal** says *"Dew point can be a killer. Keep an eye at the dew point"*
+  and describes the mechanism as the **gap between dew point and air temperature** closing —
+  condensation *"like condensation on a cold glass"*. It prescribes no threshold and
+  explicitly declines to: it *"emphasises monitoring these factors individually rather than
+  prescribing universal perfect conditions"*.
+- **UKC** is the third source and ukclimbing.com answers 402/403 to every tool here. The
+  threshold may well be in that forum thread. It has not been read.
+
+**The mechanism the reachable sources actually describe is the dew-point *spread*, not an
+absolute threshold** — how close dew point is to air temperature, which is when condensation
+forms on the rock. That is a different and better-behaved variable than "above 60 °F": it is
+scale-free, it works in January as well as July, and both inputs are already columns on
+`weather_ensemble_hours`.
+
+**§10's core finding survives intact and arguably improves.** Relative humidity is still the
+wrong variable, dew point is still the one climbers track, and we still store it and do not
+score it. What does not survive is the specific constant: **60 °F is currently sourced to a
+forum thread nobody here has opened**, and it should not become a threshold in
+`conditionsScore.ts` on that basis. Marked in place.
+
+### 17.3 The friction temperatures are not in the cited source
+
+§9 cites Friction Labs for *"climbing-shoe rubber reaches maximum friction at roughly
+32–41 °F (0–5 °C), just before its glass transition"*.
+
+**The Friction Labs article does not mention rubber friction, glass transition, or an optimal
+send temperature.** What it contains is a comparison of finger-flexor endurance at **50 °F
+versus 80 °F**, a recommendation for a **4 °C / 40 °F** cold drink to manage heat stress, and
+this conclusion: *"humidity seems to have a larger indirect effect on our performance"* than
+temperature.
+
+The second cited source, climbing.com's *Science Friction*, sits behind an Outside Online
+login wall and could not be read. The rubber and glass-transition claim may be there.
+
+**Two consequences.**
+
+First, the **0–10 °C ideal-bouldering band and the 0–5 °C rubber peak are currently
+unsourced**, and §9 builds its strongest argument on them — that `TEMP_BAND_C`'s floor is
+inverted. That argument is still plausible and widely held in the community, but it is now
+**[C]** resting on nothing readable, not **[C]** resting on two named articles.
+
+Second — and this cuts the other way — **§9 and §10's own closing caveat is the better-sourced
+claim.** Both flag a single source arguing humidity dominates temperature for skin friction.
+That source is Friction Labs, it was read at first hand, and it says exactly that. So the
+caveat is verified while the claim it qualifies is not. **§16's "temperature-versus-humidity
+weighting is contested" is now the more defensible of the two positions**, which is the
+opposite of how this document presents it.
+
+### 17.4 What this changes
+
+Nothing in the code, and nothing in `scoring-algorithm.md`, which is locked.
+
+What it changes is which of this document's findings are ready to become constants. On the
+evidence now available:
+
+- **Ready:** the steepness bands, as a convention — they are what a climber means, confirmed
+  verbatim, and §1.3's point about `45` being the most confusable value on the scale is
+  untouched.
+- **Not ready:** the 60 °F dew-point threshold and the 0–5 °C rubber peak. Both are single
+  numbers from unreadable sources, and both were about to become comparisons in a scorer.
+- **Better than it looked:** dew-point *spread* as the variable, which needs no threshold
+  constant at all and is derivable from two columns we already store.
+
+The three blocked hosts — ukclimbing.com, climbing.com, sciencedirect.com — are why
+`.claude/research-inbox/` exists.
