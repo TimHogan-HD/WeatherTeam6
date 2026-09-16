@@ -196,13 +196,19 @@ Four mechanisms, all documented, and they stack:
 
 | Finding | Value | Source |
 | --- | --- | --- |
-| Strength loss range across sandstones | **0% (quartz-rich, clay-free) to 55% (Pennant sandstone)**, with extreme cases of UCS dropping >90% | **[X]** attribution unverified — see the note below |
+| Strength loss range across sandstones | **0% (quartz-rich, clay-free) to 55% (Pennant sandstone)** | **[M]** — **source found 2026-09-16 (§13.6)**: [Duda & Renner 2013, GJI](https://academic.oup.com/gji/article/192/3/1091/822850), citing Hadizadeh & Law 1991. Read in full. The **">90% outliers"** clause is **[X]** and belongs to nothing found |
+| Fracture toughness / fracture energy / static friction | **6–35% / 21–52% / 0–19%** | **[M]** — **confirmed verbatim in full text 2026-09-16 (§13.6)** |
 | Critical saturation band | **60–80%** — most of the strength loss happens crossing it, then the curve flattens | [M] [Springer](https://link.springer.com/article/10.1007/s10064-022-02822-9) |
 | Fracture toughness reduction | 6–35% | [M] [Elsevier](https://www.sciencedirect.com/science/article/pii/S1365160921003002) |
 | Fracture energy reduction | 21–52% | [M] same |
 | Static friction coefficient reduction | 0–19% | [M] same |
-| Millstone Grit (Peak District) | ~41% weaker when wet | [C] reported via [Climbing](https://www.climbing.com/travel/wet-sandstone/) |
-| "Western sandstone" | up to 75% strength loss while wet | [C] [Climbing](https://www.climbing.com/travel/wet-sandstone/) / Access Fund |
+| Millstone Grit (Peak District) | **up to 41% weaker when wet** | [C] **read at source 2026-09-16** — [Climbing](https://www.climbing.com/travel/wet-sandstone/), §13.1 |
+| Cretaceous Greensand (UK) | **78% weaker** | [C] same source, §13.1 — new |
+| Berea sandstone (MI/PA/KY) | **20% weaker** | [C] same source, §13.1 — new |
+| Bad Bentheim (Germany) | **no change in strength at all** | [C] same source, §13.1 — new |
+| 35 kinds of UK sandstone | **8 to 78% weaker** | [C] survey, via §13.2 |
+| 8 German sandstones (Demarco et al. 2007) | **1.4 to 50%** | [C] survey, via §13.2 |
+| "Western sandstone" | up to 75% strength loss while wet | [C] **Access Fund only** — the Climbing attribution was wrong (§13.1) |
 
 > **Checked at source 2026-09-16 (§10.2).** The **critical saturation band confirms verbatim**:
 > *"the critical water saturation level at which considerable strength loss due to the
@@ -225,6 +231,24 @@ Two things follow, and both contradict how the app currently models this.
 **First: "sandstone" is not a strength-loss class.** The measured range within the single
 family runs from *no measurable effect* to *catastrophic*. A clean quartz arenite and a
 clay-rich wacke are the same word in a guidebook and 55 percentage points apart in the lab.
+
+> **RESOLVED 2026-09-16 (§13.6), and the paragraph below is wrong.** Duda & Renner's review
+> sentence, read in full: *"Notably, **much of the weakening, if present, occurs at low
+> moisture contents**"* — with **five** citations behind it (Van Eeckhout 1976; Hawkins &
+> McConnell; Demarco; Shakoor & Barefield; Nara). A second, independent source puts it at
+> *"the **first 20 percent or so** of saturation"*.
+>
+> **So the damage is at the DRY end of the curve, not the wet end.** A barely-damp wall has
+> already given up most of the strength it is going to give up. The paragraph below says the
+> opposite and should not be relied on.
+>
+> **What survives is the Springer 60–80% figure itself**, confirmed verbatim in §10.2 — but it
+> is one study of four clay-bearing sandstones, against five studies pointing the other way,
+> and it describes where the curve *flattens* rather than where the loss sits.
+>
+> **This is the most consequential correction in the whole research.** The app's drying model
+> is a ramp over elapsed time, and it is most wrong exactly where a user is most likely to act:
+> the day after rain, when the wall looks dry and is not.
 
 **Second: the critical-saturation band explains the "damp is worse than you think"
 folklore.** A rock at 50% saturation is nearly at dry strength; the same rock at 80% has
@@ -493,9 +517,15 @@ behaves differently below and above a break at **RH ≈ 75%**
 [Krus & Kießl, moisture storage characteristics](https://wufi.de/literatur/Krus,%20Kie%C3%9Fl%201998%20-%20Determination%20of%20the%20moisture%20storage.pdf)) **[M]**.
 Below ~75% RH the rock takes up very little; above it, uptake climbs steeply toward saturation.
 
-> **Not verified, and the citation is on the wrong paper — 2026-09-16 (§10.4).**
-> onlinelibrary.wiley.com and sciencedirect.com both answer 403 here, so neither source was
-> opened and the **RH ≈ 75% break is unverified**. Separately, the *"sigmoidal type II with
+> **Updated 2026-09-16 (§13.7): Keppert was read in full, and the 75% break is not in it.**
+> The paper's conclusions confirm what §10.4 recorded from a summary — diffusion tracks total
+> porosity, sorption tracks **specific surface area and clay content** — but there is **no RH
+> threshold and no regime break anywhere in it**. Searched in full text. The break is now
+> **[X]**: it belongs to neither Keppert nor, per §10.4, the paper whose quote sits above it.
+> What Keppert does confirm is the **hysteresis**, so §2.8's path-dependence point survives.
+>
+> *Superseded, kept for the record:* the citation is on the wrong paper — 2026-09-16 (§10.4) —
+> and both hosts answered 403, so neither source had been opened. Separately, the *"sigmoidal type II with
 > hysteresis in the high-humidity range"* quote describes the **Obernkirchener sandstone DVS
 > study** (Pichler, Lackner, Bader & Perfler) that the prose above names — but the link points
 > at Keppert et al. instead. Marker held at **[M]** pending a read of either.
@@ -2899,6 +2929,331 @@ acted on.
 **A third figure joined them in §10.2 and is in worse shape than either**: the 0–55%-with-
 outliers-above-90% range, which §8 used to call *"the defensible one"*, is not in the paper it
 was attributed to and is now marked **[X]**.
+
+---
+
+## 13. The browser pass — 2026-09-16
+
+climbing.com was opened in a real browser (Playwright MCP). **It was a bot wall, not a
+paywall** — no login needed. One figure confirms, six new ones arrive, and **one contradicts
+§2.4's reading of the saturation curve.**
+
+### 13.1 Millstone Grit 41% — CONFIRMED, and §8's last climbing-media figure is closed
+
+> *"In studies of rock strength, the United Kingdom's **Millstone Grit**, found in the
+> country's legendary Peak District, **got up to 41 percent weaker when wet**, while the
+> country's chossy Cretaceous Greensand was a whopping **78 percent** weaker. But **Berea
+> sandstone**, found from Michigan to Pennsylvania to Kentucky, gets just **20 percent**
+> weaker when wet, while Germany's **Bad Bentheim** sandstone **doesn't change in strength at
+> all**."*
+> — [Climbing, *Why You Shouldn't Climb on Wet
+> Sandstone*](https://www.climbing.com/travel/wet-sandstone/) **[C]**
+
+**And the "western sandstone 75%" figure is not on that page.** §2.4's table attributed it to
+*"[Climbing] / Access Fund"*. It is the Access Fund's alone — confirmed there in §10.2 — and
+the Climbing attribution is wrong. Corrected in place.
+
+### 13.2 The real cross-sandstone ranges, from two named studies
+
+§2.4's *"0% to 55%, extreme cases >90%"* row is marked **[X]** because the paper it cites does
+not contain it. **Two ranges that *are* attributable now exist**, and neither matches it:
+
+| Study | Scope | Range |
+| --- | --- | --- |
+| 35 kinds of UK sandstone | survey | **8 to 78% weaker** |
+| 8 types of German sandstone (Demarco et al. 2007) | survey | **1.4 to 50%** |
+| Fontainebleau (Duda) | one rock | **16%** |
+
+**This is what §2.4's row was probably reaching for**, and it is a better number than the one
+it had: 8–78% across 35 UK sandstones is a real survey with a citation. It does not reproduce
+the ">90% outliers" claim. Recorded rather than substituted — the **[X]** row stays **[X]**
+until someone reads the CiteSeerX paper the article links.
+
+**The family-is-not-a-class argument gets its strongest evidence yet.** Bad Bentheim loses
+**nothing**; Cretaceous Greensand loses **78%**. Same word in a guidebook.
+
+### 13.3 The saturation curve — this contradicts §2.4, and §2.4 may have it backwards
+
+§10.2 confirmed, verbatim from the Springer abstract, that *"the critical water saturation
+level at which considerable strength loss … is produced is 60 ~ 80%"*. §2.4 read that as:
+
+> *"A rock at 50% saturation is nearly at dry strength; the same rock at 80% has given up most
+> of it. The transition is a step, not a ramp."*
+
+**A different study says the opposite about where the loss sits:**
+
+> *"most sandstones don't lose strength evenly as they get wetter. Instead, **much of the
+> weakening happens in the first 20 percent or so of saturation** … That means that sandstone
+> that's just a little bit wet can be quite weak."* **[C]**
+
+**Both cannot be true of the same rock, and the practical readings are opposite.** §2.4's says
+a half-dry wall is nearly as strong as a dry one. This one says a barely-damp wall has already
+lost most of what it is going to lose.
+
+**Which matters more than it looks**, because the app's whole drying model is a ramp over
+elapsed time, and these two sources disagree about which end of that ramp the danger is at.
+If the first-20% version is right, the model is most wrong exactly where a user is most likely
+to go — the day after, when the wall looks dry.
+
+**Not resolved, and deliberately not resolved here.** The Springer paper tested **four
+clay-bearing sandstones** and its full text is paywalled; the CiteSeerX study the article links
+has not been read. **Both are on the inbox wanted list.** §2.4's sentence now carries a note
+saying it is contested rather than settled, because it was written as settled.
+
+### 13.4 Ambient humidity alone measurably weakens sandstone — and this identifies the OUP paper
+
+The GJI paper on the wanted list is **Duda's**, and the article says what it found:
+
+> *"Duda compared sandstone at room temperature to samples of the same sandstone that had been
+> oven-dried at either 140 and 248 degrees Fahrenheit to remove any moisture in the rock. **The
+> room-temp samples were much weaker than the oven-dried ones**, meaning that the ambient
+> humidity was enough to make the sandstone substantially weaker."* **[C]**
+
+And separately: *"another study found that **cracks grew much more quickly** in two types of
+sandstone when humidity levels were higher."*
+
+**This is §2.8's sorption finding arriving as a strength result rather than a friction one.**
+§2.8 established that humidity alone re-wets the surface and makes it greasy. This says
+humidity alone makes the rock *weaker*. Those are different failure modes and the second is
+the serious one.
+
+It also means **the app's humidity input is load-bearing for a reason the score does not
+model**: `conditionsScore` spends 8 points on humidity as a *comfort and friction* term. On
+this evidence it is also a *structural* term, and nothing in the model says so.
+
+**[C], from a magazine's summary.** The paper itself is still unread — and it is the one host
+class a browser does not solve.
+
+### 13.5 The US climbing sandstones have never been studied, stated outright
+
+§8's first gap said no measured drying data exists for a real crag. This is the strength
+equivalent, and the article says it plainly:
+
+> *"Unfortunately, there aren't any studies on some of the most popular types of sandstone for
+> climbing here in the U.S. Anecdotal evidence from climbers suggests that the **Corbin and
+> Nuttall** sandstone — found in the Red River Gorge and New River Gorge — are likely to lose
+> less strength when wet, while the **Wingate, Navajo and Aztec** sandstones found in the
+> desert lose serious integrity when saturated. **But by how much is anyone's guess.**"* **[C]**
+
+**That is this document's §4.1 sub-classification, independently arrived at, by the same
+reasoning, with the same rocks in the same buckets** — and with an explicit statement that the
+numbers do not exist. §4.1 is better supported than it looked and permanently un-quantifiable
+at the same time.
+
+The article's framing of the drying question is also worth keeping, because it is §12.1's
+vaporization-plane result in one line: *"Short answer: **it's not the rain, it's the
+evaporation.**"*
+
+### 13.6 The second browser pass — the paywalled hosts were Cloudflare, not paywalls
+
+**ScienceDirect and OUP both opened in full.** The 403s were Cloudflare bot challenges, and one
+of them cleared itself after eight seconds. **No subscription was needed for either.** This
+reverses §20.5 of the terminology research and the inbox's standing assumption about those
+hosts.
+
+Two papers read in full, and between them they settle the largest open questions in §2.4.
+
+**The 0–55% range is real, and the source was in this document's own Sources list all along.**
+
+> *"numerous studies document that the magnitude of strength reduction (weakening) upon water
+> saturation strongly varies between different rock types … ranging from **no measurable effect
+> on the compressive strength of quartz-rich and almost clay-free sandstones** (Hadizadeh &
+> Law 1991; Baud et al. 2000; Reviron et al. 2009) **to a strength reduction of 55 per cent in
+> Pennant sandstone** (Hadizadeh & Law 1991)."*
+> — [Duda & Renner, *The weakening effect of water on the brittle failure strength of
+> sandstone*, GJI 192(3) 1091–1108](https://academic.oup.com/gji/article/192/3/1091/822850) **[M]**
+
+That is §2.4's row, in substance word for word. **It was marked [X] because it had been
+attributed to the Springer saturation paper; the real source is the OUP GJI paper this document
+already cited two rows further down.** The figure was never wrong — the pointer was. Restored
+to **[M]** with the correct citation, and the primary is Hadizadeh & Law 1991.
+
+**The ">90% outliers" clause is still unsourced** and stays **[X]**. Duda & Renner's top of
+range is 55%; nothing read so far reaches 90%.
+
+**The saturation question is settled, and §2.4 had it backwards.**
+
+> *"Notably, **much of the weakening, if present, occurs at low moisture contents**"* — Van
+> Eeckhout 1976; Hawkins & McConnell; Demarco; Shakoor & Barefield; Nara **[M]**
+
+Five citations, in a review sentence, all saying the damage is done early. Against the Springer
+paper's 60–80% critical band — one study, four clay-bearing sandstones, and a figure that
+describes where the curve **flattens** rather than where the loss sits. §2.4's in-place note
+now says the paragraph under it is wrong.
+
+**What this means for the app, stated plainly.** `dryingModel` ramps over elapsed time since
+rain. If most of the strength loss happens at low moisture content, the ramp is least accurate
+at its *end* — the day after, when the wall looks dry, the score is climbing and a user is
+deciding whether to drive. **That is the opposite of where a modeller would assume the error
+lives**, and it is worth knowing before anyone touches issue #108.
+
+**The three fracture rows confirm verbatim**, from the full text of the paper §2.4 cites for
+them:
+
+> *"ranging from **6 to 35%** and **21–52%**, respectively; and ii) the static [friction
+> coefficient] … ranging from **0 to 19%**"*
+> — [Zhang et al., *Effect of water on sandstone's fracture toughness and frictional
+> parameters*](https://www.sciencedirect.com/science/article/pii/S1365160921003002) **[M]**
+
+And that paper adds a fourth figure §2.4 does not have: its own measured UCS reduction is
+**0 to 30%**, with the literature *"typically ranging from 8 to 50%"* — again, no >90%.
+
+**Per-rock figures now available from three independent sources, and they disagree.** Berea is
+**8%** (Duda & Renner's sources), **20%** (Climbing), and Pennant is **43%** (Zhang et al.)
+against **55%** (Hadizadeh & Law). Same rocks, different labs, different numbers. **That spread
+is itself the finding**: a single constant per rock *family* cannot be right when a single rock
+*formation* varies this much between studies.
+
+### 13.7 Wiley, and the one genuine paywall found so far
+
+**Wiley's Cloudflare clears like the others** — 403, ten seconds, through. But Wiley is where
+the browser finally meets a real subscription wall, and the distinction is worth stating
+because it is the first time in this session the two have been different things:
+
+| Article | Result |
+| --- | --- |
+| Keppert et al. (Hindawi, open access) | **Full text, no barrier** |
+| Slavík et al., ESP (subscription) | **Abstract only.** `/doi/full/` redirects straight back to `/doi/abs/` |
+
+**So the rule is not "Wiley is blocked" or "Wiley is open" — it is per-article**, and the tell
+is whether a `/doi/full/` URL holds or bounces.
+
+#### The vaporization-plane result confirms verbatim, from the abstract
+
+> *"The sensitivity analyses showed that **the most important factor controlling the evaporation
+> rate was the vaporization plane depth, while seasonal and spatial changes of air humidity and
+> temperature were of lesser importance.**"*
+> — [Slavík et al., ESP](https://onlinelibrary.wiley.com/doi/abs/10.1002/esp.4943) **[M]**
+
+Also confirmed: *"sandstone cores (with a set depth of the vaporization plane) in a **humid
+continental climate** and measured on a roughly **monthly interval for about 1 year**."*
+§12.1 reported all of this from a search summary; it is now first-hand.
+
+**The two numbers are still not.** The **0.4–2447 mm/year** range and the **2.2 orders of
+magnitude** figure are not in the abstract, and the full text is genuinely gated. They stay
+second-hand — the only claims in §12.1 that do.
+
+**Two details the summary did not carry, and both matter here:**
+
+- **The authors hold a patent on the measurement method** — *"CZ 308341 B6: 'The vaporization
+  plane depth measuring method'"*. So the dominant control on drying is not merely hard to get
+  for a crag; **measuring it is a patented laboratory technique.** §12.1 said the model cannot
+  obtain it. That is now a stronger statement than it looked.
+- **Wind is not in their model.** The paper lists it as future work: *"Further research should
+  focus on factors affecting the evaporation rate (**wind**, hygroscopicity, hydrophobicity,
+  etc.)"*. `dryingModel` already applies a wind modifier — so on this one input the app is
+  ahead of the paper rather than behind it, and the modifier is not validated by it.
+
+#### Keppert confirms in full — and the RH ≈ 75% break is not in it
+
+The conclusions, read at first hand:
+
+> *"While the **diffusion resistance factor was found to be simply dependent on the total
+> porosity** (studied range 7–28%) the adsorption behavior was more complicated. The sorption
+> isotherms … were influenced by (i) **specific surface area** of the stone and (ii) its
+> composition, specifically by **content of clay minerals**."*
+> — [Keppert et al., *Water Vapor Diffusion and Adsorption of
+> Sandstones*](https://onlinelibrary.wiley.com/doi/10.1155/2016/8039748) **[M]**
+
+That is §10.4's summary-sourced claim, now verbatim, and it stands: **greasiness tracks clay
+content and surface area, not the porosity number in §3's table.** The paper goes further —
+two stones with *similar* specific surface area differed because one was rich in kaolinite, so
+the mineral matters on top of the area.
+
+**But §2.8's "vapour transmission behaves differently below and above a break at RH ≈ 75%" is
+not in this paper.** Searched in full: no 75% threshold, no regime break. §10.4 already flagged
+that §2.8's Type-II-with-hysteresis quote belongs to the Obernkirchener DVS study rather than
+to Keppert; **the 75% figure belongs to neither, and is now [X]** until someone finds Krus &
+Kießl or the DVS paper.
+
+What Keppert does confirm about the isotherm shape is the hysteresis: *"Hysteresis between
+adsorption and desorption isotherms indicates occurrence of condensation of water vapor in
+pores."* §2.8's path-dependence point survives; its threshold does not.
+
+### 13.8 The overhang study — and the strength this document has been tracking may be the wrong one
+
+Bruthans et al. studied *"a specific sandstone overhang … with artificially induced and
+extremely high erosion rates"*, using the *"contrast between the erosion rate of the **wet and
+dry portions of the same cliff**"* to isolate what drives retreat. A within-cliff control, on
+an overhang, on wetted sandstone — as close to this project's subject as the literature gets.
+
+> *"an increase of moisture content in pores in the area of the studied overhang **decreased
+> tensile strength of the sandstone to 14% of its dry value**, and increases the sandstone
+> weathering and erosion rate, by nearly **four orders of magnitude** … Consequently, **frost
+> weathering, in combination with wetting weakening** was found to play a major role …
+> Frost weathering rate in both the laboratory and field **increases up to 15 times with
+> decreasing gravity-induced stress**."*
+> — [Bruthans et al., ESP 42(5)](https://onlinelibrary.wiley.com/doi/10.1002/esp.4016) **[M]**
+
+**To 14% of dry value is an 86% loss, and every strength figure in §2.4 is smaller than that.**
+The reason is that it is a **different property**:
+
+| Property | Range in §2.4 | What fails |
+| --- | --- | --- |
+| Uniaxial **compressive** strength | 0–55% loss | The rock crushing under load |
+| **Tensile** strength | **to 14% of dry — an 86% loss** | **A hold snapping off** |
+
+**A climber breaks a hold in tension, not in compression.** A crimp levered outward, a flake
+pulled on, a jug loaded at its root — those are tensile and flexural failures. **This document
+has spent §2.4 tracking the compressive number because that is what the water-weakening
+literature reports, and the number that governs the failure a climber actually experiences may
+be several times larger.**
+
+Recorded as a finding, not a constant. **Caveats, and they are large:** one sandstone,
+artificially wetted to a degree the paper itself calls extreme, and a site chosen *because* it
+was eroding fast. It is not a general figure for wet sandstone. What it establishes is the
+**direction and the scale of the gap** between the two properties — and that §2.4's ranges may
+be systematically understating the risk they are quoted for.
+
+**It may also explain the orphaned ">90%" clause.** §2.4 claims *"extreme cases of UCS dropping
+>90%"* and §13.6 found nothing above 55% in the compressive literature. An 86% tensile loss is
+close, is real, and is the kind of figure that gets copied into a summary with the property
+name dropped. **That is a hypothesis, not a finding** — the clause stays **[X]**.
+
+**And it independently supports §2.6.** Frost weathering plus wetting weakening together, with
+frost rate rising *15 times* as confining stress falls, is the freeze-thaw hazard §2.6
+describes — arriving from a field study of an overhang rather than from a lab cycling test.
+§2.6's conclusion that the thaw is the hazard, not the freeze, is unaffected and better
+supported.
+
+### 13.9 A sheltered wall is not a dry wall — measured
+
+The Yungang Grottoes study monitored rock water content in caves *"shielded from rainfall"*,
+and modelled five years of it.
+
+> *"Numerical simulation reveals **rock moisture in the cave is derived from vapor
+> condensation**."*
+>
+> *"Infiltration and redistribution of condensed water **caused wetting and drying**, which is
+> responsible for chemical weathering. By simulating RWC in 5 years (from 2019 to 2023), we
+> find the **maximum depth of wetting and drying is only 1.2 m**."*
+>
+> *"**Extinction depth of wetting and drying increases exponentially with vapor
+> concentration.**"*
+> — [Rock moisture dynamics in sandstone caves responsible for
+> weathering](https://www.sciencedirect.com/science/article/abs/pii/S0013795225002819) **[M]**
+
+**This is the shelter rule's limit, measured.** §18.1 of the terminology research works out
+when rain can physically reach an overhanging face, and concludes a steep enough wall stays
+dry. **That is true of rain and false of water.** In a space rain never reaches at all, the
+rock still goes through wetting and drying cycles — driven by vapour condensing out of the air.
+
+Three things follow, and the first two are already in this document waiting for a source:
+
+- **§4.15's Yangshuo observation is the same phenomenon.** *"Even caves get wet as the rain
+  seeps into the mountain … it can get so intense it's like it's raining in the cave
+  interior."* Climbers reporting it; a monitored UNESCO site measuring it.
+- **§2.8's sorption argument gets its field confirmation.** Humidity alone re-wets rock. Here
+  it does so enough to drive the weathering of a heritage site over five years.
+- **An overhang flag cannot mean "dry".** Whatever a `shelter` field ends up meaning, it means
+  *rain does not land here* — not *this wall is dry*. §4.18's El Salto entry already separates
+  those two ideas from the climbing side; this is the physics side of the same separation.
+
+**The 1.2 m depth is the reassuring half.** Wetting from condensation is a near-surface
+process, and it stays near-surface even over years. That is consistent with §12.1's
+vaporization plane sitting millimetres to centimetres in, and it means the affected volume is
+the part a climber touches — which is the part that matters for friction and for hold integrity
+both.
 
 ---
 
