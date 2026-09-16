@@ -3,11 +3,24 @@ import type { ScoreInput, ScoreOutput, ScoreBreakdown } from '@weatherteam6/type
 
 type RockType = ScoreInput['rockType']
 
+/**
+ * **A second copy of `dryingModel.ts`'s `MAX_HOURS`, and the two must agree.**
+ * `dryingModel` decides `estimated_dry`; this one scales the 0-40 drying
+ * component. They are separate tables for no recorded reason, and a value that
+ * differs between them would report a wall as dry while scoring it as wet.
+ *
+ * Both are `Record<RockType, number>`, so neither can silently omit a rock type —
+ * adding one to `ROCK_TYPES` fails the typecheck here until it is given a number.
+ * That is the only thing keeping them in step; the *values* are still matched by
+ * hand. See the basalt note in `dryingModel.ts` for why there are three of them.
+ */
 const MAX_HOURS: Record<RockType, number> = {
   sandstone: 72,
   limestone: 24,
   granite: 12,
   basalt: 48,
+  basalt_dense: 8,
+  basalt_vesicular: 48,
   unknown: 48,
 }
 

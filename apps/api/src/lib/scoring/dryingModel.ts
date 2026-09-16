@@ -1,4 +1,11 @@
-export type RockType = 'sandstone' | 'limestone' | 'granite' | 'basalt' | 'unknown'
+import type { RockType } from '@weatherteam6/types'
+
+/**
+ * Re-exported because this module's own copy of the union was the original
+ * source of the drift `ROCK_TYPES` now prevents, and several callers import
+ * `RockType` from here. It is an alias now, not a second definition.
+ */
+export type { RockType }
 
 export type DryingModelInput = {
   rockType: RockType
@@ -14,11 +21,29 @@ export type DryingModelOutput = {
   confidence: 'low' | 'medium' | 'high'
 }
 
+/**
+ * **`basalt` is three values, because one number cannot describe the family.**
+ * Porosity across basalt spans **0.1-1.0% for dense columnar rock and 30-50% for
+ * a vesicular flow top** (`.claude/docs/rock-drying-research.md` §3) — the widest
+ * spread of any family in the enum, and wider than the gap between granite and
+ * sandstone. A single `basalt` row gave Devils Tower and a scoriaceous flow top
+ * the same drying window and had to be wrong for one of them.
+ *
+ * `basalt` is kept, and it does **not** mean "average basalt". It means the kind
+ * was never recorded — which is what every existing row holds, and what the
+ * picker still offers someone who does not know. An unrecorded kind takes the
+ * slower of the two, so it reads as caution rather than as a guess; that is the
+ * same rule `unknown` follows, applied inside one family. It keeps 12/48
+ * deliberately: every row in production today is `basalt`, and this change must
+ * not silently move a single existing location's score.
+ */
 const MIN_HOURS: Record<RockType, number> = {
   sandstone: 24,
   limestone: 6,
   granite: 2,
   basalt: 12,
+  basalt_dense: 2,
+  basalt_vesicular: 12,
   unknown: 24,
 }
 
@@ -27,6 +52,8 @@ const MAX_HOURS: Record<RockType, number> = {
   limestone: 24,
   granite: 12,
   basalt: 48,
+  basalt_dense: 8,
+  basalt_vesicular: 48,
   unknown: 48,
 }
 

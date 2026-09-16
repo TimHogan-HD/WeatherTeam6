@@ -208,3 +208,64 @@ describe('dryingModel (behavior)', () => {
     expect(result.hours_since_significant_rain).toBe(720)
   })
 })
+
+describe('dryingModel — the basalt split', () => {
+  /**
+   * The drying window is what the split exists to change, and `estimated_dry` is
+   * where it becomes observable. 24h after 10mm on a vertical wall sits between
+   * dense basalt's 8h ceiling and the 48h the other two carry, so one input
+   * separates all three rows — an assertion on `MAX_HOURS` itself would only
+   * prove the table agrees with itself.
+   */
+  function dryAfter24h(rockType: DryingModelInput['rockType']): boolean {
+    return dryingModel({
+      rockType,
+      cliffAngle: 0,
+      rainfallEvents: [{ date: '2025-05-31', precip_mm: 10 }],
+      asOf: new Date('2025-06-01T23:59:59Z'),
+    }).estimated_dry
+  }
+
+  it('dense basalt is dry at 24h where vesicular is not', () => {
+    expect(dryAfter24h('basalt_dense')).toBe(true)
+    expect(dryAfter24h('basalt_vesicular')).toBe(false)
+  })
+
+  /**
+   * **The regression guard, and the reason `basalt` was kept rather than
+   * migrated.** Every row in production holds `basalt`, so if this changes, real
+   * saved locations silently moved. It must track vesicular, not sit between the
+   * two: an unrecorded kind is not an average.
+   */
+  it('unspecified basalt is unchanged, and matches vesicular rather than splitting the difference', () => {
+    expect(dryAfter24h('basalt')).toBe(false)
+    expect(dryAfter24h('basalt')).toBe(dryAfter24h('basalt_vesicular'))
+  })
+
+  /**
+   * **Dense basalt now dries faster than granite, and that is deliberate.**
+   * 8h against granite's 12h, which reads oddly until the porosities are put
+   * side by side: dense columnar basalt is **0.1-1.0%** and granite **0.5-1.5%**
+   * (research §3), so the less porous rock shedding water sooner is the right
+   * ordering. Granite's 12 is an existing agreed constant and was left alone.
+   *
+   * Asserted because the first version of this test assumed the opposite and
+   * failed — the ordering is not obvious, so it is worth pinning.
+   */
+  it('dense basalt dries faster than granite, matching its lower porosity', () => {
+    function dryAt(rockType: DryingModelInput['rockType'], asOf: string): boolean {
+      return dryingModel({
+        rockType,
+        cliffAngle: 0,
+        rainfallEvents: [{ date: '2025-05-31', precip_mm: 10 }],
+        asOf: new Date(asOf),
+      }).estimated_dry
+    }
+    // Rain ends 2025-05-31T23:59:59Z. +10h is 09:59:59Z on 06-01 — past dense
+    // basalt's 8h ceiling and short of granite's 12h.
+    expect(dryAt('basalt_dense', '2025-06-01T09:59:59Z')).toBe(true)
+    expect(dryAt('granite', '2025-06-01T09:59:59Z')).toBe(false)
+    // +6h: short of both.
+    expect(dryAt('basalt_dense', '2025-06-01T05:59:59Z')).toBe(false)
+  })
+})

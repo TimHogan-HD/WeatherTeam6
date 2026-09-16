@@ -1,5 +1,5 @@
 import { colors, radius, spacing } from '@weatherteam6/design/tokens'
-import type { RockType } from '@weatherteam6/types'
+import { ROCK_TYPES, rockTypeLabel, type RockType } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { bareButton, btnPrimary, btnPrimaryText, chip, chipActive, inputBox, row, stack } from '../theme/styles.js'
 
@@ -16,14 +16,23 @@ import { bareButton, btnPrimary, btnPrimaryText, chip, chipActive, inputBox, row
  * one, so the toggle defaults **off** and the picker only appears behind it.
  */
 
-/** `unknown` is the API's "not sure" — it is a real rock type, not a missing value. */
-const ROCK_TYPES: { value: RockType; label: string }[] = [
-  { value: 'sandstone', label: 'Sandstone' },
-  { value: 'limestone', label: 'Limestone' },
-  { value: 'granite', label: 'Granite' },
-  { value: 'basalt', label: 'Basalt' },
-  { value: 'unknown', label: 'Not sure' },
-]
+/**
+ * The picker, built from the shared list so it cannot offer a type the API
+ * rejects or omit one it accepts.
+ *
+ * **Three basalt chips, and the plain one is not a middle option.** "Basalt"
+ * means the kind was not recorded and takes the slower window; the other two are
+ * what a climber can see from the ground — columns, or a bubbly flow top. Someone
+ * who does not know picks "Basalt" and is treated cautiously, which is the point.
+ *
+ * `unknown` is relabelled "Not sure" here and nowhere else: it is the API's real
+ * value, and "Unknown" beside a list of rock names reads like a failed lookup
+ * rather than an answer the user is allowed to give.
+ */
+const ROCK_TYPE_OPTIONS: { value: RockType; label: string }[] = ROCK_TYPES.map((value) => ({
+  value,
+  label: value === 'unknown' ? 'Not sure' : rockTypeLabel(value),
+}))
 
 export type SaveDraft = {
   name: string
@@ -96,7 +105,7 @@ export function SaveBar({
         <div style={stack(spacing.micro)}>
           <span style={type.label}>Rock type</span>
           <div style={{ ...row(spacing.chipGap), flexWrap: 'wrap' }}>
-            {ROCK_TYPES.map(({ value, label }) => (
+            {ROCK_TYPE_OPTIONS.map(({ value, label }) => (
               <button
                 key={value}
                 type="button"
