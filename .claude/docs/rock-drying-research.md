@@ -517,9 +517,15 @@ behaves differently below and above a break at **RH ≈ 75%**
 [Krus & Kießl, moisture storage characteristics](https://wufi.de/literatur/Krus,%20Kie%C3%9Fl%201998%20-%20Determination%20of%20the%20moisture%20storage.pdf)) **[M]**.
 Below ~75% RH the rock takes up very little; above it, uptake climbs steeply toward saturation.
 
-> **Not verified, and the citation is on the wrong paper — 2026-09-16 (§10.4).**
-> onlinelibrary.wiley.com and sciencedirect.com both answer 403 here, so neither source was
-> opened and the **RH ≈ 75% break is unverified**. Separately, the *"sigmoidal type II with
+> **Updated 2026-09-16 (§13.7): Keppert was read in full, and the 75% break is not in it.**
+> The paper's conclusions confirm what §10.4 recorded from a summary — diffusion tracks total
+> porosity, sorption tracks **specific surface area and clay content** — but there is **no RH
+> threshold and no regime break anywhere in it**. Searched in full text. The break is now
+> **[X]**: it belongs to neither Keppert nor, per §10.4, the paper whose quote sits above it.
+> What Keppert does confirm is the **hysteresis**, so §2.8's path-dependence point survives.
+>
+> *Superseded, kept for the record:* the citation is on the wrong paper — 2026-09-16 (§10.4) —
+> and both hosts answered 403, so neither source had been opened. Separately, the *"sigmoidal type II with
 > hysteresis in the high-humidity range"* quote describes the **Obernkirchener sandstone DVS
 > study** (Pichler, Lackner, Bader & Perfler) that the prose above names — but the link points
 > at Keppert et al. instead. Marker held at **[M]** pending a read of either.
@@ -3097,6 +3103,72 @@ And that paper adds a fourth figure §2.4 does not have: its own measured UCS re
 against **55%** (Hadizadeh & Law). Same rocks, different labs, different numbers. **That spread
 is itself the finding**: a single constant per rock *family* cannot be right when a single rock
 *formation* varies this much between studies.
+
+### 13.7 Wiley, and the one genuine paywall found so far
+
+**Wiley's Cloudflare clears like the others** — 403, ten seconds, through. But Wiley is where
+the browser finally meets a real subscription wall, and the distinction is worth stating
+because it is the first time in this session the two have been different things:
+
+| Article | Result |
+| --- | --- |
+| Keppert et al. (Hindawi, open access) | **Full text, no barrier** |
+| Slavík et al., ESP (subscription) | **Abstract only.** `/doi/full/` redirects straight back to `/doi/abs/` |
+
+**So the rule is not "Wiley is blocked" or "Wiley is open" — it is per-article**, and the tell
+is whether a `/doi/full/` URL holds or bounces.
+
+#### The vaporization-plane result confirms verbatim, from the abstract
+
+> *"The sensitivity analyses showed that **the most important factor controlling the evaporation
+> rate was the vaporization plane depth, while seasonal and spatial changes of air humidity and
+> temperature were of lesser importance.**"*
+> — [Slavík et al., ESP](https://onlinelibrary.wiley.com/doi/abs/10.1002/esp.4943) **[M]**
+
+Also confirmed: *"sandstone cores (with a set depth of the vaporization plane) in a **humid
+continental climate** and measured on a roughly **monthly interval for about 1 year**."*
+§12.1 reported all of this from a search summary; it is now first-hand.
+
+**The two numbers are still not.** The **0.4–2447 mm/year** range and the **2.2 orders of
+magnitude** figure are not in the abstract, and the full text is genuinely gated. They stay
+second-hand — the only claims in §12.1 that do.
+
+**Two details the summary did not carry, and both matter here:**
+
+- **The authors hold a patent on the measurement method** — *"CZ 308341 B6: 'The vaporization
+  plane depth measuring method'"*. So the dominant control on drying is not merely hard to get
+  for a crag; **measuring it is a patented laboratory technique.** §12.1 said the model cannot
+  obtain it. That is now a stronger statement than it looked.
+- **Wind is not in their model.** The paper lists it as future work: *"Further research should
+  focus on factors affecting the evaporation rate (**wind**, hygroscopicity, hydrophobicity,
+  etc.)"*. `dryingModel` already applies a wind modifier — so on this one input the app is
+  ahead of the paper rather than behind it, and the modifier is not validated by it.
+
+#### Keppert confirms in full — and the RH ≈ 75% break is not in it
+
+The conclusions, read at first hand:
+
+> *"While the **diffusion resistance factor was found to be simply dependent on the total
+> porosity** (studied range 7–28%) the adsorption behavior was more complicated. The sorption
+> isotherms … were influenced by (i) **specific surface area** of the stone and (ii) its
+> composition, specifically by **content of clay minerals**."*
+> — [Keppert et al., *Water Vapor Diffusion and Adsorption of
+> Sandstones*](https://onlinelibrary.wiley.com/doi/10.1155/2016/8039748) **[M]**
+
+That is §10.4's summary-sourced claim, now verbatim, and it stands: **greasiness tracks clay
+content and surface area, not the porosity number in §3's table.** The paper goes further —
+two stones with *similar* specific surface area differed because one was rich in kaolinite, so
+the mineral matters on top of the area.
+
+**But §2.8's "vapour transmission behaves differently below and above a break at RH ≈ 75%" is
+not in this paper.** Searched in full: no 75% threshold, no regime break. §10.4 already flagged
+that §2.8's Type-II-with-hysteresis quote belongs to the Obernkirchener DVS study rather than
+to Keppert; **the 75% figure belongs to neither, and is now [X]** until someone finds Krus &
+Kießl or the DVS paper.
+
+What Keppert does confirm about the isotherm shape is the hysteresis: *"Hysteresis between
+adsorption and desorption isotherms indicates occurrence of condensation of water vapor in
+pores."* §2.8's path-dependence point survives; its threshold does not.
 
 ---
 
