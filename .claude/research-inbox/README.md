@@ -1,5 +1,20 @@
 # Research inbox
 
+> **STATUS 2026-09-16: the research is closed and this directory is now a fallback, not a
+> route.** Playwright MCP (`.mcp.json`, persistent profile) reads every host the wanted list
+> below was built around. **They were Cloudflare challenges that clear in 8–10 seconds, not
+> paywalls** — the premise of the paragraph below turned out to be wrong about all four hosts.
+> The wanted list is spent: everything on it was either read at source or found to be a genuine
+> subscription wall (one item, Slavík's ESP article).
+>
+> **Phase 3 of the brief was scrapped by the owner**, so the transcript half of this directory's
+> purpose is retired too. The forum work it would have covered was done with the browser instead
+> — `climbing-terminology-research.md` §21 and `rock-drying-research.md` §14.
+>
+> **Keep the directory and keep the rule below.** A genuine paywall still needs a person, and
+> the "do not commit third-party text" rule applies to anything that lands here regardless of
+> how it arrived.
+
 Raw source material for the climbing and rock research, **read as files rather than
 fetched**. Transcripts, saved articles, PDFs — anything a source will not hand to a fetch
 tool.
