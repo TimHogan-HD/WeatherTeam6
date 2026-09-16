@@ -1679,7 +1679,7 @@ Gogarth, Swanage and Pembroke are all in this category.
 
 | Gap | Source | Status |
 | --- | --- | --- |
-| Aspect / solar exposure | `shortwave_radiation` | **Already fetched and stored** as `shortwave_wm2` (`openMeteo.ts`). The aspect term is blocked on geometry, not data. |
+| Aspect / solar exposure | `shortwave_radiation` | **Fetched on every request** as `shortwave_wm2` (`openMeteo.ts`), then **dropped** — nothing reads it, and its only column is on `forecast_snapshots`, which nothing writes (corrected 2026-09-16, §14.5; the earlier "and stored" was wrong). The aspect term is blocked on geometry, not data. |
 | Antecedent wetness (§8.1) | ~~Open-Meteo soil moisture~~ → recency-weighted rainfall the app already has, or a rainfall-minus-ET₀ balance | **Corrected in §8.2.** Soil moisture is a grid-cell model output biased by the outcrop itself, not the ground the climber is looking at |
 | Snowmelt (Willow River, Wild Iris) | Open-Meteo snowfall / snow depth | Available but **model-dependent** — snow depth is missing from some models, and snowfall is water-equivalent at a fixed 1 mm : 7 cm factor |
 | River level (Willow River, Carderock) | NOAA water gauges | Public, per-gauge, US only |
@@ -2470,7 +2470,8 @@ position ([HORAYZON](https://github.com/ChristianSteger/HORAYZON),
 Two of those map onto findings already in this document:
 
 - **The horizon profile is the aspect term.** Open-Meteo's `shortwave_radiation` — which §5.1
-  confirmed is already fetched and stored as `shortwave_wm2` — is a **grid-cell** value that
+  confirmed is already fetched as `shortwave_wm2`, though **not stored anywhere live**
+  (corrected 2026-09-16, §14.5) — is a **grid-cell** value that
   knows nothing about the wall. The horizon profile is precisely the correction factor to apply
   to it. That closes the gap §5.1 identified without a new data source.
 - **Sky view factor is the sky-cooling term from §5.2.** CragReport models clear skies cooling a
@@ -3256,6 +3257,233 @@ the part a climber touches — which is the part that matters for friction and f
 both.
 
 ---
+
+---
+
+## 14. The community pass — how rock actually gets wet — 2026-09-16
+
+**Companion to §21 of `climbing-terminology-research.md`**, which covers the same source
+material for aspect, sun and wall angle. This section takes the part that belongs to rock.
+
+The source is a [UKC Rocktalk thread from February
+2026](https://www.ukclimbing.com/forums/rock_talk/help_with_the_science_of_outdoor_climbing_and_weather_conditions-788288)
+in which a student announces he is building this application and experienced climbers tell him
+what it would need to know. It was read in full.
+
+**§8 says the gap between lab measurement and "hours until a cliff is climbable" is bridged by
+folklore. This section is the folklore, written down carefully by the people who hold it** — and
+it describes a richer physical picture than this document's model, not a poorer one.
+
+---
+
+### 14.1 Seepage has two independent time constants and a catchment — not a boolean
+
+`crag-facts.json` records `seepage_prone` as a nullable boolean, known for 16 of 96 crags (§11).
+A Peak District climber describes what that boolean is flattening:
+
+> *"In the Peak […] **some limestone seeps soon after rain and some has a multi-week lead in
+> before it seeps**. Some limestone **takes many weeks to stop seeping** and some **stops seeping
+> in days**."*
+> — stone elworthy **[C]**
+
+**Two time constants, and they vary independently:** an **onset lag** between rain and the
+seepage appearing, ranging from hours to weeks; and a **duration**, ranging from days to weeks.
+A crag can be any combination. `seepage_prone: true` asserts none of this.
+
+**The driver is the catchment's saturation state, not the rain event** — and that is the part
+that breaks the model rather than merely coarsening it:
+
+> *"some crags (any rock type) get **runoff whenever it rains** and some **only if the
+> vegetation/soil above has weeks of rain saturating it**."*
+> — stone elworthy **[C]**
+>
+> *"a piece of rock that **drains the water from a hill behind it and will seep for a long while
+> after rain**, while a **freestanding block** will be dry enough to climb on."*
+> — gekitsu **[C]**
+
+**`dryingModel` keys off hours since the last significant rain.** For a crag fed by a hillside
+catchment, that is the wrong variable: the state that matters is how saturated the ground above
+is, which is a function of **weeks** of antecedent rainfall, and the crag can begin seeping on a
+day it has not rained at all. The model cannot represent a wall that gets wetter while the
+weather improves.
+
+**Note the discriminator both climbers reach independently: topography, not rock type.**
+Hillside-backed versus freestanding. Two crags of identical rock a few metres apart behave
+differently — *"Great rock and desperate rock could be a **literal stones throw apart**"*
+(ExiledScot **[C]**). This is §8's vertical-variation gap and §12.3's facade-position result
+arriving a third time, from a third direction.
+
+**And the community ranks it as the dominant unknown:**
+
+> *"**Seepage is the wild card here.** Crags would need rating for seepage potential and that'd
+> need combining with a measure of **recent historic rainfall**."* — wintertree **[C]**
+
+This document's §12.1 names the **vaporization plane depth** as the dominant control on
+*evaporation*. The community names **seepage** as the dominant control on *whether the wall is
+wet*. They are not in conflict — one governs drying, the other governs wetting — but only the
+first is in the literature, and neither is in the model.
+
+---
+
+### 14.2 Runoff is a third wetting mechanism, and nothing here has named it
+
+The thread separates three ways water arrives on a wall, consistently:
+
+| Mechanism | What it is | In this document |
+| --- | --- | --- |
+| **Rain landing on the face** | Direct wetting, modulated by overhang and wind | §12.3, §18.1 of the terminology doc |
+| **Seepage** | Water emerging *from within* the rock, fed by the catchment | §4 crag entries, `seepage_prone` |
+| **Runoff** | Water flowing *over the surface* from the ground above | **Nothing** |
+
+Runoff needs no porosity, no pore network and no sorption. It is a drainage path over the top of
+the cliff, and it can soak a route on impermeable rock that the rest of this document would
+predict dries fast. It is also the mechanism most likely to defeat an overhang: §13.9 established
+that a sheltered wall is not a dry wall via condensation; runoff is the second way, and a blunter
+one.
+
+**A climber's own classification, offered as a set of Peak District bellwether routes** — a
+taxonomy of wetness behaviour derived from named real climbs **[C]**:
+
+> *"Hamper's Hang — **very dry, hill-top grit**; Razor Roof — **very dry, valley grit**; Mermaid
+> — **seeping grit**; Beachball — **run-off prone grit**; Mark's Roof Lefthand — **shady grit**;
+> Obscene Gesture — **resilient lime**; Body Machine — **very slow to dry, very slow to get
+> wet**; Stamina-band — **seeping condensing and runoff prone**; Unleashing the Wild Physique —
+> **run off prone, shady lime**; Eager Beaver — **flood prone**."*
+> — stone elworthy
+
+**The dimensions a climber uses to classify a crag's wetness**, read off that list: seepage,
+condensation, runoff, flooding, shade, drying speed, **wetting speed**, and topographic position
+(hill-top versus valley). Rock type is present but is doing far less work than the other axes —
+six of the eleven entries are grit, and they span the full range from "very dry" to "seeping
+condensing and runoff prone".
+
+**Two of those dimensions do not exist anywhere in this project:**
+
+- **Wetting speed is a separate property from drying speed.** *"Body Machine — very slow to dry,
+  **very slow to get wet**."* `dryingModel` has one constant per rock type, governing drying
+  only; a rain event wets every crag instantly and identically.
+- **Topographic position independent of rock.** Two grit crags, same rock, classified oppositely
+  by whether they sit on a hilltop or in a valley.
+
+---
+
+### 14.3 Condensation: the rock-temperature lag rule, and it is computable
+
+The most actionable claim in the thread, and it is a **testable physical rule** rather than a
+preference:
+
+> *"**Condensation can afflict both limestone and gritstone (and anything else). I think the key
+> cause for condensation is rock colder than the air temperature.** If it is say 10 °C and 90%
+> humidity and **was 0 °C for the previous few days**, then most/all places will be **streaming
+> wet**. If it is 10 °C and 90% humidity but **was 25 °C for the previous few days** then
+> everywhere not seeping will be **bone dry**."*
+> — stone elworthy **[C]**
+
+**Identical instantaneous weather, opposite outcomes, discriminated entirely by the previous few
+days' temperature.** The mechanism is thermal mass: rock temperature lags air temperature, and
+condensation occurs when the rock surface sits below the dew point of the air touching it.
+
+**This is the answer to a question §8 records as open and §12.2 reframed.** §8 asks *"how long a
+dry wall stays greasy after a humid night"*; §12.2 argued the answer is not a duration but a
+threshold — *"when does the air change"*. **It is a threshold, and this names both of its
+terms**: rock temperature (from the trailing air temperature) against dew point (from the
+current air). Not a duration, not a humidity percentage — a *comparison between a lagged variable
+and a current one*.
+
+**It is also §13.9's physics from the climbers' side.** The Yungang Grottoes study measured
+*"rock moisture in the cave is derived from vapor condensation"* driving wetting and drying
+cycles in a space rain never reaches **[M]**. A climber describes the same process on an open
+crag and gives the condition under which it fires. **A measured heritage-science result and Peak
+District folklore describing one mechanism is the strongest convergence in this document.**
+
+**Three things follow for the app, all [R] or [?]:**
+
+1. **`dewpoint_c` is stored and never read** (terminology research §10) — and it is one of the
+   two terms this rule needs **[R]**.
+2. **The other term is not stored at all.** A rock-temperature proxy requires a trailing average
+   of air temperature over "the previous few days". `pruneRuns.ts` retains **2 days parsed,
+   6 hours raw**, so the history this needs is deleted before it could be used **[R]**. It could
+   be re-fetched from the archive API, which is what the rainfall history already does.
+3. **The humidity component is measuring the wrong thing.** `conditionsScore` scores relative
+   humidity on a fixed curve — 8 points at ≤50%, 0 at ≥90% **[R]**. Under this rule, 90% humidity
+   is "streaming wet" or "bone dry" depending on a variable the scorer does not have. **A fixed
+   humidity curve cannot be right; it is averaging over the discriminator.** This is a stronger
+   and more specific statement than §18.2 of the terminology research, which found no measured
+   basis for *reweighting* temperature against humidity — the issue is not the weight, it is that
+   the variable is incomplete.
+
+**Marked [C] and it should be tested before it becomes a constant.** It is one climber's account,
+stated as a belief (*"I think the key cause…"*). But it is falsifiable, the physics is standard,
+and it is consistent with a measured study. It is the best-formed hypothesis this pass produced.
+
+---
+
+### 14.4 Confirmations, briefly
+
+**"Days to dry" is the native unit**, which is what `MIN_HOURS`/`MAX_HOURS` encode:
+
+> *"low hanging fruit/simplest implementation would just be to **track number of dry days** at
+> the crag. In summer this is often enough. **Often routes are described as number of days to dry
+> out.**"* — James0101 **[C]**
+
+**Rock-type names do not travel**, which §1 and §4 argue at length:
+
+> *"the terms used to describe rock type **can vary a lot geographically** with the same climbing
+> term relating to **really quite different rock types** around the country and the world."*
+> — wintertree **[C]**
+
+**The sandstone rule is asked for as an override, not as a score** — and it matches the
+Southern Sandstone ethic recorded in §4:
+
+> *"Big **red embargo override** sticker on **sandstone after rain** please. **Amber warning on
+> grit.**"* — steveriley **[C]**
+
+Climbit does the same thing in a parenthetical — *"remember to wait up to **48+ hours** before
+climbing on sandstone!"* **[C]**. Two independent sources treat wet sandstone as a hard rule
+rather than a contribution to a number. **Our `MAX_HOURS['sandstone']` puts it on the same
+continuous scale as everything else**, where four favourable components can outvote it.
+
+**A rock-temperature model would need more than we could ever supply:**
+
+> *"needing a model for **rock temperature** (consider **changed albedo** from fresh quarried rock
+> to an ancient cliff of the same rock covered in **lichen** between the routes)"*
+> — wintertree **[C]**
+
+Albedo and lichen cover, added to §12.1's patented vaporization-plane depth, as inputs that are
+physically real, dominant, and unobtainable for a crag.
+
+---
+
+### 14.5 What this pass changes
+
+**Nothing about the constants.** No figure in §2, §3 or §4 is affected.
+
+**What changes is the shape of the problem.** This document and `dryingModel` both model one
+process — water leaving rock, at a rate set by rock type and elapsed time. The community
+describes **three wetting mechanisms** (rain, seepage, runoff), **two independent seepage time
+constants**, a **catchment memory measured in weeks**, a **wetting rate distinct from the drying
+rate**, and a **condensation rule driven by a multi-day temperature lag**. Rock type participates
+in all of it and determines none of it.
+
+**The single most consequential statement:** a crag can get wetter on a dry day. `dryingModel` is
+monotonic in hours since rain and cannot produce that.
+
+**Open, and newly named here:**
+
+- Runoff has no representation anywhere in this project.
+- Wetting rate has no representation.
+- Seepage onset lag and duration are not separable in `crag-facts.json`.
+- The condensation rule is untested, and testing it needs temperature history the app deletes.
+
+**One correction to this document's own repo claims, found while checking the above [R].** §5.1
+and §9 both say `shortwave_radiation` is *"already fetched and stored"* as `shortwave_wm2`.
+**Fetched, yes — stored, no.** `openMeteo.ts` requests and aggregates it on every call, nothing
+reads the result, and its only database column is on **`forecast_snapshots`, a table nothing has
+written since the snapshot job was deleted** (outside `schema.ts` the table appears in exactly
+one file, the cascade-delete list in `deleteLocation.ts`). Both sentences are corrected in
+place. The conclusion they support is unaffected and slightly improved: the aspect term is
+blocked on geometry rather than on data, and the data costs no new upstream call — but it is not
+sitting in the database waiting, as those sections implied.
 
 ## Sources
 

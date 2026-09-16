@@ -1181,3 +1181,465 @@ So the terminal-velocity range stays **[C]**, from a search summary, and **every
 §18.1's table still scales with an unverified figure.** What changed is the confidence that
 the right paper has been identified and that it is precise enough to settle the question when
 someone can open it.
+
+---
+
+## 21. The community pass — aspect, sun and angle as climbers actually use them — 2026-09-16
+
+**Why this section exists.** §17's audit counted citations and found an imbalance nobody had
+noticed: the rock research carries **39 Mountain Project citations, 37 UKClimbing and 14
+theCrag**, and **58 [C]-marked claims**. This document — which is where wall angle, aspect and
+sun live — carries **one Mountain Project citation and three UKClimbing.** The drying axis was
+mined from climber experience; the geometry axis was not. Everything below is the missing half.
+
+**The single richest source is a UKC thread from February 2026 in which a student announces he
+is building this exact application** — a 0–100 "can I climb" score from rock type and weather
+history — and experienced climbers tell him, at length, what it would have to know. It is a
+design review of WeatherTeam6 by people who climb, written by people who had never heard of it.
+
+> [Help With The Science Of Outdoor Climbing And Weather
+> Conditions](https://www.ukclimbing.com/forums/rock_talk/help_with_the_science_of_outdoor_climbing_and_weather_conditions-788288),
+> UKC Rocktalk, 16–19 Feb 2026. Read in full.
+
+---
+
+### 21.1 The first correction is the word, and this document already half-made it
+
+The original poster asked for a score of *"0 - do not climb, to 100 - go ahead and climb"*
+for when it is **safe** to climb. Two replies pushed back within minutes:
+
+> *"Define 'safe'? For the rock or the climbers?"* — Jon Read **[C]**
+>
+> *"'safe' might not be the most useful indicator; it might be better to alter it to something
+> like **'in condition'**."* — WillDeWorde **[C]**
+
+The poster accepted it immediately: *"I think 'In Condition' is the correct way to look at
+it."*
+
+**§11 of this document already records "in condition" as the community term.** What is new is
+the evidence that *choosing the wrong one of these two words changes what the product is*. The
+clearest statement of the split came from ExiledScot:
+
+> *"The only weather which might make it **unsafe** are **lightning and extreme wind**. Rain
+> etc you just **modify the grade**."* **[C]**
+
+So: **two of our inputs are safety inputs and the rest are performance inputs**, and climbers
+handle the second category by climbing something easier rather than by staying home. A score
+that mixes them answers neither question. This is the same boundary the alert-suppression rule
+draws — and it suggests the suppression list (Severe+ warnings) is the *whole* safety product,
+with the 0–100 number being entirely about performance.
+
+**Confirmed independently by the competitor copy.** Climbit's five star levels are described
+purely in performance terms — *"Don't expect any first ascents today"*, *"you're making
+progress on your project"*, *"The friction is starting to make you wonder if you could fall off
+even if you tried"* — with no reference to danger at any level, including zero **[C]**.
+
+---
+
+### 21.2 Aspect has three separate jobs, and this repo does none of them
+
+The most valuable single post in the thread, from the user *wintertree*:
+
+> *"A key measure to determine is **the aspect of the crag, to compare with wind during rain
+> (exposure to wetting) and wind after rain (wind driven drying)**. […] I imagine a decent
+> solution needs to consider **aspect to the sun** as well."* **[C]**
+
+That is three distinct uses of one field:
+
+| Job | What it needs | State in this repo |
+| --- | --- | --- |
+| **Exposure to wetting** — did the rain blow onto this face? | aspect × wind direction **at the hours it rained** | Nothing. `fetchPrecipHistory` returns daily totals with no wind |
+| **Wind-driven drying** — is this face in the drying wind? | aspect × wind direction after the rain | Nothing. `dryingModel`'s wind modifier is a scalar speed threshold, direction-blind |
+| **Solar gain** — how much sun does this face take? | aspect × sun position × terrain | Nothing — see §21.6 |
+
+**A climber arrived independently at §18.1's catch ratio.** §18.1 closed the overhang question
+using wind-driven-rain literature from building physics, where wetting is `U_crit = v·tan α`, a
+function of **wind speed**. wintertree and Toerag both reached the same idea from experience
+without the physics, and Toerag named the derived quantity outright in his list of required
+inputs:
+
+> *"**rainfall direction (worked out from wind direction at time of rainfall)**"* — Toerag **[C]**
+
+**This is the strongest independent support §18.1 could have got, and it carries a bill.**
+Deriving "rainfall direction" requires **hourly precipitation joined to hourly wind direction**.
+`fetchPrecipHistory` (ACIS) and `fetchArchivePrecip` (Open-Meteo archive) both return **daily
+precipitation totals**. The quantity every source now agrees is the right one cannot be computed
+from the data the app currently fetches.
+
+**And the same aspect flips sign between seasons.** WillDeWorde's two worked examples use the
+same crags in spring and midsummer:
+
+> Spring, after weeks of rain: *"**north facing crags, which are out of the wind, haven't dried
+> yet**. […] Burbage south is **not in condition** due to it being wet and **protected from the
+> wind**, but Stanage **is in condition** due to **drying out in the wind**."*
+>
+> Midsummer, high 20s °C: *"**Burbage south is in condition** due to being **mostly sheltered
+> from the sun**, Stanage **may be too hot to climb**."* **[C]**
+
+**The same crag, the same aspect, opposite verdicts — and the reason changes from moisture to
+temperature.** A signed scalar bonus for aspect is therefore wrong in principle, not merely
+imprecise: there is no constant that is right in both examples. Whatever consumes aspect has to
+know the season, or better, the actual temperature — which is the design Climbit shipped
+(§21.6).
+
+---
+
+### 21.3 Finding against the implementation: `aspectDegrees` is a dead field
+
+**Verified by reading the source, not inferred [R].**
+
+- `liveForecast.ts:205` computes `aspectDegrees` from the stored `aspect` text via
+  `aspectToDegrees`, and `liveForecast.ts:222` passes it into `ScoreInput`.
+- `conditionsScore.ts` **never reads it.** It contains no reference to `aspectDegrees`, and no
+  reference to sun, solar or shade at all. The five components are drying, rain, wind,
+  temperature and humidity.
+- A repo-wide grep for `aspectDegrees` outside tests returns exactly those two lines in
+  `liveForecast.ts` plus the type declaration.
+
+**So sun direction contributes zero points today, and nothing says so.** This is
+`defect-patterns.md` §10 — *a dead field reasoned about as if it were live* — and it is the
+second instance of that exact defect in the same type. `ScoreInput.currentTempC` carries a
+nine-line comment warning that it is unread, added after a design draft reasoned from it and
+produced a rule that would have hidden a 103 °F heat warning. **`aspectDegrees` sits four lines
+above it with no such comment**, so a reader has every reason to believe it is live.
+
+**A second dead input, and it is deader than it first looks.** `openMeteo.ts` requests
+`shortwave_radiation` hourly and `shortwave_radiation_sum` daily, and aggregates both into a
+daily `shortwave_wm2` mean. **No scorer and no renderer reads it** — and its only database
+column is on **`forecast_snapshots`, a table nothing has written since the snapshot job was
+deleted**: outside the schema definition, `forecastSnapshots` appears in exactly one file, the
+cascade-delete list in `deleteLocation.ts` **[R]**.
+
+**So solar radiation is fetched on every request, aggregated, and dropped on the floor.** It is
+the physical quantity behind every claim in this section and behind the design both competitors
+shipped (§21.6). Getting it into the score requires no new upstream call — only a consumer.
+
+**Recorded as findings, not fixed here.** Documenting the dead field is the immediate need —
+the warning comment `currentTempC` has, `aspectDegrees` should have — because the next person
+to design a sun feature will otherwise assume the wiring exists.
+
+---
+
+### 21.4 Sun, wind and temperature trade off against each other
+
+From [What are the perfect
+conditions?](https://www.ukclimbing.com/forums/rock_talk/what_are_the_perfect_conditions-691182)
+(UKC, Aug 2018), the clearest statement of the exchange rate:
+
+> *"**+10 °C, sun and no wind. +15 °C, sun & breeze or cloudy.** This is for roped stuff, with
+> possibility to properly warm up. For **boulders, drop temps around 5 °C**."* — HeMa **[C]**
+
+Three things in two lines:
+
+1. **Sun is a positive at 10 °C.** Our model has no sun term, so it cannot represent this at
+   all — and §21.2 shows it is a negative at 25 °C. Sun changes sign with temperature.
+2. **Sun, wind and temperature substitute for one another.** Losing the breeze is worth about
+   5 °C to this climber. A model with independent additive components cannot express a
+   substitution.
+3. **Bouldering runs about 5 °C colder than roped climbing** — a numeric discipline offset for
+   §8's "discipline is the missing dimension", from a climber rather than from inference.
+
+**The band's cold end is set by the climber, not the rock.** §9 argued the temperature band is
+a comfort band rather than a friction band; a climber states it directly:
+
+> *"I normally climb on grit and the **sweet spot for me is between 4 and 6 degrees**. **Any
+> colder and my toes often go numb.** Any warmer and I notice a drop off in friction."* —
+> afx22 **[C]**
+
+The upper bound is frictional and the lower bound is physiological. §9 stands, now with the
+mechanism named by the person experiencing it.
+
+**And rock type moves the whole band.** Same post: limestone bouldering *"worth climbing at
+temperatures approaching 30 degrees Celsius"*, against a grit sweet spot of 4–6 °C — a span of
+more than 20 °C between two rock types for the same climber **[C]**. `conditionsScore`'s
+temperature component is a single band applied to every rock type, and `rockType` is read only
+by the drying component **[R]**.
+
+**A counter-example worth keeping.** Asked for perfect conditions, Wide_Mouth_Frog answered
+*"**Sticky-damp**"* **[C]**. Dry is not monotonically better on grit, which no version of our
+drying component can represent — it is strictly increasing in hours since rain.
+
+---
+
+### 21.5 Conditions-sensitivity is a property of the climber and the route
+
+The dimension nobody in this repo has considered, and two climbers raised it unprompted:
+
+> *"depends whether you are **bouldering, trad or sport**… Also depends whether you are just
+> **climbing getting miles in** or you are **redpointing your hardest**. […] **the holds are
+> bigger so no need for extreme best connies**."* — Ramon Marin **[C]**
+>
+> *"On some climbs this matters, on others it **makes very little difference**."* — afx22 **[C]**
+>
+> *"I've never climbed hard enough for conditions to make a difference."* — pasbury **[C]**
+
+**The same weather is "perfect" or "irrelevant" depending on intent and hold size.** A score
+that does not know which of those the user is doing is answering an under-specified question —
+which is the honest reading of §16's *"no agreed numeric threshold for good conditions at all…
+everything is personal calibration, and several sources say so explicitly."*
+
+**Climbit's answer to this is to let the user set the thresholds** — a preferences menu, with
+more options behind a sign-in (§21.6). That is a product answer to a question we recorded as
+unanswerable, and it is available to us.
+
+---
+
+### 21.6 How the two shipped products actually do sun and shade
+
+**Neither uses a per-crag aspect field. Both compute solar geometry from coordinates.**
+
+**Mountain Project** shipped "Sun & Shade" in July 2018, described by the developer
+([thread](https://www.mountainproject.com/forum/topic/114783621/new-feature-sun-shade)) as
+three components **[C]**:
+
+> *"a **mathematically calculated** set of arrows that show the sun angle throughout the day […]
+> a **human-entered** set of compass directions and hours that indicate the sunny hours during
+> the **area's most popular climbing season** […] any **details that make sense** for an area
+> (**trees? deep canyon?** etc)."*
+
+**The largest route database in the US computes the sun and asks humans for the shade.** The
+split is the finding: solar position is calculable, terrain and vegetation occlusion is not, and
+they did not pretend otherwise. Two further details — it is attached to *"**leaf** areas (those
+that contain routes)"* rather than to parent areas, which is §12's granularity problem solved by
+attaching the fact to the smallest unit; and the human-entered hours are scoped to **one
+season**, conceding §21.2's seasonal flip rather than modelling it.
+
+**Climbit** ([climbitscore.com](https://climbitscore.com/home)) goes further, and it is the
+closest thing to a direct competitor found so far — **it runs on Open-Meteo, the same upstream
+this app uses**, plus **OpenBeta** for route data. Its own FAQ, read at source **[C]**:
+
+> *"Climbit **automatically calculates terrain-based shade** using a location's **GPS
+> coordinates, elevation data, and the sun's position** throughout the day. This determines when
+> **surrounding terrain blocks the sun**. You can control if this shade information is included
+> into the Climbit Score calculation […] using the 'Include shade data in forecast' toggle."*
+>
+> *"When the toggle is ON, the terrain-based shade is included **alongside cloud cover, solar
+> radiation, and UV index** […] by incorporating a **more precise 'feels like' temperature**."*
+
+**The design answer is that sun is not a component — it is an input to temperature.** Their
+"feels like" *"takes into account temperature, humidity, wind speed, **solar radiation**, and UV
+index"*, and the score is then computed from *"temperature, current and past precipitation,
+humidity, wind speed, and cloud cover"*. That resolves §21.2's sign problem without a seasonal
+rule: sun raises the felt temperature, and whether that helps or hurts falls out of the
+temperature curve automatically.
+
+**We already fetch the input this needs and throw it away** (§21.3). Terrain occlusion needs a
+DEM we do not have; the radiation term does not.
+
+**Two smaller details worth copying:**
+
+- *"The algorithm automatically **adjusts cloud cover calculations before sunrise and after
+  sunset**."* Cloud cover only matters while the sun is up — and at night it inverts, since
+  cloud suppresses radiative cooling.
+- The day summary names the **driver**, not just the score: *"Clouds help"*, *"Wet and humid"*,
+  *"Solid conditions"*, *"Rainy and humid"*. `limitingComponent` names only what is worst;
+  *"Clouds help"* is a **favourable** driver being named.
+
+**And the scale is 0–5 with a written meaning per level, not 0–100.** A UKC poster proposed
+exactly this to the student, unprompted:
+
+> *"Perhaps rather than 0-100 you could have more like the **0-5 avalanche warning** which can
+> be **much more descriptive of what each number means**."* — wobbley **[C]**
+
+Two independent parties reached the same conclusion about the scale this repo uses. Recorded;
+changing it is a product decision, not a research finding.
+
+---
+
+### 21.7 Climbit has shipped the fix for issue #108
+
+Issue #108 is *"hours_since_rain never advances, so every future day is scored as if the rock is
+as wet as it is today."* Climbit's FAQ describes the resolved version **[C]**:
+
+> *"By default, we include **12 hours of past precipitation data from the forecasted time
+> point**. For instance, if you're viewing the Climbit Score for **11 am on Saturday**, it will
+> account for rain starting from **11 pm on Friday**. **This principle applies to both past
+> precipitation and projected precipitation leading up to a forecast in the future.**"*
+
+**The window is anchored to the hour being scored, not to now, and it is filled with forecast
+rain wherever that hour is in the future.** That is the whole fix, stated in two sentences by a
+product that ships it. Worth reading before #108 is designed.
+
+**They also push the rock-type constant to the user rather than encoding it:**
+
+> *"The user preferences menu allows you to set the **hours of past precipitation** that should
+> be considered […] (remember to wait up to **48+ hours before climbing on sandstone!**)"*
+
+Given §8 of the rock research — that no measured drying-rate data exists for any real crag and
+`MIN_HOURS`/`MAX_HOURS` are folklore — **a user-set window is arguably the more honest design**,
+and it is what a competitor chose. Ours is more automatic and less defensible. Recorded as a
+trade-off, not a recommendation.
+
+---
+
+### 21.8 A climber's own schema, twice, and what it says we are missing
+
+Two posters independently wrote out the data model. **WillDeWorde:**
+
+> *"coordinates, type of rock, **how long that rock takes to dry** (Southern sandstone vs granite
+> etc), **direction facing**, **trees at base**, **altitude** of crag, **tidal or not**."* **[C]**
+
+**Toerag**, more carefully, split by how often each changes:
+
+> *"Easy factors which **never change** and only need collecting once: rocktype, orientation,
+> rock drying out rate.
+>
+> Variable data which needs setting up once but needs **calculating each time**: time of year,
+> **tree leaf situation for routes with trees that shade them**.
+>
+> **Weather data** which needs applying each time: wind direction for past XX days, wind speed,
+> rainfall, **rainfall direction**, sun, humidity […] **Sea cliffs** would need additional inputs
+> for **tides and swell**."* **[C]**
+
+Against `locations` **[R]**:
+
+| Field they name | Us |
+| --- | --- |
+| coordinates, altitude | `lat`, `lon`, `elevation_m` ✓ |
+| rock type | `rock_type` ✓ |
+| orientation / direction facing | `aspect` — stored, **never read** (§21.3) |
+| rock drying rate | `MIN_HOURS`/`MAX_HOURS` per type ✓ (folklore) |
+| **trees at base / tree leaf situation** | **nothing** — and it is *seasonal*, per Toerag |
+| **tidal or not** | **nothing** |
+| **sun** | **nothing** (§21.3) |
+| **wind direction** | **nothing** — speed only |
+
+**Both lists include something we have no column for, and both flag the same two.** Trees are
+the one Mountain Project also gave up on and put in free text. Tidal is a category of crag this
+app cannot currently represent at all — a sea cliff's condition is governed by a variable
+absent from every weather API we call.
+
+**Note what neither list contains: wall angle.** Neither climber named steepness as an input to
+*condition*, despite both writing exhaustive lists. wintertree mentioned it only as something to
+*infer*:
+
+> *"A consideration of **the grades** will give you some indication of the angle of the crag —
+> sloped, vertical, overhanging."* **[C]**
+
+**That is a proposal for the gap §6 records** — that `cliff_angle` is never written for
+user-added locations, so every one is scored as `45`. The route grades at a crag are a proxy for
+its angle. He offers a matching trick for aspect:
+
+> *"a **linear fit to all the (lat, lon) positions on a crag** will give you an estimate of
+> aspect."* **[C]**
+
+Both are **[?]** as far as this document is concerned — plausible, unvalidated, and dependent on
+route-level data this app does not hold. Recorded because they are the only concrete proposals
+anyone has made for filling two fields that are currently guessed.
+
+---
+
+### 21.9 What the community says cannot be done, and it matches §16
+
+The thread's verdict, from the people who know the crags:
+
+> *"Not sure you'd find that kind of data in a **quantitative form**. Honestly the best data I
+> think you'll get here is from **directly consulting experienced members of the climbing
+> community**."* — WillDeWorde **[C]**
+>
+> *"given aspect and exposure to each of rain, sun, and wind, and needing a model for **rock
+> temperature** (consider changed **albedo** from fresh quarried rock to an ancient cliff of the
+> same rock covered in **lichen** between the routes) and the quantity of experimental data
+> needed to verify predictions, I think you're telling something more than a PhD to get there.
+> **But chasing perfect is probably the enemy of 'good enough' here.**"* — wintertree **[C]**
+
+**This is §8 of the rock research, stated from the other side.** That section concludes the gap
+between lab measurement and "hours until a cliff is climbable" is *"currently bridged by
+folklore, including in our own model"*. The folklore's own custodians say the same thing and add
+**albedo** and **lichen cover** to the list of things a rock-temperature model would need.
+
+**The student agreed and stopped:**
+
+> *"I think I'll just stick to a very basic solution and **keep it to myself (so I am not
+> inadvertently providing someone with false confidence)**. […] the complexity and variance of
+> each crag is unable to be summed up in one formula."* — JamieWaugh **[C]**
+
+Worth sitting with. **A stranger built the thesis of this project, asked climbers about it, and
+concluded the responsible move was not to publish** — on false-confidence grounds. This repo's
+existing protections against exactly that (an input that cannot be measured withholds the score
+rather than scoring it favourably; `unavailable_reason`; alert suppression) are the reason to
+disagree with him, and they are worth more than they look.
+
+**wintertree's alternative design, which does not need any of the hard parts:**
+
+> *"take all crags **within a radius** of a spot […] and **score them all** for rain exposure,
+> dry wind exposure and solar insolation […] then **rank them** e.g. according to the **geometric
+> mean** of those exposures. It's a pretty safe bet locations near the top of the list will be
+> nicer than ones near the bottom."* **[C]**
+
+Two ideas in it, both live for us. **Ranking is easier than scoring** — a comparison needs no
+calibration, only a consistent ordering, which sidesteps §16's "no agreed threshold" entirely.
+And **a geometric mean, not a weighted sum**: any one near-zero factor drags the whole result to
+near zero. That matches how climbers talk — *"it's seeping, forget it"* — where our additive
+40/25/15/12/8 lets four good components outvote one fatal one. **This is the same failure mode
+as issue #21** (extreme heat can only cost 12 points), and a geometric mean would fix that class
+of defect structurally rather than by re-tuning one band **[?]**.
+
+---
+
+### 21.10 Validation: the ground truth nobody has used
+
+> *"I've often wondered whether this could be a good application for **machine learning**. Give
+> the model the historical weather data and a bunch of data from UKC about different crags and
+> **how many routes got logged on which days** and see what correlations it can find."* —
+> Luke90 **[C]**
+>
+> *"the number of climbs **logged on a specific day compared to a multi-year seasonal average
+> for that day of week** could actually give an **indirect measurement of local subjective
+> sentiment** as to rock condition on a given day, and that *is* something that could be
+> correlated to predictions derived from weather models. **Wisdom of the crowds…**"* —
+> wintertree **[C]**
+
+**This is a measurable outcome variable for a question this repo has treated as unmeasurable.**
+Public logbook ascent counts, normalised against a multi-year average for that **day of week**
+(the refinement that makes it work — Saturdays always beat Tuesdays), are a revealed-preference
+signal of whether a crag was in condition. No sensor, no survey, no fieldwork.
+
+**It is also the honest test of every constant in these two documents.** wintertree's own
+caution, from a story about a water utility choosing telemetry over forecast models:
+
+> *"The moral there is that **predictions without physical verification aren't worth much**."*
+> **[C]**
+
+**Nothing in either research document has been validated against any outcome.** §13's browser
+pass verified that the *sources* say what they were quoted as saying. Whether the resulting
+model predicts anything is untested, and this is the first proposal encountered for how it could
+be tested at all.
+
+---
+
+### 21.11 The competitor that closed this loop — and it is not a rock app
+
+The most complete answer in the thread came from Adam Godwin, describing the architecture of
+[winterclimbingforecasts.co.uk](https://www.winterclimbingforecasts.co.uk/) **[C]**:
+
+> *"It uses a model called a **Transformer** to learn the relationship between weather and route
+> features to winter climbing conditions. **Weather sequences of ten-weeks** are given a label
+> (e.g. Terrible, Good etc) using **general hand-crafted rules** […] The model is **pre-trained
+> on the 20 million instances generated this way** during the off-season. […] Most importantly,
+> there's a feature on the app where **users can feed back conditions they've seen** out on the
+> mountain, which as of this morning has just over **43 thousand observations** given from the
+> community. The pre-trained model is then **fine-tuned twice per day on this user feedback**."*
+
+**The ground-truth loop §8 of the rock research says does not exist, exists — for Scottish
+winter climbing, with 43,000 community observations behind it.** The shape is worth noting
+regardless of whether anyone builds it: **hand-crafted rules bootstrap a synthetic training set,
+and real user reports correct it continuously.** Our `conditions_reports` table is the same idea
+with nothing reading it.
+
+**Ten weeks of weather history as the input window** is also a number worth holding against
+`pruneRuns.ts`'s **2-day parsed / 6-hour raw** retention. Winter conditions are a longer-memory
+problem than rock drying, but §14.1 of the rock research (seepage) shows rock has a
+multi-week memory too — and this app keeps two days.
+
+---
+
+### 21.12 Summary: what this pass changed
+
+| | |
+| --- | --- |
+| **Confirmed** | "In condition" not "safe" (§11); the comfort band (§9); discipline splits the model (§8), now with a ~5 °C number; §18.1's catch ratio, reached independently by two climbers; §16's "no agreed threshold" |
+| **New findings against the code [R]** | `aspectDegrees` is dead; solar radiation is fetched every request and dropped unread, its only column on a table nothing writes; daily-only precipitation cannot produce the wetting quantity every source names |
+| **New dimensions** | Conditions-sensitivity varies by discipline, intent and hold size; trees and tides have no column; sun changes sign with temperature |
+| **Borrowable designs** | Sun as an input to "feels like" rather than a component; rain window anchored to the scored hour (issue #108); geometric mean over weighted sum (issue #21); ranking instead of scoring; naming favourable drivers, not only limiting ones |
+| **Still open** | Terrain occlusion needs a DEM; rock temperature needs albedo and lichen; no outcome validation has ever been attempted |

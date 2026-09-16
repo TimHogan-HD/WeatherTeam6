@@ -140,6 +140,23 @@ A crag with no seepage information has `seepage_prone: null`, never `false`.
 
 ### Phase 3: Climbing decision knowledge — the part only speech carries
 
+> **SCRAPPED by the owner, 2026-09-16 — the transcript work is not worth its cost.** Do not
+> start this phase. The record of what it would have covered is kept below because two of its
+> five questions were answered anyway.
+>
+> **The forum half was completed instead**, on the owner's direction, and it is the larger half:
+> **§21 of `climbing-terminology-research.md`** and **§14 of `rock-drying-research.md`**
+> (2026-09-16) work the *"long forum threads"* this phase named as a target, on UKClimbing and
+> Mountain Project.
+>
+> **Answered there:** Q3 (the vocabulary — *"in condition"* not *"safe"*, and the split between
+> the two questions) and Q4 (discipline differences, with a ~5 °C bouldering offset).
+>
+> **Dies with the phase:** Q1 (what a climber checks the night before, and in what order),
+> Q2 (what makes someone turn around at the crag), Q5 (which crags locals treat as the
+> wet-weather backup). Those need speech, which is what made this phase expensive.
+
+
 **Target the sources that were unreachable:** podcasts, YouTube, long forum threads.
 
 **Questions to answer** (these are product knowledge, not physics):
