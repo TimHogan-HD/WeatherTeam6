@@ -384,9 +384,16 @@ What climbers actually seek:
 - **Climbing-shoe rubber reaches maximum friction at roughly 32–41 °F (0–5 °C)**, just before
   its glass transition
   ([Climbing — science friction](https://www.climbing.com/skills/science-friction-the-truth-behind-perfect-climbing-conditions/),
-  [Friction Labs — the science behind send temps](https://shop.frictionlabs.com/blogs/climb-your-impossible/the-science-behind-send-temps)) **[X]**.
+  [Friction Labs — the science behind send temps](https://shop.frictionlabs.com/blogs/climb-your-impossible/the-science-behind-send-temps)) **[C]** — confirmed via climbing.com, §20.1; Friction Labs does not support it.
 
-> **Attribution fails — checked at source 2026-09-16 (§17.3).** The Friction Labs article
+> **PARTLY REVERSED 2026-09-16 (§20.1) — the claim is sourced after all.** The second citation,
+> climbing.com, was opened in a browser and says it verbatim: *"Maximum friction is reached
+> just before this transition, usually when the rubber is around **32 to 41 degrees
+> Fahrenheit**."* The figure below is confirmed exactly as written and the marker returns to a
+> first-hand **[C]**. What stands from §17.3 is that **Friction Labs** does not support it —
+> one of two citations held.
+>
+> **Attribution fails for Friction Labs — checked at source 2026-09-16 (§17.3).** That article
 > mentions **no** rubber friction, **no** glass transition and **no** optimal send temperature.
 > It compares finger-flexor endurance at 50 °F versus 80 °F, suggests a 4 °C drink for heat
 > stress, and concludes that *"humidity seems to have a larger indirect effect on our
@@ -432,11 +439,16 @@ relative humidity** — there is simply too much moisture present
 The stated reason is exactly the mechanism: lower atmospheric moisture lets sweat evaporate
 and reduces condensation on the rock.
 
-> **Attribution fails — checked at source 2026-09-16 (§17.2).** Two of those three sources are
-> reachable and **neither states a 60 °F threshold**. Plas y Brenin only defines dew point. The
-> Climbing Journal describes the **gap between dew point and air temperature** closing, and
-> explicitly declines to prescribe a universal number. UKC is the third and ukclimbing.com is
-> blocked here, so the threshold may be in that forum thread — unread.
+> **SETTLED 2026-09-16 (§20.2): all three sources fail and the threshold has no source at
+> all.** The UKC thread — the last one, previously unreachable — was opened in a browser.
+> **65 posts, no number.** Searching it for `60`, `15.6`, `°F` or "poor conditions" returns one
+> hit, and it is a joke about midges. It explains what dew point *is* and never states a
+> threshold; the closest it comes is a climber asking the very question this section wanted
+> answered.
+>
+> Previously (§17.2): Plas y Brenin only defines dew point; The Climbing Journal describes the
+> **gap between dew point and air temperature** and explicitly declines to give a universal
+> number.
 >
 > **The finding this section rests on is unharmed**: relative humidity is still the wrong
 > variable, dew point is still what climbers track, and we still store it without scoring it.
@@ -1039,3 +1051,124 @@ Recorded plainly, because the acceptance criterion is that silence is not an opt
   `academic.oup.com` and Wiley** — four hosts that refuse every tool available here. That is
   what `.claude/research-inbox/` exists for, and it is the one remaining blocker that needs a
   person rather than a search.
+
+---
+
+## 20. The browser pass — 2026-09-16
+
+The three hosts §17 and §18 could not reach were opened in a real browser (Playwright MCP,
+`.mcp.json`). **All three turned out to be bot walls rather than paywalls** — no login was
+needed for any of them. Every quote below is read at first hand.
+
+**Two verdicts reverse and one hardens.** This is the pass that pays for the setup.
+
+### 20.1 The rubber temperature is REAL and §17.3 was half wrong
+
+§17.3 found Friction Labs says nothing about rubber or glass transition, and concluded the
+0–5 °C peak was *"currently unsourced"*. **The second cited source does say it, verbatim:**
+
+> *"Just as our skin has an optimal temperature, so too does climbing rubber. At a certain
+> low temperature, the structure of the molecular strands changes, making the rubber hard and
+> glassy. **Maximum friction is reached just before this transition, usually when the rubber
+> is around 32 to 41 degrees Fahrenheit.** Above this threshold, the rubber deforms too easily
+> and can slip off."*
+> — [Climbing, *How Much Chalk Is Optimal and What's The Perfect Temp For Rock
+> Shoes?*](https://www.climbing.com/skills/science-friction-the-truth-behind-perfect-climbing-conditions/) **[C]**
+
+**§9's 32–41 °F / 0–5 °C figure is confirmed exactly as written**, and its argument that
+`TEMP_BAND_C`'s floor is inverted stands on a source again. The marker stays **[C]** — this
+is a magazine explaining a mechanism, not a measurement — but it is a first-hand **[C]**, not
+a missing one.
+
+**What §17.3 got right and should keep:** Friction Labs genuinely does not support what it was
+cited for, and one of two citations holding is worth knowing. The correction is to the
+*verdict*, not to the method.
+
+### 20.2 The dew-point 60 °F threshold has NO source anywhere
+
+§17.2 could not reach the third and last source. **It has now been read: 65 posts, and there
+is no number in it.** The thread explains what dew point *is* — condensation temperature,
+latent heat at night, orographic rain — and never once states a threshold. Searching it for
+`60`, `15.6`, `°F` or "poor conditions" returns one hit, and it is a joke about midges.
+
+The closest it comes is a climber *asking* the question this document wanted answered:
+
+> *"I seem to remember reading that for climbers the dew point was a more useful measure of
+> humidity but I can't remember why."*
+> — [UKC, *Can anyone explain humidity to me?*](https://www.ukclimbing.com/forums/rock_talk/can_anyone_explain_humidity_to_me-678224) **[C]**
+
+**So all three cited sources fail, and the 60 °F threshold has no source in this research at
+all.** §17.2 called this provisional pending one unread page; it is now settled. It is **[X]**
+in the strongest sense — not "attributed to the wrong paper" but "attributed to three papers,
+none of which contain it".
+
+**Do not put `60` in `conditionsScore.ts`.** The dew-point finding — that we store the
+variable and score the wrong one — is untouched and still the cheapest real improvement in
+this document. It simply arrives without a constant, and §18.4 already says what to do about
+that.
+
+### 20.3 Chalk: a second measurement, and it contradicts the first
+
+§18.2 quoted Clarke et al. (2024) concluding that *"a generalisation of chalk increasing or
+decreasing friction cannot be made… it is shown to be situational."* The Climbing article
+cites a study reaching the opposite conclusion, with numbers:
+
+> *"found that using chalk increased friction on limestone by **18 percent** and by more than
+> **21 percent** on sandstone."* **[C]**
+
+**Two measurements, opposite conclusions, and this document should hold both.** Clarke et al.
+is peer-reviewed, open-access, read at first hand, and tested one participant across four
+rocks at two moisture levels and three loads. The 18/21% figures are a magazine's report of a
+study not named in the text. **On evidence quality Clarke wins; on agreeing with what climbers
+believe, the other one does.** Neither is actionable here — nothing in this app models chalk —
+and it is recorded because §5.1 of the rock research reasons about chalk's hygroscopy.
+
+### 20.4 Skin: the mechanism is hydration, not temperature, and it is a U-curve
+
+Three findings that bear directly on §18.2's conclusion that the friction effect may not live
+in the finger–rock contact at all:
+
+- **Dryness is as bad as wetness.** *"research has also found highly dry skin to be nearly as
+  slippery as wet skin, since the rigidity means it can't mold to those microscopic edges."*
+- **Hydration beat temperature in a head-to-head.** A 2012 *Tribology Letters* study found
+  women's index fingers *"on average around 1.5 degrees Celsius cooler than men's. However,
+  the men's fingers were found to be **much more hydrated, which ultimately gave them the
+  advantage in terms of friction**."*
+- **Cold has its own failure mode**, and it is the same one: *"cold skin hardens and cannot
+  mold to crystalline edges, reducing contact."*
+
+**That is the resolution §18.2 guessed at, stated by a source.** The variable is **skin
+hydration**, temperature acts on it indirectly through sweat and stiffness, and both extremes
+lose friction. A static coefficient-of-friction rig at fixed humidity would not see it — which
+is exactly why Clarke et al. and Amca et al. found nothing.
+
+The article's own summary is the honest one, and worth keeping as the reason not to reweight
+anything:
+
+> *"The science of climbing friction is still in its infancy, and much remains to be
+> systematically studied and tested… Cold is good, but too much cold is detrimental; hydrated
+> skin is helpful, but sweaty skin hurtful; chalk can improve grip, but too much will decrease
+> it."* **[C]**
+
+### 20.5 What this says about the four blocked hosts
+
+**Three of the four were bot walls, not paywalls.** UKC, climbing.com and — in the rock
+research's pass — the AMS and AAPG hosts all served a real browser without a login. The
+inbox's framing that these needed *the owner's own logged-in session* was wrong for these
+three; they needed a browser, which the project now has.
+
+**That does not generalise to the remaining ones.** ScienceDirect, Wiley and OUP are
+subscription-gated as well as bot-walled, and a browser gets to an abstract, not a full text.
+The rock research §12.4 and the inbox wanted list are updated accordingly.
+
+**Gunn & Kinzer is the in-between case, and §18.1's table is still uncalibrated.** The 1949
+paper's page rendered; its abstract confirms the study is the right primary and that its scope
+covers what the overhang table needs — *"More than 1500 droplets of mass from 0.2 to 100,000
+micrograms … The over-all accuracy of the mass-terminal-velocity measurements is better than
+0.7 per cent"* **[M]**. **The velocity table itself is in the PDF, and the PDF download is
+gated** (it answers `202` with an HTML body and zero bytes).
+
+So the terminal-velocity range stays **[C]**, from a search summary, and **every number in
+§18.1's table still scales with an unverified figure.** What changed is the confidence that
+the right paper has been identified and that it is precise enough to settle the question when
+someone can open it.

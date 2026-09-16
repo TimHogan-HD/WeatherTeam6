@@ -188,3 +188,6 @@ apps/mobile/ios/
 # into, which are credentials. This rule is a backstop in case one is ever created here.
 .claude-research-browser/
 **/.claude-research-browser/
+
+# Playwright MCP scratch output (page snapshots, screenshots). Not source material.
+.playwright-mcp/

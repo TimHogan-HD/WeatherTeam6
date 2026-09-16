@@ -201,8 +201,13 @@ Four mechanisms, all documented, and they stack:
 | Fracture toughness reduction | 6–35% | [M] [Elsevier](https://www.sciencedirect.com/science/article/pii/S1365160921003002) |
 | Fracture energy reduction | 21–52% | [M] same |
 | Static friction coefficient reduction | 0–19% | [M] same |
-| Millstone Grit (Peak District) | ~41% weaker when wet | [C] reported via [Climbing](https://www.climbing.com/travel/wet-sandstone/) |
-| "Western sandstone" | up to 75% strength loss while wet | [C] [Climbing](https://www.climbing.com/travel/wet-sandstone/) / Access Fund |
+| Millstone Grit (Peak District) | **up to 41% weaker when wet** | [C] **read at source 2026-09-16** — [Climbing](https://www.climbing.com/travel/wet-sandstone/), §13.1 |
+| Cretaceous Greensand (UK) | **78% weaker** | [C] same source, §13.1 — new |
+| Berea sandstone (MI/PA/KY) | **20% weaker** | [C] same source, §13.1 — new |
+| Bad Bentheim (Germany) | **no change in strength at all** | [C] same source, §13.1 — new |
+| 35 kinds of UK sandstone | **8 to 78% weaker** | [C] survey, via §13.2 |
+| 8 German sandstones (Demarco et al. 2007) | **1.4 to 50%** | [C] survey, via §13.2 |
+| "Western sandstone" | up to 75% strength loss while wet | [C] **Access Fund only** — the Climbing attribution was wrong (§13.1) |
 
 > **Checked at source 2026-09-16 (§10.2).** The **critical saturation band confirms verbatim**:
 > *"the critical water saturation level at which considerable strength loss due to the
@@ -225,6 +230,16 @@ Two things follow, and both contradict how the app currently models this.
 **First: "sandstone" is not a strength-loss class.** The measured range within the single
 family runs from *no measurable effect* to *catastrophic*. A clean quartz arenite and a
 clay-rich wacke are the same word in a guidebook and 55 percentage points apart in the lab.
+
+> **CONTESTED as of 2026-09-16 (§13.3) — and possibly backwards.** A second study says
+> *"much of the weakening happens in the **first 20 percent or so** of saturation … sandstone
+> that's just a little bit wet can be quite weak."* That is the opposite of the paragraph
+> below: it puts the damage at the **dry** end of the curve, not the wet end.
+>
+> **The practical readings are opposite**, and the app's drying ramp runs across both. If the
+> first-20% version is right, the model is most wrong on the day *after* — when the wall looks
+> dry. Neither paper has been read in full; both are on the inbox wanted list. **Treat the
+> paragraph below as one of two live readings, not as settled.**
 
 **Second: the critical-saturation band explains the "damp is worse than you think"
 folklore.** A rock at 50% saturation is nearly at dry strength; the same rock at 80% has
@@ -2899,6 +2914,120 @@ acted on.
 **A third figure joined them in §10.2 and is in worse shape than either**: the 0–55%-with-
 outliers-above-90% range, which §8 used to call *"the defensible one"*, is not in the paper it
 was attributed to and is now marked **[X]**.
+
+---
+
+## 13. The browser pass — 2026-09-16
+
+climbing.com was opened in a real browser (Playwright MCP). **It was a bot wall, not a
+paywall** — no login needed. One figure confirms, six new ones arrive, and **one contradicts
+§2.4's reading of the saturation curve.**
+
+### 13.1 Millstone Grit 41% — CONFIRMED, and §8's last climbing-media figure is closed
+
+> *"In studies of rock strength, the United Kingdom's **Millstone Grit**, found in the
+> country's legendary Peak District, **got up to 41 percent weaker when wet**, while the
+> country's chossy Cretaceous Greensand was a whopping **78 percent** weaker. But **Berea
+> sandstone**, found from Michigan to Pennsylvania to Kentucky, gets just **20 percent**
+> weaker when wet, while Germany's **Bad Bentheim** sandstone **doesn't change in strength at
+> all**."*
+> — [Climbing, *Why You Shouldn't Climb on Wet
+> Sandstone*](https://www.climbing.com/travel/wet-sandstone/) **[C]**
+
+**And the "western sandstone 75%" figure is not on that page.** §2.4's table attributed it to
+*"[Climbing] / Access Fund"*. It is the Access Fund's alone — confirmed there in §10.2 — and
+the Climbing attribution is wrong. Corrected in place.
+
+### 13.2 The real cross-sandstone ranges, from two named studies
+
+§2.4's *"0% to 55%, extreme cases >90%"* row is marked **[X]** because the paper it cites does
+not contain it. **Two ranges that *are* attributable now exist**, and neither matches it:
+
+| Study | Scope | Range |
+| --- | --- | --- |
+| 35 kinds of UK sandstone | survey | **8 to 78% weaker** |
+| 8 types of German sandstone (Demarco et al. 2007) | survey | **1.4 to 50%** |
+| Fontainebleau (Duda) | one rock | **16%** |
+
+**This is what §2.4's row was probably reaching for**, and it is a better number than the one
+it had: 8–78% across 35 UK sandstones is a real survey with a citation. It does not reproduce
+the ">90% outliers" claim. Recorded rather than substituted — the **[X]** row stays **[X]**
+until someone reads the CiteSeerX paper the article links.
+
+**The family-is-not-a-class argument gets its strongest evidence yet.** Bad Bentheim loses
+**nothing**; Cretaceous Greensand loses **78%**. Same word in a guidebook.
+
+### 13.3 The saturation curve — this contradicts §2.4, and §2.4 may have it backwards
+
+§10.2 confirmed, verbatim from the Springer abstract, that *"the critical water saturation
+level at which considerable strength loss … is produced is 60 ~ 80%"*. §2.4 read that as:
+
+> *"A rock at 50% saturation is nearly at dry strength; the same rock at 80% has given up most
+> of it. The transition is a step, not a ramp."*
+
+**A different study says the opposite about where the loss sits:**
+
+> *"most sandstones don't lose strength evenly as they get wetter. Instead, **much of the
+> weakening happens in the first 20 percent or so of saturation** … That means that sandstone
+> that's just a little bit wet can be quite weak."* **[C]**
+
+**Both cannot be true of the same rock, and the practical readings are opposite.** §2.4's says
+a half-dry wall is nearly as strong as a dry one. This one says a barely-damp wall has already
+lost most of what it is going to lose.
+
+**Which matters more than it looks**, because the app's whole drying model is a ramp over
+elapsed time, and these two sources disagree about which end of that ramp the danger is at.
+If the first-20% version is right, the model is most wrong exactly where a user is most likely
+to go — the day after, when the wall looks dry.
+
+**Not resolved, and deliberately not resolved here.** The Springer paper tested **four
+clay-bearing sandstones** and its full text is paywalled; the CiteSeerX study the article links
+has not been read. **Both are on the inbox wanted list.** §2.4's sentence now carries a note
+saying it is contested rather than settled, because it was written as settled.
+
+### 13.4 Ambient humidity alone measurably weakens sandstone — and this identifies the OUP paper
+
+The GJI paper on the wanted list is **Duda's**, and the article says what it found:
+
+> *"Duda compared sandstone at room temperature to samples of the same sandstone that had been
+> oven-dried at either 140 and 248 degrees Fahrenheit to remove any moisture in the rock. **The
+> room-temp samples were much weaker than the oven-dried ones**, meaning that the ambient
+> humidity was enough to make the sandstone substantially weaker."* **[C]**
+
+And separately: *"another study found that **cracks grew much more quickly** in two types of
+sandstone when humidity levels were higher."*
+
+**This is §2.8's sorption finding arriving as a strength result rather than a friction one.**
+§2.8 established that humidity alone re-wets the surface and makes it greasy. This says
+humidity alone makes the rock *weaker*. Those are different failure modes and the second is
+the serious one.
+
+It also means **the app's humidity input is load-bearing for a reason the score does not
+model**: `conditionsScore` spends 8 points on humidity as a *comfort and friction* term. On
+this evidence it is also a *structural* term, and nothing in the model says so.
+
+**[C], from a magazine's summary.** The paper itself is still unread — and it is the one host
+class a browser does not solve.
+
+### 13.5 The US climbing sandstones have never been studied, stated outright
+
+§8's first gap said no measured drying data exists for a real crag. This is the strength
+equivalent, and the article says it plainly:
+
+> *"Unfortunately, there aren't any studies on some of the most popular types of sandstone for
+> climbing here in the U.S. Anecdotal evidence from climbers suggests that the **Corbin and
+> Nuttall** sandstone — found in the Red River Gorge and New River Gorge — are likely to lose
+> less strength when wet, while the **Wingate, Navajo and Aztec** sandstones found in the
+> desert lose serious integrity when saturated. **But by how much is anyone's guess.**"* **[C]**
+
+**That is this document's §4.1 sub-classification, independently arrived at, by the same
+reasoning, with the same rocks in the same buckets** — and with an explicit statement that the
+numbers do not exist. §4.1 is better supported than it looked and permanently un-quantifiable
+at the same time.
+
+The article's framing of the drying question is also worth keeping, because it is §12.1's
+vaporization-plane result in one line: *"Short answer: **it's not the rain, it's the
+evaporation.**"*
 
 ---
 

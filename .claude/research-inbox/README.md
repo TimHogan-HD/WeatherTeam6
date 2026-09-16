@@ -80,6 +80,17 @@ Naming: `<source>-<subject>-<yyyy-mm-dd>.<ext>`, as above.
 the redirect to a login page and *that* returns 200. A status code is not evidence a page is
 readable. Everything on this list was confirmed unreadable by trying to read it.
 
+> **UPDATE 2026-09-16 — items 1, 2 and 3 are DONE, read in a browser.** Playwright MCP is
+> configured (`.mcp.json`) and **all three turned out to be bot walls, not paywalls** — no login
+> was needed. Millstone Grit 41% confirmed, the shoe-rubber 32-41 °F peak confirmed, and the
+> dew-point 60 °F threshold **definitively has no source** (65 posts, no number).
+>
+> **The framing in this list was wrong about those three.** They did not need the owner's
+> logged-in session; they needed a real browser, which a session now has. **It is still right
+> about ScienceDirect, Wiley and OUP** — those are subscription-gated as well as bot-walled,
+> and a browser reaches an abstract, not a full text. Those are the ones that still need a
+> person, and only if institutional access exists.
+
 ### 1 — Figures that are currently unsourced and are headed for constants
 
 | # | What it settles | URL |
