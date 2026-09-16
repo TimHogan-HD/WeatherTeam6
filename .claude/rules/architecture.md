@@ -32,6 +32,18 @@ decisions are final unless explicitly overridden by the user.
 - Express route handlers are thin. Business logic lives in `src/lib/`, not in route files.
 - Weather fetch functions live in `apps/api/src/lib/weather/` — one file per source.
 - Scoring logic lives in `apps/api/src/lib/scoring/` — orchestration in `liveForecast.ts`, pure math in `conditionsScore.ts` / `dryingModel.ts`.
+- **Every input to a per-day score must be read for that day, and the drying clock is one**
+  **of them.** `computeLiveForecast` calls `dryingModel` inside the day loop, against the
+  events `rainfallEventsThrough` says that day is entitled to see: measured history up to
+  and including today, forecast rain after it, nothing dated later than the day being
+  scored. Including a later day resets the clock from rain that has not fallen yet.
+  `asOf` advances at the same local time of day, so **day 0 is exactly `now` and today
+  never moves** — that is the property that made issue #108 safe to ship. Do not 'advance'
+  the figure by adding hours: rain in the forecast resets it, and the 720-hour sentinel
+  means *unmeasured*, so arithmetic on it manufactures a reading (issue #34).
+  **Two inputs are still knowingly today-only** — `currentWindKmh` and
+  `currentHumidityPct`, which stretch `maxDry` rather than fill it. They are one field
+  away from the humidity *component*, so per-day is a `ScoreInput` split, not an edit.
 - **The drying ramp curves upward and its exponent may never drop to 1 or below.**
   `RAMP_EXPONENT` (`conditionsScore.ts`) awards points *slowly at first*, because rock
   strength returns late rather than early — so `1` restores the bug issue #137 fixed and

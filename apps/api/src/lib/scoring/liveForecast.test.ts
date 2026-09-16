@@ -307,3 +307,121 @@ describe('computeLiveForecast — local days (#33)', () => {
     expect(result.todayStr).toBe('2026-08-26')
   })
 })
+
+describe('computeLiveForecast — the drying clock advances with the day (issue #108)', () => {
+  /**
+   * Reproduces what production returned for Finland, Minnesota on 2026-09-14:
+   * seven days, every one of them `dry=0`. Drying is 40 of the 100 points, so
+   * every future day was capped at 60 and `limitingComponent` said "limited by
+   * drying time" on days the model itself called dry.
+   *
+   * The location is sandstone at a 45° cliff, so `maxDry` is 72 × 1.15 = 82.8h.
+   * Rain ends at 23:59:59Z on its date and `NOW` is 12:00Z, so day N sits at
+   * 12 + 24N hours since the rain: 12, 36, 60, 84… and 84 is past the ceiling.
+   */
+  const sevenDays = [day(0), day(1), day(2), day(3), day(4), day(5), day(6)]
+
+  it('gives each day its own drying score instead of repeating today’s', async () => {
+    fetchArchivePrecip.mockResolvedValue([{ date: iso(-1), precip_mm: 10 }])
+    fetchEnsemble.mockResolvedValue({
+      days: sevenDays,
+      model_sources: ['gfs_seamless'],
+      utc_offset_seconds: 0,
+    })
+
+    const { scores } = await computeLiveForecast(location, NOW)
+    const drying = scores.map((s) => s.component_drying_time)
+
+    // The defect: this array was seven copies of one number.
+    expect(new Set(drying).size).toBeGreaterThan(1)
+
+    // 12h → (12/82.8)² × 40 = 0.8; 36h → 7.6; 60h → 21.0; 84h is past 82.8.
+    expect(drying).toEqual([1, 8, 21, 40, 40, 40, 40])
+  })
+
+  it('a day past the drying ceiling is no longer limited by drying time', async () => {
+    fetchArchivePrecip.mockResolvedValue([{ date: iso(-1), precip_mm: 10 }])
+    fetchEnsemble.mockResolvedValue({
+      days: sevenDays,
+      model_sources: ['gfs_seamless'],
+      utc_offset_seconds: 0,
+    })
+
+    const { scores } = await computeLiveForecast(location, NOW)
+
+    // The user-visible half of the issue. Day 6 used to carry a 0 drying
+    // component, which is what `limitingComponent` fires on.
+    expect(scores[6]?.component_drying_time).toBe(40)
+    expect(scores[6]?.score).toBeGreaterThan(60)
+  })
+
+  it('rain in the forecast resets the clock for the days after it', async () => {
+    // Not `hoursSinceRain + daysOut * 24`. Day 3 is soaked by its own 12mm, and
+    // day 4 has been drying for a day — not for the week since the last
+    // historical event.
+    fetchArchivePrecip.mockResolvedValue([{ date: iso(-1), precip_mm: 10 }])
+    fetchEnsemble.mockResolvedValue({
+      days: [day(0), day(1), day(2), day(3, { precip_mm_p50: 12 }), day(4), day(5), day(6)],
+      model_sources: ['gfs_seamless'],
+      utc_offset_seconds: 0,
+    })
+
+    const { scores } = await computeLiveForecast(location, NOW)
+    const drying = scores.map((s) => s.component_drying_time)
+
+    // Day 3 rained on itself: the event ends after the moment being scored.
+    expect(drying[3]).toBe(0)
+    // Days 4-6 climb again from that reset, and none of them reaches 40 —
+    // 12/36/60h against an 82.8h ceiling. Without the reset they were all 40.
+    expect(drying.slice(4)).toEqual([1, 8, 21])
+  })
+
+  it('rain in the forecast does not change today’s score', async () => {
+    // The property that made this safe to ship, asserted rather than assumed:
+    // history is the authority up to and including today, so a downpour
+    // forecast for day 2 must not reach back and alter the day-0 row.
+    fetchArchivePrecip.mockResolvedValue([{ date: iso(-1), precip_mm: 10 }])
+
+    fetchEnsemble.mockResolvedValue({
+      days: sevenDays,
+      model_sources: ['gfs_seamless'],
+      utc_offset_seconds: 0,
+    })
+    const dryRun = await computeLiveForecast(location, NOW)
+
+    fetchEnsemble.mockResolvedValue({
+      days: [day(0), day(1), day(2, { precip_mm_p50: 20 }), day(3), day(4), day(5), day(6)],
+      model_sources: ['gfs_seamless'],
+      utc_offset_seconds: 0,
+    })
+    const wetRun = await computeLiveForecast(location, NOW)
+
+    expect(wetRun.scores[0]?.component_drying_time).toBe(
+      dryRun.scores[0]?.component_drying_time,
+    )
+    expect(wetRun.scores[0]?.score_breakdown?.drying.hours_since_rain).toBe(
+      dryRun.scores[0]?.score_breakdown?.drying.hours_since_rain,
+    )
+    // And it DID move the day it was forecast for, or the assertion above is
+    // passing because nothing works at all.
+    expect(wetRun.scores[2]?.component_drying_time).toBe(0)
+  })
+
+  it('a dry month stays the 720-hour sentinel on every day, not 720 + 24N', async () => {
+    // `dryingModel` returns 720 for "no significant rain in the window", and it
+    // returns the same 720 for a lookup that failed (issue #34). Advancing the
+    // clock by arithmetic would have turned an admitted unknown into a precise
+    // figure that climbs day by day — defect class 1.
+    fetchArchivePrecip.mockResolvedValue([])
+    fetchEnsemble.mockResolvedValue({
+      days: sevenDays,
+      model_sources: ['gfs_seamless'],
+      utc_offset_seconds: 0,
+    })
+
+    const { scores } = await computeLiveForecast(location, NOW)
+    for (const s of scores) {
+      expect(s.score_breakdown?.drying.hours_since_rain).toBe(720)
+    }
+  })
+})

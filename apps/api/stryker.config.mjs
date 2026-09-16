@@ -60,11 +60,21 @@ export default {
   concurrency: 4,
 
   // `break` is the only one of these that does anything: below it, the run
-  // exits non-zero. 65 sits just under the 66.09 measured on 2026-08-26, which
-  // makes this a ratchet against regression rather than a target — it is not a
-  // claim that 65% is good. `high`/`low` only colour the HTML report.
+  // exits non-zero. It sits just under the last measured score, which makes it a
+  // ratchet against regression rather than a target — it is not a claim that the
+  // number is good.
+  //
+  //   2026-08-26  66.09  break 65
+  //   2026-09-16  68.14  break 67   (re-measured before rewriting the scorer)
+  //
+  // The 2026-09-16 run took 37 minutes, not the ~13 the docs quote. Two files
+  // are worth knowing about when touching scoring: `conditionsScore.ts` is at
+  // 81.51%, so its tests do constrain it, while `liveForecast.ts` is at 44.23%
+  // — 49 of its mutants survived, the weakest scoring file by a wide margin.
+  //
+  // `high`/`low` only colour the HTML report.
   //
   // Raise `break` when the score rises. Lowering it to make a run pass is the
   // move this file exists to prevent.
-  thresholds: { high: 85, low: 70, break: 65 },
+  thresholds: { high: 85, low: 70, break: 67 },
 }
