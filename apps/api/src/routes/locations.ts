@@ -5,7 +5,7 @@ import { locations, crags, locationNormals, cragClimbabilityHistory } from '../d
 import { isUuid, sendServerError } from '../lib/http.js'
 import { insertGeneralLocation } from '../lib/locations/createLocation.js'
 import { deleteLocationCascade } from '../lib/locations/deleteLocation.js'
-import { parseNumeric } from '@weatherteam6/types'
+import { isRockType, parseNumeric, ROCK_TYPES } from '@weatherteam6/types'
 import type { ApiResponse, Location, Crag, CreateLocationInput, LocationNormal, ClimbabilityHistory } from '@weatherteam6/types'
 
 export const locationsRouter = Router()
@@ -13,11 +13,18 @@ export const locationsRouter = Router()
 type LocationRow = typeof locations.$inferSelect
 type CragRow = typeof crags.$inferSelect
 
-const VALID_ROCK_TYPES = new Set<string>(['sandstone', 'limestone', 'granite', 'basalt', 'unknown'])
+/**
+ * **Both of these derive from `ROCK_TYPES` now.** The gate was a hand-written
+ * `Set` and the message a hand-written sentence, so adding a rock type anywhere
+ * else in the app left this route rejecting it with a 400 — and the message
+ * still naming the old five, which is the worst version of that bug because it
+ * reads like the caller's mistake.
+ */
 function parseRockType(v: string | null | undefined): Location['rock_type'] {
-  if (v && VALID_ROCK_TYPES.has(v)) return v as Location['rock_type']
-  return null
+  return isRockType(v) ? v : null
 }
+
+const ROCK_TYPE_ERROR = `rock_type must be one of ${ROCK_TYPES.join(', ')}`
 
 /** Elevations outside this range are data errors, not places. Mirrors GET /preview. */
 const MIN_ELEVATION_M = -500
@@ -93,10 +100,10 @@ function parseGeneralLocationInput(
 
   let rockType: Location['rock_type'] = null
   if (raw.rock_type !== undefined && raw.rock_type !== null) {
-    if (typeof raw.rock_type !== 'string' || !VALID_ROCK_TYPES.has(raw.rock_type)) {
-      return { error: 'rock_type must be one of sandstone, limestone, granite, basalt, unknown' }
+    if (!isRockType(raw.rock_type)) {
+      return { error: ROCK_TYPE_ERROR }
     }
-    rockType = raw.rock_type as Location['rock_type']
+    rockType = raw.rock_type
   }
 
   return {

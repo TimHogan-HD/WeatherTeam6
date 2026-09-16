@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { conditionsScore } from './conditionsScore.js'
+import { dryingModel } from './dryingModel.js'
+import { ROCK_TYPES } from '@weatherteam6/types'
 import type { ScoreInput } from '@weatherteam6/types'
 
 const base: ScoreInput = {
@@ -303,4 +305,49 @@ describe('conditionsScore — totals', () => {
       expect(result.score!).toBeLessThanOrEqual(100)
     }
   })
+})
+
+describe('conditionsScore — the two MAX_HOURS tables must agree', () => {
+  /**
+   * **`dryingModel.ts` and `conditionsScore.ts` each keep their own copy of
+   * `MAX_HOURS`.** One decides `estimated_dry`; the other scales the 0-40 drying
+   * component. `Record<RockType, number>` stops either *omitting* a rock type,
+   * and nothing at all stops them disagreeing about a *value* — a wall would
+   * report as dry while scoring as wet, or the reverse, with both files looking
+   * correct on their own.
+   *
+   * Neither table is exported, so this reads them through behaviour rather than
+   * widening the module surface for a test. With every modifier neutral —
+   * vertical wall, wind at or below 20, humidity at or below 80 — `maxDry` is the
+   * raw table value, so `hours_remaining` at `hoursSinceRain: 0` *is*
+   * `conditionsScore`'s number. `dryingModel` is then asked whether the wall is
+   * dry at exactly that hour and one hour short of it.
+   */
+  const NEUTRAL = { ...base, cliffAngle: 0, currentWindKmh: 10, currentHumidityPct: 45 }
+
+  const RAIN_DAY = '2025-05-31'
+  /** The rain day ends at 23:59:59Z, which is what `dryingModel` measures from. */
+  const RAIN_END_MS = Date.parse(`${RAIN_DAY}T23:59:59Z`)
+
+  for (const rockType of ROCK_TYPES) {
+    it(`${rockType}: the drying ceiling is the same number in both modules`, () => {
+      const result = conditionsScore({ ...NEUTRAL, rockType, hoursSinceRain: 0 })
+      const maxDry = result.breakdown?.drying.hours_remaining
+      expect(maxDry).toBeGreaterThan(0)
+      if (maxDry === undefined) throw new Error('no breakdown')
+
+      const dryAt = (hours: number): boolean =>
+        dryingModel({
+          rockType,
+          cliffAngle: 0,
+          rainfallEvents: [{ date: RAIN_DAY, precip_mm: 10 }],
+          asOf: new Date(RAIN_END_MS + hours * 60 * 60 * 1000),
+        }).estimated_dry
+
+      // At conditionsScore's ceiling, dryingModel agrees the wall is dry;
+      // an hour short of it, it does not. That pins one number, not a range.
+      expect(dryAt(maxDry)).toBe(true)
+      expect(dryAt(maxDry - 1)).toBe(false)
+    })
+  }
 })

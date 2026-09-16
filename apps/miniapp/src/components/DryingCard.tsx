@@ -1,6 +1,7 @@
 import { colors, spacing } from '@weatherteam6/design/tokens'
 import {
   formatLastRain,
+  rockTypeLabelInline,
   formatPrecipIn,
   type ConditionsScore,
   type RecentPrecip,
@@ -133,7 +134,7 @@ export function DryingCard({ score, recent }: DryingCardProps) {
               {drying.rock_type === 'unknown' ? (
                 <span style={type.bodySm}>still drying</span>
               ) : (
-                <span style={type.bodySm}>{drying.rock_type} still drying</span>
+                <span style={type.bodySm}>{rockTypeLabelInline(drying.rock_type)} still drying</span>
               )}
             </>
           )}

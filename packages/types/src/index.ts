@@ -11,6 +11,7 @@ export * from './geocodeCopy.js'
 export * from './hourly.js'
 export * from './compass.js'
 export * from './recentPrecip.js'
+export * from './rockTypeCopy.js'
 
 export type ApiResponse<T> = {
   data: T | null
@@ -18,7 +19,49 @@ export type ApiResponse<T> = {
   status: number
 }
 
-export type RockType = 'sandstone' | 'limestone' | 'granite' | 'basalt' | 'unknown'
+/**
+ * Every rock type the app understands, in one place.
+ *
+ * **This array is the source and `RockType` is derived from it**, because the
+ * list had been written out by hand in six places — this union, `ScoreInput`,
+ * `dryingModel.ts`, `seed.ts`, the `VALID_ROCK_TYPES` gate in `routes/locations.ts`
+ * and its error message. Adding a value used to mean finding all six, and the two
+ * that are `Record<string, …>` lookups rather than typed maps fail *silently*
+ * when one is missed: a rock type absent from `VALID_ROCK_TYPES` is rejected with
+ * a 400 the picker can still offer, and one absent from `LOOKBACK_DAYS` takes a
+ * `?? 3` default that looks like a decision.
+ *
+ * The Postgres enum in `db/schema.ts` must still spell the values out — Drizzle
+ * needs literals — so that one is checked against this array by a type assertion
+ * there rather than derived from it.
+ *
+ * **Order matters to the UI**: `SaveBar` renders the picker in this order, and it
+ * runs fastest-drying to slowest so the chips read as a scale.
+ */
+export const ROCK_TYPES = [
+  'granite',
+  'basalt_dense',
+  'limestone',
+  'basalt',
+  'basalt_vesicular',
+  'sandstone',
+  'unknown',
+] as const
+
+export type RockType = (typeof ROCK_TYPES)[number]
+
+/**
+ * Whether an arbitrary string is a rock type this build knows.
+ *
+ * Exists so the places that receive one as a bare `string` — a `text` column, a
+ * request body, an imported crag — narrow it by *asking the list* rather than by
+ * casting or by keeping a second copy of the values. `routes/locations.ts` held
+ * the only other copy, as a `Set<string>` whose drift would have shown up as the
+ * picker offering a type the API answers 400 for.
+ */
+export function isRockType(value: unknown): value is RockType {
+  return typeof value === 'string' && (ROCK_TYPES as readonly string[]).includes(value)
+}
 
 export type Location = {
   id: string
@@ -162,7 +205,7 @@ export type ConditionsScore = {
 }
 
 export type ScoreInput = {
-  rockType: 'sandstone' | 'limestone' | 'granite' | 'basalt' | 'unknown'
+  rockType: RockType
   aspectDegrees: number
   cliffAngle: number
   hoursSinceRain: number
