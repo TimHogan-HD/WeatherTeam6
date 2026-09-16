@@ -3170,6 +3170,52 @@ What Keppert does confirm about the isotherm shape is the hysteresis: *"Hysteres
 adsorption and desorption isotherms indicates occurrence of condensation of water vapor in
 pores."* §2.8's path-dependence point survives; its threshold does not.
 
+### 13.8 The overhang study — and the strength this document has been tracking may be the wrong one
+
+Bruthans et al. studied *"a specific sandstone overhang … with artificially induced and
+extremely high erosion rates"*, using the *"contrast between the erosion rate of the **wet and
+dry portions of the same cliff**"* to isolate what drives retreat. A within-cliff control, on
+an overhang, on wetted sandstone — as close to this project's subject as the literature gets.
+
+> *"an increase of moisture content in pores in the area of the studied overhang **decreased
+> tensile strength of the sandstone to 14% of its dry value**, and increases the sandstone
+> weathering and erosion rate, by nearly **four orders of magnitude** … Consequently, **frost
+> weathering, in combination with wetting weakening** was found to play a major role …
+> Frost weathering rate in both the laboratory and field **increases up to 15 times with
+> decreasing gravity-induced stress**."*
+> — [Bruthans et al., ESP 42(5)](https://onlinelibrary.wiley.com/doi/10.1002/esp.4016) **[M]**
+
+**To 14% of dry value is an 86% loss, and every strength figure in §2.4 is smaller than that.**
+The reason is that it is a **different property**:
+
+| Property | Range in §2.4 | What fails |
+| --- | --- | --- |
+| Uniaxial **compressive** strength | 0–55% loss | The rock crushing under load |
+| **Tensile** strength | **to 14% of dry — an 86% loss** | **A hold snapping off** |
+
+**A climber breaks a hold in tension, not in compression.** A crimp levered outward, a flake
+pulled on, a jug loaded at its root — those are tensile and flexural failures. **This document
+has spent §2.4 tracking the compressive number because that is what the water-weakening
+literature reports, and the number that governs the failure a climber actually experiences may
+be several times larger.**
+
+Recorded as a finding, not a constant. **Caveats, and they are large:** one sandstone,
+artificially wetted to a degree the paper itself calls extreme, and a site chosen *because* it
+was eroding fast. It is not a general figure for wet sandstone. What it establishes is the
+**direction and the scale of the gap** between the two properties — and that §2.4's ranges may
+be systematically understating the risk they are quoted for.
+
+**It may also explain the orphaned ">90%" clause.** §2.4 claims *"extreme cases of UCS dropping
+>90%"* and §13.6 found nothing above 55% in the compressive literature. An 86% tensile loss is
+close, is real, and is the kind of figure that gets copied into a summary with the property
+name dropped. **That is a hypothesis, not a finding** — the clause stays **[X]**.
+
+**And it independently supports §2.6.** Frost weathering plus wetting weakening together, with
+frost rate rising *15 times* as confining stress falls, is the freeze-thaw hazard §2.6
+describes — arriving from a field study of an overhang rather than from a lab cycling test.
+§2.6's conclusion that the thaw is the hazard, not the freeze, is unaffected and better
+supported.
+
 ---
 
 ## Sources
