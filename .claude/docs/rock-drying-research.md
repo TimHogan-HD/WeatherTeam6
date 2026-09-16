@@ -794,9 +794,15 @@ Sub-classes:
   highest of any dimension stone. Different sport entirely.
 - **Tropical karst (Thailand, Vietnam, Laos)** — rain is often not the binding constraint;
   **condensation is**. Warm moisture-laden air meeting cooler rock puts water on a wall that
-  has seen no rain for a week. Dew points above ~60°F are reported as poor conditions
-  ([PYB](https://info.pyb.co.uk/blog/interpreting-the-weather-forecast-for-rock-climbing)).
+  has seen no rain for a week. ~~Dew points above ~60°F are reported as poor conditions
+  ([PYB](https://info.pyb.co.uk/blog/interpreting-the-weather-forecast-for-rock-climbing)).~~
   A drying model driven only by precipitation will report these crags dry and be wrong.
+
+  > **Struck 2026-09-16 (§19).** That page was opened during the Phase 1 verification and
+  > **does not state a 60 °F threshold** — it only defines dew point. See the terminology
+  > research §17.2. The surrounding point is untouched and is one of the better-supported
+  > findings in this document: at a tropical karst crag condensation, not rain, is the binding
+  > constraint. It is the *number* that had no source.
 
 ### 4.3 Granite and the plutonic family — friction-limited, not integrity-limited
 
@@ -1553,8 +1559,11 @@ Ranked by how often they decide the answer, most-often first:
    difference between 24h and 72h on the same rock [C]. Specced in our docs, never
    implemented.
 5. **Wind and relative humidity** — these set the stage-1 rate directly.
-6. **Dew point.** Condensation can re-wet a wall that never saw rain, and above ~60°F dew
-   point conditions are reported as poor regardless of precipitation [C].
+6. **Dew point.** Condensation can re-wet a wall that never saw rain [C]. ~~and above ~60°F dew
+   point conditions are reported as poor regardless of precipitation~~ — **the threshold is
+   struck 2026-09-16 (§19): no reachable source states it** (terminology research §17.2). The
+   variable the readable sources actually describe is the **spread** between dew point and air
+   temperature, which needs no constant.
 7. **Air temperature and season.** Freeze–thaw, and specifically *thawing* sandstone, is
    called out as a distinct hazard at the Red — the rock is wet from the inside as it thaws
    ([RRG Tourism](https://redrivergorgetourism.com/the-science-of-sandstone-how-winter-shapes-the-red-river-gorge/)).

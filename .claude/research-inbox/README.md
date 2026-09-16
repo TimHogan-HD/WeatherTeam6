@@ -65,3 +65,66 @@ fetched; they get opened in a browser and saved here.
 
 Web search itself works and returns usable URLs — the Access Fund page the rock doc had
 recorded as unreachable was found and read this way.
+
+---
+
+## The wanted list
+
+Added 2026-09-16, after Phases 1–5. **These are the specific pages that would settle specific
+numbers**, ranked by what each one is worth. Open in a browser, save here (Reader mode or
+"Save as… Web Page, Complete" — a PDF print is fine too), and tell Claude the file is here.
+
+Naming: `<source>-<subject>-<yyyy-mm-dd>.<ext>`, as above.
+
+**A warning that cost time**: `curl -L` returns **200** for several of these because it follows
+the redirect to a login page and *that* returns 200. A status code is not evidence a page is
+readable. Everything on this list was confirmed unreadable by trying to read it.
+
+### 1 — Figures that are currently unsourced and are headed for constants
+
+| # | What it settles | URL |
+| --- | --- | --- |
+| 1 | **Millstone Grit "41% weaker when wet"** and the **"western sandstone 75%"** attribution. The 41% is the most specific unverified number left in the rock doc (§12.4) | https://www.climbing.com/travel/wet-sandstone/ |
+| 2 | **The dew-point 60 °F threshold.** The only source for it nobody has read; the other two cited say no such thing (§17.2). If this thread does not support it either, the threshold has no source at all | https://www.ukclimbing.com/forums/rock_talk/can_anyone_explain_humidity_to_me-678224 |
+| 3 | **Shoe rubber's friction peak at 0–5 °C and its glass transition.** Cited in §9; the other source for it says nothing of the kind (§17.3) | https://www.climbing.com/skills/science-friction-the-truth-behind-perfect-climbing-conditions/ |
+| 4 | **Raindrop terminal velocity.** Gunn & Kinzer (1949) is the primary everyone cites. **Every number in §18.1's overhang table scales with this range** — if it is wrong, the table is wrong by the same factor | https://journals.ametsoc.org/view/journals/atsc/6/4/1520-0469_1949_006_0243_ttvoff_2_0_co_2.xml |
+
+### 2 — Claims marked [M] whose paper has never been opened
+
+| # | What it settles | URL |
+| --- | --- | --- |
+| 5 | §2.4's **fracture toughness 6–35%, fracture energy 21–52%, static friction 0–19%** — three rows, one paper | https://www.sciencedirect.com/science/article/pii/S1365160921003002 |
+| 6 | §2.4's **weakening effect of water on brittle failure** (OUP GJI) | https://academic.oup.com/gji/article/192/3/1091/822850 |
+| 7 | **Keppert et al. sorption**, and the **RH ≈ 75% break** in §2.8 — currently unverified, and the section's quote is attached to the wrong paper | https://onlinelibrary.wiley.com/doi/10.1155/2016/8039748 |
+| 8 | The **0–55%, outliers >90%** sandstone strength range, now marked **[X]**. The abstract is readable and does *not* contain it; **the full text is what is needed**, and it may not be there either | https://link.springer.com/article/10.1007/s10064-022-02822-9 |
+
+### 3 — The drying-rate literature found in Phase 4, read only via summaries
+
+These are the strongest new material in the whole research and **not one of them has been read
+at source** (§12.1).
+
+| # | What it settles | URL |
+| --- | --- | --- |
+| 9 | **Slavík et al., seasonal evaporation from bare sandstone** — the 0.4–2447 mm/year range and the **vaporization plane depth** result, which says climate matters less than the rock's internal state | https://onlinelibrary.wiley.com/doi/abs/10.1002/esp.4943 |
+| 10 | **Evaporation rate from surfaces of various granular rocks** (2022) — the same group, across lithologies rather than one | https://www.sciencedirect.com/science/article/abs/pii/S0048969722062131 |
+| 11 | **Rock moisture dynamics in sandstone caves**, field observations plus modelling — includes the wetting-depth-over-5-years figure | https://www.sciencedirect.com/science/article/abs/pii/S0013795225002819 |
+| 12 | *Quantitative study of a rapidly weathering overhang developed in an artificially wetted sandstone cliff* — **a wetted cliff with an overhang**, which is this project's subject almost exactly. Search the title; it is on ResearchGate and in Earth Surface Processes and Landforms | (search by title) |
+
+### 4 — Lower priority, but each fixes a specific gap
+
+| # | What it settles | URL |
+| --- | --- | --- |
+| 13 | **Navajo facies porosity/permeability** — confirmed from a summary that quotes it, never from the study | https://archives.datapages.com/data/uga/data/079/079001/311_ugs790311.htm |
+| 14 | **Non-welded Bishop Tuff 38–60% porosity** — the figure that makes Bishop more porous than any sandstone in §3 | https://acsess.onlinelibrary.wiley.com/doi/10.2136/vzj2004.0602 |
+| 15 | **Stress corrosion / subcritical crack growth 6.2–48.5%** in §2.4 | https://www.sciencedirect.com/science/article/abs/pii/0040195180901626 |
+
+### Phase 3 needs something different
+
+Phase 3 of the brief is **not** a reading list — it is *"how climbers actually decide"*, and the
+material is **speech**: podcast transcripts and long forum threads. Suggested in the brief: The
+Nugget, Careless Talk, Power Company, UKC and ukbouldering conditions threads, and regional
+groups for MN/WI/CO/SD/WY.
+
+**Transcripts, not links.** Most podcasts publish one, or YouTube auto-captions can be copied.
+Drop the text here and it gets read as a file. **Do not commit it** — the extracted claim and a
+short quote go in the docs; the transcript stays local.

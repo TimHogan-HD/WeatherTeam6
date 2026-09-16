@@ -308,10 +308,21 @@ the older one — the same split as the angle.
 
 ## 7. What I could not establish
 
-- **No source quantifies how much an overhang reduces wetting.** Everything in §3 is
+- ~~**No source quantifies how much an overhang reduces wetting.**~~ Everything in §3 is
   categorical — "stays dry", "weatherproof". The relationship between degrees past vertical
   and rain reaching the face is presumably a function of wind-driven rain angle, and no
   climbing source models it.
+
+  > **CLOSED 2026-09-16 — see §18.1. And this bullet had the answer in it the whole time.**
+  > *"presumably a function of wind-driven rain angle"* is exactly right: **wind-driven rain**
+  > is the name of the field, the quantity is the **catch ratio**, and it has been modelled in
+  > building physics for forty years.
+  >
+  > **What kept the gap open was the second clause — *"no climbing source models it"* — which
+  > was true and was the wrong place to stop looking.** Worth remembering as a method note: two
+  > of the largest gaps in these documents (this and §16's friction question) were closed by
+  > searching a literature that has never heard of climbing. When a question is about physics
+  > rather than about climbers, the climbing corpus is the wrong corpus.
 - **No agreed threshold for "steep".** `angleToName` puts it at 21–30° past vertical;
   the band function at 10–30°; community usage is vaguer. There is no standard.
 - **Nothing on arête-versus-dihedral drying**, despite it being an obvious and large effect.
@@ -549,10 +560,18 @@ Continuing §6. All **[R]** unless noted.
 
 **6.7 `dewpoint_c` is stored twice and read by nothing.** It is a column on
 `forecast_snapshots` and `weather_ensemble_hours`; `grep dewpoint apps/api/src/lib/scoring/`
-returns a single test fixture. §10 says it is the variable the community actually uses, with a
-usable threshold at 15.6 °C. This is the cheapest substantive improvement found in either
-research document: the data is already fetched, already stored, and already flows to the
-scorer's caller.
+returns a single test fixture. §10 says it is the variable the community actually uses. This
+is the cheapest substantive improvement found in either research document: the data is already
+fetched, already stored, and already flows to the scorer's caller.
+
+> **Re-verified against `main` 2026-09-16 (§19) and one clause removed.** Both columns are
+> still there (`schema.ts` lines 152 and 458) and the grep still returns exactly one hit, in
+> `liveForecast.test.ts` — **no scorer reads dew point.** The finding holds in full.
+>
+> What was struck is *"with a usable threshold at 15.6 °C"*. **§17.2 found that threshold is in
+> no source anyone here can reach**, so this section was quietly the last place in the document
+> still asserting it as usable. The cheap improvement is reading the column at all — the number
+> to compare it against is a separate, unsolved problem, and §18.4 says so.
 
 **6.8 The temperature band's floor is inverted for bouldering.** §9. `TEMP_BAND_C.min = 0`
 scores zero at the temperature where shoe rubber is near its friction maximum, and the
@@ -925,3 +944,98 @@ spread**, the gap between dew point and air temperature, which is what the one s
 discusses dew point seriously actually describes, and which needs no threshold constant at all.
 It is derivable from two columns already stored. **No spread value is sourced either** — but a
 variable with no calibration is a better starting point than a calibration with no source.
+
+---
+
+## 19. Reconciliation against `main` — 2026-09-16
+
+Phase 5 of `docs/handoffs/climbing-research-brief-v1.md`. Two jobs: re-check every **[R]**
+claim against current `main`, because this document was written at `48ea8a8` and `main` moves
+fast; and fix what Phases 1–4 made stale inside these documents themselves.
+
+### 19.1 Every [R] claim still holds
+
+Checked at `8935a3a`. **Six substantive [R] claims, all still true.** The rock research
+carries no [R] markers at all, so this is the whole re-check.
+
+| Claim | Where | State on `main` |
+| --- | --- | --- |
+| `locations.cliff_angle`: 90° flat, 0° vertical, overhang inexpressible | §1 | **Holds.** `schema.ts:98`, `numeric('cliff_angle')`, nullable |
+| The default is `45` | §1.3 | **Holds**, and here is the line: `liveForecast.ts:177`, `cliffAngle: parseNum(location.cliff_angle, 45)`. It is a fallback in the live path, **not** a schema default — worth knowing, because a schema default would show up in the database and this one never does |
+| Two angle models with opposite sign conventions | §4.3 | **Holds.** `walls.angle_deg` (integer, notNull) and `walls.angle_band` (text, notNull) both still exist alongside `cliff_angle` |
+| `TEMP_BAND_C = { min: 0, idealMin: 10, idealMax: 22, max: 35 }` | §9 | **Holds exactly.** It has *moved* — it is now `packages/types/src/scoreComponents.ts`, imported by `conditionsScore.ts`, with a comment saying it is shared so both readers move together. The values are unchanged |
+| `dewpoint_c` on both tables, read by no scorer | §10, §15 | **Holds.** `schema.ts:152` (`forecast_snapshots`) and `:458` (`weather_ensemble_hours`); `grep dewpoint apps/api/src/lib/scoring/` still returns exactly one hit, `liveForecast.test.ts:45`, a fixture |
+| Three flat tables, no route level | §12 | **Holds.** `locations`, `crags`, `walls` |
+| `cliff_angle` has no writer | §4.4 | **Holds, and is sharper than stated** — see below |
+
+**`cliff_angle` has exactly one writer and it is `db/seed.ts`.** Grepping the whole of
+`apps/api/src`, `apps/miniapp/src` and `packages/types` for `cliff_angle` finds the schema, the
+three seeded rows, reads in four routes and the Telegram reply, a `null` in `previewForecast`,
+one render in `LocationIdentity` — and **no route, form, or bot panel that sets it**.
+
+So the practical statement is stronger than "no writer": **every location a user adds carries
+`cliff_angle: null`, and `liveForecast.ts:177` scores it as 45.** Only the three seeded rows
+have a real value. §1.3 called 45 the most confusable number on the scale; this is the line
+that makes it the number almost every scored location actually uses.
+
+And §18.1 lands directly on it: across 0–45° past vertical, whether rain reaches a face is a
+**continuous function of wind speed**. The app assigns a single fixed value from the middle of
+that range to every crag it has never been told about.
+
+**Nothing needed a superseded banner.** That is a better result than §9.5 of the rock research
+got, and the reason is that these claims are about *shapes* — a column, a constant, an absence
+— rather than about code that was being actively rewritten.
+
+**One observation worth carrying.** The most load-bearing [R] claim in this document is a
+**negative**: no scorer reads `dewpoint_c`. A negative claim is the kind that silently becomes
+false — somebody adds one line and the document is wrong with no edit to it. It is worth
+re-grepping rather than trusting, and it is cheap: one grep, one file.
+
+### 19.2 What Phases 1–4 made stale inside these documents
+
+Fixing a claim in one section does not fix the three other places that repeated it. Four
+found and corrected:
+
+- **§15's 6.7 was the last place still calling the dew-point threshold usable** — *"with a
+  usable threshold at 15.6 °C"*, written while §10 still believed it. §17.2 removed the
+  source; that clause is struck. The finding it sat inside — the column is stored and read by
+  nothing — is unaffected and re-verified above.
+- **Rock research §4.2 cited Plas y Brenin for the 60 °F threshold.** That page was opened in
+  Phase 1 and only *defines* dew point. Struck; the surrounding point about tropical karst
+  stands and is well supported.
+- **Rock research §5.1's modifier list repeated the same threshold.** Struck the same way.
+- **§7's overhang gap is closed**, and the bullet turned out to contain its own answer — see
+  below.
+
+### 19.3 The method note, which is the most portable thing here
+
+§7 said the overhang relationship *"is presumably a function of wind-driven rain angle, and no
+climbing source models it."* **Both halves were right.** Wind-driven rain is the name of the
+field; no climbing source does model it.
+
+**The gap stayed open for the second reason, and that was the mistake.** Two of the largest
+gaps in these documents — overhang-versus-wetting and temperature-versus-humidity for friction
+— were closed in Phase 4 by reading **building physics** and **tribology**. Neither has ever
+heard of climbing. A third, measured drying rates, was closed by reading **stone conservation**.
+
+The rule that falls out: **when a question is about physics rather than about climbers, the
+climbing corpus is the wrong corpus**, and "no climbing source says" is not evidence that
+nobody knows. All three of these had been sitting in "could not establish" for the life of
+these documents.
+
+### 19.4 What is still open after five phases
+
+Recorded plainly, because the acceptance criterion is that silence is not an option:
+
+- **Bouldering landings** — §18.3. Needs the soil literature and someone to bridge it.
+- **A numeric threshold for good conditions** — §18.4. Now a total gap; dew-point spread is
+  the better-shaped replacement and is itself uncalibrated.
+- **Millstone Grit 41%** — rock §12.4. Behind a login wall.
+- **Arête versus dihedral drying** — §7, untouched by any phase. Still mine and still **[?]**.
+- **No agreed threshold for "steep"** — §7. Unchanged; it is a vocabulary problem, not a
+  physics one, and §18.1 makes it less important than it looked because wetting is continuous
+  in angle rather than banded.
+- **Everything behind `ukclimbing.com`, `climbing.com`, `sciencedirect.com`,
+  `academic.oup.com` and Wiley** — four hosts that refuse every tool available here. That is
+  what `.claude/research-inbox/` exists for, and it is the one remaining blocker that needs a
+  person rather than a search.
