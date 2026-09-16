@@ -1,3 +1,4 @@
+import type { RockType } from '@weatherteam6/types'
 import {
   pgTable,
   pgEnum,
@@ -16,13 +17,49 @@ import {
 } from 'drizzle-orm/pg-core'
 
 // Enum types
-export const rockTypeEnum = pgEnum('rock_type', [
+
+/**
+ * **Spelled out, and then checked against `ROCK_TYPES`.** Drizzle needs literals
+ * here — it reads this array to generate the migration, so a spread of an
+ * imported constant produces an enum with no members. The `satisfies` below is
+ * what stops that literal drifting from the shared list: adding a value to
+ * `ROCK_TYPES` without adding it here fails the typecheck rather than shipping a
+ * type the database will reject on insert.
+ *
+ * **Order is append-only.** `ALTER TYPE … ADD VALUE` puts new members at the end
+ * of the Postgres type unless told otherwise, and the migration is generated from
+ * the diff of this array, so reordering it would produce a migration that
+ * recreates the type rather than extends it. The human-facing order lives in
+ * `ROCK_TYPES`; this one is history.
+ */
+const ROCK_TYPE_ENUM_VALUES = [
   'sandstone',
   'limestone',
   'granite',
   'basalt',
   'unknown',
-])
+  'basalt_dense',
+  'basalt_vesicular',
+] as const satisfies readonly RockType[]
+
+export const rockTypeEnum = pgEnum('rock_type', ROCK_TYPE_ENUM_VALUES)
+
+/**
+ * The drift guard promised above, and it has to run in both directions because
+ * each catches a different failure.
+ *
+ * The `satisfies` on the array covers one way: a value here that is not a
+ * `RockType` is a database state the app can never produce, and it fails on the
+ * line above.
+ *
+ * This covers the other way, which is the dangerous one — a value in
+ * `ROCK_TYPES` and *not* in the enum compiles perfectly and then fails at
+ * runtime, as a Postgres `invalid input value for enum` on insert, for the one
+ * rock type nobody tested. `Exclude` is `never` when the enum covers everything,
+ * and the call fails with the missing value named when it does not.
+ */
+function assertEveryRockTypeIsInTheEnum<_T extends never>(): void {}
+assertEveryRockTypeIsInTheEnum<Exclude<RockType, (typeof ROCK_TYPE_ENUM_VALUES)[number]>>()
 
 export const rainfallSourceEnum = pgEnum('rainfall_source', [
   'acis',

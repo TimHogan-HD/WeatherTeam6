@@ -1694,6 +1694,15 @@ value at all, so Smith Rock, the Happys, the Sads and Owens River Gorge have no 
 label — and those two would need *opposite* settings. `unknown` is the only available answer
 and it is the wrong one for both.
 
+> **The basalt half of this shipped on 2026-09-16.** `basalt_dense` (2–8h) and
+> `basalt_vesicular` (12–48h) are real enum values, migration `0011`. `basalt` is retained
+> and now means *kind not recorded*, keeping 12–48h so no existing row's score moved — an
+> unrecorded kind takes the slower window rather than an average. **The tuff half is still
+> open**, and Smith Rock, the Happys, the Sads and Owens River Gorge still have no correct
+> label. Note the split also made `basalt_dense` at 8h the fastest-drying row in the table,
+> ahead of granite's 12h; that follows the porosity, and granite's constant was not
+> re-examined.
+
 **6.2 `unknown` is less conservative than `sandstone`, which contradicts its own docstring.**
 `scoring-algorithm.md` says `unknown: 24-48h (use sandstone-conservative default)`, but
 sandstone is 24–72h. Since `estimated_dry` is `hoursSince >= maxDry`, an unlabelled crag is
@@ -1912,8 +1921,8 @@ on a vertical wall, before the existing angle/wind/humidity modifiers.
 | `quartzite` | 1 | 6 | Near-zero matrix porosity [M] |
 | `slate` | 1 | 4 | No pore space; fastest-drying rock in community rankings. Friction-limited [C] |
 | `gneiss_schist` | 2 | 12 | Low matrix porosity, foliation drainage [M/I] |
-| `basalt_dense` (columnar) | 2 | 8 | 0.1–1.0% porosity [M] |
-| `basalt_vesicular` | 12 | 48 | 30–50% porosity [M] |
+| `basalt_dense` (columnar) | 2 | 8 | 0.1–1.0% porosity [M] — **SHIPPED 2026-09-16**, see §6.1 |
+| `basalt_vesicular` | 12 | 48 | 30–50% porosity [M] — **SHIPPED 2026-09-16**, see §6.1 |
 | `tuff_welded` | 4 | 16 | Behaves near-granitic [C] |
 | `tuff_nonwelded` | 36 | 96 | 38–60% porosity — more than any sandstone [M] |
 | `limestone_dense` | 4 | 18 | Low porosity; seepage handled separately [M/C] |
