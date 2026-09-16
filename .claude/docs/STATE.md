@@ -5,13 +5,13 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-09-15 · `main` @ `a3bada1`
+Last updated: 2026-09-16 · `main` @ `bcc7e5a`
 
 ---
 
 ## Where the project is
 
-The Telegram crossover is complete and the bot is stable. **The active work is the Mini App
+The Telegram crossover is complete and the bot is stable. **The active line is the Mini App
 hourly data visualisation** — a five-phase plan in
 `docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md`, of which Phases 1, 1b, 2 and **3**
 have shipped. **Phase 4 is next on that plan but is blocked on a product decision** (see
@@ -22,6 +22,35 @@ polish is no longer downgraded, and location detail gains internal tabs against
 `miniapp-design-v1.md` §3. **The bot stays first-class and is not being deprecated.** §3 now
 carries a superseded banner; the handoff's § Phase 5 is where it and the rest get rewritten
 in full.
+
+**2026-09-16 was a research session and shipped no application code.** The five-phase
+climbing/rock research brief (`docs/handoffs/climbing-research-brief-v1.md`) is complete
+except Phase 3, which is blocked on the owner. What it changed:
+
+- **`basalt` split into `basalt_dense` / `basalt_vesicular`** (#124) — the only code change.
+  Migration `0011` is **applied to production and verified**; `check:add-location` passes
+  17/17 and both new enum values round-trip. **No existing row's score moved**: plain
+  `basalt` is retained and means "kind not recorded", keeping its 12/48 window.
+- **Every figure in the two research docs that was headed for a constant has been opened at
+  source** (#128, #130). **Eight of twelve moved — and not one because the number was
+  wrong.** They moved because the figure was in a different paper than the one linked, in no
+  cited paper at all, or because `[M]` had been applied to an advocacy page or a sentence in
+  someone's introduction. **Read `rock-drying-research.md` §10 and
+  `climbing-terminology-research.md` §17 before trusting any figure in either.**
+- **Three long-standing gaps closed** (#130), all by reading a literature that has never
+  heard of climbing: overhang-versus-wetting is **wind-driven rain** in building physics,
+  the temperature-versus-humidity friction debate has a **tribology** measurement saying
+  neither matters, and measured crag drying rates exist in **stone conservation**.
+- **`.claude/docs/crag-facts.json`** (#129) — 96 crags as structured data, with
+  `npm run check:crag-facts` enforcing that `seepage_prone` is never `false`. Research data;
+  **maps to no column and implies no migration.**
+- **`.claude/research-inbox/`** (#127) — for sources four hosts refuse to serve. Its README
+  carries a **wanted list** of fifteen specific pages and what each would settle.
+
+**Two things a future session would otherwise reinvent**, both now in `CLAUDE.md`: the
+dew-point **60 °F threshold is unsourced**, and there is **no measured basis for reweighting
+the temperature or humidity components in either direction.** Both were about to look like
+easy wins.
 
 Current state:
 
@@ -110,13 +139,19 @@ Always-loaded instruction budget: `CLAUDE.md` + `.claude/rules/*`. If you're abo
 paragraph to either, check first whether the fact is derivable from the repo, or belongs in
 a skill or the archive — a bloated always-loaded file causes its own rules to be ignored.
 
-**This file is itself over budget: ~3,350 words against the ~1,500 the `session-end` skill
-asks for, and it was already ~2,760 before 2026-09-15.** Not repaired this session because
-deleting a load-bearing rule at the end of a long one is the worse failure. The clearest
-candidate is § Facts about the current chat rendering — ~450 words of **bot** rendering
-rules that every Mini App session also loads, and the only domain without a skill of its
-own. Moving them into a `telegram-patterns` skill scoped to `apps/api/src/lib/telegram/**`
-would cut the file by a third and put them in front of the sessions that need them.
+**This file is still over budget — ~3,650 words against the ~1,500 the `session-end` skill
+asks for**, and it went *up* this session despite two extractions. Both repairs it had named
+were done — the bot rendering rules became the `telegram-patterns` skill, and the
+`claude-review` troubleshooting went to the archive, together ~1,050 words — and the
+research summary plus the browser blocker spent more than that.
+
+**That is the honest pattern: this file grows faster than it is trimmed, and every session
+that trims it also adds to it.** The next candidates are § Current state's Mini App
+sub-bullets (~350 words describing a screen that is already built and whose spec is the
+mockup) and the Phase 3 build detail, which belongs in the archive.
+
+**Do not trim § Live gotchas to make room.** Every entry there is something that has silently
+wasted a session, and they are the cheapest lines in the file.
 
 **You did not have to read this file.** The `SessionStart` hook injects it, along with the
 branch, working tree, unpushed commits, open PRs, open issues, and whether CI on `main` is
@@ -126,8 +161,15 @@ green. If you are reading it because that block was absent, the hook did not fir
 
 ## What is next
 
-Direction set 2026-09-04, current as of 2026-09-15. The Mini App data-visualisation work is
+Direction set 2026-09-04, current as of 2026-09-16. The Mini App data-visualisation work is
 **the active line**; everything below it is parked, not cancelled.
+
+**The research brief is not on this list because it is finished.** Phases 0, 1, 2, 4 and 5
+are merged; **Phase 3 is the only one left and it needs the owner, not a session** — it is
+podcast transcripts and pages from four hosts that refuse every tool, dropped into
+`.claude/research-inbox/`. The README there says exactly which pages and what each settles.
+**Nothing in the research authorises a constant change**; `scoring-algorithm.md` is still
+locked and every finding is recorded as a finding.
 
 1. **Issue #108 — `hours_since_rain` never advances**, so days 2-7 all score
    `component_drying_time: 0` and cap at 60 of 100. Filed 2026-09-14. It used to be a
@@ -158,20 +200,14 @@ corrected to match on 2026-09-15. **A CSS or motion architecture is still not au
 — that is a separate decision from drawing charts, and Phase 5 of the dataviz handoff is
 where it gets settled.
 
-### Facts about the current chat rendering still in force
+### Bot chat-rendering rules moved to a skill (2026-09-16)
 
-Load-bearing for anyone touching `apps/api/src/lib/telegram/`. Reasoning and the four rounds
-of device feedback behind them are in the archive — grep for "native Telegram tables".
+The ~450 words of Telegram rendering invariants that used to sit here are now the
+**`telegram-patterns` skill**, scoped to `apps/api/src/lib/telegram/**` and
+`telegramWebhook.ts`. Unchanged in substance and still binding — they load when you open a
+file they govern, instead of costing every Mini App session that never touches the bot.
 
-- **Escaping has exactly two homes and they are opposites.** Rich blocks (JSON): never
-  escape. HTML (`panelToHtml`, `sendPlain`, `alertMessage`): always escape. Every plain-text
-  reply goes through `sendPlain`; three once didn't, and it reintroduced issue #26.
-- **No fixed column widths.** Units live on the value, never the header (`6 mph`); `t` means
-  `trace`; `0 mph` reads `calm`. `clockLabel` is for sentences, `clockShort`/`clockCell` for
-  cells — "midnight" in a column widens the whole table.
-- **Three inline-chart attempts (sparkline, dithered bar, block bar) all failed on a real
-  device and were removed.** Don't add a fourth without the owner asking. **This does not
-  apply to the Mini App** — SVG charts there are Phase 2 and explicitly wanted.
+This was the trim this file named as its own clearest candidate.
 
 ---
 
@@ -209,33 +245,12 @@ qualify; chasing an unmerged PR or a broken check does not.
 **The hooks, branch protection and CI enumeration are described in `CLAUDE.md`**, which is
 always loaded — not restated here. What is *not* there, and matters every session:
 
-`.github/workflows/claude-review.yml` runs an independent reviewer on every non-draft PR,
-and **its depth varies enormously on identical configuration.** Measured across one session:
-78 turns finding two real defects on one commit, then 4 turns finding nothing on the next.
-**A green tick carries almost no information — `num_turns` in the run log is the signal**,
-and a 4-turn pass over a large diff is a skip with a tick next to it. It has caught defects
-CI could not, twice, so it is worth reading; it is not worth trusting unread.
-
-Failure signatures: ~3s pass = missing credential; `is_error: true` with `num_turns: 1` and
-an internal "directory mismatch" = infrastructure, re-run once; large
-`permission_denials_count` = allowlist too short (`--allowedTools` *replaces* the default) —
-1 to 3 denials is routine; `Failed to install Claude Code` with curl 403 = transient,
-re-run; a run that gets *shorter* on each retry = spent usage quota, not a repo problem.
-
-**A quota failure says so, but only in the artifact.** On PR #110 the job log showed
-`is_error: true`, `num_turns: 11`, `permission_denials_count: 12` and nothing else; the
-actual reason — *"You've hit your session limit"* — was in the uploaded
-`claude-review-execution-output` artifact. `gh run download <id> -n
-claude-review-execution-output` before concluding anything from the summary numbers. Note
-that `review` is **not** a required check (only `ci` is), so a red reviewer does not block
-a merge — it means the diff got one reviewer instead of two, and that is worth saying out
-loud rather than quietly merging.
-
-**When that happens, re-run the review afterwards rather than writing it off.** On #110 the
-quota reset within the hour; the `/code-review` skill run against the merged commit found
-**three real defects** the in-session review had missed, all of them the chart claiming
-something the data did not support. Fixed in `6b41709` (PR #112). A merged commit is not
-past reviewing.
+The **independent PR reviewer**`s failure signatures, quota behaviour and the
+`num_turns` caveat are in `session-archive.md` — grep **"claude-review troubleshooting"**.
+They are a reference read when the reviewer misbehaves, not state, and they were ~600
+always-loaded words. The one line worth keeping here: **`review` is not a required check, so
+a red reviewer does not block a merge — it means the diff got one reviewer instead of two, and
+that is worth saying out loud rather than quietly merging.**
 
 ### Mutation testing
 
@@ -292,9 +307,30 @@ Only things that are still true and still bite. Historical gotchas are in the ar
 
 ## What the user owes
 
-**One trip to the phone, now covering three things.** Nothing else — no credential, no
-dashboard setting, no product decision. **Open a saved climbing location in the Mini App, on
-your own phone, in your own theme.**
+**Two things: a trip to the phone, and a browser.** Nothing else — no credential, no
+dashboard setting.
+
+### The browser one (added 2026-09-16)
+
+**Research Phase 3, and the last unverified figures, need pages this environment cannot
+fetch.** Four hosts refuse every tool available here — `ukclimbing.com`, `climbing.com`,
+`sciencedirect.com`, `onlinelibrary.wiley.com` — and two of them refuse because of a
+**login wall**, which is the part that matters: *the owner's own logged-in browser can read
+them and no tool here ever will.*
+
+`.claude/research-inbox/README.md` carries a **wanted list of fifteen pages**, ranked, each
+with what it settles. Save them there (Ctrl+P → Save as PDF works; PDF text extraction is
+proven) and a session reads them as files.
+
+**Playwright MCP does not solve this and was checked** — it is not installed, and its default
+browser has a fresh profile with no cookies, so the paywalled pages stay paywalled. Attaching
+it to a running browser over CDP would work; for a handful of pages, saving them is faster.
+**Claude for Chrome cannot be reached from Claude Code at all** — separate product, no channel
+between them.
+
+### The phone one
+
+**Open a saved climbing location in the Mini App, on your own phone, in your own theme.**
 
 1. **Press back on the Hourly tab.** It must return to Daily, not close the Mini App. This is
    a Phase 3 acceptance criterion and **no test in this workspace can reach it** —

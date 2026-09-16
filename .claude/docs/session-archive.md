@@ -3149,3 +3149,132 @@ screenshot if it is still wrong.** Comparing images is what has actually been wo
 still outstanding from earlier: back on the Hourly tab must return to Daily rather than
 closing the app (no test here can reach it), and whether the continuous temperature ramp
 separates "warm" from "too hot" on a real screen. No credential, no dashboard setting.
+
+---
+
+## 2026-09-16 — branch: claude/research-phase-{0,1,2,4,5} — commit: `bcc7e5a`
+
+**Phase completed:** Climbing & Rock Research Brief v1 — Phases 0, 1, 2, 4 and 5. Phase 3 not
+started (blocked on the owner).
+
+**What was built this session:**
+
+- `apps/api/drizzle/0011_*.sql` — `basalt_dense` / `basalt_vesicular` added to the `rock_type`
+  enum. **Applied to production and verified** (#124). The PR had sat as a draft for exactly
+  this reason; `DATABASE_URL` turned out to be already set in the shell.
+- `.claude/research-inbox/` + `.gitignore` rule (#127) — raw third-party source material, read
+  as files, never committed. README records which hosts are reachable and, since the wanted
+  list was added, fifteen specific pages ranked by what each settles.
+- `.claude/docs/rock-drying-research.md` §10, §11, §12 and
+  `.claude/docs/climbing-terminology-research.md` §17, §18, §19 (#128, #130, #131) — source
+  verification, gap closure and reconciliation.
+- `.claude/docs/crag-facts.json` + `scripts/check-crag-facts.mjs` + root `check:crag-facts`
+  (#129) — 96 crags as structured data with a validator CI picks up automatically.
+- `.claude/skills/telegram-patterns/SKILL.md` — the bot rendering rules, moved out of
+  `STATE.md` where that file had been asking for them to go for two sessions.
+
+**The finding that matters most:** twelve figures were opened at source and **eight moved —
+not one because the number was wrong.** They moved because the figure was in a different paper
+than the one linked, in no cited paper at all, or because `[M]` had been applied to an advocacy
+page, a manufacturer's blog, or a sentence in someone's introduction. **The confidence marker
+degraded faster than the number did**, and the marker is what a constant in `dryingModel.ts`
+would have inherited.
+
+**Three gaps closed, all from outside climbing:**
+
+- **Overhang versus wetting** — *wind-driven rain* in building physics. Wind speed governs it,
+  rainfall intensity barely does; smaller drops defeat an overhang more easily than large ones.
+  Working the geometry gives `U_crit = v·tan α`, marked `[I]`, direct impingement only.
+- **Temperature versus humidity for friction** — a tribology measurement says **neither**. The
+  caveat is that the tested span (23.5–27 °C, 34–47% RH) excludes the range climbers argue
+  about, so it is "not detectable where nobody cares".
+- **Measured crag drying rates** — they exist, in stone conservation. The dominant control is
+  **vaporization plane depth**, which `dryingModel` has no concept of and cannot obtain.
+
+**Known issues / deferred work:**
+
+- **Phase 3 not started** — it is podcast transcripts and forum threads, and needs a person.
+- The Slavík evaporation figures and the raindrop terminal-velocity range are **quoted from
+  search summaries**, not read at source. The velocity range is marked `[C]`, and **every
+  number in the overhang table scales with it**.
+- `STATE.md` is still ~3,100 words against a ~1,500 budget. The `telegram-patterns` extraction
+  bought ~450 and the research summary spent most of them. Next candidate named in the file.
+- Mutation score still last measured 2026-08-26; four sessions of code have landed under it.
+
+**Blockers for next session:**
+
+- None for application work. Issue #108 is unblocked and is the obvious next build.
+- Research Phase 3 and the remaining unverified figures are blocked on the owner's browser.
+
+**What's next:** Issue #108 — `hours_since_rain` never advances, so days 2–7 all score
+`component_drying_time: 0`. `git checkout -b fix/108-hours-since-rain` off `main` — read
+`.claude/docs/scoring-algorithm.md` and let the `conditions-score` skill load. Phase 3 now
+draws the bug, so it is the first thing a look at the new screen raises.
+
+**Gotchas for next session:**
+
+- **A followed-redirect 200 is not evidence a page is readable.** `curl -L` returned 200 for
+  `climbing.com/travel/wet-sandstone/`; that was the Outside Online login page after two hops.
+  Nearly recorded as reachable.
+- **Springer and Nature need three fetches, not one.** An article URL answers `303` to an
+  identity provider, which answers `302` back with `error=cookies_not_supported`; that last URL
+  renders full text. A tool that stops at the first redirect reports a readable paper as
+  unreadable. The `?error=cookies_not_supported` shortcut does **not** work without the IdP's
+  code.
+- **`review` is not a required check and it flakes.** PR #130 failed it with `is_error: true`
+  after 3 turns in 12 s and produced no comment; a re-run passed unchanged. Re-run once before
+  reading anything into it.
+- **PDFs can be read here without poppler.** `pdftoppm` is missing and WebFetch cannot parse a
+  PDF, but inflating the FlateDecode streams and pulling text operators works — a throwaway
+  Node script read three papers including a 5 MB one. Worth rebuilding when the inbox fills.
+- **The repo's own `[?]` marker means different things in the two research docs** (inference in
+  one, nothing in the other). `[X]` was added to both for "the cited source was opened and does
+  not support this", precisely so it could not be confused with inference.
+
+**Does the user need to do anything?** **Yes, and it is a browser rather than a credential.**
+Save the pages in `.claude/research-inbox/README.md`'s wanted list — items 1–4 are the ones
+headed for constants, and two of the four are behind login walls only their own browser can
+pass. Separately, the phone trip for the Mini App charts is still outstanding from 2026-09-15.
+**The Neon rotation is closed and must not be raised again** — see below.
+
+**A standing instruction was violated this session and is recorded so it is not repeated.**
+`STATE.md` says the Neon password rotation was declined by the owner on 2026-09-14 and "does
+not want this raised again". It was raised twice, in two handoff blocks, before that line was
+read. **The session-start hook injects `STATE.md` — read the injected block before writing a
+handoff, not after.**
+
+---
+
+## Reference — claude-review troubleshooting
+
+Moved out of `STATE.md` 2026-09-16: a troubleshooting reference every session was loading and
+almost none needed. Grep target: **claude-review troubleshooting**.
+
+`.github/workflows/claude-review.yml` runs an independent reviewer on every non-draft PR,
+and **its depth varies enormously on identical configuration.** Measured across one session:
+78 turns finding two real defects on one commit, then 4 turns finding nothing on the next.
+**A green tick carries almost no information — `num_turns` in the run log is the signal**,
+and a 4-turn pass over a large diff is a skip with a tick next to it. It has caught defects
+CI could not, twice, so it is worth reading; it is not worth trusting unread.
+
+Failure signatures: ~3s pass = missing credential; `is_error: true` with `num_turns: 1` and
+an internal "directory mismatch" = infrastructure, re-run once; large
+`permission_denials_count` = allowlist too short (`--allowedTools` *replaces* the default) —
+1 to 3 denials is routine; `Failed to install Claude Code` with curl 403 = transient,
+re-run; a run that gets *shorter* on each retry = spent usage quota, not a repo problem.
+
+**A quota failure says so, but only in the artifact.** On PR #110 the job log showed
+`is_error: true`, `num_turns: 11`, `permission_denials_count: 12` and nothing else; the
+actual reason — *"You've hit your session limit"* — was in the uploaded
+`claude-review-execution-output` artifact. `gh run download <id> -n
+claude-review-execution-output` before concluding anything from the summary numbers. Note
+that `review` is **not** a required check (only `ci` is), so a red reviewer does not block
+a merge — it means the diff got one reviewer instead of two, and that is worth saying out
+loud rather than quietly merging.
+
+**When that happens, re-run the review afterwards rather than writing it off.** On #110 the
+quota reset within the hour; the `/code-review` skill run against the merged commit found
+**three real defects** the in-session review had missed, all of them the chart claiming
+something the data did not support. Fixed in `6b41709` (PR #112). A merged commit is not
+past reviewing.
+
