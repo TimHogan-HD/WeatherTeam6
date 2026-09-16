@@ -2699,6 +2699,51 @@ somebody had measured it — and that is the claim a constant in `dryingModel.ts
 
 ---
 
+## 11. The crags are now data — `crag-facts.json`
+
+**Phase 2 of the research brief. 96 crags, extracted from §4 into
+`.claude/docs/crag-facts.json`.** Prose cannot seed a flag; the §7 taxonomy and the
+per-location notes field it proposes both need the facts in a form something can read.
+
+**It is research data, not a schema.** Nothing reads it, no field maps to a column, and it
+implies no migration. It is committed because the facts are ours and the sources are cited,
+per the brief's open question 1 — that was the brief's own recommendation and it stands
+until the owner says otherwise.
+
+**`npm run check:crag-facts` is its acceptance check**, and CI runs it automatically because
+the workflow enumerates root-level `check:*` scripts rather than listing them. It enforces
+the two rules that fail silently in a hand-edited file: every crag carries the **full field
+set** so a `null` is a visible answer rather than a dropped key, and **`seepage_prone` may
+never be `false`**. The validator was mutation-tested against ten deliberate breakages and
+caught all ten.
+
+**Why `false` is refused rather than discouraged.** §4.16 established the tufa rule is
+*sufficient, not necessary* — tufa present means water runs there; tufa absent means
+**nothing at all**. So "no seepage information found" and "this crag does not seep" are
+different claims, and the research supports the second for **no crag in the file**. Across
+96 crags, `seepage_prone` is known for 16 and null for 80. That ratio is the honest state of
+the evidence and it should look uncomfortable.
+
+**Four places the brief's proposed shape fought the data**, all recorded in the file's own
+`_README`:
+
+- `state` became `region` + `country` — a third of these crags are not in the US.
+- `seepage_mechanism` was added, because §4.16 split seepage into **face flow** (leaves
+  tufas, observable) and **conduit/catchment** (leaves nothing, local knowledge only). One
+  `seepage_prone` boolean cannot carry that, and the two have opposite implications for
+  whether anyone can ever infer the answer.
+- `season_gate`, `access_rules` and `unmodelled_input` were added because §4.13's five
+  limiters the app does not model — catchment, closures, river level and farmed ice, road
+  and pass status, fixed gear — had nowhere to go. They are the reason a green score can
+  still be a wasted drive, and dropping them would have lost the most actionable content
+  in §4.
+- A few crags carry `_why_this_crag_matters`. Rifle is the within-crag control for the tufa
+  rule, Siurana is its only clean between-crag negative, El Salto decouples shelter from
+  tufa, and Looking Glass generalises the whole rule. Losing which crag was load-bearing for
+  which conclusion would have made the file a list instead of an argument.
+
+---
+
 ## Sources
 
 Peer-reviewed and technical:

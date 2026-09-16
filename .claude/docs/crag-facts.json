@@ -1,0 +1,4321 @@
+{
+  "_README": {
+    "what": "Per-crag facts extracted from .claude/docs/rock-drying-research.md and .claude/docs/climbing-terminology-research.md. Phase 2 of docs/handoffs/climbing-research-brief-v1.md.",
+    "generated": "2026-09-16",
+    "status": "RESEARCH DATA, NOT A SCHEMA. Nothing reads this file. It does not imply a migration and no field here maps to a column.",
+    "null_rule": "null means UNKNOWN and must never render as a favourable value. A crag with no seepage information has seepage_prone: null, never false. See .claude/rules/defect-patterns.md §1.",
+    "field_shape": "Every non-identity field is either null, or an object { value, source, confidence }. There is no bare value anywhere: a fact without a source is not a fact. 'source' cites the section the claim was extracted from; follow it there for the underlying citation.",
+    "confidence": {
+      "M": "Measured — peer-reviewed rock-mechanics or petrophysics literature",
+      "S": "Stone-industry standard test data",
+      "C": "Climbing-community convention, guidebook, or land-manager guidance",
+      "I": "Inference in the source document, not stated by any cited source",
+      "X": "The cited source was opened and does not support the claim (added 2026-09-16)"
+    },
+    "seepage_rule": "§4.16 corrected the tufa rule to SUFFICIENT, NOT NECESSARY. water_features true implies water has run over that face (high confidence). water_features false implies NOTHING about dryness — conduit and catchment seepage leaves no trace. Therefore seepage_prone is null wherever the only evidence is absence of tufa. A 'no' here must never read as reassurance.",
+    "seepage_mechanism": {
+      "face_flow": "Water moving over the exposed face with residence time. Leaves tufa, eyebrows, solution pockets. Observable from a guidebook photo.",
+      "conduit": "Water routed through joints, bedding planes, or from a body above (snowfield, river, ski area, loess cap). Leaves nothing on the face. Local knowledge only, per §2.3."
+    },
+    "not_in_the_brief_schema": "Five fields were added because the research kept producing facts the proposed shape could not hold: season_gate, access_rules, unmodelled_input, seepage_mechanism, and aka. §4.13 lists five limiters the app does not model and four of them had nowhere to go. 'state' became 'region' + 'country' because a third of these crags are not in the US."
+  },
+  "crags": [
+    {
+      "name": "Red Wing",
+      "aka": [
+        "He Mni Can",
+        "Barn Bluff"
+      ],
+      "region": "MN",
+      "country": "US",
+      "rock": {
+        "family": "dolomite",
+        "formation": "Oneota Dolomite",
+        "note": "Cherty, bedded, crimpy — the climbing is on the dolomite cap, with Jordan Sandstone below the routes. Commonly mislabelled sandstone. Two-material rock: dolomite (Mohs 3.5-4) studded with chert (Mohs 7, ~zero porosity), and the interface is where holds loosen.",
+        "source": "rock-drying-research.md §4.7",
+        "confidence": "C"
+      },
+      "seepage_prone": {
+        "value": true,
+        "source": "rock-drying-research.md §4.7",
+        "confidence": "I"
+      },
+      "seepage_mechanism": {
+        "value": "conduit",
+        "source": "rock-drying-research.md §4.16",
+        "confidence": "I"
+      },
+      "water_features": {
+        "value": "solution pockets",
+        "source": "rock-drying-research.md §4.14",
+        "confidence": "C"
+      },
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport",
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.7",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "~35 ft of glacial sand, gravel and loess capping the steep slopes above the cliff line acts as a catchment. The face surface-dries in hours; the crag can stay damp much longer, worst at spring thaw.",
+        "source": "rock-drying-research.md §4.7",
+        "confidence": "I"
+      },
+      "sources": [
+        "rock-drying-research.md §4.7",
+        "rock-drying-research.md §4.9"
+      ]
+    },
+    {
+      "name": "Willow River State Park",
+      "aka": null,
+      "region": "WI",
+      "country": "US",
+      "rock": {
+        "family": "dolomite",
+        "formation": null,
+        "note": "Steep sport amphitheatre in the Willow Falls gorge.",
+        "source": "rock-drying-research.md §4.7",
+        "confidence": "C"
+      },
+      "seepage_prone": {
+        "value": true,
+        "source": "rock-drying-research.md §4.7",
+        "confidence": "C"
+      },
+      "seepage_mechanism": {
+        "value": "conduit",
+        "source": "rock-drying-research.md §4.16",
+        "confidence": "C"
+      },
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": "Closed Saturdays, restricted Friday and Sunday",
+        "source": "rock-drying-research.md §4.9"
+      },
+      "season_gate": null,
+      "access_rules": {
+        "value": "Day-of-week climbing restrictions",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.7",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "The best documented seepage case in the research. Community guidance names FOUR inputs: 'certain combinations of humidity, precipitation, snowmelt, and/or river levels can leave the cliff wet and unclimbable due to seep'. The app models one of the four. Snowmelt is unmodelled; river level has no data source.",
+        "source": "rock-drying-research.md §4.7",
+        "confidence": "C"
+      },
+      "sources": [
+        "rock-drying-research.md §4.7"
+      ]
+    },
+    {
+      "name": "Taylors Falls",
+      "aka": [
+        "Interstate State Park"
+      ],
+      "region": "MN",
+      "country": "US",
+      "rock": {
+        "family": "basalt_dense",
+        "formation": "Midcontinent Rift flood basalt, ~1.1 Ga",
+        "note": "Dense columnar type, 0.1-1.0% porosity: hours, not days, and no integrity risk. Eroded into the St. Croix Dalles.",
+        "source": "rock-drying-research.md §4.7",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": {
+        "value": "glacial potholes",
+        "source": "rock-drying-research.md §4.7",
+        "confidence": "C"
+      },
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": null,
+      "dries_fast_relative_to": {
+        "value": "faster than Red Wing — dense basalt against cherty dolomite",
+        "source": "rock-drying-research.md §4.7",
+        "confidence": "I"
+      },
+      "unmodelled_input": {
+        "value": "The potholes and the river-level base pond water independently of the rock.",
+        "source": "rock-drying-research.md §4.7",
+        "confidence": "C"
+      },
+      "sources": [
+        "rock-drying-research.md §4.7"
+      ]
+    },
+    {
+      "name": "Robinson Park",
+      "aka": [
+        "Sandstone, MN"
+      ],
+      "region": "MN",
+      "country": "US",
+      "rock": {
+        "family": "sandstone",
+        "formation": "Hinckley Sandstone",
+        "note": "In a quarry. Quarried faces have no case hardening — no protective rind, which removes the thin-shell failure mode but also removes the armour. Hinckley was selected commercially as a structural building stone, a strong signal it sits near the well-lithified end. No porosity or absorption figures found for it.",
+        "source": "rock-drying-research.md §4.7",
+        "confidence": "I"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad",
+          "sport",
+          "boulder",
+          "ice",
+          "mixed"
+        ],
+        "source": "rock-drying-research.md §4.7",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "The ice park is FARMED — four managed areas are deliberately watered all winter. Those walls take annual full saturation plus freeze-thaw by design, and in shoulder season can be soaking for reasons no forecast can see.",
+        "source": "rock-drying-research.md §4.7",
+        "confidence": "C"
+      },
+      "sources": [
+        "rock-drying-research.md §4.7"
+      ]
+    },
+    {
+      "name": "Horseshoe Canyon Ranch",
+      "aka": null,
+      "region": "AR",
+      "country": "US",
+      "rock": {
+        "family": "sandstone",
+        "formation": "Pennsylvanian Hale and Bloyd formations",
+        "note": "Mid-spectrum Ozark sandstone.",
+        "source": "rock-drying-research.md §4.7",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": null,
+      "dries_fast_relative_to": {
+        "value": "24-48h after moderate rain, longer for prolonged storms; the humid Ozark summer suppresses the stage-1 evaporation rate that does most of the work",
+        "source": "rock-drying-research.md §4.7",
+        "confidence": "C"
+      },
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.7"
+      ]
+    },
+    {
+      "name": "Palisade Head and Shovel Point",
+      "aka": [
+        "Tettegouche State Park",
+        "North Shore"
+      ],
+      "region": "MN",
+      "country": "US",
+      "rock": {
+        "family": "rhyolite",
+        "formation": "Midcontinent Rift rhyolite, 1096.6 Ma, capping softer basalt",
+        "note": "Dense fine-grained volcanic rock: low porosity, fast-drying, friction-limited. Not a family the RockType enum has.",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "M"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": {
+        "value": "Lake cliffs climbed on rappel",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": {
+        "value": "Strict no-chalk ethic; free state-park permit required",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "disciplines": {
+        "value": [
+          "trad",
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "The real conditions inputs are Lake Superior spray and fog, not rainfall.",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "sources": [
+        "rock-drying-research.md §4.9"
+      ]
+    },
+    {
+      "name": "Carlton Peak",
+      "aka": null,
+      "region": "MN",
+      "country": "US",
+      "rock": {
+        "family": "anorthosite",
+        "formation": "Anorthosite blocks that punched through the rift magma, surrounding melt becoming diabase",
+        "note": "Described as abrasive. Dense plutonic: drying-trivial, friction-led. Same family as Poke-O-Moonshine.",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "boulder"
+        ],
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.9"
+      ]
+    },
+    {
+      "name": "Blue Mounds State Park",
+      "aka": null,
+      "region": "MN",
+      "country": "US",
+      "rock": {
+        "family": "quartzite",
+        "formation": "Sioux Quartzite, Precambrian",
+        "note": "Pink escarpment on the prairie. Near-zero matrix porosity; fracture drainage only.",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": null,
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.9"
+      ]
+    },
+    {
+      "name": "The Needles",
+      "aka": [
+        "Custer State Park"
+      ],
+      "region": "SD",
+      "country": "US",
+      "rock": {
+        "family": "granite",
+        "formation": "Harney Peak Granite, ~1.8 Ga",
+        "note": "Grain size varies WITHIN the same batholith — fine-grained at Mount Rushmore, coarse with abundant pegmatite crystals at the Needles. Those crystals ARE the holds. Drying is trivial; the wet-failure vector is crystal detachment rather than surface spalling.",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "I"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.9"
+      ]
+    },
+    {
+      "name": "Spearfish Canyon",
+      "aka": null,
+      "region": "SD",
+      "country": "US",
+      "rock": {
+        "family": "limestone",
+        "formation": "Pahasapa Limestone (Mississippian, equivalent to the Madison)",
+        "note": "475-600 ft of capstone, ~600 routes over ~19 crags. Finely crystalline beds interspersed by chert lenses and solution breccias, giving the cavernous, pocketed character. Rock quality improves further up the canyon — a within-crag gradient. Chert-in-carbonate is a repeated pattern with Red Wing's Oneota, not a one-off.",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "seepage_prone": {
+        "value": true,
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "seepage_mechanism": null,
+      "water_features": {
+        "value": "solution pockets, solution breccias",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": {
+        "value": "Spring through June can be wet, though usually partly climbable",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.9"
+      ]
+    },
+    {
+      "name": "Vedauwoo",
+      "aka": null,
+      "region": "WY",
+      "country": "US",
+      "rock": {
+        "family": "granite",
+        "formation": "Sherman Granite, ~1.4 Ga",
+        "note": "Coarse-grained and famously sharp: alkali feldspar crystals 1-2 cm across with 'scalpel-like edges'. Landscape shaped by differential weathering along ENE joints. Drying is granite-fast; the coarse texture means skin, not conditions, is the limiter. Coarse biotite-rich granite weathers to grus, and a grussy rind holds water over an impermeable core.",
+        "source": "rock-drying-research.md §4.9, §4.3",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.9",
+        "rock-drying-research.md §4.3"
+      ]
+    },
+    {
+      "name": "Wild Iris",
+      "aka": null,
+      "region": "WY",
+      "country": "US",
+      "rock": {
+        "family": "dolomite",
+        "formation": null,
+        "note": "Pocketed dolomite at ~2,600 m. Pocketed dolomite holds standing water in pockets long after the face dries.",
+        "source": "rock-drying-research.md §4.9, §4.2",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": {
+        "value": "pockets",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": {
+        "value": "Season begins when the snow melts (early June) and runs to late autumn. ALTITUDE GATES THE SEASON HERE, NOT RAINFALL — a conditions model that answers 'dry' in April is answering the wrong question.",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "Snowmelt",
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "sources": [
+        "rock-drying-research.md §4.9"
+      ]
+    },
+    {
+      "name": "Sinks Canyon",
+      "aka": null,
+      "region": "WY",
+      "country": "US",
+      "rock": {
+        "family": "mixed",
+        "formation": null,
+        "note": "BREAKS THE ONE-LOCATION-ONE-ROCK-TYPE MODEL OUTRIGHT: 'The rock type changes from sandstone to limestone to granite the higher you go.' One canyon, one lat/lon, three drying classes stacked vertically. The schema cannot express it and averaging them would be wrong in both directions.",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.9"
+      ]
+    },
+    {
+      "name": "Garden of the Gods",
+      "aka": null,
+      "region": "CO",
+      "country": "US",
+      "rock": {
+        "family": "sandstone",
+        "formation": null,
+        "note": "Park guidance names a mechanism the model does not have: sandstone 'absorbs water like a sponge, and the rock SWELLS AND DECOMPRESSES AS IT DRIES. During this process, it is extremely fragile.' If right, the drying transient is its own hazard state rather than a monotonic improvement — which sits awkwardly against the score's smooth linear ramp. Land-manager guidance, NOT lab-verified.",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": {
+        "value": "All chalk and substitutes banned; free annual permit mandatory",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "disciplines": {
+        "value": [
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "A local guide service reschedules for at least 24h after significant precipitation, and 2-3 days after snow, cloud or persistent rain",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.9"
+      ]
+    },
+    {
+      "name": "Penitente Canyon",
+      "aka": null,
+      "region": "CO",
+      "country": "US",
+      "rock": {
+        "family": "welded_tuff",
+        "formation": "Fish Canyon Tuff, La Garita Caldera ~28 Ma",
+        "note": "'Bulletproof rock with great friction', textured by quartz and sanidine crystals, hueco-ridden walls. Confirms the welding spectrum: densely welded tuff behaves near-granitic, non-welded Bishop Tuff does not. Not a family the RockType enum has.",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": {
+        "value": "huecos — hold water independently of the rock",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.9"
+      ]
+    },
+    {
+      "name": "Shelf Road",
+      "aka": null,
+      "region": "CO",
+      "country": "US",
+      "rock": {
+        "family": "limestone",
+        "formation": null,
+        "note": "1,000+ sport routes. Trad is considered dangerous because the limestone is brittle — so 'dry' and 'safe' are not the same claim here.",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": {
+        "value": "THE ASPECT-PLANNING CRAG. ~250 sunny days, winter highs in the 40s-50s °F, and the explicit local strategy is ASPECT ROTATION: climb the sun-facing walls in winter and the shaded ones in summer. The unimplemented aspect/solar term is not a refinement here — it IS the product.",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.9"
+      ]
+    },
+    {
+      "name": "Clear Creek Canyon",
+      "aka": null,
+      "region": "CO",
+      "country": "US",
+      "rock": {
+        "family": "gneiss",
+        "formation": "Migmatitic biotite gneiss and gneissic granite",
+        "note": "Locally 'sandy granite', distinct from Boulder Canyon's granite sweeps. Metamorphic drainage behaviour: low matrix porosity, water tracking along foliation and folds.",
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "seepage_prone": {
+        "value": true,
+        "source": "rock-drying-research.md §4.5",
+        "confidence": "I"
+      },
+      "seepage_mechanism": {
+        "value": "conduit",
+        "source": "rock-drying-research.md §4.5",
+        "confidence": "I"
+      },
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.9",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.9"
+      ]
+    },
+    {
+      "name": "Eldorado Canyon and the Flatirons",
+      "aka": null,
+      "region": "CO",
+      "country": "US",
+      "rock": {
+        "family": "sandstone",
+        "formation": "Fountain Formation arkose",
+        "note": "Coarse feldspar-rich conglomeratic sandstone. Guide-service framing: 'harder and less fragile than many desert sandstones, but wet stone is slick, FLAKES CAN SEEP'. A sandstone whose limiter is friction and seepage, not structure.",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "seepage_prone": {
+        "value": true,
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "seepage_mechanism": {
+        "value": "conduit",
+        "source": "rock-drying-research.md §4.16",
+        "confidence": "I"
+      },
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.8"
+      ]
+    },
+    {
+      "name": "Rifle Mountain Park",
+      "aka": null,
+      "region": "CO",
+      "country": "US",
+      "rock": {
+        "family": "limestone",
+        "formation": "Leadville Formation",
+        "note": "'Varies both in quality and aspect from wall to wall.' The Wasteland has 'pocket and tufa-riddled stone'; the Arsenal has 'miniature tufas'.",
+        "source": "rock-drying-research.md §4.16",
+        "confidence": "C"
+      },
+      "seepage_prone": {
+        "value": true,
+        "source": "rock-drying-research.md §4.8, §4.16",
+        "confidence": "C"
+      },
+      "seepage_mechanism": {
+        "value": "face_flow",
+        "source": "rock-drying-research.md §4.16",
+        "confidence": "C"
+      },
+      "water_features": {
+        "value": "tufas and pockets, concentrated in the Wasteland and the Arsenal",
+        "source": "rock-drying-research.md §4.16",
+        "confidence": "C"
+      },
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": {
+        "value": "SECTOR-LEVEL, MONTH-SCALE: 'Oftentimes the Wasteland and the left side of the Project Wall do not dry out until June.' Spring runoff is the driver, and the same seepage farms the canyon's winter ice. No rock-type constant can produce a per-sector June date.",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "Spring runoff",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "_why_this_crag_matters": "THE WITHIN-CRAG CONTROL for the tufa rule. Same canyon, same limestone, same spring runoff — and the tufa-riddled sector is the named wet one. Worth more than the seven between-crag cases in §4.15 combined, because everything except the rock face is held constant.",
+      "sources": [
+        "rock-drying-research.md §4.8",
+        "rock-drying-research.md §4.16"
+      ]
+    },
+    {
+      "name": "Turkey Rocks",
+      "aka": [
+        "South Platte"
+      ],
+      "region": "CO",
+      "country": "US",
+      "rock": {
+        "family": "granite",
+        "formation": "Pikes Peak Granite",
+        "note": "Bomber.",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": {
+        "value": "The feature climbers name first is a 'friendly southerly aspect'",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.10"
+      ]
+    },
+    {
+      "name": "Red Rock Canyon",
+      "aka": [
+        "Red Rocks"
+      ],
+      "region": "NV",
+      "country": "US",
+      "rock": {
+        "family": "sandstone",
+        "formation": "Aztec Sandstone — the same Jurassic dune system as Zion's Navajo",
+        "note": "Eolian, weak calcium-carbonate cement, friable and very porous. The 'do not climb wet' class. Measured facies within the Navajo span ~28% porosity / 100 mD (dune) to 10% / 0.265 mD (wavy algal-matted) — a ~400x permeability spread inside one formation, the kind of difference you can walk past between two sectors of one canyon.",
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "M"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad",
+          "sport",
+          "boulder"
+        ],
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "BLM land-manager guidance is 24-48h after major rain or snow; community guidance increasingly says that is too short — 36 hours minimum, up to 3 days after heavy prolonged storms, and 5 days to a week after the biggest. The conditional version is the useful one: ~24h needs air above ~70°F, a southerly sunny aspect, and only a couple of hours of rain; cold, shady or big-storm cases want 48-72h.",
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.1",
+        "rock-drying-research.md §10.2"
+      ]
+    },
+    {
+      "name": "Mount Charleston",
+      "aka": null,
+      "region": "NV",
+      "country": "US",
+      "rock": {
+        "family": "limestone",
+        "formation": null,
+        "note": "The high-altitude summer counterpart to Red Rock.",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": {
+        "value": "Altitude makes it the summer option when Red Rock is too hot",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.10"
+      ]
+    },
+    {
+      "name": "Zion",
+      "aka": null,
+      "region": "UT",
+      "country": "US",
+      "rock": {
+        "family": "sandstone",
+        "formation": "Navajo Sandstone",
+        "note": "Same Jurassic dune system as Red Rock's Aztec. Weak calcium-carbonate cement, friable and very porous.",
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.1"
+      ]
+    },
+    {
+      "name": "Indian Creek",
+      "aka": null,
+      "region": "UT",
+      "country": "US",
+      "rock": {
+        "family": "sandstone",
+        "formation": "Wingate Sandstone (Late Triassic eolian), with Cedar Mesa Sandstone below",
+        "note": "The homogeneous composition and cementation is exactly what produces the splitter joint systems, and the cementing agents binding the quartz grains — CALCITE AND CLAY — are hydro-sensitive. The 24-to-48-hour rule exists here for that reason.",
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "24-48h",
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.1"
+      ]
+    },
+    {
+      "name": "Fisher Towers",
+      "aka": null,
+      "region": "UT",
+      "country": "US",
+      "rock": {
+        "family": "sandstone",
+        "formation": "Cutler Sandstone capped by Moenkopi",
+        "note": "THE CLIMBING SURFACE IS NOT THE ROCK. The towers are draped in mud curtains; the rock is 'actually very hard' but what you climb is a thick mud layer — mud chimneys, bolts protruding inches from erosion, fixed slings drilled through rock. A drying model keyed to rock type is meaningless here: dried mud rehydrates on a completely different curve from the sandstone under it. The most extreme 'rock type is the wrong variable' case in the research.",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "I"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.10"
+      ]
+    },
+    {
+      "name": "Big Cottonwood Canyon",
+      "aka": null,
+      "region": "UT",
+      "country": "US",
+      "rock": {
+        "family": "quartzite",
+        "formation": null,
+        "note": "Described as slippery and hard. Adjacent to Little Cottonwood and NOT interchangeable with it.",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": null,
+      "dries_fast_relative_to": {
+        "value": "Dries fast; friction-limited",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.10"
+      ]
+    },
+    {
+      "name": "Little Cottonwood Canyon",
+      "aka": null,
+      "region": "UT",
+      "country": "US",
+      "rock": {
+        "family": "granite",
+        "formation": "Quartz monzonite",
+        "note": "Adjacent canyon to Big Cottonwood, different rock. Both dry fast, both friction-limited, not interchangeable.",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad",
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "Dries fast; friction-limited",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.10"
+      ]
+    },
+    {
+      "name": "Maple Canyon",
+      "aka": null,
+      "region": "UT",
+      "country": "US",
+      "rock": {
+        "family": "conglomerate",
+        "formation": null,
+        "note": "Rounded cobbles — frequently quartzite, so near-zero porosity — set in a sandy or calcareous MATRIX that is far more porous. The cobbles are dry almost immediately; the matrix holding them in is not. The wet failure mode is a cobble pulling out of a softened matrix, so THE DRYING TIME IS THE MATRIX'S, AND IT IS INVISIBLE FROM THE SURFACE. Needs its own class, keyed to matrix type, and it should be conservative.",
+        "source": "rock-drying-research.md §4.6",
+        "confidence": "I"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.6",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.6"
+      ]
+    },
+    {
+      "name": "New River Gorge",
+      "aka": [
+        "The New"
+      ],
+      "region": "WV",
+      "country": "US",
+      "rock": {
+        "family": "sandstone",
+        "formation": "Nuttall Sandstone",
+        "note": "Up to 98% QUARTZ, with case hardening and limonite cement veins along tectonic joints. A WVU thesis identified a 15-20 m homogeneous quartz-arenite interval lacking bedding-plane partings as the desirable climbing horizon; the basal conglomerate and underlying shale are weaker. THE DRYING CLASS CHANGES WITH HEIGHT ON THE SAME CLIFF. Silica-cemented quartz arenite: climbs wet, essentially undamaged.",
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "M"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad",
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "Far faster than the eolian sandstones — ~0% measured strength loss when wet for this sub-class",
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "M"
+      },
+      "unmodelled_input": {
+        "value": "Vertical variation within one cliff — the Nuttall result. The app has one rock type per location and a route-level property would be a much larger change.",
+        "source": "rock-drying-research.md §8",
+        "confidence": "M"
+      },
+      "sources": [
+        "rock-drying-research.md §4.1",
+        "rock-drying-research.md §8"
+      ]
+    },
+    {
+      "name": "The Gunks",
+      "aka": [
+        "Shawangunks"
+      ],
+      "region": "NY",
+      "country": "US",
+      "rock": {
+        "family": "conglomerate",
+        "formation": "Shawangunk Formation",
+        "note": "Quartz conglomerate whose cement is dominantly silica with relatively little iron oxide, described as one of the hardest and most durable of rocks. BEHAVES FAR CLOSER TO QUARTZITE THAN TO SANDSTONE.",
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.1"
+      ]
+    },
+    {
+      "name": "Fontainebleau",
+      "aka": [
+        "Font"
+      ],
+      "region": "Île-de-France",
+      "country": "FR",
+      "rock": {
+        "family": "sandstone",
+        "formation": null,
+        "note": "Microcrystalline quartz coatings on the grains inhibit further quartz cement growth and PRESERVE ANOMALOUSLY HIGH POROSITY — simultaneously silica-cemented and porous.",
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "M"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": {
+        "value": "Explicit no-wet-climbing ethic. A GOOD CEMENT DOES NOT AUTOMATICALLY LICENSE CLIMBING WET — here it is the sculpted surface patina that breaks, not the rock.",
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "disciplines": {
+        "value": [
+          "boulder"
+        ],
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.1"
+      ]
+    },
+    {
+      "name": "Red River Gorge",
+      "aka": [
+        "The Red",
+        "RRG"
+      ],
+      "region": "KY",
+      "country": "US",
+      "rock": {
+        "family": "sandstone",
+        "formation": "Corbin Sandstone Member, Early Pennsylvanian, 30-85 m thick",
+        "note": "Quartz arenite ranging fine-grained to conglomeratic, iron-rich and orange-red in places. Sits between classes: solid overall, but FRIABLE IN CERTAIN AREAS, PARTICULARLY AFTER RAINFALL.",
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": {
+        "value": "THE STANDING EXAMPLE OF GEOMETRY BEATING ROCK TYPE — its overhangs stay dry through rain that shuts everything else down. At sector grain: Bob Marley cave is 'surely one of the driest locations in the Red,' with a breeze that keeps condensation away 'when other crags are beaded with water'. Condensation is crag-specific within one gorge on one day, so it cannot be derived from a grid-cell forecast.",
+        "source": "rock-drying-research.md §4.1, §4.10",
+        "confidence": "C"
+      },
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport",
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "_why_this_crag_matters": "Guidebooks for the Red carry PER-CRAG ICONS FOR SUN EXPOSURE AND RAIN PROTECTION alongside driving and walking times. The seepage_prone / rain-shelter flag proposed in §7 is not a novel schema invention — guidebook publishers already ship that field.",
+      "sources": [
+        "rock-drying-research.md §4.1",
+        "rock-drying-research.md §4.10"
+      ]
+    },
+    {
+      "name": "Stanage and the Peak District grit",
+      "aka": [
+        "Millstone Grit"
+      ],
+      "region": "Peak District",
+      "country": "GB",
+      "rock": {
+        "family": "sandstone",
+        "formation": "Millstone Grit",
+        "note": "Coarse quartz-feldspathic sandstone from delta deposits. Feldspar at Mohs 6 weathers to clay in a way quartz does not, which is the mechanistic reason grit sits below the arenites. Reported ~41% weaker when wet — a climbing-media figure whose primary source could NOT be reached (climbing.com is behind a login wall). Treat as indicative.",
+        "source": "rock-drying-research.md §4.1, §10.4",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad",
+          "boulder"
+        ],
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.1",
+        "rock-drying-research.md §8"
+      ]
+    },
+    {
+      "name": "Elbsandsteingebirge",
+      "aka": [
+        "Saxon Switzerland",
+        "Sächsische Schweiz"
+      ],
+      "region": "Saxony",
+      "country": "DE",
+      "rock": {
+        "family": "sandstone",
+        "formation": null,
+        "note": "~1,100 towers of mostly highly weathered, EXTREMELY SOFT sandstone. Weakly cemented / structurally marginal.",
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": {
+        "value": "Climbing is PROHIBITED on rainy days and the following day — a rule, not advice. Note the implied drying model: a flat 24h from the END OF RAIN, regardless of amount.",
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "disciplines": {
+        "value": [
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.1"
+      ]
+    },
+    {
+      "name": "Southern Sandstone",
+      "aka": [
+        "Harrison's Rocks",
+        "High Rocks"
+      ],
+      "region": "South East England",
+      "country": "GB",
+      "rock": {
+        "family": "sandstone",
+        "formation": null,
+        "note": "So soft that lead climbing is banned outright. THE ROCK HAS ONLY A THIN OUTER LAYER and that rind is the entire load-bearing structure — the extreme end of case hardening: protective while intact, catastrophic once wet.",
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": {
+        "value": "Lead climbing banned; everything top-roped on static rope",
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "disciplines": {
+        "value": [
+          "toprope",
+          "boulder"
+        ],
+        "source": "rock-drying-research.md §4.1",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.1"
+      ]
+    },
+    {
+      "name": "Kalymnos",
+      "aka": null,
+      "region": "Dodecanese",
+      "country": "GR",
+      "rock": {
+        "family": "limestone",
+        "formation": null,
+        "note": "The rock generally DRIES FAST, but if the winter has been rainy the TUFAS may be seeping, and dripping stalactites in spring are softer and more likely to break. So the same crag on the same day has a fast-drying vertical wall and a soft, seeping, breakable tufa line. FEATURE TYPE BEATS ROCK TYPE.",
+        "source": "rock-drying-research.md §4.2",
+        "confidence": "C"
+      },
+      "seepage_prone": {
+        "value": true,
+        "source": "rock-drying-research.md §4.2",
+        "confidence": "C"
+      },
+      "seepage_mechanism": {
+        "value": "face_flow",
+        "source": "rock-drying-research.md §4.16",
+        "confidence": "C"
+      },
+      "water_features": {
+        "value": "tufas and stalactites",
+        "source": "rock-drying-research.md §4.2",
+        "confidence": "C"
+      },
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.2",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "The face dries fast; the tufa lines do not",
+        "source": "rock-drying-research.md §4.2",
+        "confidence": "C"
+      },
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.2",
+        "rock-drying-research.md §4.15"
+      ]
+    },
+    {
+      "name": "Ten Sleep",
+      "aka": null,
+      "region": "WY",
+      "country": "US",
+      "rock": {
+        "family": "dolomite",
+        "formation": "Bighorn Dolomite",
+        "note": "DOLOMITE, NOT LIMESTONE, though the climbing is hard to distinguish. Massive, cliff-forming, mildly overhung, defined by POCKETS (monos to jugs) with a surface soft enough that 'comfortizing' edges is a local norm. Pockets hold standing water; Red Wing's crimps and edges shed it — reasoning about one from the other gets the drying behaviour backwards.",
+        "source": "rock-drying-research.md §4.7, §4.2",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": {
+        "value": "pockets — hold standing water long after the face dries",
+        "source": "rock-drying-research.md §4.2",
+        "confidence": "I"
+      },
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.7",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.7",
+        "rock-drying-research.md §4.2"
+      ]
+    },
+    {
+      "name": "Céüse",
+      "aka": null,
+      "region": "Hautes-Alpes",
+      "country": "FR",
+      "rock": {
+        "family": "limestone",
+        "formation": null,
+        "note": "Dense micritic limestone — low porosity, dries fast at the surface, seeps for days.",
+        "source": "rock-drying-research.md §4.2, §4.11",
+        "confidence": "C"
+      },
+      "seepage_prone": {
+        "value": true,
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "seepage_mechanism": {
+        "value": "conduit",
+        "source": "rock-drying-research.md §4.16",
+        "confidence": "C"
+      },
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": {
+        "value": "Cornice danger early in the season after a heavy-snow winter",
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": {
+        "value": "~2,100 m; season late spring to autumn",
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "THE CATCHMENT ARGUMENT MADE LITERAL: the area above the crag is a SKI AREA, and seepage follows a heavy-snow winter. The thing draining onto the wall is a snowfield.",
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "sources": [
+        "rock-drying-research.md §4.2",
+        "rock-drying-research.md §4.11"
+      ]
+    },
+    {
+      "name": "Verdon Gorge",
+      "aka": null,
+      "region": "Provence",
+      "country": "FR",
+      "rock": {
+        "family": "limestone",
+        "formation": null,
+        "note": "Dense micritic limestone — low porosity, dries fast at the surface, seeps for days.",
+        "source": "rock-drying-research.md §4.2",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport",
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.2",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.2"
+      ]
+    },
+    {
+      "name": "Yosemite Valley",
+      "aka": null,
+      "region": "CA",
+      "country": "US",
+      "rock": {
+        "family": "granite",
+        "formation": "Granodiorite",
+        "note": "Fresh, fine-grained plutonic rock — near-zero effective porosity, surface-film drying only. The safest family to climb wet: strong, barely porous, dries quickly; the practical cost is that shoe rubber does not stick.",
+        "source": "rock-drying-research.md §4.3",
+        "confidence": "M"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": {
+        "value": "Weathering pits and dishes on low-angle granite hold standing water for days after the wall itself is dry. Slabs are the one granite case where drying time is not trivial.",
+        "source": "rock-drying-research.md §4.3",
+        "confidence": "C"
+      },
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad",
+          "boulder"
+        ],
+        "source": "rock-drying-research.md §4.3",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.3"
+      ]
+    },
+    {
+      "name": "Tuolumne Meadows",
+      "aka": null,
+      "region": "CA",
+      "country": "US",
+      "rock": {
+        "family": "granite",
+        "formation": null,
+        "note": null,
+        "source": "rock-drying-research.md §4.13",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": {
+        "value": "THE LIMITER IS A ROAD. Season runs roughly June to October because Tioga Pass (Highway 120) closes on the first snow, usually November, and reopens late May to June depending on the snow year. The rock can be bone dry and the answer still 'no'. Unlike a ski field above the crag or snowmelt, it does not even correlate with conditions at the crag once the road is open.",
+        "source": "rock-drying-research.md §4.13",
+        "confidence": "C"
+      },
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad",
+          "boulder"
+        ],
+        "source": "rock-drying-research.md §4.13",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "Road and pass status — an access-infrastructure limiter class of its own",
+        "source": "rock-drying-research.md §4.13",
+        "confidence": "C"
+      },
+      "sources": [
+        "rock-drying-research.md §4.13"
+      ]
+    },
+    {
+      "name": "Joshua Tree",
+      "aka": null,
+      "region": "CA",
+      "country": "US",
+      "rock": {
+        "family": "granite",
+        "formation": "Monzogranite",
+        "note": "Coarse, biotite-rich, weathered granite. Biotite expands by absorbing water, freeing crystals and disaggregating the rock into GRUS; darker biotite-rich and coarser-grained granites weather to grus much more readily than light, fine-grained ones. A grussy weathered rind holds water like a sponge over an impermeable core — THE WEATHERED SURFACE, NOT THE GRANITE, SETS THE DRYING TIME.",
+        "source": "rock-drying-research.md §4.3",
+        "confidence": "I"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad",
+          "boulder"
+        ],
+        "source": "rock-drying-research.md §4.3",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "SLOWER than fine-grained granite, despite the same family — the grus rind is the variable",
+        "source": "rock-drying-research.md §4.3",
+        "confidence": "I"
+      },
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.3"
+      ]
+    },
+    {
+      "name": "The Buttermilks",
+      "aka": null,
+      "region": "CA",
+      "country": "US",
+      "rock": {
+        "family": "granite",
+        "formation": "Quartz monzonite",
+        "note": "~1% porosity. Coarse, biotite-rich, weathered granite — grus-prone per §4.3. Fifteen minutes' drive from Bishop Tuff at 38-60% porosity: one town spanning most of the porosity range in the whole reference table.",
+        "source": "rock-drying-research.md §4.4, §4.3",
+        "confidence": "M"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "boulder"
+        ],
+        "source": "rock-drying-research.md §4.4",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.4",
+        "rock-drying-research.md §4.3"
+      ]
+    },
+    {
+      "name": "Smith Rock",
+      "aka": null,
+      "region": "OR",
+      "country": "US",
+      "rock": {
+        "family": "welded_tuff",
+        "formation": "Welded rhyolite ash/tuff, ~30 Ma, Crooked River caldera",
+        "note": "Welded tuffs become hard rock because of heat and compaction during emplacement, and Smith's is popular precisely because it DOES NOT CRUMBLE EASILY. Behaves close to granite. The RockType enum has no tuff at all — §6.1's tuff half is still open and Smith has no correct label.",
+        "source": "rock-drying-research.md §4.4",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport",
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.4",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "Near-granitic",
+        "source": "rock-drying-research.md §4.4",
+        "confidence": "C"
+      },
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.4"
+      ]
+    },
+    {
+      "name": "The Happy and Sad Boulders",
+      "aka": [
+        "Volcanic Tablelands"
+      ],
+      "region": "CA",
+      "country": "US",
+      "rock": {
+        "family": "tuff_nonwelded",
+        "formation": "Bishop Tuff (basal non-welded)",
+        "note": "38-60% POROSITY at densities of 1.1-1.5 g/cm³, most samples 45-57%. THAT IS MORE POROUS THAN ANY SANDSTONE IN THE RESEARCH. Welding varies laterally and vertically within the sheet, and localisation of fracturing tracks the degree of welding. No correct label in the RockType enum.",
+        "source": "rock-drying-research.md §4.4",
+        "confidence": "M"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "boulder"
+        ],
+        "source": "rock-drying-research.md §4.4",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "SLOWER than any sandstone in the table, on porosity alone",
+        "source": "rock-drying-research.md §4.4",
+        "confidence": "I"
+      },
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.4"
+      ]
+    },
+    {
+      "name": "Owens River Gorge",
+      "aka": null,
+      "region": "CA",
+      "country": "US",
+      "rock": {
+        "family": "tuff_nonwelded",
+        "formation": "Bishop Tuff",
+        "note": "Same unit as the Happy and Sad Boulders, cut by the Owens River. Welding varies within the sheet so the local degree of welding is unrecorded here. No correct label in the RockType enum.",
+        "source": "rock-drying-research.md §4.4",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.4",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.4"
+      ]
+    },
+    {
+      "name": "Trout Creek",
+      "aka": null,
+      "region": "OR",
+      "country": "US",
+      "rock": {
+        "family": "basalt_dense",
+        "formation": null,
+        "note": "Dense columnar basalt, near-impermeable at 0.1-1.0% porosity.",
+        "source": "rock-drying-research.md §4.4",
+        "confidence": "M"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.4",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.4"
+      ]
+    },
+    {
+      "name": "Devils Tower",
+      "aka": null,
+      "region": "WY",
+      "country": "US",
+      "rock": {
+        "family": "phonolite",
+        "formation": "Columnar-jointed porphyritic phonolite porphyry, Eocene ~49 Ma",
+        "note": "DEVILS TOWER IS NOT BASALT — the label is simply wrong in most sources. Drying-wise it behaves like dense plutonic rock.",
+        "source": "rock-drying-research.md §4.4",
+        "confidence": "M"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": "June",
+        "reason": "Voluntary climbing closure for Native American cultural observance",
+        "source": "rock-drying-research.md §13 (terminology doc) — NOT independently verified here"
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.4",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.4"
+      ]
+    },
+    {
+      "name": "Seneca Rocks",
+      "aka": null,
+      "region": "WV",
+      "country": "US",
+      "rock": {
+        "family": "quartzite",
+        "formation": "Tuscarora Quartzite",
+        "note": "Very similar to the Gunks rock, highly erosion-resistant. Effectively zero matrix porosity; all water lives in fractures and drains by gravity.",
+        "source": "rock-drying-research.md §4.5",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.5",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.5"
+      ]
+    },
+    {
+      "name": "Rumney",
+      "aka": null,
+      "region": "NH",
+      "country": "US",
+      "rock": {
+        "family": "schist",
+        "formation": null,
+        "note": "Schist with some granite, and its FOLIATION — the tendency to fracture along parallel layers — is what makes the holds. Matrix porosity is low, but those same foliation planes are drainage paths, so water tracks along and emerges from them long after the face looks dry.",
+        "source": "rock-drying-research.md §4.5",
+        "confidence": "I"
+      },
+      "seepage_prone": {
+        "value": true,
+        "source": "rock-drying-research.md §4.5",
+        "confidence": "I"
+      },
+      "seepage_mechanism": {
+        "value": "conduit",
+        "source": "rock-drying-research.md §4.16",
+        "confidence": "I"
+      },
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.5",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.5"
+      ]
+    },
+    {
+      "name": "Magic Wood",
+      "aka": null,
+      "region": "Graubünden",
+      "country": "CH",
+      "rock": {
+        "family": "gneiss",
+        "formation": null,
+        "note": "Low matrix porosity, fracture- and foliation-controlled permeability.",
+        "source": "rock-drying-research.md §4.5",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "boulder"
+        ],
+        "source": "rock-drying-research.md §4.5",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.5"
+      ]
+    },
+    {
+      "name": "Ticino",
+      "aka": null,
+      "region": "Ticino",
+      "country": "CH",
+      "rock": {
+        "family": "gneiss",
+        "formation": null,
+        "note": "Low matrix porosity, fracture- and foliation-controlled permeability.",
+        "source": "rock-drying-research.md §4.5",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "boulder"
+        ],
+        "source": "rock-drying-research.md §4.5",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.5"
+      ]
+    },
+    {
+      "name": "Riglos",
+      "aka": null,
+      "region": "Aragón",
+      "country": "ES",
+      "rock": {
+        "family": "conglomerate",
+        "formation": null,
+        "note": "Cobbles dry almost immediately; the matrix holding them in does not. The wet failure mode is a cobble pulling out of a softened matrix, and the drying time is the matrix's — invisible from the surface.",
+        "source": "rock-drying-research.md §4.6",
+        "confidence": "I"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad",
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.6",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.6"
+      ]
+    },
+    {
+      "name": "Margalef",
+      "aka": null,
+      "region": "Catalonia",
+      "country": "ES",
+      "rock": {
+        "family": "conglomerate",
+        "formation": null,
+        "note": "Matrix-controlled drying per §4.6.",
+        "source": "rock-drying-research.md §4.6",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": {
+        "value": "pockets",
+        "source": "rock-drying-research.md §4.6",
+        "confidence": "C"
+      },
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.6",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.6"
+      ]
+    },
+    {
+      "name": "Montsant",
+      "aka": null,
+      "region": "Catalonia",
+      "country": "ES",
+      "rock": {
+        "family": "conglomerate",
+        "formation": null,
+        "note": "Matrix-controlled drying per §4.6.",
+        "source": "rock-drying-research.md §4.6",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.6",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.6"
+      ]
+    },
+    {
+      "name": "Meteora",
+      "aka": null,
+      "region": "Thessaly",
+      "country": "GR",
+      "rock": {
+        "family": "conglomerate",
+        "formation": null,
+        "note": "Matrix-controlled drying per §4.6.",
+        "source": "rock-drying-research.md §4.6",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.6",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.6"
+      ]
+    },
+    {
+      "name": "Mount Arapiles",
+      "aka": null,
+      "region": "Victoria",
+      "country": "AU",
+      "rock": {
+        "family": "quartzite",
+        "formation": null,
+        "note": "THE CLEANEST NATURAL EXPERIMENT AVAILABLE, paired with the Grampians. Same original sediment; a volcanic incursion ~400 Ma contact-metamorphosed the Arapiles rock to quartzite while the Grampians stayed sandstone. Adjacent areas, one protolith, OPPOSITE WET-WEATHER RULES. Nothing about the sediment predicted it; the thermal history did.",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "Much faster than the adjacent Grampians, on identical original sediment",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.8"
+      ]
+    },
+    {
+      "name": "The Grampians",
+      "aka": [
+        "Gariwerd"
+      ],
+      "region": "Victoria",
+      "country": "AU",
+      "rock": {
+        "family": "sandstone",
+        "formation": null,
+        "note": "'Often of a softer variety'. The unmetamorphosed half of the Arapiles natural experiment.",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "boulder",
+          "sport",
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "Much slower than adjacent Arapiles",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.8"
+      ]
+    },
+    {
+      "name": "Llanberis slate",
+      "aka": [
+        "Dinorwig"
+      ],
+      "region": "Wales",
+      "country": "GB",
+      "rock": {
+        "family": "slate",
+        "formation": null,
+        "note": "THE FAST-DRYING CHAMPION, and the community states the mechanism itself: 'the layering of minerals means that water can't easily penetrate... slate doesn't have pore spaces like sandstone does. So in the absence of crack systems slate dries quickly.' Note the qualifier — fracture drainage is the exception. The limiter is friction: slate slabs are notoriously frictionless with no protruding crystals.",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport",
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "The fastest-drying rock in the document",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.8"
+      ]
+    },
+    {
+      "name": "Hueco Tanks",
+      "aka": null,
+      "region": "TX",
+      "country": "US",
+      "rock": {
+        "family": "syenite",
+        "formation": "Syenite porphyry",
+        "note": "IT BREAKS THE IGNEOUS RULE. Described as HIGHLY POROUS, collecting rainwater 'like stony sponges'. Climbers are warned the syenite 'becomes fragile with extra humidity from rain'. An igneous rock with a real wet-weather ethic — do not assume plutonic means climbable wet.",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": {
+        "value": "Huecos — HOLD WATER FOR SEVERAL DAYS TO SEVERAL MONTHS depending on pool size and shelter",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": {
+        "value": "Access is managed — guided and reservation systems apply on parts of the park (not independently verified in this pass)",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "disciplines": {
+        "value": [
+          "boulder"
+        ],
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.8"
+      ]
+    },
+    {
+      "name": "Devil's Lake",
+      "aka": null,
+      "region": "WI",
+      "country": "US",
+      "rock": {
+        "family": "quartzite",
+        "formation": "Baraboo Quartzite, ~1.6 Ga",
+        "note": "'Flint-hard', glassy, and it DRIES QUICKLY — but its defining property to climbers is an 'almost complete lack of friction'. Friction-limited, and temperature/humidity matter more than hours-since-rain.",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad",
+          "boulder"
+        ],
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "Fast — but hours-since-rain is the wrong question here; temperature and humidity dominate",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.8"
+      ]
+    },
+    {
+      "name": "Squamish",
+      "aka": null,
+      "region": "BC",
+      "country": "CA",
+      "rock": {
+        "family": "granite",
+        "formation": null,
+        "note": "LOW-POROSITY GRANITE THAT STILL DRIES SLOWLY. Exposed sun-and-wind areas can dry in minutes; shaded rainforest boulders take a day or more in April even in good weather. Moss, seepage and shade dominate a rock with ~1% porosity.",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "seepage_prone": {
+        "value": true,
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": {
+        "value": "Exposed sun-and-wind sectors dry in minutes; shaded rainforest sectors take a day or more. Within-crag, aspect-driven.",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad",
+          "sport",
+          "boulder"
+        ],
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "Much slower than its porosity predicts — biology and shade, not lithology",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "I"
+      },
+      "unmodelled_input": {
+        "value": "Moss and canopy drip",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "sources": [
+        "rock-drying-research.md §4.8"
+      ]
+    },
+    {
+      "name": "Darrington",
+      "aka": null,
+      "region": "WA",
+      "country": "US",
+      "rock": {
+        "family": "granite",
+        "formation": null,
+        "note": "VEGETATION IS THE DRYING LIMITER ON GRANITE. 'Heavily vegetated with trees growing even on boulders or granite domes,' and many climbs 'may remain wet for a day or two after a prolonged wet period'. Granite at ~1% porosity taking two days to dry is not the rock — it is canopy drip, moss and shade. IN A TEMPERATE RAINFOREST THE BIOLOGY SETS THE DRYING TIME AND THE LITHOLOGY IS NEARLY IRRELEVANT.",
+        "source": "rock-drying-research.md §4.13",
+        "confidence": "I"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.13",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "A day or two after a prolonged wet period — far slower than granite predicts",
+        "source": "rock-drying-research.md §4.13",
+        "confidence": "C"
+      },
+      "unmodelled_input": {
+        "value": "Canopy drip, moss and shade",
+        "source": "rock-drying-research.md §4.13",
+        "confidence": "C"
+      },
+      "sources": [
+        "rock-drying-research.md §4.13"
+      ]
+    },
+    {
+      "name": "Index",
+      "aka": null,
+      "region": "WA",
+      "country": "US",
+      "rock": {
+        "family": "granite",
+        "formation": null,
+        "note": "Yosemite-like granite above the Skykomish.",
+        "source": "rock-drying-research.md §4.13",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": {
+        "value": "River",
+        "source": "rock-drying-research.md §4.18",
+        "confidence": "C"
+      },
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad",
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.13",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "A RAIN-SHADOW BOUNDARY CAN PUT TWO CRAGS AN HOUR APART IN DIFFERENT SEASONS. Being west of the Cascade crest keeps Index cool when the east side is over 90 °F.",
+        "source": "rock-drying-research.md §4.13",
+        "confidence": "C"
+      },
+      "sources": [
+        "rock-drying-research.md §4.13"
+      ]
+    },
+    {
+      "name": "Frenchman Coulee",
+      "aka": [
+        "Vantage"
+      ],
+      "region": "WA",
+      "country": "US",
+      "rock": {
+        "family": "basalt_dense",
+        "formation": "Columbia River basalt, columnar, carved by the Ice Age floods",
+        "note": "600+ routes, and explicitly 'one of Washington's great winter crags'. Dense columnar basalt as the wet-season option, exactly as the welding/porosity spectrum predicts.",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport",
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "The regional wet-season option — dries fast enough to be the winter crag",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.10"
+      ]
+    },
+    {
+      "name": "Pinnacles National Park",
+      "aka": null,
+      "region": "CA",
+      "country": "US",
+      "rock": {
+        "family": "volcanic_breccia",
+        "formation": null,
+        "note": "The NPS says plainly it is 'VERY WEAK COMPARED TO THE GRANITE AND BASALT OF MANY CLIMBING AREAS', brittle, loose on the West Side, with many old or incorrectly installed bolts. A distinct class: angular fragments in a finer matrix, so like conglomerate the MATRIX GOVERNS. No label in the RockType enum.",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": "Raptor closures are typical at this park but were not verified in this pass",
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad",
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "Fixed-gear condition — many old or incorrectly installed bolts",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "sources": [
+        "rock-drying-research.md §4.10"
+      ]
+    },
+    {
+      "name": "Cochise Stronghold",
+      "aka": null,
+      "region": "AZ",
+      "country": "US",
+      "rock": {
+        "family": "granite",
+        "formation": null,
+        "note": "'Plated granite'. The plates and chickenheads ARE the holds — the same structural situation as the Needles' crystals: hold loss is a discrete feature detaching, not surface spalling.",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad",
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.10"
+      ]
+    },
+    {
+      "name": "Queen Creek and Oak Flat",
+      "aka": null,
+      "region": "AZ",
+      "country": "US",
+      "rock": {
+        "family": "welded_tuff",
+        "formation": null,
+        "note": "Pocketed volcanic tuff — a third welded-tuff datapoint after Smith Rock and Penitente.",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": {
+        "value": "pockets",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport",
+          "boulder"
+        ],
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.10"
+      ]
+    },
+    {
+      "name": "Enchanted Rock",
+      "aka": null,
+      "region": "TX",
+      "country": "US",
+      "rock": {
+        "family": "granite",
+        "formation": "Exfoliation dome, emplaced 1,082 Ma",
+        "note": "Peeling in concentric sheets like an onion as confining pressure is released. WATER GETS BEHIND EXFOLIATION SHEETS, so the drying-relevant volume is not the surface. Granite domes generally (City of Rocks, the Wichitas, Stone Mountain) share this.",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "I"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad",
+          "boulder"
+        ],
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "Water behind exfoliation sheets — a volume no surface measurement sees",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "I"
+      },
+      "sources": [
+        "rock-drying-research.md §4.10"
+      ]
+    },
+    {
+      "name": "Cathedral and Whitehorse Ledges",
+      "aka": null,
+      "region": "NH",
+      "country": "US",
+      "rock": {
+        "family": "granite",
+        "formation": null,
+        "note": "HUMIDITY ALONE PRODUCES RAIN-EQUIVALENT CONDITIONS. Climbers report 'the biggest problem is heat and humidity; the effect is very similar to climbing in the rain here... slick and slippery'. Low-porosity rock, zero rainfall, unclimbable conditions — A PRECIPITATION-DRIVEN SCORE CANNOT SEE THIS AT ALL.",
+        "source": "rock-drying-research.md §4.10, §4.3",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad",
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "Humidity with no rainfall. One of four independent reports in the research of humidity alone deciding conditions.",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "sources": [
+        "rock-drying-research.md §4.10",
+        "rock-drying-research.md §4.3"
+      ]
+    },
+    {
+      "name": "Carderock and Great Falls",
+      "aka": null,
+      "region": "MD-VA",
+      "country": "US",
+      "rock": {
+        "family": "schist",
+        "formation": "Mica schist",
+        "note": "'Very slippery and not conducive to placing solid trad gear'.",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": {
+        "value": "River-level dependent",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "toprope",
+          "boulder",
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "River level — AND UNLIKE WILLOW RIVER, A DATA SOURCE EXISTS: NOAA publishes Potomac gauges (water.noaa.gov). The only crag in the research whose unmodelled input has a named public feed.",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "sources": [
+        "rock-drying-research.md §4.10"
+      ]
+    },
+    {
+      "name": "The Palisades",
+      "aka": null,
+      "region": "NJ",
+      "country": "US",
+      "rock": {
+        "family": "diabase",
+        "formation": "Diabase sill — feldspar plus augite, salt-and-pepper, ~500 ft above the Hudson",
+        "note": "Dense intrusive: 0.1-0.5% porosity.",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "S"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.10"
+      ]
+    },
+    {
+      "name": "Obed",
+      "aka": null,
+      "region": "TN",
+      "country": "US",
+      "rock": {
+        "family": "sandstone",
+        "formation": "Pennsylvanian sandstone",
+        "note": "Hard and high quality.",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport",
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "'Can take a while to dry after a storm'",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.10"
+      ]
+    },
+    {
+      "name": "Foster Falls",
+      "aka": null,
+      "region": "TN",
+      "country": "US",
+      "rock": {
+        "family": "sandstone",
+        "formation": "Pennsylvanian sandstone",
+        "note": "Hard and high quality.",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": {
+        "value": "'The large overhanging roofs at Foster's keep some routes dry even in the pouring rain.' GEOMETRY BEATS ROCK TYPE.",
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.10",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.10"
+      ]
+    },
+    {
+      "name": "Chattanooga sandstone",
+      "aka": [
+        "Stone Fort",
+        "Rocktown",
+        "Little Rock City",
+        "TAG"
+      ],
+      "region": "TN-AL-GA",
+      "country": "US",
+      "rock": {
+        "family": "sandstone",
+        "formation": "Pennsylvanian sandstone",
+        "note": null,
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": {
+        "value": "An unusually explicit community ethic: 'Never climb on wet sandstone — it damages the rock permanently by pulling off crystals... If it rained in the last 24 to 48 hours, stick to the gym. THIS IS NOT A SUGGESTION.'",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "disciplines": {
+        "value": [
+          "boulder"
+        ],
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "24-48h community rule",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.8"
+      ]
+    },
+    {
+      "name": "Poke-O-Moonshine",
+      "aka": null,
+      "region": "NY",
+      "country": "US",
+      "rock": {
+        "family": "anorthosite",
+        "formation": null,
+        "note": "Glacially polished, ~1000 ft, plagioclase-dominated plutonic rock with gneiss interfingering and an unusual chert-like rock welded into it. Behaves as dense plutonic rock for drying; glacial polish makes it friction-limited on the slabs.",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": "Peregrine falcon closures are typical in the Adirondacks but were not verified in this pass",
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.8"
+      ]
+    },
+    {
+      "name": "Looking Glass Rock",
+      "aka": null,
+      "region": "NC",
+      "country": "US",
+      "rock": {
+        "family": "granite",
+        "formation": "Whiteside granite, ~390 Ma — an exfoliating dome",
+        "note": "THE HOLDS ARE MADE OF SEEPAGE. Its famous 'eyebrows' are 'thousands of horizontal wrinkles in the granite veneer, WEATHERED BY WATER SEEPING INTO THE METAMORPHOSED FELDSPAR AND MICA'. The feature climbers pull on is the record of where water runs.",
+        "source": "rock-drying-research.md §4.14",
+        "confidence": "C"
+      },
+      "seepage_prone": {
+        "value": true,
+        "source": "rock-drying-research.md §4.14",
+        "confidence": "C"
+      },
+      "seepage_mechanism": {
+        "value": "face_flow",
+        "source": "rock-drying-research.md §4.16",
+        "confidence": "C"
+      },
+      "water_features": {
+        "value": "eyebrows — a fossil seep by EROSION, where a tufa is a fossil seep by DEPOSITION",
+        "source": "rock-drying-research.md §4.14",
+        "confidence": "C"
+      },
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad",
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.14",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "Verglas after freezing rain — the crag is named for it, and its whole surface is a thin exfoliating veneer",
+        "source": "rock-drying-research.md §4.14",
+        "confidence": "C"
+      },
+      "_why_this_crag_matters": "GENERALISES THE TUFA RULE AND IS THE MOST PORTABLE FINDING IN THE RESEARCH. 'Where the holds were made by water, water still goes there.' It turns an unanswerable question — is this crag seepage-prone? — into an OBSERVABLE one a guidebook photo answers. The uncomfortable corollary: a heavily featured wall is more likely to seep than a blank one, and the features climbers travel for are the evidence.",
+      "sources": [
+        "rock-drying-research.md §4.14"
+      ]
+    },
+    {
+      "name": "Rumbling Bald",
+      "aka": null,
+      "region": "NC",
+      "country": "US",
+      "rock": {
+        "family": "granite",
+        "formation": null,
+        "note": "The other Carolina granite; Looking Glass's exfoliation is the shared mechanism.",
+        "source": "rock-drying-research.md §4.14",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "boulder",
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.14",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.14"
+      ]
+    },
+    {
+      "name": "Lion's Head",
+      "aka": [
+        "Niagara Escarpment"
+      ],
+      "region": "ON",
+      "country": "CA",
+      "rock": {
+        "family": "dolomite",
+        "formation": "Silurian dolomite — a 700 km UNESCO escarpment of limestone and dolostone",
+        "note": null,
+        "source": "rock-drying-research.md §4.14",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": {
+        "value": "'Undercut in most places, with access normally from above by rappel to a hanging belay at the lip of the overhang' — RAIN-SHELTERED BY GEOMETRY.",
+        "source": "rock-drying-research.md §4.14",
+        "confidence": "C"
+      },
+      "aspect": null,
+      "approach_hazard": {
+        "value": "Rappel access to a hanging belay",
+        "source": "rock-drying-research.md §4.14",
+        "confidence": "C"
+      },
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport",
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.14",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "A sheltered, UNWASHED carbonate crag near a large water body is the pattern that concentrates chloride on fixed gear — though fresh water is not sea spray and the risk is not the same. The shelter rule inverts here: shelter from rain means no rinsing.",
+        "source": "rock-drying-research.md §4.14, §5.3",
+        "confidence": "I"
+      },
+      "sources": [
+        "rock-drying-research.md §4.14"
+      ]
+    },
+    {
+      "name": "Bon Echo",
+      "aka": null,
+      "region": "ON",
+      "country": "CA",
+      "rock": {
+        "family": "granite",
+        "formation": "Canadian Shield granite",
+        "note": "Up to 300 ft out of Mazinaw Lake.",
+        "source": "rock-drying-research.md §4.14",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": {
+        "value": "THE APPROACH IS A BOAT — some climbs start out of the lake, so you canoe in. Lake state governs access.",
+        "source": "rock-drying-research.md §4.14",
+        "confidence": "C"
+      },
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.14",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "Lake state",
+        "source": "rock-drying-research.md §4.14",
+        "confidence": "C"
+      },
+      "sources": [
+        "rock-drying-research.md §4.14"
+      ]
+    },
+    {
+      "name": "Frankenjura",
+      "aka": null,
+      "region": "Bavaria",
+      "country": "DE",
+      "rock": {
+        "family": "dolomite",
+        "formation": "Limestone below, magnesium-enriched dolomite above; laminated lime structures in the lower layers",
+        "note": null,
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": {
+        "value": "DRY ROCK CAN BE FOUND IN ALMOST ANY WEATHER, and there is a known list of crags that stay dry through long rainy spells and 'almost never get wet'. Mountain Project carries a curated sub-area literally named 'Sheltered and also fast drying'. Shaded forest walls are the hot-humid-day answer.",
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "In August the humidity makes you grease straight off the holds — the third independent report in the research of humidity alone ruining conditions.",
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "_why_this_crag_matters": "A third instance of the community maintaining STRUCTURED DRYING METADATA, after the SWCW wiki and the RRG guidebook icons. The per-crag shelter flag is not a novel schema invention.",
+      "sources": [
+        "rock-drying-research.md §4.11"
+      ]
+    },
+    {
+      "name": "Rodellar",
+      "aka": null,
+      "region": "Aragón",
+      "country": "ES",
+      "rock": {
+        "family": "limestone",
+        "formation": null,
+        "note": "Tufa-lined.",
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "seepage_prone": {
+        "value": true,
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "seepage_mechanism": {
+        "value": "face_flow",
+        "source": "rock-drying-research.md §4.16",
+        "confidence": "C"
+      },
+      "water_features": {
+        "value": "tufas — the crag is tufa-lined",
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": {
+        "value": "Too hot in summer; high danger of seeping tufas in spring",
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "'The crag is tufa lined and consequently suffers seepage after extended periods of rain'",
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "sources": [
+        "rock-drying-research.md §4.11",
+        "rock-drying-research.md §4.15"
+      ]
+    },
+    {
+      "name": "Chulilla",
+      "aka": null,
+      "region": "Valencia",
+      "country": "ES",
+      "rock": {
+        "family": "limestone",
+        "formation": null,
+        "note": "One of the warmest and driest European winter destinations. September and October are the wettest months but THE ROCK DRIES VERY QUICKLY.",
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": {
+        "value": "Few or none",
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "Very fast for limestone",
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "unmodelled_input": null,
+      "_tufa_rule_note": "A NEGATIVE CASE FOR THE TUFA RULE, BUT A CONFOUNDED ONE. Arid climate independently produces both fewer tufas and less seepage, so this is not real evidence for the rule. seepage_prone stays null, not false.",
+      "sources": [
+        "rock-drying-research.md §4.11",
+        "rock-drying-research.md §4.15"
+      ]
+    },
+    {
+      "name": "Siurana",
+      "aka": null,
+      "region": "Catalonia",
+      "country": "ES",
+      "rock": {
+        "family": "limestone",
+        "formation": null,
+        "note": "Few tufas — L'Olla is called an anomaly — and correspondingly not described as a seepage crag.",
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": {
+        "value": "Few — L'Olla is called an anomaly",
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "_tufa_rule_note": "THE ONLY CLEAN CONTROL in the seven-area test: Mediterranean, same region and climate as tufa-rich Rodellar, tufas called an anomaly, no seepage reputation. The whole between-crag case for the tufa rule rests on this one crag — which is why §4.16 went looking for a within-crag control and found Rifle. seepage_prone stays null: absence of tufa proves nothing.",
+      "sources": [
+        "rock-drying-research.md §4.11",
+        "rock-drying-research.md §4.15"
+      ]
+    },
+    {
+      "name": "Arco",
+      "aka": null,
+      "region": "Trentino",
+      "country": "IT",
+      "rock": {
+        "family": "limestone",
+        "formation": null,
+        "note": "5,000+ routes on high-quality limestone north of Lake Garda, climbable most of the year and the standard fallback when the Dolomites are wet.",
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport",
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "The regional dry-weather fallback when the Dolomites are wet",
+        "source": "rock-drying-research.md §4.11",
+        "confidence": "C"
+      },
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.11"
+      ]
+    },
+    {
+      "name": "Rocklands",
+      "aka": null,
+      "region": "Western Cape",
+      "country": "ZA",
+      "rock": {
+        "family": "sandstone",
+        "formation": "Table Mountain Sandstone",
+        "note": "THE DISSENTING LOCAL NORM WAS RIGHT AND THE REASON IS THE ROCK. Climbers here commonly climb after rain, 'which is definitely not the case at sandstone climbing areas in the U.S.' Table Mountain Sandstone was compressed and PARTIALLY METAMORPHOSED INTO VERY HARD QUARTZITIC SANDSTONE — it belongs with the arenites (~0% measured strength loss when wet), not the eolian class the US 24-48h rules were written for.",
+        "source": "rock-drying-research.md §4.12",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "boulder"
+        ],
+        "source": "rock-drying-research.md §4.12",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "Tolerates climbing after rain, unlike US eolian sandstone",
+        "source": "rock-drying-research.md §4.12",
+        "confidence": "C"
+      },
+      "unmodelled_input": null,
+      "_why_this_crag_matters": "The general lesson the research keeps returning to: 'SANDSTONE' IS NOT A WET-WEATHER CLASS, and exporting a waiting period across formations is how a correct rule becomes a wrong one.",
+      "sources": [
+        "rock-drying-research.md §4.8",
+        "rock-drying-research.md §4.12"
+      ]
+    },
+    {
+      "name": "Blue Mountains",
+      "aka": null,
+      "region": "NSW",
+      "country": "AU",
+      "rock": {
+        "family": "sandstone",
+        "formation": null,
+        "note": "Fragile, and more so after rain. The softness drives a glue-in bolting norm.",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport",
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": {
+        "value": "Local guidance is at least 24h, more for heavy rain",
+        "source": "rock-drying-research.md §4.8",
+        "confidence": "C"
+      },
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.8"
+      ]
+    },
+    {
+      "name": "Castle Hill",
+      "aka": [
+        "Kura Tāwhiti"
+      ],
+      "region": "Canterbury",
+      "country": "NZ",
+      "rock": {
+        "family": "limestone",
+        "formation": "Oligocene limestone",
+        "note": "VERY SOFT, weather-sculptured, and PRONE TO POLISHING QUICKLY. The polish mechanism at its most extreme — calcite at Mohs 3 under traffic.",
+        "source": "rock-drying-research.md §4.12",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "boulder"
+        ],
+        "source": "rock-drying-research.md §4.12",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.12"
+      ]
+    },
+    {
+      "name": "Pedra da Gávea and the Rio crags",
+      "aka": null,
+      "region": "Rio de Janeiro",
+      "country": "BR",
+      "rock": {
+        "family": "granite",
+        "formation": "Granite and gneiss ending in the ocean",
+        "note": "844 m, tropical savanna climate. Low-porosity rock.",
+        "source": "rock-drying-research.md §4.12",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad",
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.12",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "THE CONDITIONS RULE IS NOT ABOUT DRYING. Afternoon thunderstorms and heat make early starts essential to avoid thunderstorms and slick rock. The limiting variables are convective-storm TIMING and humidity — a TIME-OF-DAY answer, which a daily score cannot express.",
+        "source": "rock-drying-research.md §4.12",
+        "confidence": "C"
+      },
+      "sources": [
+        "rock-drying-research.md §4.12"
+      ]
+    },
+    {
+      "name": "Ogawayama",
+      "aka": null,
+      "region": "Nagano",
+      "country": "JP",
+      "rock": {
+        "family": "granite",
+        "formation": null,
+        "note": "Granite slabs at ~1,600 m.",
+        "source": "rock-drying-research.md §4.12",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": {
+        "value": "Season July to mid-October; cold from mid-October to May. AUTUMN IS MARKEDLY DRIER THAN SPRING. Altitude gates the season.",
+        "source": "rock-drying-research.md §4.12",
+        "confidence": "C"
+      },
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "boulder",
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.12",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.12"
+      ]
+    },
+    {
+      "name": "Tonsai and Railay",
+      "aka": null,
+      "region": "Krabi",
+      "country": "TH",
+      "rock": {
+        "family": "limestone",
+        "formation": "Tropical karst",
+        "note": "RAIN IS OFTEN NOT THE BINDING CONSTRAINT — CONDENSATION IS. Warm moisture-laden air meeting cooler rock puts water on a wall that has seen no rain for a week. A drying model driven only by precipitation will report these crags dry and be wrong.",
+        "source": "rock-drying-research.md §4.12, §4.2",
+        "confidence": "C"
+      },
+      "seepage_prone": {
+        "value": true,
+        "source": "rock-drying-research.md §4.12",
+        "confidence": "C"
+      },
+      "seepage_mechanism": {
+        "value": "face_flow",
+        "source": "rock-drying-research.md §4.16",
+        "confidence": "C"
+      },
+      "water_features": {
+        "value": "tufa streaks",
+        "source": "rock-drying-research.md §4.12",
+        "confidence": "C"
+      },
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": {
+        "value": "Peak season December-February when humidity is lowest; monsoon roughly June-September leaves routes SEEPING FOR DAYS",
+        "source": "rock-drying-research.md §4.12",
+        "confidence": "C"
+      },
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.12",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "IN LA NIÑA CONDITIONS CONDENSATION SEEPS OUT OF TUFA STREAKS EVEN WHEN IT IS NOT RAINING, and standard chalk turns to sludge in the humidity. That single sentence fuses three threads: condensation-as-liquid-water, tufa-as-fossil-seep, and hygroscopic chalk. Fourth independent report of humidity alone deciding conditions.",
+        "source": "rock-drying-research.md §4.12",
+        "confidence": "C"
+      },
+      "sources": [
+        "rock-drying-research.md §4.12"
+      ]
+    },
+    {
+      "name": "Yangshuo",
+      "aka": null,
+      "region": "Guangxi",
+      "country": "CN",
+      "rock": {
+        "family": "limestone",
+        "formation": "Karst limestone",
+        "note": "Heavily tufa'd. THE STRONGEST CONFIRMATION OF THE TUFA RULE IN THE RESEARCH, and it states the mechanism outright: 'Even caves get wet as the rain seeps into the mountain (THIS IS HOW MOST OF THE EPIC TUFA FORM), and it can get so intense it's like it's raining in the cave interior.' The tufas are named as the PRODUCT of the seepage, by climbers, without prompting.",
+        "source": "rock-drying-research.md §4.15",
+        "confidence": "C"
+      },
+      "seepage_prone": {
+        "value": true,
+        "source": "rock-drying-research.md §4.15",
+        "confidence": "C"
+      },
+      "seepage_mechanism": {
+        "value": "face_flow",
+        "source": "rock-drying-research.md §4.16",
+        "confidence": "C"
+      },
+      "water_features": {
+        "value": "extensive tufas",
+        "source": "rock-drying-research.md §4.15",
+        "confidence": "C"
+      },
+      "shelter": {
+        "value": "SHELTER FROM THE SKY IS NOT SHELTER FROM THE WATER HERE. It is the caves — the sheltered places — that rain inside, because the water is coming through the roof. The shelter rule inverts at a karst crag.",
+        "source": "rock-drying-research.md §4.15",
+        "confidence": "C"
+      },
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": {
+        "value": "September-December with November best; the April-September monsoon is out",
+        "source": "rock-drying-research.md §4.15",
+        "confidence": "C"
+      },
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.15",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "sources": [
+        "rock-drying-research.md §4.15"
+      ]
+    },
+    {
+      "name": "Geyikbayırı",
+      "aka": null,
+      "region": "Antalya",
+      "country": "TR",
+      "rock": {
+        "family": "limestone",
+        "formation": null,
+        "note": "Tufa-defined: 'the steeper routes tend to follow brilliant orange tufas of all sizes'.",
+        "source": "rock-drying-research.md §4.15",
+        "confidence": "C"
+      },
+      "seepage_prone": {
+        "value": true,
+        "source": "rock-drying-research.md §4.15",
+        "confidence": "C"
+      },
+      "seepage_mechanism": {
+        "value": "face_flow",
+        "source": "rock-drying-research.md §4.16",
+        "confidence": "C"
+      },
+      "water_features": {
+        "value": "brilliant orange tufas of all sizes",
+        "source": "rock-drying-research.md §4.15",
+        "confidence": "C"
+      },
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": {
+        "value": "'Seepage can be an issue here in the winter months AS SNOW MELTS ON THE MOUNTAIN ABOVE'",
+        "source": "rock-drying-research.md §4.15",
+        "confidence": "C"
+      },
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.15",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "A snowfield above the crag — the Céüse catchment pattern a third time",
+        "source": "rock-drying-research.md §4.15",
+        "confidence": "C"
+      },
+      "sources": [
+        "rock-drying-research.md §4.15"
+      ]
+    },
+    {
+      "name": "El Potrero Chico",
+      "aka": null,
+      "region": "Nuevo León",
+      "country": "MX",
+      "rock": {
+        "family": "limestone",
+        "formation": null,
+        "note": "Pockets and crimps, and 'some of this tufa climbing but it is not prevalent'. Semi-arid: 'rain is uncommon and when it does rain it's often brief'.",
+        "source": "rock-drying-research.md §4.15",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": {
+        "value": "Low tufa — present but not prevalent",
+        "source": "rock-drying-research.md §4.15",
+        "confidence": "C"
+      },
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport",
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.15",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "_tufa_rule_note": "A CONFOUNDED NEGATIVE, like Chulilla. Aridity independently produces both fewer tufas and less seepage, so this is not evidence for the rule. seepage_prone stays null, not false.",
+      "sources": [
+        "rock-drying-research.md §4.15"
+      ]
+    },
+    {
+      "name": "El Salto",
+      "aka": [
+        "La Boca wall"
+      ],
+      "region": "Nuevo León",
+      "country": "MX",
+      "rock": {
+        "family": "limestone",
+        "formation": null,
+        "note": "'One of the few climbing areas in northern Mexico where OVERHANGING LIMESTONE FULL OF TUFA can be found.'",
+        "source": "rock-drying-research.md §4.18",
+        "confidence": "C"
+      },
+      "seepage_prone": {
+        "value": true,
+        "source": "rock-drying-research.md §4.18",
+        "confidence": "C"
+      },
+      "seepage_mechanism": {
+        "value": "face_flow",
+        "source": "rock-drying-research.md §4.18",
+        "confidence": "C"
+      },
+      "water_features": {
+        "value": "tufa — so by the §4.14 rule water HAS run over that face",
+        "source": "rock-drying-research.md §4.18",
+        "confidence": "C"
+      },
+      "shelter": {
+        "value": "'Due to the wall inclination at La Boca wall, whenever there is a rainy day, WATER WILL NOT HIT THE WALL NOR WILL IT DRIP FROM THE HOLDS, unless it is really pouring.'",
+        "source": "rock-drying-research.md §4.18",
+        "confidence": "C"
+      },
+      "aspect": null,
+      "approach_hazard": {
+        "value": "'In wetter years most of the intermittent watercourses are still flowing, meaning that WADING WAS REQUIRED to access several of the crags.' For a meaningful minority of crags the thing rain closes is the APPROACH, not the rock.",
+        "source": "rock-drying-research.md §4.18",
+        "confidence": "C"
+      },
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": {
+        "value": "911 mm annual; September wettest at 266 mm, January driest at 25 mm; season late October to March. Named for a waterfall 'that you only see in raining season' — the tufa-forming water is seasonal and the season is deliberately climbed around.",
+        "source": "rock-drying-research.md §4.18",
+        "confidence": "C"
+      },
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "sport"
+        ],
+        "source": "rock-drying-research.md §4.18",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": null,
+      "_why_this_crag_matters": "DECOUPLES THE SHELTER RULE FROM THE TUFA RULE. Tufa says THIS FACE HAS HAD WATER ON IT; overhang says TODAY'S RAIN IS NOT THAT WATER. Both are true here and they are orthogonal. A model reading tufa as 'seepage-prone, suppress' would be wrong at La Boca for five months a year; a model reading overhang as 'always dry' would be wrong in September. THE ROCK-TYPE CONSTANT CANNOT RESOLVE EITHER — only a per-crag flag with a season on it can.",
+      "sources": [
+        "rock-drying-research.md §4.18"
+      ]
+    },
+    {
+      "name": "Bohuslän",
+      "aka": null,
+      "region": "Västra Götaland",
+      "country": "SE",
+      "rock": {
+        "family": "granite",
+        "formation": null,
+        "note": "The 'a bit greasy' case: a wall whose bulk is bone dry can still be greasy on a humid morning, because the SURFACE equilibrates with the air almost immediately. That is a FRICTION failure on rock that is genuinely dry — which is why a single drying output cannot serve.",
+        "source": "rock-drying-research.md §4.17, §2.8",
+        "confidence": "C"
+      },
+      "seepage_prone": null,
+      "seepage_mechanism": null,
+      "water_features": null,
+      "shelter": null,
+      "aspect": null,
+      "approach_hazard": null,
+      "closure": {
+        "months": null,
+        "reason": null,
+        "source": null
+      },
+      "season_gate": null,
+      "access_rules": null,
+      "disciplines": {
+        "value": [
+          "trad"
+        ],
+        "source": "rock-drying-research.md §4.17",
+        "confidence": "C"
+      },
+      "dries_fast_relative_to": null,
+      "unmodelled_input": {
+        "value": "Atmospheric humidity acting on the surface alone — sorption, not wetting",
+        "source": "rock-drying-research.md §2.8",
+        "confidence": "M"
+      },
+      "sources": [
+        "rock-drying-research.md §4.17",
+        "rock-drying-research.md §2.8"
+      ]
+    }
+  ]
+}
