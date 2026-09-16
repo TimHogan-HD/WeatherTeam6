@@ -3152,7 +3152,7 @@ separates "warm" from "too hot" on a real screen. No credential, no dashboard se
 
 ---
 
-## 2026-09-16 — branch: claude/research-phase-{0,1,2,4,5} — commit: `bcc7e5a`
+## 2026-09-16 — branch: claude/research-phase-{0,1,2,4,5} + claude/session-end-research — commit: `a8c4f69`
 
 **Phase completed:** Climbing & Rock Research Brief v1 — Phases 0, 1, 2, 4 and 5. Phase 3 not
 started (blocked on the owner).
