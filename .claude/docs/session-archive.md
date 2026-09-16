@@ -3278,3 +3278,89 @@ quota reset within the hour; the `/code-review` skill run against the merged com
 something the data did not support. Fixed in `6b41709` (PR #112). A merged commit is not
 past reviewing.
 
+
+
+---
+
+## 2026-09-16 — branch: claude/session-end-research — commit: PENDING
+
+**Phase completed:** Research brief — closed. Phase 3 scrapped by the owner; the forum half
+done instead. Synthesis delivered.
+
+**What was built this session:**
+- `.claude/docs/climbing-terminology-research.md` §21 — the community pass on aspect, sun and
+  wall angle, from UKClimbing, Mountain Project and two shipped competitors. The citation audit
+  that prompted it: the rock doc carried 39 Mountain Project and 37 UKC citations, this one had
+  one and three.
+- `.claude/docs/rock-drying-research.md` §14 — the same source material for rock: three wetting
+  mechanisms, seepage's two time constants, runoff, and the condensation rule.
+- `.claude/docs/scoring-findings.md` — **new, and the point of the whole exercise.** ~4,900
+  lines of research reduced to what touches the app, ranked by what a user would see. Wired
+  into `CLAUDE.md` as the thing to read before changing scoring code.
+- `packages/types/src/index.ts` — warning comment on `ScoreInput.aspectDegrees`. No behaviour
+  change.
+- Issues #137–#140 filed; #108 and #21 gained the designs the research found.
+- `docs/handoffs/climbing-research-brief-v1.md` — Phase 3 marked scrapped, with a record of
+  which of its five questions got answered anyway.
+- `STATE.md` rewritten: 3,769 → 2,583 words.
+
+**The findings that matter, in order:**
+1. **A crag can get wetter on a dry day.** `dryingModel` is monotonic. Seepage is fed by weeks
+   of catchment saturation and has two independent time constants; runoff has no representation
+   anywhere in the project. Structural — the short-term answer is to withhold, not model. (#138)
+2. **The drying ramp is least accurate at its end** — the day after rain. §2.4 had the
+   saturation curve backwards: the weakening happens at *low* moisture contents. Live in
+   production. (#137)
+3. **Issue #21 is not a mis-tuned band — it is what a weighted sum does.** A geometric mean
+   fixes the class rather than one threshold.
+4. **`aspectDegrees` is dead** — sun direction scores zero points — and the solar radiation the
+   app fetches every request is dropped unread, its only column on a table nothing writes. (#139)
+5. **The humidity curve averages over the variable that decides the answer** — condensation
+   turns on rock temperature (a multi-day lag) against dew point, and `dewpoint_c` is stored and
+   never read. (#140)
+
+**Corrections made to this repo's own prior claims:**
+- Rock §5.1 and §9 said solar radiation was "already fetched and stored". Fetched yes, stored
+  no — `forecast_snapshots` has not been written since the snapshot job was deleted. Corrected
+  in place. **Found while fact-checking my own new section before committing**, which is the
+  argument for reading the diff.
+- An earlier message in this session claimed ScienceDirect, Wiley and OUP were subscription-
+  gated. Wrong — all cleared Cloudflare after 8–10 seconds and served full text. Only Slavík's
+  ESP article is a genuine paywall.
+
+**Known issues / deferred work:**
+- `STATE.md` is 2,583 words against a ~1,500 budget. Cut more than it added for the first time
+  in several sessions, but still over.
+- Mutation score last measured 2026-08-26 (66.09%); four sessions of code have landed since.
+- The condensation rule (#140) is **[C]** — one climber, stated as a belief. Falsifiable and
+  consistent with a measured study, but **test it before it becomes a constant.**
+- The concave drying ramp (#137) has an established *shape* and no established *exponent*.
+  Whoever builds it must record the exponent as a judgement call, not as derived.
+
+**Blockers for next session:**
+- None technical. **Four product decisions** (`scoring-findings.md` §5) gate how much of the
+  above is worth building — chiefly whether the score stays 0–100.
+
+**What's next:** Issue #108 is the unblocked build, and it now has a shipped competitor's
+design on it — `git checkout -b fix/108-rain-window` off `main`, read `scoring-findings.md`
+§1.3 and `climbing-terminology-research.md` §21.7 first. #137 is smaller and is live in
+production.
+
+**Gotchas for next session:**
+- **Backticks inside a bash heredoc are command substitution.** A documentation paragraph
+  containing a filename in backticks silently lost it this session. Use the Write tool for prose
+  containing code spans. Added to § Live gotchas.
+- **A 403 is usually a Cloudflare challenge, not a paywall** — wait 8–10 seconds before
+  concluding a host is gated. The previous session's "these four hosts are blocked" was wrong
+  about all four.
+- **Do not add a sun or aspect component that scores `aspectDegrees` directly.** No constant
+  works: the same aspect flips sign between seasons. Both shipped competitors feed sun into a
+  "feels like" temperature instead.
+- `scoring-findings.md` is now the entry point for scoring work. If a finding in it turns out to
+  be wrong, fix it there *and* in the research doc it links — that pair is a new drift risk this
+  session created.
+
+**Does the user need to do anything?** **Yes — but only the decisions, not a task.** Four
+product questions in `scoring-findings.md` §5, each answerable in a sentence, chiefly whether
+the score stays 0–100 or becomes 0–5 with written meanings per level. The phone check from
+previous sessions is still outstanding and unchanged.
