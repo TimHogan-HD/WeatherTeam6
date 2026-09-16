@@ -182,3 +182,9 @@ apps/mobile/ios/
 # extracted claim, its quote and its citation, in .claude/docs/. See the README.
 .claude/research-inbox/*
 !.claude/research-inbox/README.md
+
+# Playwright research browser profile. The path in .mcp.json points OUTSIDE the repo
+# deliberately — this profile holds live session cookies for sites the owner is logged
+# into, which are credentials. This rule is a backstop in case one is ever created here.
+.claude-research-browser/
+**/.claude-research-browser/

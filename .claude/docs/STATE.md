@@ -322,11 +322,20 @@ them and no tool here ever will.*
 with what it settles. Save them there (Ctrl+P → Save as PDF works; PDF text extraction is
 proven) and a session reads them as files.
 
-**Playwright MCP does not solve this and was checked** — it is not installed, and its default
-browser has a fresh profile with no cookies, so the paywalled pages stay paywalled. Attaching
-it to a running browser over CDP would work; for a handful of pages, saving them is faster.
+**Playwright MCP is now configured for exactly this** — `.mcp.json` at the repo root, a
+persistent profile at `C:\Users\Tim\.claude-research-browser`. **It needs a one-time setup the
+owner must do: `npx playwright install chromium`, restart Claude Code, approve the server, and
+log in once to UKC and Outside in the browser window that opens.** After that a session can
+read those hosts unattended and the inbox becomes a fallback rather than the only route.
+
+**Be honest about what it fixes.** A real browser defeats a **bot wall**; it does not defeat a
+**paywall**. It should get climbing.com and ukclimbing.com (login walls, if the owner has
+accounts) and probably the AMS and AAPG 403s. ScienceDirect, Wiley and OUP will land on an
+abstract-or-subscription page unless the owner has institutional access — which is the same
+place the abstract already gets us for some of them.
+
 **Claude for Chrome cannot be reached from Claude Code at all** — separate product, no channel
-between them.
+between them. Checked.
 
 ### The phone one
 
