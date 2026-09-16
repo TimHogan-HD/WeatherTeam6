@@ -2074,10 +2074,20 @@ output is a withheld estimate, not the most conservative number wearing a confid
 
 ## 8. What I could not establish
 
-- **No measured drying-rate data for any actual crag exists in anything I found.** All
+- ~~**No measured drying-rate data for any actual crag exists in anything I found.**~~ All
   crag-level drying times in §4 are community convention. The lab literature measures
   strength loss and porosity, not "hours until a cliff is climbable". The gap between the
   two is currently bridged by folklore, including in our own model.
+
+  > **Answered 2026-09-16 — see §12.1. It exists, in stone-weathering science.** Evaporation
+  > from bare sandstone has been measured in the field, in a **humid continental** climate,
+  > over a year — rates spanning **four orders of magnitude (0.4–2447 mm/year)**. The dominant
+  > control is the **vaporization plane depth**, the few mm to cm below the surface where pore
+  > water actually evaporates, which moves the rate by up to **2.2 orders of magnitude** and in
+  > front of which *"climate being less important"*. `dryingModel` has no concept of it, cannot
+  > obtain it for a real crag, and spends its whole modifier budget on the variables that paper
+  > ranks second. The sentence above is the one to keep — the folklore bridge is still there —
+  > but "no data exists" was wrong.
 - **The 41% (Millstone Grit) and 75% ("western sandstone") figures are climbing-media
   numbers** whose primary sources I could not reach. Treat as indicative. ~~The peer-reviewed
   0–55%-with-outliers-above-90% range is the defensible one.~~
@@ -2108,9 +2118,23 @@ output is a withheld estimate, not the most conservative number wearing a confid
   equilibrates near-instantly, and hysteresis makes it path-dependent. What remains open is
   narrower: no measurement of *how long* a dry wall stays greasy after a humid night, which is
   the number a user would actually want.
+
+  > **Still open 2026-09-16, but reframed — see §12.2.** §12.1's vaporization-plane result
+  > suggests the answer is **not a duration at all**: greasiness is a property of the dry
+  > surface layer, which §2.8 already established equilibrates with the air near-instantly. So
+  > "how long until it stops being greasy" is really "when does the air change" — a forecast
+  > question, not a rock one. If that is right **[I]**, the missing piece is the *threshold*,
+  > which the terminology doc's §18.4 records as entirely unsourced. Two gaps that turn out to
+  > be one.
 - **Vertical variation within a cliff** (the Nuttall result) is real and I have no way to
   model it — the app has one rock type per location and a route-level property would be a
   much larger change.
+
+  > **Reinforced 2026-09-16 — see §12.3.** The wind-driven-rain literature lists *"position on
+  > the building facade"* among the six parameters determining catch ratio, so **wetting**
+  > varies over a wall's own height even where the rock does not. Nuttall said the drying class
+  > changes with height because the rock changes; building physics says the wetting changes
+  > with height regardless. Two independent reasons one row per location cannot express it.
 - **Nothing in this document was verified against live weather data, and that was tested,
   not assumed.** A direct probe of `archive-api.open-meteo.com` from this environment was
   refused at the gateway (`connect_rejected`, 403 to CONNECT — a policy denial, not a network
@@ -2741,6 +2765,131 @@ the evidence and it should look uncomfortable.
   rule, Siurana is its only clean between-crag negative, El Salto decouples shelter from
   tufa, and Looking Glass generalises the whole rule. Losing which crag was load-bearing for
   which conclusion would have made the file a list instead of an argument.
+
+---
+
+## 12. Closing the §8 gaps — 2026-09-16
+
+Phase 4 of `docs/handoffs/climbing-research-brief-v1.md`. §8 listed what this document could
+not establish. One is now decisively answered, one is half-answered, one is reinforced from an
+unexpected direction, and one stays blocked.
+
+**The pattern repeats §18 of the terminology doc: the answer was in a literature nobody here
+had looked at.** For drying rates that literature is **stone conservation and rock
+weathering**, and it has been measuring exactly this, in the field, for years.
+
+### 12.1 Measured drying-rate data — IT EXISTS, and it names a control the model does not have
+
+§8: *"No measured drying-rate data for any actual crag exists in anything I found… The lab
+literature measures strength loss and porosity, not 'hours until a cliff is climbable'."*
+
+**The first half is wrong.** Field measurement of evaporation from bare sandstone is an active
+subfield:
+
+> *"A new method that measures evaporation rate from sandstone surfaces under field
+> microclimate was developed and tested, with measurements performed on sandstone cores in a
+> **humid continental climate** at roughly monthly intervals for about 1 year."*
+>
+> *"the measured evaporation rate varied over **four orders of magnitude (0.4–2447 mm/year)**,
+> being dependent on the **vaporization plane depth**, lithology, and climate seasonality."*
+>
+> — Slavík et al., *Measurements and calculations of seasonal evaporation rate from bare
+> sandstone surfaces: Implications for rock weathering*, Earth Surface Processes and Landforms
+> (2020), [doi:10.1002/esp.4943](https://onlinelibrary.wiley.com/doi/abs/10.1002/esp.4943)
+> **[M]**
+
+Note the climate: **humid continental** is the Köppen class of the Upper Midwest. This is not
+a desert study.
+
+**And the control it identifies is one `dryingModel` has no concept of.**
+
+> *"In coarser porous materials like natural sandstone bodies, evaporation of pore water often
+> occurs **several mm to cm below the actual surface**, at the so-called **vaporization
+> plane**."*
+>
+> *"The evaporation rate was mostly influenced by the **vaporization plane depth (by up to 2.2
+> orders of magnitude)**"*, with *"climate being less important."* **[M]**
+
+The conceptual model is a **dry surface layer**, a **capillary zone** deeper in, and a
+**vaporization plane** between them where liquid becomes vapour.
+
+**Three consequences, and the third is the uncomfortable one.**
+
+**1. It explains why "hours since rain" is a weak proxy and always will be.** The rate water
+leaves a wall is set by how deep inside the rock it is evaporating from. Two sandstones under
+identical weather, with vaporization planes at different depths, dry at rates separated by up
+to **2.2 orders of magnitude**. No function of elapsed time and surface weather can span that.
+
+**2. It is the physical mechanism behind §2.8's greasiness finding, and behind §4.1's spread.**
+A dry surface layer over a wet capillary zone is exactly a wall that feels dry, climbs dry, and
+is still wet — and the surface layer re-equilibrates with the air almost instantly (§2.8) while
+what is behind it does not.
+
+**3. It says climate matters *less* than the rock's internal state** — which is the opposite of
+how the score is built. `conditionsScore` spends its drying component on elapsed time and
+modifies it with wind, humidity and temperature. This paper puts all of that in the "less
+important" bucket, behind a property of the rock that cannot be measured remotely and is not in
+any database.
+
+**That is not an argument for changing anything.** `scoring-algorithm.md` is locked, the
+vaporization plane depth is unobtainable for a real crag, and a model that cannot see the
+dominant variable is still better than no model. It **is** an argument for how the output
+should be worded: the honest claim is "this much time has passed under these conditions", not
+"the rock is dry".
+
+**Read at second hand.** Wiley and ScienceDirect both answer 403 here, so every quote above
+comes from search summaries that quote the papers, not from the papers. The
+[research inbox](../research-inbox/README.md) exists for exactly this. Two more worth pulling
+when someone can: *Evaporation rate from surfaces of various granular rocks* (2022) and
+**Quantitative study of a rapidly weathering overhang developed in an artificially wetted
+sandstone cliff** — the second is a wetted cliff with an overhang, which is this project's
+subject almost exactly.
+
+### 12.2 How long a dry wall stays greasy after a humid night — STILL OPEN, better framed
+
+§8: *"no measurement of how long a dry wall stays greasy after a humid night, which is the
+number a user would actually want."*
+
+**Still not found, and §12.1 explains why it is harder than it looks.** The greasiness is a
+property of the **dry surface layer** — micrometres to millimetres — which §2.8 established
+equilibrates with the air *"spontaneously on even small humidity changes"*. So the answer is
+probably not a duration at all: the surface tracks the air continuously, and "how long until it
+stops being greasy" is really "when does the air change", which is a forecast question rather
+than a rock question.
+
+If that reframing is right — and it is **[I]**, nobody states it — then the app already has the
+input and the missing piece is the *threshold*, which §18.4 of the terminology doc records as
+entirely unsourced. Two open gaps that turn out to be the same gap.
+
+### 12.3 Vertical variation within a cliff — REINFORCED, from building physics
+
+§8: *"Vertical variation within a cliff (the Nuttall result) is real and I have no way to model
+it."*
+
+Still true, and it now has independent support. The wind-driven-rain literature lists
+**"position on the building facade"** among the six parameters that determine catch ratio
+(terminology §18.1) — so how wet a wall gets varies over the wall's own height and width,
+before any consideration of what the rock is. The Nuttall result said the drying *class*
+changes with height because the rock changes; WDR says the *wetting* changes with height even
+when the rock does not.
+
+Both point the same way and neither is modellable with one row per location. Recorded, not
+acted on.
+
+### 12.4 The Millstone Grit 41% and "western sandstone" 75% figures
+
+**Half closed in §10.2, and the other half is still behind a login wall.**
+
+- **75% — sourced.** The Access Fund says it in its own words: *"western sandstone from Utah to
+  California can lose up to 75% of its strength while wet."* Read at first hand. It cites
+  nobody, so it stays **[C]** — an advocacy organisation's round number, not a measurement.
+- **41% (Millstone Grit) — still unreached.** The only route to it is climbing.com, which sits
+  behind an Outside Online login wall that refuses every tool available here. Inbox candidate,
+  and the single most specific unverified number left in this document.
+
+**A third figure joined them in §10.2 and is in worse shape than either**: the 0–55%-with-
+outliers-above-90% range, which §8 used to call *"the defensible one"*, is not in the paper it
+was attributed to and is now marked **[X]**.
 
 ---
 

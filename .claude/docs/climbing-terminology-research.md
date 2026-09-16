@@ -578,7 +578,13 @@ draw on them rather than invent a scale.
 
 ## 16. What I still could not establish
 
-- **No source quantifies overhang versus wetting** (carried from §7, still open).
+- ~~**No source quantifies overhang versus wetting** (carried from §7, still open).~~
+  **CLOSED 2026-09-16 — see §18.1.** It is quantified, in a literature this project had not
+  looked at: **wind-driven rain** in building physics, where the quantity is the **catch
+  ratio**. Wind speed governs it and rainfall intensity barely does; smaller drops defeat an
+  overhang more easily than large ones; and the wetting threshold works out as
+  `U_crit = v·tan α`, a continuous function of wind speed across exactly the half of the
+  angle range `cliff_angle` cannot store.
 - **No agreed numeric threshold for "good conditions" at all.** ~~beyond the dew-point 60 °F
   rule.~~ Everything else is personal calibration, and several sources say so explicitly.
   **Updated 2026-09-16 (§17.2): the 60 °F rule is not an exception** — it is not in either
@@ -592,6 +598,15 @@ draw on them rather than invent a scale.
   exactly that. The claims it was cited *against* — the 0–5 °C rubber peak and the 0–10 °C
   bouldering band — come from sources nobody here can open. The caveat is now better sourced
   than the position it qualifies.
+
+  > **CLOSED 2026-09-16 — see §18.2, and the answer is neither.** The measurement exists:
+  > *"Amca et al. were the only team to investigate the effect of temperature and humidity,
+  > but found no significant correlation with friction coefficient"*, and water on the contact
+  > *"has been shown to have no significant effect on friction or to increase friction"*
+  > (Clarke et al. 2024, peer-reviewed and open access). **There is no measured basis for
+  > reweighting the temperature or humidity components in either direction.** The large caveat
+  > is that the tested span — 23.5–27 °C, 34–47% RH — excludes the entire range climbers argue
+  > about, so the finding is "not detectable where nobody cares", not "does not exist".
 - **Nothing on how bouldering landings dry**, which is a separate surface from the wall and
   the thing that actually closes a boulder after rain.
 - **No data on closure schedules in machine-readable form.** Every source found is a land
@@ -729,3 +744,184 @@ evidence now available:
 
 The three blocked hosts — ukclimbing.com, climbing.com, sciencedirect.com — are why
 `.claude/research-inbox/` exists.
+
+---
+
+## 18. Closing the §16 gaps — 2026-09-16
+
+Phase 4 of `docs/handoffs/climbing-research-brief-v1.md`. §16 listed five things this
+document could not establish. Two are now closed with sourced evidence, one is partly closed
+(§16 carries that one), and two stay open — restated with what was searched and why it failed.
+
+**The headline: both of §16's biggest gaps had answers in a literature this project had not
+looked at.** Neither is a climbing literature. The overhang question is **building physics**,
+where it has a name and forty years of work behind it. The friction question is **tribology**,
+where it has been measured — and the measurement disagrees with both sides of the community
+debate.
+
+### 18.1 Overhang versus wetting — CLOSED, and it has a name
+
+§16 called this *"the biggest single unknown, and it gates whether angle can ever be a real
+model input"*, with all current evidence categorical. It is not categorical in building
+science. The quantity is the **catch ratio** — *"the ratio of the driving rain to the
+horizontal rainfall"* — and the field is **wind-driven rain (WDR)**
+([Blocken & Carmeliet, *A Simplified Approach for Quantifying Driving Rain on Buildings*, ASHRAE 2004](https://web.ornl.gov/sci/buildings/conf-archive/2004%20B9%20papers/008_Blocken.pdf)) **[M]**.
+
+Three results, each read at source, and each changes something here.
+
+**1. Rain on a sheltered wall is driven by wind speed, not by how hard it is raining.** The
+semi-empirical relationship is *"driving rain intensity = coefficient × wind speed ×
+horizontal rainfall intensity"*, and under an overhang the wind term dominates:
+
+> *"**Wind speed is found to have a large influence on the protection that the overhang
+> provides, while the intensity of rainfall does not have a significant effect.**"*
+> — [Foroushani, Ge & Naylor, *Effects of Overhangs on the Wind-Driven Rain Wetting of a
+> Low-Rise Building*, ASHRAE/ORNL 2013](https://web.ornl.gov/sci/buildings/conf-archive/2013%20B12%20papers/170-Foroushani.pdf) **[M]**
+
+`dryingModel` keys off precipitation amount. For a sheltered wall that is the wrong variable,
+and the right one — wind speed — is already fetched and already stored.
+
+**2. Small drops defeat an overhang; large ones do not.**
+
+> *"the overhang has been reported to be **less effective in sheltering the facade as the
+> raindrop diameter decreases**"*, and *"for fixed wind speed and raindrop diameter the
+> shelter effect of the overhang increases as the overhang width increases"*
+> — Blocken & Carmeliet 2002, quoted in Foroushani et al. **[M]**
+
+So **drizzle reaches under a roof that a downpour does not.** Counterintuitive, and it is the
+mechanism behind every "it was only spitting and everything was soaked" report.
+
+**3. Catch ratio has six inputs and rock type is not among them.** *"Building geometry
+(including environment topology), position on the building facade, reference wind speed,
+reference wind direction, horizontal rainfall intensity, raindrop-size distribution"*
+(Blocken & Carmeliet 2004) **[M]**. Note **position on the facade**: how wet a wall gets varies
+across the wall itself — §4.1's Nuttall result arriving from building physics.
+
+**The geometry, worked through** — **[I]**, and the marker matters
+
+A drop falling at terminal velocity `v` with horizontal wind `U` toward the wall travels on a
+path inclined `atan(U/v)` from vertical. A face overhanging by `α` past vertical has outward
+normal `(cos α, −sin α)`; the drop's velocity is `(−U, −v)`; it strikes the face only when
+those point into one another:
+
+```
+−U·cos α + v·sin α < 0   ⟺   tan α < U / v   ⟺   U > v·tan α
+```
+
+So **`U_crit = v · tan α`** is the horizontal wind needed for a drop of that size to reach the
+face at all. Below it, that drop size never lands on it.
+
+The terminal velocities used below run **2.1 m/s at 0.5 mm to 8.8 m/s at 4 mm**. That range
+comes from a **search summary, not a paper read at source** — so **[C]**, not [M], and the
+table inherits its confidence from it. One point in it *is* first-hand:
+[ASR/Copernicus](https://asr.copernicus.org/articles/18/33/2021/) was opened and gives ~8 m/s
+for a 3 mm drop, which the range predicts. Gunn & Kinzer (1949) is the primary source everyone
+cites and nobody here has opened it; it is an inbox candidate, and if the range is wrong every
+number in the table scales with it.
+
+Critical wind speed, in **mph**:
+
+| Past vertical | drizzle ~0.5 mm | light ~1 mm | moderate ~2 mm | heavy ~4 mm |
+| --- | --- | --- | --- | --- |
+| 5° | 0.4 | 0.8 | 1.3 | 1.7 |
+| 10° | 0.8 | 1.6 | 2.6 | 3.5 |
+| 15° | 1.3 | 2.4 | 3.9 | 5.3 |
+| 20° | 1.7 | 3.3 | 5.3 | 7.2 |
+| 30° | 2.7 | 5.2 | 8.4 | 11.4 |
+| 45° | 4.7 | 8.9 | 14.5 | 19.7 |
+| 60° | 8.1 | 15.5 | 25.2 | 34.1 |
+
+Read it as: **a 10° overhang is defeated by a breeze nobody would notice; a 30° overhang is dry
+in still air and wet in a normal wind; only past about 45° does a wall stay dry in weather
+anyone would call windy.** The heavy-to-drizzle ratio is 4.2× at every angle, because it is
+just the ratio of the terminal velocities.
+
+**This derivation is mine and it covers direct impingement only.** It says nothing about the
+three mechanisms that actually wet sheltered crags: **drip from the lip**, **splash-back from
+the ground**, and **seepage through the rock**. El Salto's own account separates them —
+*"water will not hit the wall **nor will it drip from the holds**, unless it is really
+pouring"* (rock research §4.18) — and the "really pouring" case is drip and volume, not
+impingement, which is why it does not contradict the table.
+
+**What it means for `cliff_angle`.** §1.3's finding stands and sharpens: the sign error is
+worse than a sign error, because the half of the range the schema cannot express is the half
+where the physics lives. From 0° to 45° past vertical, wetting is a **continuous function of
+wind speed**, not a category — and the app stores no value for any of it.
+
+### 18.2 Temperature versus humidity for skin friction — CLOSED, and the answer is neither
+
+§16 recorded this as contested: one source saying humidity dominates, against a community that
+treats temperature as decisive. §17.3 then found the community-side citations did not hold.
+
+**The measurement exists, and it says neither variable matters.**
+
+> *"Amca et al. were the only team to investigate the effect of temperature and humidity, but
+> found **no significant correlation with friction coefficient**."*
+>
+> *"Conflicting conclusions for the effect of water or moisture on finger pad–rock friction
+> have also been made. **Water has been shown to have no significant effect on friction or to
+> increase friction. Both are contrary to the believed mechanism for the effectiveness of
+> chalk.**"*
+>
+> — [Clarke et al., *The effectiveness of chalk as a friction modifier for finger pad contact
+> with rocks of varying roughness*, Proc IMechE Part P, 2024](https://eprints.whiterose.ac.uk/id/eprint/214893/) **[M]**
+
+On chalk itself: *"A generalisation of chalk increasing or decreasing friction **cannot be
+made**… it is shown to be **situational**"*, and *"in some situations, the presence of chalk
+improved the CoF and in some it worsened it."* What does correlate is texture — *"the roughness
+of the rock generally correlates with the level of CoF"* **[M]** — which is §3.1's
+porosity-and-friction argument arriving by a different route.
+
+**Three caveats, and the second is large enough that "closed" overstates it.**
+
+- It is **one paper's secondhand report** of Amca et al. The primary was not opened.
+- **The tested range is narrow, warm and dry.** Clarke et al. held conditions near-constant on
+  purpose: *"measurements of temperature varied from 23.5 °C to 27 °C and room humidity varied
+  from 34.2% to 47.4%"*. No result over 3.5 °C and 13 points of RH can speak to a 0 °C morning
+  or a 90% one — **which is the entire range climbers argue about**. "No significant effect"
+  here means "not detectable across a span nobody cares about".
+- One participant.
+
+**So the honest resolution is not "humidity wins" or "temperature wins" — it is that the
+finger-rock contact may not be where the effect lives.** Every direct measurement of the
+contact finds nothing. The community observes something real and consistent, in four
+independent reports in this research (§4.10 Cathedral/Whitehorse, §4.11 Frankenjura's August,
+§4.12 Tonsai, §5.1 chalk). Those are compatible if the mechanism is **sweat rate**, **chalk
+behaviour**, or **water on the rock** — all upstream of the contact, and none of them
+reproduced by a static friction rig.
+
+**What this changes here: nothing, and that is the finding.** §9 and §10 each proposed
+reweighting the temperature and humidity components. **There is no measured basis for either
+reweighting, in either direction.** The defensible move on this evidence is to leave the
+weights alone and stop citing friction physics for them.
+
+### 18.3 Bouldering landings — STILL OPEN, and now precisely so
+
+§16: *"Nothing on how bouldering landings dry, which is a separate surface from the wall and
+the thing that actually closes a boulder after rain."*
+
+**Searched, found nothing, and the shape of the nothing is informative.** Every result for
+landings, crash pads and rain is about **crash-pad care** — drying a pad to prevent mould, not
+drying the ground under it. No source found treats the landing as a condition of the boulder.
+
+That is not the same as the data not existing. Soil drying is a large agricultural and
+geotechnical literature; the reason none of it surfaced is that **nobody has connected it to
+climbing**, so the two share no vocabulary. A future pass should search the soil side —
+infiltration, field capacity, bare-soil evaporation — and accept that it will have to do the
+bridging itself.
+
+Worth recording that the app already had a proxy and lost it: rock research §8.1 proposed a
+ground-dampness signal and §8.2 recorded that it *"does not survive being turned into an API
+call"*. That is still the closest thing to an answer.
+
+### 18.4 A numeric threshold for "good conditions" — STILL OPEN, and §17 widened it
+
+§16 recorded no agreed numeric threshold *"beyond the dew-point 60 °F rule"*. §17.2 removed the
+exception: that rule is in neither reachable source. So the gap is now total — **there is no
+sourced numeric threshold for good conditions anywhere in this research.**
+
+What §17.2 offers instead is a better-shaped variable rather than a number: **dew-point
+spread**, the gap between dew point and air temperature, which is what the one source that
+discusses dew point seriously actually describes, and which needs no threshold constant at all.
+It is derivable from two columns already stored. **No spread value is sourced either** — but a
+variable with no calibration is a better starting point than a calibration with no source.
