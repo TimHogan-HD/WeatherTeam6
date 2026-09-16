@@ -176,3 +176,9 @@ apps/mobile/ios/
 # Personal Claude Code overrides. Not committed: this is the file an `env` block
 # of DATABASE_URL / CRON_SECRET would live in, and `git add -A` is routine here.
 .claude/settings.local.json
+
+# Research inbox: raw third-party source material (transcripts, saved articles, PDFs)
+# that is read locally rather than fetched. Never committed — what gets committed is the
+# extracted claim, its quote and its citation, in .claude/docs/. See the README.
+.claude/research-inbox/*
+!.claude/research-inbox/README.md
