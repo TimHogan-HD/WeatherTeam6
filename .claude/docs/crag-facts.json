@@ -2120,8 +2120,8 @@
       "approach_hazard": null,
       "closure": {
         "months": "June",
-        "reason": "Voluntary climbing closure for Native American cultural observance",
-        "source": "rock-drying-research.md §13 (terminology doc) — NOT independently verified here"
+        "reason": "VOLUNTARY, and cultural rather than ecological: 'Throughout June, the park asks visitors to voluntarily refrain from climbing on the Tower' because 'June is a culturally significant time when many (but not all) Indian ceremonies occur.' Tribes regard the Tower as sacred and have expressed concerns that recreational climbing is perceived as desecration of a sacred site.",
+        "source": "nps.gov/deto/planyourvisit/climbing.htm — read at source 2026-09-16"
       },
       "season_gate": null,
       "access_rules": null,
@@ -2135,7 +2135,8 @@
       "dries_fast_relative_to": null,
       "unmodelled_input": null,
       "sources": [
-        "rock-drying-research.md §4.4"
+        "rock-drying-research.md §4.4",
+        "nps.gov/deto/planyourvisit/climbing.htm — read at source 2026-09-16"
       ]
     },
     {
@@ -2890,9 +2891,9 @@
       "aspect": null,
       "approach_hazard": null,
       "closure": {
-        "months": null,
-        "reason": "Raptor closures are typical at this park but were not verified in this pass",
-        "source": null
+        "months": "January to July",
+        "reason": "'Seasonal closures (January to July) are in place to protect nesting raptors.' The NPS advisory names neither the formations nor the species — climbers are told to verify current closures at the Visitors Center or the climbing information boards.",
+        "source": "nps.gov/pinn/planyourvisit/climbadv.htm — read at source 2026-09-16"
       },
       "season_gate": null,
       "access_rules": null,
@@ -2911,7 +2912,8 @@
         "confidence": "C"
       },
       "sources": [
-        "rock-drying-research.md §4.10"
+        "rock-drying-research.md §4.10",
+        "nps.gov/pinn/planyourvisit/climbadv.htm — read at source 2026-09-16"
       ]
     },
     {
@@ -3324,9 +3326,9 @@
       "aspect": null,
       "approach_hazard": null,
       "closure": {
-        "months": null,
-        "reason": "Peregrine falcon closures are typical in the Adirondacks but were not verified in this pass",
-        "source": null
+        "months": "Spring, dates set annually",
+        "reason": "Peregrine falcon nesting. NYSDEC closes whole or large portions of cliffs at the start of the season so the birds can choose a nest site undisturbed, then reopens per route. THE CLOSURE IS ROUTE-LEVEL, NOT CRAG-LEVEL: in a typical year all Main Face routes are closed with a named handful excepted, while the rest of the mountain stays open — roughly 25 of 300+ routes left open. Enforced with citations and fines.",
+        "source": "NYSDEC Adirondack Route Closures (dec.ny.gov/things-to-do/rock-and-ice-climbing/adirondack-route-closures) — via search summary 2026-09-16, page not opened"
       },
       "season_gate": null,
       "access_rules": null,
@@ -3340,7 +3342,8 @@
       "dries_fast_relative_to": null,
       "unmodelled_input": null,
       "sources": [
-        "rock-drying-research.md §4.8"
+        "rock-drying-research.md §4.8",
+        "NYSDEC Adirondack Route Closures (dec.ny.gov/things-to-do/rock-and-ice-climbing/adirondack-route-closures) — via search summary 2026-09-16, page not opened"
       ]
     },
     {

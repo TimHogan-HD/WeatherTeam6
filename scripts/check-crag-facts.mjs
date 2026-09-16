@@ -141,8 +141,12 @@ for (const [i, crag] of doc.crags.entries()) {
     for (const key of ['months', 'reason', 'source']) {
       if (!(key in crag.closure)) fail(where, `closure is missing \`${key}\``)
     }
-    if (crag.closure.months !== null && !crag.closure.source) {
-      warnings.push(`${where}: closure.months is set but closure.source is null`)
+    // A `reason` is a claim about the world, so it needs a source exactly as a fact
+    // field does. This was a warning on `months` alone and it missed three entries
+    // whose reason was asserted from nowhere — one of them citing a section of a
+    // document that says nothing about that crag.
+    if ((crag.closure.months !== null || crag.closure.reason !== null) && !crag.closure.source) {
+      fail(where, 'closure has a months or a reason but no source — a closure nobody can check is a claim, not a fact')
     }
   }
 
