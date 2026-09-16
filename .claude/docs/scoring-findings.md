@@ -107,6 +107,12 @@ says so there.
 
 ### 1.3 Every future day is scored as wet as today — issue #108 **[R]**
 
+**FIXED 2026-09-16.** Built to the design below: the window anchors to the day being
+scored and is filled with forecast rain wherever that day is in the future
+(`rainfallEventsThrough`). Ours is per **day** rather than per hour, and the window length
+stays the rock type’s `MAX_HOURS` rather than becoming a user preference — the two details
+in the last paragraph below are still unbuilt, and still worth having.
+
 Already an open issue. What is new is that **a competitor has shipped the fix and described it**:
 
 > *"By default, we include **12 hours of past precipitation data from the forecasted time

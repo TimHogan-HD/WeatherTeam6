@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { dryingModel, type DryingModelInput, type DryingModelOutput } from './dryingModel.js'
+import {
+  dryingModel,
+  rainfallEventsThrough,
+  type DryingModelInput,
+  type DryingModelOutput,
+} from './dryingModel.js'
 
 // Phase 4 contract test. These tests assert the output shape and invariants,
 // not specific values, so they pass against the current stub and remain valid
@@ -267,5 +272,73 @@ describe('dryingModel — the basalt split', () => {
     expect(dryAt('granite', '2025-06-01T09:59:59Z')).toBe(false)
     // +6h: short of both.
     expect(dryAt('basalt_dense', '2025-06-01T05:59:59Z')).toBe(false)
+  })
+})
+
+describe('rainfallEventsThrough — the rain one forecast day is entitled to see (issue #108)'
+, () => {
+  const TODAY = '2026-09-16'
+  const history = [
+    { date: '2026-09-10', precip_mm: 8 },
+    { date: '2026-09-16', precip_mm: 3 }, // today, as measured so far
+  ]
+  const forecast = [
+    { date: '2026-09-16', precip_mm: 11 }, // today, as the ensemble expects it
+    { date: '2026-09-17', precip_mm: 0 },
+    { date: '2026-09-18', precip_mm: 6 },
+    { date: '2026-09-19', precip_mm: 0 },
+  ]
+
+  it('gives today the measured figure and never the forecast one', () => {
+    // Both sources carry today. Taking both would double-count it, and which
+    // one won would come down to array order — so today resolves to history,
+    // 3mm, and the 11mm forecast for the same date is not in the list at all.
+    const events = rainfallEventsThrough(history, forecast, TODAY, TODAY)
+    expect(events).toEqual(history)
+    expect(events.some((e) => e.precip_mm === 11)).toBe(false)
+  })
+
+  it('is exactly the history when the day asked about is today', () => {
+    // The property that made #108 safe to ship: today’s drying input does not
+    // move, whatever the forecast says. Asserted against the input array itself,
+    // not against a recomputation of what the function does.
+    expect(rainfallEventsThrough(history, forecast, TODAY, TODAY)).toEqual(history)
+  })
+
+  it('adds forecast rain up to the day asked about, and nothing after it', () => {
+    const events = rainfallEventsThrough(history, forecast, TODAY, '2026-09-18')
+    expect(events.map((e) => e.date)).toEqual([
+      '2026-09-10',
+      '2026-09-16',
+      '2026-09-17',
+      '2026-09-18',
+    ])
+    // 09-19 is in the forecast and must NOT appear: at 09-18 it has not
+    // happened. `dryingModel` takes the LATEST event, so including it would
+    // reset the clock from rain that is still two days away and hand 09-18 a
+    // drying score of 0.
+    expect(events.some((e) => e.date === '2026-09-19')).toBe(false)
+  })
+
+  it('drops historical rain that falls after the day asked about', () => {
+    // No caller reaches this today — `fetchEnsemble` requests no past days, so
+    // `asOfDate` is never earlier than the archive’s last entry. Asserted so the
+    // function means what its name says for any date, not just the ones one
+    // caller happens to pass.
+    const events = rainfallEventsThrough(history, forecast, TODAY, '2026-09-12')
+    expect(events).toEqual([{ date: '2026-09-10', precip_mm: 8 }])
+  })
+
+  it('a dry history and a dry forecast stay empty, so the sentinel survives', () => {
+    // `dryingModel` answers the 720-hour sentinel for an empty list. If this
+    // function invented a zero-mm event, that sentinel would become a real
+    // measurement nobody took — defect class 1.
+    expect(rainfallEventsThrough([], [], TODAY, '2026-09-20')).toEqual([])
+    expect(dryingModel({
+      rockType: 'sandstone',
+      cliffAngle: 45,
+      rainfallEvents: rainfallEventsThrough([], [], TODAY, '2026-09-20'),
+      asOf: new Date('2026-09-20T12:00:00Z'),
+    }).hours_since_significant_rain).toBe(720)
   })
 })

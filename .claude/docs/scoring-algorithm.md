@@ -64,7 +64,18 @@ Drying time is modified by:
 
 ### Step 1: Drying Time Component (0-40 points)
 ```
-hours_since_rain = now - last_rain_event_start
+# PER DAY BEING SCORED, not once per request (issue #108).
+#   as_of        = now + days_out * 24h      — same local time, N days on
+#   rain_events  = history up to and including today
+#                + FORECAST rain after today, up to the day being scored
+#   hours_since_rain = as_of - end of the latest of those events
+#
+# Rain in the forecast RESETS the clock, so this is not
+# `hours_since_rain + days_out * 24`. Anchoring `as_of` at the same local
+# time of day means day 0 is exactly `now` — today does not move.
+#
+# The 720-hour no-rain sentinel is never arithmetic on. It stays 720 on
+# every day, because it means "nobody measured any rain", not "720 hours".
 min_dry = rock_type_min_hours * modifiers
 max_dry = rock_type_max_hours * modifiers
 

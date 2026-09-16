@@ -57,6 +57,52 @@ const MAX_HOURS: Record<RockType, number> = {
   unknown: 48,
 }
 
+export type RainfallEvent = { date: string; precip_mm: number }
+
+/**
+ * **The rain a wall has seen by the end of `asOfDate`, and nothing after it.**
+ *
+ * Issue #108: `hoursSinceRain` was measured once from *now* and handed to every
+ * day in the forecast, so a day seven out was scored as though the rock had been
+ * drying for exactly as long as it has this minute. Drying is 40 of the 100
+ * points, so every future day was capped at 60 and `limitingComponent` reported
+ * *"limited by drying time"* on days the model itself called dry.
+ *
+ * Advancing the clock is not `hoursSinceRain + daysOut * 24`, because **rain in
+ * the forecast resets it**. This assembles the event list each day is entitled to
+ * see, and `dryingModel` then measures from the latest of them as it always has.
+ * The shape is the one a shipped competitor describes: *"this principle applies
+ * to both past precipitation and projected precipitation leading up to a forecast
+ * in the future"* — Climbit FAQ, `climbing-terminology-research.md` §21.7.
+ *
+ * **Measurement and forecast are never mixed for the same date.** Up to and
+ * including `todayDate` the history is the authority; past it, the forecast is.
+ * Both sources carry today — the archive holds the rain that has already fallen,
+ * the ensemble holds a whole-day total that is partly still to come — and taking
+ * both would either double-count the day or resolve a tie by array order.
+ *
+ * A consequence worth stating, because it is what made this safe to ship: for
+ * `asOfDate === todayDate` the forecast slice is empty and the historical slice
+ * is the whole list, so **today’s drying input is byte-identical to what it was
+ * before this function existed.** Only future days move.
+ *
+ * Historical events are filtered by `asOfDate` as well, which today is a no-op:
+ * `fetchEnsemble` asks for no past days, so no caller passes an `asOfDate` earlier
+ * than the archive’s last entry. It is here so the function means what its name
+ * says for any date, rather than only for the dates one caller happens to use.
+ */
+export function rainfallEventsThrough(
+  historical: RainfallEvent[],
+  forecast: RainfallEvent[],
+  todayDate: string,
+  asOfDate: string,
+): RainfallEvent[] {
+  return [
+    ...historical.filter((e) => e.date <= asOfDate),
+    ...forecast.filter((e) => e.date > todayDate && e.date <= asOfDate),
+  ]
+}
+
 const SIGNIFICANT_RAIN_MM = 2
 const NO_RECENT_RAIN_HOURS = 720 // 30 days — well past any rock type's maxDry
 

@@ -10,7 +10,7 @@ import {
   type OpenMeteoResult,
 } from '../weather/openMeteo.js'
 import { conditionsScore } from './conditionsScore.js'
-import { dryingModel } from './dryingModel.js'
+import { dryingModel, rainfallEventsThrough } from './dryingModel.js'
 import type { locations } from '../../db/schema.js'
 
 export type LiveForecastLocation = Pick<
@@ -172,15 +172,6 @@ export async function computeLiveForecast(
 
   let scores: ConditionsScore[] = []
   try {
-    const dryResult = dryingModel({
-      rockType: location.rock_type ?? 'unknown',
-      cliffAngle: parseNum(location.cliff_angle, 45),
-      rainfallEvents,
-      asOf: now,
-    })
-    const hoursSinceRain = dryResult.hours_since_significant_rain
-    const lastRainMm = dryResult.last_rain_mm
-
     const todayDay = days.find((d) => d.date === todayStr)
     if (!todayDay) {
       // Not cosmetic, but note the direction: these fallbacks INFLATE the score,
@@ -205,11 +196,46 @@ export async function computeLiveForecast(
     const aspectDegrees = aspectToDegrees(location.aspect ?? '')
     const todayDate = new Date(todayStr + 'T00:00:00Z')
 
+    /**
+     * Rain the forecast expects, in the shape the drying model reads history in,
+     * so a future day can be told what has fallen on it (issue #108).
+     *
+     * `precip_mm_p50` and not the mean, because that is the figure the *rain*
+     * component already scores from — one response must not contain a day the
+     * rain component calls wet and the drying clock calls dry. It reads as "more
+     * likely than not, this much fell", which is what `SIGNIFICANT_RAIN_MM` is a
+     * threshold on. A day the members disagree about sits at p50 = 0 and does not
+     * reset the clock; that is the same understatement the rain component carries
+     * and it is deliberate that they carry it together.
+     */
+    const forecastRain = days.map((d) => ({ date: d.date, precip_mm: d.precip_mm_p50 }))
+
     scores = days.map((day, i) => {
       const forecastDate = new Date(day.date + 'T00:00:00Z')
       const forecastDateDaysOut = Math.round(
         (forecastDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24),
       )
+
+      /**
+       * **The drying clock is read for THIS day, not for now** (issue #108).
+       *
+       * `asOf` walks forward with the day at the same local time of day, so day 0
+       * is `now` exactly and day N is 'this moment, N days later'. Anchoring at
+       * midnight or midday instead would have moved today as well, and today is
+       * the one day the old code already had right.
+       *
+       * The event list is rebuilt per day rather than the hour count advanced,
+       * because rain in the forecast has to reset it — see `rainfallEventsThrough`.
+       * Note what is NOT done here: no arithmetic touches the result. The 720-hour
+       * no-rain sentinel therefore stays a sentinel instead of becoming a precise
+       * figure for a measurement nobody took (issue #34, defect class 1).
+       */
+      const dryResult = dryingModel({
+        rockType,
+        cliffAngle,
+        rainfallEvents: rainfallEventsThrough(rainfallEvents, forecastRain, todayStr, day.date),
+        asOf: new Date(now.getTime() + forecastDateDaysOut * 24 * 60 * 60 * 1000),
+      })
 
       // 72h aggregate: sum this day + next 2 days
       const next3 = days.slice(i, i + 3)
@@ -221,14 +247,23 @@ export async function computeLiveForecast(
         rockType,
         aspectDegrees,
         cliffAngle,
-        hoursSinceRain,
-        lastRainMm,
+        hoursSinceRain: dryResult.hours_since_significant_rain,
+        lastRainMm: dryResult.last_rain_mm,
         forecastRain72hMm,
         forecastRain72hP10,
         forecastRain72hP90,
-        // `currentWindKmh` and `currentHumidityPct` feed the *drying* modifiers,
-        // which look backwards from now, so today's readings are the right
-        // input for every day — the rock either dried or it did not.
+        // `currentWindKmh` and `currentHumidityPct` feed the *drying* modifiers —
+        // they stretch or shrink `maxDry`, they do not say how long the rock has
+        // been drying. That part is `hoursSinceRain` and it is now per-day.
+        //
+        // These two are still today’s readings and that is now a KNOWN
+        // APPROXIMATION rather than the right answer: for a day seven out, the
+        // drying that matters happens under that week’s wind and humidity, not
+        // this morning’s. It is left because `currentHumidityPct` is the same
+        // field as the humidity *component* (see below), so moving it per-day
+        // moves the component too. The error is second-order — a 0.8 or 1.3 factor
+        // on the window — against the first-order one #108 fixed, where the clock
+        // did not advance at all. Tracked as the `ScoreInput` split in STATE.md.
         currentWindKmh,
         // The wind *component*, though, is meant to describe the day being
         // scored. It was fed `currentWindKmh` — today's wind — so a day-7 score
