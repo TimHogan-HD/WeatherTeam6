@@ -28,6 +28,17 @@ carries a superseded banner; § Phase 5 of the handoff is where it gets rewritte
 instead and is the larger half. Nothing in the research authorises a constant change:
 `scoring-algorithm.md` is still locked and every finding is recorded as a finding.
 
+**Nothing from the research is applied to the app.** `conditionsScore` and `dryingModel` are
+unchanged and production scores are exactly what they were. **`npm run compare:scoring
+--workspace=apps/api`** prints today's scoring beside the two proposed changes with deltas —
+offline, deterministic, and it asserts its own baseline against the real scorer so drift shows
+up as a `MISMATCH`. **Run it before proposing any change to the scorer.**
+
+Two things that harness surfaced which the research did not: **sandstone 12 hours after 12 mm of
+rain scores 66 today** (a worse example of the additive problem than the 104 °F case #21 was
+filed over), and **a geometric mean does not fully fix #21 on its own** — a failed temperature
+component can only cost 30%, so 40 °C still scores 70.
+
 **`.claude/docs/scoring-findings.md` is the output that matters.** ~4,900 lines of research
 reduced to what touches the app, ranked by what a user would see, each item saying what is
 wrong, how sure we are, and what it would change. **Read it instead of the research docs when
@@ -141,12 +152,13 @@ Direction set 2026-09-04, current as of 2026-09-16. The Mini App data-visualisat
    Climbing column across six of seven rows. **The issue now carries a shipped competitor's
    design** — anchor the rain window to the hour being scored, fill it with forecast rain where
    that hour is future. Read `scoring-findings.md` §1.3 first.
-2. **Four product decisions from the research, and they gate the rest** (`scoring-findings.md`
-   §5). Each is one sentence from the owner: **is the score 0–100 or 0–5 with written meanings
-   per level** (two independent sources chose the latter); **is this a safety product or a
-   performance one** (climbers say almost everything is performance); **fixed thresholds or
-   user-tunable**; and **should anything be validated against an outcome before more is built**
-   — nothing ever has been.
+2. **The four product decisions are ANSWERED (2026-09-16) and nothing is blocked on the owner.**
+   `scoring-findings.md` §5 records them: **the score stays 0–100** — the precision objection
+   was heard and rejected, so **stop raising it**; **this is a performance product**, with
+   lightning alerts wanted eventually but explicitly not a priority; **tuning and outcome
+   validation both arrive via an in-app feedback button** (issue #143), not now and not via
+   logbook scraping. §1 of that document is unaffected either way — the drying ramp, the
+   geometric mean and #108 are correctness issues that stand regardless of scale or tuning.
 3. **Phase 4 — wall-aware scoring — is blocked on a product decision, not on code.** Nothing
    populates `walls`: full CRUD, no seed, no importer, no UI. How a wall gets created — hand
    entry, OpenBeta import, or derived from terrain — is the owner's call. **The aspect half is
