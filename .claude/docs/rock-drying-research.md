@@ -3216,6 +3216,45 @@ describes — arriving from a field study of an overhang rather than from a lab 
 §2.6's conclusion that the thaw is the hazard, not the freeze, is unaffected and better
 supported.
 
+### 13.9 A sheltered wall is not a dry wall — measured
+
+The Yungang Grottoes study monitored rock water content in caves *"shielded from rainfall"*,
+and modelled five years of it.
+
+> *"Numerical simulation reveals **rock moisture in the cave is derived from vapor
+> condensation**."*
+>
+> *"Infiltration and redistribution of condensed water **caused wetting and drying**, which is
+> responsible for chemical weathering. By simulating RWC in 5 years (from 2019 to 2023), we
+> find the **maximum depth of wetting and drying is only 1.2 m**."*
+>
+> *"**Extinction depth of wetting and drying increases exponentially with vapor
+> concentration.**"*
+> — [Rock moisture dynamics in sandstone caves responsible for
+> weathering](https://www.sciencedirect.com/science/article/abs/pii/S0013795225002819) **[M]**
+
+**This is the shelter rule's limit, measured.** §18.1 of the terminology research works out
+when rain can physically reach an overhanging face, and concludes a steep enough wall stays
+dry. **That is true of rain and false of water.** In a space rain never reaches at all, the
+rock still goes through wetting and drying cycles — driven by vapour condensing out of the air.
+
+Three things follow, and the first two are already in this document waiting for a source:
+
+- **§4.15's Yangshuo observation is the same phenomenon.** *"Even caves get wet as the rain
+  seeps into the mountain … it can get so intense it's like it's raining in the cave
+  interior."* Climbers reporting it; a monitored UNESCO site measuring it.
+- **§2.8's sorption argument gets its field confirmation.** Humidity alone re-wets rock. Here
+  it does so enough to drive the weathering of a heritage site over five years.
+- **An overhang flag cannot mean "dry".** Whatever a `shelter` field ends up meaning, it means
+  *rain does not land here* — not *this wall is dry*. §4.18's El Salto entry already separates
+  those two ideas from the climbing side; this is the physics side of the same separation.
+
+**The 1.2 m depth is the reassuring half.** Wetting from condensation is a near-surface
+process, and it stays near-surface even over years. That is consistent with §12.1's
+vaporization plane sitting millimetres to centimetres in, and it means the affected volume is
+the part a climber touches — which is the part that matters for friction and for hold integrity
+both.
+
 ---
 
 ## Sources
