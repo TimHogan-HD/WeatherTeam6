@@ -97,6 +97,7 @@ Everything in `.claude/rules/` is loaded automatically at session start — you 
 - Before ANY weather fetch work: read `.claude/docs/api-sources.md`
 - Before ANY conditions score work: read `.claude/docs/scoring-algorithm.md`
 - Before ANY drying-model or rock-type work: read `.claude/docs/rock-drying-research.md` — the absorption/drying research behind the rock-type constants, and the gaps it found in them
+- Before ANY work on wall angle, aspect or the `walls` table: read `.claude/docs/climbing-terminology-research.md` — `cliff_angle` and `walls.angle_deg` hold the same quantity with **opposite signs**, and the default asserts a slab on every location
 - **Before reviewing any diff, and before reporting any work complete: read `.claude/rules/defect-patterns.md`**
 - Before ANY Mini App UI phase: read `docs/handoffs/miniapp-design-v1.md` AND the §Design System section of `docs/handoffs/weatherteam6-ui-handoff-v1.md` — the mockups are the spec, not prose descriptions
 
