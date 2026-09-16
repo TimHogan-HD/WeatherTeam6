@@ -190,8 +190,9 @@ Standing context not on the issues themselves:
 - **#27** — parts 1, 3, 4 done. **Part 2 open**, needs a migration.
 - **#32** — materially less likely since #33. Entangled with the `ScoreInput` split below.
 - **#82** — part 1 shipped; part 2 is § What is next, item 5.
-- **#137–#140** — filed 2026-09-16 from the research. #137 (drying ramp shape) is live in
-  production and the smallest of them.
+- **#137** — **closed 2026-09-16.** The ramp shipped concave; see `scoring-findings.md` §1.2.
+- **#138–#140** — filed 2026-09-16 from the research. All three need inputs the scorer does
+  not currently receive.
 
 ### Unfiled, worth filing when touched
 

@@ -70,12 +70,24 @@ max_dry = rock_type_max_hours * modifiers
 
 if hours_since_rain >= max_dry:   drying_score = 40
 if hours_since_rain <= 0:          drying_score = 0
-else: drying_score = (hours_since_rain / max_dry) * 40
+else: drying_score = (hours_since_rain / max_dry) ** RAMP_EXPONENT * 40   # RAMP_EXPONENT = 2
 
-# Note: this is intentionally a smooth linear ramp from 0 to max_dry.
-# There is no step-function at min_dry. A granite wall at 3h scores lower
-# than one at 11h on a continuous curve. Do not add a step-function here.
-
+# The ramp is CURVED, not linear, and it curves the way that awards points
+# SLOWLY at first (issue #137). At half the drying window it gives 10 of 40,
+# where the old linear ramp gave 20. Endpoints are unchanged: 0 at 0 hours,
+# 40 at max_dry.
+#
+# Why: rock strength recovers late, not early. Duda & Renner (GJI) — "much of
+# the weakening, if present, occurs at LOW moisture contents" — so a wall that
+# is half dry is NOT half recovered, and a linear ramp is most wrong the day
+# after rain, when the wall looks dry and someone is deciding whether to drive.
+#
+# RAMP_EXPONENT = 2 is a JUDGEMENT CALL, not a measurement. The research
+# establishes the shape and says nothing about the exponent — nobody has
+# measured a drying curve for any climbing rock. See scoring-findings.md §1.2.
+#
+# Still no step-function at min_dry, and do not add one. A granite wall at 3h
+# scores lower than one at 11h on a continuous curve; that part was always right.
 ```
 
 ### Step 2: Upcoming Rain Component (0-25 points)

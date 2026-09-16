@@ -73,7 +73,8 @@ right shape for this.
 
 ### 1.2 The drying ramp is least accurate exactly where it matters most **[M]**
 
-**Severity: high. This one is live in production right now.**
+**Severity: high. FIXED 2026-09-16 (issue #137) — the ramp shipped concave.** What follows
+is why, kept because the caveat at the end of it still governs the constant.
 
 §2.4 of the rock research had the saturation curve backwards. The corrected finding, from Duda &
 Renner (GJI), with five citations behind it:
@@ -93,6 +94,14 @@ and it should not reach full marks until well past the point the current curve d
 **Caveat, and it is real:** the shape is established, the exponent is not. Nobody has measured a
 curve for any climbing rock. Changing linear to concave is defensible; picking the specific
 exponent is a judgement call and should be written down as one.
+
+**What shipped:** `dryingRaw = (hoursSinceRain / maxDry) ** 2 * 40`, endpoints unchanged — 0 at
+0 hours, 40 at `maxDry`. It only moves days partway through drying, and it only moves them
+down; the largest move is 10 points, at exactly half the drying window. `MAX_HOURS` was **not**
+touched — pushing full marks later is a separate lever, and that ceiling is pinned to
+`dryingModel`'s `estimated_dry` by a cross-module test. **The exponent 2 is the judgement
+call this caveat demanded be written down**: it is `RAMP_EXPONENT` in `conditionsScore.ts` and
+says so there.
 
 ---
 
