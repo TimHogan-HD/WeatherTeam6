@@ -3282,7 +3282,7 @@ past reviewing.
 
 ---
 
-## 2026-09-16 — branch: claude/session-end-research — commit: PENDING
+## 2026-09-16 — branch: claude/session-end-research — commit: `0d70462` (squashed, #141)
 
 **Phase completed:** Research brief — closed. Phase 3 scrapped by the owner; the forum half
 done instead. Synthesis delivered.
