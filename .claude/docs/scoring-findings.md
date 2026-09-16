@@ -252,9 +252,40 @@ defensible.
 
 ---
 
-## 5. Product decisions — these are the owner's, not a developer's
+## 5. Product decisions — ANSWERED 2026-09-16
 
-Each is a real fork where the research points somewhere other than where the app currently is.
+**All four were decided by the owner. They are recorded as decisions, not open questions —
+do not reopen them without being asked.** The reasoning each one overrode is kept below,
+because a decision is easier to revisit when you can see what it was weighed against.
+
+| Decision | Answer |
+| --- | --- |
+| **5.1** Score scale | **Stays 0–100.** |
+| **5.2** Safety vs performance | **Performance.** Lightning alerts wanted eventually, **not a priority now.** |
+| **5.3** Fixed vs user-tunable | **Eventually tunable**, alongside an in-app feedback button. Not now. |
+| **5.4** Outcome validation | **Eventually, via the feedback button** rather than via logbook scraping. |
+
+**On 5.1 — the precision objection was heard and rejected**, in the owner's words: *"we don't
+need to be concerned with if it means precision, we can use our brains to know it's not
+factual."* **So stop raising it.** The corollary matters for copy: a 0–100 score that nobody is
+expected to read as precise should not be *presented* as precise either — no decimal places,
+and the confidence label carries real weight.
+
+**On 5.3 and 5.4 — these converge on one feature.** The feedback button was already parked as a
+design conversation the owner wants to have; it is now also the intended path for both user
+calibration and outcome validation. **The logbook-scraping proposal in 5.4 below is therefore
+superseded** — it is a worse fit than asking the user directly, and it is kept only as evidence
+that the question is answerable.
+
+**What this means for the rest of this document:** §1 is unaffected — the drying ramp, the
+geometric mean and #108 are all correctness issues that stand regardless of scale or tuning.
+The parts of §5 the owner deferred do not block them.
+
+---
+
+### The original analysis, for when these get revisited
+
+Each was a real fork where the research points somewhere other than where the app currently is.
 
 ### 5.1 Is the score 0–100, or 0–5 with a written meaning per level?
 
@@ -324,13 +355,43 @@ them.
 
 ---
 
+## 6b. Seeing the impact before applying any of it
+
+**None of this is applied to the app.** `conditionsScore` and `dryingModel` are unchanged; the
+scores in the Mini App and the bot are exactly what they were before the research.
+
+```bash
+npm run compare:scoring --workspace=apps/api
+```
+
+Prints every scenario under today's scoring beside the §1.2 concave ramp and the §1.4 geometric
+mean, with the deltas. Offline, deterministic, no database. It asserts its own baseline against
+the real scorer, so a drift between the harness and production shows up as a `MISMATCH` rather
+than as quietly wrong numbers.
+
+**Two things it surfaced that the research did not:**
+
+1. **Sandstone 12 hours after 12 mm of rain scores 66 today.** The drying component correctly
+   contributes 6 of its 40 — and the other four hand back a full 60, because nothing about them
+   is wrong. **That is a worse example of the additive problem than the 104 °F case issue #21
+   was filed over.**
+2. **A geometric mean does not fully fix #21 on its own.** A failed temperature component can
+   only cost 30% of the score, because the floor and temperature's 0.12 weight bound it. 40 °C
+   still scores 70. If "too hot to climb" should read lower, it needs a heavier weight or a hard
+   override — **changing the mean alone is not enough.**
+
+---
+
 ## 7. If you only do three things
 
 1. **Do not let the drying ramp reach full marks as early as it does** (§1.2). It is wrong in
    the direction that matters and it is live now.
 2. **Fix #108 using the design in §21.7** — it is written down, shipped, and cheap.
-3. **Decide 5.1 and 5.2 before building anything else.** They change what every other number on
-   this list is *for*, and both are one-sentence answers from the owner.
+3. ~~Decide 5.1 and 5.2 before building anything else.~~ **Done 2026-09-16 — §5 is answered and
+   nothing is blocked on the owner.** The replacement third item: **run
+   `npm run compare:scoring --workspace=apps/api` before proposing any change to the scorer**
+   (§6b). Both remaining proposals move every score on every screen, and the harness is how you
+   find out by how much.
 
 **And one thing not to do:** do not add a sun or aspect component that scores `aspectDegrees`
 directly. §3.2 explains why no constant works; the "feels like" route is the one two shipped
