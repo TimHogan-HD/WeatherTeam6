@@ -1110,7 +1110,7 @@ any regional or state-level default: dolomite (Red Wing), basalt (Taylors Falls)
   [City of Colorado Springs](https://coloradosprings.gov/rock-climbing)). If that is right, the
   **drying transient is its own hazard state** rather than a monotonic improvement from wet to
   dry — which sits awkwardly against §2.4's critical-saturation band and against the score's
-  smooth linear ramp. Flagged as land-manager guidance [C], **not lab-verified**; worth
+  smooth monotonic ramp. Flagged as land-manager guidance [C], **not lab-verified**; worth
   checking against the swelling-clay literature before it influences anything.
   Operational data point: a local guide service reschedules for **at least 24h after
   significant precipitation, and 2–3 days after snow, cloud or persistent rain**. All chalk and

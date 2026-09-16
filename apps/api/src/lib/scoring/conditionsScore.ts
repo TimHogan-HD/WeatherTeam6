@@ -24,6 +24,36 @@ const MAX_HOURS: Record<RockType, number> = {
   unknown: 48,
 }
 
+/**
+ * **Curvature of the drying ramp, and it is a judgement call — not a measurement.**
+ *
+ * The ramp was linear until issue #137. The research behind that issue corrected
+ * the saturation curve the other way up: rock strength comes back **late**, not
+ * early.
+ *
+ * > *"much of the weakening, if present, occurs at **low moisture contents**"*
+ * > — Duda & Renner (GJI), five citations behind it, read at first hand
+ *
+ * So a wall that is half dry is nowhere near half recovered, and a linear ramp is
+ * least trustworthy **at the end of its own range** — the day after rain, when the
+ * wall looks dry and someone is deciding whether to drive two hours.
+ *
+ * `2` is the exponent and nothing measured it. **Nobody has measured a drying
+ * curve for any climbing rock** (`rock-drying-research.md` §8 — `MIN_HOURS` and
+ * `MAX_HOURS` are convention too). The research settles the *shape*; this number
+ * is a choice, recorded here as one. It halves the credit at the midpoint — 20 of
+ * 40 becomes 10 — and costs at most 10 points anywhere on the curve.
+ *
+ * **Careful which way "slower" curves.** Awarding points slowly at first means an
+ * exponent **above** 1. Below 1 is the same curve mirrored and would make the bug
+ * worse, not better. `1` restores the old linear ramp exactly.
+ *
+ * The endpoints are deliberately untouched: 0 at 0 hours, 40 at `maxDry`. Moving
+ * full marks *later* is a different lever — raising `MAX_HOURS` — and that ceiling
+ * is pinned to `dryingModel`'s `estimated_dry` by a cross-module test.
+ */
+const RAMP_EXPONENT = 2
+
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v))
 }
@@ -62,7 +92,9 @@ export function conditionsScore(input: ScoreInput): ScoreOutput {
     }
   }
 
-  // Step 1: Drying time (0-40)
+  // Step 1: Drying time (0-40), on a curve that awards points slowly at first —
+  // see RAMP_EXPONENT. The three modifiers below stretch or shrink `maxDry`; the
+  // exponent changes the shape of the ramp across it. They are independent.
   // angleFactor: slab (90°) dries 30% slower than vertical wall (0°)
   // windFactor: >20 km/h reduces required drying time by 20%
   // humidityFactor: >80% RH increases required drying time by 30%
@@ -71,10 +103,16 @@ export function conditionsScore(input: ScoreInput): ScoreOutput {
   const humidityFactor = input.currentHumidityPct > 80 ? 1.3 : 1.0
   const maxDry = MAX_HOURS[input.rockType] * angleFactor * windFactor * humidityFactor
 
+  // The two guards are not decoration, and the second one became load-bearing
+  // when the ramp stopped being linear. An even exponent maps a *negative*
+  // `hoursSinceRain` to a positive share of the curve, so without the `<= 0`
+  // branch a wall that rained in the future would be handed drying credit —
+  // silently, and as a number a reader would believe. `dryingModel` clamps at 0
+  // as well, but `conditionsScore` takes a `ScoreInput` from anywhere.
   let dryingRaw: number
   if (input.hoursSinceRain >= maxDry) dryingRaw = 40
   else if (input.hoursSinceRain <= 0) dryingRaw = 0
-  else dryingRaw = (input.hoursSinceRain / maxDry) * 40
+  else dryingRaw = Math.pow(input.hoursSinceRain / maxDry, RAMP_EXPONENT) * 40
 
   const hours_remaining = Math.max(0, maxDry - input.hoursSinceRain)
 

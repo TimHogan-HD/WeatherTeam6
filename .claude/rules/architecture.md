@@ -32,6 +32,15 @@ decisions are final unless explicitly overridden by the user.
 - Express route handlers are thin. Business logic lives in `src/lib/`, not in route files.
 - Weather fetch functions live in `apps/api/src/lib/weather/` — one file per source.
 - Scoring logic lives in `apps/api/src/lib/scoring/` — orchestration in `liveForecast.ts`, pure math in `conditionsScore.ts` / `dryingModel.ts`.
+- **The drying ramp curves upward and its exponent may never drop to 1 or below.**
+  `RAMP_EXPONENT` (`conditionsScore.ts`) awards points *slowly at first*, because rock
+  strength returns late rather than early — so `1` restores the bug issue #137 fixed and
+  anything below `1` inverts it into something worse. The number itself is a **judgement
+  call and is labelled as one**: nobody has measured a drying curve for any climbing rock,
+  and changing it needs an argument, not a commit message. Its endpoints are fixed — 0 at 0
+  hours, 40 at `maxDry` — and the `maxDry` ceiling is a **separate lever**, pinned to
+  `dryingModel`'s `estimated_dry` by a cross-module test. Moving full marks later means
+  moving `MAX_HOURS` in both modules, not bending the ramp past its end.
 - **There is no `apps/api/src/jobs/`.** It was deleted with BullMQ. Scheduled work is an HTTP route under `/api/cron/*` with its logic in `src/lib/` — see § Background Jobs.
 - Telegram helpers live in `apps/api/src/lib/telegram/`; alert fetch/upsert/notify logic in `apps/api/src/lib/alerts/`.
 - **The alert deep link is a plain `url` inline keyboard button, never `web_app`.** `startapp` is a Direct Link Mini App mechanism; a `web_app` button opens an *inline-button* Mini App and does not deliver `start_param` at all, so the app would launch on the list with no idea which location the alert was about. The link is built by `lib/telegram/deepLink.ts`, whose base (`https://t.me/WeatherTeam6_bot/Alert`) is a constant because neither the bot username nor the Direct Link short name is derivable from `TELEGRAM_BOT_TOKEN`.
