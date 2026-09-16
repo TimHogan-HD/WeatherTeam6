@@ -596,9 +596,32 @@ draw on them rather than invent a scale.
   the thing that actually closes a boulder after rain.
 - **No data on closure schedules in machine-readable form.** Every source found is a land
   manager's web page in prose. Whether Access Fund or a regional org publishes a feed is
-  ~~unknown — this environment cannot fetch pages to check.~~ **still unknown as of
-  2026-09-16, but the reason has changed: accessfund.org is reachable now** (§17), so this is
-  a Phase 4 question someone can actually answer rather than a blocked one.
+  ~~unknown — this environment cannot fetch pages to check.~~ **Partly answered 2026-09-16.**
+
+  > Three closures were read at source while building `crag-facts.json` (Phase 2), and the
+  > shape of the answer is now clearer than "prose on a web page".
+  >
+  > **NYSDEC publishes a maintained, per-route closure list** for the Adirondacks
+  > (`dec.ny.gov/things-to-do/rock-and-ice-climbing/adirondack-route-closures`). It is HTML,
+  > not a feed — but it is structured, current, and **route-level**: in a typical spring all
+  > Poke-O-Moonshine Main Face routes are closed with a named handful excepted, while the rest
+  > of the mountain stays open, leaving roughly 25 of 300+ routes. So the granularity problem
+  > from §12 shows up here too, and a crag-level closed/open flag would be wrong in both
+  > directions at that cliff.
+  >
+  > **Not every closure is ecological.** Devils Tower's June closure is *voluntary* and
+  > *cultural* — the NPS asks visitors to refrain because 'June is a culturally significant
+  > time when many (but not all) Indian ceremonies occur'. A schema modelling closures as
+  > raptor-nesting date ranges would represent it as a mandatory ban or miss it entirely, and
+  > either is worse than saying nothing.
+  >
+  > **And a land manager may publish a closure without publishing what is closed.** The NPS
+  > advisory for Pinnacles gives the window — 'Seasonal closures (January to July) are in place
+  > to protect nesting raptors' — and names neither formations nor species, telling climbers to
+  > check the board at the visitor centre. That one cannot be consumed by any program.
+  >
+  > **Still open:** whether any of this exists as an actual feed, and whether the Access Fund
+  > or a regional org aggregates across land managers.
 
 ---
 
