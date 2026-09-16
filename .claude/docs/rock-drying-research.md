@@ -196,7 +196,8 @@ Four mechanisms, all documented, and they stack:
 
 | Finding | Value | Source |
 | --- | --- | --- |
-| Strength loss range across sandstones | **0% (quartz-rich, clay-free) to 55% (Pennant sandstone)**, with extreme cases of UCS dropping >90% | **[X]** attribution unverified — see the note below |
+| Strength loss range across sandstones | **0% (quartz-rich, clay-free) to 55% (Pennant sandstone)** | **[M]** — **source found 2026-09-16 (§13.6)**: [Duda & Renner 2013, GJI](https://academic.oup.com/gji/article/192/3/1091/822850), citing Hadizadeh & Law 1991. Read in full. The **">90% outliers"** clause is **[X]** and belongs to nothing found |
+| Fracture toughness / fracture energy / static friction | **6–35% / 21–52% / 0–19%** | **[M]** — **confirmed verbatim in full text 2026-09-16 (§13.6)** |
 | Critical saturation band | **60–80%** — most of the strength loss happens crossing it, then the curve flattens | [M] [Springer](https://link.springer.com/article/10.1007/s10064-022-02822-9) |
 | Fracture toughness reduction | 6–35% | [M] [Elsevier](https://www.sciencedirect.com/science/article/pii/S1365160921003002) |
 | Fracture energy reduction | 21–52% | [M] same |
@@ -231,15 +232,23 @@ Two things follow, and both contradict how the app currently models this.
 family runs from *no measurable effect* to *catastrophic*. A clean quartz arenite and a
 clay-rich wacke are the same word in a guidebook and 55 percentage points apart in the lab.
 
-> **CONTESTED as of 2026-09-16 (§13.3) — and possibly backwards.** A second study says
-> *"much of the weakening happens in the **first 20 percent or so** of saturation … sandstone
-> that's just a little bit wet can be quite weak."* That is the opposite of the paragraph
-> below: it puts the damage at the **dry** end of the curve, not the wet end.
+> **RESOLVED 2026-09-16 (§13.6), and the paragraph below is wrong.** Duda & Renner's review
+> sentence, read in full: *"Notably, **much of the weakening, if present, occurs at low
+> moisture contents**"* — with **five** citations behind it (Van Eeckhout 1976; Hawkins &
+> McConnell; Demarco; Shakoor & Barefield; Nara). A second, independent source puts it at
+> *"the **first 20 percent or so** of saturation"*.
 >
-> **The practical readings are opposite**, and the app's drying ramp runs across both. If the
-> first-20% version is right, the model is most wrong on the day *after* — when the wall looks
-> dry. Neither paper has been read in full; both are on the inbox wanted list. **Treat the
-> paragraph below as one of two live readings, not as settled.**
+> **So the damage is at the DRY end of the curve, not the wet end.** A barely-damp wall has
+> already given up most of the strength it is going to give up. The paragraph below says the
+> opposite and should not be relied on.
+>
+> **What survives is the Springer 60–80% figure itself**, confirmed verbatim in §10.2 — but it
+> is one study of four clay-bearing sandstones, against five studies pointing the other way,
+> and it describes where the curve *flattens* rather than where the loss sits.
+>
+> **This is the most consequential correction in the whole research.** The app's drying model
+> is a ramp over elapsed time, and it is most wrong exactly where a user is most likely to act:
+> the day after rain, when the wall looks dry and is not.
 
 **Second: the critical-saturation band explains the "damp is worse than you think"
 folklore.** A rock at 50% saturation is nearly at dry strength; the same rock at 80% has
@@ -3028,6 +3037,66 @@ at the same time.
 The article's framing of the drying question is also worth keeping, because it is §12.1's
 vaporization-plane result in one line: *"Short answer: **it's not the rain, it's the
 evaporation.**"*
+
+### 13.6 The second browser pass — the paywalled hosts were Cloudflare, not paywalls
+
+**ScienceDirect and OUP both opened in full.** The 403s were Cloudflare bot challenges, and one
+of them cleared itself after eight seconds. **No subscription was needed for either.** This
+reverses §20.5 of the terminology research and the inbox's standing assumption about those
+hosts.
+
+Two papers read in full, and between them they settle the largest open questions in §2.4.
+
+**The 0–55% range is real, and the source was in this document's own Sources list all along.**
+
+> *"numerous studies document that the magnitude of strength reduction (weakening) upon water
+> saturation strongly varies between different rock types … ranging from **no measurable effect
+> on the compressive strength of quartz-rich and almost clay-free sandstones** (Hadizadeh &
+> Law 1991; Baud et al. 2000; Reviron et al. 2009) **to a strength reduction of 55 per cent in
+> Pennant sandstone** (Hadizadeh & Law 1991)."*
+> — [Duda & Renner, *The weakening effect of water on the brittle failure strength of
+> sandstone*, GJI 192(3) 1091–1108](https://academic.oup.com/gji/article/192/3/1091/822850) **[M]**
+
+That is §2.4's row, in substance word for word. **It was marked [X] because it had been
+attributed to the Springer saturation paper; the real source is the OUP GJI paper this document
+already cited two rows further down.** The figure was never wrong — the pointer was. Restored
+to **[M]** with the correct citation, and the primary is Hadizadeh & Law 1991.
+
+**The ">90% outliers" clause is still unsourced** and stays **[X]**. Duda & Renner's top of
+range is 55%; nothing read so far reaches 90%.
+
+**The saturation question is settled, and §2.4 had it backwards.**
+
+> *"Notably, **much of the weakening, if present, occurs at low moisture contents**"* — Van
+> Eeckhout 1976; Hawkins & McConnell; Demarco; Shakoor & Barefield; Nara **[M]**
+
+Five citations, in a review sentence, all saying the damage is done early. Against the Springer
+paper's 60–80% critical band — one study, four clay-bearing sandstones, and a figure that
+describes where the curve **flattens** rather than where the loss sits. §2.4's in-place note
+now says the paragraph under it is wrong.
+
+**What this means for the app, stated plainly.** `dryingModel` ramps over elapsed time since
+rain. If most of the strength loss happens at low moisture content, the ramp is least accurate
+at its *end* — the day after, when the wall looks dry, the score is climbing and a user is
+deciding whether to drive. **That is the opposite of where a modeller would assume the error
+lives**, and it is worth knowing before anyone touches issue #108.
+
+**The three fracture rows confirm verbatim**, from the full text of the paper §2.4 cites for
+them:
+
+> *"ranging from **6 to 35%** and **21–52%**, respectively; and ii) the static [friction
+> coefficient] … ranging from **0 to 19%**"*
+> — [Zhang et al., *Effect of water on sandstone's fracture toughness and frictional
+> parameters*](https://www.sciencedirect.com/science/article/pii/S1365160921003002) **[M]**
+
+And that paper adds a fourth figure §2.4 does not have: its own measured UCS reduction is
+**0 to 30%**, with the literature *"typically ranging from 8 to 50%"* — again, no >90%.
+
+**Per-rock figures now available from three independent sources, and they disagree.** Berea is
+**8%** (Duda & Renner's sources), **20%** (Climbing), and Pennant is **43%** (Zhang et al.)
+against **55%** (Hadizadeh & Law). Same rocks, different labs, different numbers. **That spread
+is itself the finding**: a single constant per rock *family* cannot be right when a single rock
+*formation* varies this much between studies.
 
 ---
 

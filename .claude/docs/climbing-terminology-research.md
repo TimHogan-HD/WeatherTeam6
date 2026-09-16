@@ -1157,9 +1157,18 @@ research's pass — the AMS and AAPG hosts all served a real browser without a l
 inbox's framing that these needed *the owner's own logged-in session* was wrong for these
 three; they needed a browser, which the project now has.
 
-**That does not generalise to the remaining ones.** ScienceDirect, Wiley and OUP are
-subscription-gated as well as bot-walled, and a browser gets to an abstract, not a full text.
-The rock research §12.4 and the inbox wanted list are updated accordingly.
+~~**That does not generalise to the remaining ones.** ScienceDirect, Wiley and OUP are
+subscription-gated as well as bot-walled, and a browser gets to an abstract, not a full text.~~
+
+> **REVERSED within the hour — see rock research §13.6.** ScienceDirect and OUP **both opened
+> in full**. Their 403s were **Cloudflare challenges, not paywalls**, and one cleared itself
+> after eight seconds of waiting. Two papers were read end to end and they settled the largest
+> open questions in the rock research's §2.4.
+>
+> **Only Wiley is still untested.** The paragraph above was written after three successes and
+> assumed the pattern would stop; it did not. **A 403 is not a paywall until it has been waited
+> out** — which is this session's version of the lesson that a followed-redirect 200 is not a
+> readable page.
 
 **Gunn & Kinzer is the in-between case, and §18.1's table is still uncalibrated.** The 1949
 paper's page rendered; its abstract confirms the study is the right primary and that its scope
