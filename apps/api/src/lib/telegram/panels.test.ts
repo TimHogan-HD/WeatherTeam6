@@ -44,6 +44,16 @@ function conditions(over: Partial<ConditionsReplyInput> = {}): ConditionsReplyIn
     today: null,
     todayScore: null,
     scoreUnavailable: null,
+    // No hourly run behind this fixture, which is the honest default for a
+    // panel test: the panel's job here is the keyboard and the block shape, and
+    // the reading copy is `conditionsMessage.test.ts`'s.
+    readings: {
+      model: null,
+      unavailable_reason: 'model_unavailable',
+      utc_offset_seconds: 0,
+      now: null,
+      today: null,
+    },
     activeAlerts: [],
     ...over,
   }

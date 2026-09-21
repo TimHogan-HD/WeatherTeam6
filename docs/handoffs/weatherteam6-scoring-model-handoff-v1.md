@@ -2,12 +2,17 @@
 
 Version: v1
 Date: 2026-09-16
-Status: **Phases 0, 1 and 2 are built. STOPPED at the Phase 2 checkpoint, 2026-09-21,
-awaiting the owner on the three decisions in § Open Questions 5.** Nothing is wired to a
-surface and no production score has moved. Q2 and Q4 are decided; Q1 is measured and folded
-into Q5; Q3 is still Phase 3's to ask. Read § Open Questions before starting a phase, and
-run `npm run compare:scoring --workspace=apps/api` before arguing about a number — a
-deferral is a decision about *when*, not permission to pick one quietly.
+Status: **Phases 0 through 3 are built and live, 2026-09-21.** The two readings are on
+every conditions surface and **the number a user sees is now the v2 one** — the
+five-component score is still computed and is rendered nowhere. Phase 4 (the location
+editor) is next and is the one that makes `aspect` and `cliff_angle` real; Phase 5 deletes
+the old scorer.
+
+Every open question is answered except **Q3**, which 3b could only *ask* — whether the
+0-100 number survives now that it can be seen beside the readings. Read § Open Questions
+before starting a phase, and run `npm run compare:scoring --workspace=apps/api` before
+arguing about a number — a deferral is a decision about *when*, not permission to pick one
+quietly.
 
 ## Context
 
@@ -457,6 +462,38 @@ Mini App and bot show the two readings and the day's window; the number becomes 
   middle of it, and a confident-looking label is the whole risk.
 **Git checkpoint:** one PR.
 
+**DONE — split into 3a and 3b, both shipped 2026-09-21.**
+
+- **3a** (PR #160) — the readings reach `GET /hourly/:locationId`. No surface changed.
+- **3b** — the surfaces. `readingsCopy.ts` in `packages/types` is the shared copy model;
+  the Mini App's `ReadingsSection` replaced `ScoreSection` on the detail screen and the
+  Hourly pager, the list card reads the same readings, and the bot's conditions panel
+  leads with them. `GET /conditions/:locationId` carries `ConditionsReadings` so one crag
+  cannot show two different numbers on two screens.
+
+**Both added acceptance criteria hold, and were checked on real output rather than on a
+fixture** — `npm run check:conditions --workspace=apps/api` renders the reply for a real
+saved crag and asserts them on the bytes: no friction magnitude anywhere, and the estimate
+sentence present wherever a friction level is.
+
+Four things Phase 4 and 5 inherit:
+
+- **`stateLabel`, `summarizeConditions` and `limitingComponent` are deleted, not
+  deprecated.** The words are no longer derived from the number, so the ladder had nothing
+  left to map and the suppression had no components to name. Leaving a function that can
+  put *"Dry, settled"* on a 104 °F day in an exported module is an invitation, not a
+  fallback.
+- **The suppression reversed direction and that is the substantive change.** The old rule
+  dropped the *word* under a Severe+ alert and kept the number; this drops the *number* and
+  keeps the readings. The words now come from physics that sees heat, so they are the same
+  fact the warning is about; the number is the part that reads as actionable.
+- **The five-component score is computed on every request and rendered nowhere.** Only its
+  `hours_since_rain` still reaches a screen, as the rain record. Phase 5's deletion is now
+  a deletion rather than a migration.
+- **A window in the past still renders as that day's window.** *"Good from 6am to 9am"* on
+  a screen opened at 2pm is a true statement about today that reads like advice for now.
+  Phase 5 owns the copy pass; it is named here so it is not rediscovered as a bug.
+
 ### Phase 4 — The location editor
 Rock type, aspect and tilt, editable per location. This is `miniapp-design-v1.md` §12.4's
 deferred scope and the research calls it *"the single biggest blocker on this entire research
@@ -559,6 +596,24 @@ measured one — that is `defect-patterns.md` §3, attribution not backed by the
    **Not put to the owner, because it cannot be answered from a document** — it needs the two
    readings rendered beside the number. Phase 3 asks it, and until then §5.1 stands: the number
    stays.
+
+   **ASKED, AND IT IS THE OWNER'S TO ANSWER — 3b, 2026-09-21.** The number now
+   renders as a small chip at the end of the window line, with the two readings
+   above it at card-title size. It is still there because §5.1 says so, and
+   nothing in building 3b argued against it — but two things the code turned up
+   are worth having before answering:
+
+   - **The number is doing less work than it was.** On the list card it is a
+     bare figure beside *"Dry rock · Great friction"*; on the detail screen the
+     readings and the window answer the question and the score repeats them
+     less precisely. The one place it still earns its keep is **ranking** — the
+     daily list's bar and its seven-day comparison need a scalar, and two
+     ordered word-pairs do not sort.
+   - **It is what makes a suppression rule possible.** Dropping the number
+     under a Severe+ alert is a thing a surface can do; there is no equivalent
+     move for the words, because they are measurements.
+
+   Deciding to drop it is a Phase 5 change, not a revert of this one.
 4. **DECIDED 2026-09-21 in Phase 1 — no, one constant.** The gap does not move a reading on
    any hour the model is willing to be confident about: **≤0.5 °C where `qualified` is true**,
    tens of degrees only where it is already false. The per-type table is not written. § 1 of

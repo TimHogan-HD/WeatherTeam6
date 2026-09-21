@@ -1,6 +1,16 @@
 import { and, eq, gt, ilike, isNull, or } from 'drizzle-orm'
+import { parseNumeric, parseNumericRequired } from '@weatherteam6/types'
 import { db } from '../../db/index.js'
 import { locations, weatherAlerts } from '../../db/schema.js'
+import { describeError } from '../http.js'
+import { logger } from '../logger.js'
+import {
+  NOT_A_CRAG_READINGS,
+  READINGS_UNAVAILABLE,
+  toConditionsReadings,
+} from '../runs/conditionsReadings.js'
+import { getHourlySeries, type ScoringLocation } from '../runs/fetchHourlySeries.js'
+import { pointKeyForLocation } from '../runs/pointKey.js'
 import { computeLiveForecast, type LiveForecastLocation } from '../scoring/liveForecast.js'
 import {
   formatConditionsReply,
@@ -76,7 +86,21 @@ export async function buildConditionsInput(
 ): Promise<ConditionsReplyInput> {
   const now = new Date()
 
-  const [{ snapshots, scores, todayStr, scoreUnavailable }, activeAlerts] = await Promise.all([
+  /**
+   * **The readings reach the panel only because this argument was passed** —
+   * the same protection the two routes use, and the model itself does not
+   * branch on the flag. The two placeholders behind it (`unknown` rock, a 45°
+   * wall) are the ones `GET /hourly/:id` documents; Phase 4 makes them real.
+   */
+  const scoring: ScoringLocation = location.is_climbing_location
+    ? {
+        rockType: location.rock_type ?? 'unknown',
+        cliffAngleDeg:
+          location.cliff_angle === null ? 45 : parseNumericRequired(location.cliff_angle),
+      }
+    : null
+
+  const [{ snapshots, scores, todayStr, scoreUnavailable }, activeAlerts, series] = await Promise.all([
     computeLiveForecast(location),
     db
       .select({
@@ -91,6 +115,35 @@ export async function buildConditionsInput(
           or(isNull(weatherAlerts.expires), gt(weatherAlerts.expires, now)),
         ),
       ),
+    /**
+     * Concurrent with the live compute, and **caught rather than allowed to
+     * reject.** Both can reach Open-Meteo on a cold path and `fetchWithRetry`
+     * sleeps 1s + 2s + 4s per attempt; a panel is rendered inside a callback
+     * the Telegram client abandons at ~15 s, so two retry ladders in sequence
+     * is the whole budget. A failed hourly run must not cost the reader the
+     * weather and the alerts as well.
+     *
+     * **Not asked at all for a non-crag**, for the same reason — the whole
+     * output would be a sentinel, and it is a round trip inside that budget.
+     */
+    scoring === null
+      ? null
+      : getHourlySeries(
+          {
+            id: location.id,
+            lat: parseNumericRequired(location.lat),
+            lon: parseNumericRequired(location.lon),
+            elevation_m: parseNumeric(location.elevation_m),
+          },
+          pointKeyForLocation(location.id),
+          { allModels: false, now, scoring },
+        ).catch((err: unknown) => {
+          logger.warn(
+            { locationId: location.id, err: describeError(err) },
+            'conditions panel: hourly readings unavailable',
+          )
+          return null
+        }),
   ])
 
   return {
@@ -104,6 +157,17 @@ export async function buildConditionsInput(
     // so the withheld-score case is passed through rather than reading as "no
     // conditions yet" on one surface and something else on the other (#34).
     scoreUnavailable: scoreUnavailable ?? null,
+    // The same run of the same model the Mini App reads, sliced by the same
+    // rule — `toConditionsReadings` is shared with `GET /conditions/:id`, so
+    // the panel and the card cannot pick different hours as "now". The two
+    // sentinels are shared too: "saved as a place" and "the model didn't
+    // answer" must not read the same on one surface and differently on another.
+    readings:
+      scoring === null
+        ? NOT_A_CRAG_READINGS
+        : series === null
+          ? READINGS_UNAVAILABLE
+          : toConditionsReadings(series, todayStr, now),
     activeAlerts,
   }
 }

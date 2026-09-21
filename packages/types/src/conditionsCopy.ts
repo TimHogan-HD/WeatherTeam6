@@ -7,157 +7,62 @@
  * (issue #21). Two locked copy rules forbid that: no climbing opinions, and the
  * score is a derived signal, never the headline.
  *
- * **This makes the surface honest. It does not fix the score.** Scoring is
- * additive with no veto — heat costs at most 12 of 100 points and saturates
- * above 35 °C — so a settled dry spell still lands in the 80s at any
- * temperature. That is tracked separately as §10.2.
+ * ## What left this file in Phase 3b, and why
+ *
+ * **`stateLabel`, `summarizeConditions` and `limitingComponent` are gone.**
+ * They mapped the five-component number to a word and named the component that
+ * had zeroed, and both halves stopped being answerable: the words now come from
+ * the v2 model's two readings (`readingsCopy.ts`), and the model has two
+ * factors rather than five components, so there is no "limited by temperature"
+ * to name. They were not left in place as a fallback — a ladder that could put
+ * *"Dry, settled"* on a 103 °F day is the exact contradiction the new model was
+ * built to make impossible, and leaving it exported is an invitation.
+ *
+ * **What is still live and why.** `SCORE_BANDS` rungs the number and colours
+ * it. `DRY_SENTINEL_HOURS`, `formatHoursSinceRain` and `formatLastRain` are the
+ * rain record, which has no v2 equivalent. The source labels are per-response
+ * attribution.
+ *
+ * **`ScoreUnavailableReason` and `scoreUnavailableLine` belong to the
+ * five-component scorer**, which still runs and still sends that field; no
+ * surface renders it today, because no surface renders that score. Phase 5
+ * retires the scorer and takes them with it.
  */
-import { SCORE_COMPONENT_MAX, type ScoreComponentName } from './scoreComponents.js';
 import { EM_DASH } from './units.js';
 
 export type Confidence = 'low' | 'medium' | 'high';
 
 /**
- * The score at which each state label takes over.
+ * The score at which each band takes over.
  *
- * Named rather than left as literals in `stateLabel` because a surface that
- * *colours* a score has to use the same rungs the words use. The Mini App's
- * daily list does exactly that, and a second set of thresholds living in a
- * component is how a bar goes amber on a day the text calls "Mostly dry" with
- * nothing able to detect the disagreement.
+ * Named rather than left as literals because two things read them: the Mini
+ * App's daily bar colour, and `DEFAULT_WINDOW_MIN_SCORE` in the API, which uses
+ * `mostlyDry` as the bar an hour has to clear to be in a day's window.
+ *
+ * The names are the words the retired ladder used. They are kept because the
+ * *rungs* are unchanged and renaming them would make every reference to a band
+ * in the archive unreadable — but nothing turns a score into those words any
+ * more, and nothing should. See `readingsCopy.ts`.
  */
 export const SCORE_BANDS = {
-  /** 'Dry, settled' at or above. */
   settled: 80,
-  /** 'Mostly dry' at or above. */
   mostlyDry: 60,
-  /** 'Mixed' at or above; below it, 'Wet or unsettled'. */
   mixed: 40,
 } as const;
 
 /**
- * The permitted state labels. They describe **rock and weather**, never
- * suitability — "Mixed" is a condition, "marginal, check the details" was
- * advice. Do not add a rung that reads as a recommendation.
- */
-export function stateLabel(score: number | null): string {
-  if (score === null) return 'Too far out to score';
-  if (score >= SCORE_BANDS.settled) return 'Dry, settled';
-  if (score >= SCORE_BANDS.mostlyDry) return 'Mostly dry';
-  if (score >= SCORE_BANDS.mixed) return 'Mixed';
-  return 'Wet or unsettled';
-}
-
-/** Component values as `ConditionsScore` carries them — each independently nullable. */
-export type ScoreComponents = {
-  drying: number | null;
-  rain: number | null;
-  wind: number | null;
-  temp: number | null;
-  humidity: number | null;
-};
-
-const COMPONENT_NAMES: Record<ScoreComponentName, string> = {
-  drying: 'drying time',
-  rain: 'upcoming rain',
-  wind: 'wind',
-  temp: 'temperature',
-  humidity: 'humidity',
-};
-
-/**
- * Ordered by point value, descending, so the phrasing is deterministic when
- * several components are 0 — §7 rule 4 requires naming exactly one, never two.
- */
-const BY_WEIGHT: ScoreComponentName[] = (
-  Object.keys(SCORE_COMPONENT_MAX) as ScoreComponentName[]
-).sort((a, b) => SCORE_COMPONENT_MAX[b] - SCORE_COMPONENT_MAX[a]);
-
-/**
- * The heaviest component scoring exactly 0, or `null` if none does.
+ * NWS severities that outrank everything else on a surface (§7 rules 4 and 5).
  *
- * A `null` component is unknown, not zero, and is skipped — reporting a missing
- * value as the limiting factor would name a cause that was never measured.
+ * **Still live, and it is the one part of the old suppression model that
+ * survived Phase 3b unchanged.** What it suppresses moved — it used to remove
+ * the ladder word and keep the number, and now it removes the number and keeps
+ * the readings — but which alerts count did not.
  */
-export function limitingComponent(components: ScoreComponents): ScoreComponentName | null {
-  for (const name of BY_WEIGHT) {
-    if (components[name] === 0) return name;
-  }
-  return null;
-}
-
-/** NWS severities that outrank the score entirely (§7 rules 4 and 5). */
 export function isSevereAlert(severity: string): boolean {
   const normalized = severity.trim().toLowerCase();
   return normalized === 'severe' || normalized === 'extreme';
 }
 
-export type ConditionsSummary = {
-  /**
-   * The state label, or `null` when suppression forbids showing one. A caller
-   * must not substitute its own label when this is `null` — that is the whole
-   * mechanism.
-   */
-  label: string | null;
-  /** `Score 80 (high confidence)`, with the limiting factor appended when suppressed. `null` when unscored. */
-  scoreLine: string | null;
-  /** Compact form for a list card: `Score 80 · high`. `null` when unscored. */
-  chip: string | null;
-  /** `limited by temperature` / `see the Extreme Heat Warning above`, else `null`. */
-  qualifier: string | null;
-};
-
-/**
- * §7 rule 4 — score suppression. When any component scores 0, or an active
- * alert of severity Severe or higher exists, the state label is not shown alone
- * and the limiting factor is named instead.
- *
- * Two details that must not be improvised:
- *
- * - **Suppression applies only when `score !== null`.** A day outside the
- *   scoring window has all five components at 0 and a null score. That is not a
- *   limited day, it is an unscored one, and it takes the ladder's
- *   *"Too far out to score"* with no suppression.
- * - **There is no degradation guard, and one must not be added.** Suppression
- *   runs unconditionally whenever a component is 0. An earlier design draft
- *   carved out an exception keyed on `component_temp === 0` with a temperature
- *   above 0 °C, believing that signature indicated a degraded upstream fetch.
- *   It does not — it is an exact description of a crag at 39.5 °C, so the
- *   exception would have suppressed the suppression on the one case this
- *   function exists for and shipped *"Dry, settled"* against a heat warning.
- */
-export function summarizeConditions(input: {
-  score: number | null;
-  confidence: Confidence;
-  components: ScoreComponents;
-  /** The event name of an active Severe+ alert, e.g. `Extreme Heat Warning`. */
-  severeAlertEvent: string | null;
-}): ConditionsSummary {
-  const { score, confidence, components, severeAlertEvent } = input;
-
-  if (score === null) {
-    return { label: stateLabel(null), scoreLine: null, chip: null, qualifier: null };
-  }
-
-  // An alert names the alert, not a component — it outranks everything (rule 5).
-  const limiting = limitingComponent(components);
-  const qualifier =
-    severeAlertEvent !== null
-      ? `see the ${severeAlertEvent} above`
-      : limiting !== null
-        ? `limited by ${COMPONENT_NAMES[limiting]}`
-        : null;
-
-  const scoreLine =
-    `Score ${score} (${confidence} confidence)` + (qualifier === null ? '' : ` — ${qualifier}`);
-
-  return {
-    label: qualifier === null ? stateLabel(score) : null,
-    scoreLine,
-    chip: `Score ${score} · ${confidence}`,
-    qualifier,
-  };
-}
 
 /**
  * The sentinel `dryingModel` returns when the rainfall lookup found nothing —
@@ -167,17 +72,6 @@ export function summarizeConditions(input: {
  */
 export const DRY_SENTINEL_HOURS = 720;
 
-/**
- * What both surfaces say when a day could not be scored because an input was
- * never measured (issue #34).
- *
- * Deliberately **not** a ladder rung and not a suppression qualifier: those
- * describe rock and weather, and this describes *us*. It also must not read as
- * "no rain" — the whole defect was that an outage looked like a dry spell.
- *
- * Distinct from `stateLabel(null)`'s "Too far out to score", which is a real
- * statement about the date. This is a statement about the data.
- */
 /**
  * Why a day has no score, when the reason is something other than the date being
  * outside the scoring window.

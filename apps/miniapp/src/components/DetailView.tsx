@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { spacing } from '@weatherteam6/design/tokens'
-import { scoreUnavailableLine } from '@weatherteam6/types'
 import type {
   ConditionsScore,
   ForecastSnapshot,
@@ -14,7 +13,7 @@ import { type } from '../theme/tokens.css.js'
 import { stack } from '../theme/styles.js'
 import { forecastSourceLabel, findToday, rainfallSourceLabel, severeAlertEvent } from '../lib/forecast.js'
 import { AlertBanner } from './Alerts.js'
-import { ScoreSection } from './ScoreSection.js'
+import { ReadingsSection } from './ReadingsSection.js'
 import { SourcesFooter } from './SourcesFooter.js'
 import { InlineError, Skeleton } from './States.js'
 import { NowLine } from './NowLine.js'
@@ -258,53 +257,65 @@ export function DetailView({
       ) : today === null && nowHour === null ? (
         <p style={type.bodyMd}>No reading for today yet.</p>
       ) : (
-        <NowLine
-          hour={nowHour}
-          today={today}
-          severeAlertEvent={alertEvent}
-          alertsPending={alerts?.isPending === true}
-          showScore={showScore}
-        />
+        <NowLine hour={nowHour} today={today} />
       )}
 
       {/*
-        **The score, at the top, on Daily only.**
+        **The two readings, at the top, on Daily only.**
 
-        It used to be the last section on the screen, collapsed, on the rule
-        that a score should be prominent only where the reader scrolled to it
-        deliberately (§3). The owner reversed that on 2026-09-15: it is the
-        question the app exists to answer and it sat below four charts.
+        The score section this replaces was the last thing on the screen,
+        collapsed, on the rule that a score should be prominent only where the
+        reader scrolled to it deliberately (§3). The owner reversed that on
+        2026-09-15: it is the question the app exists to answer and it sat below
+        four charts. Phase 3b then replaced the number with the readings it is
+        derived from — see `ReadingsSection`.
 
-        **Not on Hourly**, and that is not a layout preference. This summary is
-        about *today*; the Hourly tab pages through seven days, and today's
-        verdict at the top of a screen showing Saturday is a claim about the
-        wrong day. The pager carries that day's own chip instead.
+        **Not on Hourly**, and that is not a layout preference. This is about
+        *today*; the Hourly tab pages through seven days, and today's reading at
+        the top of a screen showing Saturday is a claim about the wrong day. The
+        pager carries that day's own readings instead.
+
+        **Its data is `/conditions`, not `/hourly`, although both carry the same
+        readings.** The list card reads `/conditions` too, and one endpoint for
+        both is what stops a crag showing one number on the list and another on
+        its own screen.
       */}
       {showScore && !onHourly && conditions !== undefined ? (
-        // The score waits on the alerts query as well as its own. Suppression
-        // keys on whether a Severe+ alert is active, so rendering the summary
-        // before alerts settle briefly shows an unsuppressed score for a
-        // location under an active warning — the state §7 rule 4 exists to
-        // prevent. An alerts error settles the query, and component-based
-        // suppression still runs.
+        // Waits on the alerts query as well as its own: the *number* is
+        // suppressed under a Severe+ alert, and `severeAlertEvent` answers null
+        // for a query in flight exactly as it does for "no alert". An alerts
+        // error settles the query, and the readings are unaffected either way.
         conditions.isPending || alerts?.isPending === true ? (
           <Skeleton height={90} />
         ) : conditions.isError ? (
           <InlineError message="Couldn't load conditions." onRetry={conditions.refetch} />
-        ) : conditions.data === null ? (
-          // Distinct from the ladder's "Too far out to score", which describes a
-          // date beyond the scoring window. This is today, and it has no row.
+        ) : conditions.data == null ? (
+          // No row for today at all, which since #108 means the whole live
+          // compute produced nothing. Distinct from a named unavailable reason,
+          // which is a statement about the readings.
           <p style={type.bodyMd}>No conditions for today yet.</p>
-        ) : conditions.data?.unavailable_reason ? (
-          // Withheld, not missing (§#34). The rainfall lookup failed, and its
-          // sentinel is worth 40 of 100 points — scoring anyway would credit a
-          // dry spell nobody measured. Says what happened rather than implying
-          // it has not rained.
-          <p style={type.bodyMd}>
-            {scoreUnavailableLine(conditions.data.unavailable_reason)}
-          </p>
-        ) : conditions.data === undefined ? null : (
-          <ScoreSection score={conditions.data} severeAlertEvent={alertEvent} />
+        ) : conditions.data.readings === undefined ? (
+          // **The field is absent, which is not the same as the model having
+          // nothing to say.** It means this client is newer than the API it is
+          // talking to — a window of minutes after a deploy. Rendering a named
+          // reason here would blame the forecast model for our own release
+          // ordering (defect class 3), so it renders nothing at all.
+          null
+        ) : (
+          <ReadingsSection
+            label="Conditions now"
+            reading={conditions.data.readings.now}
+            window={conditions.data.readings.today?.window ?? null}
+            unavailableReason={conditions.data.readings.unavailable_reason}
+            // The location's own clock, carried by the readings — never
+            // borrowed from another query that may not have settled (#33).
+            utcOffsetSeconds={conditions.data.readings.utc_offset_seconds}
+            severeAlertEvent={alertEvent}
+            // Already settled: the skeleton branch above holds this whole
+            // section until the alerts query resolves, so reaching here means
+            // `alertEvent` is a real answer rather than a query in flight.
+            alertsPending={false}
+          />
         )
       ) : null}
 
@@ -367,11 +378,10 @@ export function DetailView({
                   series={hourly.data}
                   selectedDate={tabs.selectedDate}
                   onSelectDate={tabs.onSelectDate}
-                  {...(forecast.data === undefined
+                  {...(!showScore
                     ? {}
                     : {
                         score: {
-                          days: forecast.data,
                           severeAlertEvent: alertEvent,
                           alertsPending: alerts?.isPending === true,
                           showScore,

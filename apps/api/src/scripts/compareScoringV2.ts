@@ -53,7 +53,7 @@ import {
   dryFractionFrictionFactor,
   sweatFrictionFactor,
 } from '../lib/scoring/sweatBalance.js'
-import { SCORE_BANDS, stateLabel } from '@weatherteam6/types'
+import { SCORE_BANDS, readingsHeadline } from '@weatherteam6/types'
 import type { ScoreInput } from '@weatherteam6/types'
 
 /**
@@ -504,7 +504,7 @@ function temperatureSlide(): void {
     )
   }
   console.log('')
-  console.log(`     The Mixed band is ${SCORE_BANDS.mixed}-${SCORE_BANDS.mostlyDry - 1}: "${stateLabel(50)}".`)
+  console.log(`     The Mixed band is ${SCORE_BANDS.mixed}-${SCORE_BANDS.mostlyDry - 1}.`)
   console.log('')
 }
 
@@ -627,7 +627,7 @@ function continuityWalk(): void {
     const hour = dewMarginHour(margin)
     console.log(
       `       margin ${padL(margin.toFixed(1), 5)} °C   score ${padL(num(hour.score), 3)}   ` +
-        `${pad(stateLabel(hour.score), 18)}${hour.friction?.level ?? '—'}` +
+        `${pad(readingsHeadline(hour.rock, hour.friction) ?? '—', 34)}` +
         `${hour.friction?.condensing ? ', condensing' : ''}`,
     )
   }

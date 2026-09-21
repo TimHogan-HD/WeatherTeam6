@@ -1,3 +1,4 @@
+import { CURRENT_HOUR_TOLERANCE_MS } from '@weatherteam6/types'
 import type { HourlyDay, HourlySample } from '@weatherteam6/types'
 import { contiguousRuns, extent, unionExtent, type Extent, type Run } from './geometry.js'
 
@@ -307,8 +308,14 @@ export function windSpreadSeries(hours: readonly HourlySample[]): SeriesDatum[] 
     .filter((d): d is SeriesDatum => d !== null)
 }
 
-/** How far from `now` an hour may be and still be called the current conditions. */
-export const CURRENT_HOUR_TOLERANCE_MS = 90 * 60_000
+/**
+ * How far from `now` an hour may be and still be called the current conditions.
+ *
+ * **Re-exported, not redeclared.** `readingNow` in `packages/types` answers the
+ * same question about the v2 readings, and two copies of this number is how one
+ * surface comes to call an hour "now" that another has already moved past.
+ */
+export { CURRENT_HOUR_TOLERANCE_MS }
 
 /**
  * The hour covering `now`, or `null` when the run does not reach it.

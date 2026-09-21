@@ -71,7 +71,36 @@ decisions are final unless explicitly overridden by the user.
 - **The readings reach the response only because the route passed `scoring`**, exactly as
   a per-day score reaches `GET /forecast/:id` only because it passed a merge argument.
   There is no `is_climbing_location` check downstream to forget, and the model itself does
-  not branch on the flag — it would score a city if asked.
+  not branch on the flag — it would score a city if asked. **The flag also decides whether
+  the hourly run is fetched at all**: with `scoring: null` the whole output is a sentinel,
+  so `GET /conditions/:id` and the bot's panel skip the call rather than spending a round
+  trip inside a 15-second callback to produce one.
+- **`GET /conditions/:locationId` carries the same readings, sliced by the same rule.**
+  `toConditionsReadings` (`lib/runs/conditionsReadings.ts`) is shared by the route and the
+  bot's gather, and `readingNow` (`packages/types`) is shared with the Mini App. This
+  exists so **one crag cannot carry two different numbers on two screens** — the list card
+  reads `/conditions` and the detail screen reads it too, and the five-component score and
+  the v2 score disagree by around thirty points on a hot day. `ConditionsReadings` carries
+  its own `utc_offset_seconds` for the same class of reason: a window's clock times must
+  never be formatted against an offset borrowed from a query that has not settled (#33).
+- **The words on a conditions surface are derived from the readings, never from the
+  number.** `summarizeReadings` (`packages/types/src/readingsCopy.ts`) is the one
+  implementation, shared by the bot and the Mini App. `stateLabel` and
+  `summarizeConditions` are **deleted**: a ladder that maps a score to a phrase can only
+  ever be as right as the score, which is how 104 °F came to read *"Dry, settled"*.
+- **Severe+ suppression drops the *number* and keeps the readings** — the reverse of what
+  the five-component rule did, and deliberately. The words are the same fact the warning is
+  about and now come from physics that sees heat; the number is the part that reads as
+  actionable, and *"safety stays out of the number"* is carried on a surface by removing it.
+  A surface must not reach past `ReadingsSummary.score === null` for the raw figure.
+- **Two sentinels, and they say different things.** `NOT_A_CRAG_READINGS`
+  (`not_a_climbing_location`) is a choice the reader made; `READINGS_UNAVAILABLE`
+  (`model_unavailable`) is a gap. Both live beside `toConditionsReadings` so the bot and
+  the routes cannot word them differently.
+- **An absent `readings` field is not an unavailable reason.** `ConditionsScore.readings`
+  is optional because the API and the Mini App deploy separately; a client that turns its
+  absence into `model_unavailable` blames the forecast model for our own release ordering.
+  It renders nothing instead.
 - **`collect-runs` stores trailing hours for `THERMAL_MODEL` only.** `T_mass` needs ~96 h
   of history that `weather_run_hours`' 2-day retention does not hold, so that one model is
   fetched with `past_days` in its own request and the other five without. Asking for all

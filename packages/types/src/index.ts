@@ -3,6 +3,7 @@
 // entry in its exports map — under NodeNext resolution a deep import such as
 // `@weatherteam6/types/units` does not resolve.
 import type { ScoreUnavailableReason } from './conditionsCopy.js'
+import type { ConditionsReadings } from './hourly.js'
 
 export * from './scoreComponents.js'
 export * from './units.js'
@@ -12,6 +13,7 @@ export * from './hourly.js'
 export * from './compass.js'
 export * from './recentPrecip.js'
 export * from './rockTypeCopy.js'
+export * from './readingsCopy.js'
 
 export type ApiResponse<T> = {
   data: T | null
@@ -202,6 +204,23 @@ export type ConditionsScore = {
    * reason, which means the date is beyond the scoring window.
    */
   unavailable_reason?: ScoreUnavailableReason | null
+
+  /**
+   * **Today's v2 readings — what a surface actually renders.** Set by
+   * `GET /conditions/:locationId` and by nothing else.
+   *
+   * Optional because this type is also built by `computeLiveForecast`, which
+   * has no readings to give: the v2 model runs off stored hourly runs and the
+   * five-component scorer runs off pooled daily aggregates. Making it required
+   * would force every construction site to invent one.
+   *
+   * **A client must normalise it with `?? null` at the fetch boundary**, not at
+   * each use. The API and the Mini App deploy separately, so every release that
+   * adds a field has a window where the client is new and the response is not —
+   * and `undefined` passes every `=== null` guard (architecture rule; it cost
+   * a chart its rain whiskers in production).
+   */
+  readings?: ConditionsReadings
 }
 
 export type ScoreInput = {

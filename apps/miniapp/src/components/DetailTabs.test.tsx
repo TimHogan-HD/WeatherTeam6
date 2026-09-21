@@ -130,6 +130,20 @@ const score: ConditionsScore = {
   score_breakdown: null,
   computed_at: `${DAY_1}T12:00:00.000Z`,
   created_at: `${DAY_1}T12:00:00.000Z`,
+  readings: {
+    model: 'gfs_seamless',
+    unavailable_reason: null,
+    utc_offset_seconds: 0,
+    now: {
+      valid_at: `${DAY_1}T12:00:00.000Z`,
+      rock: { level: 'dry', qualified: true },
+      friction: { level: 'good', condensing: false, qualified: true },
+      score: 72,
+      t_surface_c: 18,
+      condensation_margin_c: 4,
+    },
+    today: { local_date: DAY_1, window: null, best: null },
+  },
 }
 
 function ok<T>(data: T) {
@@ -244,11 +258,12 @@ describe('DetailView — tabs', () => {
     }
   })
 
-  it('puts today’s score on Daily and keeps it off Hourly', () => {
-    // **The score summary is about today, and Hourly is a day pager.** Today's
-    // verdict at the top of a screen showing Saturday is a claim about the
-    // wrong day; the pager carries that day's own chip instead. Moved out of
-    // the test above when the section came up from the foot of the screen.
+  it('puts today’s readings on Daily and keeps them off Hourly', () => {
+    // **The readings section is about today, and Hourly is a day pager.**
+    // Today's reading at the top of a screen showing Saturday is a claim about
+    // the wrong day; the pager carries that day's own readings instead. Moved
+    // out of the test above when the section came up from the foot of the
+    // screen.
     const render = (active: 'daily' | 'hourly'): string =>
       renderToStaticMarkup(
         <DetailView
@@ -269,8 +284,12 @@ describe('DetailView — tabs', () => {
         />,
       )
 
-    expect(render('daily')).toContain('Score 72')
-    expect(render('hourly')).not.toContain('Score 72')
+    expect(render('daily')).toContain('Conditions now')
+    expect(render('daily')).toContain('>72<')
+    expect(render('hourly')).not.toContain('Conditions now')
+    // The Hourly tab's own readings come from the *series*, which this fixture
+    // leaves unset — so the pager reports that rather than borrowing today's.
+    expect(render('hourly')).not.toContain('>72<')
   })
 
   it('says so when no day in the window can be drawn, rather than showing blank charts', () => {

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { spacing } from '@weatherteam6/design/tokens'
-import { summarizeConditions, type Location } from '@weatherteam6/types'
+import { summarizeReadings, type Location } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { card, chip, row, stack } from '../theme/styles.js'
 import { useAlerts, useConditions, useForecast } from '../hooks/useWeather.js'
@@ -45,26 +45,30 @@ export function LocationCard({
   const today = findToday(forecast.data)
 
   /**
-   * Suppression keys on the alert state, so the summary must not be computed
-   * until the alerts query has settled. Rendering it early shows a bare score
-   * chip for a location under an active Severe+ warning — briefly, but that is
-   * exactly the state §7 rule 4 exists to prevent. On an alerts *error* the
-   * query has settled with no data, and component-based suppression still runs.
+   * The two readings, in one line, from **the same endpoint the detail screen
+   * reads**. That is what stops a crag showing one number on this list and a
+   * different one on its own screen — the two models disagree by around thirty
+   * points on a hot day, which is exactly the sort of difference nobody can
+   * debug from a screenshot.
+   *
+   * Not computed until the alerts query has settled: suppression drops the
+   * *number* under an active Severe+ warning, and `severeAlertEvent` answers
+   * null for a query in flight exactly as it does for "no alert". On an alerts
+   * *error* the query has settled with no data, and nothing is suppressed.
+   *
+   * `readings === undefined` is an API older than this client, not a model with
+   * nothing to say — the card shows no chip rather than an invented reason.
    */
+  const readings = conditions.data?.readings
   const summary =
-    conditions.data == null || alerts.isPending
+    readings === undefined || alerts.isPending
       ? null
-      : summarizeConditions({
-          score: conditions.data.score,
-          confidence: conditions.data.confidence,
-          components: {
-            drying: conditions.data.component_drying_time,
-            rain: conditions.data.component_upcoming_rain,
-            wind: conditions.data.component_wind,
-            temp: conditions.data.component_temp,
-            humidity: conditions.data.component_humidity,
-          },
+      : summarizeReadings({
+          reading: readings.now,
+          window: readings.today?.window ?? null,
+          utcOffsetSeconds: readings.utc_offset_seconds,
           severeAlertEvent: severeAlertEvent(alerts.data),
+          unavailableReason: readings.unavailable_reason,
         })
 
   return (
@@ -114,15 +118,27 @@ export function LocationCard({
         <AlertPill alerts={alerts.data} />
       )}
 
-      {/* The chip is never the largest element and never bare. When suppression
-          is in force the qualifier rides with it — a score is not presented as
-          a summary of a day with a zeroed component (§7 rule 4). */}
-      {summary?.chip == null ? null : (
+      {/* The readings, then the number — never the number alone, and never
+          larger than the weather above it. A card has room for the two words
+          and not for the window line or the caveats; those are on the detail
+          screen this card opens.
+
+          **The headline is what makes the chip safe here.** A bare "58" beside
+          a name is the thing the old model could not stop being reassuring
+          about; "Dry rock · Poor friction" beside it cannot be.
+
+          **Nothing at all when there is nothing to put in it**, rather than an
+          empty row. A named unavailable reason is a whole sentence about *us*,
+          and a card is not where it belongs — the detail screen this card opens
+          says it, with room to. */}
+      {summary === null || (summary.headline === null && summary.score === null) ? null : (
         <div style={{ ...row(spacing.chipGap), alignSelf: 'flex-end', flexWrap: 'wrap' }}>
-          {summary.qualifier === null ? null : (
-            <span style={type.sourceBadge}>{summary.qualifier}</span>
+          {summary.headline === null ? null : (
+            <span style={type.sourceBadge}>{summary.headline}</span>
           )}
-          <span style={{ ...chip, ...type.labelSm }}>{summary.chip}</span>
+          {summary.score === null ? null : (
+            <span style={{ ...chip, ...type.labelSm }}>{summary.score}</span>
+          )}
         </div>
       )}
     </div>

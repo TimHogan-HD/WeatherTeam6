@@ -9,7 +9,6 @@ import {
 import { type } from '../theme/tokens.css.js'
 import { card, row } from '../theme/styles.js'
 import { tempColor } from './charts/chartStyle.js'
-import { ScoreChip } from './ScoreChip.js'
 
 /**
  * Current conditions as **one line**, not a 36px hero.
@@ -22,6 +21,12 @@ import { ScoreChip } from './ScoreChip.js'
  * **Everything here is labelled as what it is.** `now` comes from the hour of
  * the forecast run covering this moment; `high`/`low` are the day's extremes.
  * The two are never merged into one unlabelled number.
+ *
+ * **The score chip left this line in Phase 3b** and it was not a layout
+ * preference. `ReadingsSection` sits directly below and carries the same
+ * number beside the two readings it is derived from; a chip up here repeated it
+ * with nothing to read it against, which is how a bare number comes to look
+ * like the answer. This line is weather, and the reading is a separate claim.
  */
 
 export type NowLineProps = {
@@ -29,37 +34,9 @@ export type NowLineProps = {
   hour: HourlySample | null
   /** Today's row, for the high and low. `null` when the feed starts tomorrow. */
   today: ForecastSnapshot | null
-  /**
-   * Suppresses the score chip. Non-null means a Severe+ alert is active.
-   *
-   * **The chip is dropped entirely, not recoloured.** A score beside an active
-   * warning is the exact state §7's suppression rule exists to prevent — a
-   * 103 °F day under an Excessive Heat Warning reading as a number a climber
-   * might act on. The banner directly above says what is happening instead.
-   */
-  severeAlertEvent: string | null
-  /**
-   * Whether the alerts query has settled.
-   *
-   * **The chip waits for it, and that is not a nicety.** `severeAlertEvent`
-   * answers `null` for a query still in flight exactly as it does for "no
-   * severe alert", and `AlertBanner` renders nothing in that window — so a
-   * location under an Excessive Heat Warning would show a lime score chip with
-   * no banner above it, and then have both change. Defect class 7, and the
-   * score section below already guards on the same thing for the same reason.
-   */
-  alertsPending: boolean
-  /** Hides the chip for a location that has no score at all — a city. */
-  showScore: boolean
 }
 
-export function NowLine({
-  hour,
-  today,
-  severeAlertEvent,
-  alertsPending,
-  showScore,
-}: NowLineProps) {
+export function NowLine({ hour, today }: NowLineProps) {
   // Each part is omitted when its value is missing rather than rendered as an
   // em dash: this is a sentence of conditions, and a dash inside one reads as a
   // broken screen where a shorter sentence reads as less to say.
@@ -104,18 +81,6 @@ export function NowLine({
           <span style={{ color: colors.txt4 }}>{formatTempF(today.temp_c_min)}</span>
         </span>
       )}
-
-      {/*
-        The score, from the shared chip so the Hourly pager's cannot disagree
-        with it. Every suppression rule lives in there; this passes the two
-        facts only the screen knows.
-      */}
-      <ScoreChip
-        day={today}
-        severeAlertEvent={severeAlertEvent}
-        alertsPending={alertsPending}
-        showScore={showScore}
-      />
     </section>
   )
 }
