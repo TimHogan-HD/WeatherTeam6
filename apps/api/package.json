@@ -28,6 +28,7 @@
     "check:hourly": "tsx src/scripts/checkHourly.ts",
     "check:runs-storage": "tsx src/scripts/checkRunsStorage.ts",
     "compare:scoring": "tsx src/scripts/compareScoring.ts",
+    "compare:hourly-v2": "tsx src/scripts/compareHourlyV2.ts",
     "compare:thermal": "tsx src/scripts/compareThermal.ts"
   },
   "dependencies": {

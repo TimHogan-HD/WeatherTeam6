@@ -37,7 +37,7 @@ export type DryingModelOutput = {
  * deliberately: every row in production today is `basalt`, and this change must
  * not silently move a single existing location's score.
  */
-const MIN_HOURS: Record<RockType, number> = {
+export const MIN_HOURS: Record<RockType, number> = {
   sandstone: 24,
   limestone: 6,
   granite: 2,
@@ -47,7 +47,7 @@ const MIN_HOURS: Record<RockType, number> = {
   unknown: 24,
 }
 
-const MAX_HOURS: Record<RockType, number> = {
+export const MAX_HOURS: Record<RockType, number> = {
   sandstone: 72,
   limestone: 24,
   granite: 12,

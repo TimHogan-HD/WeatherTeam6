@@ -38,6 +38,7 @@
  * `scoring-findings.md` §1.2 and §1.4.
  */
 import { conditionsScore } from '../lib/scoring/conditionsScore.js'
+import { printV2Comparison } from './compareScoringV2.js'
 import { TEMP_BAND_C } from '@weatherteam6/types'
 import type { ScoreInput } from '@weatherteam6/types'
 
@@ -406,3 +407,4 @@ function main(): void {
 }
 
 main()
+printV2Comparison()
