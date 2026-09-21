@@ -142,12 +142,67 @@ time. The rock-type constants stay as the absorptive capacity. **They remain fol
 (`scoring-findings.md` §4) and putting physics on top of them must not be presented as
 precision.
 
+**1e. Evaporative capacity** — how fast moisture leaves a surface, rock or skin. It is the
+vapour-pressure deficit at `T_surface`, raised by wind and lowered by humidity. The same
+quantity does two jobs: it sets how fast the rock sheds water (it is the rate term in 1d) and
+how fast a hand sheds sweat. **Temperature and humidity both enter it, and neither is
+meaningful without the other** — 25 °C at 40% RH and 25 °C at 90% RH are different climbing
+days, and a model with two independent point buckets for them cannot say so.
+
+### What friction is made of
+
+This section exists because the obvious citation for it is wrong, and someone will otherwise
+go and find the same wrong one again.
+
+**Climbers are right that heat and humidity dominate friction.** The research records four
+independent community reports of it (`climbing-terminology-research.md` §4.10 Cathedral, §4.11
+Frankenjura, §4.12 Tonsai, §5.1 chalk), and it treats the effect as real.
+
+**What is wrong is one specific citation and one specific channel.**
+
+- The widely repeated *"shoe rubber peaks at 32–41 °F"* is sourced to a Friction Labs article
+  that **does not contain the claim** — opened and checked, §17.3.
+- The only direct measurement of the **finger-pad-to-rock** coefficient found no correlation
+  with temperature or humidity (Clarke et al. 2024, reporting Amca et al.). But it was run
+  across **23.5–27 °C and 34–47% RH, with one participant** — §18.2’s own words: *"not
+  detectable across a span nobody cares about"*. **It does not say the effect is absent.** It
+  says a static rig held in a warm dry room did not see it.
+
+**§18.2’s actual conclusion is where this design should start:** the effect is real and the
+finger-rock contact is probably not where it lives. It is *"compatible if the mechanism is
+**sweat rate**, **chalk behaviour**, or **water on the rock** — all upstream of the contact,
+and none of them reproduced by a static friction rig."*
+
+Two of those three are computable from data this app already fetches, and they are the two
+the friction reading is built from:
+
+| Mechanism | Quantity | Why it is defensible |
+| --- | --- | --- |
+| **Water on the rock** | Condensation margin, 1c | Uncontested physics. Rock research §2.8: the surface equilibrates with the air almost instantly, so **atmospheric moisture governs greasiness — which is what dew point measures and relative humidity obscures** |
+| **Sweat on the hand** | Evaporative capacity, 1e | A hand sheds sweat at a rate set by temperature, humidity and wind together. This is the channel the community description fits, and the one a friction rig cannot reproduce |
+
+**Chalk behaviour is the third and is deliberately not modelled.** Clarke et al. measured it
+directly and found *"a generalisation of chalk increasing or decreasing friction cannot be
+made… it is shown to be situational"*.
+
+**What this changes about the old model.** `conditionsScore` spends 12 points on air
+temperature and 8 on relative humidity, as two independent buckets, and never reads
+`dewpoint_c` at all — it is fetched, stored, and grepping the scoring directory for it returns
+one hit in a test fixture. Both mechanisms above are joint functions of temperature *and*
+humidity, which is why separate buckets could not express either of them, and why the fix is
+not a reweighting. §18.2 is right that **there is no measured basis for moving the 12 and the
+8** — because the answer is not a different pair of numbers.
+
+**Honesty bound.** None of this is calibrated. We can order days correctly — muggy 80 °F reads
+worse than dry 80 °F, a wall below its dew point reads Poor — without claiming a friction
+coefficient. Get the ordering right and say nothing about magnitude.
+
 ### Layer 2 — The two readings, published
 
 | Reading | Levels | Derived from |
 | --- | --- | --- |
 | **Rock** | `Wet` → `Drying` → `Dry` | 1d, with thresholds the user can shift |
-| **Friction** | `Poor` → `Fair` → `Good` → `Great` | `T_surface` against the user's ideal band, **gated by 1c** |
+| **Friction** | `Poor` → `Fair` → `Good` → `Great` | Two mechanisms — water on the rock (1c) and how fast a hand can dry (1e) — with `T_surface` an input to both rather than a band to compare against. See § What friction is made of |
 
 **A wall below its dew point cannot read better than `Poor`.** That is not a bolt-on cap — it is
 what condensation means, and it falls out of the physics rather than being legislated on top.
@@ -344,21 +399,9 @@ measured one — that is `defect-patterns.md` §3, attribution not backed by the
 1. **Are the default weights `0.55 / 0.45` right?** Nothing measures them. They decide whether a
    damp wall in perfect friction beats a dry one in bad friction.
 
-   **And there is a harder version of this question underneath it.** The friction reading is
-   two claims, and they are not equally founded. *Condensation* — a wall below its dew point
-   is wet — is uncontested physics, and it is water on the rock, which
-   `climbing-terminology-research.md` §18.2 names as one of the mechanisms that could explain
-   what climbers observe. *Temperature → friction* is the one that does not hold up: the only
-   direct measurement found **no significant correlation between temperature or humidity and
-   friction coefficient** (Clarke et al. 2024, reporting Amca et al.), and §17.3 found the
-   community citation for an optimal send temperature **does not contain the claim**. §18.2’s
-   own conclusion is to *"leave the weights alone and **stop citing friction physics for
-   them**"*.
-
-   That does not sink this design — heat being able to dominate a climbing score is defensible
-   on what a user expects and on heat safety. But it must not be argued from friction. If the
-   0.45 stands, it stands as a product judgement, and the reading may be better named for what
-   it is actually measuring. **Do not cite tribology for it.**
+   What it must **not** be argued from is a coefficient of friction at the finger-rock
+   contact — see § What friction is made of. The mechanisms are real; the lab number is not
+   the place to get them.
 
 2. **DECIDED 2026-09-21 — see § Unknown aspect.** Per-hour qualification: horizontal
    irradiance as a deliberately hot estimate, `qualified: false` only for the hours where
