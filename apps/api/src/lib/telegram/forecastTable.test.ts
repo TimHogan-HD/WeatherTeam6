@@ -41,6 +41,7 @@ function hour(over: Partial<RunHour> & { valid_at: Date }): RunHour {
     cloud_pct: null,
     precip_prob_pct: null,
     pressure_hpa: null,
+    shortwave_wm2: null,
     ...over,
   }
 }

@@ -52,6 +52,11 @@ export function hourHasModelData(h: RunHour): boolean {
     h.cloud_pct != null ||
     h.pressure_hpa != null
   )
+  // `shortwave_wm2` is deliberately absent, for the opposite reason to
+  // `precip_prob_pct`: that series outlives its model, and this one dies before
+  // it (NBM, 42h against 48h of temperature, measured 2026-09-21). Adding it
+  // could only ever confirm an hour that another variable already confirmed,
+  // and no surface renders it. Revisit when one does.
 }
 
 function ensembleHourHasData(h: EnsembleRunHour): boolean {

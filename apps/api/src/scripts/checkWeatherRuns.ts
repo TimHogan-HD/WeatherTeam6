@@ -136,6 +136,16 @@ async function run(): Promise<void> {
             precip_prob_pct: 40,
             // NBM returns nulls for this at every point measured.
             pressure_hpa: null,
+            /**
+             * **The three states shortwave has, in one fixture.** 0 is night, a
+             * number is daylight, and null is an hour the model did not answer
+             * for — NBM's shortwave horizon is 42h against 270h of dew point
+             * (`model-matrix.md`, 2026-09-21), so the third case is routine
+             * rather than hypothetical. A driver or a column default that
+             * flattened any two of these together would be invisible to vitest,
+             * which never opens a connection.
+             */
+            shortwave_wm2: i === 0 ? 0 : i === 1 ? 512.5 : null,
           })),
         },
       ],
@@ -172,6 +182,21 @@ async function run(): Promise<void> {
       `got ${typeof hours[0]?.temp_c}`,
     )
     check(
+      'shortwave 0 — night — reads back as 0, not null',
+      hours[0]?.shortwave_wm2 === 0,
+      `got ${String(hours[0]?.shortwave_wm2)}`,
+    )
+    check(
+      'shortwave in daylight keeps its decimals',
+      hours[1]?.shortwave_wm2 === 512.5,
+      `got ${String(hours[1]?.shortwave_wm2)}`,
+    )
+    check(
+      'shortwave past the model’s own horizon reads back as null, not 0',
+      hours[2]?.shortwave_wm2 === null,
+      `got ${String(hours[2]?.shortwave_wm2)}`,
+    )
+    check(
       'valid_at was shifted out of local time by the offset',
       hours[0]?.valid_at.toISOString() === '2026-09-01T07:00:00.000Z',
       `got ${String(hours[0]?.valid_at.toISOString())}`,
@@ -202,6 +227,9 @@ async function run(): Promise<void> {
             cloud_pct: null,
             precip_prob_pct: 40,
             pressure_hpa: null,
+            // The retry carries a *different* shortwave for the same hours, so
+            // the upsert is checked to overwrite rather than keep the first value.
+            shortwave_wm2: i === 0 ? 0 : i === 1 ? 640 : null,
           })),
         },
       ],
@@ -224,6 +252,11 @@ async function run(): Promise<void> {
       .orderBy(weatherRunHours.valid_at)
     check('the hours were updated in place', updatedHours[0]?.temp_c === 30)
     check('and there are still three of them', updatedHours.length === 3)
+    check(
+      'the new column is in the upsert’s SET list — a re-store overwrites shortwave',
+      updatedHours[1]?.shortwave_wm2 === 640,
+      `got ${String(updatedHours[1]?.shortwave_wm2)}`,
+    )
 
     console.log('\nStoring an ensemble run')
     const ens = await storeEnsembleRun(adHocKey, null, {
@@ -515,6 +548,7 @@ function emptyHour(valid_at_local: string) {
     cloud_pct: null as number | null,
     precip_prob_pct: null as number | null,
     pressure_hpa: null as number | null,
+    shortwave_wm2: null as number | null,
   }
 }
 

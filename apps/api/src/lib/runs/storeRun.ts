@@ -99,6 +99,11 @@ async function storeOneModel(
       h.cloud_pct,
       h.precip_prob_pct,
       h.pressure_hpa,
+      // 0 W/m² at night is a value, not a gap — `hasAnyValue` tests against
+      // null, so a night hour is kept on its own merits exactly as 0 mm of rain
+      // is. It is also why this column is added here rather than left out: an
+      // hour Open-Meteo answers with shortwave alone is a measured hour.
+      h.shortwave_wm2,
     ]
     if (!hasAnyValue(values)) continue
 
@@ -115,6 +120,7 @@ async function storeOneModel(
       cloud_pct: h.cloud_pct,
       precip_prob_pct: h.precip_prob_pct,
       pressure_hpa: h.pressure_hpa,
+      shortwave_wm2: h.shortwave_wm2,
     })
   }
 
@@ -137,6 +143,7 @@ async function storeOneModel(
           cloud_pct: sqlExcluded('cloud_pct'),
           precip_prob_pct: sqlExcluded('precip_prob_pct'),
           pressure_hpa: sqlExcluded('pressure_hpa'),
+          shortwave_wm2: sqlExcluded('shortwave_wm2'),
         },
       })
   }
