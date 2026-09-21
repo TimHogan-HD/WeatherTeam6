@@ -27,7 +27,8 @@
     "check:weather-runs": "tsx src/scripts/checkWeatherRuns.ts",
     "check:hourly": "tsx src/scripts/checkHourly.ts",
     "check:runs-storage": "tsx src/scripts/checkRunsStorage.ts",
-    "compare:scoring": "tsx src/scripts/compareScoring.ts"
+    "compare:scoring": "tsx src/scripts/compareScoring.ts",
+    "compare:thermal": "tsx src/scripts/compareThermal.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
