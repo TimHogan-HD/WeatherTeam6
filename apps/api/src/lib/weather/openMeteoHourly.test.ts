@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
+  fetchDeterministicHourly,
   localTimeToUtc,
   markSharedProbability,
   parseDeterministicHourly,
@@ -352,5 +353,68 @@ describe('parseEnsemble per-model output', () => {
     expect(result.partial_models).toEqual(['ecmwf_ifs025'])
     // It still contributed to the pooled precipitation, so it is still a source.
     expect(result.model_sources).toEqual(['gfs_seamless', 'ecmwf_ifs025'])
+  })
+})
+
+describe('fetchDeterministicHourly: past_days', () => {
+  let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>
+
+  beforeEach(() => {
+    fetchMock = vi.fn<typeof fetch>()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  const respond = (): void => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({
+          utc_offset_seconds: 0,
+          hourly: { time: TIMES, temperature_2m_gfs_seamless: [1, 2, 3] },
+        }),
+    } as Response)
+  }
+
+  const calledUrl = (): string => {
+    const url = fetchMock.mock.calls[0]?.[0]
+    if (typeof url !== 'string') throw new Error('fetch was not called with a url')
+    return url
+  }
+
+  /**
+   * **The property that keeps the cron's stored runs unchanged.** `past_days`
+   * was added for the v2 model's `T_mass`, which needs days of trailing air
+   * temperature that `weather_run_hours` does not retain. Every existing caller
+   * — `collect-runs` included — passes nothing, and if the parameter leaked in
+   * by default the collector would start storing observed hours as forecast
+   * ones. Nothing else in this repo constrains this url.
+   */
+  it('omits past_days entirely unless a caller asks for it', async () => {
+    respond()
+    await fetchDeterministicHourly({ lat: 36, lon: -115, elevation_m: null }, ['gfs_seamless'], 7)
+    expect(calledUrl()).not.toContain('past_days')
+    expect(calledUrl()).toContain('forecast_days=7')
+  })
+
+  it('sends past_days when asked, clamped to what the API accepts', async () => {
+    respond()
+    await fetchDeterministicHourly({ lat: 36, lon: -115, elevation_m: null }, ['gfs_seamless'], 7, 5)
+    expect(calledUrl()).toContain('past_days=5')
+  })
+
+  it('clamps an out-of-range request rather than passing it upstream', async () => {
+    respond()
+    await fetchDeterministicHourly(
+      { lat: 36, lon: -115, elevation_m: null },
+      ['gfs_seamless'],
+      7,
+      500,
+    )
+    expect(calledUrl()).toContain('past_days=92')
   })
 })

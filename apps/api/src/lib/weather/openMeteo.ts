@@ -1105,6 +1105,7 @@ function buildDeterministicUrl(
   location: ForecastLocation,
   models: readonly string[],
   forecastDays: number,
+  pastDays: number,
 ): URL {
   const url = new URL(FORECAST_URL)
   url.searchParams.set('latitude', String(location.lat))
@@ -1112,6 +1113,13 @@ function buildDeterministicUrl(
   url.searchParams.set('models', models.join(','))
   url.searchParams.set('hourly', DETERMINISTIC_HOURLY_VARS.join(','))
   url.searchParams.set('forecast_days', String(forecastDays))
+  // Only sent when a caller asks for it, so the URL every existing caller builds
+  // is byte-identical to what it was. The v2 model's T_mass needs days of
+  // trailing air temperature and weather_run_hours retains two, so the trailing
+  // hours come back in the same request rather than from a second API.
+  if (pastDays > 0) {
+    url.searchParams.set('past_days', String(Math.max(1, Math.min(92, Math.trunc(pastDays)))))
+  }
   // Same reason as the ensemble call (issue #33): local days resolved from the
   // coordinates, so hour buckets and day buckets agree across every fetch here.
   url.searchParams.set('timezone', 'auto')
@@ -1131,8 +1139,9 @@ async function requestDeterministic(
   location: ForecastLocation,
   models: readonly string[],
   forecastDays: number,
+  pastDays: number,
 ): Promise<DeterministicFetch> {
-  const url = buildDeterministicUrl(location, models, forecastDays)
+  const url = buildDeterministicUrl(location, models, forecastDays, pastDays)
   const res = await fetchWithRetry(url.toString())
 
   if (!res.ok) {
@@ -1211,6 +1220,8 @@ export async function fetchDeterministicHourly(
   location: ForecastLocation,
   models: readonly string[] = DETERMINISTIC_MODELS,
   forecastDays = 7,
+  /** Hours of already-observed weather to prepend. 0 keeps the request unchanged. */
+  pastDays = 0,
 ): Promise<DeterministicResult> {
   const fetched_at = new Date()
   const empty = {
@@ -1221,7 +1232,7 @@ export async function fetchDeterministicHourly(
   }
   if (models.length === 0) return { ...empty, unavailable_models: [] }
 
-  const first = await requestDeterministic(location, models, forecastDays)
+  const first = await requestDeterministic(location, models, forecastDays, pastDays)
   if (first.kind === 'no-coverage') return { ...empty, unavailable_models: [...models] }
 
   const parsed = parseDeterministicHourly(first.body.hourly ?? {}, models)
@@ -1252,7 +1263,7 @@ export async function fetchDeterministicHourly(
   const settled = await Promise.allSettled(
     models.map(async (model) => ({
       model,
-      result: await requestDeterministic(location, [model], forecastDays),
+      result: await requestDeterministic(location, [model], forecastDays, pastDays),
     })),
   )
 

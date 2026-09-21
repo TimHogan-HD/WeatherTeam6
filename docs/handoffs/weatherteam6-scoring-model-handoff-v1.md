@@ -2,11 +2,12 @@
 
 Version: v1
 Date: 2026-09-16
-Status: **Approved to build, 2026-09-21.** Every open question is now either decided (Q2) or
-deliberately deferred to the phase that can measure it — **Q4 to Phase 1, Q1 to Phase 2, Q3 to
-Phase 3** — so Phases 0 and 1 are unblocked and each later phase carries its own stop for the
-owner. Read § Open Questions before starting a phase; a deferral is a decision about *when*, not
-permission to pick a number quietly.
+Status: **Phases 0, 1 and 2 are built. STOPPED at the Phase 2 checkpoint, 2026-09-21,
+awaiting the owner on the three decisions in § Open Questions 5.** Nothing is wired to a
+surface and no production score has moved. Q2 and Q4 are decided; Q1 is measured and folded
+into Q5; Q3 is still Phase 3's to ask. Read § Open Questions before starting a phase, and
+run `npm run compare:scoring --workspace=apps/api` before arguing about a number — a
+deferral is a decision about *when*, not permission to pick one quietly.
 
 ## Context
 
@@ -234,20 +235,24 @@ component that can outvote another, because there are only two factors and they 
 the 6pm hours and leaves the morning alone, which is the correct answer and one a 72-hour
 lookahead cannot express.
 
-**Illustrative behaviour of this shape — NOT a measurement, and nothing in the repo
-reproduces it.** It came from a scratch script written to feel out the curve during the
-session that wrote this document, and that script was not kept. It is recorded because the
-*shape* is the argument; treat every individual figure below as unverified.
+**Measured 2026-09-21, and this replaces the illustrative table that stood here.** Produced
+by `npm run compare:scoring --workspace=apps/api` § 2, from the real model: dry a week, 45%
+RH, 8 km/h, sandstone at 45°, default weights and the `exp(-w)` sweat map.
 
-| °F | 45 | 72 | 86 | 94 | 100 | 104 | 108 | 110 |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| score | 100 | 100 | 83 | 71 | 59 | 48 | 31 | 0 |
+| °F | 45 | 60 | 72 | 80 | 86 | 94 | 100 | 104 | 108 | 112 | 120 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| **sun on the wall** | 99 | 93 | 87 | 83 | 79 | 72 | 65 | **58** | 49 | 37 | 1 |
+| in shade | 100 | 98 | 93 | 89 | 85 | 78 | 72 | 65 | 57 | 45 | 3 |
+| v1, for comparison | 97 | 100 | 100 | 96 | 93 | 89 | 88 | 88 | 88 | 88 | 88 |
 
-The **claim** those numbers stand in for, and the thing Phase 2 has to demonstrate, is:
-heat slides continuously from the top of the band to zero, nothing is capped, nothing is
-vetoed, and there is no step anywhere — because temperature carries ~45% of the answer
-rather than 12%. **Build it into `compare:scoring` and re-measure before quoting any
-number here.** If the rebuilt curve disagrees with this table, the table is what is wrong.
+The claim the old table stood in for holds: heat slides continuously from the top of the
+range to nothing, no cap, no veto, no step. It slides **less steeply** than that table
+guessed — 58 at 104 °F rather than 48, and the flat 88 v1 returns from 100 °F upward is
+what it replaces. Whether 58 is low enough is § Open Questions 5, Decision C.
+
+Note the shade row is not a smaller version of the sun row: **the sun carries about seven
+points of the answer at 104 °F**, through the wall's surface temperature raising the
+climber's radiant load, and that is the mechanism aspect would sharpen in Phase 4.
 
 ### Unknown aspect — DECIDED 2026-09-21
 
@@ -378,6 +383,64 @@ test (`conditionsScore.test.ts`, "continuous across both band edges") — the ne
 the invariant rather than introducing it, and it is the assertion to port first.
 **Git checkpoint:** one PR, and **stop here for the owner to look at the numbers.**
 
+**DONE — 2026-09-21, and STOPPED HERE for the owner.** `hourlyConditions.ts` (Layers 2, 3
+and 4), `sweatBalance.ts` (the hand's half of Layer 1e), 61 tests, `compare:scoring`
+extended with the whole v2 model beside the current one, and `npm run compare:hourly-v2
+--workspace=apps/api` running it against a real location's live weather. **Nothing reads
+any of it** — no score, response or surface has changed.
+
+**Every acceptance criterion holds except one, and that one is a judgement the owner has
+to make.** The 104 °F case reads `Rock: Dry`, `Friction: Poor` and **58** with sun on the
+wall, 65 in shade, against production's 88. There is no cap, no veto and no clamp on the
+total anywhere in the model. But 58 is *inside* the Mixed band rather than materially below
+it, and that is Decision C in § 5 of the harness.
+
+Five things Phase 3 inherits:
+
+- **Open Question 1 is ANSWERED only as far as a measurement can answer it.** The three
+  weight splits are columns in `compare:scoring` and the split barely moves anything: 104 °F
+  reads 58 / 55 / 66 across `0.55/0.45`, `0.50/0.50` and `0.65/0.35`. **The choice that
+  actually decides the model is the sweat map, which the spec did not anticipate**, and it
+  is Decision B in the same section. `exp(-w)` is recommended and the reason is issue #148,
+  not taste — see the next bullet.
+- **A weighted geometric mean has unbounded slope at zero, and that is the #148 defect
+  waiting to happen in a model with no bands.** `x^0.45` has an infinite derivative at
+  `x = 0`, so a factor that reaches *exactly* zero collapses into it rather than arriving.
+  Measured: the literal dry-skin-fraction map `1 − w` steps **12 points off a tenth of a
+  degree** at the point heat stress becomes uncompensable; `exp(-w)` never reaches zero and
+  holds the invariant across the whole axis. The condensation factor has the same shape and
+  is **left alone deliberately** — its collapse happens entirely inside the bottom band,
+  with `poor` and *"Wet or unsettled"* on both sides of it, so no screen changes what it
+  says. Softening it costs a floor, which is the clamp this model exists to do without.
+- **Cold costs nothing in friction and a great deal in drying, and only the first was
+  designed.** Both friction mechanisms genuinely improve as it gets colder, so there is no
+  cold penalty. But a cold wall barely dries — the vapour-pressure deficit collapses with
+  temperature — so a week after rain at −20 °C the model still will not call the rock dry,
+  where v1 handed out full credit at 168 flat hours. **That is the single largest difference
+  between the two models on ordinary days**, larger than the 104 °F case everyone is
+  watching, and Phase 3's copy has to carry it.
+- **Wind is now purely a benefit.** 60 km/h scores 100 where v1 scored 85. That follows from
+  § Constraints — safety stays out of the number and the Severe+ suppression carries it —
+  but it is worth seeing before a surface renders it.
+- **`rock.qualified` is false for any window containing daylight**, because the drying clock
+  runs off `T_surface` and every sunlit hour's irradiance depends on an aspect nothing
+  writes. `friction.qualified` behaves as § Unknown aspect intended (a dawn window is
+  qualified); the rock reading cannot, and Phase 3 has to decide what that says on screen
+  rather than printing an asterisk on every location.
+
+Three deliberate deviations from this document, each recorded where it was made:
+
+- **`rock` and `friction` are nullable** on `HourlyConditions`, against § Data Shapes. A
+  `Reading` has no "unknown" level and inventing `dry` for a wall nobody watched is defect
+  class 1.
+- **The hand's vapour-pressure deficit is taken at skin temperature, not at `T_surface`.**
+  § What friction is made of says the same quantity does two jobs; it cannot. `es(66 °C)` is
+  five times `es(35 °C)`, so the rock's deficit would read a baking wall as the best possible
+  drying conditions for skin.
+- **Layer 4 (`bestWindow`) shipped here rather than in Phase 3**, because the live harness
+  needed it to say anything useful and it is thirty pure lines.
+
+
 ### Phase 3 — Surfaces
 Mini App and bot show the two readings and the day's window; the number becomes secondary.
 `SCORE_BANDS`, `stateLabel` and the suppression rule are rewritten against the new meaning.
@@ -454,6 +517,22 @@ measured one — that is `defect-patterns.md` §3, attribution not backed by the
    day. **Phases 0 and 1 are unblocked** — neither touches the weights. Phase 2 does not
    finish until this is decided, and its **stop for the owner** is where it gets decided.
 
+   **MEASURED IN PHASE 2, AWAITING THE OWNER — 2026-09-21.** The three columns exist and
+   `npm run compare:scoring --workspace=apps/api` prints them. **The measurement's headline
+   is that this question matters less than expected and a question nobody asked matters
+   more.** Across the splits, 104 °F reads 58 / 55 / 66 and a perfect day 95 / 94 / 96 — the
+   split moves the middle of the range by a few points and changes no reading's level
+   anywhere in the scenario table.
+
+   What decides the model instead is **the sweat map** — how skin wettedness becomes a
+   friction factor — which this document did not anticipate needing a decision. It is
+   Decision B in § 5 of the harness output, `exp(-w)` is recommended, and the argument is
+   issue #148 rather than preference: the alternative reaches exactly zero, and a weighted
+   geometric mean has unbounded slope there, so it steps 12 points off a tenth of a degree.
+
+   Both go to the owner together at the Phase 2 stop.
+
+
 2. **DECIDED 2026-09-21 — see § Unknown aspect.** Per-hour qualification: horizontal
    irradiance as a deliberately hot estimate, `qualified: false` only for the hours where
    the sun could actually change the answer.
@@ -479,3 +558,17 @@ measured one — that is `defect-patterns.md` §3, attribution not backed by the
    the same sunlit hour. If that gap cannot move a friction reading, the per-type table is
    never written — a fourth set of invented constants has to earn its place. Note it would be
    inert until Phase 4 anyway: rock type is unset on every user-added location today.
+
+5. **The three decisions the Phase 2 stop actually puts to the owner.** They are printed
+   together by `npm run compare:scoring --workspace=apps/api` § 5, with the tables above
+   them; this is the index, not the argument.
+
+   - **A — the weight split.** Open Question 1. Measured, and it barely moves anything.
+   - **B — the sweat map**, `exp(-w)` or `1 − w`. Not anticipated by this document and it
+     decides more than A does. `exp(-w)` recommended, on issue #148 grounds.
+   - **C — whether 58 is low enough for 104 °F.** The acceptance criterion asked for
+     "materially below the *Mixed* band"; the model built to this specification returns 58
+     with sun and 65 in shade, which is inside it, thirty points below production, with
+     `Friction: Poor` and `Rock: Dry` and no cap or veto used to get there. If it has to go
+     lower, the lever that does it **without** putting a step back is
+     `METABOLIC_HEAT_W_M2` — costed in the harness's `M500` column at 53 — and not the map.

@@ -31,7 +31,7 @@ decisions are final unless explicitly overridden by the user.
 ## Backend Patterns
 - Express route handlers are thin. Business logic lives in `src/lib/`, not in route files.
 - Weather fetch functions live in `apps/api/src/lib/weather/` — one file per source.
-- Scoring logic lives in `apps/api/src/lib/scoring/` — orchestration in `liveForecast.ts`, pure math in `conditionsScore.ts` / `dryingModel.ts` / `rockThermal.ts`.
+- Scoring logic lives in `apps/api/src/lib/scoring/` — orchestration in `liveForecast.ts`, pure math in `conditionsScore.ts` / `dryingModel.ts` / `rockThermal.ts` / `sweatBalance.ts` / `hourlyConditions.ts`.
 - **`rockThermal.ts` is the v2 model's Layer 1 and nothing reads it yet** (Phase 1 of
   `docs/handoffs/weatherteam6-scoring-model-handoff-v1.md`). Two rules for the phase that
   wires it up. **Irradiance comes from one deterministic model — `gfs_seamless` — never
@@ -40,6 +40,16 @@ decisions are final unless explicitly overridden by the user.
   — a defaulted surface temperature would look like a measurement on every screen, and the
   per-hour `qualified` flag must travel with the reading rather than being dropped at the
   surface (§ Unknown aspect).
+- **`hourlyConditions.ts` and `sweatBalance.ts` are the v2 model's Layers 2-4 and nothing
+  reads them yet** (Phase 2, **stopped for the owner**). Three rules that outlive the stop.
+  **A weighted geometric mean has unbounded slope at zero**, so a factor reaching *exactly*
+  zero collapses the score into it rather than arriving — measured at 12 points off a tenth
+  of a degree, which is issue #148 in a model with no bands. Any new factor must approach
+  zero rather than reach it, or be shown to do its collapsing inside one band. **The hand's
+  vapour-pressure deficit is taken at skin temperature, never at `T_surface`** — the rock's
+  deficit would read a 66 °C wall as ideal drying conditions for skin. And **`rock.qualified`
+  is false for any drying window containing daylight**, because the clock runs off
+  `T_surface`; that is honest, not a bug, and Phase 3 owns the copy for it.
 - **Every input to a per-day score must be read for that day, and the drying clock is one**
   **of them.** `computeLiveForecast` calls `dryingModel` inside the day loop, against the
   events `rainfallEventsThrough` says that day is entitled to see: measured history up to
