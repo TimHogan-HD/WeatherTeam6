@@ -280,6 +280,28 @@ Per the locked copy rule, **p10/p50/p90 never appear in prose.** Those terms are
 
 ## 7. The copy model (resolves issue #21)
 
+> **SUPERSEDED IN PART — 2026-09-21, scoring model v2 Phase 3b.** The **rules** in this
+> section are still in force: no climbing opinions, weather leads, the score is never the
+> headline, alerts outrank everything, a named source is computed rather than written down,
+> and a city never gets a rock reading. What changed is the **mechanism** underneath them.
+>
+> - **The ladder is gone.** `stateLabel` mapped the five-component number to a phrase, so
+>   the words could only ever be as right as the number — which is how 103 °F came to read
+>   *"Dry, settled"* even after this section shipped. The headline is now the v2 model's two
+>   readings themselves (*"Dry rock · Poor friction"*), and `summarizeConditions` and
+>   `limitingComponent` are deleted with it.
+> - **Suppression reversed direction.** Under a Severe+ alert this section dropped the
+>   *word* and kept the number. It now drops the **number** and keeps the readings: the
+>   words come from physics that sees heat, and the number is the part that reads as
+>   actionable.
+> - **Two sentences are now required copy**, neither of which this section anticipated: the
+>   friction reading is an estimate, and a crag with no recorded aspect has its sunlit hours
+>   estimated.
+>
+> `packages/types/src/readingsCopy.ts` is the implementation and
+> `docs/handoffs/weatherteam6-scoring-model-handoff-v1.md` § Phase 3 is the spec. Read them
+> before treating anything below as a description of what ships.
+
 ### What is live today
 
 `apps/api/src/lib/telegram/conditionsReply.ts` maps score to an opinion:

@@ -22,6 +22,7 @@
     "bot:set-commands": "tsx src/scripts/setBotCommands.ts",
     "check:add-location": "tsx src/scripts/checkAddLocationApi.ts",
     "check:chat-locations": "tsx src/scripts/checkChatLocations.ts",
+    "check:conditions": "tsx src/scripts/checkConditions.ts",
     "check:delete-trip": "tsx src/scripts/checkDeleteTrip.ts",
     "check:panel-state": "tsx src/scripts/checkPanelState.ts",
     "check:weather-runs": "tsx src/scripts/checkWeatherRuns.ts",

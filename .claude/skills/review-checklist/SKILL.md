@@ -81,7 +81,7 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] Each Telegram API call is gated at its own version floor, not a shared one
 - [ ] Copy follows the locked rules in `docs/handoffs/weatherteam6-ui-handoff-v1.md` §Design System — no climbing opinions, score is never the headline, imperial units
 - [ ] Nothing formats a nullable weather value by hand — the `packages/types` formatters return an em dash, and `null` coerced to `0` renders a plausible `32°F` / `0 mph` instead of a visible gap
-- [ ] The state label and suppression come from `conditionsCopy.ts`, not reimplemented — and no "degradation guard" has been added to the suppression rule
+- [ ] The readings and the suppression come from `readingsCopy.ts`, not reimplemented — and no surface derives a word from the score, which is what `stateLabel` did and why it is gone
 - [ ] `GET /conditions/:id` is not called for a non-climbing location, and no score, breakdown or hours-since-rain renders for one
 - [ ] The sources footer is derived from `model_sources` and `asos_station`, and omits a source rather than guessing one — including NWS when the alerts call failed
 - [ ] "Today" comes from the server's `is_today` flag, never a date the client derived — and a missing row says so rather than falling back to the first row
@@ -100,7 +100,7 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] A precipitation **total** over more than one hour comes from `precip_mm_mean`, never from summing `precip_mm_p10/p50/p90` — a percentile is not additive, and a summed p50 is the median of nothing. A percentile shown against a multi-hour step describes **one hour** of it, and the surface says so
 - [ ] A chance of rain is `members_wet / member_count`, never `precipitation_probability` — and a null wet count or a zero member count **withholds** the figure rather than showing 0%
 - [ ] "This model has no data here" is decided on the **values**, not on rows being absent — Open-Meteo pads every model out to the longest horizon in the request, so a model past its own returns real rows full of nulls. `dayHasData` is the check, and it excludes `precip_prob_pct` because that series outlives the model it was requested with
-- [ ] Score-to-text goes through `summarizeConditions` — no surface writes its own mapping, or the bot and the Mini App drift apart
+- [ ] Reading-to-text goes through `summarizeReadings` — no surface writes its own mapping, or the bot and the Mini App drift apart. A friction **magnitude** never reaches a screen, and the estimate sentence rides with every friction level
 - [ ] Webhook auth does not rely solely on request-body fields — `secret_token` is verified via `webhookSecretAccepted`, and every refusal still answers 200 so Telegram does not redeliver
 - [ ] A failed send is classified before the claim is released — `TelegramPermanentError` (non-429 4xx) keeps its claim; releasing it re-sends an identically-rejected message on every cron run forever. Branch on the error **type**, never on its message text
 - [ ] A user-visible source list is derived from what was actually *read*, not what was requested — `model_sources` reports only the models `parseEnsemble` consumes

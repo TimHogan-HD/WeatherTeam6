@@ -4,10 +4,11 @@ import {
   EM_DASH,
   formatPrecipIn,
   formatTempF,
-  stateLabel,
+  readingsShort,
   type ForecastSnapshot,
   type HourlySample,
   type HourlySeries,
+  type ReadingsDay,
 } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { bareButton, card, row, stack } from '../theme/styles.js'
@@ -89,7 +90,21 @@ function tickScale(domain: Extent, tick: number): number {
  * is not — the same distinction the hourly charts make between a range mark and
  * a bar.
  */
-export function rowSpan(day: ForecastSnapshot, metric: DailyMetric): { from: number; to: number } | null {
+export function rowSpan(
+  day: ForecastSnapshot,
+  metric: DailyMetric,
+  /**
+   * The day's v2 score, from the readings on the hourly response.
+   *
+   * **Not `day.score`, which is the five-component one.** Both are 0-100 and
+   * they disagree by around thirty points on a hot day, so a row drawn from one
+   * beside a headline derived from the other is the kind of difference nobody
+   * can debug from a screenshot. `sharedDomain` never reaches this branch — it
+   * answers a fixed 0-100 for the score metric before calling here — which is
+   * why it may pass `null`.
+   */
+  score: number | null = null,
+): { from: number; to: number } | null {
   if (metric === 'temperature') {
     // Both ends or neither. A bar from an unknown low to a known high would
     // read as a cold night nobody forecast.
@@ -100,12 +115,11 @@ export function rowSpan(day: ForecastSnapshot, metric: DailyMetric): { from: num
     if (day.precip_mm_p50 === null) return null
     return { from: 0, to: day.precip_mm_p50 }
   }
-  // `score` is optional on the type and **absent entirely** for a non-climbing
-  // location — the route omits the merge rather than sending nulls. `null` with
-  // an `unavailable_reason` means withheld, and both are "no bar", never a zero
-  // one: zero is a real score meaning conditions are as bad as they get.
-  if (day.score === null || day.score === undefined) return null
-  return { from: 0, to: day.score }
+  // `null` is "no bar", never a zero one: zero is a real score and it means the
+  // wall is wet or running with condensation. A day the model could not read
+  // and a day it read as hopeless are different pictures.
+  if (score === null) return null
+  return { from: 0, to: score }
 }
 
 /**
@@ -211,13 +225,20 @@ function ConditionIcon({ condition }: { condition: DayCondition | null }) {
  *   Different questions, and the bar answers the second one; a row reading
  *   "0.01 in" beside a 60% chance is a drizzle that is fairly likely, which
  *   neither figure says alone.
- * - **score** — the number, then the word for it, from the same `SCORE_BANDS`
- *   the colour uses.
+ * - **score** — the number, then **the two readings it was derived from**. It
+ *   used to be the number and `stateLabel`'s word for it, which was the same
+ *   fact twice; now the end of the row says what the rock and the friction
+ *   actually are, which the number cannot.
  */
 export function rowFigures(
   day: ForecastSnapshot,
   metric: DailyMetric,
   hours: readonly HourlySample[],
+  /**
+   * The day's readings, from the hourly response. `null` for a day the model
+   * said nothing about, and for every day of a non-climbing location.
+   */
+  readings: ReadingsDay | null = null,
 ): { start: string | null; end: string | null } {
   if (metric === 'temperature') {
     return { start: formatTempF(day.temp_c_min), end: formatTempF(day.temp_c_max) }
@@ -235,9 +256,12 @@ export function rowFigures(
   // that is missing, and a score is not a measurement. Same glyph, and it has
   // to be the same glyph, but it is reached by its own branch so a future
   // "withheld" wording lands here and not in a unit formatter.
-  const score = day.score
-  if (score === null || score === undefined) return { start: EM_DASH, end: null }
-  return { start: `${score}`, end: stateLabel(score) }
+  const best = readings?.best ?? null
+  if (best === null || best.score === null) return { start: EM_DASH, end: null }
+  return {
+    start: `${best.score}`,
+    end: readingsShort(best.rock, best.friction),
+  }
 }
 
 /**
@@ -450,21 +474,20 @@ function gradientFor(day: ForecastSnapshot, metric: DailyMetric): string | null 
   return `linear-gradient(90deg, ${tempColor(day.temp_c_min)}, ${tempColor(day.temp_c_max)})`
 }
 
-function barFill(day: ForecastSnapshot, metric: DailyMetric): string {
+function barFill(day: ForecastSnapshot, metric: DailyMetric, score: number | null): string {
   if (metric === 'temperature') {
     return day.temp_c_max === null ? colors.line2 : tempColor(day.temp_c_max)
   }
   if (metric === 'rain') return colors.rain
   // Score is the one metric the status colours are *for* — this bar is the
-  // conditions ladder. The rungs come from `SCORE_BANDS`, the same constant
-  // `stateLabel` switches on, so a bar can never go amber on a day the words
-  // call "Mostly dry".
+  // conditions ladder, and its rungs come from `SCORE_BANDS`.
   //
-  // Four rungs onto three colours: 'Dry, settled' and 'Mostly dry' share lime,
-  // because the palette has three status hues and those two rungs agree about
-  // the only thing a colour can say here.
-  const score = day.score
-  if (score === null || score === undefined) return colors.line2
+  // **The words beside it no longer come from those rungs**, so the old
+  // guarantee ("a bar can never go amber on a day the words call Mostly dry")
+  // has been replaced rather than kept: the words are the readings, and the
+  // colour is the number derived from them. They cannot contradict each other
+  // because one is computed from the other.
+  if (score === null) return colors.line2
   return scoreColor(score)
 }
 
@@ -520,6 +543,18 @@ export function DailyList({
 }: DailyListProps) {
   const options = showScoreMetric ? METRIC_OPTIONS : METRIC_OPTIONS.filter((o) => o.value !== 'score')
   const hours = hourly?.hours ?? []
+  /**
+   * The v2 readings, by local date.
+   *
+   * **Empty is the honest answer while the hourly query is in flight**, and it
+   * renders as an em dash per row rather than as a zero score — the same
+   * distinction the whole model rests on. The rows themselves come from
+   * `/forecast`, which resolves first, so this is a real state and not a
+   * theoretical one.
+   */
+  const readingsByDate = new Map<string, ReadingsDay>(
+    (hourly?.readings?.days ?? []).map((d) => [d.local_date, d]),
+  )
   // The location's own clock, for the daylight window the condition icon reads.
   // Zero when there is no run: with no hours there is no icon to place either.
   const utcOffsetSeconds = hourly?.utc_offset_seconds ?? 0
@@ -552,7 +587,13 @@ export function DailyList({
       {days.map((day) => {
         const tappable =
           onSelectDay !== undefined && drawableDates?.has(day.forecast_date) === true
-        const figures = rowFigures(day, metric, hours)
+        // **Joined on the date, never on position.** The forecast rows and the
+        // readings' days are built by different paths and windowed separately;
+        // lining them up by index holds until one side drops a day and then
+        // misattributes every row after it while still looking plausible.
+        const readingsDay = readingsByDate.get(day.forecast_date) ?? null
+        const score = readingsDay?.best?.score ?? null
+        const figures = rowFigures(day, metric, hours, readingsDay)
         const body = (
           <div style={{ ...row(spacing.chipGap), width: '100%' }}>
             {/*
@@ -573,12 +614,12 @@ export function DailyList({
             </span>
 
             <RangeBar
-              span={rowSpan(day, metric)}
+              span={rowSpan(day, metric, score)}
               spread={rowSpread(day, metric, hours)}
               domain={domain}
               ticks={ticks}
               toDisplay={valueAxis.toDisplay}
-              fill={barFill(day, metric)}
+              fill={barFill(day, metric, score)}
               bandColor={bandColor}
               {...(gradientFor(day, metric) === null
                 ? {}

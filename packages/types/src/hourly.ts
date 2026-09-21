@@ -300,3 +300,41 @@ export type HourlyReadings = {
   /** Ordered by date. One entry per local day in the window. */
   days: ReadingsDay[];
 };
+
+/**
+ * Today's readings, as they ride along with `GET /conditions/:locationId`.
+ *
+ * **It exists so that one crag cannot carry two different numbers on two
+ * screens.** The list card reads `/conditions`, the detail screen reads
+ * `/hourly`, and the bot's panel is built server-side; before this, the card
+ * showed the five-component score while the detail screen showed the v2 one,
+ * for the same location on the same day. The two models disagree by thirty
+ * points on a hot day, which is precisely the kind of plausible-looking
+ * difference nobody can debug from a screenshot.
+ *
+ * Derived from the same `HourlyReadings` the hourly endpoint publishes, so the
+ * two are the same run of the same model and cannot drift.
+ */
+export type ConditionsReadings = {
+  /** The single model the readings came from. See `HourlyReadings.model`. */
+  model: string | null
+  unavailable_reason: ReadingsUnavailableReason | null
+  /**
+   * Seconds to add to a UTC instant to get **the location's** wall clock.
+   *
+   * It travels with the readings rather than being looked up beside them,
+   * because the window's clock times are the one thing on this type that cannot
+   * be rendered without it. A surface that fell back to 0 while some other
+   * query settled would print a correct-looking `Good from 7am to 11am` against
+   * the wrong hours — issue #33's exact shape.
+   */
+  utc_offset_seconds: number
+  /**
+   * The hour covering now, **server-chosen** by the shared `readingNow` rule.
+   * Null when the run does not reach this moment — which is a gap, not a calm
+   * hour.
+   */
+  now: HourlyReading | null
+  /** Today's window and best hour. Null when the model said nothing about today. */
+  today: ReadingsDay | null
+}

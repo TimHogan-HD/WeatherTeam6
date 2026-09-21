@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type {
   ConditionsScore,
   ForecastSnapshot,
+  HourlyReading,
   RecentPrecip,
   WeatherAlert,
 } from '@weatherteam6/types'
@@ -82,6 +83,39 @@ function redRockScore(over: Partial<ConditionsScore> = {}): ConditionsScore {
     },
     computed_at: `${TODAY}T12:00:00.000Z`,
     created_at: `${TODAY}T12:00:00.000Z`,
+    // The v2 readings for the same day, as the route now sends them: the model
+    // says `Rock: Dry`, `Friction: Poor`, 58 where the five-component sum said
+    // 80. That gap is the whole reason the surfaces moved.
+    readings: {
+      model: 'gfs_seamless',
+      unavailable_reason: null,
+      // Red Rock is UTC-7, so the window's 13:00-16:00Z is 6am-9am locally.
+      utc_offset_seconds: -7 * 3600,
+      now: readingHour(58),
+      today: {
+        local_date: TODAY,
+        window: {
+          from: `${TODAY}T13:00:00.000Z`,
+          to: `${TODAY}T16:00:00.000Z`,
+          hours: 4,
+          min_score: 62,
+          qualified: false,
+        },
+        best: readingHour(71),
+      },
+    },
+    ...over,
+  }
+}
+
+function readingHour(score: number, over: Partial<HourlyReading> = {}): HourlyReading {
+  return {
+    valid_at: `${TODAY}T20:00:00.000Z`,
+    rock: { level: 'dry', qualified: false },
+    friction: { level: 'poor', condensing: false, qualified: false },
+    score,
+    t_surface_c: 48.2,
+    condensation_margin_c: 21.4,
     ...over,
   }
 }
@@ -148,11 +182,18 @@ describe('DetailView — a climbing location', () => {
     // fixture passes no hourly data — and the day's wind is the Hourly tab's
     // own chart. The day's high and low are still on this line.
     expect(html).toContain('79°F')
-    // Weather appears before the score section in document order.
-    expect(html.indexOf('103°F')).toBeLessThan(html.indexOf('Score 80'))
+    // Weather appears before the readings section in document order.
+    expect(html.indexOf('103°F')).toBeLessThan(html.indexOf('Poor friction'))
   })
 
-  it('suppresses the state label and names the limiting component', () => {
+  /**
+   * **The phase's acceptance criterion, on the day it was written for.** The
+   * five-component score for this fixture is 80 and its ladder word was "Dry,
+   * settled" — for 103 °F, because heat could cost at most 12 of 100 points.
+   * The readings come from physics that sees heat, so the headline cannot be
+   * reassuring here however the number lands.
+   */
+  it('leads with the two readings and never renders the old ladder word', () => {
     const html = render(
       <DetailView
         isClimbingLocation
@@ -162,11 +203,42 @@ describe('DetailView — a climbing location', () => {
         conditions={ok(redRockScore())}
       />,
     )
-    expect(html).toContain('Score 80 (high confidence) — limited by temperature')
+    expect(html).toContain('Poor friction')
+    expect(html).toContain('>58<')
     expect(html).not.toContain('Dry, settled')
+    // The five-component score is still on the response and must not reach the
+    // screen — two numbers for the same day is worse than either.
+    expect(html).not.toContain('>80<')
   })
 
-  it('names the alert instead of a component when a Severe+ alert is active', () => {
+  it('names the window on the location clock, not the viewer’s', () => {
+    const html = render(
+      <DetailView
+        isClimbingLocation
+        asosStation="KLAS"
+        forecast={forecast}
+        alerts={alertsOk([])}
+        conditions={ok(redRockScore())}
+      />,
+    )
+    expect(html).toContain('Good from 6am to 9am')
+  })
+
+  it('says the friction reading is an estimate, on the screen', () => {
+    // Phase 3 acceptance criterion, § Open Questions 6 of the handoff.
+    const html = render(
+      <DetailView
+        isClimbingLocation
+        asosStation="KLAS"
+        forecast={forecast}
+        alerts={alertsOk([])}
+        conditions={ok(redRockScore())}
+      />,
+    )
+    expect(html).toContain('Friction is an estimate')
+  })
+
+  it('drops the number under a Severe+ alert but keeps the readings', () => {
     const html = render(
       <DetailView
         isClimbingLocation
@@ -178,12 +250,15 @@ describe('DetailView — a climbing location', () => {
     )
     expect(html).toContain('Extreme Heat Warning')
     expect(html).toContain('see the Extreme Heat Warning above')
-    expect(html).not.toContain('limited by temperature')
-    // The alert renders above the score, always (§7 rule 5).
-    expect(html.indexOf('Extreme Heat Warning')).toBeLessThan(html.indexOf('Score 80'))
+    // The words stay — they are the same fact the warning is about. The number
+    // is the part that reads as actionable, and it is what goes.
+    expect(html).toContain('Poor friction')
+    expect(html).not.toContain('>58<')
+    // The alert renders above the readings, always (§7 rule 5).
+    expect(html.indexOf('Extreme Heat Warning')).toBeLessThan(html.indexOf('Poor friction'))
   })
 
-  it('withholds the score until the alerts query settles', () => {
+  it('withholds the whole section until the alerts query settles', () => {
     // Suppression keys on whether a Severe+ alert is active. Rendering the
     // summary first shows an unsuppressed score for a location under an active
     // warning — briefly, but that is the state the rule exists to prevent.
@@ -196,12 +271,13 @@ describe('DetailView — a climbing location', () => {
         conditions={ok(redRockScore())}
       />,
     )
-    expect(html).not.toContain('Score 80')
+    expect(html).not.toContain('>58<')
+    expect(html).not.toContain('Poor friction')
     // The weather is not held up by it.
     expect(html).toContain('103°F')
   })
 
-  it('still shows the score when the alerts query settled as an error', () => {
+  it('shows the readings and the number when the alerts query settled as an error', () => {
     const html = render(
       <DetailView
         isClimbingLocation
@@ -211,8 +287,10 @@ describe('DetailView — a climbing location', () => {
         conditions={ok(redRockScore())}
       />,
     )
-    // Component-based suppression still runs; only the alert half is unknown.
-    expect(html).toContain('Score 80 (high confidence) — limited by temperature')
+    // The query settled with no data, so nothing is suppressed — and the
+    // failure is stated above rather than reading as "no alerts".
+    expect(html).toContain('Poor friction')
+    expect(html).toContain('>58<')
     expect(html).toContain('load alerts')
   })
 
@@ -452,11 +530,16 @@ describe('DetailView — partial and missing data', () => {
 })
 
 /**
- * Issue #34. A failed rainfall lookup used to score as a 30-day dry spell — the
- * heaviest component at full marks — so a detail screen could read "Dry,
- * settled" for rock nothing had checked.
+ * Issue #34, as it stands after the v2 readings took over the screen.
+ *
+ * A failed rainfall lookup used to score as a 30-day dry spell — the heaviest
+ * component at full marks — so a detail screen could read "Dry, settled" for
+ * rock nothing had checked. The v2 readings never consult that lookup; their
+ * drying clock runs off the hourly precipitation in the stored run. So the
+ * readings survive it, and what must **not** survive is the rain sentence
+ * derived from the sentinel.
  */
-describe('DetailView — a withheld score (#34)', () => {
+describe('DetailView — a withheld rainfall history (#34)', () => {
   function withheld() {
     return redRockScore({
       score: null,
@@ -470,7 +553,7 @@ describe('DetailView — a withheld score (#34)', () => {
     })
   }
 
-  it('says why there is no score', () => {
+  it('still reports the readings, which do not depend on that lookup', () => {
     const html = render(
       <DetailView
         isClimbingLocation
@@ -480,13 +563,11 @@ describe('DetailView — a withheld score (#34)', () => {
         conditions={ok(withheld())}
       />,
     )
-    // Not the full sentence: renderToStaticMarkup escapes the apostrophe to
-    // &#x27;, so asserting the raw copy string would fail on the escaping
-    // rather than on the behaviour.
-    expect(html).toContain('no rainfall data')
+    expect(html).toContain('Poor friction')
+    expect(html).toContain('>58<')
   })
 
-  it('shows no score, no ladder label and no breakdown', () => {
+  it('renders no ladder label and no breakdown, both of which are gone', () => {
     const html = render(
       <DetailView
         isClimbingLocation
@@ -497,7 +578,6 @@ describe('DetailView — a withheld score (#34)', () => {
       />,
     )
     expect(html).not.toContain('Dry, settled')
-    expect(html).not.toContain('Score ')
     expect(html).not.toContain('Show breakdown')
   })
 

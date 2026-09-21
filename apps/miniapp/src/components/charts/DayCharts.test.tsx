@@ -1,10 +1,11 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type {
-  ForecastSnapshot,
   HourlyDay,
+  HourlyReading,
   HourlySample,
   HourlySeries,
+  ReadingsDay,
 } from '@weatherteam6/types'
 import { DayCharts, stepDay } from './DayCharts.js'
 import { chartColors } from './chartStyle.js'
@@ -155,84 +156,129 @@ describe('DayCharts pager', () => {
   })
 })
 
-function forecastDay(date: string, over: Partial<ForecastSnapshot> = {}): ForecastSnapshot {
+function readingHour(score: number, over: Partial<HourlyReading> = {}): HourlyReading {
   return {
-    id: `snap-${date}`,
-    location_id: 'loc',
-    captured_at: `${date}T00:00:00.000Z`,
-    forecast_date: date,
-    precip_mm_p10: null,
-    precip_mm_p50: null,
-    precip_mm_p90: null,
-    temp_c_min: 10,
-    temp_c_max: 20,
-    wind_kmh_max: null,
-    humidity_pct: null,
-    model_sources: null,
-    created_at: `${date}T00:00:00.000Z`,
+    valid_at: new Date(T0).toISOString(),
+    rock: { level: 'dry', qualified: true },
+    friction: { level: 'good', condensing: false, qualified: true },
+    score,
+    t_surface_c: 18,
+    condensation_margin_c: 4,
     ...over,
+  }
+}
+
+function readingsDay(localDate: string, score: number): ReadingsDay {
+  return {
+    local_date: localDate,
+    window: {
+      from: `${localDate}T13:00:00.000Z`,
+      to: `${localDate}T16:00:00.000Z`,
+      hours: 4,
+      min_score: score,
+      qualified: true,
+    },
+    best: readingHour(score),
+  }
+}
+
+function withReadings(s: HourlySeries, days: ReadingsDay[]): HourlySeries {
+  return {
+    ...s,
+    readings: { model: 'gfs_seamless', unavailable_reason: null, hours: [], days },
   }
 }
 
 const OPEN_SCORE = { severeAlertEvent: null, alertsPending: false, showScore: true }
 
-describe('DayCharts — the score belongs to the day on screen', () => {
-  const week = [
-    forecastDay(DAY_1, { score: 30, confidence: 'high' }),
-    forecastDay(DAY_2, { score: 85, confidence: 'low' }),
-  ]
+describe('DayCharts — the readings belong to the day on screen', () => {
+  const week = [readingsDay(DAY_1, 30), readingsDay(DAY_2, 85)]
 
   function withScore(date: string, days = week): string {
     return renderToStaticMarkup(
       <DayCharts
-        series={series(
-          [...Array.from({ length: 24 }, (_, i) => hour(i, DAY_1)),
-           ...Array.from({ length: 24 }, (_, i) => hour(i + 24, DAY_2))],
-          [day(DAY_1), day(DAY_2)],
+        series={withReadings(
+          series(
+            [...Array.from({ length: 24 }, (_, i) => hour(i, DAY_1)),
+             ...Array.from({ length: 24 }, (_, i) => hour(i + 24, DAY_2))],
+            [day(DAY_1), day(DAY_2)],
+          ),
+          days,
         )}
         selectedDate={date}
         onSelectDate={() => {}}
-        score={{ days, ...OPEN_SCORE }}
+        score={OPEN_SCORE}
       />,
     )
   }
 
   it('shows the paged day’s own score, not the first row’s', () => {
-    // The reader paged to Wednesday to ask about Wednesday. The score section
-    // at the foot of the screen is about today and cannot answer that.
+    // The reader paged to Wednesday to ask about Wednesday. The readings
+    // section at the top of the Daily tab is about today and cannot answer it.
     expect(withScore(DAY_2)).toContain('>85<')
     expect(withScore(DAY_2)).not.toContain('>30<')
     expect(withScore(DAY_1)).toContain('>30<')
   })
 
-  it('matches the score to the day by date, never by position', () => {
-    // The hourly window and the forecast rows are built by different paths and
+  it('matches the readings to the day by date, never by position', () => {
+    // The readings' days and the hours' days are built by different paths and
     // windowed separately. Lining them up by index holds until one side drops a
-    // day, and then puts the wrong score on every day after it while still
+    // day, and then puts the wrong reading on every day after it while still
     // looking right.
-    const shifted = [forecastDay(DAY_2, { score: 85, confidence: 'low' })]
+    const shifted = [readingsDay(DAY_2, 85)]
     expect(withScore(DAY_2, shifted)).toContain('>85<')
     expect(withScore(DAY_1, shifted)).not.toContain('>85<')
   })
 
-  it('draws no chip for a day the forecast has no row for', () => {
+  it('draws no chip for a day the model said nothing about', () => {
     expect(withScore(DAY_1, [])).not.toContain('>30<')
   })
 
-  it('drops the chip under a severe alert rather than recolouring it', () => {
+  it('drops the number under a severe alert but keeps the two readings', () => {
+    // The words are the same fact the warning is about, and they now come from
+    // physics that sees heat. The number is what suppression removes.
     const html = renderToStaticMarkup(
       <DayCharts
-        series={series(Array.from({ length: 24 }, (_, i) => hour(i, DAY_1)))}
+        series={withReadings(
+          series(Array.from({ length: 24 }, (_, i) => hour(i, DAY_1))),
+          week,
+        )}
         selectedDate={DAY_1}
         onSelectDate={() => {}}
-        score={{ days: week, severeAlertEvent: 'Excessive Heat Warning', alertsPending: false, showScore: true }}
+        score={{ severeAlertEvent: 'Excessive Heat Warning', alertsPending: false, showScore: true }}
+      />,
+    )
+    expect(html).not.toContain('>30<')
+    expect(html).toContain('Excessive Heat Warning')
+    expect(html).toContain('Good friction')
+  })
+
+  it('holds the number until the alerts query settles', () => {
+    // `severeAlertEvent` is null for a pending query exactly as for "no severe
+    // alert", so a number drawn early sits under a warning yet to arrive.
+    const html = renderToStaticMarkup(
+      <DayCharts
+        series={withReadings(
+          series(Array.from({ length: 24 }, (_, i) => hour(i, DAY_1))),
+          week,
+        )}
+        selectedDate={DAY_1}
+        onSelectDate={() => {}}
+        score={{ severeAlertEvent: null, alertsPending: true, showScore: true }}
       />,
     )
     expect(html).not.toContain('>30<')
   })
 
-  it('draws no chip at all on the preview path, which has no score', () => {
+  it('says the friction reading is an estimate wherever it renders one', () => {
+    // A Phase 3 acceptance criterion, and this tab renders a friction level
+    // without the Daily tab's section anywhere on screen.
+    expect(withScore(DAY_1)).toContain('Friction is an estimate')
+  })
+
+  it('draws nothing at all on the preview path, which has no readings', () => {
     expect(render(series(fullDay))).not.toContain('>30<')
+    expect(render(series(fullDay))).not.toContain('friction')
   })
 })
 

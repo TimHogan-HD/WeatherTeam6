@@ -64,9 +64,7 @@ describe('NowLine', () => {
     // `103°F  79°F` alone at the top of the screen, `temp_c_max` first, in the
     // slot the hero used to occupy — the exact §3 error this component exists
     // to prevent, distinguished only by opacity.
-    const html = renderToStaticMarkup(
-      <NowLine hour={null} today={today} severeAlertEvent={null} alertsPending={false} showScore />,
-    )
+    const html = renderToStaticMarkup(<NowLine hour={null} today={today} />)
     expect(html).toContain('High')
     expect(html).toContain('Low')
     expect(html).toContain('103°F')
@@ -74,65 +72,22 @@ describe('NowLine', () => {
   })
 
   it('shows the current hour as the reading, distinct from the day’s high', () => {
-    const html = renderToStaticMarkup(
-      <NowLine
-        hour={hour()}
-        today={today}
-        severeAlertEvent={null}
-        alertsPending={false}
-        showScore
-      />,
-    )
+    const html = renderToStaticMarkup(<NowLine hour={hour()} today={today} />)
     // 31 °C now against a 39.5 °C high — two different numbers, which is the
     // whole reason this component reads the hourly run.
     expect(html).toContain('88°F')
     expect(html).toContain('103°F')
   })
 
-  it('holds the score chip until the alerts query settles', () => {
-    // `severeAlertEvent` is null for a pending query exactly as for "no severe
-    // alert", and the banner renders nothing in that window — so a location
-    // under a warning would flash a lime score with nothing above it.
-    const pending = renderToStaticMarkup(
-      <NowLine hour={hour()} today={today} severeAlertEvent={null} alertsPending showScore />,
-    )
-    expect(pending).not.toContain('>80<')
-
-    const settled = renderToStaticMarkup(
-      <NowLine
-        hour={hour()}
-        today={today}
-        severeAlertEvent={null}
-        alertsPending={false}
-        showScore
-      />,
-    )
-    expect(settled).toContain('>80<')
-  })
-
-  it('drops the chip entirely under a severe alert', () => {
-    const html = renderToStaticMarkup(
-      <NowLine
-        hour={hour()}
-        today={today}
-        severeAlertEvent="Excessive Heat Warning"
-        alertsPending={false}
-        showScore
-      />,
-    )
-    expect(html).not.toContain('>80<')
-  })
-
-  it('shows no score at all for a location that has none', () => {
-    const html = renderToStaticMarkup(
-      <NowLine
-        hour={hour()}
-        today={today}
-        severeAlertEvent={null}
-        alertsPending={false}
-        showScore={false}
-      />,
-    )
+  /**
+   * **The chip left this line in Phase 3b.** `ReadingsSection` directly below
+   * carries the same number beside the two readings it is derived from; a chip
+   * here repeated it with nothing to read it against. The suppression rules it
+   * used to hold are not gone — they moved with it, and are tested on
+   * `summarizeReadings` and `ReadingsSection`.
+   */
+  it('renders no score of any kind', () => {
+    const html = renderToStaticMarkup(<NowLine hour={hour()} today={today} />)
     expect(html).not.toContain('>80<')
   })
 
@@ -141,9 +96,6 @@ describe('NowLine', () => {
       <NowLine
         hour={hour({ temp_c: null, wind_kmh: null, humidity_pct: null, cloud_pct: null })}
         today={today}
-        severeAlertEvent={null}
-        alertsPending={false}
-        showScore
       />,
     )
     expect(html).not.toContain('32°F')

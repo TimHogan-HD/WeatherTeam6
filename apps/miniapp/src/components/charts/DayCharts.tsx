@@ -4,7 +4,6 @@ import {
   formatPrecipIn,
   formatTempF,
   formatWindMph,
-  type ForecastSnapshot,
   type HourlyDay,
   type HourlySeries,
 } from '@weatherteam6/types'
@@ -12,7 +11,7 @@ import { type } from '../../theme/tokens.css.js'
 import { bareButton, card, row, stack } from '../../theme/styles.js'
 import { formatForecastDate } from '../../lib/forecast.js'
 import { HourlyChart } from './HourlyChart.js'
-import { ScoreChip } from '../ScoreChip.js'
+import { ReadingsSection } from '../ReadingsSection.js'
 import { extent, type Extent } from './geometry.js'
 import { identityAxis, rainAxis, tempAxis, windAxis } from './valueAxis.js'
 import {
@@ -140,20 +139,23 @@ export type DayChartsProps = {
   selectedDate: string
   onSelectDate: (localDate: string) => void
   /**
-   * The climbing score for **the day on screen**, beside the pager.
+   * The readings for **the day on screen**, under the pager.
    *
-   * The score section at the foot of the screen answers a different question —
-   * it is about today — and on this tab it sat three charts below a day that
-   * might be Thursday. A reader paging to Saturday is asking whether Saturday
-   * is climbable; the answer belongs in the row where they picked it.
+   * The readings section at the top of the Daily tab answers a different
+   * question — it is about today — and a reader paging to Saturday is asking
+   * about Saturday. The answer belongs in the row where they picked it.
    *
-   * Absent on the `/add` preview, which has no score at all, and the whole
-   * group is optional rather than four loose props because the suppression
-   * rules only make sense together.
+   * **The readings themselves come from `series`, not from here.** They are on
+   * the same response as the hours these charts draw, so there is no second
+   * source to keep aligned; what this prop carries is the two facts only the
+   * screen knows — whether a Severe+ alert is active, and whether that query
+   * has settled — plus the flag that says this location is a crag at all.
+   *
+   * Absent on the `/add` preview, which has no saved row and therefore no
+   * readings. Optional as a group rather than as three loose props because the
+   * suppression rules only make sense together.
    */
   score?: {
-    /** All seven rows, matched on `forecast_date`. */
-    days: readonly ForecastSnapshot[]
     severeAlertEvent: string | null
     alertsPending: boolean
     showScore: boolean
@@ -203,11 +205,11 @@ export function DayCharts({ series, selectedDate, onSelectDate, score }: DayChar
   const gusts = gustSeries(hours)
   const out = daysOutLabel(series.days, selectedDate)
 
-  // **Matched on the date, never on position.** `series.days` and the forecast
-  // rows are built by different paths and windowed separately; lining them up
-  // by index holds until one side drops a day and then puts Saturday's score on
-  // Friday while still looking right.
-  const scoreDay = score?.days.find((d) => d.forecast_date === selectedDate) ?? null
+  // **Matched on the date, never on position.** The readings' days and the
+  // hours' days are built by different paths in `buildHourlySeries` and
+  // windowed separately; lining them up by index holds until one side drops a
+  // day and then puts Saturday's reading on Friday while still looking right.
+  const readingsDay = (series.readings?.days ?? []).find((d) => d.local_date === selectedDate) ?? null
 
   const axis = { axis: 'hour' as const, utcOffsetSeconds: series.utc_offset_seconds }
 
@@ -251,15 +253,29 @@ export function DayCharts({ series, selectedDate, onSelectDate, score }: DayChar
           confidence story this app is built on is about distance from now.
         */}
         {out === null ? null : <span style={{ ...type.bodySm, marginLeft: 'auto' }}>{out}</span>}
-        {score === undefined ? null : (
-          <ScoreChip
-            day={scoreDay}
-            severeAlertEvent={score.severeAlertEvent}
-            alertsPending={score.alertsPending}
-            showScore={score.showScore}
-          />
-        )}
       </div>
+
+      {/*
+        The day's two readings, directly under the day it picked. `bare`
+        because this section is already a card.
+
+        **Driven off `readingsDay.best`, which the server chose.** The rule for
+        which hour represents a day is part of the model; a client picking its
+        own is how the bot and the Mini App come to disagree about the same
+        Saturday.
+      */}
+      {score === undefined || !score.showScore ? null : (
+        <ReadingsSection
+          bare
+          label={`Conditions · ${formatForecastDate(selectedDate)}`}
+          reading={readingsDay?.best ?? null}
+          window={readingsDay?.window ?? null}
+          unavailableReason={series.readings?.unavailable_reason ?? null}
+          utcOffsetSeconds={series.utc_offset_seconds}
+          severeAlertEvent={score.severeAlertEvent}
+          alertsPending={score.alertsPending}
+        />
+      )}
 
       <div
         id={DAY_PANEL_ID}

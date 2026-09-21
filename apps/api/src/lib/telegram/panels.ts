@@ -2,6 +2,7 @@ import { escapeTelegramHtml, geocodeKindLabel } from '@weatherteam6/types'
 import type { ForecastSnapshot, GeocodeResult } from '@weatherteam6/types'
 import { encodeAction } from './callbackData.js'
 import { formatConditionsReply, type ConditionsReplyInput } from './conditionsMessage.js'
+import { NOT_A_CRAG_READINGS } from '../runs/conditionsReadings.js'
 import { locationDeepLink, MINI_APP_DIRECT_LINK } from './deepLink.js'
 import {
   clockLabel,
@@ -982,6 +983,9 @@ export function buildWeatherPreviewPanel(input: WeatherPreviewPanelInput): Panel
     isClimbingLocation: false,
     today,
     todayScore: null,
+    // An unsaved point is not a crag, so there is no rock to read and the whole
+    // readings block is withheld above.
+    readings: NOT_A_CRAG_READINGS,
     activeAlerts: [],
   })
 

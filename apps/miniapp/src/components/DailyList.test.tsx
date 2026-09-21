@@ -1,7 +1,12 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { ForecastSnapshot } from '@weatherteam6/types'
-import type { HourlySample, HourlySeries } from '@weatherteam6/types'
+import type {
+  HourlyReading,
+  HourlySample,
+  HourlySeries,
+  ReadingsDay,
+} from '@weatherteam6/types'
 import {
   DailyList,
   dayRainChance,
@@ -52,6 +57,36 @@ function day(date: string, over: Partial<ForecastSnapshot> = {}): ForecastSnapsh
 
 function render(node: Parameters<typeof renderToStaticMarkup>[0]): string {
   return renderToStaticMarkup(node)
+}
+
+/**
+ * One day's v2 readings, as the score column now reads them.
+ *
+ * `score: null` is a day the model could not read, which must draw no bar and
+ * write a dash — never a zero-length bar, because 0 is a real score and it
+ * means the wall is wet.
+ */
+function readingsDay(localDate: string, score: number | null): ReadingsDay {
+  const best: HourlyReading | null =
+    score === null
+      ? null
+      : {
+          valid_at: `${localDate}T15:00:00.000Z`,
+          rock: { level: 'dry', qualified: true },
+          friction: { level: 'great', condensing: false, qualified: true },
+          score,
+          t_surface_c: 18,
+          condensation_margin_c: 4,
+        }
+  return { local_date: localDate, window: null, best }
+}
+
+/** The hourly response with readings for the named days. */
+function withReadings(series: HourlySeries, days: ReadingsDay[]): HourlySeries {
+  return {
+    ...series,
+    readings: { model: 'gfs_seamless', unavailable_reason: null, hours: [], days },
+  }
 }
 
 /**
@@ -117,13 +152,21 @@ describe('rowSpan', () => {
     expect(rowSpan(day(DATES[0], { temp_c_max: null }), 'temperature')).toBeNull()
   })
 
-  it('draws no bar for a score of null and no bar for a score that is absent', () => {
-    // Two distinct states on the wire — withheld (null with a reason) and never
-    // sent (a non-climbing location) — and both mean "no bar". Never a zero
-    // one: 0 is a real score meaning conditions are as bad as they get.
-    expect(rowSpan(day(DATES[0], { score: null }), 'score')).toBeNull()
-    expect(rowSpan(day(DATES[0]), 'score')).toBeNull()
-    expect(rowSpan(day(DATES[0], { score: 0 }), 'score')).toEqual({ from: 0, to: 0 })
+  it('draws no bar for a day with no reading, and a real one for a score of 0', () => {
+    // **The score comes from the v2 readings, not from `day.score`.** A day the
+    // model could not read draws nothing; 0 is a real score and it means the
+    // wall is wet, so it draws a zero-length bar rather than disappearing.
+    expect(rowSpan(day(DATES[0]), 'score', null)).toBeNull()
+    expect(rowSpan(day(DATES[0]), 'score', 0)).toEqual({ from: 0, to: 0 })
+    expect(rowSpan(day(DATES[0]), 'score', 72)).toEqual({ from: 0, to: 72 })
+  })
+
+  it('ignores the five-component score still on the forecast row', () => {
+    // Both are 0-100 and they disagree by around thirty points on a hot day.
+    // Reading the wrong one would draw a bar that contradicts the words at the
+    // end of its own row, with nothing able to detect it.
+    expect(rowSpan(day(DATES[0], { score: 88 }), 'score', null)).toBeNull()
+    expect(rowSpan(day(DATES[0], { score: 88 }), 'score', 58)).toEqual({ from: 0, to: 58 })
   })
 })
 
@@ -221,22 +264,40 @@ describe('DailyList', () => {
     expect(html).toContain('Temp')
   })
 
-  it('writes an em dash for a day with no score, never a zero', () => {
+  it('writes an em dash for a day with no reading, never a zero', () => {
     const html = render(
       <DailyList
-        days={[day(DATES[0], { score: null }), day(DATES[1], { score: 72 })]}
+        days={[day(DATES[0]), day(DATES[1])]}
         metric="score"
         onMetricChange={() => {}}
         showScoreMetric
+        hourly={withReadings(hourly({ [DATES[0]]: 2, [DATES[1]]: 2 }), [
+          readingsDay(DATES[0], null),
+          readingsDay(DATES[1], 72),
+        ])}
       />,
     )
     // Read the row **value cells** specifically. A bare `not.toContain('>0<')`
     // over the whole markup now catches the axis labels' "0", which is the left
     // end of the 0-100 scale and entirely correct — an assertion that fails on
     // a right answer is worse than no assertion.
-    // The score sits at the bar's start and its word at the end, so a day
-    // with no score is a dash and an empty end rather than a zero-length bar.
-    expect(rowFigureText(html)).toEqual(['—', '', '72', 'Mostly dry'])
+    // The score sits at the bar's start and the two readings at the end, so a
+    // day with no reading is a dash and an empty end rather than a zero bar.
+    expect(rowFigureText(html)).toEqual(['—', '', '72', 'Dry · Great'])
+  })
+
+  it('writes an em dash on every row while the hourly query is still in flight', () => {
+    // The rows come from `/forecast`, which resolves first, so this is a real
+    // state rather than a theoretical one. An absent reading is not a zero.
+    const html = render(
+      <DailyList
+        days={[day(DATES[0]), day(DATES[1])]}
+        metric="score"
+        onMetricChange={() => {}}
+        showScoreMetric
+      />,
+    )
+    expect(rowFigureText(html)).toEqual(['—', '', '—', ''])
   })
 })
 
@@ -498,16 +559,26 @@ describe('rowFigures — a figure at each end of the bar', () => {
     expect(rowFigures(day(DATES[0]), 'rain', hours).start).toBeNull()
   })
 
-  it('pairs the score with the word the same bands give it', () => {
-    expect(rowFigures(day(DATES[0], { score: 85 }), 'score', hours)).toEqual({
+  it('pairs the score with the two readings it was derived from', () => {
+    // It used to pair the number with `stateLabel`'s word for that same number,
+    // which said the same thing twice. The end of the row now says what the
+    // rock and the friction are, which the number cannot.
+    expect(rowFigures(day(DATES[0]), 'score', hours, readingsDay(DATES[0], 85))).toEqual({
       start: '85',
-      end: 'Dry, settled',
+      end: 'Dry · Great',
     })
   })
 
-  it('writes a dash for a score that is absent or withheld, never a zero', () => {
-    expect(rowFigures(day(DATES[0], { score: null }), 'score', hours).start).toBe('—')
-    expect(rowFigures(day(DATES[0]), 'score', hours).start).toBe('—')
+  it('writes a dash when the model could not read the day, never a zero', () => {
+    expect(rowFigures(day(DATES[0]), 'score', hours, readingsDay(DATES[0], null)).start).toBe('—')
+    expect(rowFigures(day(DATES[0]), 'score', hours, null).start).toBe('—')
+  })
+
+  it('writes a real zero rather than a dash for a day the model called hopeless', () => {
+    // 0 means the wall is wet or running with condensation. Collapsing it into
+    // "we don't know" is the same defect as rendering a gap as a measurement,
+    // pointing the other way.
+    expect(rowFigures(day(DATES[0]), 'score', hours, readingsDay(DATES[0], 0)).start).toBe('0')
   })
 })
 
