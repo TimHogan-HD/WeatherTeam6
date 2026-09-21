@@ -27,6 +27,14 @@ Read this before any weather fetch work. Every source has gotchas that will wast
   models define it. **Its horizon is shorter than the model's**: NBM answered 42 hours of it
   against 48 of temperature at Red Rock, so nulls appear mid-series. 0 W/m² is night and null is
   unmeasured — they are different rows to the model that consumes them.
+- **`gem_seamless`'s shortwave is ~3× too high past day 4 and must not be trusted** — issue #155.
+  Measured at San Juan on 2026-09-21: 2847 W/m² where GFS said 946 at the same hour, against a
+  physical surface maximum near 1100. Days 1–3 are in family with the other models, day 4 is the
+  transition, days 5–7 are a steady 3× — the signature of the model's own hourly-to-3-hourly
+  output cadence. **A 2-day fetch looks perfectly normal**, which is why the first probe missed
+  it. GFS, ECMWF and ICON agree with each other throughout. Anything deriving a surface
+  temperature from irradiance picks a model rather than pooling, and treats a value above
+  ~1400 W/m² as a gap rather than a reading.
 - **HRRR** only covers CONUS. Outside it, HRRR answers a 400 and **NBM answers a 200 whose body
   is not valid JSON** (`{"latitude":nan,…}`) — see the comment on `CONUS_DETERMINISTIC_MODELS`.
 

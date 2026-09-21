@@ -318,9 +318,19 @@ existing row breaks.
 location; existing preferences rows read back unchanged.
 **Git checkpoint:** one PR.
 
+**DONE — 2026-09-21, PR #154.** All six models carry `shortwave_radiation`; a live collection
+stored 6,076 hours of it. Two things it turned up that Phase 1 inherits:
+
+- **`gem_seamless`'s shortwave is ~3× too high past day 4** (issue #155). Picking which model
+  feeds `T_surface` is now a Phase 1 decision that cannot be deferred, and pooling the four is
+  ruled out.
+- **Shortwave's horizon is shorter than its model's** — NBM, 42 hours against 48 of temperature.
+  A null mid-series is routine, and `T_surface` is null for that hour rather than sunless.
+
 ### Phase 1 — The derived quantities, as pure functions
 `src/lib/scoring/rockThermal.ts` — `T_surface`, `T_mass`, condensation margin, drying rate. No
-database, no network, no Express. Tested against hand-worked cases at the boundaries, not
+database, no network, no Express. **Open Question 4 is answered here**: build with one `α` and
+print what a pale-to-dark spread moves `T_surface` by, in °C. Tested against hand-worked cases at the boundaries, not
 against a helper that shares their assumptions (`defect-patterns.md` §11).
 **Acceptance:** a south-facing wall in full sun reads meaningfully above air temperature and a
 shaded one reads at or below it; a wall whose mass sits below the dew point reports condensing.
