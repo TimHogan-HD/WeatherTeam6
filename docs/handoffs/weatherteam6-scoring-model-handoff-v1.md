@@ -28,8 +28,10 @@ of #137.
    that bounds the cost at 30%, so 104 °F still scores 70. Raising the weight enough to fix it
    (39 of 100) makes a 37 mph gale score *better* than before, because the exponents are shares
    of one total — fixing temperature takes the share from wind and drying.
-3. **The temperature component has a cliff at 95 °F.** It scores 6 of 12 at 95.0 °F and 0 at
-   95.1 °F, and every mechanism that makes a zero matter amplifies that step.
+3. **The temperature component has a cliff at 95 °F** — issue #148. It scores 6 of 12 at
+   95.0 °F and 0 at 95.2 °F, a 6-point step in the total from a fifth of a degree, and every
+   mechanism that makes a zero matter amplifies it: 22 points under the geometric mean, 33
+   under a veto. The cold end is continuous; only the hot end steps.
 4. **Three inputs are fetched and thrown away.** `dewpoint_c` is stored and never read.
    Shortwave radiation is aggregated on every request and dropped. `aspectDegrees` is computed,
    passed into `ScoreInput`, and never read by any scorer — so sun direction scores zero points.
@@ -169,15 +171,20 @@ component that can outvote another, because there are only two factors and they 
 the 6pm hours and leaves the morning alone, which is the correct answer and one a 72-hour
 lookahead cannot express.
 
-**Measured behaviour of this shape**, from the prototype run this session — bone-dry rock, dry
-air, nothing coming:
+**Illustrative behaviour of this shape — NOT a measurement, and nothing in the repo
+reproduces it.** It came from a scratch script written to feel out the curve during the
+session that wrote this document, and that script was not kept. It is recorded because the
+*shape* is the argument; treat every individual figure below as unverified.
 
 | °F | 45 | 72 | 86 | 94 | 100 | 104 | 108 | 110 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | score | 100 | 100 | 83 | 71 | 59 | 48 | 31 | 0 |
 
-Heat slides. Nothing is capped, nothing is vetoed, and there is no cliff — because temperature
-is 45% of the answer rather than 12%.
+The **claim** those numbers stand in for, and the thing Phase 2 has to demonstrate, is:
+heat slides continuously from the top of the band to zero, nothing is capped, nothing is
+vetoed, and there is no step anywhere — because temperature carries ~45% of the answer
+rather than 12%. **Build it into `compare:scoring` and re-measure before quoting any
+number here.** If the rebuilt curve disagrees with this table, the table is what is wrong.
 
 ### Layer 4 — Windows
 
@@ -218,8 +225,15 @@ shaded one reads at or below it; a wall whose mass sits below the dew point repo
 The two readings, the derived score, and hourly evaluation over the existing deterministic +
 ensemble join that `GET /hourly/:locationId` already performs. `compare:scoring` gains the new
 model as a column beside the current one, over real locations.
-**Acceptance:** the harness prints old and new side by side for every scenario, and the 104 °F
-case reads in the 40s with `Friction: Poor` and `Rock: Dry` — no cap anywhere in the code.
+**Acceptance:** the harness prints old and new side by side for every scenario. The 104 °F
+case reads **materially below the *Mixed* band** with `Friction: Poor` and `Rock: Dry`, and
+no cap, veto or clamp appears anywhere in the code that produced it. The 40s figure in
+Layer 3 is illustrative and **is not the acceptance criterion** — the criteria are the
+ordering and the absence of a cap. Whatever this phase measures replaces that table.
+
+Also demonstrate continuity: the component must not step across a band edge the way the
+current one does at 95 °F (issue #148). Walk the temperature axis in tenths and assert no
+single tenth moves the score by more than a point.
 **Git checkpoint:** one PR, and **stop here for the owner to look at the numbers.**
 
 ### Phase 3 — Surfaces

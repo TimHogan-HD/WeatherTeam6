@@ -191,6 +191,12 @@ Standing context not on the issues themselves:
 - **#32** — materially less likely since #33. Entangled with the `ScoreInput` split below.
 - **#82** — part 1 shipped; part 2 is § What is next, item 5.
 - **#137** — **closed 2026-09-16.** The ramp shipped concave; see `scoring-findings.md` §1.2.
+- **#21** — **closed 2026-09-16 without a code change.** Reweighting, a cap and the geometric
+  mean were each built into `compare:scoring` and costed; all three were rejected. The
+  replacement is `docs/handoffs/weatherteam6-scoring-model-handoff-v1.md`, a **draft awaiting
+  the owner** on its Open Questions 1 and 2. Nothing is being built from it yet.
+- **#148** — new, 2026-09-21. The temperature component steps 6 points at 95 °F. Found while
+  costing #21; every #21 option amplified it (22 points under the mean, 33 under a veto).
 - **#108** — **closed 2026-09-16.** The drying clock is per-day and forecast rain resets it.
 - **#138–#140** — filed 2026-09-16 from the research. All three need inputs the scorer does
   not currently receive.
