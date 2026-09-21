@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { locations } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
-import { getHourlySeries } from '../lib/runs/fetchHourlySeries.js'
+import { getHourlySeries, type ScoringLocation } from '../lib/runs/fetchHourlySeries.js'
 import { pointKeyForLocation } from '../lib/runs/pointKey.js'
 import { parseNumeric, parseNumericRequired } from '@weatherteam6/types'
 import type { ApiResponse, HourlySeries } from '@weatherteam6/types'
@@ -58,6 +58,9 @@ hourlyRouter.get('/hourly/:locationId', async (req: Request, res: Response) => {
         lat: locations.lat,
         lon: locations.lon,
         elevation_m: locations.elevation_m,
+        is_climbing_location: locations.is_climbing_location,
+        rock_type: locations.rock_type,
+        cliff_angle: locations.cliff_angle,
       })
       .from(locations)
       .where(and(eq(locations.id, locationId), eq(locations.user_id, req.userId)))
@@ -70,6 +73,38 @@ hourlyRouter.get('/hourly/:locationId', async (req: Request, res: Response) => {
       return
     }
 
+    /**
+     * **The readings reach the response only because this argument was passed.**
+     * A location that is not a crag gets `not_a_climbing_location` and no
+     * reading, and there is no `is_climbing_location` check further down to
+     * forget — the same protection `GET /forecast/:id` uses for its per-day
+     * scores, and for the same reason: the model itself does not branch on the
+     * flag and would happily score a city.
+     *
+     * **Two fallbacks, and nothing in the response marks either of them.**
+     * `qualified` covers one thing only — whether the sun could have changed
+     * this hour's answer — and it says nothing about a rock type nobody
+     * recorded or a wall angle nobody set. A reading derived from these is
+     * indistinguishable from one derived from real crag data, which is the
+     * strongest argument for Phase 4 and a gap Phase 3's copy has to cover
+     * until it lands.
+     *
+     * - **`rock_type` is null on a location whose kind was never recorded**, and
+     *   `unknown` means exactly that. It is not "average rock" — it takes the
+     *   slower drying window, so it reads as caution rather than as a guess.
+     * - **`cliff_angle` is null on every user-added location, because nothing
+     *   writes it.** 45 is what the rest of the app already substitutes and
+     *   changing that here would move scores for a reason unrelated to this
+     *   phase. Phase 4 is the screen that makes it real; until then it is a
+     *   placeholder and `compare:hourly-v2` prints it as one.
+     */
+    const scoring: ScoringLocation = location.is_climbing_location
+      ? {
+          rockType: location.rock_type ?? 'unknown',
+          cliffAngleDeg: location.cliff_angle === null ? 45 : parseNumericRequired(location.cliff_angle),
+        }
+      : null
+
     // `lat`/`lon` are numeric columns and arrive as strings; `elevation_m` is nullable and
     // must stay null rather than becoming 0 — sea level is a real elevation, and passing
     // it would silently skip the lapse-rate correction on a mountain.
@@ -81,7 +116,7 @@ hourlyRouter.get('/hourly/:locationId', async (req: Request, res: Response) => {
         elevation_m: parseNumeric(location.elevation_m),
       },
       pointKeyForLocation(location.id),
-      { allModels },
+      { allModels, scoring },
     )
 
     const response: ApiResponse<HourlySeries> = { data: series, error: null, status: 200 }

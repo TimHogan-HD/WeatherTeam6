@@ -1,4 +1,4 @@
-import type { HourlySeries } from '@weatherteam6/types'
+import type { HourlySeries, RockType } from '@weatherteam6/types'
 import type { ForecastLocation } from '../weather/openMeteo.js'
 import { getDeterministicRuns, getEnsembleRuns } from './latestRuns.js'
 import { buildHourlySeries } from './hourlySeries.js'
@@ -15,6 +15,16 @@ import { buildHourlySeries } from './hourlySeries.js'
  */
 
 export type HourlyLocation = ForecastLocation & { id: string }
+
+/**
+ * The crag facts the v2 readings need, or **null when this location is not a
+ * crag**.
+ *
+ * Threaded through rather than read here, because the caller is the only thing
+ * that knows `is_climbing_location` — and passing it is the whole protection.
+ * See `BuildInput.scoring`.
+ */
+export type ScoringLocation = { rockType: RockType; cliffAngleDeg: number } | null
 
 /**
  * The freshest hourly series for a location.
@@ -36,7 +46,7 @@ export type HourlyLocation = ForecastLocation & { id: string }
 export async function getHourlySeries(
   location: HourlyLocation,
   pointKey: string,
-  opts: { allModels: boolean; now?: Date },
+  opts: { allModels: boolean; now?: Date; scoring: ScoringLocation },
 ): Promise<HourlySeries> {
   const now = opts.now ?? new Date()
 
@@ -51,5 +61,6 @@ export async function getHourlySeries(
     ensemble,
     allModels: opts.allModels,
     now,
+    scoring: opts.scoring,
   })
 }

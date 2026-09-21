@@ -61,6 +61,25 @@ decisions are final unless explicitly overridden by the user.
   fails if a factor is promoted back to the top level. `t_surface_c` and
   `condensation_margin_c` stay renderable: they are derived measurements with named biases,
   not guesses about grip.
+- **`GET /hourly/:locationId` carries the v2 readings, and they come from one model that
+  is not necessarily the one heading the weather columns.** `HourlySeries.model` is chosen
+  by measured coverage; `readings.model` is always `THERMAL_MODEL` (`gfs_seamless`),
+  because irradiance may not be pooled (issue #155). **When they differ, a surface must not
+  attribute one to the other.** If that model did not answer at this point there are no
+  readings and `unavailable_reason` says `model_unavailable` — never another model's
+  numbers.
+- **The readings reach the response only because the route passed `scoring`**, exactly as
+  a per-day score reaches `GET /forecast/:id` only because it passed a merge argument.
+  There is no `is_climbing_location` check downstream to forget, and the model itself does
+  not branch on the flag — it would score a city if asked.
+- **`collect-runs` stores trailing hours for `THERMAL_MODEL` only.** `T_mass` needs ~96 h
+  of history that `weather_run_hours`' 2-day retention does not hold, so that one model is
+  fetched with `past_days` in its own request and the other five without. Asking for all
+  six was measured at **+71% on the largest table in a 512 MB database already at 239 MB**
+  — the table whose growth caused the `could not extend file` outage. Adding a model to
+  the trailing fetch is a storage decision, not a configuration one; check
+  `check:runs-storage` first. **Those past hours are the model's own analysis, not
+  observations**, and nothing may present them as measurements.
 - **Every input to a per-day score must be read for that day, and the drying clock is one**
   **of them.** `computeLiveForecast` calls `dryingModel` inside the day loop, against the
   events `rainfallEventsThrough` says that day is entitled to see: measured history up to

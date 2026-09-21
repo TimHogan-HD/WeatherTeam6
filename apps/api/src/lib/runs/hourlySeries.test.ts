@@ -178,6 +178,7 @@ describe('buildHourlySeries', () => {
       ensemble: ensRuns([ens({ valid_at: at, temp_c_p50: 31.0, temp_c_p10: 28, temp_c_p90: 34 })]),
       allModels: false,
       now,
+      scoring: null,
     })
 
     expect(series.hours).toHaveLength(1)
@@ -197,6 +198,7 @@ describe('buildHourlySeries', () => {
       ensemble: ensRuns([ens({ valid_at: ensOnly, temp_c_p50: 29 })]),
       allModels: false,
       now,
+      scoring: null,
     })
 
     expect(series.hours).toHaveLength(2)
@@ -214,6 +216,7 @@ describe('buildHourlySeries', () => {
       ensemble: ensRuns([ens({ valid_at: t(20), temp_c_p50: 3 })]),
       allModels: false,
       now,
+      scoring: null,
     })
     expect(series.hours.map((h) => h.valid_at)).toEqual([
       t(19).toISOString(),
@@ -231,6 +234,7 @@ describe('buildHourlySeries', () => {
       ensemble: ensRuns([ens({ valid_at: inside, temp_c_p50: 29 }), ens({ valid_at: outside, temp_c_p50: 25 })]),
       allModels: false,
       now,
+      scoring: null,
     })
     expect(series.hours).toHaveLength(1)
     expect(series.days).toHaveLength(7)
@@ -249,6 +253,7 @@ describe('buildHourlySeries', () => {
       ensemble: ensRuns([]),
       allModels: false,
       now,
+      scoring: null,
     })
 
     expect(series.days[0]).toMatchObject({ local_date: '2026-09-08', has_deterministic: true })
@@ -266,6 +271,7 @@ describe('buildHourlySeries', () => {
       ensemble: ensRuns([ens({ valid_at: at, temp_c_p50: 29 })]),
       allModels: false,
       now,
+      scoring: null,
     })
     expect(series.model).toBeNull()
     expect(series.hours[0]?.temp_c).toBeNull()
@@ -281,6 +287,7 @@ describe('buildHourlySeries', () => {
       ensemble: ensRuns([]),
       allModels: false,
       now,
+      scoring: null,
     })
     expect(series.unavailable_models).toEqual(['ncep_hrrr_conus'])
   })
@@ -293,6 +300,7 @@ describe('buildHourlySeries', () => {
       ensemble: ensRuns([]),
       allModels: false,
       now,
+      scoring: null,
     })
     expect(series.models).toBeUndefined()
   })
@@ -310,6 +318,7 @@ describe('buildHourlySeries', () => {
       ensemble: ensRuns([]),
       allModels: true,
       now,
+      scoring: null,
     })
 
     expect(series.model).toBe('gfs_seamless')
@@ -334,6 +343,7 @@ describe('buildHourlySeries', () => {
       ensemble: ensRuns([ens({ valid_at: at, temp_c_p50: 24 })]),
       allModels: false,
       now,
+      scoring: null,
     })
     expect(series.utc_offset_seconds).toBe(PDT)
     expect(series.hours[0]?.local_date).toBe('2026-09-08')
@@ -351,6 +361,7 @@ describe('buildHourlySeries', () => {
       ]),
       allModels: false,
       now,
+      scoring: null,
     })
     expect(series.hours[0]?.precip_chance_pct).toBe(60)
     expect(series.hours[0]?.member_count).toBe(143)
@@ -371,6 +382,7 @@ describe('buildHourlySeries', () => {
       ensemble: ensRuns([ens({ valid_at: at, temp_c_p50: 21 })], new Date('2026-09-08T18:00:00Z')),
       allModels: false,
       now,
+      scoring: null,
     })
     expect(series.fetched_at).toBe('2026-09-08T18:00:00.000Z')
   })
@@ -383,6 +395,7 @@ describe('buildHourlySeries', () => {
       ensemble: ensRuns([ens({ valid_at: at, temp_c_p50: 21 })], new Date('2026-09-08T18:00:00Z')),
       allModels: false,
       now,
+      scoring: null,
     })
     expect(series.fetched_at).toBe('2026-09-08T18:00:00.000Z')
   })
@@ -407,6 +420,7 @@ describe('buildHourlySeries — offset selection', () => {
       ensemble: { hours: [], utc_offset_seconds: 3600, fetched_at: null },
       allModels: false,
       now,
+      scoring: null,
     })
     expect(series.utc_offset_seconds).toBe(0)
   })

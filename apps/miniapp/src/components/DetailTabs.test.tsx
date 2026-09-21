@@ -69,6 +69,9 @@ const series: HourlySeries = {
   fetched_at: new Date(T0).toISOString(),
   model: 'gfs_seamless',
   unavailable_models: [],
+  // None of these fixtures is about the v2 readings; each says so rather
+  // than leaving the field off, because the server always sends it.
+  readings: { model: null, unavailable_reason: 'not_a_climbing_location', hours: [], days: [] },
   hours: [
     ...Array.from({ length: 24 }, (_, i) => hour(i, DAY_1)),
     ...Array.from({ length: 24 }, (_, i) => hour(24 + i, DAY_2)),

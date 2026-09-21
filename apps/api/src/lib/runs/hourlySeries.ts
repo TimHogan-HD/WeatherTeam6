@@ -3,9 +3,12 @@ import type {
   HourlyModel,
   HourlyModelSample,
   HourlySample,
+  HourlyReadings,
   HourlySeries,
+  RockType,
 } from '@weatherteam6/types'
 import { localDateString } from '../weather/openMeteo.js'
+import { buildHourlyReadings } from './hourlyReadings.js'
 import type {
   DeterministicRuns,
   EnsembleRunHour,
@@ -197,6 +200,18 @@ function toModelSample(validAt: Date, det: RunHour | undefined): HourlyModelSamp
   }
 }
 
+/**
+ * What a location that is not a crag gets. A frozen constant rather than a
+ * literal at the call site, so the three fields cannot drift apart from the
+ * ones `buildHourlyReadings` returns for its own refusals.
+ */
+const NO_READINGS_NOT_A_CRAG: HourlyReadings = {
+  model: null,
+  unavailable_reason: 'not_a_climbing_location',
+  hours: [],
+  days: [],
+}
+
 export type BuildInput = {
   locationId: string
   deterministic: DeterministicRuns
@@ -204,6 +219,17 @@ export type BuildInput = {
   /** Whether to include every model that answered. `?models=all`. */
   allModels: boolean
   now: Date
+  /**
+   * The crag facts the v2 readings need, or **null for a location that is not a
+   * crag**.
+   *
+   * Same protection as the per-day score on `GET /forecast/:id`: the readings
+   * reach the response **only because the route passed this argument**, so there
+   * is no `is_climbing_location` check downstream to forget. A city gets
+   * `unavailable_reason: not_a_climbing_location` and no reading, and nothing in
+   * the model branches on the flag — it would happily score Chicago if asked.
+   */
+  scoring: { rockType: RockType; cliffAngleDeg: number } | null
 }
 
 /**
@@ -273,6 +299,17 @@ export function buildHourlySeries(input: BuildInput): HourlySeries {
     has_ensemble: ensDates.has(local_date),
   }))
 
+  const readings =
+    input.scoring === null
+      ? NO_READINGS_NOT_A_CRAG
+      : buildHourlyReadings({
+          deterministic,
+          dates,
+          utcOffsetSeconds: offset,
+          rockType: input.scoring.rockType,
+          cliffAngleDeg: input.scoring.cliffAngleDeg,
+        })
+
   const series: HourlySeries = {
     location_id: locationId,
     utc_offset_seconds: offset,
@@ -281,6 +318,7 @@ export function buildHourlySeries(input: BuildInput): HourlySeries {
     unavailable_models: [...deterministic.unavailable_models],
     hours,
     days,
+    readings,
   }
 
   if (allModels) {

@@ -174,9 +174,129 @@ export type HourlySeries = {
   /** Ordered by date, ascending. What a Daily view may offer a drill-down for. */
   days: HourlyDay[]
   /**
+   * The v2 scoring model's readings for this window, or a named reason there are
+   * none. **Present on every response** — a client reads an absent field as a
+   * gap, and `=== null` does not catch `undefined`.
+   *
+   * Derived from one model, which may not be the one `model` names above. See
+   * `HourlyReadings.model`.
+   *
+   * **A client must still tolerate its absence.** The API and the Mini App
+   * deploy separately, so every release that adds a field has a window where
+   * the client is new and the response is not — and `undefined` passes every
+   * `=== null` guard. Normalise at the fetch boundary, not at each use, exactly
+   * as the rain whiskers had to be (`.claude/rules/architecture.md`). It is
+   * required here because the *server* must always send it, and a type that let
+   * it be omitted would let a route forget.
+   */
+  readings: HourlyReadings
+  /**
    * Every deterministic model that answered — present **only** under `?models=all`,
    * absent otherwise. `hours` is populated either way, so a client that ignores the
    * parameter needs no branch.
    */
   models?: HourlyModel[]
 }
+
+/**
+ * The v2 scoring model's two readings, as they reach a client.
+ *
+ * **What is deliberately not here: the 0-1 factors behind the readings.**
+ * `HourlyConditions.diagnostics` in the API carries them and this type does
+ * not, because the friction reading rests on one unvalidated step — see
+ * `apps/api/src/lib/scoring/sweatBalance.ts` — and the owner's decision was to
+ * publish **words and ordering, never a magnitude**. A "friction: 0.29" is a
+ * precision nobody has earned. `.claude/rules/architecture.md` carries the rule
+ * and a test enforces it at the boundary.
+ */
+export type RockLevel = 'wet' | 'drying' | 'dry';
+export type FrictionLevel = 'poor' | 'fair' | 'good' | 'great';
+
+/**
+ * `qualified` is false for an hour whose answer could have been changed by a
+ * wall orientation nobody has recorded. **Decided per hour, not per location**:
+ * the same wall is qualified at 6am and unqualified at 1pm, so a dawn window can
+ * be fully qualified on a crag nobody has ever edited.
+ *
+ * A surface must say so rather than present an unqualified reading as measured.
+ */
+export type RockReading = { level: RockLevel; qualified: boolean };
+export type FrictionReading = {
+  level: FrictionLevel;
+  condensing: boolean;
+  qualified: boolean;
+};
+
+export type HourlyReading = {
+  /** UTC instant, ISO 8601. **Join on this, never on array position.** */
+  valid_at: string;
+  /** Null when the rock's state could not be read. There is no "unknown" level. */
+  rock: RockReading | null;
+  /** Null when a mechanism could not be measured. */
+  friction: FrictionReading | null;
+  /**
+   * 0-100. **Null means an input could not be measured — never 0.** 0 is a real
+   * score and it means the wall is wet or running with condensation.
+   */
+  score: number | null;
+  /** Rock surface temperature, °C. A derived measurement, not a guess about grip. */
+  t_surface_c: number | null;
+  /** How far the wall's bulk sits above its dew point, °C. Below 0 it is condensing. */
+  condensation_margin_c: number | null;
+};
+
+/** The best contiguous run of hours on a day that cleared the minimums. */
+export type ConditionsWindow = {
+  /** `valid_at` of the first hour in the run. */
+  from: string;
+  /** `valid_at` of the last hour. */
+  to: string;
+  hours: number;
+  /** The lowest score in the run — what the window is worth, not its best hour. */
+  min_score: number;
+  /** False if any hour in the run carries an unqualified reading. */
+  qualified: boolean;
+};
+
+export type ReadingsDay = {
+  local_date: string;
+  /** Null when no run of hours cleared the minimums. */
+  window: ConditionsWindow | null;
+  /**
+   * The day's best scored hour, **server-chosen**. A client must not pick its
+   * own: the rule for which hour represents a day is part of the model, and two
+   * surfaces deriving it independently is how the bot and the Mini App drift
+   * apart.
+   */
+  best: HourlyReading | null;
+};
+
+/**
+ * Why no reading could be produced. **Null when readings are present.**
+ *
+ * Named rather than left as a literal, so a new member cannot be added without
+ * every surface's copy failing to compile.
+ */
+export type ReadingsUnavailableReason =
+  | 'model_unavailable'
+  | 'insufficient_history'
+  | 'not_a_climbing_location';
+
+export type HourlyReadings = {
+  /**
+   * The single model every reading was derived from. **Never pooled** — issue
+   * #155: `gem_seamless` reports shortwave ~3x too high past day 4, so
+   * irradiance comes from one model and a mean across four would carry the
+   * error at half weight.
+   *
+   * **It may differ from `HourlySeries.model`**, which is chosen by measured
+   * coverage. When they differ, the weather columns and the readings came from
+   * different models and a surface must not attribute one to the other.
+   */
+  model: string | null;
+  unavailable_reason: ReadingsUnavailableReason | null;
+  /** Ordered by `valid_at`. Joined to `HourlySeries.hours` by instant, not index. */
+  hours: HourlyReading[];
+  /** Ordered by date. One entry per local day in the window. */
+  days: ReadingsDay[];
+};

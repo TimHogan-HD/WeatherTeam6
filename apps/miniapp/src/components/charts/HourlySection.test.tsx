@@ -42,6 +42,9 @@ function series(hours: HourlySample[], over: Partial<HourlySeries> = {}): Hourly
     fetched_at: new Date(NOW - 42 * 60_000).toISOString(),
     model: 'gfs_seamless',
     unavailable_models: [],
+    // None of these fixtures is about the v2 readings; each says so rather
+    // than leaving the field off, because the server always sends it.
+    readings: { model: null, unavailable_reason: 'not_a_climbing_location', hours: [], days: [] },
     hours,
     days: [],
     ...over,
