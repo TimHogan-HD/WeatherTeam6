@@ -110,7 +110,10 @@ function rawComponents(input: ScoreInput, rampExponent: number): Components {
   if (t < min || t > max) temp = 0
   else if (t >= idealMin && t <= idealMax) temp = 12
   else if (t < idealMin) temp = ((t - min) / (idealMin - min)) * 12
-  else temp = 12 - ((t - idealMax) / (max - idealMax)) * 6
+  // 12→0 across idealMax–max, matching the scorer since issue #148. It was
+  // 12→6 with a step to 0 at the edge, which is what the 35/36 °C rows below
+  // were filed to show; the MISMATCH check catches this drifting again.
+  else temp = 12 - ((t - idealMax) / (max - idealMax)) * 12
 
   let humidity: number
   if (input.currentHumidityPct <= 50) humidity = 8
@@ -247,12 +250,12 @@ const scenarios: Scenario[] = [
   },
   {
     name: '35 °C, everything else perfect',
-    note: 'The last degree INSIDE the band. Temperature still scores 6 of 12 here.',
+    note: 'The top of the band. Scored 6 of 12 until #148; the ramp now reaches 0 here.',
     input: s({ hoursSinceRain: 168, forecastHighC: 35, currentTempC: 35 }),
   },
   {
     name: '36 °C, everything else perfect',
-    note: 'One degree further and temperature is 0. The cliff is in the component.',
+    note: 'One degree past the band. Equal to the row above since #148 — no step.',
     input: s({ hoursSinceRain: 168, forecastHighC: 36, currentTempC: 36 }),
   },
   {

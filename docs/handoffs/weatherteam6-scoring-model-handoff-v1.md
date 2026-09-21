@@ -28,10 +28,14 @@ of #137.
    that bounds the cost at 30%, so 104 °F still scores 70. Raising the weight enough to fix it
    (39 of 100) makes a 37 mph gale score *better* than before, because the exponents are shares
    of one total — fixing temperature takes the share from wind and drying.
-3. **The temperature component has a cliff at 95 °F** — issue #148. It scores 6 of 12 at
-   95.0 °F and 0 at 95.2 °F, a 6-point step in the total from a fifth of a degree, and every
-   mechanism that makes a zero matter amplifies it: 22 points under the geometric mean, 33
-   under a veto. The cold end is continuous; only the hot end steps.
+3. **The temperature component had a cliff at 95 °F** — issue #148, **fixed 2026-09-21**. It
+   scored 6 of 12 at 95.0 °F and 0 at 95.2 °F, a 6-point step in the total from a fifth of a
+   degree, and every mechanism that makes a zero matter amplified it: 22 points under the
+   geometric mean, 33 under a veto. The upper ramp now runs 12→0 across 22–35 °C, so both
+   edges reach 0 exactly at the band and the step is gone — at the cost of a harsher upper
+   half (25 °C moved from 11 of 12 to 9). That is a patch on a component the model below
+   replaces outright; it is here so the numbers in this document are read against what
+   production now does, not against the step.
 4. **Three inputs are fetched and thrown away.** `dewpoint_c` is stored and never read.
    Shortwave radiation is aggregated on every request and dropped. `aspectDegrees` is computed,
    passed into `ScoreInput`, and never read by any scorer — so sun direction scores zero points.
@@ -329,8 +333,10 @@ Layer 3 is illustrative and **is not the acceptance criterion** — the criteria
 ordering and the absence of a cap. Whatever this phase measures replaces that table.
 
 Also demonstrate continuity: the component must not step across a band edge the way the
-current one does at 95 °F (issue #148). Walk the temperature axis in tenths and assert no
-single tenth moves the score by more than a point.
+current one did at 95 °F (issue #148). Walk the temperature axis in tenths and assert no
+single tenth moves the score by more than a point. The v1 scorer now carries exactly that
+test (`conditionsScore.test.ts`, "continuous across both band edges") — the new model inherits
+the invariant rather than introducing it, and it is the assertion to port first.
 **Git checkpoint:** one PR, and **stop here for the owner to look at the numbers.**
 
 ### Phase 3 — Surfaces

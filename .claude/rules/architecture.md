@@ -53,6 +53,19 @@ decisions are final unless explicitly overridden by the user.
   hours, 40 at `maxDry` — and the `maxDry` ceiling is a **separate lever**, pinned to
   `dryingModel`'s `estimated_dry` by a cross-module test. Moving full marks later means
   moving `MAX_HOURS` in both modules, not bending the ramp past its end.
+- **Every component ramp reaches 0 at the edge of its own band — no component may step.**
+  The temperature ramp paid 6 of 12 at `TEMP_BAND_C.max` and the out-of-band branch then
+  dropped it to 0, so 95.0 °F and 95.2 °F differed by six points of the total (issue #148),
+  from a fifth of a degree no forecast resolves. A step is worse than a wrong slope: two runs
+  of the same model an hour apart move a location across a band with no change in the
+  weather, and every mechanism that makes a zero matter more amplifies it — measured in
+  `compare:scoring`, the same tenth cost 22 points under a geometric mean and 33 under a veto.
+  `conditionsScore.test.ts` walks the temperature axis in tenths **past both edges** and
+  asserts no tenth moves the component by more than the 1 point rounding forces; a new
+  component, or a new band, gets the same walk. Widening a band instead of fixing a slope is
+  the other lever and it is **not** free — `TEMP_BAND_C` also drives the Mini App's
+  temperature chart, and nobody has measured where the top of that band belongs
+  (`scoring-findings.md` §4).
 - **There is no `apps/api/src/jobs/`.** It was deleted with BullMQ. Scheduled work is an HTTP route under `/api/cron/*` with its logic in `src/lib/` — see § Background Jobs.
 - Telegram helpers live in `apps/api/src/lib/telegram/`; alert fetch/upsert/notify logic in `apps/api/src/lib/alerts/`.
 - **The alert deep link is a plain `url` inline keyboard button, never `web_app`.** `startapp` is a Direct Link Mini App mechanism; a `web_app` button opens an *inline-button* Mini App and does not deliver `start_param` at all, so the app would launch on the list with no idea which location the alert was about. The link is built by `lib/telegram/deepLink.ts`, whose base (`https://t.me/WeatherTeam6_bot/Alert`) is a constant because neither the bot username nor the Direct Link short name is derivable from `TELEGRAM_BOT_TOKEN`.

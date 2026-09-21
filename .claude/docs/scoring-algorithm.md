@@ -127,7 +127,7 @@ Optimal range: 10-22°C
 <0°C or >35°C:    temp_score = 0
 0-10°C:           temp_score = scale 0-12
 10-22°C:          temp_score = 12
-22-35°C:          temp_score = scale 12-6
+22-35°C:          temp_score = scale 12-0   # reaches 0 AT 35, no step (issue #148)
 ```
 
 ### Step 5: Humidity Component (0-8 points)
