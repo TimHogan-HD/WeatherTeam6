@@ -5,8 +5,11 @@ import {
   DETERMINISTIC_MODELS,
   fetchDeterministicHourly,
   fetchEnsembleRun,
+  type DeterministicResult,
   type ForecastLocation,
 } from '../weather/openMeteo.js'
+import { THERMAL_MODEL } from './hourlyReadings.js'
+import { mergeDeterministic } from './mergeRuns.js'
 import { pointKeyForLocation } from './pointKey.js'
 import { storeDeterministicRun, storeEnsembleRun } from './storeRun.js'
 
@@ -31,6 +34,46 @@ export type CollectResult = {
   deterministicFailed: string[]
   ensembleFailed: string[]
 }
+
+/**
+ * Forecast days requested. The default `fetchDeterministicHourly` uses; named
+ * here only so the trailing-days argument beside it is not a bare number in a
+ * call with three of them.
+ */
+const FORECAST_DAYS = 7
+
+/**
+ * **Days of already-observed weather stored alongside the forecast, and the
+ * v2 model is the only reason for them.**
+ *
+ * `T_mass` — the multi-day temperature the rock has been sitting at — is what
+ * tells 10 °C after a cold week from 10 °C after a warm one, and the exponential
+ * average behind it refuses a series shorter than 96 hours. `weather_run_hours`
+ * retains two days, so without this every reading would be withheld for want of
+ * history. 5 days clears the minimum with room for gaps.
+ *
+ * **These hours are the model's own analysis, not station observations.** They
+ * are the best trailing temperature available without a second API, and they
+ * are not measurements — nothing may present them as such.
+ *
+ * **Requested for `THERMAL_MODEL` alone** — see `FORECAST_ONLY_MODELS` for the
+ * measurement that forced the split. `check:runs-storage` is where to watch the
+ * cost if more locations are added.
+ */
+const TRAILING_DAYS = 5
+
+/**
+ * The five models fetched **without** trailing history.
+ *
+ * Only `THERMAL_MODEL` feeds `T_surface` and `T_mass`, so only its past hours
+ * are ever read. Asking for `past_days` across all six looked simpler and was
+ * measured at **+71% on `weather_run_hours`**, the largest table in a database
+ * already at 239 MB of Neon's 512 MB cap — the same table whose growth took
+ * production down with `could not extend file` in September. Splitting the
+ * request costs one extra HTTP call per location and brings it to +12%.
+ */
+const FORECAST_ONLY_MODELS = DETERMINISTIC_MODELS.filter((m) => m !== THERMAL_MODEL)
+
 
 /**
  * Collect and persist one run for every saved location.
@@ -81,13 +124,34 @@ export async function collectWeatherRuns(): Promise<CollectResult> {
       }
       const point_key = pointKeyForLocation(loc.id)
 
-      // The two upstream calls are independent, and one failing must not cost
-      // the other: a deterministic outage should still leave the ensemble run
-      // stored, and the reverse.
-      const [deterministic, ensemble] = await Promise.allSettled([
-        fetchDeterministicHourly(point, DETERMINISTIC_MODELS),
+      // The three upstream calls are independent, and one failing must not
+      // cost the others: a thermal-model outage must still leave the five
+      // forecast models stored, an ensemble outage must leave the deterministic
+      // run stored, and every combination of those.
+      const [thermalRun, otherRuns, ensemble] = await Promise.allSettled([
+        fetchDeterministicHourly(point, [THERMAL_MODEL], FORECAST_DAYS, TRAILING_DAYS),
+        fetchDeterministicHourly(point, FORECAST_ONLY_MODELS, FORECAST_DAYS),
         fetchEnsembleRun(point),
       ])
+
+      const merged = mergeDeterministic(
+        thermalRun.status === 'fulfilled' ? thermalRun.value : null,
+        otherRuns.status === 'fulfilled' ? otherRuns.value : null,
+      )
+      // `merged` is null only when BOTH requests rejected, so either reason is
+      // a real one. The thermal model's is reported because it is the half
+      // whose absence also costs the v2 readings.
+      const rejectionReason =
+        thermalRun.status === 'rejected'
+          ? thermalRun.reason
+          : otherRuns.status === 'rejected'
+            ? otherRuns.reason
+            : new Error('deterministic fetch produced no models')
+
+      const deterministic: PromiseSettledResult<DeterministicResult> =
+        merged === null
+          ? { status: 'rejected', reason: rejectionReason }
+          : { status: 'fulfilled', value: merged }
 
       let runsStored = 0
       let hoursStored = 0

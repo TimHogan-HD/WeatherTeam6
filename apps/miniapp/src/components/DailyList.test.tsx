@@ -383,6 +383,9 @@ function hourly(spreadByDate: Record<string, number>): HourlySeries {
     fetched_at: '2026-09-14T00:00:00.000Z',
     model: 'gfs_seamless',
     unavailable_models: [],
+    // None of these fixtures is about the v2 readings; each says so rather
+    // than leaving the field off, because the server always sends it.
+    readings: { model: null, unavailable_reason: 'not_a_climbing_location', hours: [], days: [] },
     hours,
     days: [],
   }

@@ -72,6 +72,7 @@ async function run(): Promise<void> {
     '../lib/runs/latestRuns.js'
   )
   const { buildHourlySeries, hourHasModelData } = await import('../lib/runs/hourlySeries.js')
+  const { THERMAL_MODEL } = await import('../lib/runs/hourlyReadings.js')
   const { pointKeyForLocation } = await import('../lib/runs/pointKey.js')
 
   console.log('\n=== check:hourly ===\n')
@@ -228,6 +229,11 @@ async function run(): Promise<void> {
     ensemble: ens,
     allModels: false,
     now,
+    // The picked location is whichever has the newest stored batch, and the
+    // point of this script is the round trip rather than the rock type, so it
+    // is scored as an unrecorded kind on the default angle. That is exactly
+    // what a user-added location carries today.
+    scoring: { rockType: 'unknown', cliffAngleDeg: 45 },
   })
 
   check('the series has hours', series.hours.length > 0, `got ${series.hours.length}`)
@@ -288,6 +294,7 @@ async function run(): Promise<void> {
     ensemble: ens,
     allModels: true,
     now,
+    scoring: { rockType: 'unknown', cliffAngleDeg: 45 },
   })
   const oneByte = Buffer.byteLength(JSON.stringify(series), 'utf8')
   const allByte = Buffer.byteLength(JSON.stringify(allSeries), 'utf8')
@@ -301,6 +308,94 @@ async function run(): Promise<void> {
     `got ${allSeries.models?.length ?? 0}, expected ${det.models.length}`,
   )
   check('the default response omits models[]', series.models === undefined)
+
+  // ── the v2 readings, against whatever the cron actually stored ───────────────
+  //
+  // The unit tests build their own hours. These three properties can only be
+  // checked here, because they are about what `collect-runs` left in the
+  // database: whether the thermal model is among the stored ones, whether its
+  // trailing hours survived the round trip, and whether shortwave came back as
+  // numbers rather than nulls.
+  console.log('\nv2 readings:')
+  const readings = series.readings
+  info('model', readings.model ?? '(none)')
+  info('unavailable_reason', readings.unavailable_reason ?? '(none)')
+
+  const thermal = det.models.find((m) => m.model === THERMAL_MODEL)
+  check(
+    `${THERMAL_MODEL} is among the stored models`,
+    thermal !== undefined,
+    `stored: ${det.models.map((m) => m.model).join(', ') || 'none'}`,
+  )
+
+  if (thermal !== undefined) {
+    const oldest = thermal.hours.reduce<Date | null>(
+      (acc, h) => (acc === null || h.valid_at < acc ? h.valid_at : acc),
+      null,
+    )
+    const trailingHours =
+      oldest === null ? 0 : Math.round((now.getTime() - oldest.getTime()) / 3_600_000)
+    info(`${THERMAL_MODEL} hours stored`, String(thermal.hours.length))
+    info('trailing hours before now', String(trailingHours))
+    // T_mass refuses a series under 96 hours. Without the trailing hours
+    // `collect-runs` now requests, every reading is withheld — and the failure
+    // is silent, because a withheld reading looks exactly like a cautious one.
+    check(
+      'enough trailing history for T_mass (>= 96h before now)',
+      trailingHours >= 96,
+      `only ${trailingHours}h — has collect-runs run since past_days was added?`,
+    )
+
+    const withShortwave = thermal.hours.filter((h) => h.shortwave_wm2 !== null).length
+    check(
+      'shortwave survived the round trip as numbers',
+      withShortwave > 0,
+      `0 of ${thermal.hours.length} hours carried a shortwave value`,
+    )
+  }
+
+  if (readings.unavailable_reason === null) {
+    const scored = readings.hours.filter((h) => h.score !== null).length
+    info('hours scored', `${scored} of ${readings.hours.length}`)
+    check('at least one hour scored', scored > 0)
+
+    // The window is deliberately today-forward; the history must not leak out.
+    const earliest = readings.hours.reduce<number>(
+      (acc, h) => Math.min(acc, Date.parse(h.valid_at)),
+      Number.POSITIVE_INFINITY,
+    )
+    check(
+      'no past hour reached the response',
+      earliest >= Date.parse(`${series.days[0]?.local_date ?? '1970-01-01'}T00:00:00Z`) -
+        Math.abs(series.utc_offset_seconds) * 1000,
+      `earliest reading ${new Date(earliest).toISOString()}`,
+    )
+
+    // The fence: words and ordering reach a client, magnitudes do not.
+    const leaked = readings.hours.filter((h) =>
+      ['friction_factor', 'wetness_factor', 'skin_wettedness', 'diagnostics'].some(
+        (k) => k in (h as unknown as Record<string, unknown>),
+      ),
+    ).length
+    check('no reading carries a raw factor', leaked === 0, `${leaked} hours did`)
+
+    const withWindow = readings.days.filter((d) => d.window !== null).length
+    info('days with a window', `${withWindow} of ${readings.days.length}`)
+    const qualified = readings.hours.filter((h) => h.friction?.qualified === true).length
+    info(
+      'sun-qualified hours',
+      `${qualified} of ${readings.hours.length} — aspect is unwritten until Phase 4`,
+    )
+
+    const sample = readings.days.find((d) => d.best !== null)
+    if (sample?.best) {
+      info(
+        `${sample.local_date} best hour`,
+        `${sample.best.valid_at} · rock ${sample.best.rock?.level ?? '—'} · friction ${sample.best.friction?.level ?? '—'} · score ${sample.best.score ?? '—'}`,
+      )
+    }
+  }
+
 
   console.log(`\n${failed === 0 ? 'PASS' : 'FAIL'}  ${passed} passed, ${failed} failed\n`)
   if (failed > 0) process.exitCode = 1

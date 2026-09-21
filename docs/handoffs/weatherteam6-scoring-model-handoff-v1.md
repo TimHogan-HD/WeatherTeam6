@@ -462,6 +462,13 @@ Rock type, aspect and tilt, editable per location. This is `miniapp-design-v1.md
 deferred scope and the research calls it *"the single biggest blocker on this entire research
 document."* It is what makes `I_wall` real rather than a default, and it fixes `cliff_angle`,
 which currently runs backwards from what climbers mean.
+**The Phase 3a measurement that sharpens this.** Running the model against the owner's own
+saved crags on 2026-09-21: **every location had `cliff_angle` unset and defaulted to 45**,
+and one had no `rock_type` at all. Nothing in the response marks either — `qualified`
+covers the sun and nothing else — so a reading built on two placeholders is
+indistinguishable from one built on recorded crag data. That is not a rendering problem
+Phase 3 can fix with copy alone; it is the case for this phase.
+
 **Acceptance:** a saved location's aspect and tilt change its score in the direction a climber
 would predict.
 **Git checkpoint:** one PR.
@@ -582,6 +589,28 @@ measured one — that is `defect-patterns.md` §3, attribution not backed by the
      `Friction: Poor` and `Rock: Dry` and no cap or veto used to get there. If it has to go
      lower, the lever that does it **without** putting a step back is
      `METABOLIC_HEAT_W_M2` — costed in the harness's `M500` column at 53 — and not the map.
+
+   **ANSWERED 2026-09-21 — the owner delegated the three, and all three took the
+   documented default.** Recorded here rather than in a commit message because each one is
+   a number somebody will want to argue with later.
+
+   - **A — the weight split: `0.55 / 0.45`.** The harness is the argument: across the three
+     splits, 104 °F reads 58 / 55 / 66 and a perfect day 95 / 94 / 96, and **no reading's
+     *level* changes on any scenario**. When a dial moves nothing a user would notice,
+     the middle of the range is the least-committal place to leave it, and nothing measures
+     a better one.
+   - **B — the sweat map: `exp(-w)`.** Decided on a measurement, not a preference. The
+     alternative reaches exactly zero, a weighted geometric mean has unbounded slope there,
+     and it costs a **12-point step off a tenth of a degree** — issue #148 in a model with
+     no bands.
+   - **C — 104 °F stays at 58.** Below the criterion's words, inside the *Mixed* band
+     rather than below it. Taken because this document's own next sentence says the
+     criteria are **the ordering and the absence of a cap**, and both hold: the slide is
+     continuous from 99 at 45 °F to 1 at 120 °F with no cap, veto or clamp, and production
+     returns a flat 88 from 100 °F upward. Pushing it lower means raising
+     `METABOLIC_HEAT_W_M2`, which nobody has measured and which also drags every warm day
+     down — the repo's standing rule is to defer an unmeasured number to the phase that can
+     price it, and that phase is the feedback button (#143).
 
 6. **DECIDED 2026-09-21 — is the friction model further from measurable data than the
    evidence supports?** Raised by the owner, and the honest answer was: at one step, yes.
