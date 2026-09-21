@@ -445,6 +445,16 @@ Three deliberate deviations from this document, each recorded where it was made:
 Mini App and bot show the two readings and the day's window; the number becomes secondary.
 `SCORE_BANDS`, `stateLabel` and the suppression rule are rewritten against the new meaning.
 **Acceptance:** a day with `Friction: Poor` never renders a bare good-looking summary.
+
+**Two acceptance criteria added 2026-09-21 by the owner's decision on the friction model
+(§ Open Questions 6).** Both are about the one unvalidated step, not about layout:
+
+- **No surface renders a friction magnitude.** Words and ordering only. The 0-1 factors are
+  under `HourlyConditions.diagnostics` and `hourlyConditions.test.ts` fails if one is
+  promoted; a response type that names its fields cannot leak one by accident.
+- **The copy says the friction reading is an estimate**, in the reader's own words, on the
+  surface itself rather than in a doc. It is the one part of the model with a guess in the
+  middle of it, and a confident-looking label is the whole risk.
 **Git checkpoint:** one PR.
 
 ### Phase 4 — The location editor
@@ -572,3 +582,26 @@ measured one — that is `defect-patterns.md` §3, attribution not backed by the
      `Friction: Poor` and `Rock: Dry` and no cap or veto used to get there. If it has to go
      lower, the lever that does it **without** putting a step back is
      `METABOLIC_HEAT_W_M2` — costed in the harness's `M500` column at 53 — and not the map.
+
+6. **DECIDED 2026-09-21 — is the friction model further from measurable data than the
+   evidence supports?** Raised by the owner, and the honest answer was: at one step, yes.
+
+   Everything up to `sweatBalance.skinWettedness` is standard physics with published
+   values. **The single guess is `sweatFrictionFactor` — what skin wettedness does to
+   grip — and no study relates the two.** The alternatives put were to cut the sweat
+   channel back to condensation alone (certain, and it leaves issue #21 unfixed) or to
+   replace the heat balance with one arbitrary curve on surface temperature (simpler, and
+   it loses the joint behaviour of temperature, humidity and wind that the physics gives
+   for free).
+
+   **The decision is keep it and quarantine it**, on two terms now carried as Phase 3
+   acceptance criteria: no surface renders a friction magnitude, and the copy says it is an
+   estimate. Enforced by `HourlyConditions.diagnostics` and a test, not by memory.
+
+   **The fact that reframed the question, and it is worth not losing:** the friction half
+   carries about 4 invented constants against the drying half's ~20 — fourteen rock-type
+   hour values that `scoring-findings.md` §4 calls folklore, plus the ramp exponent, the
+   angle factor, the reference conditions and the rate cap — and the drying half is
+   weighted **higher**. The newer model is the leaner of the two. Neither half has ever
+   been checked against whether anyone climbed better, and issue #143 is still the only
+   path to that.

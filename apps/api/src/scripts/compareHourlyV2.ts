@@ -146,7 +146,7 @@ async function run(): Promise<void> {
     const withTemp = hours.filter((h) => h.air_temp_c !== null).length
     const withDew = hours.filter((h) => h.dewpoint_c !== null).length
     const scored = evaluated.filter((h) => h.score !== null).length
-    const withMass = evaluated.filter((h) => h.t_mass_c !== null).length
+    const withMass = evaluated.filter((h) => h.diagnostics.t_mass_c !== null).length
     const qualified = evaluated.filter((h) => h.friction?.qualified === true).length
     const withFriction = evaluated.filter((h) => h.friction !== null).length
 
@@ -238,8 +238,8 @@ async function run(): Promise<void> {
         console.log(
           `    ${pad(h.local.slice(11), 7)}${padL(num(h.air_temp_c), 6)}${padL(num(e.t_surface_c), 8)}` +
             `${padL(num(h.dewpoint_c), 6)}${padL(h.shortwave_wm2 === null ? '—' : h.shortwave_wm2.toFixed(0), 6)}` +
-            `${padL(num(e.condensation_margin_c), 8)}${padL(num(e.skin_wettedness, 2), 6)}` +
-            `${padL(num(e.effective_dry_hours, 0), 8)}${padL(e.score === null ? '—' : String(e.score), 7)}  ` +
+            `${padL(num(e.condensation_margin_c), 8)}${padL(num(e.diagnostics.skin_wettedness, 2), 6)}` +
+            `${padL(num(e.diagnostics.effective_dry_hours, 0), 8)}${padL(e.score === null ? '—' : String(e.score), 7)}  ` +
             `${pad(e.rock === null ? '—' : e.rock.level + (e.rock.qualified ? '' : '*'), 8)}` +
             `${pad(
               e.friction === null

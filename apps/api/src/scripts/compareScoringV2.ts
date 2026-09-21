@@ -366,7 +366,7 @@ function runScenario(sc: V2Scenario, weights: ScoreWeights, metabolicW?: number)
       cloudPct: end.cloud_pct,
       shortwaveWm2: end.shortwave_wm2,
       massTempC: sc.airTempC + sc.massOffsetC,
-      effectiveDryHours: last.effective_dry_hours,
+      effectiveDryHours: last.diagnostics.effective_dry_hours,
       rockType: sc.rockType,
       cliffAngleDeg: sc.cliffAngle,
       weights,
@@ -379,10 +379,10 @@ function runScenario(sc: V2Scenario, weights: ScoreWeights, metabolicW?: number)
 /** The dry-skin-fraction map applied to an already-evaluated hour. */
 function dryFractionScoreOf(hour: HourlyConditions, weights = DEFAULT_WEIGHTS): number | null {
   return derivedScore(
-    hour.wetness_factor,
+    hour.diagnostics.wetness_factor,
     frictionFactor(
       condensationFactor(hour.condensation_margin_c),
-      dryFractionFrictionFactor(hour.skin_wettedness),
+      dryFractionFrictionFactor(hour.diagnostics.skin_wettedness),
     ),
     weights,
   )
@@ -450,8 +450,8 @@ function scenarioTable(): void {
     )
     console.log(
       `      T_surface ${num(r.hour.t_surface_c, 1)} °C · dew margin ${num(r.hour.condensation_margin_c, 1)} °C · ` +
-        `skin wettedness ${num(r.hour.skin_wettedness, 2)} · ` +
-        `wetness ${num(r.hour.wetness_factor, 2)} × friction ${num(r.hour.friction_factor, 2)}` +
+        `skin wettedness ${num(r.hour.diagnostics.skin_wettedness, 2)} · ` +
+        `wetness ${num(r.hour.diagnostics.wetness_factor, 2)} × friction ${num(r.hour.diagnostics.friction_factor, 2)}` +
         `${r.hour.friction?.qualified === false ? ' · sun UNQUALIFIED' : ''}`,
     )
     console.log('')
@@ -685,8 +685,8 @@ function whatIsMissing(): void {
     const sc = v2(over)
     const v1 = conditionsScore(toScoreInput(sc)).score
     const r = evaluate(sc)
-    const f = r.hour.friction_factor
-    const w = r.hour.wetness_factor
+    const f = r.hour.diagnostics.friction_factor
+    const w = r.hour.diagnostics.wetness_factor
     console.log(
       `  ${pad(label, 44)}${padL(num(v1), 6)}${padL(num(r.byWeights['55/45'] ?? null), 6)}` +
         `    wetness ${num(w, 2)} × friction ${num(f, 2)}`,

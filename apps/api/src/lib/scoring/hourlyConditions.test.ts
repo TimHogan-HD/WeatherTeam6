@@ -314,7 +314,7 @@ describe('evaluateHourlyConditions', () => {
       rockType: 'granite',
       cliffAngleDeg: 0,
     })
-    expect(short[short.length - 1]!.t_mass_c).toBeNull()
+    expect(short[short.length - 1]!.diagnostics.t_mass_c).toBeNull()
     expect(short[short.length - 1]!.friction).toBeNull()
     expect(short[short.length - 1]!.score).toBeNull()
 
@@ -322,7 +322,7 @@ describe('evaluateHourlyConditions', () => {
       rockType: 'granite',
       cliffAngleDeg: 0,
     })
-    expect(long[long.length - 1]!.t_mass_c).not.toBeNull()
+    expect(long[long.length - 1]!.diagnostics.t_mass_c).not.toBeNull()
     expect(long[long.length - 1]!.friction).not.toBeNull()
   })
 
@@ -331,16 +331,16 @@ describe('evaluateHourlyConditions', () => {
     hours[100]!.precip_mm = SIGNIFICANT_HOURLY_PRECIP_MM
     const out = evaluateHourlyConditions(hours, { rockType: 'granite', cliffAngleDeg: 0 })
     // An hour it is raining in is a wet wall, whatever it had done beforehand.
-    expect(out[100]!.effective_dry_hours).toBe(0)
+    expect(out[100]!.diagnostics.effective_dry_hours).toBe(0)
     expect(out[100]!.rock!.level).toBe('wet')
-    expect(out[101]!.effective_dry_hours!).toBeGreaterThan(0)
+    expect(out[101]!.diagnostics.effective_dry_hours!).toBeGreaterThan(0)
   })
 
   it('ignores rain below the hourly threshold rather than resetting on drizzle', () => {
     const hours = series(120)
     hours[100]!.precip_mm = SIGNIFICANT_HOURLY_PRECIP_MM - 0.1
     const out = evaluateHourlyConditions(hours, { rockType: 'granite', cliffAngleDeg: 0 })
-    expect(out[100]!.effective_dry_hours!).toBeGreaterThan(0)
+    expect(out[100]!.diagnostics.effective_dry_hours!).toBeGreaterThan(0)
   })
 
   it('accumulates drying at a rate, not by the calendar — the point of Layer 1d', () => {
@@ -352,8 +352,8 @@ describe('evaluateHourlyConditions', () => {
       series(120, { air_temp_c: 2, dewpoint_c: dewPointC(2, 95), wind_kmh: 2 }),
       { rockType: 'sandstone', cliffAngleDeg: 0 },
     )
-    const warmHours = warmDry[119]!.effective_dry_hours!
-    const coldHours = coldDamp[119]!.effective_dry_hours!
+    const warmHours = warmDry[119]!.diagnostics.effective_dry_hours!
+    const coldHours = coldDamp[119]!.diagnostics.effective_dry_hours!
     expect(warmHours).toBeGreaterThan(coldHours * 5)
     // The same 120 elapsed hours: v1 would have handed both the same clock.
     expect(warmDry[119]!.rock!.level).toBe('dry')
@@ -369,8 +369,8 @@ describe('evaluateHourlyConditions', () => {
     for (let i = 40; i < 80; i++) holed[i]!.wind_kmh = null
     const withHole = evaluateHourlyConditions(holed, { rockType: 'sandstone', cliffAngleDeg: 0 })
     // Under-counting reads the wall wetter, which is the safe direction.
-    expect(withHole[119]!.effective_dry_hours!).toBeLessThan(
-      measured[119]!.effective_dry_hours!,
+    expect(withHole[119]!.diagnostics.effective_dry_hours!).toBeLessThan(
+      measured[119]!.diagnostics.effective_dry_hours!,
     )
   })
 
@@ -385,10 +385,10 @@ describe('evaluateHourlyConditions', () => {
     const unmeasured = series(120)
     for (let i = 40; i < 80; i++) unmeasured[i]!.precip_mm = null
     const out = evaluateHourlyConditions(unmeasured, { rockType: 'sandstone', cliffAngleDeg: 0 })
-    expect(out[119]!.effective_dry_hours!).toBeLessThan(measured[119]!.effective_dry_hours!)
+    expect(out[119]!.diagnostics.effective_dry_hours!).toBeLessThan(measured[119]!.diagnostics.effective_dry_hours!)
     // And the clock stands still rather than resetting: an unmeasured hour is
     // not a rainy one either.
-    expect(out[79]!.effective_dry_hours).toBe(out[39]!.effective_dry_hours)
+    expect(out[79]!.diagnostics.effective_dry_hours).toBe(out[39]!.diagnostics.effective_dry_hours)
   })
   it('withholds the rock reading when the rain history is declared unknown', () => {
     const out = evaluateHourlyConditions(series(120), {
@@ -420,11 +420,13 @@ describe('bestWindow', () => {
     score,
     t_surface_c: 20,
     condensation_margin_c: 5,
-    t_mass_c: 15,
-    skin_wettedness: 0.1,
-    wetness_factor: 1,
-    friction_factor: level === 'great' ? 0.9 : 0.2,
-    effective_dry_hours: 500,
+    diagnostics: {
+      t_mass_c: 15,
+      skin_wettedness: 0.1,
+      wetness_factor: 1,
+      friction_factor: level === 'great' ? 0.9 : 0.2,
+      effective_dry_hours: 500,
+    },
   })
 
   it('finds the longest contiguous run clearing the minimums', () => {
@@ -467,5 +469,53 @@ describe('bestWindow', () => {
   it('exposes the level orderings a caller builds minimums from', () => {
     expect(rockLevelsAtLeast('drying')).toEqual(['drying', 'dry'])
     expect(frictionLevelsAtLeast('good')).toEqual(['good', 'great'])
+  })
+})
+
+/**
+ * **The fence around the unvalidated step, asserted rather than described.**
+ *
+ * Owner decision, 2026-09-21: the friction reading keeps its heat-balance model
+ * and the one guess in it — `sweatBalance.sweatFrictionFactor` — is quarantined
+ * instead of removed. The terms were that **words and ordering reach a screen
+ * and magnitudes do not**, so the 0-1 factors live under `diagnostics`.
+ *
+ * This is the check, and it is deliberately a check rather than a comment:
+ * `.claude/rules/architecture.md` is full of rules that hold because something
+ * fails when they are broken. A Phase 3 response built by spreading an
+ * `HourlyConditions` would carry a friction magnitude to a client; one built by
+ * naming its fields cannot do it by accident. If a factor is promoted back to
+ * the top level, this fails and whoever did it has to say why.
+ */
+describe('the diagnostics fence', () => {
+  const sample = evaluateHour(hour(), true)
+
+  it('keeps every raw factor off the top level of the result', () => {
+    for (const field of [
+      'friction_factor',
+      'wetness_factor',
+      'skin_wettedness',
+      't_mass_c',
+      'effective_dry_hours',
+    ]) {
+      expect(Object.keys(sample)).not.toContain(field)
+      expect(Object.keys(sample.diagnostics)).toContain(field)
+    }
+  })
+
+  it('publishes the readings as words, and the score, and nothing else numeric', () => {
+    // t_surface_c and condensation_margin_c are derived measurements with named
+    // biases, not guesses about grip, so they are renderable and stay here.
+    expect(Object.keys(sample).sort()).toEqual([
+      'condensation_margin_c',
+      'diagnostics',
+      'friction',
+      'rock',
+      'score',
+      't_surface_c',
+      'valid_at',
+    ])
+    expect(typeof sample.friction!.level).toBe('string')
+    expect(typeof sample.rock!.level).toBe('string')
   })
 })
