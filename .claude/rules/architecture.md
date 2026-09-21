@@ -50,6 +50,17 @@ decisions are final unless explicitly overridden by the user.
   deficit would read a 66 °C wall as ideal drying conditions for skin. And **`rock.qualified`
   is false for any drying window containing daylight**, because the clock runs off
   `T_surface`; that is honest, not a bug, and Phase 3 owns the copy for it.
+- **The friction reading rests on exactly one unvalidated step, and it is fenced.**
+  Everything upstream of `sweatBalance.sweatFrictionFactor` is standard physics checked
+  against published values; that one line — skin wettedness to a grip factor — is a guess
+  nobody has measured, and no study relates the two. **Owner decision 2026-09-21: keep it
+  and quarantine it.** The terms are that **words and ordering reach a screen and
+  magnitudes do not** — `poor`/`fair`/`good`/`great`, never "friction 0.29" — and the copy
+  says it is an estimate. The 0-1 factors live under `HourlyConditions.diagnostics` so a
+  response built by spreading the object cannot leak one, and `hourlyConditions.test.ts`
+  fails if a factor is promoted back to the top level. `t_surface_c` and
+  `condensation_margin_c` stay renderable: they are derived measurements with named biases,
+  not guesses about grip.
 - **Every input to a per-day score must be read for that day, and the drying clock is one**
   **of them.** `computeLiveForecast` calls `dryingModel` inside the day loop, against the
   events `rainfallEventsThrough` says that day is entitled to see: measured history up to

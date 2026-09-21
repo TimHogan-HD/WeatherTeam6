@@ -298,7 +298,45 @@ export function skinWettedness(input: SkinWettednessInput): SkinWettedness | nul
 
 
 /**
- * **Skin wettedness → the hand's share of the friction reading, 0-1.**
+ * # THIS IS THE ONE UNVALIDATED STEP IN THE WHOLE MODEL
+ *
+ * **Everything upstream of this function is measurable physics. This line is a
+ * guess, and it is the only one of its kind on the friction path.** Read that
+ * boundary carefully before building on any of it.
+ *
+ * Upstream — the heat balance, the Lewis relation, the operative temperature,
+ * the saturation vapour pressure — are standard relations with published
+ * values, and `sweatBalance.test.ts` checks them against hand-worked arithmetic
+ * and steam-table figures. Given the weather and a wall temperature, *how wet a
+ * hand has to be to stay in heat balance* is a real question with a real answer.
+ *
+ * **What no one has ever measured is what that does to grip.** There is no
+ * study relating skin wettedness to friction on rock, so the map below is
+ * chosen, not derived. The community evidence that heat and humidity wreck
+ * friction is real (`climbing-terminology-research.md` §4.10-4.12) and the only
+ * direct finger-pad measurement found nothing across 23.5-27 °C with one
+ * participant — *"not detectable across a span nobody cares about"* (§18.2).
+ * Neither tells you the shape of this curve.
+ *
+ * **Owner decision, 2026-09-21: keep it, and quarantine it.** The alternatives
+ * were cutting the sweat channel back to condensation alone — certain, and it
+ * leaves issue #21 unfixed — or replacing the heat balance with one arbitrary
+ * curve on surface temperature, which loses the joint behaviour of temperature,
+ * humidity and wind. Keeping it carries two standing obligations:
+ *
+ * 1. **No surface renders a friction magnitude.** Words and ordering only —
+ *    `poor`/`fair`/`good`/`great`. The 0-1 factor is a diagnostic and lives
+ *    under `HourlyConditions.diagnostics` for that reason. See
+ *    `.claude/rules/architecture.md`.
+ * 2. **The copy says it is an estimate.** A Phase 3 acceptance criterion, not a
+ *    hope.
+ *
+ * **Nothing here is validated end to end against whether anyone climbed
+ * better.** Issue #143 remains the only path to knowing, and that is as true of
+ * the drying half — where ~20 convention-derived constants carry the larger
+ * weight — as it is of this.
+ *
+ * ## The map itself
  *
  * ```
  * factor = exp(−w)
@@ -309,21 +347,19 @@ export function skinWettedness(input: SkinWettednessInput): SkinWettedness | nul
  * **is** the dry fraction of the skin, which is as direct a statement about
  * friction as this model makes anywhere.
  *
- * The exponential rather than a clipped `1 − w` is a deliberate choice between
- * two defensible maps, and it is on the list of things the Phase 2 stop puts to
- * the owner:
+ * The exponential rather than a clipped `1 − w` was the second Phase 2 decision,
+ * and it went the way it did on a measurement rather than a preference:
  *
- * - `1 − w` is the literal dry fraction and reaches **exactly zero** at `w = 1`,
- *   the point where heat stress becomes uncompensable. Everything hotter than
- *   that scores the same as a wall under a waterfall, and the ordering above
- *   `w = 1` is lost.
+ * - `1 − w` is the literal dry fraction and reaches **exactly zero** at `w = 1`.
+ *   A weighted geometric mean has unbounded slope at zero, so that costs **12
+ *   points off a tenth of a degree** — issue #148 in a model with no bands — and
+ *   the ordering above `w = 1` is lost as well.
  * - `exp(−w)` agrees with it on ordinary days, keeps falling past `w = 1`, and
  *   never manufactures an exact zero out of a ratio whose numerator is an
  *   invented metabolic rate. It is the more forgiving of the two on hot days —
  *   the optimistic direction — which is the argument against it.
  *
- * `compare:scoring` prints both. Nothing here is calibrated and neither map is
- * measured; the choice is which kind of wrong to prefer.
+ * `compare:scoring` prints both.
  */
 export function sweatFrictionFactor(wettedness: number | null): number | null {
   if (wettedness === null || !Number.isFinite(wettedness) || wettedness < 0) return null

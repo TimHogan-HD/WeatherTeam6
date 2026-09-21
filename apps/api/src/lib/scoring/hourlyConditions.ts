@@ -299,6 +299,42 @@ export type HourConditionsInput = {
   metabolicW?: number
 }
 
+/**
+ * **The internals, deliberately fenced off from anything a surface renders.**
+ *
+ * Owner decision, 2026-09-21. The friction reading rests on one unvalidated
+ * step — see `sweatBalance.sweatFrictionFactor` — and the decision was to keep
+ * it and quarantine it: **words and ordering reach a screen, magnitudes do
+ * not.** A "friction: 0.29" on a location card would be a precision nobody has
+ * earned, and it is the kind of number a reader treats as a measurement.
+ *
+ * This is a nested object rather than a comment because a comment is not a
+ * fence. A Phase 3 response built by spreading an `HourlyConditions` picks
+ * these up silently; one built by naming its fields cannot pick them up by
+ * accident. See `.claude/rules/architecture.md`.
+ *
+ * They exist because `compare:scoring` and `compare:hourly-v2` have to be able
+ * to show the workings, and because a null here is how Phase 3 tells "the model
+ * declined to answer" from "the model answered badly".
+ */
+export type HourlyDiagnostics = {
+  t_mass_c: number | null
+  /**
+   * `sweatBalance.skinWettedness`, unclamped. Null when it could not be read.
+   *
+   * **Read the direction before using it beside `wetness_factor`, because the
+   * two are named alike and point opposite ways.** This one is a *wetness*: 0
+   * is a dry hand and higher is worse. `wetness_factor` is how far the *rock*
+   * has dried: 1 is a dry wall and higher is better.
+   */
+  skin_wettedness: number | null
+  /** How dry the **rock** is, 0-1. 1 is dry. The `wetness` in Layer 3's formula. */
+  wetness_factor: number | null
+  /** The product of the two friction mechanisms, 0-1. **Never rendered.** */
+  friction_factor: number | null
+  effective_dry_hours: number | null
+}
+
 export type HourlyConditions = {
   valid_at: string
   /**
@@ -314,26 +350,15 @@ export type HourlyConditions = {
    * and it means the wall is wet or condensing.
    */
   score: number | null
-  t_surface_c: number | null
-  condensation_margin_c: number | null
-
-  // ── beyond the handoff's sketch: what the harness and Phase 3's copy need ──
-  t_mass_c: number | null
   /**
-   * `sweatBalance.skinWettedness`, unclamped. Null when it could not be read.
-   *
-   * **Read the direction before using it beside `wetness_factor`, because the
-   * two are named alike and point opposite ways.** This one is a *wetness*: 0
-   * is a dry hand and higher is worse. `wetness_factor` below is the handoff's
-   * name for how far the *rock* has dried: 1 is a dry wall and higher is
-   * better. Nothing enforces the distinction, so a surface that mixes them up
-   * would render a confident number with the sign inverted.
+   * Rock surface temperature, °C. Renderable — it is a derived *measurement*
+   * with a named bias (§ Unknown aspect), not a guess about grip.
    */
-  skin_wettedness: number | null
-  /** How dry the **rock** is, 0-1. 1 is dry. The `wetness` in Layer 3's formula. */
-  wetness_factor: number | null
-  friction_factor: number | null
-  effective_dry_hours: number | null
+  t_surface_c: number | null
+  /** How far the wall's bulk sits above its dew point, °C. Renderable, same reason. */
+  condensation_margin_c: number | null
+  /** **Not renderable.** See `HourlyDiagnostics`. */
+  diagnostics: HourlyDiagnostics
 }
 
 /**
@@ -417,11 +442,13 @@ function readingsFrom(
     score: derivedScore(wetness, friction, input.weights ?? DEFAULT_WEIGHTS),
     t_surface_c: surface.t_surface_c,
     condensation_margin_c: margin,
-    t_mass_c: input.massTempC,
-    skin_wettedness: wettedness,
-    wetness_factor: wetness,
-    friction_factor: friction,
-    effective_dry_hours: input.effectiveDryHours,
+    diagnostics: {
+      t_mass_c: input.massTempC,
+      skin_wettedness: wettedness,
+      wetness_factor: wetness,
+      friction_factor: friction,
+      effective_dry_hours: input.effectiveDryHours,
+    },
   }
 }
 
