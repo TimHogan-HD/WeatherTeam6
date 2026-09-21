@@ -294,9 +294,37 @@ describe('conditionsScore — temperature component', () => {
     expect(mid).toBeLessThan(12)
   })
 
-  it('35°C scores ~6', () => {
-    const result = conditionsScore({ ...base, forecastHighC: 35 })
-    expect(result.components.temp).toBe(6)
+  it('35°C — the top of the band — scores 0, not 6 (issue #148)', () => {
+    expect(conditionsScore({ ...base, forecastHighC: 35 }).components.temp).toBe(0)
+  })
+
+  it('28.5°C — the middle of the upper ramp — scores 6', () => {
+    // The midpoint of idealMax–max. It scored 9 while the ramp ran 12→6, so
+    // this is the assertion that the upper half really did get harsher rather
+    // than the edge alone being patched.
+    expect(conditionsScore({ ...base, forecastHighC: 28.5 }).components.temp).toBe(6)
+  })
+
+  it('the component is continuous across both band edges', () => {
+    // Issue #148: the hot ramp ended at 6 and the out-of-band branch dropped it
+    // to 0, so 35.0 °C → 35.1 °C moved the total six points. The threatening
+    // input is a tenth of a degree either side of `min` and `max`, so the walk
+    // is in tenths and it runs past both edges — asserting it only at whole
+    // degrees, or only inside the band, is how the step survived.
+    //
+    // The ramps are 12 points over 10 °C and 13 °C, so a tenth moves the raw
+    // component by at most 0.12; the rounding to integers is what makes 1 the
+    // bound rather than 0.
+    let previous = conditionsScore({ ...base, forecastHighC: -5 }).components.temp
+    const steps: { at: number; step: number }[] = []
+    for (let tenths = -49; tenths <= 400; tenths += 1) {
+      const forecastHighC = tenths / 10
+      const current = conditionsScore({ ...base, forecastHighC }).components.temp
+      steps.push({ at: forecastHighC, step: Math.abs(current - previous) })
+      previous = current
+    }
+    const worst = steps.reduce((a, b) => (b.step > a.step ? b : a))
+    expect(worst.step, `largest step is ${worst.step} points, at ${worst.at} °C`).toBeLessThanOrEqual(1)
   })
 })
 

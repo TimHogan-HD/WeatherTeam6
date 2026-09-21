@@ -134,14 +134,30 @@ export function conditionsScore(input: ScoreInput): ScoreOutput {
   // because the Mini App's diverging temperature ramp is centred on the same
   // band. Two copies would let the chart paint an hour neutral on a day the
   // score docked for being too warm, and nothing would detect it.
+  //
+  // **Both ramps reach 0 exactly at the edge of the band, and that is the
+  // invariant** (issue #148). The hot ramp paid 6 of 12 at `max` and then the
+  // out-of-band branch dropped it to 0, so 95.0 °F scored 94 and 95.2 °F scored
+  // 88 — six points of the total from a fifth of a degree no forecast resolves.
+  // `TEMP_BAND_C.max` is documented in `packages/types` as the point where the
+  // component *scores 0*; the cold ramp has always honoured that and this one
+  // now does too. Continuity across both edges is asserted by walking the axis
+  // in tenths, because nothing else here could catch a step reappearing.
+  //
+  // It is a real behaviour change through the whole upper half of the band, not
+  // just at its end: 25 °C goes from 11 of 12 to 9 and 30 °C from 8 to 5, so a
+  // warm day loses two or three points of the total. The alternative — raising
+  // `max` until the ramp ends where the score is already near 0 — needs a number
+  // nobody has measured (`scoring-findings.md` §4), and it would move the Mini
+  // App's chart with it.
   const temp = input.forecastHighC
   const { min, idealMin, idealMax, max } = TEMP_BAND_C
   let tempRaw: number
   if (temp < min || temp > max) tempRaw = 0
   else if (temp >= idealMin && temp <= idealMax) tempRaw = 12
   else if (temp < idealMin) tempRaw = ((temp - min) / (idealMin - min)) * 12
-  // idealMax–max: linear scale 12→6
-  else tempRaw = 12 - ((temp - idealMax) / (max - idealMax)) * 6
+  // idealMax–max: linear scale 12→0
+  else tempRaw = 12 - ((temp - idealMax) / (max - idealMax)) * 12
 
   // Step 5: Humidity (0-8)
   let humidityRaw: number
