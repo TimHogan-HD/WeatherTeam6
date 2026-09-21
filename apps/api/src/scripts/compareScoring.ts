@@ -140,13 +140,57 @@ function additive(c: Components): number {
  * is unchanged — drying still dominates. What changes is that a component near
  * zero pulls the product down instead of merely contributing nothing.
  */
-function geometric(c: Components): number {
-  const keys = Object.keys(WEIGHTS) as (keyof Components)[]
+function geometric(c: Components, weights: Components = WEIGHTS): number {
+  const keys = Object.keys(weights) as (keyof Components)[]
+  const total = keys.reduce((acc, k) => acc + weights[k], 0)
   const product = keys.reduce((acc, k) => {
+    // The component's own max never changes — only its exponent does. Dividing
+    // by WEIGHTS here rather than by `weights` is deliberate: a reweight is a
+    // statement about how much a factor matters, not a rescale of what the
+    // factor measured.
     const normalised = Math.max(GEO_FLOOR, c[k] / WEIGHTS[k])
-    return acc * Math.pow(normalised, WEIGHTS[k] / 100)
+    return acc * Math.pow(normalised, weights[k] / total)
   }, 1)
   return Math.round(product * 100)
+}
+
+/**
+ * The two answers to "a geometric mean alone still scores 40 °C at 70".
+ *
+ * **Reweighting (`W15`, `W39`).** One component at its floor costs
+ * `1 - GEO_FLOOR ^ (w / Σw)`, so what a failed component can cost is decided by
+ * its exponent alone. Temperature's 12 bounds it at 30%.
+ *
+ *   - `W15` is the *largest* temperature weight that keeps
+ *     `scoring-algorithm.md`'s **non-negotiable weight order** — it ties wind
+ *     and goes no further.
+ *   - `W39` is what it actually takes to put 40 °C below the `Mixed` band. It
+ *     makes temperature all but equal to drying, which breaks that order, and
+ *     `scoring-findings.md` §4 records that **there is no measured basis for
+ *     reweighting temperature in either direction.** It is here to be costed,
+ *     not to be shipped.
+ *
+ * **Veto (`V59`, `V39`).** A cap applied after the mean when a component whose
+ * zero means *no* is at zero. The cap levels are the existing `SCORE_BANDS`
+ * rungs, so the statement is in the vocabulary the copy already uses: `V59` —
+ * never reads better than *Mixed*; `V39` — always reads *Wet or unsettled*.
+ */
+const TEMP_HEAVY_15: Components = { ...WEIGHTS, temp: 15 }
+const TEMP_HEAVY_39: Components = { ...WEIGHTS, temp: 39 }
+
+/**
+ * Components whose zero is categorical — the rock is wet, the wind will take
+ * you off, the air is outside the range a person climbs in.
+ *
+ * Rain and humidity are deliberately absent. Humidity reaches zero at 90% RH,
+ * which is a damp day rather than an impossible one — that is the whole reason
+ * `GEO_FLOOR` exists. The rain component describes the next 72 hours, so its
+ * zero says the trip is poorly timed, not that this day is unclimbable.
+ */
+const FATAL: (keyof Components)[] = ['drying', 'wind', 'temp']
+
+function vetoed(score: number, c: Components, cap: number): number {
+  return FATAL.some((k) => Math.round(c[k]) === 0) ? Math.min(score, cap) : score
 }
 
 type Scenario = { name: string; note: string; input: ScoreInput }
@@ -202,6 +246,16 @@ const scenarios: Scenario[] = [
     input: s({ hoursSinceRain: 168, forecastHighC: 40, currentTempC: 40 }),
   },
   {
+    name: '35 °C, everything else perfect',
+    note: 'The last degree INSIDE the band. Temperature still scores 6 of 12 here.',
+    input: s({ hoursSinceRain: 168, forecastHighC: 35, currentTempC: 35 }),
+  },
+  {
+    name: '36 °C, everything else perfect',
+    note: 'One degree further and temperature is 0. The cliff is in the component.',
+    input: s({ hoursSinceRain: 168, forecastHighC: 36, currentTempC: 36 }),
+  },
+  {
     name: '-10 °C, everything else perfect',
     note: 'The other end of the band. Same structural question as #21.',
     input: s({ hoursSinceRain: 168, forecastHighC: -10, currentTempC: -10 }),
@@ -240,11 +294,6 @@ function pad(v: string, n: number): string {
 function padL(v: string, n: number): string {
   return v.length >= n ? v : ' '.repeat(n - v.length) + v
 }
-function delta(from: number, to: number): string {
-  const d = to - from
-  if (d === 0) return '     ·'
-  return padL((d > 0 ? '+' : '') + String(d), 6)
-}
 
 function main(): void {
   console.log('')
@@ -257,13 +306,26 @@ function main(): void {
   console.log(`  Now       PRODUCTION — concave ramp, exponent ${RAMP_EXPONENT} (issue #137, shipped)`)
   console.log(`  Geo       weighted geometric mean, floor ${GEO_FLOOR} (issue #21, still open)`)
   console.log('')
-  console.log('  Both constants are judgement calls. The research fixes the SHAPE of the')
+  console.log('  ...and the four answers to "Geo alone still scores 40 °C at 70":')
+  console.log('')
+  console.log(`  W15       Geo, temperature weighted ${TEMP_HEAVY_15.temp} — the most that keeps the`)
+  console.log('            non-negotiable weight order (it ties wind, goes no further)')
+  console.log(`  W39       Geo, temperature weighted ${TEMP_HEAVY_39.temp} — what it TAKES to put 40 °C`)
+  console.log('            below Mixed. Breaks the weight order; costed, not proposed')
+  console.log('  V59       Geo + veto: a fatal component caps the day at Mixed')
+  console.log('  V39       Geo + veto: a fatal component caps the day at Wet or unsettled')
+  console.log('')
+  console.log(`            fatal = ${FATAL.join(', ')} at zero. Rain and humidity are not fatal:`)
+  console.log('            humidity reaches 0 at 90% RH, which is damp, not impossible.')
+  console.log('')
+  console.log('  Every constant here is a judgement call. The research fixes the SHAPE of the')
   console.log('  drying curve and says nothing about its exponent — nobody has measured a')
-  console.log('  drying curve for any climbing rock. See scoring-findings.md §1.2 and §1.4.')
+  console.log('  drying curve for any climbing rock — and it says there is NO measured basis')
+  console.log('  for reweighting temperature in either direction. §1.2, §1.4 and §4.')
   console.log('')
   console.log('-'.repeat(96))
   console.log(
-    `  ${pad('Scenario', 38)}${padL('Pre', 5)}${delta(0, 0)}${padL('Now', 6)}${padL('Geo', 6)}${delta(0, 0)}`,
+    `  ${pad('Scenario', 38)}${padL('Pre', 5)}${padL('Now', 6)}${padL('Geo', 6)}${padL('W15', 6)}${padL('W39', 6)}${padL('V59', 6)}${padL('V39', 6)}`,
   )
   console.log('-'.repeat(96))
 
@@ -274,6 +336,10 @@ function main(): void {
     const pre = additive(linear)
     const now = additive(concave)
     const geo = geometric(concave)
+    const w15 = geometric(concave, TEMP_HEAVY_15)
+    const w39 = geometric(concave, TEMP_HEAVY_39)
+    const v59 = vetoed(geo, concave, 59)
+    const v39 = vetoed(geo, concave, 39)
 
     // Sanity: the real scorer must agree with this script's "Now" column, or
     // every other number here is measured against the wrong baseline. This is
@@ -283,7 +349,8 @@ function main(): void {
     const mismatch = real !== now ? `  << MISMATCH: real scorer says ${real}` : ''
 
     console.log(
-      `  ${pad(sc.name, 38)}${padL(String(pre), 5)}${delta(pre, now)}${padL(String(now), 6)}${padL(String(geo), 6)}${delta(now, geo)}${mismatch}`,
+      `  ${pad(sc.name, 38)}${padL(String(pre), 5)}${padL(String(now), 6)}${padL(String(geo), 6)}` +
+        `${padL(String(w15), 6)}${padL(String(w39), 6)}${padL(String(v59), 6)}${padL(String(v39), 6)}${mismatch}`,
     )
     console.log(`    ${sc.note}`)
     console.log('')
@@ -320,9 +387,18 @@ function main(): void {
   console.log('  2. The geometric mean does NOT fully fix #21 on its own. A failed')
   console.log('     temperature component can only cost 30% of the score, because the')
   console.log(`     floor and temperature's 0.12 weight bound it: 1 - ${GEO_FLOOR}^0.12 = 0.30.`)
-  console.log('     40 °C still scores 70. If "too hot to climb" should read lower than')
-  console.log('     that, it needs a heavier temperature weight or a hard override —')
-  console.log('     changing the mean alone is not enough. Worth settling on #21.')
+  console.log('     40 °C still scores 70. The W15/W39 and V59/V39 columns are what that')
+  console.log('     costs, measured — and W39 is why reweighting was ruled out: it buys the')
+  console.log('     temperature case by weakening the wind and drying ones.')
+  console.log('')
+  console.log('  WHERE THIS WENT')
+  console.log('')
+  console.log('  None of the four columns shipped. Costing them is what showed the problem')
+  console.log('  is the SHAPE of a weighted sum rather than its constants. The replacement')
+  console.log('  is specified in docs/handoffs/weatherteam6-scoring-model-handoff-v1.md —')
+  console.log('  two readings (rock, friction) derived from physical quantities, with the')
+  console.log('  number derived from those. Keep this harness: it is the before/after')
+  console.log('  instrument for that work.')
   console.log('')
 }
 
