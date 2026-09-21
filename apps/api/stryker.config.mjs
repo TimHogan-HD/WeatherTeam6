@@ -66,6 +66,17 @@ export default {
   //
   //   2026-08-26  66.09  break 65
   //   2026-09-16  68.14  break 67   (re-measured before rewriting the scorer)
+  //   2026-09-21  67.82  break 67   (weekly CI, first run after #137 + #108)
+  //
+  // **The 2026-09-21 dip is not a regression, and it is the trap this ledger sets.**
+  // Every file #137 and #108 touched went UP — liveForecast 44.23 → 54.13,
+  // conditionsScore 81.51 → 83.56, dryingModel 89.13 → 92.31 — while the total
+  // fell. New code brings new mutants, so the denominator grows faster than the
+  // tests catch up, and a score can drop while every part of it improves.
+  //
+  // Consequence: `break` ratcheted from a measurement taken BEFORE a change can be
+  // tripped by that change. 67 survived by 0.82 here. Ratchet from the first
+  // weekly run AFTER the work lands, not from the one taken before it.
   //
   // The 2026-09-16 run took 37 minutes, not the ~13 the docs quote. Two files
   // are worth knowing about when touching scoring: `conditionsScore.ts` is at
