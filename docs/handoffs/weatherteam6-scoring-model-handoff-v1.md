@@ -2,7 +2,7 @@
 
 Version: v1
 Date: 2026-09-16
-Status: Draft — awaiting the owner's go-ahead on § Open Questions 1 and 2
+Status: Draft — awaiting the owner on § Open Questions 1, 3 and 4. **Q2 is decided** (2026-09-21).
 
 ## Context
 
@@ -116,7 +116,7 @@ T_surface = T_air + (α · I_wall) / h_c − skyCooling
 | Term | Source | Note |
 | --- | --- | --- |
 | `α` | solar absorptance of rock | One default (~0.65), **a judgement call** — no per-crag measurement exists. Do not vary it by `rock_type` without a source |
-| `I_wall` | horizontal shortwave × geometry factor from aspect, tilt and sun position | With no aspect recorded, use the horizontal value and **mark the result unqualified** |
+| `I_wall` | horizontal shortwave × geometry factor from aspect, tilt and sun position | With no aspect recorded, see § Unknown aspect below — the qualification is **per hour**, not per location |
 | `h_c` | `5.7 + 3.8·v` (v in m/s) | McAdams flat-plate correlation. **Verify at implementation** — it is a building-surface figure, not a rock one |
 | `skyCooling` | ~3.9 °C horizontal, ~0 vertical, scaled by cloud cover | ASHRAE. A vertical wall barely sees the sky, which is convenient and correct |
 
@@ -185,6 +185,48 @@ heat slides continuously from the top of the band to zero, nothing is capped, no
 vetoed, and there is no step anywhere — because temperature carries ~45% of the answer
 rather than 12%. **Build it into `compare:scoring` and re-measure before quoting any
 number here.** If the rebuilt curve disagrees with this table, the table is what is wrong.
+
+### Unknown aspect — DECIDED 2026-09-21
+
+Nothing writes `aspect` for a user-added location, so this is **every location in production**
+until Phase 4, not an edge case.
+
+**The decision: qualify per hour, not per location.** An hour is `qualified: true` when the
+sun could not have changed the answer, and `qualified: false` when it could.
+
+The reasoning is that aspect only matters when there is direct sun to catch. At night, under
+heavy cloud, and when the sun is near the horizon, a wall's orientation barely affects its
+surface temperature — `T_surface` collapses toward `T_air` whatever direction it faces. Those
+hours are **fully qualified with no aspect recorded at all.** Only bright-sun hours are
+genuinely unanswerable without geometry.
+
+This matters more than it sounds, because of Layer 4: the windows people actually use are
+early morning and evening. **A dawn window is fully qualified on a location nobody has ever
+edited.** Flagging the whole location would have stamped "unqualified" on the one answer that
+did not need the flag.
+
+For the hours that *are* unqualified, use **horizontal irradiance unscaled**, and understand
+what that is: not the wall's irradiance, and not a neutral guess. A vertical wall under a high
+midday sun receives well below the horizontal value, so this **over**-estimates solar gain and
+reads the rock hotter than it is. That is the direction we want it wrong in — it costs the
+friction reading rather than inflating it, which is the rule from issue #34. **It is not a
+universal upper bound:** a sun-facing wall under a low winter sun can exceed horizontal, so do
+not describe it as one in code or copy.
+
+Rejected alternatives, and why:
+
+- **`T_surface = T_air`, no solar term.** Reads a baking south face as merely warm. It fails
+  in the inflating direction, which is the one thing issue #34 forbids.
+- **Withhold the friction reading until Phase 4.** Every location loses its score for weeks,
+  and the app has exactly one user who would lose it.
+- **Horizontal × a fixed vertical factor (~0.5).** More accurate on average and completely
+  unsourced. This document already carries more invented constants than it should; a wrong
+  number that is honest about being wrong beats a better one nobody can defend.
+
+**A per-hour flag is a per-hour copy problem.** A day whose window spans qualified and
+unqualified hours cannot carry one footnote. Phase 3 has to decide whether the window itself is
+qualified, and the simplest defensible rule is that it is qualified only if every hour in it
+is — but that is a Phase 3 decision and it is not made here.
 
 ### Layer 4 — Windows
 
@@ -273,9 +315,10 @@ type HourlyConditions = {
 }
 ```
 
-**`qualified` is false when the wall's aspect is unknown**, which is every user-added location
-until Phase 4. A surface must say so rather than present an unqualified reading as a measured
-one — that is `defect-patterns.md` §3, attribution not backed by the data.
+**`qualified` is false for an hour whose answer depends on a geometry we do not have** — see
+§ Unknown aspect. It is decided per hour, not per location: the same wall is qualified at 6am
+and unqualified at 1pm. A surface must say so rather than present an unqualified reading as a
+measured one — that is `defect-patterns.md` §3, attribution not backed by the data.
 
 ## Known Risks / Watch Points
 
@@ -300,9 +343,26 @@ one — that is `defect-patterns.md` §3, attribution not backed by the data.
 
 1. **Are the default weights `0.55 / 0.45` right?** Nothing measures them. They decide whether a
    damp wall in perfect friction beats a dry one in bad friction.
-2. **What does a location with no aspect do in the meantime?** Proposed: score it from
-   horizontal shortwave and mark it unqualified. The alternative — withhold until Phase 4 —
-   means every existing location loses its score for weeks.
+
+   **And there is a harder version of this question underneath it.** The friction reading is
+   two claims, and they are not equally founded. *Condensation* — a wall below its dew point
+   is wet — is uncontested physics, and it is water on the rock, which
+   `climbing-terminology-research.md` §18.2 names as one of the mechanisms that could explain
+   what climbers observe. *Temperature → friction* is the one that does not hold up: the only
+   direct measurement found **no significant correlation between temperature or humidity and
+   friction coefficient** (Clarke et al. 2024, reporting Amca et al.), and §17.3 found the
+   community citation for an optimal send temperature **does not contain the claim**. §18.2’s
+   own conclusion is to *"leave the weights alone and **stop citing friction physics for
+   them**"*.
+
+   That does not sink this design — heat being able to dominate a climbing score is defensible
+   on what a user expects and on heat safety. But it must not be argued from friction. If the
+   0.45 stands, it stands as a product judgement, and the reading may be better named for what
+   it is actually measuring. **Do not cite tribology for it.**
+
+2. **DECIDED 2026-09-21 — see § Unknown aspect.** Per-hour qualification: horizontal
+   irradiance as a deliberately hot estimate, `qualified: false` only for the hours where
+   the sun could actually change the answer.
 3. **Does the 0–100 number survive Phase 3 at all**, once two readings are on screen beside it?
    The owner's §5.1 decision says it stays; worth re-asking once it can be seen.
 4. **Is `α` allowed to vary by rock type?** There is a real albedo difference between pale
