@@ -3364,3 +3364,83 @@ production.
 product questions in `scoring-findings.md` §5, each answerable in a sentence, chiefly whether
 the score stays 0–100 or becomes 0–5 with written meanings per level. The phone check from
 previous sessions is still outstanding and unchanged.
+
+---
+
+## 2026-09-21 — branch: feat/v2-phase-3b-surfaces — commit: b57dc5e
+
+**Phase completed:** Scoring model v2, Phase 3b — Surfaces (the second half of § Phase 3 of
+`docs/handoffs/weatherteam6-scoring-model-handoff-v1.md`)
+
+> **Note on the four sessions before this one.** Scoring v2 Phases 0, 1, 2 and 3a shipped on
+> 2026-09-21 as PRs #154, #157, #158, #159 and #160 and **none of them wrote an archive
+> block**. Their reasoning is in their commit messages and in the DONE annotations on each
+> phase in the handoff, which are unusually full for exactly that reason. Grep the handoff
+> before grepping here for anything about Phases 0–3a.
+
+**What was built this session:**
+- `packages/types/src/readingsCopy.ts` — the shared copy model for the v2 readings.
+  `summarizeReadings`, `readingsHeadline`, `readingsShort`, `windowLine`,
+  `readingsUnavailableLine`, `readingNow`, and the two required caveat sentences. 30 tests.
+- `packages/types/src/conditionsCopy.ts` — **`stateLabel`, `summarizeConditions`,
+  `limitingComponent` and `ScoreComponents` deleted.** `SCORE_BANDS`, `isSevereAlert`, the
+  rain-record formatters and the source labels stay.
+- `apps/api/src/lib/runs/conditionsReadings.ts` — `toConditionsReadings`, plus the two
+  sentinels (`NOT_A_CRAG_READINGS`, `READINGS_UNAVAILABLE`). Shared by the route and the bot.
+- `apps/api/src/routes/conditions.ts` — carries `ConditionsReadings`, concurrent with the
+  live compute and caught rather than allowed to reject.
+- `apps/api/src/lib/telegram/conditionsMessage.ts` + `conditionsReply.ts` — the bot's panel
+  leads with the readings; the five-component score now supplies only `hours_since_rain`.
+- `apps/miniapp/src/components/ReadingsSection.tsx` — replaces `ScoreSection` (deleted),
+  serving both the Daily tab's "now" and the Hourly pager's selected day.
+- `ScoreChip` reduced to a renderer; `NowLine` lost its chip; `DailyList` and `DayCharts`
+  read per-day v2 scores; `LocationCard` reads the same readings as the detail screen.
+- `apps/api/src/scripts/checkConditions.ts` — `npm run check:conditions`, 15 assertions
+  against real Postgres and live Open-Meteo, including both of the owner's friction criteria
+  **asserted on the rendered bytes** rather than on a fixture.
+
+**Known issues / deferred work:**
+- **The five-component score is computed on every request and rendered nowhere.** Only
+  `hours_since_rain` reaches a screen. Phase 5's deletion is now a deletion, not a migration.
+- **A window in the past still renders as that day's window.** *"Good from 6am to 9am"* on a
+  screen opened at 2pm is a true statement about today that reads like advice for now. Phase
+  5 owns the copy pass; named so it is not rediscovered as a bug.
+- `GET /conditions/:id` now reads a stored hourly run on top of two live upstream fetches.
+  Concurrent, and skipped entirely for a non-crag, but the endpoint is heavier than it was.
+- **`data: null` from `/conditions` loses the readings**, because they ride on a v1 row.
+  Unreachable in practice since #108 made day 0 exactly `now`; Phase 5 removes the coupling.
+
+**Blockers for next session:**
+- None. Phase 4 is unblocked.
+
+**What's next:** Phase 4 — the location editor — `git checkout -b phase/4-location-editor`
+off `main` — read `docs/handoffs/weatherteam6-scoring-model-handoff-v1.md` § Phase 4 and
+`miniapp-design-v1.md` §12.4 before writing any UI, and issue #139 before designing anything
+that touches aspect.
+
+**Gotchas for next session:**
+- **A test fixture helper that forgets `...over` passes twelve tests against the default
+  input.** Written this session, caught only because three assertions that *needed* the
+  override failed loudly. Defect class 11 in its purest form: when a `describe` block goes
+  green, check that its overrides are actually reaching the code.
+- **Backticks in a double-quoted `node -e` string are command substitution**, the same way
+  they are in a heredoc. A batch of doc edits silently lost every backticked identifier this
+  session. Use the Edit tool for prose containing code spans — added to § Live gotchas.
+- **`/api/v1/health` requires auth**, so an unauthenticated probe of it answers 401 and is
+  not a readiness check. A wait-loop built on it never terminates.
+- **Deleting a block of a file by line range takes neighbours with it.** `isSevereAlert` sat
+  inside the range cut for the retired ladder and went with it; the types suite caught it,
+  but nothing upstream of `npm test` would have.
+- The two handoffs have **independent Phase numbering**. "Phase 4" means the location editor
+  in the scoring handoff and wall-aware scoring in the dataviz one, and the second is
+  superseded by the first.
+
+**Does the user need to do anything?** **Yes — one product decision, and it is new.** § Open
+Questions 3 of the scoring handoff is now *asked* rather than deferred: does the 0-100 number
+survive, now that the two readings sit above it? It stays for now on the §5.1 decision and
+nothing here argued against that. Two facts for the answer: the number is the only thing that
+**sorts**, which the daily list's bar and seven-day comparison need; and it is the only thing
+Severe+ suppression can remove, because the words are measurements. Dropping it is a Phase 5
+change, not a revert. **No answer is needed to proceed with Phase 4.** The phone check from
+previous sessions is still outstanding and now covers the readings, which nobody has seen
+rendered.

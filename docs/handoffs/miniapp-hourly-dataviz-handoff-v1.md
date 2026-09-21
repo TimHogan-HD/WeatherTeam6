@@ -297,6 +297,14 @@ half that fires on a component scoring 0. Ship `score` alone and a client can on
 never fire** and only the alert half of suppression works. The server already computes the
 breakdown for every day and discards it.
 
+> **SUPERSEDED 2026-09-21 — scoring model v2 Phase 3b.** The two paragraphs above described
+> a real constraint and it no longer exists. `summarizeConditions` and `limitingComponent`
+> are **deleted**: there is no component-based suppression, because the model has two factors
+> rather than five components, and the daily list now reads per-day v2 scores off
+> `HourlySeries.readings` rather than off `ForecastSnapshot.score`. The `component_*` fields
+> are still sent and nothing reads them. See `docs/handoffs/weatherteam6-scoring-model-handoff-v1.md`
+> § Phase 3.
+
 **Three rules it must not break:**
 
 - **A non-climbing location still gets no score anywhere.** The client does not ask, and
