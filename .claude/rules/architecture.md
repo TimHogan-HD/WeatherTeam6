@@ -31,7 +31,15 @@ decisions are final unless explicitly overridden by the user.
 ## Backend Patterns
 - Express route handlers are thin. Business logic lives in `src/lib/`, not in route files.
 - Weather fetch functions live in `apps/api/src/lib/weather/` — one file per source.
-- Scoring logic lives in `apps/api/src/lib/scoring/` — orchestration in `liveForecast.ts`, pure math in `conditionsScore.ts` / `dryingModel.ts`.
+- Scoring logic lives in `apps/api/src/lib/scoring/` — orchestration in `liveForecast.ts`, pure math in `conditionsScore.ts` / `dryingModel.ts` / `rockThermal.ts`.
+- **`rockThermal.ts` is the v2 model's Layer 1 and nothing reads it yet** (Phase 1 of
+  `docs/handoffs/weatherteam6-scoring-model-handoff-v1.md`). Two rules for the phase that
+  wires it up. **Irradiance comes from one deterministic model — `gfs_seamless` — never
+  pooled**, per issue #155; a reading above 1400 W/m² is a gap, not a measurement. And
+  **`T_surface` is null whenever an input was missing and never degrades to air temperature**
+  — a defaulted surface temperature would look like a measurement on every screen, and the
+  per-hour `qualified` flag must travel with the reading rather than being dropped at the
+  surface (§ Unknown aspect).
 - **Every input to a per-day score must be read for that day, and the drying clock is one**
   **of them.** `computeLiveForecast` calls `dryingModel` inside the day loop, against the
   events `rainfallEventsThrough` says that day is entitled to see: measured history up to

@@ -16,6 +16,9 @@ scoring/
   dryingModel.ts       # dryingModel(input): hours since significant rain, dryness estimate
   liveForecast.ts      # computeLiveForecast(location) — orchestration: fetch, score, return
   climbabilityHistory.ts
+  rockThermal.ts       # v2 Layer 1 — T_surface, T_mass, condensation margin, drying rate.
+                       # Pure, and NOTHING READS IT YET. Do not reason about production
+                       # scores from it; see the v2 scoring-model handoff, Phase 1.
 ```
 
 Types (`ScoreInput`, `ScoreOutput`, `ScoreBreakdown`) live in **`packages/types`**, not in

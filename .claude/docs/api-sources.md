@@ -34,7 +34,10 @@ Read this before any weather fetch work. Every source has gotchas that will wast
   output cadence. **A 2-day fetch looks perfectly normal**, which is why the first probe missed
   it. GFS, ECMWF and ICON agree with each other throughout. Anything deriving a surface
   temperature from irradiance picks a model rather than pooling, and treats a value above
-  ~1400 W/m² as a gap rather than a reading.
+  ~1400 W/m² as a gap rather than a reading. **The model picked is `gfs_seamless`** (v2
+  Phase 1, 2026-09-21): global, in family with ECMWF and ICON throughout, and the longest
+  shortwave horizon measured — 384 h at both probe points, against NBM's 42 h. The 1400 W/m²
+  ceiling is enforced in `lib/scoring/rockThermal.ts`.
 - **HRRR** only covers CONUS. Outside it, HRRR answers a 400 and **NBM answers a 200 whose body
   is not valid JSON** (`{"latitude":nan,…}`) — see the comment on `CONUS_DETERMINISTIC_MODELS`.
 

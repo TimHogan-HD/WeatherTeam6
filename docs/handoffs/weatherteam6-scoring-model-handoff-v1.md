@@ -336,6 +336,31 @@ against a helper that shares their assumptions (`defect-patterns.md` §11).
 shaded one reads at or below it; a wall whose mass sits below the dew point reports condensing.
 **Git checkpoint:** one PR.
 
+**DONE — 2026-09-21.** `rockThermal.ts`, 61 tests, and `npm run compare:thermal
+--workspace=apps/api` as the report. All three acceptance cases hold. **Nothing reads any of
+it** — no score, response or surface has changed. Four things Phase 2 inherits:
+
+- **Open Question 4 is ANSWERED: one `α`, and not by rock type.** § 1 of `compare:thermal` is
+  the evidence. Across 36 sunlit hours, a pale-to-dark spread (α 0.4 → 0.9, from the albedo
+  figures in `rock-drying-research.md` §3) moves `T_surface` by **at most 0.5 °C on an hour the
+  model calls qualified** and up to 44 °C on one it does not. Rock tone only matters on the
+  hours whose reading is *already* flagged as unanswerable without an aspect nothing writes —
+  so a per-type table would buy precision exactly where the model has declined to be precise,
+  and it is inert until Phase 4 anyway. **Revisit only once aspect exists.**
+- **The sol-air denominator is `h_o = h_c + h_r`, not `h_c`.** The spec's Layer 1a wrote
+  `/ h_c`; ASHRAE's `h_o` is explicitly convection *plus* long-wave radiation, and the two are
+  the same size in still air. Built with convection alone, the first report put **127 °C** on a
+  wall at 900 W/m² in dead calm. With radiation it reads 77 °C. Corrected in the code
+  (`surfaceCoefficient`) — treat Layer 1a's formula above as superseded by it.
+- **Irradiance comes from `gfs_seamless`, one model, never pooled** — the #155 decision this
+  phase could not defer. Global, longest shortwave horizon measured (384 h), and in family with
+  ECMWF and ICON. The half a pure function can enforce is enforced: a shortwave reading above
+  **1400 W/m²** is treated as a gap, not a measurement.
+- **The two known biases run opposite ways and neither is calibrated.** Unscaled horizontal
+  irradiance reads the wall hot; Jürges/McAdams `h_c` runs ~40% above ASHRAE's own tabulated
+  `h_o` at the same wind and reads it cool. **Do not quote a net direction** — there is no
+  measurement behind one.
+
 ### Phase 2 — Readings, hourly scoring, and the comparison
 The two readings, the derived score, and hourly evaluation over the existing deterministic +
 ensemble join that `GET /hourly/:locationId` already performs. `compare:scoring` gains the new
@@ -438,7 +463,15 @@ measured one — that is `defect-patterns.md` §3, attribution not backed by the
    **Not put to the owner, because it cannot be answered from a document** — it needs the two
    readings rendered beside the number. Phase 3 asks it, and until then §5.1 stands: the number
    stays.
-4. **Is `α` allowed to vary by rock type?** There is a real albedo difference between pale
+4. **DECIDED 2026-09-21 in Phase 1 — no, one constant.** The gap does not move a reading on
+   any hour the model is willing to be confident about: **≤0.5 °C where `qualified` is true**,
+   tens of degrees only where it is already false. The per-type table is not written. § 1 of
+   `compare:thermal` is the measurement, and re-running it is how to reopen this — the answer
+   changes if and when Phase 4 makes most sunlit hours qualified.
+
+   The original question, and the terms it was deferred on:
+
+   **Is `α` allowed to vary by rock type?** There is a real albedo difference between pale
    limestone and dark basalt, and no per-crag measurement. Currently specified as one constant.
 
    **DEFERRED TO PHASE 1 — owner, 2026-09-21.** Build Layer 1 with **one constant**, and make
