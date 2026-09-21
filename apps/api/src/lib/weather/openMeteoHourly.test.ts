@@ -114,6 +114,34 @@ describe('parseDeterministicHourly', () => {
     expect(hours[2]?.temp_c).toBeNull()
     expect(hours[2]?.wind_kmh).toBeNull()
   })
+
+  it('reads shortwave, and keeps night (0) apart from unmeasured (null)', () => {
+    /**
+     * The measured NBM shape, live at Red Rock on 2026-09-21: 48 hours of
+     * temperature and 42 of shortwave, so the series runs out **mid-row** on a
+     * model that answered everything else. Both states are in this fixture on
+     * purpose — 0 W/m² is midnight and a real reading, and the hour past the
+     * horizon is a gap. The v2 model's `T_surface` is null for the second and
+     * fully defined for the first, so a parser that conflated them would read a
+     * dark wall as unmeasurable and an unmeasured one as dark.
+     */
+    const parsed = parseDeterministicHourly(
+      {
+        time: TIMES,
+        temperature_2m_ncep_nbm_conus: [10, 11, 12],
+        shortwave_radiation_ncep_nbm_conus: [0, 512.5],
+      },
+      ['ncep_nbm_conus'],
+    )
+
+    const hours = parsed.models[0]?.hours ?? []
+    // Constrains the `col('shortwave_radiation')` lookup and its `?? null`.
+    // Dropping the column entirely reads [null, null, null] and passes only the
+    // third assertion — which is why all three are here.
+    expect(hours[0]?.shortwave_wm2).toBe(0)
+    expect(hours[1]?.shortwave_wm2).toBe(512.5)
+    expect(hours[2]?.shortwave_wm2).toBeNull()
+  })
 })
 
 describe('markSharedProbability', () => {
@@ -132,6 +160,7 @@ describe('markSharedProbability', () => {
       cloud_pct: null,
       precip_prob_pct: v,
       pressure_hpa: null,
+      shortwave_wm2: null,
     })),
   })
 

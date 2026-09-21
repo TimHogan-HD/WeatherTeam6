@@ -323,6 +323,49 @@ export const userPreferences = pgTable('user_preferences', {
   default_rock_type: text('default_rock_type'),
   alert_enabled: boolean('alert_enabled').default(true).notNull(),
   alert_min_score: integer('alert_min_score').default(70).notNull(),
+  /**
+   * **Layer 5 of the v2 scoring model: the thresholds that are constants today.**
+   *
+   * Every one is `notNull` with a default, so an existing row keeps behaving
+   * exactly as it did — and **nothing reads any of them yet.** They are written
+   * here in Phase 0 because a migration is the slow half of the work and the
+   * column set is what the later phases have to agree on; Phase 5 builds the UI.
+   *
+   * The defaults are the current hardcoded constants wherever one exists, which
+   * is the only defensible starting point: `scoring-findings.md` §4 records that
+   * none of them was measured, and moving a number *and* making it a preference
+   * in the same change would leave nobody able to say which caused what.
+   */
+  /** Bottom of the full-marks temperature band. Default is `TEMP_BAND_C.idealMin`. */
+  ideal_temp_min_c: doublePrecision('ideal_temp_min_c').default(10).notNull(),
+  /** Top of it. Default is `TEMP_BAND_C.idealMax`. Nothing keeps the two ordered yet — Phase 5's UI does. */
+  ideal_temp_max_c: doublePrecision('ideal_temp_max_c').default(22).notNull(),
+  /**
+   * How conservative to be after rain: `relaxed` | `normal` | `cautious`. It
+   * scales the rock-type drying window rather than replacing it. `normal` is
+   * today's `MAX_HOURS` unchanged, which is why it is the default and why the
+   * other two are not defined here — the scale factors belong with the drying
+   * code in Phase 2, not in a column comment.
+   */
+  drying_caution: text('drying_caution').default('normal').notNull(),
+  /**
+   * Whether the sun term is included in `T_surface`. **Default `true` is a
+   * behaviour change, not the status quo** — today aspect and shortwave score
+   * nothing at all (issue #139). `false` is the escape hatch for a user who
+   * distrusts it, and the honest answer for a crag in a gorge.
+   */
+  include_sun: boolean('include_sun').default(true).notNull(),
+  /**
+   * The minimum readings an hour must clear to be inside a window: `wet` |
+   * `drying` | `dry`, and `poor` | `fair` | `good` | `great`.
+   *
+   * **Both defaults are judgement calls with nothing behind them**, recorded as
+   * such in the same register as `RAMP_EXPONENT`: there is no window feature
+   * today, so there is no existing behaviour to preserve. Phase 2 is the first
+   * place they can be argued about against real days.
+   */
+  window_min_rock: text('window_min_rock').default('drying').notNull(),
+  window_min_friction: text('window_min_friction').default('fair').notNull(),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updated_at: timestamp('updated_at', { withTimezone: true }),
 })
@@ -465,6 +508,17 @@ export const weatherRunHours = pgTable(
     /** Not necessarily this model's own field — see `weather_runs.precip_prob_is_shared`. */
     precip_prob_pct: doublePrecision('precip_prob_pct'),
     pressure_hpa: doublePrecision('pressure_hpa'),
+    /**
+     * Downward shortwave on a **horizontal** surface, W/m². The v2 scoring
+     * model's one new input.
+     *
+     * **Null means the hour was not measured, and 0 means night.** They are not
+     * the same and nothing may conflate them: every row written before this
+     * column existed is null, and NBM's shortwave horizon (42h measured
+     * 2026-09-21) is a fifth of its temperature horizon, so nulls appear
+     * mid-series on a model that answered everything else.
+     */
+    shortwave_wm2: doublePrecision('shortwave_wm2'),
   },
   (t) => [primaryKey({ columns: [t.run_id, t.valid_at] })],
 )

@@ -2,7 +2,11 @@
 
 Version: v1
 Date: 2026-09-16
-Status: Draft — awaiting the owner on § Open Questions 1, 3 and 4. **Q2 is decided** (2026-09-21).
+Status: **Approved to build, 2026-09-21.** Every open question is now either decided (Q2) or
+deliberately deferred to the phase that can measure it — **Q4 to Phase 1, Q1 to Phase 2, Q3 to
+Phase 3** — so Phases 0 and 1 are unblocked and each later phase carries its own stop for the
+owner. Read § Open Questions before starting a phase; a deferral is a decision about *when*, not
+permission to pick a number quietly.
 
 ## Context
 
@@ -409,10 +413,26 @@ measured one — that is `defect-patterns.md` §3, attribution not backed by the
    contact — see § What friction is made of. The mechanisms are real; the lab number is not
    the place to get them.
 
+   **DEFERRED TO PHASE 2 — owner, 2026-09-21.** Not answered in the abstract: `0.55/0.45`,
+   `0.50/0.50` and `0.65/0.35` each become a column in `compare:scoring`, and the split is
+   chosen seeing what it does to 104 °F, to a damp wall in great friction, and to a mediocre
+   day. **Phases 0 and 1 are unblocked** — neither touches the weights. Phase 2 does not
+   finish until this is decided, and its **stop for the owner** is where it gets decided.
+
 2. **DECIDED 2026-09-21 — see § Unknown aspect.** Per-hour qualification: horizontal
    irradiance as a deliberately hot estimate, `qualified: false` only for the hours where
    the sun could actually change the answer.
 3. **Does the 0–100 number survive Phase 3 at all**, once two readings are on screen beside it?
    The owner's §5.1 decision says it stays; worth re-asking once it can be seen.
+
+   **Not put to the owner, because it cannot be answered from a document** — it needs the two
+   readings rendered beside the number. Phase 3 asks it, and until then §5.1 stands: the number
+   stays.
 4. **Is `α` allowed to vary by rock type?** There is a real albedo difference between pale
    limestone and dark basalt, and no per-crag measurement. Currently specified as one constant.
+
+   **DEFERRED TO PHASE 1 — owner, 2026-09-21.** Build Layer 1 with **one constant**, and make
+   Phase 1 print what a plausible pale-to-dark spread would move `T_surface` by, in °C, for
+   the same sunlit hour. If that gap cannot move a friction reading, the per-type table is
+   never written — a fourth set of invented constants has to earn its place. Note it would be
+   inert until Phase 4 anyway: rock type is unset on every user-added location today.

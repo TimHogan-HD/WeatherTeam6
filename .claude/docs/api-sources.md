@@ -16,10 +16,19 @@ Read this before any weather fetch work. Every source has gotchas that will wast
 
 ## Open-Meteo Forecast (Deterministic)
 - **Endpoint:** `https://api.open-meteo.com/v1/forecast`
-- **Models param:** `models=gfs_seamless,gfs_hrrr,ecmwf_ifs025,icon_seamless,ncep_nam_conus`
-- **NBM (National Blend of Models):** separate call with `models=ncep_nbm_conus` — different endpoint behavior
-- **HRRR** only covers CONUS and only goes 18h out. Handle null gracefully.
-- **Variables to fetch:** `precipitation,temperature_2m,windspeed_10m,relativehumidity_2m,weathercode`
+- **The models and variables actually requested are `DETERMINISTIC_MODELS` and
+  `DETERMINISTIC_HOURLY_VARS` in `lib/weather/openMeteo.ts`** — six models in one call, not a
+  separate call per model. This list used to be copied here and had drifted to naming models the
+  code has never requested (`gfs_hrrr`, `ncep_nam_conus`), which is why it is now a pointer.
+- **What each model actually carries, per point, is measured** — `.claude/docs/model-matrix.md`,
+  regenerated with `npm run probe:models --workspace=apps/api`. Read it rather than the upstream
+  docs: a variable a model does not define fails the **whole** request, not that column.
+- **`shortwave_radiation` was added 2026-09-21** for the v2 scoring model's `T_surface`. All six
+  models define it. **Its horizon is shorter than the model's**: NBM answered 42 hours of it
+  against 48 of temperature at Red Rock, so nulls appear mid-series. 0 W/m² is night and null is
+  unmeasured — they are different rows to the model that consumes them.
+- **HRRR** only covers CONUS. Outside it, HRRR answers a 400 and **NBM answers a 200 whose body
+  is not valid JSON** (`{"latitude":nan,…}`) — see the comment on `CONUS_DETERMINISTIC_MODELS`.
 
 ## Open-Meteo Historical
 - **Endpoint:** `https://archive-api.open-meteo.com/v1/archive`

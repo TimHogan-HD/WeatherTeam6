@@ -177,6 +177,7 @@ export async function loadStoredDeterministic(
       cloud_pct: h.cloud_pct,
       precip_prob_pct: h.precip_prob_pct,
       pressure_hpa: h.pressure_hpa,
+      shortwave_wm2: h.shortwave_wm2,
     }
     if (bucket) bucket.push(row)
     else byRun.set(h.run_id, [row])

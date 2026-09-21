@@ -267,8 +267,22 @@ precip_unit             text default 'in'
 default_rock_type       text
 alert_enabled           boolean default true
 alert_min_score         int default 70
+ideal_temp_min_c        double precision default 10 NOT NULL
+ideal_temp_max_c        double precision default 22 NOT NULL
+drying_caution          text default 'normal' NOT NULL   -- relaxed | normal | cautious
+include_sun             boolean default true NOT NULL
+window_min_rock         text default 'drying' NOT NULL   -- wet | drying | dry
+window_min_friction     text default 'fair' NOT NULL     -- poor | fair | good | great
 created_at              timestamptz default now()
 ```
+**The six columns from `ideal_temp_min_c` down are Layer 5 of the v2 scoring
+model, added by migration `0012` on 2026-09-21, and nothing reads any of them
+yet** — including the rest of `user_preferences`, which has no reader either.
+They exist because the migration is the slow half and the later phases need the
+column set settled. Defaults are the current hardcoded constants where one exists
+(`ideal_temp_*` is `TEMP_BAND_C`, `drying_caution: 'normal'` is `MAX_HOURS`
+unchanged); the two window minimums have no precedent and are judgement calls
+recorded as such in `schema.ts`.
 
 ## Key Relationships
 - Everything traces back to `users.id` via FK — even with auth off

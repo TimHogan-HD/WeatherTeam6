@@ -795,7 +795,24 @@ export const GLOBAL_DETERMINISTIC_MODELS = [
   'gem_seamless',
 ] as const
 
-/** CONUS-only. Outside their domain the API answers 400, never nulls. */
+/**
+ * CONUS-only, and **the two fail differently outside their domain** — measured
+ * 2026-09-21, at Chamonix:
+ *
+ *   - `ncep_hrrr_conus` → `400 No data is available for this location`, which
+ *     `requestDeterministic` reads as `no-coverage`.
+ *   - `ncep_nbm_conus` → **`200`** whose body is `{"latitude":nan,…}`. `nan` is
+ *     not a JSON literal, so `JSON.parse` throws on an `ok` response, and there
+ *     is no `hourly` key behind it in any case.
+ *
+ * Neither answer is nulls, which is what this comment used to claim. The
+ * six-model request is unaffected — asked together, the point's real latitude
+ * comes back and both CONUS models are simply absent from the suffixed columns —
+ * so the `nan` body is only reachable on the per-model re-ask, where
+ * `Promise.allSettled` drops that model. **It drops it without adding it to
+ * `unavailable_models`**, so the model goes unnamed rather than misreported; a
+ * non-US location is the case to check if that ever needs to be exact.
+ */
 export const CONUS_DETERMINISTIC_MODELS = ['ncep_hrrr_conus', 'ncep_nbm_conus'] as const
 
 export const DETERMINISTIC_MODELS = [
@@ -822,6 +839,18 @@ const DETERMINISTIC_HOURLY_VARS = [
   'cloud_cover',
   'precipitation_probability',
   'surface_pressure',
+  /**
+   * **Added for the v2 scoring model** — it is the one input `T_surface` cannot
+   * be derived without, and the app was already fetching it on the *ensemble*
+   * endpoint and dropping it unread.
+   *
+   * Every model defines it, measured 2026-09-21 and recorded in
+   * `.claude/docs/model-matrix.md`. **Its horizon is not the model's horizon:**
+   * NBM carries 42 hours of shortwave against 270 of dew point, so the hours past
+   * that come back null on a series the same row fills for everything else. That
+   * is a gap to withhold a reading for, never a zero — 0 W/m² is midnight.
+   */
+  'shortwave_radiation',
 ] as const
 
 /** One hour of one model's deterministic output. Every field is nullable on purpose. */
@@ -842,6 +871,14 @@ export type HourlyPoint = {
   cloud_pct: number | null
   precip_prob_pct: number | null
   pressure_hpa: number | null
+  /**
+   * Downward shortwave radiation on a **horizontal** surface, W/m². Not the
+   * wall's irradiance: a vertical face under a high sun receives well below this,
+   * and a sun-facing one under a low winter sun can exceed it. The v2 model uses
+   * it as a deliberately hot estimate where aspect is unknown — see § Unknown
+   * aspect in `docs/handoffs/weatherteam6-scoring-model-handoff-v1.md`.
+   */
+  shortwave_wm2: number | null
 }
 
 export type ModelHourly = {
@@ -933,6 +970,7 @@ function hoursForModel(
   const cloud = col('cloud_cover')
   const pop = col('precipitation_probability')
   const pressure = col('surface_pressure')
+  const shortwave = col('shortwave_radiation')
 
   const out: HourlyPoint[] = []
   for (let i = 0; i < times.length; i++) {
@@ -954,6 +992,7 @@ function hoursForModel(
       cloud_pct: cloud[i] ?? null,
       precip_prob_pct: pop[i] ?? null,
       pressure_hpa: pressure[i] ?? null,
+      shortwave_wm2: shortwave[i] ?? null,
     })
   }
   return out

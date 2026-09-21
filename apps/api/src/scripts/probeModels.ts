@@ -114,6 +114,24 @@ type PointResult = {
 
 const NO_COVERAGE = 'No data is available for this location'
 
+/**
+ * **A fourth upstream answer, measured 2026-09-21: a 200 whose body is not JSON.**
+ *
+ * `ncep_nbm_conus` outside its domain answers `200` with
+ * `{"latitude":nan,"longitude":nan,…}` — `nan` is not a JSON literal, so
+ * `JSON.parse` throws and there is no `hourly` key behind it anyway.
+ * `ncep_hrrr_conus` at the same point still answers the clean coverage 400, so
+ * **the two CONUS models fail differently** and neither the doc comment on
+ * `CONUS_DETERMINISTIC_MODELS` nor this script knew it.
+ *
+ * It killed the whole probe: one unparseable body threw out of `get`, losing the
+ * matrix for every point, not just this cell. Classified here instead — it means
+ * the same thing as the coverage 400 (the model does not reach this point) and
+ * is printed differently, because it is a different upstream behaviour and the
+ * next person to widen a model list needs to see that it exists.
+ */
+const NOT_JSON = 'non-JSON 200 (out-of-domain nan body)'
+
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms))
 }
@@ -132,9 +150,19 @@ type OpenMeteoBody = {
  */
 async function get(url: URL): Promise<{ status: number; body: OpenMeteoBody }> {
   const res = await fetchWithRetry(url.toString())
-  const body = (await res.json()) as OpenMeteoBody
+  // Text first, then parse — `res.json()` consumes the body, so a throw leaves
+  // nothing to report. Production's `requestDeterministic` reads it the same way
+  // and for the same reason. See NOT_JSON.
+  const raw = await res.text()
   await sleep(150)
-  return { status: res.status, body }
+  try {
+    return { status: res.status, body: JSON.parse(raw) as OpenMeteoBody }
+  } catch {
+    return {
+      status: res.status,
+      body: { error: true, reason: `${NOT_JSON}: ${raw.slice(0, 120)}` },
+    }
+  }
 }
 
 function summarise(series: Record<string, unknown>, key: string): VarResult {
@@ -182,7 +210,12 @@ async function probeModel(point: (typeof POINTS)[number], model: string): Promis
   }
 
   const reason = body.reason ?? `HTTP ${status}`
-  if (reason.includes(NO_COVERAGE)) {
+  // Both mean "this model does not reach this point", and they are kept apart in
+  // the cell because the API says it two different ways — a 400 from HRRR, an
+  // unparseable 200 from NBM. Re-asking variable by variable below would learn
+  // nothing from either and would cost 12 requests to find that out.
+  if (reason.includes(NO_COVERAGE) || reason.startsWith(NOT_JSON)) {
+    const coverageReason = reason.startsWith(NOT_JSON) ? 'no coverage (non-JSON 200)' : 'no coverage'
     const vars: Record<string, VarResult> = {}
     for (const v of HOURLY_VARS) {
       vars[v] = {
@@ -191,7 +224,7 @@ async function probeModel(point: (typeof POINTS)[number], model: string): Promis
         nonNull: 0,
         lastValueAt: null,
         values: [],
-        reason: 'no coverage',
+        reason: coverageReason,
       }
     }
     return { model, covered: false, reason, vars, topLevelKeys: [] }
@@ -337,7 +370,11 @@ function anomalies(models: ModelResult[]): string[] {
 
 function cell(v: VarResult | undefined): string {
   if (!v) return '?'
-  if (!v.defined) return v.reason === 'no coverage' ? '– no coverage' : '**undefined**'
+  if (!v.defined) {
+    if (v.reason === 'no coverage') return '– no coverage'
+    if (v.reason === 'no coverage (non-JSON 200)') return '– no coverage (non-JSON 200)'
+    return '**undefined**'
+  }
   if (v.nonNull === 0) return '**null-filled**'
   return `${v.nonNull}h → ${v.lastValueAt ?? '?'}`
 }
@@ -375,6 +412,9 @@ function render(
   )
   lines.push(
     '| `– no coverage` | The model does not reach the point: a 400 `No data is available for this location`, for every variable at once. |',
+  )
+  lines.push(
+    '| `– no coverage (non-JSON 200)` | The same thing said differently: a **200** whose body is `{"latitude":nan,…}`, which is not valid JSON and carries no `hourly` key. Measured on `ncep_nbm_conus` outside CONUS, where `ncep_hrrr_conus` answers the 400 above — **the two CONUS models fail differently.** A caller that does `res.json()` on an `ok` response throws here. |',
   )
   lines.push('')
   lines.push(
