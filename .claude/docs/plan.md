@@ -82,35 +82,16 @@ v8 defines `breakdown: ScoreBreakdown` (not nullable) but the Phase 3 stub retur
 
 ## .env.example Keys
 
-`.env.example` at the repo root is authoritative — this list is a convenience copy and
-can drift. `REDIS_URL` and `ADMIN_PASSWORD` were **removed** with BullMQ and Bull Board.
+**Read `.env.example` at the repo root. There is deliberately no copy here any more.**
 
-Reconciled against the real file 2026-08-26 — it had drifted three keys in each
-direction. `TOMORROW_IO_API_KEY` (replaced by ACIS in Phase 11), `RAINVIEWER_KEY`
-(unused by the current code) and `SHADEMAP_KEY` are **not** in `.env.example`.
+There used to be one, captioned "a convenience copy and can drift" — and it did, three keys
+in each direction, then again when Phase 1 of `docs/handoffs/leave-telegram-v1.md` deleted
+`AUTH_ENABLED` and added `AUTH_TOKEN_SECRET` and `CORS_ALLOWED_ORIGINS`. A fact that lives in
+one place cannot drift; this one lived in two and the second was always the wrong one.
 
-```
-DATABASE_URL=          # Neon: pooled for runtime, direct for migrations
-DEFAULT_USER_ID=
-AUTH_ENABLED=false
-NODE_ENV=development   # NEVER set this on Vercel — see CLAUDE.md § Known Gotchas
-PORT=3001
-NWS_USER_AGENT=weatherteam6/1.0 your@email.com
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_CHAT_ID=
-CRON_SECRET=
-TELEGRAM_WEBHOOK_SECRET=   # added 2026-08-26 with the #27 fix; must match setWebhook's secret_token
-EXPO_PUBLIC_SHADEMAP_KEY=  # archived — apps/mobile only
-R2_ACCOUNT_ID=
-R2_ACCESS_KEY_ID=
-R2_SECRET_ACCESS_KEY=
-R2_BUCKET_NAME=
-API_BASE_URL=
-LOG_LEVEL=
-EXPO_PUBLIC_API_BASE_URL=  # archived — apps/mobile only
-API_SHARED_SECRET=         # gates ALL of /api/v1/*; fail-closed
-VITE_API_BASE_URL=         # inlined into a PUBLIC bundle — never a credential
-```
+What a list of key names cannot tell you — which are credentials, which reach a public
+bundle, which are fail-closed, and why `NODE_ENV` must never be set on Vercel — is in
+`CLAUDE.md` § Environment Variables, which is loaded every session.
 
 ---
 

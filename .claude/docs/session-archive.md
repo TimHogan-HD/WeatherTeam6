@@ -3601,3 +3601,99 @@ read `docs/handoffs/leave-telegram-v1.md` first.
 phases need four things only they can do — set `AUTH_TOKEN_SECRET` in Vercel, choose the
 passphrase, delete the three `TELEGRAM_*` variables, and retire the bot with BotFather — and
 none of them blocks the start.
+
+---
+
+## 2026-09-22 — branch: feat/phase1-token-auth — commit: `9e8201f`
+
+**Phase completed:** Leave Telegram, Phase 1 — token auth in the API
+(`docs/handoffs/leave-telegram-v1.md`). Merged as PR #167 and verified against production.
+
+**What was built this session:**
+- `apps/api/src/lib/auth/password.ts` — scrypt via `node:crypto`, no new dependency. Stored as
+  a self-describing `scrypt$N$r$p$salt$hash`, so raising the cost later does not invalidate an
+  existing row; `verifyPassword` derives with the parameters the row carries, not the current
+  constants, and returns false rather than throwing for anything malformed.
+- `apps/api/src/lib/auth/token.ts` — HMAC-SHA256 over a base64url payload, 30-day TTL.
+  **Deliberately not a JWT**: one algorithm, no `alg` field to confuse, no `alg:none` to
+  reject, no library. Pure, discriminated result, never throws. Signs and verifies over the
+  raw payload *string*, never re-serialised claims.
+- `apps/api/src/lib/auth/credentials.ts` — the lookup, and the one place the "both columns or
+  no login" rule lives (`isNotNull` in the query, not a later `!== null`). An unknown username
+  is verified against `dummyPasswordHash()` so a miss costs the same scrypt derivation.
+- `apps/api/src/routes/auth.ts` — `POST /api/v1/auth/login`, mounted **above** the gate.
+- `apps/api/src/middleware/apiAuth.ts` — the `Session` scheme, and the only setter of
+  `req.userId` under `/api/v1`.
+- `apps/api/src/middleware/auth.ts` — `resolveUser` narrowed to `/api/telegram`; the
+  `AUTH_ENABLED` 501 branch deleted.
+- `apps/api/src/lib/cors.ts` — CORS stops being `*`. Allowlist, `CORS_ALLOWED_ORIGINS`
+  overrides outright, one `*` may stand for one host label.
+- `apps/api/src/index.test.ts` — app wiring: the webhook's identity, the login mount order,
+  CORS headers.
+- `apps/api/src/scripts/addUser.ts` (`npm run user:add`) and `checkAuth.ts`
+  (`npm run check:auth`, 22 assertions against real Postgres).
+- Migration `0013` — `users.username` unique nullable, `users.password_hash` nullable.
+  Applied to Neon.
+- `CLAUDE.md` and `.claude/rules/architecture.md` § Auth Pattern rewritten; `plan.md`'s
+  duplicate `.env.example` list **deleted** rather than updated.
+
+**Known issues / deferred work:**
+- **`AUTH_ENABLED` is still set in Vercel** and nothing reads it. Dead, harmless, uncleaned.
+- **`API_SHARED_SECRET` on preview is a different value from production**, set this session so
+  preview deploys stop answering 503. Production's is sensitive and cannot be read back, so
+  matching it was impossible; nothing depends on them being equal.
+- **The Telegram halves of `CLAUDE.md` and `architecture.md` are untouched**, as are the
+  `telegram-patterns` skill, `miniapp-design-v1.md` and the superseded banners. Phase 4.
+- **The bot was not exercised end to end in production.** The webhook answers 200 by design
+  whatever it does, so the curl proves reachability, not that it found any locations. The real
+  evidence is `index.test.ts`, which fails with `expected undefined` the moment the
+  `resolveUser` mount goes — confirmed by deleting it and watching it fail.
+- **Mutation testing was not re-run.** Baseline 67.82% against `thresholds.break: 67`, and
+  this added ~900 lines of implementation plus tests. Direction unknown.
+
+**Blockers for next session:**
+- None for Phase 2's code. **One question before Playwright can drive a preview deploy:**
+  preview URLs sit behind Vercel SSO and answer 302, so driving one needs a protection-bypass
+  secret or SSO off for previews. Both are security settings — ask the owner.
+
+**What's next:** Phase 2 — `git checkout -b feat/phase2-web-app-standalone` off `main` — read
+`docs/handoffs/leave-telegram-v1.md` § Phase 2 and `docs/handoffs/miniapp-design-v1.md` §1, §2,
+§8 before writing any UI.
+
+**Gotchas for next session:**
+- **`VERCEL_TOKEN` now exists as a Windows user env var** (team-scoped, all projects). Read it
+  with `[Environment]::GetEnvironmentVariable('VERCEL_TOKEN','User')` — a newly-set user
+  variable is in the registry, **not in this process's environment block**, so `$env:VERCEL_TOKEN`
+  can read empty while the variable exists. It reaches `https://api.vercel.com` directly and
+  needs no `teamId`. **The Vercel MCP cannot set env vars** — `projectEnvVars` 403s in both
+  directions, which is why the token was needed at all.
+- **The review check earned its keep, twice in one PR.** It found a **passphrase leaking to
+  the terminal**: `promptHidden` muted readline by letting through any chunk containing the
+  prompt, but on backspace readline rewrites `prompt + line-so-far` as a *single* chunk, so the
+  guard passed and printed what had been typed — and it stayed in scrollback after exit. One
+  backspace was enough. Reproduced against Node 24 by driving a fake TTY before fixing.
+  **The fix was not the suggested one**: readline now writes to a discarded sink and the prompt
+  is printed directly, which also drops the dependency on the undocumented `_writeToOutput`.
+- **A false *rule* is worse than a stale *description*, and that changes when to fix docs.**
+  The plan deferred all doc edits to Phase 4 on the sound reasoning that a docs-only rewrite
+  ahead of the code describes something that does not exist. But `CLAUDE.md`'s *"Auth is
+  toggled via `AUTH_ENABLED`. Do not build a login UI"* is a **Non-Negotiable Rule forbidding
+  what Phase 2 builds**, and `AUTH_ENABLED` had ceased to exist. Those were corrected in the
+  Phase 1 PR; the Telegram content still waits for Phase 4.
+- **The plan had a gap only reading the diff as prose would find.** `user:add` as specified
+  only created new rows — but every saved location belongs to `DEFAULT_USER_ID` and
+  `locations.user_id` scopes every list, so the owner logging in as a fresh row would land in
+  an empty app with their crags attached to a user that cannot sign in. `--user-id` gives the
+  *existing* row a login.
+- **Fail-closed has a deploy-order consequence, and it is not in the plan.** Making
+  `AUTH_TOKEN_SECRET` a 503 on every scheme means merging before setting it takes the whole
+  Mini App dark. Set the variable first, then merge. Same shape for any future fail-closed key.
+- **Verify a test by breaking the thing it guards.** The `resolveUser` assertion was confirmed
+  by deleting the mount and watching it fail, then restoring — the cheap local version of what
+  `test:mutation` does, and the only answer to defect class 11 that costs a minute.
+
+**Does the user need to do anything?** **No.** Two things were theirs this session and both
+are done: they created a Vercel API token and set it as `VERCEL_TOKEN`, which is what made the
+environment variables reachable at all. Outstanding items are unchanged from last session — a
+trip to the phone with the readings block, and the 0-100 question — plus one new optional one:
+choosing their own passphrase and running `user:add --user-id` when Phase 2 has a login screen.

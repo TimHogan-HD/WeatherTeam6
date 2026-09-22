@@ -35,6 +35,8 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] Route handlers contain no business logic (logic belongs in `src/lib/`)
 - [ ] No type definitions duplicated outside `packages/types`
 - [ ] `req.userId` used in routes — never `process.env.DEFAULT_USER_ID` directly
+- [ ] **A new router is mounted inside `/api/v1`, or brings its own identity.** `requireApiAuth` is the only setter of `req.userId` there, and `req.userId` is typed non-optional `string` — a router mounted outside every setter reads `undefined` with no type error and no test failure, and simply finds nothing (defect class 8). `resolveUser` covers `/api/telegram` alone
+- [ ] A credential is never logged, echoed in a response, or written to the terminal — including **indirectly**. The hidden passphrase prompt in `user:add` leaked on backspace because readline rewrites `prompt + line-so-far` as one chunk; a guard keyed on the prompt let it through
 - [ ] API response shape is `{ data, error, status }` — no exceptions
 - [ ] No raw SQL queries unless Drizzle cannot express it (comment why if used)
 
