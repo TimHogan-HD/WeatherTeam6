@@ -490,7 +490,7 @@ Four things Phase 4 and 5 inherit:
 - **The five-component score is computed on every request and rendered nowhere.** Only its
   `hours_since_rain` still reaches a screen, as the rain record. Phase 5's deletion is now
   a deletion rather than a migration.
-- **A window in the past still renders as that day's window.** *"Good from 6am to 9am"* on
+- **A window in the past still renders as that day's window.** *"Good hours: 6am–9am"* on
   a screen opened at 2pm is a true statement about today that reads like advice for now.
   Phase 5 owns the copy pass; it is named here so it is not rediscovered as a bug.
 
@@ -604,7 +604,7 @@ measured one — that is `defect-patterns.md` §3, attribution not backed by the
    are worth having before answering:
 
    - **The number is doing less work than it was.** On the list card it is a
-     bare figure beside *"Dry rock · Great friction"*; on the detail screen the
+     bare figure beside the two labelled readings; on the detail screen the
      readings and the window answer the question and the score repeats them
      less precisely. The one place it still earns its keep is **ranking** — the
      daily list's bar and its seven-day comparison need a scalar, and two

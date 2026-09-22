@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { spacing } from '@weatherteam6/design/tokens'
-import { summarizeReadings, type Location } from '@weatherteam6/types'
+import { fieldLine, summarizeReadings, type Location } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { card, chip, row, stack } from '../theme/styles.js'
 import { useAlerts, useConditions, useForecast } from '../hooks/useWeather.js'
@@ -51,23 +51,25 @@ export function LocationCard({
    * points on a hot day, which is exactly the sort of difference nobody can
    * debug from a screenshot.
    *
-   * Not computed until the alerts query has settled: suppression drops the
-   * *number* under an active Severe+ warning, and `severeAlertEvent` answers
-   * null for a query in flight exactly as it does for "no alert". On an alerts
-   * *error* the query has settled with no data, and nothing is suppressed.
+   * The readings do not wait for the alerts query and the **number** does:
+   * suppression drops the number under an active Severe+ warning, and
+   * `severeAlertEvent` answers null for a query in flight exactly as it does
+   * for "no alert", so `alertsPending` travels with it. On an alerts *error*
+   * the query has settled with no data, and nothing is suppressed.
    *
    * `readings === undefined` is an API older than this client, not a model with
    * nothing to say — the card shows no chip rather than an invented reason.
    */
   const readings = conditions.data?.readings
   const summary =
-    readings === undefined || alerts.isPending
+    readings === undefined
       ? null
       : summarizeReadings({
           reading: readings.now,
           window: readings.today?.window ?? null,
           utcOffsetSeconds: readings.utc_offset_seconds,
           severeAlertEvent: severeAlertEvent(alerts.data),
+          alertsPending: alerts.isPending,
           unavailableReason: readings.unavailable_reason,
         })
 
@@ -119,22 +121,24 @@ export function LocationCard({
       )}
 
       {/* The readings, then the number — never the number alone, and never
-          larger than the weather above it. A card has room for the two words
-          and not for the window line or the caveats; those are on the detail
-          screen this card opens.
+          larger than the weather above it. A card has room for the labelled
+          readings and not for the window or the caveats; those are on the
+          detail screen this card opens.
 
-          **The headline is what makes the chip safe here.** A bare "58" beside
+          **The readings are what make the chip safe here.** A bare "58" beside
           a name is the thing the old model could not stop being reassuring
-          about; "Dry rock · Poor friction" beside it cannot be.
+          about; "Friction: Poor" beside it cannot be.
 
           **Nothing at all when there is nothing to put in it**, rather than an
           empty row. A named unavailable reason is a whole sentence about *us*,
           and a card is not where it belongs — the detail screen this card opens
           says it, with room to. */}
-      {summary === null || (summary.headline === null && summary.score === null) ? null : (
+      {summary === null || (summary.readings.length === 0 && summary.score === null) ? null : (
         <div style={{ ...row(spacing.chipGap), alignSelf: 'flex-end', flexWrap: 'wrap' }}>
-          {summary.headline === null ? null : (
-            <span style={type.sourceBadge}>{summary.headline}</span>
+          {summary.readings.length === 0 ? null : (
+            <span style={type.sourceBadge}>
+              {summary.readings.map(fieldLine).join(' · ')}
+            </span>
           )}
           {summary.score === null ? null : (
             <span style={{ ...chip, ...type.labelSm }}>{summary.score}</span>

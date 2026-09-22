@@ -105,7 +105,7 @@ because that block was absent, the hook did not fire — say so.
    `SCORE_COMPONENT_MAX`, `scoreUnavailableLine` and the sections of `scoring-algorithm.md`
    that describe them. It is now a deletion rather than a migration: nothing renders that
    score. It also owns the copy pass for the one nuance 3b left — a window in the past still
-   renders as that day's window, so *"Good from 6am to 9am"* at 2pm is true and reads like
+   renders as that day's window, so *"Good hours: 6am–9am"* at 2pm is true and reads like
    advice for now.
 3. **Phase 5 of the dataviz plan** — recent rain, document reconciliation, and where a CSS or
    motion architecture gets decided.
@@ -218,7 +218,7 @@ Scoring handoff § Open Questions 3, **asked rather than deferred as of 2026-09-
 it could only be answered once the readings were on screen beside it. It stays for now, on
 the owner's §5.1 decision. Two things building Phase 3b turned up:
 
-- It is doing visibly less work. On the list card it is a bare figure beside *"Dry rock ·
+- It is doing visibly less work. On the list card it is a bare figure beside *"Dryness: Dry ·
   Great friction"*. The one place it still earns its keep is **ranking** — the daily list's
   bar and its seven-day comparison need a scalar, and two ordered word-pairs do not sort.
 - It is what makes a suppression rule possible. Dropping a number under a warning is a thing
@@ -231,7 +231,7 @@ Dropping it is a Phase 5 change, not a revert.
 **Still outstanding, and now covering more.** No credential, no dashboard setting. Open a
 saved climbing location in the Mini App, on your own phone, in your own theme:
 
-1. **The readings, which nobody has seen rendered.** *"Dry rock · Great friction"* at card
+1. **The readings, which nobody has seen rendered.** The labelled gauges at card
    title size, the window line and a small score chip under it, and two caveat sentences
    below that. Is the caveat pair too much on a phone, and does the number read as secondary
    or as missing?

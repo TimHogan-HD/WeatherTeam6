@@ -147,14 +147,14 @@ describe('formatConditionsReply — the locked copy rules', () => {
   it('leads with weather in imperial units, before any reading', () => {
     const reply = formatConditionsReply(input())
     expect(reply).toContain('High 103°F · wind to 21 mph · humidity 17%')
-    expect(reply.indexOf('103°F')).toBeLessThan(reply.indexOf('friction'))
+    expect(reply.indexOf('103°F')).toBeLessThan(reply.indexOf('Friction'))
   })
 
   it('leads the reading block with the two words and puts the number after them', () => {
     const reply = formatConditionsReply(input())
-    expect(reply).toContain('Dry rock · Poor friction')
-    expect(reply).toContain('Score 58')
-    expect(reply.indexOf('Poor friction')).toBeLessThan(reply.indexOf('Score 58'))
+    expect(reply).toContain('Dryness: Dry · Friction: Poor')
+    expect(reply).toContain('Score: 58')
+    expect(reply.indexOf('Friction: Poor')).toBeLessThan(reply.indexOf('Score: 58'))
   })
 
   /**
@@ -163,13 +163,13 @@ describe('formatConditionsReply — the locked copy rules', () => {
    */
   it('never renders a bare good-looking summary for a day with poor friction', () => {
     const reply = formatConditionsReply(input())
-    expect(reply).toContain('Poor friction')
+    expect(reply).toContain('Friction: Poor')
     expect(reply).not.toContain('Dry, settled')
     expect(reply).not.toContain('Mostly dry')
   })
 
   it('names the window on the location clock, not the server one', () => {
-    expect(formatConditionsReply(input())).toContain('Good from 6am to 9am')
+    expect(formatConditionsReply(input())).toContain('Good hours: 6am–9am')
   })
 
   it('says the friction reading is an estimate, on the surface', () => {
@@ -191,9 +191,9 @@ describe('formatConditionsReply — the locked copy rules', () => {
     // The readings stay: they are the same fact the warning is about, and they
     // now come from physics that sees heat. The *number* is what suppression
     // removes — it is the part that reads as actionable.
-    expect(reply).toContain('Poor friction')
-    expect(reply).not.toContain('Score 58')
-    expect(reply.indexOf('Extreme Heat Warning')).toBeLessThan(reply.indexOf('Poor friction'))
+    expect(reply).toContain('Friction: Poor')
+    expect(reply).not.toContain('Score: 58')
+    expect(reply.indexOf('Extreme Heat Warning')).toBeLessThan(reply.indexOf('Friction: Poor'))
   })
 
   it('carries no sources footer at all', () => {
@@ -250,7 +250,7 @@ describe('formatConditionsReply — a non-climbing location', () => {
     expect(reply).toContain('High 103°F')
     expect(reply).toContain('Extreme Heat Warning')
     expect(reply).not.toContain('Score')
-    expect(reply).not.toContain('friction')
+    expect(reply).not.toMatch(/friction/i)
     expect(reply).not.toContain('no rain in')
     // No rainfall source either — the drying model's output is not being shown.
     expect(reply).not.toContain('ACIS')
@@ -260,7 +260,7 @@ describe('formatConditionsReply — a non-climbing location', () => {
     // The flag is the gate, not the contents of `readings`. A caller that
     // passed a crag's readings for a city must still print none.
     const reply = formatConditionsReply(input({ isClimbingLocation: false }))
-    expect(reply).not.toContain('friction')
+    expect(reply).not.toMatch(/friction/i)
   })
 })
 
@@ -344,17 +344,17 @@ describe('formatConditionsReply — missing data', () => {
       }),
     )
     expect(reply).toContain('Not enough recent weather yet')
-    expect(reply).not.toContain('friction')
+    expect(reply).not.toMatch(/friction/i)
     // A statement about us, never one about the rock.
-    expect(reply).not.toContain('Dry rock')
+    expect(reply).not.toMatch(/dryness/i)
   })
 
   it('still answers the day when the run does not reach this hour', () => {
     // No headline, because there is no hour to describe — but the day's window
     // is a separate fact and dropping it would leave the block empty.
     const reply = formatConditionsReply(input({ readings: readings({ now: null }) }))
-    expect(reply).not.toContain('friction')
-    expect(reply).toContain('Good from 6am to 9am')
+    expect(reply).not.toMatch(/friction/i)
+    expect(reply).toContain('Good hours: 6am–9am')
   })
 
   it('says so when no run of hours cleared the minimum', () => {
@@ -366,8 +366,8 @@ describe('formatConditionsReply — missing data', () => {
         }),
       }),
     )
-    expect(reply).toContain('Wet rock')
-    expect(reply).toContain('No good hours')
+    expect(reply).toContain('Dryness: Wet')
+    expect(reply).toContain('Good hours: None')
   })
 })
 
@@ -390,7 +390,7 @@ describe('formatConditionsReply — a withheld rainfall history (#34)', () => {
 
   it('still reports the readings, which do not depend on that lookup', () => {
     const reply = formatConditionsReply(input({ scoreUnavailable: 'rainfall_unavailable' }))
-    expect(reply).toContain('Dry rock · Poor friction')
+    expect(reply).toContain('Dryness: Dry · Friction: Poor')
   })
 
   it('prints the rain clause when nothing was withheld', () => {

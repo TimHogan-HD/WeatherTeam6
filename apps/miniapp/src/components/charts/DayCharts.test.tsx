@@ -250,7 +250,7 @@ describe('DayCharts — the readings belong to the day on screen', () => {
     )
     expect(html).not.toContain('>30<')
     expect(html).toContain('Excessive Heat Warning')
-    expect(html).toContain('Good friction')
+    expect(visible(html)).toContain('Friction Good')
   })
 
   it('holds the number until the alerts query settles', () => {
@@ -270,15 +270,19 @@ describe('DayCharts — the readings belong to the day on screen', () => {
     expect(html).not.toContain('>30<')
   })
 
+
+/** The panel as a reader sees it — tags out, whitespace collapsed. */
+const visible = (html: string): string => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
+
   it('says the friction reading is an estimate wherever it renders one', () => {
     // A Phase 3 acceptance criterion, and this tab renders a friction level
     // without the Daily tab's section anywhere on screen.
-    expect(withScore(DAY_1)).toContain('Friction is an estimate')
+    expect(visible(withScore(DAY_1))).toContain('Friction is estimated')
   })
 
   it('draws nothing at all on the preview path, which has no readings', () => {
     expect(render(series(fullDay))).not.toContain('>30<')
-    expect(render(series(fullDay))).not.toContain('friction')
+    expect(render(series(fullDay))).not.toMatch(/friction/i)
   })
 })
 

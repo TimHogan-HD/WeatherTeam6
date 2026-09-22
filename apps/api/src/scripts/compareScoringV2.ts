@@ -53,7 +53,7 @@ import {
   dryFractionFrictionFactor,
   sweatFrictionFactor,
 } from '../lib/scoring/sweatBalance.js'
-import { SCORE_BANDS, readingsHeadline } from '@weatherteam6/types'
+import { SCORE_BANDS, readingsShort } from '@weatherteam6/types'
 import type { ScoreInput } from '@weatherteam6/types'
 
 /**
@@ -627,7 +627,7 @@ function continuityWalk(): void {
     const hour = dewMarginHour(margin)
     console.log(
       `       margin ${padL(margin.toFixed(1), 5)} °C   score ${padL(num(hour.score), 3)}   ` +
-        `${pad(readingsHeadline(hour.rock, hour.friction) ?? '—', 34)}` +
+        `${pad(readingsShort(hour.rock, hour.friction) ?? '—', 34)}` +
         `${hour.friction?.condensing ? ', condensing' : ''}`,
     )
   }

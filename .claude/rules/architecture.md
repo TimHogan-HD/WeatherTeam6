@@ -88,6 +88,19 @@ decisions are final unless explicitly overridden by the user.
   implementation, shared by the bot and the Mini App. `stateLabel` and
   `summarizeConditions` are **deleted**: a ladder that maps a score to a phrase can only
   ever be as right as the score, which is how 104 °F came to read *"Dry, settled"*.
+- **A reading is a label and a value, never a sentence** — owner decision 2026-09-21.
+  `Dryness: Dry`, `Friction: Great`, `Score: 100`, in that order, from `ReadingField`;
+  the labels live in `readingsCopy.ts` so the bot and the Mini App cannot name the same
+  gauge differently, and `fieldLine` is how a text surface punctuates one. The first
+  version wrote them as prose — *"Dry rock · Great friction"* over two caveat sentences —
+  and it **read as fact**: a fluent sentence claims a confidence an estimate has not
+  earned. The caveats are still required copy and are now fragments on one line. Which
+  inputs a reading came from belongs in the measurements disclosure, not in the gauge.
+- **The number waits for the alerts query, and `summarizeReadings` is where it waits.**
+  `severeAlertEvent: null` cannot tell "no alert" from "not answered yet", so
+  `alertsPending` travels beside it and suppresses the score on its own. A surface that
+  gated the score itself was one edit away from forgetting to (defect class 7); the
+  readings are not suppressed and do not wait.
 - **Severe+ suppression drops the *number* and keeps the readings** — the reverse of what
   the five-component rule did, and deliberately. The words are the same fact the warning is
   about and now come from physics that sees heat; the number is the part that reads as
