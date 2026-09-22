@@ -105,10 +105,22 @@ identity is decided:
   means 503 for every scheme, never an open door.
 - Delete the `tma` branch in Phase 3, not here.
 
-**`apps/api/src/middleware/auth.ts`** — `resolveUser` stops being mounted app-wide in
-`index.ts:39`. Verified: `routes/cron.ts` reads `req.userId` nowhere (it acts across all
-locations), and the webhook is the only other consumer. The `AUTH_ENABLED=true` → 501 branch is
-deleted; `DEFAULT_USER_ID` survives as the `Bearer` identity and for `db:seed`.
+**`apps/api/src/middleware/auth.ts`** — `resolveUser` stops being mounted **app-wide** in
+`index.ts:39` and is re-mounted on `/api/telegram` alone, directly above the webhook router.
+
+> **This is the step that is easy to get wrong, and getting it wrong silently breaks the bot for
+> two phases.** `index.ts:41-42` says it out loud: *"The Telegram webhook authenticates via
+> chat.id but still needs `req.userId` (DEFAULT_USER_ID) to look up the caller's saved
+> locations."* The bot is **alive through Phases 1 and 2** and `telegramWebhook.ts` is a
+> confirmed `req.userId` reader, so simply deleting the app-wide mount leaves every bot command
+> querying `locations` with `undefined` — through a type that says it cannot be `undefined`
+> (defect class 8), which means no type error and no test failure, just a bot that stops finding
+> anything. Phase 3 deletes the webhook mount and `resolveUser` together.
+
+`routes/cron.ts` needs nothing: verified to read `req.userId` nowhere, because it acts across all
+locations rather than one user's. The `AUTH_ENABLED=true` → 501 branch is deleted;
+`DEFAULT_USER_ID` survives as the `Bearer` identity, as the webhook's identity until Phase 3, and
+for `db:seed`.
 
 > **Review this specifically.** `declare module 'express-serve-static-core'` types `req.userId` as
 > non-optional `string`. Once the setter moves into `requireApiAuth`, any route mounted outside
@@ -175,6 +187,16 @@ onto it unchanged, including `/add` preview → `/add` with search and results i
 `main.tsx`, and the synchronous `<script src="https://telegram.org/js/telegram-web-app.js">` in
 `index.html`. React Router already serves `/location/:id` directly, so the two-entry history
 seating goes with it.
+
+> **Accepted transitional cost, between Phase 2 and Phase 3.** The bot is still sending alerts
+> with `alertKeyboard` deep links (`t.me/WeatherTeam6_bot/Alert?startapp=loc_<uuid>`), and
+> deleting `deepLink.ts` means nothing reads `start_param` any more — so during that window an
+> alert's button opens the app on the **list** rather than the location it was about. It is a
+> degradation, not a break: the alert text names the location, and the app still opens. **Do not
+> "fix" it by keeping `deepLink.ts` alive** — without the SDK script there is no `initData` and
+> the Telegram launch path is over anyway. Keep the window short by putting Phase 3 next, and if
+> it is going to be long, drop the button from `alertKeyboard` rather than shipping one that
+> lands in the wrong place.
 
 **Geometry** — in `apps/miniapp/src/theme/globals.css` and
 `apps/miniapp/src/components/SaveBar.tsx`, swap `--tg-viewport-stable-height` → `100dvh` and
