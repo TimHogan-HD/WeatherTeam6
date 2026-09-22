@@ -298,20 +298,22 @@ were surgical edits to two always-loaded files, not the Phase 4 rewrite, because
 Negotiable Rule** that forbids the login UI Phase 2 builds misdirects harder than a stale
 description does:**
 
-- **`AUTH_ENABLED` no longer exists.** Its only reader was `resolveUser`'s 501 branch, deleted
-  in Phase 1, and the variable is out of `.env.example` and `turbo.json`. `CLAUDE.md`
-  ("Auth is toggled via `AUTH_ENABLED`… Do not build a login UI") and
-  `.claude/rules/architecture.md` § Auth Pattern (`AUTH_ENABLED=false` means all requests get
-  `req.userId = DEFAULT_USER_ID`) both still describe it.
+- **`AUTH_ENABLED` no longer exists.** Its only reader was `resolveUser`'s 501 branch. The
+  variable is out of `.env.example`, `turbo.json` and the drifting copy in `plan.md` (that
+  copy is deleted, not updated). `CLAUDE.md` and `.claude/rules/architecture.md` § Auth
+  Pattern now describe the three schemes instead. **Done.**
 - **`CLAUDE.md` § Known Gotchas: "An unauthenticated 401 from production proves
-  `DEFAULT_USER_ID` is set" is now false.** `resolveUser` no longer runs before
-  `requireApiAuth`, so an unauthenticated request 401s whatever `DEFAULT_USER_ID` says. A
-  missing `DEFAULT_USER_ID` now shows as a **500 on an authenticated Bearer or tma call** —
-  the `Session` scheme does not need it at all. The converse half of that gotcha (every
-  `/api/v1/*` path 401s whether or not it exists) is unchanged.
-- **CORS is no longer `*`.** `.claude/rules/architecture.md` should carry the replacement rule:
-  the allowlist is `lib/cors.ts`, `CORS_ALLOWED_ORIGINS` replaces it outright, and a preview
-  deployment needs a `https://*.vercel.app` entry to be reachable from a browser.
+  `DEFAULT_USER_ID` is set" was false the moment `resolveUser` came off the app-wide mount.**
+  A missing `DEFAULT_USER_ID` now shows only as a **500 on an authenticated Bearer or tma
+  call**, and not at all under `Session`. A **503** on every scheme means a secret is unset.
+  The converse half (every `/api/v1/*` path 401s whether or not it exists) is unchanged.
+  **Done.**
+- **CORS is no longer `*`.** `.claude/rules/architecture.md` carries the replacement rule: the
+  allowlist is `lib/cors.ts`, `CORS_ALLOWED_ORIGINS` replaces it outright, and a preview
+  deployment needs a `https://*.vercel.app` entry to be reachable from a browser. **Done.**
+- **Still outstanding, and Phase 4's:** the Telegram halves of both files, the
+  `telegram-patterns` skill, `miniapp-design-v1.md`, and the superseded banners. Phase 1
+  touched only the auth rules.
 
 ---
 

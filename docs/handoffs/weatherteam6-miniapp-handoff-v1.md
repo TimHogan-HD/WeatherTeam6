@@ -65,7 +65,7 @@ Ship the Telegram Mini App as the project's only client: a three-route surface (
 - **No queue.** No BullMQ, no Redis, no in-process schedulers. Background work is either live per-request compute or an HTTP endpoint on an external schedule. Read `.claude/skills/background-work/SKILL.md` before writing anything job-shaped.
 - **Three routes, and no more.** `/` (list), `/location/:id` (detail), `/add` (search and add). This read "two screens only" until `miniapp-design-v1.md` §12 added the add flow on 2026-08-25 — **`/add` is in scope and its API is already built**, so do not treat it as creep. Radar, walls, trips, and shade map exist in the archived mobile app and remain out of scope; those are the ones not to let back in.
 - **No mock data in production components.** `MOCK_*` constants and bell-curve approximations are stubs, acceptable only inside the phase that introduces them.
-- **No login UI, no Clerk, no sessions.** `AUTH_ENABLED` stays as-is; `resolveUser` remains the only auth function for user identity.
+- ~~**No login UI, no Clerk, no sessions.**~~ **Reversed 2026-09-22.** A login screen and a signed token are the product's front door — `docs/handoffs/leave-telegram-v1.md` § Explicit rule overrides, built in its Phase 1. `AUTH_ENABLED` no longer exists and `requireApiAuth` sets `req.userId` from the presented credential. Still **no Clerk and no self-serve signup**: `npm run user:add` is the only way an account exists.
 - **State management is React Query.** No Redux, no Zustand, no Context for server state. Components never call `fetch` directly.
 - **Design tokens come from `packages/design`.** Never redefine colors, spacing, or type scale in the app.
 
@@ -302,6 +302,8 @@ POST /api/cron/check-alerts           (x-cron-secret header)
 POST /api/cron/collect-runs           (x-cron-secret header; unregistered with the scheduler)
 POST /api/cron/prune-runs             (x-cron-secret header; unregistered with the scheduler)
 POST /api/telegram/webhook            (chat.id gate; see issue #27)
+
+POST /api/v1/auth/login               (NO credential — mounted ABOVE the gate; added 2026-09-22)
 
 GET  /api/v1/locations
 GET  /api/v1/locations/search         (crags table only — empty; not the add-flow search)
