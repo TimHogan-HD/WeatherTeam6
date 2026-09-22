@@ -287,9 +287,11 @@ Per the locked copy rule, **p10/p50/p90 never appear in prose.** Those terms are
 >
 > - **The ladder is gone.** `stateLabel` mapped the five-component number to a phrase, so
 >   the words could only ever be as right as the number — which is how 103 °F came to read
->   *"Dry, settled"* even after this section shipped. The headline is now the v2 model's two
->   readings themselves (*"Dry rock · Poor friction"*), and `summarizeConditions` and
->   `limitingComponent` are deleted with it.
+>   *"Dry, settled"* even after this section shipped. What is on screen is now the v2
+>   model's two readings themselves, as labelled gauges — `Dryness: Dry`,
+>   `Friction: Poor`, `Score: 58` — and `summarizeConditions` and `limitingComponent`
+>   are deleted with it. **They are not written as sentences**: the first version was, and
+>   the owner's verdict on 2026-09-21 was that prose readings read as fact.
 > - **Suppression reversed direction.** Under a Severe+ alert this section dropped the
 >   *word* and kept the number. It now drops the **number** and keeps the readings: the
 >   words come from physics that sees heat, and the number is the part that reads as

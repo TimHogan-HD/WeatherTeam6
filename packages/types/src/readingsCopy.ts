@@ -11,12 +11,34 @@
  * how a 104 °F day came to read *"Dry, settled"*: heat could cost at most 12 of
  * 100 points, and no amount of care in the copy could see past the arithmetic.
  *
- * Here the words come **first** and the number is derived from them. The
- * headline is the two readings themselves, so there is no step at which a
- * good-looking phrase can be attached to a day the model thinks is greasy:
- * `Friction: Poor` renders as *"Poor friction"* whatever the score says. That
- * is the phase's acceptance criterion, and it is structural rather than
- * enforced by a rule someone has to remember.
+ * Here the words come **first** and the number is derived from them. There is
+ * no step at which a good-looking phrase can be attached to a day the model
+ * thinks is greasy: `Friction: Poor` renders as *"Poor"* under the word
+ * *Friction* whatever the score says. That is the phase's acceptance criterion,
+ * and it is structural rather than enforced by a rule someone has to remember.
+ *
+ * ## Readings are labelled, not narrated — owner decision 2026-09-21
+ *
+ * The first version of this file wrote the readings as plain English: *"Dry
+ * rock · Great friction"*, over two caveat sentences. The owner's verdict was
+ * that it was **too wordy and read as fact** — a fluent sentence claims a
+ * confidence an estimate has not earned, and the more of them there are the
+ * more it sounds like a report rather than a gauge.
+ *
+ * So every reading is now a **label and a value**, the way an instrument is
+ * read: `Dryness — Dry`, `Friction — Great`, `Score — 100`. Three consequences
+ * worth keeping:
+ *
+ * - **A surface composes fields; it does not write sentences.** `ReadingField`
+ *   is the unit, and `readingFields` is the only place the labels are chosen,
+ *   so the bot and the Mini App cannot name the same reading differently.
+ * - **The score is one of the readings, not the verdict.** It sits third in the
+ *   same row rather than in a headline, which is what "the number becomes
+ *   secondary" means once the readings above it are the subject.
+ * - **The caveats are fragments, not sentences.** They are still required copy
+ *   (below) and they are still on the surface — they are just no longer prose a
+ *   reader has to wade through. The mechanism behind them belongs in the
+ *   measurements disclosure, which is separate work.
  *
  * ## Three things this file must keep
  *
@@ -28,13 +50,13 @@
  *
  * **2. The copy says the friction reading is an estimate.** On the surface, in
  * the reader's own words — not in a document. `FRICTION_ESTIMATE_NOTE` is that
- * sentence and a surface showing a friction level must show it.
+ * copy and a surface showing a friction level must show it.
  *
  * **3. An unqualified reading is never presented as a measured one.** But it is
  * also not an asterisk on every line: measured live on 2026-09-21, **half of
  * every location's hours are unqualified**, because no location has an aspect
- * recorded and every sunlit hour therefore depends on one. A per-row mark would
- * be noise. `UNRECORDED_ASPECT_NOTE` is one sentence, said once per surface.
+ * recorded and every sunlit hour therefore depends on one.
+ * `UNRECORDED_ASPECT_NOTE` is said once per surface.
  */
 import type {
   ConditionsWindow,
@@ -98,22 +120,65 @@ export const FRICTION_LABELS: Record<FrictionLevel, string> = {
 };
 
 /**
- * The two readings as the headline: *"Dry rock · Great friction"*.
+ * One reading, as a gauge is read: what it measures, and what it says.
+ *
+ * **The label is part of the copy model, not of the surface.** A field whose
+ * label a component chose would let the bot call this *Rock* while the Mini App
+ * calls it *Dryness*, which is the same drift `summarizeConditions` existed to
+ * prevent for the sentence it replaced.
+ */
+export type ReadingField = {
+  /** What is being read — `Dryness`, `Friction`, `Score`, `Good hours`. */
+  label: string;
+  /** What it reads — `Dry`, `Great`, `100`, `7am–11am`. Never a magnitude. */
+  value: string;
+};
+
+/** The rock reading's name. A property, like *Humidity* — not the subject, *Rock*. */
+export const DRYNESS_LABEL = 'Dryness';
+/** The friction reading's name. `FRICTION_ESTIMATE_NOTE` is what says it is a guess. */
+export const FRICTION_LABEL = 'Friction';
+/** The derived number's name. Third and last, by the phase's design. */
+export const SCORE_LABEL = 'Score';
+/** The day's window. Not a reading of *now*, which is why it is not in `readingFields`. */
+export const WINDOW_LABEL = 'Good hours';
+
+/**
+ * The two readings, as labelled fields.
  *
  * **Either half may be missing and neither is invented.** A `Reading` has no
  * "unknown" level — `null` means the model could not read it — and writing
  * *"Dry"* for a wall nobody could measure is defect class 1. A half that is
- * missing is simply not said, and when both are missing there is no headline
- * at all.
+ * missing is simply absent from the row, and when both are missing the row is
+ * empty rather than showing two dashes that read as measurements of nothing.
+ *
+ * **The score is deliberately not here.** It is suppressed under a Severe+
+ * alert and these two are not, so building them together would put that rule
+ * somewhere it could be forgotten; `summarizeReadings` owns it.
  */
-export function readingsHeadline(
+export function readingFields(
   rock: RockReading | null,
   friction: FrictionReading | null,
-): string | null {
-  const parts: string[] = [];
-  if (rock !== null) parts.push(`${ROCK_LABELS[rock.level]} rock`);
-  if (friction !== null) parts.push(`${FRICTION_LABELS[friction.level]} friction`);
-  return parts.length === 0 ? null : parts.join(' · ');
+): ReadingField[] {
+  const fields: ReadingField[] = [];
+  if (rock !== null) fields.push({ label: DRYNESS_LABEL, value: ROCK_LABELS[rock.level] });
+  if (friction !== null) {
+    fields.push({ label: FRICTION_LABEL, value: FRICTION_LABELS[friction.level] });
+  }
+  return fields;
+}
+
+/**
+ * A field on a **text** surface, where there is no layout to do the labelling:
+ * `Dryness: Dry`.
+ *
+ * The Mini App sets the label above the value and needs no punctuation; the bot
+ * has one column and does. Shared so that the two cannot come to punctuate the
+ * same reading differently — the labels themselves are already shared, and this
+ * is the rest of the same argument.
+ */
+export function fieldLine(field: ReadingField): string {
+  return `${field.label}: ${field.value}`;
 }
 
 /**
@@ -121,19 +186,17 @@ export function readingsHeadline(
  * a daily row, beside its bar: *"Dry · Great"*.
  *
  * **Only for a place that has already said what it is about.** Without the
- * "rock" and "friction" nouns the pair is ambiguous, so this is not a shorter
- * `readingsHeadline` to reach for generally; it is the daily list's score
- * column, where the metric toggle above it names the subject.
+ * labels the pair is ambiguous, so this is not a shorter `readingFields` to
+ * reach for generally; it is the daily list's score column, where the metric
+ * toggle above it names the subject.
  *
- * A missing half is omitted rather than filled, exactly as in the headline.
+ * A missing half is omitted rather than filled, exactly as in the fields.
  */
 export function readingsShort(
   rock: RockReading | null,
   friction: FrictionReading | null,
 ): string | null {
-  const parts: string[] = [];
-  if (rock !== null) parts.push(ROCK_LABELS[rock.level]);
-  if (friction !== null) parts.push(FRICTION_LABELS[friction.level]);
+  const parts = readingFields(rock, friction).map((f) => f.value);
   return parts.length === 0 ? null : parts.join(' · ');
 }
 
@@ -167,34 +230,35 @@ export function formatLocalHour(validAt: string, utcOffsetSeconds: number): stri
 const FULL_DAY_HOURS = 24;
 
 /**
- * The day's window, as a sentence: *"Good from 7am to 11am"*.
+ * The day's window, as the **value** of a `Good hours` field: `7am–11am`.
  *
- * The phrasing is the handoff's own. **"Good" is about the combined number
- * clearing the window minimum**, not about the friction rung that shares the
- * word — the headline beside it names the rung, and the two lines have
- * different subjects.
+ * It used to be the sentence *"Good from 7am to 11am"*, and the sentence is
+ * what the owner's 2026-09-21 verdict was about. The span is the fact; "good"
+ * is the label above it. **That word is about the combined number clearing the
+ * window minimum**, not about the friction rung that shares it — the friction
+ * field beside it names that rung, and the two have different subjects.
  *
  * `null` is a real answer and it is not an error: no contiguous run of hours
- * cleared the minimum. It says so plainly rather than falling back to the day's
+ * cleared the minimum. It reads `None` rather than falling back to the day's
  * best hour, which would present the least bad hour of a wet day as a window.
  */
-export function windowLine(
+export function windowValue(
   window: ConditionsWindow | null,
   utcOffsetSeconds: number,
 ): string {
-  if (window === null) return 'No good hours';
-  if (window.hours >= FULL_DAY_HOURS) return 'Good all day';
+  if (window === null) return 'None';
+  if (window.hours >= FULL_DAY_HOURS) return 'All day';
 
   const from = formatLocalHour(window.from, utcOffsetSeconds);
   const to = formatLocalHour(window.to, utcOffsetSeconds);
   // An unparseable instant is a gap, not an hour. Naming a span we cannot read
-  // the ends of would print "Good from null to null"; saying how long it runs
-  // is the part still backed by the data.
-  if (from === null || to === null) return `Good for ${window.hours}h`;
-  // A one-hour window has no span to name, and "from 7am to 7am" reads as a
-  // rendering fault rather than as a single hour.
-  if (from === to) return `Good at ${from}`;
-  return `Good from ${from} to ${to}`;
+  // the ends of would print "null–null"; saying how long it runs is the part
+  // still backed by the data.
+  if (from === null || to === null) return `${window.hours}h`;
+  // A one-hour window has no span to name, and "7am–7am" reads as a rendering
+  // fault rather than as a single hour.
+  if (from === to) return from;
+  return `${from}–${to}`;
 }
 
 /**
@@ -202,7 +266,8 @@ export function windowLine(
  * a reason is a compile error here until it has copy of its own — the same
  * mechanism as `scoreUnavailableLine`.
  *
- * None of these may read as "conditions are bad". They are statements about
+ * These stay sentences. They are the one case where there is nothing to label,
+ * and none of them may read as "conditions are bad" — they are statements about
  * *us*, exactly as `scoreUnavailableLine`'s are.
  */
 export function readingsUnavailableLine(reason: ReadingsUnavailableReason): string {
@@ -224,20 +289,24 @@ export function readingsUnavailableLine(reason: ReadingsUnavailableReason): stri
 }
 
 /**
- * The sentence that says the friction reading is a guess, on the surface.
+ * The copy that says the friction reading is a guess, on the surface.
  *
  * **A Phase 3 acceptance criterion, not a nicety** (§ Open Questions 6). Every
  * step behind this reading is standard physics with published values except
  * one: what a sweating hand does to grip, which nobody has measured. The
- * decision was to keep that step and quarantine it, and this sentence is half
- * of the quarantine — the other half is that no magnitude is published at all.
+ * decision was to keep that step and quarantine it, and this is half of the
+ * quarantine — the other half is that no magnitude is published at all.
+ *
+ * **It is a fragment and that is deliberate.** It used to read *"Friction is an
+ * estimate from temperature, humidity and wind — not a measurement."* Which
+ * inputs it comes from belongs with the inputs, in the measurements disclosure;
+ * what the surface owes the reader here is that the number is not measured.
  */
-export const FRICTION_ESTIMATE_NOTE =
-  'Friction is an estimate from temperature, humidity and wind — not a measurement.';
+export const FRICTION_ESTIMATE_NOTE = 'Friction is estimated, not measured';
 
 /**
- * The sentence for an hour whose answer depends on a wall orientation nobody
- * has recorded.
+ * The copy for an hour whose answer depends on a wall orientation nobody has
+ * recorded.
  *
  * **Deliberately not an upper bound.** Those hours use unscaled horizontal
  * irradiance, which reads a vertical wall hot under a high sun — but a
@@ -245,55 +314,69 @@ export const FRICTION_ESTIMATE_NOTE =
  * must not promise "at most this warm". It says the input is missing and that
  * the reading leans warm, which is what the data supports.
  */
-export const UNRECORDED_ASPECT_NOTE =
-  "Which way this crag faces isn't recorded, so readings in direct sun lean warm.";
+export const UNRECORDED_ASPECT_NOTE = 'Aspect unrecorded — sunlit hours lean warm';
 
 /**
- * The sentence for a wall sitting below its dew point.
+ * The qualifier for a wall sitting below its dew point.
  *
  * It is the one mechanism in the friction reading that is uncontested physics,
  * and it is worth naming because it is the case a climber can act on — the wall
  * is wet with condensation, not with rain, and it will clear when the air does.
  */
-export const CONDENSING_NOTE = 'The wall is below its dew point — condensation on the rock.';
+export const CONDENSING_NOTE = 'Below dew point — condensation on the rock';
 
 export type ReadingsSummaryInput = {
   /** The hour being summarised — normally the hour covering now. */
   reading: HourlyReading | null;
-  /** The day's best contiguous run, for the window line. */
+  /** The day's best contiguous run, for the window field. */
   window: ConditionsWindow | null;
   /** The location's own offset, for the window's clock times. */
   utcOffsetSeconds: number;
   /**
    * The event name of an active Severe or Extreme alert, e.g.
-   * `Extreme Heat Warning`. **`null` also means "the alerts query has not
-   * settled"** as far as this function can tell, so a caller must not call it
-   * until that query has resolved — defect class 7.
+   * `Extreme Heat Warning`. **`null` also means "no alert"**, so a caller whose
+   * alerts query has not settled passes `alertsPending` as well rather than
+   * letting an unsettled query read as an all-clear.
    */
   severeAlertEvent: string | null;
+  /**
+   * Whether the alerts query is still in flight. **The number waits for it** —
+   * drawing a score before suppression can be decided shows an unsuppressed
+   * number under a warning that has not arrived yet (defect class 7).
+   *
+   * Optional because a caller holding a settled list of alerts — the bot — has
+   * nothing to wait for.
+   */
+  alertsPending?: boolean;
   /** Set when there are no readings at all; `reading` and `window` are then null. */
   unavailableReason: ReadingsUnavailableReason | null;
 };
 
 export type ReadingsSummary = {
-  /** *"Dry rock · Great friction"*. `null` when neither reading could be read. */
-  headline: string | null;
-  /** *"Good from 7am to 11am"*. `null` when there are no readings at all. */
-  window: string | null;
   /**
-   * *"Score 86"* — **the last line and the smallest**, by the phase's design.
-   *
-   * `null` when the score was not computed, **and also when a Severe+ alert is
-   * active**: see `qualifier`. A caller must not substitute the raw number.
+   * `Dryness` and `Friction`, in that order. Empty when neither could be read;
+   * a surface renders nothing rather than a row of dashes.
    */
-  scoreLine: string | null;
-  /** The bare score, for a surface that draws rather than writes it. Same suppression as `scoreLine`. */
+  readings: ReadingField[];
+  /**
+   * The score as a field, for a surface that writes it — **third, after the
+   * readings, never above them**.
+   *
+   * `null` when the score was not computed, when a Severe+ alert is active, and
+   * while the alerts query is in flight. A caller must not substitute the raw
+   * number.
+   */
+  scoreField: ReadingField | null;
+  /** The bare score, for a surface that draws rather than writes it. Same suppression. */
   score: number | null;
-  /** *"see the Extreme Heat Warning above"*, or the condensation sentence. */
+  /** `Good hours` and its span. `null` when there are no readings at all. */
+  window: ReadingField | null;
+  /** *"see the Extreme Heat Warning above"*, or the condensation qualifier. */
   qualifier: string | null;
   /**
-   * The caveats this surface must print, in order. Never empty when a friction
-   * level is on screen — the estimate note is required copy.
+   * The caveats this surface must print, in order — fragments, meant to be
+   * joined and set small. Never empty when a friction level is on screen: the
+   * estimate note is required copy.
    */
   notes: string[];
   /** The sentence for "no readings at all". `null` when there are readings. */
@@ -309,7 +392,7 @@ export type ReadingsSummary = {
  * **number**. This does the opposite, and the reversal is the whole point of
  * the model change:
  *
- * - The words are now derived from physics that sees heat. *"Poor friction"*
+ * - The words are now derived from physics that sees heat. *"Friction — Poor"*
  *   beside an Extreme Heat Warning is not the contradiction *"Dry, settled"*
  *   was — it is the same fact the warning is about, and hiding it leaves the
  *   reader with less.
@@ -320,18 +403,25 @@ export type ReadingsSummary = {
  *
  * There is **no component-based suppression**, because there are no components.
  * A day with `Friction: Poor` cannot render a bare good-looking summary for the
- * structural reason that the headline *is* the friction reading — not because a
- * rule caught it.
+ * structural reason that the row on screen *is* the friction reading — not
+ * because a rule caught it.
  */
 export function summarizeReadings(input: ReadingsSummaryInput): ReadingsSummary {
-  const { reading, window, utcOffsetSeconds, severeAlertEvent, unavailableReason } = input;
+  const {
+    reading,
+    window,
+    utcOffsetSeconds,
+    severeAlertEvent,
+    alertsPending = false,
+    unavailableReason,
+  } = input;
 
   if (unavailableReason !== null) {
     return {
-      headline: null,
-      window: null,
-      scoreLine: null,
+      readings: [],
+      scoreField: null,
       score: null,
+      window: null,
       qualifier: null,
       notes: [],
       unavailableLine: readingsUnavailableLine(unavailableReason),
@@ -340,7 +430,6 @@ export function summarizeReadings(input: ReadingsSummaryInput): ReadingsSummary 
 
   const rock = reading?.rock ?? null;
   const friction = reading?.friction ?? null;
-  const headline = readingsHeadline(rock, friction);
 
   // An alert outranks everything, exactly as it did before (§7 rule 5), and
   // only one qualifier is ever shown — two reads as a list of complaints.
@@ -351,26 +440,28 @@ export function summarizeReadings(input: ReadingsSummaryInput): ReadingsSummary 
         ? CONDENSING_NOTE
         : null;
 
-  // Suppressed under a Severe+ alert, and `null` is the only signal. A caller
-  // that reaches past this for `reading.score` is defeating the rule.
-  const score = severeAlertEvent !== null ? null : (reading?.score ?? null);
+  // Suppressed under a Severe+ alert and while the alerts query is in flight,
+  // and `null` is the only signal. A caller that reaches past this for
+  // `reading.score` is defeating the rule.
+  const score =
+    severeAlertEvent !== null || alertsPending ? null : (reading?.score ?? null);
 
   const notes: string[] = [];
   // Required copy wherever a friction level appears, and nowhere else: a
   // location showing no friction reading has nothing to caveat.
   if (friction !== null) notes.push(FRICTION_ESTIMATE_NOTE);
-  // One sentence for the whole surface rather than a mark per hour. `qualified`
-  // is false for roughly half of every location's hours until Phase 4 writes an
+  // One note for the whole surface rather than a mark per hour. `qualified` is
+  // false for roughly half of every location's hours until Phase 4 writes an
   // aspect, so a per-row flag would be on more rows than off.
   if (rock?.qualified === false || friction?.qualified === false) {
     notes.push(UNRECORDED_ASPECT_NOTE);
   }
 
   return {
-    headline,
-    window: windowLine(window, utcOffsetSeconds),
-    scoreLine: score === null ? null : `Score ${score}`,
+    readings: readingFields(rock, friction),
+    scoreField: score === null ? null : { label: SCORE_LABEL, value: String(score) },
     score,
+    window: { label: WINDOW_LABEL, value: windowValue(window, utcOffsetSeconds) },
     qualifier,
     notes,
     unavailableLine: null,

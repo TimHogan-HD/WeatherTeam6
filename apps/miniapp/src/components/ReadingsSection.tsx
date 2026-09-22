@@ -1,18 +1,19 @@
 import type { CSSProperties } from 'react'
-import { spacing } from '@weatherteam6/design/tokens'
+import { colors, spacing } from '@weatherteam6/design/tokens'
 import { summarizeReadings } from '@weatherteam6/types'
 import type {
   ConditionsWindow,
   HourlyReading,
+  ReadingField,
   ReadingsUnavailableReason,
 } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { card, row, stack } from '../theme/styles.js'
-import { ScoreChip } from './ScoreChip.js'
+import { scoreColor } from './charts/chartStyle.js'
 
 /**
- * The two readings — **the thing this screen is for**, at the top of the Daily
- * tab and again beside the Hourly tab's day pager.
+ * The readings — **the thing this screen is for**, at the top of the Daily tab
+ * and again beside the Hourly tab's day pager.
  *
  * It replaces `ScoreSection`, which showed one number and a five-row breakdown
  * of the components behind it. Two things changed and only one of them is
@@ -20,17 +21,25 @@ import { ScoreChip } from './ScoreChip.js'
  *
  * - **The words are no longer derived from the number.** `stateLabel(88)` said
  *   *"Dry, settled"* for a 103 °F day, because heat could cost at most 12 of
- *   100 points. The headline here *is* the rock and friction readings, so a
- *   greasy day cannot be given a reassuring phrase by an arithmetic step
+ *   100 points. What is on screen here *is* the rock and friction readings, so
+ *   a greasy day cannot be given a reassuring phrase by an arithmetic step
  *   downstream.
- * - **The breakdown is gone rather than restyled.** Its five rows were the
- *   five components, which no longer exist; the model has two factors and
- *   publishing their magnitudes is forbidden — the friction one rests on a step
- *   nobody has measured (see `readingsCopy.ts`). What a reader can act on —
- *   when the good hours are — is the window line instead.
+ * - **The breakdown is gone rather than restyled.** Its five rows were the five
+ *   components, which no longer exist; the model has two factors and publishing
+ *   their magnitudes is forbidden — the friction one rests on a step nobody has
+ *   measured (see `readingsCopy.ts`).
  *
- * Every copy decision is `summarizeReadings`, shared with the bot, so the two
- * surfaces cannot drift about the same crag on the same day.
+ * ## It is a gauge, not a paragraph — owner decision 2026-09-21
+ *
+ * The first version led with a sentence: *"Dry rock · Great friction"*, over
+ * two caveat sentences. **Too wordy, and it read as fact.** Three labelled
+ * values in a row read the way an instrument reads, which is what these are:
+ * `Dryness`, `Friction`, `Score`. The window follows as a fourth labelled fact
+ * rather than as advice, and the caveats are fragments on one line.
+ *
+ * Every copy decision — including the labels — is `summarizeReadings`, shared
+ * with the bot, so the two surfaces cannot drift about the same crag on the
+ * same day.
  *
  * **One component for both placements, because they are the same claim about
  * different hours.** The Daily tab describes the hour covering now; the Hourly
@@ -66,10 +75,12 @@ export type ReadingsSectionProps = {
    */
   severeAlertEvent: string | null
   /**
-   * Whether the alerts query has settled. **The number waits for it.**
-   * `severeAlertEvent` is `null` for a query in flight exactly as it is for "no
-   * severe alert", so drawing the score before it settles shows an unsuppressed
-   * number under a warning that has not arrived — defect class 7.
+   * Whether the alerts query has settled. **The number waits for it**, and the
+   * waiting is done by `summarizeReadings` rather than here — this only reports
+   * the state. `severeAlertEvent` is `null` for a query in flight exactly as it
+   * is for "no severe alert", so a surface that drew the score on its own would
+   * show an unsuppressed number under a warning that has not arrived yet
+   * (defect class 7).
    */
   alertsPending: boolean
   /**
@@ -77,6 +88,20 @@ export type ReadingsSectionProps = {
    * in a card is two borders and two paddings around one claim.
    */
   bare?: boolean
+}
+
+/**
+ * One labelled reading. The label is small and the value is not — a reader
+ * scanning this row is looking for the values, and the labels are what stop
+ * them being mistaken for a verdict.
+ */
+function Stat({ field, valueColor }: { field: ReadingField; valueColor?: string }) {
+  return (
+    <span style={stack(spacing.micro)}>
+      <span style={type.label}>{field.label}</span>
+      <span style={{ ...type.scoreMd, color: valueColor ?? colors.txt1 }}>{field.value}</span>
+    </span>
+  )
 }
 
 export function ReadingsSection({
@@ -94,18 +119,16 @@ export function ReadingsSection({
     window,
     utcOffsetSeconds,
     severeAlertEvent,
+    alertsPending,
     unavailableReason,
   })
 
-  /**
-   * The readings themselves are not suppressed by an alert, so they have
-   * nothing to wait for: the qualifier arrives beside them a moment later,
-   * which adds to what is on screen rather than reversing it. The number is the
-   * part that reads as actionable, and it is what waits.
-   */
-  const score = alertsPending ? null : summary.score
-
   const surface: CSSProperties = bare ? {} : card
+
+  // Both are null together — the score field exists only when there is a score
+  // to put in it — and checking both is what lets the colour be computed from a
+  // number TypeScript can see is present.
+  const { score, scoreField } = summary
 
   return (
     <section style={{ ...surface, ...stack(spacing.cellPad) }}>
@@ -118,41 +141,51 @@ export function ReadingsSection({
       ) : (
         <>
           {/*
-            The headline is absent when there is no hour to describe. The window
-            line below is a different fact about a different span, so it still
-            renders — dropping both would leave an empty card.
+            The readings, then the number. **The order is the phase's design
+            rather than a styling preference**: the score is the third gauge on
+            the panel, not the headline the other two explain. Under a Severe+
+            alert, and until the alerts query settles, there is no third gauge
+            at all and the qualifier below names the alert.
+
+            Nothing at all when there is nothing to read — a row of dashes reads
+            as a measurement of nothing.
           */}
-          {summary.headline === null ? null : (
-            <span style={type.cardTitle}>{summary.headline}</span>
+          {summary.readings.length === 0 && scoreField === null ? null : (
+            <div style={{ ...row(spacing.sectionGap), flexWrap: 'wrap' }}>
+              {summary.readings.map((field) => (
+                <Stat key={field.label} field={field} />
+              ))}
+              {score === null || scoreField === null ? null : (
+                <Stat field={scoreField} valueColor={scoreColor(score)} />
+              )}
+            </div>
           )}
+
+          {/*
+            The window is a fact about the day, not about this hour, so it is
+            labelled separately rather than joining the row above.
+          */}
+          {summary.window === null ? null : (
+            <span style={{ ...row(spacing.chipGap), alignItems: 'baseline' }}>
+              <span style={type.label}>{summary.window.label}</span>
+              <span style={type.bodyMd}>{summary.window.value}</span>
+            </span>
+          )}
+
           {summary.qualifier === null ? null : (
             <span style={type.bodyMd}>{summary.qualifier}</span>
           )}
 
           {/*
-            **The number is secondary, and that is the phase's design rather
-            than a styling preference.** It sits at the end of the window line,
-            in a chip, at a size the headline above dwarfs. Under a Severe+
-            alert `score` is null and the chip draws nothing — the qualifier has
-            already named the alert.
-          */}
-          <div style={{ ...row(spacing.chipGapMd), justifyContent: 'space-between' }}>
-            {summary.window === null ? null : (
-              <span style={type.bodyMd}>{summary.window}</span>
-            )}
-            <ScoreChip score={score} />
-          </div>
-
-          {/*
             Required copy, not decoration. The friction estimate note is a Phase
             3 acceptance criterion, and the aspect note is what keeps an
-            unqualified reading from being read as a measured one.
+            unqualified reading from being read as a measured one. One line,
+            because two sentences stacked under a gauge is the wordiness this
+            rework was for.
           */}
-          {summary.notes.map((note) => (
-            <span key={note} style={type.sourceBadge}>
-              {note}
-            </span>
-          ))}
+          {summary.notes.length === 0 ? null : (
+            <span style={type.sourceBadge}>{summary.notes.join(' · ')}</span>
+          )}
         </>
       )}
     </section>

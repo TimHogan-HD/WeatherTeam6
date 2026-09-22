@@ -75,7 +75,7 @@ async function run(): Promise<void> {
     '../lib/telegram/conditionsReply.js'
   )
   const { formatConditionsReply } = await import('../lib/telegram/conditionsMessage.js')
-  const { FRICTION_ESTIMATE_NOTE, summarizeReadings } = await import('@weatherteam6/types')
+  const { FRICTION_ESTIMATE_NOTE, fieldLine, summarizeReadings } = await import('@weatherteam6/types')
 
   console.log('\n=== check:conditions — the v2 readings on a real location ===\n')
 
@@ -189,10 +189,30 @@ async function run(): Promise<void> {
     unavailableReason: readings.unavailable_reason,
   })
 
+  const firstReading = summary.readings[0] ?? null
   check(
-    'the reply leads the reading block with words, not a number',
-    summary.headline === null || text.includes(summary.headline),
-    'the headline the copy model produced is not in the text',
+    'the reply reads out each gauge with its own label',
+    summary.readings.every((f) => text.includes(fieldLine(f))),
+    summary.readings.map(fieldLine).join(' | '),
+  )
+  // The phase's design, asserted on the bytes: the number is derived from the
+  // readings and is printed after them. A score above the words it came from is
+  // the headline this model exists to stop being written.
+  check(
+    'the number never appears above the readings it is derived from',
+    summary.scoreField === null ||
+      firstReading === null ||
+      text.indexOf(fieldLine(summary.scoreField)) > text.indexOf(fieldLine(firstReading)),
+    'the score is printed before the readings',
+  )
+  // The owner's 2026-09-21 verdict, on the rendered bytes. A reading's value is
+  // a word, and a sentence is what it must never become again.
+  check(
+    'no reading is written as a sentence',
+    [...summary.readings, summary.scoreField, summary.window]
+      .filter((f) => f !== null)
+      .every((f) => f.value.split(/\s+/).length <= 2 && !/[.!]/.test(f.value)),
+    'a field value grew into prose',
   )
   check(
     'the reply says the friction reading is an estimate',
@@ -228,8 +248,8 @@ async function run(): Promise<void> {
     info('window starts at, local', `${localHour}:00`)
     check(
       'the window line is written on the location clock',
-      text.includes(summary.window ?? ' '),
-      `expected ${summary.window ?? '(none)'}`,
+      summary.window === null || text.includes(fieldLine(summary.window)),
+      `expected ${summary.window === null ? '(none)' : fieldLine(summary.window)}`,
     )
   }
 

@@ -1,4 +1,5 @@
 import {
+  fieldLine,
   formatHoursSinceRain,
   formatHumidity,
   formatTempF,
@@ -10,6 +11,7 @@ import type {
   ConditionsReadings,
   ConditionsScore,
   ForecastSnapshot,
+  ReadingField,
   ScoreUnavailableReason,
 } from '@weatherteam6/types'
 
@@ -29,8 +31,10 @@ import type {
  *    suppression but still mapped a number to a word — and the number could not
  *    see heat, so the same 103 °F day read *"Dry, settled — Score 88"*.
  *
- * **The readings are now the headline and the number is derived from them**
- * (Phase 3 of `weatherteam6-scoring-model-handoff-v1.md`). The copy comes from
+ * **The readings lead and the number is derived from them** (Phase 3 of
+ * `weatherteam6-scoring-model-handoff-v1.md`), and since 2026-09-21 they are
+ * written as labelled fields rather than as a phrase — a sentence claims a
+ * confidence an estimate has not earned. The copy comes from
  * `summarizeReadings` in `@weatherteam6/types`, not from here, so the bot and
  * the Mini App cannot drift on what a reading is allowed to say.
  *
@@ -141,22 +145,25 @@ export function formatConditionsReply(input: ConditionsReplyInput): string {
     if (summary.unavailableLine !== null) {
       lines.push(summary.unavailableLine)
     } else {
-      // The two readings lead. When the run does not reach this hour there is
-      // no headline, and the window line below still answers the day — saying
-      // nothing at all would read as a broken panel.
-      if (summary.headline !== null) {
-        lines.push(
-          [summary.headline, summary.qualifier].filter((s) => s !== null).join(' — '),
-        )
-      }
-      // The number is last and smallest, which on a text panel means last on
-      // its line. `scoreLine` is null under a Severe+ alert and the qualifier
-      // above has already named it — substituting the raw number here is what
-      // suppression exists to prevent.
-      lines.push([summary.window, summary.scoreLine].filter((s) => s !== null).join(' · '))
+      // The readings lead, as labelled fields rather than as a sentence: a
+      // sentence claims a confidence these do not have, which is what the
+      // owner's 2026-09-21 verdict was about. **The number is last**, and it is
+      // simply absent under a Severe+ alert — substituting the raw figure here
+      // is what suppression exists to prevent.
+      //
+      // When the run does not reach this hour there are no fields at all, and
+      // the window line below still answers the day; saying nothing would read
+      // as a broken panel.
+      const fields = [...summary.readings, summary.scoreField].filter(
+        (f): f is ReadingField => f !== null,
+      )
+      if (fields.length > 0) lines.push(fields.map(fieldLine).join(' · '))
+      if (summary.window !== null) lines.push(fieldLine(summary.window))
+      if (summary.qualifier !== null) lines.push(summary.qualifier)
       // Required copy, not decoration: the friction reading has one unvalidated
-      // step in it and the surface says so (§ Open Questions 6).
-      for (const note of summary.notes) lines.push(note)
+      // step in it and the surface says so (§ Open Questions 6). One line —
+      // stacked sentences were half of what made this panel read as a report.
+      if (summary.notes.length > 0) lines.push(summary.notes.join(' · '))
     }
   }
 

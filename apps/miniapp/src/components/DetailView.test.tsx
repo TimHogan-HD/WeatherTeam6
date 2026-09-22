@@ -9,6 +9,9 @@ import type {
 } from '@weatherteam6/types'
 import { DetailView } from './DetailView.js'
 
+/** The panel as a reader sees it — tags out, whitespace collapsed. */
+const visible = (html: string): string => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
+
 /**
  * What the detail screen actually puts on screen, rendered for real.
  *
@@ -183,7 +186,7 @@ describe('DetailView — a climbing location', () => {
     // own chart. The day's high and low are still on this line.
     expect(html).toContain('79°F')
     // Weather appears before the readings section in document order.
-    expect(html.indexOf('103°F')).toBeLessThan(html.indexOf('Poor friction'))
+    expect(visible(html).indexOf('103°F')).toBeLessThan(visible(html).indexOf('Friction Poor'))
   })
 
   /**
@@ -203,7 +206,7 @@ describe('DetailView — a climbing location', () => {
         conditions={ok(redRockScore())}
       />,
     )
-    expect(html).toContain('Poor friction')
+    expect(visible(html)).toContain('Friction Poor')
     expect(html).toContain('>58<')
     expect(html).not.toContain('Dry, settled')
     // The five-component score is still on the response and must not reach the
@@ -221,7 +224,7 @@ describe('DetailView — a climbing location', () => {
         conditions={ok(redRockScore())}
       />,
     )
-    expect(html).toContain('Good from 6am to 9am')
+    expect(visible(html)).toContain('Good hours 6am–9am')
   })
 
   it('says the friction reading is an estimate, on the screen', () => {
@@ -235,7 +238,7 @@ describe('DetailView — a climbing location', () => {
         conditions={ok(redRockScore())}
       />,
     )
-    expect(html).toContain('Friction is an estimate')
+    expect(visible(html)).toContain('Friction is estimated')
   })
 
   it('drops the number under a Severe+ alert but keeps the readings', () => {
@@ -252,10 +255,12 @@ describe('DetailView — a climbing location', () => {
     expect(html).toContain('see the Extreme Heat Warning above')
     // The words stay — they are the same fact the warning is about. The number
     // is the part that reads as actionable, and it is what goes.
-    expect(html).toContain('Poor friction')
+    expect(visible(html)).toContain('Friction Poor')
     expect(html).not.toContain('>58<')
     // The alert renders above the readings, always (§7 rule 5).
-    expect(html.indexOf('Extreme Heat Warning')).toBeLessThan(html.indexOf('Poor friction'))
+    expect(visible(html).indexOf('Extreme Heat Warning')).toBeLessThan(
+      visible(html).indexOf('Friction Poor'),
+    )
   })
 
   it('withholds the whole section until the alerts query settles', () => {
@@ -272,7 +277,7 @@ describe('DetailView — a climbing location', () => {
       />,
     )
     expect(html).not.toContain('>58<')
-    expect(html).not.toContain('Poor friction')
+    expect(visible(html)).not.toContain('Friction Poor')
     // The weather is not held up by it.
     expect(html).toContain('103°F')
   })
@@ -289,7 +294,7 @@ describe('DetailView — a climbing location', () => {
     )
     // The query settled with no data, so nothing is suppressed — and the
     // failure is stated above rather than reading as "no alerts".
-    expect(html).toContain('Poor friction')
+    expect(visible(html)).toContain('Friction Poor')
     expect(html).toContain('>58<')
     expect(html).toContain('load alerts')
   })
@@ -563,7 +568,7 @@ describe('DetailView — a withheld rainfall history (#34)', () => {
         conditions={ok(withheld())}
       />,
     )
-    expect(html).toContain('Poor friction')
+    expect(visible(html)).toContain('Friction Poor')
     expect(html).toContain('>58<')
   })
 
