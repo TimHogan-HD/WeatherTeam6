@@ -59,8 +59,8 @@ Never commit `.env`, and **do not create one at all** — set variables in the s
 - All API responses use shape: `{ data, error, status }`
 - All external API calls wrapped in try/catch with exponential backoff retry
 - Never log secrets, tokens, or full API responses in production. Never serialise an error object wholesale into a log — database driver errors can carry the connection string; go through `describeError` in `lib/http.ts`, which reads only known-safe fields
-- Auth is toggled via `AUTH_ENABLED` env var. Do not build a login UI.
-- `DEFAULT_USER_ID` is injected by `resolveUser` middleware — never hardcode it in route handlers
+- **Auth is a signed token, and `AUTH_ENABLED` no longer exists.** `requireApiAuth` accepts three schemes on `Authorization` — `Session <token>` (a real user, `req.userId` is the token's subject), `Bearer <API_SHARED_SECRET>` and `tma <initData>` (both act as `DEFAULT_USER_ID`). Fail-closed on `API_SHARED_SECRET` **and** `AUTH_TOKEN_SECRET`: either unset is a 503 on all of `/api/v1`. **A login UI is now required** — `docs/handoffs/leave-telegram-v1.md` § Explicit rule overrides reverses the old rule. Still **no Clerk and no self-serve signup**: `npm run user:add` is the only way an account exists
+- `DEFAULT_USER_ID` is injected by `requireApiAuth` for the credential-based schemes, and by `resolveUser` on `/api/telegram` — never hardcode it in route handlers. **`requireApiAuth` is the only setter under `/api/v1`**, so a router mounted outside that gate reads `undefined` through a type that says it cannot be
 - Drizzle migrations only — never mutate the DB directly
 
 - **Finish the delivery, don't hand it back.** Work reaches `main` through a branch, a PR,
@@ -241,8 +241,8 @@ Multi-line `sed`/`perl` replacements silently match nothing — they fail quietl
 **Vercel will not give you a secret back.**
 `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, and the other credentials are marked sensitive: the dashboard refuses to copy them and `vercel env pull` cannot recover them. Go to the source instead — Neon's dashboard for `DATABASE_URL` (use the **pooled** string for app runtime, direct only for migrations). Do not ask the user to paste a secret into the conversation; have them set it in their own shell.
 
-**An unauthenticated 401 from production proves `DEFAULT_USER_ID` is set.**
-`resolveUser` runs before `requireApiAuth`, so a server missing `DEFAULT_USER_ID` answers 500 "Server misconfigured" even without credentials. Note the converse: **every** `/api/v1/*` path returns 401 unauthenticated, existing or not, so a 401 is *not* evidence that a route was deployed. Check the deployment's commit SHA for that.
+**An unauthenticated 401 proves nothing except that the gate is shut.**
+It used to prove `DEFAULT_USER_ID` was set, because `resolveUser` ran app-wide ahead of `requireApiAuth`. It does not any more: `resolveUser` is mounted on `/api/telegram` alone, so a missing `DEFAULT_USER_ID` now shows only as a **500 on an authenticated `Bearer` or `tma` call** — and not at all under `Session`, which carries its own subject. A **503** on every scheme means `API_SHARED_SECRET` or `AUTH_TOKEN_SECRET` is unset. The converse still holds: **every** `/api/v1/*` path returns 401 unauthenticated, existing or not, so a 401 is *not* evidence that a route was deployed. Check the deployment's commit SHA for that.
 
 **Code reviews interrupted by context limits lose their findings.**
 If `/code-review` or the code-review skill runs near the end of a long session and context compresses before the output is written, the findings are lost. Save intermediate review output to `.claude/docs/review-findings.md` before the session ends if verification is still in progress.

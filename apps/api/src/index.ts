@@ -16,12 +16,23 @@ import { geocodeRouter } from './routes/geocode.js';
 import { previewRouter } from './routes/preview.js';
 import { cronRouter } from './routes/cron.js';
 import { telegramWebhookRouter } from './routes/telegramWebhook.js';
+import { authRouter } from './routes/auth.js';
+import { allowedOriginPatterns, originAllowed } from './lib/cors.js';
 
 export function createApp(): Express {
   const app = express();
 
   app.use((_req: Request, res: Response, next: NextFunction) => {
-    res.setHeader('Access-Control-Allow-Origin', '*')
+    const origin = _req.headers.origin
+    // No Origin at all is curl, a script or another server — CORS does not
+    // apply to them and omitting the header is not a refusal. Only a browser
+    // enforces this, and only when it sent an Origin.
+    if (typeof origin === 'string' && originAllowed(origin, allowedOriginPatterns())) {
+      res.setHeader('Access-Control-Allow-Origin', origin)
+    }
+    // The response body now varies by request Origin, so a shared cache must
+    // not serve one origin's headers to another.
+    res.setHeader('Vary', 'Origin')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
     if (_req.method === 'OPTIONS') { res.sendStatus(204); return }
@@ -36,15 +47,23 @@ export function createApp(): Express {
   // across all locations, not a single user's data — so it stays outside resolveUser.
   app.use('/api/cron', cronRouter);
 
-  app.use(resolveUser);
+  // resolveUser is mounted HERE, not app-wide, and only because the webhook
+  // reads req.userId: it authenticates by chat.id but still looks up the
+  // caller's saved locations. Everything under /api/v1 gets its identity from
+  // requireApiAuth instead. Phase 3 deletes this mount and resolveUser together.
+  app.use('/api/telegram', resolveUser, telegramWebhookRouter);
 
-  // The Telegram webhook authenticates via chat.id but still needs req.userId
-  // (DEFAULT_USER_ID) to look up the caller's saved locations, same as every other route.
-  app.use('/api/telegram', telegramWebhookRouter);
+  // Above the gate, deliberately: you cannot present a token in order to obtain
+  // one. authRouter responds on every path it handles, so an unmatched route
+  // under /api/v1/auth falls through to requireApiAuth and 401s.
+  app.use('/api/v1/auth', authRouter);
 
   // requireApiAuth sits inside the /api/v1 mount, so /api/cron and /api/telegram
   // keep their own auth (CRON_SECRET / chat.id) and are unaffected. OPTIONS is
   // already short-circuited by the CORS layer above, so preflight never reaches here.
+  //
+  // It is also the only setter of req.userId for these routers — do not mount a
+  // req.userId reader outside it.
   app.use(
     '/api/v1',
     requireApiAuth,

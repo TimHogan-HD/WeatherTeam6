@@ -119,6 +119,9 @@ async function run(): Promise<void> {
   }
 
   process.env['API_SHARED_SECRET'] = SECRET
+  // requireApiAuth fails closed on BOTH auth secrets — an unset AUTH_TOKEN_SECRET
+  // is a 503 on every scheme, Bearer included. Local-only, never leaves this process.
+  process.env['AUTH_TOKEN_SECRET'] ??= 'local-acceptance-token-secret'
   process.env['LOG_LEVEL'] ??= 'warn'
 
   const { createApp } = await import('../index.js')

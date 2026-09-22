@@ -73,9 +73,22 @@ export const overallStatusEnum = pgEnum('overall_status', ['dry', 'damp', 'wet',
 
 // Tables
 
+/**
+ * `username` and `password_hash` are both nullable, and **a row with either one
+ * null cannot log in.** That is the intended reading, not an oversight: the
+ * seeded owner row predates them and needs no backfill, and a user created by
+ * some future path without a passphrase must not become reachable by presenting
+ * an empty one. `lib/auth/credentials.ts` requires both to be present and the
+ * lookup is the single place that decision is made.
+ *
+ * There is no signup flow and should not be one — `npm run user:add` creates a
+ * row, per `docs/handoffs/leave-telegram-v1.md` § Phase 1.
+ */
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name'),
+  username: text('username').unique(),
+  password_hash: text('password_hash'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
