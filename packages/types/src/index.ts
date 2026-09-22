@@ -22,6 +22,20 @@ export type ApiResponse<T> = {
 }
 
 /**
+ * What `POST /api/v1/auth/login` returns on success, as the `data` of the
+ * standard envelope.
+ *
+ * `expires_at` is ISO-8601 UTC and is **advisory** — the API re-derives the
+ * expiry from the signed token on every request, so a client that ignores this
+ * field is merely less polite, not more privileged. It exists so the app can
+ * send the user back to the login screen before a call fails rather than after.
+ */
+export type AuthLoginResponse = {
+  token: string
+  expires_at: string
+}
+
+/**
  * Every rock type the app understands, in one place.
  *
  * **This array is the source and `RockType` is derived from it**, because the

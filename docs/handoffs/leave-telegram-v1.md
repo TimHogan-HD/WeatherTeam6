@@ -2,8 +2,9 @@
 
 Version: v1
 Date: 2026-09-22
-Status: **Approved by the owner, 2026-09-22. Nothing is built.** This document reverses the
-Telegram client mandate. Phase 1 has not started.
+Status: **Approved by the owner, 2026-09-22.** This document reverses the Telegram client
+mandate. **Phase 1 is built and merged (2026-09-22); Phases 2–4 have not started.** The bot is
+still running and untouched.
 
 **This supersedes `docs/handoffs/telegram-crossover-v4.md` as the product direction.** The
 crossover doc remains the record of why Telegram existed and is not deleted.
@@ -289,6 +290,24 @@ Volume is large enough to be its own pass rather than a `/session-end` afterthou
 - **`.claude/rules/defect-patterns.md` — leave the Telegram examples in.** It is a catalogue of
   defects that actually shipped, and classes 3, 5 and 11 are still true of code that is staying.
 - `STATE.md` rewrite + `session-archive.md` block via `/session-end`.
+
+**Made stale by Phase 1, shipped 2026-09-22 — three claims that are now false, listed here
+because they were not on the list above and a stale rule misdirects more than a missing one:**
+
+- **`AUTH_ENABLED` no longer exists.** Its only reader was `resolveUser`'s 501 branch, deleted
+  in Phase 1, and the variable is out of `.env.example` and `turbo.json`. `CLAUDE.md`
+  ("Auth is toggled via `AUTH_ENABLED`… Do not build a login UI") and
+  `.claude/rules/architecture.md` § Auth Pattern (`AUTH_ENABLED=false` means all requests get
+  `req.userId = DEFAULT_USER_ID`) both still describe it.
+- **`CLAUDE.md` § Known Gotchas: "An unauthenticated 401 from production proves
+  `DEFAULT_USER_ID` is set" is now false.** `resolveUser` no longer runs before
+  `requireApiAuth`, so an unauthenticated request 401s whatever `DEFAULT_USER_ID` says. A
+  missing `DEFAULT_USER_ID` now shows as a **500 on an authenticated Bearer or tma call** —
+  the `Session` scheme does not need it at all. The converse half of that gotcha (every
+  `/api/v1/*` path 401s whether or not it exists) is unchanged.
+- **CORS is no longer `*`.** `.claude/rules/architecture.md` should carry the replacement rule:
+  the allowlist is `lib/cors.ts`, `CORS_ALLOWED_ORIGINS` replaces it outright, and a preview
+  deployment needs a `https://*.vercel.app` entry to be reachable from a browser.
 
 ---
 

@@ -92,6 +92,13 @@
       "when": 1789999075699,
       "tag": "0012_petite_mephisto",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790103293798,
+      "tag": "0013_serious_clint_barton",
+      "breakpoints": true
     }
   ]
 }
