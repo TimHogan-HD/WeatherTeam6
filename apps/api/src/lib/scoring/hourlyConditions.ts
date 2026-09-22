@@ -6,11 +6,14 @@
  * Pure functions over Layer 1 (`rockThermal.ts`, `sweatBalance.ts`). No
  * database, no network, no Express, no clock.
  *
- * **Nothing reads this module yet.** Phase 3 puts the readings on the Mini App
- * and the bot and rewrites `SCORE_BANDS`, `stateLabel` and the suppression rule
- * against the new meaning. Until that lands, every production score is still
- * `conditionsScore`'s weighted sum and this file changes no user-visible number.
- * `npm run compare:scoring --workspace=apps/api` is where it can be seen.
+ * **This module is what every screen now reads** (Phase 3, shipped 2026-09-21).
+ * Its readings reach `GET /hourly/:id` and `GET /conditions/:id`, the bot's
+ * panel and the Mini App, through `summarizeReadings` in `packages/types`.
+ * `stateLabel` and the ladder it drove are deleted; `SCORE_BANDS` survives as
+ * the colour rungs. The five-component scorer still runs and is rendered
+ * nowhere — Phase 5 deletes it.
+ * `npm run compare:scoring --workspace=apps/api` is where the two can be
+ * compared side by side.
  *
  * ## The shape, and why it makes a veto unnecessary
  *

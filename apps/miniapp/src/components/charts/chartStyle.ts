@@ -232,11 +232,12 @@ export function tempColor(c: number): string {
 /**
  * The conditions ladder's colour for a score.
  *
- * **Driven by `SCORE_BANDS`, the same constant `stateLabel` switches on**, so a
- * chip can never go amber on a day the words call "Mostly dry". Four rungs onto
- * three colours: 'Dry, settled' and 'Mostly dry' share lime, because the
- * palette has three status hues and those two rungs agree about the only thing
- * a colour can say.
+ * **Driven by `SCORE_BANDS`**, which is now the only thing that constant does:
+ * the words it used to share with `stateLabel` are gone, because a phrase
+ * derived from the number could only ever be as right as the number. Four rungs
+ * onto three colours — the top two share lime, because the palette has three
+ * status hues and those two rungs agree about the only thing a colour can say.
+ * The words on a surface are the v2 readings and come from `readingsCopy.ts`.
  *
  * This is the one place in the chart module that reaches for `good`/`fair`/
  * `poor` — the ladder is what they are *for*, and it is never a data mark.
