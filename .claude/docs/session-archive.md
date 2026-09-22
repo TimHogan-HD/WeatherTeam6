@@ -3524,7 +3524,7 @@ returns `null` in an ordinary browser.
 
 ---
 
-## 2026-09-22 — branch: docs/leave-telegram-direction — commit: `PLACEHOLDER_SHA` (squashed, #165)
+## 2026-09-22 — branch: docs/leave-telegram-direction — commit: `ee3c63f` (squashed, #165)
 
 **The Telegram client mandate is reversed.** The owner decided this session to leave Telegram
 for a standalone web app and to **delete the bot entirely**. Docs only — no code, schema or
