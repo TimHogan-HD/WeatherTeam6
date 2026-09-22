@@ -250,7 +250,7 @@ describe('formatConditionsReply — a non-climbing location', () => {
     expect(reply).toContain('High 103°F')
     expect(reply).toContain('Extreme Heat Warning')
     expect(reply).not.toContain('Score')
-    expect(reply).not.toContain('friction')
+    expect(reply).not.toMatch(/friction/i)
     expect(reply).not.toContain('no rain in')
     // No rainfall source either — the drying model's output is not being shown.
     expect(reply).not.toContain('ACIS')
@@ -260,7 +260,7 @@ describe('formatConditionsReply — a non-climbing location', () => {
     // The flag is the gate, not the contents of `readings`. A caller that
     // passed a crag's readings for a city must still print none.
     const reply = formatConditionsReply(input({ isClimbingLocation: false }))
-    expect(reply).not.toContain('friction')
+    expect(reply).not.toMatch(/friction/i)
   })
 })
 

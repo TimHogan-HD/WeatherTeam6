@@ -75,7 +75,9 @@ async function run(): Promise<void> {
     '../lib/telegram/conditionsReply.js'
   )
   const { formatConditionsReply } = await import('../lib/telegram/conditionsMessage.js')
-  const { FRICTION_ESTIMATE_NOTE, fieldLine, summarizeReadings } = await import('@weatherteam6/types')
+  const { FRICTION_ESTIMATE_NOTE, fieldLine, isSevereAlert, summarizeReadings } = await import(
+    '@weatherteam6/types'
+  )
 
   console.log('\n=== check:conditions — the v2 readings on a real location ===\n')
 
@@ -181,11 +183,15 @@ async function run(): Promise<void> {
   for (const line of text.split('\n')) console.log(`  | ${line}`)
   console.log('')
 
+  // The same alert the reply saw. Summarising with `severeAlertEvent: null`
+  // against text built from the location's real alerts compares two different
+  // days the moment a Severe+ warning is live — the score is in one and not the
+  // other, and the run fails on a real warning rather than on a defect.
   const summary = summarizeReadings({
     reading: readings.now,
     window,
     utcOffsetSeconds: readings.utc_offset_seconds,
-    severeAlertEvent: null,
+    severeAlertEvent: input.activeAlerts.find((a) => isSevereAlert(a.severity))?.event ?? null,
     unavailableReason: readings.unavailable_reason,
   })
 

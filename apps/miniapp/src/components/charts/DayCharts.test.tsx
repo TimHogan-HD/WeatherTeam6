@@ -282,7 +282,7 @@ const visible = (html: string): string => html.replace(/<[^>]*>/g, ' ').replace(
 
   it('draws nothing at all on the preview path, which has no readings', () => {
     expect(render(series(fullDay))).not.toContain('>30<')
-    expect(render(series(fullDay))).not.toContain('friction')
+    expect(render(series(fullDay))).not.toMatch(/friction/i)
   })
 })
 
