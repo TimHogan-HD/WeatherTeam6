@@ -3521,3 +3521,83 @@ mandate stands as written. The standing instruction is only: do not deepen Teleg
 investment without asking, and prefer a plain-web API where there is a free choice. The
 client-side coupling is `apps/miniapp/src/telegram/`, 157 lines, and `getWebApp()` already
 returns `null` in an ordinary browser.
+
+---
+
+## 2026-09-22 — branch: docs/leave-telegram-direction — commit: `PLACEHOLDER_SHA` (squashed, #165)
+
+**The Telegram client mandate is reversed.** The owner decided this session to leave Telegram
+for a standalone web app and to **delete the bot entirely**. Docs only — no code, schema or
+behaviour change shipped.
+
+**What was decided, and by whom:** the owner, asked four questions directly.
+
+| Decision | Answer |
+| --- | --- |
+| The bot | **Delete Telegram entirely.** No bot, no webhook, no alert delivery. |
+| Auth | **Passphrase → signed token**, a third `Authorization` scheme beside `Bearer`. |
+| Alerts | **Parked.** Alert *data* keeps being collected; delivery is a future decision. |
+| Audience | **Owner plus a few climbing partners.** Build the identity seam once, properly. |
+
+**Why the reversal held up under examination.** The only recorded reason for adopting Telegram
+is `telegram-crossover-v4.md`'s *"zero ongoing cost, no server to keep alive"*, written after
+every Railway deploy failed — a hosting argument a static Vercel site satisfies identically.
+**The decision session itself was never archived**, so no UX rationale exists anywhere in the
+repo. Against that: the Mini App is already ~96% a plain web app (265 of 6,967 non-test lines
+are Telegram glue, and `getWebApp()` already returns `null` in a browser), while the bot is
+~5,510 production + ~3,050 test lines. The largest recurring cost is not code — **Mini App
+origin lockdown means preview URLs cannot open as a Mini App**, which is why nothing here has
+ever been tested before production and why Playwright cannot drive the UI.
+
+**What Telegram was actually providing, and what replaces it:** identity (`TELEGRAM_CHAT_ID` is
+the entire auth boundary) → a token scheme; push (`notifyPendingAlerts` is the **only**
+notification channel in the product) → **nothing, by decision**.
+
+**Shipped:** `docs/handoffs/leave-telegram-v1.md` (the four-phase plan: token auth, the web app
+stands alone, delete Telegram, docs and rules) and a rewritten `STATE.md` direction note that
+says the opposite of what it said this morning.
+
+**Known issues / deferred work:**
+- **`CLAUDE.md` and `.claude/rules/architecture.md` still carry the old mandate** and the *"Do
+  not build a login UI. Do not add sessions."* rule. Amended in **Phase 4**, deliberately not
+  ahead of the code — a docs-only rewrite would leave the repo describing something that does
+  not exist. `STATE.md` marks them non-blocking and points at the handoff's § Explicit rule
+  overrides.
+- **Partners will not share a crag list.** `locations.user_id` scopes every list per user, so
+  "a few climbing partners" means separate lists. A shared list is unbuilt product work.
+- **No notification channel from Phase 3.** NWS Severe+ warnings get collected and shown, and
+  reach nobody. Accepted, not overlooked.
+
+**Blockers for next session:** None. Phase 1 is additive and can start immediately.
+
+**What's next:** Phase 1 — token auth in the API. `git checkout -b feat/token-auth` off `main`,
+read `docs/handoffs/leave-telegram-v1.md` first.
+
+**Gotchas for next session:**
+- **A claim measured is not a claim verified.** Three `Explore` subagents produced the survey
+  this plan rests on; re-measuring every line count by hand afterwards confirmed all of them but
+  also caught four wrong numbers in the *plan* — a rounded-up total, "five scripts" where four
+  are deleted, `escapeTelegramHtml` described as a file rather than a function in
+  `conditionsCopy.ts:191`, and a `check:auth` implied to be CI-gated when `ci.yml:71-73`
+  deliberately excludes workspace-level checks.
+- **A correction the repo needs:** `CLAUDE.md` and `apiAuth.ts:13-14` both assert that
+  protecting Vercel's production alias requires a paid plan. **That is out of date** — Vercel
+  Authentication at "All Deployments" scope is free on Hobby; only Password Protection is paid.
+  Not the chosen approach (it gates on a Vercel account login, which partners will not have),
+  but stop repeating it.
+- **The `review` check earned its keep again, while failing.** It hit the session quota mid-run
+  (`is_error: true`, `num_turns: 18`, and the real reason — *"You've hit your session limit"* —
+  **only in the uploaded artifact**, exactly the PR #110 signature). Its partial output still
+  named two genuine defects in the plan document that Gate 0 had missed: Phase 1 removed the
+  app-wide `resolveUser` mount while the webhook still needed `req.userId`, which would have
+  broken every bot command silently for two phases through a type that says `undefined` is
+  impossible; and Phase 2 deleted `deepLink.ts` while the bot was still sending `startapp` deep
+  links. Both are fixed in the handoff. **Read the artifact before concluding a red reviewer
+  found nothing.**
+- **Gate 0 catches your own edits too.** Reading the STATE.md diff as prose found a duplicated
+  list number and a sentence that said the same thing twice, both introduced minutes earlier.
+
+**Does the user need to do anything?** **No.** Phase 1 needs nothing from the owner. Later
+phases need four things only they can do — set `AUTH_TOKEN_SECRET` in Vercel, choose the
+passphrase, delete the three `TELEGRAM_*` variables, and retire the bot with BotFather — and
+none of them blocks the start.

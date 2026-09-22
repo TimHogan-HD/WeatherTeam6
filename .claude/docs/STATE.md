@@ -5,22 +5,38 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-09-22 · `main` @ `49041cd`
+Last updated: 2026-09-22 · `main` @ `93d1cd3`
 
 ---
 
-## A direction note
+## Direction: Telegram is being removed
 
-**The owner has said the Mini App is likely to become a plain web app on Vercel rather than a
-Telegram Mini App.** As of 2026-09-22 that is intent and nothing more — **not planned, not
-scheduled, not started, and the owner has asked that no migration planning be done yet.** The
-Telegram client mandate stands as written; do not reverse it, and do not draft a plan,
-without being asked.
+**Decided by the owner on 2026-09-22 and approved. The Telegram client mandate is REVERSED.**
+The Mini App becomes a standalone web app on Vercel and the bot is deleted outright. The plan
+is `docs/handoffs/leave-telegram-v1.md` — read it before any work on the client, on auth, or on
+anything under `apps/api/src/lib/telegram/`. **Nothing is built yet; Phase 1 has not started.**
 
-What it changes today: **do not deepen Telegram-specific investment without asking**, and
-prefer a plain-web API where there is a free choice. Nothing needs pre-emptive work —
-`apps/miniapp/src/telegram/` is 157 lines and `getWebApp()` already returns `null` in an
-ordinary browser.
+| Decision | Answer |
+| --- | --- |
+| The bot | **Delete Telegram entirely.** No bot, no webhook, no alert delivery. |
+| Auth | **Passphrase → signed token**, a third `Authorization` scheme beside `Bearer`. |
+| Alerts | **Parked.** Alert *data* keeps being collected; delivery is a future decision. |
+| Audience | **Owner plus a few climbing partners.** Build the identity seam once, properly. |
+
+Four phases: **1** token auth in the API · **2** the web app stands alone · **3** delete
+Telegram · **4** docs and rules. Phases 1 and 2 are additive and independently revertible;
+**Phase 3 is the irreversible one** and gets its own PR.
+
+**Two loaded documents still say the opposite, and they are not blocking.** `CLAUDE.md` and
+`.claude/rules/architecture.md` both carry the Telegram client mandate and the *"Do not build a
+login UI. Do not add sessions."* rule. Those overrides are listed in the handoff's § Explicit
+rule overrides and the rule text is amended in **Phase 4**, deliberately not before — a
+docs-only rewrite of both files ahead of the code would leave the repo describing something
+that does not exist. Follow the handoff where they disagree.
+
+**One correction the handoff carries:** `CLAUDE.md` and `apiAuth.ts:13-14` claim protecting
+Vercel's production alias needs a paid plan. It does not any more — Vercel Authentication at
+"All Deployments" scope is free on Hobby. Not the chosen approach, but stop repeating it.
 
 ---
 
@@ -62,7 +78,9 @@ architecture is still not authorised.**
 - **Bot** — nine commands as native Rich Message tables with an HTML fallback. Its conditions
   panel reads the same `summarizeReadings` the Mini App does. It is also the **only
   notification channel in the product**: NWS alerts reach the owner through
-  `notifyPendingAlerts` and nothing else.
+  `notifyPendingAlerts` and nothing else. **All of this is deleted in migration Phase 3, and
+  no notification channel replaces it** — alert *data* keeps being collected and shown in the
+  app, and reaches nobody until a channel is chosen. Accepted; do not deepen the bot.
 - **`/api/cron/collect-runs`** and **`prune-runs`** on cron-job.org. Retention 2 days parsed
   / 6h raw. **`collect-runs` answers `200 OK` when it persists nothing** — that hid a
   day-long outage on 2026-09-13; whether to change it is undecided.
@@ -96,25 +114,30 @@ branch, tree, PRs, issues and CI status; if that block was absent, say so.
 
 ## What is next
 
-1. **The measurements disclosure** — humidity, temperature, last rain, precipitation and dew
+1. **Leave Telegram, Phase 1 — token auth in the API.** `docs/handoffs/leave-telegram-v1.md`.
+   Nothing else on this list depends on it — but Phase 2 does, and the migration cannot start
+   without it.
+2. **The measurements disclosure** — humidity, temperature, last rain, precipitation and dew
    point behind a drop-down. Asked for on 2026-09-22. It is where the caveats' *mechanism*
    belongs now the gauges are terse, and it makes a reading checkable for the first time.
-2. **One Current Conditions block** — everything "now" is spread across a now-line, a
+3. **One Current Conditions block** — everything "now" is spread across a now-line, a
    readings section and chips.
-3. **Humidity and dew point charts, which exist nowhere**, though both are fetched and
+4. **Humidity and dew point charts, which exist nowhere**, though both are fetched and
    stored — `dewpoint_c` is read by nothing.
-4. **A current-location GPS option.** No design yet. Prefer the browser geolocation API.
-5. **Scoring Phase 4 — the location editor.** Rock type, aspect, tilt. **Unblocked.** Every
+5. **A current-location GPS option.** No design yet. Prefer the browser geolocation API.
+   **Cheaper after the migration** — browser geolocation needs no Telegram capability gate.
+6. **Scoring Phase 4 — the location editor.** Rock type, aspect, tilt. **Unblocked.** Every
    saved location has `cliff_angle` unset and defaulted to 45, one has no `rock_type`, and
    **nothing in the response marks either** — a reading on two placeholders looks exactly
    like one on recorded crag data. **Do not score `aspectDegrees` directly** (#139): no
    constant works, because the same aspect flips sign between seasons.
-6. **Scoring Phase 5 — preferences, then retirement.** Delete the five-component scorer,
+7. **Scoring Phase 5 — preferences, then retirement.** Delete the five-component scorer,
    `SCORE_COMPONENT_MAX`, the `component_*` fields and the parts of `scoring-algorithm.md`
    describing them. A deletion, not a migration. It owns the nuance 3b left: a window in the
    past still renders as that day's window, so *"Good hours: 6am–9am"* at 2pm is true and
    reads like advice for now.
-7. **Parked:** issue #82 part 2, and Phase 4 of the bot plan (`/insight`, `/afd`).
+8. **Parked:** issue #82 part 2. **Cancelled:** Phase 4 of the bot plan (`/insight`,
+   `/afd`) — the bot is being deleted.
 
 ---
 
@@ -207,6 +230,10 @@ phone, in your own theme. Four questions:
 - **Press back on the Hourly tab.** It must return to Daily, not close the app — an
   acceptance criterion **no test here can reach**, because `useBackButton` registers with
   Telegram's SDK and `vitest.config.ts` is a `node` environment with no DOM, deliberately.
+  **This question has a shelf life.** Migration Phase 2 replaces `useBackButton` with an
+  in-app affordance and makes the behaviour reachable from a preview deploy in an ordinary
+  browser. Still worth answering now if you are on the phone anyway; do not schedule a trip
+  for it alone.
 - **Does the temperature ramp read?** Continuous blue → neutral → amber → red, centred on
   16 °C, on its second attempt; the stepped version had its two warm steps only **ΔE 13.0**
   apart, below the floor for telling two hues apart.
