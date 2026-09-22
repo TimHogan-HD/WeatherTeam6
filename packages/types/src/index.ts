@@ -159,14 +159,13 @@ export type ForecastSnapshot = {
   /**
    * The five components behind `score`, same scales as on `ConditionsScore`.
    *
-   * **Required for suppression, not a nicety.** `summarizeConditions` reads
-   * these through `limitingComponent` to produce the "limited by drying time"
-   * qualifier — that is the half of suppression which fires when a component
-   * scores 0. Ship `score` without them and a client can only pass nulls, so
-   * that trigger can never fire and only the alert half works.
+   * **Nothing reads these any more, and they are still sent.** They existed for
+   * `summarizeConditions`, whose "limited by drying time" qualifier fired when a
+   * component scored 0 — that function, `limitingComponent` and the whole ladder
+   * were deleted in scoring v2 Phase 3b, and the surfaces read the v2 readings
+   * instead. Phase 5 removes these fields with the scorer that fills them.
    *
-   * `null` means not measured, and `limitingComponent` skips nulls deliberately:
-   * a component nobody measured is never named as the cause.
+   * `null` still means not measured, and a reader must not treat it as 0.
    */
   component_drying_time?: number | null
   component_upcoming_rain?: number | null

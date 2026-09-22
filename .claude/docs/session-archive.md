@@ -3444,3 +3444,80 @@ Severe+ suppression can remove, because the words are measurements. Dropping it 
 change, not a revert. **No answer is needed to proceed with Phase 4.** The phone check from
 previous sessions is still outstanding and now covers the readings, which nobody has seen
 rendered.
+
+---
+
+## 2026-09-22 — branch: feat/readings-labelled-copy — commit: 49041cd
+
+**Phase completed:** Not a phase — an owner-driven copy rework of the scoring v2 surfaces
+shipped the day before, plus the tidy-up that followed it.
+
+**What was built this session:**
+- `packages/types/src/readingsCopy.ts` — **the readings are labelled fields, not prose.**
+  `ReadingField`, `readingFields`, `fieldLine`, and `windowLine` reshaped into `windowValue`.
+  `readingsHeadline` deleted. The two required caveats became fragments.
+- `summarizeReadings` gained `alertsPending`, so the "do not draw a number before the alerts
+  query answers" rule lives with the words rather than in each component.
+- `apps/miniapp/src/components/ReadingsSection.tsx` — a row of three gauges
+  (`DRYNESS / FRICTION / SCORE`) over a labelled window line. `ScoreChip` deleted with its
+  test: nothing rendered it once the score joined the row.
+- `apps/api/src/lib/telegram/conditionsMessage.ts`, `LocationCard.tsx`,
+  `compareScoringV2.ts` — the same fields, composed per surface.
+- `checkConditions.ts` — two new assertions on the rendered bytes: the number never prints
+  above the readings it is derived from, and no field value is a sentence. 17/17.
+- Doc reconciliation: `architecture.md` (two new invariants), `miniapp-patterns`,
+  `review-checklist`, `conditions-score` (which still told the next agent to call
+  `summarizeConditions`, deleted in Phase 3b), `miniapp-design-v1.md`, the scoring handoff,
+  and three stale code comments — `ConditionsScore.component_*` described as load-bearing for
+  a deleted function, `hourlyConditions.ts` saying "nothing reads this module yet", and
+  `chartStyle.ts` naming `stateLabel`.
+
+**Why the copy changed, in the owner's words:** *"The Conditions now statements are way too
+wordy and generally too factual feeling. Using plain english like that makes it sound like
+fact."* The fix is not shorter sentences — it is **not sentences**. A label and a value read
+as an instrument; a fluent sentence claims a confidence an estimate has not earned.
+
+**Known issues / deferred work:**
+- **The measurements disclosure is the missing half.** The caveats now say friction is
+  estimated but not from what; the owner asked for humidity, temperature, last rain,
+  precipitation and dew point behind a drop-down, and that is where the mechanism belongs.
+- **Humidity and dew point have no chart anywhere**, though both are fetched and stored.
+- Everything Phase 3b deferred is unchanged: the five-component scorer still runs and is
+  rendered nowhere, a window in the past still renders as that day's window, and
+  `data: null` from `/conditions` still loses the readings.
+
+**Blockers for next session:**
+- None.
+
+**What's next:** the measurements disclosure — `git checkout -b feat/measurements-disclosure`
+off `main` — read `docs/handoffs/miniapp-design-v1.md` §7 for the conditions surface before
+writing any UI, and `packages/types/src/readingsCopy.ts` for what the caveats currently claim.
+
+**Gotchas for next session:**
+- **A long quoted heredoc (`<<'EOF'`) can fail to parse entirely**, not just mangle
+  backticks. A 456-line file written that way died with *"unexpected EOF while looking for
+  matching `''"* and left the target untouched. Write the file with the Write tool and `cp`
+  it into place; the same pattern works for multi-edit scripts run with `node`.
+- **A source file can contain a literal NUL byte.** `checkConditions.ts` had one inside a
+  string (`?? '\0'` written as the character, not the escape), which made `git diff` and
+  `grep` declare the file binary and print nothing. `grep -a` and `git diff --text` see it.
+- **The `review` check earns its 15 minutes.** It found three assertions that could not have
+  failed — two `not.toContain('friction')` that went vacuous the moment the copy capitalised
+  the word, and one acceptance check that summarised with `severeAlertEvent: null` while
+  comparing against text built from the location's real alerts. All three were defect class
+  11, all three were invisible to every other gate, and the PR was green without them.
+- **When a rename changes a word's case, grep for the old lowercase form in tests.** Every
+  `not.toContain('...')` against it is now vacuous by construction.
+
+**Does the user need to do anything?** **Yes, one thing, and it is not new: a trip to the
+phone.** The readings block has never been seen rendered on a device, and the question this
+rework was for — whether it still overclaims — is one only a real screen answers. The 0-100
+number's survival (§ Open Questions 3) is still open and still blocks nothing.
+
+**Direction note recorded this session:** the owner has said the Mini App is **likely** to
+become a plain web app on Vercel rather than a Telegram Mini App, and explicitly asked that
+**no migration planning be done yet**. Nothing has been reversed, and the Telegram client
+mandate stands as written. The standing instruction is only: do not deepen Telegram-specific
+investment without asking, and prefer a plain-web API where there is a free choice. The
+client-side coupling is `apps/miniapp/src/telegram/`, 157 lines, and `getWebApp()` already
+returns `null` in an ordinary browser.
