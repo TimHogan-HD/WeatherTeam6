@@ -9,10 +9,12 @@ still running and untouched.
 **This supersedes `docs/handoffs/telegram-crossover-v4.md` as the product direction.** The
 crossover doc remains the record of why Telegram existed and is not deleted.
 
-Two standing documents still contradict this one and are amended in **Phase 4**, not before:
-`CLAUDE.md` and `.claude/rules/architecture.md` both carry the Telegram client mandate and
-the "Do not build a login UI. Do not add sessions." rule. See § Explicit rule overrides.
-They are **not blocking**.
+`CLAUDE.md` and `.claude/rules/architecture.md` load every session and both contradicted this
+plan. **Their auth rules were corrected in the Phase 1 PR** — `AUTH_ENABLED`, the three
+schemes, the `req.userId` setter, and the reversal of "do not build a login UI" — because a
+Non-Negotiable Rule forbidding what Phase 2 builds misdirects harder than a stale description.
+**Their Telegram content is still untouched and is amended in Phase 4.** See § Explicit rule
+overrides; it is **not blocking**.
 
 ## Context
 
@@ -291,8 +293,10 @@ Volume is large enough to be its own pass rather than a `/session-end` afterthou
   defects that actually shipped, and classes 3, 5 and 11 are still true of code that is staying.
 - `STATE.md` rewrite + `session-archive.md` block via `/session-end`.
 
-**Made stale by Phase 1, shipped 2026-09-22 — three claims that are now false, listed here
-because they were not on the list above and a stale rule misdirects more than a missing one:**
+**Corrected in the Phase 1 PR itself, not deferred here — three claims Phase 1 made false. They
+were surgical edits to two always-loaded files, not the Phase 4 rewrite, because a **Non-
+Negotiable Rule** that forbids the login UI Phase 2 builds misdirects harder than a stale
+description does:**
 
 - **`AUTH_ENABLED` no longer exists.** Its only reader was `resolveUser`'s 501 branch, deleted
   in Phase 1, and the variable is out of `.env.example` and `turbo.json`. `CLAUDE.md`

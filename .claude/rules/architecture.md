@@ -229,9 +229,15 @@ decisions are final unless explicitly overridden by the user.
 - Defer runtime imports of `../db/index.js` inside the entry function. It throws at import time when `DATABASE_URL` is unset, which pre-empts any friendlier message with a stack trace.
 
 ## Auth Pattern
-- `AUTH_ENABLED=false` means all requests get `req.userId = DEFAULT_USER_ID` injected by `resolveUser`.
+- **`AUTH_ENABLED` is deleted.** It had exactly one reader — `resolveUser`'s 501 branch — and real authentication replaced it in Phase 1 of `docs/handoffs/leave-telegram-v1.md`.
+- **`requireApiAuth` is the only setter of `req.userId` under `/api/v1`**, from the presented credential: `Session <token>` → the token's subject; `Bearer <API_SHARED_SECRET>` and `tma <initData>` → `DEFAULT_USER_ID`. `resolveUser` survives on `/api/telegram` alone, because the webhook reads `req.userId` and authenticates by `chat.id`; Phase 3 deletes both together.
+- **A router mounted outside `/api/v1` reads `req.userId` as `undefined`** through a type that says it cannot be (defect class 8) — no type error, no test failure, just a route that finds nothing. Mount inside the gate or bring your own identity. `src/index.test.ts` pins the webhook's copy of this.
 - Route handlers always use `req.userId`. Never reference `DEFAULT_USER_ID` directly in routes.
-- Do not build login UI. Do not add Clerk. Do not add sessions.
+- **A login UI is now required**, reversing the old rule — see the handoff's § Explicit rule overrides. Still **no Clerk and no self-serve signup**: `npm run user:add` is how an account comes to exist, and it is an operator action.
+- **Two honest limits, and they are design rather than debt.** There is **no rate limiting** on `POST /api/v1/auth/login` — no Redis, no store for counters — so scrypt's cost plus a fixed failure delay is the whole defence and passphrase strength is the real control. There is **no token revocation** — no session table — so rotating `AUTH_TOKEN_SECRET` invalidates every token at once and is the only lever. Do not describe either as stronger than it is.
+- **The token is not a JWT, deliberately**: HMAC-SHA256 over a base64url payload, one algorithm, no `alg` field to confuse and no `alg:none` to reject. `lib/auth/token.ts` is pure and returns a discriminated result; it signs and verifies over the raw payload *string*, never over re-serialised claims, because `JSON.stringify` of parsed claims does not reproduce the bytes that were signed.
+- **An unknown username costs the same scrypt derivation as a known one** (`dummyPasswordHash`). Returning early on a miss is a username oracle worth tens of milliseconds over the network.
+- **CORS is an allowlist, not `*`** — `lib/cors.ts`, overridden outright by `CORS_ALLOWED_ORIGINS`. One `*` may stand for a single host label (`https://*.vercel.app`) so a preview deployment is reachable; the label is matched against `[a-z0-9-]+` rather than "anything but a dot", because a suffix match is satisfied by `https://evil.com/x.vercel.app`.
 
 ## Database Rules
 - Drizzle schema is the single source of truth. Schema lives in `apps/api/src/db/schema.ts`.

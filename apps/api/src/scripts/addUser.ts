@@ -34,6 +34,7 @@
 
 import { randomBytes } from 'node:crypto'
 import { createInterface } from 'node:readline'
+import { PassThrough } from 'node:stream'
 
 // Runtime imports are deferred into run(): `../db/index.js` throws at import
 // time when DATABASE_URL is unset, which would pre-empt the explanation below
@@ -74,19 +75,33 @@ function parseArgs(argv: string[]): Args {
 }
 
 /**
- * Prompt without echoing. `readline` writes the prompt through `output`, so the
- * mute has to let the prompt itself through and swallow only what is typed back.
+ * Prompt without echoing.
+ *
+ * **`readline` never writes to the terminal here** — its output goes to a sink
+ * that is thrown away, and the prompt is written to stdout directly. Editing
+ * still works because `terminal: true` keeps stdin in raw mode; only the echo
+ * is discarded.
+ *
+ * The obvious implementation — override `_writeToOutput` and let the prompt
+ * through — **leaks the passphrase**, and was caught in review. On backspace,
+ * Ctrl-U or a line wrap, readline calls its refresh path, which writes
+ * `prompt + line-so-far` as a *single* chunk; a guard keyed on the prompt being
+ * present therefore passes and prints what has been typed. The trailing newline
+ * does not clear it, so it stays in scrollback after the process exits. One
+ * backspace is enough. Verified against Node 24 by driving a fake TTY.
+ *
+ * Discarding the whole stream is immune to that, and to whatever readline's
+ * private hooks do next — `_writeToOutput` is undocumented.
  */
 function promptHidden(question: string): Promise<string> {
   return new Promise((resolve) => {
-    const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true })
-    const asHidden = rl as unknown as { _writeToOutput?: (s: string) => void }
-    const original = asHidden._writeToOutput?.bind(rl)
-    asHidden._writeToOutput = (chunk: string): void => {
-      if (chunk.includes(question)) original?.(chunk)
-    }
-    rl.question(question, (answer) => {
+    const sink = new PassThrough()
+    sink.resume()
+    const rl = createInterface({ input: process.stdin, output: sink, terminal: true })
+    process.stdout.write(question)
+    rl.question('', (answer) => {
       rl.close()
+      sink.end()
       process.stdout.write('\n')
       resolve(answer)
     })
