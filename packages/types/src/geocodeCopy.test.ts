@@ -46,3 +46,22 @@ describe('placeSubtitle', () => {
     expect(placeSubtitle({ ...BASE, feature_code: null, admin1: null, country: null })).toBe('');
   });
 });
+
+describe('placeSubtitle — a climbing area', () => {
+  it('names the kind, the climb count, the parent and the source', () => {
+    expect(
+      placeSubtitle({
+        admin1: 'Minnesota',
+        country: 'United States',
+        feature_code: null,
+        climbing_area: { climbs: 42, parent: 'He Mni Can - Barn Bluff (Red Wing)' },
+      }),
+    ).toBe('Climbing area · 42 climbs · He Mni Can - Barn Bluff (Red Wing) · Minnesota, United States · OpenBeta')
+  })
+
+  it('omits a missing parent and says "climb" for one', () => {
+    expect(
+      placeSubtitle({ admin1: 'Minnesota', country: 'United States', feature_code: 'PPL', climbing_area: { climbs: 1, parent: null } }),
+    ).toBe('Climbing area · 1 climb · Minnesota, United States · OpenBeta')
+  })
+})

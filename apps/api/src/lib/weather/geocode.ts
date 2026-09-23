@@ -1,6 +1,7 @@
 import type { GeocodeResult } from '@weatherteam6/types'
 import { logger } from '../logger.js'
 import { fetchWithRetry } from './openMeteo.js'
+import { searchClimbingAreas } from './climbingAreas.js'
 
 const GEOCODE_URL = 'https://geocoding-api.open-meteo.com/v1/search'
 
@@ -115,6 +116,21 @@ export async function searchPlaces(query: string, count = DEFAULT_COUNT): Promis
   const q = query.trim()
   if (q.length < MIN_QUERY_LENGTH) return []
 
+  // Climbing areas first: the geocoder ranks by population. If the geocoder is
+  // down the areas still answer — they are local data and were never at risk.
+  const areas = searchClimbingAreas(q)
+  let places: GeocodeResult[]
+  try {
+    places = await geocodePlaces(q, count)
+  } catch (err) {
+    if (areas.length === 0) throw err
+    logger.warn('[geocode] place search failed; returning climbing areas only')
+    places = []
+  }
+  return [...areas, ...places]
+}
+
+async function geocodePlaces(q: string, count: number): Promise<GeocodeResult[]> {
   const results = await fetchPlaces(q, count)
   if (results.length > 0) return results
 

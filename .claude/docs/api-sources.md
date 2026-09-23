@@ -104,12 +104,12 @@ Read this before any weather fetch work. Every source has gotchas that will wast
 - **Cost:** Log every call to `premium_pulls` table with estimated cost
 - **Rate limit:** Varies by plan. Add 1s delay between calls if batching.
 
-## OpenBeta Crag Data
-- **Source:** `https://github.com/OpenBeta/climbing-data` — download export, do not call an API
-- **Format:** JSON export, one file per area
-- **Sync:** Weekly via background job that checks GitHub release date
-- **Fields to extract:** `id`, `name`, `metadata.lat`, `metadata.lng`, `metadata.rock`, `pathTokens` (for area hierarchy)
-- **Rock type mapping:** OpenBeta uses free-text. Map to: `sandstone | limestone | granite | basalt | unknown`
+## OpenBeta Climbing Areas
+- **What uses it:** the `/add` search. `lib/weather/climbingAreasMn.ts` is a **generated snapshot** of every Minnesota area with a climb and a coordinate (313, fetched 2026-09-23); `searchClimbingAreas` puts up to 5 matches above Open-Meteo's places. Nothing calls OpenBeta at runtime. Licence CC0; the subtitle names it anyway.
+- **Why a snapshot, measured 2026-09-23:** the GraphQL API at `https://api.openbeta.io/` took 4-13 s per name search and returned 502 on two of seven — unusable as type-ahead. There is **no public area export**: `OpenBeta/openbeta-export` is private and `climbing-data` holds only 2020 route records.
+- **How the snapshot was pulled:** `areas(filter:{path_tokens:{tokens:["USA","Minnesota"]},leaf_status:{isLeaf:<bool>}},limit:200,offset:n)`, once for parents and once for leaves. The default `limit` is **50 and silent** — Red Wing was missing until pagination. `bulkAreas` returned 502 or []. Retry 502s and connection resets; they are routine.
+- **Coverage:** 206k of OpenBeta's 231k climbs are in the USA; France has 71. It fixes US search and adds little in Europe. No elevation, no rock type, no aspect.
+- **The `crags` table and `importCrags.ts` are unused** by this — they predate it and still assume an export format that does not exist.
 
 ## suncalc
 - **Package:** `suncalc` npm package — client-side only, no API

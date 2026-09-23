@@ -482,6 +482,10 @@ export type GeocodeResult = {
    *  categories (a town, its dam, and a state park all named "Willow River")
    *  are indistinguishable in the picker — see issue #82. */
   feature_code: string | null
+  /** Set only on a row from OpenBeta's climbing areas rather than the place
+   *  geocoder; those rows lead the list. Optional because the API and the client
+   *  deploy separately — absent means an ordinary place. */
+  climbing_area?: { climbs: number; parent: string | null } | null
 }
 
 export type LocationNormal = {

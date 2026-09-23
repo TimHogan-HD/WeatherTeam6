@@ -554,7 +554,7 @@ Note that change 2 finally exercises the `fetchArchivePrecip` branch of `liveFor
 ### 12.4 Deliberately deferred
 
 - **Editing a saved location.** No `PATCH /locations/:id` exists and none is added here. Rock type, aspect, and cliff angle are captured at save or not at all. Aspect and cliff angle are *not* asked for at save — they need a compass and an estimate, which is too much friction for an add flow, and they modify the drying score far less than rock type does. Both fall back to their existing defaults (aspect South, angle 45°). Revisit when there is evidence the defaults are hurting.
-- **Merging `crags` results into search** (§12.2).
+- **Merging `crags` results into search** (§12.2). *Partly done 2026-09-23 without the table: OpenBeta's Minnesota areas are a generated module (`lib/weather/climbingAreasMn.ts`) and lead `/geocode` results, owner-scoped to Minnesota for now. Another state is another generated file.*
 - **Reordering or grouping the saved list.** §9 still holds.
 
 ### 12.5 Sequencing — this changes the task order
