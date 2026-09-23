@@ -571,6 +571,12 @@ dangerous.
 
 Continuing §6. All **[R]** unless noted.
 
+> **Status 2026-09-23: partly overtaken.** The **v2 model reads dew point**
+> (`rockThermal.ts`, `sweatBalance.ts`, `hourlyConditions.ts` — the condensation margin), and
+> the web app's measurements panel **displays** it (PR #175). What still holds is the narrower
+> claim: the **five-component scorer** does not read it. Phase 5 of the scoring handoff
+> retires that scorer, at which point this finding is closed.
+
 **6.7 `dewpoint_c` is stored twice and read by nothing.** It is a column on
 `forecast_snapshots` and `weather_ensemble_hours`; `grep dewpoint apps/api/src/lib/scoring/`
 returns a single test fixture. §10 says it is the variable the community actually uses. This
