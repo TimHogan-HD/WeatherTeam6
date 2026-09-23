@@ -116,7 +116,15 @@ Each phase: implement → acceptance criteria → `npm run typecheck` → `npm r
 
 ### Upcoming Phases — Telegram Crossover
 
-**Direction changed 2026-07-31.** The product is now a Telegram bot + Telegram Mini App, not a React Native app. `apps/mobile` is being archived. The authoritative spec is `docs/handoffs/telegram-crossover-v4.md`; the near-term roadmap with sequencing constraints is in the Telegram Crossover roadmap (Tasks 5–7).
+> **⚠️ Superseded 2026-09-22 — this whole section is history.** Tasks 5–7 below all
+> completed, and all of them are being undone: the owner decided to **delete Telegram
+> entirely** and make the client a standalone web app. The authoritative direction is
+> `docs/handoffs/leave-telegram-v1.md` (Phases 1 and 2 shipped; Phase 3 deletes the bot).
+> Read the task records below for *what was built and why*, never for what to build next —
+> in particular, the client no longer uses `BackButton`, `initData`, `themeParams` or the
+> `startapp` deep link, and `apps/miniapp/src/telegram/` and `lib/deepLink.ts` are deleted.
+
+**Direction changed 2026-07-31, and reversed 2026-09-22.** The product became a Telegram bot + Telegram Mini App rather than a React Native app; `apps/mobile` was archived and stays archived. The spec for that move was `docs/handoffs/telegram-crossover-v4.md`, now superseded.
 
 Each phase: implement → `npm run typecheck` → `npm run lint` → review checklist → commit → **stop and wait for gate-pass**.
 

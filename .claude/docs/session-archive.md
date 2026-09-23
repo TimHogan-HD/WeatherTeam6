@@ -3697,3 +3697,42 @@ are done: they created a Vercel API token and set it as `VERCEL_TOKEN`, which is
 environment variables reachable at all. Outstanding items are unchanged from last session — a
 trip to the phone with the readings block, and the 0-100 question — plus one new optional one:
 choosing their own passphrase and running `user:add --user-id` when Phase 2 has a login screen.
+
+---
+
+## 2026-09-22 — branch: phase2-standalone-webapp — commit: b4f91fa
+
+**Phase completed:** Leave Telegram, Phase 2 — the web app stands alone (PR #169)
+
+**What was built this session:**
+- `apps/miniapp/src/lib/authToken.ts` — the session token and the only place it is stored. In-memory copy plus `localStorage`, every accessor wrapped because Safari private mode *throws* rather than returning null, and a subscribe/notify so the store can be read by React and written by the network layer.
+- `apps/miniapp/src/hooks/useAuth.ts` — `useSyncExternalStore` over that store. A context with a setter would not work: the token is cleared from *outside* React, inside any React Query fetch on any screen.
+- `apps/miniapp/src/routes/Login.tsx` + test — `/login`. One message for every failure, ours not the API's; passphrase cleared on failure, username kept; no signup link, because there is no signup.
+- `apps/miniapp/src/lib/api.ts` — `Authorization: Session <token>`. A 401 on an authenticated call clears the token; `apiLogin` is the one unauthenticated call and does not.
+- `apps/miniapp/src/lib/backTarget.ts` + test — the §2 back-target table as a pure function, **overloaded per route**.
+- `apps/miniapp/src/components/Screen.tsx` + test — the back control, on its own row above the title, padded to a 44px target.
+- `apps/miniapp/src/App.tsx` — `RequireAuth`, and a **module-scope** subscription clearing the query cache when the token goes.
+- `apps/miniapp/src/theme/webManifest.ts` + test, and `webManifestPlugin` in `vite.config.ts` — the PWA manifest and `theme-color`, generated from the tokens and served in dev as well as built.
+- `apps/miniapp/scripts/generate-icons.mjs` + `check-icons.mjs`, root `check:icons` — the four PNGs in `public/icons/`, rasterised from the tokens by hand (no image library in this workspace), with a CI check that the committed bytes still match the palette.
+- Deleted: `src/telegram/` (4 files), `lib/deepLink.ts` + test, `useTelegramChrome()`, the deep-link history seating, the SDK script tag. `--tg-*` geometry became `100dvh` / `env(safe-area-inset-*)`.
+- Docs: `CLAUDE.md`'s client line, `architecture.md`'s client section and the alert-deep-link note, seven now-false rules cut from the `miniapp-patterns` skill, and the handoff marked shipped.
+
+**Known issues / deferred work:**
+- **The bot's alert deep link now lands on the list**, not the location the alert was about — nothing reads `start_param` any more. Accepted and documented in `architecture.md`; Phase 3 removes the button with the bot. If Phase 3 slips, drop the button from `alertKeyboard` rather than shipping one that lands wrong.
+- **Not verified on a real phone.** No notch in headless Chrome, so `env(safe-area-inset-*)` was 0 throughout and Add to Home Screen was never exercised on a device.
+- Phase 4's wider doc sweep is untouched: `telegram-patterns`, `miniapp-design-v1.md`'s banners, the `tma` scheme description in `architecture.md` (still accurate — the API accepts it until Phase 3).
+
+**Blockers for next session:** None.
+
+**What's next:** Phase 3 — delete Telegram. `git checkout -b phase3-delete-telegram` off `main` — read `docs/handoffs/leave-telegram-v1.md` § Phase 3 before deleting anything. It is the irreversible phase, gets its own PR, and its diff is the last chance to notice something the bot was quietly carrying.
+
+**Gotchas for next session:**
+- **Preview deploys are still behind Vercel SSO, and the local dev server is a better target than fighting it.** The plan's Phase 2 verification said "open a preview deployment in a real browser"; a preview URL answers 302 to a Vercel login page and turning SSO off is a security setting. What worked, with no decision required: `vite` on `:5173` (already in the CORS default allowlist) against a local `createApp()` on the real `DATABASE_URL`, with a throwaway user and location created and torn down around the run. **This is now the repeatable way to drive the UI**, and it reaches live Open-Meteo data.
+- **`expires_at` is deliberately not stored, and the reason is not obvious.** A client-side expiry check looks like politeness until a device has a wrong clock: it discards a token it was just issued, bounces to `/login`, and does the same on the next successful login — a dead end with no error. The 401 is authoritative and costs one round trip. Do not "improve" this by adding the check back.
+- **A discriminated union returned to several callers wants overloads, not one wide type.** `backTarget` first returned the whole `BackAction` union, so each route's dispatch ended in an `if` that silently did nothing for any kind it did not know — a fourth action would have compiled everywhere and produced a back control that looks ordinary and does not respond. Per-route overloads make it a type error in the route that was not updated. Confirmed by writing the wrong assignment and watching `tsc` reject it.
+- **A generated asset needs a check or the generator is a comment.** `generate-icons.mjs` derives every colour from the tokens, which only keeps the icon and the app on one palette *if somebody re-runs it*. `check:icons` is what makes that true, and it is free because CI enumerates root `check:*` from `package.json`.
+- **Chrome installs a PWA from its menu without a service worker** (108 mobile / 112 desktop) but **never offers the automatic install prompt** without a `fetch` handler. So `display: standalone` works and the user has to find Install in the menu. Adding an empty service worker to earn the prompt is the antipattern Chrome dropped the requirement over — if the prompt is wanted, it comes with a real caching story.
+- **`eslint.config.mjs` lints plain-JS scripts and has no Node globals block for new script directories.** `apps/miniapp/scripts/**/*.mjs` had to be added to the node-globals `files` list; `Buffer`, `process` and `console` are `no-undef` otherwise. The ignore block says scripts should be linted rather than exempted, so add the path, do not add an ignore.
+- **The owner already has a username (`tim`).** Confirmed by reading the `users` table. Item 3 of the old "what the user owes" list is done.
+
+**Does the user need to do anything?** **No.** The login screen is live at https://weatherteam6.vercel.app and their account already exists, so they can sign in whenever they like. The two standing items are unchanged and neither blocks Phase 3: a trip to the phone (now also worth checking safe-area padding and Add to Home Screen, which no desktop browser can answer), and the 0-100 question in the scoring handoff's § Open Questions 3.

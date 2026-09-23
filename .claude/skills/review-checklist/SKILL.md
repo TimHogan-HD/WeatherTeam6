@@ -78,9 +78,11 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] No hand-written `--wt6-*` declaration — the `:root` block is generated from the tokens by `src/theme/cssVars.ts`
 - [ ] A token property added in `packages/design` has a mapping in the adapter — not a widened type or a silenced throw; RN/CSS defaults differ (flex `column` vs `row`, `border-width` needing `border-style`) and a missing mapping renders wrong rather than failing
 - [ ] Vertical spacing comes from tokens, not browser default margins — `globals.css` resets them, and a new text element that needs spacing gets it from the type scale
-- [ ] Every `--tg-*` var reference has a fallback (`var(--tg-safe-area-inset-top, 0px)`) — CSS drops the whole declaration when a `var()` resolves to nothing
-- [ ] The screen still renders with `getWebApp()` returning `null` — a plain browser, or `telegram-web-app.js` failing to load
-- [ ] Each Telegram API call is gated at its own version floor, not a shared one
+- [ ] Every `env(safe-area-inset-*)` reference keeps its `0px` fallback, and `index.html` still sets `viewport-fit=cover` — without the latter every inset silently computes to 0 on a notched phone, and without the former CSS drops the whole declaration
+- [ ] **A 401 on an authenticated call clears the token; nothing else does.** `apiLogin` is the one unauthenticated call (its 401 is a wrong passphrase, not a dead session) and a 503 means the server has no signing key, so neither may clear. A new call added outside `request()` bypasses this entirely
+- [ ] Nothing reintroduces a client-side `expires_at` check — a wrong device clock then discards a token it was just issued and dead-ends on `/login`
+- [ ] A new screen behind the gate is wrapped in `RequireAuth`, and a new back affordance goes through `backTarget` rather than calling `navigate('/')` — two of the five targets are not navigations
+- [ ] A colour reaching the manifest, `theme-color` or `public/icons/` still comes from the tokens; `npm run check:icons` passes after any palette change
 - [ ] Copy follows the locked rules in `docs/handoffs/weatherteam6-ui-handoff-v1.md` §Design System — no climbing opinions, score is never the headline, imperial units
 - [ ] Nothing formats a nullable weather value by hand — the `packages/types` formatters return an em dash, and `null` coerced to `0` renders a plausible `32°F` / `0 mph` instead of a visible gap
 - [ ] The readings and the suppression come from `readingsCopy.ts`, not reimplemented — and no surface derives a word from the score, which is what `stateLabel` did and why it is gone
@@ -91,9 +93,7 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] A swallowed upstream error does not become a favourable input — an unmeasurable value withholds the score (`scoreUnavailable`) rather than scoring as its best case
 - [ ] "The call failed" and "the call returned nothing" are handled separately — a genuine empty result still scores
 - [ ] No interactive element is nested inside another (`LocationCard` is a `div` with `role="button"` for exactly this reason)
-- [ ] `TELEGRAM_BOT_TOKEN` never reaches the client bundle — `initData` is validated server-side
-- [ ] A deep-link parameter is validated and never repaired — `loc_<uuid>` with dashes intact, anything else lands on `/` silently and renders no error
-- [ ] Deep-link history is seated before React mounts, `/` then `/location/:id` — not in an effect, and not detail alone (the platform back gesture would close the app)
+- [ ] No credential is a build-time value — `API_SHARED_SECRET` and `TELEGRAM_BOT_TOKEN` never reach the client bundle, and no `VITE_*` variable carries one
 - [ ] No new features added to `apps/mobile` — it is archived and out of the build. It leaves the build through its own `package.json` scripts; a `turbo.json` override cannot silence a script that exists
 
 ## Telegram surfaces

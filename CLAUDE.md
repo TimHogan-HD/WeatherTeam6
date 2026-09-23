@@ -113,11 +113,12 @@ Everything in `.claude/rules/` is loaded automatically at session start — you 
 Skills load on demand: **`/review-checklist`** (run before every commit), **`/session-end`** (the session-end protocol), plus `miniapp-patterns`, `drizzle-patterns`, `background-work` and `conditions-score`, which load themselves when you touch the matching files.
 
 **Direction (read first):**
-- `docs/handoffs/telegram-crossover-v4.md` — **authoritative product direction.** Telegram bot + Mini App replaces the native app. **All seven tasks complete as of 2026-08-26; the crossover is finished and there is no Task 8.** Remaining work lives in the open issues and `.claude/docs/plan.md`, not in that doc.
+- `docs/handoffs/leave-telegram-v1.md` — **the authoritative product direction, as of 2026-09-22.** Telegram is being deleted and the client is a standalone web app. Phases 1 and 2 are shipped; **Phase 3 deletes the bot and is the irreversible one**. Read it before any work on the client, on auth, or under `apps/api/src/lib/telegram/`.
+- `docs/handoffs/telegram-crossover-v4.md` — **superseded, and kept as the record of why Telegram existed.** Its seven tasks all completed (2026-08-26) and are all being undone. **Do not take direction from it.**
 
 **UI Design Handoffs:**
-- `docs/handoffs/weatherteam6-ui-handoff-v1.md` — written for the archived mobile app, but its **§Design System is still in force and client-agnostic**: locked contrast rules, layout constants, copy rules. §7b (Home), §7c (Location Detail), §7e (Locations) are the closest existing specs to the Mini App's screens. Note the Mini App has **three** routes, not two — §12 added `/add`.
-- `docs/handoffs/miniapp-design-v1.md` — **the Mini App spec, and it is binding.** Screens, theming, units, states, copy model, and §12 the add-location flow. It supersedes this repo's older two-screen sketches.
+- `docs/handoffs/weatherteam6-ui-handoff-v1.md` — written for the archived mobile app, but its **§Design System is still in force and client-agnostic**: locked contrast rules, layout constants, copy rules. §7b (Home), §7c (Location Detail), §7e (Locations) are the closest existing specs to the client's screens. Note the client has **four** routes, not two — §12 added `/add`, and migration Phase 2 added `/login`.
+- `docs/handoffs/miniapp-design-v1.md` — **the client's screen spec, and it is binding except where the migration overrides it.** Screens, units, states, copy model, and §12 the add-location flow. **Its Telegram halves are dead**: §1's `themeParams` and chrome calls, §2's `BackButton` and deep link, and §2/§8's ban on an in-app back arrow — Phase 2 replaced all of them, and the overrides are listed in `leave-telegram-v1.md` § Explicit rule overrides. The **per-route back targets in §2 are unchanged** and are implemented in `apps/miniapp/src/lib/backTarget.ts`. Phase 4 rewrites the banners.
 - `docs/handoffs/design-mockups/weatherteam6UI.html` — primary mockup for Home + Location Detail. Visual reference only; where it and `miniapp-design-v1.md` disagree, the spec wins.
 - Mobile-only mockups (`radar-*`, `walls-*`, `trips-*`) are **archived reference, not being built.**
 

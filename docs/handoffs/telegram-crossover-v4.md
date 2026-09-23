@@ -6,7 +6,19 @@
 
 ---
 
-## ⚠️ Status as of 2026-07-31 — read this first
+## ⚠️ SUPERSEDED 2026-09-22 — read this first
+
+**This document is no longer product direction.** The owner decided on 2026-09-22 to
+**delete Telegram entirely** and make the client a standalone web app; the authoritative
+plan is `docs/handoffs/leave-telegram-v1.md`. All seven tasks below completed, and all of
+them are being undone — migration Phase 2 removed the client from Telegram, and Phase 3
+deletes the bot.
+
+It is kept because it is the only record of **why Telegram was adopted** (*"zero ongoing
+cost, no server to keep alive"*, after every Railway deploy failed) — a constraint a static
+site on Vercel satisfies identically. Read it for that. Do not take direction from it.
+
+## ⚠️ Status as of 2026-07-31 — historical
 
 **Tasks 1–4 are COMPLETE, merged, and verified live** (PR #20, `main` @ `adb19a6`). The
 rest of this document is preserved as the source of truth for **Tasks 5–7**, which are
