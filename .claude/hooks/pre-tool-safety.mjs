@@ -33,13 +33,6 @@ function defaultBranchName() {
   return isGitRepo() ? defaultBranch() : null
 }
 
-const CHECKLIST_POINTER = `REMINDER — Gate 0 of the review checklist:
-  Read the actual diff, hunk by hunk, as prose. Not the checklist, not the test
-  output. For each hunk ask what it renders or does when the input is null, 0,
-  absent, or the network fails.
-  Every defect this project has shipped passed typecheck, lint and the suite.
-  Full checklist: run the /review-checklist skill.`
-
 function readStdin() {
   return new Promise((resolve) => {
     let raw = ''
@@ -210,17 +203,6 @@ if (tool === 'Bash' && /\bgit\s+commit\b/.test(command)) {
         'If this is genuinely a direct-to-default commit the user asked for, they can run it themselves.',
     )
   }
-}
-
-/* ---------------------------------------------------------------- *
- * 6. Pre-commit reminder. Not a block.
- *    Deliberately a pointer, not the full checklist: dumping ~2,800 tokens of
- *    markdown into context on every commit is the sort of always-on cost
- *    Stage 1 exists to remove. Gate 0 is the part that has actually caught
- *    defects, so Gate 0 is what gets restated.
- * ---------------------------------------------------------------- */
-if (tool === 'Bash' && /\bgit\s+commit\b/.test(command) && !/--amend\b/.test(command)) {
-  process.stderr.write(`${CHECKLIST_POINTER}\n`)
 }
 
 process.exit(0)

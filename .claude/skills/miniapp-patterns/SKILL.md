@@ -6,11 +6,6 @@ paths: apps/miniapp/**, packages/design/**
 
 # Web App Patterns
 
-> Extracted from `.claude/rules/architecture.md` on 2026-08-26. These rules were
-> always-loaded prose costing ~2,000 tokens in every session, including the many that
-> never touch the client. They are unchanged in substance and still binding — they now
-> load when you actually open a file they govern.
-
 **The app is styled entirely with inline styles**, which cannot express hover,
 transitions, keyframes or breakpoints. That ceiling is real and it is why the charts
 carry no hover layer. **Starting a CSS or motion architecture is still not authorised**
@@ -19,9 +14,8 @@ carry no hover layer. **Starting a CSS or motion architecture is still not autho
 
 ## Charts (`apps/miniapp/src/components/charts/`)
 
-Inline SVG, no chart library — `miniapp-design-v1.md` §8. Shipped 2026-09-15. The rules
-below are the ones that are wrong-but-plausible if broken, which is the only kind worth
-always-loading:
+Inline SVG, no chart library — `miniapp-design-v1.md` §8. Each rule below is one that
+renders wrong-but-plausible if broken:
 
 - **A rain bar covers the hour *before* its timestamp.** Precipitation is stamped at the end
   of the hour it fell in, so an 02:00 sample describes 01:00-02:00 — the same convention
@@ -34,9 +28,6 @@ always-loading:
   stroke width, so `linePath` returns `''` and the caller draws a dot. Same family as a
   `NaN` coordinate, which is why `extent` skips non-finite values and `linearScale` answers
   a zero-width domain with the middle of the range.
-- **A zero-height bar and an absent bar are the same picture**, so the rain baseline runs
-  only under hours that have a reading. That line is what separates "no rain" from "no
-  forecast".
 - **Values stay in the API's metric units; only the formatter converts.** Converting in the
   adapter forces every threshold to be restated in the other unit.
 - **Labels describe the series, not the band around it.** The domain must cover p10-p90 or
@@ -58,9 +49,6 @@ always-loading:
   run that produced any particular column. The deterministic and ensemble runs are cached
   independently and can be an hour apart; an age line is a freshness claim about what the
   reader is looking at, and the staler half bounds it.
-
-Added by Phase 3 (2026-09-14), same test — wrong-but-plausible if broken:
-
 - **An accumulation and an instantaneous reading are placed differently on the same axis,
   and the rain rule does not generalise.** `precip_mm_mean` at 15:00 is the rain that fell
   between 14:00 and 15:00, so its bar spans the hour *before* its timestamp. `temp_c_p50`
@@ -78,8 +66,8 @@ Added by Phase 3 (2026-09-14), same test — wrong-but-plausible if broken:
   pale boxes covering a fraction of the plot where bars now span 15-81 units of 106. Rain,
   chance of rain and wind are real magnitudes and keep a zero floor.
 - **`BAR_MIN_H` gives every measured hour a visible stub**, which is what keeps "no rain"
-  and "no forecast" different pictures. It replaced a run-length baseline: a per-hour stub
-  says which *hours* were measured, where a line under a run only said where the run was.
+  and "no forecast" different pictures — a zero-height bar and an absent bar would
+  otherwise look the same.
 - **What the two edge labels say depends on whether anything else states the series.** A
   bar chart's caller prints the day's range in the heading, so the labels are the *scale* —
   and for a non-zero floor they must be, because the floor is the one thing the picture
@@ -151,13 +139,11 @@ Added by Phase 3 (2026-09-14), same test — wrong-but-plausible if broken:
 
 ## Client Mandate — the web app
 
-**This is the client, and there is no second one.** `apps/miniapp` (Vite + React, static build) is the real, complete implementation of every user-facing screen. It was native-mobile-first, then a Telegram Mini App, and has been a **standalone web app** since 2026-09-22 — `docs/handoffs/leave-telegram-v1.md`. The directory name is the last of the Mini App. The old Mobile-First Mandate (never use WebView, `react-native-maps` for every map, native `.tsx` always real) is **superseded**, and `apps/mobile` itself was deleted on 2026-09-23.
+`apps/miniapp` is a standalone web app and the only client; it runs in an ordinary browser.
 
-**The Telegram rules that used to be in this file described client code, and they are gone with it** — theming from `themeParams`, the per-method capability gates, the `--tg-*` fallbacks, `getWebApp()` returning null, and the three deep-link rules. Do not reintroduce any of them: without the SDK there is no `initData`, and the Telegram launch path is over.
-
-- **Design tokens come from `packages/design`.** Do not redefine colors, spacing, or type scale in the client. The locked contrast, layout, and copy rules in `docs/handoffs/design-system-v1.md` still apply — they are client-agnostic.
+- **The locked contrast, layout and copy rules are in `docs/handoffs/design-system-v1.md`.**
 - **No hardcoded mock data in production components.** `MOCK_*` constants, `mockXyz()` functions, and bell-curve approximations are stubs that must be replaced before a feature is complete. Stubs are only acceptable during the phase that explicitly introduces them, and must be wired to real data in that phase or the immediately following one.
-- **Auth (rewritten 2026-09-22, migration Phase 2):** the app authenticates with a session token from `POST /api/v1/auth/login`, sent as `Authorization: Session <token>` and held in `localStorage` by `src/lib/authToken.ts`. **A 401 on an authenticated call clears the token** — in `api.ts`, once, for every call — and `RequireAuth` in `App.tsx` redirects on the token being gone rather than on a status it saw. Three things not to reinvent: `apiLogin` is the one **unauthenticated** call and must not clear on its 401, which means a wrong passphrase rather than a dead session; a **503** must not clear either, because it means the server has no signing key and the login screen cannot work; and `expires_at` is **deliberately not stored**, because a client-side expiry check on a device with a wrong clock discards a token it was just issued and bounces to `/login` with nothing to explain it.
+- **Auth:** the app authenticates with a session token from `POST /api/v1/auth/login`, sent as `Authorization: Session <token>` and held in `localStorage` by `src/lib/authToken.ts`. **A 401 on an authenticated call clears the token** — in `api.ts`, once, for every call — and `RequireAuth` in `App.tsx` redirects on the token being gone rather than on a status it saw. Three things not to reinvent: `apiLogin` is the one **unauthenticated** call and must not clear on its 401, which means a wrong passphrase rather than a dead session; a **503** must not clear either, because it means the server has no signing key and the login screen cannot work; and `expires_at` is **deliberately not stored**, because a client-side expiry check on a device with a wrong clock discards a token it was just issued and bounces to `/login` with nothing to explain it.
 - **The query cache is cleared when the token goes**, from a module-scope subscription in `App.tsx` rather than an effect in the component the redirect is unmounting. Two partners on one tablet: the second signs in with their own valid token, nothing 401s, nothing refetches, and the first one's crags stay on the list.
 - **`API_SHARED_SECRET` must never reach this bundle**, and nothing about auth is a build-time value. Preview deployments are behind Vercel SSO (`ssoProtection: all_except_custom_domains`), so a preview URL answers 302 to a Vercel login page; turning that off is a security setting and the owner's call.
 
@@ -170,7 +156,7 @@ Added by Phase 3 (2026-09-14), same test — wrong-but-plausible if broken:
 - **A withheld score and an absent one are different answers and must read differently.** `ConditionsScore.unavailable_reason` carries the first; `data: null` from `/conditions/:id` remains the second ("no row for today"). The copy for both lives in `packages/types` (`scoreUnavailableLine`) so two surfaces cannot word it differently.
 - **The client never asks for a score it must not show.** `computeLiveForecast` does not branch on `is_climbing_location` — `GET /conditions/:id` returns a rock-drying score for a city if asked. `useConditions` is therefore gated on the location being a climbing location, and the readings section and hours-since-rain are both absent otherwise. Do not "fix" a missing score by relaxing that gate.
 - **The sources footer is computed from the response, never written down.** The forecast models come from `model_sources` (which is `['nbm']` or the ensemble list, depending on what actually ran) and the rainfall branch from whether the location has an `asos_station`. A source is omitted rather than guessed when the data is absent — including NWS when the alerts call failed. Naming a source that never ran is a false attribution, which is what the "quote data sources by name" rule exists to prevent.
-- **"Today" is whichever row the server flagged `is_today`, and the client must not re-derive it** (issue #33, fixed 2026-08-26 — `todayUtcIso` is deleted). `findToday` reads the flag. It falls back to a UTC date comparison **only** when no row in the response carries the flag at all, which means a response cached from before the fix; a row that simply has `is_today: false` is a real answer. When nothing matches, the screen says so — it must never fall back to the first row, which relabels tomorrow's numbers as today's.
+- **"Today" is whichever row the server flagged `is_today`, and the client must not re-derive it** (issue #33). `findToday` reads the flag. It falls back to a UTC date comparison **only** when no row in the response carries the flag at all, which means a response cached from before the fix; a row that simply has `is_today: false` is a real answer. When nothing matches, the screen says so — it must never fall back to the first row, which relabels tomorrow's numbers as today's.
 - **The words and the suppression live in `packages/types/src/readingsCopy.ts`**, because every surface must say the same thing about the same crag. **The words are the two readings themselves, never a phrase derived from the number** — `stateLabel` and `summarizeConditions` were deleted in Phase 3b for exactly that reason, and a ladder must not be reintroduced. **They are labelled fields rather than prose** (`Dryness: Dry`, `Friction: Great`, `Score: 100`): the owner's verdict on the first version was that plain-English readings read as fact. `ScoreChip` was deleted with it — the score is the third gauge in the row, drawn by `ReadingsSection`. Suppression under a Severe+ alert drops the **number** and keeps the readings, which is the reverse of the rule it replaced: the words now come from physics that sees heat, and the number is the part that reads as actionable.
 - **A card that is itself a tap target must not be a `<button>`** if anything inside it is interactive. `LocationCard` contains a retry control, and a `<button>` inside a `<button>` is invalid markup the browser reparses, moving the inner control out of the card.
 - **React Query** remains the agreed state management layer for server data. No Redux, no Zustand, no Context for server state.

@@ -111,7 +111,7 @@ const cases = [
 
   // ---- post-push --------------------------------------------------------
   ['gh pr create asks for review', POST, bash('gh pr create --fill'), ALLOW, 'code-review high'],
-  ['git push asks for review', POST, bash('git push -u origin HEAD'), ALLOW, 'code-review'],
+  ['git push alone is silent (CI re-reviews pushes)', POST, bash('git push -u origin HEAD'), ALLOW],
   ['unrelated command is silent', POST, bash('npm run test'), ALLOW],
 ]
 
@@ -284,22 +284,6 @@ const gitScenarios = [
     (w) => g(w, 'checkout', '-b', 'feat/y'),
     PRE,
     bash('git commit -m "x"'),
-    ALLOW,
-    null,
-  ],
-  [
-    'PreToolUse: git commit on a feature branch still prints Gate 0',
-    (w) => g(w, 'checkout', '-b', 'feat/z'),
-    PRE,
-    bash('git commit -m "x"'),
-    ALLOW,
-    'Gate 0',
-  ],
-  [
-    'PreToolUse: git commit --amend on a feature branch stays quiet',
-    (w) => g(w, 'checkout', '-b', 'feat/w'),
-    PRE,
-    bash('git commit --amend --no-edit'),
     ALLOW,
     null,
   ],
