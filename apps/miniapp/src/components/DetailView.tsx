@@ -11,21 +11,19 @@ import type {
 } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { stack } from '../theme/styles.js'
-import { forecastSourceLabel, findToday, rainfallSourceLabel, severeAlertEvent } from '../lib/forecast.js'
+import { forecastSourceLabel, rainfallSourceLabel, severeAlertEvent } from '../lib/forecast.js'
 import { AlertBanner } from './Alerts.js'
-import { ReadingsSection } from './ReadingsSection.js'
+import { ConditionsNow } from './ConditionsNow.js'
 import { SourcesFooter } from './SourcesFooter.js'
 import { InlineError, Skeleton } from './States.js'
-import { NowLine } from './NowLine.js'
 import { DryingCard } from './DryingCard.js'
 import { DailyList, type DailyMetric } from './DailyList.js'
 import { LocationIdentity } from './LocationIdentity.js'
 import { Segmented, type SegmentedOption } from './Segmented.js'
 import { HourlySection } from './charts/HourlySection.js'
 import { DayCharts } from './charts/DayCharts.js'
-import { currentHour, dayIsDrawable } from './charts/hourlySeries.js'
+import { dayIsDrawable } from './charts/hourlySeries.js'
 import { TEMP_VIEW_H } from './charts/chartStyle.js'
-import { useNow } from '../hooks/useNow.js'
 
 /**
  * The detail screen: **Daily and Hourly tabs**, with the alert banner, the
@@ -177,14 +175,10 @@ export function DetailView({
   location,
 }: DetailViewProps) {
   const [metric, setMetric] = useState<DailyMetric>('temperature')
-  const now = useNow()
-  const today = findToday(forecast.data)
   const alertEvent = severeAlertEvent(alerts?.data)
   const showScore = !unsaved && isClimbingLocation
   const activeAlertCount = alerts?.data?.length ?? 0
   const tabs = hourly?.tabs
-  // The hour covering right now, or null when the run does not reach it.
-  const nowHour = hourly?.data === undefined ? null : currentHour(hourly.data.hours, now)
   const onHourly = tabs?.active === 'hourly'
 
   // Which daily rows open a drill-down. **Driven by `days[]`, not by the rows
@@ -244,79 +238,25 @@ export function DetailView({
       )}
 
       {/*
-        Current conditions as one line, not a 36px hero. The hero led with
-        `temp_c_max` — a daily *maximum* — as the largest element on the screen;
-        `NowLine` leads with the hour covering now, from the hourly run, which
-        is the only field in any response entitled to the word.
+        **Now, as one block** — the hour's weather, the two readings and the
+        measurements behind them. It replaced a now-line card and a separate
+        readings card that were two claims about the same moment.
+
+        The readings sit at the top because they are the question the app
+        exists to answer (owner, 2026-09-15). They are passed **on Daily only**:
+        this is about *today*, and today's reading at the top of an Hourly
+        screen showing Saturday is a claim about the wrong day — the pager
+        carries that day's own. **Their data is `/conditions`, not `/hourly`**,
+        because the list card reads `/conditions` too, and one endpoint for both
+        is what stops a crag showing one reading on the list and another here.
       */}
-      {forecast.isPending ? (
-        <Skeleton height={64} />
-      ) : forecast.isError ? (
-        <InlineError message="Couldn't load the forecast." onRetry={forecast.refetch} />
-      ) : today === null && nowHour === null ? (
-        <p style={type.bodyMd}>No reading for today yet.</p>
-      ) : (
-        <NowLine hour={nowHour} today={today} />
-      )}
-
-      {/*
-        **The two readings, at the top, on Daily only.**
-
-        The score section this replaces was the last thing on the screen,
-        collapsed, on the rule that a score should be prominent only where the
-        reader scrolled to it deliberately (§3). The owner reversed that on
-        2026-09-15: it is the question the app exists to answer and it sat below
-        four charts. Phase 3b then replaced the number with the readings it is
-        derived from — see `ReadingsSection`.
-
-        **Not on Hourly**, and that is not a layout preference. This is about
-        *today*; the Hourly tab pages through seven days, and today's reading at
-        the top of a screen showing Saturday is a claim about the wrong day. The
-        pager carries that day's own readings instead.
-
-        **Its data is `/conditions`, not `/hourly`, although both carry the same
-        readings.** The list card reads `/conditions` too, and one endpoint for
-        both is what stops a crag showing one number on the list and another on
-        its own screen.
-      */}
-      {showScore && !onHourly && conditions !== undefined ? (
-        // Waits on the alerts query as well as its own: the *number* is
-        // suppressed under a Severe+ alert, and `severeAlertEvent` answers null
-        // for a query in flight exactly as it does for "no alert". An alerts
-        // error settles the query, and the readings are unaffected either way.
-        conditions.isPending || alerts?.isPending === true ? (
-          <Skeleton height={90} />
-        ) : conditions.isError ? (
-          <InlineError message="Couldn't load conditions." onRetry={conditions.refetch} />
-        ) : conditions.data == null ? (
-          // No row for today at all, which since #108 means the whole live
-          // compute produced nothing. Distinct from a named unavailable reason,
-          // which is a statement about the readings.
-          <p style={type.bodyMd}>No conditions for today yet.</p>
-        ) : conditions.data.readings === undefined ? (
-          // **The field is absent, which is not the same as the model having
-          // nothing to say.** It means this client is newer than the API it is
-          // talking to — a window of minutes after a deploy. Rendering a named
-          // reason here would blame the forecast model for our own release
-          // ordering (defect class 3), so it renders nothing at all.
-          null
-        ) : (
-          <ReadingsSection
-            label="Conditions now"
-            reading={conditions.data.readings.now}
-            window={conditions.data.readings.today?.window ?? null}
-            unavailableReason={conditions.data.readings.unavailable_reason}
-            // The location's own clock, carried by the readings — never
-            // borrowed from another query that may not have settled (#33).
-            utcOffsetSeconds={conditions.data.readings.utc_offset_seconds}
-            severeAlertEvent={alertEvent}
-            // Already settled: the skeleton branch above holds this whole
-            // section until the alerts query resolves, so reaching here means
-            // `alertEvent` is a real answer rather than a query in flight.
-            alertsPending={false}
-          />
-        )
-      ) : null}
+      <ConditionsNow
+        forecast={forecast}
+        series={hourly?.data}
+        {...(showScore && !onHourly && conditions !== undefined ? { conditions } : {})}
+        alertsPending={alerts?.isPending === true}
+        severeAlertEvent={alertEvent}
+      />
 
       {/*
         Rain and drying. **Outside the forecast branch above**, because it reads

@@ -1,4 +1,11 @@
-import { IconChevronLeft, IconDroplet, IconMapPin, IconTemperature, IconWind } from '@tabler/icons-react'
+import {
+  IconChevronDown,
+  IconChevronLeft,
+  IconDroplet,
+  IconMapPin,
+  IconTemperature,
+  IconWind,
+} from '@tabler/icons-react'
 import { colors } from '@weatherteam6/design/tokens'
 
 /**
@@ -41,4 +48,20 @@ export const DropletIcon = ({ color }: IconProps) => <IconDroplet {...props(colo
  */
 export const ChevronLeftIcon = ({ color }: IconProps) => (
   <IconChevronLeft {...props(color)} size={18} />
+)
+
+/**
+ * The measurements disclosure's affordance. Label-sized, like the first four,
+ * because it sits beside a `type.label` word rather than standing alone.
+ *
+ * **Turned rather than swapped for a second icon**, and the turn is not motion:
+ * there is no CSS or motion architecture to animate it with, and none is
+ * authorised. It is two static states of one glyph, so an open panel and a
+ * closed one cannot come to use two icons that disagree about which is which.
+ */
+export const ChevronDownIcon = ({ color, open }: IconProps & { open: boolean }) => (
+  <IconChevronDown
+    {...props(color)}
+    style={open ? { transform: 'rotate(180deg)' } : {}}
+  />
 )

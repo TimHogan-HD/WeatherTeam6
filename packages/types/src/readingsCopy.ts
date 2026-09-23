@@ -37,8 +37,8 @@
  *   secondary" means once the readings above it are the subject.
  * - **The caveats are fragments, not sentences.** They are still required copy
  *   (below) and they are still on the surface — they are just no longer prose a
- *   reader has to wade through. The mechanism behind them belongs in the
- *   measurements disclosure, which is separate work.
+ *   reader has to wade through. The mechanism behind them is in the
+ *   measurements disclosure — `measurements()`, at the end of this file.
  *
  * ## Three things this file must keep
  *
@@ -63,10 +63,19 @@ import type {
   FrictionLevel,
   FrictionReading,
   HourlyReading,
+  HourlySample,
   ReadingsUnavailableReason,
   RockLevel,
   RockReading,
 } from './hourly.js';
+import {
+  EM_DASH,
+  cToFDelta,
+  formatHumidity,
+  formatPrecipIn,
+  formatTempF,
+  formatWindMph,
+} from './units.js';
 
 /** How far from `now` an hour may be and still be called the current conditions. */
 export const CURRENT_HOUR_TOLERANCE_MS = 90 * 60_000;
@@ -466,4 +475,284 @@ export function summarizeReadings(input: ReadingsSummaryInput): ReadingsSummary 
     notes,
     unavailableLine: null,
   };
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * The measurements disclosure
+ * ──────────────────────────────────────────────────────────────────────────*/
+
+/**
+ * **What the gauges above were read off, behind a control the reader opens.**
+ *
+ * Two jobs, and the second is the one that made it worth building:
+ *
+ * - **It makes a reading checkable.** `Friction: Great` is an estimate with no
+ *   working shown; `Temperature 72°F · Humidity 41% · Dew point 47°F` is the
+ *   weather a climber can check against their own skin and their own morning.
+ *   A reader who disagrees with the gauge can now see *why* it says what it
+ *   says, which is the only correction loop this app has until the feedback
+ *   button (#143).
+ * - **It is where the caveats' mechanism lives.** `FRICTION_ESTIMATE_NOTE` and
+ *   `UNRECORDED_ASPECT_NOTE` are fragments by the owner's 2026-09-21 decision —
+ *   the gauges are terse and a paragraph under them reads as a report. The
+ *   explanation did not stop being owed to the reader; it moved here, where
+ *   opening the panel is the reader asking for it.
+ *
+ * ## The rule this panel exists to obey
+ *
+ * **A figure is named with the model that produced it, and the two halves are
+ * not necessarily the same model.** The air columns come from
+ * `HourlySeries.model`, chosen by measured coverage; the rock figures come from
+ * `HourlyReadings.model`, which is always `THERMAL_MODEL` because irradiance is
+ * never pooled (issue #155). They agree at most points and must not be assumed
+ * to — attributing one model's numbers to another is `defect-patterns.md` §3,
+ * and this is the one surface that prints both at once. `sharedSource` is how a
+ * panel says it once when they do agree without ever claiming they must.
+ *
+ * ## What may not appear here
+ *
+ * **No 0-1 factor, ever.** The friction reading's last step is a guess nobody
+ * has measured, and the quarantine is that words and ordering reach a screen
+ * while magnitudes do not (`sweatBalance.ts`). Everything below is either a
+ * weather field from a forecast model or a derived quantity with a named bias —
+ * `t_surface_c` and `condensation_margin_c` are explicitly renderable for that
+ * reason, and `HourlyConditions.diagnostics` is explicitly not.
+ */
+
+/** The control that opens the disclosure. */
+export const MEASUREMENTS_LABEL = 'Measurements';
+
+/** The air around the crag — a forecast model's own weather columns. */
+export const AIR_GROUP_LABEL = 'Air';
+/** The wall — derived quantities, and the group note says they are derived. */
+export const ROCK_GROUP_LABEL = 'Rock';
+
+export const TEMPERATURE_LABEL = 'Temperature';
+export const HUMIDITY_LABEL = 'Humidity';
+export const DEW_POINT_LABEL = 'Dew point';
+export const WIND_LABEL = 'Wind';
+/**
+ * **"Past hour", not "this hour", and the wording is the storage convention.**
+ * Precipitation is stamped at the end of the hour it fell in, so the sample
+ * covering now describes the hour *before* its timestamp — the same rule that
+ * decides which slot a rain bar is drawn in. "Rain now" would move every
+ * shower an hour later in the reader's head.
+ */
+export const RAIN_PAST_HOUR_LABEL = 'Rain, past hour';
+export const ROCK_TEMPERATURE_LABEL = 'Rock temperature';
+export const DEW_POINT_MARGIN_LABEL = 'Dew point margin';
+
+/**
+ * The mechanism behind `FRICTION_ESTIMATE_NOTE`.
+ *
+ * It names the inputs — which is what the fragment used to say and no longer
+ * does — and then says plainly where the estimate stops being physics. That
+ * last sentence is the quarantine in the reader's own words: everything up to
+ * skin wettedness is standard physics with published values, and the step from
+ * there to grip is a judgement no study supports.
+ */
+export const FRICTION_MECHANISM =
+  'Friction is estimated from air temperature, humidity and wind. What a sweating hand does to grip has never been measured, so the last step of that estimate is a judgement rather than a finding.';
+
+/**
+ * The mechanism behind `UNRECORDED_ASPECT_NOTE`.
+ *
+ * **Deliberately not an upper bound**, for the same reason the fragment is not:
+ * those hours use unscaled horizontal irradiance, which reads a vertical wall
+ * hot under a high sun — but a sun-facing wall under a low winter sun can
+ * exceed horizontal. "Usually reads warm" is what the data supports; "at most
+ * this warm" is not.
+ */
+export const UNRECORDED_ASPECT_MECHANISM =
+  'No wall orientation is recorded for this location, so sunlit hours are computed against flat ground rather than against the wall. That usually reads warm, though a sun-facing wall under a low winter sun can take more.';
+
+/**
+ * What the rock group is.
+ *
+ * **Required wherever a rock temperature is printed.** It is the most
+ * instrument-looking figure on the panel and nothing measures it: no thermometer
+ * is on any wall, and the number is a sol-air temperature computed from the
+ * forecast. Printing `126°F` beside `Temperature 84°F` without this line invites
+ * a reader to treat the first as an observation.
+ */
+export const ROCK_TEMPERATURE_MECHANISM =
+  'Rock temperature is modelled from sun, air temperature and wind — nothing measures the wall itself.';
+
+/**
+ * One model, named the way the sources footer names a set of them.
+ *
+ * `null` in, `null` out: a response that did not say which model answered is
+ * left unattributed rather than given a plausible name.
+ */
+export function modelSourceLabel(model: string | null): string | null {
+  return model === null ? null : `Open-Meteo (${model})`;
+}
+
+/**
+ * How far the wall sits from its dew point, in the direction that decides
+ * whether it is condensing.
+ *
+ * **The conversion is `cToFDelta`, not `cToF`.** This is an interval, and
+ * `formatTempF` would add the scale's 32 — putting a comfortable `36°F above`
+ * on a wall two degrees from wet.
+ *
+ * A margin that rounds to zero reads `at the dew point` rather than `0°F below`,
+ * which looks like a rendering fault. Within half a degree of the line, which
+ * way it falls is below the resolution of a modelled figure — and the gauge
+ * above already carries `CONDENSING_NOTE` when the model says it is condensing.
+ */
+export function dewPointMarginValue(marginC: number | null): string | null {
+  if (marginC === null) return null;
+  const f = Math.round(cToFDelta(marginC));
+  if (f === 0) return 'at the dew point';
+  return f > 0 ? `${f}°F above` : `${Math.abs(f)}°F below`;
+}
+
+/** The weather fields the disclosure reads. A `HourlySample` satisfies it. */
+export type MeasuredHour = Pick<
+  HourlySample,
+  'temp_c' | 'dewpoint_c' | 'humidity_pct' | 'wind_kmh' | 'wind_gust_kmh' | 'precip_mm'
+>;
+
+/** One set of figures and the one source that produced all of them. */
+export type MeasurementGroup = {
+  /** What this group measures — `Air`, `Rock`. */
+  label: string;
+  /** Display-ready attribution, or `null` when the response did not name one. */
+  source: string | null;
+  fields: ReadingField[];
+};
+
+export type MeasurementsInput = {
+  /** The weather run's hour covering now. `null` when the run does not reach it. */
+  hour: MeasuredHour | null;
+  /** `HourlySeries.model` — the model `hour`'s columns came from. */
+  weatherModel: string | null;
+  /** The v2 reading for the same moment, for the derived quantities. */
+  reading: HourlyReading | null;
+  /** `ConditionsReadings.model` — **not necessarily** `weatherModel`. */
+  readingModel: string | null;
+};
+
+export type Measurements = {
+  /** Ordered: air first, because it is what the reader can check against. */
+  groups: MeasurementGroup[];
+  /**
+   * The one source behind every group, when they share one — so a panel prints
+   * it once instead of repeating a model name against each half.
+   *
+   * **`null` whenever they differ or one is unnamed**, and then each group
+   * carries its own. That is the whole of the attribution rule: agreement is
+   * derived from the response, never assumed.
+   */
+  sharedSource: string | null;
+  /** The mechanism behind each caveat the gauges above are carrying. Sentences. */
+  notes: string[];
+};
+
+/** Wind, with the gust only when there is one worth naming. */
+function windValue(hour: MeasuredHour): string {
+  const base = formatWindMph(hour.wind_kmh);
+  const { wind_gust_kmh: gust, wind_kmh: wind } = hour;
+  // A gust at or below the sustained wind is not a gust, and printing
+  // `9 mph, gusts 9 mph` reads as a fault rather than as calm air.
+  if (gust === null || wind === null || gust <= wind) return base;
+  return `${base}, gusts ${formatWindMph(gust)}`;
+}
+
+type Entry = { label: string; value: string; present: boolean };
+
+/**
+ * A group, or `null` when **nothing in it was measured**.
+ *
+ * The two halves of that rule are deliberate and they disagree with each other
+ * on purpose. A group with *something* in it keeps its em dashes: these are
+ * measurements, and a gap between two real figures is information — it says the
+ * model answered for this hour and had nothing for that field. A group with
+ * *nothing* in it is a row of dashes measuring nothing, which reads as a broken
+ * panel; it is omitted, exactly as the readings row is when neither reading
+ * could be taken.
+ */
+function measuredGroup(
+  label: string,
+  source: string | null,
+  entries: readonly Entry[],
+): MeasurementGroup | null {
+  if (!entries.some((e) => e.present)) return null;
+  return { label, source, fields: entries.map((e) => ({ label: e.label, value: e.value })) };
+}
+
+/**
+ * Everything the disclosure shows, assembled in one place so the panel is a
+ * renderer rather than a second copy of these rules.
+ *
+ * Pure, and outside the component, because the Mini App's tests run in `node`
+ * with no DOM: the branch that omits an unmeasured group, the one that decides
+ * whether the two models can be named once, and the sign of the dew-point
+ * margin are all reachable here and none of them would be through a click.
+ */
+export function measurements(input: MeasurementsInput): Measurements {
+  const { hour, weatherModel, reading, readingModel } = input;
+
+  const groups: MeasurementGroup[] = [];
+
+  if (hour !== null) {
+    const air = measuredGroup(AIR_GROUP_LABEL, modelSourceLabel(weatherModel), [
+      {
+        label: TEMPERATURE_LABEL,
+        value: formatTempF(hour.temp_c),
+        present: hour.temp_c !== null,
+      },
+      {
+        label: HUMIDITY_LABEL,
+        value: formatHumidity(hour.humidity_pct),
+        present: hour.humidity_pct !== null,
+      },
+      {
+        label: DEW_POINT_LABEL,
+        value: formatTempF(hour.dewpoint_c),
+        present: hour.dewpoint_c !== null,
+      },
+      { label: WIND_LABEL, value: windValue(hour), present: hour.wind_kmh !== null },
+      {
+        label: RAIN_PAST_HOUR_LABEL,
+        value: formatPrecipIn(hour.precip_mm),
+        present: hour.precip_mm !== null,
+      },
+    ]);
+    if (air !== null) groups.push(air);
+  }
+
+  if (reading !== null) {
+    const margin = dewPointMarginValue(reading.condensation_margin_c);
+    const rock = measuredGroup(ROCK_GROUP_LABEL, modelSourceLabel(readingModel), [
+      {
+        label: ROCK_TEMPERATURE_LABEL,
+        value: formatTempF(reading.t_surface_c),
+        present: reading.t_surface_c !== null,
+      },
+      {
+        label: DEW_POINT_MARGIN_LABEL,
+        value: margin ?? EM_DASH,
+        present: margin !== null,
+      },
+    ]);
+    if (rock !== null) groups.push(rock);
+  }
+
+  const first = groups[0]?.source ?? null;
+  const sharedSource =
+    first !== null && groups.every((g) => g.source === first) ? first : null;
+
+  // One sentence per caveat the gauges are actually carrying — the same
+  // conditions `summarizeReadings` uses for the fragments, so the panel cannot
+  // explain a caveat that is not on screen or leave one unexplained.
+  const notes: string[] = [];
+  if (reading?.friction != null) notes.push(FRICTION_MECHANISM);
+  if (reading?.rock?.qualified === false || reading?.friction?.qualified === false) {
+    notes.push(UNRECORDED_ASPECT_MECHANISM);
+  }
+  if (reading?.t_surface_c != null) notes.push(ROCK_TEMPERATURE_MECHANISM);
+
+  return { groups, sharedSource, notes };
 }

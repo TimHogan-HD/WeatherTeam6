@@ -26,6 +26,20 @@ export const mmToIn = (mm: number): number => mm / 25.4;
 export const formatTempF = (c: number | null): string =>
   c === null ? EM_DASH : `${Math.round(cToF(c))}°F`;
 
+/**
+ * A temperature **difference**, in °F. `cToF` is the wrong function for this
+ * and it is wrong by 32.
+ *
+ * The 32 belongs to the scale's zero, not to an interval measured on it: a wall
+ * sitting 2 °C above its dew point is **3.6 °F** above it, not 35.6 °F.
+ * `condensation_margin_c` is exactly such an interval, and passing it through
+ * `formatTempF` would put a comfortable-looking `36°F above dew point` on a
+ * wall that is two degrees from condensing. Nothing typechecks differently
+ * between the two, which is why this exists as its own name rather than as a
+ * subtraction at the call site.
+ */
+export const cToFDelta = (c: number): number => (c * 9) / 5;
+
 export const formatWindMph = (kmh: number | null): string =>
   kmh === null ? EM_DASH : `${Math.round(kmhToMph(kmh))} mph`;
 
