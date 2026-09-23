@@ -29,27 +29,28 @@ describe('computeClimbabilityHistory', () => {
     expect(result[0]).toMatchObject({ climbable_days: 1, total_days: 3 })
   })
 
-  it('sandstone: blocks 3 days after rain', () => {
-    // Rain on day 1: days 1, 2, 3 blocked; day 4 is climbable
+  it('arkose sandstone (48h ceiling): blocks 3 days after rain', () => {
+    // Lookback is 1 + ceil(48/24) = 3. Rain on day 1: days 1, 2, 3 blocked;
+    // day 4 is climbable.
     const rows: DailyPrecip[] = [
       { date: '2024-06-01', precip_mm: 5 },
       { date: '2024-06-02', precip_mm: 0 },
       { date: '2024-06-03', precip_mm: 0 },
       { date: '2024-06-04', precip_mm: 0 },
     ]
-    const result = computeClimbabilityHistory(rows, 'sandstone')
+    const result = computeClimbabilityHistory(rows, 'sandstone_arkose')
     expect(result[0]).toMatchObject({ climbable_days: 1, total_days: 4 })
   })
 
-  it('unknown rock type uses 3-day window (sandstone default)', () => {
-    const rows: DailyPrecip[] = [
-      { date: '2024-06-01', precip_mm: 5 },
-      { date: '2024-06-02', precip_mm: 0 },
-      { date: '2024-06-03', precip_mm: 0 },
-      { date: '2024-06-04', precip_mm: 0 },
-    ]
+  it('a null rock type takes unknown, the widest window: 6 days blocked', () => {
+    // unknown's ceiling is 120h, so the lookback is 1 + 5 = 6. Rain on day 1
+    // blocks days 1-6; day 7 is the first climbable one.
+    const rows: DailyPrecip[] = Array.from({ length: 7 }, (_, i) => ({
+      date: `2024-06-0${i + 1}`,
+      precip_mm: i === 0 ? 5 : 0,
+    }))
     const result = computeClimbabilityHistory(rows, null)
-    expect(result[0]).toMatchObject({ climbable_days: 1, total_days: 4 })
+    expect(result[0]).toMatchObject({ climbable_days: 1, total_days: 7 })
   })
 
   it('trace rain (<2mm) does not block climbability', () => {

@@ -315,9 +315,11 @@ describe('computeLiveForecast — the drying clock advances with the day (issue 
    * every future day was capped at 60 and `limitingComponent` said "limited by
    * drying time" on days the model itself called dry.
    *
-   * The location is sandstone at a 45° cliff, so `maxDry` is 72 × 1.15 = 82.8h.
-   * Rain ends at 23:59:59Z on its date and `NOW` is 12:00Z, so day N sits at
-   * 12 + 24N hours since the rain: 12, 36, 60, 84… and 84 is past the ceiling.
+   * The location is sandstone (kind not recorded) at a 45° cliff, so `maxDry`
+   * is 120 × 1.15 = 138h — `sandstone_soft`'s window since 2026-09-23; it was
+   * 72h. Rain ends at 23:59:59Z on its date and `NOW` is 12:00Z, so day N sits
+   * at 12 + 24N hours since the rain: 12, 36 … 132, 156, and 156 is past the
+   * ceiling.
    */
   const sevenDays = [day(0), day(1), day(2), day(3), day(4), day(5), day(6)]
 
@@ -335,8 +337,9 @@ describe('computeLiveForecast — the drying clock advances with the day (issue 
     // The defect: this array was seven copies of one number.
     expect(new Set(drying).size).toBeGreaterThan(1)
 
-    // 12h → (12/82.8)² × 40 = 0.8; 36h → 7.6; 60h → 21.0; 84h is past 82.8.
-    expect(drying).toEqual([1, 8, 21, 40, 40, 40, 40])
+    // (h/138)² × 40: 12h → 0.3; 36h → 2.7; 60h → 7.6; 84h → 14.8; 108h → 24.5
+    // (24.499, so 24); 132h → 36.6; 156h is past 138.
+    expect(drying).toEqual([0, 3, 8, 15, 24, 37, 40])
   })
 
   it('a day past the drying ceiling is no longer limited by drying time', async () => {
@@ -372,8 +375,8 @@ describe('computeLiveForecast — the drying clock advances with the day (issue 
     // Day 3 rained on itself: the event ends after the moment being scored.
     expect(drying[3]).toBe(0)
     // Days 4-6 climb again from that reset, and none of them reaches 40 —
-    // 12/36/60h against an 82.8h ceiling. Without the reset they were all 40.
-    expect(drying.slice(4)).toEqual([1, 8, 21])
+    // 12/36/60h against a 138h ceiling. Without the reset they would be 24/37/40.
+    expect(drying.slice(4)).toEqual([0, 3, 8])
   })
 
   it('rain in the forecast does not change today’s score', async () => {

@@ -90,14 +90,15 @@ describe('dryingModel (behavior)', () => {
       asOf: asOfFiveHoursAfter,
     })
     expect(result.estimated_dry).toBe(false)
-    expect(result.confidence).toBe('medium') // granite minDry=2h, maxDry=12h; 5h is between
+    expect(result.confidence).toBe('medium') // granite minDry=1h, maxDry=6h; 5h is between
     expect(result.hours_since_significant_rain).toBeCloseTo(5, 0)
     expect(result.last_rain_mm).toBe(8)
   })
 
-  it('sandstone, rain 80h ago, cliff_angle=0 → dry, high confidence', () => {
-    // asOf 80h after 2025-05-28T23:59:59Z
-    const asOf = new Date('2025-06-01T07:59:59Z')
+  it('sandstone (kind not recorded), rain 125h ago, cliff_angle=0 → dry, high confidence', () => {
+    // Unrecorded sandstone takes sandstone_soft's 120h ceiling. asOf is 125h
+    // after 2025-05-28T23:59:59Z.
+    const asOf = new Date('2025-06-03T04:59:59Z')
     const result = dryingModel({
       rockType: 'sandstone',
       cliffAngle: 0,
@@ -106,7 +107,7 @@ describe('dryingModel (behavior)', () => {
     })
     expect(result.estimated_dry).toBe(true)
     expect(result.confidence).toBe('high')
-    expect(result.hours_since_significant_rain).toBeCloseTo(80, 0)
+    expect(result.hours_since_significant_rain).toBeCloseTo(125, 0)
   })
 
   it('no rainfall events at all → dry, high confidence, sentinel hours', () => {
@@ -139,13 +140,13 @@ describe('dryingModel (behavior)', () => {
   })
 
   it('cliff_angle modifier: at 13h elapsed, angle=0 → high, angle=90 → medium', () => {
-    // granite maxDry=12h; at angle=0, factor=1.0, so 13h > 12h → high confidence (dry)
+    // weathered granite maxDry=12h; at angle=0, factor=1.0, so 13h > 12h → high confidence (dry)
     // at angle=90, factor=1.3, so maxDry=15.6h → 13h < 15.6h → medium confidence (not dry)
     const asOf = new Date('2025-06-01T12:59:59Z') // 13h after 2025-05-31T23:59:59Z
     const events = [{ date: '2025-05-31', precip_mm: 8 }]
 
     const vertical = dryingModel({
-      rockType: 'granite',
+      rockType: 'granite_weathered',
       cliffAngle: 0,
       rainfallEvents: events,
       asOf,
@@ -154,7 +155,7 @@ describe('dryingModel (behavior)', () => {
     expect(vertical.confidence).toBe('high')
 
     const slab = dryingModel({
-      rockType: 'granite',
+      rockType: 'granite_weathered',
       cliffAngle: 90,
       rainfallEvents: events,
       asOf,
@@ -248,16 +249,16 @@ describe('dryingModel — the basalt split', () => {
   })
 
   /**
-   * **Dense basalt now dries faster than granite, and that is deliberate.**
-   * 8h against granite's 12h, which reads oddly until the porosities are put
-   * side by side: dense columnar basalt is **0.1-1.0%** and granite **0.5-1.5%**
-   * (research §3), so the less porous rock shedding water sooner is the right
-   * ordering. Granite's 12 is an existing agreed constant and was left alone.
+   * **Fresh granite now dries before dense basalt, and the order flipped on
+   * purpose.** The basalt split put dense basalt at 8h against granite's 12h,
+   * following porosity (0.1-1.0% against 0.5-1.5%), and recorded that granite's
+   * constant "was not re-examined". `rock-drying-research.md` §7 re-examined it
+   * and put fresh granite at 6h; weathered, grussy granite is its own 12h row.
    *
-   * Asserted because the first version of this test assumed the opposite and
-   * failed — the ordering is not obvious, so it is worth pinning.
+   * Pinned because the ordering has now changed twice and is still not obvious:
+   * neither number is a measured drying time.
    */
-  it('dense basalt dries faster than granite, matching its lower porosity', () => {
+  it('fresh granite dries within 6h and dense basalt within 8h (§7)', () => {
     function dryAt(rockType: DryingModelInput['rockType'], asOf: string): boolean {
       return dryingModel({
         rockType,
@@ -266,12 +267,13 @@ describe('dryingModel — the basalt split', () => {
         asOf: new Date(asOf),
       }).estimated_dry
     }
-    // Rain ends 2025-05-31T23:59:59Z. +10h is 09:59:59Z on 06-01 — past dense
-    // basalt's 8h ceiling and short of granite's 12h.
-    expect(dryAt('basalt_dense', '2025-06-01T09:59:59Z')).toBe(true)
-    expect(dryAt('granite', '2025-06-01T09:59:59Z')).toBe(false)
-    // +6h: short of both.
-    expect(dryAt('basalt_dense', '2025-06-01T05:59:59Z')).toBe(false)
+    // Rain ends 2025-05-31T23:59:59Z. +7h is 06:59:59Z on 06-01 — past
+    // granite's 6h ceiling and short of dense basalt's 8h.
+    expect(dryAt('granite', '2025-06-01T06:59:59Z')).toBe(true)
+    expect(dryAt('basalt_dense', '2025-06-01T06:59:59Z')).toBe(false)
+    // +9h: past both. +5h: short of both.
+    expect(dryAt('basalt_dense', '2025-06-01T08:59:59Z')).toBe(true)
+    expect(dryAt('granite', '2025-06-01T04:59:59Z')).toBe(false)
   })
 })
 

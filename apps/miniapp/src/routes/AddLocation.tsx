@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { spacing } from '@weatherteam6/design/tokens'
-import { placeSubtitle, type GeocodeResult, type RockType } from '@weatherteam6/types'
+import { matchKnownCrag, placeSubtitle, type GeocodeResult, type RockType } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { bareButton, card, chip, inputBox, stack } from '../theme/styles.js'
 import { backTarget } from '../lib/backTarget.js'
@@ -64,6 +64,12 @@ export function AddLocation() {
       : { lat: candidate.lat, lon: candidate.lon, elevationM: candidate.elevationM },
   )
   const create = useCreateLocation()
+  // Shown before saving so the picker never offers a choice the API overrules:
+  // the server runs the same `matchKnownCrag` and trusts only its own answer.
+  const knownCrag = useMemo(
+    () => (candidate === null ? null : matchKnownCrag(candidate.lat, candidate.lon)),
+    [candidate],
+  )
 
   const choose = useCallback((next: Candidate) => {
     setCandidate(next)
@@ -87,7 +93,7 @@ export function AddLocation() {
 
   const onSave = useCallback(() => {
     if (candidate === null) return
-    const rockType: RockType | null = draft.isClimbing ? draft.rockType : null
+    const rockType: RockType | null = draft.isClimbing ? (knownCrag?.rock_type ?? draft.rockType) : null
     create.mutate(
       {
         name: draft.name.trim(),
@@ -107,7 +113,7 @@ export function AddLocation() {
         onSuccess: (created) => void navigate(`/location/${created.id}`, { replace: true }),
       },
     )
-  }, [candidate, draft, create, navigate])
+  }, [candidate, draft, knownCrag, create, navigate])
 
   if (candidate !== null) {
     return (
@@ -126,6 +132,7 @@ export function AddLocation() {
         />
         <SaveBar
           draft={draft}
+          knownCrag={knownCrag}
           onChange={setDraft}
           onSave={onSave}
           saving={create.isPending}

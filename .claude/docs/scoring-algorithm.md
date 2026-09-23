@@ -23,36 +23,53 @@ Read this before any work on the conditions score. The algorithm is agreed and m
 5. Humidity (lowest weight)
 
 ## Drying Time Rules (by rock type)
+
+**Changed 2026-09-23 by owner decision: the full taxonomy of
+`rock-drying-research.md` §7**, twenty-seven values where there were seven. The table
+is `MIN_HOURS` / `MAX_HOURS` in `apps/api/src/lib/scoring/dryingModel.ts`, which
+carries each row's confidence marker; `conditionsScore` imports it rather than keeping
+a copy. Hours are for a moderate storm on a vertical wall, before the angle modifier.
+**No row is a measured drying time** — §8 records that none exists for any climbing
+rock.
+
 ```
-sandstone:         24-72h after rain before climbable
-limestone:          6-24h after rain before climbable
-granite:            2-12h after rain before climbable
-basalt:            12-48h  kind not recorded — takes the slower of the two below
-basalt_dense:       2-8h   columnar / massive
-basalt_vesicular:  12-48h  scoriaceous flow top
-unknown:           24-48h (use sandstone-conservative default)
+slate                       1-4h
+granite (fresh)             1-6h     was 2-12h
+anorthosite, quartzite      1-6h
+rhyolite, basalt_dense      2-8h
+gneiss_schist               2-12h
+granite_weathered           3-12h
+tuff_welded                 4-16h
+limestone_dense             4-18h
+dolomite, carbonate_cherty,
+  sandstone_quartz_arenite  6-24h
+syenite_porous, basalt_vesicular, sandstone_ferruginous,
+  sandstone_arkose, volcanic_breccia                    12-48h
+limestone_porous, conglomerate                          24-72h
+tuff_nonwelded, sandstone_eolian                        36-96h
+sandstone_soft                                          48-120h
+
+basalt     12-48h   kind not recorded → basalt_vesicular
+limestone  24-72h   kind not recorded → limestone_porous     was 6-24h
+sandstone  48-120h  kind not recorded → sandstone_soft       was 24-72h
+unknown    48-120h  the most conservative row (§6.2)         was 24-48h
 ```
 
-**Why basalt is three rows.** Porosity across the family runs **0.1-1.0% for dense
-columnar rock and 30-50% for a vesicular flow top** — a wider spread than the gap
-between granite and sandstone, and wider than any other family in this enum
-(`.claude/docs/rock-drying-research.md` §3). One value had to be wrong for one of
-them.
+**The not-recorded values take the slowest window in their family.** That was
+`basalt`'s rule when the family split on 2026-09-16, and it now applies to all three:
+not knowing which sandstone reads as caution, not as an average. `unknown` is the
+most conservative row in the table, which closes `rock-drying-research.md` §6.2 — it
+was 48h against sandstone's 72h, so labelling a crag made the app *more* cautious.
 
-`basalt` is retained and does **not** mean "average basalt" — it means the kind was
-never recorded, which is what every row written before this change holds. It keeps
-12-48h so no existing location's score moved, and because an unrecorded kind should
-read as caution rather than as a guess. That is the rule `unknown` follows, applied
-inside one family.
+**Every generic row moved, and so did granite.** Any saved location holding
+`sandstone`, `limestone`, `granite` or `unknown` reads differently from 2026-09-23.
+The fix for a real crag is a real rock type: the picker offers all twenty-seven, and
+**a location on a known crag has its rock type locked from the research**
+(`packages/types/src/knownCrags.ts`, applied on save by `resolveRockType`).
 
-Note `basalt_dense` at 8h is now the fastest-drying row, ahead of granite's 12h.
-That follows the porosity (dense basalt is *less* porous than granite); granite's
-12h is unchanged and was not re-examined here.
-
-**Known issue, unchanged by the above:** `unknown` at 48h is still less conservative
-than `sandstone` at 72h, so supplying a correct rock type can make the app *more*
-cautious than leaving it unset — the opposite of what the comment intends. See
-`rock-drying-research.md` §6.2.
+Fresh granite (6h) now dries before dense basalt (8h). The basalt split had the
+opposite order on porosity grounds and noted that granite's 12h "was not
+re-examined"; §7 re-examined it.
 
 Drying time is modified by:
 - **Cliff angle:** steeper = dries faster (water runs off)

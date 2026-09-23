@@ -1,28 +1,16 @@
 import { TEMP_BAND_C } from '@weatherteam6/types'
 import type { ScoreInput, ScoreOutput, ScoreBreakdown } from '@weatherteam6/types'
-
-type RockType = ScoreInput['rockType']
+import { MAX_HOURS } from './dryingModel.js'
 
 /**
- * **A second copy of `dryingModel.ts`'s `MAX_HOURS`, and the two must agree.**
- * `dryingModel` decides `estimated_dry`; this one scales the 0-40 drying
- * component. They are separate tables for no recorded reason, and a value that
- * differs between them would report a wall as dry while scoring it as wet.
- *
- * Both are `Record<RockType, number>`, so neither can silently omit a rock type —
- * adding one to `ROCK_TYPES` fails the typecheck here until it is given a number.
- * That is the only thing keeping them in step; the *values* are still matched by
- * hand. See the basalt note in `dryingModel.ts` for why there are three of them.
+ * **`dryingModel.ts`'s `MAX_HOURS`, imported rather than copied.** `dryingModel`
+ * decides `estimated_dry`; this one scales the 0-40 drying component. They were
+ * two hand-matched tables for no recorded reason until the §7 taxonomy took the
+ * enum from seven values to twenty-seven, at which point keeping a second copy in
+ * step by hand stopped being a reasonable ask. A value differing between them
+ * would report a wall as dry while scoring it as wet; the cross-module test in
+ * `conditionsScore.test.ts` still checks that through behaviour.
  */
-const MAX_HOURS: Record<RockType, number> = {
-  sandstone: 72,
-  limestone: 24,
-  granite: 12,
-  basalt: 48,
-  basalt_dense: 8,
-  basalt_vesicular: 48,
-  unknown: 48,
-}
 
 /**
  * **Curvature of the drying ramp, and it is a judgement call — not a measurement.**

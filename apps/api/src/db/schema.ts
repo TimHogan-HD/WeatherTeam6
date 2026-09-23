@@ -40,6 +40,28 @@ const ROCK_TYPE_ENUM_VALUES = [
   'unknown',
   'basalt_dense',
   'basalt_vesicular',
+  // The rest of rock-drying-research.md §7, migration 0015. Appended, never
+  // reordered: a Postgres enum's order is its declaration order.
+  'granite_weathered',
+  'anorthosite',
+  'syenite_porous',
+  'rhyolite',
+  'tuff_welded',
+  'tuff_nonwelded',
+  'volcanic_breccia',
+  'quartzite',
+  'slate',
+  'gneiss_schist',
+  'sandstone_quartz_arenite',
+  'sandstone_ferruginous',
+  'sandstone_arkose',
+  'sandstone_eolian',
+  'sandstone_soft',
+  'limestone_dense',
+  'limestone_porous',
+  'dolomite',
+  'carbonate_cherty',
+  'conglomerate',
 ] as const satisfies readonly RockType[]
 
 export const rockTypeEnum = pgEnum('rock_type', ROCK_TYPE_ENUM_VALUES)
@@ -107,6 +129,15 @@ export const locations = pgTable('locations', {
   elevation_m: numeric('elevation_m'),
   is_climbing_location: boolean('is_climbing_location').default(false).notNull(),
   rock_type: rockTypeEnum('rock_type'),
+  /**
+   * A `KNOWN_CRAGS` slug (`packages/types/src/knownCrags.ts`) when this
+   * location sits on a crag whose rock the research has established. **Set, it
+   * means `rock_type` is locked** — written from the research at save time, and
+   * never from a request body. Text rather than an enum because the list lives
+   * in TypeScript and grows without a migration; a slug this build no longer
+   * knows reads as unlocked, not as an error.
+   */
+  known_crag: text('known_crag'),
   aspect: text('aspect'),
   cliff_angle: numeric('cliff_angle'),
   asos_station: text('asos_station'),

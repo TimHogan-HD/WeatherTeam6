@@ -66,7 +66,14 @@ function facts(location: Location): Fact[] {
       // `rockTypeLabel`, not `capitalise` — the values stopped being single
       // lowercase words when basalt split, and `capitalise` renders
       // `basalt_vesicular` as "Basalt_vesicular".
-      out.push({ key: 'Rock', value: rockTypeLabel(location.rock_type) })
+      // A locked rock type says where it came from: it is the research's
+      // answer, not the user's, and it is the one fact on this card they
+      // cannot change. An absent `known_crag` (an older API) reads as unlocked.
+      const locked = location.known_crag !== null && location.known_crag !== undefined
+      out.push({
+        key: 'Rock',
+        value: `${rockTypeLabel(location.rock_type)}${locked ? ' · known crag' : ''}`,
+      })
     }
     if (location.aspect !== null) {
       out.push({ key: 'Aspect', value: aspectValue(location.aspect) })

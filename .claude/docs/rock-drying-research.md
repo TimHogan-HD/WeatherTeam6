@@ -1829,8 +1829,14 @@ and it is the wrong one for both.
 > label. Note the split also made `basalt_dense` at 8h the fastest-drying row in the table,
 > ahead of granite's 12h; that follows the porosity, and granite's constant was not
 > re-examined.
+>
+> **The tuff half shipped on 2026-09-23** with the rest of §7: `tuff_welded` (4–16h) and
+> `tuff_nonwelded` (36–96h). Smith Rock and Penitente are locked to welded tuff as known
+> crags; the Happy and Sad Boulders and Owens River Gorge are not, because OSM has no
+> feature for the boulders and the gorge's degree of welding is unrecorded.
 
 **6.2 `unknown` is less conservative than `sandstone`, which contradicts its own docstring.**
+*Closed 2026-09-23: `unknown` is 48–120h, the most conservative row (§7).*
 `scoring-algorithm.md` says `unknown: 24-48h (use sandstone-conservative default)`, but
 sandstone is 24–72h. Since `estimated_dry` is `hoursSince >= maxDry`, an unlabelled crag is
 declared dry at **48h** while the identical wall labelled `sandstone` waits **72h**. Adding
@@ -2035,10 +2041,18 @@ Three notes on why this is recorded and not proposed as a patch:
 3. **`scoring-algorithm.md` is locked.** These constants are agreed. This is a finding about them,
    and the decision to change one is the user's.
 
-## 7. Proposed taxonomy — NOT APPROVED, NOT IMPLEMENTED
+## 7. Proposed taxonomy — APPROVED AND SHIPPED 2026-09-23
 
-`scoring-algorithm.md` is locked and this section changes nothing. It exists so the research
-lands as something actionable rather than as prose.
+> **The table below is now `MIN_HOURS` / `MAX_HOURS` in `dryingModel.ts`, whole**, by owner
+> decision — scoring Phase 4a. Three generic values are kept for rows that hold them and
+> for users who do not know: `sandstone`, `limestone` and `basalt` mean *kind not
+> recorded* and take the slowest window in their family. `unknown` took this table's
+> 48/120. Crags whose rock the §4 notes pin to one row here are **locked** to it on save
+> (`packages/types/src/knownCrags.ts`). **The four companion changes below are not
+> shipped**, and none of the hours became a measurement by being adopted.
+
+Originally: *`scoring-algorithm.md` is locked and this section changes nothing. It exists
+so the research lands as something actionable rather than as prose.*
 
 Suggested replacement for the five-value enum. Hours are drying windows for a moderate storm
 on a vertical wall, before the existing angle/wind/humidity modifiers.
