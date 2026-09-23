@@ -2,10 +2,9 @@ import { createHash, timingSafeEqual } from 'node:crypto'
 import { Router, type Request, type Response } from 'express'
 import { sendServerError } from '../lib/http.js'
 import { logger } from '../lib/logger.js'
-import { runAlertsCheck, notifyPendingAlerts } from '../lib/alerts/checkAlerts.js'
+import { runAlertsCheck } from '../lib/alerts/checkAlerts.js'
 import { collectWeatherRuns } from '../lib/runs/collectRuns.js'
 import { pruneWeatherRuns } from '../lib/runs/pruneRuns.js'
-import { prunePanelStates } from '../lib/telegram/panelState.js'
 import type { ApiResponse } from '@weatherteam6/types'
 
 export const cronRouter = Router()
@@ -49,52 +48,38 @@ function cronGateFailed(req: Request, res: Response): boolean {
   return false
 }
 
+/**
+ * Refresh `weather_alerts` from NWS for every saved location.
+ *
+ * **It collects; it does not deliver.** `notifyPendingAlerts` went with the bot
+ * in migration Phase 3 and alerts are parked — there is no notification channel
+ * in the product until one is chosen (`docs/handoffs/leave-telegram-v1.md`
+ * § Risks). The data still matters: `GET /api/v1/alerts` reads it, and a Severe+
+ * row suppresses the location's score in `summarizeReadings`. **The schedule
+ * stays registered with cron-job.org** — unregistering it would leave every
+ * surface reading a stale alert table, which is worse than a quiet one.
+ *
+ * Answers 200 with `refreshFailed` rather than a 500, because a run that failed
+ * on one location out of five is a partial outcome the schedule should not
+ * retry blindly — the same shape as `/collect-runs`.
+ */
 cronRouter.post('/check-alerts', async (req: Request, res: Response) => {
   if (cronGateFailed(req, res)) return
 
   try {
-    // Refresh failures must not gate notification: runAlertsCheck throws if ANY
-    // location errored, and alerts already sitting unnotified in the DB (possibly
-    // from earlier runs) still need to go out. Catch here so a single bad location
-    // can't wedge delivery indefinitely.
+    // runAlertsCheck throws if ANY location errored, and the locations that did
+    // succeed have already written their rows. Caught rather than propagated so
+    // one bad location reports as a flag on a 200 instead of losing the run.
     let refreshError: string | null = null
     try {
       await runAlertsCheck()
     } catch (err) {
       refreshError = err instanceof Error ? err.message : String(err)
-      logger.error({ err: refreshError }, '[cron] alerts refresh failed — notifying anyway')
+      logger.error({ err: refreshError }, '[cron] alerts refresh failed')
     }
 
-    const result = await notifyPendingAlerts()
-
-    // Housekeeping, riding along on the one schedule that is already registered
-    // with cron-job.org. `panel_states` has a 7-day retention rule, and a
-    // retention rule nothing enforces is not a retention rule.
-    //
-    // `/api/cron/prune-runs` now exists and is where this belongs — but moving
-    // it there before that route has a schedule registered against it would stop
-    // the prune running at all. It moves once the registration exists, not when
-    // the route does.
-    //
-    // Its own try/catch: a housekeeping failure must not wedge alert delivery,
-    // the same reason the refresh above is caught separately.
-    let pruned = 0
-    try {
-      pruned = await prunePanelStates()
-    } catch (err) {
-      logger.error(
-        { err: err instanceof Error ? err.message : String(err) },
-        '[cron] panel-state prune failed — alerts were still delivered',
-      )
-    }
-
-    const response: ApiResponse<{
-      checked: number
-      notified: number
-      refreshFailed: boolean
-      panelStatesPruned: number
-    }> = {
-      data: { ...result, refreshFailed: refreshError !== null, panelStatesPruned: pruned },
+    const response: ApiResponse<{ refreshFailed: boolean }> = {
+      data: { refreshFailed: refreshError !== null },
       error: null,
       status: 200,
     }

@@ -10,8 +10,6 @@
     "PORT",
     "LOG_LEVEL",
     "NWS_USER_AGENT",
-    "TELEGRAM_BOT_TOKEN",
-    "TELEGRAM_CHAT_ID",
     "CRON_SECRET",
     "RAINVIEWER_KEY",
     "SHADEMAP_KEY",

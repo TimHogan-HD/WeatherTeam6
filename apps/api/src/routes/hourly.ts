@@ -17,7 +17,7 @@ export const hourlyRouter = Router()
  * Reads stored runs first (`RUN_MAX_AGE_MINUTES`), so the common path costs one database
  * round trip and no upstream call. The cold path — a location added since the last
  * `collect-runs`, or an ad-hoc point — fetches and writes back, which is slow enough to
- * be worth knowing about but is the existing behaviour of every Telegram panel.
+ * be worth knowing about but is the long-standing behaviour of every stored-run reader.
  *
  * `?models=all` adds every deterministic model that answered. The parameter exists now so
  * that building a model switcher never needs a second API change; the six do not reach

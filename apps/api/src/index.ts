@@ -1,6 +1,5 @@
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import { logger } from './lib/logger.js';
-import { resolveUser } from './middleware/auth.js';
 import { requireApiAuth } from './middleware/apiAuth.js';
 import { healthRouter } from './routes/health.js';
 import { locationsRouter } from './routes/locations.js';
@@ -15,7 +14,6 @@ import { radarRouter } from './routes/radar.js';
 import { geocodeRouter } from './routes/geocode.js';
 import { previewRouter } from './routes/preview.js';
 import { cronRouter } from './routes/cron.js';
-import { telegramWebhookRouter } from './routes/telegramWebhook.js';
 import { authRouter } from './routes/auth.js';
 import { allowedOriginPatterns, originAllowed } from './lib/cors.js';
 
@@ -44,26 +42,22 @@ export function createApp(): Express {
   app.use(healthRouter);
 
   // The cron endpoint authenticates via CRON_SECRET, not req.userId — it acts
-  // across all locations, not a single user's data — so it stays outside resolveUser.
+  // across all locations, not a single user's data — so it stays outside the
+  // /api/v1 gate.
   app.use('/api/cron', cronRouter);
-
-  // resolveUser is mounted HERE, not app-wide, and only because the webhook
-  // reads req.userId: it authenticates by chat.id but still looks up the
-  // caller's saved locations. Everything under /api/v1 gets its identity from
-  // requireApiAuth instead. Phase 3 deletes this mount and resolveUser together.
-  app.use('/api/telegram', resolveUser, telegramWebhookRouter);
 
   // Above the gate, deliberately: you cannot present a token in order to obtain
   // one. authRouter responds on every path it handles, so an unmatched route
   // under /api/v1/auth falls through to requireApiAuth and 401s.
   app.use('/api/v1/auth', authRouter);
 
-  // requireApiAuth sits inside the /api/v1 mount, so /api/cron and /api/telegram
-  // keep their own auth (CRON_SECRET / chat.id) and are unaffected. OPTIONS is
-  // already short-circuited by the CORS layer above, so preflight never reaches here.
+  // requireApiAuth sits inside the /api/v1 mount, so /api/cron keeps its own
+  // auth (CRON_SECRET) and is unaffected. OPTIONS is already short-circuited by
+  // the CORS layer above, so preflight never reaches here.
   //
-  // It is also the only setter of req.userId for these routers — do not mount a
-  // req.userId reader outside it.
+  // **It is the only setter of req.userId anywhere in the app** — resolveUser is
+  // gone with the webhook it existed for — so a router mounted outside it reads
+  // undefined through a type that says it cannot be (defect class 8).
   app.use(
     '/api/v1',
     requireApiAuth,

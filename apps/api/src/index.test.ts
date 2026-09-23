@@ -1,30 +1,21 @@
 import type { AddressInfo } from 'node:net'
 import type { Server } from 'node:http'
 import type { Express } from 'express'
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 /**
  * App wiring — the mount order, and who sets `req.userId` where.
  *
- * These are not route tests. They exist because Phase 1 of
- * `docs/handoffs/leave-telegram-v1.md` moved `resolveUser` off the app-wide
- * mount, and the failure mode that move has is **silent**: `req.userId` is
- * typed non-optional `string`, so a route left outside every setter reads
- * `undefined` with no type error and no test failure — the bot simply stops
- * finding anything (defect class 8). Nothing in the repo could have caught it.
+ * These are not route tests. They exist because `req.userId` is typed
+ * non-optional `string`, so a router mounted outside every setter reads
+ * `undefined` with no type error and no test failure (defect class 8). Nothing
+ * else in the repo can see that.
+ *
+ * `requireApiAuth` is now the **only** setter, because migration Phase 3 deleted
+ * the Telegram webhook and `resolveUser` with it. The block this file used to
+ * open with — proving the webhook still got an identity off its own mount —
+ * went with them; what replaced it is the assertion that the mount is gone.
  */
-
-const DEFAULT_USER_ID = '00000000-0000-0000-0000-0000000000aa'
-const CHAT_ID = 4242
-
-const { findLocationByName } = vi.hoisted(() => ({ findLocationByName: vi.fn() }))
-
-// The webhook's first real use of req.userId. Mocked so the assertion is about
-// the value it was handed, not about what the database says.
-vi.mock('./lib/telegram/conditionsReply.js', () => ({
-  findLocationByName,
-  findLocationById: vi.fn(),
-}))
 
 let app: Express
 let server: Server
@@ -57,84 +48,20 @@ afterAll(() => {
   server.close()
 })
 
-describe('the Telegram webhook still gets an identity', () => {
-  const original = {
-    user: process.env['DEFAULT_USER_ID'],
-    chat: process.env['TELEGRAM_CHAT_ID'],
-    token: process.env['TELEGRAM_BOT_TOKEN'],
-    hookSecret: process.env['TELEGRAM_WEBHOOK_SECRET'],
-  }
-
-  beforeAll(() => {
-    process.env['DEFAULT_USER_ID'] = DEFAULT_USER_ID
-    process.env['TELEGRAM_CHAT_ID'] = String(CHAT_ID)
-    process.env['TELEGRAM_BOT_TOKEN'] = '123456:test-bot-token'
-    // Unset on purpose: webhookSecretAccepted is deliberately permissive then,
-    // which is the configuration these tests need and a documented state.
-    delete process.env['TELEGRAM_WEBHOOK_SECRET']
-    // The bot replies by calling Telegram. Nothing here asserts on the reply.
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
-        const url = typeof input === 'string' ? input : input.toString()
-        if (url.startsWith('https://api.telegram.org')) {
-          return new Response(JSON.stringify({ ok: true, result: {} }), { status: 200 })
-        }
-        return await realFetch(input, init)
-      }),
-    )
-  })
-
-  const realFetch = globalThis.fetch.bind(globalThis)
-
-  afterAll(() => {
-    vi.unstubAllGlobals()
-    for (const [key, value] of [
-      ['DEFAULT_USER_ID', original.user],
-      ['TELEGRAM_CHAT_ID', original.chat],
-      ['TELEGRAM_BOT_TOKEN', original.token],
-      ['TELEGRAM_WEBHOOK_SECRET', original.hookSecret],
-    ] as const) {
-      if (value === undefined) delete process.env[key]
-      else process.env[key] = value
-    }
-  })
-
-  afterEach(() => {
-    findLocationByName.mockReset()
-  })
-
-  it('hands the handler DEFAULT_USER_ID, not undefined', async () => {
-    // THE assertion this file exists for. `resolveUser` is mounted on
-    // /api/telegram alone now; if that mount is dropped, this receives
-    // `undefined` through a type that says it cannot be, every bot command
-    // silently finds nothing, and nothing else in the suite notices.
-    findLocationByName.mockResolvedValue(null)
-
+describe('the Telegram webhook is gone', () => {
+  it('404s the webhook path instead of accepting an update', async () => {
+    // The bot is deleted, but Telegram keeps delivering to a registered webhook
+    // until the registration is removed. What must not happen is a *silent*
+    // acceptance: the old handler answered 200 to everything, including refusals,
+    // so a surviving mount would look identical to a healthy bot from outside.
+    //
+    // This is also the only mechanical check that the mount came out of
+    // `index.ts`. Deleting `routes/telegramWebhook.ts` alone would not compile,
+    // but a re-added mount would, and nothing else would notice.
     const res = await post('/api/telegram/webhook', {
-      message: { chat: { id: CHAT_ID }, text: '/conditions somewhere' },
+      message: { chat: { id: 4242 }, text: '/conditions somewhere' },
     })
-
-    expect(res.status).toBe(200)
-    expect(findLocationByName).toHaveBeenCalledTimes(1)
-    expect(findLocationByName.mock.calls[0]?.[0]).toBe(DEFAULT_USER_ID)
-    expect(findLocationByName.mock.calls[0]?.[0]).not.toBeUndefined()
-  })
-
-  it('refuses the update with 500 when DEFAULT_USER_ID is missing', async () => {
-    // resolveUser answers before the route, so the handler never runs with an
-    // unresolved user. This is what proves resolveUser is in *this* chain
-    // rather than the assertion above passing for some other reason.
-    delete process.env['DEFAULT_USER_ID']
-    findLocationByName.mockResolvedValue(null)
-
-    const res = await post('/api/telegram/webhook', {
-      message: { chat: { id: CHAT_ID }, text: '/conditions somewhere' },
-    })
-
-    expect(res.status).toBe(500)
-    expect(findLocationByName).not.toHaveBeenCalled()
-    process.env['DEFAULT_USER_ID'] = DEFAULT_USER_ID
+    expect(res.status).toBe(404)
   })
 })
 

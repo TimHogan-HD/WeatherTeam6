@@ -7,10 +7,9 @@ import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
  * Deliberately not a JWT: there is no algorithm field to confuse, no `alg:none`
  * to reject, and no library. One algorithm, always.
  *
- * Pure — no env reads, no Express types — the same shape as
- * `lib/telegram/initData.ts` and for the same reason: the middleware stays a
- * thin gate and this is directly testable. `verifyToken` returns a
- * discriminated result and never throws.
+ * Pure — no env reads, no Express types — so the middleware stays a thin gate
+ * and this is directly testable. `verifyToken` returns a discriminated result
+ * and never throws.
  *
  * **Two honest limits, to be read as design rather than discovered later:**
  *

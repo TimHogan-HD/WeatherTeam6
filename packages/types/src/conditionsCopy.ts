@@ -186,8 +186,3 @@ export function forecastSourceLabel(
 export function rainfallSourceLabel(asosStation: string | null): string {
   return asosStation === null ? 'Open-Meteo archive' : `ACIS (${asosStation})`;
 }
-
-/** Escapes text for Telegram's `parse_mode: 'HTML'`. `&` must be replaced first. */
-export function escapeTelegramHtml(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}

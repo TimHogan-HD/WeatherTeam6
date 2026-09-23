@@ -1,6 +1,6 @@
 /**
- * Unit conversion and display formatting, shared by `apps/api` (the Telegram
- * bot) and `apps/miniapp`. Specified by miniapp-design-v1.md §4.
+ * Unit conversion and display formatting, shared by `apps/api` and
+ * `apps/miniapp`. Specified by miniapp-design-v1.md §4.
  *
  * **Every input is nullable, and that is the whole point.** `ForecastSnapshot`'s
  * `temp_c_max`, `wind_kmh_max`, `humidity_pct` and `precip_mm_p50` are all

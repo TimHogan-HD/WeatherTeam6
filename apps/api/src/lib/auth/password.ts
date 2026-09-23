@@ -3,10 +3,9 @@ import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto'
 /**
  * Passphrase hashing for the login route.
  *
- * `node:crypto`'s scrypt, no new dependency — the same reasoning as
- * `lib/telegram/initData.ts`: this module is pure (no env reads, no Express
- * types, no database) so the algorithm can be tested directly rather than
- * through a route.
+ * `node:crypto`'s scrypt, no new dependency. This module is pure — no env
+ * reads, no Express types, no database — so the algorithm can be tested
+ * directly rather than through a route.
  *
  * **The stored string is self-describing** — `scrypt$N$r$p$<salt>$<hash>` — so
  * the cost parameters travel with the hash. Raising `SCRYPT_N` later does not
