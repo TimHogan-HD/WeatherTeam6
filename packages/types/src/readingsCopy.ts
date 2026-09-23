@@ -1,7 +1,7 @@
 /**
  * The copy model for the **v2 scoring model's two readings**, shared by the
- * Telegram bot and the Mini App exactly as `conditionsCopy.ts` shared the
- * five-component one. Phase 3 of
+ * API, the client and `check:conditions` exactly as `conditionsCopy.ts` shares
+ * the five-component one. Phase 3 of
  * `docs/handoffs/weatherteam6-scoring-model-handoff-v1.md`.
  *
  * ## What changed, and why it is not a rewording

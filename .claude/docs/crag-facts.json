@@ -1,6 +1,6 @@
 {
   "_README": {
-    "what": "Per-crag facts extracted from .claude/docs/rock-drying-research.md and .claude/docs/climbing-terminology-research.md. Phase 2 of docs/handoffs/climbing-research-brief-v1.md.",
+    "what": "Per-crag facts extracted from .claude/docs/rock-drying-research.md and .claude/docs/climbing-terminology-research.md. Phase 2 of the climbing research programme (2026-09-16).",
     "generated": "2026-09-16",
     "status": "RESEARCH DATA, NOT A SCHEMA. Nothing reads this file. It does not imply a migration and no field here maps to a column.",
     "null_rule": "null means UNKNOWN and must never render as a favourable value. A crag with no seepage information has seepage_prone: null, never false. See .claude/rules/defect-patterns.md §1.",

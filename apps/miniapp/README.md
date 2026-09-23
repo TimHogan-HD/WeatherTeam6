@@ -1,6 +1,6 @@
 # `apps/miniapp` — the WeatherTeam6 web app
 
-Vite + React, static build. This is the project's only client; `apps/mobile` is archived.
+Vite + React, static build. This is the project's only client.
 
 It began as a Telegram Mini App and the directory name is the last of that. Phase 2 of
 `docs/handoffs/leave-telegram-v1.md` made it a standalone web app: it authenticates with

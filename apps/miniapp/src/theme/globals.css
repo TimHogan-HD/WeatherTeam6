@@ -84,7 +84,7 @@ body {
 
 /* Kill the mobile tap highlight — it paints a grey box over the token surface
    on every card and chip — but keep focus visible, because the keyboard is now
-   a real way to use this app and it was not inside a Telegram webview. */
+   a real way to use this app. */
 a,
 button {
   -webkit-tap-highlight-color: transparent;

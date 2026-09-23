@@ -277,7 +277,8 @@ export async function computeLiveForecast(
         // field for both the humidity component and the drying humidity
         // modifier, so making it per-day would silently move the drying
         // calculation too. Separating them is a `ScoreInput` change with its own
-        // test implications — see the note in .claude/docs/plan.md.
+        // test implications — see `.claude/rules/architecture.md`, "Two inputs are
+        // still knowingly today-only".
         currentHumidityPct,
         forecastDateDaysOut,
       })

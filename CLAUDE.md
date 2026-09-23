@@ -2,35 +2,20 @@
 
 Climbing conditions platform + general weather app. Core purpose: tell the user if a crag is climbable now, over the next 7 days, and support trip planning weeks out with improving forecast confidence over time.
 
-> ## Telegram is DELETED — 2026-09-23, leave-telegram Phase 3
->
-> **Every Telegram paragraph below this line describes code that no longer exists**: the bot,
-> the webhook, `apps/api/src/lib/telegram/`, the `tma` auth scheme, `resolveUser`,
-> `escapeTelegramHtml`, `panel_states`, `notifyPendingAlerts`, and the three `TELEGRAM_*`
-> environment variables. The `telegram-patterns` skill is dead and `telegram-precision-interface-plan.md`
-> is not mandatory reading any more.
->
-> **Auth is two schemes**, not three: `Session <token>` and `Bearer <API_SHARED_SECRET>`.
-> `requireApiAuth` is the only setter of `req.userId` **anywhere in the app**.
->
-> **Alerts are still collected and never delivered.** `weather_alerts.notified_at` is dormant —
-> null means "never asked", not "not yet sent".
->
-> **Phase 4 rewrites these paragraphs properly.** Until it does, believe this banner.
+**The client is a standalone web app** at https://weatherteam6.vercel.app — `apps/miniapp`, Vite + React, installable through a PWA manifest, signed in with a session token. The directory name is the last of a Telegram Mini App that no longer exists.
 
 ## Stack
 
 `package.json` and the workspace manifests are the authoritative record of what is installed. What they cannot tell you:
 
 - **Drizzle is the ORM and the choice is final** — schema-as-TypeScript, SQL-close queries. Never substitute Prisma.
-- **`apps/mobile` is ARCHIVED and out of the build** since 2026-08-26. Code retained, do not add features to it.
 - **There is no queue.** No BullMQ, no Redis. Scheduled work is an HTTP route under `/api/cron/*` triggered by an external scheduler (cron-job.org). Forecast/conditions scoring is computed live per request, not by a snapshot job.
 - **The API is one serverless function** on Vercel — `apps/api/api/index.ts` wraps the whole Express app.
-- **`apps/miniapp` is the client, and it is a standalone web app** (Vite + React) live at https://weatherteam6.vercel.app. Phase 2 of `docs/handoffs/leave-telegram-v1.md` took it out of Telegram on 2026-09-22: it opens in any browser, signs in at `/login` with a session token, carries its own back control, and installs through a PWA manifest. `src/telegram/` and `deepLink.ts` are deleted. The directory name is the last of the Mini App.
+- **Two apps, not three.** `apps/api` and `apps/miniapp`. The archived React Native app (`apps/mobile`) was **deleted on 2026-09-23** along with the Expo toolchain wiring in `scripts/` and `eslint.config.mjs`; recover it from the `archive/2026-09-23-pre-cleanup` tag if it is ever wanted. Do not resurrect it casually — it has not been built since 2026-07-31.
 
 ## Commands
 
-Root scripts are in `package.json` — `npm run dev|build|test|typecheck|lint`, `db:generate|db:migrate|db:studio`, `check:hooks`. The ones you would not guess:
+Root scripts are in `package.json` — `npm run dev|build|test|typecheck|lint`, `db:generate|db:migrate|db:studio`, `check:hooks|check:icons|check:crag-facts`. The one you would not guess:
 
 ```bash
 npm run build --workspace=packages/types --workspace=packages/design   # must run before consuming workspaces typecheck
@@ -40,8 +25,13 @@ From `apps/api`, against a real database (`DATABASE_URL` set **in the shell**, n
 
 ```bash
 npm run db:seed             # seed the user + 3 locations
-npm run check:add-location  # acceptance check for the add-location flow (Task 5a)
-npm run check:delete-trip   # acceptance check for DELETE /trips/:tripId (its FK cascade)
+npm run user:add            # create or reset an account — the ONLY way one exists
+npm run check:auth          # token auth, including the cross-user denial
+npm run check:add-location  # acceptance check for the add-location flow
+npm run check:delete-trip   # DELETE /trips/:tripId and its FK cascade
+npm run check:conditions    # GET /conditions composition — the strongest check here
+npm run check:hourly        # GET /hourly/:id
+npm run check:weather-runs  # run storage and pruning
 ```
 
 Run `npm run db:generate` before `npm run db:migrate` — never `drizzle-kit push`.
@@ -52,7 +42,6 @@ Run `npm run db:generate` before `npm run db:migrate` — never `drizzle-kit pus
 
 - **`packages/types` and `packages/design` are the only homes** for shared types and design tokens. Never duplicate a type across apps or redefine a colour, spacing value or type scale in one. Both compile to `dist/` and must be built before consuming workspaces typecheck.
 - **`apps/miniapp` reaches design tokens through `src/theme/tokens.css.ts`** — never import `type`/`shadow`/`layout` from `packages/design` directly. See `apps/miniapp/README.md`.
-- **`apps/mobile` declares no `build`/`dev`/`typecheck`/`lint`/`test` script**, which is what makes turbo skip it. It is still a workspace member so `npm install` resolves its deps. See `apps/mobile/ARCHIVED.md`.
 
 ## Environment Variables
 
@@ -60,12 +49,11 @@ Run `npm run db:generate` before `npm run db:migrate` — never `drizzle-kit pus
 
 What `.env.example` cannot tell you:
 
-- **`VITE_API_BASE_URL` is inlined into a PUBLIC client bundle at build time.** Set it in the Mini App's own Vercel project. Never put a credential in any `VITE_*` variable.
-- **`TELEGRAM_CHAT_ID` must be the private-chat id** (= the owner's Telegram user id). It is the auth boundary for both the bot webhook and the Mini App's `tma` scheme; a group id would make every Mini App request 401.
-- **`API_SHARED_SECRET` is fail-closed** — unset means 503 on all of `/api/v1/*`, never an open door. `CRON_SECRET` and `TELEGRAM_BOT_TOKEN` are credentials; the bot token must never reach a client bundle.
-- **`TELEGRAM_WEBHOOK_SECRET` unset means the check is skipped** and the forgeable `chat.id` is the only gate.
+- **`VITE_API_BASE_URL` is inlined into a PUBLIC client bundle at build time.** Set it in the web app's own Vercel project. Never put a credential in any `VITE_*` variable.
+- **`API_SHARED_SECRET` and `AUTH_TOKEN_SECRET` are both fail-closed** — either unset means 503 on all of `/api/v1/*`, never an open door. `CRON_SECRET` is a credential too.
 - **Never set `NODE_ENV` on Vercel** — see Known Gotchas.
 - **`TOMORROW_IO_API_KEY` and `RAINVIEWER_KEY` are deliberately absent.** Tomorrow.io was replaced by ACIS in Phase 11; RainViewer's key is unused by the current code.
+- **The R2, ShadeMap and Expo variables were deleted on 2026-09-23.** Nothing read any of them; `conditions_reports.photo_urls` is a column with no upload path behind it. A photo feature would add its own.
 
 Never commit `.env`, and **do not create one at all** — set variables in the shell for the one command that needs them.
 
@@ -75,8 +63,8 @@ Never commit `.env`, and **do not create one at all** — set variables in the s
 - All API responses use shape: `{ data, error, status }`
 - All external API calls wrapped in try/catch with exponential backoff retry
 - Never log secrets, tokens, or full API responses in production. Never serialise an error object wholesale into a log — database driver errors can carry the connection string; go through `describeError` in `lib/http.ts`, which reads only known-safe fields
-- **Auth is a signed token, and `AUTH_ENABLED` no longer exists.** `requireApiAuth` accepts three schemes on `Authorization` — `Session <token>` (a real user, `req.userId` is the token's subject), `Bearer <API_SHARED_SECRET>` and `tma <initData>` (both act as `DEFAULT_USER_ID`). Fail-closed on `API_SHARED_SECRET` **and** `AUTH_TOKEN_SECRET`: either unset is a 503 on all of `/api/v1`. **A login UI is now required** — `docs/handoffs/leave-telegram-v1.md` § Explicit rule overrides reverses the old rule. Still **no Clerk and no self-serve signup**: `npm run user:add` is the only way an account exists
-- `DEFAULT_USER_ID` is injected by `requireApiAuth` for the credential-based schemes, and by `resolveUser` on `/api/telegram` — never hardcode it in route handlers. **`requireApiAuth` is the only setter under `/api/v1`**, so a router mounted outside that gate reads `undefined` through a type that says it cannot be
+- **Auth is a signed token.** `requireApiAuth` accepts **two** schemes on `Authorization` — `Session <token>` (a real user; `req.userId` is the token's subject) and `Bearer <API_SHARED_SECRET>` (acts as `DEFAULT_USER_ID`). It is **the only setter of `req.userId` anywhere in the app**. Fail-closed on both secrets. A login UI is required; there is still **no Clerk and no self-serve signup** — `npm run user:add` is the only way an account exists
+- `DEFAULT_USER_ID` is injected by `requireApiAuth` for the `Bearer` scheme — never hardcode it in route handlers. A router mounted outside `/api/v1` reads `req.userId` as `undefined` through a type saying it cannot be
 - Drizzle migrations only — never mutate the DB directly
 
 - **Finish the delivery, don't hand it back.** Work reaches `main` through a branch, a PR,
@@ -107,11 +95,9 @@ Both gates exist because the prose version failed in production. The incidents a
 Everything in `.claude/rules/` is loaded automatically at session start — you do not need to open those files.
 
 - At the start of EVERY session: read `.claude/docs/STATE.md`
-- Before any Telegram bot or chat-interface work: read `.claude/docs/telegram-precision-interface-plan.md` — the approved spec for the priority feature direction
-- Before starting any new phase: read `.claude/docs/plan.md`
 - Before ANY database work: read `.claude/docs/data-model.md` AND `.claude/rules/architecture.md`
 - Before ANY weather fetch work: read `.claude/docs/api-sources.md`
-- Before ANY conditions score work: read `.claude/docs/scoring-algorithm.md`, then **`.claude/docs/scoring-findings.md` — the ~4,900 lines of research reduced to what touches the app.** Read it *instead of* the two research docs when you are changing scoring code; it links back for anything you need to verify. Its headline: **`dryingModel` is monotonic, but a crag can get wetter on a dry day**, and the drying ramp is least accurate at its end — the day after rain, when the wall looks dry
+- Before ANY conditions score work: read `.claude/docs/scoring-algorithm.md`, then **`.claude/docs/scoring-findings.md` — the ~4,900 lines of research reduced to what touches the app.** Read it *instead of* the two research docs when you are changing scoring code; it links back for anything you need to verify. Its headline: **`dryingModel` is monotonic, but a crag can get wetter on a dry day**, and the drying ramp is least accurate at its end — the day after rain, when the wall looks dry. Its §6c is the generalisation behind issues #21, #32 and #34
 - **Before changing how the five components COMBINE** (weights, a veto, a cap, a geometric
   mean): read `docs/handoffs/weatherteam6-scoring-model-handoff-v1.md` first. Issue #21 was
   closed **without** any of those shipping — all three were built into `compare:scoring`,
@@ -124,19 +110,18 @@ Everything in `.claude/rules/` is loaded automatically at session start — you 
 - Before ANY work on wall angle, aspect, temperature/humidity scoring, or the `walls` table: read `.claude/docs/climbing-terminology-research.md` — `cliff_angle` runs backwards from what climbers mean *and every user-added location is scored as `45` because nothing writes it*, `dewpoint_c` is stored and never read, and the temperature band is calibrated for comfort rather than friction. **Two things that would otherwise get reinvented: the dew-point 60 °F threshold is unsourced (§17.2), and there is no measured basis for reweighting the temperature or humidity components in either direction (§18.2).** How much an overhang keeps a wall dry is §18.1, and it is a continuous function of wind speed. **`aspectDegrees` is a dead field — sun direction scores zero points, and the solar radiation the app fetches on every request is dropped unread (§21.3).** §21 is the community pass: what climbers mean by aspect (three jobs, not one), how two shipped competitors do sun and shade, and a shipped answer to issue #108 (§21.7)
 - **Third-party source material that a fetch tool cannot reach** (paywalled papers, podcast transcripts) goes in `.claude/research-inbox/`, which is gitignored except its README. Commit the claim, the quote and the citation — never the article
 - **Before reviewing any diff, and before reporting any work complete: read `.claude/rules/defect-patterns.md`**
-- Before ANY Mini App UI phase: read `docs/handoffs/miniapp-design-v1.md` AND the §Design System section of `docs/handoffs/weatherteam6-ui-handoff-v1.md` — the mockups are the spec, not prose descriptions
+- Before ANY UI phase: read `docs/handoffs/miniapp-design-v1.md` AND `docs/handoffs/design-system-v1.md` — the mockup is the spec, not a prose description of it
 
 Skills load on demand: **`/review-checklist`** (run before every commit), **`/session-end`** (the session-end protocol), plus `miniapp-patterns`, `drizzle-patterns`, `background-work` and `conditions-score`, which load themselves when you touch the matching files.
 
-**Direction (read first):**
-- `docs/handoffs/leave-telegram-v1.md` — **the authoritative product direction, as of 2026-09-22.** Telegram is being deleted and the client is a standalone web app. Phases 1 and 2 are shipped; **Phase 3 deletes the bot and is the irreversible one**. Read it before any work on the client, on auth, or under `apps/api/src/lib/telegram/`.
-- `docs/handoffs/telegram-crossover-v4.md` — **superseded, and kept as the record of why Telegram existed.** Its seven tasks all completed (2026-08-26) and are all being undone. **Do not take direction from it.**
+**The handoffs, and what each is for:**
 
-**UI Design Handoffs:**
-- `docs/handoffs/weatherteam6-ui-handoff-v1.md` — written for the archived mobile app, but its **§Design System is still in force and client-agnostic**: locked contrast rules, layout constants, copy rules. §7b (Home), §7c (Location Detail), §7e (Locations) are the closest existing specs to the client's screens. Note the client has **four** routes, not two — §12 added `/add`, and migration Phase 2 added `/login`.
-- `docs/handoffs/miniapp-design-v1.md` — **the client's screen spec, and it is binding except where the migration overrides it.** Screens, units, states, copy model, and §12 the add-location flow. **Its Telegram halves are dead**: §1's `themeParams` and chrome calls, §2's `BackButton` and deep link, and §2/§8's ban on an in-app back arrow — Phase 2 replaced all of them, and the overrides are listed in `leave-telegram-v1.md` § Explicit rule overrides. The **per-route back targets in §2 are unchanged** and are implemented in `apps/miniapp/src/lib/backTarget.ts`. Phase 4 rewrites the banners.
+- `docs/handoffs/weatherteam6-scoring-model-handoff-v1.md` — **the scoring v2 design.** Phases 0-3 shipped; Phase 4 (the location editor) and Phase 5 (preferences, then retirement of the five-component scorer) are next. Read it before touching anything that produces or renders a reading.
+- `docs/handoffs/miniapp-design-v1.md` — **the client's screen spec, and it is binding.** Screens, units, states, copy model, §12 the add-location flow, and the per-route back targets in §2 (implemented in `apps/miniapp/src/lib/backTarget.ts`).
+- `docs/handoffs/design-system-v1.md` — **locked and client-agnostic**: token source, contrast rules, layout constants, copy rules, and the mockup reference. Extracted from the deleted mobile handoff on 2026-09-23.
+- `docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` — **parked, not cancelled.** Its own Phases 1, 1b, 2 and 3 shipped; Phase 4 is superseded by the scoring handoff's; Phase 5 is still wanted. **Do not confuse its numbering with any other document's.** A CSS or motion architecture is still not authorised.
+- `docs/handoffs/leave-telegram-v1.md` — **complete as of 2026-09-23 and kept as the record.** It is why there is no bot, why auth is a token, and why alerts are collected and never delivered. Take no direction from it; there is nothing left in it to build.
 - `docs/handoffs/design-mockups/weatherteam6UI.html` — primary mockup for Home + Location Detail. Visual reference only; where it and `miniapp-design-v1.md` disagree, the spec wins.
-- Mobile-only mockups (`radar-*`, `walls-*`, `trips-*`) are **archived reference, not being built.**
 
 ## Session Start Protocol
 
@@ -157,7 +142,7 @@ That is the whole protocol. Everything else is read **when the work needs it**:
 
 | Read this | When |
 | --- | --- |
-| `.claude/docs/plan.md` | before starting a new phase, or when you need the #21 diagnosis |
+| the handoff for the line you are picking up | before starting a new phase |
 | `gh issue list` | whenever you need issue state — **never a table in a document** |
 | `.claude/docs/session-archive.md` | never at session start. Grep it for the reasoning behind one specific past decision |
 | the domain skills | they load themselves when you touch the matching files |
@@ -177,12 +162,11 @@ Typecheck and lint prove a change compiles. They do not prove it works.
 - **Exercise the real path before calling something complete.** For an endpoint that calls an external API, run it and read the response. For one that touches the database, run it against the database.
 - **A green suite is not a suite that constrains anything.** `npm run test:mutation
   --workspace=apps/api` reports which lines of the implementation could change without
-  a single test noticing. Baseline **67.82% (2026-09-21)**; `thresholds.break` fails the
-  run below 67, so there is **0.82 of headroom** — check the run, do not assume it passes.
-  It takes ~37 minutes. `liveForecast.ts` is still the weakest scoring file at 54%;
-  `conditionsScore.ts` is at 84%. Note the total can FALL while every file improves,
-  because new code adds mutants faster than tests kill them — the ledger in
-  `stryker.config.mjs` explains it. Weekly in CI, on demand locally. See `.claude/rules/defect-patterns.md` §11.
+  a single test noticing. `thresholds.break` fails the run below 67. It takes ~37 minutes,
+  runs weekly in CI, and **the owner will stop a local run** — let CI report it, and run it
+  on demand only when a survivor would change a decision. Note the total can FALL while
+  every file improves, because new code adds mutants faster than tests kill them — the
+  ledger in `stryker.config.mjs` explains it. See `.claude/rules/defect-patterns.md` §11.
 - **`npm run test` cannot cover database behaviour.** Vitest mocks `fetch` and never opens a connection, so foreign-key violations, values that silently fail to persist, and constraint errors are all invisible to it. That class of failure needs a script under `apps/api/src/scripts/`, exposed as an `npm run check:*` command — `check:add-location` is the worked example. Write one when you add a flow whose failures only appear against real Postgres.
 - **Run the API locally against the real database when you need to.** No `.env` file is required, and none should be created:
   ```powershell
@@ -191,6 +175,7 @@ Typecheck and lint prove a change compiles. They do not prove it works.
   npm run check:add-location
   ```
   `DEFAULT_USER_ID` is optional — it can be read from the `users` table. The seeded user is `00000000-0000-0000-0000-000000000001`.
+- **Driving the UI in a browser is routine, and the local dev server is the target.** Preview deploys are behind Vercel SSO (302 to a Vercel login page) and turning that off is the owner's call. Instead: `vite` on `:5173` — already in the CORS default allowlist — against a local `createApp()` on the real `DATABASE_URL`, with a throwaway user and location created and torn down around the run.
 - **State plainly what was and was not verified.** "Typechecks, but never run against a database" is a useful sentence; omitting it is how an untested endpoint becomes a dependency.
 
 ## Reporting Work
@@ -233,7 +218,7 @@ Rules for it:
 npm run build --workspace=packages/types --workspace=packages/design
 ```
 
-**`vite` is pinned at the repo root so the Mini App's plugins resolve the right copy.**
+**`vite` is pinned at the repo root so the web app's plugins resolve the right copy.**
 `apps/api`'s vitest 2 pulls in vite 5, which npm hoists to the root. `@vitejs/plugin-react`
 hoists too, and it resolved that vite 5 instead of `apps/miniapp`'s vite 8 — the build
 died with `Package subpath './internal' is not defined`. The root `package.json` now
@@ -249,19 +234,17 @@ Vercel's Express preset expects the entry file to `export default app` or call `
 **`apps/api/vercel.json` skips the build step deliberately.**
 `buildCommand` is a no-op and `outputDirectory` points at an intentionally empty `public/`. Vercel's Node builder compiles `api/` itself and the workspace packages are built in the root postinstall. Without the empty `public/`, deploys fail with "No Output Directory named public found".
 
-**Neon cannot be reached from this cloud dev environment.**
+**Neon cannot be reached from a restricted cloud dev environment.**
 The egress proxy blocks both Neon's WebSocket path (403) and its HTTP SQL API host. `drizzle-kit` auto-detects `@neondatabase/serverless` and uses the WebSocket driver regardless of app code, so **migrations must be run from an unrestricted machine**, or the environment's egress allowlist widened to `*.aws.neon.tech`.
 
 **This repo is checked out on Windows, and the working tree is CRLF.**
-Multi-line `sed`/`perl` replacements silently match nothing — they fail quietly, report success, and leave the file untouched. Use the Edit tool for anything spanning more than one line; single-line `sed -i` is fine. **Python is not installed** (`python3` resolves to the Windows Store stub, which prints an advert and exits 0 — it does not fail loudly); reach for Node or PowerShell instead. `gh` is installed but not always on `PATH` — the full path is `C:\Program Files\GitHub CLI\gh.exe`.
+Multi-line `sed`/`perl`/`node -e` replacements silently match nothing — they fail quietly, report success, and leave the file untouched. Use the Edit or Write tool for anything spanning more than one line; single-line `sed -i` is fine. **Python is not installed** (`python3` resolves to the Windows Store stub, which prints an advert and exits 0 — it does not fail loudly); reach for Node or PowerShell instead. `gh` is installed but not always on `PATH` — the full path is `C:\Program Files\GitHub CLI\gh.exe`.
 
 **Vercel will not give you a secret back.**
-`DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, and the other credentials are marked sensitive: the dashboard refuses to copy them and `vercel env pull` cannot recover them. Go to the source instead — Neon's dashboard for `DATABASE_URL` (use the **pooled** string for app runtime, direct only for migrations). Do not ask the user to paste a secret into the conversation; have them set it in their own shell.
+`DATABASE_URL` and the other credentials are marked sensitive: the dashboard refuses to copy them and `vercel env pull` cannot recover them. Go to the source instead — Neon's dashboard for `DATABASE_URL` (use the **pooled** string for app runtime, direct only for migrations). Do not ask the user to paste a secret into the conversation; have them set it in their own shell.
 
 **An unauthenticated 401 proves nothing except that the gate is shut.**
-It used to prove `DEFAULT_USER_ID` was set, because `resolveUser` ran app-wide ahead of `requireApiAuth`. It does not any more: `resolveUser` is mounted on `/api/telegram` alone, so a missing `DEFAULT_USER_ID` now shows only as a **500 on an authenticated `Bearer` or `tma` call** — and not at all under `Session`, which carries its own subject. A **503** on every scheme means `API_SHARED_SECRET` or `AUTH_TOKEN_SECRET` is unset. The converse still holds: **every** `/api/v1/*` path returns 401 unauthenticated, existing or not, so a 401 is *not* evidence that a route was deployed. Check the deployment's commit SHA for that.
+A missing `DEFAULT_USER_ID` shows only as a **500 on an authenticated `Bearer` call** — not at all under `Session`, which carries its own subject. A **503** on every scheme means `API_SHARED_SECRET` or `AUTH_TOKEN_SECRET` is unset. And **every** `/api/v1/*` path returns 401 unauthenticated, existing or not, so a 401 is *not* evidence that a route was deployed. Check the deployment's commit SHA for that. `/api/v1/health` requires auth; the unauthenticated readiness probe is `/health`.
 
 **Code reviews interrupted by context limits lose their findings.**
 If `/code-review` or the code-review skill runs near the end of a long session and context compresses before the output is written, the findings are lost. Save intermediate review output to `.claude/docs/review-findings.md` before the session ends if verification is still in progress.
-
-Mobile-specific gotchas live in `apps/mobile/ARCHIVED.md` — that workspace is out of the build.

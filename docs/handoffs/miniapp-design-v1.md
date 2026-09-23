@@ -1,14 +1,14 @@
-# WeatherTeam6 Mini App — Design Spec
+# WeatherTeam6 Web App — Design Spec
 Version: v1
 Date: 2026-08-24
-Status: Phase B0 deliverable — agreed before scaffold. **Built as of 2026-08-26** (Tasks 5, 5a and 6); this document is now both the contract and the description of what exists.
-Supersedes for the Mini App: nothing. Extends `weatherteam6-ui-handoff-v1.md` §Design System.
+Status: **Binding.** Built 2026-08-26; §1 and §2 rewritten 2026-09-23 when the Telegram platform was removed. This document is both the contract and the description of what exists.
+Extends `docs/handoffs/design-system-v1.md`, which it does not replace.
 
 ## Purpose
 
-This is the design contract for `apps/miniapp`. Crossover Tasks 5–7 build to this document. If a decision is not written here, it is not settled — come back and settle it rather than improvising in code.
+This is the design contract for `apps/miniapp`. If a decision is not written here, it is not settled — come back and settle it rather than improvising in code.
 
-Every decision the build handoff (`weatherteam6-miniapp-handoff-v1.md` §Phase B0) required is answered below. Its numbering and this document's section numbers do not correspond — the mapping is in §11.
+This document is self-contained: it settles theming, navigation, content hierarchy, units, states, copy and non-goals. The §11 table records which of those the build handoff that commissioned it asked for.
 
 ---
 
@@ -39,7 +39,7 @@ Three claims carried into B0 from earlier documents are wrong against the code a
 > actually uses. Verified in a real browser: `screenTitle` computes to 30px/700/-0.3px
 > in Barlow Condensed and the gradient's custom properties resolve.
 
-**b. §Design System is not entirely client-agnostic.** Its banner says it is. Four of its subsections name React Native explicitly: the `LinearGradient` screen background, `react-native-svg`, `@tabler/icons-react-native`, and the instruction "Do not copy web-specific patterns (no CSS vars, no className)". Binding for the Mini App are the **token source rule, contrast rules, layout constants, and copy rules**. The library choices are RN implementation detail and are re-decided in §8 below. CSS custom properties are not only permitted in the Mini App, they are required — Telegram injects its own.
+**b. §Design System is not entirely client-agnostic.** Its banner says it is. Four of its subsections name React Native explicitly: the `LinearGradient` screen background, `react-native-svg`, `@tabler/icons-react-native`, and the instruction "Do not copy web-specific patterns (no CSS vars, no className)". Binding for the client are the **token source rule, contrast rules, layout constants, and copy rules**. The library choices are RN implementation detail and are re-decided in §8 below. CSS custom properties are not only permitted in the client, they are required — `src/theme/cssVars.ts` renders the whole token set as a `:root` block.
 
 **c. The palette has no light variant.** `bgGradientTop/Mid/Bottom` are `#4a5568 → #1a202c → #0d1117`; `txt1` is `#f0f4f8`; cards are `rgba(255,255,255,0.07)`. Every contrast rule is expressed as a minimum opacity of a near-white on dark. There is no light-mode token set, and the contrast rules would invert nonsensically against one. This decides §1.
 
@@ -47,55 +47,79 @@ Three claims carried into B0 from earlier documents are wrong against the code a
 
 ## 1. Theming
 
-**Decision: keep the WeatherTeam6 dark palette, fixed, for all content. Use `themeParams` only for Telegram-owned chrome.**
+**Decision: the WeatherTeam6 dark palette, fixed, for all content.**
 
-The build handoff recommended hybrid — "take light/dark from Telegram, apply WeatherTeam6 tokens within it." **That is not implementable.** It presupposes a light token set that does not exist (§0c). Building one would mean authoring roughly forty new color values in the app, which the architecture rule forbids, and would invalidate every locked contrast rule in the same stroke.
+There is no light token set in `packages/design` — `bgGradientTop/Mid/Bottom` are
+`#4a5568 → #1a202c → #0d1117`, `txt1` is `#f0f4f8`, cards are `rgba(255,255,255,0.07)`, and
+every contrast rule is expressed as a minimum opacity of a near-white on dark. Authoring a
+light set would mean roughly forty new colour values in the app, which the architecture rule
+forbids, and would invalidate every locked contrast rule in the same stroke.
 
-So:
+- **Content surface is always the dark gradient.** The app does not follow the OS colour
+  scheme, and `prefers-color-scheme` is not read.
+- **The browser chrome is harmonised** through `<meta name="theme-color">`, generated from
+  `colors.bgGradientTop` by `src/theme/webManifest.ts`. It is never a literal hex.
+- **The conditions colours are semantic, not decorative.** `good` lime, `fair` amber and
+  `poor` red carry meaning, and the locked rule "on lime fills, text must be `onGood`
+  (`#0d1117`)" only holds against the known palette.
+- **Geometry comes from the platform**: `100dvh` for full-height layout and
+  `env(safe-area-inset-*)` for padding. **Every inset reference needs its `0px` fallback** —
+  CSS drops the entire declaration when a `var()`/`env()` resolves to nothing, so a bare
+  `padding-top: env(safe-area-inset-top)` silently loses the padding. `index.html` must also
+  keep `viewport-fit=cover`, without which every inset computes to 0 on a notched phone.
 
-- **Content surface is always the WeatherTeam6 dark gradient.** A user on a light Telegram theme gets a dark app. This is a deliberate, legible choice — the app reads as its own surface inside Telegram, the way a photo or a map does.
-- **Telegram chrome is harmonized, not ignored.** On `ready()`, call `WebApp.setHeaderColor(colors.bgGradientTop)` and `WebApp.setBackgroundColor(colors.bgGradientBottom)` so the header and the overscroll area match the app instead of flashing white.
-  **The two have different version floors — do not gate them together.** `setBackgroundColor` accepts a hex from Bot API 6.1; `setHeaderColor` accepts an arbitrary hex only from 6.9, and before that takes just the `bg_color` / `secondary_bg_color` keywords. So:
-  - `setBackgroundColor(colors.bgGradientBottom)` — call it whenever `isVersionAtLeast('6.1')`. Gating this at 6.9 needlessly gives up correct behavior on 6.1–6.8.
-  - `setHeaderColor(colors.bgGradientTop)` — only when `isVersionAtLeast('6.9')`. **Do not fall back to the `bg_color` keyword:** that keyword resolves to the user's *own* theme background, which on a light theme is white — precisely the white header this bullet exists to prevent. On clients below 6.9, leave the header alone and accept Telegram's default; a themed header is not worth shipping a guaranteed-wrong color to get.
-- **`themeParams` is read for exactly one purpose:** nothing in v1. Do not branch content styling on it. Do not read `--tg-color-scheme`.
-- **Telegram CSS variables that *are* used:** `--tg-viewport-stable-height` for full-height layout and `--tg-safe-area-inset-*` for padding. These are geometry, not color, and must be honored or the layout will be wrong on some clients.
-  **Every one needs a fallback value.** Not all clients inject them, and CSS drops the entire declaration when a `var()` resolves to nothing — so a bare `padding-top: var(--tg-safe-area-inset-top)` silently loses the padding. Always `var(--tg-safe-area-inset-top, 0px)`, and `var(--tg-viewport-stable-height, 100dvh)`.
+> **Rewritten 2026-09-23.** This section specified Telegram theming — `themeParams`, the
+> `setHeaderColor`/`setBackgroundColor` version floors, and the `--tg-*` custom properties.
+> All of it went with the platform in migration Phase 2. Nothing here is a change of
+> intent; the palette decision is the original one.
 
-**Why not honor Telegram fully:** the conditions colors are semantic, not decorative. `good` lime, `fair` amber, `poor` red carry meaning, and the locked rule "on lime fills, text must be `onGood` (`#0d1117`)" only holds against the known palette. Remapping them to `button_color` would destroy the semantics.
-
-**Revisit trigger:** if a light token set is ever authored in `packages/design`, reopen this. Not before.
+**Revisit trigger:** if a light token set is ever authored in `packages/design`, reopen
+this. Not before.
 
 ---
 
 ## 2. Navigation
 
-**Decision: three routes, Telegram `BackButton` as the only back affordance.** (Two until §12 added `/add`.)
+**Decision: four routes, with an in-app back control.**
 
 ```
-/                    location list   (root)
+/login               sign in with a passphrase
+/                    location list   (root, behind the gate)
 /location/:id        location detail
 /add                 search and add a location   (see §12)
 ```
 
 - Client-side routing, no server routes. The Vercel project rewrites all paths to `index.html`.
-- **`BackButton`:** `hide()` on the list only; `show()` on every other route. Never call `WebApp.close()` ourselves; from the list, Telegram's own chrome closes the app.
+- **Everything but `/login` is wrapped in `RequireAuth`.** It redirects on the token being
+  gone, never on a status it saw; `api.ts` is the one place a 401 clears the token.
+- **Back is an in-app control, and where it goes is per-route** — a blanket
+  "navigate to `/`" is wrong, and would strand the §12 flow: pressing back from a preview
+  would jump to the list and silently discard the search the user had just run.
 
-  **Where it goes is per-route — a blanket "navigate to `/`" is wrong.** An earlier draft said exactly that, which would have stranded the §12 flow: pressing back from a preview would jump to the list and silently discard the search the user had just run.
-
-  | Route | `BackButton` target |
+  | Route | Back target |
   | --- | --- |
-  | `/` list | hidden |
+  | `/` list | no control — nothing to go back to |
   | `/location/:id` (saved) | `/` |
+  | `/location/:id`, Hourly tab | the Daily tab — **not a navigation** |
   | `/add` | `/` |
   | `/add` preview (unsaved detail) | back to `/add` **with the query and results intact** — treat preview as a step within `/add`, not a sibling of it |
 
-- **After a successful save**, replace history rather than pushing: go to `/location/:id` for the newly created location, with `/` beneath it. Back from there lands on the list, not on the preview of a place already saved. The `POST /locations` response returns the created `Location` including its new `id` (`routes/locations.ts` returns `mapLocation(row)` with `201`), so no extra fetch is needed.
-- **No in-app back arrow.** One back affordance, and it is Telegram's. A second one is a bug.
-- **Deep link. Built 2026-08-26 (Task 7) — `src/lib/deepLink.ts`, called from `main.tsx`.** `startapp` surfaces two ways — `initDataUnsafe.start_param` and the `tgWebAppStartParam` GET parameter. Read `start_param`; fall back to the query parameter. *As shipped, the fallback also looks in the hash, because Telegram has delivered its `tgWebApp*` parameters in the fragment as well; the primary path is unaffected.*
-  - Format: `loc_<uuid>`, dashes intact. Telegram's `startapp` charset is `A-Z a-z 0-9 _ -`, which **includes the hyphen**, so a UUID passes through unchanged. Do not strip and reinsert dashes: reinsertion at fixed offsets turns a corrupted parameter into a *well-formed but wrong* UUID, which reaches the API and 404s instead of falling back to the list.
-  - Validate the remainder against a UUID regex before routing. Anything that fails → land on `/` silently. Never render an error for a bad deep link.
-- **Back stack on deep link. Built 2026-08-26.** Landing directly on detail must still leave the list reachable. On boot with a valid `start_param`, push `/` into history first, then `/location/:id`, so `BackButton` goes to the list rather than closing the app. This is the one case where the naive implementation is wrong, and it is the acceptance criterion for the deep-link work in Task 7. *As shipped this runs in `main.tsx` before React mounts (`replaceState('/')`, then `pushState('/location/:id')`), not in an effect — `BrowserRouter` then reads the detail route as its initial location so the list never flashes, and a `<StrictMode>` double-invoked effect cannot push the entry twice.* **Covered by unit tests against a fake history object; never confirmed on a phone.**
+  This table is implemented by `src/lib/backTarget.ts`, which is pure and **overloaded per
+  route**, so each caller is handed only the actions it can receive and a new action is a
+  type error rather than a control that silently does nothing. `Screen` renders the control
+  when given `onBack`; the list passes none.
+- **After a successful save**, replace history rather than pushing: go to `/location/:id` for
+  the newly created location, with `/` beneath it. Back from there lands on the list, not on
+  the preview of a place already saved. The `POST /locations` response returns the created
+  `Location` including its new `id` (`routes/locations.ts` returns `mapLocation(row)` with
+  `201`), so no extra fetch is needed.
+
+> **Rewritten 2026-09-23.** This section specified three routes, Telegram's `BackButton` as
+> the only back affordance, a ban on any in-app back arrow, and the `startapp` deep link.
+> Migration Phase 2 deleted the SDK, so there is no `BackButton` and no `start_param`; the
+> in-app control is now the only one, and `chevron-left` is in `Icons.tsx` (§8's ban on it
+> is void). **The per-route targets above are the original ones, unchanged** — they were
+> right for a reason that had nothing to do with the platform.
 
 ---
 
@@ -250,7 +274,7 @@ So the score comes back **inflated, with every component non-zero** — invisibl
 
 A closely related case **is** partly visible: when the rainfall fetch fails, `liveForecast.ts:96` leaves the event list empty and `dryingModel.ts:39-46` returns the `720`-hour sentinel with `estimated_dry: true` and `confidence: 'high'`, which earns the full 40/40 drying component. A genuine month-long dry spell produces the same 720, so the two are not separable — but the display rule in §3 keeps either from rendering as a false precise fact.
 
-React Query configuration: `staleTime` 5 minutes, `gcTime` 30 minutes, `retry: 1`, no `refetchOnWindowFocus` — a Telegram webview fires focus events on every keyboard dismissal.
+React Query configuration: `staleTime` 5 minutes, `gcTime` 30 minutes, `retry: 1`, no `refetchOnWindowFocus` — live scoring costs several seconds and six upstream fetches per detail screen.
 
 ---
 
@@ -306,7 +330,7 @@ Per the locked copy rule, **p10/p50/p90 never appear in prose.** Those terms are
 
 ### What is live today
 
-`apps/api/src/lib/telegram/conditionsReply.ts` maps score to an opinion:
+The bot mapped score to an opinion (`lib/telegram/conditionsReply.ts`, deleted 2026-09-23):
 
 ```ts
 if (score >= 80) return 'looks great — go climb'
@@ -395,7 +419,7 @@ Task 6 imports the state-label and suppression logic rather than reimplementing 
 | --- | --- |
 | `LinearGradient` from `expo-linear-gradient` | CSS `linear-gradient(180deg, …)` on `body`, same three stops at `0 / 45% / 100%` |
 | `react-native-svg` | Inline SVG. No v1 screen needs the complex geometry — sun arc, compass dial, and horizon ramp all belong to out-of-scope screens |
-| `@tabler/icons-react-native` | `@tabler/icons-react`, same names. Only four are needed: `map-pin`, `droplet`, `temperature`, `wind`. **Not `chevron-left`** — back is Telegram's `BackButton` and a second affordance is a bug (§2). The alert banner uses a colored bar and the event name, not an icon: `alert-triangle` is outside the mockup's 1:1 `ICONS` map, and §Design System requires matching it exactly |
+| `@tabler/icons-react-native` | `@tabler/icons-react`, same names. Five are needed: `map-pin`, `droplet`, `temperature`, `wind`, `chevron-left`. `chevron-left` **is** needed as of 2026-09-22 — the in-app back control is the only one (§2). This row originally banned it. The alert banner uses a colored bar and the event name, not an icon: `alert-triangle` is outside the mockup's 1:1 `ICONS` map, and §Design System requires matching it exactly |
 | "no CSS vars" | CSS custom properties, emitted once at `:root` from the imported tokens |
 | Barlow via `expo-font` | Barlow and Barlow Condensed from Google Fonts, with a real fallback stack |
 
@@ -407,14 +431,14 @@ Contrast rules, layout constants (`screenH` 20, `topSafe` 48, `cardPad` 14, `bot
 
 Not in the Mini App, in v1 or later without a new spec:
 
-- Radar, walls, trips, shade map — they exist in archived `apps/mobile` and stay out
+- Radar, walls, trips, shade map — designed for the deleted React Native app and out of scope here
 - ~~Location search or creation~~ — **no longer a non-goal.** Reversed 2026-08-25 on the product call recorded in §12: search, preview, save, and delete are in scope. Editing a saved location afterwards (rock type, aspect, cliff angle) stays out — see §12's deferred list
 - History and normals views — no writer exists (issue #25)
 - Any AI-generated commentary or per-hour analysis — removed once already for violating the copy rules; do not reintroduce
 - Light theme (§1)
 - Bottom navigation — still out with §12's third route. `/add` is a task you finish and leave, not a destination you switch between; a persistent tab bar would advertise it as a peer of the location list, which it is not. Reached from the list's empty state and from an add affordance in the list header
 - Offline write / mutation queue
-- Push notifications outside Telegram's own
+- Push notifications. **The product has no notification channel at all** since the bot was deleted — alerts are collected and reach nobody. Reinstating one is a product decision, not a UI task
 
 ---
 
@@ -425,7 +449,7 @@ Not in the Mini App, in v1 or later without a new spec:
    | Path | State |
    | --- | --- |
    | `GET /locations/search?q=` → `POST /locations {cragId}` | Endpoints exist and pair correctly. **But the `crags` table is empty** — `?q=rock` returns `[]` against production, so the picker would render nothing. Needs a crag import before it is a real flow. |
-   | `POST /locations {name, lat, lon}` | Works today, but requires the user to type coordinates (geocoding is explicitly out of scope per `plan.md`) and forces `is_climbing_location: false`, which is wrong for a crag. |
+   | `POST /locations {name, lat, lon}` | Works today, but requires the user to type coordinates (geocoding was out of scope until this section reversed it) and forces `is_climbing_location: false`, which is wrong for a crag. |
 
    ~~So the choice is: seed `crags` and build the search picker, add a bot command, or ship v1 read-only.~~ **ANSWERED 2026-08-25. Neither option above was taken.** The product call is that this behaves like an ordinary weather app: search any place by name, see its weather first, then choose to save it — with an explicit "is this a climbing area?" toggle rather than the flag being inferred. Full specification in **§12**. This closes the last blocker on §5's empty state, and it reverses the "location search or creation" non-goal in §9.
 2. **The scoring fix behind issue #21.** §7 makes the copy honest; the score itself still charges at most 12 points for any amount of heat, so a settled dry spell scores in the 80s at 103°F. Options: cap the total when any component is 0, apply a multiplicative safety factor, or re-weight temperature above 12. This is a scoring-math change with test implications and belongs in its own change, not in Task 6.
@@ -446,8 +470,8 @@ Mapping to the build handoff's own numbering:
 
 | Required decision | §  | Answer |
 | --- | --- | --- |
-| Theming | 1 | WeatherTeam6 dark, fixed; Telegram chrome harmonized; hybrid rejected with reason |
-| Navigation | 2 | Two routes, Telegram `BackButton`, deep-link back stack specified |
+| Theming | 1 | WeatherTeam6 dark, fixed; no light variant; rewritten 2026-09-23 |
+| Navigation | 2 | Four routes, in-app back control, per-route back targets; rewritten 2026-09-23 |
 | Content hierarchy | 3 | Per screen, weather-first ordering |
 | Units | 4 | Shared pure helpers in `packages/types` |
 | States | 5 | Loading, empty, error, stale, partial |
@@ -498,14 +522,14 @@ Three steps, but only one genuinely new screen.
 
 ### 12.2 Geocoding — reversing a documented non-goal
 
-`plan.md` decision 10 reads *"Geocoding — out of scope. Climbing search via `crags` table only."* **That decision is reversed by this section**, and `plan.md` must be updated rather than left to contradict this spec.
+Geocoding was ruled out of scope in the original build plan (*"climbing search via `crags` table only"*). **That decision is reversed by this section.** The plan document was deleted on 2026-09-23; this spec is now the only statement on it.
 
 Use **Open-Meteo's geocoding API** (`geocoding-api.open-meteo.com/v1/search`). Reasons it is the right pick and not merely an available one:
 
 - No API key, so no new secret, no new entry in `.env.example`, nothing to leak.
 - Same vendor as the forecast, already trusted and already wrapped in this codebase's retry helper.
 - It returns **`elevation`** alongside lat/lon, which `applyLapseRate` in `openMeteo.ts` needs and which a bare coordinate entry cannot supply.
-- `build-prompt-v8.md:761` already named this exact API as the intended path — this is executing a deferred plan, not inventing one.
+- The original v8 build prompt already named this exact API as the intended path — this is executing a deferred plan, not inventing one.
 
 The endpoint is proxied server-side as `GET /api/v1/geocode?q=`, not called from the client, so it obeys the same retry/backoff and `{ data, error, status }` rules as every other external call.
 

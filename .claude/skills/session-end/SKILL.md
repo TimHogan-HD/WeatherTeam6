@@ -56,13 +56,10 @@ without the full block above.
 The session block is a record, not a substitute — the files agents are *told to read* must
 not contradict what shipped. Before ending, grep for every reference to what you changed and
 fix each one:
-
-- A completed task is marked complete **in both places the task list lives** —
-  `docs/handoffs/telegram-crossover-v4.md` (the canonical list) and `.claude/docs/plan.md`
-  (the same list with detail). A task recorded in only one of them is effectively unfindable
-  in the other.
-- A new endpoint is added to the inventory in
-  `docs/handoffs/weatherteam6-miniapp-handoff-v1.md`.
+- A phase marked complete in the handoff that owns it —
+  `weatherteam6-scoring-model-handoff-v1.md`, `miniapp-design-v1.md`, or
+  `miniapp-hourly-dataviz-handoff-v1.md`. There is no second task list to mirror it into;
+  that arrangement is what the note in §4 is about.
 - A new external API is added to `.claude/docs/api-sources.md`.
 - A new invariant future work must uphold goes in `.claude/rules/architecture.md`, and as a
   checkbox in the `/review-checklist` skill if it can rot silently.
@@ -80,7 +77,7 @@ API was already merged.
 Every item above is a place a fact has to be mirrored by hand, and hand-mirroring is what
 failed: 66% of one thirty-commit stretch was documentation repairing other documentation, and
 the most recent one — titled *"record the corrected issue state"* — touched one file and left
-`plan.md` wrong. Before adding a fact to a second document, ask whether the first can simply
+the other wrong. Before adding a fact to a second document, ask whether the first can simply
 be **read** instead. Issue state is now `gh issue list` for exactly this reason. A fact that
 lives in one place cannot drift.
 

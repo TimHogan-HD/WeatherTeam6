@@ -1,6 +1,6 @@
 /**
- * The copy model from miniapp-design-v1.md §7, shared by the Telegram bot and
- * the Mini App so that one implementation serves both surfaces.
+ * The copy model from miniapp-design-v1.md §7, shared by every surface that
+ * renders conditions, so one implementation serves all of them.
  *
  * It exists because the shipped bot reply mapped score to an opinion —
  * *"looks great — go climb"* at 103 °F under an active Extreme Heat Warning

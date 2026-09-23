@@ -50,7 +50,6 @@ Style, naming, and refactors are 🟡 Nit at most.
 ## Do not report
 
 - Anything CI already enforces: TypeScript errors, ESLint, formatting.
-- `apps/mobile/**` — archived and out of the build.
 - Prose in `.claude/docs/session-archive.md` — it is an append-only record.
 
 ## Cap the nits

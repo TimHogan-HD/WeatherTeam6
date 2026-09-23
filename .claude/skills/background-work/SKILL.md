@@ -7,7 +7,7 @@ description: Use when writing anything that runs outside a normal user request �
 
 ## There is no queue
 
-**BullMQ, Redis, ioredis, and Bull Board were removed entirely in the Telegram Crossover migration (PR #20, 2026-07-31).** Do not reintroduce them. Do not create `apps/api/src/jobs/`. Do not `npm install bullmq`.
+**BullMQ, Redis, ioredis, and Bull Board were removed entirely on 2026-07-31 (PR #20).** Do not reintroduce them. Do not create `apps/api/src/jobs/`. Do not `npm install bullmq`.
 
 The reason is structural, not preference: the API is a **single Express app wrapped as one Vercel serverless function** (`apps/api/api/index.ts`). There is no long-lived process, so nothing can hold a worker, a scheduler, or a Redis connection between requests. A queue has nowhere to run.
 
@@ -52,7 +52,9 @@ Rules for this pattern:
 
 ## Idempotency: claim before you act
 
-The bar from the old job-based world still applies, now enforced per-request. For anything that sends a notification or has an external side effect, **claim the row atomically before acting**, so two overlapping invocations can't both act on it:
+The bar from the old job-based world still applies, now enforced per-request. For anything that sends a notification or has an external side effect, **claim the row atomically before acting**, so two overlapping invocations cannot both act on it.
+
+**Nothing in the product delivers a notification today.** The bot was the only channel and it was deleted on 2026-09-23; `weather_alerts.notified_at` is **dormant**, and null on every row means *"never asked"*, not "not yet sent". The pattern below is kept because whatever replaces the bot will want exactly this claim, and because the reasoning is not obvious from the code:
 
 ```typescript
 // lib/alerts/checkAlerts.ts — the reference pattern
@@ -65,7 +67,7 @@ const claimed = await db
 if (claimed.length === 0) continue   // another invocation got it first
 
 try {
-  await sendTelegramMessage(...)
+  await deliver(...)   // NOTHING DOES THIS TODAY — the bot was the only channel
 } catch {
   // release the claim so the next run retries — a failed send is not "notified"
 }

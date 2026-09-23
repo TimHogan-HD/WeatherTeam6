@@ -19,7 +19,7 @@ function quoted(family: string): string {
 
 /**
  * Real fallback stacks, not a bare family name: Google Fonts can fail to load
- * inside a Telegram webview and the layout has to stay legible when it does.
+ * on a slow or filtered network, and the layout has to stay legible when it does.
  * The display face is condensed, so its fallbacks are condensed too.
  */
 export const fontStacks = {

@@ -22,34 +22,17 @@
 This file loads automatically at session start — you do not need to open it. These
 decisions are final unless explicitly overridden by the user.
 
-> ## Telegram is DELETED — 2026-09-23, leave-telegram Phase 3
->
-> **Roughly fifteen paragraphs below describe the bot, and it no longer exists.** Deep links,
-> `panel_states`, the webhook and its two-id callback check, `InlineKeyboardButton`,
-> `sendTelegramMessage`, `escapeTelegramHtml`, the `tma` scheme and `resolveUser` are all gone.
->
-> **What is still true and still binding** are the rules about *shared* code, which survived
-> intact and merely lost their bot half: `summarizeReadings` as the one reading-to-text
-> implementation, `toConditionsReadings` and its two sentinels, Severe+ suppression dropping
-> the number and keeping the readings, a reading being a label and a value, no friction
-> magnitude on any surface, `precip_mm_mean` as the only addable precipitation figure, and
-> `members_wet / member_count` as the chance of rain.
->
-> **Two rules changed rather than died.** `requireApiAuth` accepts **two** schemes and is the
-> only setter of `req.userId` anywhere. `DEPENDENT_TABLES` no longer lists `panelStates`,
-> because the table is dropped.
->
-> **Phase 4 rewrites this properly.** Until it does, believe this banner.
-
 ## Monorepo Structure
-- Turborepo. Apps: `apps/api` (live), `apps/miniapp` (Vite + React; live at https://weatherteam6.vercel.app as the bot's menu button), `apps/mobile` (archived and **out of the build** — it declares no `build`/`dev`/`typecheck`/`lint`/`test` script, which is what makes turbo skip it; still a workspace member so `npm install` resolves its dependencies). Shared packages: `packages/types`, `packages/design`.
+- Turborepo. Two apps: `apps/api` (Express on Vercel, one serverless function) and `apps/miniapp` (Vite + React, live at https://weatherteam6.vercel.app). Shared packages: `packages/types`, `packages/design`.
 - Shared TypeScript types live in `packages/types` only. Never duplicate type definitions across apps.
 - Design tokens live in `packages/design` only. Never redefine colors, spacing, or type scale in an app.
 - Both shared packages compile to `dist/` and must be built before consuming workspaces typecheck.
+- **`apps/mobile` was deleted on 2026-09-23** (archived since 2026-07-31, out of the build since 2026-08-26). It is recoverable from the `archive/2026-09-23-pre-cleanup` tag. Reviving it is a product decision, not a cleanup.
 
 ## Backend Patterns
 - Express route handlers are thin. Business logic lives in `src/lib/`, not in route files.
 - Weather fetch functions live in `apps/api/src/lib/weather/` — one file per source.
+- Alert fetch/upsert/prune logic lives in `apps/api/src/lib/alerts/`.
 - Scoring logic lives in `apps/api/src/lib/scoring/` — orchestration in `liveForecast.ts`, pure math in `conditionsScore.ts` / `dryingModel.ts` / `rockThermal.ts` / `sweatBalance.ts` / `hourlyConditions.ts`.
 - **`rockThermal.ts` is the v2 model's Layer 1 and nothing reads it yet** (Phase 1 of
   `docs/handoffs/weatherteam6-scoring-model-handoff-v1.md`). Two rules for the phase that
@@ -92,11 +75,10 @@ decisions are final unless explicitly overridden by the user.
   There is no `is_climbing_location` check downstream to forget, and the model itself does
   not branch on the flag — it would score a city if asked. **The flag also decides whether
   the hourly run is fetched at all**: with `scoring: null` the whole output is a sentinel,
-  so `GET /conditions/:id` and the bot's panel skip the call rather than spending a round
-  trip inside a 15-second callback to produce one.
+  so `GET /conditions/:id` skips the call rather than spending a round trip to produce one.
 - **`GET /conditions/:locationId` carries the same readings, sliced by the same rule.**
-  `toConditionsReadings` (`lib/runs/conditionsReadings.ts`) is shared by the route and the
-  bot's gather, and `readingNow` (`packages/types`) is shared with the Mini App. This
+  `toConditionsReadings` (`lib/runs/conditionsReadings.ts`) is shared by the route and
+  `check:conditions`, and `readingNow` (`packages/types`) is shared with the client. This
   exists so **one crag cannot carry two different numbers on two screens** — the list card
   reads `/conditions` and the detail screen reads it too, and the five-component score and
   the v2 score disagree by around thirty points on a hot day. `ConditionsReadings` carries
@@ -104,13 +86,13 @@ decisions are final unless explicitly overridden by the user.
   never be formatted against an offset borrowed from a query that has not settled (#33).
 - **The words on a conditions surface are derived from the readings, never from the
   number.** `summarizeReadings` (`packages/types/src/readingsCopy.ts`) is the one
-  implementation, shared by the bot and the Mini App. `stateLabel` and
-  `summarizeConditions` are **deleted**: a ladder that maps a score to a phrase can only
-  ever be as right as the score, which is how 104 °F came to read *"Dry, settled"*.
+  implementation. `stateLabel` and `summarizeConditions` are **deleted**: a ladder that maps
+  a score to a phrase can only ever be as right as the score, which is how 104 °F came to
+  read *"Dry, settled"*.
 - **A reading is a label and a value, never a sentence** — owner decision 2026-09-21.
   `Dryness: Dry`, `Friction: Great`, `Score: 100`, in that order, from `ReadingField`;
-  the labels live in `readingsCopy.ts` so the bot and the Mini App cannot name the same
-  gauge differently, and `fieldLine` is how a text surface punctuates one. The first
+  the labels live in `readingsCopy.ts` so no two surfaces can name the same gauge
+  differently, and `fieldLine` is how a text surface punctuates one. The first
   version wrote them as prose — *"Dry rock · Great friction"* over two caveat sentences —
   and it **read as fact**: a fluent sentence claims a confidence an estimate has not
   earned. The caveats are still required copy and are now fragments on one line. Which
@@ -127,10 +109,10 @@ decisions are final unless explicitly overridden by the user.
   A surface must not reach past `ReadingsSummary.score === null` for the raw figure.
 - **Two sentinels, and they say different things.** `NOT_A_CRAG_READINGS`
   (`not_a_climbing_location`) is a choice the reader made; `READINGS_UNAVAILABLE`
-  (`model_unavailable`) is a gap. Both live beside `toConditionsReadings` so the bot and
-  the routes cannot word them differently.
+  (`model_unavailable`) is a gap. Both live beside `toConditionsReadings` so no two callers
+  can word them differently.
 - **An absent `readings` field is not an unavailable reason.** `ConditionsScore.readings`
-  is optional because the API and the Mini App deploy separately; a client that turns its
+  is optional because the API and the client deploy separately; a client that turns its
   absence into `model_unavailable` blames the forecast model for our own release ordering.
   It renders nothing instead.
 - **`collect-runs` stores trailing hours for `THERMAL_MODEL` only.** `T_mass` needs ~96 h
@@ -172,37 +154,26 @@ decisions are final unless explicitly overridden by the user.
   `conditionsScore.test.ts` walks the temperature axis in tenths **past both edges** and
   asserts no tenth moves the component by more than the 1 point rounding forces; a new
   component, or a new band, gets the same walk. Widening a band instead of fixing a slope is
-  the other lever and it is **not** free — `TEMP_BAND_C` also drives the Mini App's
+  the other lever and it is **not** free — `TEMP_BAND_C` also drives the client's
   temperature chart, and nobody has measured where the top of that band belongs
   (`scoring-findings.md` §4).
+- **Every degradation path in the scorer inflates, and that is one defect wearing three
+  hats** (issues #21, #32, #34). A missing rainfall fetch is full drying credit; a missing
+  today-row is full wind and humidity credit; brutal heat maxes out four of five components.
+  Any change to the score starts from *"what does this say when the inputs are missing"*,
+  never from re-weighting a component. See `scoring-findings.md` §6c.
 - **There is no `apps/api/src/jobs/`.** It was deleted with BullMQ. Scheduled work is an HTTP route under `/api/cron/*` with its logic in `src/lib/` — see § Background Jobs.
-- Telegram helpers live in `apps/api/src/lib/telegram/`; alert fetch/upsert/notify logic in `apps/api/src/lib/alerts/`.
-- **The alert deep link is a plain `url` inline keyboard button, never `web_app`.** `startapp` is a Direct Link Mini App mechanism; a `web_app` button opens an *inline-button* Mini App and does not deliver `start_param` at all, so the app would launch on the list with no idea which location the alert was about. The link is built by `lib/telegram/deepLink.ts`, whose base (`https://t.me/WeatherTeam6_bot/Alert`) is a constant because neither the bot username nor the Direct Link short name is derivable from `TELEGRAM_BOT_TOKEN`.
-  - **Accepted transitional cost, 2026-09-22 → Phase 3.** The client no longer reads `start_param` — migration Phase 2 deleted `apps/miniapp/src/lib/deepLink.ts` along with the SDK — so this button now opens the app on the **list**, behind a login, rather than on the location the alert was about. The alert text names the location, so it is a degradation rather than a break, and Phase 3 deletes the button with the bot. **Do not "fix" it by reviving the client-side deep link**: without the SDK there is no `initData` and the Telegram launch path is over. If the window turns out to be long, drop the button from `alertKeyboard` instead of shipping one that lands in the wrong place.
-- **A button that cannot be built correctly is omitted, not approximated.** `alertKeyboard` returns `null` for a non-uuid id. Telegram answers a malformed button url with a 400 — so a bad link costs the whole alert, not just the button. Same reason `InlineKeyboardMarkup` in `sendMessage.ts` is narrowed to url buttons: Telegram's real button type is a union where exactly one field may be set, and a wider type here would let a caller compile a 400.
-- **A permanent Telegram rejection keeps its claim; only a transient one releases it.** `sendTelegramMessage` throws `TelegramPermanentError` for a non-429 4xx and a plain `Error` for everything else, and `notifyPendingAlerts` branches on the *type* — never on the message text. Releasing the claim unconditionally (what it did until 2026-08-26) meant a message Telegram rejects identically every time was re-sent on every cron run, forever. Keeping the row claimed costs one alert; releasing it costs an unbounded loop.
-- **`POST /api/telegram/webhook` verifies `secret_token`** via `webhookSecretAccepted` in `lib/telegram/webhookAuth.ts` — the header Telegram echoes from `setWebhook`, and the only part of the request an outsider cannot forge (`chat.id` lives in the body). It is **deliberately permissive when `TELEGRAM_WEBHOOK_SECRET` is unset**, because making it mandatory takes the bot offline between deploy and re-running `setWebhook`; the `chat.id` check still runs in that window. The helper is pure and lives outside the route module for the same reason `validateInitData` does — importing the route pulls in the database client, which throws at import time without `DATABASE_URL`.
-- **Every refusal on that route answers 200.** A non-200 makes Telegram redeliver the same update, and a distinguishable response reveals the endpoint to an unauthorized caller.
-- **A button tap is authorized on *two* ids, not one.** `callback_query` carries `from.id` (who pressed) and `message.chat.id` (where the panel lives); **both** are checked against `TELEGRAM_CHAT_ID`. Checking only the chat lets anyone reaching a forwarded panel drive it; checking only `from` accepts a tap in a chat this bot never posted to. The `update.message` path still checks `chat.id` alone, because that is the only id it has.
-- **The panel is one message edited in place, and its state lives in `panel_states`.** `callback_data` is 64 bytes, so a button carries an 8-hex-character state id plus the single field it changes (`callbackData.ts`); everything else is read back from the row and the panel is **re-rendered from what was written**, never patched in memory. A state row that is gone — pruned at 7 days, or another chat's — says *expired*; it never guesses. Buttons that will not encode are dropped, but the thing they pointed at is still named in the text.
-- **`answerCallbackQuery` runs before the work, and `editMessageText` tolerates one 400.** The client spins until the query is answered and gives up at ~15 s, and a conditions render is two upstream fetches. Re-tapping the tab already showing produces byte-identical output, which Telegram rejects as *"message is not modified"* — tolerated by description in `sendMessage.ts`, and nothing wider, because every other 400 there is an escaping failure that must stay visible.
-- **`InlineKeyboardButton` is a two-arm union whose arms close each other with `?: never`.** Excess-property checking against a plain union would accept a button carrying both `url` and `callback_data`, which Telegram answers with a 400 for the whole message.
-- **`/weather <place>` creates one `panel_states` row per geocode result before sending anything.** A result's lat/lon/elevation/`feature_code` do not fit in `callback_data`, so its button (`VERB_GOTO`) points at a row that already carries them (`elevation_m`, `feature_code` — migration 0010) rather than re-deriving them from a re-run search, which could answer with a different set of results by the time it is tapped. A single unambiguous match skips the results screen and opens its one child state directly. The result list's subtitle is `placeSubtitle` (`packages/types/geocodeCopy.ts`), shared with the Mini App's `/add` picker — the issue #82 fix (a plain-language kind beside admin1/country) has exactly one implementation, not two that can drift.
-- **The Save buttons on a weather-preview panel are the insert `POST /locations` also uses.** `insertGeneralLocation` (`lib/locations/createLocation.ts`) is the shared write; the flag (`climb`/`place`, `FIELD_KIND`) is always explicit, never inferred, same as §12. `VERB_SAVE` checks `state.locationId !== null` before inserting — a double-tap before the edited message reaches the client must not create two locations at the same coordinates, since there is no unique constraint to catch it.
-- **"Update" a mis-saved location is remove-then-add, not a third flow.** `/remove` behind a confirm (`remove_confirm` view) plus `/weather` again is the whole answer — deliberately, editing rock type/aspect/cliff angle stays out of scope (§12.4), and `/help` says so. `VERB_REMOVE` reads the location's name *before* calling `deleteLocationCascade`, then creates a **new** `removed` panel state rather than updating the one just tapped: `panel_states` is itself a `DEPENDENT_TABLES` entry, so the cascade already deleted that row along with the location.
-- Auth middleware lives in `apps/api/src/middleware/`. `resolveUser` (`auth.ts`) resolves *who* the caller is; `requireApiAuth` (`apiAuth.ts`) decides *whether* they may call `/api/v1/*` at all.
-- **`/api/v1/*` is gated by `requireApiAuth`**, which accepts **two schemes on the one `Authorization` header** and nothing else. It exists because `resolveUser` hands every unauthenticated caller `DEFAULT_USER_ID`, i.e. owner rights on a public URL, and Vercel's production alias is not covered by Standard Protection (protecting it needs a paid plan). Do not move the gate to Vercel. `/api/cron/*` (CRON_SECRET) and `/api/telegram/*` (chat.id) keep their own auth and stay outside it.
-  - `Bearer $API_SHARED_SECRET` — server-side callers, scripts, curl. **Fail-closed: an unset secret is a 503 under *both* schemes**, never an open door. This is what holds the door shut and it is not replaced by the scheme below.
-  - `tma <initDataRaw>` — the Telegram Mini App. HMAC-SHA256 validated against `TELEGRAM_BOT_TOKEN` by `validateInitData` in `src/lib/telegram/initData.ts`; the bot token never reaches the client bundle.
-- **A valid `initData` signature is not an authorization decision on its own.** It proves the launch came from *a* Telegram user, and anyone who finds the bot can open its menu button. `requireApiAuth` therefore also checks the signed `user.id` against `TELEGRAM_CHAT_ID` — the same single-user boundary the webhook uses. Removing that check silently grants `DEFAULT_USER_ID`'s rights to every Telegram account.
-- **`validateInitData` stays pure** — no env reads, no Express types — so the middleware is a thin gate and the algorithm is directly testable. Three properties it must keep: **the check string is every received field except `hash` — `signature` included**, exactly one `hash` parameter is accepted (a second one appended by an attacker must not be ignored), and `auth_date` older than `INIT_DATA_MAX_AGE_SECONDS` is rejected.
-- **The two Telegram validations exclude different fields, and mixing them up 401s every real launch.** The **bot-token HMAC** this app uses takes "a chain of all received fields", minus `hash` only — `signature` **included**. Excluding `signature` is the **Ed25519 third-party** rule and does not apply here; clients from Bot API 7.10 on send it on every launch, so dropping it leaves the check string a field short and 401s every real request. Authority: core.telegram.org/bots/webapps.
-- **A crypto validator tested only against its own signing helper proves nothing.** `initData.test.ts` was green through all of the above because the helper built the check string with the same mistake. When a test fixture is generated by the same understanding as the code, the only real verification is production traffic — check the Vercel runtime logs after a real launch.
+- **`insertGeneralLocation` (`lib/locations/createLocation.ts`) is the one write behind `POST /locations`.** The climbing flag (`is_climbing_location`) is always **explicit, never inferred** — see `miniapp-design-v1.md` §12. The `/add` picker's result subtitle is `placeSubtitle` (`packages/types/geocodeCopy.ts`), which has exactly one implementation so the issue #82 fix cannot drift into two.
+- Auth middleware lives in `apps/api/src/middleware/`. `requireApiAuth` (`apiAuth.ts`) decides both *who* the caller is and *whether* they may call `/api/v1/*` at all.
+- **`/api/v1/*` is gated by `requireApiAuth`**, which accepts **two schemes on the one `Authorization` header** and nothing else. Vercel's production alias is reachable without a Vercel login, so this gate is what holds the door shut. Do not move it to Vercel. `/api/cron/*` (CRON_SECRET) keeps its own auth and stays outside it.
+  - `Session <token>` — a real user. `req.userId` is the token's subject.
+  - `Bearer $API_SHARED_SECRET` — server-side callers, scripts, curl. Acts as `DEFAULT_USER_ID`.
+  - **Fail-closed: an unset `API_SHARED_SECRET` or `AUTH_TOKEN_SECRET` is a 503 under *both* schemes**, never an open door.
 - The credential must travel in `Authorization`. The CORS layer in `index.ts` allows only `Content-Type, Authorization`, so a custom header fails browser preflight.
 - Route error/validation helpers live in `apps/api/src/lib/http.ts`. Handlers validate `uuid` route params with `isUuid` (return 404, not a Postgres 500) and funnel caught errors through `sendServerError` — never hand-roll `err.message` into the response, which leaks DB internals. `sendServerError` logs through `describeError`, which reads only known-safe fields; never widen it to serialise an error object wholesale, because driver errors can carry the connection string.
 - **All four ensemble models are pooled, and `model_sources` names the ones actually read.** `parseEnsemble` collects members for every suffix in `ENSEMBLE_MODEL_SUFFIXES` — 143 members live (GFS 30, ECMWF 50, ICON 39, GEM 20, plus one control run each) against 30 when it filtered to GFS alone. Attribution is derived from the models that actually yielded arrays, so a partial upstream response drops a model rather than claiming it. Members are pooled **unweighted**, so a model counts in proportion to how many members it runs; equal-weighting the four would need a documented reason to override that.
 - **A deterministic multi-model response only labels its columns while more than one model has coverage.** Measured 2026-08-31: `models=gfs_seamless,ncep_hrrr_conus` at a point HRRR does not reach answers **200** with a bare `temperature_2m` — HRRR silently dropped, the survivor unlabelled — while HRRR alone there is a 400. `parseDeterministicHourly` therefore trusts a bare column **only when exactly one model was requested**, and otherwise reports `ambiguous` so `fetchDeterministicHourly` re-asks one model at a time. Attributing that series by request order would name the wrong model on every column.
-- **`precipitation_probability` is not necessarily the selected model's own field, and which models share it is derived, not listed.** `markSharedProbability` flags every model whose series is byte-identical to another's in the same response — live at Red Rock that is GFS, HRRR and NBM together. A column a renderer heads with a model name must have `probability_is_shared` false; the flag reaches the database as `weather_runs.precip_prob_is_shared`, where **null means the question does not apply** (an ensemble run), not "no". **No surface renders that column today** — the bot's hourly panel dropped it in the September 2026 plain-language rebuild, because the `🌧 Rain` panel answers the same question from `members_wet / member_count`, which is a real proportion of real forecasts and needs no caveat. The field is still fetched, still stored and still flagged; the rule above governs the next renderer that wants it, and is not a description of one that exists.
+- **`precipitation_probability` is not necessarily the selected model's own field, and which models share it is derived, not listed.** `markSharedProbability` flags every model whose series is byte-identical to another's in the same response — live at Red Rock that is GFS, HRRR and NBM together. A column a renderer heads with a model name must have `probability_is_shared` false; the flag reaches the database as `weather_runs.precip_prob_is_shared`, where **null means the question does not apply** (an ensemble run), not "no". **No surface renders that column today** — the `members_wet / member_count` proportion answers the same question and needs no caveat. The field is still fetched, still stored and still flagged; the rule above governs the next renderer that wants it, and is not a description of one that exists.
 - **`parseEnsemble` returns `by_model` as well as the pooled days**, both through the same `computeDays` reduction so the two can never drift. A model that yielded precipitation members but not all six variables is named in `partial_models` rather than given a row — `computeDays`'s 0/50 fallbacks are correct for the pooled case and would be a fabricated 0 °C high under one model's name.
 - **`weather_run_hours` and `weather_ensemble_hours` key off `run_id`, not `location_id`.** They are unreachable by `DEPENDENT_TABLES` in `deleteLocation.ts` — the loop dereferences `table.location_id`, so adding them would not compile — and deleting `weather_runs` while they still reference it is a foreign-key violation surfacing as a generic 500. `deleteLocationCascade` therefore has a **bespoke step ordered before** the loop, and `pruneWeatherRuns` has the identical constraint: children first, driven by a subquery over the parent rows being pruned. The hours' own `valid_at` is a **forecast** time that runs into the future, so pruning them by it would delete tomorrow and keep last fortnight.
 - **Only the ensemble run stores `raw`.** Every deterministic variable requested has a column on `weather_run_hours`, so its parsed rows are the whole payload, and one response covering six models would otherwise be stored six times to preserve nothing. Retention is **2 days parsed / 6h raw** (`pruneRuns.ts`), so there is effectively no run-to-run trend history — an accepted cost, not a bug, and nothing renders it. **Cut from 14 days on 2026-09-10 because 14 never fitted:** Neon's free tier caps a project at 512 MB and production hit it, at which point every write failed with `could not extend file` while `latestRuns` logged a warning and rendered anyway. Raising it again needs a paid plan or fewer stored hours per run — it is a capacity limit, not a preference. The arithmetic is in `pruneRuns.ts`.
@@ -221,24 +192,24 @@ decisions are final unless explicitly overridden by the user.
   `weather_run_hours` and carried on `HourlyPoint`/`RunHour`; it is deliberately **not** on the
   `/hourly` response yet, because no client reads it.
 - **An hour with no values at all is not stored.** Open-Meteo pads every model's arrays to the longest horizon in the request, so a 54h HRRR run arrives with 330 empty trailing hours; an absent row and an all-null row mean the same thing to a reader. A row that *is* stored keeps its nulls as nulls — `0 mb` is what NBM's pressure would become otherwise, at every point measured.
-- **A precipitation percentile does not add up, and the ensemble stores a mean because of it.** `precip_mm_mean` on `weather_ensemble_hours` is the only precipitation figure that can be summed — the mean of the members' daily totals *is* the total of the hourly means, whereas a sum of hourly p50s is the median of nothing. A step or day total comes from that column; the percentiles describe **one hour** of the step (the wettest by mean) and the panel says so. Printing summed percentiles as a step total would show three to twelve times the rain.
+- **"This model does not reach this day" is decided on the *values*, not on rows being absent.** The padding above means a model past its own horizon returns real rows full of nulls — measured live, `ncep_hrrr_conus` returns 168 hours of which 66 carry temperature. Whatever makes that call must **exclude `precip_prob_pct`**: that series runs past the horizon of the model it was requested with, so it cannot be the evidence that the model answered.
+- **A precipitation percentile does not add up, and the ensemble stores a mean because of it.** `precip_mm_mean` on `weather_ensemble_hours` is the only precipitation figure that can be summed — the mean of the members' daily totals *is* the total of the hourly means, whereas a sum of hourly p50s is the median of nothing. A step or day total comes from that column. Printing summed percentiles as a step total would show three to twelve times the rain.
 - **A precipitation percentile may be *drawn* for one hour; it may never be *added*.** `GET /hourly/:id` carries `precip_mm_p10`/`precip_mm_p90` beside the mean so a chart can shade how much the members disagree about a single hour. The no-summing rule above is unchanged and is what the two are for: a band or a whisker on one mark, never a step total, a day total or a header figure. `precip_mm_mean` remains the only precipitation figure that can be added up, and the mean routinely sits **outside** p10-p90 — nine members dry and one wet puts both percentiles at 0 with a non-zero mean, which is the disagreement worth drawing rather than a fault.
-- **A client reads an absent column as a gap, and `=== null` does not do that.** The API and the Mini App deploy separately, so every release that adds a field has a window where the client is new and the response is not: the column is simply missing, and `undefined` passes every `=== null` guard. Found in production on the rain whiskers, which stroked `y1="NaN"` — no thrown error, no browser warning, marks silently absent from a chart that believed it had drawn them. Normalise with `?? null` where a response is turned into marks (`apps/miniapp/src/components/charts/hourlySeries.ts`, `toDatum`), not at each of the guards downstream.
+- **A client reads an absent column as a gap, and `=== null` does not do that.** The API and the client deploy separately, so every release that adds a field has a window where the client is new and the response is not: the column is simply missing, and `undefined` passes every `=== null` guard. Found in production on the rain whiskers, which stroked `y1="NaN"` — no thrown error, no browser warning, marks silently absent from a chart that believed it had drawn them. Normalise with `?? null` where a response is turned into marks (`apps/miniapp/src/components/charts/hourlySeries.ts`, `toDatum`), not at each of the guards downstream.
 
 - **The chance of rain is `members_wet / member_count`, never `precipitation_probability`.** The wet count is members at or above `MEASURABLE_PRECIP_MM` (0.1 mm, Open-Meteo's own resolution), computed in `parseEnsembleHourly`. `members_wet` is **nullable in the database and null means unknown** — a row from before the column existed withholds the probability rather than reporting 0%.
-- **Hourly precipitation is stamped at the end of the hour it fell in, so a table row owns the step *after* it.** A 12:00 row at a 3 h step sums the hours stamped 13, 14 and 15 and means "rain between 12:00 and 15:00". `buildRows` and `buildRainDay` both follow it; if one changed, the two views would disagree about which row a shower belongs to.
-- **"This model does not reach this day" is rows whose values are all gaps, not missing rows.** Open-Meteo pads every model to the longest horizon in the request — measured live, `ncep_hrrr_conus` returns 168 hours of which 66 carry temperature. `dayHasData` is the check, and it **excludes `precip_prob_pct`**: that series runs past the horizon of the model it was requested with, so it cannot be the evidence that the model answered.
-- **A panel reads a stored run when one is fresher than `RUN_MAX_AGE_MINUTES`, and prints its age.** `lib/runs/latestRuns.ts` fetches and writes back only when there is none — every button tap re-renders the whole panel, and a six-model fetch per tap would sit inside a callback the client abandons at ~15 s. The write-back is **best effort**: a panel that rendered real upstream data must not fail because the row could not be stored.
-- **`/api/cron/collect-runs` and `/api/cron/prune-runs`** carry Phase 2's scheduled work, gated on `CRON_SECRET` through the shared `cronGateFailed`, with `Promise.allSettled` across locations. **`prunePanelStates` stays on `/check-alerts` until `prune-runs` has a schedule registered against it** — moving it when the route exists rather than when its registration does would stop it running at all.
+- **Hourly precipitation is stamped at the end of the hour it fell in, so a mark owns the hour *before* its timestamp.** A rain bar at 02:00 describes 01:00-02:00. An instantaneous reading does not follow that rule and is centred on its timestamp instead; `Series.tsx` has one helper per convention (`accumulationLeft`, `instantLeft`) so the choice is made explicitly rather than inherited.
+- **A panel reads a stored run when one is fresher than `RUN_MAX_AGE_MINUTES`, and prints its age.** `lib/runs/latestRuns.ts` fetches and writes back only when there is none — a six-model fetch per request would blow the function's `maxDuration`. The write-back is **best effort**: a response built from real upstream data must not fail because the row could not be stored.
+- **`/api/cron/collect-runs` and `/api/cron/prune-runs`** carry the scheduled run work, gated on `CRON_SECRET` through the shared `cronGateFailed`, with `Promise.allSettled` across locations.
 - **The model key suffix is not the model name and cannot be derived from it** (`gfs_seamless` → `_ncep_gefs_seamless`, `ecmwf_ifs025` → `_ecmwf_ifs025_ensemble`). `ENSEMBLE_MODEL_SUFFIXES` is the mapping; adding a model to `ENSEMBLE_MODELS` without adding it there means it is fetched and silently ignored — the exact failure that stood for months.
 - **A control run is a member.** `precipitation_<model>` with no `_memberNN` is the model's unperturbed forecast. The old filter matched the literal `_member` prefix and dropped all four.
 - **`temp_c_max`, `temp_c_min` and `wind_kmh_max` are the ensemble *median* of each member's own daily extreme — never a global `Math.max`.** A global max is the hottest hour of the hottest member: on 2026-08-26 it put **102 °F** on screen for Red Rock under the label "High" while the 143-member median said **99 °F**, and it can only get worse as members are added. Reach for `ensembleMedian`, not `Math.max`, for anything a user reads as a forecast. `humidity_pct`, `dewpoint_c` and `shortwave_wm2` stay means across all member-hours, which is already a central estimate.
-- **`fetchRecentHourlyPrecip` returns a forecast tail, and anything that draws it must cut that off.** The call sets `forecast_days=1` deliberately — the bot's rain panel needs rain that is falling *now* — so the newest hours in the series have not happened. `GET /recent-precip/:locationId` passes the result through `trimToObservedHours` (`lib/weather/recentPrecipWindow.ts`) before answering, because a chart captioned "recent rain" drawing a prediction is an unbacked claim, not a rounding error. The cut is at the location's own clock, from the response's `utc_offset_seconds`; an hour stamped `T` covers `T-1h` to `T` and so is kept when `T` is now.
+- **`fetchRecentHourlyPrecip` returns a forecast tail, and anything that draws it must cut that off.** The call sets `forecast_days=1` deliberately, so the newest hours in the series have not happened. `GET /recent-precip/:locationId` passes the result through `trimToObservedHours` (`lib/weather/recentPrecipWindow.ts`) before answering, because a chart captioned "recent rain" drawing a prediction is an unbacked claim, not a rounding error. The cut is at the location's own clock, from the response's `utc_offset_seconds`; an hour stamped `T` covers `T-1h` to `T` and so is kept when `T` is now.
 - **A window's caption is measured, not requested.** The route asks for five days; Open-Meteo returns what it has and the trim removes the future end. A surface saying "past 5 days" — or "no rain in the past 5 days" — must derive that span from the timestamps it received. `RecentPrecip.from_date` exists so a miss reads as "none in this window" rather than "none ever".
 
 - **Every Open-Meteo call sets `timezone=auto`, and "today" is the *location's* local day** (issue #33). Daily buckets are the location's own calendar days and the response's `utc_offset_seconds` is carried out on `OpenMeteoResult`. `auto` rather than the stored `locations.timezone`: it needs no timezone database in-process and it is the only option that also works for `GET /preview`, which has no saved row.
 - **`computeLiveForecast` returns `todayStr` and every caller uses it.** No route may derive its own date — `/forecast`, `/conditions` and `/preview` each used to compute `new Date().toISOString().slice(0, 10)` independently. Use `localDateString(now, offset)`, which shifts the epoch and reads the UTC date of the shifted instant, exactly as Open-Meteo bucketed the series. A non-finite offset degrades to UTC rather than producing `Invalid Date`.
-- **The server marks the today row; the client never computes it.** `ForecastSnapshot.is_today` is set in `computeLiveForecast`. The old design had the API and the Mini App each derive a UTC date and compare it to UTC buckets — **both wrong in the same direction, so they agreed with each other and nothing could detect it**, and in the Americas today's high became tomorrow's every afternoon. `is_today` is optional on the type only for a response cached from before the fix: **a missing value is unknown, not `false`**.
+- **The server marks the today row; the client never computes it.** `ForecastSnapshot.is_today` is set in `computeLiveForecast`. The old design had the API and the client each derive a UTC date and compare it to UTC buckets — **both wrong in the same direction, so they agreed with each other and nothing could detect it**, and in the Americas today's high became tomorrow's every afternoon. `is_today` is optional on the type only for a response cached from before the fix: **a missing value is unknown, not `false`**.
 - **External APIs are proxied, never called from the client.** `GET /api/v1/geocode` (Open-Meteo place search) and `GET /api/v1/radar/frames` follow this: the fetch lives in `src/lib/weather/`, wrapped in the shared `fetchWithRetry`, and the route is a thin pass-through returning `{ data, error, status }`. A client calling a third-party API directly bypasses the retry policy and the response contract both.
 - `GET /api/v1/preview?lat=&lon=&elevation=` serves weather for a location that has **no row and no UUID** — the add flow's pre-save step. It runs `computeLiveForecast` over a synthetic `LiveForecastLocation` and **persists nothing**; `location.id` is the placeholder `"preview"`, used only for log lines and synthesized snapshot ids. It deliberately returns no conditions score: nothing has been classified as a climbing location yet.
 
@@ -249,24 +220,25 @@ decisions are final unless explicitly overridden by the user.
 - Defer runtime imports of `../db/index.js` inside the entry function. It throws at import time when `DATABASE_URL` is unset, which pre-empts any friendlier message with a stack trace.
 
 ## Auth Pattern
-- **`AUTH_ENABLED` is deleted.** It had exactly one reader — `resolveUser`'s 501 branch — and real authentication replaced it in Phase 1 of `docs/handoffs/leave-telegram-v1.md`.
-- **`requireApiAuth` is the only setter of `req.userId` under `/api/v1`**, from the presented credential: `Session <token>` → the token's subject; `Bearer <API_SHARED_SECRET>` and `tma <initData>` → `DEFAULT_USER_ID`. `resolveUser` survives on `/api/telegram` alone, because the webhook reads `req.userId` and authenticates by `chat.id`; Phase 3 deletes both together.
-- **A router mounted outside `/api/v1` reads `req.userId` as `undefined`** through a type that says it cannot be (defect class 8) — no type error, no test failure, just a route that finds nothing. Mount inside the gate or bring your own identity. `src/index.test.ts` pins the webhook's copy of this.
+- **`requireApiAuth` is the only setter of `req.userId` anywhere in the app**, from the presented credential: `Session <token>` → the token's subject; `Bearer <API_SHARED_SECRET>` → `DEFAULT_USER_ID`. It owns the `Request` type augmentation.
+- **A router mounted outside `/api/v1` reads `req.userId` as `undefined`** through a type that says it cannot be (defect class 8) — no type error, no test failure, just a route that finds nothing. Mount inside the gate or bring your own identity.
 - Route handlers always use `req.userId`. Never reference `DEFAULT_USER_ID` directly in routes.
-- **A login UI is now required**, reversing the old rule — see the handoff's § Explicit rule overrides. Still **no Clerk and no self-serve signup**: `npm run user:add` is how an account comes to exist, and it is an operator action.
+- **No Clerk and no self-serve signup.** `npm run user:add` is how an account comes to exist, and it is an operator action.
 - **Two honest limits, and they are design rather than debt.** There is **no rate limiting** on `POST /api/v1/auth/login` — no Redis, no store for counters — so scrypt's cost plus a fixed failure delay is the whole defence and passphrase strength is the real control. There is **no token revocation** — no session table — so rotating `AUTH_TOKEN_SECRET` invalidates every token at once and is the only lever. Do not describe either as stronger than it is.
 - **The token is not a JWT, deliberately**: HMAC-SHA256 over a base64url payload, one algorithm, no `alg` field to confuse and no `alg:none` to reject. `lib/auth/token.ts` is pure and returns a discriminated result; it signs and verifies over the raw payload *string*, never over re-serialised claims, because `JSON.stringify` of parsed claims does not reproduce the bytes that were signed.
 - **An unknown username costs the same scrypt derivation as a known one** (`dummyPasswordHash`). Returning early on a miss is a username oracle worth tens of milliseconds over the network.
+- **`POST /api/v1/auth/login` is mounted *above* the gate** — you cannot present a token in order to obtain one. Express matches in registration order, so the handler must *respond* rather than call `next()`; an unmatched path under `/api/v1/auth` then falls through to the gate and 401s, which is the behaviour you want.
 - **CORS is an allowlist, not `*`** — `lib/cors.ts`, overridden outright by `CORS_ALLOWED_ORIGINS`. One `*` may stand for a single host label (`https://*.vercel.app`) so a preview deployment is reachable; the label is matched against `[a-z0-9-]+` rather than "anything but a dot", because a suffix match is satisfied by `https://evil.com/x.vercel.app`.
 
 ## Database Rules
 - Drizzle schema is the single source of truth. Schema lives in `apps/api/src/db/schema.ts`.
 - All migrations via `drizzle-kit`. Never run raw SQL against the DB directly.
 - All queries go through Drizzle. No raw `pg` queries unless Drizzle cannot express it.
-- `user_id` FK exists on: `locations`, `trips`, `conditions_reports`, `push_tokens`, `premium_pulls`, `user_preferences`. This is intentional even though auth is off.
+- `user_id` FK exists on: `locations`, `trips`, `conditions_reports`, `push_tokens`, `premium_pulls`, `user_preferences`.
 - **No FK in the schema declares `onDelete`**, so Postgres refuses to delete any row another table still references. Deletes therefore clear their dependents explicitly, in one transaction: `DELETE /locations/:id` goes through `deleteLocationCascade` (`src/lib/locations/deleteLocation.ts`), which walks `DEPENDENT_TABLES`. **Adding a table with a `location_id` FK means adding it to that list** — omit it and delete becomes a foreign-key violation surfacing as a generic 500, and only once real data exists. Do not "fix" this by adding cascades to the schema without deciding what it means for every other delete.
 - **`DELETE /trips/:tripId` clears `trip_locations` and deletes the trip in one transaction**, the same shape as `deleteLocationCascade`. Covered by `npm run check:delete-trip` — the failure is a Postgres constraint error and the vitest suite cannot see it.
 - **A new table with a `trip_id` FK gets cleared in that handler too**, exactly as a `location_id` FK gets added to `DEPENDENT_TABLES`. `trip_locations` is currently the only one.
+- **`weather_alerts.notified_at` is dormant.** Nothing writes it and null means *"never asked"*, not "not yet sent". The column is kept for whatever notification channel replaces the deleted bot; do not read it as live state.
 
 ## API Response Shape
 All endpoints return:
@@ -286,7 +258,8 @@ There is no queue infrastructure — no BullMQ, no Redis. The API is a single Ex
 
 - `forecast-snapshot` and `rainfall-history` were deleted outright, not converted. Forecast/conditions scoring is computed live, per request, in `apps/api/src/lib/scoring/liveForecast.ts` (`computeLiveForecast`) — called directly from `GET /conditions/:id` and `GET /forecast/:id`. Recent (30-day) rainfall for the drying-time component is also live-fetched per request (ACIS via `fetchPrecipHistory` when the location has an `asos_station`, else Open-Meteo's archive API via `fetchArchivePrecip`) — there is no `rainfall_history`-table job keeping that data warm anymore.
 - `alerts-poller` was converted, not deleted: its fetch/upsert/prune logic lives in `apps/api/src/lib/alerts/checkAlerts.ts` (`runAlertsCheck`), invoked by `POST /api/cron/check-alerts` (gated on a `CRON_SECRET` header) on an external schedule (cron-job.org), not a queue.
-- **Any per-location loop that makes an upstream call runs under `Promise.allSettled`, never sequentially.** `fetchWithRetry` sleeps 1s + 2s + 4s across its attempts, so a serial loop multiplies an upstream outage by the number of locations and walks straight into the function's `maxDuration: 60`. In `runAlertsCheck` that killed the request **before `notifyPendingAlerts()` ran**, leaving pending alerts undelivered across every retry — and it got worse as locations were added. Concurrency is safe there because each location only touches its own rows.
+- **`/api/cron/check-alerts` collects and never delivers.** `notifyPendingAlerts` went with the bot on 2026-09-23 and the product has **no notification channel**: NWS Severe+ warnings are stored, suppress scores, are visible in the app, and reach nobody. That is the owner's parked-alerts decision, not an oversight. **Keep the schedule registered** — a stale alert table is worse than a quiet one, because Severe+ rows suppress scores. Do not build a channel without asking.
+- **Any per-location loop that makes an upstream call runs under `Promise.allSettled`, never sequentially.** `fetchWithRetry` sleeps 1s + 2s + 4s across its attempts, so a serial loop multiplies an upstream outage by the number of locations and walks straight into the function's `maxDuration: 60`. Concurrency is safe there because each location only touches its own rows.
 - `snapshot-cleanup` was deleted — nothing to clean up once there's no snapshot table being written on a schedule.
 
 Any handler that touches the DB across more than one request-scoped operation must still be safe to run concurrently / retry — the "idempotent, no duplicate data" bar from the old job-based world still applies, it's just enforced per-request now instead of per-job-run.
@@ -295,22 +268,19 @@ Any handler that touches the DB across more than one request-scoped operation mu
 
 **`apps/miniapp` is the client.** Vite + React, static build, the real and complete
 implementation of every user-facing screen. There is no second client to keep in parity.
-`apps/mobile` is archived — **do not add features to it.**
 
-**It stopped being a Telegram Mini App on 2026-09-22** (Phase 2 of
-`docs/handoffs/leave-telegram-v1.md`). It runs in an ordinary browser, signs in with a
-session token, carries its own back control, and installs through a PWA manifest;
-`src/telegram/`, `deepLink.ts` and the SDK script tag are deleted. The directory name is
-the last of the old arrangement.
+It runs in an ordinary browser, signs in with a session token, carries its own back
+control, and installs through a PWA manifest. The directory name is the last of the
+Telegram Mini App it began as.
 
 Its own patterns — the design-token adapter, the session token and the 401 path, the
-per-route back targets, React Query rules, null-safe formatting, score suppression, the
-`is_today` flag, and the archived mobile patterns — live in the **`miniapp-patterns`
-skill**, which loads automatically when you touch `apps/miniapp/**` or `packages/design/**`.
-They were moved out of this file because they cost ~2,000 tokens in every session,
-including the majority that never open the client.
+per-route back targets, React Query rules, null-safe formatting, score suppression and the
+`is_today` flag — live in the **`miniapp-patterns` skill**, which loads automatically when
+you touch `apps/miniapp/**` or `packages/design/**`. They were moved out of this file
+because they cost ~2,000 tokens in every session, including the majority that never open
+the client.
 
-Two that stay here because they constrain the **API**, not the client:
+Five that stay here because they constrain the **API**, not the client:
 
 - **The server marks the today row; the client never computes it.** `ForecastSnapshot.is_today`
   is set in `computeLiveForecast`. A missing value is **unknown, not `false`**.
@@ -336,4 +306,3 @@ Two that stay here because they constrain the **API**, not the client:
   value** (issue #34). `computeLiveForecast` returns `scores: []` plus
   `scoreUnavailable: 'rainfall_unavailable'` when the rainfall lookup *failed*. A genuinely
   empty result still scores.
-

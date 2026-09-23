@@ -2,20 +2,31 @@
 
 Version: v1
 Date: 2026-09-22
-Status: **Approved by the owner, 2026-09-22.** This document reverses the Telegram client
-mandate. **Phases 1, 2 and 3 are built and merged; the bot was deleted on 2026-09-23
-(PR #171).** Only **Phase 4 — docs and rules** remains. The alert deep link, and the
-transitional cost Phase 2 recorded against it, are both gone with the button.
 
-**This supersedes `docs/handoffs/telegram-crossover-v4.md` as the product direction.** The
-crossover doc remains the record of why Telegram existed and is not deleted.
+> ## COMPLETE — all four phases shipped. This is a record, not direction.
+>
+> | Phase | What | Shipped |
+> | --- | --- | --- |
+> | 1 | Token auth in the API | 2026-09-22, PR #167 |
+> | 2 | The web app stands alone | 2026-09-22, PR #169 |
+> | 3 | Delete Telegram | 2026-09-23, PR #171 |
+> | 4 | Docs and rules | 2026-09-23 |
+>
+> **There is nothing left in this document to build.** Keep it for three things it is the
+> only record of: why the bot was deleted, why auth is a passphrase and a signed token, and
+> why alerts are collected and never delivered.
+>
+> **Phase 4 went further than this plan asked.** As well as the docs sweep specified below,
+> it deleted the archived React Native app (`apps/mobile`), the original 13-phase build
+> plan, the v8 build prompt, the mobile-era specs and mockups, two superseded handoffs, and
+> six environment variables nothing read. Everything deleted across the whole migration is
+> recoverable from the `archive/2026-09-23-pre-cleanup` tag.
+>
+> Two documents this plan said to *keep* as superseded records —
+> `telegram-crossover-v4.md` and `.claude/docs/telegram-precision-interface-plan.md` — were
+> **deleted instead**, on the owner's "scorched earth" instruction. The reasoning they held
+> is in `.claude/docs/session-archive.md` and in git.
 
-`CLAUDE.md` and `.claude/rules/architecture.md` load every session and both contradicted this
-plan. **Their auth rules were corrected in the Phase 1 PR** — `AUTH_ENABLED`, the three
-schemes, the `req.userId` setter, and the reversal of "do not build a login UI" — because a
-Non-Negotiable Rule forbidding what Phase 2 builds misdirects harder than a stale description.
-**Their Telegram content is still untouched and is amended in Phase 4.** See § Explicit rule
-overrides; it is **not blocking**.
 
 ## Context
 
@@ -59,7 +70,7 @@ third of its source.
 ## Explicit rule overrides
 
 These are standing rules this plan breaks. They are broken deliberately, on the owner's
-instruction, and the rule text gets amended in Phase 4 rather than silently contradicted.
+instruction. **Every rule below was amended in Phase 4** — this table is the record of what changed, not a list of outstanding edits.
 
 | Rule | Where | Override |
 | --- | --- | --- |
@@ -290,48 +301,35 @@ the largest verification gap in the project.**
 
 ---
 
-## Phase 4 — Docs and rules
+## Phase 4 — Docs and rules — **SHIPPED 2026-09-23**
 
-Volume is large enough to be its own pass rather than a `/session-end` afterthought.
+> **As built, and larger than specified.** The owner's instruction was *"scorched earth"*,
+> so this phase removed leftovers from the original plans as well as the Telegram ones.
 
-- **`CLAUDE.md`** — the Mini App/`initData` line, the Telegram env-var block, the Auth Pattern
-  rules, `telegram-precision-interface-plan.md` from the mandatory reading list, the stale Vercel
-  paid-plan claim.
-- **`.claude/rules/architecture.md`** — roughly fifteen Telegram paragraphs (deep links, panel
-  state, webhook auth, `InlineKeyboardButton`, the two-id callback check, rich-message rules).
-  Anything describing a *shared* invariant (`summarizeReadings`, `toConditionsReadings`, the
-  sentinels) stays and loses only its bot half.
-- **Delete the `telegram-patterns` skill.** Amend `miniapp-patterns` (Telegram theming, capability
-  gating, deep links).
-- **`miniapp-design-v1.md`** — amend §1, §2, §8; add the login screen; note §12's preview-in-state
-  constraint now has a plain-web reason rather than an inherited one.
-- **Mark superseded, do not delete:** `telegram-crossover-v4.md`,
-  `.claude/docs/telegram-precision-interface-plan.md`. They are the record of why this existed.
-- **`.claude/rules/defect-patterns.md` — leave the Telegram examples in.** It is a catalogue of
-  defects that actually shipped, and classes 3, 5 and 11 are still true of code that is staying.
-- `STATE.md` rewrite + `session-archive.md` block via `/session-end`.
+**Rewritten:** `CLAUDE.md` (267 → ~200 lines), `.claude/rules/architecture.md` (the ~15
+Telegram paragraphs gone, the shared invariants kept and their bot halves removed), the
+`review-checklist` skill (*Telegram surfaces* → *Weather data surfaces*, carrying the nine
+items that were never about Telegram), `miniapp-patterns` (Telegram client rules and the
+archived mobile patterns gone), `session-end`, `background-work`, `conditions-score`, both
+agent definitions, `README.md`, `REVIEW.md`, and `miniapp-design-v1.md` §1 and §2.
 
-**Corrected in the Phase 1 PR itself, not deferred here — three claims Phase 1 made false. They
-were surgical edits to two always-loaded files, not the Phase 4 rewrite, because a **Non-
-Negotiable Rule** that forbids the login UI Phase 2 builds misdirects harder than a stale
-description does:**
+**Deleted:** the `telegram-patterns` skill; `telegram-render.md`;
+`telegram-precision-interface-plan.md`; `telegram-crossover-v4.md`;
+`weatherteam6-miniapp-handoff-v1.md`; `climbing-research-brief-v1.md`; `build-prompt-v8.md`;
+`phase-7b-7c-plan.md`; `.claude/docs/plan.md`; `docs/superpowers/` entire; the mobile-only
+mockups (radar, walls, trips); `apps/mobile` and its Expo build wiring; and the R2, ShadeMap
+and Expo environment variables.
 
-- **`AUTH_ENABLED` no longer exists.** Its only reader was `resolveUser`'s 501 branch. The
-  variable is out of `.env.example`, `turbo.json` and the drifting copy in `plan.md` (that
-  copy is deleted, not updated). `CLAUDE.md` and `.claude/rules/architecture.md` § Auth
-  Pattern now describe the three schemes instead. **Done.**
-- **`CLAUDE.md` § Known Gotchas: "An unauthenticated 401 from production proves
-  `DEFAULT_USER_ID` is set" was false the moment `resolveUser` came off the app-wide mount.**
-  A missing `DEFAULT_USER_ID` now shows only as a **500 on an authenticated Bearer or tma
-  call**, and not at all under `Session`. A **503** on every scheme means a secret is unset.
-  The converse half (every `/api/v1/*` path 401s whether or not it exists) is unchanged.
-  **Done.**
-- **CORS is no longer `*`.** `.claude/rules/architecture.md` carries the replacement rule: the
-  allowlist is `lib/cors.ts`, `CORS_ALLOWED_ORIGINS` replaces it outright, and a preview
-  deployment needs a `https://*.vercel.app` entry to be reachable from a browser. **Done.**
-- **Still outstanding, and Phase 4's:** the Telegram halves of both files, the
-  `telegram-patterns` skill, `miniapp-design-v1.md`, and the superseded banners. Phase 1
-  touched only the auth rules.
+**Condensed:** `weatherteam6-ui-handoff-v1.md` (682 lines, eleven React Native screen phases)
+→ `design-system-v1.md` (~95 lines) — only the part that was ever in force for the web
+client.
+
+**Carried rather than lost:** the issue #21 degradation diagnosis, which lived only in the
+deleted `plan.md`, is now `scoring-findings.md` §6c and a rule in `.claude/rules/architecture.md`.
+
+**`.claude/rules/defect-patterns.md` was left alone**, as this plan specified — its Telegram
+examples are defects that actually shipped, and classes 3, 5 and 11 are still true of code
+that stayed.
 
 ---
 
