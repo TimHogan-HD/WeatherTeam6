@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /**
- * PostToolUse hook for WeatherTeam6 — nudge a code review after code leaves the
- * machine.
+ * PostToolUse hook for WeatherTeam6 — ask for a code review when a PR is opened.
  *
  * Rewritten from bash + python3 on 2026-08-26 for the reason recorded in
  * pre-tool-safety.mjs: `python3` here is the Windows Store stub, so the command
@@ -52,24 +51,13 @@ try {
 
 const command = String(input?.tool_input?.command ?? '')
 
-// `gh pr create` is checked first: it is usually preceded by a push in the same
-// compound command, and the PR case is the one with a review target.
+// One review per PR, when it is opened. A later push to the same branch does not
+// ask again: the `review` CI job re-reviews every push to an open PR.
 if (/\bgh\s+pr\s+create\b/.test(command)) {
   emit(
-    'A pull request was just opened with the gh CLI. Before responding to the user, ' +
-      'run the code-review skill at high effort (/code-review high) on this branch. ' +
-      'Read .claude/rules/defect-patterns.md first — the defects this project ships ' +
-      'pass typecheck, lint and the suite, so the diff review is the control that works. ' +
-      'Do not skip this step.',
-  )
-}
-
-if (/\bgit\s+push\b/.test(command)) {
-  emit(
-    'Code was just pushed to the remote. Before ending this stretch of work, run the ' +
-      'code-review skill on the branch diff (/code-review). If a PR exists, --comment ' +
-      'posts the findings as inline review comments. Read the diff yourself as prose ' +
-      'as well — that is Gate 0 of the /review-checklist skill.',
+    'A pull request was just opened. Before responding to the user, run /code-review high ' +
+      'on this branch — the defects this project ships pass typecheck, lint and the suite, ' +
+      'so the diff review is the control that catches them.',
   )
 }
 

@@ -8,7 +8,7 @@
  * was a missed defect and a manual request for another sweep.
  *
  * Part of the answer was mechanical (CI never ran `check:hooks`). The other
- * part is this: CLAUDE.md's "Session Start Protocol" is a list of things an
+ * part is this: a session-start protocol in CLAUDE.md is a list of things an
  * agent is asked to remember. Everything in this repo's history says that a
  * remembered step is a step that eventually gets skipped. So the state is
  * pushed into context rather than fetched by request.
@@ -178,10 +178,10 @@ try {
   if (!isGitRepo()) process.exit(0)
 
   const sections = [
-    '# Injected session state (SessionStart hook — this IS steps 1-2 of the Session Start Protocol)',
+    '# Injected session state (SessionStart hook)',
     '',
     'Read below rather than re-running `git log`, `gh issue list`, or opening STATE.md.',
-    'Step 3 of the protocol (building the shared packages) is still yours to run.',
+    'Building the shared packages is still yours to run.',
     '',
     '## Repository',
     '```',

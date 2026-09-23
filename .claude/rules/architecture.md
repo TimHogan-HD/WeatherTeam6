@@ -1,57 +1,27 @@
 # Architecture Rules
 
-> **Verification is enforced by machines, not by memory.** CI runs `build`, `typecheck`,
-> `lint`, `test` and every root-level `check:*` script (enumerated from `package.json`, not
-> listed by hand). `main` requires a passing CI run and a pull request, for admins too.
-> `npm run check:hooks` fails if `.claude/settings.json` registers a hook that no scenario
-> exercises. Adding a check without wiring it into CI, or a hook without covering it, is the
-> failure this repo has shipped most often — both are now impossible to merge.
->
-> **Two companion rules, both mandatory:**
-> - **`/review-checklist`** before every commit and before opening a PR. It is a skill, so
->   it loads on demand rather than costing ~2,800 tokens in every session. Invoke it.
-> - **`.claude/rules/defect-patterns.md`** before reviewing any diff. It loads
->   automatically — it stays always-on because it is the highest-value document here and
->   the cheapest of the rules. It exists because every defect this project has shipped
->   passed every automated gate in the repo.
->
-> Domain patterns live in **skills** that load when you touch the matching files:
-> `miniapp-patterns` (`apps/miniapp/**`), `drizzle-patterns`, `background-work`,
-> `conditions-score`.
-
-This file loads automatically at session start — you do not need to open it. These
-decisions are final unless explicitly overridden by the user.
-
-## Monorepo Structure
-- Turborepo. Two apps: `apps/api` (Express on Vercel, one serverless function) and `apps/miniapp` (Vite + React, live at https://weatherteam6.vercel.app). Shared packages: `packages/types`, `packages/design`.
-- Shared TypeScript types live in `packages/types` only. Never duplicate type definitions across apps.
-- Design tokens live in `packages/design` only. Never redefine colors, spacing, or type scale in an app.
-- Both shared packages compile to `dist/` and must be built before consuming workspaces typecheck.
-- **`apps/mobile` was deleted on 2026-09-23** (archived since 2026-07-31, out of the build since 2026-08-26). It is recoverable from the `archive/2026-09-23-pre-cleanup` tag. Reviving it is a product decision, not a cleanup.
+These decisions are final unless the user overrides them. Stack, structure and the
+delivery gates are in `CLAUDE.md`; domain patterns are in the `miniapp-patterns`,
+`drizzle-patterns`, `background-work` and `conditions-score` skills.
 
 ## Backend Patterns
-- Express route handlers are thin. Business logic lives in `src/lib/`, not in route files.
-- Weather fetch functions live in `apps/api/src/lib/weather/` — one file per source.
-- Alert fetch/upsert/prune logic lives in `apps/api/src/lib/alerts/`.
-- Scoring logic lives in `apps/api/src/lib/scoring/` — orchestration in `liveForecast.ts`, pure math in `conditionsScore.ts` / `dryingModel.ts` / `rockThermal.ts` / `sweatBalance.ts` / `hourlyConditions.ts`.
-- **`rockThermal.ts` is the v2 model's Layer 1 and nothing reads it yet** (Phase 1 of
-  `docs/handoffs/weatherteam6-scoring-model-handoff-v1.md`). Two rules for the phase that
-  wires it up. **Irradiance comes from one deterministic model — `gfs_seamless` — never
-  pooled**, per issue #155; a reading above 1400 W/m² is a gap, not a measurement. And
+- Express route handlers are thin. Business logic lives in `src/lib/` (weather fetches in
+  `lib/weather/`, one file per source), not in route files.
+- **`rockThermal.ts` is the v2 model's Layer 1.** **Irradiance comes from one deterministic
+  model — `gfs_seamless` — never pooled**, per issue #155; a reading above 1400 W/m² is a gap,
+  not a measurement. And
   **`T_surface` is null whenever an input was missing and never degrades to air temperature**
   — a defaulted surface temperature would look like a measurement on every screen, and the
   per-hour `qualified` flag must travel with the reading rather than being dropped at the
   surface (§ Unknown aspect).
-- **`hourlyConditions.ts` and `sweatBalance.ts` are the v2 model's Layers 2-4 and nothing
-  reads them yet** (Phase 2, **stopped for the owner**). Three rules that outlive the stop.
-  **A weighted geometric mean has unbounded slope at zero**, so a factor reaching *exactly*
+- **`hourlyConditions.ts` and `sweatBalance.ts` are the v2 model's Layers 2-4.** **A weighted geometric mean has unbounded slope at zero**, so a factor reaching *exactly*
   zero collapses the score into it rather than arriving — measured at 12 points off a tenth
   of a degree, which is issue #148 in a model with no bands. Any new factor must approach
   zero rather than reach it, or be shown to do its collapsing inside one band. **The hand's
   vapour-pressure deficit is taken at skin temperature, never at `T_surface`** — the rock's
   deficit would read a 66 °C wall as ideal drying conditions for skin. And **`rock.qualified`
   is false for any drying window containing daylight**, because the clock runs off
-  `T_surface`; that is honest, not a bug, and Phase 3 owns the copy for it.
+  `T_surface`; that is honest, not a bug.
 - **The friction reading rests on exactly one unvalidated step, and it is fenced.**
   Everything upstream of `sweatBalance.sweatFrictionFactor` is standard physics checked
   against published values; that one line — skin wettedness to a grip factor — is a guess
@@ -191,13 +161,7 @@ decisions are final unless explicitly overridden by the user.
   today-row is full wind and humidity credit; brutal heat maxes out four of five components.
   Any change to the score starts from *"what does this say when the inputs are missing"*,
   never from re-weighting a component. See `scoring-findings.md` §6c.
-- **There is no `apps/api/src/jobs/`.** It was deleted with BullMQ. Scheduled work is an HTTP route under `/api/cron/*` with its logic in `src/lib/` — see § Background Jobs.
 - **`insertGeneralLocation` (`lib/locations/createLocation.ts`) is the one write behind `POST /locations`.** The climbing flag (`is_climbing_location`) is always **explicit, never inferred** — see `miniapp-design-v1.md` §12. The `/add` picker's result subtitle is `placeSubtitle` (`packages/types/geocodeCopy.ts`), which has exactly one implementation so the issue #82 fix cannot drift into two.
-- Auth middleware lives in `apps/api/src/middleware/`. `requireApiAuth` (`apiAuth.ts`) decides both *who* the caller is and *whether* they may call `/api/v1/*` at all.
-- **`/api/v1/*` is gated by `requireApiAuth`**, which accepts **two schemes on the one `Authorization` header** and nothing else. Vercel's production alias is reachable without a Vercel login, so this gate is what holds the door shut. Do not move it to Vercel. `/api/cron/*` (CRON_SECRET) keeps its own auth and stays outside it.
-  - `Session <token>` — a real user. `req.userId` is the token's subject.
-  - `Bearer $API_SHARED_SECRET` — server-side callers, scripts, curl. Acts as `DEFAULT_USER_ID`.
-  - **Fail-closed: an unset `API_SHARED_SECRET` or `AUTH_TOKEN_SECRET` is a 503 under *both* schemes**, never an open door.
 - The credential must travel in `Authorization`. The CORS layer in `index.ts` allows only `Content-Type, Authorization`, so a custom header fails browser preflight.
 - Route error/validation helpers live in `apps/api/src/lib/http.ts`. Handlers validate `uuid` route params with `isUuid` (return 404, not a Postgres 500) and funnel caught errors through `sendServerError` — never hand-roll `err.message` into the response, which leaks DB internals. `sendServerError` logs through `describeError`, which reads only known-safe fields; never widen it to serialise an error object wholesale, because driver errors can carry the connection string.
 - **All four ensemble models are pooled, and `model_sources` names the ones actually read.** `parseEnsemble` collects members for every suffix in `ENSEMBLE_MODEL_SUFFIXES` — 143 members live (GFS 30, ECMWF 50, ICON 39, GEM 20, plus one control run each) against 30 when it filtered to GFS alone. Attribution is derived from the models that actually yielded arrays, so a partial upstream response drops a model rather than claiming it. Members are pooled **unweighted**, so a model counts in proportion to how many members it runs; equal-weighting the four would need a documented reason to override that.
@@ -249,7 +213,8 @@ decisions are final unless explicitly overridden by the user.
 - Defer runtime imports of `../db/index.js` inside the entry function. It throws at import time when `DATABASE_URL` is unset, which pre-empts any friendlier message with a stack trace.
 
 ## Auth Pattern
-- **`requireApiAuth` is the only setter of `req.userId` anywhere in the app**, from the presented credential: `Session <token>` → the token's subject; `Bearer <API_SHARED_SECRET>` → `DEFAULT_USER_ID`. It owns the `Request` type augmentation.
+- **`/api/v1/*` is gated by `requireApiAuth`** (`middleware/apiAuth.ts`), which accepts two schemes on the one `Authorization` header and nothing else. Vercel's production alias is reachable without a Vercel login, so this gate is what holds the door shut — do not move it to Vercel. `/api/cron/*` keeps its own `CRON_SECRET` auth outside it.
+- **`requireApiAuth` is the only setter of `req.userId` anywhere in the app**, from the presented credential: `Session <token>` → the token's subject; `Bearer <API_SHARED_SECRET>` → `DEFAULT_USER_ID`. It owns the `Request` type augmentation. An unset `API_SHARED_SECRET` or `AUTH_TOKEN_SECRET` is a 503 under both schemes.
 - **A router mounted outside `/api/v1` reads `req.userId` as `undefined`** through a type that says it cannot be (defect class 8) — no type error, no test failure, just a route that finds nothing. Mount inside the gate or bring your own identity.
 - Route handlers always use `req.userId`. Never reference `DEFAULT_USER_ID` directly in routes.
 - **No Clerk and no self-serve signup.** `npm run user:add` is how an account comes to exist, and it is an operator action.
@@ -260,21 +225,11 @@ decisions are final unless explicitly overridden by the user.
 - **CORS is an allowlist, not `*`** — `lib/cors.ts`, overridden outright by `CORS_ALLOWED_ORIGINS`. One `*` may stand for a single host label (`https://*.vercel.app`) so a preview deployment is reachable; the label is matched against `[a-z0-9-]+` rather than "anything but a dot", because a suffix match is satisfied by `https://evil.com/x.vercel.app`.
 
 ## Database Rules
-- Drizzle schema is the single source of truth. Schema lives in `apps/api/src/db/schema.ts`.
-- All migrations via `drizzle-kit`. Never run raw SQL against the DB directly.
-- All queries go through Drizzle. No raw `pg` queries unless Drizzle cannot express it.
-- `user_id` FK exists on: `locations`, `trips`, `conditions_reports`, `push_tokens`, `premium_pulls`, `user_preferences`.
+- All queries go through Drizzle (`apps/api/src/db/schema.ts` is the single source of truth). No raw SQL unless Drizzle cannot express it.
 - **No FK in the schema declares `onDelete`**, so Postgres refuses to delete any row another table still references. Deletes therefore clear their dependents explicitly, in one transaction: `DELETE /locations/:id` goes through `deleteLocationCascade` (`src/lib/locations/deleteLocation.ts`), which walks `DEPENDENT_TABLES`. **Adding a table with a `location_id` FK means adding it to that list** — omit it and delete becomes a foreign-key violation surfacing as a generic 500, and only once real data exists. Do not "fix" this by adding cascades to the schema without deciding what it means for every other delete.
 - **`DELETE /trips/:tripId` clears `trip_locations` and deletes the trip in one transaction**, the same shape as `deleteLocationCascade`. Covered by `npm run check:delete-trip` — the failure is a Postgres constraint error and the vitest suite cannot see it.
 - **A new table with a `trip_id` FK gets cleared in that handler too**, exactly as a `location_id` FK gets added to `DEPENDENT_TABLES`. `trip_locations` is currently the only one.
 - **`weather_alerts.notified_at` is dormant.** Nothing writes it and null means *"never asked"*, not "not yet sent". The column is kept for whatever notification channel replaces the deleted bot; do not read it as live state.
-
-## API Response Shape
-All endpoints return:
-```typescript
-{ data: T | null, error: string | null, status: number }
-```
-Never deviate from this shape.
 
 ## State Machine: Forecast Window
 - `>14 days out`: climatological normals only, no conditions score
@@ -283,36 +238,17 @@ Never deviate from this shape.
 
 ## Background Jobs
 
-There is no queue infrastructure — no BullMQ, no Redis. The API is a single Express app wrapped as one Vercel serverless function (`apps/api/api/index.ts`), so nothing can run on an in-process schedule.
+Nothing runs on an in-process schedule. Scoring and recent rainfall are computed live per request (`computeLiveForecast`); scheduled work is `/api/cron/*` on cron-job.org. The patterns are in the `background-work` skill.
 
-- `forecast-snapshot` and `rainfall-history` were deleted outright, not converted. Forecast/conditions scoring is computed live, per request, in `apps/api/src/lib/scoring/liveForecast.ts` (`computeLiveForecast`) — called directly from `GET /conditions/:id` and `GET /forecast/:id`. Recent (30-day) rainfall for the drying-time component is also live-fetched per request (ACIS via `fetchPrecipHistory` when the location has an `asos_station`, else Open-Meteo's archive API via `fetchArchivePrecip`) — there is no `rainfall_history`-table job keeping that data warm anymore.
-- `alerts-poller` was converted, not deleted: its fetch/upsert/prune logic lives in `apps/api/src/lib/alerts/checkAlerts.ts` (`runAlertsCheck`), invoked by `POST /api/cron/check-alerts` (gated on a `CRON_SECRET` header) on an external schedule (cron-job.org), not a queue.
-- **`/api/cron/check-alerts` collects and never delivers.** `notifyPendingAlerts` went with the bot on 2026-09-23 and the product has **no notification channel**: NWS Severe+ warnings are stored, suppress scores, are visible in the app, and reach nobody. That is the owner's parked-alerts decision, not an oversight. **Keep the schedule registered** — a stale alert table is worse than a quiet one, because Severe+ rows suppress scores. Do not build a channel without asking.
-- **Any per-location loop that makes an upstream call runs under `Promise.allSettled`, never sequentially.** `fetchWithRetry` sleeps 1s + 2s + 4s across its attempts, so a serial loop multiplies an upstream outage by the number of locations and walks straight into the function's `maxDuration: 60`. Concurrency is safe there because each location only touches its own rows.
-- `snapshot-cleanup` was deleted — nothing to clean up once there's no snapshot table being written on a schedule.
-
-Any handler that touches the DB across more than one request-scoped operation must still be safe to run concurrently / retry — the "idempotent, no duplicate data" bar from the old job-based world still applies, it's just enforced per-request now instead of per-job-run.
+- **`/api/cron/check-alerts` collects and never delivers.** The product has **no notification channel**: NWS Severe+ warnings are stored, suppress scores, are visible in the app, and reach nobody. That is the owner's parked-alerts decision. **Keep the schedule registered** — a stale alert table is worse than a quiet one, because Severe+ rows suppress scores. Do not build a channel without asking.
+- **Any per-location loop that makes an upstream call runs under `Promise.allSettled`, never sequentially.** `fetchWithRetry` sleeps 1s + 2s + 4s across its attempts, so a serial loop multiplies an upstream outage by the number of locations and walks straight into the function's `maxDuration: 60`.
+- A handler that touches the DB across more than one operation must be safe to run concurrently and to retry — no duplicate data.
 
 ## Client — the web app
 
-**`apps/miniapp` is the client.** Vite + React, static build, the real and complete
-implementation of every user-facing screen. There is no second client to keep in parity.
+The client's own patterns are in the `miniapp-patterns` skill, which loads when you touch
+`apps/miniapp/**` or `packages/design/**`. These constrain the **API**:
 
-It runs in an ordinary browser, signs in with a session token, carries its own back
-control, and installs through a PWA manifest. The directory name is the last of the
-Telegram Mini App it began as.
-
-Its own patterns — the design-token adapter, the session token and the 401 path, the
-per-route back targets, React Query rules, null-safe formatting, score suppression and the
-`is_today` flag — live in the **`miniapp-patterns` skill**, which loads automatically when
-you touch `apps/miniapp/**` or `packages/design/**`. They were moved out of this file
-because they cost ~2,000 tokens in every session, including the majority that never open
-the client.
-
-Five that stay here because they constrain the **API**, not the client:
-
-- **The server marks the today row; the client never computes it.** `ForecastSnapshot.is_today`
-  is set in `computeLiveForecast`. A missing value is **unknown, not `false`**.
 - **A score reaches a snapshot only because the route passed a merge argument, and that is
   the whole protection.** `GET /forecast/:id` hands `toWindowedForecast` a `ScoreMerge` only
   when `is_climbing_location`; `GET /preview` never does. There is no `is_climbing_location`

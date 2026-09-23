@@ -1,29 +1,25 @@
 ---
 name: review-checklist
-description: The pre-commit review checklist for WeatherTeam6. Use before every commit, before opening a PR, when reviewing a diff, and before reporting any work complete. Covers Gate 0 (read the diff as prose), TypeScript, architecture drift, external API calls, database and FK-cascade rules, cron idempotency, security, web-app client rules, weather-data surfaces, verification standards, and the mandatory handoff block.
+description: The review checklist for WeatherTeam6. Use once before opening a PR, or when asked to review a diff. Covers Gate 0 (read the diff as prose), TypeScript, architecture drift, external API calls, database and FK-cascade rules, cron idempotency, security, web-app client rules, weather-data surfaces, verification, and the handoff block.
 ---
 
 # Review Checklist
 
-Run through this before every commit. Flag any failures before proceeding.
+Run through this once before opening a PR, and fix what fails.
 
-## Gate 0 — read the diff (do this first, and do not skip it)
+## Gate 0 — read the diff first
+
+Every defect catalogued in `.claude/rules/defect-patterns.md` passed typecheck, lint and the
+suite; reading the diff is what caught them.
 
 - [ ] **The actual diff has been read, hunk by hunk, as prose** — not the checklist, not the test output
-- [ ] `.claude/rules/defect-patterns.md` was read before that review
 - [ ] For each hunk: what does it render or do when the input is `null`, `0`, absent, or the network fails?
 - [ ] For each "passing" check: what would it actually have caught?
 - [ ] **For each test added or changed: which line of the implementation would have to change
       for this to fail?** If you cannot name one, the fixture does not reach it. Then the
       harder version: was this fixture built by the same understanding as the code it checks?
       `npm run test:mutation --workspace=apps/api` answers the first question mechanically —
-      but it runs weekly, so on a commit you ask it yourself.
-
-> **This gate is first because it is the only one that has ever worked.** On 2026-08-26 a
-> single session found **ten defects** in code that had already passed typecheck, lint and
-> the full suite — three live in production, one meaning a shipped command had never once
-> worked. An earlier session found six the same way. Every automated gate below was green
-> for all of them.
+      but it runs weekly, so here you ask it yourself.
 
 ## TypeScript
 - [ ] No `any` types anywhere
@@ -95,9 +91,6 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] No credential is a build-time value — `API_SHARED_SECRET` and `AUTH_TOKEN_SECRET` never reach the client bundle, and no `VITE_*` variable carries one
 
 ## Weather data surfaces
-
-These were under a *Telegram surfaces* heading until 2026-09-23. The bot is gone; every
-item below survived in shared code and is about the numbers, not the channel.
 
 - [ ] A precipitation **total** over more than one hour comes from `precip_mm_mean`, never from summing `precip_mm_p10/p50/p90` — a percentile is not additive, and a summed p50 is the median of nothing. A percentile shown against a multi-hour step describes **one hour** of it, and the surface says so
 - [ ] A chance of rain is `members_wet / member_count`, never `precipitation_probability` — and a null wet count or a zero member count **withholds** the figure rather than showing 0%
