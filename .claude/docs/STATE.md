@@ -5,7 +5,7 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-09-23 · `main` @ `e0facc6`
+Last updated: 2026-09-23 · `main` @ `7a939fd`
 
 ---
 
@@ -38,7 +38,15 @@ PR #175. If another Expo reference turns up, it is residue, not a dependency.
 
 **Two live lines. Neither blocks the other.**
 
-**Scoring model v2 — Phases 0 through 3 shipped and live.** The spec is
+**Scoring model v2 — Phases 0 through 3 and 4a shipped and live.** 4a (PR #180) is the
+full `rock-drying-research.md` §7 taxonomy — **27 rock types**, each with its own drying
+window in `dryingModel.ts`'s one table — and **known crags locked**: 54 crags in
+`packages/types/src/knownCrags.ts` whose rock type is written from the research on save
+and cannot be picked. Not-recorded kinds take their family's slowest window and
+`unknown` is the slowest of all (48–120 h), so **every saved `sandstone`/`limestone`/
+`granite`/`unknown` row reads differently from 2026-09-23.** Red Wing was re-typed to
+cherty dolomite by `npm run locations:lock-known-crags -- --apply`; re-run that whenever
+`KNOWN_CRAGS` changes. The spec is
 `docs/handoffs/weatherteam6-scoring-model-handoff-v1.md`; read it before touching anything
 that produces or renders a reading. The model answers *is the rock dry* and *will it feel
 good to climb on* separately and derives one 0-100 number by a weighted geometric mean.
@@ -83,11 +91,11 @@ architecture is still not authorised.**
   **A mockup artifact is the spec, its prose summary is not** — one phase was built twice for
   reading the description instead of opening the file.
 
-**Baseline:** `npm run test` **889 passing** (501 api, 299 miniapp, 89 types) across
-**28 / 22 / 7** files; `typecheck`, `lint`, `check:hooks` (58), `check:icons`,
+**Baseline:** `npm run test` **986 passing** (525 api, 302 miniapp, 159 types) across
+**29 / 23 / 8** files; `typecheck`, `lint`, `check:hooks` (58), `check:icons`,
 `check:crag-facts` clean. Against real Postgres: `check:conditions` **24/24**,
-`check:weather-runs` **44/44**, `check:auth` **22/22**, `check:hourly` **19/19**,
-`check:add-location` **17/17**, `check:delete-trip` **9/9**.
+`check:weather-runs` **44/44**, `check:auth` **22/22**, `check:hourly` **13/14** (#179, a partial collect-runs batch — not code),
+`check:add-location` **25/25**, `check:delete-trip` **9/9**.
 **Read the file count, not just the test count**: miniapp once printed *"123 passed"* with
 three files failing to collect, having silently shrunk by 44.
 
@@ -133,10 +141,12 @@ is two lines.
    and stored. Dew point now reaches a screen for the first time, as one figure in the
    measurements panel — the hourly series is still unread.
 2. **A current-location GPS option.** No design yet; prefer the browser geolocation API.
-3. **Scoring Phase 4 — the location editor** (rock type, aspect, tilt). **Unblocked.** Every
-   saved location has `cliff_angle` defaulted to 45, one has no `rock_type`, and **nothing in
-   the response marks either** — a reading on placeholders looks like one on real crag data.
-   **Do not score `aspectDegrees` directly** (#139): the same aspect flips sign by season.
+3. **Scoring Phase 4b — the location editor** (aspect, tilt, and rock type where it is not
+   locked). 4a shipped the rock types; what remains is `PATCH /locations/:id`, the editor,
+   and the aspect geometry in `rockThermal` that makes `I_wall` real. Every saved location
+   still has `cliff_angle` defaulted to 45 and nothing in the response marks it. **Do not
+   score `aspectDegrees` directly** (#139): the same aspect flips sign by season. The
+   editor must refuse a rock-type change on a row with `known_crag` set.
 4. **Scoring Phase 5 — preferences, then retirement of the five-component scorer.** A
    deletion, not a migration. It owns the nuance 3b left: a past window still renders as that
    day's, so *"Good hours: 6am–9am"* at 2pm is true and reads like advice for now. **It also
@@ -162,8 +172,14 @@ is two lines.
   is validated against outcomes.**
 - **#155** — why irradiance comes from one model and is never pooled. Live constraint.
 - **#176** — a newly added crag reads `Wet` with no Friction or Score for ~4 days (no
-  trailing history for `T_mass`) and `unavailable_reason` stays `null`. Found in the #175
-  browser check. It hits every crag a partner adds, so it matters before sharing widens.
+  trailing history for `T_mass`) and `unavailable_reason` stays `null`. **4a widened
+  it:** the v2 drying clock starts at 0 at the first stored hour (5 trailing days), and the
+  slowest windows are now 96–120 h, so a slow-rock crag can read `Drying` after weeks of no
+  rain. Measurements on the issue. The fix — seeding `priorEffectiveHours` from the daily
+  history — is a model decision.
+- **#179** — a partial collect-runs batch (one of the two deterministic requests failed)
+  becomes the newest batch and hides a complete older one, so a missing GFS drops a crag's
+  readings for the hour. Found by `check:hourly` on 2026-09-23.
 
 **Unfiled, worth filing when touched:** `/forecast/:id` and `/conditions/:id` each run their
 own `computeLiveForecast`, so one detail view costs two ensemble and two rainfall calls; and

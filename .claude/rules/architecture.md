@@ -157,6 +157,22 @@ decisions are final unless explicitly overridden by the user.
   hours, 40 at `maxDry` — and the `maxDry` ceiling is a **separate lever**, pinned to
   `dryingModel`'s `estimated_dry` by a cross-module test. Moving full marks later means
   moving `MAX_HOURS` in both modules, not bending the ramp past its end.
+- **There is one drying table, `MIN_HOURS`/`MAX_HOURS` in `dryingModel.ts`, and everything
+  imports it** — `conditionsScore`, `hourlyConditions`, `climbabilityHistory` and
+  `compareScoring` each kept a hand-matched copy until the §7 taxonomy (27 rock types,
+  2026-09-23) made that untenable. Do not reintroduce a copy. **Not-recorded kinds
+  (`sandstone`, `limestone`, `basalt`) take their family's slowest window and `unknown`
+  is the slowest row**; a new rock type that undercuts `unknown` breaks that rule.
+- **A known crag's rock type is locked, and `resolveRockType`
+  (`lib/locations/resolveRockType.ts`) is the only place it is applied** on save —
+  `npm run locations:lock-known-crags` applies the same function to existing rows. It
+  overrides whatever rock type the request sent, and never types a non-climbing location.
+  A future `PATCH /locations/:id` must go through it and refuse a rock-type change on a
+  row with `known_crag` set. **A `KNOWN_CRAGS` entry needs a `crag-facts.json` family
+  that maps to exactly one §7 value, and a box no larger than ~30 km** —
+  `knownCrags.test.ts` enforces both, and holds the neighbouring crags on other rock
+  that set `KNOWN_CRAG_REACH_KM` at 2. **Run the lock script only after the API that knows
+  the new types has deployed** — an older API has no window for them.
 - **Every component ramp reaches 0 at the edge of its own band — no component may step.**
   The temperature ramp paid 6 of 12 at `TEMP_BAND_C.max` and the out-of-band branch then
   dropped it to 0, so 95.0 °F and 95.2 °F differed by six points of the total (issue #148),
