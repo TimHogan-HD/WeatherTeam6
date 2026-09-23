@@ -45,10 +45,10 @@ if (!isValidCronSecret(provided, expected)) { /* 401 */ }
 ```
 
 Rules for this pattern:
-- **Route handlers stay thin.** Logic lives in `src/lib/` — see `lib/alerts/checkAlerts.ts` (`runAlertsCheck`, `notifyPendingAlerts`). The route validates the secret, calls a lib function, returns.
+- **Route handlers stay thin.** Logic lives in `src/lib/` — see `lib/alerts/checkAlerts.ts` (`runAlertsCheck`). The route validates the secret, calls a lib function, returns.
 - **Header may be `string[]`.** Express types `req.headers[x]` as `string | string[] | undefined`. Handle the array case; do not blind-cast.
 - **Idempotent, always.** The scheduler will retry. Calling twice must not duplicate data or re-send notifications.
-- **Don't let one sub-step gate another.** `runAlertsCheck` throws if any location errored; if that aborted the request, alerts already sitting unnotified would never send. It's wrapped in its own try/catch so `notifyPendingAlerts()` runs regardless.
+- **Don't let one sub-step gate another.** `runAlertsCheck` throws if any location errored, and the locations that did succeed have already written their rows — so the route catches it and reports `refreshFailed` on a 200 rather than losing the run. (Until 2026-09-23 the step it protected was alert *delivery*; that was deleted with the bot, and the catch is still right for the reason above.)
 
 ## Idempotency: claim before you act
 

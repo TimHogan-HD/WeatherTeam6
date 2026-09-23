@@ -3,10 +3,9 @@
 Version: v1
 Date: 2026-09-22
 Status: **Approved by the owner, 2026-09-22.** This document reverses the Telegram client
-mandate. **Phases 1 and 2 are built and merged (2026-09-22); Phases 3 and 4 have not
-started.** The bot is still running and untouched — but the client has left, so its alert
-deep link now lands on the list rather than on a location (see Phase 2's transitional-cost
-note). **Phase 3 is next and the window it closes is the reason.**
+mandate. **Phases 1, 2 and 3 are built and merged; the bot was deleted on 2026-09-23
+(PR #171).** Only **Phase 4 — docs and rules** remains. The alert deep link, and the
+transitional cost Phase 2 recorded against it, are both gone with the button.
 
 **This supersedes `docs/handoffs/telegram-crossover-v4.md` as the product direction.** The
 crossover doc remains the record of why Telegram existed and is not deleted.
@@ -244,7 +243,7 @@ and keep the cost reason.
 
 ---
 
-## Phase 3 — Delete Telegram
+## Phase 3 — Delete Telegram — **SHIPPED 2026-09-23**
 
 **Delete outright:**
 
