@@ -3775,3 +3775,122 @@ choosing their own passphrase and running `user:add --user-id` when Phase 2 has 
 - **The Write tool emits LF into this CRLF tree.** Git normalises on `add`, so the commit is clean — but a later `node -e` patch against a Write-created file must match `\n`, not `\r\n`.
 
 **Does the user need to do anything?** **Yes — two, and both need a credential Claude does not have.** Delete the bot's **webhook registration** with Telegram (it is still delivering to a path that now 404s; needs `TELEGRAM_BOT_TOKEN`, set in their own shell, never pasted in chat), and delete `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` and `TELEGRAM_WEBHOOK_SECRET` from both Vercel projects. Deleting the bot via BotFather is optional. The two standing items are unchanged: a trip to the phone, and the 0-100 question.
+
+---
+
+## 2026-09-23 — branch: chore/leave-telegram-phase-4 — commit: `8fc7d7d`
+
+**Phase completed:** Leave Telegram, Phase 4 — docs and rules. **The migration is now
+complete; all four phases shipped.**
+
+**What was built this session:**
+
+The owner's instruction was *"This is a scorched earth clean up"* — remove or archive
+anything no longer needed, condense and rewrite what stays. It went well past the docs sweep
+`leave-telegram-v1.md` specified. **144 files changed, 1,927 insertions, 25,878 deletions.**
+
+- `archive/2026-09-23-pre-cleanup` — an annotated tag on `main` @ `cdbf2e8`, **pushed to the
+  remote**, created *before* any deletion. Everything removed below is recoverable by name
+  from it rather than by archaeology, and every doc that mentions a deleted file points at it.
+- `apps/mobile` — **deleted**, 80 files. Archived 2026-07-31, out of the build since
+  2026-08-26, and forbidden to touch for a month. It took the whole Expo toolchain with it:
+  `scripts/fix-expo-router-link.mjs` (deleted), half of `scripts/postinstall.mjs`, two blocks
+  and five ignore entries in `eslint.config.mjs`, the root `expo-router` devDependency, two
+  `.gitignore` lines, and ~5,700 lines of `package-lock.json`.
+- **Telegram docs deleted:** the `telegram-patterns` skill, `.claude/docs/telegram-render.md`,
+  `.claude/docs/telegram-precision-interface-plan.md`, `docs/handoffs/telegram-crossover-v4.md`.
+  The plan said to *keep* the last two as superseded records; the owner's instruction
+  overrode that, and the reasoning they held is in this archive and in git.
+- **Original-plan leftovers deleted:** `.claude/docs/plan.md` (the 13-phase build plan),
+  `build-prompt-v8.md`, `phase-7b-7c-plan.md`, `docs/superpowers/` (4 files), the mobile-only
+  mockups (`radar-*`, `walls-*`, `trips-*` — 8 files), `weatherteam6-miniapp-handoff-v1.md`,
+  `climbing-research-brief-v1.md`. `weatherteam6UI.html` **stays** — still the visual reference.
+- `docs/handoffs/design-system-v1.md` — **new, 94 lines.** `weatherteam6-ui-handoff-v1.md`
+  was 682 lines of React Native screen phases (7b through 12) wrapped around one §Design
+  System that was the only part ever in force for the web client. That section was extracted,
+  updated for the web, and given the two client copy rules that belong with it; the rest was
+  deleted. Five inbound references repointed.
+- `CLAUDE.md` — rewritten. Telegram env block, Telegram auth rules, the mandatory-reading
+  entry, the `apps/mobile` paragraphs, the stale Vercel paid-plan claim and the "Telegram is
+  DELETED" banner all gone. The handoff list is now one table of five live documents.
+- `.claude/rules/architecture.md` — rewritten. ~15 Telegram paragraphs and the banner gone;
+  every *shared* invariant kept and its bot half removed.
+- `review-checklist` skill — *Telegram surfaces* became ***Weather data surfaces*** (145 to
+  130 lines), carrying the nine items that were never about Telegram. R2 and `apps/mobile`
+  items dropped. The Docs section named two task lists that no longer exist.
+- `miniapp-patterns` skill — Telegram client rules and the *Archived — Mobile Patterns*
+  section deleted; title is now *Web App Patterns*.
+- `session-end`, `background-work`, `conditions-score`, both `.claude/agents/*` definitions,
+  `README.md` (it still described the product as a Telegram bot), `REVIEW.md`,
+  `apps/miniapp/README.md`, `.env.example`, `turbo.json` — all reconciled.
+- `miniapp-design-v1.md` §1 and §2 — **rewritten.** §1 specified `themeParams` and the
+  `setHeaderColor`/`setBackgroundColor` version floors; §2 specified three routes and
+  Telegram's `BackButton` as the only back affordance, plus the `startapp` deep link. Both
+  now describe what runs, each under a note saying what it replaced. **The per-route back
+  targets are unchanged** — they were right for reasons unrelated to the platform. §8's ban
+  on `chevron-left` is reversed in place.
+- **Six environment variables deleted** from `.env.example` and `turbo.json` — `R2_*` (4),
+  `EXPO_PUBLIC_SHADEMAP_KEY`, `EXPO_PUBLIC_API_BASE_URL` and the bare `API_BASE_URL`. Audited
+  first: every one is read by zero files. `conditions_reports.photo_urls` is a column with no
+  upload path behind it.
+- `scoring-findings.md` §6c — **new, and the one thing salvaged rather than deleted.** The
+  issue #21 degradation diagnosis (*every degradation path in the scorer inflates; #21, #32
+  and #34 are one defect wearing three hats*) existed only in `plan.md`. It is now a findings
+  section and a rule in `architecture.md`.
+- **Two source comments corrected because they asserted things that are false.**
+  `DetailTabs.test.tsx` said the back-to-Daily criterion *"is verified on a device, and that
+  is the only place it can be"*, because the handler lived in Telegram's SDK — it is
+  unit-tested in `backTarget.test.ts` and was driven in a real browser. `DetailView.tsx` said
+  Telegram's `BackButton` was the only back affordance. Both would have misdirected the next
+  session about what is testable. Every other change under `apps/` and `packages/` is
+  comment-only, verified by diffing the staged changes with comment lines filtered out.
+
+**Known issues / deferred work:**
+- **Mutation testing not re-run.** Stale at 67.82% (2026-09-21) against `thresholds.break: 67`.
+  Phase 4 changed no implementation line, so it should be unmoved; the weekly CI job reports it.
+- `.claude/docs/session-archive.md` still contains ~200 Telegram references. **Deliberate** —
+  it is an append-only record and `REVIEW.md` forbids touching its prose.
+- `defect-patterns.md` left alone, as the plan specified. Its Telegram examples are defects
+  that actually shipped, and classes 3, 5 and 11 are still true of code that stayed.
+
+**Blockers for next session:**
+- None.
+
+**What's next:** the migration queue is empty, so the list is the owner's product asks again.
+First is **the measurements disclosure** (humidity, temperature, last rain, precipitation, dew
+point behind a drop-down), asked for 2026-09-22 — read `docs/handoffs/miniapp-design-v1.md`
+and the `miniapp-patterns` skill before writing any UI. `git checkout -b feat/measurements-disclosure`
+off `main`.
+
+**Gotchas for next session:**
+- **The CRLF trap fired twice this session, both times silently.** A multi-line `node -e`
+  replacement against `eslint.config.mjs` reported success and changed nothing — the file
+  length was byte-identical before and after, which is how it was caught. Then a `sed` using
+  `|` as its delimiter no-opped on two Markdown table rows, because the rows contain `|`. Use
+  `c\` to replace a whole line, `head`/`tail` splicing for a whole block, and the Write tool
+  for anything else spanning more than one line.
+- **A bash heredoc with backticks in the body also failed outright this session** (unexpected
+  EOF), appending this very block. Write the file with the Write tool and `cat` it into place.
+- **Line-number-based `sed` goes stale the moment you delete lines above it.** Three edits in
+  `miniapp-patterns` landed on the wrong lines after an earlier deletion shifted them, one of
+  them mid-sentence. Prefer content-matched single-line `sed`, or re-grep for the number.
+- **Verifying a large deletion is a two-part job and the file list is the easy half.** The
+  control that actually worked here: extract every bold rule opener from the old always-loaded
+  files and `comm` it against the new ones. That surfaced one genuine loss — the rule that
+  model coverage is decided on *values*, not on rows being absent — which had been moved to
+  the review checklist and dropped from `architecture.md`. Twenty other "missing" rules were
+  Telegram, or verified as reworded. Do this for any wholesale rewrite.
+- **A dangling doc reference is findable mechanically.** Extracting every repo-relative path
+  from the tracked Markdown with `git grep -oh -E` and piping it through a `[ -e ]` test found
+  78, of which two were real (one pre-existing: a hook pointing at
+  `.claude/rules/review-checklist.md`, which has been a skill for weeks). Watch for substring
+  false positives — `docs/data-model.md` is a tail of `.claude/docs/data-model.md`.
+- **Both Vercel deploys passing on the PR is real evidence here**, not noise: they are the
+  only thing that exercises `npm install` on a clean tree, which is what the workspace removal
+  and the `postinstall.mjs` rewrite actually changed.
+
+**Does the user need to do anything?** **Yes — two, and neither blocks work.** Delete
+`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_WEBHOOK_SECRET` and `AUTH_ENABLED` from
+both Vercel projects (three are live credentials nothing reads), and call `deleteWebhook` with
+the bot token from your own shell so Telegram stops delivering to a path that 404s. The trip to
+the phone is still outstanding and is still the largest unverified thing in the project.

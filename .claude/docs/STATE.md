@@ -5,33 +5,37 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-09-23 · `main` @ `274d49c`
+Last updated: 2026-09-23 · `main` @ `8fc7d7d`
 
 ---
 
-## Direction: Telegram is gone
+## Direction: Telegram is gone, and so is the mess it left
 
-**Decided by the owner on 2026-09-22 and approved. The Telegram client mandate is REVERSED.**
-The plan is `docs/handoffs/leave-telegram-v1.md`.
+**Leave Telegram is COMPLETE — all four phases shipped** (PRs #167, #169, #171, #173).
+`docs/handoffs/leave-telegram-v1.md` is now a record, not direction; there is nothing left in
+it to build.
 
 | Decision | Answer |
 | --- | --- |
 | The bot | **Deleted, 2026-09-23.** No bot, no webhook, no alert delivery. |
-| Auth | **Passphrase → signed token**, a second `Authorization` scheme beside `Bearer`. |
+| Auth | **Passphrase → signed token.** Two `Authorization` schemes: `Session` and `Bearer`. |
 | Alerts | **Parked.** Alert *data* keeps being collected; delivery is a future decision. |
-| Audience | **Owner plus a few climbing partners.** Build the identity seam once, properly. |
+| Audience | **Owner plus a few climbing partners.** Each curates their own list. |
 
-**Phases 1, 2 and 3 are shipped and merged** (PRs #167, #169, #171). **Phase 4 — the docs
-sweep — is all that remains**, and it is next.
+**The product has no notification channel.** NWS Severe+ warnings are collected, stored,
+suppress scores, are visible in the app, and reach nobody. That is the owner's parked-alerts
+decision, not an oversight. Do not deepen it and do not build a channel without asking.
 
-**The product has no notification channel.** NWS Severe+ warnings are collected, stored, and
-visible in the app, and reach nobody. That is the owner's parked-alerts decision, not an
-oversight. Do not deepen it and do not build a channel without asking.
+**Phase 4 was a scorched-earth cleanup on the owner's instruction, and it went well past the
+docs sweep the plan specified.** 144 files changed, ~25,900 lines deleted. Gone: `apps/mobile`
+and its whole Expo toolchain; the Telegram docs and skill; the original 13-phase `plan.md`,
+the v8 build prompt and the mobile-era specs, plans and mockups; three superseded handoffs;
+six environment variables nothing read. `weatherteam6-ui-handoff-v1.md` (682 lines) was
+condensed to `docs/handoffs/design-system-v1.md` (94).
 
-**The bot halves of `CLAUDE.md`, `.claude/rules/architecture.md`, the `review-checklist`
-skill and the whole `telegram-patterns` skill now describe deleted code.** Each carries a
-banner saying so. **Phase 4 deletes them properly** — until then, believe the banner, not the
-paragraph.
+**Everything deleted is at the `archive/2026-09-23-pre-cleanup` tag, pushed to the remote.**
+Docs that name a deleted file say so and point at the tag. **No document carries a "this
+paragraph describes deleted code" banner any more** — the paragraphs are gone.
 
 ---
 
@@ -55,9 +59,9 @@ friction magnitude and the alerts-pending gate, are stated in full in
 
 **The dataviz line is parked, not cancelled.**
 `docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` has its own Phases 1–5 (1, 1b, 2, 3
-shipped) — **do not confuse its numbering with the scoring model's or the migration's.** Its
-Phase 4 is superseded by the scoring handoff's; its Phase 5 is still wanted. **A CSS or
-motion architecture is still not authorised.**
+shipped) — **do not confuse its numbering with the scoring model's.** Its Phase 4 is
+superseded by the scoring handoff's; its Phase 5 is still wanted. **A CSS or motion
+architecture is still not authorised.**
 
 ### What is running
 
@@ -68,9 +72,9 @@ motion architecture is still not authorised.**
   /api/v1/auth/login` is mounted **above** the gate. Fail-closed on `API_SHARED_SECRET`
   **and** `AUTH_TOKEN_SECRET`. `npm run user:add` is the only way an account exists — there
   is no signup flow and should not be one. **The owner's account exists, username `tim`.**
-  **`requireApiAuth` is now the only setter of `req.userId` anywhere in the app** and owns the
-  `Request` type augmentation; `resolveUser` is deleted. A router mounted outside `/api/v1`
-  reads `undefined` through a type saying it cannot be (defect class 8).
+  **`requireApiAuth` is the only setter of `req.userId` anywhere in the app.** A router
+  mounted outside `/api/v1` reads `undefined` through a type saying it cannot be (defect
+  class 8).
 - **Web app** — four routes (`/login`, list, detail, `/add`) at https://weatherteam6.vercel.app,
   installable, no service worker. **Still nobody has seen it on a phone.**
 - **`/api/cron/check-alerts`** — **collects, never delivers.** Keep it registered: a stale
@@ -80,7 +84,6 @@ motion architecture is still not authorised.**
 - **`/api/cron/collect-runs`** and **`prune-runs`** on cron-job.org. Retention 2 days parsed
   / 6h raw. **`collect-runs` answers `200 OK` when it persists nothing** — that hid a
   day-long outage on 2026-09-13; whether to change it is undecided.
-- **`apps/mobile`** — archived, out of the build.
 - Chart invariants and the client's auth/back/PWA rules are in the `miniapp-patterns` skill.
   **A mockup artifact is the spec, its prose summary is not** — one phase was built twice for
   reading the description instead of opening the file.
@@ -91,25 +94,22 @@ motion architecture is still not authorised.**
 `check:weather-runs` **44/44**, `check:auth` **22/22**, `check:hourly` **19/19**,
 `check:add-location` **17/17**, `check:delete-trip` **9/9**.
 **Read the file count, not just the test count**: miniapp once printed *"123 passed"* with
-three files failing to collect, having silently shrunk by 44. The api drop from 761 to 501 is
-Phase 3's deletions, accounted for exactly (252 in deleted files, 7 `tma` cases, 1 net
-elsewhere).
+three files failing to collect, having silently shrunk by 44.
 
-**Mutation is STALE at 67.82% (2026-09-21) and has not been re-run since ~9,000 lines were
-deleted.** `thresholds.break: 67` leaves 0.82 of headroom, and Phase 3 removed a large body
-of well-tested code, so the total can have moved either way. **The weekly CI job is the next
-thing that will find out.** Run `npm run test:mutation --workspace=apps/api` (~37 min) before
-trusting the number.
+**Mutation is STALE at 67.82% (2026-09-21)** and has not been re-run since Phase 3 deleted
+~9,000 lines. `thresholds.break: 67` leaves 0.82 of headroom. **The weekly CI job is the next
+thing that will find out** — Phase 4 changed no implementation line, so it should be unmoved.
+Do not start a ~37-minute local run to close out a phase.
 
-**Claude runs everything unattended.** `DATABASE_URL`, `CRON_SECRET`, `API_SHARED_SECRET` and
-`VERCEL_TOKEN` are Windows user environment variables and `Bash(npm run check:*)` is
-allowlisted. Do not ask the owner to paste output. **Never echo a credential.**
+**Claude runs everything unattended.** `DATABASE_URL`, `CRON_SECRET`, `API_SHARED_SECRET`,
+`AUTH_TOKEN_SECRET` and `VERCEL_TOKEN` are Windows user environment variables and
+`Bash(npm run check:*)` is allowlisted. Do not ask the owner to paste output. **Never echo a
+credential.** Read one with `[Environment]::GetEnvironmentVariable('NAME','User')` — they
+live in the registry, so `$env:` can read empty while they exist.
 
-**`VERCEL_TOKEN`** is team-scoped, all projects. Read it with
-`[Environment]::GetEnvironmentVariable('VERCEL_TOKEN','User')` — it lives in the registry,
-not this process's environment block, so `$env:` can read empty while it exists. It reaches
-`https://api.vercel.com` directly and **needs no `teamId`**. This is how environment
-variables get set now: **the Vercel MCP cannot — `projectEnvVars` 403s in both directions.**
+**`VERCEL_TOKEN`** is team-scoped, all projects, and reaches `https://api.vercel.com` with
+**no `teamId`**. This is how environment variables get set now: **the Vercel MCP cannot —
+`projectEnvVars` 403s in both directions.**
 
 **Driving the UI in a browser is routine, and the local dev server is the target.**
 Preview deploys are behind Vercel SSO (302 to a Vercel login page) and turning that off is a
@@ -121,30 +121,24 @@ created and torn down around the run.
 
 ## What is next
 
-1. **Leave Telegram, Phase 4 — docs and rules.** The last phase. `CLAUDE.md`'s Telegram env
-   block and mandatory-reading entry, ~15 Telegram paragraphs in
-   `.claude/rules/architecture.md`, the whole `telegram-patterns` skill (delete),
-   the `review-checklist` skill's *Telegram surfaces* section (delete), `miniapp-design-v1.md`
-   §1/§2/§8 and the superseded banners. **Anything describing a *shared* invariant
-   (`summarizeReadings`, `toConditionsReadings`, the sentinels) stays and loses only its bot
-   half.** Leave the Telegram examples in `defect-patterns.md` — classes 3, 5 and 11 are still
-   true of code that stayed.
-2. **The measurements disclosure** — humidity, temperature, last rain, precipitation and dew
+The migration is finished, so the queue is the owner's product list again.
+
+1. **The measurements disclosure** — humidity, temperature, last rain, precipitation and dew
    point behind a drop-down. Asked for 2026-09-22. It is where the caveats' *mechanism*
    belongs now the gauges are terse, and it makes a reading checkable for the first time.
-3. **One Current Conditions block** — "now" is spread across a now-line, a readings section
+2. **One Current Conditions block** — "now" is spread across a now-line, a readings section
    and chips.
-4. **Humidity and dew point charts, which exist nowhere**, though both are fetched and
+3. **Humidity and dew point charts, which exist nowhere**, though both are fetched and
    stored — `dewpoint_c` is read by nothing.
-5. **A current-location GPS option.** No design yet; prefer the browser geolocation API.
-6. **Scoring Phase 4 — the location editor** (rock type, aspect, tilt). **Unblocked.** Every
+4. **A current-location GPS option.** No design yet; prefer the browser geolocation API.
+5. **Scoring Phase 4 — the location editor** (rock type, aspect, tilt). **Unblocked.** Every
    saved location has `cliff_angle` defaulted to 45, one has no `rock_type`, and **nothing in
    the response marks either** — a reading on placeholders looks like one on real crag data.
    **Do not score `aspectDegrees` directly** (#139): the same aspect flips sign by season.
-7. **Scoring Phase 5 — preferences, then retirement of the five-component scorer.** A
+6. **Scoring Phase 5 — preferences, then retirement of the five-component scorer.** A
    deletion, not a migration. It owns the nuance 3b left: a past window still renders as that
    day's, so *"Good hours: 6am–9am"* at 2pm is true and reads like advice for now.
-8. **Parked:** issue #82 part 2. **Cancelled:** the bot plan's Phase 4 — the bot is gone.
+7. **Parked:** issue #82 part 2.
 
 ---
 
@@ -152,7 +146,8 @@ created and torn down around the run.
 
 **Read them from GitHub — `gh issue list`.** Standing context not on the issues themselves:
 
-- **#21, #108, #137, #148** — closed. #21's replacement is the v2 handoff.
+- **#21, #108, #137, #148** — closed. #21's replacement is the v2 handoff, and its
+  *diagnosis* now lives in `scoring-findings.md` §6c rather than the deleted `plan.md`.
 - **#25** — product decision: a new cron, or delete the two endpoints.
 - **#27** — **most of this issue died with the webhook.** Parts 1, 3, 4 were done; the
   webhook-hardening half is now moot. Re-read before working it.
@@ -185,9 +180,8 @@ qualify; chasing an unmerged PR does not. Hooks, branch protection and CI enumer
   passphrase leaking to the terminal on backspace in code that had passed everything else.
   Failure signatures are in the archive — grep **"claude-review troubleshooting"**.
 - **Mutation testing is slow and the owner will stop it.** Owner's words, 2026-09-23:
-  *"Mutation testing always takes forever."* Do not start a ~37-minute run to close out a
-  phase; let the weekly CI job report it, and run it on demand only when a survivor would
-  change a decision. **A rising score is not the goal.**
+  *"Mutation testing always takes forever."* Let the weekly CI job report it, and run it on
+  demand only when a survivor would change a decision. **A rising score is not the goal.**
 
 If a gate fires, finish the work; if it misfires, add a case to `check-hooks.mjs`. Never
 disable branch protection to land something.
@@ -202,33 +196,33 @@ Still true and still biting. Historical ones are in the archive.
   `DEFAULT_USER_ID` shows only as a **500 on an authenticated `Bearer` call**, and not at all
   under `Session`. A **503 on every scheme** means `API_SHARED_SECRET` or `AUTH_TOKEN_SECRET`
   is unset. Every `/api/v1/*` path 401s whether or not it exists, so a 401 is still not
-  evidence a route deployed — check the commit SHA. **`/api/telegram/webhook` is the
-  exception and is now a useful probe**: the old handler answered **200 to every update**, so
-  a **404** there is real evidence the post-Phase-3 code is live.
+  evidence a route deployed — check the commit SHA. **`/api/v1/health` requires auth**; the
+  unauthenticated readiness probe is `/health`.
 - **`API_SHARED_SECRET` on preview is a DIFFERENT value from production** (set 2026-09-22,
   deliberately, because production's is sensitive and unreadable). `AUTH_TOKEN_SECRET` is the
   same across all three targets. Env vars apply to **new** deployments only.
-- **`AUTH_ENABLED` still exists in Vercel and nothing reads it.** Dead; delete when convenient.
-  **`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` and `TELEGRAM_WEBHOOK_SECRET` are the same** as
-  of Phase 3 — out of `.env.example` and `turbo.json`, still live in the dashboard.
+- **`AUTH_ENABLED`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` and `TELEGRAM_WEBHOOK_SECRET`
+  still exist in Vercel and nothing reads them.** Dead; the three Telegram ones are live
+  credentials sitting in a dashboard. Deleting them is the owner's.
 - **Backticks in a bash heredoc, or in a double-quoted `node -e`, are command substitution.**
   **A quoted heredoc is not a reliable escape either** — a 456-line one failed to parse at
   all on 2026-09-22. Write the file with the Write tool and `cp` it into place.
-- **A multi-line `sed`/`node -e` replacement against this CRLF tree silently matches nothing.**
-  It reports success and leaves the file untouched. Use the Edit tool for anything spanning
-  more than one line. **The Write tool emits LF**, which git normalises on `add` — harmless,
-  but a later `node -e` patch against that file must match `\n`, not `\r\n`.
+- **A multi-line `sed`/`node -e` replacement against this CRLF tree silently matches
+  nothing.** It reports success and leaves the file untouched — it did exactly that twice
+  during Phase 4. Use the Edit or Write tool for anything spanning more than one line;
+  single-line `sed -i` is fine, and `head`/`tail` splicing works for whole-block replacement.
+  **The Write tool emits LF**, which git normalises on `add`.
+- **`sed` with `|` as the delimiter breaks on Markdown table rows.** Use `c\` to replace the
+  whole line instead. Cost two silent no-ops in Phase 4.
 - **A source file can contain a literal NUL byte**, which makes `git diff` and `grep` treat
   it as binary and print nothing useful. `grep -a` and `git diff --text` see it.
 - **`DELETE` does not free Neon space.** A prune of 700k rows leaves every size in
   `check:runs-storage` unchanged. `TRUNCATE` reclaims; `VACUUM FULL` needs as much free space
   as the table and cannot run at the cap.
 - **A fresh merge is not a deploy** — check the deployment state before probing production.
-- **`/api/v1/health` requires auth**, so an unauthenticated probe answers 401 and is not a
-  readiness check. The unauthenticated one is `/health`.
 - **`npm run test` cannot see database behaviour.** Vitest mocks `fetch` and never connects;
   flows that fail only against real Postgres need a `check:*` script. **Workspace-level
-  `check:*` are deliberately excluded from CI** (`ci.yml:71-73`) — only root-level ones run.
+  `check:*` are deliberately excluded from CI** (`ci.yml`) — only root-level ones run.
 - **`fetchWithRetry` does not hand every response back.** A 5xx or 429 exhausts four attempts
   and *throws*, so a test mocking 503 to reach a `!res.ok` branch reaches the `catch`
   instead. Use 403.
@@ -245,16 +239,16 @@ packages, `NODE_ENV` on Vercel, and Vercel refusing to reveal a secret are all i
 
 ## What the user owes
 
-**Four things. None blocks Phase 4.**
+**Three things. None blocks any work.**
 
 **1. Tear down the bot with Telegram itself.** The code is gone but the registration is not,
-so Telegram is still delivering updates to a path that now 404s. Needs
-`TELEGRAM_BOT_TOKEN`, which Claude does not have and must not be given in chat — set it in
-your own shell and call `deleteWebhook`. Deleting the bot via BotFather is optional; it is
-inert either way.
+so Telegram is still delivering updates to a path that now 404s. Needs `TELEGRAM_BOT_TOKEN`,
+which Claude does not have and must not be given in chat — set it in your own shell and call
+`deleteWebhook`. Deleting the bot via BotFather is optional; it is inert either way.
 
-**2. Delete `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` and `TELEGRAM_WEBHOOK_SECRET`** from
-both Vercel projects. Nothing reads them; they are live credentials sitting in a dashboard.
+**2. Delete `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_WEBHOOK_SECRET` and
+`AUTH_ENABLED`** from both Vercel projects. Nothing reads them; three are live credentials
+sitting in a dashboard.
 
 **3. A trip to the phone.** Open a saved climbing location on your own phone — now an
 ordinary browser, no Telegram. Six questions; the first four are in full in the 2026-09-22
@@ -272,8 +266,7 @@ archive block, the last two no desktop browser can answer:
 
 *Back on the Hourly tab is answered* — it returns to Daily, verified in a browser.
 
-**4. Does the 0-100 number survive?** Scoring handoff § Open Questions 3; it stays for now on
-the §5.1 decision. **Ranking is the one job it still has alone** — the daily list's bar and
-the seven-day comparison need a scalar, and two ordered word-pairs do not sort. It is also
-the only thing suppression can remove, because the words are measurements. Dropping it is a
-scoring-Phase-5 change, not a revert.
+**Answered, and no longer owed:** *does the 0-100 number survive?* It stays for now on the
+scoring handoff's §5.1 decision. **Ranking is the one job it still has alone** — the daily
+list's bar and the seven-day comparison need a scalar, and two ordered word-pairs do not
+sort. Dropping it is a scoring-Phase-5 change, not a revert.
