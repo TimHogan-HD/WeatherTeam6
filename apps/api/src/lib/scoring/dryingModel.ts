@@ -191,7 +191,9 @@ export function dryingModel(input: DryingModelInput): DryingModelOutput {
 
   // Cliff angle modifier: 0° vertical = base, 90° slab = 30% longer drying.
   // Steeper walls (lower angle) drain water faster, so get the base factor.
-  const angleFactor = 1.0 + (input.cliffAngle / 90) * 0.3
+  // A negative angle is an overhang (Phase 4b) and takes the vertical base —
+  // see `hourlyConditions.dryingAngleFactor`, which must agree with this line.
+  const angleFactor = 1.0 + (Math.min(Math.max(input.cliffAngle, 0), 90) / 90) * 0.3
 
   const maxDry = MAX_HOURS[input.rockType] * angleFactor
   const minDry = MIN_HOURS[input.rockType] * angleFactor

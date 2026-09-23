@@ -351,6 +351,197 @@ export function skyCoolingC(cliffAngleDeg: number | null, cloudPct: number | nul
   return SKY_COOLING_HORIZONTAL_C * tilt * clearFraction
 }
 
+// ---------------------------------------------------------------------------
+// Wall geometry — Phase 4b. What makes `I_wall` real once a wall is recorded.
+// ---------------------------------------------------------------------------
+
+/**
+ * **A recorded wall: where it is, which way it faces, and how steep it is.**
+ * Only ever built when *both* `aspect` and `cliff_angle` were recorded — the
+ * 45° default is not a recorded angle, and a geometry factor computed from it
+ * would claim a precision nobody supplied. Without one of these the model keeps
+ * the unscaled horizontal irradiance and the per-hour `qualified` rule.
+ */
+export type WallOrientation = {
+  lat: number
+  lon: number
+  /** Direction the face points, degrees clockwise from north. */
+  aspectDeg: number
+  /** Stored convention: 0 = vertical, 90 = flat slab, negative overhanging. */
+  cliffAngleDeg: number
+}
+
+/** Solar constant, W/m² (Kopp & Lean 2011, 1360.8 ± 0.5). */
+const SOLAR_CONSTANT_WM2 = 1361
+
+/**
+ * Below this solar elevation the beam/diffuse split is not attempted and the
+ * hour's irradiance is treated as all diffuse. Near the horizon `cos θz → 0`,
+ * so the clearness index and the beam-to-normal ratio both divide by almost
+ * nothing, and an hourly mean whose sun rose half-way through the hour would
+ * otherwise put a searing beam on an east wall at dawn. 5° is the usual cut in
+ * solar-resource work; it is a numerical guard, not a physical claim.
+ */
+const MIN_BEAM_ELEVATION_DEG = 5
+
+/**
+ * **Ground reflectance for the reflected term.** 0.2 is the conventional
+ * default for mixed terrain (Duffie & Beckman, *Solar Engineering of Thermal
+ * Processes*); a talus field of pale granite reflects more and a forest floor
+ * less. It only matters on steep walls, which see half the ground, and
+ * nothing here measured it for any crag.
+ */
+export const GROUND_ALBEDO = 0.2
+
+const DEG = Math.PI / 180
+
+/**
+ * **Where the sun is, from coordinates and a UTC instant.** NOAA's general
+ * solar position equations (Spencer's Fourier series for declination and the
+ * equation of time), good to well under a degree — far inside everything else
+ * this file is uncertain about.
+ *
+ * Azimuth is degrees clockwise from north, the same convention as `aspect`.
+ * `elevationDeg` is negative at night.
+ */
+export function solarPosition(at: Date, lat: number, lon: number): {
+  elevationDeg: number
+  azimuthDeg: number
+} | null {
+  const t = at.getTime()
+  if (!Number.isFinite(t) || !Number.isFinite(lat) || !Number.isFinite(lon)) return null
+
+  const yearStart = Date.UTC(at.getUTCFullYear(), 0, 1)
+  const dayOfYear = Math.floor((t - yearStart) / 86_400_000) + 1
+  const utcHours = at.getUTCHours() + at.getUTCMinutes() / 60 + at.getUTCSeconds() / 3600
+  const g = ((2 * Math.PI) / 365) * (dayOfYear - 1 + (utcHours - 12) / 24)
+
+  const eqTimeMin =
+    229.18 *
+    (0.000075 +
+      0.001868 * Math.cos(g) -
+      0.032077 * Math.sin(g) -
+      0.014615 * Math.cos(2 * g) -
+      0.040849 * Math.sin(2 * g))
+  const decl =
+    0.006918 -
+    0.399912 * Math.cos(g) +
+    0.070257 * Math.sin(g) -
+    0.006758 * Math.cos(2 * g) +
+    0.000907 * Math.sin(2 * g) -
+    0.002697 * Math.cos(3 * g) +
+    0.00148 * Math.sin(3 * g)
+
+  const trueSolarMin = utcHours * 60 + eqTimeMin + 4 * lon
+  const hourAngle = (trueSolarMin / 4 - 180) * DEG
+  const phi = lat * DEG
+
+  const cosZenith = Math.min(
+    1,
+    Math.max(-1, Math.sin(phi) * Math.sin(decl) + Math.cos(phi) * Math.cos(decl) * Math.cos(hourAngle)),
+  )
+  const elevationDeg = 90 - Math.acos(cosZenith) / DEG
+
+  // Measured from south, positive westward, then turned to clockwise-from-north.
+  const fromSouth = Math.atan2(
+    Math.sin(hourAngle),
+    Math.cos(hourAngle) * Math.sin(phi) - Math.tan(decl) * Math.cos(phi),
+  )
+  const azimuthDeg = (((fromSouth / DEG + 180) % 360) + 360) % 360
+
+  return { elevationDeg, azimuthDeg }
+}
+
+/**
+ * **Erbs, Klein & Duffie (1982) diffuse fraction** from the hourly clearness
+ * index `k_t` — the share of global horizontal irradiance that arrives from the
+ * whole sky rather than from the sun's disc. The standard correlation for
+ * splitting a GHI-only series; it is fitted to US station data and is an
+ * approximation everywhere, which is still far better than the alternative of
+ * treating every watt as beam or every watt as diffuse.
+ */
+export function erbsDiffuseFraction(kt: number): number {
+  const k = Math.min(Math.max(kt, 0), 1)
+  if (k <= 0.22) return 1 - 0.09 * k
+  if (k <= 0.8) return 0.9511 - 0.1604 * k + 4.388 * k ** 2 - 16.638 * k ** 3 + 12.336 * k ** 4
+  return 0.165
+}
+
+/**
+ * **Irradiance on the wall, W/m², from irradiance on the horizontal.** This is
+ * `I_wall` once a wall is recorded:
+ *
+ * ```
+ * I_wall = I_beam·cos θ / cos θz  +  I_diff·(1 + cos β)/2  +  GHI·ρ·(1 − cos β)/2
+ * ```
+ *
+ * GHI is split into beam and diffuse by `erbsDiffuseFraction`, then the
+ * isotropic-sky transposition (Liu & Jordan, as in Duffie & Beckman §2.15) puts
+ * each part on a surface of tilt `β` from horizontal facing `aspectDeg`. `θ` is
+ * the sun's angle of incidence on that surface; a face the sun is behind gets
+ * no beam at all, only sky and ground.
+ *
+ * `β = 90 − cliff_angle`, so a vertical wall is 90, a slab less, and **an
+ * overhang more than 90** — facing partly downward, it sees less sky and more
+ * ground, which the same two view factors already express.
+ *
+ * **What it does not know: terrain.** A canyon wall, a ridge to the east or a
+ * forest in front of the crag all shade it, and none of that is in a weather
+ * model. Mountain Project and Climbit both concede the same gap
+ * (`climbing-terminology-research.md` §21.6). Ignoring it reads a shaded wall as
+ * sunlit — hotter, worse friction — which is the direction to be wrong in
+ * (issue #34), and the copy's "modelled" caveat is what covers it.
+ *
+ * `at` is the instant the sun's position is taken at. Open-Meteo's
+ * `shortwave_radiation` is the mean over the **preceding** hour, so a caller
+ * passes the middle of that hour, not its stamp.
+ *
+ * Null for a non-finite or out-of-range input — never 0, which is night.
+ */
+export function wallIrradianceWm2(
+  ghiWm2: number | null,
+  at: Date,
+  wall: WallOrientation,
+): number | null {
+  if (ghiWm2 === null || !Number.isFinite(ghiWm2)) return null
+  if (ghiWm2 < 0 || ghiWm2 > MAX_PLAUSIBLE_SHORTWAVE_WM2) return null
+  if (!Number.isFinite(wall.aspectDeg) || !Number.isFinite(wall.cliffAngleDeg)) return null
+  if (ghiWm2 === 0) return 0
+
+  const sun = solarPosition(at, wall.lat, wall.lon)
+  if (sun === null) return null
+
+  const clampedCliff = Math.min(Math.max(wall.cliffAngleDeg, -90), 90)
+  const beta = (90 - clampedCliff) * DEG
+  const skyView = (1 + Math.cos(beta)) / 2
+  const groundView = (1 - Math.cos(beta)) / 2
+  const reflected = ghiWm2 * GROUND_ALBEDO * groundView
+
+  // Sun near or below the horizon while the hourly mean is non-zero: the hour
+  // straddled sunrise or sunset. All of it is treated as sky light.
+  if (sun.elevationDeg < MIN_BEAM_ELEVATION_DEG) {
+    return ghiWm2 * skyView + reflected
+  }
+
+  const cosZenith = Math.sin(sun.elevationDeg * DEG)
+  const yearStart = Date.UTC(at.getUTCFullYear(), 0, 1)
+  const dayOfYear = Math.floor((at.getTime() - yearStart) / 86_400_000) + 1
+  const extraterrestrialNormal =
+    SOLAR_CONSTANT_WM2 * (1 + 0.033 * Math.cos((2 * Math.PI * dayOfYear) / 365))
+  const kt = ghiWm2 / (extraterrestrialNormal * cosZenith)
+
+  const diffuse = ghiWm2 * erbsDiffuseFraction(kt)
+  const beamHorizontal = ghiWm2 - diffuse
+
+  const zenith = (90 - sun.elevationDeg) * DEG
+  const cosIncidence =
+    Math.cos(zenith) * Math.cos(beta) +
+    Math.sin(zenith) * Math.sin(beta) * Math.cos((sun.azimuthDeg - wall.aspectDeg) * DEG)
+  const beamOnWall = cosIncidence > 0 ? (beamHorizontal * cosIncidence) / cosZenith : 0
+
+  return beamOnWall + diffuse * skyView + reflected
+}
+
 export type SurfaceTemperatureInput = {
   airTempC: number | null
   /**
@@ -362,6 +553,14 @@ export type SurfaceTemperatureInput = {
   cloudPct: number | null
   /** Stored convention: 0 = vertical wall, 90 = flat slab. */
   cliffAngleDeg: number | null
+  /**
+   * **The recorded wall and the instant to take the sun at**, or absent/null
+   * when the wall was not recorded. Present, it replaces the unscaled
+   * horizontal irradiance with `wallIrradianceWm2` and every computed hour is
+   * qualified — the geometry the flag was waiting for is now known. `at` is
+   * the middle of the hour the shortwave mean covers, not its stamp.
+   */
+  wall?: { orientation: WallOrientation; at: Date } | null
   /** Defaults to `SOLAR_ABSORPTANCE`. Varied only by the sensitivity report. */
   absorptance?: number
   /**
@@ -382,7 +581,9 @@ export type SurfaceTemperature = {
   /**
    * **False when the answer could have been changed by an aspect we do not
    * have** — `defect-patterns.md` §3, attribution not backed by the data. A
-   * surface must say so rather than present the reading as measured.
+   * surface must say so rather than present the reading as measured. With a
+   * recorded wall every computed hour is qualified: terrain shading is still
+   * unknown, but it can only make the wall cooler than this reads.
    *
    * Decided per hour, not per location: the same wall is qualified at 6am and
    * unqualified at 1pm. A withheld reading is never qualified — there is nothing
@@ -415,8 +616,9 @@ const WITHHELD: SurfaceTemperature = {
  * under a low winter sun can exceed horizontal — so do not describe it as one.
  * The hours where it matters are the ones `qualified` marks.
  *
- * Phase 4 replaces the unscaled 1 with a real geometry factor from aspect, tilt
- * and sun position, at which point most hours become qualified.
+ * **With a recorded wall, `I_wall` is `wallIrradianceWm2`** — aspect, tilt and
+ * sun position (Phase 4b) — and the hour is qualified. Without one, the
+ * unscaled horizontal value and the margin rule above still apply.
  */
 export function surfaceTemperature(input: SurfaceTemperatureInput): SurfaceTemperature {
   const { airTempC, shortwaveWm2, windKmh, cloudPct, cliffAngleDeg } = input
@@ -446,6 +648,19 @@ export function surfaceTemperature(input: SurfaceTemperatureInput): SurfaceTempe
 
   const ho = surfaceCoefficient(airTempC, windKmh)
   if (ho === null || ho <= 0) return WITHHELD
+
+  const wall = input.wall ?? null
+  if (wall !== null) {
+    const iWall = wallIrradianceWm2(shortwaveWm2, wall.at, wall.orientation)
+    if (iWall === null) return WITHHELD
+    const solarGain = (absorptance * iWall) / ho
+    return {
+      t_surface_c: airTempC + solarGain - skyCooling,
+      solar_gain_c: solarGain,
+      sky_cooling_c: skyCooling,
+      qualified: true,
+    }
+  }
 
   const solarGain = (absorptance * shortwaveWm2) / ho
 

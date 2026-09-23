@@ -10,7 +10,8 @@ import {
   READINGS_UNAVAILABLE,
   toConditionsReadings,
 } from '../lib/runs/conditionsReadings.js'
-import { getHourlySeries, type ScoringLocation } from '../lib/runs/fetchHourlySeries.js'
+import { getHourlySeries } from '../lib/runs/fetchHourlySeries.js'
+import { scoringLocationFor } from '../lib/runs/scoringLocation.js'
 import { pointKeyForLocation } from '../lib/runs/pointKey.js'
 import { parseNumeric, parseNumericRequired } from '@weatherteam6/types'
 import type { ApiResponse, ConditionsReadings, ConditionsScore } from '@weatherteam6/types'
@@ -65,17 +66,11 @@ conditionsRouter.get('/conditions/:locationId', async (req: Request, res: Respon
      * The two placeholders are the ones `/hourly` already documents and neither
      * is marked in the response: `rock_type` null means the kind was never
      * recorded (`unknown` takes the slower drying window, so it reads as
-     * caution), and `cliff_angle` is null on every user-added location because
-     * nothing writes it. 45 is what the rest of the app substitutes. Phase 4 is
-     * the screen that makes both real.
+     * caution), and `cliff_angle` is null until someone records it — 45 is
+     * substituted for drying and is never treated as a recorded wall. The one
+     * implementation is `scoringLocationFor`, shared with `/hourly`.
      */
-    const scoring: ScoringLocation = location.is_climbing_location
-      ? {
-          rockType: location.rock_type ?? 'unknown',
-          cliffAngleDeg:
-            location.cliff_angle === null ? 45 : parseNumericRequired(location.cliff_angle),
-        }
-      : null
+    const scoring = scoringLocationFor(location)
 
     /**
      * Both halves at once, and **neither may take the other down.**

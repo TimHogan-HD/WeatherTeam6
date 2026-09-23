@@ -47,6 +47,7 @@ import {
 } from '../scoring/hourlyConditions.js'
 import { localDateString } from '../weather/openMeteo.js'
 import type { DeterministicRuns, ModelRun } from './latestRuns.js'
+import type { WallOrientation } from '../scoring/rockThermal.js'
 
 /**
  * **The one model the thermal layer reads, and it is not a preference.**
@@ -87,6 +88,8 @@ export type BuildReadingsInput = {
    * measurement is the defect class this repo ships most often.
    */
   cliffAngleDeg: number
+  /** The recorded wall, or null. See `EvaluateSeriesOptions.wall`. */
+  wall?: WallOrientation | null
   windowMinScore?: number
 }
 
@@ -139,6 +142,7 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
   const evaluated = evaluateHourlyConditions(toWeatherHours(model), {
     rockType: input.rockType,
     cliffAngleDeg: input.cliffAngleDeg,
+    wall: input.wall ?? null,
   })
 
   // Every hour, past and future, went into the calculation. Only the published

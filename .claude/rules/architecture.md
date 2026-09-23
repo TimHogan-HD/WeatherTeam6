@@ -137,12 +137,29 @@ delivery gates are in `CLAUDE.md`; domain patterns are in the `miniapp-patterns`
   (`lib/locations/resolveRockType.ts`) is the only place it is applied** on save —
   `npm run locations:lock-known-crags` applies the same function to existing rows. It
   overrides whatever rock type the request sent, and never types a non-climbing location.
-  A future `PATCH /locations/:id` must go through it and refuse a rock-type change on a
-  row with `known_crag` set. **A `KNOWN_CRAGS` entry needs a `crag-facts.json` family
+  `PATCH /locations/:id` goes through it (`planLocationUpdate`) and refuses a rock-type
+  change on a row with `known_crag` set with a 409. **A `KNOWN_CRAGS` entry needs a `crag-facts.json` family
   that maps to exactly one §7 value, and a box no larger than ~30 km** —
   `knownCrags.test.ts` enforces both, and holds the neighbouring crags on other rock
   that set `KNOWN_CRAG_REACH_KM` at 2. **Run the lock script only after the API that knows
   the new types has deployed** — an older API has no window for them.
+- **`PATCH /locations/:id` speaks climbers' wall angle; the column keeps its own.** The
+  body's `wall_angle_deg` is degrees past vertical, positive overhanging
+  (`climbing-terminology-research.md` §5); `cliff_angle` stays 0 vertical, 90 slab, and
+  is extended past vertical with negatives. `wallAngle.ts` (`packages/types`) is the only
+  place the sign flips. **An unknown body key is a 400, never ignored** — `cliff_angle`
+  sent by mistake would otherwise be a 200 on an unchanged row. The rules are
+  `lib/locations/updateLocation.ts`; `check:edit-location` runs them against Postgres.
+- **The solar geometry runs only on a recorded wall.** `scoringLocationFor`
+  (`lib/runs/scoringLocation.ts`) is the one place a row becomes `ScoringLocation`, and it
+  builds `wall` only when **both** `aspect` (one of the 16 compass points) and
+  `cliff_angle` were recorded. The 45° default feeds the drying window and is **never** a
+  recorded wall; `aspectToDegrees`'s 180 fallback is never a recorded aspect. With a wall,
+  `rockThermal.wallIrradianceWm2` replaces the unscaled horizontal value (sun position,
+  Erbs beam/diffuse split, isotropic sky) and every computed hour is qualified; the sun is
+  taken **mid-hour**, because Open-Meteo stamps shortwave at the end of the hour it averages.
+  Terrain shading is not modelled and reads a shaded wall hotter — the safe direction.
+  **An overhang dries on the vertical factor** (`dryingAngleFactor`), not faster.
 - **Every component ramp reaches 0 at the edge of its own band — no component may step.**
   The temperature ramp paid 6 of 12 at `TEMP_BAND_C.max` and the out-of-band branch then
   dropped it to 0, so 95.0 °F and 95.2 °F differed by six points of the total (issue #148),

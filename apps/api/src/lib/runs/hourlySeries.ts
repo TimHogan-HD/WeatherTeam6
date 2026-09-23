@@ -5,10 +5,10 @@ import type {
   HourlySample,
   HourlyReadings,
   HourlySeries,
-  RockType,
 } from '@weatherteam6/types'
 import { localDateString } from '../weather/openMeteo.js'
 import { buildHourlyReadings } from './hourlyReadings.js'
+import type { ScoringLocation } from './scoringLocation.js'
 import type {
   DeterministicRuns,
   EnsembleRunHour,
@@ -228,7 +228,7 @@ export type BuildInput = {
    * `unavailable_reason: not_a_climbing_location` and no reading, and nothing in
    * the model branches on the flag — it would happily score Chicago if asked.
    */
-  scoring: { rockType: RockType; cliffAngleDeg: number } | null
+  scoring: ScoringLocation
 }
 
 /**
@@ -307,6 +307,7 @@ export function buildHourlySeries(input: BuildInput): HourlySeries {
           utcOffsetSeconds: offset,
           rockType: input.scoring.rockType,
           cliffAngleDeg: input.scoring.cliffAngleDeg,
+          wall: input.scoring.wall,
         })
 
   const series: HourlySeries = {

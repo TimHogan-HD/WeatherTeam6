@@ -24,6 +24,7 @@
     
     "check:auth": "tsx src/scripts/checkAuth.ts",
     "check:add-location": "tsx src/scripts/checkAddLocationApi.ts",
+    "check:edit-location": "tsx src/scripts/checkEditLocationApi.ts",
     
     "check:conditions": "tsx src/scripts/checkConditions.ts",
     "check:delete-trip": "tsx src/scripts/checkDeleteTrip.ts",
