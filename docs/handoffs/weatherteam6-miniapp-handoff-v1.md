@@ -1,7 +1,16 @@
 # WeatherTeam6: Mini App Build Handoff
 Version: v1
 Date: 2026-08-24
-Status: Ready for Handoff
+Status: **SUPERSEDED 2026-09-22 — historical record, not direction.**
+
+> All of Tasks 5, 6 and 7 shipped, and all of them are being undone. The owner decided on
+> 2026-09-22 to **delete Telegram entirely**; the client is now a standalone web app and
+> `apps/miniapp/src/telegram/` and `lib/deepLink.ts` no longer exist. The authoritative
+> direction is `docs/handoffs/leave-telegram-v1.md`.
+>
+> Everything below describing `initData`, `themeParams`, `BackButton`, the `startapp` deep
+> link or the bot's menu button is **a record of what was built, not a description of what
+> runs.** The API still accepts the `tma` scheme until migration Phase 3 deletes it.
 
 ## Context
 
