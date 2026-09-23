@@ -192,8 +192,8 @@ export function LocationIdentity({ location, walls = [], condensed = false }: Lo
 
   // **The name is not repeated here.** `Screen` already renders it as the page
   // `<h1>` at `type.screenTitle`, directly above this block — the mockup shows
-  // it in the card because its device frame only has Telegram's small title
-  // bar. Printing it twice, once at 30px and once at 12px, reads as a bug.
+  // it in the card because its device frame has only a small title bar. Printing
+  // it twice, once at 30px and once at 12px, reads as a bug.
   if (condensed) {
     // The three facts that change the score, and nothing else. Coordinates and
     // the station are a tab away rather than gone.

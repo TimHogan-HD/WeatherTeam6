@@ -69,7 +69,7 @@ if (/\bgit\s+push\b/.test(command)) {
     'Code was just pushed to the remote. Before ending this stretch of work, run the ' +
       'code-review skill on the branch diff (/code-review). If a PR exists, --comment ' +
       'posts the findings as inline review comments. Read the diff yourself as prose ' +
-      'as well — that is Gate 0 of .claude/rules/review-checklist.md.',
+      'as well — that is Gate 0 of the /review-checklist skill.',
   )
 }
 

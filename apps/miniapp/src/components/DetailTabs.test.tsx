@@ -18,11 +18,11 @@ import { HOUR_MS } from './charts/hourlySeries.js'
  * the alert banner above all, the score and the sources footer — stay outside
  * the tabs where switching cannot hide them.
  *
- * `BackButton` returning to Daily rather than closing the Mini App is the third
- * criterion and is **not covered here.** It lives in `LocationDetail`, whose
- * handler is registered with Telegram's SDK — `null` in a `node` environment
- * with no DOM (see `vitest.config.ts`). It is verified on a device, and that is
- * the only place it can be.
+ * Back returning to Daily rather than leaving the location is the third
+ * criterion and is **not covered here.** It lives in `LocationDetail`, and the
+ * target resolution is unit-tested in `lib/backTarget.test.ts`; the wiring was
+ * driven in a real browser against the real API. `vitest.config.ts` is
+ * `environment: 'node'` with no DOM, so it cannot be covered from here.
  */
 
 const T0 = Date.UTC(2026, 8, 14, 0)

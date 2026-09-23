@@ -1,6 +1,6 @@
 ---
 name: review-checklist
-description: The pre-commit review checklist for WeatherTeam6. Use before every commit, before opening a PR, when reviewing a diff, and before reporting any work complete. Covers Gate 0 (read the diff as prose), TypeScript, architecture drift, external API calls, database and FK-cascade rules, cron idempotency, security, Mini App client rules, Telegram surfaces, verification standards, and the mandatory handoff block.
+description: The pre-commit review checklist for WeatherTeam6. Use before every commit, before opening a PR, when reviewing a diff, and before reporting any work complete. Covers Gate 0 (read the diff as prose), TypeScript, architecture drift, external API calls, database and FK-cascade rules, cron idempotency, security, web-app client rules, weather-data surfaces, verification standards, and the mandatory handoff block.
 ---
 
 # Review Checklist
@@ -21,7 +21,7 @@ Run through this before every commit. Flag any failures before proceeding.
 
 > **This gate is first because it is the only one that has ever worked.** On 2026-08-26 a
 > single session found **ten defects** in code that had already passed typecheck, lint and
-> the full suite — three live in production, one meaning the bot's `/start` had never once
+> the full suite — three live in production, one meaning a shipped command had never once
 > worked. An earlier session found six the same way. Every automated gate below was green
 > for all of them.
 
@@ -35,7 +35,7 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] Route handlers contain no business logic (logic belongs in `src/lib/`)
 - [ ] No type definitions duplicated outside `packages/types`
 - [ ] `req.userId` used in routes — never `process.env.DEFAULT_USER_ID` directly
-- [ ] **A new router is mounted inside `/api/v1`, or brings its own identity.** `requireApiAuth` is the only setter of `req.userId` there, and `req.userId` is typed non-optional `string` — a router mounted outside every setter reads `undefined` with no type error and no test failure, and simply finds nothing (defect class 8). `resolveUser` covers `/api/telegram` alone
+- [ ] **A new router is mounted inside `/api/v1`, or brings its own identity.** `requireApiAuth` is the only setter of `req.userId` there, and `req.userId` is typed non-optional `string` — a router mounted outside every setter reads `undefined` with no type error and no test failure, and simply finds nothing (defect class 8)
 - [ ] A credential is never logged, echoed in a response, or written to the terminal — including **indirectly**. The hidden passphrase prompt in `user:add` leaked on backspace because readline rewrites `prompt + line-so-far` as one chunk; a guard keyed on the prompt let it through
 - [ ] API response shape is `{ data, error, status }` — no exceptions
 - [ ] No raw SQL queries unless Drizzle cannot express it (comment why if used)
@@ -68,9 +68,8 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] No full API response bodies logged in production
 - [ ] 500 handlers return a generic message via `sendServerError` — never raw `err.message` (it leaks DB internals); log the detail server-side
 - [ ] `.env` not committed — `.env.example` has all keys with blank values
-- [ ] R2 presigned URLs used for photo access — no public bucket URLs
 
-## Client (Mini App)
+## Client (the web app)
 - [ ] No direct API calls from components — all fetches go through React Query hooks
 - [ ] No hardcoded API base URLs — use build-time env config (`VITE_API_BASE_URL`)
 - [ ] Colors/spacing/type come from `packages/design` — not redefined locally
@@ -83,7 +82,7 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] Nothing reintroduces a client-side `expires_at` check — a wrong device clock then discards a token it was just issued and dead-ends on `/login`
 - [ ] A new screen behind the gate is wrapped in `RequireAuth`, and a new back affordance goes through `backTarget` rather than calling `navigate('/')` — two of the five targets are not navigations
 - [ ] A colour reaching the manifest, `theme-color` or `public/icons/` still comes from the tokens; `npm run check:icons` passes after any palette change
-- [ ] Copy follows the locked rules in `docs/handoffs/weatherteam6-ui-handoff-v1.md` §Design System — no climbing opinions, score is never the headline, imperial units
+- [ ] Copy follows the locked rules in `docs/handoffs/design-system-v1.md` — no climbing opinions, score is never the headline, imperial units
 - [ ] Nothing formats a nullable weather value by hand — the `packages/types` formatters return an em dash, and `null` coerced to `0` renders a plausible `32°F` / `0 mph` instead of a visible gap
 - [ ] The readings and the suppression come from `readingsCopy.ts`, not reimplemented — and no surface derives a word from the score, which is what `stateLabel` did and why it is gone
 - [ ] `GET /conditions/:id` is not called for a non-climbing location, and no score, breakdown or hours-since-rain renders for one
@@ -93,35 +92,22 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] A swallowed upstream error does not become a favourable input — an unmeasurable value withholds the score (`scoreUnavailable`) rather than scoring as its best case
 - [ ] "The call failed" and "the call returned nothing" are handled separately — a genuine empty result still scores
 - [ ] No interactive element is nested inside another (`LocationCard` is a `div` with `role="button"` for exactly this reason)
-- [ ] No credential is a build-time value — `API_SHARED_SECRET` and `TELEGRAM_BOT_TOKEN` never reach the client bundle, and no `VITE_*` variable carries one
-- [ ] No new features added to `apps/mobile` — it is archived and out of the build. It leaves the build through its own `package.json` scripts; a `turbo.json` override cannot silence a script that exists
+- [ ] No credential is a build-time value — `API_SHARED_SECRET` and `AUTH_TOKEN_SECRET` never reach the client bundle, and no `VITE_*` variable carries one
 
-## Telegram surfaces
+## Weather data surfaces
 
-> **DEAD — skip this whole section.** The bot was deleted on 2026-09-23 (leave-telegram
-> Phase 3). `escapeTelegramHtml`, `dayHasData`, `alertKeyboard`, `TelegramPermanentError`
-> and `sendTelegramMessage` no longer exist. Phase 4 deletes the section.
->
-> **Four items here are NOT about Telegram and still apply** — they survived in shared code
-> and are restated in `.claude/rules/architecture.md`: the precipitation-total rule
-> (`precip_mm_mean`, never summed percentiles), the chance-of-rain rule
-> (`members_wet / member_count`), `summarizeReadings` as the one reading-to-text
-> implementation with no magnitude on screen, and a reading being a label and a value
-> rather than a sentence.
-- [ ] Any text interpolated into a `parse_mode: 'HTML'` message is escaped with `escapeTelegramHtml` — NWS headlines and user-entered location names routinely contain `&`, and a malformed message is a non-retryable 400 the webhook swallows
-- [ ] **A string literal in the source counts too.** `/start` and the usage reply both shipped containing `<location name>`, which Telegram rejects as an unsupported start tag — neither had ever been delivered
+These were under a *Telegram surfaces* heading until 2026-09-23. The bot is gone; every
+item below survived in shared code and is about the numbers, not the channel.
+
 - [ ] A precipitation **total** over more than one hour comes from `precip_mm_mean`, never from summing `precip_mm_p10/p50/p90` — a percentile is not additive, and a summed p50 is the median of nothing. A percentile shown against a multi-hour step describes **one hour** of it, and the surface says so
 - [ ] A chance of rain is `members_wet / member_count`, never `precipitation_probability` — and a null wet count or a zero member count **withholds** the figure rather than showing 0%
-- [ ] "This model has no data here" is decided on the **values**, not on rows being absent — Open-Meteo pads every model out to the longest horizon in the request, so a model past its own returns real rows full of nulls. `dayHasData` is the check, and it excludes `precip_prob_pct` because that series outlives the model it was requested with
-- [ ] Reading-to-text goes through `summarizeReadings` — no surface writes its own mapping, or the bot and the Mini App drift apart. A friction **magnitude** never reaches a screen, and the estimate note rides with every friction level
+- [ ] "This model has no data here" is decided on the **values**, not on rows being absent — Open-Meteo pads every model out to the longest horizon in the request, so a model past its own horizon returns real rows full of nulls. `precip_prob_pct` cannot be the evidence either way: that series outlives the model it was requested with
+- [ ] Reading-to-text goes through `summarizeReadings` — no surface writes its own mapping, or two screens drift apart on the same crag. A friction **magnitude** never reaches a screen, and the estimate note rides with every friction level
 - [ ] A reading is rendered as a label and a value, never as a sentence — a surface composes `ReadingField`s (and `fieldLine` where there is no layout), and no component writes its own label
-- [ ] Webhook auth does not rely solely on request-body fields — `secret_token` is verified via `webhookSecretAccepted`, and every refusal still answers 200 so Telegram does not redeliver
-- [ ] A failed send is classified before the claim is released — `TelegramPermanentError` (non-429 4xx) keeps its claim; releasing it re-sends an identically-rejected message on every cron run forever. Branch on the error **type**, never on its message text
 - [ ] A user-visible source list is derived from what was actually *read*, not what was requested — `model_sources` reports only the models `parseEnsemble` consumes
 - [ ] A model added to `ENSEMBLE_MODELS` also has an entry in `ENSEMBLE_MODEL_SUFFIXES` — the key suffix is not derivable from the model name, and a missing entry means the model is fetched and silently ignored
 - [ ] A per-day figure a user reads as a forecast (high, low, peak wind) is `ensembleMedian` of per-member daily extremes — **not** a global `Math.max`/`Math.min` across members and hours, which reports the single most extreme member
-- [ ] An inline keyboard deep link is a `url` button, not `web_app` — `web_app` never delivers `start_param`
-- [ ] A button that cannot be built correctly is omitted, not approximated — a malformed url is a non-retryable 400 that costs the whole message
+- [ ] A rain mark covers the hour *before* its timestamp; an instantaneous reading is centred on its timestamp. `Series.tsx` has one helper per convention — do not inherit the other one
 
 ## Verification
 - [ ] The change was **run**, not just compiled — an external-API call had its response read, a database write was made and read back
@@ -129,8 +115,7 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] What was *not* verified is stated explicitly, in the commit or the session notes
 
 ## Docs
-- [ ] A completed task is marked complete in **both** `docs/handoffs/telegram-crossover-v4.md` and `.claude/docs/plan.md`
-- [ ] New endpoint added to the inventory in `docs/handoffs/weatherteam6-miniapp-handoff-v1.md`; new external API added to `.claude/docs/api-sources.md`
+- [ ] The handoff for the line of work being advanced records what shipped — `weatherteam6-scoring-model-handoff-v1.md`, `miniapp-design-v1.md`, or `miniapp-hourly-dataviz-handoff-v1.md`. A new external API goes in `.claude/docs/api-sources.md`
 - [ ] No doc still describes the shipped thing as missing, planned, or "does not exist yet" — a stale rule misdirects the next agent more than a missing one does
 - [ ] A new invariant future work must uphold is written into `.claude/rules/architecture.md`, not just the session notes
 

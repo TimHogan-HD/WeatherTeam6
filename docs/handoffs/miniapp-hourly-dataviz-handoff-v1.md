@@ -170,7 +170,6 @@ the newer authority.
 - **Model switching UI.** The `?models=all` parameter exists so it never needs an API
   change (§ Decisions taken 1); building the control itself is Phase 3's and optional.
 - **Radar, walls, trips, history, normals.** Unchanged non-goals.
-- **`apps/mobile`.** Archived. Do not add anything to it.
 
 ## Pre-Implementation Checklist
 
@@ -791,7 +790,7 @@ export type HourlyModel = {
       the comment *"slab (90°) dries 30% slower than vertical wall (0°)"*. So `cliffAngle`
       counts **slab** as positive, and has no defined negative domain.
     - `.claude/docs/data-model.md:218` — `angle_deg int -- degrees from vertical`.
-    - `weatherteam6-ui-handoff-v1.md:400` — `angleDeg: number // degrees past vertical;
+    - the deleted mobile UI handoff (`archive/2026-09-23-pre-cleanup`, line 400) — `angleDeg: number // degrees past vertical;
       0 = vertical, 90 = cave`, with `angleBand: 'slab' | 'vertical' | 'steep' | 'roof'`.
       So `walls.angle_deg` counts **overhang** as positive.
 

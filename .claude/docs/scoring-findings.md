@@ -397,6 +397,31 @@ than as quietly wrong numbers.
 
 ---
 
+## 6c. Degradation — the one defect behind #21, #32 and #34
+
+Carried over from the original build plan when it was deleted on 2026-09-23. It is the
+shortest true statement about this scorer and it is not written on any of the three issues.
+
+**Every degradation path in the scorer inflates.** Not some — every one measured so far:
+
+- A **missing rainfall fetch** is indistinguishable from a dry month (both are the 720-hour
+  sentinel) and hands back the full 40 drying points. Issue #34.
+- A **missing today-row** hands back full wind and humidity credit. Issue #32.
+- **Brutal heat** maxes out four of the five components, because only temperature notices it
+  and temperature is worth 12. Issue #21.
+
+They are the same defect wearing three hats: a weighted sum has no way to say *"this input
+was not measured"*, so every gap reads as a favourable value. That is why re-weighting
+temperature cannot fix #21 — the temperature component is already saturated at 0 across every
+hot location, so only something acting on the **total** can move it.
+
+**The rule this produces:** any change to the score starts from *"what does this say when the
+inputs are missing?"*, never from re-weighting a component. The shipped half of the answer is
+in `.claude/rules/architecture.md` — an unmeasurable input **withholds** the score rather than
+scoring as its best case. The unshipped half is the v2 model.
+
+---
+
 ## 7. If you only do three things
 
 1. **Do not let the drying ramp reach full marks as early as it does** (§1.2). It is wrong in

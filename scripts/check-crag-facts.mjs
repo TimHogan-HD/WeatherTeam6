@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
  * Acceptance check for `.claude/docs/crag-facts.json` — Phase 2 of
- * `docs/handoffs/climbing-research-brief-v1.md`.
+ * the climbing research programme (2026-09-16).
  *
- * **This exists because the brief's acceptance criteria are machine-checkable and a
+ * **This exists because those acceptance criteria are machine-checkable and a
  * criterion nobody runs is not a criterion.** The file is hand-written research data, it
  * will be edited by hand again, and the two rules that matter most about it fail silently:
  *

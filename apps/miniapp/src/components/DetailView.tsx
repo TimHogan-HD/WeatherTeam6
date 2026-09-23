@@ -95,11 +95,10 @@ export type DetailViewProps = {
     /**
      * The open tab and the day open inside Hourly, held by the route.
      *
-     * **Lifted out of this component on purpose.** Telegram's `BackButton` is
-     * the only back affordance (§2) and its handler is registered per route, so
-     * the route is the thing that has to know whether back means "to Daily" or
-     * "to the list". Tab state private to this component could not be popped
-     * from there.
+     * **Lifted out of this component on purpose.** Back is a per-route control
+     * (§2), so the route is the thing that has to know whether back means "to
+     * Daily" or "to the list". Tab state private to this component could not be
+     * reached from there.
      */
     tabs: {
       active: DetailTab

@@ -23,8 +23,8 @@ const API_PREFIX = '/api/v1'
  * `VITE_API_BASE_URL` is documented as the API's *origin*, and the prefix is
  * appended here. A value that already ends in the prefix is accepted rather
  * than doubled: three separate docs describe this variable and none of them is
- * unambiguous about it, and the failure mode is a 404 inside Telegram, where
- * there is no preview deployment to debug against.
+ * unambiguous about it, and the failure mode is a 404 on every call — cheap to
+ * tolerate, expensive to debug from a deployed bundle.
  */
 function endpoint(path: string): string {
   const base = requireApiBaseUrl().replace(new RegExp(`${API_PREFIX}$`), '')

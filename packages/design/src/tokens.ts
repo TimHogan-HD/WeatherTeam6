@@ -1,7 +1,9 @@
 /**
  * WeatherTeam6 — Design Tokens
- * Extracted from: design_handoff_crux_conditions (radar.css, walls.css, trips.css, README)
- * Canonical source: .crux-phone CSS custom properties block in radar.css
+ * Extracted from: design_handoff_crux_conditions (radar.css, walls.css, trips.css, README).
+ * Those mockup files were deleted on 2026-09-23 — recover them from the
+ * `archive/2026-09-23-pre-cleanup` tag. Canonical source was the `.crux-phone`
+ * CSS custom properties block in radar.css.
  * Target: React Native (StyleSheet / inline styles)
  *
  * Usage:

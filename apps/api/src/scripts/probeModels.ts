@@ -1,7 +1,7 @@
 /**
  * Probe A — what Open-Meteo actually returns, per point, per model, per variable.
  *
- * Phase 0 of `.claude/docs/telegram-precision-interface-plan.md`. Nothing imports
+ * Generates `.claude/docs/model-matrix.md`. Nothing imports
  * it; its **output** is the deliverable, and every model and variable named in a
  * later phase must trace to a line in `.claude/docs/model-matrix.md`, which this
  * script writes.
@@ -394,7 +394,7 @@ function render(
   )
   lines.push('')
   lines.push(
-    'Probe A of Phase 0 in `.claude/docs/telegram-precision-interface-plan.md`. **Every model, variable and horizon named in a later phase must trace to a line in this file.** It is a measurement, not a restatement of the docs — regenerate it rather than editing it by hand, and expect upstream coverage and horizons to change.',
+    '**Every model, variable and horizon named anywhere in this repo must trace to a line in this file.** It is a measurement, not a restatement of the docs — regenerate it rather than editing it by hand, and expect upstream coverage and horizons to change.',
   )
   lines.push('')
   lines.push('## How to read a cell')

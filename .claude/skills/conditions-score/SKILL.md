@@ -89,13 +89,13 @@ function applyModifiers(base: number, input: ScoreInput): number {
 
 ## Scores are NOT persisted
 
-**The `forecast-snapshot` job that used to write `conditions_scores` was deleted** in the Telegram Crossover migration (PR #20). Scores are computed **live, per request**, and returned in-memory — nothing is written to `conditions_scores` or `forecast_snapshots` anymore. Those tables still exist in the schema but have no writer.
+**The `forecast-snapshot` job that used to write `conditions_scores` was deleted** on 2026-07-31 (PR #20). Scores are computed **live, per request**, and returned in-memory — nothing is written to `conditions_scores` or `forecast_snapshots` anymore. Those tables still exist in the schema but have no writer.
 
 The orchestration lives in `apps/api/src/lib/scoring/liveForecast.ts`:
 
 ```typescript
 // Called directly from GET /conditions/:id, GET /forecast/:id,
-// GET /trips/:id/forecast, and the Telegram bot's /conditions command.
+// and GET /trips/:id/forecast.
 const { snapshots, scores } = await computeLiveForecast(location)
 ```
 

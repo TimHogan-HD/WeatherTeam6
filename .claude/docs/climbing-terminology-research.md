@@ -218,8 +218,9 @@ because nothing establishes its convention:
 > nothing establishes whether it is measured from vertical … or from horizontal … Printing
 > '14° off vert' would pick one of those on no evidence."*
 
-**That is resolvable, and this is the evidence.** The archived
-`apps/mobile/src/components/walls/WallSetupModal.tsx` — the UI the table was built for —
+**That is resolvable, and this is the evidence.** The deleted
+`apps/mobile/src/components/walls/WallSetupModal.tsx` — the UI the table was built for,
+recoverable from the `archive/2026-09-23-pre-cleanup` tag —
 labels the control **`"° past vertical"`** and seeds its presets as:
 
 ```
@@ -295,7 +296,7 @@ bare `8°` would be read backwards. That is a correct mitigation of a problem th
 exist at the data layer.
 
 **6.5 `walls` is dead data with a live schema.** Four `notNull` columns, an API route, and
-no writer anywhere in the build — the only UI that wrote it is in the archived `apps/mobile`.
+no writer anywhere in the build — the only UI that wrote it was deleted with `apps/mobile`.
 The Mini App renders a read-only strip and says *"Score is crag-wide"*. Worth either wiring
 up or deciding against, because a `notNull` column nothing fills is a schema that lies.
 
@@ -673,7 +674,7 @@ draw on them rather than invent a scale.
 
 ## 17. Source verification pass — 2026-09-16
 
-Phase 1 of `docs/handoffs/climbing-research-brief-v1.md`. This document was written in a
+Phase 1 of the climbing research programme (2026-09-16). This document was written in a
 session that could not reach any content domain, so its figures were attributed from
 search-result summaries. Three of them were named in the brief as headed for constants. All
 three were opened at source.
@@ -780,7 +781,7 @@ The three blocked hosts — ukclimbing.com, climbing.com, sciencedirect.com — 
 
 ## 18. Closing the §16 gaps — 2026-09-16
 
-Phase 4 of `docs/handoffs/climbing-research-brief-v1.md`. §16 listed five things this
+Phase 4 of the climbing research programme (2026-09-16). §16 listed five things this
 document could not establish. Two are now closed with sourced evidence, one is partly closed
 (§16 carries that one), and two stay open — restated with what was searched and why it failed.
 
@@ -961,7 +962,7 @@ variable with no calibration is a better starting point than a calibration with 
 
 ## 19. Reconciliation against `main` — 2026-09-16
 
-Phase 5 of `docs/handoffs/climbing-research-brief-v1.md`. Two jobs: re-check every **[R]**
+Phase 5 of the climbing research programme (2026-09-16). Two jobs: re-check every **[R]**
 claim against current `main`, because this document was written at `48ea8a8` and `main` moves
 fast; and fix what Phases 1–4 made stale inside these documents themselves.
 

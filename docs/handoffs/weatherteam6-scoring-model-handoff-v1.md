@@ -94,7 +94,6 @@ than from constants nobody measured.
 - **No rock-strength modelling.** No constant in the app is a strength figure and none is added.
 - **Not validated against outcomes, and this document does not claim to fix that.** The feedback
   button (#143) remains the only path to knowing whether any of this predicts anything.
-- **`apps/mobile` is archived.** No surface work reaches it.
 
 ## Pre-Implementation Checklist
 

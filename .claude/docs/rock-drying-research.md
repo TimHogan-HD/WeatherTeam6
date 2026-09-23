@@ -2575,7 +2575,7 @@ unit, and it is the unit the bot's panels are already built around.
 Everything above this section was researched in a cloud session whose egress proxy blocked
 every content domain, so each published figure came from a **search-result summary** rather
 than from the source. This section is Phase 1 of
-`docs/handoffs/climbing-research-brief-v1.md`: the same figures, opened at source from a
+the climbing research programme: the same figures, opened at source from a
 machine that can reach them.
 
 **Read this before trusting a number above.** Where a claim was corrected, the claim itself
@@ -2810,7 +2810,7 @@ the evidence and it should look uncomfortable.
 
 ## 12. Closing the §8 gaps — 2026-09-16
 
-Phase 4 of `docs/handoffs/climbing-research-brief-v1.md`. §8 listed what this document could
+Phase 4 of the climbing research programme (2026-09-16). §8 listed what this document could
 not establish. One is now decisively answered, one is half-answered, one is reinforced from an
 unexpected direction, and one stays blocked.
 
