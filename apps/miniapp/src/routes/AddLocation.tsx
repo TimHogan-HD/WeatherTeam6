@@ -4,7 +4,7 @@ import { spacing } from '@weatherteam6/design/tokens'
 import { placeSubtitle, type GeocodeResult, type RockType } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { bareButton, card, chip, inputBox, stack } from '../theme/styles.js'
-import { useBackButton } from '../telegram/useBackButton.js'
+import { backTarget } from '../lib/backTarget.js'
 import { useDebouncedValue, useGeocode } from '../hooks/useGeocode.js'
 import { usePreview } from '../hooks/useWeather.js'
 import { useCreateLocation } from '../hooks/useLocations.js'
@@ -71,17 +71,19 @@ export function AddLocation() {
   }, [])
 
   // Back from the preview returns here with the search intact; back from the
-  // search goes to the list (§2).
-  useBackButton(
-    useCallback(() => {
-      if (candidate !== null) {
+  // search goes to the list (§2). `backTarget` owns that distinction.
+  const onBack = useCallback(() => {
+    const action = backTarget({ route: 'add', previewing: candidate !== null })
+    switch (action.kind) {
+      case 'closePreview':
         setCandidate(null)
         create.reset()
         return
-      }
-      void navigate('/')
-    }, [candidate, create, navigate]),
-  )
+      case 'navigate':
+        void navigate(action.to)
+        return
+    }
+  }, [candidate, create, navigate])
 
   const onSave = useCallback(() => {
     if (candidate === null) return
@@ -109,7 +111,7 @@ export function AddLocation() {
 
   if (candidate !== null) {
     return (
-      <Screen title={candidate.name}>
+      <Screen title={candidate.name} onBack={onBack}>
         <p style={type.screenSub}>Not saved yet</p>
         <DetailView
           unsaved
@@ -134,7 +136,7 @@ export function AddLocation() {
   }
 
   return (
-    <Screen title="Add a location">
+    <Screen title="Add a location" onBack={onBack}>
       <div style={{ ...stack(spacing.listGap), marginTop: `${spacing.sectionTop}px` }}>
         {coordsMode ? (
           <CoordinateEntry onChoose={choose} />

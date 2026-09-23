@@ -36,7 +36,15 @@ export default tseslint.config(
     },
   },
   {
-    files: ['apps/api/**/*.ts', 'packages/types/**/*.ts', 'apps/miniapp/vite.config.ts'],
+    files: [
+      'apps/api/**/*.ts',
+      'packages/types/**/*.ts',
+      'apps/miniapp/vite.config.ts',
+      // Operator scripts, run with `node` — Buffer, process and console are
+      // theirs by right. Listed rather than exempted: the ignore block above
+      // says plain-JS scripts should be linted, not silently skipped.
+      'apps/miniapp/scripts/**/*.mjs',
+    ],
     languageOptions: { globals: globals.node },
   },
   {

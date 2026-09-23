@@ -10,7 +10,7 @@ Climbing conditions platform + general weather app. Core purpose: tell the user 
 - **`apps/mobile` is ARCHIVED and out of the build** since 2026-08-26. Code retained, do not add features to it.
 - **There is no queue.** No BullMQ, no Redis. Scheduled work is an HTTP route under `/api/cron/*` triggered by an external scheduler (cron-job.org). Forecast/conditions scoring is computed live per request, not by a snapshot job.
 - **The API is one serverless function** on Vercel — `apps/api/api/index.ts` wraps the whole Express app.
-- **The Mini App is the client.** `apps/miniapp` (Vite + React) is live at https://weatherteam6.vercel.app, opened from the bot's menu button, authenticated by `initData` HMAC as a second `Authorization` scheme.
+- **`apps/miniapp` is the client, and it is a standalone web app** (Vite + React) live at https://weatherteam6.vercel.app. Phase 2 of `docs/handoffs/leave-telegram-v1.md` took it out of Telegram on 2026-09-22: it opens in any browser, signs in at `/login` with a session token, carries its own back control, and installs through a PWA manifest. `src/telegram/` and `deepLink.ts` are deleted. The directory name is the last of the Mini App.
 
 ## Commands
 

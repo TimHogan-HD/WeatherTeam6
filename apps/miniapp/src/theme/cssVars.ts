@@ -2,8 +2,9 @@
  * Emits the design tokens once as CSS custom properties on `:root`.
  *
  * §Design System's "no CSS vars" rule is React Native implementation detail and
- * is replaced for the Mini App by miniapp-design-v1.md §8 — custom properties
- * are required here, because Telegram injects its own `--tg-*` set alongside.
+ * is replaced for the web client by miniapp-design-v1.md §8 — custom properties
+ * are how a stylesheet reaches a token at all, and `globals.css` needs them
+ * before first paint or the gradient renders a frame late.
  *
  * This module is imported by `vite.config.ts` and served to the app through the
  * `virtual:wt6-tokens.css` module, so the block lands in the bundled stylesheet

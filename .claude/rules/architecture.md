@@ -159,6 +159,7 @@ decisions are final unless explicitly overridden by the user.
 - **There is no `apps/api/src/jobs/`.** It was deleted with BullMQ. Scheduled work is an HTTP route under `/api/cron/*` with its logic in `src/lib/` — see § Background Jobs.
 - Telegram helpers live in `apps/api/src/lib/telegram/`; alert fetch/upsert/notify logic in `apps/api/src/lib/alerts/`.
 - **The alert deep link is a plain `url` inline keyboard button, never `web_app`.** `startapp` is a Direct Link Mini App mechanism; a `web_app` button opens an *inline-button* Mini App and does not deliver `start_param` at all, so the app would launch on the list with no idea which location the alert was about. The link is built by `lib/telegram/deepLink.ts`, whose base (`https://t.me/WeatherTeam6_bot/Alert`) is a constant because neither the bot username nor the Direct Link short name is derivable from `TELEGRAM_BOT_TOKEN`.
+  - **Accepted transitional cost, 2026-09-22 → Phase 3.** The client no longer reads `start_param` — migration Phase 2 deleted `apps/miniapp/src/lib/deepLink.ts` along with the SDK — so this button now opens the app on the **list**, behind a login, rather than on the location the alert was about. The alert text names the location, so it is a degradation rather than a break, and Phase 3 deletes the button with the bot. **Do not "fix" it by reviving the client-side deep link**: without the SDK there is no `initData` and the Telegram launch path is over. If the window turns out to be long, drop the button from `alertKeyboard` instead of shipping one that lands in the wrong place.
 - **A button that cannot be built correctly is omitted, not approximated.** `alertKeyboard` returns `null` for a non-uuid id. Telegram answers a malformed button url with a 400 — so a bad link costs the whole alert, not just the button. Same reason `InlineKeyboardMarkup` in `sendMessage.ts` is narrowed to url buttons: Telegram's real button type is a union where exactly one field may be set, and a wider type here would let a caller compile a 400.
 - **A permanent Telegram rejection keeps its claim; only a transient one releases it.** `sendTelegramMessage` throws `TelegramPermanentError` for a non-429 4xx and a plain `Error` for everything else, and `notifyPendingAlerts` branches on the *type* — never on the message text. Releasing the claim unconditionally (what it did until 2026-08-26) meant a message Telegram rejects identically every time was re-sent on every cron run, forever. Keeping the row claimed costs one alert; releasing it costs an unbounded loop.
 - **`POST /api/telegram/webhook` verifies `secret_token`** via `webhookSecretAccepted` in `lib/telegram/webhookAuth.ts` — the header Telegram echoes from `setWebhook`, and the only part of the request an outsider cannot forge (`chat.id` lives in the body). It is **deliberately permissive when `TELEGRAM_WEBHOOK_SECRET` is unset**, because making it mandatory takes the bot offline between deploy and re-running `setWebhook`; the `chat.id` check still runs in that window. The helper is pure and lives outside the route module for the same reason `validateInitData` does — importing the route pulls in the database client, which throws at import time without `DATABASE_URL`.
@@ -271,18 +272,24 @@ There is no queue infrastructure — no BullMQ, no Redis. The API is a single Ex
 
 Any handler that touches the DB across more than one request-scoped operation must still be safe to run concurrently / retry — the "idempotent, no duplicate data" bar from the old job-based world still applies, it's just enforced per-request now instead of per-job-run.
 
-## Client — Telegram Mini App
+## Client — the web app
 
-**The Mini App is the client.** `apps/miniapp` (Vite + React, static build) is the real,
-complete implementation of every user-facing screen. There is no second client to keep in
-parity. `apps/mobile` is archived — **do not add features to it.**
+**`apps/miniapp` is the client.** Vite + React, static build, the real and complete
+implementation of every user-facing screen. There is no second client to keep in parity.
+`apps/mobile` is archived — **do not add features to it.**
 
-The Mini App's own patterns — the design-token adapter, Telegram theming and
-capability gating, deep links, React Query rules, null-safe formatting, score suppression,
-the `is_today` flag, and the archived mobile patterns — live in the **`miniapp-patterns`
+**It stopped being a Telegram Mini App on 2026-09-22** (Phase 2 of
+`docs/handoffs/leave-telegram-v1.md`). It runs in an ordinary browser, signs in with a
+session token, carries its own back control, and installs through a PWA manifest;
+`src/telegram/`, `deepLink.ts` and the SDK script tag are deleted. The directory name is
+the last of the old arrangement.
+
+Its own patterns — the design-token adapter, the session token and the 401 path, the
+per-route back targets, React Query rules, null-safe formatting, score suppression, the
+`is_today` flag, and the archived mobile patterns — live in the **`miniapp-patterns`
 skill**, which loads automatically when you touch `apps/miniapp/**` or `packages/design/**`.
-They are unchanged and still binding; they were moved out of this file because they cost
-~2,000 tokens in every session, including the majority that never open the Mini App.
+They were moved out of this file because they cost ~2,000 tokens in every session,
+including the majority that never open the client.
 
 Two that stay here because they constrain the **API**, not the client:
 
