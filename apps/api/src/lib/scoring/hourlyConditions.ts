@@ -70,6 +70,7 @@ import {
   massTemperatureC,
   surfaceTemperature,
   type MassTemperatureOptions,
+  type WallOrientation,
 } from './rockThermal.js'
 import { skinWettedness, sweatFrictionFactor } from './sweatBalance.js'
 
@@ -161,6 +162,20 @@ function clamp01(v: number): number {
   return v < 0 ? 0 : v > 1 ? 1 : v
 }
 
+/**
+ * `dryingModel`'s angle factor, shared so the two cannot drift: 0° vertical is
+ * the base, a 90° slab takes 30% longer.
+ *
+ * **An overhang (negative `cliff_angle`, Phase 4b) takes the vertical base, not
+ * less.** Extending the line past 0 would dry a roof 30% faster than a vertical
+ * wall — a magnitude nobody measured, and an inflation (issue #34). Overhangs
+ * are drier because rain does not reach them, which is a wetting question
+ * (§18.1's catch ratio) this model does not ask, not a faster clock.
+ */
+export function dryingAngleFactor(cliffAngleDeg: number): number {
+  return 1.0 + (Math.min(Math.max(cliffAngleDeg, 0), 90) / 90) * 0.3
+}
+
 /** The rock's drying window for a type and tilt, in reference-equivalent hours. */
 export function dryingWindowHours(
   rockType: RockType,
@@ -169,7 +184,7 @@ export function dryingWindowHours(
   // Same angle factor as `dryingModel`: 0° vertical is the base, 90° slab takes
   // 30% longer. Duplicating the expression rather than the table, because the
   // table is now imported and cannot drift.
-  const angleFactor = 1.0 + (cliffAngleDeg / 90) * 0.3
+  const angleFactor = dryingAngleFactor(cliffAngleDeg)
   return {
     minHours: MIN_HOURS[rockType] * angleFactor,
     maxHours: MAX_HOURS[rockType] * angleFactor,
@@ -296,6 +311,10 @@ export type HourConditionsInput = {
   effectiveDryHours: number | null
   rockType: RockType
   cliffAngleDeg: number
+  /** The recorded wall, or absent/null when aspect or angle was not recorded. See `EvaluateSeriesOptions.wall`. */
+  wall?: WallOrientation | null
+  /** Hours the sample covers, so the sun is taken mid-sample. Defaults to 1. */
+  stepHours?: number
   /** `user_preferences.include_sun`. Defaults to true. */
   includeSun?: boolean
   weights?: ScoreWeights
@@ -393,11 +412,14 @@ export function evaluateHour(
  * the two would drift.
  */
 function surfaceFor(input: {
+  valid_at: string
   airTempC: number | null
   shortwaveWm2: number | null
   windKmh: number | null
   cloudPct: number | null
   cliffAngleDeg: number
+  wall?: WallOrientation | null
+  stepHours?: number
   includeSun?: boolean
 }): ReturnType<typeof surfaceTemperature> {
   return surfaceTemperature({
@@ -406,8 +428,28 @@ function surfaceFor(input: {
     windKmh: input.windKmh,
     cloudPct: input.cloudPct,
     cliffAngleDeg: input.cliffAngleDeg,
+    wall: wallAt(input.valid_at, input.wall ?? null, input.stepHours ?? 1),
     includeSun: input.includeSun,
   })
+}
+
+/**
+ * The sun is taken at the **middle** of the sample, because Open-Meteo stamps
+ * shortwave at the end of the hour it averages. Using the stamp would put the
+ * sun half an hour late all day — at 30°/h near the horizon, enough to turn an
+ * east wall's first sunlit hour into shade. An unparseable stamp drops the
+ * geometry, which leaves the hour on the unscaled, flagged path rather than
+ * inventing a sun position.
+ */
+function wallAt(
+  validAt: string,
+  wall: WallOrientation | null,
+  stepHours: number,
+): { orientation: WallOrientation; at: Date } | null {
+  if (wall === null) return null
+  const t = Date.parse(validAt)
+  if (!Number.isFinite(t)) return null
+  return { orientation: wall, at: new Date(t - (stepHours * 3_600_000) / 2) }
 }
 
 function readingsFrom(
@@ -470,6 +512,14 @@ export type WeatherHour = {
 export type EvaluateSeriesOptions = {
   rockType: RockType
   cliffAngleDeg: number
+  /**
+   * **The recorded wall, or null when either its aspect or its angle was not
+   * recorded.** Present, `T_surface` uses the wall's own irradiance and every
+   * hour is qualified; absent, the horizontal value and the per-hour margin rule
+   * stand (§ Unknown aspect). `cliffAngleDeg` above may be the 45 default and is
+   * **not** evidence of a recorded wall — only this field is.
+   */
+  wall?: WallOrientation | null
   weights?: ScoreWeights
   includeSun?: boolean
   metabolicW?: number
@@ -541,11 +591,14 @@ export function evaluateHourlyConditions(
     const massTempC = massTemperatureC(window, massOptions)
 
     const surface = surfaceFor({
+      valid_at: hour.valid_at,
       airTempC: hour.air_temp_c,
       shortwaveWm2: hour.shortwave_wm2,
       windKmh: hour.wind_kmh,
       cloudPct: hour.cloud_pct,
       cliffAngleDeg: options.cliffAngleDeg,
+      wall: options.wall ?? null,
+      stepHours: step,
       includeSun: options.includeSun,
     })
 
@@ -600,6 +653,8 @@ export function evaluateHourlyConditions(
           effectiveDryHours: effective,
           rockType: options.rockType,
           cliffAngleDeg: options.cliffAngleDeg,
+          wall: options.wall ?? null,
+          stepHours: step,
           includeSun: options.includeSun,
           weights: options.weights,
           metabolicW: options.metabolicW,

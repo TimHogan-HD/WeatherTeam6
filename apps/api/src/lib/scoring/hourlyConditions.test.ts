@@ -13,6 +13,7 @@ import {
   evaluateHourlyConditions,
   frictionFactor,
   frictionLevel,
+  dryingAngleFactor,
   frictionLevelsAtLeast,
   rockLevel,
   rockLevelsAtLeast,
@@ -22,7 +23,12 @@ import {
   type WeatherHour,
 } from './hourlyConditions.js'
 import { MAX_HOURS, MIN_HOURS } from './dryingModel.js'
-import { MASS_TAU_HOURS, saturationVapourPressureKpa } from './rockThermal.js'
+import {
+  MASS_TAU_HOURS,
+  saturationVapourPressureKpa,
+  surfaceTemperature,
+  type WallOrientation,
+} from './rockThermal.js'
 import { SCORE_BANDS } from '@weatherteam6/types'
 
 /** Dew point for a temperature and relative humidity, by inverting the Magnus form. */
@@ -517,5 +523,127 @@ describe('the diagnostics fence', () => {
     ])
     expect(typeof sample.friction!.level).toBe('string')
     expect(typeof sample.rock!.level).toBe('string')
+  })
+})
+
+describe('a recorded wall — the Phase 4 acceptance line', () => {
+  /**
+   * *"A saved location's aspect and tilt change its score in the direction a
+   * climber would predict."* The climber's prediction for a hot, clear
+   * midsummer noon: the wall in the shade is the one to be on, and a slab
+   * lying back into the sun is the worst of all.
+   */
+  const RED_ROCK = { lat: 36.13, lon: -115.43 }
+  const orient = (aspectDeg: number, cliffAngleDeg: number): WallOrientation => ({
+    ...RED_ROCK,
+    aspectDeg,
+    cliffAngleDeg,
+  })
+  const hotNoon = (cliffAngleDeg: number, wall: WallOrientation | null) =>
+    evaluateHour(
+      hour({
+        valid_at: '2026-06-21T20:00:00Z',
+        airTempC: 29,
+        dewPointC: 5,
+        windKmh: 5,
+        shortwaveWm2: 950,
+        massTempC: 24,
+        cliffAngleDeg,
+        wall,
+      }),
+      true,
+    )
+
+  it('reads a north wall cooler and scores it no worse than a south wall at summer noon', () => {
+    const north = hotNoon(0, orient(0, 0))
+    const south = hotNoon(0, orient(180, 0))
+    expect(north.t_surface_c!).toBeLessThan(south.t_surface_c!)
+    expect(north.score!).toBeGreaterThanOrEqual(south.score!)
+  })
+
+  it('scores a sun-facing slab below a shaded vertical wall', () => {
+    const northWall = hotNoon(0, orient(0, 0))
+    const southSlab = hotNoon(70, orient(180, 70))
+    expect(southSlab.t_surface_c!).toBeGreaterThan(northWall.t_surface_c! + 10)
+    expect(southSlab.score!).toBeLessThan(northWall.score!)
+  })
+
+  it('qualifies the friction reading once the wall is known', () => {
+    expect(hotNoon(0, null).friction!.qualified).toBe(false)
+    expect(hotNoon(0, orient(0, 0)).friction!.qualified).toBe(true)
+  })
+
+  it('takes the sun at the middle of the hour the shortwave mean covers, not its stamp', () => {
+    // Open-Meteo stamps the mean at the end of the hour. An east wall at 15:00Z
+    // must be lit by the 14:30Z sun; this fails if the stamp is used instead,
+    // because the sun climbs ~12° in that half hour.
+    const wall = orient(90, 0)
+    const input = hour({ valid_at: '2026-06-21T15:00:00Z', shortwaveWm2: 500, wall })
+    const expected = surfaceTemperature({
+      airTempC: input.airTempC,
+      shortwaveWm2: input.shortwaveWm2,
+      windKmh: input.windKmh,
+      cloudPct: input.cloudPct,
+      cliffAngleDeg: input.cliffAngleDeg,
+      wall: { orientation: wall, at: new Date('2026-06-21T14:30:00Z') },
+    })
+    const atStamp = surfaceTemperature({
+      airTempC: input.airTempC,
+      shortwaveWm2: input.shortwaveWm2,
+      windKmh: input.windKmh,
+      cloudPct: input.cloudPct,
+      cliffAngleDeg: input.cliffAngleDeg,
+      wall: { orientation: wall, at: new Date('2026-06-21T15:00:00Z') },
+    })
+    const got = evaluateHour(input, true).t_surface_c!
+    expect(got).toBeCloseTo(expected.t_surface_c!, 10)
+    expect(Math.abs(got - atStamp.t_surface_c!)).toBeGreaterThan(0.01)
+  })
+
+  it('keeps the rock reading qualified through a sunny drying day when the wall is known', () => {
+    // Sequential hours on the solstice with daylight shortwave. Without a wall
+    // any bright hour in the drying clock unqualifies the rock reading; with
+    // one, none does.
+    const start = Date.parse('2026-06-20T00:00:00Z')
+    const hours: WeatherHour[] = Array.from({ length: 2 * MASS_TAU_HOURS + 48 }, (_, i) => {
+      const at = new Date(start + i * 3_600_000)
+      const utc = at.getUTCHours()
+      // Daylight at Red Rock is roughly 13Z-03Z; a flat 600 W/m² is enough.
+      const day = utc >= 14 || utc <= 2
+      return {
+        valid_at: at.toISOString(),
+        air_temp_c: 25,
+        dewpoint_c: 5,
+        wind_kmh: 5,
+        cloud_pct: 0,
+        shortwave_wm2: day ? 600 : 0,
+        precip_mm: i === 0 ? 5 : 0,
+      }
+    })
+    const without = evaluateHourlyConditions(hours, { rockType: 'granite', cliffAngleDeg: 0 })
+    const withWall = evaluateHourlyConditions(hours, {
+      rockType: 'granite',
+      cliffAngleDeg: 0,
+      wall: orient(0, 0),
+    })
+    expect(without[without.length - 1]!.rock!.qualified).toBe(false)
+    expect(withWall[withWall.length - 1]!.rock!.qualified).toBe(true)
+  })
+})
+
+describe('dryingAngleFactor', () => {
+  it('runs 1.0 at vertical to 1.3 at a flat slab and holds an overhang at vertical', () => {
+    expect(dryingAngleFactor(0)).toBe(1)
+    expect(dryingAngleFactor(90)).toBeCloseTo(1.3, 10)
+    expect(dryingAngleFactor(45)).toBeCloseTo(1.15, 10)
+    // Extending the line would dry a roof 30% faster — an inflation nobody
+    // measured (issue #34).
+    expect(dryingAngleFactor(-30)).toBe(1)
+    expect(dryingAngleFactor(-90)).toBe(1)
+  })
+
+  it('is the factor dryingWindowHours applies', () => {
+    const { maxHours } = dryingWindowHours('granite', -45)
+    expect(maxHours).toBe(MAX_HOURS.granite)
   })
 })

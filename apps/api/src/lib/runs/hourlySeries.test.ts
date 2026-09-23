@@ -425,3 +425,50 @@ describe('buildHourlySeries — offset selection', () => {
     expect(series.utc_offset_seconds).toBe(0)
   })
 })
+
+describe('buildHourlySeries — a recorded wall reaches the readings', () => {
+  /**
+   * The plumbing, end to end through the pure half: `scoring.wall` has to get
+   * from the route's `scoringLocationFor` into `evaluateHourlyConditions`. If
+   * any hop drops it, the noon hour stays unqualified and nothing else fails.
+   */
+  const now = new Date('2026-09-08T18:00:00Z')
+  const hours: RunHour[] = []
+  for (let i = -120; i <= 48; i++) {
+    const at = new Date(now.getTime() + i * HOUR_MS)
+    const utc = at.getUTCHours()
+    hours.push(
+      det({
+        valid_at: at,
+        temp_c: 30,
+        dewpoint_c: 5,
+        humidity_pct: 20,
+        precip_mm: 0,
+        wind_kmh: 5,
+        cloud_pct: 0,
+        // Daylight at Las Vegas in September is roughly 13Z-02Z.
+        shortwave_wm2: utc >= 14 || utc <= 1 ? 800 : 0,
+      }),
+    )
+  }
+  const build = (wall: { lat: number; lon: number; aspectDeg: number; cliffAngleDeg: number } | null) =>
+    buildHourlySeries({
+      locationId: 'loc-1',
+      deterministic: runs([model('gfs_seamless', hours)]),
+      ensemble: ensRuns([]),
+      allModels: false,
+      now,
+      scoring: { rockType: 'granite', cliffAngleDeg: 0, wall },
+    })
+  const noon = (s: ReturnType<typeof build>) =>
+    s.readings?.hours.find((h) => h.valid_at === '2026-09-08T20:00:00.000Z')
+
+  it('qualifies a bright noon hour only when the wall was passed', () => {
+    const without = noon(build(null))
+    const withWall = noon(build({ lat: 36.13, lon: -115.43, aspectDeg: 0, cliffAngleDeg: 0 }))
+    expect(without?.friction?.qualified).toBe(false)
+    expect(withWall?.friction?.qualified).toBe(true)
+    // And the north wall reads cooler than the unscaled horizontal guess.
+    expect(withWall!.t_surface_c!).toBeLessThan(without!.t_surface_c!)
+  })
+})

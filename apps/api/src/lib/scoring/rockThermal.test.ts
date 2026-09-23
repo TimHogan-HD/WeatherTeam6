@@ -21,7 +21,11 @@ import {
   skyCoolingC,
   surfaceCoefficient,
   surfaceTemperature,
+  erbsDiffuseFraction,
+  solarPosition,
+  wallIrradianceWm2,
   type SurfaceTemperatureInput,
+  type WallOrientation,
 } from './rockThermal.js'
 
 /**
@@ -553,5 +557,172 @@ describe('effectiveDryingHours', () => {
       measured_hours: 0,
       unmeasured_hours: 0,
     })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Wall geometry — Phase 4b
+// ---------------------------------------------------------------------------
+
+/** Red Rock, NV. Local solar noon on the June solstice is ~19:43 UTC. */
+const RED_ROCK = { lat: 36.13, lon: -115.43 }
+const JUNE_NOON = new Date('2026-06-21T19:43:00Z')
+const DEC_NOON = new Date('2026-12-21T19:43:00Z')
+/** 07:30 PDT on the solstice — the sun is low in the east-north-east. */
+const JUNE_MORNING = new Date('2026-06-21T14:30:00Z')
+
+function wall(aspectDeg: number, cliffAngleDeg: number): WallOrientation {
+  return { ...RED_ROCK, aspectDeg, cliffAngleDeg }
+}
+
+describe('solarPosition', () => {
+  it('puts the solstice noon sun at 90° − |lat − declination|', () => {
+    // Independent of the Fourier series: at solar noon elevation is
+    // 90 − |φ − δ|, with δ = ±23.44° at the solstices.
+    const june = solarPosition(JUNE_NOON, RED_ROCK.lat, RED_ROCK.lon)
+    const dec = solarPosition(DEC_NOON, RED_ROCK.lat, RED_ROCK.lon)
+    expect(june?.elevationDeg).toBeCloseTo(90 - (36.13 - 23.44), 0)
+    expect(dec?.elevationDeg).toBeCloseTo(90 - (36.13 + 23.44), 0)
+  })
+
+  it('reads azimuth clockwise from north: south at noon in the north, north in the south', () => {
+    const north = solarPosition(JUNE_NOON, RED_ROCK.lat, RED_ROCK.lon)
+    expect(Math.abs((north?.azimuthDeg ?? 0) - 180)).toBeLessThan(5)
+    // Sydney-ish latitude, same longitude so the same instant is solar noon.
+    const south = solarPosition(DEC_NOON, -33.9, RED_ROCK.lon)
+    const az = south?.azimuthDeg ?? 180
+    expect(Math.min(az, 360 - az)).toBeLessThan(5)
+  })
+
+  it('has the morning sun in the east and a negative elevation at night', () => {
+    const morning = solarPosition(JUNE_MORNING, RED_ROCK.lat, RED_ROCK.lon)
+    expect(morning?.azimuthDeg).toBeGreaterThan(45)
+    expect(morning?.azimuthDeg).toBeLessThan(100)
+    const night = solarPosition(new Date('2026-06-21T08:00:00Z'), RED_ROCK.lat, RED_ROCK.lon)
+    expect(night?.elevationDeg).toBeLessThan(0)
+  })
+
+  it('returns null for an invalid instant or coordinate rather than a sun', () => {
+    expect(solarPosition(new Date('nope'), 0, 0)).toBeNull()
+    expect(solarPosition(JUNE_NOON, Number.NaN, 0)).toBeNull()
+  })
+})
+
+describe('erbsDiffuseFraction', () => {
+  it('is continuous at both breakpoints of the published piecewise fit', () => {
+    // Hand-worked: at k = 0.22 the linear branch gives 1 − 0.0198 = 0.9802 and
+    // the quartic 0.9800; at k = 0.80 the quartic gives 0.16526 against 0.165.
+    expect(erbsDiffuseFraction(0.22)).toBeCloseTo(0.9802, 3)
+    expect(erbsDiffuseFraction(0.2201)).toBeCloseTo(0.98, 3)
+    expect(erbsDiffuseFraction(0.7999)).toBeCloseTo(0.165, 3)
+    expect(erbsDiffuseFraction(0.81)).toBe(0.165)
+  })
+
+  it('is all diffuse under a dark sky and clamps outside 0-1', () => {
+    expect(erbsDiffuseFraction(0)).toBe(1)
+    expect(erbsDiffuseFraction(-1)).toBe(1)
+    expect(erbsDiffuseFraction(2)).toBe(0.165)
+  })
+})
+
+describe('wallIrradianceWm2', () => {
+  it('returns the horizontal value unchanged for a flat slab, whatever its aspect', () => {
+    // β = 0: cos θ = cos θz, sky view 1, ground view 0 — the identity that
+    // makes the transposition consistent with its own input.
+    for (const aspect of [0, 90, 180, 270]) {
+      expect(wallIrradianceWm2(800, JUNE_NOON, wall(aspect, 90))).toBeCloseTo(800, 6)
+    }
+  })
+
+  it('keeps 0 as 0 and a gap as a gap', () => {
+    expect(wallIrradianceWm2(0, JUNE_NOON, wall(180, 0))).toBe(0)
+    expect(wallIrradianceWm2(null, JUNE_NOON, wall(180, 0))).toBeNull()
+    expect(wallIrradianceWm2(MAX_PLAUSIBLE_SHORTWAVE_WM2 + 1, JUNE_NOON, wall(180, 0))).toBeNull()
+    expect(wallIrradianceWm2(-1, JUNE_NOON, wall(180, 0))).toBeNull()
+  })
+
+  it('gives a vertical wall far less than horizontal under a high summer sun', () => {
+    const south = wallIrradianceWm2(1000, JUNE_NOON, wall(180, 0)) ?? Number.NaN
+    const north = wallIrradianceWm2(1000, JUNE_NOON, wall(0, 0)) ?? Number.NaN
+    expect(south).toBeLessThan(500)
+    // The sun is behind a north wall: sky and ground only, each at most half.
+    expect(north).toBeLessThan(south)
+    expect(north).toBeLessThan(0.5 * 1000 + 0.5 * 0.2 * 1000)
+  })
+
+  it('gives a south wall MORE than horizontal under a low winter sun — it is not an upper bound', () => {
+    // The handoff's own warning, now a number: the unscaled horizontal value
+    // was never a ceiling on what a wall receives.
+    const south = wallIrradianceWm2(550, DEC_NOON, wall(180, 0)) ?? Number.NaN
+    expect(south).toBeGreaterThan(550)
+  })
+
+  it('lights an east wall in the morning and leaves a west wall in shade', () => {
+    const east = wallIrradianceWm2(600, JUNE_MORNING, wall(90, 0)) ?? Number.NaN
+    const west = wallIrradianceWm2(600, JUNE_MORNING, wall(270, 0)) ?? Number.NaN
+    expect(east).toBeGreaterThan(600)
+    expect(west).toBeLessThan(0.3 * east)
+  })
+
+  it('gives an overhang less sky and more ground, by the view factors', () => {
+    // An all-diffuse hour (sun under 5°), so no beam term. Hand-worked with
+    // ρ = 0.2: vertical, β = 90° → 0.5 sky + 0.2·0.5 ground = 0.6 of GHI;
+    // 30° overhang, β = 120°, cos β = −0.5 → 0.25 sky + 0.2·0.75 = 0.4 of GHI.
+    const at = new Date('2026-06-21T12:30:00Z')
+    expect(wallIrradianceWm2(100, at, wall(0, 0))).toBeCloseTo(60, 6)
+    expect(wallIrradianceWm2(100, at, wall(0, -30))).toBeCloseTo(40, 6)
+    // A roof sees only ground.
+    expect(wallIrradianceWm2(100, at, wall(0, -90))).toBeCloseTo(20, 6)
+  })
+
+  it('treats an hour that straddles sunrise as all sky light, not a searing beam', () => {
+    // 12:30Z is before sunrise at Red Rock; a non-zero hourly mean there is the
+    // twilight edge. With no beam the aspect cannot matter.
+    const at = new Date('2026-06-21T12:30:00Z')
+    const east = wallIrradianceWm2(20, at, wall(90, 0))
+    const west = wallIrradianceWm2(20, at, wall(270, 0))
+    expect(east).toBeCloseTo(west ?? Number.NaN, 10)
+    expect(east).toBeLessThan(20)
+  })
+})
+
+describe('surfaceTemperature with a recorded wall', () => {
+  const hot: SurfaceTemperatureInput = {
+    airTempC: 30,
+    shortwaveWm2: 1000,
+    windKmh: 5,
+    cloudPct: 0,
+    cliffAngleDeg: 0,
+  }
+
+  it('qualifies a bright midday hour the unscaled path refuses', () => {
+    expect(surfaceTemperature(hot).qualified).toBe(false)
+    const out = surfaceTemperature({ ...hot, wall: { orientation: wall(0, 0), at: JUNE_NOON } })
+    expect(out.qualified).toBe(true)
+    expect(out.t_surface_c).not.toBeNull()
+  })
+
+  it('reads a north wall cooler than a south wall, and both cooler than the unscaled guess, at summer noon', () => {
+    const t = (o: WallOrientation) =>
+      surfaceTemperature({ ...hot, wall: { orientation: o, at: JUNE_NOON } }).t_surface_c ?? Number.NaN
+    const unscaled = surfaceTemperature(hot).t_surface_c ?? Number.NaN
+    expect(t(wall(0, 0))).toBeLessThan(t(wall(180, 0)))
+    expect(t(wall(180, 0))).toBeLessThan(unscaled)
+  })
+
+  it('still withholds when the shortwave is missing, geometry or not', () => {
+    const out = surfaceTemperature({
+      ...hot,
+      shortwaveWm2: null,
+      wall: { orientation: wall(180, 0), at: JUNE_NOON },
+    })
+    expect(out.t_surface_c).toBeNull()
+    expect(out.qualified).toBe(false)
+  })
+
+  it('reads a night hour identically with or without a wall — there is no sun to aim', () => {
+    const night = { ...hot, shortwaveWm2: 0 }
+    const withWall = surfaceTemperature({ ...night, wall: { orientation: wall(90, 0), at: JUNE_NOON } })
+    expect(withWall.t_surface_c).toBeCloseTo(surfaceTemperature(night).t_surface_c ?? Number.NaN, 10)
   })
 })
