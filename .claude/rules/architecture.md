@@ -22,6 +22,25 @@
 This file loads automatically at session start — you do not need to open it. These
 decisions are final unless explicitly overridden by the user.
 
+> ## Telegram is DELETED — 2026-09-23, leave-telegram Phase 3
+>
+> **Roughly fifteen paragraphs below describe the bot, and it no longer exists.** Deep links,
+> `panel_states`, the webhook and its two-id callback check, `InlineKeyboardButton`,
+> `sendTelegramMessage`, `escapeTelegramHtml`, the `tma` scheme and `resolveUser` are all gone.
+>
+> **What is still true and still binding** are the rules about *shared* code, which survived
+> intact and merely lost their bot half: `summarizeReadings` as the one reading-to-text
+> implementation, `toConditionsReadings` and its two sentinels, Severe+ suppression dropping
+> the number and keeping the readings, a reading being a label and a value, no friction
+> magnitude on any surface, `precip_mm_mean` as the only addable precipitation figure, and
+> `members_wet / member_count` as the chance of rain.
+>
+> **Two rules changed rather than died.** `requireApiAuth` accepts **two** schemes and is the
+> only setter of `req.userId` anywhere. `DEPENDENT_TABLES` no longer lists `panelStates`,
+> because the table is dropped.
+>
+> **Phase 4 rewrites this properly.** Until it does, believe this banner.
+
 ## Monorepo Structure
 - Turborepo. Apps: `apps/api` (live), `apps/miniapp` (Vite + React; live at https://weatherteam6.vercel.app as the bot's menu button), `apps/mobile` (archived and **out of the build** — it declares no `build`/`dev`/`typecheck`/`lint`/`test` script, which is what makes turbo skip it; still a workspace member so `npm install` resolves its dependencies). Shared packages: `packages/types`, `packages/design`.
 - Shared TypeScript types live in `packages/types` only. Never duplicate type definitions across apps.

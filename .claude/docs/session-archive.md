@@ -3736,3 +3736,42 @@ choosing their own passphrase and running `user:add --user-id` when Phase 2 has 
 - **The owner already has a username (`tim`).** Confirmed by reading the `users` table. Item 3 of the old "what the user owes" list is done.
 
 **Does the user need to do anything?** **No.** The login screen is live at https://weatherteam6.vercel.app and their account already exists, so they can sign in whenever they like. The two standing items are unchanged and neither blocks Phase 3: a trip to the phone (now also worth checking safe-area padding and Add to Home Screen, which no desktop browser can answer), and the 0-100 question in the scoring handoff's § Open Questions 3.
+
+---
+
+## 2026-09-23 — branch: phase3-delete-telegram — commit: 274d49c
+
+**Phase completed:** Leave Telegram, Phase 3 — delete Telegram (PR #171)
+
+**What was built this session:**
+- Deleted `apps/api/src/lib/telegram/` — 14 modules and 12 test files, the whole bot.
+- Deleted `routes/telegramWebhook.ts`, and its mount in `index.ts`.
+- Deleted `middleware/auth.ts`. `resolveUser` existed only because the webhook read `req.userId`; `requireApiAuth` is now the only setter anywhere in the app and owns the `express-serve-static-core` `Request` augmentation the deleted file used to declare.
+- `middleware/apiAuth.ts` — dropped the `tma` scheme and `initDataAccepted`. Two schemes remain.
+- `lib/alerts/checkAlerts.ts` — deleted `notifyPendingAlerts` (~74 lines). `runAlertsCheck` untouched.
+- `routes/cron.ts` — `/check-alerts` loses delivery and the panel-state prune; its response is now `{ refreshFailed }`.
+- `lib/locations/deleteLocation.ts` — `panelStates` out of `DEPENDENT_TABLES`.
+- `db/schema.ts` — `panel_states` block deleted; migration `0014_spicy_arclight.sql` drops the table. **Applied to production this session.**
+- Deleted four operator scripts and their npm scripts; deleted `escapeTelegramHtml` from `packages/types`; dropped three `TELEGRAM_*` vars from `.env.example` and `turbo.json`.
+- **`check:conditions` rewritten, not deleted.** It ran through `buildConditionsInput` + `formatConditionsReply` — bot code. It now runs `GET /conditions/:locationId`'s own composition and asserts its copy rules on the fields `summarizeReadings` hands a surface. 24/24 against real Postgres and live Open-Meteo.
+- `index.test.ts` — the webhook-identity block replaced by an assertion that the mount is gone (404).
+
+**Known issues / deferred work:**
+- **Mutation testing was not run.** It was started and the owner stopped it — *"Mutation testing always takes forever."* The 67.82% baseline (2026-09-21) predates ~9,000 deleted lines and `thresholds.break: 67` leaves 0.82 of headroom, so **the weekly CI job is the next thing that will find out**. This is the one Phase 3 verification item from the handoff that did not happen.
+- **The alert write path went unexercised.** No NWS alert was active at any saved location, so `runAlertsCheck` wrote 0 rows. It ran clean and the upsert is untouched by this diff — but "0 rows" and "broken write" are indistinguishable here. Severe+ suppression itself *was* exercised (score `null` with an alert, `100` without, both readings kept).
+- Phase 4's doc sweep is untouched by design. The bot halves of `CLAUDE.md`, `architecture.md`, `review-checklist` and the whole `telegram-patterns` skill now describe deleted code; each got a one-line banner this session so they do not misdirect before Phase 4 removes them.
+
+**Blockers for next session:** None.
+
+**What's next:** Phase 4 — docs and rules. `git checkout -b phase4-docs-sweep` off `main` — read `docs/handoffs/leave-telegram-v1.md` § Phase 4 first. **Anything describing a *shared* invariant (`summarizeReadings`, `toConditionsReadings`, the sentinels) stays and loses only its bot half**, and the Telegram examples in `defect-patterns.md` stay outright — classes 3, 5 and 11 are still true of code that survived.
+
+**Gotchas for next session:**
+- **A deleted FK's `DEPENDENT_TABLES` entry and its `DROP TABLE` are one change split across two systems, and the order matters.** Removing `panelStates` from the cascade while `panel_states` still existed left a live defect: one row held a real FK to `locations`, so deleting *that* location would have 500'd. Migrating first would instead have broken the still-deployed bot. **Deploy, then migrate, and keep the window short** — and re-run `check:add-location` and `check:delete-trip` *after* the migration, not only before, because before the drop they pass for the wrong reason.
+- **A test asserting an absence usually does not constrain the absence.** Both new `tma` tests refuse the credential — and would refuse it identically with the branch restored, because `initDataAccepted` rejects the same payloads and the middleware deliberately never tells the caller which half was wrong. The comments now say so. The real guard is mechanical: `initData.ts` is deleted, so a revived branch does not compile. **`index.test.ts`'s webhook 404 is the opposite case and does constrain** — a re-added mount compiles fine and nothing else would notice.
+- **A full-day window short-circuits before any clock formatting**, which silently disarmed the #33 check in the rewritten `check:conditions`. `windowValue` returns `"All day"` at ≥24 hours, so comparing the local render against a UTC one could never differ — on exactly the days the window is widest. It now runs `formatLocalHour` on a real instant instead. **Caught by running the script, not by reading it**; the first run failed on a real location.
+- **`drizzle-kit generate` needs no database**, only a non-empty `DATABASE_URL` to get past `drizzle.config.ts`'s throw. A dummy connection string generates a migration entirely offline.
+- **`/api/telegram/webhook` is now a genuine deployment probe.** Ordinarily a 404 proves nothing, but the old handler answered **200 to every update including refusals**, so a 404 there is real evidence the post-Phase-3 code is live — unlike `/api/v1/*`, where everything 401s whether or not it exists.
+- **A type-only import is erased and does not violate the deferred-import rule.** `checkConditions.ts` must defer `../db/index.js` to runtime, but `import type { ScoringLocation }` at the top is fine; `const { x, type Y } = await import(...)` is a syntax error, which is the trap.
+- **The Write tool emits LF into this CRLF tree.** Git normalises on `add`, so the commit is clean — but a later `node -e` patch against a Write-created file must match `\n`, not `\r\n`.
+
+**Does the user need to do anything?** **Yes — two, and both need a credential Claude does not have.** Delete the bot's **webhook registration** with Telegram (it is still delivering to a path that now 404s; needs `TELEGRAM_BOT_TOKEN`, set in their own shell, never pasted in chat), and delete `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` and `TELEGRAM_WEBHOOK_SECRET` from both Vercel projects. Deleting the bot via BotFather is optional. The two standing items are unchanged: a trip to the phone, and the 0-100 question.

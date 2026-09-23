@@ -6,6 +6,11 @@ paths: apps/api/src/lib/telegram/**, apps/api/src/routes/telegramWebhook.ts
 
 # Telegram Rendering Patterns
 
+> **DEAD — the bot was deleted on 2026-09-23 (leave-telegram Phase 3).** Every path this
+> skill governs is gone, and the two files in its `paths:` no longer exist, so it should
+> never load again. It is kept only until Phase 4 deletes it. **Do not take direction from
+> it, and do not rebuild anything it describes.**
+
 > Extracted from `.claude/docs/STATE.md` on 2026-09-16. That file named this section as
 > its own clearest trim candidate: ~450 words of **bot** rendering rules that every Mini
 > App session was also loading, and the only domain in the repo without a skill of its

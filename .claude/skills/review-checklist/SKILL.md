@@ -97,6 +97,17 @@ Run through this before every commit. Flag any failures before proceeding.
 - [ ] No new features added to `apps/mobile` — it is archived and out of the build. It leaves the build through its own `package.json` scripts; a `turbo.json` override cannot silence a script that exists
 
 ## Telegram surfaces
+
+> **DEAD — skip this whole section.** The bot was deleted on 2026-09-23 (leave-telegram
+> Phase 3). `escapeTelegramHtml`, `dayHasData`, `alertKeyboard`, `TelegramPermanentError`
+> and `sendTelegramMessage` no longer exist. Phase 4 deletes the section.
+>
+> **Four items here are NOT about Telegram and still apply** — they survived in shared code
+> and are restated in `.claude/rules/architecture.md`: the precipitation-total rule
+> (`precip_mm_mean`, never summed percentiles), the chance-of-rain rule
+> (`members_wet / member_count`), `summarizeReadings` as the one reading-to-text
+> implementation with no magnitude on screen, and a reading being a label and a value
+> rather than a sentence.
 - [ ] Any text interpolated into a `parse_mode: 'HTML'` message is escaped with `escapeTelegramHtml` — NWS headlines and user-entered location names routinely contain `&`, and a malformed message is a non-retryable 400 the webhook swallows
 - [ ] **A string literal in the source counts too.** `/start` and the usage reply both shipped containing `<location name>`, which Telegram rejects as an unsupported start tag — neither had ever been delivered
 - [ ] A precipitation **total** over more than one hour comes from `precip_mm_mean`, never from summing `precip_mm_p10/p50/p90` — a percentile is not additive, and a summed p50 is the median of nothing. A percentile shown against a multi-hour step describes **one hour** of it, and the surface says so

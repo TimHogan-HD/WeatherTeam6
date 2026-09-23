@@ -2,6 +2,22 @@
 
 Climbing conditions platform + general weather app. Core purpose: tell the user if a crag is climbable now, over the next 7 days, and support trip planning weeks out with improving forecast confidence over time.
 
+> ## Telegram is DELETED — 2026-09-23, leave-telegram Phase 3
+>
+> **Every Telegram paragraph below this line describes code that no longer exists**: the bot,
+> the webhook, `apps/api/src/lib/telegram/`, the `tma` auth scheme, `resolveUser`,
+> `escapeTelegramHtml`, `panel_states`, `notifyPendingAlerts`, and the three `TELEGRAM_*`
+> environment variables. The `telegram-patterns` skill is dead and `telegram-precision-interface-plan.md`
+> is not mandatory reading any more.
+>
+> **Auth is two schemes**, not three: `Session <token>` and `Bearer <API_SHARED_SECRET>`.
+> `requireApiAuth` is the only setter of `req.userId` **anywhere in the app**.
+>
+> **Alerts are still collected and never delivered.** `weather_alerts.notified_at` is dormant —
+> null means "never asked", not "not yet sent".
+>
+> **Phase 4 rewrites these paragraphs properly.** Until it does, believe this banner.
+
 ## Stack
 
 `package.json` and the workspace manifests are the authoritative record of what is installed. What they cannot tell you:

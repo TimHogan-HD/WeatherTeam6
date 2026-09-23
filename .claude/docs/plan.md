@@ -119,7 +119,8 @@ Each phase: implement → acceptance criteria → `npm run typecheck` → `npm r
 > **⚠️ Superseded 2026-09-22 — this whole section is history.** Tasks 5–7 below all
 > completed, and all of them are being undone: the owner decided to **delete Telegram
 > entirely** and make the client a standalone web app. The authoritative direction is
-> `docs/handoffs/leave-telegram-v1.md` (Phases 1 and 2 shipped; Phase 3 deletes the bot).
+> `docs/handoffs/leave-telegram-v1.md` (Phases 1-3 shipped — **the bot was deleted on
+> 2026-09-23**; only Phase 4, the docs sweep, remains).
 > Read the task records below for *what was built and why*, never for what to build next —
 > in particular, the client no longer uses `BackButton`, `initData`, `themeParams` or the
 > `startapp` deep link, and `apps/miniapp/src/telegram/` and `lib/deepLink.ts` are deleted.
