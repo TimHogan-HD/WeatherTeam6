@@ -19,7 +19,9 @@ implementing. The invariants the scorer must hold are in `.claude/rules/architec
 - `liveForecast.ts` — `computeLiveForecast(location)`: fetch, score per day, return. Nothing
   is persisted; its synthesized `id`s (`${locationId}:${date}`) are not stable across requests.
 - `rockThermal.ts`, `hourlyConditions.ts`, `sweatBalance.ts` — the v2 readings. They produce
-  the number on screen; the five-component score is computed and rendered nowhere.
+  the number on screen. The five-component score is still computed on every request and
+  still feeds the drying card's `Climbable in ~Nh` line (#178), but no score renders from
+  it; Phase 5 deletes it.
 
 `ScoreInput`, `ScoreOutput` and `ScoreBreakdown` live in `packages/types`. Never redeclare them.
 `ScoreInput.currentTempC` is a dead field — no scorer reads it (`defect-patterns.md` §10).
@@ -28,7 +30,7 @@ implementing. The invariants the scorer must hold are in `.claude/rules/architec
 
 - A `'pre'` window (>14 days out) returns `score: null` with zeroed components — "too far out",
   not "unclimbable". Null means missing data; 0 means genuinely unclimbable.
-- `forecastDateDaysOut` > 7 forces `confidence = 'low'` regardless of spread.
+- `forecastDateDaysOut` >= 7 forces `confidence = 'low'` regardless of spread.
 - `hoursSinceRain` is 0 while it is raining, never negative.
 - Clamp the final score to 0–100.
 - `currentWindKmh` and `currentHumidityPct` are read once from today and stretch every day's

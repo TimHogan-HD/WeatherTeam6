@@ -8,7 +8,7 @@
  * was a missed defect and a manual request for another sweep.
  *
  * Part of the answer was mechanical (CI never ran `check:hooks`). The other
- * part is this: CLAUDE.md's "Session Start Protocol" is a list of things an
+ * part is this: a session-start protocol in CLAUDE.md is a list of things an
  * agent is asked to remember. Everything in this repo's history says that a
  * remembered step is a step that eventually gets skipped. So the state is
  * pushed into context rather than fetched by request.

@@ -39,11 +39,26 @@ not Vercel Cron, which caps at once a day on Hobby.
 
 ## Idempotency
 
-- **Claim before you act on any external side effect.** Update the row with a guard
-  (`where … isNull(notified_at)` … `.returning()`) and act only if the claim returned a row;
-  release the claim if the action fails. `lib/alerts/checkAlerts.ts` holds the pattern.
-  Nothing sends notifications today — `weather_alerts.notified_at` is dormant and null means
-  "never asked" — but a future channel needs exactly this claim.
+- **Claim before you act on any external side effect**, so two overlapping invocations
+  cannot both act. Nothing sends notifications today — `weather_alerts.notified_at` is
+  dormant and null means "never asked" — and the code that did was deleted with the bot, so
+  this is the pattern a future channel needs:
+
+  ```typescript
+  const claimed = await db
+    .update(weatherAlerts)
+    .set({ notified_at: new Date() })
+    .where(and(eq(weatherAlerts.id, alert.id), isNull(weatherAlerts.notified_at)))
+    .returning({ id: weatherAlerts.id })
+
+  if (claimed.length === 0) continue   // another invocation got it first
+
+  try {
+    await deliver(...)
+  } catch {
+    // release the claim so the next run retries — a failed send is not "notified"
+  }
+  ```
 - **Purge-and-replace goes in one `db.transaction`**, so a crash leaves the old set or the new
   one, never a gap.
 - **Pruning can destroy dedup state.** `notified_at` lives on the alert row, so deleting and

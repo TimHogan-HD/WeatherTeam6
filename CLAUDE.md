@@ -56,7 +56,7 @@ Do not create a `.env` file at all — set variables in the shell for the one co
 
 - TypeScript strict mode everywhere. No `any`.
 - All API responses use the shape `{ data, error, status }`.
-- All external API calls go through `fetchWithRetry` (try/catch, exponential backoff).
+- All external API calls are wrapped in try/catch with exponential backoff retry.
 - Never log secrets, tokens, or full API responses in production. Never serialise an error object wholesale into a log — driver errors can carry the connection string; go through `describeError` in `lib/http.ts`.
 - Auth is a signed token, and `requireApiAuth` is the only setter of `req.userId` — see `.claude/rules/architecture.md` § Auth Pattern. There is no self-serve signup.
 - Drizzle migrations only — never mutate the DB directly.
@@ -82,7 +82,7 @@ Paywalled or unfetchable source material goes in `.claude/research-inbox/` (giti
 
 ## Session Start and End
 
-The `SessionStart` hook injects branch, working tree, open PRs and issues, CI on `main`, and `.claude/docs/STATE.md`. Use it instead of re-running `git log` or `gh issue list`. Then run the shared-package build above. Read issue state from `gh issue list`, never from a table in a document. Grep `.claude/docs/session-archive.md` only for the reasoning behind one past decision.
+The `SessionStart` hook injects branch, working tree, open PRs and issues, CI on `main`, and `.claude/docs/STATE.md`. Use it instead of re-running `git log` or `gh issue list`. If that block is missing, read `STATE.md` and run `git log --oneline -5` yourself. Then run the shared-package build above. Read issue state from `gh issue list`, never from a table in a document. Grep `.claude/docs/session-archive.md` only for the reasoning behind one past decision.
 
 If the user says "next phase", "continue" or "do Phase X", say in one sentence which phase and branch, and proceed from the docs.
 
@@ -90,6 +90,9 @@ To end a session, invoke `/session-end`.
 
 ## Verification
 
+Run `/review-checklist` before opening a PR.
+
+- Exercise the real path before calling something complete: an endpoint that calls an external API is run and its response read; one that touches the database is run against the database.
 - `npm run test` cannot cover database behaviour — Vitest mocks `fetch` and never connects. A flow that can only fail against real Postgres gets a `check:*` script under `apps/api/src/scripts/`; `check:add-location` is the worked example.
 - Run the API locally against the real database when you need to (no `.env`):
   ```powershell

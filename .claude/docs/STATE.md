@@ -34,7 +34,7 @@ Phase 5 deletes it.
   change it is undecided.
 
 **Baseline:** `npm run test` 986 passing (525 api, 302 miniapp, 159 types) across 29 / 23 / 8
-files; `check:hooks` 58. Against real Postgres: `check:conditions` 24/24, `check:weather-runs`
+files; `check:hooks` 56. Against real Postgres: `check:conditions` 24/24, `check:weather-runs`
 44/44, `check:auth` 22/22, `check:hourly` 13/14 (#179), `check:add-location` 25/25,
 `check:delete-trip` 9/9. **Compare the file count, not just the test count** — miniapp once
 printed "123 passed" with three files failing to collect.
