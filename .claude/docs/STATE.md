@@ -5,7 +5,7 @@
 `session-archive.md` is history, not state — grep it for the reasoning behind one specific
 past decision, never at session start.
 
-Last updated: 2026-09-23 · `main` @ `8fc7d7d`
+Last updated: 2026-09-23 · `main` @ `e0facc6`
 
 ---
 
@@ -26,16 +26,11 @@ it to build.
 suppress scores, are visible in the app, and reach nobody. That is the owner's parked-alerts
 decision, not an oversight. Do not deepen it and do not build a channel without asking.
 
-**Phase 4 was a scorched-earth cleanup on the owner's instruction, and it went well past the
-docs sweep the plan specified.** 144 files changed, ~25,900 lines deleted. Gone: `apps/mobile`
-and its whole Expo toolchain; the Telegram docs and skill; the original 13-phase `plan.md`,
-the v8 build prompt and the mobile-era specs, plans and mockups; three superseded handoffs;
-six environment variables nothing read. `weatherteam6-ui-handoff-v1.md` (682 lines) was
-condensed to `docs/handoffs/design-system-v1.md` (94).
-
-**Everything deleted is at the `archive/2026-09-23-pre-cleanup` tag, pushed to the remote.**
-Docs that name a deleted file say so and point at the tag. **No document carries a "this
-paragraph describes deleted code" banner any more** — the paragraphs are gone.
+**Everything the Phase 4 cleanup deleted** — `apps/mobile` and Expo, the Telegram docs, the
+old plans and mobile-era specs — **is at the `archive/2026-09-23-pre-cleanup` tag.** What was
+removed and why is in the archive's 2026-09-23 block. One piece of Expo outlived it: the root
+`tsconfig.json` still extended `expo/tsconfig.base`, which broke the local dev server until
+PR #175. If another Expo reference turns up, it is residue, not a dependency.
 
 ---
 
@@ -88,8 +83,8 @@ architecture is still not authorised.**
   **A mockup artifact is the spec, its prose summary is not** — one phase was built twice for
   reading the description instead of opening the file.
 
-**Baseline:** `npm run test` **852 passing** (501 api, 284 miniapp, 67 types) across
-**28 / 22 / 6** files; `typecheck`, `lint`, `check:hooks` (58), `check:icons`,
+**Baseline:** `npm run test` **889 passing** (501 api, 299 miniapp, 89 types) across
+**28 / 22 / 7** files; `typecheck`, `lint`, `check:hooks` (58), `check:icons`,
 `check:crag-facts` clean. Against real Postgres: `check:conditions` **24/24**,
 `check:weather-runs` **44/44**, `check:auth` **22/22**, `check:hourly` **19/19**,
 `check:add-location` **17/17**, `check:delete-trip` **9/9**.
@@ -101,9 +96,10 @@ three files failing to collect, having silently shrunk by 44.
 thing that will find out** — Phase 4 changed no implementation line, so it should be unmoved.
 Do not start a ~37-minute local run to close out a phase.
 
-**Claude runs everything unattended.** `DATABASE_URL`, `CRON_SECRET`, `API_SHARED_SECRET`,
-`AUTH_TOKEN_SECRET` and `VERCEL_TOKEN` are Windows user environment variables and
-`Bash(npm run check:*)` is allowlisted. Do not ask the owner to paste output. **Never echo a
+**Claude runs everything unattended.** `DATABASE_URL`, `CRON_SECRET`, `API_SHARED_SECRET`
+and `VERCEL_TOKEN` are Windows user environment variables and `Bash(npm run check:*)` is
+allowlisted. **`AUTH_TOKEN_SECRET` is not one of them** (checked 2026-09-23) — production's is
+sensitive and unreadable, and a local run does not need it: see the browser recipe below. Do not ask the owner to paste output. **Never echo a
 credential.** Read one with `[Environment]::GetEnvironmentVariable('NAME','User')` — they
 live in the registry, so `$env:` can read empty while they exist.
 
@@ -115,30 +111,38 @@ live in the registry, so `$env:` can read empty while they exist.
 Preview deploys are behind Vercel SSO (302 to a Vercel login page) and turning that off is a
 security setting. Instead: `vite` on `:5173` — already in the CORS default allowlist —
 against a local `createApp()` on the real `DATABASE_URL`, with a throwaway user and location
-created and torn down around the run.
+created and torn down around the run. Three details that cost time on 2026-09-23:
+**generate a throwaway `AUTH_TOKEN_SECRET`** for the run — the local server and the token you
+mint with `signToken` only have to agree with each other; name the throwaway rows with a prefix
+and **sweep by that prefix** in teardown, because a setup that throws halfway leaves rows no
+state file knows about; and a harness in the scratchpad must import app modules by
+**`file:///C:/…` URL**, since Node's ESM loader rejects a bare Windows path.
 
 ---
 
 ## What is next
 
-The migration is finished, so the queue is the owner's product list again.
+The queue is the owner's product list. **Items 1 and 2 shipped 2026-09-23 (PR #175)**: "now"
+is one `ConditionsNow` card — weather line, readings, and a collapsed **Measurements** panel
+with the air and rock figures, each named with its model, and the caveats' mechanism.
+**Assumption to confirm with the owner:** `Last rain` stayed on the drying card rather than
+moving into the panel, because it is visible one card below beside the rain window; moving it
+is two lines.
 
-1. **The measurements disclosure** — humidity, temperature, last rain, precipitation and dew
-   point behind a drop-down. Asked for 2026-09-22. It is where the caveats' *mechanism*
-   belongs now the gauges are terse, and it makes a reading checkable for the first time.
-2. **One Current Conditions block** — "now" is spread across a now-line, a readings section
-   and chips.
-3. **Humidity and dew point charts, which exist nowhere**, though both are fetched and
-   stored — `dewpoint_c` is read by nothing.
-4. **A current-location GPS option.** No design yet; prefer the browser geolocation API.
-5. **Scoring Phase 4 — the location editor** (rock type, aspect, tilt). **Unblocked.** Every
+1. **Humidity and dew point charts, which exist nowhere as charts**, though both are fetched
+   and stored. Dew point now reaches a screen for the first time, as one figure in the
+   measurements panel — the hourly series is still unread.
+2. **A current-location GPS option.** No design yet; prefer the browser geolocation API.
+3. **Scoring Phase 4 — the location editor** (rock type, aspect, tilt). **Unblocked.** Every
    saved location has `cliff_angle` defaulted to 45, one has no `rock_type`, and **nothing in
    the response marks either** — a reading on placeholders looks like one on real crag data.
    **Do not score `aspectDegrees` directly** (#139): the same aspect flips sign by season.
-6. **Scoring Phase 5 — preferences, then retirement of the five-component scorer.** A
+4. **Scoring Phase 5 — preferences, then retirement of the five-component scorer.** A
    deletion, not a migration. It owns the nuance 3b left: a past window still renders as that
-   day's, so *"Good hours: 6am–9am"* at 2pm is true and reads like advice for now.
-7. **Parked:** issue #82 part 2.
+   day's, so *"Good hours: 6am–9am"* at 2pm is true and reads like advice for now. **It also
+   owns the drying card's `Climbable in ~Nh` line**, which is the five-component model's
+   drying clock and can disagree with the v2 `Dryness` reading in the card above it.
+5. **Parked:** issue #82 part 2.
 
 ---
 
@@ -157,6 +161,9 @@ The migration is finished, so the queue is the owner's product list again.
 - **#143** — the only path to knowing whether any of this predicts anything. **Nothing in v2
   is validated against outcomes.**
 - **#155** — why irradiance comes from one model and is never pooled. Live constraint.
+- **#176** — a newly added crag reads `Wet` with no Friction or Score for ~4 days (no
+  trailing history for `T_mass`) and `unavailable_reason` stays `null`. Found in the #175
+  browser check. It hits every crag a partner adds, so it matters before sharing widens.
 
 **Unfiled, worth filing when touched:** `/forecast/:id` and `/conditions/:id` each run their
 own `computeLiveForecast`, so one detail view costs two ensemble and two rainfall calls; and
@@ -254,8 +261,10 @@ sitting in a dashboard.
 ordinary browser, no Telegram. Six questions; the first four are in full in the 2026-09-22
 archive block, the last two no desktop browser can answer:
 
-- **The readings block**, which nobody has seen rendered — does it read as instrument
-  readings rather than a verdict, and are two caveat fragments one too many at 360px?
+- **The Conditions now card**, now one block (PR #175) — does it read as instrument
+  readings rather than a verdict, are two caveat fragments one too many at 360px, and does
+  the **Measurements** control look tappable? Open it: is `Rock temperature 96°F` beside
+  `Temperature 73°F` read as modelled, as the sentence under it says?
 - **Does the temperature ramp read** as continuous blue → neutral → amber → red?
 - **The seven-day strip and the day pager** — confidence band or smudge, 168 rain bars too
   thin, and does `‹ Wed, Sep 16 ›` beat the seven chips?
