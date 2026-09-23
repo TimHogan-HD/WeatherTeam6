@@ -61,6 +61,7 @@ export type GeocodeSubtitleInput = {
   admin1: string | null;
   country: string | null;
   feature_code: string | null;
+  climbing_area?: { climbs: number; parent: string | null } | null;
 };
 
 /**
@@ -74,8 +75,17 @@ export type GeocodeSubtitleInput = {
  * the two surfaces cannot describe the same result differently.
  */
 export function placeSubtitle(result: GeocodeSubtitleInput): string {
-  const kind = geocodeKindLabel(result.feature_code);
   const place = [result.admin1, result.country].filter((part) => part !== null && part !== '').join(', ');
+  const area = result.climbing_area;
+  if (area !== null && area !== undefined) {
+    // The parent tells a wall from its crag ("Winter Wall" is on Barn Bluff), and
+    // OpenBeta is named because the app names every source it shows.
+    const climbs = `${area.climbs} ${area.climbs === 1 ? 'climb' : 'climbs'}`;
+    return ['Climbing area', climbs, area.parent, place, 'OpenBeta']
+      .filter((part) => part !== null && part !== '')
+      .join(' · ');
+  }
+  const kind = geocodeKindLabel(result.feature_code);
   if (kind === null) return place;
   return place === '' ? kind : `${kind} · ${place}`;
 }
