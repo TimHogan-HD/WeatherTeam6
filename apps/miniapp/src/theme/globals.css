@@ -5,10 +5,17 @@
  * generated from `@weatherteam6/design/tokens` at build time. Nothing in this
  * file may introduce a colour, a type size or a spacing value of its own.
  *
- * Every `--tg-*` reference carries a fallback on purpose: not all Telegram
- * clients inject them, and CSS drops the whole declaration when a `var()`
- * resolves to nothing — a bare `padding-top: var(--tg-safe-area-inset-top)`
- * silently loses its padding (miniapp-design-v1.md §1).
+ * The viewport height and the safe-area insets were Telegram's
+ * `--tg-viewport-stable-height` and `--tg-safe-area-inset-*` until Phase 2 of
+ * `docs/handoffs/leave-telegram-v1.md`; they now come from the platform's own
+ * `100dvh` and `env(safe-area-inset-*)`, which were already the fallback
+ * values. `env()` keeps its `0px` fallback: a browser that does not support a
+ * given inset resolves the function to nothing, and CSS then drops the whole
+ * declaration rather than the one value.
+ *
+ * `env(safe-area-inset-*)` is only non-zero because `index.html` sets
+ * `viewport-fit=cover`. Remove that and this padding silently becomes 0 on
+ * every notched phone.
  */
 
 *,
@@ -49,7 +56,7 @@ html {
 
 body {
   margin: 0;
-  min-height: var(--tg-viewport-stable-height, 100dvh);
+  min-height: 100dvh;
   background-image: linear-gradient(
     180deg,
     var(--wt6-color-bg-gradient-top) 0%,
@@ -60,22 +67,24 @@ body {
   background-color: var(--wt6-color-bg-gradient-bottom);
   color: var(--wt6-color-txt1);
   font-family: var(--wt6-font-body);
-  /* A Telegram webview bounces on overscroll and exposes the page behind it. */
+  /* Mobile Safari and Chrome bounce on overscroll and expose the page behind
+     the app, which on an installed PWA is the browser's own background. */
   overscroll-behavior-y: none;
 }
 
 #root {
   display: flex;
   flex-direction: column;
-  min-height: var(--tg-viewport-stable-height, 100dvh);
-  padding-top: var(--tg-safe-area-inset-top, 0px);
-  padding-right: var(--tg-safe-area-inset-right, 0px);
-  padding-bottom: var(--tg-safe-area-inset-bottom, 0px);
-  padding-left: var(--tg-safe-area-inset-left, 0px);
+  min-height: 100dvh;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
 }
 
-/* Telegram's own back affordance is the only one (§2), so nothing here should
-   look tappable-but-inert. Kill the tap highlight, keep focus visible. */
+/* Kill the mobile tap highlight — it paints a grey box over the token surface
+   on every card and chip — but keep focus visible, because the keyboard is now
+   a real way to use this app and it was not inside a Telegram webview. */
 a,
 button {
   -webkit-tap-highlight-color: transparent;

@@ -1,17 +1,19 @@
 import { requireApiBaseUrl } from '../config/env.js'
-import { getWebApp } from '../telegram/webApp.js'
-import type { ApiResponse } from '@weatherteam6/types'
+import { clearToken, getToken } from './authToken.js'
+import type { ApiResponse, AuthLoginResponse } from '@weatherteam6/types'
 
 /**
  * The single place this app talks to the network. Components never call `fetch`
  * — they go through the React Query hooks in `src/hooks/`, which come here.
  *
- * **Credential.** `Telegram.WebApp.initData`, sent as `Authorization: tma
- * <initData>` and validated server-side by HMAC. It must travel in
- * `Authorization`: the API's CORS layer allows exactly `Content-Type,
- * Authorization`, so a custom header fails browser preflight before the auth
- * middleware ever runs. Outside Telegram there is no initData and every call
- * 401s — that is expected, and the screens still render their error states.
+ * **Credential.** The session token from `POST /api/v1/auth/login`, sent as
+ * `Authorization: Session <token>`. It must travel in `Authorization`: the
+ * API's CORS layer allows exactly `Content-Type, Authorization`, so a custom
+ * header fails browser preflight before the auth middleware ever runs.
+ *
+ * Signed out, there is no token and every call 401s — which is handled here
+ * rather than by each screen: a 401 on an authenticated call clears the stored
+ * token, and `RequireAuth` in `App.tsx` sends the user to `/login`.
  */
 
 /** Route prefix. Every endpoint this app uses is mounted under it. */
@@ -30,8 +32,8 @@ function endpoint(path: string): string {
 }
 
 function authHeaders(): Record<string, string> {
-  const initData = getWebApp()?.initData
-  return initData !== undefined && initData !== '' ? { Authorization: `tma ${initData}` } : {}
+  const token = getToken()
+  return token === null ? {} : { Authorization: `Session ${token}` }
 }
 
 /**
@@ -67,15 +69,32 @@ async function readBody(res: Response): Promise<ApiResponse<unknown> | null> {
  */
 type JsonRequestInit = Omit<RequestInit, 'headers'> & { headers?: Record<string, string> }
 
-async function request<T>(path: string, init: JsonRequestInit): Promise<T> {
+/**
+ * `authenticated: false` is for `POST /auth/login` alone, and it turns off two
+ * things at once. The login route is mounted above the gate and ignores
+ * `Authorization`, so sending a stale token there is pointless — and, more
+ * importantly, a 401 from it means *wrong passphrase*, not *dead session*. If
+ * that 401 cleared the token it would sign the user out of a session they were
+ * only trying to renew, and the screen would say nothing about why.
+ *
+ * Only a 401 clears. A 503 means `API_SHARED_SECRET` or `AUTH_TOKEN_SECRET` is
+ * unset on the server and the token is fine; signing the user out over a server
+ * misconfiguration would send them to a login screen that cannot work either.
+ */
+async function request<T>(
+  path: string,
+  init: JsonRequestInit,
+  authenticated: boolean = true,
+): Promise<T> {
   const res = await fetch(endpoint(path), {
     ...init,
-    headers: { ...authHeaders(), ...init.headers },
+    headers: { ...(authenticated ? authHeaders() : {}), ...init.headers },
   })
 
   const body = await readBody(res)
 
   if (!res.ok) {
+    if (authenticated && res.status === 401) clearToken()
     throw new ApiError(res.status, body?.error ?? `Request failed with ${res.status}`)
   }
   if (body === null) {
@@ -108,4 +127,21 @@ export function apiPost<T>(path: string, body: unknown): Promise<T> {
 
 export function apiDelete(path: string): Promise<null> {
   return request<null>(path, { method: 'DELETE' })
+}
+
+/**
+ * The one unauthenticated call. It does not store the token — `Login.tsx` does
+ * that, so the screen decides when the app is considered signed in rather than
+ * the network layer deciding it mid-request.
+ */
+export function apiLogin(username: string, passphrase: string): Promise<AuthLoginResponse> {
+  return request<AuthLoginResponse>(
+    '/auth/login',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, passphrase }),
+    },
+    false,
+  )
 }

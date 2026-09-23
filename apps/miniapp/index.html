@@ -2,17 +2,21 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- viewport-fit=cover is what makes Telegram's safe-area insets meaningful. -->
+    <!-- viewport-fit=cover is what makes env(safe-area-inset-*) meaningful. -->
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>WeatherTeam6</title>
 
     <!--
-      Loaded synchronously and before the app module on purpose: window.Telegram
-      has to exist by the time React mounts, or the first render misses the
-      chrome and BackButton wiring. The ?63 query is Telegram's own version pin
-      from https://core.telegram.org/bots/webapps.
+      The manifest link and <meta name="theme-color"> are injected by the
+      `wt6-webmanifest` plugin in vite.config.ts, not written here: both carry a
+      colour, and a colour written in this file would be a redefinition of a
+      design token. They are derived from `@weatherteam6/design/tokens`.
+
+      iOS ignores the manifest's icons for Add to Home Screen and reads this
+      link instead. No colour, so it stays here.
     -->
-    <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="icon" href="/icons/icon-192.png" type="image/png" />
 
     <!--
       Barlow Condensed (display) and Barlow (body) — the two families named by

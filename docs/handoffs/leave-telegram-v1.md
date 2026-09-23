@@ -3,8 +3,10 @@
 Version: v1
 Date: 2026-09-22
 Status: **Approved by the owner, 2026-09-22.** This document reverses the Telegram client
-mandate. **Phase 1 is built and merged (2026-09-22); Phases 2–4 have not started.** The bot is
-still running and untouched.
+mandate. **Phases 1 and 2 are built and merged (2026-09-22); Phases 3 and 4 have not
+started.** The bot is still running and untouched — but the client has left, so its alert
+deep link now lands on the list rather than on a location (see Phase 2's transitional-cost
+note). **Phase 3 is next and the window it closes is the reason.**
 
 **This supersedes `docs/handoffs/telegram-crossover-v4.md` as the product direction.** The
 crossover doc remains the record of why Telegram existed and is not deleted.
@@ -165,10 +167,27 @@ is run by hand and is not a merge gate. It must assert the three things vitest c
 
 ---
 
-## Phase 2 — The web app stands alone
+## Phase 2 — The web app stands alone — **SHIPPED 2026-09-22**
 
 At the end of this phase the app works in an ordinary browser. The bot is still running and still
 untouched.
+
+> **As built.** Everything below shipped as specified. Four things the spec did not name:
+> a **sign-out** control on the list (a login with no way out is the same trap as a save
+> flow with no delete, and there is no token revocation to fall back on); the **query cache
+> is cleared when the token goes**, from a module-scope subscription rather than an effect,
+> so two partners on one tablet cannot see each other's crags; `backTarget` is **overloaded
+> per route** so a new back action is a type error rather than a control that silently does
+> nothing; and the PWA icons are **generated from the design tokens** by
+> `apps/miniapp/scripts/generate-icons.mjs` with a root-level `check:icons` in CI, because
+> a hand-drawn PNG is the palette restated where the token rule cannot see it.
+>
+> **`expires_at` is deliberately not stored.** A client-side expiry check on a device with
+> a wrong clock discards a token it was just issued and bounces to `/login` with nothing to
+> explain it. The 401 is authoritative and costs one round trip.
+>
+> **Verified in a real browser** against the real API and the real database, which is the
+> thing Telegram made impossible — see § Verification.
 
 **Login** — a `/login` route; token in `localStorage`; `authHeaders()` in
 `apps/miniapp/src/lib/api.ts` reads it instead of `getWebApp()?.initData`; a 401 from `ApiError`
@@ -328,10 +347,19 @@ Per phase, and none of it is "typecheck passed":
 3. **Phase 1:** `npm run check:auth` against real Postgres, including the cross-user denial. Then
    `curl` the deployed `POST /api/v1/auth/login` and use the returned token against
    `GET /api/v1/locations` — the real path, not a mock.
-4. **Phase 2:** the thing that has never been possible — **open a preview deployment in a real
-   browser.** Playwright MCP can now drive the app. Check login, the back affordance on the Hourly
-   tab (the acceptance criterion no test here could reach), safe-area padding on a phone-width
-   viewport, and Add to Home Screen.
+4. **Phase 2 — done 2026-09-22, and not the way this said.** Preview deployments are behind
+   Vercel SSO, so a preview URL answers 302 to a Vercel login page and Playwright cannot reach
+   the app; turning SSO off is a security setting and the owner's call. **The local dev server
+   against the real API and the real database is a better target anyway** and needs no
+   decision: `vite` on `:5173` (already in the CORS default allowlist) pointed at a local
+   `createApp()` on `DATABASE_URL`, with a throwaway user and location created and torn down
+   around the run. What was driven in Chrome: sign in, a wrong passphrase, a tampered token
+   clearing itself and landing on `/login`, sign-out clearing the cache so the next sign-in
+   does not paint the previous user's list, back on the Hourly tab returning to Daily rather
+   than leaving the location, back from the `/add` preview keeping the query and its results,
+   and the manifest, both icon sizes and `theme-color` all serving. **Not verified: a real
+   phone** — no notch, so `env(safe-area-inset-*)` was 0 throughout, and Add to Home Screen
+   was not exercised on a device.
 5. **Phase 3:** `npm run check:conditions`, `check:add-location`, `check:delete-trip`,
    `check:weather-runs`, `check:hourly` — all against the real database. Confirm
    `POST /api/cron/check-alerts` still writes `weather_alerts` with delivery removed, and that a

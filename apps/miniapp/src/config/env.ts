@@ -2,11 +2,10 @@
  * Build-time configuration. `VITE_API_BASE_URL` is inlined by Vite at build
  * time, so it is public — nothing secret may be read here.
  *
- * In particular `API_SHARED_SECRET` must never appear in this bundle. The Mini
- * App's credential is `Telegram.WebApp.initData`, sent as `Authorization: tma
- * <initData>` and validated server-side by HMAC as middleware on `/api/v1/*`.
- * There is no Vercel SSO in the way and none to remove — see the corrected
- * sequencing note in `.claude/docs/plan.md`.
+ * In particular `API_SHARED_SECRET` must never appear in this bundle. The app's
+ * credential is the per-user session token from `POST /api/v1/auth/login`,
+ * which is obtained at runtime and held in `localStorage` — see
+ * `src/lib/authToken.ts`. Nothing about auth is a build-time value.
  */
 
 const raw = import.meta.env.VITE_API_BASE_URL

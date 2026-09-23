@@ -75,10 +75,10 @@ export function SaveBar({
         paddingLeft: `${spacing.cardPad}px`,
         paddingRight: `${spacing.cardPad}px`,
         paddingTop: `${spacing.cardPad}px`,
-        // Every --tg-* reference carries a fallback: CSS drops the whole
-        // declaration when a var() resolves to nothing, and not every Telegram
-        // client injects these.
-        paddingBottom: `calc(${spacing.bottomInset}px + var(--tg-safe-area-inset-bottom, 0px))`,
+        // The `0px` fallback stays: a browser without this inset resolves the
+        // function to nothing, and CSS then drops the whole declaration rather
+        // than just the one value — taking `bottomInset` with it.
+        paddingBottom: `calc(${spacing.bottomInset}px + env(safe-area-inset-bottom, 0px))`,
         ...stack(spacing.cellPad),
       }}
     >

@@ -17,7 +17,8 @@
     "db:migrate": "npm run -w apps/api db:migrate",
     "db:studio": "npm run -w apps/api db:studio",
     "check:hooks": "node .claude/hooks/check-hooks.mjs",
-    "check:crag-facts": "node scripts/check-crag-facts.mjs"
+    "check:crag-facts": "node scripts/check-crag-facts.mjs",
+    "check:icons": "node apps/miniapp/scripts/check-icons.mjs"
   },
   "devDependencies": {
     "eslint": "^9.39.4",
