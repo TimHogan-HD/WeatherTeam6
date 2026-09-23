@@ -1,10 +1,7 @@
-import { and, eq, isNull, notInArray } from 'drizzle-orm'
+import { and, eq, notInArray } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { locations, weatherAlerts } from '../../db/schema.js'
 import { logger } from '../logger.js'
-import { formatAlertMessage } from '../telegram/alertMessage.js'
-import { alertKeyboard } from '../telegram/deepLink.js'
-import { sendTelegramMessage, TelegramPermanentError } from '../telegram/sendMessage.js'
 import { fetchNwsAlerts } from '../weather/nwsAlerts.js'
 
 /**
@@ -12,6 +9,17 @@ import { fetchNwsAlerts } from '../weather/nwsAlerts.js'
  * and prune rows no longer in the active set. Same fetch/upsert/prune logic the
  * (removed) alertsPoller BullMQ job used to run on a schedule — now invoked
  * on demand by POST /api/cron/check-alerts instead.
+ *
+ * **This module collects alerts and no longer delivers any.**
+ * `notifyPendingAlerts` was deleted with the Telegram bot in migration Phase 3
+ * and alerts are parked, so `weather_alerts.notified_at` is dormant: nothing
+ * writes it and nothing reads it. The column is kept on purpose — whatever
+ * replaces the bot will want exactly that claim-before-send mechanism — but
+ * until then it is null on every row and **must not be read as "not yet sent"**.
+ *
+ * What still depends on this running: `GET /api/v1/alerts`, and the Severe+
+ * suppression of the score in `summarizeReadings`. A stale alert table is worse
+ * than an empty one, which is why the schedule stays registered.
  */
 export async function runAlertsCheck(): Promise<void> {
   logger.info('[checkAlerts] run started')
@@ -30,9 +38,10 @@ export async function runAlertsCheck(): Promise<void> {
    * Each iteration makes an NWS call through `fetchWithRetry`, which sleeps
    * 1s + 2s + 4s across its four attempts. Serially, an NWS outage cost ~7s per
    * location: about ten locations would exceed the function's `maxDuration: 60`
-   * and the request would die **before `notifyPendingAlerts()` ever ran**, so
-   * already-pending alerts stayed undelivered across every retry. The failure
-   * got worse precisely as more locations were added.
+   * and the request would die partway through the list, so the locations after
+   * the slow one kept whatever rows they had from the previous run — and the
+   * failure got worse precisely as more locations were added. (It also killed
+   * the delivery step that used to follow this one, which is how it was found.)
    *
    * `Promise.allSettled` so one location's failure cannot sink the others —
    * the same shape as `GET /trips/:tripId/forecast`, where this was fixed and
@@ -136,86 +145,4 @@ export async function runAlertsCheck(): Promise<void> {
   }
 
   logger.info('[checkAlerts] run completed')
-}
-
-/**
- * Send one Telegram message per not-yet-notified weather_alerts row. Each row
- * is claimed with a conditional UPDATE (notified_at IS NULL -> now()) before
- * sending, so two overlapping cron invocations can't both read the same row
- * and double-send — only the invocation whose UPDATE actually matched a row
- * sends the message.
- */
-export async function notifyPendingAlerts(): Promise<{ checked: number; notified: number }> {
-  const unnotified = await db
-    .select({
-      id: weatherAlerts.id,
-      // Carries the deep link. The alert names a location the user cannot
-      // otherwise reach in one tap — the Mini App's menu button opens the list
-      // and carries no `startapp` parameter.
-      locationId: weatherAlerts.location_id,
-      event: weatherAlerts.event,
-      severity: weatherAlerts.severity,
-      headline: weatherAlerts.headline,
-      locationName: locations.name,
-    })
-    .from(weatherAlerts)
-    .innerJoin(locations, eq(weatherAlerts.location_id, locations.id))
-    .where(isNull(weatherAlerts.notified_at))
-
-  let notified = 0
-  for (const alert of unnotified) {
-    const claimed = await db
-      .update(weatherAlerts)
-      .set({ notified_at: new Date() })
-      .where(and(eq(weatherAlerts.id, alert.id), isNull(weatherAlerts.notified_at)))
-      .returning({ id: weatherAlerts.id })
-
-    if (claimed.length === 0) continue // another invocation already claimed this row
-
-    try {
-      await sendTelegramMessage(
-        formatAlertMessage(alert.locationName, alert.event, alert.severity, alert.headline),
-        alertKeyboard(alert.locationId),
-      )
-      notified++
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      logger.error({ alertId: alert.id, err: msg }, '[checkAlerts] failed to notify alert')
-
-      // A permanent rejection keeps its claim. Telegram answers a malformed
-      // message — an unsupported HTML tag, a bad button URL — with a 400 on
-      // every attempt, so releasing the claim meant this run's identical
-      // message went out again on the next run, and the next, indefinitely.
-      // Keeping the row claimed costs one alert; releasing it costs a loop that
-      // only stops when someone notices.
-      if (err instanceof TelegramPermanentError) {
-        logger.error(
-          { alertId: alert.id, statusCode: err.status },
-          '[checkAlerts] Telegram rejected this alert permanently — leaving it claimed rather than re-sending forever',
-        )
-        continue
-      }
-
-      // Transient failure: release the claim so the next run retries the send.
-      // Guarded — if the release itself fails we log and keep going, rather than
-      // letting it escape and abort the remaining alerts in this run. Worst case
-      // the row stays claimed and is skipped until an operator clears it.
-      try {
-        await db
-          .update(weatherAlerts)
-          .set({ notified_at: null })
-          .where(eq(weatherAlerts.id, alert.id))
-      } catch (releaseErr) {
-        logger.error(
-          {
-            alertId: alert.id,
-            err: releaseErr instanceof Error ? releaseErr.message : String(releaseErr),
-          },
-          '[checkAlerts] failed to release claim after send failure — row will stay claimed',
-        )
-      }
-    }
-  }
-
-  return { checked: unnotified.length, notified }
 }

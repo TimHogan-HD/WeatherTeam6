@@ -9,10 +9,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
  * The concurrency test is the point of the file. Locations used to run
  * sequentially, each carrying up to ~7s of `fetchWithRetry` backoff, so an NWS
  * outage across ~10 locations blew the function's 60s limit and killed the
- * request **before `notifyPendingAlerts()` ran** — pending alerts stayed
- * undelivered across every retry (issue #27 part 3). A serial regression here
- * would not fail a typecheck and would not fail any assertion about output,
- * so the overlap is asserted directly.
+ * request partway down the list, leaving the locations after the slow one on
+ * whatever rows the previous run wrote (issue #27 part 3). A serial regression
+ * here would not fail a typecheck and would not fail any assertion about
+ * output, so the overlap is asserted directly.
  */
 
 const fetchNwsAlerts = vi.fn()
@@ -31,10 +31,6 @@ const db = {
 
 vi.mock('../../db/index.js', () => ({ db, pool: {} }))
 vi.mock('../weather/nwsAlerts.js', () => ({ fetchNwsAlerts }))
-vi.mock('../telegram/sendMessage.js', () => ({
-  sendTelegramMessage: vi.fn(),
-  TelegramPermanentError: class extends Error {},
-}))
 
 const { runAlertsCheck } = await import('./checkAlerts.js')
 
@@ -120,8 +116,9 @@ describe('runAlertsCheck', () => {
   // file green. Found by mutation testing.
 
   it('does NOT prune when the fetch was unavailable', async () => {
-    // The prune deletes stored rows, and `notified_at` goes with them, so an
-    // alert that reappears re-notifies. A failed fetch must never reach it.
+    // The prune deletes stored rows, so a location whose fetch failed would be
+    // left with no alerts at all — which every surface reads as "none active".
+    // A failed fetch must never reach it.
     fetchNwsAlerts.mockResolvedValue(null)
     await runAlertsCheck()
     expect(deleteWhere).not.toHaveBeenCalled()
@@ -137,8 +134,8 @@ describe('runAlertsCheck', () => {
 
   it('scopes the prune to the alerts NWS did not return, not to the whole location', async () => {
     // The `activeIds.length > 0` branch matters: taking the empty-set path with
-    // active alerts present would delete the rows just upserted — `notified_at`
-    // included — and re-send every live alert on the next run.
+    // active alerts present would delete the rows just upserted, so a live
+    // Severe+ warning would stop suppressing its location's score.
     fetchNwsAlerts.mockResolvedValue([])
     await runAlertsCheck()
     const wholeLocation = boundValues(deleteWhere.mock.calls[0]?.[0])

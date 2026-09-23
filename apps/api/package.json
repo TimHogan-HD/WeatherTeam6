@@ -19,14 +19,14 @@
     "db:seed": "tsx src/db/seed.ts",
     "user:add": "tsx src/scripts/addUser.ts",
     "probe:models": "tsx src/scripts/probeModels.ts",
-    "probe:telegram-render": "tsx src/scripts/probeTelegramRender.ts",
-    "bot:set-commands": "tsx src/scripts/setBotCommands.ts",
+    
+    
     "check:auth": "tsx src/scripts/checkAuth.ts",
     "check:add-location": "tsx src/scripts/checkAddLocationApi.ts",
-    "check:chat-locations": "tsx src/scripts/checkChatLocations.ts",
+    
     "check:conditions": "tsx src/scripts/checkConditions.ts",
     "check:delete-trip": "tsx src/scripts/checkDeleteTrip.ts",
-    "check:panel-state": "tsx src/scripts/checkPanelState.ts",
+    
     "check:weather-runs": "tsx src/scripts/checkWeatherRuns.ts",
     "check:hourly": "tsx src/scripts/checkHourly.ts",
     "check:runs-storage": "tsx src/scripts/checkRunsStorage.ts",

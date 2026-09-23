@@ -37,11 +37,10 @@ export const WINDOW_DAYS = 7
 /**
  * Whether this hour carries anything the named model actually said.
  *
- * The same rule as `dayHasData` in `lib/telegram/forecastTable.ts`, and it excludes
- * `precip_prob_pct` for the same measured reason: that series runs past the horizon of
- * the model it was requested with — Probe A saw it at 276 h against HRRR's 54 h — so it
- * cannot be the evidence that the model answered. Counting it would call 200 hours of
- * em dashes a forecast.
+ * It excludes `precip_prob_pct`, for a measured reason: that series runs past the
+ * horizon of the model it was requested with — Probe A saw it at 276 h against HRRR's
+ * 54 h — so it cannot be the evidence that the model answered. Counting it would call
+ * 200 hours of em dashes a forecast.
  */
 export function hourHasModelData(h: RunHour): boolean {
   return (

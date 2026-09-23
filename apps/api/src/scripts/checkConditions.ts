@@ -1,6 +1,6 @@
 /**
  * Acceptance check for **the v2 readings on the conditions surfaces** — the
- * Phase 3b half that the test suite cannot reach.
+ * half the test suite cannot reach.
  *
  * Usage, from `apps/api`:
  *   $env:DATABASE_URL = "<Neon pooled connection string>"
@@ -13,25 +13,42 @@
  * real rock type, produces a reading those rules hold for — and that is the
  * class this repo ships (`defect-patterns.md` §11).
  *
- * Three properties in particular are invisible to the suite:
+ * ## What it runs, and why that changed
  *
- *  - **The readings survive the gather.** `buildConditionsInput` runs the live
- *    five-component compute, the alerts query and the hourly run concurrently,
- *    and catches the hourly one. A `null` there is indistinguishable in the
- *    output from a model that had nothing to say, so the check asserts a real
- *    reading rather than a well-formed absence.
+ * It used to run the **bot's** gather — `buildConditionsInput` plus
+ * `formatConditionsReply` — because that path had a formatter whose bytes could
+ * be inspected. Migration Phase 3 deleted both. It now runs
+ * `GET /conditions/:locationId`'s own composition instead: the same location
+ * query, `computeLiveForecast` and `getHourlySeries` concurrently, and
+ * `toConditionsReadings` over the result. That is one step *closer* to the
+ * shipping path, not further from it — the route's remaining step is a spread
+ * onto the response.
+ *
+ * The copy assertions moved with it, from rendered bot text to the fields
+ * `summarizeReadings` hands a surface. **That is where they belong**: the Mini
+ * App renders those fields directly through `ReadingField`, so a rule asserted
+ * here is asserted on what a reader actually sees rather than on one surface's
+ * punctuation of it. They are deliberately **not** re-assembled into a text
+ * blob and searched — a string built from `fieldLine(summary.x)` and then
+ * checked for `fieldLine(summary.x)` proves only that concatenation works
+ * (defect class 11).
+ *
+ * ## Four properties in particular are invisible to the suite
+ *
+ *  - **The readings survive the gather.** The route runs the live five-component
+ *    compute and the hourly run concurrently and catches the hourly one. A
+ *    `null` there is indistinguishable in the output from a model that had
+ *    nothing to say, so this asserts a real reading rather than a well-formed
+ *    absence.
  *  - **The window's clock is the location's.** `utc_offset_seconds` travels on
  *    the readings; if it were ever borrowed from elsewhere the times would be
  *    correct-looking and wrong, which is issue #33's whole shape.
  *  - **No magnitude leaks.** The 0-1 factors live under
  *    `HourlyConditions.diagnostics` and must not reach a surface. A unit test
- *    asserts that at the type boundary; this asserts it on the **text that
- *    would actually be sent**, which is where a future edit would break it.
- *
- * It runs the **bot's** gather, because that path is `getHourlySeries` +
- * `toConditionsReadings` + `formatConditionsReply` — the same three pieces
- * `GET /conditions/:locationId` composes, with a formatter on the end that can
- * be inspected. The route's own step is a spread onto the response.
+ *    asserts that at the type boundary; this asserts it on **a real reading
+ *    built from a real run**, where a future edit would break it.
+ *  - **A Severe+ alert suppresses the number and keeps the words.** Measured
+ *    against the location's own live alert rows, not a fabricated one.
  *
  * **Read-only**, other than the write-back `getHourlySeries` already performs
  * when no stored run is fresh. It creates no rows and has nothing to clean up.
@@ -42,6 +59,11 @@
 
 // Runtime imports are deferred into run(): `../db/index.js` throws at import
 // time when DATABASE_URL is unset, which would pre-empt the friendly message.
+
+import type { ReadingField, ReadingsSummary } from '@weatherteam6/types'
+// Type-only, so it is erased at compile time and does not pull `db` in at
+// import time — the reason every other import here is deferred into run().
+import type { ScoringLocation } from '../lib/runs/fetchHourlySeries.js'
 
 let passed = 0
 let failed = 0
@@ -60,6 +82,28 @@ function info(label: string, value: string): void {
   console.log(`  ....  ${label}: ${value}`)
 }
 
+/**
+ * Every string in a summary that a surface may put on screen.
+ *
+ * Gathered from the summary rather than from one surface's rendering of it, so
+ * a new printable field is covered by the quarantine checks the moment it is
+ * added — a list of the three fields that exist today would silently stop
+ * covering the fourth.
+ */
+function printableStrings(summary: ReadingsSummary): string[] {
+  const fields: (ReadingField | null)[] = [
+    ...summary.readings,
+    summary.scoreField,
+    summary.window,
+  ]
+  return [
+    ...fields.filter((f): f is ReadingField => f !== null).flatMap((f) => [f.label, f.value]),
+    ...summary.notes,
+    ...(summary.qualifier === null ? [] : [summary.qualifier]),
+    ...(summary.unavailableLine === null ? [] : [summary.unavailableLine]),
+  ]
+}
+
 async function run(): Promise<void> {
   if (!process.env['DATABASE_URL']) {
     console.error('DATABASE_URL is not set. Set it in your shell, not in a .env file:')
@@ -69,42 +113,123 @@ async function run(): Promise<void> {
   }
 
   const { db } = await import('../db/index.js')
-  const { locations } = await import('../db/schema.js')
-  const { eq } = await import('drizzle-orm')
-  const { buildConditionsInput, findLocationById } = await import(
-    '../lib/telegram/conditionsReply.js'
-  )
-  const { formatConditionsReply } = await import('../lib/telegram/conditionsMessage.js')
-  const { FRICTION_ESTIMATE_NOTE, fieldLine, isSevereAlert, summarizeReadings } = await import(
-    '@weatherteam6/types'
-  )
+  const { locations, weatherAlerts } = await import('../db/schema.js')
+  const { and, eq, gt, isNull, or } = await import('drizzle-orm')
+  const {
+    NOT_A_CRAG_READINGS,
+    READINGS_UNAVAILABLE,
+    toConditionsReadings,
+  } = await import('../lib/runs/conditionsReadings.js')
+  const { getHourlySeries } = await import('../lib/runs/fetchHourlySeries.js')
+  const { pointKeyForLocation } = await import('../lib/runs/pointKey.js')
+  const { computeLiveForecast } = await import('../lib/scoring/liveForecast.js')
+  const {
+    FRICTION_ESTIMATE_NOTE,
+    DRYNESS_LABEL,
+    FRICTION_LABEL,
+    SCORE_LABEL,
+    isSevereAlert,
+    parseNumeric,
+    parseNumericRequired,
+    formatLocalHour,
+    summarizeReadings,
+    windowValue,
+  } = await import('@weatherteam6/types')
+
+  /** The route's own column list, not a restatement of it. */
+  const LOCATION_COLUMNS = {
+    id: locations.id,
+    name: locations.name,
+    lat: locations.lat,
+    lon: locations.lon,
+    elevation_m: locations.elevation_m,
+    rock_type: locations.rock_type,
+    cliff_angle: locations.cliff_angle,
+    aspect: locations.aspect,
+    asos_station: locations.asos_station,
+    is_climbing_location: locations.is_climbing_location,
+  }
+
+  type Location = Awaited<ReturnType<typeof readLocation>>
+
+  async function readLocation(isCrag: boolean) {
+    const rows = await db
+      .select(LOCATION_COLUMNS)
+      .from(locations)
+      .where(eq(locations.is_climbing_location, isCrag))
+      .limit(1)
+    return rows[0] ?? null
+  }
+
+  /** Exactly what `GET /conditions/:locationId` composes, minus the response spread. */
+  async function gather(location: NonNullable<Location>) {
+    const now = new Date()
+
+    const scoring: ScoringLocation = location.is_climbing_location
+      ? {
+          rockType: location.rock_type ?? 'unknown',
+          cliffAngleDeg:
+            location.cliff_angle === null ? 45 : parseNumericRequired(location.cliff_angle),
+        }
+      : null
+
+    const [live, series, activeAlerts] = await Promise.all([
+      computeLiveForecast(location),
+      scoring === null
+        ? null
+        : getHourlySeries(
+            {
+              id: location.id,
+              lat: parseNumericRequired(location.lat),
+              lon: parseNumericRequired(location.lon),
+              elevation_m: parseNumeric(location.elevation_m),
+            },
+            pointKeyForLocation(location.id),
+            { allModels: false, now, scoring },
+          ).catch((err: unknown) => {
+            // The route catches here too — a failed hourly run must not cost
+            // the reader the weather. The difference is that the route renders
+            // the absence and this reports it as a failed check, because a
+            // well-formed absence is not what is being measured.
+            console.log(`  ....  hourly run threw: ${String(err)}`)
+            return null
+          }),
+      // Not part of the route (the client reads GET /alerts separately), but
+      // `summarizeReadings` needs it and a fabricated `null` would compare two
+      // different days the moment a real Severe+ warning is live.
+      db
+        .select({ event: weatherAlerts.event, severity: weatherAlerts.severity })
+        .from(weatherAlerts)
+        .where(
+          and(
+            eq(weatherAlerts.location_id, location.id),
+            or(isNull(weatherAlerts.expires), gt(weatherAlerts.expires, now)),
+          ),
+        ),
+    ])
+
+    const readings =
+      scoring === null
+        ? NOT_A_CRAG_READINGS
+        : series === null
+          ? READINGS_UNAVAILABLE
+          : toConditionsReadings(series, live.todayStr, now)
+
+    return { readings, series, activeAlerts }
+  }
 
   console.log('\n=== check:conditions — the v2 readings on a real location ===\n')
 
-  const crags = await db
-    .select({ id: locations.id, user_id: locations.user_id, name: locations.name })
-    .from(locations)
-    .where(eq(locations.is_climbing_location, true))
-    .limit(1)
-
-  const crag = crags[0]
+  const crag = await readLocation(true)
   if (!crag) {
     console.error('No climbing locations in the database. Run `npm run db:seed` first.')
     process.exitCode = 1
     return
   }
 
-  const location = await findLocationById(crag.user_id, crag.id)
-  if (!location) {
-    console.error(`Could not read ${crag.name} back by id — that is itself a failure.`)
-    process.exitCode = 1
-    return
-  }
+  console.log(`Location: ${crag.name} (${crag.id})\n`)
 
-  console.log(`Location: ${location.name} (${location.id})\n`)
-
-  const input = await buildConditionsInput(location)
-  const { readings } = input
+  const { readings, series, activeAlerts } = await gather(crag)
 
   info('model', readings.model ?? '(none)')
   info('unavailable_reason', readings.unavailable_reason ?? '(none)')
@@ -128,8 +253,11 @@ async function run(): Promise<void> {
     readings.model === 'gfs_seamless',
     readings.model ?? '(none)',
   )
+  if (series !== null && series.model !== readings.model) {
+    info('columns model (differs, and that is allowed)', series.model ?? '(none)')
+  }
 
-  // A run that does not reach this moment is a real state, and the reply is
+  // A run that does not reach this moment is a real state, and every surface is
   // built to survive it — but it is not the state this check wants to measure,
   // because it skips the headline entirely.
   check(
@@ -161,6 +289,15 @@ async function run(): Promise<void> {
       readings.now.score === null || Number.isFinite(readings.now.score),
       'score must be a number or null, never a coerced 0',
     )
+
+    // The quarantine at the object boundary, on a **real** reading rather than
+    // a fixture: nothing under `HourlyConditions.diagnostics` may be promoted
+    // to the type a surface spreads into a response.
+    check(
+      'no diagnostics ride along on the published reading',
+      !Object.keys(readings.now).includes('diagnostics'),
+      Object.keys(readings.now).join(','),
+    )
   }
 
   const window = readings.today?.window ?? null
@@ -177,111 +314,172 @@ async function run(): Promise<void> {
     info('window qualified', String(window.qualified))
   }
 
-  // ── The published text, which is what a reader actually gets ──────────────
-  const text = formatConditionsReply(input)
-  console.log('\n  --- the reply, as it would be sent ---')
-  for (const line of text.split('\n')) console.log(`  | ${line}`)
-  console.log('')
+  // ── The published fields, which are what a reader actually gets ───────────
+  const severeEvent = activeAlerts.find((a) => isSevereAlert(a.severity))?.event ?? null
+  info('active Severe+ alert', severeEvent ?? '(none)')
 
-  // The same alert the reply saw. Summarising with `severeAlertEvent: null`
-  // against text built from the location's real alerts compares two different
-  // days the moment a Severe+ warning is live — the score is in one and not the
-  // other, and the run fails on a real warning rather than on a defect.
   const summary = summarizeReadings({
     reading: readings.now,
     window,
     utcOffsetSeconds: readings.utc_offset_seconds,
-    severeAlertEvent: input.activeAlerts.find((a) => isSevereAlert(a.severity))?.event ?? null,
+    severeAlertEvent: severeEvent,
     unavailableReason: readings.unavailable_reason,
   })
 
-  const firstReading = summary.readings[0] ?? null
+  console.log('\n  --- the fields, as a surface receives them ---')
+  for (const f of summary.readings) console.log(`  | ${f.label}: ${f.value}`)
+  if (summary.scoreField !== null) console.log(`  | ${summary.scoreField.label}: ${summary.scoreField.value}`)
+  if (summary.window !== null) console.log(`  | ${summary.window.label}: ${summary.window.value}`)
+  if (summary.qualifier !== null) console.log(`  | (${summary.qualifier})`)
+  for (const n of summary.notes) console.log(`  | (${n})`)
+  console.log('')
+
+  const printable = printableStrings(summary)
+
   check(
-    'the reply reads out each gauge with its own label',
-    summary.readings.every((f) => text.includes(fieldLine(f))),
-    summary.readings.map(fieldLine).join(' | '),
-  )
-  // The phase's design, asserted on the bytes: the number is derived from the
-  // readings and is printed after them. A score above the words it came from is
-  // the headline this model exists to stop being written.
-  check(
-    'the number never appears above the readings it is derived from',
-    summary.scoreField === null ||
-      firstReading === null ||
-      text.indexOf(fieldLine(summary.scoreField)) > text.indexOf(fieldLine(firstReading)),
-    'the score is printed before the readings',
-  )
-  // The owner's 2026-09-21 verdict, on the rendered bytes. A reading's value is
-  // a word, and a sentence is what it must never become again.
-  check(
-    'no reading is written as a sentence',
-    [...summary.readings, summary.scoreField, summary.window]
-      .filter((f) => f !== null)
-      .every((f) => f.value.split(/\s+/).length <= 2 && !/[.!]/.test(f.value)),
-    'a field value grew into prose',
+    'each gauge arrives as its own label and value, never a sentence',
+    summary.readings.length > 0 &&
+      summary.readings.every((f) => f.label.length > 0 && f.value.split(/\s+/).length === 1),
+    summary.readings.map((f) => `${f.label}=${f.value}`).join(' | '),
   )
   check(
-    'the reply says the friction reading is an estimate',
-    readings.now?.friction === undefined ||
-      readings.now.friction === null ||
-      text.includes(FRICTION_ESTIMATE_NOTE),
-    'a friction level is on screen with no caveat beside it',
+    'the two readings are Dryness then Friction, in that order',
+    summary.readings.every((f) => f.label === DRYNESS_LABEL || f.label === FRICTION_LABEL) &&
+      summary.readings.findIndex((f) => f.label === DRYNESS_LABEL) <=
+        summary.readings.findIndex((f) => f.label === FRICTION_LABEL),
+    summary.readings.map((f) => f.label).join(' | '),
   )
-  // The quarantine, asserted on the bytes rather than on the type. A 0-1 factor
-  // reaching a surface would appear here as a decimal on the friction line.
-  const frictionLines = text.split('\n').filter((l) => /friction/i.test(l))
+  // The phase's design, asserted structurally rather than on bytes: the score
+  // is not one of the readings, so a surface cannot print it above the words it
+  // was derived from without going out of its way.
   check(
-    'no friction magnitude appears anywhere in the reply',
-    !frictionLines.some((l) => /\d*\.\d/.test(l)),
-    frictionLines.join(' | '),
-  )
-  check(
-    'the reply states no climbing opinion',
-    !/go climb|climbable|not recommended|looks great|good to go/i.test(text),
+    'the score is not in the readings row it is derived from',
+    !summary.readings.some((f) => f.label === SCORE_LABEL),
+    summary.readings.map((f) => f.label).join(' | '),
   )
   check(
-    'the retired ladder words are gone from the reply',
-    !/Dry, settled|Mostly dry|Wet or unsettled|limited by/.test(text),
-    'a five-component ladder word reached the text',
+    'the surface is told the friction reading is an estimate',
+    readings.now?.friction == null || summary.notes.includes(FRICTION_ESTIMATE_NOTE),
+    'a friction level is published with no caveat beside it',
+  )
+  // The quarantine, on the published strings. A 0-1 factor reaching a surface
+  // would appear here as a decimal; so would an unrounded score.
+  check(
+    'no magnitude appears in any published string',
+    !printable.some((s) => /\d*\.\d/.test(s)),
+    printable.filter((s) => /\d*\.\d/.test(s)).join(' | '),
+  )
+  check(
+    'no published string states a climbing opinion',
+    !printable.some((s) => /go climb|climbable|not recommended|looks great|good to go/i.test(s)),
+    printable.join(' | '),
+  )
+  check(
+    'the retired ladder words are gone',
+    !printable.some((s) => /Dry, settled|Mostly dry|Wet or unsettled|limited by/.test(s)),
+    'a five-component ladder word reached a field',
   )
 
-  // The window's clock, read back. A surface on the server's clock would print
-  // a correct-looking span against the wrong hours — issue #33's exact shape.
+  // ── The window's clock, read back ─────────────────────────────────────────
+  //
+  // Two separate facts, and the second is the one that catches #33: the offset
+  // has to come from the run that produced the readings, AND it has to be the
+  // offset the span is actually rendered against. A surface that read the
+  // offset and then formatted on UTC would pass the first alone.
+  if (series !== null) {
+    check(
+      'the readings carry the run\'s own offset, not one borrowed from elsewhere',
+      readings.utc_offset_seconds === series.utc_offset_seconds,
+      `readings ${String(readings.utc_offset_seconds)} vs run ${String(series.utc_offset_seconds)}`,
+    )
+  }
   if (window !== null) {
     const localHour = new Date(
       Date.parse(window.from) + readings.utc_offset_seconds * 1000,
     ).getUTCHours()
-    info('window starts at, local', `${localHour}:00`)
+    info('window starts at, local', `${String(localHour)}:00`)
+
     check(
-      'the window line is written on the location clock',
-      summary.window === null || text.includes(fieldLine(summary.window)),
-      `expected ${summary.window === null ? '(none)' : fieldLine(summary.window)}`,
+      'the window field is rendered against the readings\' own offset',
+      summary.window !== null &&
+        summary.window.value === windowValue(window, readings.utc_offset_seconds),
+      `field "${summary.window?.value ?? '(none)'}" vs offset render "${windowValue(window, readings.utc_offset_seconds)}"`,
     )
+
+    // Asserted on `formatLocalHour` rather than on the window's *value*, and
+    // that is the point: a full-day window short-circuits to "All day" before
+    // any clock formatting happens, so a value comparison silently stops
+    // exercising the clock on exactly the days the window is widest. This runs
+    // the same instant through the same formatter the span is built from, so it
+    // fails if the offset ever stops being applied.
+    if (readings.utc_offset_seconds !== 0) {
+      check(
+        'an instant on that clock is not the UTC one (#33)',
+        formatLocalHour(window.from, readings.utc_offset_seconds) !==
+          formatLocalHour(window.from, 0),
+        `local ${formatLocalHour(window.from, readings.utc_offset_seconds) ?? '(unparseable)'} vs UTC ${formatLocalHour(window.from, 0) ?? '(unparseable)'}`,
+      )
+    } else {
+      info('clock check', 'skipped — this location really is on UTC')
+    }
   }
 
-  // ── A place saved as a place gets no rock reading at all ──────────────────
-  const places = await db
-    .select({ id: locations.id, user_id: locations.user_id, name: locations.name })
-    .from(locations)
-    .where(eq(locations.is_climbing_location, false))
-    .limit(1)
+  // ── Severe+ drops the number and keeps the words ──────────────────────────
+  //
+  // Run against a synthesised event as well as the live one, because a location
+  // with no active warning is the common case and the rule would otherwise go
+  // unexercised on most runs. The *inputs* are the real reading either way.
+  const suppressed = summarizeReadings({
+    reading: readings.now,
+    window,
+    utcOffsetSeconds: readings.utc_offset_seconds,
+    severeAlertEvent: severeEvent ?? 'Extreme Heat Warning',
+    unavailableReason: readings.unavailable_reason,
+  })
+  check(
+    'a Severe+ alert drops the number',
+    suppressed.score === null && suppressed.scoreField === null,
+    `score ${String(suppressed.score)}`,
+  )
+  check(
+    'and keeps the readings — they are the same fact the warning is about',
+    suppressed.readings.length === summary.readings.length,
+    `${String(suppressed.readings.length)} vs ${String(summary.readings.length)}`,
+  )
+  check(
+    'and names the alert rather than staying silent about why',
+    suppressed.qualifier !== null && suppressed.qualifier.includes('Warning'),
+    suppressed.qualifier ?? '(none)',
+  )
 
-  const place = places[0]
+  // ── A place saved as a place gets no rock reading at all ──────────────────
+  const place = await readLocation(false)
   if (place) {
-    const placeLocation = await findLocationById(place.user_id, place.id)
-    if (placeLocation) {
-      console.log(`\nNon-crag: ${placeLocation.name}`)
-      const placeText = formatConditionsReply(await buildConditionsInput(placeLocation))
-      check(
-        'a place saved as a place gets no rock reading (§7 rule 8)',
-        !/friction/i.test(placeText) && !/rock/i.test(placeText),
-        placeText,
-      )
-      check(
-        'and no rain-since clause either — it has no drying story',
-        !placeText.includes('no rain in'),
-      )
-    }
+    console.log(`\nNon-crag: ${place.name}`)
+    const placeGather = await gather(place)
+    const placeSummary = summarizeReadings({
+      reading: placeGather.readings.now,
+      window: placeGather.readings.today?.window ?? null,
+      utcOffsetSeconds: placeGather.readings.utc_offset_seconds,
+      severeAlertEvent: null,
+      unavailableReason: placeGather.readings.unavailable_reason,
+    })
+    check(
+      'a place saved as a place is refused for the reader\'s reason, not a failure',
+      placeGather.readings.unavailable_reason === 'not_a_climbing_location',
+      placeGather.readings.unavailable_reason ?? '(none)',
+    )
+    check(
+      'and gets no rock or friction reading at all (§7 rule 8)',
+      placeSummary.readings.length === 0 && placeSummary.scoreField === null,
+      placeSummary.readings.map((f) => f.label).join(' | '),
+    )
+    check(
+      'and its refusal never reads as bad conditions',
+      placeSummary.unavailableLine !== null &&
+        !/wet|poor|greasy|bad/i.test(placeSummary.unavailableLine),
+      placeSummary.unavailableLine ?? '(none)',
+    )
   } else {
     info('non-crag check', 'skipped — no non-climbing location saved')
   }

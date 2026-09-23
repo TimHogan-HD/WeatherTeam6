@@ -7,7 +7,6 @@ import {
   forecastSnapshots,
   locationNormals,
   locations,
-  panelStates,
   premiumPulls,
   rainfallHistory,
   tripLocations,
@@ -41,11 +40,6 @@ const DEPENDENT_TABLES = [
   locationNormals,
   weatherAlerts,
   walls,
-  // A bot panel left open on a location the user then deletes. The FK is
-  // nullable but it is still an FK: without this the delete raises a
-  // foreign-key violation that `sendServerError` reports as a generic 500,
-  // and only once someone has actually opened a panel.
-  panelStates,
   // `weather_runs` carries a nullable `location_id`, so it belongs here — but it
   // must not be reached until its own children are gone. See the ordered step in
   // `deleteLocationCascade` below, which runs before this list.
