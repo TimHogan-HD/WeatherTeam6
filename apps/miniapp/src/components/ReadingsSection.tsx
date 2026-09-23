@@ -53,8 +53,15 @@ import { scoreColor } from './charts/chartStyle.js'
  */
 
 export type ReadingsSectionProps = {
-  /** What these readings are about — `Conditions now`, or the day on screen. */
-  label: string
+  /**
+   * What these readings are about — the day on screen, on the Hourly tab.
+   *
+   * `null` when the caller has already named the block this sits in: the
+   * Conditions now card heads its weather line and these readings with one
+   * label, and a second one halfway down the same card would split "now" into
+   * two claims again — the thing that card was built to stop.
+   */
+  label: string | null
   /**
    * The hour being described. `null` when there is none: the run does not reach
    * now, or the day carries no scored hour. **Never substituted** — the day's
@@ -132,7 +139,7 @@ export function ReadingsSection({
 
   return (
     <section style={{ ...surface, ...stack(spacing.cellPad) }}>
-      <span style={type.label}>{label}</span>
+      {label === null ? null : <span style={type.label}>{label}</span>}
 
       {summary.unavailableLine !== null ? (
         // A statement about us, never one about the rock. It must not read as

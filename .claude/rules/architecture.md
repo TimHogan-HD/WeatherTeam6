@@ -97,6 +97,19 @@ decisions are final unless explicitly overridden by the user.
   and it **read as fact**: a fluent sentence claims a confidence an estimate has not
   earned. The caveats are still required copy and are now fragments on one line. Which
   inputs a reading came from belongs in the measurements disclosure, not in the gauge.
+- **The measurements disclosure names each group with the model that produced it**
+  (`measurements()` in `readingsCopy.ts`, rendered by `Measurements.tsx` inside
+  `ConditionsNow`). The *Air* figures are `HourlySeries.model`'s, chosen by coverage;
+  the *Rock* figures are `ConditionsReadings.model`'s, always `THERMAL_MODEL`. They
+  usually agree and must never be assumed to — `sharedSource` names one model only when
+  every group came from it. Three more rules it carries: **a temperature interval goes
+  through `cToFDelta`, never `formatTempF`** (a 2 °C dew-point margin is 4 °F, not 36);
+  **rock figures and the caveats' mechanism appear only while the gauges they explain are
+  on screen**, so nothing is explained ahead of the alerts gate; and **a group with some
+  figures dashes its gaps while a group with none is omitted**. The mechanism sentences
+  live there too, and `ROCK_TEMPERATURE_MECHANISM` is required wherever a modelled rock
+  temperature prints — it is the most instrument-looking number on the screen and nothing
+  measures it.
 - **The number waits for the alerts query, and `summarizeReadings` is where it waits.**
   `severeAlertEvent: null` cannot tell "no alert" from "not answered yet", so
   `alertsPending` travels beside it and suppresses the score on its own. A surface that

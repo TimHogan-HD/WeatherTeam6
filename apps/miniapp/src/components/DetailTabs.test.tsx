@@ -284,9 +284,14 @@ describe('DetailView — tabs', () => {
         />,
       )
 
-    expect(render('daily')).toContain('Conditions now')
     expect(render('daily')).toContain('>72<')
-    expect(render('hourly')).not.toContain('Conditions now')
+    // **The block stays on Hourly; the readings inside it do not.** Since the
+    // now-line and the readings became one card, its label heads the hour's
+    // weather on both tabs — the weather *is* about now on either. What must
+    // not follow the reader onto Hourly is today's reading, so that is what is
+    // asserted, rather than the label it used to share a card with.
+    expect(render('daily')).toContain('Conditions now')
+    expect(render('hourly')).toContain('Conditions now')
     // The Hourly tab's own readings come from the *series*, which this fixture
     // leaves unset — so the pager reports that rather than borrowing today's.
     expect(render('hourly')).not.toContain('>72<')
