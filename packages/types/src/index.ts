@@ -13,6 +13,7 @@ export * from './hourly.js'
 export * from './compass.js'
 export * from './recentPrecip.js'
 export * from './rockTypeCopy.js'
+export * from './knownCrags.js'
 export * from './readingsCopy.js'
 
 export type ApiResponse<T> = {
@@ -51,16 +52,45 @@ export type AuthLoginResponse = {
  * needs literals — so that one is checked against this array by a type assertion
  * there rather than derived from it.
  *
- * **Order matters to the UI**: `SaveBar` renders the picker in this order, and it
- * runs fastest-drying to slowest so the chips read as a scale.
+ * **The full taxonomy of `rock-drying-research.md` §7, owner decision 2026-09-23.**
+ * Each value's drying window is in `dryingModel.ts`; every one of them is
+ * community convention rather than a measurement, and the table there says so.
+ *
+ * **Three values mean "the kind was not recorded"** — `sandstone`, `limestone`
+ * and `basalt` — and `unknown` means the family was not either. They are kept
+ * because rows hold them and because *"sandstone, not sure which"* is an answer
+ * a climber can honestly give. Each takes the **slowest** window in its family,
+ * so not knowing reads as caution rather than as an average.
+ *
+ * Order here is by family, and it is the order `ROCK_TYPE_GROUPS` presents.
  */
 export const ROCK_TYPES = [
   'granite',
+  'granite_weathered',
+  'anorthosite',
+  'syenite_porous',
+  'rhyolite',
   'basalt_dense',
-  'limestone',
   'basalt',
   'basalt_vesicular',
+  'tuff_welded',
+  'tuff_nonwelded',
+  'volcanic_breccia',
+  'quartzite',
+  'slate',
+  'gneiss_schist',
   'sandstone',
+  'sandstone_quartz_arenite',
+  'sandstone_ferruginous',
+  'sandstone_arkose',
+  'sandstone_eolian',
+  'sandstone_soft',
+  'limestone',
+  'limestone_dense',
+  'limestone_porous',
+  'dolomite',
+  'carbonate_cherty',
+  'conglomerate',
   'unknown',
 ] as const
 
@@ -88,6 +118,13 @@ export type Location = {
   elevation_m: number | null
   is_climbing_location: boolean
   rock_type: RockType | null
+  /**
+   * The `KNOWN_CRAGS` slug this location was matched to, or null. **When set,
+   * `rock_type` came from the research, not from the user, and is locked** —
+   * the API ignores a rock type sent for it. Optional because the API and the
+   * client deploy separately; an absent field is "not known", never "matched".
+   */
+  known_crag?: string | null
   aspect: string | null
   cliff_angle: number | null
   asos_station: string | null

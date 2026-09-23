@@ -44,7 +44,7 @@ fetching and calls this per forecast day.
 ```typescript
 // packages/types — NOT a local types.ts
 export type ScoreInput = {
-  rockType: 'sandstone' | 'limestone' | 'granite' | 'basalt' | 'unknown'
+  rockType: RockType           // ROCK_TYPES in packages/types — 27 values
   cliffAngle: number           // degrees from vertical (0 = vertical, 90 = slab)
   aspectDegrees: number        // wall facing direction in degrees
   hoursSinceRain: number       // hours since last rain event ended
@@ -64,13 +64,10 @@ export type ScoreInput = {
 ## Drying Modifier Logic
 ```typescript
 // scoring/drying.ts
-const BASE_DRY_HOURS = {
-  sandstone: { min: 24, max: 72 },
-  limestone: { min: 6,  max: 24 },
-  granite:   { min: 2,  max: 12 },
-  basalt:    { min: 12, max: 48 },
-  unknown:   { min: 24, max: 48 },
-}
+// The table is MIN_HOURS / MAX_HOURS in dryingModel.ts — 27 rock types since
+// 2026-09-23 (rock-drying-research.md §7), and conditionsScore imports it. Do
+// not copy it here or anywhere else: a second copy is how the two drifted.
+// A location on a KNOWN_CRAGS entry has its rock type locked (resolveRockType).
 
 function applyModifiers(base: number, input: ScoreInput): number {
   let hours = base

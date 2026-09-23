@@ -1,38 +1,24 @@
 import { colors, radius, spacing } from '@weatherteam6/design/tokens'
-import { ROCK_TYPES, rockTypeLabel, type RockType } from '@weatherteam6/types'
+import { ROCK_TYPE_GROUPS, isRockType, rockTypeLabel, type KnownCrag, type RockType } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
-import { bareButton, btnPrimary, btnPrimaryText, chip, chipActive, inputBox, row, stack } from '../theme/styles.js'
+import { bareButton, btnPrimary, btnPrimaryText, chip, chipActive, inputBox, stack } from '../theme/styles.js'
 
 /**
  * The add flow's save bar, pinned to the bottom of the preview (§12.1 step 3).
  *
  * **Rock type is captured here or never.** It is the single largest lever on
- * the score — `dryingModel`'s ceiling runs 72 h for sandstone against 12 h for
- * granite, against a component worth 40 of 100 points — and left unset it
- * resolves to `unknown` (48 h), which will be wrong by a wide margin for most
- * real crags. There is no edit screen (§12.4), so save is the only chance.
+ * the score — `dryingModel`'s ceiling runs from 4 h for slate to 120 h for soft
+ * sandstone — and left unset it resolves to `unknown`, the slowest row in the
+ * table. There is no edit screen yet (§12.4), so save is the only chance.
+ *
+ * **Except on a known crag, where it is not a choice at all** (owner decision
+ * 2026-09-23). The research's rock type is shown and the picker is not: the
+ * API would overrule anything picked, and a control whose answer is ignored is
+ * worse than no control.
  *
  * Climbing is a property of a saved location, not a precondition for saving
  * one, so the toggle defaults **off** and the picker only appears behind it.
  */
-
-/**
- * The picker, built from the shared list so it cannot offer a type the API
- * rejects or omit one it accepts.
- *
- * **Three basalt chips, and the plain one is not a middle option.** "Basalt"
- * means the kind was not recorded and takes the slower window; the other two are
- * what a climber can see from the ground — columns, or a bubbly flow top. Someone
- * who does not know picks "Basalt" and is treated cautiously, which is the point.
- *
- * `unknown` is relabelled "Not sure" here and nowhere else: it is the API's real
- * value, and "Unknown" beside a list of rock names reads like a failed lookup
- * rather than an answer the user is allowed to give.
- */
-const ROCK_TYPE_OPTIONS: { value: RockType; label: string }[] = ROCK_TYPES.map((value) => ({
-  value,
-  label: value === 'unknown' ? 'Not sure' : rockTypeLabel(value),
-}))
 
 export type SaveDraft = {
   name: string
@@ -42,12 +28,15 @@ export type SaveDraft = {
 
 export function SaveBar({
   draft,
+  knownCrag,
   onChange,
   onSave,
   saving,
   error,
 }: {
   draft: SaveDraft
+  /** The known crag under the candidate, from `matchKnownCrag`, or null. */
+  knownCrag: KnownCrag | null
   onChange: (draft: SaveDraft) => void
   onSave: () => void
   saving: boolean
@@ -101,28 +90,42 @@ export function SaveBar({
         {draft.isClimbing ? '✓ Climbing area' : 'Climbing area'}
       </button>
 
-      {draft.isClimbing ? (
+      {draft.isClimbing && knownCrag !== null ? (
         <div style={stack(spacing.micro)}>
           <span style={type.label}>Rock type</span>
-          <div style={{ ...row(spacing.chipGap), flexWrap: 'wrap' }}>
-            {ROCK_TYPE_OPTIONS.map(({ value, label }) => (
-              <button
-                key={value}
-                type="button"
-                style={{
-                  ...bareButton,
-                  ...(draft.rockType === value ? chipActive : chip),
-                  ...type.labelSm,
-                  width: 'auto',
-                }}
-                onClick={() => onChange({ ...draft, rockType: value })}
-                aria-pressed={draft.rockType === value}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <span style={type.calDay}>{rockTypeLabel(knownCrag.rock_type)}</span>
+          <span style={{ ...type.bodySm, color: colors.txt3 }}>
+            Set from our research on {knownCrag.name}.
+          </span>
         </div>
+      ) : draft.isClimbing ? (
+        <label style={stack(spacing.micro)}>
+          <span style={type.label}>Rock type</span>
+          {/*
+           * A native `<select>`, not chips: twenty-seven values in six families
+           * would fill the screen above a sticky bar. `<optgroup>` carries the
+           * families, and the phone's own picker does the rest.
+           */}
+          <select
+            value={draft.rockType}
+            onChange={(e) => {
+              const value = e.target.value
+              if (isRockType(value)) onChange({ ...draft, rockType: value })
+            }}
+            style={{ ...inputBox, ...type.calDay, width: '100%' }}
+            aria-label="Rock type"
+          >
+            {ROCK_TYPE_GROUPS.map((group) => (
+              <optgroup key={group.family} label={group.family}>
+                {group.options.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </label>
       ) : null}
 
       {error === null ? null : <span style={{ ...type.bodySm, color: colors.poor }}>{error}</span>}

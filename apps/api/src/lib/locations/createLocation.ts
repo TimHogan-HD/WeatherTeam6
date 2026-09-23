@@ -1,6 +1,7 @@
 import { db } from '../../db/index.js'
 import { locations } from '../../db/schema.js'
 import type { Location } from '@weatherteam6/types'
+import { resolveRockType } from './resolveRockType.js'
 
 /**
  * The insert behind saving a general (non-crag) location — shared by
@@ -25,6 +26,7 @@ export type NewGeneralLocation = {
 export type LocationRow = typeof locations.$inferSelect
 
 export async function insertGeneralLocation(input: NewGeneralLocation): Promise<LocationRow> {
+  const rock = resolveRockType(input)
   const inserted = await db
     .insert(locations)
     .values({
@@ -38,7 +40,8 @@ export async function insertGeneralLocation(input: NewGeneralLocation): Promise<
       elevation_m: input.elevation_m === null ? null : String(input.elevation_m),
       timezone: input.timezone,
       is_climbing_location: input.is_climbing_location,
-      rock_type: input.rock_type,
+      rock_type: rock.rock_type,
+      known_crag: rock.known_crag,
     })
     .returning()
   const row = inserted[0]

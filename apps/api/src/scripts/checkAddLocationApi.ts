@@ -16,8 +16,9 @@
  * location, read it back, prove preview and the saved location agree on
  * temperature, attach an alert row, delete it, confirm it is gone.
  *
- * Creates exactly one row, named with the prefix below, and always tries to
- * remove it — including when a step fails partway through.
+ * Creates four rows (the flow, plus three for the rock-type lock), all named
+ * with the prefix below, and always tries to remove them — including when a
+ * step fails partway through.
  *
  * `DEFAULT_USER_ID` is optional: without it the seeded user is read from the
  * `users` table. Vercel marks its copy of these variables sensitive and will not
@@ -140,6 +141,8 @@ async function run(): Promise<void> {
 
   let savedId: string | null = null
   let needsCleanup = false
+  /** Rows made by the rock-type steps; always deleted in `finally`. */
+  const extraIds: string[] = []
 
   try {
     console.log('\nSaving a location')
@@ -219,6 +222,59 @@ async function run(): Promise<void> {
     })
     check('out-of-range lat is refused', badLat.status === 400, `got ${badLat.status}`)
 
+    // The §7 taxonomy is a Postgres enum migration: a value the database does
+    // not know is an `invalid input value for enum` 500 that the vitest suite
+    // cannot see. One new value, stored and read back, proves 0015 landed.
+    console.log('\nA §7 rock type the old enum did not have')
+    const tuff = await call<Location>('POST', '/locations', {
+      name: `${NAME_PREFIX} new rock type`,
+      lat: LAT,
+      lon: LON,
+      is_climbing_location: true,
+      rock_type: 'tuff_welded',
+    })
+    if (tuff.payload.data) extraIds.push(tuff.payload.data.id)
+    check('POST with tuff_welded returns 201', tuff.status === 201, `got ${tuff.status} ${String(tuff.payload.error)}`)
+    check('tuff_welded was stored', tuff.payload.data?.rock_type === 'tuff_welded', `got ${String(tuff.payload.data?.rock_type)}`)
+    check('an unmatched point is not locked', tuff.payload.data?.known_crag === null, `got ${String(tuff.payload.data?.known_crag)}`)
+
+    // Owner decision 2026-09-23: a known crag's rock type is locked in. The
+    // request asks for granite on Red Wing's Barn Bluff; the research says
+    // cherty dolomite, and the research must win.
+    console.log('\nA known crag overrides the rock type it was sent')
+    const redWing = await call<Location>('POST', '/locations', {
+      name: `${NAME_PREFIX} known crag`,
+      lat: 44.5695,
+      lon: -92.526,
+      is_climbing_location: true,
+      rock_type: 'granite',
+    })
+    if (redWing.payload.data) extraIds.push(redWing.payload.data.id)
+    check('POST at a known crag returns 201', redWing.status === 201, `got ${redWing.status} ${String(redWing.payload.error)}`)
+    check(
+      'the research rock type was stored, not the requested one',
+      redWing.payload.data?.rock_type === 'carbonate_cherty',
+      `got ${String(redWing.payload.data?.rock_type)}`,
+    )
+    check('known_crag names the match', redWing.payload.data?.known_crag === 'red-wing', `got ${String(redWing.payload.data?.known_crag)}`)
+    if (redWing.payload.data) {
+      const back = await call<Location>('GET', `/locations/${redWing.payload.data.id}`)
+      check('the lock survives a read back', back.payload.data?.known_crag === 'red-wing', `got ${String(back.payload.data?.known_crag)}`)
+    }
+
+    const redWingTown = await call<Location>('POST', '/locations', {
+      name: `${NAME_PREFIX} known crag, not climbing`,
+      lat: 44.5695,
+      lon: -92.526,
+      is_climbing_location: false,
+    })
+    if (redWingTown.payload.data) extraIds.push(redWingTown.payload.data.id)
+    check(
+      'a non-climbing location on a crag is neither locked nor given a rock',
+      redWingTown.payload.data?.known_crag === null && redWingTown.payload.data?.rock_type === null,
+      `got ${String(redWingTown.payload.data?.known_crag)} / ${String(redWingTown.payload.data?.rock_type)}`,
+    )
+
     console.log('\nDeleting — with an alert row attached, which is what would break it')
     await db.insert(weatherAlerts).values({
       location_id: savedId,
@@ -258,6 +314,13 @@ async function run(): Promise<void> {
           ? '\n  cleaned up the test location'
           : `\n  COULD NOT CLEAN UP — remove the location named "${NAME_PREFIX} ..." by hand`,
       )
+    }
+    for (const id of extraIds) {
+      const cleanup = await call<null>('DELETE', `/locations/${id}`).catch(() => null)
+      if (cleanup?.status !== 200) {
+        console.log(`
+  COULD NOT CLEAN UP ${id} — remove the location named "${NAME_PREFIX} ..." by hand`)
+      }
     }
     server.close()
     await pool.end()

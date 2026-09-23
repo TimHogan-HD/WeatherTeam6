@@ -4,6 +4,7 @@ import { db } from '../db/index.js'
 import { locations, crags, locationNormals, cragClimbabilityHistory } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
 import { insertGeneralLocation } from '../lib/locations/createLocation.js'
+import { resolveRockType } from '../lib/locations/resolveRockType.js'
 import { deleteLocationCascade } from '../lib/locations/deleteLocation.js'
 import { isRockType, parseNumeric, ROCK_TYPES } from '@weatherteam6/types'
 import type { ApiResponse, Location, Crag, CreateLocationInput, LocationNormal, ClimbabilityHistory } from '@weatherteam6/types'
@@ -129,6 +130,7 @@ function mapLocation(row: LocationRow): Location {
     elevation_m: parseNumeric(row.elevation_m),
     is_climbing_location: row.is_climbing_location,
     rock_type: row.rock_type ?? null,
+    known_crag: row.known_crag,
     aspect: row.aspect,
     cliff_angle: parseNumeric(row.cliff_angle),
     asos_station: row.asos_station,
@@ -239,6 +241,14 @@ locationsRouter.post('/locations', async (req: Request, res: Response) => {
         return
       }
 
+      // The same lock as the general branch: an imported crag's free-text
+      // rock type loses to the research wherever the two overlap.
+      const rock = resolveRockType({
+        lat: parseFloat(crag.lat),
+        lon: parseFloat(crag.lon),
+        is_climbing_location: true,
+        rock_type: parseRockType(crag.rock_type),
+      })
       const inserted = await db
         .insert(locations)
         .values({
@@ -247,7 +257,8 @@ locationsRouter.post('/locations', async (req: Request, res: Response) => {
           lat: crag.lat,
           lon: crag.lon,
           is_climbing_location: true,
-          rock_type: parseRockType(crag.rock_type),
+          rock_type: rock.rock_type,
+          known_crag: rock.known_crag,
         })
         .returning()
       const row = inserted[0]

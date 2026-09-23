@@ -5,7 +5,7 @@ import { ROCK_TYPES } from '@weatherteam6/types'
 import type { ScoreInput } from '@weatherteam6/types'
 
 const base: ScoreInput = {
-  rockType: 'granite',
+  rockType: 'granite_weathered',
   aspectDegrees: 180,
   cliffAngle: 0,
   hoursSinceRain: 720,
@@ -103,7 +103,7 @@ describe('conditionsScore — drying component', () => {
   })
 
   it('score is 40 when well past maxDry', () => {
-    // granite cliffAngle=0: maxDry = 12h * 1.0 * 1.0 * 1.0 = 12h
+    // granite_weathered cliffAngle=0: maxDry = 12h * 1.0 * 1.0 * 1.0 = 12h
     const result = conditionsScore({ ...base, hoursSinceRain: 720, cliffAngle: 0 })
     expect(result.components.drying_time).toBe(40)
   })
@@ -114,14 +114,14 @@ describe('conditionsScore — drying component', () => {
       currentWindKmh: 25,
       hoursSinceRain: 10,
       cliffAngle: 0,
-      rockType: 'granite',
+      rockType: 'granite_weathered',
     })
     const withoutWind = conditionsScore({
       ...base,
       currentWindKmh: 10,
       hoursSinceRain: 10,
       cliffAngle: 0,
-      rockType: 'granite',
+      rockType: 'granite_weathered',
     })
     expect(withWind.components.drying_time).toBeGreaterThan(withoutWind.components.drying_time)
   })
@@ -132,14 +132,14 @@ describe('conditionsScore — drying component', () => {
       currentHumidityPct: 85,
       hoursSinceRain: 10,
       cliffAngle: 0,
-      rockType: 'granite',
+      rockType: 'granite_weathered',
     })
     const normalHumidity = conditionsScore({
       ...base,
       currentHumidityPct: 50,
       hoursSinceRain: 10,
       cliffAngle: 0,
-      rockType: 'granite',
+      rockType: 'granite_weathered',
     })
     expect(highHumidity.components.drying_time).toBeLessThan(normalHumidity.components.drying_time)
   })
@@ -154,7 +154,7 @@ describe('conditionsScore — drying component', () => {
    * implementation would have to change for the assertion to fail. For everything
    * below, the answer is `RAMP_EXPONENT`.
    *
-   * `base` is granite at `cliffAngle: 0`, wind 10 and humidity 45 — none of the
+   * `base` is weathered granite at `cliffAngle: 0`, wind 10 and humidity 45 — none of the
    * three modifiers fire, so `maxDry` is the raw table value of **12h** and the
    * arithmetic in these tests can be checked by hand.
    */
@@ -165,15 +165,17 @@ describe('conditionsScore — drying component', () => {
   })
 
   it('the day after rain on sandstone — the case issue #137 was filed over', () => {
-    // Sandstone at a 45° cliff: maxDry = 72 × 1.15 = 82.8h. At 36h the wall looks
-    // dry and is not. The linear ramp paid 17 of 40 for that; the curve pays 8.
+    // Desert sandstone (Red Rock's Aztec) at a 45° cliff: maxDry = 96 × 1.15 =
+    // 110.4h. At 36h the wall looks dry and is not. A linear ramp would pay
+    // 36/110.4 × 40 = 13 of 40 for that; the curve pays (36/110.4)² × 40 = 4.
+    // (Filed against the old single `sandstone` row at 72h, where it was 17 → 8.)
     const result = conditionsScore({
       ...base,
-      rockType: 'sandstone',
+      rockType: 'sandstone_eolian',
       cliffAngle: 45,
       hoursSinceRain: 36,
     })
-    expect(result.components.drying_time).toBe(8)
+    expect(result.components.drying_time).toBe(4)
   })
 
   it('never awards more than the linear ramp it replaced, and sometimes less', () => {
@@ -181,7 +183,7 @@ describe('conditionsScore — drying component', () => {
     // to ship: no location can score HIGHER than it did before #137.
     //
     // `maxDry` is READ BACK from the scorer rather than written as 12 here: a change
-    // to `MAX_HOURS.granite` would otherwise leave this comparing the curve against
+    // to `MAX_HOURS.granite_weathered` would otherwise leave this comparing the curve against
     // a linear reference of the wrong width, still green and no longer the property.
     const maxDry = conditionsScore({ ...base, hoursSinceRain: 0, cliffAngle: 0 }).breakdown
       ?.drying.hours_remaining
@@ -212,13 +214,13 @@ describe('conditionsScore — drying component', () => {
       ...base,
       cliffAngle: 90,
       hoursSinceRain: 10,
-      rockType: 'granite',
+      rockType: 'granite_weathered',
     })
     const vertical = conditionsScore({
       ...base,
       cliffAngle: 0,
       hoursSinceRain: 10,
-      rockType: 'granite',
+      rockType: 'granite_weathered',
     })
     expect(slab.components.drying_time).toBeLessThan(vertical.components.drying_time)
   })
@@ -400,15 +402,18 @@ describe('conditionsScore — totals', () => {
 
 describe('conditionsScore — the two MAX_HOURS tables must agree', () => {
   /**
-   * **`dryingModel.ts` and `conditionsScore.ts` each keep their own copy of
-   * `MAX_HOURS`.** One decides `estimated_dry`; the other scales the 0-40 drying
+   * **`dryingModel.ts` and `conditionsScore.ts` kept their own copies of
+   * `MAX_HOURS` until 2026-09-23**, and `conditionsScore` now imports it — this
+   * stays because it checks the *behaviour*, which an import alone does not
+   * pin: a modifier applied in one module and not the other would still split
+   * them. One decides `estimated_dry`; the other scales the 0-40 drying
    * component. `Record<RockType, number>` stops either *omitting* a rock type,
    * and nothing at all stops them disagreeing about a *value* — a wall would
    * report as dry while scoring as wet, or the reverse, with both files looking
    * correct on their own.
    *
-   * Neither table is exported, so this reads them through behaviour rather than
-   * widening the module surface for a test. With every modifier neutral —
+   * So this reads them through behaviour rather than comparing the table with
+   * itself. With every modifier neutral —
    * vertical wall, wind at or below 20, humidity at or below 80 — `maxDry` is the
    * raw table value, so `hours_remaining` at `hoursSinceRain: 0` *is*
    * `conditionsScore`'s number. `dryingModel` is then asked whether the wall is

@@ -518,7 +518,7 @@ Three steps, but only one genuinely new screen.
    - when the toggle is on, an optional **rock type** picker — sandstone / limestone / granite / basalt / not sure — defaulting to *not sure*;
    - a **Save** button.
 
-**Why rock type is offered at save time and not later.** It is the single largest lever on the score: `dryingModel`'s `MAX_HOURS` runs 72 h for sandstone against 12 h for granite, and the drying component is worth 40 of 100 points. Left unset it resolves to `unknown` → 48 h, which will be wrong by a wide margin for most real crags. And there is no edit screen (§12.4), so save is the only chance to capture it. One optional picker behind a toggle is cheap; a silently wrong drying score is not.
+**Why rock type is offered at save time and not later.** It is the single largest lever on the score: `dryingModel`'s `MAX_HOURS` runs from 4 h for slate to 120 h for soft sandstone (the §7 taxonomy, 2026-09-23), and the drying component is worth 40 of 100 points. Left unset it resolves to `unknown` → 120 h, the most conservative row, which will be wrong by a wide margin for most real crags. **On a known crag the picker is replaced by the research's rock type, locked** (`knownCrags.ts`). The picker is a grouped `<select>` rather than chips: twenty-seven values do not fit as chips. And there is no edit screen (§12.4), so save is the only chance to capture it. One optional picker behind a toggle is cheap; a silently wrong drying score is not.
 
 ### 12.2 Geocoding — reversing a documented non-goal
 

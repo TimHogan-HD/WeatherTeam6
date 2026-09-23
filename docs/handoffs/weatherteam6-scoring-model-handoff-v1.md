@@ -509,6 +509,26 @@ Phase 3 can fix with copy alone; it is the case for this phase.
 would predict.
 **Git checkpoint:** one PR.
 
+**4a SHIPPED 2026-09-23 — rock types, drying windows, known crags.** Split out ahead of
+the editor by the owner's request. Three owner decisions, each recorded where it lives:
+
+- **The full `rock-drying-research.md` §7 taxonomy**, 27 values, with §7's hours as
+  `MIN_HOURS`/`MAX_HOURS`. Both scorers read that one table, so **the v2 Dryness
+  reading moved as well as the five-component number** — `hourlyConditions` takes its
+  drying window from the same place.
+- **Not-recorded kinds take their family's slowest window**, and `unknown` is the
+  slowest row of all (48–120h). Every saved location holding `sandstone`, `limestone`,
+  `granite` or `unknown` reads differently from this date.
+- **Known crags are locked.** `KNOWN_CRAGS` (`packages/types`) holds 54 crags whose
+  rock the research pins to one §7 value, each with an OSM bounding box; a climbing
+  location within `KNOWN_CRAG_REACH_KM` of one takes its rock type on save and the
+  picker does not offer a choice. `npm run locations:lock-known-crags` applies it to
+  rows saved before.
+
+**4b is what remains of this phase**: `PATCH /locations/:id` and the editor for aspect,
+tilt and an unlocked rock type, plus the aspect geometry in `rockThermal` that makes
+`I_wall` real. The acceptance line above belongs to 4b.
+
 ### Phase 5 — Preferences UI, then retirement
 The preferences screen, then delete the five-component scorer, `SCORE_COMPONENT_MAX`, and the
 sections of `scoring-algorithm.md` that describe it.

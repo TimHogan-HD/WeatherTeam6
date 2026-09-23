@@ -59,7 +59,12 @@ name            text
 lat             numeric
 lon             numeric
 is_climbing_location  boolean default false   -- renamed from is_crag
-rock_type       text    -- 'sandstone' | 'limestone' | 'granite' | 'basalt' | null
+rock_type       rock_type enum -- ROCK_TYPES in packages/types: 27 values since 0015
+                        -- (rock-drying-research.md §7), or null
+known_crag      text    -- KNOWN_CRAGS slug, or null. Set = rock_type is locked:
+                        -- written from the research on save, never from a body.
+                        -- Written only by resolveRockType (POST /locations) and
+                        -- npm run locations:lock-known-crags (existing rows).
 aspect          text    -- wall facing direction e.g. 'NW', used for shade calc
 cliff_angle     numeric -- degrees from vertical, used for drying calc
 asos_station    text    -- nearest IEM ASOS station ID e.g. 'KMSN'

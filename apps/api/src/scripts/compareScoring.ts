@@ -42,23 +42,18 @@ import { printV2Comparison } from './compareScoringV2.js'
 import { TEMP_BAND_C } from '@weatherteam6/types'
 import type { ScoreInput } from '@weatherteam6/types'
 
-type RockType = ScoreInput['rockType']
-
-/** Mirrors `conditionsScore`'s own table. Kept local so this script cannot alter it. */
-const MAX_HOURS: Record<RockType, number> = {
-  sandstone: 72,
-  limestone: 24,
-  granite: 12,
-  basalt: 48,
-  basalt_dense: 8,
-  basalt_vesicular: 48,
-  unknown: 48,
-}
+/**
+ * `conditionsScore`'s own table, imported. It was a hand-kept mirror until the
+ * §7 taxonomy took it to twenty-seven rows (2026-09-23); `conditionsScore` itself
+ * now imports it from `dryingModel`, so a copy here would be the only one left
+ * that could drift.
+ */
+import { MAX_HOURS } from '../lib/scoring/dryingModel.js'
 
 /**
  * Curvature of the drying ramp. **This must equal `RAMP_EXPONENT` in
  * `conditionsScore.ts`** — it is mirrored rather than imported for the same
- * reason `MAX_HOURS` is, and the MISMATCH check below is what catches a drift.
+ * reason `MAX_HOURS` once was, and the MISMATCH check below is what catches a drift.
  * `1` reproduces the pre-#137 linear curve, which is the `Pre` column.
  * `2` halves the credit at the midpoint (0.5 → 0.25) while still reaching full
  * marks at the same hour.
