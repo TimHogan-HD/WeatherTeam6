@@ -3934,3 +3934,38 @@ the phone is still outstanding and is still the largest unverified thing in the 
 - **A newly added location has no trailing history**, so `T_mass`-dependent figures (margin, friction, score) are null for ~96 h. Use an existing crag, or expect that, when checking readings on a fresh one (#176).
 
 **Does the user need to do anything?** **No** for this work. The standing items are unchanged: delete the dead `TELEGRAM_*` and `AUTH_ENABLED` variables in Vercel, call `deleteWebhook` from your own shell, and the phone trip, which now includes the Conditions now card and its Measurements panel. The owner may also want to rule on `Last rain`: stay on the drying card, or move into the panel.
+
+---
+
+## 2026-09-23 — branch: feat/scoring-phase4a-rock-taxonomy — commit: 7a939fd
+
+**Phase completed:** Scoring model v2, Phase 4a — rock types, drying windows, known crags (PR #180). Split out of Phase 4 at the owner's request ("phase 4 new rock types and drying window").
+
+**Owner decisions this session:** take `rock-drying-research.md` §7 whole (all ~22 proposed rows, with their hours), and "pull in all rock types so the knowledge is there, but I also want known rock types for certain crags locked in".
+
+**What was built this session:**
+- `packages/types` — `ROCK_TYPES` 7 → 27; `ROCK_TYPE_GROUPS` (six families, the picker's `<optgroup>`s); `knownCrags.ts` — 54 crags with OSM bounding boxes, `matchKnownCrag`, `KNOWN_CRAG_REACH_KM = 2`; `knownCrags.test.ts` cross-checks every entry against `crag-facts.json`.
+- `dryingModel.ts` — §7's `MIN_HOURS`/`MAX_HOURS`; not-recorded kinds take their family's slowest window; `unknown` 24/48 → 48/120. `conditionsScore`, `compareScoring`, `climbabilityHistory` import it instead of copying.
+- Migration `0015` — 20 enum values and `locations.known_crag`. **Applied to production before merge** (additive only).
+- `lib/locations/resolveRockType.ts` — the lock, applied by both `POST /locations` branches; `scripts/lockKnownCrags.ts` (`npm run locations:lock-known-crags`, dry run by default) — applied after deploy: Red Wing `sandstone` → `carbonate_cherty [red-wing]`.
+- Client — `SaveBar` is a grouped `<select>`; on a known crag it shows the research's rock type instead; `LocationIdentity` appends "· known crag".
+- `check:add-location` extended to 25 checks: a new enum value round-trips, the lock overrides a requested type, a non-climbing point on a crag stays unlocked.
+
+**How the 2 km reach was chosen:** 3 km put Siurana (limestone) inside Montsant's conglomerate box and Dinas Cromlech (volcanic, 3.2 km) inside the Dinorwig slate quarry. At 2 km every tested neighbour stays out; Montsant was dropped (1.9 km from Siurana). The price: Baraboo the town is 2.6 km from Devil's Lake State Park and is not matched, so the owner's "Baraboo" row stays `basalt`. Areas over ~30 km across (Red Rock NCA, Zion, New River Gorge, Joshua Tree, Indian Creek) are excluded because a box that size covers rock that is not the crag's.
+
+**Known issues / deferred work:**
+- **#176 widened.** The v2 drying clock starts at 0 at the first stored hour (5 trailing days); the slowest windows are now 96–120 h (138 h at 45°). Measured: Finland (`unknown`) first reads Dry 12 h later than before; Red Wing as `sandstone` never read Dry in 12 days of series. Seeding `priorEffectiveHours` from daily history is the fix and a model decision.
+- **#179 filed.** A partial collect-runs batch hides a complete older one; at 19:00Z Baraboo and Clarks Grove had no GFS, Finland had only GFS.
+- The owner's saved rows are partly wrong in ways the lock cannot fix: **Baraboo** is typed `basalt` (Devil's Lake is quartzite) and sits 2.6 km outside the park; **Willow River** is Willow River, *Minnesota* (46.32, -92.84), not the Wisconsin state park the research describes — issue #82's town-vs-park confusion.
+- Picker not driven in a browser; no phone check.
+- The Nominatim lookups for the bounding boxes: the first test request carried the owner's email in its User-Agent. Caught and stopped; every later request used a generic agent.
+
+**Blockers for next session:** None.
+
+**What's next:** Phase 4b — `git checkout -b feat/scoring-phase4b-location-editor` off `main` — read `docs/handoffs/weatherteam6-scoring-model-handoff-v1.md` § Phase 4 (4a note) and `climbing-terminology-research.md` §21 before writing any code.
+
+**Gotchas for next session:**
+- `git stash push -- <path>` on a staged file and `stash pop` restores the worktree but not the index — re-`git add` before committing.
+- `latestBatchAt` groups by exact `fetched_at`; a cross-location `max(fetched_at)` by model looks like split batches and is not evidence of one.
+
+**Does the user need to do anything?** No. Optional: re-add Devil's Lake at the park (it will lock to quartzite) and check whether "Willow River" was meant to be the Wisconsin state park.
