@@ -33,8 +33,10 @@ implementing. The invariants the scorer must hold are in `.claude/rules/architec
 - `forecastDateDaysOut` >= 7 forces `confidence = 'low'` regardless of spread.
 - `hoursSinceRain` is 0 while it is raining, never negative.
 - Clamp the final score to 0–100.
-- `currentWindKmh` and `currentHumidityPct` are read once from today and stretch every day's
-  `maxDry`; every other per-day input comes from that day.
+- `currentWindKmh` and `currentHumidityPct` are read once from today and passed for every
+  day. Both stretch `maxDry`, and `currentHumidityPct` also drives the humidity component —
+  so every day's humidity component describes today. Making them per-day is a `ScoreInput`
+  split (`architecture.md`, "Two inputs are still knowingly today-only").
 - Heat costs at most the temperature component's 12 points, so a brutal day can still score
   high. Changing how components combine starts in the scoring-model handoff and
   `npm run compare:scoring --workspace=apps/api`.
