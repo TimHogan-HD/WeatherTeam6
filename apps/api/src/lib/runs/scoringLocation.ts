@@ -16,6 +16,8 @@ import type { WallOrientation } from '../scoring/rockThermal.js'
  */
 export type ScoringLocation = {
   rockType: RockType
+  lat: number
+  lon: number
   cliffAngleDeg: number
   wall: WallOrientation | null
 } | null
@@ -57,14 +59,18 @@ export function scoringLocationFor(row: ScoringLocationRow): ScoringLocation {
   const angle = recordedAngle !== null && Number.isFinite(recordedAngle) ? recordedAngle : null
   const aspectDeg = compassDegrees(row.aspect)
 
+  const lat = parseNumericRequired(row.lat)
+  const lon = parseNumericRequired(row.lon)
   return {
     rockType: row.rock_type ?? 'unknown',
+    lat,
+    lon,
     cliffAngleDeg: angle ?? DEFAULT_CLIFF_ANGLE_DEG,
     wall:
       angle !== null && aspectDeg !== null
         ? {
-            lat: parseNumericRequired(row.lat),
-            lon: parseNumericRequired(row.lon),
+            lat,
+            lon,
             aspectDeg,
             cliffAngleDeg: angle,
           }

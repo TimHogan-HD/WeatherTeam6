@@ -429,7 +429,7 @@ describe('buildHourlySeries — offset selection', () => {
 describe('buildHourlySeries — a recorded wall reaches the readings', () => {
   /**
    * The plumbing, end to end through the pure half: `scoring.wall` has to get
-   * from the route's `scoringLocationFor` into `evaluateHourlyConditions`. If
+   * from the route's `scoringLocationFor` into `evaluateCragModel`. If
    * any hop drops it, the noon hour stays unqualified and nothing else fails.
    */
   const now = new Date('2026-09-08T18:00:00Z')
@@ -458,7 +458,7 @@ describe('buildHourlySeries — a recorded wall reaches the readings', () => {
       ensemble: ensRuns([]),
       allModels: false,
       now,
-      scoring: { rockType: 'granite', cliffAngleDeg: 0, wall },
+      scoring: { rockType: 'granite', lat: 36.13, lon: -115.43, cliffAngleDeg: 0, wall },
     })
   const noon = (s: ReturnType<typeof build>) =>
     s.readings?.hours.find((h) => h.valid_at === '2026-09-08T20:00:00.000Z')
@@ -466,8 +466,11 @@ describe('buildHourlySeries — a recorded wall reaches the readings', () => {
   it('qualifies a bright noon hour only when the wall was passed', () => {
     const without = noon(build(null))
     const withWall = noon(build({ lat: 36.13, lon: -115.43, aspectDeg: 0, cliffAngleDeg: 0 }))
-    expect(without?.friction?.qualified).toBe(false)
-    expect(withWall?.friction?.qualified).toBe(true)
+    // Crag A reads the median of eight walls without one, so only the wall's
+    // rock reading is qualified. Friction reads no sun and is qualified either way.
+    expect(without?.rock?.qualified).toBe(false)
+    expect(withWall?.rock?.qualified).toBe(true)
+    expect(without?.friction?.qualified).toBe(true)
     // And the north wall reads cooler than the unscaled horizontal guess.
     expect(withWall!.t_surface_c!).toBeLessThan(without!.t_surface_c!)
   })

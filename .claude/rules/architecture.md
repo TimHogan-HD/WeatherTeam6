@@ -14,7 +14,20 @@ delivery gates are in `CLAUDE.md`; domain patterns are in the `miniapp-patterns`
   — a defaulted surface temperature would look like a measurement on every screen, and the
   per-hour `qualified` flag must travel with the reading rather than being dropped at the
   surface (§ Unknown aspect).
-- **`hourlyConditions.ts` and `sweatBalance.ts` are the v2 model's Layers 2-4.** **A weighted geometric mean has unbounded slope at zero**, so a factor reaching *exactly*
+- **The score on every screen is Crag A / Wall A (`lib/scoring/cragModel.ts`), owner
+  decision 2026-09-24.** `score = 100 × dryness^0.55 × friction`. Crag A runs the drying
+  clock on eight vertical walls and takes the median; Wall A runs it on the recorded wall
+  with overhang rain shelter. Friction is condensation × heat × humidity × cold from air
+  temperature, dew point and `T_mass` — no sun, so it answers when shortwave is missing. A
+  day's score is the worst hour of its best 3-hour run between 08:00 and 18:00 local
+  (`dayRepresentative`). It sits on top of `evaluateHourlyConditions`, which still supplies
+  `T_mass`, `T_surface` and the drying rate; v2's own score and sweat-balance friction no
+  longer reach a response. The port is checked hour-for-hour against
+  `.claude/docs/crag-a-reference/model.ts`; a change that moves a result there needs an
+  argument. **Every constant in it is a judgement call**, and nothing is validated against
+  outcomes (#143).
+- **`hourlyConditions.ts` and `sweatBalance.ts` are the v2 model's Layers 2-4**, now Crag A's
+  Layer 1 inputs. **A weighted geometric mean has unbounded slope at zero**, so a factor reaching *exactly*
   zero collapses the score into it rather than arriving — measured at 12 points off a tenth
   of a degree, which is issue #148 in a model with no bands. Any new factor must approach
   zero rather than reach it, or be shown to do its collapsing inside one band. **The hand's
@@ -22,6 +35,9 @@ delivery gates are in `CLAUDE.md`; domain patterns are in the `miniapp-patterns`
   deficit would read a 66 °C wall as ideal drying conditions for skin. And **`rock.qualified`
   is false for any drying window containing daylight**, because the clock runs off
   `T_surface`; that is honest, not a bug.
+- **The magnitude fence still holds under Crag A**: its heat, humidity and cold penalties are
+  unmeasured judgements, so words and ordering reach a screen and the 0-1 factor does not.
+  The v2 history of the fence follows.
 - **The friction reading rests on exactly one unvalidated step, and it is fenced.**
   Everything upstream of `sweatBalance.sweatFrictionFactor` is standard physics checked
   against published values; that one line — skin wettedness to a grip factor — is a guess

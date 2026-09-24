@@ -41,10 +41,10 @@ import type {
 } from '@weatherteam6/types'
 import {
   bestWindow,
-  evaluateHourlyConditions,
   type HourlyConditions,
   type WeatherHour,
 } from '../scoring/hourlyConditions.js'
+import { dayRepresentative, evaluateCragModel } from '../scoring/cragModel.js'
 import { localDateString } from '../weather/openMeteo.js'
 import type { DeterministicRuns, ModelRun } from './latestRuns.js'
 import type { WallOrientation } from '../scoring/rockThermal.js'
@@ -81,6 +81,9 @@ export type BuildReadingsInput = {
   dates: readonly string[]
   utcOffsetSeconds: number
   rockType: RockType
+  /** The location itself. Crag A runs its eight walls here when no wall is recorded. */
+  lat: number
+  lon: number
   /**
    * Stored convention: 0 = vertical wall, 90 = flat slab. **Null means nobody
    * has recorded it**, and the caller decides what to substitute — this module
@@ -139,9 +142,13 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
   const model = input.deterministic.models.find((m) => m.model === THERMAL_MODEL)
   if (model === undefined || model.hours.length === 0) return none('model_unavailable')
 
-  const evaluated = evaluateHourlyConditions(toWeatherHours(model), {
+  // Crag A, or Wall A when a wall is recorded (`cragModel.ts`). `cliffAngleDeg`
+  // is not read here: without a recorded wall Crag A scores eight vertical
+  // walls, and a recorded wall carries its own angle.
+  const evaluated = evaluateCragModel(toWeatherHours(model), {
     rockType: input.rockType,
-    cliffAngleDeg: input.cliffAngleDeg,
+    lat: input.lat,
+    lon: input.lon,
     wall: input.wall ?? null,
   })
 
@@ -171,17 +178,12 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
     const window: ConditionsWindow | null = bestWindow(dayHours, { score: minScore })
 
     /**
-     * The day's representative hour is its **highest-scoring** one, chosen
-     * server-side so the bot and the Mini App cannot pick differently. A mean
-     * would be the wrong answer for the same reason a daily score was: a
-     * morning window is the thing a climber acts on, and averaging it with a
-     * baking afternoon describes neither.
+     * The day's representative hour is the worst hour of its best three-hour
+     * daytime run (`dayRepresentative`), chosen server-side so no two surfaces
+     * can pick differently. Its score is the day's score. The single best hour
+     * it replaced let one mild 8 am hour carry a hot day.
      */
-    let best: HourlyConditions | null = null
-    for (const h of dayHours) {
-      if (h.score === null) continue
-      if (best === null || h.score > (best.score ?? -1)) best = h
-    }
+    const best = dayRepresentative(dayHours, input.utcOffsetSeconds)
 
     return { local_date, window, best: best === null ? null : toReading(best) }
   })

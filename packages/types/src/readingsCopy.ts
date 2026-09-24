@@ -315,7 +315,8 @@ export const FRICTION_ESTIMATE_NOTE = 'Friction is estimated, not measured';
 
 /**
  * The copy for an hour whose answer depends on a wall orientation nobody has
- * recorded.
+ * recorded. Under Crag A the rock reading is then the median of eight walls
+ * (`apps/api/src/lib/scoring/cragModel.ts`), so it describes no one wall.
  *
  * **Deliberately not an upper bound.** Those hours use unscaled horizontal
  * irradiance, which reads a vertical wall hot under a high sun — but a
@@ -323,7 +324,7 @@ export const FRICTION_ESTIMATE_NOTE = 'Friction is estimated, not measured';
  * must not promise "at most this warm". It says the input is missing and that
  * the reading leans warm, which is what the data supports.
  */
-export const UNRECORDED_ASPECT_NOTE = 'Aspect unrecorded — sunlit hours lean warm';
+export const UNRECORDED_ASPECT_NOTE = 'Aspect unrecorded — reads the crag as a whole';
 
 /**
  * The qualifier for a wall sitting below its dew point.
@@ -552,7 +553,7 @@ export const DEW_POINT_MARGIN_LABEL = 'Dew point margin';
  * there to grip is a judgement no study supports.
  */
 export const FRICTION_MECHANISM =
-  'Friction is estimated from air temperature, humidity and wind. What a sweating hand does to grip has never been measured, so the last step of that estimate is a judgement rather than a finding.';
+  'Friction is estimated from air temperature, dew point and whether the rock sits above its dew point. How much heat, humidity and cold cost in grip has never been measured, so those penalties are judgements rather than findings.';
 
 /**
  * The mechanism behind `UNRECORDED_ASPECT_NOTE`.
@@ -564,7 +565,7 @@ export const FRICTION_MECHANISM =
  * this warm" is not.
  */
 export const UNRECORDED_ASPECT_MECHANISM =
-  'No wall orientation is recorded for this location, so sunlit hours are computed against flat ground rather than against the wall. That usually reads warm, though a sun-facing wall under a low winter sun can take more.';
+  'No wall orientation is recorded for this location, so drying is read as the middle of eight walls facing every direction, and rock temperature against flat ground. One particular wall can dry sooner or later than that.';
 
 /**
  * What the rock group is.

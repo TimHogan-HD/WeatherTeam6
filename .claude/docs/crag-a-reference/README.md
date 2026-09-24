@@ -1,7 +1,8 @@
 # Crag A / Wall A — reference model
 
-Scratch research from 2026-09-24, kept so the work survives the session. **None of this is app
-code and none of it is shipped.** The live score is still v2 (`hourlyConditions.ts`).
+Research from 2026-09-24. **Shipped as the live score the same day** in
+`apps/api/src/lib/scoring/cragModel.ts` (owner decision: everyone, no tester gate). This
+directory stays as the reference the port is checked against.
 
 - `model.ts` — every candidate model, test day and error check from the comparison. The
   corrected Crag A and Wall A are `hourScoreOpt('CA' | 'WA', …)` with
@@ -87,8 +88,8 @@ by keeping 0.5 mm/h for sheltered walls.
 - Production needs the rain history seeded (issue #176); the app keeps ~5 trailing days.
 - Nothing is validated against outcomes (issue #143).
 
-## Next build, once approved
+## Not built
 
-Crag A as its own module beside v2, shown to testers only, plus a condition-report screen
+The tester gate was dropped. Still unbuilt: a condition-report screen
 (crag, time, dry/damp/wet, grip 1–4, wall with aspect and angle if known) that stores the hourly
 weather each report was made under, so any model can be re-scored later.
