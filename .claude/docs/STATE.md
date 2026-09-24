@@ -66,6 +66,14 @@ The owner's product list:
    at 2pm reads like advice for now; and the drying card's `Climbable in ~Nh` line is the old
    model's clock and can disagree with the v2 `Dryness` reading above it (#178).
 
+**Scoring model replacement — researched, waiting on the owner (2026-09-24).** A comparison
+picked **Crag A** (whole-crag score) and **Wall A** (the same model on a recorded wall) to
+replace v2, then an error hunt found and corrected seven errors in both. Everything is in
+`.claude/docs/crag-a-reference/README.md`, with the runnable model and forecast data beside it.
+Nothing is in app code. Blocked on the owner: approve it, decide a minimum wait after rain for
+soft/eolian sandstone, and name testers. Then build it beside v2, tester-only, with a
+condition-report screen.
+
 **Assumption to confirm with the owner:** `Last rain` stayed on the drying card rather than
 moving into the Measurements panel.
 
