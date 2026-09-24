@@ -422,6 +422,21 @@ scoring as its best case. The unshipped half is the v2 model.
 
 ---
 
+## 6d. Proposed replacement: Crag A / Wall A (2026-09-24, not shipped)
+
+A benchmark of v1, v2 and candidate models picked Crag A and Wall A; see
+`.claude/docs/crag-a-reference/README.md`. Findings about v2 that stand whether or not it is
+replaced:
+
+- **v2's clock keeps drying through drizzle.** `SIGNIFICANT_HOURLY_PRECIP_MM` is 0.5, and most
+  wet hours in real Open-Meteo forecasts are 0.1–0.4 mm. Rock under light rain reads dry.
+- **The 0.45 friction weight lets heat and humidity through.** Friction of 0.35 still scores 62
+  (Go); muggy and hot days score 75–100.
+- **The sweat model cannot see grease.** At a 70 °F dew point it still scores 83.
+- **v2 returns no score when shortwave is missing**, which Open-Meteo does routinely at the end
+  of a model's run.
+- **A day scored on its single best hour** reads a 93 °F day as Go from a mild 8 am.
+
 ## 7. If you only do three things
 
 1. **Do not let the drying ramp reach full marks as early as it does** (§1.2). It is wrong in
