@@ -18,8 +18,8 @@ up is residue, not a dependency.
 **Scoring model v2 — Phases 0–3 and 4a are live.** 4a (PR #180) is the full
 `rock-drying-research.md` §7 taxonomy — 27 rock types, each with its own drying window — and
 54 known crags in `packages/types/src/knownCrags.ts` whose rock type is locked on save.
-Re-run `npm run locations:lock-known-crags -- --apply` whenever `KNOWN_CRAGS` changes. Crag A /
-Wall A is the number on every screen (below); the five-component scorer still runs, renders nowhere, and
+Re-run `npm run locations:lock-known-crags -- --apply` whenever `KNOWN_CRAGS` changes. Crag A
+is the number on every screen (below); the five-component scorer still runs, renders nowhere, and
 Phase 5 deletes it.
 
 **The dataviz line is parked, not cancelled** — its Phase 5 is still wanted.
@@ -66,8 +66,9 @@ The owner's product list:
    at 2pm reads like advice for now; and the drying card's `Climbable in ~Nh` line is the old
    model's clock and can disagree with the v2 `Dryness` reading above it (#178).
 
-**Crag A / Wall A is the live score (2026-09-24, owner decision).** `lib/scoring/cragModel.ts`
-replaced v2's score and friction for everyone, not tester-only; the tester gate and the
+**Crag A is the live score (2026-09-24, owner decision).** `lib/scoring/cragModel.ts`
+replaced v2's score and friction for everyone, not tester-only. Every location gets Crag A;
+Wall A (`evaluateWallA`) is only for scoring individual walls and is not wired to anything yet; the tester gate and the
 condition-report screen were dropped from this change. The port matches
 `.claude/docs/crag-a-reference/model.ts` exactly on the stored forecasts. Still open: a minimum
 wait after rain for soft/eolian sandstone (F17), rain-history seeding (#176), and whether a

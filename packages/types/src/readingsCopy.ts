@@ -315,8 +315,8 @@ export const FRICTION_ESTIMATE_NOTE = 'Friction is estimated, not measured';
 
 /**
  * The copy for an hour whose answer depends on a wall orientation nobody has
- * recorded. Under Crag A the rock reading is then the median of eight walls
- * (`apps/api/src/lib/scoring/cragModel.ts`), so it describes no one wall.
+ * recorded. **Unreachable under Crag A**, which reads every direction by design
+ * and marks every reading qualified; kept for whatever surface scores walls.
  *
  * **Deliberately not an upper bound.** Those hours use unscaled horizontal
  * irradiance, which reads a vertical wall hot under a high sun — but a
@@ -324,7 +324,7 @@ export const FRICTION_ESTIMATE_NOTE = 'Friction is estimated, not measured';
  * must not promise "at most this warm". It says the input is missing and that
  * the reading leans warm, which is what the data supports.
  */
-export const UNRECORDED_ASPECT_NOTE = 'Aspect unrecorded — reads the crag as a whole';
+export const UNRECORDED_ASPECT_NOTE = 'Aspect unrecorded — sunlit hours lean warm';
 
 /**
  * The qualifier for a wall sitting below its dew point.
@@ -565,7 +565,7 @@ export const FRICTION_MECHANISM =
  * this warm" is not.
  */
 export const UNRECORDED_ASPECT_MECHANISM =
-  'No wall orientation is recorded for this location, so drying is read as the middle of eight walls facing every direction, and rock temperature against flat ground. One particular wall can dry sooner or later than that.';
+  'No wall orientation is recorded for this location, so sunlit hours are computed against flat ground rather than against the wall. That usually reads warm, though a sun-facing wall under a low winter sun can take more.';
 
 /**
  * What the rock group is.
@@ -577,7 +577,7 @@ export const UNRECORDED_ASPECT_MECHANISM =
  * a reader to treat the first as an observation.
  */
 export const ROCK_TEMPERATURE_MECHANISM =
-  'Rock temperature is modelled from sun, air temperature and wind — nothing measures the wall itself.';
+  'Rock temperature is modelled for open, flat ground from sun, air temperature and wind — nothing measures the wall itself.';
 
 /**
  * One model, named the way the sources footer names a set of them.

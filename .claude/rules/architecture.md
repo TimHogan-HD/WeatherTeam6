@@ -14,10 +14,12 @@ delivery gates are in `CLAUDE.md`; domain patterns are in the `miniapp-patterns`
   — a defaulted surface temperature would look like a measurement on every screen, and the
   per-hour `qualified` flag must travel with the reading rather than being dropped at the
   surface (§ Unknown aspect).
-- **The score on every screen is Crag A / Wall A (`lib/scoring/cragModel.ts`), owner
-  decision 2026-09-24.** `score = 100 × dryness^0.55 × friction`. Crag A runs the drying
-  clock on eight vertical walls and takes the median; Wall A runs it on the recorded wall
-  with overhang rain shelter. Friction is condensation × heat × humidity × cold from air
+- **The score on every screen is Crag A (`lib/scoring/cragModel.ts`), owner decision
+  2026-09-24.** `score = 100 × dryness^0.55 × friction`. Crag A runs the drying clock on
+  eight vertical walls and takes the median. **A location's score is always Crag A**: its
+  recorded aspect and angle are not inputs, and a recorded wall never replaces the crag
+  score. **Wall A (`evaluateWallA`) scores individual walls only** — the same model on one
+  wall with overhang rain shelter — and nothing calls it yet. Friction is condensation × heat × humidity × cold from air
   temperature, dew point and `T_mass` — no sun, so it answers when shortwave is missing. A
   day's score is the worst hour of its best 3-hour run between 08:00 and 18:00 local
   (`dayRepresentative`). It sits on top of `evaluateHourlyConditions`, which still supplies

@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   SNOW_DRYNESS_CAP,
   dayRepresentative,
-  evaluateCragModel,
+  evaluateCragA,
+  evaluateWallA,
   frictionFactorA,
   rockLevelA,
   scoreA,
@@ -33,7 +34,7 @@ function series(n: number, over: (i: number, h: WeatherHour) => Partial<WeatherH
 }
 
 const crag = (hours: WeatherHour[], rockType: 'granite' | 'sandstone_eolian' = 'granite') =>
-  evaluateCragModel(hours, { rockType, lat: LAT, lon: LON, wall: null })
+  evaluateCragA(hours, { rockType, lat: LAT, lon: LON })
 
 describe('frictionFactorA', () => {
   it('is 1 on a cool dry day with the rock well above its dew point', () => {
@@ -82,7 +83,7 @@ describe('rockLevelA', () => {
   })
 })
 
-describe('evaluateCragModel — the drying clock', () => {
+describe('evaluateCragA — the drying clock', () => {
   it('treats the start of the series as soaked and dries from there', () => {
     const out = crag(series(96))
     expect(out[0]!.diagnostics.wetness_factor).toBe(0)
@@ -125,22 +126,25 @@ describe('evaluateCragModel — the drying clock', () => {
   })
 })
 
-describe('evaluateCragModel — Wall A', () => {
+describe('evaluateWallA', () => {
   const wall = (cliffAngleDeg: number) => ({ lat: LAT, lon: LON, aspectDeg: 180, cliffAngleDeg })
 
   it('keeps an overhang dry through drizzle an open wall gets wet in', () => {
     const hours = series(96, (i) => (i === 80 ? { precip_mm: 0.3 } : {}))
-    const open = evaluateCragModel(hours, { rockType: 'granite', lat: LAT, lon: LON, wall: wall(0) })
-    const roof = evaluateCragModel(hours, { rockType: 'granite', lat: LAT, lon: LON, wall: wall(-30) })
+    const open = evaluateWallA(hours, { rockType: 'granite', wall: wall(0) })
+    const roof = evaluateWallA(hours, { rockType: 'granite', wall: wall(-30) })
     expect(open[80]!.diagnostics.wetness_factor).toBe(0)
     expect(roof[80]!.diagnostics.wetness_factor).toBe(1)
   })
 
-  it('qualifies the rock reading only for a recorded wall', () => {
-    const hours = series(96)
-    expect(crag(hours)[95]!.rock?.qualified).toBe(false)
-    const w = evaluateCragModel(hours, { rockType: 'granite', lat: LAT, lon: LON, wall: wall(0) })
-    expect(w[95]!.rock?.qualified).toBe(true)
+  it('scores the wall it is handed, not the crag', () => {
+    // A north wall in the same weather dries on its own clock, not the eight-wall median.
+    const hours = series(144, (i) => (i === 100 ? { precip_mm: 2 } : {}))
+    const north = evaluateWallA(hours, { rockType: 'sandstone_eolian', wall: { ...wall(0), aspectDeg: 0 } })
+    const whole = crag(hours, 'sandstone_eolian')
+    expect(north.slice(100).map((h) => h.diagnostics.wetness_factor)).not.toEqual(
+      whole.slice(100).map((h) => h.diagnostics.wetness_factor),
+    )
   })
 })
 

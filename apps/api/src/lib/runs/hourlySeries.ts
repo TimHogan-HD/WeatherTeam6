@@ -308,8 +308,6 @@ export function buildHourlySeries(input: BuildInput): HourlySeries {
           rockType: input.scoring.rockType,
           lat: input.scoring.lat,
           lon: input.scoring.lon,
-          cliffAngleDeg: input.scoring.cliffAngleDeg,
-          wall: input.scoring.wall,
         })
 
   const series: HourlySeries = {

@@ -82,7 +82,6 @@ const input = (over: Partial<BuildReadingsInput> = {}): BuildReadingsInput => ({
   rockType: 'granite',
   lat: 36.13,
   lon: -115.43,
-  cliffAngleDeg: 0,
   ...over,
 })
 

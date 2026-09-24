@@ -9,11 +9,12 @@
  * score = 100 × dryness^0.55 × friction
  * ```
  *
- * - **Crag A** (no recorded wall): the drying clock runs on eight vertical walls,
- *   one per compass point, through `rockThermal`'s wall geometry, and the hour's
- *   dryness is their median. Nobody has to record an aspect for this to answer.
- * - **Wall A** (a recorded wall): the same model on that one wall, with the
- *   overhang's rain shelter applied.
+ * - **Crag A** (`evaluateCragA`) is a crag's score and the only one a location
+ *   carries: the drying clock runs on eight vertical walls, one per compass
+ *   point, through `rockThermal`'s wall geometry, and the hour's dryness is
+ *   their median.
+ * - **Wall A** (`evaluateWallA`) scores one specific wall, with the overhang's
+ *   rain shelter applied. It is never a crag's score and nothing calls it yet.
  *
  * Friction is the heat/humidity/cold rule (`frictionFactorA`), not v2's sweat
  * balance: it reads air temperature, dew point and the rock mass's margin over
@@ -222,45 +223,30 @@ function median(xs: readonly number[]): number {
   return a[lo]! + (a[Math.min(lo + 1, a.length - 1)]! - a[lo]!) * (x - lo)
 }
 
-export type CragModelOptions = {
+export type CragAOptions = {
   rockType: RockType
+  /** The crag itself — where the eight walls are placed for the sun. */
   lat: number
   lon: number
-  /** The recorded wall, or null. Present → Wall A; absent → Crag A. */
-  wall: WallOrientation | null
 }
 
 /**
- * Every hour of the series, scored. Returns `HourlyConditions` so the readings
- * builder, `bestWindow` and the published projection are unchanged.
+ * **Crag A — the crag's score, and the only score a location carries.** The
+ * drying clock runs on eight vertical walls, one per compass point, and each
+ * hour's dryness is their median. A location's recorded aspect and angle are
+ * deliberately not inputs: the crag score describes the crag as a whole, and a
+ * specific wall is scored by `evaluateWallA` instead.
+ *
+ * Returns `HourlyConditions` so the readings builder, `bestWindow` and the
+ * published projection are unchanged.
  */
-export function evaluateCragModel(
+export function evaluateCragA(
   hours: readonly WeatherHour[],
-  options: CragModelOptions,
+  options: CragAOptions,
 ): HourlyConditions[] {
-  const { rockType, wall } = options
-
-  if (wall !== null) {
-    const scale = shelterScale(wall.cliffAngleDeg)
-    const sheltered =
-      scale === 1
-        ? hours
-        : hours.map((h) => ({
-            ...h,
-            precip_mm: h.precip_mm === null ? null : h.precip_mm * scale,
-          }))
-    const evaluated = evaluateHourlyConditions(sheltered, {
-      rockType,
-      cliffAngleDeg: wall.cliffAngleDeg,
-      wall,
-    })
-    const maxHours = dryingWindowHours(rockType, Math.max(0, wall.cliffAngleDeg)).maxHours
-    const dry = drynessTrack(sheltered, evaluated, maxHours, scale < 1 ? SHELTERED_WET_MM : WET_MM)
-    return evaluated.map((h, i) => finish(h, hours[i]!, dry[i] ?? null, rockType, true))
-  }
-
-  // Crag A: the rock temperature and margin come from the unscaled horizontal
-  // series, as they did under v2; only the drying clock runs on the eight walls.
+  const { rockType } = options
+  // The rock temperature and margin come from the unscaled horizontal series;
+  // only the drying clock runs on the eight walls.
   const flat = evaluateHourlyConditions(hours, { rockType, cliffAngleDeg: 0, wall: null })
   const maxHours = dryingWindowHours(rockType, 0).maxHours
   const tracks = CRAG_ASPECTS.map((aspectDeg) => {
@@ -274,10 +260,47 @@ export function evaluateCragModel(
   return flat.map((h, i) => {
     const xs = tracks.map((t) => t[i] ?? null)
     const dry = xs.some((x) => x === null) ? null : median(xs as number[])
-    // The median of eight walls is not any one wall, so the rock reading keeps
-    // the unrecorded-aspect caveat.
-    return finish(h, hours[i]!, dry, rockType, false)
+    // No one wall's clock, so no one wall's drying hours.
+    return finish(h, hours[i]!, dry, rockType, null)
   })
+}
+
+export type WallAOptions = {
+  rockType: RockType
+  /** The wall being scored: its aspect, angle (stored convention) and position. */
+  wall: WallOrientation
+}
+
+/**
+ * **Wall A — one specific wall's score, and never a crag's.** The same model as
+ * Crag A on the one recorded wall, with the overhang's rain shelter applied.
+ *
+ * Nothing calls this yet: it is for scoring individual walls (the `walls`
+ * table), and it must not be substituted for a location's crag score.
+ */
+export function evaluateWallA(
+  hours: readonly WeatherHour[],
+  options: WallAOptions,
+): HourlyConditions[] {
+  const { rockType, wall } = options
+  const scale = shelterScale(wall.cliffAngleDeg)
+  const sheltered =
+    scale === 1
+      ? hours
+      : hours.map((h) => ({
+          ...h,
+          precip_mm: h.precip_mm === null ? null : h.precip_mm * scale,
+        }))
+  const evaluated = evaluateHourlyConditions(sheltered, {
+    rockType,
+    cliffAngleDeg: wall.cliffAngleDeg,
+    wall,
+  })
+  const maxHours = dryingWindowHours(rockType, Math.max(0, wall.cliffAngleDeg)).maxHours
+  const dry = drynessTrack(sheltered, evaluated, maxHours, scale < 1 ? SHELTERED_WET_MM : WET_MM)
+  return evaluated.map((h, i) =>
+    finish(h, hours[i]!, dry[i] ?? null, rockType, h.diagnostics.effective_dry_hours),
+  )
 }
 
 function finish(
@@ -285,7 +308,7 @@ function finish(
   weather: WeatherHour,
   dryness: number | null,
   rockType: RockType,
-  rockQualified: boolean,
+  effectiveDryHours: number | null,
 ): HourlyConditions {
   const massTempC = base.diagnostics.t_mass_c
   const friction = frictionFactorA(massTempC, weather.air_temp_c, weather.dewpoint_c)
@@ -294,7 +317,9 @@ function finish(
   const rLevel = rockLevelA(dryness, rockType)
   return {
     valid_at: base.valid_at,
-    rock: rLevel === null ? null : { level: rLevel, qualified: rockQualified },
+    // Neither score depends on a wall orientation nobody recorded: Crag A reads
+    // every direction by design, and Wall A is handed its wall.
+    rock: rLevel === null ? null : { level: rLevel, qualified: true },
     // Grip reads no sunlight, so an unrecorded aspect cannot change it.
     friction:
       fLevel === null || condensing === null ? null : { level: fLevel, condensing, qualified: true },
@@ -306,7 +331,7 @@ function finish(
       skin_wettedness: null,
       wetness_factor: dryness,
       friction_factor: friction,
-      effective_dry_hours: rockQualified ? base.diagnostics.effective_dry_hours : null,
+      effective_dry_hours: effectiveDryHours,
     },
   }
 }

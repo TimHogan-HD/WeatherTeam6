@@ -1,7 +1,8 @@
 # Crag A / Wall A — reference model
 
-Research from 2026-09-24. **Shipped as the live score the same day** in
-`apps/api/src/lib/scoring/cragModel.ts` (owner decision: everyone, no tester gate). This
+Research from 2026-09-24. **Shipped the same day** in `apps/api/src/lib/scoring/cragModel.ts`
+(owner decision: everyone, no tester gate). Crag A is every location's score; Wall A
+(`evaluateWallA`) scores individual walls only and never stands in for a crag. This
 directory stays as the reference the port is checked against.
 
 - `model.ts` — every candidate model, test day and error check from the comparison. The

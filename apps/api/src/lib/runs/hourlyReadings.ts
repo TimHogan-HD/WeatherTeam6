@@ -44,10 +44,9 @@ import {
   type HourlyConditions,
   type WeatherHour,
 } from '../scoring/hourlyConditions.js'
-import { dayRepresentative, evaluateCragModel } from '../scoring/cragModel.js'
+import { dayRepresentative, evaluateCragA } from '../scoring/cragModel.js'
 import { localDateString } from '../weather/openMeteo.js'
 import type { DeterministicRuns, ModelRun } from './latestRuns.js'
-import type { WallOrientation } from '../scoring/rockThermal.js'
 
 /**
  * **The one model the thermal layer reads, and it is not a preference.**
@@ -81,18 +80,13 @@ export type BuildReadingsInput = {
   dates: readonly string[]
   utcOffsetSeconds: number
   rockType: RockType
-  /** The location itself. Crag A runs its eight walls here when no wall is recorded. */
+  /**
+   * The location itself — Crag A places its eight walls here. There is no
+   * aspect or angle input: a location's score is its crag's, and a recorded
+   * wall never replaces it (`evaluateWallA` scores walls, separately).
+   */
   lat: number
   lon: number
-  /**
-   * Stored convention: 0 = vertical wall, 90 = flat slab. **Null means nobody
-   * has recorded it**, and the caller decides what to substitute — this module
-   * will not invent one, because a defaulted angle that reads like a
-   * measurement is the defect class this repo ships most often.
-   */
-  cliffAngleDeg: number
-  /** The recorded wall, or null. See `EvaluateSeriesOptions.wall`. */
-  wall?: WallOrientation | null
   windowMinScore?: number
 }
 
@@ -142,14 +136,11 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
   const model = input.deterministic.models.find((m) => m.model === THERMAL_MODEL)
   if (model === undefined || model.hours.length === 0) return none('model_unavailable')
 
-  // Crag A, or Wall A when a wall is recorded (`cragModel.ts`). `cliffAngleDeg`
-  // is not read here: without a recorded wall Crag A scores eight vertical
-  // walls, and a recorded wall carries its own angle.
-  const evaluated = evaluateCragModel(toWeatherHours(model), {
+  // Crag A (`cragModel.ts`): the crag's score, whatever wall the location records.
+  const evaluated = evaluateCragA(toWeatherHours(model), {
     rockType: input.rockType,
     lat: input.lat,
     lon: input.lon,
-    wall: input.wall ?? null,
   })
 
   // Every hour, past and future, went into the calculation. Only the published
