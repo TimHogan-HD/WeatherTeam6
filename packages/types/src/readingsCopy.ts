@@ -315,7 +315,8 @@ export const FRICTION_ESTIMATE_NOTE = 'Friction is estimated, not measured';
 
 /**
  * The copy for an hour whose answer depends on a wall orientation nobody has
- * recorded.
+ * recorded. **Unreachable under Crag A**, which reads every direction by design
+ * and marks every reading qualified; kept for whatever surface scores walls.
  *
  * **Deliberately not an upper bound.** Those hours use unscaled horizontal
  * irradiance, which reads a vertical wall hot under a high sun — but a
@@ -552,7 +553,7 @@ export const DEW_POINT_MARGIN_LABEL = 'Dew point margin';
  * there to grip is a judgement no study supports.
  */
 export const FRICTION_MECHANISM =
-  'Friction is estimated from air temperature, humidity and wind. What a sweating hand does to grip has never been measured, so the last step of that estimate is a judgement rather than a finding.';
+  'Friction is estimated from air temperature, dew point and whether the rock sits above its dew point. How much heat, humidity and cold cost in grip has never been measured, so those penalties are judgements rather than findings.';
 
 /**
  * The mechanism behind `UNRECORDED_ASPECT_NOTE`.
@@ -576,7 +577,7 @@ export const UNRECORDED_ASPECT_MECHANISM =
  * a reader to treat the first as an observation.
  */
 export const ROCK_TEMPERATURE_MECHANISM =
-  'Rock temperature is modelled from sun, air temperature and wind — nothing measures the wall itself.';
+  'Rock temperature is modelled for open, flat ground from sun, air temperature and wind — nothing measures the wall itself.';
 
 /**
  * One model, named the way the sources footer names a set of them.

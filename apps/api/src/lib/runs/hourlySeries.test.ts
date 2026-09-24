@@ -426,11 +426,12 @@ describe('buildHourlySeries — offset selection', () => {
   })
 })
 
-describe('buildHourlySeries — a recorded wall reaches the readings', () => {
+describe('buildHourlySeries — a recorded wall never replaces the crag score', () => {
   /**
-   * The plumbing, end to end through the pure half: `scoring.wall` has to get
-   * from the route's `scoringLocationFor` into `evaluateHourlyConditions`. If
-   * any hop drops it, the noon hour stays unqualified and nothing else fails.
+   * Owner decision 2026-09-24: a location's readings are Crag A's, whatever
+   * aspect and angle it records. Wall A scores individual walls and nothing
+   * else. If a recorded wall reached the readings, a north wall would read
+   * cooler at noon than the horizontal series and this would fail.
    */
   const now = new Date('2026-09-08T18:00:00Z')
   const hours: RunHour[] = []
@@ -458,17 +459,21 @@ describe('buildHourlySeries — a recorded wall reaches the readings', () => {
       ensemble: ensRuns([]),
       allModels: false,
       now,
-      scoring: { rockType: 'granite', cliffAngleDeg: 0, wall },
+      scoring: { rockType: 'granite', lat: 36.13, lon: -115.43, cliffAngleDeg: 0, wall },
     })
   const noon = (s: ReturnType<typeof build>) =>
     s.readings?.hours.find((h) => h.valid_at === '2026-09-08T20:00:00.000Z')
 
-  it('qualifies a bright noon hour only when the wall was passed', () => {
-    const without = noon(build(null))
-    const withWall = noon(build({ lat: 36.13, lon: -115.43, aspectDeg: 0, cliffAngleDeg: 0 }))
-    expect(without?.friction?.qualified).toBe(false)
-    expect(withWall?.friction?.qualified).toBe(true)
-    // And the north wall reads cooler than the unscaled horizontal guess.
-    expect(withWall!.t_surface_c!).toBeLessThan(without!.t_surface_c!)
+  it('produces identical readings with and without a recorded wall', () => {
+    const without = build(null)
+    const withWall = build({ lat: 36.13, lon: -115.43, aspectDeg: 0, cliffAngleDeg: -30 })
+    expect(noon(without)?.score).not.toBeNull()
+    expect(withWall.readings).toEqual(without.readings)
+  })
+
+  it('qualifies both readings: Crag A reads every direction by design', () => {
+    const h = noon(build(null))
+    expect(h?.rock?.qualified).toBe(true)
+    expect(h?.friction?.qualified).toBe(true)
   })
 })

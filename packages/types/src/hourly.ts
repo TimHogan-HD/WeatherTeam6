@@ -263,7 +263,9 @@ export type ReadingsDay = {
   /** Null when no run of hours cleared the minimums. */
   window: ConditionsWindow | null;
   /**
-   * The day's best scored hour, **server-chosen**. A client must not pick its
+   * The day's representative hour — the worst hour of its best three-hour run
+   * between 08:00 and 18:00 local — and its score is the day's score.
+   * **Server-chosen**. A client must not pick its
    * own: the rule for which hour represents a day is part of the model, and two
    * surfaces deriving it independently is how the bot and the Mini App drift
    * apart.

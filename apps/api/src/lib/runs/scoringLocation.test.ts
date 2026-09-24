@@ -19,6 +19,8 @@ describe('scoringLocationFor', () => {
   it('substitutes the placeholders and records no wall when nothing was recorded', () => {
     expect(scoringLocationFor(row({ rock_type: null }))).toEqual({
       rockType: 'unknown',
+      lat: 36.13,
+      lon: -115.43,
       cliffAngleDeg: DEFAULT_CLIFF_ANGLE_DEG,
       wall: null,
     })
@@ -29,6 +31,8 @@ describe('scoringLocationFor', () => {
     expect(scoringLocationFor(row({ cliff_angle: '10' }))?.wall).toBeNull()
     expect(scoringLocationFor(row({ aspect: 'SE', cliff_angle: '-15' }))).toEqual({
       rockType: 'sandstone',
+      lat: 36.13,
+      lon: -115.43,
       cliffAngleDeg: -15,
       wall: { lat: 36.13, lon: -115.43, aspectDeg: 135, cliffAngleDeg: -15 },
     })

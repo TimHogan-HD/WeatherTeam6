@@ -79,7 +79,7 @@ async function run(): Promise<void> {
 
   // Any climbing location with a stored run will do — this reads what the cron collected.
   const rows = await db
-    .select({ id: locations.id, name: locations.name })
+    .select({ id: locations.id, name: locations.name, lat: locations.lat, lon: locations.lon })
     .from(locations)
     .limit(25)
 
@@ -108,7 +108,7 @@ async function run(): Promise<void> {
   // Pick the location with the newest stored batch, rather than the first one that has
   // any. With six locations collected together they should be within seconds of each
   // other; if they are not, that is worth seeing.
-  let picked: { id: string; name: string } | null = null
+  let picked: { id: string; name: string; lat: string; lon: string } | null = null
   let deterministic = null as Awaited<ReturnType<typeof loadStoredDeterministic>>
   let ensemble = null as Awaited<ReturnType<typeof loadStoredEnsemble>>
   let newest = 0
@@ -233,7 +233,7 @@ async function run(): Promise<void> {
     // point of this script is the round trip rather than the rock type, so it
     // is scored as an unrecorded kind on the default angle. That is exactly
     // what a user-added location carries today.
-    scoring: { rockType: 'unknown', cliffAngleDeg: 45, wall: null },
+    scoring: { rockType: 'unknown', lat: Number(picked.lat), lon: Number(picked.lon), cliffAngleDeg: 45, wall: null },
   })
 
   check('the series has hours', series.hours.length > 0, `got ${series.hours.length}`)
@@ -294,7 +294,7 @@ async function run(): Promise<void> {
     ensemble: ens,
     allModels: true,
     now,
-    scoring: { rockType: 'unknown', cliffAngleDeg: 45, wall: null },
+    scoring: { rockType: 'unknown', lat: Number(picked.lat), lon: Number(picked.lon), cliffAngleDeg: 45, wall: null },
   })
   const oneByte = Buffer.byteLength(JSON.stringify(series), 'utf8')
   const allByte = Buffer.byteLength(JSON.stringify(allSeries), 'utf8')
