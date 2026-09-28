@@ -5,7 +5,6 @@ import { locations } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
 import { getHourlySeries } from '../lib/runs/fetchHourlySeries.js'
 import { scoringLocationFor } from '../lib/runs/scoringLocation.js'
-import { pointKeyForLocation } from '../lib/runs/pointKey.js'
 import { parseNumeric, parseNumericRequired } from '@weatherteam6/types'
 import type { ApiResponse, HourlySeries } from '@weatherteam6/types'
 
@@ -112,7 +111,6 @@ hourlyRouter.get('/hourly/:locationId', async (req: Request, res: Response) => {
         lon: parseNumericRequired(location.lon),
         elevation_m: parseNumeric(location.elevation_m),
       },
-      pointKeyForLocation(location.id),
       { allModels, scoring },
     )
 

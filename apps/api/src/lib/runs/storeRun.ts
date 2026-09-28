@@ -55,7 +55,6 @@ async function upsertRun(values: typeof weatherRuns.$inferInsert): Promise<strin
     .onConflictDoUpdate({
       target: [weatherRuns.point_key, weatherRuns.model, weatherRuns.fetched_at],
       set: {
-        location_id: values.location_id ?? null,
         kind: values.kind,
         utc_offset_seconds: values.utc_offset_seconds,
         model_elevation_m: values.model_elevation_m ?? null,
@@ -168,12 +167,10 @@ async function storeOneModel(
  */
 export async function storeDeterministicRun(
   point_key: string,
-  location_id: string | null,
   result: DeterministicResult,
 ): Promise<StoredRun[]> {
   const base = {
     point_key,
-    location_id,
     fetched_at: result.fetched_at,
     utc_offset_seconds: result.utc_offset_seconds,
     model_elevation_m: result.model_elevation_m,
@@ -191,12 +188,10 @@ export async function storeDeterministicRun(
 /** Persist one ensemble fetch as a single run whose hours are percentiles. */
 export async function storeEnsembleRun(
   point_key: string,
-  location_id: string | null,
   run: EnsembleRun,
 ): Promise<StoredRun | null> {
   const runId = await upsertRun({
     point_key,
-    location_id,
     model: ENSEMBLE_RUN_MODEL,
     kind: 'ensemble',
     fetched_at: run.fetched_at,

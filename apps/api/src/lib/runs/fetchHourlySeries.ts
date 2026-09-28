@@ -38,14 +38,13 @@ import type { ScoringLocation } from './scoringLocation.js'
  */
 export async function getHourlySeries(
   location: HourlyLocation,
-  pointKey: string,
   opts: { allModels: boolean; now?: Date; scoring: ScoringLocation },
 ): Promise<HourlySeries> {
   const now = opts.now ?? new Date()
 
   const [deterministic, ensemble] = await Promise.all([
-    getDeterministicRuns(location, pointKey, location.id, now),
-    getEnsembleRuns(location, pointKey, location.id, now),
+    getDeterministicRuns(location, now),
+    getEnsembleRuns(location, now),
   ])
 
   return buildHourlySeries({

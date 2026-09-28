@@ -11,6 +11,7 @@ import {
   type ForecastLocation,
   type HourlyPoint,
 } from '../weather/openMeteo.js'
+import { pointKeyForPlace } from './pointKey.js'
 import { ENSEMBLE_RUN_MODEL, storeDeterministicRun, storeEnsembleRun } from './storeRun.js'
 
 /**
@@ -210,17 +211,16 @@ export async function loadStoredDeterministic(
  */
 export async function getDeterministicRuns(
   point: ForecastLocation,
-  pointKey: string,
-  locationId: string | null,
   now: Date = new Date(),
 ): Promise<DeterministicRuns> {
+  const pointKey = pointKeyForPlace(point)
   const stored = await loadStoredDeterministic(pointKey, cutoffFrom(now, RUN_MAX_AGE_MINUTES))
   if (stored !== null) return stored
 
   const result = await fetchDeterministicHourly(point, DETERMINISTIC_MODELS)
 
   try {
-    await storeDeterministicRun(pointKey, locationId, result)
+    await storeDeterministicRun(pointKey, result)
   } catch (err) {
     logger.warn(
       { pointKey, err: err instanceof Error ? err.message : String(err) },
@@ -334,17 +334,16 @@ function asCounts(value: unknown): Record<string, number> {
  */
 export async function getEnsembleRuns(
   point: ForecastLocation,
-  pointKey: string,
-  locationId: string | null,
   now: Date = new Date(),
 ): Promise<EnsembleRuns> {
+  const pointKey = pointKeyForPlace(point)
   const stored = await loadStoredEnsemble(pointKey, cutoffFrom(now, RUN_MAX_AGE_MINUTES))
   if (stored !== null) return stored
 
   const run = await fetchEnsembleRun(point)
 
   try {
-    await storeEnsembleRun(pointKey, locationId, run)
+    await storeEnsembleRun(pointKey, run)
   } catch (err) {
     logger.warn(
       { pointKey, err: err instanceof Error ? err.message : String(err) },
