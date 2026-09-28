@@ -1,6 +1,6 @@
 import { spacing } from '@weatherteam6/design/tokens'
-import { type } from '../theme/tokens.css.js'
-import { row, sourceBadge } from '../theme/styles.js'
+import { typeV2 } from '../theme/tokens.css.js'
+import { stack } from '../theme/styles.js'
 
 /**
  * Required by the locked rule "always quote data sources by name".
@@ -18,14 +18,12 @@ export function SourcesFooter({ sources }: { sources: readonly string[] }) {
   const named = sources.filter((s) => s !== '')
   if (named.length === 0) return null
 
+  // One line of names under a heading, as the v2 frames set it: the badges it
+  // replaced wrapped into a ragged block on a phone.
   return (
-    <footer style={{ ...row(spacing.chipGap), flexWrap: 'wrap', marginTop: `${spacing.sectionTop}px` }}>
-      <span style={type.label}>Sources</span>
-      {named.map((source) => (
-        <span key={source} style={{ ...sourceBadge, ...type.sourceBadge }}>
-          {source}
-        </span>
-      ))}
+    <footer style={{ ...stack(spacing.tight), marginTop: `${spacing.sectionTop}px` }}>
+      <span style={typeV2.footerLabel}>Sources</span>
+      <p style={typeV2.note}>{named.join(' · ')}</p>
     </footer>
   )
 }

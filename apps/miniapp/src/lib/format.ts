@@ -17,6 +17,16 @@ export function formatTempRangeF(lowC: number | null, highC: number | null): str
 }
 
 /**
+ * A temperature as `66°`, for a place where the unit is already on screen —
+ * the hero's high and low under its `62°F`, and the hour cells. An em dash for
+ * `null`, never `32°`.
+ */
+export function formatTempDeg(c: number | null): string {
+  if (c === null || !Number.isFinite(c)) return EM_DASH
+  return `${Math.round(cToF(c))}°`
+}
+
+/**
  * §5's stale/offline line. `updatedAt` is React Query's `dataUpdatedAt`, which
  * is 0 until something has actually loaded — that case renders nothing rather
  * than "Updated 56 years ago".
@@ -81,6 +91,19 @@ export function formatLocalHour(t: number, utcOffsetSeconds: number): string | n
   const suffix = hour < 12 ? 'AM' : 'PM'
   const twelve = hour % 12 === 0 ? 12 : hour % 12
   return `${twelve} ${suffix}`
+}
+
+/**
+ * The same hour as a 24-hour clock, `13:00` — the hero's "Conditions now"
+ * stamp, where the reading is a time rather than a tick. Same rules: the
+ * location's offset, and `null` rather than `NaN:00`.
+ */
+export function formatLocalClock(t: number, utcOffsetSeconds: number): string | null {
+  if (!Number.isFinite(t) || !Number.isFinite(utcOffsetSeconds)) return null
+  const shifted = new Date(t + utcOffsetSeconds * 1000)
+  const hh = String(shifted.getUTCHours()).padStart(2, '0')
+  const mm = String(shifted.getUTCMinutes()).padStart(2, '0')
+  return `${hh}:${mm}`
 }
 
 /**

@@ -6,8 +6,14 @@ describe('backTarget', () => {
     expect(backTarget({ route: 'list' })).toBeNull()
   })
 
-  it('leaves a saved location for the list from the Daily tab', () => {
-    expect(backTarget({ route: 'detail', tab: 'daily' })).toEqual({ kind: 'navigate', to: '/' })
+  it('leaves a saved location for the list from the Overview tab', () => {
+    expect(backTarget({ route: 'detail', tab: 'overview' })).toEqual({ kind: 'navigate', to: '/' })
+  })
+
+  it('steps back to Overview from Daily, Rock and Crag', () => {
+    for (const tab of ['daily', 'rock', 'crag'] as const) {
+      expect(backTarget({ route: 'detail', tab })).toEqual({ kind: 'showTab', tab: 'overview' })
+    }
   })
 
   /**
@@ -17,7 +23,7 @@ describe('backTarget', () => {
    * way the user loses the screen they are reading to dismiss a tab.
    */
   it('pops the Hourly tab rather than leaving the location', () => {
-    expect(backTarget({ route: 'detail', tab: 'hourly' })).toEqual({ kind: 'showDailyTab' })
+    expect(backTarget({ route: 'detail', tab: 'hourly' })).toEqual({ kind: 'showTab', tab: 'daily' })
   })
 
   it('leaves the add flow for the list from the search step', () => {
@@ -42,7 +48,10 @@ describe('backTarget', () => {
    */
   it('gives every non-root context a back action', () => {
     const actions = [
+      backTarget({ route: 'detail', tab: 'overview' }),
       backTarget({ route: 'detail', tab: 'daily' }),
+      backTarget({ route: 'detail', tab: 'rock' }),
+      backTarget({ route: 'detail', tab: 'crag' }),
       backTarget({ route: 'detail', tab: 'hourly' }),
       backTarget({ route: 'add', previewing: false }),
       backTarget({ route: 'add', previewing: true }),

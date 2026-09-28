@@ -10,7 +10,8 @@
  * | Route | Back |
  * | --- | --- |
  * | `/` list | hidden |
- * | `/location/:id`, Daily tab | `/` |
+ * | `/location/:id`, Overview tab | `/` |
+ * | `/location/:id`, Daily, Rock or Crag tab | the Overview tab |
  * | `/location/:id`, Hourly tab | the Daily tab — **not** the list |
  * | `/add` search | `/` |
  * | `/add` preview | the search, with its query and results intact |
@@ -43,7 +44,7 @@ export type BackContext =
  * describes, just with the destination wrong instead of the count.
  */
 export type Navigate = { kind: 'navigate'; to: string }
-export type DetailBack = Navigate | { kind: 'showDailyTab' }
+export type DetailBack = Navigate | { kind: 'showTab'; tab: DetailTab }
 export type AddBack = Navigate | { kind: 'closePreview' }
 
 export type BackAction = null | DetailBack | AddBack
@@ -67,7 +68,10 @@ export function backTarget(context: BackContext): BackAction {
     case 'list':
       return null
     case 'detail':
-      return context.tab === 'hourly' ? { kind: 'showDailyTab' } : { kind: 'navigate', to: '/' }
+      // Hourly is where a Daily row drills down to, so back returns there; every
+      // other tab steps back to Overview, and only Overview leaves the location.
+      if (context.tab === 'overview') return { kind: 'navigate', to: '/' }
+      return { kind: 'showTab', tab: context.tab === 'hourly' ? 'daily' : 'overview' }
     case 'add':
       return context.previewing ? { kind: 'closePreview' } : { kind: 'navigate', to: '/' }
   }

@@ -99,8 +99,9 @@ export const colors = {
  * a lighter tone for text set on that hue's own tint, where the base hue reads
  * dim.
  *
- * `poorInk` is not in the Figma file, which shows no poor score; it is `poor`
- * lightened by the same step `goodInk` and `fairInk` take from theirs.
+ * `poorInk` was first derived by lightening `poor`, when the Locations frame
+ * showed no poor score; the Overview frame's day pill draws one, and `poorInk`
+ * is now its colour.
  */
 export const colorsV2 = {
   /** Screen ground. */
@@ -120,7 +121,61 @@ export const colorsV2 = {
   /** Text on a `fair` tint. */
   fairInk: '#f8bd72',
   /** Text on a `poor` tint. */
-  poorInk: '#fda4a4',
+  poorInk: '#ff8b91',
+  /** A well inside a card: the hour cells of the Overview's Today strip. */
+  raised: '#1f2833',
+  /** Secondary text on a tinted surface: the hero's high/low and weather line. */
+  txt2: '#cfdad2',
+  /** An unselected tab. */
+  txtTab: '#7d8997',
+  /** Chance of rain, as a figure. */
+  rain: '#90cdf4',
+} as const;
+
+/**
+ * The status ladder as **surfaces**: each rung's tinted card, row and pill,
+ * from the Overview frame of the WT6 Figma "V2" page.
+ *
+ * Opaque, not `withOpacity` over the ground: the Figma's values are hand-picked
+ * and a computed tint lands visibly off them. `good` is the Figma's own. The
+ * frame draws `fair` and `poor` only as the day row and its pill; their `hero`
+ * and `heroMuted` are the row tint and a neutral muted ink, since the frame
+ * shows no hero on either rung.
+ */
+export const toneSurfacesV2 = {
+  good: {
+    hero: '#132a1f',
+    heroLine: 'rgba(184,245,66,0.35)',
+    heroRule: '#2a4034',
+    heroMuted: '#93a69a',
+    heroBand: 'rgba(184,245,66,0.13)',
+    row: '#111d18',
+    pill: '#213d28',
+    pillLine: '#3e6b43',
+    pillInk: '#b8f542',
+  },
+  fair: {
+    hero: '#1d1912',
+    heroLine: 'rgba(246,173,85,0.35)',
+    heroRule: '#40331f',
+    heroMuted: '#a69a8a',
+    heroBand: 'rgba(246,173,85,0.13)',
+    row: '#1d1912',
+    pill: '#3a2b17',
+    pillLine: '#7a5727',
+    pillInk: '#f8bd72',
+  },
+  poor: {
+    hero: '#211416',
+    heroLine: 'rgba(252,129,129,0.35)',
+    heroRule: '#40262a',
+    heroMuted: '#a68e91',
+    heroBand: 'rgba(252,129,129,0.13)',
+    row: '#211416',
+    pill: '#432126',
+    pillLine: '#7a3438',
+    pillInk: '#ff8b91',
+  },
 } as const;
 
 export const uvScale = [
@@ -447,6 +502,169 @@ export const typeV2 = {
     fontSize: 11,
     fontWeight: '600' as const,
   },
+
+  // ── Detail screen — the Overview frame ──
+
+  /** "‹ Locations": Barlow 14/500. */
+  backLink: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: colorsV2.txtMuted,
+  },
+  /** A tab label: Barlow 15/600. Colour is the tab's state. */
+  tab: {
+    fontFamily: fonts.body,
+    fontSize: 15,
+    fontWeight: '600' as const,
+  },
+  /** A card's uppercase kicker — "Conditions now · 13:00": Barlow Condensed 12/600, tracking 0.1em. */
+  kicker: {
+    fontFamily: fonts.display,
+    fontSize: 12,
+    fontWeight: '600' as const,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase' as const,
+  },
+  /** The hero's present temperature: Plex Mono 46/500. */
+  heroTemp: {
+    fontFamily: fonts.mono,
+    fontSize: 46,
+    fontWeight: '500' as const,
+    lineHeight: 52,
+    color: colorsV2.txt1,
+  },
+  /** The hero's labelled high and low: Plex Mono 13/400. */
+  heroHiLo: {
+    fontFamily: fonts.mono,
+    fontSize: 13,
+    fontWeight: '400' as const,
+    color: colorsV2.txt2,
+  },
+  /** Running text on a card — the hero's weather line: Barlow 14/400. */
+  body: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    fontWeight: '400' as const,
+    color: colorsV2.txt2,
+  },
+  /** A gauge's label — "Dryness": Barlow 12/500. */
+  gaugeLabel: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    fontWeight: '500' as const,
+  },
+  /** A gauge's word — "Dry": Barlow 26/600. */
+  gaugeWord: {
+    fontFamily: fonts.body,
+    fontSize: 26,
+    fontWeight: '600' as const,
+    lineHeight: 31,
+    color: colorsV2.txt1,
+  },
+  /** A gauge's figure — the score: Plex Mono 26/500. */
+  gaugeFigure: {
+    fontFamily: fonts.mono,
+    fontSize: 26,
+    fontWeight: '500' as const,
+    lineHeight: 31,
+  },
+  /** A band's label — "Good hours": Barlow 14/500. */
+  bandLabel: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: colorsV2.txt2,
+  },
+  /** A band's value — "All day": Barlow 16/600. */
+  bandValue: {
+    fontFamily: fonts.body,
+    fontSize: 16,
+    fontWeight: '600' as const,
+  },
+  /** Caveats, captions and the sources footer: Barlow 12/400, 17 leading. */
+  note: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    fontWeight: '400' as const,
+    lineHeight: 17,
+    color: colorsV2.txtMuted,
+  },
+  /** A disclosure control — "Measurements": Barlow 13/500. */
+  disclosure: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    fontWeight: '500' as const,
+    color: colorsV2.txt2,
+  },
+  /** A card's title — "Today": Barlow 17/600. */
+  cardTitle: {
+    fontFamily: fonts.body,
+    fontSize: 17,
+    fontWeight: '600' as const,
+    color: colorsV2.txt1,
+  },
+  /** A card's link to a tab — "Hourly ›": Barlow 14/600, lime. */
+  cardLink: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: colors.good,
+  },
+  /** An hour cell's clock label: Plex Mono 11/400. */
+  cellHour: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    fontWeight: '400' as const,
+    color: colorsV2.txtMuted,
+  },
+  /** An hour cell's temperature: Plex Mono 16/500. */
+  cellFigure: {
+    fontFamily: fonts.mono,
+    fontSize: 16,
+    fontWeight: '500' as const,
+    color: colorsV2.txt1,
+  },
+  /** An hour cell's reading word: Barlow 12/500. */
+  cellWord: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    fontWeight: '500' as const,
+  },
+  /** A day row's date — "Thursday · 9/24": Barlow 14/600. */
+  rowTitle: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: colorsV2.txt1,
+  },
+  /** A day row's pill — "Score 82": Plex Mono 12/500. */
+  rowPill: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    fontWeight: '500' as const,
+  },
+  /** A fact's label — "Last rain": Barlow 14/500. */
+  factLabel: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: colorsV2.txtMuted,
+  },
+  /** A fact's value — "about 41 h ago": Plex Mono 14/500. */
+  factValue: {
+    fontFamily: fonts.mono,
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: colorsV2.txt1,
+  },
+  /** A footer's heading — "Sources": Barlow 12/500. */
+  footerLabel: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    fontWeight: '500' as const,
+    color: colorsV2.txtMuted,
+  },
 } as const;
 
 // ─────────────────────────────────────────────
@@ -490,6 +708,10 @@ export const spacing = {
   sectionGap: 16,
   /** v2 card-to-card gap */
   listGapLg: 12,
+  /** v2 hero card padding */
+  heroPad: 18,
+  /** v2 gap between tab labels */
+  tabGap: 20,
 } as const;
 
 // ─────────────────────────────────────────────
@@ -501,6 +723,10 @@ export const radius = {
   card: 10,
   /** v2 card radius */
   cardV2: 16,
+  /** v2 hero card radius */
+  heroV2: 18,
+  /** v2 row inside a card — a day row */
+  rowV2: 12,
   /** Large card variant */
   cardLg: 11,
   /** Inner element radius */
