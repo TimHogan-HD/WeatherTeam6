@@ -166,14 +166,14 @@ describe('HourlyChart, hour axis', () => {
 
   /** Every axis label, in order, with the x it was placed at. */
   function tickLabels(markup: string): { at: string; label: string }[] {
-    return [...markup.matchAll(/left:([\d.]+)%[^>]*>([\d]{1,2}[ap])</g)].map((m) => ({
+    return [...markup.matchAll(/left:([\d.]+)%[^>]*>(\d{2})</g)].map((m) => ({
       at: m[1] ?? '',
       label: m[2] ?? '',
     }))
   }
 
   it('ticks on the location clock, not on UTC', () => {
-    // **The labels are the same four strings either way** — 12a, 6a, 12p, 6p
+    // **The labels are the same four strings either way** — 00, 06, 12, 18
     // — so asserting on their text proves nothing at all. What moves is
     // *where* they sit: at UTC-5 the six-hourly local boundaries are the UTC
     // 05/11/17/23 samples, five hours along from where UTC puts them. A chart
@@ -182,12 +182,12 @@ describe('HourlyChart, hour axis', () => {
     const shifted = tickLabels(renderHours(oneDay(), -5 * 3600))
     const utc = tickLabels(renderHours(oneDay(), 0))
 
-    expect(utc.map((t) => t.label)).toEqual(['12a', '6a', '12p', '6p'])
+    expect(utc.map((t) => t.label)).toEqual(['00', '06', '12', '18'])
     // One fewer at UTC-5: all four ticks are ruled, but the last sits close
     // enough to the right edge that its label would run off the chart, so the
     // overflow guard drops it. The rule stays. Compact labels did not change
     // this — the tick is five hours further right, not merely wider.
-    expect(shifted.map((t) => t.label)).toEqual(['12a', '6a', '12p'])
+    expect(shifted.map((t) => t.label)).toEqual(['00', '06', '12'])
     expect(shifted.map((t) => t.at)).not.toEqual(utc.map((t) => t.at))
     // Five hours of a 24-hour window, as a percentage of the plot.
     expect(Number(shifted[0]?.at) - Number(utc[0]?.at)).toBeCloseTo((5 / 24) * (301 / 335) * 100, 1)

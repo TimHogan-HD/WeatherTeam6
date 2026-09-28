@@ -69,12 +69,6 @@ export const chartColors = {
   temperatureBand: withOpacity(colors.sun, 0.18),
   /** Rainfall bars, before the intensity ramp colours each one. */
   rain: colors.rain,
-  /** Day boundaries and the bar baseline. */
-  grid: colors.line,
-  /** Value labels — the palette's label step. */
-  valueLabel: colors.txt4,
-  /** Time-axis ticks, which `colors.txt5` is reserved for and nothing else uses. */
-  timeLabel: colors.txt5,
   /**
    * The diverging temperature ramp's midpoint — an ink neutral, as a diverging
    * scale's middle must be. `txt2` rather than a dimmer step because this one is

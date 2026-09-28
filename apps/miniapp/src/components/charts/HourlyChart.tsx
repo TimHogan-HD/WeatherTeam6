@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useState } from 'react'
 import { colors, radius, spacing } from '@weatherteam6/design/tokens'
 import { extent, linearScale, niceTicks, padExtent, type Extent } from './geometry.js'
 import { dayStarts, timeExtent, valueExtent, HOUR_MS, type SeriesDatum } from './hourlySeries.js'
@@ -15,8 +15,9 @@ import {
   VALUE_TICKS,
   VIEW_W,
   chartColors,
+  chartColorsV2,
 } from './chartStyle.js'
-import { type } from '../../theme/tokens.css.js'
+import { type, typeV2 } from '../../theme/tokens.css.js'
 import { formatWeekday } from '../../lib/forecast.js'
 import { formatLocalHour24, formatLocalHourShort } from '../../lib/format.js'
 
@@ -26,7 +27,7 @@ import { formatLocalHour24, formatLocalHourShort } from '../../lib/format.js'
  * **The labels are HTML positioned over the SVG, not `<text>` inside it.** The
  * SVG scales with the device width, and a `<text>` scales with it — the type
  * tokens would arrive at whatever size the viewport happened to imply. Outside,
- * they wear `type.label` and are the size the design system says they are.
+ * they wear `typeV2.axisTick` and are the size the design system says they are.
  *
  * Returns `null` when there is nothing to draw. An empty frame with axes reads
  * as "no rain, no wind, nothing happening"; the caller says why it is empty.
@@ -59,12 +60,6 @@ export type HourlyChartProps = {
    * window is a visible column rather than a zero-width rule.
    */
   shade?: { from: number; to: number; color: string }
-  /**
-   * The v2 look for the axes: tick labels in this style, the hours as `06`
-   * rather than `6a`, and gridlines in `gridColor`. Omitted, the chart keeps
-   * the v1 look the seven-day strip still wears.
-   */
-  v2?: { labelStyle: CSSProperties; gridColor: string }
   colorForValue?: (value: number) => string
   /** Takes the canonical metric value and writes the displayed unit. */
   formatValue: (value: number | null) => string
@@ -157,13 +152,12 @@ function verticalDomain(data: readonly SeriesDatum[], kind: SeriesKind): Extent 
 function hourTicks(
   data: readonly SeriesDatum[],
   utcOffsetSeconds: number,
-  write: (t: number, utcOffsetSeconds: number) => string | null,
 ): { key: string; t: number; label: string }[] {
   const out: { key: string; t: number; label: string }[] = []
   for (const d of data) {
     const shifted = new Date(d.t + utcOffsetSeconds * 1000)
     if (shifted.getUTCHours() % HOUR_TICK_STEP !== 0) continue
-    const label = write(d.t, utcOffsetSeconds)
+    const label = formatLocalHour24(d.t, utcOffsetSeconds)
     if (label === null) continue
     out.push({ key: `${d.localDate}-${shifted.getUTCHours()}`, t: d.t, label })
   }
@@ -179,7 +173,6 @@ export function HourlyChart({
   bandData,
   overlay,
   shade,
-  v2,
   colorForValue,
   formatValue,
   title,
@@ -259,7 +252,7 @@ export function HourlyChart({
     axis === 'hour'
       ? utcOffsetSeconds === undefined
         ? []
-        : hourTicks(data, utcOffsetSeconds, v2 === undefined ? formatLocalHourShort : formatLocalHour24)
+        : hourTicks(data, utcOffsetSeconds)
       : dayStarts(data).map((d) => ({
           key: d.localDate,
           t: d.t,
@@ -277,7 +270,6 @@ export function HourlyChart({
   const unit = axis === 'hour' ? 'hour' : 'day'
   const summary = `${title}: ${formatValue(measured.min)} to ${formatValue(measured.max)} over ${covered} ${covered === 1 ? unit : `${unit}s`}.`
 
-  const gridStroke = v2?.gridColor ?? chartColors.grid
   const pctX = (value: number): string => `${(value / VIEW_W) * 100}%`
   const pctY = (value: number): string => `${(value / viewHeight) * 100}%`
 
@@ -425,7 +417,7 @@ export function HourlyChart({
             // SVG does not clip.
             y1={yDisplay(value)}
             y2={yDisplay(value)}
-            stroke={gridStroke}
+            stroke={chartColorsV2.grid}
             strokeWidth={GRID_W}
             vectorEffect="non-scaling-stroke"
           />
@@ -444,7 +436,7 @@ export function HourlyChart({
               x2={at}
               y1={PAD_TOP}
               y2={plotBottom}
-              stroke={gridStroke}
+              stroke={chartColorsV2.grid}
               strokeWidth={GRID_W}
               vectorEffect="non-scaling-stroke"
             />
@@ -498,7 +490,7 @@ export function HourlyChart({
         <span
           key={`value-label-${value}`}
           style={{
-            ...(v2?.labelStyle ?? { ...type.label, color: chartColors.valueLabel }),
+            ...typeV2.axisTick,
             position: 'absolute',
             left: 0,
             // Same scale as the rule it labels — see the note on the gridline.
@@ -550,7 +542,7 @@ export function HourlyChart({
           <span
             key={`label-${tick.key}`}
             style={{
-              ...(v2?.labelStyle ?? { ...type.label, color: chartColors.timeLabel }),
+              ...typeV2.axisTick,
               position: 'absolute',
               left: pctX(at),
               top: pctY(plotBottom),
