@@ -174,8 +174,8 @@ Crag** — and opens on Overview: the Conditions now hero, **Today** (09-21 ever
 hours, temperature and the friction word), **Next 3 days** (each day's Crag A score as a
 tinted pill), and **Rain** (last rain, next likely rain). Rock holds the drying card and
 Crag the identity block until their own V2 frames are built; a city gets Overview, Daily
-and Hourly only. Daily and Hourly are unchanged and have V2 frames of their own still to
-build. Deliberate departures from the frame:
+and Hourly only. Daily is built to its own frame (below); Hourly is unchanged and has a
+V2 frame still to build. Deliberate departures from the frame:
 
 - **The day pills are the Crag A day score** (`readings.days[].best`), joined on date and
   suppressed through `summarizeReadings` — never the forecast row's `score`, which is the
@@ -190,6 +190,25 @@ build. Deliberate departures from the frame:
   are wet**, and prints that day's peak hourly share. With none, it says *None through
   <last day reached>*; with no chance data, the row is omitted.
 - **The high and low read `High 66°`**, as drawn, beside the `°F` of the large figure.
+
+**Daily tab — superseded 2026-09-28 by the same page's `v2 Dark - Daily` frame (node
+`129:363`).** One card, **Next N days** (N is the rows actually shown), holding a row per
+day: the date and the day's Crag A score as a pill, over three chips — the low and high,
+the rain chance and amount, the peak wind. Rows are tinted by the score's rung and open
+that day's hours when the charts can draw it. **The metric toggle and the shared-scale
+range bars are gone**, and the seven-day hourly strip stays under the card, where the
+ensemble's spread is still drawn. Deliberate departures from the frame:
+
+- **The pill is the Overview's**: the Crag A day score through `summarizeReadings`, so it
+  is dropped under a Severe+ alert and while alerts load, and wears `SCORE_BANDS` rather
+  than the frame's amber/red.
+- **The rain chance is the likeliest hour's share of wet members**, labelled as such in the
+  key under the rows; with no wet count it is left off rather than printed as `0%`. The
+  amount is `precip_mm_p50` through `formatPrecipIn`, so a dry day reads `0 in`.
+- **The frame's `1 scale · 7 days` caption is dropped** — nothing on the card is drawn to a
+  scale now. A key under the rows says what each chip is.
+- **Chips have 6px sides, not 8**, so a 375px phone fits all three on one line; at 360px
+  they wrap to a second line.
 
 ~~One scroll, no internal tabs~~ — **superseded 2026-09-14 and shipped.** The screen now
 carries **Daily and Hourly tabs**, and the daily rows carry per-day scores, both reversed
@@ -206,7 +225,7 @@ and sits between the banner and the hero. Item 3 below now reads "the Daily tab"
 
 1. **Alert banner** — full-width, top, if any active alert. Event, severity, and the NWS headline. Above everything, always.
 2. **Today** — the hero. Today's high, max wind, humidity, and hours since rain, as labeled values. **Hours since rain is capped in display — see the rule below.**
-3. **7-day forecast** — now **the Daily tab**: one row per day, each tappable into that day's hours, with a metric toggle (temperature, rain, wind, climbing score) and a range bar on a scale shared by all seven rows. ~~**Weather only — no per-day score chip.**~~ **Reversed 2026-09-14** by Decision 2 of the dataviz handoff: `/forecast/:id` now returns per-day scores and the Daily rows render them. The constraint below explains why it *used* to say that; the reason it gave — that no endpoint returned them — is no longer true.
+3. **7-day forecast** — now **the Daily tab**: one row per day, each tappable into that day's hours. ~~With a metric toggle and a range bar on a scale shared by all seven rows~~ — **replaced 2026-09-28** by the V2 Daily card above: tinted rows with a score pill and three figure chips. ~~**Weather only — no per-day score chip.**~~ **Reversed 2026-09-14** by Decision 2 of the dataviz handoff: `/forecast/:id` now returns per-day scores and the Daily rows render them. The constraint below explains why it *used* to say that; the reason it gave — that no endpoint returned them — is no longer true.
 4. **Score and breakdown** — last section, collapsed by default. Today's score only, with the five components and their weights. This is where a score is allowed to be prominent, because the user has scrolled to it deliberately. **Omitted entirely when `is_climbing_location` is false — see the rule below.**
 5. **Sources footer** — required by the locked rule "always quote data sources by name." **Nothing in this list may be hardcoded**, because two of the three sources vary per request:
 

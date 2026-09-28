@@ -123,35 +123,58 @@ export function dayTitle(isoDate: string): string | null {
 export function nextDays(
   forecast: readonly ForecastSnapshot[],
   todayDate: string,
-  readings: {
-    days: readonly ReadingsDay[]
-    utcOffsetSeconds: number
-    severeAlertEvent: string | null
-    alertsPending: boolean
-  } | null,
+  readings: DayReadings | null,
   count = 3,
 ): NextDay[] {
-  const out: NextDay[] = []
   const rows = [...forecast]
     .filter((row) => row.forecast_date > todayDate)
     .sort((a, b) => a.forecast_date.localeCompare(b.forecast_date))
     .slice(0, count)
+  return scoredDays(rows, readings)
+}
 
+/**
+ * What a day's score is read from: the hourly response's per-day readings,
+ * and the two alert facts `summarizeReadings` suppresses the number on.
+ * `null` for a city, the `/add` preview, and while `/hourly` is in flight —
+ * every one of which gives rows with no score rather than an invented one.
+ */
+export type DayReadings = {
+  days: readonly ReadingsDay[]
+  utcOffsetSeconds: number
+  severeAlertEvent: string | null
+  alertsPending: boolean
+}
+
+/**
+ * The day's Crag A score, **suppressed exactly as every other surface
+ * suppresses it** — through `summarizeReadings`, so a Severe+ alert or an
+ * alerts query still in flight drops the number here as it does on the hero.
+ * Joined on the date, never on position.
+ */
+function dayScore(localDate: string, readings: DayReadings | null): number | null {
+  const day = readings?.days.find((d) => d.local_date === localDate) ?? null
+  if (readings === null || day === null) return null
+  return summarizeReadings({
+    reading: day.best,
+    window: day.window,
+    utcOffsetSeconds: readings.utcOffsetSeconds,
+    severeAlertEvent: readings.severeAlertEvent,
+    alertsPending: readings.alertsPending,
+    unavailableReason: null,
+  }).score
+}
+
+/** Forecast rows, in the order given, as titled days carrying their suppressed score. */
+export function scoredDays(
+  rows: readonly ForecastSnapshot[],
+  readings: DayReadings | null,
+): NextDay[] {
+  const out: NextDay[] = []
   for (const row of rows) {
     const title = dayTitle(row.forecast_date)
     if (title === null) continue
-    const day = readings?.days.find((d) => d.local_date === row.forecast_date) ?? null
-    const score =
-      readings === null || day === null
-        ? null
-        : summarizeReadings({
-            reading: day.best,
-            window: day.window,
-            utcOffsetSeconds: readings.utcOffsetSeconds,
-            severeAlertEvent: readings.severeAlertEvent,
-            alertsPending: readings.alertsPending,
-            unavailableReason: null,
-          }).score
+    const score = dayScore(row.forecast_date, readings)
     out.push({
       local_date: row.forecast_date,
       title,

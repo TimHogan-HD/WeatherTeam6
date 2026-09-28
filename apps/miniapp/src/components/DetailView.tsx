@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { spacing } from '@weatherteam6/design/tokens'
 import type {
   ConditionsScore,
@@ -22,7 +22,7 @@ import { ConditionsNow } from './ConditionsNow.js'
 import { SourcesFooter } from './SourcesFooter.js'
 import { InlineError, Skeleton } from './States.js'
 import { DryingCard } from './DryingCard.js'
-import { DailyList, type DailyMetric } from './DailyList.js'
+import { DailyList } from './DailyList.js'
 import { LocationIdentity } from './LocationIdentity.js'
 import type { HeaderTab } from './DetailHeader.js'
 import { OverviewTab } from './OverviewTab.js'
@@ -39,8 +39,9 @@ import { TEMP_VIEW_H } from './charts/chartStyle.js'
  *
  * - **Overview** — the Conditions now hero, today by the hour, the next three
  *   days' scores, and rain. Built to its V2 frame.
- * - **Daily** and **Hourly** — the seven-day list and the day charts, as they
- *   were. Their own V2 frames are later work.
+ * - **Daily** — the seven days as tinted rows, built to its V2 frame, with the
+ *   seven-day hourly strip under them.
+ * - **Hourly** — the day charts, as they were. Its V2 frame is later work.
  * - **Rock** — the drying card; **Crag** — the identity block and its walls.
  *   Both hold the content that used to sit above the old two tabs, so nothing
  *   left the screen when Overview arrived. Their V2 frames are later work too.
@@ -131,8 +132,8 @@ export type DetailViewProps = {
   location?: Location
 }
 
-/** The seven daily rows' height, held open while the forecast loads on the Daily tab. */
-const DAILY_H = 320
+/** The Next 7 days card's height (the V2 frame's 685), held open while the forecast loads on the Daily tab. */
+const DAILY_H = 685
 
 export type DetailTab = 'overview' | 'daily' | 'hourly' | 'rock' | 'crag'
 
@@ -182,7 +183,6 @@ export function DetailView({
   walls,
   location,
 }: DetailViewProps) {
-  const [metric, setMetric] = useState<DailyMetric>('temperature')
   const alertEvent = severeAlertEvent(alerts?.data)
   const alertsPending = alerts?.isPending === true
   const showScore = !unsaved && isClimbingLocation
@@ -233,6 +233,18 @@ export function DetailView({
     />
   )
 
+  // The day scores the Daily rows wear — only for a scored location, and only
+  // once `/hourly` has answered; until then the rows carry no pill.
+  const dayReadings =
+    showScore && hourly?.data !== undefined
+      ? {
+          days: hourly.data.readings?.days ?? [],
+          utcOffsetSeconds: hourly.data.utc_offset_seconds,
+          severeAlertEvent: alertEvent,
+          alertsPending,
+        }
+      : null
+
   const daily =
     // The rows share the forecast query with the hero, which has already said
     // what went wrong. A second copy of the same error reads as two failures —
@@ -247,10 +259,8 @@ export function DetailView({
       <>
         <DailyList
           days={forecast.data}
-          metric={metric}
-          onMetricChange={setMetric}
-          showScoreMetric={showScore}
-          {...(hourly?.data === undefined ? {} : { hourly: hourly.data })}
+          readings={dayReadings}
+          hours={hourly?.data?.hours ?? []}
           {...(tabs === undefined || drawableDates === undefined
             ? {}
             : {

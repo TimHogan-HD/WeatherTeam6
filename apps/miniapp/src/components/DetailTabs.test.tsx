@@ -189,7 +189,7 @@ describe('DetailView — tabs', () => {
 
   it('shows the daily rows on Daily and the day charts on Hourly', () => {
     const daily = render({ active: 'daily' })
-    expect(daily).toContain('Next 7 days')
+    expect(daily).toMatch(/>Next [0-9]+ days?</)
     // **The continuous seven-day strip lives here, not on Hourly.** It is a
     // chart about comparing days, which is what this tab is for; on Hourly it
     // answered a question that tab does not ask and pushed the charts that do
@@ -197,7 +197,7 @@ describe('DetailView — tabs', () => {
     expect(daily).toContain('Hour by hour')
 
     const hourly = render({ active: 'hourly' })
-    expect(hourly).not.toContain('Next 7 days')
+    expect(hourly).not.toMatch(/>Next [0-9]+ days?</)
     expect(hourly).not.toContain('Hour by hour')
     // One day, named in full by the pager, with its four charts.
     expect(hourly).toContain('Mon, Sep 14')
@@ -350,7 +350,7 @@ describe('DetailView — tabs', () => {
         }}
       />,
     )
-    expect(html).toContain('Next 7 days')
+    expect(html).toMatch(/>Next [0-9]+ days?</)
     expect(html).not.toContain('can&#x27;t be opened')
   })
 
@@ -389,7 +389,7 @@ describe('DetailView — tabs', () => {
       <DetailView unsaved isClimbingLocation asosStation={null} forecast={ok([day(DAY_1)])} />,
     )
     expect(html).not.toContain('role="tablist"')
-    expect(html).toContain('Next 7 days')
+    expect(html).toMatch(/>Next [0-9]+ days?</)
   })
 })
 
