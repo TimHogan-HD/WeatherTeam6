@@ -9,6 +9,7 @@ import type {
   Wall,
   WeatherAlert,
 } from '@weatherteam6/types'
+import { RECENT_PRECIP_SOURCE_LABEL } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { stack } from '../theme/styles.js'
 import {
@@ -26,12 +27,13 @@ import { DailyList } from './DailyList.js'
 import { LocationIdentity } from './LocationIdentity.js'
 import type { HeaderTab } from './DetailHeader.js'
 import { OverviewTab } from './OverviewTab.js'
+import { PrecipTab } from './PrecipTab.js'
 import { DayCharts } from './charts/DayCharts.js'
 import { dayIsDrawable } from './charts/hourlySeries.js'
 import { TEMP_VIEW_H } from './charts/chartStyle.js'
 
 /**
- * The detail screen's body: **Overview, Daily, Hourly, Rock and Crag tabs**,
+ * The detail screen's body: **Overview, Daily, Hourly, Precip, Rock and Crag tabs**,
  * from the WT6 Figma "V2" page, with the alert banner above them and the
  * sources footer below. The header band and its tab bar are the route's
  * (`DetailHeader`), because back has to be able to change the tab.
@@ -41,6 +43,9 @@ import { TEMP_VIEW_H } from './charts/chartStyle.js'
  * - **Daily** — the seven days as tinted rows, built to its V2 frame.
  * - **Hourly** — a chip per day, the open day's readings and friction by the
  *   hour, then its charts. Built to its V2 frame.
+ * - **Precip** — the past week's precipitation: its total, its events and a
+ *   bar per day, from the Figma "Precipitation history" frame. Every saved
+ *   location has one; a city had rain too.
  * - **Rock** — the drying card; **Crag** — the identity block and its walls.
  *   Both hold the content that used to sit above the old two tabs, so nothing
  *   left the screen when Overview arrived. Their V2 frames are later work too.
@@ -117,13 +122,15 @@ export type DetailViewProps = {
     }
   }
   /**
-   * The past few days' rainfall, for the drying card. Absent on the preview
-   * path, which has no saved row for the endpoint to read coordinates from.
+   * The past week's precipitation, for the Precip tab and the drying card.
+   * Absent on the preview path, which has no saved row for the endpoint to read
+   * coordinates from.
    */
   recentPrecip?: {
     data: RecentPrecip | undefined
     isPending: boolean
     isError: boolean
+    refetch: () => void
   }
   /** The crag's named walls, for the Crag tab. Absent on the preview path. */
   walls?: readonly Wall[]
@@ -134,7 +141,7 @@ export type DetailViewProps = {
 /** The Next 7 days card's height (the V2 frame's 685), held open while the forecast loads on the Daily tab. */
 const DAILY_H = 685
 
-export type DetailTab = 'overview' | 'daily' | 'hourly' | 'rock' | 'crag'
+export type DetailTab = 'overview' | 'daily' | 'hourly' | 'precip' | 'rock' | 'crag'
 
 /**
  * The tabs a location offers. A city gets no Rock or Crag — there is nothing
@@ -146,6 +153,7 @@ export function detailTabs(isClimbingLocation: boolean): readonly HeaderTab<Deta
     { value: 'overview', label: 'Overview' },
     { value: 'daily', label: 'Daily' },
     { value: 'hourly', label: 'Hourly' },
+    { value: 'precip', label: 'Precip' },
   ]
   if (isClimbingLocation) {
     all.push({ value: 'rock', label: 'Rock' }, { value: 'crag', label: 'Crag' })
@@ -209,6 +217,9 @@ export function DetailView({
   const sources = [
     forecastSourceLabel(forecast.data),
     showScore ? rainfallSourceLabel(asosStation) : null,
+    // The Precip tab and the drying card's window read this, from a different
+    // Open-Meteo call than the drying model's own rainfall. Named once it arrived.
+    recentPrecip?.data === undefined ? null : RECENT_PRECIP_SOURCE_LABEL,
     // Only claim NWS when an alert is actually being shown. An empty result is
     // not "NWS says no alerts": the table is filled by a cron, so empty can
     // equally mean NWS was never asked.
@@ -339,6 +350,11 @@ export function DetailView({
             ? {}
             : { score: { severeAlertEvent: alertEvent, alertsPending, showScore } })}
         />
+      )
+  } else if (active === 'precip') {
+    panel =
+      recentPrecip === undefined ? null : (
+        <PrecipTab recent={recentPrecip} isClimbingLocation={showScore} />
       )
   } else if (active === 'rock') {
     panel = drying

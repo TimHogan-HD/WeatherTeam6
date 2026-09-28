@@ -13,16 +13,16 @@ export const recentPrecipRouter = Router()
 /**
  * How many days back the window covers.
  *
- * Five, matching the mockup's "recent rain · past 5 days". Long enough to hold
- * the storm a sandstone crag is still drying out from, short enough that one
- * bar per hour still has width at phone size — 120 of them across a card is
- * about two pixels each.
+ * Six, so that with today the window is the seven local days the Precip tab
+ * draws a bar for (the WT6 Figma "Precipitation history" frame). It was five
+ * while the drying card drew one bar per hour; that card now states figures,
+ * so there is no per-hour bar width left to protect.
  *
  * **The client does not assume this number.** It measures the span of what came
  * back and captions the chart with that, so shortening the window here changes
  * the heading on its own.
  */
-const PAST_DAYS = 5
+const PAST_DAYS = 6
 
 /**
  * Hourly rainfall over the past few days for a saved location.

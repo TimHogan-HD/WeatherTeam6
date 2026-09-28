@@ -186,3 +186,11 @@ export function forecastSourceLabel(
 export function rainfallSourceLabel(asosStation: string | null): string {
   return asosStation === null ? 'Open-Meteo archive' : `ACIS (${asosStation})`;
 }
+
+/**
+ * Where `/recent-precip` came from: the forecast endpoint's own past hours
+ * (`past_days`), whatever the location's drying-model source is. A crag on
+ * ACIS still shows Open-Meteo figures on its Precip tab, so this is named
+ * beside `rainfallSourceLabel`, never folded into it.
+ */
+export const RECENT_PRECIP_SOURCE_LABEL = 'Open-Meteo past hours';

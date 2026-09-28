@@ -4,6 +4,7 @@ import {
   parseEnsemble,
   fetchEnsemble,
   fetchNBM,
+  fetchRecentHourlyPrecip,
   type ForecastLocation,
 } from './openMeteo.js'
 
@@ -539,5 +540,45 @@ describe('fetchNBM', () => {
     expect(result).toBeInstanceOf(Error)
     expect((result as Error).message).toBe('HTTP 503')
     expect(fetchMock).toHaveBeenCalledTimes(4)
+  })
+})
+
+describe('fetchRecentHourlyPrecip', () => {
+  let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>
+
+  beforeEach(() => {
+    fetchMock = vi.fn<typeof fetch>()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  it('asks for the kind of precipitation and keeps an unknown half as unknown', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        utc_offset_seconds: -21600,
+        hourly: {
+          time: ['2026-09-22T00:00', '2026-09-22T01:00', '2026-09-22T02:00', '2026-09-22T03:00'],
+          precipitation: [1.2, 0.8, 0.5, null],
+          rain: [1.0, 0, 0.5, null],
+          showers: [0.2, 0, null, null],
+          snowfall: [0, 0.56, 0, null],
+        },
+      }),
+    } as Response)
+
+    const result = await fetchRecentHourlyPrecip(39.9, -105.3, 6)
+
+    const url = String(fetchMock.mock.calls[0]?.[0])
+    expect(url).toContain('hourly=precipitation%2Crain%2Cshowers%2Csnowfall')
+    expect(url).toContain('past_days=6')
+    expect(result.hours).toEqual([
+      // Liquid is rain plus showers.
+      { valid_at_local: '2026-09-22T00:00', precip_mm: 1.2, rain_mm: 1.2, snowfall_cm: 0 },
+      { valid_at_local: '2026-09-22T01:00', precip_mm: 0.8, rain_mm: 0, snowfall_cm: 0.56 },
+      // No showers figure: the liquid part is unknown, not the rain alone.
+      { valid_at_local: '2026-09-22T02:00', precip_mm: 0.5, rain_mm: null, snowfall_cm: 0 },
+      // A null precipitation hour is dropped, as before.
+    ])
   })
 })

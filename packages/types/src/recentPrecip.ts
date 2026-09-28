@@ -22,7 +22,20 @@ export type RecentPrecipHour = {
    * not re-read them in its own timezone — issue #33 is what that costs.
    */
   readonly valid_at_local: string
+  /** Everything that fell, snow as its water equivalent. */
   readonly precip_mm: number
+  /**
+   * The liquid part — Open-Meteo's `rain` plus `showers` — and the snow, in
+   * centimetres of depth. Together they say whether an hour was rain, snow or
+   * both.
+   *
+   * **`null` means unknown, and so does absent.** Either upstream column can be
+   * null, and optional because the API and the client deploy separately: a
+   * response from before these existed simply lacks them. A reader that needs
+   * the kind of precipitation must withhold it rather than assume rain.
+   */
+  readonly rain_mm?: number | null
+  readonly snowfall_cm?: number | null
 }
 
 export type RecentPrecip = {
