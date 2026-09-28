@@ -7,7 +7,7 @@ import type {
   HourlySeries,
   WeatherAlert,
 } from '@weatherteam6/types'
-import { DetailView, openDayInHourly } from './DetailView.js'
+import { DetailView, detailTabs, openDayInHourly } from './DetailView.js'
 import { HOUR_MS } from './charts/hourlySeries.js'
 
 /**
@@ -166,6 +166,7 @@ function render(tabs: Partial<Tabs> = {}): string {
           onTabChange: () => {},
           selectedDate: DAY_1,
           onSelectDate: () => {},
+          panelId: 'panel',
           ...tabs,
         },
       }}
@@ -174,12 +175,16 @@ function render(tabs: Partial<Tabs> = {}): string {
 }
 
 describe('DetailView — tabs', () => {
-  it('offers both tabs and marks the open one', () => {
+  it('offers five tabs to a crag and three to a city', () => {
+    expect(detailTabs(true).map((t) => t.label)).toEqual(['Overview', 'Daily', 'Hourly', 'Rock', 'Crag'])
+    // A city has no rock and no walls: a tab opening onto an empty panel is a
+    // promise the screen cannot keep.
+    expect(detailTabs(false).map((t) => t.label)).toEqual(['Overview', 'Daily', 'Hourly'])
+  })
+
+  it('renders the open tab as the panel the header’s tabs control', () => {
     const html = render()
-    expect(html).toContain('role="tablist"')
-    expect(html).toContain('aria-selected="true"')
-    expect(html).toContain('>Daily<')
-    expect(html).toContain('>Hourly<')
+    expect(html).toContain('id="panel" role="tabpanel"')
   })
 
   it('shows the daily rows on Daily and the day charts on Hourly', () => {
@@ -217,7 +222,7 @@ describe('DetailView — tabs', () => {
     const onTabChange = vi.fn()
     const onSelectDate = vi.fn()
     openDayInHourly(
-      { active: 'daily', onTabChange, selectedDate: DAY_1, onSelectDate },
+      { active: 'daily', onTabChange, selectedDate: DAY_1, onSelectDate, panelId: 'panel' },
       DAY_2,
     )
     expect(onSelectDate).toHaveBeenCalledWith(DAY_2)
@@ -234,7 +239,7 @@ describe('DetailView — tabs', () => {
     // A warning a reader can switch away from is the state §7 rule 5 exists to
     // prevent, and the sources footer describes the location rather than one
     // view of it.
-    for (const active of ['daily', 'hourly'] as const) {
+    for (const active of ['overview', 'daily', 'hourly', 'rock', 'crag'] as const) {
       const html = renderToStaticMarkup(
         <DetailView
           isClimbingLocation
@@ -249,6 +254,7 @@ describe('DetailView — tabs', () => {
               onTabChange: () => {},
               selectedDate: DAY_1,
               onSelectDate: () => {},
+              panelId: 'panel',
             },
           }}
         />,
@@ -258,13 +264,12 @@ describe('DetailView — tabs', () => {
     }
   })
 
-  it('puts today’s readings on Daily and keeps them off Hourly', () => {
-    // **The readings section is about today, and Hourly is a day pager.**
-    // Today's reading at the top of a screen showing Saturday is a claim about
-    // the wrong day; the pager carries that day's own readings instead. Moved
-    // out of the test above when the section came up from the foot of the
-    // screen.
-    const render = (active: 'daily' | 'hourly'): string =>
+  it('puts the Conditions now hero on Overview and nowhere else', () => {
+    // **The hero is about today, and Hourly is a day pager.** Today's reading
+    // at the top of a screen showing Saturday is a claim about the wrong day;
+    // the pager carries that day's own readings instead. Daily has no hero in
+    // its V2 frame either.
+    const render = (active: 'overview' | 'daily' | 'hourly'): string =>
       renderToStaticMarkup(
         <DetailView
           isClimbingLocation
@@ -279,19 +284,18 @@ describe('DetailView — tabs', () => {
               onTabChange: () => {},
               selectedDate: DAY_1,
               onSelectDate: () => {},
+              panelId: 'panel',
             },
           }}
         />,
       )
 
-    expect(render('daily')).toContain('>72<')
-    // **The block stays on Hourly; the readings inside it do not.** Since the
-    // now-line and the readings became one card, its label heads the hour's
-    // weather on both tabs — the weather *is* about now on either. What must
-    // not follow the reader onto Hourly is today's reading, so that is what is
-    // asserted, rather than the label it used to share a card with.
-    expect(render('daily')).toContain('Conditions now')
-    expect(render('hourly')).toContain('Conditions now')
+    // The score renders in the hero only once alerts settle, and this fixture
+    // carries a Severe+ alert in no case — so 72 is the hero's third gauge.
+    expect(render('overview')).toContain('>72<')
+    expect(render('overview')).toContain('Conditions now')
+    expect(render('daily')).not.toContain('Conditions now')
+    expect(render('hourly')).not.toContain('Conditions now')
     // The Hourly tab's own readings come from the *series*, which this fixture
     // leaves unset — so the pager reports that rather than borrowing today's.
     expect(render('hourly')).not.toContain('>72<')
@@ -314,6 +318,7 @@ describe('DetailView — tabs', () => {
             onTabChange: () => {},
             selectedDate: null,
             onSelectDate: () => {},
+            panelId: 'panel',
           },
         }}
       />,
@@ -340,6 +345,7 @@ describe('DetailView — tabs', () => {
             onTabChange: () => {},
             selectedDate: null,
             onSelectDate: () => {},
+            panelId: 'panel',
           },
         }}
       />,
@@ -367,6 +373,7 @@ describe('DetailView — tabs', () => {
             onTabChange: () => {},
             selectedDate: null,
             onSelectDate: () => {},
+            panelId: 'panel',
           },
         }}
       />,
@@ -383,5 +390,101 @@ describe('DetailView — tabs', () => {
     )
     expect(html).not.toContain('role="tablist"')
     expect(html).toContain('Next 7 days')
+  })
+})
+
+describe('DetailView — the Overview tab', () => {
+  // The fixture's local clock is UTC-5, so hour index 14 is 09:00 on DAY_1.
+  const readingAt = (i: number, level: 'great' | 'poor') => ({
+    valid_at: new Date(T0 + i * HOUR_MS).toISOString(),
+    rock: { level: 'dry' as const, qualified: true },
+    friction: { level, condensing: false, qualified: true },
+    score: 80,
+    t_surface_c: 18,
+    condensation_margin_c: 4,
+  })
+
+  const withReadings: HourlySeries = {
+    ...series,
+    hours: series.hours.map((h, i) => ({
+      ...h,
+      temp_c: 15,
+      // Only DAY_2 afternoon is likely to rain.
+      precip_chance_pct: h.local_date === DAY_2 && i >= 40 ? 64 : 10,
+    })),
+    readings: {
+      model: 'gfs_seamless',
+      unavailable_reason: null,
+      hours: [readingAt(14, 'great'), readingAt(17, 'poor')],
+      days: [
+        { local_date: DAY_2, window: null, best: { ...readingAt(38, 'great'), score: 91 } },
+        { local_date: DAY_3, window: null, best: { ...readingAt(62, 'great'), score: 44 } },
+      ],
+    },
+  }
+
+  const overview = (over: { alerts?: WeatherAlert[]; climbing?: boolean } = {}): string => {
+    vi.setSystemTime(new Date(T0 + 12 * HOUR_MS))
+    const html = renderToStaticMarkup(
+      <DetailView
+        isClimbingLocation={over.climbing ?? true}
+        asosStation="KRGK"
+        // The rows carry the retired five-component score, 13. It must not
+        // appear anywhere: Crag A is the score on every screen.
+        forecast={ok([day(DAY_1), { ...day(DAY_2), score: 13 }, { ...day(DAY_3), score: 13 }])}
+        alerts={{ data: over.alerts ?? [], isPending: false, isError: false }}
+        conditions={ok(score)}
+        hourly={{
+          ...ok(withReadings),
+          tabs: {
+            active: 'overview',
+            onTabChange: () => {},
+            selectedDate: DAY_1,
+            onSelectDate: () => {},
+            panelId: 'panel',
+          },
+        }}
+      />,
+    )
+    vi.useRealTimers()
+    return html
+  }
+
+  it('shows today by the hour, with the friction word at each hour', () => {
+    const html = overview()
+    expect(html).toContain('>Today<')
+    expect(html).toContain('>09<')
+    expect(html).toContain('>12<')
+    expect(html).toContain('>Great<')
+    expect(html).toContain('>Poor<')
+    expect(html).toContain('Friction by hour · Friction is estimated, not measured')
+  })
+
+  it('scores the next days from the Crag A readings, never the forecast row', () => {
+    const html = overview()
+    expect(html).toContain('Next 2 days')
+    expect(html).toContain('Score 91')
+    expect(html).toContain('Score 44')
+    expect(html).not.toContain('Score 13')
+  })
+
+  it('drops the day scores under a Severe+ alert and keeps the rows', () => {
+    const html = overview({ alerts: [heatWarning] })
+    expect(html).toContain('Tuesday · 9/15')
+    expect(html).not.toContain('Score 91')
+  })
+
+  it('names the next likely rain from the ensemble’s wet share', () => {
+    const html = overview()
+    expect(html).toContain('Next likely rain')
+    expect(html).toContain('Tue · 64%')
+  })
+
+  it('gives a city temperatures by the hour, day ranges and no score', () => {
+    const html = overview({ climbing: false })
+    expect(html).toContain('Temperature by hour')
+    expect(html).not.toContain('Friction by hour')
+    expect(html).not.toContain('Score 91')
+    expect(html).toContain('50–68°F')
   })
 })

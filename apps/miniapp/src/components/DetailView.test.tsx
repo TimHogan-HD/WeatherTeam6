@@ -178,15 +178,15 @@ describe('DetailView — a climbing location', () => {
         conditions={ok(redRockScore())}
       />,
     )
-    expect(html).toContain('103°F')
+    expect(html).toContain('High 103°')
     // **Wind and humidity moved, and that is the design.** They were the day's
     // *maxima* sitting in a hero that read as present conditions. The now-line
     // carries the current hour's readings instead — absent here, because this
     // fixture passes no hourly data — and the day's wind is the Hourly tab's
     // own chart. The day's high and low are still on this line.
-    expect(html).toContain('79°F')
+    expect(html).toContain('Low 79°')
     // Weather appears before the readings section in document order.
-    expect(visible(html).indexOf('103°F')).toBeLessThan(visible(html).indexOf('Friction Poor'))
+    expect(visible(html).indexOf('High 103°')).toBeLessThan(visible(html).indexOf('Friction Poor'))
   })
 
   /**
@@ -279,7 +279,7 @@ describe('DetailView — a climbing location', () => {
     expect(html).not.toContain('>58<')
     expect(visible(html)).not.toContain('Friction Poor')
     // The weather is not held up by it.
-    expect(html).toContain('103°F')
+    expect(html).toContain('High 103°')
   })
 
   it('shows the readings and the number when the alerts query settled as an error', () => {
@@ -431,7 +431,7 @@ describe('DetailView — a climbing location', () => {
     // Not the ladder's copy: that describes a date beyond the scoring window.
     expect(html).not.toContain('Too far out to score')
     // The weather is unaffected and still renders.
-    expect(html).toContain('103°F')
+    expect(html).toContain('High 103°')
   })
 })
 
@@ -452,7 +452,7 @@ describe('DetailView — a non-climbing location', () => {
     expect(html).not.toContain('Conditions score')
     expect(html).not.toContain('no rain in')
     // Weather and alerts render exactly as they do for a crag.
-    expect(html).toContain('103°F')
+    expect(html).toContain('High 103°')
   })
 
   it('does not attribute a rainfall source it never used', () => {
@@ -479,7 +479,7 @@ describe('DetailView — unsaved preview', () => {
         forecast={ok([day(TODAY)])}
       />,
     )
-    expect(html).toContain('103°F')
+    expect(html).toContain('High 103°')
     expect(html).not.toContain('Conditions score')
     // No alerts endpoint exists for a location with no id, so NWS is not claimed.
     expect(html).not.toContain('NWS')
@@ -523,14 +523,16 @@ describe('DetailView — partial and missing data', () => {
         conditions={{ data: undefined, isPending: false, isError: true, refetch: () => {} }}
       />,
     )
-    expect(html).toContain('103°F')
+    expect(html).toContain('High 103°')
     // React escapes the apostrophe, so match a stable fragment of the copy.
     expect(html).toContain('load conditions. Tap to retry.')
     // Never an HTTP status or a raw error string (§5). Checked against the
     // specific statuses this app can receive — a blanket /\b[45]\d\d\b/ matches
     // the coordinates inside the icons' SVG path data.
     expect(html).not.toContain('Request failed')
-    expect(html).not.toMatch(/\b(401|404|500|503)\b/)
+    // Visible text only: v2 sets weights in the markup, and `font-weight:500`
+    // is not a status code.
+    expect(visible(html)).not.toMatch(/\b(401|404|500|503)\b/)
   })
 })
 
@@ -612,6 +614,6 @@ describe('DetailView — a withheld rainfall history (#34)', () => {
         conditions={ok(withheld())}
       />,
     )
-    expect(html).toContain('103°F')
+    expect(html).toContain('High 103°')
   })
 })

@@ -99,7 +99,8 @@ this. Not before.
   | Route | Back target |
   | --- | --- |
   | `/` list | no control — nothing to go back to |
-  | `/location/:id` (saved) | `/` |
+  | `/location/:id` (saved), Overview tab | `/` |
+  | `/location/:id`, Daily, Rock or Crag tab | the Overview tab — **not a navigation** |
   | `/location/:id`, Hourly tab | the Daily tab — **not a navigation** |
   | `/add` | `/` |
   | `/add` preview (unsaved detail) | back to `/add` **with the query and results intact** — treat preview as a step within `/add`, not a sibling of it |
@@ -165,6 +166,30 @@ The v1 list card, for reference — top to bottom inside a card:
 Empty state, error state, and loading per §5. No sort or filter controls in v1. **An add affordance does belong here** — a single action in the list header routing to `/add` (§12). An earlier draft of this line read "no search, no add-location", which §12 reversed; the list is the only place a user with saved locations can reach the add flow from, so without it §12 is unreachable except from the empty state.
 
 ### Location detail (`/location/:id`)
+
+**Overview tab — superseded 2026-09-28 by the WT6 Figma file's "V2" page (`v2 Dark -
+Overview`, node `129:256`).** The screen is a header band (back, rock type · elevation,
+name, coordinates · forecast age) over five tabs — **Overview, Daily, Hourly, Rock,
+Crag** — and opens on Overview: the Conditions now hero, **Today** (09-21 every three
+hours, temperature and the friction word), **Next 3 days** (each day's Crag A score as a
+tinted pill), and **Rain** (last rain, next likely rain). Rock holds the drying card and
+Crag the identity block until their own V2 frames are built; a city gets Overview, Daily
+and Hourly only. Daily and Hourly are unchanged and have V2 frames of their own still to
+build. Deliberate departures from the frame:
+
+- **The day pills are the Crag A day score** (`readings.days[].best`), joined on date and
+  suppressed through `summarizeReadings` — never the forecast row's `score`, which is the
+  five-component scorer that renders nowhere.
+- **The pills' colours are `SCORE_BANDS`**, the rungs the list badge and daily bars use.
+  The Figma draws 82 amber and 73 red, which those rungs do not; one number must not wear
+  two colours on two screens.
+- **The hero wears the score's rung** (the Figma's green is the `good` rung) and is the
+  plain card whenever no score is on screen — under a Severe+ alert, while alerts load,
+  and for a city.
+- **"Next likely rain" is the first coming hour where at least half the ensemble members
+  are wet**, and prints that day's peak hourly share. With none, it says *None through
+  <last day reached>*; with no chance data, the row is omitted.
+- **The high and low read `High 66°`**, as drawn, beside the `°F` of the large figure.
 
 ~~One scroll, no internal tabs~~ — **superseded 2026-09-14 and shipped.** The screen now
 carries **Daily and Hourly tabs**, and the daily rows carry per-day scores, both reversed

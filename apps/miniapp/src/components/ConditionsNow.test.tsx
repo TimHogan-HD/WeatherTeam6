@@ -156,10 +156,8 @@ describe('ConditionsNow — the weather line', () => {
     // `103°F  79°F` alone at the top of the screen, `temp_c_max` first, in the
     // slot the hero used to occupy.
     const html = render({ series: series(null) })
-    expect(html).toContain('High')
-    expect(html).toContain('Low')
-    expect(html).toContain('103°F')
-    expect(html).toContain('79°F')
+    expect(html).toContain('High 103°')
+    expect(html).toContain('Low 79°')
   })
 
   it('shows the current hour as the reading, distinct from the day’s high', () => {
@@ -167,7 +165,7 @@ describe('ConditionsNow — the weather line', () => {
     // 31 °C now against a 39.5 °C high — two different numbers, which is the
     // whole reason this reads the hourly run.
     expect(html).toContain('88°F')
-    expect(html).toContain('103°F')
+    expect(html).toContain('High 103°')
   })
 
   it('never shows the five-component score', () => {

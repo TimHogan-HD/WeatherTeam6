@@ -1,12 +1,12 @@
 import { useId, useState } from 'react'
-import { colors, spacing } from '@weatherteam6/design/tokens'
+import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import {
   MEASUREMENTS_LABEL,
   measurements,
   type MeasurementGroup,
   type MeasurementsInput,
 } from '@weatherteam6/types'
-import { type } from '../theme/tokens.css.js'
+import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, row, stack } from '../theme/styles.js'
 import { ChevronDownIcon } from './Icons.js'
 
@@ -37,8 +37,8 @@ import { ChevronDownIcon } from './Icons.js'
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ ...row(spacing.chipGapMd), justifyContent: 'space-between', flexWrap: 'wrap' }}>
-      <span style={{ ...type.labelSm, color: colors.txt5 }}>{label}</span>
-      <span style={{ ...type.calDay, color: colors.txt1 }}>{value}</span>
+      <span style={{ ...typeV2.note, color: colorsV2.txtMuted }}>{label}</span>
+      <span style={{ ...typeV2.heroHiLo, color: colorsV2.txt1 }}>{value}</span>
     </div>
   )
 }
@@ -47,13 +47,13 @@ function Group({ group, showSource }: { group: MeasurementGroup; showSource: boo
   return (
     <div style={stack(spacing.listGapSm)}>
       <div style={{ ...row(spacing.chipGapMd), justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <span style={type.label}>{group.label}</span>
+        <span style={{ ...typeV2.kicker, color: colorsV2.txtMuted }}>{group.label}</span>
         {/*
           Named here only when the groups do not share one. When a group's
           source is unknown it names nothing — never the other group's model.
         */}
         {showSource && group.source !== null ? (
-          <span style={type.sourceBadge}>{group.source}</span>
+          <span style={typeV2.note}>{group.source}</span>
         ) : null}
       </div>
       {group.fields.map((f) => (
@@ -86,8 +86,8 @@ export function Measurements(props: MeasurementsInput) {
           paddingBottom: `${spacing.listGapSm}px`,
         }}
       >
-        <span style={type.label}>{MEASUREMENTS_LABEL}</span>
-        <ChevronDownIcon open={open} />
+        <span style={typeV2.disclosure}>{MEASUREMENTS_LABEL}</span>
+        <ChevronDownIcon color={colorsV2.txt2} open={open} />
       </button>
 
       <div id={panelId} hidden={!open} style={open ? stack(spacing.cellPad) : {}}>
@@ -98,14 +98,14 @@ export function Measurements(props: MeasurementsInput) {
         {notes.length === 0 ? null : (
           <div style={stack(spacing.listGapSm)}>
             {notes.map((n) => (
-              <p key={n} style={type.bodySm}>
+              <p key={n} style={typeV2.note}>
                 {n}
               </p>
             ))}
           </div>
         )}
 
-        {sharedSource === null ? null : <span style={type.sourceBadge}>{sharedSource}</span>}
+        {sharedSource === null ? null : <span style={typeV2.note}>{sharedSource}</span>}
       </div>
     </div>
   )
