@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import {
   cragClimbabilityHistory,
@@ -12,9 +12,6 @@ import {
   tripLocations,
   walls,
   weatherAlerts,
-  weatherEnsembleHours,
-  weatherRunHours,
-  weatherRuns,
 } from '../../db/schema.js'
 
 /**
@@ -40,10 +37,6 @@ const DEPENDENT_TABLES = [
   locationNormals,
   weatherAlerts,
   walls,
-  // `weather_runs` carries a nullable `location_id`, so it belongs here — but it
-  // must not be reached until its own children are gone. See the ordered step in
-  // `deleteLocationCascade` below, which runs before this list.
-  weatherRuns,
 ] as const
 
 /**
@@ -54,7 +47,7 @@ const DEPENDENT_TABLES = [
  * missing one.
  *
  * Idempotent: a second call for the same id finds nothing and returns false
- * without touching anything. All twelve statements share one transaction, so a
+ * without touching anything. All its statements share one transaction, so a
  * mid-way failure leaves the location and its dependents fully intact rather
  * than a location whose history has been half-removed.
  *
@@ -76,32 +69,8 @@ export async function deleteLocationCascade(
 
     if (!owned[0]) return false
 
-    /**
-     * **Ordered, and it has to come first.**
-     *
-     * `weather_run_hours` and `weather_ensemble_hours` key off `run_id`, not
-     * `location_id`, so the `DEPENDENT_TABLES` loop below cannot reach them —
-     * it dereferences `table.location_id`, and adding them to that list would
-     * not even compile. Letting the loop delete `weather_runs` while its
-     * children still point at it is a foreign-key violation surfacing as a
-     * generic 500, which is precisely the failure that list exists to prevent,
-     * one level down.
-     *
-     * Reading the ids first rather than deleting through a subquery keeps this
-     * the same shape as the prune, and makes the empty case a no-op instead of
-     * a wide `DELETE ... IN (SELECT ...)`.
-     */
-    const runs = await tx
-      .select({ id: weatherRuns.id })
-      .from(weatherRuns)
-      .where(eq(weatherRuns.location_id, locationId))
-
-    if (runs.length > 0) {
-      const runIds = runs.map((r) => r.id)
-      await tx.delete(weatherEnsembleHours).where(inArray(weatherEnsembleHours.run_id, runIds))
-      await tx.delete(weatherRunHours).where(inArray(weatherRunHours.run_id, runIds))
-    }
-
+    // Stored weather runs are not here: they belong to a place that another
+    // user's copy of this crag may still read, and the prune ages them out.
     for (const table of DEPENDENT_TABLES) {
       await tx.delete(table).where(eq(table.location_id, locationId))
     }

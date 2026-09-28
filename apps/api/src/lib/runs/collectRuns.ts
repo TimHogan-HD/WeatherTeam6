@@ -10,17 +10,19 @@ import {
 } from '../weather/openMeteo.js'
 import { THERMAL_MODEL } from './hourlyReadings.js'
 import { mergeDeterministic } from './mergeRuns.js'
-import { pointKeyForLocation } from './pointKey.js'
+import { pointKeyForPlace } from './pointKey.js'
 import { storeDeterministicRun, storeEnsembleRun } from './storeRun.js'
 
 export type CollectResult = {
   locations: number
   runsStored: number
   hoursStored: number
-  /** Locations whose collection threw. Named so a partial run cannot read as a complete one. */
+  /** Distinct places fetched. Fewer than `locations` when users saved the same crag. */
+  points: number
+  /** Point keys whose collection threw. Named so a partial run cannot read as a complete one. */
   failed: string[]
   /**
-   * Locations whose **deterministic** fetch failed while the ensemble succeeded,
+   * Point keys whose **deterministic** fetch failed while the ensemble succeeded,
    * and the reverse.
    *
    * **`failed` alone reported a half-collection as a clean run.** It counts only
@@ -76,7 +78,7 @@ const FORECAST_ONLY_MODELS = DETERMINISTIC_MODELS.filter((m) => m !== THERMAL_MO
 
 
 /**
- * Collect and persist one run for every saved location.
+ * Collect and persist one run for every distinct place a location is saved at.
  *
  * Invoked by `POST /api/cron/collect-runs` on an external schedule
  * (cron-job.org). There is no queue in this project and nothing can run on an
@@ -85,7 +87,7 @@ const FORECAST_ONLY_MODELS = DETERMINISTIC_MODELS.filter((m) => m !== THERMAL_MO
  * **Locations run under `Promise.allSettled`, never sequentially.**
  * `fetchWithRetry` sleeps 1s + 2s + 4s across its attempts, so a serial loop
  * multiplies an upstream outage by the number of locations and walks into the
- * function's `maxDuration: 60`. Concurrency is safe because each location writes
+ * function's `maxDuration: 60`. Concurrency is safe because each place writes
  * only its own `point_key`.
  *
  * Idempotent: the run row upserts on `(point_key, model, fetched_at)` and the
@@ -95,8 +97,6 @@ const FORECAST_ONLY_MODELS = DETERMINISTIC_MODELS.filter((m) => m !== THERMAL_MO
 export async function collectWeatherRuns(): Promise<CollectResult> {
   const saved = await db
     .select({
-      id: locations.id,
-      name: locations.name,
       lat: locations.lat,
       lon: locations.lon,
       elevation_m: locations.elevation_m,
@@ -107,6 +107,7 @@ export async function collectWeatherRuns(): Promise<CollectResult> {
     logger.info('[collectRuns] no locations to collect')
     return {
       locations: 0,
+      points: 0,
       runsStored: 0,
       hoursStored: 0,
       failed: [],
@@ -115,14 +116,20 @@ export async function collectWeatherRuns(): Promise<CollectResult> {
     }
   }
 
+  // Two users' copies of one crag are one place, fetched and stored once.
+  const places = new Map<string, ForecastLocation>()
+  for (const loc of saved) {
+    const point: ForecastLocation = {
+      lat: parseFloat(loc.lat),
+      lon: parseFloat(loc.lon),
+      elevation_m: loc.elevation_m === null ? null : parseFloat(loc.elevation_m),
+    }
+    places.set(pointKeyForPlace(point), point)
+  }
+  const points = [...places]
+
   const settled = await Promise.allSettled(
-    saved.map(async (loc) => {
-      const point: ForecastLocation = {
-        lat: parseFloat(loc.lat),
-        lon: parseFloat(loc.lon),
-        elevation_m: loc.elevation_m === null ? null : parseFloat(loc.elevation_m),
-      }
-      const point_key = pointKeyForLocation(loc.id)
+    points.map(async ([point_key, point]) => {
 
       // The three upstream calls are independent, and one failing must not
       // cost the others: a thermal-model outage must still leave the five
@@ -157,31 +164,31 @@ export async function collectWeatherRuns(): Promise<CollectResult> {
       let hoursStored = 0
 
       if (deterministic.status === 'fulfilled') {
-        const stored = await storeDeterministicRun(point_key, loc.id, deterministic.value)
+        const stored = await storeDeterministicRun(point_key, deterministic.value)
         runsStored += stored.length
         hoursStored += stored.reduce((acc, s) => acc + s.hours, 0)
         if (deterministic.value.unavailable_models.length > 0) {
           logger.debug(
-            { locationId: loc.id, unavailable: deterministic.value.unavailable_models.join(',') },
+            { pointKey: point_key, unavailable: deterministic.value.unavailable_models.join(',') },
             '[collectRuns] models with no coverage at this point',
           )
         }
       } else {
         logger.warn(
-          { locationId: loc.id, err: describe(deterministic.reason) },
+          { pointKey: point_key, err: describe(deterministic.reason) },
           '[collectRuns] deterministic fetch failed',
         )
       }
 
       if (ensemble.status === 'fulfilled') {
-        const stored = await storeEnsembleRun(point_key, loc.id, ensemble.value)
+        const stored = await storeEnsembleRun(point_key, ensemble.value)
         if (stored) {
           runsStored += 1
           hoursStored += stored.hours
         }
       } else {
         logger.warn(
-          { locationId: loc.id, err: describe(ensemble.reason) },
+          { pointKey: point_key, err: describe(ensemble.reason) },
           '[collectRuns] ensemble fetch failed',
         )
       }
@@ -189,7 +196,7 @@ export async function collectWeatherRuns(): Promise<CollectResult> {
       // Both upstreams down for this location is a failure of the location, not
       // a quiet zero — the caller reports it and the response says so.
       if (deterministic.status === 'rejected' && ensemble.status === 'rejected') {
-        throw new Error(`both fetches failed for location ${loc.id}`)
+        throw new Error(`both fetches failed for point ${point_key}`)
       }
 
       return {
@@ -203,6 +210,7 @@ export async function collectWeatherRuns(): Promise<CollectResult> {
 
   const result: CollectResult = {
     locations: saved.length,
+    points: points.length,
     runsStored: 0,
     hoursStored: 0,
     failed: [],
@@ -211,20 +219,20 @@ export async function collectWeatherRuns(): Promise<CollectResult> {
   }
 
   settled.forEach((entry, i) => {
-    const loc = saved[i]
+    const key = points[i]?.[0] ?? 'unknown'
     if (entry.status === 'fulfilled') {
       result.runsStored += entry.value.runsStored
       result.hoursStored += entry.value.hoursStored
       // A location that stored *one* of its two runs is a partial collection,
       // and saying so is the whole point — see `CollectResult`.
-      if (!entry.value.deterministicOk) result.deterministicFailed.push(loc?.id ?? 'unknown')
-      if (!entry.value.ensembleOk) result.ensembleFailed.push(loc?.id ?? 'unknown')
+      if (!entry.value.deterministicOk) result.deterministicFailed.push(key)
+      if (!entry.value.ensembleOk) result.ensembleFailed.push(key)
       return
     }
-    result.failed.push(loc?.id ?? 'unknown')
+    result.failed.push(key)
     logger.error(
-      { locationId: loc?.id, err: describe(entry.reason) },
-      '[collectRuns] location failed',
+      { pointKey: key, err: describe(entry.reason) },
+      '[collectRuns] point failed',
     )
   })
 

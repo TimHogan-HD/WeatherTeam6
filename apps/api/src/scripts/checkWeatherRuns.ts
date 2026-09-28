@@ -82,7 +82,7 @@ async function run(): Promise<void> {
     '../db/schema.js'
   )
   const { and, eq } = await import('drizzle-orm')
-  const { pointKeyForCoords, pointKeyForLocation } = await import('../lib/runs/pointKey.js')
+  const { pointKeyForPlace } = await import('../lib/runs/pointKey.js')
   const { deleteRunsForPoint, storeDeterministicRun, storeEnsembleRun } = await import(
     '../lib/runs/storeRun.js'
   )
@@ -105,7 +105,7 @@ async function run(): Promise<void> {
 
   // A key no real point can collide with, so a failed run cannot corrupt real
   // history and cleanup can find everything it made.
-  const adHocKey = pointKeyForCoords(LAT, LON) + '/check'
+  const adHocKey = pointKeyForPlace({ lat: LAT, lon: LON, elevation_m: null }) + '/check'
   let locationId: string | null = null
   let locationKey: string | null = null
 
@@ -118,7 +118,7 @@ async function run(): Promise<void> {
 
   try {
     console.log('\nStoring a deterministic run with a null column')
-    const stored = await storeDeterministicRun(adHocKey, null, {
+    const stored = await storeDeterministicRun(adHocKey, {
       models: [
         {
           model: 'ncep_nbm_conus',
@@ -210,7 +210,7 @@ async function run(): Promise<void> {
     )
 
     console.log('\nRe-storing the same fetch — the retry case')
-    const again = await storeDeterministicRun(adHocKey, null, {
+    const again = await storeDeterministicRun(adHocKey, {
       models: [
         {
           model: 'ncep_nbm_conus',
@@ -259,7 +259,7 @@ async function run(): Promise<void> {
     )
 
     console.log('\nStoring an ensemble run')
-    const ens = await storeEnsembleRun(adHocKey, null, {
+    const ens = await storeEnsembleRun(adHocKey, {
       daily: { days: [], model_sources: [], utc_offset_seconds: -25200 },
       hours: [
         {
@@ -424,7 +424,7 @@ async function run(): Promise<void> {
     // Only an ensemble run carries `raw` — a deterministic run's parsed hours
     // are its whole payload, so it is stored with none.
     const rawAt = new Date(Date.now() - (RAW_RETENTION_HOURS + 1) * 60 * 60 * 1000)
-    const withRaw = await storeEnsembleRun(adHocKey, null, {
+    const withRaw = await storeEnsembleRun(adHocKey, {
       daily: { days: [], model_sources: [], utc_offset_seconds: 0 },
       hours: [
         {
@@ -462,7 +462,7 @@ async function run(): Promise<void> {
       .where(eq(weatherEnsembleHours.run_id, clearedRun))
     check('and its parsed hours survived', keptHours.length === 1)
 
-    console.log('\nDeleting a location that has runs — the ordered cascade')
+    console.log('\nDeleting one saved copy of a place leaves the place\'s runs')
     const savedLocation = await db
       .insert(locations)
       .values({
@@ -474,9 +474,9 @@ async function run(): Promise<void> {
       .returning({ id: locations.id })
     locationId = savedLocation[0]?.id ?? null
     if (locationId === null) throw new Error('could not save a location — stopping')
-    locationKey = pointKeyForLocation(locationId)
+    locationKey = pointKeyForPlace({ lat: LAT, lon: LON, elevation_m: null }) + '/check-shared'
 
-    const attached = await storeDeterministicRun(locationKey, locationId, {
+    const attached = await storeDeterministicRun(locationKey, {
       models: [
         {
           model: 'gfs_seamless',
@@ -489,23 +489,22 @@ async function run(): Promise<void> {
       model_elevation_m: null,
       fetched_at: new Date(),
     })
-    check('the run is attached to the location', attached.length === 1)
+    check('a run is stored for the place', attached.length === 1)
 
     const deleted = await deleteLocationCascade(locationId, userId)
     check('deleteLocationCascade returns true — no foreign-key violation', deleted)
     if (deleted) {
-      const orphanHours = await db
-        .select()
-        .from(weatherRunHours)
-        .where(eq(weatherRunHours.run_id, attached[0]?.run_id ?? ''))
-      check('the hours went with the run', orphanHours.length === 0)
-      const orphanRuns = await db
+      locationId = null
+      const keptRuns = await db
         .select()
         .from(weatherRuns)
         .where(and(eq(weatherRuns.point_key, locationKey), eq(weatherRuns.model, 'gfs_seamless')))
-      check('and the run went with the location', orphanRuns.length === 0)
-      locationId = null
-      locationKey = null
+      check('the place\'s run is still there for any other copy', keptRuns.length === 1)
+      const keptHours = await db
+        .select()
+        .from(weatherRunHours)
+        .where(eq(weatherRunHours.run_id, attached[0]?.run_id ?? ''))
+      check('and so are its hours', keptHours.length === 2)
     }
   } catch (err) {
     failed++

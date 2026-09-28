@@ -430,11 +430,11 @@ export const userPreferences = pgTable('user_preferences', {
 /**
  * One fetch of one model at one point — the parent of every stored hour.
  *
- * `point_key` is what makes an ad-hoc `/weather <place>` lookup storable: it is
- * `loc:<uuid>` for a saved location and `pt:<lat4>,<lon4>` for a geocoded point
- * that has no row (`pointKey()` in `lib/runs/pointKey.ts` is the only place that
- * spelling is built). `location_id` is set as well whenever there is one, because
- * that is the FK a location delete has to walk.
+ * **A run belongs to a place, not to a location row.** `point_key` is
+ * `pt:<lat4>,<lon4>@<elevation>`, built only by `pointKeyForPlace`, so every
+ * user's copy of one crag reads and writes the same runs. There is no
+ * `location_id`: deleting one user's copy must not delete what another reads,
+ * and the prune removes a place's runs once nothing collects it.
  *
  * `fetched_at` is when **this process asked**, not when the model initialized.
  * Probe A found Open-Meteo exposes no run time under any name, so nothing here
@@ -448,9 +448,8 @@ export const weatherRuns = pgTable(
   'weather_runs',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    /** `loc:<uuid>` or `pt:<lat4>,<lon4>`. Present even when `location_id` is. */
+    /** `pt:<lat4>,<lon4>@<elevation>` from `pointKeyForPlace`. */
     point_key: text('point_key').notNull(),
-    location_id: uuid('location_id').references(() => locations.id),
     /** A deterministic model name, or `'ensemble'` for the pooled ensemble run. */
     model: text('model').notNull(),
     /** `'deterministic'` or `'ensemble'` — which child table carries this run's hours. */

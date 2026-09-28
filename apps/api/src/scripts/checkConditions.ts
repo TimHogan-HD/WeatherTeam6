@@ -121,7 +121,6 @@ async function run(): Promise<void> {
   } = await import('../lib/runs/conditionsReadings.js')
   const { getHourlySeries } = await import('../lib/runs/fetchHourlySeries.js')
   const { scoringLocationFor } = await import('../lib/runs/scoringLocation.js')
-  const { pointKeyForLocation } = await import('../lib/runs/pointKey.js')
   const { computeLiveForecast } = await import('../lib/scoring/liveForecast.js')
   const {
     FRICTION_ESTIMATE_NOTE,
@@ -178,7 +177,6 @@ async function run(): Promise<void> {
               lon: parseNumericRequired(location.lon),
               elevation_m: parseNumeric(location.elevation_m),
             },
-            pointKeyForLocation(location.id),
             { allModels: false, now, scoring },
           ).catch((err: unknown) => {
             // The route catches here too — a failed hourly run must not cost

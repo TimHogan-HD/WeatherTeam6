@@ -12,7 +12,6 @@ import {
 } from '../lib/runs/conditionsReadings.js'
 import { getHourlySeries } from '../lib/runs/fetchHourlySeries.js'
 import { scoringLocationFor } from '../lib/runs/scoringLocation.js'
-import { pointKeyForLocation } from '../lib/runs/pointKey.js'
 import { parseNumeric, parseNumericRequired } from '@weatherteam6/types'
 import type { ApiResponse, ConditionsReadings, ConditionsScore } from '@weatherteam6/types'
 
@@ -104,7 +103,6 @@ conditionsRouter.get('/conditions/:locationId', async (req: Request, res: Respon
               // the lapse-rate correction on a mountain.
               elevation_m: parseNumeric(location.elevation_m),
             },
-            pointKeyForLocation(location.id),
             { allModels: false, now, scoring },
           ).catch((err: unknown) => {
             logger.warn(

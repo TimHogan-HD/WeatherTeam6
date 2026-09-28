@@ -1,37 +1,38 @@
-import { describe, it, expect } from 'vitest'
-import { pointKeyForCoords, pointKeyForLocation } from './pointKey.js'
+import { describe, expect, it } from 'vitest'
+import { pointKeyForPlace } from './pointKey.js'
 
-describe('pointKeyForLocation', () => {
-  it('prefixes the uuid so it cannot collide with a coordinate key', () => {
-    expect(pointKeyForLocation('00000000-0000-0000-0000-000000000001')).toBe(
-      'loc:00000000-0000-0000-0000-000000000001',
+describe('pointKeyForPlace', () => {
+  it('gives two saved copies of the same crag one key', () => {
+    const a = pointKeyForPlace({ lat: 36.15192, lon: -115.45413, elevation_m: 1250 })
+    const b = pointKeyForPlace({ lat: 36.151921, lon: -115.454134, elevation_m: 1250.2 })
+    expect(a).toBe('pt:36.1519,-115.4541@1250')
+    expect(b).toBe(a)
+  })
+
+  it('pads to four places so equal points spell equally', () => {
+    expect(pointKeyForPlace({ lat: 36, lon: -115.5, elevation_m: 0 })).toBe(
+      'pt:36.0000,-115.5000@0',
     )
   })
 
-  it('refuses an empty id', () => {
-    // Constrains the `!locationId` guard: without it every caller with a missing
-    // id shares the single key `loc:`.
-    expect(() => pointKeyForLocation('')).toThrow()
-  })
-})
-
-describe('pointKeyForCoords', () => {
-  it('rounds to four places so a re-geocode lands on the same key', () => {
-    // Constrains COORD_PLACES. At three places these two collide; at five they
-    // start two separate histories for the same crag.
-    expect(pointKeyForCoords(36.15192, -115.45413)).toBe('pt:36.1519,-115.4541')
-    expect(pointKeyForCoords(36.151921, -115.454134)).toBe('pt:36.1519,-115.4541')
+  it('keeps an unrecorded elevation apart from sea level', () => {
+    const none = pointKeyForPlace({ lat: 36, lon: -115, elevation_m: null })
+    const sea = pointKeyForPlace({ lat: 36, lon: -115, elevation_m: 0 })
+    expect(none).toBe('pt:36.0000,-115.0000@none')
+    expect(none).not.toBe(sea)
   })
 
-  it('pads to four places rather than emitting a shorter key', () => {
-    expect(pointKeyForCoords(36, -115.5)).toBe('pt:36.0000,-115.5000')
+  it('separates the same coordinates at two elevations', () => {
+    expect(pointKeyForPlace({ lat: 36, lon: -115, elevation_m: 1200 })).not.toBe(
+      pointKeyForPlace({ lat: 36, lon: -115, elevation_m: 1300 }),
+    )
   })
 
-  it('refuses a coordinate that is not a finite number', () => {
-    // Constrains the `Number.isFinite` guard. `toFixed` on NaN yields the string
-    // "NaN", so every broken point on earth would share the key pt:NaN,NaN and
-    // their runs would be indistinguishable.
-    expect(() => pointKeyForCoords(Number.NaN, 0)).toThrow()
-    expect(() => pointKeyForCoords(0, Number.POSITIVE_INFINITY)).toThrow()
+  it('refuses non-finite input rather than keying it as NaN', () => {
+    expect(() => pointKeyForPlace({ lat: Number.NaN, lon: 0, elevation_m: null })).toThrow()
+    expect(() =>
+      pointKeyForPlace({ lat: 0, lon: Number.POSITIVE_INFINITY, elevation_m: null }),
+    ).toThrow()
+    expect(() => pointKeyForPlace({ lat: 0, lon: 0, elevation_m: Number.NaN })).toThrow()
   })
 })
