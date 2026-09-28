@@ -422,11 +422,12 @@ scoring as its best case. The unshipped half is the v2 model.
 
 ---
 
-## 6d. Proposed replacement: Crag A / Wall A (2026-09-24, not shipped)
+## 6d. Crag A replaced v2's score (2026-09-24, shipped in #186)
 
 A benchmark of v1, v2 and candidate models picked Crag A and Wall A; see
-`.claude/docs/crag-a-reference/README.md`. Findings about v2 that stand whether or not it is
-replaced:
+`.claude/docs/crag-a-reference/README.md`. Crag A is now every location's score
+(`lib/scoring/cragModel.ts`); Wall A is built but not wired. These are the v2 findings that
+decided it:
 
 - **v2's clock keeps drying through drizzle.** `SIGNIFICANT_HOURLY_PRECIP_MM` is 0.5, and most
   wet hours in real Open-Meteo forecasts are 0.1–0.4 mm. Rock under light rain reads dry.
