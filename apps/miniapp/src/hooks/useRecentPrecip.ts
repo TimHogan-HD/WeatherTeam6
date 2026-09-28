@@ -3,29 +3,23 @@ import type { RecentPrecip } from '@weatherteam6/types'
 import { apiGet } from '../lib/api.js'
 
 /**
- * Hourly rainfall over the days just past — the record behind the drying
- * model's "climbable in ~10h".
+ * Hourly precipitation over the week just past — the Precip tab, and the
+ * record behind the drying model's "climbable in ~10h".
  *
  * **Its own query, not a field on another one.** It costs an upstream call, and
  * the detail screen's rule is that a section's fetch cannot delay the rest of
- * the page. A reader who wants the seven-day forecast should not wait on a
- * five-day rain history to render it.
+ * the page. A reader who wants the seven-day forecast should not wait on the
+ * rain history to render it.
  *
- * **Saved climbing locations only.** Like `useHourly`, the endpoint reads a
- * location row for its coordinates, so the `/add` preview has nothing to ask
- * about; and like `useConditions`, the gate is `is_climbing_location` —
- * the only surface that draws this is the drying card, a city has no drying
- * story (§3), and an upstream call nothing renders is a wasted round trip.
- * `undefined` while the location query is in flight holds the fetch rather
- * than guessing, which is why the parameter is not a plain boolean.
+ * **Every saved location, city or crag.** It was gated on
+ * `is_climbing_location` while the drying card was its only reader; the Precip
+ * tab is on every location, and a city had rain too. The `/add` preview has no
+ * saved row for the endpoint to read, so it never asks.
  */
-export function useRecentPrecip(
-  id: string | undefined,
-  isClimbingLocation: boolean | undefined,
-): UseQueryResult<RecentPrecip> {
+export function useRecentPrecip(id: string | undefined): UseQueryResult<RecentPrecip> {
   return useQuery({
     queryKey: ['recent-precip', id ?? ''] as const,
     queryFn: () => apiGet<RecentPrecip>(`/recent-precip/${id ?? ''}`),
-    enabled: id !== undefined && id !== '' && isClimbingLocation === true,
+    enabled: id !== undefined && id !== '',
   })
 }

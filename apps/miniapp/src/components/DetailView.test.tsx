@@ -146,7 +146,7 @@ function alertsOk(data: WeatherAlert[]) {
 }
 
 /** A settled five-day rain window with one wet hour in it. */
-function recentOk(): { data: RecentPrecip; isPending: boolean; isError: boolean } {
+function recentOk(): { data: RecentPrecip; isPending: boolean; isError: boolean; refetch: () => void } {
   return {
     data: {
       hours: [
@@ -158,6 +158,7 @@ function recentOk(): { data: RecentPrecip; isPending: boolean; isError: boolean 
     },
     isPending: false,
     isError: false,
+    refetch: () => {},
   }
 }
 

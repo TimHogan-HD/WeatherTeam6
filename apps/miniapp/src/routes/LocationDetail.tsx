@@ -23,6 +23,7 @@ const TAB_WORDS: Record<DetailTab, string> = {
   overview: 'Overview',
   daily: 'Daily',
   hourly: 'Hourly',
+  precip: 'Precip',
   rock: 'Rock',
   crag: 'Crag',
 }
@@ -43,7 +44,7 @@ export function LocationDetail() {
   const alerts = useAlerts(id)
   const conditions = useConditions(id, location.data?.is_climbing_location)
   const hourly = useHourly(id)
-  const recentPrecip = useRecentPrecip(id, location.data?.is_climbing_location)
+  const recentPrecip = useRecentPrecip(id)
   const walls = useWalls(id, location.data?.is_climbing_location)
 
   // The tabs live here rather than inside `DetailView` because back is
@@ -135,6 +136,7 @@ export function LocationDetail() {
           data: recentPrecip.data,
           isPending: recentPrecip.isPending,
           isError: recentPrecip.isError,
+          refetch: () => void recentPrecip.refetch(),
         }}
         walls={walls.data}
         location={location.data}

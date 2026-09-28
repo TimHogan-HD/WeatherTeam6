@@ -11,7 +11,7 @@
  * | --- | --- |
  * | `/` list | hidden |
  * | `/location/:id`, Overview tab | `/` |
- * | `/location/:id`, Daily, Rock or Crag tab | the Overview tab |
+ * | `/location/:id`, Daily, Precip, Rock or Crag tab | the Overview tab |
  * | `/location/:id`, Hourly tab | the Daily tab — **not** the list |
  * | `/add` search | `/` |
  * | `/add` preview | the search, with its query and results intact |

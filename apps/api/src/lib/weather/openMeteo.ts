@@ -726,7 +726,7 @@ export async function fetchRecentHourlyPrecip(
   const url = new URL(FORECAST_URL)
   url.searchParams.set('latitude', String(lat))
   url.searchParams.set('longitude', String(lon))
-  url.searchParams.set('hourly', 'precipitation')
+  url.searchParams.set('hourly', 'precipitation,rain,showers,snowfall')
   url.searchParams.set('past_days', String(Math.max(1, Math.min(92, Math.trunc(pastDays)))))
   // One forecast day, not zero: the current hour lives in it, and rain that is
   // falling right now is the case this whole function exists for.
@@ -756,6 +756,9 @@ export async function fetchRecentHourlyPrecip(
 
   const times = toStringArray(hourly['time'])
   const precip = toNullableNumberArray(hourly, 'precipitation')
+  const rain = toNullableNumberArray(hourly, 'rain')
+  const showers = toNullableNumberArray(hourly, 'showers')
+  const snowfall = toNullableNumberArray(hourly, 'snowfall')
 
   const hours: RecentPrecipHour[] = []
   for (let i = 0; i < times.length; i++) {
@@ -765,7 +768,12 @@ export async function fetchRecentHourlyPrecip(
     // caller only ever looks for the *last wet* hour — an absent reading can
     // never be that, and keeping it as 0 would assert a dry hour nobody measured.
     if (!at || mm === null || mm === undefined) continue
-    hours.push({ valid_at_local: at, precip_mm: mm })
+    const r = rain[i] ?? null
+    const s = showers[i] ?? null
+    // The liquid part is known only when both halves are: `rain` alone would
+    // call a showery hour dry.
+    const rainMm = r === null || s === null ? null : r + s
+    hours.push({ valid_at_local: at, precip_mm: mm, rain_mm: rainMm, snowfall_cm: snowfall[i] ?? null })
   }
 
   return {

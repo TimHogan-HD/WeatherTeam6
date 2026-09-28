@@ -5,6 +5,7 @@ import type {
   ForecastSnapshot,
   HourlySample,
   HourlySeries,
+  RecentPrecip,
   WeatherAlert,
 } from '@weatherteam6/types'
 import { DetailView, detailTabs, openDayInHourly } from './DetailView.js'
@@ -175,11 +176,11 @@ function render(tabs: Partial<Tabs> = {}): string {
 }
 
 describe('DetailView — tabs', () => {
-  it('offers five tabs to a crag and three to a city', () => {
-    expect(detailTabs(true).map((t) => t.label)).toEqual(['Overview', 'Daily', 'Hourly', 'Rock', 'Crag'])
+  it('offers six tabs to a crag and four to a city, Precip between Hourly and Rock', () => {
+    expect(detailTabs(true).map((t) => t.label)).toEqual(['Overview', 'Daily', 'Hourly', 'Precip', 'Rock', 'Crag'])
     // A city has no rock and no walls: a tab opening onto an empty panel is a
     // promise the screen cannot keep.
-    expect(detailTabs(false).map((t) => t.label)).toEqual(['Overview', 'Daily', 'Hourly'])
+    expect(detailTabs(false).map((t) => t.label)).toEqual(['Overview', 'Daily', 'Hourly', 'Precip'])
   })
 
   it('renders the open tab as the panel the header’s tabs control', () => {
@@ -484,5 +485,66 @@ describe('DetailView — the Overview tab', () => {
     expect(html).not.toContain('Friction by hour')
     expect(html).not.toContain('Score 91')
     expect(html).toContain('50–68°F')
+  })
+})
+
+describe('DetailView — Precip tab', () => {
+  const recent: RecentPrecip = {
+    hours: [
+      { valid_at_local: '2026-09-13T19:00', precip_mm: 4.6, rain_mm: 4.6, snowfall_cm: 0 },
+      { valid_at_local: '2026-09-13T20:00', precip_mm: 0, rain_mm: 0, snowfall_cm: 0 },
+      { valid_at_local: '2026-09-15T09:00', precip_mm: 0, rain_mm: 0, snowfall_cm: 0 },
+    ],
+    utc_offset_seconds: 0,
+    from_date: '2026-09-13',
+  }
+
+  function renderPrecip(data: RecentPrecip, isClimbingLocation = true): string {
+    return renderToStaticMarkup(
+      <DetailView
+        isClimbingLocation={isClimbingLocation}
+        asosStation={null}
+        forecast={ok([day(DAY_1)])}
+        hourly={{
+          ...ok(series),
+          tabs: { active: 'precip', onTabChange: () => {}, selectedDate: DAY_1, onSelectDate: () => {}, panelId: 'panel' },
+        }}
+        recentPrecip={ok(data)}
+      />,
+    )
+  }
+
+  it('draws the accumulation, the event and a bar per day, gaps included', () => {
+    const html = renderPrecip(recent)
+    expect(html).toContain('3-day accumulation')
+    expect(html).toContain('0.18 in')
+    expect(html).toContain('Sun 18:00–19:00')
+    expect(html).toContain('Moderate · 1 h')
+    expect(html).toContain('>RAIN<')
+    // 2026-09-14 had no hours at all: a dash, never a dry-looking 0.00.
+    expect(html).toContain('Mon no data')
+    expect(html).toContain('Model estimates, not gauge readings.')
+    expect(html).toContain('Open-Meteo past hours')
+    // The frame's figures nothing here measures.
+    expect(html).not.toMatch(/Gauge conf|radar adjusted|±|Observed/)
+  })
+
+  it('withholds the kind rather than calling unknown precipitation rain', () => {
+    const legacy = {
+      ...recent,
+      hours: recent.hours.map(({ valid_at_local, precip_mm }) => ({ valid_at_local, precip_mm })),
+    }
+    const html = renderPrecip(legacy)
+    expect(html).toContain('0.18 in')
+    expect(html).not.toContain('>RAIN<')
+    expect(html).not.toContain('>Rain<')
+  })
+
+  it('says none fell in the window rather than that it has not rained', () => {
+    const dry = { ...recent, hours: recent.hours.map((h) => ({ ...h, precip_mm: 0, rain_mm: 0 })) }
+    const html = renderPrecip(dry, false)
+    expect(html).toContain('None in the past 3 days.')
+    // A city has no rock to inspect.
+    expect(html).not.toContain('Inspect rock')
   })
 })

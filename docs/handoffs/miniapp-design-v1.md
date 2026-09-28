@@ -169,12 +169,12 @@ Empty state, error state, and loading per §5. No sort or filter controls in v1.
 
 **Overview tab — superseded 2026-09-28 by the WT6 Figma file's "V2" page (`v2 Dark -
 Overview`, node `129:256`).** The screen is a header band (back, rock type · elevation,
-name, coordinates · forecast age) over five tabs — **Overview, Daily, Hourly, Rock,
-Crag** — and opens on Overview: the Conditions now hero, **Today** (09-21 every three
+name, coordinates · forecast age) over six tabs — **Overview, Daily, Hourly, Precip,
+Rock, Crag** — and opens on Overview: the Conditions now hero, **Today** (09-21 every three
 hours, temperature and the friction word), **Next 3 days** (each day's Crag A score as a
 tinted pill), and **Rain** (last rain, next likely rain). Rock holds the drying card and
-Crag the identity block until their own V2 frames are built; a city gets Overview, Daily
-and Hourly only. Daily and Hourly are built to their own frames (below). Deliberate
+Crag the identity block until their own V2 frames are built; a city gets Overview, Daily,
+Hourly and Precip. Daily and Hourly are built to their own frames (below). Deliberate
 departures from the frame:
 
 - **The day pills are the Crag A day score** (`readings.days[].best`), joined on date and
@@ -239,6 +239,32 @@ and **Humidity**. Dew point and humidity are new on screen (the owner's product 
   readable ticks rather than a trace stretched to full height.
 - **The hour axis labels 00, 06, 12, 18**; the frame's closing `23` is not drawn. The
   friction strip, which has room, does label it.
+
+**Precip tab — added 2026-09-28 from the WT6 Figma file's `Precipitation history` frame
+(node `129:884`),** between Hourly and Rock, on every saved location. Three cards and a
+caveat: **N-day accumulation** (the window's total, time since the last wet hour, the
+wettest hour), **Past events** (wet hours grouped into events, newest first, each with its
+span, how hard and how long, its total and a RAIN / MIX / SNOW pill), and **Daily
+accumulation** (a bar per local day in a well, one shared scale). It reads
+`/recent-precip`, which now covers six past days plus today and carries each hour's
+`rain_mm` and `snowfall_cm`. Deliberate departures from the frame:
+
+- **No gauge, radar, uncertainty or storm track.** The frame's "Gauge conf. 74% · radar
+  adjusted", "±0.08 in" and "Moderate, W→E" have nothing behind them: the figures are
+  Open-Meteo's own estimate of the past hours. The third tile is the wettest hour, the
+  total's note is the wet-hour count, and an event says `Light/Moderate/Heavy · N h` (AMS
+  rate classes on its wettest hour) or its snow depth.
+- **"Past events", not "Observed events"**, and the caveat opens "Model estimates, not
+  gauge readings." A city's caveat stops there; the route-by-route sentence is a crag's.
+- **No kind is guessed.** An hour whose rain or snow figure is missing — including every
+  hour from an API that predates the fields — gives its event and day no pill and a
+  neutral colour, never RAIN.
+- **Kinds are `rain`, `precipMix` and `precipSnow`, not the frame's amber**, and the
+  third tile is not lime: `fair` and `good` are the ladder's. Last precip is neutral.
+- **A day the response skipped has an empty well and a dash**, not a stub: a stub says
+  none fell. Today's bar is labelled `Today`, since its total is partial.
+- **The header band is the location's**, as on every other tab; the frame's
+  "Eldorado Canyon · gauge + radar / Precipitation history" title is not drawn.
 
 ~~One scroll, no internal tabs~~ — **superseded 2026-09-14 and shipped.** The screen now
 carries **Daily and Hourly tabs**, and the daily rows carry per-day scores, both reversed

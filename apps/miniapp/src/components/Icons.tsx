@@ -3,6 +3,7 @@ import {
   IconChevronLeft,
   IconChevronRight,
   IconDroplet,
+  IconHelpCircle,
   IconPlus,
   IconRipple,
   IconTemperature,
@@ -81,3 +82,6 @@ export const ChevronDownIcon = ({ color, open }: IconProps & { open: boolean }) 
     style={open ? { transform: 'rotate(180deg)' } : {}}
   />
 )
+
+/** The Precip tab's caveat, from the Figma frame's `circle-help`. 14px, the frame's size. */
+export const HelpIcon = ({ color }: IconProps) => <IconHelpCircle {...props(color)} size={14} />

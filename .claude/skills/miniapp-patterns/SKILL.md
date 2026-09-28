@@ -116,6 +116,12 @@ renders wrong-but-plausible if broken:
   `valid_at`**, shows levels never factors, and reads aloud as runs of words. Rain's scale
   runs to at least 0.02 in — below that every tick rounds to `0` and the de-duplication
   labels the *top* of the plot zero.
+- **The Precip tab (`PrecipTab.tsx`, decisions in `lib/precipHistory.ts`) is model
+  estimates, and says so.** It names no gauge, radar or confidence, and an event's kind comes
+  only from `rain_mm`/`snowfall_cm` — a missing one withholds the pill rather than calling it
+  rain. A date the response skipped is `totalMm: null`, drawn as an empty well, never a
+  dry stub. Its source is `RECENT_PRECIP_SOURCE_LABEL`, which differs from the drying
+  model's `rainfallSourceLabel` and is named beside it in the footer.
 - **An hourly axis reads the location's clock, from `utc_offset_seconds`.** The four labels
   are the same strings either way, so only their *positions* move — a chart on the viewer's
   clock prints a correct-looking axis against the wrong hours. Issue #33's shape exactly.
