@@ -190,11 +190,9 @@ describe('DetailView — tabs', () => {
   it('shows the daily rows on Daily and the day charts on Hourly', () => {
     const daily = render({ active: 'daily' })
     expect(daily).toMatch(/>Next [0-9]+ days?</)
-    // **The continuous seven-day strip lives here, not on Hourly.** It is a
-    // chart about comparing days, which is what this tab is for; on Hourly it
-    // answered a question that tab does not ask and pushed the charts that do
-    // answer it off the screen.
-    expect(daily).toContain('Hour by hour')
+    // The seven-day strip was removed from Daily on 2026-09-28 (owner): the
+    // V2 rows carry the figures, and the Hourly tab carries the charts.
+    expect(daily).not.toContain('Hour by hour')
 
     const hourly = render({ active: 'hourly' })
     expect(hourly).not.toMatch(/>Next [0-9]+ days?</)

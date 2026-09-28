@@ -20,8 +20,8 @@ import { DropletIcon, WindIcon } from './Icons.js'
  * and amount of rain, and the peak wind.
  *
  * **This replaced the metric toggle and the shared-scale range bars**, which
- * the frame does not draw. The seven-day hourly strip under the card
- * (`HourlySection`) still carries the ensemble's spread; the rows carry figures.
+ * the frame does not draw. The ensemble's spread is on the Hourly tab's day
+ * charts; the rows carry figures.
  *
  * Rows are tappable and open that day in the Hourly tab. A day the hourly
  * response cannot draw is not tappable: `onSelectDay` is omitted for it rather
