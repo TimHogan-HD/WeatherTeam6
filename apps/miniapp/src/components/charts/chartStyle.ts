@@ -1,4 +1,4 @@
-import { colors, tempScale } from '@weatherteam6/design/tokens'
+import { colors, colorsV2, tempScale } from '@weatherteam6/design/tokens'
 import { SCORE_BANDS, TEMP_BAND_C, cToF } from '@weatherteam6/types'
 import { withOpacity } from '../../theme/tokens.css.js'
 
@@ -69,12 +69,6 @@ export const chartColors = {
   temperatureBand: withOpacity(colors.sun, 0.18),
   /** Rainfall bars, before the intensity ramp colours each one. */
   rain: colors.rain,
-  /** Day boundaries and the bar baseline. */
-  grid: colors.line,
-  /** Value labels — the palette's label step. */
-  valueLabel: colors.txt4,
-  /** Time-axis ticks, which `colors.txt5` is reserved for and nothing else uses. */
-  timeLabel: colors.txt5,
   /**
    * The diverging temperature ramp's midpoint — an ink neutral, as a diverging
    * scale's middle must be. `txt2` rather than a dimmer step because this one is
@@ -128,6 +122,36 @@ export const DAY_VIEW_H = 122
 /** Chance of rain is a 0-100 scale with no outliers, so it needs less room. */
 export const CHANCE_VIEW_H = 70
 export const WIND_VIEW_H = 88
+/** Humidity is 0-100% like the chance of rain, and gets the same room. */
+export const HUMIDITY_VIEW_H = 70
+
+/** The dash for a line that is a different variable from the one it shares a chart with. */
+export const OVERLAY_DASH = '4 3'
+
+/**
+ * The v2 Hourly tab's marks, from the WT6 Figma "V2" page's Hourly frame.
+ *
+ * **Two departures, both from the status-colour rule** (`good`/`fair`/`poor`
+ * are the conditions ladder and not available for data marks): the frame
+ * draws air in `fair` amber and gusts in `poor` red. Air keeps `sun`, which is
+ * within a shade of the frame's amber; gusts are a dashed line in the primary
+ * ink, so they separate from the grey sustained line without borrowing a
+ * rung's colour. The good-hours shading *is* a conditions reading and wears
+ * `good`.
+ */
+export const chartColorsV2 = {
+  air: chartColors.temperature,
+  airBand: chartColors.temperatureBand,
+  dewPoint: colorsV2.rain,
+  rain: colorsV2.rain,
+  rainBand: withOpacity(colorsV2.rain, 0.18),
+  wind: colorsV2.legend,
+  windBand: withOpacity(colorsV2.legend, 0.18),
+  gust: colorsV2.txt1,
+  humidity: colorsV2.humidity,
+  grid: colorsV2.grid,
+  goodHours: withOpacity(colors.good, 0.07),
+} as const
 
 /** Corner radius on a bar — the rounded data-end the dataviz guidance asks for. */
 export const BAR_RADIUS = 3.5

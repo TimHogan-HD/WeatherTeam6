@@ -15,10 +15,11 @@ import {
   VALUE_TICKS,
   VIEW_W,
   chartColors,
+  chartColorsV2,
 } from './chartStyle.js'
-import { type } from '../../theme/tokens.css.js'
+import { type, typeV2 } from '../../theme/tokens.css.js'
 import { formatWeekday } from '../../lib/forecast.js'
-import { formatLocalHourShort } from '../../lib/format.js'
+import { formatLocalHour24, formatLocalHourShort } from '../../lib/format.js'
 
 /**
  * One chart: a viewBox, day gridlines, the marks, and labels.
@@ -26,7 +27,7 @@ import { formatLocalHourShort } from '../../lib/format.js'
  * **The labels are HTML positioned over the SVG, not `<text>` inside it.** The
  * SVG scales with the device width, and a `<text>` scales with it — the type
  * tokens would arrive at whatever size the viewport happened to imply. Outside,
- * they wear `type.label` and are the size the design system says they are.
+ * they wear `typeV2.axisTick` and are the size the design system says they are.
  *
  * Returns `null` when there is nothing to draw. An empty frame with axes reads
  * as "no rain, no wind, nothing happening"; the caller says why it is empty.
@@ -52,7 +53,13 @@ export type HourlyChartProps = {
    * which is neither an upper percentile of it nor a disagreement between runs.
    * Counted in the vertical domain, like the band.
    */
-  overlay?: { data: readonly SeriesDatum[]; color: string }
+  overlay?: { data: readonly SeriesDatum[]; color: string; dash?: string }
+  /**
+   * A span of time to shade behind the marks, epoch ms, both ends inclusive —
+   * the day's good hours. Each end is widened by half an hour so a one-hour
+   * window is a visible column rather than a zero-width rule.
+   */
+  shade?: { from: number; to: number; color: string }
   colorForValue?: (value: number) => string
   /** Takes the canonical metric value and writes the displayed unit. */
   formatValue: (value: number | null) => string
@@ -150,7 +157,7 @@ function hourTicks(
   for (const d of data) {
     const shifted = new Date(d.t + utcOffsetSeconds * 1000)
     if (shifted.getUTCHours() % HOUR_TICK_STEP !== 0) continue
-    const label = formatLocalHourShort(d.t, utcOffsetSeconds)
+    const label = formatLocalHour24(d.t, utcOffsetSeconds)
     if (label === null) continue
     out.push({ key: `${d.localDate}-${shifted.getUTCHours()}`, t: d.t, label })
   }
@@ -165,6 +172,7 @@ export function HourlyChart({
   bandColor,
   bandData,
   overlay,
+  shade,
   colorForValue,
   formatValue,
   title,
@@ -379,7 +387,25 @@ export function HourlyChart({
           Value gridlines, behind everything. Recessive on purpose — they are a
           reading aid, not data, and a grid that competes with the marks is the
           commonest way a chart stops being readable.
+
+          The good hours go behind even the grid: a span of the day, not a
+          mark, so it must never sit over the data it frames. Clamped to the
+          plot, because SVG does not clip.
         */}
+        {shade === undefined ? null : (() => {
+          const left = Math.max(PAD_LEFT, x(shade.from - HOUR_MS / 2))
+          const right = Math.min(VIEW_W - PAD_RIGHT, x(shade.to + HOUR_MS / 2))
+          if (!(right > left)) return null
+          return (
+            <rect
+              x={left}
+              y={PAD_TOP}
+              width={right - left}
+              height={plotBottom - PAD_TOP}
+              fill={shade.color}
+            />
+          )
+        })()}
         {valueTicks.map((value) => (
           <line
             key={`value-${value}`}
@@ -391,7 +417,7 @@ export function HourlyChart({
             // SVG does not clip.
             y1={yDisplay(value)}
             y2={yDisplay(value)}
-            stroke={chartColors.grid}
+            stroke={chartColorsV2.grid}
             strokeWidth={GRID_W}
             vectorEffect="non-scaling-stroke"
           />
@@ -410,7 +436,7 @@ export function HourlyChart({
               x2={at}
               y1={PAD_TOP}
               y2={plotBottom}
-              stroke={chartColors.grid}
+              stroke={chartColorsV2.grid}
               strokeWidth={GRID_W}
               vectorEffect="non-scaling-stroke"
             />
@@ -436,7 +462,14 @@ export function HourlyChart({
           top rather than as one the first is hiding.
         */}
         {overlay === undefined ? null : (
-          <Series data={overlay.data} kind="line" x={x} y={y} color={overlay.color} />
+          <Series
+            data={overlay.data}
+            kind="line"
+            x={x}
+            y={y}
+            color={overlay.color}
+            {...(overlay.dash === undefined ? {} : { dash: overlay.dash })}
+          />
         )}
 
         {/* The hour under the pointer, marked on the plot itself. */}
@@ -457,8 +490,7 @@ export function HourlyChart({
         <span
           key={`value-label-${value}`}
           style={{
-            ...type.label,
-            color: chartColors.valueLabel,
+            ...typeV2.axisTick,
             position: 'absolute',
             left: 0,
             // Same scale as the rule it labels — see the note on the gridline.
@@ -510,8 +542,7 @@ export function HourlyChart({
           <span
             key={`label-${tick.key}`}
             style={{
-              ...type.label,
-              color: chartColors.timeLabel,
+              ...typeV2.axisTick,
               position: 'absolute',
               left: pctX(at),
               top: pctY(plotBottom),

@@ -46,6 +46,25 @@ export const windAxis: ValueAxis = {
  * a word there cannot be read against a bar. A whole zero stays "0 in" so the
  * floor is unmistakable.
  */
+/**
+ * The v2 Hourly tab's axes: the unit is printed once beside the chart's name,
+ * so the ticks carry only the number (`70°`, `0.02`, `30`). Same conversions.
+ */
+export const tempAxisDeg: ValueAxis = {
+  toDisplay: cToF,
+  write: (f) => `${Math.round(f)}°`,
+}
+
+export const windAxisBare: ValueAxis = {
+  toDisplay: kmhToMph,
+  write: (mph) => `${Math.round(mph)}`,
+}
+
+export const rainAxisBare: ValueAxis = {
+  toDisplay: mmToIn,
+  write: (inches) => (inches === 0 ? '0' : inches.toFixed(2)),
+}
+
 export const rainAxis: ValueAxis = {
   toDisplay: mmToIn,
   write: (inches) => (inches === 0 ? '0 in' : `${inches.toFixed(2)} in`),

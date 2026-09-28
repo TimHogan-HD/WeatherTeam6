@@ -109,6 +109,13 @@ renders wrong-but-plausible if broken:
   through `scoredDays` in `lib/overview.ts`, which suppress it via
   `summarizeReadings`. The Overview and Daily tabs share both, so one day cannot wear two
   numbers or two colours.
+- **The Hourly tab (`charts/DayCharts.tsx`, decisions in `lib/hourlyDay.ts`) draws two
+  models on one chart.** Air, rain, chance and wind are the ensemble; dew point and
+  humidity are `HourlySeries.model`'s deterministic columns, and a caption names that model
+  from the response. The friction strip joins `readings.hours` to the hours **on
+  `valid_at`**, shows levels never factors, and reads aloud as runs of words. Rain's scale
+  runs to at least 0.02 in — below that every tick rounds to `0` and the de-duplication
+  labels the *top* of the plot zero.
 - **An hourly axis reads the location's clock, from `utc_offset_seconds`.** The four labels
   are the same strings either way, so only their *positions* move — a chart on the viewer's
   clock prints a correct-looking axis against the wrong hours. Issue #33's shape exactly.
