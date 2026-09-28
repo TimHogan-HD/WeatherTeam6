@@ -14,7 +14,22 @@ delivery gates are in `CLAUDE.md`; domain patterns are in the `miniapp-patterns`
   — a defaulted surface temperature would look like a measurement on every screen, and the
   per-hour `qualified` flag must travel with the reading rather than being dropped at the
   surface (§ Unknown aspect).
-- **`hourlyConditions.ts` and `sweatBalance.ts` are the v2 model's Layers 2-4.** **A weighted geometric mean has unbounded slope at zero**, so a factor reaching *exactly*
+- **The score on every screen is Crag A (`lib/scoring/cragModel.ts`), owner decision
+  2026-09-24.** `score = 100 × dryness^0.55 × friction`. Crag A runs the drying clock on
+  eight vertical walls and takes the median. **A location's score is always Crag A**: its
+  recorded aspect and angle are not inputs, and a recorded wall never replaces the crag
+  score. **Wall A (`evaluateWallA`) scores individual walls only** — the same model on one
+  wall with overhang rain shelter — and nothing calls it yet. Friction is condensation × heat × humidity × cold from air
+  temperature, dew point and `T_mass` — no sun, so it answers when shortwave is missing. A
+  day's score is the worst hour of its best 3-hour run between 08:00 and 18:00 local
+  (`dayRepresentative`). It sits on top of `evaluateHourlyConditions`, which still supplies
+  `T_mass`, `T_surface` and the drying rate; v2's own score and sweat-balance friction no
+  longer reach a response. The port is checked hour-for-hour against
+  `.claude/docs/crag-a-reference/model.ts`; a change that moves a result there needs an
+  argument. **Every constant in it is a judgement call**, and nothing is validated against
+  outcomes (#143).
+- **`hourlyConditions.ts` and `sweatBalance.ts` are the v2 model's Layers 2-4**, now Crag A's
+  Layer 1 inputs. **A weighted geometric mean has unbounded slope at zero**, so a factor reaching *exactly*
   zero collapses the score into it rather than arriving — measured at 12 points off a tenth
   of a degree, which is issue #148 in a model with no bands. Any new factor must approach
   zero rather than reach it, or be shown to do its collapsing inside one band. **The hand's
@@ -22,6 +37,9 @@ delivery gates are in `CLAUDE.md`; domain patterns are in the `miniapp-patterns`
   deficit would read a 66 °C wall as ideal drying conditions for skin. And **`rock.qualified`
   is false for any drying window containing daylight**, because the clock runs off
   `T_surface`; that is honest, not a bug.
+- **The magnitude fence still holds under Crag A**: its heat, humidity and cold penalties are
+  unmeasured judgements, so words and ordering reach a screen and the 0-1 factor does not.
+  The v2 history of the fence follows.
 - **The friction reading rests on exactly one unvalidated step, and it is fenced.**
   Everything upstream of `sweatBalance.sweatFrictionFactor` is standard physics checked
   against published values; that one line — skin wettedness to a grip factor — is a guess
@@ -137,12 +155,29 @@ delivery gates are in `CLAUDE.md`; domain patterns are in the `miniapp-patterns`
   (`lib/locations/resolveRockType.ts`) is the only place it is applied** on save —
   `npm run locations:lock-known-crags` applies the same function to existing rows. It
   overrides whatever rock type the request sent, and never types a non-climbing location.
-  A future `PATCH /locations/:id` must go through it and refuse a rock-type change on a
-  row with `known_crag` set. **A `KNOWN_CRAGS` entry needs a `crag-facts.json` family
+  `PATCH /locations/:id` goes through it (`planLocationUpdate`) and refuses a rock-type
+  change on a row with `known_crag` set with a 409. **A `KNOWN_CRAGS` entry needs a `crag-facts.json` family
   that maps to exactly one §7 value, and a box no larger than ~30 km** —
   `knownCrags.test.ts` enforces both, and holds the neighbouring crags on other rock
   that set `KNOWN_CRAG_REACH_KM` at 2. **Run the lock script only after the API that knows
   the new types has deployed** — an older API has no window for them.
+- **`PATCH /locations/:id` speaks climbers' wall angle; the column keeps its own.** The
+  body's `wall_angle_deg` is degrees past vertical, positive overhanging
+  (`climbing-terminology-research.md` §5); `cliff_angle` stays 0 vertical, 90 slab, and
+  is extended past vertical with negatives. `wallAngle.ts` (`packages/types`) is the only
+  place the sign flips. **An unknown body key is a 400, never ignored** — `cliff_angle`
+  sent by mistake would otherwise be a 200 on an unchanged row. The rules are
+  `lib/locations/updateLocation.ts`; `check:edit-location` runs them against Postgres.
+- **The solar geometry runs only on a recorded wall.** `scoringLocationFor`
+  (`lib/runs/scoringLocation.ts`) is the one place a row becomes `ScoringLocation`, and it
+  builds `wall` only when **both** `aspect` (one of the 16 compass points) and
+  `cliff_angle` were recorded. The 45° default feeds the drying window and is **never** a
+  recorded wall; `aspectToDegrees`'s 180 fallback is never a recorded aspect. With a wall,
+  `rockThermal.wallIrradianceWm2` replaces the unscaled horizontal value (sun position,
+  Erbs beam/diffuse split, isotropic sky) and every computed hour is qualified; the sun is
+  taken **mid-hour**, because Open-Meteo stamps shortwave at the end of the hour it averages.
+  Terrain shading is not modelled and reads a shaded wall hotter — the safe direction.
+  **An overhang dries on the vertical factor** (`dryingAngleFactor`), not faster.
 - **Every component ramp reaches 0 at the edge of its own band — no component may step.**
   The temperature ramp paid 6 of 12 at `TEMP_BAND_C.max` and the out-of-band branch then
   dropped it to 0, so 95.0 °F and 95.2 °F differed by six points of the total (issue #148),

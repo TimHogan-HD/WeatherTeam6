@@ -6,7 +6,8 @@ import { isUuid, sendServerError } from '../lib/http.js'
 import { insertGeneralLocation } from '../lib/locations/createLocation.js'
 import { resolveRockType } from '../lib/locations/resolveRockType.js'
 import { deleteLocationCascade } from '../lib/locations/deleteLocation.js'
-import { isRockType, parseNumeric, ROCK_TYPES } from '@weatherteam6/types'
+import { parseLocationUpdate, planLocationUpdate } from '../lib/locations/updateLocation.js'
+import { isRockType, parseNumeric, ROCK_TYPES, wallAngleFromCliffAngle } from '@weatherteam6/types'
 import type { ApiResponse, Location, Crag, CreateLocationInput, LocationNormal, ClimbabilityHistory } from '@weatherteam6/types'
 
 export const locationsRouter = Router()
@@ -50,9 +51,8 @@ type GeneralLocationInput = {
  * nonsense forecasts rather than an error.
  *
  * An unrecognised `rock_type` is rejected rather than coerced to null. Coercing
- * it would silently fall back to `unknown` (48h drying) — the single largest
- * lever on the score, and with no edit screen there is no way to notice or
- * correct it later.
+ * it would silently fall back to `unknown` (the slowest drying window) — the
+ * single largest lever on the score.
  */
 function parseGeneralLocationInput(
   body: Partial<CreateLocationInput>,
@@ -133,6 +133,7 @@ function mapLocation(row: LocationRow): Location {
     known_crag: row.known_crag,
     aspect: row.aspect,
     cliff_angle: parseNumeric(row.cliff_angle),
+    wall_angle_deg: wallAngleFromCliffAngle(parseNumeric(row.cliff_angle)),
     asos_station: row.asos_station,
     asos_network: row.asos_network,
     nws_office: row.nws_office,
@@ -303,7 +304,7 @@ locationsRouter.post('/locations', async (req: Request, res: Response) => {
 
 /**
  * Unsave a location. A save flow without this is a trap — one mistyped search
- * result would be permanent, and there is no edit screen either (§12.4).
+ * result would be permanent; `PATCH` edits the wall, not where it is.
  *
  * A location owned by someone else returns 404, not 403: existence is not
  * disclosed. Deleting also removes every dependent row (alerts, reports, walls,
@@ -329,6 +330,85 @@ locationsRouter.delete('/locations/:id', async (req: Request, res: Response) => 
     res.status(200).json(response)
   } catch (err) {
     sendServerError(res, err, 'DELETE /locations/:id')
+  }
+})
+
+/**
+ * **Edit a saved crag's wall: aspect, angle, and an unlocked rock type** —
+ * scoring Phase 4b. The body is `UpdateLocationInput`; the rules live in
+ * `lib/locations/updateLocation.ts` so they can be tested without a database.
+ *
+ * 400 for a malformed body, 404 for a location that is missing or someone
+ * else's (existence is not disclosed, as on DELETE), 409 for a well-formed
+ * change the row refuses — a locked rock type, or wall facts on a location that
+ * is not a crag. The response is the whole updated `Location`.
+ *
+ * Read-then-write rather than one statement, because the plan depends on the
+ * row. The only other writer of `known_crag` is the operator's lock script,
+ * and it applies `resolveRockType` to the same coordinates this plan does, so
+ * a write racing it reaches the same lock rather than undoing it.
+ */
+locationsRouter.patch('/locations/:id', async (req: Request, res: Response) => {
+  const id = req.params['id']
+  if (!id || !isUuid(id)) {
+    const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
+    res.status(404).json(response)
+    return
+  }
+
+  const parsed = parseLocationUpdate(req.body)
+  if ('error' in parsed) {
+    const response: ApiResponse<null> = { data: null, error: parsed.error, status: 400 }
+    res.status(400).json(response)
+    return
+  }
+
+  try {
+    const rows = await db
+      .select()
+      .from(locations)
+      .where(and(eq(locations.id, id), eq(locations.user_id, req.userId)))
+      .limit(1)
+    const row = rows[0]
+    if (!row) {
+      const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
+      res.status(404).json(response)
+      return
+    }
+
+    const plan = planLocationUpdate(
+      {
+        lat: parseFloat(row.lat),
+        lon: parseFloat(row.lon),
+        is_climbing_location: row.is_climbing_location,
+        rock_type: row.rock_type ?? null,
+        known_crag: row.known_crag,
+      },
+      parsed,
+    )
+    if (!plan.ok) {
+      const response: ApiResponse<null> = { data: null, error: plan.error, status: plan.status }
+      res.status(plan.status).json(response)
+      return
+    }
+
+    const updated = await db
+      .update(locations)
+      .set({ ...plan.columns, updated_at: new Date() })
+      .where(and(eq(locations.id, id), eq(locations.user_id, req.userId)))
+      .returning()
+    const saved = updated[0]
+    if (!saved) {
+      // Deleted between the read and the write.
+      const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
+      res.status(404).json(response)
+      return
+    }
+
+    const response: ApiResponse<Location> = { data: mapLocation(saved), error: null, status: 200 }
+    res.status(200).json(response)
+  } catch (err) {
+    sendServerError(res, err, 'PATCH /locations/:id')
   }
 })
 

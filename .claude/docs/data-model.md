@@ -66,7 +66,8 @@ known_crag      text    -- KNOWN_CRAGS slug, or null. Set = rock_type is locked:
                         -- Written only by resolveRockType (POST /locations) and
                         -- npm run locations:lock-known-crags (existing rows).
 aspect          text    -- wall facing direction e.g. 'NW', used for shade calc
-cliff_angle     numeric -- degrees from vertical, used for drying calc
+cliff_angle     numeric -- 0 vertical, 90 flat slab, NEGATIVE overhanging (runs opposite to
+                        --   climbers; the API speaks wall_angle_deg = -cliff_angle, wallAngle.ts)
 asos_station    text    -- nearest IEM ASOS station ID e.g. 'KMSN'
 asos_network    text    -- IEM network e.g. 'WI_ASOS'
 nws_office      text    -- e.g. 'MPX'

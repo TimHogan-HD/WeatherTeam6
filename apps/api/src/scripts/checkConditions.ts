@@ -63,7 +63,6 @@
 import type { ReadingField, ReadingsSummary } from '@weatherteam6/types'
 // Type-only, so it is erased at compile time and does not pull `db` in at
 // import time — the reason every other import here is deferred into run().
-import type { ScoringLocation } from '../lib/runs/fetchHourlySeries.js'
 
 let passed = 0
 let failed = 0
@@ -121,6 +120,7 @@ async function run(): Promise<void> {
     toConditionsReadings,
   } = await import('../lib/runs/conditionsReadings.js')
   const { getHourlySeries } = await import('../lib/runs/fetchHourlySeries.js')
+  const { scoringLocationFor } = await import('../lib/runs/scoringLocation.js')
   const { pointKeyForLocation } = await import('../lib/runs/pointKey.js')
   const { computeLiveForecast } = await import('../lib/scoring/liveForecast.js')
   const {
@@ -165,13 +165,7 @@ async function run(): Promise<void> {
   async function gather(location: NonNullable<Location>) {
     const now = new Date()
 
-    const scoring: ScoringLocation = location.is_climbing_location
-      ? {
-          rockType: location.rock_type ?? 'unknown',
-          cliffAngleDeg:
-            location.cliff_angle === null ? 45 : parseNumericRequired(location.cliff_angle),
-        }
-      : null
+    const scoring = scoringLocationFor(location)
 
     const [live, series, activeAlerts] = await Promise.all([
       computeLiveForecast(location),

@@ -15,6 +15,7 @@ export * from './recentPrecip.js'
 export * from './rockTypeCopy.js'
 export * from './knownCrags.js'
 export * from './readingsCopy.js'
+export * from './wallAngle.js'
 
 export type ApiResponse<T> = {
   data: T | null
@@ -126,7 +127,19 @@ export type Location = {
    */
   known_crag?: string | null
   aspect: string | null
+  /**
+   * **Stored convention, which runs backwards from climbers'**: 0 vertical, 90 a
+   * flat slab, negative overhanging. Read `wall_angle_deg` for anything a person
+   * sees — see `wallAngle.ts`.
+   */
   cliff_angle: number | null
+  /**
+   * Degrees past vertical, climbers' convention: negative slab, 0 vertical,
+   * positive overhanging. Derived from `cliff_angle`; null when nobody recorded
+   * one. Optional because the API and the client deploy separately — an absent
+   * field is unknown, not vertical.
+   */
+  wall_angle_deg?: number | null
   asos_station: string | null
   asos_network: string | null
   nws_office: string | null

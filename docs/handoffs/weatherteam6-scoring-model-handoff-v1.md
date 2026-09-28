@@ -529,6 +529,23 @@ the editor by the owner's request. Three owner decisions, each recorded where it
 tilt and an unlocked rock type, plus the aspect geometry in `rockThermal` that makes
 `I_wall` real. The acceptance line above belongs to 4b.
 
+**4b server half SHIPPED 2026-09-23** — the endpoint and the geometry; the editor screen is
+the client half. Decisions made on the way, each recorded where it lives:
+
+- **The API speaks climbers' angle** (`wall_angle_deg`, positive overhanging); the column
+  keeps its convention and takes negatives for overhang. No migration.
+- **The geometry needs both fields.** An aspect with no angle, or the reverse, keeps the
+  unscaled path and the per-hour `qualified` rule — the 45° placeholder is not a wall.
+- **`I_wall`** = NOAA sun position, Erbs (1982) beam/diffuse split, Liu-Jordan isotropic
+  transposition, ground albedo 0.2. No terrain shading.
+- **Overhangs dry on the vertical factor.** The line extended would dry a roof 30% faster;
+  that is a wetting effect (§18.1's catch ratio), not a faster clock.
+- **The acceptance line holds on the unit tests** (`hourlyConditions.test.ts` § a recorded
+  wall): at a clear 29 °C solstice noon, a north wall reads 36 °C and scores 82, a south wall
+  43 °C / 81, a south-facing 70° slab 63 °C / 76. **The friction reading barely separates the
+  two walls** — its skin term dominates at that heat — which is the model's answer, not a
+  wiring fault; recorded so it is not rediscovered as one.
+
 ### Phase 5 — Preferences UI, then retirement
 The preferences screen, then delete the five-component scorer, `SCORE_COMPONENT_MAX`, and the
 sections of `scoring-algorithm.md` that describe it.

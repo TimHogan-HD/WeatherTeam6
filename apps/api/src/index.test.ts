@@ -173,6 +173,18 @@ describe('CORS', () => {
     expect(res.headers.get('access-control-allow-headers')).toContain('Authorization')
   })
 
+  it('allows every method a route answers, PATCH included', async () => {
+    // PATCH /locations/:id (Phase 4b) is the first non-simple method after
+    // DELETE. Missing from this list, the route works from curl and fails
+    // every browser call at preflight with nothing in the API's logs.
+    const res = await fetch(`${base}/api/v1/locations/00000000-0000-0000-0000-000000000001`, {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://weatherteam6.vercel.app' },
+    })
+    const allowed = (res.headers.get('access-control-allow-methods') ?? '').split(/,\s*/)
+    for (const m of ['GET', 'POST', 'PATCH', 'DELETE']) expect(allowed).toContain(m)
+  })
+
   it('serves a request with no Origin at all', async () => {
     // curl, a script, another server. CORS does not apply to them, and omitting
     // the header is not a refusal — the 401 below is the gate doing its job.
