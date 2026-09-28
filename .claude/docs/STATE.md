@@ -57,10 +57,12 @@ The owner's product list:
 
 1. **Humidity and dew point charts.** Both are fetched and stored; the hourly series is unread.
 2. **A current-location GPS option.** No design yet; prefer the browser geolocation API.
-3. **Scoring Phase 4b — the location editor**: `PATCH /locations/:id`, the editor (aspect,
-   tilt, rock type where not locked), and the aspect geometry in `rockThermal` that makes
-   `I_wall` real. Every saved location still has `cliff_angle` defaulted to 45. **Do not score
-   `aspectDegrees` directly** (#139): the same aspect flips sign by season.
+3. **Scoring Phase 4b — the location editor screen.** The server half shipped in #184:
+   `PATCH /locations/:id` and the wall geometry in `rockThermal`. Still unbuilt: the editor in
+   the web app (aspect, wall angle, rock type where not locked). Since #186 a location's score
+   is Crag A, which reads every direction, so a recorded aspect and angle only matter once
+   Wall A is wired to individual walls. **Do not score `aspectDegrees` directly** (#139): the
+   same aspect flips sign by season.
 4. **Scoring Phase 5 — preferences, then retirement of the five-component scorer.** It owns
    two known wrinkles: a past window still renders as that day's, so *"Good hours: 6am–9am"*
    at 2pm reads like advice for now; and the drying card's `Climbable in ~Nh` line is the old

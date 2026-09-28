@@ -80,9 +80,9 @@ by keeping 0.5 mm/h for sheltered walls.
 
 ## Still open
 
-- **Owner decisions:** approve corrected Crag A (primary) and Wall A (walls, later); a minimum
-  wait after rain for soft and eolian sandstone (F17: Red Rock reads Go 48 h after 0.5" in
-  January); who the testers are.
+- **Owner decision:** a minimum wait after rain for soft and eolian sandstone (F17: Red Rock
+  reads Go 48 h after 0.5" in January).
+- Wall A (`evaluateWallA`) is built but not wired to anything; it needs recorded walls.
 - G5: an overhang in all-day drizzle scores 0 because the synthetic weather sets dew point =
   air temperature in rain. Check on real drizzle days.
 - G10 / F13: the heat rule can't see an overhang's shade on a warm humid afternoon.
