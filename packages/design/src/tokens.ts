@@ -128,8 +128,19 @@ export const colorsV2 = {
   txt2: '#cfdad2',
   /** An unselected tab. */
   txtTab: '#7d8997',
-  /** Chance of rain, as a figure. */
+  /** Chance of rain, as a figure. Also the dew point line on the Hourly tab. */
   rain: '#90cdf4',
+  /** A chart's value gridlines, on the Hourly tab. */
+  grid: '#232e3b',
+  /** A chart legend's words, and the sustained-wind line. */
+  legend: '#c9d2dc',
+  /** The humidity line. */
+  humidity: '#7fd1c4',
+  /**
+   * `good` friction on the Hourly tab's friction strip — between the lime of
+   * `great` (`colors.good`) and `fair`, so four levels read as an ordering.
+   */
+  frictionGood: '#d7f59a',
 } as const;
 
 /**
@@ -678,6 +689,78 @@ export const typeV2 = {
     fontSize: 12,
     fontWeight: '500' as const,
     color: colorsV2.txtMuted,
+  },
+
+  // ── Detail screen — the Hourly frame ──
+
+  /** A day chip — "Today", "Thu": Barlow 12/600. Colour is the chip's state. */
+  dayTab: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  /** Beside a card title — "in 3 days": Barlow 13/400. */
+  aside: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    fontWeight: '400' as const,
+    color: colorsV2.txtMuted,
+  },
+  /** A reading tile's label — "Dryness": Barlow 11/500. */
+  tileLabel: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    fontWeight: '500' as const,
+    color: colorsV2.txtMuted,
+  },
+  /** A reading tile's word — "Drying": Barlow 20/600. */
+  tileWord: {
+    fontFamily: fonts.body,
+    fontSize: 20,
+    fontWeight: '600' as const,
+    color: colorsV2.txt1,
+  },
+  /** A reading tile's figure — the score: Plex Mono 20/500. */
+  tileFigure: {
+    fontFamily: fonts.mono,
+    fontSize: 20,
+    fontWeight: '500' as const,
+    color: colorsV2.txt1,
+  },
+  /** A chart's name — "Temperature": Barlow 16/600. */
+  chartTitle: {
+    fontFamily: fonts.body,
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: colorsV2.txt1,
+  },
+  /** A chart's unit beside its name — "°F": Barlow 12/400. */
+  chartUnit: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    fontWeight: '400' as const,
+    color: colorsV2.txtMuted,
+  },
+  /** A chart's headline figure — "56–64°F": Plex Mono 14/500. */
+  chartValue: {
+    fontFamily: fonts.mono,
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: colorsV2.txt1,
+  },
+  /** An axis tick — "06", "70°": Plex Mono 10/400. */
+  axisTick: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    fontWeight: '400' as const,
+    color: colorsV2.txtMuted,
+  },
+  /** A chart legend's key — "Dew point": Barlow 12/500. */
+  legend: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    fontWeight: '500' as const,
+    color: colorsV2.legend,
   },
 } as const;
 

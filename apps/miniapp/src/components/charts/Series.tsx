@@ -69,6 +69,11 @@ export type SeriesProps = {
   placement?: 'accumulation' | 'instant'
   /** Bars only: draw the p10-p90 spread as a whisker over each bar. */
   whiskers?: boolean
+  /**
+   * Lines only: an SVG dash pattern. The dew point is dashed so it cannot be
+   * read as a second temperature forecast drawn in another colour.
+   */
+  dash?: string
 }
 
 function pointsIn(
@@ -90,7 +95,7 @@ function pointsIn(
   return out
 }
 
-function LineMarks({ data, x, y, color, bandColor, bandData }: Omit<SeriesProps, 'kind'>) {
+function LineMarks({ data, x, y, color, bandColor, bandData, dash }: Omit<SeriesProps, 'kind'>) {
   const source = bandData ?? data
   const bands = bandColor === undefined ? [] : bandRuns(source)
   const lines = valueRuns(data)
@@ -120,6 +125,7 @@ function LineMarks({ data, x, y, color, bandColor, bandData }: Omit<SeriesProps,
               strokeWidth={LINE_W}
               strokeLinecap="round"
               strokeLinejoin="round"
+              {...(dash === undefined ? {} : { strokeDasharray: dash })}
               vectorEffect="non-scaling-stroke"
             />
           )

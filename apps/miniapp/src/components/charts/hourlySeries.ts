@@ -272,6 +272,25 @@ export function chanceSeries(hours: readonly HourlySample[]): SeriesDatum[] {
 }
 
 /**
+ * The dew point, hour by hour — **the deterministic model's column**, the one
+ * `HourlySeries.model` names, not an ensemble figure. It has no spread to draw,
+ * and a surface drawing it beside the ensemble's temperature says which model
+ * it came from.
+ */
+export function dewPointSeries(hours: readonly HourlySample[]): SeriesDatum[] {
+  return hours
+    .map((h) => toDatum(h, h.dewpoint_c, null, null))
+    .filter((d): d is SeriesDatum => d !== null)
+}
+
+/** Relative humidity, hour by hour. Deterministic, like the dew point. */
+export function humiditySeries(hours: readonly HourlySample[]): SeriesDatum[] {
+  return hours
+    .map((h) => toDatum(h, h.humidity_pct, null, null))
+    .filter((d): d is SeriesDatum => d !== null)
+}
+
+/**
  * Wind, as the ensemble median with the **deterministic gust** as the upper edge.
  *
  * `low` is the median itself rather than `wind_kmh_p10`, so the mark spans

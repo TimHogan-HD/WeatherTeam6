@@ -7,8 +7,8 @@ import type {
   HourlySeries,
   ReadingsDay,
 } from '@weatherteam6/types'
-import { DayCharts, stepDay } from './DayCharts.js'
-import { chartColors } from './chartStyle.js'
+import { DayCharts } from './DayCharts.js'
+import { chartColorsV2 } from './chartStyle.js'
 import { HOUR_MS } from './hourlySeries.js'
 
 /**
@@ -130,29 +130,27 @@ describe('DayCharts headers', () => {
   })
 })
 
-describe('DayCharts pager', () => {
+describe('DayCharts day chips', () => {
   const week = [day(DAY_1), day(DAY_2, false), day(DAY_3)]
 
-  it('skips a day the ensemble never reached', () => {
-    expect(stepDay(week, DAY_1, 1)).toBe(DAY_3)
-    expect(stepDay(week, DAY_3, -1)).toBe(DAY_1)
+  it('shows every day, disabling the one the ensemble never reached', () => {
+    // Dropping the day would shift every later chip left, and a reader
+    // counting from Today would land on the wrong one.
+    const html = render(series(fullDay, week), DAY_1)
+    expect(html).toContain('>Today<')
+    expect(html).toMatch(/disabled=""[^>]*>Wed</)
+    expect(html).not.toMatch(/disabled=""[^>]*>Thu</)
   })
 
-  it('stops at the ends rather than wrapping', () => {
-    expect(stepDay(week, DAY_3, 1)).toBeNull()
-    expect(stepDay(week, DAY_1, -1)).toBeNull()
-  })
-
-  it('walks in from the matching end when the day has left the window', () => {
-    // The window rolls forward as runs are collected, so a date in route state
-    // can drop out of `days[]`. Both arrows dead is a screen with no way off it.
-    expect(stepDay(week, '2026-09-01', 1)).toBe(DAY_1)
-    expect(stepDay(week, '2026-09-01', -1)).toBe(DAY_3)
+  it('marks the open day as the pressed chip', () => {
+    const html = render(series(fullDay, week), DAY_3)
+    expect(html).toMatch(/aria-pressed="true"[^>]*>Thu</)
+    expect(html).toMatch(/aria-pressed="false"[^>]*>Today</)
   })
 
   it('names how far out the open day is, counted from the window’s own first day', () => {
-    const html = render(series(fullDay, week), DAY_1)
-    expect(html).toContain('today')
+    expect(render(series(fullDay, week), DAY_1)).toContain('>today<')
+    expect(render(series(fullDay, week), DAY_3)).toContain('>in 2 days<')
   })
 })
 
@@ -321,8 +319,8 @@ describe('DayCharts — the spread is drawn on every series that has one', () =>
     const svg = chartSvg(render(series(spread)), 'Rainfall by hour')
     // **The band's own fill, not just "a path".** The line is a `<path>` too,
     // so a bare tag assertion passes with the band deleted.
-    expect(svg).toContain(`fill="${chartColors.rainBand}"`)
-    expect(render(series(spread))).toContain('Where 8 in 10 runs land')
+    expect(svg).toContain(`fill="${chartColorsV2.rainBand}"`)
+    expect(render(series(spread))).toContain('8 in 10 runs')
   })
 
   it('shades the wind spread under the line, and keeps the gusts as their own', () => {
@@ -342,9 +340,9 @@ describe('DayCharts — the spread is drawn on every series that has one', () =>
     const html = render(series(windy))
     const svg = chartSvg(html, 'Wind by hour')
     // Three marks, each its own: the ribbon, the sustained line, the gust line.
-    expect(svg).toContain(`fill="${chartColors.windBand}"`)
-    expect(svg).toContain(`stroke="${chartColors.wind}"`)
-    expect(svg).toContain(`stroke="${chartColors.gust}"`)
+    expect(svg).toContain(`fill="${chartColorsV2.windBand}"`)
+    expect(svg).toContain(`stroke="${chartColorsV2.wind}"`)
+    expect(svg).toContain(`stroke="${chartColorsV2.gust}"`)
     // **The ribbon is the ensemble's, not the gust range wearing its colour.**
     // The chart's scale is set by the caller either way, so only the ribbon's
     // own reach separates them: p90 at 60 km/h is the top of the plot, and the
@@ -352,12 +350,120 @@ describe('DayCharts — the spread is drawn on every series that has one', () =>
     // Located by string, never by a regex built from the colour: an `rgba()`
     // token is full of regex metacharacters, and the pattern quietly matched
     // nothing rather than failing.
-    const ribbon = pathWithFill(svg, chartColors.windBand)
+    const ribbon = pathWithFill(svg, chartColorsV2.windBand)
     // `bandPath` writes `M x,y L x,y … Z`, so every second number is a y.
     const ys = [...ribbon.matchAll(/,(-?[0-9.]+)/g)].map((m) => Number(m[1]))
     expect(ys.length).toBeGreaterThan(0)
     expect(Math.min(...ys)).toBeLessThan(15)
     expect(html).toContain('Gusts')
-    expect(html).toContain('Where 8 in 10 runs land')
+    expect(html).toContain('8 in 10 runs')
+  })
+})
+
+describe('DayCharts — dew point and humidity', () => {
+  const humid = Array.from({ length: 24 }, (_, i) =>
+    hour(i, DAY_1, { dewpoint_c: 5, humidity_pct: 40 + i }),
+  )
+
+  it('draws the dew point on the temperature chart as a dashed line of its own colour', () => {
+    const svg = chartSvg(render(series(humid)), 'Temperature by hour')
+    expect(svg).toContain(`stroke="${chartColorsV2.dewPoint}"`)
+    expect(svg).toContain('stroke-dasharray')
+    expect(render(series(humid))).toContain('Dew point')
+  })
+
+  it('keeps the dew point inside the plot when it sits far below the air', () => {
+    // 5 °C against a band from 12 °C: a domain taken from the band alone puts
+    // the dew point below the frame, where SVG draws it over the next chart.
+    const svg = chartSvg(render(series(humid)), 'Temperature by hour')
+    const at = svg.indexOf(`stroke="${chartColorsV2.dewPoint}"`)
+    const open = svg.lastIndexOf(' d="', at) + 4
+    const d = svg.slice(open, svg.indexOf('"', open))
+    const ys = [...d.matchAll(/,(-?[0-9.]+)/g)].map((m) => Number(m[1]))
+    expect(ys.length).toBeGreaterThan(0)
+    // DAY_VIEW_H 122 less the 16-unit axis strip.
+    expect(Math.max(...ys)).toBeLessThanOrEqual(106)
+  })
+
+  it('draws humidity and states the day’s range', () => {
+    const html = render(series(humid))
+    chartSvg(html, 'Humidity by hour')
+    expect(html).toContain('40–63%')
+  })
+
+  it('names the model the dew point and humidity came from, and only when one is drawn', () => {
+    expect(render(series(humid))).toContain('Dew point and humidity: Open-Meteo (gfs_seamless)')
+    // The default fixture carries neither column.
+    expect(render(series(fullDay))).not.toContain('Dew point and humidity')
+    expect(render(series(fullDay))).toContain('No hourly humidity for this day.')
+    expect(render(series(fullDay))).not.toContain('>Dew point<')
+  })
+})
+
+/** Tags out, whitespace collapsed — the card as a reader sees it. */
+const visibleText = (html: string): string => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
+
+describe('DayCharts — the conditions card', () => {
+  const hours = Array.from({ length: 24 }, (_, i) => hour(i, DAY_1))
+  const readingHours: HourlyReading[] = hours.map((h, i) =>
+    readingHour(80, {
+      valid_at: h.valid_at,
+      friction: i < 3 ? { level: 'fair', condensing: false, qualified: true } : { level: 'great', condensing: false, qualified: true },
+    }),
+  )
+
+  function withStrip(score = OPEN_SCORE, days = [readingsDay(DAY_1, 80)]): string {
+    return renderToStaticMarkup(
+      <DayCharts
+        series={{
+          ...series(hours),
+          readings: { model: 'gfs_seamless', unavailable_reason: null, hours: readingHours, days },
+        }}
+        selectedDate={DAY_1}
+        onSelectDate={() => {}}
+        score={score}
+      />,
+    )
+  }
+
+  it('reads the friction strip aloud as runs of words, joined on the instant', () => {
+    expect(withStrip()).toContain('Friction by hour: 00–02 Fair, 03–23 Great')
+  })
+
+  it('keys the strip by name, because a colour cannot be read aloud', () => {
+    const text = visibleText(withStrip())
+    for (const word of ['Poor', 'Fair', 'Good', 'Great']) expect(text).toContain(word)
+  })
+
+  it('says which hour the readings are from, not that it is the best one', () => {
+    // `best` is the worst hour of the best three-hour run — calling it the
+    // best hour would be a claim the model does not make.
+    const text = visibleText(withStrip())
+    expect(text).toContain('Readings at 00:00')
+    expect(text).not.toContain('Best hour')
+  })
+
+  it('shades the good hours on the temperature chart only while the card names them', () => {
+    expect(withStrip()).toContain(`fill="${chartColorsV2.goodHours}"`)
+    expect(withStrip(OPEN_SCORE, [])).not.toContain(`fill="${chartColorsV2.goodHours}"`)
+    expect(render(series(fullDay))).not.toContain(`fill="${chartColorsV2.goodHours}"`)
+  })
+
+  it('draws no strip, tiles or shading for a city', () => {
+    const html = withStrip({ severeAlertEvent: null, alertsPending: false, showScore: false })
+    expect(html).not.toContain('Friction by hour')
+    expect(html).not.toContain(`fill="${chartColorsV2.goodHours}"`)
+  })
+})
+
+describe('DayCharts — a trace of rain', () => {
+  it('keeps a readable scale rather than stretching a trace across the plot', () => {
+    // 0.02 mm an hour: scaled to its own peak, every tick rounded to "0" and
+    // the kept one sat at the top of the plot, labelling it zero.
+    const trace = Array.from({ length: 24 }, (_, i) => hour(i, DAY_1, { precip_mm_mean: 0.02 }))
+    const html = render(series(trace))
+    const block = html.slice(html.indexOf('>Rain<'), html.indexOf('>Chance of rain<'))
+    expect(block).toContain('>0.02<')
+    expect(block.match(/>0</g)?.length ?? 0).toBeLessThanOrEqual(1)
   })
 })

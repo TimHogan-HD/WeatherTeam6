@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { colors, radius, spacing } from '@weatherteam6/design/tokens'
 import { extent, linearScale, niceTicks, padExtent, type Extent } from './geometry.js'
 import { dayStarts, timeExtent, valueExtent, HOUR_MS, type SeriesDatum } from './hourlySeries.js'
@@ -18,7 +18,7 @@ import {
 } from './chartStyle.js'
 import { type } from '../../theme/tokens.css.js'
 import { formatWeekday } from '../../lib/forecast.js'
-import { formatLocalHourShort } from '../../lib/format.js'
+import { formatLocalHour24, formatLocalHourShort } from '../../lib/format.js'
 
 /**
  * One chart: a viewBox, day gridlines, the marks, and labels.
@@ -52,7 +52,19 @@ export type HourlyChartProps = {
    * which is neither an upper percentile of it nor a disagreement between runs.
    * Counted in the vertical domain, like the band.
    */
-  overlay?: { data: readonly SeriesDatum[]; color: string }
+  overlay?: { data: readonly SeriesDatum[]; color: string; dash?: string }
+  /**
+   * A span of time to shade behind the marks, epoch ms, both ends inclusive —
+   * the day's good hours. Each end is widened by half an hour so a one-hour
+   * window is a visible column rather than a zero-width rule.
+   */
+  shade?: { from: number; to: number; color: string }
+  /**
+   * The v2 look for the axes: tick labels in this style, the hours as `06`
+   * rather than `6a`, and gridlines in `gridColor`. Omitted, the chart keeps
+   * the v1 look the seven-day strip still wears.
+   */
+  v2?: { labelStyle: CSSProperties; gridColor: string }
   colorForValue?: (value: number) => string
   /** Takes the canonical metric value and writes the displayed unit. */
   formatValue: (value: number | null) => string
@@ -145,12 +157,13 @@ function verticalDomain(data: readonly SeriesDatum[], kind: SeriesKind): Extent 
 function hourTicks(
   data: readonly SeriesDatum[],
   utcOffsetSeconds: number,
+  write: (t: number, utcOffsetSeconds: number) => string | null,
 ): { key: string; t: number; label: string }[] {
   const out: { key: string; t: number; label: string }[] = []
   for (const d of data) {
     const shifted = new Date(d.t + utcOffsetSeconds * 1000)
     if (shifted.getUTCHours() % HOUR_TICK_STEP !== 0) continue
-    const label = formatLocalHourShort(d.t, utcOffsetSeconds)
+    const label = write(d.t, utcOffsetSeconds)
     if (label === null) continue
     out.push({ key: `${d.localDate}-${shifted.getUTCHours()}`, t: d.t, label })
   }
@@ -165,6 +178,8 @@ export function HourlyChart({
   bandColor,
   bandData,
   overlay,
+  shade,
+  v2,
   colorForValue,
   formatValue,
   title,
@@ -244,7 +259,7 @@ export function HourlyChart({
     axis === 'hour'
       ? utcOffsetSeconds === undefined
         ? []
-        : hourTicks(data, utcOffsetSeconds)
+        : hourTicks(data, utcOffsetSeconds, v2 === undefined ? formatLocalHourShort : formatLocalHour24)
       : dayStarts(data).map((d) => ({
           key: d.localDate,
           t: d.t,
@@ -262,6 +277,7 @@ export function HourlyChart({
   const unit = axis === 'hour' ? 'hour' : 'day'
   const summary = `${title}: ${formatValue(measured.min)} to ${formatValue(measured.max)} over ${covered} ${covered === 1 ? unit : `${unit}s`}.`
 
+  const gridStroke = v2?.gridColor ?? chartColors.grid
   const pctX = (value: number): string => `${(value / VIEW_W) * 100}%`
   const pctY = (value: number): string => `${(value / viewHeight) * 100}%`
 
@@ -379,7 +395,25 @@ export function HourlyChart({
           Value gridlines, behind everything. Recessive on purpose — they are a
           reading aid, not data, and a grid that competes with the marks is the
           commonest way a chart stops being readable.
+
+          The good hours go behind even the grid: a span of the day, not a
+          mark, so it must never sit over the data it frames. Clamped to the
+          plot, because SVG does not clip.
         */}
+        {shade === undefined ? null : (() => {
+          const left = Math.max(PAD_LEFT, x(shade.from - HOUR_MS / 2))
+          const right = Math.min(VIEW_W - PAD_RIGHT, x(shade.to + HOUR_MS / 2))
+          if (!(right > left)) return null
+          return (
+            <rect
+              x={left}
+              y={PAD_TOP}
+              width={right - left}
+              height={plotBottom - PAD_TOP}
+              fill={shade.color}
+            />
+          )
+        })()}
         {valueTicks.map((value) => (
           <line
             key={`value-${value}`}
@@ -391,7 +425,7 @@ export function HourlyChart({
             // SVG does not clip.
             y1={yDisplay(value)}
             y2={yDisplay(value)}
-            stroke={chartColors.grid}
+            stroke={gridStroke}
             strokeWidth={GRID_W}
             vectorEffect="non-scaling-stroke"
           />
@@ -410,7 +444,7 @@ export function HourlyChart({
               x2={at}
               y1={PAD_TOP}
               y2={plotBottom}
-              stroke={chartColors.grid}
+              stroke={gridStroke}
               strokeWidth={GRID_W}
               vectorEffect="non-scaling-stroke"
             />
@@ -436,7 +470,14 @@ export function HourlyChart({
           top rather than as one the first is hiding.
         */}
         {overlay === undefined ? null : (
-          <Series data={overlay.data} kind="line" x={x} y={y} color={overlay.color} />
+          <Series
+            data={overlay.data}
+            kind="line"
+            x={x}
+            y={y}
+            color={overlay.color}
+            {...(overlay.dash === undefined ? {} : { dash: overlay.dash })}
+          />
         )}
 
         {/* The hour under the pointer, marked on the plot itself. */}
@@ -457,8 +498,7 @@ export function HourlyChart({
         <span
           key={`value-label-${value}`}
           style={{
-            ...type.label,
-            color: chartColors.valueLabel,
+            ...(v2?.labelStyle ?? { ...type.label, color: chartColors.valueLabel }),
             position: 'absolute',
             left: 0,
             // Same scale as the rule it labels — see the note on the gridline.
@@ -510,8 +550,7 @@ export function HourlyChart({
           <span
             key={`label-${tick.key}`}
             style={{
-              ...type.label,
-              color: chartColors.timeLabel,
+              ...(v2?.labelStyle ?? { ...type.label, color: chartColors.timeLabel }),
               position: 'absolute',
               left: pctX(at),
               top: pctY(plotBottom),

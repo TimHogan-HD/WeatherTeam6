@@ -174,8 +174,8 @@ Crag** — and opens on Overview: the Conditions now hero, **Today** (09-21 ever
 hours, temperature and the friction word), **Next 3 days** (each day's Crag A score as a
 tinted pill), and **Rain** (last rain, next likely rain). Rock holds the drying card and
 Crag the identity block until their own V2 frames are built; a city gets Overview, Daily
-and Hourly only. Daily is built to its own frame (below); Hourly is unchanged and has a
-V2 frame still to build. Deliberate departures from the frame:
+and Hourly only. Daily and Hourly are built to their own frames (below). Deliberate
+departures from the frame:
 
 - **The day pills are the Crag A day score** (`readings.days[].best`), joined on date and
   suppressed through `summarizeReadings` — never the forecast row's `score`, which is the
@@ -210,6 +210,35 @@ day charts. Deliberate departures from the frame:
   scale now. A key under the rows says what each chip is.
 - **Chips have 6px sides, not 8**, so a 375px phone fits all three on one line; at 360px
   they wrap to a second line.
+
+**Hourly tab — superseded 2026-09-28 by the same page's `v2 Dark - Hourly` frame (node
+`129:529`).** A chip per day in the window (`Today`, then weekdays) replaces the ‹ › pager;
+a day the ensemble never reached keeps its chip, disabled, so counting from Today lands on
+the right one. Under it, the open day's card — date, how far out (`in 3 days`), the
+**Dryness / Friction / Score tiles**, the good hours band, a caption, and **friction by
+hour** as a strip of coloured cells — then one card of charts: **Temperature** (air, dew
+point, the 8-in-10 band, the good hours shaded), **Rain**, **Chance of rain**, **Wind**
+and **Humidity**. Dew point and humidity are new on screen (the owner's product list, item
+1). Deliberate departures from the frame:
+
+- **The caption says `Readings at 10:00`, not `Best hour 23:00`.** The readings are the
+  server's representative hour — the worst hour of the best three-hour run between 08:00
+  and 18:00 — which is not the best hour. It is followed by the required caveats.
+- **The friction strip has a key naming its four levels**, and reads aloud as runs of
+  words (`00–02 Fair, 03–23 Great`). The frame has none; a colour cannot be read aloud.
+  An hour the model did not read is an empty well, not a level.
+- **The good hours band wears the day score's rung**, as the hero's does, and is the plain
+  well when no score is on screen. The frame's lime would put a verdict on a poor day.
+- **Air is `sun`, not the frame's amber, and gusts are a dashed line in the primary ink,
+  not red** — `fair` and `poor` are the conditions ladder and not available for data
+  marks. The frame's green and red threshold rules on the charts are not drawn: nothing
+  names them and nobody has measured where they belong.
+- **Dew point and humidity are the deterministic model's columns**, not the ensemble's,
+  and a caption under the charts names that model from the response.
+- **Rain's scale runs to at least 0.02 in**, so a trace day draws as a flat line under
+  readable ticks rather than a trace stretched to full height.
+- **The hour axis labels 00, 06, 12, 18**; the frame's closing `23` is not drawn. The
+  friction strip, which has room, does label it.
 
 ~~One scroll, no internal tabs~~ — **superseded 2026-09-14 and shipped.** The screen now
 carries **Daily and Hourly tabs**, and the daily rows carry per-day scores, both reversed

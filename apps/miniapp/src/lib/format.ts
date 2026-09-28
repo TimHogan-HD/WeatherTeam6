@@ -107,6 +107,14 @@ export function formatLocalClock(t: number, utcOffsetSeconds: number): string | 
 }
 
 /**
+ * The hour alone on a 24-hour clock, `06` — the v2 Hourly tab's axis ticks,
+ * set in the mono face. Same rules as `formatLocalClock`.
+ */
+export function formatLocalHour24(t: number, utcOffsetSeconds: number): string | null {
+  return formatLocalClock(t, utcOffsetSeconds)?.slice(0, 2) ?? null
+}
+
+/**
  * The same hour, compact enough for an axis tick: `12a`, `6a`, `12p`, `11p`.
  *
  * Four of these fit across a 24-hour chart at 375px where `12 AM` crowds. The
