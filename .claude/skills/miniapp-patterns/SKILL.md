@@ -100,10 +100,15 @@ renders wrong-but-plausible if broken:
   warm side had two, so -15 °C and +5 °C came out identical. Interpolating fixes both:
   neighbouring values in a continuous scale are *meant* to be similar, and only the ends
   must separate. Do not re-step it.
-- **The daily rows' bar scale is shared by all seven.** Normalising each row to its own
+- **Any bar drawn across several rows shares one scale.** Normalising each row to its own
   min/max draws the identical bar on every row whatever the values are — a chart that
   cannot be wrong. Score is a **fixed** 0-100, because its scale is defined rather than
-  measured.
+  measured. (The Daily tab drew such bars until the V2 card replaced them with figure
+  chips on 2026-09-28; the rule stands for the next one.)
+- **A day's score pill is `ScorePill` on `DayRowShell` (`components/DayRow.tsx`),** fed
+  through `scoredDays` in `lib/overview.ts`, which suppress it via
+  `summarizeReadings`. The Overview and Daily tabs share both, so one day cannot wear two
+  numbers or two colours.
 - **An hourly axis reads the location's clock, from `utc_offset_seconds`.** The four labels
   are the same strings either way, so only their *positions* move — a chart on the viewer's
   clock prints a correct-looking axis against the wrong hours. Issue #33's shape exactly.

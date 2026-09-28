@@ -644,6 +644,20 @@ export const typeV2 = {
     fontSize: 12,
     fontWeight: '500' as const,
   },
+  /** A Daily row's figure chip — "36% · 0.03 in", and the low: Plex Mono 12/400. */
+  dayChip: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    fontWeight: '400' as const,
+    color: colorsV2.txtMuted,
+  },
+  /** The emphasised figure in a Daily chip — the high: Plex Mono 12/500. */
+  dayChipStrong: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    fontWeight: '500' as const,
+    color: colorsV2.txt1,
+  },
   /** A fact's label — "Last rain": Barlow 14/500. */
   factLabel: {
     fontFamily: fonts.body,

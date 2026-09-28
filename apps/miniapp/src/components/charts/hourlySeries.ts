@@ -350,31 +350,6 @@ export function currentHour(
 }
 
 /**
- * One local day's ensemble spread in temperature, from the hourly run.
- *
- * **The daily rows have no spread of their own to draw.** `ForecastSnapshot`
- * carries `temp_c_min`/`temp_c_max`, which are already the *median* of each
- * member's own daily extreme (architecture rule — never a global `Math.max`),
- * so there is no p10 or p90 on that row to widen them with. The hourly
- * response, which the Daily tab already fetches for its drill-down, has one per
- * hour; the coldest p10 and the warmest p90 of a day are that day's spread.
- *
- * `null` when the run does not reach the day, which is the common case for the
- * far end of the week — and it must stay distinguishable from a day the models
- * agree exactly on, where the band is real and narrow.
- */
-export function daySpread(
-  hours: readonly HourlySample[],
-  localDate: string,
-): { from: number; to: number } | null {
-  const own = hours.filter((h) => h.local_date === localDate)
-  const low = extent(own.map((h) => h.temp_c_p10))
-  const high = extent(own.map((h) => h.temp_c_p90))
-  if (low === null || high === null) return null
-  return { from: low.min, to: high.max }
-}
-
-/**
  * The gusts, as their own line over the sustained one.
  *
  * **A second series rather than a second field, because the charts are lines

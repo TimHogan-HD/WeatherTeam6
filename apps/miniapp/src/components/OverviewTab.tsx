@@ -1,10 +1,9 @@
 import type { ReactNode } from 'react'
-import { colorsV2, radius, spacing, toneSurfacesV2 } from '@weatherteam6/design/tokens'
+import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import {
   EM_DASH,
   FRICTION_ESTIMATE_NOTE,
   FRICTION_LABELS,
-  SCORE_LABEL,
   formatLastRain,
   type ConditionsScore,
   type FrictionLevel,
@@ -13,7 +12,7 @@ import {
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, cardV2, row, stack, type ToneName } from '../theme/styles.js'
 import { formatTempDeg, formatTempRangeF } from '../lib/format.js'
-import { scoreTone } from '../lib/locationList.js'
+import { DayRowShell, ScorePill } from './DayRow.js'
 import {
   nextDays,
   nextLikelyRain,
@@ -185,61 +184,27 @@ function DayRow({
   isClimbingLocation: boolean
   onOpen: (() => void) | null
 }) {
-  const tone = day.score === null ? null : scoreTone(day.score)
-  const s = tone === null ? null : toneSurfacesV2[tone]
-
-  const content = (
-    <>
+  // A row opens that day's hours only when the charts can draw it — a day the
+  // ensemble never reached would open two empty charts.
+  return (
+    <DayRowShell
+      score={day.score}
+      onOpen={onOpen}
+      style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}
+    >
       <span style={typeV2.rowTitle}>{day.title}</span>
       {isClimbingLocation ? (
         // Absent rather than dashed when there is no score: suppressed under an
         // alert (the banner above says why), still loading, or past the run —
         // none of them is a score of nothing.
-        day.score === null || s === null ? null : (
-          <span
-            style={{
-              ...typeV2.rowPill,
-              color: s.pillInk,
-              backgroundColor: s.pill,
-              borderStyle: 'solid',
-              borderWidth: '1px',
-              borderColor: s.pillLine,
-              borderRadius: `${radius.full}px`,
-              padding: `${spacing.listGapSm}px ${spacing.listGap}px`,
-            }}
-          >
-            {SCORE_LABEL} {day.score}
-          </span>
-        )
+        day.score === null ? null : <ScorePill score={day.score} />
       ) : (
         <span style={{ ...typeV2.rowPill, color: colorsV2.txtMuted }}>
           {/* Both ends or a dash: a range with one end missing reads as a typo. */}
           {formatTempRangeF(day.lowC, day.highC)}
         </span>
       )}
-    </>
-  )
-
-  const surface = {
-    ...row(spacing.cellPad),
-    justifyContent: 'space-between',
-    backgroundColor: s === null ? colorsV2.raised : s.row,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    borderColor: colorsV2.line,
-    borderRadius: `${radius.rowV2}px`,
-    padding: `${spacing.cellPad}px`,
-
-  } as const
-
-  // A row opens that day's hours only when the charts can draw it — a day the
-  // ensemble never reached would open two empty charts.
-  return onOpen === null ? (
-    <div style={surface}>{content}</div>
-  ) : (
-    <button type="button" onClick={onOpen} style={{ ...bareButton, ...surface }}>
-      {content}
-    </button>
+    </DayRowShell>
   )
 }
 
