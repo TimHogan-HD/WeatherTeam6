@@ -196,8 +196,9 @@ V2 frame still to build. Deliberate departures from the frame:
 day: the date and the day's Crag A score as a pill, over three chips — the low and high,
 the rain chance and amount, the peak wind. Rows are tinted by the score's rung and open
 that day's hours when the charts can draw it. **The metric toggle and the shared-scale
-range bars are gone**, and the seven-day hourly strip stays under the card, where the
-ensemble's spread is still drawn. Deliberate departures from the frame:
+range bars are gone**, and so is the seven-day hourly strip that sat under them (owner,
+2026-09-28: not needed now). The ensemble's spread is drawn only on the Hourly tab's
+day charts. Deliberate departures from the frame:
 
 - **The pill is the Overview's**: the Crag A day score through `summarizeReadings`, so it
   is dropped under a Severe+ alert and while alerts load, and wears `SCORE_BANDS` rather

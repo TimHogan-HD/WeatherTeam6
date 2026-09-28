@@ -26,7 +26,6 @@ import { DailyList } from './DailyList.js'
 import { LocationIdentity } from './LocationIdentity.js'
 import type { HeaderTab } from './DetailHeader.js'
 import { OverviewTab } from './OverviewTab.js'
-import { HourlySection } from './charts/HourlySection.js'
 import { DayCharts } from './charts/DayCharts.js'
 import { dayIsDrawable } from './charts/hourlySeries.js'
 import { TEMP_VIEW_H } from './charts/chartStyle.js'
@@ -39,9 +38,9 @@ import { TEMP_VIEW_H } from './charts/chartStyle.js'
  *
  * - **Overview** — the Conditions now hero, today by the hour, the next three
  *   days' scores, and rain. Built to its V2 frame.
- * - **Daily** — the seven days as tinted rows, built to its V2 frame, with the
- *   seven-day hourly strip under them.
- * - **Hourly** — the day charts, as they were. Its V2 frame is later work.
+ * - **Daily** — the seven days as tinted rows, built to its V2 frame.
+ * - **Hourly** — a chip per day, the open day's readings and friction by the
+ *   hour, then its charts. Built to its V2 frame.
  * - **Rock** — the drying card; **Crag** — the identity block and its walls.
  *   Both hold the content that used to sit above the old two tabs, so nothing
  *   left the screen when Overview arrived. Their V2 frames are later work too.
@@ -268,11 +267,7 @@ export function DetailView({
                 drawableDates,
               })}
         />
-        {/*
-          The continuous seven-day series belongs with the daily rows: it is a
-          chart about comparing days, which is what this tab is for.
-        */}
-        {hourly?.data === undefined ? null : <HourlySection series={hourly.data} />}
+        {/* The rows' score pills and rain chances come from the hourly run. */}
         {hourly?.isError === true ? (
           <InlineError message="Couldn't load the hour-by-hour forecast." onRetry={hourly.refetch} />
         ) : null}
