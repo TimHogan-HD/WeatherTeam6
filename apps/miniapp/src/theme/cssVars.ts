@@ -11,7 +11,7 @@
  * in `<head>` rather than being injected after first paint. It must therefore
  * stay free of DOM and React imports.
  */
-import { colors, radius, spacing } from '@weatherteam6/design/tokens'
+import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import { fontStacks } from './fonts.js'
 import { shadow } from './tokens.css.js'
 
@@ -35,6 +35,8 @@ function asPx(entries: Record<string, number>): Record<string, string> {
 export function renderTokenCss(): string {
   const lines = [
     ...declarations('color', colors),
+    // Its own group: `card`, `line` and `txt1` exist in both palettes.
+    ...declarations('v2', colorsV2),
     ...declarations('space', asPx(spacing)),
     ...declarations('radius', asPx(radius)),
     ...declarations('shadow', shadow),

@@ -129,7 +129,33 @@ Governed by the locked rule **"score is a derived signal, never the headline —
 
 ### Location list (`/`)
 
-One card per location. Top to bottom inside a card:
+**Superseded 2026-09-28 by the WT6 Figma file's "V2" page (`v2 Dark - Locations`, node
+`129:5`), on the owner's instruction to rebuild the list to it.** Dark only for now. What
+changed, deliberately:
+
+- **The score sits on the name row** as a tinted `Score 87` badge, and is visually larger
+  than the weather chips. This reverses "never the largest element" for the list card. It
+  is still labelled, still never bare, and still absent under a Severe+ alert or while
+  alerts load — `cardSummary` (`lib/locationList.ts`) is `summarizeReadings`, unchanged.
+- **Today's weather is four figure chips** — low–high, rain amount, humidity, peak wind —
+  keyed once by a legend above the cards rather than labelled on each. The legend says
+  *Low–high* and *Peak wind*, so the maxima note below is carried there.
+- **The two readings are tinted pills that print their value** (`Dryness Dry`). The Figma
+  draws the label alone and leaves the reading to the colour; that was not taken, because a
+  reading is a label and a value (owner decision 2026-09-21) and a colour cannot be read aloud.
+- **The Figma's rain chip reads `0% · 0.0 in`; the percentage was dropped.** The daily row
+  carries no chance of rain — only the hourly series does — so there is nothing honest to
+  put there. The amount is `precip_mm_p50`, a daily figure.
+- **A sort control** — Score (default), Name, Added — reverses "no sort or filter controls
+  in v1". Score order uses the same suppressed number the card prints, puts unscored
+  locations last in added order, and waits until every card has settled.
+- **The alert pill leads the card**, because the score it must sit above is now on the
+  first row.
+
+Everything else below still holds: non-climbing locations never ask for or show a score,
+the Add affordance stays in the header, and a failed alerts load is stated.
+
+The v1 list card, for reference — top to bottom inside a card:
 
 1. **Location name** — `type.cardTitle` equivalent, `txt1`
 2. **Weather line** — today's high, max wind, and humidity as plain values with units. This is the largest non-name element on the card. **Label them as maxima, not as current readings** — see the note at the end of this section.

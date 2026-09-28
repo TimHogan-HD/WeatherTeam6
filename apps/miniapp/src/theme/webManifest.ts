@@ -1,4 +1,4 @@
-import { colors } from '@weatherteam6/design/tokens'
+import { colorsV2 } from '@weatherteam6/design/tokens'
 
 /**
  * The PWA manifest, built from the design tokens rather than written out as
@@ -45,14 +45,11 @@ export function buildWebManifest(): WebManifest {
     // `portrait` rather than `any`: every screen here is a single column and
     // the charts are sized for phone width.
     orientation: 'portrait',
-    // What the OS paints around the app — the top of the gradient, which is
-    // what sits under the status bar.
-    theme_color: colors.bgGradientTop,
-    // What it paints during launch, before the first frame. The *bottom* of
-    // the gradient, because `html` carries that colour for the same reason:
-    // it is what the surface ends on, so the splash does not flash lighter
-    // than the page it becomes.
-    background_color: colors.bgGradientBottom,
+    // What the OS paints around the app, and during launch before the first
+    // frame. Both are the v2 ground `globals.css` paints, so neither the
+    // status bar nor the splash flashes a different colour from the page.
+    theme_color: colorsV2.bg,
+    background_color: colorsV2.bg,
     icons: [
       { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
       { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },

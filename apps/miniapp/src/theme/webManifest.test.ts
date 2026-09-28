@@ -1,4 +1,4 @@
-import { colors } from '@weatherteam6/design/tokens'
+import { colorsV2 } from '@weatherteam6/design/tokens'
 import { describe, expect, it } from 'vitest'
 import { buildWebManifest } from './webManifest.js'
 
@@ -27,8 +27,8 @@ describe('buildWebManifest', () => {
    */
   it('takes both colours from the design tokens', () => {
     const manifest = buildWebManifest()
-    expect(manifest.theme_color).toBe(colors.bgGradientTop)
-    expect(manifest.background_color).toBe(colors.bgGradientBottom)
+    expect(manifest.theme_color).toBe(colorsV2.bg)
+    expect(manifest.background_color).toBe(colorsV2.bg)
   })
 
   /**

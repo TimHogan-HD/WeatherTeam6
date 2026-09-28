@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { colors, components, radius, spacing } from '@weatherteam6/design/tokens'
+import { colors, colorsV2, components, radius, spacing } from '@weatherteam6/design/tokens'
 import { boxStyle, textStyle, withOpacity } from './tokens.css.js'
 
 /**
@@ -34,6 +34,56 @@ export const alertSurface: CSSProperties = {
   borderColor: withOpacity(colors.poor, 0.28),
   borderRadius: `${radius.chipMd}px`,
   padding: `${spacing.cellPad}px ${spacing.cardPadSm}px`,
+}
+
+// ─────────────────────────────────────────────
+// V2 — opaque surfaces on the `colorsV2` ground
+// ─────────────────────────────────────────────
+
+const hairline = (color: string): CSSProperties => ({
+  borderStyle: 'solid',
+  borderWidth: '1px',
+  borderColor: color,
+})
+
+/** A v2 card: opaque fill, hairline, 16px corners and padding. */
+export const cardV2: CSSProperties = {
+  backgroundColor: colorsV2.card,
+  ...hairline(colorsV2.line),
+  borderRadius: `${radius.cardV2}px`,
+  padding: `${spacing.sectionGap}px`,
+}
+
+/** A pill-shaped well one step darker than the card — chips, the legend, the sort control. */
+export const wellV2: CSSProperties = {
+  backgroundColor: colorsV2.surface,
+  ...hairline(colorsV2.line),
+  borderRadius: `${radius.full}px`,
+}
+
+/** The status ladder's rungs, as colour. Only ever beside the word or number they colour. */
+export type ToneName = 'good' | 'fair' | 'poor'
+
+const TONE: Record<ToneName, { base: string; ink: string }> = {
+  good: { base: colors.good, ink: colorsV2.goodInk },
+  fair: { base: colors.fair, ink: colorsV2.fairInk },
+  poor: { base: colors.poor, ink: colorsV2.poorInk },
+}
+
+/**
+ * A tinted surface and its two inks: `label` for the word naming the gauge,
+ * `value` for what it reads. Lime is the brightest hue, so its tint is lighter
+ * than amber's or red's to sit at the same visual weight — the Figma's own
+ * 0.10 / 0.16 against 0.18.
+ */
+export function toneColors(tone: ToneName, surface: 'pill' | 'badge') {
+  const { base, ink } = TONE[tone]
+  const tint = tone === 'good' ? (surface === 'pill' ? 0.1 : 0.16) : 0.18
+  return {
+    background: withOpacity(base, tint),
+    label: withOpacity(ink, 0.75),
+    value: ink,
+  }
 }
 
 /** Vertical rhythm helpers. Values come from `spacing`; nothing here invents one. */

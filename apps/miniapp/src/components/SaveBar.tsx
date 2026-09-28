@@ -1,4 +1,4 @@
-import { colors, radius, spacing } from '@weatherteam6/design/tokens'
+import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import { ROCK_TYPE_GROUPS, isRockType, rockTypeLabel, type KnownCrag, type RockType } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { bareButton, btnPrimary, btnPrimaryText, chip, chipActive, inputBox, stack } from '../theme/styles.js'
@@ -53,9 +53,9 @@ export function SaveBar({
         // soon as the climbing toggle opens the rock-type row.
         position: 'sticky',
         bottom: 0,
-        // Opaque, or the scroll shows through. `bgGradientBottom` is the colour
-        // the page already ends on, so the bar reads as part of the surface.
-        backgroundColor: colors.bgGradientBottom,
+        // Opaque, or the scroll shows through. The page's own ground, so the
+        // bar reads as part of the surface.
+        backgroundColor: colorsV2.bg,
         borderStyle: 'solid',
         borderWidth: '1px',
         borderColor: colors.line,

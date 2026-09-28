@@ -1,5 +1,31 @@
 import { describe, expect, it } from 'vitest'
-import { formatLocalHour, formatRunAge, formatUpdatedAt } from './format.js'
+import { formatLocalHour, formatRunAge, formatTempRangeF, formatUpdatedAt } from './format.js'
+import { toCssFamilyName } from '../theme/fonts.js'
+
+describe('formatTempRangeF', () => {
+  it('writes low to high with one unit', () => {
+    expect(formatTempRangeF(8.3, 18.9)).toBe('47–66°F')
+  })
+
+  it('needs both ends', () => {
+    // A lone figure beside a range icon reads as a range of one.
+    expect(formatTempRangeF(null, 18.9)).toBe('—')
+    expect(formatTempRangeF(8.3, null)).toBe('—')
+  })
+
+  it('keeps a real 0 °C as 32°F rather than treating it as missing', () => {
+    expect(formatTempRangeF(0, 10)).toBe('32–50°F')
+  })
+})
+
+describe('toCssFamilyName', () => {
+  it('splits every token family into the name Google Fonts serves', () => {
+    expect(toCssFamilyName('BarlowCondensed')).toBe('Barlow Condensed')
+    expect(toCssFamilyName('Barlow')).toBe('Barlow')
+    // The acronym is the case the one-regex version got wrong: "IBMPlex Mono".
+    expect(toCssFamilyName('IBMPlexMono')).toBe('IBM Plex Mono')
+  })
+})
 
 const NOW = Date.parse('2026-08-25T12:00:00.000Z')
 
