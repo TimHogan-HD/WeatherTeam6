@@ -1,5 +1,5 @@
 import react from '@vitejs/plugin-react'
-import { colors } from '@weatherteam6/design/tokens'
+import { colorsV2 } from '@weatherteam6/design/tokens'
 import { defineConfig, type Plugin } from 'vite'
 import { renderTokenCss } from './src/theme/cssVars.js'
 import { buildWebManifest } from './src/theme/webManifest.js'
@@ -50,7 +50,7 @@ function webManifestPlugin(): Plugin {
         { tag: 'link', attrs: { rel: 'manifest', href: MANIFEST_PATH }, injectTo: 'head' as const },
         {
           tag: 'meta',
-          attrs: { name: 'theme-color', content: colors.bgGradientTop },
+          attrs: { name: 'theme-color', content: colorsV2.bg },
           injectTo: 'head' as const,
         },
       ]

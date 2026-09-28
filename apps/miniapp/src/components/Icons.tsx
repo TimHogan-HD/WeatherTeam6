@@ -1,8 +1,10 @@
 import {
   IconChevronDown,
   IconChevronLeft,
+  IconChevronRight,
   IconDroplet,
-  IconMapPin,
+  IconPlus,
+  IconRipple,
   IconTemperature,
   IconWind,
 } from '@tabler/icons-react'
@@ -34,10 +36,24 @@ function props(color: string | undefined) {
   return { size: SIZE, stroke: 1.75, color: color ?? colors.txt4, 'aria-hidden': true }
 }
 
-export const MapPinIcon = ({ color }: IconProps) => <IconMapPin {...props(color)} />
 export const TemperatureIcon = ({ color }: IconProps) => <IconTemperature {...props(color)} />
 export const WindIcon = ({ color }: IconProps) => <IconWind {...props(color)} />
 export const DropletIcon = ({ color }: IconProps) => <IconDroplet {...props(color)} />
+
+/**
+ * Humidity, in v2. v2 gives rain the droplet and humidity its own glyph, where
+ * the first design used the droplet for humidity and had no rain figure on the
+ * card. Same package, same size and stroke as the three above.
+ */
+export const HumidityIcon = ({ color }: IconProps) => <IconRipple {...props(color)} />
+
+/** The list's Add button, in v2. */
+export const PlusIcon = ({ color }: IconProps) => <IconPlus {...props(color)} size={16} stroke={2.25} />
+
+/** The card's "opens" affordance in v2. Decorative — the whole card is the target. */
+export const ChevronRightIcon = ({ color }: IconProps) => (
+  <IconChevronRight {...props(color)} size={20} />
+)
 
 /**
  * Larger than the other four, and the exception is deliberate: those sit

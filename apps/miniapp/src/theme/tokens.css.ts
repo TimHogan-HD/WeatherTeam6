@@ -15,6 +15,7 @@ import {
   layout as rnLayout,
   shadow as rnShadow,
   type as rnType,
+  typeV2 as rnTypeV2,
 } from '@weatherteam6/design/tokens'
 import { stackForFamily } from './fonts.js'
 
@@ -145,6 +146,11 @@ export function textStyle(t: RnTextStyle): CSSProperties {
 export const type: { [K in keyof typeof rnType]: CSSProperties } = Object.fromEntries(
   Object.entries(rnType).map(([name, style]) => [name, textStyle(style)]),
 ) as { [K in keyof typeof rnType]: CSSProperties }
+
+/** The v2 type styles, converted the same way. */
+export const typeV2: { [K in keyof typeof rnTypeV2]: CSSProperties } = Object.fromEntries(
+  Object.entries(rnTypeV2).map(([name, style]) => [name, textStyle(style)]),
+) as { [K in keyof typeof rnTypeV2]: CSSProperties }
 
 // ─────────────────────────────────────────────
 // BOX — RN view styles → CSSProperties

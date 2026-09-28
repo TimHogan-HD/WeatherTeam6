@@ -88,6 +88,41 @@ export const colors = {
   sunTint: 'rgba(253,186,116,0.10)',
 } as const;
 
+/**
+ * The v2 surface palette — **dark only**, from the WT6 Figma file's "V2" page
+ * (2026-09). The light variant on the same page lands in its own pass.
+ *
+ * **Opaque layers instead of the gradient and its translucent cards.** v2 asked
+ * for more contrast in dark: a near-black ground, one step up for bands and
+ * wells, one more for cards, and a visible hairline. The status hues are
+ * `colors.good`/`fair`/`poor` unchanged; what v2 adds is an *ink* for each —
+ * a lighter tone for text set on that hue's own tint, where the base hue reads
+ * dim.
+ *
+ * `poorInk` is not in the Figma file, which shows no poor score; it is `poor`
+ * lightened by the same step `goodInk` and `fairInk` take from theirs.
+ */
+export const colorsV2 = {
+  /** Screen ground. */
+  bg: '#07090c',
+  /** Header band, legend strip, and the wells chips sit in. */
+  surface: '#10161d',
+  /** Card fill. */
+  card: '#171f28',
+  /** Hairline on cards, chips and controls. */
+  line: '#2a3644',
+  /** Primary text. */
+  txt1: '#f4f7fa',
+  /** Secondary text — meta, legend, the card chevron. */
+  txtMuted: '#8e9aa8',
+  /** Text on a `good` tint. */
+  goodInk: '#c8f76a',
+  /** Text on a `fair` tint. */
+  fairInk: '#f8bd72',
+  /** Text on a `poor` tint. */
+  poorInk: '#fda4a4',
+} as const;
+
 export const uvScale = [
   '#4ade80', '#86efac', '#fde047', '#fbbf24', '#fb923c',
   '#f97316', '#ef4444', '#dc2626', '#b91c1c', '#7c3aed', '#6d28d9',
@@ -142,7 +177,12 @@ export const tempScale = [
 // Load via expo-font: 'BarlowCondensed-*' and 'Barlow-*'
 // Google Fonts: Barlow Condensed (400/500/600/700), Barlow (400/500/600)
 
+/**
+ * `mono` is v2's figure face — every number on a v2 card. Tabular figures, so a
+ * column of scores or temperatures lines up without padding.
+ */
 export const fonts = {
+  mono: 'IBMPlexMono',
   /** Display / UI — headings, stat values, labels, nav, buttons */
   display: 'BarlowCondensed',
   /** Body / running copy — sentences, hints, metadata, provenance */
@@ -317,6 +357,98 @@ export const type = {
   },
 } as const;
 
+/**
+ * The v2 type styles, set against `colorsV2`. Three faces with three jobs:
+ * Barlow for names and controls, Barlow Condensed for the one uppercase
+ * eyebrow, and IBM Plex Mono for every figure.
+ */
+export const typeV2 = {
+  /** App name above a screen title: Barlow Condensed 12/600, uppercase, tracking 0.12em. */
+  eyebrow: {
+    fontFamily: fonts.display,
+    fontSize: 12,
+    fontWeight: '600' as const,
+    letterSpacing: 1.44,
+    textTransform: 'uppercase' as const,
+    color: colors.good,
+  },
+  /** Screen title: Barlow 30/600. */
+  screenTitle: {
+    fontFamily: fonts.body,
+    fontSize: 30,
+    fontWeight: '600' as const,
+    lineHeight: 36,
+    color: colorsV2.txt1,
+  },
+  /** Line under a title — count, freshness: Plex Mono 11/400. */
+  meta: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    fontWeight: '400' as const,
+    color: colorsV2.txtMuted,
+  },
+  /** Location name on a card: Barlow 19/600. */
+  cardName: {
+    fontFamily: fonts.body,
+    fontSize: 19,
+    fontWeight: '600' as const,
+    lineHeight: 23,
+    color: colorsV2.txt1,
+  },
+  /** Primary button label: Barlow 14/600. */
+  button: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: colors.onGood,
+  },
+  /** Control label — "Sort by": Barlow 13/500. */
+  controlLabel: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    fontWeight: '500' as const,
+    color: colorsV2.txtMuted,
+  },
+  /** Control value — "Score": Barlow 13/600. */
+  controlValue: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: colorsV2.txt1,
+  },
+  /** Figure in a chip, and the legend's key: Plex Mono 10/500. */
+  chip: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    fontWeight: '500' as const,
+    color: colorsV2.txt1,
+  },
+  /** A badge's label — "Score": Barlow 12/500. */
+  badgeLabel: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    fontWeight: '500' as const,
+  },
+  /** A badge's figure — "100": Plex Mono 13/500. */
+  badgeValue: {
+    fontFamily: fonts.mono,
+    fontSize: 13,
+    fontWeight: '500' as const,
+  },
+  /** A reading pill's label — "Dryness": Barlow 11/500. */
+  pill: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    fontWeight: '500' as const,
+  },
+  /** A reading pill's value — "Dry": Barlow 11/600. */
+  pillValue: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    fontWeight: '600' as const,
+  },
+} as const;
+
 // ─────────────────────────────────────────────
 // SPACING
 // ─────────────────────────────────────────────
@@ -356,6 +488,8 @@ export const spacing = {
   cellPad: 10,
   /** Section gap — larger vertical separation */
   sectionGap: 16,
+  /** v2 card-to-card gap */
+  listGapLg: 12,
 } as const;
 
 // ─────────────────────────────────────────────
@@ -365,6 +499,8 @@ export const spacing = {
 export const radius = {
   /** Standard card radius */
   card: 10,
+  /** v2 card radius */
+  cardV2: 16,
   /** Large card variant */
   cardLg: 11,
   /** Inner element radius */

@@ -2,6 +2,19 @@
  * Small display helpers with no React in them, kept out of the components so
  * their boundaries can be tested directly.
  */
+import { EM_DASH, cToF } from '@weatherteam6/types'
+
+/**
+ * A day's low to high, as `47–66°F`.
+ *
+ * **Both ends or neither.** `— –66°F` reads as a range with a typo, and a lone
+ * figure beside a range icon reads as a range of one; a dash says plainly that
+ * the pair is not known.
+ */
+export function formatTempRangeF(lowC: number | null, highC: number | null): string {
+  if (lowC === null || highC === null) return EM_DASH
+  return `${Math.round(cToF(lowC))}–${Math.round(cToF(highC))}°F`
+}
 
 /**
  * §5's stale/offline line. `updatedAt` is React Query's `dataUpdatedAt`, which

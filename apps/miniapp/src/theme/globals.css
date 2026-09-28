@@ -48,23 +48,19 @@ ol {
 }
 
 html {
-  /* The gradient is painted here as well as on body so an overscroll past the
-     end of a short page shows the app's own colour, not white. */
-  background-color: var(--wt6-color-bg-gradient-bottom);
+  /* Painted here as well as on body so an overscroll past the end of a short
+     page shows the app's own colour, not white. */
+  background-color: var(--wt6-v2-bg);
   -webkit-text-size-adjust: 100%;
 }
 
+/* The v2 ground: flat near-black, in place of the old slate gradient. The
+   gradient's top was the lightest thing on screen and fought v2's header band,
+   so it went app-wide rather than screen by screen. */
 body {
   margin: 0;
   min-height: 100dvh;
-  background-image: linear-gradient(
-    180deg,
-    var(--wt6-color-bg-gradient-top) 0%,
-    var(--wt6-color-bg-gradient-mid) 45%,
-    var(--wt6-color-bg-gradient-bottom) 100%
-  );
-  background-attachment: fixed;
-  background-color: var(--wt6-color-bg-gradient-bottom);
+  background-color: var(--wt6-v2-bg);
   color: var(--wt6-color-txt1);
   font-family: var(--wt6-font-body);
   /* Mobile Safari and Chrome bounce on overscroll and expose the page behind

@@ -1,19 +1,28 @@
 import type { ReactNode } from 'react'
-import { spacing } from '@weatherteam6/design/tokens'
-import { fieldLine, summarizeReadings, type Location } from '@weatherteam6/types'
-import { type } from '../theme/tokens.css.js'
-import { card, chip, row, stack } from '../theme/styles.js'
+import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
+import {
+  SCORE_LABEL,
+  formatHumidity,
+  formatPrecipIn,
+  formatWindMph,
+  type ForecastSnapshot,
+  type Location,
+} from '@weatherteam6/types'
+import { typeV2 } from '../theme/tokens.css.js'
+import { cardV2, row, stack, toneColors, wellV2, type ToneName } from '../theme/styles.js'
 import { useAlerts, useConditions, useForecast } from '../hooks/useWeather.js'
-import { findToday, severeAlertEvent } from '../lib/forecast.js'
+import { findToday } from '../lib/forecast.js'
+import { formatTempRangeF } from '../lib/format.js'
+import { cardSummary, readingTone, scoreTone } from '../lib/locationList.js'
+import { tempColor } from './charts/chartStyle.js'
 import { AlertPill } from './Alerts.js'
-import { MapPinIcon } from './Icons.js'
+import { ChevronRightIcon, DropletIcon, HumidityIcon, TemperatureIcon, WindIcon } from './Icons.js'
 import { InlineError, Skeleton } from './States.js'
-import { WeatherLine } from './Weather.js'
 
 /**
- * One card per saved location (§3), in this order: name, weather, alert pill,
- * score chip. Weather is the largest non-name element; the score chip is small,
- * labeled, and last.
+ * One card per saved location — the v2 layout: name and score on the first
+ * row, today's weather as four figure chips, then the two readings as tinted
+ * pills.
  *
  * **The conditions call is skipped entirely for a non-climbing location.** A
  * saved location may be a city, and `computeLiveForecast` does not branch on
@@ -45,33 +54,12 @@ export function LocationCard({
   const today = findToday(forecast.data)
 
   /**
-   * The two readings, in one line, from **the same endpoint the detail screen
-   * reads**. That is what stops a crag showing one number on this list and a
-   * different one on its own screen — the two models disagree by around thirty
-   * points on a hot day, which is exactly the sort of difference nobody can
-   * debug from a screenshot.
-   *
-   * The readings do not wait for the alerts query and the **number** does:
-   * suppression drops the number under an active Severe+ warning, and
-   * `severeAlertEvent` answers null for a query in flight exactly as it does
-   * for "no alert", so `alertsPending` travels with it. On an alerts *error*
-   * the query has settled with no data, and nothing is suppressed.
-   *
-   * `readings === undefined` is an API older than this client, not a model with
-   * nothing to say — the card shows no chip rather than an invented reason.
+   * From **the same endpoint the detail screen reads**, through the same
+   * summary the list sorts by — so a crag cannot show one number here, another
+   * on its own screen, and rank by a third.
    */
-  const readings = conditions.data?.readings
-  const summary =
-    readings === undefined
-      ? null
-      : summarizeReadings({
-          reading: readings.now,
-          window: readings.today?.window ?? null,
-          utcOffsetSeconds: readings.utc_offset_seconds,
-          severeAlertEvent: severeAlertEvent(alerts.data),
-          alertsPending: alerts.isPending,
-          unavailableReason: readings.unavailable_reason,
-        })
+  const summary = cardSummary(conditions.data, alerts.data, alerts.isPending)
+  const reading = conditions.data?.readings?.now ?? null
 
   return (
     // A div, not a button. The card is the tap target (§3: tapping the card,
@@ -81,7 +69,7 @@ export function LocationCard({
     <div
       role="button"
       tabIndex={0}
-      style={{ ...card, ...stack(spacing.cellPad), cursor: 'pointer' }}
+      style={{ ...cardV2, ...stack(spacing.cardPad), cursor: 'pointer' }}
       onClick={() => onOpen(location.id)}
       onKeyDown={(e) => {
         // Only when the card itself has focus. Without this check, Enter or
@@ -95,56 +83,173 @@ export function LocationCard({
         }
       }}
     >
-      <span style={{ ...type.cardTitle, ...row(spacing.tight) }}>
-        <MapPinIcon />
-        {location.name}
-      </span>
+      {/* Alerts outrank everything and sit above the score (§7 rule 5), which
+          in v2 is on the title row — so the pill leads the card. An alert that
+          failed to load must not read as "no alerts": its absence is stated. */}
+      {alerts.isError ? (
+        <span style={{ ...typeV2.chip, color: colorsV2.txtMuted }}>Alerts unavailable</span>
+      ) : alerts.data === undefined || alerts.data.length === 0 ? null : (
+        <div>
+          <AlertPill alerts={alerts.data} />
+        </div>
+      )}
+
+      <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
+        <div style={{ ...row(spacing.cellPad), minWidth: 0 }}>
+          {/* Wraps rather than truncating: the tail is often the part that
+              tells two places apart — "Barn Bluff (Red Wing)". */}
+          <span style={{ ...typeV2.cardName, minWidth: 0, overflowWrap: 'anywhere' }}>
+            {location.name}
+          </span>
+          {summary?.score == null ? null : <ScoreBadge score={summary.score} />}
+        </div>
+        <ChevronRightIcon color={colorsV2.txtMuted} />
+      </div>
 
       {forecast.isPending ? (
-        <Skeleton height={34} />
+        <Skeleton height={26} />
       ) : forecast.isError ? (
         <CardControl>
           <InlineError message="Couldn't load weather." onRetry={() => void forecast.refetch()} />
         </CardControl>
       ) : today === null ? (
-        <span style={type.bodyMd}>No reading for today yet.</span>
+        <span style={{ ...typeV2.chip, color: colorsV2.txtMuted }}>No reading for today yet.</span>
       ) : (
-        <WeatherLine day={today} />
+        <TodayChips day={today} />
       )}
 
-      {/* An alert that failed to load must not read as "no alerts" — alerts
-          outrank everything, so their absence is stated (§7 rule 5). */}
-      {alerts.isError ? (
-        <span style={type.sourceBadge}>Alerts unavailable</span>
-      ) : alerts.data === undefined ? null : (
-        <AlertPill alerts={alerts.data} />
-      )}
+      {/* The readings as label-and-value pills — never colour alone. The Figma
+          draws "Dryness" and "Friction" as bare tinted words, which leaves the
+          reading itself to the tint; the owner's rule is that a reading is a
+          label and a value (`Dryness: Dry`), and a colour cannot be read aloud.
 
-      {/* The readings, then the number — never the number alone, and never
-          larger than the weather above it. A card has room for the labelled
-          readings and not for the window or the caveats; those are on the
-          detail screen this card opens.
-
-          **The readings are what make the chip safe here.** A bare "58" beside
-          a name is the thing the old model could not stop being reassuring
-          about; "Friction: Poor" beside it cannot be.
-
-          **Nothing at all when there is nothing to put in it**, rather than an
-          empty row. A named unavailable reason is a whole sentence about *us*,
-          and a card is not where it belongs — the detail screen this card opens
-          says it, with room to. */}
-      {summary === null || (summary.readings.length === 0 && summary.score === null) ? null : (
-        <div style={{ ...row(spacing.chipGap), alignSelf: 'flex-end', flexWrap: 'wrap' }}>
-          {summary.readings.length === 0 ? null : (
-            <span style={type.sourceBadge}>
-              {summary.readings.map(fieldLine).join(' · ')}
-            </span>
-          )}
-          {summary.score === null ? null : (
-            <span style={{ ...chip, ...type.labelSm }}>{summary.score}</span>
-          )}
+          Nothing at all when there are no readings, rather than an empty row.
+          A named unavailable reason is a sentence about *us*, and the detail
+          screen this card opens has room for it. */}
+      {summary === null || summary.readings.length === 0 ? null : (
+        <div style={{ ...row(spacing.chipGapMd), flexWrap: 'wrap' }}>
+          {summary.readings.map((field) => (
+            <Pill
+              key={field.label}
+              label={field.label}
+              value={field.value}
+              tone={readingTone(field, reading)}
+            />
+          ))}
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * The score, beside the name. `summary.score` is already `null` under a
+ * Severe+ alert and while alerts are loading, so there is no raw number here to
+ * reach past.
+ */
+function ScoreBadge({ score }: { score: number }) {
+  const tone = toneColors(scoreTone(score), 'badge')
+  return (
+    <span
+      style={{
+        ...row(spacing.chipGapMd),
+        flex: '0 0 auto',
+        backgroundColor: tone.background,
+        borderRadius: `${radius.chipMd}px`,
+        padding: `${spacing.chipGap}px ${spacing.cellPad}px`,
+      }}
+    >
+      <span style={{ ...typeV2.badgeLabel, color: tone.label }}>{SCORE_LABEL}</span>
+      <span style={{ ...typeV2.badgeValue, color: tone.value }}>{score}</span>
+    </span>
+  )
+}
+
+function Pill({ label, value, tone }: { label: string; value: string; tone: ToneName | null }) {
+  const c = tone === null ? null : toneColors(tone, 'pill')
+  return (
+    <span
+      style={{
+        ...row(spacing.tight),
+        // A reading with no tone is drawn as a neutral well rather than borrowing
+        // a hue; a toned one needs no hairline, the tint is its edge.
+        ...(c === null ? wellV2 : { borderRadius: `${radius.full}px`, backgroundColor: c.background }),
+        padding: `${spacing.tight}px ${spacing.listGap}px`,
+      }}
+    >
+      <span style={{ ...typeV2.pill, color: c?.label ?? colorsV2.txtMuted }}>{label}</span>
+      <span style={{ ...typeV2.pillValue, color: c?.value ?? colorsV2.txt1 }}>{value}</span>
+    </span>
+  )
+}
+
+/**
+ * Today's four figures. **Every one is a daily figure, not a present reading**
+ * — the low-to-high range, the median rain total, the day's humidity and its
+ * strongest wind — and the legend above the list says so once for all cards.
+ * Each chip also carries a spoken label that says it in full.
+ *
+ * **The Figma's rain chip reads "0% · 0.0 in", and the percentage is dropped.**
+ * The daily row carries no chance of rain — that exists only per hour, as
+ * `members_wet / member_count` — and there is no honest way to make one day's
+ * figure out of 24 hours' worth. The amount is `precip_mm_p50`, the median of
+ * the members' own daily totals, which is a daily figure and not a sum.
+ *
+ * Colour follows the data ramps, never the status ladder: temperature by the
+ * continuous ramp at the day's high, rain in the rain accent once any is
+ * forecast.
+ */
+function TodayChips({ day }: { day: ForecastSnapshot }) {
+  const rainy = day.precip_mm_p50 !== null && day.precip_mm_p50 > 0
+  return (
+    <div style={{ ...row(spacing.chipGapMd), flexWrap: 'wrap' }}>
+      <Chip
+        icon={<TemperatureIcon color={colorsV2.txtMuted} />}
+        value={formatTempRangeF(day.temp_c_min, day.temp_c_max)}
+        color={day.temp_c_max === null ? colorsV2.txt1 : tempColor(day.temp_c_max)}
+        spoken={`Low to high today: ${formatTempRangeF(day.temp_c_min, day.temp_c_max)}`}
+      />
+      <Chip
+        icon={<DropletIcon color={colorsV2.txtMuted} />}
+        value={formatPrecipIn(day.precip_mm_p50)}
+        color={rainy ? colors.rain : colorsV2.txt1}
+        spoken={`Rain today: ${formatPrecipIn(day.precip_mm_p50)}`}
+      />
+      <Chip
+        icon={<HumidityIcon color={colorsV2.txtMuted} />}
+        value={formatHumidity(day.humidity_pct)}
+        color={colorsV2.txt1}
+        spoken={`Humidity today: ${formatHumidity(day.humidity_pct)}`}
+      />
+      <Chip
+        icon={<WindIcon color={colorsV2.txtMuted} />}
+        value={formatWindMph(day.wind_kmh_max)}
+        color={colorsV2.txt1}
+        spoken={`Wind today up to ${formatWindMph(day.wind_kmh_max)}`}
+      />
+    </div>
+  )
+}
+
+function Chip({
+  icon,
+  value,
+  color,
+  spoken,
+}: {
+  icon: ReactNode
+  value: string
+  color: string
+  spoken: string
+}) {
+  return (
+    <span
+      role="img"
+      aria-label={spoken}
+      style={{ ...wellV2, ...row(spacing.tight), padding: `${spacing.chipGapMd}px` }}
+    >
+      {icon}
+      <span style={{ ...typeV2.chip, color }}>{value}</span>
+    </span>
   )
 }

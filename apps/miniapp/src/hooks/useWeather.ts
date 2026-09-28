@@ -1,13 +1,21 @@
-import { useQuery, type UseQueryResult } from '@tanstack/react-query'
+import { queryOptions, useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { apiGet } from '../lib/api.js'
 import type { ConditionsScore, ForecastSnapshot, WeatherAlert } from '@weatherteam6/types'
 
-export function useForecast(id: string | undefined): UseQueryResult<ForecastSnapshot[]> {
-  return useQuery({
+/**
+ * The query definitions are exported so a screen that needs several locations'
+ * data at once — the list, sorting by score — reads **the same cache entries**
+ * the per-card hooks fill, not a second copy under a key that could drift.
+ */
+export const forecastQuery = (id: string | undefined) =>
+  queryOptions({
     queryKey: ['forecast', id ?? ''] as const,
     queryFn: () => apiGet<ForecastSnapshot[]>(`/forecast/${id ?? ''}`),
     enabled: id !== undefined && id !== '',
   })
+
+export function useForecast(id: string | undefined): UseQueryResult<ForecastSnapshot[]> {
+  return useQuery(forecastQuery(id))
 }
 
 /**
@@ -40,19 +48,25 @@ export function useConditions(
   id: string | undefined,
   isClimbingLocation: boolean | undefined,
 ): UseQueryResult<ConditionsScore | null> {
-  return useQuery({
+  return useQuery(conditionsQuery(id, isClimbingLocation))
+}
+
+export const conditionsQuery = (id: string | undefined, isClimbingLocation: boolean | undefined) =>
+  queryOptions({
     queryKey: ['conditions', id ?? ''] as const,
     queryFn: () => apiGet<ConditionsScore | null>(`/conditions/${id ?? ''}`),
     enabled: id !== undefined && id !== '' && isClimbingLocation === true,
   })
-}
 
-export function useAlerts(id: string | undefined): UseQueryResult<WeatherAlert[]> {
-  return useQuery({
+export const alertsQuery = (id: string | undefined) =>
+  queryOptions({
     queryKey: ['alerts', id ?? ''] as const,
     queryFn: () => apiGet<WeatherAlert[]>(`/alerts/${id ?? ''}`),
     enabled: id !== undefined && id !== '',
   })
+
+export function useAlerts(id: string | undefined): UseQueryResult<WeatherAlert[]> {
+  return useQuery(alertsQuery(id))
 }
 
 export type PreviewTarget = {
