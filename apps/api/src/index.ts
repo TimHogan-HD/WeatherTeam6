@@ -18,6 +18,7 @@ import { previewRouter } from './routes/preview.js';
 import { cronRouter } from './routes/cron.js';
 import { authRouter } from './routes/auth.js';
 import { feedbackRouter } from './routes/feedback.js';
+import { logbookRouter } from './routes/logbook.js';
 import { allowedOriginPatterns, originAllowed } from './lib/cors.js';
 
 /**
@@ -72,7 +73,7 @@ export function createApp(): Express {
     // not serve one origin's headers to another.
     res.setHeader('Vary', 'Origin')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
     if (_req.method === 'OPTIONS') { res.sendStatus(204); return }
     next()
   })
@@ -114,6 +115,7 @@ export function createApp(): Express {
     geocodeRouter,
     previewRouter,
     feedbackRouter,
+    logbookRouter,
   );
 
   app.use((_req: Request, res: Response) => {

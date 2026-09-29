@@ -668,3 +668,71 @@ export const weatherEnsembleHours = pgTable(
   },
   (t) => [primaryKey({ columns: [t.run_id, t.valid_at] })],
 )
+
+// ─────────────────────────────────────────────
+// Guidebook — the logbook and recorded boulder positions
+// ─────────────────────────────────────────────
+//
+// Routes and areas are OpenBeta's and live in the committed snapshot
+// (`lib/guidebook/guidebookMn.ts`), not in a table, so `route_id` and `area_id`
+// are OpenBeta uuids as text with no FK. The API refuses an id the snapshot
+// does not hold. None of these carries a `location_id`: a tick belongs to a
+// route, not to anyone's saved copy of the crag.
+
+export const tickStyleEnum = pgEnum('tick_style', ['send', 'flash', 'onsight', 'attempt'])
+
+/** One climb of one route by one user — the app's own logbook, not Mountain Project's. */
+export const routeTicks = pgTable(
+  'route_ticks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    user_id: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    route_id: text('route_id').notNull(),
+    /** The climber's local calendar day, as they entered it. */
+    ticked_on: date('ticked_on').notNull(),
+    style: tickStyleEnum('style').notNull(),
+    /** Null when not entered — not zero laps. */
+    laps: integer('laps'),
+    note: text('note'),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('route_ticks_user_route_idx').on(t.user_id, t.route_id)],
+)
+
+/** A route a user wants to climb. At most one row per user and route. */
+export const routeTodos = pgTable(
+  'route_todos',
+  {
+    user_id: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    route_id: text('route_id').notNull(),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.user_id, t.route_id] })],
+)
+
+/**
+ * Where a boulder (an OpenBeta area) actually is, recorded from someone's phone
+ * standing at it. **Shared by every account** (owner decision 2026-09-29): one
+ * row per area, and a later recording replaces the earlier one. OpenBeta's own
+ * point is never copied here — it is inherited from parent areas and was wrong
+ * on the ground at Barn Bluff.
+ */
+export const areaLocations = pgTable(
+  'area_locations',
+  {
+    area_id: text('area_id').primaryKey(),
+    lat: doublePrecision('lat').notNull(),
+    lon: doublePrecision('lon').notNull(),
+    /** The phone's own accuracy estimate, metres. */
+    accuracy_m: doublePrecision('accuracy_m').notNull(),
+    recorded_by: uuid('recorded_by')
+      .notNull()
+      .references(() => users.id),
+    recorded_at: timestamp('recorded_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('area_locations_recorded_by_idx').on(t.recorded_by)],
+)

@@ -107,6 +107,30 @@ function toWall(node: Node): GuidebookWall {
   }
 }
 
+let snapshotIds: { areas: Set<string>; routes: Set<string> } | null = null
+
+/** Built on first use: ~380 areas and ~1,900 routes, read once per process. */
+function idsInSnapshot(): { areas: Set<string>; routes: Set<string> } {
+  snapshotIds ??= {
+    areas: new Set(MN_GUIDEBOOK.map((a) => a.id)),
+    routes: new Set(MN_GUIDEBOOK.flatMap((a) => a.routes.map((r) => r.id))),
+  }
+  return snapshotIds
+}
+
+/**
+ * Whether the committed snapshot holds this route. A tick or to-do has no FK to
+ * refuse an id nobody has ever seen, so this is the check.
+ */
+export function routeExists(id: string): boolean {
+  return idsInSnapshot().routes.has(id)
+}
+
+/** Whether the committed snapshot holds this area — the check before a position is recorded. */
+export function areaExists(id: string): boolean {
+  return idsInSnapshot().areas.has(id)
+}
+
 /**
  * The crag a saved location sits on, with its walls and routes — or null when
  * no OpenBeta crag is within reach, which is the ordinary answer for a city and

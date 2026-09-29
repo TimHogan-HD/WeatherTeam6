@@ -18,6 +18,7 @@ export * from './readingsCopy.js'
 export * from './wallAngle.js'
 export * from './feedback.js'
 export * from './guidebook.js'
+export * from './logbook.js'
 
 export type ApiResponse<T> = {
   data: T | null

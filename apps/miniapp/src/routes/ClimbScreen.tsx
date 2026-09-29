@@ -21,6 +21,7 @@ import { DetailHeader } from '../components/DetailHeader.js'
 import { SourcesFooter } from '../components/SourcesFooter.js'
 import { InlineError, Skeleton } from '../components/States.js'
 import { GradeChip } from '../components/guidebook/GradeCharts.js'
+import { LogbookCard } from '../components/guidebook/LogbookCard.js'
 
 /**
  * `/location/:id/wall/:wallId/route/:routeId` — one route, from the WT6 Figma
@@ -197,6 +198,7 @@ export function ClimbScreen() {
           {mp === null ? null : <OutLink href={mountainProjectHref(mp, navigator.userAgent)}>Mountain Project</OutLink>}
           <OutLink href={openBetaClimbUrl(route.id)}>Add beta on OpenBeta</OutLink>
         </div>
+        <LogbookCard route={route} />
         <Card title="Route">
           <div style={stack(spacing.listGap)}>
             <Fact
