@@ -151,6 +151,20 @@ export function LocationDetail() {
         over the whole screen for a one-word decision.
       */}
       <div style={{ ...stack(spacing.listGapSm), alignItems: 'center', paddingTop: `${spacing.cellPad}px` }}>
+        {location.data.is_climbing_location && id !== undefined ? (
+          <button
+            type="button"
+            style={{
+              ...bareButton,
+              ...typeV2.factLabel,
+              width: 'auto',
+              padding: `${spacing.cellPad}px ${spacing.sectionGap}px`,
+            }}
+            onClick={() => void navigate(`/feedback?location=${encodeURIComponent(id)}`)}
+          >
+            Check this forecast
+          </button>
+        ) : null}
         {remove.isError ? <InlineError message="Couldn't remove this location." /> : null}
         <button
           type="button"

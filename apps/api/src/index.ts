@@ -15,6 +15,7 @@ import { geocodeRouter } from './routes/geocode.js';
 import { previewRouter } from './routes/preview.js';
 import { cronRouter } from './routes/cron.js';
 import { authRouter } from './routes/auth.js';
+import { feedbackRouter } from './routes/feedback.js';
 import { allowedOriginPatterns, originAllowed } from './lib/cors.js';
 
 export function createApp(): Express {
@@ -72,6 +73,7 @@ export function createApp(): Express {
     radarRouter,
     geocodeRouter,
     previewRouter,
+    feedbackRouter,
   );
 
   app.use((_req: Request, res: Response) => {

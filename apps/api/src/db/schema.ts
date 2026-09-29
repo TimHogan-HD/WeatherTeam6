@@ -1,4 +1,4 @@
-import type { RockType } from '@weatherteam6/types'
+import type { FEEDBACK_KINDS, FORECAST_VERDICTS, OBSERVED_CONDITIONS, RockType } from '@weatherteam6/types'
 import {
   pgTable,
   pgEnum,
@@ -14,7 +14,9 @@ import {
   doublePrecision,
   primaryKey,
   index,
+  check,
 } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
 
 // Enum types
 
@@ -92,6 +94,10 @@ export const rainfallSourceEnum = pgEnum('rainfall_source', [
 export const confidenceEnum = pgEnum('confidence_level', ['low', 'medium', 'high'])
 
 export const overallStatusEnum = pgEnum('overall_status', ['dry', 'damp', 'wet', 'mixed'])
+
+export const feedbackKindEnum = pgEnum('feedback_kind', ['app', 'forecast'])
+
+export const forecastVerdictEnum = pgEnum('forecast_verdict', ['matched', 'partly', 'missed'])
 
 // Tables
 
@@ -276,6 +282,72 @@ export const conditionsReports = pgTable('conditions_reports', {
   forecast_matched: boolean('forecast_matched'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
+
+/**
+ * App feedback and forecast checks — `lib/feedback/`, `routes/feedback.ts`.
+ *
+ * **Not `conditions_reports`.** That table has no writer, requires a location,
+ * and stores `forecast_matched` as a bare boolean with nothing saying what the
+ * forecast was. A check here keeps what the app showed (`app_readings`) beside
+ * what the climber saw, which is the only form in which it can later be scored
+ * against the model (issue #143).
+ *
+ * **A check outlives its location.** `deleteLocationCascade` detaches these
+ * rows (`location_id` → null) rather than deleting them, and `location_name`,
+ * `lat` and `lon` are copied at write time so a detached check still says
+ * where it was. Deleting a crag from a list must not delete the evidence about
+ * it.
+ *
+ * The CHECK constraints are the shape rules `parseFeedbackInput` enforces,
+ * restated where no future writer can skip them.
+ */
+export const feedback = pgTable(
+  'feedback',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    user_id: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    kind: feedbackKindEnum('kind').notNull(),
+    location_id: uuid('location_id').references(() => locations.id),
+    location_name: text('location_name'),
+    lat: doublePrecision('lat'),
+    lon: doublePrecision('lon'),
+    message: text('message'),
+    observed_at: timestamp('observed_at', { withTimezone: true }),
+    observed_conditions: overallStatusEnum('observed_conditions'),
+    verdict: forecastVerdictEnum('verdict'),
+    /** `FeedbackAppReadings` — words the screen showed, never a 0-1 factor. */
+    app_readings: jsonb('app_readings'),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('feedback_user_created_idx').on(t.user_id, t.created_at),
+    check(
+      'feedback_app_has_message',
+      sql`${t.kind} <> 'app' OR (${t.message} IS NOT NULL AND length(btrim(${t.message})) > 0)`,
+    ),
+    check(
+      'feedback_forecast_is_complete',
+      sql`${t.kind} <> 'forecast' OR (${t.observed_at} IS NOT NULL AND ${t.observed_conditions} IS NOT NULL AND ${t.verdict} IS NOT NULL)`,
+    ),
+  ],
+)
+
+// The two Postgres enums above spell out `FEEDBACK_KINDS` and
+// `FORECAST_VERDICTS` from `@weatherteam6/types`; a value added to one side
+// only fails to compile here rather than failing an insert in production.
+type _FeedbackKindsMatch = Assert<
+  Equal<(typeof feedbackKindEnum.enumValues)[number], (typeof FEEDBACK_KINDS)[number]>
+>
+type _ForecastVerdictsMatch = Assert<
+  Equal<(typeof forecastVerdictEnum.enumValues)[number], (typeof FORECAST_VERDICTS)[number]>
+>
+type _ObservedConditionsMatch = Assert<
+  Equal<(typeof overallStatusEnum.enumValues)[number], (typeof OBSERVED_CONDITIONS)[number]>
+>
+type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false
+type Assert<_T extends true> = never
 
 export const premiumPulls = pgTable('premium_pulls', {
   id: uuid('id').primaryKey().defaultRandom(),
