@@ -22,11 +22,13 @@ import { useGuidebook } from '../hooks/useGuidebook.js'
 import { useLocation } from '../hooks/useLocations.js'
 import { useAlerts, useConditions } from '../hooks/useWeather.js'
 import { useHourly } from '../hooks/useHourly.js'
-import { DetailHeader, coordText } from '../components/DetailHeader.js'
+import { DetailHeader } from '../components/DetailHeader.js'
 import { ChevronRightIcon } from '../components/Icons.js'
 import { NowStrip } from '../components/ReadingPills.js'
 import { SourcesFooter } from '../components/SourcesFooter.js'
 import { WeekCard } from '../components/guidebook/WeekCard.js'
+import { PositionCard } from '../components/guidebook/PositionCard.js'
+import { useLogbook } from '../hooks/useLogbook.js'
 import { InlineError, Skeleton } from '../components/States.js'
 import { GradeBar, GradeChip, GradeLegend } from '../components/guidebook/GradeCharts.js'
 
@@ -67,7 +69,7 @@ function Chip({ label, count, selected, onSelect }: { label: string; count: numb
   )
 }
 
-function RouteRow({ route, onOpen }: { route: GuidebookRoute; onOpen: () => void }) {
+function RouteRow({ route, marker, onOpen }: { route: GuidebookRoute; marker: string | null; onOpen: () => void }) {
   const kinds = kindsLine(route.kinds)
   return (
     <button
@@ -85,6 +87,7 @@ function RouteRow({ route, onOpen }: { route: GuidebookRoute; onOpen: () => void
         <span style={{ ...typeV2.rowTitle, overflowWrap: 'anywhere' }}>{route.name}</span>
         {kinds === '' ? null : <span style={{ ...typeV2.note, color: colorsV2.txtMuted }}>{kinds}</span>}
       </span>
+      {marker === null ? null : <span style={{ ...typeV2.note, color: colorsV2.txt1, flex: '0 0 auto' }}>{marker}</span>}
       <ChevronRightIcon color={colorsV2.txtMuted} />
     </button>
   )
@@ -120,6 +123,12 @@ function WallBody({ locationId, wall }: { locationId: string; wall: GuidebookWal
   const visible = showAll ? shown : shown.slice(0, FIRST_ROWS)
   const range = gradeRange(wall.routes)
 
+  // No marks until the logbook has loaded, rather than every route briefly unticked.
+  const logbook = useLogbook()
+  const ticked = new Set(logbook.data?.ticks.map((t) => t.route_id) ?? [])
+  const todo = new Set(logbook.data?.todos ?? [])
+  const markerFor = (id: string): string | null => (ticked.has(id) ? '✓' : todo.has(id) ? 'To-do' : null)
+
   return (
     <>
       <NowStrip
@@ -137,6 +146,8 @@ function WallBody({ locationId, wall }: { locationId: string; wall: GuidebookWal
       />
 
       <WeekCard locationId={locationId} />
+
+      <PositionCard wall={wall} />
 
       <section style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
         <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
@@ -165,7 +176,7 @@ function WallBody({ locationId, wall }: { locationId: string; wall: GuidebookWal
 
       <section style={{ ...cardV2, ...stack(0), paddingBlock: `${spacing.tight}px` }}>
         {visible.map((route) => (
-          <RouteRow key={route.id} route={route} onOpen={() => void navigate(climbPath(locationId, wall.id, route.id))} />
+          <RouteRow key={route.id} route={route} marker={markerFor(route.id)} onOpen={() => void navigate(climbPath(locationId, wall.id, route.id))} />
         ))}
         {visible.length < shown.length ? (
           <button
@@ -207,12 +218,9 @@ export function WallScreen() {
           // would read as a position on the crag.
           eyebrow: guidebook.data.crag.name,
           title: found.wall.name,
-          meta: [
-            found.wall.lat === null || found.wall.lon === null ? null : coordText(found.wall.lat, found.wall.lon),
-            `${found.wall.routes.length} ${found.wall.routes.length === 1 ? 'route' : 'routes'}`,
-          ]
-            .filter((p) => p !== null)
-            .join(' · '),
+          // No coordinates: OpenBeta's point for a wall is wrong on the ground
+          // (owner, 2026-09-29). The Location card carries a recorded one.
+          meta: `${found.wall.routes.length} ${found.wall.routes.length === 1 ? 'route' : 'routes'}`,
         }
 
   const content =

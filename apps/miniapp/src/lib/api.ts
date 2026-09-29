@@ -125,6 +125,16 @@ export function apiPost<T>(path: string, body: unknown): Promise<T> {
   })
 }
 
+/** A body-less PUT is an idempotent "make this so", as `PUT /logbook/todos/:routeId`. */
+export function apiPut<T>(path: string, body?: unknown): Promise<T> {
+  return request<T>(
+    path,
+    body === undefined
+      ? { method: 'PUT' }
+      : { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
+  )
+}
+
 export function apiDelete(path: string): Promise<null> {
   return request<null>(path, { method: 'DELETE' })
 }
