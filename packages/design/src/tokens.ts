@@ -149,6 +149,21 @@ export const colorsV2 = {
    */
   precipMix: '#b794f4',
   precipSnow: '#e2dcfb',
+  /**
+   * `precipStep1`–`5`: how much fell in an hour, dimmest to brightest — the Precip tab's hour
+   * grid. One hue in monotone lightness steps (the dataviz skill's reference
+   * blue, steps 550/450/350/250/100): an opacity ramp on the navy card read as
+   * one grey-blue and the owner could not tell more rain from less (2026-09-29).
+   * Checked with its validator on `card`: monotone, adjacent contrast ~1.5:1,
+   * the dimmest step 2.51:1 on the card and 2.08:1 on a dry `grid` cell.
+   * Five keys rather than an array: every value here becomes a CSS custom
+   * property (`cssVars.ts`), which takes a string.
+   */
+  precipStep1: '#1c5cab',
+  precipStep2: '#2a78d6',
+  precipStep3: '#5598e7',
+  precipStep4: '#86b6ef',
+  precipStep5: '#cde2fb',
 } as const;
 
 /**

@@ -8,7 +8,7 @@ import {
   REWETTING_PRECIP_MM,
   type RecentPrecip,
 } from '@weatherteam6/types'
-import { typeV2, withOpacity } from '../theme/tokens.css.js'
+import { typeV2 } from '../theme/tokens.css.js'
 import { cardV2, row, stack } from '../theme/styles.js'
 import {
   clockOf,
@@ -40,8 +40,8 @@ import { InlineError, Skeleton } from './States.js'
  * under the headline, but does not reset it: before this, a trace at noon read
  * as "last precip 4h" on a rock the clock had been drying for a day.
  *
- * **Colour marks precipitation only.** Text and chrome are the neutral ramp;
- * a grid cell carries its hour's kind colour at an opacity stepped by amount.
+ * **Colour marks precipitation only.** Text and chrome are neutral; a grid
+ * cell's fill is its hour's amount on one blue ramp.
  */
 
 export type PrecipTabProps = {
@@ -65,8 +65,7 @@ const RUNWAY_TICKS = [0, 12, 24, 48, 72] as const
 const RUNWAY_H = 6
 const SWATCH = 12
 
-const KIND_COLOR: Record<PrecipKind, string> = {
-  rain: colorsV2.rain,
+const KIND_COLOR: Record<'mix' | 'snow', string> = {
   mix: colorsV2.precipMix,
   snow: colorsV2.precipSnow,
 }
@@ -74,28 +73,29 @@ const KIND_NAME: Record<PrecipKind, string> = { rain: 'rain', mix: 'rain and sno
 const KIND_LEGEND: Record<PrecipKind, string> = { rain: 'Rain', mix: 'Rain and snow', snow: 'Snow' }
 
 /**
- * Amount steps, mm in an hour, and the opacity each is drawn at. The first
- * step is the real-rain line, so a cell below it is visibly fainter than one
- * that re-wets the rock.
+ * Each amount step's lower edge, mm in an hour, and its `precipStep` colour.
+ * The second edge is the real-rain line, so an hour too light to re-wet the
+ * rock sits on the dimmest step alone.
  */
-const STEPS: readonly (readonly [minMm: number, opacity: number])[] = [
-  [0, 0.36],
-  [REWETTING_PRECIP_MM, 0.56],
-  [1, 0.72],
-  [2, 0.85],
-  [4, 1],
+const STEPS: readonly (readonly [minMm: number, color: string])[] = [
+  [0, colorsV2.precipStep1],
+  [REWETTING_PRECIP_MM, colorsV2.precipStep2],
+  [1, colorsV2.precipStep3],
+  [2, colorsV2.precipStep4],
+  [4, colorsV2.precipStep5],
 ]
-const TOP_STEP_IN = mmToIn(STEPS[STEPS.length - 1]?.[0] ?? 0).toFixed(2)
+const TOP_STEP_IN = mmToIn(4).toFixed(2)
 
-function stepOpacity(mm: number): number {
-  let o = STEPS[0]?.[1] ?? 1
-  for (const [min, op] of STEPS) if (mm >= min) o = op
-  return o
-}
-
-/** A kind the response could not name is drawn neutral — never as rain. */
-function kindColor(kind: PrecipKind | null): string {
-  return kind === null ? colorsV2.legend : KIND_COLOR[kind]
+/**
+ * **Amount is the fill, kind is a ring.** One hue carries how much fell so
+ * more and less rain read at a glance (owner, 2026-09-29); snow and a mix add
+ * a ring in their own colour rather than repainting the step. An hour whose
+ * kind is unknown gets no ring — never called rain, never called snow.
+ */
+function stepColor(mm: number): string {
+  let color = colorsV2.precipStep1 as string
+  for (const [min, c] of STEPS) if (mm >= min) color = c
+  return color
 }
 
 /** `0.35`, `0`, `tr`, or a dash for a day with no data. The unit is in the column head. */
@@ -167,8 +167,36 @@ function Cell({ cell }: { cell: HourCell }) {
     return <div style={{ ...base, boxShadow: `inset 0 0 0 1px ${colorsV2.grid}` }} />
   }
   const mm = cell.hour.precip_mm
-  const fill = mm > 0 ? withOpacity(kindColor(hourKind(cell.hour)), stepOpacity(mm)) : colorsV2.grid
-  return <div style={{ ...base, backgroundColor: fill }} />
+  if (mm <= 0) return <div style={{ ...base, backgroundColor: colorsV2.grid }} />
+  const ring = kindRing(hourKind(cell.hour))
+  return (
+    <div
+      style={{
+        ...base,
+        backgroundColor: stepColor(mm),
+        ...(ring === null ? {} : { boxShadow: `inset 0 0 0 2px ${ring}` }),
+      }}
+    />
+  )
+}
+
+/** A snow or rain-and-snow hour's ring; rain and an unknown kind carry none. */
+function kindRing(kind: PrecipKind | null): string | null {
+  return kind === 'snow' || kind === 'mix' ? KIND_COLOR[kind] : null
+}
+
+function Swatch({ color, ring }: { color: string; ring?: string }) {
+  return (
+    <span
+      style={{
+        width: `${SWATCH}px`,
+        height: `${SWATCH}px`,
+        borderRadius: `${radius.tag}px`,
+        backgroundColor: color,
+        ...(ring === undefined ? {} : { boxShadow: `inset 0 0 0 2px ${ring}` }),
+      }}
+    />
+  )
 }
 
 export function PrecipTab({ recent, isClimbingLocation }: PrecipTabProps) {
@@ -198,16 +226,23 @@ export function PrecipTab({ recent, isClimbingLocation }: PrecipTabProps) {
     return `${label === 'Today' ? 'today' : label} ${clockOf(validAtLocal)}`
   }
 
-  const { lastReal, hoursSinceReal, lastRealEvent, lighterSince } = summary
+  const { lastReal, hoursSinceReal, lastRealEvent, lighterSince, endingLocal } = summary
   const kindName = lastRealEvent?.kind == null ? 'precipitation' : KIND_NAME[lastRealEvent.kind]
   const threshold = `${mmToIn(REWETTING_PRECIP_MM).toFixed(2)} in`
+  // Real rain in the window's newest hour is rain falling now, not rain that
+  // "ended 0 hours ago"; a storm reaching that hour is still going.
+  const rainingNow = lastReal !== null && lastReal.valid_at_local === endingLocal
+  const storm =
+    lastRealEvent === null
+      ? null
+      : `${lastRealEvent.endLocal === endingLocal ? 'this storm so far' : 'that storm left'} ${formatPrecipIn(lastRealEvent.totalMm)} over ${lastRealEvent.spanHours} h`
   const lastLight = lighterSince[lighterSince.length - 1]
   const lightMm = lighterSince.reduce((s, h) => s + h.precip_mm, 0)
-  const wetKinds = new Set<PrecipKind | null>(
-    data.hours.filter((h) => h.precip_mm > 0).map((h) => hourKind(h)),
+  const todayHours = data.hours.filter((h) => h.valid_at_local.slice(0, 10) === today)
+  const todayWet = todayHours.filter((h) => h.precip_mm > 0).length
+  const ringKinds = (['mix', 'snow'] as const).filter((k) =>
+    data.hours.some((h) => h.precip_mm > 0 && hourKind(h) === k),
   )
-  const otherKinds = [...wetKinds].filter((k): k is PrecipKind => k !== null && k !== 'rain')
-  const legendColor = wetKinds.size === 1 && !wetKinds.has('rain') ? kindColor([...wetKinds][0] ?? null) : colorsV2.rain
   const gridColumns = `${DAY_COL} repeat(24, minmax(0, 1fr)) ${TOTAL_COL}`
 
   return (
@@ -221,6 +256,15 @@ export function PrecipTab({ recent, isClimbingLocation }: PrecipTabProps) {
               No hour reached {threshold} during the past {days.length} days.
             </span>
           </div>
+        ) : rainingNow ? (
+          <div style={stack(spacing.tight)}>
+            <span style={typeV2.factLabel}>Real {kindName} in the latest hour</span>
+            <span style={typeV2.heroTemp}>Now</span>
+            <span style={typeV2.body}>
+              to {when(lastReal.valid_at_local)}
+              {storm === null ? null : ` · ${storm}`}
+            </span>
+          </div>
         ) : (
           <div style={stack(spacing.tight)}>
             <span style={typeV2.factLabel}>Last real {kindName} ended</span>
@@ -232,22 +276,33 @@ export function PrecipTab({ recent, isClimbingLocation }: PrecipTabProps) {
             </div>
             <span style={typeV2.body}>
               {when(lastReal.valid_at_local)}
-              {lastRealEvent === null
-                ? null
-                : ` · that storm left ${formatPrecipIn(lastRealEvent.totalMm)} over ${lastRealEvent.spanHours} h`}
+              {storm === null ? null : ` · ${storm}`}
             </span>
           </div>
         )}
-        {hoursSinceReal === null ? null : <Runway hours={hoursSinceReal} />}
+        {hoursSinceReal === null || rainingNow ? null : <Runway hours={hoursSinceReal} />}
         {lastLight === undefined || lastReal === null ? null : (
           <p style={typeV2.note}>
             Lighter showers since ({formatPrecipIn(lightMm)}, last ending {when(lastLight.valid_at_local)}) — each hour
             under {threshold}, so they don&apos;t count.
           </p>
         )}
-        <div style={{ ...row(spacing.listGapLg), paddingTop: `${spacing.listGapLg}px`, borderTop: `1px solid ${colorsV2.line}` }}>
+        <div
+          style={{
+            ...row(spacing.listGapLg),
+            alignItems: 'flex-start',
+            paddingTop: `${spacing.listGapLg}px`,
+            borderTop: `1px solid ${colorsV2.line}`,
+          }}
+        >
+          {/* A window that has not reached today has no today to total — a dash, not 0. */}
+          <Stat
+            label="Today"
+            value={todayHours.length === 0 ? EM_DASH : formatPrecipIn(todayHours.reduce((s, h) => s + h.precip_mm, 0))}
+            note={todayHours.length === 0 ? 'no hours yet' : `${todayWet} wet ${todayWet === 1 ? 'hour' : 'hours'}`}
+          />
           <Stat label="This week" value={formatPrecipIn(summary.totalMm)} note={`over ${days.length} days`} />
-          <Stat label="Wet hours" value={`${summary.wetHours} h`} note={`of ${data.hours.length}`} />
+          <Stat label="Wet this week" value={`${summary.wetHours} h`} note={`of ${data.hours.length}`} />
         </div>
       </Card>
 
@@ -288,22 +343,15 @@ export function PrecipTab({ recent, isClimbingLocation }: PrecipTabProps) {
         </div>
         <div style={{ ...row(spacing.chipGapMd), flexWrap: 'wrap' }}>
           <span style={typeV2.legendSm}>Dry</span>
-          <span style={{ width: `${SWATCH}px`, height: `${SWATCH}px`, borderRadius: `${radius.tag}px`, backgroundColor: colorsV2.grid }} />
-          {STEPS.map(([min, o]) => (
-            <span
-              key={min}
-              style={{
-                width: `${SWATCH}px`,
-                height: `${SWATCH}px`,
-                borderRadius: `${radius.tag}px`,
-                backgroundColor: withOpacity(legendColor, o),
-              }}
-            />
+          <Swatch color={colorsV2.grid} />
+          <span style={{ ...typeV2.legendSm, marginLeft: `${spacing.listGap}px` }}>Less</span>
+          {STEPS.map(([, c]) => (
+            <Swatch key={c} color={c} />
           ))}
-          <span style={typeV2.legendSm}>{TOP_STEP_IN}+ in/h</span>
-          {otherKinds.map((k) => (
+          <span style={typeV2.legendSm}>More ({TOP_STEP_IN}+ in/h)</span>
+          {ringKinds.map((k) => (
             <span key={k} style={{ ...row(spacing.chipGapMd), marginLeft: `${spacing.listGap}px` }}>
-              <span style={{ width: `${SWATCH}px`, height: `${SWATCH}px`, borderRadius: `${radius.tag}px`, backgroundColor: KIND_COLOR[k] }} />
+              <Swatch color={colorsV2.grid} ring={KIND_COLOR[k]} />
               <span style={typeV2.legendSm}>{KIND_LEGEND[k]}</span>
             </span>
           ))}
