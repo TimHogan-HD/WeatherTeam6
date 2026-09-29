@@ -1,0 +1,15 @@
+flowchart TD
+    A["Rock type: soft sandstone<br/>Storm: 0.4 in rain"] --> B["Track two kinds of water:<br/>on the surface<br/>soaked into the rock<br/>Up to 120 hours' worth of drying"]
+    C["Weather: warm, sunny periods<br/>Drying so far: about 20 hours' worth"] --> D["One compass-facing wall<br/>Still very wet: 3 out of 100 dry"]
+    B --> D
+    D --> E["Repeat for 8 directions<br/>Crag estimate: median about 4 out of 100"]
+
+    classDef input fill:#EFF6FA,stroke:#8AA8BA,color:#243746,stroke-width:1px
+    classDef step fill:#F2F0FA,stroke:#A39AC8,color:#332C52,stroke-width:1px
+    classDef measure fill:#FFF3E6,stroke:#D5A66B,color:#5B3A16,stroke-width:1px
+    classDef output fill:#E9F4EC,stroke:#7BA888,color:#213D2A,stroke-width:1px
+    class A,C input
+    class B step
+    class D measure
+    class E output
+    linkStyle default stroke:#8A9BA8,stroke-width:1.5px

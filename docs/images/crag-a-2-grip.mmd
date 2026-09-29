@@ -1,0 +1,10 @@
+flowchart TD
+    A["Example conditions:<br/>Rock mass: 68°F<br/>Air: 76°F<br/>Dew point: 50°F<br/><br/>Condensation: 18°F above dew point<br/>Clears the 3.6°F threshold → 1.0<br/><br/>Heat: 76°F above 60°F threshold<br/>exp(-16 / 21.6) → 0.48<br/><br/>Dampness: 50°F dew point below 54°F → 1.0<br/>Cold: 76°F air above 30°F → 1.0"] --> B["Multiply the results:<br/>1.0 × 0.48 × 1.0 × 1.0<br/>Estimated grip: about 0.48"]
+
+    classDef input fill:#EFF6FA,stroke:#8AA8BA,color:#243746,stroke-width:1px
+    classDef step fill:#F2F0FA,stroke:#A39AC8,color:#332C52,stroke-width:1px
+    classDef measure fill:#FFF3E6,stroke:#D5A66B,color:#5B3A16,stroke-width:1px
+    classDef output fill:#E9F4EC,stroke:#7BA888,color:#213D2A,stroke-width:1px
+    class A measure
+    class B output
+    linkStyle default stroke:#8A9BA8,stroke-width:1.5px
