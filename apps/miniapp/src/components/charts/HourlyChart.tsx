@@ -93,6 +93,11 @@ export type HourlyChartProps = {
    * ticks are written with `formatValue`.
    */
   valueAxis?: ValueAxis
+  /**
+   * The current instant, epoch ms, from a ticking clock (`useNow`). Drawn as a
+   * rule only when it falls inside this chart's hours, so any other day draws none.
+   */
+  now?: number
 }
 
 /** A tick label needs this much room to its right, or it runs off the chart. */
@@ -105,6 +110,9 @@ const MIN_SPAN = 2
 
 /** How close to the left edge a rule has to be before it is the frame. */
 const EDGE_TOLERANCE = 3
+
+/** Past this x the "Now" label sits left of its rule, or it runs off the chart. */
+const NOW_LABEL_W = 30
 
 /** Every sixth hour: four labels across one day, which is what fits at 375px. */
 const HOUR_TICK_STEP = 6
@@ -182,6 +190,7 @@ export function HourlyChart({
   placement = 'accumulation',
   whiskers = false,
   valueAxis,
+  now,
 }: HourlyChartProps) {
   // Which hour the pointer is over. `null` when nothing is.
   const [hover, setHover] = useState<number | null>(null)
@@ -233,6 +242,8 @@ export function HourlyChart({
   const plotBottom = viewHeight - PAD_BOTTOM
   const x = linearScale(xDomain, PAD_LEFT, VIEW_W - PAD_RIGHT)
   const y = linearScale(domain, plotBottom, PAD_TOP)
+
+  const nowX = now !== undefined && now >= xDomain.min && now <= xDomain.max ? x(now) : null
 
   /**
    * Where an hour's mark is centred, in user units.
@@ -472,6 +483,18 @@ export function HourlyChart({
           />
         )}
 
+        {nowX === null ? null : (
+          <line
+            x1={nowX}
+            x2={nowX}
+            y1={PAD_TOP}
+            y2={plotBottom}
+            stroke={chartColorsV2.now}
+            strokeWidth={GRID_W * 1.5}
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
+
         {/* The hour under the pointer, marked on the plot itself. */}
         {active === undefined ? null : (
           <line
@@ -532,6 +555,24 @@ export function HourlyChart({
           }}
         >
           {activeLabel} · {formatValue(active.value)}
+        </span>
+      )}
+
+      {nowX === null ? null : (
+        <span
+          style={{
+            ...typeV2.axisTick,
+            color: chartColorsV2.now,
+            position: 'absolute',
+            left: pctX(nowX),
+            top: pctY(PAD_TOP),
+            transform: nowX > VIEW_W - PAD_RIGHT - NOW_LABEL_W ? 'translateX(-100%)' : undefined,
+            padding: `0 ${spacing.micro}px`,
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+          }}
+        >
+          Now
         </span>
       )}
 

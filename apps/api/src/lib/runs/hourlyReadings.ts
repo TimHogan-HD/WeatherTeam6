@@ -87,6 +87,12 @@ export type BuildReadingsInput = {
    */
   lat: number
   lon: number
+  /**
+   * Today's window and score count only the hours not yet over. An hour that
+   * has passed stays in `hours` for the charts but cannot carry the day: at
+   * 15:00 in the rain, a dry 10:00 is not today's answer.
+   */
+  now: Date
   windowMinScore?: number
 }
 
@@ -166,7 +172,9 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
 
   const minScore = input.windowMinScore ?? DEFAULT_WINDOW_MIN_SCORE
   const byDate = new Map<string, HourlyConditions[]>()
+  const firstOpenHourMs = input.now.getTime() - 3_600_000
   for (const h of windowed) {
+    if (Date.parse(h.valid_at) <= firstOpenHourMs) continue
     const date = localDateString(new Date(h.valid_at), input.utcOffsetSeconds)
     const list = byDate.get(date) ?? []
     list.push(h)

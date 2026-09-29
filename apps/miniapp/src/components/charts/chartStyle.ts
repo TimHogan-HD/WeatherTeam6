@@ -151,6 +151,8 @@ export const chartColorsV2 = {
   humidity: colorsV2.humidity,
   grid: colorsV2.grid,
   goodHours: withOpacity(colors.good, 0.07),
+  /** The rule at the current time. Ink, not a status colour: it marks when, not how good. */
+  now: withOpacity(colorsV2.txt1, 0.75),
 } as const
 
 /** Corner radius on a bar — the rounded data-end the dataviz guidance asks for. */

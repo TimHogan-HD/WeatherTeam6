@@ -29,7 +29,7 @@ delivery gates are in `CLAUDE.md`; domain patterns are in the `miniapp-patterns`
   wall with overhang rain shelter — and nothing calls it yet. Friction is condensation × heat × humidity × cold from air
   temperature, dew point and `T_mass` — no sun, so it answers when shortwave is missing. A
   day's score is the worst hour of its best 3-hour run between 08:00 and 18:00 local
-  (`dayRepresentative`). It sits on top of `evaluateHourlyConditions`, which still supplies
+  (`dayRepresentative`). **Today counts only the hours not yet over** (`buildHourlyReadings`'s `now`): a dry morning that has passed must not carry a wet afternoon, and after 18:00 today has no score and no good hours. The charts still draw the whole day. It sits on top of `evaluateHourlyConditions`, which still supplies
   `T_mass`, `T_surface` and the drying rate; v2's own score and sweat-balance friction no
   longer reach a response. The port is checked hour-for-hour against
   `.claude/docs/crag-a-reference/model.ts`; a change that moves a result there needs an
