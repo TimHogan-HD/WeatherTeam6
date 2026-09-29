@@ -89,7 +89,7 @@ async function run(): Promise<void> {
   const { loadStoredDeterministic, loadStoredEnsemble } = await import(
     '../lib/runs/latestRuns.js'
   )
-  const { pruneWeatherRuns, PARSED_RETENTION_DAYS, RAW_RETENTION_HOURS } = await import(
+  const { pruneWeatherRuns, PARSED_RETENTION_DAYS } = await import(
     '../lib/runs/pruneRuns.js'
   )
   const { deleteLocationCascade } = await import('../lib/locations/deleteLocation.js')
@@ -297,7 +297,6 @@ async function run(): Promise<void> {
         },
       ],
       fetched_at: fetchedAt,
-      raw: { note: 'check fixture' },
     })
 
     check('the ensemble run stored one hour, not two', ens?.hours === 1, `got ${String(ens?.hours)}`)
@@ -506,11 +505,9 @@ async function run(): Promise<void> {
       .where(eq(weatherRuns.point_key, adHocKey))
     check('nothing is left for the point', leftovers.length === 0, `got ${String(leftovers.length)}`)
 
-    console.log('\nClearing the raw payload past its shorter window')
-    // Only an ensemble run carries `raw` — a deterministic run's parsed hours
-    // are its whole payload, so it is stored with none.
-    const rawAt = new Date(Date.now() - (RAW_RETENTION_HOURS + 1) * 60 * 60 * 1000)
-    const withRaw = await storeEnsembleRun(adHocKey, {
+    console.log('\nA run inside the retention window survives the prune')
+    const recentAt = new Date(Date.now() - 60 * 60 * 1000)
+    const young = await storeEnsembleRun(adHocKey, {
       daily: { days: [], model_sources: [], utc_offset_seconds: 0 },
       hours: [
         {
@@ -530,22 +527,16 @@ async function run(): Promise<void> {
           model_member_counts: { gfs_seamless: 31 },
         },
       ],
-      fetched_at: rawAt,
-      raw: { big: 'payload' },
+      fetched_at: recentAt,
     })
-    const clearedRun = withRaw?.run_id ?? ''
-    const beforeClear = await db.select().from(weatherRuns).where(eq(weatherRuns.id, clearedRun))
-    check('the raw payload was stored in the first place', beforeClear[0]?.raw !== null)
-
-    const afterRaw = await pruneWeatherRuns()
-    check('at least one raw payload was cleared', afterRaw.rawCleared >= 1)
-    const stillThere = await db.select().from(weatherRuns).where(eq(weatherRuns.id, clearedRun))
-    check('the run itself survived — it is inside the parsed window', stillThere.length === 1)
-    check('but its raw payload is gone', stillThere[0]?.raw === null)
+    const recentRun = young?.run_id ?? ''
+    await pruneWeatherRuns()
+    const stillThere = await db.select().from(weatherRuns).where(eq(weatherRuns.id, recentRun))
+    check('the run itself survived', stillThere.length === 1)
     const keptHours = await db
       .select()
       .from(weatherEnsembleHours)
-      .where(eq(weatherEnsembleHours.run_id, clearedRun))
+      .where(eq(weatherEnsembleHours.run_id, recentRun))
     check('and its parsed hours survived', keptHours.length === 1)
 
     console.log('\nDeleting one saved copy of a place leaves the place\'s runs')

@@ -512,9 +512,11 @@ export const userPreferences = pgTable('user_preferences', {
  * Probe A found Open-Meteo exposes no run time under any name, so nothing here
  * may be labelled "12Z run".
  *
- * `raw` holds the upstream payload for 48 hours and is the re-derivation path
- * for anything the parsed rows dropped. **Never log it or serialise it into an
- * error** — go through `describeError`.
+ * **`raw` is no longer written (2026-09-29)**; rows stored before then carry it
+ * until the 2-day prune deletes them. It
+ * held the ensemble's 143-member response (~290 KB a run) and nothing ever read
+ * it. The column stays until dropping it is decided; a member-level view would
+ * need it back, together with a storage plan that can pay for it.
  */
 export const weatherRuns = pgTable(
   'weather_runs',

@@ -113,8 +113,7 @@ cronRouter.post('/collect-runs', async (req: Request, res: Response) => {
 })
 
 /**
- * Drop runs past the parsed retention window and clear the raw payload past the
- * raw one.
+ * Drop runs past the retention window.
  *
  * Separate from the collection route so a prune failure cannot stop collection
  * and a collection timeout cannot stop the prune — the same reason the alerts

@@ -256,6 +256,23 @@ function collectionIsRunning(latestCheck: Date | null, now: Date): boolean {
 }
 
 /**
+ * A stored read that fails is treated as nothing stored, so the caller fetches
+ * live — the same tolerance the write-back already has. Without it a database
+ * fault fails the whole request while a working upstream sits one call away.
+ */
+async function storedOrNull<T>(pointKey: string, load: () => Promise<T | null>): Promise<T | null> {
+  try {
+    return await load()
+  } catch (err) {
+    logger.warn(
+      { pointKey, err: err instanceof Error ? err.message : String(err) },
+      '[latestRuns] could not read stored runs — fetching live',
+    )
+    return null
+  }
+}
+
+/**
  * The newest deterministic run of each model for a point: stored while the
  * collection is running, fetched and written back otherwise.
  *
@@ -268,9 +285,8 @@ export async function getDeterministicRuns(
   now: Date = new Date(),
 ): Promise<DeterministicRuns> {
   const pointKey = pointKeyForPlace(point)
-  const stored = await loadStoredDeterministic(
-    pointKey,
-    cutoffFrom(now, STORED_MODEL_MAX_AGE_MINUTES),
+  const stored = await storedOrNull(pointKey, () =>
+    loadStoredDeterministic(pointKey, cutoffFrom(now, STORED_MODEL_MAX_AGE_MINUTES)),
   )
   if (stored !== null && collectionIsRunning(newest(stored.models.map((m) => m.checked_at)), now)) {
     return stored
@@ -394,7 +410,9 @@ export async function getEnsembleRuns(
   now: Date = new Date(),
 ): Promise<EnsembleRuns> {
   const pointKey = pointKeyForPlace(point)
-  const stored = await loadStoredEnsemble(pointKey, cutoffFrom(now, STORED_MODEL_MAX_AGE_MINUTES))
+  const stored = await storedOrNull(pointKey, () =>
+    loadStoredEnsemble(pointKey, cutoffFrom(now, STORED_MODEL_MAX_AGE_MINUTES)),
+  )
   if (stored !== null && collectionIsRunning(stored.checked_at, now)) return stored
 
   let run: Awaited<ReturnType<typeof fetchEnsembleRun>>

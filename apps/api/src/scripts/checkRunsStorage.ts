@@ -68,7 +68,7 @@ async function run(): Promise<void> {
 
   const { db } = await import('../db/index.js')
   const { sql } = await import('drizzle-orm')
-  const { PARSED_RETENTION_DAYS, RAW_RETENTION_HOURS } = await import('../lib/runs/pruneRuns.js')
+  const { PARSED_RETENTION_DAYS } = await import('../lib/runs/pruneRuns.js')
 
   console.log('\n=== check:runs-storage ===\n')
 
@@ -105,8 +105,6 @@ async function run(): Promise<void> {
   const runs = await db.execute(sql`
     SELECT count(*)::int AS total,
            count(*) FILTER (WHERE fetched_at < now() - (${PARSED_RETENTION_DAYS} || ' days')::interval)::int AS expired,
-           count(*) FILTER (WHERE raw IS NOT NULL)::int AS with_raw,
-           count(*) FILTER (WHERE raw IS NOT NULL AND fetched_at < now() - (${RAW_RETENTION_HOURS} || ' hours')::interval)::int AS raw_clearable,
            min(fetched_at) AS oldest,
            max(fetched_at) AS newest
     FROM weather_runs
@@ -118,9 +116,6 @@ async function run(): Promise<void> {
   console.log(`    newest fetched_at    ${ago(r['newest'])}`)
   console.log(
     `    past ${PARSED_RETENTION_DAYS}-day retention  ${str(r['expired'])}  <- what a prune would delete now`,
-  )
-  console.log(
-    `    carrying raw payload ${str(r['with_raw'])} (${str(r['raw_clearable'])} past the ${RAW_RETENTION_HOURS}h raw window)`,
   )
   console.log('')
 

@@ -1453,8 +1453,6 @@ export type EnsembleRun = {
   daily: OpenMeteoResult
   hours: EnsembleHour[]
   fetched_at: Date
-  /** The upstream payload, for the raw retention window (`RAW_RETENTION_HOURS`). Never log or serialise this. */
-  raw: unknown
 }
 
 /**
@@ -1487,5 +1485,5 @@ export async function fetchEnsembleRun(location: ForecastLocation): Promise<Ense
       ? raw.utc_offset_seconds
       : 0
 
-  return { daily, hours: parseEnsembleHourly(raw.hourly), fetched_at, raw }
+  return { daily, hours: parseEnsembleHourly(raw.hourly), fetched_at }
 }
