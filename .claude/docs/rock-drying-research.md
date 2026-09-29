@@ -620,6 +620,19 @@ absorption from ASTM C97 practice [S]
 | **Non-welded tuff** | **38–60%** | very high | high | Structural — more porous than most sandstone |
 | Conglomerate | matrix-controlled | matrix-controlled | matrix-controlled | Cobbles pulling from a softened matrix |
 
+> **Correction, 2026-09-29 — the quartz-arenite row's "~0%" does not describe the class.**
+> It is the clean, clay-free end of one lab range (§2.4), and it was read as a property of
+> every quartz sandstone. **Hinckley Sandstone at Robinson Park is a quartz arenite — about
+> 96% quartz** ([Equatorial Minnesota](https://equatorialminnesota.blogspot.com/2026/07/world-of-stone-ii-hinckley-sandstone.html),
+> [USF sinkhole thesis](https://digitalcommons.usf.edu/cgi/viewcontent.cgi?article=1004&context=kip_etd))
+> — **and it breaks after rain**: the owner, who climbs it, reports it as notorious for
+> holds breaking and a local ethic that is strict about staying off it wet, and Mountain
+> Project's area page advises 24–48 h ([MP](https://www.mountainproject.com/area/105812719/robinson-park)) **[C]**.
+> Quartz content says what the grains are; wet strength is set by how completely they are
+> cemented, and that is not visible from a wall or a label. The Rock tab now reads this row
+> as *softens*. **The drying window (6/24 h) is unchanged** — changing it is a scoring
+> decision (`compare:scoring`), not a copy fix.
+
 Two rows in that table should be alarming given the current five-value `RockType` enum:
 `basalt` spans 0.1% to 50% porosity depending on whether you are on a column or a flow top,
 and tuff — which the enum does not have at all — spans low-porosity welded rock to 38–60%
