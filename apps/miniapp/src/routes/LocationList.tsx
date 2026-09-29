@@ -30,8 +30,8 @@ import {
 
 /**
  * `/` — the root, in the v2 layout: a header band carrying the title, the count
- * and freshness, the Add button and the sort control; a legend keying the
- * chips; then the cards.
+ * and freshness, the Report button in its corner, the Add button and the sort
+ * control; a legend keying the chips; then the cards.
  *
  * No back affordance: there is nothing above this screen, and a control that
  * navigates to the screen already showing is the second-back-affordance bug §2
@@ -78,10 +78,33 @@ export function LocationList() {
           paddingBottom: `${spacing.sectionGap}px`,
         }}
       >
-        <div style={stack(spacing.tight)}>
-          <p style={typeV2.eyebrow}>WeatherTeam6</p>
-          <h1 style={typeV2.screenTitle}>Locations</h1>
-          {meta === null ? null : <p style={typeV2.meta}>{meta}</p>}
+        <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={stack(spacing.tight)}>
+            <p style={typeV2.eyebrow}>WeatherTeam6</p>
+            <h1 style={typeV2.screenTitle}>Locations</h1>
+            {meta === null ? null : <p style={typeV2.meta}>{meta}</p>}
+          </div>
+          {/*
+            The way in to `/feedback`, in the header's corner so it is found:
+            beside the sort control it read as part of the list's own controls
+            and was missed. "Report" rather than "Feedback" — short enough for
+            the corner, and it covers both halves of the screen, an app problem
+            and what the rock was actually like.
+          */}
+          <button
+            type="button"
+            onClick={openFeedback}
+            style={{
+              ...bareButton,
+              width: 'auto',
+              flexShrink: 0,
+              border: `1px solid ${colors.good}`,
+              borderRadius: `${radius.full}px`,
+              padding: `${spacing.listGap}px ${spacing.cardPadSm}px`,
+            }}
+          >
+            <span style={{ ...typeV2.controlValue, color: colors.good }}>Report</span>
+          </button>
         </div>
         <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
           <button
@@ -99,18 +122,9 @@ export function LocationList() {
             <PlusIcon color={colors.onGood} />
             <span style={typeV2.button}>Add</span>
           </button>
-          <div style={row(spacing.cellPad)}>
-            <button
-              type="button"
-              onClick={openFeedback}
-              style={{ ...bareButton, ...typeV2.controlLabel, width: 'auto', padding: `${spacing.listGap}px ${spacing.tight}px` }}
-            >
-              Feedback
-            </button>
-            {locations.data !== undefined && locations.data.length > 1 ? (
-              <SortControl value={sort} onChange={setSort} />
-            ) : null}
-          </div>
+          {locations.data !== undefined && locations.data.length > 1 ? (
+            <SortControl value={sort} onChange={setSort} />
+          ) : null}
         </div>
       </header>
 
