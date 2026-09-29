@@ -173,8 +173,9 @@ name, coordinates · forecast age) over six tabs — **Overview, Daily, Hourly, 
 Rock, Crag** — and opens on Overview: the Conditions now hero, **Today** (09-21 every three
 hours, temperature and the friction word), **Next 3 days** (each day's Crag A score as a
 tinted pill), and **Rain** (last rain, next likely rain). Rock holds the drying card and
-Crag the identity block until their own V2 frames are built; a city gets Overview, Daily,
-Hourly and Precip. Daily and Hourly are built to their own frames (below). Deliberate
+the identity block until its own V2 frame is built; Crag is the guidebook (below). A city
+gets Overview, Daily, Hourly and Precip. Daily and Hourly are built to their own frames
+(below). Deliberate
 departures from the frame:
 
 - **The day pills are the Crag A day score** (`readings.days[].best`), joined on date and
@@ -265,6 +266,36 @@ accumulation** (a bar per local day in a well, one shared scale). It reads
   none fell. Today's bar is labelled `Today`, since its total is partial.
 - **The header band is the location's**, as on every other tab; the frame's
   "Eldorado Canyon · gauge + radar / Precipitation history" title is not drawn.
+
+**Crag tab, wall and route screens — added 2026-09-29 from the WT6 Figma restyle page's
+"03 · Guidebook Flow" and "04 · Route Detail" sections (`v2 Dark — Crag` 63:2, `— Wall`
+63:224, `— Route` 64:2).** The Crag tab is the OpenBeta crag the location sits on: the
+area and its counts, the crag's readings now (`NowStrip`, the list card's path), routes by
+grade, and the walls on a position strip and in a list, west to east. A wall opens
+`/location/:id/wall/:wallId` (grades, kind filter, the routes); a route opens
+`…/route/:routeId` (grade, Mountain Project and OpenBeta links, *Climb it this week*, the
+recorded facts, beta, and its neighbours). Data is `GET /guidebook/:locationId`
+(`api-sources.md` § OpenBeta Routes). The identity block moved to the Rock tab. Deliberate
+departures from the frames:
+
+- **Grades are one violet ramp, easy dark to hard bright, and boulders are neutral** —
+  not the frames' lime/amber/red, which are the ladder's. `gradeScale` in
+  `packages/design`, checked with the dataviz skill's ordinal validator.
+- **Wall markers are neutral numbered dots on a plain strip.** The frames' lime dots and
+  "Mississippi River (schematic)" band are dropped: lime is a verdict, and the river is
+  Red Wing's alone.
+- **"Left → right" and "On the wall" appear only on a wall OpenBeta orders** (every route
+  its own position). Elsewhere the list is by grade and there are no neighbours.
+- **Readings are labelled pills** (`Dryness: Wet`), not the frames' bare words, and the
+  score drops under the alerts gate like everywhere else.
+- **The route hero is a plain card**, not the frame's green one — green is the `good`
+  rung, and a grade is not a condition.
+- **Mountain Project is linked only with OpenBeta's own MP id**, never a name search.
+  Length and bolts read "Not recorded" because OpenBeta records neither for any Minnesota
+  route; the beta empty state says an OpenBeta edit reaches the app at the next snapshot,
+  not immediately.
+- **A location with no crag within 2 km says so** in a card; outside Minnesota that is
+  every location today.
 
 ~~One scroll, no internal tabs~~ — **superseded 2026-09-14 and shipped.** The screen now
 carries **Daily and Hourly tabs**, and the daily rows carry per-day scores, both reversed

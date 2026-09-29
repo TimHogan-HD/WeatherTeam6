@@ -9,7 +9,7 @@ import type {
   Wall,
   WeatherAlert,
 } from '@weatherteam6/types'
-import { RECENT_PRECIP_SOURCE_LABEL } from '@weatherteam6/types'
+import { GUIDEBOOK_SOURCE_LABEL, RECENT_PRECIP_SOURCE_LABEL } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { stack } from '../theme/styles.js'
 import {
@@ -25,6 +25,7 @@ import { InlineError, Skeleton } from './States.js'
 import { DryingCard } from './DryingCard.js'
 import { DailyList } from './DailyList.js'
 import { LocationIdentity } from './LocationIdentity.js'
+import { CragTab, type CragTabProps } from './guidebook/CragTab.js'
 import type { HeaderTab } from './DetailHeader.js'
 import { OverviewTab } from './OverviewTab.js'
 import { PrecipTab } from './PrecipTab.js'
@@ -46,9 +47,11 @@ import { TEMP_VIEW_H } from './charts/chartStyle.js'
  * - **Precip** — the past week's precipitation: its total, its events and a
  *   bar per day, from the Figma "Precipitation history" frame. Every saved
  *   location has one; a city had rain too.
- * - **Rock** — the drying card; **Crag** — the identity block and its walls.
- *   Both hold the content that used to sit above the old two tabs, so nothing
- *   left the screen when Overview arrived. Their V2 frames are later work too.
+ * - **Rock** — the drying card, then the identity block (rock, aspect, angle,
+ *   rain station), which moved here from Crag when Crag became the guidebook.
+ *   Its V2 frame is later work.
+ * - **Crag** — the guidebook: the OpenBeta crag this location sits on, its
+ *   grades and its walls, from the Figma "03 · Guidebook Flow" frame.
  *
  * A city has no Rock or Crag tab: it has no rock and no walls, and the header
  * already carries its elevation and coordinates.
@@ -132,10 +135,12 @@ export type DetailViewProps = {
     isError: boolean
     refetch: () => void
   }
-  /** The crag's named walls, for the Crag tab. Absent on the preview path. */
+  /** The crag's named walls, for the identity block. Absent on the preview path. */
   walls?: readonly Wall[]
-  /** The saved row behind this screen, for the Crag tab. Absent on the preview path. */
+  /** The saved row behind this screen, for the Rock tab. Absent on the preview path. */
   location?: Location
+  /** The OpenBeta guidebook, for the Crag tab. Absent on the preview path. */
+  guidebook?: CragTabProps['guidebook'] & { onOpenWall: (wallId: string) => void }
 }
 
 /** The Next 7 days card's height (the V2 frame's 685), held open while the forecast loads on the Daily tab. */
@@ -189,6 +194,7 @@ export function DetailView({
   recentPrecip,
   walls,
   location,
+  guidebook,
 }: DetailViewProps) {
   const alertEvent = severeAlertEvent(alerts?.data)
   const alertsPending = alerts?.isPending === true
@@ -224,6 +230,9 @@ export function DetailView({
     // not "NWS says no alerts": the table is filled by a cron, so empty can
     // equally mean NWS was never asked.
     activeAlertCount > 0 ? 'NWS' : null,
+    // Named only once a crag came back: a location with no guidebook, or one
+    // still loading, has shown nothing of OpenBeta's.
+    guidebook?.data == null ? null : `Crag: ${GUIDEBOOK_SOURCE_LABEL}, as of ${guidebook.data.snapshot_date}`,
   ].filter((s): s is string => s !== null)
 
   /**
@@ -357,9 +366,24 @@ export function DetailView({
         <PrecipTab recent={recentPrecip} isClimbingLocation={showScore} />
       )
   } else if (active === 'rock') {
-    panel = drying
+    panel = (
+      <>
+        {drying}
+        {location === undefined ? null : <LocationIdentity location={location} walls={walls} condensed={false} />}
+      </>
+    )
   } else {
-    panel = location === undefined ? null : <LocationIdentity location={location} walls={walls} condensed={false} />
+    panel =
+      guidebook === undefined || tabs === undefined ? null : (
+        <CragTab
+          guidebook={guidebook}
+          conditions={conditions?.data}
+          alerts={alerts?.data}
+          alertsPending={alertsPending}
+          onOpenOverview={() => tabs.onTabChange('overview')}
+          onOpenWall={guidebook.onOpenWall}
+        />
+      )
   }
 
   return (

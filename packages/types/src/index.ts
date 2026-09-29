@@ -16,6 +16,7 @@ export * from './rockTypeCopy.js'
 export * from './knownCrags.js'
 export * from './readingsCopy.js'
 export * from './wallAngle.js'
+export * from './guidebook.js'
 
 export type ApiResponse<T> = {
   data: T | null

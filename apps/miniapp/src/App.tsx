@@ -8,6 +8,8 @@ import { AddLocation } from './routes/AddLocation.js'
 import { LocationDetail } from './routes/LocationDetail.js'
 import { LocationList } from './routes/LocationList.js'
 import { Login } from './routes/Login.js'
+import { WallScreen } from './routes/WallScreen.js'
+import { ClimbScreen } from './routes/ClimbScreen.js'
 
 const queryClient = createQueryClient()
 
@@ -28,7 +30,8 @@ subscribeToToken(() => {
 })
 
 /**
- * Four client-side routes, no server routes — Vercel rewrites every path to
+ * Six client-side routes — list, detail, add and login, plus the guidebook's
+ * wall and route screens — and no server routes: Vercel rewrites every path to
  * `index.html` (miniapp-design-v1.md §2, plus `/login` from Phase 2 of
  * `docs/handoffs/leave-telegram-v1.md`). An unrecognised path lands on the list
  * silently; the app never renders an error for a bad URL.
@@ -52,6 +55,22 @@ export function App() {
             element={
               <RequireAuth>
                 <LocationDetail />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/location/:id/wall/:wallId"
+            element={
+              <RequireAuth>
+                <WallScreen />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/location/:id/wall/:wallId/route/:routeId"
+            element={
+              <RequireAuth>
+                <ClimbScreen />
               </RequireAuth>
             }
           />
