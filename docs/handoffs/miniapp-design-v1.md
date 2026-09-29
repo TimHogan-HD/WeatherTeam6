@@ -275,6 +275,16 @@ Two cards and a caveat:
   them, says "Model estimates, not gauge readings", defines real rain, and at a crag ties
   it to Dryness and adds the route-by-route sentence.
 
+**Rock tab — added 2026-09-29 at the owner's request, no Figma frame.** A field guide to
+the location's rock type (`RockTab.tsx`, words in `packages/types/src/rockGuide.ts`): a
+textured header in the rock's colours (`rockSwatchV2`, decoration only), two three-step
+gauges (*Drying after rain*, *Strength when wet*), how it climbs, rain and sun, one fun
+fact, and do/don't care. The live drying card sits under the header and the identity
+block comes last. It describes the **rock type, not this crag**, and says so. The drying
+gauge is a band of `MAX_HOURS`, held to it by `dryingModel.test.ts`, and `unknown` has no
+guide. Care advice is general rock knowledge the owner asked for, not a go/no-go on the
+forecast, so the no-opinions rule is not in play.
+
 **Crag tab, wall and route screens — added 2026-09-29 from the WT6 Figma restyle page's
 "03 · Guidebook Flow" and "04 · Route Detail" sections (`v2 Dark — Crag` 63:2, `— Wall`
 63:224, `— Route` 64:2).** The Crag tab is the OpenBeta crag the location sits on: the

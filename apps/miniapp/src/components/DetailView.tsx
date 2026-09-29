@@ -26,6 +26,7 @@ import { InlineError, Skeleton } from './States.js'
 import { DryingCard } from './DryingCard.js'
 import { DailyList } from './DailyList.js'
 import { LocationIdentity } from './LocationIdentity.js'
+import { RockTab } from './RockTab.js'
 import { CragTab, type CragTabProps } from './guidebook/CragTab.js'
 import type { HeaderTab } from './DetailHeader.js'
 import { OverviewTab } from './OverviewTab.js'
@@ -48,9 +49,10 @@ import { TEMP_VIEW_H } from './charts/chartStyle.js'
  * - **Precip** — the past week's precipitation: its total, its events and a
  *   bar per day, from the Figma "Precipitation history" frame. Every saved
  *   location has one; a city had rain too.
- * - **Rock** — the drying card, then the identity block (rock, aspect, angle,
- *   rain station), which moved here from Crag when Crag became the guidebook.
- *   Its V2 frame is later work.
+ * - **Rock** — a field guide to the crag's rock (`RockTab`): what it is, how it
+ *   climbs, rain and sun, a fun fact and how to look after it, with the drying
+ *   card under its header and the identity block (aspect, angle, rain station)
+ *   last.
  * - **Crag** — the guidebook: the OpenBeta crag this location sits on, its
  *   grades and its walls, from the Figma "03 · Guidebook Flow" frame.
  *
@@ -374,10 +376,13 @@ export function DetailView({
       )
   } else if (active === 'rock') {
     panel = (
-      <>
-        {drying}
-        {location === undefined ? null : <LocationIdentity location={location} walls={walls} condensed={false} />}
-      </>
+      <RockTab
+        rockType={location?.rock_type ?? null}
+        drying={drying}
+        identity={
+          location === undefined ? null : <LocationIdentity location={location} walls={walls} condensed={false} />
+        }
+      />
     )
   } else {
     panel =
