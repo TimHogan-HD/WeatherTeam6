@@ -566,7 +566,8 @@ export function HourlyChart({
             position: 'absolute',
             left: pctX(nowX),
             top: pctY(PAD_TOP),
-            transform: nowX > VIEW_W - PAD_RIGHT - NOW_LABEL_W ? 'translateX(-100%)' : undefined,
+            // Above the plot, never inside it: a line crossing the top of the plot would run through the word.
+            transform: `translate(${nowX > VIEW_W - PAD_RIGHT - NOW_LABEL_W ? '-100%' : '0'}, -100%)`,
             padding: `0 ${spacing.micro}px`,
             whiteSpace: 'nowrap',
             pointerEvents: 'none',
