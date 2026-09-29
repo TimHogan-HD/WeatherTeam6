@@ -455,6 +455,21 @@ export const weatherRuns = pgTable(
     /** `'deterministic'` or `'ensemble'` — which child table carries this run's hours. */
     kind: text('kind').notNull(),
     fetched_at: timestamp('fetched_at', { withTimezone: true }).notNull(),
+    /**
+     * The last time `collect-runs` confirmed this is still the newest run upstream —
+     * set to `fetched_at` on write, then moved forward each hour the model's
+     * metadata shows nothing newer and the refetch is skipped.
+     *
+     * **Freshness is read from here, the data's age from `fetched_at`.** A run
+     * fetched five hours ago and checked ten minutes ago is the current forecast;
+     * reading freshness off `fetched_at` would refetch every slow model on every
+     * request.
+     *
+     * **Null means never confirmed after the fetch** — every row written before the
+     * column existed. A reader takes `fetched_at` in its place, which is exactly
+     * when that run was last known to be current.
+     */
+    checked_at: timestamp('checked_at', { withTimezone: true }),
     utc_offset_seconds: integer('utc_offset_seconds').notNull(),
     /** Open-Meteo's resolved elevation for the point — one value per request, not per model. */
     model_elevation_m: doublePrecision('model_elevation_m'),

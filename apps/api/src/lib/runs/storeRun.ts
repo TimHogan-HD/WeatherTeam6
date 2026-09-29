@@ -1,4 +1,4 @@
-import { eq, inArray, sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { weatherEnsembleHours, weatherRunHours, weatherRuns } from '../../db/schema.js'
 import {
@@ -51,10 +51,12 @@ function hasAnyValue(values: (number | null)[]): boolean {
 async function upsertRun(values: typeof weatherRuns.$inferInsert): Promise<string | null> {
   const inserted = await db
     .insert(weatherRuns)
-    .values(values)
+    // A run is current at the moment it is fetched.
+    .values({ ...values, checked_at: values.fetched_at })
     .onConflictDoUpdate({
       target: [weatherRuns.point_key, weatherRuns.model, weatherRuns.fetched_at],
       set: {
+        checked_at: sql`greatest(${weatherRuns.checked_at}, excluded."checked_at")`,
         kind: values.kind,
         utc_offset_seconds: values.utc_offset_seconds,
         model_elevation_m: values.model_elevation_m ?? null,
@@ -262,6 +264,37 @@ function ensembleRow(
     member_count: h.member_count,
     model_member_counts: h.model_member_counts,
   }
+}
+
+/**
+ * Record that each model's stored run is still the newest upstream, as of
+ * `checkedAt`. Called by `collect-runs` for the models it skipped.
+ *
+ * Keyed on the exact `fetched_at` the skip decision was made against, so a run
+ * written by a concurrent request in between is not the one confirmed.
+ * `greatest` keeps an overlapping cron from moving the stamp backwards.
+ */
+export async function confirmRuns(
+  point_key: string,
+  runs: readonly { model: string; fetched_at: Date }[],
+  checkedAt: Date,
+): Promise<number> {
+  let confirmed = 0
+  for (const run of runs) {
+    const updated = await db
+      .update(weatherRuns)
+      .set({ checked_at: sql`greatest(${weatherRuns.checked_at}, ${checkedAt})` })
+      .where(
+        and(
+          eq(weatherRuns.point_key, point_key),
+          eq(weatherRuns.model, run.model),
+          eq(weatherRuns.fetched_at, run.fetched_at),
+        ),
+      )
+      .returning({ id: weatherRuns.id })
+    confirmed += updated.length
+  }
+  return confirmed
 }
 
 /**

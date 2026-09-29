@@ -1,0 +1,1 @@
+ALTER TABLE "weather_runs" ADD COLUMN "checked_at" timestamp with time zone;

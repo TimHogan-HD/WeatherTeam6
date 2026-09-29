@@ -314,6 +314,7 @@ export function buildHourlySeries(input: BuildInput): HourlySeries {
     location_id: locationId,
     utc_offset_seconds: offset,
     fetched_at: olderFetch(deterministic.fetched_at, ensemble.fetched_at)?.toISOString() ?? null,
+    checked_at: olderFetch(deterministic.checked_at, ensemble.checked_at)?.toISOString() ?? null,
     model: chosen?.model ?? null,
     unavailable_models: [...deterministic.unavailable_models],
     hours,
@@ -337,6 +338,8 @@ export function buildHourlySeries(input: BuildInput): HourlySeries {
         model: m.model,
         probability_is_shared: m.probability_is_shared,
         hours_with_data: withData,
+        fetched_at: m.fetched_at.toISOString(),
+        checked_at: m.checked_at.toISOString(),
         hours: modelHours,
       }
     })

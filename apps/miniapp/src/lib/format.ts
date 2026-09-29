@@ -48,21 +48,33 @@ export function formatUpdatedAt(updatedAt: number, now: number): string | null {
  * an hour ago, and the charts are only as current as the run — the bot's panels
  * print the same thing for the same reason.
  *
+ * **`checked_at` is preferred, and says "checked".** The server refetches a
+ * model only when upstream publishes a new run, so a current forecast is
+ * routinely hours past its fetch; "fetched 5 h ago" would read as stale when
+ * nothing newer exists. `checked_at` is absent only from an API older than
+ * this client, and then the fetch time is printed under its own word.
+ *
  * Returns `null` rather than a string for every input it cannot measure:
- * a run with no `fetched_at`, an unparseable timestamp, and a run stamped in
- * the future (clock skew), which would otherwise render as "-3 min ago".
+ * a run with no timestamp, an unparseable one, and one stamped in the future
+ * (clock skew), which would otherwise render as "-3 min ago".
  */
-export function formatRunAge(fetchedAt: string | null, now: number): string | null {
-  if (fetchedAt === null) return null
+export function formatRunAge(
+  run: { fetched_at: string | null; checked_at?: string | null },
+  now: number,
+): string | null {
+  const checked = run.checked_at !== undefined
+  const stamp = checked ? run.checked_at ?? null : run.fetched_at
+  if (stamp === null) return null
 
-  const at = Date.parse(fetchedAt)
+  const at = Date.parse(stamp)
   if (!Number.isFinite(at)) return null
 
+  const verb = checked ? 'checked' : 'fetched'
   const minutes = Math.floor((now - at) / 60_000)
   if (minutes < 0) return null
-  if (minutes < 1) return 'Forecast fetched just now'
-  if (minutes < 60) return `Forecast fetched ${minutes} min ago`
-  return `Forecast fetched ${Math.floor(minutes / 60)} h ago`
+  if (minutes < 1) return `Forecast ${verb} just now`
+  if (minutes < 60) return `Forecast ${verb} ${minutes} min ago`
+  return `Forecast ${verb} ${Math.floor(minutes / 60)} h ago`
 }
 
 /**

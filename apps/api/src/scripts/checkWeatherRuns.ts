@@ -83,7 +83,7 @@ async function run(): Promise<void> {
   )
   const { and, eq } = await import('drizzle-orm')
   const { pointKeyForPlace } = await import('../lib/runs/pointKey.js')
-  const { deleteRunsForPoint, storeDeterministicRun, storeEnsembleRun } = await import(
+  const { confirmRuns, deleteRunsForPoint, storeDeterministicRun, storeEnsembleRun } = await import(
     '../lib/runs/storeRun.js'
   )
   const { loadStoredDeterministic, loadStoredEnsemble } = await import(
@@ -395,6 +395,92 @@ async function run(): Promise<void> {
     // cutoff an hour back would pass whether or not the comparison worked.
     const stale = await loadStoredDeterministic(adHocKey, new Date(Date.now() + 60 * 1000))
     check('a run older than the cutoff is not served', stale === null, stale ? 'served it' : '')
+
+    console.log('\nPer-model reads — a later collection without a model must not hide it (#179)')
+    const laterAt = new Date(fetchedAt.getTime() + 60 * 1000)
+    await storeDeterministicRun(adHocKey, {
+      models: [
+        {
+          model: 'gfs_seamless',
+          probability_is_shared: null,
+          hours: [
+            {
+              valid_at_local: hour(0),
+              temp_c: 18,
+              dewpoint_c: null,
+              humidity_pct: null,
+              precip_mm: 0,
+              wind_kmh: null,
+              wind_gust_kmh: null,
+              wind_dir_deg: null,
+              cloud_pct: null,
+              precip_prob_pct: null,
+              pressure_hpa: null,
+              shortwave_wm2: null,
+            },
+          ],
+        },
+      ],
+      unavailable_models: [],
+      utc_offset_seconds: -25200,
+      model_elevation_m: 1147,
+      fetched_at: laterAt,
+    })
+    const recent = (): Promise<Awaited<ReturnType<typeof loadStoredDeterministic>>> =>
+      loadStoredDeterministic(adHocKey, new Date(Date.now() - 60 * 60 * 1000))
+    const byModel = (
+      runs: Awaited<ReturnType<typeof loadStoredDeterministic>>,
+      model: string,
+    ): { fetched_at: Date; checked_at: Date; probability_is_shared: boolean | null } | undefined =>
+      runs?.models.find((m) => m.model === model)
+
+    const mixed = await recent()
+    const nbm = byModel(mixed, 'ncep_nbm_conus')
+    const gfs = byModel(mixed, 'gfs_seamless')
+    check('the earlier model survives a later collection that lacked it', nbm !== undefined)
+    check(
+      'each model carries its own fetch time',
+      nbm?.fetched_at.getTime() === fetchedAt.getTime() &&
+        gfs?.fetched_at.getTime() === laterAt.getTime(),
+      `nbm ${String(nbm?.fetched_at.toISOString())}, gfs ${String(gfs?.fetched_at.toISOString())}`,
+    )
+    check(
+      'the read’s own fetch time is the older model’s',
+      mixed?.fetched_at?.getTime() === fetchedAt.getTime(),
+      String(mixed?.fetched_at?.toISOString()),
+    )
+    check('a null share flag reads back as null', gfs?.probability_is_shared === null)
+
+    console.log('\nConfirming a skipped model — stamped current, not refetched')
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000)
+    await db
+      .update(weatherRuns)
+      .set({ checked_at: twoHoursAgo })
+      .where(and(eq(weatherRuns.point_key, adHocKey), eq(weatherRuns.model, 'ncep_nbm_conus')))
+    check(
+      'a model not checked inside the cutoff is left out',
+      byModel(await recent(), 'ncep_nbm_conus') === undefined,
+    )
+
+    const confirmedAt = new Date()
+    const confirmed = await confirmRuns(
+      adHocKey,
+      [{ model: 'ncep_nbm_conus', fetched_at: fetchedAt }],
+      confirmedAt,
+    )
+    check('confirmRuns stamped exactly one run', confirmed === 1, `got ${String(confirmed)}`)
+    const back = byModel(await recent(), 'ncep_nbm_conus')
+    check(
+      'the confirmed model is served again, fetch time unchanged, check time moved',
+      back?.fetched_at.getTime() === fetchedAt.getTime() &&
+        back.checked_at.getTime() === confirmedAt.getTime(),
+      `fetched ${String(back?.fetched_at.toISOString())}, checked ${String(back?.checked_at.toISOString())}`,
+    )
+    await confirmRuns(adHocKey, [{ model: 'ncep_nbm_conus', fetched_at: fetchedAt }], twoHoursAgo)
+    check(
+      'a late confirmation never moves the check time backwards',
+      byModel(await recent(), 'ncep_nbm_conus')?.checked_at.getTime() === confirmedAt.getTime(),
+    )
 
     console.log('\nPruning — children before parents, or this is a foreign-key violation')
     // Backdated by hand, because the cutoff is what is under test: pruning a row

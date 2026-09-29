@@ -128,6 +128,13 @@ export type HourlyModel = {
    * must show where each model stops instead of implying they are interchangeable.
    */
   hours_with_data: number
+  /**
+   * When this model's run was fetched, and when it was last confirmed the newest upstream.
+   * Models are refetched only when upstream publishes, so each carries its own age.
+   * Optional because the API and the client deploy separately: absent is unknown.
+   */
+  fetched_at?: string
+  checked_at?: string
   hours: HourlyModelSample[]
 }
 
@@ -156,6 +163,15 @@ export type HourlySeries = {
    * any particular column.
    */
   fetched_at: string | null
+  /**
+   * The oldest time any run behind this response was last confirmed the newest upstream.
+   *
+   * **This is the freshness claim, not `fetched_at`.** A model is refetched only when
+   * upstream publishes a new run, so a current forecast is routinely hours past its fetch;
+   * printing `fetched_at` would call it stale. Optional for the same deploy-order reason
+   * as `HourlyModel.fetched_at`, and null when no run carried one.
+   */
+  checked_at?: string | null
 
   /**
    * The deterministic model the columns in `hours` came from, chosen by measured coverage.

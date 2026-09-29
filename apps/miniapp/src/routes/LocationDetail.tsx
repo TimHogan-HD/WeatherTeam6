@@ -92,9 +92,9 @@ export function LocationDetail() {
     remove.mutate(id, { onSuccess: () => void navigate('/', { replace: true }) })
   }, [id, remove, navigate])
 
-  // How old the run behind the readings and charts is — the staler of its two
-  // halves, never this client's own fetch time.
-  const age = formatRunAge(hourly.data?.fetched_at ?? null, now)
+  // When the runs behind the readings and charts were last confirmed current —
+  // the stalest of them, never this client's own fetch time.
+  const age = hourly.data === undefined ? null : formatRunAge(hourly.data, now)
   const freshness = age === null ? null : age.charAt(0).toLowerCase() + age.slice(1)
 
   const content = location.isPending ? (
