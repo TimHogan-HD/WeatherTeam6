@@ -591,6 +591,12 @@ measured one — that is `defect-patterns.md` §3, attribution not backed by the
 - **A null derived quantity must withhold the reading, not degrade to a plausible one.**
   `T_surface` falling back to air temperature when shortwave is missing would be the exact
   defect class this repo ships most often.
+- **The drying clock's rain was the one input ever checked against measurements, and it
+  failed** (issue #209, shipped 2026-09-29). Against 20 ASOS gauges over 90 days
+  (`npm run compare:dryness`), `gfs_seamless`'s own rain called the rock dry in 60% of the
+  daytime hours a gauge said it was still wet (quartzite). The clock now reads the hourly
+  median of the four global models (`lib/weather/rainMedian.ts`), which missed 26%. The gauge
+  is an airport tipping bucket, not the crag, and no other constant here has had even that.
 
 ## Open Questions
 

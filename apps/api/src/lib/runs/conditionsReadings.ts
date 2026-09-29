@@ -37,6 +37,7 @@ import { readingNow } from '@weatherteam6/types'
  */
 export const NOT_A_CRAG_READINGS: ConditionsReadings = {
   model: null,
+  rain_models: null,
   unavailable_reason: 'not_a_climbing_location',
   utc_offset_seconds: 0,
   now: null,
@@ -51,6 +52,7 @@ export const NOT_A_CRAG_READINGS: ConditionsReadings = {
  */
 export const READINGS_UNAVAILABLE: ConditionsReadings = {
   model: null,
+  rain_models: null,
   unavailable_reason: 'model_unavailable',
   utc_offset_seconds: 0,
   now: null,
@@ -65,6 +67,7 @@ export function toConditionsReadings(
   const { readings } = series
   return {
     model: readings.model,
+    rain_models: readings.rain_models ?? null,
     unavailable_reason: readings.unavailable_reason,
     // The location's own clock, carried with the readings rather than looked up
     // beside them — it is what the window's times are rendered against.

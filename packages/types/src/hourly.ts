@@ -312,6 +312,15 @@ export type HourlyReadings = {
    * different models and a surface must not attribute one to the other.
    */
   model: string | null;
+  /**
+   * The models whose rain the drying clock read — **not necessarily `model`**.
+   * Several names mean the hourly median of those models (issue #209); one name
+   * means that model's own rain. Null when there are no readings.
+   *
+   * Optional only because the API and the client deploy separately: an absent
+   * field is an older API, not a reading with no rain source.
+   */
+  rain_models?: string[] | null;
   unavailable_reason: ReadingsUnavailableReason | null;
   /** Ordered by `valid_at`. Joined to `HourlySeries.hours` by instant, not index. */
   hours: HourlyReading[];
@@ -336,6 +345,8 @@ export type HourlyReadings = {
 export type ConditionsReadings = {
   /** The single model the readings came from. See `HourlyReadings.model`. */
   model: string | null
+  /** The models the drying clock's rain came from. See `HourlyReadings.rain_models`. */
+  rain_models?: string[] | null
   unavailable_reason: ReadingsUnavailableReason | null
   /**
    * Seconds to add to a UTC instant to get **the location's** wall clock.

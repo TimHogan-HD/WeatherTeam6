@@ -45,14 +45,22 @@ function runHours(
       precip_prob_pct: 0,
       pressure_hpa: 1010,
       shortwave_wm2: 0,
+      rain_median_mm: 0,
       ...over,
     })
   }
   return out
 }
 
-function model(name: string, hours: RunHour[]): ModelRun {
-  return { model: name, hours, probability_is_shared: false, fetched_at: NOW, checked_at: NOW }
+function model(name: string, hours: RunHour[], rainModels: string[] | null = null): ModelRun {
+  return {
+    model: name,
+    hours,
+    probability_is_shared: false,
+    rain_models: rainModels,
+    fetched_at: NOW,
+    checked_at: NOW,
+  }
 }
 
 function deterministic(models: ModelRun[]): DeterministicRuns {
@@ -232,5 +240,54 @@ describe('the day window', () => {
     expect(strict.days.every((d) => d.window === null)).toBe(true)
     const loose = buildHourlyReadings(input({ windowMinScore: 0 }))
     expect(loose.days.some((d) => d.window !== null)).toBe(true)
+  })
+})
+
+describe('the rain the drying clock reads (issue #209)', () => {
+  const RAIN_MODELS = ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless', 'gem_seamless']
+  const RAINED = new Set(['2026-09-21T09:00:00.000Z', '2026-09-21T10:00:00.000Z'])
+  /** Heavy rain at 09:00-10:00 in one column and none in the other. */
+  const hoursWithRainIn = (column: 'precip_mm' | 'rain_median_mm'): RunHour[] =>
+    runHours(120, 48).map((h) =>
+      RAINED.has(h.valid_at.toISOString()) ? { ...h, [column]: 6 } : h,
+    )
+  const rockAt = (out: ReturnType<typeof buildHourlyReadings>, iso: string) =>
+    out.hours.find((h) => h.valid_at === iso)?.rock?.level
+
+  it('reads the median and names its models, ignoring the thermal model’s own rain', () => {
+    const wetMedian = buildHourlyReadings(
+      input({ deterministic: deterministic([model(THERMAL_MODEL, hoursWithRainIn('rain_median_mm'), RAIN_MODELS)]) }),
+    )
+    const wetOwn = buildHourlyReadings(
+      input({ deterministic: deterministic([model(THERMAL_MODEL, hoursWithRainIn('precip_mm'), RAIN_MODELS)]) }),
+    )
+    expect(rockAt(wetMedian, '2026-09-21T12:00:00.000Z')).not.toBe('dry')
+    expect(rockAt(wetOwn, '2026-09-21T12:00:00.000Z')).toBe('dry')
+    expect(wetMedian.rain_models).toEqual(RAIN_MODELS)
+    // The rock figures still come from one model; only the rain was pooled.
+    expect(wetMedian.model).toBe(THERMAL_MODEL)
+  })
+
+  it('reads the run’s own rain whole, and names only it, when the run carries no median', () => {
+    const out = buildHourlyReadings(
+      input({ deterministic: deterministic([model(THERMAL_MODEL, hoursWithRainIn('precip_mm'), null)]) }),
+    )
+    expect(rockAt(out, '2026-09-21T12:00:00.000Z')).not.toBe('dry')
+    expect(out.rain_models).toEqual([THERMAL_MODEL])
+  })
+
+  /**
+   * A missing median is a gap. Filling it with the thermal model's own rain
+   * would mix two sources under one `rain_models`, and the thermal model is
+   * the one measured to miss most rain.
+   */
+  it('withholds after an hour with no median rather than falling back to the run’s own rain', () => {
+    const hours = runHours(120, 48).map((h) =>
+      h.valid_at.toISOString() === '2026-09-21T10:00:00.000Z' ? { ...h, rain_median_mm: null } : h,
+    )
+    const out = buildHourlyReadings(
+      input({ deterministic: deterministic([model(THERMAL_MODEL, hours, RAIN_MODELS)]) }),
+    )
+    expect(out.hours.find((h) => h.valid_at === '2026-09-21T11:00:00.000Z')?.rock).toBeNull()
   })
 })

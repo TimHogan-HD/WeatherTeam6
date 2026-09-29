@@ -141,6 +141,13 @@
       "when": 1790694277938,
       "tag": "0019_logbook",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790701625696,
+      "tag": "0020_rain_median",
+      "breakpoints": true
     }
   ]
 }

@@ -206,6 +206,7 @@ function toModelSample(validAt: Date, det: RunHour | undefined): HourlyModelSamp
  */
 const NO_READINGS_NOT_A_CRAG: HourlyReadings = {
   model: null,
+  rain_models: null,
   unavailable_reason: 'not_a_climbing_location',
   hours: [],
   days: [],

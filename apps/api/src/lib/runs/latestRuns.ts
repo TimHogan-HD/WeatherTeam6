@@ -11,6 +11,8 @@ import {
   type ForecastLocation,
   type HourlyPoint,
 } from '../weather/openMeteo.js'
+import { rainMedian, type RainMedian } from '../weather/rainMedian.js'
+import { THERMAL_MODEL } from './hourlyReadings.js'
 import { pointKeyForPlace } from './pointKey.js'
 import { ENSEMBLE_RUN_MODEL, storeDeterministicRun, storeEnsembleRun } from './storeRun.js'
 
@@ -53,8 +55,15 @@ export const RUN_MAX_AGE_MINUTES = 60
  */
 export const STORED_MODEL_MAX_AGE_MINUTES = 180
 
-/** One hour of one deterministic model, at a real instant. */
-export type RunHour = Omit<HourlyPoint, 'valid_at_local'> & { valid_at: Date }
+/**
+ * One hour of one deterministic model, at a real instant.
+ *
+ * `rain_median_mm` is **not this model's rain** — see `ModelRun.rain_models`.
+ */
+export type RunHour = Omit<HourlyPoint, 'valid_at_local'> & {
+  valid_at: Date
+  rain_median_mm: number | null
+}
 
 export type ModelRun = {
   readonly model: string
@@ -66,6 +75,12 @@ export type ModelRun = {
    * rather than claim the field is that model's own.
    */
   readonly probability_is_shared: boolean | null
+  /**
+   * The models whose hourly median fills `rain_median_mm` — `THERMAL_MODEL`'s
+   * run only. **Null means no median came with this run** (every other model,
+   * and a thermal run stored before the column existed).
+   */
+  readonly rain_models: readonly string[] | null
   /** When this model's run was fetched from upstream. */
   readonly fetched_at: Date
   /** When this run was last confirmed the newest upstream — see `weather_runs.checked_at`. */
@@ -123,6 +138,7 @@ type StoredRunRow = {
   id: string
   model: string
   shared: boolean | null
+  rain_models: string[] | null
   offset: number
   fetched_at: Date
   checked_at: Date
@@ -147,6 +163,7 @@ async function newestRunPerModel(
       id: weatherRuns.id,
       model: weatherRuns.model,
       shared: weatherRuns.precip_prob_is_shared,
+      rain_models: weatherRuns.rain_models,
       offset: weatherRuns.utc_offset_seconds,
       fetched_at: weatherRuns.fetched_at,
       checked_at: checkedAt,
@@ -220,6 +237,7 @@ export async function loadStoredDeterministic(
       precip_prob_pct: h.precip_prob_pct,
       pressure_hpa: h.pressure_hpa,
       shortwave_wm2: h.shortwave_wm2,
+      rain_median_mm: h.rain_median_mm,
     }
     if (bucket) bucket.push(row)
     else byRun.set(h.run_id, [row])
@@ -229,6 +247,7 @@ export async function loadStoredDeterministic(
     model: r.model,
     hours: byRun.get(r.id) ?? [],
     probability_is_shared: r.shared,
+    rain_models: r.rain_models,
     fetched_at: r.fetched_at,
     checked_at: r.checked_at,
   }))
@@ -301,8 +320,9 @@ export async function getDeterministicRuns(
     throw err
   }
 
+  const rain = rainMedian(result)
   try {
-    await storeDeterministicRun(pointKey, result)
+    await storeDeterministicRun(pointKey, result, rain)
   } catch (err) {
     logger.warn(
       { pointKey, err: err instanceof Error ? err.message : String(err) },
@@ -311,13 +331,17 @@ export async function getDeterministicRuns(
   }
 
   return {
-    models: result.models.map((m) => ({
-      model: m.model,
-      hours: toRunHours(m.hours, result.utc_offset_seconds),
-      probability_is_shared: m.probability_is_shared,
-      fetched_at: result.fetched_at,
-      checked_at: result.fetched_at,
-    })),
+    models: result.models.map((m) => {
+      const own = m.model === THERMAL_MODEL ? rain : null
+      return {
+        model: m.model,
+        hours: toRunHours(m.hours, result.utc_offset_seconds, own),
+        probability_is_shared: m.probability_is_shared,
+        rain_models: own?.models ?? null,
+        fetched_at: result.fetched_at,
+        checked_at: result.fetched_at,
+      }
+    }),
     unavailable_models: result.unavailable_models,
     utc_offset_seconds: result.utc_offset_seconds,
     fetched_at: result.fetched_at,
@@ -330,13 +354,17 @@ export async function getDeterministicRuns(
  * the same rule `storeRun` applies, so what is rendered live and what is
  * rendered from storage stay identical.
  */
-function toRunHours(hours: readonly HourlyPoint[], utcOffsetSeconds: number): RunHour[] {
+function toRunHours(
+  hours: readonly HourlyPoint[],
+  utcOffsetSeconds: number,
+  rain: RainMedian | null,
+): RunHour[] {
   const out: RunHour[] = []
   for (const h of hours) {
     const valid_at = localTimeToUtc(h.valid_at_local, utcOffsetSeconds)
     if (valid_at === null) continue
-    const { valid_at_local: _local, ...values } = h
-    out.push({ valid_at, ...values })
+    const { valid_at_local, ...values } = h
+    out.push({ valid_at, ...values, rain_median_mm: rain?.byLocal.get(valid_at_local) ?? null })
   }
   return out
 }
