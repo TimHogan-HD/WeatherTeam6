@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { DeterministicResult, HourlyPoint } from './openMeteo.js'
-import { rainMedian } from './rainMedian.js'
+import type { DeterministicResult, HourlyPoint, RecentPrecipByModel } from './openMeteo.js'
+import { rainMedian, recentPrecipMedian } from './rainMedian.js'
 
 const T = ['2026-09-25T04:00', '2026-09-25T05:00']
 
@@ -84,5 +84,82 @@ describe('rainMedian', () => {
         result({ gfs_seamless: [0, 0], ecmwf_ifs025: [1, 1], icon_seamless: [null, null] }),
       ),
     ).toBeNull()
+  })
+})
+
+describe('recentPrecipMedian', () => {
+  type Part = { precip: number; rain?: number | null; snow?: number | null }
+  function byModel(series: Record<string, (Part | null)[]>): RecentPrecipByModel {
+    return {
+      models: Object.entries(series).map(([model, parts]) => ({
+        model,
+        hours: parts.flatMap((p, i) =>
+          p === null
+            ? []
+            : [{ valid_at_local: T[i]!, precip_mm: p.precip, rain_mm: p.rain === undefined ? p.precip : p.rain, snowfall_cm: p.snow ?? 0 }],
+        ),
+      })),
+      utc_offset_seconds: -18000,
+      from_date: '2026-09-25',
+    }
+  }
+
+  it('draws the median, so one dry model cannot hide a storm the others saw', () => {
+    // The shape of the 2026-09-29 gauge check: GFS (HRRR) dry while the rest were wet.
+    const out = recentPrecipMedian(
+      byModel({
+        gfs_seamless: [{ precip: 0 }, { precip: 0 }],
+        ecmwf_ifs025: [{ precip: 4 }, { precip: 0 }],
+        icon_seamless: [{ precip: 5 }, { precip: 0 }],
+        gem_seamless: [{ precip: 6 }, { precip: 0.2 }],
+      }),
+    )
+    expect(out.hours.map((h) => h.precip_mm)).toEqual([4.5, 0])
+    expect(out.models).toEqual(['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless', 'gem_seamless'])
+    expect(out.utc_offset_seconds).toBe(-18000)
+    expect(out.from_date).toBe('2026-09-25')
+  })
+
+  it('leaves out an hour fewer than three models answered, rather than calling it dry', () => {
+    const out = recentPrecipMedian(
+      byModel({
+        gfs_seamless: [{ precip: 0 }, { precip: 1 }],
+        ecmwf_ifs025: [null, { precip: 1 }],
+        icon_seamless: [null, { precip: 1 }],
+        gem_seamless: [{ precip: 0 }, null],
+      }),
+    )
+    expect(out.hours.map((h) => h.valid_at_local)).toEqual([T[1]])
+  })
+
+  it('names only the models that answered, and none when no hour could be formed', () => {
+    const answered = recentPrecipMedian(
+      byModel({
+        gfs_seamless: [{ precip: 0 }, { precip: 0 }],
+        ecmwf_ifs025: [{ precip: 0 }, { precip: 0 }],
+        icon_seamless: [{ precip: 0 }, { precip: 0 }],
+        gem_seamless: [null, null],
+      }),
+    )
+    expect(answered.models).toEqual(['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless'])
+
+    const tooFew = recentPrecipMedian(
+      byModel({ gfs_seamless: [{ precip: 1 }, { precip: 1 }], ecmwf_ifs025: [{ precip: 1 }, { precip: 1 }] }),
+    )
+    expect(tooFew.hours).toEqual([])
+    expect(tooFew.models).toEqual([])
+  })
+
+  it('keeps the kind of precipitation unknown when too few models could say', () => {
+    const out = recentPrecipMedian(
+      byModel({
+        gfs_seamless: [{ precip: 2, rain: null, snow: 1 }, { precip: 0 }],
+        ecmwf_ifs025: [{ precip: 2, rain: null, snow: 1 }, { precip: 0 }],
+        icon_seamless: [{ precip: 2, rain: 0, snow: 1.4 }, { precip: 0 }],
+        gem_seamless: [{ precip: 2, rain: 0.5, snow: 0.8 }, { precip: 0 }],
+      }),
+    )
+    expect(out.hours[0]?.rain_mm).toBeNull()
+    expect(out.hours[0]?.snowfall_cm).toBe(1)
   })
 })

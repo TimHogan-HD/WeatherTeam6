@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
-import { EM_DASH, formatPrecipIn, mmToIn, type RecentPrecip } from '@weatherteam6/types'
+import { EM_DASH, formatPrecipIn, mmToIn, recentPrecipSource, type RecentPrecip } from '@weatherteam6/types'
 import { typeV2, withOpacity } from '../theme/tokens.css.js'
 import { cardV2, row, stack } from '../theme/styles.js'
 import {
@@ -237,6 +237,7 @@ export function PrecipTab({ recent, isClimbingLocation }: PrecipTabProps) {
     return <p style={typeV2.body}>No precipitation history for this location yet.</p>
   }
 
+  const source = recentPrecipSource(data.models)
   const summary = precipSummary(data, now)
   const events = precipEvents(data.hours)
   const offset = Number.isFinite(data.utc_offset_seconds) ? data.utc_offset_seconds : 0
@@ -346,7 +347,8 @@ export function PrecipTab({ recent, isClimbingLocation }: PrecipTabProps) {
       >
         <HelpIcon color={colorsV2.txtMuted} />
         <p style={{ ...typeV2.note, flex: '1 1 0', minWidth: 0 }}>
-          Model estimates, not gauge readings.
+          {source === null ? '' : `${source} `}Model estimates, not gauge readings.
+          {isClimbingLocation && source !== null ? ' Dryness reads the same rain.' : null}
           {isClimbingLocation
             ? ' Shade, seepage, wind channeling and elevation can change conditions route-by-route. Inspect rock before climbing.'
             : null}

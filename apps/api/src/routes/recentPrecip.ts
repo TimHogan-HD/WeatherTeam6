@@ -4,6 +4,7 @@ import { db } from '../db/index.js'
 import { locations } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
 import { fetchRecentHourlyPrecip } from '../lib/weather/openMeteo.js'
+import { RAIN_MODELS, recentPrecipMedian } from '../lib/weather/rainMedian.js'
 import { trimToObservedHours } from '../lib/weather/recentPrecipWindow.js'
 import { parseNumericRequired } from '@weatherteam6/types'
 import type { ApiResponse, RecentPrecip } from '@weatherteam6/types'
@@ -27,11 +28,11 @@ const PAST_DAYS = 6
 /**
  * Hourly rainfall over the past few days for a saved location.
  *
- * **A thin proxy, deliberately.** `fetchRecentHourlyPrecip` already existed for
- * the bot's rain panel; this exposes it so the Mini App can draw the same
- * record. The client never calls Open-Meteo itself — that would bypass
- * `fetchWithRetry` and the `{ data, error, status }` contract both
- * (architecture rule, § External APIs are proxied).
+ * **The rain the drying clock reads**: the four global models' hourly median
+ * (`recentPrecipMedian`), not Open-Meteo's `best_match`. The client never calls
+ * Open-Meteo itself — that would bypass `fetchWithRetry` and the
+ * `{ data, error, status }` contract both (architecture rule, § External APIs
+ * are proxied).
  *
  * **Why it is worth a round trip at all:** the conditions score says "climbable
  * in ~10h", and this is the rainfall behind that sentence. Without it the
@@ -75,12 +76,13 @@ recentPrecipRouter.get('/recent-precip/:locationId', async (req: Request, res: R
       parseNumericRequired(location.lat),
       parseNumericRequired(location.lon),
       PAST_DAYS,
+      RAIN_MODELS,
     )
 
-    // The fetch reaches a day into the forecast (the bot needs rain that is
-    // falling now); "recent rain" must not include hours that have not
-    // happened. See `trimToObservedHours`.
-    const recent: RecentPrecip = trimToObservedHours(fetched, new Date())
+    // The fetch reaches a day into the forecast so the current hour is in it;
+    // "recent rain" must not include hours that have not happened. See
+    // `trimToObservedHours`.
+    const recent: RecentPrecip = trimToObservedHours(recentPrecipMedian(fetched), new Date())
 
     const response: ApiResponse<RecentPrecip> = { data: recent, error: null, status: 200 }
     res.json(response)
