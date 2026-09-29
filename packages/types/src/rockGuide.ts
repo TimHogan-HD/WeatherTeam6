@@ -268,18 +268,22 @@ const GUIDES: Record<Exclude<RockType, 'unknown'>, RockGuide> = {
     care: ['Dig into the sand at the base: damp sand means damp rock'],
     avoid: ['Climbing it damp — holds break and never grow back', NO_WIRE],
   },
+  // Softens, not holds (owner, 2026-09-29): Hinckley Sandstone at Robinson Park
+  // is ~96% quartz and still breaks after rain, and the local ethic is to stay
+  // off it. The ~0% wet strength loss in the research is one lab result for
+  // clean, clay-free rock — the cement decides, and it is not visible.
   sandstone_quartz_arenite: {
     swatch: 'sandstoneBuff',
     texture: 'bedded',
-    tagline: 'Clean quartz sand with a hard silica cement.',
+    tagline: 'Quartz sand grains, cemented together.',
     dries: 'day',
-    whenWet: 'holds',
+    whenWet: 'softens',
     styles: ['Edges', 'Slopers', 'Friction'],
-    rain: 'Silica cement barely weakens when wet — just let the surface dry.',
+    rain: 'Tough quartz grains, but the cement between them weakens when wet. Let it dry through.',
     sun: 'Grippy when cool; slopers go greasy in the heat.',
-    funFact: 'Clean quartz sandstone loses almost no strength wet — the tough one in a fragile family.',
-    care: ['Brush off chalk as you leave'],
-    avoid: [NO_WIRE],
+    funFact: 'Nearly all quartz, yet it can still break when wet — the glue between the grains matters more than the grains.',
+    care: ['Dig into the sand at the base: damp sand means damp rock'],
+    avoid: ['Climbing it damp — holds break and never grow back', NO_WIRE],
   },
   sandstone_ferruginous: {
     swatch: 'sandstoneRed',

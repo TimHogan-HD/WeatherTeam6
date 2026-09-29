@@ -225,7 +225,12 @@
       },
       "sources": [
         "rock-drying-research.md §4.7"
-      ]
+      ],
+      "wet_strength": {
+        "value": "Breaks after rain despite being ~96% quartz; the local ethic is strict about staying off it wet, and Mountain Project advises 24-48 h.",
+        "source": "owner field report 2026-09-29; rock-drying-research.md §3 correction",
+        "confidence": "C"
+      }
     },
     {
       "name": "Horseshoe Canyon Ranch",
