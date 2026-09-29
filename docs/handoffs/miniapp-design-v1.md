@@ -241,31 +241,32 @@ and **Humidity**. Dew point and humidity are new on screen (the owner's product 
 - **The hour axis labels 00, 06, 12, 18**; the frame's closing `23` is not drawn. The
   friction strip, which has room, does label it.
 
-**Precip tab — added 2026-09-28 from the WT6 Figma file's `Precipitation history` frame
-(node `129:884`),** between Hourly and Rock, on every saved location. Three cards and a
-caveat: **N-day accumulation** (the window's total, time since the last wet hour, the
-wettest hour), **Past events** (wet hours grouped into events, newest first, each with its
-span, how hard and how long, its total and a RAIN / MIX / SNOW pill), and **Daily
-accumulation** (a bar per local day in a well, one shared scale). It reads
-`/recent-precip`, which now covers six past days plus today and carries each hour's
-`rain_mm` and `snowfall_cm`. Deliberate departures from the frame:
+**Precip tab — redesigned 2026-09-29 from the owner's pick of the round-2 Figma mocks**
+(V2 page, "Precip tab — round 2", nodes `167:782` headline and `167:386` grid), between
+Hourly and Rock, on every saved location. It replaces the first build from the
+`Precipitation history` frame (`129:884`), whose tiles, event list and daily bars the owner
+found hard to look at — pale blue on blue, and the answer left for the reader to assemble.
+Two cards and a caveat:
 
-- **No gauge, radar, uncertainty or storm track.** The frame's "Gauge conf. 74% · radar
-  adjusted", "±0.08 in" and "Moderate, W→E" have nothing behind them: the figures are
-  Open-Meteo's own estimate of the past hours. The third tile is the wettest hour, the
-  total's note is the wet-hour count, and an event says `Light/Moderate/Heavy · N h` (AMS
-  rate classes on its wettest hour) or its snow depth.
-- **"Past events", not "Observed events"**, and the caveat opens "Model estimates, not
-  gauge readings." A city's caveat stops there; the route-by-route sentence is a crag's.
-- **No kind is guessed.** An hour whose rain or snow figure is missing — including every
-  hour from an API that predates the fields — gives its event and day no pill and a
-  neutral colour, never RAIN.
-- **Kinds are `rain`, `precipMix` and `precipSnow`, not the frame's amber**, and the
-  third tile is not lime: `fair` and `good` are the ladder's. Last precip is neutral.
-- **A day the response skipped has an empty well and a dash**, not a stub: a stub says
-  none fell. Today's bar is labelled `Today`, since its total is partial.
-- **The header band is the location's**, as on every other tab; the frame's
-  "Eldorado Canyon · gauge + radar / Precipitation history" title is not drawn.
+- **Headline: how long since the last real rain.** "Real rain" is an hour at or above
+  `REWETTING_PRECIP_MM` (0.5 mm, 0.02 in) — the line at which the drying clock restarts —
+  so this and Dryness never disagree about when it last rained. The figure is `heroTemp`
+  with "hours ago" (days and hours past 48), then the stamp and the storm it ended
+  ("that storm left 0.62 in over 20 h"), then a 0–72 h track. Lighter showers since are
+  named under it and do not reset it: the first build read a noon trace as "last precip
+  4h" on rock the clock had been drying for a day. The kind is named from the storm's
+  hours (rain, snow, rain and snow) and is "precipitation" when any hour's kind is unknown.
+  With no hour over the line the headline reads **None**, never a count.
+- **This week and wet hours** under the headline, as the owner asked.
+- **Every hour:** a row per local day, 24 cells from 00 to 23, each day's total at the
+  end. A cell is its hour's kind colour at an opacity stepped by amount, the first step
+  being the real-rain line; a dry hour is `grid`. An hour still to come and an hour the
+  response skipped are outlines, never dry cells, and a skipped day totals a dash.
+- **Colour marks precipitation only.** Text, figures and chrome are the neutral ramp.
+- **No gauge, radar, uncertainty or storm track** (the original frame's "Gauge conf.",
+  "±" and "W→E"): the figures are the four global models' median estimate. The caveat names
+  them, says "Model estimates, not gauge readings", defines real rain, and at a crag ties
+  it to Dryness and adds the route-by-route sentence.
 
 **Crag tab, wall and route screens — added 2026-09-29 from the WT6 Figma restyle page's
 "03 · Guidebook Flow" and "04 · Route Detail" sections (`v2 Dark — Crag` 63:2, `— Wall`

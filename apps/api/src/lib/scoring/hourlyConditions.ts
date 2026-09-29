@@ -60,7 +60,7 @@
  * not be measured — it is **never** 0, and 0 is a real score meaning the wall is
  * running with water. A caller that renders these must keep the two apart.
  */
-import type { RockType } from '@weatherteam6/types'
+import { REWETTING_PRECIP_MM, type RockType } from '@weatherteam6/types'
 import { MAX_HOURS, MIN_HOURS } from './dryingModel.js'
 import {
   ASPECT_QUALIFY_MARGIN_C,
@@ -149,8 +149,11 @@ export const FRICTION_BANDS = { fair: 0.35, good: 0.6, great: 0.85 } as const
  * ignored, which reads wetter. That is the safe direction and it is the correct
  * one, but it is a change worth seeing rather than discovering:
  * `compare:scoring` says so in its notes.
+ *
+ * The value lives in `packages/types` as `REWETTING_PRECIP_MM`, because the
+ * Precip tab draws the same line for "the last real rain".
  */
-export const SIGNIFICANT_HOURLY_PRECIP_MM = 0.5
+export const SIGNIFICANT_HOURLY_PRECIP_MM = REWETTING_PRECIP_MM
 
 /**
  * A domain guard, **not a cap on anything**. Every factor in this file is

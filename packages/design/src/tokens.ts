@@ -792,28 +792,9 @@ export const typeV2 = {
     color: colorsV2.legend,
   },
 
-  // ── Detail screen — the Precipitation history frame ──
+  // ── Detail screen — the Precip tab ──
 
-  /** Under a tile's figure — "over 3 wet hours": Barlow 10/400. Colour is the tile's. */
-  tileNote: {
-    fontFamily: fonts.body,
-    fontSize: 10,
-    fontWeight: '400' as const,
-  },
-  /** A bar's figure above its well — "0.18": Plex Mono 9/500. Colour is the bar's. */
-  barFigure: {
-    fontFamily: fonts.mono,
-    fontSize: 9,
-    fontWeight: '500' as const,
-  },
-  /** A bar's unit under its day — "in": Plex Mono 8/400. */
-  barUnit: {
-    fontFamily: fonts.mono,
-    fontSize: 8,
-    fontWeight: '400' as const,
-    color: colorsV2.txtMuted,
-  },
-  /** A compact legend key — "Rain": Barlow 11/400. */
+  /** A compact legend key — "Dry", "Snow": Barlow 11/400. */
   legendSm: {
     fontFamily: fonts.body,
     fontSize: 11,

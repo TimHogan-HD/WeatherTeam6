@@ -8,6 +8,16 @@
  * on trust. It is a model estimate, not a gauge.
  */
 
+/**
+ * Hourly precipitation that re-wets a wall, mm — the line at which the drying
+ * clock (`hourlyConditions`) restarts, and so the line at which the Precip tab
+ * calls an hour "real rain". 0.5 mm in an hour is visible rain; below it a
+ * shower is shown but does not reset "since the last real rain", exactly as it
+ * does not reset Dryness. One constant so the tab and the clock cannot disagree
+ * about when it last rained.
+ */
+export const REWETTING_PRECIP_MM = 0.5
+
 export type RecentPrecipHour = {
   /**
    * `YYYY-MM-DDTHH:mm`, **local to the location**, exactly as Open-Meteo
