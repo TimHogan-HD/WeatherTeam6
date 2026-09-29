@@ -93,6 +93,30 @@ export function mountainProjectUrl(mpId: string | null, kind: 'route' | 'area'):
   return `https://www.mountainproject.com/${kind}/${mpId}`
 }
 
+/** Mountain Project's Android package, as its own `assetlinks.json` names it. */
+const MP_ANDROID_PACKAGE = 'com.mountainproject.android'
+
+/**
+ * The link to draw for a Mountain Project page on this device — **the app when
+ * it is installed, the web page when it is not.**
+ *
+ * - **Android** gets an `intent:` URL naming the app's package, with the web
+ *   page as `browser_fallback_url`. A plain https link does not reach the app:
+ *   measured 2026-09-29, Brave opened it in its own in-app tab without offering
+ *   it to the installed app, though MP publishes verified app links.
+ * - **iOS and everything else** get the plain https URL. MP's
+ *   `apple-app-site-association` is `{}`, so no link can open its iPhone app,
+ *   and a guessed custom scheme would fail with nothing to fall back to.
+ */
+export function mountainProjectHref(webUrl: string, userAgent: string): string {
+  if (!/\bAndroid\b/i.test(userAgent)) return webUrl
+  const u = new URL(webUrl)
+  return (
+    `intent://${u.host}${u.pathname}#Intent;scheme=https;package=${MP_ANDROID_PACKAGE};` +
+    `S.browser_fallback_url=${encodeURIComponent(webUrl)};end`
+  )
+}
+
 export const openBetaClimbUrl = (id: string): string => `https://openbeta.io/climbs/${id}`
 
 /** One day of "Climb it this week": its good hours and how dry the rock reads. */

@@ -290,7 +290,10 @@ departures from the frames:
   score drops under the alerts gate like everywhere else.
 - **The route hero is a plain card**, not the frame's green one — green is the `good`
   rung, and a grade is not a condition.
-- **Mountain Project is linked only with OpenBeta's own MP id**, never a name search.
+- **Mountain Project is linked only with OpenBeta's own MP id**, never a name search. On
+  Android the link is an `intent:` URL naming MP's app, with the web page as fallback
+  (`mountainProjectHref`): a plain link opened in Brave's in-app tab and never reached the
+  installed app. iOS keeps the web link — MP publishes no iOS app links.
   Length and bolts read "Not recorded" because OpenBeta records neither for any Minnesota
   route; the beta empty state says an OpenBeta edit reaches the app at the next snapshot,
   not immediately.

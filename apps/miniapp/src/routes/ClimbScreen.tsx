@@ -16,7 +16,7 @@ import {
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, cardV2, row, stack, toneColors, wellV2, type ToneName } from '../theme/styles.js'
 import { backTarget, climbPath, detailTabPath } from '../lib/backTarget.js'
-import { findWall, mountainProjectUrl, openBetaClimbUrl, weekRows } from '../lib/guidebookView.js'
+import { findWall, mountainProjectHref, mountainProjectUrl, openBetaClimbUrl, weekRows } from '../lib/guidebookView.js'
 import { findToday } from '../lib/forecast.js'
 import { useGuidebook } from '../hooks/useGuidebook.js'
 import { useHourly } from '../hooks/useHourly.js'
@@ -67,11 +67,13 @@ function Fact({ label, value, recorded }: { label: string; value: string; record
 
 /** An external page, opened beside the app rather than replacing it. */
 function OutLink({ href, children }: { href: string; children: ReactNode }) {
+  // An `intent:` link hands off to an app; opened in a new tab first, some
+  // Android browsers leave that tab blank behind it.
+  const inPlace = href.startsWith('intent:')
   return (
     <a
       href={href}
-      target="_blank"
-      rel="noopener noreferrer"
+      {...(inPlace ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
       style={{
         ...wellV2,
         ...typeV2.controlValue,
@@ -269,7 +271,7 @@ export function ClimbScreen() {
       <>
         <Hero route={route} />
         <div style={row(spacing.listGap)}>
-          {mp === null ? null : <OutLink href={mp}>Mountain Project</OutLink>}
+          {mp === null ? null : <OutLink href={mountainProjectHref(mp, navigator.userAgent)}>Mountain Project</OutLink>}
           <OutLink href={openBetaClimbUrl(route.id)}>Add beta on OpenBeta</OutLink>
         </div>
         <WeekCard locationId={id} />
