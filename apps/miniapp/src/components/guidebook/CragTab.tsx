@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
+import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import {
   gradeRange,
   kindCounts,
@@ -10,7 +10,6 @@ import {
 } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
 import { bareButton, cardV2, row, stack } from '../../theme/styles.js'
-import { wallMarkers } from '../../lib/guidebookView.js'
 import { ChevronRightIcon } from '../Icons.js'
 import { NowStrip } from '../ReadingPills.js'
 import { InlineError, Skeleton } from '../States.js'
@@ -19,13 +18,12 @@ import { GradeBar, GradeHistogram, GradeLegend } from './GradeCharts.js'
 /**
  * The Crag tab, from the WT6 Figma "03 · Guidebook Flow" frame: the OpenBeta
  * area and its counts, the crag's readings now, its routes by grade, and its
- * walls — placed on a strip and listed west to east, each opening its own
- * screen.
+ * walls A–Z, each opening its own screen. The frame's position strip is not
+ * drawn: OpenBeta's wall coordinates are wrong on the ground.
  *
  * **The conditions are the crag's, and the tab says so.** Crag A reads every
  * direction and no wall has a recorded aspect, so a wall cannot honestly be
- * given a reading of its own; the strip and the list are geography, not a
- * forecast per wall.
+ * given a reading of its own.
  */
 
 export type CragTabProps = {
@@ -104,52 +102,7 @@ function AreaCard({ guide }: { guide: Guidebook }) {
   )
 }
 
-const STRIP_H = 96
-const DOT = 22
-
-function WallStrip({ walls }: { walls: readonly GuidebookWall[] }) {
-  const markers = wallMarkers(walls)
-  if (markers.length < 2) return null
-  return (
-    <div
-      role="img"
-      aria-label={`Wall positions, west to east: ${markers.map((m) => `${m.number} ${walls[m.number - 1]?.name ?? ''}`).join(', ')}`}
-      style={{
-        position: 'relative',
-        height: `${STRIP_H}px`,
-        backgroundColor: colorsV2.surface,
-        borderRadius: `${radius.rowV2}px`,
-      }}
-    >
-      {markers.map((m) => (
-        <span
-          key={m.id}
-          aria-hidden
-          style={{
-            ...typeV2.chip,
-            position: 'absolute',
-            // Inset by a dot so an edge wall is not cut in half.
-            left: `calc(${DOT}px + (100% - ${DOT * 2}px) * ${m.x} - ${DOT / 2}px)`,
-            top: `calc(${DOT / 2}px + (100% - ${DOT}px) * ${m.y} - ${DOT / 2}px)`,
-            width: `${DOT}px`,
-            height: `${DOT}px`,
-            borderRadius: `${radius.full}px`,
-            backgroundColor: colorsV2.raised,
-            border: `1px solid ${colorsV2.line}`,
-            color: colorsV2.txt1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {m.number}
-        </span>
-      ))}
-    </div>
-  )
-}
-
-function WallRow({ wall, number, onOpen }: { wall: GuidebookWall; number: number; onOpen: () => void }) {
+function WallRow({ wall, onOpen }: { wall: GuidebookWall; onOpen: () => void }) {
   const range = gradeRange(wall.routes)
   const count = `${wall.routes.length} ${wall.routes.length === 1 ? 'route' : 'routes'}`
   return (
@@ -163,23 +116,6 @@ function WallRow({ wall, number, onOpen }: { wall: GuidebookWall; number: number
         borderTop: `1px solid ${colorsV2.line}`,
       }}
     >
-      <span
-        style={{
-          ...typeV2.chip,
-          width: `${DOT}px`,
-          height: `${DOT}px`,
-          flex: '0 0 auto',
-          borderRadius: `${radius.full}px`,
-          backgroundColor: colorsV2.raised,
-          border: `1px solid ${colorsV2.line}`,
-          color: colorsV2.txt1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {number}
-      </span>
       <span style={{ ...stack(spacing.tight), flex: '1 1 auto', minWidth: 0 }}>
         <span style={typeV2.rowTitle}>{wall.name}</span>
         <span style={{ ...typeV2.meta, color: colorsV2.txtMuted }}>
@@ -239,15 +175,20 @@ export function CragTab(props: CragTabProps) {
         <GradeHistogram routes={routes} />
       </Card>
 
-      <Card title={many ? 'Walls' : 'Wall'} aside={many ? 'West → east' : null}>
-        <WallStrip walls={guide.walls} />
+      {/*
+        No map and no direction. OpenBeta's wall coordinates put Barn Bluff's
+        walls where they are not (owner, 2026-09-29), and a west-to-east order
+        read off the same points would be the same error as a list. A–Z claims
+        nothing about the ground.
+      */}
+      <Card title={many ? 'Walls' : 'Wall'} aside={many ? 'A–Z' : null}>
         <p style={{ ...typeV2.note, color: colorsV2.txtMuted }}>
-          {many ? 'Wall positions from OpenBeta coordinates. ' : ''}Conditions are for the whole crag — wall
-          aspects aren’t recorded yet, so walls can’t be read separately.
+          Conditions are for the whole crag — wall aspects aren’t recorded yet, so walls can’t be read
+          separately.
         </p>
         <div style={stack(0)}>
-          {guide.walls.map((wall, i) => (
-            <WallRow key={wall.id} wall={wall} number={i + 1} onOpen={() => props.onOpenWall(wall.id)} />
+          {guide.walls.map((wall) => (
+            <WallRow key={wall.id} wall={wall} onOpen={() => props.onOpenWall(wall.id)} />
           ))}
         </div>
         <GradeLegend routes={routes} withCounts={false} />

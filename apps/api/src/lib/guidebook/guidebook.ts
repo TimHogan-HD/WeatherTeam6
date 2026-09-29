@@ -148,9 +148,10 @@ export function guidebookFor(
   // still one tap away rather than missing.
   const walls = (withRoutes.length === 0 ? [node] : withRoutes)
     .map(toWall)
-    // West to east, which is how the position strip draws them; a wall with no
-    // point goes last rather than being placed at longitude zero.
-    .sort((a, b) => (a.lon ?? Infinity) - (b.lon ?? Infinity) || a.name.localeCompare(b.name))
+    // By name. **Not west to east**: OpenBeta's wall points are wrong on the
+    // ground at Barn Bluff (owner, 2026-09-29), so an order read off them
+    // states a layout nobody measured.
+    .sort((a, b) => a.name.localeCompare(b.name))
 
   return {
     snapshot_date: snapshotDate,

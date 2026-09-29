@@ -70,7 +70,7 @@ export type Guidebook = {
     mp_id: string | null
     route_count: number
   }
-  /** The crag's direct sub-areas, west to east. A crag with no sub-areas is its own single wall. */
+  /** The crag's direct sub-areas, by name — OpenBeta's wall points are not reliable enough to order by. A crag with no sub-areas is its own single wall. */
   walls: GuidebookWall[]
 }
 

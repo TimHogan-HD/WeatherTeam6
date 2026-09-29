@@ -31,21 +31,22 @@ const area = (over: Partial<SnapshotArea> & { id: string }): SnapshotArea => ({
 /** Degrees of latitude for a distance in km. */
 const km = (d: number) => d / 111.32
 
-// A crag with two walls, listed east wall first so "sorted west to east" and
-// "array order" disagree.
+// A crag with two walls. The east wall sorts first by name and last by
+// longitude, so a name order and a west-to-east order cannot agree.
 const CRAG = [
   area({ id: 'mn', parent: null, lat: null, lon: null }),
   area({ id: 'crag', lat: 45, lon: -93 }),
-  area({ id: 'east', parent: 'crag', lon: -92.99, routes: [route('e2', 1), route('e1', 0)] }),
+  // Listed west first, so name order differs from array order too.
   area({ id: 'west', parent: 'crag', lon: -93.01, routes: [route('w1', 0), route('w2', 0)] }),
+  area({ id: 'east', parent: 'crag', lon: -92.99, routes: [route('e2', 1), route('e1', 0)] }),
 ]
 
 describe('guidebookFor', () => {
-  it('links a point near a crag to the crag, with its walls west to east', () => {
+  it('links a point near a crag to the crag, with its walls by name rather than by longitude', () => {
     const g = guidebookFor(45 + km(1), -93, CRAG, '2026-09-28')
     expect(g?.crag.id).toBe('crag')
     expect(g?.crag.route_count).toBe(4)
-    expect(g?.walls.map((w) => w.id)).toEqual(['west', 'east'])
+    expect(g?.walls.map((w) => w.id)).toEqual(['east', 'west'])
     expect(g?.snapshot_date).toBe('2026-09-28')
   })
 
