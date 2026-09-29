@@ -336,9 +336,14 @@ export function ConditionsNow({
   // The reading the measurements panel explains, and the model it came from.
   // Set **only when the readings are on screen**: a panel explaining gauges
   // the reader cannot see would be caveats for nothing.
-  let shown: { reading: HourlyReading | null; model: string | null } = {
+  let shown: {
+    reading: HourlyReading | null
+    model: string | null
+    rainModels: readonly string[] | null
+  } = {
     reading: null,
     model: null,
+    rainModels: null,
   }
   let summary: ReadingsSummary | null = null
   let readingsBlock: ReactNode = null
@@ -363,7 +368,7 @@ export function ConditionsNow({
       readingsBlock = null
     } else {
       const r = conditions.data.readings
-      shown = { reading: r.now, model: r.model }
+      shown = { reading: r.now, model: r.model, rainModels: r.rain_models ?? null }
       summary = summarizeReadings({
         reading: r.now,
         window: r.today?.window ?? null,
@@ -423,6 +428,7 @@ export function ConditionsNow({
         weatherModel={series?.model ?? null}
         reading={shown.reading}
         readingModel={shown.model}
+        rainModels={shown.rainModels}
       />
     </section>
   )

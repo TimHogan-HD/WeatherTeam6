@@ -8,6 +8,8 @@ import {
   type EnsembleRun,
   type ModelHourly,
 } from '../weather/openMeteo.js'
+import type { RainMedian } from '../weather/rainMedian.js'
+import { THERMAL_MODEL } from './hourlyReadings.js'
 
 /**
  * Rows are written in chunks so one model's 384 hours never becomes a single
@@ -61,6 +63,7 @@ async function upsertRun(values: typeof weatherRuns.$inferInsert): Promise<strin
         utc_offset_seconds: values.utc_offset_seconds,
         model_elevation_m: values.model_elevation_m ?? null,
         precip_prob_is_shared: values.precip_prob_is_shared ?? null,
+        rain_models: values.rain_models ?? null,
       },
     })
     .returning({ id: weatherRuns.id })
@@ -72,12 +75,14 @@ async function storeOneModel(
   model: ModelHourly,
   base: Omit<typeof weatherRuns.$inferInsert, 'model' | 'kind' | 'precip_prob_is_shared'>,
   utcOffsetSeconds: number,
+  rain: RainMedian | null,
 ): Promise<StoredRun | null> {
   const runId = await upsertRun({
     ...base,
     model: model.model,
     kind: 'deterministic',
     precip_prob_is_shared: model.probability_is_shared,
+    rain_models: rain?.models ?? null,
   })
   if (!runId) return null
 
@@ -121,6 +126,7 @@ async function storeOneModel(
       precip_prob_pct: h.precip_prob_pct,
       pressure_hpa: h.pressure_hpa,
       shortwave_wm2: h.shortwave_wm2,
+      rain_median_mm: rain?.byLocal.get(h.valid_at_local) ?? null,
     })
   }
 
@@ -144,6 +150,7 @@ async function storeOneModel(
           precip_prob_pct: sqlExcluded('precip_prob_pct'),
           pressure_hpa: sqlExcluded('pressure_hpa'),
           shortwave_wm2: sqlExcluded('shortwave_wm2'),
+          rain_median_mm: sqlExcluded('rain_median_mm'),
         },
       })
   }
@@ -159,10 +166,15 @@ async function storeOneModel(
  * signal, and `result.unavailable_models` is what names them to the caller. A
  * stored empty run would be indistinguishable from a model that answered with
  * nothing.
+ *
+ * `rain` is stored on `THERMAL_MODEL`'s run alone: it is the only run the
+ * drying clock reads, and on any other it would sit under a model name it did
+ * not come from.
  */
 export async function storeDeterministicRun(
   point_key: string,
   result: DeterministicResult,
+  rain: RainMedian | null = null,
 ): Promise<StoredRun[]> {
   const base = {
     point_key,
@@ -173,7 +185,12 @@ export async function storeDeterministicRun(
 
   const stored: StoredRun[] = []
   for (const model of result.models) {
-    const one = await storeOneModel(model, base, result.utc_offset_seconds)
+    const one = await storeOneModel(
+      model,
+      base,
+      result.utc_offset_seconds,
+      model.model === THERMAL_MODEL ? rain : null,
+    )
     if (one) stored.push(one)
   }
   return stored

@@ -15,6 +15,7 @@ import {
   type DeterministicResult,
   type ForecastLocation,
 } from '../weather/openMeteo.js'
+import { RAIN_MODELS, rainMedian } from '../weather/rainMedian.js'
 import { THERMAL_MODEL } from './hourlyReadings.js'
 import { pointKeyForPlace } from './pointKey.js'
 import { confirmRuns, storeDeterministicRun, storeEnsembleRun } from './storeRun.js'
@@ -78,9 +79,16 @@ const FORECAST_DAYS = 7
  * are the best trailing temperature available without a second API, and they
  * are not measurements — nothing may present them as such.
  *
- * **Requested for `THERMAL_MODEL` alone** — see `FORECAST_ONLY_MODELS` for the
+ * **Stored for `THERMAL_MODEL` alone** — see `FORECAST_ONLY_MODELS` for the
  * measurement that forced the split. `check:runs-storage` is where to watch the
  * cost if more locations are added.
+ *
+ * **Requested for all of `RAIN_MODELS`**, because the drying clock reads their
+ * hourly median rather than the thermal model's own rain (issue #209), and its
+ * history needs theirs too. Only the thermal model's run is stored from that
+ * request; the median rides on its hours as `rain_median_mm`, one column
+ * rather than three more runs of trailing rows. It is refreshed when the
+ * thermal model is, so it can lag another model's newer run by one cycle.
  */
 const TRAILING_DAYS = 5
 
@@ -95,6 +103,11 @@ const TRAILING_DAYS = 5
  * request costs one extra HTTP call per location and brings it to +12%.
  */
 const FORECAST_ONLY_MODELS = DETERMINISTIC_MODELS.filter((m) => m !== THERMAL_MODEL)
+
+/** The thermal model's run out of the `RAIN_MODELS` request — the only one stored from it. */
+function thermalOnly(result: DeterministicResult): DeterministicResult {
+  return { ...result, models: result.models.filter((m) => m.model === THERMAL_MODEL) }
+}
 
 /** Each point's newest stored `fetched_at` per model. */
 async function newestFetches(pointKeys: string[]): Promise<Map<string, Map<string, Date>>> {
@@ -215,7 +228,7 @@ export async function collectWeatherRuns(now: Date = new Date()): Promise<Collec
       // cost the others. A request that is not needed resolves to null.
       const [thermalRun, otherRuns, ensemble] = await Promise.allSettled([
         wanted.has(THERMAL_MODEL)
-          ? fetchDeterministicHourly(point, [THERMAL_MODEL], FORECAST_DAYS, TRAILING_DAYS)
+          ? fetchDeterministicHourly(point, RAIN_MODELS, FORECAST_DAYS, TRAILING_DAYS)
           : null,
         others.length > 0 ? fetchDeterministicHourly(point, others, FORECAST_DAYS) : null,
         wanted.has('ensemble') ? fetchEnsembleRun(point) : null,
@@ -238,7 +251,12 @@ export async function collectWeatherRuns(now: Date = new Date()): Promise<Collec
           continue
         }
         if (run.value === null) continue
-        const storedRuns = await storeDeterministicRun(point_key, withoutShareFlag(run.value))
+        const thermal = label === 'thermal'
+        const storedRuns = await storeDeterministicRun(
+          point_key,
+          withoutShareFlag(thermal ? thermalOnly(run.value) : run.value),
+          thermal ? rainMedian(run.value) : null,
+        )
         runsStored += storedRuns.length
         hoursStored += storedRuns.reduce((acc, s) => acc + s.hours, 0)
         if (run.value.unavailable_models.length > 0) {

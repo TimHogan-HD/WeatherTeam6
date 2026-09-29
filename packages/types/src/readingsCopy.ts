@@ -580,6 +580,21 @@ export const ROCK_TEMPERATURE_MECHANISM =
   'Rock temperature is modelled for open, flat ground from sun, air temperature and wind — nothing measures the wall itself.';
 
 /**
+ * Where the drying clock's rain came from.
+ *
+ * **Required wherever a dryness reading shows**, because the rain behind it is
+ * not the rock figures' model: it is the hourly median of several (issue
+ * #209), and the rain chart beside it draws the ensemble. Without this line a
+ * reader who sees rain on the chart and `Dryness: Dry` above it has no way to
+ * learn the two read different forecasts.
+ */
+export function dryingRainMechanism(models: readonly string[]): string {
+  return models.length === 1
+    ? `Dryness counts the rain one forecast model (${models[0]}) puts at this spot, hour by hour. No rain gauge is read.`
+    : `Dryness counts the middle of ${models.length} forecast models' rain at this spot (${models.join(', ')}), hour by hour. No rain gauge is read.`;
+}
+
+/**
  * One model, named the way the sources footer names a set of them.
  *
  * `null` in, `null` out: a response that did not say which model answered is
@@ -633,6 +648,8 @@ export type MeasurementsInput = {
   reading: HourlyReading | null;
   /** `ConditionsReadings.model` — **not necessarily** `weatherModel`. */
   readingModel: string | null;
+  /** `ConditionsReadings.rain_models` — the drying clock's rain. Null when unnamed. */
+  rainModels: readonly string[] | null;
 };
 
 export type Measurements = {
@@ -693,7 +710,7 @@ function measuredGroup(
  * margin are all reachable here and none of them would be through a click.
  */
 export function measurements(input: MeasurementsInput): Measurements {
-  const { hour, weatherModel, reading, readingModel } = input;
+  const { hour, weatherModel, reading, readingModel, rainModels } = input;
 
   const groups: MeasurementGroup[] = [];
 
@@ -749,6 +766,9 @@ export function measurements(input: MeasurementsInput): Measurements {
   // conditions `summarizeReadings` uses for the fragments, so the panel cannot
   // explain a caveat that is not on screen or leave one unexplained.
   const notes: string[] = [];
+  if (reading?.rock != null && rainModels !== null && rainModels.length > 0) {
+    notes.push(dryingRainMechanism(rainModels));
+  }
   if (reading?.friction != null) notes.push(FRICTION_MECHANISM);
   if (reading?.rock?.qualified === false || reading?.friction?.qualified === false) {
     notes.push(UNRECORDED_ASPECT_MECHANISM);

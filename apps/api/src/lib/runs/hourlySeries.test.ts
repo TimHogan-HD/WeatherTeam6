@@ -34,6 +34,7 @@ function det(overrides: Partial<RunHour> & { valid_at: Date }): RunHour {
     precip_prob_pct: null,
     pressure_hpa: null,
     shortwave_wm2: null,
+    rain_median_mm: null,
     ...overrides,
   }
 }
@@ -58,7 +59,7 @@ function ens(overrides: Partial<EnsembleRunHour> & { valid_at: Date }): Ensemble
 }
 
 function model(name: string, hours: RunHour[], shared: boolean | null = false): ModelRun {
-  return { model: name, hours, probability_is_shared: shared, fetched_at: new Date('2026-09-08T12:00:00Z'), checked_at: new Date('2026-09-08T12:00:00Z') }
+  return { model: name, hours, probability_is_shared: shared, rain_models: null, fetched_at: new Date('2026-09-08T12:00:00Z'), checked_at: new Date('2026-09-08T12:00:00Z') }
 }
 
 function runs(models: ModelRun[], fetchedAt: Date | null = new Date('2026-09-08T12:00:00Z')): DeterministicRuns {

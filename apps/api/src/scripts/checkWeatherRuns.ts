@@ -41,6 +41,8 @@ const LON = -115.45413
 let passed = 0
 let failed = 0
 
+const RAIN_MODELS_STORED = ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless']
+
 function check(label: string, ok: boolean, detail = ''): void {
   if (ok) {
     passed++
@@ -424,7 +426,7 @@ async function run(): Promise<void> {
       utc_offset_seconds: -25200,
       model_elevation_m: 1147,
       fetched_at: laterAt,
-    })
+    }, { models: RAIN_MODELS_STORED, byLocal: new Map([[hour(0), 0.3]]) })
     const recent = (): Promise<Awaited<ReturnType<typeof loadStoredDeterministic>>> =>
       loadStoredDeterministic(adHocKey, new Date(Date.now() - 60 * 60 * 1000))
     const byModel = (
@@ -449,6 +451,21 @@ async function run(): Promise<void> {
       String(mixed?.fetched_at?.toISOString()),
     )
     check('a null share flag reads back as null', gfs?.probability_is_shared === null)
+
+    console.log('\nThe rain median — on the thermal run only, beside its own rain (#209)')
+    const gfsRun = mixed?.models.find((m) => m.model === 'gfs_seamless')
+    const nbmRun = mixed?.models.find((m) => m.model === 'ncep_nbm_conus')
+    check(
+      'the median’s models read back as the array stored',
+      JSON.stringify(gfsRun?.rain_models) === JSON.stringify(RAIN_MODELS_STORED),
+      JSON.stringify(gfsRun?.rain_models),
+    )
+    check(
+      'the median reads back beside the model’s own rain, not over it',
+      gfsRun?.hours[0]?.rain_median_mm === 0.3 && gfsRun.hours[0].precip_mm === 0,
+      `median ${String(gfsRun?.hours[0]?.rain_median_mm)}, own ${String(gfsRun?.hours[0]?.precip_mm)}`,
+    )
+    check('a run stored without a median reads back null, not empty', nbmRun?.rain_models === null)
 
     console.log('\nConfirming a skipped model — stamped current, not refetched')
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000)

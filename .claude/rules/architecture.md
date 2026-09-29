@@ -58,6 +58,20 @@ delivery gates are in `CLAUDE.md`; domain patterns are in the `miniapp-patterns`
   attribute one to the other.** If that model did not answer at this point there are no
   readings and `unavailable_reason` says `model_unavailable` — never another model's
   numbers.
+- **The drying clock's rain is the hourly median of the four global models, not
+  `THERMAL_MODEL`'s own** (`lib/weather/rainMedian.ts`, issue #209). Measured by
+  `npm run compare:dryness` against 20 ASOS gauges over 90 days: `gfs_seamless` alone —
+  HRRR's first 48 h in the US — called the rock dry in 60% of the daytime hours a gauge
+  said it was still wet on quartzite, 44% on sandstone; the median missed 26% and 19%, and
+  was the only source within 0.06 Peirce of the best on every rock type. The cost is more
+  hours reading *drying* that a gauge calls dry — the direction to be wrong in. **HRRR and
+  NBM are left out** so a crag abroad gets the same statistic. `readings.rain_models` names
+  the models, and the measurements disclosure prints them (`dryingRainMechanism`), because
+  the chart beside the gauge draws the ensemble and a reader must be able to learn the two
+  read different forecasts. **A thermal run stored without a median reads its own rain
+  whole and names only itself** — never a per-hour mix under one name — and an hour the
+  median could not be formed for (fewer than three models) is a gap the clock withholds
+  from, not a fallback to GFS. Irradiance is still never pooled; only rain is.
 - **The readings reach the response only because the route passed `scoring`**, exactly as
   a per-day score reaches `GET /forecast/:id` only because it passed a merge argument.
   There is no `is_climbing_location` check downstream to forget, and the model itself does
@@ -118,7 +132,10 @@ delivery gates are in `CLAUDE.md`; domain patterns are in the `miniapp-patterns`
   It renders nothing instead.
 - **`collect-runs` stores trailing hours for `THERMAL_MODEL` only.** `T_mass` needs ~96 h
   of history that `weather_run_hours`' 2-day retention does not hold, so that one model is
-  fetched with `past_days` in its own request and the other five without. Asking for all
+  fetched with `past_days` in its own request and the other five without. **That request
+  asks for all four global models** so the rain median has their history too, but stores
+  only the thermal run — the median rides on its hours as `rain_median_mm` (one column,
+  not three more runs of trailing rows) and is refreshed when the thermal model is. Asking for all
   six was measured at **+71% on the largest table in a 512 MB database already at 239 MB**
   — the table whose growth caused the `could not extend file` outage. Adding a model to
   the trailing fetch is a storage decision, not a configuration one; check

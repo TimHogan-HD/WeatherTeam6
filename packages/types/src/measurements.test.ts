@@ -98,6 +98,7 @@ describe('measurements', () => {
       hour: measuredHour(),
       weatherModel: 'gfs_seamless',
       reading: reading(),
+      rainModels: null,
       readingModel: 'gfs_seamless',
     });
 
@@ -132,6 +133,7 @@ describe('measurements', () => {
       hour: measuredHour(),
       weatherModel: 'ncep_hrrr_conus',
       reading: reading(),
+      rainModels: null,
       readingModel: 'gfs_seamless',
     });
     expect(groupNamed(m, 'Air')?.source).toBe('Open-Meteo (ncep_hrrr_conus)');
@@ -148,6 +150,7 @@ describe('measurements', () => {
       hour: measuredHour(),
       weatherModel: 'gfs_seamless',
       reading: null,
+      rainModels: null,
       readingModel: null,
     });
     expect(m.sharedSource).toBe('Open-Meteo (gfs_seamless)');
@@ -159,6 +162,7 @@ describe('measurements', () => {
       hour: measuredHour(),
       weatherModel: null,
       reading: reading(),
+      rainModels: null,
       readingModel: 'gfs_seamless',
     });
     expect(m.sharedSource).toBeNull();
@@ -176,6 +180,7 @@ describe('measurements', () => {
       }),
       weatherModel: 'gfs_seamless',
       reading: reading({ t_surface_c: null, condensation_margin_c: null }),
+      rainModels: null,
       readingModel: 'gfs_seamless',
     });
     // A row of dashes measures nothing and reads as a broken panel.
@@ -187,6 +192,7 @@ describe('measurements', () => {
       hour: measuredHour({ dewpoint_c: null }),
       weatherModel: 'gfs_seamless',
       reading: reading({ condensation_margin_c: null }),
+      rainModels: null,
       readingModel: 'gfs_seamless',
     });
     // Between real figures a dash is information: the model answered for this
@@ -212,6 +218,7 @@ describe('measurements', () => {
       }),
       weatherModel: 'gfs_seamless',
       reading: null,
+      rainModels: null,
       readingModel: null,
     });
     expect(groupNamed(m, 'Air')).not.toBeNull();
@@ -224,6 +231,7 @@ describe('measurements', () => {
       hour: measuredHour({ wind_kmh: 14, wind_gust_kmh: 31 }),
       weatherModel: null,
       reading: null,
+      rainModels: null,
       readingModel: null,
     });
     expect(fieldNamed(gusty, 'Air', 'Wind')).toBe('9 mph, gusts 19 mph');
@@ -232,6 +240,7 @@ describe('measurements', () => {
       hour: measuredHour({ wind_kmh: 14, wind_gust_kmh: 14 }),
       weatherModel: null,
       reading: null,
+      rainModels: null,
       readingModel: null,
     });
     // `9 mph, gusts 9 mph` reads as a fault rather than as calm air.
@@ -243,6 +252,7 @@ describe('measurements', () => {
       hour: measuredHour({ wind_kmh: null, wind_gust_kmh: 31 }),
       weatherModel: null,
       reading: null,
+      rainModels: null,
       readingModel: null,
     });
     expect(fieldNamed(m, 'Air', 'Wind')).toBe('—');
@@ -257,6 +267,7 @@ describe('measurements', () => {
       hour: measuredHour(),
       weatherModel: null,
       reading: reading({ friction: null }),
+      rainModels: null,
       readingModel: null,
     });
     expect(m.notes).not.toContain(FRICTION_MECHANISM);
@@ -269,6 +280,7 @@ describe('measurements', () => {
       hour: measuredHour(),
       weatherModel: null,
       reading: reading({ friction: friction({ qualified: false }) }),
+      rainModels: null,
       readingModel: null,
     });
     expect(unqualifiedFriction.notes).toContain(UNRECORDED_ASPECT_MECHANISM);
@@ -277,6 +289,7 @@ describe('measurements', () => {
       hour: measuredHour(),
       weatherModel: null,
       reading: reading({ rock: rock({ qualified: false }) }),
+      rainModels: null,
       readingModel: null,
     });
     expect(unqualifiedRock.notes).toContain(UNRECORDED_ASPECT_MECHANISM);
@@ -294,6 +307,7 @@ describe('measurements', () => {
       hour: measuredHour(),
       weatherModel: null,
       reading: reading({ t_surface_c: null }),
+      rainModels: null,
       readingModel: null,
     });
     expect(noSurface.notes).not.toContain(ROCK_TEMPERATURE_MECHANISM);
@@ -304,10 +318,42 @@ describe('measurements', () => {
       hour: null,
       weatherModel: 'gfs_seamless',
       reading: null,
+      rainModels: null,
       readingModel: 'gfs_seamless',
     });
     expect(m.groups).toEqual([]);
     expect(m.notes).toEqual([]);
     expect(m.sharedSource).toBeNull();
+  });
+});
+
+describe('where the drying clock’s rain came from (issue #209)', () => {
+  const reading = {
+    valid_at: '2026-09-25T18:00:00.000Z',
+    rock: { level: 'dry' as const, qualified: true },
+    friction: null,
+    score: null,
+    t_surface_c: null,
+    condensation_margin_c: null,
+  }
+  const base = { hour: null, weatherModel: null, reading, readingModel: 'gfs_seamless' }
+
+  it('names every model behind a median, since none of them is the rock figures’ alone', () => {
+    const m = measurements({
+      ...base,
+      rainModels: ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless', 'gem_seamless'],
+    });
+    expect(m.notes[0]).toContain('middle of 4 forecast models');
+    expect(m.notes[0]).toContain('gfs_seamless, ecmwf_ifs025, icon_seamless, gem_seamless');
+  });
+
+  it('names the one model when the rain was one model’s own', () => {
+    const m = measurements({ ...base, rainModels: ['gfs_seamless'] });
+    expect(m.notes[0]).toContain('one forecast model (gfs_seamless)');
+  });
+
+  it('explains nothing when no dryness reading is on screen, or the source is unnamed', () => {
+    expect(measurements({ ...base, reading: { ...reading, rock: null }, rainModels: ['gfs_seamless'] }).notes).toEqual([]);
+    expect(measurements({ ...base, rainModels: null }).notes).toEqual([]);
   });
 });

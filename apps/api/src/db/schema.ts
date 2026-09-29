@@ -554,6 +554,13 @@ export const weatherRuns = pgTable(
      * "no" — a renderer must treat null as unknown and withhold the model name.
      */
     precip_prob_is_shared: boolean('precip_prob_is_shared'),
+    /**
+     * The models whose hourly median fills this run's `weather_run_hours.rain_median_mm`
+     * (`lib/weather/rainMedian.ts`). Set on the thermal model's run only. **Null
+     * means no median was stored**, and the drying clock then reads the run's own
+     * `precip_mm` and names that model instead.
+     */
+    rain_models: text('rain_models').array(),
     raw: jsonb('raw'),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
@@ -612,6 +619,13 @@ export const weatherRunHours = pgTable(
      * mid-series on a model that answered everything else.
      */
     shortwave_wm2: doublePrecision('shortwave_wm2'),
+    /**
+     * **Not this model's own rain.** The hourly median of `weather_runs.rain_models`
+     * from the same fetch, stored beside the thermal model's hours because that
+     * is the only run with trailing history. The drying clock reads it; nothing
+     * may head it with this run's model name.
+     */
+    rain_median_mm: doublePrecision('rain_median_mm'),
   },
   (t) => [primaryKey({ columns: [t.run_id, t.valid_at] })],
 )

@@ -92,6 +92,7 @@ export type BuildReadingsInput = {
 
 const none = (reason: ReadingsUnavailableReason): HourlyReadings => ({
   model: null,
+  rain_models: null,
   unavailable_reason: reason,
   hours: [],
   days: [],
@@ -109,7 +110,15 @@ function toReading(h: HourlyConditions): HourlyReading {
   }
 }
 
+/**
+ * **The drying clock's rain is the global models' hourly median** whenever the
+ * run carries one (`lib/weather/rainMedian.ts`, issue #209). An hour the median
+ * could not be formed for is a gap, and the clock withholds from it. A run
+ * stored before the median existed has none, and reads its own rain whole —
+ * never mixed hour by hour, so `rain_models` can name one source.
+ */
 function toWeatherHours(model: ModelRun): WeatherHour[] {
+  const median = model.rain_models !== null
   return [...model.hours]
     .sort((a, b) => a.valid_at.getTime() - b.valid_at.getTime())
     .map((h) => ({
@@ -119,7 +128,7 @@ function toWeatherHours(model: ModelRun): WeatherHour[] {
       wind_kmh: h.wind_kmh,
       cloud_pct: h.cloud_pct,
       shortwave_wm2: h.shortwave_wm2,
-      precip_mm: h.precip_mm,
+      precip_mm: median ? h.rain_median_mm : h.precip_mm,
     }))
 }
 
@@ -181,6 +190,7 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
 
   return {
     model: THERMAL_MODEL,
+    rain_models: model.rain_models === null ? [THERMAL_MODEL] : [...model.rain_models],
     unavailable_reason: null,
     hours: windowed.map(toReading),
     days,
