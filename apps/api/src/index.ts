@@ -17,15 +17,17 @@ import { geocodeRouter } from './routes/geocode.js';
 import { previewRouter } from './routes/preview.js';
 import { cronRouter } from './routes/cron.js';
 import { authRouter } from './routes/auth.js';
+import { feedbackRouter } from './routes/feedback.js';
 import { allowedOriginPatterns, originAllowed } from './lib/cors.js';
 
 /**
- * The largest JSON body any route accepts. Every write here is a handful of
- * fields — a location, a trip, a wall, a login — so this is generous; its job
- * is to stop a caller making the function parse megabytes before a handler
- * can say no. Express's own default is 100 kB.
+ * The largest JSON body any route accepts. The biggest legitimate write is a
+ * feedback message: `FEEDBACK_MESSAGE_MAX` is 4000 characters, which is up
+ * to ~12 kB of UTF-8 in a non-Latin script before the readings are added. This
+ * leaves room for that; its job is to stop a caller making the function parse
+ * megabytes before a handler can say no. Express's own default is 100 kB.
  */
-const JSON_BODY_LIMIT = '16kb'
+const JSON_BODY_LIMIT = '32kb'
 
 /**
  * A client error raised by `express.json()` itself — malformed JSON (400), a
@@ -111,6 +113,7 @@ export function createApp(): Express {
     radarRouter,
     geocodeRouter,
     previewRouter,
+    feedbackRouter,
   );
 
   app.use((_req: Request, res: Response) => {

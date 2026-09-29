@@ -238,7 +238,7 @@ describe('response hardening', () => {
   })
 
   it('refuses an oversized body with 413 before any handler runs', async () => {
-    const res = await post('/api/v1/auth/login', { username: 'x', passphrase: 'y'.repeat(20_000) })
+    const res = await post('/api/v1/auth/login', { username: 'x', passphrase: 'y'.repeat(40_000) })
     expect(res.status).toBe(413)
   })
 

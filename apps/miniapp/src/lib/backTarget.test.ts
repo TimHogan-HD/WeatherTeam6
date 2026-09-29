@@ -83,6 +83,11 @@ describe('backTarget', () => {
     expect(detail.map((a) => a.kind)).not.toContain('closePreview')
     expect(add.map((a) => a.kind)).not.toContain('showDailyTab')
   })
+
+  it('returns feedback to the location it was opened from, else the list', () => {
+    expect(backTarget({ route: 'feedback', fromLocationId: 'abc' })).toEqual({ kind: 'navigate', to: '/location/abc' })
+    expect(backTarget({ route: 'feedback', fromLocationId: null })).toEqual({ kind: 'navigate', to: '/' })
+  })
 })
 
 describe('backTarget — the guidebook screens', () => {

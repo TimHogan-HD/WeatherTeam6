@@ -259,7 +259,7 @@ delivery gates are in `CLAUDE.md`; domain patterns are in the `miniapp-patterns`
   `location_normals`). A 404, never a 403. Three routes skipped it until 2026-09-29 and one
   of them returned another user's forecast by id; `check:auth` covers all three.
 - **The Express layer is hardened in `createApp`**: no `X-Powered-By`, `nosniff`,
-  `frame-ancestors 'none'`, `Cache-Control: no-store` on every response, a 16 kB JSON body
+  `frame-ancestors 'none'`, `Cache-Control: no-store` on every response, a 32 kB JSON body
   limit, and a body-parser failure answered 400/413 in the envelope rather than a 500.
   Every outbound fetch carries a 25 s per-attempt timeout (`FETCH_TIMEOUT_MS`).
 - **A router mounted outside `/api/v1` reads `req.userId` as `undefined`** through a type that says it cannot be (defect class 8) — no type error, no test failure, just a route that finds nothing. Mount inside the gate or bring your own identity.
@@ -274,6 +274,7 @@ delivery gates are in `CLAUDE.md`; domain patterns are in the `miniapp-patterns`
 ## Database Rules
 - All queries go through Drizzle (`apps/api/src/db/schema.ts` is the single source of truth). No raw SQL unless Drizzle cannot express it.
 - **No FK in the schema declares `onDelete`**, so Postgres refuses to delete any row another table still references. Deletes therefore clear their dependents explicitly, in one transaction: `DELETE /locations/:id` goes through `deleteLocationCascade` (`src/lib/locations/deleteLocation.ts`), which walks `DEPENDENT_TABLES`. **Adding a table with a `location_id` FK means adding it to that list** — omit it and delete becomes a foreign-key violation surfacing as a generic 500, and only once real data exists. Do not "fix" this by adding cascades to the schema without deciding what it means for every other delete.
+- **`feedback` is the one `location_id` FK that is detached, not deleted.** `deleteLocationCascade` sets it null after walking `DEPENDENT_TABLES`, because a forecast check is evidence about a place (#143) and the row carries the place's name and coordinates. A new table that should outlive its location follows that shape; everything else goes on the list.
 - **`DELETE /trips/:tripId` clears `trip_locations` and deletes the trip in one transaction**, the same shape as `deleteLocationCascade`. Covered by `npm run check:delete-trip` — the failure is a Postgres constraint error and the vitest suite cannot see it.
 - **A new table with a `trip_id` FK gets cleared in that handler too**, exactly as a `location_id` FK gets added to `DEPENDENT_TABLES`. `trip_locations` is currently the only one.
 - **`weather_alerts.notified_at` is dormant.** Nothing writes it and null means *"never asked"*, not "not yet sent". The column is kept for whatever notification channel replaces the deleted bot; do not read it as live state.

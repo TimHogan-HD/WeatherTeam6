@@ -15,6 +15,7 @@
  * | `/location/:id`, Hourly tab | the Daily tab — **not** the list |
  * | `/add` search | `/` |
  * | `/add` preview | the search, with its query and results intact |
+ * | `/feedback` | the location it was opened from, else `/` |
  *
  * Two of those five are not navigations at all: the Hourly tab and the add
  * preview are states inside a route, and sending either to a URL discards work
@@ -36,6 +37,7 @@ export type BackContext =
   | { route: 'list' }
   | { route: 'detail'; tab: DetailTab }
   | { route: 'add'; previewing: boolean }
+  | { route: 'feedback'; fromLocationId: string | null }
   | { route: 'wall'; locationId: string }
   | { route: 'climb'; locationId: string; wallId: string }
 
@@ -65,6 +67,7 @@ export type BackAction = null | DetailBack | AddBack
 export function backTarget(context: { route: 'list' }): null
 export function backTarget(context: { route: 'detail'; tab: DetailTab }): DetailBack
 export function backTarget(context: { route: 'add'; previewing: boolean }): AddBack
+export function backTarget(context: { route: 'feedback'; fromLocationId: string | null }): Navigate
 export function backTarget(context: { route: 'wall'; locationId: string }): Navigate
 export function backTarget(context: { route: 'climb'; locationId: string; wallId: string }): Navigate
 export function backTarget(context: BackContext): BackAction {
@@ -78,6 +81,10 @@ export function backTarget(context: BackContext): BackAction {
       return { kind: 'showTab', tab: context.tab === 'hourly' ? 'daily' : 'overview' }
     case 'add':
       return context.previewing ? { kind: 'closePreview' } : { kind: 'navigate', to: '/' }
+    case 'feedback':
+      // Opened from a crag's "Check this forecast", back returns to that crag
+      // rather than dropping the reader at the list.
+      return { kind: 'navigate', to: context.fromLocationId === null ? '/' : `/location/${context.fromLocationId}` }
     // The guidebook screens each step out one level: a route to its wall, a
     // wall to the Crag tab it was opened from — not to Overview, which would
     // lose the reader's place in the crag.
