@@ -101,9 +101,9 @@ describe('formatForecastDate', () => {
 
 describe('forecastSourceLabel', () => {
   it('names the models the response actually reports', () => {
-    expect(forecastSourceLabel([day('2026-08-25', ['nbm'])])).toBe('Open-Meteo (nbm)')
+    expect(forecastSourceLabel([day('2026-08-25', ['nbm'])])).toBe('Open-Meteo · NBM')
     expect(forecastSourceLabel([day('2026-08-25', ['gfs_seamless', 'ecmwf_ifs025'])])).toBe(
-      'Open-Meteo (gfs_seamless, ecmwf_ifs025)',
+      'Open-Meteo · GFS, ECMWF',
     )
   })
 
@@ -117,7 +117,7 @@ describe('forecastSourceLabel', () => {
 
   it('skips rows with no models and reports the first that has them', () => {
     expect(forecastSourceLabel([day('2026-08-25', []), day('2026-08-26', ['nbm'])])).toBe(
-      'Open-Meteo (nbm)',
+      'Open-Meteo · NBM',
     )
   })
 })

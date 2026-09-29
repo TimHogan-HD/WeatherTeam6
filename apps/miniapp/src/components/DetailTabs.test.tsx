@@ -259,7 +259,8 @@ describe('DetailView — tabs', () => {
         />,
       )
       expect(html).toContain('Extreme Heat Warning')
-      expect(html).toContain('gfs_seamless')
+      // The footer's forecast row, which no tab panel draws.
+      expect(html).toContain('Forecast</dt>')
     }
   })
 

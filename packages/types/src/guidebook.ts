@@ -84,7 +84,7 @@ export type Guidebook = {
 }
 
 /** What the sources footer names for everything on these screens. */
-export const GUIDEBOOK_SOURCE_LABEL = 'OpenBeta — community data, CC0'
+export const GUIDEBOOK_SOURCE_LABEL = 'OpenBeta community data (CC0)'
 
 // ─────────────────────────────────────────────
 // Grades

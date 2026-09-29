@@ -12,13 +12,14 @@ import {
   type GuidebookWall,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, cardV2, row, stack, wellV2 } from '../theme/styles.js'
+import { bareButton, bottomClearance, cardV2, row, stack, wellV2 } from '../theme/styles.js'
 import { backTarget, climbPath } from '../lib/backTarget.js'
 import { findWall, mountainProjectHref, mountainProjectUrl, openBetaClimbUrl } from '../lib/guidebookView.js'
 import { useGuidebook } from '../hooks/useGuidebook.js'
 import { useLocation } from '../hooks/useLocations.js'
 import { DetailHeader } from '../components/DetailHeader.js'
 import { SourcesFooter } from '../components/SourcesFooter.js'
+import { formatTickDate } from '../lib/logbook.js'
 import { InlineError, Skeleton } from '../components/States.js'
 import { GradeChip } from '../components/guidebook/GradeCharts.js'
 import { LogbookCard } from '../components/guidebook/LogbookCard.js'
@@ -234,7 +235,13 @@ export function ClimbScreen() {
         <OnTheWall locationId={id} wall={wall} route={route} />
         <SourcesFooter
           sources={[
-            `Route: ${GUIDEBOOK_SOURCE_LABEL}, as of ${guidebook.data?.snapshot_date ?? ''}`,
+            {
+              label: 'Route',
+              value:
+                guidebook.data == null
+                  ? GUIDEBOOK_SOURCE_LABEL
+                  : `${GUIDEBOOK_SOURCE_LABEL}, ${formatTickDate(guidebook.data.snapshot_date)}`,
+            },
           ]}
         />
       </>
@@ -253,7 +260,7 @@ export function ClimbScreen() {
         style={{
           ...stack(spacing.listGapLg),
           padding: `${spacing.sectionGap}px`,
-          paddingBottom: `${spacing.bottomInset + spacing.sectionGap}px`,
+          paddingBottom: bottomClearance,
         }}
       >
         {content}

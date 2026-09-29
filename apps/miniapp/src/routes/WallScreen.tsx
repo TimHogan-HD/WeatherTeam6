@@ -14,7 +14,7 @@ import {
   type GuidebookWall,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, cardV2, row, stack, wellV2 } from '../theme/styles.js'
+import { bareButton, bottomClearance, cardV2, row, stack, wellV2 } from '../theme/styles.js'
 import { backTarget, climbPath } from '../lib/backTarget.js'
 import { FILTER_KINDS, filterByKind, findWall, type KindFilter } from '../lib/guidebookView.js'
 import { cardSummary } from '../lib/locationList.js'
@@ -192,9 +192,12 @@ function WallBody({ locationId, wall }: { locationId: string; wall: GuidebookWal
 
       <SourcesFooter
         sources={[
-          `Routes and grades: ${GUIDEBOOK_SOURCE_LABEL}. ${missingNote(wall)}`,
+          { label: 'Routes', value: `${GUIDEBOOK_SOURCE_LABEL}. ${missingNote(wall)}` },
           // Named from the response the week card drew, and only once it did.
-          goodHoursSource === null ? '' : `Good hours: ${goodHoursSource}, read for the whole crag`,
+          {
+            label: 'Good hours',
+            value: goodHoursSource === null ? null : `${goodHoursSource}, for the whole crag`,
+          },
         ]}
       />
     </>
@@ -252,7 +255,7 @@ export function WallScreen() {
         style={{
           ...stack(spacing.listGapLg),
           padding: `${spacing.sectionGap}px`,
-          paddingBottom: `${spacing.bottomInset + spacing.sectionGap}px`,
+          paddingBottom: bottomClearance,
         }}
       >
         {content}

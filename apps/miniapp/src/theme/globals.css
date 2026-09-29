@@ -74,8 +74,10 @@ body {
   min-height: 100dvh;
   padding-top: env(safe-area-inset-top, 0px);
   padding-right: env(safe-area-inset-right, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
   padding-left: env(safe-area-inset-left, 0px);
+  /* No bottom inset here: each screen clears the home indicator itself with
+     `bottomClearance`, which takes the larger of it and the design's inset.
+     Adding it here as well stacked the two into a band of empty space. */
 }
 
 /* Kill the mobile tap highlight — it paints a grey box over the token surface

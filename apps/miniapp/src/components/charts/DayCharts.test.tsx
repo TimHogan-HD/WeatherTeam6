@@ -392,7 +392,7 @@ describe('DayCharts — dew point and humidity', () => {
   })
 
   it('names the model the dew point and humidity came from, and only when one is drawn', () => {
-    expect(render(series(humid))).toContain('Dew point and humidity: Open-Meteo (gfs_seamless)')
+    expect(render(series(humid))).toContain('Dew point and humidity: Open-Meteo · GFS')
     // The default fixture carries neither column.
     expect(render(series(fullDay))).not.toContain('Dew point and humidity')
     expect(render(series(fullDay))).toContain('No hourly humidity for this day.')
