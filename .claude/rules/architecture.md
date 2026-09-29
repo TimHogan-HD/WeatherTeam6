@@ -20,7 +20,7 @@ delivery gates are in `CLAUDE.md`; domain patterns are in the `miniapp-patterns`
   instantaneous value missed daytime surfaces by 6.7 °C MAE and the lagged one by 5.0, at a
   cost of 0.4 °C at night. The lagged value is the one the drying rate and the display read;
   `evaluateHour` has no history and stays instantaneous. The same script shows GFS's sunlight
-  is the least accurate of GFS, ECMWF and ICON, which the single-model rule above accepts.
+  is the least accurate of GFS, ECMWF and ICON; whether to change source is #212.
 - **The score on every screen is Crag A (`lib/scoring/cragModel.ts`), owner decision
   2026-09-24.** `score = 100 × dryness^0.55 × friction`. Crag A runs the drying clock on
   eight vertical walls and takes the median. **A location's score is always Crag A**: its
