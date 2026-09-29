@@ -73,7 +73,7 @@ export function createApp(): Express {
     // not serve one origin's headers to another.
     res.setHeader('Vary', 'Origin')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
     if (_req.method === 'OPTIONS') { res.sendStatus(204); return }
     next()
   })

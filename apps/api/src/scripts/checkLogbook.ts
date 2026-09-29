@@ -146,6 +146,17 @@ async function run(): Promise<void> {
     if (locA === undefined) throw new Error('could not create a location for user A')
     createdLocationIds.push(locA)
 
+    console.log('\n0. A browser may send PUT')
+    // The to-do and position routes are the API's first PUTs. Without PUT in
+    // the preflight answer every browser refuses them before they are sent,
+    // while this script's own fetch (no Origin, no preflight) sees a 200.
+    const preflight = await fetch(`${BASE}/logbook/todos/${route.id}`, {
+      method: 'OPTIONS',
+      headers: { Origin: 'http://localhost:5173', 'Access-Control-Request-Method': 'PUT' },
+    })
+    const allowed = preflight.headers.get('access-control-allow-methods') ?? ''
+    check('the CORS preflight allows PUT', /\bPUT\b/.test(allowed), `allowed: ${allowed}`)
+
     console.log('\n1. A tick is created and listed')
     const today = localToday()
     const posted = await call<RouteTick>('POST', '/logbook/ticks', tokenA, {
