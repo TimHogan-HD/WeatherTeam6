@@ -18,6 +18,7 @@ import { useLocations } from '../hooks/useLocations.js'
 import { useNow } from '../hooks/useNow.js'
 import { alertsQuery, conditionsQuery } from '../hooks/useWeather.js'
 import { LocationCard } from '../components/LocationCard.js'
+import { FeedbackButton } from '../components/FeedbackButton.js'
 import { EmptyState, InlineError, SkeletonCards } from '../components/States.js'
 import {
   ChevronDownIcon,
@@ -30,7 +31,7 @@ import {
 
 /**
  * `/` — the root, in the v2 layout: a header band carrying the title, the count
- * and freshness, the Report button in its corner, the Add button and the sort
+ * and freshness, the Feedback button in its corner, the Add button and the sort
  * control; a legend keying the chips; then the cards.
  *
  * No back affordance: there is nothing above this screen, and a control that
@@ -49,7 +50,6 @@ export function LocationList() {
   const locations = useLocations()
   const openLocation = useCallback((id: string) => void navigate(`/location/${id}`), [navigate])
   const openAdd = useCallback(() => void navigate('/add'), [navigate])
-  const openFeedback = useCallback(() => void navigate('/feedback'), [navigate])
 
   const [sort, setSort] = useSortPreference()
   const scores = useSettledScores(locations.data ?? [])
@@ -84,27 +84,7 @@ export function LocationList() {
             <h1 style={typeV2.screenTitle}>Locations</h1>
             {meta === null ? null : <p style={typeV2.meta}>{meta}</p>}
           </div>
-          {/*
-            The way in to `/feedback`, in the header's corner so it is found:
-            beside the sort control it read as part of the list's own controls
-            and was missed. "Report" rather than "Feedback" — short enough for
-            the corner, and it covers both halves of the screen, an app problem
-            and what the rock was actually like.
-          */}
-          <button
-            type="button"
-            onClick={openFeedback}
-            style={{
-              ...bareButton,
-              width: 'auto',
-              flexShrink: 0,
-              border: `1px solid ${colors.good}`,
-              borderRadius: `${radius.full}px`,
-              padding: `${spacing.listGap}px ${spacing.cardPadSm}px`,
-            }}
-          >
-            <span style={{ ...typeV2.controlValue, color: colors.good }}>Report</span>
-          </button>
+          <FeedbackButton />
         </div>
         <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
           <button

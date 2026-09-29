@@ -242,7 +242,13 @@ export function ClimbScreen() {
 
   return (
     <main style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-      <DetailHeader heading={heading} backLabel={wall?.name ?? 'Wall'} onBack={() => void navigate(back.to)} tabs={null} />
+      <DetailHeader
+        heading={heading}
+        backLabel={wall?.name ?? 'Wall'}
+        onBack={() => void navigate(back.to)}
+        feedbackLocationId={id === '' ? null : id}
+        tabs={null}
+      />
       <div
         style={{
           ...stack(spacing.listGapLg),

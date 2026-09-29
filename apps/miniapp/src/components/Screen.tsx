@@ -3,6 +3,7 @@ import { colors, spacing } from '@weatherteam6/design/tokens'
 import { layout, type } from '../theme/tokens.css.js'
 import { bareButton, row } from '../theme/styles.js'
 import { ChevronLeftIcon } from './Icons.js'
+import { FeedbackButton } from './FeedbackButton.js'
 
 type ScreenProps = {
   title: string
@@ -14,6 +15,8 @@ type ScreenProps = {
   onBack?: () => void
   /** Optional right-hand action in the title row, e.g. the list's add affordance. */
   action?: ReactNode
+  /** The Feedback button top-right. Off for login, which is signed out, and for `/feedback` itself. */
+  feedback?: boolean
   children: ReactNode
 }
 
@@ -25,7 +28,7 @@ type ScreenProps = {
  * the design's own clearance stacked on top of them — which is what §Design
  * System specifies.
  */
-export function Screen({ title, onBack, action, children }: ScreenProps) {
+export function Screen({ title, onBack, action, feedback = false, children }: ScreenProps) {
   return (
     <main
       style={{
@@ -34,7 +37,15 @@ export function Screen({ title, onBack, action, children }: ScreenProps) {
         paddingBottom: `${spacing.bottomInset}px`,
       }}
     >
-      {onBack === undefined ? null : <BackControl onBack={onBack} />}
+      {feedback ? (
+        <div style={{ ...row(spacing.cellPad), justifyContent: onBack === undefined ? 'flex-end' : 'space-between' }}>
+          {/* Centred on the button beside it, so the padding reaches out equally above and below. */}
+          {onBack === undefined ? null : <BackControl onBack={onBack} centred />}
+          <FeedbackButton />
+        </div>
+      ) : onBack === undefined ? null : (
+        <BackControl onBack={onBack} />
+      )}
       <div
         style={{
           display: 'flex',
@@ -63,7 +74,7 @@ export function Screen({ title, onBack, action, children }: ScreenProps) {
  * well under the 44px minimum, and padding is the only way to reach it without
  * drawing a box the mockups do not have.
  */
-function BackControl({ onBack }: { onBack: () => void }) {
+function BackControl({ onBack, centred = false }: { onBack: () => void; centred?: boolean }) {
   return (
     <button
       type="button"
@@ -72,13 +83,14 @@ function BackControl({ onBack }: { onBack: () => void }) {
         ...bareButton,
         ...row(spacing.tight),
         width: 'auto',
-        alignSelf: 'flex-start',
+        alignSelf: centred ? 'center' : 'flex-start',
         marginLeft: `-${spacing.cellPad}px`,
         paddingLeft: `${spacing.cellPad}px`,
         paddingRight: `${spacing.cellPad}px`,
         paddingTop: `${spacing.cellPad}px`,
         paddingBottom: `${spacing.cellPad}px`,
         marginTop: `-${spacing.cellPad}px`,
+        marginBottom: centred ? `-${spacing.cellPad}px` : undefined,
       }}
     >
       <ChevronLeftIcon color={colors.txt2} />

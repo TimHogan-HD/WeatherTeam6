@@ -241,7 +241,13 @@ export function WallScreen() {
 
   return (
     <main style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-      <DetailHeader heading={heading} backLabel={backLabel} onBack={() => void navigate(back.to)} tabs={null} />
+      <DetailHeader
+        heading={heading}
+        backLabel={backLabel}
+        onBack={() => void navigate(back.to)}
+        feedbackLocationId={id === '' ? null : id}
+        tabs={null}
+      />
       <div
         style={{
           ...stack(spacing.listGapLg),
