@@ -25,6 +25,7 @@ import {
 import { MAX_HOURS, MIN_HOURS } from './dryingModel.js'
 import {
   MASS_TAU_HOURS,
+  SURFACE_TAU_HOURS,
   saturationVapourPressureKpa,
   surfaceTemperature,
   type WallOrientation,
@@ -415,6 +416,47 @@ describe('evaluateHourlyConditions', () => {
     const out = evaluateHourlyConditions(sunlit, { rockType: 'granite', cliffAngleDeg: 0 })
     expect(out[109]!.rock!.qualified).toBe(true)
     expect(out[119]!.rock!.qualified).toBe(false)
+  })
+
+  const instantAt = (h: WeatherHour) =>
+    surfaceTemperature({
+      airTempC: h.air_temp_c,
+      shortwaveWm2: h.shortwave_wm2,
+      windKmh: h.wind_kmh,
+      cloudPct: h.cloud_pct,
+      cliffAngleDeg: 0,
+    }).t_surface_c!
+
+  it('lags the surface behind the sun rather than jumping to it', () => {
+    const hours = series(24)
+    for (let i = 10; i < 24; i++) hours[i]!.shortwave_wm2 = 800
+    const out = evaluateHourlyConditions(hours, { rockType: 'granite', cliffAngleDeg: 0 })
+    const dark = instantAt(hours[9]!)
+    const sunlit = instantAt(hours[10]!)
+
+    expect(out[9]!.t_surface_c).toBeCloseTo(dark, 6)
+    expect(out[10]!.t_surface_c).toBeCloseTo(dark + (1 - Math.exp(-1 / SURFACE_TAU_HOURS)) * (sunlit - dark), 6)
+    expect(out[23]!.t_surface_c).toBeCloseTo(sunlit, 0)
+  })
+
+  it('keeps the afternoon heat after the sun goes, and unqualifies that hour until it fades', () => {
+    const hours = series(120)
+    for (let i = 100; i < 110; i++) hours[i]!.shortwave_wm2 = 800
+    const out = evaluateHourlyConditions(hours, { rockType: 'granite', cliffAngleDeg: 0 })
+
+    expect(out[110]!.t_surface_c!).toBeGreaterThan(instantAt(hours[110]!) + 5)
+    expect(out[110]!.friction!.qualified).toBe(false)
+    expect(out[119]!.friction!.qualified).toBe(true)
+  })
+
+  it('withholds an hour whose sun was not measured and restarts from the next hour, not across the gap', () => {
+    const hours = series(24, { shortwave_wm2: 800 })
+    hours[12]!.shortwave_wm2 = null
+    hours[13]!.air_temp_c = 22
+    const out = evaluateHourlyConditions(hours, { rockType: 'granite', cliffAngleDeg: 0 })
+
+    expect(out[12]!.t_surface_c).toBeNull()
+    expect(out[13]!.t_surface_c).toBeCloseTo(instantAt(hours[13]!), 6)
   })
 })
 
