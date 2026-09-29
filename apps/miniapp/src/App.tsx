@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation as useRouterLocation } from 'react-router-dom'
 import { createQueryClient } from './lib/queryClient.js'
 import { getToken, subscribeToToken } from './lib/authToken.js'
 import { useAuthToken } from './hooks/useAuth.js'
@@ -40,6 +40,7 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <ScrollToTop />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route
@@ -107,4 +108,17 @@ function RequireAuth({ children }: { children: ReactNode }) {
   const token = useAuthToken()
   if (token === null) return <Navigate to="/login" replace />
   return <>{children}</>
+}
+
+/**
+ * A new screen opens at its top. The app is one document, so without this a
+ * wall opened from far down the Crag tab lands halfway down its own route list.
+ * Keyed on the path only: a tab change inside `/location/:id` keeps its place.
+ */
+function ScrollToTop() {
+  const { pathname } = useRouterLocation()
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname])
+  return null
 }

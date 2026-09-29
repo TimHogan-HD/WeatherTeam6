@@ -271,19 +271,23 @@ accumulation** (a bar per local day in a well, one shared scale). It reads
 "03 · Guidebook Flow" and "04 · Route Detail" sections (`v2 Dark — Crag` 63:2, `— Wall`
 63:224, `— Route` 64:2).** The Crag tab is the OpenBeta crag the location sits on: the
 area and its counts, the crag's readings now (`NowStrip`, the list card's path), routes by
-grade, and the walls on a position strip and in a list, west to east. A wall opens
-`/location/:id/wall/:wallId` (grades, kind filter, the routes); a route opens
-`…/route/:routeId` (grade, Mountain Project and OpenBeta links, *Climb it this week*, the
-recorded facts, beta, and its neighbours). Data is `GET /guidebook/:locationId`
-(`api-sources.md` § OpenBeta Routes). The identity block moved to the Rock tab. Deliberate
-departures from the frames:
+grade, and the walls listed A–Z. A wall opens `/location/:id/wall/:wallId` (the crag's
+readings now, *Climb it this week*, grades, kind filter, the routes); a route opens
+`…/route/:routeId` (grade, Mountain Project and OpenBeta links, the recorded facts, beta,
+and its neighbours). Data is `GET /guidebook/:locationId` (`api-sources.md` § OpenBeta
+Routes). The identity block moved to the Rock tab. Deliberate departures from the frames:
 
-- **Grades are one violet ramp, easy dark to hard bright, and boulders are neutral** —
-  not the frames' lime/amber/red, which are the ladder's. `gradeScale` in
-  `packages/design`, checked with the dataviz skill's ordinal validator.
-- **Wall markers are neutral numbered dots on a plain strip.** The frames' lime dots and
-  "Mississippi River (schematic)" band are dropped: lime is a verdict, and the river is
-  Red Wing's alone.
+- **Grades use the frames' own colours** — blue, teal, lime, amber, red, violet for
+  boulders — by **owner decision 2026-09-29**, overriding the rule that keeps the status
+  hues for the ladder. The exception is for grade marks only, each beside its printed
+  grade or count (`gradeScale`/`gradeBoulder` in `packages/design`). A violet single-hue
+  ramp shipped first and was replaced.
+- **No wall map, and walls are A–Z, not west to east** (owner, 2026-09-29). OpenBeta's
+  wall coordinates put Barn Bluff's walls where they are not, and an order read off the
+  same points repeats the error as a list. No "Wall n of m" either. A map needs wall
+  positions someone has checked on the ground.
+- ***Climb it this week* is on the wall screen, not the route** (owner, 2026-09-29): it is
+  the crag's reading, and a wall is the smallest thing it could honestly describe.
 - **"Left → right" and "On the wall" appear only on a wall OpenBeta orders** (every route
   its own position). Elsewhere the list is by grade and there are no neighbours.
 - **Readings are labelled pills** (`Dryness: Wet`), not the frames' bare words, and the

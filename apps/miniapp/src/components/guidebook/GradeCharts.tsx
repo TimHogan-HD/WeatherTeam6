@@ -13,10 +13,12 @@ import { typeV2, withOpacity } from '../../theme/tokens.css.js'
 import { row, stack } from '../../theme/styles.js'
 
 /**
- * Route difficulty, drawn. **One hue brightening with difficulty**
- * (`gradeScale`), and boulders in a neutral beside it — a V grade is not a
- * sixth step on the YDS scale. Every mark has its count or its grade printed
- * as text beside it, so colour never carries the reading alone.
+ * Route difficulty, drawn, in the Figma's grade colours (`gradeScale`, owner
+ * decision 2026-09-29) with boulders off the ramp in violet — a V grade is not
+ * a sixth step on the YDS scale. **Every mark has its count or its grade
+ * printed as text beside it**, which is the condition on which the grade marks
+ * may share the conditions ladder's lime, amber and red: colour never carries
+ * the reading alone.
  */
 
 export function gradeColor(band: GradeBand): string {

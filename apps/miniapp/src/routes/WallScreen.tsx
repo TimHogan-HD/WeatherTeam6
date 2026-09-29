@@ -4,6 +4,7 @@ import { colors, colorsV2, spacing } from '@weatherteam6/design/tokens'
 import {
   GUIDEBOOK_SOURCE_LABEL,
   ROUTE_KIND_LABELS,
+  modelSourceLabel,
   gradeRange,
   kindCounts,
   kindsLine,
@@ -20,10 +21,12 @@ import { cardSummary } from '../lib/locationList.js'
 import { useGuidebook } from '../hooks/useGuidebook.js'
 import { useLocation } from '../hooks/useLocations.js'
 import { useAlerts, useConditions } from '../hooks/useWeather.js'
+import { useHourly } from '../hooks/useHourly.js'
 import { DetailHeader, coordText } from '../components/DetailHeader.js'
 import { ChevronRightIcon } from '../components/Icons.js'
 import { NowStrip } from '../components/ReadingPills.js'
 import { SourcesFooter } from '../components/SourcesFooter.js'
+import { WeekCard } from '../components/guidebook/WeekCard.js'
 import { InlineError, Skeleton } from '../components/States.js'
 import { GradeBar, GradeChip, GradeLegend } from '../components/guidebook/GradeCharts.js'
 
@@ -106,6 +109,8 @@ function WallBody({ locationId, wall }: { locationId: string; wall: GuidebookWal
   const conditions = useConditions(locationId, location.data?.is_climbing_location)
   const alerts = useAlerts(locationId)
   const summary = cardSummary(conditions.data, alerts.data, alerts.isPending)
+  const hourly = useHourly(locationId)
+  const goodHoursSource = modelSourceLabel(hourly.data?.readings?.model ?? null)
 
   const counts = kindCounts(wall.routes)
   // A kind every route on the wall shares would filter to the same list as All.
@@ -130,6 +135,8 @@ function WallBody({ locationId, wall }: { locationId: string; wall: GuidebookWal
           )
         }
       />
+
+      <WeekCard locationId={locationId} />
 
       <section style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
         <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
@@ -172,7 +179,11 @@ function WallBody({ locationId, wall }: { locationId: string; wall: GuidebookWal
       </section>
 
       <SourcesFooter
-        sources={[`Routes and grades: ${GUIDEBOOK_SOURCE_LABEL}. ${missingNote(wall)}`.trim()]}
+        sources={[
+          `Routes and grades: ${GUIDEBOOK_SOURCE_LABEL}. ${missingNote(wall)}`,
+          // Named from the response the week card drew, and only once it did.
+          goodHoursSource === null ? '' : `Good hours: ${goodHoursSource}, read for the whole crag`,
+        ]}
       />
     </>
   )
@@ -192,7 +203,9 @@ export function WallScreen() {
     found === null || guidebook.data == null
       ? { eyebrow: null, title: null, meta: null }
       : {
-          eyebrow: `${guidebook.data.crag.name} · Wall ${found.number} of ${guidebook.data.walls.length}`,
+          // No "Wall n of m": the walls are listed A–Z, so a count along them
+          // would read as a position on the crag.
+          eyebrow: guidebook.data.crag.name,
           title: found.wall.name,
           meta: [
             found.wall.lat === null || found.wall.lon === null ? null : coordText(found.wall.lat, found.wall.lon),

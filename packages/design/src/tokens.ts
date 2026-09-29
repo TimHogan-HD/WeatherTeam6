@@ -226,20 +226,22 @@ export const chanceScale = ['#2c5282', '#63b3ed'] as const;
  * Route difficulty on the guidebook screens, easiest band first: 5.9 and under,
  * 5.10, 5.11, 5.12, 5.13 and up (`GRADE_BANDS` in `packages/types`).
  *
- * **One hue, lightness rising with difficulty**, because a grade is ordered and
- * a rainbow would claim five unrelated kinds. The WT6 Figma draws the bands in
- * lime, amber and red; those are the conditions ladder's and are not available
- * for a data mark, and a lime "5.11" beside a lime "Dry" would read as a
- * verdict. Checked with the dataviz skill's `validateOrdinal` against
- * `colorsV2.card`: monotone, every gap ≥ 0.06 L, the darkest step 3.4:1.
+ * **The WT6 Figma's own colours, by owner decision 2026-09-29** — blue, teal,
+ * lime, amber, red, exactly as the "03 · Guidebook Flow" Crag frame draws them.
+ * Three of them are `colors.good`/`fair`/`poor`, which the rule reserves for the
+ * conditions ladder; the owner chose these over a single-hue violet ramp that
+ * kept them apart, so **the exception covers grade marks only** — a grade bar,
+ * column, legend swatch or chip, always beside its printed grade or count. No
+ * other data mark borrows the status hues on the strength of this.
  */
-export const gradeScale = ['#6a5fd8', '#8577ea', '#a193f4', '#bdb1f9', '#dcd4fd'] as const;
+export const gradeScale = ['#90cdf4', '#7fd1c4', '#b8f542', '#f6ad55', '#fc8181'] as const;
 
 /**
- * Boulder problems beside `gradeScale`. **Neutral, because a V grade is not on
- * that scale** — a V4 is not "harder than 5.13", and a sixth step would say it is.
+ * Boulder problems beside `gradeScale` — the Figma's violet, which is also
+ * `colorsV2.precipMix`. Off the ramp because a V grade is not on that scale: a
+ * V4 is not "harder than 5.13", and a sixth step would say it is.
  */
-export const gradeBoulder = '#8e9aa8';
+export const gradeBoulder = '#b794f4';
 
 /**
  * Air temperature, as a **diverging ramp around the ideal climbing temperature**.
