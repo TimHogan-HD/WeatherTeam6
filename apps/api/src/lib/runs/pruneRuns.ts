@@ -1,10 +1,10 @@
-import { and, inArray, isNotNull, lt } from 'drizzle-orm'
+import { inArray, lt } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { weatherEnsembleHours, weatherRunHours, weatherRuns } from '../../db/schema.js'
 import { logger } from '../logger.js'
 
 /**
- * Parsed hours are kept for 2 days; the raw upstream payload for 48 hours.
+ * Parsed hours are kept for 2 days.
  *
  * **Cut from 14 days on 2026-09-10, because 14 never fitted.** Neon's free tier
  * caps a project at 512 MB, and production hit it: every write began failing
@@ -24,7 +24,7 @@ import { logger } from '../logger.js'
  *     3.0M x ~170 bytes with its primary-key index      ~ 510 MB
  *
  * That is the whole quota in `weather_run_hours` alone, before
- * `weather_ensemble_hours` and the raw payloads. At 2 days it is ~73 MB.
+ * `weather_ensemble_hours`. At 2 days it is ~73 MB.
  *
  * **The cost is run-over-run trend history, and nothing renders it today.** The
  * ensemble spread that the Mini App's confidence band draws comes from *within*
@@ -38,32 +38,6 @@ import { logger } from '../logger.js'
 export const PARSED_RETENTION_DAYS = 2
 
 /**
- * How long the raw upstream payload is kept. **Cut from 48h to 6h on 2026-09-14.**
- *
- * `raw` is the single most expensive thing in this database and it was invisible in
- * the arithmetic that justified cutting `PARSED_RETENTION_DAYS`. Measured on the
- * real database: `weather_runs` held **274 MB across 6,181 rows** — 56% of the
- * whole project — because 938 of those rows carried an ensemble payload averaging
- * **~292 KB** each. 143 members over 384 hours is a very large JSON document.
- *
- * Only the ensemble run stores `raw` at all, so this is ~1 row per location per
- * collection. At 48h that is 6 locations x 24 hours x 2 days x 292 KB ~ **84 MB**
- * of steady state, against a 512 MB project cap. At 6h it is ~10 MB.
- *
- * **Nothing reads it.** `architecture.md` describes it as the re-derivation path
- * for a member-level view, and no such view exists on any surface. If one is ever
- * built, it needs this window widened *and* a storage plan that can pay for it —
- * the two are the same decision, which is why the number lives here with its cost
- * attached rather than as a bare constant.
- *
- * Note the interaction with `PARSED_RETENTION_DAYS`: while both were 48h the
- * raw-clearing UPDATE was a no-op, because anything old enough to clear was
- * already old enough to delete outright. At 6h it does real work again on rows
- * aged 6-48h, which is the point.
- */
-export const RAW_RETENTION_HOURS = 6
-
-/**
  * A run is only pruned in chunks so a long-neglected schedule cannot build one
  * `DELETE ... IN (...)` with tens of thousands of ids.
  */
@@ -73,12 +47,10 @@ export type PruneResult = {
   runsDeleted: number
   hoursDeleted: number
   ensembleHoursDeleted: number
-  rawCleared: number
 }
 
 /**
- * Delete expired runs and their hours, then drop the raw payload from runs that
- * are still inside the parsed window but past the raw one.
+ * Delete expired runs and their hours.
  *
  * **Children before parents.** No FK in this schema declares `onDelete`, so
  * deleting a `weather_runs` row that still has `weather_run_hours` is a
@@ -91,7 +63,6 @@ export type PruneResult = {
  */
 export async function pruneWeatherRuns(now: Date = new Date()): Promise<PruneResult> {
   const parsedCutoff = new Date(now.getTime() - PARSED_RETENTION_DAYS * 24 * 60 * 60 * 1000)
-  const rawCutoff = new Date(now.getTime() - RAW_RETENTION_HOURS * 60 * 60 * 1000)
 
   const expired = await db
     .select({ id: weatherRuns.id })
@@ -102,7 +73,6 @@ export async function pruneWeatherRuns(now: Date = new Date()): Promise<PruneRes
     runsDeleted: 0,
     hoursDeleted: 0,
     ensembleHoursDeleted: 0,
-    rawCleared: 0,
   }
 
   for (let i = 0; i < expired.length; i += PRUNE_BATCH) {
@@ -129,15 +99,6 @@ export async function pruneWeatherRuns(now: Date = new Date()): Promise<PruneRes
       result.runsDeleted += runsGone.length
     })
   }
-
-  // The raw payload is the re-derivation path for member-level views and is by
-  // far the largest column here. Clearing it leaves the parsed hours intact.
-  const cleared = await db
-    .update(weatherRuns)
-    .set({ raw: null })
-    .where(and(lt(weatherRuns.fetched_at, rawCutoff), isNotNull(weatherRuns.raw)))
-    .returning({ id: weatherRuns.id })
-  result.rawCleared = cleared.length
 
   logger.info(result, '[pruneRuns] prune complete')
   return result

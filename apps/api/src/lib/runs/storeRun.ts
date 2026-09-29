@@ -61,7 +61,6 @@ async function upsertRun(values: typeof weatherRuns.$inferInsert): Promise<strin
         utc_offset_seconds: values.utc_offset_seconds,
         model_elevation_m: values.model_elevation_m ?? null,
         precip_prob_is_shared: values.precip_prob_is_shared ?? null,
-        raw: values.raw ?? null,
       },
     })
     .returning({ id: weatherRuns.id })
@@ -160,12 +159,6 @@ async function storeOneModel(
  * signal, and `result.unavailable_models` is what names them to the caller. A
  * stored empty run would be indistinguishable from a model that answered with
  * nothing.
- *
- * `raw` stays null here. Every deterministic variable requested has a column on
- * `weather_run_hours`, so the parsed rows are the whole payload — and one
- * response covering six models would otherwise be stored six times to preserve
- * nothing. Only the ensemble keeps its raw payload, where three percentiles
- * genuinely discard 143 members.
  */
 export async function storeDeterministicRun(
   point_key: string,
@@ -176,7 +169,6 @@ export async function storeDeterministicRun(
     fetched_at: result.fetched_at,
     utc_offset_seconds: result.utc_offset_seconds,
     model_elevation_m: result.model_elevation_m,
-    raw: null,
   }
 
   const stored: StoredRun[] = []
@@ -201,7 +193,6 @@ export async function storeEnsembleRun(
     model_elevation_m: null,
     // Not applicable to an ensemble run, and null here means exactly that.
     precip_prob_is_shared: null,
-    raw: run.raw ?? null,
   })
   if (!runId) return null
 
