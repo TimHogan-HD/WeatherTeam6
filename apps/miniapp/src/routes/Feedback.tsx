@@ -54,7 +54,7 @@ export function Feedback() {
   }, [navigate, fromLocationId])
 
   return (
-    <Screen title="Feedback" onBack={onBack}>
+    <Screen title="Report" onBack={onBack}>
       <div style={{ ...stack(spacing.listGapLg), paddingTop: `${spacing.sectionTop}px` }}>
         <div role="group" aria-label="Kind of feedback" style={{ ...row(spacing.chipGap), flexWrap: 'wrap' }}>
           {FEEDBACK_KINDS.map((k) => (
