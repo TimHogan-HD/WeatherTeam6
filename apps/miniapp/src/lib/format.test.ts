@@ -49,27 +49,39 @@ describe('formatUpdatedAt', () => {
 
 describe('formatRunAge', () => {
   const iso = (offsetMs: number) => new Date(NOW - offsetMs).toISOString()
+  const checked = (offsetMs: number) => ({ fetched_at: iso(5 * 3_600_000), checked_at: iso(offsetMs) })
 
   it('crosses each boundary once', () => {
-    expect(formatRunAge(iso(0), NOW)).toBe('Forecast fetched just now')
-    expect(formatRunAge(iso(60_000), NOW)).toBe('Forecast fetched 1 min ago')
-    expect(formatRunAge(iso(59 * 60_000), NOW)).toBe('Forecast fetched 59 min ago')
-    expect(formatRunAge(iso(60 * 60_000), NOW)).toBe('Forecast fetched 1 h ago')
+    expect(formatRunAge(checked(0), NOW)).toBe('Forecast checked just now')
+    expect(formatRunAge(checked(60_000), NOW)).toBe('Forecast checked 1 min ago')
+    expect(formatRunAge(checked(59 * 60_000), NOW)).toBe('Forecast checked 59 min ago')
+    expect(formatRunAge(checked(60 * 60_000), NOW)).toBe('Forecast checked 1 h ago')
+  })
+
+  it('prints the check time, not a fetch hours older', () => {
+    // A slow model is refetched only when upstream publishes, so its fetch is
+    // routinely hours old while the forecast is current.
+    expect(formatRunAge(checked(10 * 60_000), NOW)).toBe('Forecast checked 10 min ago')
+  })
+
+  it('falls back to the fetch time, under its own word, for an API without checked_at', () => {
+    expect(formatRunAge({ fetched_at: iso(20 * 60_000) }, NOW)).toBe('Forecast fetched 20 min ago')
   })
 
   it('says nothing for a run that did not carry a timestamp', () => {
     // Null is unknown. A freshness claim is worse than no line at all.
-    expect(formatRunAge(null, NOW)).toBeNull()
+    expect(formatRunAge({ fetched_at: null, checked_at: null }, NOW)).toBeNull()
+    expect(formatRunAge({ fetched_at: null }, NOW)).toBeNull()
   })
 
   it('says nothing for a timestamp it cannot read', () => {
-    expect(formatRunAge('never', NOW)).toBeNull()
+    expect(formatRunAge({ fetched_at: null, checked_at: 'never' }, NOW)).toBeNull()
   })
 
   it('says nothing for a run stamped in the future', () => {
     // Clock skew between the device and the server. "-3 min ago" is the naive
     // answer and it renders as a measurement.
-    expect(formatRunAge(iso(-3 * 60_000), NOW)).toBeNull()
+    expect(formatRunAge(checked(-3 * 60_000), NOW)).toBeNull()
   })
 })
 

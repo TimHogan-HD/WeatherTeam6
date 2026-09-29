@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, inArray, sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { weatherEnsembleHours, weatherRunHours, weatherRuns } from '../../db/schema.js'
 import { logger } from '../logger.js'
@@ -35,8 +35,23 @@ import { ENSEMBLE_RUN_MODEL, storeDeterministicRun, storeEnsembleRun } from './s
  * for the local-day bucketing.
  */
 
-/** How old a stored run may be before a panel re-fetches. Open-Meteo publishes hourly. */
+/**
+ * When the most recently checked stored model is older than this, the
+ * collection is not running and a panel fetches live. `collect-runs` checks
+ * every model hourly, so a healthy database always clears it.
+ */
 export const RUN_MAX_AGE_MINUTES = 60
+
+/**
+ * A stored model not checked within this is left out and named unavailable.
+ *
+ * **Longer than `RUN_MAX_AGE_MINUTES` on purpose (issue #179).** One model's
+ * fetch failing in one collection must not blank it for the next hour while
+ * the previous hour's copy is still sitting there — the rock readings hang off
+ * a single model, and losing it withheld every score at the crag. Three hours
+ * tolerates two missed collections; the age travels with the model.
+ */
+export const STORED_MODEL_MAX_AGE_MINUTES = 180
 
 /** One hour of one deterministic model, at a real instant. */
 export type RunHour = Omit<HourlyPoint, 'valid_at_local'> & { valid_at: Date }
@@ -51,6 +66,10 @@ export type ModelRun = {
    * rather than claim the field is that model's own.
    */
   readonly probability_is_shared: boolean | null
+  /** When this model's run was fetched from upstream. */
+  readonly fetched_at: Date
+  /** When this run was last confirmed the newest upstream — see `weather_runs.checked_at`. */
+  readonly checked_at: Date
 }
 
 export type DeterministicRuns = {
@@ -63,8 +82,14 @@ export type DeterministicRuns = {
    */
   readonly unavailable_models: readonly string[]
   readonly utc_offset_seconds: number
-  /** When the data was fetched from upstream — **not** a model initialization time. */
+  /**
+   * The **oldest** `fetched_at` across `models` — **not** a model initialization
+   * time. Models are fetched only when upstream changes, so this is routinely
+   * hours old for a current forecast; `checked_at` is the freshness claim.
+   */
   readonly fetched_at: Date | null
+  /** The oldest `checked_at` across `models`: every one was current as of this. */
+  readonly checked_at: Date | null
 }
 
 /**
@@ -84,72 +109,88 @@ export type EnsembleRuns = {
   readonly hours: readonly EnsembleRunHour[]
   readonly utc_offset_seconds: number
   readonly fetched_at: Date | null
+  readonly checked_at: Date | null
 }
 
 function cutoffFrom(now: Date, maxAgeMinutes: number): Date {
   return new Date(now.getTime() - maxAgeMinutes * 60_000)
 }
 
-/**
- * The `fetched_at` of the most recent run for a point that is still fresh, or
- * `null`.
- *
- * One batch of models shares one `fetched_at` (it comes from the fetch, not from
- * `now()`), so this is what identifies a batch — selecting rows by "newest per
- * model" instead would mix a model collected an hour ago with one collected now
- * and print them under a single header.
- */
-async function latestBatchAt(
-  pointKey: string,
-  kind: 'deterministic' | 'ensemble',
-  cutoff: Date,
-): Promise<Date | null> {
-  const rows = await db
-    .select({ fetched_at: weatherRuns.fetched_at })
-    .from(weatherRuns)
-    .where(
-      and(
-        eq(weatherRuns.point_key, pointKey),
-        eq(weatherRuns.kind, kind),
-        gte(weatherRuns.fetched_at, cutoff),
-      ),
-    )
-    .orderBy(desc(weatherRuns.fetched_at))
-    .limit(1)
+/** A run with no `checked_at` was last known current when it was fetched. */
+const checkedAt = sql<Date>`coalesce(${weatherRuns.checked_at}, ${weatherRuns.fetched_at})`
 
-  return rows[0]?.fetched_at ?? null
+type StoredRunRow = {
+  id: string
+  model: string
+  shared: boolean | null
+  offset: number
+  fetched_at: Date
+  checked_at: Date
 }
 
 /**
- * The freshest stored deterministic batch, or `null` when there is none inside
- * the cutoff.
+ * The newest run of each model at a point that was checked at or after
+ * `cutoff`.
  *
- * Exported for `npm run check:weather-runs`, which is the only thing that can
- * see this at all: vitest never opens a connection, so the batch selection, the
- * cutoff and the nulls surviving as nulls are invisible to the test suite.
+ * **Per model, not per batch.** Models are fetched only when upstream changes,
+ * so one point's current runs carry different `fetched_at`s by design, and a
+ * collection whose fetch failed for one model must not hide that model's
+ * previous copy (issue #179). Each model carries its own age instead.
  */
-export async function loadStoredDeterministic(
+async function newestRunPerModel(
   pointKey: string,
+  kind: 'deterministic' | 'ensemble',
   cutoff: Date,
-): Promise<DeterministicRuns | null> {
-  const fetchedAt = await latestBatchAt(pointKey, 'deterministic', cutoff)
-  if (fetchedAt === null) return null
-
-  const runs = await db
-    .select({
+): Promise<StoredRunRow[]> {
+  const rows = await db
+    .selectDistinctOn([weatherRuns.model], {
       id: weatherRuns.id,
       model: weatherRuns.model,
       shared: weatherRuns.precip_prob_is_shared,
       offset: weatherRuns.utc_offset_seconds,
+      fetched_at: weatherRuns.fetched_at,
+      checked_at: checkedAt,
     })
     .from(weatherRuns)
     .where(
       and(
         eq(weatherRuns.point_key, pointKey),
-        eq(weatherRuns.kind, 'deterministic'),
-        eq(weatherRuns.fetched_at, fetchedAt),
+        eq(weatherRuns.kind, kind),
+        gte(checkedAt, cutoff),
       ),
     )
+    .orderBy(weatherRuns.model, desc(weatherRuns.fetched_at))
+
+  // A raw `sql` column comes back as the driver's string, not a Date.
+  return rows.map((r) => ({ ...r, checked_at: new Date(r.checked_at) }))
+}
+
+function oldest(dates: readonly Date[]): Date | null {
+  let out: Date | null = null
+  for (const d of dates) if (out === null || d.getTime() < out.getTime()) out = d
+  return out
+}
+
+function newest(dates: readonly Date[]): Date | null {
+  let out: Date | null = null
+  for (const d of dates) if (out === null || d.getTime() > out.getTime()) out = d
+  return out
+}
+
+/**
+ * The newest stored run of each deterministic model checked at or after
+ * `cutoff`, or `null` when there is none.
+ *
+ * Exported for `npm run check:weather-runs`, which is the only thing that can
+ * see this at all: vitest never opens a connection, so the per-model
+ * selection, the cutoff and the nulls surviving as nulls are invisible to the
+ * test suite.
+ */
+export async function loadStoredDeterministic(
+  pointKey: string,
+  cutoff: Date,
+): Promise<DeterministicRuns | null> {
+  const runs = await newestRunPerModel(pointKey, 'deterministic', cutoff)
   if (runs.length === 0) return null
 
   const hours = await db
@@ -188,36 +229,61 @@ export async function loadStoredDeterministic(
     model: r.model,
     hours: byRun.get(r.id) ?? [],
     probability_is_shared: r.shared,
+    fetched_at: r.fetched_at,
+    checked_at: r.checked_at,
   }))
   const present = new Set(models.map((m) => m.model))
 
   return {
     models,
-    // Derived from what is actually stored. A model missing from the batch was
-    // either out of coverage or failed to fetch — both mean nothing can be shown
-    // for it, which is what the panel says.
+    // Derived from what is actually stored. A model with no recent run was
+    // either out of coverage or failing to fetch — both mean nothing can be
+    // shown for it, which is what the panel says.
     unavailable_models: DETERMINISTIC_MODELS.filter((m) => !present.has(m)),
     utc_offset_seconds: runs[0]?.offset ?? 0,
-    fetched_at: fetchedAt,
+    fetched_at: oldest(runs.map((r) => r.fetched_at)),
+    checked_at: oldest(runs.map((r) => r.checked_at)),
   }
 }
 
 /**
- * The freshest deterministic run for a point: stored if recent enough, fetched
- * and written back otherwise.
+ * Whether a stored read can be served without fetching: something in it was
+ * checked inside `RUN_MAX_AGE_MINUTES`, so the collection is running. Models
+ * checked earlier than that are still served, with their age.
+ */
+function collectionIsRunning(latestCheck: Date | null, now: Date): boolean {
+  return latestCheck !== null && latestCheck.getTime() >= cutoffFrom(now, RUN_MAX_AGE_MINUTES).getTime()
+}
+
+/**
+ * The newest deterministic run of each model for a point: stored while the
+ * collection is running, fetched and written back otherwise.
  *
  * @throws {Error} only when the upstream fetch fails and there was nothing
- * stored. A storage failure is logged and the live data is still returned.
+ * stored inside `STORED_MODEL_MAX_AGE_MINUTES`. A storage failure is logged and
+ * the live data is still returned.
  */
 export async function getDeterministicRuns(
   point: ForecastLocation,
   now: Date = new Date(),
 ): Promise<DeterministicRuns> {
   const pointKey = pointKeyForPlace(point)
-  const stored = await loadStoredDeterministic(pointKey, cutoffFrom(now, RUN_MAX_AGE_MINUTES))
-  if (stored !== null) return stored
+  const stored = await loadStoredDeterministic(
+    pointKey,
+    cutoffFrom(now, STORED_MODEL_MAX_AGE_MINUTES),
+  )
+  if (stored !== null && collectionIsRunning(newest(stored.models.map((m) => m.checked_at)), now)) {
+    return stored
+  }
 
-  const result = await fetchDeterministicHourly(point, DETERMINISTIC_MODELS)
+  let result: Awaited<ReturnType<typeof fetchDeterministicHourly>>
+  try {
+    result = await fetchDeterministicHourly(point, DETERMINISTIC_MODELS)
+  } catch (err) {
+    // Older stored runs, each labelled with its own age, beat an error page.
+    if (stored !== null) return stored
+    throw err
+  }
 
   try {
     await storeDeterministicRun(pointKey, result)
@@ -233,10 +299,13 @@ export async function getDeterministicRuns(
       model: m.model,
       hours: toRunHours(m.hours, result.utc_offset_seconds),
       probability_is_shared: m.probability_is_shared,
+      fetched_at: result.fetched_at,
+      checked_at: result.fetched_at,
     })),
     unavailable_models: result.unavailable_models,
     utc_offset_seconds: result.utc_offset_seconds,
     fetched_at: result.fetched_at,
+    checked_at: result.fetched_at,
   }
 }
 
@@ -261,22 +330,8 @@ export async function loadStoredEnsemble(
   pointKey: string,
   cutoff: Date,
 ): Promise<EnsembleRuns | null> {
-  const fetchedAt = await latestBatchAt(pointKey, 'ensemble', cutoff)
-  if (fetchedAt === null) return null
-
-  const runs = await db
-    .select({ id: weatherRuns.id, offset: weatherRuns.utc_offset_seconds })
-    .from(weatherRuns)
-    .where(
-      and(
-        eq(weatherRuns.point_key, pointKey),
-        eq(weatherRuns.model, ENSEMBLE_RUN_MODEL),
-        eq(weatherRuns.fetched_at, fetchedAt),
-      ),
-    )
-    .limit(1)
-
-  const run = runs[0]
+  const runs = await newestRunPerModel(pointKey, 'ensemble', cutoff)
+  const run = runs.find((r) => r.model === ENSEMBLE_RUN_MODEL)
   if (!run) return null
 
   const rows = await db
@@ -305,7 +360,8 @@ export async function loadStoredEnsemble(
       model_member_counts: asCounts(r.model_member_counts),
     })),
     utc_offset_seconds: run.offset,
-    fetched_at: fetchedAt,
+    fetched_at: run.fetched_at,
+    checked_at: run.checked_at,
   }
 }
 
@@ -330,17 +386,24 @@ function asCounts(value: unknown): Record<string, number> {
  * "no wet count recorded" and "no member expects rain" are different facts and
  * only one of them is a 0% chance.
  *
- * @throws {Error} only when the upstream fetch fails with nothing stored.
+ * @throws {Error} only when the upstream fetch fails with nothing stored inside
+ * `STORED_MODEL_MAX_AGE_MINUTES`.
  */
 export async function getEnsembleRuns(
   point: ForecastLocation,
   now: Date = new Date(),
 ): Promise<EnsembleRuns> {
   const pointKey = pointKeyForPlace(point)
-  const stored = await loadStoredEnsemble(pointKey, cutoffFrom(now, RUN_MAX_AGE_MINUTES))
-  if (stored !== null) return stored
+  const stored = await loadStoredEnsemble(pointKey, cutoffFrom(now, STORED_MODEL_MAX_AGE_MINUTES))
+  if (stored !== null && collectionIsRunning(stored.checked_at, now)) return stored
 
-  const run = await fetchEnsembleRun(point)
+  let run: Awaited<ReturnType<typeof fetchEnsembleRun>>
+  try {
+    run = await fetchEnsembleRun(point)
+  } catch (err) {
+    if (stored !== null) return stored
+    throw err
+  }
 
   try {
     await storeEnsembleRun(pointKey, run)
@@ -360,5 +423,5 @@ export async function getEnsembleRuns(
     hours.push({ valid_at, ...values })
   }
 
-  return { hours, utc_offset_seconds: offset, fetched_at: run.fetched_at }
+  return { hours, utc_offset_seconds: offset, fetched_at: run.fetched_at, checked_at: run.fetched_at }
 }

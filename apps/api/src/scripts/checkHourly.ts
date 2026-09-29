@@ -177,8 +177,9 @@ async function run(): Promise<void> {
     unavailable_models: [],
     utc_offset_seconds: 0,
     fetched_at: null,
+    checked_at: null,
   }
-  const ens = ensemble ?? { hours: [], utc_offset_seconds: 0, fetched_at: null }
+  const ens = ensemble ?? { hours: [], utc_offset_seconds: 0, fetched_at: null, checked_at: null }
 
   // ── did the deterministic half of collect-runs actually store anything? ───────
   //

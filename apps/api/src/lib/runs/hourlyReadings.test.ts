@@ -52,7 +52,7 @@ function runHours(
 }
 
 function model(name: string, hours: RunHour[]): ModelRun {
-  return { model: name, hours, probability_is_shared: false }
+  return { model: name, hours, probability_is_shared: false, fetched_at: NOW, checked_at: NOW }
 }
 
 function deterministic(models: ModelRun[]): DeterministicRuns {
@@ -61,6 +61,7 @@ function deterministic(models: ModelRun[]): DeterministicRuns {
     unavailable_models: [],
     utc_offset_seconds: OFFSET,
     fetched_at: NOW,
+    checked_at: NOW,
   }
 }
 

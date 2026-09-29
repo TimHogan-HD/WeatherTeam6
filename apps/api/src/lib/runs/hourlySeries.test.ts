@@ -58,15 +58,15 @@ function ens(overrides: Partial<EnsembleRunHour> & { valid_at: Date }): Ensemble
 }
 
 function model(name: string, hours: RunHour[], shared: boolean | null = false): ModelRun {
-  return { model: name, hours, probability_is_shared: shared }
+  return { model: name, hours, probability_is_shared: shared, fetched_at: new Date('2026-09-08T12:00:00Z'), checked_at: new Date('2026-09-08T12:00:00Z') }
 }
 
 function runs(models: ModelRun[], fetchedAt: Date | null = new Date('2026-09-08T12:00:00Z')): DeterministicRuns {
-  return { models, unavailable_models: [], utc_offset_seconds: PDT, fetched_at: fetchedAt }
+  return { models, unavailable_models: [], utc_offset_seconds: PDT, fetched_at: fetchedAt, checked_at: fetchedAt }
 }
 
 function ensRuns(hours: EnsembleRunHour[], fetchedAt: Date | null = new Date('2026-09-08T12:00:00Z')): EnsembleRuns {
-  return { hours, utc_offset_seconds: PDT, fetched_at: fetchedAt }
+  return { hours, utc_offset_seconds: PDT, fetched_at: fetchedAt, checked_at: fetchedAt }
 }
 
 describe('hourHasModelData', () => {
@@ -339,7 +339,7 @@ describe('buildHourlySeries', () => {
     const at = new Date('2026-09-09T03:00:00Z') // 20:00 local on the 8th
     const series = buildHourlySeries({
       locationId: 'loc-1',
-      deterministic: { models: [], unavailable_models: [], utc_offset_seconds: 0, fetched_at: null },
+      deterministic: { models: [], unavailable_models: [], utc_offset_seconds: 0, fetched_at: null, checked_at: null },
       ensemble: ensRuns([ens({ valid_at: at, temp_c_p50: 24 })]),
       allModels: false,
       now,
@@ -416,8 +416,9 @@ describe('buildHourlySeries — offset selection', () => {
         unavailable_models: [],
         utc_offset_seconds: 0,
         fetched_at: null,
+        checked_at: null,
       },
-      ensemble: { hours: [], utc_offset_seconds: 3600, fetched_at: null },
+      ensemble: { hours: [], utc_offset_seconds: 3600, fetched_at: null, checked_at: null },
       allModels: false,
       now,
       scoring: null,

@@ -903,8 +903,11 @@ export type ModelHourly = {
    * the attribution defect (`defect-patterns.md` section 3), and it is derived
    * here rather than hardcoded because which models share a series is an
    * upstream decision that can change.
+   *
+   * **Null means the response could not answer** — it did not carry every
+   * model, so there was nothing to compare against (see `collectRuns`).
    */
-  probability_is_shared: boolean
+  probability_is_shared: boolean | null
 }
 
 export type DeterministicResult = {
