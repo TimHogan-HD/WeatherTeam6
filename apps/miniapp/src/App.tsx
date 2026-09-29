@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation as useRouterLocation } from 'react-router-dom'
 import { createQueryClient } from './lib/queryClient.js'
 import { getToken, subscribeToToken } from './lib/authToken.js'
 import { useAuthToken } from './hooks/useAuth.js'
@@ -9,6 +9,8 @@ import { Feedback } from './routes/Feedback.js'
 import { LocationDetail } from './routes/LocationDetail.js'
 import { LocationList } from './routes/LocationList.js'
 import { Login } from './routes/Login.js'
+import { WallScreen } from './routes/WallScreen.js'
+import { ClimbScreen } from './routes/ClimbScreen.js'
 
 const queryClient = createQueryClient()
 
@@ -29,7 +31,8 @@ subscribeToToken(() => {
 })
 
 /**
- * Five client-side routes, no server routes — Vercel rewrites every path to
+ * Seven client-side routes — list, detail, add, login and feedback, plus the
+ * guidebook's wall and route screens — and no server routes: Vercel rewrites every path to
  * `index.html` (miniapp-design-v1.md §2, plus `/login` from Phase 2 of
  * `docs/handoffs/leave-telegram-v1.md`, and `/feedback`). An unrecognised path lands on the list
  * silently; the app never renders an error for a bad URL.
@@ -38,6 +41,7 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <ScrollToTop />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route
@@ -53,6 +57,22 @@ export function App() {
             element={
               <RequireAuth>
                 <LocationDetail />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/location/:id/wall/:wallId"
+            element={
+              <RequireAuth>
+                <WallScreen />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/location/:id/wall/:wallId/route/:routeId"
+            element={
+              <RequireAuth>
+                <ClimbScreen />
               </RequireAuth>
             }
           />
@@ -97,4 +117,17 @@ function RequireAuth({ children }: { children: ReactNode }) {
   const token = useAuthToken()
   if (token === null) return <Navigate to="/login" replace />
   return <>{children}</>
+}
+
+/**
+ * A new screen opens at its top. The app is one document, so without this a
+ * wall opened from far down the Crag tab lands halfway down its own route list.
+ * Keyed on the path only: a tab change inside `/location/:id` keeps its place.
+ */
+function ScrollToTop() {
+  const { pathname } = useRouterLocation()
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname])
+  return null
 }

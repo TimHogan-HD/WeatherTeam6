@@ -20,6 +20,7 @@
     "user:add": "tsx src/scripts/addUser.ts",
     "locations:lock-known-crags": "tsx src/scripts/lockKnownCrags.ts",
     "probe:models": "tsx src/scripts/probeModels.ts",
+    "guidebook:pull": "tsx src/scripts/pullGuidebook.ts",
     
     
     "check:auth": "tsx src/scripts/checkAuth.ts",

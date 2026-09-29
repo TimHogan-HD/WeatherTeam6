@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { colors, spacing } from '@weatherteam6/design/tokens'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, stack } from '../theme/styles.js'
-import { backTarget } from '../lib/backTarget.js'
+import { backTarget, wallPath } from '../lib/backTarget.js'
 import { formatRunAge } from '../lib/format.js'
 import { useDeleteLocation, useLocation } from '../hooks/useLocations.js'
 import { useAlerts, useConditions, useForecast } from '../hooks/useWeather.js'
@@ -11,7 +11,8 @@ import { useHourly } from '../hooks/useHourly.js'
 import { useNow } from '../hooks/useNow.js'
 import { useRecentPrecip } from '../hooks/useRecentPrecip.js'
 import { useWalls } from '../hooks/useWalls.js'
-import { DetailHeader } from '../components/DetailHeader.js'
+import { useGuidebook } from '../hooks/useGuidebook.js'
+import { DetailHeader, locationHeading } from '../components/DetailHeader.js'
 import { DetailView, detailTabs, type DetailTab } from '../components/DetailView.js'
 import { dayIsDrawable, firstDrawableDay } from '../components/charts/hourlySeries.js'
 import { InlineError, Skeleton } from '../components/States.js'
@@ -46,10 +47,19 @@ export function LocationDetail() {
   const hourly = useHourly(id)
   const recentPrecip = useRecentPrecip(id)
   const walls = useWalls(id, location.data?.is_climbing_location)
+  const guidebook = useGuidebook(id, location.data?.is_climbing_location)
+  const [searchParams] = useSearchParams()
 
   // The tabs live here rather than inside `DetailView` because back is
   // registered per route (§2) and has to be able to change the tab.
-  const [tab, setTab] = useState<DetailTab>('overview')
+  // `?tab=` is how the guidebook screens link back in — a wall's back to Crag
+  // (`cragTabPath`), a route's "Hourly ›" to Hourly. Only the opening tab:
+  // after that the route holds it, as before. A city asking for Crag falls
+  // back to Overview below, like any tab it does not offer.
+  const [tab, setTab] = useState<DetailTab>(() => {
+    const asked = searchParams.get('tab')
+    return detailTabs(true).find((o) => o.value === asked)?.value ?? 'overview'
+  })
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   // The day Hourly opens on.
@@ -140,6 +150,15 @@ export function LocationDetail() {
         }}
         walls={walls.data}
         location={location.data}
+        guidebook={{
+          data: guidebook.data,
+          isPending: guidebook.isPending,
+          isError: guidebook.isError,
+          refetch: () => void guidebook.refetch(),
+          onOpenWall: (wallId: string) => {
+            if (id !== undefined) void navigate(wallPath(id, wallId))
+          },
+        }}
       />
 
       {/*
@@ -187,10 +206,9 @@ export function LocationDetail() {
   return (
     <main style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
       <DetailHeader
-        location={location.data ?? null}
+        heading={locationHeading(location.data ?? null, freshness)}
         backLabel={backLabel}
         onBack={onBack}
-        freshness={freshness}
         tabs={
           options === null
             ? null

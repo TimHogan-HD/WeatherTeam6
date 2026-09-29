@@ -223,6 +223,27 @@ export const windScale = ['#a0aec0', '#f0f4f8'] as const;
 export const chanceScale = ['#2c5282', '#63b3ed'] as const;
 
 /**
+ * Route difficulty on the guidebook screens, easiest band first: 5.9 and under,
+ * 5.10, 5.11, 5.12, 5.13 and up (`GRADE_BANDS` in `packages/types`).
+ *
+ * **The WT6 Figma's own colours, by owner decision 2026-09-29** — blue, teal,
+ * lime, amber, red, exactly as the "03 · Guidebook Flow" Crag frame draws them.
+ * Three of them are `colors.good`/`fair`/`poor`, which the rule reserves for the
+ * conditions ladder; the owner chose these over a single-hue violet ramp that
+ * kept them apart, so **the exception covers grade marks only** — a grade bar,
+ * column, legend swatch or chip, always beside its printed grade or count. No
+ * other data mark borrows the status hues on the strength of this.
+ */
+export const gradeScale = ['#90cdf4', '#7fd1c4', '#b8f542', '#f6ad55', '#fc8181'] as const;
+
+/**
+ * Boulder problems beside `gradeScale` — the Figma's violet, which is also
+ * `colorsV2.precipMix`. Off the ramp because a V grade is not on that scale: a
+ * V4 is not "harder than 5.13", and a sixth step would say it is.
+ */
+export const gradeBoulder = '#b794f4';
+
+/**
  * Air temperature, as a **diverging ramp around the ideal climbing temperature**.
  *
  * A named scale rather than five loose colours, exactly as `uvScale` above is — it is one

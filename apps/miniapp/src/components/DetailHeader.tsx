@@ -16,14 +16,14 @@ import { ChevronLeftIcon } from './Icons.js'
 
 export type HeaderTab<T extends string> = { value: T; label: string }
 
+/** The band's three lines, each omitted when null — while loading the band renders back alone. */
+export type HeaderHeading = { eyebrow: string | null; title: string | null; meta: string | null }
+
 export type DetailHeaderProps<T extends string> = {
-  /** `null` while the location is loading or failed: the band still renders back and nothing else. */
-  location: Location | null
+  heading: HeaderHeading
   /** Where back goes, as words — `Locations`, or the tab it returns to. */
   backLabel: string
   onBack: () => void
-  /** `forecast fetched 29 min ago`, or `null` when it cannot be measured. */
-  freshness: string | null
   tabs: {
     options: readonly HeaderTab<T>[]
     active: T
@@ -60,18 +60,30 @@ export function coordText(lat: number, lon: number): string {
   return `${f(lat)}, ${f(lon)}`
 }
 
+/**
+ * A saved location's heading. `location` is null while it loads or failed;
+ * `freshness` is `forecast fetched 29 min ago`, or null when unmeasured.
+ */
+export function locationHeading(location: Location | null, freshness: string | null): HeaderHeading {
+  if (location === null) return { eyebrow: null, title: null, meta: null }
+  return {
+    eyebrow: eyebrowText(location),
+    title: location.name,
+    meta: [coordText(location.lat, location.lon), freshness].filter((p) => p !== null).join(' · '),
+  }
+}
+
+/**
+ * The band. The detail screen passes `locationHeading`; the guidebook's wall
+ * and route screens have a heading but no saved row of their own.
+ */
 export function DetailHeader<T extends string>({
-  location,
+  heading,
   backLabel,
   onBack,
-  freshness,
   tabs,
 }: DetailHeaderProps<T>) {
-  const eyebrow = location === null ? null : eyebrowText(location)
-  const meta =
-    location === null
-      ? null
-      : [coordText(location.lat, location.lon), freshness].filter((p) => p !== null).join(' · ')
+  const { eyebrow, title, meta } = heading
 
   return (
     <header
@@ -106,7 +118,7 @@ export function DetailHeader<T extends string>({
       </button>
 
       {eyebrow === null ? null : <p style={{ ...typeV2.eyebrow, marginTop: `${spacing.listGap}px` }}>{eyebrow}</p>}
-      {location === null ? null : <h1 style={typeV2.screenTitle}>{location.name}</h1>}
+      {title === null ? null : <h1 style={typeV2.screenTitle}>{title}</h1>}
       {meta === null || meta === '' ? null : <p style={typeV2.meta}>{meta}</p>}
 
       {tabs === null ? null : (
