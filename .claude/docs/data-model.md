@@ -30,6 +30,9 @@ trip_locations
 crag_climbability_history   -- no writer (regression, issue #25)
 conditions_reports      -- no writer; superseded by feedback
 feedback                -- migration 0018
+route_ticks             -- migration 0019
+route_todos             -- migration 0019
+area_locations          -- migration 0019, shared by every account
 premium_pulls
 location_normals        -- no writer (regression, issue #25)
 push_tokens
@@ -217,6 +220,42 @@ INDEX(user_id, created_at); CHECK constraints enforce the per-kind required fiel
 ```
 **`deleteLocationCascade` detaches feedback rather than deleting it** — a check is evidence
 about a place and outlives the saved location.
+
+### route_ticks, route_todos, area_locations
+The logbook and recorded boulder positions (`GET /logbook`, `POST/DELETE /logbook/ticks`,
+`PUT/DELETE /logbook/todos/:routeId`, `PUT /guidebook/areas/:areaId/position`; rules in
+`lib/logbook/parseLogbook.ts`, Postgres behaviour in `npm run check:logbook`). Routes and
+areas live in the committed OpenBeta snapshot, not a table, so `route_id` and `area_id` are
+OpenBeta uuids as text with **no FK**; the API refuses an id the snapshot does not hold.
+```typescript
+// route_ticks — one climb of one route by one user
+id          uuid PK
+user_id     uuid FK → users.id
+route_id    text               -- OpenBeta climb uuid
+ticked_on   date               -- the climber's local day
+style       tick_style         -- 'send' | 'flash' | 'onsight' | 'attempt'
+laps        integer            -- null when not entered, never 0
+note        text
+created_at  timestamptz default now()
+INDEX(user_id, route_id)
+
+// route_todos — a route a user wants to climb
+user_id     uuid FK → users.id
+route_id    text
+created_at  timestamptz default now()
+PK(user_id, route_id)            -- a second PUT is a no-op
+
+// area_locations — where a boulder is, from a phone standing at it
+area_id     text PK            -- OpenBeta area uuid; one row per area
+lat, lon    double precision
+accuracy_m  double precision   -- the phone's estimate; the API refuses > 50 m
+recorded_by uuid FK → users.id -- never returned by any response
+recorded_at timestamptz default now()
+INDEX(recorded_by)
+```
+**`area_locations` is shared by every account** (owner decision 2026-09-29): a later
+recording replaces the earlier one, whoever made either. OpenBeta's own point is never
+copied here. None of the three has a `location_id`, so deleting a location leaves them alone.
 
 ### premium_pulls
 Log of Tomorrow.io on-demand pulls for cost tracking.
