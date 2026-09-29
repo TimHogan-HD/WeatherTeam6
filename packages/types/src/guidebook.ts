@@ -1,3 +1,5 @@
+import type { AreaPosition } from './logbook.js'
+
 /**
  * The guidebook — a crag's walls and routes, from OpenBeta — as
  * `GET /api/v1/guidebook/:locationId` returns it, and the grade arithmetic
@@ -55,6 +57,13 @@ export type GuidebookWall = {
    * sentinel is not "left to right" whatever the heading says.
    */
   ordered: boolean
+  /**
+   * Where a climber's phone put this wall or boulder, shared by every account;
+   * null when nobody has recorded it. **Not `lat`/`lon`**, which are OpenBeta's
+   * and wrong on the ground. Optional because the API and the client deploy
+   * separately: a client reads an absent field as `null`, a gap.
+   */
+  position?: AreaPosition | null
 }
 
 export type Guidebook = {
