@@ -528,6 +528,18 @@ describe('DetailView — Precip tab', () => {
     expect(html).toContain('Open-Meteo past hours')
     // The frame's figures nothing here measures.
     expect(html).not.toMatch(/Gauge conf|radar adjusted|±|Observed/)
+    // An API that did not say which models it drew names none.
+    expect(html).not.toContain('Median of')
+  })
+
+  it('names the models whose median it drew, and ties them to Dryness only at a crag', () => {
+    const withModels = { ...recent, models: ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless', 'gem_seamless'] }
+    const crag = renderPrecip(withModels)
+    expect(crag).toContain('Median of GFS, ECMWF, ICON and GEM. Model estimates, not gauge readings.')
+    expect(crag).toContain('Dryness reads the same rain.')
+    const city = renderPrecip(withModels, false)
+    expect(city).toContain('Median of GFS, ECMWF, ICON and GEM.')
+    expect(city).not.toContain('Dryness')
   })
 
   it('withholds the kind rather than calling unknown precipitation rain', () => {

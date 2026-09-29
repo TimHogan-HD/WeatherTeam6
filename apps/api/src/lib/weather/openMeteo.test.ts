@@ -559,26 +559,51 @@ describe('fetchRecentHourlyPrecip', () => {
         utc_offset_seconds: -21600,
         hourly: {
           time: ['2026-09-22T00:00', '2026-09-22T01:00', '2026-09-22T02:00', '2026-09-22T03:00'],
-          precipitation: [1.2, 0.8, 0.5, null],
-          rain: [1.0, 0, 0.5, null],
-          showers: [0.2, 0, null, null],
-          snowfall: [0, 0.56, 0, null],
+          precipitation_gfs_seamless: [1.2, 0.8, 0.5, null],
+          rain_gfs_seamless: [1.0, 0, 0.5, null],
+          showers_gfs_seamless: [0.2, 0, null, null],
+          snowfall_gfs_seamless: [0, 0.56, 0, null],
+          precipitation_ecmwf_ifs025: [3, 0, 0, 0],
+          rain_ecmwf_ifs025: [3, 0, 0, 0],
+          showers_ecmwf_ifs025: [0, 0, 0, 0],
+          snowfall_ecmwf_ifs025: [0, 0, 0, 0],
         },
       }),
     } as Response)
 
-    const result = await fetchRecentHourlyPrecip(39.9, -105.3, 6)
+    const result = await fetchRecentHourlyPrecip(39.9, -105.3, 6, ['gfs_seamless', 'ecmwf_ifs025'])
 
     const url = String(fetchMock.mock.calls[0]?.[0])
     expect(url).toContain('hourly=precipitation%2Crain%2Cshowers%2Csnowfall')
+    expect(url).toContain('models=gfs_seamless%2Cecmwf_ifs025')
     expect(url).toContain('past_days=6')
-    expect(result.hours).toEqual([
+    expect(result.models.map((m) => m.model)).toEqual(['gfs_seamless', 'ecmwf_ifs025'])
+    expect(result.models[0]?.hours).toEqual([
       // Liquid is rain plus showers.
       { valid_at_local: '2026-09-22T00:00', precip_mm: 1.2, rain_mm: 1.2, snowfall_cm: 0 },
       { valid_at_local: '2026-09-22T01:00', precip_mm: 0.8, rain_mm: 0, snowfall_cm: 0.56 },
       // No showers figure: the liquid part is unknown, not the rain alone.
       { valid_at_local: '2026-09-22T02:00', precip_mm: 0.5, rain_mm: null, snowfall_cm: 0 },
-      // A null precipitation hour is dropped, as before.
+      // A null precipitation hour is dropped.
+    ])
+    // Each model reads its own suffixed columns, not another's.
+    expect(result.models[1]?.hours.map((h) => h.precip_mm)).toEqual([3, 0, 0, 0])
+  })
+
+  it('reads a single model from its unsuffixed columns', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        utc_offset_seconds: 0,
+        hourly: { time: ['2026-09-22T00:00'], precipitation: [2], rain: [2], showers: [0], snowfall: [0] },
+      }),
+    } as Response)
+
+    const result = await fetchRecentHourlyPrecip(39.9, -105.3, 6, ['gfs_seamless'])
+
+    expect(result.models[0]?.hours).toEqual([
+      { valid_at_local: '2026-09-22T00:00', precip_mm: 2, rain_mm: 2, snowfall_cm: 0 },
     ])
   })
 })

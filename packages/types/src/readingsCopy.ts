@@ -592,8 +592,23 @@ export const ROCK_TEMPERATURE_MECHANISM =
 export function dryingRainMechanism(models: readonly string[]): string {
   const names = [...new Set(models.map(modelName))];
   if (names.length === 1) return `Dryness uses ${names[0]}'s rain forecast, not a rain gauge.`;
-  const list = `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
-  return `Dryness uses the median rain forecast of ${list}, not a rain gauge.`;
+  return `Dryness uses the median rain forecast of ${nameList(names)}, not a rain gauge.`;
+}
+
+/** `GFS, ECMWF and ICON`. */
+function nameList(names: readonly string[]): string {
+  return names.length === 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
+/**
+ * Where the Precip tab's figures came from, or `null` when the response did
+ * not say — an older API, or no model answered — so nothing is named that the
+ * response does not back.
+ */
+export function recentPrecipSource(models: readonly string[] | undefined): string | null {
+  if (models === undefined || models.length === 0) return null;
+  const names = [...new Set(models.map(modelName))];
+  return names.length === 1 ? `${names[0]}'s estimate.` : `Median of ${nameList(names)}.`;
 }
 
 /**

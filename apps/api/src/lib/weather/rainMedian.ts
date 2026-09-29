@@ -18,9 +18,11 @@
  * Irradiance is still never pooled (issue #155). This pools precipitation
  * alone, and the readings name the models it came from.
  */
+import type { RecentPrecip, RecentPrecipHour } from '@weatherteam6/types'
 import {
   GLOBAL_DETERMINISTIC_MODELS,
   type DeterministicResult,
+  type RecentPrecipByModel,
 } from './openMeteo.js'
 
 export const RAIN_MODELS: readonly string[] = GLOBAL_DETERMINISTIC_MODELS
@@ -65,4 +67,53 @@ export function rainMedian(result: DeterministicResult): RainMedian | null {
     byLocal.set(t, values.length >= MIN_RAIN_MODELS ? median(values) : null)
   }
   return { models: series.map((s) => s.name), byLocal }
+}
+
+/** The median of the values at least `MIN_RAIN_MODELS` models gave, else null. */
+function medianOf(values: readonly (number | null | undefined)[]): number | null {
+  const known = values.filter((v): v is number => v !== null && v !== undefined)
+  return known.length >= MIN_RAIN_MODELS ? median(known) : null
+}
+
+/**
+ * The Precip tab's record: **the same per-hour median the drying clock reads**,
+ * so the rain a reader sees is the rain behind "Dryness". Before this the tab
+ * drew Open-Meteo's `best_match` — HRRR in the US — which in the 2026-09-29
+ * check against 14 ASOS gauges caught 43% of the gauges' wet hours and two
+ * thirds of their total; this median caught 71%.
+ *
+ * An hour fewer than `MIN_RAIN_MODELS` models answered is left out: a gap,
+ * never a dry hour. The liquid and snow parts are medians of their own, taken
+ * only to say what kind of precipitation fell, so they need not add up to
+ * `precip_mm`.
+ */
+export function recentPrecipMedian(fetched: RecentPrecipByModel): RecentPrecip {
+  const answered = fetched.models.filter((m) => m.hours.length > 0)
+  const byTime = new Map<string, RecentPrecipHour[]>()
+  for (const m of answered) {
+    for (const h of m.hours) {
+      const list = byTime.get(h.valid_at_local)
+      if (list === undefined) byTime.set(h.valid_at_local, [h])
+      else list.push(h)
+    }
+  }
+
+  const hours: RecentPrecipHour[] = []
+  for (const [at, list] of [...byTime].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+    const precip = medianOf(list.map((h) => h.precip_mm))
+    if (precip === null) continue
+    hours.push({
+      valid_at_local: at,
+      precip_mm: precip,
+      rain_mm: medianOf(list.map((h) => h.rain_mm)),
+      snowfall_cm: medianOf(list.map((h) => h.snowfall_cm)),
+    })
+  }
+
+  return {
+    hours,
+    utc_offset_seconds: fetched.utc_offset_seconds,
+    from_date: fetched.from_date,
+    models: hours.length > 0 ? answered.map((m) => m.model) : [],
+  }
 }

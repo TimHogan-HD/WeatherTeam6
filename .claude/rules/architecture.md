@@ -79,6 +79,10 @@ delivery gates are in `CLAUDE.md`; domain patterns are in the `miniapp-patterns`
   whole and names only itself** — never a per-hour mix under one name — and an hour the
   median could not be formed for (fewer than three models) is a gap the clock withholds
   from, not a fallback to GFS. Irradiance is still never pooled; only rain is.
+  **The Precip tab draws the same median** (`recentPrecipMedian`, `GET /recent-precip`),
+  never Open-Meteo's `best_match`: in the US that is HRRR, whose past hours caught 43% of
+  the hours 14 ASOS gauges recorded rain on 2026-09-29, against the median's 71%.
+  `RecentPrecip.models` names what it drew, and the tab's caveat prints it.
 - **The readings reach the response only because the route passed `scoring`**, exactly as
   a per-day score reaches `GET /forecast/:id` only because it passed a merge argument.
   There is no `is_climbing_location` check downstream to forget, and the model itself does

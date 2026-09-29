@@ -1,4 +1,4 @@
-import type { RecentPrecip, RecentPrecipHour } from '@weatherteam6/types'
+import type { RecentPrecipHour } from '@weatherteam6/types'
 import { logger } from '../logger.js'
 
 export type DailyForecast = {
@@ -694,15 +694,15 @@ export async function fetchArchivePrecip(
 // time instead of a calendar day.
 // ---------------------------------------------------------------------------
 
-/**
- * **The shape lives in `packages/types` now**, because the Mini App reads it
- * too — one definition, per the architecture rule, rather than a copy that
- * drifts. Re-exported here so the existing import sites keep resolving.
- *
- * It is the same type on the wire as in this parse, unusually: the route over
- * this function is a thin pass-through with nothing to reshape.
- */
+/** The wire shape lives in `packages/types`, because the web app reads it too. */
 export type { RecentPrecip, RecentPrecipHour } from '@weatherteam6/types'
+
+/** One model's past hours, before `recentPrecipMedian` reduces them to one series. */
+export type RecentPrecipByModel = {
+  readonly models: readonly { readonly model: string; readonly hours: readonly RecentPrecipHour[] }[]
+  readonly utc_offset_seconds: number
+  readonly from_date: string | null
+}
 
 /**
  * Hourly precipitation over the past `pastDays`, from `/v1/forecast`'s
@@ -724,6 +724,12 @@ export type { RecentPrecip, RecentPrecipHour } from '@weatherteam6/types'
  * `past_days` is capped at 92 upstream. Anything older is the daily lookup's
  * job, and the caller falls back to it rather than reporting no rain.
  *
+ * **Each named model comes back on its own, never Open-Meteo's `best_match`.**
+ * In the US that is HRRR, whose past hours caught 43% of the hours an airport
+ * gauge recorded rain (14 ASOS stations over 6 days, 2026-09-29) against 71%
+ * for the four global models' median. The route reduces these to that median
+ * with `recentPrecipMedian` (`rainMedian.ts`), the rain the drying clock reads.
+ *
  * @throws {Error} on HTTP failure, like every other fetch here. A caller must
  *   distinguish that from "no rain in the window" (issue #34).
  */
@@ -731,11 +737,13 @@ export async function fetchRecentHourlyPrecip(
   lat: number,
   lon: number,
   pastDays: number,
-): Promise<RecentPrecip> {
+  models: readonly string[],
+): Promise<RecentPrecipByModel> {
   const url = new URL(FORECAST_URL)
   url.searchParams.set('latitude', String(lat))
   url.searchParams.set('longitude', String(lon))
   url.searchParams.set('hourly', 'precipitation,rain,showers,snowfall')
+  url.searchParams.set('models', models.join(','))
   url.searchParams.set('past_days', String(Math.max(1, Math.min(92, Math.trunc(pastDays)))))
   // One forecast day, not zero: the current hour lives in it, and rain that is
   // falling right now is the case this whole function exists for.
@@ -761,32 +769,38 @@ export async function fetchRecentHourlyPrecip(
   }
   const hourly = raw.hourly
   const offset = typeof raw.utc_offset_seconds === 'number' ? raw.utc_offset_seconds : 0
-  if (!hourly) return { hours: [], utc_offset_seconds: offset, from_date: null }
+  if (!hourly) return { models: [], utc_offset_seconds: offset, from_date: null }
 
   const times = toStringArray(hourly['time'])
-  const precip = toNullableNumberArray(hourly, 'precipitation')
-  const rain = toNullableNumberArray(hourly, 'rain')
-  const showers = toNullableNumberArray(hourly, 'showers')
-  const snowfall = toNullableNumberArray(hourly, 'snowfall')
+  // A single-model response leaves its columns unsuffixed; several label theirs.
+  const column = (variable: string, model: string) =>
+    toNullableNumberArray(hourly, models.length === 1 ? variable : `${variable}_${model}`)
 
-  const hours: RecentPrecipHour[] = []
-  for (let i = 0; i < times.length; i++) {
-    const at = times[i]
-    const mm = precip[i]
-    // A null hour is not a dry hour. Dropping it is right here because the
-    // caller only ever looks for the *last wet* hour — an absent reading can
-    // never be that, and keeping it as 0 would assert a dry hour nobody measured.
-    if (!at || mm === null || mm === undefined) continue
-    const r = rain[i] ?? null
-    const s = showers[i] ?? null
-    // The liquid part is known only when both halves are: `rain` alone would
-    // call a showery hour dry.
-    const rainMm = r === null || s === null ? null : r + s
-    hours.push({ valid_at_local: at, precip_mm: mm, rain_mm: rainMm, snowfall_cm: snowfall[i] ?? null })
-  }
+  const perModel = models.map((model) => {
+    const precip = column('precipitation', model)
+    const rain = column('rain', model)
+    const showers = column('showers', model)
+    const snowfall = column('snowfall', model)
+
+    const hours: RecentPrecipHour[] = []
+    for (let i = 0; i < times.length; i++) {
+      const at = times[i]
+      const mm = precip[i]
+      // A null hour is not a dry hour: keeping it as 0 would assert a dry hour
+      // nobody estimated.
+      if (!at || mm === null || mm === undefined) continue
+      const r = rain[i] ?? null
+      const s = showers[i] ?? null
+      // The liquid part is known only when both halves are: `rain` alone would
+      // call a showery hour dry.
+      const rainMm = r === null || s === null ? null : r + s
+      hours.push({ valid_at_local: at, precip_mm: mm, rain_mm: rainMm, snowfall_cm: snowfall[i] ?? null })
+    }
+    return { model, hours }
+  })
 
   return {
-    hours,
+    models: perModel,
     utc_offset_seconds: offset,
     from_date: times[0]?.slice(0, 10) ?? null,
   }

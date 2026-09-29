@@ -2,15 +2,10 @@
  * The wire shape of `GET /api/v1/recent-precip/:locationId` — hourly rain over
  * the days just past.
  *
- * **This is the rainfall the drying model is reasoning about**, and until now
- * nothing but the bot could see it. The score says "climbable in ~10h"; this is
- * the record behind that sentence, so a reader can tell a single afternoon
- * storm from three days of drizzle without taking the number on trust.
- *
- * Moved here from `apps/api/src/lib/weather/openMeteo.ts` when the Mini App
- * gained a use for it. The shape is unchanged — the API's parse type and the
- * wire type really are the same thing here, because the route is a thin
- * pass-through over one upstream call.
+ * **This is the rainfall the drying clock reads** — the hourly median of the
+ * four global models (`rainMedian.ts`, issue #209) — so a reader can tell a
+ * single afternoon storm from three days of drizzle without taking "Dryness"
+ * on trust. It is a model estimate, not a gauge.
  */
 
 export type RecentPrecipHour = {
@@ -46,4 +41,9 @@ export type RecentPrecip = {
    * means: no rain *in this window* rather than no rain ever.
    */
   readonly from_date: string | null
+  /**
+   * The models whose per-hour median `hours` is, so a surface names what it
+   * drew. Empty when none answered; absent from an API older than the field.
+   */
+  readonly models?: readonly string[]
 }
