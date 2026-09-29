@@ -117,7 +117,7 @@ export function AddLocation() {
 
   if (candidate !== null) {
     return (
-      <Screen title={candidate.name} onBack={onBack}>
+      <Screen title={candidate.name} onBack={onBack} feedback>
         <p style={type.screenSub}>Not saved yet</p>
         <DetailView
           unsaved
@@ -143,7 +143,7 @@ export function AddLocation() {
   }
 
   return (
-    <Screen title="Add a location" onBack={onBack}>
+    <Screen title="Add a location" onBack={onBack} feedback>
       <div style={{ ...stack(spacing.listGap), marginTop: `${spacing.sectionTop}px` }}>
         {coordsMode ? (
           <CoordinateEntry onChoose={choose} />

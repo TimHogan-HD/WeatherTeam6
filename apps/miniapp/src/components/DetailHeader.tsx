@@ -3,6 +3,7 @@ import { formatElevationFt, rockTypeLabel, type Location } from '@weatherteam6/t
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, row, stack } from '../theme/styles.js'
 import { ChevronLeftIcon } from './Icons.js'
+import { FeedbackButton } from './FeedbackButton.js'
 
 /**
  * The detail screen's header band, from the WT6 Figma "V2" page's Overview
@@ -24,6 +25,8 @@ export type DetailHeaderProps<T extends string> = {
   /** Where back goes, as words — `Locations`, or the tab it returns to. */
   backLabel: string
   onBack: () => void
+  /** The crag the Feedback button opens a forecast check for. */
+  feedbackLocationId: string | null
   tabs: {
     options: readonly HeaderTab<T>[]
     active: T
@@ -81,6 +84,7 @@ export function DetailHeader<T extends string>({
   heading,
   backLabel,
   onBack,
+  feedbackLocationId,
   tabs,
 }: DetailHeaderProps<T>) {
   const { eyebrow, title, meta } = heading
@@ -101,21 +105,23 @@ export function DetailHeader<T extends string>({
         a negative margin, so the chevron sits on the gutter while the target
         clears 44px — `Screen`'s back control, restyled.
       */}
-      <button
-        type="button"
-        onClick={onBack}
-        style={{
-          ...bareButton,
-          ...row(spacing.tight),
-          width: 'auto',
-          alignSelf: 'flex-start',
-          margin: `-${spacing.cellPad}px 0 0 -${spacing.cellPad}px`,
-          padding: `${spacing.cellPad}px`,
-        }}
-      >
-        <ChevronLeftIcon color={colorsV2.txtMuted} />
-        <span style={typeV2.backLink}>{backLabel}</span>
-      </button>
+      <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
+        <button
+          type="button"
+          onClick={onBack}
+          style={{
+            ...bareButton,
+            ...row(spacing.tight),
+            width: 'auto',
+            margin: `-${spacing.cellPad}px 0 -${spacing.cellPad}px -${spacing.cellPad}px`,
+            padding: `${spacing.cellPad}px`,
+          }}
+        >
+          <ChevronLeftIcon color={colorsV2.txtMuted} />
+          <span style={typeV2.backLink}>{backLabel}</span>
+        </button>
+        <FeedbackButton locationId={feedbackLocationId} />
+      </div>
 
       {eyebrow === null ? null : <p style={{ ...typeV2.eyebrow, marginTop: `${spacing.listGap}px` }}>{eyebrow}</p>}
       {title === null ? null : <h1 style={typeV2.screenTitle}>{title}</h1>}

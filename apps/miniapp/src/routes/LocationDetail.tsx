@@ -209,6 +209,7 @@ export function LocationDetail() {
         heading={locationHeading(location.data ?? null, freshness)}
         backLabel={backLabel}
         onBack={onBack}
+        feedbackLocationId={id ?? null}
         tabs={
           options === null
             ? null
