@@ -217,6 +217,22 @@ function runIn(cwd, hookPath, payload) {
   return { code: r.status, out: (r.stdout ?? '') + (r.stderr ?? '') }
 }
 
+/**
+ * A second checkout of the scratch repo, on a feature branch, beside `work`.
+ * The hooks always run from `work` (on main), which is how they ran in the
+ * 2026-09-29 incident: main checkout on `main`, session in a worktree.
+ */
+const worktreeOf = (w) => join(w, '..', 'wt')
+const addFeatureWorktree = (w) => g(w, 'worktree', 'add', '-b', 'feat/wt', worktreeOf(w))
+/** The path as Git Bash writes it: `/c/Users/...` on Windows. */
+const gitBashPath = (p) =>
+  process.platform === 'win32'
+    ? p.replace(/\\/g, '/').replace(/^([A-Za-z]):/, (_, d) => '/' + d.toLowerCase())
+    : p
+const powershell = (command) => ({ tool_name: 'PowerShell', tool_input: { command } })
+const inDir = (payload, cwd) => ({ ...payload, cwd })
+
+/** Payloads may be a function of the scratch checkout, for cases that name its paths. */
 const gitScenarios = [
   [
     'Stop: clean and synced on main allows the turn to end',
@@ -296,6 +312,106 @@ const gitScenarios = [
     'default branch',
   ],
 
+  // ---- the commit's own directory decides, not the hook's ------------------
+  [
+    'PreToolUse: cd into a feature worktree, then commit, is allowed',
+    addFeatureWorktree,
+    PRE,
+    (w) => bash(`cd "${worktreeOf(w)}" && git commit -m "x"`),
+    ALLOW,
+    null,
+  ],
+  [
+    'PreToolUse: cd by a Git Bash /c/... path into a feature worktree is allowed',
+    addFeatureWorktree,
+    PRE,
+    (w) => bash(`cd ${gitBashPath(worktreeOf(w))} && git commit -m "x"`),
+    ALLOW,
+    null,
+  ],
+  [
+    'PreToolUse: git -C a feature worktree commit is allowed',
+    addFeatureWorktree,
+    PRE,
+    (w) => bash(`git -C "${worktreeOf(w)}" commit -m "x"`),
+    ALLOW,
+    null,
+  ],
+  [
+    'PreToolUse: a session whose cwd is a feature worktree may commit',
+    addFeatureWorktree,
+    PRE,
+    (w) => inDir(bash('git commit -m "x"'), worktreeOf(w)),
+    ALLOW,
+    null,
+  ],
+  [
+    'PreToolUse: from a feature worktree, cd into a checkout on main and commit is blocked',
+    addFeatureWorktree,
+    PRE,
+    (w) => inDir(bash(`cd "${w}" && git commit -m "x"`), worktreeOf(w)),
+    BLOCK,
+    'default branch',
+  ],
+  [
+    'PreToolUse: from a feature worktree, git -C a checkout on main is blocked',
+    addFeatureWorktree,
+    PRE,
+    (w) => inDir(bash(`git -C "${w}" commit -m "x"`), worktreeOf(w)),
+    BLOCK,
+    'default branch',
+  ],
+  [
+    'PreToolUse: a cd written inside the commit message is not followed',
+    addFeatureWorktree,
+    PRE,
+    (w) => bash(`git commit -m "cd ${worktreeOf(w)} ; git commit"`),
+    BLOCK,
+    'default branch',
+  ],
+
+  // ---- PowerShell commits are checked too ----------------------------------
+  [
+    'PreToolUse: a PowerShell commit on the default branch is blocked',
+    (w) => {},
+    PRE,
+    powershell('git commit -m "x"'),
+    BLOCK,
+    'default branch',
+  ],
+  [
+    'PreToolUse: PowerShell Set-Location into a feature worktree, then commit, is allowed',
+    addFeatureWorktree,
+    PRE,
+    (w) => powershell(`Set-Location "${worktreeOf(w)}"; git commit -m "x"`),
+    ALLOW,
+    null,
+  ],
+  [
+    'inert: PowerShell here-string commit message naming drizzle-kit push is allowed',
+    (w) => g(w, 'checkout', '-b', 'feat/inert-ps'),
+    PRE,
+    powershell("git commit -m @'\nfix: block drizzle-kit push properly\n'@"),
+    ALLOW,
+    null,
+  ],
+
+  // ---- the Stop hook reads the session's checkout too ----------------------
+  [
+    'Stop: unpushed commits in the session\'s worktree block the turn',
+    (w) => {
+      addFeatureWorktree(w)
+      const wt = worktreeOf(w)
+      writeFileSync(join(wt, 'a.txt'), 'a')
+      g(wt, 'add', '-A')
+      g(wt, 'commit', '-m', 'work in a worktree')
+    },
+    STOP,
+    (w) => ({ cwd: worktreeOf(w) }),
+    BLOCK,
+    'unpushed commit',
+  ],
+
   // ---- prose about a forbidden command is not that command ----------------
   // The first real commit under these hooks was blocked by its own commit
   // message, which described the drizzle-kit guard. These run on a feature
@@ -330,7 +446,7 @@ for (const [name, setup, hook, payload, expectedCode, fragment] of gitScenarios)
   const { root, work } = makeRepo()
   try {
     setup(work)
-    const result = runIn(work, hook, payload)
+    const result = runIn(work, hook, typeof payload === 'function' ? payload(work) : payload)
     const codeOk = result.code === expectedCode
     const fragmentOk = fragment ? result.out.includes(fragment) : true
     if (codeOk && fragmentOk) {
