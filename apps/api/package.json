@@ -20,15 +20,11 @@
     "user:add": "tsx src/scripts/addUser.ts",
     "locations:lock-known-crags": "tsx src/scripts/lockKnownCrags.ts",
     "probe:models": "tsx src/scripts/probeModels.ts",
-    
-    
     "check:auth": "tsx src/scripts/checkAuth.ts",
     "check:add-location": "tsx src/scripts/checkAddLocationApi.ts",
     "check:edit-location": "tsx src/scripts/checkEditLocationApi.ts",
-    
     "check:conditions": "tsx src/scripts/checkConditions.ts",
     "check:delete-trip": "tsx src/scripts/checkDeleteTrip.ts",
-    
     "check:weather-runs": "tsx src/scripts/checkWeatherRuns.ts",
     "check:hourly": "tsx src/scripts/checkHourly.ts",
     "check:runs-storage": "tsx src/scripts/checkRunsStorage.ts",
@@ -39,7 +35,7 @@
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
     "@weatherteam6/types": "*",
-    "drizzle-orm": "^0.41.0",
+    "drizzle-orm": "^0.45.3",
     "express": "^4.21.2",
     "pino": "^9.5.0",
     "ws": "^8.21.1"

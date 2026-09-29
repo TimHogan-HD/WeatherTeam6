@@ -1,8 +1,8 @@
 import { Router, type Request, type Response } from 'express'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
-import { walls } from '../db/schema.js'
-import { isUuid, sendServerError } from '../lib/http.js'
+import { locations, walls } from '../db/schema.js'
+import { MAX_NAME_LENGTH, isUuid, sendServerError } from '../lib/http.js'
 import type { ApiResponse, Wall, CreateWallInput } from '@weatherteam6/types'
 
 export const wallsRouter = Router()
@@ -49,11 +49,13 @@ wallsRouter.post('/walls', async (req: Request, res: Response) => {
 
   if (
     !locationId || !isUuid(locationId) ||
-    typeof name !== 'string' || name.trim() === '' ||
-    typeof aspectDeg !== 'number' ||
+    typeof name !== 'string' || name.trim() === '' || name.trim().length > MAX_NAME_LENGTH ||
+    typeof aspectDeg !== 'number' || !Number.isFinite(aspectDeg) ||
     (aspectSource !== 'terrain' && aspectSource !== 'manual') ||
-    typeof angleDeg !== 'number' ||
-    !['slab', 'vertical', 'steep', 'roof'].includes(angleBand as string)
+    typeof angleDeg !== 'number' || !Number.isFinite(angleDeg) ||
+    !['slab', 'vertical', 'steep', 'roof'].includes(angleBand as string) ||
+    (routeCount !== undefined && routeCount !== null &&
+      (typeof routeCount !== 'number' || !Number.isInteger(routeCount) || routeCount < 0 || routeCount > 100_000))
   ) {
     const response: ApiResponse<null> = { data: null, error: 'Invalid wall data', status: 400 }
     res.status(400).json(response)
@@ -61,6 +63,19 @@ wallsRouter.post('/walls', async (req: Request, res: Response) => {
   }
 
   try {
+    // The wall's location must be the caller's own. Without this a wall could
+    // be attached to any location id — another user's included.
+    const owned = await db
+      .select({ id: locations.id })
+      .from(locations)
+      .where(and(eq(locations.id, locationId), eq(locations.user_id, req.userId)))
+      .limit(1)
+    if (!owned[0]) {
+      const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
+      res.status(404).json(response)
+      return
+    }
+
     const rows = await db
       .insert(walls)
       .values({
