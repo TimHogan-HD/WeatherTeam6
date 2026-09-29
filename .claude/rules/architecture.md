@@ -253,6 +253,15 @@ delivery gates are in `CLAUDE.md`; domain patterns are in the `miniapp-patterns`
 ## Auth Pattern
 - **`/api/v1/*` is gated by `requireApiAuth`** (`middleware/apiAuth.ts`), which accepts two schemes on the one `Authorization` header and nothing else. Vercel's production alias is reachable without a Vercel login, so this gate is what holds the door shut — do not move it to Vercel. `/api/cron/*` keeps its own `CRON_SECRET` auth outside it.
 - **`requireApiAuth` is the only setter of `req.userId` anywhere in the app**, from the presented credential: `Session <token>` → the token's subject; `Bearer <API_SHARED_SECRET>` → `DEFAULT_USER_ID`. It owns the `Request` type augmentation. An unset `API_SHARED_SECRET` or `AUTH_TOKEN_SECRET` is a 503 under both schemes.
+- **Every location id a caller supplies is checked against `req.userId` before it is used**
+  — in the path, in a body (`POST /trips`'s `cragIds`, `POST /walls`'s `locationId`), or as
+  the key of a table that has no `user_id` of its own (`crag_climbability_history`,
+  `location_normals`). A 404, never a 403. Three routes skipped it until 2026-09-29 and one
+  of them returned another user's forecast by id; `check:auth` covers all three.
+- **The Express layer is hardened in `createApp`**: no `X-Powered-By`, `nosniff`,
+  `frame-ancestors 'none'`, `Cache-Control: no-store` on every response, a 32 kB JSON body
+  limit, and a body-parser failure answered 400/413 in the envelope rather than a 500.
+  Every outbound fetch carries a 25 s per-attempt timeout (`FETCH_TIMEOUT_MS`).
 - **A router mounted outside `/api/v1` reads `req.userId` as `undefined`** through a type that says it cannot be (defect class 8) — no type error, no test failure, just a route that finds nothing. Mount inside the gate or bring your own identity.
 - Route handlers always use `req.userId`. Never reference `DEFAULT_USER_ID` directly in routes.
 - **No Clerk and no self-serve signup.** `npm run user:add` is how an account comes to exist, and it is an operator action.

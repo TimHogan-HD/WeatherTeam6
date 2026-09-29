@@ -113,6 +113,14 @@ const NBM_DAILY_VARS = [
 ].join(',')
 const LAPSE_RATE_C_PER_M = 0.0065
 
+/**
+ * Per-attempt ceiling. Without one, an upstream that accepts the connection and
+ * never answers holds the function until Vercel kills it at `maxDuration`, and
+ * the retry loop below never gets a turn. Generous on purpose: the ensemble
+ * response is several MB and must not be cut off on a slow but healthy day.
+ */
+export const FETCH_TIMEOUT_MS = 25_000
+
 export async function fetchWithRetry(
   url: string,
   maxAttempts = 4,
@@ -121,7 +129,8 @@ export async function fetchWithRetry(
   let lastErr: Error = new Error('no attempts made')
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      const res = await fetch(url, headers ? { headers } : undefined)
+      const signal = AbortSignal.timeout(FETCH_TIMEOUT_MS)
+      const res = await fetch(url, headers ? { headers, signal } : { signal })
       if (res.ok) return res
       if (res.status !== 429 && res.status < 500) return res
       lastErr = new Error(`HTTP ${res.status}`)

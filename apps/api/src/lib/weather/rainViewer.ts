@@ -1,4 +1,5 @@
 import { logger } from '../logger.js';
+import { FETCH_TIMEOUT_MS } from './openMeteo.js';
 
 const MAPS_API = 'https://api.rainviewer.com/public/weather-maps.json';
 const TILE_HOST = 'https://tilecache.rainviewer.com';
@@ -19,6 +20,7 @@ export type RadarFramesResponse = {
 export async function fetchRadarFrames(): Promise<RadarFramesResponse> {
   const res = await fetch(MAPS_API, {
     headers: { 'User-Agent': 'weatherteam6/1.0' },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (!res.ok) {
     throw new Error(`RainViewer maps API returned ${res.status}`);

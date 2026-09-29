@@ -1,4 +1,5 @@
 import { logger } from '../logger.js'
+import { FETCH_TIMEOUT_MS } from './openMeteo.js'
 import type { DailyPrecip } from '../scoring/climbabilityHistory.js'
 
 const ACIS_GRID_URL = 'https://data.rcc-acis.org/GridData'
@@ -75,6 +76,7 @@ export async function fetchGriddedNormals(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       })
 
       if (res.ok) {
@@ -125,6 +127,7 @@ export async function fetchGriddedPrecipHistory(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       })
 
       if (res.ok) {

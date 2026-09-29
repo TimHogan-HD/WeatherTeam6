@@ -89,7 +89,7 @@ async function run(): Promise<void> {
 
   const { createApp } = await import('../index.js')
   const { db, pool } = await import('../db/index.js')
-  const { users, locations } = await import('../db/schema.js')
+  const { users, locations, trips, tripLocations, walls } = await import('../db/schema.js')
   const { hashPassword } = await import('../lib/auth/password.js')
   const { signToken, expiryFrom } = await import('../lib/auth/token.js')
   const { eq, inArray } = await import('drizzle-orm')
@@ -256,6 +256,48 @@ async function run(): Promise<void> {
       .limit(1)
     check("B's location is still in the database", stillThere.length === 1)
 
+    // Routes that take a location id in the body or read a table keyed by
+    // location alone. Each of these once skipped the ownership check.
+    const crossTrip = await call<null>('POST', '/trips', {
+      auth: `Session ${token}`,
+      body: { name: 'ZZ auth check trip', startDate: '2026-10-01', endDate: '2026-10-03', cragIds: [locB] },
+    })
+    check(
+      "POST /trips naming B's location is 404 for A",
+      crossTrip.status === 404,
+      `got ${crossTrip.status}`,
+    )
+
+    const crossWall = await call<null>('POST', '/walls', {
+      auth: `Session ${token}`,
+      body: {
+        locationId: locB,
+        name: 'ZZ auth check wall',
+        aspectDeg: 180,
+        aspectSource: 'manual',
+        angleDeg: 90,
+        angleBand: 'vertical',
+      },
+    })
+    check(
+      "POST /walls on B's location is 404 for A",
+      crossWall.status === 404,
+      `got ${crossWall.status}`,
+    )
+
+    const crossHistory = await call<null>('GET', `/locations/${locB}/history`, {
+      auth: `Session ${token}`,
+    })
+    check(
+      "GET /locations/:id/history on B's location is 404 for A",
+      crossHistory.status === 404,
+      `got ${crossHistory.status}`,
+    )
+
+    const strayTrips = await db.select({ id: trips.id }).from(trips).where(eq(trips.user_id, idA))
+    const strayWalls = await db.select({ id: walls.id }).from(walls).where(eq(walls.location_id, locB))
+    check('and none of them wrote a row', strayTrips.length === 0 && strayWalls.length === 0)
+
     console.log('\n4. The other schemes and the mount order still behave')
     const bearer = await call<Location[]>('GET', '/locations', { auth: `Bearer ${SHARED_SECRET}` })
     check('Bearer still works', bearer.status === 200, `got ${bearer.status}`)
@@ -298,6 +340,22 @@ async function run(): Promise<void> {
   } finally {
     let cleaned = true
     try {
+      // Only non-empty if a cross-user write above got through; a trip or wall
+      // left behind would block the location and user deletes below.
+      if (createdUserIds.length > 0) {
+        const ownTrips = await db
+          .select({ id: trips.id })
+          .from(trips)
+          .where(inArray(trips.user_id, createdUserIds))
+        const tripIds = ownTrips.map((t) => t.id)
+        if (tripIds.length > 0) {
+          await db.delete(tripLocations).where(inArray(tripLocations.trip_id, tripIds))
+          await db.delete(trips).where(inArray(trips.id, tripIds))
+        }
+      }
+      if (createdLocationIds.length > 0) {
+        await db.delete(walls).where(inArray(walls.location_id, createdLocationIds))
+      }
       if (createdLocationIds.length > 0) {
         await db.delete(locations).where(inArray(locations.id, createdLocationIds))
       }

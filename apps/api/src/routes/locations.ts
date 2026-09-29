@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { and, asc, avg, count, eq, ilike, or, sql } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { locations, crags, locationNormals, cragClimbabilityHistory } from '../db/schema.js'
-import { isUuid, sendServerError } from '../lib/http.js'
+import { MAX_NAME_LENGTH, MAX_QUERY_LENGTH, isUuid, sendServerError } from '../lib/http.js'
 import { insertGeneralLocation } from '../lib/locations/createLocation.js'
 import { resolveRockType } from '../lib/locations/resolveRockType.js'
 import { deleteLocationCascade } from '../lib/locations/deleteLocation.js'
@@ -25,6 +25,9 @@ type CragRow = typeof crags.$inferSelect
 function parseRockType(v: string | null | undefined): Location['rock_type'] {
   return isRockType(v) ? v : null
 }
+
+/** The longest IANA zone name is 30 characters; this only bounds junk. */
+const MAX_TIMEZONE_LENGTH = 64
 
 const ROCK_TYPE_ERROR = `rock_type must be one of ${ROCK_TYPES.join(', ')}`
 
@@ -70,6 +73,9 @@ function parseGeneralLocationInput(
   if (typeof raw.name !== 'string' || raw.name.trim() === '') {
     return { error: 'Invalid location data' }
   }
+  if (raw.name.trim().length > MAX_NAME_LENGTH) {
+    return { error: `name must be at most ${MAX_NAME_LENGTH} characters` }
+  }
   if (typeof raw.lat !== 'number' || !Number.isFinite(raw.lat) || raw.lat < -90 || raw.lat > 90) {
     return { error: 'lat must be a number between -90 and 90' }
   }
@@ -90,8 +96,12 @@ function parseGeneralLocationInput(
     elevation = raw.elevation_m
   }
 
-  if (raw.timezone !== undefined && raw.timezone !== null && typeof raw.timezone !== 'string') {
-    return { error: 'timezone must be a string' }
+  if (
+    raw.timezone !== undefined &&
+    raw.timezone !== null &&
+    (typeof raw.timezone !== 'string' || raw.timezone.length > MAX_TIMEZONE_LENGTH)
+  ) {
+    return { error: `timezone must be a string of at most ${MAX_TIMEZONE_LENGTH} characters` }
   }
 
   if (raw.is_climbing_location !== undefined && typeof raw.is_climbing_location !== 'boolean') {
@@ -171,7 +181,8 @@ locationsRouter.get('/locations', async (req: Request, res: Response) => {
 
 // Must be registered before GET /locations/:id — Express matches in declaration order
 locationsRouter.get('/locations/search', async (req: Request, res: Response) => {
-  const q = typeof req.query['q'] === 'string' ? req.query['q'].trim() : ''
+  // Truncated rather than refused: the client calls this as the user types.
+  const q = typeof req.query['q'] === 'string' ? req.query['q'].trim().slice(0, MAX_QUERY_LENGTH) : ''
   const latStr = typeof req.query['lat'] === 'string' ? req.query['lat'] : null
   const lonStr = typeof req.query['lon'] === 'string' ? req.query['lon'] : null
 
@@ -467,6 +478,19 @@ locationsRouter.get('/locations/:id/history', async (req: Request, res: Response
   }
 
   try {
+    // Ownership first: the history table is keyed by location alone, so
+    // without this any caller could read any location's history by id.
+    const owned = await db
+      .select({ id: locations.id })
+      .from(locations)
+      .where(and(eq(locations.id, id), eq(locations.user_id, req.userId)))
+      .limit(1)
+    if (!owned[0]) {
+      const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
+      res.status(404).json(response)
+      return
+    }
+
     const rows = await db
       .select({
         month: cragClimbabilityHistory.month,
