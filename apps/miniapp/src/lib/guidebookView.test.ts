@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GuidebookWall, HourlySeries, ReadingsDay } from '@weatherteam6/types'
-import { mountainProjectUrl, wallMarkers, weekRows } from './guidebookView.js'
+import { mountainProjectHref, mountainProjectUrl, wallMarkers, weekRows } from './guidebookView.js'
 
 const wall = (id: string, lat: number | null, lon: number | null): GuidebookWall => ({
   id,
@@ -79,5 +79,25 @@ describe('wallMarkers — overlap', () => {
     const [a, b, c] = wallMarkers([wall('a', 44.5, -92.53), wall('b', 44.5, -92.5299), wall('c', 44.5, -92.52)])
     expect(Math.abs((a?.y ?? 0) - (b?.y ?? 0))).toBeGreaterThan(0.1)
     expect(c?.y).toBe(a?.y)
+  })
+})
+
+describe('mountainProjectHref', () => {
+  const web = 'https://www.mountainproject.com/route/105825372'
+  const android = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/129.0 Mobile Safari/537.36'
+  const iphone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1'
+
+  it('asks Android for the MP app by package, falling back to the same web page', () => {
+    const href = mountainProjectHref(web, android)
+    expect(href.startsWith('intent://www.mountainproject.com/route/105825372#Intent;')).toBe(true)
+    expect(href).toContain('scheme=https;')
+    expect(href).toContain('package=com.mountainproject.android;')
+    expect(href).toContain(`S.browser_fallback_url=${encodeURIComponent(web)};`)
+    expect(href.endsWith(';end')).toBe(true)
+  })
+
+  it('leaves iOS and desktop on the plain web link, which nothing there can hand to the app', () => {
+    expect(mountainProjectHref(web, iphone)).toBe(web)
+    expect(mountainProjectHref(web, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')).toBe(web)
   })
 })
