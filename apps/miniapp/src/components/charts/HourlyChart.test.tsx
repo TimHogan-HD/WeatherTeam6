@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { formatPrecipIn, formatTempF } from '@weatherteam6/types'
 import { HourlyChart } from './HourlyChart.js'
 import { HOUR_MS, type SeriesDatum } from './hourlySeries.js'
-import { PAD_BOTTOM, PAD_LEFT, TEMP_VIEW_H } from './chartStyle.js'
+import { PAD_BOTTOM, PAD_LEFT, PAD_TOP, TEMP_VIEW_H } from './chartStyle.js'
 import { rainAxis, tempAxis } from './valueAxis.js'
 
 const T0 = Date.UTC(2026, 8, 14, 0)
@@ -48,6 +48,25 @@ describe('HourlyChart', () => {
     // A day that is not today: the clock is outside its hours and nothing is drawn.
     expect(chart(T0 + 100 * HOUR_MS)).not.toContain('>Now<')
     expect(chart(T0 - HOUR_MS)).not.toContain('>Now<')
+  })
+
+  it('puts the now dot on the line, between the two hours either side', () => {
+    // threeDays climbs 0.1 °C an hour from 10, so half past hour 30 reads 13.05 °C.
+    const markup = renderToStaticMarkup(
+      <HourlyChart
+        data={threeDays()}
+        kind="line"
+        viewHeight={TEMP_VIEW_H}
+        color="#abc"
+        formatValue={formatTempF}
+        domain={{ min: 10, max: 20 }}
+        title="t"
+        now={T0 + 30.5 * HOUR_MS}
+      />,
+    )
+    const cy = Number(/<circle[^>]*cy="([\d.]+)"[^>]*fill="#abc"/.exec(markup)?.[1])
+    const plotBottom = TEMP_VIEW_H - PAD_BOTTOM
+    expect(cy).toBeCloseTo(plotBottom - ((13.05 - 10) / 10) * (plotBottom - PAD_TOP), 3)
   })
 
   it('names the series and its measured range for a screen reader', () => {

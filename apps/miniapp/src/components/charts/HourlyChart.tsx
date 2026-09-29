@@ -11,6 +11,7 @@ import {
   PAD_LEFT,
   PAD_RIGHT,
   PAD_TOP,
+  DOT_R,
   MIN_TICK_GAP,
   VALUE_TICKS,
   VIEW_W,
@@ -94,8 +95,9 @@ export type HourlyChartProps = {
    */
   valueAxis?: ValueAxis
   /**
-   * The current instant, epoch ms, from a ticking clock (`useNow`). Drawn as a
-   * rule only when it falls inside this chart's hours, so any other day draws none.
+   * The current instant, epoch ms, from a ticking clock (`useNow`). When it falls
+   * inside this chart's hours: the past is dimmed, a rule and a "Now" pill mark it,
+   * and a dot sits on the line. Any other day draws none of it.
    */
   now?: number
 }
@@ -111,7 +113,7 @@ const MIN_SPAN = 2
 /** How close to the left edge a rule has to be before it is the frame. */
 const EDGE_TOLERANCE = 3
 
-/** Past this x the "Now" label sits left of its rule, or it runs off the chart. */
+/** The "Now" pill's width in user units, so it can be kept inside the plot. */
 const NOW_LABEL_W = 30
 
 /** Every sixth hour: four labels across one day, which is what fits at 375px. */
@@ -170,6 +172,18 @@ function hourTicks(
     out.push({ key: `${d.localDate}-${shifted.getUTCHours()}`, t: d.t, label })
   }
   return out
+}
+
+/** The line's value at an instant between two hours, or null across a gap. */
+function valueAt(data: readonly SeriesDatum[], t: number): number | null {
+  for (let i = 1; i < data.length; i++) {
+    const a = data[i - 1]!
+    const b = data[i]!
+    if (t < a.t || t > b.t) continue
+    if (a.value === null || b.value === null) return null
+    return a.value + ((b.value - a.value) * (t - a.t)) / (b.t - a.t)
+  }
+  return null
 }
 
 export function HourlyChart({
@@ -244,6 +258,7 @@ export function HourlyChart({
   const y = linearScale(domain, plotBottom, PAD_TOP)
 
   const nowX = now !== undefined && now >= xDomain.min && now <= xDomain.max ? x(now) : null
+  const nowValue = now === undefined || kind !== 'line' ? null : valueAt(data, now)
 
   /**
    * Where an hour's mark is centred, in user units.
@@ -483,6 +498,19 @@ export function HourlyChart({
           />
         )}
 
+        {/*
+          **The hours already gone are dimmed, not hidden.** Painted over the marks,
+          so the part of the day still ahead is what reads first.
+        */}
+        {nowX === null ? null : (
+          <rect
+            x={PAD_LEFT}
+            y={PAD_TOP}
+            width={Math.max(0, nowX - PAD_LEFT)}
+            height={plotBottom - PAD_TOP}
+            fill={chartColorsV2.past}
+          />
+        )}
         {nowX === null ? null : (
           <line
             x1={nowX}
@@ -490,7 +518,18 @@ export function HourlyChart({
             y1={PAD_TOP}
             y2={plotBottom}
             stroke={chartColorsV2.now}
-            strokeWidth={GRID_W * 1.5}
+            strokeWidth={LINE_W * 0.75}
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
+        {nowX === null || nowValue === null ? null : (
+          <circle
+            cx={nowX}
+            cy={y(nowValue)}
+            r={DOT_R}
+            fill={color}
+            stroke={chartColorsV2.nowRing}
+            strokeWidth={2}
             vectorEffect="non-scaling-stroke"
           />
         )}
@@ -562,13 +601,17 @@ export function HourlyChart({
         <span
           style={{
             ...typeV2.axisTick,
-            color: chartColorsV2.now,
+            fontWeight: 600,
+            color: chartColorsV2.nowInk,
+            backgroundColor: chartColorsV2.now,
+            borderRadius: `${radius.chip}px`,
+            padding: `1px ${spacing.chipGap}px`,
             position: 'absolute',
-            left: pctX(nowX),
+            left: pctX(
+              Math.min(VIEW_W - PAD_RIGHT - NOW_LABEL_W / 2, Math.max(PAD_LEFT + NOW_LABEL_W / 2, nowX)),
+            ),
             top: pctY(PAD_TOP),
-            // Above the plot, never inside it: a line crossing the top of the plot would run through the word.
-            transform: `translate(${nowX > VIEW_W - PAD_RIGHT - NOW_LABEL_W ? '-100%' : '0'}, -100%)`,
-            padding: `0 ${spacing.micro}px`,
+            transform: 'translate(-50%, -100%)',
             whiteSpace: 'nowrap',
             pointerEvents: 'none',
           }}
