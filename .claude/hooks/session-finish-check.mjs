@@ -56,7 +56,18 @@ function blockTurn(lines) {
   process.exit(2)
 }
 
-await readStdin() // Consume stdin so the caller is not left writing to a closed pipe.
+// Always consume stdin, so the caller is not left writing to a closed pipe.
+const raw = await readStdin()
+
+// Read the checkout the session is working in, not the one the hook was started
+// from — a session in a worktree otherwise ends with its commits unpushed and
+// this hook looking at the main checkout.
+try {
+  const cwd = JSON.parse(raw)?.cwd
+  if (typeof cwd === 'string' && cwd) process.chdir(cwd)
+} catch {
+  // No payload or no such directory: stay where the hook started.
+}
 
 // ---- preconditions: never block outside a normal repo state ----------------
 

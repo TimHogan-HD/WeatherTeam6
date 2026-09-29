@@ -20,17 +20,64 @@
  * Every guard here is covered by `npm run check:hooks`.
  */
 
+import { homedir } from 'node:os'
+import { resolve } from 'node:path'
 import { currentBranch, defaultBranch, isGitRepo } from './lib/gitState.mjs'
 
 /**
- * Branch lookups, guarded. A hook must not block a tool call because a git
- * command failed — if the branch cannot be determined, the guard stands down.
+ * The branch checked out in `dir` and the repository's default branch, or
+ * nulls. A hook must not block a tool call because a git command failed — if
+ * the branch cannot be determined, the guard stands down.
  */
-function currentBranchName() {
-  return isGitRepo() ? currentBranch() : null
+function branchesIn(dir) {
+  if (!isGitRepo(dir)) return { branch: null, base: null }
+  return { branch: currentBranch(dir), base: defaultBranch(dir) }
 }
-function defaultBranchName() {
-  return isGitRepo() ? defaultBranch() : null
+
+/**
+ * A path as the shell wrote it, made resolvable by Node: quotes dropped, `~`
+ * expanded, and Git Bash's `/c/Users/...` turned into `c:/Users/...`.
+ */
+function toNativePath(p) {
+  let out = p.trim().replace(/^(['"])(.*)\1$/, '$2')
+  if (out === '~' || out.startsWith('~/')) out = homedir() + out.slice(1)
+  if (process.platform === 'win32') out = out.replace(/^\/([a-zA-Z])(?=\/|$)/, '$1:')
+  return out
+}
+
+/**
+ * Every directory a `git commit` in this command runs in.
+ *
+ * The guard used to ask git from the hook's own directory, which is the main
+ * checkout. On 2026-09-29 a session committing in a worktree on a feature
+ * branch was refused because the main checkout was on `main` — and a session in
+ * a worktree on `main` would have been let through. So the directory is worked
+ * out from the command: start at the session's cwd, follow each `cd`,
+ * `Set-Location` or `pushd` before the commit, then apply any `git -C`.
+ */
+function commitDirectories(cmd, startDir) {
+  const dirs = []
+  let dir = startDir
+  for (const segment of cmd.split(/&&|\|\||[;\n|]/)) {
+    const cd =
+      /^\s*\(?\s*(?:cd|chdir|pushd|Set-Location|sl|Push-Location)\s+(?:-(?:Literal)?Path\s+)?(\S.*?)\s*$/i.exec(
+        segment,
+      )
+    if (cd) {
+      dir = resolve(dir, toNativePath(cd[1]))
+      continue
+    }
+    const git = /\bgit((?:\s+-[cC]\s+(?:"[^"]*"|'[^']*'|\S+)|\s+--?[\w-]+(?:=\S+)?)*)\s+commit\b/.exec(
+      segment,
+    )
+    if (!git) continue
+    let target = dir
+    for (const c of git[1].matchAll(/\s-C\s+("[^"]*"|'[^']*'|\S+)/g)) {
+      target = resolve(target, toNativePath(c[1]))
+    }
+    dirs.push(target)
+  }
+  return dirs
 }
 
 function readStdin() {
@@ -79,6 +126,9 @@ function stripInertText(cmd) {
   )
   // An unterminated heredoc (the body is still being written) — drop the rest.
   out = out.replace(/<<-?\s*(['"]?)[A-Za-z_][A-Za-z0-9_]*\1[\s\S]*$/, ' <<HEREDOC ')
+  // PowerShell here-strings: @'...'@ and @"..."@, the closer at column 0.
+  out = out.replace(/@(['"])\r?\n[\s\S]*?^\1@/gm, ' HERESTRING ')
+  out = out.replace(/@(['"])\r?\n[\s\S]*$/, ' HERESTRING ')
   // -m "..." / -m '...' / --message=...
   out = out.replace(/(-m|--message)(\s+|=)(['"])[\s\S]*?\3/g, '$1 MSG')
   return out
@@ -118,9 +168,8 @@ try {
 const tool = input?.tool_name ?? ''
 const toolInput = input?.tool_input ?? {}
 const rawCommand = String(toolInput.command ?? '')
-// Match against the executable text only. `rawCommand` is kept for the
-// git-commit check below, which cares that a commit is happening, not what the
-// message says.
+// Match against the executable text only, so a `cd` or `rm -rf` written inside
+// a commit message is neither followed nor blocked.
 const command = stripInertText(rawCommand)
 // `file_path` is what Write/Edit actually send. `path` is kept as a fallback
 // only so a future tool using that key is still covered.
@@ -192,16 +241,22 @@ if (tool === 'Write' || tool === 'Edit' || tool === 'NotebookEdit') {
  *
  *    `--amend` on an already-pushed default-branch commit is a different and
  *    worse operation, so it is caught too.
+ *
+ *    The branch is read where the commit runs (`commitDirectories`), and the
+ *    PowerShell tool is checked too: on 2026-09-29 a commit went through
+ *    PowerShell because this guard only watched Bash.
  * ---------------------------------------------------------------- */
-if (tool === 'Bash' && /\bgit\s+commit\b/.test(command)) {
-  const branch = currentBranchName()
-  const base = defaultBranchName()
-  if (branch && base && branch === base) {
-    block(
-      `You are on "${branch}", the default branch. Work lands through a branch and a PR — ` +
-        `create one first:  git checkout -b <type>/<name>\n` +
-        'If this is genuinely a direct-to-default commit the user asked for, they can run it themselves.',
-    )
+if (tool === 'Bash' || tool === 'PowerShell') {
+  const sessionDir = typeof input?.cwd === 'string' && input.cwd ? input.cwd : process.cwd()
+  for (const dir of commitDirectories(command, sessionDir)) {
+    const { branch, base } = branchesIn(dir)
+    if (branch && base && branch === base) {
+      block(
+        `The commit would land on "${branch}", the default branch (in ${dir}). Work lands ` +
+          `through a branch and a PR — create one first:  git checkout -b <type>/<name>\n` +
+          'If this is genuinely a direct-to-default commit the user asked for, they can run it themselves.',
+      )
+    }
   }
 }
 

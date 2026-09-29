@@ -12,9 +12,10 @@ const GIT_TIMEOUT_MS = 5000
 const GH_TIMEOUT_MS = 10000
 
 /** Run a command and return trimmed stdout, or `null` on any failure. */
-function tryRun(file, args, timeout) {
+function tryRun(file, args, timeout, cwd) {
   try {
     return execFileSync(file, args, {
+      cwd,
       encoding: 'utf8',
       timeout,
       stdio: ['ignore', 'pipe', 'ignore'],
@@ -25,8 +26,9 @@ function tryRun(file, args, timeout) {
   }
 }
 
-export function git(args) {
-  return tryRun('git', args, GIT_TIMEOUT_MS)
+/** `cwd` defaults to the hook's own directory; pass one to read another checkout. */
+export function git(args, cwd) {
+  return tryRun('git', args, GIT_TIMEOUT_MS, cwd)
 }
 
 /**
@@ -39,12 +41,12 @@ export function gh(args) {
   return tryRun('C:\\Program Files\\GitHub CLI\\gh.exe', args, GH_TIMEOUT_MS)
 }
 
-export function isGitRepo() {
-  return git(['rev-parse', '--is-inside-work-tree']) === 'true'
+export function isGitRepo(cwd) {
+  return git(['rev-parse', '--is-inside-work-tree'], cwd) === 'true'
 }
 
-export function currentBranch() {
-  const b = git(['rev-parse', '--abbrev-ref', 'HEAD'])
+export function currentBranch(cwd) {
+  const b = git(['rev-parse', '--abbrev-ref', 'HEAD'], cwd)
   // Detached HEAD reports "HEAD"; treat it as no branch.
   return b && b !== 'HEAD' ? b : null
 }
@@ -54,12 +56,12 @@ export function currentBranch() {
  * assumed, so this does not silently do the wrong thing on a repo using
  * `master` or `develop`.
  */
-export function defaultBranch() {
-  const ref = git(['symbolic-ref', '--quiet', 'refs/remotes/origin/HEAD'])
+export function defaultBranch(cwd) {
+  const ref = git(['symbolic-ref', '--quiet', 'refs/remotes/origin/HEAD'], cwd)
   if (ref) return ref.replace('refs/remotes/origin/', '')
   // Fall back only if origin/HEAD is not set locally.
-  if (git(['rev-parse', '--verify', '--quiet', 'refs/remotes/origin/main'])) return 'main'
-  if (git(['rev-parse', '--verify', '--quiet', 'refs/remotes/origin/master'])) return 'master'
+  if (git(['rev-parse', '--verify', '--quiet', 'refs/remotes/origin/main'], cwd)) return 'main'
+  if (git(['rev-parse', '--verify', '--quiet', 'refs/remotes/origin/master'], cwd)) return 'master'
   return null
 }
 
