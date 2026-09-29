@@ -111,6 +111,12 @@ Read this before any weather fetch work. Every source has gotchas that will wast
 - **Coverage:** 206k of OpenBeta's 231k climbs are in the USA; France has 71. It fixes US search and adds little in Europe. No elevation, no rock type, no aspect.
 - **The `crags` table and `importCrags.ts` are unused** by this — they predate it and still assume an export format that does not exist.
 
+## OpenBeta Routes (the guidebook)
+- **What uses it:** `GET /api/v1/guidebook/:locationId` — the Crag tab and the wall and route screens. `lib/guidebook/guidebookMn.ts` is a **generated snapshot** of every Minnesota area and route (384 areas, 1,861 routes, ~513 KB), regenerated with `npm run guidebook:pull --workspace=apps/api` and committed. Nothing calls OpenBeta at runtime, for the reasons in the section above.
+- **How a saved location finds its crag** (`guidebookFor`): the area with the most routes whose points sit within 2 km (`GUIDEBOOK_REACH_KM`, matching `KNOWN_CRAG_REACH_KM`), skipping any area whose points spread wider than 5 km (`CRAG_MAX_SPAN_KM`) — those are regions, e.g. "Duluth Area" at 40 km. Nothing is stored on `locations`; the link is recomputed per request. The crag's direct sub-areas are its walls, sorted by name. **Wall coordinates are not reliable** — at Barn Bluff they misplace the walls (owner, 2026-09-29) — so they only feed the 2 km reach test, never a map or an order.
+- **Two API quirks the generator works around, measured 2026-09-28/29:** `areas(filter:)` returns every **climb's** `metadata.mp_id` as null while `area(uuid:)` returns the real one, so the script makes a second narrow pass per area (1,848 of 1,861 routes have one); and `leftRightIndex` is `999999` for "not placed", which the script stores as null. 82 of 250 walls with routes have ties or no positions, so a wall is `ordered` only when every route has its own position — the UI offers "left to right" only then.
+- **Coverage:** no length and no bolt count on any Minnesota route, a description on 5, a protection rating on a handful. The screens say "Not recorded" rather than leaving a blank.
+
 ## suncalc
 - **Package:** `suncalc` npm package — client-side only, no API
 - **Use:** Solar position math for shade window calculation

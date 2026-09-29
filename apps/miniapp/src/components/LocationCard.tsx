@@ -9,13 +9,14 @@ import {
   type Location,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { cardV2, row, stack, toneColors, wellV2, type ToneName } from '../theme/styles.js'
+import { cardV2, row, stack, toneColors, wellV2 } from '../theme/styles.js'
 import { useAlerts, useConditions, useForecast } from '../hooks/useWeather.js'
 import { findToday } from '../lib/forecast.js'
 import { formatTempRangeF } from '../lib/format.js'
 import { cardSummary, readingTone, scoreTone } from '../lib/locationList.js'
 import { tempColor } from './charts/chartStyle.js'
 import { AlertPill } from './Alerts.js'
+import { ReadingPill } from './ReadingPills.js'
 import { ChevronRightIcon, DropletIcon, HumidityIcon, TemperatureIcon, WindIcon } from './Icons.js'
 import { InlineError, Skeleton } from './States.js'
 
@@ -129,7 +130,7 @@ export function LocationCard({
       {summary === null || summary.readings.length === 0 ? null : (
         <div style={{ ...row(spacing.chipGapMd), flexWrap: 'wrap' }}>
           {summary.readings.map((field) => (
-            <Pill
+            <ReadingPill
               key={field.label}
               label={field.label}
               value={field.value}
@@ -161,24 +162,6 @@ function ScoreBadge({ score }: { score: number }) {
     >
       <span style={{ ...typeV2.badgeLabel, color: tone.label }}>{SCORE_LABEL}</span>
       <span style={{ ...typeV2.badgeValue, color: tone.value }}>{score}</span>
-    </span>
-  )
-}
-
-function Pill({ label, value, tone }: { label: string; value: string; tone: ToneName | null }) {
-  const c = tone === null ? null : toneColors(tone, 'pill')
-  return (
-    <span
-      style={{
-        ...row(spacing.tight),
-        // A reading with no tone is drawn as a neutral well rather than borrowing
-        // a hue; a toned one needs no hairline, the tint is its edge.
-        ...(c === null ? wellV2 : { borderRadius: `${radius.full}px`, backgroundColor: c.background }),
-        padding: `${spacing.tight}px ${spacing.listGap}px`,
-      }}
-    >
-      <span style={{ ...typeV2.pill, color: c?.label ?? colorsV2.txtMuted }}>{label}</span>
-      <span style={{ ...typeV2.pillValue, color: c?.value ?? colorsV2.txt1 }}>{value}</span>
     </span>
   )
 }

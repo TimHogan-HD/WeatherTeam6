@@ -240,6 +240,15 @@ async function run(): Promise<void> {
       `got ${crossDelete.status}`,
     )
 
+    const crossGuide = await call<null>('GET', `/guidebook/${locB}`, { auth: `Session ${token}` })
+    check(
+      "GET /guidebook/:id on B's location is 404 for A",
+      crossGuide.status === 404,
+      `got ${crossGuide.status}`,
+    )
+    const ownGuide = await call<null>('GET', `/guidebook/${locA}`, { auth: `Session ${token}` })
+    check('GET /guidebook/:id on A\'s own location is 200', ownGuide.status === 200, `got ${ownGuide.status}`)
+
     const stillThere = await db
       .select({ id: locations.id })
       .from(locations)

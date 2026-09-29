@@ -36,6 +36,8 @@ export type BackContext =
   | { route: 'list' }
   | { route: 'detail'; tab: DetailTab }
   | { route: 'add'; previewing: boolean }
+  | { route: 'wall'; locationId: string }
+  | { route: 'climb'; locationId: string; wallId: string }
 
 /**
  * `null` means no back affordance at all — the list is the root, and the app
@@ -63,6 +65,8 @@ export type BackAction = null | DetailBack | AddBack
 export function backTarget(context: { route: 'list' }): null
 export function backTarget(context: { route: 'detail'; tab: DetailTab }): DetailBack
 export function backTarget(context: { route: 'add'; previewing: boolean }): AddBack
+export function backTarget(context: { route: 'wall'; locationId: string }): Navigate
+export function backTarget(context: { route: 'climb'; locationId: string; wallId: string }): Navigate
 export function backTarget(context: BackContext): BackAction {
   switch (context.route) {
     case 'list':
@@ -74,5 +78,25 @@ export function backTarget(context: BackContext): BackAction {
       return { kind: 'showTab', tab: context.tab === 'hourly' ? 'daily' : 'overview' }
     case 'add':
       return context.previewing ? { kind: 'closePreview' } : { kind: 'navigate', to: '/' }
+    // The guidebook screens each step out one level: a route to its wall, a
+    // wall to the Crag tab it was opened from — not to Overview, which would
+    // lose the reader's place in the crag.
+    case 'wall':
+      return { kind: 'navigate', to: cragTabPath(context.locationId) }
+    case 'climb':
+      return { kind: 'navigate', to: wallPath(context.locationId, context.wallId) }
   }
 }
+
+/**
+ * The guidebook's URLs, spelled once. The wall and route screens are real
+ * routes rather than states inside `/location/:id`, so a route can be shared
+ * or reloaded. The Crag tab is `?tab=crag`, which the detail screen reads as
+ * its opening tab.
+ */
+export const cragTabPath = (locationId: string): string => detailTabPath(locationId, 'crag')
+export const wallPath = (locationId: string, wallId: string): string =>
+  `/location/${locationId}/wall/${wallId}`
+export const climbPath = (locationId: string, wallId: string, routeId: string): string =>
+  `${wallPath(locationId, wallId)}/route/${routeId}`
+export const detailTabPath = (locationId: string, tab: DetailTab): string => `/location/${locationId}?tab=${tab}`

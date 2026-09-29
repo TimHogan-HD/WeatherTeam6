@@ -10,6 +10,7 @@ import { hourlyRouter } from './routes/hourly.js';
 import { alertsRouter } from './routes/alerts.js';
 import { recentPrecipRouter } from './routes/recentPrecip.js'
 import { wallsRouter } from './routes/walls.js'
+import { guidebookRouter } from './routes/guidebook.js'
 import { tripsRouter } from './routes/trips.js';
 import { radarRouter } from './routes/radar.js';
 import { geocodeRouter } from './routes/geocode.js';
@@ -105,6 +106,7 @@ export function createApp(): Express {
     recentPrecipRouter,
     alertsRouter,
     wallsRouter,
+    guidebookRouter,
     tripsRouter,
     radarRouter,
     geocodeRouter,
