@@ -125,7 +125,8 @@ function WallBody({ locationId, wall }: { locationId: string; wall: GuidebookWal
 
   // No marks until the logbook has loaded, rather than every route briefly unticked.
   const logbook = useLogbook()
-  const ticked = new Set(logbook.data?.ticks.map((t) => t.route_id) ?? [])
+  // An attempt is logged but not climbed, so it earns no ✓.
+  const ticked = new Set(logbook.data?.ticks.filter((t) => t.style !== 'attempt').map((t) => t.route_id) ?? [])
   const todo = new Set(logbook.data?.todos ?? [])
   const markerFor = (id: string): string | null => (ticked.has(id) ? '✓' : todo.has(id) ? 'To-do' : null)
 
