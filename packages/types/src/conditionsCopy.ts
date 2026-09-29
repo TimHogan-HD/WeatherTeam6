@@ -153,6 +153,30 @@ export function formatLastRain(hours: number | null): string | null {
   return `about ${days} days ago`;
 }
 
+/** Model id prefixes and the short name a reader knows each model by. */
+const MODEL_NAMES: readonly (readonly [prefix: string, name: string])[] = [
+  ['gfs', 'GFS'],
+  ['ecmwf', 'ECMWF'],
+  ['icon', 'ICON'],
+  ['gem', 'GEM'],
+  ['ncep_hrrr', 'HRRR'],
+  ['ncep_nbm', 'NBM'],
+  ['nbm', 'NBM'],
+];
+
+/**
+ * `GFS` for `gfs_seamless`. The id stays the attribution — this only shortens
+ * how it is printed. An id not listed is printed as-is rather than guessed.
+ */
+export function modelName(id: string): string {
+  return MODEL_NAMES.find(([prefix]) => id.startsWith(prefix))?.[1] ?? id;
+}
+
+/** `Open-Meteo · GFS, ECMWF` — a set of models named once, in the order given. */
+export function openMeteoModels(ids: readonly string[]): string {
+  return `Open-Meteo · ${[...new Set(ids.map(modelName))].join(', ')}`;
+}
+
 /**
  * The forecast sources actually used for a response, per §3's rule that nothing
  * in a sources footer may be hardcoded.
@@ -176,7 +200,7 @@ export function forecastSourceLabel(
     (s) => s.model_sources !== null && s.model_sources.length > 0,
   )?.model_sources;
   if (models === undefined || models === null || models.length === 0) return null;
-  return `Open-Meteo (${models.join(', ')})`;
+  return openMeteoModels(models);
 }
 
 /**

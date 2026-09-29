@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { colors, spacing } from '@weatherteam6/design/tokens'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, stack } from '../theme/styles.js'
+import { bareButton, bottomClearance, row, stack } from '../theme/styles.js'
 import { backTarget, wallPath } from '../lib/backTarget.js'
 import { formatRunAge } from '../lib/format.js'
 import { useDeleteLocation, useLocation } from '../hooks/useLocations.js'
@@ -169,7 +169,9 @@ export function LocationDetail() {
         surface the app cannot style, and on iOS an installed PWA renders it
         over the whole screen for a one-word decision.
       */}
-      <div style={{ ...stack(spacing.listGapSm), alignItems: 'center', paddingTop: `${spacing.cellPad}px` }}>
+      {remove.isError ? <InlineError message="Couldn't remove this location." /> : null}
+      {/* One row: stacked, the two text buttons and their tap padding were a band of empty space. */}
+      <div style={{ ...row(spacing.cellPad), justifyContent: 'center', flexWrap: 'wrap' }}>
         {location.data.is_climbing_location && id !== undefined ? (
           <button
             type="button"
@@ -184,7 +186,6 @@ export function LocationDetail() {
             Check this forecast
           </button>
         ) : null}
-        {remove.isError ? <InlineError message="Couldn't remove this location." /> : null}
         <button
           type="button"
           style={{
@@ -220,7 +221,7 @@ export function LocationDetail() {
         style={{
           ...stack(spacing.listGapLg),
           padding: `${spacing.sectionGap}px`,
-          paddingBottom: `${spacing.bottomInset + spacing.sectionGap}px`,
+          paddingBottom: bottomClearance,
         }}
       >
         {content}

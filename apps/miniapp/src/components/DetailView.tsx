@@ -20,7 +20,8 @@ import {
 } from '../lib/forecast.js'
 import { AlertBanner } from './Alerts.js'
 import { ConditionsNow } from './ConditionsNow.js'
-import { SourcesFooter } from './SourcesFooter.js'
+import { SourcesFooter, type SourceEntry } from './SourcesFooter.js'
+import { formatTickDate } from '../lib/logbook.js'
 import { InlineError, Skeleton } from './States.js'
 import { DryingCard } from './DryingCard.js'
 import { DailyList } from './DailyList.js'
@@ -220,20 +221,26 @@ export function DetailView({
       ? undefined
       : new Set(hourlyDays.filter(dayIsDrawable).map((d) => d.local_date))
 
-  const sources = [
-    forecastSourceLabel(forecast.data),
-    showScore ? rainfallSourceLabel(asosStation) : null,
+  const sources: SourceEntry[] = [
+    { label: 'Forecast', value: forecastSourceLabel(forecast.data) },
+    { label: 'Last rain', value: showScore ? rainfallSourceLabel(asosStation) : null },
     // The Precip tab and the drying card's window read this, from a different
     // Open-Meteo call than the drying model's own rainfall. Named once it arrived.
-    recentPrecip?.data === undefined ? null : RECENT_PRECIP_SOURCE_LABEL,
+    { label: 'Precip', value: recentPrecip?.data === undefined ? null : RECENT_PRECIP_SOURCE_LABEL },
     // Only claim NWS when an alert is actually being shown. An empty result is
     // not "NWS says no alerts": the table is filled by a cron, so empty can
     // equally mean NWS was never asked.
-    activeAlertCount > 0 ? 'NWS' : null,
+    { label: 'Alerts', value: activeAlertCount > 0 ? 'NWS' : null },
     // Named only once a crag came back: a location with no guidebook, or one
     // still loading, has shown nothing of OpenBeta's.
-    guidebook?.data == null ? null : `Crag: ${GUIDEBOOK_SOURCE_LABEL}, as of ${guidebook.data.snapshot_date}`,
-  ].filter((s): s is string => s !== null)
+    {
+      label: 'Crag',
+      value:
+        guidebook?.data == null
+          ? null
+          : `${GUIDEBOOK_SOURCE_LABEL}, ${formatTickDate(guidebook.data.snapshot_date)}`,
+    },
+  ]
 
   /**
    * The hero. **Its readings are passed only for a scored location** — the

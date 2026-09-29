@@ -68,6 +68,7 @@ import type {
   RockLevel,
   RockReading,
 } from './hourly.js';
+import { modelName, openMeteoModels } from './conditionsCopy.js';
 import {
   EM_DASH,
   cToFDelta,
@@ -553,7 +554,7 @@ export const DEW_POINT_MARGIN_LABEL = 'Dew point margin';
  * there to grip is a judgement no study supports.
  */
 export const FRICTION_MECHANISM =
-  'Friction is estimated from air temperature, dew point and whether the rock sits above its dew point. How much heat, humidity and cold cost in grip has never been measured, so those penalties are judgements rather than findings.';
+  'Friction comes from air temperature, dew point and rock temperature. Its heat, humidity and cold penalties are judgement calls, never measured.';
 
 /**
  * The mechanism behind `UNRECORDED_ASPECT_NOTE`.
@@ -565,7 +566,7 @@ export const FRICTION_MECHANISM =
  * this warm" is not.
  */
 export const UNRECORDED_ASPECT_MECHANISM =
-  'No wall orientation is recorded for this location, so sunlit hours are computed against flat ground rather than against the wall. That usually reads warm, though a sun-facing wall under a low winter sun can take more.';
+  'No wall direction is recorded, so sun is modelled on flat ground. That usually reads warm.';
 
 /**
  * What the rock group is.
@@ -577,7 +578,7 @@ export const UNRECORDED_ASPECT_MECHANISM =
  * a reader to treat the first as an observation.
  */
 export const ROCK_TEMPERATURE_MECHANISM =
-  'Rock temperature is modelled for open, flat ground from sun, air temperature and wind — nothing measures the wall itself.';
+  'Rock temperature is modelled for open, flat ground. Nothing measures the wall.';
 
 /**
  * Where the drying clock's rain came from.
@@ -589,9 +590,10 @@ export const ROCK_TEMPERATURE_MECHANISM =
  * learn the two read different forecasts.
  */
 export function dryingRainMechanism(models: readonly string[]): string {
-  return models.length === 1
-    ? `Dryness counts the rain one forecast model (${models[0]}) puts at this spot, hour by hour. No rain gauge is read.`
-    : `Dryness counts the middle of ${models.length} forecast models' rain at this spot (${models.join(', ')}), hour by hour. No rain gauge is read.`;
+  const names = [...new Set(models.map(modelName))];
+  if (names.length === 1) return `Dryness uses ${names[0]}'s rain forecast, not a rain gauge.`;
+  const list = `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  return `Dryness uses the median rain forecast of ${list}, not a rain gauge.`;
 }
 
 /**
@@ -601,7 +603,7 @@ export function dryingRainMechanism(models: readonly string[]): string {
  * left unattributed rather than given a plausible name.
  */
 export function modelSourceLabel(model: string | null): string | null {
-  return model === null ? null : `Open-Meteo (${model})`;
+  return model === null ? null : openMeteoModels([model]);
 }
 
 /**

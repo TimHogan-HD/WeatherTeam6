@@ -117,3 +117,14 @@ export const bareButton: CSSProperties = {
   cursor: 'pointer',
   width: '100%',
 }
+
+/**
+ * The space under a screen's last content: the design's bottom inset, or the
+ * phone's home-indicator inset where that is larger — **never both stacked**.
+ * `#root` used to add the inset beneath every screen's own padding, which left
+ * about 74px of nothing under the last control on an iPhone.
+ *
+ * The `0px` fallback stays: without it a browser lacking the inset drops the
+ * whole declaration, and the design inset with it.
+ */
+export const bottomClearance = `max(${spacing.bottomInset}px, env(safe-area-inset-bottom, 0px))`

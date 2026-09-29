@@ -381,7 +381,7 @@ describe('DetailView — a climbing location', () => {
         conditions={ok(redRockScore())}
       />,
     )
-    expect(html).toContain('Open-Meteo (gfs_seamless, ecmwf_ifs025)')
+    expect(html).toContain('Open-Meteo · GFS, ECMWF')
     expect(html).toContain('ACIS (KLAS)')
     expect(html).toContain('NWS')
   })

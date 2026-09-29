@@ -296,7 +296,7 @@ describe('ConditionsNow — the measurements panel', () => {
 
   it('names the model once when both halves came from it', () => {
     const html = render({ conditions: settled(scored()) })
-    expect(count(html, 'Open-Meteo (gfs_seamless)')).toBe(1)
+    expect(count(html, 'Open-Meteo · GFS')).toBe(1)
   })
 
   /**
@@ -309,8 +309,8 @@ describe('ConditionsNow — the measurements panel', () => {
       series: series(hour(), 'ncep_hrrr_conus'),
       conditions: settled(scored()),
     })
-    expect(html).toContain('Open-Meteo (ncep_hrrr_conus)')
-    expect(html).toContain('Open-Meteo (gfs_seamless)')
+    expect(html).toContain('Open-Meteo · HRRR')
+    expect(html).toContain('Open-Meteo · GFS')
   })
 
   it('has no control when there is nothing to open', () => {

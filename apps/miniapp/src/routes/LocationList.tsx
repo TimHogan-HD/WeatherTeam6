@@ -4,7 +4,7 @@ import { useQueries } from '@tanstack/react-query'
 import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import type { Location } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, btnPrimary, btnPrimaryText, row, stack, wellV2 } from '../theme/styles.js'
+import { bareButton, bottomClearance, btnPrimary, btnPrimaryText, row, stack, wellV2 } from '../theme/styles.js'
 import { clearToken } from '../lib/authToken.js'
 import { formatUpdatedAt } from '../lib/format.js'
 import {
@@ -148,7 +148,7 @@ export function LocationList() {
           display: 'flex',
           justifyContent: 'center',
           paddingTop: `${spacing.listGap}px`,
-          paddingBottom: `${spacing.bottomInset + spacing.sectionGap}px`,
+          paddingBottom: bottomClearance,
         }}
       >
         <button

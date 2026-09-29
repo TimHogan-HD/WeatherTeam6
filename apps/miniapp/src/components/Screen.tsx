@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { colors, spacing } from '@weatherteam6/design/tokens'
 import { layout, type } from '../theme/tokens.css.js'
-import { bareButton, row } from '../theme/styles.js'
+import { bareButton, bottomClearance, row } from '../theme/styles.js'
 import { ChevronLeftIcon } from './Icons.js'
 import { FeedbackButton } from './FeedbackButton.js'
 
@@ -34,7 +34,7 @@ export function Screen({ title, onBack, action, feedback = false, children }: Sc
       style={{
         ...layout.body,
         paddingTop: `${spacing.topSafe}px`,
-        paddingBottom: `${spacing.bottomInset}px`,
+        paddingBottom: bottomClearance,
       }}
     >
       {feedback ? (

@@ -136,13 +136,13 @@ describe('measurements', () => {
       rainModels: null,
       readingModel: 'gfs_seamless',
     });
-    expect(groupNamed(m, 'Air')?.source).toBe('Open-Meteo (ncep_hrrr_conus)');
-    expect(groupNamed(m, 'Rock')?.source).toBe('Open-Meteo (gfs_seamless)');
+    expect(groupNamed(m, 'Air')?.source).toBe('Open-Meteo · HRRR');
+    expect(groupNamed(m, 'Rock')?.source).toBe('Open-Meteo · GFS');
     expect(m.sharedSource).toBeNull();
   });
 
   it('names one source only when every group actually came from it', () => {
-    expect(both().sharedSource).toBe('Open-Meteo (gfs_seamless)');
+    expect(both().sharedSource).toBe('Open-Meteo · GFS');
   });
 
   it('shares a source across a single group', () => {
@@ -153,7 +153,7 @@ describe('measurements', () => {
       rainModels: null,
       readingModel: null,
     });
-    expect(m.sharedSource).toBe('Open-Meteo (gfs_seamless)');
+    expect(m.sharedSource).toBe('Open-Meteo · GFS');
   });
 
   it('does not share a source when one group is unattributed', () => {
@@ -343,13 +343,12 @@ describe('where the drying clock’s rain came from (issue #209)', () => {
       ...base,
       rainModels: ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless', 'gem_seamless'],
     });
-    expect(m.notes[0]).toContain('middle of 4 forecast models');
-    expect(m.notes[0]).toContain('gfs_seamless, ecmwf_ifs025, icon_seamless, gem_seamless');
+    expect(m.notes[0]).toBe('Dryness uses the median rain forecast of GFS, ECMWF, ICON and GEM, not a rain gauge.');
   });
 
   it('names the one model when the rain was one model’s own', () => {
     const m = measurements({ ...base, rainModels: ['gfs_seamless'] });
-    expect(m.notes[0]).toContain('one forecast model (gfs_seamless)');
+    expect(m.notes[0]).toBe("Dryness uses GFS's rain forecast, not a rain gauge.");
   });
 
   it('explains nothing when no dryness reading is on screen, or the source is unnamed', () => {
