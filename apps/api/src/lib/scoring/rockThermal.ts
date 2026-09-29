@@ -672,6 +672,42 @@ export function surfaceTemperature(input: SurfaceTemperatureInput): SurfaceTempe
   }
 }
 
+/**
+ * **Time constant of the rock surface, hours** — how long the surface takes to
+ * follow a change in sun. The one constant in this file that was measured
+ * against outcomes.
+ *
+ * `npm run compare:rock-temp --workspace=apps/api` scores `T_surface` against
+ * USCRN's infrared ground-surface temperature, hourly, July–September 2026. At
+ * the six arid stations — bare ground, the nearest thing the network has to
+ * rock — the instantaneous sol-air value missed daytime surfaces by 6.7 °C MAE
+ * (+3.3 °C bias), and the same value lagged at 2 h by 5.0 (+0.9). 1 h recovered
+ * little of that. The humid stations agree in direction (9.7 → 7.5).
+ *
+ * The truth there is ground, not rock, and rock has more thermal mass than soil,
+ * so the real figure for a cliff is more likely longer than 2 h than shorter.
+ */
+export const SURFACE_TAU_HOURS = 2
+
+/**
+ * **One step of the surface's thermal lag**: the previous hour's lagged value
+ * relaxed toward this hour's instantaneous sol-air value.
+ *
+ * A null `instantC` withholds, like every other missing input here. A null
+ * `previousC` means there is no history to carry, and the hour takes its own
+ * value, which is what `T_surface` was before the lag existed.
+ */
+export function laggedSurfaceC(
+  previousC: number | null,
+  instantC: number | null,
+  stepHours = 1,
+  tauHours = SURFACE_TAU_HOURS,
+): number | null {
+  if (instantC === null || !Number.isFinite(instantC)) return null
+  if (previousC === null || !Number.isFinite(previousC)) return instantC
+  return previousC + (1 - Math.exp(-stepHours / tauHours)) * (instantC - previousC)
+}
+
 export type MassTemperatureOptions = {
   /** Defaults to `MASS_TAU_HOURS`. */
   tauHours?: number

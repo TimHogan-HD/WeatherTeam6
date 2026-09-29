@@ -63,13 +63,16 @@
 import type { RockType } from '@weatherteam6/types'
 import { MAX_HOURS, MIN_HOURS } from './dryingModel.js'
 import {
+  ASPECT_QUALIFY_MARGIN_C,
   MASS_TAU_HOURS,
   condensationMarginC,
   dryingRateMultiplier,
   isCondensing,
+  laggedSurfaceC,
   massTemperatureC,
   surfaceTemperature,
   type MassTemperatureOptions,
+  type SurfaceTemperature,
   type WallOrientation,
 } from './rockThermal.js'
 import { skinWettedness, sweatFrictionFactor } from './sweatBalance.js'
@@ -452,6 +455,34 @@ function wallAt(
   return { orientation: wall, at: new Date(t - (stepHours * 3_600_000) / 2) }
 }
 
+/**
+ * **The series' `T_surface` follows the sun with a lag** (`SURFACE_TAU_HOURS`),
+ * because the instantaneous sol-air value was measured to overshoot: it put a
+ * surface at full sun temperature the hour a cloud cleared and dropped it the
+ * hour one arrived. `evaluateHour` has no history and stays instantaneous.
+ *
+ * The solar gain is lagged alongside, and without a recorded wall it is the
+ * *carried* gain that decides `qualified`: at dusk this hour's sun is small but
+ * the wall still holds the afternoon's, and which way the wall faced decided
+ * how much of it there was.
+ */
+function lagSurface(
+  instant: SurfaceTemperature,
+  previous: SurfaceTemperature | null,
+  stepHours: number,
+  wallRecorded: boolean,
+): SurfaceTemperature {
+  const tSurface = laggedSurfaceC(previous?.t_surface_c ?? null, instant.t_surface_c, stepHours)
+  if (tSurface === null) return instant
+  const gain = laggedSurfaceC(previous?.solar_gain_c ?? null, instant.solar_gain_c, stepHours)
+  return {
+    t_surface_c: tSurface,
+    solar_gain_c: gain,
+    sky_cooling_c: instant.sky_cooling_c,
+    qualified: wallRecorded ? instant.qualified : gain !== null && gain <= ASPECT_QUALIFY_MARGIN_C,
+  }
+}
+
 function readingsFrom(
   input: HourConditionsInput,
   surface: ReturnType<typeof surfaceTemperature>,
@@ -582,6 +613,7 @@ export function evaluateHourlyConditions(
   let effective: number | null =
     options.priorEffectiveHours === undefined ? 0 : options.priorEffectiveHours
   let rockQualified = true
+  let previous: SurfaceTemperature | null = null
 
   const out: HourlyConditions[] = []
 
@@ -590,7 +622,7 @@ export function evaluateHourlyConditions(
     const window = temps.slice(-massWindow)
     const massTempC = massTemperatureC(window, massOptions)
 
-    const surface = surfaceFor({
+    const instant = surfaceFor({
       valid_at: hour.valid_at,
       airTempC: hour.air_temp_c,
       shortwaveWm2: hour.shortwave_wm2,
@@ -601,6 +633,8 @@ export function evaluateHourlyConditions(
       stepHours: step,
       includeSun: options.includeSun,
     })
+    const surface = lagSurface(instant, previous, step, options.wall != null)
+    previous = surface
 
     /**
      * Rain resets the clock before this hour is scored, not after. An hour it
