@@ -4,6 +4,7 @@ import {
   cragClimbabilityHistory,
   conditionsReports,
   conditionsScores,
+  feedback,
   forecastSnapshots,
   locationNormals,
   locations,
@@ -15,7 +16,9 @@ import {
 } from '../../db/schema.js'
 
 /**
- * Every table carrying a `location_id` FK. None of them declares
+ * Every table carrying a `location_id` FK whose rows go with the location.
+ * `feedback` also carries one and is **not** here — it is detached below,
+ * because a forecast check outlives the crag it was about. None of them declares
  * `onDelete: 'cascade'` — the schema uses the Postgres default (NO ACTION) — so
  * deleting a location with any dependent row raises a foreign-key violation,
  * which `sendServerError` would surface as a generic 500. Saved locations
@@ -74,6 +77,12 @@ export async function deleteLocationCascade(
     for (const table of DEPENDENT_TABLES) {
       await tx.delete(table).where(eq(table.location_id, locationId))
     }
+
+    // Feedback is detached, not deleted: a forecast check is evidence about the
+    // place, and the row already carries the place's name and coordinates.
+    // Not filtered by user: any row still referencing the location would make
+    // the delete below a foreign-key violation.
+    await tx.update(feedback).set({ location_id: null }).where(eq(feedback.location_id, locationId))
 
     const deleted = await tx
       .delete(locations)

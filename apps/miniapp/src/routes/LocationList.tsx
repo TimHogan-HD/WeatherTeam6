@@ -49,6 +49,7 @@ export function LocationList() {
   const locations = useLocations()
   const openLocation = useCallback((id: string) => void navigate(`/location/${id}`), [navigate])
   const openAdd = useCallback(() => void navigate('/add'), [navigate])
+  const openFeedback = useCallback(() => void navigate('/feedback'), [navigate])
 
   const [sort, setSort] = useSortPreference()
   const scores = useSettledScores(locations.data ?? [])
@@ -98,9 +99,18 @@ export function LocationList() {
             <PlusIcon color={colors.onGood} />
             <span style={typeV2.button}>Add</span>
           </button>
-          {locations.data !== undefined && locations.data.length > 1 ? (
-            <SortControl value={sort} onChange={setSort} />
-          ) : null}
+          <div style={row(spacing.cellPad)}>
+            <button
+              type="button"
+              onClick={openFeedback}
+              style={{ ...bareButton, ...typeV2.controlLabel, width: 'auto', padding: `${spacing.listGap}px ${spacing.tight}px` }}
+            >
+              Feedback
+            </button>
+            {locations.data !== undefined && locations.data.length > 1 ? (
+              <SortControl value={sort} onChange={setSort} />
+            ) : null}
+          </div>
         </div>
       </header>
 

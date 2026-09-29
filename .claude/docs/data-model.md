@@ -28,7 +28,8 @@ conditions_scores       -- no writer (by design)
 trips
 trip_locations
 crag_climbability_history   -- no writer (regression, issue #25)
-conditions_reports
+conditions_reports      -- no writer; superseded by feedback
+feedback                -- migration 0018
 premium_pulls
 location_normals        -- no writer (regression, issue #25)
 push_tokens
@@ -192,6 +193,30 @@ photo_urls      text[]  -- R2 keys, not public URLs
 forecast_matched boolean -- did conditions match app prediction?
 created_at      timestamptz default now()
 ```
+
+### feedback
+App feedback and forecast checks (`POST/GET /api/v1/feedback`, `DELETE /feedback/:id`;
+rules in `lib/feedback/parseFeedback.ts`, Postgres behaviour in `npm run check:feedback`).
+A forecast check stores **what the app showed** (`app_readings`) beside **what the climber
+saw**, so it can later be scored against the model (#143). `conditions_reports` is left
+unwritten: it stores only a bare `forecast_matched` boolean.
+```typescript
+id                  uuid PK
+user_id             uuid FK → users.id
+kind                feedback_kind      -- 'app' | 'forecast'
+location_id         uuid FK → locations.id, nullable -- set null when the location is deleted
+location_name       text               -- copied at write time; survives the delete
+lat, lon            double precision   -- copied at write time
+message             text               -- required (non-blank) for 'app'
+observed_at         timestamptz        -- required for 'forecast'
+observed_conditions overall_status     -- required for 'forecast'
+verdict             forecast_verdict   -- 'matched' | 'partly' | 'missed'; required for 'forecast'
+app_readings        jsonb              -- FeedbackAppReadings | null: labelled words, never 0-1 factors
+created_at          timestamptz default now()
+INDEX(user_id, created_at); CHECK constraints enforce the per-kind required fields
+```
+**`deleteLocationCascade` detaches feedback rather than deleting it** — a check is evidence
+about a place and outlives the saved location.
 
 ### premium_pulls
 Log of Tomorrow.io on-demand pulls for cost tracking.
