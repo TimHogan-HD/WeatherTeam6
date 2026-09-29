@@ -152,6 +152,29 @@ export const colorsV2 = {
 } as const;
 
 /**
+ * Stone colours for the Rock tab's textured header, one set per rock family.
+ * **Decoration, not data**: nothing is encoded in them, so they sit outside
+ * the status ladder and the data ramps. `base` fills, `grain` and `fleck` draw
+ * the texture over it; each set is muted so it sits on the dark `colorsV2`
+ * ground without competing with the card's text.
+ */
+export const rockSwatchV2 = {
+  granite: { base: '#6f6663', grain: '#9a8d88', fleck: '#2f2b2a' },
+  pale: { base: '#8d9096', grain: '#b4b7bc', fleck: '#5c6066' },
+  rhyolite: { base: '#6e4f4a', grain: '#8f6a62', fleck: '#3f2c29' },
+  basalt: { base: '#2c3034', grain: '#454b51', fleck: '#16191c' },
+  tuff: { base: '#8a7a62', grain: '#a8977b', fleck: '#5d503f' },
+  quartzite: { base: '#9b8a88', grain: '#c2b3ae', fleck: '#6c5d5b' },
+  slate: { base: '#3c4652', grain: '#566271', fleck: '#252c34' },
+  gneiss: { base: '#5d6166', grain: '#8c9197', fleck: '#2e3135' },
+  sandstoneBuff: { base: '#9a7f57', grain: '#bca06f', fleck: '#6b5639' },
+  sandstoneRed: { base: '#8e4f33', grain: '#b26a44', fleck: '#5e3120' },
+  grit: { base: '#7d6450', grain: '#a2826a', fleck: '#4a3a2e' },
+  limestone: { base: '#8a8a84', grain: '#aeaea6', fleck: '#5e5e59' },
+  conglomerate: { base: '#6e5a48', grain: '#9a8068', fleck: '#3d3127' },
+} as const;
+
+/**
  * The status ladder as **surfaces**: each rung's tinted card, row and pill,
  * from the Overview frame of the WT6 Figma "V2" page.
  *
