@@ -82,7 +82,10 @@ delivery gates are in `CLAUDE.md`; domain patterns are in the `miniapp-patterns`
   **The Precip tab draws the same median** (`recentPrecipMedian`, `GET /recent-precip`),
   never Open-Meteo's `best_match`: in the US that is HRRR, whose past hours caught 43% of
   the hours 14 ASOS gauges recorded rain on 2026-09-29, against the median's 71%.
-  `RecentPrecip.models` names what it drew, and the tab's caveat prints it.
+  `RecentPrecip.models` names what it drew, and the tab's caveat prints it. **Its "last
+  real rain" is the clock's own line**, `REWETTING_PRECIP_MM` (`packages/types`), which
+  `hourlyConditions.SIGNIFICANT_HOURLY_PRECIP_MM` re-exports — move one and the other moves.
+  A lighter shower is drawn and named but never resets that headline.
 - **The readings reach the response only because the route passed `scoring`**, exactly as
   a per-day score reaches `GET /forecast/:id` only because it passed a merge argument.
   There is no `is_climbing_location` check downstream to forget, and the model itself does

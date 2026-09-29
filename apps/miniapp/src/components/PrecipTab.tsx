@@ -1,41 +1,47 @@
 import type { ReactNode } from 'react'
 import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
-import { EM_DASH, formatPrecipIn, mmToIn, recentPrecipSource, type RecentPrecip } from '@weatherteam6/types'
-import { typeV2, withOpacity } from '../theme/tokens.css.js'
+import {
+  EM_DASH,
+  formatPrecipIn,
+  mmToIn,
+  recentPrecipSource,
+  REWETTING_PRECIP_MM,
+  type RecentPrecip,
+} from '@weatherteam6/types'
+import { typeV2 } from '../theme/tokens.css.js'
 import { cardV2, row, stack } from '../theme/styles.js'
 import {
   clockOf,
-  eventSpan,
+  dayLabel,
   formatSince,
-  intensityOf,
+  hourGrid,
+  hourKind,
   precipDays,
-  precipEvents,
   precipSummary,
-  weekdayOf,
-  type PrecipDay,
-  type PrecipEvent,
+  type HourCell,
   type PrecipKind,
 } from '../lib/precipHistory.js'
 import { useNow } from '../hooks/useNow.js'
-import { HelpIcon } from './Icons.js'
 import { InlineError, Skeleton } from './States.js'
 
 /**
- * The Precip tab, from the WT6 Figma "Precipitation history" frame: the
- * window's accumulation, its events, a bar per day, and a caveat.
+ * The Precip tab: how long since the last real rain, the week's total and wet
+ * hours, and every hour of the week as a day-by-hour grid.
  *
- * **Where it departs from the frame, and why.** The frame's third tile is
- * "Gauge conf. 74% · radar adjusted", its total carries "±0.08 in", and an
- * event reads "Moderate, W→E". Nothing here has a gauge, a radar blend, an
- * uncertainty or a storm track — the figures are Open-Meteo's own estimate of
- * the past hours — so the tile is the wettest hour, the ± is the wet-hour
- * count, and an event says how hard and how long. The frame's "Observed
- * events" is "Past events" for the same reason: nothing observed them.
+ * **Owner direction, 2026-09-29, from the round-2 Figma mocks** (V2 page,
+ * "Precip tab — round 2"): concept 4's headline over concept 2's grid, with
+ * the week's total and wet hours added. It replaces the Figma frame's tiles,
+ * event list and daily bars, which read as a wall of pale blue and made the
+ * reader assemble the answer from text.
  *
- * The frame draws a mixed event in `fair` amber and the third tile in `good`
- * lime. Those are the conditions ladder's colours and are not available for
- * data marks, so precipitation kinds take `rain`, `precipMix` and
- * `precipSnow`, and the tiles without a kind are neutral.
+ * **"Real rain" is `REWETTING_PRECIP_MM` in an hour** — the line at which the
+ * drying clock restarts — so the headline and Dryness never disagree about
+ * when it last rained. A lighter shower since is shown in the grid and named
+ * under the headline, but does not reset it: before this, a trace at noon read
+ * as "last precip 4h" on a rock the clock had been drying for a day.
+ *
+ * **Colour marks precipitation only.** Text and chrome are neutral; a grid
+ * cell's fill is its hour's amount on one blue ramp.
  */
 
 export type PrecipTabProps = {
@@ -49,175 +55,147 @@ export type PrecipTabProps = {
   isClimbingLocation: boolean
 }
 
-/** The frame's sizes. */
-const TILE_H = 91
-const WELL_W = 34
-const WELL_H = 100
-const WELL_PAD = 5
-const BAR_W = 24
-/** A dry day's stub, so "none fell" and "no data" are different pictures. */
-const BAR_MIN_H = 4
-const MARKER = 8
 const LOADING_H = 480
+const CELL_H = 18
+const DAY_COL = '40px'
+const TOTAL_COL = '38px'
+/** The runway's full length: past three days, the headline carries the number alone. */
+const RUNWAY_HOURS = 72
+const RUNWAY_TICKS = [0, 12, 24, 48, 72] as const
+const RUNWAY_H = 6
+const SWATCH = 12
 
-const KIND_COLOR: Record<PrecipKind, string> = {
-  rain: colorsV2.rain,
+const KIND_COLOR: Record<'mix' | 'snow', string> = {
   mix: colorsV2.precipMix,
   snow: colorsV2.precipSnow,
 }
+const KIND_NAME: Record<PrecipKind, string> = { rain: 'rain', mix: 'rain and snow', snow: 'snow' }
+const KIND_LEGEND: Record<PrecipKind, string> = { rain: 'Rain', mix: 'Rain and snow', snow: 'Snow' }
 
-const KIND_PILL: Record<PrecipKind, string> = { rain: 'RAIN', mix: 'MIX', snow: 'SNOW' }
-const KIND_LEGEND: Record<PrecipKind, string> = { rain: 'Rain', mix: 'Mixed event', snow: 'Snow' }
+/**
+ * Each amount step's lower edge, mm in an hour, and its `precipStep` colour.
+ * The second edge is the real-rain line, so an hour too light to re-wet the
+ * rock sits on the dimmest step alone.
+ */
+const STEPS: readonly (readonly [minMm: number, color: string])[] = [
+  [0, colorsV2.precipStep1],
+  [REWETTING_PRECIP_MM, colorsV2.precipStep2],
+  [1, colorsV2.precipStep3],
+  [2, colorsV2.precipStep4],
+  [4, colorsV2.precipStep5],
+]
+const TOP_STEP_IN = mmToIn(4).toFixed(2)
 
-/** A kind the response could not name is drawn neutral — never as rain. */
-function kindColor(kind: PrecipKind | null): string {
-  return kind === null ? colorsV2.legend : KIND_COLOR[kind]
+/**
+ * **Amount is the fill, kind is a ring.** One hue carries how much fell so
+ * more and less rain read at a glance (owner, 2026-09-29); snow and a mix add
+ * a ring in their own colour rather than repainting the step. An hour whose
+ * kind is unknown gets no ring — never called rain, never called snow.
+ */
+function stepColor(mm: number): string {
+  let color = colorsV2.precipStep1 as string
+  for (const [min, c] of STEPS) if (mm >= min) color = c
+  return color
 }
 
-/** `0.18`, `0.00`, `trace`, or a dash for a day with no data. The unit is printed under the bar. */
-function barFigure(mm: number | null): string {
+/** `0.35`, `0`, `tr`, or a dash for a day with no data. The unit is in the column head. */
+function dayFigure(mm: number | null): string {
   if (mm === null) return EM_DASH
-  if (mm === 0) return '0.00'
+  if (mm === 0) return '0'
   const inches = mmToIn(mm)
-  return inches < 0.01 ? 'trace' : inches.toFixed(2)
+  return inches < 0.01 ? 'tr' : inches.toFixed(2)
 }
 
-/** `1.2 in snow`. */
-function snowPhrase(cm: number): string {
-  const inches = cm / 2.54
-  return inches < 0.05 ? 'trace snow' : `${inches.toFixed(1)} in snow`
-}
-
-/** `Moderate · 3 h`, `1.2 in snow · 5 h`, `Rain, 0.4 in snow · 2 h`. */
-export function eventDescription(event: PrecipEvent): string {
-  const hours = `${event.wetHours} h`
-  if (event.kind === 'snow' && event.snowCm !== null) return `${snowPhrase(event.snowCm)} · ${hours}`
-  if (event.kind === 'mix' && event.snowCm !== null) return `Rain, ${snowPhrase(event.snowCm)} · ${hours}`
-  return `${intensityOf(event.peakMmPerHour)} · ${hours}`
-}
-
-function Card({ title, aside, gap, children }: { title: string; aside?: string; gap: number; children: ReactNode }) {
+function Card({ title, aside, gap, children }: { title?: string; aside?: string; gap: number; children: ReactNode }) {
   return (
     <section style={{ ...cardV2, ...stack(gap) }}>
-      <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
-        <h2 style={typeV2.cardTitle}>{title}</h2>
-        {aside === undefined ? null : <span style={{ ...typeV2.meta, textTransform: 'uppercase' }}>{aside}</span>}
-      </div>
+      {title === undefined ? null : (
+        <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <h2 style={typeV2.cardTitle}>{title}</h2>
+          {aside === undefined ? null : <span style={typeV2.aside}>{aside}</span>}
+        </div>
+      )}
       {children}
     </section>
   )
 }
 
-/** A tinted surface over the well colour, as the frame layers its fills. */
-function tinted(accent: string, fill: number, line: number) {
-  return {
-    backgroundImage: `linear-gradient(${withOpacity(accent, fill)}, ${withOpacity(accent, fill)})`,
-    backgroundColor: colorsV2.surface,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    borderColor: withOpacity(accent, line),
-  } as const
+function Stat({ label, value, note }: { label: string; value: string; note: string }) {
+  return (
+    <div style={{ ...stack(spacing.micro), flex: '1 1 0', minWidth: 0 }}>
+      <span style={typeV2.tileLabel}>{label}</span>
+      <span style={typeV2.tileFigure}>{value}</span>
+      <span style={typeV2.note}>{note}</span>
+    </div>
+  )
 }
 
-function Tile({ label, value, note, accent }: { label: string; value: string; note: string; accent: string | null }) {
-  const surface =
-    accent === null
-      ? { backgroundColor: colorsV2.surface, borderStyle: 'solid', borderWidth: '1px', borderColor: colorsV2.line }
-      : tinted(accent, 0.12, 0.55)
+/** How far along a 0–72 h track the time since the last real rain sits. */
+function Runway({ hours }: { hours: number }) {
+  const at = Math.min(hours, RUNWAY_HOURS) / RUNWAY_HOURS
+  return (
+    <div style={stack(spacing.chipGapMd)} aria-hidden>
+      <div style={{ position: 'relative', height: `${RUNWAY_H}px`, borderRadius: `${radius.full}px`, backgroundColor: colorsV2.grid }}>
+        <div
+          style={{
+            width: `${at * 100}%`,
+            height: '100%',
+            borderRadius: `${radius.full}px`,
+            backgroundColor: colorsV2.txt2,
+          }}
+        />
+      </div>
+      <div style={{ position: 'relative', height: '14px' }}>
+        {RUNWAY_TICKS.map((t) => {
+          const x = (t / RUNWAY_HOURS) * 100
+          const edge = t === 0 ? { left: 0 } : t === RUNWAY_HOURS ? { right: 0 } : { left: `${x}%`, transform: 'translateX(-50%)' }
+          return (
+            <span key={t} style={{ ...typeV2.axisTick, position: 'absolute', ...edge }}>
+              {t === RUNWAY_HOURS ? `${t} h+` : `${t} h`}
+            </span>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function Cell({ cell }: { cell: HourCell }) {
+  const base = { height: `${CELL_H}px`, borderRadius: `${radius.tag}px` }
+  if (cell.state !== 'value') {
+    // Not a dry hour: an outline, so "none fell" and "no estimate" look different.
+    return <div style={{ ...base, boxShadow: `inset 0 0 0 1px ${colorsV2.grid}` }} />
+  }
+  const mm = cell.hour.precip_mm
+  if (mm <= 0) return <div style={{ ...base, backgroundColor: colorsV2.grid }} />
+  const ring = kindRing(hourKind(cell.hour))
   return (
     <div
       style={{
-        ...surface,
-        ...stack(spacing.micro),
-        flex: '1 1 0',
-        minWidth: 0,
-        height: `${TILE_H}px`,
-        padding: `${spacing.cellPad}px`,
-        borderRadius: `${radius.rowV2}px`,
+        ...base,
+        backgroundColor: stepColor(mm),
+        ...(ring === null ? {} : { boxShadow: `inset 0 0 0 2px ${ring}` }),
       }}
-    >
-      <span style={{ ...typeV2.gaugeLabel, color: accent === null ? colorsV2.txtMuted : withOpacity(accent, 0.9) }}>
-        {label}
-      </span>
-      <span style={{ ...typeV2.cellFigure, color: accent ?? colorsV2.txt1 }}>{value}</span>
-      <span style={{ ...typeV2.tileNote, color: accent === null ? colorsV2.txtMuted : withOpacity(accent, 0.72) }}>
-        {note}
-      </span>
-    </div>
+    />
   )
 }
 
-function EventRow({ event }: { event: PrecipEvent }) {
-  const accent = kindColor(event.kind)
+/** A snow or rain-and-snow hour's ring; rain and an unknown kind carry none. */
+function kindRing(kind: PrecipKind | null): string | null {
+  return kind === 'snow' || kind === 'mix' ? KIND_COLOR[kind] : null
+}
+
+function Swatch({ color, ring }: { color: string; ring?: string }) {
   return (
-    <li
+    <span
       style={{
-        ...tinted(accent, 0.07, 0.34),
-        ...row(spacing.listGapLg),
-        padding: `${spacing.listGapLg}px`,
-        borderRadius: `${radius.rowV2}px`,
+        width: `${SWATCH}px`,
+        height: `${SWATCH}px`,
+        borderRadius: `${radius.tag}px`,
+        backgroundColor: color,
+        ...(ring === undefined ? {} : { boxShadow: `inset 0 0 0 2px ${ring}` }),
       }}
-    >
-      <div style={{ ...stack(spacing.tight), flex: '1 1 0', minWidth: 0 }}>
-        <span style={{ ...typeV2.rowPill, color: colorsV2.txt1 }}>{eventSpan(event)}</span>
-        <span style={typeV2.aside}>{eventDescription(event)}</span>
-      </div>
-      <div style={{ ...stack(spacing.tight), alignItems: 'flex-end' }}>
-        <span style={{ ...typeV2.factValue, color: accent }}>{formatPrecipIn(event.totalMm)}</span>
-        {event.kind === null ? null : (
-          <span
-            style={{
-              ...typeV2.chip,
-              color: accent,
-              backgroundColor: withOpacity(accent, 0.16),
-              borderRadius: `${radius.full}px`,
-              padding: `${WELL_PAD}px ${spacing.listGap}px`,
-            }}
-          >
-            {KIND_PILL[event.kind]}
-          </span>
-        )}
-      </div>
-    </li>
-  )
-}
-
-function DayBar({ day, max, label }: { day: PrecipDay; max: number; label: string }) {
-  const wet = day.totalMm !== null && day.totalMm > 0
-  const inner = WELL_H - 2 * WELL_PAD
-  const height = wet && max > 0 ? Math.max(BAR_MIN_H, Math.round(((day.totalMm ?? 0) / max) * inner)) : BAR_MIN_H
-  const color = wet ? kindColor(day.kind) : colorsV2.grid
-  return (
-    <div style={{ ...stack(spacing.chipGapMd), flex: '1 1 0', minWidth: 0, alignItems: 'center' }}>
-      <span style={{ ...typeV2.barFigure, color: wet ? color : colorsV2.txtMuted }}>{barFigure(day.totalMm)}</span>
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'flex-end',
-          alignItems: 'center',
-          width: `${WELL_W}px`,
-          height: `${WELL_H}px`,
-          padding: `0 ${WELL_PAD}px ${WELL_PAD}px`,
-          backgroundColor: colorsV2.surface,
-          borderRadius: `${radius.card}px`,
-        }}
-      >
-        {/* No bar at all over a day the response skipped: a stub would say "none fell". */}
-        {day.totalMm === null ? null : (
-          <div
-            style={{
-              width: `${BAR_W}px`,
-              height: `${height}px`,
-              backgroundColor: color,
-              borderRadius: `${radius.segItem}px ${radius.segItem}px ${radius.tag}px ${radius.tag}px`,
-            }}
-          />
-        )}
-      </div>
-      <span style={{ ...typeV2.dayTab, color: colorsV2.legend }}>{label}</span>
-      <span style={typeV2.barUnit}>in</span>
-    </div>
+    />
   )
 }
 
@@ -239,121 +217,154 @@ export function PrecipTab({ recent, isClimbingLocation }: PrecipTabProps) {
 
   const source = recentPrecipSource(data.models)
   const summary = precipSummary(data, now)
-  const events = precipEvents(data.hours)
+  const grid = hourGrid(days, data.hours)
   const offset = Number.isFinite(data.utc_offset_seconds) ? data.utc_offset_seconds : 0
   const today = new Date(now + offset * 1000).toISOString().slice(0, 10)
-  const dayLabel = (date: string) => (date === today ? 'Today' : weekdayOf(date))
-  const ending = summary.endingLocal === null ? undefined : `Ending ${clockOf(summary.endingLocal)}`
-  const max = Math.max(0, ...days.map((d) => d.totalMm ?? 0))
-  const kinds = (['rain', 'mix', 'snow'] as const).filter((k) =>
-    days.some((d) => d.kind === k && (d.totalMm ?? 0) > 0),
-  )
+  /** `today 13:00`, `Mon 13:00`. */
+  const when = (validAtLocal: string) => {
+    const label = dayLabel(validAtLocal, today)
+    return `${label === 'Today' ? 'today' : label} ${clockOf(validAtLocal)}`
+  }
 
-  const last = summary.lastWet
-  const lastNote =
-    last === null
-      ? `in ${days.length} days`
-      : `ended by ${last.valid_at_local.slice(0, 10) === today ? '' : `${weekdayOf(last.valid_at_local)} `}${clockOf(last.valid_at_local)}`
+  const { lastReal, hoursSinceReal, lastRealEvent, lighterSince, endingLocal } = summary
+  const kindName = lastRealEvent?.kind == null ? 'precipitation' : KIND_NAME[lastRealEvent.kind]
+  const threshold = `${mmToIn(REWETTING_PRECIP_MM).toFixed(2)} in`
+  // Real rain in the window's newest hour is rain falling now, not rain that
+  // "ended 0 hours ago"; a storm reaching that hour is still going.
+  const rainingNow = lastReal !== null && lastReal.valid_at_local === endingLocal
+  const storm =
+    lastRealEvent === null
+      ? null
+      : `${lastRealEvent.endLocal === endingLocal ? 'this storm so far' : 'that storm left'} ${formatPrecipIn(lastRealEvent.totalMm)} over ${lastRealEvent.spanHours} h`
+  const lastLight = lighterSince[lighterSince.length - 1]
+  const lightMm = lighterSince.reduce((s, h) => s + h.precip_mm, 0)
+  const todayHours = data.hours.filter((h) => h.valid_at_local.slice(0, 10) === today)
+  const todayWet = todayHours.filter((h) => h.precip_mm > 0).length
+  const ringKinds = (['mix', 'snow'] as const).filter((k) =>
+    data.hours.some((h) => h.precip_mm > 0 && hourKind(h) === k),
+  )
+  const gridColumns = `${DAY_COL} repeat(24, minmax(0, 1fr)) ${TOTAL_COL}`
 
   return (
     <>
-      <Card title={`${days.length}-day accumulation`} {...(ending === undefined ? {} : { aside: ending })} gap={spacing.listGapLg}>
-        <div style={{ ...row(spacing.listGap), alignItems: 'flex-start' }}>
-          <Tile
-            label="Liquid est."
-            value={formatPrecipIn(summary.totalMm)}
-            note={
-              summary.wetHours === 0
-                ? 'none fell'
-                : `over ${summary.wetHours} wet ${summary.wetHours === 1 ? 'hour' : 'hours'}`
-            }
-            accent={colorsV2.rain}
+      <Card gap={spacing.listGapLg}>
+        {lastReal === null || hoursSinceReal === null ? (
+          <div style={stack(spacing.tight)}>
+            <span style={typeV2.factLabel}>Last real rain</span>
+            <span style={typeV2.heroTemp}>None</span>
+            <span style={typeV2.body}>
+              No hour reached {threshold} during the past {days.length} days.
+            </span>
+          </div>
+        ) : rainingNow ? (
+          <div style={stack(spacing.tight)}>
+            <span style={typeV2.factLabel}>Real {kindName} in the latest hour</span>
+            <span style={typeV2.heroTemp}>Now</span>
+            <span style={typeV2.body}>
+              to {when(lastReal.valid_at_local)}
+              {storm === null ? null : ` · ${storm}`}
+            </span>
+          </div>
+        ) : (
+          <div style={stack(spacing.tight)}>
+            <span style={typeV2.factLabel}>Last real {kindName} ended</span>
+            <div style={{ ...row(spacing.listGap), alignItems: 'baseline' }}>
+              <span style={typeV2.heroTemp}>{hoursSinceReal < 48 ? hoursSinceReal : formatSince(hoursSinceReal)}</span>
+              <span style={{ ...typeV2.bandValue, color: colorsV2.txt2 }}>
+                {hoursSinceReal < 48 ? (hoursSinceReal === 1 ? 'hour ago' : 'hours ago') : 'ago'}
+              </span>
+            </div>
+            <span style={typeV2.body}>
+              {when(lastReal.valid_at_local)}
+              {storm === null ? null : ` · ${storm}`}
+            </span>
+          </div>
+        )}
+        {hoursSinceReal === null || rainingNow ? null : <Runway hours={hoursSinceReal} />}
+        {lastLight === undefined || lastReal === null ? null : (
+          <p style={typeV2.note}>
+            Lighter showers since ({formatPrecipIn(lightMm)}, last ending {when(lastLight.valid_at_local)}) — each hour
+            under {threshold}, so they don&apos;t count.
+          </p>
+        )}
+        <div
+          style={{
+            ...row(spacing.listGapLg),
+            alignItems: 'flex-start',
+            paddingTop: `${spacing.listGapLg}px`,
+            borderTop: `1px solid ${colorsV2.line}`,
+          }}
+        >
+          {/* A window that has not reached today has no today to total — a dash, not 0. */}
+          <Stat
+            label="Today"
+            value={todayHours.length === 0 ? EM_DASH : formatPrecipIn(todayHours.reduce((s, h) => s + h.precip_mm, 0))}
+            note={todayHours.length === 0 ? 'no hours yet' : `${todayWet} wet ${todayWet === 1 ? 'hour' : 'hours'}`}
           />
-          <Tile
-            label="Last precip"
-            value={summary.hoursSinceLast === null ? 'None' : formatSince(summary.hoursSinceLast)}
-            note={lastNote}
-            accent={null}
-          />
-          <Tile
-            label="Wettest hour"
-            value={summary.wettest === null ? EM_DASH : formatPrecipIn(summary.wettest.precip_mm)}
-            note={
-              summary.wettest === null
-                ? 'none fell'
-                : `${weekdayOf(summary.wettest.valid_at_local)} ${clockOf(summary.wettest.valid_at_local)}`
-            }
-            accent={summary.wettest === null ? null : colorsV2.rain}
-          />
+          <Stat label="This week" value={formatPrecipIn(summary.totalMm)} note={`over ${days.length} days`} />
+          <Stat label="Wet this week" value={`${summary.wetHours} h`} note={`of ${data.hours.length}`} />
         </div>
       </Card>
 
-      <Card title="Past events" gap={spacing.listGap}>
-        {events.length === 0 ? (
-          // "In this window", never "it has not rained": the window has an edge.
-          <p style={typeV2.aside}>None in the past {days.length} days.</p>
-        ) : (
-          <ul style={{ ...stack(spacing.listGap), listStyle: 'none', margin: 0, padding: 0 }}>
-            {events.map((e) => (
-              <EventRow key={e.endLocal} event={e} />
-            ))}
-          </ul>
-        )}
-      </Card>
-
-      <Card title="Daily accumulation" gap={spacing.sectionGap}>
+      <Card title="Every hour" aside={`to ${summary.endingLocal === null ? EM_DASH : when(summary.endingLocal)}`} gap={spacing.listGapLg}>
         <div
           role="img"
           aria-label={days
-            .map((d) => `${dayLabel(d.localDate)} ${d.totalMm === null ? 'no data' : formatPrecipIn(d.totalMm)}`)
+            .map((d) => `${dayLabel(d.localDate, today)} ${d.totalMm === null ? 'no data' : formatPrecipIn(d.totalMm)}`)
             .join(', ')}
-          style={{ ...row(spacing.chipGapMd), alignItems: 'flex-end' }}
+          style={{ display: 'grid', gridTemplateColumns: gridColumns, columnGap: '2px', rowGap: '4px', alignItems: 'center' }}
         >
-          {days.map((d) => (
-            <DayBar key={d.localDate} day={d} max={max} label={dayLabel(d.localDate)} />
+          <span />
+          {Array.from({ length: 24 }, (_, i) => (
+            <span key={i} style={{ ...typeV2.axisTick, gridColumn: 'span 1' }}>
+              {i % 6 === 0 ? String(i).padStart(2, '0') : ''}
+            </span>
+          ))}
+          <span style={{ ...typeV2.axisTick, textAlign: 'right' }}>in</span>
+          {days.map((d, di) => {
+            const label = dayLabel(d.localDate, today)
+            const wet = d.totalMm !== null && d.totalMm > 0
+            return [
+              <span
+                key={`${d.localDate}-l`}
+                style={{ ...typeV2.dayTab, color: label === 'Today' ? colorsV2.txt1 : colorsV2.legend }}
+              >
+                {label}
+              </span>,
+              ...(grid[di] ?? []).map((cell, hi) => <Cell key={`${d.localDate}-${hi}`} cell={cell} />),
+              <span
+                key={`${d.localDate}-t`}
+                style={{ ...typeV2.dayChip, textAlign: 'right', color: wet ? colorsV2.txt1 : colorsV2.txtMuted }}
+              >
+                {dayFigure(d.totalMm)}
+              </span>,
+            ]
+          })}
+        </div>
+        <div style={{ ...row(spacing.chipGapMd), flexWrap: 'wrap' }}>
+          <span style={typeV2.legendSm}>Dry</span>
+          <Swatch color={colorsV2.grid} />
+          <span style={{ ...typeV2.legendSm, marginLeft: `${spacing.listGap}px` }}>Less</span>
+          {STEPS.map(([, c]) => (
+            <Swatch key={c} color={c} />
+          ))}
+          <span style={typeV2.legendSm}>More ({TOP_STEP_IN}+ in/h)</span>
+          {ringKinds.map((k) => (
+            <span key={k} style={{ ...row(spacing.chipGapMd), marginLeft: `${spacing.listGap}px` }}>
+              <Swatch color={colorsV2.grid} ring={KIND_COLOR[k]} />
+              <span style={typeV2.legendSm}>{KIND_LEGEND[k]}</span>
+            </span>
           ))}
         </div>
-        {kinds.length === 0 ? null : (
-          <div style={row(spacing.cardPad)}>
-            {kinds.map((k) => (
-              <span key={k} style={row(spacing.chipGapMd)}>
-                <span
-                  aria-hidden
-                  style={{
-                    width: `${MARKER}px`,
-                    height: `${MARKER}px`,
-                    borderRadius: `${radius.tag}px`,
-                    backgroundColor: KIND_COLOR[k],
-                  }}
-                />
-                <span style={typeV2.legendSm}>{KIND_LEGEND[k]}</span>
-              </span>
-            ))}
-          </div>
-        )}
       </Card>
 
-      <div
-        style={{
-          ...row(spacing.listGap),
-          alignItems: 'flex-start',
-          backgroundColor: colorsV2.surface,
-          borderStyle: 'solid',
-          borderWidth: '1px',
-          borderColor: colorsV2.line,
-          borderRadius: `${radius.rowV2}px`,
-          padding: `${spacing.listGapLg}px`,
-        }}
-      >
-        <HelpIcon color={colorsV2.txtMuted} />
-        <p style={{ ...typeV2.note, flex: '1 1 0', minWidth: 0 }}>
-          {source === null ? '' : `${source} `}Model estimates, not gauge readings.
-          {isClimbingLocation && source !== null ? ' Dryness reads the same rain.' : null}
-          {isClimbingLocation
-            ? ' Shade, seepage, wind channeling and elevation can change conditions route-by-route. Inspect rock before climbing.'
-            : null}
-        </p>
-      </div>
+      <p style={{ ...typeV2.note, padding: `0 ${spacing.listGapLg}px` }}>
+        {source === null ? '' : `${source} `}Model estimates, not gauge readings. Real rain is {threshold} or more in an
+        hour{isClimbingLocation ? ', the amount that restarts Dryness.' : '.'}
+        {isClimbingLocation
+          ? ' Shade, seepage, wind channeling and elevation can change conditions route-by-route. Inspect rock before climbing.'
+          : null}
+      </p>
     </>
   )
 }

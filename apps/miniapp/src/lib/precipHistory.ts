@@ -1,15 +1,15 @@
-import type { RecentPrecip, RecentPrecipHour } from '@weatherteam6/types'
+import { REWETTING_PRECIP_MM, type RecentPrecip, type RecentPrecipHour } from '@weatherteam6/types'
 
 /**
  * What the Precip tab says about the days just past, from `/recent-precip`:
- * the window's total, when it last fell, the wettest hour, the events, and a
- * total per local day. Pure, so every rule here is reachable by a test.
+ * when the last real rain ended, the window's total and wet hours, and every
+ * hour laid out as a day-by-hour grid. Pure, so every rule here is reachable
+ * by a test.
  *
- * **Every figure is a model estimate.** Open-Meteo's past hours are its own
+ * **Every figure is a model estimate.** The past hours are the models' own
  * analysis, not a gauge, so nothing here is called "observed" and nothing
  * claims a confidence, a storm track or an uncertainty the response does not
- * carry — the Figma frame's "gauge conf.", "±" and "W→E" are left out for that
- * reason.
+ * carry.
  */
 
 /** Rain, snow, or both in the same event or day. */
@@ -18,17 +18,8 @@ export type PrecipKind = 'rain' | 'snow' | 'mix'
 const HOUR_MS = 60 * 60 * 1000
 
 /**
- * AMS rainfall-rate classes, in mm per hour: light below 2.5, heavy above 7.6.
- * Applied to an event's wettest hour, which is what a climber means by "it
- * poured".
- */
-const LIGHT_BELOW_MM_H = 2.5
-const HEAVY_ABOVE_MM_H = 7.6
-
-/**
  * How many dry hours may sit inside one event. One: a single dry hour in a
  * storm is a lull, and splitting there lists one afternoon as two events.
- * Presentation only — nothing downstream reads an event.
  */
 const MAX_LULL_HOURS = 1
 
@@ -41,12 +32,17 @@ function isWet(h: RecentPrecipHour): boolean {
   return h.precip_mm > 0
 }
 
+/** Rain that restarts the drying clock — the same line `hourlyConditions` draws. */
+export function isRealRain(h: RecentPrecipHour): boolean {
+  return h.precip_mm >= REWETTING_PRECIP_MM
+}
+
 /**
  * One wet hour's kind, or `null` when the response cannot say. **Unknown is
- * never rain**: an older API sends no `rain_mm`/`snowfall_cm`, and a pill
- * reading RAIN over snow is the attribution defect this repo keeps shipping.
+ * never rain**: an older API sends no `rain_mm`/`snowfall_cm`, and calling snow
+ * rain is the attribution defect this repo keeps shipping.
  */
-function hourKind(h: RecentPrecipHour): PrecipKind | null {
+export function hourKind(h: RecentPrecipHour): PrecipKind | null {
   const rain = h.rain_mm ?? null
   const snow = h.snowfall_cm ?? null
   if (rain === null || snow === null) return null
@@ -68,36 +64,15 @@ function combinedKind(hours: readonly RecentPrecipHour[]): PrecipKind | null {
   return 'mix'
 }
 
-/** Snow depth over a set of hours, or `null` when any hour's snow is unknown. */
-function snowCm(hours: readonly RecentPrecipHour[]): number | null {
-  let total = 0
-  for (const h of hours) {
-    const s = h.snowfall_cm ?? null
-    if (s === null) return null
-    total += s
-  }
-  return total
-}
-
-export type Intensity = 'Light' | 'Moderate' | 'Heavy'
-
-export function intensityOf(peakMmPerHour: number): Intensity {
-  if (peakMmPerHour < LIGHT_BELOW_MM_H) return 'Light'
-  if (peakMmPerHour > HEAVY_ABOVE_MM_H) return 'Heavy'
-  return 'Moderate'
-}
-
 export type PrecipEvent = {
   /** Local `YYYY-MM-DDTHH:mm`. The first wet hour's stamp less one hour — a stamp closes the hour it describes. */
   startLocal: string
   /** Local stamp of the last wet hour: the precipitation had ended by then. */
   endLocal: string
   totalMm: number
-  peakMmPerHour: number
-  wetHours: number
+  /** Hours from start to end, lulls included. */
+  spanHours: number
   kind: PrecipKind | null
-  /** Snow depth in cm; `null` when unknown, `0` for a rain-only event. */
-  snowCm: number | null
 }
 
 /** Wet hours grouped into events, **newest first**. */
@@ -122,14 +97,13 @@ export function precipEvents(hours: readonly RecentPrecipHour[]): PrecipEvent[] 
     .map((g) => {
       const first = g[0] as RecentPrecipHour
       const last = g[g.length - 1] as RecentPrecipHour
+      const start = localMs(first.valid_at_local) - HOUR_MS
       return {
-        startLocal: new Date(localMs(first.valid_at_local) - HOUR_MS).toISOString().slice(0, 16),
+        startLocal: new Date(start).toISOString().slice(0, 16),
         endLocal: last.valid_at_local,
         totalMm: g.reduce((sum, h) => sum + h.precip_mm, 0),
-        peakMmPerHour: Math.max(...g.map((h) => h.precip_mm)),
-        wetHours: g.length,
+        spanHours: Math.round((localMs(last.valid_at_local) - start) / HOUR_MS),
         kind: combinedKind(g),
-        snowCm: snowCm(g),
       }
     })
     .reverse()
@@ -139,80 +113,104 @@ export type PrecipDay = {
   localDate: string
   /** `null` when the response held no hours for this date — a gap, not a dry day. */
   totalMm: number | null
-  kind: PrecipKind | null
 }
 
 /**
  * One entry per local date from the window's first hour to its last, **gaps
  * included**. A date the response skipped is `totalMm: null`, never `0`: a
- * dry-looking bar over a day nobody reported is defect class 1.
+ * dry-looking total over a day nobody reported is defect class 1.
  */
 export function precipDays(hours: readonly RecentPrecipHour[]): PrecipDay[] {
   const first = hours[0]
   const last = hours[hours.length - 1]
   if (first === undefined || last === undefined) return []
 
-  const byDate = new Map<string, RecentPrecipHour[]>()
+  const byDate = new Map<string, number>()
   for (const h of hours) {
     const date = h.valid_at_local.slice(0, 10)
-    const list = byDate.get(date)
-    if (list === undefined) byDate.set(date, [h])
-    else list.push(h)
+    byDate.set(date, (byDate.get(date) ?? 0) + h.precip_mm)
   }
 
   const days: PrecipDay[] = []
   const end = Date.parse(`${last.valid_at_local.slice(0, 10)}T00:00Z`)
   for (let t = Date.parse(`${first.valid_at_local.slice(0, 10)}T00:00Z`); t <= end; t += 24 * HOUR_MS) {
     const date = new Date(t).toISOString().slice(0, 10)
-    const list = byDate.get(date)
-    days.push(
-      list === undefined
-        ? { localDate: date, totalMm: null, kind: null }
-        : { localDate: date, totalMm: list.reduce((s, h) => s + h.precip_mm, 0), kind: combinedKind(list) },
-    )
+    days.push({ localDate: date, totalMm: byDate.get(date) ?? null })
   }
   return days
+}
+
+/**
+ * One cell of the day-by-hour grid. `ahead` is an hour after the window's
+ * newest stamp — today's hours still to come; `missing` is an hour inside the
+ * window the response did not carry. Neither is a dry hour.
+ */
+export type HourCell =
+  | { state: 'value'; hour: RecentPrecipHour }
+  | { state: 'missing' }
+  | { state: 'ahead' }
+
+/** 24 cells per day in `days`, stamped `00:00`–`23:00` on that date. */
+export function hourGrid(days: readonly PrecipDay[], hours: readonly RecentPrecipHour[]): HourCell[][] {
+  const byStamp = new Map(hours.map((h) => [h.valid_at_local, h]))
+  const newest = hours[hours.length - 1]?.valid_at_local ?? ''
+  return days.map((d) =>
+    Array.from({ length: 24 }, (_, i): HourCell => {
+      const stamp = `${d.localDate}T${String(i).padStart(2, '0')}:00`
+      const hour = byStamp.get(stamp)
+      if (hour !== undefined) return { state: 'value', hour }
+      return stamp > newest ? { state: 'ahead' } : { state: 'missing' }
+    }),
+  )
 }
 
 export type PrecipSummary = {
   totalMm: number
   wetHours: number
-  /** The last wet hour, or `null` when nothing fell in the window. */
-  lastWet: RecentPrecipHour | null
-  /** Whole hours from the end of the last wet hour to now, on the location's clock. */
-  hoursSinceLast: number | null
-  wettest: RecentPrecipHour | null
-  /** The newest hour in the window — what "ending" names. */
+  /** The last hour at or above `REWETTING_PRECIP_MM`, or `null` when none fell in the window. */
+  lastReal: RecentPrecipHour | null
+  /** Whole hours from the end of that hour to now, on the location's clock. */
+  hoursSinceReal: number | null
+  /** The event the last real hour belongs to. */
+  lastRealEvent: PrecipEvent | null
+  /** Wet hours after the last real one — showers too light to restart the drying clock. */
+  lighterSince: readonly RecentPrecipHour[]
+  /** The newest hour in the window — what "to" names. */
   endingLocal: string | null
 }
 
 export function precipSummary(recent: RecentPrecip, nowMs: number): PrecipSummary {
   const hours = recent.hours
-  let lastWet: RecentPrecipHour | null = null
-  let wettest: RecentPrecipHour | null = null
   let totalMm = 0
   let wetHours = 0
-  for (const h of hours) {
+  let lastRealIndex = -1
+  hours.forEach((h, i) => {
     totalMm += h.precip_mm
-    if (!isWet(h)) continue
-    wetHours += 1
-    lastWet = h
-    if (wettest === null || h.precip_mm > wettest.precip_mm) wettest = h
-  }
+    if (isWet(h)) wetHours += 1
+    if (isRealRain(h)) lastRealIndex = i
+  })
+  const lastReal = hours[lastRealIndex] ?? null
 
   // The stamps are the location's wall clock; so is this, shifted by the
   // response's own offset (issue #33) — never the viewer's timezone.
   const offset = Number.isFinite(recent.utc_offset_seconds) ? recent.utc_offset_seconds : 0
   const localNow = nowMs + offset * 1000
-  const hoursSinceLast =
-    lastWet === null ? null : Math.max(0, Math.floor((localNow - localMs(lastWet.valid_at_local)) / HOUR_MS))
+  const hoursSinceReal =
+    lastReal === null ? null : Math.max(0, Math.floor((localNow - localMs(lastReal.valid_at_local)) / HOUR_MS))
+  const lastRealEvent =
+    lastReal === null
+      ? null
+      : (precipEvents(hours).find(
+          (e) => e.startLocal < lastReal.valid_at_local && lastReal.valid_at_local <= e.endLocal,
+        ) ?? null)
 
   return {
     totalMm,
     wetHours,
-    lastWet,
-    hoursSinceLast,
-    wettest,
+    lastReal,
+    hoursSinceReal,
+    lastRealEvent,
+    lighterSince: hours.slice(lastRealIndex + 1).filter(isWet),
     endingLocal: hours[hours.length - 1]?.valid_at_local ?? null,
   }
 }
@@ -235,11 +233,7 @@ export function weekdayOf(localDate: string): string {
   return new Date(t).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })
 }
 
-/** `Tue 19:00–21:00`, or `Sat 23:00–Sun 02:00` across midnight. */
-export function eventSpan(event: PrecipEvent): string {
-  const startDay = event.startLocal.slice(0, 10)
-  const endDay = event.endLocal.slice(0, 10)
-  const start = `${weekdayOf(startDay)} ${clockOf(event.startLocal)}`
-  const end = startDay === endDay ? clockOf(event.endLocal) : `${weekdayOf(endDay)} ${clockOf(event.endLocal)}`
-  return `${start}–${end}`
+/** `Today` on the location's own date, else `Tue`. */
+export function dayLabel(localDate: string, today: string): string {
+  return localDate.slice(0, 10) === today ? 'Today' : weekdayOf(localDate)
 }
