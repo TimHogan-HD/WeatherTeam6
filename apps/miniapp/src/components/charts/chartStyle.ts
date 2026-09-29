@@ -151,8 +151,13 @@ export const chartColorsV2 = {
   humidity: colorsV2.humidity,
   grid: colorsV2.grid,
   goodHours: withOpacity(colors.good, 0.07),
-  /** The rule at the current time. Ink, not a status colour: it marks when, not how good. */
-  now: withOpacity(colorsV2.txt1, 0.75),
+  /** The rule and pill at the current time. Ink, not a status colour: it marks when, not how good. */
+  now: colorsV2.txt1,
+  /** The pill's text and the ring round the dot: the card, so both cut out cleanly. */
+  nowInk: colorsV2.card,
+  nowRing: colorsV2.card,
+  /** Laid over the hours already gone, so what is still ahead reads first. */
+  past: withOpacity(colorsV2.card, 0.55),
 } as const
 
 /** Corner radius on a bar — the rounded data-end the dataviz guidance asks for. */
