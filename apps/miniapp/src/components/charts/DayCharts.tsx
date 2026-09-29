@@ -19,6 +19,7 @@ import { formatForecastDate } from '../../lib/forecast.js'
 import { formatLocalClock, formatTempRangeF } from '../../lib/format.js'
 import { readingTone, scoreTone } from '../../lib/locationList.js'
 import { dayChips, daysOutPhrase, frictionCells, frictionSummary, type FrictionCell } from '../../lib/hourlyDay.js'
+import { useNow } from '../../hooks/useNow.js'
 import { HourlyChart } from './HourlyChart.js'
 import { extent, type Extent } from './geometry.js'
 import { identityAxis, rainAxisBare, tempAxisDeg, windAxisBare } from './valueAxis.js'
@@ -436,6 +437,7 @@ function ChartsCard({
   selectedDate: string
   shade: { from: number; to: number; color: string } | null
 }) {
+  const now = useNow()
   const hours = hoursOnDay(series.hours, selectedDate)
   const temperature = temperatureSeries(hours)
   const dewPoint = dewPointSeries(hours)
@@ -447,7 +449,7 @@ function ChartsCard({
   const humidity = humiditySeries(hours)
   const members = uniformMemberCount(hours)
 
-  const axis = { axis: 'hour' as const, utcOffsetSeconds: series.utc_offset_seconds, v2: V2_AXES }
+  const axis = { axis: 'hour' as const, utcOffsetSeconds: series.utc_offset_seconds, v2: V2_AXES, now }
 
   // The day's total rainfall, or `null` when nothing was measured.
   //

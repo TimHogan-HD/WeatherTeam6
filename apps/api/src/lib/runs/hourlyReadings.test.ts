@@ -91,6 +91,7 @@ const input = (over: Partial<BuildReadingsInput> = {}): BuildReadingsInput => ({
   rockType: 'granite',
   lat: 36.13,
   lon: -115.43,
+  now: NOW,
   ...over,
 })
 
@@ -240,6 +241,26 @@ describe('the day window', () => {
     expect(strict.days.every((d) => d.window === null)).toBe(true)
     const loose = buildHourlyReadings(input({ windowMinScore: 0 }))
     expect(loose.days.some((d) => d.window !== null)).toBe(true)
+  })
+
+  /**
+   * A dry morning that has already passed must not carry a wet afternoon.
+   * NOW is 12:00; rain from 12:00 on leaves no hour still to come that clears
+   * the minimum, so today has no window and its score comes from after NOW.
+   */
+  it('counts only the hours not yet over for today', () => {
+    const hours = runHours(120, 48).map((h) =>
+      h.valid_at.getTime() >= NOW.getTime() ? { ...h, precip_mm: 3 } : h,
+    )
+    const out = buildHourlyReadings(
+      input({ deterministic: deterministic([model(THERMAL_MODEL, hours, null)]) }),
+    )
+    const today = out.days.find((d) => d.local_date === '2026-09-21')!
+    expect(today.window).toBeNull()
+    expect(Date.parse(today.best!.valid_at)).toBeGreaterThanOrEqual(NOW.getTime())
+    expect(today.best!.rock!.level).not.toBe('dry')
+    // The past hours are still published for the charts.
+    expect(out.hours.some((h) => h.valid_at === '2026-09-21T09:00:00.000Z')).toBe(true)
   })
 })
 

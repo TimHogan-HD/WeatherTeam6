@@ -39,6 +39,17 @@ function render(data: readonly SeriesDatum[], kind: 'line' | 'bar' = 'line'): st
 }
 
 describe('HourlyChart', () => {
+  it('marks the current time inside the chart, and nowhere else', () => {
+    const chart = (now: number) =>
+      renderToStaticMarkup(
+        <HourlyChart data={threeDays()} kind="line" viewHeight={TEMP_VIEW_H} color="#fff" formatValue={formatTempF} title="t" now={now} />,
+      )
+    expect(chart(T0 + 30 * HOUR_MS)).toContain('>Now<')
+    // A day that is not today: the clock is outside its hours and nothing is drawn.
+    expect(chart(T0 + 100 * HOUR_MS)).not.toContain('>Now<')
+    expect(chart(T0 - HOUR_MS)).not.toContain('>Now<')
+  })
+
   it('names the series and its measured range for a screen reader', () => {
     expect(render(threeDays())).toContain('aria-label="Hourly temperature: 50°F to 63°F over 3 days."')
   })
