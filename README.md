@@ -6,7 +6,7 @@ Weather app with high climbing specificity. Tells you whether a crag is climbabl
 
 An installable **web app** at https://weatherteam6.vercel.app, backed by a Node/TypeScript API running as a single serverless function. You sign in with a passphrase; there is no signup flow, and accounts are created by an operator (`npm run user:add`).
 
-Conditions are scored two ways, and only one of them reaches a screen. The **v2 model** answers *is the rock dry* and *will it feel good to climb on* separately, from surface temperature and a skin-moisture balance, and derives a 0-100 number from them — that is the number you see. The older five-component scorer (drying time, upcoming rain, wind, temperature, humidity) still runs and renders nowhere. See `.claude/docs/scoring-algorithm.md` and `docs/handoffs/weatherteam6-scoring-model-handoff-v1.md`.
+The number on every screen is **Crag A** (`apps/api/src/lib/scoring/cragModel.ts`): `100 × dryness^0.55 × friction`, where dryness is a drying clock run on eight vertical walls and friction comes from condensation, heat, humidity and cold. A day's score is the worst hour of its best 3-hour run between 08:00 and 18:00 local. Every constant in it is a judgement call, and nothing is validated against outcomes. The v2 model underneath still supplies rock temperature and the drying rate, but its own score no longer reaches a response; the older five-component scorer still runs and renders nowhere. See `.claude/docs/crag-a-reference/README.md` and `.claude/docs/scoring-findings.md` §6d.
 
 **There is no notification channel.** NWS Severe+ warnings are collected, stored, and visible in the app, and reach nobody. That is a parked decision, not an oversight.
 
@@ -65,10 +65,10 @@ npm run build --workspace=packages/types --workspace=packages/design
 | Understand the rules | `.claude/rules/architecture.md` |
 | Know what the defects here look like | `.claude/rules/defect-patterns.md` |
 | Touch the database | `.claude/docs/data-model.md` |
-| Touch scoring | `.claude/docs/scoring-algorithm.md`, then `.claude/docs/scoring-findings.md` |
+| Touch scoring | `.claude/docs/scoring-algorithm.md`, then `.claude/docs/scoring-findings.md`, then `.claude/docs/crag-a-reference/README.md` |
 | Add a weather source | `.claude/docs/api-sources.md` |
-| Change a screen | `docs/handoffs/miniapp-design-v1.md` |
-| Review before committing | `/review-checklist` |
+| Change a screen | `docs/handoffs/miniapp-design-v1.md`, `docs/handoffs/design-system-v1.md`, and the mockup itself |
+| Review before opening a PR | `/review-checklist` |
 
 Trust the code over the prose when they disagree. Long reference docs can carry stale passages even when the document as a whole is maintained.
 
