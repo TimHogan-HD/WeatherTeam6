@@ -256,12 +256,19 @@ Two cards and a caveat:
   named under it and do not reset it: the first build read a noon trace as "last precip
   4h" on rock the clock had been drying for a day. The kind is named from the storm's
   hours (rain, snow, rain and snow) and is "precipitation" when any hour's kind is unknown.
-  With no hour over the line the headline reads **None**, never a count.
-- **This week and wet hours** under the headline, as the owner asked.
+  With no hour over the line the headline reads **None**, never a count. Real rain in the
+  window's newest hour reads **Now** ("Real rain in the latest hour", "this storm so far")
+  with no track — the first version said "ended 0 hours ago".
+- **Today, this week, and wet hours this week** under the headline (owner, 2026-09-29).
+  Today is the location's own date; a window that has not reached it shows a dash.
 - **Every hour:** a row per local day, 24 cells from 00 to 23, each day's total at the
-  end. A cell is its hour's kind colour at an opacity stepped by amount, the first step
-  being the real-rain line; a dry hour is `grid`. An hour still to come and an hour the
-  response skipped are outlines, never dry cells, and a skipped day totals a dash.
+  end. A cell's fill is its amount on `precipStep1`–`5`, one blue in five lightness steps
+  (the dataviz reference ramp, validated on `card`), the second step starting at the
+  real-rain line; a dry hour is `grid`. Snow and rain-and-snow add a 2 px ring in
+  `precipSnow`/`precipMix` rather than repainting the step, and an unknown kind adds
+  none. The first version stepped one colour by opacity and the owner could not tell more
+  rain from less. An hour still to come and an hour the response skipped are outlines,
+  never dry cells, and a skipped day totals a dash.
 - **Colour marks precipitation only.** Text, figures and chrome are the neutral ramp.
 - **No gauge, radar, uncertainty or storm track** (the original frame's "Gauge conf.",
   "±" and "W→E"): the figures are the four global models' median estimate. The caveat names

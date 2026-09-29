@@ -529,8 +529,32 @@ describe('DetailView — Precip tab', () => {
     expect(html).toContain('Sun 19:00 · that storm left 0.18 in over 1 h')
     expect(html).toContain('This week')
     expect(html).toContain('0.19 in')
-    expect(html).toContain('Wet hours')
+    expect(html).toContain('Wet this week')
     expect(html).toContain('2 h')
+  })
+
+  it('totals today on the location’s own date', () => {
+    const html = renderPrecip(recent)
+    // Today is 2026-09-15: its 06:00 shower and a dry 09:00.
+    expect(html).toContain('>Today<')
+    expect(html).toContain('>trace<')
+    expect(html).toContain('1 wet hour<')
+    // A window that ends before today has no today to total: a dash, never 0 in.
+    const yesterday = { ...recent, hours: recent.hours.filter((h) => h.valid_at_local < '2026-09-15') }
+    expect(renderPrecip(yesterday)).toContain('no hours yet')
+  })
+
+  it('says rain in the newest hour is falling now, never "0 hours ago"', () => {
+    const raining = {
+      ...recent,
+      hours: [...recent.hours.slice(0, 3), { valid_at_local: '2026-09-15T09:00', precip_mm: 1.2, rain_mm: 1.2, snowfall_cm: 0 }],
+    }
+    const html = renderPrecip(raining)
+    expect(html).toContain('Real rain in the latest hour')
+    expect(html).toContain('>Now<')
+    expect(html).toContain('this storm so far')
+    expect(html).not.toContain('hours ago')
+    expect(html).not.toContain('Last real rain ended')
   })
 
   it('names a lighter shower since without letting it reset the headline', () => {
