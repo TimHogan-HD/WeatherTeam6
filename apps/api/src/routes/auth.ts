@@ -43,6 +43,15 @@ function readCredential(value: unknown): string | null {
   return typeof value === 'string' && value !== '' ? value : null
 }
 
+/**
+ * Upper bounds on what the login route will hash. scrypt's first step is
+ * PBKDF2 over the whole passphrase, so an unbounded one is CPU spent on the
+ * attacker's terms before the answer is even no. `user:add` asks for 12+
+ * characters; 1024 leaves any real passphrase alone.
+ */
+const MAX_USERNAME_LENGTH = 128
+const MAX_PASSPHRASE_LENGTH = 1024
+
 authRouter.post('/login', async (req: Request, res: Response) => {
   const secret = process.env['AUTH_TOKEN_SECRET']
 
@@ -70,6 +79,16 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     const response: ApiResponse<null> = {
       data: null,
       error: 'username and passphrase are required',
+      status: 400,
+    }
+    res.status(400).json(response)
+    return
+  }
+
+  if (username.length > MAX_USERNAME_LENGTH || passphrase.length > MAX_PASSPHRASE_LENGTH) {
+    const response: ApiResponse<null> = {
+      data: null,
+      error: 'username or passphrase is too long',
       status: 400,
     }
     res.status(400).json(response)

@@ -1,4 +1,5 @@
 import { logger } from '../logger.js'
+import { FETCH_TIMEOUT_MS } from './openMeteo.js'
 
 const ACIS_URL = 'https://data.rcc-acis.org/StnData'
 
@@ -38,6 +39,7 @@ export async function fetchPrecipHistory(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       })
 
       if (res.ok) {

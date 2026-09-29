@@ -19,6 +19,11 @@ on:
     - cron: "0 4 * * 1"
   workflow_dispatch:
 
+# Read-only token. Nothing in this workflow writes to the repository, and the
+# default token scope depends on a repo setting that can change underneath it.
+permissions:
+  contents: read
+
 concurrency:
   group: mutation-${{ github.ref }}
   cancel-in-progress: true

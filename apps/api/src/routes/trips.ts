@@ -2,12 +2,15 @@ import { Router, type Request, type Response } from 'express'
 import { and, eq, asc, inArray } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { trips, tripLocations, locations } from '../db/schema.js'
-import { isUuid, sendServerError } from '../lib/http.js'
+import { MAX_NAME_LENGTH, isIsoDate, isUuid, sendServerError } from '../lib/http.js'
 import { logger } from '../lib/logger.js'
 import { computeLiveForecast } from '../lib/scoring/liveForecast.js'
 import type { ApiResponse, Trip, TripLocation, CreateTripInput, TripForecast, ForecastSnapshot } from '@weatherteam6/types'
 
 export const tripsRouter = Router()
+
+/** A trip is a handful of crags; this only bounds the size of one insert. */
+const MAX_TRIP_LOCATIONS = 50
 
 type TripRow = typeof trips.$inferSelect
 type TripLocationRow = typeof tripLocations.$inferSelect
@@ -75,12 +78,13 @@ tripsRouter.post('/trips', async (req: Request, res: Response) => {
   if (
     typeof name !== 'string' ||
     name.trim() === '' ||
-    typeof startDate !== 'string' ||
-    !startDate ||
-    typeof endDate !== 'string' ||
-    !endDate ||
+    name.trim().length > MAX_NAME_LENGTH ||
+    !isIsoDate(startDate) ||
+    !isIsoDate(endDate) ||
+    endDate < startDate ||
     !Array.isArray(cragIds) ||
     cragIds.length === 0 ||
+    cragIds.length > MAX_TRIP_LOCATIONS ||
     !cragIds.every(id => typeof id === 'string' && isUuid(id))
   ) {
     const response: ApiResponse<null> = { data: null, error: 'Invalid trip data', status: 400 }
@@ -88,8 +92,20 @@ tripsRouter.post('/trips', async (req: Request, res: Response) => {
     return
   }
 
+  // Despite the name these are location ids, and every one must be the
+  // caller's own. Without this check a trip could hold another user's
+  // location, and GET /trips/:tripId/forecast would then compute and return
+  // that location's forecast — a cross-user read by id.
+  const locationIds = [...new Set(cragIds)]
+
   try {
     const result = await db.transaction(async tx => {
+      const owned = await tx
+        .select({ id: locations.id })
+        .from(locations)
+        .where(and(inArray(locations.id, locationIds), eq(locations.user_id, req.userId)))
+      if (owned.length !== locationIds.length) return null
+
       const tripRows = await tx
         .insert(trips)
         .values({
@@ -103,7 +119,7 @@ tripsRouter.post('/trips', async (req: Request, res: Response) => {
       const tripRow = tripRows[0]
       if (!tripRow) throw new Error('Trip insert returned no row')
 
-      const locInserts = cragIds.map(locationId => ({
+      const locInserts = locationIds.map(locationId => ({
         trip_id: tripRow.id,
         location_id: locationId,
       }))
@@ -111,6 +127,13 @@ tripsRouter.post('/trips', async (req: Request, res: Response) => {
 
       return { tripRow, locRows }
     })
+
+    if (result === null) {
+      // 404, not 403: whether someone else's location id exists is not disclosed.
+      const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
+      res.status(404).json(response)
+      return
+    }
 
     const locs = result.locRows.map(mapTripLocation)
     const trip = mapTrip(result.tripRow, locs)
@@ -244,7 +267,10 @@ tripsRouter.get('/trips/:tripId/forecast', async (req: Request, res: Response) =
             asos_station: locations.asos_station,
           })
           .from(locations)
-          .where(inArray(locations.id, locationIds))
+          // Scoped to the caller as well as to the trip: a trip_locations row
+          // written before POST /trips checked ownership must not become a
+          // way to read another user's location.
+          .where(and(inArray(locations.id, locationIds), eq(locations.user_id, req.userId)))
       : []
 
     // computeLiveForecast per trip location, filtered to the trip's date range —

@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express'
-import { sendServerError } from '../lib/http.js'
+import { MAX_QUERY_LENGTH, sendServerError } from '../lib/http.js'
 import { MIN_QUERY_LENGTH, searchPlaces } from '../lib/weather/geocode.js'
 import type { ApiResponse, GeocodeResult } from '@weatherteam6/types'
 
@@ -16,7 +16,10 @@ export const geocodeRouter = Router()
  */
 geocodeRouter.get('/geocode', async (req: Request, res: Response) => {
   const raw = req.query['q']
-  const q = typeof raw === 'string' ? raw.trim() : ''
+  // Truncated rather than refused, for the same as-you-type reason as the
+  // short-query case below; the bound keeps an arbitrary string off the
+  // upstream request line.
+  const q = typeof raw === 'string' ? raw.trim().slice(0, MAX_QUERY_LENGTH) : ''
 
   if (q.length < MIN_QUERY_LENGTH) {
     const response: ApiResponse<GeocodeResult[]> = { data: [], error: null, status: 200 }

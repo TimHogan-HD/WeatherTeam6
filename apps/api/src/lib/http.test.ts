@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { describeError, isUuid } from './http.js'
+import { describeError, isIsoDate, isUuid } from './http.js'
 
 describe('isUuid', () => {
   it('accepts a well-formed uuid in either case', () => {
@@ -88,5 +88,24 @@ describe('describeError', () => {
     expect(describeError(null)).toBe('null')
     expect(describeError(undefined)).toBe('undefined')
     expect(describeError(42)).toBe('42')
+  })
+})
+
+describe('isIsoDate', () => {
+  it('accepts a real calendar date', () => {
+    expect(isIsoDate('2026-10-01')).toBe(true)
+    expect(isIsoDate('2028-02-29')).toBe(true)
+  })
+
+  it('rejects a date Postgres would refuse, so it is a 400 rather than a 500', () => {
+    for (const v of ['2026-02-30', '2027-02-29', '2026-13-01', '2026-00-10', '2026-1-01']) {
+      expect(isIsoDate(v)).toBe(false)
+    }
+  })
+
+  it('rejects anything that is not a bare YYYY-MM-DD string', () => {
+    for (const v of ['2026-10-01T00:00:00Z', ' 2026-10-01', '', null, undefined, 20261001]) {
+      expect(isIsoDate(v)).toBe(false)
+    }
   })
 })

@@ -6,6 +6,11 @@ on:
   pull_request:
 
 # A second push to a branch cancels the run still going for the first.
+# Read-only token. Nothing in this workflow writes to the repository, and the
+# default token scope depends on a repo setting that can change underneath it.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true

@@ -10,6 +10,29 @@ export function isUuid(value: string): boolean {
 }
 
 /**
+ * Upper bound on a user-supplied name (location, trip, wall). The columns are
+ * `text` and unbounded, and the database has a hard 512 MB cap, so the bound
+ * lives here rather than in the schema.
+ */
+export const MAX_NAME_LENGTH = 200
+
+/** Upper bound on a free-text search query (crag search, place geocoding). */
+export const MAX_QUERY_LENGTH = 100
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/**
+ * A real calendar date in `YYYY-MM-DD`. Postgres rejects `2026-02-30` with a
+ * 22008 that would otherwise surface as a 500; this makes it a 400. Two valid
+ * values compare correctly as strings.
+ */
+export function isIsoDate(value: unknown): value is string {
+  if (typeof value !== 'string' || !ISO_DATE_RE.test(value)) return false
+  const parsed = new Date(`${value}T00:00:00Z`)
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
+}
+
+/**
  * Turn an unknown throwable into a single readable log line.
  *
  * `String(err)` is not enough: database drivers routinely reject with plain

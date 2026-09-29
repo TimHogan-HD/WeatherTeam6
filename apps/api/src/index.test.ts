@@ -193,3 +193,57 @@ describe('CORS', () => {
     expect(res.status).toBe(401)
   })
 })
+
+describe('response hardening', () => {
+  const original = {
+    secret: process.env['API_SHARED_SECRET'],
+    tokenSecret: process.env['AUTH_TOKEN_SECRET'],
+  }
+
+  beforeAll(() => {
+    process.env['API_SHARED_SECRET'] = 'test-secret'
+    process.env['AUTH_TOKEN_SECRET'] = 'test-token-secret'
+  })
+
+  afterAll(() => {
+    for (const [key, value] of [
+      ['API_SHARED_SECRET', original.secret],
+      ['AUTH_TOKEN_SECRET', original.tokenSecret],
+    ] as const) {
+      if (value === undefined) delete process.env[key]
+      else process.env[key] = value
+    }
+  })
+
+  it('sends the hardening headers and does not advertise Express', async () => {
+    // A gated 401 and an open route both, so no path can skip the layer.
+    for (const path of ['/api/v1/locations', '/health']) {
+      const res = await fetch(`${base}${path}`)
+      expect(res.headers.get('x-powered-by')).toBeNull()
+      expect(res.headers.get('x-content-type-options')).toBe('nosniff')
+      expect(res.headers.get('x-frame-options')).toBe('DENY')
+      expect(res.headers.get('cache-control')).toBe('no-store')
+      expect(res.headers.get('content-security-policy')).toContain("frame-ancestors 'none'")
+    }
+  })
+
+  it('answers malformed JSON with 400 in the response envelope, not a 500', async () => {
+    const res = await fetch(`${base}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{"username": ',
+    })
+    expect(res.status).toBe(400)
+    expect(await res.json()).toEqual({ data: null, error: 'Invalid request body', status: 400 })
+  })
+
+  it('refuses an oversized body with 413 before any handler runs', async () => {
+    const res = await post('/api/v1/auth/login', { username: 'x', passphrase: 'y'.repeat(40_000) })
+    expect(res.status).toBe(413)
+  })
+
+  it('refuses an over-long passphrase with 400 rather than hashing it', async () => {
+    const res = await post('/api/v1/auth/login', { username: 'x', passphrase: 'y'.repeat(1025) })
+    expect(res.status).toBe(400)
+  })
+})
