@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { formatHumidity, type HourlySeries, type RecentPrecip } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, row, stack } from '../theme/styles.js'
+import { bareButton, cardV2, row, stack } from '../theme/styles.js'
 import { formatTempRangeF } from '../lib/format.js'
 import {
   dayChance,
@@ -26,9 +26,10 @@ import { InlineError, Skeleton } from './States.js'
  * each, with the day's range, rain chance, score and good hours; and rain —
  * when real rain last fell and when rain is next likely.
  *
- * **Open, not carded.** The two sections sit on the page under a hairline: a
- * card round every section, and a box round every figure inside it, is what
- * made the earlier layout feel stiff.
+ * **One card per section, nothing boxed inside it.** The sections sit on the
+ * same card surface as every other section in the app; a box round every
+ * figure inside them is what made the earlier layout feel stiff, and the page
+ * background alone read as a different screen (owner, 2026-09-30).
  *
  * "Hourly ›" and "Daily ›" open those tabs, and a day column opens its hours.
  * The decisions about *what* each part says live in `lib/overview.ts`, where
@@ -59,7 +60,7 @@ export type OverviewTabProps = {
 }
 
 /** Held open while the hourly run loads. */
-const CHART_H = 190
+const CHART_H = 160
 
 const hairline = { height: '1px', backgroundColor: colorsV2.raised } as const
 
@@ -75,7 +76,7 @@ function Section({
   children: ReactNode
 }) {
   return (
-    <section style={{ ...stack(spacing.listGap), padding: `0 ${spacing.tight}px`, ...(grow ? { flex: '1 1 auto' } : {}) }}>
+    <section style={{ ...cardV2, ...stack(spacing.listGap), ...(grow ? { flex: '1 1 auto' } : {}) }}>
       <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
         <h2 style={typeV2.cardTitle}>{title}</h2>
         {link === null ? null : (
@@ -136,31 +137,35 @@ function DayColumn({
   first: boolean
   onOpen: (() => void) | null
 }) {
+  // Three tiers, in the order a reader asks: which day, how good, then why.
+  // The details are one muted size so they read as one group under the score.
   const content = (
     <>
       <span style={{ ...typeV2.rowTitle, fontSize: '15px' }}>{shortDate(day.local_date, todayDate)}</span>
-      <span style={{ ...typeV2.dayChipStrong, fontSize: '13px' }}>{formatTempRangeF(day.lowC, day.highC)}</span>
-      {chancePct === null ? null : (
-        <span style={{ ...typeV2.dayChip, color: colorsV2.rain }}>{formatHumidity(chancePct)} rain</span>
-      )}
       {/*
         Absent rather than dashed when there is no score: suppressed under an
         alert (the banner above says why), still loading, a city, or past the
         run — none of them is a score of nothing.
       */}
       {day.score === null ? null : (
-        <span style={{ ...row(spacing.listGapSm), alignItems: 'baseline', marginTop: `${spacing.tight}px` }}>
-          <span style={{ ...typeV2.tileFigure, fontSize: '24px', color: scoreRampColor(day.score) }}>{day.score}</span>
+        <span style={{ ...row(spacing.listGapSm), alignItems: 'baseline' }}>
+          <span style={{ ...typeV2.tileFigure, fontSize: '24px', lineHeight: '28px', color: scoreRampColor(day.score) }}>{day.score}</span>
           <span style={typeV2.legendSm}>score</span>
         </span>
       )}
-      {day.window === null ? null : (
-        <span style={typeV2.legendSm}>{day.window === 'None' ? 'No good hours' : `Good ${day.window.charAt(0).toLowerCase()}${day.window.slice(1)}`}</span>
-      )}
+      <span style={{ ...stack(spacing.micro) }}>
+        <span style={typeV2.dayChip}>{formatTempRangeF(day.lowC, day.highC)}</span>
+        {chancePct === null ? null : (
+          <span style={{ ...typeV2.dayChip, color: colorsV2.rain }}>{formatHumidity(chancePct)} rain</span>
+        )}
+        {day.window === null ? null : (
+          <span style={typeV2.legendSm}>{day.window === 'None' ? 'No good hours' : `Good ${day.window.charAt(0).toLowerCase()}${day.window.slice(1)}`}</span>
+        )}
+      </span>
     </>
   )
   const style = {
-    ...stack(spacing.micro),
+    ...stack(spacing.tight),
     flex: '1 1 0',
     minWidth: 0,
     ...(first ? {} : { borderLeft: `1px solid ${colorsV2.raised}`, paddingLeft: `${spacing.cellPad}px` }),
@@ -265,7 +270,6 @@ export function OverviewTab(props: OverviewTabProps) {
   return (
     <>
       <TodaySection props={props} />
-      <div aria-hidden style={hairline} />
       <ComingUpSection props={props} />
     </>
   )

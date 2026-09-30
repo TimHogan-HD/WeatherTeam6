@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
-import { cToF, formatHumidity, kmhToMph } from '@weatherteam6/types'
+import { cToF, formatHumidity } from '@weatherteam6/types'
 import { typeV2, withOpacity } from '../../theme/tokens.css.js'
 import { bareButton, row } from '../../theme/styles.js'
 import { TODAY_CHART_FROM, TODAY_CHART_TO, type ChartHour } from '../../lib/overview.js'
@@ -19,7 +19,8 @@ import { BAR_MIN_H, BAR_RADIUS, chartColorsV2, scoreRampColor } from './chartSty
  * its text, and a phone and a tall phone both get legible labels.
  *
  * **No layer labels itself inside the plot** except the rain peak; the
- * switches below name each line. An inline wind label collided with the rain
+ * switches above the chart name each line, and the score row under the hours
+ * says what the line's colour is. An inline wind label collided with the rain
  * figure in the mockup, and labels that move with the data will always find
  * something to collide with.
  *
@@ -29,10 +30,10 @@ import { BAR_MIN_H, BAR_RADIUS, chartColorsV2, scoreRampColor } from './chartSty
  */
 
 const PAD_X = 14
-const PAD_TOP = 20
+const PAD_TOP = 18
 /** Hour ticks, then the score under each. */
-const PAD_BOTTOM = 34
-const DEFAULT_SIZE = { w: 360, h: 150 }
+const PAD_BOTTOM = 31
+const DEFAULT_SIZE = { w: 360, h: 112 }
 /** Rain bars and the wind line share the bottom of the plot. */
 const LOWER_SHARE = 0.34
 
@@ -149,8 +150,34 @@ export function TodayChart({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: `${spacing.listGap}px`, ...(fill ? { flex: '1 1 auto' } : {}) }}>
-      <div ref={ref} style={{ height: fill ? undefined : `${DEFAULT_SIZE.h}px`, minHeight: `${DEFAULT_SIZE.h}px`, ...(fill ? { flex: '1 1 auto' } : {}) }}>
-        <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" aria-label={label} style={{ display: 'block' }}>
+      {/* Above the chart, where a reader looks first; the owner missed them below it. */}
+      <div style={{ ...row(spacing.listGapSm), flexWrap: 'wrap' }} role="group" aria-label="Chart layers">
+        <LayerSwitch label="Dew point" on={layers.dew} swatch={chartColorsV2.dewPoint} dashed onToggle={() => setLayers((l) => ({ ...l, dew: !l.dew }))} />
+        <LayerSwitch label="Rain chance" on={layers.rain} swatch={withOpacity(chartColorsV2.rain, 0.45)} onToggle={() => setLayers((l) => ({ ...l, rain: !l.rain }))} />
+        <LayerSwitch label="Wind" on={layers.wind} swatch={chartColorsV2.wind} onToggle={() => setLayers((l) => ({ ...l, wind: !l.wind }))} />
+      </div>
+      {/*
+        The svg is taken out of flow: the box's height must come from the
+        layout alone. In flow, the svg drawn at the last measured height held
+        the box at that height, so the chart could grow but never shrink.
+      */}
+      <div
+        ref={ref}
+        style={{
+          position: 'relative',
+          height: fill ? undefined : `${DEFAULT_SIZE.h}px`,
+          minHeight: `${DEFAULT_SIZE.h}px`,
+          ...(fill ? { flex: '1 1 auto' } : {}),
+        }}
+      >
+        <svg
+          width={w}
+          height={h}
+          viewBox={`0 0 ${w} ${h}`}
+          role="img"
+          aria-label={label}
+          style={{ display: 'block', position: 'absolute', inset: 0 }}
+        >
           <line x1={PAD_X} y1={base} x2={w - PAD_X} y2={base} stroke={chartColorsV2.grid} />
 
           {!layers.rain
@@ -180,7 +207,7 @@ export function TodayChart({
           ))}
 
           {/*
-            Over the lines, with a halo in the page colour, so a wind or dew
+            Over the lines, with a halo in the card colour, so a wind or dew
             line passing behind the figure cannot strike through it.
           */}
           {layers.rain && peak?.chancePct != null && peak.chancePct >= 10 ? (
@@ -189,7 +216,7 @@ export function TodayChart({
               y={base - (peak.chancePct / 100) * lowerH - 4}
               textAnchor="middle"
               fill={chartColorsV2.rain}
-              stroke={colorsV2.bg}
+              stroke={colorsV2.card}
               strokeWidth={3}
               paintOrder="stroke"
               {...tick}
@@ -200,7 +227,7 @@ export function TodayChart({
 
           {/* The hours already gone sit behind a veil, as on the Hourly charts. */}
           {pastX === null || pastX <= PAD_X ? null : (
-            <rect x={0} y={0} width={pastX} height={base + 1} fill={withOpacity(colorsV2.bg, 0.55)} />
+            <rect x={0} y={0} width={pastX} height={base + 1} fill={chartColorsV2.past} />
           )}
           {nowX === null ? null : (
             <line x1={nowX} y1={PAD_TOP - 8} x2={nowX} y2={base} stroke={chartColorsV2.now} strokeDasharray="2 3" />
@@ -226,30 +253,21 @@ export function TodayChart({
               </g>
             )
           })}
+          {/*
+            The row that says what the line's colour is: the scores, in the
+            line's own colours, named once at its start. No legend sentence.
+          */}
+          {scored ? (
+            <text x={PAD_X} y={base + 27} textAnchor="start" fill={colorsV2.txtMuted} {...tick}>
+              Score
+            </text>
+          ) : null}
           {nowX === null ? null : (
             <text x={Math.min(nowX, w - PAD_X - 12)} y={PAD_TOP - 10} textAnchor="middle" fill={chartColorsV2.now} {...tick}>
               now
             </text>
           )}
         </svg>
-      </div>
-
-      <div style={{ ...row(spacing.listGapSm), flexWrap: 'wrap' }} role="group" aria-label="Chart layers">
-        <span style={{ ...row(spacing.tight), ...typeV2.legendSm }}>
-          <span
-            aria-hidden
-            style={{
-              width: '18px',
-              height: '3px',
-              borderRadius: `${radius.full}px`,
-              background: scored ? `linear-gradient(90deg, ${scoreRampColor(0)}, ${scoreRampColor(50)}, ${scoreRampColor(100)})` : colorsV2.txt2,
-            }}
-          />
-          {scored ? 'Temperature, coloured by score' : 'Temperature'}
-        </span>
-        <LayerSwitch label="Dew point" on={layers.dew} swatch={chartColorsV2.dewPoint} dashed onToggle={() => setLayers((l) => ({ ...l, dew: !l.dew }))} />
-        <LayerSwitch label="Rain chance" on={layers.rain} swatch={withOpacity(chartColorsV2.rain, 0.45)} onToggle={() => setLayers((l) => ({ ...l, rain: !l.rain }))} />
-        <LayerSwitch label={`Wind${layers.wind ? `, to ${Math.round(kmhToMph(windMax))} mph` : ''}`} on={layers.wind} swatch={chartColorsV2.wind} onToggle={() => setLayers((l) => ({ ...l, wind: !l.wind }))} />
       </div>
     </div>
   )
@@ -278,11 +296,11 @@ function LayerSwitch({
         ...row(spacing.tight),
         ...typeV2.legendSm,
         width: 'auto',
-        color: on ? colorsV2.legend : colorsV2.txtMuted,
-        border: `1px solid ${on ? colorsV2.line : 'transparent'}`,
+        color: on ? colorsV2.txt1 : colorsV2.txtMuted,
+        backgroundColor: on ? colorsV2.raised : 'transparent',
+        border: `1px solid ${colorsV2.line}`,
         borderRadius: `${radius.full}px`,
-        padding: `${spacing.tight}px ${spacing.listGap}px`,
-        opacity: on ? 1 : 0.7,
+        padding: `${spacing.tight}px ${spacing.cellPad}px`,
       }}
     >
       <span
