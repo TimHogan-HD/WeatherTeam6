@@ -131,13 +131,21 @@ async function run(): Promise<void> {
   const browser = await chromium.launch()
 
   try {
+    // A server already on :5173 would answer the probe below with its own
+    // VITE_API_BASE_URL, and --strictPort makes ours exit silently — the run
+    // would then drive the wrong app. Refuse a taken port, and check ours lived.
+    if (await waitForHttp(WEB, 1_000)) {
+      throw new Error(`something is already serving ${WEB} — stop it and rerun`)
+    }
     vite = spawn(process.execPath, [viteBin, '--port', String(WEB_PORT), '--strictPort'], {
       cwd: miniappDir,
       env: { ...process.env, VITE_API_BASE_URL: API },
       stdio: 'ignore',
       windowsHide: true,
     })
-    check('vite answers on :5173', await waitForHttp(WEB, 60_000), 'is something else already on 5173?')
+    const answered = await waitForHttp(WEB, 60_000)
+    check('this run’s vite answers on :5173', answered && vite.exitCode === null, `answered ${answered}, exit ${vite.exitCode}`)
+    if (!answered || vite.exitCode !== null) throw new Error('vite did not start — stopping')
 
     const inserted = await db
       .insert(users)
