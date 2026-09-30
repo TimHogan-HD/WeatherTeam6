@@ -268,11 +268,12 @@ Two cards and a caveat:
   labelled "no real rain · N h" under the line, so it cannot collide with a storm label.
   A skipped hour is bridged with a dashed line, never a solid flat one. Touch or hover
   reads out the hour and the total so far.
-- **Every hour:** a table with **days across and hours 00–23 down**, each day's total along
-  the foot — turned from a row per day (owner, 2026-09-29: "every hour needs to be a bit
-  big") because 24 columns left a ~12 px cell nobody could tap. Every cell is a button;
-  tapping one (or moving to it with the arrow keys — the table is one tab stop) fills the
-  readout above with that hour's labelled values: its span (stamp `00:00` names both days),
+- **Every hour:** a row per local day, 24 cells from 00 to 23, each day's total at the
+  end. Cells are 26 px tall so an hour can be hit (owner, 2026-09-29: "every hour needs to
+  be a bit big"); a days-across version was built and read as strange, so the rows stay.
+  Every cell is a button: tapping one, dragging a finger along a day (the Hourly charts'
+  scrub), hovering, or arrowing to it — the grid is one tab stop — fills the readout
+  above with that hour's labelled values: its span (stamp `00:00` names both days),
   Precip, Type, Snow, Real rain yes/no, and the week so far. The readout opens on the most
   recent wet hour. A cell's fill is its amount on `precipStep1`–`5`, one blue in five lightness steps
   (the dataviz reference ramp, validated on `card`), the second step starting at the

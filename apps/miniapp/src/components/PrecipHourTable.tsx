@@ -14,14 +14,15 @@ import {
 } from '../lib/precipHistory.js'
 
 /**
- * Every hour of the window as a table: **days across, hours down**, each day's
- * total along the foot. Tap (or arrow to) an hour and the readout above the
- * table shows what that hour carried — the Hourly charts' readout, on a grid.
+ * Every hour of the window: **a row per day, hours across**, each day's total
+ * at the end. Tap an hour, drag a finger along a day, or arrow to one, and the
+ * readout above shows what that hour carried — the Hourly charts' readout, on a
+ * grid. It opens on the most recent wet hour so the card is complete at rest.
  *
- * **Days across, not hours across** (owner, 2026-09-29: "every hour needs to be
- * a bit big"). Twenty-four columns on a phone left each cell ~12 px wide, too
- * small to tap; seven columns give ~40 px. The readout opens on the most recent
- * wet hour so the card is complete at rest.
+ * **Taller cells and a scrub, not a turned table** (owner, 2026-09-29): hours
+ * needed to be bigger to hit, and a days-across version read as strange, so
+ * the rows keep their shape, the cells grow to 26 px tall, and a finger dragged
+ * along a row picks the hour under it the way the Hourly charts do.
  *
  * **Amount is the fill, kind is a ring.** One blue ramp (`precipStep1`–`5`)
  * carries how much fell; snow and a mix add a ring in their own colour rather
@@ -29,8 +30,9 @@ import {
  * never called rain, never called snow.
  */
 
-const CELL_H = 20
-const HOUR_COL = '28px'
+const CELL_H = 26
+const DAY_COL = '40px'
+const TOTAL_COL = '34px'
 const SWATCH = 12
 const FOCUS_RING = `0 0 0 2px ${colorsV2.txt1}`
 
@@ -165,10 +167,10 @@ export function PrecipHourTable({ days, grid, points, today }: PrecipHourTablePr
 
   const move = (e: KeyboardEvent<HTMLDivElement>) => {
     const step: Record<string, Pos> = {
-      ArrowUp: { d: 0, h: -1 },
-      ArrowDown: { d: 0, h: 1 },
-      ArrowLeft: { d: -1, h: 0 },
-      ArrowRight: { d: 1, h: 0 },
+      ArrowLeft: { d: 0, h: -1 },
+      ArrowRight: { d: 0, h: 1 },
+      ArrowUp: { d: -1, h: 0 },
+      ArrowDown: { d: 1, h: 0 },
     }
     const by = step[e.key]
     if (by === undefined) return
@@ -180,7 +182,16 @@ export function PrecipHourTable({ days, grid, points, today }: PrecipHourTablePr
     }))
   }
 
-  const columns = `${HOUR_COL} repeat(${days.length}, minmax(0, 1fr))`
+  /** The cell under a point, for a finger dragged along a day. */
+  const pick = (clientX: number, clientY: number) => {
+    const el = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>('[data-cell]')
+    const at = el?.dataset['cell']?.split('-').map(Number)
+    if (at === undefined || at.length !== 2) return
+    const [d, h] = at as [number, number]
+    setSel((p) => (p.d === d && p.h === h ? p : { d, h }))
+  }
+
+  const columns = `${DAY_COL} repeat(24, minmax(0, 1fr)) ${TOTAL_COL}`
 
   return (
     <div style={stack(spacing.listGapLg)}>
@@ -210,89 +221,99 @@ export function PrecipHourTable({ days, grid, points, today }: PrecipHourTablePr
       <div
         ref={tableRef}
         role="group"
-        aria-label="Precipitation by hour: days across, hours down. Arrow keys move between hours."
+        aria-label="Precipitation by hour: a row per day, hours across. Arrow keys move between hours."
         onKeyDown={move}
+        // Drag along a day and the readout follows the finger, as on the
+        // Hourly charts; pan-y keeps the page scrolling vertically.
+        onTouchStart={(e) => {
+          const t = e.touches[0]
+          if (t !== undefined) pick(t.clientX, t.clientY)
+        }}
+        onTouchMove={(e) => {
+          const t = e.touches[0]
+          if (t !== undefined) pick(t.clientX, t.clientY)
+        }}
         style={{
           display: 'grid',
           gridTemplateColumns: columns,
-          columnGap: '4px',
-          rowGap: '3px',
+          columnGap: '2px',
+          rowGap: '4px',
           alignItems: 'center',
+          touchAction: 'pan-y',
         }}
       >
         <span />
+        {Array.from({ length: 24 }, (_, h) => (
+          <span
+            key={`h${h}`}
+            style={{
+              ...typeV2.axisTick,
+              textAlign: 'center',
+              color: h === sel.h ? colorsV2.txt1 : colorsV2.txtMuted,
+            }}
+          >
+            {/* A fixed tick beside the selected hour would overprint its label. */}
+            {h === sel.h || (h % 6 === 0 && Math.abs(h - sel.h) > 1) ? hh(h) : ''}
+          </span>
+        ))}
+        <span style={{ ...typeV2.axisTick, textAlign: 'right' }}>in</span>
         {days.map((d, di) => {
           const label = dayLabel(d.localDate, today)
-          return (
+          const wet = d.totalMm !== null && d.totalMm > 0
+          return [
             <span
-              key={d.localDate}
+              key={`${d.localDate}-l`}
               style={{
                 ...typeV2.dayTab,
-                textAlign: 'center',
                 color: di === sel.d || label === 'Today' ? colorsV2.txt1 : colorsV2.legend,
               }}
             >
               {label}
-            </span>
-          )
-        })}
-        {Array.from({ length: 24 }, (_, h) => [
-          <span
-            key={`h${h}`}
-            style={{ ...typeV2.axisTick, color: h === sel.h ? colorsV2.txt1 : colorsV2.txtMuted }}
-          >
-            {hh(h)}
-          </span>,
-          ...days.map((d, di) => {
-            const cell = grid[di]?.[h] ?? ({ state: 'missing' } as const)
-            const { backgroundColor, ring } = cellFill(cell)
-            const selected = di === sel.d && h === sel.h
-            const shadows = [
-              cell.state !== 'value' ? `inset 0 0 0 1px ${colorsV2.grid}` : null,
-              ring === null ? null : `inset 0 0 0 2px ${ring}`,
-              selected ? FOCUS_RING : null,
-            ].filter((s): s is string => s !== null)
-            return (
-              <button
-                key={`${d.localDate}-${h}`}
-                type="button"
-                data-cell={`${di}-${h}`}
-                tabIndex={selected ? 0 : -1}
-                aria-pressed={selected}
-                aria-label={`${span(d.localDate, h, today)}: ${readoutFields(cell, null)
-                  .map((f) => `${f.label} ${f.value}`)
-                  .join(', ')}`}
-                onClick={() => setSel({ d: di, h })}
-                style={{
-                  height: `${CELL_H}px`,
-                  width: '100%',
-                  padding: 0,
-                  border: 'none',
-                  cursor: 'pointer',
-                  borderRadius: `${radius.tag}px`,
-                  backgroundColor: backgroundColor ?? 'transparent',
-                  boxShadow: shadows.length === 0 ? 'none' : shadows.join(', '),
-                }}
-              />
-            )
-          }),
-        ])}
-        <span style={{ ...typeV2.axisTick, paddingTop: `${spacing.tight}px` }}>in</span>
-        {days.map((d) => {
-          const wet = d.totalMm !== null && d.totalMm > 0
-          return (
+            </span>,
+            ...Array.from({ length: 24 }, (_, h) => {
+              const cell = grid[di]?.[h] ?? ({ state: 'missing' } as const)
+              const { backgroundColor, ring } = cellFill(cell)
+              const selected = di === sel.d && h === sel.h
+              const shadows = [
+                cell.state !== 'value' ? `inset 0 0 0 1px ${colorsV2.grid}` : null,
+                ring === null ? null : `inset 0 0 0 2px ${ring}`,
+                selected ? FOCUS_RING : null,
+              ].filter((s): s is string => s !== null)
+              return (
+                <button
+                  key={`${d.localDate}-${h}`}
+                  type="button"
+                  data-cell={`${di}-${h}`}
+                  tabIndex={selected ? 0 : -1}
+                  aria-pressed={selected}
+                  aria-label={`${span(d.localDate, h, today)}: ${readoutFields(cell, null)
+                    .map((f) => `${f.label} ${f.value}`)
+                    .join(', ')}`}
+                  onClick={() => setSel({ d: di, h })}
+                  onMouseEnter={() => setSel({ d: di, h })}
+                  style={{
+                    height: `${CELL_H}px`,
+                    width: '100%',
+                    minWidth: 0,
+                    padding: 0,
+                    border: 'none',
+                    cursor: 'pointer',
+                    borderRadius: `${radius.tag}px`,
+                    backgroundColor: backgroundColor ?? 'transparent',
+                    boxShadow: shadows.length === 0 ? 'none' : shadows.join(', '),
+                    position: selected ? 'relative' : undefined,
+                    zIndex: selected ? 1 : undefined,
+                  }}
+                />
+              )
+            }),
             <span
               key={`${d.localDate}-t`}
-              style={{
-                ...typeV2.dayChip,
-                textAlign: 'center',
-                paddingTop: `${spacing.tight}px`,
-                color: wet ? colorsV2.txt1 : colorsV2.txtMuted,
-              }}
+              style={{ ...typeV2.dayChip, textAlign: 'right', color: wet ? colorsV2.txt1 : colorsV2.txtMuted }}
             >
               {dayFigure(d.totalMm)}
-            </span>
-          )
+            </span>,
+          ]
         })}
       </div>
 
