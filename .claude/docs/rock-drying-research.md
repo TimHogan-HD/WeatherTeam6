@@ -630,8 +630,7 @@ absorption from ASTM C97 practice [S]
 > Project's area page advises 24–48 h ([MP](https://www.mountainproject.com/area/105812719/robinson-park)) **[C]**.
 > Quartz content says what the grains are; wet strength is set by how completely they are
 > cemented, and that is not visible from a wall or a label. The Rock tab now reads this row
-> as *softens*. **The drying window (6/24 h) is unchanged** — changing it is a scoring
-> decision (`compare:scoring`), not a copy fix.
+> as *fragile*, and the window was raised to 24/48 h (§7).
 
 Two rows in that table should be alarming given the current five-value `RockType` enum:
 `basalt` spans 0.1% to 50% porosity depending on whether you are on a column or a flow top,
@@ -2076,19 +2075,19 @@ on a vertical wall, before the existing angle/wind/humidity modifiers.
 | `rhyolite` / dense felsic volcanic | 2 | 8 | Fine-grained, low porosity. MN North Shore [I] |
 | `anorthosite` | 1 | 6 | Dense plutonic; abrasive, friction-led. Carlton Peak, Poke-O [I] |
 | `granite_weathered` (grussy, coarse, biotite-rich) | 3 | 12 | Grus rind retains water [I] |
-| `syenite_porous` (Hueco-type) | 12 | 48 | Highly porous plutonic; huecos hold water days–months. Breaks the igneous rule [C] |
+| `syenite_porous` (Hueco-type) | **24** | 48 | Highly porous plutonic; huecos hold water days–months. Breaks the igneous rule [C]. Min raised from 12 on 2026-09-29: the park bars climbing within ~24 h of rain [C] |
 | `quartzite` | 1 | 6 | Near-zero matrix porosity [M] |
 | `slate` | 1 | 4 | No pore space; fastest-drying rock in community rankings. Friction-limited [C] |
 | `gneiss_schist` | 2 | 12 | Low matrix porosity, foliation drainage [M/I] |
 | `basalt_dense` (columnar) | 2 | 8 | 0.1–1.0% porosity [M] — **SHIPPED 2026-09-16**, see §6.1 |
 | `basalt_vesicular` | 12 | 48 | 30–50% porosity [M] — **SHIPPED 2026-09-16**, see §6.1 |
-| `tuff_welded` | 4 | 16 | Behaves near-granitic [C] |
+| `tuff_welded` | 4 | 16 | Behaves near-granitic for drying [C] — **but not for strength after a deluge**: Smith Rock guidance is two days before small knobs and edges hold again (2026-09-29 audit). Window unchanged, since it is set for a moderate storm |
 | `tuff_nonwelded` | 36 | 96 | 38–60% porosity — more than any sandstone [M] |
 | `limestone_dense` | 4 | 18 | Low porosity; seepage handled separately [M/C] |
 | `dolomite` | 6 | 24 | Higher porosity than parent limestone; pocket water [M/I] |
 | `carbonate_cherty` (chert lenses / nodules) | 6 | 24 | Two materials in one wall; holds loosen at the interface. Oneota, Pahasapa [I] |
 | `limestone_porous` / chalk / tufa | 24 | 72 | Up to 12% absorption; tufa softens and breaks [S/C] |
-| `sandstone_quartz_arenite` (silica-cemented) | 6 | 24 | ~0% strength loss measured for clean quartz-rich sandstone [M] |
+| `sandstone_quartz_arenite` (silica-cemented) | **24** | **48** | Was 6/24 on the ~0% wet-strength-loss figure; raised 2026-09-29 by owner decision — Robinson Park and Fontainebleau are both quartz arenite, both break wet, and both carry a 24–48 h local rule [C]. See the §3 correction |
 | `sandstone_ferruginous` (iron-cemented, case-hardened) | 12 | 48 | Intermediate; Corbin-type [I] |
 | `sandstone_arkose` (feldspathic — Fountain, Millstone Grit) | 12 | 48 | Slick and seep-prone when wet, but far less fragile than eolian [C] |
 | `sandstone_eolian` (calcite/clay-cemented) | 36 | 96 | 50–75% strength loss; land-manager 24–48h is the floor, not the answer [M/C] |
@@ -2096,6 +2095,17 @@ on a vertical wall, before the existing angle/wind/humidity modifiers.
 | `conglomerate` | 24 | 72 | Matrix-controlled and invisible from the surface [I] |
 | `volcanic_breccia` (Pinnacles-type) | 12 | 48 | Angular clasts in finer matrix; NPS calls it very weak vs granite/basalt [C] |
 | `unknown` | 48 | 120 | Must be the **most** conservative row, not a middle one |
+
+> **Soft-rock audit, 2026-09-29.** Each soft or porous row was checked against the local rule
+> at a crag that uses it. Quartz arenite and Hueco syenite were too short and too reassuring
+> and were raised (above). Welded tuff keeps its window but reads *softens* on the Rock tab.
+> **Arkose looks over-cautious**: Eldorado's Fountain sandstone is described as "pretty
+> impervious" to water and climbable within hours of sun
+> ([MP forum](https://www.mountainproject.com/forum/topic/124622883/conditions-after-rainy-day-on-eldorado-canyon));
+> that is the safe direction to be wrong in and was left alone. Sources:
+> [Hueco FAQ](https://www.bluelizardclimbingandyoga.com/hueco/faq),
+> [Smith Rock](https://bikehike.org/can-you-climb-in-smith-rock-after-rain/),
+> [Fontainebleau](https://www.ukclimbing.com/news/2024/04/protect_fontainebleau_sandstone_-_dont_climb_on_wet_or_damp_rock-73647).
 
 Four companion changes that the research says matter more than the table itself:
 
