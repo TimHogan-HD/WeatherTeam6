@@ -347,7 +347,7 @@ const GUIDES: Record<Exclude<RockType, 'unknown'>, RockGuide> = {
     rain: 'Soaks up rain and loses much of its strength until it’s dry right through.',
     sun: 'Sun dries the surface fast; the inside takes far longer.',
     formed: 'This sandstone was once desert dunes, buried and turned to stone. Its sweeping lines are the old dune layers.',
-    holds: 'Expect incut edges on varnished rock. A dark desert varnish coats the face, and where it has partly worn away it leaves sharp, positive holds.',
+    holds: 'Expect incut edges. A dark desert varnish coats the face, and where it has partly worn away it leaves sharp, positive holds.',
     care: ['Dig into the sand at the base: damp sand means damp rock'],
     avoid: ['Climbing it wet — snapped holds are gone for good', NO_WIRE],
   },
