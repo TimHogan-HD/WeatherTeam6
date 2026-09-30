@@ -628,7 +628,7 @@ Task 6 imports the state-label and suppression logic rather than reimplementing 
 | "no CSS vars" | CSS custom properties, emitted once at `:root` from the imported tokens |
 | Barlow via `expo-font` | Barlow and Barlow Condensed from Google Fonts, with a real fallback stack |
 
-Contrast rules, layout constants (`screenH` 20, `topSafe` 48, `cardPad` 14, `bottomInset` 24), copy rules, and the token-source rule carry over **verbatim and binding**.
+Contrast rules, layout constants (`screenH` 20, `topSafe` 48, `cardPad` 14, `bottomInset` 24), copy rules, and the token-source rule carry over **verbatim and binding** — except `topSafe`, which the web app replaces with `topWeb` 16 over the safe-area inset (owner, 2026-09-29).
 
 ---
 

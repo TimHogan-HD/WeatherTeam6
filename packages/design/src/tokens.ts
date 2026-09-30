@@ -850,6 +850,11 @@ export const spacing = {
   screenH: 20,
   /** Top safe area / status bar clearance */
   topSafe: 48,
+  /**
+   * Top clearance in the web app. The browser's `env(safe-area-inset-top)`
+   * already clears the status bar, so `topSafe` stacked on it double-counted.
+   */
+  topWeb: 16,
   /** Standard card internal padding */
   cardPad: 14,
   /** Card padding compact variant */

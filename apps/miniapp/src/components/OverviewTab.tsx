@@ -4,31 +4,33 @@ import {
   EM_DASH,
   FRICTION_ESTIMATE_NOTE,
   FRICTION_LABELS,
-  formatLastRain,
-  type ConditionsScore,
   type FrictionLevel,
   type HourlySeries,
+  type RecentPrecip,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, cardV2, row, stack, type ToneName } from '../theme/styles.js'
 import { formatTempDeg, formatTempRangeF } from '../lib/format.js'
 import { DayRowShell, ScorePill } from './DayRow.js'
 import {
+  lastRainText,
   nextDays,
   nextLikelyRain,
-  shortDay,
+  shortDate,
   todayCells,
   type NextDay,
   type TodayCell,
 } from '../lib/overview.js'
+import { precipDays, precipSummary } from '../lib/precipHistory.js'
 import { useNow } from '../hooks/useNow.js'
 import { InlineError, Skeleton } from './States.js'
 
 /**
  * The Overview tab under the hero, from the WT6 Figma "V2" page's Overview
  * frame: **Today** — five hours of the day with the friction reading at each;
- * **Next 3 days** — each day's Crag A score; and **Rain** — when it last fell
- * and when it is next likely.
+ * **Next 3 days** — each day's Crag A score, as three tiles; and **Rain** —
+ * when real rain last fell and when rain is next likely. Sized so the tab fits
+ * a phone screen without scrolling (owner, 2026-09-29).
  *
  * Each card is a doorway as well as a summary: "Hourly ›" and "Daily ›" open
  * those tabs, and a day row opens its hours. The decisions about *what* each
@@ -37,7 +39,7 @@ import { InlineError, Skeleton } from './States.js'
  *
  * **The cards fail independently**, like every section on this screen (§5).
  * Today and the day scores read `/hourly`; the rows' dates and temperatures
- * read `/forecast`; last rain reads `/conditions`. A slow or failed hourly run
+ * read `/forecast`; last rain reads `/recent-precip`. A slow or failed hourly run
  * leaves the rows standing without their pills.
  */
 
@@ -47,8 +49,8 @@ export type OverviewTabProps = {
   isClimbingLocation: boolean
   forecast: { data: Parameters<typeof nextDays>[0] | undefined }
   hourly: { data: HourlySeries | undefined; isPending: boolean; isError: boolean; refetch: () => void }
-  /** Today's `/conditions` row, for last rain. Absent for a city. */
-  conditions: ConditionsScore | null | undefined
+  /** The past week's precipitation, for last rain. `undefined` until it arrives or when it failed. */
+  recentPrecip: RecentPrecip | undefined
   severeAlertEvent: string | null
   alertsPending: boolean
   /** Days the hourly charts can draw. `undefined` until `/hourly` answers. */
@@ -59,7 +61,7 @@ export type OverviewTabProps = {
 }
 
 /** The strip's height once drawn, held open while it loads. */
-const TODAY_STRIP_H = 77
+const TODAY_STRIP_H = 52
 
 const FRICTION_TONE: Record<FrictionLevel, ToneName> = {
   great: 'good',
@@ -77,11 +79,14 @@ const TONE_INK: Record<ToneName, string> = {
 /** A v2 card with a title and an optional link to a tab. */
 function Card({
   title,
+  aside = null,
   link,
   gap,
   children,
 }: {
   title: string
+  /** A note beside the title, where a line of its own would cost the card a row. */
+  aside?: string | null
   link: { label: string; onOpen: () => void } | null
   gap: number
   children: ReactNode
@@ -90,8 +95,9 @@ function Card({
     <section style={{ ...cardV2, ...stack(gap) }}>
       <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
         <h2 style={typeV2.cardTitle}>{title}</h2>
+        {aside === null ? null : <span style={{ ...typeV2.note, flex: '1 1 auto', minWidth: 0 }}>{aside}</span>}
         {link === null ? null : (
-          <button type="button" onClick={link.onOpen} style={{ ...bareButton, width: 'auto', ...typeV2.cardLink }}>
+          <button type="button" onClick={link.onOpen} style={{ ...bareButton, width: 'auto', flex: '0 0 auto', whiteSpace: 'nowrap', ...typeV2.cardLink }}>
             {link.label} ›
           </button>
         )}
@@ -112,11 +118,13 @@ function HourCell({ cell, showReading }: { cell: TodayCell; showReading: boolean
         alignItems: 'center',
         backgroundColor: colorsV2.raised,
         borderRadius: `${radius.card}px`,
-        padding: `${spacing.cellPad}px ${spacing.tight}px`,
+        padding: `${spacing.listGapSm}px ${spacing.tight}px`,
       }}
     >
-      <span style={typeV2.cellHour}>{cell.hourLabel}</span>
-      <span style={typeV2.cellFigure}>{formatTempDeg(cell.tempC)}</span>
+      <span style={{ ...row(spacing.tight), alignItems: 'baseline' }}>
+        <span style={typeV2.cellHour}>{cell.hourLabel}</span>
+        <span style={typeV2.cellFigure}>{formatTempDeg(cell.tempC)}</span>
+      </span>
       {/*
         The friction word, never its 0-1 factor (the magnitude fence). An hour
         the model did not read is dashed: the strip is a row of like cells, and
@@ -138,6 +146,7 @@ function TodayCard({ props }: { props: OverviewTabProps }) {
   const link = { label: 'Hourly', onOpen: props.onOpenHourly }
 
   let body: ReactNode
+  let drawn = false
   if (hourly.isPending || (todayDate === null && hourly.data !== undefined)) {
     body = <Skeleton height={TODAY_STRIP_H} />
   } else if (hourly.isError) {
@@ -146,6 +155,7 @@ function TodayCard({ props }: { props: OverviewTabProps }) {
     return null
   } else {
     const cells = todayCells(hourly.data, todayDate, isClimbingLocation)
+    drawn = cells.length > 0
     body =
       cells.length === 0 ? (
         <p style={typeV2.body}>No hour-by-hour forecast for today.</p>
@@ -156,43 +166,50 @@ function TodayCard({ props }: { props: OverviewTabProps }) {
               <HourCell key={cell.valid_at} cell={cell} showReading={isClimbingLocation} />
             ))}
           </div>
-          {/*
-            The strip's key: the words are friction, not a verdict on the hour.
-            **The estimate note rides with the words** — the hero above carries
-            it too, but the hero's readings can fail while this strip draws.
-          */}
-          <span style={typeV2.note}>
-            {isClimbingLocation ? `Friction by hour · ${FRICTION_ESTIMATE_NOTE}` : 'Temperature by hour'}
-          </span>
         </>
       )
   }
 
   return (
-    <Card title="Today" link={link} gap={spacing.cardPad}>
+    // **The estimate note rides with the words**, in the title row — the hero
+    // above carries it too, but the hero's readings can fail while this strip
+    // draws. It also names the words as friction, not a verdict on the hour.
+    <Card title="Today" aside={isClimbingLocation && drawn ? FRICTION_ESTIMATE_NOTE : null} link={link} gap={spacing.listGap}>
       {body}
     </Card>
   )
 }
 
-function DayRow({
+/**
+ * One day as a tile, three abreast — the rows they replaced took a third of
+ * the screen for three dates and three pills.
+ */
+function DayTile({
   day,
+  todayDate,
   isClimbingLocation,
   onOpen,
 }: {
   day: NextDay
+  todayDate: string
   isClimbingLocation: boolean
   onOpen: (() => void) | null
 }) {
-  // A row opens that day's hours only when the charts can draw it — a day the
+  // A tile opens that day's hours only when the charts can draw it — a day the
   // ensemble never reached would open two empty charts.
   return (
     <DayRowShell
       score={day.score}
       onOpen={onOpen}
-      style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}
+      style={{
+        ...stack(spacing.tight),
+        flex: '1 1 0',
+        minWidth: 0,
+        alignItems: 'center',
+        padding: `${spacing.listGapSm}px ${spacing.tight}px`,
+      }}
     >
-      <span style={typeV2.rowTitle}>{day.title}</span>
+      <span style={typeV2.rowTitle}>{shortDate(day.local_date, todayDate)}</span>
       {isClimbingLocation ? (
         // Absent rather than dashed when there is no score: suppressed under an
         // alert (the banner above says why), still loading, or past the run —
@@ -208,75 +225,88 @@ function DayRow({
   )
 }
 
-function NextDaysCard({ props }: { props: OverviewTabProps }) {
-  const { forecast, todayDate, hourly, isClimbingLocation } = props
-  // Pending and failed are the hero's to report: the rows share its forecast
-  // query, and a second copy of the same error reads as two failures.
-  if (forecast.data === undefined || todayDate === null) return null
-
-  const days = nextDays(
-    forecast.data,
-    todayDate,
-    isClimbingLocation && hourly.data !== undefined
-      ? {
-          days: hourly.data.readings?.days ?? [],
-          utcOffsetSeconds: hourly.data.utc_offset_seconds,
-          severeAlertEvent: props.severeAlertEvent,
-          alertsPending: props.alertsPending,
-        }
-      : null,
-  )
-  if (days.length === 0) return null
-
-  return (
-    <Card title={`Next ${days.length} ${days.length === 1 ? 'day' : 'days'}`} link={{ label: 'Daily', onOpen: props.onOpenDaily }} gap={spacing.listGapLg}>
-      {days.map((day) => (
-        <DayRow
-          key={day.local_date}
-          day={day}
-          isClimbingLocation={isClimbingLocation}
-          onOpen={props.drawableDates?.has(day.local_date) === true ? () => props.onOpenDay(day.local_date) : null}
-        />
-      ))}
-    </Card>
-  )
-}
-
 function Fact({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', flexWrap: 'wrap' }}>
+    <div style={{ ...stack(spacing.micro), flex: '1 1 auto', minWidth: 0 }}>
       <span style={typeV2.factLabel}>{label}</span>
-      <span style={{ ...typeV2.factValue, ...(color === undefined ? {} : { color }) }}>{value}</span>
+      <span style={{ ...typeV2.factValue, whiteSpace: 'nowrap', ...(color === undefined ? {} : { color }) }}>{value}</span>
     </div>
   )
 }
 
-function RainCard({ props }: { props: OverviewTabProps }) {
+/**
+ * The next days as tiles, then rain — one card, because each alone was a card
+ * frame around a single row.
+ */
+function ComingUpCard({ props }: { props: OverviewTabProps }) {
   const now = useNow()
-  const { hourly, todayDate } = props
+  const { forecast, todayDate, hourly, isClimbingLocation, recentPrecip } = props
 
-  // The drying model's own record. Capped at "over 30 days ago" by the shared
-  // formatter, so a swallowed rainfall fetch cannot read as a date.
-  const hoursSince = props.conditions?.score_breakdown?.drying?.hours_since_rain ?? null
-  const lastRain = props.isClimbingLocation ? formatLastRain(hoursSince) : null
+  // Pending and failed are the hero's to report: the tiles share its forecast
+  // query, and a second copy of the same error reads as two failures.
+  const days =
+    forecast.data === undefined || todayDate === null
+      ? []
+      : nextDays(
+          forecast.data,
+          todayDate,
+          isClimbingLocation && hourly.data !== undefined
+            ? {
+                days: hourly.data.readings?.days ?? [],
+                utcOffsetSeconds: hourly.data.utc_offset_seconds,
+                severeAlertEvent: props.severeAlertEvent,
+                alertsPending: props.alertsPending,
+              }
+            : null,
+        )
+
+  // The Precip tab's headline, from the same response and the same rule, so
+  // the two tabs cannot name different storms. Every location has it; a city
+  // had rain too.
+  const lastRain =
+    recentPrecip === undefined
+      ? null
+      : lastRainText(precipSummary(recentPrecip, now), precipDays(recentPrecip.hours).length)
 
   const next = hourly.data === undefined ? null : nextLikelyRain(hourly.data.hours, now)
   const nextValue: { text: string; color?: string } | null =
     next === null || todayDate === null || next.kind === 'unknown'
       ? null
       : next.kind === 'likely'
-        ? { text: `${shortDay(next.local_date, todayDate)} · ${next.chancePct}%`, color: colorsV2.rain }
-        : // "None through Tue", not "no rain": the ensemble has an edge, and
-          // rain past it is rain these figures cannot see.
-          { text: `None through ${shortDay(next.throughDate, todayDate)}` }
+        ? { text: `${shortDate(next.local_date, todayDate)} · ${next.chancePct}%`, color: colorsV2.rain }
+        : // "None through Tue 10/6", not "no rain": the ensemble has an edge,
+          // and rain past it is rain these figures cannot see.
+          { text: `None through ${shortDate(next.throughDate, todayDate)}` }
 
-  if (lastRain === null && nextValue === null) return null
+  const hasRain = lastRain !== null || nextValue !== null
+  if (days.length === 0 && !hasRain) return null
 
   return (
-    <Card title="Rain" link={null} gap={spacing.cellPad}>
-      {lastRain === null ? null : <Fact label="Last rain" value={lastRain} />}
-      {nextValue === null ? null : (
-        <Fact label="Next likely rain" value={nextValue.text} {...(nextValue.color === undefined ? {} : { color: nextValue.color })} />
+    <Card
+      title={days.length === 0 ? 'Rain' : `Next ${days.length} ${days.length === 1 ? 'day' : 'days'}`}
+      link={days.length === 0 ? null : { label: 'Daily', onOpen: props.onOpenDaily }}
+      gap={spacing.listGap}
+    >
+      {days.length === 0 || todayDate === null ? null : (
+        <div style={{ ...row(spacing.listGapSm), alignItems: 'stretch' }}>
+          {days.map((day) => (
+            <DayTile
+              key={day.local_date}
+              day={day}
+              todayDate={todayDate}
+              isClimbingLocation={isClimbingLocation}
+              onOpen={props.drawableDates?.has(day.local_date) === true ? () => props.onOpenDay(day.local_date) : null}
+            />
+          ))}
+        </div>
+      )}
+      {!hasRain ? null : (
+        <div style={{ ...row(spacing.cellPad), alignItems: 'flex-start' }}>
+          {lastRain === null ? null : <Fact label="Last real rain" value={lastRain} />}
+          {nextValue === null ? null : (
+            <Fact label="Next likely rain" value={nextValue.text} {...(nextValue.color === undefined ? {} : { color: nextValue.color })} />
+          )}
+        </div>
       )}
     </Card>
   )
@@ -286,8 +316,7 @@ export function OverviewTab(props: OverviewTabProps) {
   return (
     <>
       <TodayCard props={props} />
-      <NextDaysCard props={props} />
-      <RainCard props={props} />
+      <ComingUpCard props={props} />
     </>
   )
 }

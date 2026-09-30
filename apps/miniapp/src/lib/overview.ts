@@ -6,6 +6,7 @@ import {
   type HourlySeries,
   type ReadingsDay,
 } from '@weatherteam6/types'
+import { formatSince, type PrecipSummary } from './precipHistory.js'
 
 /**
  * The Overview tab's logic, apart from its markup: which hours the Today strip
@@ -241,4 +242,33 @@ export function shortDay(isoDate: string, todayDate: string): string {
     weekday: 'short',
     timeZone: 'UTC',
   })
+}
+
+/**
+ * `Today`, or `Tue 10/6`. The weekday alone is ambiguous a week out: on a
+ * Wednesday, "None through Tue" read as yesterday.
+ */
+export function shortDate(isoDate: string, todayDate: string): string {
+  const day = shortDay(isoDate, todayDate)
+  if (day === 'Today' || day === isoDate) return day
+  const [, m, d] = isoDate.split('-').map(Number)
+  return `${day} ${m}/${d}`
+}
+
+/**
+ * The Overview's "Last rain", **from the same summary as the Precip tab's
+ * headline** — the four-model median and `REWETTING_PRECIP_MM`, hour by hour.
+ * It once read the five-component drying model's archive figure, which counts
+ * only days over 2 mm and measures from the end of the UTC day, so the two
+ * tabs could name different storms for the same crag.
+ *
+ * `null` when the window has no hours: a gap in the record, not a dry week.
+ */
+export function lastRainText(summary: PrecipSummary, windowDays: number): string | null {
+  const { lastReal, hoursSinceReal, endingLocal } = summary
+  if (endingLocal === null) return null
+  if (lastReal === null || hoursSinceReal === null) return `None in ${windowDays} days`
+  // Real rain in the window's newest hour is still falling, as the Precip tab reads it.
+  if (lastReal.valid_at_local === endingLocal) return 'Now'
+  return `${formatSince(hoursSinceReal)} ago`
 }

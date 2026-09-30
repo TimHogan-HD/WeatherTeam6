@@ -24,16 +24,16 @@ type ScreenProps = {
  * The screen frame. Horizontal gutter, top safe area and bottom inset are the
  * locked layout constants and come from `spacing`, never from a local number.
  *
- * `#root` already carries the device's safe-area insets, so `topSafe` here is
- * the design's own clearance stacked on top of them — which is what §Design
- * System specifies.
+ * `#root` already carries the device's safe-area insets, so the top padding is
+ * `topWeb`, not the React Native `topSafe` — that one is a status-bar
+ * allowance, and on the web it doubled what the inset already clears.
  */
 export function Screen({ title, onBack, action, feedback = false, children }: ScreenProps) {
   return (
     <main
       style={{
         ...layout.body,
-        paddingTop: `${spacing.topSafe}px`,
+        paddingTop: `${spacing.topWeb}px`,
         paddingBottom: bottomClearance,
       }}
     >

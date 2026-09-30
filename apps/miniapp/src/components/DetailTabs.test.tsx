@@ -450,6 +450,9 @@ describe('DetailView — the Overview tab', () => {
     return html
   }
 
+  /** The Today card's markup alone, so a note the hero also carries cannot satisfy it. */
+  const todayCard = (html: string) => html.slice(html.indexOf('>Today<'), html.indexOf('</section>', html.indexOf('>Today<')))
+
   it('shows today by the hour, with the friction word at each hour', () => {
     const html = overview()
     expect(html).toContain('>Today<')
@@ -457,7 +460,8 @@ describe('DetailView — the Overview tab', () => {
     expect(html).toContain('>12<')
     expect(html).toContain('>Great<')
     expect(html).toContain('>Poor<')
-    expect(html).toContain('Friction by hour · Friction is estimated, not measured')
+    // The estimate note rides in the strip's own title row, not only in the hero.
+    expect(todayCard(html)).toContain('Friction is estimated, not measured')
   })
 
   it('scores the next days from the Crag A readings, never the forecast row', () => {
@@ -470,20 +474,20 @@ describe('DetailView — the Overview tab', () => {
 
   it('drops the day scores under a Severe+ alert and keeps the rows', () => {
     const html = overview({ alerts: [heatWarning] })
-    expect(html).toContain('Tuesday · 9/15')
+    expect(html).toContain('Tue 9/15')
     expect(html).not.toContain('Score 91')
   })
 
   it('names the next likely rain from the ensemble’s wet share', () => {
     const html = overview()
     expect(html).toContain('Next likely rain')
-    expect(html).toContain('Tue · 64%')
+    expect(html).toContain('Tue 9/15 · 64%')
   })
 
   it('gives a city temperatures by the hour, day ranges and no score', () => {
     const html = overview({ climbing: false })
-    expect(html).toContain('Temperature by hour')
-    expect(html).not.toContain('Friction by hour')
+    expect(html).toContain('>09<')
+    expect(html).not.toContain('Friction is estimated')
     expect(html).not.toContain('Score 91')
     expect(html).toContain('50–68°F')
   })
