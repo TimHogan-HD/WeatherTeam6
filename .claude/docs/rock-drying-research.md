@@ -1067,7 +1067,7 @@ any regional or state-level default: dolomite (Red Wing), basalt (Taylors Falls)
 - **North Shore — Palisade Head and Shovel Point (Tettegouche SP).** Midcontinent Rift
   **rhyolite**, radiometrically dated 1,096.6 Ma, capping softer basalt
   ([MN Earth Science Guy](https://mnearthscienceguy.blogspot.com/2012/07/minnesota-geology-monday-palisade-head.html),
-  [Grokipedia](https://grokipedia.com/page/Palisade_Head)). Dense fine-grained volcanic rock:
+  [Minnesota Geological Survey](https://conservancy.umn.edu/server/api/core/bitstreams/fe62ca02-242e-4908-9f34-4d79306b0337/content)). Dense fine-grained volcanic rock:
   low porosity, fast-drying, friction-limited. The real conditions inputs are **Lake Superior
   spray and fog**, not rainfall — these are lake cliffs climbed on rappel. A **strict no-chalk
   ethic** applies and a free state-park permit is required
@@ -1094,7 +1094,7 @@ any regional or state-level default: dolomite (Red Wing), basalt (Taylors Falls)
   475–600 ft of capstone, ~600 routes over ~19 crags. Texture is the interesting part:
   **finely crystalline beds interspersed by chert lenses and solution breccias**, giving the
   cavernous, pocketed character
-  ([Grokipedia](https://grokipedia.com/page/spearfish_canyon),
+  ([GSA field guide](https://webpages.sdsmt.edu/~eduke/2010_GSA_guidebook_black_hills.pdf): "dolomitic ... chert layers",
   [Climbing](https://www.climbing.com/places/spearfish-south-dakota-climbing-destination-guide/)).
   Community conditions note: **spring through June can be wet**, though usually partly
   climbable. Rock quality improves further up the canyon — a within-crag gradient again.
@@ -2917,6 +2917,69 @@ the evidence and it should look uncomfortable.
   which conclusion would have made the file a list instead of an argument.
 
 ---
+
+### 11.1 Every known crag's rock, checked against a page — 2026-09-30
+
+Each `KNOWN_CRAGS` lock was checked against a page that names the rock, opened and read rather
+than taken from a search summary. Three were wrong and were relocked on 2026-09-29 (Poke-O-Moonshine,
+Rumbling Bald, the Buttermilks); Taylors Falls was relabelled *dense*, not columnar. The rest hold.
+
+| Crag | Lock | What the source says | Source |
+| --- | --- | --- | --- |
+| Red Wing | `carbonate_cherty` | Oneota Dolomite with "solution pockets and chert nodules" | [source](https://www.mountainproject.com/area/105812663/red-wing-aka-he-mni-can-barn-bluff) |
+| Willow River | `dolomite` | dolomite, "breakable when wet" | [source](https://www.mnclimbers.org/bolting-1) |
+| Taylors Falls | `basalt_dense` | basalt with horizontal and vertical joints, not columns | [source](https://files.dnr.state.mn.us/lands_minerals/mpes_projects/reports/report336_5.pdf) |
+| Palisade Head | `rhyolite` | rhyolitic lava flow | [source](https://en.wikipedia.org/wiki/Palisade_Head) |
+| Shovel Point | `rhyolite` | columnar-jointed rhyolite flow (Minnesota Geological Survey) | [source](https://conservancy.umn.edu/server/api/core/bitstreams/fe62ca02-242e-4908-9f34-4d79306b0337/content) |
+| Carlton Peak | `anorthosite` | "The rock is anorthosite, very strong, but also very abrasive" | [source](https://www.mountainproject.com/area/105814854/carlton-peak) |
+| Blue Mounds | `quartzite` | Precambrian Sioux Quartzite | [source](https://en.wikipedia.org/wiki/Blue_Mounds_State_Park) |
+| Devil's Lake | `quartzite` | "primarily quartzite" | [source](https://en.wikipedia.org/wiki/Devil%27s_Lake_State_Park_(Wisconsin)) |
+| The Needles | `granite` | granite, pegmatite | [source](https://en.wikipedia.org/wiki/Needles_(Black_Hills)) |
+| Spearfish Canyon | `carbonate_cherty` | Pahasapa: "dolomitic ... chert layers" (GSA field guide, replaces a Grokipedia citation) | [source](https://webpages.sdsmt.edu/~eduke/2010_GSA_guidebook_black_hills.pdf) |
+| Lion's Head | `dolomite` | Amabel Formation "dolomitized with no precursor limestone" (climbing sites say limestone loosely) | [source](https://uwspace.uwaterloo.ca/items/a2eb068e-f13b-47fd-90c6-09cc2cb88163) |
+| Vedauwoo | `granite` | Sherman Granite | [source](https://en.wikipedia.org/wiki/Vedauwoo) |
+| Penitente Canyon | `tuff_welded` | "volcanic Fish Canyon welded tuff" | [source](https://www.mountainproject.com/area/105744316/penitente-canyon) |
+| Clear Creek Canyon | `gneiss_schist` | "gneiss & schist to a sandy granite" | [source](https://www.mountainproject.com/area/105744243/clear-creek-canyon) |
+| Eldorado Canyon | `sandstone_arkose` | "bullet-proof, fine grained, Fountain Formation sandstone" | [source](https://www.mountainproject.com/area/105807701/redgarden-roof-routes) |
+| The Flatirons | `sandstone_arkose` | "conglomeratic sandstone of the Fountain Formation" | [source](https://en.wikipedia.org/wiki/Flatirons) |
+| Turkey Rocks | `granite` | granite | [source](https://stephabegg.com/trip-reports/colorado/turkey-rocks/) |
+| Big Cottonwood Canyon | `quartzite` | "primarily on quartzite" | [source](https://www.mountainproject.com/area/105739280/big-cottonwood-canyon) |
+| Maple Canyon | `conglomerate` | "conglomerate rock with embedded, rounded clasts" | [source](https://www.mountainproject.com/area/105739298/maple-canyon) |
+| Smith Rock | `tuff_welded` | welded tuff (the Gorge section is basalt) | [source](https://en.wikipedia.org/wiki/Smith_Rock_State_Park) |
+| Trout Creek | `basalt_dense` | "Columnar Basalt Cliffs" | [source](https://www.blm.gov/visit/trout-creek-climbing-area) |
+| Frenchman Coulee | `basalt_dense` | columnar basalt | [source](https://www.mountainproject.com/area/105792231/frenchman-coulee-vantage) |
+| Index | `granite` | granite | [source](https://www.mountainproject.com/area/105790635/index) |
+| Squamish | `granite` | granodiorite, "a granitic dome" | [source](https://en.wikipedia.org/wiki/Stawamus_Chief) |
+| Yosemite Valley | `granite` | El Capitan: granite | [source](https://en.wikipedia.org/wiki/The_Nose_(El_Capitan)) |
+| Tuolumne Meadows | `granite` | porphyritic granite | [source](https://en.wikipedia.org/wiki/Tuolumne_Meadows) |
+| The Buttermilks | `granite` | quartz monzonite glacial erratics — relocked from granite_weathered 2026-09-29 | [source](https://en.wikipedia.org/wiki/The_Buttermilks) |
+| Pinnacles | `volcanic_breccia` | volcanic breccia, "very weak compared to the granite and basalt" | [source](https://www.nps.gov/pinn/planyourvisit/climb.htm) |
+| Queen Creek and Oak Flat | `tuff_welded` | Apache Leap Tuff, "dacitic welded tuffs" (NRC site study) | [source](https://www.nrc.gov/docs/ML0037/ML003751762.pdf) |
+| Cochise Stronghold | `granite` | "towering granite domes" | [source](https://www.mountainproject.com/area/105738034/cochise-stronghold) |
+| Hueco Tanks | `syenite_porous` | syenite; huecos "hold rainwater for months" | [source](https://en.wikipedia.org/wiki/Hueco_Tanks) |
+| Enchanted Rock | `granite` | Town Mountain Granite | [source](https://en.wikipedia.org/wiki/Enchanted_Rock) |
+| Seneca Rocks | `quartzite` | Tuscarora quartzite | [source](https://en.wikipedia.org/wiki/Seneca_Rocks) |
+| Rumney | `gneiss_schist` | schist (checked in the climber pass) | [source](https://www.mountainproject.com/forum/topic/114801189/rumney-after-rain) |
+| Cathedral Ledge | `granite` | "500-foot granite wall" | [source](https://www.newhampshireclimbing.com/cathedral-ledge-climbing/) |
+| Whitehorse Ledge | `granite` | "a huge chunk of granite" | [source](https://www.mountainproject.com/area/105909079/whitehorse-ledge) |
+| Carderock | `gneiss_schist` | "Wissahikon Mica-schist" | [source](https://en.wikipedia.org/wiki/Carderock_Recreation_Area) |
+| Poke-O-Moonshine | `gneiss_schist` | granite-gneiss — relocked from anorthosite 2026-09-29 | [source](https://en.wikipedia.org/wiki/Poke-O-Moonshine_Mountain) |
+| Looking Glass Rock | `granite` | granite | [source](https://en.wikipedia.org/wiki/Looking_Glass_Rock) |
+| Rumbling Bald | `gneiss_schist` | Henderson Gneiss — relocked from granite 2026-09-29 | [source](https://en.wikipedia.org/wiki/Chimney_Rock_State_Park) |
+| Bon Echo | `granite` | "granite and black dykes" (metamorphosed) | [source](https://en.wikipedia.org/wiki/Mazinaw_Rock) |
+| Stanage Edge | `sandstone_arkose` | Millstone Grit | [source](https://en.wikipedia.org/wiki/Stanage_Edge) |
+| Harrison's Rocks | `sandstone_soft` | "a soft sandstone, which is prone to being worn away" | [source](https://en.wikipedia.org/wiki/Harrison%27s_Rocks) |
+| High Rocks | `sandstone_soft` | Ardingly Sandstone, "particularly soft" | [source](https://en.wikipedia.org/wiki/Southern_Sandstone) |
+| Saxon Switzerland | `sandstone_soft` | soft sandstone; "Climbing is forbidden on wet or damp rocks" | [source](https://en.wikipedia.org/wiki/Saxon_Switzerland_climbing_region) |
+| Dinorwig | `slate` | slate quarry | [source](https://en.wikipedia.org/wiki/Dinorwig_Slate_Quarry) |
+| Céüse | `limestone_dense` | limestone cliff | [source](https://en.wikipedia.org/wiki/C%C3%A9%C3%BCse) |
+| Verdon Gorge | `limestone_dense` | limestone walls | [source](https://en.wikipedia.org/wiki/Verdon_Gorge) |
+| Magic Wood | `gneiss_schist` | gneiss (also described as fine-grained granite) | [source](https://www.madboulder.org/magic_wood) |
+| Mallos de Riglos | `conglomerate` | conglomerate | [source](https://en.wikipedia.org/wiki/Mallos_de_Riglos) |
+| Margalef | `conglomerate` | cobblestone conglomerate, with a limestone tufa coating on many cliffs | [source](https://www.mountainproject.com/area/106631762/margalef) |
+| Meteora | `conglomerate` | "a mixture of sandstone and conglomerate" | [source](https://en.wikipedia.org/wiki/Meteora) |
+| Mount Arapiles | `quartzite` | "primarily composed of quartzite" | [source](https://en.wikipedia.org/wiki/Mount_Arapiles) |
+| Ogawayama | `granite` | granite | [source](https://www.mountainproject.com/area/107002294/ogawayama) |
 
 ## 12. Closing the §8 gaps — 2026-09-16
 
