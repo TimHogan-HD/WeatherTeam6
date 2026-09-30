@@ -66,8 +66,10 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   `computeLiveForecast` calls `dryingModel` inside the day loop against the events
   `rainfallEventsThrough` allows — nothing dated later than the day scored. `asOf` advances at
   the same local time of day, so day 0 is exactly `now` (#108). Never "advance" the figure by
-  adding hours; the 720-hour sentinel means *unmeasured* (#34). `currentWindKmh` and
-  `currentHumidityPct` are knowingly today-only.
+  adding hours; the 720-hour sentinel means *unmeasured* (#34). **Two inputs are still
+  knowingly today-only** — `currentWindKmh` and `currentHumidityPct`, which stretch `maxDry`
+  rather than fill it. They are one field away from the humidity *component*, so making them
+  per-day is a `ScoreInput` split, not an edit.
 
 ## Readings on screen
 
