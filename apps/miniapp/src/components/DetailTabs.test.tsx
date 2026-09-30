@@ -457,7 +457,7 @@ describe('DetailView — the Overview tab', () => {
     const today = todaySection(overview())
     expect(today).toContain('>9a<')
     expect(today).toContain('>12p<')
-    expect(today).toContain('Temperature, coloured by score')
+    expect(today).toContain('>Score<')
     // Both scored hours read 80, printed under their ticks.
     expect(today.match(/>80</g)?.length).toBe(2)
   })
@@ -475,7 +475,7 @@ describe('DetailView — the Overview tab', () => {
     expect(html).toContain('Tue 9/15')
     expect(html).not.toMatch(/>91<\/span>/)
     // The line loses its score colour too: a tint with no number is the number leaking.
-    expect(todaySection(html)).not.toContain('coloured by score')
+    expect(todaySection(html)).not.toContain('>Score<')
   })
 
   it('names the next likely rain from the ensemble’s wet share', () => {
@@ -487,7 +487,7 @@ describe('DetailView — the Overview tab', () => {
   it('gives a city a neutral chart, day ranges and no score', () => {
     const html = overview({ climbing: false })
     expect(todaySection(html)).toContain('>9a<')
-    expect(todaySection(html)).not.toContain('coloured by score')
+    expect(todaySection(html)).not.toContain('>Score<')
     expect(html).not.toMatch(/>91<\/span>/)
     expect(html).toContain('50–68°F')
   })
