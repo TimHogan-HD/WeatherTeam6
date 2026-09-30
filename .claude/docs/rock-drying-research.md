@@ -2171,7 +2171,7 @@ on a vertical wall, before the existing angle/wind/humidity modifiers.
 > | `slate` | [1](http://confusedgeologist.blogspot.com/2016/09/climbing-and-cleavage-geological.html) · [2](https://www.mountainproject.com/area/107183457/llanberis-slate-quarries) |
 > | `gneiss_schist` | [1](https://en.wikipedia.org/wiki/Gneiss) · [2](https://en.wikipedia.org/wiki/Schist) |
 > | `sandstone` | [1](https://en.wikipedia.org/wiki/Sandstone) · [2](https://en.wikipedia.org/wiki/Elbe_Sandstone_Mountains) · [3](https://en.wikipedia.org/wiki/Wingate_Sandstone) |
-> | `sandstone_quartz_arenite` | [1](https://en.wikipedia.org/wiki/Sandstone) · [2](https://en.wikipedia.org/wiki/Fontainebleau_rock_climbing) |
+> | `sandstone_quartz_arenite` | [1](https://en.wikipedia.org/wiki/Sandstone) · [2](https://www.mountainproject.com/area/105812719/robinson-park) |
 > | `sandstone_ferruginous` | [1](https://en.wikipedia.org/wiki/Liesegang_rings_(geology)) · [2](https://www.earthmagazine.org/article/travels-geology-rocks-and-climbing-kentuckys-red-river-gorge/) |
 > | `sandstone_arkose` | [1](https://en.wikipedia.org/wiki/Sandstone) · [2](https://lithosphere-expeditions.co.uk/millstone-grit-gritstone-edges/) |
 > | `sandstone_eolian` | [1](https://en.wikipedia.org/wiki/Navajo_Sandstone) · [2](https://www.redrocksguidebook.com/red-rock-guide-excerpts.html) |
@@ -2179,8 +2179,8 @@ on a vertical wall, before the existing angle/wind/humidity modifiers.
 > | `limestone` | [1](https://en.wikipedia.org/wiki/Limestone) · [2](https://avilaclimbingco.com/blogs/blogs/climbing-rock-types-for-climbing-guide) |
 > | `limestone_dense` | [1](https://en.wikipedia.org/wiki/Limestone) |
 > | `limestone_porous` | [1](https://en.wikipedia.org/wiki/Limestone) · [2](https://en.wikipedia.org/wiki/Tufa) |
-> | `dolomite` | [1](https://en.wikipedia.org/wiki/Dolomite_(rock)) · [2](https://www.mnclimbers.org/bolting-1) |
-> | `carbonate_cherty` | [1](https://en.wikipedia.org/wiki/Chert) |
+> | `dolomite` | [1](https://en.wikipedia.org/wiki/Dolomite_(rock)) · [2](https://www.mountainproject.com/area/105812663/red-wing-aka-he-mni-can-barn-bluff) · [3](https://www.mountainproject.com/area/105795588/willow-river-state-park) |
+> | `carbonate_cherty` | [1](https://en.wikipedia.org/wiki/Chert) · [2](https://www.mountainproject.com/area/105812663/red-wing-aka-he-mni-can-barn-bluff) |
 > | `conglomerate` | [1](https://en.wikipedia.org/wiki/Conglomerate_(geology)) · [2](https://www.mountainproject.com/forum/topic/124188968/avoid-wet-conglomerate) |
 
 Four companion changes that the research says matter more than the table itself:

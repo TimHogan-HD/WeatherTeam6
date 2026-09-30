@@ -26,6 +26,8 @@ describe('rockGuide', () => {
       expect(line).toMatch(/[.”]$/)
       expect(line.length).toBeLessThanOrEqual(140)
     }
+    // The holds line leads with what a climber will pull on (owner, 2026-09-30).
+    expect(guide.holds).toMatch(/^Expect /)
     expect(guide.styles.length).toBeGreaterThanOrEqual(2)
     expect(guide.styles.length).toBeLessThanOrEqual(4)
     expect(guide.care.length + guide.avoid.length).toBeLessThanOrEqual(3)
