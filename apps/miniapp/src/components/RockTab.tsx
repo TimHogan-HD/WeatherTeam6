@@ -438,7 +438,7 @@ export function RockTab({ rockType, drying, identity }: RockTabProps) {
             <p style={{ ...typeV2.body, color: colorsV2.txt1 }}>{guide.funFact}</p>
           </section>
 
-          <Card title="Look after it">
+          <Card title="Rock care">
             <CareList items={guide.care} kind="do" />
             <CareList items={guide.avoid} kind="dont" />
             <p style={typeV2.note}>

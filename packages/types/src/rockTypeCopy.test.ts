@@ -17,7 +17,7 @@ describe('rockTypeLabel', () => {
 
   it('distinguishes the three basalts by what a climber can see', () => {
     expect(rockTypeLabel('basalt')).toBe('Basalt')
-    expect(rockTypeLabel('basalt_dense')).toBe('Basalt (columnar)')
+    expect(rockTypeLabel('basalt_dense')).toBe('Basalt (dense)')
     expect(rockTypeLabel('basalt_vesicular')).toBe('Basalt (flow top)')
   })
 

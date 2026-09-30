@@ -963,7 +963,10 @@ are commonly described as "sandstone" and only one is.
 - **Taylors Falls / Interstate State Park, MN — basalt.** Midcontinent Rift flood basalt,
   ~1.1 Ga, eroded into the St. Croix Dalles with the famous glacial potholes
   ([MN DNR](https://files.dnr.state.mn.us/destinations/state_parks/interstate/interstate_geology.pdf)).
-  Dense columnar type, so 0.1–1.0% porosity: hours, not days, and no integrity risk. The
+  Dense but **not columnar** (corrected 2026-09-29): the DNR finds "a system of horizontal and
+  vertical joint planes", and freeze–thaw separates joint-bound blocks from the cliff
+  ([MN DNR report 336-5](https://files.dnr.state.mn.us/lands_minerals/mpes_projects/reports/report336_5.pdf)).
+  Low porosity, so hours, not days — the loose-block risk is freeze–thaw, not rain. The
   potholes and river-level base still pond water independently of the rock.
 - **Robinson Park, Sandstone MN — Hinckley Sandstone, in a quarry.** Trad, sport, boulder,
   ice and mixed in one footprint; mostly 5.9–5.11b
@@ -2079,12 +2082,12 @@ on a vertical wall, before the existing angle/wind/humidity modifiers.
 | `quartzite` | 1 | 6 | Near-zero matrix porosity [M] |
 | `slate` | 1 | 4 | No pore space; fastest-drying rock in community rankings. Friction-limited [C] |
 | `gneiss_schist` | 2 | 12 | Low matrix porosity, foliation drainage [M/I] |
-| `basalt_dense` (columnar) | 2 | 8 | 0.1–1.0% porosity [M] — **SHIPPED 2026-09-16**, see §6.1 |
+| `basalt_dense` (dense — columnar or blocky; labelled *Basalt (dense)* since 2026-09-29, when Taylors Falls turned out not to be columnar) | 2 | 8 | 0.1–1.0% porosity [M] — **SHIPPED 2026-09-16**, see §6.1 |
 | `basalt_vesicular` | 12 | 48 | 30–50% porosity [M] — **SHIPPED 2026-09-16**, see §6.1 |
-| `tuff_welded` | 4 | 16 | Behaves near-granitic for drying [C] — **but not for strength after a deluge**: Smith Rock guidance is two days before small knobs and edges hold again (2026-09-29 audit). Window unchanged, since it is set for a moderate storm |
+| `tuff_welded` | 4 | 16 | Behaves near-granitic [C]. Smith Rock locals: "road's dry = rock's dry". The *softens* label the soft-rock audit gave it is withdrawn — its source was an unsourced SEO page (climber pass below) |
 | `tuff_nonwelded` | 36 | 96 | 38–60% porosity — more than any sandstone [M] |
 | `limestone_dense` | 4 | 18 | Low porosity; seepage handled separately [M/C] |
-| `dolomite` | 6 | 24 | Higher porosity than parent limestone; pocket water [M/I] |
+| `dolomite` | 6 | 24 | Higher porosity than parent limestone; pocket water [M/I]. Reads *softens*: the MN Climbers Association says Willow River's dolomite "becomes breakable when wet" [C] |
 | `carbonate_cherty` (chert lenses / nodules) | 6 | 24 | Two materials in one wall; holds loosen at the interface. Oneota, Pahasapa [I] |
 | `limestone_porous` / chalk / tufa | 24 | 72 | Up to 12% absorption; tufa softens and breaks [S/C] |
 | `sandstone_quartz_arenite` (silica-cemented) | **24** | **48** | Was 6/24 on the ~0% wet-strength-loss figure; raised 2026-09-29 by owner decision — Robinson Park and Fontainebleau are both quartz arenite, both break wet, and both carry a 24–48 h local rule [C]. See the §3 correction |
@@ -2093,12 +2096,12 @@ on a vertical wall, before the existing angle/wind/humidity modifiers.
 | `sandstone_eolian` (calcite/clay-cemented) | 36 | 96 | 50–75% strength loss; land-manager 24–48h is the floor, not the answer [M/C] |
 | `sandstone_soft` (weakly cemented) | 48 | 120 | Elbsandstein / Southern Sandstone class [C] |
 | `conglomerate` | 24 | 72 | Matrix-controlled and invisible from the surface [I] |
-| `volcanic_breccia` (Pinnacles-type) | 12 | 48 | Angular clasts in finer matrix; NPS calls it very weak vs granite/basalt [C] |
+| `volcanic_breccia` (Pinnacles-type) | **48** | **120** | Angular clasts in finer matrix; NPS calls it very weak vs granite/basalt [C]. Was 12/48; raised 2026-09-29 by owner decision on the climber evidence below |
 | `unknown` | 48 | 120 | Must be the **most** conservative row, not a middle one |
 
 > **Soft-rock audit, 2026-09-29.** Each soft or porous row was checked against the local rule
 > at a crag that uses it. Quartz arenite and Hueco syenite were too short and too reassuring
-> and were raised (above). Welded tuff keeps its window but reads *softens* on the Rock tab.
+> and were raised (above). Welded tuff was given *softens* here; the climber pass below withdrew it.
 > **Arkose looks over-cautious**: Eldorado's Fountain sandstone is described as "pretty
 > impervious" to water and climbable within hours of sun
 > ([MP forum](https://www.mountainproject.com/forum/topic/124622883/conditions-after-rainy-day-on-eldorado-canyon));
@@ -2106,6 +2109,70 @@ on a vertical wall, before the existing angle/wind/humidity modifiers.
 > [Hueco FAQ](https://www.bluelizardclimbingandyoga.com/hueco/faq),
 > [Smith Rock](https://bikehike.org/can-you-climb-in-smith-rock-after-rain/),
 > [Fontainebleau](https://www.ukclimbing.com/news/2024/04/protect_fontainebleau_sandstone_-_dont_climb_on_wet_or_damp_rock-73647).
+
+> **Climber pass, 2026-09-29.** Every row was checked against what climbers and local groups
+> say, not lab figures. The rule: **a local access group or guidebook outranks a forum post,
+> a forum post outranks a lab figure, and a page with no author or source counts for
+> nothing** (the Smith Rock "two days" figure above was one of those). Findings:
+>
+> | Row | Climbers say | Window | Verdict |
+> | --- | --- | --- | --- |
+> | `volcanic_breccia` | Pinnacles: "brittle when wet, dries slowly" ([theCrag](https://www.thecrag.com/en/climbing/united-states/pinnacles-national-monument)); "dry and baking in the sun for at least 5 days" ([MP forum](https://www.mountainproject.com/forum/topic/111542979/pinnaclestollhouse-conditions-where-to-climb-near-sf-when-its-wet)); "long been shared lore … especially vulnerable to breakage for several days after a rainstorm" ([theDIHEDRAL comments](https://thedihedral.com/2019/11/02/caution-wet-rock/)) | 12/48 → **48/120** | **Too short, raised** (owner) |
+> | `tuff_welded` | Smith Rock: "dries out almost instantaneously … normally good to go not long after rain", "road's dry = rock's dry" ([MP forum](https://www.mountainproject.com/forum/topic/119059755/climbing-after-rain-in-bend-oregon)); Penitente "bulletproof" | 4/16 | Window right; label back to *holds* |
+> | `dolomite` | Willow River: "breakable when wet … do not climb if the rock is damp" ([MCA](https://www.mnclimbers.org/bolting-1)); Lion's Head "dries incredibly fast" | 6/24 | Window right; label *holds* → *softens* |
+> | `sandstone_quartz_arenite` | Robinson Park: MCA "24–48 hours or until the rock thoroughly dries out"; a local site says "minimum of 48–72 hours" ([Can I Climb Sandstone MN?](https://sandstone.aclimbing.com/)); Fontainebleau 36–48 h | 24/48 | Matches the MCA; the stricter local view is noted, not adopted |
+> | `sandstone_eolian` | SNCC: 24 h after a thunderstorm, "most cliffs dry in 36 hours with plenty of sunlight", 3–4 days in winter ([SNCC](https://www.southernnevadaclimbers.org/rain)); Moab "sometimes for several days" | 36/96 | Right |
+> | `sandstone_soft` | Elbsandstein bans climbing on the rain day and the day after; BMC: water "can still be within the sandstone for weeks" ([BMC](https://thebmc.co.uk/en/harrisons-rocks)) | 48/120 | Right; 120 h is the model's ceiling, not the rock's |
+> | `syenite_porous` | Hueco: "refrain from climbing within about 24 hours", "a day or two" | 24/48 | Right |
+> | `tuff_nonwelded` | Sad Boulders: avoid after rain, holds friable; "avoid the area for a day" | 36/96 | Conservative; left |
+> | `sandstone_ferruginous` | RRG: climbed "in the middle of rainstorms" under steep rock; Corbin/Nuttall lose less strength ([Climbing](https://www.climbing.com/places/wet-sandstone/)) | 12/48 | Probably long; safe direction, left |
+> | `sandstone_arkose` | Flatirons in the "no shaming" category, "dries way faster" ([MP forum](https://www.mountainproject.com/forum/topic/118162690/is-conglomerate-sandstone-like-the-flatirons-ok-to-climb-after-rain)); grit dries "pretty quickly from a shower" in wind | 12/48 | Probably long; left |
+> | `conglomerate` | Maple: steep enough to stay dry, matrix quality varies, "holds rip all the time, especially after the freeze thaw"; Margalef dries in "a few hours of sun"; Castle Rock "loses no tensile strength when wet" ([MP forum](https://www.mountainproject.com/forum/topic/124188968/avoid-wet-conglomerate)) | 24/72 | Probably long; left. Freeze–thaw, not rain, is the climber-named hazard |
+> | `carbonate_cherty` | Red Wing: "holds come off … sometimes very large chunks"; careful after spring freeze/thaw | 6/24 | Label right |
+> | granite, quartzite, slate, gneiss/schist, dense basalt | Buttermilks same day; Squamish half a day (boulders 1–2 days, cracks seep longer); Devil's Lake "if the road's dry, the rock's dry"; Dinorwig slate "within an hour"; Rumney "a few hours after rain on a sunny day"; Vantage "dries quick" | fast rows | Right |
+>
+> **Not adopted:** one Joshua Tree post asks for "a week of sunshine" on monzogranite, after an
+> exceptional snow year ([MP forum](https://www.mountainproject.com/forum/topic/123821544/annual-joshua-tree-wet-rock-warning)).
+> One voice and one event is not a rule. It would matter if a Joshua Tree crag were ever locked
+> to `granite_weathered`.
+>
+> **What climbers name that the table cannot:** seepage (Rumney's Bonsai wall, Frankenjura
+> after days of rain, Squamish cracks), steepness that keeps rain off entirely (Maple, RRG,
+> Frankenjura), and freeze–thaw loosening holds (Maple, Red Wing). All three are §5 modifiers,
+> not rock-type rows.
+> **Rock-tab "Did you know" facts — sources (2026-09-29).** Each fact ties climbing to the
+> rock and was checked against the page below, not a search summary. Four drafts failed that
+> check and were cut: Golden Cliffs is shoshonite, not basalt; the Sad Boulders "friable after
+> rain" line, the Font polish quote and the Needles crystal line had no page that said them.
+>
+> | Row | Source |
+> | --- | --- |
+> | `granite` | [source](https://en.wikipedia.org/wiki/The_Nose_(El_Capitan)) |
+> | `granite_weathered` | [source](https://en.wikipedia.org/wiki/The_Buttermilks) |
+> | `anorthosite` | [source](https://www.mountainproject.com/area/105814854/carlton-peak) |
+> | `syenite_porous` | [source](https://www.bluelizardclimbingandyoga.com/hueco/faq) |
+> | `rhyolite` | [source](https://en.wikipedia.org/wiki/Palisade_Head) |
+> | `basalt_dense` | [source](https://files.dnr.state.mn.us/lands_minerals/mpes_projects/reports/report336_5.pdf) |
+> | `basalt` | [source](https://www.mountainproject.com/area/105868955/taos-area) |
+> | `basalt_vesicular` | [source](https://www.mountainproject.com/area/105868955/taos-area) |
+> | `tuff_welded` | [source](https://www.mountainproject.com/forum/topic/119059755/climbing-after-rain-in-bend-oregon) |
+> | `tuff_nonwelded` | [source](https://bishopvisitor.com/happy-and-sad-boulders-climbing/) |
+> | `volcanic_breccia` | [source](https://thedihedral.com/2019/11/02/caution-wet-rock/) |
+> | `quartzite` | [source](https://www.climbing.com/places/lake-effect/) |
+> | `slate` | [source](https://climbing-history.org/climb/699/the-quarryman) |
+> | `gneiss_schist` | [source](https://www.mountainproject.com/forum/topic/114801189/rumney-after-rain) |
+> | `sandstone` | [source](https://www.mountainproject.com/area/105716763/indian-creek) |
+> | `sandstone_quartz_arenite` | [source](https://en.wikipedia.org/wiki/Fontainebleau_rock_climbing) |
+> | `sandstone_ferruginous` | [source](https://www.earthmagazine.org/article/travels-geology-rocks-and-climbing-kentuckys-red-river-gorge/) |
+> | `sandstone_arkose` | rock-drying-research.md §13.1 |
+> | `sandstone_eolian` | [source](https://www.redrocksguidebook.com/red-rock-guide-excerpts.html) |
+> | `sandstone_soft` | [source](https://en.wikipedia.org/wiki/Rudolf_Fehrmann) |
+> | `limestone` | [source](https://www.mountainproject.com/area/108781888/sheltered-crags) |
+> | `limestone_dense` | [source](https://en.wikipedia.org/wiki/Realization_(climb)) |
+> | `limestone_porous` | [source](https://www.lacrux.com/en/klettern/the-ultimate-trick-for-drying-tufas-and-climbing-holds/) |
+> | `dolomite` | [source](https://www.mnclimbers.org/bolting-1) |
+> | `carbonate_cherty` | [source](https://www.mountainproject.com/area/105812663/red-wing-aka-he-mni-can-barn-bluff) |
+> | `conglomerate` | [source](https://www.mountainproject.com/forum/topic/124188968/avoid-wet-conglomerate) |
 
 Four companion changes that the research says matter more than the table itself:
 

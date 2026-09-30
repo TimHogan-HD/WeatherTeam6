@@ -11,7 +11,7 @@ import type { RockType } from './index.js'
  * `geocodeCopy.ts`: one implementation, so the two cannot drift.
  *
  * The parenthetical is the *observable* distinction, not the petrology. A climber
- * is looking at a wall, and "columnar" and "flow top" are what they can see;
+ * is looking at a wall, and "dense" and "flow top" are what they can see;
  * "0.1-1.0% porosity" is why it matters and belongs in the research document, not
  * on a chip.
  */
@@ -21,7 +21,7 @@ const LABELS: Record<RockType, string> = {
   anorthosite: 'Anorthosite',
   syenite_porous: 'Syenite (porous, Hueco-type)',
   rhyolite: 'Rhyolite',
-  basalt_dense: 'Basalt (columnar)',
+  basalt_dense: 'Basalt (dense)',
   basalt: 'Basalt',
   basalt_vesicular: 'Basalt (flow top)',
   tuff_welded: 'Tuff (welded)',

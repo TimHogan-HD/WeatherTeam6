@@ -72,7 +72,7 @@ export const MIN_HOURS: Record<RockType, number> = {
   basalt_vesicular: 12, // [M] 30-50% porosity
   sandstone_ferruginous: 12, // [I] Corbin-type
   sandstone_arkose: 12, // [C] Fountain, Millstone Grit
-  volcanic_breccia: 12, // [C] matrix-controlled
+  volcanic_breccia: 48, // [C] Pinnacles: brittle for days after rain (climbers; owner 2026-09-29)
   limestone: 24, // not recorded → limestone_porous
   limestone_porous: 24, // [S/C] up to 12% absorption
   conglomerate: 24, // [I] matrix-controlled, invisible from the surface
@@ -102,7 +102,7 @@ export const MAX_HOURS: Record<RockType, number> = {
   basalt_vesicular: 48,
   sandstone_ferruginous: 48,
   sandstone_arkose: 48,
-  volcanic_breccia: 48,
+  volcanic_breccia: 120,
   limestone: 72,
   limestone_porous: 72,
   conglomerate: 72,
