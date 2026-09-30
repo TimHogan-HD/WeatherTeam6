@@ -33,6 +33,7 @@ npm run check:logbook       # ticks, to-dos and shared boulder positions, includ
 npm run check:conditions    # GET /conditions composition — the strongest check here
 npm run check:hourly        # GET /hourly/:id
 npm run check:weather-runs  # run storage and pruning
+npm run check:ui            # the web app in Chromium at 480x1000: every screen, screenshotted
 ```
 
 Run `npm run db:generate` before `npm run db:migrate` — never `drizzle-kit push`.
@@ -102,7 +103,7 @@ Run `/review-checklist` before opening a PR.
   npm run check:add-location
   ```
   `DEFAULT_USER_ID` is optional; the seeded user is `00000000-0000-0000-0000-000000000001`.
-- To drive the UI, use the local dev server: there are no preview deploys (see Known Gotchas). Run `vite` on `:5173` (already in the CORS allowlist) against a local `createApp()` on the real `DATABASE_URL`. Generate a throwaway `AUTH_TOKEN_SECRET` for the run, create throwaway rows under a prefix and sweep by that prefix in teardown, and import app modules from a scratch harness by `file:///C:/…` URL.
+- To see the UI, run `npm run check:ui` from `apps/api` first: there are no preview deploys (see Known Gotchas). It starts `createApp()` and `vite` locally with throwaway secrets, signs in through the login screen as a throwaway user, adds a known crag, and screenshots the list, every detail tab and `/add` at the owner's 480×1000 viewport, failing on page errors, console errors, API responses ≥ 400 and sideways scroll. Open the screenshots it prints — it does not judge how a screen looks. For interaction it does not cover, extend the script rather than rebuilding the harness by hand.
 - `npm run test:mutation --workspace=apps/api` takes ~37 minutes and runs weekly in CI; the owner will stop a local run. Run it on demand only when a survivor would change a decision.
 - State plainly what was and was not verified.
 

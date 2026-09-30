@@ -35,7 +35,8 @@
     "compare:dryness": "tsx src/scripts/compareDryness.ts",
     "compare:hourly-v2": "tsx src/scripts/compareHourlyV2.ts",
     "compare:thermal": "tsx src/scripts/compareThermal.ts",
-    "compare:rock-temp": "tsx src/scripts/compareRockTemp.ts"
+    "compare:rock-temp": "tsx src/scripts/compareRockTemp.ts",
+    "check:ui": "tsx src/scripts/checkUi.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
@@ -53,6 +54,7 @@
     "@types/ws": "^8.18.1",
     "@vercel/node": "^5.9.1",
     "drizzle-kit": "^0.30.0",
+    "playwright": "^1.63.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.0.0"

@@ -1,0 +1,258 @@
+/// <reference lib="dom" />
+// The DOM types are for the callbacks `page.evaluate` runs inside the browser.
+
+/**
+ * Drive the web app in a real browser, end to end, against the real database.
+ *
+ * Usage, from `apps/api` (DATABASE_URL set in the shell, no `.env`):
+ *   npm run check:ui                 # screenshots to a temp directory
+ *   npm run check:ui -- --out <dir>  # or to a directory you name
+ *
+ * Why this exists: UI work here was verified by rebuilding the same local
+ * harness by hand every session — a throwaway secret, a local API, vite on
+ * :5173, a scratch user — through hundreds of one-off browser calls, none of
+ * them repeatable. This is that harness, once.
+ *
+ * What it does: starts `createApp()` on :3096 with throwaway secrets, starts
+ * vite on :5173 pointed at it, creates a throwaway user, signs in through the
+ * real login screen, adds a known crag through the API, and opens the list,
+ * every detail tab and the add screen at the owner's phone viewport
+ * (480x1000). Each screen is screenshotted, and fails on an uncaught page
+ * error, a console error, an API response >= 400, a horizontal scroll, or an
+ * empty panel. Everything it creates is under the `zz-check-ui` prefix and is
+ * removed in `finally`.
+ *
+ * It reads the screens; it does not judge them. Open the screenshots.
+ *
+ * Workspace-level, like the other database checks: CI does not run it.
+ */
+
+import { spawn, type ChildProcess } from 'node:child_process'
+import { mkdirSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import type { ApiResponse, Location } from '@weatherteam6/types'
+
+const API_PORT = 3096
+const WEB_PORT = 5173
+const API = `http://localhost:${API_PORT}`
+const WEB = `http://localhost:${WEB_PORT}`
+const VIEWPORT = { width: 480, height: 1000 }
+
+const PREFIX = 'zz-check-ui'
+const STAMP = Date.now()
+const USERNAME = `${PREFIX}-${STAMP}`
+const PASSPHRASE = `local-ui-check-${STAMP}`
+
+/** Taylors Falls: a known crag (locked rock type) with guidebook coverage, so every tab renders. */
+const CRAG = { name: `ZZ UI check — Taylors Falls ${STAMP}`, lat: 45.3955, lon: -92.6616 }
+
+const here = dirname(fileURLToPath(import.meta.url))
+const miniappDir = resolve(here, '../../../miniapp')
+const viteBin = resolve(here, '../../../../node_modules/vite/bin/vite.js')
+
+let passed = 0
+let failed = 0
+
+function check(label: string, ok: boolean, detail = ''): void {
+  if (ok) {
+    passed++
+    console.log(`  PASS  ${label}`)
+  } else {
+    failed++
+    console.log(`  FAIL  ${label}${detail ? ` — ${detail}` : ''}`)
+  }
+}
+
+function outDir(): string {
+  const i = process.argv.indexOf('--out')
+  const dir = i > -1 && process.argv[i + 1] ? resolve(process.argv[i + 1]!) : join(tmpdir(), `wt6-ui-check-${STAMP}`)
+  mkdirSync(dir, { recursive: true })
+  return dir
+}
+
+async function waitForHttp(url: string, timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(url)
+      if (res.status < 500) return true
+    } catch {
+      // not up yet
+    }
+    await new Promise((r) => setTimeout(r, 500))
+  }
+  return false
+}
+
+async function api<T>(method: string, path: string, token: string, body?: unknown): Promise<{ status: number; payload: ApiResponse<T> }> {
+  const res = await fetch(`${API}/api/v1${path}`, {
+    method,
+    headers: {
+      Authorization: `Session ${token}`,
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  })
+  const payload = (await res.json().catch(() => ({ data: null, error: 'not JSON', status: res.status }))) as ApiResponse<T>
+  return { status: res.status, payload }
+}
+
+async function run(): Promise<void> {
+  if (!process.env['DATABASE_URL']) {
+    console.error(
+      '\nMissing DATABASE_URL — the Neon pooled connection string, set in the shell.' +
+        "\nOn this machine: $env:DATABASE_URL = [Environment]::GetEnvironmentVariable('DATABASE_URL','User')\n",
+    )
+    process.exit(2)
+  }
+
+  // Throwaway secrets for this process only; the real ones are never read.
+  process.env['API_SHARED_SECRET'] = `local-ui-check-shared-${STAMP}`
+  process.env['AUTH_TOKEN_SECRET'] = `local-ui-check-token-${STAMP}`
+  process.env['LOG_LEVEL'] ??= 'warn'
+
+  const { createApp } = await import('../index.js')
+  const { db, pool } = await import('../db/index.js')
+  const { users } = await import('../db/schema.js')
+  const { hashPassword } = await import('../lib/auth/password.js')
+  const { eq } = await import('drizzle-orm')
+  const { chromium } = await import('playwright')
+
+  const dir = outDir()
+  const server = createApp().listen(API_PORT)
+  await new Promise<void>((r) => server.once('listening', r))
+
+  let vite: ChildProcess | null = null
+  let userId: string | null = null
+  let locationId: string | null = null
+  let token: string | null = null
+  const browser = await chromium.launch()
+
+  try {
+    vite = spawn(process.execPath, [viteBin, '--port', String(WEB_PORT), '--strictPort'], {
+      cwd: miniappDir,
+      env: { ...process.env, VITE_API_BASE_URL: API },
+      stdio: 'ignore',
+      windowsHide: true,
+    })
+    check('vite answers on :5173', await waitForHttp(WEB, 60_000), 'is something else already on 5173?')
+
+    const inserted = await db
+      .insert(users)
+      .values({ username: USERNAME, password_hash: await hashPassword(PASSPHRASE), name: 'ZZ UI check' })
+      .returning({ id: users.id })
+    userId = inserted[0]?.id ?? null
+    if (userId === null) throw new Error('could not create the throwaway user')
+
+    const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2 })
+    const page = await context.newPage()
+
+    // Collected per screen, then reset.
+    let problems: string[] = []
+    page.on('pageerror', (err) => problems.push(`page error: ${err.message}`))
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') problems.push(`console error: ${msg.text().slice(0, 200)}`)
+    })
+    page.on('response', (res) => {
+      if (res.url().startsWith(API) && res.status() >= 400) {
+        problems.push(`${res.status()} ${res.request().method()} ${res.url().slice(API.length)}`)
+      }
+    })
+
+    async function screen(name: string, minText = 20): Promise<void> {
+      await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => {
+        problems.push('network did not settle within 60 s')
+      })
+      await page.waitForTimeout(500)
+      const file = join(dir, `${String(passed + failed).padStart(2, '0')}-${name}.png`)
+      await page.screenshot({ path: file, fullPage: true })
+      const { overflow, text } = await page.evaluate(() => ({
+        overflow: document.documentElement.scrollWidth - window.innerWidth,
+        text: (document.querySelector('main') ?? document.body).innerText.trim().length,
+      }))
+      if (overflow > 0) problems.push(`scrolls sideways by ${overflow}px`)
+      if (text < minText) problems.push(`only ${text} characters of text`)
+      check(`${name}  →  ${file}`, problems.length === 0, problems.join('; '))
+      problems = []
+    }
+
+    // 1. Sign in through the real login screen.
+    await page.goto(`${WEB}/login`)
+    await screen('login')
+    await page.getByLabel('Username').fill(USERNAME)
+    await page.getByLabel('Passphrase').fill(PASSPHRASE)
+    await page.getByRole('button', { name: /sign in|log in/i }).click()
+    await page.waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 30_000 })
+    token = await page.evaluate(() => {
+      for (const store of [localStorage, sessionStorage]) {
+        for (let i = 0; i < store.length; i++) {
+          const v = store.getItem(store.key(i) ?? '')
+          if (v && /^[\w-]+\.[\w-]+$/.test(v)) return v
+          try {
+            const parsed = JSON.parse(v ?? '') as { token?: unknown }
+            if (typeof parsed.token === 'string') return parsed.token
+          } catch {
+            // not JSON
+          }
+        }
+      }
+      return null
+    })
+    check('the login screen signs in and stores a token', token !== null)
+    if (token === null) throw new Error('no token after sign-in — stopping')
+    await screen('list-empty', 5)
+
+    // 2. Add a known crag through the API the add flow calls.
+    const created = await api<Location>('POST', '/locations', token, { ...CRAG, is_climbing_location: true })
+    locationId = created.payload.data?.id ?? null
+    check('POST /locations creates the crag', created.status === 201 && locationId !== null, `got ${created.status}`)
+    if (locationId === null) throw new Error('no location — stopping')
+
+    await page.goto(`${WEB}/`)
+    await screen('list')
+
+    // 3. Every detail tab.
+    await page.goto(`${WEB}/location/${locationId}`)
+    await page.getByRole('tab').first().waitFor({ timeout: 60_000 })
+    const tabs = await page.getByRole('tab').allInnerTexts()
+    check('the detail screen shows the six crag tabs', tabs.length === 6, `got ${tabs.join(', ')}`)
+    for (const label of tabs) {
+      await page.getByRole('tab', { name: label.trim() }).click()
+      await screen(`tab-${label.trim().toLowerCase()}`)
+    }
+
+    // 4. The add screen.
+    await page.goto(`${WEB}/add`)
+    await screen('add', 5)
+
+    await context.close()
+  } finally {
+    await browser.close().catch(() => undefined)
+    if (vite) vite.kill()
+    let cleanupFailed = false
+    if (locationId !== null && token !== null) {
+      const del = await api<null>('DELETE', `/locations/${locationId}`, token).catch(() => null)
+      if (del === null || del.status >= 300) cleanupFailed = true
+    }
+    if (userId !== null) {
+      await db.delete(users).where(eq(users.id, userId)).catch(() => {
+        cleanupFailed = true
+      })
+    }
+    server.close()
+    await pool.end()
+    if (cleanupFailed) {
+      console.error(`\n!! CLEANUP FAILED — remove rows under "${PREFIX}" by hand (user ${userId}, location ${locationId})`)
+    }
+  }
+
+  console.log(`\n${passed} passed, ${failed} failed. Screenshots: ${dir}\n`)
+  process.exit(failed === 0 ? 0 : 1)
+}
+
+run().catch((err: unknown) => {
+  console.error(`\ncheck:ui stopped: ${err instanceof Error ? err.message : String(err)}`)
+  process.exit(1)
+})
