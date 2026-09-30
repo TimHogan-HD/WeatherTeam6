@@ -488,8 +488,8 @@ function buildEnsembleUrl(location: ForecastLocation): URL {
    * location's own calendar days and report `utc_offset_seconds` back.
    *
    * `auto` rather than the stored `locations.timezone` deliberately: it needs no
-   * timezone database in-process, and it is the only option that also works for
-   * `GET /preview`, where there is no saved row to read a timezone from.
+   * timezone database in-process, and it works for a location saved without one
+   * (a GPS fix or hand-entered coordinates).
    */
   url.searchParams.set('timezone', 'auto')
   return url

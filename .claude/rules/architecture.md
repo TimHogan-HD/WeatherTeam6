@@ -200,9 +200,14 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   `RecentPrecip.from_date` makes a miss read as "none in this window".
 - **External APIs are proxied, never called from the client** — the fetch lives in
   `src/lib/weather/`, wrapped in `fetchWithRetry`, behind a thin route returning
-  `{ data, error, status }` (`/geocode`, `/radar/frames`).
-- **`GET /api/v1/preview`** serves weather for a location with no row, via a synthetic
-  `LiveForecastLocation`; it persists nothing and returns no score.
+  `{ data, error, status }` (`/geocode`, `/geocode/reverse`, `/radar/frames`).
+- **There is no weather preview before saving** (owner decision 2026-09-30); `GET /preview`
+  is deleted. `/add` picks a place, shows a save form, and Save opens the saved screen.
+- **`GET /geocode/reverse` names a GPS fix** — Nominatim for the town (identifying
+  User-Agent, two attempts, per its usage policy) and Open-Meteo for the terrain elevation,
+  side by side. Either failing leaves its fields null; the client then falls back to
+  "Current location" and no elevation. A known crag's name beats the town's. A phone's
+  altitude is never used as elevation.
 - **A stored run belongs to a place, not a location row.** `weather_runs.point_key` is
   `pointKeyForPlace` (`lib/runs/pointKey.ts`, the only spelling); `collectWeatherRuns` fetches
   each distinct place once. No `location_id` on `weather_runs`, so `deleteLocationCascade`
@@ -322,7 +327,7 @@ The client's own patterns are in the `miniapp-patterns` skill.
 
 - **A score reaches a snapshot only because the route passed a merge argument.**
   `GET /forecast/:id` hands `toWindowedForecast` a `ScoreMerge` only when
-  `is_climbing_location`; `GET /preview` never does. Drive off the absence of score fields,
+  `is_climbing_location`. Drive off the absence of score fields,
   never off `score === null`.
 - **Three states: scored, outside the window, and withheld.** `score: null` without
   `unavailable_reason` is beyond the window; with one, deliberately unscored.

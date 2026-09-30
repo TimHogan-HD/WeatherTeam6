@@ -22,7 +22,7 @@ import { BAR_MIN_H, BAR_RADIUS, chartColorsV2, scoreRampColor } from './chartSty
  * viewBox: it takes whatever height the Overview can spare without stretching
  * its text.
  *
- * **Without scores the line is neutral ink**: a city, the preview, a Severe+
+ * **Without scores the line is neutral ink**: a city, a Severe+
  * alert, alerts still loading. A tinted line with no number beside it would be
  * the score leaking through the suppression rule.
  */

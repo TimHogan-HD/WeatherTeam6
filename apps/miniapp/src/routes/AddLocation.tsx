@@ -5,30 +5,27 @@ import { matchKnownCrag, placeSubtitle, type GeocodeResult, type RockType } from
 import { type } from '../theme/tokens.css.js'
 import { bareButton, card, chip, inputBox, row, stack } from '../theme/styles.js'
 import { backTarget } from '../lib/backTarget.js'
-import { formatAccuracyFt } from '../lib/logbook.js'
 import { fromFix, fromGeocode, type Candidate } from '../lib/addCandidate.js'
-import { useCurrentPosition, type PositionReading } from '../hooks/useCurrentPosition.js'
-import { useDebouncedValue, useGeocode } from '../hooks/useGeocode.js'
-import { usePreview } from '../hooks/useWeather.js'
+import { useCurrentPosition, type Fix, type PositionReading } from '../hooks/useCurrentPosition.js'
+import { useDebouncedValue, useGeocode, useReverseGeocode } from '../hooks/useGeocode.js'
 import { useCreateLocation } from '../hooks/useLocations.js'
 import { Screen } from '../components/Screen.js'
-import { DetailView } from '../components/DetailView.js'
 import { InlineError, SkeletonCards } from '../components/States.js'
 import { SaveBar, type SaveDraft } from '../components/SaveBar.js'
 
 /**
- * `/add` — search a place, preview its weather, then decide whether to keep it
- * (§12.1). This works like saving a location in any ordinary weather app;
- * climbing is a property of a saved location, not a precondition for saving one.
+ * `/add` — find a place, then save it (§12.1). This works like saving a location
+ * in any ordinary weather app; climbing is a property of a saved location, not a
+ * precondition for saving one.
  *
- * **Preview is a step inside this route, not a sibling of it.** It is held in
- * component state rather than a second URL so that backing out of it returns to
- * the search with the query and results intact. Routing to a separate path and
- * navigating back would discard the search the user just ran — the exact
- * mistake §2's per-route back table was written to prevent.
+ * **There is no weather preview** (owner decision 2026-09-30): picking a place
+ * goes straight to the save form, and Save opens the saved location's own
+ * screen. The preview was the detail screen in an unsaved mode that could show
+ * no readings, so it read as broken.
  *
- * The preview reuses the detail screen in unsaved mode, which is why this is
- * the only genuinely new screen in §12.
+ * **The save form is a step inside this route, not a sibling of it.** It is held
+ * in component state rather than a second URL so that backing out of it returns
+ * to the search with the query and results intact (§2).
  */
 
 export function AddLocation() {
@@ -41,11 +38,6 @@ export function AddLocation() {
 
   const debouncedQuery = useDebouncedValue(query)
   const geocode = useGeocode(coordsMode ? '' : debouncedQuery)
-  const preview = usePreview(
-    candidate === null
-      ? null
-      : { lat: candidate.lat, lon: candidate.lon, elevationM: candidate.elevationM },
-  )
   const create = useCreateLocation()
   // Shown before saving so the picker never offers a choice the API overrules:
   // the server runs the same `matchKnownCrag` and trusts only its own answer.
@@ -59,25 +51,39 @@ export function AddLocation() {
     setDraft({ name: next.name, isClimbing: false, rockType: 'unknown' })
   }, [])
 
-  // A fix opens its preview at once, and the reading returns to idle so that
-  // backing out of the preview shows the button again.
+  // A fix is named before the form opens. A failed lookup still opens it, with
+  // the fallback name and no elevation — the fix itself is good.
   const { reading, locate, cancel: cancelLocating } = useCurrentPosition()
-  const locateHere = useCallback(() => locate((fix) => choose(fromFix(fix))), [locate, choose])
+  const reverse = useReverseGeocode()
+  const nameFix = useCallback(
+    (fix: Fix) =>
+      reverse.mutate(fix, {
+        onSuccess: (place) => choose(fromFix(fix, place)),
+        onError: () => choose(fromFix(fix, null)),
+      }),
+    [reverse, choose],
+  )
+  const locateHere = useCallback(() => locate(nameFix), [locate, nameFix])
+  const cancelHere = useCallback(() => {
+    cancelLocating()
+    reverse.reset()
+  }, [cancelLocating, reverse])
 
-  // Back from the preview returns here with the search intact; back from the
+  // Back from the save form returns here with the search intact; back from the
   // search goes to the list (§2). `backTarget` owns that distinction.
   const onBack = useCallback(() => {
-    const action = backTarget({ route: 'add', previewing: candidate !== null })
+    const action = backTarget({ route: 'add', confirming: candidate !== null })
     switch (action.kind) {
-      case 'closePreview':
+      case 'closeSaveForm':
         setCandidate(null)
         create.reset()
+        reverse.reset()
         return
       case 'navigate':
         void navigate(action.to)
         return
     }
-  }, [candidate, create, navigate])
+  }, [candidate, create, reverse, navigate])
 
   const onSave = useCallback(() => {
     if (candidate === null) return
@@ -87,9 +93,8 @@ export function AddLocation() {
         name: draft.name.trim(),
         lat: candidate.lat,
         lon: candidate.lon,
-        // Persisted so the saved location and this preview agree on temperature:
-        // applyLapseRate returns early when it is null, and dropping it shifts
-        // every reading by the full lapse-rate correction (§12.3 change 5).
+        // applyLapseRate returns early when this is null, and dropping a known
+        // one shifts every reading by the full lapse-rate correction (§12.3).
         elevation_m: candidate.elevationM,
         timezone: candidate.timezone,
         is_climbing_location: draft.isClimbing,
@@ -97,7 +102,7 @@ export function AddLocation() {
       },
       {
         // Replace rather than push, so back from the new location lands on the
-        // list and not on the preview of a place already saved (§2).
+        // list and not on the form for a place already saved (§2).
         onSuccess: (created) => void navigate(`/location/${created.id}`, { replace: true }),
       },
     )
@@ -106,21 +111,7 @@ export function AddLocation() {
   if (candidate !== null) {
     return (
       <Screen title={candidate.name} onBack={onBack} feedback>
-        <p style={type.screenSub}>
-          {candidate.accuracyM === null
-            ? 'Not saved yet'
-            : `Not saved yet · Your location, ${formatAccuracyFt(candidate.accuracyM)}`}
-        </p>
-        <DetailView
-          unsaved
-          isClimbingLocation={draft.isClimbing}
-          forecast={{
-            data: preview.data,
-            isPending: preview.isPending,
-            isError: preview.isError,
-            refetch: () => void preview.refetch(),
-          }}
-        />
+        {candidate.detail === null ? null : <p style={type.screenSub}>{candidate.detail}</p>}
         <SaveBar
           draft={draft}
           knownCrag={knownCrag}
@@ -136,7 +127,7 @@ export function AddLocation() {
   return (
     <Screen title="Add a location" onBack={onBack} feedback>
       <div style={{ ...stack(spacing.listGap), marginTop: `${spacing.sectionTop}px` }}>
-        <CurrentLocation reading={reading} onLocate={locateHere} onCancel={cancelLocating} />
+        <CurrentLocation reading={reading} naming={reverse.isPending} onLocate={locateHere} onCancel={cancelHere} />
 
         {coordsMode ? (
           <CoordinateEntry onChoose={choose} />
@@ -173,19 +164,22 @@ export function AddLocation() {
 }
 
 /**
- * Weather where the phone is, with no typing. The permission prompt follows the
- * tap, never the screen opening. A fix carries no place name, so the preview is
- * titled "Current location" unless it falls inside a known crag.
+ * Where the phone is, with no typing. The permission prompt follows the tap,
+ * never the screen opening; once there is a fix, `naming` covers the lookup of
+ * what the place is called.
  */
 function CurrentLocation({
   reading,
+  naming,
   onLocate,
   onCancel,
 }: {
   reading: PositionReading
+  naming: boolean
   onLocate: () => void
   onCancel: () => void
 }) {
+  if (naming) return <Working line="Finding the place…" onCancel={onCancel} />
   switch (reading.kind) {
     case 'idle':
     case 'fix':
@@ -195,16 +189,7 @@ function CurrentLocation({
         </button>
       )
     case 'locating':
-      return (
-        <div style={{ ...card, ...row(spacing.listGap), justifyContent: 'space-between' }}>
-          <span role="status" style={type.bodyMd}>
-            Reading location…
-          </span>
-          <button type="button" style={{ ...bareButton, ...chip, ...type.labelSm }} onClick={onCancel}>
-            Cancel
-          </button>
-        </div>
-      )
+      return <Working line="Reading location…" onCancel={onCancel} />
     case 'failed':
       return (
         <div style={{ ...card, ...stack(spacing.listGapSm) }}>
@@ -222,6 +207,19 @@ function CurrentLocation({
         </div>
       )
   }
+}
+
+function Working({ line, onCancel }: { line: string; onCancel: () => void }) {
+  return (
+    <div style={{ ...card, ...row(spacing.listGap), justifyContent: 'space-between' }}>
+      <span role="status" style={type.bodyMd}>
+        {line}
+      </span>
+      <button type="button" style={{ ...bareButton, ...chip, ...type.labelSm }} onClick={onCancel}>
+        Cancel
+      </button>
+    </div>
+  )
 }
 
 function SearchResults({
@@ -268,8 +266,7 @@ function SearchResults({
 /**
  * The hand-entered path. It exists because a crag frequently has no searchable
  * place name. There is no elevation here, so the lapse-rate correction is
- * skipped consistently in both preview and saved detail rather than applied to
- * one of them (§12.3 change 5).
+ * skipped (§12.3 change 5).
  */
 function CoordinateEntry({ onChoose }: { onChoose: (candidate: Candidate) => void }) {
   const [name, setName] = useState('')
@@ -319,11 +316,11 @@ function CoordinateEntry({ onChoose }: { onChoose: (candidate: Candidate) => voi
             lon: Number(lon),
             elevationM: null,
             timezone: null,
-            accuracyM: null,
+            detail: null,
           })
         }
       >
-        Preview weather
+        Next
       </button>
 
       {problem === null ? null : <span style={type.bodySm}>{problem}</span>}

@@ -13,8 +13,8 @@
  * add flow.
  *
  * It boots the API in-process on a spare port and walks the whole flow: save a
- * location, read it back, prove preview and the saved location agree on
- * temperature, attach an alert row, delete it, confirm it is gone.
+ * location, read it back, fetch its forecast, name a GPS fix, attach an alert
+ * row, delete it, confirm it is gone.
  *
  * Creates four rows (the flow, plus three for the rock-type lock), all named
  * with the prefix below, and always tries to remove them — including when a
@@ -28,7 +28,7 @@
  * same as `importCrags.ts`, and its output is the result.
  */
 
-import type { ForecastSnapshot, Location, ApiResponse } from '@weatherteam6/types'
+import type { ForecastSnapshot, Location, ApiResponse, ReverseGeocode } from '@weatherteam6/types'
 
 // Runtime imports are deferred into run(): `../db/index.js` throws at import
 // time when DATABASE_URL is unset, which would pre-empt the explanation below
@@ -47,6 +47,9 @@ const LAT = 36.15192
 const LON = -115.45413
 const ELEVATION_M = 1200
 const TIMEZONE = 'America/Los_Angeles'
+
+/** A point in the village of Taylors Falls, MN, for the reverse lookup. */
+const TAYLORS_FALLS = { lat: 45.3955, lon: -92.6616 }
 
 /** Any well-formed uuid that will not exist. */
 const ABSENT_ID = '00000000-0000-4000-8000-0000000000ff'
@@ -189,23 +192,19 @@ async function run(): Promise<void> {
       `got ${String(fetched.payload.data?.elevation_m)}`,
     )
 
-    console.log('\nPreview and saved location must report the same temperature')
-    console.log('  (the §12.3 change-5 guarantee — makes external calls, ~15s)')
-    const preview = await call<ForecastSnapshot[]>(
-      'GET',
-      `/preview?lat=${LAT}&lon=${LON}&elevation=${ELEVATION_M}`,
-    )
+    console.log('\nThe saved location has a forecast (makes external calls, ~15s)')
     const forecast = await call<ForecastSnapshot[]>('GET', `/forecast/${savedId}`)
-    check('GET /preview returns 200', preview.status === 200, `got ${preview.status}`)
     check('GET /forecast/:id returns 200', forecast.status === 200, `got ${forecast.status}`)
+    check('with a high for today', firstHigh(forecast.payload.data) !== null)
 
-    const previewHigh = firstHigh(preview.payload.data)
-    const savedHigh = firstHigh(forecast.payload.data)
-    check(
-      'same temperature before and after saving',
-      previewHigh !== null && savedHigh !== null && Math.abs(previewHigh - savedHigh) < 0.05,
-      `preview ${String(previewHigh)}°C vs saved ${String(savedHigh)}°C`,
-    )
+    console.log('\nA GPS fix is named and given an elevation (Nominatim + Open-Meteo)')
+    const reverse = await call<ReverseGeocode>('GET', `/geocode/reverse?lat=${TAYLORS_FALLS.lat}&lon=${TAYLORS_FALLS.lon}`)
+    check('GET /geocode/reverse returns 200', reverse.status === 200, `got ${reverse.status}`)
+    check('names the town', reverse.payload.data?.name === 'Taylors Falls', `got ${String(reverse.payload.data?.name)}`)
+    const elevation = reverse.payload.data?.elevation_m ?? null
+    check('with a plausible elevation', elevation !== null && elevation > 150 && elevation < 350, `got ${String(elevation)}`)
+    const badFix = await call<null>('GET', '/geocode/reverse?lat=91&lon=0')
+    check('an impossible latitude is a 400', badFix.status === 400, `got ${badFix.status}`)
 
     console.log('\nRejecting bad input')
     const badRock = await call<Location>('POST', '/locations', {

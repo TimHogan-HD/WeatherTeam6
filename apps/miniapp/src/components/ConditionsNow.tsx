@@ -55,8 +55,7 @@ import { InlineError, Skeleton } from './States.js'
  * one failure taking the block down — §5's no-takeover rule, one level in.
  *
  * **The readings half is optional, and its absence is the caller's decision.**
- * It is absent on the `/add` preview (nothing is classified yet) and for a
- * non-climbing location (a rock reading for a city is meaningless). This
+ * It is absent for a non-climbing location (a rock reading for a city is meaningless). This
  * component does not re-derive any of that.
  */
 
@@ -76,7 +75,7 @@ export type ConditionsNowProps = {
   }
   /**
    * The hourly run, for the hour covering now and the model it came from.
-   * Absent on the preview, which has no saved row for `/hourly` to read.
+   * Absent while `/hourly` is pending or failed.
    */
   series: HourlySeries | undefined
   /** The readings half. Absent where there is no reading to show — see above. */
@@ -166,7 +165,7 @@ function NowWeather({
 
         {/*
           **Labelled, always.** This pair can be alone in the card — a pending
-          hourly query, the preview, a run that does not reach this hour — and
+          hourly query, a failed one, a run that does not reach this hour — and
           then a bare `103° 79°` in the hero's slot is the §3 error.
         */}
         {today === null ? null : (

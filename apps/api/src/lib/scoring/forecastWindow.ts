@@ -7,8 +7,8 @@ export type ForecastWindow = 'pre' | 'early' | 'decision'
  * >14 days out is climatological only, 7-14 is low-confidence, <7 is the full
  * decision window. Computed at read time from the date pair, never stored.
  *
- * Lives here rather than in a route file because two endpoints label snapshots
- * with it — GET /forecast/:locationId and GET /preview — and they must not drift.
+ * Lives here rather than in a route file so the labelling is testable apart
+ * from GET /forecast/:locationId.
  */
 export function forecastWindow(forecastDate: string, todayStr: string): ForecastWindow {
   const today = new Date(todayStr + 'T00:00:00Z')
@@ -23,14 +23,12 @@ export function forecastWindow(forecastDate: string, todayStr: string): Forecast
  * How the per-day score reaches a snapshot, when it is allowed to at all.
  *
  * **Omit this and no score field appears on any row.** That is the whole
- * mechanism protecting the two rules below — there is no flag to forget, only an
+ * mechanism protecting the rule below — there is no flag to forget, only an
  * argument not passed:
  *
  * - **A non-climbing location gets no score anywhere.** `computeLiveForecast`
  *   does not branch on `is_climbing_location` and will score a city on request,
  *   so `GET /forecast/:id` passes this only when the location is a crag.
- * - **`GET /preview` never scores.** Nothing has been classified yet at that
- *   point, so it passes no scores and keeps the weather-only shape it has now.
  */
 export type ScoreMerge = {
   /** What `computeLiveForecast` returned. Matched to snapshots by `forecast_date`. */

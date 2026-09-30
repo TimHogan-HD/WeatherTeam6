@@ -57,7 +57,7 @@ function localHour(validAt: string, utcOffsetSeconds: number): number | null {
 /**
  * Today's hours for the chart, 06:00-22:00, oldest first.
  *
- * `alerts` is `null` for a city and the preview — every hour then has no score
+ * `alerts` is `null` for a city — every hour then has no score
  * rather than an invented one. Readings join the hours **on `valid_at`**,
  * never on position, and an API older than `readings` scores nothing.
  */
@@ -189,7 +189,7 @@ export function nextDays(
 /**
  * What a day's score is read from: the hourly response's per-day readings,
  * and the two alert facts `summarizeReadings` suppresses the number on.
- * `null` for a city, the `/add` preview, and while `/hourly` is in flight —
+ * `null` for a city and while `/hourly` is in flight —
  * every one of which gives rows with no score rather than an invented one.
  */
 export type DayReadings = {

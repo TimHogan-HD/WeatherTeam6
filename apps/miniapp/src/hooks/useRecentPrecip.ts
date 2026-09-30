@@ -13,8 +13,7 @@ import { apiGet } from '../lib/api.js'
  *
  * **Every saved location, city or crag.** It was gated on
  * `is_climbing_location` while the drying card was its only reader; the Precip
- * tab is on every location, and a city had rain too. The `/add` preview has no
- * saved row for the endpoint to read, so it never asks.
+ * tab is on every location, and a city had rain too.
  */
 export function useRecentPrecip(id: string | undefined): UseQueryResult<RecentPrecip> {
   return useQuery({

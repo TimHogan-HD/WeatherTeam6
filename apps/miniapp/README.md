@@ -23,7 +23,7 @@ before writing a screen; if a decision is not written there, it is not settled.
 | `src/theme/globals.css` | Gradient surface, `env(safe-area-inset-*)` padding, `100dvh`. The insets are only non-zero because `index.html` sets `viewport-fit=cover`. |
 | `src/theme/webManifest.ts` | The PWA manifest, built from the tokens. Emitted by a plugin in `vite.config.ts`, not committed as JSON. |
 | `src/routes/` | The four routes: `Login`, `LocationList`, `LocationDetail`, `AddLocation`. |
-| `src/components/` | `DetailView` is shared by saved detail and the add flow's preview — the preview is that screen in unsaved mode, which is why `/add` is the only new screen §12 needed. |
+| `src/components/` | `DetailView` is the saved location's screen; `/add` has no weather preview, only a save form (`SaveBar`). |
 | `src/hooks/` | Every API call. Components never call `fetch`. |
 | `src/lib/api.ts` | The only place that calls `fetch`. Attaches `Authorization: Session <token>` and clears the token on a 401. |
 | `src/lib/authToken.ts` | The session token and the only place it is stored. |
@@ -164,6 +164,6 @@ Back is an in-app control in the screen header (`Screen`'s `onBack`), which
 `miniapp-design-v1.md` §2 and §8 forbade — those rules assumed Telegram's `BackButton`,
 and there is none in a browser. **The per-route back targets in §2 are unchanged** and
 live in `src/lib/backTarget.ts` as a pure function, because two of them are not
-navigations at all: back on the Hourly tab shows the Daily tab, and back in the `/add`
-preview returns to the search *with its query and results intact*. Sending either to a
+navigations at all: back on the Hourly tab shows the Daily tab, and back from the `/add`
+save form returns to the search *with its query and results intact*. Sending either to a
 URL discards work the user can see on screen.

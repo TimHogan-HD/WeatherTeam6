@@ -171,7 +171,7 @@ describe('DailyList — the score pill', () => {
     expect(pills(render(<DailyList days={days} readings={readings(r, { alertsPending: true })} hours={[]} />))).toEqual([])
   })
 
-  it('is absent with no readings at all — a city, the preview, or /hourly in flight', () => {
+  it('is absent with no readings at all — a city, or /hourly in flight', () => {
     expect(pills(render(<DailyList days={[day(DATES[0])]} readings={null} hours={[]} />))).toEqual([])
   })
 
@@ -220,7 +220,7 @@ describe('DailyList — opening a day', () => {
   })
 
   it('renders no row as a button when there is no hourly data at all', () => {
-    // The `/add` preview. A row that looks tappable and does nothing is worse
+    // No hourly data at all. A row that looks tappable and does nothing is worse
     // than a row that does not.
     expect(render(<DailyList days={week} readings={null} hours={[]} />)).not.toContain('<button')
   })

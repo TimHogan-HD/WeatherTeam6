@@ -376,11 +376,10 @@ describe('DetailView — tabs', () => {
     expect(html).toContain('Couldn&#x27;t load the hour-by-hour forecast.')
   })
 
-  it('shows no tab bar at all on the preview path', () => {
-    // `/add` has no saved row, so `/hourly/:id` has nothing to read and a
-    // second tab would open on a screen that cannot have any.
+  it('shows no tab bar at all without hourly data', () => {
+    // A tab with nothing behind it would open on a screen that cannot have any.
     const html = renderToStaticMarkup(
-      <DetailView unsaved isClimbingLocation forecast={ok([day(DAY_1)])} />,
+      <DetailView isClimbingLocation forecast={ok([day(DAY_1)])} />,
     )
     expect(html).not.toContain('role="tablist"')
     expect(html).toMatch(/>Next [0-9]+ days?</)

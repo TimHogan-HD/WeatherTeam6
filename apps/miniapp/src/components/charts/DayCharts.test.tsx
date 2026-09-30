@@ -278,7 +278,7 @@ const visible = (html: string): string => html.replace(/<[^>]*>/g, ' ').replace(
     expect(visible(withScore(DAY_1))).toContain('Friction is estimated')
   })
 
-  it('draws nothing at all on the preview path, which has no readings', () => {
+  it('draws nothing at all with no readings', () => {
     expect(render(series(fullDay))).not.toContain('>30<')
     expect(render(series(fullDay))).not.toMatch(/friction/i)
   })

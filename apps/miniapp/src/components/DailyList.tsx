@@ -55,8 +55,8 @@ export function dayRainChance(
  * The amount is `precip_mm_p50`, the median of the members' own daily totals —
  * a daily figure, never a sum of hourly percentiles. **With no wet count the
  * chance is left off rather than written as 0%**: `precip_chance_pct` is null
- * for an hour no member reached, and on the `/add` preview there is no hourly
- * run at all. A zero there is a confidence nobody computed.
+ * for an hour no member reached, and before `/hourly` answers there is no
+ * hourly run at all. A zero there is a confidence nobody computed.
  */
 export function rainChipText(day: ForecastSnapshot, hours: readonly HourlySample[]): string {
   const amount = formatPrecipIn(day.precip_mm_p50)
@@ -72,18 +72,18 @@ export type DailyListProps = {
   days: readonly ForecastSnapshot[]
   /**
    * The per-day readings and alert state the score pill is read from, through
-   * `summarizeReadings`. `null` for a city, the `/add` preview, and while
+   * `summarizeReadings`. `null` for a city and while
    * `/hourly` is in flight — all of which draw rows without a pill.
    */
   readings: DayReadings | null
   /**
-   * The hourly run's hours, for each day's chance of rain. Empty on the
-   * preview and while the query is in flight, which leaves the chance off.
+   * The hourly run's hours, for each day's chance of rain. Empty while the
+   * query is in flight or failed, which leaves the chance off.
    */
   hours: readonly HourlySample[]
   /**
-   * Opens a day in the Hourly tab. Omitted when there is no hourly data at all
-   * (the `/add` preview), which makes every row plain rather than a button
+   * Opens a day in the Hourly tab. Omitted when there is no hourly data at all,
+   * which makes every row plain rather than a button
    * that does nothing.
    */
   onSelectDay?: (localDate: string) => void
