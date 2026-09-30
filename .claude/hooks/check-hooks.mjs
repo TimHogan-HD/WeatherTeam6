@@ -325,6 +325,18 @@ const gitScenarios = [
     'dirty.txt',
   ],
   [
+    'Stop: a file both sessions edited still blocks this one',
+    (w) => {
+      writeFileSync(join(w, 'dirty.txt'), 'x')
+      runIn(w, PRE, { ...edit(join(w, 'dirty.txt')), session_id: 'peer' })
+      runIn(w, PRE, { ...edit(join(w, 'dirty.txt')), session_id: 'me' })
+    },
+    STOP,
+    { session_id: 'me' },
+    BLOCK,
+    'dirty.txt',
+  ],
+  [
     'Stop: an uncommitted file nobody claims still blocks while another session is active',
     (w) => {
       writeFileSync(join(w, 'dirty.txt'), 'x')

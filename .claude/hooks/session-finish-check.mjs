@@ -39,7 +39,7 @@ import {
   workingTreeChanges,
 } from './lib/gitState.mjs'
 import { reviewState } from './lib/reviewGate.mjs'
-import { activePeers, porcelainPath } from './lib/sessionClaims.mjs'
+import { activePeers, ownClaims, porcelainPath } from './lib/sessionClaims.mjs'
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -96,10 +96,14 @@ if (!branch || !base) process.exit(0)
 
 // ---- 1. uncommitted work ---------------------------------------------------
 
-// A file that an active other session claims is that session's to finish. Every
-// other change, including one nobody claims, is this session's.
+// A file only an active other session claims is that session's to finish. Every
+// other change, including one both edited or nobody claims, is this session's.
 const peers = activePeers(sessionId)
-const peerOwns = (line) => peers.some((p) => p.files.has(porcelainPath(line)))
+const mine = ownClaims(sessionId)
+const peerOwns = (line) => {
+  const path = porcelainPath(line)
+  return !mine.has(path) && peers.some((p) => p.files.has(path))
+}
 const allChanges = workingTreeChanges()
 const changes = allChanges.filter((line) => !peerOwns(line))
 if (changes.length === 0 && allChanges.length > 0) {

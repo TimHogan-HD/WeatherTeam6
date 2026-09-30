@@ -115,6 +115,18 @@ export function activePeers(sessionId, cwd) {
   }
 }
 
+/** The files this session's own actor has claimed in this checkout. */
+export function ownClaims(sessionId, cwd) {
+  try {
+    const where = checkout(cwd)
+    const id = actorKey(sessionId)
+    if (!where || !id) return new Set()
+    return new Set(readFileSync(join(where.dir, id), 'utf8').split('\n').filter(Boolean))
+  } catch {
+    return new Set()
+  }
+}
+
 /** The path in one `git status --porcelain=v1` line, normalised like a claim. */
 export function porcelainPath(line) {
   let p = line.slice(3)
