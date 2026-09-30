@@ -92,6 +92,7 @@ export type DetailViewProps = {
     isPending: boolean
     isError: boolean
     refetch: () => void
+    failureCount?: number
   }
   /**
    * The hourly run **and the tabs that reach it**, which are one feature and
