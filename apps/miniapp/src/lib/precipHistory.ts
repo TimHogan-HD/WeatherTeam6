@@ -215,6 +215,41 @@ export function precipSummary(recent: RecentPrecip, nowMs: number): PrecipSummar
   }
 }
 
+export type RunningPoint = {
+  validAtLocal: string
+  /** Where this hour **ends**, in hours from the first day's local midnight. */
+  at: number
+  /** Everything that had fallen by the end of this hour. */
+  totalMm: number
+  /** The previous hour is missing from the response: the line must not be drawn solid across it. */
+  gapBefore: boolean
+}
+
+/**
+ * The window's running total, one point per hour. `spanHours` is the whole
+ * days the grid draws, so the two cards line up day for day. A missing hour
+ * adds nothing — and is flagged, because a flat line across it would claim a
+ * dry hour nobody estimated.
+ */
+export function runningTotal(
+  days: readonly PrecipDay[],
+  hours: readonly RecentPrecipHour[],
+): { points: RunningPoint[]; spanHours: number } {
+  const first = days[0]
+  if (first === undefined) return { points: [], spanHours: 0 }
+  const startMs = Date.parse(`${first.localDate}T00:00Z`)
+  let total = 0
+  let prevAt: number | null = null
+  const points = hours.map((h) => {
+    total += h.precip_mm
+    const at = (localMs(h.valid_at_local) - startMs) / HOUR_MS
+    const gapBefore = prevAt !== null && at - prevAt > 1
+    prevAt = at
+    return { validAtLocal: h.valid_at_local, at, totalMm: total, gapBefore }
+  })
+  return { points, spanHours: days.length * 24 }
+}
+
 /** `12h`, or `2d 4h` from two days. */
 export function formatSince(hours: number): string {
   if (hours < 48) return `${hours}h`

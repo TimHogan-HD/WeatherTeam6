@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import type { RecentPrecipHour } from '@weatherteam6/types'
-import { dayLabel, formatSince, hourGrid, hourKind, precipDays, precipEvents, precipSummary } from './precipHistory.js'
+import {
+  dayLabel,
+  formatSince,
+  hourGrid,
+  hourKind,
+  precipDays,
+  precipEvents,
+  precipSummary,
+  runningTotal,
+} from './precipHistory.js'
 
 function h(at: string, mm: number, over: Partial<RecentPrecipHour> = {}): RecentPrecipHour {
   return { valid_at_local: at, precip_mm: mm, rain_mm: mm, snowfall_cm: 0, ...over }
@@ -115,6 +124,24 @@ describe('precipSummary', () => {
     // Every shower counts as "since", because there is no real rain to be since.
     expect(s.lighterSince).toHaveLength(1)
     expect(s.wetHours).toBe(1)
+  })
+})
+
+describe('runningTotal', () => {
+  it('accumulates hour by hour, positioned by where each hour ends, and flags a skipped hour', () => {
+    const hours = [h('2026-09-22T01:00', 1), h('2026-09-22T02:00', 0.5), h('2026-09-22T05:00', 2)]
+    const { points, spanHours } = runningTotal(precipDays(hours), hours)
+    expect(spanHours).toBe(24)
+    expect(points.map((p) => [p.at, p.totalMm, p.gapBefore])).toEqual([
+      [1, 1, false],
+      [2, 1.5, false],
+      // 03:00 and 04:00 are missing: not dry, a gap.
+      [5, 3.5, true],
+    ])
+  })
+
+  it('draws nothing for an empty window', () => {
+    expect(runningTotal([], [])).toEqual({ points: [], spanHours: 0 })
   })
 })
 

@@ -533,6 +533,16 @@ describe('DetailView — Precip tab', () => {
     expect(html).toContain('2 h')
   })
 
+  it('draws the running total with each real storm, the flat run since, and a gap dashed', () => {
+    const html = renderPrecip(recent)
+    expect(html).toContain('Running total')
+    expect(html).toContain('aria-label="Running total 0.19 in over 3 days, flat for the last 38 hours"')
+    expect(html).toContain('+0.18 in')
+    expect(html).toContain('no real rain · 38 h')
+    // 2026-09-14 is missing from the response: bridged dashed, never a solid flat line.
+    expect(html).toContain('stroke-dasharray="3 3"')
+  })
+
   it('totals today on the location’s own date', () => {
     const html = renderPrecip(recent)
     // Today is 2026-09-15: its 06:00 shower and a dry 09:00.

@@ -261,6 +261,13 @@ Two cards and a caveat:
   with no track — the first version said "ended 0 hours ago".
 - **Today, this week, and wet hours this week** under the headline (owner, 2026-09-29).
   Today is the location's own date; a window that has not reached it shows a dash.
+- **Running total** (round-2 concept 1, added at the owner's request so the tab reads as
+  a page, not a drop-down): the window's cumulative precipitation, one day per column
+  lined up with the grid below. The largest three storms that reached the real-rain line
+  carry their total where they ended; the run since the last real rain is shaded and
+  labelled "no real rain · N h" under the line, so it cannot collide with a storm label.
+  A skipped hour is bridged with a dashed line, never a solid flat one. Touch or hover
+  reads out the hour and the total so far.
 - **Every hour:** a row per local day, 24 cells from 00 to 23, each day's total at the
   end. A cell's fill is its amount on `precipStep1`–`5`, one blue in five lightness steps
   (the dataviz reference ramp, validated on `card`), the second step starting at the
