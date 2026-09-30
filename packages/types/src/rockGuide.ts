@@ -117,12 +117,12 @@ const GUIDES: Record<Exclude<RockType, 'unknown'>, RockGuide> = {
     texture: 'pocketed',
     tagline: 'A porous igneous rock riddled with huecos.',
     dries: 'day',
-    whenWet: 'softens',
+    whenWet: 'fragile',
     styles: ['Huecos', 'Pockets', 'Roofs', 'Slopers'],
     rain: 'Huecos hold water for days, and wet holds snap.',
     sun: 'Desert sun dries the face quickly; the pockets lag behind.',
     funFact: 'It breaks the igneous rule: most rock born from magma dries fast, and this kind drinks water.',
-    care: ['Wait for the pockets to dry, not just the face'],
+    care: ['Wait at least a day after rain — the park enforces it'],
     avoid: ['Climbing after rain — a snapped hold is gone for good'],
   },
   rhyolite: {
@@ -182,13 +182,13 @@ const GUIDES: Record<Exclude<RockType, 'unknown'>, RockGuide> = {
     texture: 'pocketed',
     tagline: 'Volcanic ash, fused solid by its own heat.',
     dries: 'day',
-    whenWet: 'holds',
+    whenWet: 'softens',
     styles: ['Edges', 'Pockets', 'Knobs'],
-    rain: 'Behaves close to granite — dries within a day.',
+    rain: 'The face dries fast, but after a big storm small knobs and edges break for a day or two.',
     sun: 'Shade and a breeze beat full sun for friction.',
     funFact: 'Tuff is volcanic ash. When it lands hot enough the grains fuse into solid rock — that’s “welded”.',
     care: ['Test knobs before pulling on them'],
-    avoid: [NO_WIRE],
+    avoid: ['Pulling on small edges the day after a downpour'],
   },
   tuff_nonwelded: {
     swatch: 'tuff',
@@ -268,7 +268,7 @@ const GUIDES: Record<Exclude<RockType, 'unknown'>, RockGuide> = {
     care: ['Dig into the sand at the base: damp sand means damp rock'],
     avoid: ['Climbing it damp — holds break and never grow back', NO_WIRE],
   },
-  // Softens, not holds (owner, 2026-09-29): Hinckley Sandstone at Robinson Park
+  // Fragile, not holds (owner, 2026-09-29): Hinckley Sandstone at Robinson Park
   // is ~96% quartz and still breaks after rain, and the local ethic is to stay
   // off it. The ~0% wet strength loss in the research is one lab result for
   // clean, clay-free rock — the cement decides, and it is not visible.
@@ -277,9 +277,9 @@ const GUIDES: Record<Exclude<RockType, 'unknown'>, RockGuide> = {
     texture: 'bedded',
     tagline: 'Quartz sand grains, cemented together.',
     dries: 'day',
-    whenWet: 'softens',
+    whenWet: 'fragile',
     styles: ['Edges', 'Slopers', 'Friction'],
-    rain: 'Tough quartz grains, but the cement between them weakens when wet. Let it dry through.',
+    rain: 'Tough quartz grains, but the cement between them weakens when wet. Give it a day or two.',
     sun: 'Grippy when cool; slopers go greasy in the heat.',
     funFact: 'Nearly all quartz, yet it can still break when wet — the glue between the grains matters more than the grains.',
     care: ['Dig into the sand at the base: damp sand means damp rock'],
