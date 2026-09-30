@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
-import { cToF, formatHumidity } from '@weatherteam6/types'
+import { EM_DASH, cToF, formatHumidity, formatWindMph } from '@weatherteam6/types'
 import { typeV2, withOpacity } from '../../theme/tokens.css.js'
-import { row } from '../../theme/styles.js'
-import { TODAY_CHART_FROM, TODAY_CHART_TO, type ChartHour } from '../../lib/overview.js'
+import { row, stack } from '../../theme/styles.js'
+import { formatTempDeg } from '../../lib/format.js'
+import { TODAY_CHART_FROM, TODAY_CHART_TO, chartHourAt, type ChartHour } from '../../lib/overview.js'
 import { BAR_MIN_H, BAR_RADIUS, chartColorsV2, scoreRampColor } from './chartStyle.js'
 
 /**
@@ -31,7 +32,7 @@ const PAD_TOP = 22
 /** Hour ticks, then the score under each. */
 const PAD_BOTTOM = 36
 /** The least the chart is drawn at; on a taller screen it grows. */
-export const TODAY_CHART_MIN_H = 164
+export const TODAY_CHART_MIN_H = 140
 const DEFAULT_WIDTH = 360
 /** Rain bars take the bottom of the plot. */
 const RAIN_SHARE = 0.32
@@ -41,6 +42,11 @@ const LABEL_HOURS = [9, 12, 15, 18, 21] as const
 function clock(hour: number): string {
   if (hour === 12) return '12p'
   return hour > 12 ? `${hour - 12}p` : `${hour}a`
+}
+
+/** `3pm`, `12pm`, `9am`. */
+function clockLong(hour: number): string {
+  return `${clock(hour)}m`
 }
 
 /** The location-clock hour of `nowMs`, fractional. */
@@ -67,20 +73,49 @@ function useSize(): [RefObject<HTMLDivElement | null>, { w: number; h: number }]
   return [ref, size]
 }
 
-/** The key, for the card's title row: the two layers the line's colour does not explain. */
-export function TodayChartLegend() {
+/** A swatch drawn the way its mark is drawn, so the readout doubles as the legend. */
+function Swatch({ kind }: { kind: 'dew' | 'rain' }) {
+  return kind === 'dew' ? (
+    <span aria-hidden style={{ width: '12px', borderTop: `2px dashed ${chartColorsV2.dewPoint}` }} />
+  ) : (
+    <span aria-hidden style={{ width: '7px', height: '10px', borderRadius: '2px', background: withOpacity(chartColorsV2.rain, 0.5) }} />
+  )
+}
+
+function Field({ label, value, color, swatch }: { label: string; value: string; color?: string; swatch?: 'dew' | 'rain' }) {
   return (
-    <span style={{ ...row(spacing.cellPad), ...typeV2.legendSm, flexWrap: 'wrap' }}>
-      <span style={row(spacing.tight)}>
-        <span aria-hidden style={{ width: '14px', borderTop: `2px dashed ${chartColorsV2.dewPoint}` }} />
-        Dew point
-      </span>
-      <span style={row(spacing.tight)}>
-        <span aria-hidden style={{ width: '8px', height: '10px', borderRadius: '2px', background: withOpacity(chartColorsV2.rain, 0.5) }} />
-        Rain chance
-      </span>
+    <span style={{ ...row(spacing.tight), alignItems: 'baseline', whiteSpace: 'nowrap' }}>
+      {swatch === undefined ? null : <span style={{ alignSelf: 'center', display: 'flex' }}><Swatch kind={swatch} /></span>}
+      <span style={typeV2.legendSm}>{label}</span>
+      <span style={{ ...typeV2.chartValue, fontSize: '13px', ...(color === undefined ? {} : { color }) }}>{value}</span>
     </span>
   )
+}
+
+/**
+ * The picked hour's figures, above the chart. **It stays where it is**: a
+ * floating chip over the plot would sit on the temperature labels, and the
+ * readout is also the legend — the dashed and barred swatches beside the dew
+ * point and rain chance are how those two marks are keyed.
+ *
+ * Wind is here as a figure and nowhere on the plot: drawn, it needed a scale
+ * of its own and crossed everything else (owner, 2026-09-30).
+ */
+function Readout({ hour, isNow }: { hour: ChartHour; isNow: boolean }) {
+  return (
+    <div aria-live="polite" style={{ ...row(spacing.cellPad), flexWrap: 'wrap', rowGap: `${spacing.micro}px` }}>
+      <span style={{ ...typeV2.rowTitle, fontSize: '13px', whiteSpace: 'nowrap' }}>{isNow ? 'Now' : clockLong(hour.hour)}</span>
+      <Field label="Temp" value={formatTempDeg(hour.tempC)} />
+      <Field label="Dew" value={formatTempDeg(hour.dewC)} swatch="dew" />
+      <Field label="Rain" value={formatChance(hour.chancePct)} swatch="rain" />
+      <Field label="Wind" value={formatWindMph(hour.windKmh)} />
+      {hour.score === null ? null : <Field label="Score" value={String(hour.score)} color={scoreRampColor(hour.score)} />}
+    </div>
+  )
+}
+
+function formatChance(pct: number | null): string {
+  return pct === null ? EM_DASH : `${Math.round(pct)}%`
 }
 
 export function TodayChart({
@@ -96,6 +131,8 @@ export function TodayChart({
   fill: boolean
 }) {
   const [ref, { w, h }] = useSize()
+  // The hour the reader picked, on the location's clock. `null` follows now.
+  const [picked, setPicked] = useState<number | null>(null)
 
   const x = (hour: number) => PAD_X + ((hour - TODAY_CHART_FROM) / (TODAY_CHART_TO - TODAY_CHART_FROM)) * (w - 2 * PAD_X)
   const base = h - PAD_BOTTOM
@@ -115,6 +152,19 @@ export function TodayChart({
   const now = nowHour(nowMs, utcOffsetSeconds)
   const nowX = now >= TODAY_CHART_FROM && now <= TODAY_CHART_TO ? x(now) : null
   const pastX = now > TODAY_CHART_TO ? w - PAD_X : nowX
+
+  const selected = chartHourAt(hours, picked ?? now)
+  const nowCell = chartHourAt(hours, now)
+  const isNow = selected !== null && nowCell !== null && selected.hour === nowCell.hour && nowX !== null
+  /** The chart hour under a clientX, from the element's own box. */
+  const hourAtClient = (clientX: number, box: DOMRect): number =>
+    TODAY_CHART_FROM + ((clientX - box.left - PAD_X) / Math.max(1, box.width - 2 * PAD_X)) * (TODAY_CHART_TO - TODAY_CHART_FROM) + 0.5
+  const step = (dir: -1 | 1) => {
+    if (selected === null) return
+    const i = hours.indexOf(selected)
+    const next = hours[i + dir]
+    if (next !== undefined) setPicked(next.hour)
+  }
 
   const barW = Math.max(5, ((w - 2 * PAD_X) / (TODAY_CHART_TO - TODAY_CHART_FROM)) * 0.55)
   const barH = (pct: number) => Math.max(BAR_MIN_H, (pct / 100) * rainH)
@@ -154,13 +204,41 @@ export function TodayChart({
   const mono = typeV2.axisTick.fontFamily
 
   return (
-    // The svg is out of flow: the box's height must come from the layout
-    // alone. In flow, the svg drawn at the last measured height held the box
-    // at that height, so the chart could grow but never shrink.
+    <div style={{ ...stack(spacing.listGap), ...(fill ? { flex: '1 1 auto' } : {}) }}>
+    {selected === null ? null : <Readout hour={selected} isNow={isNow} />}
+    {/*
+      The svg is out of flow: the box's height must come from the layout
+      alone. In flow, the svg drawn at the last measured height held the box
+      at that height, so the chart could grow but never shrink.
+
+      **Tap or drag to pick an hour**, as on the Hourly charts: pointer events
+      cover mouse and touch alike, `pan-y` keeps the page scrolling under a
+      vertical swipe, and lifting a finger keeps the hour — that is how a phone
+      reader finishes looking at it. A mouse leaving the chart returns to now.
+      Arrow keys step through the hours for a keyboard.
+    */}
     <div
       ref={ref}
+      tabIndex={0}
+      aria-label="Today by the hour. Left and right arrows pick an hour."
+      onPointerDown={(e) => setPicked(hourAtClient(e.clientX, e.currentTarget.getBoundingClientRect()))}
+      onPointerMove={(e) => setPicked(hourAtClient(e.clientX, e.currentTarget.getBoundingClientRect()))}
+      onPointerLeave={(e) => {
+        if (e.pointerType === 'mouse') setPicked(null)
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault()
+          step(-1)
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault()
+          step(1)
+        }
+      }}
       style={{
         position: 'relative',
+        touchAction: 'pan-y',
+        cursor: 'crosshair',
         height: fill ? undefined : `${TODAY_CHART_MIN_H}px`,
         minHeight: `${TODAY_CHART_MIN_H}px`,
         ...(fill ? { flex: '1 1 auto' } : {}),
@@ -255,7 +333,21 @@ export function TodayChart({
             Score
           </text>
         ) : null}
+
+        {/* The picked hour: a rule through it, and a dot on each line. */}
+        {selected === null ? null : (
+          <g>
+            <line x1={x(selected.hour)} y1={PAD_TOP - 4} x2={x(selected.hour)} y2={base} stroke={withOpacity(colorsV2.txt1, 0.45)} strokeWidth={1.5} />
+            {selected.dewC === null ? null : (
+              <circle cx={x(selected.hour)} cy={y(selected.dewC)} r={3.5} fill={chartColorsV2.dewPoint} stroke={colorsV2.card} strokeWidth={2} />
+            )}
+            {selected.tempC === null ? null : (
+              <circle cx={x(selected.hour)} cy={y(selected.tempC)} r={5} fill={lineColor(selected)} stroke={colorsV2.card} strokeWidth={2} />
+            )}
+          </g>
+        )}
       </svg>
+    </div>
     </div>
   )
 }

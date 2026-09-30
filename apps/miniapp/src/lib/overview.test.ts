@@ -9,6 +9,7 @@ import type {
 } from '@weatherteam6/types'
 import {
   LIKELY_RAIN_PCT,
+  chartHourAt,
   dayChance,
   dayTitle,
   nextDays,
@@ -89,6 +90,27 @@ describe('todayChart', () => {
   it('tolerates a response from an API older than the readings field', () => {
     const old = { utc_offset_seconds: OFFSET, hours } as unknown as HourlySeries
     expect(todayChart(old, '2026-09-28', alerts).every((h) => h.score === null)).toBe(true)
+  })
+})
+
+describe('chartHourAt', () => {
+  const at = (hour: number) => ({ valid_at: String(hour), hour, tempC: null, dewC: null, chancePct: null, windKmh: null, score: null })
+  // 13:00 is missing from the run.
+  const hours = [at(6), at(7), at(12), at(14), at(22)]
+
+  it('selects the hour covering the moment, not the nearest mark', () => {
+    expect(chartHourAt(hours, 14.9)?.hour).toBe(14)
+    expect(chartHourAt(hours, 7.2)?.hour).toBe(7)
+  })
+
+  it('steps past a missing hour to the nearest one carried, and clamps at the ends', () => {
+    expect(chartHourAt(hours, 13.5)?.hour).toBe(12)
+    expect(chartHourAt(hours, 3)?.hour).toBe(6)
+    expect(chartHourAt(hours, 23.5)?.hour).toBe(22)
+  })
+
+  it('has nothing to select on an empty chart', () => {
+    expect(chartHourAt([], 12)).toBeNull()
   })
 })
 
