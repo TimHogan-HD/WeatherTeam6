@@ -141,14 +141,14 @@ const GUIDES: Record<Exclude<RockType, 'unknown'>, RockGuide> = {
   basalt_dense: {
     swatch: 'basalt',
     texture: 'columnar',
-    tagline: 'Dark columns of dense lava rock.',
+    tagline: 'Dense lava rock, split by cooling joints into blocks or columns.',
     dries: 'hours',
     whenWet: 'holds',
     styles: ['Cracks', 'Stemming', 'Corners', 'Arêtes'],
     rain: 'Almost no pore space — dries in hours and loses no strength.',
     sun: 'Dark rock soaks up sun, so a sunny face gets hot fast.',
-    funFact: 'At Vantage the cracks run between the basalt columns, and the sport routes climb the smooth column faces.',
-    care: ['Check column tops — they can be loose blocks'],
+    funFact: 'Taylors Falls basalt is cut by vertical and horizontal cooling joints, which shaped the cliffs along the Dalles.',
+    care: ['Check blocks between joints — freeze and thaw loosens them'],
     avoid: [NO_WIRE],
   },
   basalt: {

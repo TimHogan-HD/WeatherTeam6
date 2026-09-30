@@ -143,7 +143,7 @@
       "rock": {
         "family": "basalt_dense",
         "formation": "Midcontinent Rift flood basalt, ~1.1 Ga",
-        "note": "Dense columnar type, 0.1-1.0% porosity: hours, not days, and no integrity risk. Eroded into the St. Croix Dalles.",
+        "note": "Dense but NOT columnar: a system of horizontal and vertical joint planes (MN DNR report 336-5), and freeze-thaw separates joint-bound blocks from the cliff. Low porosity, so hours, not days. Eroded into the St. Croix Dalles. Corrected 2026-09-29 after the owner flagged the columnar label.",
         "source": "rock-drying-research.md §4.7",
         "confidence": "C"
       },
