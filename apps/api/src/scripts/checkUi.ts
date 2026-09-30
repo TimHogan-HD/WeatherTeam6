@@ -235,6 +235,32 @@ async function run(): Promise<void> {
     await page.goto(`${WEB}/add`)
     await screen('add', 5)
 
+    // 4a. Current location, refused. Nothing granted, so Chromium denies it:
+    // the screen must say why, not sit on "Reading location…".
+    await page.getByRole('button', { name: 'Use my current location' }).click()
+    const deniedLine = await page
+      .getByText(/permission denied/i)
+      .waitFor({ timeout: 20_000 })
+      .then(() => true)
+      .catch(() => false)
+    check('a refused location permission says so on /add', deniedLine)
+    await screen('add-location-denied', 5)
+    await page.getByRole('button', { name: 'Cancel' }).click()
+
+    // 4b. Current location, granted, standing at the known crag. The fix opens
+    // the preview directly, named for the crag it falls inside.
+    await context.grantPermissions(['geolocation'], { origin: WEB })
+    await context.setGeolocation({ latitude: CRAG.lat, longitude: CRAG.lon, accuracy: 12 })
+    await page.getByRole('button', { name: 'Use my current location' }).click()
+    const previewed = await page
+      .getByText(/Not saved yet · Your location, ±\d+ ft/)
+      .waitFor({ timeout: 20_000 })
+      .then(() => true)
+      .catch(() => false)
+    const title = previewed ? await page.getByRole('heading', { level: 1 }).innerText() : ''
+    check('a GPS fix opens the preview named for the crag it is in', previewed && /taylors falls/i.test(title), `title "${title}"`)
+    await screen('add-location-preview')
+
     await context.close()
 
     // 5. /conditions failing (#261). A fresh context, so no cached readings,

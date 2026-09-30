@@ -75,16 +75,14 @@ throwaway. `VERCEL_TOKEN` is team-scoped and reaches `https://api.vercel.com` wi
 
 ## What is next
 
-1. **A current-location GPS option.** No design yet; prefer the browser geolocation API
-   (the logbook's `PositionCard` already uses it for boulder positions).
-2. **Scoring Phase 4b — the location editor screen.** The server half shipped in #184
+1. **Scoring Phase 4b — the location editor screen.** The server half shipped in #184
    (`PATCH /locations/:id`, wall geometry in `rockThermal`). The editor in the web app is
    unbuilt. A recorded aspect and angle matter only once Wall A is wired to individual walls.
    **Do not score `aspectDegrees` directly** (#139): the same aspect flips sign by season.
-3. **Scoring Phase 5 — preferences, then retirement of the five-component scorer.** A past
+2. **Scoring Phase 5 — preferences, then retirement of the five-component scorer.** A past
    window can still render as that day's advice. #178's conflicting `Climbable in ~Nh` line
    left with the drying card in #251; re-check the issue before working it.
-4. **Idea issues #213–#225** — webcams, radar, sensors, trip planner, "why this number". Filed,
+3. **Idea issues #213–#225** — webcams, radar, sensors, trip planner, "why this number". Filed,
    not scheduled.
 
 Still open on Crag A: a minimum wait after rain for soft sandstone (F17), rain-history seeding

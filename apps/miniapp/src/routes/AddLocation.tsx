@@ -3,8 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { spacing } from '@weatherteam6/design/tokens'
 import { matchKnownCrag, placeSubtitle, type GeocodeResult, type RockType } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
-import { bareButton, card, chip, inputBox, stack } from '../theme/styles.js'
+import { bareButton, card, chip, inputBox, row, stack } from '../theme/styles.js'
 import { backTarget } from '../lib/backTarget.js'
+import { formatAccuracyFt } from '../lib/logbook.js'
+import { fromFix, fromGeocode, type Candidate } from '../lib/addCandidate.js'
+import { useCurrentPosition, type PositionReading } from '../hooks/useCurrentPosition.js'
 import { useDebouncedValue, useGeocode } from '../hooks/useGeocode.js'
 import { usePreview } from '../hooks/useWeather.js'
 import { useCreateLocation } from '../hooks/useLocations.js'
@@ -27,26 +30,6 @@ import { SaveBar, type SaveDraft } from '../components/SaveBar.js'
  * The preview reuses the detail screen in unsaved mode, which is why this is
  * the only genuinely new screen in §12.
  */
-
-/** What a preview needs, from either the geocoder or hand-entered coordinates. */
-type Candidate = {
-  name: string
-  lat: number
-  lon: number
-  /** The geocoder supplies this; the coordinate path cannot, and passes null. */
-  elevationM: number | null
-  timezone: string | null
-}
-
-function fromGeocode(result: GeocodeResult): Candidate {
-  return {
-    name: result.name,
-    lat: result.lat,
-    lon: result.lon,
-    elevationM: result.elevation_m,
-    timezone: result.timezone,
-  }
-}
 
 export function AddLocation() {
   const navigate = useNavigate()
@@ -75,6 +58,11 @@ export function AddLocation() {
     setCandidate(next)
     setDraft({ name: next.name, isClimbing: false, rockType: 'unknown' })
   }, [])
+
+  // A fix opens its preview at once, and the reading returns to idle so that
+  // backing out of the preview shows the button again.
+  const { reading, locate, cancel: cancelLocating } = useCurrentPosition()
+  const locateHere = useCallback(() => locate((fix) => choose(fromFix(fix))), [locate, choose])
 
   // Back from the preview returns here with the search intact; back from the
   // search goes to the list (§2). `backTarget` owns that distinction.
@@ -118,7 +106,11 @@ export function AddLocation() {
   if (candidate !== null) {
     return (
       <Screen title={candidate.name} onBack={onBack} feedback>
-        <p style={type.screenSub}>Not saved yet</p>
+        <p style={type.screenSub}>
+          {candidate.accuracyM === null
+            ? 'Not saved yet'
+            : `Not saved yet · Your location, ${formatAccuracyFt(candidate.accuracyM)}`}
+        </p>
         <DetailView
           unsaved
           isClimbingLocation={draft.isClimbing}
@@ -144,6 +136,8 @@ export function AddLocation() {
   return (
     <Screen title="Add a location" onBack={onBack} feedback>
       <div style={{ ...stack(spacing.listGap), marginTop: `${spacing.sectionTop}px` }}>
+        <CurrentLocation reading={reading} onLocate={locateHere} onCancel={cancelLocating} />
+
         {coordsMode ? (
           <CoordinateEntry onChoose={choose} />
         ) : (
@@ -176,6 +170,58 @@ export function AddLocation() {
       </div>
     </Screen>
   )
+}
+
+/**
+ * Weather where the phone is, with no typing. The permission prompt follows the
+ * tap, never the screen opening. A fix carries no place name, so the preview is
+ * titled "Current location" unless it falls inside a known crag.
+ */
+function CurrentLocation({
+  reading,
+  onLocate,
+  onCancel,
+}: {
+  reading: PositionReading
+  onLocate: () => void
+  onCancel: () => void
+}) {
+  switch (reading.kind) {
+    case 'idle':
+    case 'fix':
+      return (
+        <button type="button" style={{ ...bareButton, ...card, ...type.cardTitle, textAlign: 'left' }} onClick={onLocate}>
+          Use my current location
+        </button>
+      )
+    case 'locating':
+      return (
+        <div style={{ ...card, ...row(spacing.listGap), justifyContent: 'space-between' }}>
+          <span role="status" style={type.bodyMd}>
+            Reading location…
+          </span>
+          <button type="button" style={{ ...bareButton, ...chip, ...type.labelSm }} onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
+      )
+    case 'failed':
+      return (
+        <div style={{ ...card, ...stack(spacing.listGapSm) }}>
+          <span role="status" style={type.bodyMd}>
+            {reading.message}
+          </span>
+          <div style={row(spacing.listGap)}>
+            <button type="button" style={{ ...bareButton, ...chip, ...type.labelSm }} onClick={onLocate}>
+              Try again
+            </button>
+            <button type="button" style={{ ...bareButton, ...chip, ...type.labelSm }} onClick={onCancel}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )
+  }
 }
 
 function SearchResults({
@@ -273,6 +319,7 @@ function CoordinateEntry({ onChoose }: { onChoose: (candidate: Candidate) => voi
             lon: Number(lon),
             elevationM: null,
             timezone: null,
+            accuracyM: null,
           })
         }
       >
