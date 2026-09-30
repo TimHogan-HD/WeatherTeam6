@@ -6,6 +6,8 @@ import {
   mmToIn,
   recentPrecipSource,
   REWETTING_PRECIP_MM,
+  UNRECORDED_ASPECT_NOTE,
+  type HourlyReadings,
   type RecentPrecip,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
@@ -19,6 +21,7 @@ import {
   precipDays,
   precipEvents,
   precipSummary,
+  rockByStamp,
   runningTotal,
   type PrecipKind,
 } from '../lib/precipHistory.js'
@@ -56,6 +59,12 @@ export type PrecipTabProps = {
   }
   /** The caveat names rock only where there is rock. */
   isClimbingLocation: boolean
+  /**
+   * `/hourly`'s readings and their clock, for the rock's state under the rain.
+   * Absent for a city, and until `/hourly` answers — the tab then shows the
+   * rain alone, never a row of "no reading".
+   */
+  rock?: { readings: HourlyReadings | undefined; utcOffsetSeconds: number }
 }
 
 const LOADING_H = 480
@@ -119,7 +128,7 @@ function Runway({ hours }: { hours: number }) {
   )
 }
 
-export function PrecipTab({ recent, isClimbingLocation }: PrecipTabProps) {
+export function PrecipTab({ recent, isClimbingLocation, rock }: PrecipTabProps) {
   const now = useNow()
 
   if (recent.isPending) return <Skeleton height={LOADING_H} />
@@ -164,6 +173,15 @@ export function PrecipTab({ recent, isClimbingLocation }: PrecipTabProps) {
   const realEvents = precipEvents(data.hours).filter((e) =>
     data.hours.some((h) => isRealRain(h) && e.startLocal < h.valid_at_local && h.valid_at_local <= e.endLocal),
   )
+  const rockMap = rock === undefined ? null : rockByStamp(rock.readings, rock.utcOffsetSeconds)
+  // Said once for the tab, as every surface does, when any rock state shown
+  // could have read differently with the wall's aspect recorded.
+  const aspectNote =
+    rockMap !== null &&
+    data.hours.some((h) => {
+      const r = rockMap.get(h.valid_at_local)
+      return r != null && !r.qualified
+    })
   const flatFrom =
     lastReal === null || rainingNow
       ? null
@@ -238,12 +256,13 @@ export function PrecipTab({ recent, isClimbingLocation }: PrecipTabProps) {
           realEvents={realEvents}
           flatFrom={flatFrom}
           flatHours={flatFrom === null ? null : hoursSinceReal}
+          rock={rockMap}
           today={today}
         />
       </Card>
 
       <Card title="Every hour" aside={`to ${summary.endingLocal === null ? EM_DASH : when(summary.endingLocal)}`} gap={spacing.listGapLg}>
-        <PrecipHourTable days={days} grid={grid} points={running.points} today={today} />
+        <PrecipHourTable days={days} grid={grid} points={running.points} rock={rockMap} today={today} />
       </Card>
 
       <p style={{ ...typeV2.note, padding: `0 ${spacing.listGapLg}px` }}>
@@ -252,6 +271,7 @@ export function PrecipTab({ recent, isClimbingLocation }: PrecipTabProps) {
         {isClimbingLocation
           ? ' Shade, seepage, wind channeling and elevation can change conditions route-by-route. Inspect rock before climbing.'
           : null}
+        {aspectNote ? ` ${UNRECORDED_ASPECT_NOTE}.` : null}
       </p>
     </>
   )

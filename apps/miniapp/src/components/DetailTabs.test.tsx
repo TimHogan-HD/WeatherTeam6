@@ -501,7 +501,29 @@ describe('DetailView — Precip tab', () => {
     from_date: '2026-09-13',
   }
 
-  function renderPrecip(data: RecentPrecip, isClimbingLocation = true): string {
+  /** Readings whose history covers the Precip window, on the same UTC clock. */
+  const rock = (at: string, level: 'wet' | 'drying' | 'dry' | null, qualified = true) => ({
+    valid_at: `${at}:00.000Z`,
+    rock: level === null ? null : { level, qualified },
+  })
+  const withRock: HourlySeries = {
+    ...series,
+    utc_offset_seconds: 0,
+    readings: {
+      model: 'gfs_seamless',
+      unavailable_reason: null,
+      hours: [{ ...rock('2026-09-15T09:00', 'dry'), friction: null, score: null, t_surface_c: null, condensation_margin_c: null }],
+      days: [],
+      rock_history: [
+        rock('2026-09-13T18:00', null),
+        rock('2026-09-13T19:00', 'wet'),
+        rock('2026-09-13T20:00', 'wet', false),
+        rock('2026-09-15T06:00', 'drying'),
+      ],
+    },
+  }
+
+  function renderPrecip(data: RecentPrecip, isClimbingLocation = true, hourlySeries: HourlySeries = series): string {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-15T09:30:00Z'))
     const html = renderToStaticMarkup(
@@ -510,7 +532,7 @@ describe('DetailView — Precip tab', () => {
         asosStation={null}
         forecast={ok([day(DAY_1)])}
         hourly={{
-          ...ok(series),
+          ...ok(hourlySeries),
           tabs: { active: 'precip', onTabChange: () => {}, selectedDate: DAY_1, onSelectDate: () => {}, panelId: 'panel' },
         }}
         recentPrecip={ok(data)}
@@ -519,6 +541,37 @@ describe('DetailView — Precip tab', () => {
     vi.useRealTimers()
     return html
   }
+
+  it('shows the rock under the rain: in the readout, as a strip, and with the aspect note once', () => {
+    const html = renderPrecip(recent, true, withRock)
+    // The readout opens on Today 06:00, which the model read as drying.
+    expect(html).toMatch(/Dryness<\/span><span[^>]*>Drying</)
+    // A cell names its rock state to a screen reader; a gap says so.
+    expect(html).toContain('aria-label="Sun 18:00–19:00: Precip 0.18 in, Type Rain, Real rain Yes, Dryness Wet"')
+    expect(html).toContain('aria-label="Sun 17:00–18:00: Precip No estimate for this hour, Dryness No reading"')
+    // The strip and its key.
+    expect(html).toContain('>Rock<')
+    expect(html).toContain('Rain so far')
+    expect(html).toMatch(/>Dry<\/span>.*>Drying<\/span>.*>Wet<\/span>/)
+    // Sun 20:00 is unqualified, so the tab says once that aspect is unrecorded.
+    expect(html).toContain('Aspect unrecorded — sunlit hours lean warm.')
+  })
+
+  it('draws no rock for a city, or before /hourly carries the history', () => {
+    for (const html of [renderPrecip(recent, false, withRock), renderPrecip(recent)]) {
+      expect(html).not.toContain('>Rock<')
+      // No Dryness field in the readout or on any cell (the caveat may still name Dryness).
+      expect(html).not.toMatch(/Dryness<\/span>/)
+      expect(html).not.toContain(', Dryness ')
+      expect(html).not.toContain('Aspect unrecorded')
+    }
+  })
+
+  it('puts today on the top row of the hour grid', () => {
+    const html = renderPrecip(recent)
+    const grid = html.slice(html.indexOf('aria-label="Precipitation by hour'))
+    expect(grid.indexOf('>Today<')).toBeLessThan(grid.indexOf('>Sun<'))
+  })
 
   it('leads with the hours since the last real rain, the week total and wet hours', () => {
     const html = renderPrecip(recent)

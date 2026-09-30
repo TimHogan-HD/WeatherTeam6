@@ -392,6 +392,17 @@ async function run(): Promise<void> {
 
     const withWindow = readings.days.filter((d) => d.window !== null).length
     info('days with a window', `${withWindow} of ${readings.days.length}`)
+
+    // The Precip tab's rock strip: the stored history before the window.
+    const history = readings.rock_history ?? []
+    const firstHour = readings.hours[0]?.valid_at
+    check(
+      'rock history sits wholly before the window',
+      firstHour === undefined || history.every((h) => h.valid_at < firstHour),
+      'a history hour overlapped the published window',
+    )
+    const read = history.filter((h) => h.rock !== null).length
+    info('rock history', `${history.length} hours, ${read} with a reading`)
     const qualified = readings.hours.filter((h) => h.friction?.qualified === true).length
     info(
       'sun-qualified hours',

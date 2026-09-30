@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
-import { EM_DASH, formatPrecipIn, mmToIn, REWETTING_PRECIP_MM } from '@weatherteam6/types'
+import {
+  DRYNESS_LABEL,
+  EM_DASH,
+  formatPrecipIn,
+  mmToIn,
+  REWETTING_PRECIP_MM,
+  ROCK_LABELS,
+  type RockReading,
+} from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { row, stack } from '../theme/styles.js'
 import {
@@ -14,8 +22,8 @@ import {
 } from '../lib/precipHistory.js'
 
 /**
- * Every hour of the window: **a row per day, hours across**, each day's total
- * at the end. Tap an hour, drag a finger along a day, or arrow to one, and the
+ * Every hour of the window: **a row per day, hours across, today on top**
+ * (owner, 2026-09-29), each day's total at the end. Tap an hour, drag a finger along a day, or arrow to one, and the
  * readout above shows what that hour carried — the Hourly charts' readout, on a
  * grid. It opens on the most recent wet hour so the card is complete at rest.
  *
@@ -107,10 +115,22 @@ function cellFill(cell: HourCell): { backgroundColor?: string; ring: string | nu
   return { backgroundColor: stepColor(mm), ring: kindRing(hourKind(cell.hour)) }
 }
 
-/** What one hour carried, as label and value pairs. */
-function readoutFields(cell: HourCell, soFarMm: number | null): { label: string; value: string }[] {
+/**
+ * What one hour carried, as label and value pairs. `rock` is `undefined` when
+ * the location has no rock readings at all, so the field is left out rather
+ * than printed as a gap on every hour; `null` is one hour the model could not
+ * read. The word is `ROCK_LABELS`' and the label `DRYNESS_LABEL`, so this
+ * names the gauge exactly as every other surface does.
+ */
+function readoutFields(
+  cell: HourCell,
+  soFarMm: number | null,
+  rock?: RockReading | null,
+): { label: string; value: string }[] {
   if (cell.state === 'ahead') return [{ label: 'Precip', value: 'Still to come' }]
-  if (cell.state === 'missing') return [{ label: 'Precip', value: 'No estimate for this hour' }]
+  const dryness =
+    rock === undefined ? [] : [{ label: DRYNESS_LABEL, value: rock === null ? 'No reading' : ROCK_LABELS[rock.level] }]
+  if (cell.state === 'missing') return [{ label: 'Precip', value: 'No estimate for this hour' }, ...dryness]
   const h = cell.hour
   const fields = [{ label: 'Precip', value: h.precip_mm > 0 ? formatPrecipIn(h.precip_mm) : 'None' }]
   if (h.precip_mm > 0) {
@@ -120,6 +140,7 @@ function readoutFields(cell: HourCell, soFarMm: number | null): { label: string;
     if (snow !== null && snow > 0) fields.push({ label: 'Snow', value: `${(snow / 2.54).toFixed(1)} in` })
     fields.push({ label: 'Real rain', value: isRealRain(h) ? 'Yes' : 'No' })
   }
+  fields.push(...dryness)
   if (soFarMm !== null) fields.push({ label: 'Week so far', value: formatPrecipIn(soFarMm) })
   return fields
 }
@@ -130,10 +151,15 @@ export type PrecipHourTableProps = {
   days: readonly PrecipDay[]
   grid: readonly (readonly HourCell[])[]
   points: readonly RunningPoint[]
+  /** The rock's state by local stamp; null when the location has none to show. */
+  rock: ReadonlyMap<string, RockReading | null> | null
   today: string
 }
 
-export function PrecipHourTable({ days, grid, points, today }: PrecipHourTableProps) {
+export function PrecipHourTable({ days, grid, points, rock, today }: PrecipHourTableProps) {
+  /** An hour's rock state for the readout: `undefined` leaves the field out. */
+  const rockAt = (localDate: string, h: number): RockReading | null | undefined =>
+    rock === null ? undefined : (rock.get(`${localDate}T${hh(h)}:00`) ?? null)
   const soFar = new Map(points.map((p) => [p.validAtLocal, p.totalMm]))
   // Open on the most recent wet hour; failing that, the newest hour there is.
   const initial = (() => {
@@ -169,8 +195,9 @@ export function PrecipHourTable({ days, grid, points, today }: PrecipHourTablePr
     const step: Record<string, Pos> = {
       ArrowLeft: { d: 0, h: -1 },
       ArrowRight: { d: 0, h: 1 },
-      ArrowUp: { d: -1, h: 0 },
-      ArrowDown: { d: 1, h: 0 },
+      // Today is the top row, so up is the newer day.
+      ArrowUp: { d: 1, h: 0 },
+      ArrowDown: { d: -1, h: 0 },
     }
     const by = step[e.key]
     if (by === undefined) return
@@ -209,7 +236,11 @@ export function PrecipHourTable({ days, grid, points, today }: PrecipHourTablePr
         <div style={{ ...row(spacing.listGapLg), flexWrap: 'wrap', rowGap: `${spacing.tight}px` }}>
           {selCell === undefined || selDay === undefined
             ? null
-            : readoutFields(selCell, soFar.get(`${selDay.localDate}T${hh(sel.h)}:00`) ?? null).map((f) => (
+            : readoutFields(
+                selCell,
+                soFar.get(`${selDay.localDate}T${hh(sel.h)}:00`) ?? null,
+                rockAt(selDay.localDate, sel.h),
+              ).map((f) => (
                 <span key={f.label} style={{ ...stack(spacing.micro) }}>
                   <span style={typeV2.tileLabel}>{f.label}</span>
                   <span style={typeV2.factValue}>{f.value}</span>
@@ -257,7 +288,10 @@ export function PrecipHourTable({ days, grid, points, today }: PrecipHourTablePr
           </span>
         ))}
         <span style={{ ...typeV2.axisTick, textAlign: 'right' }}>in</span>
-        {days.map((d, di) => {
+        {days
+          .map((d, di) => ({ d, di }))
+          .reverse()
+          .map(({ d, di }) => {
           const label = dayLabel(d.localDate, today)
           const wet = d.totalMm !== null && d.totalMm > 0
           return [
@@ -286,7 +320,7 @@ export function PrecipHourTable({ days, grid, points, today }: PrecipHourTablePr
                   data-cell={`${di}-${h}`}
                   tabIndex={selected ? 0 : -1}
                   aria-pressed={selected}
-                  aria-label={`${span(d.localDate, h, today)}: ${readoutFields(cell, null)
+                  aria-label={`${span(d.localDate, h, today)}: ${readoutFields(cell, null, rockAt(d.localDate, h))
                     .map((f) => `${f.label} ${f.value}`)
                     .join(', ')}`}
                   onClick={() => setSel({ d: di, h })}

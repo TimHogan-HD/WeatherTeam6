@@ -1,4 +1,36 @@
-import { REWETTING_PRECIP_MM, type RecentPrecip, type RecentPrecipHour } from '@weatherteam6/types'
+import {
+  REWETTING_PRECIP_MM,
+  type HourlyReadings,
+  type RecentPrecip,
+  type RecentPrecipHour,
+  type RockReading,
+} from '@weatherteam6/types'
+
+/**
+ * The rock's state by local hour stamp, from `/hourly`'s readings: the history
+ * before the window (`rock_history`) and the window's own hours. **`null` when
+ * there is nothing to draw** — no readings yet, an older API without the
+ * history, or a location the model does not read (a city, a gap) — so a
+ * surface shows no rock at all rather than a row of "no reading".
+ *
+ * Keyed on the same `YYYY-MM-DDTHH:mm` local stamps the precipitation hours
+ * carry: both come off Open-Meteo's hour axis, and the readings' UTC instants
+ * are shifted by `/hourly`'s own offset (issue #33), never the viewer's.
+ */
+export function rockByStamp(
+  readings: HourlyReadings | undefined,
+  utcOffsetSeconds: number,
+): ReadonlyMap<string, RockReading | null> | null {
+  if (readings === undefined || readings.unavailable_reason !== null || readings.rock_history === undefined) {
+    return null
+  }
+  const offset = Number.isFinite(utcOffsetSeconds) ? utcOffsetSeconds : 0
+  const stamp = (iso: string) => new Date(Date.parse(iso) + offset * 1000).toISOString().slice(0, 16)
+  const out = new Map<string, RockReading | null>()
+  for (const h of readings.rock_history) out.set(stamp(h.valid_at), h.rock)
+  for (const h of readings.hours) out.set(stamp(h.valid_at), h.rock)
+  return out
+}
 
 /**
  * What the Precip tab says about the days just past, from `/recent-precip`:

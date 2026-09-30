@@ -165,6 +165,54 @@ describe('the trailing history', () => {
     // passes for the wrong reason.
     expect(out.hours.length).toBeLessThan(120 + 48)
   })
+
+  /**
+   * The Precip tab draws the rock under the past week's rain, so the history
+   * comes back — as the rock's state only, beside `hours` rather than in it.
+   */
+  it('returns the history before the window as rock state alone, in order', () => {
+    const out = buildHourlyReadings(input())
+    const history = out.rock_history ?? []
+    // 120 hours back from 12:00 on the 21st: everything before its midnight.
+    expect(history).toHaveLength(120 - 12)
+    expect(history.every((h) => Date.parse(h.valid_at) < Date.parse('2026-09-21T00:00:00Z'))).toBe(true)
+    expect(history.map((h) => h.valid_at)).toEqual([...history.map((h) => h.valid_at)].sort())
+    // Nothing but the instant and the rock: a past hour carries no score.
+    for (const h of history) expect(Object.keys(h).sort()).toEqual(['rock', 'valid_at'])
+    // The window's own hours never repeat in the history.
+    const inWindow = new Set(out.hours.map((h) => h.valid_at))
+    expect(history.some((h) => inWindow.has(h.valid_at))).toBe(false)
+  })
+
+  it('keeps an hour the model could not read as null, never as dry', () => {
+    const history = buildHourlyReadings(input()).rock_history ?? []
+    // The first hours of the walk precede T_mass's span: there is no reading yet.
+    expect(history[0]?.rock).toBeNull()
+    expect(history.some((h) => h.rock !== null)).toBe(true)
+  })
+
+  it('reports rain in the history as wet rock', () => {
+    // A soaking two days before NOW, inside the history.
+    const hours = runHours(120, 48).map((h) =>
+      h.valid_at.getTime() >= Date.parse('2026-09-19T08:00:00Z') && h.valid_at.getTime() <= Date.parse('2026-09-19T11:00:00Z')
+        ? { ...h, rain_median_mm: 3, precip_mm: 3, humidity_pct: 95 }
+        : h,
+    )
+    const out = buildHourlyReadings(
+      input({ deterministic: deterministic([model(THERMAL_MODEL, hours, ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless'])]) }),
+    )
+    const at = (iso: string) => out.rock_history?.find((h) => h.valid_at === iso)?.rock?.level
+    expect(at('2026-09-19T11:00:00.000Z')).toBe('wet')
+    // Before that rain the clock was still running on its starting guess
+    // ("it just rained"): wet or drying there would be the guess talking.
+    const before = (out.rock_history ?? []).filter((h) => h.valid_at < '2026-09-19T08:00:00.000Z')
+    expect(before.every((h) => h.rock === null || h.rock.level === 'dry')).toBe(true)
+  })
+
+  it('sends an empty history, not an absent one, when there are no readings', () => {
+    const out = buildHourlyReadings(input({ deterministic: deterministic([model('gem_seamless', runHours(120, 48))]) }))
+    expect(out.rock_history).toEqual([])
+  })
 })
 
 describe('what reaches the response', () => {

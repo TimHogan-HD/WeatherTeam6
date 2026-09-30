@@ -65,6 +65,16 @@ delivery gates are in `CLAUDE.md`; domain patterns are in the `miniapp-patterns`
   attribute one to the other.** If that model did not answer at this point there are no
   readings and `unavailable_reason` says `model_unavailable` — never another model's
   numbers.
+- **`readings.rock_history` is the rock's state for the stored hours before the window,**
+  rock only — no score, no friction — for the Precip tab's Rock strip and readout. The
+  model walks that history for `T_mass` anyway. **A history hour is published only once it
+  no longer rests on the walk's starting assumption:** the clock starts at zero hours dried
+  ("it just rained") because it cannot see further back, so until real rain resets it
+  inside the walk a wet or drying hour is the assumption talking and goes out `null`; a
+  `dry` hour stands, because a drier start could only have left it dry. Without this the
+  first days of every history read wet. `rockByStamp` (`apps/miniapp/src/lib/precipHistory.ts`)
+  joins it and `readings.hours` to the Precip hours by local stamp; an absent field is an
+  older API and draws no rock at all.
 - **The drying clock's rain is the hourly median of the four global models, not
   `THERMAL_MODEL`'s own** (`lib/weather/rainMedian.ts`, issue #209). Measured by
   `npm run compare:dryness` against 20 ASOS gauges over 90 days: `gfs_seamless` alone —
