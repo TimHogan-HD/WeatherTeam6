@@ -296,6 +296,23 @@ export const gradeBoulder = '#b794f4';
  * `rain`, `fair` and `poor` are the palette's own values, repeated here as literals only
  * because a ramp has to be a flat list of stops. The two ends are new.
  */
+/**
+ * The Crag A score as a **continuous** ramp, 0-100, for a mark that draws the
+ * score itself (the Overview's Today line). Owner, 2026-09-30: a range rather
+ * than hard cut-offs.
+ *
+ * The stops sit at the middle of each `SCORE_BANDS` rung — poor 0-39, fair
+ * 40-59, good 60+ — so a band's own centre keeps its status colour and the
+ * edges blend: 39 and 40 are neighbours, not a jump from red to amber. These
+ * are the status hues because this mark *is* the ladder; no other data mark
+ * borrows them.
+ */
+export const scoreScale = [
+  { score: 20, color: colors.poor },
+  { score: 50, color: colors.fair },
+  { score: 80, color: colors.good },
+] as const
+
 export const tempScale = [
   { offsetF: -25, color: '#4299e1' },  // deep blue — too cold to pull hard
   { offsetF: -8,  color: '#90cdf4' },  // = colors.rain

@@ -259,7 +259,6 @@ export function DetailView({
    */
   const hero = (
     <ConditionsNow
-      fill={panelTop !== null}
       forecast={forecast}
       series={hourly?.data}
       {...(showScore && conditions !== undefined ? { conditions } : {})}
@@ -430,8 +429,8 @@ export function DetailView({
         **The Overview fills the screen** (owner, 2026-09-30): it is sized to
         fit one, so the sources and actions below it belong past the fold
         rather than ending the page halfway down with black under them. The
-        spare height goes into the cards, never between them: spread as gaps,
-        it read as black bars on a tall phone.
+        spare height goes to the Today chart, never between sections: spread as
+        gaps, it read as black bars on a tall phone.
       */}
       <div
         ref={panelRef}

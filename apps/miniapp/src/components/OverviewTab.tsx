@@ -1,46 +1,42 @@
 import type { ReactNode } from 'react'
-import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
-import {
-  EM_DASH,
-  FRICTION_ESTIMATE_NOTE,
-  FRICTION_LABELS,
-  type FrictionLevel,
-  type HourlySeries,
-  type RecentPrecip,
-} from '@weatherteam6/types'
+import { colorsV2, spacing } from '@weatherteam6/design/tokens'
+import { formatHumidity, type HourlySeries, type RecentPrecip } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, cardV2, row, stack, type ToneName } from '../theme/styles.js'
-import { formatTempDeg, formatTempRangeF } from '../lib/format.js'
-import { DayRowShell, ScorePill } from './DayRow.js'
+import { bareButton, row, stack } from '../theme/styles.js'
+import { formatTempRangeF } from '../lib/format.js'
 import {
+  dayChance,
   lastRainText,
   nextDays,
   nextLikelyRain,
   shortDate,
-  todayCells,
+  todayChart,
   type NextDay,
-  type TodayCell,
 } from '../lib/overview.js'
 import { precipDays, precipSummary } from '../lib/precipHistory.js'
 import { useNow } from '../hooks/useNow.js'
+import { scoreRampColor } from './charts/chartStyle.js'
+import { TodayChart } from './charts/TodayChart.js'
 import { InlineError, Skeleton } from './States.js'
 
 /**
- * The Overview tab under the hero, from the WT6 Figma "V2" page's Overview
- * frame: **Today** — five hours of the day with the friction reading at each;
- * **Next 3 days** — each day's Crag A score, as three tiles; and **Rain** —
- * when real rain last fell and when rain is next likely. Sized so the tab fits
- * a phone screen without scrolling (owner, 2026-09-29).
+ * The Overview tab under the hero, owner's pick 2026-09-30 (mockup D+):
+ * **Today** — the day as one chart, temperature coloured by the hour's score
+ * with dew point, rain chance and wind as layers; **Next 3 days** — a column
+ * each, with the day's range, rain chance, score and good hours; and rain —
+ * when real rain last fell and when rain is next likely.
  *
- * Each card is a doorway as well as a summary: "Hourly ›" and "Daily ›" open
- * those tabs, and a day row opens its hours. The decisions about *what* each
- * card says live in `lib/overview.ts`, where they are tested; this lays them
- * out.
+ * **Open, not carded.** The two sections sit on the page under a hairline: a
+ * card round every section, and a box round every figure inside it, is what
+ * made the earlier layout feel stiff.
  *
- * **The cards fail independently**, like every section on this screen (§5).
- * Today and the day scores read `/hourly`; the rows' dates and temperatures
- * read `/forecast`; last rain reads `/recent-precip`. A slow or failed hourly run
- * leaves the rows standing without their pills.
+ * "Hourly ›" and "Daily ›" open those tabs, and a day column opens its hours.
+ * The decisions about *what* each part says live in `lib/overview.ts`, where
+ * they are tested; this lays them out.
+ *
+ * **The sections fail independently**, like every section on this screen
+ * (§5). The chart and the day scores read `/hourly`; the columns' dates and
+ * temperatures read `/forecast`; last rain reads `/recent-precip`.
  */
 
 export type OverviewTabProps = {
@@ -58,51 +54,30 @@ export type OverviewTabProps = {
   onOpenDaily: () => void
   onOpenHourly: () => void
   onOpenDay: (localDate: string) => void
-  /**
-   * Grow to take a share of the screen's spare height. It goes into the hour
-   * cells and the day tiles, not between the cards.
-   */
+  /** Grow to take the screen's spare height. It goes to the chart, never between sections. */
   fill?: boolean
 }
 
-/** The strip's height once drawn, held open while it loads. */
-const TODAY_STRIP_H = 52
+/** Held open while the hourly run loads. */
+const CHART_H = 190
 
-const FRICTION_TONE: Record<FrictionLevel, ToneName> = {
-  great: 'good',
-  good: 'good',
-  fair: 'fair',
-  poor: 'poor',
-}
+const hairline = { height: '1px', backgroundColor: colorsV2.raised } as const
 
-const TONE_INK: Record<ToneName, string> = {
-  good: colorsV2.goodInk,
-  fair: colorsV2.fairInk,
-  poor: colorsV2.poorInk,
-}
-
-/** A v2 card with a title and an optional link to a tab. */
-function Card({
+function Section({
   title,
-  aside = null,
   link,
-  gap,
-  grow = false,
+  grow,
   children,
 }: {
   title: string
-  /** A note beside the title, where a line of its own would cost the card a row. */
-  aside?: string | null
   link: { label: string; onOpen: () => void } | null
-  gap: number
-  grow?: boolean
+  grow: boolean
   children: ReactNode
 }) {
   return (
-    <section style={{ ...cardV2, ...stack(gap), ...(grow ? { flex: '1 1 auto' } : {}) }}>
+    <section style={{ ...stack(spacing.listGap), padding: `0 ${spacing.tight}px`, ...(grow ? { flex: '1 1 auto' } : {}) }}>
       <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
         <h2 style={typeV2.cardTitle}>{title}</h2>
-        {aside === null ? null : <span style={{ ...typeV2.note, flex: '1 1 auto', minWidth: 0 }}>{aside}</span>}
         {link === null ? null : (
           <button type="button" onClick={link.onOpen} style={{ ...bareButton, width: 'auto', flex: '0 0 auto', whiteSpace: 'nowrap', ...typeV2.cardLink }}>
             {link.label} ›
@@ -114,145 +89,106 @@ function Card({
   )
 }
 
-function HourCell({ cell, showReading }: { cell: TodayCell; showReading: boolean }) {
-  const friction = cell.reading?.friction ?? null
-  return (
-    <div
-      style={{
-        ...stack(spacing.tight),
-        flex: '1 1 0',
-        minWidth: 0,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: colorsV2.raised,
-        borderRadius: `${radius.card}px`,
-        padding: `${spacing.listGapSm}px ${spacing.tight}px`,
-      }}
-    >
-      <span style={{ ...row(spacing.tight), alignItems: 'baseline' }}>
-        <span style={typeV2.cellHour}>{cell.hourLabel}</span>
-        <span style={typeV2.cellFigure}>{formatTempDeg(cell.tempC)}</span>
-      </span>
-      {/*
-        The friction word, never its 0-1 factor (the magnitude fence). An hour
-        the model did not read is dashed: the strip is a row of like cells, and
-        one missing its word would read as a different kind of hour.
-      */}
-      {!showReading ? null : friction === null ? (
-        <span style={{ ...typeV2.cellWord, color: colorsV2.txtMuted }}>{EM_DASH}</span>
-      ) : (
-        <span style={{ ...typeV2.cellWord, color: TONE_INK[FRICTION_TONE[friction.level]] }}>
-          {FRICTION_LABELS[friction.level]}
-        </span>
-      )}
-    </div>
-  )
-}
-
-function TodayCard({ props }: { props: OverviewTabProps }) {
+function TodaySection({ props }: { props: OverviewTabProps }) {
+  const now = useNow()
   const { hourly, todayDate, isClimbingLocation } = props
-  const link = { label: 'Hourly', onOpen: props.onOpenHourly }
+  const fill = props.fill === true
 
   let body: ReactNode
-  let drawn = false
   if (hourly.isPending || (todayDate === null && hourly.data !== undefined)) {
-    body = <Skeleton height={TODAY_STRIP_H} />
+    body = <Skeleton height={CHART_H} />
   } else if (hourly.isError) {
     body = <InlineError message="Couldn't load the hour-by-hour forecast." onRetry={hourly.refetch} />
   } else if (hourly.data === undefined || todayDate === null) {
     return null
   } else {
-    const cells = todayCells(hourly.data, todayDate, isClimbingLocation)
-    drawn = cells.length > 0
+    const hours = todayChart(
+      hourly.data,
+      todayDate,
+      isClimbingLocation ? { severeAlertEvent: props.severeAlertEvent, alertsPending: props.alertsPending } : null,
+    )
     body =
-      cells.length === 0 ? (
+      hours.length === 0 ? (
         <p style={typeV2.body}>No hour-by-hour forecast for today.</p>
       ) : (
-        <>
-          <div style={{ ...row(spacing.listGapSm), alignItems: 'stretch', ...(props.fill === true ? { flex: '1 1 auto' } : {}) }}>
-            {cells.map((cell) => (
-              <HourCell key={cell.valid_at} cell={cell} showReading={isClimbingLocation} />
-            ))}
-          </div>
-        </>
+        <TodayChart hours={hours} nowMs={now} utcOffsetSeconds={hourly.data.utc_offset_seconds} fill={fill} />
       )
   }
 
   return (
-    // **The estimate note rides with the words**, in the title row — the hero
-    // above carries it too, but the hero's readings can fail while this strip
-    // draws. It also names the words as friction, not a verdict on the hour.
-    <Card title="Today" aside={isClimbingLocation && drawn ? FRICTION_ESTIMATE_NOTE : null} link={link} gap={spacing.listGap} grow={props.fill === true}>
+    <Section title="Today" link={{ label: 'Hourly', onOpen: props.onOpenHourly }} grow={fill}>
       {body}
-    </Card>
+    </Section>
   )
 }
 
-/**
- * One day as a tile, three abreast — the rows they replaced took a third of
- * the screen for three dates and three pills.
- */
-function DayTile({
+/** One day as a column. A button only when the Hourly charts can draw the day. */
+function DayColumn({
   day,
   todayDate,
-  isClimbingLocation,
+  chancePct,
+  first,
   onOpen,
 }: {
   day: NextDay
   todayDate: string
-  isClimbingLocation: boolean
+  chancePct: number | null
+  first: boolean
   onOpen: (() => void) | null
 }) {
-  // A tile opens that day's hours only when the charts can draw it — a day the
-  // ensemble never reached would open two empty charts.
-  return (
-    <DayRowShell
-      score={day.score}
-      onOpen={onOpen}
-      style={{
-        ...stack(spacing.tight),
-        flex: '1 1 0',
-        minWidth: 0,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: `${spacing.listGapSm}px ${spacing.tight}px`,
-      }}
-    >
-      <span style={typeV2.rowTitle}>{shortDate(day.local_date, todayDate)}</span>
-      {isClimbingLocation ? (
-        // Absent rather than dashed when there is no score: suppressed under an
-        // alert (the banner above says why), still loading, or past the run —
-        // none of them is a score of nothing.
-        day.score === null ? null : <ScorePill score={day.score} />
-      ) : (
-        <span style={{ ...typeV2.rowPill, color: colorsV2.txtMuted }}>
-          {/* Both ends or a dash: a range with one end missing reads as a typo. */}
-          {formatTempRangeF(day.lowC, day.highC)}
+  const content = (
+    <>
+      <span style={{ ...typeV2.rowTitle, fontSize: '15px' }}>{shortDate(day.local_date, todayDate)}</span>
+      <span style={{ ...typeV2.dayChipStrong, fontSize: '13px' }}>{formatTempRangeF(day.lowC, day.highC)}</span>
+      {chancePct === null ? null : (
+        <span style={{ ...typeV2.dayChip, color: colorsV2.rain }}>{formatHumidity(chancePct)} rain</span>
+      )}
+      {/*
+        Absent rather than dashed when there is no score: suppressed under an
+        alert (the banner above says why), still loading, a city, or past the
+        run — none of them is a score of nothing.
+      */}
+      {day.score === null ? null : (
+        <span style={{ ...row(spacing.listGapSm), alignItems: 'baseline', marginTop: `${spacing.tight}px` }}>
+          <span style={{ ...typeV2.tileFigure, fontSize: '24px', color: scoreRampColor(day.score) }}>{day.score}</span>
+          <span style={typeV2.legendSm}>score</span>
         </span>
       )}
-    </DayRowShell>
+      {day.window === null ? null : (
+        <span style={typeV2.legendSm}>{day.window === 'None' ? 'No good hours' : `Good ${day.window.charAt(0).toLowerCase()}${day.window.slice(1)}`}</span>
+      )}
+    </>
+  )
+  const style = {
+    ...stack(spacing.micro),
+    flex: '1 1 0',
+    minWidth: 0,
+    ...(first ? {} : { borderLeft: `1px solid ${colorsV2.raised}`, paddingLeft: `${spacing.cellPad}px` }),
+  }
+  return onOpen === null ? (
+    <div style={style}>{content}</div>
+  ) : (
+    <button type="button" onClick={onOpen} style={{ ...bareButton, ...style, width: 'auto' }}>
+      {content}
+    </button>
   )
 }
 
 function Fact({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div style={{ ...stack(spacing.micro), flex: '1 1 auto', minWidth: 0 }}>
-      <span style={typeV2.factLabel}>{label}</span>
-      <span style={{ ...typeV2.factValue, whiteSpace: 'nowrap', ...(color === undefined ? {} : { color }) }}>{value}</span>
+      <span style={{ ...typeV2.factLabel, fontSize: '13px' }}>{label}</span>
+      <span style={{ ...typeV2.factValue, fontSize: '13px', whiteSpace: 'nowrap', ...(color === undefined ? {} : { color }) }}>{value}</span>
     </div>
   )
 }
 
-/**
- * The next days as tiles, then rain — one card, because each alone was a card
- * frame around a single row.
- */
-function ComingUpCard({ props }: { props: OverviewTabProps }) {
+function ComingUpSection({ props }: { props: OverviewTabProps }) {
   const now = useNow()
   const { forecast, todayDate, hourly, isClimbingLocation, recentPrecip } = props
 
-  // Pending and failed are the hero's to report: the tiles share its forecast
-  // query, and a second copy of the same error reads as two failures.
+  // Pending and failed are the hero's to report: the columns share its
+  // forecast query, and a second copy of the same error reads as two failures.
   const days =
     forecast.data === undefined || todayDate === null
       ? []
@@ -291,42 +227,46 @@ function ComingUpCard({ props }: { props: OverviewTabProps }) {
   if (days.length === 0 && !hasRain) return null
 
   return (
-    <Card
+    <Section
       title={days.length === 0 ? 'Rain' : `Next ${days.length} ${days.length === 1 ? 'day' : 'days'}`}
       link={days.length === 0 ? null : { label: 'Daily', onOpen: props.onOpenDaily }}
-      gap={spacing.listGap}
-      grow={props.fill === true}
+      grow={false}
     >
       {days.length === 0 || todayDate === null ? null : (
-        <div style={{ ...row(spacing.listGapSm), alignItems: 'stretch', ...(props.fill === true ? { flex: '1 1 auto' } : {}) }}>
-          {days.map((day) => (
-            <DayTile
+        <div style={{ ...row(0), alignItems: 'stretch' }}>
+          {days.map((day, i) => (
+            <DayColumn
               key={day.local_date}
               day={day}
               todayDate={todayDate}
-              isClimbingLocation={isClimbingLocation}
+              chancePct={hourly.data === undefined ? null : dayChance(hourly.data.hours, day.local_date)}
+              first={i === 0}
               onOpen={props.drawableDates?.has(day.local_date) === true ? () => props.onOpenDay(day.local_date) : null}
             />
           ))}
         </div>
       )}
       {!hasRain ? null : (
-        <div style={{ ...row(spacing.cellPad), alignItems: 'flex-start' }}>
-          {lastRain === null ? null : <Fact label="Last real rain" value={lastRain} />}
-          {nextValue === null ? null : (
-            <Fact label="Next likely rain" value={nextValue.text} {...(nextValue.color === undefined ? {} : { color: nextValue.color })} />
-          )}
-        </div>
+        <>
+          {days.length === 0 ? null : <div aria-hidden style={hairline} />}
+          <div style={{ ...row(spacing.cellPad), alignItems: 'flex-start' }}>
+            {lastRain === null ? null : <Fact label="Last real rain" value={lastRain} />}
+            {nextValue === null ? null : (
+              <Fact label="Next likely rain" value={nextValue.text} {...(nextValue.color === undefined ? {} : { color: nextValue.color })} />
+            )}
+          </div>
+        </>
       )}
-    </Card>
+    </Section>
   )
 }
 
 export function OverviewTab(props: OverviewTabProps) {
   return (
     <>
-      <TodayCard props={props} />
-      <ComingUpCard props={props} />
+      <TodaySection props={props} />
+      <div aria-hidden style={hairline} />
+      <ComingUpSection props={props} />
     </>
   )
 }

@@ -9,8 +9,8 @@ import {
 import { formatSince, type PrecipSummary } from './precipHistory.js'
 
 /**
- * The Overview tab's logic, apart from its markup: which hours the Today strip
- * shows, which days "Next 3 days" lists and what score each carries, and when
+ * The Overview tab's logic, apart from its markup: which hours the Today chart
+ * draws and what score each carries, which days "Next 3 days" lists, and when
  * rain is next likely. Pure, so each rule is reachable by a test — the Mini
  * App's tests have no DOM.
  *
@@ -21,20 +21,30 @@ import { formatSince, type PrecipSummary } from './precipHistory.js'
  */
 
 /**
- * The Today strip's hours, on the location's clock: morning to evening every
- * three hours, the Figma frame's five. Fixed rather than "the next five hours"
- * so the strip reads as the shape of the day, and a reader at 13:00 still sees
- * the morning they may have missed.
+ * The Today chart's span on the location's clock, 06:00 to 22:00 inclusive.
+ * Fixed rather than "from now", so the chart reads as the shape of the day and
+ * a reader at 15:00 still sees the morning they missed, drawn as past.
  */
-export const TODAY_STRIP_HOURS = [9, 12, 15, 18, 21] as const
+export const TODAY_CHART_FROM = 6
+export const TODAY_CHART_TO = 22
 
-export type TodayCell = {
+/** One hour of the Today chart. Every figure is nullable: a gap is drawn as a gap. */
+export type ChartHour = {
   valid_at: string
-  /** `09`, on the location's clock. */
-  hourLabel: string
+  /** The hour on the location's clock, 6-22. */
+  hour: number
+  /** The deterministic run's, so it and the dew point are one model's pair. */
   tempC: number | null
-  /** Joined by instant from `readings.hours`. `null` for a city, or an hour the model did not read. */
-  reading: HourlyReading | null
+  dewC: number | null
+  /** Share of ensemble members wet, 0-100. `null` is unknown, never 0%. */
+  chancePct: number | null
+  windKmh: number | null
+  /**
+   * The hour's Crag A score, **suppressed exactly as every surface suppresses
+   * it** (`summarizeReadings`): `null` under a Severe+ alert, while alerts
+   * load, for a city, and for an hour the model did not read.
+   */
+  score: number | null
 }
 
 /** The location-clock hour of a UTC instant, or `null` when either input cannot be read. */
@@ -45,42 +55,63 @@ function localHour(validAt: string, utcOffsetSeconds: number): number | null {
 }
 
 /**
- * The strip's cells for `todayDate`.
+ * Today's hours for the chart, 06:00-22:00, oldest first.
  *
- * **An hour the run does not carry is left out, not dashed.** The strip is a
- * sample of the day, and five cells with two empty reads as a broken
- * instrument; three cells reads as a run that starts later. A carried hour
- * whose temperature is null keeps its cell, and the renderer dashes it.
- *
- * `readings` is `undefined` for a city and for an API older than the field;
- * both give cells with no reading rather than an invented one.
+ * `alerts` is `null` for a city and the preview — every hour then has no score
+ * rather than an invented one. Readings join the hours **on `valid_at`**,
+ * never on position, and an API older than `readings` scores nothing.
  */
-export function todayCells(
+export function todayChart(
   series: HourlySeries,
   todayDate: string,
-  withReadings: boolean,
-): TodayCell[] {
+  alerts: { severeAlertEvent: string | null; alertsPending: boolean } | null,
+): ChartHour[] {
   const byInstant = new Map<string, HourlyReading>()
-  if (withReadings) {
+  if (alerts !== null) {
     for (const r of series.readings?.hours ?? []) byInstant.set(r.valid_at, r)
   }
-
-  const cells: TodayCell[] = []
-  for (const wanted of TODAY_STRIP_HOURS) {
-    const hour: HourlySample | undefined = series.hours.find(
-      (h) => h.local_date === todayDate && localHour(h.valid_at, series.utc_offset_seconds) === wanted,
-    )
-    if (hour === undefined) continue
-    cells.push({
-      valid_at: hour.valid_at,
-      hourLabel: String(wanted).padStart(2, '0'),
-      tempC: hour.temp_c,
-      reading: byInstant.get(hour.valid_at) ?? null,
+  const out: ChartHour[] = []
+  for (const h of series.hours) {
+    if (h.local_date !== todayDate) continue
+    const hour = localHour(h.valid_at, series.utc_offset_seconds)
+    if (hour === null || hour < TODAY_CHART_FROM || hour > TODAY_CHART_TO) continue
+    const reading = byInstant.get(h.valid_at) ?? null
+    const score =
+      alerts === null || reading === null
+        ? null
+        : summarizeReadings({
+            reading,
+            window: null,
+            utcOffsetSeconds: series.utc_offset_seconds,
+            severeAlertEvent: alerts.severeAlertEvent,
+            alertsPending: alerts.alertsPending,
+            unavailableReason: null,
+          }).score
+    out.push({
+      valid_at: h.valid_at,
+      hour,
+      tempC: h.temp_c,
+      dewC: h.dewpoint_c,
+      chancePct: h.precip_chance_pct,
+      windKmh: h.wind_kmh,
+      score,
     })
   }
-  return cells
+  return out
 }
 
+/**
+ * A day's highest hourly chance of rain, the share of ensemble members wet.
+ * `null` when no hour of that day carries a chance: unknown, never "0%".
+ */
+export function dayChance(hours: readonly HourlySample[], localDate: string): number | null {
+  let max: number | null = null
+  for (const h of hours) {
+    if (h.local_date !== localDate || h.precip_chance_pct === null) continue
+    max = max === null ? h.precip_chance_pct : Math.max(max, h.precip_chance_pct)
+  }
+  return max
+}
 export type NextDay = {
   local_date: string
   /** `Thursday · 9/24`. */
@@ -93,6 +124,8 @@ export type NextDay = {
    * the model did not reach, under a Severe+ alert, and while alerts load.
    */
   score: number | null
+  /** The day's good-hours span, `5am–11pm` or `None`. `null` where the day has no readings. */
+  window: string | null
 }
 
 /**
@@ -153,17 +186,18 @@ export type DayReadings = {
  * alerts query still in flight drops the number here as it does on the hero.
  * Joined on the date, never on position.
  */
-function dayScore(localDate: string, readings: DayReadings | null): number | null {
+function dayReading(localDate: string, readings: DayReadings | null): { score: number | null; window: string | null } {
   const day = readings?.days.find((d) => d.local_date === localDate) ?? null
-  if (readings === null || day === null) return null
-  return summarizeReadings({
+  if (readings === null || day === null) return { score: null, window: null }
+  const summary = summarizeReadings({
     reading: day.best,
     window: day.window,
     utcOffsetSeconds: readings.utcOffsetSeconds,
     severeAlertEvent: readings.severeAlertEvent,
     alertsPending: readings.alertsPending,
     unavailableReason: null,
-  }).score
+  })
+  return { score: summary.score, window: summary.window?.value ?? null }
 }
 
 /** Forecast rows, in the order given, as titled days carrying their suppressed score. */
@@ -175,13 +209,14 @@ export function scoredDays(
   for (const row of rows) {
     const title = dayTitle(row.forecast_date)
     if (title === null) continue
-    const score = dayScore(row.forecast_date, readings)
+    const { score, window } = dayReading(row.forecast_date, readings)
     out.push({
       local_date: row.forecast_date,
       title,
       lowC: row.temp_c_min,
       highC: row.temp_c_max,
       score,
+      window,
     })
   }
   return out
