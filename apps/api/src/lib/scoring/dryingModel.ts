@@ -66,8 +66,8 @@ export const MIN_HOURS: Record<RockType, number> = {
   limestone_dense: 4, // [M/C] surface only; seepage separate
   dolomite: 6, // [M/I] pocket water
   carbonate_cherty: 6, // [I] two materials in one wall
-  sandstone_quartz_arenite: 6, // [M] silica-cemented
-  syenite_porous: 12, // [C] breaks the igneous rule
+  sandstone_quartz_arenite: 24, // [C] Robinson Park, Fontainebleau: 24-48 h local rule (owner 2026-09-29)
+  syenite_porous: 24, // [C] Hueco Tanks: no climbing within ~24 h of rain
   basalt: 12, // not recorded → basalt_vesicular
   basalt_vesicular: 12, // [M] 30-50% porosity
   sandstone_ferruginous: 12, // [I] Corbin-type
@@ -96,7 +96,7 @@ export const MAX_HOURS: Record<RockType, number> = {
   limestone_dense: 18,
   dolomite: 24,
   carbonate_cherty: 24,
-  sandstone_quartz_arenite: 24,
+  sandstone_quartz_arenite: 48,
   syenite_porous: 48,
   basalt: 48,
   basalt_vesicular: 48,
