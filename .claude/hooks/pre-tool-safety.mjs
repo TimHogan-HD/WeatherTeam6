@@ -23,6 +23,7 @@
 import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 import { currentBranch, defaultBranch, isGitRepo } from './lib/gitState.mjs'
+import { REVIEW_HEADING, mergeRequest, reviewState } from './lib/reviewGate.mjs'
 
 /**
  * The branch checked out in `dir` and the repository's default branch, or
@@ -299,6 +300,32 @@ if (tool === 'Bash' || tool === 'PowerShell') {
         `The commit would land on "${branch}", the default branch (in ${dir}). Work lands ` +
           `through a branch and a PR — create one first:  git checkout -b <type>/<name>\n` +
           'If this is genuinely a direct-to-default commit the user asked for, they can run it themselves.',
+      )
+    }
+  }
+}
+
+/* ---------------------------------------------------------------- *
+ * 6. Merging a PR the CI reviewer has not reviewed at its head commit.
+ *    See lib/reviewGate.mjs. Stands down when GitHub cannot be read.
+ * ---------------------------------------------------------------- */
+{
+  let target = null
+  if (tool === 'Bash' || tool === 'PowerShell') target = mergeRequest(command)
+  else if (/merge_pull_request$/.test(tool)) {
+    const n = Number(toolInput.pullNumber ?? toolInput.pull_number)
+    target = { pr: Number.isFinite(n) && n > 0 ? n : null }
+  }
+  if (target) {
+    const state = reviewState(target.pr)
+    if (state && !state.reviewed && !state.exempt) {
+      block(
+        `PR #${state.number} has no "${REVIEW_HEADING}" comment for its head commit ` +
+          `${String(state.headSha).slice(0, 7)}. Merging waits for the CI reviewer.\n` +
+          '  - still running: check once with `gh pr checks`, then end the turn and say so\n' +
+          '  - finished without posting: rerun it — `gh run list --workflow "Claude Review" ' +
+          '--limit 3`, then `gh run rerun <id>`\n' +
+          'If the reviewer cannot run at all, tell the user; they can merge by hand.',
       )
     }
   }

@@ -15,6 +15,7 @@
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { mergeRequest, reviewCoversHead } from './lib/reviewGate.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const PRE = join(here, 'pre-tool-safety.mjs')
@@ -124,7 +125,7 @@ const cases = [
   // repo happens to be on — they live in `gitScenarios` with a controlled repo.
 
   // ---- post-push --------------------------------------------------------
-  ['gh pr create asks for review', POST, bash('gh pr create --fill'), ALLOW, 'code-review high'],
+  ['gh pr create points at the review gate', POST, bash('gh pr create --fill'), ALLOW, 'Claude review'],
   ['git push alone is silent (CI re-reviews pushes)', POST, bash('git push -u origin HEAD'), ALLOW],
   ['unrelated command is silent', POST, bash('npm run test'), ALLOW],
 ]
@@ -182,6 +183,38 @@ for (const [name, hook, payload, expectedCode, fragment] of cases) {
     if (!codeOk) console.log(`          expected exit ${expectedCode}, got ${result.code}`)
     if (!fragmentOk) console.log(`          expected output to contain: ${fragment}`)
     if (!silenceOk) console.log(`          expected no output, got: ${output.trim()}`)
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * The merge gate's pure parts. The gh-backed part stands down offline, which
+ * the scratch-repo scenario below asserts; the live path needs GitHub and is
+ * exercised by merging a real PR.
+ * ------------------------------------------------------------------ */
+const SHA = 'a'.repeat(40)
+const bot = (body, login = 'claude[bot]') => ({ user: { login }, body })
+const gateCases = [
+  ['merge: numbered', mergeRequest('gh pr merge 256 --squash --delete-branch'), { pr: 256 }],
+  ['merge: current branch', mergeRequest('gh pr merge --squash'), { pr: null }],
+  ['merge: quoted gh.exe path', mergeRequest('"/c/Program Files/GitHub CLI/gh.exe" pr merge 12 --squash'), { pr: 12 }],
+  ['merge: number after a later && is not the PR', mergeRequest('gh pr merge --squash && git pull origin 3'), { pr: null }],
+  ['merge: gh pr view is not a merge', mergeRequest('gh pr view 256'), null],
+  ['merge: git merge is not a PR merge', mergeRequest('git merge main'), null],
+  ['review: heading and head SHA covers', reviewCoversHead([bot(`## Claude review\nCommit: ${SHA}`)], SHA), true],
+  ['review: an earlier commit does not cover', reviewCoversHead([bot(`## Claude review\nCommit: ${'b'.repeat(40)}`)], SHA), false],
+  ['review: SHA without the heading does not cover', reviewCoversHead([bot(`Commit: ${SHA}`)], SHA), false],
+  ['review: a human cannot post the review', reviewCoversHead([bot(`## Claude review\nCommit: ${SHA}`, 'TimHogan-HD')], SHA), false],
+  ['review: the old plugin summary does not cover', reviewCoversHead([bot('## Code review\n\nNo issues found.')], SHA), false],
+  ['review: no head SHA covers nothing', reviewCoversHead([bot('## Claude review')], ''), false],
+]
+for (const [name, actual, expected] of gateCases) {
+  if (JSON.stringify(actual) === JSON.stringify(expected)) {
+    passes += 1
+    console.log(`  PASS  ${name}`)
+  } else {
+    failures += 1
+    console.log(`  FAIL  ${name}`)
+    console.log(`          expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`)
   }
 }
 
@@ -290,6 +323,14 @@ const gitScenarios = [
     {},
     BLOCK,
     'uncommitted changes',
+  ],
+  [
+    'PreToolUse: gh pr merge stands down when GitHub cannot be read',
+    (w) => g(w, 'checkout', '-b', 'feat/gate'),
+    PRE,
+    bash('gh pr merge 5 --squash --delete-branch'),
+    ALLOW,
+    null,
   ],
   [
     'Stop: unpushed commits on main block the turn',
@@ -691,7 +732,7 @@ for (const [name, setup, assertion] of sessionScenarios) {
   metaCoverageCount = registered.size === 0 ? 1 : registered.size
 }
 
-const total = cases.length + gitScenarios.length + sessionScenarios.length + metaCoverageCount
+const total = cases.length + gateCases.length + gitScenarios.length + sessionScenarios.length + metaCoverageCount
 console.log('')
 console.log(`  ${passes} passed, ${failures} failed, ${total} total`)
 
