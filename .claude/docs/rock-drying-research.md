@@ -2146,39 +2146,42 @@ on a vertical wall, before the existing angle/wind/humidity modifiers.
 > after days of rain, Squamish cracks), steepness that keeps rain off entirely (Maple, RRG,
 > Frankenjura), and freeze–thaw loosening holds (Maple, Red Wing). All three are §5 modifiers,
 > not rock-type rows.
-> **Rock-tab "Did you know" facts — sources (2026-09-29).** Each fact ties climbing to the
-> rock and was checked against the page below, not a search summary. Four drafts failed that
-> check and were cut: Golden Cliffs is shoshonite, not basalt; the Sad Boulders "friable after
-> rain" line, the Font polish quote and the Needles crystal line had no page that said them.
+> **Rock-tab formation copy — sources (2026-09-30).** The owner replaced the "Did you know"
+> fact with how each rock formed and how that made its holds (`formed` and `holds` in
+> `rockGuide.ts`). Every sentence was checked against the pages below, opened and read, and
+> says no more than they do. Where no page tied a rock to its holds, the copy says what the
+> rock does (anorthosite: strong and abrasive; cherty carbonate: chert outlasts the rock
+> around it) and does not guess at hold shapes. Search-result summaries were not used. The
+> earlier fact sources are in git history before this date.
 >
-> | Row | Source |
+> | Row | Sources |
 > | --- | --- |
-> | `granite` | [source](https://en.wikipedia.org/wiki/The_Nose_(El_Capitan)) |
-> | `granite_weathered` | [source](https://en.wikipedia.org/wiki/The_Buttermilks) |
-> | `anorthosite` | [source](https://www.mountainproject.com/area/105814854/carlton-peak) |
-> | `syenite_porous` | [source](https://www.bluelizardclimbingandyoga.com/hueco/faq) |
-> | `rhyolite` | [source](https://en.wikipedia.org/wiki/Palisade_Head) |
-> | `basalt_dense` | [source](https://files.dnr.state.mn.us/lands_minerals/mpes_projects/reports/report336_5.pdf) |
-> | `basalt` | [source](https://www.mountainproject.com/area/105868955/taos-area) |
-> | `basalt_vesicular` | [source](https://www.mountainproject.com/area/105868955/taos-area) |
-> | `tuff_welded` | [source](https://www.mountainproject.com/forum/topic/119059755/climbing-after-rain-in-bend-oregon) |
-> | `tuff_nonwelded` | [source](https://bishopvisitor.com/happy-and-sad-boulders-climbing/) |
-> | `volcanic_breccia` | [source](https://thedihedral.com/2019/11/02/caution-wet-rock/) |
-> | `quartzite` | [source](https://www.climbing.com/places/lake-effect/) |
-> | `slate` | [source](https://climbing-history.org/climb/699/the-quarryman) |
-> | `gneiss_schist` | [source](https://www.mountainproject.com/forum/topic/114801189/rumney-after-rain) |
-> | `sandstone` | [source](https://www.mountainproject.com/area/105716763/indian-creek) |
-> | `sandstone_quartz_arenite` | [source](https://en.wikipedia.org/wiki/Fontainebleau_rock_climbing) |
-> | `sandstone_ferruginous` | [source](https://www.earthmagazine.org/article/travels-geology-rocks-and-climbing-kentuckys-red-river-gorge/) |
-> | `sandstone_arkose` | rock-drying-research.md §13.1 |
-> | `sandstone_eolian` | [source](https://www.redrocksguidebook.com/red-rock-guide-excerpts.html) |
-> | `sandstone_soft` | [source](https://en.wikipedia.org/wiki/Rudolf_Fehrmann) |
-> | `limestone` | [source](https://www.mountainproject.com/area/108781888/sheltered-crags) |
-> | `limestone_dense` | [source](https://en.wikipedia.org/wiki/Realization_(climb)) |
-> | `limestone_porous` | [source](https://www.lacrux.com/en/klettern/the-ultimate-trick-for-drying-tufas-and-climbing-holds/) |
-> | `dolomite` | [source](https://www.mnclimbers.org/bolting-1) |
-> | `carbonate_cherty` | [source](https://www.mountainproject.com/area/105812663/red-wing-aka-he-mni-can-barn-bluff) |
-> | `conglomerate` | [source](https://www.mountainproject.com/forum/topic/124188968/avoid-wet-conglomerate) |
+> | `granite` | [1](https://en.wikipedia.org/wiki/Granite) · [2](https://avilaclimbingco.com/blogs/blogs/climbing-rock-types-for-climbing-guide) |
+> | `granite_weathered` | [1](https://en.wikipedia.org/wiki/Granite) |
+> | `anorthosite` | [1](https://en.wikipedia.org/wiki/Anorthosite) · [2](https://www.mountainproject.com/area/105814854/carlton-peak) |
+> | `syenite_porous` | [1](https://www.texasbeyondhistory.net/hueco/setting.html) |
+> | `rhyolite` | [1](https://en.wikipedia.org/wiki/Rhyolite) · [2](https://en.wikipedia.org/wiki/Palisade_Head) |
+> | `basalt_dense` | [1](https://en.wikipedia.org/wiki/Columnar_jointing) · [2](https://avilaclimbingco.com/blogs/blogs/climbing-rock-types-for-climbing-guide) |
+> | `basalt` | [1](https://en.wikipedia.org/wiki/Columnar_jointing) · [2](https://avilaclimbingco.com/blogs/blogs/climbing-rock-types-for-climbing-guide) |
+> | `basalt_vesicular` | [1](https://en.wikipedia.org/wiki/Vesicular_texture) |
+> | `tuff_welded` | [1](https://en.wikipedia.org/wiki/Tuff) · [2](https://geologictimepics.com/2019/05/08/smith-rock-state-park-great-geology-at-the-edge-of-oregons-largest-caldera/) |
+> | `tuff_nonwelded` | [1](https://en.wikipedia.org/wiki/Tuff) · [2](https://bishopvisitor.com/happy-and-sad-boulders-climbing/) |
+> | `volcanic_breccia` | [1](https://www.nps.gov/pinn/learn/nature/geologicformations.htm) · [2](https://www.nps.gov/pinn/planyourvisit/climb.htm) |
+> | `quartzite` | [1](https://en.wikipedia.org/wiki/Quartzite) · [2](https://avilaclimbingco.com/blogs/blogs/climbing-rock-types-for-climbing-guide) |
+> | `slate` | [1](http://confusedgeologist.blogspot.com/2016/09/climbing-and-cleavage-geological.html) · [2](https://www.mountainproject.com/area/107183457/llanberis-slate-quarries) |
+> | `gneiss_schist` | [1](https://en.wikipedia.org/wiki/Gneiss) · [2](https://en.wikipedia.org/wiki/Schist) |
+> | `sandstone` | [1](https://en.wikipedia.org/wiki/Sandstone) · [2](https://en.wikipedia.org/wiki/Elbe_Sandstone_Mountains) · [3](https://en.wikipedia.org/wiki/Wingate_Sandstone) |
+> | `sandstone_quartz_arenite` | [1](https://en.wikipedia.org/wiki/Sandstone) · [2](https://en.wikipedia.org/wiki/Fontainebleau_rock_climbing) |
+> | `sandstone_ferruginous` | [1](https://en.wikipedia.org/wiki/Liesegang_rings_(geology)) · [2](https://www.earthmagazine.org/article/travels-geology-rocks-and-climbing-kentuckys-red-river-gorge/) |
+> | `sandstone_arkose` | [1](https://en.wikipedia.org/wiki/Sandstone) · [2](https://lithosphere-expeditions.co.uk/millstone-grit-gritstone-edges/) |
+> | `sandstone_eolian` | [1](https://en.wikipedia.org/wiki/Navajo_Sandstone) · [2](https://www.redrocksguidebook.com/red-rock-guide-excerpts.html) |
+> | `sandstone_soft` | [1](https://en.wikipedia.org/wiki/Elbe_Sandstone_Mountains) |
+> | `limestone` | [1](https://en.wikipedia.org/wiki/Limestone) · [2](https://avilaclimbingco.com/blogs/blogs/climbing-rock-types-for-climbing-guide) |
+> | `limestone_dense` | [1](https://en.wikipedia.org/wiki/Limestone) |
+> | `limestone_porous` | [1](https://en.wikipedia.org/wiki/Limestone) · [2](https://en.wikipedia.org/wiki/Tufa) |
+> | `dolomite` | [1](https://en.wikipedia.org/wiki/Dolomite_(rock)) · [2](https://www.mnclimbers.org/bolting-1) |
+> | `carbonate_cherty` | [1](https://en.wikipedia.org/wiki/Chert) |
+> | `conglomerate` | [1](https://en.wikipedia.org/wiki/Conglomerate_(geology)) · [2](https://www.mountainproject.com/forum/topic/124188968/avoid-wet-conglomerate) |
 
 Four companion changes that the research says matter more than the table itself:
 

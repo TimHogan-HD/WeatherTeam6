@@ -13,17 +13,18 @@ import {
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { cardV2, row, stack, wellV2 } from '../theme/styles.js'
-import { BulbIcon, CheckIcon, CrossIcon, RainIcon, SunIcon } from './Icons.js'
+import { CheckIcon, CrossIcon, RainIcon, SunIcon } from './Icons.js'
 
 /**
  * The Rock tab's field guide to the crag's rock: a textured header naming it,
  * two gauges (how long rain keeps it off-limits, what water does to its
- * strength), how it climbs, rain and sun, one fun fact, and how to look after
- * it. The words are `rockGuide` in `packages/types`.
+ * strength), how it formed and made its holds, rain and sun, and how to look
+ * after it. The words are `rockGuide` in `packages/types`.
  *
  * **It is about the rock type, not a reading of this crag**, and the last line
- * says so. The live drying verdict is the drying card the route places beside
- * it; nothing here changes with the weather.
+ * says so. Nothing here changes with the weather; the live drying reading is
+ * the Overview's and the Precip tab's (owner, 2026-09-30, took the drying card
+ * off this tab).
  */
 
 // ─────────────────────────────────────────────
@@ -299,6 +300,16 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
+/** A labelled paragraph: a small caps label over one or two lines of copy. */
+function Fact({ label, text }: { label: string; text: string }) {
+  return (
+    <div style={stack(spacing.micro)}>
+      <span style={{ ...typeV2.gaugeLabel, color: colorsV2.txtMuted }}>{label}</span>
+      <p style={typeV2.body}>{text}</p>
+    </div>
+  )
+}
+
 /** An icon in a small round well, heading one line of copy. */
 function IconLine({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
   return (
@@ -382,25 +393,23 @@ function CareList({ items, kind }: { items: readonly string[]; kind: 'do' | 'don
 export type RockTabProps = {
   /** The saved row's rock type; `null` when nothing was recorded. */
   rockType: Parameters<typeof rockGuide>[0] | null
-  /** The live drying card, placed under the header. */
-  drying: ReactNode
   /** The location's facts — aspect, angle, coordinates — placed last. */
   identity: ReactNode
 }
 
-export function RockTab({ rockType, drying, identity }: RockTabProps) {
+export function RockTab({ rockType, identity }: RockTabProps) {
   const guide = rockType === null ? null : rockGuide(rockType)
   const name = guide === null || rockType === null ? 'Rock type not recorded' : rockTypeLabel(rockType)
-  const swatch = guide === null ? null : rockSwatchV2[guide.swatch]
 
   return (
     <>
       <Hero name={name} guide={guide} />
-      {drying}
 
       {guide === null ? null : (
         <>
-          <Card title="How it climbs">
+          <Card title="How it formed and climbs">
+            <Fact label="How it formed" text={guide.formed} />
+            <Fact label="Where the holds come from" text={guide.holds} />
             <div style={{ ...row(spacing.listGapSm), flexWrap: 'wrap' }}>
               {guide.styles.map((style) => (
                 <span
@@ -422,21 +431,6 @@ export function RockTab({ rockType, drying, identity }: RockTabProps) {
             <IconLine icon={<RainIcon color={colorsV2.rain} />} title="Rain" text={guide.rain} />
             <IconLine icon={<SunIcon color={colors.sun} />} title="Sun" text={guide.sun} />
           </Card>
-
-          <section
-            style={{
-              ...cardV2,
-              ...stack(spacing.listGap),
-              borderLeftWidth: `${spacing.tight}px`,
-              borderLeftColor: swatch?.grain ?? colorsV2.line,
-            }}
-          >
-            <span style={{ ...row(spacing.listGapSm), ...typeV2.kicker, color: colorsV2.txtMuted }}>
-              <BulbIcon color={colors.sun} />
-              Did you know?
-            </span>
-            <p style={{ ...typeV2.body, color: colorsV2.txt1 }}>{guide.funFact}</p>
-          </section>
 
           <Card title="Rock care">
             <CareList items={guide.care} kind="do" />

@@ -4,7 +4,6 @@ import type {
   ConditionsScore,
   ForecastSnapshot,
   HourlyReading,
-  RecentPrecip,
   WeatherAlert,
 } from '@weatherteam6/types'
 import { DetailView } from './DetailView.js'
@@ -145,23 +144,6 @@ function alertsOk(data: WeatherAlert[]) {
   return { data, isPending: false, isError: false }
 }
 
-/** A settled five-day rain window with one wet hour in it. */
-function recentOk(): { data: RecentPrecip; isPending: boolean; isError: boolean; refetch: () => void } {
-  return {
-    data: {
-      hours: [
-        { valid_at_local: '2026-08-23T14:00', precip_mm: 3.2 },
-        { valid_at_local: '2026-08-23T15:00', precip_mm: 0 },
-      ],
-      utc_offset_seconds: -7 * 3600,
-      from_date: '2026-08-20',
-    },
-    isPending: false,
-    isError: false,
-    refetch: () => {},
-  }
-}
-
 function render(node: Parameters<typeof renderToStaticMarkup>[0]): string {
   return renderToStaticMarkup(node)
 }
@@ -173,7 +155,6 @@ describe('DetailView — a climbing location', () => {
     const html = render(
       <DetailView
         isClimbingLocation
-        asosStation="KLAS"
         forecast={forecast}
         alerts={alertsOk([])}
         conditions={ok(redRockScore())}
@@ -201,7 +182,6 @@ describe('DetailView — a climbing location', () => {
     const html = render(
       <DetailView
         isClimbingLocation
-        asosStation="KLAS"
         forecast={forecast}
         alerts={alertsOk([])}
         conditions={ok(redRockScore())}
@@ -219,7 +199,6 @@ describe('DetailView — a climbing location', () => {
     const html = render(
       <DetailView
         isClimbingLocation
-        asosStation="KLAS"
         forecast={forecast}
         alerts={alertsOk([])}
         conditions={ok(redRockScore())}
@@ -233,7 +212,6 @@ describe('DetailView — a climbing location', () => {
     const html = render(
       <DetailView
         isClimbingLocation
-        asosStation="KLAS"
         forecast={forecast}
         alerts={alertsOk([])}
         conditions={ok(redRockScore())}
@@ -246,7 +224,6 @@ describe('DetailView — a climbing location', () => {
     const html = render(
       <DetailView
         isClimbingLocation
-        asosStation="KLAS"
         forecast={forecast}
         alerts={alertsOk([heatWarning])}
         conditions={ok(redRockScore())}
@@ -271,7 +248,6 @@ describe('DetailView — a climbing location', () => {
     const html = render(
       <DetailView
         isClimbingLocation
-        asosStation="KLAS"
         forecast={forecast}
         alerts={{ data: undefined, isPending: true, isError: false }}
         conditions={ok(redRockScore())}
@@ -287,7 +263,6 @@ describe('DetailView — a climbing location', () => {
     const html = render(
       <DetailView
         isClimbingLocation
-        asosStation="KLAS"
         forecast={forecast}
         alerts={{ data: undefined, isPending: false, isError: true }}
         conditions={ok(redRockScore())}
@@ -304,7 +279,6 @@ describe('DetailView — a climbing location', () => {
     const html = render(
       <DetailView
         isClimbingLocation
-        asosStation="KLAS"
         forecast={forecast}
         alerts={alertsOk([heatWarning])}
         conditions={ok(redRockScore())}
@@ -313,76 +287,16 @@ describe('DetailView — a climbing location', () => {
     expect(html).not.toMatch(/go climb|don't climb|looks great|good to go/i)
   })
 
-  it('caps hours since rain rather than printing the 720-hour sentinel', () => {
-    const base = redRockScore()
-    const breakdown = base.score_breakdown
-    if (breakdown === null) throw new Error('fixture must carry a breakdown')
-    const html = render(
-      <DetailView
-        isClimbingLocation
-        asosStation="KLAS"
-        forecast={forecast}
-        alerts={alertsOk([])}
-        recentPrecip={recentOk()}
-        conditions={ok({
-          ...base,
-          score_breakdown: {
-            ...breakdown,
-            drying: { ...breakdown.drying, hours_since_rain: 720 },
-          },
-        })}
-      />,
-    )
-    expect(html).toContain('over 30 days ago')
-    expect(html).not.toContain('720')
-  })
-
-  it('still shows the rain history when the forecast failed to load', () => {
-    // Sections fail independently (§5). A forecast request that died says
-    // nothing about whether it rained on Sunday, and the drying card reads
-    // neither the forecast nor its query — nesting it under that branch would
-    // hide a measurement because an unrelated call failed.
-    const html = render(
-      <DetailView
-        isClimbingLocation
-        asosStation="KLAS"
-        forecast={{ data: undefined, isPending: false, isError: true, refetch: () => {} }}
-        alerts={alertsOk([])}
-        recentPrecip={recentOk()}
-        conditions={ok(redRockScore())}
-      />,
-    )
-    expect(html).toContain("Couldn&#x27;t load the forecast.")
-    expect(html).toContain('Last rain')
-  })
-
-  it('draws no drying card at all until the rain window is wired in', () => {
-    // The `/add` preview passes no `recentPrecip`. A card with an empty chart
-    // there would assert a window nobody asked for.
-    const html = render(
-      <DetailView
-        isClimbingLocation
-        asosStation="KLAS"
-        forecast={forecast}
-        alerts={alertsOk([])}
-        conditions={ok(redRockScore())}
-      />,
-    )
-    expect(html).not.toContain('Precipitation')
-  })
-
   it('names the sources the response reports, not a hardcoded list', () => {
     const html = render(
       <DetailView
         isClimbingLocation
-        asosStation="KLAS"
         forecast={forecast}
         alerts={alertsOk([heatWarning])}
         conditions={ok(redRockScore())}
       />,
     )
     expect(html).toContain('Open-Meteo · GFS, ECMWF')
-    expect(html).toContain('ACIS (KLAS)')
     expect(html).toContain('NWS')
   })
 
@@ -394,35 +308,18 @@ describe('DetailView — a climbing location', () => {
     const html = render(
       <DetailView
         isClimbingLocation
-        asosStation="KLAS"
         forecast={forecast}
         alerts={alertsOk([])}
         conditions={ok(redRockScore())}
       />,
     )
-    expect(html).toContain('ACIS (KLAS)')
     expect(html).not.toContain('NWS')
-  })
-
-  it('names the archive branch when the location has no ASOS station', () => {
-    const html = render(
-      <DetailView
-        isClimbingLocation
-        asosStation={null}
-        forecast={forecast}
-        alerts={alertsOk([])}
-        conditions={ok(redRockScore())}
-      />,
-    )
-    expect(html).toContain('Open-Meteo archive')
-    expect(html).not.toContain('ACIS')
   })
 
   it('treats a 200 with data: null as "no conditions today", not as an error', () => {
     const html = render(
       <DetailView
         isClimbingLocation
-        asosStation="KLAS"
         forecast={forecast}
         alerts={alertsOk([])}
         conditions={{ data: null, isPending: false, isError: false, refetch: () => {} }}
@@ -443,7 +340,6 @@ describe('DetailView — a non-climbing location', () => {
     const html = render(
       <DetailView
         isClimbingLocation={false}
-        asosStation={null}
         forecast={forecast}
         alerts={alertsOk([])}
         conditions={ok(redRockScore())}
@@ -455,19 +351,6 @@ describe('DetailView — a non-climbing location', () => {
     // Weather and alerts render exactly as they do for a crag.
     expect(html).toContain('High 103°')
   })
-
-  it('does not attribute a rainfall source it never used', () => {
-    const html = render(
-      <DetailView
-        isClimbingLocation={false}
-        asosStation="KLAS"
-        forecast={forecast}
-        alerts={alertsOk([])}
-        conditions={ok(redRockScore())}
-      />,
-    )
-    expect(html).not.toContain('ACIS')
-  })
 })
 
 describe('DetailView — unsaved preview', () => {
@@ -476,7 +359,6 @@ describe('DetailView — unsaved preview', () => {
       <DetailView
         unsaved
         isClimbingLocation
-        asosStation={null}
         forecast={ok([day(TODAY)])}
       />,
     )
@@ -492,7 +374,6 @@ describe('DetailView — partial and missing data', () => {
     const html = render(
       <DetailView
         isClimbingLocation={false}
-        asosStation={null}
         forecast={ok([
           day(TODAY, { temp_c_max: null, temp_c_min: null, wind_kmh_max: null, humidity_pct: null }),
         ])}
@@ -507,7 +388,6 @@ describe('DetailView — partial and missing data', () => {
     const html = render(
       <DetailView
         isClimbingLocation={false}
-        asosStation={null}
         forecast={ok([day(TOMORROW), day(DAY_AFTER)])}
       />,
     )
@@ -518,7 +398,6 @@ describe('DetailView — partial and missing data', () => {
     const html = render(
       <DetailView
         isClimbingLocation
-        asosStation="KLAS"
         forecast={ok([day(TODAY)])}
         alerts={alertsOk([])}
         conditions={{ data: undefined, isPending: false, isError: true, refetch: () => {} }}
@@ -565,7 +444,6 @@ describe('DetailView — a withheld rainfall history (#34)', () => {
     const html = render(
       <DetailView
         isClimbingLocation
-        asosStation="KLAS"
         forecast={ok([day(TODAY)])}
         alerts={alertsOk([])}
         conditions={ok(withheld())}
@@ -579,7 +457,6 @@ describe('DetailView — a withheld rainfall history (#34)', () => {
     const html = render(
       <DetailView
         isClimbingLocation
-        asosStation="KLAS"
         forecast={ok([day(TODAY)])}
         alerts={alertsOk([])}
         conditions={ok(withheld())}
@@ -596,7 +473,6 @@ describe('DetailView — a withheld rainfall history (#34)', () => {
     const html = render(
       <DetailView
         isClimbingLocation
-        asosStation="KLAS"
         forecast={ok([day(TODAY)])}
         alerts={alertsOk([])}
         conditions={ok(withheld())}
@@ -609,7 +485,6 @@ describe('DetailView — a withheld rainfall history (#34)', () => {
     const html = render(
       <DetailView
         isClimbingLocation
-        asosStation="KLAS"
         forecast={ok([day(TODAY)])}
         alerts={alertsOk([])}
         conditions={ok(withheld())}

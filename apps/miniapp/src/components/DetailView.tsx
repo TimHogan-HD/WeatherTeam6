@@ -15,7 +15,6 @@ import { bottomClearance, stack } from '../theme/styles.js'
 import {
   findToday,
   forecastSourceLabel,
-  rainfallSourceLabel,
   severeAlertEvent,
 } from '../lib/forecast.js'
 import { useScreenRemainder } from '../hooks/useScreenRemainder.js'
@@ -24,7 +23,6 @@ import { ConditionsNow } from './ConditionsNow.js'
 import { SourcesFooter, type SourceEntry } from './SourcesFooter.js'
 import { formatTickDate } from '../lib/logbook.js'
 import { InlineError, Skeleton } from './States.js'
-import { DryingCard } from './DryingCard.js'
 import { DailyList } from './DailyList.js'
 import { LocationIdentity } from './LocationIdentity.js'
 import { RockTab } from './RockTab.js'
@@ -51,9 +49,8 @@ import { TEMP_VIEW_H } from './charts/chartStyle.js'
  *   bar per day, from the Figma "Precipitation history" frame. Every saved
  *   location has one; a city had rain too.
  * - **Rock** — a field guide to the crag's rock (`RockTab`): what it is, how it
- *   climbs, rain and sun, a fun fact and how to look after it, with the drying
- *   card under its header and the identity block (aspect, angle, rain station)
- *   last.
+ *   formed and made its holds, rain and sun, and how to look after it, with the
+ *   identity block (aspect, angle, rain station) last.
  * - **Crag** — the guidebook: the OpenBeta crag this location sits on, its
  *   grades and its walls, from the Figma "03 · Guidebook Flow" frame.
  *
@@ -77,9 +74,6 @@ export type DetailViewProps = {
   /** Unsaved preview: no score section regardless of type — nothing has been classified yet. */
   unsaved?: boolean
   isClimbingLocation: boolean
-  /** `null` on the preview path and on hand-entered coordinates. */
-  asosStation: string | null
-
   forecast: {
     data: ForecastSnapshot[] | undefined
     isPending: boolean
@@ -190,7 +184,6 @@ export function openDayInHourly(
 export function DetailView({
   unsaved = false,
   isClimbingLocation,
-  asosStation,
   forecast,
   alerts,
   conditions,
@@ -228,12 +221,9 @@ export function DetailView({
 
   const sources: SourceEntry[] = [
     { label: 'Forecast', value: forecastSourceLabel(forecast.data) },
-    // The Rock tab's drying card. Not "Last rain": the Overview's last rain is
-    // the Precip row's, and naming this beside it would credit the wrong feed.
-    { label: 'Drying', value: showScore ? rainfallSourceLabel(asosStation) : null },
-    // The Precip tab, the Overview's last rain and the drying card's window
-    // read this, from a different Open-Meteo call than the drying model's own
-    // rainfall. Named once it arrived.
+    // The Precip tab and the Overview's last rain read this, from a different
+    // Open-Meteo call than the drying model's own rainfall. Named once it
+    // arrived.
     { label: 'Precip', value: recentPrecip?.data === undefined ? null : RECENT_PRECIP_SOURCE_LABEL },
     // Only claim NWS when an alert is actually being shown. An empty result is
     // not "NWS says no alerts": the table is filled by a cron, so empty can
@@ -309,20 +299,11 @@ export function DetailView({
       </>
     )
 
-  // Rain and drying. It reads neither the forecast nor the hourly run, so a
-  // failure in either says nothing about whether it rained on Tuesday. Only
-  // for a scored location, and only where the rain window was wired in.
-  const drying =
-    showScore && recentPrecip !== undefined ? (
-      <DryingCard score={conditions?.data ?? null} recent={recentPrecip} />
-    ) : null
-
   let panel: ReactNode
   if (active === null) {
     panel = (
       <>
         {hero}
-        {drying}
         {daily}
       </>
     )
@@ -390,7 +371,6 @@ export function DetailView({
     panel = (
       <RockTab
         rockType={location?.rock_type ?? null}
-        drying={drying}
         identity={
           location === undefined ? null : <LocationIdentity location={location} walls={walls} condensed={false} />
         }

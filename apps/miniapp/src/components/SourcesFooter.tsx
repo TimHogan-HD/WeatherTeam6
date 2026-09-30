@@ -12,7 +12,7 @@ export type SourceEntry = { label: string; value: string | null }
  *
  * **Nothing here may be hardcoded**, because most sources vary per request:
  * the forecast models are whatever `model_sources` says actually ran, and the
- * rainfall source depends on whether the location has an `asos_station`.
+ * precipitation feed is named only once it answered.
  * Naming a source that never ran is a false attribution, which is the precise
  * thing the rule exists to prevent — so the caller computes these from the
  * response and passes them in.

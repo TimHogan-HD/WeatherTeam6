@@ -301,9 +301,11 @@ Two cards and a caveat:
 **Rock tab — added 2026-09-29 at the owner's request, no Figma frame.** A field guide to
 the location's rock type (`RockTab.tsx`, words in `packages/types/src/rockGuide.ts`): a
 textured header in the rock's colours (`rockSwatchV2`, decoration only), two three-step
-gauges (*Drying after rain*, *Strength when wet*), how it climbs, rain and sun, one fun
-fact, and do/don't care. The live drying card sits under the header and the identity
-block comes last. It describes the **rock type, not this crag**, and says so. The drying
+gauges (*Drying after rain*, *Strength when wet*), *How it formed and climbs* (how the
+rock formed, where its holds come from, and the style chips), rain and sun, and do/don't
+care. The identity block comes last. **Owner, 2026-09-30:** the fun-fact card and the
+*Precipitation & drying* card were removed; the formation copy replaced the fact, and each
+sentence is sourced in `rock-drying-research.md` beside §7. It describes the **rock type, not this crag**, and says so. The drying
 gauge is a band of `MAX_HOURS`, held to it by `dryingModel.test.ts`, and `unknown` has no
 guide. Care advice is general rock knowledge the owner asked for, not a go/no-go on the
 forecast, so the no-opinions rule is not in play.
