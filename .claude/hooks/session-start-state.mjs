@@ -38,6 +38,7 @@ import {
   unpushedCommits,
   workingTreeChanges,
 } from './lib/gitState.mjs'
+import { activePeers } from './lib/sessionClaims.mjs'
 
 const STATE_DOC = '.claude/docs/STATE.md'
 /** Guard against a STATE.md that has grown past what it should be. */
@@ -165,8 +166,15 @@ function defaultBranchCi() {
  */
 const STATE_DOC_MAX_COMMITS_BEHIND = 15
 
-function toolingWarnings() {
+function toolingWarnings(sessionId) {
   const out = []
+  for (const peer of activePeers(sessionId)) {
+    out.push(
+      `!! Another Claude session (${peer.id.slice(0, 8)}) made a tool call in this checkout ` +
+        `${peer.minutesAgo} min ago. Do not switch branches or commit here: call EnterWorktree ` +
+        'first so its branch and files are not yours.',
+    )
+  }
   if (existsSync('.claude/.wip')) {
     const hours = Math.round((Date.now() - statSync('.claude/.wip').mtimeMs) / 3_600_000)
     out.push(
@@ -204,7 +212,12 @@ function stateDoc() {
 }
 
 try {
-  await readStdin()
+  let sessionId = null
+  try {
+    sessionId = JSON.parse(await readStdin())?.session_id ?? null
+  } catch {
+    // No payload: every recent session counts as another one.
+  }
 
   if (!isGitRepo()) process.exit(0)
 
@@ -220,7 +233,7 @@ try {
     hasRemote() ? pullRequests() : 'open PRs: no remote',
     hasRemote() ? issues() : 'open issues: no remote',
     ...(hasRemote() ? [defaultBranchCi()].filter(Boolean) : []),
-    ...toolingWarnings(),
+    ...toolingWarnings(sessionId),
     '```',
     '',
     `## ${STATE_DOC}`,

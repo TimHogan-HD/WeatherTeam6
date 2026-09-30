@@ -26,6 +26,10 @@ const SESSION_START = join(here, 'session-start-state.mjs')
 const BLOCK = 2
 const ALLOW = 0
 
+// The hooks key a session on the Claude process when CLAUDE_PID is set, and a
+// run under Claude Code inherits it. Scenarios set it themselves.
+delete process.env.CLAUDE_PID
+
 /** Run a hook with a payload on stdin and return { code, stdout, stderr }. */
 function run(hookPath, payload) {
   const result = spawnSync(process.execPath, [hookPath], {
@@ -227,7 +231,7 @@ for (const [name, actual, expected] of gateCases) {
  * under test.
  * ------------------------------------------------------------------ */
 
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, utimesSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, readdirSync, utimesSync } from 'node:fs'
 
 /** How many settings.json-coverage assertions ran; set by the meta block below. */
 let metaCoverageCount = 0
@@ -296,6 +300,116 @@ const gitScenarios = [
     {},
     BLOCK,
     'uncommitted changes',
+  ],
+  [
+    'Stop: an uncommitted file another active session edited does not block this one',
+    (w) => {
+      writeFileSync(join(w, 'dirty.txt'), 'x')
+      runIn(w, PRE, { ...edit(join(w, 'dirty.txt')), session_id: 'peer' })
+    },
+    STOP,
+    { session_id: 'me' },
+    ALLOW,
+    null,
+  ],
+  [
+    'Stop: an uncommitted file this session edited still blocks while another is active',
+    (w) => {
+      writeFileSync(join(w, 'dirty.txt'), 'x')
+      runIn(w, PRE, { ...bash('ls'), session_id: 'peer' })
+      runIn(w, PRE, { ...edit(join(w, 'dirty.txt')), session_id: 'me' })
+    },
+    STOP,
+    { session_id: 'me' },
+    BLOCK,
+    'dirty.txt',
+  ],
+  [
+    'Stop: an uncommitted file nobody claims still blocks while another session is active',
+    (w) => {
+      writeFileSync(join(w, 'dirty.txt'), 'x')
+      runIn(w, PRE, { ...bash('ls'), session_id: 'peer' })
+    },
+    STOP,
+    { session_id: 'me' },
+    BLOCK,
+    'dirty.txt',
+  ],
+  [
+    'Stop: a claim from a session silent for over 30 minutes does not excuse a change',
+    (w) => {
+      writeFileSync(join(w, 'dirty.txt'), 'x')
+      runIn(w, PRE, { ...edit(join(w, 'dirty.txt')), session_id: 'peer' })
+      const past = new Date(Date.now() - 31 * 60_000)
+      const claims = join(w, '.git', 'claude-sessions')
+      for (const f of readdirSync(claims)) utimesSync(join(claims, f), past, past)
+    },
+    STOP,
+    { session_id: 'me' },
+    BLOCK,
+    'dirty.txt',
+  ],
+  [
+    'Stop: a file edited before /clear still blocks the session after it (same Claude process)',
+    (w) => {
+      writeFileSync(join(w, 'dirty.txt'), 'x')
+      process.env.CLAUDE_PID = String(process.pid)
+      runIn(w, PRE, { ...edit(join(w, 'dirty.txt')), session_id: 'before-clear' })
+    },
+    STOP,
+    { session_id: 'after-clear' },
+    BLOCK,
+    'dirty.txt',
+  ],
+  [
+    'Stop: a file another running Claude process edited does not block this one',
+    (w) => {
+      writeFileSync(join(w, 'dirty.txt'), 'x')
+      process.env.CLAUDE_PID = String(process.ppid)
+      runIn(w, PRE, { ...edit(join(w, 'dirty.txt')), session_id: 'peer' })
+      process.env.CLAUDE_PID = String(process.pid)
+    },
+    STOP,
+    { session_id: 'me' },
+    ALLOW,
+    null,
+  ],
+  [
+    'Stop: a claim from a Claude process that has exited does not excuse a change',
+    (w) => {
+      writeFileSync(join(w, 'dirty.txt'), 'x')
+      process.env.CLAUDE_PID = String(spawnSync(process.execPath, ['-e', '0']).pid)
+      runIn(w, PRE, { ...edit(join(w, 'dirty.txt')), session_id: 'peer' })
+      process.env.CLAUDE_PID = String(process.pid)
+    },
+    STOP,
+    { session_id: 'me' },
+    BLOCK,
+    'dirty.txt',
+  ],
+  [
+    'Stop: an active other session does not excuse an unpushed commit on a clean tree',
+    (w) => {
+      runIn(w, PRE, { ...bash('ls'), session_id: 'peer' })
+      writeFileSync(join(w, 'committed.txt'), 'x')
+      g(w, 'add', '-A')
+      g(w, 'commit', '-m', 'local only')
+    },
+    STOP,
+    { session_id: 'me' },
+    BLOCK,
+    'not been pushed',
+  ],
+  [
+    'Stop: a write the PreToolUse hook refused is not claimed by the session that tried it',
+    (w) => {
+      writeFileSync(join(w, '.env'), 'x')
+      runIn(w, PRE, { ...write(join(w, '.env')), session_id: 'peer' })
+    },
+    STOP,
+    { session_id: 'me' },
+    BLOCK,
+    '.env',
   ],
   [
     'Stop: .claude/.wip suppresses the block',
@@ -531,6 +645,7 @@ for (const [name, setup, hook, payload, expectedCode, fragment] of gitScenarios)
     }
   } finally {
     rmSync(root, { recursive: true, force: true })
+    delete process.env.CLAUDE_PID
   }
 }
 
@@ -603,6 +718,27 @@ const sessionScenarios = [
       if (!ctx.includes('feat/session-a')) return 'did not name the current branch'
       if (!ctx.includes('SENTINEL_STATE_BODY')) return 'did not inline STATE.md'
       return null
+    },
+  ],
+  [
+    'SessionStart: warns when another session is working in this checkout',
+    (w) => {
+      withState(w, '# s')
+      runIn(w, PRE, { ...bash('ls'), session_id: 'peer-session' })
+    },
+    (out) => {
+      const ctx = JSON.parse(out).hookSpecificOutput.additionalContext
+      return ctx.includes('Another Claude session') && ctx.includes('EnterWorktree')
+        ? null
+        : 'did not warn about the other session'
+    },
+  ],
+  [
+    'SessionStart: no other-session warning when none has been active',
+    (w) => withState(w, '# s'),
+    (out) => {
+      const ctx = JSON.parse(out).hookSpecificOutput.additionalContext
+      return ctx.includes('Another Claude session') ? 'warned about a session that does not exist' : null
     },
   ],
   [

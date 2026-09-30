@@ -24,6 +24,7 @@ import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 import { currentBranch, defaultBranch, isGitRepo } from './lib/gitState.mjs'
 import { REVIEW_HEADING, mergeRequest, reviewState } from './lib/reviewGate.mjs'
+import { recordToolUse } from './lib/sessionClaims.mjs'
 
 /**
  * The branch checked out in `dir` and the repository's default branch, or
@@ -330,5 +331,13 @@ if (tool === 'Bash' || tool === 'PowerShell') {
     }
   }
 }
+
+// Reached only when no guard blocked, so a refused write is never claimed.
+const WRITING_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
+recordToolUse(
+  input?.session_id,
+  WRITING_TOOLS.has(tool) ? String(toolInput.file_path ?? toolInput.notebook_path ?? '') : null,
+  typeof input?.cwd === 'string' ? input.cwd : undefined,
+)
 
 process.exit(0)

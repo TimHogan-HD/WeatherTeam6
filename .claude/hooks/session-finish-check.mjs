@@ -39,6 +39,7 @@ import {
   workingTreeChanges,
 } from './lib/gitState.mjs'
 import { reviewState } from './lib/reviewGate.mjs'
+import { activePeers, porcelainPath } from './lib/sessionClaims.mjs'
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -63,8 +64,11 @@ const raw = await readStdin()
 // Read the checkout the session is working in, not the one the hook was started
 // from — a session in a worktree otherwise ends with its commits unpushed and
 // this hook looking at the main checkout.
+let sessionId = null
 try {
-  const cwd = JSON.parse(raw)?.cwd
+  const payload = JSON.parse(raw)
+  sessionId = payload?.session_id ?? null
+  const cwd = payload?.cwd
   if (typeof cwd === 'string' && cwd) process.chdir(cwd)
 } catch {
   // No payload or no such directory: stay where the hook started.
@@ -92,7 +96,17 @@ if (!branch || !base) process.exit(0)
 
 // ---- 1. uncommitted work ---------------------------------------------------
 
-const changes = workingTreeChanges()
+// A file that an active other session claims is that session's to finish. Every
+// other change, including one nobody claims, is this session's.
+const peers = activePeers(sessionId)
+const peerOwns = (line) => peers.some((p) => p.files.has(porcelainPath(line)))
+const allChanges = workingTreeChanges()
+const changes = allChanges.filter((line) => !peerOwns(line))
+if (changes.length === 0 && allChanges.length > 0) {
+  // Another session is mid-change in this checkout, and the branch may be its
+  // too. The delivery checks below would judge its work, so stop here.
+  process.exit(0)
+}
 if (changes.length > 0) {
   const shown = changes.slice(0, 10).join('\n  ')
   const more = changes.length > 10 ? `\n  ...and ${changes.length - 10} more` : ''
