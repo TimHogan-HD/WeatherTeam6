@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type {
   ForecastSnapshot,
+  RecentPrecip,
   HourlyReading,
   HourlySample,
   HourlySeries,
@@ -10,10 +11,13 @@ import {
   LIKELY_RAIN_PCT,
   dayTitle,
   nextDays,
+  lastRainText,
   nextLikelyRain,
+  shortDate,
   shortDay,
   todayCells,
 } from './overview.js'
+import { precipDays, precipSummary } from './precipHistory.js'
 
 // Red Wing in September: UTC-5.
 const OFFSET = -5 * 3600
@@ -203,5 +207,53 @@ describe('date labels', () => {
     expect(dayTitle('not-a-date')).toBeNull()
     expect(shortDay('2026-09-26', '2026-09-24')).toBe('Sat')
     expect(shortDay('2026-09-24', '2026-09-24')).toBe('Today')
+  })
+})
+
+describe('shortDate', () => {
+  it('dates a day a week out, so a Tuesday cannot read as yesterday', () => {
+    expect(shortDate('2026-10-06', '2026-09-30')).toBe('Tue 10/6')
+    expect(shortDate('2026-09-30', '2026-09-30')).toBe('Today')
+    expect(shortDate('not-a-date', '2026-09-30')).toBe('not-a-date')
+  })
+})
+
+describe('lastRainText', () => {
+  /** Two local days of dry hours, with `wet` overriding chosen stamps. */
+  function recent(wet: Record<string, number>): RecentPrecip {
+    const hours = []
+    for (const day of ['2026-09-29', '2026-09-30']) {
+      for (let h = 0; h < 24; h++) {
+        const stamp = `${day}T${String(h).padStart(2, '0')}:00`
+        if (stamp > '2026-09-30T05:00') break
+        hours.push({ valid_at_local: stamp, precip_mm: wet[stamp] ?? 0, rain_mm: wet[stamp] ?? 0, snowfall_cm: 0 })
+      }
+    }
+    return { hours, utc_offset_seconds: OFFSET, from_date: '2026-09-29', models: [] }
+  }
+  // 05:00 on the 30th at UTC-5.
+  const NOW = Date.parse('2026-09-30T10:00:00Z')
+  const text = (r: RecentPrecip) => lastRainText(precipSummary(r, NOW), precipDays(r.hours).length)
+
+  it('counts from the hour the rain ended, not the end of its day', () => {
+    // 1 mm in one hour clears the real-rain line but not the old drying
+    // model's 2 mm day, which is why the Overview no longer reads that model.
+    expect(text(recent({ '2026-09-29T19:00': 1 }))).toBe('10h ago')
+  })
+
+  it('ignores a trace below the real-rain line', () => {
+    expect(text(recent({ '2026-09-29T19:00': 1, '2026-09-30T02:00': 0.1 }))).toBe('10h ago')
+  })
+
+  it('says none in the window, naming the window', () => {
+    expect(text(recent({}))).toBe('None in 2 days')
+  })
+
+  it('says now while real rain is in the newest hour', () => {
+    expect(text(recent({ '2026-09-30T05:00': 2 }))).toBe('Now')
+  })
+
+  it('says nothing when the window has no hours', () => {
+    expect(text({ hours: [], utc_offset_seconds: OFFSET, from_date: null })).toBeNull()
   })
 })

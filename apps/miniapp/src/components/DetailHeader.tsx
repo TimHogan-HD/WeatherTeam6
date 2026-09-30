@@ -95,7 +95,7 @@ export function DetailHeader<T extends string>({
         ...stack(spacing.tight),
         backgroundColor: colorsV2.surface,
         marginTop: 'calc(-1 * env(safe-area-inset-top, 0px))',
-        paddingTop: `calc(env(safe-area-inset-top, 0px) + ${spacing.topSafe}px)`,
+        paddingTop: `calc(env(safe-area-inset-top, 0px) + ${spacing.topWeb}px)`,
         paddingInline: `${spacing.screenH}px`,
         ...(tabs === null ? { paddingBottom: `${spacing.sectionGap}px` } : {}),
       }}

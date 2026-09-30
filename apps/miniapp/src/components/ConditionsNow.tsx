@@ -21,15 +21,17 @@ import { formatLocalClock, formatTempDeg } from '../lib/format.js'
 import { readingTone, scoreTone } from '../lib/locationList.js'
 import { useNow } from '../hooks/useNow.js'
 import { currentHour } from './charts/hourlySeries.js'
+import { LabelledFigure } from './LabelledFigure.js'
 import { Measurements } from './Measurements.js'
 import { InlineError, Skeleton } from './States.js'
 
 /**
  * **"Now", in one place** — the Overview tab's hero, in the v2 layout from the
  * WT6 Figma "V2" page: the hour's temperature large with the day's labelled
- * high and low beside it, the hour's wind, humidity and cloud, a rule, then
- * the three gauges, the day's good hours as a band, the caveats and the
- * measurements disclosure.
+ * high and low beside it, the hour's wind, humidity, dew point and cloud as
+ * labelled figures, then the three gauges, the day's good hours as a band,
+ * and the caveats on one line with the measurements disclosure. Sized so the
+ * Overview fits a phone screen (owner, 2026-09-29).
  *
  * One card, one label, three parts, in this order:
  *
@@ -61,8 +63,8 @@ import { InlineError, Skeleton } from './States.js'
 export const CONDITIONS_NOW_LABEL = 'Conditions now'
 
 /** The space a still-loading half holds open, so the card does not jump. */
-const WEATHER_H = 88
-const READINGS_H = 120
+const WEATHER_H = 102
+const READINGS_H = 83
 
 export type ConditionsNowProps = {
   /** Today's row, for the high and low. */
@@ -98,7 +100,6 @@ export type ConditionsNowProps = {
 type Palette = {
   fill: string
   line: string
-  rule: string
   muted: string
   band: string
   accent: string
@@ -107,7 +108,6 @@ type Palette = {
 const PLAIN: Palette = {
   fill: colorsV2.card,
   line: colorsV2.line,
-  rule: colorsV2.line,
   muted: colorsV2.txtMuted,
   band: colorsV2.raised,
   accent: colorsV2.txt1,
@@ -125,7 +125,6 @@ function palette(tone: ToneName | null): Palette {
   return {
     fill: s.hero,
     line: s.heroLine,
-    rule: s.heroRule,
     muted: s.heroMuted,
     band: s.heroBand,
     accent: TONE_BASE[tone],
@@ -141,19 +140,17 @@ function palette(tone: ToneName | null): Palette {
  * are never merged into one unlabelled number, and the high is never borrowed
  * for "now".
  */
-function NowWeather({ hour, today }: { hour: HourlySample | null; today: ForecastSnapshot | null }) {
-  // Each part is omitted when missing rather than dashed: this is a line of
-  // conditions, and a dash inside one reads as a broken screen where a shorter
-  // line reads as less to say. The measurements panel below dashes its gaps,
-  // because there a gap between two figures is itself the information.
-  const meta = [
-    hour?.wind_kmh == null ? null : `Wind ${formatWindMph(hour.wind_kmh)}`,
-    hour?.humidity_pct == null ? null : `RH ${formatHumidity(hour.humidity_pct)}`,
-    hour?.cloud_pct == null ? null : `cloud ${Math.round(hour.cloud_pct)}%`,
-  ].filter((s): s is string => s !== null)
-
+function NowWeather({
+  hour,
+  today,
+  p,
+}: {
+  hour: HourlySample | null
+  today: ForecastSnapshot | null
+  p: Palette
+}) {
   return (
-    <div style={stack(spacing.cardPad)}>
+    <div style={stack(spacing.cellPad)}>
       <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'flex-end' }}>
         {/*
           The present temperature, or nothing at all. A run that does not reach
@@ -181,7 +178,20 @@ function NowWeather({ hour, today }: { hour: HourlySample | null; today: Forecas
         )}
       </div>
 
-      {meta.length === 0 ? null : <p style={typeV2.body}>{meta.join(' · ')}</p>}
+      {/*
+        The hour's figures, each named under its value. A row of like cells, so
+        a missing one is dashed rather than dropped — a gap that closed up would
+        move every label after it. None at all without an hour: the high and
+        low above are the day's, and this row is the hour's.
+      */}
+      {hour === null ? null : (
+        <div style={{ ...row(spacing.chipGapMd), alignItems: 'stretch' }}>
+          <LabelledFigure surface={{ backgroundColor: p.band }} labelColor={p.muted} color={colorsV2.txt1} value={formatWindMph(hour.wind_kmh)} label="Wind" />
+          <LabelledFigure surface={{ backgroundColor: p.band }} labelColor={p.muted} color={colorsV2.txt1} value={formatHumidity(hour.humidity_pct)} label="Humidity" />
+          <LabelledFigure surface={{ backgroundColor: p.band }} labelColor={p.muted} color={colorsV2.txt1} value={formatTempDeg(hour.dewpoint_c)} label="Dew point" />
+          <LabelledFigure surface={{ backgroundColor: p.band }} labelColor={p.muted} color={colorsV2.txt1} value={formatHumidity(hour.cloud_pct)} label="Cloud" />
+        </div>
+      )}
     </div>
   )
 }
@@ -203,8 +213,8 @@ function Gauge({
 }) {
   return (
     <span style={{ ...stack(spacing.micro), flex: '1 1 0', minWidth: 0 }}>
-      <span style={{ ...typeV2.gaugeLabel, color: muted }}>{field.label}</span>
-      <span style={{ ...(figure ? typeV2.gaugeFigure : typeV2.gaugeWord), color }}>{field.value}</span>
+      <span style={{ ...typeV2.tileLabel, color: muted }}>{field.label}</span>
+      <span style={{ ...(figure ? typeV2.tileFigure : typeV2.tileWord), color }}>{field.value}</span>
     </span>
   )
 }
@@ -233,7 +243,7 @@ function Readings({
   const hasGauges = summary.readings.length > 0 || scoreField !== null
 
   return (
-    <div style={stack(spacing.cardPad)}>
+    <div style={stack(spacing.cellPad)}>
       {/*
         The readings, then the number: the score is the third gauge, not the
         headline the other two explain. Nothing at all when there is nothing to
@@ -275,7 +285,7 @@ function Readings({
             flexWrap: 'wrap',
             backgroundColor: p.band,
             borderRadius: `${radius.card}px`,
-            padding: `${spacing.cellPad}px ${spacing.cardPadSm}px`,
+            padding: `${spacing.listGapSm}px ${spacing.cardPadSm}px`,
           }}
         >
           <span style={typeV2.bandLabel}>{summary.window.label}</span>
@@ -284,15 +294,6 @@ function Readings({
       )}
 
       {summary.qualifier === null ? null : <p style={typeV2.body}>{summary.qualifier}</p>}
-
-      {/*
-        Required copy, not decoration. The friction estimate note is a Phase 3
-        acceptance criterion, and the aspect note is what keeps an unqualified
-        reading from being read as a measured one.
-      */}
-      {summary.notes.length === 0 ? null : (
-        <p style={{ ...typeV2.note, color: p.muted }}>{summary.notes.join(' · ')}</p>
-      )}
     </div>
   )
 }
@@ -322,16 +323,6 @@ export function ConditionsNow({
   if (forecast.isPending && (conditions === undefined || readingsPending)) {
     return <Skeleton height={conditions === undefined ? WEATHER_H + 40 : WEATHER_H + READINGS_H} />
   }
-
-  const weather: ReactNode = forecast.isPending ? (
-    <Reserve height={WEATHER_H} />
-  ) : forecast.isError ? (
-    <InlineError message="Couldn't load the forecast." onRetry={forecast.refetch} />
-  ) : today === null && hour === null ? (
-    <p style={typeV2.body}>No reading for today yet.</p>
-  ) : (
-    <NowWeather hour={hour} today={today} />
-  )
 
   // The reading the measurements panel explains, and the model it came from.
   // Set **only when the readings are on screen**: a panel explaining gauges
@@ -386,6 +377,16 @@ export function ConditionsNow({
 
   const p = palette(summary?.score == null ? null : scoreTone(summary.score))
 
+  const weather: ReactNode = forecast.isPending ? (
+    <Reserve height={WEATHER_H} />
+  ) : forecast.isError ? (
+    <InlineError message="Couldn't load the forecast." onRetry={forecast.refetch} />
+  ) : today === null && hour === null ? (
+    <p style={typeV2.body}>No reading for today yet.</p>
+  ) : (
+    <NowWeather hour={hour} today={today} p={p} />
+  )
+
   // The stamp is the hour the weather line reads, on the location's clock.
   const stampAt = hour === null || series === undefined ? null : Date.parse(hour.valid_at)
   const stamp =
@@ -397,21 +398,18 @@ export function ConditionsNow({
     borderWidth: '1px',
     borderColor: p.line,
     borderRadius: `${radius.heroV2}px`,
-    padding: `${spacing.heroPad}px`,
+    padding: `${spacing.cardPad}px`,
   }
 
   return (
-    <section style={{ ...surface, ...stack(spacing.cardPad) }}>
+    <section style={{ ...surface, ...stack(spacing.cellPad) }}>
       <span style={{ ...typeV2.kicker, color: p.muted }}>
         {stamp === null ? CONDITIONS_NOW_LABEL : `${CONDITIONS_NOW_LABEL} · ${stamp}`}
       </span>
       {weather}
 
       {summary === null && readingsBlock === null ? null : (
-        <>
-          <div aria-hidden style={{ height: '1px', backgroundColor: p.rule }} />
-          {summary === null ? readingsBlock : <Readings summary={summary} reading={shown.reading} p={p} />}
-        </>
+        summary === null ? readingsBlock : <Readings summary={summary} reading={shown.reading} p={p} />
       )}
 
       {/*
@@ -429,6 +427,15 @@ export function ConditionsNow({
         reading={shown.reading}
         readingModel={shown.model}
         rainModels={shown.rainModels}
+        // Required copy, not decoration. The friction estimate note is a Phase
+        // 3 acceptance criterion, and the aspect note is what keeps an
+        // unqualified reading from being read as a measured one. Shown only
+        // with the gauges it qualifies, on the disclosure's own line.
+        lead={
+          summary === null || summary.unavailableLine !== null || summary.notes.length === 0 ? null : (
+            <p style={{ ...typeV2.note, color: p.muted }}>{summary.notes.join(' · ')}</p>
+          )
+        }
       />
     </section>
   )

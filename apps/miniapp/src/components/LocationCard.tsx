@@ -9,7 +9,7 @@ import {
   type Location,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { cardV2, row, stack, toneColors, wellV2 } from '../theme/styles.js'
+import { cardV2, row, stack, toneColors } from '../theme/styles.js'
 import { useAlerts, useConditions, useForecast } from '../hooks/useWeather.js'
 import { findToday } from '../lib/forecast.js'
 import { formatTempRangeF } from '../lib/format.js'
@@ -19,6 +19,7 @@ import { AlertPill } from './Alerts.js'
 import { ReadingPill } from './ReadingPills.js'
 import { ChevronRightIcon, DropletIcon, HumidityIcon, TemperatureIcon, WindIcon } from './Icons.js'
 import { InlineError, Skeleton } from './States.js'
+import { LabelledFigure } from './LabelledFigure.js'
 
 /**
  * One card per saved location — the v2 layout: name and score on the first
@@ -169,8 +170,9 @@ function ScoreBadge({ score }: { score: number }) {
 /**
  * Today's four figures. **Every one is a daily figure, not a present reading**
  * — the low-to-high range, the median rain total, the day's humidity and its
- * strongest wind — and the legend above the list says so once for all cards.
- * Each chip also carries a spoken label that says it in full.
+ * strongest wind — so each label says which daily figure it is: "Low–high",
+ * not "Temperature", and "Peak wind", not "Wind" (§3). Each chip also carries
+ * a spoken label that says it in full.
  *
  * **The Figma's rain chip reads "0% · 0.0 in", and the percentage is dropped.**
  * The daily row carries no chance of rain — that exists only per hour, as
@@ -185,54 +187,35 @@ function ScoreBadge({ score }: { score: number }) {
 function TodayChips({ day }: { day: ForecastSnapshot }) {
   const rainy = day.precip_mm_p50 !== null && day.precip_mm_p50 > 0
   return (
-    <div style={{ ...row(spacing.chipGapMd), flexWrap: 'wrap' }}>
-      <Chip
+    <div style={{ ...row(spacing.chipGapMd), alignItems: 'stretch' }}>
+      <LabelledFigure
         icon={<TemperatureIcon color={colorsV2.txtMuted} />}
         value={formatTempRangeF(day.temp_c_min, day.temp_c_max)}
+        label="Low–high"
         color={day.temp_c_max === null ? colorsV2.txt1 : tempColor(day.temp_c_max)}
         spoken={`Low to high today: ${formatTempRangeF(day.temp_c_min, day.temp_c_max)}`}
       />
-      <Chip
+      <LabelledFigure
         icon={<DropletIcon color={colorsV2.txtMuted} />}
         value={formatPrecipIn(day.precip_mm_p50)}
+        label="Rain"
         color={rainy ? colors.rain : colorsV2.txt1}
         spoken={`Rain today: ${formatPrecipIn(day.precip_mm_p50)}`}
       />
-      <Chip
+      <LabelledFigure
         icon={<HumidityIcon color={colorsV2.txtMuted} />}
         value={formatHumidity(day.humidity_pct)}
+        label="Humidity"
         color={colorsV2.txt1}
         spoken={`Humidity today: ${formatHumidity(day.humidity_pct)}`}
       />
-      <Chip
+      <LabelledFigure
         icon={<WindIcon color={colorsV2.txtMuted} />}
         value={formatWindMph(day.wind_kmh_max)}
+        label="Peak wind"
         color={colorsV2.txt1}
         spoken={`Wind today up to ${formatWindMph(day.wind_kmh_max)}`}
       />
     </div>
-  )
-}
-
-function Chip({
-  icon,
-  value,
-  color,
-  spoken,
-}: {
-  icon: ReactNode
-  value: string
-  color: string
-  spoken: string
-}) {
-  return (
-    <span
-      role="img"
-      aria-label={spoken}
-      style={{ ...wellV2, ...row(spacing.tight), padding: `${spacing.chipGapMd}px` }}
-    >
-      {icon}
-      <span style={{ ...typeV2.chip, color }}>{value}</span>
-    </span>
   )
 }

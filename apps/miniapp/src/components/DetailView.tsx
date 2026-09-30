@@ -225,9 +225,12 @@ export function DetailView({
 
   const sources: SourceEntry[] = [
     { label: 'Forecast', value: forecastSourceLabel(forecast.data) },
-    { label: 'Last rain', value: showScore ? rainfallSourceLabel(asosStation) : null },
-    // The Precip tab and the drying card's window read this, from a different
-    // Open-Meteo call than the drying model's own rainfall. Named once it arrived.
+    // The Rock tab's drying card. Not "Last rain": the Overview's last rain is
+    // the Precip row's, and naming this beside it would credit the wrong feed.
+    { label: 'Drying', value: showScore ? rainfallSourceLabel(asosStation) : null },
+    // The Precip tab, the Overview's last rain and the drying card's window
+    // read this, from a different Open-Meteo call than the drying model's own
+    // rainfall. Named once it arrived.
     { label: 'Precip', value: recentPrecip?.data === undefined ? null : RECENT_PRECIP_SOURCE_LABEL },
     // Only claim NWS when an alert is actually being shown. An empty result is
     // not "NWS says no alerts": the table is filled by a cron, so empty can
@@ -330,13 +333,12 @@ export function DetailView({
             isClimbingLocation={showScore}
             forecast={{ data: forecast.data }}
             hourly={hourly}
-            conditions={conditions?.data}
+            recentPrecip={recentPrecip?.data}
             severeAlertEvent={alertEvent}
             alertsPending={alertsPending}
             drawableDates={drawableDates}
             onOpenDaily={() => tabs.onTabChange('daily')}
-            onOpenHourly={() => tabs.onTabChange('hourly')}
-            onOpenDay={(localDate) => openDayInHourly(tabs, localDate)}
+            onOpenHourly={() => tabs.onTabChange('hourly')}            onOpenDay={(localDate) => openDayInHourly(tabs, localDate)}
           />
         )}
       </>

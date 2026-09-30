@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react'
+import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueries } from '@tanstack/react-query'
 import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
@@ -20,19 +20,12 @@ import { alertsQuery, conditionsQuery } from '../hooks/useWeather.js'
 import { LocationCard } from '../components/LocationCard.js'
 import { FeedbackButton } from '../components/FeedbackButton.js'
 import { EmptyState, InlineError, SkeletonCards } from '../components/States.js'
-import {
-  ChevronDownIcon,
-  DropletIcon,
-  HumidityIcon,
-  PlusIcon,
-  TemperatureIcon,
-  WindIcon,
-} from '../components/Icons.js'
+import { ChevronDownIcon, PlusIcon } from '../components/Icons.js'
 
 /**
  * `/` — the root, in the v2 layout: a header band carrying the title, the count
  * and freshness, the Feedback button in its corner, the Add button and the sort
- * control; a legend keying the chips; then the cards.
+ * control; then the cards, each figure labelled on the card itself.
  *
  * No back affordance: there is nothing above this screen, and a control that
  * navigates to the screen already showing is the second-back-affordance bug §2
@@ -73,7 +66,7 @@ export function LocationList() {
           // inset, and this takes it back so the colour reaches the top edge
           // while the content still clears the notch.
           marginTop: 'calc(-1 * env(safe-area-inset-top, 0px))',
-          paddingTop: `calc(env(safe-area-inset-top, 0px) + ${spacing.topSafe}px)`,
+          paddingTop: `calc(env(safe-area-inset-top, 0px) + ${spacing.topWeb}px)`,
           paddingInline: `${spacing.screenH}px`,
           paddingBottom: `${spacing.sectionGap}px`,
         }}
@@ -123,12 +116,9 @@ export function LocationList() {
             }
           />
         ) : (
-          <>
-            <Legend />
-            {ordered.map((location) => (
-              <LocationCard key={location.id} location={location} onOpen={openLocation} />
-            ))}
-          </>
+          ordered.map((location) => (
+            <LocationCard key={location.id} location={location} onOpen={openLocation} />
+          ))
         )}
       </div>
 
@@ -270,41 +260,5 @@ function SortControl({ value, onChange }: { value: SortMode; onChange: (mode: So
         ))}
       </select>
     </label>
-  )
-}
-
-/**
- * The key to every card's chips, said once instead of on each card.
- *
- * **Each label says which daily figure it is.** Every chip is a figure for the
- * whole day, and unlabelled a range reads as the headline and a wind speed as
- * the wind right now (§3) — so it is "Low–high", not "Temperature", and "Peak
- * wind", not "Wind".
- */
-function Legend() {
-  return (
-    <div
-      style={{
-        ...wellV2,
-        ...row(spacing.cellPad),
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        padding: `${spacing.chipGapMd}px ${spacing.cellPad}px`,
-      }}
-    >
-      <LegendItem icon={<TemperatureIcon color={colorsV2.txtMuted} />} label="Low–high" />
-      <LegendItem icon={<DropletIcon color={colorsV2.txtMuted} />} label="Rain" />
-      <LegendItem icon={<HumidityIcon color={colorsV2.txtMuted} />} label="Humidity" />
-      <LegendItem icon={<WindIcon color={colorsV2.txtMuted} />} label="Peak wind" />
-    </div>
-  )
-}
-
-function LegendItem({ icon, label }: { icon: ReactNode; label: string }) {
-  return (
-    <span style={row(spacing.chipGapMd)}>
-      {icon}
-      <span style={{ ...typeV2.chip, color: colorsV2.txtMuted }}>{label}</span>
-    </span>
   )
 }

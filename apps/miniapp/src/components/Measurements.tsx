@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import {
   MEASUREMENTS_LABEL,
@@ -63,32 +63,42 @@ function Group({ group, showSource }: { group: MeasurementGroup; showSource: boo
   )
 }
 
-export function Measurements(props: MeasurementsInput) {
+/**
+ * `lead` sits on the control's line, left of it — the hero's caveats, which
+ * would otherwise take a line of their own. It renders even when there is no
+ * control.
+ */
+export function Measurements({ lead = null, ...input }: MeasurementsInput & { lead?: ReactNode }) {
   const [open, setOpen] = useState(false)
   const panelId = useId()
-  const { groups, sharedSource, notes } = measurements(props)
+  const { groups, sharedSource, notes } = measurements(input)
 
   // Nothing measured and nothing to explain: no control at all. A disclosure
   // that opens onto an empty panel is a promise the screen cannot keep.
-  if (groups.length === 0 && notes.length === 0) return null
+  if (groups.length === 0 && notes.length === 0) return lead
 
   return (
     <div style={stack(spacing.listGapSm)}>
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => setOpen((o) => !o)}
-        style={{
-          ...bareButton,
-          ...row(spacing.chipGap),
-          paddingTop: `${spacing.listGapSm}px`,
-          paddingBottom: `${spacing.listGapSm}px`,
-        }}
-      >
-        <span style={typeV2.disclosure}>{MEASUREMENTS_LABEL}</span>
-        <ChevronDownIcon color={colorsV2.txt2} open={open} />
-      </button>
+      <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'center' }}>
+        {lead}
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={() => setOpen((o) => !o)}
+          style={{
+            ...bareButton,
+            ...row(spacing.chipGap),
+            width: 'auto',
+            flex: '0 0 auto',
+            paddingTop: `${spacing.listGapSm}px`,
+            paddingBottom: `${spacing.listGapSm}px`,
+          }}
+        >
+          <span style={typeV2.disclosure}>{MEASUREMENTS_LABEL}</span>
+          <ChevronDownIcon color={colorsV2.txt2} open={open} />
+        </button>
+      </div>
 
       <div id={panelId} hidden={!open} style={open ? stack(spacing.cellPad) : {}}>
         {groups.map((g) => (
