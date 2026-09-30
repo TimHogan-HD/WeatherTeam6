@@ -15,13 +15,16 @@ import {
   dayLabel,
   formatSince,
   hourGrid,
-  hourKind,
+  isRealRain,
   precipDays,
+  precipEvents,
   precipSummary,
-  type HourCell,
+  runningTotal,
   type PrecipKind,
 } from '../lib/precipHistory.js'
 import { useNow } from '../hooks/useNow.js'
+import { PrecipHourTable } from './PrecipHourTable.js'
+import { PrecipRunningTotal } from './PrecipRunningTotal.js'
 import { InlineError, Skeleton } from './States.js'
 
 /**
@@ -40,8 +43,8 @@ import { InlineError, Skeleton } from './States.js'
  * under the headline, but does not reset it: before this, a trace at noon read
  * as "last precip 4h" on a rock the clock had been drying for a day.
  *
- * **Colour marks precipitation only.** Text and chrome are neutral; a grid
- * cell's fill is its hour's amount on one blue ramp.
+ * **Colour marks precipitation only.** Text and chrome are neutral; the hour
+ * table (`PrecipHourTable`) carries amount on one blue ramp.
  */
 
 export type PrecipTabProps = {
@@ -56,56 +59,12 @@ export type PrecipTabProps = {
 }
 
 const LOADING_H = 480
-const CELL_H = 18
-const DAY_COL = '40px'
-const TOTAL_COL = '38px'
 /** The runway's full length: past three days, the headline carries the number alone. */
 const RUNWAY_HOURS = 72
 const RUNWAY_TICKS = [0, 12, 24, 48, 72] as const
 const RUNWAY_H = 6
-const SWATCH = 12
 
-const KIND_COLOR: Record<'mix' | 'snow', string> = {
-  mix: colorsV2.precipMix,
-  snow: colorsV2.precipSnow,
-}
 const KIND_NAME: Record<PrecipKind, string> = { rain: 'rain', mix: 'rain and snow', snow: 'snow' }
-const KIND_LEGEND: Record<PrecipKind, string> = { rain: 'Rain', mix: 'Rain and snow', snow: 'Snow' }
-
-/**
- * Each amount step's lower edge, mm in an hour, and its `precipStep` colour.
- * The second edge is the real-rain line, so an hour too light to re-wet the
- * rock sits on the dimmest step alone.
- */
-const STEPS: readonly (readonly [minMm: number, color: string])[] = [
-  [0, colorsV2.precipStep1],
-  [REWETTING_PRECIP_MM, colorsV2.precipStep2],
-  [1, colorsV2.precipStep3],
-  [2, colorsV2.precipStep4],
-  [4, colorsV2.precipStep5],
-]
-const TOP_STEP_IN = mmToIn(4).toFixed(2)
-
-/**
- * **Amount is the fill, kind is a ring.** One hue carries how much fell so
- * more and less rain read at a glance (owner, 2026-09-29); snow and a mix add
- * a ring in their own colour rather than repainting the step. An hour whose
- * kind is unknown gets no ring — never called rain, never called snow.
- */
-function stepColor(mm: number): string {
-  let color = colorsV2.precipStep1 as string
-  for (const [min, c] of STEPS) if (mm >= min) color = c
-  return color
-}
-
-/** `0.35`, `0`, `tr`, or a dash for a day with no data. The unit is in the column head. */
-function dayFigure(mm: number | null): string {
-  if (mm === null) return EM_DASH
-  if (mm === 0) return '0'
-  const inches = mmToIn(mm)
-  return inches < 0.01 ? 'tr' : inches.toFixed(2)
-}
-
 function Card({ title, aside, gap, children }: { title?: string; aside?: string; gap: number; children: ReactNode }) {
   return (
     <section style={{ ...cardV2, ...stack(gap) }}>
@@ -160,45 +119,6 @@ function Runway({ hours }: { hours: number }) {
   )
 }
 
-function Cell({ cell }: { cell: HourCell }) {
-  const base = { height: `${CELL_H}px`, borderRadius: `${radius.tag}px` }
-  if (cell.state !== 'value') {
-    // Not a dry hour: an outline, so "none fell" and "no estimate" look different.
-    return <div style={{ ...base, boxShadow: `inset 0 0 0 1px ${colorsV2.grid}` }} />
-  }
-  const mm = cell.hour.precip_mm
-  if (mm <= 0) return <div style={{ ...base, backgroundColor: colorsV2.grid }} />
-  const ring = kindRing(hourKind(cell.hour))
-  return (
-    <div
-      style={{
-        ...base,
-        backgroundColor: stepColor(mm),
-        ...(ring === null ? {} : { boxShadow: `inset 0 0 0 2px ${ring}` }),
-      }}
-    />
-  )
-}
-
-/** A snow or rain-and-snow hour's ring; rain and an unknown kind carry none. */
-function kindRing(kind: PrecipKind | null): string | null {
-  return kind === 'snow' || kind === 'mix' ? KIND_COLOR[kind] : null
-}
-
-function Swatch({ color, ring }: { color: string; ring?: string }) {
-  return (
-    <span
-      style={{
-        width: `${SWATCH}px`,
-        height: `${SWATCH}px`,
-        borderRadius: `${radius.tag}px`,
-        backgroundColor: color,
-        ...(ring === undefined ? {} : { boxShadow: `inset 0 0 0 2px ${ring}` }),
-      }}
-    />
-  )
-}
-
 export function PrecipTab({ recent, isClimbingLocation }: PrecipTabProps) {
   const now = useNow()
 
@@ -240,10 +160,14 @@ export function PrecipTab({ recent, isClimbingLocation }: PrecipTabProps) {
   const lightMm = lighterSince.reduce((s, h) => s + h.precip_mm, 0)
   const todayHours = data.hours.filter((h) => h.valid_at_local.slice(0, 10) === today)
   const todayWet = todayHours.filter((h) => h.precip_mm > 0).length
-  const ringKinds = (['mix', 'snow'] as const).filter((k) =>
-    data.hours.some((h) => h.precip_mm > 0 && hourKind(h) === k),
+  const running = runningTotal(days, data.hours)
+  const realEvents = precipEvents(data.hours).filter((e) =>
+    data.hours.some((h) => isRealRain(h) && e.startLocal < h.valid_at_local && h.valid_at_local <= e.endLocal),
   )
-  const gridColumns = `${DAY_COL} repeat(24, minmax(0, 1fr)) ${TOTAL_COL}`
+  const flatFrom =
+    lastReal === null || rainingNow
+      ? null
+      : (running.points.find((p) => p.validAtLocal === lastReal.valid_at_local)?.at ?? null)
 
   return (
     <>
@@ -306,56 +230,20 @@ export function PrecipTab({ recent, isClimbingLocation }: PrecipTabProps) {
         </div>
       </Card>
 
+      <Card title="Running total" aside="inches" gap={spacing.listGapLg}>
+        <PrecipRunningTotal
+          days={days}
+          points={running.points}
+          spanHours={running.spanHours}
+          realEvents={realEvents}
+          flatFrom={flatFrom}
+          flatHours={flatFrom === null ? null : hoursSinceReal}
+          today={today}
+        />
+      </Card>
+
       <Card title="Every hour" aside={`to ${summary.endingLocal === null ? EM_DASH : when(summary.endingLocal)}`} gap={spacing.listGapLg}>
-        <div
-          role="img"
-          aria-label={days
-            .map((d) => `${dayLabel(d.localDate, today)} ${d.totalMm === null ? 'no data' : formatPrecipIn(d.totalMm)}`)
-            .join(', ')}
-          style={{ display: 'grid', gridTemplateColumns: gridColumns, columnGap: '2px', rowGap: '4px', alignItems: 'center' }}
-        >
-          <span />
-          {Array.from({ length: 24 }, (_, i) => (
-            <span key={i} style={{ ...typeV2.axisTick, gridColumn: 'span 1' }}>
-              {i % 6 === 0 ? String(i).padStart(2, '0') : ''}
-            </span>
-          ))}
-          <span style={{ ...typeV2.axisTick, textAlign: 'right' }}>in</span>
-          {days.map((d, di) => {
-            const label = dayLabel(d.localDate, today)
-            const wet = d.totalMm !== null && d.totalMm > 0
-            return [
-              <span
-                key={`${d.localDate}-l`}
-                style={{ ...typeV2.dayTab, color: label === 'Today' ? colorsV2.txt1 : colorsV2.legend }}
-              >
-                {label}
-              </span>,
-              ...(grid[di] ?? []).map((cell, hi) => <Cell key={`${d.localDate}-${hi}`} cell={cell} />),
-              <span
-                key={`${d.localDate}-t`}
-                style={{ ...typeV2.dayChip, textAlign: 'right', color: wet ? colorsV2.txt1 : colorsV2.txtMuted }}
-              >
-                {dayFigure(d.totalMm)}
-              </span>,
-            ]
-          })}
-        </div>
-        <div style={{ ...row(spacing.chipGapMd), flexWrap: 'wrap' }}>
-          <span style={typeV2.legendSm}>Dry</span>
-          <Swatch color={colorsV2.grid} />
-          <span style={{ ...typeV2.legendSm, marginLeft: `${spacing.listGap}px` }}>Less</span>
-          {STEPS.map(([, c]) => (
-            <Swatch key={c} color={c} />
-          ))}
-          <span style={typeV2.legendSm}>More ({TOP_STEP_IN}+ in/h)</span>
-          {ringKinds.map((k) => (
-            <span key={k} style={{ ...row(spacing.chipGapMd), marginLeft: `${spacing.listGap}px` }}>
-              <Swatch color={colorsV2.grid} ring={KIND_COLOR[k]} />
-              <span style={typeV2.legendSm}>{KIND_LEGEND[k]}</span>
-            </span>
-          ))}
-        </div>
+        <PrecipHourTable days={days} grid={grid} points={running.points} today={today} />
       </Card>
 
       <p style={{ ...typeV2.note, padding: `0 ${spacing.listGapLg}px` }}>
