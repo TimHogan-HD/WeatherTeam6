@@ -16,12 +16,16 @@ import {
   formatSince,
   hourGrid,
   hourKind,
+  isRealRain,
   precipDays,
+  precipEvents,
   precipSummary,
+  runningTotal,
   type HourCell,
   type PrecipKind,
 } from '../lib/precipHistory.js'
 import { useNow } from '../hooks/useNow.js'
+import { PrecipRunningTotal } from './PrecipRunningTotal.js'
 import { InlineError, Skeleton } from './States.js'
 
 /**
@@ -244,6 +248,14 @@ export function PrecipTab({ recent, isClimbingLocation }: PrecipTabProps) {
     data.hours.some((h) => h.precip_mm > 0 && hourKind(h) === k),
   )
   const gridColumns = `${DAY_COL} repeat(24, minmax(0, 1fr)) ${TOTAL_COL}`
+  const running = runningTotal(days, data.hours)
+  const realEvents = precipEvents(data.hours).filter((e) =>
+    data.hours.some((h) => isRealRain(h) && e.startLocal < h.valid_at_local && h.valid_at_local <= e.endLocal),
+  )
+  const flatFrom =
+    lastReal === null || rainingNow
+      ? null
+      : (running.points.find((p) => p.validAtLocal === lastReal.valid_at_local)?.at ?? null)
 
   return (
     <>
@@ -304,6 +316,18 @@ export function PrecipTab({ recent, isClimbingLocation }: PrecipTabProps) {
           <Stat label="This week" value={formatPrecipIn(summary.totalMm)} note={`over ${days.length} days`} />
           <Stat label="Wet this week" value={`${summary.wetHours} h`} note={`of ${data.hours.length}`} />
         </div>
+      </Card>
+
+      <Card title="Running total" aside="inches" gap={spacing.listGapLg}>
+        <PrecipRunningTotal
+          days={days}
+          points={running.points}
+          spanHours={running.spanHours}
+          realEvents={realEvents}
+          flatFrom={flatFrom}
+          flatHours={flatFrom === null ? null : hoursSinceReal}
+          today={today}
+        />
       </Card>
 
       <Card title="Every hour" aside={`to ${summary.endingLocal === null ? EM_DASH : when(summary.endingLocal)}`} gap={spacing.listGapLg}>
