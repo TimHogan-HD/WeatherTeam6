@@ -54,10 +54,14 @@ const command = String(input?.tool_input?.command ?? '')
 // One review per PR, when it is opened. A later push to the same branch does not
 // ask again: the `review` CI job re-reviews every push to an open PR.
 if (/\bgh\s+pr\s+create\b/.test(command)) {
+  // Since 2026-09-30 the CI reviewer gates the merge (lib/reviewGate.mjs), so
+  // this asks for what the gate cannot check: that its findings were read.
   emit(
-    'A pull request was just opened. Before responding to the user, run /code-review high ' +
-      'on this branch — the defects this project ships pass typecheck, lint and the suite, ' +
-      'so the diff review is the control that catches them.',
+    'A pull request was just opened. The CI reviewer gates the merge: `gh pr merge` is ' +
+      'blocked until its "## Claude review" comment names the head commit. When it posts, ' +
+      'read every inline finding and fix it or reply on the PR why it is not a defect — ' +
+      'the defects this project ships pass typecheck, lint and the suite. For a large or ' +
+      'risky diff, also run /code-review high locally.',
   )
 }
 

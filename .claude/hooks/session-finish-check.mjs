@@ -38,6 +38,7 @@ import {
   unpushedCommits,
   workingTreeChanges,
 } from './lib/gitState.mjs'
+import { reviewState } from './lib/reviewGate.mjs'
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -159,16 +160,34 @@ if (branch === base) {
 const prs = openPullRequests()
 if (prs === null) process.exit(0) // gh unavailable; do not guess.
 
-const ready = prs.filter((p) => p.mergeable === 'MERGEABLE' && checksArePassing(p))
+const green = prs.filter((p) => p.mergeable === 'MERGEABLE' && checksArePassing(p))
+// The merge gate (lib/reviewGate.mjs) refuses a PR the CI reviewer has not
+// covered at its head, so asking for that merge would only loop. Green means the
+// reviewer job has finished; if it left no summary, that is the thing to fix.
+const states = green.map((p) => ({ p, s: reviewState(p.number) }))
+const ready = states.filter(({ s }) => s === null || s.reviewed || s.exempt).map(({ p }) => p)
+const unreviewed = states.filter(({ s }) => s !== null && !s.reviewed && !s.exempt)
 if (ready.length > 0) {
   blockTurn([
-    `UNFINISHED: ${ready.length} PR(s) are green, mergeable, and still open.`,
+    `UNFINISHED: ${ready.length} PR(s) are green, reviewed, mergeable, and still open.`,
     '',
     ...ready.map((p) => `  #${p.number}  ${p.title}`),
     '',
     'The user has a standing preference that you merge rather than hand PRs back.',
-    `Merge it:  gh pr merge <n> --squash --delete-branch`,
+    'Read the reviewer\'s inline findings first and deal with each one. Then merge:',
+    `  gh pr merge <n> --squash --delete-branch`,
     'Then switch to the default branch and pull.',
+  ])
+}
+if (unreviewed.length > 0) {
+  blockTurn([
+    `UNFINISHED: ${unreviewed.length} PR(s) are green but the CI reviewer posted no summary ` +
+      'for the head commit, so they cannot merge.',
+    '',
+    ...unreviewed.map(({ p, s }) => `  #${p.number}  ${p.title}  (head ${String(s.headSha).slice(0, 7)})`),
+    '',
+    'Rerun the reviewer:  gh run list --workflow "Claude Review" --limit 3,  then  gh run rerun <id>',
+    'If a rerun also posts nothing, tell the user the reviewer is broken rather than retrying.',
   ])
 }
 

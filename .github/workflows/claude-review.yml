@@ -79,8 +79,11 @@ jobs:
                with mcp__github_inline_comment__create_inline_comment: what goes wrong, on what input.
                No style nits, no praise.
             5. Finish with exactly one PR comment via `gh pr comment ${{ github.event.pull_request.number }} --body "..."`:
-               a "## Claude review" heading, the number of findings, and a line
-               "Read: <the files you opened>". If you found nothing, say so and still list what you read.
+               a "## Claude review" heading, a line "Commit: ${{ github.event.pull_request.head.sha }}"
+               (the full SHA, exactly), the number of findings, and a line "Read: <the files you opened>".
+               If you found nothing, say so and still list what you read. The merge gate
+               (`.claude/hooks/lib/reviewGate.mjs`) looks for the heading and that SHA; without both,
+               the PR cannot merge.
           # --allowedTools REPLACES the default allowlist, it does not extend it.
           # Listing only the comment tool left the reviewer able to post findings
           # but unable to read a single file: on PR #56 it burned 32 permission
