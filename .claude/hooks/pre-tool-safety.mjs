@@ -188,9 +188,53 @@ if (/\bdrizzle-kit\s+push\b/i.test(command) || /\bdb:push\b/i.test(command)) {
   )
 }
 
+/**
+ * True when a PowerShell command removes recursively and forcibly:
+ * `Remove-Item -Recurse -Force` or any alias of it, with the parameter
+ * prefixes PowerShell accepts (`-r`, `-fo`), or `cmd`'s `rd /s /q`.
+ */
+function isPowerShellRecursiveForceRemove(cmd) {
+  for (const segment of String(cmd).split(/&&|\|\||[;\n|]/)) {
+    const words = segment.trim().split(/\s+/)
+    const verb = (words[0] ?? '').toLowerCase()
+    if (['remove-item', 'ri', 'rm', 'del', 'erase', 'rd', 'rmdir'].includes(verb)) {
+      const recursive = words.some((w) => /^-r(e(c(u(r(s(e)?)?)?)?)?)?$/i.test(w))
+      const forced = words.some((w) => /^-fo(r(c(e)?)?)?$/i.test(w))
+      if (recursive && forced) return true
+    }
+    if (/(^|\s)(rd|rmdir)\s.*\/s\b.*\/q\b|(^|\s)(rd|rmdir)\s.*\/q\b.*\/s\b/i.test(segment)) return true
+  }
+  return false
+}
+
 /* ---------------------------------------------------------------- *
  * 2. Destructive shell commands.
+ *
+ *    PowerShell is checked too: until 2026-09-30 these guards watched Bash
+ *    only, so `Remove-Item -Recurse -Force` and a `Set-Content .env` passed.
  * ---------------------------------------------------------------- */
+if (tool === 'PowerShell') {
+  if (isPowerShellRecursiveForceRemove(command) || isRecursiveForceRemove(command)) {
+    block('Recursive force delete requires explicit user confirmation before running.')
+  }
+  if (/\bDROP\s+(TABLE|DATABASE|SCHEMA)\b/i.test(command)) {
+    block('Destructive SQL (DROP) requires explicit user confirmation before running.')
+  }
+  if (/\btruncate\b[\s\S]*\bcascade\b/i.test(command)) {
+    block('TRUNCATE ... CASCADE requires explicit user confirmation before running.')
+  }
+  if (
+    /(>>?|\b(Set-Content|Add-Content|Out-File|sc|ac|tee|Tee-Object)\b[^;|\n]*?)\s*['"]?(\.[\\/])?\.env(?![\w.])/i.test(
+      command,
+    )
+  ) {
+    block(
+      'Do not create or write .env — use .env.example for key names and set real ' +
+        'values in the shell or the Vercel dashboard.',
+    )
+  }
+}
+
 if (tool === 'Bash') {
   if (isRecursiveForceRemove(command)) {
     block('Recursive force delete requires explicit user confirmation before running.')
