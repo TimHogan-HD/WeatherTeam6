@@ -963,7 +963,10 @@ are commonly described as "sandstone" and only one is.
 - **Taylors Falls / Interstate State Park, MN — basalt.** Midcontinent Rift flood basalt,
   ~1.1 Ga, eroded into the St. Croix Dalles with the famous glacial potholes
   ([MN DNR](https://files.dnr.state.mn.us/destinations/state_parks/interstate/interstate_geology.pdf)).
-  Dense columnar type, so 0.1–1.0% porosity: hours, not days, and no integrity risk. The
+  Dense but **not columnar** (corrected 2026-09-29): the DNR finds "a system of horizontal and
+  vertical joint planes", and freeze–thaw separates joint-bound blocks from the cliff
+  ([MN DNR report 336-5](https://files.dnr.state.mn.us/lands_minerals/mpes_projects/reports/report336_5.pdf)).
+  Low porosity, so hours, not days — the loose-block risk is freeze–thaw, not rain. The
   potholes and river-level base still pond water independently of the rock.
 - **Robinson Park, Sandstone MN — Hinckley Sandstone, in a quarry.** Trad, sport, boulder,
   ice and mixed in one footprint; mostly 5.9–5.11b
@@ -2079,7 +2082,7 @@ on a vertical wall, before the existing angle/wind/humidity modifiers.
 | `quartzite` | 1 | 6 | Near-zero matrix porosity [M] |
 | `slate` | 1 | 4 | No pore space; fastest-drying rock in community rankings. Friction-limited [C] |
 | `gneiss_schist` | 2 | 12 | Low matrix porosity, foliation drainage [M/I] |
-| `basalt_dense` (columnar) | 2 | 8 | 0.1–1.0% porosity [M] — **SHIPPED 2026-09-16**, see §6.1 |
+| `basalt_dense` (dense — columnar or blocky; labelled *Basalt (dense)* since 2026-09-29, when Taylors Falls turned out not to be columnar) | 2 | 8 | 0.1–1.0% porosity [M] — **SHIPPED 2026-09-16**, see §6.1 |
 | `basalt_vesicular` | 12 | 48 | 30–50% porosity [M] — **SHIPPED 2026-09-16**, see §6.1 |
 | `tuff_welded` | 4 | 16 | Behaves near-granitic [C]. Smith Rock locals: "road's dry = rock's dry". The *softens* label the soft-rock audit gave it is withdrawn — its source was an unsourced SEO page (climber pass below) |
 | `tuff_nonwelded` | 36 | 96 | 38–60% porosity — more than any sandstone [M] |
@@ -2149,7 +2152,7 @@ on a vertical wall, before the existing angle/wind/humidity modifiers.
 > | `anorthosite` | [source](https://www.mountainproject.com/area/105814854/carlton-peak) |
 > | `syenite_porous` | [source](https://www.bluelizardclimbingandyoga.com/hueco/faq) |
 > | `rhyolite` | [source](https://en.wikipedia.org/wiki/Palisade_Head) |
-> | `basalt_dense` | [source](https://gripped.com/profiles/washington-climbing-areas-to-check-out-this-fall/) |
+> | `basalt_dense` | [source](https://files.dnr.state.mn.us/lands_minerals/mpes_projects/reports/report336_5.pdf) |
 > | `basalt` | [source](https://www.mountainproject.com/area/105868955/taos-area) |
 > | `basalt_vesicular` | [source](https://www.mountainproject.com/area/105868955/taos-area) |
 > | `tuff_welded` | [source](https://www.mountainproject.com/forum/topic/119059755/climbing-after-rain-in-bend-oregon) |
