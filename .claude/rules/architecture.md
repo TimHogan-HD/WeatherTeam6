@@ -20,12 +20,16 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   result needs an argument. **Every constant is a judgement call**; nothing is validated
   against outcomes (#143).
 - **`rockThermal.ts` is Layer 1.** Irradiance comes from one deterministic model,
-  `gfs_seamless` (`THERMAL_MODEL`), **never pooled** (#155); a reading above 1400 W/m² is a
-  gap. **`T_surface` is null whenever an input was missing and never degrades to air
+  `gfs_seamless` (`THERMAL_MODEL`); a reading above 1400 W/m² is a gap. **One model is a
+  cost decision, not a safety rule** (#212): the mean of GFS, ECMWF and ICON measured 0.2 °F
+  better in arid daytime MAE and 1.1 °F in humid, for two more fetches per read and more
+  stored history. **`gem_seamless` never feeds irradiance, pooled or alone** (#155). Pooling
+  the other three is allowed if a rerun of `compare:rock-temp` earns it — that script tests
+  short lead times only, so check days 5–7 first, where GEM went wrong. **`T_surface` is null whenever an input was missing and never degrades to air
   temperature**, and the per-hour `qualified` flag travels with the reading. **The series'
   `T_surface` lags the sun by `SURFACE_TAU_HOURS` (2 h)** — the one rock-thermal constant
   measured against outcomes (`npm run compare:rock-temp`); the drying rate and display read
-  the lagged value, `evaluateHour` stays instantaneous. Changing the sunlight source is #212.
+  the lagged value, `evaluateHour` stays instantaneous.
 - **`hourlyConditions.ts` and `sweatBalance.ts` supply `T_mass`, `T_surface` and the drying
   rate** to Crag A (via `evaluateHourlyConditions`); v2's own score and sweat-balance friction
   no longer reach a response. A weighted geometric mean has unbounded slope at zero, so **a new factor must
@@ -181,7 +185,8 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   `probability_is_shared` false.
 - **`shortwave_wm2` has three states: a number, 0 (night, a measurement) and null (no
   answer).** Never `?? 0` on this path. Not on the `/hourly` response yet.
-- **`gem_seamless`'s shortwave is ~3× too high past day 4 — never pool irradiance** (#155).
+- **`gem_seamless`'s shortwave is ~3× too high past day 4 — it never feeds irradiance**
+  (#155). The other three may be pooled only on a measured gain (#212, above).
 - **An hour with no values at all is not stored**; a stored row keeps its nulls. **"This
   model does not reach this day" is decided on values, not rows**, excluding
   `precip_prob_pct`.

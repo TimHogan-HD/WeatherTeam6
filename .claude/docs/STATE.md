@@ -88,8 +88,8 @@ throwaway. `VERCEL_TOKEN` is team-scoped and reaches `https://api.vercel.com` wi
    not scheduled.
 
 Still open on Crag A: a minimum wait after rain for soft sandstone (F17), rain-history seeding
-(#176), and whether a condition-report screen comes later. Whether GFS sunlight should be
-replaced for rock temperature is #212.
+(#176), and whether a condition-report screen comes later. GFS stays the sunlight source
+(#212, closed 2026-09-30: averaging three models gained 0.2–1.1 °F).
 
 ---
 
