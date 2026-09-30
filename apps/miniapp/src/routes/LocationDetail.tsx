@@ -2,8 +2,8 @@ import { useCallback, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { colors, spacing } from '@weatherteam6/design/tokens'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, bottomClearance, row, stack } from '../theme/styles.js'
-import { backTarget, wallPath } from '../lib/backTarget.js'
+import { bareButton, navClearance, row, stack } from '../theme/styles.js'
+import { wallPath } from '../lib/backTarget.js'
 import { formatRunAge } from '../lib/format.js'
 import { useDeleteLocation, useLocation } from '../hooks/useLocations.js'
 import { useAlerts, useConditions, useForecast } from '../hooks/useWeather.js'
@@ -19,21 +19,10 @@ import { InlineError, Skeleton } from '../components/States.js'
 
 const TAB_PANEL_ID = 'detail-tab-panel'
 
-/** What the back control says, from where it goes. */
-const TAB_WORDS: Record<DetailTab, string> = {
-  overview: 'Overview',
-  daily: 'Daily',
-  hourly: 'Hourly',
-  precip: 'Precip',
-  rock: 'Rock',
-  crag: 'Crag',
-}
-
 /**
  * `/location/:id` — a saved location, in the v2 layout: a header band with the
- * tabs, then the open tab. Back steps from Hourly to Daily, from any other tab
- * to Overview, and from Overview to the list — resolved by `backTarget`, not
- * decided here — and the control names where it goes.
+ * tabs, then the open tab. No back link (owner, 2026-09-30): the bottom bar's
+ * Conditions tab returns to the list, and the browser's back retraces history.
  */
 export function LocationDetail() {
   const navigate = useNavigate()
@@ -50,10 +39,10 @@ export function LocationDetail() {
   const guidebook = useGuidebook(id, location.data?.is_climbing_location)
   const [searchParams] = useSearchParams()
 
-  // The tabs live here rather than inside `DetailView` because back is
-  // registered per route (§2) and has to be able to change the tab.
-  // `?tab=` is how the guidebook screens link back in — a wall's back to Crag
-  // (`cragTabPath`), a route's "Hourly ›" to Hourly. Only the opening tab:
+  // The tabs live here rather than inside `DetailView` because the header band
+  // draws them and the panel shows them. `?tab=` is how the guidebook screens
+  // link back in — a wall's back to Crag (`cragTabPath`), a route's "Hourly ›"
+  // to Hourly. Only the opening tab:
   // after that the route holds it, as before. A city asking for Crag falls
   // back to Overview below, like any tab it does not offer.
   const [tab, setTab] = useState<DetailTab>(() => {
@@ -78,21 +67,6 @@ export function LocationDetail() {
   // loaded must not point at one.
   const options = location.data === undefined ? null : detailTabs(location.data.is_climbing_location)
   const activeTab = options === null || options.some((o) => o.value === tab) ? tab : 'overview'
-
-  const back = backTarget({ route: 'detail', tab: activeTab })
-  const backLabel = back.kind === 'navigate' ? 'Locations' : TAB_WORDS[back.tab]
-
-  const onBack = useCallback(() => {
-    const action = backTarget({ route: 'detail', tab: activeTab })
-    switch (action.kind) {
-      case 'showTab':
-        setTab(action.tab)
-        return
-      case 'navigate':
-        void navigate(action.to)
-        return
-    }
-  }, [activeTab, navigate])
 
   const remove = useDeleteLocation()
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -208,8 +182,7 @@ export function LocationDetail() {
     <main style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
       <DetailHeader
         heading={locationHeading(location.data ?? null, freshness)}
-        backLabel={backLabel}
-        onBack={onBack}
+        back={null}
         feedbackLocationId={id ?? null}
         tabs={
           options === null
@@ -221,7 +194,7 @@ export function LocationDetail() {
         style={{
           ...stack(spacing.listGapLg),
           padding: `${spacing.sectionGap}px`,
-          paddingBottom: bottomClearance,
+          paddingBottom: navClearance,
         }}
       >
         {content}

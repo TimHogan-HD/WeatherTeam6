@@ -11,7 +11,7 @@ import type {
 } from '@weatherteam6/types'
 import { GUIDEBOOK_SOURCE_LABEL, RECENT_PRECIP_SOURCE_LABEL } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
-import { bottomClearance, stack } from '../theme/styles.js'
+import { navClearance, stack } from '../theme/styles.js'
 import {
   findToday,
   forecastSourceLabel,
@@ -414,7 +414,7 @@ export function DetailView({
           ...stack(spacing.listGapLg),
           ...(panelTop === null
             ? {}
-            : { minHeight: `calc(100dvh - ${panelTop}px - ${bottomClearance})` }),
+            : { minHeight: `calc(100dvh - ${panelTop}px - ${navClearance})` }),
         }}
       >
         {panel}

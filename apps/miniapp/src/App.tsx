@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { BrowserRouter, Navigate, Route, Routes, useLocation as useRouterLocation } from 'react-router-dom'
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation as useRouterLocation } from 'react-router-dom'
 import { createQueryClient } from './lib/queryClient.js'
 import { getToken, subscribeToToken } from './lib/authToken.js'
 import { useAuthToken } from './hooks/useAuth.js'
@@ -11,6 +11,9 @@ import { LocationList } from './routes/LocationList.js'
 import { Login } from './routes/Login.js'
 import { WallScreen } from './routes/WallScreen.js'
 import { ClimbScreen } from './routes/ClimbScreen.js'
+import { Profile, UnbuiltSection } from './routes/Sections.js'
+import { TabBar } from './components/TabBar.js'
+import { sectionFor } from './lib/bottomNav.js'
 
 const queryClient = createQueryClient()
 
@@ -31,9 +34,10 @@ subscribeToToken(() => {
 })
 
 /**
- * Seven client-side routes — list, detail, add, login and feedback, plus the
- * guidebook's wall and route screens — and no server routes: Vercel rewrites every path to
- * `index.html` (miniapp-design-v1.md §2, plus `/login` from Phase 2 of
+ * Client-side routes only — list, detail, add, login and feedback, the
+ * guidebook's wall and route screens, and the bottom bar's other four sections
+ * — and no server routes: Vercel rewrites every path to `index.html`
+ * (miniapp-design-v1.md §2, plus `/login` from Phase 2 of
  * `docs/handoffs/leave-telegram-v1.md`, and `/feedback`). An unrecognised path lands on the list
  * silently; the app never renders an error for a bad URL.
  */
@@ -45,53 +49,23 @@ export function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route
-            path="/"
             element={
               <RequireAuth>
-                <LocationList />
+                <SignedIn />
               </RequireAuth>
             }
-          />
-          <Route
-            path="/location/:id"
-            element={
-              <RequireAuth>
-                <LocationDetail />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/location/:id/wall/:wallId"
-            element={
-              <RequireAuth>
-                <WallScreen />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/location/:id/wall/:wallId/route/:routeId"
-            element={
-              <RequireAuth>
-                <ClimbScreen />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/add"
-            element={
-              <RequireAuth>
-                <AddLocation />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/feedback"
-            element={
-              <RequireAuth>
-                <Feedback />
-              </RequireAuth>
-            }
-          />
+          >
+            <Route path="/" element={<LocationList />} />
+            <Route path="/location/:id" element={<LocationDetail />} />
+            <Route path="/location/:id/wall/:wallId" element={<WallScreen />} />
+            <Route path="/location/:id/wall/:wallId/route/:routeId" element={<ClimbScreen />} />
+            <Route path="/add" element={<AddLocation />} />
+            <Route path="/feedback" element={<Feedback />} />
+            <Route path="/crags" element={<UnbuiltSection title="Crags" />} />
+            <Route path="/map" element={<UnbuiltSection title="Map" />} />
+            <Route path="/trips" element={<UnbuiltSection title="Trips" />} />
+            <Route path="/profile" element={<Profile />} />
+          </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
@@ -117,6 +91,22 @@ function RequireAuth({ children }: { children: ReactNode }) {
   const token = useAuthToken()
   if (token === null) return <Navigate to="/login" replace />
   return <>{children}</>
+}
+
+/**
+ * Every signed-in screen, with the bottom bar under it wherever `sectionFor`
+ * places the path in a section. One bar for the whole app, so the pill slides
+ * between tabs instead of being redrawn by each screen.
+ */
+function SignedIn() {
+  const { pathname } = useRouterLocation()
+  const section = sectionFor(pathname)
+  return (
+    <>
+      <Outlet />
+      {section === null ? null : <TabBar active={section} />}
+    </>
+  )
 }
 
 /**

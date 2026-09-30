@@ -26,7 +26,7 @@ Three claims carried into B0 from earlier documents are wrong against the code a
 | `shadow` | **No** | `shadowColor` / `shadowOffset` / `shadowOpacity` / `shadowRadius` / `elevation` are RN props with no CSS meaning. Must be re-expressed as `box-shadow` |
 | `layout` | **No** | `flex: 1`, `paddingHorizontal` are RN-only |
 | `components` | Audit per-entry | Mixed; treat as RN unless proven otherwise |
-| `bottomNav` | **Do not import** | Declares four tabs (Home, Crags, Trips, Radar). Three are out of scope; the Mini App has no bottom nav |
+| `bottomNav` | Yes, directly | The bottom bar's five tabs, their order and the pill's sizes (§2). Rewritten 2026-09-30; it used to declare the deleted RN app's four tabs |
 
 **Consequence:** the Mini App needs a thin adapter module, `apps/miniapp/src/theme/tokens.css.ts`, that re-expresses `type`, `shadow`, and `layout` for the web. It **derives** from the imported tokens; it never restates a literal value. Deriving is not redefining — the architecture rule ("never redefine colors, spacing, or type scale in an app") is satisfied as long as every number traces back to an import.
 
@@ -80,13 +80,16 @@ this. Not before.
 
 ## 2. Navigation
 
-**Decision: four routes, with an in-app back control.**
+**Decision: client-side routes, an in-app back control, and a bottom bar.**
 
 ```
 /login               sign in with a passphrase
-/                    location list   (root, behind the gate)
-/location/:id        location detail
+/                    location list — the Conditions section   (root, behind the gate)
+/location/:id        location detail   (plus the guidebook's wall and route screens)
 /add                 search and add a location   (see §12)
+/feedback            app feedback and forecast checks
+/crags /map /trips   bottom-bar sections, not built yet
+/profile             Feedback and Sign out
 ```
 
 - Client-side routing, no server routes. The Vercel project rewrites all paths to `index.html`.
@@ -99,16 +102,24 @@ this. Not before.
   | Route | Back target |
   | --- | --- |
   | `/` list | no control — nothing to go back to |
-  | `/location/:id` (saved), Overview tab | `/` |
-  | `/location/:id`, Daily, Rock or Crag tab | the Overview tab — **not a navigation** |
-  | `/location/:id`, Hourly tab | the Daily tab — **not a navigation** |
+  | `/location/:id` (saved), any tab | no control — the bottom bar's Conditions tab returns to `/` |
+  | `/location/:id/wall/…` and `…/route/…` | the Crag tab, then the wall |
   | `/add` | `/` |
-  | `/add` preview (unsaved detail) | back to `/add` **with the query and results intact** — treat preview as a step within `/add`, not a sibling of it |
+  | `/add` save form | back to the search **with the query and results intact** — the form is a step within `/add`, not a sibling of it |
 
   This table is implemented by `src/lib/backTarget.ts`, which is pure and **overloaded per
   route**, so each caller is handed only the actions it can receive and a new action is a
   type error rather than a control that silently does nothing. `Screen` renders the control
   when given `onBack`; the list passes none.
+- **The bottom bar** (owner, 2026-09-30) holds five sections, left to right: **Crags ·
+  Conditions · Map · Trips · Profile** (`bottomNav` in `packages/design`). Conditions is `/`
+  and owns `/location/*`; Crags, Map and Trips are placeholders that say they are not built;
+  Profile holds Feedback and Sign out, which left the list. Unlit tabs are icons, and the lit
+  one carries its name in a lime pill that slides from tab to tab (`TabBar.tsx`). Tapping a
+  tab goes to its section's first screen, so a lit Conditions is the way out of a location —
+  which is why a saved location lost its back link. `/add` and `/feedback` are tasks you
+  finish and leave: no bar, their own back control. A location keeps its own tab row at the
+  top; the bar does not replace it.
 - **After a successful save**, replace history rather than pushing: go to `/location/:id` for
   the newly created location, with `/` beneath it. Back from there lands on the list, not on
   the preview of a place already saved. The `POST /locations` response returns the created
@@ -643,7 +654,7 @@ Not in the Mini App, in v1 or later without a new spec:
 - History and normals views — no writer exists (issue #25)
 - Any AI-generated commentary or per-hour analysis — removed once already for violating the copy rules; do not reintroduce
 - Light theme (§1)
-- Bottom navigation — still out with §12's third route. `/add` is a task you finish and leave, not a destination you switch between; a persistent tab bar would advertise it as a peer of the location list, which it is not. Reached from the list's empty state and from an add affordance in the list header
+- ~~Bottom navigation~~ — **no longer a non-goal.** Reversed 2026-09-30 on the owner's call; see §2. The reasoning about `/add` still holds: it is not a tab, and the bar hides on it
 - Offline write / mutation queue
 - Push notifications. **The product has no notification channel at all** since the bot was deleted — alerts are collected and reach nobody. Reinstating one is a product decision, not a UI task
 

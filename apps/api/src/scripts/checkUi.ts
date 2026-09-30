@@ -232,9 +232,24 @@ async function run(): Promise<void> {
       await screen(`tab-${label.trim().toLowerCase()}`)
     }
 
+    // 3a. The bottom bar: every section by tapping it, then Conditions back to
+    // the list — the location screen has no back link of its own.
+    const bar = page.getByRole('navigation', { name: 'Main' })
+    for (const section of ['Crags', 'Map', 'Trips', 'Profile']) {
+      await bar.getByRole('link', { name: section }).click()
+      await screen(`section-${section.toLowerCase()}`, 5)
+      const lit = await bar.locator('[aria-current="page"]').getAttribute('aria-label')
+      check(`the bar lights ${section} on its own screen`, lit === section, `lit: ${lit}`)
+    }
+    await page.goto(`${WEB}/location/${locationId}`)
+    await bar.getByRole('link', { name: 'Conditions' }).click()
+    await page.waitForURL((u) => u.pathname === '/', { timeout: 10_000 }).catch(() => undefined)
+    check('Conditions in the bar returns a location to the list', new URL(page.url()).pathname === '/', page.url())
+
     // 4. The add screen.
     await page.goto(`${WEB}/add`)
     await screen('add', 5)
+    check('the add flow shows no bottom bar', (await bar.count()) === 0)
 
     // 4a. Current location, refused. Nothing granted, so Chromium denies it:
     // the screen must say why, not sit on "Reading location…".

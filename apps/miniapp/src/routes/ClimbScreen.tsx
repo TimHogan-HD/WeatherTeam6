@@ -12,7 +12,7 @@ import {
   type GuidebookWall,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, bottomClearance, cardV2, row, stack, wellV2 } from '../theme/styles.js'
+import { bareButton, navClearance, cardV2, row, stack, wellV2 } from '../theme/styles.js'
 import { backTarget, climbPath } from '../lib/backTarget.js'
 import { findWall, mountainProjectHref, mountainProjectUrl, openBetaClimbUrl } from '../lib/guidebookView.js'
 import { useGuidebook } from '../hooks/useGuidebook.js'
@@ -251,8 +251,7 @@ export function ClimbScreen() {
     <main style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
       <DetailHeader
         heading={heading}
-        backLabel={wall?.name ?? 'Wall'}
-        onBack={() => void navigate(back.to)}
+        back={{ label: wall?.name ?? 'Wall', onBack: () => void navigate(back.to) }}
         feedbackLocationId={id === '' ? null : id}
         tabs={null}
       />
@@ -260,7 +259,7 @@ export function ClimbScreen() {
         style={{
           ...stack(spacing.listGapLg),
           padding: `${spacing.sectionGap}px`,
-          paddingBottom: bottomClearance,
+          paddingBottom: navClearance,
         }}
       >
         {content}

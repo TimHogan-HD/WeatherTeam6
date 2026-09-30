@@ -14,7 +14,7 @@ import {
   type GuidebookWall,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, bottomClearance, cardV2, row, stack, wellV2 } from '../theme/styles.js'
+import { bareButton, navClearance, cardV2, row, stack, wellV2 } from '../theme/styles.js'
 import { backTarget, climbPath } from '../lib/backTarget.js'
 import { FILTER_KINDS, filterByKind, findWall, type KindFilter } from '../lib/guidebookView.js'
 import { cardSummary } from '../lib/locationList.js'
@@ -246,8 +246,7 @@ export function WallScreen() {
     <main style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
       <DetailHeader
         heading={heading}
-        backLabel={backLabel}
-        onBack={() => void navigate(back.to)}
+        back={{ label: backLabel, onBack: () => void navigate(back.to) }}
         feedbackLocationId={id === '' ? null : id}
         tabs={null}
       />
@@ -255,7 +254,7 @@ export function WallScreen() {
         style={{
           ...stack(spacing.listGapLg),
           padding: `${spacing.sectionGap}px`,
-          paddingBottom: bottomClearance,
+          paddingBottom: navClearance,
         }}
       >
         {content}
