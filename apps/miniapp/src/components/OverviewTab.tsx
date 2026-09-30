@@ -16,13 +16,13 @@ import {
 import { precipDays, precipSummary } from '../lib/precipHistory.js'
 import { useNow } from '../hooks/useNow.js'
 import { scoreRampColor } from './charts/chartStyle.js'
-import { TodayChart } from './charts/TodayChart.js'
+import { TODAY_CHART_MIN_H, TodayChart, TodayChartLegend } from './charts/TodayChart.js'
 import { InlineError, Skeleton } from './States.js'
 
 /**
  * The Overview tab under the hero, owner's pick 2026-09-30 (mockup D+):
  * **Today** — the day as one chart, temperature coloured by the hour's score
- * with dew point, rain chance and wind as layers; **Next 3 days** — a column
+ * with dew point and rain chance; **Next 3 days** — a column
  * each, with the day's range, rain chance, score and good hours; and rain —
  * when real rain last fell and when rain is next likely.
  *
@@ -59,18 +59,18 @@ export type OverviewTabProps = {
   fill?: boolean
 }
 
-/** Held open while the hourly run loads. */
-const CHART_H = 160
-
 const hairline = { height: '1px', backgroundColor: colorsV2.raised } as const
 
 function Section({
   title,
+  aside = null,
   link,
   grow,
   children,
 }: {
   title: string
+  /** Beside the title, where a line of its own would cost the card a row. */
+  aside?: ReactNode
   link: { label: string; onOpen: () => void } | null
   grow: boolean
   children: ReactNode
@@ -79,6 +79,7 @@ function Section({
     <section style={{ ...cardV2, ...stack(spacing.listGap), ...(grow ? { flex: '1 1 auto' } : {}) }}>
       <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
         <h2 style={typeV2.cardTitle}>{title}</h2>
+        {aside === null ? null : <span style={{ flex: '1 1 auto', minWidth: 0 }}>{aside}</span>}
         {link === null ? null : (
           <button type="button" onClick={link.onOpen} style={{ ...bareButton, width: 'auto', flex: '0 0 auto', whiteSpace: 'nowrap', ...typeV2.cardLink }}>
             {link.label} ›
@@ -96,8 +97,9 @@ function TodaySection({ props }: { props: OverviewTabProps }) {
   const fill = props.fill === true
 
   let body: ReactNode
+  let drawn = false
   if (hourly.isPending || (todayDate === null && hourly.data !== undefined)) {
-    body = <Skeleton height={CHART_H} />
+    body = <Skeleton height={TODAY_CHART_MIN_H} />
   } else if (hourly.isError) {
     body = <InlineError message="Couldn't load the hour-by-hour forecast." onRetry={hourly.refetch} />
   } else if (hourly.data === undefined || todayDate === null) {
@@ -108,6 +110,7 @@ function TodaySection({ props }: { props: OverviewTabProps }) {
       todayDate,
       isClimbingLocation ? { severeAlertEvent: props.severeAlertEvent, alertsPending: props.alertsPending } : null,
     )
+    drawn = hours.length > 0
     body =
       hours.length === 0 ? (
         <p style={typeV2.body}>No hour-by-hour forecast for today.</p>
@@ -117,7 +120,7 @@ function TodaySection({ props }: { props: OverviewTabProps }) {
   }
 
   return (
-    <Section title="Today" link={{ label: 'Hourly', onOpen: props.onOpenHourly }} grow={fill}>
+    <Section title="Today" aside={drawn ? <TodayChartLegend /> : null} link={{ label: 'Hourly', onOpen: props.onOpenHourly }} grow={fill}>
       {body}
     </Section>
   )
@@ -154,10 +157,13 @@ function DayColumn({
         </span>
       )}
       <span style={{ ...stack(spacing.micro) }}>
-        <span style={typeV2.dayChip}>{formatTempRangeF(day.lowC, day.highC)}</span>
-        {chancePct === null ? null : (
-          <span style={{ ...typeV2.dayChip, color: colorsV2.rain }}>{formatHumidity(chancePct)} rain</span>
-        )}
+        {/* One line where it fits; the rain wraps under the range on a narrow phone. */}
+        <span style={{ ...row(spacing.listGapSm), flexWrap: 'wrap' }}>
+          <span style={typeV2.dayChip}>{formatTempRangeF(day.lowC, day.highC)}</span>
+          {chancePct === null ? null : (
+            <span style={{ ...typeV2.dayChip, color: colorsV2.rain }}>{formatHumidity(chancePct)} rain</span>
+          )}
+        </span>
         {day.window === null ? null : (
           <span style={typeV2.legendSm}>{day.window === 'None' ? 'No good hours' : `Good ${day.window.charAt(0).toLowerCase()}${day.window.slice(1)}`}</span>
         )}
