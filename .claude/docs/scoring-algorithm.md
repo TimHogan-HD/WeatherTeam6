@@ -152,13 +152,13 @@ gneiss_schist               2-12h
 granite_weathered           3-12h
 tuff_welded                 4-16h
 limestone_dense             4-18h
-dolomite, carbonate_cherty,
-  sandstone_quartz_arenite  6-24h
-syenite_porous, basalt_vesicular, sandstone_ferruginous,
-  sandstone_arkose, volcanic_breccia                    12-48h
+dolomite, carbonate_cherty  6-24h
+basalt_vesicular, sandstone_ferruginous,
+  sandstone_arkose                                      12-48h
+sandstone_quartz_arenite, syenite_porous                24-48h   was 6-24h, 12-48h
 limestone_porous, conglomerate                          24-72h
 tuff_nonwelded, sandstone_eolian                        36-96h
-sandstone_soft                                          48-120h
+sandstone_soft, volcanic_breccia                        48-120h  breccia was 12-48h
 
 basalt     12-48h   kind not recorded → basalt_vesicular
 limestone  24-72h   kind not recorded → limestone_porous     was 6-24h
