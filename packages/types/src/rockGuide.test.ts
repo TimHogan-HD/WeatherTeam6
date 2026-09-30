@@ -19,7 +19,10 @@ describe('rockGuide', () => {
       expect(line.length).toBeGreaterThan(0)
       expect(line.length).toBeLessThanOrEqual(100)
     }
-    expect(guide.funFact.length).toBeLessThanOrEqual(130)
+    for (const line of [guide.formed, guide.holds]) {
+      expect(line.length).toBeGreaterThan(0)
+      expect(line.length).toBeLessThanOrEqual(120)
+    }
     expect(guide.styles.length).toBeGreaterThanOrEqual(2)
     expect(guide.styles.length).toBeLessThanOrEqual(4)
     expect(guide.care.length + guide.avoid.length).toBeLessThanOrEqual(3)

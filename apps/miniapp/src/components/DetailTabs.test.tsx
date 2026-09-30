@@ -157,7 +157,6 @@ function render(tabs: Partial<Tabs> = {}): string {
   return renderToStaticMarkup(
     <DetailView
       isClimbingLocation
-      asosStation="KRGK"
       forecast={ok([day(DAY_1), day(DAY_2), day(DAY_3)])}
       alerts={{ data: [], isPending: false, isError: false }}
       hourly={{
@@ -242,7 +241,6 @@ describe('DetailView — tabs', () => {
       const html = renderToStaticMarkup(
         <DetailView
           isClimbingLocation
-          asosStation="KRGK"
           forecast={ok([day(DAY_1), day(DAY_2), day(DAY_3)])}
           alerts={{ data: [heatWarning], isPending: false, isError: false }}
           conditions={ok(score)}
@@ -273,7 +271,6 @@ describe('DetailView — tabs', () => {
       renderToStaticMarkup(
         <DetailView
           isClimbingLocation
-          asosStation="KRGK"
           forecast={ok([day(DAY_1), day(DAY_2), day(DAY_3)])}
           alerts={{ data: [], isPending: false, isError: false }}
           conditions={ok(score)}
@@ -305,7 +302,6 @@ describe('DetailView — tabs', () => {
     const html = renderToStaticMarkup(
       <DetailView
         isClimbingLocation
-        asosStation={null}
         forecast={ok([day(DAY_1)])}
         hourly={{
           ...ok({
@@ -333,7 +329,6 @@ describe('DetailView — tabs', () => {
     const html = renderToStaticMarkup(
       <DetailView
         isClimbingLocation
-        asosStation={null}
         forecast={ok([day(DAY_1), day(DAY_2), day(DAY_3)])}
         hourly={{
           data: undefined,
@@ -361,7 +356,6 @@ describe('DetailView — tabs', () => {
     const html = renderToStaticMarkup(
       <DetailView
         isClimbingLocation
-        asosStation={null}
         forecast={ok([day(DAY_1), day(DAY_2), day(DAY_3)])}
         hourly={{
           data: undefined,
@@ -386,7 +380,7 @@ describe('DetailView — tabs', () => {
     // `/add` has no saved row, so `/hourly/:id` has nothing to read and a
     // second tab would open on a screen that cannot have any.
     const html = renderToStaticMarkup(
-      <DetailView unsaved isClimbingLocation asosStation={null} forecast={ok([day(DAY_1)])} />,
+      <DetailView unsaved isClimbingLocation forecast={ok([day(DAY_1)])} />,
     )
     expect(html).not.toContain('role="tablist"')
     expect(html).toMatch(/>Next [0-9]+ days?</)
@@ -428,7 +422,6 @@ describe('DetailView — the Overview tab', () => {
     const html = renderToStaticMarkup(
       <DetailView
         isClimbingLocation={over.climbing ?? true}
-        asosStation="KRGK"
         // The rows carry the retired five-component score, 13. It must not
         // appear anywhere: Crag A is the score on every screen.
         forecast={ok([day(DAY_1), { ...day(DAY_2), score: 13 }, { ...day(DAY_3), score: 13 }])}
@@ -535,7 +528,6 @@ describe('DetailView — Precip tab', () => {
     const html = renderToStaticMarkup(
       <DetailView
         isClimbingLocation={isClimbingLocation}
-        asosStation={null}
         forecast={ok([day(DAY_1)])}
         hourly={{
           ...ok(hourlySeries),

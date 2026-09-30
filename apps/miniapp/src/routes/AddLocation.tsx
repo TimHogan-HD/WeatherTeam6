@@ -122,7 +122,6 @@ export function AddLocation() {
         <DetailView
           unsaved
           isClimbingLocation={draft.isClimbing}
-          asosStation={null}
           forecast={{
             data: preview.data,
             isPending: preview.isPending,

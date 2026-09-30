@@ -1,5 +1,4 @@
 import {
-  IconBulb,
   IconCheck,
   IconChevronDown,
   IconChevronLeft,
@@ -94,6 +93,5 @@ export const HelpIcon = ({ color }: IconProps) => <IconHelpCircle {...props(colo
 /** The Rock tab's section glyphs: rain, sun, the fun fact, and the do/don't marks. 16px — they head a line rather than sit inside one. */
 export const RainIcon = ({ color }: IconProps) => <IconCloudRain {...props(color)} size={16} />
 export const SunIcon = ({ color }: IconProps) => <IconSun {...props(color)} size={16} />
-export const BulbIcon = ({ color }: IconProps) => <IconBulb {...props(color)} size={16} />
 export const CheckIcon = ({ color }: IconProps) => <IconCheck {...props(color)} size={14} stroke={2.25} />
 export const CrossIcon = ({ color }: IconProps) => <IconX {...props(color)} size={14} stroke={2.25} />

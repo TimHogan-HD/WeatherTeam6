@@ -115,7 +115,6 @@ export function LocationDetail() {
     <>
       <DetailView
         isClimbingLocation={location.data.is_climbing_location}
-        asosStation={location.data.asos_station}
         forecast={{
           data: forecast.data,
           isPending: forecast.isPending,
