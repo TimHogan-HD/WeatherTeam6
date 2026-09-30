@@ -236,6 +236,47 @@ async function run(): Promise<void> {
     await screen('add', 5)
 
     await context.close()
+
+    // 5. /conditions failing (#261). A fresh context, so no cached readings,
+    // with every /conditions request answered 500. The card must say it is
+    // retrying, then offer a retry — never sit as an empty gap. The 500s are
+    // the scenario, so they are not counted as problems here.
+    const failing = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2 })
+    await failing.addInitScript((t) => localStorage.setItem('wt6.session.token', t), token)
+    const fp = await failing.newPage()
+    // Fail /conditions only once the card itself is drawn: while the forecast
+    // is still pending (through its own retry) the card is one skeleton, which
+    // is loading and correct, but not the state under test.
+    const cardDrawn = fp
+      .getByText(/conditions now/i)
+      .waitFor({ timeout: 90_000 })
+      .catch(() => null)
+    await failing.route('**/api/v1/conditions/**', async (route) => {
+      await cardDrawn
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: null, error: 'forced by check:ui', status: 500 }),
+      })
+    })
+    await fp.goto(`${WEB}/location/${locationId}`)
+    const retrying = await fp
+      .getByText('Couldn’t reach conditions — trying again')
+      .waitFor({ timeout: 30_000 })
+      .then(() => true)
+      .catch(() => false)
+    const retryShot = join(dir, `${String(passed + failed).padStart(2, '0')}-conditions-retrying.png`)
+    await fp.screenshot({ path: retryShot, fullPage: true })
+    check(`a failing /conditions says it is trying again  →  ${retryShot}`, retrying)
+    const gaveUp = await fp
+      .getByText("Couldn't load conditions. Tap to retry.")
+      .waitFor({ timeout: 30_000 })
+      .then(() => true)
+      .catch(() => false)
+    const errorShot = join(dir, `${String(passed + failed).padStart(2, '0')}-conditions-failed.png`)
+    await fp.screenshot({ path: errorShot, fullPage: true })
+    check(`then offers a retry  →  ${errorShot}`, gaveUp)
+    await failing.close()
   } finally {
     await browser.close().catch(() => undefined)
     if (vite) vite.kill()
