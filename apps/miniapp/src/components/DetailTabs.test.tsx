@@ -450,32 +450,32 @@ describe('DetailView — the Overview tab', () => {
     return html
   }
 
-  /** The Today card's markup alone, so a note the hero also carries cannot satisfy it. */
-  const todayCard = (html: string) => html.slice(html.indexOf('>Today<'), html.indexOf('</section>', html.indexOf('>Today<')))
+  /** The Today section's markup alone, so a figure the hero also carries cannot satisfy it. */
+  const todaySection = (html: string) => html.slice(html.indexOf('>Today<'), html.indexOf('</section>', html.indexOf('>Today<')))
 
-  it('shows today by the hour, with the friction word at each hour', () => {
-    const html = overview()
-    expect(html).toContain('>Today<')
-    expect(html).toContain('>09<')
-    expect(html).toContain('>12<')
-    expect(html).toContain('>Great<')
-    expect(html).toContain('>Poor<')
-    // The estimate note rides in the strip's own title row, not only in the hero.
-    expect(todayCard(html)).toContain('Friction is estimated, not measured')
+  it('draws today as a chart, the line coloured by the hour’s score', () => {
+    const today = todaySection(overview())
+    expect(today).toContain('>9a<')
+    expect(today).toContain('>12p<')
+    expect(today).toContain('Temperature, coloured by score')
+    // Both scored hours read 80, printed under their ticks.
+    expect(today.match(/>80</g)?.length).toBe(2)
   })
 
   it('scores the next days from the Crag A readings, never the forecast row', () => {
     const html = overview()
     expect(html).toContain('Next 2 days')
-    expect(html).toContain('Score 91')
-    expect(html).toContain('Score 44')
-    expect(html).not.toContain('Score 13')
+    expect(html).toMatch(/>91<\/span>/)
+    expect(html).toMatch(/>44<\/span>/)
+    expect(html).not.toMatch(/>13<\/span>/)
   })
 
   it('drops the day scores under a Severe+ alert and keeps the rows', () => {
     const html = overview({ alerts: [heatWarning] })
     expect(html).toContain('Tue 9/15')
-    expect(html).not.toContain('Score 91')
+    expect(html).not.toMatch(/>91<\/span>/)
+    // The line loses its score colour too: a tint with no number is the number leaking.
+    expect(todaySection(html)).not.toContain('coloured by score')
   })
 
   it('names the next likely rain from the ensemble’s wet share', () => {
@@ -484,11 +484,11 @@ describe('DetailView — the Overview tab', () => {
     expect(html).toContain('Tue 9/15 · 64%')
   })
 
-  it('gives a city temperatures by the hour, day ranges and no score', () => {
+  it('gives a city a neutral chart, day ranges and no score', () => {
     const html = overview({ climbing: false })
-    expect(html).toContain('>09<')
-    expect(html).not.toContain('Friction is estimated')
-    expect(html).not.toContain('Score 91')
+    expect(todaySection(html)).toContain('>9a<')
+    expect(todaySection(html)).not.toContain('coloured by score')
+    expect(html).not.toMatch(/>91<\/span>/)
     expect(html).toContain('50–68°F')
   })
 })

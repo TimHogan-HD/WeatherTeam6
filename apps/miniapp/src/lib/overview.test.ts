@@ -9,13 +9,14 @@ import type {
 } from '@weatherteam6/types'
 import {
   LIKELY_RAIN_PCT,
+  dayChance,
   dayTitle,
   nextDays,
   lastRainText,
   nextLikelyRain,
   shortDate,
   shortDay,
-  todayCells,
+  todayChart,
 } from './overview.js'
 import { precipDays, precipSummary } from './precipHistory.js'
 
@@ -44,53 +45,66 @@ const series = (hours: HourlySample[], readingHours: HourlyReading[] = []): Hour
     readings: { model: 'gfs_seamless', unavailable_reason: null, hours: readingHours, days: [] },
   }) as unknown as HourlySeries
 
-describe('todayCells', () => {
-  // 09:00 local is 14:00Z; 21:00 local is 02:00Z the next UTC day but the same local day.
+describe('todayChart', () => {
+  // 06:00 local is 11:00Z; 21:00 local is 02:00Z the next UTC day but the same local day.
   const hours = [
-    sample('2026-09-28T13:00:00Z', '2026-09-28'), // 08 local — not a strip hour
-    sample('2026-09-28T14:00:00Z', '2026-09-28', { temp_c: 12 }), // 09
-    sample('2026-09-28T17:00:00Z', '2026-09-28', { temp_c: null }), // 12
+    sample('2026-09-28T10:00:00Z', '2026-09-28'), // 05 local, before the chart
+    sample('2026-09-28T11:00:00Z', '2026-09-28', { temp_c: 12, dewpoint_c: 10, wind_kmh: 8, precip_chance_pct: 20 }), // 06
+    sample('2026-09-28T17:00:00Z', '2026-09-28', { temp_c: null, precip_chance_pct: null }), // 12
     sample('2026-09-29T02:00:00Z', '2026-09-28', { temp_c: 13 }), // 21, next UTC date
-    sample('2026-09-29T14:00:00Z', '2026-09-29'), // tomorrow 09
+    sample('2026-09-29T04:00:00Z', '2026-09-28'), // 23, after the chart
+    sample('2026-09-29T11:00:00Z', '2026-09-29'), // tomorrow 06
   ]
+  const alerts = { severeAlertEvent: null, alertsPending: false }
 
-  it('picks the strip hours on the location clock, across the UTC date line', () => {
-    const cells = todayCells(series(hours), '2026-09-28', false)
-    expect(cells.map((c) => c.hourLabel)).toEqual(['09', '12', '21'])
+  it('draws 06:00 to 22:00 on the location clock, across the UTC date line', () => {
+    const out = todayChart(series(hours), '2026-09-28', null)
+    expect(out.map((h) => h.hour)).toEqual([6, 12, 21])
+    expect(out[0]?.valid_at).toBe('2026-09-28T11:00:00Z')
   })
 
-  it('leaves out an hour the run does not carry, and keeps a null temperature as null', () => {
-    const cells = todayCells(series(hours), '2026-09-28', false)
-    expect(cells.find((c) => c.hourLabel === '15')).toBeUndefined()
-    expect(cells.find((c) => c.hourLabel === '12')?.tempC).toBeNull()
+  it('keeps every figure it was given, and a missing one as null rather than 0', () => {
+    const [six, noon] = todayChart(series(hours), '2026-09-28', null)
+    expect(six).toMatchObject({ tempC: 12, dewC: 10, windKmh: 8, chancePct: 20 })
+    expect(noon?.tempC).toBeNull()
+    expect(noon?.chancePct).toBeNull()
   })
 
-  it('never reads another day’s 09:00 as today’s', () => {
-    const cells = todayCells(series(hours), '2026-09-28', false)
-    expect(cells[0]?.valid_at).toBe('2026-09-28T14:00:00Z')
+  it('joins scores by instant, and scores nothing for a city', () => {
+    // Listed out of order: a positional join would give 06:00 the score of 21:00.
+    const rs = [reading('2026-09-29T02:00:00Z', { score: 52 }), reading('2026-09-28T11:00:00Z', { score: 8 })]
+    const scored = todayChart(series(hours, rs), '2026-09-28', alerts)
+    expect(scored.map((h) => h.score)).toEqual([8, null, 52])
+    expect(todayChart(series(hours, rs), '2026-09-28', null).every((h) => h.score === null)).toBe(true)
   })
 
-  it('joins readings by instant, and only when asked for them', () => {
-    // Listed out of order: a positional join would attach 21:00's reading to 09:00.
-    const rs = [
-      reading('2026-09-29T02:00:00Z', { friction: { level: 'poor', condensing: true, qualified: true } }),
-      reading('2026-09-28T14:00:00Z'),
-    ]
-    const withR = todayCells(series(hours, rs), '2026-09-28', true)
-    expect(withR[0]?.reading?.friction?.level).toBe('great')
-    expect(withR.find((c) => c.hourLabel === '21')?.reading?.friction?.level).toBe('poor')
-    expect(withR.find((c) => c.hourLabel === '12')?.reading).toBeNull()
-
-    const city = todayCells(series(hours, rs), '2026-09-28', false)
-    expect(city.every((c) => c.reading === null)).toBe(true)
+  it('withholds every score under a Severe+ alert and while alerts load', () => {
+    const rs = [reading('2026-09-28T11:00:00Z', { score: 80 })]
+    const severe = todayChart(series(hours, rs), '2026-09-28', { severeAlertEvent: 'Extreme Heat Warning', alertsPending: false })
+    expect(severe.every((h) => h.score === null)).toBe(true)
+    const pending = todayChart(series(hours, rs), '2026-09-28', { severeAlertEvent: null, alertsPending: true })
+    expect(pending.every((h) => h.score === null)).toBe(true)
   })
 
   it('tolerates a response from an API older than the readings field', () => {
     const old = { utc_offset_seconds: OFFSET, hours } as unknown as HourlySeries
-    expect(todayCells(old, '2026-09-28', true)[0]?.reading).toBeNull()
+    expect(todayChart(old, '2026-09-28', alerts).every((h) => h.score === null)).toBe(true)
   })
 })
 
+describe('dayChance', () => {
+  it('is the day’s highest hourly chance, and unknown rather than 0% when no hour has one', () => {
+    const hs = [
+      sample('a', '2026-09-29', { precip_chance_pct: 6 }),
+      sample('b', '2026-09-29', { precip_chance_pct: 24 }),
+      sample('c', '2026-09-30', { precip_chance_pct: 90 }),
+      sample('d', '2026-10-01', { precip_chance_pct: null }),
+    ]
+    expect(dayChance(hs, '2026-09-29')).toBe(24)
+    expect(dayChance(hs, '2026-10-01')).toBeNull()
+    expect(dayChance(hs, '2026-10-02')).toBeNull()
+  })
+})
 describe('nextDays', () => {
   const row = (forecast_date: string, over: Partial<ForecastSnapshot> = {}) =>
     ({ forecast_date, temp_c_min: 8, temp_c_max: 19, score: 12, ...over }) as ForecastSnapshot
@@ -132,6 +146,12 @@ describe('nextDays', () => {
     )
     expect(out.map((d) => d.score)).toEqual([88, 70, 40])
     expect(out.some((d) => d.score === 12)).toBe(false)
+  })
+
+  it('carries the day’s good hours, None when it has none, and nothing for a city', () => {
+    const out = nextDays(forecast, '2026-09-28', readings([day('2026-09-29', 88)]))
+    expect(out.map((d) => d.window)).toEqual(['None', null, null])
+    expect(nextDays(forecast, '2026-09-28', null).every((d) => d.window === null)).toBe(true)
   })
 
   it('gives no score to a city or to a day the readings do not reach', () => {

@@ -1,4 +1,4 @@
-import { colors, colorsV2, tempScale } from '@weatherteam6/design/tokens'
+import { colors, colorsV2, scoreScale, tempScale } from '@weatherteam6/design/tokens'
 import { SCORE_BANDS, TEMP_BAND_C, cToF } from '@weatherteam6/types'
 import { withOpacity } from '../../theme/tokens.css.js'
 
@@ -241,23 +241,40 @@ function mix(a: string, b: string, t: number): string {
  */
 export function tempColor(c: number): string {
   if (!Number.isFinite(c)) return chartColors.noData
-  const offsetF = cToF(c) - cToF(IDEAL_TEMP_C)
+  return rampAt(
+    tempScale.map((s) => ({ at: s.offsetF, color: s.color })),
+    cToF(c) - cToF(IDEAL_TEMP_C),
+  )
+}
 
-  const first = tempScale[0]
-  const last = tempScale[tempScale.length - 1]
-  if (first === undefined || last === undefined) return chartColors.noData
-  if (offsetF <= first.offsetF) return mix(first.color, first.color, 0)
-  if (offsetF >= last.offsetF) return mix(last.color, last.color, 0)
-
-  for (let i = 0; i < tempScale.length - 1; i += 1) {
-    const a = tempScale[i]
-    const b = tempScale[i + 1]
+/**
+ * The colour at `v` on a ramp of ascending stops, clamped at both ends and
+ * interpolated between. The one implementation behind every continuous ramp.
+ */
+function rampAt(stops: readonly { at: number; color: string }[], v: number): string {
+  const first = stops[0]
+  const last = stops[stops.length - 1]
+  if (first === undefined || last === undefined || !Number.isFinite(v)) return chartColors.noData
+  if (v <= first.at) return mix(first.color, first.color, 0)
+  if (v >= last.at) return mix(last.color, last.color, 0)
+  for (let i = 0; i < stops.length - 1; i += 1) {
+    const a = stops[i]
+    const b = stops[i + 1]
     if (a === undefined || b === undefined) continue
-    if (offsetF <= b.offsetF) {
-      return mix(a.color, b.color, (offsetF - a.offsetF) / (b.offsetF - a.offsetF))
-    }
+    if (v <= b.at) return mix(a.color, b.color, (v - a.at) / (b.at - a.at))
   }
   return mix(last.color, last.color, 0)
+}
+
+/**
+ * A score on the continuous `scoreScale`, for a mark that draws the score
+ * itself. `scoreColor` below stays the stepped ladder the pills and tints use.
+ */
+export function scoreRampColor(score: number): string {
+  return rampAt(
+    scoreScale.map((s) => ({ at: s.score, color: s.color })),
+    score,
+  )
 }
 
 /**

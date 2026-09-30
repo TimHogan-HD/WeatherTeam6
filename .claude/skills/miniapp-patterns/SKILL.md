@@ -36,6 +36,12 @@ renders wrong-but-plausible if broken:
   of the window is reached by fewer members.
 - **`good`, `fair` and `poor` are the conditions ladder's status colours and are not
   available for data marks.** Temperature uses `sun`; rain uses the `radar*` intensity ramp.
+  **One exception: a mark that draws the score itself** — the Overview's Today line
+  (`charts/TodayChart.tsx`) is coloured by the hour's score on `scoreScale`, a continuous
+  ramp with its stops at the middle of each `SCORE_BANDS` rung (owner, 2026-09-30: a range,
+  not hard cut-offs). `scoreRampColor` is that ramp; `scoreColor` stays the stepped ladder the
+  pills and tints use. Without a score on screen (a city, a Severe+ alert, alerts loading) the
+  line is neutral ink, because a tint with no number is the number leaking.
 - **A chart that cannot be drawn says so — and says only what *it* could not draw.** A
   dropped section reads as a forecast of nothing, because a reader cannot notice a section
   they were never shown. But these charts draw the **ensemble**, and a response with no

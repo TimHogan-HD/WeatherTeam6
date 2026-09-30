@@ -94,8 +94,6 @@ export type ConditionsNowProps = {
    */
   alertsPending: boolean
   severeAlertEvent: string | null
-  /** Grow to take a share of the screen's spare height, spread between its rows. */
-  fill?: boolean
 }
 
 /** The card's surface and inks: a score's rung, or the plain v2 card. */
@@ -311,7 +309,6 @@ export function ConditionsNow({
   conditions,
   alertsPending,
   severeAlertEvent,
-  fill = false,
 }: ConditionsNowProps) {
   const now = useNow()
   // The hour covering right now, or null when the run does not reach it —
@@ -405,7 +402,7 @@ export function ConditionsNow({
   }
 
   return (
-    <section style={{ ...surface, ...stack(spacing.cellPad), ...(fill ? { flex: '1 1 auto', justifyContent: 'space-between' } : {}) }}>
+    <section style={{ ...surface, ...stack(spacing.cellPad) }}>
       <span style={{ ...typeV2.kicker, color: p.muted }}>
         {stamp === null ? CONDITIONS_NOW_LABEL : `${CONDITIONS_NOW_LABEL} · ${stamp}`}
       </span>
