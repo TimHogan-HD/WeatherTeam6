@@ -2137,6 +2137,39 @@ on a vertical wall, before the existing angle/wind/humidity modifiers.
 > after days of rain, Squamish cracks), steepness that keeps rain off entirely (Maple, RRG,
 > Frankenjura), and freeze–thaw loosening holds (Maple, Red Wing). All three are §5 modifiers,
 > not rock-type rows.
+> **Rock-tab "Did you know" facts — sources (2026-09-29).** Each fact ties climbing to the
+> rock and was checked against the page below, not a search summary. Four drafts failed that
+> check and were cut: Golden Cliffs is shoshonite, not basalt; the Sad Boulders "friable after
+> rain" line, the Font polish quote and the Needles crystal line had no page that said them.
+>
+> | Row | Source |
+> | --- | --- |
+> | `granite` | [source](https://en.wikipedia.org/wiki/The_Nose_(El_Capitan)) |
+> | `granite_weathered` | [source](https://en.wikipedia.org/wiki/The_Buttermilks) |
+> | `anorthosite` | [source](https://www.mountainproject.com/area/105814854/carlton-peak) |
+> | `syenite_porous` | [source](https://www.bluelizardclimbingandyoga.com/hueco/faq) |
+> | `rhyolite` | [source](https://en.wikipedia.org/wiki/Palisade_Head) |
+> | `basalt_dense` | [source](https://gripped.com/profiles/washington-climbing-areas-to-check-out-this-fall/) |
+> | `basalt` | [source](https://www.mountainproject.com/area/105868955/taos-area) |
+> | `basalt_vesicular` | [source](https://www.mountainproject.com/area/105868955/taos-area) |
+> | `tuff_welded` | [source](https://www.mountainproject.com/forum/topic/119059755/climbing-after-rain-in-bend-oregon) |
+> | `tuff_nonwelded` | [source](https://bishopvisitor.com/happy-and-sad-boulders-climbing/) |
+> | `volcanic_breccia` | [source](https://thedihedral.com/2019/11/02/caution-wet-rock/) |
+> | `quartzite` | [source](https://www.climbing.com/places/lake-effect/) |
+> | `slate` | [source](https://climbing-history.org/climb/699/the-quarryman) |
+> | `gneiss_schist` | [source](https://www.mountainproject.com/forum/topic/114801189/rumney-after-rain) |
+> | `sandstone` | [source](https://www.mountainproject.com/area/105716763/indian-creek) |
+> | `sandstone_quartz_arenite` | [source](https://en.wikipedia.org/wiki/Fontainebleau_rock_climbing) |
+> | `sandstone_ferruginous` | [source](https://www.earthmagazine.org/article/travels-geology-rocks-and-climbing-kentuckys-red-river-gorge/) |
+> | `sandstone_arkose` | rock-drying-research.md §13.1 |
+> | `sandstone_eolian` | [source](https://www.redrocksguidebook.com/red-rock-guide-excerpts.html) |
+> | `sandstone_soft` | [source](https://en.wikipedia.org/wiki/Rudolf_Fehrmann) |
+> | `limestone` | [source](https://www.mountainproject.com/area/108781888/sheltered-crags) |
+> | `limestone_dense` | [source](https://en.wikipedia.org/wiki/Realization_(climb)) |
+> | `limestone_porous` | [source](https://www.lacrux.com/en/klettern/the-ultimate-trick-for-drying-tufas-and-climbing-holds/) |
+> | `dolomite` | [source](https://www.mnclimbers.org/bolting-1) |
+> | `carbonate_cherty` | [source](https://www.mountainproject.com/area/105812663/red-wing-aka-he-mni-can-barn-bluff) |
+> | `conglomerate` | [source](https://www.mountainproject.com/forum/topic/124188968/avoid-wet-conglomerate) |
 
 Four companion changes that the research says matter more than the table itself:
 
