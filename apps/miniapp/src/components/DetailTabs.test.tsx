@@ -458,6 +458,8 @@ describe('DetailView — the Overview tab', () => {
     expect(today).toContain('>9a<')
     expect(today).toContain('>12p<')
     expect(today).toContain('>Score<')
+    // The readout opens on an hour before anyone taps, and names every figure.
+    for (const field of ['>Temp<', '>Dew<', '>Rain<', '>Wind<']) expect(today).toContain(field)
     // Both scored hours read 80, printed under their ticks.
     expect(today.match(/>80</g)?.length).toBe(2)
   })

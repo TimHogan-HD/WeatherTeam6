@@ -16,7 +16,7 @@ import {
 import { precipDays, precipSummary } from '../lib/precipHistory.js'
 import { useNow } from '../hooks/useNow.js'
 import { scoreRampColor } from './charts/chartStyle.js'
-import { TODAY_CHART_MIN_H, TodayChart, TodayChartLegend } from './charts/TodayChart.js'
+import { TODAY_CHART_MIN_H, TodayChart } from './charts/TodayChart.js'
 import { InlineError, Skeleton } from './States.js'
 
 /**
@@ -63,14 +63,11 @@ const hairline = { height: '1px', backgroundColor: colorsV2.raised } as const
 
 function Section({
   title,
-  aside = null,
   link,
   grow,
   children,
 }: {
   title: string
-  /** Beside the title, where a line of its own would cost the card a row. */
-  aside?: ReactNode
   link: { label: string; onOpen: () => void } | null
   grow: boolean
   children: ReactNode
@@ -78,9 +75,7 @@ function Section({
   return (
     <section style={{ ...cardV2, ...stack(spacing.listGap), ...(grow ? { flex: '1 1 auto' } : {}) }}>
       <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
-        <h2 style={typeV2.cardTitle}>{title}</h2>
-        {aside === null ? null : <span style={{ flex: '1 1 auto', minWidth: 0 }}>{aside}</span>}
-        {link === null ? null : (
+        <h2 style={typeV2.cardTitle}>{title}</h2>        {link === null ? null : (
           <button type="button" onClick={link.onOpen} style={{ ...bareButton, width: 'auto', flex: '0 0 auto', whiteSpace: 'nowrap', ...typeV2.cardLink }}>
             {link.label} ›
           </button>
@@ -97,7 +92,6 @@ function TodaySection({ props }: { props: OverviewTabProps }) {
   const fill = props.fill === true
 
   let body: ReactNode
-  let drawn = false
   if (hourly.isPending || (todayDate === null && hourly.data !== undefined)) {
     body = <Skeleton height={TODAY_CHART_MIN_H} />
   } else if (hourly.isError) {
@@ -110,7 +104,6 @@ function TodaySection({ props }: { props: OverviewTabProps }) {
       todayDate,
       isClimbingLocation ? { severeAlertEvent: props.severeAlertEvent, alertsPending: props.alertsPending } : null,
     )
-    drawn = hours.length > 0
     body =
       hours.length === 0 ? (
         <p style={typeV2.body}>No hour-by-hour forecast for today.</p>
@@ -120,7 +113,7 @@ function TodaySection({ props }: { props: OverviewTabProps }) {
   }
 
   return (
-    <Section title="Today" aside={drawn ? <TodayChartLegend /> : null} link={{ label: 'Hourly', onOpen: props.onOpenHourly }} grow={fill}>
+    <Section title="Today" link={{ label: 'Hourly', onOpen: props.onOpenHourly }} grow={fill}>
       {body}
     </Section>
   )

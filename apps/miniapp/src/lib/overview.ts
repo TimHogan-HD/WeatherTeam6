@@ -101,6 +101,25 @@ export function todayChart(
 }
 
 /**
+ * The chart hour nearest `hour` (fractional, on the location's clock) that the
+ * chart actually carries — what a tap at that point selects, and, given the
+ * current time, what the readout shows before anyone taps. `null` only for an
+ * empty chart.
+ *
+ * **The hour covering the moment, not the nearest mark**: 14:40 is the 14:00
+ * hour. A missing hour is skipped for the nearest one present, so a gap in the
+ * run never leaves the readout on nothing.
+ */
+export function chartHourAt(hours: readonly ChartHour[], hour: number): ChartHour | null {
+  const want = Math.floor(hour)
+  let best: ChartHour | null = null
+  for (const h of hours) {
+    if (best === null || Math.abs(h.hour - want) < Math.abs(best.hour - want)) best = h
+  }
+  return best
+}
+
+/**
  * A day's highest hourly chance of rain, the share of ensemble members wet.
  * `null` when no hour of that day carries a chance: unknown, never "0%".
  */
