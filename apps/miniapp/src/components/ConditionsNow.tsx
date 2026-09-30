@@ -86,6 +86,11 @@ export type ConditionsNowProps = {
     isPending: boolean
     isError: boolean
     refetch: () => void
+    /**
+     * Failed attempts so far. A request that failed once is still pending
+     * while the automatic retry waits, and this is the only way to say so.
+     */
+    failureCount?: number
   }
   /**
    * Whether the alerts query is still in flight. **The number waits for it**:
@@ -303,6 +308,43 @@ function Reserve({ height }: { height: number }) {
   return <div aria-hidden style={{ height: `${height}px` }} />
 }
 
+/**
+ * The readings half while it loads, at its final height. **Visible, not a
+ * blank gap** (#261): a failing `/conditions` is pending through its automatic
+ * retry — tens of seconds, since the API backs off upstream on each attempt —
+ * and an empty space for that long reads as "nothing to say" rather than
+ * "still coming". Placeholder bars where the reading will sit, and words once
+ * an attempt has failed.
+ */
+function ReadingsLoading({ p, retrying }: { p: Palette; retrying: boolean }) {
+  const bar = (width: number, height: number): CSSProperties => ({
+    width: `${width}px`,
+    height: `${height}px`,
+    borderRadius: `${radius.chip}px`,
+    backgroundColor: p.band,
+  })
+  return (
+    <div role="status" style={{ height: `${READINGS_H}px`, ...stack(spacing.micro) }}>
+      <div aria-hidden style={bar(64, 12)} />
+      <div aria-hidden style={bar(120, 24)} />
+      {retrying ? (
+        <p style={{ ...typeV2.body, color: p.muted }}>Couldn’t reach conditions — trying again…</p>
+      ) : (
+        <span style={SCREEN_READER_ONLY}>Loading conditions…</span>
+      )}
+    </div>
+  )
+}
+
+const SCREEN_READER_ONLY: CSSProperties = {
+  position: 'absolute',
+  width: '1px',
+  height: '1px',
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+}
+
 export function ConditionsNow({
   forecast,
   series,
@@ -345,7 +387,7 @@ export function ConditionsNow({
       // suppressed under a Severe+ alert, and an unsettled alerts query reads
       // exactly like "no alert". An alerts error settles it; the readings are
       // unaffected either way.
-      readingsBlock = <Reserve height={READINGS_H} />
+      readingsBlock = <ReadingsLoading p={PLAIN} retrying={(conditions.failureCount ?? 0) > 0} />
     } else if (conditions.isError) {
       readingsBlock = <InlineError message="Couldn't load conditions." onRetry={conditions.refetch} />
     } else if (conditions.data == null) {

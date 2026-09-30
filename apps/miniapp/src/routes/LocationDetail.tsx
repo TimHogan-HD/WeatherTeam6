@@ -127,6 +127,7 @@ export function LocationDetail() {
           isPending: conditions.isPending,
           isError: conditions.isError,
           refetch: () => void conditions.refetch(),
+          failureCount: conditions.failureCount,
         }}
         hourly={{
           data: hourly.data,

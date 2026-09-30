@@ -252,6 +252,29 @@ describe('ConditionsNow — one block', () => {
     expect(html).not.toContain('didn')
   })
 
+  it('says the readings are loading while they are, rather than leaving an empty gap (#261)', () => {
+    const html = render({ conditions: pending })
+    expect(html).toContain('role="status"')
+    expect(html).toContain('Loading conditions')
+    expect(html).not.toContain('Dryness')
+  })
+
+  it('also shows loading while only the alerts query is pending', () => {
+    const html = render({ conditions: settled(scored()), alertsPending: true })
+    expect(html).toContain('Loading conditions')
+    expect(html).not.toContain('Dryness')
+  })
+
+  it('says it is trying again after a failed attempt, before the retry settles (#261)', () => {
+    const html = render({ conditions: { ...pending, failureCount: 1 } })
+    expect(html).toContain('Couldn’t reach conditions — trying again')
+  })
+
+  it('offers a retry once the conditions query has failed', () => {
+    const html = render({ conditions: failed })
+    expect(html).toContain('Couldn&#x27;t load conditions. Tap to retry.')
+  })
+
   it('is one skeleton while nothing has arrived for either half', () => {
     const html = render({ forecast: pending, conditions: pending })
     expect(html).not.toContain(CONDITIONS_NOW_LABEL)
