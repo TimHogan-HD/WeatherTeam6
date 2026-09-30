@@ -58,6 +58,11 @@ export type OverviewTabProps = {
   onOpenDaily: () => void
   onOpenHourly: () => void
   onOpenDay: (localDate: string) => void
+  /**
+   * Grow to take a share of the screen's spare height. It goes into the hour
+   * cells and the day tiles, not between the cards.
+   */
+  fill?: boolean
 }
 
 /** The strip's height once drawn, held open while it loads. */
@@ -82,6 +87,7 @@ function Card({
   aside = null,
   link,
   gap,
+  grow = false,
   children,
 }: {
   title: string
@@ -89,10 +95,11 @@ function Card({
   aside?: string | null
   link: { label: string; onOpen: () => void } | null
   gap: number
+  grow?: boolean
   children: ReactNode
 }) {
   return (
-    <section style={{ ...cardV2, ...stack(gap) }}>
+    <section style={{ ...cardV2, ...stack(gap), ...(grow ? { flex: '1 1 auto' } : {}) }}>
       <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
         <h2 style={typeV2.cardTitle}>{title}</h2>
         {aside === null ? null : <span style={{ ...typeV2.note, flex: '1 1 auto', minWidth: 0 }}>{aside}</span>}
@@ -116,6 +123,7 @@ function HourCell({ cell, showReading }: { cell: TodayCell; showReading: boolean
         flex: '1 1 0',
         minWidth: 0,
         alignItems: 'center',
+        justifyContent: 'center',
         backgroundColor: colorsV2.raised,
         borderRadius: `${radius.card}px`,
         padding: `${spacing.listGapSm}px ${spacing.tight}px`,
@@ -161,7 +169,7 @@ function TodayCard({ props }: { props: OverviewTabProps }) {
         <p style={typeV2.body}>No hour-by-hour forecast for today.</p>
       ) : (
         <>
-          <div style={{ ...row(spacing.listGapSm), alignItems: 'stretch' }}>
+          <div style={{ ...row(spacing.listGapSm), alignItems: 'stretch', ...(props.fill === true ? { flex: '1 1 auto' } : {}) }}>
             {cells.map((cell) => (
               <HourCell key={cell.valid_at} cell={cell} showReading={isClimbingLocation} />
             ))}
@@ -174,7 +182,7 @@ function TodayCard({ props }: { props: OverviewTabProps }) {
     // **The estimate note rides with the words**, in the title row — the hero
     // above carries it too, but the hero's readings can fail while this strip
     // draws. It also names the words as friction, not a verdict on the hour.
-    <Card title="Today" aside={isClimbingLocation && drawn ? FRICTION_ESTIMATE_NOTE : null} link={link} gap={spacing.listGap}>
+    <Card title="Today" aside={isClimbingLocation && drawn ? FRICTION_ESTIMATE_NOTE : null} link={link} gap={spacing.listGap} grow={props.fill === true}>
       {body}
     </Card>
   )
@@ -206,6 +214,7 @@ function DayTile({
         flex: '1 1 0',
         minWidth: 0,
         alignItems: 'center',
+        justifyContent: 'center',
         padding: `${spacing.listGapSm}px ${spacing.tight}px`,
       }}
     >
@@ -286,9 +295,10 @@ function ComingUpCard({ props }: { props: OverviewTabProps }) {
       title={days.length === 0 ? 'Rain' : `Next ${days.length} ${days.length === 1 ? 'day' : 'days'}`}
       link={days.length === 0 ? null : { label: 'Daily', onOpen: props.onOpenDaily }}
       gap={spacing.listGap}
+      grow={props.fill === true}
     >
       {days.length === 0 || todayDate === null ? null : (
-        <div style={{ ...row(spacing.listGapSm), alignItems: 'stretch' }}>
+        <div style={{ ...row(spacing.listGapSm), alignItems: 'stretch', ...(props.fill === true ? { flex: '1 1 auto' } : {}) }}>
           {days.map((day) => (
             <DayTile
               key={day.local_date}
