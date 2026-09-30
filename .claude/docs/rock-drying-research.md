@@ -856,7 +856,8 @@ Porosity 0.5–1.5% [M]. But "granite" still hides real variation:
 - **Fresh, fine-grained plutonic rock** (Yosemite granodiorite, Squamish, Cathedral Ledge)
   — near-zero effective porosity, surface-film drying only.
 - **Coarse, biotite-rich, weathered granite** (Joshua Tree monzogranite, Vedauwoo's Sherman
-  Granite, the Buttermilks' quartz monzonite). Biotite expands by absorbing water, freeing
+  Granite; the Buttermilks' quartz monzonite was listed here too, but no source about the boulders
+  supports it and climbers describe solid, patinaed rock — relocked as `granite` 2026-09-29). Biotite expands by absorbing water, freeing
   crystals and disaggregating the rock into **grus**; darker biotite-rich and coarser-grained
   granites weather to grus much more readily than light, fine-grained ones
   ([USGS / Huber](https://www.yosemite.ca.us/library/geologic_story_of_yosemite/final_evolution.html),
@@ -1044,7 +1045,11 @@ per-location flag than any rock-type refinement.
   an unusually explicit community ethic: *"Never climb on wet sandstone — it damages the rock
   permanently by pulling off crystals... If it rained in the last 24 to 48 hours, stick to the
   gym. This is not a suggestion"* ([NoogaFinder](https://noogafinder.com/blog/rock-climbing-chattanooga-guide)).
-- **Poke-O-Moonshine, Adirondacks — anorthosite.** Glacially polished, ~1000 ft, plagioclase-
+- **Poke-O-Moonshine, Adirondacks — granitic gneiss** (corrected 2026-09-29: the cliff is an
+  up-thrown block of granitic gneiss; the anorthosite is east of it —
+  [Wikipedia](https://en.wikipedia.org/wiki/Poke-O-Moonshine_Mountain),
+  [Adirondack Naturalist](http://adirondacknaturalist.blogspot.com/2012/08/poke-o-moonshine.html)).
+  The earlier description follows. Glacially polished, ~1000 ft, plagioclase-
   dominated plutonic rock with gneiss interfingering and an unusual chert-like rock welded into
   it ([theCrag](https://www.thecrag.com/en/climbing/united-states/adirondacks/poke-o-moonshine),
   [SummitPost](https://www.summitpost.org/poke-o-moonshine/150972)). Behaves as dense plutonic
@@ -1070,8 +1075,8 @@ any regional or state-level default: dolomite (Red Wing), basalt (Taylors Falls)
 - **Carlton Peak — anorthosite**, described as abrasive; anorthosite blocks that punched
   through the rift magma, the surrounding melt becoming diabase
   ([SummitPost](https://www.summitpost.org/carlton-peak/627635),
-  [Wikipedia](https://en.wikipedia.org/wiki/Carlton_Peak)). Same family as Poke-O-Moonshine
-  (§4.8): dense plutonic, drying-trivial, friction-led.
+  [Wikipedia](https://en.wikipedia.org/wiki/Carlton_Peak)). Same family as Sawmill Creek Dome (Poke-O-Moonshine,
+  once listed here, is granitic gneiss): dense plutonic, drying-trivial, friction-led.
 - **Blue Mounds SP — Sioux Quartzite** escarpment on the prairie, Precambrian, pink
   ([MN DNR](https://www.dnr.state.mn.us/state_parks/blue_mounds/geology_details.html)).
   Near-zero matrix porosity; fracture drainage only.
@@ -1400,7 +1405,8 @@ crags seep: the same water that made the features keeps using the same path.
 The corollary is uncomfortable and worth writing down: **a heavily featured wall is more likely
 to seep than a blank one**, and the features climbers travel for are the evidence.
 
-- **Rumbling Bald, NC** — the other Carolina granite, and Looking Glass's exfoliation is the
+- **Rumbling Bald, NC** — Henderson **Gneiss**, not granite (corrected 2026-09-29,
+  [Wikipedia](https://en.wikipedia.org/wiki/Chimney_Rock_State_Park)); grouped here with Looking Glass for the exfoliation, and Looking Glass's exfoliation is the
   shared mechanism ([Carolina Climbers Coalition](https://carolinaclimbers.org/climbing-areas/looking-glass-rock.html)).
   Looking Glass also earns its name from **verglas** after freezing rain, which is the §5.1
   freeze–thaw case at a crag whose whole surface is a thin exfoliating veneer.
@@ -2076,7 +2082,7 @@ on a vertical wall, before the existing angle/wind/humidity modifiers.
 | --- | --- | --- | --- |
 | `granite` (fresh plutonic) | 1 | 6 | 0.5–1.5% porosity; friction-limited [M] |
 | `rhyolite` / dense felsic volcanic | 2 | 8 | Fine-grained, low porosity. MN North Shore [I] |
-| `anorthosite` | 1 | 6 | Dense plutonic; abrasive, friction-led. Carlton Peak, Poke-O [I] |
+| `anorthosite` | 1 | 6 | Dense plutonic; abrasive, friction-led. Carlton Peak, Sawmill Creek Dome (Poke-O was here until 2026-09-29; its cliff is granitic gneiss) [I] |
 | `granite_weathered` (grussy, coarse, biotite-rich) | 3 | 12 | Grus rind retains water [I] |
 | `syenite_porous` (Hueco-type) | **24** | 48 | Highly porous plutonic; huecos hold water days–months. Breaks the igneous rule [C]. Min raised from 12 on 2026-09-29: the park bars climbing within ~24 h of rain [C] |
 | `quartzite` | 1 | 6 | Near-zero matrix porosity [M] |

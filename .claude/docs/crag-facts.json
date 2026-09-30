@@ -330,7 +330,7 @@
       "rock": {
         "family": "anorthosite",
         "formation": "Anorthosite blocks that punched through the rift magma, surrounding melt becoming diabase",
-        "note": "Described as abrasive. Dense plutonic: drying-trivial, friction-led. Same family as Poke-O-Moonshine.",
+        "note": "Described as abrasive. Dense plutonic: drying-trivial, friction-led. Same family as Sawmill Creek Dome (Poke-O-Moonshine was listed here until 2026-09-29; its cliff is granitic gneiss).",
         "source": "rock-drying-research.md §4.9",
         "confidence": "C"
       },
@@ -1911,7 +1911,7 @@
       "rock": {
         "family": "granite",
         "formation": "Quartz monzonite",
-        "note": "~1% porosity. Coarse, biotite-rich, weathered granite — grus-prone per §4.3. Fifteen minutes' drive from Bishop Tuff at 38-60% porosity: one town spanning most of the porosity range in the whole reference table.",
+        "note": "~1% porosity. Glacial erratics of solid quartz monzonite that climbs like granite, with slick patina (Wikipedia; climbers). Filed as weathered granite until 2026-09-29 on an [I] inference about biotite and grus that no source about the boulders supports. Fifteen minutes' drive from Bishop Tuff at 38-60% porosity: one town spanning most of the porosity range in the whole reference table.",
         "source": "rock-drying-research.md §4.4, §4.3",
         "confidence": "M"
       },
@@ -3318,9 +3318,9 @@
       "region": "NY",
       "country": "US",
       "rock": {
-        "family": "anorthosite",
-        "formation": null,
-        "note": "Glacially polished, ~1000 ft, plagioclase-dominated plutonic rock with gneiss interfingering and an unusual chert-like rock welded into it. Behaves as dense plutonic rock for drying; glacial polish makes it friction-limited on the slabs.",
+        "family": "gneiss",
+        "formation": "Granitic gneiss, up-thrown fault block",
+        "note": "Corrected 2026-09-29: the cliff is granitic gneiss; the anorthosite is in the down-dropped block east of it (Wikipedia: granite-gneiss; Adirondack Naturalist). Glacially polished, ~1000 ft, plagioclase-dominated plutonic rock with gneiss interfingering and an unusual chert-like rock welded into it. Behaves as dense plutonic rock for drying; glacial polish makes it friction-limited on the slabs.",
         "source": "rock-drying-research.md §4.8",
         "confidence": "C"
       },
@@ -3413,9 +3413,9 @@
       "region": "NC",
       "country": "US",
       "rock": {
-        "family": "granite",
-        "formation": null,
-        "note": "The other Carolina granite; Looking Glass's exfoliation is the shared mechanism.",
+        "family": "gneiss",
+        "formation": "Henderson Gneiss",
+        "note": "Corrected 2026-09-29: Henderson Gneiss, not granite (Wikipedia, Chimney Rock State Park). The other Carolina granite; Looking Glass's exfoliation is the shared mechanism.",
         "source": "rock-drying-research.md §4.14",
         "confidence": "C"
       },

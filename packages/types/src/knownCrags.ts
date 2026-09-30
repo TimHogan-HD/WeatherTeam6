@@ -103,7 +103,7 @@ export const KNOWN_CRAGS: readonly KnownCrag[] = [
   // ── California and the Southwest ────────────────────────────────────────────
   { slug: 'yosemite-valley', name: 'Yosemite Valley', facts: 'Yosemite Valley', rock_type: 'granite', osm: 'way/1208599256', bbox: box(37.7170967, 37.7456752, -119.6758748, -119.5473004) },
   { slug: 'tuolumne-meadows', name: 'Tuolumne Meadows', facts: 'Tuolumne Meadows', rock_type: 'granite', osm: 'relation/12774701', bbox: box(37.8719739, 37.8869671, -119.3951976, -119.353559) },
-  { slug: 'buttermilks', name: 'The Buttermilks', facts: 'The Buttermilks', rock_type: 'granite_weathered', osm: 'relation/19531541', bbox: box(37.2957946, 37.3101648, -118.6189985, -118.597198) },
+  { slug: 'buttermilks', name: 'The Buttermilks', facts: 'The Buttermilks', rock_type: 'granite', osm: 'relation/19531541', bbox: box(37.2957946, 37.3101648, -118.6189985, -118.597198) },
   { slug: 'pinnacles', name: 'Pinnacles National Park', facts: 'Pinnacles National Park', rock_type: 'volcanic_breccia', osm: 'relation/6183160', bbox: box(36.4084002, 36.5641575, -121.2455212, -121.1012111) },
   { slug: 'oak-flat', name: 'Queen Creek and Oak Flat', facts: 'Queen Creek and Oak Flat', rock_type: 'tuff_welded', osm: 'node/2371302890', bbox: box(33.3090476, 33.3090476, -111.0486836, -111.0486836) },
   { slug: 'cochise-stronghold', name: 'Cochise Stronghold', facts: 'Cochise Stronghold', rock_type: 'granite', osm: 'node/14135956547', bbox: box(32.0082714, 32.0082714, -109.3117267, -109.3117267) },
@@ -116,9 +116,9 @@ export const KNOWN_CRAGS: readonly KnownCrag[] = [
   { slug: 'cathedral-ledge', name: 'Cathedral Ledge', facts: 'Cathedral and Whitehorse Ledges', rock_type: 'granite', osm: 'way/334091493', bbox: box(44.0608197, 44.0672546, -71.1669599, -71.1652651) },
   { slug: 'whitehorse-ledge', name: 'Whitehorse Ledge', facts: 'Cathedral and Whitehorse Ledges', rock_type: 'granite', osm: 'relation/15881946', bbox: box(44.0509592, 44.055472, -71.1700639, -71.1660245) },
   { slug: 'carderock', name: 'Carderock', facts: 'Carderock and Great Falls', rock_type: 'gneiss_schist', osm: 'node/158354366', bbox: box(38.9776102, 38.9776102, -77.1944245, -77.1944245) },
-  { slug: 'poke-o-moonshine', name: 'Poke-O-Moonshine', facts: 'Poke-O-Moonshine', rock_type: 'anorthosite', osm: 'node/357577633', bbox: box(44.401715, 44.401715, -73.51319, -73.51319) },
+  { slug: 'poke-o-moonshine', name: 'Poke-O-Moonshine', facts: 'Poke-O-Moonshine', rock_type: 'gneiss_schist', osm: 'node/357577633', bbox: box(44.401715, 44.401715, -73.51319, -73.51319) },
   { slug: 'looking-glass', name: 'Looking Glass Rock', facts: 'Looking Glass Rock', rock_type: 'granite', osm: 'way/485521315', bbox: box(35.3010707, 35.3059811, -82.7957352, -82.7898647) },
-  { slug: 'rumbling-bald', name: 'Rumbling Bald', facts: 'Rumbling Bald', rock_type: 'granite', osm: 'node/357784171', bbox: box(35.4598419, 35.4598419, -82.2267791, -82.2267791) },
+  { slug: 'rumbling-bald', name: 'Rumbling Bald', facts: 'Rumbling Bald', rock_type: 'gneiss_schist', osm: 'node/357784171', bbox: box(35.4598419, 35.4598419, -82.2267791, -82.2267791) },
   { slug: 'bon-echo', name: 'Bon Echo', facts: 'Bon Echo', rock_type: 'granite', osm: 'relation/903798', bbox: box(44.8640525, 44.9511891, -77.3404813, -77.1088635) },
 
   // ── Europe ──────────────────────────────────────────────────────────────────
