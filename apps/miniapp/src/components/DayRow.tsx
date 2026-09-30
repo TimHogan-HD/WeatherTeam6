@@ -63,7 +63,7 @@ export function DayRowShell({
   children,
 }: {
   score: number | null
-  /** `null` for a day the hourly charts cannot draw, and on the `/add` preview. */
+  /** `null` for a day the hourly charts cannot draw. */
   onOpen: (() => void) | null
   style: CSSProperties
   children: ReactNode

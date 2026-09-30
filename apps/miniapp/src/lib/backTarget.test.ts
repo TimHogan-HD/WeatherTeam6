@@ -27,18 +27,18 @@ describe('backTarget', () => {
   })
 
   it('leaves the add flow for the list from the search step', () => {
-    expect(backTarget({ route: 'add', previewing: false })).toEqual({ kind: 'navigate', to: '/' })
+    expect(backTarget({ route: 'add', confirming: false })).toEqual({ kind: 'navigate', to: '/' })
   })
 
   /**
-   * §2: the preview is a step *inside* `/add`, not a sibling. Returning a
+   * §2: the save form is a step *inside* `/add`, not a sibling. Returning a
    * navigation here would land on a freshly mounted search screen with the
    * query and results gone — the failure the per-route table was written to
    * prevent, and one that looks like an ordinary back press until you notice
    * the typing is missing.
    */
-  it('returns the add preview to its own search rather than navigating', () => {
-    expect(backTarget({ route: 'add', previewing: true })).toEqual({ kind: 'closePreview' })
+  it('returns the add save form to its own search rather than navigating', () => {
+    expect(backTarget({ route: 'add', confirming: true })).toEqual({ kind: 'closeSaveForm' })
   })
 
   /**
@@ -53,8 +53,8 @@ describe('backTarget', () => {
       backTarget({ route: 'detail', tab: 'rock' }),
       backTarget({ route: 'detail', tab: 'crag' }),
       backTarget({ route: 'detail', tab: 'hourly' }),
-      backTarget({ route: 'add', previewing: false }),
-      backTarget({ route: 'add', previewing: true }),
+      backTarget({ route: 'add', confirming: false }),
+      backTarget({ route: 'add', confirming: true }),
     ]
 
     for (const action of actions) {
@@ -76,11 +76,11 @@ describe('backTarget', () => {
       backTarget({ route: 'detail', tab: 'hourly' }),
     ]
     const add = [
-      backTarget({ route: 'add', previewing: false }),
-      backTarget({ route: 'add', previewing: true }),
+      backTarget({ route: 'add', confirming: false }),
+      backTarget({ route: 'add', confirming: true }),
     ]
 
-    expect(detail.map((a) => a.kind)).not.toContain('closePreview')
+    expect(detail.map((a) => a.kind)).not.toContain('closeSaveForm')
     expect(add.map((a) => a.kind)).not.toContain('showDailyTab')
   })
 

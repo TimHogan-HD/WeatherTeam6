@@ -4,7 +4,7 @@ import { type } from '../theme/tokens.css.js'
 import { bareButton, btnPrimary, btnPrimaryText, chip, chipActive, inputBox, stack } from '../theme/styles.js'
 
 /**
- * The add flow's save bar, pinned to the bottom of the preview (§12.1 step 3).
+ * The add flow's save form (§12.1 step 3).
  *
  * **Rock type is captured here or never.** It is the single largest lever on
  * the score — `dryingModel`'s ceiling runs from 4 h for slate to 120 h for soft

@@ -46,13 +46,28 @@ Read this before any weather fetch work. Every source has gotchas that will wast
 - Use for past 1-7 days precip when ACIS is unavailable
 - Data lags ~5 days for full QC. For yesterday use IEM ASOS obs instead.
 
+## Nominatim (Reverse Geocoding a GPS Fix)
+- **Endpoint:** `https://nominatim.openstreetmap.org/reverse?lat=&lon=&format=jsonv2&zoom=14&addressdetails=1`
+- **Client:** `apps/api/src/lib/weather/reverseGeocode.ts`, proxied as `GET /api/v1/geocode/reverse?lat=&lon=`
+- **No API key.** The usage policy requires an identifying `User-Agent`, at most 1 request/s,
+  and no bulk use — one lookup per tap is well inside it. Two attempts, not four.
+- **ODbL data: credit OpenStreetMap wherever a looked-up name is shown** (the save form does).
+- The name is the first of `address.city/town/village/hamlet/municipality`, then `name`.
+  Measured 2026-09-30: downtown Minneapolis answers `name: "Downtown West"` with
+  `address.city: "Minneapolis"`. Open water is a 200 with `{ error: "Unable to geocode" }`.
+
+## Open-Meteo Elevation
+- **Endpoint:** `https://api.open-meteo.com/v1/elevation?latitude=&longitude=` → `{ elevation: [m] }`
+- Called beside Nominatim for a GPS fix, so the saved location gets the lapse-rate
+  correction a geocoder result would. 211 m at Taylors Falls (2026-09-30).
+
 ## Open-Meteo Geocoding (Place-Name Search)
 - **Endpoint:** `https://geocoding-api.open-meteo.com/v1/search?name=&count=&language=en&format=json`
 - **Client:** `apps/api/src/lib/weather/geocode.ts`, proxied as `GET /api/v1/geocode?q=`
 - **No API key.** Adds nothing to `.env.example`.
 - Returns `elevation` alongside lat/lon — required, because `applyLapseRate` needs it and
-  a bare coordinate entry cannot supply it. Persist it on save or the saved location
-  disagrees with its own preview by the full lapse-rate correction.
+  a bare coordinate entry cannot supply it. Persist it on save, or every reading misses
+  the full lapse-rate correction.
 - Also returns `timezone`, `admin1`, `country`. **`admin1` + `country` are not optional
   decoration:** `?name=Red Rock Canyon` returns three real places — a state park in
   Oklahoma (480 m), another in California (738 m), and the National Conservation Area in

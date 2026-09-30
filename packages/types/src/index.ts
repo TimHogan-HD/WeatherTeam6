@@ -505,6 +505,20 @@ export type GeocodeResult = {
   climbing_area?: { climbs: number; parent: string | null } | null
 }
 
+/**
+ * What GET /api/v1/geocode/reverse knows about a point — a GPS fix on `/add`.
+ * The name is the town or city OpenStreetMap puts the point in; the elevation is
+ * Open-Meteo's terrain model. Each is null when its lookup found nothing or
+ * failed: a missing name leaves the reader to type one, and a missing elevation
+ * skips the lapse-rate correction rather than guessing it.
+ */
+export type ReverseGeocode = {
+  name: string | null
+  admin1: string | null
+  country: string | null
+  elevation_m: number | null
+}
+
 export type LocationNormal = {
   id: string
   locationId: string

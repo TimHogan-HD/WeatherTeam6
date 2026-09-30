@@ -14,11 +14,11 @@
  * | `/location/:id`, Daily, Precip, Rock or Crag tab | the Overview tab |
  * | `/location/:id`, Hourly tab | the Daily tab — **not** the list |
  * | `/add` search | `/` |
- * | `/add` preview | the search, with its query and results intact |
+ * | `/add` save form | the search, with its query and results intact |
  * | `/feedback` | the location it was opened from, else `/` |
  *
  * Two of those five are not navigations at all: the Hourly tab and the add
- * preview are states inside a route, and sending either to a URL discards work
+ * save form are states inside a route, and sending either to a URL discards work
  * the user can see on screen. That is why this returns an *action* rather than
  * a path — a function returning `string | null` cannot express them, and the
  * version that did would have had to special-case both at the call site again.
@@ -36,7 +36,7 @@ import type { DetailTab } from '../components/DetailView.js'
 export type BackContext =
   | { route: 'list' }
   | { route: 'detail'; tab: DetailTab }
-  | { route: 'add'; previewing: boolean }
+  | { route: 'add'; confirming: boolean }
   | { route: 'feedback'; fromLocationId: string | null }
   | { route: 'wall'; locationId: string }
   | { route: 'climb'; locationId: string; wallId: string }
@@ -49,7 +49,7 @@ export type BackContext =
  */
 export type Navigate = { kind: 'navigate'; to: string }
 export type DetailBack = Navigate | { kind: 'showTab'; tab: DetailTab }
-export type AddBack = Navigate | { kind: 'closePreview' }
+export type AddBack = Navigate | { kind: 'closeSaveForm' }
 
 export type BackAction = null | DetailBack | AddBack
 
@@ -66,7 +66,7 @@ export type BackAction = null | DetailBack | AddBack
  */
 export function backTarget(context: { route: 'list' }): null
 export function backTarget(context: { route: 'detail'; tab: DetailTab }): DetailBack
-export function backTarget(context: { route: 'add'; previewing: boolean }): AddBack
+export function backTarget(context: { route: 'add'; confirming: boolean }): AddBack
 export function backTarget(context: { route: 'feedback'; fromLocationId: string | null }): Navigate
 export function backTarget(context: { route: 'wall'; locationId: string }): Navigate
 export function backTarget(context: { route: 'climb'; locationId: string; wallId: string }): Navigate
@@ -80,7 +80,7 @@ export function backTarget(context: BackContext): BackAction {
       if (context.tab === 'overview') return { kind: 'navigate', to: '/' }
       return { kind: 'showTab', tab: context.tab === 'hourly' ? 'daily' : 'overview' }
     case 'add':
-      return context.previewing ? { kind: 'closePreview' } : { kind: 'navigate', to: '/' }
+      return context.confirming ? { kind: 'closeSaveForm' } : { kind: 'navigate', to: '/' }
     case 'feedback':
       // Opened from a crag's "Check this forecast", back returns to that crag
       // rather than dropping the reader at the list.

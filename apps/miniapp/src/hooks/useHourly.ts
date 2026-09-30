@@ -5,9 +5,7 @@ import { apiGet } from '../lib/api.js'
 /**
  * The hourly series behind the charts.
  *
- * **Saved locations only.** The endpoint reads a stored run for a location row;
- * the add flow's preview has no row and no id, and `GET /preview` returns daily
- * snapshots without hours.
+ * **Saved locations only.** The endpoint reads a stored run for a location row.
  *
  * `?models=all` is deliberately not requested. It costs 3.8x the payload for
  * five more deterministic models, and nothing here draws them — the charts read

@@ -353,22 +353,6 @@ describe('DetailView — a non-climbing location', () => {
   })
 })
 
-describe('DetailView — unsaved preview', () => {
-  it('shows weather but no score, whatever the toggle says', () => {
-    const html = render(
-      <DetailView
-        unsaved
-        isClimbingLocation
-        forecast={ok([day(TODAY)])}
-      />,
-    )
-    expect(html).toContain('High 103°')
-    expect(html).not.toContain('Conditions score')
-    // No alerts endpoint exists for a location with no id, so NWS is not claimed.
-    expect(html).not.toContain('NWS')
-  })
-})
-
 describe('DetailView — partial and missing data', () => {
   it('renders an em dash rather than 32°F when values are null', () => {
     const html = render(

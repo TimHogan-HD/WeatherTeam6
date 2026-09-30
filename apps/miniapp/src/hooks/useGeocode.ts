@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useQuery, type UseQueryResult } from '@tanstack/react-query'
+import { useMutation, useQuery, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query'
 import { apiGet } from '../lib/api.js'
-import type { GeocodeResult } from '@weatherteam6/types'
+import type { GeocodeResult, ReverseGeocode } from '@weatherteam6/types'
+import type { Fix } from './useCurrentPosition.js'
 
 /** The API answers a shorter query with an empty 200, so don't spend the round trip. */
 const MIN_QUERY_LENGTH = 2
@@ -30,5 +31,16 @@ export function useGeocode(query: string): UseQueryResult<GeocodeResult[]> {
     queryKey: ['geocode', trimmed] as const,
     queryFn: () => apiGet<GeocodeResult[]>('/geocode', { q: trimmed }),
     enabled: trimmed.length >= MIN_QUERY_LENGTH,
+  })
+}
+
+/**
+ * Name and elevation for a GPS fix, looked up once per tap. A mutation rather
+ * than a query: it is an action the reader started, and `reset()` on Cancel or
+ * Back means a late answer cannot open the save form behind them.
+ */
+export function useReverseGeocode(): UseMutationResult<ReverseGeocode, Error, Fix> {
+  return useMutation({
+    mutationFn: (fix: Fix) => apiGet<ReverseGeocode>('/geocode/reverse', { lat: fix.lat, lon: fix.lon }),
   })
 }

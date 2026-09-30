@@ -1,16 +1,17 @@
-import { matchKnownCrag, type GeocodeResult } from '@weatherteam6/types'
+import { matchKnownCrag, placeSubtitle, type GeocodeResult, type ReverseGeocode } from '@weatherteam6/types'
 import type { Fix } from '../hooks/useCurrentPosition.js'
+import { formatAccuracyFt } from './logbook.js'
 
-/** What an `/add` preview needs, from the geocoder, hand-entered coordinates or a GPS fix. */
+/** A place picked on `/add` — from the geocoder, hand-entered coordinates or a GPS fix — before it is saved. */
 export type Candidate = {
   name: string
   lat: number
   lon: number
-  /** The geocoder supplies this; the coordinate and GPS paths cannot, and pass null. */
+  /** Null when nothing measured it; the lapse-rate correction is then skipped, never guessed. */
   elevationM: number | null
   timezone: string | null
-  /** The phone's own accuracy estimate, for a candidate that came from GPS; null otherwise. */
-  accuracyM: number | null
+  /** The line under the name on the save form, or null for none. */
+  detail: string | null
 }
 
 export function fromGeocode(result: GeocodeResult): Candidate {
@@ -20,24 +21,35 @@ export function fromGeocode(result: GeocodeResult): Candidate {
     lon: result.lon,
     elevationM: result.elevation_m,
     timezone: result.timezone,
-    accuracyM: null,
+    detail: placeSubtitle(result),
   }
 }
 
 /**
- * A GPS fix as a candidate. Named after the known crag it falls inside, if any,
- * otherwise "Current location" for the user to rename before saving. The phone's
- * altitude is not used as the elevation: it is often missing and, where present,
- * measured against the ellipsoid rather than sea level — so the lapse-rate
- * correction is skipped, exactly as on the coordinate path.
+ * A GPS fix as a candidate. Named after the known crag it falls inside, else
+ * the town OpenStreetMap puts it in, else "Current location" for the reader to
+ * rename. `place` is null when the lookup itself failed; a failed lookup and a
+ * nameless point both leave the fallback name and no elevation.
+ *
+ * The elevation is the terrain model's, never the phone's altitude, which is
+ * often absent and measured against the ellipsoid rather than sea level.
  */
-export function fromFix(fix: Fix): Candidate {
+export function fromFix(fix: Fix, place: ReverseGeocode | null): Candidate {
+  const region = [place?.admin1 ?? null, place?.country ?? null].filter((v) => v !== null).join(', ')
+  const named = place?.name ?? null
   return {
-    name: matchKnownCrag(fix.lat, fix.lon)?.name ?? 'Current location',
+    name: matchKnownCrag(fix.lat, fix.lon)?.name ?? named ?? 'Current location',
     lat: fix.lat,
     lon: fix.lon,
-    elevationM: null,
+    elevationM: place?.elevation_m ?? null,
     timezone: null,
-    accuracyM: fix.accuracy_m,
+    detail: [
+      `Your location, ${formatAccuracyFt(fix.accuracy_m)}`,
+      region === '' ? null : region,
+      // Nominatim's data is ODbL; its usage policy asks for this wherever a name is shown.
+      named === null ? null : 'Place name © OpenStreetMap',
+    ]
+      .filter((v) => v !== null)
+      .join(' · '),
   }
 }

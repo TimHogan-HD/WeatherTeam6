@@ -68,32 +68,3 @@ export const alertsQuery = (id: string | undefined) =>
 export function useAlerts(id: string | undefined): UseQueryResult<WeatherAlert[]> {
   return useQuery(alertsQuery(id))
 }
-
-export type PreviewTarget = {
-  lat: number
-  lon: number
-  /** The geocoder's elevation, or null on the hand-entered-coordinates path. */
-  elevationM: number | null
-}
-
-/**
- * Weather for a place that has no row and no UUID yet — step 2 of the add flow.
- *
- * The same windowed `ForecastSnapshot[]` shape as `/forecast/:id`, so preview
- * and saved detail render through one code path. Passing `elevation` here and
- * persisting the same value on save is what keeps the two agreeing on
- * temperature; without it the lapse-rate correction is skipped on one side only
- * and the same place reads ~10 °F apart before and after Save (§12.3).
- */
-export function usePreview(target: PreviewTarget | null): UseQueryResult<ForecastSnapshot[]> {
-  return useQuery({
-    queryKey: ['preview', target?.lat ?? null, target?.lon ?? null, target?.elevationM ?? null] as const,
-    queryFn: () => {
-      if (target === null) throw new Error('usePreview called with no target')
-      const params: Record<string, string | number> = { lat: target.lat, lon: target.lon }
-      if (target.elevationM !== null) params['elevation'] = target.elevationM
-      return apiGet<ForecastSnapshot[]>('/preview', params)
-    },
-    enabled: target !== null,
-  })
-}

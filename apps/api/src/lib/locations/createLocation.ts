@@ -34,9 +34,8 @@ export async function insertGeneralLocation(input: NewGeneralLocation): Promise<
       name: input.name,
       lat: String(input.lat),
       lon: String(input.lon),
-      // Persisted so the saved location and its own pre-save preview agree on
-      // temperature: applyLapseRate returns early when this is null, so
-      // dropping it shifts every reading by the full lapse-rate correction.
+      // applyLapseRate returns early when this is null, so dropping it shifts
+      // every reading by the full lapse-rate correction.
       elevation_m: input.elevation_m === null ? null : String(input.elevation_m),
       timezone: input.timezone,
       is_climbing_location: input.is_climbing_location,

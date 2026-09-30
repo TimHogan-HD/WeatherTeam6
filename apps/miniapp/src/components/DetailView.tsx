@@ -62,17 +62,14 @@ import { TEMP_VIEW_H } from './charts/chartStyle.js'
  * can be standing when a warning arrives. The sources footer makes a claim
  * about the whole location, not about one view of it.
  *
- * Shared by the saved detail screen and the add flow's preview step. **The
- * preview has no tabs**: it has no saved row, so `/hourly/:id` has nothing to
- * read. It shows the hero and the seven days — the Daily tab without a pager.
+ * **Without hourly data there are no tabs**: it shows the hero and the seven
+ * days — the Daily tab without a pager.
  *
  * Sections fail independently. A location whose alerts call failed still shows
  * its weather; the screen is never a whole-screen error takeover (§5).
  */
 
 export type DetailViewProps = {
-  /** Unsaved preview: no score section regardless of type — nothing has been classified yet. */
-  unsaved?: boolean
   isClimbingLocation: boolean
   forecast: {
     data: ForecastSnapshot[] | undefined
@@ -98,8 +95,7 @@ export type DetailViewProps = {
    * The hourly run **and the tabs that reach it**, which are one feature and
    * are therefore one prop.
    *
-   * Absent together on the preview path, which has no saved row for
-   * `/hourly/:locationId` to read. Nested rather than side by side because the
+   * Optional only so a test can render without it; `LocationDetail` always passes it. Nested rather than side by side because the
    * two states that make sense are both-or-neither: hourly data with no tabs
    * would render no charts at all, silently, and tabs with no hourly data would
    * offer tabs that can never have anything in them.
@@ -125,8 +121,7 @@ export type DetailViewProps = {
   }
   /**
    * The past week's precipitation, for the Precip tab and the drying card.
-   * Absent on the preview path, which has no saved row for the endpoint to read
-   * coordinates from.
+   * Optional only so a test can render without it; `LocationDetail` always passes it.
    */
   recentPrecip?: {
     data: RecentPrecip | undefined
@@ -134,11 +129,11 @@ export type DetailViewProps = {
     isError: boolean
     refetch: () => void
   }
-  /** The crag's named walls, for the identity block. Absent on the preview path. */
+  /** The crag's named walls, for the identity block. Optional only so a test can render without it; `LocationDetail` always passes it. */
   walls?: readonly Wall[]
-  /** The saved row behind this screen, for the Rock tab. Absent on the preview path. */
+  /** The saved row behind this screen, for the Rock tab. Optional only so a test can render without it; `LocationDetail` always passes it. */
   location?: Location
-  /** The OpenBeta guidebook, for the Crag tab. Absent on the preview path. */
+  /** The OpenBeta guidebook, for the Crag tab. Optional only so a test can render without it; `LocationDetail` always passes it. */
   guidebook?: CragTabProps['guidebook'] & { onOpenWall: (wallId: string) => void }
 }
 
@@ -183,7 +178,6 @@ export function openDayInHourly(
 }
 
 export function DetailView({
-  unsaved = false,
   isClimbingLocation,
   forecast,
   alerts,
@@ -196,10 +190,10 @@ export function DetailView({
 }: DetailViewProps) {
   const alertEvent = severeAlertEvent(alerts?.data)
   const alertsPending = alerts?.isPending === true
-  const showScore = !unsaved && isClimbingLocation
+  const showScore = isClimbingLocation
   const activeAlertCount = alerts?.data?.length ?? 0
   const tabs = hourly?.tabs
-  // The preview has no tabs and shows the hero and the seven days together.
+  // Without hourly data there are no tabs: the hero and the seven days together.
   const active: DetailTab | null = tabs?.active ?? null
   const panelRef = useRef<HTMLDivElement>(null)
   const panelTop = useScreenRemainder(panelRef, active === 'overview')
@@ -242,8 +236,8 @@ export function DetailView({
   ]
 
   /**
-   * The hero. **Its readings are passed only for a scored location** — the
-   * preview has classified nothing and a city has no rock. Their data is
+   * The hero. **Its readings are passed only for a scored location** — a
+   * city has no rock. Their data is
    * `/conditions`, not `/hourly`, because the list card reads `/conditions`
    * too, and one endpoint for both is what stops a crag showing one reading on
    * the list and another here.
@@ -402,7 +396,7 @@ export function DetailView({
       )}
 
       {/*
-        On the preview path this is a plain wrapper: no id and no role. A
+        Without tabs this is a plain wrapper: no id and no role. A
         `tabpanel` with no tablist is a lie about the page structure to a screen
         reader.
       */}

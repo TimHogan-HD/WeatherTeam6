@@ -127,6 +127,7 @@ async function run(): Promise<void> {
   let vite: ChildProcess | null = null
   let userId: string | null = null
   let locationId: string | null = null
+  let gpsLocationId: string | null = null
   let token: string | null = null
   const browser = await chromium.launch()
 
@@ -247,19 +248,42 @@ async function run(): Promise<void> {
     await screen('add-location-denied', 5)
     await page.getByRole('button', { name: 'Cancel' }).click()
 
-    // 4b. Current location, granted, standing at the known crag. The fix opens
-    // the preview directly, named for the crag it falls inside.
+    // 4b. Current location, granted, standing at the known crag. The fix goes
+    // straight to the save form — no weather preview — named for the crag.
     await context.grantPermissions(['geolocation'], { origin: WEB })
-    await context.setGeolocation({ latitude: CRAG.lat, longitude: CRAG.lon, accuracy: 12 })
-    await page.getByRole('button', { name: 'Use my current location' }).click()
-    const previewed = await page
-      .getByText(/Not saved yet · Your location, ±\d+ ft/)
-      .waitFor({ timeout: 20_000 })
-      .then(() => true)
-      .catch(() => false)
-    const title = previewed ? await page.getByRole('heading', { level: 1 }).innerText() : ''
-    check('a GPS fix opens the preview named for the crag it is in', previewed && /taylors falls/i.test(title), `title "${title}"`)
-    await screen('add-location-preview')
+    async function fixOpensForm(lat: number, lon: number): Promise<string | null> {
+      await context.setGeolocation({ latitude: lat, longitude: lon, accuracy: 12 })
+      await page.getByRole('button', { name: 'Use my current location' }).click()
+      const opened = await page
+        .getByText(/Your location, ±\d+ ft/)
+        .waitFor({ timeout: 30_000 })
+        .then(() => true)
+        .catch(() => false)
+      return opened ? page.getByRole('heading', { level: 1 }).innerText() : null
+    }
+    const cragTitle = await fixOpensForm(CRAG.lat, CRAG.lon)
+    check('a GPS fix at a known crag opens the save form named for the crag', /taylors falls/i.test(cragTitle ?? ''), `title "${cragTitle}"`)
+    const noPreview = (await page.getByText(/conditions now|next 7 days/i).count()) === 0
+    check('with no weather preview on it', noPreview)
+    await screen('add-location-crag', 5)
+    await page.getByRole('button', { name: 'Back', exact: true }).click()
+
+    // 4c. Anywhere else, named by OpenStreetMap: a point in Edina, MN. Saving
+    // lands on the new location's own screen.
+    const townTitle = await fixOpensForm(44.8897, -93.3499)
+    check('a GPS fix elsewhere is named after its town', townTitle === 'Edina', `title "${townTitle}"`)
+    const credited = (await page.getByText(/Minnesota, United States · Place name © OpenStreetMap/).count()) > 0
+    check('with its state and an OpenStreetMap credit', credited)
+    await screen('add-location-town', 5)
+    await page.getByRole('button', { name: 'Save' }).click()
+    await page.waitForURL(/\/location\/[0-9a-f-]{36}$/, { timeout: 30_000 }).catch(() => undefined)
+    gpsLocationId = /\/location\/([0-9a-f-]{36})$/.exec(page.url())?.[1] ?? null
+    check('Save opens the saved location', gpsLocationId !== null, `at ${page.url()}`)
+    if (gpsLocationId !== null) {
+      const saved = await api<Location>('GET', `/locations/${gpsLocationId}`, token)
+      const elevation = saved.payload.data?.elevation_m ?? null
+      check('and it was saved with the looked-up elevation', elevation !== null && elevation > 200 && elevation < 350, `got ${String(elevation)}`)
+    }
 
     await context.close()
 
@@ -307,8 +331,9 @@ async function run(): Promise<void> {
     await browser.close().catch(() => undefined)
     if (vite) vite.kill()
     let cleanupFailed = false
-    if (locationId !== null && token !== null) {
-      const del = await api<null>('DELETE', `/locations/${locationId}`, token).catch(() => null)
+    for (const id of [locationId, gpsLocationId]) {
+      if (id === null || token === null) continue
+      const del = await api<null>('DELETE', `/locations/${id}`, token).catch(() => null)
       if (del === null || del.status >= 300) cleanupFailed = true
     }
     if (userId !== null) {
@@ -319,7 +344,7 @@ async function run(): Promise<void> {
     server.close()
     await pool.end()
     if (cleanupFailed) {
-      console.error(`\n!! CLEANUP FAILED — remove rows under "${PREFIX}" by hand (user ${userId}, location ${locationId})`)
+      console.error(`\n!! CLEANUP FAILED — remove rows under "${PREFIX}" by hand (user ${userId}, locations ${locationId} and ${gpsLocationId})`)
     }
   }
 

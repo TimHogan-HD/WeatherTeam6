@@ -31,7 +31,7 @@ const MAX_TIMEZONE_LENGTH = 64
 
 const ROCK_TYPE_ERROR = `rock_type must be one of ${ROCK_TYPES.join(', ')}`
 
-/** Elevations outside this range are data errors, not places. Mirrors GET /preview. */
+/** Elevations outside this range are data errors, not places. */
 const MIN_ELEVATION_M = -500
 const MAX_ELEVATION_M = 9000
 

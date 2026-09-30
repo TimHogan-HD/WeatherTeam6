@@ -14,7 +14,6 @@ import { guidebookRouter } from './routes/guidebook.js'
 import { tripsRouter } from './routes/trips.js';
 import { radarRouter } from './routes/radar.js';
 import { geocodeRouter } from './routes/geocode.js';
-import { previewRouter } from './routes/preview.js';
 import { cronRouter } from './routes/cron.js';
 import { authRouter } from './routes/auth.js';
 import { feedbackRouter } from './routes/feedback.js';
@@ -113,7 +112,6 @@ export function createApp(): Express {
     tripsRouter,
     radarRouter,
     geocodeRouter,
-    previewRouter,
     feedbackRouter,
     logbookRouter,
   );

@@ -200,7 +200,7 @@ describe('ConditionsNow — one block', () => {
   })
 
   it('shows no readings where the caller passed none', () => {
-    // The Hourly tab, the preview, and a city all omit `conditions`. The
+    // The Hourly tab and a city both omit `conditions`. The
     // weather is still about now; a rock reading is not owed.
     const html = render()
     expect(html).toContain(CONDITIONS_NOW_LABEL)

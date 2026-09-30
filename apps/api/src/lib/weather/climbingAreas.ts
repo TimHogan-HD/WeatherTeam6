@@ -64,8 +64,8 @@ export function searchClimbingAreas(query: string): GeocodeResult[] {
       name: e.area.name,
       lat: e.area.lat,
       lon: e.area.lon,
-      // OpenBeta carries no elevation; the preview and the saved row then both
-      // skip the lapse-rate correction, as the coordinate path does (§12.3).
+      // OpenBeta carries no elevation; the saved row then skips the lapse-rate
+      // correction, as the coordinate path does (§12.3).
       elevation_m: null,
       admin1: 'Minnesota',
       country: 'United States',
