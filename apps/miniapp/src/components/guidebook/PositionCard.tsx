@@ -1,10 +1,10 @@
-import { useRef, useState } from 'react'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { POSITION_ACCURACY_MAX_M, type GuidebookWall } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
 import { cardV2, row, stack } from '../../theme/styles.js'
-import { formatAccuracyFt, formatInstantDate, geolocationErrorLine, mapsHref } from '../../lib/logbook.js'
+import { formatAccuracyFt, formatInstantDate, mapsHref } from '../../lib/logbook.js'
 import { useRecordPosition } from '../../hooks/useLogbook.js'
+import { useCurrentPosition, type Fix } from '../../hooks/useCurrentPosition.js'
 import { InlineError } from '../States.js'
 import { PrimaryButton, pillButton } from './LogbookCard.js'
 
@@ -17,52 +17,19 @@ import { PrimaryButton, pillButton } from './LogbookCard.js'
  * everyone else sees.
  */
 
-type Fix = { lat: number; lon: number; accuracy_m: number }
-
-type Reading =
-  | { kind: 'idle' }
-  | { kind: 'locating' }
-  | { kind: 'fix'; fix: Fix }
-  | { kind: 'failed'; message: string }
-
 export function PositionCard({ wall }: { wall: GuidebookWall }) {
   // An API older than this client sends no field at all: a gap, not "never recorded".
   const position = wall.position ?? null
-  const [reading, setReading] = useState<Reading>({ kind: 'idle' })
+  const { reading, locate, cancel: stopLocating } = useCurrentPosition()
   const record = useRecordPosition()
-  // A cancelled request can still answer later; only the latest attempt may land.
-  const attempt = useRef(0)
 
-  const locate = () => {
-    if (!('geolocation' in navigator)) {
-      setReading({ kind: 'failed', message: 'This browser can’t read a location.' })
-      return
-    }
-    const id = ++attempt.current
-    setReading({ kind: 'locating' })
-    navigator.geolocation.getCurrentPosition(
-      (p) => {
-        if (id !== attempt.current) return
-        setReading({ kind: 'fix', fix: { lat: p.coords.latitude, lon: p.coords.longitude, accuracy_m: p.coords.accuracy } })
-      },
-      (err) => {
-        if (id !== attempt.current) return
-        setReading({ kind: 'failed', message: geolocationErrorLine(err.code) })
-      },
-      // `timeout` does not start until permission is granted, so a prompt left
-      // open waits indefinitely — hence Cancel while locating.
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
-    )
+  const cancel = () => {
+    stopLocating()
+    record.reset()
   }
 
   const save = (fix: Fix) => {
-    record.mutate({ areaId: wall.id, fix }, { onSuccess: () => setReading({ kind: 'idle' }) })
-  }
-
-  const cancel = () => {
-    attempt.current++
-    record.reset()
-    setReading({ kind: 'idle' })
+    record.mutate({ areaId: wall.id, fix }, { onSuccess: stopLocating })
   }
 
   return (
@@ -89,7 +56,7 @@ export function PositionCard({ wall }: { wall: GuidebookWall }) {
 
       {reading.kind === 'idle' ? (
         <div style={row(spacing.listGap)}>
-          <button type="button" onClick={locate} style={pillButton}>
+          <button type="button" onClick={() => locate()} style={pillButton}>
             {position === null ? 'Record here' : 'Re-record'}
           </button>
         </div>
@@ -104,7 +71,7 @@ export function PositionCard({ wall }: { wall: GuidebookWall }) {
         <div style={stack(spacing.listGap)}>
           <span role="status" style={{ ...typeV2.note, color: colorsV2.txt1 }}>{reading.message}</span>
           <div style={row(spacing.listGap)}>
-            <button type="button" onClick={locate} style={pillButton}>Try again</button>
+            <button type="button" onClick={() => locate()} style={pillButton}>Try again</button>
             <button type="button" onClick={cancel} style={pillButton}>Cancel</button>
           </div>
         </div>
@@ -115,7 +82,7 @@ export function PositionCard({ wall }: { wall: GuidebookWall }) {
             {formatAccuracyFt(POSITION_ACCURACY_MAX_M)} or better.
           </span>
           <div style={row(spacing.listGap)}>
-            <button type="button" onClick={locate} style={pillButton}>Try again</button>
+            <button type="button" onClick={() => locate()} style={pillButton}>Try again</button>
             <button type="button" onClick={cancel} style={pillButton}>Cancel</button>
           </div>
         </div>
