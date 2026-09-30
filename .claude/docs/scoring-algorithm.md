@@ -35,7 +35,8 @@ domain guard.
 ### Inputs
 
 - One deterministic model, `THERMAL_MODEL` = `gfs_seamless`, from stored runs
-  (`lib/runs/hourlyReadings.ts`). Irradiance is never pooled (issue #155).
+  (`lib/runs/hourlyReadings.ts`). Irradiance is one model's by cost, not safety (#212);
+  `gem_seamless` never feeds it (#155).
 - **Every stored hour, past included.** `T_mass` needs ~96 h of trailing air temperature,
   which is why `collect-runs` fetches this one model with `past_days`. The past hours feed the
   calculation and never reach the response.
