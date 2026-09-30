@@ -19,9 +19,12 @@ describe('rockGuide', () => {
       expect(line.length).toBeGreaterThan(0)
       expect(line.length).toBeLessThanOrEqual(100)
     }
+    // Whole sentences, not captions (owner, 2026-09-30): each starts with a
+    // capital, ends with a full stop and stays under three phone lines.
     for (const line of [guide.formed, guide.holds]) {
-      expect(line.length).toBeGreaterThan(0)
-      expect(line.length).toBeLessThanOrEqual(120)
+      expect(line).toMatch(/^[A-Z]/)
+      expect(line).toMatch(/[.”]$/)
+      expect(line.length).toBeLessThanOrEqual(140)
     }
     expect(guide.styles.length).toBeGreaterThanOrEqual(2)
     expect(guide.styles.length).toBeLessThanOrEqual(4)
