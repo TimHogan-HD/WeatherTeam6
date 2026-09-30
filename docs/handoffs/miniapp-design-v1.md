@@ -268,7 +268,17 @@ Two cards and a caveat:
   labelled "no real rain · N h" under the line, so it cannot collide with a storm label.
   A skipped hour is bridged with a dashed line, never a solid flat one. Touch or hover
   reads out the hour and the total so far.
-- **Every hour:** a row per local day, 24 cells from 00 to 23, each day's total at the
+- **Rock under the rain** (owner, 2026-09-29: a total that only climbs read as rock that
+  only got wetter). The running total is now a quiet **dotted** line with no fill, and a
+  solid **Rock** strip under it shows the drying model's state per hour on the same axis,
+  in the tones every surface gives the three words (dry `good`, drying `fair`, wet
+  `poor`); an hour with no reading is the bare track. Two strips, not two lines on one
+  plot — inches and a three-word state share no scale. The hour table's readout carries a
+  **Dryness** field (`DRYNESS_LABEL`, `ROCK_LABELS`), and the caveat adds
+  `UNRECORDED_ASPECT_NOTE` once when any hour shown is unqualified. A city, or an API
+  without `rock_history`, shows no rock at all.
+- **Every hour:** a row per local day, **today on top** (owner, 2026-09-29), 24 cells from
+  00 to 23, each day's total at the
   end. Cells are 26 px tall so an hour can be hit (owner, 2026-09-29: "every hour needs to
   be a bit big"); a days-across version was built and read as strange, so the rows stay.
   Every cell is a button: tapping one, dragging a finger along a day (the Hourly charts'

@@ -37,10 +37,12 @@ import type {
   HourlyReadings,
   ReadingsDay,
   ReadingsUnavailableReason,
+  RockHistoryHour,
   RockType,
 } from '@weatherteam6/types'
 import {
   bestWindow,
+  SIGNIFICANT_HOURLY_PRECIP_MM,
   type HourlyConditions,
   type WeatherHour,
 } from '../scoring/hourlyConditions.js'
@@ -102,6 +104,7 @@ const none = (reason: ReadingsUnavailableReason): HourlyReadings => ({
   unavailable_reason: reason,
   hours: [],
   days: [],
+  rock_history: [],
 })
 
 /** The published projection of an evaluated hour — readings and measurements, no factors. */
@@ -139,6 +142,38 @@ function toWeatherHours(model: ModelRun): WeatherHour[] {
 }
 
 /**
+ * The rock's state for the hours before the window — walked for `T_mass` and,
+ * until the Precip tab wanted them, thrown away. Rock state only.
+ *
+ * **An hour is published only once its state no longer rests on the walk's
+ * starting assumption.** The drying clock begins the walk at zero hours dried
+ * — "it just rained" — because it cannot see further back. Until rain resets
+ * it inside the walk, a wet or drying hour says as much about that assumption
+ * as about the weather, so it goes out as `null`, a gap. A `dry` hour stands:
+ * starting the clock drier could only have left it dry. Measured on the first
+ * fixture: without this, the first days of every history read wet.
+ */
+function historyRock(
+  evaluated: readonly HourlyConditions[],
+  weather: readonly WeatherHour[],
+  input: BuildReadingsInput,
+): RockHistoryHour[] {
+  const firstDate = input.dates[0]
+  if (firstDate === undefined) return []
+  const rainAt = new Map(weather.map((w) => [w.valid_at, w.precip_mm]))
+  let reset = false
+  const out: RockHistoryHour[] = []
+  for (const h of evaluated) {
+    if (localDateString(new Date(h.valid_at), input.utcOffsetSeconds) >= firstDate) break
+    const mm = rainAt.get(h.valid_at) ?? null
+    if (mm !== null && mm >= SIGNIFICANT_HOURLY_PRECIP_MM) reset = true
+    const known = h.rock !== null && (reset || h.rock.level === 'dry')
+    out.push({ valid_at: h.valid_at, rock: known ? h.rock : null })
+  }
+  return out
+}
+
+/**
  * Build the readings block for a published window.
  *
  * Returns a **reason** rather than an empty block when it cannot answer, so a
@@ -152,7 +187,8 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
   if (model === undefined || model.hours.length === 0) return none('model_unavailable')
 
   // Crag A (`cragModel.ts`): the crag's score, whatever wall the location records.
-  const evaluated = evaluateCragA(toWeatherHours(model), {
+  const weather = toWeatherHours(model)
+  const evaluated = evaluateCragA(weather, {
     rockType: input.rockType,
     lat: input.lat,
     lon: input.lon,
@@ -196,11 +232,14 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
     return { local_date, window, best: best === null ? null : toReading(best) }
   })
 
+  const rock_history = historyRock(evaluated, weather, input)
+
   return {
     model: THERMAL_MODEL,
     rain_models: model.rain_models === null ? [THERMAL_MODEL] : [...model.rain_models],
     unavailable_reason: null,
     hours: windowed.map(toReading),
     days,
+    rock_history,
   }
 }

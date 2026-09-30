@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { RecentPrecipHour } from '@weatherteam6/types'
+import type { HourlyReadings, RecentPrecipHour } from '@weatherteam6/types'
 import {
   dayLabel,
   formatSince,
@@ -8,8 +8,47 @@ import {
   precipDays,
   precipEvents,
   precipSummary,
+  rockByStamp,
   runningTotal,
 } from './precipHistory.js'
+
+describe('rockByStamp', () => {
+  const readings: HourlyReadings = {
+    model: 'gfs_seamless',
+    unavailable_reason: null,
+    hours: [
+      {
+        valid_at: '2026-09-22T06:00:00.000Z',
+        rock: { level: 'drying', qualified: false },
+        friction: null,
+        score: null,
+        t_surface_c: null,
+        condensation_margin_c: null,
+      },
+    ],
+    days: [],
+    rock_history: [
+      { valid_at: '2026-09-21T05:00:00.000Z', rock: null },
+      { valid_at: '2026-09-21T06:00:00.000Z', rock: { level: 'wet', qualified: true } },
+    ],
+  }
+
+  it('keys the history and the window by the location’s local stamp, gaps kept as null', () => {
+    // UTC-6: 06:00Z is 00:00 local.
+    const map = rockByStamp(readings, -6 * 3600)
+    expect(map?.get('2026-09-21T00:00')).toEqual({ level: 'wet', qualified: true })
+    expect(map?.get('2026-09-20T23:00')).toBeNull()
+    expect(map?.get('2026-09-22T00:00')).toEqual({ level: 'drying', qualified: false })
+  })
+
+  it('draws nothing when there is nothing to read, rather than a row of gaps', () => {
+    expect(rockByStamp(undefined, 0)).toBeNull()
+    // An API from before the history existed.
+    const { rock_history: _unused, ...older } = readings
+    expect(rockByStamp(older, 0)).toBeNull()
+    expect(rockByStamp({ ...readings, unavailable_reason: 'not_a_climbing_location' }, 0)).toBeNull()
+  })
+})
 
 function h(at: string, mm: number, over: Partial<RecentPrecipHour> = {}): RecentPrecipHour {
   return { valid_at_local: at, precip_mm: mm, rain_mm: mm, snowfall_cm: 0, ...over }

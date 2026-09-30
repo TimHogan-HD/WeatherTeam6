@@ -326,6 +326,30 @@ export type HourlyReadings = {
   hours: HourlyReading[];
   /** Ordered by date. One entry per local day in the window. */
   days: ReadingsDay[];
+  /**
+   * The rock's state for the stored hours **before** the window — the days
+   * the Precip tab draws that `hours` does not reach. The model walks this
+   * history anyway (`T_mass` needs it) and used to throw it away; the Precip
+   * tab shows it under the rain so a reader sees when the rock went wet and
+   * dried, not just how much fell.
+   *
+   * **Rock only.** No score, no friction: the tab needs the state of the rock,
+   * and a past hour's score would be a number nobody asked to see. `rock` is
+   * null where the history was too short to read it — a gap, never "dry".
+   * Ordered by `valid_at`. The past hours are the model's own analysis, not
+   * observations.
+   *
+   * Optional because the API and the client deploy separately: absent means an
+   * older API, and a surface draws nothing rather than a gap.
+   */
+  rock_history?: RockHistoryHour[];
+};
+
+/** One past hour's rock state. See `HourlyReadings.rock_history`. */
+export type RockHistoryHour = {
+  /** UTC instant, ISO 8601. */
+  valid_at: string;
+  rock: RockReading | null;
 };
 
 /**

@@ -372,7 +372,13 @@ export function DetailView({
   } else if (active === 'precip') {
     panel =
       recentPrecip === undefined ? null : (
-        <PrecipTab recent={recentPrecip} isClimbingLocation={showScore} />
+        <PrecipTab
+          recent={recentPrecip}
+          isClimbingLocation={showScore}
+          {...(showScore && hourly?.data !== undefined
+            ? { rock: { readings: hourly.data.readings, utcOffsetSeconds: hourly.data.utc_offset_seconds } }
+            : {})}
+        />
       )
   } else if (active === 'rock') {
     panel = (
