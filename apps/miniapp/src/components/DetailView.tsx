@@ -259,6 +259,7 @@ export function DetailView({
    */
   const hero = (
     <ConditionsNow
+      fill={panelTop !== null}
       forecast={forecast}
       series={hourly?.data}
       {...(showScore && conditions !== undefined ? { conditions } : {})}
@@ -332,6 +333,7 @@ export function DetailView({
         {hero}
         {hourly === undefined || tabs === undefined ? null : (
           <OverviewTab
+            fill={panelTop !== null}
             todayDate={findToday(forecast.data)?.forecast_date ?? null}
             isClimbingLocation={showScore}
             forecast={{ data: forecast.data }}
@@ -428,7 +430,8 @@ export function DetailView({
         **The Overview fills the screen** (owner, 2026-09-30): it is sized to
         fit one, so the sources and actions below it belong past the fold
         rather than ending the page halfway down with black under them. The
-        spare height goes between the cards.
+        spare height goes into the cards, never between them: spread as gaps,
+        it read as black bars on a tall phone.
       */}
       <div
         ref={panelRef}
@@ -437,7 +440,7 @@ export function DetailView({
           ...stack(spacing.listGapLg),
           ...(panelTop === null
             ? {}
-            : { minHeight: `calc(100dvh - ${panelTop}px - ${bottomClearance})`, justifyContent: 'space-between' }),
+            : { minHeight: `calc(100dvh - ${panelTop}px - ${bottomClearance})` }),
         }}
       >
         {panel}
