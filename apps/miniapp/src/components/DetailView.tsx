@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { spacing } from '@weatherteam6/design/tokens'
 import type {
   ConditionsScore,
@@ -11,13 +11,14 @@ import type {
 } from '@weatherteam6/types'
 import { GUIDEBOOK_SOURCE_LABEL, RECENT_PRECIP_SOURCE_LABEL } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
-import { stack } from '../theme/styles.js'
+import { bottomClearance, stack } from '../theme/styles.js'
 import {
   findToday,
   forecastSourceLabel,
   rainfallSourceLabel,
   severeAlertEvent,
 } from '../lib/forecast.js'
+import { useScreenRemainder } from '../hooks/useScreenRemainder.js'
 import { AlertBanner } from './Alerts.js'
 import { ConditionsNow } from './ConditionsNow.js'
 import { SourcesFooter, type SourceEntry } from './SourcesFooter.js'
@@ -206,6 +207,8 @@ export function DetailView({
   const tabs = hourly?.tabs
   // The preview has no tabs and shows the hero and the seven days together.
   const active: DetailTab | null = tabs?.active ?? null
+  const panelRef = useRef<HTMLDivElement>(null)
+  const panelTop = useScreenRemainder(panelRef, active === 'overview')
 
   // Which days open a drill-down. **Driven by `days[]`, not by the rows
   // themselves**: a forecast row exists for all seven days whatever the hourly
@@ -421,9 +424,21 @@ export function DetailView({
         `tabpanel` with no tablist is a lie about the page structure to a screen
         reader.
       */}
+      {/*
+        **The Overview fills the screen** (owner, 2026-09-30): it is sized to
+        fit one, so the sources and actions below it belong past the fold
+        rather than ending the page halfway down with black under them. The
+        spare height goes between the cards.
+      */}
       <div
+        ref={panelRef}
         {...(tabs === undefined ? {} : { id: tabs.panelId, role: 'tabpanel' })}
-        style={stack(spacing.listGapLg)}
+        style={{
+          ...stack(spacing.listGapLg),
+          ...(panelTop === null
+            ? {}
+            : { minHeight: `calc(100dvh - ${panelTop}px - ${bottomClearance})`, justifyContent: 'space-between' }),
+        }}
       >
         {panel}
       </div>
