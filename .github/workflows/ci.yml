@@ -1,8 +1,10 @@
 name: CI
 
+# A branch is checked through its PR, `main` on every push. Pushing on `**` as
+# well ran every PR commit twice (the push run and the pull_request run).
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
 
 # A second push to a branch cancels the run still going for the first.

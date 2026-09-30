@@ -41,6 +41,7 @@ function run(hookPath, payload) {
 const bash = (command) => ({ tool_name: 'Bash', tool_input: { command } })
 const write = (file_path) => ({ tool_name: 'Write', tool_input: { file_path } })
 const edit = (file_path) => ({ tool_name: 'Edit', tool_input: { file_path } })
+const ps = (command) => ({ tool_name: 'PowerShell', tool_input: { command } })
 
 /** [description, hook, payload, expectedExit, expectedOutputFragment?] */
 const cases = [
@@ -62,6 +63,14 @@ const cases = [
   ['Edit .env (posix path)', PRE, edit('/repo/.env'), BLOCK],
   ['Write a migration .sql', PRE, write('apps/api/drizzle/0003_add_col.sql'), BLOCK, 'db:generate'],
   ['Edit drizzle/meta', PRE, edit('apps/api/drizzle/meta/_journal.json'), BLOCK],
+  ['PS Remove-Item -Recurse -Force', PRE, ps('Remove-Item -Recurse -Force .\\dist'), BLOCK, 'Recursive force delete'],
+  ['PS rm -r -fo (alias, prefixes)', PRE, ps('rm -r -fo dist'), BLOCK],
+  ['PS ri -Force -Recurse after cd', PRE, ps('cd apps; ri dist -Force -Recurse'), BLOCK],
+  ['PS rd /s /q', PRE, ps('cmd /c rd /s /q dist'), BLOCK],
+  ['PS DROP TABLE', PRE, ps('psql -c "DROP TABLE users"'), BLOCK, 'DROP'],
+  ['PS Set-Content .env', PRE, ps('Set-Content .env "SECRET=1"'), BLOCK, '.env.example'],
+  ['PS redirect into .env', PRE, ps('"SECRET=1" > .env'), BLOCK],
+  ['PS drizzle-kit push', PRE, ps('npx drizzle-kit push'), BLOCK],
 
   // ---- must allow (regression guards against over-blocking) -------------
   ['db:generate is fine', PRE, bash('npm run db:generate'), ALLOW],
@@ -77,6 +86,11 @@ const cases = [
   ['Write schema.ts', PRE, write('apps/api/src/db/schema.ts'), ALLOW],
   ['npm run test', PRE, bash('npm run test'), ALLOW],
   ['empty stdin does not block', PRE, null, ALLOW],
+  ['PS Remove-Item without -Force', PRE, ps('Remove-Item -Recurse .\\dist'), ALLOW],
+  ['PS Remove-Item -Force on a file', PRE, ps('Remove-Item -Force tmp.txt'), ALLOW],
+  ['PS Set-Content .env.example', PRE, ps('Set-Content .env.example "KEY="'), ALLOW],
+  ['PS Get-ChildItem -Recurse -Force', PRE, ps('Get-ChildItem -Recurse -Force'), ALLOW],
+  ['PS npm run test', PRE, ps('npm run test'), ALLOW],
 
   // NOTE: the "prose about a forbidden command" cases used to live here. They
   // carry `git commit` payloads, so once the default-branch guard landed their
@@ -180,7 +194,7 @@ for (const [name, hook, payload, expectedCode, fragment] of cases) {
  * under test.
  * ------------------------------------------------------------------ */
 
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, utimesSync } from 'node:fs'
 
 /** How many settings.json-coverage assertions ran; set by the meta block below. */
 let metaCoverageCount = 0
@@ -261,6 +275,21 @@ const gitScenarios = [
     {},
     ALLOW,
     null,
+  ],
+  [
+    'Stop: a .claude/.wip older than 12 h no longer suppresses the block',
+    (w) => {
+      writeFileSync(join(w, 'dirty.txt'), 'x')
+      mkdirSync(join(w, '.claude'), { recursive: true })
+      const wip = join(w, '.claude', '.wip')
+      writeFileSync(wip, '')
+      const old = new Date(Date.now() - 13 * 3_600_000)
+      utimesSync(wip, old, old)
+    },
+    STOP,
+    {},
+    BLOCK,
+    'uncommitted changes',
   ],
   [
     'Stop: unpushed commits on main block the turn',
@@ -479,7 +508,47 @@ function withState(work, body) {
   writeFileSync(join(work, '.claude', 'docs', 'STATE.md'), body)
 }
 
+/** Commit STATE.md, then `after` more commits on top of it. */
+function stateCommittedThen(work, after) {
+  withState(work, '# s')
+  g(work, 'add', '-A')
+  g(work, 'commit', '-m', 'state')
+  for (let i = 0; i < after; i += 1) {
+    writeFileSync(join(work, `f${i}.txt`), String(i))
+    g(work, 'add', '-A')
+    g(work, 'commit', '-m', `c${i}`)
+  }
+}
+
 const sessionScenarios = [
+  [
+    'SessionStart: warns when .claude/.wip exists',
+    (w) => {
+      withState(w, '# s')
+      writeFileSync(join(w, '.claude', '.wip'), '')
+    },
+    (out) => {
+      const ctx = JSON.parse(out).hookSpecificOutput.additionalContext
+      return ctx.includes('.claude/.wip exists') ? null : 'did not report the pause flag'
+    },
+  ],
+  [
+    'SessionStart: warns when STATE.md is many commits behind',
+    (w) => stateCommittedThen(w, 16),
+    (out) => {
+      const ctx = JSON.parse(out).hookSpecificOutput.additionalContext
+      return ctx.includes('was last changed 16 commits ago') ? null : 'did not flag a stale STATE.md'
+    },
+  ],
+  [
+    'SessionStart: a recently updated STATE.md is not flagged',
+    (w) => stateCommittedThen(w, 2),
+    (out) => {
+      const ctx = JSON.parse(out).hookSpecificOutput.additionalContext
+      if (ctx.includes('commits ago')) return 'flagged a fresh STATE.md as stale'
+      return ctx.includes('.claude/.wip exists') ? 'reported a pause flag that does not exist' : null
+    },
+  ],
   [
     'SessionStart: emits valid JSON naming the current branch',
     (w) => {

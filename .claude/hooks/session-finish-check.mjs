@@ -16,9 +16,9 @@
  * finished instead of the user being asked to notice. Claude Code overrides the
  * hook after 8 consecutive blocks, which is the deadlock safety valve.
  *
- * Escape hatch: `touch .claude/.wip` suppresses every check. Use it when the
- * user has explicitly asked to pause mid-change, and delete it when work
- * resumes. It is gitignored.
+ * Escape hatch: `touch .claude/.wip` suppresses every check for 12 hours. Use
+ * it when the user has explicitly asked to pause mid-change, and delete it when
+ * work resumes. It is gitignored.
  *
  * Deliberately NOT checked here: whether tests pass. That belongs to CI and to
  * the review checklist. This hook is about work being *delivered*, not correct.
@@ -26,7 +26,7 @@
  * Covered by `npm run check:hooks`.
  */
 
-import { existsSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
 import {
   checksArePassing,
   currentBranch,
@@ -72,7 +72,15 @@ try {
 // ---- preconditions: never block outside a normal repo state ----------------
 
 if (!isGitRepo() || !hasRemote()) process.exit(0)
-if (existsSync('.claude/.wip')) process.exit(0)
+
+// A pause lasts WIP_MAX_AGE_HOURS. One set on 2026-09-29 was still switching
+// every check below off a day and dozens of merges later; an expired flag is
+// ignored, and SessionStart reports it either way.
+const WIP_MAX_AGE_HOURS = 12
+if (existsSync('.claude/.wip')) {
+  const ageHours = (Date.now() - statSync('.claude/.wip').mtimeMs) / 3_600_000
+  if (ageHours < WIP_MAX_AGE_HOURS) process.exit(0)
+}
 
 const branch = currentBranch()
 const base = defaultBranch()

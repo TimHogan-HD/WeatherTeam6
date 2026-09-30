@@ -25,12 +25,13 @@
  * Covered by `npm run check:hooks`.
  */
 
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import {
   checksArePassing,
   currentBranch,
   defaultBranch,
   gh,
+  git,
   hasRemote,
   isGitRepo,
   openPullRequests,
@@ -156,6 +157,36 @@ function defaultBranchCi() {
   }
 }
 
+/**
+ * Warnings about the tooling itself: a pause flag that switches the Stop hook
+ * off, and a STATE.md that has fallen behind `main`. Both were found live on
+ * 2026-09-30 — a day-old `.wip` and a STATE.md sixty merges out of date that
+ * this hook was injecting as current.
+ */
+const STATE_DOC_MAX_COMMITS_BEHIND = 15
+
+function toolingWarnings() {
+  const out = []
+  if (existsSync('.claude/.wip')) {
+    const hours = Math.round((Date.now() - statSync('.claude/.wip').mtimeMs) / 3_600_000)
+    out.push(
+      `!! .claude/.wip exists (${hours} h old). Under 12 h it switches the Stop hook's delivery ` +
+        'checks off. Delete it unless the user asked to pause.',
+    )
+  }
+  const last = git(['log', '-1', '--format=%H', '--', STATE_DOC])?.trim()
+  if (last) {
+    const behind = Number(git(['rev-list', '--count', `${last}..HEAD`])?.trim())
+    if (Number.isFinite(behind) && behind > STATE_DOC_MAX_COMMITS_BEHIND) {
+      out.push(
+        `!! ${STATE_DOC} was last changed ${behind} commits ago. Treat it as stale where it ` +
+          'disagrees with the code, and rewrite it in /session-end.',
+      )
+    }
+  }
+  return out
+}
+
 function stateDoc() {
   try {
     const text = readFileSync(STATE_DOC, 'utf8')
@@ -189,6 +220,7 @@ try {
     hasRemote() ? pullRequests() : 'open PRs: no remote',
     hasRemote() ? issues() : 'open issues: no remote',
     ...(hasRemote() ? [defaultBranchCi()].filter(Boolean) : []),
+    ...toolingWarnings(),
     '```',
     '',
     `## ${STATE_DOC}`,
