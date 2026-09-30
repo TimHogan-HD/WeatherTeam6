@@ -78,27 +78,11 @@ Forecasts are computed by the API when requested. Separate, authenticated HTTP e
 
 ### Scoring models and algorithms
 
-The app’s climbing score is **Crag A**: a weather-based estimate, not a measurement from the wall. These diagrams use one simplified example all the way through: soft sandstone after a 0.4-inch storm, with a warm afternoon forecast. The numbers are illustrative.
+The app’s climbing score is **Crag A**: a weather-based estimate, not a measurement from the wall. These diagrams use one simplified example all the way through: soft sandstone after a 0.4-inch storm, with a warm afternoon forecast. The numbers are illustrative. The diagrams are PNGs so that they render in every GitHub client; their sources are the `.mmd` files in [`docs/images`](docs/images), re-rendered with `npx @mermaid-js/mermaid-cli -i <file>.mmd -o <file>.png -b white -s 2` (it needs `puppeteer` installed beside it).
 
 #### 1. Estimate rock dryness
 
-```mermaid
-flowchart TD
-    A["Rock type: soft sandstone<br/>Storm: 0.4 in rain"] --> B["Track two kinds of water:<br/>on the surface<br/>soaked into the rock<br/>Up to 120 hours' worth of drying"]
-    C["Weather: warm, sunny periods<br/>Drying so far: about 20 hours' worth"] --> D["One compass-facing wall<br/>Still very wet: 3 out of 100 dry"]
-    B --> D
-    D --> E["Repeat for 8 directions<br/>Crag estimate: median about 4 out of 100"]
-
-    classDef input fill:#EFF6FA,stroke:#8AA8BA,color:#243746,stroke-width:1px
-    classDef step fill:#F2F0FA,stroke:#A39AC8,color:#332C52,stroke-width:1px
-    classDef measure fill:#FFF3E6,stroke:#D5A66B,color:#5B3A16,stroke-width:1px
-    classDef output fill:#E9F4EC,stroke:#7BA888,color:#213D2A,stroke-width:1px
-    class A,C input
-    class B step
-    class D measure
-    class E output
-    linkStyle default stroke:#8A9BA8,stroke-width:1.5px
-```
+![Dryness: storm and rock type set the drying need, weather advances it, one wall reads 3/100, the median of eight walls reads about 4/100](docs/images/crag-a-1-dryness.png)
 
 Think of dryness as two timers: one for water on the surface, and one for water soaked deeper into the rock. Rain restarts the surface timer; a bigger storm can add time to the deeper timer. For soft sandstone after a soaking storm, the model allows up to 120 drying-hours. That is not a promise the rock will dry in 120 clock hours: warm, sunny weather advances the timers faster than cold, cloudy weather. “20 hours’ worth of drying” means the forecast adds up to that much drying in the model. It uses whichever timer says the rock is wetter. The 3/100 and 4/100 examples are points on the model’s dryness scale, not measured percentages of water in the rock. Snow can limit the result, and missing rain data leaves it unknown.
 
@@ -106,39 +90,13 @@ Think of dryness as two timers: one for water on the surface, and one for water 
 
 “Grip” estimates how temperature and moisture may affect how well the rock can be held. The model checks condensation, heat, damp air, and cold. Each check can lower the estimate:
 
-```mermaid
-flowchart TD
-    A["Example conditions:<br/>Rock mass: 68°F<br/>Air: 76°F<br/>Dew point: 50°F<br/><br/>Condensation: 18°F above dew point<br/>Clears the 3.6°F threshold → 1.0<br/><br/>Heat: 76°F above 60°F threshold<br/>exp(-16 / 21.6) → 0.48<br/><br/>Dampness: 50°F dew point below 54°F → 1.0<br/>Cold: 76°F air above 30°F → 1.0"] --> B["Multiply the results:<br/>1.0 × 0.48 × 1.0 × 1.0<br/>Estimated grip: about 0.48"]
-
-    classDef input fill:#EFF6FA,stroke:#8AA8BA,color:#243746,stroke-width:1px
-    classDef step fill:#F2F0FA,stroke:#A39AC8,color:#332C52,stroke-width:1px
-    classDef measure fill:#FFF3E6,stroke:#D5A66B,color:#5B3A16,stroke-width:1px
-    classDef output fill:#E9F4EC,stroke:#7BA888,color:#213D2A,stroke-width:1px
-    class A measure
-    class B output
-    linkStyle default stroke:#8A9BA8,stroke-width:1.5px
-```
+![Grip: condensation 1.0, heat 0.48, dampness 1.0 and cold 1.0 multiply to about 0.48](docs/images/crag-a-2-grip.png)
 
 Grip asks four simple questions: could water condense on the rock, is it too hot, is the air damp, or is it too cold? A value of 1.0 means that check does not reduce the estimate. The condensation check uses the modelled temperature of the rock mass, not the surface temperature the app displays. The heat formula uses a gradual penalty: `exp` means the factor falls smoothly as air temperature rises above 60°F, rather than dropping suddenly. The damp-air penalty starts above a 54°F dew point; the cold penalty starts below 30°F. Grip is an estimate, not a direct measurement.
 
 #### 3. Turn hourly estimates into a daily score
 
-```mermaid
-flowchart TD
-    A["Dryness: 4 out of 100<br/>Grip: about 0.48"] --> B["Hourly score:<br/>about 8 out of 100"]
-    B --> C["Compare 3-hour blocks:<br/>Block A: 8, 8, 8<br/>Worst hour: 8<br/><br/>Block B: 5, 8, 9<br/>Worst hour: 5"]
-    C --> D["Choose the block with the better worst hour<br/>Daily score: 8 out of 100"]
-
-    classDef input fill:#EFF6FA,stroke:#8AA8BA,color:#243746,stroke-width:1px
-    classDef step fill:#F2F0FA,stroke:#A39AC8,color:#332C52,stroke-width:1px
-    classDef measure fill:#FFF3E6,stroke:#D5A66B,color:#5B3A16,stroke-width:1px
-    classDef output fill:#E9F4EC,stroke:#7BA888,color:#213D2A,stroke-width:1px
-    class A input
-    class B measure
-    class C step
-    class D output
-    linkStyle default stroke:#8A9BA8,stroke-width:1.5px
-```
+![Daily score: dryness 4/100 and grip 0.48 give an hourly score of 8; the three-hour block with the better worst hour sets the day at 8](docs/images/crag-a-3-daily-score.png)
 
 The score runs from 0 to 100; higher means the model estimates more favorable conditions. For this example, the hourly calculation is `round(100 × 0.04^0.55 × 0.48) = 8`. The daily score uses the best three-hour block between 8 a.m. and 6 p.m.; a block is judged by its worst hour so one brief good hour does not make the whole block look good. A block that contains an unscored hour does not count.
 

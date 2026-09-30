@@ -1,0 +1,14 @@
+flowchart TD
+    A["Dryness: 4 out of 100<br/>Grip: about 0.48"] --> B["Hourly score:<br/>about 8 out of 100"]
+    B --> C["Compare 3-hour blocks:<br/>Block A: 8, 8, 8<br/>Worst hour: 8<br/><br/>Block B: 5, 8, 9<br/>Worst hour: 5"]
+    C --> D["Choose the block with the better worst hour<br/>Daily score: 8 out of 100"]
+
+    classDef input fill:#EFF6FA,stroke:#8AA8BA,color:#243746,stroke-width:1px
+    classDef step fill:#F2F0FA,stroke:#A39AC8,color:#332C52,stroke-width:1px
+    classDef measure fill:#FFF3E6,stroke:#D5A66B,color:#5B3A16,stroke-width:1px
+    classDef output fill:#E9F4EC,stroke:#7BA888,color:#213D2A,stroke-width:1px
+    class A input
+    class B measure
+    class C step
+    class D output
+    linkStyle default stroke:#8A9BA8,stroke-width:1.5px
