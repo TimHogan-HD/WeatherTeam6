@@ -29,10 +29,16 @@ describe('fromFix', () => {
     expect(fromFix(DOWNTOWN, place({})).elevationM).toBe(253)
   })
 
-  it('says where the fix is, how good it is, and credits OpenStreetMap for the name', () => {
+  it('says where the fix is, how good it is, and credits OpenStreetMap', () => {
     expect(fromFix(DOWNTOWN, place({})).detail).toBe(
-      'Your location, ±98 ft · Minnesota, United States · Place name © OpenStreetMap',
+      'Your location, ±98 ft · Minnesota, United States · © OpenStreetMap contributors',
     )
+  })
+
+  it('at a known crag, credits OpenStreetMap without claiming the crag name as its own', () => {
+    const detail = fromFix(AT_THE_CRAG, place({ name: 'Taylors Falls' })).detail ?? ''
+    expect(detail).not.toMatch(/place name/i)
+    expect(detail).toContain('© OpenStreetMap contributors')
   })
 
   it('falls back to "Current location" with no elevation when the lookup failed', () => {

@@ -272,7 +272,7 @@ async function run(): Promise<void> {
     // lands on the new location's own screen.
     const townTitle = await fixOpensForm(44.8897, -93.3499)
     check('a GPS fix elsewhere is named after its town', townTitle === 'Edina', `title "${townTitle}"`)
-    const credited = (await page.getByText(/Minnesota, United States · Place name © OpenStreetMap/).count()) > 0
+    const credited = (await page.getByText(/Minnesota, United States · © OpenStreetMap contributors/).count()) > 0
     check('with its state and an OpenStreetMap credit', credited)
     await screen('add-location-town', 5)
     await page.getByRole('button', { name: 'Save' }).click()

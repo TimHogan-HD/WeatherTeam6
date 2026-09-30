@@ -46,8 +46,10 @@ export function fromFix(fix: Fix, place: ReverseGeocode | null): Candidate {
     detail: [
       `Your location, ${formatAccuracyFt(fix.accuracy_m)}`,
       region === '' ? null : region,
-      // Nominatim's data is ODbL; its usage policy asks for this wherever a name is shown.
-      named === null ? null : 'Place name © OpenStreetMap',
+      // Nominatim's data is ODbL, so anything shown from it is credited. Not
+      // "Place name ©": at a known crag the name is the crag's, and only the
+      // region came from OpenStreetMap.
+      named === null && region === '' ? null : '© OpenStreetMap contributors',
     ]
       .filter((v) => v !== null)
       .join(' · '),

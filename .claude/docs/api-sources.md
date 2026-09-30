@@ -51,7 +51,7 @@ Read this before any weather fetch work. Every source has gotchas that will wast
 - **Client:** `apps/api/src/lib/weather/reverseGeocode.ts`, proxied as `GET /api/v1/geocode/reverse?lat=&lon=`
 - **No API key.** The usage policy requires an identifying `User-Agent`, at most 1 request/s,
   and no bulk use — one lookup per tap is well inside it. Two attempts, not four.
-- **ODbL data: credit OpenStreetMap wherever a looked-up name is shown** (the save form does).
+- **ODbL data: credit "© OpenStreetMap contributors" wherever anything it returned is shown** (the save form does) — and never as "place name" when the title is a known crag's.
 - The name is the first of `address.city/town/village/hamlet/municipality`, then `name`.
   Measured 2026-09-30: downtown Minneapolis answers `name: "Downtown West"` with
   `address.city: "Minneapolis"`. Open water is a 200 with `{ error: "Unable to geocode" }`.
