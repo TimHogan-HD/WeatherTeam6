@@ -102,7 +102,7 @@ Run `/review-checklist` before opening a PR.
   npm run check:add-location
   ```
   `DEFAULT_USER_ID` is optional; the seeded user is `00000000-0000-0000-0000-000000000001`.
-- To drive the UI, use the local dev server: preview deploys are behind Vercel SSO. Run `vite` on `:5173` (already in the CORS allowlist) against a local `createApp()` on the real `DATABASE_URL`. Generate a throwaway `AUTH_TOKEN_SECRET` for the run, create throwaway rows under a prefix and sweep by that prefix in teardown, and import app modules from a scratch harness by `file:///C:/…` URL.
+- To drive the UI, use the local dev server: there are no preview deploys (see Known Gotchas). Run `vite` on `:5173` (already in the CORS allowlist) against a local `createApp()` on the real `DATABASE_URL`. Generate a throwaway `AUTH_TOKEN_SECRET` for the run, create throwaway rows under a prefix and sweep by that prefix in teardown, and import app modules from a scratch harness by `file:///C:/…` URL.
 - `npm run test:mutation --workspace=apps/api` takes ~37 minutes and runs weekly in CI; the owner will stop a local run. Run it on demand only when a survivor would change a decision.
 - State plainly what was and was not verified.
 
@@ -132,6 +132,8 @@ a credential, a dashboard setting, a phone, a product decision.>
 **Never set `NODE_ENV=production` as a Vercel environment variable.** npm then omits devDependencies, and the root postinstall that builds the shared packages dies with `tsc: command not found`.
 
 **Vercel framework preset must be "Other", not "Express".** `apps/api/api/index.ts` exports a `handler(req, res)`, not an app; the Express preset fails confusingly at runtime.
+
+**Vercel deploys from `main` only, and only the project a change touched.** The Hobby plan allows 100 deployments a day; on 2026-09-30 a morning of PRs spent them all (59 on unused previews) and the last fix could not ship until the next day. Both `vercel.json` files set `git.deploymentEnabled` to main-only and an `ignoreCommand` that skips a build when the app's directory, `packages/` and the root manifests are unchanged since its last deployment; `deployConfig.test.ts` holds both. There are no PR previews — drive the UI locally (§ Verification). A rate-limited merge ships with the next one, or by "Redeploy" in the dashboard.
 
 **`apps/api/vercel.json` skips the build step deliberately.** `outputDirectory` points at an intentionally empty `public/`; without it, deploys fail with "No Output Directory named public found".
 
