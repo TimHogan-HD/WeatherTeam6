@@ -7,8 +7,9 @@ import { FeedbackButton } from './FeedbackButton.js'
 
 /**
  * The detail screen's header band, from the WT6 Figma "V2" page's Overview
- * frame: back, the rock and elevation, the name, the coordinates and how old
- * the forecast is, then the tabs.
+ * frame: back (on the guidebook screens only), the rock and elevation, the
+ * name, the coordinates and how old the forecast is, then the tabs. Without
+ * back, the rock and name take its place beside the Feedback button.
  *
  * It replaces `Screen`'s title row on this route only. The band is the list's
  * `surface` colour, bled to the screen edges and under the status bar exactly
@@ -17,14 +18,17 @@ import { FeedbackButton } from './FeedbackButton.js'
 
 export type HeaderTab<T extends string> = { value: T; label: string }
 
-/** The band's three lines, each omitted when null — while loading the band renders back alone. */
+/** The band's three lines, each omitted when null — while loading the band renders its controls alone. */
 export type HeaderHeading = { eyebrow: string | null; title: string | null; meta: string | null }
 
 export type DetailHeaderProps<T extends string> = {
   heading: HeaderHeading
-  /** Where back goes, as words — `Locations`, or the tab it returns to. */
-  backLabel: string
-  onBack: () => void
+  /**
+   * Where back goes, as words — the wall or crag it returns to — and how. `null`
+   * on a saved location: the bottom bar's Conditions tab is the way back to the
+   * list (owner, 2026-09-30), so a second control would only repeat it.
+   */
+  back: { label: string; onBack: () => void } | null
   /** The crag the Feedback button opens a forecast check for. */
   feedbackLocationId: string | null
   tabs: {
@@ -82,8 +86,7 @@ export function locationHeading(location: Location | null, freshness: string | n
  */
 export function DetailHeader<T extends string>({
   heading,
-  backLabel,
-  onBack,
+  back,
   feedbackLocationId,
   tabs,
 }: DetailHeaderProps<T>) {
@@ -105,26 +108,37 @@ export function DetailHeader<T extends string>({
         a negative margin, so the chevron sits on the gutter while the target
         clears 44px — `Screen`'s back control, restyled.
       */}
-      <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
-        <button
-          type="button"
-          onClick={onBack}
-          style={{
-            ...bareButton,
-            ...row(spacing.tight),
-            width: 'auto',
-            margin: `-${spacing.cellPad}px 0 -${spacing.cellPad}px -${spacing.cellPad}px`,
-            padding: `${spacing.cellPad}px`,
-          }}
-        >
-          <ChevronLeftIcon color={colorsV2.txtMuted} />
-          <span style={typeV2.backLink}>{backLabel}</span>
-        </button>
+      <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        {back === null ? (
+          <div style={stack(spacing.tight)}>
+            {eyebrow === null ? null : <p style={typeV2.eyebrow}>{eyebrow}</p>}
+            {title === null ? null : <h1 style={typeV2.screenTitle}>{title}</h1>}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={back.onBack}
+            style={{
+              ...bareButton,
+              ...row(spacing.tight),
+              width: 'auto',
+              margin: `-${spacing.cellPad}px 0 -${spacing.cellPad}px -${spacing.cellPad}px`,
+              padding: `${spacing.cellPad}px`,
+            }}
+          >
+            <ChevronLeftIcon color={colorsV2.txtMuted} />
+            <span style={typeV2.backLink}>{back.label}</span>
+          </button>
+        )}
         <FeedbackButton locationId={feedbackLocationId} />
       </div>
 
-      {eyebrow === null ? null : <p style={{ ...typeV2.eyebrow, marginTop: `${spacing.listGap}px` }}>{eyebrow}</p>}
-      {title === null ? null : <h1 style={typeV2.screenTitle}>{title}</h1>}
+      {back === null ? null : (
+        <>
+          {eyebrow === null ? null : <p style={{ ...typeV2.eyebrow, marginTop: `${spacing.listGap}px` }}>{eyebrow}</p>}
+          {title === null ? null : <h1 style={typeV2.screenTitle}>{title}</h1>}
+        </>
+      )}
       {meta === null || meta === '' ? null : <p style={typeV2.meta}>{meta}</p>}
 
       {tabs === null ? null : (

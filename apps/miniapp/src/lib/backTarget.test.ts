@@ -6,26 +6,6 @@ describe('backTarget', () => {
     expect(backTarget({ route: 'list' })).toBeNull()
   })
 
-  it('leaves a saved location for the list from the Overview tab', () => {
-    expect(backTarget({ route: 'detail', tab: 'overview' })).toEqual({ kind: 'navigate', to: '/' })
-  })
-
-  it('steps back to Overview from Daily, Rock and Crag', () => {
-    for (const tab of ['daily', 'rock', 'crag'] as const) {
-      expect(backTarget({ route: 'detail', tab })).toEqual({ kind: 'showTab', tab: 'overview' })
-    }
-  })
-
-  /**
-   * The acceptance criterion for the whole affordance. Under Telegram, back on
-   * the Hourly tab closed the Mini App outright unless the tab was popped
-   * first; in a browser the equivalent mistake is leaving the location. Either
-   * way the user loses the screen they are reading to dismiss a tab.
-   */
-  it('pops the Hourly tab rather than leaving the location', () => {
-    expect(backTarget({ route: 'detail', tab: 'hourly' })).toEqual({ kind: 'showTab', tab: 'daily' })
-  })
-
   it('leaves the add flow for the list from the search step', () => {
     expect(backTarget({ route: 'add', confirming: false })).toEqual({ kind: 'navigate', to: '/' })
   })
@@ -48,11 +28,6 @@ describe('backTarget', () => {
    */
   it('gives every non-root context a back action', () => {
     const actions = [
-      backTarget({ route: 'detail', tab: 'overview' }),
-      backTarget({ route: 'detail', tab: 'daily' }),
-      backTarget({ route: 'detail', tab: 'rock' }),
-      backTarget({ route: 'detail', tab: 'crag' }),
-      backTarget({ route: 'detail', tab: 'hourly' }),
       backTarget({ route: 'add', confirming: false }),
       backTarget({ route: 'add', confirming: true }),
     ]
@@ -61,27 +36,6 @@ describe('backTarget', () => {
       expect(action).not.toBeNull()
       expect(typeof action.kind).toBe('string')
     }
-  })
-
-  /**
-   * The overloads are the real guard — a route is handed only the kinds it can
-   * receive, so its `switch` is exhaustive without a `never` check and a new
-   * kind is a type error rather than a silent no-op. Types are erased at
-   * runtime, so this asserts the same separation as a value: neither route may
-   * be handed the other's in-route action.
-   */
-  it('never hands one route the other route in-place action', () => {
-    const detail = [
-      backTarget({ route: 'detail', tab: 'daily' }),
-      backTarget({ route: 'detail', tab: 'hourly' }),
-    ]
-    const add = [
-      backTarget({ route: 'add', confirming: false }),
-      backTarget({ route: 'add', confirming: true }),
-    ]
-
-    expect(detail.map((a) => a.kind)).not.toContain('closeSaveForm')
-    expect(add.map((a) => a.kind)).not.toContain('showDailyTab')
   })
 
   it('returns feedback to the location it was opened from, else the list', () => {

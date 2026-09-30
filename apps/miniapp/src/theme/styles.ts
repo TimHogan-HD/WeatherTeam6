@@ -128,3 +128,25 @@ export const bareButton: CSSProperties = {
  * whole declaration, and the design inset with it.
  */
 export const bottomClearance = `max(${spacing.bottomInset}px, env(safe-area-inset-bottom, 0px))`
+
+/**
+ * The same space on a screen the bottom bar sits over: the bar's own height on
+ * top. The bar pads itself past the home indicator, so the larger-of rule above
+ * still covers the inset once — this adds the bar, not a second inset.
+ */
+export const navClearance = `calc(${spacing.bottomNavH}px + ${bottomClearance})`
+
+/**
+ * The top band of a section's first screen — Conditions and the bar's other
+ * sections. It runs up under the status bar: `#root` pads by the safe-area
+ * inset, and this takes it back so the colour reaches the top edge while the
+ * content still clears the notch.
+ */
+export const headerBand: CSSProperties = {
+  ...stack(spacing.sectionGap),
+  backgroundColor: colorsV2.surface,
+  marginTop: 'calc(-1 * env(safe-area-inset-top, 0px))',
+  paddingTop: `calc(env(safe-area-inset-top, 0px) + ${spacing.topWeb}px)`,
+  paddingInline: `${spacing.screenH}px`,
+  paddingBottom: `${spacing.sectionGap}px`,
+}

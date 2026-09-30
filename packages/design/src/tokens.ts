@@ -613,6 +613,12 @@ export const typeV2 = {
     fontSize: 15,
     fontWeight: '600' as const,
   },
+  /** The bottom bar's lit label — "Conditions": Barlow 14/600. Colour is the tab's state. */
+  navLabel: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    fontWeight: '600' as const,
+  },
   /** A card's uppercase kicker — "Conditions now · 13:00": Barlow Condensed 12/600, tracking 0.1em. */
   kicker: {
     fontFamily: fonts.display,
@@ -892,8 +898,8 @@ export const spacing = {
   setupBodyTop: 22,
   /** Bottom nav inset (home indicator clearance) */
   bottomInset: 24,
-  /** Bottom nav height (approximate) */
-  bottomNavH: 56,
+  /** Bottom nav height above the home indicator: `bottomNav`'s pill plus its padding and hairline. */
+  bottomNavH: 53,
   /** Micro gap — tight stack spacing (2px) */
   micro: 2,
   /** Tight gap — 4px nudges */
@@ -1194,13 +1200,27 @@ export const layout = {
 // BOTTOM NAV
 // ─────────────────────────────────────────────
 
+/**
+ * The web app's five sections, left to right (owner, 2026-09-30). Conditions
+ * and Trips are the two used most, so they sit either side of Map, under the
+ * thumb. `icon` is a Tabler icon name; `pillW` is the lit pill's width with its
+ * label showing — the other four tabs share what the row has left.
+ */
 export const bottomNav = {
   tabs: [
-    { icon: 'home', label: 'Home', route: '/' },
-    { icon: 'map-pin', label: 'Crags', route: '/crags' },
-    { icon: 'calendar', label: 'Trips', route: '/trips' },
-    { icon: 'radar-2', label: 'Radar', route: '/radar' },
+    { key: 'crags', icon: 'mountain', label: 'Crags', route: '/crags', pillW: 100 },
+    { key: 'conditions', icon: 'sun', label: 'Conditions', route: '/', pillW: 134 },
+    { key: 'map', icon: 'map', label: 'Map', route: '/map', pillW: 88 },
+    { key: 'trips', icon: 'calendar', label: 'Trips', route: '/trips', pillW: 94 },
+    { key: 'profile', icon: 'user', label: 'Profile', route: '/profile', pillW: 104 },
   ],
+  /** The pill's height; the bar is this plus `padTop` and `padBottom`. */
+  pillH: 42,
+  padTop: 4,
+  padBottom: 6,
+  /** Space between tabs. */
+  gap: 2,
+  iconSize: 22,
 } as const;
 
 // ─────────────────────────────────────────────

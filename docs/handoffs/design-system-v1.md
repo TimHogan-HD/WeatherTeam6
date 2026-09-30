@@ -90,5 +90,5 @@ were removed with it.
 ## Non-goals
 
 - A light theme. There is no light token set and every contrast rule above assumes near-white on dark
-- Bottom navigation. The client has four routes and `/add` is a task you finish and leave, not a peer of the location list
-- A CSS or motion architecture. **Still not authorised** — the client is styled entirely with inline styles, which cannot express hover, transitions or breakpoints. That ceiling is real and deliberate
+- ~~Bottom navigation~~ — built 2026-09-30 (`miniapp-design-v1.md` §2). `/add` is still not a tab
+- A CSS or motion architecture. **Still not authorised** — the client is styled entirely with inline styles, which cannot express hover, keyframes or breakpoints. That ceiling is real and deliberate. **One exception, owner decision 2026-09-30:** the bottom bar's pill slides between tabs with inline `transition`s, and moves without animating under `prefers-reduced-motion`. It is not a precedent for any other motion

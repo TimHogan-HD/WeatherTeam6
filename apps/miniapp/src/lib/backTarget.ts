@@ -10,24 +10,22 @@
  * | Route | Back |
  * | --- | --- |
  * | `/` list | hidden |
- * | `/location/:id`, Overview tab | `/` |
- * | `/location/:id`, Daily, Precip, Rock or Crag tab | the Overview tab |
- * | `/location/:id`, Hourly tab | the Daily tab — **not** the list |
  * | `/add` search | `/` |
  * | `/add` save form | the search, with its query and results intact |
  * | `/feedback` | the location it was opened from, else `/` |
  *
- * Two of those five are not navigations at all: the Hourly tab and the add
- * save form are states inside a route, and sending either to a URL discards work
- * the user can see on screen. That is why this returns an *action* rather than
- * a path — a function returning `string | null` cannot express them, and the
- * version that did would have had to special-case both at the call site again.
+ * A saved location has no back control since the bottom bar arrived (owner,
+ * 2026-09-30): its Conditions tab returns to the list, and a tab change is
+ * state inside the route, so the old Hourly-to-Daily step is the Daily tab.
+ *
+ * The add save form is not a navigation at all: it is state inside `/add`, and
+ * sending it to a URL discards the search the user can see on screen. That is
+ * why this returns an *action* rather than a path — a function returning
+ * `string | null` cannot express it.
  *
  * Pure on purpose. `vitest.config.ts` is `environment: 'node'` with no DOM and
- * components are checked with `renderToStaticMarkup`, so the acceptance
- * criterion here — back on Hourly returns to Daily rather than leaving the
- * location — is only reachable by a test if the decision is separable from the
- * click that triggers it.
+ * components are checked with `renderToStaticMarkup`, so each decision is
+ * reachable by a test only if it is separable from the click that triggers it.
  */
 
 import type { DetailTab } from '../components/DetailView.js'
@@ -35,7 +33,6 @@ import type { DetailTab } from '../components/DetailView.js'
 /** Which screen the user is looking at, including the in-route state back must see. */
 export type BackContext =
   | { route: 'list' }
-  | { route: 'detail'; tab: DetailTab }
   | { route: 'add'; confirming: boolean }
   | { route: 'feedback'; fromLocationId: string | null }
   | { route: 'wall'; locationId: string }
@@ -48,10 +45,9 @@ export type BackContext =
  * describes, just with the destination wrong instead of the count.
  */
 export type Navigate = { kind: 'navigate'; to: string }
-export type DetailBack = Navigate | { kind: 'showTab'; tab: DetailTab }
 export type AddBack = Navigate | { kind: 'closeSaveForm' }
 
-export type BackAction = null | DetailBack | AddBack
+export type BackAction = null | AddBack
 
 /**
  * Overloaded so each route is handed **only the actions it can receive**, and
@@ -65,7 +61,6 @@ export type BackAction = null | DetailBack | AddBack
  * these signatures it is a type error in the route that has not been updated.
  */
 export function backTarget(context: { route: 'list' }): null
-export function backTarget(context: { route: 'detail'; tab: DetailTab }): DetailBack
 export function backTarget(context: { route: 'add'; confirming: boolean }): AddBack
 export function backTarget(context: { route: 'feedback'; fromLocationId: string | null }): Navigate
 export function backTarget(context: { route: 'wall'; locationId: string }): Navigate
@@ -74,11 +69,6 @@ export function backTarget(context: BackContext): BackAction {
   switch (context.route) {
     case 'list':
       return null
-    case 'detail':
-      // Hourly is where a Daily row drills down to, so back returns there; every
-      // other tab steps back to Overview, and only Overview leaves the location.
-      if (context.tab === 'overview') return { kind: 'navigate', to: '/' }
-      return { kind: 'showTab', tab: context.tab === 'hourly' ? 'daily' : 'overview' }
     case 'add':
       return context.confirming ? { kind: 'closeSaveForm' } : { kind: 'navigate', to: '/' }
     case 'feedback':

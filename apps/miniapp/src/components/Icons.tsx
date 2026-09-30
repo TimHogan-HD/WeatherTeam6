@@ -1,4 +1,5 @@
 import {
+  IconCalendar,
   IconCheck,
   IconChevronDown,
   IconChevronLeft,
@@ -6,14 +7,17 @@ import {
   IconCloudRain,
   IconDroplet,
   IconHelpCircle,
+  IconMap,
+  IconMountain,
   IconPlus,
   IconRipple,
   IconSun,
   IconTemperature,
+  IconUser,
   IconWind,
   IconX,
 } from '@tabler/icons-react'
-import { colors } from '@weatherteam6/design/tokens'
+import { bottomNav, colors } from '@weatherteam6/design/tokens'
 
 /**
  * The icons §8 budgets for, from `@tabler/icons-react` — the web sibling of the
@@ -95,3 +99,17 @@ export const RainIcon = ({ color }: IconProps) => <IconCloudRain {...props(color
 export const SunIcon = ({ color }: IconProps) => <IconSun {...props(color)} size={16} />
 export const CheckIcon = ({ color }: IconProps) => <IconCheck {...props(color)} size={14} stroke={2.25} />
 export const CrossIcon = ({ color }: IconProps) => <IconX {...props(color)} size={14} stroke={2.25} />
+
+/** The bottom bar's five glyphs, keyed by the Tabler name `bottomNav` gives each tab. */
+const NAV_ICONS = {
+  mountain: IconMountain,
+  sun: IconSun,
+  map: IconMap,
+  calendar: IconCalendar,
+  user: IconUser,
+} as const satisfies Record<(typeof bottomNav.tabs)[number]['icon'], unknown>
+
+export const NavIcon = ({ name }: { name: keyof typeof NAV_ICONS }) => {
+  const Glyph = NAV_ICONS[name]
+  return <Glyph size={bottomNav.iconSize} stroke={1.8} color="currentColor" aria-hidden />
+}

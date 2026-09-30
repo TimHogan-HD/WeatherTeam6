@@ -4,8 +4,7 @@ import { useQueries } from '@tanstack/react-query'
 import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import type { Location } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, bottomClearance, btnPrimary, btnPrimaryText, row, stack, wellV2 } from '../theme/styles.js'
-import { clearToken } from '../lib/authToken.js'
+import { bareButton, navClearance, btnPrimary, btnPrimaryText, headerBand, row, stack, wellV2 } from '../theme/styles.js'
 import { formatUpdatedAt } from '../lib/format.js'
 import {
   SORT_OPTIONS,
@@ -18,14 +17,14 @@ import { useLocations } from '../hooks/useLocations.js'
 import { useNow } from '../hooks/useNow.js'
 import { alertsQuery, conditionsQuery } from '../hooks/useWeather.js'
 import { LocationCard } from '../components/LocationCard.js'
-import { FeedbackButton } from '../components/FeedbackButton.js'
 import { EmptyState, InlineError, SkeletonCards } from '../components/States.js'
 import { ChevronDownIcon, PlusIcon } from '../components/Icons.js'
 
 /**
- * `/` — the root, in the v2 layout: a header band carrying the title, the count
- * and freshness, the Feedback button in its corner, the Add button and the sort
- * control; then the cards, each figure labelled on the card itself.
+ * `/` — the Conditions section, in the v2 layout: a header band carrying the
+ * title, the count and freshness, the Add button and the sort control; then the
+ * cards, each figure labelled on the card itself. Feedback and Sign out live on
+ * Profile since the bottom bar arrived.
  *
  * No back affordance: there is nothing above this screen, and a control that
  * navigates to the screen already showing is the second-back-affordance bug §2
@@ -58,26 +57,11 @@ export function LocationList() {
 
   return (
     <main style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-      <header
-        style={{
-          ...stack(spacing.sectionGap),
-          backgroundColor: colorsV2.surface,
-          // The band runs up under the status bar: `#root` pads by the safe-area
-          // inset, and this takes it back so the colour reaches the top edge
-          // while the content still clears the notch.
-          marginTop: 'calc(-1 * env(safe-area-inset-top, 0px))',
-          paddingTop: `calc(env(safe-area-inset-top, 0px) + ${spacing.topWeb}px)`,
-          paddingInline: `${spacing.screenH}px`,
-          paddingBottom: `${spacing.sectionGap}px`,
-        }}
-      >
-        <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div style={stack(spacing.tight)}>
-            <p style={typeV2.eyebrow}>WeatherTeam6</p>
-            <h1 style={typeV2.screenTitle}>Locations</h1>
-            {meta === null ? null : <p style={typeV2.meta}>{meta}</p>}
-          </div>
-          <FeedbackButton />
+      <header style={headerBand}>
+        <div style={stack(spacing.tight)}>
+          <p style={typeV2.eyebrow}>WeatherTeam6</p>
+          <h1 style={typeV2.screenTitle}>Conditions</h1>
+          {meta === null ? null : <p style={typeV2.meta}>{meta}</p>}
         </div>
         <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
           <button
@@ -101,7 +85,7 @@ export function LocationList() {
         </div>
       </header>
 
-      <div style={{ ...stack(spacing.listGapLg), padding: `${spacing.sectionGap}px` }}>
+      <div style={{ ...stack(spacing.listGapLg), padding: `${spacing.sectionGap}px`, paddingBottom: navClearance }}>
         {locations.isPending ? (
           <SkeletonCards count={3} height={140} />
         ) : locations.isError ? (
@@ -120,39 +104,6 @@ export function LocationList() {
             <LocationCard key={location.id} location={location} onOpen={openLocation} />
           ))
         )}
-      </div>
-
-      {/*
-        Sign out. A login with no way out is the same trap as a save flow with
-        no delete: the token lives in `localStorage`, so without this a shared
-        or borrowed device stays signed in until the token expires, and there is
-        no revocation to fall back on.
-
-        It clears the token and nothing else. The redirect to `/login` and the
-        cache clear both hang off the token store in `App.tsx`, so signing out
-        and being signed out by a 401 take the same path — this button cannot
-        drift away from the one the API triggers.
-      */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          paddingTop: `${spacing.listGap}px`,
-          paddingBottom: bottomClearance,
-        }}
-      >
-        <button
-          type="button"
-          style={{
-            ...bareButton,
-            ...typeV2.controlLabel,
-            width: 'auto',
-            padding: `${spacing.cellPad}px ${spacing.sectionGap}px`,
-          }}
-          onClick={clearToken}
-        >
-          Sign out
-        </button>
       </div>
     </main>
   )
