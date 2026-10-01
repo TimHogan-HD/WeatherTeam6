@@ -25,7 +25,7 @@ import { severeAlertEvent } from '../lib/forecast.js'
 import { useLocations } from '../hooks/useLocations.js'
 import { useNow } from '../hooks/useNow.js'
 import { useAlerts, useConditions } from '../hooks/useWeather.js'
-import { useCreateFeedback, useFeedbackList } from '../hooks/useFeedback.js'
+import { useCreateFeedback, useFeedbackList, useResolveFeedback } from '../hooks/useFeedback.js'
 import { Screen } from '../components/Screen.js'
 import { InlineError, SkeletonCards } from '../components/States.js'
 
@@ -245,22 +245,38 @@ function AppFeedbackForm({ onSaved }: { onSaved: () => void }) {
   )
 }
 
+/** The reader's open feedback. "Done" marks an item acted on and it leaves the list. */
 function History() {
   const list = useFeedbackList()
+  const resolve = useResolveFeedback()
   if (list.isPending) return <SkeletonCards count={2} height={80} />
   if (list.isError) return <InlineError message="Couldn't load your feedback." onRetry={() => void list.refetch()} />
   if (list.data.length === 0) return null
   return (
     <section style={stack(spacing.listGap)}>
-      <h2 style={type.label}>Your feedback</h2>
+      <h2 style={type.label}>Open feedback</h2>
+      {resolve.isError ? <InlineError message="Couldn't mark that done." /> : null}
       {list.data.map((f) => (
-        <HistoryItem key={f.id} item={f} />
+        <HistoryItem
+          key={f.id}
+          item={f}
+          resolving={resolve.isPending && resolve.variables === f.id}
+          onResolve={() => resolve.mutate(f.id)}
+        />
       ))}
     </section>
   )
 }
 
-export function HistoryItem({ item }: { item: FeedbackRow }) {
+export function HistoryItem({
+  item,
+  resolving = false,
+  onResolve,
+}: {
+  item: FeedbackRow
+  resolving?: boolean
+  onResolve?: () => void
+}) {
   const when = new Date(item.observed_at ?? item.created_at)
   const head = [
     FEEDBACK_KIND_LABEL[item.kind],
@@ -289,6 +305,16 @@ export function HistoryItem({ item }: { item: FeedbackRow }) {
         </span>
       )}
       {item.message === null ? null : <p style={{ ...type.bodyMd, whiteSpace: 'pre-wrap' }}>{item.message}</p>}
+      {onResolve === undefined ? null : (
+        <button
+          type="button"
+          disabled={resolving}
+          onClick={onResolve}
+          style={{ ...bareButton, ...chip, ...type.labelSm, width: 'auto', alignSelf: 'flex-start', opacity: resolving ? 0.5 : 1 }}
+        >
+          {resolving ? 'Marking…' : 'Done'}
+        </button>
+      )}
     </article>
   )
 }

@@ -178,7 +178,8 @@ created_at      timestamptz default now()
 ```
 
 ### feedback
-App feedback and forecast checks (`POST/GET /api/v1/feedback`, `DELETE /feedback/:id`;
+App feedback and forecast checks (`POST/GET /api/v1/feedback`, `POST /feedback/:id/resolve`,
+`DELETE /feedback/:id`;
 rules in `lib/feedback/parseFeedback.ts`, Postgres behaviour in `npm run check:feedback`).
 A forecast check stores **what the app showed** (`app_readings`) beside **what the climber
 saw**, so it can later be scored against the model (#143). `conditions_reports` is left
@@ -196,10 +197,15 @@ observed_conditions overall_status     -- required for 'forecast'
 verdict             forecast_verdict   -- 'matched' | 'partly' | 'missed'; required for 'forecast'
 app_readings        jsonb              -- FeedbackAppReadings | null: labelled words, never 0-1 factors
 created_at          timestamptz default now()
+resolved_at         timestamptz        -- null = open; set once acted on (migration 0024)
 INDEX(user_id, created_at); CHECK constraints enforce the per-kind required fields
 ```
 **`deleteLocationCascade` detaches feedback rather than deleting it** — a check is evidence
 about a place and outlives the saved location.
+
+**Acted-on feedback is resolved, not deleted.** `GET /feedback` lists open rows only; "Done"
+in the app and `npm run feedback -- resolve <id>` set `resolved_at` and the row stays — a
+resolved forecast check is still #143 evidence.
 
 ### route_ticks, route_todos, area_locations
 The logbook and recorded boulder positions (`GET /logbook`, `POST/DELETE /logbook/ticks`,

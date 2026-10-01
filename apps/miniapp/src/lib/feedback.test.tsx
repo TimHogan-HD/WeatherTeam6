@@ -112,4 +112,12 @@ describe('HistoryItem', () => {
     expect(html).not.toContain('Forecast:')
     expect(html).not.toContain('No app reading')
   })
+
+  it('offers Done only when the item can be resolved', () => {
+    expect(renderToStaticMarkup(<HistoryItem item={check} />)).not.toContain('Done')
+    expect(renderToStaticMarkup(<HistoryItem item={check} onResolve={() => {}} />)).toContain('>Done<')
+    const pending = renderToStaticMarkup(<HistoryItem item={check} resolving onResolve={() => {}} />)
+    expect(pending).toContain('Marking…')
+    expect(pending).toContain('disabled')
+  })
 })

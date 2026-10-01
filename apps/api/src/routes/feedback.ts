@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express'
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 import type { ApiResponse, Feedback } from '@weatherteam6/types'
 import { db } from '../db/index.js'
 import { feedback, locations } from '../db/schema.js'
@@ -17,12 +17,13 @@ function refuse(res: Response, status: number, error: string): void {
   res.status(status).json(response)
 }
 
+/** The caller's open feedback. A resolved row stays in the table and leaves this list. */
 feedbackRouter.get('/feedback', async (req: Request, res: Response) => {
   try {
     const rows = await db
       .select()
       .from(feedback)
-      .where(eq(feedback.user_id, req.userId))
+      .where(and(eq(feedback.user_id, req.userId), isNull(feedback.resolved_at)))
       .orderBy(desc(feedback.created_at))
       .limit(LIST_LIMIT)
     const response: ApiResponse<Feedback[]> = { data: rows.map(toFeedback), error: null, status: 200 }
@@ -84,6 +85,33 @@ feedbackRouter.post('/feedback', async (req: Request, res: Response) => {
     res.status(201).json(response)
   } catch (err) {
     sendServerError(res, err, 'POST /feedback')
+  }
+})
+
+/**
+ * Marks an item acted on. Idempotent: resolving twice keeps the first time,
+ * and both answer 200. Another user's row is the same 404 as a missing one.
+ */
+feedbackRouter.post('/feedback/:feedbackId/resolve', async (req: Request, res: Response) => {
+  const id = req.params['feedbackId']
+  if (!id || !isUuid(id)) {
+    refuse(res, 404, 'Feedback not found')
+    return
+  }
+  try {
+    const rows = await db
+      .update(feedback)
+      .set({ resolved_at: sql`coalesce(${feedback.resolved_at}, now())` })
+      .where(and(eq(feedback.id, id), eq(feedback.user_id, req.userId)))
+      .returning({ id: feedback.id })
+    if (rows.length === 0) {
+      refuse(res, 404, 'Feedback not found')
+      return
+    }
+    const response: ApiResponse<null> = { data: null, error: null, status: 200 }
+    res.status(200).json(response)
+  } catch (err) {
+    sendServerError(res, err, 'POST /feedback/:feedbackId/resolve')
   }
 })
 

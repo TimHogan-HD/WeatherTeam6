@@ -27,6 +27,7 @@
     "check:conditions": "tsx src/scripts/checkConditions.ts",
     "check:delete-trip": "tsx src/scripts/checkDeleteTrip.ts",
     "check:feedback": "tsx src/scripts/checkFeedback.ts",
+    "feedback": "tsx src/scripts/feedback.ts",
     "check:logbook": "tsx src/scripts/checkLogbook.ts",
     "check:preferences": "tsx src/scripts/checkPreferences.ts",
     "check:weather-runs": "tsx src/scripts/checkWeatherRuns.ts",
