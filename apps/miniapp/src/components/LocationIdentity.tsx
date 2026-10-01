@@ -28,8 +28,8 @@ import { card, row, stack } from '../theme/styles.js'
  * nothing. These are properties of a saved row: "no rock type" means nobody
  * entered one, and a column of dashes would read as an app that failed to load.
  *
- * Rock, aspect and angle are changed on `/location/:id/edit`, reached from
- * the crag screen's "Edit crag".
+ * An unlocked rock type is changed on `/location/:id/edit`, reached from the
+ * crag screen's "Edit crag". Aspect and angle have no editor (`editLocation.ts`).
  */
 
 /**
@@ -81,7 +81,7 @@ function facts(location: Location): Fact[] {
     // **The side of vertical is named, and the wording is load-bearing.** The
     // stored column runs positive into slab, climbers positive into overhang,
     // so a bare "20°" is read backwards by one of them. `wallAngleLabel` says
-    // "20° slab" or "30° overhang"; the editor uses the same words.
+    // "20° slab" or "30° overhang".
     const angle = wallAngleLabel(wallAngleFromCliffAngle(location.cliff_angle))
     if (angle !== null) out.push({ key: 'Angle', value: angle })
   }
