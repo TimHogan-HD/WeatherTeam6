@@ -81,7 +81,10 @@ jobs:
             5. Finish with exactly one PR comment via `gh pr comment ${{ github.event.pull_request.number }} --body "..."`:
                a "## Claude review" heading, a line "Commit: ${{ github.event.pull_request.head.sha }}"
                (the full SHA, exactly), the number of findings, and a line "Read: <the files you opened>".
-               If you found nothing, say so and still list what you read. The merge gate
+               If you found nothing, say so and still list what you read. Start the body with
+               "## Claude review" and put no other line in it that begins with `#` — no further
+               headings, no handoff block. Claude Code refuses a Bash command in which a newline is
+               followed by `#`, and on PR #286 that left a finished review unposted. The merge gate
                (`.claude/hooks/lib/reviewGate.mjs`) looks for the heading and that SHA; without both,
                the PR cannot merge.
           # --allowedTools REPLACES the default allowlist, it does not extend it.
