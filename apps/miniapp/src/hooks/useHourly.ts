@@ -1,4 +1,4 @@
-import { useQuery, type UseQueryResult } from '@tanstack/react-query'
+import { queryOptions, useQuery, type UseQueryResult } from '@tanstack/react-query'
 import type { HourlySeries } from '@weatherteam6/types'
 import { apiGet } from '../lib/api.js'
 
@@ -12,10 +12,13 @@ import { apiGet } from '../lib/api.js'
  * the pooled ensemble. The parameter exists so a model switcher needs no API
  * change when Phase 3 builds one.
  */
-export function useHourly(id: string | undefined): UseQueryResult<HourlySeries> {
-  return useQuery({
+export const hourlyQuery = (id: string | undefined) =>
+  queryOptions({
     queryKey: ['hourly', id ?? ''] as const,
     queryFn: () => apiGet<HourlySeries>(`/hourly/${id ?? ''}`),
     enabled: id !== undefined && id !== '',
   })
+
+export function useHourly(id: string | undefined): UseQueryResult<HourlySeries> {
+  return useQuery(hourlyQuery(id))
 }

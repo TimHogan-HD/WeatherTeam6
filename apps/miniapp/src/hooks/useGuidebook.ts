@@ -1,4 +1,4 @@
-import { useQuery, type UseQueryResult } from '@tanstack/react-query'
+import { queryOptions, useQuery, type UseQueryResult } from '@tanstack/react-query'
 import type { Guidebook } from '@weatherteam6/types'
 import { apiGet } from '../lib/api.js'
 
@@ -14,14 +14,17 @@ import { apiGet } from '../lib/api.js'
  * while the location is still loading rather than guessing. The data is a
  * snapshot that changes only on deploy, so it is kept for the session.
  */
-export function useGuidebook(
-  id: string | undefined,
-  isClimbingLocation: boolean | undefined,
-): UseQueryResult<Guidebook | null> {
-  return useQuery({
+export const guidebookQuery = (id: string | undefined, isClimbingLocation: boolean | undefined) =>
+  queryOptions({
     queryKey: ['guidebook', id ?? ''] as const,
     queryFn: () => apiGet<Guidebook | null>(`/guidebook/${id ?? ''}`),
     enabled: id !== undefined && id !== '' && isClimbingLocation === true,
     staleTime: Infinity,
   })
+
+export function useGuidebook(
+  id: string | undefined,
+  isClimbingLocation: boolean | undefined,
+): UseQueryResult<Guidebook | null> {
+  return useQuery(guidebookQuery(id, isClimbingLocation))
 }

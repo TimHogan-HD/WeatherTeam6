@@ -51,7 +51,7 @@ fetched only when Open-Meteo published a new run (#195); raw payloads are no lon
 ### What is running
 
 - **API** — `https://weather-team6-api.vercel.app`. The owner's account exists, username `tim`.
-- **Web app** — https://weatherteam6.vercel.app, installable, no service worker. The owner uses
+- **Web app** — https://weatherteam6.vercel.app, installable, with a service worker that caches the app shell only. The owner uses
   it on a phone at about 480×1000 CSS px.
 - **cron-job.org** — `check-alerts`, `collect-runs`, `prune-runs`. **`collect-runs` answers
   `200 OK` when it persists nothing** — that hid a day-long outage on 2026-09-13; whether to

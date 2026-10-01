@@ -104,19 +104,17 @@ because both carry a colour and a colour written outside `packages/design` is a 
 redefined inside an app.
 
 `display: standalone` is what makes Add to Home Screen produce an app window rather than
-a bookmark with an address bar. **There is no service worker** — push is parked, and one
-with nothing to cache is a cache-invalidation bug waiting to happen. The app therefore
-does not work offline, which is honest: every screen is a live forecast.
+a bookmark with an address bar.
 
-**What that costs, precisely.** Chrome dropped the service-worker requirement for
-installing from its own menu (Chrome 108 on mobile, 112 on desktop), so *Install app* /
-*Add to Home Screen* works and produces a standalone window. What still requires a
-`fetch` handler is the **automatic install prompt** — Chrome will never offer
-installation by itself, so the user has to find it in the menu. iOS Safari has no
-automatic prompt either way and honours `display: standalone` from the manifest since
-iOS 16.4. Adding a service worker purely to earn the prompt is the empty-fetch-handler
-antipattern Chrome removed the requirement over; if the prompt is wanted, it should come
-with a real caching story.
+**The service worker keeps the app shell, never the weather** (`src/theme/serviceWorker.ts`,
+written into `dist/sw.js` by the `wt6-service-worker` plugin). It caches `index.html` and
+the hashed build output so a cold open draws at once, with the list this device last saw
+(`src/lib/rememberedLocations.ts`) while the numbers load. API calls go to another origin
+and are never intercepted, so every reading on screen is still live. A deploy reaches an
+installed app one open late: the next open installs the new worker, the one after draws
+the new build. Removing it takes a release of an `sw.js` that unregisters itself — a
+browser keeps a worker whose script 404s. Registered only in a production build;
+`check:ui` drives the dev server and does not exercise it.
 
 Icons in `public/icons/` are **generated and committed**:
 

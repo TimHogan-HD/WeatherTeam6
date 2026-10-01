@@ -9,9 +9,8 @@ import { colorsV2 } from '@weatherteam6/design/tokens'
  * is what removes the browser chrome; without it the installed app is a
  * bookmark with an address bar.
  *
- * **No service worker.** Push is parked, and a service worker with nothing to
- * cache is a cache-invalidation bug waiting to happen. Installability does not
- * require one.
+ * Installability does not require the service worker (`serviceWorker.ts`); it
+ * exists to make a cold open draw at once.
  *
  * The two colours are the reason this is TypeScript. `theme_color` and
  * `background_color` are the same values `globals.css` paints the gradient

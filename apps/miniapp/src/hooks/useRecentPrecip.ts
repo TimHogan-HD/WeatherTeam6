@@ -1,4 +1,4 @@
-import { useQuery, type UseQueryResult } from '@tanstack/react-query'
+import { queryOptions, useQuery, type UseQueryResult } from '@tanstack/react-query'
 import type { RecentPrecip } from '@weatherteam6/types'
 import { apiGet } from '../lib/api.js'
 
@@ -15,10 +15,13 @@ import { apiGet } from '../lib/api.js'
  * `is_climbing_location` while the drying card was its only reader; the Precip
  * tab is on every location, and a city had rain too.
  */
-export function useRecentPrecip(id: string | undefined): UseQueryResult<RecentPrecip> {
-  return useQuery({
+export const recentPrecipQuery = (id: string | undefined) =>
+  queryOptions({
     queryKey: ['recent-precip', id ?? ''] as const,
     queryFn: () => apiGet<RecentPrecip>(`/recent-precip/${id ?? ''}`),
     enabled: id !== undefined && id !== '',
   })
+
+export function useRecentPrecip(id: string | undefined): UseQueryResult<RecentPrecip> {
+  return useQuery(recentPrecipQuery(id))
 }
