@@ -111,8 +111,8 @@ survive as a reference. Binding for Phases 2-4:
 - ~~`.claude/docs/STATE.md` records Mini App polish as **deliberately downgraded**
   ("the Mini App doesn't need to be super fancy"), and `.claude/skills/miniapp-patterns`
   says a CSS or motion architecture is "not authorised".~~ **Both corrected 2026-09-15**
-  when Phase 2 shipped. The *chart* half is settled; a CSS or motion architecture is
-  genuinely still unauthorised and stays for Phase 5.
+  when Phase 2 shipped. The *chart* half is settled. The CSS and motion half was
+  settled on 2026-10-01: allowed (`design-system-v1.md` § CSS and motion).
 - `docs/handoffs/miniapp-design-v1.md` §3 specifies location detail as **"one scroll, no
   internal tabs"**.
 

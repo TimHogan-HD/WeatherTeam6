@@ -6,17 +6,15 @@ paths: apps/miniapp/**, packages/design/**
 
 # Web App Patterns
 
-**The app is styled entirely with inline styles**, which cannot express hover,
-transitions, keyframes or breakpoints. That ceiling is real and it is why the charts
-carry no hover layer. The one exception is the bottom bar's sliding pill (`TabBar.tsx`,
-owner decision 2026-09-30), which honours `prefers-reduced-motion`. The other is the press dim: one `:active` rule
-in `globals.css` at `press.opacity`, instant, for links, buttons and `role="button"`/`"tab"`
-(owner decision 2026-09-30). **Scroll position is `ScrollMemory`'s** (`App.tsx`, rule in
-`arrivalScrollY`): a section's first screen keeps its place however you return, any other
-screen only on back.
-**Starting a CSS or motion architecture is still not authorised**
-— that is a separate decision from drawing charts, and Phase 5 of
-`docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` is where it gets settled.
+**CSS and motion are allowed** (owner decision 2026-10-01, `design-system-v1.md` § CSS and
+motion). Most of the app is still inline styles, but stylesheets, classes, hover,
+transitions, keyframes and media queries are fair game where they make a screen better.
+Values come from the `--wt6-*` custom properties (`cssVars.ts`), never literals; every
+animation settles at once under `prefers-reduced-motion`; the contrast floors still bind.
+Existing motion to match: the bottom bar's sliding pill (`TabBar.tsx`), the instant press
+dim (one `:active` rule in `globals.css` at `press.opacity`, no transition), `FadeIn`.
+**Scroll position is `ScrollMemory`'s** (`App.tsx`, rule in `arrivalScrollY`): a section's
+first screen keeps its place however you return, any other screen only on back.
 
 ## Charts (`apps/miniapp/src/components/charts/`)
 

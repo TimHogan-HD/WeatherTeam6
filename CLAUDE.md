@@ -83,7 +83,8 @@ Do not create a `.env` file at all — set variables in the shell for the one co
 | Drying model or rock types | `.claude/docs/rock-drying-research.md` — §10 first (most figures it checked were misattributed); per-crag facts in `.claude/docs/crag-facts.json` |
 | Wall angle, aspect, temperature/humidity scoring, `walls` | `.claude/docs/climbing-terminology-research.md` — `cliff_angle` runs backwards from climbers' usage and `aspectDegrees` scores nothing |
 | Any UI phase | `docs/handoffs/miniapp-design-v1.md` (binding screen spec) and `docs/handoffs/design-system-v1.md`. Open the mockup itself (`docs/handoffs/design-mockups/weatherteam6UI.html`), not a prose summary of it — one phase was built twice from the description. Where it disagrees with the spec, the spec wins |
-| Dataviz Phase 5 | `docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` — parked; its phase numbers are its own. A CSS or motion architecture is not authorised |
+| Dataviz Phase 5 | `docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` — parked; its phase numbers are its own |
+| CSS, hover, transitions or animation | `docs/handoffs/design-system-v1.md` § CSS and motion — allowed since 2026-10-01, on tokens, with `prefers-reduced-motion` |
 
 Paywalled or unfetchable source material goes in `.claude/research-inbox/` (gitignored except its README). Commit the claim, quote and citation — never the article.
 

@@ -91,4 +91,24 @@ were removed with it.
 
 - A light theme. There is no light token set and every contrast rule above assumes near-white on dark
 - ~~Bottom navigation~~ — built 2026-09-30 (`miniapp-design-v1.md` §2). `/add` is still not a tab
-- A CSS or motion architecture. **Still not authorised** — the client is styled entirely with inline styles, which cannot express hover, keyframes or breakpoints. That ceiling is real and deliberate. **One exception, owner decision 2026-09-30:** the bottom bar's pill slides between tabs with inline `transition`s, and moves without animating under `prefers-reduced-motion`. It is not a precedent for any other motion. **Owner decision 2026-09-30, also:** a pressed control dims to `press.opacity` at once, with no transition — one `:active` rule in `globals.css`. Tapping the lit tab on a section's first screen scrolls it to the top, smoothly unless `prefers-reduced-motion`. **Owner decision 2026-10-01:** a list card's weather fades in when it arrives after the card was drawn — on a first load, or when live figures replace the ones remembered on the device — through `FadeIn`'s inline opacity `transition`, at once under `prefers-reduced-motion`. Remembered figures are not dimmed: the contrast floors above forbid it, and the header's "updated … · refreshing" carries their age. Other fades and press animations stay out
+
+## CSS and motion
+
+**Allowed** (owner decision 2026-10-01, reversing the earlier ban: *"if it works it
+works"*). Stylesheets, classes, `:hover`, transitions, keyframes, media and container
+queries may be used wherever they make a screen better; inline styles are no longer the
+only tool. What still holds:
+
+- **Values come from the tokens.** A stylesheet reads them through the `--wt6-*` custom
+  properties `cssVars.ts` emits, never a restated literal — the token rule above applies to
+  CSS exactly as to inline styles.
+- **Every animation honours `prefers-reduced-motion`**: it settles at once rather than
+  moving.
+- **The contrast floors still bind.** A fade or state may not leave text below them at
+  rest — which is why remembered figures are not dimmed, and the header's "updated … ·
+  refreshing" carries their age instead.
+- Motion answers something: a person's action, or data arriving. The behaviours already
+  shipped — the bottom bar's sliding pill, the instant press dim (`:active` in
+  `globals.css`, no transition, so a tap shows before a slow screen arrives), the smooth
+  scroll-to-top on the lit tab, `FadeIn` on a card's late weather — are the house style to
+  extend, not exceptions.
