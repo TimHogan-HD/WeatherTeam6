@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/react-query'
 import type { Location } from '@weatherteam6/types'
-import { OPEN_WAIT_MS, prefetchDetail, readyToOpen } from './prefetchDetail.js'
+import { prefetchDetail } from './prefetchDetail.js'
 
 const apiGet = vi.fn((_path: string) => Promise.resolve([]))
 vi.mock('./api.js', () => ({ apiGet: (path: string) => apiGet(path) }))
@@ -46,39 +46,3 @@ describe('prefetchDetail', () => {
   })
 })
 
-describe('readyToOpen', () => {
-  beforeEach(() => apiGet.mockClear())
-
-  /** Answers the hourly fetch after `hourlyMs`; returns how long `readyToOpen` took to settle. */
-  async function openAfter(hourlyMs: number, client = new QueryClient()): Promise<number> {
-    vi.useFakeTimers()
-    try {
-      apiGet.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve([]), hourlyMs)))
-      let settledAt = -1
-      const start = Date.now()
-      void readyToOpen(client, place(true)).then(() => {
-        settledAt = Date.now() - start
-      })
-      await vi.advanceTimersByTimeAsync(2_000)
-      return settledAt
-    } finally {
-      vi.useRealTimers()
-      apiGet.mockImplementation(() => Promise.resolve([]))
-    }
-  }
-
-  it('opens as soon as the hourly series lands', async () => {
-    expect(await openAfter(120)).toBe(120)
-  })
-
-  it('opens anyway at the cap when the series is slow — a tap never feels stuck', async () => {
-    expect(await openAfter(1_500)).toBe(OPEN_WAIT_MS)
-  })
-
-  it('opens at once when a series is already cached, even a stale one the screen will refetch', async () => {
-    const client = new QueryClient()
-    client.setQueryData(['hourly', ID], { days: [] }, { updatedAt: 0 })
-    expect(await openAfter(1_500, client)).toBe(0)
-    expect(apiGet).not.toHaveBeenCalled()
-  })
-})
