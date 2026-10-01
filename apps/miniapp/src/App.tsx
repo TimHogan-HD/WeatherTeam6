@@ -12,6 +12,7 @@ import {
 import { createQueryClient } from './lib/queryClient.js'
 import { getToken, subscribeToToken } from './lib/authToken.js'
 import { forgetLocations } from './lib/rememberedLocations.js'
+import { forgetCards } from './lib/rememberedCards.js'
 import { useAuthToken } from './hooks/useAuth.js'
 import { AddLocation } from './routes/AddLocation.js'
 import { Feedback } from './routes/Feedback.js'
@@ -42,6 +43,7 @@ subscribeToToken(() => {
   if (getToken() !== null) return
   queryClient.clear()
   forgetLocations()
+  forgetCards()
 })
 
 /**

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import {
@@ -22,6 +22,8 @@ import { ReadingPill } from './ReadingPills.js'
 import { ChevronRightIcon, DropletIcon, HumidityIcon, TemperatureIcon, WindIcon } from './Icons.js'
 import { InlineError, Skeleton } from './States.js'
 import { LabelledFigure } from './LabelledFigure.js'
+import { FadeIn } from './FadeIn.js'
+import type { RememberedCard } from '../lib/rememberedCards.js'
 
 /**
  * One card per saved location — the v2 layout: name and score on the first
@@ -46,9 +48,12 @@ function CardControl({ children }: { children: ReactNode }) {
 
 export function LocationCard({
   location,
+  remembered,
   onOpen,
 }: {
   location: Location
+  /** What this card showed last time on this device, drawn until all three live answers are in. */
+  remembered: RememberedCard | undefined
   onOpen: (id: string) => void
 }) {
   const queryClient = useQueryClient()
@@ -56,15 +61,32 @@ export function LocationCard({
   const alerts = useAlerts(location.id)
   const conditions = useConditions(location.id, location.is_climbing_location)
 
-  const today = findToday(forecast.data)
+  // A non-crag's conditions query is disabled and stays pending forever.
+  const settled =
+    !forecast.isPending && !alerts.isPending && !(location.is_climbing_location && conditions.isPending)
+  // Whole or not at all — see `RememberedCard`.
+  const shown = remembered !== undefined && !settled ? remembered : null
+  const forecastData = shown === null ? forecast.data : shown.forecast
+  const alertsData = shown === null ? alerts.data : shown.alerts
+  const conditionsData = shown === null ? conditions.data : shown.conditions
+
+  // Weather that arrives after the card is drawn fades in; weather already in
+  // hand when it mounts — a remembered card, or coming back to the list — does
+  // not. The live copy replacing a remembered one mounts a fresh `FadeIn`, so
+  // it fades in as well.
+  const [settledAtMount] = useState(settled)
+  const appear = (node: ReactNode, style?: CSSProperties) =>
+    settledAtMount || shown !== null ? node : <FadeIn style={style}>{node}</FadeIn>
+
+  const today = findToday(forecastData)
 
   /**
    * From **the same endpoint the detail screen reads**, through the same
    * summary the list sorts by — so a crag cannot show one number here, another
    * on its own screen, and rank by a third.
    */
-  const summary = cardSummary(conditions.data, alerts.data, alerts.isPending)
-  const reading = conditions.data?.readings?.now ?? null
+  const summary = cardSummary(conditionsData, alertsData, shown === null && alerts.isPending)
+  const reading = conditionsData?.readings?.now ?? null
 
   return (
     // A div, not a button. The card is the tap target (§3: tapping the card,
@@ -94,12 +116,14 @@ export function LocationCard({
       {/* Alerts outrank everything and sit above the score (§7 rule 5), which
           in v2 is on the title row — so the pill leads the card. An alert that
           failed to load must not read as "no alerts": its absence is stated. */}
-      {alerts.isError ? (
+      {shown === null && alerts.isError ? (
         <span style={{ ...typeV2.chip, color: colorsV2.txtMuted }}>Alerts unavailable</span>
-      ) : alerts.data === undefined || alerts.data.length === 0 ? null : (
-        <div>
-          <AlertPill alerts={alerts.data} />
-        </div>
+      ) : alertsData === undefined || alertsData.length === 0 ? null : (
+        appear(
+          <div>
+            <AlertPill alerts={alertsData} />
+          </div>,
+        )
       )}
 
       <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
@@ -109,21 +133,23 @@ export function LocationCard({
           <span style={{ ...typeV2.cardName, minWidth: 0, overflowWrap: 'anywhere' }}>
             {location.name}
           </span>
-          {summary?.score == null ? null : <ScoreBadge score={summary.score} />}
+          {summary?.score == null
+            ? null
+            : appear(<ScoreBadge score={summary.score} />, { flex: '0 0 auto' })}
         </div>
         <ChevronRightIcon color={colorsV2.txtMuted} />
       </div>
 
-      {forecast.isPending ? (
+      {shown === null && forecast.isPending ? (
         <Skeleton height={26} />
-      ) : forecast.isError ? (
+      ) : shown === null && forecast.isError ? (
         <CardControl>
           <InlineError message="Couldn't load weather." onRetry={() => void forecast.refetch()} />
         </CardControl>
       ) : today === null ? (
         <span style={{ ...typeV2.chip, color: colorsV2.txtMuted }}>No reading for today yet.</span>
       ) : (
-        <TodayChips day={today} />
+        appear(<TodayChips day={today} />)
       )}
 
       {/* The readings as label-and-value pills — never colour alone. The Figma
@@ -135,16 +161,18 @@ export function LocationCard({
           A named unavailable reason is a sentence about *us*, and the detail
           screen this card opens has room for it. */}
       {summary === null || summary.readings.length === 0 ? null : (
-        <div style={{ ...row(spacing.chipGapMd), flexWrap: 'wrap' }}>
-          {summary.readings.map((field) => (
-            <ReadingPill
-              key={field.label}
-              label={field.label}
-              value={field.value}
-              tone={readingTone(field, reading)}
-            />
-          ))}
-        </div>
+        appear(
+          <div style={{ ...row(spacing.chipGapMd), flexWrap: 'wrap' }}>
+            {summary.readings.map((field) => (
+              <ReadingPill
+                key={field.label}
+                label={field.label}
+                value={field.value}
+                tone={readingTone(field, reading)}
+              />
+            ))}
+          </div>,
+        )
       )}
     </div>
   )

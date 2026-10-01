@@ -1,8 +1,14 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueries } from '@tanstack/react-query'
 import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
-import type { Location } from '@weatherteam6/types'
+import type { ConditionsScore, Location, WeatherAlert } from '@weatherteam6/types'
+import {
+  rememberCards,
+  rememberedCards,
+  snapshotCards,
+  type RememberedCards,
+} from '../lib/rememberedCards.js'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, navClearance, btnPrimary, btnPrimaryText, headerBand, row, stack, wellV2 } from '../theme/styles.js'
 import { formatUpdatedAt } from '../lib/format.js'
@@ -45,21 +51,65 @@ export function LocationList() {
   const openAdd = useCallback(() => void navigate('/add'), [navigate])
 
   const [sort, setSort] = useSortPreference()
-  const scores = useSettledScores(locations.data ?? [])
-  const ordered = sortLocations(locations.data ?? [], sort, scores)
+  // Read once per page load: after that the query cache holds the live copies.
+  const [remembered] = useState(() => rememberedCards(Date.now()))
+  const list = locations.data ?? []
 
-  // The same cache entries the cards fill, so this adds no request.
-  const forecasts = useQueries({ queries: (locations.data ?? []).map((l) => forecastQuery(l.id)) })
+  // The same cache entries the cards fill, so these add no request.
+  const forecasts = useQueries({ queries: list.map((l) => forecastQuery(l.id)) })
+  const conditions = useQueries({
+    queries: list.map((l) => conditionsQuery(l.id, l.is_climbing_location)),
+  })
+  const alerts = useQueries({ queries: list.map((l) => alertsQuery(l.id)) })
+
+  const settledScores = settledScoresOf(list, conditions, alerts)
+  const scores = settledScores ?? rememberedScoresOf(list, remembered)
+  const ordered = sortLocations(list, sort, scores)
+
   // Settled on the real list, not the one remembered on this device: a
   // remembered list from before a crag was added elsewhere is ready while the
   // real one still has a card with no weather.
   const cardsReady =
     !locations.isPending &&
     !locations.isPlaceholderData &&
-    (locations.isError || (scores !== null && forecasts.every((f) => !f.isPending)))
-  const splash = useOpeningSplash(cardsReady)
+    (locations.isError || (settledScores !== null && forecasts.every((f) => !f.isPending)))
+  // Every card can draw from what this device remembers, so there is nothing
+  // for the splash to hide.
+  const drawnFromMemory =
+    remembered !== undefined && list.length > 0 && list.every((l) => remembered.cards[l.id] !== undefined)
+  const splash = useOpeningSplash(cardsReady || drawnFromMemory)
 
-  const updated = formatUpdatedAt(locations.dataUpdatedAt, now)
+  useRememberCards(
+    cardsReady && !locations.isError
+      ? snapshotCards(
+          list.map((l, i) => ({
+            id: l.id,
+            isClimbingLocation: l.is_climbing_location,
+            forecast: answerOf(forecasts[i]),
+            conditions: answerOf(conditions[i]),
+            alerts: answerOf(alerts[i]),
+          })),
+        )
+      : null,
+    [...forecasts, ...conditions, ...alerts].map((q) => q.dataUpdatedAt),
+  )
+
+  // While any card is drawn from memory, the header says how old it is — by
+  // the same rule the card uses to choose, so a new crag loading beside live
+  // cards does not print an age nothing on screen has.
+  const fromMemory =
+    remembered !== undefined &&
+    list.some(
+      (l, i) =>
+        remembered.cards[l.id] !== undefined &&
+        (forecasts[i]?.isPending !== false ||
+          alerts[i]?.isPending !== false ||
+          (l.is_climbing_location && conditions[i]?.isPending !== false)),
+    )
+  const updated =
+    fromMemory
+      ? [formatUpdatedAt(remembered.savedAt, now), 'refreshing'].filter((p) => p !== null).join(' · ')
+      : formatUpdatedAt(locations.dataUpdatedAt, now)
   const meta =
     locations.data === undefined
       ? null
@@ -114,7 +164,12 @@ export function LocationList() {
           />
         ) : (
           ordered.map((location) => (
-            <LocationCard key={location.id} location={location} onOpen={openLocation} />
+            <LocationCard
+              key={location.id}
+              location={location}
+              remembered={remembered?.cards[location.id]}
+              onOpen={openLocation}
+            />
           ))
         )}
       </div>
@@ -126,21 +181,20 @@ function lowerFirst(text: string): string {
   return text.charAt(0).toLowerCase() + text.slice(1)
 }
 
+type Settling<T> = { data: T | undefined; isPending: boolean; dataUpdatedAt: number }
+
 /**
  * Every card's **suppressed** score, once all of them have settled; `null`
  * until then, which `sortLocations` reads as "keep the added order".
  *
- * The same query definitions the cards use, so this adds subscribers to the
- * cache entries the cards are already filling — no request is made twice. A
- * non-climbing location's conditions query is disabled and stays pending
+ * A non-climbing location's conditions query is disabled and stays pending
  * forever, so it counts as settled on the flag rather than on the query.
  */
-function useSettledScores(locations: readonly Location[]): ReadonlyMap<string, number | null> | null {
-  const conditions = useQueries({
-    queries: locations.map((l) => conditionsQuery(l.id, l.is_climbing_location)),
-  })
-  const alerts = useQueries({ queries: locations.map((l) => alertsQuery(l.id)) })
-
+function settledScoresOf(
+  locations: readonly Location[],
+  conditions: readonly Settling<ConditionsScore | null>[],
+  alerts: readonly Settling<WeatherAlert[]>[],
+): ReadonlyMap<string, number | null> | null {
   const scores = new Map<string, number | null>()
   for (const [i, location] of locations.entries()) {
     const c = conditions[i]
@@ -151,6 +205,44 @@ function useSettledScores(locations: readonly Location[]): ReadonlyMap<string, n
     scores.set(location.id, cardSummary(c.data, a.data, false)?.score ?? null)
   }
   return scores
+}
+
+/**
+ * The scores the remembered cards print, so a list drawn from memory is in the
+ * order it was left in. `null` unless every card has one to draw.
+ */
+function rememberedScoresOf(
+  locations: readonly Location[],
+  remembered: RememberedCards | undefined,
+): ReadonlyMap<string, number | null> | null {
+  if (remembered === undefined) return null
+  const scores = new Map<string, number | null>()
+  for (const location of locations) {
+    const card = remembered.cards[location.id]
+    if (card === undefined) return null
+    scores.set(location.id, cardSummary(card.conditions, card.alerts, false)?.score ?? null)
+  }
+  return scores
+}
+
+/** A disabled query (a non-crag's conditions) has no fetch time; 0 is its stamp. */
+function answerOf<T>(q: Settling<T> | undefined): { data: T | undefined; dataUpdatedAt: number } {
+  return { data: q?.data, dataUpdatedAt: q?.dataUpdatedAt ?? 0 }
+}
+
+/**
+ * Writes the snapshot whenever a newer one exists — the cards refetch on their
+ * `staleTime` when the list is revisited — and not on every render, which the
+ * minute clock alone would cause.
+ */
+function useRememberCards(snapshot: RememberedCards | null, fetchedAt: readonly number[]): void {
+  const written = useRef<string | null>(null)
+  const stamp = fetchedAt.join(',')
+  useEffect(() => {
+    if (snapshot === null || stamp === written.current) return
+    written.current = stamp
+    rememberCards(snapshot)
+  })
 }
 
 const SORT_KEY = 'wt6.list-sort'
