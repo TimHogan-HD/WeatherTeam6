@@ -3,8 +3,8 @@ import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
 
 /**
  * Fades its children in once, on mount — for a card's weather arriving after
- * the card was drawn (owner decision 2026-10-01, `design-system-v1.md`
- * § Non-goals). Under `prefers-reduced-motion` it appears at once.
+ * the card was drawn (`design-system-v1.md` § CSS and motion). Under
+ * `prefers-reduced-motion` it appears at once.
  *
  * Two frames before the opacity flips, so the browser has painted the 0 it is
  * transitioning from; one frame can land in the same paint and skip the fade.

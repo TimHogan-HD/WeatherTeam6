@@ -61,6 +61,8 @@ Do not create a `.env` file at all — set variables in the shell for the one co
 
 ## Rules
 
+- **Design is a conversation, not a rulebook** (owner, 2026-10-01). Every visual and interaction choice in the docs — palette, layout, spacing, type, motion, press feedback, the Figma direction — is the current state, not a decision to defend. When you see a better option, say so and show it as variants; when a design skill disagrees with what is built, put the disagreement to the owner rather than silently applying or dropping it. Not taste, and still in force: the copy rules that keep a reading honest, and the contrast floors.
+
 - TypeScript strict mode everywhere. No `any`.
 - All API responses use the shape `{ data, error, status }`.
 - All external API calls are wrapped in try/catch with exponential backoff retry.
@@ -82,7 +84,7 @@ Do not create a `.env` file at all — set variables in the shell for the one co
 | Anything that produces or renders a reading, or changes how the score components combine | `docs/handoffs/weatherteam6-scoring-model-handoff-v1.md` (its `compare:scoring` was deleted with the old scorer). Before proposing a weight, veto or cap, measure it: `compare:dryness` and `compare:rock-temp` (`apps/api`) are the harnesses that test against outcomes |
 | Drying model or rock types | `.claude/docs/rock-drying-research.md` — §10 first (most figures it checked were misattributed); per-crag facts in `.claude/docs/crag-facts.json` |
 | Wall angle, aspect, temperature/humidity scoring, `walls` | `.claude/docs/climbing-terminology-research.md` — `cliff_angle` runs backwards from climbers' usage and `aspectDegrees` scores nothing |
-| Any UI phase | `docs/handoffs/miniapp-design-v1.md` (binding screen spec) and `docs/handoffs/design-system-v1.md`. Open the mockup itself (`docs/handoffs/design-mockups/weatherteam6UI.html`), not a prose summary of it — one phase was built twice from the description. Where it disagrees with the spec, the spec wins |
+| Any UI phase | `docs/handoffs/miniapp-design-v1.md` (the current screen spec — open, see Rules) and `docs/handoffs/design-system-v1.md`. Open the mockup itself (`docs/handoffs/design-mockups/weatherteam6UI.html`), not a prose summary of it — one phase was built twice from the description. Where it disagrees with the spec, the spec wins |
 | Dataviz Phase 5 | `docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` — parked; its phase numbers are its own |
 | CSS, hover, transitions or animation | `docs/handoffs/design-system-v1.md` § CSS and motion — allowed since 2026-10-01, on tokens, with `prefers-reduced-motion` |
 | Placement, motion numbers, platform features, design tools | `.claude/docs/ui-craft.md` |

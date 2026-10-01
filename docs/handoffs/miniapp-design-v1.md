@@ -1,7 +1,7 @@
 # WeatherTeam6 Web App — Design Spec
 Version: v1
 Date: 2026-08-24
-Status: **Binding.** Built 2026-08-26; §1 and §2 rewritten 2026-09-23 when the Telegram platform was removed. This document is both the contract and the description of what exists.
+Status: **The current design, open to change** — build to it, and propose changes to the owner as options (owner, 2026-10-01: *"I am not hard set on anything design wise"*). The copy and attribution rules it applies are honesty rules, not taste (`design-system-v1.md`). Built 2026-08-26; §1 and §2 rewritten 2026-09-23 when the Telegram platform was removed. This document is both the contract and the description of what exists.
 Extends `docs/handoffs/design-system-v1.md`, which it does not replace.
 
 ## Purpose

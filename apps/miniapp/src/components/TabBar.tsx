@@ -14,8 +14,8 @@ import { NavIcon } from './Icons.js'
  * slides between tabs** rather than each tab painting its own: its leading edge
  * leaves first and its trailing edge follows a beat later with a slight
  * overshoot, so the pill reads as pulled across to the next tab. Under
- * `prefers-reduced-motion` it moves without animating. This is the one
- * animation the design system authorises (`design-system-v1.md` § Non-goals).
+ * `prefers-reduced-motion` it moves without animating
+ * (`design-system-v1.md` § CSS and motion).
  *
  * Links, not tabs: each one changes the URL, and `role="tab"` belongs to the
  * location screen's own row. The lit one is `aria-current="page"`. Tapping it

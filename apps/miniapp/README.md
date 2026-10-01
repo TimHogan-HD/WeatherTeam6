@@ -7,7 +7,7 @@ It began as a Telegram Mini App and the directory name is the last of that. Phas
 its own token, carries its own back affordance, and installs to a home screen through a
 PWA manifest. **Nothing here reads `Telegram.WebApp` any more.**
 
-The design contract is `docs/handoffs/miniapp-design-v1.md` and it is binding, with the
+The design is `docs/handoffs/miniapp-design-v1.md` — the current design, open to change in conversation with the owner — with the
 overrides listed in that handoff's § Explicit rule overrides — the ones that bite here
 are the login UI and the in-app back arrow, both of which §2 and §8 forbade. Read it
 before writing a screen; if a decision is not written there, it is not settled.
