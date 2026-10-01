@@ -97,13 +97,9 @@ function facts(location: Location): Fact[] {
     wide: true,
   })
 
-  // Named only when there is one. The station is what `fetchPrecipHistory`
-  // reads for the drying model; a location without one falls back to the
-  // gridded archive, and "rainfall from —" would claim a station that does not
-  // exist. The sources footer follows the same rule.
-  if (location.asos_station !== null) {
-    out.push({ key: 'Rain station', value: location.asos_station })
-  }
+  // No "Rain station": the station's rainfall fed only the five-component
+  // scorer, retired in scoring Phase 5b. Naming a source nothing reads is a
+  // false attribution (defect class 3).
 
   return out
 }
