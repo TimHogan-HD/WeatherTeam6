@@ -2,27 +2,23 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import type { LiveForecastLocation } from './liveForecast.js'
 
 /**
- * `computeLiveForecast` is the orchestration every conditions and forecast
- * response goes through, and until now nothing exercised it. These tests mock
- * the ensemble read and the rainfall fetches and assert on what it builds from
- * them. `latestRuns.js` is mocked whole, so its database import never loads.
+ * `computeLiveForecast` builds the daily weather every `/forecast` and trip
+ * response goes through. The ensemble read is mocked; `latestRuns.js` is
+ * mocked whole, so its database import never loads. Weather only since the
+ * five-component score was retired (scoring Phase 5b).
  */
 
 const getEnsembleDaily = vi.hoisted(() => vi.fn())
 const fetchNBM = vi.hoisted(() => vi.fn())
-const fetchArchivePrecip = vi.hoisted(() => vi.fn())
-const fetchPrecipHistory = vi.hoisted(() => vi.fn())
 
 // The fetches are stubbed; `localDateString` is the real one. Reimplementing it
 // in the mock would make these tests agree with a copy of the logic rather than
 // with the logic — the failure mode catalogued as class 11 in defect-patterns.md.
 vi.mock('../weather/openMeteo.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../weather/openMeteo.js')>()
-  return { ...actual, fetchNBM, fetchArchivePrecip }
+  return { ...actual, fetchNBM }
 })
-// Stored or fetched, the ensemble reaches the compute through this one call.
 vi.mock('../runs/latestRuns.js', () => ({ getEnsembleDaily }))
-vi.mock('../weather/acis.js', () => ({ fetchPrecipHistory }))
 
 const { computeLiveForecast } = await import('./liveForecast.js')
 
@@ -48,22 +44,11 @@ function day(offsetDays: number, over: Record<string, number> = {}) {
   }
 }
 
-const location: LiveForecastLocation = {
-  id: 'loc-1',
-  lat: '36.15',
-  lon: '-115.45',
-  elevation_m: '1200',
-  rock_type: 'sandstone',
-  cliff_angle: '45',
-  aspect: 'S',
-  asos_station: null,
-}
+const location: LiveForecastLocation = { id: 'loc-1', lat: '36.15', lon: '-115.45', elevation_m: '1200' }
 
 beforeEach(() => {
-  fetchArchivePrecip.mockResolvedValue([])
-  fetchPrecipHistory.mockResolvedValue([])
   getEnsembleDaily.mockResolvedValue({
-    days: [day(0), day(1), day(2)],
+    days: [day(2), day(0), day(1)],
     model_sources: ['gfs_seamless'],
     utc_offset_seconds: 0,
   })
@@ -73,7 +58,7 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-describe('computeLiveForecast — forecast source', () => {
+describe('computeLiveForecast — the daily weather', () => {
   it('does not call NBM at all', async () => {
     // NBM requests precipitation quantiles Open-Meteo does not define, so the
     // call could only ever 400. Issue #22.
@@ -87,145 +72,24 @@ describe('computeLiveForecast — forecast source', () => {
     expect(snapshots[0]?.model_sources).toEqual(['gfs_seamless'])
   })
 
-  it('uses the ASOS station for rainfall when the location has one', async () => {
-    await computeLiveForecast({ ...location, asos_station: 'KLAS' }, NOW)
-    expect(fetchPrecipHistory).toHaveBeenCalledOnce()
-    expect(fetchArchivePrecip).not.toHaveBeenCalled()
+  it('returns one snapshot per forecast day, in date order', async () => {
+    const { snapshots } = await computeLiveForecast(location, NOW)
+    expect(snapshots.map((s) => s.forecast_date)).toEqual([iso(0), iso(1), iso(2)])
   })
 
-  it('falls back to the Open-Meteo archive when it does not', async () => {
-    await computeLiveForecast(location, NOW)
-    expect(fetchArchivePrecip).toHaveBeenCalledOnce()
-    expect(fetchPrecipHistory).not.toHaveBeenCalled()
-  })
-
-  it('asks for the 30 days BEFORE now, on both rainfall paths', async () => {
-    // Only the call count was asserted, so the window itself was free: flip the
-    // sign and the range runs 30 days into the future, which comes back empty.
-    // An empty rainfall history is not distinguishable downstream from a dry
-    // month — dryingModel returns its 720h sentinel either way — so the score
-    // inflates and the Mini App renders "no rain in 720h" as a measurement.
-    // Found by mutation testing.
-    await computeLiveForecast(location, NOW)
-    expect(fetchArchivePrecip).toHaveBeenCalledWith(36.15, -115.45, iso(-30), iso(0))
-
-    await computeLiveForecast({ ...location, asos_station: 'KLAS' }, NOW)
-    expect(fetchPrecipHistory).toHaveBeenCalledWith('KLAS', iso(-30), iso(0))
-  })
-})
-
-describe('computeLiveForecast — per-day scoring', () => {
-  it('scores each day against its own wind, not against today’s', async () => {
-    // The regression this test exists for: `maxWindKmh24h` was fed today's
-    // wind for every day, so a day-7 score reported a wind rating measured six
-    // days earlier and every day carried an identical wind component.
+  it('carries each day its own figures, not the first day’s', async () => {
     getEnsembleDaily.mockResolvedValue({
-      days: [
-        day(0, { wind_kmh_max: 5 }), // calm today   -> full marks
-        day(1, { wind_kmh_max: 60 }), // gale tomorrow -> zero
-      ],
-      model_sources: ['gfs_seamless'],
-    utc_offset_seconds: 0,
-    })
-
-    const { scores } = await computeLiveForecast(location, NOW)
-
-    expect(scores[0]?.component_wind).toBe(15)
-    expect(scores[1]?.component_wind).toBe(0)
-  })
-
-  it('takes the humidity proxy from today’s day, not from whichever day comes first', async () => {
-    // `currentHumidityPct` is looked up with `days.find(d => d.date === todayStr)`
-    // and then applied to every day's score. Invert that comparison and it
-    // silently reads a different day: with every fixture day sharing one
-    // humidity, nothing could tell. Here today is humid and the rest are dry,
-    // so the wrong day scores full marks instead of zero.
-    getEnsembleDaily.mockResolvedValue({
-      days: [day(0, { humidity_pct: 95 }), day(1, { humidity_pct: 20 }), day(2, { humidity_pct: 20 })],
+      days: [day(0, { wind_kmh_max: 5 }), day(1, { wind_kmh_max: 40 })],
       model_sources: ['gfs_seamless'],
       utc_offset_seconds: 0,
     })
-
-    const { scores } = await computeLiveForecast(location, NOW)
-
-    expect(scores).not.toHaveLength(0)
-    for (const s of scores) expect(s.component_humidity).toBe(0)
-  })
-
-  it('still scores temperature per day', async () => {
-    getEnsembleDaily.mockResolvedValue({
-      days: [day(0, { temp_c_max: 18 }), day(1, { temp_c_max: 40 })],
-      model_sources: ['gfs_seamless'],
-    utc_offset_seconds: 0,
-    })
-
-    const { scores } = await computeLiveForecast(location, NOW)
-
-    expect(scores[0]?.component_temp).toBe(12)
-    // Above 35 °C the component zeroes — the issue #21 case.
-    expect(scores[1]?.component_temp).toBe(0)
-  })
-
-  it('returns one snapshot and one score per forecast day', async () => {
-    const { snapshots, scores } = await computeLiveForecast(location, NOW)
-    expect(snapshots).toHaveLength(3)
-    expect(scores).toHaveLength(3)
-    expect(snapshots.map((s) => s.forecast_date)).toEqual([iso(0), iso(1), iso(2)])
+    const { snapshots } = await computeLiveForecast(location, NOW)
+    expect(snapshots.map((s) => s.wind_kmh_max)).toEqual([5, 40])
   })
 
   it('returns nothing when the forecast is empty, rather than throwing', async () => {
     getEnsembleDaily.mockResolvedValue({ days: [], model_sources: [], utc_offset_seconds: 0 })
-    const result = await computeLiveForecast(location, NOW)
-    expect(result).toEqual({ snapshots: [], scores: [], todayStr: '' })
-  })
-
-  it('withholds the score when the rainfall fetch throws, and says why (#34)', async () => {
-    // This used to assert `scores` still had three entries. That WAS the bug:
-    // an empty rainfall list is indistinguishable from a dry month, and
-    // dryingModel's 720-hour sentinel is worth 40 of 100 points — so an
-    // upstream outage raised the score and the day could read "Dry, settled"
-    // for rock nothing had checked.
-    fetchArchivePrecip.mockRejectedValue(new Error('ACIS down'))
-
-    const { snapshots, scores, scoreUnavailable } = await computeLiveForecast(location, NOW)
-
-    expect(scores).toEqual([])
-    expect(scoreUnavailable).toBe('rainfall_unavailable')
-    // The weather is unaffected — only the score is withheld.
-    expect(snapshots).toHaveLength(3)
-  })
-
-  it('withholds it on the ASOS path too, not just the archive fallback', async () => {
-    fetchPrecipHistory.mockRejectedValue(new Error('ACIS down'))
-    const { scoreUnavailable } = await computeLiveForecast(
-      { ...location, asos_station: 'KLAS' },
-      NOW,
-    )
-    expect(scoreUnavailable).toBe('rainfall_unavailable')
-  })
-
-  it('scores normally when rainfall came back empty but the fetch succeeded', async () => {
-    // A genuine dry month must still score. The distinction this fix introduces
-    // is "the call failed", not "the call returned nothing".
-    fetchArchivePrecip.mockResolvedValue([])
-    const { scores, scoreUnavailable } = await computeLiveForecast(location, NOW)
-    expect(scoreUnavailable).toBeUndefined()
-    expect(scores).toHaveLength(3)
-  })
-})
-
-describe('computeLiveForecast — a feed that starts tomorrow', () => {
-  it('still returns scores for the days it does have', async () => {
-    getEnsembleDaily.mockResolvedValue({
-      days: [day(1), day(2)],
-      model_sources: ['gfs_seamless'],
-    utc_offset_seconds: 0,
-    })
-    const { snapshots, scores } = await computeLiveForecast(location, NOW)
-    expect(snapshots.map((s) => s.forecast_date)).toEqual([iso(1), iso(2)])
-    // Nothing matches today, which is what makes GET /conditions/:id answer
-    // 200 with data: null.
-    expect(scores.find((s) => s.forecast_date === iso(0))).toBeUndefined()
+    expect(await computeLiveForecast(location, NOW)).toEqual({ snapshots: [], todayStr: '' })
   })
 })
 
@@ -270,16 +134,6 @@ describe('computeLiveForecast — local days (#33)', () => {
     expect(flagged[0]?.forecast_date).toBe('2026-08-25')
   })
 
-  it('scores the local day as day zero, so days-out is not off by one', async () => {
-    pacificFeed()
-    const { scores } = await computeLiveForecast(location, LATE_AFTERNOON_PT)
-
-    // The 25th is today, so the 27th is two days out — under the old UTC
-    // reckoning the 25th was in the past and the 27th only one day out.
-    expect(scores.find((s) => s.forecast_date === '2026-08-27')?.confidence).toBeDefined()
-    expect(scores[0]?.forecast_date).toBe('2026-08-25')
-  })
-
   it('flags no snapshot when the feed genuinely starts tomorrow', async () => {
     getEnsembleDaily.mockResolvedValue({
       days: [
@@ -305,126 +159,5 @@ describe('computeLiveForecast — local days (#33)', () => {
     const result = await computeLiveForecast(location, LATE_AFTERNOON_PT)
 
     expect(result.todayStr).toBe('2026-08-26')
-  })
-})
-
-describe('computeLiveForecast — the drying clock advances with the day (issue #108)', () => {
-  /**
-   * Reproduces what production returned for Finland, Minnesota on 2026-09-14:
-   * seven days, every one of them `dry=0`. Drying is 40 of the 100 points, so
-   * every future day was capped at 60 and `limitingComponent` said "limited by
-   * drying time" on days the model itself called dry.
-   *
-   * The location is sandstone (kind not recorded) at a 45° cliff, so `maxDry`
-   * is 120 × 1.15 = 138h — `sandstone_soft`'s window since 2026-09-23; it was
-   * 72h. Rain ends at 23:59:59Z on its date and `NOW` is 12:00Z, so day N sits
-   * at 12 + 24N hours since the rain: 12, 36 … 132, 156, and 156 is past the
-   * ceiling.
-   */
-  const sevenDays = [day(0), day(1), day(2), day(3), day(4), day(5), day(6)]
-
-  it('gives each day its own drying score instead of repeating today’s', async () => {
-    fetchArchivePrecip.mockResolvedValue([{ date: iso(-1), precip_mm: 10 }])
-    getEnsembleDaily.mockResolvedValue({
-      days: sevenDays,
-      model_sources: ['gfs_seamless'],
-      utc_offset_seconds: 0,
-    })
-
-    const { scores } = await computeLiveForecast(location, NOW)
-    const drying = scores.map((s) => s.component_drying_time)
-
-    // The defect: this array was seven copies of one number.
-    expect(new Set(drying).size).toBeGreaterThan(1)
-
-    // (h/138)² × 40: 12h → 0.3; 36h → 2.7; 60h → 7.6; 84h → 14.8; 108h → 24.5
-    // (24.499, so 24); 132h → 36.6; 156h is past 138.
-    expect(drying).toEqual([0, 3, 8, 15, 24, 37, 40])
-  })
-
-  it('a day past the drying ceiling is no longer limited by drying time', async () => {
-    fetchArchivePrecip.mockResolvedValue([{ date: iso(-1), precip_mm: 10 }])
-    getEnsembleDaily.mockResolvedValue({
-      days: sevenDays,
-      model_sources: ['gfs_seamless'],
-      utc_offset_seconds: 0,
-    })
-
-    const { scores } = await computeLiveForecast(location, NOW)
-
-    // The user-visible half of the issue. Day 6 used to carry a 0 drying
-    // component, which is what `limitingComponent` fires on.
-    expect(scores[6]?.component_drying_time).toBe(40)
-    expect(scores[6]?.score).toBeGreaterThan(60)
-  })
-
-  it('rain in the forecast resets the clock for the days after it', async () => {
-    // Not `hoursSinceRain + daysOut * 24`. Day 3 is soaked by its own 12mm, and
-    // day 4 has been drying for a day — not for the week since the last
-    // historical event.
-    fetchArchivePrecip.mockResolvedValue([{ date: iso(-1), precip_mm: 10 }])
-    getEnsembleDaily.mockResolvedValue({
-      days: [day(0), day(1), day(2), day(3, { precip_mm_p50: 12 }), day(4), day(5), day(6)],
-      model_sources: ['gfs_seamless'],
-      utc_offset_seconds: 0,
-    })
-
-    const { scores } = await computeLiveForecast(location, NOW)
-    const drying = scores.map((s) => s.component_drying_time)
-
-    // Day 3 rained on itself: the event ends after the moment being scored.
-    expect(drying[3]).toBe(0)
-    // Days 4-6 climb again from that reset, and none of them reaches 40 —
-    // 12/36/60h against a 138h ceiling. Without the reset they would be 24/37/40.
-    expect(drying.slice(4)).toEqual([0, 3, 8])
-  })
-
-  it('rain in the forecast does not change today’s score', async () => {
-    // The property that made this safe to ship, asserted rather than assumed:
-    // history is the authority up to and including today, so a downpour
-    // forecast for day 2 must not reach back and alter the day-0 row.
-    fetchArchivePrecip.mockResolvedValue([{ date: iso(-1), precip_mm: 10 }])
-
-    getEnsembleDaily.mockResolvedValue({
-      days: sevenDays,
-      model_sources: ['gfs_seamless'],
-      utc_offset_seconds: 0,
-    })
-    const dryRun = await computeLiveForecast(location, NOW)
-
-    getEnsembleDaily.mockResolvedValue({
-      days: [day(0), day(1), day(2, { precip_mm_p50: 20 }), day(3), day(4), day(5), day(6)],
-      model_sources: ['gfs_seamless'],
-      utc_offset_seconds: 0,
-    })
-    const wetRun = await computeLiveForecast(location, NOW)
-
-    expect(wetRun.scores[0]?.component_drying_time).toBe(
-      dryRun.scores[0]?.component_drying_time,
-    )
-    expect(wetRun.scores[0]?.score_breakdown?.drying.hours_since_rain).toBe(
-      dryRun.scores[0]?.score_breakdown?.drying.hours_since_rain,
-    )
-    // And it DID move the day it was forecast for, or the assertion above is
-    // passing because nothing works at all.
-    expect(wetRun.scores[2]?.component_drying_time).toBe(0)
-  })
-
-  it('a dry month stays the 720-hour sentinel on every day, not 720 + 24N', async () => {
-    // `dryingModel` returns 720 for "no significant rain in the window", and it
-    // returns the same 720 for a lookup that failed (issue #34). Advancing the
-    // clock by arithmetic would have turned an admitted unknown into a precise
-    // figure that climbs day by day — defect class 1.
-    fetchArchivePrecip.mockResolvedValue([])
-    getEnsembleDaily.mockResolvedValue({
-      days: sevenDays,
-      model_sources: ['gfs_seamless'],
-      utc_offset_seconds: 0,
-    })
-
-    const { scores } = await computeLiveForecast(location, NOW)
-    for (const s of scores) {
-      expect(s.score_breakdown?.drying.hours_since_rain).toBe(720)
-    }
   })
 })

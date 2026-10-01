@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type {
   ConditionsReadings,
-  ConditionsScore,
+  Conditions,
   HourlyReading,
   Location,
   WeatherAlert,
@@ -18,7 +18,7 @@ const reading = (over: Partial<HourlyReading> = {}): HourlyReading => ({
   ...over,
 })
 
-const conditions = (now: HourlyReading | null): ConditionsScore => {
+const conditions = (now: HourlyReading | null): Conditions => {
   const readings: ConditionsReadings = {
     model: 'gfs_seamless',
     unavailable_reason: null,
@@ -27,7 +27,7 @@ const conditions = (now: HourlyReading | null): ConditionsScore => {
     today: null,
   }
   // Only `readings` is read; the five-component fields are dead (Phase 5).
-  return { readings } as ConditionsScore
+  return { readings } as Conditions
 }
 
 const alert = (severity: string): WeatherAlert =>
@@ -42,7 +42,7 @@ describe('cardSummary', () => {
 
   it('prints nothing for a response from an API older than the readings', () => {
     // Absent is "the server did not send it", not "the model could not read it".
-    expect(cardSummary({} as ConditionsScore, [], false)).toBeNull()
+    expect(cardSummary({} as Conditions, [], false)).toBeNull()
   })
 
   it('carries the score once alerts have settled with nothing severe', () => {

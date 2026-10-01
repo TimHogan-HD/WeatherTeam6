@@ -2,7 +2,6 @@
 // modules and are re-exported here because package.json declares only a "."
 // entry in its exports map — under NodeNext resolution a deep import such as
 // `@weatherteam6/types/units` does not resolve.
-import type { ScoreUnavailableReason } from './conditionsCopy.js'
 import type { ConditionsReadings } from './hourly.js'
 
 export * from './scoreComponents.js'
@@ -195,195 +194,23 @@ export type ForecastSnapshot = {
    * this shipped; treat a missing value as "unknown", never as `false`.
    */
   is_today?: boolean
-
-  /**
-   * The day's conditions score, 0-100.
-   *
-   * **Three states, and they are not interchangeable:**
-   *
-   * - a number — the day was scored.
-   * - `null` with no `unavailable_reason` — the date is outside the scoring
-   *   window (`window: 'pre'`). Nothing was withheld; there is nothing to say.
-   * - `null` **with** `unavailable_reason` — the day is deliberately unscored
-   *   because an input could not be measured. See that field.
-   *
-   * Never `0` for either null case. `0` is a real score meaning conditions are
-   * as bad as they get, and collapsing "unknown" into it is defect class 1.
-   *
-   * **Absent entirely for a non-climbing location.** `computeLiveForecast` does
-   * not branch on `is_climbing_location` and will happily score a city, so the
-   * route withholds it instead. A rock-drying score for Chicago is meaningless
-   * and must not render anywhere.
-   */
-  score?: number | null
-  confidence?: 'low' | 'medium' | 'high'
-  /**
-   * Withheld, not missing (issue #34). Same values and meaning as on
-   * `ConditionsScore`: the rainfall lookup *failed*, and its 720-hour sentinel
-   * is worth 40 of 100 points, so scoring anyway would credit a dry spell
-   * nobody measured. Render `scoreUnavailableLine`, never a score.
-   */
-  unavailable_reason?: ScoreUnavailableReason | null
-
-  /**
-   * The five components behind `score`, same scales as on `ConditionsScore`.
-   *
-   * **Nothing reads these any more, and they are still sent.** They existed for
-   * `summarizeConditions`, whose "limited by drying time" qualifier fired when a
-   * component scored 0 — that function, `limitingComponent` and the whole ladder
-   * were deleted in scoring v2 Phase 3b, and the surfaces read the v2 readings
-   * instead. Phase 5 removes these fields with the scorer that fills them.
-   *
-   * `null` still means not measured, and a reader must not treat it as 0.
-   */
-  component_drying_time?: number | null
-  component_upcoming_rain?: number | null
-  component_wind?: number | null
-  component_temp?: number | null
-  component_humidity?: number | null
 }
 
-export type ConditionsScore = {
-  id: string
+/**
+ * `GET /conditions/:locationId` — **today's Crag A readings, and nothing else**.
+ * It replaced the five-component `ConditionsScore` row in scoring Phase 5b
+ * (2026-10-01), whose only field any surface still read was `readings`.
+ */
+export type Conditions = {
   location_id: string
-  forecast_date: string
-  score: number | null
-  confidence: 'low' | 'medium' | 'high'
-  component_drying_time: number | null
-  component_upcoming_rain: number | null
-  component_wind: number | null
-  component_temp: number | null
-  component_humidity: number | null
-  score_breakdown: ScoreBreakdown | null
-  computed_at: string
-  created_at: string
+  /** The location's local today, or null when no hourly run answered (and for a non-crag). */
+  forecast_date: string | null
   /**
-   * Why there is no score, when there is none for a reason other than the date
-   * being outside the scoring window (issue #34).
-   *
-   * A failed rainfall lookup is indistinguishable in the data from a genuinely
-   * dry month — `dryingModel` returns the same 720-hour sentinel for both — and
-   * that sentinel is worth **40 of 100 points**, the heaviest component. So an
-   * upstream outage used to *raise* the score, and a day could read "Dry,
-   * settled" for rock nothing had checked.
-   *
-   * When set, `score` and every component are `null`: the day is not scored at
-   * all rather than scored on a guess. Distinct from `score: null` with no
-   * reason, which means the date is beyond the scoring window.
+   * What a surface renders. **A client must still normalise it with `?? null`
+   * at the fetch boundary**: the API and the web app deploy separately, and
+   * `undefined` passes every `=== null` guard.
    */
-  unavailable_reason?: ScoreUnavailableReason | null
-
-  /**
-   * **Today's v2 readings — what a surface actually renders.** Set by
-   * `GET /conditions/:locationId` and by nothing else.
-   *
-   * Optional because this type is also built by `computeLiveForecast`, which
-   * has no readings to give: the v2 model runs off stored hourly runs and the
-   * five-component scorer runs off pooled daily aggregates. Making it required
-   * would force every construction site to invent one.
-   *
-   * **A client must normalise it with `?? null` at the fetch boundary**, not at
-   * each use. The API and the Mini App deploy separately, so every release that
-   * adds a field has a window where the client is new and the response is not —
-   * and `undefined` passes every `=== null` guard (architecture rule; it cost
-   * a chart its rain whiskers in production).
-   */
-  readings?: ConditionsReadings
-}
-
-export type ScoreInput = {
-  rockType: RockType
-  /**
-   * UNUSED — `conditionsScore` never reads this, and no component of the score
-   * depends on sun, aspect or shade in any way. `liveForecast` derives it from
-   * `locations.aspect` and passes it in; nothing on the other side looks at it.
-   *
-   * This is the same defect as `currentTempC` below, and the comment exists for
-   * the same reason: the field is set, typed and plumbed, so a reader has every
-   * reason to assume it is live. It is not. **Sun direction contributes zero
-   * points today.** Do not reason about scoring behaviour from it.
-   *
-   * Two shipped competitors handle sun by feeding solar radiation into a "feels
-   * like" temperature rather than by scoring an aspect field, and this repo
-   * already fetches that radiation on every request (`shortwave_wm2` in
-   * `openMeteo.ts`) and then drops it — nothing reads it, and its only column
-   * sits on `forecast_snapshots`, which nothing writes. See §21.3 and §21.6 of
-   * `.claude/docs/climbing-terminology-research.md` before designing anything here.
-   */
-  aspectDegrees: number
-  cliffAngle: number
-  hoursSinceRain: number
-  lastRainMm: number
-  forecastRain72hMm: number
-  forecastRain72hP10: number
-  forecastRain72hP90: number
-  currentWindKmh: number
-  maxWindKmh24h: number
-  /**
-   * UNUSED — `conditionsScore` never reads this. The temperature component is
-   * computed from `forecastHighC` alone. Kept only to avoid churning every
-   * call site and test fixture; do not reason about scoring behaviour from it.
-   * A B0 design-spec draft assumed this field drove the temp component and
-   * derived a suppression rule that would have hidden a 103 °F heat warning.
-   */
-  currentTempC: number
-  forecastHighC: number
-  currentHumidityPct: number
-  forecastDateDaysOut: number
-}
-
-export type ScoreOutput = {
-  score: number | null
-  confidence: 'low' | 'medium' | 'high'
-  window: 'pre' | 'early' | 'decision'
-  components: {
-    drying_time: number
-    upcoming_rain: number
-    wind: number
-    temp: number
-    humidity: number
-  }
-  breakdown: ScoreBreakdown | null
-}
-
-export type ScoreBreakdown = {
-  drying: {
-    score: number
-    hours_since_rain: number
-    hours_remaining: number
-    rock_type: string
-    modifiers: { angle: number; wind: number; humidity: number }
-  }
-  rain: { score: number; forecast_72h_mm: number }
-  wind: { score: number; max_kmh: number }
-  temp: { score: number; temp_c: number }
-  humidity: { score: number; pct: number }
-  total: number
-  confidence: string
-  computed_at: string
-}
-
-const ASPECT_MAP: Record<string, number> = {
-  N: 0,
-  NNE: 22,
-  NE: 45,
-  ENE: 67,
-  E: 90,
-  ESE: 112,
-  SE: 135,
-  SSE: 157,
-  S: 180,
-  SSW: 202,
-  SW: 225,
-  WSW: 247,
-  W: 270,
-  WNW: 292,
-  NW: 315,
-  NNW: 337,
-}
-
-export function aspectToDegrees(aspect: string): number {
-  return ASPECT_MAP[aspect.toUpperCase()] ?? 180
+  readings: ConditionsReadings
 }
 
 export type WeatherAlert = {

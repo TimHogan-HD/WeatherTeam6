@@ -1,4 +1,4 @@
-import type { ConditionsScore, ForecastSnapshot, WeatherAlert } from '@weatherteam6/types'
+import type { Conditions, ForecastSnapshot, WeatherAlert } from '@weatherteam6/types'
 
 /**
  * The weather the list's cards last showed on this device, so a reopen draws
@@ -18,7 +18,7 @@ import type { ConditionsScore, ForecastSnapshot, WeatherAlert } from '@weatherte
 export type RememberedCard = {
   forecast: ForecastSnapshot[]
   /** `null` for a place that is not a crag, and for the 200-with-null answer. */
-  conditions: ConditionsScore | null
+  conditions: Conditions | null
   alerts: WeatherAlert[]
 }
 
@@ -56,7 +56,7 @@ export type CardAnswers = {
   id: string
   isClimbingLocation: boolean
   forecast: Answer<ForecastSnapshot[]>
-  conditions: Answer<ConditionsScore | null>
+  conditions: Answer<Conditions | null>
   alerts: Answer<WeatherAlert[]>
 }
 

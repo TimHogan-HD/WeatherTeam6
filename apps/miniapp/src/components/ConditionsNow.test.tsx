@@ -4,7 +4,7 @@ import {
   FRICTION_MECHANISM,
   ROCK_TEMPERATURE_MECHANISM,
   type ConditionsReadings,
-  type ConditionsScore,
+  type Conditions,
   type ForecastSnapshot,
   type HourlyReading,
   type HourlySample,
@@ -53,8 +53,6 @@ const today: ForecastSnapshot = {
   model_sources: ['gfs_seamless'],
   created_at: `${DATE}T00:00:00.000Z`,
   is_today: true,
-  score: 80,
-  confidence: 'high',
 }
 
 function hour(over: Partial<HourlySample> = {}): HourlySample {
@@ -107,21 +105,10 @@ const reading: HourlyReading = {
   condensation_margin_c: 20,
 }
 
-function scored(readings: Partial<ConditionsReadings> = {}): ConditionsScore {
+function scored(readings: Partial<ConditionsReadings> = {}): Conditions {
   return {
-    id: 'score',
     location_id: 'loc',
     forecast_date: DATE,
-    score: 88,
-    confidence: 'high',
-    component_drying_time: null,
-    component_upcoming_rain: null,
-    component_wind: null,
-    component_temp: null,
-    component_humidity: null,
-    score_breakdown: null,
-    computed_at: NOW,
-    created_at: NOW,
     readings: {
       model: 'gfs_seamless',
       unavailable_reason: null,
@@ -245,7 +232,7 @@ describe('ConditionsNow — one block', () => {
 
   it('renders nothing for readings a newer client expected and an older API did not send', () => {
     const { readings: _omit, ...withoutReadings } = scored()
-    const html = render({ conditions: settled(withoutReadings) })
+    const html = render({ conditions: settled(withoutReadings as unknown as Conditions) })
     expect(html).not.toContain('Dryness')
     // Not "the model didn't answer": that would blame the forecast model for
     // our own release ordering.

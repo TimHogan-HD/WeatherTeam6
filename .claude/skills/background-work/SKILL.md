@@ -15,7 +15,8 @@ reason; do not reintroduce them or an `apps/api/src/jobs/` directory.
 ## Pattern 1: live per-request compute
 
 For anything a user is waiting on. `computeLiveForecast` (`lib/scoring/liveForecast.ts`)
-fetches the forecast and recent rainfall, scores, and returns — nothing is persisted.
+reads the stored daily forecast or fetches it, and returns — it writes nothing but the run
+it fetched. Crag A's score is computed per request from the stored hourly runs.
 
 - **Parallelize independent upstream work with `Promise.allSettled`.** Each fetch retries with
   backoff; serializing across N locations stacks those windows and exceeds `maxDuration`

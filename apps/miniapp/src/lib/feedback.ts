@@ -1,4 +1,4 @@
-import { summarizeReadings, type ConditionsScore, type ReadingField } from '@weatherteam6/types'
+import { summarizeReadings, type Conditions, type ReadingField } from '@weatherteam6/types'
 
 /**
  * What the Conditions card shows for a crag right now, as the fields a forecast
@@ -15,7 +15,7 @@ import { summarizeReadings, type ConditionsScore, type ReadingField } from '@wea
  * `feedbackSnapshotFor` then decides whether the hour matches the observation.
  */
 export function shownReading(
-  conditions: ConditionsScore | null | undefined,
+  conditions: Conditions | null | undefined,
   severeAlertEvent: string | null,
 ): { valid_at: string; model: string | null; fields: ReadingField[] } | null {
   const r = conditions?.readings

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueries } from '@tanstack/react-query'
 import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
-import type { ConditionsScore, Location, WeatherAlert } from '@weatherteam6/types'
+import type { Conditions, Location, WeatherAlert } from '@weatherteam6/types'
 import {
   rememberCards,
   rememberedCards,
@@ -192,7 +192,7 @@ type Settling<T> = { data: T | undefined; isPending: boolean; dataUpdatedAt: num
  */
 function settledScoresOf(
   locations: readonly Location[],
-  conditions: readonly Settling<ConditionsScore | null>[],
+  conditions: readonly Settling<Conditions | null>[],
   alerts: readonly Settling<WeatherAlert[]>[],
 ): ReadonlyMap<string, number | null> | null {
   const scores = new Map<string, number | null>()

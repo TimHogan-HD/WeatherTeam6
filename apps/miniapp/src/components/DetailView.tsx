@@ -2,7 +2,7 @@ import { useRef, type ReactNode } from 'react'
 import { spacing } from '@weatherteam6/design/tokens'
 import type {
   DetailTabKey,
-  ConditionsScore,
+  Conditions,
   ForecastSnapshot,
   HourlySeries,
   Location,
@@ -86,7 +86,7 @@ export type DetailViewProps = {
   }
   conditions?: {
     /** A 200 with `data: null` is the documented "no row for today" answer, not an error (§5). */
-    data: ConditionsScore | null | undefined
+    data: Conditions | null | undefined
     isPending: boolean
     isError: boolean
     refetch: () => void

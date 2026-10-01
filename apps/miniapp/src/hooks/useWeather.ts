@@ -1,6 +1,6 @@
 import { queryOptions, useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { apiGet } from '../lib/api.js'
-import type { ConditionsScore, ForecastSnapshot, WeatherAlert } from '@weatherteam6/types'
+import type { Conditions, ForecastSnapshot, WeatherAlert } from '@weatherteam6/types'
 
 /**
  * The query definitions are exported so a screen that needs several locations'
@@ -26,7 +26,7 @@ export function useForecast(id: string | undefined): UseQueryResult<ForecastSnap
  * client's job is not to ask (§3). Skipping it also drops the upstream fetches,
  * so general weather locations load noticeably faster.
  *
- * The result is `ConditionsScore | null`: a **200 with `data: null`** is the
+ * The result is `Conditions | null`: a **200 with `data: null`** is the
  * documented answer when no computed row matches today's date (§5). Callers
  * must guard on null.
  *
@@ -47,14 +47,14 @@ export function useForecast(id: string | undefined): UseQueryResult<ForecastSnap
 export function useConditions(
   id: string | undefined,
   isClimbingLocation: boolean | undefined,
-): UseQueryResult<ConditionsScore | null> {
+): UseQueryResult<Conditions | null> {
   return useQuery(conditionsQuery(id, isClimbingLocation))
 }
 
 export const conditionsQuery = (id: string | undefined, isClimbingLocation: boolean | undefined) =>
   queryOptions({
     queryKey: ['conditions', id ?? ''] as const,
-    queryFn: () => apiGet<ConditionsScore | null>(`/conditions/${id ?? ''}`),
+    queryFn: () => apiGet<Conditions | null>(`/conditions/${id ?? ''}`),
     enabled: id !== undefined && id !== '' && isClimbingLocation === true,
   })
 

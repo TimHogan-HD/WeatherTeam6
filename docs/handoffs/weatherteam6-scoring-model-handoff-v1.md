@@ -6,13 +6,14 @@ Status: **Phases 0 through 3 are built and live, 2026-09-21.** The two readings 
 every conditions surface and **the number a user sees is now the v2 one** — the
 five-component score is still computed and is rendered nowhere. Phase 4 (the location
 editor) is next and is the one that makes `aspect` and `cliff_angle` real; Phase 5 deletes
-the old scorer.
+the old scorer. *Update 2026-10-01: Phases 4 and 5 have shipped — see § Phase 5.*
 
 Every open question is answered except **Q3**, which 3b could only *ask* — whether the
 0-100 number survives now that it can be seen beside the readings. Read § Open Questions
-before starting a phase, and run `npm run compare:scoring --workspace=apps/api` before
-arguing about a number — a deferral is a decision about *when*, not permission to pick one
-quietly.
+before starting a phase, and measure before arguing about a number — a deferral is a decision
+about *when*, not permission to pick one quietly. **Phase 5b (2026-10-01) deleted the
+five-component scorer and `compare:scoring` with it;** every mention of either below is
+history, recoverable from git.
 
 ## Context
 
@@ -564,7 +565,15 @@ movable within `TEMP_RANGE_LIMITS_F`, at least 10 °F apart) and the **tab a cra
 Both are on the Profile screen; `GET`/`PUT /preferences`; three nullable columns on the
 existing `user_preferences` (migration 0022), whose Phase 0 columns stay unread. Readings are
 now per reader (`architecture.md`). Units, alert thresholds, drying caution and the sun
-toggle were not chosen. **5b — retiring the five-component scorer — is what remains.**
+toggle were not chosen.
+
+**5b SHIPPED 2026-10-01 — the five-component scorer is gone.** `conditionsScore.ts`,
+`SCORE_COMPONENT_MAX`, the ACIS station-rainfall lookup, `compare:scoring`/`compare:scoring-v2`
+and the `conditions_scores` table (migration 0023) are deleted. `GET /conditions/:id` returns
+`{ location_id, forecast_date, readings }` and nothing else; `GET /forecast/:id` returns
+weather only. Acceptance holds: `component_upcoming_rain` appears only in migrations. **Still
+open from this phase:** the temperature chart's colours stay centred on `TEMP_BAND_C`
+(50–72 °F) while Crag A docks friction from 60 °F — an owner decision.
 
 ## Data Shapes / Schemas
 

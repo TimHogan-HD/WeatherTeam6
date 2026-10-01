@@ -3,7 +3,7 @@ import {
   FRICTION_LABEL,
   SCORE_BANDS,
   summarizeReadings,
-  type ConditionsScore,
+  type Conditions,
   type FrictionLevel,
   type HourlyReading,
   type Location,
@@ -40,7 +40,7 @@ import { severeAlertEvent } from './forecast.js'
  * and nothing is suppressed.
  */
 export function cardSummary(
-  conditions: ConditionsScore | null | undefined,
+  conditions: Conditions | null | undefined,
   alerts: readonly WeatherAlert[] | undefined,
   alertsPending: boolean,
 ): ReadingsSummary | null {

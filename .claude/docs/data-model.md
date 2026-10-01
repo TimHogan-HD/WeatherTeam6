@@ -9,11 +9,10 @@ The Telegram Crossover migration (PR #20) deleted the BullMQ workers that popula
 | Table | Status |
 |-------|--------|
 | `forecast_snapshots` | **Intentionally dead.** Forecasts are computed live per request (`lib/scoring/liveForecast.ts`). Nothing writes here by design. |
-| `conditions_scores` | **Intentionally dead.** Same — scores are computed live and returned in-memory. |
 | `crag_climbability_history` | **Unintentionally dead — see issue #25.** The `rainfallHistory` worker's backfill branch was its only writer. `GET /locations/:id/history` therefore returns `[]` forever. |
 | `location_normals` | **Unintentionally dead — see issue #25.** Same worker was the only writer. `GET /locations/:id/normals` returns `[]` forever. |
 
-`rainfall_history` is also no longer written on a schedule; recent precipitation is fetched live per request instead (ACIS when the location has an `asos_station`, else Open-Meteo's archive API).
+`rainfall_history` is also no longer written on a schedule; recent precipitation is fetched live per request from Open-Meteo. The ACIS station lookup was deleted with the old scorer in Phase 5b.
 
 Migrations are at `0006` (`weather_alerts.notified_at`). Note `weather_alerts.notified_at` lives on the row, so **any code path that deletes and re-inserts alert rows also resets notification dedup state** — see issue #26.
 
@@ -24,7 +23,6 @@ locations
 crags
 rainfall_history
 forecast_snapshots      -- no writer (by design)
-conditions_scores       -- no writer (by design)
 trips
 trip_locations
 crag_climbability_history   -- no writer (regression, issue #25)
@@ -127,25 +125,7 @@ created_at      timestamptz default now()
 ```
 
 ### conditions_scores
-Computed conditions score per location. **No longer written** — scores are computed live per request in `lib/scoring/liveForecast.ts` and returned in-memory, never persisted.
-```typescript
-id              uuid PK
-location_id     uuid FK → locations.id
-computed_at     timestamptz
-score           int         -- 0-100
-confidence      text        -- 'high' | 'medium' | 'low'
-drying_hours_remaining  numeric
-last_rain_mm    numeric
-last_rain_hours numeric
-forecast_rain_72h_mm    numeric
-drying_score    int         -- component score 0-40
-rain_score      int         -- component score 0-25
-wind_score      int         -- component score 0-15
-temp_score      int         -- component score 0-12
-humidity_score  int         -- component score 0-8
-score_breakdown jsonb       -- full breakdown including modifiers
-created_at      timestamptz default now()
-```
+**Dropped** in migration 0023 (scoring Phase 5b, 2026-10-01). It had no writer since scores went live per request.
 
 ### trips
 User trip projects with forecast tracking.
@@ -356,6 +336,6 @@ recorded as such in `schema.ts`.
 
 ## Key Relationships
 - Everything traces back to `users.id` via FK — even with auth off
-- `locations` is the hub: forecast_snapshots, conditions_scores, rainfall_history, and conditions_reports all FK to it
+- `locations` is the hub: forecast_snapshots, rainfall_history, and conditions_reports all FK to it
 - `crags` is a separate read-only reference table seeded from OpenBeta — not the same as `locations`
 - A user "saves" a crag by creating a `locations` row, optionally linked by name/coords to a `crags` row

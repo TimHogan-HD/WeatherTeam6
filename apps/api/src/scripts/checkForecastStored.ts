@@ -88,10 +88,6 @@ async function run(): Promise<void> {
         lat: String(POINT.lat),
         lon: String(POINT.lon),
         elevation_m: String(POINT.elevation_m),
-        rock_type: 'basalt_dense',
-        cliff_angle: null,
-        aspect: null,
-        asos_station: null,
       },
       now,
     )
@@ -111,11 +107,7 @@ async function run(): Promise<void> {
       )
     })
     check('every daily figure on screen is the live fetch’s', carried && forecast.snapshots.length === live.daily.days.length)
-    check(
-      'and it still scores today',
-      forecast.scores.some((s) => s.forecast_date === today) || forecast.scoreUnavailable === 'rainfall_unavailable',
-      forecast.scoreUnavailable ?? '',
-    )
+    check('and flags today', forecast.snapshots.some((s) => s.forecast_date === today && s.is_today === true))
   } finally {
     await deleteRunsForPoint(pointKey).catch(() => {
       cleanupFailed = true

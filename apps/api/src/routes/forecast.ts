@@ -9,6 +9,10 @@ import type { ApiResponse, ForecastSnapshot } from '@weatherteam6/types'
 
 export const forecastRouter = Router()
 
+/**
+ * The daily weather, labelled by forecast window. **No score**: a day's score
+ * is Crag A's and rides on `/hourly`'s readings (scoring Phase 5b).
+ */
 forecastRouter.get('/forecast/:locationId', async (req: Request, res: Response) => {
   const locationId = req.params['locationId']
   if (!locationId) {
@@ -27,14 +31,6 @@ forecastRouter.get('/forecast/:locationId', async (req: Request, res: Response) 
         lat: locations.lat,
         lon: locations.lon,
         elevation_m: locations.elevation_m,
-        rock_type: locations.rock_type,
-        cliff_angle: locations.cliff_angle,
-        aspect: locations.aspect,
-        asos_station: locations.asos_station,
-        // Selected only to decide whether a score may be attached at all. The
-        // scorer itself never sees it — `computeLiveForecast` does not branch on
-        // it and will score a city if asked.
-        is_climbing_location: locations.is_climbing_location,
       })
       .from(locations)
       .where(and(eq(locations.id, locationId), eq(locations.user_id, req.userId)))
@@ -49,20 +45,10 @@ forecastRouter.get('/forecast/:locationId', async (req: Request, res: Response) 
 
     // `todayStr` comes back from the compute rather than being derived here: it
     // is the *location's* local day, which this route has no way to know (#33).
-    const { snapshots, scores, todayStr, scoreUnavailable } = await computeLiveForecast(location)
-
-    // A city gets weather and nothing else. The merge argument is simply not
-    // passed, so no score field appears on any row — there is no flag to forget
-    // and no `is_climbing_location` check anywhere downstream.
-    const withWindow = location.is_climbing_location
-      ? toWindowedForecast(snapshots, todayStr, {
-          scores,
-          unavailableReason: scoreUnavailable ?? null,
-        })
-      : toWindowedForecast(snapshots, todayStr)
+    const { snapshots, todayStr } = await computeLiveForecast(location)
 
     const response: ApiResponse<ForecastSnapshot[]> = {
-      data: withWindow,
+      data: toWindowedForecast(snapshots, todayStr),
       error: null,
       status: 200,
     }

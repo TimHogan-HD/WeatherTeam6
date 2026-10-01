@@ -20,17 +20,14 @@ implementing. The invariants the scorer must hold are in `.claude/rules/architec
 - `rockThermal.ts`, `hourlyConditions.ts` — the v2 layers. They supply Crag A's `T_mass`,
   `T_surface` and weather-sped drying rate; v2's own score and `sweatBalance.ts` friction
   reach no response.
-- `dryingModel.ts` — hours since significant rain and the one `MIN_HOURS`/`MAX_HOURS` table,
-  shared by every model.
-- `conditionsScore.ts` — the legacy five-component scorer, `conditionsScore(input: ScoreInput):
-  ScoreOutput`, synchronous and pure. Computed per day by `liveForecast.ts`; no score renders
-  from it, but it still feeds the drying card's `Climbable in ~Nh` line (#178). Phase 5
-  deletes it.
-- `liveForecast.ts` — `computeLiveForecast(location)`: fetch, score per day, return. Nothing
-  is persisted; its synthesized `id`s (`${locationId}:${date}`) are not stable across requests.
+- `dryingModel.ts` — the one `MIN_HOURS`/`MAX_HOURS` table, shared by every model.
+- `liveForecast.ts` — `computeLiveForecast(location)`: the daily forecast, **weather only**,
+  and the location's local `todayStr`. Nothing is persisted; its synthesized `id`s
+  (`${locationId}:${date}`) are not stable across requests.
 
-`ScoreInput`, `ScoreOutput` and `ScoreBreakdown` live in `packages/types`. Never redeclare them.
-`ScoreInput.currentTempC` is a dead field — no scorer reads it (`defect-patterns.md` §10).
+The five-component scorer (`conditionsScore.ts`, `ScoreInput`/`ScoreOutput`/`ScoreBreakdown`)
+was deleted in scoring Phase 5b (2026-10-01). Recover it from git history if it is ever
+needed for comparison; do not rebuild it.
 
 ## Gotchas
 
@@ -42,20 +39,7 @@ Crag A:
   hour.
 - Every constant in `cragModel.ts` is a judgement call. Changing one needs an argument against
   the reference model's test days, not a commit message. Changing how the factors combine
-  starts in the scoring-model handoff and `npm run compare:scoring --workspace=apps/api`.
-
-The legacy five-component scorer:
-
-- A `'pre'` window (>14 days out) returns `score: null` with zeroed components — "too far out",
-  not "unclimbable". Null means missing data; 0 means genuinely unclimbable.
-- `forecastDateDaysOut` >= 7 forces `confidence = 'low'` regardless of spread.
-- `hoursSinceRain` is 0 while it is raining, never negative.
-- Clamp the final score to 0–100.
-- `currentWindKmh` and `currentHumidityPct` are read once from today and passed for every
-  day. Both stretch `maxDry`, and `currentHumidityPct` also drives the humidity component —
-  so every day's humidity component describes today. Making them per-day is a `ScoreInput`
-  split (`architecture.md`, "Two inputs are still knowingly today-only").
-- Heat costs at most the temperature component's 12 points, so a brutal day can still score
-  high. That is why it no longer renders; do not re-weight it.
+  starts in the scoring-model handoff, and is measured (`compare:dryness`,
+  `compare:rock-temp`) before it is proposed.
 - Words on a surface come from `summarizeReadings` (`packages/types/src/readingsCopy.ts`),
   never from the number. Do not write a score-to-text mapping.

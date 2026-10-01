@@ -19,8 +19,9 @@
  * `formatConditionsReply` — because that path had a formatter whose bytes could
  * be inspected. Migration Phase 3 deleted both. It now runs
  * `GET /conditions/:locationId`'s own composition instead: the same location
- * query, `computeLiveForecast` and `getHourlySeries` concurrently, and
- * `toConditionsReadings` over the result. That is one step *closer* to the
+ * query, `getHourlySeries`, and `toConditionsReadings` over the result, on the
+ * series' own local day (the five-component compute beside it was retired in
+ * scoring Phase 5b). That is one step *closer* to the
  * shipping path, not further from it — the route's remaining step is a spread
  * onto the response.
  *
@@ -35,8 +36,8 @@
  *
  * ## Four properties in particular are invisible to the suite
  *
- *  - **The readings survive the gather.** The route runs the live five-component
- *    compute and the hourly run concurrently and catches the hourly one. A
+ *  - **The readings survive the gather.** The route catches a failed hourly
+ *    run. A
  *    `null` there is indistinguishable in the output from a model that had
  *    nothing to say, so this asserts a real reading rather than a well-formed
  *    absence.
@@ -122,7 +123,7 @@ async function run(): Promise<void> {
   const { getHourlySeries } = await import('../lib/runs/fetchHourlySeries.js')
   const { scoringLocationFor } = await import('../lib/runs/scoringLocation.js')
   const { tempRangeFor } = await import('../lib/preferences/preferences.js')
-  const { computeLiveForecast } = await import('../lib/scoring/liveForecast.js')
+  const { localDateString } = await import('../lib/weather/openMeteo.js')
   const {
     FRICTION_ESTIMATE_NOTE,
     DRYNESS_LABEL,
@@ -171,8 +172,7 @@ async function run(): Promise<void> {
       ? scoringLocationFor(location, await tempRangeFor(location.user_id))
       : null
 
-    const [live, series, activeAlerts] = await Promise.all([
-      computeLiveForecast(location),
+    const [series, activeAlerts] = await Promise.all([
       scoring === null
         ? null
         : getHourlySeries(
@@ -210,7 +210,7 @@ async function run(): Promise<void> {
         ? NOT_A_CRAG_READINGS
         : series === null
           ? READINGS_UNAVAILABLE
-          : toConditionsReadings(series, live.todayStr, now)
+          : toConditionsReadings(series, localDateString(now, series.utc_offset_seconds), now)
 
     return { readings, series, activeAlerts }
   }

@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type {
-  ConditionsScore,
+  Conditions,
   ForecastSnapshot,
   HourlyReading,
   WeatherAlert,
@@ -54,40 +54,11 @@ function day(date: string, over: Partial<ForecastSnapshot> = {}): ForecastSnapsh
   }
 }
 
-/** Red Rock as production actually returned it on 2026-08-24: 103 °F, temp component 0, total 80. */
-function redRockScore(over: Partial<ConditionsScore> = {}): ConditionsScore {
+/** Red Rock on 2026-08-24: 103 °F, and Crag A reads `Rock: Dry`, `Friction: Poor`, 58. */
+function redRockScore(): Conditions {
   return {
-    id: 'score',
     location_id: 'loc',
     forecast_date: TODAY,
-    score: 80,
-    confidence: 'high',
-    component_drying_time: 40,
-    component_upcoming_rain: 25,
-    component_wind: 15,
-    component_temp: 0,
-    component_humidity: 8,
-    score_breakdown: {
-      drying: {
-        score: 40,
-        hours_since_rain: 72,
-        hours_remaining: 0,
-        rock_type: 'sandstone',
-        modifiers: { angle: 1.15, wind: 1, humidity: 1 },
-      },
-      rain: { score: 25, forecast_72h_mm: 0 },
-      wind: { score: 15, max_kmh: 34 },
-      temp: { score: 0, temp_c: 39.5 },
-      humidity: { score: 8, pct: 17 },
-      total: 80,
-      confidence: 'high',
-      computed_at: `${TODAY}T12:00:00.000Z`,
-    },
-    computed_at: `${TODAY}T12:00:00.000Z`,
-    created_at: `${TODAY}T12:00:00.000Z`,
-    // The v2 readings for the same day, as the route now sends them: the model
-    // says `Rock: Dry`, `Friction: Poor`, 58 where the five-component sum said
-    // 80. That gap is the whole reason the surfaces moved.
     readings: {
       model: 'gfs_seamless',
       unavailable_reason: null,
@@ -106,7 +77,6 @@ function redRockScore(over: Partial<ConditionsScore> = {}): ConditionsScore {
         best: readingHour(71),
       },
     },
-    ...over,
   }
 }
 
@@ -397,83 +367,5 @@ describe('DetailView — partial and missing data', () => {
     // Visible text only: v2 sets weights in the markup, and `font-weight:500`
     // is not a status code.
     expect(visible(html)).not.toMatch(/\b(401|404|500|503)\b/)
-  })
-})
-
-/**
- * Issue #34, as it stands after the v2 readings took over the screen.
- *
- * A failed rainfall lookup used to score as a 30-day dry spell — the heaviest
- * component at full marks — so a detail screen could read "Dry, settled" for
- * rock nothing had checked. The v2 readings never consult that lookup; their
- * drying clock runs off the hourly precipitation in the stored run. So the
- * readings survive it, and what must **not** survive is the rain sentence
- * derived from the sentinel.
- */
-describe('DetailView — a withheld rainfall history (#34)', () => {
-  function withheld() {
-    return redRockScore({
-      score: null,
-      component_drying_time: null,
-      component_upcoming_rain: null,
-      component_wind: null,
-      component_temp: null,
-      component_humidity: null,
-      score_breakdown: null,
-      unavailable_reason: 'rainfall_unavailable',
-    })
-  }
-
-  it('still reports the readings, which do not depend on that lookup', () => {
-    const html = render(
-      <DetailView
-        isClimbingLocation
-        forecast={ok([day(TODAY)])}
-        alerts={alertsOk([])}
-        conditions={ok(withheld())}
-      />,
-    )
-    expect(visible(html)).toContain('Friction Poor')
-    expect(html).toContain('>58<')
-  })
-
-  it('renders no ladder label and no breakdown, both of which are gone', () => {
-    const html = render(
-      <DetailView
-        isClimbingLocation
-        forecast={ok([day(TODAY)])}
-        alerts={alertsOk([])}
-        conditions={ok(withheld())}
-      />,
-    )
-    expect(html).not.toContain('Dry, settled')
-    expect(html).not.toContain('Show breakdown')
-  })
-
-  it('never implies it has not rained', () => {
-    // The hero's rain line is driven by score_breakdown, which is null here.
-    // "no rain in 30+ days" during a rainfall outage is the exact false
-    // statement this issue is about.
-    const html = render(
-      <DetailView
-        isClimbingLocation
-        forecast={ok([day(TODAY)])}
-        alerts={alertsOk([])}
-        conditions={ok(withheld())}
-      />,
-    )
-    expect(html).not.toContain('no rain in')
-  })
-
-  it('still shows the weather — only the score is withheld', () => {
-    const html = render(
-      <DetailView
-        isClimbingLocation
-        forecast={ok([day(TODAY)])}
-        alerts={alertsOk([])}
-        conditions={ok(withheld())}
-      />,
-    )
-    expect(html).toContain('High 103°')
   })
 })

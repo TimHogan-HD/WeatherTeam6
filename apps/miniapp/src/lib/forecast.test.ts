@@ -4,7 +4,6 @@ import {
   findToday,
   forecastSourceLabel,
   formatForecastDate,
-  rainfallSourceLabel,
   severeAlertEvent,
   sortBySeverity,
 } from './forecast.js'
@@ -119,13 +118,6 @@ describe('forecastSourceLabel', () => {
     expect(forecastSourceLabel([day('2026-08-25', []), day('2026-08-26', ['nbm'])])).toBe(
       'Open-Meteo · NBM',
     )
-  })
-})
-
-describe('rainfallSourceLabel', () => {
-  it('branches on the station, because the API does', () => {
-    expect(rainfallSourceLabel('KLAS')).toBe('ACIS (KLAS)')
-    expect(rainfallSourceLabel(null)).toBe('Open-Meteo archive')
   })
 })
 

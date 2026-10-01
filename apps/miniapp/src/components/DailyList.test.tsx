@@ -145,7 +145,7 @@ describe('DailyList — the score pill', () => {
     // The readings arrive in reverse: a positional join would give Monday 40.
     const html = render(
       <DailyList
-        days={[day(DATES[0], { score: 12 }), day(DATES[1], { score: 12 })]}
+        days={[day(DATES[0]), day(DATES[1])]}
         readings={readings([readingsDay(DATES[1], 40), readingsDay(DATES[0], 90)])}
         hours={[]}
       />,
