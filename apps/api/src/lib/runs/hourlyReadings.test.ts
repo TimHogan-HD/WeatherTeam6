@@ -226,11 +226,14 @@ describe('what reaches the response', () => {
     expect(Object.keys(hour!).sort()).toEqual([
       'condensation_margin_c',
       'friction',
+      'held_back_by',
       'rock',
       'score',
       't_surface_c',
       'valid_at',
     ])
+    // The penalties reach the response as names in order, never as their values.
+    expect(hour!.held_back_by!.every((l) => typeof l === 'string')).toBe(true)
   })
 
   it('carries one day entry per window date, in order, even for days it cannot score', () => {

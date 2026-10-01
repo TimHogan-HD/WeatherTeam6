@@ -67,6 +67,7 @@ import type {
   ReadingsUnavailableReason,
   RockLevel,
   RockReading,
+  ScoreLimit,
 } from './hourly.js';
 import { modelName, openMeteoModels } from './conditionsCopy.js';
 import {
@@ -157,6 +158,28 @@ export const FRICTION_LABEL = 'Friction';
 export const SCORE_LABEL = 'Score';
 /** The day's window. Not a reading of *now*, which is why it is not in `readingFields`. */
 export const WINDOW_LABEL = 'Good hours';
+/** What is holding the score down (issue #218). Shown with the score and never without it. */
+export const HELD_BACK_LABEL = 'Held back by';
+
+export const SCORE_LIMIT_LABELS: Record<ScoreLimit, string> = {
+  wet_rock: 'Wet rock',
+  condensation: 'Condensation',
+  heat: 'Heat',
+  humidity: 'Humidity',
+  cold: 'Cold',
+};
+
+/**
+ * `Humidity, then heat`: the order the API sent, most limiting first. **Words
+ * and order only.** How much each one costs is a judgement call the screen
+ * does not print. `Nothing` when no penalty costs a point on its own.
+ */
+export function heldBackValue(limits: readonly ScoreLimit[]): string {
+  if (limits.length === 0) return 'Nothing';
+  return limits
+    .map((l, i) => (i === 0 ? SCORE_LIMIT_LABELS[l] : SCORE_LIMIT_LABELS[l].toLowerCase()))
+    .join(', then ');
+}
 
 /**
  * The two readings, as labelled fields.
@@ -385,6 +408,12 @@ export type ReadingsSummary = {
   scoreField: ReadingField | null;
   /** The bare score, for a surface that draws rather than writes it. Same suppression. */
   score: number | null;
+  /**
+   * `Held back by` and what is holding the score down. **Same suppression as
+   * the score**: the reason for a number the reader cannot see is the number
+   * leaking through. Also `null` when the API did not send the order.
+   */
+  heldBack: ReadingField | null;
   /** `Good hours` and its span. `null` when there are no readings at all. */
   window: ReadingField | null;
   /** *"see the Extreme Heat Warning above"*, or the condensation qualifier. */
@@ -437,6 +466,7 @@ export function summarizeReadings(input: ReadingsSummaryInput): ReadingsSummary 
       readings: [],
       scoreField: null,
       score: null,
+      heldBack: null,
       window: null,
       qualifier: null,
       notes: [],
@@ -477,6 +507,11 @@ export function summarizeReadings(input: ReadingsSummaryInput): ReadingsSummary 
     readings: readingFields(rock, friction),
     scoreField: score === null ? null : { label: SCORE_LABEL, value: String(score) },
     score,
+    // `== null`: an older API omits the field, and `undefined` is not a gap to print.
+    heldBack:
+      score === null || reading?.held_back_by == null
+        ? null
+        : { label: HELD_BACK_LABEL, value: heldBackValue(reading.held_back_by) },
     window: { label: WINDOW_LABEL, value: windowValue(window, utcOffsetSeconds) },
     qualifier,
     notes,

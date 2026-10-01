@@ -27,7 +27,7 @@
  * was not measured is null, and so is every hour after it until a full drying
  * window has run (issue #34).
  */
-import { TEMP_RANGE_DEFAULT_F, fToC, type RockType } from '@weatherteam6/types'
+import { TEMP_RANGE_DEFAULT_F, fToC, type RockType, type ScoreLimit } from '@weatherteam6/types'
 import { MAX_HOURS, MIN_HOURS } from './dryingModel.js'
 import {
   condensationFactor,
@@ -36,6 +36,7 @@ import {
   frictionLevel,
   type HourlyConditions,
   type RockLevel,
+  type ScorePenalties,
   type WeatherHour,
 } from './hourlyConditions.js'
 import { isCondensing, type WallOrientation } from './rockThermal.js'
@@ -105,6 +106,30 @@ export function shelterScale(cliffAngleDeg: number): number {
   return past < 5 ? 1 : Math.max(0.1, 1 - past / 30)
 }
 
+/** Friction's four penalties, each 0-1. Their product is `frictionFactorA`. */
+export type FrictionPenalties = Record<Exclude<ScoreLimit, 'wet_rock'>, number>
+
+/** Null when any input is missing — never a default. */
+export function frictionPenaltiesA(
+  massTempC: number | null,
+  airTempC: number | null,
+  dewPointC: number | null,
+  range: TempRangeC = DEFAULT_RANGE,
+): FrictionPenalties | null {
+  if (massTempC === null || airTempC === null || dewPointC === null) return null
+  if (!Number.isFinite(massTempC) || !Number.isFinite(airTempC) || !Number.isFinite(dewPointC)) {
+    return null
+  }
+  const condensation = condensationFactor(massTempC - dewPointC)
+  if (condensation === null) return null
+  return {
+    condensation,
+    heat: Math.exp(-Math.max(0, airTempC - range.highC) / HEAT_SCALE_C),
+    humidity: Math.exp(-Math.max(0, dewPointC - DEW_START_C) / DEW_SCALE_C),
+    cold: Math.exp(-Math.max(0, range.lowC - airTempC) / HEAT_SCALE_C),
+  }
+}
+
 /**
  * **Crag A's grip, 0-1**: condensation × heat × humidity × cold. Null when any
  * input is missing — never a default.
@@ -115,16 +140,31 @@ export function frictionFactorA(
   dewPointC: number | null,
   range: TempRangeC = DEFAULT_RANGE,
 ): number | null {
-  if (massTempC === null || airTempC === null || dewPointC === null) return null
-  if (!Number.isFinite(massTempC) || !Number.isFinite(airTempC) || !Number.isFinite(dewPointC)) {
-    return null
-  }
-  const cond = condensationFactor(massTempC - dewPointC)
-  if (cond === null) return null
-  const heat = Math.exp(-Math.max(0, airTempC - range.highC) / HEAT_SCALE_C)
-  const humidity = Math.exp(-Math.max(0, dewPointC - DEW_START_C) / DEW_SCALE_C)
-  const cold = Math.exp(-Math.max(0, range.lowC - airTempC) / HEAT_SCALE_C)
-  return cond * heat * humidity * cold
+  const p = frictionPenaltiesA(massTempC, airTempC, dewPointC, range)
+  return p === null ? null : p.condensation * p.heat * p.humidity * p.cold
+}
+
+/** The order ties are broken in: the rock first, as the readings are. */
+const LIMIT_ORDER: readonly ScoreLimit[] = ['wet_rock', 'condensation', 'heat', 'humidity', 'cold']
+
+/**
+ * **What is holding the score down, most limiting first** (issue #218).
+ *
+ * The score is `100 × Π multiplier`, so the smallest multiplier takes the
+ * largest share of what was lost and the order is exact. A penalty is named
+ * only when it would on its own take at least a point off a perfect score —
+ * the score's own resolution, not a new threshold. Each is judged alone so
+ * that two penalties both at zero are both named. When several small ones add
+ * up to a lost point that none costs alone, the largest is named, so a score
+ * below 100 is never "held back by nothing".
+ */
+export function heldBackBy(penalties: ScorePenalties | null): ScoreLimit[] | null {
+  if (penalties === null) return null
+  const ordered = [...LIMIT_ORDER].sort((a, b) => penalties[a] - penalties[b])
+  const named = ordered.filter((k) => Math.round(100 * penalties[k]) < 100)
+  if (named.length > 0) return named
+  const product = LIMIT_ORDER.reduce((p, k) => p * penalties[k], 1)
+  return Math.round(100 * product) < 100 ? ordered.slice(0, 1) : []
 }
 
 export function scoreA(dryness: number | null, friction: number | null): number | null {
@@ -326,7 +366,13 @@ function finish(
   range?: TempRangeC,
 ): HourlyConditions {
   const massTempC = base.diagnostics.t_mass_c
-  const friction = frictionFactorA(massTempC, weather.air_temp_c, weather.dewpoint_c, range)
+  const fp = frictionPenaltiesA(massTempC, weather.air_temp_c, weather.dewpoint_c, range)
+  const friction = fp === null ? null : fp.condensation * fp.heat * fp.humidity * fp.cold
+  const score = scoreA(dryness, friction)
+  const penalties: ScorePenalties | null =
+    fp === null || dryness === null || score === null
+      ? null
+      : { wet_rock: Math.pow(Math.min(1, Math.max(0, dryness)), DRYNESS_EXPONENT), ...fp }
   const fLevel = frictionLevel(friction)
   const condensing = isCondensing(base.condensation_margin_c)
   const rLevel = rockLevelA(dryness, rockType)
@@ -338,7 +384,7 @@ function finish(
     // Grip reads no sunlight, so an unrecorded aspect cannot change it.
     friction:
       fLevel === null || condensing === null ? null : { level: fLevel, condensing, qualified: true },
-    score: scoreA(dryness, friction),
+    score,
     t_surface_c: base.t_surface_c,
     condensation_margin_c: base.condensation_margin_c,
     diagnostics: {
@@ -347,6 +393,7 @@ function finish(
       wetness_factor: dryness,
       friction_factor: friction,
       effective_dry_hours: effectiveDryHours,
+      penalties,
     },
   }
 }

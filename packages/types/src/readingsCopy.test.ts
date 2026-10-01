@@ -5,6 +5,7 @@ import {
   FRICTION_ESTIMATE_NOTE,
   UNRECORDED_ASPECT_NOTE,
   fieldLine,
+  heldBackValue,
   formatLocalHour,
   readingFields,
   readingNow,
@@ -68,6 +69,7 @@ const printed = (s: ReturnType<typeof summarizeReadings>): string =>
   [
     ...s.readings.map(fieldLine),
     s.scoreField === null ? null : fieldLine(s.scoreField),
+    s.heldBack === null ? null : fieldLine(s.heldBack),
     s.window === null ? null : fieldLine(s.window),
     s.qualifier,
     ...s.notes,
@@ -332,5 +334,34 @@ describe('readingNow', () => {
 
   it('is null for an empty series', () => {
     expect(readingNow([], Date.now())).toBeNull();
+  });
+});
+
+describe('what is holding the score down', () => {
+  it('names the penalties in the order the API sent them', () => {
+    const s = summary({ reading: reading({ held_back_by: ['heat', 'humidity'] }) });
+    expect(s.heldBack).toEqual({ label: 'Held back by', value: 'Heat, then humidity' });
+  });
+
+  it('says nothing is when the API named none', () => {
+    expect(summary({ reading: reading({ held_back_by: [] }) }).heldBack?.value).toBe('Nothing');
+  });
+
+  it('is suppressed with the score, under an alert and while alerts load', () => {
+    const r = reading({ held_back_by: ['heat'] });
+    expect(summary({ reading: r, severeAlertEvent: 'Extreme Heat Warning' }).heldBack).toBeNull();
+    expect(summary({ reading: r, alertsPending: true }).heldBack).toBeNull();
+  });
+
+  it('prints nothing for an older API that does not send the order', () => {
+    expect(summary({ reading: reading() }).heldBack).toBeNull();
+  });
+
+  it('is absent when the score could not be computed', () => {
+    expect(summary({ reading: reading({ score: null, held_back_by: null }) }).heldBack).toBeNull();
+  });
+
+  it('joins three or more in order, lower-casing all but the first', () => {
+    expect(heldBackValue(['wet_rock', 'condensation', 'cold'])).toBe('Wet rock, then condensation, then cold');
   });
 });

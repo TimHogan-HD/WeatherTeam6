@@ -295,6 +295,17 @@ async function run(): Promise<void> {
       !Object.keys(readings.now).includes('diagnostics'),
       Object.keys(readings.now).join(','),
     )
+
+    const held = readings.now.held_back_by
+    info('held_back_by', held == null ? '(none)' : held.length === 0 ? '(nothing)' : held.join(' > '))
+    const known = ['wet_rock', 'condensation', 'heat', 'humidity', 'cold']
+    check(
+      'what holds the score down arrives as names, with the score and only with it (#218)',
+      readings.now.score === null
+        ? held === null
+        : Array.isArray(held) && held.every((l) => known.includes(l)),
+      JSON.stringify(held),
+    )
   }
 
   const window = readings.today?.window ?? null

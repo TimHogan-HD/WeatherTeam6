@@ -327,4 +327,19 @@ describe('ConditionsNow — the measurements panel', () => {
     const html = render({ series: undefined })
     expect(html).not.toContain('Measurements')
   })
+
+  it('opens on what is holding the score down (#218)', () => {
+    const html = render({ conditions: settled(scored({ now: { ...reading, held_back_by: ['heat', 'humidity'] } })) })
+    expect(html).toContain('Held back by')
+    expect(html).toContain('Heat, then humidity')
+    expect(html.indexOf('Held back by')).toBeLessThan(html.indexOf('Air'))
+  })
+
+  it('does not explain a score a Severe+ alert has dropped', () => {
+    const html = render({
+      conditions: settled(scored({ now: { ...reading, held_back_by: ['heat'] } })),
+      severeAlertEvent: 'Extreme Heat Warning',
+    })
+    expect(html).not.toContain('Held back by')
+  })
 })
