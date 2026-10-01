@@ -35,6 +35,8 @@ const DAY_FIRST_HOUR = 8
 const DAY_LAST_HOUR = 18
 const ROCKS: RockType[] = ['quartzite', 'sandstone', 'limestone']
 const WET_MM = 0.1
+/** Open-Meteo answers 429 when 90-day, six-model requests come back to back. */
+const PAUSE_MS = 20_000
 
 type HourKey = string
 const hourKey = (d: Date): HourKey => d.toISOString().slice(0, 13)
@@ -175,6 +177,7 @@ async function run(): Promise<void> {
   const raw = { both: 0, gaugeOnly: 0, mrmsOnly: 0, neither: 0, gaugeMm: 0, mrmsMm: 0 }
   const gauges = new Map<string, Awaited<ReturnType<typeof gauge>>>()
   const airportModels = new Map<string, Awaited<ReturnType<typeof modelled>>>()
+  const deadGauges: string[] = []
 
   for (const [i, pair] of MRMS_PAIRS.entries()) {
     try {
@@ -185,12 +188,26 @@ async function run(): Promise<void> {
       const mAirport: Rain = (k) => airport[i]!.get(k) ?? null
       const mCrag: Rain = (k) => crag[i]!.get(k) ?? null
 
+      // Some airports report 0.00 every hour with no working precip sensor. That
+      // is a gauge saying "dry", not a gap, so it must not be anyone's truth.
+      let gaugeMm = 0
+      let radarMm = 0
+      for (const [k, mm] of g.rain) {
+        const m = mAirport(k)
+        if (mm === null || m === null) continue
+        gaugeMm += mm
+        radarMm += m
+      }
+      const dead = radarMm >= 20 && gaugeMm < 0.25 * radarMm
+      if (dead && !deadGauges.some((d) => d.startsWith(pair.station)))
+        deadGauges.push(`${pair.station}: gauge ${gaugeMm.toFixed(0)} mm, MRMS ${radarMm.toFixed(0)} mm`)
+
       const firstForStation = !airportModels.has(pair.station)
       const ap = airportModels.get(pair.station) ?? (await modelled(g.lat, g.lon))
       airportModels.set(pair.station, ap)
       const cr = await modelled(pair.lat, pair.lon)
 
-      if (firstForStation) {
+      if (firstForStation && !dead) {
         // Raw hourly agreement, airport gauge vs MRMS at the airport.
         for (const [k, mm] of g.rain) {
           const m = mAirport(k)
@@ -211,16 +228,15 @@ async function run(): Promise<void> {
           ], rock)
       }
 
+      const shipped: [string, Rain] = ['median, global (shipped)', (k) => cr.shipped.get(k) ?? null]
+      const airportGauge: [string, Rain] = ['airport gauge, moved to crag', gaugeRain]
+      if (!dead)
+        for (const rock of ROCKS)
+          score(atCrag, cr.base, pair.lat, pair.lon, mCrag, [shipped, airportGauge, ['MRMS at airport, moved to crag', mAirport]], rock)
+      // Per crag, each source on its own pair of clocks, so a dead gauge drops only its column.
       const local = new Map<string, Tally>()
-      for (const rock of ROCKS) {
-        const sources: [string, Rain][] = [
-          ['median, global (shipped)', (k) => cr.shipped.get(k) ?? null],
-          ['airport gauge, moved to crag', gaugeRain],
-          ['MRMS at airport, moved to crag', mAirport],
-        ]
-        score(atCrag, cr.base, pair.lat, pair.lon, mCrag, sources, rock)
-        if (rock === 'quartzite') score(local, cr.base, pair.lat, pair.lon, mCrag, sources, rock)
-      }
+      score(local, cr.base, pair.lat, pair.lon, mCrag, [shipped], 'quartzite')
+      if (!dead) score(local, cr.base, pair.lat, pair.lon, mCrag, [airportGauge], 'quartzite')
       const km = Math.hypot((pair.lat - g.lat) * 111, (pair.lon - g.lon) * 111 * Math.cos((pair.lat * Math.PI) / 180))
       const wetCrag = [...crag[i]!.values()].filter((v) => v !== null && v >= WET_MM).length
       const q = (n: string) => local.get(`quartzite|${n}`)
@@ -229,13 +245,16 @@ async function run(): Promise<void> {
       perCrag.push(
         `  ${pair.crag.padEnd(26)}${pair.station.padEnd(5)}${km.toFixed(0).padStart(4)} km ${String(wetCrag).padStart(5)}` +
           (sh ? `${pct(sh.miss, sh.hit + sh.miss)}${pct(sh.falseAlarm, sh.falseAlarm + sh.correctDry)}` : '') +
-          (ag ? `${pct(ag.miss, ag.hit + ag.miss)}${pct(ag.falseAlarm, ag.falseAlarm + ag.correctDry)}` : ''),
+          (ag ? `${pct(ag.miss, ag.hit + ag.miss)}${pct(ag.falseAlarm, ag.falseAlarm + ag.correctDry)}` : '    dead gauge'),
       )
+      await new Promise((r) => setTimeout(r, PAUSE_MS))
     } catch (err) {
       perCrag.push(`  ${pair.crag.padEnd(26)}${pair.station.padEnd(5)} skipped: ${(err as Error).message}`)
     }
   }
 
+  if (deadGauges.length)
+    console.log(`  Dead airport gauges, 0.00 reported as a reading (left out of 1 and 2):\n    ${deadGauges.join('\n    ')}\n`)
   const wet = raw.both + raw.gaugeOnly
   console.log('  1a. Raw hourly rain, MRMS at the airport vs the airport gauge (wet = ≥0.1 mm)')
   console.log(`      gauge-wet hours MRMS caught: ${pct(raw.both, wet)}%   MRMS-wet hours the gauge called dry: ${pct(raw.mrmsOnly, raw.both + raw.mrmsOnly)}%`)
