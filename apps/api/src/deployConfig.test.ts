@@ -18,6 +18,7 @@ const APPS = ['api', 'miniapp'] as const
 type VercelJson = {
   git?: { deploymentEnabled?: Record<string, boolean> }
   ignoreCommand?: string
+  rewrites?: { source: string; destination: string }[]
 }
 
 function config(app: (typeof APPS)[number]): VercelJson {
@@ -43,5 +44,23 @@ describe('the Vercel deployment budget', () => {
     for (const path of [' . ', '../../packages', '../../package.json', '../../package-lock.json']) {
       expect(cmd).toContain(path)
     }
+  })
+})
+
+/**
+ * The web app calls the API at its own address, `/api/...`, and Vercel forwards
+ * it (2026-10-01). Across two origins every request carried a CORS preflight —
+ * a second round trip, ~170 ms each, 18 of them on every app open. Same origin
+ * sends none. The forward must come before the catch-all, or every API call
+ * would be answered with the app's own `index.html`.
+ */
+describe('the web app reaches the API at its own address', () => {
+  it('forwards /api to the API before anything else is rewritten', () => {
+    const rewrites = config('miniapp').rewrites ?? []
+    expect(rewrites[0]).toEqual({
+      source: '/api/:path*',
+      destination: 'https://weather-team6-api.vercel.app/api/:path*',
+    })
+    expect(rewrites.at(-1)).toEqual({ source: '/(.*)', destination: '/index.html' })
   })
 })

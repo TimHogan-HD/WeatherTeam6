@@ -30,11 +30,14 @@ before writing a screen; if a decision is not written there, it is not settled.
 | `src/lib/backTarget.ts` | Where "back" goes, per route, as a pure function. |
 | `src/lib/forecast.ts` | Today's row, date labels, and the source attribution — the logic that renders a wrong *value* rather than an error, so it is the part under test. |
 | `src/lib/queryClient.ts` | React Query defaults fixed by §5. |
-| `src/config/env.ts` | `VITE_API_BASE_URL`. Nothing secret may be read here — this bundle is public. |
+| `src/config/env.ts` | Where the API is: the page's own address in a production build, `VITE_API_BASE_URL` in development. Nothing secret may be read here — this bundle is public. |
 
-`VITE_API_BASE_URL` is the API **origin**; `src/lib/api.ts` appends `/api/v1`. A value
-that already ends in `/api/v1` is accepted rather than doubled, because three separate
-docs describe this variable and none of them is unambiguous about it.
+**A production build calls its own address**, and `vercel.json` forwards `/api/...` to the
+API. Across two origins every request carrying the session token paid a CORS preflight, a
+second round trip of ~170 ms, 18 of them on every app open (2026-10-01); at one origin there
+are none. `VITE_API_BASE_URL` is the API **origin** for development only (the dev server,
+`check:ui`); `src/lib/api.ts` appends `/api/v1`, and a value that already ends in it is
+accepted rather than doubled.
 
 ## Commands
 
@@ -77,16 +80,17 @@ with, since they are easy to get wrong if it is ever recreated:
    *Include source files outside of the Root Directory* enabled — the build imports
    `packages/design` and `packages/types` from the workspace root.
 2. Framework preset **Vite**. (Unlike `apps/api`, which must be "Other".)
-3. Environment variable `VITE_API_BASE_URL` = the API's production URL. It is inlined
-   into the bundle at build time and is public.
+3. No API address to set: a production build calls its own `/api/...`, which `vercel.json`
+   forwards to the API (its production URL is written there). A `VITE_API_BASE_URL` left in
+   the project is ignored by a production build.
 4. **Do not set `NODE_ENV`** — same reason as the API: npm would drop devDependencies
    and the root postinstall would lose `tsc`.
-5. `vercel.json` here already rewrites every path to `index.html`, which the four
+5. `vercel.json` here forwards `/api/...` to the API first, then rewrites every other path to `index.html`, which the four
    client-side routes need. Vercel matches the filesystem before applying a rewrite, so
    `/manifest.webmanifest` and `/icons/*.png` still serve as files.
 
-The API's CORS allowlist (`apps/api/src/lib/cors.ts`) must contain this origin, or the
-browser blocks every call before the auth header is read. `https://weatherteam6.vercel.app`
+The deployed app no longer needs CORS: it calls its own address. The API's CORS allowlist
+(`apps/api/src/lib/cors.ts`) still matters for the dev server, which calls the API directly. `https://weatherteam6.vercel.app`
 and `http://localhost:5173` are in the default list; a preview deployment needs
 `CORS_ALLOWED_ORIGINS` to include `https://*.vercel.app`.
 
