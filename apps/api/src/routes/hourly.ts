@@ -5,6 +5,7 @@ import { locations } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
 import { getHourlySeries } from '../lib/runs/fetchHourlySeries.js'
 import { scoringLocationFor } from '../lib/runs/scoringLocation.js'
+import { tempRangeFor } from '../lib/preferences/preferences.js'
 import { parseNumeric, parseNumericRequired } from '@weatherteam6/types'
 import type { ApiResponse, HourlySeries } from '@weatherteam6/types'
 
@@ -99,7 +100,10 @@ hourlyRouter.get('/hourly/:locationId', async (req: Request, res: Response) => {
      *   runs only when aspect and angle were both recorded
      *   (`scoringLocationFor`).
      */
-    const scoring = scoringLocationFor(location)
+    // A crag's readings are judged against the reader's own temperature range.
+    const scoring = location.is_climbing_location
+      ? scoringLocationFor(location, await tempRangeFor(req.userId))
+      : null
 
     // `lat`/`lon` are numeric columns and arrive as strings; `elevation_m` is nullable and
     // must stay null rather than becoming 0 — sea level is a real elevation, and passing

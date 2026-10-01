@@ -4,6 +4,7 @@ import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, headerBand, navClearance, row, stack } from '../theme/styles.js'
 import { clearToken } from '../lib/authToken.js'
 import { FeedbackButton } from '../components/FeedbackButton.js'
+import { Settings } from '../components/Settings.js'
 
 /**
  * A bottom-bar section's first screen, in the Conditions list's header band so
@@ -42,7 +43,7 @@ export function UnbuiltSection({ title }: { title: string }) {
 
 /**
  * `/profile` — the account's things: Feedback in the corner, as on every
- * signed-in screen, and Sign out.
+ * signed-in screen, the reader's settings, and Sign out.
  *
  * A login with no way out is the same trap as a save flow with no delete: the
  * token lives in `localStorage`, so without this a shared or borrowed device
@@ -54,6 +55,7 @@ export function UnbuiltSection({ title }: { title: string }) {
 export function Profile() {
   return (
     <SectionScreen title="Profile" action={<FeedbackButton />}>
+      <Settings />
       <button
         type="button"
         style={{

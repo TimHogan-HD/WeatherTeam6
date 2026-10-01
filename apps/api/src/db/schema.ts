@@ -495,6 +495,18 @@ export const userPreferences = pgTable('user_preferences', {
    */
   window_min_rock: text('window_min_rock').default('drying').notNull(),
   window_min_friction: text('window_min_friction').default('fair').notNull(),
+  /**
+   * **What Phase 5 actually built (owner decision 2026-10-01)**, beside the
+   * Phase 0 columns above, none of which anything reads. The air temperatures,
+   * °C, below and above which Crag A's friction starts to fall, and the tab a
+   * crag opens on. **Nullable, and null is "the app's default"**, so a row
+   * created for one setting does not pin the others — `Preferences` in
+   * `packages/types`. `ideal_temp_*` were the five-component scorer's band and
+   * are not these.
+   */
+  temp_low_c: doublePrecision('temp_low_c'),
+  temp_high_c: doublePrecision('temp_high_c'),
+  default_tab: text('default_tab'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updated_at: timestamp('updated_at', { withTimezone: true }),
 })

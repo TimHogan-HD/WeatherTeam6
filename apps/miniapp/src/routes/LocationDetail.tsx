@@ -6,6 +6,7 @@ import { bareButton, navClearance, row, stack } from '../theme/styles.js'
 import { editPath, wallPath } from '../lib/backTarget.js'
 import { formatRunAge } from '../lib/format.js'
 import { useDeleteLocation, useLocation } from '../hooks/useLocations.js'
+import { usePreferences } from '../hooks/usePreferences.js'
 import { useAlerts, useConditions, useForecast } from '../hooks/useWeather.js'
 import { useHourly } from '../hooks/useHourly.js'
 import { useNow } from '../hooks/useNow.js'
@@ -42,11 +43,13 @@ export function LocationDetail() {
   // The tabs live here rather than inside `DetailView` because the header band
   // draws them and the panel shows them. `?tab=` is how the guidebook screens
   // link back in — a wall's back to Crag (`cragTabPath`), a route's "Hourly ›"
-  // to Hourly. Only the opening tab:
+  // to Hourly. Without one it is the reader's saved tab (`usePreferences`,
+  // loaded by the signed-in shell), else Overview. Only the opening tab:
   // after that the route holds it, as before. A city asking for Crag falls
   // back to Overview below, like any tab it does not offer.
+  const preferred = usePreferences().data?.default_tab ?? null
   const [tab, setTab] = useState<DetailTab>(() => {
-    const asked = searchParams.get('tab')
+    const asked = searchParams.get('tab') ?? preferred
     return detailTabs(true).find((o) => o.value === asked)?.value ?? 'overview'
   })
   const [selectedDate, setSelectedDate] = useState<string | null>(null)

@@ -30,6 +30,7 @@ npm run check:auth          # token auth, including the cross-user denial
 npm run check:add-location  # acceptance check for the add-location flow
 npm run check:delete-trip   # DELETE /trips/:tripId and its FK cascade
 npm run check:logbook       # ticks, to-dos and shared boulder positions, including cross-user denial
+npm run check:preferences   # GET/PUT /preferences: upsert, refusals, accounts kept apart
 npm run check:conditions    # GET /conditions composition — the strongest check here
 npm run check:hourly        # GET /hourly/:id
 npm run check:weather-runs  # run storage and pruning

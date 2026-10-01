@@ -310,6 +310,7 @@ export function buildHourlySeries(input: BuildInput): HourlySeries {
           lat: input.scoring.lat,
           lon: input.scoring.lon,
           now,
+          ...(input.scoring.range === undefined ? {} : { range: input.scoring.range }),
         })
 
   const series: HourlySeries = {

@@ -18,6 +18,7 @@ import { AddLocation } from './routes/AddLocation.js'
 import { Feedback } from './routes/Feedback.js'
 import { LocationDetail } from './routes/LocationDetail.js'
 import { EditLocation } from './routes/EditLocation.js'
+import { usePreferences } from './hooks/usePreferences.js'
 import { LocationList } from './routes/LocationList.js'
 import { Login } from './routes/Login.js'
 import { WallScreen } from './routes/WallScreen.js'
@@ -115,6 +116,8 @@ function RequireAuth({ children }: { children: ReactNode }) {
  */
 function SignedIn() {
   const { pathname } = useRouterLocation()
+  // Asked for once here, so a crag opened later finds its opening tab cached.
+  usePreferences()
   const section = sectionFor(pathname)
   return (
     <>

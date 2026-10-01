@@ -115,7 +115,7 @@ async function run(): Promise<void> {
 
   const { createApp } = await import('../index.js')
   const { db, pool } = await import('../db/index.js')
-  const { users } = await import('../db/schema.js')
+  const { users, userPreferences } = await import('../db/schema.js')
   const { hashPassword } = await import('../lib/auth/password.js')
   const { eq } = await import('drizzle-orm')
   const { chromium } = await import('playwright')
@@ -360,6 +360,31 @@ async function run(): Promise<void> {
     await page.waitForURL((u) => u.pathname === '/', { timeout: 10_000 }).catch(() => undefined)
     check('Conditions in the bar returns a location to the list', new URL(page.url()).pathname === '/', page.url())
 
+    // 3c. Settings on Profile (scoring Phase 5): a warmer high end and an
+    // opening tab, saved, then a crag opening on that tab.
+    await page.goto(`${WEB}/profile`)
+    await page.getByRole('button', { name: /High 5° warmer/ }).waitFor({ timeout: 30_000 })
+    await screen('profile')
+    await page.getByRole('button', { name: /High 5° warmer/ }).click()
+    await page.getByRole('group', { name: 'Open a crag on' }).getByRole('button', { name: 'Hourly' }).click()
+    const prefsPut = page.waitForRequest((r) => r.method() === 'PUT' && r.url().endsWith('/preferences'))
+    await page.getByRole('button', { name: 'Save' }).click()
+    const prefsSent = (await prefsPut).postDataJSON() as Record<string, unknown>
+    check(
+      'Save sends the moved end in °C and the tab, nothing else',
+      Object.keys(prefsSent).sort().join(',') === 'default_tab,temp_high_c' &&
+        prefsSent['default_tab'] === 'hourly' &&
+        Math.abs(Number(prefsSent['temp_high_c']) - ((65 - 32) * 5) / 9) < 1e-6,
+      JSON.stringify(prefsSent),
+    )
+    await page.getByRole('status').filter({ hasText: 'Saved.' }).waitFor({ timeout: 15_000 })
+    await screen('profile-saved')
+    await page.goto(`${WEB}/`)
+    await page.locator('[role="button"]').first().click()
+    await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
+    const opened = await page.getByRole('tab', { selected: true }).innerText()
+    check('a crag now opens on the saved tab', opened.trim() === 'Hourly', `opened on ${opened}`)
+
     // 3b. The location editor (scoring Phase 4b). The crag is a known crag, so
     // its rock type is locked and must not be sent; aspect and angle are.
     await page.goto(`${WEB}/location/${locationId}`)
@@ -564,6 +589,10 @@ async function run(): Promise<void> {
       if (del === null || del.status >= 300) cleanupFailed = true
     }
     if (userId !== null) {
+      // The settings row holds a foreign key to the user, so it goes first.
+      await db.delete(userPreferences).where(eq(userPreferences.user_id, userId)).catch(() => {
+        cleanupFailed = true
+      })
       await db.delete(users).where(eq(users.id, userId)).catch(() => {
         cleanupFailed = true
       })

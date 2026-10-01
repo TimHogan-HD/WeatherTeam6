@@ -114,7 +114,9 @@ this. Not before.
 - **The bottom bar** (owner, 2026-09-30; reordered 2026-10-01) holds five sections, left to
   right: **Conditions · Trips · Map · Crags · Profile** (`bottomNav` in `packages/design`). Conditions is `/`
   and owns `/location/*`; Crags, Map and Trips are placeholders that say they are not built;
-  Profile holds Feedback and Sign out, which left the list. Unlit tabs are icons, and the lit
+  Profile holds Feedback and Sign out, which left the list, and the reader's settings (scoring
+  Phase 5, 2026-10-01): the temperature range friction is judged against and the tab a crag
+  opens on (`Settings.tsx`; a `?tab=` link still wins). Unlit tabs are icons, and the lit
   one carries its name in a lime pill that slides from tab to tab (`TabBar.tsx`). Tapping a
   tab goes to its section's first screen, so a lit Conditions is the way out of a location —
   which is why a saved location lost its back link. A section's first screen keeps its scroll
