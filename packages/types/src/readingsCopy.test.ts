@@ -366,8 +366,10 @@ describe('what is holding the score down', () => {
     );
   });
 
-  it('says nothing is when the API named none', () => {
-    expect(summary({ reading: reading({ held_back_by: [] }) }).heldBack?.[0]?.label).toBe('Nothing');
+  it('says nothing costs a point when the API named none, never that all is clear', () => {
+    expect(summary({ reading: reading({ held_back_by: [] }) }).heldBack).toEqual([
+      { label: 'Nothing', value: 'nothing costs a point' },
+    ]);
   });
 
   it('is suppressed with the score, under an alert and while alerts load', () => {

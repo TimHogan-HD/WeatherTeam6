@@ -222,7 +222,8 @@ export function heldBackFields(
   rock: RockReading | null,
   range: RangeF,
 ): ReadingField[] {
-  if (limits.length === 0) return [{ label: 'Nothing', value: 'every penalty is clear' }];
+  // Empty only at 100: a cost under a point may remain, so never "all clear".
+  if (limits.length === 0) return [{ label: 'Nothing', value: 'nothing costs a point' }];
   return limits.map((l) => ({ label: SCORE_LIMIT_LABELS[l], value: heldBackReason(l, rock, range) }));
 }
 
