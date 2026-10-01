@@ -82,10 +82,10 @@ suite; reading the diff is what caught them.
 - [ ] Nothing formats a nullable weather value by hand — the `packages/types` formatters return an em dash, and `null` coerced to `0` renders a plausible `32°F` / `0 mph` instead of a visible gap
 - [ ] The readings and the suppression come from `readingsCopy.ts`, not reimplemented — and no surface derives a word from the score, which is what `stateLabel` did and why it is gone
 - [ ] `GET /conditions/:id` is not called for a non-climbing location, and no score, breakdown or hours-since-rain renders for one
-- [ ] The sources footer is derived from `model_sources` and `asos_station`, and omits a source rather than guessing one — including NWS when the alerts call failed
+- [ ] The sources footer is derived from `model_sources`, and omits a source rather than guessing one — including NWS when the alerts call failed
 - [ ] "Today" comes from the server's `is_today` flag, never a date the client derived — and a missing row says so rather than falling back to the first row
 - [ ] No route derives its own `todayStr` — `computeLiveForecast` returns the location's local day and every caller uses it
-- [ ] A swallowed upstream error does not become a favourable input — an unmeasurable value withholds the score (`scoreUnavailable`) rather than scoring as its best case
+- [ ] A swallowed upstream error does not become a favourable input — an unmeasurable value withholds the score (a null factor, `READINGS_UNAVAILABLE`) rather than scoring as its best case
 - [ ] "The call failed" and "the call returned nothing" are handled separately — a genuine empty result still scores
 - [ ] No interactive element is nested inside another (`LocationCard` is a `div` with `role="button"` for exactly this reason)
 - [ ] No credential is a build-time value — `API_SHARED_SECRET` and `AUTH_TOKEN_SECRET` never reach the client bundle, and no `VITE_*` variable carries one
