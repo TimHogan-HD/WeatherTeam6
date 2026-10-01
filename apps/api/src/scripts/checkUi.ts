@@ -354,6 +354,18 @@ async function run(): Promise<void> {
     } else {
       check('a pressed tab dims and comes back when released', false, 'the Map tab has no box')
     }
+
+    // 4f. Holding a card is a press: no tap-highlight box over it, and no
+    // text selection with its copy menu.
+    const held = await card.evaluate((el) => {
+      const s = getComputedStyle(el)
+      return { highlight: s.getPropertyValue('-webkit-tap-highlight-color'), select: s.userSelect }
+    })
+    check(
+      'a held card paints no highlight and selects no text',
+      held.highlight === 'rgba(0, 0, 0, 0)' && held.select === 'none',
+      `highlight ${held.highlight}, user-select ${held.select}`,
+    )
     await page.setViewportSize(VIEWPORT)
 
     await context.close()
