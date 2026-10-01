@@ -571,8 +571,7 @@ export function HourlyChart({
         two figures at the scale's ends and had to interpolate by eye.
 
         It is driven by pointer and touch events rather than CSS `:hover`,
-        because the app is styled with inline styles that cannot express hover
-        *and* because there is no hover on a phone. A touch drag scrubs it.
+        because there is no hover on a phone. A touch drag scrubs it.
       */}
       {active === undefined || active.value === null || activeLabel === null ? null : (
         <span
