@@ -27,7 +27,7 @@
  * was not measured is null, and so is every hour after it until a full drying
  * window has run (issue #34).
  */
-import type { RockType } from '@weatherteam6/types'
+import { TEMP_RANGE_DEFAULT_F, fToC, type RockType } from '@weatherteam6/types'
 import { MAX_HOURS, MIN_HOURS } from './dryingModel.js'
 import {
   condensationFactor,
@@ -43,12 +43,23 @@ import { isCondensing, type WallOrientation } from './rockThermal.js'
 /** Weight on dryness. Friction carries no exponent: v2's 0.45 is what let heat through. */
 export const DRYNESS_EXPONENT = 0.55
 
-/** Friction starts falling above this air temperature, °C (60 °F). */
-export const HEAT_START_C = (60 - 32) * (5 / 9)
+/**
+ * Friction starts falling above this air temperature, °C (60 °F) — unless the
+ * reader set their own range (`TempRangeC`). Derived from the shared default so
+ * the model and the preferences screen cannot disagree about it.
+ */
+export const HEAT_START_C = fToC(TEMP_RANGE_DEFAULT_F.high)
 /** Friction starts falling above this dew point, °C (54 °F). */
 export const DEW_START_C = (54 - 32) * (5 / 9)
-/** Friction starts falling below this air temperature, °C (30 °F). */
-export const COLD_START_C = (30 - 32) * (5 / 9)
+/** Friction starts falling below this air temperature, °C (30 °F), unless the reader set their own. */
+export const COLD_START_C = fToC(TEMP_RANGE_DEFAULT_F.low)
+
+/**
+ * **The reader's temperature range, °C** (`user_preferences`, scoring Phase 5):
+ * where the cold and heat penalties start. Absent means Crag A's own.
+ */
+export type TempRangeC = { lowC: number; highC: number }
+const DEFAULT_RANGE: TempRangeC = { lowC: COLD_START_C, highC: HEAT_START_C }
 /** e-folding scale of the heat and cold penalties, °C. */
 export const HEAT_SCALE_C = 12
 /** e-folding scale of the humidity penalty, °C. */
@@ -102,6 +113,7 @@ export function frictionFactorA(
   massTempC: number | null,
   airTempC: number | null,
   dewPointC: number | null,
+  range: TempRangeC = DEFAULT_RANGE,
 ): number | null {
   if (massTempC === null || airTempC === null || dewPointC === null) return null
   if (!Number.isFinite(massTempC) || !Number.isFinite(airTempC) || !Number.isFinite(dewPointC)) {
@@ -109,9 +121,9 @@ export function frictionFactorA(
   }
   const cond = condensationFactor(massTempC - dewPointC)
   if (cond === null) return null
-  const heat = Math.exp(-Math.max(0, airTempC - HEAT_START_C) / HEAT_SCALE_C)
+  const heat = Math.exp(-Math.max(0, airTempC - range.highC) / HEAT_SCALE_C)
   const humidity = Math.exp(-Math.max(0, dewPointC - DEW_START_C) / DEW_SCALE_C)
-  const cold = Math.exp(-Math.max(0, COLD_START_C - airTempC) / HEAT_SCALE_C)
+  const cold = Math.exp(-Math.max(0, range.lowC - airTempC) / HEAT_SCALE_C)
   return cond * heat * humidity * cold
 }
 
@@ -228,6 +240,8 @@ export type CragAOptions = {
   /** The crag itself — where the eight walls are placed for the sun. */
   lat: number
   lon: number
+  /** The reader's temperature range; absent is Crag A's own. */
+  range?: TempRangeC
 }
 
 /**
@@ -261,7 +275,7 @@ export function evaluateCragA(
     const xs = tracks.map((t) => t[i] ?? null)
     const dry = xs.some((x) => x === null) ? null : median(xs as number[])
     // No one wall's clock, so no one wall's drying hours.
-    return finish(h, hours[i]!, dry, rockType, null)
+    return finish(h, hours[i]!, dry, rockType, null, options.range)
   })
 }
 
@@ -309,9 +323,10 @@ function finish(
   dryness: number | null,
   rockType: RockType,
   effectiveDryHours: number | null,
+  range?: TempRangeC,
 ): HourlyConditions {
   const massTempC = base.diagnostics.t_mass_c
-  const friction = frictionFactorA(massTempC, weather.air_temp_c, weather.dewpoint_c)
+  const friction = frictionFactorA(massTempC, weather.air_temp_c, weather.dewpoint_c, range)
   const fLevel = frictionLevel(friction)
   const condensing = isCondensing(base.condensation_margin_c)
   const rLevel = rockLevelA(dryness, rockType)

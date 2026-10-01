@@ -19,6 +19,15 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   hour-for-hour against `.claude/docs/crag-a-reference/model.ts` — a change that moves a
   result needs an argument. **Every constant is a judgement call**; nothing is validated
   against outcomes (#143).
+- **A reader's temperature range moves Crag A's friction edges, and nothing else** (scoring
+  Phase 5, owner decision 2026-10-01). `user_preferences.temp_low_c`/`temp_high_c`, null for
+  the default; `TEMP_RANGE_DEFAULT_F` (`packages/types`) is the one spelling of 30–60 °F and
+  `COLD_START_C`/`HEAT_START_C` derive from it. `/hourly` and `/conditions` read it per
+  request through `tempRangeFor` into `ScoringLocation.range`, so **readings are per reader,
+  not per crag** — two partners can see two friction words for one crag. A failed read is a
+  500, never the default. Limits and the 10 °F minimum gap are `TEMP_RANGE_LIMITS_F`. The
+  Phase 0 columns on that table (`ideal_temp_*`, `drying_caution`, `include_sun`,
+  `window_min_*`) are read by nothing.
 - **`rockThermal.ts` is Layer 1.** Irradiance comes from one deterministic model,
   `gfs_seamless` (`THERMAL_MODEL`); a reading above 1400 W/m² is a gap. **One model is a
   cost decision, not a safety rule** (#212): the mean of GFS, ECMWF and ICON measured 0.2 °F

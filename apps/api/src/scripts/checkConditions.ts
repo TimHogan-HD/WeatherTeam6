@@ -121,6 +121,7 @@ async function run(): Promise<void> {
   } = await import('../lib/runs/conditionsReadings.js')
   const { getHourlySeries } = await import('../lib/runs/fetchHourlySeries.js')
   const { scoringLocationFor } = await import('../lib/runs/scoringLocation.js')
+  const { tempRangeFor } = await import('../lib/preferences/preferences.js')
   const { computeLiveForecast } = await import('../lib/scoring/liveForecast.js')
   const {
     FRICTION_ESTIMATE_NOTE,
@@ -138,6 +139,7 @@ async function run(): Promise<void> {
   /** The route's own column list, not a restatement of it. */
   const LOCATION_COLUMNS = {
     id: locations.id,
+    user_id: locations.user_id,
     name: locations.name,
     lat: locations.lat,
     lon: locations.lon,
@@ -164,7 +166,10 @@ async function run(): Promise<void> {
   async function gather(location: NonNullable<Location>) {
     const now = new Date()
 
-    const scoring = scoringLocationFor(location)
+    // The route judges friction against the reader's range; the reader is the row's owner.
+    const scoring = location.is_climbing_location
+      ? scoringLocationFor(location, await tempRangeFor(location.user_id))
+      : null
 
     const [live, series, activeAlerts] = await Promise.all([
       computeLiveForecast(location),

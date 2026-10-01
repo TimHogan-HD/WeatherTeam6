@@ -12,6 +12,7 @@ import {
 } from '../lib/runs/conditionsReadings.js'
 import { getHourlySeries } from '../lib/runs/fetchHourlySeries.js'
 import { scoringLocationFor } from '../lib/runs/scoringLocation.js'
+import { tempRangeFor } from '../lib/preferences/preferences.js'
 import { parseNumeric, parseNumericRequired } from '@weatherteam6/types'
 import type { ApiResponse, ConditionsReadings, ConditionsScore } from '@weatherteam6/types'
 
@@ -69,7 +70,10 @@ conditionsRouter.get('/conditions/:locationId', async (req: Request, res: Respon
      * substituted for drying and is never treated as a recorded wall. The one
      * implementation is `scoringLocationFor`, shared with `/hourly`.
      */
-    const scoring = scoringLocationFor(location)
+    // A crag's readings are judged against the reader's own temperature range.
+    const scoring = location.is_climbing_location
+      ? scoringLocationFor(location, await tempRangeFor(req.userId))
+      : null
 
     /**
      * Both halves at once, and **neither may take the other down.**

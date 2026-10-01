@@ -48,6 +48,24 @@ describe('frictionFactorA', () => {
     expect(frictionFactorA(10, 12, 10)).toBe(0)
   })
 
+  it('keeps its own 30–60 °F range when the reader has none', () => {
+    // 60 °F is 15.56 °C: just under it is full grip, a degree over is not.
+    expect(frictionFactorA(20, 15.5, 0)).toBeCloseTo(1, 6)
+    expect(frictionFactorA(20, 16.6, 0)!).toBeLessThan(1)
+    // 30 °F is -1.11 °C.
+    expect(frictionFactorA(20, -1, -20)).toBeCloseTo(1, 6)
+    expect(frictionFactorA(20, -2.2, -20)!).toBeLessThan(1)
+  })
+
+  it('moves the heat and cold edges to the reader’s range', () => {
+    const warm = { lowC: -1.11, highC: 26.7 } // 30–80 °F
+    expect(frictionFactorA(30, 24, 0, warm)).toBeCloseTo(1, 6)
+    expect(frictionFactorA(30, 24, 0)!).toBeLessThan(0.6)
+    const cold = { lowC: -17.8, highC: 10 } // 0–50 °F
+    expect(frictionFactorA(0, -10, -20, cold)).toBeCloseTo(1, 6)
+    expect(frictionFactorA(20, 15, 0, cold)!).toBeLessThan(1)
+  })
+
   it('withholds rather than defaulting a missing input', () => {
     expect(frictionFactorA(null, 12, 0)).toBeNull()
     expect(frictionFactorA(12, null, 0)).toBeNull()
@@ -115,6 +133,17 @@ describe('evaluateCragA — the drying clock', () => {
     expect(out[120]!.score).toBeNull()
     expect(out[121]!.score).toBeNull()
     expect(out[191]!.score).not.toBeNull()
+  })
+
+  it('scores friction against the range it is handed', () => {
+    // A hot, dry series: 30 °C (86 °F) afternoons.
+    // Hour 111 is 15:00 on day 5, once the rock mass has the history it needs.
+    const hot = series(120, (_, h) => ({ air_temp_c: (h.air_temp_c ?? 0) + 18 }))
+    const own = crag(hot)
+    const warmLover = evaluateCragA(hot, { rockType: 'granite', lat: LAT, lon: LON, range: { lowC: -1.11, highC: 29.4 } })
+    expect(own[111]!.diagnostics.friction_factor).not.toBeNull()
+    expect(warmLover[111]!.diagnostics.friction_factor!).toBeGreaterThan(own[111]!.diagnostics.friction_factor!)
+    expect(warmLover[111]!.score!).toBeGreaterThan(own[111]!.score!)
   })
 
   it('lets snow lie and caps dryness while it does', () => {

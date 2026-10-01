@@ -28,6 +28,7 @@
     "check:delete-trip": "tsx src/scripts/checkDeleteTrip.ts",
     "check:feedback": "tsx src/scripts/checkFeedback.ts",
     "check:logbook": "tsx src/scripts/checkLogbook.ts",
+    "check:preferences": "tsx src/scripts/checkPreferences.ts",
     "check:weather-runs": "tsx src/scripts/checkWeatherRuns.ts",
     "check:hourly": "tsx src/scripts/checkHourly.ts",
     "check:runs-storage": "tsx src/scripts/checkRunsStorage.ts",

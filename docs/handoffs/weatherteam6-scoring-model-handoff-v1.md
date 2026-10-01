@@ -558,6 +558,14 @@ sections of `scoring-algorithm.md` that describe it.
 **Acceptance:** no reference to `component_upcoming_rain` remains outside a migration.
 **Git checkpoint:** one PR.
 
+**5a SHIPPED 2026-10-01 — preferences.** The owner chose two settings: a **temperature
+range** (where Crag A's cold and heat friction penalties start, default 30–60 °F, each end
+movable within `TEMP_RANGE_LIMITS_F`, at least 10 °F apart) and the **tab a crag opens on**.
+Both are on the Profile screen; `GET`/`PUT /preferences`; three nullable columns on the
+existing `user_preferences` (migration 0022), whose Phase 0 columns stay unread. Readings are
+now per reader (`architecture.md`). Units, alert thresholds, drying caution and the sun
+toggle were not chosen. **5b — retiring the five-component scorer — is what remains.**
+
 ## Data Shapes / Schemas
 
 ```typescript

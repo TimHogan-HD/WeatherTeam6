@@ -46,7 +46,7 @@ import {
   type HourlyConditions,
   type WeatherHour,
 } from '../scoring/hourlyConditions.js'
-import { dayRepresentative, evaluateCragA } from '../scoring/cragModel.js'
+import { dayRepresentative, evaluateCragA, type TempRangeC } from '../scoring/cragModel.js'
 import { localDateString } from '../weather/openMeteo.js'
 import type { DeterministicRuns, ModelRun } from './latestRuns.js'
 
@@ -96,6 +96,8 @@ export type BuildReadingsInput = {
    */
   now: Date
   windowMinScore?: number
+  /** The reader's temperature range for friction (`user_preferences`); absent is Crag A's own. */
+  range?: TempRangeC
 }
 
 const none = (reason: ReadingsUnavailableReason): HourlyReadings => ({
@@ -192,6 +194,7 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
     rockType: input.rockType,
     lat: input.lat,
     lon: input.lon,
+    ...(input.range === undefined ? {} : { range: input.range }),
   })
 
   // Every hour, past and future, went into the calculation. Only the published

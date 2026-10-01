@@ -155,6 +155,13 @@
       "when": 1790847289679,
       "tag": "0021_busy_nitro",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790875682988,
+      "tag": "0022_preferences_temp_range",
+      "breakpoints": true
     }
   ]
 }

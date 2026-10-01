@@ -1,6 +1,7 @@
 import { useRef, type ReactNode } from 'react'
 import { spacing } from '@weatherteam6/design/tokens'
 import type {
+  DetailTabKey,
   ConditionsScore,
   ForecastSnapshot,
   HourlySeries,
@@ -140,7 +141,7 @@ export type DetailViewProps = {
 /** The Next 7 days card's height (the V2 frame's 685), held open while the forecast loads on the Daily tab. */
 const DAILY_H = 685
 
-export type DetailTab = 'overview' | 'daily' | 'hourly' | 'precip' | 'rock' | 'crag'
+export type DetailTab = DetailTabKey
 
 /**
  * The tabs a location offers. A city gets no Rock or Crag — there is nothing
