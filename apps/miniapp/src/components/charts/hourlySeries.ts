@@ -1,4 +1,3 @@
-import { CURRENT_HOUR_TOLERANCE_MS } from '@weatherteam6/types'
 import type { HourlyDay, HourlySample } from '@weatherteam6/types'
 import { contiguousRuns, extent, unionExtent, type Extent, type Run } from './geometry.js'
 
@@ -325,47 +324,6 @@ export function windSpreadSeries(hours: readonly HourlySample[]): SeriesDatum[] 
   return hours
     .map((h) => toDatum(h, h.wind_kmh_p50, h.wind_kmh_p10, h.wind_kmh_p90))
     .filter((d): d is SeriesDatum => d !== null)
-}
-
-/**
- * How far from `now` an hour may be and still be called the current conditions.
- *
- * **Re-exported, not redeclared.** `readingNow` in `packages/types` answers the
- * same question about the v2 readings, and two copies of this number is how one
- * surface comes to call an hour "now" that another has already moved past.
- */
-export { CURRENT_HOUR_TOLERANCE_MS }
-
-/**
- * The hour covering `now`, or `null` when the run does not reach it.
- *
- * **This is the first thing in the app entitled to say "now".** Every other
- * surface shows `temp_c_max`, a daily *maximum*, and labelling that a present
- * reading is a factual error the design spec names explicitly — Red Rock's
- * 39.5 °C is today's high, not the temperature outside. The hourly run is the
- * first source with an hour in it.
- *
- * `null` rather than the nearest hour when nothing is close: a stored run can be
- * an hour old and a stale one much older, and "now" attached to a reading from
- * three hours ago is the same class of claim as naming a model that did not
- * answer. The caller shows the daily figures instead.
- */
-export function currentHour(
-  hours: readonly HourlySample[],
-  now: number,
-): HourlySample | null {
-  let best: HourlySample | null = null
-  let bestDistance = Number.POSITIVE_INFINITY
-  for (const hour of hours) {
-    const t = Date.parse(hour.valid_at)
-    if (!Number.isFinite(t)) continue
-    const distance = Math.abs(t - now)
-    if (distance < bestDistance) {
-      bestDistance = distance
-      best = hour
-    }
-  }
-  return bestDistance <= CURRENT_HOUR_TOLERANCE_MS ? best : null
 }
 
 /**

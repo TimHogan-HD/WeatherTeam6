@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
-import { EM_DASH, cToF, formatHumidity, formatWindMph } from '@weatherteam6/types'
+import { EM_DASH, cToF, formatHumidity, formatWindMph, readingNow } from '@weatherteam6/types'
 import { typeV2, withOpacity } from '../../theme/tokens.css.js'
 import { row, stack } from '../../theme/styles.js'
 import { formatTempDeg } from '../../lib/format.js'
@@ -153,8 +153,10 @@ export function TodayChart({
   const nowX = now >= TODAY_CHART_FROM && now <= TODAY_CHART_TO ? x(now) : null
   const pastX = now > TODAY_CHART_TO ? w - PAD_X : nowX
 
-  const selected = chartHourAt(hours, picked ?? now)
-  const nowCell = chartHourAt(hours, now)
+  // "Now" is `readingNow`'s hour, the one the hero above prints, so the two
+  // cannot show different figures for the same moment.
+  const nowCell = readingNow(hours, nowMs)
+  const selected = picked === null ? (nowCell ?? chartHourAt(hours, now)) : chartHourAt(hours, picked)
   const isNow = selected !== null && nowCell !== null && selected.hour === nowCell.hour && nowX !== null
   /** The chart hour under a clientX, from the element's own box. */
   const hourAtClient = (clientX: number, box: DOMRect): number =>

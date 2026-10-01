@@ -102,9 +102,9 @@ export function todayChart(
 
 /**
  * The chart hour nearest `hour` (fractional, on the location's clock) that the
- * chart actually carries — what a tap at that point selects, and, given the
- * current time, what the readout shows before anyone taps. `null` only for an
- * empty chart.
+ * chart actually carries — what a tap at that point selects. Before anyone
+ * taps, the readout shows `readingNow`'s hour instead, the one the hero prints.
+ * `null` only for an empty chart.
  *
  * **The hour covering the moment, not the nearest mark**: 14:40 is the 14:00
  * hour. A missing hour is skipped for the nearest one present, so a gap in the
