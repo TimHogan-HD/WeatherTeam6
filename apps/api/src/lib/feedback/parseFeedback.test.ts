@@ -173,6 +173,7 @@ describe('toFeedback', () => {
     verdict: 'missed' as const,
     app_readings: SNAPSHOT as unknown,
     created_at: new Date('2026-09-29T18:00:00.000Z'),
+    resolved_at: null,
   }
 
   it('returns ISO instants and keeps the name of a detached location', () => {

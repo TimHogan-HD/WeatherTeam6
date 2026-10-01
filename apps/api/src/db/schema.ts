@@ -298,6 +298,12 @@ export const feedback = pgTable(
     /** `FeedbackAppReadings` — words the screen showed, never a 0-1 factor. */
     app_readings: jsonb('app_readings'),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    /**
+     * When the item was acted on. Null is open. A resolved row leaves
+     * `GET /feedback` but stays in the table — a forecast check is still
+     * evidence after someone has read it.
+     */
+    resolved_at: timestamp('resolved_at', { withTimezone: true }),
   },
   (t) => [
     index('feedback_user_created_idx').on(t.user_id, t.created_at),

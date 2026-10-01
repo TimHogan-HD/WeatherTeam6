@@ -19,3 +19,14 @@ export function useCreateFeedback() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: feedbackKey }),
   })
 }
+
+/** Marks one item acted on — `POST /feedback/:id/resolve`. It then leaves the list. */
+export function useResolveFeedback() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiPost<null>(`/feedback/${encodeURIComponent(id)}/resolve`, {}),
+    // Returned, so the item stays "Marking…" until the refetch drops it rather
+    // than flashing back to "Done".
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: feedbackKey }),
+  })
+}

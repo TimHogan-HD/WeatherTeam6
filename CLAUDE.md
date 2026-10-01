@@ -35,7 +35,11 @@ npm run check:conditions    # GET /conditions composition — the strongest chec
 npm run check:hourly        # GET /hourly/:id
 npm run check:weather-runs  # run storage and pruning
 npm run check:ui            # the web app in Chromium at 480x1000: every screen, screenshotted
+npm run feedback -- list    # open feedback from every account
+npm run feedback -- resolve <id>...   # mark items acted on
 ```
+
+**When a merged change answers a feedback item, resolve it** — open feedback is the to-do list the owner reads in the app.
 
 Run `npm run db:generate` before `npm run db:migrate` — never `drizzle-kit push`.
 

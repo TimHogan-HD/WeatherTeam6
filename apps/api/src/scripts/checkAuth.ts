@@ -89,7 +89,7 @@ async function run(): Promise<void> {
 
   const { createApp } = await import('../index.js')
   const { db, pool } = await import('../db/index.js')
-  const { users, locations, trips, tripLocations, walls } = await import('../db/schema.js')
+  const { users, locations, trips, tripLocations, walls, feedback } = await import('../db/schema.js')
   const { hashPassword } = await import('../lib/auth/password.js')
   const { signToken, expiryFrom } = await import('../lib/auth/token.js')
   const { eq, inArray } = await import('drizzle-orm')
@@ -294,6 +294,16 @@ async function run(): Promise<void> {
       `got ${crossHistory.status}`,
     )
 
+    const feedbackB = await db
+      .insert(feedback)
+      .values({ user_id: idB, kind: 'app', message: `${PREFIX} feedback` })
+      .returning({ id: feedback.id })
+    const fbB = feedbackB[0]?.id ?? ''
+    const crossResolve = await call<null>('POST', `/feedback/${fbB}/resolve`, { auth: `Session ${token}` })
+    check("POST /feedback/:id/resolve on B's feedback is 404 for A", crossResolve.status === 404, `got ${crossResolve.status}`)
+    const fbRow = await db.select({ resolved_at: feedback.resolved_at }).from(feedback).where(eq(feedback.id, fbB))
+    check("and B's feedback is still open", fbRow.length === 1 && fbRow[0]?.resolved_at === null)
+
     const strayTrips = await db.select({ id: trips.id }).from(trips).where(eq(trips.user_id, idA))
     const strayWalls = await db.select({ id: walls.id }).from(walls).where(eq(walls.location_id, locB))
     check('and none of them wrote a row', strayTrips.length === 0 && strayWalls.length === 0)
@@ -360,6 +370,7 @@ async function run(): Promise<void> {
         await db.delete(locations).where(inArray(locations.id, createdLocationIds))
       }
       if (createdUserIds.length > 0) {
+        await db.delete(feedback).where(inArray(feedback.user_id, createdUserIds))
         await db.delete(users).where(inArray(users.id, createdUserIds))
       }
     } catch (err) {

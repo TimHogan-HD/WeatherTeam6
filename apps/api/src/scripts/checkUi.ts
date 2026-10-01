@@ -115,7 +115,7 @@ async function run(): Promise<void> {
 
   const { createApp } = await import('../index.js')
   const { db, pool } = await import('../db/index.js')
-  const { users, userPreferences } = await import('../db/schema.js')
+  const { users, userPreferences, feedback } = await import('../db/schema.js')
   const { hashPassword } = await import('../lib/auth/password.js')
   const { eq } = await import('drizzle-orm')
   const { chromium } = await import('playwright')
@@ -379,6 +379,18 @@ async function run(): Promise<void> {
     )
     await page.getByRole('status').filter({ hasText: 'Saved.' }).waitFor({ timeout: 15_000 })
     await screen('profile-saved')
+
+    // 3d. Feedback: an open item shows with Done, and Done clears it.
+    const note = `${PREFIX} feedback note`
+    const noteSent = await api<null>('POST', '/feedback', token, { kind: 'app', message: note })
+    check('POST /feedback saves an app note', noteSent.status === 201, `got ${noteSent.status}`)
+    await page.goto(`${WEB}/feedback`)
+    const item = page.locator('article').filter({ hasText: note })
+    await item.waitFor({ timeout: 30_000 })
+    await screen('feedback')
+    await item.getByRole('button', { name: 'Done' }).click()
+    const cleared = await item.waitFor({ state: 'detached', timeout: 15_000 }).then(() => true, () => false)
+    check('Done clears the item from Open feedback', cleared)
     await page.goto(`${WEB}/`)
     await page.locator('[role="button"]').first().click()
     await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
@@ -600,7 +612,10 @@ async function run(): Promise<void> {
       if (del === null || del.status >= 300) cleanupFailed = true
     }
     if (userId !== null) {
-      // The settings row holds a foreign key to the user, so it goes first.
+      // The settings and feedback rows hold a foreign key to the user, so they go first.
+      await db.delete(feedback).where(eq(feedback.user_id, userId)).catch(() => {
+        cleanupFailed = true
+      })
       await db.delete(userPreferences).where(eq(userPreferences.user_id, userId)).catch(() => {
         cleanupFailed = true
       })
