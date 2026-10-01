@@ -4,7 +4,6 @@ import { weatherEnsembleHours, weatherRunHours, weatherRuns } from '../../db/sch
 import { logger } from '../logger.js'
 import {
   DETERMINISTIC_MODELS,
-  fetchDeterministicHourly,
   fetchEnsembleRun,
   localDateString,
   localTimeToUtc,
@@ -14,7 +13,8 @@ import {
   type HourlyPoint,
   type OpenMeteoResult,
 } from '../weather/openMeteo.js'
-import { rainMedian, type RainMedian } from '../weather/rainMedian.js'
+import type { RainMedian } from '../weather/rainMedian.js'
+import { fetchForecastOnlyRuns, fetchThermalRun, type FetchedRuns } from './deterministicFetch.js'
 import { THERMAL_MODEL } from './hourlyReadings.js'
 import { pointKeyForPlace } from './pointKey.js'
 import { ENSEMBLE_RUN_MODEL, storeDeterministicRun, storeEnsembleRun } from './storeRun.js'
@@ -314,27 +314,32 @@ export async function getDeterministicRuns(
     return stored
   }
 
-  let result: Awaited<ReturnType<typeof fetchDeterministicHourly>>
+  // The same two requests `collect-runs` makes, so a place nobody has
+  // collected yet is stored with the thermal model's trailing history rather
+  // than a run without it that the collection then treats as current (#176).
+  // Either failing fails the read, as the single request it replaced did.
+  let fetched: FetchedRuns[]
   try {
-    result = await fetchDeterministicHourly(point, DETERMINISTIC_MODELS)
+    fetched = await Promise.all([fetchThermalRun(point), fetchForecastOnlyRuns(point)])
   } catch (err) {
     // Older stored runs, each labelled with its own age, beat an error page.
     if (stored !== null) return stored
     throw err
   }
 
-  const rain = rainMedian(result)
-  try {
-    await storeDeterministicRun(pointKey, result, rain)
-  } catch (err) {
-    logger.warn(
-      { pointKey, err: err instanceof Error ? err.message : String(err) },
-      '[latestRuns] could not persist a deterministic run — rendering it anyway',
-    )
+  for (const { result, rain } of fetched) {
+    try {
+      await storeDeterministicRun(pointKey, result, rain)
+    } catch (err) {
+      logger.warn(
+        { pointKey, err: err instanceof Error ? err.message : String(err) },
+        '[latestRuns] could not persist a deterministic run — rendering it anyway',
+      )
+    }
   }
 
-  return {
-    models: result.models.map((m) => {
+  const models: ModelRun[] = fetched.flatMap(({ result, rain }) =>
+    result.models.map((m) => {
       const own = m.model === THERMAL_MODEL ? rain : null
       return {
         model: m.model,
@@ -345,10 +350,17 @@ export async function getDeterministicRuns(
         checked_at: result.fetched_at,
       }
     }),
-    unavailable_models: result.unavailable_models,
-    utc_offset_seconds: result.utc_offset_seconds,
-    fetched_at: result.fetched_at,
-    checked_at: result.fetched_at,
+  )
+  const present = new Set(models.map((m) => m.model))
+  // A request with no coverage answers with an offset of 0, not the place's.
+  const answered = fetched.find(({ result }) => result.models.length > 0)
+
+  return {
+    models,
+    unavailable_models: DETERMINISTIC_MODELS.filter((m) => !present.has(m)),
+    utc_offset_seconds: answered?.result.utc_offset_seconds ?? 0,
+    fetched_at: oldest(models.map((m) => m.fetched_at)),
+    checked_at: oldest(models.map((m) => m.checked_at)),
   }
 }
 

@@ -86,7 +86,9 @@ by keeping 0.5 mm/h for sheltered walls.
 - G5: an overhang in all-day drizzle scores 0 because the synthetic weather sets dew point =
   air temperature in rain. Check on real drizzle days.
 - G10 / F13: the heat rule can't see an overhang's shade on a warm humid afternoon.
-- Production needs the rain history seeded (issue #176); the app keeps ~5 trailing days.
+- The clock starts soaked at the series' first hour. The app keeps 7 trailing days, which a
+  92-day replay found enough for every rock type (`compare:trailing-days`, #176); rerun it in
+  winter.
 - Nothing is validated against outcomes (issue #143).
 
 ## Not built

@@ -8,14 +8,8 @@ import {
   staleSources,
   type CollectedModel,
 } from '../weather/modelMetadata.js'
-import {
-  DETERMINISTIC_MODELS,
-  fetchDeterministicHourly,
-  fetchEnsembleRun,
-  type DeterministicResult,
-  type ForecastLocation,
-} from '../weather/openMeteo.js'
-import { RAIN_MODELS, rainMedian } from '../weather/rainMedian.js'
+import { fetchEnsembleRun, type ForecastLocation } from '../weather/openMeteo.js'
+import { FORECAST_ONLY_MODELS, fetchForecastOnlyRuns, fetchThermalRun } from './deterministicFetch.js'
 import { THERMAL_MODEL } from './hourlyReadings.js'
 import { pointKeyForPlace } from './pointKey.js'
 import { confirmRuns, storeDeterministicRun, storeEnsembleRun } from './storeRun.js'
@@ -58,57 +52,6 @@ export type CollectResult = {
   unreadableMetadata: string[]
 }
 
-/**
- * Forecast days requested. The default `fetchDeterministicHourly` uses; named
- * here only so the trailing-days argument beside it is not a bare number in a
- * call with three of them.
- */
-const FORECAST_DAYS = 7
-
-/**
- * **Days of already-observed weather stored alongside the forecast, and the
- * v2 model is the only reason for them.**
- *
- * `T_mass` — the multi-day temperature the rock has been sitting at — is what
- * tells 10 °C after a cold week from 10 °C after a warm one, and the exponential
- * average behind it refuses a series shorter than 96 hours. `weather_run_hours`
- * retains two days, so without this every reading would be withheld for want of
- * history. 5 days clears the minimum with room for gaps.
- *
- * **These hours are the model's own analysis, not station observations.** They
- * are the best trailing temperature available without a second API, and they
- * are not measurements — nothing may present them as such.
- *
- * **Stored for `THERMAL_MODEL` alone** — see `FORECAST_ONLY_MODELS` for the
- * measurement that forced the split. `check:runs-storage` is where to watch the
- * cost if more locations are added.
- *
- * **Requested for all of `RAIN_MODELS`**, because the drying clock reads their
- * hourly median rather than the thermal model's own rain (issue #209), and its
- * history needs theirs too. Only the thermal model's run is stored from that
- * request; the median rides on its hours as `rain_median_mm`, one column
- * rather than three more runs of trailing rows. It is refreshed when the
- * thermal model is, so it can lag another model's newer run by one cycle.
- */
-const TRAILING_DAYS = 5
-
-/**
- * The five models fetched **without** trailing history.
- *
- * Only `THERMAL_MODEL` feeds `T_surface` and `T_mass`, so only its past hours
- * are ever read. Asking for `past_days` across all six looked simpler and was
- * measured at **+71% on `weather_run_hours`**, the largest table in a database
- * already at 239 MB of Neon's 512 MB cap — the same table whose growth took
- * production down with `could not extend file` in September. Splitting the
- * request costs one extra HTTP call per location and brings it to +12%.
- */
-const FORECAST_ONLY_MODELS = DETERMINISTIC_MODELS.filter((m) => m !== THERMAL_MODEL)
-
-/** The thermal model's run out of the `RAIN_MODELS` request — the only one stored from it. */
-function thermalOnly(result: DeterministicResult): DeterministicResult {
-  return { ...result, models: result.models.filter((m) => m.model === THERMAL_MODEL) }
-}
-
 /** Each point's newest stored `fetched_at` per model. */
 async function newestFetches(pointKeys: string[]): Promise<Map<string, Map<string, Date>>> {
   const rows = await db
@@ -128,21 +71,6 @@ async function newestFetches(pointKeys: string[]): Promise<Map<string, Map<strin
     out.set(r.point_key, byModel)
   }
   return out
-}
-
-/**
- * **Collection never splits `precipitation_probability` into owned and shared.**
- * `markSharedProbability` can only tell a shared series from an owned one by
- * comparing every model in one response, and no collection request carries all
- * six: the thermal model goes alone, and the rest go only when they changed.
- * A model alone in its response would read as owning a series it shares, so the
- * flag is stored as null — unknown — which is what a renderer must withhold on.
- */
-function withoutShareFlag(result: DeterministicResult): DeterministicResult {
-  return {
-    ...result,
-    models: result.models.map((m) => ({ ...m, probability_is_shared: null })),
-  }
 }
 
 /**
@@ -227,10 +155,8 @@ export async function collectWeatherRuns(now: Date = new Date()): Promise<Collec
       // The three upstream calls are independent, and one failing must not
       // cost the others. A request that is not needed resolves to null.
       const [thermalRun, otherRuns, ensemble] = await Promise.allSettled([
-        wanted.has(THERMAL_MODEL)
-          ? fetchDeterministicHourly(point, RAIN_MODELS, FORECAST_DAYS, TRAILING_DAYS)
-          : null,
-        others.length > 0 ? fetchDeterministicHourly(point, others, FORECAST_DAYS) : null,
+        wanted.has(THERMAL_MODEL) ? fetchThermalRun(point) : null,
+        others.length > 0 ? fetchForecastOnlyRuns(point, others) : null,
         wanted.has('ensemble') ? fetchEnsembleRun(point) : null,
       ])
 
@@ -251,17 +177,12 @@ export async function collectWeatherRuns(now: Date = new Date()): Promise<Collec
           continue
         }
         if (run.value === null) continue
-        const thermal = label === 'thermal'
-        const storedRuns = await storeDeterministicRun(
-          point_key,
-          withoutShareFlag(thermal ? thermalOnly(run.value) : run.value),
-          thermal ? rainMedian(run.value) : null,
-        )
+        const storedRuns = await storeDeterministicRun(point_key, run.value.result, run.value.rain)
         runsStored += storedRuns.length
         hoursStored += storedRuns.reduce((acc, s) => acc + s.hours, 0)
-        if (run.value.unavailable_models.length > 0) {
+        if (run.value.result.unavailable_models.length > 0) {
           logger.debug(
-            { pointKey: point_key, unavailable: run.value.unavailable_models.join(',') },
+            { pointKey: point_key, unavailable: run.value.result.unavailable_models.join(',') },
             '[collectRuns] models with no coverage at this point',
           )
         }
