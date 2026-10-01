@@ -9,20 +9,24 @@ paths: apps/miniapp/**
 
 ## In this repo — read first
 
-Where this skill and the repo disagree, the repo wins: `docs/handoffs/miniapp-design-v1.md`
-(binding), `docs/handoffs/design-system-v1.md` § CSS and motion, and
-`.claude/docs/ui-craft.md`. Known clashes:
+**The app's design is open** (owner, 2026-10-01: "I am not hard set on anything design
+wise"). What is built is the current state, not a rule to defend. Where this skill would do
+something different, **say so and show it** — as two or three variants side by side — and
+let the owner choose. Do not silently apply your preference, and do not silently drop it
+either.
 
-- **A pressed control dims at once to `press.opacity`, with no transition and no scale**
-  (owner decision 2026-09-30, one `:active` rule in `globals.css`). Do not propose
-  `scale(0.97)` on press.
-- **The bottom bar pill's overshoot easing (`TabBar.tsx`) is the owner's choice.** Mention
-  it only when asked about that bar.
-- **Colours and sizes come from the tokens** through the `--wt6-*` custom properties, never
-  literals; every animation settles at once under `prefers-reduced-motion`; the contrast
-  floors bind at rest.
-- **The app is a phone app.** Hover advice applies only behind
-  `@media (hover: hover) and (pointer: fine)`, and there are no keyboard-shortcut surfaces.
+What is built today, so a suggestion starts from the right place:
+
+- A pressed control dims at once to `press.opacity`, with no transition and no scale (one
+  `:active` rule in `globals.css`). A press scale is a fair thing to propose.
+- The bottom bar pill slides with an overshooting easing (`TabBar.tsx`).
+- Colours and sizes come from the tokens through the `--wt6-*` custom properties, and every
+  animation settles at once under `prefers-reduced-motion`.
+- It is used on a phone. Hover only applies behind `@media (hover: hover) and (pointer: fine)`,
+  and there are no keyboard-shortcut surfaces.
+
+Not taste, and still in force: the copy rules and contrast floors in
+`docs/handoffs/design-system-v1.md`.
 
 # Design Engineering
 

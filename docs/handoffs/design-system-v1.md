@@ -1,16 +1,24 @@
 # WeatherTeam6: Design System
 
-Version: v1 · Date: 2026-06-11 · **Locked. Client-agnostic.**
+Version: v1 · Date: 2026-06-11 · Client-agnostic.
 
+> **The visual and interaction design is open** (owner, 2026-10-01: *"I am not hard set on
+> anything design wise"*). Colours, layout, spacing, type, motion and press feedback below
+> are the current design, not settled decisions. Propose changes, show them as variants, and
+> talk them through with the owner, rather than treating any of it as fixed. Two things here
+> are not taste, and stay unless the owner says otherwise: the **copy rules**, which keep a
+> reading from claiming more than the data supports, and the **contrast floors**, which keep
+> text readable.
+>
 > **What this is.** The visual and copy contract every screen obeys. It was extracted on
 > 2026-09-23 from `weatherteam6-ui-handoff-v1.md`, a 682-line handoff for the React Native
 > app: that app was deleted, its twelve per-screen phases (7b through 12) went with it, and
 > only this part was ever in force for the web client. The original is recoverable from the
 > `archive/2026-09-23-pre-cleanup` tag.
 >
-> The client's own spec is `docs/handoffs/miniapp-design-v1.md` and it is binding. **Where
-> it and this document disagree, it wins** — but it *extends* this rather than replacing it,
-> so everything below still applies unless that spec says otherwise.
+> The client's own spec is `docs/handoffs/miniapp-design-v1.md`, which describes what is
+> built. **Where it and this document disagree, it wins** — but it *extends* this rather
+> than replacing it, so everything below still applies unless that spec says otherwise.
 
 ## Token source
 
@@ -23,7 +31,7 @@ In the web client this is not a direct import for every token: `colors`, `uvScal
 `apps/miniapp/src/theme/tokens.css.ts`. The adapter **derives** every value from an import
 and never restates a literal. See the `miniapp-patterns` skill.
 
-## Contrast rules (locked — never override)
+## Contrast floors (readability)
 
 - Labels (`txt4`): min opacity 0.50
 - Body copy (`txt3`): min opacity 0.62
@@ -44,7 +52,7 @@ scales in `packages/design` — `tempScale`, `windScale`, `chanceScale`, `uvScal
 
 All mockup screens are drawn at **375 × 812** (iPhone logical resolution).
 
-## Copy rules (locked)
+## Copy rules (honesty, not taste)
 
 - **No climbing opinions** — no "go / don't go", no "send conditions"
 - **No p10/p50/p90 jargon** — plain language only ("models broadly agree", "firms up inside a week")
@@ -87,9 +95,9 @@ were removed with it.
    rewritten to plain factual readouts. Use the corrected copy as written, not as a template
    for inferring new climbing-opinion phrasing elsewhere.
 
-## Non-goals
+## Not built yet
 
-- A light theme. There is no light token set and every contrast rule above assumes near-white on dark
+- A light theme. There is no light token set and every contrast floor above assumes near-white on dark — open to discussion like the rest
 - ~~Bottom navigation~~ — built 2026-09-30 (`miniapp-design-v1.md` §2). `/add` is still not a tab
 
 ## CSS and motion
@@ -110,5 +118,5 @@ only tool. What still holds:
 - Motion answers something: a person's action, or data arriving. The behaviours already
   shipped — the bottom bar's sliding pill, the instant press dim (`:active` in
   `globals.css`, no transition, so a tap shows before a slow screen arrives), the smooth
-  scroll-to-top on the lit tab, `FadeIn` on a card's late weather — are the house style to
-  extend, not exceptions.
+  scroll-to-top on the lit tab, `FadeIn` on a card's late weather — are the current motion,
+  not exceptions and not fixed. Any of them can be proposed differently.

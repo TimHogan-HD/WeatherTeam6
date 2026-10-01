@@ -1,9 +1,11 @@
 # UI craft: placement, feel, and the tools for it
 
 Research of 2026-10-01, written for the session that next changes a screen. Read it with
-`docs/handoffs/miniapp-design-v1.md` (binding) and `design-system-v1.md` § CSS and motion.
-Neither of those is overridden here. This file collects the numbers and tools they leave
-out, and checks each one against what the app looks like in `check:ui`'s screenshots.
+`docs/handoffs/miniapp-design-v1.md` (what is built) and `design-system-v1.md`. The design
+is open (owner, 2026-10-01): anything here that suggests changing what is built is a
+proposal to discuss with the owner, shown as variants. This file collects the numbers and
+tools those docs leave out, and checks each one against what the app looks like in
+`check:ui`'s screenshots.
 
 ## 1. Placement
 
@@ -83,14 +85,13 @@ and an arrow appended to every link.
 
 The app has several of these: `WEATHERTEAM6`, `BASALT (DENSE)`, `CONDITIONS NOW · 16:00`
 and `THE ROCK HERE` as tracked caps; `1 saved · updated just now` and the coordinates in
-monospace; `Hourly ›` and `Daily ›` as links. **Most of them came from the owner's Figma
-file**, so raise a change with the owner before making it (see the
-`figma-visuals-over-rule-substitutes` memory). Asking "does this label carry information?"
-is still fair. `THE ROCK HERE` over the heading `Basalt (dense)` probably does not.
+monospace; `Hourly ›` and `Daily ›` as links. Most of them came from the Figma file, which
+is a starting point rather than a decision. Each is worth asking about: does this label
+carry information? `THE ROCK HERE` over the heading `Basalt (dense)` probably does not.
 
 `npx impeccable detect apps/miniapp/src` found one thing: the bottom bar pill's
-`cubic-bezier(.3, 1.25, .45, 1)` overshoots, which it calls bounce easing. Changing it is
-the owner's call. **The detector is written for CSS and Tailwind**, so it misses most
+`cubic-bezier(.3, 1.25, .45, 1)` overshoots, which it calls bounce easing. Worth showing the
+owner beside a plain ease-out. **The detector is written for CSS and Tailwind**, so it misses most
 problems in inline styles. A clean result here says little.
 
 ## 5. Candidates on the current screens
@@ -123,12 +124,11 @@ These are not decided. Each is a proposal to show as variants (§6).
   - `web-design-guidelines`: Vercel's interface rules, frozen in `RULES.md` rather than
     fetched live; for UI and accessibility reviews.
 
-**Not installed, deliberately.** Each adds taste that competes with the app's locked
-design:
+**Not installed yet:**
 
 | Tool | What it adds | Why not now |
 | --- | --- | --- |
-| `frontend-design` (Anthropic, official marketplace) | A design-direction pass and the list of AI defaults in §4 | It pushes for a new, distinctive look; the app's look is locked |
+| `frontend-design` (Anthropic, official marketplace) | A design-direction pass and the list of AI defaults in §4 | It pushes hard for a new, distinctive look. Useful if the owner wants to explore a different direction for the whole app |
 | Impeccable (Apache-2.0) | `critique`, `polish` and `animate` commands, plus the detector | Its own setup file and anti-patterns overlap the repo's docs; `npx impeccable detect` works without installing |
 | `playground` (official) | One HTML page with sliders for a visual decision, which writes out the prompt | Useful for a one-off decision; install when one comes up |
 

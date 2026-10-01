@@ -15,22 +15,24 @@ commit above.
 
 1. Read `RULES.md`.
 2. Read the files you were given; if none, ask which.
-3. Apply every rule, then drop the findings the section below overrides.
+3. Apply every rule, using the section below for what a finding means here.
 4. Report in `RULES.md`'s output format: grouped by file, terse `file:line` findings.
 
-## In this repo — these override the rules
+## In this repo — read first
 
-Where `RULES.md` and the repo disagree, the repo wins: `docs/handoffs/miniapp-design-v1.md`
-(binding), `docs/handoffs/design-system-v1.md` and `.claude/docs/ui-craft.md`.
+**The app's design is open** (owner, 2026-10-01). Where `RULES.md` disagrees with what is
+built, report it as a finding and let the owner decide; do not drop it because the app does
+something else today. Context that changes what a finding means:
 
-- **Sentence case, not Title Case**, for headings and buttons ("Check this forecast").
-- **No hover state is required.** The app runs on a phone; any hover style goes behind
+- Buttons and headings use sentence case ("Check this forecast"). Title Case is a style
+  choice to raise, not a defect.
+- It is used on a phone, so a missing hover state is not a defect; any hover goes behind
   `@media (hover: hover) and (pointer: fine)`.
-- **A destructive action confirms with a second tap** (`Tap again to remove`,
-  `LocationDetail.tsx`). That satisfies the confirmation rule; do not ask for a modal.
-- **A pressed control dims at once, with no transition** (owner decision 2026-09-30).
-- **Styling is mostly inline React styles with tokens**, not Tailwind. Translate a rule that
-  names a Tailwind class (`focus-visible:ring-*`, `truncate`, `min-w-0`) into its CSS
-  meaning.
-- **Hydration rules do not apply.** The app is a client-rendered Vite build with no server
-  rendering.
+- `Remove location` already confirms with a second tap (`Tap again to remove`,
+  `LocationDetail.tsx`).
+- Styling is mostly inline React styles with tokens, not Tailwind. Translate a rule that names
+  a Tailwind class (`focus-visible:ring-*`, `truncate`, `min-w-0`) into its CSS meaning.
+- The app is a client-rendered Vite build, so the hydration rules do not apply.
+
+Not taste, and still in force: the copy rules and contrast floors in
+`docs/handoffs/design-system-v1.md`.

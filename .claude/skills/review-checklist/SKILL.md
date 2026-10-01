@@ -78,7 +78,7 @@ suite; reading the diff is what caught them.
 - [ ] Nothing reintroduces a client-side `expires_at` check — a wrong device clock then discards a token it was just issued and dead-ends on `/login`
 - [ ] A new screen behind the gate is wrapped in `RequireAuth`, and a new back affordance goes through `backTarget` rather than calling `navigate('/')` — two of the five targets are not navigations
 - [ ] A colour reaching the manifest, `theme-color` or `public/icons/` still comes from the tokens; `npm run check:icons` passes after any palette change
-- [ ] Copy follows the locked rules in `docs/handoffs/design-system-v1.md` — no climbing opinions, score is never the headline, imperial units
+- [ ] Copy follows the copy rules in `docs/handoffs/design-system-v1.md` — no climbing opinions, score is never the headline, imperial units
 - [ ] Nothing formats a nullable weather value by hand — the `packages/types` formatters return an em dash, and `null` coerced to `0` renders a plausible `32°F` / `0 mph` instead of a visible gap
 - [ ] The readings and the suppression come from `readingsCopy.ts`, not reimplemented — and no surface derives a word from the score, which is what `stateLabel` did and why it is gone
 - [ ] `GET /conditions/:id` is not called for a non-climbing location, and no score, breakdown or hours-since-rain renders for one
