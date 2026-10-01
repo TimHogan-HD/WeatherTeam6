@@ -71,7 +71,8 @@ export function ScoreExplainer({ rangeF }: { rangeF: RangeF }) {
       <Part title={HELD_BACK_LABEL}>
         <P>
           Under Measurements on a crag’s Overview, this lists what is costing the score points, biggest
-          first. A cost is listed when it takes at least a point off on its own.
+          first. A cost is listed when it takes at least a point off on its own. When only several small
+          ones together cost a point, the largest is listed.
         </P>
       </Part>
 
