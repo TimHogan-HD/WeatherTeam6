@@ -6,7 +6,8 @@
  * `tsx src/scripts/collectMrms.ts <out.jsonl> <days> [shard] [shards]`
  *
  * One line per hour: `{ hour, crag: [...], airport: [...] }`, millimetres,
- * null where MRMS has no value (negative in the file) or the file is absent.
+ * null where MRMS has no value (negative in the file). An hour that could not
+ * be fetched is not written, and a re-run retries it.
  * The hour is the END of the accumulation, as Open-Meteo stamps it.
  */
 import { appendFileSync, existsSync, readFileSync } from 'node:fs'
@@ -49,34 +50,41 @@ async function run(): Promise<void> {
   for (let t = end.getTime() - Number(daysArg) * 86_400_000; t <= end.getTime(); t += 3_600_000) hours.push(new Date(t))
 
   let n = 0
+  let failed = 0
   for (const [i, h] of hours.entries()) {
     if (i % shards !== shard) continue
     const hour = h.toISOString().slice(0, 13)
     if (done.has(hour)) continue
     const stamp = `${hour.slice(0, 10).replaceAll('-', '')}-${hour.slice(11, 13)}0000`
     const url = `${BUCKET}/${stamp.slice(0, 8)}/MRMS_MultiSensor_QPE_01H_Pass2_00.00_${stamp}.grib2.gz`
-    let crag: (number | null)[] = MRMS_PAIRS.map(() => null)
-    let airport: (number | null)[] = MRMS_PAIRS.map(() => null)
+    // Only a decoded file is written. A failure — throttled, timed out, not yet
+    // published — stays out of the cache, so the next run retries it.
     try {
       const res = await fetchWithRetry(url)
-      if (res.ok) {
-        const grid = decodeMrms(Buffer.from(await res.arrayBuffer()))
-        const at = (lat: number, lon: number) => {
-          const v = valueAt(grid, lat, lon)
-          return v === null || v < 0 ? null : Math.round(v * 100) / 100
-        }
-        crag = MRMS_PAIRS.map((p) => at(p.lat, p.lon))
-        airport = MRMS_PAIRS.map((p) => {
-          const a = ap.get(p.station)!
-          return at(a.lat, a.lon)
-        })
-      } else console.error(`${hour} ${res.status}`)
+      if (!res.ok) {
+        failed++
+        console.error(`${hour} ${res.status}`)
+        continue
+      }
+      const grid = decodeMrms(Buffer.from(await res.arrayBuffer()))
+      const at = (lat: number, lon: number) => {
+        const v = valueAt(grid, lat, lon)
+        return v === null || v < 0 ? null : Math.round(v * 100) / 100
+      }
+      const crag = MRMS_PAIRS.map((p) => at(p.lat, p.lon))
+      const airport = MRMS_PAIRS.map((p) => {
+        const a = ap.get(p.station)!
+        return at(a.lat, a.lon)
+      })
+      appendFileSync(outPath, `${JSON.stringify({ hour, crag, airport })}\n`)
     } catch (err) {
+      failed++
       console.error(`${hour} ${(err as Error).message}`)
+      continue
     }
-    appendFileSync(outPath, `${JSON.stringify({ hour, crag, airport })}\n`)
     if (++n % 50 === 0) console.error(`shard ${shard}: ${n} hours`)
   }
+  if (failed) console.error(`shard ${shard}: ${failed} hours not fetched; run again to retry them`)
 }
 
 run().catch((err) => {

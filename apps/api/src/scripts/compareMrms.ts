@@ -169,7 +169,7 @@ async function run(): Promise<void> {
 
   const to = new Date()
   const from = new Date(to.getTime() - PAST_DAYS * 86_400_000)
-  console.log(`\n=== compare:mrms — MRMS Pass2 radar rain, past ${PAST_DAYS} days, ${hours} hourly files (${absent} absent) ===\n`)
+  console.log(`\n=== compare:mrms — MRMS Pass2 radar rain, past ${PAST_DAYS} days, ${hours} hourly files (${absent} with no value at any point) ===\n`)
 
   const atAirport = new Map<string, Tally>()
   const atCrag = new Map<string, Tally>()
