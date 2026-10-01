@@ -57,7 +57,7 @@ export type NavGeometry = {
  */
 export function navGeometry(rowWidth: number, active: SectionKey): NavGeometry {
   const tabs = bottomNav.tabs
-  const lit = tabs.find((t) => t.key === active) ?? tabs[1]
+  const lit = tabs.find((t) => t.key === active) ?? tabs[0]
   const rest = Math.max(0, (rowWidth - lit.pillW - bottomNav.gap * (tabs.length - 1)) / (tabs.length - 1))
   const widths = tabs.map((t) => (t.key === lit.key ? lit.pillW : rest))
   let left = 0

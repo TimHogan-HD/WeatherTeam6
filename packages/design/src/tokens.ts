@@ -1201,17 +1201,17 @@ export const layout = {
 // ─────────────────────────────────────────────
 
 /**
- * The web app's five sections, left to right (owner, 2026-09-30). Conditions
- * and Trips are the two used most, so they sit either side of Map, under the
- * thumb. `icon` is a Tabler icon name; `pillW` is the lit pill's width with its
- * label showing — the other four tabs share what the row has left.
+ * The web app's five sections, left to right (owner, 2026-10-01): Conditions,
+ * the home screen, first, then Trips beside it. `icon` is a Tabler icon name;
+ * `pillW` is the lit pill's width with its label showing — the other four tabs
+ * share what the row has left.
  */
 export const bottomNav = {
   tabs: [
-    { key: 'crags', icon: 'mountain', label: 'Crags', route: '/crags', pillW: 100 },
     { key: 'conditions', icon: 'sun', label: 'Conditions', route: '/', pillW: 134 },
-    { key: 'map', icon: 'map', label: 'Map', route: '/map', pillW: 88 },
     { key: 'trips', icon: 'calendar', label: 'Trips', route: '/trips', pillW: 94 },
+    { key: 'map', icon: 'map', label: 'Map', route: '/map', pillW: 88 },
+    { key: 'crags', icon: 'mountain', label: 'Crags', route: '/crags', pillW: 100 },
     { key: 'profile', icon: 'user', label: 'Profile', route: '/profile', pillW: 104 },
   ],
   /** The pill's height; the bar is this plus `padTop` and `padBottom`. */

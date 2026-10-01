@@ -111,8 +111,8 @@ this. Not before.
   route**, so each caller is handed only the actions it can receive and a new action is a
   type error rather than a control that silently does nothing. `Screen` renders the control
   when given `onBack`; the list passes none.
-- **The bottom bar** (owner, 2026-09-30) holds five sections, left to right: **Crags ·
-  Conditions · Map · Trips · Profile** (`bottomNav` in `packages/design`). Conditions is `/`
+- **The bottom bar** (owner, 2026-09-30; reordered 2026-10-01) holds five sections, left to
+  right: **Conditions · Trips · Map · Crags · Profile** (`bottomNav` in `packages/design`). Conditions is `/`
   and owns `/location/*`; Crags, Map and Trips are placeholders that say they are not built;
   Profile holds Feedback and Sign out, which left the list. Unlit tabs are icons, and the lit
   one carries its name in a lime pill that slides from tab to tab (`TabBar.tsx`). Tapping a
