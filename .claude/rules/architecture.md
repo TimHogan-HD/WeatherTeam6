@@ -226,6 +226,14 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   stored runs while any was checked inside `RUN_MAX_AGE_MINUTES`, keeps a model inside
   `STORED_MODEL_MAX_AGE_MINUTES`, and otherwise fetches live and writes back. Stored read and
   write-back are best effort. `HourlySeries.checked_at` is the freshness a screen prints.
+- **The daily forecast is the stored ensemble run's own days** (`weather_runs.ensemble_daily`,
+  read by `getEnsembleDaily`), not a second live fetch per request: `parseEnsemble`'s output
+  from the request the hours came from, so the figures and the score cannot differ from a live
+  fetch's. Under the rule above, **plus one: the run must start on the location's today** — a
+  run fetched before local midnight reaches one day less far. A stored day with any gap fetches
+  live; it never reaches the score as a number. Daily figures are **never rebuilt from
+  `weather_ensemble_hours`** — the median of member maxima is not the max of hourly medians,
+  and humidity is not stored there. `npm run check:forecast-stored` holds the round trip.
 - **`weather_run_hours` and `weather_ensemble_hours` key off `run_id`**; `pruneWeatherRuns`
   and `deleteRunsForPoint` delete children first, driven by the parent rows. Never prune hours
   by their `valid_at`, which is a forecast time.

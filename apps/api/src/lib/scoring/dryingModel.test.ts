@@ -325,7 +325,7 @@ describe('rainfallEventsThrough — the rain one forecast day is entitled to see
   })
 
   it('drops historical rain that falls after the day asked about', () => {
-    // No caller reaches this today — `fetchEnsemble` requests no past days, so
+    // No caller reaches this today — the ensemble request asks for no past days, so
     // `asOfDate` is never earlier than the archive’s last entry. Asserted so the
     // function means what its name says for any date, not just the ones one
     // caller happens to pass.

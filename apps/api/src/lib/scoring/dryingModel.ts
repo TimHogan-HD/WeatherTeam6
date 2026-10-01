@@ -143,7 +143,7 @@ export type RainfallEvent = { date: string; precip_mm: number }
  * before this function existed.** Only future days move.
  *
  * Historical events are filtered by `asOfDate` as well, which today is a no-op:
- * `fetchEnsemble` asks for no past days, so no caller passes an `asOfDate` earlier
+ * The ensemble request asks for no past days, so no caller passes an `asOfDate` earlier
  * than the archive’s last entry. It is here so the function means what its name
  * says for any date, rather than only for the dates one caller happens to use.
  */

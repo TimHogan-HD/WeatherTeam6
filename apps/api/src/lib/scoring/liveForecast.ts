@@ -2,13 +2,8 @@ import { aspectToDegrees } from '@weatherteam6/types'
 import type { ConditionsScore, ForecastSnapshot, ScoreUnavailableReason } from '@weatherteam6/types'
 import { logger } from '../logger.js'
 import { fetchPrecipHistory } from '../weather/acis.js'
-import {
-  fetchArchivePrecip,
-  fetchEnsemble,
-  localDateString,
-  type ForecastLocation,
-  type OpenMeteoResult,
-} from '../weather/openMeteo.js'
+import { fetchArchivePrecip, localDateString, type ForecastLocation } from '../weather/openMeteo.js'
+import { getEnsembleDaily, type EnsembleDaily } from '../runs/latestRuns.js'
 import { conditionsScore } from './conditionsScore.js'
 import { dryingModel, rainfallEventsThrough } from './dryingModel.js'
 import type { locations } from '../../db/schema.js'
@@ -67,6 +62,12 @@ export async function computeLiveForecast(
   const locCoords: ForecastLocation = { lat, lon, elevation_m: elevM }
 
   /**
+   * **Read from the stored run when `collect-runs` has one that starts today**,
+   * fetched otherwise (`getEnsembleDaily`). The stored days are `parseEnsemble`'s
+   * output from the same request a live fetch makes, so the figures are the same
+   * ones; the live fetch was about a second of every app open, made twice per
+   * crag (this and `/conditions`).
+   *
    * The ensemble is the only forecast source. NBM used to be tried first and is
    * no longer called — see issue #22, diagnosed 2026-08-26.
    *
@@ -90,7 +91,7 @@ export async function computeLiveForecast(
    * them NBM offers nothing the ensemble does not, since p10/p90 are the whole
    * reason it was preferred.
    */
-  const forecast: OpenMeteoResult = await fetchEnsemble(locCoords)
+  const forecast: EnsembleDaily = await getEnsembleDaily(locCoords, now)
 
   if (forecast.days.length === 0) {
     return { snapshots: [], scores: [], todayStr: '' }
@@ -99,7 +100,7 @@ export async function computeLiveForecast(
   /**
    * "Today" is now the **location's** calendar day, not UTC (issue #33).
    *
-   * `fetchEnsemble` requests `timezone=auto`, so `day.date` is a local date and
+   * The ensemble request sets `timezone=auto`, so `day.date` is a local date and
    * `utc_offset_seconds` is what Open-Meteo resolved for these coordinates.
    * Deriving the date the same way it did is what makes this string match one of
    * the buckets in the same response. The rainfall window uses the same offset

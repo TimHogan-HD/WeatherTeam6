@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   computePercentile,
   parseEnsemble,
-  fetchEnsemble,
+  fetchEnsembleRun,
   fetchNBM,
   fetchRecentHourlyPrecip,
   type ForecastLocation,
@@ -208,7 +208,10 @@ describe('parseEnsemble', () => {
   })
 })
 
-describe('fetchEnsemble', () => {
+/** The daily half of an ensemble run — what the forecast and the stored run both carry. */
+const ensembleDaily = async (loc: ForecastLocation) => (await fetchEnsembleRun(loc)).daily
+
+describe('fetchEnsembleRun — daily figures', () => {
   let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>
 
   beforeEach(() => {
@@ -229,7 +232,7 @@ describe('fetchEnsemble', () => {
       json: async () => ({ latitude: 34.0, longitude: -116.0, hourly: mockHourly }),
     } as Response)
 
-    await fetchEnsemble(ZERO_LOC)
+    await ensembleDaily(ZERO_LOC)
 
     const calledUrl = fetchMock.mock.calls[0]?.[0]
     expect(typeof calledUrl).toBe('string')
@@ -250,7 +253,7 @@ describe('fetchEnsemble', () => {
       json: async () => ({ latitude: 34.0, longitude: -116.0, hourly: mockHourly }),
     } as Response)
 
-    const result = await fetchEnsemble(ZERO_LOC)
+    const result = await ensembleDaily(ZERO_LOC)
 
     expect(result.days).toHaveLength(1)
     expect(result.model_sources).toContain('gfs_seamless')
@@ -270,7 +273,7 @@ describe('fetchEnsemble', () => {
       }),
     } as Response)
 
-    const result = await fetchEnsemble({ lat: 34, lon: -116, elevation_m: 2000 })
+    const result = await ensembleDaily({ lat: 34, lon: -116, elevation_m: 2000 })
     const day = result.days[0]
     expect(day).toBeDefined()
     if (!day) return
@@ -297,7 +300,7 @@ describe('fetchEnsemble', () => {
       }),
     } as Response)
 
-    const result = await fetchEnsemble({ lat: 34, lon: -116, elevation_m: null })
+    const result = await ensembleDaily({ lat: 34, lon: -116, elevation_m: null })
     const day = result.days[0]
     expect(day).toBeDefined()
     if (!day) return
@@ -321,7 +324,7 @@ describe('fetchEnsemble', () => {
       }),
     } as Response)
 
-    const corrected = await fetchEnsemble({ lat: 34, lon: -116, elevation_m: 2000 })
+    const corrected = await ensembleDaily({ lat: 34, lon: -116, elevation_m: 2000 })
 
     fetchMock.mockResolvedValueOnce({
       ok: true,
@@ -333,7 +336,7 @@ describe('fetchEnsemble', () => {
         hourly: mockHourly,
       }),
     } as Response)
-    const uncorrected = await fetchEnsemble({ lat: 34, lon: -116, elevation_m: 500 })
+    const uncorrected = await ensembleDaily({ lat: 34, lon: -116, elevation_m: 500 })
 
     const a = corrected.days[0]
     const b = uncorrected.days[0]
@@ -355,7 +358,7 @@ describe('fetchEnsemble', () => {
       text: async () => 'Service Unavailable',
     } as Response)
 
-    const settled = fetchEnsemble(ZERO_LOC).catch((e: unknown) => e)
+    const settled = fetchEnsembleRun(ZERO_LOC).catch((e: unknown) => e)
     await vi.runAllTimersAsync()
     const result = await settled
 

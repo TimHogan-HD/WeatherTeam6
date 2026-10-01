@@ -64,6 +64,7 @@ async function upsertRun(values: typeof weatherRuns.$inferInsert): Promise<strin
         model_elevation_m: values.model_elevation_m ?? null,
         precip_prob_is_shared: values.precip_prob_is_shared ?? null,
         rain_models: values.rain_models ?? null,
+        ensemble_daily: values.ensemble_daily ?? null,
       },
     })
     .returning({ id: weatherRuns.id })
@@ -210,6 +211,7 @@ export async function storeEnsembleRun(
     model_elevation_m: null,
     // Not applicable to an ensemble run, and null here means exactly that.
     precip_prob_is_shared: null,
+    ensemble_daily: { days: run.daily.days, model_sources: run.daily.model_sources },
   })
   if (!runId) return null
 

@@ -1,0 +1,1 @@
+ALTER TABLE "weather_runs" ADD COLUMN "ensemble_daily" jsonb;

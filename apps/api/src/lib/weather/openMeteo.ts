@@ -495,34 +495,6 @@ function buildEnsembleUrl(location: ForecastLocation): URL {
   return url
 }
 
-export async function fetchEnsemble(location: ForecastLocation): Promise<OpenMeteoResult> {
-  const url = buildEnsembleUrl(location)
-
-  logger.debug({ lat: location.lat, lon: location.lon }, '[openMeteo] fetching ensemble forecast')
-
-  const res = await fetchWithRetry(url.toString())
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    logger.debug(
-      { statusCode: res.status, body: body.slice(0, 200) },
-      '[openMeteo] ensemble error response',
-    )
-    throw new Error(`Open-Meteo ensemble API returned ${res.status}`)
-  }
-
-  const raw = (await res.json()) as EnsembleResponse
-  const parsed = parseEnsemble(raw.hourly)
-  applyLapseRate(parsed.days, location.elevation_m, raw.elevation)
-  // Falls back to 0 (i.e. UTC) rather than guessing. A missing offset with local
-  // day buckets would misidentify "today" by at most one day, which is the old
-  // behaviour — not worse than it, and never a fabricated timezone.
-  parsed.utc_offset_seconds =
-    typeof raw.utc_offset_seconds === 'number' && Number.isFinite(raw.utc_offset_seconds)
-      ? raw.utc_offset_seconds
-      : 0
-  return parsed
-}
-
 /**
  * The location's current calendar date, given its offset from UTC.
  *
@@ -1239,8 +1211,8 @@ function elevationOf(body: DeterministicResponse): number | null {
  * Fetch hourly deterministic output for a set of models at one point.
  *
  * Retains the hourly series rather than reducing it to daily values — that is
- * the whole point of this function, and why it exists alongside `fetchEnsemble`,
- * which scoring keeps consuming unchanged.
+ * the whole point of this function, and why it exists alongside the ensemble
+ * fetch (`fetchEnsembleRun`), whose daily figures scoring keeps consuming.
  *
  * **The upstream payload is not carried out.** Every variable requested becomes
  * a column on `HourlyPoint`, so the parsed hours lose nothing a re-derivation
@@ -1471,13 +1443,10 @@ export type EnsembleRun = {
 
 /**
  * Fetch the ensemble once and keep **both** reductions — the daily figures
- * scoring already consumes, and the hourly percentiles the bot's spread views
- * need.
+ * scoring consumes, and the hourly percentiles the charts draw. `collect-runs`
+ * stores both, and the forecast reads the stored days (`getEnsembleDaily`).
  *
- * Separate from `fetchEnsemble` so the per-request scoring path does not pay for
- * 384 hours of sorting it never reads.
- *
- * @throws {Error} on HTTP failure, exactly as `fetchEnsemble` does.
+ * @throws {Error} on HTTP failure.
  */
 export async function fetchEnsembleRun(location: ForecastLocation): Promise<EnsembleRun> {
   const fetched_at = new Date()
@@ -1494,6 +1463,9 @@ export async function fetchEnsembleRun(location: ForecastLocation): Promise<Ense
   const raw = (await res.json()) as EnsembleResponse
   const daily = parseEnsemble(raw.hourly)
   applyLapseRate(daily.days, location.elevation_m, raw.elevation)
+  // Falls back to 0 (i.e. UTC) rather than guessing. A missing offset with local
+  // day buckets would misidentify "today" by at most one day, never a
+  // fabricated timezone.
   daily.utc_offset_seconds =
     typeof raw.utc_offset_seconds === 'number' && Number.isFinite(raw.utc_offset_seconds)
       ? raw.utc_offset_seconds
