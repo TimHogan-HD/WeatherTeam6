@@ -108,6 +108,12 @@ button,
   opacity: var(--wt6-press-opacity);
 }
 
+/* A card that is opening its screen stays dimmed after the finger lifts, while
+   it waits briefly for that screen's data (`readyToOpen`). */
+[role='button'][aria-busy='true'] {
+  opacity: var(--wt6-press-opacity);
+}
+
 :focus-visible {
   outline: 2px solid var(--wt6-color-good);
   outline-offset: 2px;

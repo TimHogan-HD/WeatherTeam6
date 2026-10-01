@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import {
@@ -13,7 +13,7 @@ import { typeV2 } from '../theme/tokens.css.js'
 import { cardV2, row, stack, toneColors } from '../theme/styles.js'
 import { useAlerts, useConditions, useForecast } from '../hooks/useWeather.js'
 import { findToday } from '../lib/forecast.js'
-import { prefetchDetail } from '../lib/prefetchDetail.js'
+import { prefetchDetail, readyToOpen } from '../lib/prefetchDetail.js'
 import { formatTempRangeF } from '../lib/format.js'
 import { cardSummary, readingTone, scoreTone } from '../lib/locationList.js'
 import { tempColor } from './charts/chartStyle.js'
@@ -59,6 +59,30 @@ export function LocationCard({
   const today = findToday(forecast.data)
 
   /**
+   * **Opens once the screen can draw whole**, or after `OPEN_WAIT_MS`
+   * (`readyToOpen`). The card stays dimmed meanwhile (`aria-busy`, styled in
+   * `globals.css`), so the tap reads as registered. A second tap while waiting
+   * does nothing, and a card that has gone — another tab tapped in the wait —
+   * does not navigate. Keyboard opening takes the same path.
+   */
+  const [opening, setOpening] = useState(false)
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
+  const open = () => {
+    if (opening) return
+    setOpening(true)
+    prefetchDetail(queryClient, location)
+    void readyToOpen(queryClient, location).then(() => {
+      if (mounted.current) onOpen(location.id)
+    })
+  }
+
+  /**
    * From **the same endpoint the detail screen reads**, through the same
    * summary the list sorts by — so a crag cannot show one number here, another
    * on its own screen, and rank by a third.
@@ -74,9 +98,10 @@ export function LocationCard({
     <div
       role="button"
       tabIndex={0}
+      aria-busy={opening || undefined}
       style={{ ...cardV2, ...stack(spacing.cardPad), cursor: 'pointer' }}
       onPointerDown={() => prefetchDetail(queryClient, location)}
-      onClick={() => onOpen(location.id)}
+      onClick={open}
       onKeyDown={(e) => {
         // Only when the card itself has focus. Without this check, Enter or
         // Space on the retry button inside would open the location instead of
@@ -85,7 +110,7 @@ export function LocationCard({
         if (e.target !== e.currentTarget) return
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
-          onOpen(location.id)
+          open()
         }
       }}
     >

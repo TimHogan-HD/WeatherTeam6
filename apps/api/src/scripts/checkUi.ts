@@ -245,6 +245,31 @@ async function run(): Promise<void> {
     const refetched = requested.filter((p) => p.endsWith(`/locations/${locationId}`))
     check('the crag screen reuses the list’s copy of the location', refetched.length === 0, `fetched ${refetched.length}×`)
 
+    // 2b. A tapped card waits briefly for the crag's hourly series, dimmed, so
+    // the screen opens whole — but never longer than the cap. The series is
+    // held back 3 s here; the screen must open at the cap, not at 3 s.
+    await page.goto(`${WEB}/`)
+    const firstCard = page.locator('[role="button"]').first()
+    await firstCard.waitFor({ timeout: 30_000 })
+    const slowHourly = `${API}/api/v1/hourly/**`
+    await page.route(slowHourly, async (route) => {
+      await new Promise((r) => setTimeout(r, 3_000))
+      await route.continue().catch(() => undefined)
+    })
+    const tapped = Date.now()
+    await firstCard.click()
+    await page.waitForTimeout(120)
+    const waiting = new URL(page.url()).pathname === '/' && (await firstCard.getAttribute('aria-busy')) === 'true'
+    check('a tapped card waits on the list, dimmed, while the crag loads', waiting)
+    await page.waitForURL(/\/location\//, { timeout: 2_500 }).catch(() => undefined)
+    const openedAfter = Date.now() - tapped
+    check(
+      'and opens at the cap when the crag is slow, not when it arrives',
+      /\/location\//.test(page.url()) && openedAfter < 1_500,
+      `opened after ${openedAfter} ms`,
+    )
+    await page.unroute(slowHourly)
+
     // 3. Every detail tab.
     await page.goto(`${WEB}/location/${locationId}`)
     await page.getByRole('tab').first().waitFor({ timeout: 60_000 })
