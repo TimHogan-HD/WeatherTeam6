@@ -115,16 +115,22 @@ These are not decided. Each is a proposal to show as variants (§6).
 - The Figma MCP server is connected. Use it to read the WT6 file as the design source.
 - Skills: `dataviz` (charts), `pstack:principle-exhaust-the-design-space` (build two or
   three variants), `pstack:principle-experience-first`.
+- **Vendored design skills** (2026-10-01, in `.claude/skills/`, each with an "In this repo"
+  section listing where the repo overrides it):
+  - `emil-design-eng`: motion judgement; loads on its own for `apps/miniapp` work.
+  - `review-animations`: a strict motion review; runs only when invoked as
+    `/review-animations`.
+  - `web-design-guidelines`: Vercel's interface rules, frozen in `RULES.md` rather than
+    fetched live; for UI and accessibility reviews.
 
-**Not installed. Worth installing, in this order:**
+**Not installed, deliberately.** Each adds taste that competes with the app's locked
+design:
 
-| Tool | What it adds | How |
+| Tool | What it adds | Why not now |
 | --- | --- | --- |
-| `frontend-design` (Anthropic, official marketplace) | The design-direction pass and the list of AI defaults in §4 | `/plugin` → claude-plugins-official |
-| Emil Kowalski's `skills` (`emil-design-eng`, `review-animations`) | The motion numbers in §2, plus a review checklist | github.com/emilkowalski/skills |
-| Vercel `web-design-guidelines` | 100+ interaction, form and accessibility rules | `npx skills add vercel-labs/agent-skills` |
-| Impeccable (Apache-2.0) | `critique`, `polish` and `animate` commands, plus the detector | `/plugin marketplace add pbakaus/impeccable` |
-| `playground` (official) | One HTML page with sliders for a visual decision, which writes out the prompt | `/plugin` → claude-plugins-official |
+| `frontend-design` (Anthropic, official marketplace) | A design-direction pass and the list of AI defaults in §4 | It pushes for a new, distinctive look; the app's look is locked |
+| Impeccable (Apache-2.0) | `critique`, `polish` and `animate` commands, plus the detector | Its own setup file and anti-patterns overlap the repo's docs; `npx impeccable detect` works without installing |
+| `playground` (official) | One HTML page with sliders for a visual decision, which writes out the prompt | Useful for a one-off decision; install when one comes up |
 
 **Process that works with this owner:** mock two or three variants, screenshot them side by
 side at 480×1000, let the owner pick, then ship the pick (the
