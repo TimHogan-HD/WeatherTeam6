@@ -113,8 +113,9 @@ a bookmark with an address bar.
 **The service worker keeps the app shell, never the weather** (`src/theme/serviceWorker.ts`,
 written into `dist/sw.js` by the `wt6-service-worker` plugin). It caches `index.html` and
 the hashed build output so a cold open draws at once, with the list this device last saw
-(`src/lib/rememberedLocations.ts`) while the numbers load. API calls go to another origin
-and are never intercepted, so every reading on screen is still live. A deploy reaches an
+(`src/lib/rememberedLocations.ts`) and, on the same day, the weather its cards last showed
+(`src/lib/rememberedCards.ts`, the header saying how old) while the live numbers load. API
+calls are never intercepted, so every reading not labelled as remembered is live. A deploy reaches an
 installed app one open late: the next open installs the new worker, the one after draws
 the new build. Removing it takes a release of an `sw.js` that unregisters itself — a
 browser keeps a worker whose script 404s. Registered only in a production build;

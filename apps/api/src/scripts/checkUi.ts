@@ -303,6 +303,39 @@ async function run(): Promise<void> {
     await firstCard.waitFor({ timeout: 10_000 })
     check('coming back to the list shows no splash', (await splash.count()) === 0)
 
+    // 2d. A reopen draws the cards from what this device remembers — no
+    // splash, the age in the header — while every weather call is held back
+    // 3 s; then the live copies replace them.
+    await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
+    const rememberedSaved = await page.evaluate(() => localStorage.getItem('wt6.cards') !== null)
+    check('the list remembers its cards’ weather on this device', rememberedSaved)
+    const slowWeather = /\/api\/v1\/(forecast|conditions|alerts)\//
+    await page.route(slowWeather, async (route) => {
+      await new Promise((r) => setTimeout(r, 3_000))
+      await route.continue().catch(() => undefined)
+    })
+    const reopened = Date.now()
+    await page.goto(`${WEB}/`, { waitUntil: 'domcontentloaded' })
+    const drawn = await firstCard
+      .getByText('Low–high')
+      .waitFor({ timeout: 1_500 })
+      .then(() => true)
+      .catch(() => false)
+    const drawnAfter = Date.now() - reopened
+    const header = await page.locator('header').innerText()
+    const rememberedShot = join(dir, `${String(passed + failed).padStart(2, '0')}-list-remembered.png`)
+    await page.screenshot({ path: rememberedShot })
+    check(
+      `a reopen draws the cards’ weather from memory, before the API answers  →  ${rememberedShot}`,
+      drawn && (await splash.count()) === 0,
+      `drawn: ${drawn} after ${drawnAfter} ms; splash: ${await splash.count()}`,
+    )
+    check('and the header says how old it is', /updated .* · refreshing/.test(header), header.replace(/\s+/g, ' '))
+    await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
+    await page.unroute(slowWeather)
+    const refreshedHeader = await page.locator('header').innerText()
+    check('then the live copies replace them', !/refreshing/.test(refreshedHeader), refreshedHeader.replace(/\s+/g, ' '))
+
     // 3. Every detail tab.
     await page.goto(`${WEB}/location/${locationId}`)
     await page.getByRole('tab').first().waitFor({ timeout: 60_000 })

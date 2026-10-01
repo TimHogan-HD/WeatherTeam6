@@ -1,8 +1,9 @@
-import { useLayoutEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
+import { useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { bottomNav, colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import { typeV2, withOpacity } from '../theme/tokens.css.js'
 import { navGeometry, type SectionKey } from '../lib/bottomNav.js'
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
 import { NavIcon } from './Icons.js'
 
 /**
@@ -150,18 +151,4 @@ function useWidth(ref: RefObject<HTMLElement | null>): number | null {
     return () => observer.disconnect()
   }, [ref])
   return width
-}
-
-const REDUCED = '(prefers-reduced-motion: reduce)'
-
-function usePrefersReducedMotion(): boolean {
-  return useSyncExternalStore(
-    (onChange) => {
-      const query = window.matchMedia(REDUCED)
-      query.addEventListener('change', onChange)
-      return () => query.removeEventListener('change', onChange)
-    },
-    () => window.matchMedia(REDUCED).matches,
-    () => false,
-  )
 }
