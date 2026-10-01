@@ -176,8 +176,8 @@ async function run(): Promise<void> {
   const perCrag: string[] = []
   const raw = { both: 0, gaugeOnly: 0, mrmsOnly: 0, neither: 0, gaugeMm: 0, mrmsMm: 0 }
   const gauges = new Map<string, Awaited<ReturnType<typeof gauge>>>()
-  const deadGauges: string[] = []
   const airportModels = new Map<string, Awaited<ReturnType<typeof modelled>>>()
+  const deadGauges: string[] = []
 
   for (const [i, pair] of MRMS_PAIRS.entries()) {
     try {
@@ -234,19 +234,14 @@ async function run(): Promise<void> {
       }
 
       const shipped: [string, Rain] = ['median, global (shipped)', (k) => cr.shipped.get(k) ?? null]
+      const airportGauge: [string, Rain] = ['airport gauge, moved to crag', gaugeRain]
+      if (!dead)
+        for (const rock of ROCKS)
+          score(atCrag, cr.base, pair.lat, pair.lon, mCrag, [shipped, airportGauge, ['MRMS at airport, moved to crag', mAirport]], rock)
+      // Per crag, each source on its own pair of clocks, so a dead gauge drops only its column.
       const local = new Map<string, Tally>()
-      for (const rock of ROCKS) {
-        const sources: [string, Rain][] = [
-          shipped,
-          ['airport gauge, moved to crag', gaugeRain],
-          ['MRMS at airport, moved to crag', mAirport],
-        ]
-        if (!dead) score(atCrag, cr.base, pair.lat, pair.lon, mCrag, sources, rock)
-      }
-      // Per crag: each source against MRMS on its own pair of clocks, so a dead gauge
-      // drops only its own column.
       score(local, cr.base, pair.lat, pair.lon, mCrag, [shipped], 'quartzite')
-      if (!dead) score(local, cr.base, pair.lat, pair.lon, mCrag, [['airport gauge, moved to crag', gaugeRain]], 'quartzite')
+      if (!dead) score(local, cr.base, pair.lat, pair.lon, mCrag, [airportGauge], 'quartzite')
       const km = Math.hypot((pair.lat - g.lat) * 111, (pair.lon - g.lon) * 111 * Math.cos((pair.lat * Math.PI) / 180))
       const wetCrag = [...crag[i]!.values()].filter((v) => v !== null && v >= WET_MM).length
       const q = (n: string) => local.get(`quartzite|${n}`)
@@ -263,7 +258,8 @@ async function run(): Promise<void> {
     }
   }
 
-  if (deadGauges.length) console.log(`  Dead airport gauges, 0.00 reported as a reading (left out of 1 and 2):\n    ${deadGauges.join('\n    ')}\n`)
+  if (deadGauges.length)
+    console.log(`  Dead airport gauges, 0.00 reported as a reading (left out of 1 and 2):\n    ${deadGauges.join('\n    ')}\n`)
   const wet = raw.both + raw.gaugeOnly
   console.log('  1a. Raw hourly rain, MRMS at the airport vs the airport gauge (wet = ≥0.1 mm)')
   console.log(`      gauge-wet hours MRMS caught: ${pct(raw.both, wet)}%   MRMS-wet hours the gauge called dry: ${pct(raw.mrmsOnly, raw.both + raw.mrmsOnly)}%`)
