@@ -15,8 +15,9 @@ import {
 } from '../lib/locationList.js'
 import { useLocations } from '../hooks/useLocations.js'
 import { useNow } from '../hooks/useNow.js'
-import { alertsQuery, conditionsQuery } from '../hooks/useWeather.js'
+import { alertsQuery, conditionsQuery, forecastQuery } from '../hooks/useWeather.js'
 import { LocationCard } from '../components/LocationCard.js'
+import { Splash, useOpeningSplash } from '../components/Splash.js'
 import { EmptyState, InlineError, SkeletonCards } from '../components/States.js'
 import { ChevronDownIcon, PlusIcon } from '../components/Icons.js'
 
@@ -47,6 +48,12 @@ export function LocationList() {
   const scores = useSettledScores(locations.data ?? [])
   const ordered = sortLocations(locations.data ?? [], sort, scores)
 
+  // The same cache entries the cards fill, so this adds no request.
+  const forecasts = useQueries({ queries: (locations.data ?? []).map((l) => forecastQuery(l.id)) })
+  const cardsReady =
+    !locations.isPending && (locations.isError || (scores !== null && forecasts.every((f) => !f.isPending)))
+  const splash = useOpeningSplash(cardsReady)
+
   const updated = formatUpdatedAt(locations.dataUpdatedAt, now)
   const meta =
     locations.data === undefined
@@ -57,6 +64,7 @@ export function LocationList() {
 
   return (
     <main style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+      {splash ? <Splash /> : null}
       <header style={headerBand}>
         <div style={stack(spacing.tight)}>
           <p style={typeV2.eyebrow}>WeatherTeam6</p>

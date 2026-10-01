@@ -19,6 +19,7 @@ describe('service worker', () => {
     expect(precacheOf(renderServiceWorker(files, '<html>'))).toEqual([
       '/assets/index-a.js',
       '/assets/index-b.css',
+      '/icons/icon-192.png',
       '/index.html',
     ])
   })

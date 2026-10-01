@@ -251,6 +251,8 @@ async function run(): Promise<void> {
     await page.goto(`${WEB}/`)
     const firstCard = page.locator('[role="button"]').first()
     await firstCard.waitFor({ timeout: 30_000 })
+    const splash = page.getByRole('status', { name: 'Loading your crags' })
+    await splash.waitFor({ state: 'detached', timeout: 10_000 }).catch(() => undefined)
     const slowHourly = `${API}/api/v1/hourly/**`
     await page.route(slowHourly, async (route) => {
       await new Promise((r) => setTimeout(r, 3_000))
@@ -269,6 +271,37 @@ async function run(): Promise<void> {
       `opened after ${openedAfter} ms`,
     )
     await page.unroute(slowHourly)
+
+    // 2c. The opening splash: up on a cold load until the cards have their
+    // weather, lifted at the cap when they are slow, and never shown on a
+    // return to the list. Forecasts are held back 3 s here.
+    const slowForecast = `${API}/api/v1/forecast/**`
+    await page.route(slowForecast, async (route) => {
+      await new Promise((r) => setTimeout(r, 3_000))
+      await route.continue().catch(() => undefined)
+    })
+    await page.goto(`${WEB}/`)
+    const splashUp = await splash
+      .waitFor({ timeout: 10_000 })
+      .then(() => true)
+      .catch(() => false)
+    const splashSeen = Date.now()
+    const splashShot = join(dir, `${String(passed + failed).padStart(2, '0')}-splash.png`)
+    await page.screenshot({ path: splashShot })
+    check(`a cold load holds the opening splash while the cards load  →  ${splashShot}`, splashUp)
+    await splash.waitFor({ state: 'detached', timeout: 5_000 }).catch(() => undefined)
+    const splashFor = Date.now() - splashSeen
+    check(
+      'and lifts at the cap when the cards are slow, not when they arrive',
+      (await splash.count()) === 0 && splashFor < 1_800,
+      `up for ${splashFor} ms`,
+    )
+    await page.unroute(slowForecast)
+    await firstCard.click()
+    await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Conditions' }).click()
+    await firstCard.waitFor({ timeout: 10_000 })
+    check('coming back to the list shows no splash', (await splash.count()) === 0)
 
     // 3. Every detail tab.
     await page.goto(`${WEB}/location/${locationId}`)

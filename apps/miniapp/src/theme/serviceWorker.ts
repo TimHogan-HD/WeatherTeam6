@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { SPLASH_ICON } from './splashIcon.js'
 
 /**
  * The service worker, written at build time by the `wt6-service-worker` plugin
@@ -25,7 +26,8 @@ import { createHash } from 'node:crypto'
  * whose script 404s. Retire it by shipping an `sw.js` that unregisters itself.
  */
 export function renderServiceWorker(files: readonly string[], indexHtml: string): string {
-  const precache = ['/index.html', ...files.map((f) => `/${f}`)].sort()
+  // The icon is the opening splash (`Splash.tsx`), drawn before anything has loaded.
+  const precache = ['/index.html', SPLASH_ICON, ...files.map((f) => `/${f}`)].sort()
   const version = createHash('sha256')
     .update(indexHtml)
     .update(precache.join('\n'))
