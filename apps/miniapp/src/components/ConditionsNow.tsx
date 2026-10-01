@@ -5,6 +5,7 @@ import {
   formatHumidity,
   formatTempF,
   formatWindMph,
+  readingNow,
   summarizeReadings,
   type ConditionsScore,
   type ForecastSnapshot,
@@ -20,7 +21,6 @@ import { findToday } from '../lib/forecast.js'
 import { formatLocalClock, formatTempDeg } from '../lib/format.js'
 import { readingTone, scoreTone } from '../lib/locationList.js'
 import { useNow } from '../hooks/useNow.js'
-import { currentHour } from './charts/hourlySeries.js'
 import { LabelledFigure } from './LabelledFigure.js'
 import { Measurements } from './Measurements.js'
 import { InlineError, Skeleton } from './States.js'
@@ -352,9 +352,9 @@ export function ConditionsNow({
   severeAlertEvent,
 }: ConditionsNowProps) {
   const now = useNow()
-  // The hour covering right now, or null when the run does not reach it —
-  // never the nearest hour three hours off.
-  const hour = series === undefined ? null : currentHour(series.hours, now)
+  // The hour nearest now, as the Today chart's "Now" reads it, or null when
+  // the run does not reach it — never an hour three hours off.
+  const hour = series === undefined ? null : readingNow(series.hours, now)
   const today = findToday(forecast.data)
 
   const readingsPending = conditions !== undefined && (conditions.isPending || alertsPending)

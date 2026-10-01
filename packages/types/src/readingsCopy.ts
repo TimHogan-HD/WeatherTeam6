@@ -87,13 +87,18 @@ export const CURRENT_HOUR_TOLERANCE_MS = 90 * 60_000;
  * **Shared rather than reimplemented per surface.** The Mini App picks this
  * hour from `GET /hourly/:id` and the API picks it for `GET /conditions/:id`
  * and the bot; two implementations of "which hour is now" is how one screen
- * comes to show a reading an hour older than another for the same crag.
+ * comes to show a reading an hour older than another for the same crag. The
+ * hero's weather and the Today chart's "Now" read it too, so 21:39 is the
+ * 22:00 hour on both.
+ *
+ * `null` rather than the nearest hour when nothing is close: a stored run can
+ * be an hour old, and "now" on a reading from three hours ago is a false claim.
  */
-export function readingNow(
-  hours: readonly HourlyReading[],
+export function readingNow<H extends { valid_at: string }>(
+  hours: readonly H[],
   nowMs: number,
-): HourlyReading | null {
-  let best: HourlyReading | null = null;
+): H | null {
+  let best: H | null = null;
   let bestDistance = Number.POSITIVE_INFINITY;
   for (const hour of hours) {
     const t = Date.parse(hour.valid_at);
