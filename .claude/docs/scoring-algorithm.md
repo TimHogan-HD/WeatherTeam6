@@ -37,7 +37,8 @@ domain guard.
   (`lib/runs/hourlyReadings.ts`). Irradiance is one model's by cost, not safety (#212);
   `gem_seamless` never feeds it (#155).
 - **Every stored hour, past included.** `T_mass` needs ~96 h of trailing air temperature,
-  which is why `collect-runs` fetches this one model with `past_days`. The past hours feed the
+  which is why this one model is fetched with `past_days` (`lib/runs/deterministicFetch.ts`,
+  7 days — also what the drying clock needs to see the last rain, #176). The past hours feed the
   calculation and never reach the response.
 - The crag's `lat`/`lon` (for the sun) and rock type. A location's recorded aspect and angle
   are **not** inputs.

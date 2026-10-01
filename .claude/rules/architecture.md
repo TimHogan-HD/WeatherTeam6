@@ -212,8 +212,10 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   `pointKeyForPlace` (`lib/runs/pointKey.ts`, the only spelling); `collectWeatherRuns` fetches
   each distinct place once. No `location_id` on `weather_runs`, so `deleteLocationCascade`
   does not touch runs.
-- **`collect-runs` stores trailing hours for `THERMAL_MODEL` only**, fetched with
-  `past_days` in its own request that asks for all four global models so the rain median has
+- **`collect-runs` stores trailing hours for `THERMAL_MODEL` only**, and so does a panel
+  that found nothing stored — both through `lib/runs/deterministicFetch.ts`, so a new crag
+  is read with history at once (#176). `TRAILING_DAYS` (7) is measured by
+  `compare:trailing-days`. They come from `past_days` in their own request that asks for all four global models so the rain median has
   history; the median rides on its hours as `rain_median_mm`. **Adding a model to the
   trailing fetch is a storage decision** — check `check:runs-storage` first. Those past hours
   are the model's analysis, not observations.

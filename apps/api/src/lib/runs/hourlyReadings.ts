@@ -180,9 +180,10 @@ function historyRock(
  *
  * Returns a **reason** rather than an empty block when it cannot answer, so a
  * surface can say *"no reading"* for the right cause instead of rendering an
- * absence as a good day. `insufficient_history` in particular is expected right
- * after a location is added and until `collect-runs` has stored trailing hours
- * for it — a real state, not an error.
+ * absence as a good day. `insufficient_history` means the thermal run came back
+ * without the trailing hours `T_mass` needs. A new place is fetched with them
+ * (`deterministicFetch.ts`, #176), so this is upstream returning less than was
+ * asked for — a real state, not an error.
  */
 export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
   const model = input.deterministic.models.find((m) => m.model === THERMAL_MODEL)
