@@ -34,6 +34,8 @@
     "check:forecast-stored": "tsx src/scripts/checkForecastStored.ts",
     "compare:scoring": "tsx src/scripts/compareScoring.ts",
     "compare:dryness": "tsx src/scripts/compareDryness.ts",
+    "collect:mrms": "tsx src/scripts/collectMrms.ts",
+    "compare:mrms": "tsx src/scripts/compareMrms.ts",
     "compare:hourly-v2": "tsx src/scripts/compareHourlyV2.ts",
     "compare:thermal": "tsx src/scripts/compareThermal.ts",
     "compare:rock-temp": "tsx src/scripts/compareRockTemp.ts",
