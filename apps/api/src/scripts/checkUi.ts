@@ -280,6 +280,9 @@ async function run(): Promise<void> {
       await new Promise((r) => setTimeout(r, 3_000))
       await route.continue().catch(() => undefined)
     })
+    // The device remembers an empty list, as if every crag were added
+    // elsewhere: the splash must wait for the real list, not lift on this one.
+    await page.evaluate(() => localStorage.setItem('wt6.locations', '[]'))
     await page.goto(`${WEB}/`)
     const splashUp = await splash
       .waitFor({ timeout: 10_000 })
