@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from 'react-dom/server'
+import { renderInRouter } from '../test/renderInRouter.js'
 import { describe, expect, it, vi } from 'vitest'
 import type {
   Conditions,
@@ -143,7 +143,7 @@ function ok<T>(data: T) {
 type Tabs = NonNullable<Parameters<typeof DetailView>[0]['hourly']>['tabs']
 
 function render(tabs: Partial<Tabs> = {}): string {
-  return renderToStaticMarkup(
+  return renderInRouter(
     <DetailView
       isClimbingLocation
       forecast={ok([day(DAY_1), day(DAY_2), day(DAY_3)])}
@@ -227,7 +227,7 @@ describe('DetailView — tabs', () => {
     // prevent, and the sources footer describes the location rather than one
     // view of it.
     for (const active of ['overview', 'daily', 'hourly', 'rock', 'crag'] as const) {
-      const html = renderToStaticMarkup(
+      const html = renderInRouter(
         <DetailView
           isClimbingLocation
           forecast={ok([day(DAY_1), day(DAY_2), day(DAY_3)])}
@@ -257,7 +257,7 @@ describe('DetailView — tabs', () => {
     // the pager carries that day's own readings instead. Daily has no hero in
     // its V2 frame either.
     const render = (active: 'overview' | 'daily' | 'hourly'): string =>
-      renderToStaticMarkup(
+      renderInRouter(
         <DetailView
           isClimbingLocation
           forecast={ok([day(DAY_1), day(DAY_2), day(DAY_3)])}
@@ -288,7 +288,7 @@ describe('DetailView — tabs', () => {
   })
 
   it('says so when no day in the window can be drawn, rather than showing blank charts', () => {
-    const html = renderToStaticMarkup(
+    const html = renderInRouter(
       <DetailView
         isClimbingLocation
         forecast={ok([day(DAY_1)])}
@@ -315,7 +315,7 @@ describe('DetailView — tabs', () => {
     // `/hourly/:id` is the slowest query on the screen. Deriving "which days can
     // be opened" from a response that has not arrived turns a loading state into
     // a confident statement about the forecast.
-    const html = renderToStaticMarkup(
+    const html = renderInRouter(
       <DetailView
         isClimbingLocation
         forecast={ok([day(DAY_1), day(DAY_2), day(DAY_3)])}
@@ -342,7 +342,7 @@ describe('DetailView — tabs', () => {
     // After an error the untappable state is permanent, so the wrong version of
     // this is not a flicker — it is a network failure permanently displayed as a
     // fact about the weather.
-    const html = renderToStaticMarkup(
+    const html = renderInRouter(
       <DetailView
         isClimbingLocation
         forecast={ok([day(DAY_1), day(DAY_2), day(DAY_3)])}
@@ -367,7 +367,7 @@ describe('DetailView — tabs', () => {
 
   it('shows no tab bar at all without hourly data', () => {
     // A tab with nothing behind it would open on a screen that cannot have any.
-    const html = renderToStaticMarkup(
+    const html = renderInRouter(
       <DetailView isClimbingLocation forecast={ok([day(DAY_1)])} />,
     )
     expect(html).not.toContain('role="tablist"')
@@ -407,7 +407,7 @@ describe('DetailView — the Overview tab', () => {
 
   const overview = (over: { alerts?: WeatherAlert[]; climbing?: boolean } = {}): string => {
     vi.setSystemTime(new Date(T0 + 12 * HOUR_MS))
-    const html = renderToStaticMarkup(
+    const html = renderInRouter(
       <DetailView
         isClimbingLocation={over.climbing ?? true}
         // The rows carry the retired five-component score, 13. It must not
@@ -513,7 +513,7 @@ describe('DetailView — Precip tab', () => {
   function renderPrecip(data: RecentPrecip, isClimbingLocation = true, hourlySeries: HourlySeries = series): string {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-15T09:30:00Z'))
-    const html = renderToStaticMarkup(
+    const html = renderInRouter(
       <DetailView
         isClimbingLocation={isClimbingLocation}
         forecast={ok([day(DAY_1)])}

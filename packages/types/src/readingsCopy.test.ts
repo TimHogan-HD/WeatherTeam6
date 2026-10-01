@@ -5,7 +5,6 @@ import {
   FRICTION_ESTIMATE_NOTE,
   UNRECORDED_ASPECT_NOTE,
   fieldLine,
-  heldBackValue,
   formatLocalHour,
   readingFields,
   readingNow,
@@ -69,7 +68,7 @@ const printed = (s: ReturnType<typeof summarizeReadings>): string =>
   [
     ...s.readings.map(fieldLine),
     s.scoreField === null ? null : fieldLine(s.scoreField),
-    s.heldBack === null ? null : fieldLine(s.heldBack),
+    ...(s.heldBack ?? []).map(fieldLine),
     s.window === null ? null : fieldLine(s.window),
     s.qualifier,
     ...s.notes,
@@ -338,13 +337,39 @@ describe('readingNow', () => {
 });
 
 describe('what is holding the score down', () => {
-  it('names the penalties in the order the API sent them', () => {
-    const s = summary({ reading: reading({ held_back_by: ['heat', 'humidity'] }) });
-    expect(s.heldBack).toEqual({ label: 'Held back by', value: 'Heat, then humidity' });
+  it('names the penalties in the order the API sent them, each with its rule', () => {
+    const s = summary({
+      reading: reading({ held_back_by: ['heat', 'humidity'] }),
+      rangeF: { low: 35, high: 65 },
+    });
+    expect(s.heldBack).toEqual([
+      { label: 'Heat', value: 'air above your 65°F high' },
+      { label: 'Humidity', value: 'dew point above 54°F' },
+    ]);
   });
 
-  it('says nothing is when the API named none', () => {
-    expect(summary({ reading: reading({ held_back_by: [] }) }).heldBack?.value).toBe('Nothing');
+  it('names the range without quoting one it does not know', () => {
+    const s = summary({ reading: reading({ held_back_by: ['cold'] }) });
+    expect(s.heldBack).toEqual([{ label: 'Cold', value: 'air below your range' }]);
+  });
+
+  it('says the rock is wet or still drying, as the dryness reading does', () => {
+    const wet = reading({ rock: rock({ level: 'wet' }), held_back_by: ['wet_rock'] });
+    const drying = reading({ rock: rock({ level: 'drying' }), held_back_by: ['wet_rock'] });
+    expect(summary({ reading: wet }).heldBack?.[0]?.value).toBe('wet from recent rain');
+    expect(summary({ reading: drying }).heldBack?.[0]?.value).toBe('still drying after rain');
+  });
+
+  it('quotes the condensation margin in °F, as an interval', () => {
+    expect(summary({ reading: reading({ held_back_by: ['condensation'] }) }).heldBack?.[0]?.value).toBe(
+      'rock within 4°F of its dew point',
+    );
+  });
+
+  it('says nothing costs a point when the API named none, never that all is clear', () => {
+    expect(summary({ reading: reading({ held_back_by: [] }) }).heldBack).toEqual([
+      { label: 'Nothing', value: 'nothing costs a point' },
+    ]);
   });
 
   it('is suppressed with the score, under an alert and while alerts load', () => {
@@ -359,9 +384,5 @@ describe('what is holding the score down', () => {
 
   it('is absent when the score could not be computed', () => {
     expect(summary({ reading: reading({ score: null, held_back_by: null }) }).heldBack).toBeNull();
-  });
-
-  it('joins three or more in order, lower-casing all but the first', () => {
-    expect(heldBackValue(['wet_rock', 'condensation', 'cold'])).toBe('Wet rock, then condensation, then cold');
   });
 });

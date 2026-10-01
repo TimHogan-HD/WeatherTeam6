@@ -1,8 +1,9 @@
-import { useId, useState, type ReactNode } from 'react'
+import { useId, useState, type CSSProperties, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import {
+  HELD_BACK_LABEL,
   MEASUREMENTS_LABEL,
-  SCORE_LABEL,
   measurements,
   type MeasurementGroup,
   type MeasurementsInput,
@@ -11,12 +12,15 @@ import {
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, row, stack } from '../theme/styles.js'
 import { ChevronDownIcon } from './Icons.js'
+import { LabelledFigure } from './LabelledFigure.js'
+import { SCORE_EXPLAINER_PATH } from './ScoreExplainer.js'
 
 /**
- * **What the gauges above were read off**, behind a control the reader opens —
- * the air temperature, humidity, dew point, wind and rain of the hour covering
- * now, and the rock temperature and dew-point margin the readings were derived
- * from, each named with the model that produced it.
+ * **What the gauges above were read off**, behind a control the reader opens:
+ * what is holding the score down, then as tiles the figures the card does not
+ * already print (gusts, the past hour's rain, the rock temperature and its
+ * dew-point margin), each group named with the model that produced it. Kept
+ * short on the owner's word (2026-10-01); the full explanation is on Profile.
  *
  * Every decision about *what* appears is `measurements()` in `packages/types`,
  * where it is tested; this is only the renderer. The Mini App's tests have no
@@ -35,31 +39,28 @@ import { ChevronDownIcon } from './Icons.js'
  * would simply stay visible.
  */
 
-/** One labelled figure, label left and value right — the drying card's shape. */
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ ...row(spacing.chipGapMd), justifyContent: 'space-between', flexWrap: 'wrap' }}>
-      <span style={{ ...typeV2.note, color: colorsV2.txtMuted }}>{label}</span>
-      <span style={{ ...typeV2.heroHiLo, color: colorsV2.txt1 }}>{value}</span>
-    </div>
-  )
+/**
+ * The model behind the figures: once when every group shares it, else
+ * `Air: Open-Meteo · HRRR · Rock: Open-Meteo · GFS`. A group whose source is
+ * unknown names nothing, never the other group's model.
+ */
+function sourceLine(groups: readonly MeasurementGroup[], shared: string | null): string {
+  if (shared !== null) return shared
+  return groups
+    .filter((g) => g.source !== null)
+    .map((g) => `${g.label}: ${g.source}`)
+    .join(' · ')
 }
 
-function Group({ group, showSource }: { group: MeasurementGroup; showSource: boolean }) {
+/** `Heat · air above your 60°F high`, one line per penalty, most limiting first. */
+function HeldBack({ fields }: { fields: ReadingField[] }) {
   return (
     <div style={stack(spacing.listGapSm)}>
-      <div style={{ ...row(spacing.chipGapMd), justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <span style={{ ...typeV2.kicker, color: colorsV2.txtMuted }}>{group.label}</span>
-        {/*
-          Named here only when the groups do not share one. When a group's
-          source is unknown it names nothing — never the other group's model.
-        */}
-        {showSource && group.source !== null ? (
-          <span style={typeV2.note}>{group.source}</span>
-        ) : null}
-      </div>
-      {group.fields.map((f) => (
-        <Field key={f.label} label={f.label} value={f.value} />
+      <span style={{ ...typeV2.kicker, color: colorsV2.txtMuted }}>{HELD_BACK_LABEL}</span>
+      {fields.map((f) => (
+        <p key={f.label} style={{ ...typeV2.note, color: colorsV2.txtMuted }}>
+          <span style={{ color: colorsV2.txt1 }}>{f.label}</span> · {f.value}
+        </p>
       ))}
     </div>
   )
@@ -77,8 +78,9 @@ function Group({ group, showSource }: { group: MeasurementGroup; showSource: boo
 export function Measurements({
   lead = null,
   heldBack = null,
+  tileSurface,
   ...input
-}: MeasurementsInput & { lead?: ReactNode; heldBack?: ReadingField | null }) {
+}: MeasurementsInput & { lead?: ReactNode; heldBack?: ReadingField[] | null; tileSurface?: CSSProperties }) {
   const [open, setOpen] = useState(false)
   const panelId = useId()
   const { groups, sharedSource, notes } = measurements(input)
@@ -111,24 +113,36 @@ export function Measurements({
       </div>
 
       <div id={panelId} hidden={!open} style={open ? stack(spacing.cellPad) : {}}>
-        {heldBack === null ? null : (
-          <Group group={{ label: SCORE_LABEL, source: null, fields: [heldBack] }} showSource={false} />
-        )}
-        {groups.map((g) => (
-          <Group key={g.label} group={g} showSource={sharedSource === null} />
-        ))}
-
-        {notes.length === 0 ? null : (
-          <div style={stack(spacing.listGapSm)}>
-            {notes.map((n) => (
-              <p key={n} style={typeV2.note}>
-                {n}
-              </p>
-            ))}
+        {heldBack === null ? null : <HeldBack fields={heldBack} />}
+        {/* The figures as tiles, like the card's own. Each label says whose
+            figure it is, and the line below names each group's model. */}
+        {groups.length === 0 ? null : (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: `${spacing.chipGapMd}px` }}>
+            {groups.flatMap((g) =>
+              g.fields.map((f) => (
+                <LabelledFigure
+                  key={f.label}
+                  value={f.value}
+                  label={f.label}
+                  color={colorsV2.txt1}
+                  labelColor={colorsV2.txtMuted}
+                  {...(tileSurface === undefined ? {} : { surface: tileSurface })}
+                />
+              )),
+            )}
           </div>
         )}
 
-        {sharedSource === null ? null : <span style={typeV2.note}>{sharedSource}</span>}
+        {/* One small paragraph: each note is a one-line fragment, and the long
+            explanation lives on Profile behind the link below. */}
+        {notes.length === 0 ? null : <p style={{ ...typeV2.note, color: colorsV2.txtMuted }}>{notes.join(' ')}</p>}
+
+        <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <span style={typeV2.note}>{sourceLine(groups, sharedSource)}</span>
+          <Link to={SCORE_EXPLAINER_PATH} style={{ ...typeV2.note, color: colorsV2.txt1 }}>
+            How the score works ›
+          </Link>
+        </div>
       </div>
     </div>
   )
