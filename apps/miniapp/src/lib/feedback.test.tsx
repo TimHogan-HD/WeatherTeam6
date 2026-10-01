@@ -16,32 +16,20 @@ const reading: HourlyReading = {
 }
 
 function scored(readings: Partial<ConditionsReadings> | null = {}): Conditions {
+  const base = { location_id: 'loc', forecast_date: '2026-09-29' }
+  // `null` is an older API that sent no readings at all, which the type no
+  // longer admits — hence the cast.
+  if (readings === null) return base as unknown as Conditions
   return {
-    id: 'score',
-    location_id: 'loc',
-    forecast_date: '2026-09-29',
-    score: 88,
-    confidence: 'high',
-    component_drying_time: null,
-    component_upcoming_rain: null,
-    component_wind: null,
-    component_temp: null,
-    component_humidity: null,
-    score_breakdown: null,
-    computed_at: NOW,
-    created_at: NOW,
-    ...(readings === null
-      ? {}
-      : {
-          readings: {
-            model: 'gfs_seamless',
-            unavailable_reason: null,
-            utc_offset_seconds: 0,
-            now: reading,
-            today: null,
-            ...readings,
-          },
-        }),
+    ...base,
+    readings: {
+      model: 'gfs_seamless',
+      unavailable_reason: null,
+      utc_offset_seconds: 0,
+      now: reading,
+      today: null,
+      ...readings,
+    },
   }
 }
 

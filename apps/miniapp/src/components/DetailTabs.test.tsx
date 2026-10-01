@@ -118,19 +118,8 @@ const heatWarning: WeatherAlert = {
 }
 
 const score: Conditions = {
-  id: 'score',
   location_id: 'loc',
   forecast_date: DAY_1,
-  score: 72,
-  confidence: 'high',
-  component_drying_time: 32,
-  component_upcoming_rain: 20,
-  component_wind: 14,
-  component_temp: 2,
-  component_humidity: 4,
-  score_breakdown: null,
-  computed_at: `${DAY_1}T12:00:00.000Z`,
-  created_at: `${DAY_1}T12:00:00.000Z`,
   readings: {
     model: 'gfs_seamless',
     unavailable_reason: null,
