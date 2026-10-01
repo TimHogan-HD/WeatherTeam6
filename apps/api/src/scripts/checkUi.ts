@@ -222,6 +222,29 @@ async function run(): Promise<void> {
     await page.goto(`${WEB}/`)
     await screen('list')
 
+    // 2a. Opening a crag from its card. Pressing starts the crag screen's
+    // fetches before the finger lifts, and the screen draws from the list's
+    // copy of the location instead of asking for it again.
+    const requested: string[] = []
+    const onRequest = (req: { url(): string }) => {
+      if (req.url().startsWith(API)) requested.push(new URL(req.url()).pathname)
+    }
+    page.on('request', onRequest)
+    const cardBox = await page.locator('[role="button"]').first().boundingBox()
+    if (cardBox === null) throw new Error('no card on the list — stopping')
+    await page.mouse.move(cardBox.x + cardBox.width / 2, cardBox.y + 20)
+    await page.mouse.down()
+    await page.waitForTimeout(1_000)
+    const heldOnList = new URL(page.url()).pathname === '/'
+    const hourlyOnPress = requested.some((p) => p.endsWith(`/hourly/${locationId}`))
+    check('pressing a card starts its hourly fetch before release', heldOnList && hourlyOnPress, `still on list: ${heldOnList}; requests: ${requested.join(', ')}`)
+    await page.mouse.up()
+    await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
+    await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
+    page.off('request', onRequest)
+    const refetched = requested.filter((p) => p.endsWith(`/locations/${locationId}`))
+    check('the crag screen reuses the list’s copy of the location', refetched.length === 0, `fetched ${refetched.length}×`)
+
     // 3. Every detail tab.
     await page.goto(`${WEB}/location/${locationId}`)
     await page.getByRole('tab').first().waitFor({ timeout: 60_000 })

@@ -1,4 +1,4 @@
-import { useQuery, type UseQueryResult } from '@tanstack/react-query'
+import { queryOptions, useQuery, type UseQueryResult } from '@tanstack/react-query'
 import type { Wall } from '@weatherteam6/types'
 import { apiGet } from '../lib/api.js'
 
@@ -14,13 +14,16 @@ import { apiGet } from '../lib/api.js'
  * `undefined` for `isClimbingLocation` holds the fetch while the location query
  * is still in flight rather than guessing.
  */
-export function useWalls(
-  id: string | undefined,
-  isClimbingLocation: boolean | undefined,
-): UseQueryResult<Wall[]> {
-  return useQuery({
+export const wallsQuery = (id: string | undefined, isClimbingLocation: boolean | undefined) =>
+  queryOptions({
     queryKey: ['walls', id ?? ''] as const,
     queryFn: () => apiGet<Wall[]>(`/walls/${id ?? ''}`),
     enabled: id !== undefined && id !== '' && isClimbingLocation === true,
   })
+
+export function useWalls(
+  id: string | undefined,
+  isClimbingLocation: boolean | undefined,
+): UseQueryResult<Wall[]> {
+  return useQuery(wallsQuery(id, isClimbingLocation))
 }

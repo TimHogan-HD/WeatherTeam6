@@ -3,6 +3,9 @@ import { colorsV2 } from '@weatherteam6/design/tokens'
 import { defineConfig, type Plugin } from 'vite'
 import { renderTokenCss } from './src/theme/cssVars.js'
 import { buildWebManifest } from './src/theme/webManifest.js'
+import { renderServiceWorker, shellFiles } from './src/theme/serviceWorker.js'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 const VIRTUAL_ID = 'virtual:wt6-tokens.css'
 const RESOLVED_ID = `\0${VIRTUAL_ID}`
@@ -72,8 +75,26 @@ function webManifestPlugin(): Plugin {
   }
 }
 
+/**
+ * Writes `sw.js` beside the built page, listing the build's own files (see
+ * `src/theme/serviceWorker.ts`). After the bundle is written, so the finished
+ * `index.html` is part of the version. Build only: `main.tsx` registers it only
+ * in a production build, and the dev server has nothing for it to cache.
+ */
+function serviceWorkerPlugin(): Plugin {
+  return {
+    name: 'wt6-service-worker',
+    apply: 'build',
+    writeBundle(options, bundle) {
+      const dir = options.dir ?? 'dist'
+      const indexHtml = readFileSync(join(dir, 'index.html'), 'utf8')
+      writeFileSync(join(dir, 'sw.js'), renderServiceWorker(shellFiles(Object.keys(bundle)), indexHtml))
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [tokenCssPlugin(), webManifestPlugin(), react()],
+  plugins: [tokenCssPlugin(), webManifestPlugin(), serviceWorkerPlugin(), react()],
   build: {
     outDir: 'dist',
     sourcemap: true,

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import {
   SCORE_LABEL,
@@ -12,6 +13,7 @@ import { typeV2 } from '../theme/tokens.css.js'
 import { cardV2, row, stack, toneColors } from '../theme/styles.js'
 import { useAlerts, useConditions, useForecast } from '../hooks/useWeather.js'
 import { findToday } from '../lib/forecast.js'
+import { prefetchDetail } from '../lib/prefetchDetail.js'
 import { formatTempRangeF } from '../lib/format.js'
 import { cardSummary, readingTone, scoreTone } from '../lib/locationList.js'
 import { tempColor } from './charts/chartStyle.js'
@@ -49,6 +51,7 @@ export function LocationCard({
   location: Location
   onOpen: (id: string) => void
 }) {
+  const queryClient = useQueryClient()
   const forecast = useForecast(location.id)
   const alerts = useAlerts(location.id)
   const conditions = useConditions(location.id, location.is_climbing_location)
@@ -72,6 +75,7 @@ export function LocationCard({
       role="button"
       tabIndex={0}
       style={{ ...cardV2, ...stack(spacing.cardPad), cursor: 'pointer' }}
+      onPointerDown={() => prefetchDetail(queryClient, location)}
       onClick={() => onOpen(location.id)}
       onKeyDown={(e) => {
         // Only when the card itself has focus. Without this check, Enter or
