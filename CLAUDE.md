@@ -85,6 +85,7 @@ Do not create a `.env` file at all — set variables in the shell for the one co
 | Any UI phase | `docs/handoffs/miniapp-design-v1.md` (binding screen spec) and `docs/handoffs/design-system-v1.md`. Open the mockup itself (`docs/handoffs/design-mockups/weatherteam6UI.html`), not a prose summary of it — one phase was built twice from the description. Where it disagrees with the spec, the spec wins |
 | Dataviz Phase 5 | `docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` — parked; its phase numbers are its own |
 | CSS, hover, transitions or animation | `docs/handoffs/design-system-v1.md` § CSS and motion — allowed since 2026-10-01, on tokens, with `prefers-reduced-motion` |
+| Placement, motion numbers, platform features, design tools | `.claude/docs/ui-craft.md` |
 
 Paywalled or unfetchable source material goes in `.claude/research-inbox/` (gitignored except its README). Commit the claim, quote and citation — never the article.
 
