@@ -360,6 +360,36 @@ async function run(): Promise<void> {
     await page.waitForURL((u) => u.pathname === '/', { timeout: 10_000 }).catch(() => undefined)
     check('Conditions in the bar returns a location to the list', new URL(page.url()).pathname === '/', page.url())
 
+    // 3b. The location editor (scoring Phase 4b). The crag is a known crag, so
+    // its rock type is locked and must not be sent; aspect and angle are.
+    await page.goto(`${WEB}/location/${locationId}`)
+    await page.getByRole('button', { name: 'Edit crag' }).click()
+    await page.waitForURL(/\/edit$/, { timeout: 10_000 }).catch(() => undefined)
+    await page.getByRole('button', { name: 'Faces SW' }).waitFor({ timeout: 30_000 })
+    check('the editor shows no bottom bar', (await bar.count()) === 0)
+    await screen('edit')
+    await page.getByRole('button', { name: 'Faces SW' }).click()
+    await page.getByRole('button', { name: 'Overhang' }).click()
+    await screen('edit-picked')
+    const patch = page.waitForRequest((r) => r.method() === 'PATCH' && r.url().endsWith(`/locations/${locationId}`))
+    await page.getByRole('button', { name: 'Save' }).click()
+    const sent = (await patch).postDataJSON() as Record<string, unknown>
+    check(
+      'Save sends only what changed, and never a locked rock type',
+      JSON.stringify(sent) === JSON.stringify({ aspect: 'SW', wall_angle_deg: 30 }),
+      JSON.stringify(sent),
+    )
+    await page.waitForURL(/tab=rock/, { timeout: 15_000 }).catch(() => undefined)
+    const stored = await api<Location>('GET', `/locations/${locationId}`, token)
+    check(
+      'and the row stores it, the angle in the column’s own sign',
+      stored.payload.data?.aspect === 'SW' && stored.payload.data.cliff_angle === -30,
+      `aspect ${stored.payload.data?.aspect}, cliff_angle ${stored.payload.data?.cliff_angle}`,
+    )
+    await screen('edit-saved')
+    const rockTab = await page.locator('main').innerText()
+    check('the Rock tab’s facts show the new wall in climbers’ words', /30° overhang/.test(rockTab) && /\bSW\b/.test(rockTab))
+
     // 4. The add screen.
     await page.goto(`${WEB}/add`)
     await screen('add', 5)

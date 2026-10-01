@@ -42,6 +42,10 @@ describe('backTarget', () => {
     expect(backTarget({ route: 'feedback', fromLocationId: 'abc' })).toEqual({ kind: 'navigate', to: '/location/abc' })
     expect(backTarget({ route: 'feedback', fromLocationId: null })).toEqual({ kind: 'navigate', to: '/' })
   })
+
+  it('returns a location editor to its location, saved or not', () => {
+    expect(backTarget({ route: 'edit', locationId: 'abc' })).toEqual({ kind: 'navigate', to: '/location/abc' })
+  })
 })
 
 describe('backTarget — the guidebook screens', () => {

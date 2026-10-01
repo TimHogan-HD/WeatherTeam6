@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cliffAngleFromWallAngle, compassDegrees, wallAngleFromCliffAngle } from './index.js'
+import { cliffAngleFromWallAngle, compassDegrees, wallAngleFromCliffAngle, wallAngleLabel } from './index.js'
 
 describe('wall angle conventions', () => {
   it('flips the sign between climbers’ degrees and the stored column', () => {
@@ -16,6 +16,25 @@ describe('wall angle conventions', () => {
     expect(Object.is(wallAngleFromCliffAngle(0), 0)).toBe(true)
     expect(wallAngleFromCliffAngle(null)).toBeNull()
     expect(wallAngleFromCliffAngle(Number.NaN)).toBeNull()
+  })
+})
+
+describe('wallAngleLabel', () => {
+  it('names the side of vertical, so a bare number cannot be read backwards', () => {
+    expect(wallAngleLabel(0)).toBe('Vertical')
+    expect(wallAngleLabel(-20)).toBe('20° slab')
+    expect(wallAngleLabel(30)).toBe('30° overhang')
+    expect(wallAngleLabel(-90)).toBe('Flat')
+    expect(wallAngleLabel(90)).toBe('Roof')
+  })
+
+  it('reads -0.4 as vertical rather than "0° slab"', () => {
+    expect(wallAngleLabel(-0.4)).toBe('Vertical')
+  })
+
+  it('says nothing for an unrecorded angle', () => {
+    expect(wallAngleLabel(null)).toBeNull()
+    expect(wallAngleLabel(Number.NaN)).toBeNull()
   })
 })
 

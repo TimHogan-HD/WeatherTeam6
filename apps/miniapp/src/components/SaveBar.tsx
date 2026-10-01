@@ -9,7 +9,7 @@ import { bareButton, btnPrimary, btnPrimaryText, chip, chipActive, inputBox, sta
  * **Rock type is captured here or never.** It is the single largest lever on
  * the score — `dryingModel`'s ceiling runs from 4 h for slate to 120 h for soft
  * sandstone — and left unset it resolves to `unknown`, the slowest row in the
- * table. There is no edit screen yet (§12.4), so save is the only chance.
+ * table. It can be changed later on the crag's editor, but most never will be.
  *
  * **Except on a known crag, where it is not a choice at all** (owner decision
  * 2026-09-23). The research's rock type is shown and the picker is not: the

@@ -39,9 +39,14 @@ describe('sectionFor', () => {
   })
 
   /** Tasks you finish and leave carry their own back control and no bar. */
-  it('shows no bar over the add flow or feedback', () => {
+  it('shows no bar over the add flow, feedback or a location editor', () => {
     expect(sectionFor('/add')).toBeNull()
     expect(sectionFor('/feedback')).toBeNull()
+    expect(sectionFor('/location/abc/edit')).toBeNull()
+  })
+
+  it('keeps the bar on a guidebook screen whose ids merely contain "edit"', () => {
+    expect(sectionFor('/location/abc/wall/edit')).toBe('conditions')
   })
 })
 

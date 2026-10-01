@@ -546,6 +546,12 @@ the client half. Decisions made on the way, each recorded where it lives:
   two walls** — its skin term dominates at that heat — which is the model's answer, not a
   wiring fault; recorded so it is not rediscovered as one.
 
+**4b client half SHIPPED 2026-10-01** — the editor screen, `/location/:id/edit`. Owner
+decision on the way: build aspect and angle now although **Crag A does not read them** (it
+scores eight imaginary walls round the crag), and say so on the screen beside each. So the
+acceptance line above — aspect and tilt moving the score — is met only in
+`hourlyConditions.test.ts` § a recorded wall; on screen it waits for Wall A to be wired to a recorded wall.
+
 ### Phase 5 — Preferences UI, then retirement
 The preferences screen, then delete the five-component scorer, `SCORE_COMPONENT_MAX`, and the
 sections of `scoring-algorithm.md` that describe it.

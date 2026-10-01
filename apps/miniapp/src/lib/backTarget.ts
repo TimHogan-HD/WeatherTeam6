@@ -13,6 +13,7 @@
  * | `/add` search | `/` |
  * | `/add` save form | the search, with its query and results intact |
  * | `/feedback` | the location it was opened from, else `/` |
+ * | `/location/:id/edit` | that location |
  *
  * A saved location has no back control since the bottom bar arrived (owner,
  * 2026-09-30): its Conditions tab returns to the list, and a tab change is
@@ -37,6 +38,7 @@ export type BackContext =
   | { route: 'feedback'; fromLocationId: string | null }
   | { route: 'wall'; locationId: string }
   | { route: 'climb'; locationId: string; wallId: string }
+  | { route: 'edit'; locationId: string }
 
 /**
  * `null` means no back affordance at all — the list is the root, and the app
@@ -65,6 +67,7 @@ export function backTarget(context: { route: 'add'; confirming: boolean }): AddB
 export function backTarget(context: { route: 'feedback'; fromLocationId: string | null }): Navigate
 export function backTarget(context: { route: 'wall'; locationId: string }): Navigate
 export function backTarget(context: { route: 'climb'; locationId: string; wallId: string }): Navigate
+export function backTarget(context: { route: 'edit'; locationId: string }): Navigate
 export function backTarget(context: BackContext): BackAction {
   switch (context.route) {
     case 'list':
@@ -82,6 +85,8 @@ export function backTarget(context: BackContext): BackAction {
       return { kind: 'navigate', to: cragTabPath(context.locationId) }
     case 'climb':
       return { kind: 'navigate', to: wallPath(context.locationId, context.wallId) }
+    case 'edit':
+      return { kind: 'navigate', to: `/location/${context.locationId}` }
   }
 }
 
@@ -96,4 +101,5 @@ export const wallPath = (locationId: string, wallId: string): string =>
   `/location/${locationId}/wall/${wallId}`
 export const climbPath = (locationId: string, wallId: string, routeId: string): string =>
   `${wallPath(locationId, wallId)}/route/${routeId}`
+export const editPath = (locationId: string): string => `/location/${locationId}/edit`
 export const detailTabPath = (locationId: string, tab: DetailTab): string => `/location/${locationId}?tab=${tab}`
