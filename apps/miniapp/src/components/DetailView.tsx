@@ -6,6 +6,7 @@ import type {
   ForecastSnapshot,
   HourlySeries,
   Location,
+  RangeF,
   RecentPrecip,
   Wall,
   WeatherAlert,
@@ -72,6 +73,8 @@ import { TEMP_VIEW_H } from './charts/chartStyle.js'
 
 export type DetailViewProps = {
   isClimbingLocation: boolean
+  /** The reader's temperature range, for the score's reasons. Null while it loads. */
+  rangeF?: RangeF
   forecast: {
     data: ForecastSnapshot[] | undefined
     isPending: boolean
@@ -180,6 +183,7 @@ export function openDayInHourly(
 
 export function DetailView({
   isClimbingLocation,
+  rangeF = null,
   forecast,
   alerts,
   conditions,
@@ -250,6 +254,7 @@ export function DetailView({
       {...(showScore && conditions !== undefined ? { conditions } : {})}
       alertsPending={alertsPending}
       severeAlertEvent={alertEvent}
+      rangeF={rangeF}
     />
   )
 

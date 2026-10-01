@@ -109,7 +109,12 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   `HourlySeries.model`'s; *Rock* is `THERMAL_MODEL`'s; `sharedSource` names one model only
   when every group came from it. A temperature interval goes through `cToFDelta`, never
   `formatTempF`. Rock figures and mechanisms appear only while their gauges are on screen. A
-  group with some figures dashes its gaps; a group with none is omitted.
+  group with some figures dashes its gaps; a group with none is omitted. **The panel stays
+  short** (owner, 2026-10-01): *Air* carries only what the card above does not print
+  (gusts, the past hour's rain), the figures render as tiles, each mechanism is one line,
+  and the full explanation is `ScoreExplainer` on Profile, linked from the panel. Every
+  number that explanation quotes comes from `SCORE_MODEL_FACTS`, pinned to the model by
+  `cragModel.test.ts`.
   `ROCK_TEMPERATURE_MECHANISM` is required wherever a modelled rock temperature prints.
 - **The number waits for the alerts query, inside `summarizeReadings`** — `alertsPending`
   suppresses the score on its own (defect class 7). **Severe+ suppression drops the number

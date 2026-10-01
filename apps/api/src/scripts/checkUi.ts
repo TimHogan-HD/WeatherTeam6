@@ -353,9 +353,20 @@ async function run(): Promise<void> {
     const hero = await page.locator('section').first().innerText()
     check(
       'the opened measurements say what is holding a shown score down',
-      !/Score\s*\n\s*\d+/.test(hero) || /Held back by/.test(hero),
+      !/Score\s*\n\s*\d+/.test(hero) || /Held back by/i.test(hero),
       hero.replace(/\s+/g, ' ').slice(0, 300),
     )
+    await page.getByRole('link', { name: /How the score works/ }).click()
+    const explainer = page.getByRole('heading', { name: 'How the score works' })
+    await explainer.waitFor({ timeout: 10_000 }).catch(() => undefined)
+    const top = await explainer.evaluate((el) => el.getBoundingClientRect().top).catch(() => null)
+    check(
+      'How the score works opens Profile at its explanation',
+      /\/profile#score$/.test(page.url()) && top !== null && top >= 0 && top < 400,
+      `${page.url()} top=${top}`,
+    )
+    await screen('score-explainer')
+    await page.goto(`${WEB}/location/${locationId}`)
 
     // 3a. The bottom bar: every section by tapping it, then Conditions back to
     // the list — the location screen has no back link of its own.

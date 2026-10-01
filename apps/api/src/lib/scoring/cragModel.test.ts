@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
+import { SCORE_MODEL_FACTS, fToC } from '@weatherteam6/types'
 import {
+  DAY_FIRST_HOUR,
+  DAY_LAST_HOUR,
+  DAY_RUN_HOURS,
+  DEW_START_C,
   SNOW_DRYNESS_CAP,
   dayRepresentative,
   evaluateCragA,
@@ -10,7 +15,19 @@ import {
   scoreA,
   shelterScale,
 } from './cragModel.js'
-import type { HourlyConditions, WeatherHour } from './hourlyConditions.js'
+import { CONDENSATION_CLEAR_MARGIN_C, type HourlyConditions, type WeatherHour } from './hourlyConditions.js'
+import { DEFAULT_WINDOW_MIN_SCORE } from '../runs/hourlyReadings.js'
+
+describe('SCORE_MODEL_FACTS', () => {
+  it('states the rules the model actually runs on', () => {
+    expect(fToC(SCORE_MODEL_FACTS.dewStartF)).toBeCloseTo(DEW_START_C, 9)
+    expect(SCORE_MODEL_FACTS.condensationClearMarginC).toBe(CONDENSATION_CLEAR_MARGIN_C)
+    expect(SCORE_MODEL_FACTS.dayRunHours).toBe(DAY_RUN_HOURS)
+    expect(SCORE_MODEL_FACTS.dayFirstHour).toBe(DAY_FIRST_HOUR)
+    expect(SCORE_MODEL_FACTS.dayLastHour).toBe(DAY_LAST_HOUR)
+    expect(SCORE_MODEL_FACTS.goodHoursMinScore).toBe(DEFAULT_WINDOW_MIN_SCORE)
+  })
+})
 
 const HOUR_MS = 3_600_000
 const START = Date.parse('2026-10-01T07:00:00Z') // local midnight at UTC-7

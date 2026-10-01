@@ -12,6 +12,7 @@ import {
   type HourlyReading,
   type HourlySample,
   type HourlySeries,
+  type RangeF,
   type ReadingField,
   type ReadingsSummary,
 } from '@weatherteam6/types'
@@ -98,6 +99,8 @@ export type ConditionsNowProps = {
    */
   alertsPending: boolean
   severeAlertEvent: string | null
+  /** The reader's temperature range, quoted in the score's reasons. Null while it loads. */
+  rangeF?: RangeF
 }
 
 /** The card's surface and inks: a score's rung, or the plain v2 card. */
@@ -350,6 +353,7 @@ export function ConditionsNow({
   conditions,
   alertsPending,
   severeAlertEvent,
+  rangeF = null,
 }: ConditionsNowProps) {
   const now = useNow()
   // The hour nearest now, as the Today chart's "Now" reads it, or null when
@@ -412,6 +416,7 @@ export function ConditionsNow({
         // alerts query resolves.
         alertsPending: false,
         unavailableReason: r.unavailable_reason,
+        rangeF,
       })
     }
   }
@@ -469,6 +474,7 @@ export function ConditionsNow({
         readingModel={shown.model}
         rainModels={shown.rainModels}
         heldBack={summary?.heldBack ?? null}
+        tileSurface={{ backgroundColor: p.band }}
         // Required copy, not decoration. The friction estimate note is a Phase
         // 3 acceptance criterion, and the aspect note is what keeps an
         // unqualified reading from being read as a measured one. Shown only

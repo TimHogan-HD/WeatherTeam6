@@ -8,6 +8,7 @@ import { rockLocked } from '../lib/editLocation.js'
 import { formatRunAge } from '../lib/format.js'
 import { useDeleteLocation, useLocation } from '../hooks/useLocations.js'
 import { usePreferences } from '../hooks/usePreferences.js'
+import { draftFromPreferences } from '../lib/preferencesForm.js'
 import { useAlerts, useConditions, useForecast } from '../hooks/useWeather.js'
 import { useHourly } from '../hooks/useHourly.js'
 import { useNow } from '../hooks/useNow.js'
@@ -51,7 +52,11 @@ export function LocationDetail() {
   // preferences are still loading when this mounts, and reading them once
   // would open Overview whatever was saved. A city asking for Crag falls back
   // to Overview below, like any tab it does not offer.
-  const preferred = usePreferences().data?.default_tab ?? null
+  const prefs = usePreferences().data
+  const preferred = prefs?.default_tab ?? null
+  // Quoted in the score's reasons. Unknown while loading, and then unquoted
+  // rather than the default range presented as the reader's.
+  const range = prefs === undefined ? null : draftFromPreferences(prefs)
   const [picked, setTab] = useState<DetailTab | null>(null)
   const asked = searchParams.get('tab') ?? preferred
   const tab = picked ?? detailTabs(true).find((o) => o.value === asked)?.value ?? 'overview'
@@ -95,6 +100,7 @@ export function LocationDetail() {
     <>
       <DetailView
         isClimbingLocation={location.data.is_climbing_location}
+        rangeF={range === null ? null : { low: range.lowF, high: range.highF }}
         forecast={{
           data: forecast.data,
           isPending: forecast.isPending,
