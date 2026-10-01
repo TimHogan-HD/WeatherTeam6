@@ -46,7 +46,7 @@ import {
   type HourlyConditions,
   type WeatherHour,
 } from '../scoring/hourlyConditions.js'
-import { dayRepresentative, evaluateCragA, type TempRangeC } from '../scoring/cragModel.js'
+import { dayRepresentative, evaluateCragA, heldBackBy, type TempRangeC } from '../scoring/cragModel.js'
 import { localDateString } from '../weather/openMeteo.js'
 import type { DeterministicRuns, ModelRun } from './latestRuns.js'
 
@@ -109,7 +109,7 @@ const none = (reason: ReadingsUnavailableReason): HourlyReadings => ({
   rock_history: [],
 })
 
-/** The published projection of an evaluated hour — readings and measurements, no factors. */
+/** The published projection of an evaluated hour — readings, measurements and the penalties' order, no factors. */
 function toReading(h: HourlyConditions): HourlyReading {
   return {
     valid_at: h.valid_at,
@@ -118,6 +118,7 @@ function toReading(h: HourlyConditions): HourlyReading {
     score: h.score,
     t_surface_c: h.t_surface_c,
     condensation_margin_c: h.condensation_margin_c,
+    held_back_by: heldBackBy(h.diagnostics.penalties),
   }
 }
 

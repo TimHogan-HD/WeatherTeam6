@@ -346,6 +346,17 @@ async function run(): Promise<void> {
       await screen(`tab-${label.trim().toLowerCase()}`)
     }
 
+    // 3b. The Overview's measurements, opened: the score is explained first (#218).
+    await page.getByRole('tab', { name: tabs[0]!.trim() }).click()
+    await page.getByRole('button', { name: 'Measurements' }).click()
+    await screen('overview-measurements')
+    const hero = await page.locator('section').first().innerText()
+    check(
+      'the opened measurements say what is holding a shown score down',
+      !/Score\s*\n\s*\d+/.test(hero) || /Held back by/.test(hero),
+      hero.replace(/\s+/g, ' ').slice(0, 300),
+    )
+
     // 3a. The bottom bar: every section by tapping it, then Conditions back to
     // the list — the location screen has no back link of its own.
     const bar = page.getByRole('navigation', { name: 'Main' })

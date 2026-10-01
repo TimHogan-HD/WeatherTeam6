@@ -237,6 +237,15 @@ export type FrictionLevel = 'poor' | 'fair' | 'good' | 'great';
  * A surface must say so rather than present an unqualified reading as measured.
  */
 export type RockReading = { level: RockLevel; qualified: boolean };
+
+/**
+ * One of Crag A's five multiplicative penalties: the rock's wetness, then
+ * friction's condensation, heat, humidity and cold. **A name, never a value** —
+ * the magnitude fence lets the ordering reach a screen and keeps the 0-1
+ * factor in `diagnostics`.
+ */
+export type ScoreLimit = 'wet_rock' | 'condensation' | 'heat' | 'humidity' | 'cold';
+
 export type FrictionReading = {
   level: FrictionLevel;
   condensing: boolean;
@@ -259,6 +268,16 @@ export type HourlyReading = {
   t_surface_c: number | null;
   /** How far the wall's bulk sits above its dew point, °C. Below 0 it is condensing. */
   condensation_margin_c: number | null;
+  /**
+   * What is holding `score` below 100, most limiting first. Only penalties that
+   * would on their own take at least one point off a perfect score are named,
+   * or the largest when only together they cost one. Empty only at 100; null
+   * whenever `score` is null.
+   *
+   * Optional only because the API and the client deploy separately: an absent
+   * field is an older API, and renders nothing.
+   */
+  held_back_by?: ScoreLimit[] | null;
 };
 
 /** The best contiguous run of hours on a day that cleared the minimums. */

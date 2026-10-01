@@ -468,6 +468,7 @@ export function ConditionsNow({
         reading={shown.reading}
         readingModel={shown.model}
         rainModels={shown.rainModels}
+        heldBack={summary?.heldBack ?? null}
         // Required copy, not decoration. The friction estimate note is a Phase
         // 3 acceptance criterion, and the aspect note is what keeps an
         // unqualified reading from being read as a measured one. Shown only

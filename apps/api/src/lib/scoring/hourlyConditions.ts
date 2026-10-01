@@ -60,7 +60,7 @@
  * not be measured — it is **never** 0, and 0 is a real score meaning the wall is
  * running with water. A caller that renders these must keep the two apart.
  */
-import { REWETTING_PRECIP_MM, type RockType } from '@weatherteam6/types'
+import { REWETTING_PRECIP_MM, type RockType, type ScoreLimit } from '@weatherteam6/types'
 import { MAX_HOURS, MIN_HOURS } from './dryingModel.js'
 import {
   ASPECT_QUALIFY_MARGIN_C,
@@ -361,7 +361,16 @@ export type HourlyDiagnostics = {
   /** The product of the two friction mechanisms, 0-1. **Never rendered.** */
   friction_factor: number | null
   effective_dry_hours: number | null
+  /**
+   * Each of Crag A's penalties as its own multiplier on the score, wet rock as
+   * `dryness^0.55`. Null when the score is, and always on v2's own path.
+   * **Never rendered** — only their order, through `heldBackBy`.
+   */
+  penalties: ScorePenalties | null
 }
+
+/** One multiplier per `ScoreLimit`; the score is 100 × their product. */
+export type ScorePenalties = Record<ScoreLimit, number>
 
 export type HourlyConditions = {
   valid_at: string
@@ -527,6 +536,7 @@ function readingsFrom(
       wetness_factor: wetness,
       friction_factor: friction,
       effective_dry_hours: input.effectiveDryHours,
+      penalties: null,
     },
   }
 }

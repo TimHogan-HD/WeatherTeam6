@@ -2,9 +2,11 @@ import { useId, useState, type ReactNode } from 'react'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import {
   MEASUREMENTS_LABEL,
+  SCORE_LABEL,
   measurements,
   type MeasurementGroup,
   type MeasurementsInput,
+  type ReadingField,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, row, stack } from '../theme/styles.js'
@@ -67,8 +69,16 @@ function Group({ group, showSource }: { group: MeasurementGroup; showSource: boo
  * `lead` sits on the control's line, left of it — the hero's caveats, which
  * would otherwise take a line of their own. It renders even when there is no
  * control.
+ *
+ * `heldBack` is `ReadingsSummary.heldBack`, already suppressed with the score.
+ * It opens the panel because it answers the question a reader opens it with:
+ * why this number (issue #218).
  */
-export function Measurements({ lead = null, ...input }: MeasurementsInput & { lead?: ReactNode }) {
+export function Measurements({
+  lead = null,
+  heldBack = null,
+  ...input
+}: MeasurementsInput & { lead?: ReactNode; heldBack?: ReadingField | null }) {
   const [open, setOpen] = useState(false)
   const panelId = useId()
   const { groups, sharedSource, notes } = measurements(input)
@@ -101,6 +111,9 @@ export function Measurements({ lead = null, ...input }: MeasurementsInput & { le
       </div>
 
       <div id={panelId} hidden={!open} style={open ? stack(spacing.cellPad) : {}}>
+        {heldBack === null ? null : (
+          <Group group={{ label: SCORE_LABEL, source: null, fields: [heldBack] }} showSource={false} />
+        )}
         {groups.map((g) => (
           <Group key={g.label} group={g} showSource={sharedSource === null} />
         ))}

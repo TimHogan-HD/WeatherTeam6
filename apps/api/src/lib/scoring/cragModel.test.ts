@@ -5,6 +5,7 @@ import {
   evaluateCragA,
   evaluateWallA,
   frictionFactorA,
+  heldBackBy,
   rockLevelA,
   scoreA,
   shelterScale,
@@ -195,5 +196,54 @@ describe('dayRepresentative', () => {
   it('skips a run containing an unscored hour, and is null when none qualifies', () => {
     expect(dayRepresentative([at(8, 90), at(9, null), at(10, 90)], OFFSET)).toBeNull()
     expect(dayRepresentative([at(8, 90), at(10, 90), at(11, 90)], OFFSET)).toBeNull()
+  })
+})
+
+describe('heldBackBy', () => {
+  const clear = { wet_rock: 1, condensation: 1, heat: 1, humidity: 1, cold: 1 }
+
+  it('names the penalties most limiting first', () => {
+    expect(heldBackBy({ ...clear, humidity: 0.8, heat: 0.6 })).toEqual(['heat', 'humidity'])
+  })
+
+  it('names a penalty only when it alone would take a point off a perfect score', () => {
+    expect(heldBackBy({ ...clear, cold: 0.996 })).toEqual([])
+    expect(heldBackBy({ ...clear, cold: 0.994 })).toEqual(['cold'])
+  })
+
+  it('names the largest of several small penalties that together cost a point', () => {
+    const small = { wet_rock: 0.997, condensation: 0.996, heat: 0.998, humidity: 0.996, cold: 0.999 }
+    expect(heldBackBy(small)).toEqual(['condensation'])
+  })
+
+  it('names both of two penalties at zero, rock first', () => {
+    expect(heldBackBy({ ...clear, condensation: 0, wet_rock: 0 })).toEqual(['wet_rock', 'condensation'])
+  })
+
+  it('is null when the score was not computed', () => {
+    expect(heldBackBy(null)).toBeNull()
+  })
+
+  it('reads penalties that multiply back to the score on every scored hour', () => {
+    // Hot and humid throughout, with a shower once the rock has dried.
+    const hours = crag(
+      series(144, (i, h) => ({ air_temp_c: h.air_temp_c! + 18, dewpoint_c: 17, ...(i === 130 ? { precip_mm: 1 } : {}) })),
+    )
+    const named = new Set<string>()
+    for (const h of hours) {
+      const p = h.diagnostics.penalties
+      if (h.score === null) {
+        expect(p).toBeNull()
+        continue
+      }
+      expect(p).not.toBeNull()
+      const product = p!.wet_rock * p!.condensation * p!.heat * p!.humidity * p!.cold
+      expect(Math.round(100 * product)).toBe(h.score)
+      expect(heldBackBy(p)!.length > 0).toBe(h.score < 100)
+      for (const l of heldBackBy(p) ?? []) named.add(l)
+    }
+    expect(named).toContain('wet_rock')
+    expect(named).toContain('heat')
+    expect(named).toContain('humidity')
   })
 })

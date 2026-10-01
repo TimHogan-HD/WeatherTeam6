@@ -50,7 +50,10 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   reach a screen; 0-1 factors do not** — `poor`/`fair`/`good`/`great`, never "friction 0.29",
   and the copy says it is an estimate. Factors live under `HourlyConditions.diagnostics`;
   `hourlyConditions.test.ts` fails if one is promoted to the top level. `t_surface_c` and
-  `condensation_margin_c` stay renderable. The same fence holds for Crag A's penalties.
+  `condensation_margin_c` stay renderable. The same fence holds for Crag A's penalties:
+  they stay in `diagnostics.penalties`, and only their order reaches a response, as
+  `held_back_by` from `heldBackBy` (`cragModel.ts`, #218). The client shows it as
+  `Held back by` at the top of the measurements panel, suppressed with the score.
 - **The drying clock's rain is the hourly median of the four global models**
   (`lib/weather/rainMedian.ts`, #209), not `THERMAL_MODEL`'s own — GFS alone called wet rock
   dry far more often (`npm run compare:dryness`). HRRR and NBM are left out so a crag abroad
