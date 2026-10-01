@@ -50,8 +50,13 @@ export function LocationList() {
 
   // The same cache entries the cards fill, so this adds no request.
   const forecasts = useQueries({ queries: (locations.data ?? []).map((l) => forecastQuery(l.id)) })
+  // Settled on the real list, not the one remembered on this device: a
+  // remembered list from before a crag was added elsewhere is ready while the
+  // real one still has a card with no weather.
   const cardsReady =
-    !locations.isPending && (locations.isError || (scores !== null && forecasts.every((f) => !f.isPending)))
+    !locations.isPending &&
+    !locations.isPlaceholderData &&
+    (locations.isError || (scores !== null && forecasts.every((f) => !f.isPending)))
   const splash = useOpeningSplash(cardsReady)
 
   const updated = formatUpdatedAt(locations.dataUpdatedAt, now)
