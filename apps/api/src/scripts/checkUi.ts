@@ -384,6 +384,16 @@ async function run(): Promise<void> {
     await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
     const opened = await page.getByRole('tab', { selected: true }).innerText()
     check('a crag now opens on the saved tab', opened.trim() === 'Hourly', `opened on ${opened}`)
+    // A cold load of the crag's own URL: the preferences are still in flight
+    // when the screen mounts, and the saved tab must win once they arrive.
+    await page.goto(`${WEB}/location/${locationId}`)
+    const coldHourly = await page
+      .getByRole('tab', { name: 'Hourly', selected: true })
+      .waitFor({ timeout: 30_000 })
+      .then(() => true)
+      .catch(() => false)
+    const coldOpened = await page.getByRole('tab', { selected: true }).innerText().catch(() => 'nothing')
+    check('a reload of a crag opens on the saved tab too', coldHourly, `opened on ${coldOpened}`)
 
     // 3b. The location editor (scoring Phase 4b). The crag is a known crag, so
     // its rock type is locked and must not be sent; aspect and angle are.
@@ -561,7 +571,8 @@ async function run(): Promise<void> {
         body: JSON.stringify({ data: null, error: 'forced by check:ui', status: 500 }),
       })
     })
-    await fp.goto(`${WEB}/location/${locationId}`)
+    // Overview by name: this user saved Hourly as their opening tab above.
+    await fp.goto(`${WEB}/location/${locationId}?tab=overview`)
     const retrying = await fp
       .getByText('Couldn’t reach conditions — trying again')
       .waitFor({ timeout: 30_000 })

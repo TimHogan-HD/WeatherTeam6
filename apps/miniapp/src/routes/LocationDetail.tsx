@@ -45,13 +45,15 @@ export function LocationDetail() {
   // link back in — a wall's back to Crag (`cragTabPath`), a route's "Hourly ›"
   // to Hourly. Without one it is the reader's saved tab (`usePreferences`,
   // loaded by the signed-in shell), else Overview. Only the opening tab:
-  // after that the route holds it, as before. A city asking for Crag falls
-  // back to Overview below, like any tab it does not offer.
+  // once the reader picks one, `picked` holds it. **The opening tab is worked
+  // out on every render, not once at mount**: on a reload or a deep link the
+  // preferences are still loading when this mounts, and reading them once
+  // would open Overview whatever was saved. A city asking for Crag falls back
+  // to Overview below, like any tab it does not offer.
   const preferred = usePreferences().data?.default_tab ?? null
-  const [tab, setTab] = useState<DetailTab>(() => {
-    const asked = searchParams.get('tab') ?? preferred
-    return detailTabs(true).find((o) => o.value === asked)?.value ?? 'overview'
-  })
+  const [picked, setTab] = useState<DetailTab | null>(null)
+  const asked = searchParams.get('tab') ?? preferred
+  const tab = picked ?? detailTabs(true).find((o) => o.value === asked)?.value ?? 'overview'
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   // The day Hourly opens on.
