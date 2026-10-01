@@ -2,18 +2,21 @@
  * **The rain the drying clock reads: the hourly median of the four global
  * models**, not the thermal model's own precipitation (issue #209).
  *
- * `npm run compare:dryness` measured the choice against 20 ASOS rain gauges
- * over 90 days, each candidate driving the real Crag A clock against the clock
- * driven by the gauge. `gfs_seamless` alone, whose first 48 hours in the US
- * are HRRR's, called the rock dry during 60% of the daytime hours a gauge said
- * it was still wet or drying on quartzite and 44% on sandstone. The median of
- * these four missed 26% and 19%, and was the only candidate within 0.06 of
- * the best on every rock type tried. The price is more hours reading "drying"
- * that a gauge calls dry — the direction this model already chooses to be
- * wrong in.
+ * `npm run compare:dryness` measured the choice against 17 ASOS rain gauges
+ * over 90 days (re-run 2026-10-01, after three gauges stuck at zero were
+ * dropped), each candidate driving the real Crag A clock against the clock
+ * driven by the gauge. `gfs_seamless` alone, whose US hours are HRRR's, called
+ * the rock dry during 56% of the daytime hours a gauge said it was still wet or
+ * drying on quartzite and 41% on sandstone. The median of these four missed 25%
+ * and 18%, and its worst gap to the best candidate on any rock type was the
+ * smallest of all (0.046 Peirce). The price is more hours reading "drying" that
+ * a gauge calls dry — the direction this model already chooses to be wrong in.
  *
  * **Global only.** HRRR and NBM stop at the US border, so a median including
- * them would be a different statistic at Kalymnos than at Red Rock.
+ * them would be a different statistic at Kalymnos than at Red Rock. It would
+ * also be worse: the median of all six missed 36% of wet quartzite hours and
+ * 26-27% of wet sandstone and limestone hours, and scored per day (the app's
+ * day score) it called more wet days dry than this one on every rock type.
  *
  * Irradiance is still never pooled (issue #155). This pools precipitation
  * alone, and the readings name the models it came from.

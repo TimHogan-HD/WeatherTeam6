@@ -56,16 +56,20 @@ const DAY_FIRST_HOUR = 8
 const DAY_LAST_HOUR = 18
 const ROCKS: RockType[] = ['quartzite', 'sandstone', 'limestone']
 
-/** Airports near crags, plus wetter and drier climates so both errors get exercised. */
+/**
+ * Airports near crags, plus wetter and drier climates so both errors get exercised.
+ *
+ * **Left out: RGK (Red Wing), TWM (Two Harbors) and BJC (Broomfield, for Boulder).**
+ * Their gauges report 0.00 through real rain: over 2026-07-03 to 09-30 they read
+ * 2, 5 and 0 mm where co-op and volunteer gauges 2-8 km away read 189-219, 177-208
+ * and 33-59 mm. A gauge stuck at zero says "dry", so it scored every source wrong.
+ */
 const STATIONS: [id: string, near: string][] = [
   ['DLL', "Devil's Lake WI"],
-  ['RGK', 'Red Wing MN'],
   ['RNH', 'Willow River WI'],
-  ['TWM', 'North Shore MN'],
   ['POU', 'Gunks NY'],
   ['CHA', 'Chattanooga TN'],
   ['LEX', 'Red River Gorge KY'],
-  ['BJC', 'Boulder CO'],
   ['RDM', 'Smith Rock OR'],
   ['BIH', 'Bishop CA'],
   ['VGT', 'Red Rock NV'],
