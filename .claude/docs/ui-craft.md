@@ -22,9 +22,9 @@ and most accurately, and the top and bottom edges least accurately. So:
 - **Rare actions can sit in the hard places.** `Feedback` at top right is fine. The six-tab
   row at the top of a location is used constantly and sits at the least accurate edge, so
   its targets should stay generous.
-- **Keep a destructive action from sitting flush beside safe ones.** `Remove location` sits
-  in the same row as `Check this forecast` and `Edit crag`. It must confirm the removal or
-  offer an undo (Vercel guidelines).
+- **A destructive action confirms the removal or offers an undo** (Vercel guidelines).
+  `Remove location` already does: it sits beside `Check this forecast` and `Edit crag`, and
+  asks for a second tap (`Tap again to remove`, `LocationDetail.tsx`).
 
 ## 2. Feel
 
@@ -70,7 +70,7 @@ both agree on it.
 | `@starting-style` | Safari 17.5+, Chromium | Entrances without a "mounted" state in React |
 | Scroll-driven animations | Safari 26+, Chromium; not Firefox | Header shrinking as you scroll. Progressive enhancement only |
 | Anchor positioning | Baseline January 2026 | Chart readouts, popovers |
-| `popover`, `<dialog>` | Baseline | Confirming `Remove location` |
+| `popover`, `<dialog>` | Baseline | Sheets and menus, if a screen needs one |
 | `interpolate-size` / `height: auto` transitions | Chromium only | Use a `grid-template-rows: 0fr → 1fr` transition for Measurements |
 | Web haptics | **None on iOS.** `navigator.vibrate` was never implemented, and iOS 26.5 closed the `<input switch>` workaround | Do not design anything that depends on haptics |
 
@@ -102,7 +102,6 @@ These are not decided. Each is a proposal to show as variants (§6).
 3. The Measurements disclosure opens with a height transition, and its chevron turns.
 4. The selected day chip on Hourly slides its fill to the new day instead of jumping.
 5. A shared-element view transition from a list card into the location.
-6. `Remove location` confirms in a `<dialog>`, or offers an undo.
 
 ## 6. Tools
 
