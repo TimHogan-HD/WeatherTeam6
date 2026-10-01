@@ -15,9 +15,9 @@ describe('TabBar', () => {
   it('links all five sections in order, each named for a screen reader', () => {
     const html = markup('conditions')
     const labels = [...html.matchAll(/aria-label="([^"]+)"/g)].map((m) => m[1])
-    expect(labels).toEqual(['Main', 'Crags', 'Conditions', 'Map', 'Trips', 'Profile'])
+    expect(labels).toEqual(['Main', 'Conditions', 'Trips', 'Map', 'Crags', 'Profile'])
     const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map((m) => m[1])
-    expect(hrefs).toEqual(['/crags', '/', '/map', '/trips', '/profile'])
+    expect(hrefs).toEqual(['/', '/trips', '/map', '/crags', '/profile'])
   })
 
   it('marks only the lit section as the current page', () => {
