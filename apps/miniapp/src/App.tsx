@@ -1,6 +1,14 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation as useRouterLocation } from 'react-router-dom'
+import {
+  BrowserRouter,
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation as useRouterLocation,
+  useNavigationType,
+} from 'react-router-dom'
 import { createQueryClient } from './lib/queryClient.js'
 import { getToken, subscribeToToken } from './lib/authToken.js'
 import { useAuthToken } from './hooks/useAuth.js'
@@ -13,7 +21,7 @@ import { WallScreen } from './routes/WallScreen.js'
 import { ClimbScreen } from './routes/ClimbScreen.js'
 import { Profile, UnbuiltSection } from './routes/Sections.js'
 import { TabBar } from './components/TabBar.js'
-import { sectionFor } from './lib/bottomNav.js'
+import { arrivalScrollY, sectionFor } from './lib/bottomNav.js'
 
 const queryClient = createQueryClient()
 
@@ -45,7 +53,7 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <ScrollToTop />
+        <ScrollMemory />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route
@@ -110,14 +118,30 @@ function SignedIn() {
 }
 
 /**
- * A new screen opens at its top. The app is one document, so without this a
- * wall opened from far down the Crag tab lands halfway down its own route list.
- * Keyed on the path only: a tab change inside `/location/:id` keeps its place.
+ * The app is one document, so every screen shares `window`'s scroll, and
+ * `arrivalScrollY` decides where each one opens. Keyed on the path only: a tab
+ * change inside `/location/:id` keeps its place.
+ *
+ * Positions are recorded as the reader scrolls, not when they leave: by the
+ * time a path change is seen the next screen is already in the DOM and the old
+ * position has been clamped to its height. A layout effect, so the path being
+ * recorded under changes before the browser can report the clamp as a scroll.
  */
-function ScrollToTop() {
+function ScrollMemory() {
   const { pathname } = useRouterLocation()
+  const navigation = useNavigationType()
+  const saved = useRef(new Map<string, number>())
+  const current = useRef(pathname)
+
   useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [pathname])
+    const record = () => saved.current.set(current.current, window.scrollY)
+    window.addEventListener('scroll', record, { passive: true })
+    return () => window.removeEventListener('scroll', record)
+  }, [])
+
+  useLayoutEffect(() => {
+    current.current = pathname
+    window.scrollTo(0, arrivalScrollY(pathname, navigation, saved.current.get(pathname)))
+  }, [pathname, navigation])
   return null
 }

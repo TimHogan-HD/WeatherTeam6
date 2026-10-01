@@ -89,6 +89,17 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* A pressed control dims at once, with no transition (owner, 2026-09-30), so
+   a tap shows before a slow screen arrives. Only the innermost pressed
+   control: a card's own retry button dims, not the card around it.
+   `main.tsx` registers a touchstart listener, without which iOS Safari never
+   applies `:active` to a touch. */
+:is(a, button, [role='button'], [role='tab']):not(:disabled, [aria-disabled='true']):active:not(
+    :has(:is(a, button, [role='button'], [role='tab']):active)
+  ) {
+  opacity: var(--wt6-press-opacity);
+}
+
 :focus-visible {
   outline: 2px solid var(--wt6-color-good);
   outline-offset: 2px;

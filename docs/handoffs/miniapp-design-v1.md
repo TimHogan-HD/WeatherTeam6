@@ -117,7 +117,9 @@ this. Not before.
   Profile holds Feedback and Sign out, which left the list. Unlit tabs are icons, and the lit
   one carries its name in a lime pill that slides from tab to tab (`TabBar.tsx`). Tapping a
   tab goes to its section's first screen, so a lit Conditions is the way out of a location —
-  which is why a saved location lost its back link. `/add` and `/feedback` are tasks you
+  which is why a saved location lost its back link. A section's first screen keeps its scroll
+  position however you return to it, and tapping its lit tab there scrolls it to the top
+  (`arrivalScrollY` in `lib/bottomNav.ts`). `/add` and `/feedback` are tasks you
   finish and leave: no bar, their own back control. A location keeps its own tab row at the
   top; the bar does not replace it.
 - **After a successful save**, replace history rather than pushing: go to `/location/:id` for

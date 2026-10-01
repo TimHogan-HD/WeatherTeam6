@@ -300,6 +300,62 @@ async function run(): Promise<void> {
       check('and it was saved with the looked-up elevation', elevation !== null && elevation > 200 && elevation < 350, `got ${String(elevation)}`)
     }
 
+    // 4d. The list keeps its place. Two crags fit at 1000 px, so a shorter
+    // screen makes the list scroll.
+    await page.setViewportSize({ width: VIEWPORT.width, height: 400 })
+    await page.goto(`${WEB}/`)
+    await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
+    const { listY, listH } = await page.evaluate(() => {
+      window.scrollTo(0, Math.floor((document.documentElement.scrollHeight - window.innerHeight) / 2))
+      return { listY: window.scrollY, listH: document.documentElement.scrollHeight }
+    })
+    check('the list is tall enough to scroll at 480x400', listY > 50, `scrolled to ${listY} of ${listH}`)
+    await page.waitForTimeout(200)
+    const scrollY = () => page.evaluate(() => window.scrollY)
+    const near = (y: number) => Math.abs(y - listY) <= 2
+
+    // The URL changes before React draws the next screen, so each read waits
+    // for that screen's own content.
+    const card = page.locator('[role="button"]').first()
+    const openCard = async () => {
+      await card.click()
+      await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
+    }
+    await openCard()
+    const detailY = await scrollY()
+    check('a location opened from far down the list opens at its top', detailY === 0, `at ${detailY}`)
+    await bar.getByRole('link', { name: 'Conditions' }).click()
+    await card.waitFor({ timeout: 10_000 })
+    const viaTab = await scrollY()
+    check('the lit Conditions tab returns to the list where it was left', near(viaTab), `left at ${listY}, back at ${viaTab}`)
+
+    await openCard()
+    await page.goBack()
+    await card.waitFor({ timeout: 10_000 })
+    const viaBack = await scrollY()
+    check('the phone’s back returns to the list where it was left', near(viaBack), `left at ${listY}, back at ${viaBack}`)
+
+    await bar.getByRole('link', { name: 'Conditions' }).click()
+    await page.waitForFunction(() => window.scrollY === 0, undefined, { timeout: 5_000 }).catch(() => undefined)
+    check('the lit tab on the list scrolls it to the top', (await scrollY()) === 0 && new URL(page.url()).pathname === '/', `at ${await scrollY()}`)
+
+    // 4e. A control dims while pressed. Released off it, so nothing navigates.
+    const mapTab = bar.getByRole('link', { name: 'Map' })
+    const opacity = () => mapTab.evaluate((el) => getComputedStyle(el).opacity)
+    const box = await mapTab.boundingBox()
+    if (box !== null) {
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      await page.mouse.down()
+      const pressed = await opacity()
+      await page.mouse.move(0, 0)
+      await page.mouse.up()
+      const released = await opacity()
+      check('a pressed tab dims and comes back when released', pressed === '0.6' && released === '1', `pressed ${pressed}, released ${released}`)
+    } else {
+      check('a pressed tab dims and comes back when released', false, 'the Map tab has no box')
+    }
+    await page.setViewportSize(VIEWPORT)
+
     await context.close()
 
     // 5. /conditions failing (#261). A fresh context, so no cached readings,

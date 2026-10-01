@@ -1,6 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import { bottomNav } from '@weatherteam6/design/tokens'
-import { navGeometry, sectionFor } from './bottomNav.js'
+import { arrivalScrollY, navGeometry, sectionFor } from './bottomNav.js'
+
+describe('arrivalScrollY', () => {
+  it('returns the list to where it was left, however the reader comes back', () => {
+    expect(arrivalScrollY('/', 'PUSH', 840)).toBe(840)
+    expect(arrivalScrollY('/', 'POP', 840)).toBe(840)
+    expect(arrivalScrollY('/profile', 'PUSH', 120)).toBe(120)
+  })
+
+  it('opens any other screen at its top unless the reader went back to it', () => {
+    expect(arrivalScrollY('/location/abc/wall/w1', 'PUSH', 600)).toBe(0)
+    expect(arrivalScrollY('/location/abc', 'REPLACE', 600)).toBe(0)
+    expect(arrivalScrollY('/location/abc', 'POP', 600)).toBe(600)
+  })
+
+  it('opens a screen never scrolled at its top', () => {
+    expect(arrivalScrollY('/', 'POP', undefined)).toBe(0)
+  })
+})
 
 describe('sectionFor', () => {
   it('puts the list, a location and its guidebook screens under Conditions', () => {
