@@ -48,9 +48,11 @@ ol {
 }
 
 html {
-  /* Painted here as well as on body so an overscroll past the end of a short
-     page shows the app's own colour, not white. */
-  background-color: var(--wt6-v2-bg);
+  /* What a rubber-band overscroll reveals, above the first screen or below
+     the last. The header band's colour, so pulling down at the top stretches
+     the band rather than opening a darker strip above it; at the bottom the
+     tab bar, the same colour, covers it. Never the browser's white. */
+  background-color: var(--wt6-v2-surface);
   -webkit-text-size-adjust: 100%;
 }
 
@@ -63,9 +65,8 @@ body {
   background-color: var(--wt6-v2-bg);
   color: var(--wt6-color-txt1);
   font-family: var(--wt6-font-body);
-  /* Mobile Safari and Chrome bounce on overscroll and expose the page behind
-     the app, which on an installed PWA is the browser's own background. */
-  overscroll-behavior-y: none;
+  /* The phone's own rubber-band bounce stays on (owner, 2026-09-30: the
+     scroll felt stiff without it). `html` paints what it reveals. */
 }
 
 #root {
