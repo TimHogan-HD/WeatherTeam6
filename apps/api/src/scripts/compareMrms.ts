@@ -198,7 +198,8 @@ async function run(): Promise<void> {
         gaugeMm += mm
         radarMm += m
       }
-      const dead = radarMm >= 20 && gaugeMm < 0.25 * radarMm
+      // A dry month gives little radar rain to compare, so a gauge that read none at all is dead too.
+      const dead = (radarMm >= 20 && gaugeMm < 0.25 * radarMm) || (radarMm >= 5 && gaugeMm === 0)
       if (dead && !deadGauges.some((d) => d.startsWith(pair.station)))
         deadGauges.push(`${pair.station}: gauge ${gaugeMm.toFixed(0)} mm, MRMS ${radarMm.toFixed(0)} mm`)
 
