@@ -81,12 +81,20 @@ body {
      Adding it here as well stacked the two into a band of empty space. */
 }
 
-/* Kill the mobile tap highlight — it paints a grey box over the token surface
-   on every card and chip — but keep focus visible, because the keyboard is now
-   a real way to use this app. */
+/* Kill the mobile tap highlight — it paints a box over the token surface on
+   every card and chip — but keep focus visible, because the keyboard is now
+   a real way to use this app. The cards are `role="button"` divs, not
+   buttons, so they are named here too; without them Android painted a blue
+   box over a held card. A held control is a press, not a text selection:
+   long-pressing a card selected a figure and opened the copy menu. */
 a,
-button {
+button,
+[role='button'],
+[role='tab'] {
   -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* A pressed control dims at once, with no transition (owner, 2026-09-30), so
