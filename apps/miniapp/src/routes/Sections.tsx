@@ -5,6 +5,9 @@ import { bareButton, headerBand, navClearance, row, stack } from '../theme/style
 import { clearToken } from '../lib/authToken.js'
 import { FeedbackButton } from '../components/FeedbackButton.js'
 import { Settings } from '../components/Settings.js'
+import { ScoreExplainer } from '../components/ScoreExplainer.js'
+import { usePreferences } from '../hooks/usePreferences.js'
+import { draftFromPreferences } from '../lib/preferencesForm.js'
 
 /**
  * A bottom-bar section's first screen, in the Conditions list's header band so
@@ -53,9 +56,12 @@ export function UnbuiltSection({ title }: { title: string }) {
  * and being signed out by a 401 take the same path.
  */
 export function Profile() {
+  const prefs = usePreferences().data
+  const range = prefs === undefined ? null : draftFromPreferences(prefs)
   return (
     <SectionScreen title="Profile" action={<FeedbackButton />}>
       <Settings />
+      <ScoreExplainer rangeF={range === null ? null : { low: range.lowF, high: range.highF }} />
       <button
         type="button"
         style={{

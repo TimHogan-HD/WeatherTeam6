@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from 'react-dom/server'
+import { renderInRouter } from '../test/renderInRouter.js'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   FRICTION_MECHANISM,
@@ -132,7 +132,7 @@ function render(over: Partial<ConditionsNowProps> = {}): string {
     severeAlertEvent: null,
     ...over,
   }
-  return renderToStaticMarkup(<ConditionsNow {...props} />)
+  return renderInRouter(<ConditionsNow {...props} />)
 }
 
 const count = (html: string, needle: string): number => html.split(needle).length - 1
@@ -277,11 +277,11 @@ describe('ConditionsNow — the measurements panel', () => {
     expect(html).toMatch(/aria-controls="([^"]+)"[\s\S]*id="\1" hidden=""/)
   })
 
-  it('carries the dew point, which nothing on screen had read', () => {
+  it('does not repeat the air figures the card already prints', () => {
     const html = render()
-    // 4 °C.
-    expect(html).toContain('Dew point')
-    expect(html).toContain('39°F')
+    expect(count(html, 'Dew point')).toBe(1)
+    expect(count(html, 'Humidity')).toBe(1)
+    expect(html).toContain('Rain, past hour')
   })
 
   it('carries the rock figures and says the rock temperature is modelled', () => {
@@ -329,10 +329,15 @@ describe('ConditionsNow — the measurements panel', () => {
   })
 
   it('opens on what is holding the score down (#218)', () => {
-    const html = render({ conditions: settled(scored({ now: { ...reading, held_back_by: ['heat', 'humidity'] } })) })
+    const html = render({
+      conditions: settled(scored({ now: { ...reading, held_back_by: ['heat', 'humidity'] } })),
+      rangeF: { low: 35, high: 65 },
+    })
     expect(html).toContain('Held back by')
-    expect(html).toContain('Heat, then humidity')
-    expect(html.indexOf('Held back by')).toBeLessThan(html.indexOf('Air'))
+    expect(html).toContain('air above your 65°F high')
+    expect(html.indexOf('>Heat<')).toBeLessThan(html.indexOf('>Humidity<', html.indexOf('Held back by')))
+    expect(html.indexOf('Held back by')).toBeLessThan(html.indexOf('Rain, past hour'))
+    expect(html).toContain('href="/profile#score"')
   })
 
   it('does not explain a score a Severe+ alert has dropped', () => {

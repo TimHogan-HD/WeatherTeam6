@@ -102,13 +102,9 @@ describe('measurements', () => {
       readingModel: 'gfs_seamless',
     });
 
-  it('carries the air a reader can check the gauges against', () => {
+  it('carries only the air the card above does not already print', () => {
     const m = both();
-    expect(fieldNamed(m, 'Air', 'Temperature')).toBe('72°F');
-    expect(fieldNamed(m, 'Air', 'Humidity')).toBe('41%');
-    expect(fieldNamed(m, 'Air', 'Dew point')).toBe('47°F');
-    expect(fieldNamed(m, 'Air', 'Wind')).toBe('9 mph');
-    expect(fieldNamed(m, 'Air', 'Rain, past hour')).toBe('0 in');
+    expect(groupNamed(m, 'Air')?.fields).toEqual([{ label: 'Rain, past hour', value: '0 in' }]);
   });
 
   it('carries the rock figures the readings were derived from', () => {
@@ -171,13 +167,7 @@ describe('measurements', () => {
 
   it('omits a group nothing in it was measured for', () => {
     const m = measurements({
-      hour: measuredHour({
-        temp_c: null,
-        dewpoint_c: null,
-        humidity_pct: null,
-        wind_kmh: null,
-        precip_mm: null,
-      }),
+      hour: measuredHour({ precip_mm: null }),
       weatherModel: 'gfs_seamless',
       reading: reading({ t_surface_c: null, condensation_margin_c: null }),
       rainModels: null,
@@ -189,7 +179,7 @@ describe('measurements', () => {
 
   it('keeps the gaps inside a group that measured something', () => {
     const m = measurements({
-      hour: measuredHour({ dewpoint_c: null }),
+      hour: measuredHour({ precip_mm: null, wind_kmh: 14, wind_gust_kmh: 31 }),
       weatherModel: 'gfs_seamless',
       reading: reading({ condensation_margin_c: null }),
       rainModels: null,
@@ -197,65 +187,44 @@ describe('measurements', () => {
     });
     // Between real figures a dash is information: the model answered for this
     // hour and had nothing for this field.
-    expect(fieldNamed(m, 'Air', 'Dew point')).toBe('—');
-    expect(fieldNamed(m, 'Air', 'Temperature')).toBe('72°F');
+    expect(fieldNamed(m, 'Air', 'Rain, past hour')).toBe('—');
+    expect(fieldNamed(m, 'Air', 'Gusts')).toBe('19 mph');
     expect(fieldNamed(m, 'Rock', 'Dew point margin')).toBe('—');
   });
 
   /**
    * **Zero is a measurement here, not a gap**, and it is exactly the input a
-   * `!value` guard would drop: 0 mm is a dry hour the model reported, and 0 °C
-   * is 32 °F.
+   * `!value` guard would drop: 0 mm is a dry hour the model reported.
    */
   it('treats a zero reading as measured', () => {
     const m = measurements({
-      hour: measuredHour({
-        temp_c: 0,
-        precip_mm: 0,
-        humidity_pct: null,
-        dewpoint_c: null,
-        wind_kmh: null,
-      }),
+      hour: measuredHour({ precip_mm: 0 }),
       weatherModel: 'gfs_seamless',
       reading: null,
       rainModels: null,
       readingModel: null,
     });
-    expect(groupNamed(m, 'Air')).not.toBeNull();
-    expect(fieldNamed(m, 'Air', 'Temperature')).toBe('32°F');
     expect(fieldNamed(m, 'Air', 'Rain, past hour')).toBe('0 in');
   });
 
   it('names a gust only when it is above the sustained wind', () => {
-    const gusty = measurements({
-      hour: measuredHour({ wind_kmh: 14, wind_gust_kmh: 31 }),
-      weatherModel: null,
-      reading: null,
-      rainModels: null,
-      readingModel: null,
-    });
-    expect(fieldNamed(gusty, 'Air', 'Wind')).toBe('9 mph, gusts 19 mph');
-
-    const flat = measurements({
-      hour: measuredHour({ wind_kmh: 14, wind_gust_kmh: 14 }),
-      weatherModel: null,
-      reading: null,
-      rainModels: null,
-      readingModel: null,
-    });
-    // `9 mph, gusts 9 mph` reads as a fault rather than as calm air.
-    expect(fieldNamed(flat, 'Air', 'Wind')).toBe('9 mph');
-  });
-
-  it('does not invent a gust against a missing sustained wind', () => {
-    const m = measurements({
-      hour: measuredHour({ wind_kmh: null, wind_gust_kmh: 31 }),
-      weatherModel: null,
-      reading: null,
-      rainModels: null,
-      readingModel: null,
-    });
-    expect(fieldNamed(m, 'Air', 'Wind')).toBe('—');
+    const at = (wind: number | null, gust: number | null) =>
+      fieldNamed(
+        measurements({
+          hour: measuredHour({ wind_kmh: wind, wind_gust_kmh: gust }),
+          weatherModel: null,
+          reading: null,
+          rainModels: null,
+          readingModel: null,
+        }),
+        'Air',
+        'Gusts',
+      );
+    expect(at(14, 31)).toBe('19 mph');
+    // `Gusts 9 mph` beside a 9 mph wind reads as a fault rather than as calm air.
+    expect(at(14, 14)).toBeNull();
+    // And none is invented against a missing sustained wind.
+    expect(at(null, 31)).toBeNull();
   });
 
   it('explains the friction caveat wherever a friction reading is on screen', () => {
@@ -343,12 +312,12 @@ describe('where the drying clock’s rain came from (issue #209)', () => {
       ...base,
       rainModels: ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless', 'gem_seamless'],
     });
-    expect(m.notes[0]).toBe('Dryness uses the median rain forecast of GFS, ECMWF, ICON and GEM, not a rain gauge.');
+    expect(m.notes[0]).toBe('Rain: median forecast of GFS, ECMWF, ICON and GEM, not a gauge.');
   });
 
   it('names the one model when the rain was one model’s own', () => {
     const m = measurements({ ...base, rainModels: ['gfs_seamless'] });
-    expect(m.notes[0]).toBe("Dryness uses GFS's rain forecast, not a rain gauge.");
+    expect(m.notes[0]).toBe("Rain: GFS's forecast, not a gauge.");
   });
 
   it('explains nothing when no dryness reading is on screen, or the source is unnamed', () => {

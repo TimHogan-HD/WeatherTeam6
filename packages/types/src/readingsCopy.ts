@@ -73,7 +73,6 @@ import { modelName, openMeteoModels } from './conditionsCopy.js';
 import {
   EM_DASH,
   cToFDelta,
-  formatHumidity,
   formatPrecipIn,
   formatTempF,
   formatWindMph,
@@ -170,15 +169,61 @@ export const SCORE_LIMIT_LABELS: Record<ScoreLimit, string> = {
 };
 
 /**
- * `Humidity, then heat`: the order the API sent, most limiting first. **Words
- * and order only.** How much each one costs is a judgement call the screen
- * does not print. `Nothing` when no penalty costs a point on its own.
+ * The rules behind Crag A's penalties that copy may name. **Pinned to the model
+ * by `cragModel.test.ts`**, so an explanation cannot drift from the code it
+ * explains. Rules, not readings: none of these is a factor's value.
  */
-export function heldBackValue(limits: readonly ScoreLimit[]): string {
-  if (limits.length === 0) return 'Nothing';
-  return limits
-    .map((l, i) => (i === 0 ? SCORE_LIMIT_LABELS[l] : SCORE_LIMIT_LABELS[l].toLowerCase()))
-    .join(', then ');
+export const SCORE_MODEL_FACTS = {
+  /** Dew point, °F, above which the humidity penalty starts. */
+  dewStartF: 54,
+  /** Margin, °C, between the rock and its dew point below which condensation costs grip. */
+  condensationClearMarginC: 2,
+  /** A day's score: the worst hour of its best run of this many hours… */
+  dayRunHours: 3,
+  /** …between these local hours, inclusive. */
+  dayFirstHour: 8,
+  dayLastHour: 18,
+  /** Good hours: the longest run of hours scoring at least this. */
+  goodHoursMinScore: 60,
+} as const;
+
+/** The reader's temperature range in °F, or null while it is not known. */
+export type RangeF = { low: number; high: number } | null;
+
+/**
+ * Why one penalty is costing points, in a few words: `air above your 60°F
+ * high`. A rule the reader can check against the figures on screen, never the
+ * penalty's size. Without the reader's range, the range is named but not
+ * quoted rather than guessed.
+ */
+export function heldBackReason(limit: ScoreLimit, rock: RockReading | null, range: RangeF): string {
+  switch (limit) {
+    case 'wet_rock':
+      return rock?.level === 'wet' ? 'wet from recent rain' : 'still drying after rain';
+    case 'condensation':
+      return `rock within ${Math.round(cToFDelta(SCORE_MODEL_FACTS.condensationClearMarginC))}°F of its dew point`;
+    case 'heat':
+      return range === null ? 'air above your range' : `air above your ${range.high}°F high`;
+    case 'humidity':
+      return `dew point above ${SCORE_MODEL_FACTS.dewStartF}°F`;
+    case 'cold':
+      return range === null ? 'air below your range' : `air below your ${range.low}°F low`;
+  }
+}
+
+/**
+ * What is holding the score down, most limiting first, one field per penalty:
+ * `Heat · air above your 60°F high`. One `Nothing` field when the API named
+ * none. **Words and order only**: how much each one costs is a judgement call
+ * the screen does not print.
+ */
+export function heldBackFields(
+  limits: readonly ScoreLimit[],
+  rock: RockReading | null,
+  range: RangeF,
+): ReadingField[] {
+  if (limits.length === 0) return [{ label: 'Nothing', value: 'every penalty is clear' }];
+  return limits.map((l) => ({ label: SCORE_LIMIT_LABELS[l], value: heldBackReason(l, rock, range) }));
 }
 
 /**
@@ -389,6 +434,11 @@ export type ReadingsSummaryInput = {
   alertsPending?: boolean;
   /** Set when there are no readings at all; `reading` and `window` are then null. */
   unavailableReason: ReadingsUnavailableReason | null;
+  /**
+   * The reader's temperature range, quoted in the heat and cold reasons. Absent
+   * or null while preferences load: the reason then names the range unquoted.
+   */
+  rangeF?: RangeF;
 };
 
 export type ReadingsSummary = {
@@ -409,11 +459,12 @@ export type ReadingsSummary = {
   /** The bare score, for a surface that draws rather than writes it. Same suppression. */
   score: number | null;
   /**
-   * `Held back by` and what is holding the score down. **Same suppression as
-   * the score**: the reason for a number the reader cannot see is the number
-   * leaking through. Also `null` when the API did not send the order.
+   * What is holding the score down, from `heldBackFields`, set under
+   * `HELD_BACK_LABEL`. **Same suppression as the score**: the reason for a
+   * number the reader cannot see is the number leaking through. Also `null`
+   * when the API did not send the order.
    */
-  heldBack: ReadingField | null;
+  heldBack: ReadingField[] | null;
   /** `Good hours` and its span. `null` when there are no readings at all. */
   window: ReadingField | null;
   /** *"see the Extreme Heat Warning above"*, or the condensation qualifier. */
@@ -511,7 +562,7 @@ export function summarizeReadings(input: ReadingsSummaryInput): ReadingsSummary 
     heldBack:
       score === null || reading?.held_back_by == null
         ? null
-        : { label: HELD_BACK_LABEL, value: heldBackValue(reading.held_back_by) },
+        : heldBackFields(reading.held_back_by, rock, input.rangeF ?? null),
     window: { label: WINDOW_LABEL, value: windowValue(window, utcOffsetSeconds) },
     qualifier,
     notes,
@@ -569,10 +620,7 @@ export const AIR_GROUP_LABEL = 'Air';
 /** The wall — derived quantities, and the group note says they are derived. */
 export const ROCK_GROUP_LABEL = 'Rock';
 
-export const TEMPERATURE_LABEL = 'Temperature';
-export const HUMIDITY_LABEL = 'Humidity';
-export const DEW_POINT_LABEL = 'Dew point';
-export const WIND_LABEL = 'Wind';
+export const GUSTS_LABEL = 'Gusts';
 /**
  * **"Past hour", not "this hour", and the wording is the storage convention.**
  * Precipitation is stamped at the end of the hour it fell in, so the sample
@@ -593,8 +641,7 @@ export const DEW_POINT_MARGIN_LABEL = 'Dew point margin';
  * skin wettedness is standard physics with published values, and the step from
  * there to grip is a judgement no study supports.
  */
-export const FRICTION_MECHANISM =
-  'Friction comes from air temperature, dew point and rock temperature. Its heat, humidity and cold penalties are judgement calls, never measured.';
+export const FRICTION_MECHANISM = 'Friction: estimated from air, dew point and rock temperature.';
 
 /**
  * The mechanism behind `UNRECORDED_ASPECT_NOTE`.
@@ -606,7 +653,7 @@ export const FRICTION_MECHANISM =
  * this warm" is not.
  */
 export const UNRECORDED_ASPECT_MECHANISM =
-  'No wall direction is recorded, so sun is modelled on flat ground. That usually reads warm.';
+  'No wall direction recorded: sun is modelled on flat ground, which usually reads warm.';
 
 /**
  * What the rock group is.
@@ -617,8 +664,7 @@ export const UNRECORDED_ASPECT_MECHANISM =
  * forecast. Printing `126°F` beside `Temperature 84°F` without this line invites
  * a reader to treat the first as an observation.
  */
-export const ROCK_TEMPERATURE_MECHANISM =
-  'Rock temperature is modelled for open, flat ground. Nothing measures the wall.';
+export const ROCK_TEMPERATURE_MECHANISM = 'Rock temperature: modelled for open ground, not measured.';
 
 /**
  * Where the drying clock's rain came from.
@@ -631,8 +677,8 @@ export const ROCK_TEMPERATURE_MECHANISM =
  */
 export function dryingRainMechanism(models: readonly string[]): string {
   const names = [...new Set(models.map(modelName))];
-  if (names.length === 1) return `Dryness uses ${names[0]}'s rain forecast, not a rain gauge.`;
-  return `Dryness uses the median rain forecast of ${nameList(names)}, not a rain gauge.`;
+  if (names.length === 1) return `Rain: ${names[0]}'s forecast, not a gauge.`;
+  return `Rain: median forecast of ${nameList(names)}, not a gauge.`;
 }
 
 /** `GFS, ECMWF and ICON`. */
@@ -725,14 +771,13 @@ export type Measurements = {
   notes: string[];
 };
 
-/** Wind, with the gust only when there is one worth naming. */
-function windValue(hour: MeasuredHour): string {
-  const base = formatWindMph(hour.wind_kmh);
+/** The gust, only when there is one worth naming. */
+function gustValue(hour: MeasuredHour): string | null {
   const { wind_gust_kmh: gust, wind_kmh: wind } = hour;
   // A gust at or below the sustained wind is not a gust, and printing
-  // `9 mph, gusts 9 mph` reads as a fault rather than as calm air.
-  if (gust === null || wind === null || gust <= wind) return base;
-  return `${base}, gusts ${formatWindMph(gust)}`;
+  // `Gusts 9 mph` beside `9 mph` reads as a fault rather than as calm air.
+  if (gust === null || wind === null || gust <= wind) return null;
+  return formatWindMph(gust);
 }
 
 type Entry = { label: string; value: string; present: boolean };
@@ -771,24 +816,12 @@ export function measurements(input: MeasurementsInput): Measurements {
 
   const groups: MeasurementGroup[] = [];
 
+  // Only what the card above does not already print: its temperature, wind,
+  // humidity and dew point are this same hour of this same run.
   if (hour !== null) {
+    const gust = gustValue(hour);
     const air = measuredGroup(AIR_GROUP_LABEL, modelSourceLabel(weatherModel), [
-      {
-        label: TEMPERATURE_LABEL,
-        value: formatTempF(hour.temp_c),
-        present: hour.temp_c !== null,
-      },
-      {
-        label: HUMIDITY_LABEL,
-        value: formatHumidity(hour.humidity_pct),
-        present: hour.humidity_pct !== null,
-      },
-      {
-        label: DEW_POINT_LABEL,
-        value: formatTempF(hour.dewpoint_c),
-        present: hour.dewpoint_c !== null,
-      },
-      { label: WIND_LABEL, value: windValue(hour), present: hour.wind_kmh !== null },
+      ...(gust === null ? [] : [{ label: GUSTS_LABEL, value: gust, present: true }]),
       {
         label: RAIN_PAST_HOUR_LABEL,
         value: formatPrecipIn(hour.precip_mm),

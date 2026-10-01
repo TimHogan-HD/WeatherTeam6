@@ -1,4 +1,4 @@
-import { renderToStaticMarkup } from 'react-dom/server'
+import { renderInRouter } from '../test/renderInRouter.js'
 import { describe, expect, it } from 'vitest'
 import type {
   Conditions,
@@ -114,9 +114,7 @@ function alertsOk(data: WeatherAlert[]) {
   return { data, isPending: false, isError: false }
 }
 
-function render(node: Parameters<typeof renderToStaticMarkup>[0]): string {
-  return renderToStaticMarkup(node)
-}
+const render = renderInRouter
 
 describe('DetailView — a climbing location', () => {
   const forecast = ok([day(TODAY), day(TOMORROW)])
