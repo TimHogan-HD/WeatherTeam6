@@ -31,6 +31,7 @@
     "check:weather-runs": "tsx src/scripts/checkWeatherRuns.ts",
     "check:hourly": "tsx src/scripts/checkHourly.ts",
     "check:runs-storage": "tsx src/scripts/checkRunsStorage.ts",
+    "check:forecast-stored": "tsx src/scripts/checkForecastStored.ts",
     "compare:scoring": "tsx src/scripts/compareScoring.ts",
     "compare:dryness": "tsx src/scripts/compareDryness.ts",
     "compare:hourly-v2": "tsx src/scripts/compareHourlyV2.ts",

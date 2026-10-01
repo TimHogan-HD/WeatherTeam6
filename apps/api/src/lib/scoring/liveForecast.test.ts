@@ -4,13 +4,11 @@ import type { LiveForecastLocation } from './liveForecast.js'
 /**
  * `computeLiveForecast` is the orchestration every conditions and forecast
  * response goes through, and until now nothing exercised it. These tests mock
- * the three upstream fetches and assert on what it builds from them.
- *
- * It imports `db/schema.js` for a type only, so there is no database import to
- * work around here.
+ * the ensemble read and the rainfall fetches and assert on what it builds from
+ * them. `latestRuns.js` is mocked whole, so its database import never loads.
  */
 
-const fetchEnsemble = vi.hoisted(() => vi.fn())
+const getEnsembleDaily = vi.hoisted(() => vi.fn())
 const fetchNBM = vi.hoisted(() => vi.fn())
 const fetchArchivePrecip = vi.hoisted(() => vi.fn())
 const fetchPrecipHistory = vi.hoisted(() => vi.fn())
@@ -20,8 +18,10 @@ const fetchPrecipHistory = vi.hoisted(() => vi.fn())
 // with the logic — the failure mode catalogued as class 11 in defect-patterns.md.
 vi.mock('../weather/openMeteo.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../weather/openMeteo.js')>()
-  return { ...actual, fetchEnsemble, fetchNBM, fetchArchivePrecip }
+  return { ...actual, fetchNBM, fetchArchivePrecip }
 })
+// Stored or fetched, the ensemble reaches the compute through this one call.
+vi.mock('../runs/latestRuns.js', () => ({ getEnsembleDaily }))
 vi.mock('../weather/acis.js', () => ({ fetchPrecipHistory }))
 
 const { computeLiveForecast } = await import('./liveForecast.js')
@@ -62,7 +62,7 @@ const location: LiveForecastLocation = {
 beforeEach(() => {
   fetchArchivePrecip.mockResolvedValue([])
   fetchPrecipHistory.mockResolvedValue([])
-  fetchEnsemble.mockResolvedValue({
+  getEnsembleDaily.mockResolvedValue({
     days: [day(0), day(1), day(2)],
     model_sources: ['gfs_seamless'],
     utc_offset_seconds: 0,
@@ -79,7 +79,7 @@ describe('computeLiveForecast — forecast source', () => {
     // call could only ever 400. Issue #22.
     await computeLiveForecast(location, NOW)
     expect(fetchNBM).not.toHaveBeenCalled()
-    expect(fetchEnsemble).toHaveBeenCalledOnce()
+    expect(getEnsembleDaily).toHaveBeenCalledOnce()
   })
 
   it('reports the models the ensemble actually returned', async () => {
@@ -119,7 +119,7 @@ describe('computeLiveForecast — per-day scoring', () => {
     // The regression this test exists for: `maxWindKmh24h` was fed today's
     // wind for every day, so a day-7 score reported a wind rating measured six
     // days earlier and every day carried an identical wind component.
-    fetchEnsemble.mockResolvedValue({
+    getEnsembleDaily.mockResolvedValue({
       days: [
         day(0, { wind_kmh_max: 5 }), // calm today   -> full marks
         day(1, { wind_kmh_max: 60 }), // gale tomorrow -> zero
@@ -140,7 +140,7 @@ describe('computeLiveForecast — per-day scoring', () => {
     // silently reads a different day: with every fixture day sharing one
     // humidity, nothing could tell. Here today is humid and the rest are dry,
     // so the wrong day scores full marks instead of zero.
-    fetchEnsemble.mockResolvedValue({
+    getEnsembleDaily.mockResolvedValue({
       days: [day(0, { humidity_pct: 95 }), day(1, { humidity_pct: 20 }), day(2, { humidity_pct: 20 })],
       model_sources: ['gfs_seamless'],
       utc_offset_seconds: 0,
@@ -153,7 +153,7 @@ describe('computeLiveForecast — per-day scoring', () => {
   })
 
   it('still scores temperature per day', async () => {
-    fetchEnsemble.mockResolvedValue({
+    getEnsembleDaily.mockResolvedValue({
       days: [day(0, { temp_c_max: 18 }), day(1, { temp_c_max: 40 })],
       model_sources: ['gfs_seamless'],
     utc_offset_seconds: 0,
@@ -174,7 +174,7 @@ describe('computeLiveForecast — per-day scoring', () => {
   })
 
   it('returns nothing when the forecast is empty, rather than throwing', async () => {
-    fetchEnsemble.mockResolvedValue({ days: [], model_sources: [], utc_offset_seconds: 0 })
+    getEnsembleDaily.mockResolvedValue({ days: [], model_sources: [], utc_offset_seconds: 0 })
     const result = await computeLiveForecast(location, NOW)
     expect(result).toEqual({ snapshots: [], scores: [], todayStr: '' })
   })
@@ -216,7 +216,7 @@ describe('computeLiveForecast — per-day scoring', () => {
 
 describe('computeLiveForecast — a feed that starts tomorrow', () => {
   it('still returns scores for the days it does have', async () => {
-    fetchEnsemble.mockResolvedValue({
+    getEnsembleDaily.mockResolvedValue({
       days: [day(1), day(2)],
       model_sources: ['gfs_seamless'],
     utc_offset_seconds: 0,
@@ -242,7 +242,7 @@ describe('computeLiveForecast — local days (#33)', () => {
   const PT_OFFSET = -7 * 3600
 
   function pacificFeed() {
-    fetchEnsemble.mockResolvedValue({
+    getEnsembleDaily.mockResolvedValue({
       days: [
         { ...day(0), date: '2026-08-25' },
         { ...day(0), date: '2026-08-26' },
@@ -281,7 +281,7 @@ describe('computeLiveForecast — local days (#33)', () => {
   })
 
   it('flags no snapshot when the feed genuinely starts tomorrow', async () => {
-    fetchEnsemble.mockResolvedValue({
+    getEnsembleDaily.mockResolvedValue({
       days: [
         { ...day(0), date: '2026-08-26' },
         { ...day(0), date: '2026-08-27' },
@@ -297,7 +297,7 @@ describe('computeLiveForecast — local days (#33)', () => {
   it('treats a missing offset as UTC rather than producing an invalid date', async () => {
     // An upstream that stops sending utc_offset_seconds must degrade to the old
     // behaviour — wrong by at most a day — not to "Invalid Date".
-    fetchEnsemble.mockResolvedValue({
+    getEnsembleDaily.mockResolvedValue({
       days: [{ ...day(0), date: '2026-08-26' }],
       model_sources: ['gfs_seamless'],
       utc_offset_seconds: undefined as unknown as number,
@@ -325,7 +325,7 @@ describe('computeLiveForecast — the drying clock advances with the day (issue 
 
   it('gives each day its own drying score instead of repeating today’s', async () => {
     fetchArchivePrecip.mockResolvedValue([{ date: iso(-1), precip_mm: 10 }])
-    fetchEnsemble.mockResolvedValue({
+    getEnsembleDaily.mockResolvedValue({
       days: sevenDays,
       model_sources: ['gfs_seamless'],
       utc_offset_seconds: 0,
@@ -344,7 +344,7 @@ describe('computeLiveForecast — the drying clock advances with the day (issue 
 
   it('a day past the drying ceiling is no longer limited by drying time', async () => {
     fetchArchivePrecip.mockResolvedValue([{ date: iso(-1), precip_mm: 10 }])
-    fetchEnsemble.mockResolvedValue({
+    getEnsembleDaily.mockResolvedValue({
       days: sevenDays,
       model_sources: ['gfs_seamless'],
       utc_offset_seconds: 0,
@@ -363,7 +363,7 @@ describe('computeLiveForecast — the drying clock advances with the day (issue 
     // day 4 has been drying for a day — not for the week since the last
     // historical event.
     fetchArchivePrecip.mockResolvedValue([{ date: iso(-1), precip_mm: 10 }])
-    fetchEnsemble.mockResolvedValue({
+    getEnsembleDaily.mockResolvedValue({
       days: [day(0), day(1), day(2), day(3, { precip_mm_p50: 12 }), day(4), day(5), day(6)],
       model_sources: ['gfs_seamless'],
       utc_offset_seconds: 0,
@@ -385,14 +385,14 @@ describe('computeLiveForecast — the drying clock advances with the day (issue 
     // forecast for day 2 must not reach back and alter the day-0 row.
     fetchArchivePrecip.mockResolvedValue([{ date: iso(-1), precip_mm: 10 }])
 
-    fetchEnsemble.mockResolvedValue({
+    getEnsembleDaily.mockResolvedValue({
       days: sevenDays,
       model_sources: ['gfs_seamless'],
       utc_offset_seconds: 0,
     })
     const dryRun = await computeLiveForecast(location, NOW)
 
-    fetchEnsemble.mockResolvedValue({
+    getEnsembleDaily.mockResolvedValue({
       days: [day(0), day(1), day(2, { precip_mm_p50: 20 }), day(3), day(4), day(5), day(6)],
       model_sources: ['gfs_seamless'],
       utc_offset_seconds: 0,
@@ -416,7 +416,7 @@ describe('computeLiveForecast — the drying clock advances with the day (issue 
     // clock by arithmetic would have turned an admitted unknown into a precise
     // figure that climbs day by day — defect class 1.
     fetchArchivePrecip.mockResolvedValue([])
-    fetchEnsemble.mockResolvedValue({
+    getEnsembleDaily.mockResolvedValue({
       days: sevenDays,
       model_sources: ['gfs_seamless'],
       utc_offset_seconds: 0,

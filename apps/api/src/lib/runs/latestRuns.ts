@@ -6,10 +6,13 @@ import {
   DETERMINISTIC_MODELS,
   fetchDeterministicHourly,
   fetchEnsembleRun,
+  localDateString,
   localTimeToUtc,
+  type DailyForecast,
   type EnsembleHour,
   type ForecastLocation,
   type HourlyPoint,
+  type OpenMeteoResult,
 } from '../weather/openMeteo.js'
 import { rainMedian, type RainMedian } from '../weather/rainMedian.js'
 import { THERMAL_MODEL } from './hourlyReadings.js'
@@ -470,4 +473,115 @@ export async function getEnsembleRuns(
   }
 
   return { hours, utc_offset_seconds: offset, fetched_at: run.fetched_at, checked_at: run.fetched_at }
+}
+
+/** What `computeLiveForecast` reads from the ensemble: the pooled days, who made them, and the offset. */
+export type EnsembleDaily = Pick<OpenMeteoResult, 'days' | 'model_sources' | 'utc_offset_seconds'>
+
+/**
+ * Every number a stored day must carry. A `Record` so a field added to
+ * `DailyForecast` is a compile error here rather than a stored day that passes
+ * without it.
+ */
+const DAILY_NUMBERS: Record<Exclude<keyof DailyForecast, 'date'>, true> = {
+  precip_mm_p10: true,
+  precip_mm_p50: true,
+  precip_mm_p90: true,
+  temp_c_min: true,
+  temp_c_max: true,
+  wind_kmh_max: true,
+  humidity_pct: true,
+  dewpoint_c: true,
+  shortwave_wm2: true,
+}
+
+/**
+ * `jsonb` is `unknown` to the driver. Anything short of a full day — a missing
+ * field, a null, a non-finite number — rejects the whole value, and the caller
+ * fetches live. A gap here must not reach the score as a number.
+ */
+export function parseStoredDaily(value: unknown): Pick<OpenMeteoResult, 'days' | 'model_sources'> | null {
+  if (typeof value !== 'object' || value === null) return null
+  const { days, model_sources } = value as { days?: unknown; model_sources?: unknown }
+  if (!Array.isArray(days) || days.length === 0) return null
+  if (!Array.isArray(model_sources) || !model_sources.every((m) => typeof m === 'string')) return null
+  for (const day of days as unknown[]) {
+    if (typeof day !== 'object' || day === null) return null
+    const d = day as Record<string, unknown>
+    if (typeof d['date'] !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d['date'])) return null
+    for (const field of Object.keys(DAILY_NUMBERS)) {
+      const n = d[field]
+      if (typeof n !== 'number' || !Number.isFinite(n)) return null
+    }
+  }
+  return { days: days as DailyForecast[], model_sources: model_sources as string[] }
+}
+
+async function loadStoredEnsembleDaily(
+  pointKey: string,
+  cutoff: Date,
+): Promise<{ daily: EnsembleDaily; checked_at: Date } | null> {
+  const rows = await db
+    .select({ daily: weatherRuns.ensemble_daily, offset: weatherRuns.utc_offset_seconds, checked_at: checkedAt })
+    .from(weatherRuns)
+    .where(
+      and(
+        eq(weatherRuns.point_key, pointKey),
+        eq(weatherRuns.model, ENSEMBLE_RUN_MODEL),
+        gte(checkedAt, cutoff),
+      ),
+    )
+    .orderBy(desc(weatherRuns.fetched_at))
+    .limit(1)
+  const row = rows[0]
+  if (!row) return null
+  const parsed = parseStoredDaily(row.daily)
+  if (parsed === null) return null
+  return { daily: { ...parsed, utc_offset_seconds: row.offset }, checked_at: new Date(row.checked_at) }
+}
+
+/**
+ * The pooled ensemble's daily figures for a point — stored by `collect-runs`
+ * from the very response its hours came from, so the same `parseEnsemble`
+ * output a live fetch would return, read in milliseconds rather than a second.
+ *
+ * Stored, under the same rule as `getEnsembleRuns`, **and only when the run
+ * starts on the location's today.** A run fetched before local midnight starts
+ * on a day already over and reaches one day less far than a live fetch, and
+ * the Daily tab would lose its seventh day until the next collection. That run
+ * is fetched past instead, and the fetch is stored for the next reader.
+ *
+ * @throws {Error} only when the upstream fetch fails and no stored run that
+ * starts today was checked inside `STORED_MODEL_MAX_AGE_MINUTES`.
+ */
+export async function getEnsembleDaily(point: ForecastLocation, now: Date = new Date()): Promise<EnsembleDaily> {
+  const pointKey = pointKeyForPlace(point)
+  const loaded = await storedOrNull(pointKey, () =>
+    loadStoredEnsembleDaily(pointKey, cutoffFrom(now, STORED_MODEL_MAX_AGE_MINUTES)),
+  )
+  const stored = loaded !== null && startsOn(loaded.daily, now) ? loaded : null
+  if (stored !== null && collectionIsRunning(stored.checked_at, now)) return stored.daily
+
+  let run: Awaited<ReturnType<typeof fetchEnsembleRun>>
+  try {
+    run = await fetchEnsembleRun(point)
+  } catch (err) {
+    if (stored !== null) return stored.daily
+    throw err
+  }
+
+  try {
+    await storeEnsembleRun(pointKey, run)
+  } catch (err) {
+    logger.warn(
+      { pointKey, err: err instanceof Error ? err.message : String(err) },
+      '[latestRuns] could not persist an ensemble run — using it anyway',
+    )
+  }
+  return run.daily
+}
+
+function startsOn(daily: EnsembleDaily, now: Date): boolean {
+  const first = daily.days.reduce((min, d) => (d.date < min ? d.date : min), daily.days[0]?.date ?? '')
+  return first === localDateString(now, daily.utc_offset_seconds)
 }

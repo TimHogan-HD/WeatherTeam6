@@ -561,6 +561,15 @@ export const weatherRuns = pgTable(
      * `precip_mm` and names that model instead.
      */
     rain_models: text('rain_models').array(),
+    /**
+     * An ensemble run's **daily** figures — `parseEnsemble`'s `days` and
+     * `model_sources`, computed from the same response the hours came from — so
+     * `GET /forecast` and `GET /conditions` read them instead of fetching the
+     * ensemble again (`getEnsembleDaily`). Ensemble runs only. **Null means not
+     * stored** (a deterministic run, or one written before the column), and a
+     * reader then fetches live; it is never a forecast of nothing.
+     */
+    ensemble_daily: jsonb('ensemble_daily'),
     raw: jsonb('raw'),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
