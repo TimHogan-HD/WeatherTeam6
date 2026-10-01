@@ -32,3 +32,30 @@ export function prefetchDetail(queryClient: QueryClient, location: Location): vo
   void queryClient.prefetchQuery(wallsQuery(id, climbing))
   void queryClient.prefetchQuery(guidebookQuery(id, climbing))
 }
+
+/**
+ * The longest a tapped card waits before its screen opens anyway. Long enough
+ * for a stored hourly read (~250 ms on the live API, 2026-10-01), short enough
+ * that a slow network still feels like a tap that registered.
+ */
+export const OPEN_WAIT_MS = 300
+
+/**
+ * Resolves when the crag screen can open whole: once the hourly series is in
+ * the cache, or after `OPEN_WAIT_MS`, whichever comes first.
+ *
+ * The hourly series is what the screen drew late (owner's recording,
+ * 2026-10-01): the big temperature, the Today chart and the day scores sat as
+ * grey blocks for ~0.3 s after the screen opened. Everything else on the
+ * Overview is already cached by the list's card. **Any cached series opens at
+ * once**, even a stale one, because the screen draws it while it refetches.
+ * The fetch itself was started on touch-down; asking again joins it.
+ */
+export function readyToOpen(queryClient: QueryClient, location: Location): Promise<void> {
+  const hourly = hourlyQuery(location.id)
+  if (queryClient.getQueryData(hourly.queryKey) !== undefined) return Promise.resolve()
+  return Promise.race([
+    queryClient.prefetchQuery(hourly),
+    new Promise<void>((resolve) => setTimeout(resolve, OPEN_WAIT_MS)),
+  ])
+}
