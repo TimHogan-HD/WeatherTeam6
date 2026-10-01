@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { bottomNav, colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import { typeV2, withOpacity } from '../theme/tokens.css.js'
 import { navGeometry, type SectionKey } from '../lib/bottomNav.js'
@@ -20,12 +20,13 @@ import { NavIcon } from './Icons.js'
  * location screen's own row. The lit one is `aria-current="page"`. Tapping it
  * again goes to its section's first screen — from inside a location, the lit
  * Conditions tab is the way back to the list, which is why that screen has no
- * back link of its own.
+ * back link of its own — and on that first screen it scrolls to the top.
  */
 export function TabBar({ active }: { active: SectionKey }) {
   const rowRef = useRef<HTMLDivElement>(null)
   const rowWidth = useWidth(rowRef)
   const reduced = usePrefersReducedMotion()
+  const { pathname } = useLocation()
 
   // The pill's direction of travel decides which edge leads, so the bar
   // remembers the tab it last lit.
@@ -86,6 +87,11 @@ export function TabBar({ active }: { active: SectionKey }) {
               to={tab.route}
               aria-label={tab.label}
               {...(lit ? { 'aria-current': 'page' as const } : {})}
+              onClick={(e) => {
+                if (!lit || pathname !== tab.route) return
+                e.preventDefault()
+                window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' })
+              }}
               style={{
                 position: 'relative',
                 display: 'flex',

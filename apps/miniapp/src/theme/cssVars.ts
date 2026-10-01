@@ -11,7 +11,7 @@
  * in `<head>` rather than being injected after first paint. It must therefore
  * stay free of DOM and React imports.
  */
-import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
+import { colors, colorsV2, press, radius, spacing } from '@weatherteam6/design/tokens'
 import { fontStacks } from './fonts.js'
 import { shadow } from './tokens.css.js'
 
@@ -41,6 +41,7 @@ export function renderTokenCss(): string {
     ...declarations('radius', asPx(radius)),
     ...declarations('shadow', shadow),
     ...declarations('font', fontStacks),
+    ...declarations('press', { opacity: String(press.opacity) }),
   ]
   return `:root {\n${lines.map((line) => `  ${line}`).join('\n')}\n}\n`
 }

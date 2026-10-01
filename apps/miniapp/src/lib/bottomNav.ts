@@ -20,6 +20,25 @@ export function sectionFor(pathname: string): SectionKey | null {
   return 'conditions'
 }
 
+/** A section's first screen: the path its tab opens. */
+export function isSectionRoot(pathname: string): boolean {
+  return bottomNav.tabs.some((t) => t.route === pathname)
+}
+
+/**
+ * Where a screen opens, given the scroll position it was last left at.
+ *
+ * A section's first screen keeps its place however you come back to it, as a
+ * phone app's tabs do: the list after a location, by the lit tab or by the
+ * phone's back. Any other screen keeps its place only on back (`POP`) and
+ * otherwise opens at its top, so a wall opened from far down the Crag tab
+ * does not land halfway down its own route list.
+ */
+export function arrivalScrollY(pathname: string, navigation: 'POP' | 'PUSH' | 'REPLACE', saved: number | undefined): number {
+  if (saved === undefined) return 0
+  return navigation === 'POP' || isSectionRoot(pathname) ? saved : 0
+}
+
 export type NavGeometry = {
   /** Each tab's width, in `bottomNav.tabs` order. */
   widths: number[]

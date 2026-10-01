@@ -1223,6 +1223,14 @@ export const bottomNav = {
   iconSize: 22,
 } as const;
 
+/**
+ * A control under a finger dims to this opacity, instantly and with no
+ * transition (owner, 2026-09-30), so a tap shows before a slow screen arrives.
+ */
+export const press = {
+  opacity: 0.6,
+} as const;
+
 // ─────────────────────────────────────────────
 // UNITS / LOCALE
 // ─────────────────────────────────────────────
