@@ -17,6 +17,7 @@ import { useAuthToken } from './hooks/useAuth.js'
 import { AddLocation } from './routes/AddLocation.js'
 import { Feedback } from './routes/Feedback.js'
 import { LocationDetail } from './routes/LocationDetail.js'
+import { EditLocation } from './routes/EditLocation.js'
 import { LocationList } from './routes/LocationList.js'
 import { Login } from './routes/Login.js'
 import { WallScreen } from './routes/WallScreen.js'
@@ -70,6 +71,7 @@ export function App() {
           >
             <Route path="/" element={<LocationList />} />
             <Route path="/location/:id" element={<LocationDetail />} />
+            <Route path="/location/:id/edit" element={<EditLocation />} />
             <Route path="/location/:id/wall/:wallId" element={<WallScreen />} />
             <Route path="/location/:id/wall/:wallId/route/:routeId" element={<ClimbScreen />} />
             <Route path="/add" element={<AddLocation />} />

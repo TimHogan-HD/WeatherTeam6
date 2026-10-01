@@ -652,7 +652,7 @@ Contrast rules, layout constants (`screenH` 20, `topSafe` 48, `cardPad` 14, `bot
 Not in the Mini App, in v1 or later without a new spec:
 
 - Radar, walls, trips, shade map — designed for the deleted React Native app and out of scope here
-- ~~Location search or creation~~ — **no longer a non-goal.** Reversed 2026-08-25 on the product call recorded in §12: search, preview, save, and delete are in scope. Editing a saved location afterwards (rock type, aspect, cliff angle) stays out — see §12's deferred list
+- ~~Location search or creation~~ — **no longer a non-goal.** Reversed 2026-08-25 on the product call recorded in §12: search, preview, save, and delete are in scope. Editing a saved location's rock type, aspect and wall angle followed on 2026-10-01 — see §12.4
 - History and normals views — no writer exists (issue #25)
 - Any AI-generated commentary or per-hour analysis — removed once already for violating the copy rules; do not reintroduce
 - Light theme (§1)
@@ -738,7 +738,7 @@ Three steps, but only one genuinely new screen.
    - when the toggle is on, an optional **rock type** picker — sandstone / limestone / granite / basalt / not sure — defaulting to *not sure*;
    - a **Save** button.
 
-**Why rock type is offered at save time and not later.** It is the single largest lever on the score: `dryingModel`'s `MAX_HOURS` runs from 4 h for slate to 120 h for soft sandstone (the §7 taxonomy, 2026-09-23), and the drying component is worth 40 of 100 points. Left unset it resolves to `unknown` → 120 h, the most conservative row, which will be wrong by a wide margin for most real crags. **On a known crag the picker is replaced by the research's rock type, locked** (`knownCrags.ts`). The picker is a grouped `<select>` rather than chips: twenty-seven values do not fit as chips. And there is no edit screen (§12.4), so save is the only chance to capture it. One optional picker behind a toggle is cheap; a silently wrong drying score is not.
+**Why rock type is offered at save time and not later.** It is the single largest lever on the score: `dryingModel`'s `MAX_HOURS` runs from 4 h for slate to 120 h for soft sandstone (the §7 taxonomy, 2026-09-23), and the drying component is worth 40 of 100 points. Left unset it resolves to `unknown` → 120 h, the most conservative row, which will be wrong by a wide margin for most real crags. **On a known crag the picker is replaced by the research's rock type, locked** (`knownCrags.ts`). The picker is a grouped `<select>` rather than chips: twenty-seven values do not fit as chips. The editor (§12.4) can change it later, but save is where most crags get it. One optional picker behind a toggle is cheap; a silently wrong drying score is not.
 
 ### 12.2 Geocoding — reversing a documented non-goal
 
@@ -773,7 +773,7 @@ Note that change 2 finally exercises the `fetchArchivePrecip` branch of `liveFor
 
 ### 12.4 Deliberately deferred
 
-- **Editing a saved location.** *Server half shipped 2026-09-23 (scoring Phase 4b): `PATCH /locations/:id` edits aspect, wall angle and an unlocked rock type; the editor screen is still to come.* No `PATCH /locations/:id` exists and none is added here. Rock type, aspect, and cliff angle are captured at save or not at all. Aspect and cliff angle are *not* asked for at save — they need a compass and an estimate, which is too much friction for an add flow, and they modify the drying score far less than rock type does. Both fall back to their existing defaults (aspect South, angle 45°). Revisit when there is evidence the defaults are hurting.
+- ~~**Editing a saved location.**~~ *Shipped 2026-10-01 (scoring Phase 4b).* `/location/:id/edit`, opened by "Edit crag" on a climbing location's screen, edits an unlocked rock type, the way the wall faces (a 16-point compass rose) and the wall angle in climbers' degrees (presets, then a slider). It is a task you finish and leave: no bottom bar, back to the location, Save to its Rock tab. Only what changed is sent (`lib/editLocation.ts`). **Aspect and angle are saved but score nothing** — Crag A reads every crag from all sides — and the screen says so beside each. Aspect and angle are still not asked for at save: they need a compass and an estimate, which is too much friction for an add flow.
 - **Merging `crags` results into search** (§12.2). *Partly done 2026-09-23 without the table: OpenBeta's Minnesota areas are a generated module (`lib/weather/climbingAreasMn.ts`) and lead `/geocode` results, owner-scoped to Minnesota for now. Another state is another generated file.*
 - **Reordering or grouping the saved list.** §9 still holds.
 

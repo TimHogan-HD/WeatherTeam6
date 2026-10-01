@@ -3,6 +3,8 @@ import {
   compassPoint,
   formatElevationFt,
   rockTypeLabel,
+  wallAngleFromCliffAngle,
+  wallAngleLabel,
   type Location,
   type Wall,
 } from '@weatherteam6/types'
@@ -13,10 +15,9 @@ import { card, row, stack } from '../theme/styles.js'
  * What this place *is* — rock, aspect, wall angle, elevation, coordinates and
  * the rainfall station. The name itself is the page heading, not part of this.
  *
- * Every field is a column the `locations` table has always carried and no
- * screen has ever shown. Aspect and angle are the two that move the score most
- * — a north-facing wall dries differently from a slab — so they belong where
- * they can be seen rather than buried in a config sheet.
+ * Every field is a column of the `locations` table. Of them, only the rock
+ * type moves today's score: Crag A reads the crag from all eight sides, so a
+ * recorded aspect and angle are facts about the wall, kept for per-wall scoring.
  *
  * **Each fact is labelled.** An earlier build rendered them as bare chips, so
  * `8°` and `3,740 ft` sat side by side with nothing saying which was the wall
@@ -27,9 +28,8 @@ import { card, row, stack } from '../theme/styles.js'
  * nothing. These are properties of a saved row: "no rock type" means nobody
  * entered one, and a column of dashes would read as an app that failed to load.
  *
- * There is deliberately **no edit affordance**. Updating a mis-saved location
- * is remove-then-add (§12.4), the bot's `/help` says the same, and adding one
- * here would be a third flow.
+ * Rock, aspect and angle are changed on `/location/:id/edit`, reached from
+ * the crag screen's "Edit crag".
  */
 
 /**
@@ -78,14 +78,12 @@ function facts(location: Location): Fact[] {
     if (location.aspect !== null) {
       out.push({ key: 'Aspect', value: aspectValue(location.aspect) })
     }
-    if (location.cliff_angle !== null) {
-      // **"off vert", and the wording is load-bearing.** `conditionsScore.ts`
-      // measures `cliff_angle` from vertical — 0 is a vertical wall, 90 a slab,
-      // per its own comment that a slab dries 30% slower. Climbers mean the
-      // opposite, where 90 is vertical. A bare "8°" would be read backwards by
-      // every climber who saw it.
-      out.push({ key: 'Angle', value: `${Math.round(location.cliff_angle)}° off vert` })
-    }
+    // **The side of vertical is named, and the wording is load-bearing.** The
+    // stored column runs positive into slab, climbers positive into overhang,
+    // so a bare "20°" is read backwards by one of them. `wallAngleLabel` says
+    // "20° slab" or "30° overhang"; the editor uses the same words.
+    const angle = wallAngleLabel(wallAngleFromCliffAngle(location.cliff_angle))
+    if (angle !== null) out.push({ key: 'Angle', value: angle })
   }
 
   if (location.elevation_m !== null) {
@@ -202,7 +200,7 @@ export function LocationIdentity({ location, walls = [], condensed = false }: Lo
   // it in the card because its device frame has only a small title bar. Printing
   // it twice, once at 30px and once at 12px, reads as a bug.
   if (condensed) {
-    // The three facts that change the score, and nothing else. Coordinates and
+    // The three facts about the rock and wall, and nothing else. Coordinates and
     // the station are a tab away rather than gone.
     const summary = rows
       .filter((f) => f.key === 'Rock' || f.key === 'Aspect' || f.key === 'Angle')

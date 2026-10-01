@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
-import { apiDelete, apiGet, apiPost } from '../lib/api.js'
-import type { CreateLocationInput, Location } from '@weatherteam6/types'
+import { apiDelete, apiGet, apiPatch, apiPost } from '../lib/api.js'
+import type { CreateLocationInput, Location, UpdateLocationInput } from '@weatherteam6/types'
 import { getToken } from '../lib/authToken.js'
 import { rememberLocations, rememberedLocations } from '../lib/rememberedLocations.js'
 
@@ -60,9 +60,36 @@ export function useCreateLocation() {
   })
 }
 
+/** The query roots, keyed by location id, whose answers depend on the rock type. */
+const READS_THE_ROCK = new Set(['forecast', 'conditions', 'hourly'])
+
+/**
+ * `PATCH /locations/:id` answers with the whole updated row, so the crag
+ * screen is handed it directly. The list is refetched rather than patched in
+ * place: it is the same `mapLocation` row, and one source of truth for its
+ * order is the server's.
+ *
+ * **Everything that reads the rock is invalidated too**, because a new rock
+ * type moves the drying clock: forecast scores, conditions and the hourly
+ * readings (`READS_THE_ROCK`). Alerts, walls and the guidebook do not depend on it.
+ */
+export function useUpdateLocation(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: UpdateLocationInput) => apiPatch<Location>(`/locations/${id}`, input),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(locationKeys.one(id), updated)
+      void queryClient.invalidateQueries({ queryKey: locationKeys.all })
+      void queryClient.invalidateQueries({
+        predicate: (q) => q.queryKey[1] === id && READS_THE_ROCK.has(String(q.queryKey[0])),
+      })
+    },
+  })
+}
+
 /**
  * Unsave. A save flow without this is a trap — one mistyped search result would
- * be permanent, and there is no edit screen either (§12.4).
+ * be permanent.
  */
 export function useDeleteLocation() {
   const queryClient = useQueryClient()

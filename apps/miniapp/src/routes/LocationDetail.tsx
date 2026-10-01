@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { colors, spacing } from '@weatherteam6/design/tokens'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, navClearance, row, stack } from '../theme/styles.js'
-import { wallPath } from '../lib/backTarget.js'
+import { editPath, wallPath } from '../lib/backTarget.js'
 import { formatRunAge } from '../lib/format.js'
 import { useDeleteLocation, useLocation } from '../hooks/useLocations.js'
 import { useAlerts, useConditions, useForecast } from '../hooks/useWeather.js'
@@ -137,7 +137,7 @@ export function LocationDetail() {
 
       {/*
         Unsave. A save flow without one is a trap — a mistyped search result
-        would be permanent (§12.4).
+        would be permanent. "Edit crag" changes the rock and wall, not the place.
 
         Two taps rather than a `window.confirm`: a native dialog is a separate
         surface the app cannot style, and on iOS an installed PWA renders it
@@ -158,6 +158,20 @@ export function LocationDetail() {
             onClick={() => void navigate(`/feedback?location=${encodeURIComponent(id)}`)}
           >
             Check this forecast
+          </button>
+        ) : null}
+        {location.data.is_climbing_location && id !== undefined ? (
+          <button
+            type="button"
+            style={{
+              ...bareButton,
+              ...typeV2.factLabel,
+              width: 'auto',
+              padding: `${spacing.cellPad}px ${spacing.sectionGap}px`,
+            }}
+            onClick={() => void navigate(editPath(id))}
+          >
+            Edit crag
           </button>
         ) : null}
         <button

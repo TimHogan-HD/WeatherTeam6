@@ -43,6 +43,21 @@ export function cliffAngleFromWallAngle(wallAngle: number): number {
 }
 
 /**
+ * **A wall angle in words a climber reads one way only**: `Vertical`,
+ * `20° slab`, `30° overhang`, `Flat`, `Roof`. A bare `20°` is read as an
+ * overhang by a climber and as a slab by the stored column, so the side of
+ * vertical is always named. Takes climbers' degrees; null is unrecorded.
+ */
+export function wallAngleLabel(wallAngle: number | null): string | null {
+  if (wallAngle === null || !Number.isFinite(wallAngle)) return null
+  const deg = Math.round(wallAngle)
+  if (deg === 0) return 'Vertical'
+  if (deg <= WALL_ANGLE_MIN_DEG) return 'Flat'
+  if (deg >= WALL_ANGLE_MAX_DEG) return 'Roof'
+  return deg < 0 ? `${-deg}° slab` : `${deg}° overhang`
+}
+
+/**
  * The body of `PATCH /api/v1/locations/:id`. Every field is optional and an
  * absent field is left alone; **`null` clears it**, which is how a wrong
  * recorded value is taken back to "nobody has recorded this".
