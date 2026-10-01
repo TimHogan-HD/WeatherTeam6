@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import type { ConditionsReadings, ConditionsScore, Feedback, HourlyReading } from '@weatherteam6/types'
+import type { ConditionsReadings, Conditions, Feedback, HourlyReading } from '@weatherteam6/types'
 import { fromLocalInputValue, shownReading, toLocalInputValue } from './feedback.js'
 import { HistoryItem } from '../routes/Feedback.js'
 
@@ -15,7 +15,7 @@ const reading: HourlyReading = {
   condensation_margin_c: 20,
 }
 
-function scored(readings: Partial<ConditionsReadings> | null = {}): ConditionsScore {
+function scored(readings: Partial<ConditionsReadings> | null = {}): Conditions {
   return {
     id: 'score',
     location_id: 'loc',

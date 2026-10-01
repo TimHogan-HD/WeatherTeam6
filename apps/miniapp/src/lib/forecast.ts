@@ -106,4 +106,4 @@ export function severeAlertEvent(alerts: readonly WeatherAlert[] | undefined): s
  * same sources for the same location, and one implementation is the only way
  * that stays true. Re-exported so the screens keep a single import site.
  */
-export { forecastSourceLabel, rainfallSourceLabel } from '@weatherteam6/types'
+export { forecastSourceLabel } from '@weatherteam6/types'

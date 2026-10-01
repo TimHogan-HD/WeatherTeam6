@@ -41,12 +41,9 @@ export function isCompassPoint(v: unknown): v is CompassPoint {
 /**
  * A compass name to degrees, **or null for anything that is not one of the 16**.
  *
- * Deliberately not `aspectToDegrees`, which answers 180 for text it does not
- * recognise. That default is harmless where nothing reads the result (the
- * five-component scorer's dead `aspectDegrees`) and is a fabricated south face
- * wherever something does — the solar geometry in `rockThermal` would treat a
- * typo as a recorded sun-facing wall. Exact multiples of 22.5°, where
- * `ASPECT_MAP` truncates `NNE` to 22.
+ * Never a default for text it does not recognise: the retired `aspectToDegrees`
+ * answered 180, a fabricated south face that the solar geometry in `rockThermal`
+ * would treat as a recorded sun-facing wall. Exact multiples of 22.5°.
  */
 export function compassDegrees(point: string | null): number | null {
   if (point === null) return null;

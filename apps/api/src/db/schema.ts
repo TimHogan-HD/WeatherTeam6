@@ -91,8 +91,6 @@ export const rainfallSourceEnum = pgEnum('rainfall_source', [
   'iem_asos',
 ])
 
-export const confidenceEnum = pgEnum('confidence_level', ['low', 'medium', 'high'])
-
 export const overallStatusEnum = pgEnum('overall_status', ['dry', 'damp', 'wet', 'mixed'])
 
 export const feedbackKindEnum = pgEnum('feedback_kind', ['app', 'forecast'])
@@ -202,26 +200,6 @@ export const forecastSnapshots = pgTable('forecast_snapshots', {
   dewpoint_c: numeric('dewpoint_c'),
   shortwave_wm2: numeric('shortwave_wm2'),
   model_sources: text('model_sources').array(),
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-})
-
-// No unique constraint — multiple rows per (location_id, forecast_date) accumulate
-// for score evolution tracking across job runs.
-export const conditionsScores = pgTable('conditions_scores', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  location_id: uuid('location_id')
-    .notNull()
-    .references(() => locations.id),
-  forecast_date: date('forecast_date').notNull(),
-  score: integer('score'),
-  confidence: confidenceEnum('confidence').notNull(),
-  component_drying_time: integer('component_drying_time'),
-  component_upcoming_rain: integer('component_upcoming_rain'),
-  component_wind: integer('component_wind'),
-  component_temp: integer('component_temp'),
-  component_humidity: integer('component_humidity'),
-  score_breakdown: jsonb('score_breakdown'),
-  computed_at: timestamp('computed_at', { withTimezone: true }).notNull(),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 

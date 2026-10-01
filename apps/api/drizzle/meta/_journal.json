@@ -162,6 +162,13 @@
       "when": 1790875682988,
       "tag": "0022_preferences_temp_range",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790877452997,
+      "tag": "0023_drop_conditions_scores",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type {
-  ConditionsScore,
+  Conditions,
   ForecastSnapshot,
   HourlyReading,
   WeatherAlert,
@@ -55,7 +55,7 @@ function day(date: string, over: Partial<ForecastSnapshot> = {}): ForecastSnapsh
 }
 
 /** Red Rock as production actually returned it on 2026-08-24: 103 °F, temp component 0, total 80. */
-function redRockScore(over: Partial<ConditionsScore> = {}): ConditionsScore {
+function redRockScore(over: Partial<Conditions> = {}): Conditions {
   return {
     id: 'score',
     location_id: 'loc',

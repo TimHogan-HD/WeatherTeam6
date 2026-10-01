@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import type {
-  ConditionsScore,
+  Conditions,
   ForecastSnapshot,
   HourlySample,
   HourlySeries,
@@ -117,7 +117,7 @@ const heatWarning: WeatherAlert = {
   created_at: `${DAY_1}T00:00:00.000Z`,
 }
 
-const score: ConditionsScore = {
+const score: Conditions = {
   id: 'score',
   location_id: 'loc',
   forecast_date: DAY_1,

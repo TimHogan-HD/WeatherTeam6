@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
-import type { ConditionsScore, WeatherAlert } from '@weatherteam6/types'
+import type { Conditions, WeatherAlert } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { cardV2, row, toneColors, wellV2, type ToneName } from '../theme/styles.js'
 import { cardSummary, readingTone, scoreTone } from '../lib/locationList.js'
@@ -43,7 +43,7 @@ export function NowStrip({
   trailing,
 }: {
   label: string
-  conditions: ConditionsScore | null | undefined
+  conditions: Conditions | null | undefined
   alerts: readonly WeatherAlert[] | undefined
   alertsPending: boolean
   /** The Overview link, or the day's good hours. */

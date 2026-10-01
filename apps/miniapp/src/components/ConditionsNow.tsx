@@ -7,7 +7,7 @@ import {
   formatWindMph,
   readingNow,
   summarizeReadings,
-  type ConditionsScore,
+  type Conditions,
   type ForecastSnapshot,
   type HourlyReading,
   type HourlySample,
@@ -81,7 +81,7 @@ export type ConditionsNowProps = {
   /** The readings half. Absent where there is no reading to show — see above. */
   conditions?: {
     /** A 200 with `data: null` is the documented "no row for today", not an error. */
-    data: ConditionsScore | null | undefined
+    data: Conditions | null | undefined
     isPending: boolean
     isError: boolean
     refetch: () => void

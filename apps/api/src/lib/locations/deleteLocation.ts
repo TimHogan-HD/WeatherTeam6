@@ -3,7 +3,6 @@ import { db } from '../../db/index.js'
 import {
   cragClimbabilityHistory,
   conditionsReports,
-  conditionsScores,
   feedback,
   forecastSnapshots,
   locationNormals,
@@ -32,7 +31,6 @@ import {
 const DEPENDENT_TABLES = [
   rainfallHistory,
   forecastSnapshots,
-  conditionsScores,
   tripLocations,
   cragClimbabilityHistory,
   conditionsReports,

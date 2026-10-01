@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { ConditionsScore } from '@weatherteam6/types'
+import type { Conditions } from '@weatherteam6/types'
 import type { RememberedCards } from './rememberedCards.js'
 
 /** Local times, so the day boundary is this machine's, as it is the phone's. */
@@ -65,7 +65,7 @@ describe('snapshotCards', async () => {
   const { snapshotCards } = await load(memoryStorage())
   const answer = <T,>(data: T | undefined, dataUpdatedAt: number) => ({ data, dataUpdatedAt })
   // Never read here — `snapshotCards` only carries it — so no full row is built.
-  const conditions = { readings: undefined } as unknown as ConditionsScore
+  const conditions = { readings: undefined } as unknown as Conditions
 
   it('stamps the snapshot with its oldest fetch', () => {
     const got = snapshotCards([
@@ -87,7 +87,7 @@ describe('snapshotCards', async () => {
         id: 'city',
         isClimbingLocation: false,
         forecast: answer([], at(9)),
-        conditions: answer<ConditionsScore | null>(undefined, 0),
+        conditions: answer<Conditions | null>(undefined, 0),
         alerts: answer([], at(9)),
       },
     ])

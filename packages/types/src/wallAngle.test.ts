@@ -46,7 +46,7 @@ describe('compassDegrees', () => {
     expect(compassDegrees('NNW')).toBe(337.5)
   })
 
-  it('returns null for anything else, where aspectToDegrees would say 180', () => {
+  it('returns null for anything else, never a default south face', () => {
     expect(compassDegrees(null)).toBeNull()
     expect(compassDegrees('south')).toBeNull()
     expect(compassDegrees('')).toBeNull()

@@ -3,7 +3,7 @@ import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import {
   gradeRange,
   kindCounts,
-  type ConditionsScore,
+  type Conditions,
   type Guidebook,
   type GuidebookWall,
   type WeatherAlert,
@@ -33,7 +33,7 @@ export type CragTabProps = {
     isError: boolean
     refetch: () => void
   }
-  conditions: ConditionsScore | null | undefined
+  conditions: Conditions | null | undefined
   alerts: readonly WeatherAlert[] | undefined
   alertsPending: boolean
   onOpenOverview: () => void

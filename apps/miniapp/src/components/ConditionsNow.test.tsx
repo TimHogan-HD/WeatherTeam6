@@ -4,7 +4,7 @@ import {
   FRICTION_MECHANISM,
   ROCK_TEMPERATURE_MECHANISM,
   type ConditionsReadings,
-  type ConditionsScore,
+  type Conditions,
   type ForecastSnapshot,
   type HourlyReading,
   type HourlySample,
@@ -107,7 +107,7 @@ const reading: HourlyReading = {
   condensation_margin_c: 20,
 }
 
-function scored(readings: Partial<ConditionsReadings> = {}): ConditionsScore {
+function scored(readings: Partial<ConditionsReadings> = {}): Conditions {
   return {
     id: 'score',
     location_id: 'loc',
