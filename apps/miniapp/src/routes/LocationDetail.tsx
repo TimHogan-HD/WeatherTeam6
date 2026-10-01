@@ -4,6 +4,7 @@ import { colors, spacing } from '@weatherteam6/design/tokens'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, navClearance, row, stack } from '../theme/styles.js'
 import { editPath, wallPath } from '../lib/backTarget.js'
+import { rockLocked } from '../lib/editLocation.js'
 import { formatRunAge } from '../lib/format.js'
 import { useDeleteLocation, useLocation } from '../hooks/useLocations.js'
 import { usePreferences } from '../hooks/usePreferences.js'
@@ -142,7 +143,7 @@ export function LocationDetail() {
 
       {/*
         Unsave. A save flow without one is a trap — a mistyped search result
-        would be permanent. "Edit crag" changes the rock and wall, not the place.
+        would be permanent. "Edit crag" changes the rock type, not the place.
 
         Two taps rather than a `window.confirm`: a native dialog is a separate
         surface the app cannot style, and on iOS an installed PWA renders it
@@ -165,7 +166,8 @@ export function LocationDetail() {
             Check this forecast
           </button>
         ) : null}
-        {location.data.is_climbing_location && id !== undefined ? (
+        {/* A known crag's rock type is locked, so its editor would have nothing to change. */}
+        {location.data.is_climbing_location && !rockLocked(location.data) && id !== undefined ? (
           <button
             type="button"
             style={{
