@@ -15,7 +15,6 @@ there is no tester gate.
 | **Crag A** (`evaluateCragA`) | `cragModel.ts` | **Live.** Every crag's score, list card, detail screen, daily pills |
 | **Wall A** (`evaluateWallA`) | `cragModel.ts` | Built, **not called**. Scores one recorded wall; never a crag's score |
 | v2 layers (`rockThermal`, `hourlyConditions`) | `lib/scoring/` | Live as **inputs** to Crag A (`T_mass`, `T_surface`, drying rate). Its own score and sweat-balance friction reach no response |
-| Five-component scorer (`conditionsScore`) | `conditionsScore.ts` | Computed per request, **renders no score**. Still feeds the drying card's `Climbable in ~Nh` line (#178). Phase 5 deletes it. See [Legacy](#legacy-the-five-component-scorer) |
 
 Where the research lives: `.claude/docs/crag-a-reference/README.md` (why these two models, the
 seven errors corrected, what is still open) and `model.ts` beside it, the reference the port is
@@ -134,7 +133,7 @@ are recorded; a condition-report screen, the only way to validate any of this (#
 
 ## Drying Time Rules (by rock type)
 
-**Shared by Crag A and the legacy scorer.** The table is `MIN_HOURS` / `MAX_HOURS` in
+The table is `MIN_HOURS` / `MAX_HOURS` in
 `apps/api/src/lib/scoring/dryingModel.ts`, which carries each row's confidence marker;
 everything imports it rather than keeping a copy. Crag A uses `MAX_HOURS` as a full soak's
 need and `MIN_HOURS` only for the `wet` / `drying` boundary.
@@ -181,125 +180,9 @@ Fresh granite (6h) dries before dense basalt (8h); §7 re-examined granite.
 **Angle** (`dryingAngleFactor`): 0° vertical is the base, a 90° slab takes 30% longer, an
 overhang takes the vertical base. Crag A's eight walls are vertical, so it always uses the base.
 
-## Legacy: the five-component scorer
+## Retired: the five-component scorer
 
-`conditionsScore.ts`, called per day by `computeLiveForecast`. **No score from it renders.**
-It still supplies `drying.hours_remaining` to the drying card's `Climbable in ~Nh` line, which
-can disagree with the Crag A `Dryness` reading above it (#178). Phase 5 retires it. Change it
-only to keep that line honest; do not re-weight it.
-
-### Forecast Window Tiers
-```
->14 days:   climatological normals only — no score computed
-7-14 days:  score computed, confidence = 'low', p10/p90 bands shown
-<7 days:    score computed, confidence derived from ensemble spread
-```
-
-### Weight Order
-1. Drying time remaining (highest weight)
-2. Upcoming rain in next 72h
-3. Wind
-4. Temperature
-5. Humidity (lowest weight)
-
-Drying time is modified by:
-- **Cliff angle:** the angle factor above
-- **Wind:** >20 km/h reduces drying time by 20%
-- **Humidity:** >80% RH increases drying time by 30%
-- Aspect and shade were specced and never implemented
-
-### Step 1: Drying Time Component (0-40 points)
-```
-# PER DAY BEING SCORED, not once per request (issue #108).
-#   as_of        = now + days_out * 24h      — same local time, N days on
-#   rain_events  = history up to and including today
-#                + FORECAST rain after today, up to the day being scored
-#   hours_since_rain = as_of - end of the latest of those events
-#
-# Rain in the forecast RESETS the clock, so this is not
-# `hours_since_rain + days_out * 24`. Anchoring `as_of` at the same local
-# time of day means day 0 is exactly `now` — today does not move.
-#
-# The 720-hour no-rain sentinel is never arithmetic on. It stays 720 on
-# every day, because it means "nobody measured any rain", not "720 hours".
-min_dry = rock_type_min_hours * modifiers
-max_dry = rock_type_max_hours * modifiers
-
-if hours_since_rain >= max_dry:   drying_score = 40
-if hours_since_rain <= 0:          drying_score = 0
-else: drying_score = (hours_since_rain / max_dry) ** RAMP_EXPONENT * 40   # RAMP_EXPONENT = 2
-
-# CURVED, awarding points SLOWLY at first (issue #137): rock strength recovers
-# late, not early (Duda & Renner, GJI). RAMP_EXPONENT = 2 is a JUDGEMENT CALL;
-# it may never drop to 1 or below. See scoring-findings.md §1.2.
-# No step-function at min_dry, and do not add one.
-```
-
-### Step 2: Upcoming Rain Component (0-25 points)
-```
-forecast_rain_72h = sum of p50 precip for next 72h
-
-if forecast_rain_72h == 0:         rain_score = 25
-if forecast_rain_72h >= 10mm:      rain_score = 0
-else: rain_score = 25 * (1 - forecast_rain_72h / 10)
-```
-
-### Step 3: Wind Component (0-15 points)
-```
-max_wind_kmh = max wind in next 24h
-
-if max_wind_kmh <= 15:   wind_score = 15
-if max_wind_kmh >= 50:   wind_score = 0
-else: wind_score = 15 * (1 - (max_wind_kmh - 15) / 35)
-```
-
-### Step 4: Temperature Component (0-12 points)
-```
-temp_c = current or forecast high
-
-Optimal range: 10-22°C
-<0°C or >35°C:    temp_score = 0
-0-10°C:           temp_score = scale 0-12
-10-22°C:          temp_score = 12
-22-35°C:          temp_score = scale 12-0   # reaches 0 AT 35, no step (issue #148)
-```
-
-### Step 5: Humidity Component (0-8 points)
-```
-humidity_pct = current RH
-
-if humidity_pct <= 50:   humidity_score = 8
-if humidity_pct >= 90:   humidity_score = 0
-else: humidity_score = 8 * (1 - (humidity_pct - 50) / 40)
-```
-
-### Total and confidence
-```
-score = clamp(drying + rain + wind + temp + humidity, 0, 100)
-
-spread = precip_p90 - precip_p10
-if spread <= 2mm:    confidence = 'high'
-if spread <= 8mm:    confidence = 'medium'
-else:                confidence = 'low'
-force 'low' if forecast_date >= 7 days out
-```
-
-The old `Excellent` … `Do Not Climb` label ladder is gone and must not come back; see
-[What reaches a screen](#what-reaches-a-screen).
-
-### score_breakdown shape
-
-**Not persisted.** `conditions_scores` has no writer; scores are computed live per request.
-The authoritative type is `ScoreBreakdown` in `packages/types`; where this sketch and the type
-disagree, the type wins.
-```typescript
-{
-  drying: { score, hours_since_rain, hours_remaining, rock_type,
-            modifiers: { angle, wind, humidity } },   // no `shade`: never implemented
-  rain:     { score, forecast_72h_mm },
-  wind:     { score, max_kmh },
-  temp:     { score, temp_c },
-  humidity: { score, pct },
-  total, confidence, computed_at
-}
-```
+`conditionsScore.ts` (drying 40, rain 25, wind 15, temperature 12, humidity 8) was deleted in
+scoring Phase 5b (2026-10-01), with its station-rainfall lookup, `compare:scoring` and the
+`conditions_scores` table. No score had rendered from it since Crag A went live. If a
+comparison ever needs it, read it from version history; do not rebuild it.

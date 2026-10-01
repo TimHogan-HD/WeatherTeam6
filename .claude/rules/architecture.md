@@ -64,25 +64,16 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
 - **There is one drying table, `MIN_HOURS`/`MAX_HOURS` in `dryingModel.ts`, and everything
   imports it.** Never reintroduce a copy. Not-recorded kinds (`sandstone`, `limestone`,
   `basalt`) take their family's slowest window and `unknown` is the slowest row.
-- **The drying ramp curves upward; `RAMP_EXPONENT` may never drop to 1 or below** (#137). The
-  number is a labelled judgement call. Endpoints are fixed — 0 at 0 hours, 40 at `maxDry` —
-  and `maxDry` is pinned to `dryingModel`'s `estimated_dry` by a cross-module test; move
-  `MAX_HOURS` in both modules rather than bending the ramp.
-- **Every component ramp reaches 0 at its own band edge — no component may step** (#148).
-  `conditionsScore.test.ts` walks temperature in tenths past both edges; a new component or
-  band gets the same walk. Widening `TEMP_BAND_C` is not free — it also drives the client's
-  temperature chart.
+- **Every factor ramp reaches its floor at its own band edge — no factor may step** (#148). A
+  new factor or band gets a test that walks its input in tenths past both edges.
+  `TEMP_BAND_C` no longer feeds any score; it only colours the client's temperature chart.
 - **Every degradation path must withhold, never inflate** (#21, #32, #34). Any change to the
   score starts from *"what does this say when the inputs are missing"*, never from
   re-weighting (`scoring-findings.md` §6c).
-- **Every input to a per-day score is read for that day, the drying clock included.**
-  `computeLiveForecast` calls `dryingModel` inside the day loop against the events
-  `rainfallEventsThrough` allows — nothing dated later than the day scored. `asOf` advances at
-  the same local time of day, so day 0 is exactly `now` (#108). Never "advance" the figure by
-  adding hours; the 720-hour sentinel means *unmeasured* (#34). **Two inputs are still
-  knowingly today-only** — `currentWindKmh` and `currentHumidityPct`, which stretch `maxDry`
-  rather than fill it. They are one field away from the humidity *component*, so making them
-  per-day is a `ScoreInput` split, not an edit.
+- **The five-component scorer is gone** (scoring Phase 5b, 2026-10-01): `conditionsScore.ts`,
+  its station-rainfall lookup (`acis.ts`), `compare:scoring` and the `conditions_scores`
+  table. `computeLiveForecast` now returns weather only. Recover any of it from git history,
+  not by rebuilding it.
 
 ## Readings on screen
 
@@ -342,15 +333,6 @@ request; scheduled work is `/api/cron/*` on cron-job.org (`background-work` skil
 
 The client's own patterns are in the `miniapp-patterns` skill.
 
-- **A score reaches a snapshot only because the route passed a merge argument.**
-  `GET /forecast/:id` hands `toWindowedForecast` a `ScoreMerge` only when
-  `is_climbing_location`. Drive off the absence of score fields,
-  never off `score === null`.
-- **Three states: scored, outside the window, and withheld.** `score: null` without
-  `unavailable_reason` is beyond the window; with one, deliberately unscored.
-  `ScoreUnavailableReason` (`packages/types/conditionsCopy.ts`) is the single union and
-  `scoreUnavailableLine` switches on it exhaustively.
-- **The per-day score join is on `forecast_date`, never array position.**
-- **An unmeasurable input withholds the score** (#34): a failed rainfall lookup returns
-  `scores: []` with `scoreUnavailable: 'rainfall_unavailable'`. A genuinely empty result still
-  scores.
+- **`GET /forecast/:id` carries weather only.** A snapshot has no score field; every score
+  on screen is Crag A's, from the readings.
+- **A day's score joins the forecast on its local date, never array position.**

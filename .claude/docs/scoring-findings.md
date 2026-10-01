@@ -446,7 +446,8 @@ decided it:
 3. ~~Decide 5.1 and 5.2 before building anything else.~~ **Done 2026-09-16 — §5 is answered and
    nothing is blocked on the owner.** The replacement third item: **run
    `npm run compare:scoring --workspace=apps/api` before proposing any change to the scorer**
-   (§6b). Both remaining proposals move every score on every screen, and the harness is how you
+   (§6b). *That scorer and the script were deleted in scoring Phase 5b (2026-10-01); Crag A
+   replaced both.* Both remaining proposals move every score on every screen, and the harness is how you
    find out by how much.
 
 **And one thing not to do:** do not add a sun or aspect component that scores `aspectDegrees`

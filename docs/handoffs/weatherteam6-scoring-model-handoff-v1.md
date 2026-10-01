@@ -10,9 +10,10 @@ the old scorer.
 
 Every open question is answered except **Q3**, which 3b could only *ask* — whether the
 0-100 number survives now that it can be seen beside the readings. Read § Open Questions
-before starting a phase, and run `npm run compare:scoring --workspace=apps/api` before
-arguing about a number — a deferral is a decision about *when*, not permission to pick one
-quietly.
+before starting a phase, and measure before arguing about a number — a deferral is a decision
+about *when*, not permission to pick one quietly. **Phase 5b (2026-10-01) deleted the
+five-component scorer and `compare:scoring` with it;** every mention of either below is
+history, recoverable from git.
 
 ## Context
 

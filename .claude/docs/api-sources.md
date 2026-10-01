@@ -11,7 +11,7 @@ Read this before any weather fetch work. Every source has gotchas that will wast
 - **p10/p50/p90** must be computed from raw member arrays — the API does not return percentiles directly
 - **A daily high is not `Math.max` over the payload.** That returns the hottest hour of the hottest member — 102 °F against a 143-member median of 99 °F on real data. Take each member's own daily extreme, then the median across members (`ensembleMedian`).
 - **Defaults to `timezone=GMT` when the param is omitted.** Every call sets `timezone=auto`, so buckets are the location's own calendar days and the response carries `utc_offset_seconds` (issue #33). Requesting UTC — or relying on the default — made "today" roll over in the late afternoon anywhere in the Americas.
-- **Free tier:** 10,000 calls/day. ~~Do not poll per-user on demand — use the background job.~~ **There is no background job** — forecasts are computed live per request (`liveForecast.ts`). Note `GET /forecast/:id` and `GET /conditions/:id` each run their own `computeLiveForecast`, so one detail view is two ensemble calls.
+- **Free tier:** 10,000 calls/day. ~~Do not poll per-user on demand — use the background job.~~ **There is no background job** — forecasts are computed live per request (`liveForecast.ts`). Since scoring Phase 5b only `GET /forecast/:id` (and trips) run `computeLiveForecast`; `GET /conditions/:id` reads the stored hourly runs, so one detail view is one ensemble call at most.
 - **Rate limit:** No hard limit stated, but batch locations into a single call using `&latitude=x,y&longitude=a,b`
 
 ## Open-Meteo Forecast (Deterministic)
@@ -43,7 +43,6 @@ Read this before any weather fetch work. Every source has gotchas that will wast
 
 ## Open-Meteo Historical
 - **Endpoint:** `https://archive-api.open-meteo.com/v1/archive`
-- Use for past 1-7 days precip when ACIS is unavailable
 - Data lags ~5 days for full QC. For yesterday use IEM ASOS obs instead.
 
 ## Nominatim (Reverse Geocoding a GPS Fix)
@@ -92,12 +91,9 @@ Read this before any weather fetch work. Every source has gotchas that will wast
 - Convert wind knots → km/h: multiply by 1.852
 
 ## NOAA ACIS (Verified Precipitation)
-- **Endpoint:** `https://data.rcc-acis.org/StnData`
-- **Method:** POST with JSON body
-- **Use for:** Ground-truth daily precip totals, 1-7 days back
-- **Lags:** Data is typically available next morning for the previous day
-- **Station IDs:** Use same ASOS station IDs
-- Mark `verified=true` on rainfall_history rows sourced from ACIS
+**No longer called** (scoring Phase 5b, 2026-10-01). The station lookup (`StnData`,
+`lib/weather/acis.ts`) fed only the retired five-component scorer and was deleted with it.
+ACIS gridded normals (`acisNormals.ts`) are a separate call and remain.
 
 ## NWS Alerts
 - **Endpoint:** `https://api.weather.gov/alerts/active?point={lat},{lon}`

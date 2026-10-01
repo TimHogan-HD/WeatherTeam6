@@ -75,7 +75,7 @@ Do not create a `.env` file at all — set variables in the shell for the one co
 | Database | `.claude/docs/data-model.md` |
 | Weather fetches | `.claude/docs/api-sources.md` |
 | Scoring code | `.claude/docs/scoring-algorithm.md`, then `.claude/docs/scoring-findings.md` (the research reduced to what touches the app — read it instead of the research docs) |
-| Anything that produces or renders a reading, or changes how the score components combine | `docs/handoffs/weatherteam6-scoring-model-handoff-v1.md`, and run `npm run compare:scoring --workspace=apps/api` before proposing a weight, veto or cap |
+| Anything that produces or renders a reading, or changes how the score components combine | `docs/handoffs/weatherteam6-scoring-model-handoff-v1.md` (its `compare:scoring` was deleted with the old scorer). Before proposing a weight, veto or cap, measure it: `compare:dryness` and `compare:rock-temp` (`apps/api`) are the harnesses that test against outcomes |
 | Drying model or rock types | `.claude/docs/rock-drying-research.md` — §10 first (most figures it checked were misattributed); per-crag facts in `.claude/docs/crag-facts.json` |
 | Wall angle, aspect, temperature/humidity scoring, `walls` | `.claude/docs/climbing-terminology-research.md` — `cliff_angle` runs backwards from climbers' usage and `aspectDegrees` scores nothing |
 | Any UI phase | `docs/handoffs/miniapp-design-v1.md` (binding screen spec) and `docs/handoffs/design-system-v1.md`. Open the mockup itself (`docs/handoffs/design-mockups/weatherteam6UI.html`), not a prose summary of it — one phase was built twice from the description. Where it disagrees with the spec, the spec wins |
