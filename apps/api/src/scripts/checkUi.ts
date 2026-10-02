@@ -486,6 +486,19 @@ async function run(): Promise<void> {
     await page.waitForURL((u) => u.pathname === `/location/${locationId}`, { timeout: 10_000 }).catch(() => undefined)
     check('tapping a pin opens its crag', new URL(page.url()).pathname === `/location/${locationId}`, page.url())
 
+    // The map outlives the tab: coming back shows the one already drawn.
+    let mapRequests = 0
+    const countMapRequests = (r: { url(): string }) => {
+      if (/openfreemap\.org|amazonaws\.com/.test(r.url())) mapRequests++
+    }
+    page.on('request', countMapRequests)
+    await bar.getByRole('link', { name: 'Map' }).click()
+    await pin.waitFor({ timeout: 10_000 })
+    await page.waitForTimeout(2_000)
+    page.off('request', countMapRequests)
+    check('coming back to the map fetches nothing again', mapRequests === 0, `${mapRequests} map requests`)
+    await screen('map-return', 5)
+
     // 3c. Settings on Profile (scoring Phase 5): a warmer high end and an
     // opening tab, saved, then a crag opening on that tab.
     await page.goto(`${WEB}/profile`)
