@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient, type UseQueryResult } from '@tanstack/react-query'
-import type { CreateTripInput, Trip, TripOutlook, TripTrend } from '@weatherteam6/types'
-import { apiDelete, apiGet, apiPost } from '../lib/api.js'
+import type { CreateTripInput, Trip, TripOutlook, TripTrend, UpdateTripInput } from '@weatherteam6/types'
+import { apiDelete, apiGet, apiPatch, apiPost } from '../lib/api.js'
 
 export const tripKeys = {
   all: ['trips'] as const,
@@ -50,6 +50,19 @@ export function useCreateTrip() {
     onSuccess: (created) => {
       queryClient.setQueryData(tripKeys.one(created.id), created)
       void queryClient.invalidateQueries({ queryKey: tripKeys.all })
+    },
+  })
+}
+
+export function useUpdateTrip(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: UpdateTripInput) => apiPatch<Trip>(`/trips/${id}`, input),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(tripKeys.one(id), updated)
+      for (const key of [tripKeys.all, tripKeys.forecast(id), tripKeys.trend(id)]) {
+        void queryClient.invalidateQueries({ queryKey: key })
+      }
     },
   })
 }

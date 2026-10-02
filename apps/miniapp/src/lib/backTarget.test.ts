@@ -79,6 +79,10 @@ describe('backTarget', () => {
     expect(backTarget({ route: 'tripNew' })).toEqual({ kind: 'navigate', to: '/trips' })
     expect(backTarget({ route: 'tripCrag', tripId: 't1' })).toEqual({ kind: 'navigate', to: '/trips/t1' })
   })
+
+  it('returns the trip editor to its trip, not the list', () => {
+    expect(backTarget({ route: 'tripEdit', tripId: 't1' })).toEqual({ kind: 'navigate', to: '/trips/t1' })
+  })
 })
 
 describe('backTarget — the guidebook screens', () => {

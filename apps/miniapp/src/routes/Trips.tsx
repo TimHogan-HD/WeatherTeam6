@@ -1,13 +1,13 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
-import type { Trip } from '@weatherteam6/types'
+import type { Trip, UpdateTripInput } from '@weatherteam6/types'
 import { type, typeV2 } from '../theme/tokens.css.js'
 import { bareButton, btnPrimary, btnPrimaryText, cardV2, inputBox, row, stack } from '../theme/styles.js'
 import { PlusIcon } from '../components/Icons.js'
 import { Screen } from '../components/Screen.js'
 import { EmptyState, InlineError, SkeletonCards } from '../components/States.js'
-import { useCreateTrip, useTrips } from '../hooks/useTrips.js'
+import { useCreateTrip, useTrip, useTrips, useUpdateTrip } from '../hooks/useTrips.js'
 import { useLocations } from '../hooks/useLocations.js'
 import { NEW_TRIP_PATH, backTarget, tripPath } from '../lib/backTarget.js'
 import { cragCount, dateLabel, deviceToday, forecastOpens, formatTripDates, tripTiming } from '../lib/trips.js'
@@ -92,25 +92,126 @@ export function draftProblem(draft: Draft): string | null {
   return null
 }
 
+/**
+ * What an edit sends: only the fields that differ from the saved trip, so a
+ * rename never touches the dates (and so never restarts the trend). An empty
+ * object means nothing changed.
+ */
+export function tripChanges(trip: Trip, draft: Draft): UpdateTripInput {
+  const changes: UpdateTripInput = {}
+  if (draft.name.trim() !== trip.name) changes.name = draft.name.trim()
+  if (draft.start !== trip.startDate) changes.startDate = draft.start
+  if (draft.end !== trip.endDate) changes.endDate = draft.end
+  const saved = (trip.locations ?? []).map((l) => l.locationId)
+  const sameCrags =
+    saved.length === draft.locationIds.length && draft.locationIds.every((id) => saved.includes(id))
+  if (!sameCrags) changes.cragIds = draft.locationIds
+  return changes
+}
+
 /** `/trips/new`: a name, the dates and one or more saved crags. */
 export function TripCreate() {
   const navigate = useNavigate()
-  const locations = useLocations()
   const create = useCreateTrip()
   const today = deviceToday()
-  const [draft, setDraft] = useState<Draft>({ name: '', start: today, end: today, locationIds: [] })
+  const back = backTarget({ route: 'tripNew' })
+  return (
+    <TripForm
+      title="New trip"
+      initial={{ name: '', start: today, end: today, locationIds: [] }}
+      onBack={() => void navigate(back.to)}
+      pending={create.isPending}
+      failed={create.isError ? 'Couldn’t create the trip.' : null}
+      submitLabel={create.isPending ? 'Creating…' : 'Create trip'}
+      datesNote={null}
+      onSubmit={(draft) =>
+        create.mutate(
+          { name: draft.name.trim(), startDate: draft.start, endDate: draft.end, cragIds: draft.locationIds },
+          { onSuccess: (trip) => void navigate(tripPath(trip.id), { replace: true }) },
+        )
+      }
+    />
+  )
+}
+
+/** `/trips/:tripId/edit`: the same form, filled in from the saved trip. */
+export function TripEdit() {
+  const navigate = useNavigate()
+  const { tripId } = useParams()
+  const trip = useTrip(tripId)
+  const update = useUpdateTrip(tripId ?? '')
+  const back = backTarget({ route: 'tripEdit', tripId: tripId ?? '' })
+  const onBack = () => void navigate(back.to)
+
+  if (trip.isPending) {
+    return (
+      <Screen title="Edit trip" onBack={onBack}>
+        <SkeletonCards count={3} height={56} />
+      </Screen>
+    )
+  }
+  if (trip.isError) {
+    return (
+      <Screen title="Edit trip" onBack={onBack}>
+        <InlineError message="Couldn't load the trip." onRetry={() => void trip.refetch()} />
+      </Screen>
+    )
+  }
+  const saved = trip.data
+  return (
+    <TripForm
+      title="Edit trip"
+      initial={{
+        name: saved.name,
+        start: saved.startDate,
+        end: saved.endDate,
+        locationIds: (saved.locations ?? []).map((l) => l.locationId),
+      }}
+      onBack={onBack}
+      pending={update.isPending}
+      failed={update.isError ? 'Couldn’t save the trip.' : null}
+      submitLabel={update.isPending ? 'Saving…' : 'Save'}
+      datesNote={(draft) =>
+        draft.start !== saved.startDate || draft.end !== saved.endDate
+          ? 'Changing the dates restarts the forecast trend.'
+          : null
+      }
+      onSubmit={(draft) => {
+        const changes = tripChanges(saved, draft)
+        if (Object.keys(changes).length === 0) {
+          onBack()
+          return
+        }
+        update.mutate(changes, { onSuccess: () => void navigate(tripPath(saved.id), { replace: true }) })
+      }}
+    />
+  )
+}
+
+type TripFormProps = {
+  title: string
+  initial: Draft
+  onBack: () => void
+  pending: boolean
+  failed: string | null
+  submitLabel: string
+  /** A note under the dates, shown while it returns one. */
+  datesNote: ((draft: Draft) => string | null) | null
+  onSubmit: (draft: Draft) => void
+}
+
+function TripForm({ title, initial, onBack, pending, failed, submitLabel, datesNote, onSubmit }: TripFormProps) {
+  const locations = useLocations()
+  const [draft, setDraft] = useState<Draft>(initial)
   const [tried, setTried] = useState(false)
   const crags = (locations.data ?? []).filter((l) => l.is_climbing_location)
   const problem = draftProblem(draft)
-  const back = backTarget({ route: 'tripNew' })
+  const note = datesNote === null ? null : datesNote(draft)
 
   const submit = () => {
     setTried(true)
-    if (problem !== null || create.isPending) return
-    create.mutate(
-      { name: draft.name.trim(), startDate: draft.start, endDate: draft.end, cragIds: draft.locationIds },
-      { onSuccess: (trip) => void navigate(tripPath(trip.id), { replace: true }) },
-    )
+    if (problem !== null || pending) return
+    onSubmit(draft)
   }
 
   const toggle = (id: string) =>
@@ -121,7 +222,7 @@ export function TripCreate() {
 
   const field = { ...inputBox, ...type.calDay, width: '100%' }
   return (
-    <Screen title="New trip" onBack={() => void navigate(back.to)}>
+    <Screen title={title} onBack={onBack}>
       <form
         style={{ ...stack(spacing.sectionGap), marginTop: `${spacing.sectionTop}px` }}
         onSubmit={(e) => {
@@ -163,6 +264,7 @@ export function TripCreate() {
             />
           </label>
         </div>
+        {note === null ? null : <p style={typeV2.note}>{note}</p>}
         <fieldset style={{ ...stack(spacing.listGapSm), border: 'none', padding: 0, margin: 0 }}>
           <legend style={{ ...type.label, marginBottom: `${spacing.listGapSm}px` }}>Crags</legend>
           {locations.isPending ? (
@@ -198,13 +300,13 @@ export function TripCreate() {
           )}
         </fieldset>
         {tried && problem !== null ? <p style={{ ...type.bodySm, color: colors.poor }}>{problem}</p> : null}
-        {create.isError ? <p style={{ ...type.bodySm, color: colors.poor }}>Couldn’t create the trip.</p> : null}
+        {failed === null ? null : <p style={{ ...type.bodySm, color: colors.poor }}>{failed}</p>}
         <button
           type="submit"
-          disabled={create.isPending}
+          disabled={pending}
           style={{ ...bareButton, ...btnPrimary, ...btnPrimaryText, textAlign: 'center' }}
         >
-          {create.isPending ? 'Creating…' : 'Create trip'}
+          {submitLabel}
         </button>
       </form>
     </Screen>

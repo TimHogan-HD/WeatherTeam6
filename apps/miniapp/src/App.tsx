@@ -24,7 +24,7 @@ import { Login } from './routes/Login.js'
 import { WallScreen } from './routes/WallScreen.js'
 import { ClimbScreen } from './routes/ClimbScreen.js'
 import { MapFallback, Profile, UnbuiltSection } from './routes/Sections.js'
-import { TripCreate, TripList } from './routes/Trips.js'
+import { TripCreate, TripEdit, TripList } from './routes/Trips.js'
 import { TripScreen } from './routes/TripScreen.js'
 import { TabBar } from './components/TabBar.js'
 import { arrivalScrollY, sectionFor } from './lib/bottomNav.js'
@@ -108,6 +108,7 @@ export function App() {
             <Route path="/trips" element={<TripList />} />
             <Route path="/trips/new" element={<TripCreate />} />
             <Route path="/trips/:tripId" element={<TripScreen />} />
+            <Route path="/trips/:tripId/edit" element={<TripEdit />} />
             <Route path="/trips/:tripId/crag/:locationId" element={<TripScreen />} />
             <Route path="/profile" element={<Profile />} />
           </Route>

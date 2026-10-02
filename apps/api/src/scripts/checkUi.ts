@@ -614,6 +614,28 @@ async function run(): Promise<void> {
     await screen('trips')
     if (oneCragTripId !== null) {
       await page.goto(`${WEB}/trips/${oneCragTripId}`)
+      await page.getByRole('button', { name: 'Edit trip' }).click()
+      await page.getByRole('heading', { name: 'Edit trip' }).waitFor({ timeout: 10_000 })
+      check('the trip editor shows no bottom bar', (await bar.count()) === 0)
+      check('the editor opens filled in', (await page.getByLabel('Name').inputValue()) === `${PREFIX} one crag`)
+      await page.getByLabel('Name').fill(`${PREFIX} edited`)
+      await page.getByLabel('Last day').fill(isoDayFromNow(5))
+      check(
+        'moving a date says the trend restarts, before saving',
+        await page.getByText('Changing the dates restarts the forecast trend.').isVisible(),
+      )
+      await screen('trip-edit', 5)
+      await page.getByRole('button', { name: 'Save' }).click()
+      await page.waitForURL((u) => u.pathname === `/trips/${oneCragTripId}`, { timeout: 15_000 }).catch(() => undefined)
+      const edited = await api<{ name: string; endDate: string }>('GET', `/trips/${oneCragTripId}`, token)
+      check(
+        'Save returns to the trip with the new name and dates',
+        new URL(page.url()).pathname === `/trips/${oneCragTripId}` &&
+          edited.payload.data?.name === `${PREFIX} edited` &&
+          edited.payload.data.endDate === isoDayFromNow(5) &&
+          (await page.getByRole('heading', { name: `${PREFIX} edited` }).isVisible()),
+        `at ${page.url()} with ${JSON.stringify(edited.payload.data)}`,
+      )
       await page.getByRole('button', { name: 'Delete trip' }).click()
       await page.getByRole('button', { name: 'Tap again to delete' }).click()
       await page.waitForURL((u) => u.pathname === '/trips', { timeout: 15_000 }).catch(() => undefined)

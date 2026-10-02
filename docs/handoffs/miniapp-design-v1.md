@@ -821,6 +821,10 @@ crag days first, several crags as a grid. Open to change like every other screen
     axis in inches, the warmest high as a line on a right axis in °F, each axis in its
     series' colour, x the recording time; chips "Rain: down 0.16 in", "High: up 5°". No score.
     Before the first recording: "Trend starts after the next forecast update."
+  - "Edit trip" beside it, as "Edit crag" sits on a crag (owner asked, 2026-10-02):
+    `/trips/:tripId/edit`, the new-trip form filled in, no bottom bar, back to the trip. A
+    moved date shows "Changing the dates restarts the forecast trend." before Save; Save
+    sends only what changed.
   - "Delete trip", then "Tap again to delete" (no `confirm()`), back to `/trips`.
 - **With several crags**, `/trips/:tripId` is a crag-by-day grid (a scored cell: score,
   dryness word, amount; a dashed one: high, chance, amount), each crag's likely total and

@@ -6,13 +6,11 @@ import { MAX_NAME_LENGTH, describeError, isIsoDate, isUuid, sendServerError } fr
 import { logger } from '../lib/logger.js'
 import { fetchOutlook, type Outlook } from '../lib/weather/ensembleOutlook.js'
 import { summarizeTripOutlook } from '../lib/trips/tripOutlook.js'
+import { MAX_TRIP_LOCATIONS, parseTripPatch, updateTrip } from '../lib/trips/updateTrip.js'
 import { parseNumeric, parseNumericRequired } from '@weatherteam6/types'
 import type { ApiResponse, Trip, TripLocation, CreateTripInput, TripOutlook, TripTrend } from '@weatherteam6/types'
 
 export const tripsRouter = Router()
-
-/** A trip is a handful of crags; this only bounds the size of one insert. */
-const MAX_TRIP_LOCATIONS = 50
 
 type TripRow = typeof trips.$inferSelect
 type TripLocationRow = typeof tripLocations.$inferSelect
@@ -177,6 +175,45 @@ tripsRouter.get('/trips/:tripId', async (req: Request, res: Response) => {
     res.status(200).json(response)
   } catch (err) {
     sendServerError(res, err, 'GET /trips/:tripId')
+  }
+})
+
+tripsRouter.patch('/trips/:tripId', async (req: Request, res: Response) => {
+  const tripId = req.params['tripId']
+  if (!tripId || !isUuid(tripId)) {
+    const response: ApiResponse<null> = { data: null, error: 'Trip not found', status: 404 }
+    res.status(404).json(response)
+    return
+  }
+  const patch = parseTripPatch(req.body)
+  if (patch === null) {
+    const response: ApiResponse<null> = { data: null, error: 'Invalid trip data', status: 400 }
+    res.status(400).json(response)
+    return
+  }
+
+  try {
+    const result = await updateTrip(req.userId, tripId, patch)
+    if (result.status === 'updated') {
+      const response: ApiResponse<Trip> = {
+        data: mapTrip(result.trip, result.locations.map(mapTripLocation)),
+        error: null,
+        status: 200,
+      }
+      res.status(200).json(response)
+      return
+    }
+    // 404, not 403, for both: whether someone else's trip or location exists is not disclosed.
+    const [status, error] =
+      result.status === 'bad_dates'
+        ? [400, 'The trip ends before it starts']
+        : result.status === 'location_not_found'
+          ? [404, 'Location not found']
+          : [404, 'Trip not found']
+    const response: ApiResponse<null> = { data: null, error, status }
+    res.status(status).json(response)
+  } catch (err) {
+    sendServerError(res, err, 'PATCH /trips/:tripId')
   }
 })
 
