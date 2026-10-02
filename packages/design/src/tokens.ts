@@ -190,6 +190,45 @@ export const rockSwatchV2 = {
 } as const;
 
 /**
+ * The Map tab's basemap: OpenFreeMap's `dark` style with every layer recoloured
+ * onto this palette (`apps/miniapp/src/lib/mapStyle.ts`), plus hillshade and
+ * contours. **Decoration, not data**: the ground stays dark and quiet so the
+ * pins' status colours are the brightest marks on the map. A value that is
+ * already a `colorsV2` surface is that token rather than a copy of it.
+ */
+export const mapV2 = {
+  /** Land, and any fill no other key names. */
+  land: colorsV2.surface,
+  /** Lakes and sea. */
+  water: '#0b1a2a',
+  /** Rivers and streams, as lines. */
+  river: '#1d4f73',
+  /** Parks, woods, landcover and land use. */
+  park: '#131c22',
+  building: colorsV2.card,
+  /** Minor roads, paths, railways, and building outlines. */
+  minorLine: colorsV2.line,
+  /** Motorways, trunk and primary roads. */
+  majorRoad: '#4a5a6c',
+  /** State and country borders. */
+  boundary: '#3a4858',
+  /** Place and road names. */
+  label: colorsV2.txtMuted,
+  /** Names of lakes, seas and rivers. */
+  waterLabel: '#5f8fb4',
+  /** The halo behind every label, so it reads over hillshade. */
+  labelHalo: colorsV2.bg,
+  /** Hillshade's slopes facing away from the light. */
+  hillshadeShadow: '#05070a',
+  /** Hillshade's slopes facing the light. */
+  hillshadeHighlight: colorsV2.txtMuted,
+  /** Contour lines, warm so they are not read as roads. */
+  contour: '#5c5244',
+  /** A major contour's elevation figure. */
+  contourLabel: '#a39580',
+} as const;
+
+/**
  * The status ladder as **surfaces**: each rung's tinted card, row and pill,
  * from the Overview frame of the WT6 Figma "V2" page.
  *
