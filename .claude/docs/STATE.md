@@ -42,7 +42,7 @@ Profile (#268, #284); Trips and Crags are "not built yet" placeholders.
   the score works (#296).
 
 **Design is an open conversation** with the owner, not a rulebook (#298). CSS and motion are
-allowed (#292); `docs/handoffs/ui-craft.md` (#295) and three vendored design skills (#297)
+allowed (#292); `.claude/docs/ui-craft.md` (#295) and three vendored design skills (#297)
 are the guidance.
 
 **Storage:** weather runs are stored per place (#194), fetched only when Open-Meteo published
