@@ -62,7 +62,8 @@ export function LocationDetail() {
   const [picked, setTab] = useState<DetailTab | null>(null)
   const asked = searchParams.get('tab') ?? preferred
   const tab = picked ?? detailTabs(true).find((o) => o.value === asked)?.value ?? 'overview'
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  // `?date=` is a trip day's "Hourly ›" (`hourlyDayPath`); held only while drawable, as any pick is.
+  const [selectedDate, setSelectedDate] = useState<string | null>(() => searchParams.get('date'))
 
   // The day Hourly opens on.
   //

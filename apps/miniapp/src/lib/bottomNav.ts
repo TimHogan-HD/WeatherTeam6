@@ -13,7 +13,14 @@ export type SectionKey = NavTab['key']
  * Conditions, because `App` sends an unknown path to `/`.
  */
 export function sectionFor(pathname: string): SectionKey | null {
-  if (pathname === '/add' || pathname === '/feedback' || /^\/location\/[^/]+\/edit$/.test(pathname)) return null
+  if (
+    pathname === '/add' ||
+    pathname === '/feedback' ||
+    pathname === '/trips/new' ||
+    /^\/location\/[^/]+\/edit$/.test(pathname)
+  ) {
+    return null
+  }
   for (const tab of bottomNav.tabs) {
     if (tab.route !== '/' && (pathname === tab.route || pathname.startsWith(`${tab.route}/`))) return tab.key
   }

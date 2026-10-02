@@ -269,6 +269,41 @@ export const tripDayRecords = pgTable(
   (t) => [unique('trip_day_records_location_day_hour').on(t.location_id, t.local_date, t.recorded_at)],
 )
 
+/**
+ * The trip's rain total and warmest high at one location, as of one cron
+ * firing: the points of a trip screen's forecast trend.
+ *
+ * **Keyed per trip, unlike `trip_day_records`**, because a rain total is summed
+ * over one trip's dates and means nothing for another trip to the same crag.
+ * `recorded_at` is the firing's hour, so a rerun inside the hour replaces its row.
+ *
+ * `days_covered` beside `trip_days` says how much of the trip the total reached:
+ * the total jumps when a new day enters the horizon. The rain columns are null
+ * when no member reached every covered day; `high_c_max` when no day had a high.
+ */
+export const tripRainRecords = pgTable(
+  'trip_rain_records',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    trip_id: uuid('trip_id')
+      .notNull()
+      .references(() => trips.id),
+    location_id: uuid('location_id')
+      .notNull()
+      .references(() => locations.id),
+    /** The firing, truncated to the hour. */
+    recorded_at: timestamp('recorded_at', { withTimezone: true }).notNull(),
+    mean_mm: doublePrecision('mean_mm'),
+    p10_mm: doublePrecision('p10_mm'),
+    p90_mm: doublePrecision('p90_mm'),
+    member_count: integer('member_count'),
+    days_covered: integer('days_covered'),
+    trip_days: integer('trip_days').notNull(),
+    high_c_max: doublePrecision('high_c_max'),
+  },
+  (t) => [unique('trip_rain_records_trip_location_hour').on(t.trip_id, t.location_id, t.recorded_at)],
+)
+
 export const cragClimbabilityHistory = pgTable(
   'crag_climbability_history',
   {

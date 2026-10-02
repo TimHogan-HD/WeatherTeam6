@@ -18,7 +18,7 @@
  * console rather than the logger is deliberate: this is an operator-facing CLI.
  */
 
-import type { ApiResponse, TripOutlook } from '@weatherteam6/types'
+import type { ApiResponse, TripOutlook, TripTrend } from '@weatherteam6/types'
 
 const PORT = 3097
 const BASE = `http://127.0.0.1:${PORT}/api/v1`
@@ -66,7 +66,7 @@ async function run(): Promise<void> {
 
   const { createApp } = await import('../index.js')
   const { db, pool } = await import('../db/index.js')
-  const { users, locations, trips, tripLocations, tripDayRecords } = await import('../db/schema.js')
+  const { users, locations, trips, tripLocations, tripDayRecords, tripRainRecords } = await import('../db/schema.js')
   const { recordTripDays } = await import('../lib/trips/recordTripDays.js')
   const { deleteLocationCascade } = await import('../lib/locations/deleteLocation.js')
   const { signToken, expiryFrom } = await import('../lib/auth/token.js')
@@ -143,6 +143,25 @@ async function run(): Promise<void> {
     const keys = new Set(rows2.map((r) => `${r.local_date}|${r.recorded_at.toISOString()}`))
     check('one row per (location, day, hour)', keys.size === rows2.length)
 
+    console.log('\nThe trend point')
+    const trendRows = await db.select().from(tripRainRecords).where(eq(tripRainRecords.trip_id, tripId))
+    const point = trendRows[0]
+    check('one trend point for the trip after two runs in one hour', trendRows.length === 1, `${trendRows.length} rows`)
+    check('it is under the test crag', point?.location_id === locationId)
+    check('it covers part of the trip, and says so', point !== undefined && point.trip_days === 22 && (point.days_covered ?? 99) < 22, JSON.stringify(point))
+    check(
+      'its rain is a range around the likely total',
+      point !== undefined &&
+        point.mean_mm !== null &&
+        point.p10_mm !== null &&
+        point.p90_mm !== null &&
+        point.p10_mm <= point.p90_mm &&
+        (point.member_count ?? 0) > 0,
+      JSON.stringify(point),
+    )
+    check('it carries the warmest high', point?.high_c_max !== null && point?.high_c_max !== undefined)
+    check('the recorder counted it', first.trendRowsWritten >= 1, String(first.trendRowsWritten))
+
     console.log('\nReading the trip forecast')
     const token = signToken({ sub: userId, exp: expiryFrom() }, TOKEN_SECRET)
     const res = await fetch(`${BASE}/trips/${tripId}/forecast`, { headers: { Authorization: `Session ${token}` } })
@@ -156,6 +175,19 @@ async function run(): Promise<void> {
       entry?.rain_total !== null && entry?.rain_total !== undefined && entry.rain_total.days_covered < entry.trip_days,
       JSON.stringify(entry?.rain_total),
     )
+
+    const trendRes = await fetch(`${BASE}/trips/${tripId}/trend`, { headers: { Authorization: `Session ${token}` } })
+    const trendBody = (await trendRes.json()) as ApiResponse<TripTrend[]>
+    const series = trendBody.data?.[0]
+    check('GET /trips/:tripId/trend returns 200', trendRes.status === 200, String(trendRes.status))
+    check(
+      'the trend matches the recorded point',
+      series?.locationId === locationId && series.points.length === 1 && series.points[0]?.trip_days === 22,
+      JSON.stringify(series),
+    )
+    const otherToken = signToken({ sub: '00000000-0000-4000-8000-0000000000fd', exp: expiryFrom() }, TOKEN_SECRET)
+    const foreign = await fetch(`${BASE}/trips/${tripId}/trend`, { headers: { Authorization: `Session ${otherToken}` } })
+    check("another account reading this trip's trend gets 404", foreign.status === 404, String(foreign.status))
   } catch (err) {
     failed++
     console.log(`\n  ERROR  ${err instanceof Error ? err.message : String(err)}`)
@@ -165,6 +197,8 @@ async function run(): Promise<void> {
         const removed = await deleteLocationCascade(locationId, userId)
         const left = await db.select().from(tripDayRecords).where(eq(tripDayRecords.location_id, locationId))
         check('deleting the location clears its trip_day_records', removed && left.length === 0, `${left.length} left`)
+        const trendLeft = await db.select().from(tripRainRecords).where(eq(tripRainRecords.location_id, locationId))
+        check('and its trip_rain_records', trendLeft.length === 0, `${trendLeft.length} left`)
       }
       if (tripId !== null) await db.delete(trips).where(eq(trips.id, tripId))
       if (userId !== null) await db.delete(users).where(eq(users.id, userId))

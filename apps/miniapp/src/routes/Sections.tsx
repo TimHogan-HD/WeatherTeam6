@@ -13,7 +13,7 @@ import { draftFromPreferences } from '../lib/preferencesForm.js'
  * A bottom-bar section's first screen, in the Conditions list's header band so
  * the five sections read as one app.
  */
-function SectionScreen({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+export function SectionScreen({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
     <main style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
       <header style={{ ...headerBand, ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -28,10 +28,10 @@ function SectionScreen({ title, action, children }: { title: string; action?: Re
 }
 
 /**
- * `/crags` and `/trips` — sections the bottom bar names before they have
- * screens. The owner is the only reader and asked for the tabs anyway
- * (2026-09-30), so each says plainly that it is not built rather than
- * borrowing another screen's content. `/map` is built (`MapScreen.tsx`).
+ * `/crags` — a section the bottom bar names before it has a screen. The owner
+ * is the only reader and asked for the tab anyway (2026-09-30), so it says
+ * plainly that it is not built rather than borrowing another screen's content.
+ * `/map` and `/trips` are built (`MapScreen.tsx`, `Trips.tsx`).
  */
 export function UnbuiltSection({ title }: { title: string }) {
   return (

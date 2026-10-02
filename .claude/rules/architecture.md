@@ -289,6 +289,21 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   location owner's range, with `scored_run_fetched_at` naming the stored run, and a
   non-crag records weather only. **A location writes nothing unless every source it needs
   answered**: nulls over a good hour would read as "no rain".
+- **`trip_rain_records` is keyed per trip**: `(trip_id, location_id, recorded_at)`, because a
+  rain total is summed over one trip's dates. The recorder builds it with `tripRainRows`
+  from the same `summarizeTripOutlook` the forecast route answers with, in one transaction
+  with the day records; a trip with no day in the horizon writes no point. `DELETE
+  /trips/:tripId` clears it by `trip_id`; `location_id` is on `DEPENDENT_TABLES`. `GET
+  /trips/:tripId/trend` returns its points per trip location, oldest first, 404 for another
+  account's trip.
+- **The trip screen joins two sources on `local_date`, one per figure** (`lib/trips.ts`,
+  `tripDayTiles`): score, Dryness and Friction from the crag's `/hourly` readings through
+  `summarizeReadings` (alerts pending and Severe+ suppress the number, as everywhere);
+  high, low, chance and amount from the trip outlook for every day, so no tile mixes two
+  sources for one figure. **Agreement** is `agreementShare` (`packages/types/tripCopy.ts`),
+  the majority side of `members_wet` against the rest, withheld when either is unknown, and
+  never called confidence. A trend point with `days_covered < trip_days` is drawn hollow, and
+  a change chip compares only points that covered the same days.
 
 ## Backend patterns
 

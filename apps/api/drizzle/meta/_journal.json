@@ -183,6 +183,13 @@
       "when": 1790968610688,
       "tag": "0025_stale_junta",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1790974877249,
+      "tag": "0026_cloudy_rumiko_fujikawa",
+      "breakpoints": true
     }
   ]
 }
