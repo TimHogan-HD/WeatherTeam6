@@ -7,6 +7,7 @@ import { formatTempDeg } from '../../lib/format.js'
 import { scoreTone } from '../../lib/locationList.js'
 import type { DayReadings } from '../../lib/overview.js'
 import { dateLabel, dateParts, formatShare, outlookState, tripDayTiles, type TripDayTile } from '../../lib/trips.js'
+import { InlineError } from '../States.js'
 import { rainTotalParts } from './TripCragView.js'
 
 export type GridCrag = {
@@ -14,6 +15,9 @@ export type GridCrag = {
   name: string
   outlook: TripOutlook | undefined
   readings: DayReadings | null
+  isCrag: boolean
+  /** This crag's `/hourly` failed: its retry. `null` otherwise. */
+  scoresFailed: (() => void) | null
 }
 
 const CELL_MIN_W = 64
@@ -61,6 +65,11 @@ export function TripCragGrid({
           </div>
         </div>
         <p style={typeV2.note}>Dashed: not scored yet.</p>
+        {crags.map((crag) =>
+          crag.scoresFailed === null ? null : (
+            <InlineError key={crag.locationId} message={`Couldn't load the scores for ${crag.name}.`} onRetry={crag.scoresFailed} />
+          ),
+        )}
       </section>
       <section style={{ ...cardV2, ...stack(spacing.listGap) }} aria-label="Rain over the trip">
         <div style={{ ...row(spacing.listGap), justifyContent: 'space-between' }}>
@@ -117,6 +126,7 @@ function CragRow({
     dates,
     outlook: state.kind === 'days' ? state.outlook.days : [],
     readings: crag.readings,
+    isCrag: crag.isCrag,
     today,
   })
   return (

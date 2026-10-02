@@ -32,6 +32,8 @@ function view(outlook: TripOutlook, trend: readonly TripTrendPoint[] = []): stri
       today="2026-10-02"
       outlook={settled(outlook)}
       readings={null}
+      isCrag
+      scoresFailed={null}
       trend={settled(trend)}
     />,
   )
@@ -51,6 +53,8 @@ describe('TripCragView — the outlook states', () => {
         today="2026-10-02"
         outlook={settled<TripOutlook>({ ...base, utc_offset_seconds: 0, days: [], rain_total: null, high_c_range: null })}
         readings={null}
+        isCrag
+        scoresFailed={null}
         trend={settled([])}
       />,
     )

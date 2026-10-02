@@ -182,12 +182,14 @@ export type TripDayTile =
 /**
  * One tile per trip date. `readings` is `null` while `/hourly` is in flight, on
  * its failure, and for a location that is not a crag: those days are unscored
- * rather than given an invented score.
+ * rather than given an invented score. A location that is not a crag is never
+ * scored, so its days promise no date.
  */
 export function tripDayTiles(input: {
   dates: readonly string[]
   outlook: readonly OutlookDay[]
   readings: DayReadings | null
+  isCrag: boolean
   today: string
 }): TripDayTile[] {
   const outlookByDate = new Map(input.outlook.map((d) => [d.local_date, d]))
@@ -208,7 +210,7 @@ export function tripDayTiles(input: {
       return { kind: 'scored', local_date, weather, summary, reading: day.best }
     }
     const from = addDays(local_date, -SCORED_DAYS_AHEAD)
-    return { kind: 'unscored', local_date, weather, scoredFrom: from > input.today ? from : null }
+    return { kind: 'unscored', local_date, weather, scoredFrom: input.isCrag && from > input.today ? from : null }
   })
 }
 

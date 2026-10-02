@@ -57,6 +57,7 @@ describe('tripDayTiles', () => {
     const tiles = tripDayTiles({
       dates: DATES,
       today: '2026-10-03',
+      isCrag: true,
       outlook: [
         outlookDay('2026-10-10', { temp_c_max: 14 }),
         outlookDay('2026-10-08', { temp_c_max: 16 }),
@@ -78,6 +79,7 @@ describe('tripDayTiles', () => {
     const [thu] = tripDayTiles({
       dates: ['2026-10-08'],
       today: TODAY,
+      isCrag: true,
       outlook: [outlookDay('2026-10-08')],
       readings: readings([readingsDay('2026-10-08', 86)]),
     })
@@ -91,6 +93,7 @@ describe('tripDayTiles', () => {
       const [thu] = tripDayTiles({
         dates: ['2026-10-08'],
         today: TODAY,
+      isCrag: true,
         outlook: [outlookDay('2026-10-08')],
         readings: readings([readingsDay('2026-10-08', 86)], over),
       })
@@ -102,7 +105,8 @@ describe('tripDayTiles', () => {
   })
 
   it('says when an unscored day will be scored, and nothing once that date has come', () => {
-    const tiles = tripDayTiles({ dates: DATES, today: TODAY, outlook: [], readings: null })
+    const tiles = tripDayTiles({ dates: DATES, today: TODAY,
+      isCrag: true, outlook: [], readings: null })
     expect(tiles.map((t) => (t.kind === 'unscored' ? t.scoredFrom : 'scored'))).toEqual([
       // Thu 8 enters the readings on Fri 2, which is today: no promise to make.
       null,
@@ -111,10 +115,16 @@ describe('tripDayTiles', () => {
     ])
   })
 
+  it('promises no date at a location that is not a crag', () => {
+    const tiles = tripDayTiles({ dates: DATES, today: TODAY, outlook: [], readings: null, isCrag: false })
+    expect(tiles.map((t) => t.kind === 'unscored' && t.scoredFrom)).toEqual([null, null, null])
+  })
+
   it('scores nothing without readings, even for a day inside the window', () => {
     const tiles = tripDayTiles({
       dates: ['2026-10-03'],
       today: TODAY,
+      isCrag: true,
       outlook: [outlookDay('2026-10-03')],
       readings: null,
     })

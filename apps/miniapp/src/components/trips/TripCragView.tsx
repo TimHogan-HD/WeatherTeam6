@@ -50,6 +50,8 @@ export function TripCragView({
   today,
   outlook,
   readings,
+  isCrag,
+  scoresFailed,
   trend,
 }: {
   locationId: string
@@ -59,6 +61,9 @@ export function TripCragView({
   outlook: QueryState<TripOutlook | undefined>
   /** `null` while `/hourly` or alerts load, on failure, and for a location that is not a crag. */
   readings: DayReadings | null
+  isCrag: boolean
+  /** The crag's `/hourly` failed: a retry, said once above the days. `null` otherwise. */
+  scoresFailed: (() => void) | null
   trend: QueryState<readonly TripTrendPoint[]>
 }) {
   if (outlook.isPending) return <Skeleton height={180} />
@@ -73,6 +78,11 @@ export function TripCragView({
   const state = outlookState(outlook.data)
   return (
     <div style={stack(spacing.listGapLg)}>
+      {scoresFailed === null ? null : (
+        <section style={cardV2}>
+          <InlineError message="Couldn't load the scores." onRetry={scoresFailed} />
+        </section>
+      )}
       {state.kind === 'unavailable' ? (
         <section style={cardV2}>
           <InlineError message="Couldn't load the forecast for this crag." onRetry={outlook.refetch} />
@@ -86,7 +96,7 @@ export function TripCragView({
       ) : (
         <ScoredDays
           locationId={locationId}
-          tiles={tripDayTiles({ dates, outlook: state.outlook.days, readings, today })}
+          tiles={tripDayTiles({ dates, outlook: state.outlook.days, readings, isCrag, today })}
           outlook={state.outlook}
         />
       )}
@@ -250,10 +260,8 @@ function DayCard({ tile, locationId }: { tile: TripDayTile; locationId: string }
             />
           )}
         </div>
-      ) : (
-        <p style={typeV2.note}>
-          {tile.scoredFrom === null ? 'Not scored.' : `Scored from ${dateLabel(tile.scoredFrom)}.`}
-        </p>
+      ) : tile.scoredFrom === null ? null : (
+        <p style={typeV2.note}>Scored from {dateLabel(tile.scoredFrom)}.</p>
       )}
       {tile.kind === 'scored' && tile.summary.qualifier !== null ? (
         <p style={typeV2.note}>{tile.summary.qualifier}</p>

@@ -72,6 +72,13 @@ export function TripScreen() {
     return h === undefined || a === undefined || !scoredIds.includes(id) ? null : dayReadingsFor(h, a)
   }
 
+  // The trip form offers only crags; until the list loads, a location is taken to be one.
+  const isCrag = (id: string): boolean => byId.get(id)?.is_climbing_location !== false
+  const scoresFailed = (id: string): (() => void) | null => {
+    const h = hourly[ids.indexOf(id)]
+    return h?.isError === true ? () => void h.refetch() : null
+  }
+
   const single = ids.length === 1 ? ids[0] : undefined
   const focus = cragParam ?? single ?? null
   const back =
@@ -113,6 +120,8 @@ export function TripScreen() {
         today={today}
         outlook={outlookQuery(focus)}
         readings={readingsFor(focus)}
+        isCrag={isCrag(focus)}
+        scoresFailed={scoresFailed(focus)}
         trend={{
           data: trend.data?.find((s) => s.locationId === focus)?.points ?? (trend.data === undefined ? undefined : []),
           isPending: trend.isPending,
@@ -135,6 +144,8 @@ export function TripScreen() {
           name: byId.get(id)?.name ?? 'Crag',
           outlook: findOutlook(id),
           readings: readingsFor(id),
+          isCrag: isCrag(id),
+          scoresFailed: scoresFailed(id),
         }))}
         onOpenCrag={(id) => void navigate(tripCragPath(trip.data.id, id))}
       />

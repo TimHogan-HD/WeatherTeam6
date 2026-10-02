@@ -620,7 +620,6 @@ async function run(): Promise<void> {
       const gone = await api<null>('GET', `/trips/${oneCragTripId}`, token)
       check('Delete trip, tapped twice, deletes it and returns to the list', gone.status === 404 && new URL(page.url()).pathname === '/trips', `got ${gone.status} at ${page.url()}`)
       if (gone.status === 404) tripIds.splice(tripIds.indexOf(oneCragTripId), 1)
-      problems = problems.filter((p) => !p.startsWith('404 GET /api/v1/trips/'))
     }
     // The steps below count the list's cards: the two-crag trip and its second crag go now.
     for (const id of [...tripIds]) {
