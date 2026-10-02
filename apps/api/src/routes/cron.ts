@@ -5,6 +5,7 @@ import { logger } from '../lib/logger.js'
 import { runAlertsCheck } from '../lib/alerts/checkAlerts.js'
 import { collectWeatherRuns } from '../lib/runs/collectRuns.js'
 import { pruneWeatherRuns } from '../lib/runs/pruneRuns.js'
+import { recordTripDays } from '../lib/trips/recordTripDays.js'
 import type { ApiResponse } from '@weatherteam6/types'
 
 export const cronRouter = Router()
@@ -109,6 +110,24 @@ cronRouter.post('/collect-runs', async (req: Request, res: Response) => {
     res.status(200).json(response)
   } catch (err) {
     sendServerError(res, err, 'POST /api/cron/collect-runs')
+  }
+})
+
+/**
+ * Record the forecast for every upcoming trip day into `trip_day_records`.
+ *
+ * Answers 200 with `failed` naming the locations that wrote nothing, like
+ * `/collect-runs`. Schedule it after `/collect-runs` so the scores read a fresh run.
+ */
+cronRouter.post('/record-trips', async (req: Request, res: Response) => {
+  if (cronGateFailed(req, res)) return
+
+  try {
+    const result = await recordTripDays()
+    const response: ApiResponse<typeof result> = { data: result, error: null, status: 200 }
+    res.status(200).json(response)
+  } catch (err) {
+    sendServerError(res, err, 'POST /api/cron/record-trips')
   }
 })
 

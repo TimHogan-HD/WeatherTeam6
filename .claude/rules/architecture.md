@@ -266,6 +266,30 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
 - **No run stores `raw`** (since 2026-09-29). **Retention is 2 days** (`pruneRuns.ts`) because
   Neon's free tier caps the project at 512 MB — a capacity limit, not a preference.
 
+## Trips
+
+- **Past the readings a trip day is weather only, from the 16-day outlook**
+  (`lib/weather/ensembleOutlook.ts`): the ensemble API's per-member *daily* keys for the
+  four `ENSEMBLE_MODELS`, fetched live per request and never stored. The ensemble rules
+  above hold: highs and lows are `ensembleMedian` of each member's own extreme, the rain
+  chance is `members_wet / member_count`, and every figure is over the members that
+  reached that day, so `member_count` falls with distance and a day nobody reached is
+  absent. **Days 0-6 on a trip screen come from `/hourly` readings, not the outlook**,
+  which carries no score.
+- **A trip's rain total sums each member's own days, then takes the spread**
+  (`tripRainTotal`, `lib/trips/tripOutlook.ts`). A member counts only if it reached every
+  covered day, and `days_covered` beside `trip_days` says when the total is not the whole
+  trip. `GET /trips/:tripId/forecast` answers `days: null` for a location whose outlook
+  failed, never `[]`.
+- **`trip_day_records` is keyed per location, not per trip**: `(location_id, local_date,
+  recorded_at)`, with `recorded_at` the cron firing's hour. Two trips to one crag share a
+  record, a trip's dates can change without losing it, and a rerun inside the hour
+  replaces its row. `POST /api/cron/record-trips` (`recordTripDays`) writes from the
+  location's local today to the horizon; scores come from `getHourlySeries` under the
+  location owner's range, with `scored_run_fetched_at` naming the stored run, and a
+  non-crag records weather only. **A location writes nothing unless every source it needs
+  answered**: nulls over a good hour would read as "no rain".
+
 ## Backend patterns
 
 - Route handlers are thin; business logic lives in `src/lib/` (weather fetches in
@@ -274,7 +298,7 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
 - Route helpers live in `lib/http.ts`. Validate `uuid` params with `isUuid` (404, not a 500);
   funnel caught errors through `sendServerError`, which logs via `describeError` — never widen
   it to serialise an error object.
-- `/api/cron/collect-runs` and `/api/cron/prune-runs` are gated on `CRON_SECRET` through
+- `/api/cron/collect-runs`, `/api/cron/prune-runs` and `/api/cron/record-trips` are gated on `CRON_SECRET` through
   `cronGateFailed`, with `Promise.allSettled` across locations.
 - **A client reads an absent column as a gap.** API and client deploy separately, and
   `undefined` passes every `=== null` guard. Normalise with `?? null` where a response becomes

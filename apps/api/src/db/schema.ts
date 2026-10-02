@@ -1,4 +1,4 @@
-import type { FEEDBACK_KINDS, FORECAST_VERDICTS, OBSERVED_CONDITIONS, RockType } from '@weatherteam6/types'
+import type { FEEDBACK_KINDS, FORECAST_VERDICTS, FrictionLevel, OBSERVED_CONDITIONS, RockLevel, RockType } from '@weatherteam6/types'
 import {
   pgTable,
   pgEnum,
@@ -226,6 +226,48 @@ export const tripLocations = pgTable('trip_locations', {
     .references(() => locations.id),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
+
+/**
+ * What the forecast said about one trip day at one location, as of one cron
+ * firing: the trend a trip screen plots as the day approaches.
+ *
+ * **Keyed per location, not per trip**: two trips to one crag share the record,
+ * and a trip's dates or crags can change without losing it. `recorded_at` is the
+ * firing's hour, so a rerun inside the hour replaces its own row and never adds one.
+ *
+ * Every value is nullable. A score exists only for days `/hourly` readings reach
+ * and only at a climbing location; past that, a row is weather only.
+ */
+export const tripDayRecords = pgTable(
+  'trip_day_records',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    location_id: uuid('location_id')
+      .notNull()
+      .references(() => locations.id),
+    /** The forecast day, local to the location. */
+    local_date: date('local_date').notNull(),
+    /** The firing, truncated to the hour. */
+    recorded_at: timestamp('recorded_at', { withTimezone: true }).notNull(),
+    /** Local days from the location's today at recording to `local_date`; 0 is today. */
+    lead_days: integer('lead_days').notNull(),
+    /**
+     * When the stored run the score came from was fetched: the same value on two
+     * rows means the same model run read twice. Null when no score was read.
+     * The outlook is a live fetch with no run identity, so its figures have none.
+     */
+    scored_run_fetched_at: timestamp('scored_run_fetched_at', { withTimezone: true }),
+    score: integer('score'),
+    dryness: text('dryness').$type<RockLevel>(),
+    friction: text('friction').$type<FrictionLevel>(),
+    temp_c_max: doublePrecision('temp_c_max'),
+    temp_c_min: doublePrecision('temp_c_min'),
+    members_wet: integer('members_wet'),
+    member_count: integer('member_count'),
+    precip_mm_mean: doublePrecision('precip_mm_mean'),
+  },
+  (t) => [unique('trip_day_records_location_day_hour').on(t.location_id, t.local_date, t.recorded_at)],
+)
 
 export const cragClimbabilityHistory = pgTable(
   'crag_climbability_history',

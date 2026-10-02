@@ -25,6 +25,7 @@ rainfall_history
 forecast_snapshots      -- no writer (by design)
 trips
 trip_locations
+trip_day_records        -- migration 0025, written by /api/cron/record-trips
 crag_climbability_history   -- no writer (regression, issue #25)
 conditions_reports      -- no writer; superseded by feedback
 feedback                -- migration 0018
@@ -146,6 +147,27 @@ id          uuid PK
 trip_id     uuid FK → trips.id
 location_id uuid FK → locations.id
 ```
+
+### trip_day_records
+What the forecast said about one trip day at one location, per firing of `POST /api/cron/record-trips` (`lib/trips/recordTripDays.ts`). The trend a trip screen plots as the day approaches.
+```typescript
+id                    uuid PK
+location_id           uuid FK → locations.id   -- per location, not per trip: two trips to one crag share it
+local_date            date        -- the forecast day, local to the location
+recorded_at           timestamptz -- the firing, truncated to the hour
+lead_days             int         -- local days from today at recording; 0 is today
+scored_run_fetched_at timestamptz -- fetched_at of the stored THERMAL_MODEL run the score read; null without a score
+score                 int         -- ReadingsDay.best.score; null past the readings (7 days) and at a non-crag
+dryness               text        -- best.rock.level: wet | drying | dry
+friction              text        -- best.friction.level: poor | fair | good | great
+temp_c_max            double      -- 16-day outlook: median of member highs
+temp_c_min            double
+members_wet           int         -- members at or above 0.1 mm that day
+member_count          int
+precip_mm_mean        double      -- mean of member daily totals; sums across days
+UNIQUE(location_id, local_date, recorded_at)   -- a rerun inside the hour replaces its row
+```
+On `DEPENDENT_TABLES`, so a location delete clears it. A row is written only when every source the location needs answered; a failed read writes nothing rather than nulls.
 
 ### crag_climbability_history
 Accumulated historical climbability pattern per crag per month. Grows over time.
