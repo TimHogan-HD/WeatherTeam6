@@ -17,7 +17,7 @@ export function sectionFor(pathname: string): SectionKey | null {
     pathname === '/add' ||
     pathname === '/feedback' ||
     pathname === '/trips/new' ||
-    /^\/location\/[^/]+\/edit$/.test(pathname)
+    /^\/(location|trips)\/[^/]+\/edit$/.test(pathname)
   ) {
     return null
   }

@@ -45,6 +45,8 @@ describe('sectionFor', () => {
     expect(sectionFor('/feedback')).toBeNull()
     expect(sectionFor('/location/abc/edit')).toBeNull()
     expect(sectionFor('/trips/new')).toBeNull()
+    expect(sectionFor('/trips/abc/edit')).toBeNull()
+    expect(sectionFor('/trips/abc')).toBe('trips')
   })
 
   it('keeps the bar on a guidebook screen whose ids merely contain "edit"', () => {

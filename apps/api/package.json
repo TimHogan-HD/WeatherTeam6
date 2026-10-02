@@ -27,6 +27,7 @@
     "check:edit-location": "tsx src/scripts/checkEditLocationApi.ts",
     "check:conditions": "tsx src/scripts/checkConditions.ts",
     "check:delete-trip": "tsx src/scripts/checkDeleteTrip.ts",
+    "check:edit-trip": "tsx src/scripts/checkEditTrip.ts",
     "check:record-trips": "tsx src/scripts/checkRecordTrips.ts",
     "check:feedback": "tsx src/scripts/checkFeedback.ts",
     "feedback": "tsx src/scripts/feedback.ts",

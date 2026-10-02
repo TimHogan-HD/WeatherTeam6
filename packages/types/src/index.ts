@@ -288,6 +288,9 @@ export type CreateTripInput = {
   cragIds: string[]
 }
 
+/** `PATCH /trips/:tripId`: any of the create fields, at least one. */
+export type UpdateTripInput = Partial<CreateTripInput>
+
 /**
  * One local day of the 16-day ensemble outlook: weather only, never a score.
  * Scores exist only where `/hourly` readings reach (7 days).

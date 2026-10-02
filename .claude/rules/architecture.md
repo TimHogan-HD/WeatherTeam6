@@ -296,6 +296,12 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   /trips/:tripId` clears it by `trip_id`; `location_id` is on `DEPENDENT_TABLES`. `GET
   /trips/:tripId/trend` returns its points per trip location, oldest first, 404 for another
   account's trip.
+- **Editing a trip keeps its trend honest** (`PATCH /trips/:tripId`, `lib/trips/updateTrip.ts`,
+  `check:edit-trip`). A change of either date deletes every `trip_rain_records` point for the
+  trip, because each totalled other days; a removed crag takes only its own points. A rename
+  keeps them, and the client sends only changed fields so a rename never resets anything.
+  `trip_day_records` is per location and never touched. An unknown body key is a 400; another
+  account's trip or crag is a 404.
 - **The trip screen joins two sources on `local_date`, one per figure** (`lib/trips.ts`,
   `tripDayTiles`): score, Dryness and Friction from the crag's `/hourly` readings through
   `summarizeReadings` (alerts pending and Severe+ suppress the number, as everywhere);

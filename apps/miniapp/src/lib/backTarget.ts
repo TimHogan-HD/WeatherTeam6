@@ -17,7 +17,7 @@
  * | `/feedback` | the location it was opened from, else `/` |
  * | `/location/:id/edit` | that location |
  * | `/trips/new`, `/trips/:tripId` | `/trips` |
- * | `/trips/:tripId/crag/:locationId` | that trip |
+ * | `/trips/:tripId/crag/:locationId`, `/trips/:tripId/edit` | that trip |
  *
  * A saved location has no back control since the bottom bar arrived (owner,
  * 2026-09-30): its Conditions tab returns to the list, and a tab change is
@@ -46,6 +46,7 @@ export type BackContext =
   | { route: 'tripNew' }
   | { route: 'trip' }
   | { route: 'tripCrag'; tripId: string }
+  | { route: 'tripEdit'; tripId: string }
 
 /**
  * `null` means no back affordance at all — the list is the root, and the app
@@ -78,6 +79,7 @@ export function backTarget(context: { route: 'edit'; locationId: string }): Navi
 export function backTarget(context: { route: 'tripNew' }): Navigate
 export function backTarget(context: { route: 'trip' }): Navigate
 export function backTarget(context: { route: 'tripCrag'; tripId: string }): Navigate
+export function backTarget(context: { route: 'tripEdit'; tripId: string }): Navigate
 export function backTarget(context: BackContext): BackAction {
   switch (context.route) {
     case 'list':
@@ -107,11 +109,13 @@ export function backTarget(context: BackContext): BackAction {
       return { kind: 'navigate', to: '/trips' }
     // One crag of a several-crag trip steps back to the trip's grid, not the list.
     case 'tripCrag':
+    case 'tripEdit':
       return { kind: 'navigate', to: tripPath(context.tripId) }
   }
 }
 
 export const tripPath = (tripId: string): string => `/trips/${tripId}`
+export const editTripPath = (tripId: string): string => `${tripPath(tripId)}/edit`
 export const tripCragPath = (tripId: string, locationId: string): string => `${tripPath(tripId)}/crag/${locationId}`
 export const NEW_TRIP_PATH = '/trips/new'
 

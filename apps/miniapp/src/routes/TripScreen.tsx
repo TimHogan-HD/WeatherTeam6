@@ -19,7 +19,7 @@ import { hourlyQuery } from '../hooks/useHourly.js'
 import { alertsQuery } from '../hooks/useWeather.js'
 import { useLocations } from '../hooks/useLocations.js'
 import { forgetTrip, useDeleteTrip, useTrip, useTripForecast, useTripTrend } from '../hooks/useTrips.js'
-import { backTarget, tripCragPath } from '../lib/backTarget.js'
+import { backTarget, editTripPath, tripCragPath } from '../lib/backTarget.js'
 import { severeAlertEvent } from '../lib/forecast.js'
 import type { DayReadings } from '../lib/overview.js'
 import { cragCount, deviceToday, formatTripDates, tripDates, tripTiming } from '../lib/trips.js'
@@ -163,6 +163,19 @@ export function TripScreen() {
       <div style={{ ...stack(spacing.listGapLg), padding: `${spacing.sectionGap}px`, paddingBottom: navClearance }}>
         {body}
         {cragParam === undefined && t !== undefined ? (
+          <div style={{ display: 'flex', gap: `${spacing.sectionGap}px` }}>
+          <button
+            type="button"
+            style={{
+              ...bareButton,
+              ...typeV2.factLabel,
+              width: 'auto',
+              padding: `${spacing.cellPad}px 0`,
+            }}
+            onClick={() => void navigate(editTripPath(t.id))}
+          >
+            Edit trip
+          </button>
           <button
             type="button"
             style={{
@@ -170,7 +183,6 @@ export function TripScreen() {
               ...typeV2.factLabel,
               color: colors.poor,
               width: 'auto',
-              alignSelf: 'flex-start',
               padding: `${spacing.cellPad}px 0`,
             }}
             onClick={
@@ -188,6 +200,7 @@ export function TripScreen() {
           >
             {remove.isPending ? 'Deleting…' : confirmingDelete ? 'Tap again to delete' : 'Delete trip'}
           </button>
+          </div>
         ) : null}
         {remove.isError ? <p style={{ ...typeV2.note, color: colors.poor }}>Couldn’t delete the trip.</p> : null}
       </div>
