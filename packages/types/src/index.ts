@@ -292,6 +292,38 @@ export type TripForecast = {
   forecasts: ForecastSnapshot[]
 }
 
+/**
+ * One local day of the 16-day ensemble outlook: weather only, never a score.
+ * Scores exist only where `/hourly` readings reach (7 days).
+ *
+ * Every figure is over the members that reached this day, so `member_count`
+ * falls with distance as models run out. `members_wet / member_count` is the
+ * chance of measurable rain; `members_wet` null (no members) withholds it.
+ */
+export type OutlookDay = {
+  local_date: string
+  /** Server-marked against the location's local today. */
+  is_today: boolean
+  /** Median of each member's own daily high, never the hottest member. */
+  temp_c_max: number | null
+  temp_c_min: number | null
+  /** Mean of the members' daily totals. The only precipitation figure here that sums. */
+  precip_mm_mean: number | null
+  members_wet: number | null
+  member_count: number
+  /** The ensemble models with members on this day. */
+  models: string[]
+}
+
+/**
+ * `GET /trips/:tripId/forecast`, one per trip location: the outlook days inside
+ * the trip's dates. **`days: null` means the outlook could not be read** for this
+ * location; `[]` means none of the trip's days is inside the 16-day horizon yet.
+ */
+export type TripOutlook =
+  | { locationId: string; utc_offset_seconds: number; days: OutlookDay[] }
+  | { locationId: string; utc_offset_seconds: null; days: null }
+
 export type CreateLocationInput =
   | { cragId: string }
   | {

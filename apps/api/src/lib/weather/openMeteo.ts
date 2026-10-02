@@ -73,14 +73,14 @@ type NbmResponse = {
 }
 
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast'
-const ENSEMBLE_URL = 'https://ensemble-api.open-meteo.com/v1/ensemble'
+export const ENSEMBLE_URL = 'https://ensemble-api.open-meteo.com/v1/ensemble'
 /**
  * All four models are requested **and all four are read** (2026-08-26). Until
  * that date `parseEnsemble` filtered every array to GFS, so three quarters of
  * the payload was downloaded, parsed and discarded while the sources footer
  * named all four.
  */
-const ENSEMBLE_MODELS = 'gfs_seamless,ecmwf_ifs025,icon_seamless_eps,gem_global'
+export const ENSEMBLE_MODELS = 'gfs_seamless,ecmwf_ifs025,icon_seamless_eps,gem_global'
 
 /**
  * The suffix Open-Meteo appends to each model's member keys. Verified against
@@ -91,7 +91,7 @@ const ENSEMBLE_MODELS = 'gfs_seamless,ecmwf_ifs025,icon_seamless_eps,gem_global'
  * Keys are the names reported in `model_sources`, so they must stay the
  * `ENSEMBLE_MODELS` spelling that a reader would recognise.
  */
-const ENSEMBLE_MODEL_SUFFIXES: Record<string, string> = {
+export const ENSEMBLE_MODEL_SUFFIXES: Record<string, string> = {
   gfs_seamless: '_ncep_gefs_seamless',
   ecmwf_ifs025: '_ecmwf_ifs025_ensemble',
   icon_seamless_eps: '_icon_seamless_eps',
@@ -215,7 +215,7 @@ function mean(values: number[], fallback: number): number {
  * The suffixes in `ENSEMBLE_MODEL_SUFFIXES` are literal constants with no regex
  * metacharacters, so they are interpolated directly.
  */
-function memberArraysFor(
+export function memberArraysFor(
   hourly: Record<string, unknown>,
   allKeys: string[],
   variable: string,
@@ -271,7 +271,7 @@ function allHourlyValues(arrays: (number | null)[][], indices: number[]): number
  * central estimate and is robust to one wild member. `computePercentile` is
  * reused so the interpolation matches the precipitation quantiles.
  */
-function ensembleMedian(perMember: number[], fallback: number): number {
+export function ensembleMedian(perMember: number[], fallback: number): number {
   if (perMember.length === 0) return fallback
   return computePercentile([...perMember].sort((a, b) => a - b), 50)
 }
@@ -452,17 +452,22 @@ export function parseEnsemble(hourly: Record<string, unknown>): OpenMeteoResult 
   return { days, model_sources, by_model, partial_models, utc_offset_seconds: 0 }
 }
 
+/** °C to add to the upstream's temperatures to move them to the crag's own elevation. */
+export function lapseShiftC(cragElevation: number | null, modelElevation: number | undefined): number {
+  if (cragElevation === null || modelElevation === undefined) return 0
+  return -(cragElevation - modelElevation) * LAPSE_RATE_C_PER_M
+}
+
 function applyLapseRate(
   days: DailyForecast[],
   cragElevation: number | null,
   modelElevation: number | undefined,
 ): void {
-  if (cragElevation === null || modelElevation === undefined) return
-  const elevationDelta = cragElevation - modelElevation
-  if (elevationDelta === 0) return
+  const shift = lapseShiftC(cragElevation, modelElevation)
+  if (shift === 0) return
   for (const day of days) {
-    day.temp_c_min -= elevationDelta * LAPSE_RATE_C_PER_M
-    day.temp_c_max -= elevationDelta * LAPSE_RATE_C_PER_M
+    day.temp_c_min += shift
+    day.temp_c_max += shift
   }
 }
 
