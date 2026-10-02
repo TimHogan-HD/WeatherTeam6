@@ -11,7 +11,8 @@ import { SPLASH_ICON } from './splashIcon.js'
  * and the weather loads as before. API calls go to another origin and are never
  * intercepted, so no weather, score or reading is ever served from here. The
  * Google Fonts stylesheet is left to the browser as well: the page's CSP gives
- * a worker no `connect-src` to reach it.
+ * a worker no `connect-src` to reach it. The Map tab's tiles, glyphs and
+ * terrain are on other origins too, so they are never cached here either.
  *
  * It reverses an earlier "no service worker" decision, which turned down one
  * with nothing to cache; this one has the app shell to cache.
@@ -19,8 +20,10 @@ import { SPLASH_ICON } from './splashIcon.js'
  * **Updates arrive one open late.** A deploy changes the file list, so the
  * browser sees a new `sw.js` on the next open, installs it beside the running
  * page and deletes the old copy; the open after that draws the new build. The
- * running page is never swapped under the reader, and the app has no lazy
- * chunks for a deleted copy to strand.
+ * running page is never swapped under the reader. The one lazy chunk, the Map
+ * tab with its worker, is precached with the rest; a page from the old build
+ * asking for its old copy after the swap gets a reload line from `App.tsx`
+ * rather than a crash.
  *
  * **Removing it takes a release, not a deletion.** A browser keeps a worker
  * whose script 404s. Retire it by shipping an `sw.js` that unregisters itself.

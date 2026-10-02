@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
+import { Suspense, lazy, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import {
   BrowserRouter,
@@ -23,11 +23,24 @@ import { LocationList } from './routes/LocationList.js'
 import { Login } from './routes/Login.js'
 import { WallScreen } from './routes/WallScreen.js'
 import { ClimbScreen } from './routes/ClimbScreen.js'
-import { Profile, UnbuiltSection } from './routes/Sections.js'
+import { MapFallback, Profile, UnbuiltSection } from './routes/Sections.js'
 import { TabBar } from './components/TabBar.js'
 import { arrivalScrollY, sectionFor } from './lib/bottomNav.js'
 
 const queryClient = createQueryClient()
+
+/**
+ * MapLibre is most of a megabyte, so the map is its own chunk, fetched the
+ * first time the tab opens. A chunk that will not load (offline, or a page
+ * from before a deploy asking for a file the new build no longer has) says so
+ * with a reload rather than taking the app down.
+ */
+const MapScreen = lazy(() =>
+  import('./routes/MapScreen.js').then(
+    (m) => ({ default: m.MapScreen }),
+    () => ({ default: () => <MapFallback failed /> }),
+  ),
+)
 
 /**
  * Cached responses outlive the session that fetched them. Two partners sharing
@@ -78,7 +91,14 @@ export function App() {
             <Route path="/add" element={<AddLocation />} />
             <Route path="/feedback" element={<Feedback />} />
             <Route path="/crags" element={<UnbuiltSection title="Crags" />} />
-            <Route path="/map" element={<UnbuiltSection title="Map" />} />
+            <Route
+              path="/map"
+              element={
+                <Suspense fallback={<MapFallback failed={false} />}>
+                  <MapScreen />
+                </Suspense>
+              }
+            />
             <Route path="/trips" element={<UnbuiltSection title="Trips" />} />
             <Route path="/profile" element={<Profile />} />
           </Route>

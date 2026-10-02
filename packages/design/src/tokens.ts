@@ -229,6 +229,20 @@ export const mapV2 = {
 } as const;
 
 /**
+ * A saved location's pin on the Map tab: a dot in its score's status colour,
+ * ringed in the ground colour so it holds against any basemap, with its name
+ * and score in a chip beside it.
+ */
+export const mapPin = {
+  /** The dot's diameter, ring included. */
+  dot: 14,
+  /** The ground-coloured ring inside the dot's edge. */
+  ring: 2,
+  /** The status-coloured halo outside it. */
+  halo: 1.5,
+} as const;
+
+/**
  * The status ladder as **surfaces**: each rung's tinted card, row and pill,
  * from the Overview frame of the WT6 Figma "V2" page.
  *
@@ -1298,6 +1312,8 @@ export const motion = {
   rollMs: 700,
   /** How long `was 64` stays beside a score that changed. */
   wasHoldMs: 4000,
+  /** One breath of the Map tab's locate control while it waits for a fix. */
+  locatingPulseMs: 900,
 } as const;
 
 // ─────────────────────────────────────────────
