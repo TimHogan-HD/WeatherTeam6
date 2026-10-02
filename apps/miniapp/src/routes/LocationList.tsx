@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQueries, useQueryClient, type QueryClient } from '@tanstack/react-query'
-import { colors, colorsV2, motion, radius, spacing } from '@weatherteam6/design/tokens'
+import { useQueries } from '@tanstack/react-query'
+import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import type { Conditions, Location, WeatherAlert } from '@weatherteam6/types'
 import {
   rememberCards,
@@ -21,8 +21,8 @@ import {
 } from '../lib/locationList.js'
 import { useLocations } from '../hooks/useLocations.js'
 import { useNow } from '../hooks/useNow.js'
-import { usePullToRefresh } from '../hooks/usePullToRefresh.js'
-import { pullDisplacement, pullMessage, scoresFreshness, type PullPhase } from '../lib/pullToRefresh.js'
+import { scoresFreshness } from '../lib/pullToRefresh.js'
+import { PullToRefresh } from '../components/PullToRefresh.js'
 import { alertsQuery, conditionsQuery, forecastQuery } from '../hooks/useWeather.js'
 import { LocationCard } from '../components/LocationCard.js'
 import { Splash, useOpeningSplash } from '../components/Splash.js'
@@ -51,8 +51,6 @@ import { ChevronDownIcon, PlusIcon } from '../components/Icons.js'
 export function LocationList() {
   const navigate = useNavigate()
   const now = useNow()
-  const queryClient = useQueryClient()
-  const refreshAll = useCallback(() => refreshQueries(queryClient), [queryClient])
 
   const locations = useLocations()
   const openLocation = useCallback((id: string) => void navigate(`/location/${id}`), [navigate])
@@ -125,30 +123,10 @@ export function LocationList() {
           .filter((part) => part !== null)
           .join(' · ')
 
-  const pull = usePullToRefresh(refreshAll)
-  const shift = pullDisplacement(pull)
-  const settle = pull.kind === 'pulling' ? 'none' : `transform ${motion.pullReturnMs}ms ${motion.drawer}`
-
   return (
     <main style={{ display: 'flex', flexDirection: 'column', flex: 1, position: 'relative' }}>
       {splash ? <Splash /> : null}
-      <PullPanel
-        phase={pull}
-        shift={shift}
-        freshness={scoresFreshness(
-          conditions.map((c) => c.data?.readings),
-          now,
-        )}
-      />
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          flex: 1,
-          transform: shift === 0 ? 'none' : `translateY(${shift}px)`,
-          transition: settle,
-        }}
-      >
+      <PullToRefresh freshness={scoresFreshness(conditions.map((c) => c.data?.readings), now)}>
       <header style={headerBand}>
         <div style={stack(spacing.tight)}>
           <h1 style={typeV2.screenTitle}>Conditions</h1>
@@ -201,52 +179,9 @@ export function LocationList() {
           ))
         )}
       </div>
-      </div>
+      </PullToRefresh>
     </main>
   )
-}
-
-/**
- * What a pull uncovers above the list: what the pull will do, and how fresh
- * the scores are (`scoresFreshness`). It is the header band's colour and sits
- * under the status bar like the band, so a pull reads as the band stretching.
- */
-function PullPanel({ phase, shift, freshness }: { phase: PullPhase; shift: number; freshness: string | null }) {
-  const message = pullMessage(phase)
-  return (
-    <div
-      aria-live="polite"
-      style={{
-        ...stack(spacing.micro),
-        position: 'absolute',
-        top: 'calc(-1 * env(safe-area-inset-top, 0px))',
-        left: 0,
-        right: 0,
-        height: `calc(env(safe-area-inset-top, 0px) + ${shift}px)`,
-        overflow: 'hidden',
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-        paddingBottom: shift === 0 ? 0 : `${spacing.listGap}px`,
-        backgroundColor: colorsV2.surface,
-        transition: phase.kind === 'pulling' ? 'none' : `height ${motion.pullReturnMs}ms ${motion.drawer}`,
-      }}
-    >
-      {message === null ? null : <p style={{ ...typeV2.meta, color: colorsV2.txt1 }}>{message}</p>}
-      {message === null || freshness === null ? null : <p style={typeV2.meta}>{freshness}</p>}
-    </div>
-  )
-}
-
-/**
- * Refetches every query on screen and says whether all of them answered. A
- * failed refetch keeps its last data, so the cards stay drawn either way.
- */
-async function refreshQueries(queryClient: QueryClient): Promise<boolean> {
-  await queryClient.refetchQueries({ type: 'active' })
-  return !queryClient
-    .getQueryCache()
-    .findAll({ type: 'active' })
-    .some((q) => q.state.status === 'error')
 }
 
 function lowerFirst(text: string): string {

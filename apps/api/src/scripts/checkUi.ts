@@ -703,6 +703,37 @@ async function run(): Promise<void> {
       after === 'Score 42' && (await tp.getByText(/^was \d+$/).count()) === 0,
       `shows "${after}"`,
     )
+
+    // 4h. A location's forecast tabs pull to refresh too; a sideways scrub
+    // across a chart is not a pull, and Rock does not pull at all.
+    const dragPanel = async (from: { x: number; y: number }, to: { x: number; y: number }) => {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] })
+      for (let i = 1; i <= 12; i++) {
+        const point = { x: from.x + ((to.x - from.x) * i) / 12, y: from.y + ((to.y - from.y) * i) / 12 }
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [point] })
+      }
+      const text = await tp.locator('main > [aria-live="polite"]').innerText()
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+      return text.replace(/\s+/g, ' ').trim()
+    }
+    rescore = false
+    await tp.goto(`${WEB}/location/${locationId}`)
+    await tp.getByRole('tab', { name: 'Hourly' }).click()
+    await tp.getByText('Friction by hour').waitFor({ timeout: 60_000 })
+    const hourlyPull = await dragPanel({ x: 240, y: 400 }, { x: 240, y: 700 })
+    check(
+      'pulling a crag’s Hourly tab offers a refresh and says how old the forecast is',
+      /Release to refresh/.test(hourlyPull) && /Forecast checked/.test(hourlyPull),
+      hourlyPull || '(the panel never opened)',
+    )
+    await tp.getByText(/Up to date|Couldn’t refresh/).waitFor({ timeout: 30_000 }).catch(() => undefined)
+    await tp.waitForTimeout(1_500)
+    const scrub = await dragPanel({ x: 100, y: 700 }, { x: 400, y: 760 })
+    check('a sideways scrub across a chart does not pull', scrub === '', scrub)
+    await tp.getByRole('tab', { name: 'Rock' }).click()
+    await tp.waitForTimeout(300)
+    const rockPull = await dragPanel({ x: 240, y: 400 }, { x: 240, y: 700 })
+    check('the Rock tab does not pull to refresh', rockPull === '', rockPull)
     await touch.close()
 
     // 5. /conditions failing (#261). A fresh context, so no cached readings,

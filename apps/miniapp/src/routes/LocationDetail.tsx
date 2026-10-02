@@ -19,8 +19,10 @@ import { DetailHeader, locationHeading } from '../components/DetailHeader.js'
 import { DetailView, detailTabs, type DetailTab } from '../components/DetailView.js'
 import { dayIsDrawable, firstDrawableDay } from '../components/charts/hourlySeries.js'
 import { InlineError, Skeleton } from '../components/States.js'
+import { PullToRefresh } from '../components/PullToRefresh.js'
 
 const TAB_PANEL_ID = 'detail-tab-panel'
+const FORECAST_TABS: ReadonlySet<DetailTab> = new Set(['overview', 'daily', 'hourly', 'precip'])
 
 /**
  * `/location/:id` — a saved location, in the v2 layout: a header band with the
@@ -206,7 +208,10 @@ export function LocationDetail() {
   )
 
   return (
-    <main style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+    <main style={{ display: 'flex', flexDirection: 'column', flex: 1, position: 'relative' }}>
+      {/* The forecast tabs pull to refresh (owner, 2026-10-01); Rock and Crag
+          are reference, with nothing a refetch would change. */}
+      <PullToRefresh enabled={FORECAST_TABS.has(activeTab)} freshness={age}>
       <DetailHeader
         heading={locationHeading(location.data ?? null, freshness)}
         back={null}
@@ -226,6 +231,7 @@ export function LocationDetail() {
       >
         {content}
       </div>
+      </PullToRefresh>
     </main>
   )
 }

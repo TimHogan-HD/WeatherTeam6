@@ -16,11 +16,16 @@ Existing motion to match, all on the `motion` tokens: the bottom bar's sliding p
 `press.opacity`, a shrink to `press.scale` — a control with its own inline `transition`
 must list `transform` in it); `SelectionIndicator` for a mark that slides to a choice;
 Measurements' `grid-template-rows` disclosure; `RollingFigure` for a score a new run
-changes (never on first draw); `FadeIn`. **Pull-to-refresh on the list
-(`usePullToRefresh`, decisions in `lib/pullToRefresh.ts`) listens on the element a touch
-started on**, because a card replaced mid-pull detaches it and its events stop bubbling.
-Its freshness line is the **oldest** `readings.checked_at` across cards, withheld if any
-scored card lacks one.
+changes (never on first draw); `FadeIn`. **Pull-to-refresh** (`PullToRefresh.tsx`,
+gesture in `usePullToRefresh`, decisions in `lib/pullToRefresh.ts`) is on the list and a
+location's forecast tabs (Overview, Daily, Hourly, Precip; not Rock or Crag). Its
+`touchmove` listener sits on the window from mount, non-passive, because the browser
+decides at touchdown whether the page may take a drag over; the touched element is also
+heard once detached (a card replaced mid-pull). **A drag more sideways than down is never
+a pull**, so a chart scrub stays a scrub. The list's freshness line is the **oldest**
+`readings.checked_at` across cards, withheld if any scored card lacks one; a location's is
+`formatRunAge`, as its header prints. `check:ui` drives it with hand-dispatched touches:
+headless Chromium's `Input.synthesizeScrollGesture` never delivers a touchmove.
 **Scroll position is `ScrollMemory`'s** (`App.tsx`, rule in `arrivalScrollY`): a section's
 first screen keeps its place however you return, any other screen only on back.
 
