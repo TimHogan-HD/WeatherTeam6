@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useQueries } from '@tanstack/react-query'
+import { useQueries, useQueryClient } from '@tanstack/react-query'
 import { colors, spacing } from '@weatherteam6/design/tokens'
 import {
   rockTypeLabel,
@@ -18,7 +18,7 @@ import { TripCragGrid } from '../components/trips/TripCragGrid.js'
 import { hourlyQuery } from '../hooks/useHourly.js'
 import { alertsQuery } from '../hooks/useWeather.js'
 import { useLocations } from '../hooks/useLocations.js'
-import { useDeleteTrip, useTrip, useTripForecast, useTripTrend } from '../hooks/useTrips.js'
+import { forgetTrip, useDeleteTrip, useTrip, useTripForecast, useTripTrend } from '../hooks/useTrips.js'
 import { backTarget, tripCragPath } from '../lib/backTarget.js'
 import { severeAlertEvent } from '../lib/forecast.js'
 import type { DayReadings } from '../lib/overview.js'
@@ -51,6 +51,7 @@ export function dayReadingsFor(
 export function TripScreen() {
   const { tripId, locationId: cragParam } = useParams<{ tripId: string; locationId?: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const trip = useTrip(tripId)
   const forecast = useTripForecast(tripId)
   const trend = useTripTrend(tripId)
@@ -174,7 +175,13 @@ export function TripScreen() {
             }}
             onClick={
               confirmingDelete
-                ? () => remove.mutate(t.id, { onSuccess: () => void navigate('/trips', { replace: true }) })
+                ? () =>
+                    remove.mutate(t.id, {
+                      onSuccess: () => {
+                        void navigate('/trips', { replace: true })
+                        setTimeout(() => forgetTrip(queryClient, t.id), 0)
+                      },
+                    })
                 : () => setConfirmingDelete(true)
             }
             disabled={remove.isPending}

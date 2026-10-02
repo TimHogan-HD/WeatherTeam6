@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient, type UseQueryResult } from '@tanstack/react-query'
 import type { CreateTripInput, Trip, TripOutlook, TripTrend } from '@weatherteam6/types'
 import { apiDelete, apiGet, apiPost } from '../lib/api.js'
 
@@ -58,11 +58,19 @@ export function useDeleteTrip() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => apiDelete(`/trips/${id}`),
-    onSuccess: (_data, id) => {
-      for (const key of [tripKeys.one(id), tripKeys.forecast(id), tripKeys.trend(id)]) {
-        queryClient.removeQueries({ queryKey: key })
-      }
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: tripKeys.all })
     },
   })
+}
+
+/**
+ * Drop a deleted trip's cached queries. Only the inactive ones: removing a query
+ * the trip screen still observes makes it refetch at once, and the trip is gone,
+ * so the caller leaves the screen first.
+ */
+export function forgetTrip(queryClient: QueryClient, id: string): void {
+  for (const key of [tripKeys.one(id), tripKeys.forecast(id), tripKeys.trend(id)]) {
+    queryClient.removeQueries({ queryKey: key, type: 'inactive' })
+  }
 }
