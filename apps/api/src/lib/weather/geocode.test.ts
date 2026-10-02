@@ -138,7 +138,8 @@ describe('searchPlaces', () => {
 
     const results = await searchPlaces('  Red Rock Canyon  ')
 
-    expect(results).toHaveLength(1)
+    // Colorado's snapshot has its own Red Rock Canyons, which lead; the place follows them.
+    expect(results.filter((r) => r.id > 0)).toHaveLength(1)
     const url = new URL(vi.mocked(fetch).mock.calls[0]?.[0] as string)
     expect(url.searchParams.get('name')).toBe('Red Rock Canyon')
     expect(url.searchParams.get('count')).toBe('10')
@@ -147,7 +148,7 @@ describe('searchPlaces', () => {
   it('clamps the requested count into range', async () => {
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ results: [] }), { status: 200 }))
 
-    await searchPlaces('Bishop', 500)
+    await searchPlaces('Fargo', 500)
 
     const url = new URL(vi.mocked(fetch).mock.calls[0]?.[0] as string)
     expect(url.searchParams.get('count')).toBe('20')
@@ -156,7 +157,7 @@ describe('searchPlaces', () => {
   it('throws on a non-retryable error status without leaking the body', async () => {
     vi.mocked(fetch).mockResolvedValue(new Response('upstream detail', { status: 400 }))
 
-    await expect(searchPlaces('Bishop')).rejects.toThrow('Open-Meteo geocoding API returned 400')
+    await expect(searchPlaces('Fargo')).rejects.toThrow('Open-Meteo geocoding API returned 400')
   })
 
   it('retries once with a comma inserted before the last word on an empty first result — real-device report', async () => {

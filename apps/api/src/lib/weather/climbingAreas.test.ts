@@ -27,6 +27,18 @@ describe('searchClimbingAreas', () => {
     expect(searchClimbingAreas('a').length).toBeLessThanOrEqual(MAX_CLIMBING_RESULTS)
   })
 
+  it('finds a Colorado crag and labels it with its own state', () => {
+    const shelf = searchClimbingAreas('shelf road')[0]
+    expect(shelf?.name).toBe('Shelf Road')
+    expect(shelf?.admin1).toBe('Colorado')
+    expect(searchClimbingAreas('red wing')[0]?.admin1).toBe('Minnesota')
+    expect(names('eldorado')).toContain('Eldorado Canyon State Park')
+  })
+
+  it('never offers a whole state as a crag', () => {
+    expect(names('colorado')).not.toContain('Colorado')
+  })
+
   it('returns rows that cannot collide with a place id and never claim an elevation', () => {
     for (const r of searchClimbingAreas('red wing')) {
       expect(r.id).toBeLessThan(0)

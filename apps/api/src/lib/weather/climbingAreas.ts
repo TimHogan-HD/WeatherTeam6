@@ -1,4 +1,5 @@
 import type { GeocodeResult } from '@weatherteam6/types'
+import { CO_CLIMBING_AREAS } from './climbingAreasCo.js'
 import { MN_CLIMBING_AREAS } from './climbingAreasMn.js'
 
 /** One OpenBeta area, as stored in a generated `climbingAreas<State>.ts` file. */
@@ -15,11 +16,22 @@ export type ClimbingArea = {
 /** How many climbing areas may head a result list before the places. */
 export const MAX_CLIMBING_RESULTS = 5
 
-const INDEX: readonly { area: ClimbingArea; name: string[]; all: string[]; id: number }[] =
-  MN_CLIMBING_AREAS.map((area, i) => {
+/**
+ * **The states searched, each a snapshot from `npm run climbing:pull`.** The
+ * owner adds a state when a trip needs it (Minnesota 2026-09-23, Colorado
+ * 2026-10-01); a new one is a pulled file and a line here.
+ */
+const STATES: readonly { admin1: string; areas: readonly ClimbingArea[] }[] = [
+  { admin1: 'Minnesota', areas: MN_CLIMBING_AREAS },
+  { admin1: 'Colorado', areas: CO_CLIMBING_AREAS },
+]
+
+const INDEX: readonly { area: ClimbingArea; admin1: string; name: string[]; all: string[]; id: number }[] =
+  STATES.flatMap(({ admin1, areas }) => areas.map((area) => ({ area, admin1 }))).map(({ area, admin1 }, i) => {
     const name = words(area.name)
     return {
       area,
+      admin1,
       name,
       all: [...name, ...words(area.parent ?? '')],
       // `GeocodeResult.id` is a list key, and Open-Meteo's ids are positive, so a
@@ -67,7 +79,7 @@ export function searchClimbingAreas(query: string): GeocodeResult[] {
       // OpenBeta carries no elevation; the saved row then skips the lapse-rate
       // correction, as the coordinate path does (§12.3).
       elevation_m: null,
-      admin1: 'Minnesota',
+      admin1: e.admin1,
       country: 'United States',
       timezone: null,
       feature_code: null,

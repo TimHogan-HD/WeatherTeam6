@@ -21,6 +21,7 @@
     "locations:lock-known-crags": "tsx src/scripts/lockKnownCrags.ts",
     "probe:models": "tsx src/scripts/probeModels.ts",
     "guidebook:pull": "tsx src/scripts/pullGuidebook.ts",
+    "climbing:pull": "tsx src/scripts/pullClimbingAreas.ts",
     "check:auth": "tsx src/scripts/checkAuth.ts",
     "check:add-location": "tsx src/scripts/checkAddLocationApi.ts",
     "check:edit-location": "tsx src/scripts/checkEditLocationApi.ts",
