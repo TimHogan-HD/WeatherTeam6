@@ -7,15 +7,15 @@ describe('backTarget', () => {
   })
 
   it('leaves the add flow for the list from the search step', () => {
-    expect(backTarget({ route: 'add', confirming: false, browsing: false })).toEqual({ kind: 'navigate', to: '/' })
+    expect(backTarget({ route: 'add', confirming: false, browsing: false, fromMap: false })).toEqual({ kind: 'navigate', to: '/' })
   })
 
   it('steps up one browse level rather than leaving the add flow', () => {
-    expect(backTarget({ route: 'add', confirming: false, browsing: true })).toEqual({ kind: 'browseUp' })
+    expect(backTarget({ route: 'add', confirming: false, browsing: true, fromMap: false })).toEqual({ kind: 'browseUp' })
   })
 
   it('closes a save form picked while browsing onto that level, not up past it', () => {
-    expect(backTarget({ route: 'add', confirming: true, browsing: true })).toEqual({ kind: 'closeSaveForm' })
+    expect(backTarget({ route: 'add', confirming: true, browsing: true, fromMap: false })).toEqual({ kind: 'closeSaveForm' })
   })
 
   /**
@@ -26,7 +26,25 @@ describe('backTarget', () => {
    * the typing is missing.
    */
   it('returns the add save form to its own search rather than navigating', () => {
-    expect(backTarget({ route: 'add', confirming: true, browsing: false })).toEqual({ kind: 'closeSaveForm' })
+    expect(backTarget({ route: 'add', confirming: true, browsing: false, fromMap: false })).toEqual({ kind: 'closeSaveForm' })
+  })
+
+  /**
+   * A form the map opened has no search behind it: closing it onto an empty
+   * search would strand the reader on a screen they never chose.
+   */
+  it('returns a save form opened from the map to the map', () => {
+    expect(backTarget({ route: 'add', confirming: true, browsing: false, fromMap: true })).toEqual({
+      kind: 'navigate',
+      to: '/map',
+    })
+  })
+
+  it('leaves the search for the list once the map’s form is closed', () => {
+    expect(backTarget({ route: 'add', confirming: false, browsing: false, fromMap: true })).toEqual({
+      kind: 'navigate',
+      to: '/',
+    })
   })
 
   /**
@@ -36,9 +54,9 @@ describe('backTarget', () => {
    */
   it('gives every non-root context a back action', () => {
     const actions = [
-      backTarget({ route: 'add', confirming: false, browsing: false }),
-      backTarget({ route: 'add', confirming: true, browsing: false }),
-      backTarget({ route: 'add', confirming: false, browsing: true }),
+      backTarget({ route: 'add', confirming: false, browsing: false, fromMap: false }),
+      backTarget({ route: 'add', confirming: true, browsing: false, fromMap: false }),
+      backTarget({ route: 'add', confirming: false, browsing: true, fromMap: false }),
     ]
 
     for (const action of actions) {

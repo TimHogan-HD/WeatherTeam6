@@ -2,7 +2,7 @@ import { matchKnownCrag, placeSubtitle, type GeocodeResult, type ReverseGeocode 
 import type { Fix } from '../hooks/useCurrentPosition.js'
 import { formatAccuracyFt } from './logbook.js'
 
-/** A place picked on `/add` — from the geocoder, hand-entered coordinates or a GPS fix — before it is saved. */
+/** A place picked on `/add` — from the geocoder, hand-entered coordinates, a GPS fix or a point on the map — before it is saved. */
 export type Candidate = {
   name: string
   lat: number
@@ -35,16 +35,28 @@ export function fromGeocode(result: GeocodeResult): Candidate {
  * often absent and measured against the ellipsoid rather than sea level.
  */
 export function fromFix(fix: Fix, place: ReverseGeocode | null): Candidate {
+  return fromPoint(fix, place, 'Current location', `Your location, ${formatAccuracyFt(fix.accuracy_m)}`)
+}
+
+/** A point on the globe with no accuracy of its own: one picked on the map. */
+export type MapPoint = { lat: number; lon: number }
+
+/** A point long-pressed on the Map tab, named by the same rules as a fix. */
+export function fromMapPoint(point: MapPoint, place: ReverseGeocode | null): Candidate {
+  return fromPoint(point, place, 'Dropped pin', 'Picked on the map')
+}
+
+function fromPoint(point: MapPoint, place: ReverseGeocode | null, fallbackName: string, how: string): Candidate {
   const region = [place?.admin1 ?? null, place?.country ?? null].filter((v) => v !== null).join(', ')
   const named = place?.name ?? null
   return {
-    name: matchKnownCrag(fix.lat, fix.lon)?.name ?? named ?? 'Current location',
-    lat: fix.lat,
-    lon: fix.lon,
+    name: matchKnownCrag(point.lat, point.lon)?.name ?? named ?? fallbackName,
+    lat: point.lat,
+    lon: point.lon,
     elevationM: place?.elevation_m ?? null,
     timezone: null,
     detail: [
-      `Your location, ${formatAccuracyFt(fix.accuracy_m)}`,
+      how,
       region === '' ? null : region,
       // Nominatim's data is ODbL, so anything shown from it is credited. Not
       // "Place name ©": at a known crag the name is the crag's, and only the
@@ -54,4 +66,32 @@ export function fromFix(fix: Fix, place: ReverseGeocode | null): Candidate {
       .filter((v) => v !== null)
       .join(' · '),
   }
+}
+
+/** `/add` opened on a point picked on the map; `mapPointFromSearch` reads it back. */
+export function addPathForPoint(point: MapPoint): string {
+  return `/add?${new URLSearchParams({ lat: point.lat.toFixed(5), lon: point.lon.toFixed(5) }).toString()}`
+}
+
+/**
+ * The point `/add` was opened on, or null for an ordinary visit. A value that
+ * is missing, not a number, or off the globe is ignored rather than clamped:
+ * the search opens as usual and nothing is named after a point nobody picked.
+ */
+export function mapPointFromSearch(search: URLSearchParams): MapPoint | null {
+  const lat = finite(search.get('lat'))
+  const lon = finite(search.get('lon'))
+  if (lat === null || lon === null || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null
+  return { lat, lon }
+}
+
+function finite(raw: string | null): number | null {
+  if (raw === null || raw.trim() === '') return null
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : null
+}
+
+/** A point as the add card prints it: four decimals, about 11 m. */
+export function formatPoint(point: MapPoint): string {
+  return `${point.lat.toFixed(4)}, ${point.lon.toFixed(4)}`
 }
