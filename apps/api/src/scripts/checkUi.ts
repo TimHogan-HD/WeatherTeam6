@@ -641,6 +641,18 @@ async function run(): Promise<void> {
     await tp.waitForLoadState('networkidle')
     const before = await badge()
 
+    // Hand-dispatched touches. `Input.synthesizeScrollGesture` would be the
+    // closer stand-in for a finger, but in headless Chromium it delivers
+    // touchstart and touchend and never a touchmove, even on a plain page.
+    // Registered after the app's own window listener, so it sees whether the
+    // page took the drag over.
+    await tp.evaluate(() => {
+      const moves: string[] = []
+      ;(window as unknown as { __moves: string[] }).__moves = moves
+      window.addEventListener('touchmove', (e) => moves.push(e.cancelable && e.defaultPrevented ? 'taken' : 'native'), {
+        passive: true,
+      })
+    })
     const cdp = await touch.newCDPSession(tp)
     const at = (y: number) => [{ x: 240, y }]
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: at(300) })
@@ -648,12 +660,18 @@ async function run(): Promise<void> {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: at(y) })
     }
     const pulled = await tp.locator('main [aria-live="polite"]').innerText()
+    const moves = await tp.evaluate(() => (window as unknown as { __moves: string[] }).__moves)
     const pullShot = join(dir, `${String(passed + failed).padStart(2, '0')}-list-pulled.png`)
     await tp.screenshot({ path: pullShot })
     check(
       `a pull says it will refresh and how fresh the scores are  →  ${pullShot}`,
       /Release to refresh/.test(pulled) && /Scores from GFS · forecast checked/.test(pulled),
-      pulled.replace(/\s+/g, ' '),
+      pulled.replace(/\s+/g, ' ') || '(the panel never opened)',
+    )
+    check(
+      'the page takes the drag over rather than the browser bouncing it',
+      moves.length > 0 && moves.every((m) => m === 'taken'),
+      moves.join(' '),
     )
     rescore = true
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
