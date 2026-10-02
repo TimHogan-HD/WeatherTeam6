@@ -11,8 +11,16 @@ motion). Most of the app is still inline styles, but stylesheets, classes, hover
 transitions, keyframes and media queries are fair game where they make a screen better.
 Values come from the `--wt6-*` custom properties (`cssVars.ts`), never literals; every
 animation settles at once under `prefers-reduced-motion`; the contrast floors still bind.
-Existing motion to match: the bottom bar's sliding pill (`TabBar.tsx`), the instant press
-dim (one `:active` rule in `globals.css` at `press.opacity`, no transition), `FadeIn`.
+Existing motion to match, all on the `motion` tokens: the bottom bar's sliding pill
+(`TabBar.tsx`); the press (one `:active` rule in `globals.css`: an instant dim to
+`press.opacity`, a shrink to `press.scale` — a control with its own inline `transition`
+must list `transform` in it); `SelectionIndicator` for a mark that slides to a choice;
+Measurements' `grid-template-rows` disclosure; `RollingFigure` for a score a new run
+changes (never on first draw); `FadeIn`. **Pull-to-refresh on the list
+(`usePullToRefresh`, decisions in `lib/pullToRefresh.ts`) listens on the element a touch
+started on**, because a card replaced mid-pull detaches it and its events stop bubbling.
+Its freshness line is the **oldest** `readings.checked_at` across cards, withheld if any
+scored card lacks one.
 **Scroll position is `ScrollMemory`'s** (`App.tsx`, rule in `arrivalScrollY`): a section's
 first screen keeps its place however you return, any other screen only on back.
 

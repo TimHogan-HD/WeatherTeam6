@@ -84,7 +84,8 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   sliced by one rule** — `toConditionsReadings` (`lib/runs/conditionsReadings.ts`, shared with
   `check:conditions`) and `readingNow` (`packages/types`, shared with the client) — so one
   crag never shows two numbers on two screens. `ConditionsReadings` carries its own
-  `utc_offset_seconds` (#33).
+  `utc_offset_seconds` (#33), and `checked_at` (the series' own, null in both sentinels),
+  which the list's pull-to-refresh prints as the **oldest** across cards.
 - **`readings.model` is always `THERMAL_MODEL`; `HourlySeries.model` is chosen by coverage.**
   When they differ a surface must not attribute one to the other. If the thermal model did
   not answer, there are no readings and `unavailable_reason` is `model_unavailable` — never

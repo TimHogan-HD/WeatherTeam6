@@ -513,7 +513,7 @@ export const type = {
  * eyebrow, and IBM Plex Mono for every figure.
  */
 export const typeV2 = {
-  /** App name above a screen title: Barlow Condensed 12/600, uppercase, tracking 0.12em. */
+  /** A line above a location's title, its rock and elevation: Barlow Condensed 12/600, uppercase, tracking 0.12em. */
   eyebrow: {
     fontFamily: fonts.display,
     fontSize: 12,

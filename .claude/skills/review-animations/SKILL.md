@@ -17,9 +17,13 @@ either.
 
 What is built today, so a suggestion starts from the right place:
 
-- A pressed control dims at once to `press.opacity`, with no transition and no scale (one
-  `:active` rule in `globals.css`). A press scale is a fair thing to propose.
-- The bottom bar pill slides with an overshooting easing (`TabBar.tsx`).
+- A pressed control dims at once to `press.opacity` and shrinks to `press.scale` over
+  `motion.pressMs` (one `:active` rule in `globals.css`); the dim never waits.
+- The bottom bar pill slides, leading edge first, on `motion.easeOut` with no overshoot
+  (`TabBar.tsx`). The location tabs' underline and the Hourly day chips' fill slide
+  (`SelectionIndicator.tsx`); Measurements grows open; a changed score rolls
+  (`RollingFigure.tsx`); the list pulls to refresh. Durations and curves are the `motion`
+  tokens in `packages/design`.
 - Colours and sizes come from the tokens through the `--wt6-*` custom properties, and every
   animation settles at once under `prefers-reduced-motion`.
 - It is used on a phone. Hover only applies behind `@media (hover: hover) and (pointer: fine)`,

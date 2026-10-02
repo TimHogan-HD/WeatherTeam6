@@ -115,8 +115,16 @@ only tool. What still holds:
 - **The contrast floors still bind.** A fade or state may not leave text below them at
   rest — which is why remembered figures are not dimmed, and the header's "updated … ·
   refreshing" carries their age instead.
-- Motion answers something: a person's action, or data arriving. The behaviours already
-  shipped — the bottom bar's sliding pill, the instant press dim (`:active` in
-  `globals.css`, no transition, so a tap shows before a slow screen arrives), the smooth
-  scroll-to-top on the lit tab, `FadeIn` on a card's late weather — are the current motion,
-  not exceptions and not fixed. Any of them can be proposed differently.
+- **Durations and curves are the `motion` tokens** (`packages/design`), and
+  `globals.css` settles every transition at once under `prefers-reduced-motion`.
+- Motion answers something: a person's action, or data arriving. The behaviours shipped
+  (owner picks, 2026-10-01) — the bottom bar's sliding pill (no overshoot); the press,
+  which dims at once so a tap shows before a slow screen arrives and shrinks to 97% over
+  160 ms; the location tabs' underline and the Hourly day chips' fill sliding to the
+  choice; Measurements growing open; a score that a new run changes rolling to its new
+  value with "was 64" beside it; pull-to-refresh on the list, which says how fresh the
+  scores are; the smooth scroll-to-top on the lit tab; `FadeIn` on a card's late weather —
+  are the current motion, not exceptions and not fixed. Any of them can be proposed
+  differently.
+- **Every figure uses tabular digits** (`globals.css`), so a figure that updates does not
+  shift what sits beside it.
