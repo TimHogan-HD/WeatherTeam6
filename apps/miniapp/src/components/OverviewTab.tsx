@@ -10,7 +10,7 @@ import {
   nextDays,
   nextLikelyRain,
   shortDate,
-  todayChart,
+  chartWindow,
   type NextDay,
 } from '../lib/overview.js'
 import { precipDays, precipSummary } from '../lib/precipHistory.js'
@@ -21,8 +21,8 @@ import { InlineError, Skeleton } from './States.js'
 
 /**
  * The Overview tab under the hero, owner's pick 2026-09-30 (mockup D+):
- * **Today** — the day as one chart, temperature coloured by the hour's score
- * with dew point and rain chance; **Next 3 days** — a column
+ * **Around now** — six hours back and ten ahead as one chart, temperature
+ * coloured by the hour's score with dew point and rain chance; **Next 3 days** — a column
  * each, with the day's range, rain chance, score and good hours; and rain —
  * when real rain last fell and when rain is next likely.
  *
@@ -99,21 +99,21 @@ function TodaySection({ props }: { props: OverviewTabProps }) {
   } else if (hourly.data === undefined || todayDate === null) {
     return null
   } else {
-    const hours = todayChart(
+    const window = chartWindow(
       hourly.data,
-      todayDate,
+      now,
       isClimbingLocation ? { severeAlertEvent: props.severeAlertEvent, alertsPending: props.alertsPending } : null,
     )
     body =
-      hours.length === 0 ? (
-        <p style={typeV2.body}>No hour-by-hour forecast for today.</p>
+      window === null || window.hours.length === 0 ? (
+        <p style={typeV2.body}>No hour-by-hour forecast around now.</p>
       ) : (
-        <TodayChart hours={hours} nowMs={now} utcOffsetSeconds={hourly.data.utc_offset_seconds} fill={fill} />
+        <TodayChart window={window} nowMs={now} todayDate={todayDate} fill={fill} />
       )
   }
 
   return (
-    <Section title="Today" link={{ label: 'Hourly', onOpen: props.onOpenHourly }} grow={fill}>
+    <Section title="Around now" link={{ label: 'Hourly', onOpen: props.onOpenHourly }} grow={fill}>
       {body}
     </Section>
   )

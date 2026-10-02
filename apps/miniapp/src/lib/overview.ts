@@ -21,18 +21,25 @@ import { formatSince, type PrecipSummary } from './precipHistory.js'
  */
 
 /**
- * The Today chart's span on the location's clock, 06:00 to 22:00 inclusive.
- * Fixed rather than "from now", so the chart reads as the shape of the day and
- * a reader at 15:00 still sees the morning they missed, drawn as past.
+ * The chart's span: the hours on either side of now, and it moves with the
+ * clock. It used to be fixed at 06:00-22:00, which said nothing useful after
+ * dinner (owner, 2026-10-02). Six hours back keeps the afternoon a reader just
+ * climbed through in view, drawn as past.
  */
-export const TODAY_CHART_FROM = 6
-export const TODAY_CHART_TO = 22
+export const CHART_HOURS_BACK = 6
+export const CHART_HOURS_AHEAD = 10
+export const CHART_SPAN_HOURS = CHART_HOURS_BACK + CHART_HOURS_AHEAD
 
-/** One hour of the Today chart. Every figure is nullable: a gap is drawn as a gap. */
+const HOUR_MS = 3_600_000
+
+/** One hour of the chart. Every figure is nullable: a gap is drawn as a gap. */
 export type ChartHour = {
   valid_at: string
-  /** The hour on the location's clock, 6-22. */
+  /** `valid_at` as epoch milliseconds: where the hour sits on the axis. */
+  ms: number
+  /** The hour on the location's clock, 0-23, for its label. */
   hour: number
+  local_date: string
   /** The deterministic run's, so it and the dew point are one model's pair. */
   tempC: number | null
   dewC: number | null
@@ -54,27 +61,50 @@ function localHour(validAt: string, utcOffsetSeconds: number): number | null {
   return new Date(t + utcOffsetSeconds * 1000).getUTCHours()
 }
 
+export type ChartWindow = {
+  /** The axis's ends, epoch milliseconds, `CHART_SPAN_HOURS` apart. */
+  fromMs: number
+  toMs: number
+  /** The hours inside them, oldest first. */
+  hours: ChartHour[]
+}
+
 /**
- * Today's hours for the chart, 06:00-22:00, oldest first.
+ * The hours around `nowMs` for the chart: from `CHART_HOURS_BACK` before the
+ * hour now is in to `CHART_HOURS_AHEAD` after it.
+ *
+ * **The series starts at the location's midnight**, so just after midnight
+ * the hours back are not there to draw. The window then starts at the first
+ * hour the series has and keeps its full span, rather than leaving the left of
+ * the chart empty. `null` when the series has no hours at all.
  *
  * `alerts` is `null` for a city — every hour then has no score
  * rather than an invented one. Readings join the hours **on `valid_at`**,
  * never on position, and an API older than `readings` scores nothing.
  */
-export function todayChart(
+export function chartWindow(
   series: HourlySeries,
-  todayDate: string,
+  nowMs: number,
   alerts: { severeAlertEvent: string | null; alertsPending: boolean } | null,
-): ChartHour[] {
+): ChartWindow | null {
+  const first = series.hours.reduce((min, h) => {
+    const t = Date.parse(h.valid_at)
+    return Number.isFinite(t) ? Math.min(min, t) : min
+  }, Number.POSITIVE_INFINITY)
+  if (!Number.isFinite(first)) return null
+  const fromMs = Math.max(nowMs - (nowMs % HOUR_MS) - CHART_HOURS_BACK * HOUR_MS, first)
+  const toMs = fromMs + CHART_SPAN_HOURS * HOUR_MS
+
   const byInstant = new Map<string, HourlyReading>()
   if (alerts !== null) {
     for (const r of series.readings?.hours ?? []) byInstant.set(r.valid_at, r)
   }
   const out: ChartHour[] = []
   for (const h of series.hours) {
-    if (h.local_date !== todayDate) continue
+    const ms = Date.parse(h.valid_at)
+    if (!Number.isFinite(ms) || ms < fromMs || ms > toMs) continue
     const hour = localHour(h.valid_at, series.utc_offset_seconds)
-    if (hour === null || hour < TODAY_CHART_FROM || hour > TODAY_CHART_TO) continue
+    if (hour === null) continue
     const reading = byInstant.get(h.valid_at) ?? null
     const score =
       alerts === null || reading === null
@@ -89,7 +119,9 @@ export function todayChart(
           }).score
     out.push({
       valid_at: h.valid_at,
+      ms,
       hour,
+      local_date: h.local_date,
       tempC: h.temp_c,
       dewC: h.dewpoint_c,
       chancePct: h.precip_chance_pct,
@@ -97,24 +129,29 @@ export function todayChart(
       score,
     })
   }
-  return out
+  out.sort((a, b) => a.ms - b.ms)
+  return { fromMs, toMs, hours: out }
 }
 
 /**
- * The chart hour nearest `hour` (fractional, on the location's clock) that the
- * chart actually carries — what a tap at that point selects. Before anyone
- * taps, the readout shows `readingNow`'s hour instead, the one the hero prints.
- * `null` only for an empty chart.
+ * The chart hour at `ms` that the chart actually carries — what a tap at that
+ * point selects. Before anyone taps, the readout shows `readingNow`'s hour
+ * instead, the one the hero prints. `null` only for an empty chart.
  *
  * **The hour covering the moment, not the nearest mark**: 14:40 is the 14:00
  * hour. A missing hour is skipped for the nearest one present, so a gap in the
  * run never leaves the readout on nothing.
  */
-export function chartHourAt(hours: readonly ChartHour[], hour: number): ChartHour | null {
-  const want = Math.floor(hour)
+export function chartHourAt(hours: readonly ChartHour[], ms: number): ChartHour | null {
   let best: ChartHour | null = null
+  let bestDistance = Number.POSITIVE_INFINITY
   for (const h of hours) {
-    if (best === null || Math.abs(h.hour - want) < Math.abs(best.hour - want)) best = h
+    // Measured from each hour's start, so an hour that has not begun is a full hour further.
+    const distance = h.ms <= ms ? ms - h.ms : h.ms - ms + HOUR_MS
+    if (distance < bestDistance) {
+      bestDistance = distance
+      best = h
+    }
   }
   return best
 }
