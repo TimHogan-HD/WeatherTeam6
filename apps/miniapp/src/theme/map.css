@@ -1,0 +1,34 @@
+/*
+ * The Map tab's MapLibre controls, on the tokens. MapLibre's own stylesheet
+ * draws them white for a light basemap; nothing here introduces a colour.
+ */
+
+.wt6-map {
+  /* A long-press drops a pin; it must not select text or open iOS's callout. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.wt6-map .maplibregl-ctrl-attrib {
+  background-color: color-mix(in srgb, var(--wt6-v2-surface) 85%, transparent);
+  color: var(--wt6-v2-txt-muted);
+  font: inherit;
+}
+
+.wt6-map .maplibregl-ctrl-attrib a {
+  color: inherit;
+}
+
+.wt6-map .maplibregl-ctrl-attrib a:hover {
+  color: var(--wt6-v2-txt1);
+}
+
+/* Locating: the control's glyph breathes until a fix or a refusal, over
+   `motion.locatingPulseMs` (set inline). Reduced motion stops it, by the
+   app-wide rule in globals.css. */
+@keyframes wt6-locating {
+  to {
+    opacity: 0.35;
+  }
+}

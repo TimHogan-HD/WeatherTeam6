@@ -19,6 +19,7 @@ type VercelJson = {
   git?: { deploymentEnabled?: Record<string, boolean> }
   ignoreCommand?: string
   rewrites?: { source: string; destination: string }[]
+  headers?: { source: string; headers: { key: string; value: string }[] }[]
 }
 
 function config(app: (typeof APPS)[number]): VercelJson {
@@ -62,5 +63,42 @@ describe('the web app reaches the API at its own address', () => {
       destination: 'https://weather-team6-api.vercel.app/api/:path*',
     })
     expect(rewrites.at(-1)).toEqual({ source: '/(.*)', destination: '/index.html' })
+  })
+})
+
+/**
+ * The Map tab loads public, keyless map tiles straight from the client — the
+ * one exception to proxying external calls (architecture.md). The CSP opens
+ * exactly the two tile hosts, and `blob:` for MapLibre's and maplibre-contour's
+ * workers and images, and nothing that would run a string as code.
+ */
+describe('the web app’s content security policy', () => {
+  const csp = (): Map<string, string[]> => {
+    const value =
+      (config('miniapp').headers ?? []).flatMap((h) => h.headers).find((h) => h.key === 'Content-Security-Policy')
+        ?.value ?? ''
+    return new Map(
+      value
+        .split(';')
+        .map((d) => d.trim().split(/\s+/))
+        .filter((parts) => parts[0] !== '')
+        .map(([name = '', ...sources]) => [name, sources]),
+    )
+  }
+
+  it('lets the map reach its two tile hosts and nothing else new', () => {
+    expect(csp().get('connect-src')).toEqual([
+      "'self'",
+      'https://*.vercel.app',
+      'https://tiles.openfreemap.org',
+      'https://s3.amazonaws.com',
+    ])
+    expect(csp().get('worker-src')).toEqual(["'self'", 'blob:'])
+    expect(csp().get('img-src')).toEqual(["'self'", 'data:', 'blob:'])
+  })
+
+  it('never lets a script be evaluated from a string', () => {
+    expect(csp().get('script-src')).toEqual(["'self'"])
+    for (const sources of csp().values()) expect(sources).not.toContain("'unsafe-eval'")
   })
 })

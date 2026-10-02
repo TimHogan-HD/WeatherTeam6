@@ -12,6 +12,7 @@
  * | `/` list | hidden |
  * | `/add` search | `/` |
  * | `/add` save form | the search or browse level it was picked from, intact |
+ * | `/add` save form opened from the map | `/map` |
  * | `/add` browsing a state | one level up; the state list returns to the search |
  * | `/feedback` | the location it was opened from, else `/` |
  * | `/location/:id/edit` | that location |
@@ -35,7 +36,7 @@ import type { DetailTab } from '../components/DetailView.js'
 /** Which screen the user is looking at, including the in-route state back must see. */
 export type BackContext =
   | { route: 'list' }
-  | { route: 'add'; confirming: boolean; browsing: boolean }
+  | { route: 'add'; confirming: boolean; browsing: boolean; fromMap: boolean }
   | { route: 'feedback'; fromLocationId: string | null }
   | { route: 'wall'; locationId: string }
   | { route: 'climb'; locationId: string; wallId: string }
@@ -64,7 +65,7 @@ export type BackAction = null | AddBack
  * these signatures it is a type error in the route that has not been updated.
  */
 export function backTarget(context: { route: 'list' }): null
-export function backTarget(context: { route: 'add'; confirming: boolean; browsing: boolean }): AddBack
+export function backTarget(context: { route: 'add'; confirming: boolean; browsing: boolean; fromMap: boolean }): AddBack
 export function backTarget(context: { route: 'feedback'; fromLocationId: string | null }): Navigate
 export function backTarget(context: { route: 'wall'; locationId: string }): Navigate
 export function backTarget(context: { route: 'climb'; locationId: string; wallId: string }): Navigate
@@ -74,6 +75,9 @@ export function backTarget(context: BackContext): BackAction {
     case 'list':
       return null
     case 'add':
+      // A point long-pressed on the map opened the form directly, with no
+      // search behind it to return to.
+      if (context.confirming && context.fromMap) return { kind: 'navigate', to: '/map' }
       // The save form closes first, onto the browse level it was picked from.
       if (context.confirming) return { kind: 'closeSaveForm' }
       return context.browsing ? { kind: 'browseUp' } : { kind: 'navigate', to: '/' }

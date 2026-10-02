@@ -1,11 +1,11 @@
-import { useCallback, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation as useRouterLocation, useNavigate } from 'react-router-dom'
 import { spacing } from '@weatherteam6/design/tokens'
 import { matchKnownCrag, placeSubtitle, type GeocodeResult, type RockType } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { bareButton, card, chip, inputBox, row, stack } from '../theme/styles.js'
 import { backTarget } from '../lib/backTarget.js'
-import { fromFix, fromGeocode, type Candidate } from '../lib/addCandidate.js'
+import { fromFix, fromGeocode, fromMapPoint, mapPointFromSearch, type Candidate } from '../lib/addCandidate.js'
 import { useCurrentPosition, type Fix, type PositionReading } from '../hooks/useCurrentPosition.js'
 import { useDebouncedValue, useGeocode, useReverseGeocode } from '../hooks/useGeocode.js'
 import { useCreateLocation } from '../hooks/useLocations.js'
@@ -27,6 +27,10 @@ import { BrowseLevel, BrowseStates, type BrowseAt } from '../components/BrowseAr
  * **The save form is a step inside this route, not a sibling of it.** It is held
  * in component state rather than a second URL so that backing out of it returns
  * to the search with the query and results intact (§2).
+ *
+ * **`/add?lat=…&lon=…` is the Map tab's long-press**: the point is named as a
+ * GPS fix is and the form opens on it, and back from that form returns to the
+ * map. Coordinates that do not parse are ignored and the search opens as usual.
  */
 
 export function AddLocation() {
@@ -51,8 +55,11 @@ export function AddLocation() {
     [candidate],
   )
 
-  const choose = useCallback((next: Candidate) => {
+  // True while the open form is the map's point, so back returns to the map.
+  const [fromMap, setFromMap] = useState(false)
+  const choose = useCallback((next: Candidate, picked: 'here' | 'map' = 'here') => {
     setCandidate(next)
+    setFromMap(picked === 'map')
     setDraft({ name: next.name, isClimbing: false, rockType: 'unknown' })
   }, [])
 
@@ -68,6 +75,20 @@ export function AddLocation() {
       }),
     [reverse, choose],
   )
+
+  // Opened from a long-press on the map: the point is named exactly as a fix
+  // is, once, and the form opens on it.
+  const { search } = useRouterLocation()
+  const [mapPoint] = useState(() => mapPointFromSearch(new URLSearchParams(search)))
+  const namedMapPoint = useRef(false)
+  useEffect(() => {
+    if (mapPoint === null || namedMapPoint.current) return
+    namedMapPoint.current = true
+    reverse.mutate(mapPoint, {
+      onSuccess: (place) => choose(fromMapPoint(mapPoint, place), 'map'),
+      onError: () => choose(fromMapPoint(mapPoint, null), 'map'),
+    })
+  }, [mapPoint, reverse, choose])
   const locateHere = useCallback(() => locate(nameFix), [locate, nameFix])
   const cancelHere = useCallback(() => {
     cancelLocating()
@@ -77,7 +98,7 @@ export function AddLocation() {
   // Back from the save form returns here with the search intact; back from the
   // search goes to the list (§2). `backTarget` owns that distinction.
   const onBack = useCallback(() => {
-    const action = backTarget({ route: 'add', confirming: candidate !== null, browsing: at !== null })
+    const action = backTarget({ route: 'add', confirming: candidate !== null, browsing: at !== null, fromMap })
     switch (action.kind) {
       case 'closeSaveForm':
         setCandidate(null)
@@ -91,7 +112,7 @@ export function AddLocation() {
         void navigate(action.to)
         return
     }
-  }, [candidate, at, trail, create, reverse, navigate])
+  }, [candidate, at, fromMap, trail, create, reverse, navigate])
 
   const onSave = useCallback(() => {
     if (candidate === null) return

@@ -99,6 +99,10 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true,
   },
+  // MapLibre starts its worker as a module worker (`MapScreen.tsx`).
+  worker: {
+    format: 'es',
+  },
   server: {
     port: 5173,
   },

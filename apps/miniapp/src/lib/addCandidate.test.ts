@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { KNOWN_CRAGS, type ReverseGeocode } from '@weatherteam6/types'
-import { fromFix } from './addCandidate.js'
+import { addPathForPoint, formatPoint, fromFix, fromMapPoint, mapPointFromSearch } from './addCandidate.js'
 
 const TAYLORS_FALLS_CRAG = KNOWN_CRAGS.find((c) => c.slug === 'taylors-falls')
 const AT_THE_CRAG = { lat: 45.3955, lon: -92.6616, accuracy_m: 12 }
@@ -53,5 +53,50 @@ describe('fromFix', () => {
     expect(candidate.name).toBe('Current location')
     expect(candidate.elevationM).toBeNull()
     expect(candidate.detail).toBe('Your location, ±98 ft')
+  })
+})
+
+describe('fromMapPoint', () => {
+  const AT_CRAG = { lat: AT_THE_CRAG.lat, lon: AT_THE_CRAG.lon }
+  const IN_TOWN = { lat: DOWNTOWN.lat, lon: DOWNTOWN.lon }
+
+  it('names a point by the fix’s rules: the known crag over its town', () => {
+    expect(fromMapPoint(AT_CRAG, place({ name: 'Taylors Falls' })).name).toBe(TAYLORS_FALLS_CRAG?.name)
+    expect(fromMapPoint(IN_TOWN, place({})).name).toBe('Minneapolis')
+  })
+
+  it('says it was picked on the map, with no accuracy, and credits OpenStreetMap', () => {
+    const candidate = fromMapPoint(IN_TOWN, place({}))
+    expect(candidate.detail).toBe('Picked on the map · Minnesota, United States · © OpenStreetMap contributors')
+    expect(candidate).toMatchObject({ lat: IN_TOWN.lat, lon: IN_TOWN.lon, elevationM: 253 })
+  })
+
+  it('falls back to "Dropped pin", crediting nobody, when nothing named it', () => {
+    expect(fromMapPoint(IN_TOWN, null)).toMatchObject({ name: 'Dropped pin', elevationM: null, detail: 'Picked on the map' })
+  })
+})
+
+describe('mapPointFromSearch', () => {
+  const read = (query: string) => mapPointFromSearch(new URLSearchParams(query))
+
+  it('reads back the point the map opened /add on', () => {
+    const path = addPathForPoint({ lat: 45.39551234, lon: -92.66161234 })
+    expect(read(path.slice(path.indexOf('?')))).toEqual({ lat: 45.39551, lon: -92.66161 })
+  })
+
+  it('ignores an ordinary visit and any point that is missing, not a number, or off the globe', () => {
+    for (const query of ['', 'lat=45', 'lon=-92', 'lat=&lon=', 'lat=north&lon=-92', 'lat=NaN&lon=1', 'lat=Infinity&lon=1', 'lat=90.5&lon=0', 'lat=0&lon=-180.01']) {
+      expect(read(query), query).toBeNull()
+    }
+  })
+
+  it('accepts the poles and the antimeridian themselves', () => {
+    expect(read('lat=-90&lon=180')).toEqual({ lat: -90, lon: 180 })
+  })
+})
+
+describe('formatPoint', () => {
+  it('prints four decimals', () => {
+    expect(formatPoint({ lat: 45.39551, lon: -92.6 })).toBe('45.3955, -92.6000')
   })
 })

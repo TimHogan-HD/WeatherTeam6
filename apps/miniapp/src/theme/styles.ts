@@ -136,6 +136,9 @@ export const bottomClearance = `max(${spacing.bottomInset}px, env(safe-area-inse
  */
 export const navClearance = `calc(${spacing.bottomNavH}px + ${bottomClearance})`
 
+/** The bottom bar's own height, past the home indicator: where a screen that fills the viewport stops. */
+export const navBarHeight = `calc(${spacing.bottomNavH}px + env(safe-area-inset-bottom, 0px))`
+
 /**
  * The top band of a section's first screen — Conditions and the bar's other
  * sections. It runs up under the status bar: `#root` pads by the safe-area

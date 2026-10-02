@@ -28,15 +28,31 @@ function SectionScreen({ title, action, children }: { title: string; action?: Re
 }
 
 /**
- * `/crags`, `/map` and `/trips` — sections the bottom bar names before they
- * have screens. The owner is the only reader and asked for the tabs anyway
+ * `/crags` and `/trips` — sections the bottom bar names before they have
+ * screens. The owner is the only reader and asked for the tabs anyway
  * (2026-09-30), so each says plainly that it is not built rather than
- * borrowing another screen's content.
+ * borrowing another screen's content. `/map` is built (`MapScreen.tsx`).
  */
 export function UnbuiltSection({ title }: { title: string }) {
   return (
     <SectionScreen title={title}>
       <p style={typeV2.meta}>Not built yet.</p>
+    </SectionScreen>
+  )
+}
+
+/**
+ * The Map tab while its chunk loads, and if it cannot: the header alone, or a
+ * line saying so with a reload, which fetches the build the server now has.
+ */
+export function MapFallback({ failed }: { failed: boolean }) {
+  return (
+    <SectionScreen title="Map">
+      {failed ? (
+        <button type="button" style={{ ...bareButton, ...typeV2.body }} onClick={() => window.location.reload()}>
+          Couldn’t load the map. Tap to reload.
+        </button>
+      ) : null}
     </SectionScreen>
   )
 }

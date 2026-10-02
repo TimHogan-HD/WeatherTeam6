@@ -5,6 +5,7 @@ import {
   IconChevronLeft,
   IconChevronRight,
   IconCloudRain,
+  IconCurrentLocation,
   IconDroplet,
   IconHelpCircle,
   IconMap,
@@ -101,6 +102,11 @@ export const RainIcon = ({ color }: IconProps) => <IconCloudRain {...props(color
 export const SunIcon = ({ color }: IconProps) => <IconSun {...props(color)} size={16} />
 export const CheckIcon = ({ color }: IconProps) => <IconCheck {...props(color)} size={14} stroke={2.25} />
 export const CrossIcon = ({ color }: IconProps) => <IconX {...props(color)} size={14} stroke={2.25} />
+
+/** The Map tab's locate-me control: a control on its own, so the bar's icon size. */
+export const LocateIcon = ({ color }: IconProps) => (
+  <IconCurrentLocation {...props(color)} size={bottomNav.iconSize} stroke={1.8} />
+)
 
 /** The bottom bar's five glyphs, keyed by the Tabler name `bottomNav` gives each tab. */
 const NAV_ICONS = {
