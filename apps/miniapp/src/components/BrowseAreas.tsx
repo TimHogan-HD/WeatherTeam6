@@ -110,7 +110,8 @@ export function BrowseLevel({
     <div style={stack(spacing.listGap)}>
       <nav aria-label="Where you are" style={{ ...row(spacing.tight), flexWrap: 'wrap' }}>
         {crumbs.map((c) => (
-          <span key={c.name} style={row(spacing.tight)}>
+          // Keyed by the level it jumps to: names can repeat along one path.
+          <span key={c.trail.at(-1)?.areaId ?? c.trail.at(-1)?.state} style={row(spacing.tight)}>
             <button
               type="button"
               onClick={() => onJump(c.trail)}
