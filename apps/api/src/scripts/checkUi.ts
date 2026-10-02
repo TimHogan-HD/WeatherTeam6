@@ -350,12 +350,54 @@ async function run(): Promise<void> {
     await page.getByRole('tab', { name: tabs[0]!.trim() }).click()
     await page.getByRole('button', { name: 'Measurements' }).click()
     await screen('overview-measurements')
+    const panelId = await page.getByRole('button', { name: 'Measurements' }).getAttribute('aria-controls')
     const hero = await page.locator('section').first().innerText()
     check(
       'the opened measurements say what is holding a shown score down',
       !/Score\s*\n\s*\d+/.test(hero) || /Held back by/i.test(hero),
       hero.replace(/\s+/g, ' ').slice(0, 300),
     )
+    // Closing shrinks the panel first, and only then hides it.
+    await page.getByRole('button', { name: 'Measurements' }).click()
+    const panel = page.locator(`[id="${panelId}"]`)
+    const hiddenAtOnce = await panel.evaluate((el) => el.hasAttribute("hidden"))
+    await page.waitForTimeout(500)
+    const hiddenAfter = await panel.evaluate((el) => el.hasAttribute("hidden"))
+    check(
+      'Measurements shrinks shut before it hides its panel',
+      !hiddenAtOnce && hiddenAfter,
+      `hidden at once ${hiddenAtOnce}, after 500ms ${hiddenAfter}`,
+    )
+
+    // One underline slides to the chosen tab and lands under it.
+    const underlineUnder = async (label: string) => {
+      await page.getByRole('tab', { name: label }).click()
+      const moving = await page.getByRole('tablist').evaluate((list) => {
+        const mark = list.lastElementChild as HTMLElement
+        return getComputedStyle(mark).transitionProperty
+      })
+      await page.waitForTimeout(400)
+      const landed = await page.getByRole('tablist').evaluate((list, name) => {
+        const mark = (list.lastElementChild as HTMLElement).getBoundingClientRect()
+        const tab = Array.from(list.querySelectorAll('[role="tab"]')).find((t) => t.textContent?.trim() === name)
+        const box = tab?.getBoundingClientRect()
+        return box !== undefined && Math.abs(mark.left - box.left) < 1 && Math.abs(mark.width - box.width) < 1
+      }, label)
+      return { moving, landed }
+    }
+    const toDaily = await underlineUnder('Daily')
+    check(
+      'the tab underline slides to the chosen tab and lands under it',
+      /transform/.test(toDaily.moving) && toDaily.landed,
+      `transition ${toDaily.moving}, landed ${toDaily.landed}`,
+    )
+    const tabTall = await page
+      .getByRole('tab', { name: 'Daily' })
+      .evaluate((el) => el.getBoundingClientRect().height)
+    check('a location tab is at least 40px tall to tap', tabTall >= 40, `${tabTall}px`)
+    await page.getByRole('tab', { name: tabs[0]!.trim() }).click()
+    await page.getByRole('button', { name: 'Measurements' }).click()
+
     await page.getByRole('link', { name: /How the score works/ }).click()
     const explainer = page.getByRole('heading', { name: 'How the score works' })
     await explainer.waitFor({ timeout: 10_000 }).catch(() => undefined)
@@ -547,6 +589,9 @@ async function run(): Promise<void> {
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
       await page.mouse.down()
       const pressed = await opacity()
+      await page.waitForTimeout(250)
+      const shrunk = await mapTab.evaluate((el) => getComputedStyle(el).transform)
+      check('a pressed tab shrinks to 97%', /^matrix\(0\.97, 0, 0, 0\.97/.test(shrunk), shrunk)
       await page.mouse.move(0, 0)
       await page.mouse.up()
       const released = await opacity()
@@ -569,6 +614,78 @@ async function run(): Promise<void> {
     await page.setViewportSize(VIEWPORT)
 
     await context.close()
+
+    // 4g. Pulling the list down refreshes it, and a score a new run changes
+    // rolls to its new value with "was" beside it. A touch context, with every
+    // /conditions answer after the first rewritten to score 42.
+    const touch = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2, hasTouch: true })
+    await touch.addInitScript((t) => localStorage.setItem('wt6.session.token', t), token)
+    const tp = await touch.newPage()
+    let rescore = false
+    await tp.route('**/api/v1/conditions/**', async (route) => {
+      const response = await route.fetch()
+      const body = await response.text()
+      await route.fulfill({ response, body: rescore ? body.replace(/"score":\d+/g, '"score":42') : body })
+    })
+    await tp.goto(`${WEB}/`)
+    const badge = () =>
+      tp.evaluate(() => {
+        const badges = Array.from(document.querySelectorAll('span'))
+          .filter((s) => s.textContent === 'Score')
+          .map((s) => (s.parentElement?.innerText ?? '').replace(/\s+/g, ' ').trim())
+        return badges.find((b) => /^Score \d/.test(b)) ?? ''
+      })
+    await tp.waitForFunction(() => /Score\s*\d/.test(document.querySelector('main')?.innerText ?? ''), null, {
+      timeout: 60_000,
+    })
+    await tp.waitForLoadState('networkidle')
+    const before = await badge()
+
+    const cdp = await touch.newCDPSession(tp)
+    const at = (y: number) => [{ x: 240, y }]
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: at(300) })
+    for (let y = 320; y <= 560; y += 20) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: at(y) })
+    }
+    const pulled = await tp.locator('main [aria-live="polite"]').innerText()
+    const pullShot = join(dir, `${String(passed + failed).padStart(2, '0')}-list-pulled.png`)
+    await tp.screenshot({ path: pullShot })
+    check(
+      `a pull says it will refresh and how fresh the scores are  →  ${pullShot}`,
+      /Release to refresh/.test(pulled) && /GFS · checked/.test(pulled),
+      pulled.replace(/\s+/g, ' '),
+    )
+    rescore = true
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    const refreshing = await tp
+      .getByText('Refreshing…')
+      .waitFor({ timeout: 2_000 })
+      .then(() => true, () => false)
+    const settled = await tp
+      .getByText('Up to date')
+      .waitFor({ timeout: 30_000 })
+      .then(() => true, () => false)
+    check('releasing it refreshes, then says it is up to date', refreshing && settled, `refreshing ${refreshing}, settled ${settled}`)
+    const was = await tp
+      .getByText(/^was \d+$/)
+      .first()
+      .innerText({ timeout: 5_000 })
+      .catch(() => null)
+    const rollShot = join(dir, `${String(passed + failed).padStart(2, '0')}-list-score-rolled.png`)
+    await tp.screenshot({ path: rollShot })
+    check(
+      `a score the refresh changed says what it was  →  ${rollShot}`,
+      was !== null && before.includes(was.replace('was ', '')),
+      `before "${before}", shows "${was}"`,
+    )
+    await tp.waitForTimeout(5_000)
+    const after = await badge()
+    check(
+      'then settles on the new score with no "was"',
+      after === 'Score 42' && (await tp.getByText(/^was \d+$/).count()) === 0,
+      `shows "${after}"`,
+    )
+    await touch.close()
 
     // 5. /conditions failing (#261). A fresh context, so no cached readings,
     // with every /conditions request answered 500. The card must say it is

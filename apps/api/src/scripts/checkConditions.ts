@@ -231,6 +231,7 @@ async function run(): Promise<void> {
   info('model', readings.model ?? '(none)')
   info('unavailable_reason', readings.unavailable_reason ?? '(none)')
   info('utc_offset_seconds', String(readings.utc_offset_seconds))
+  info('checked_at', readings.checked_at ?? '(none)')
 
   check(
     'the gather produced readings rather than a named absence',
@@ -249,6 +250,12 @@ async function run(): Promise<void> {
     'the readings came from the thermal model, not whichever model led the columns',
     readings.model === 'gfs_seamless',
     readings.model ?? '(none)',
+  )
+  // The list's pull-to-refresh prints this as how fresh the scores are.
+  check(
+    'the readings carry when their run was last confirmed newest upstream',
+    readings.checked_at != null && !Number.isNaN(Date.parse(readings.checked_at)),
+    readings.checked_at ?? '(none)',
   )
   if (series !== null && series.model !== readings.model) {
     info('columns model (differs, and that is allowed)', series.model ?? '(none)')

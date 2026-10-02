@@ -23,6 +23,7 @@ import { ChevronRightIcon, DropletIcon, HumidityIcon, TemperatureIcon, WindIcon 
 import { InlineError, Skeleton } from './States.js'
 import { LabelledFigure } from './LabelledFigure.js'
 import { FadeIn } from './FadeIn.js'
+import { RollingFigure, usePreviousFigure } from './RollingFigure.js'
 import type { RememberedCard } from '../lib/rememberedCards.js'
 
 /**
@@ -181,10 +182,12 @@ export function LocationCard({
 /**
  * The score, beside the name. `summary.score` is already `null` under a
  * Severe+ alert and while alerts are loading, so there is no raw number here to
- * reach past.
+ * reach past. A score a new run changes while the list is open rolls to its new
+ * value with `was 64` beside it for a few seconds.
  */
 function ScoreBadge({ score }: { score: number }) {
   const tone = toneColors(scoreTone(score), 'badge')
+  const was = usePreviousFigure(String(score))
   return (
     <span
       style={{
@@ -196,7 +199,10 @@ function ScoreBadge({ score }: { score: number }) {
       }}
     >
       <span style={{ ...typeV2.badgeLabel, color: tone.label }}>{SCORE_LABEL}</span>
-      <span style={{ ...typeV2.badgeValue, color: tone.value }}>{score}</span>
+      <span style={{ ...typeV2.badgeValue, color: tone.value }}>
+        <RollingFigure value={String(score)} from={was} />
+      </span>
+      {was === null ? null : <span style={{ ...typeV2.badgeLabel, color: tone.label }}>was {was}</span>}
     </span>
   )
 }

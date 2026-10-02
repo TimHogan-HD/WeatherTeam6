@@ -1,8 +1,9 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
+import { useLayoutEffect, useState, type CSSProperties, type RefObject } from 'react'
 import { motion } from '@weatherteam6/design/tokens'
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
 
-export type SelectedRect = { left: number; width: number }
+/** `moved` is false for the first measurement, so the mark does not slide into its first place. */
+export type SelectedRect = { left: number; width: number; moved: boolean }
 
 /**
  * Where the child matching `selector` sits inside `row`, which must be
@@ -22,7 +23,9 @@ export function useSelectedRect(
     if (el === null) return
     const measure = () => {
       const target = el.querySelector<HTMLElement>(selector)
-      setRect(target === null ? null : { left: target.offsetLeft, width: target.offsetWidth })
+      setRect((before) =>
+        target === null ? null : { left: target.offsetLeft, width: target.offsetWidth, moved: before !== null },
+      )
     }
     measure()
     const observer = new ResizeObserver(measure)
@@ -40,10 +43,8 @@ export function useSelectedRect(
  */
 export function SelectionIndicator({ rect, style }: { rect: SelectedRect | null; style: CSSProperties }) {
   const reduced = usePrefersReducedMotion()
-  const placed = useRef(false)
-  const animate = placed.current && !reduced
-  if (rect !== null) placed.current = true
   if (rect === null) return null
+  const animate = rect.moved && !reduced
   const ease = `${motion.slideMs}ms ${motion.easeOut}`
   return (
     <span

@@ -1253,6 +1253,8 @@ export const motion = {
   pillLeadMs: 220,
   pillTrailMs: 300,
   pillTrailDelayMs: 40,
+  /** A pulled list springing back to rest, on `drawer`. */
+  pullReturnMs: 380,
   /** A score's digits rolling to a new run's value. */
   rollMs: 700,
   /** How long `was 64` stays beside a score that changed. */

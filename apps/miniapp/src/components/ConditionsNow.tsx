@@ -24,6 +24,7 @@ import { readingTone, scoreTone } from '../lib/locationList.js'
 import { useNow } from '../hooks/useNow.js'
 import { LabelledFigure } from './LabelledFigure.js'
 import { Measurements } from './Measurements.js'
+import { RollingFigure, usePreviousFigure } from './RollingFigure.js'
 import { InlineError, Skeleton } from './States.js'
 
 /**
@@ -205,7 +206,9 @@ function NowWeather({
 
 /**
  * One gauge: a small label over a large value. Words in Barlow, the score in
- * Plex Mono — the v2 rule that every figure is set in the mono face.
+ * Plex Mono — the v2 rule that every figure is set in the mono face. A figure
+ * that a new run changes while it is on screen rolls to its new value, and its
+ * label says what it was for a few seconds.
  */
 function Gauge({
   field,
@@ -218,10 +221,15 @@ function Gauge({
   figure: boolean
   muted: string
 }) {
+  const was = usePreviousFigure(field.value)
   return (
     <span style={{ ...stack(spacing.micro), flex: '1 1 0', minWidth: 0 }}>
-      <span style={{ ...typeV2.tileLabel, color: muted }}>{field.label}</span>
-      <span style={{ ...(figure ? typeV2.tileFigure : typeV2.tileWord), color }}>{field.value}</span>
+      <span style={{ ...typeV2.tileLabel, color: muted }}>
+        {was === null ? field.label : `${field.label} · was ${was}`}
+      </span>
+      <span style={{ ...(figure ? typeV2.tileFigure : typeV2.tileWord), color }}>
+        <RollingFigure value={field.value} from={was} />
+      </span>
     </span>
   )
 }
