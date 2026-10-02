@@ -215,7 +215,7 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
 - **External APIs are proxied, never called from the client** — the fetch lives in
   `src/lib/weather/`, wrapped in `fetchWithRetry`, behind a thin route returning
   `{ data, error, status }` (`/geocode`, `/geocode/reverse`, `/radar/frames`).
-- **Map tiles are the one exception, pending the owner's confirmation** (Map tab, 2026-10-02).
+- **Map tiles are the one exception** (owner decision 2026-10-02, Map tab).
   Public, keyless basemap tiles, glyphs and sprites (OpenFreeMap, `tiles.openfreemap.org`)
   and terrain tiles (AWS Open Data Terrarium, `s3.amazonaws.com`) load straight from the
   client; nothing but the viewport goes to them. `apps/miniapp/vercel.json`'s CSP names
