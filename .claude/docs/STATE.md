@@ -4,7 +4,7 @@ The only state document. `session-archive.md` is history — grep it for the rea
 one past decision, never read it at session start. The SessionStart hook warns when this file
 falls more than 15 commits behind `main`.
 
-Last updated: 2026-09-30 · `main` @ `3f53cba`
+Last updated: 2026-10-02 · `main` @ `bf1db3b`
 
 ---
 
@@ -15,52 +15,58 @@ still collected and delivery is parked. The audience is the owner plus a few cli
 partners, each with their own list. The cleanup is recoverable from the
 `archive/2026-09-23-pre-cleanup` tag.
 
-**Crag A is the live score** (owner decision 2026-09-24, `lib/scoring/cragModel.ts`). The
-five-component scorer still runs, renders nowhere, and Phase 5 deletes it. Since then the
-model gained: the drying clock reads the four global models' median rain (#210), rock
-surface temperature lags the sun by 2 h, measured against USCRN (#226), and today counts only
-the hours still ahead (#227). Every known crag's rock type was checked against a source
-(#243), and rock drying and wet strength were corrected against climbers' reports (#235–#242).
+**Crag A is the only score** (owner decision 2026-09-24, `lib/scoring/cragModel.ts`); the
+five-component scorer was retired in #288. The model reads the four global models' median
+rain (#210), rock surface temperature lags the sun by 2 h, measured against USCRN (#226), and
+today counts only the hours still ahead (#227). A new crag is read with rain history from its
+first fetch (#289). Every known crag's rock type was checked against a source (#243). The
+screen says what is holding a score down (#291). Nothing is validated against outcomes: the
+forecast checks the Report button collects are the only path to that.
 
-**The web app is the WT6 Figma V2 design** (#188–#193, then #228–#254). Locations list, and a
-detail screen with Overview, Daily, Hourly, Precip, Rock and Crag tabs:
-- **Overview** fits one phone screen: today as one chart with a pickable hour, the next days
-  as columns (#244–#250).
-- **Precip** leads with hours since real rain, an hour-by-day grid, a running total and the
-  rock's state under the rain (#232–#241). It draws the four-model median, not HRRR (#230).
-- **Rock** is a field guide per rock type — how it formed, where the holds come from — with
-  no crag-specific claims (#233, #251–#254).
-- **Crag** is the OpenBeta guidebook with wall and route screens (#202), plus a logbook of
-  ticks, to-dos and shared boulder positions (#206).
-- A **Report** button sends app feedback and forecast checks (#200, #205, #207).
+**The web app is the WT6 Figma V2 design.** A bottom bar — Conditions · Trips · Map · Crags ·
+Profile (#268, #284); Trips and Crags are "not built yet" placeholders.
+- **Conditions** is the list, with an opening splash, remembered cards on a reopen (#276–#280)
+  and pull to refresh (#299–#301). The API is called at the app's own address, so no CORS
+  preflights (#277).
+- **A crag** has Overview, Daily, Hourly, Precip, Rock and Crag tabs. Crag is the OpenBeta
+  guidebook with a logbook (#202, #206). The editor sets the rock type only (#285, #294).
+- **`/add`** searches places and Colorado climbing areas (#302), browses areas by state
+  (#303), names a GPS fix after its town (#267), and opens on a point picked on the map. No
+  weather preview before saving.
+- **Map** (#304, #305): saved crags as score pins on a dark relief map with contours in feet,
+  locate me, and a held finger to add a spot. MapLibre + OpenFreeMap, recoloured from tokens;
+  terrain from AWS Open Data. Tiles load straight from the browser — the one exception to
+  "external calls are proxied" (owner decision 2026-10-02, architecture.md). The map chunk
+  warms 3 s after sign-in and the map outlives the tab; sign-out discards it.
+- **Profile** holds preferences — temperature range, the tab a crag opens on (#286) — and how
+  the score works (#296).
 
-**Storage:** weather runs are stored per place, not per saved location (#194); a model is
-fetched only when Open-Meteo published a new run (#195); raw payloads are no longer stored
-(#208). Neon's 512 MB cap is still the constraint behind all three.
+**Design is an open conversation** with the owner, not a rulebook (#298). CSS and motion are
+allowed (#292); `.claude/docs/ui-craft.md` (#295) and three vendored design skills (#297)
+are the guidance.
 
-**Security:** cross-user holes closed and the API hardened (#198); `check:auth` covers them.
+**Storage:** weather runs are stored per place (#194), fetched only when Open-Meteo published
+a new run (#195), with no raw payloads (#208). The daily forecast reads the stored ensemble
+run (#274). Neon's 512 MB cap is the constraint behind all of it.
 
-**Delivery tooling (2026-09-30):**
-- Vercel deploys from `main` only, and only the project a change touched (#255) — the
-  100-a-day Hobby limit was spent on 2026-09-30.
-- A merge is blocked until the CI reviewer's `## Claude review` comment names the PR's head
-  commit (`.claude/hooks/lib/reviewGate.mjs`, #257). The reviewer uses a repo prompt, not the
-  `code-review` plugin, which had passed 60 PRs without reading them (#256).
-- The destructive-command guards watch PowerShell; `.claude/.wip` expires after 12 h (#256).
+**Delivery tooling:** Vercel deploys from `main` only, and only the project a change touched
+(#255). A merge is blocked until the CI reviewer's `## Claude review` comment names the PR's
+head commit (#257). `check:ui` drives the web app in Chromium against the real database
+(#260) and covers every screen, the Map tab included.
 
 ### What is running
 
 - **API** — `https://weather-team6-api.vercel.app`. The owner's account exists, username `tim`.
-- **Web app** — https://weatherteam6.vercel.app, installable, with a service worker that caches the app shell only. The owner uses
-  it on a phone at about 480×1000 CSS px.
+- **Web app** — https://weatherteam6.vercel.app, installable, with a service worker that
+  caches the app shell (map chunk included). The owner uses it on a phone at about 480×1000
+  CSS px.
 - **cron-job.org** — `check-alerts`, `collect-runs`, `prune-runs`. **`collect-runs` answers
   `200 OK` when it persists nothing** — that hid a day-long outage on 2026-09-13; whether to
   change it is undecided.
 
-**Baseline (2026-09-30):** `npm run test` 1,297 passing — 711 api, 365 miniapp, 221 types —
-across 39 / 27 / 12 files; `check:hooks` 97. **Compare the file count, not just the test
-count** — miniapp once printed "123 passed" with three files failing to collect. The
-database checks were last recorded on 2026-09-23 and are not run by CI.
+**Baseline (2026-10-02):** `npm run test` 1,330 passing — 650 api, 460 miniapp, 220 types —
+across 40 / 40 / 12 files; `check:hooks` 109; `check:ui` 106. **Compare the file count, not
+just the test count** — miniapp once printed "123 passed" with three files failing to collect.
 
 **Mutation:** the weekly job last passed on 2026-09-28 against `thresholds.break: 67`.
 
@@ -75,40 +81,23 @@ throwaway. `VERCEL_TOKEN` is team-scoped and reaches `https://api.vercel.com` wi
 
 ## What is next
 
-1. **Scoring Phase 4b — the location editor screen.** The server half shipped in #184
-   (`PATCH /locations/:id`, wall geometry in `rockThermal`). The editor in the web app is
-   unbuilt. A recorded aspect and angle matter only once Wall A is wired to individual walls.
-   **Do not score `aspectDegrees` directly** (#139): the same aspect flips sign by season.
-2. **Scoring Phase 5 — preferences, then retirement of the five-component scorer.** A past
-   window can still render as that day's advice. #178's conflicting `Climbable in ~Nh` line
-   left with the drying card in #251; re-check the issue before working it.
-3. **Idea issues #213–#225** — webcams, radar, sensors, trip planner, "why this number". Filed,
-   not scheduled.
+Nothing is scheduled; the owner picks from the open issues (`gh issue list`).
 
-Still open on Crag A: a minimum wait after rain for soft sandstone (F17), rain-history seeding
-(#176), and whether a condition-report screen comes later. GFS stays the sunlight source
-(#212, closed 2026-09-30: averaging three models gained 0.2–1.1 °F).
+- **Map follow-ups** — a day slider that recolours the pins (#306, the map version of #217),
+  OpenBeta areas as a faint layer (#307), 3D terrain (#308), overlapping pin labels (#309),
+  and radar as a map layer (#214, which needs a decision on proxying IEM tiles first).
+- **#293** — wall direction and angle per guidebook wall; Wall A (`evaluateWallA`) is built
+  and nothing calls it yet. **Do not score `aspectDegrees` directly**: the same aspect flips
+  sign by season.
+- **Trips and Crags** are bottom-bar placeholders.
+- **Idea issues #213–#225** — webcams, sensors, trip planner and the rest. Filed, not
+  scheduled.
 
----
-
-## Open issues
-
-Read them with `gh issue list`. Context not on the issues themselves:
-
-- **#25** — product decision: a new cron, or delete the two endpoints.
-- **#27** — most of it died with the webhook; re-read before working it.
-- **#138–#140** — re-read against Crag A before working them.
-- **#143** — the feedback button shipped; the forecast checks it collects are the only path to
-  knowing whether any of this predicts anything. Nothing is validated against outcomes.
-- **#176** — the fix (seeding `priorEffectiveHours` from daily history) is a model decision.
+Still open on Crag A: a minimum wait after rain for soft sandstone (F17).
 
 **Unfiled:** `/forecast/:id` and `/conditions/:id` each run their own `computeLiveForecast`,
-so one detail view costs two ensemble and two rainfall calls; and ACIS can return a
-successful response of all-`'M'` sentinels, yielding `[]` — indistinguishable from a dry
-month.
-
-**PR #201** (README diagrams as images) has been open since 2026-09-29 with checks that never
-reported. Merge or close it.
+so one detail view costs two rainfall calls; and ACIS can return a successful response of
+all-`'M'` sentinels, yielding `[]` — indistinguishable from a dry month.
 
 ---
 
@@ -126,6 +115,11 @@ reported. Merge or close it.
 
 `CLAUDE.md` § Known Gotchas carries the rest.
 
+- **Auto mode will not commit an edit to `.claude/rules/`** — it reads as self-modification.
+  The owner turns auto mode off for that change.
+- **`check:ui` runs on the dev server, so it never applies the production CSP.** A change to
+  `vercel.json`'s headers needs the built app served with them (`vite preview` plus a
+  Playwright route that adds the header) — that is how the Map tab's CSP was checked.
 - **`API_SHARED_SECRET` on preview differs from production** (deliberately). `AUTH_TOKEN_SECRET`
   is the same across all three targets. Env vars apply to new deployments only.
 - **The reviewer action will not run on a PR that edits `claude-review.yml`** — it requires the
