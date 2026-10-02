@@ -31,6 +31,7 @@ describe('sectionFor', () => {
     expect(sectionFor('/crags')).toBe('crags')
     expect(sectionFor('/map')).toBe('map')
     expect(sectionFor('/trips')).toBe('trips')
+    expect(sectionFor('/trips/abc/crag/def')).toBe('trips')
     expect(sectionFor('/profile')).toBe('profile')
   })
 
@@ -43,6 +44,7 @@ describe('sectionFor', () => {
     expect(sectionFor('/add')).toBeNull()
     expect(sectionFor('/feedback')).toBeNull()
     expect(sectionFor('/location/abc/edit')).toBeNull()
+    expect(sectionFor('/trips/new')).toBeNull()
   })
 
   it('keeps the bar on a guidebook screen whose ids merely contain "edit"', () => {

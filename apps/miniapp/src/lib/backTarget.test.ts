@@ -73,6 +73,12 @@ describe('backTarget', () => {
   it('returns a location editor to its location, saved or not', () => {
     expect(backTarget({ route: 'edit', locationId: 'abc' })).toEqual({ kind: 'navigate', to: '/location/abc' })
   })
+
+  it('returns a trip and the new-trip form to the trips list, and one crag of a trip to that trip', () => {
+    expect(backTarget({ route: 'trip' })).toEqual({ kind: 'navigate', to: '/trips' })
+    expect(backTarget({ route: 'tripNew' })).toEqual({ kind: 'navigate', to: '/trips' })
+    expect(backTarget({ route: 'tripCrag', tripId: 't1' })).toEqual({ kind: 'navigate', to: '/trips/t1' })
+  })
 })
 
 describe('backTarget — the guidebook screens', () => {
