@@ -26,7 +26,7 @@
  * same as `checkAddLocationApi.ts`, and its output is the result.
  */
 
-import type { ApiResponse, Location, Trip } from '@weatherteam6/types'
+import type { ApiResponse, Location, Trip, TripTrend } from '@weatherteam6/types'
 
 // Runtime imports are deferred into run(): `../db/index.js` throws at import
 // time when DATABASE_URL is unset, which would pre-empt the explanation below
@@ -115,7 +115,7 @@ async function run(): Promise<void> {
 
   const { createApp } = await import('../index.js')
   const { db, pool } = await import('../db/index.js')
-  const { tripLocations } = await import('../db/schema.js')
+  const { tripLocations, tripRainRecords } = await import('../db/schema.js')
   const { eq } = await import('drizzle-orm')
 
   if ((await resolveSeededUser(db)) === null) {
@@ -164,6 +164,31 @@ async function run(): Promise<void> {
       `got ${String(trip.payload.data?.locations?.length)}`,
     )
 
+    console.log('\nRecording a trend point for the trip, as the recorder would')
+    await db.insert(tripRainRecords).values({
+      trip_id: tripId,
+      location_id: locationId,
+      recorded_at: new Date(),
+      mean_mm: 2,
+      p10_mm: 0,
+      p90_mm: 5,
+      member_count: 100,
+      days_covered: 3,
+      trip_days: 3,
+      high_c_max: 15,
+    })
+    const trend = await call<TripTrend[]>('GET', `/trips/${tripId}/trend`)
+    check(
+      'GET /trips/:tripId/trend returns the point under its location',
+      trend.status === 200 &&
+        trend.payload.data?.[0]?.locationId === locationId &&
+        trend.payload.data[0].points.length === 1 &&
+        trend.payload.data[0].points[0]?.mean_mm === 2,
+      `got ${trend.status} ${JSON.stringify(trend.payload.data)}`,
+    )
+    const absentTrend = await call<null>('GET', `/trips/${ABSENT_ID}/trend`)
+    check('an unknown trip has no trend: 404', absentTrend.status === 404, `got ${absentTrend.status}`)
+
     console.log('\nDeleting the trip — this is what used to 500')
     const deleted = await call<null>('DELETE', `/trips/${tripId}`)
     check(
@@ -184,6 +209,16 @@ async function run(): Promise<void> {
       'its trip_locations rows went with it',
       orphans.length === 0,
       `${orphans.length} row(s) left behind`,
+    )
+
+    const trendOrphans = await db
+      .select({ id: tripRainRecords.id })
+      .from(tripRainRecords)
+      .where(eq(tripRainRecords.trip_id, trip.payload.data?.id ?? ABSENT_ID))
+    check(
+      'its trip_rain_records rows went with it',
+      trendOrphans.length === 0,
+      `${trendOrphans.length} row(s) left behind`,
     )
 
     const stillThere = await call<Location>('GET', `/locations/${locationId}`)

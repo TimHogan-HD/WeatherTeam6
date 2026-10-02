@@ -20,6 +20,7 @@ export * from './feedback.js'
 export * from './guidebook.js'
 export * from './logbook.js'
 export * from './preferences.js'
+export * from './tripCopy.js'
 
 export type ApiResponse<T> = {
   data: T | null
@@ -353,6 +354,31 @@ export type TripOutlook =
       rain_total: null
       high_c_range: null
     }
+
+/**
+ * One recording of a trip's rain total and warmest high at one location: a
+ * point of the forecast trend. `recorded_at` is the cron firing's hour.
+ *
+ * **`days_covered < trip_days` marks a total over part of the trip**, and the
+ * total jumps when the next day enters the horizon; a chart must mark such a
+ * point rather than draw the jump as the forecast getting wetter. The rain
+ * figures are null together when no member reached every covered day.
+ */
+export type TripTrendPoint = {
+  recorded_at: string
+  mean_mm: number | null
+  p10_mm: number | null
+  p90_mm: number | null
+  days_covered: number | null
+  trip_days: number
+  high_c_max: number | null
+}
+
+/** `GET /trips/:tripId/trend`, one per trip location, points oldest first. `[]` before the first recording. */
+export type TripTrend = {
+  locationId: string
+  points: TripTrendPoint[]
+}
 
 export type CreateLocationInput =
   | { cragId: string }

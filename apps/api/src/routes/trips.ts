@@ -1,13 +1,13 @@
 import { Router, type Request, type Response } from 'express'
 import { and, eq, asc, inArray } from 'drizzle-orm'
 import { db } from '../db/index.js'
-import { trips, tripLocations, locations } from '../db/schema.js'
+import { trips, tripLocations, tripRainRecords, locations } from '../db/schema.js'
 import { MAX_NAME_LENGTH, describeError, isIsoDate, isUuid, sendServerError } from '../lib/http.js'
 import { logger } from '../lib/logger.js'
 import { fetchOutlook, type Outlook } from '../lib/weather/ensembleOutlook.js'
 import { summarizeTripOutlook } from '../lib/trips/tripOutlook.js'
 import { parseNumeric, parseNumericRequired } from '@weatherteam6/types'
-import type { ApiResponse, Trip, TripLocation, CreateTripInput, TripOutlook } from '@weatherteam6/types'
+import type { ApiResponse, Trip, TripLocation, CreateTripInput, TripOutlook, TripTrend } from '@weatherteam6/types'
 
 export const tripsRouter = Router()
 
@@ -207,6 +207,7 @@ tripsRouter.delete('/trips/:tripId', async (req: Request, res: Response) => {
       if (!owned[0]) return []
 
       await tx.delete(tripLocations).where(eq(tripLocations.trip_id, tripId))
+      await tx.delete(tripRainRecords).where(eq(tripRainRecords.trip_id, tripId))
 
       return tx
         .delete(trips)
@@ -314,5 +315,62 @@ tripsRouter.get('/trips/:tripId/forecast', async (req: Request, res: Response) =
     res.status(200).json(response)
   } catch (err) {
     sendServerError(res, err, 'GET /trips/:tripId/forecast')
+  }
+})
+
+tripsRouter.get('/trips/:tripId/trend', async (req: Request, res: Response) => {
+  const tripId = req.params['tripId']
+  if (!tripId || !isUuid(tripId)) {
+    const response: ApiResponse<null> = { data: null, error: 'Trip not found', status: 404 }
+    res.status(404).json(response)
+    return
+  }
+
+  try {
+    const tripRows = await db
+      .select({ id: trips.id })
+      .from(trips)
+      .where(and(eq(trips.id, tripId), eq(trips.user_id, req.userId)))
+    if (!tripRows[0]) {
+      const response: ApiResponse<null> = { data: null, error: 'Trip not found', status: 404 }
+      res.status(404).json(response)
+      return
+    }
+
+    // The trip's locations that are still the caller's own, as the forecast route reads them.
+    const owned = await db
+      .select({ id: tripLocations.location_id })
+      .from(tripLocations)
+      .innerJoin(locations, eq(locations.id, tripLocations.location_id))
+      .where(and(eq(tripLocations.trip_id, tripId), eq(locations.user_id, req.userId)))
+    const locationIds = owned.map((r) => r.id)
+
+    const points = locationIds.length > 0
+      ? await db
+          .select()
+          .from(tripRainRecords)
+          .where(and(eq(tripRainRecords.trip_id, tripId), inArray(tripRainRecords.location_id, locationIds)))
+          .orderBy(asc(tripRainRecords.recorded_at))
+      : []
+
+    const data: TripTrend[] = locationIds.map((locationId) => ({
+      locationId,
+      points: points
+        .filter((p) => p.location_id === locationId)
+        .map((p) => ({
+          recorded_at: p.recorded_at.toISOString(),
+          mean_mm: p.mean_mm,
+          p10_mm: p.p10_mm,
+          p90_mm: p.p90_mm,
+          days_covered: p.days_covered,
+          trip_days: p.trip_days,
+          high_c_max: p.high_c_max,
+        })),
+    }))
+
+    const response: ApiResponse<TripTrend[]> = { data, error: null, status: 200 }
+    res.status(200).json(response)
+  } catch (err) {
+    sendServerError(res, err, 'GET /trips/:tripId/trend')
   }
 })
