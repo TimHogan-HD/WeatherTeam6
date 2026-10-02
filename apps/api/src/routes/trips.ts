@@ -2,10 +2,12 @@ import { Router, type Request, type Response } from 'express'
 import { and, eq, asc, inArray } from 'drizzle-orm'
 import { db } from '../db/index.js'
 import { trips, tripLocations, locations } from '../db/schema.js'
-import { MAX_NAME_LENGTH, isIsoDate, isUuid, sendServerError } from '../lib/http.js'
+import { MAX_NAME_LENGTH, describeError, isIsoDate, isUuid, sendServerError } from '../lib/http.js'
 import { logger } from '../lib/logger.js'
-import { computeLiveForecast } from '../lib/scoring/liveForecast.js'
-import type { ApiResponse, Trip, TripLocation, CreateTripInput, TripForecast, ForecastSnapshot } from '@weatherteam6/types'
+import { fetchOutlook, type Outlook } from '../lib/weather/ensembleOutlook.js'
+import { summarizeTripOutlook } from '../lib/trips/tripOutlook.js'
+import { parseNumeric, parseNumericRequired } from '@weatherteam6/types'
+import type { ApiResponse, Trip, TripLocation, CreateTripInput, TripOutlook } from '@weatherteam6/types'
 
 export const tripsRouter = Router()
 
@@ -261,10 +263,6 @@ tripsRouter.get('/trips/:tripId/forecast', async (req: Request, res: Response) =
             lat: locations.lat,
             lon: locations.lon,
             elevation_m: locations.elevation_m,
-            rock_type: locations.rock_type,
-            cliff_angle: locations.cliff_angle,
-            aspect: locations.aspect,
-            asos_station: locations.asos_station,
           })
           .from(locations)
           // Scoped to the caller as well as to the trip: a trip_locations row
@@ -273,50 +271,46 @@ tripsRouter.get('/trips/:tripId/forecast', async (req: Request, res: Response) =
           .where(and(inArray(locations.id, locationIds), eq(locations.user_id, req.userId)))
       : []
 
-    // computeLiveForecast per trip location, filtered to the trip's date range —
-    // there's no forecast_snapshots table being kept warm by a job anymore.
-    //
-    // Run in parallel: each call makes up to three retrying upstream fetches
-    // (NBM, ensemble fallback, rainfall), so serializing them across a
-    // multi-location trip stacks their backoff windows and risks a function
-    // timeout. One location's failure must not sink the whole trip, so each
-    // is settled independently and a failed location returns no forecasts.
+    // In parallel, each settled on its own: one location's failed fetch must not
+    // sink the trip, and serialised retries across locations would outrun maxDuration.
+    const now = new Date()
     const results = await Promise.allSettled(
-      locationRows.map(async (location) => {
-        const { snapshots } = await computeLiveForecast(location)
-        return {
-          locationId: location.id,
-          snapshots: snapshots.filter(
-            (s) => s.forecast_date >= tripRow.start_date && s.forecast_date <= tripRow.end_date,
-          ),
-        }
-      }),
+      locationRows.map((location) =>
+        fetchOutlook(
+          {
+            lat: parseNumericRequired(location.lat),
+            lon: parseNumericRequired(location.lon),
+            elevation_m: parseNumeric(location.elevation_m),
+          },
+          now,
+        ),
+      ),
     )
 
-    const snapsByLocation = new Map<string, ForecastSnapshot[]>()
+    const outlookById = new Map<string, Outlook>()
     for (const [i, result] of results.entries()) {
+      const id = locationRows[i]?.id
+      if (id === undefined) continue
       if (result.status === 'fulfilled') {
-        snapsByLocation.set(result.value.locationId, result.value.snapshots)
+        outlookById.set(id, result.value)
       } else {
-        const failed = locationRows[i]
         logger.warn(
-          {
-            locationId: failed?.id,
-            err: result.reason instanceof Error ? result.reason.message : String(result.reason),
-          },
-          'GET /trips/:tripId/forecast: live forecast failed for location',
+          { locationId: id, err: describeError(result.reason) },
+          'GET /trips/:tripId/forecast: outlook failed for location',
         )
       }
     }
 
-    const data: TripForecast[] = locationIds.map(locationId => ({
-      locationId,
-      forecasts: (snapsByLocation.get(locationId) ?? []).sort((a, b) =>
-        a.forecast_date.localeCompare(b.forecast_date),
+    const data: TripOutlook[] = locationIds.map((locationId) =>
+      summarizeTripOutlook(
+        locationId,
+        outlookById.get(locationId) ?? null,
+        tripRow.start_date,
+        tripRow.end_date,
       ),
-    }))
+    )
 
-    const response: ApiResponse<TripForecast[]> = { data, error: null, status: 200 }
+    const response: ApiResponse<TripOutlook[]> = { data, error: null, status: 200 }
     res.status(200).json(response)
   } catch (err) {
     sendServerError(res, err, 'GET /trips/:tripId/forecast')

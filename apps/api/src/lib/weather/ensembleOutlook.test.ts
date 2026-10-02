@@ -34,14 +34,21 @@ function fixture(): Record<string, unknown> {
 
 describe('parseOutlook', () => {
   it('pools members from every model, control runs included, per day', () => {
-    const days = parseOutlook(fixture(), '2026-10-02')
+    const days = parseOutlook(fixture(), '2026-10-02').days
     expect(days.map((d) => d.member_count)).toEqual([5, 5, 3])
     expect(days[0]?.models).toEqual(['gfs_seamless', 'icon_seamless_eps'])
     expect(days[2]?.models).toEqual(['gfs_seamless'])
   })
 
+  it("keeps each member's daily precipitation, aligned to the dates", () => {
+    const parsed = parseOutlook(fixture(), '2026-10-02')
+    expect(parsed.dates).toEqual(DATES)
+    expect(parsed.member_precip).toHaveLength(5)
+    expect(parsed.member_precip).toContainEqual([1, 1, null])
+  })
+
   it("takes the median of each member's own daily extreme, never the hottest member", () => {
-    const [first] = parseOutlook(fixture(), '2026-10-02')
+    const [first] = parseOutlook(fixture(), '2026-10-02').days
     // Highs 10, 12, 14, 30, 40: the median is 14, the max would be 40.
     expect(first?.temp_c_max).toBe(14)
     // Lows 0, 2, 4, 3, 3.
@@ -49,7 +56,7 @@ describe('parseOutlook', () => {
   })
 
   it('counts a member wet at 0.1 mm and dry below it', () => {
-    const days = parseOutlook(fixture(), '2026-10-02')
+    const days = parseOutlook(fixture(), '2026-10-02').days
     // Day one: 0, 0.05, 0, 1, 0 — only the ICON control.
     expect(days[0]?.members_wet).toBe(1)
     // Day two: 0.1, 0, 0.3, 1, 0.
@@ -58,7 +65,7 @@ describe('parseOutlook', () => {
   })
 
   it('means precipitation over the members that reached the day', () => {
-    const days = parseOutlook(fixture(), '2026-10-02')
+    const days = parseOutlook(fixture(), '2026-10-02').days
     expect(days[1]?.precip_mm_mean).toBeCloseTo(1.4 / 5)
     // Day three: ICON is gone, so (2 + 4 + 6) / 3 and not / 5.
     expect(days[2]?.precip_mm_mean).toBeCloseTo(4)
@@ -67,7 +74,7 @@ describe('parseOutlook', () => {
   it('leaves out a day no member reached rather than writing zeros', () => {
     const daily = fixture()
     daily['time'] = [...DATES, '2026-10-05']
-    const days = parseOutlook(daily, '2026-10-02')
+    const days = parseOutlook(daily, '2026-10-02').days
     expect(days.map((d) => d.local_date)).toEqual(DATES)
   })
 
@@ -78,7 +85,7 @@ describe('parseOutlook', () => {
       temperature_2m_max_ncep_gefs_seamless: [10],
       temperature_2m_min_ncep_gefs_seamless: [1],
     }
-    const [day] = parseOutlook(daily, '2026-10-02')
+    const [day] = parseOutlook(daily, '2026-10-02').days
     expect(day).toMatchObject({
       member_count: 0,
       members_wet: null,
@@ -89,12 +96,12 @@ describe('parseOutlook', () => {
   })
 
   it('marks today from the date it is given', () => {
-    const days = parseOutlook(fixture(), '2026-10-03')
+    const days = parseOutlook(fixture(), '2026-10-03').days
     expect(days.map((d) => d.is_today)).toEqual([false, true, false])
   })
 
   it('shifts temperatures by the lapse correction', () => {
-    const [first] = parseOutlook(fixture(), '2026-10-02', -2)
+    const [first] = parseOutlook(fixture(), '2026-10-02', -2).days
     expect(first?.temp_c_max).toBe(12)
     expect(first?.temp_c_min).toBe(1)
   })

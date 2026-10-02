@@ -19,7 +19,17 @@ export const OUTLOOK_DAYS = 16
 export type Outlook = {
   utc_offset_seconds: number
   days: OutlookDay[]
+  /** Every local date the response carried, reached or not. `member_precip` rows align to it. */
+  dates: string[]
+  /**
+   * Each member's daily precipitation total, one row per member. Kept per member
+   * because a trip total is a sum of each member's own days, which daily
+   * percentiles cannot give.
+   */
+  member_precip: (number | null)[][]
 }
+
+export type ParsedOutlook = Omit<Outlook, 'utc_offset_seconds'>
 
 type OutlookResponse = {
   elevation?: number
@@ -49,8 +59,8 @@ export function parseOutlook(
   daily: Record<string, unknown>,
   today: string,
   shiftC = 0,
-): OutlookDay[] {
-  const times = Array.isArray(daily['time']) ? daily['time'] : []
+): ParsedOutlook {
+  const times: unknown[] = Array.isArray(daily['time']) ? daily['time'] : []
   const keys = Object.keys(daily)
   const models = Object.entries(ENSEMBLE_MODEL_SUFFIXES).map(([model, suffix]) => ({
     model,
@@ -88,7 +98,11 @@ export function parseOutlook(
       models: present,
     })
   }
-  return days
+  return {
+    days,
+    dates: times.map((t) => (typeof t === 'string' ? t : '')),
+    member_precip: models.flatMap((m) => m.precip),
+  }
 }
 
 /**
@@ -132,6 +146,6 @@ export async function fetchOutlook(location: ForecastLocation, now: Date): Promi
   const today = localDateString(now, offset)
   return {
     utc_offset_seconds: offset,
-    days: parseOutlook(raw.daily, today, lapseShiftC(location.elevation_m, raw.elevation)),
+    ...parseOutlook(raw.daily, today, lapseShiftC(location.elevation_m, raw.elevation)),
   }
 }

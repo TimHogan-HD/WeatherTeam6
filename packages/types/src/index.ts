@@ -287,11 +287,6 @@ export type CreateTripInput = {
   cragIds: string[]
 }
 
-export type TripForecast = {
-  locationId: string
-  forecasts: ForecastSnapshot[]
-}
-
 /**
  * One local day of the 16-day ensemble outlook: weather only, never a score.
  * Scores exist only where `/hourly` readings reach (7 days).
@@ -316,13 +311,48 @@ export type OutlookDay = {
 }
 
 /**
+ * The trip's rain, as a range: each member's own precipitation summed over the
+ * trip days, then the mean and percentiles of those totals. Adding daily
+ * percentiles would give a different, meaningless answer.
+ *
+ * **It covers `days_covered` days, not the whole trip** whenever the trip has
+ * started already or runs past the horizon. Only members that reached every one
+ * of those days are summed, so `member_count` can be smaller than any one day's.
+ */
+export type TripRainTotal = {
+  mean_mm: number
+  p10_mm: number
+  p90_mm: number
+  member_count: number
+  days_covered: number
+}
+
+/**
  * `GET /trips/:tripId/forecast`, one per trip location: the outlook days inside
  * the trip's dates. **`days: null` means the outlook could not be read** for this
  * location; `[]` means none of the trip's days is inside the 16-day horizon yet.
+ * `trip_days` is the trip's whole length, so a reader can see how much of it the
+ * days and the rain total reach.
  */
 export type TripOutlook =
-  | { locationId: string; utc_offset_seconds: number; days: OutlookDay[] }
-  | { locationId: string; utc_offset_seconds: null; days: null }
+  | {
+      locationId: string
+      utc_offset_seconds: number
+      trip_days: number
+      days: OutlookDay[]
+      /** Null when no trip day is inside the horizon or no member reached them all. */
+      rain_total: TripRainTotal | null
+      /** The lowest and highest of the days' `temp_c_max`. Null when no day has one. */
+      high_c_range: { min: number; max: number } | null
+    }
+  | {
+      locationId: string
+      utc_offset_seconds: null
+      trip_days: number
+      days: null
+      rain_total: null
+      high_c_range: null
+    }
 
 export type CreateLocationInput =
   | { cragId: string }
