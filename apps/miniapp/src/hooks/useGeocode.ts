@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query'
 import { apiGet } from '../lib/api.js'
-import type { GeocodeResult, ReverseGeocode } from '@weatherteam6/types'
+import type { ClimbingAreaLevel, ClimbingStateSummary, GeocodeResult, ReverseGeocode } from '@weatherteam6/types'
 import type { Fix } from './useCurrentPosition.js'
 
 /** The API answers a shorter query with an empty 200, so don't spend the round trip. */
@@ -42,5 +42,24 @@ export function useGeocode(query: string): UseQueryResult<GeocodeResult[]> {
 export function useReverseGeocode(): UseMutationResult<ReverseGeocode, Error, Fix> {
   return useMutation({
     mutationFn: (fix: Fix) => apiGet<ReverseGeocode>('/geocode/reverse', { lat: fix.lat, lon: fix.lon }),
+  })
+}
+
+/** The states `/add` can browse. Snapshot data that changes only on a deploy, so never refetched. */
+export function useClimbingStates(): UseQueryResult<ClimbingStateSummary[]> {
+  return useQuery({
+    queryKey: ['climbing-areas'] as const,
+    queryFn: () => apiGet<ClimbingStateSummary[]>('/climbing-areas'),
+    staleTime: Infinity,
+  })
+}
+
+/** One level of a state's tree; `areaId` null is the state's top level. */
+export function useClimbingAreaLevel(state: string, areaId: string | null): UseQueryResult<ClimbingAreaLevel> {
+  const path = areaId === null ? state : `${state}/${areaId}`
+  return useQuery({
+    queryKey: ['climbing-areas', state, areaId] as const,
+    queryFn: () => apiGet<ClimbingAreaLevel>(`/climbing-areas/${path}`),
+    staleTime: Infinity,
   })
 }

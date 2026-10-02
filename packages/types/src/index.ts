@@ -333,6 +333,36 @@ export type GeocodeResult = {
   climbing_area?: { climbs: number; parent: string | null } | null
 }
 
+/** A state on `/add`'s browse list — GET /api/v1/climbing-areas. */
+export type ClimbingStateSummary = {
+  /** Two-letter code, the path segment for its level. */
+  code: string
+  name: string
+  climbs: number
+  /** Its top-level areas. */
+  areas: number
+}
+
+/** One OpenBeta area while browsing. `place` is what picking it saves, the same shape search returns. */
+export type ClimbingAreaEntry = {
+  /** OpenBeta's id: names repeat, so browsing walks ids. */
+  area_id: string
+  /** The areas directly inside it; 0 means a leaf, picked rather than opened. */
+  sub_areas: number
+  place: GeocodeResult
+}
+
+/** One level of a state's tree — GET /api/v1/climbing-areas/:state[/:areaId]. */
+export type ClimbingAreaLevel = {
+  state: { code: string; name: string }
+  /** The area this level opens, or null at the state itself. */
+  area: ClimbingAreaEntry | null
+  /** The areas between the state and `area`, outermost first, `area` excluded. */
+  path: { area_id: string; name: string }[]
+  /** Most climbs first. */
+  children: ClimbingAreaEntry[]
+}
+
 /**
  * What GET /api/v1/geocode/reverse knows about a point — a GPS fix on `/add`.
  * The name is the town or city OpenStreetMap puts the point in; the elevation is

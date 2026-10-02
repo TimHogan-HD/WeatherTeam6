@@ -493,6 +493,31 @@ async function run(): Promise<void> {
     await screen('add', 5)
     check('the add flow shows no bottom bar', (await bar.count()) === 0)
 
+    // 4-browse. Down a state's tree to a crag, pick it, and back out level by
+    // level: back closes the save form onto the level it came from, then steps up.
+    const shown = (name: string | RegExp) =>
+      page.getByRole('button', { name }).first().waitFor({ timeout: 20_000 }).then(() => true).catch(() => false)
+    await page.getByRole('button', { name: /^Colorado/ }).click()
+    check('a state opens at its regions', await shown(/^Boulder\s*5,/))
+    check('with no crumb repeating the state', (await page.getByRole('button', { name: 'Colorado', exact: true }).count()) === 0)
+    await screen('add-browse-state', 5)
+    await page.getByRole('button', { name: /^Boulder\s*5,/ }).click()
+    await page.getByRole('button', { name: /^Eldorado Canyon State Park/ }).click()
+    check('a crag offers itself to add', await shown('Add Eldorado Canyon State Park'))
+    check('with the trail back up as crumbs', (await page.getByRole('button', { name: 'Boulder', exact: true }).count()) === 1)
+    await screen('add-browse-crag', 5)
+    await page.getByRole('button', { name: 'Add Eldorado Canyon State Park' }).click()
+    const pickedTitle = await page.getByRole('heading', { level: 1 }).innerText()
+    check('picking it opens the save form named for it', pickedTitle === 'Eldorado Canyon State Park', `title "${pickedTitle}"`)
+    await page.getByRole('button', { name: 'Back', exact: true }).click()
+    check('back from the form returns to the crag', await shown('Add Eldorado Canyon State Park'))
+    await page.getByRole('button', { name: 'Back', exact: true }).click()
+    check('back from the crag steps up to its region', await shown(/^Eldorado Canyon State Park/))
+    await page.getByRole('button', { name: 'Colorado', exact: true }).click()
+    check('a crumb jumps to its level', await shown(/^Grand Junction Area/))
+    await page.getByRole('button', { name: 'Back', exact: true }).click()
+    check('back from a state returns to the search', await shown('Use my current location'))
+
     // 4a. Current location, refused. Nothing granted, so Chromium denies it:
     // the screen must say why, not sit on "Reading location…".
     await page.getByRole('button', { name: 'Use my current location' }).click()

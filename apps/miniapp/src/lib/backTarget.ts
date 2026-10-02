@@ -11,7 +11,8 @@
  * | --- | --- |
  * | `/` list | hidden |
  * | `/add` search | `/` |
- * | `/add` save form | the search, with its query and results intact |
+ * | `/add` save form | the search or browse level it was picked from, intact |
+ * | `/add` browsing a state | one level up; the state list returns to the search |
  * | `/feedback` | the location it was opened from, else `/` |
  * | `/location/:id/edit` | that location |
  *
@@ -34,7 +35,7 @@ import type { DetailTab } from '../components/DetailView.js'
 /** Which screen the user is looking at, including the in-route state back must see. */
 export type BackContext =
   | { route: 'list' }
-  | { route: 'add'; confirming: boolean }
+  | { route: 'add'; confirming: boolean; browsing: boolean }
   | { route: 'feedback'; fromLocationId: string | null }
   | { route: 'wall'; locationId: string }
   | { route: 'climb'; locationId: string; wallId: string }
@@ -47,7 +48,7 @@ export type BackContext =
  * describes, just with the destination wrong instead of the count.
  */
 export type Navigate = { kind: 'navigate'; to: string }
-export type AddBack = Navigate | { kind: 'closeSaveForm' }
+export type AddBack = Navigate | { kind: 'closeSaveForm' } | { kind: 'browseUp' }
 
 export type BackAction = null | AddBack
 
@@ -63,7 +64,7 @@ export type BackAction = null | AddBack
  * these signatures it is a type error in the route that has not been updated.
  */
 export function backTarget(context: { route: 'list' }): null
-export function backTarget(context: { route: 'add'; confirming: boolean }): AddBack
+export function backTarget(context: { route: 'add'; confirming: boolean; browsing: boolean }): AddBack
 export function backTarget(context: { route: 'feedback'; fromLocationId: string | null }): Navigate
 export function backTarget(context: { route: 'wall'; locationId: string }): Navigate
 export function backTarget(context: { route: 'climb'; locationId: string; wallId: string }): Navigate
@@ -73,7 +74,9 @@ export function backTarget(context: BackContext): BackAction {
     case 'list':
       return null
     case 'add':
-      return context.confirming ? { kind: 'closeSaveForm' } : { kind: 'navigate', to: '/' }
+      // The save form closes first, onto the browse level it was picked from.
+      if (context.confirming) return { kind: 'closeSaveForm' }
+      return context.browsing ? { kind: 'browseUp' } : { kind: 'navigate', to: '/' }
     case 'feedback':
       // Opened from a crag's "Check this forecast", back returns to that crag
       // rather than dropping the reader at the list.

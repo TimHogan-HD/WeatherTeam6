@@ -1,8 +1,15 @@
 import { Router, type Request, type Response } from 'express'
-import { MAX_QUERY_LENGTH, sendServerError } from '../lib/http.js'
+import { MAX_QUERY_LENGTH, isUuid, sendServerError } from '../lib/http.js'
+import { climbingAreaLevel, climbingStates } from '../lib/weather/climbingAreas.js'
 import { MIN_QUERY_LENGTH, searchPlaces } from '../lib/weather/geocode.js'
 import { reverseGeocode } from '../lib/weather/reverseGeocode.js'
-import type { ApiResponse, GeocodeResult, ReverseGeocode } from '@weatherteam6/types'
+import type {
+  ApiResponse,
+  ClimbingAreaLevel,
+  ClimbingStateSummary,
+  GeocodeResult,
+  ReverseGeocode,
+} from '@weatherteam6/types'
 
 export const geocodeRouter = Router()
 
@@ -35,6 +42,26 @@ geocodeRouter.get('/geocode', async (req: Request, res: Response) => {
   } catch (err) {
     sendServerError(res, err, 'GET /geocode')
   }
+})
+
+/** The states `/add` can browse. Local snapshot data: no upstream call, no failure path. */
+geocodeRouter.get('/climbing-areas', (_req: Request, res: Response) => {
+  const response: ApiResponse<ClimbingStateSummary[]> = { data: climbingStates(), error: null, status: 200 }
+  res.status(200).json(response)
+})
+
+/** One level of a state's tree: the state's top level, or one area and what is directly inside it. */
+geocodeRouter.get(['/climbing-areas/:state', '/climbing-areas/:state/:areaId'], (req: Request, res: Response) => {
+  const state = req.params['state'] ?? ''
+  const areaId = req.params['areaId'] ?? null
+  const level = areaId !== null && !isUuid(areaId) ? null : climbingAreaLevel(state, areaId)
+  if (level === null) {
+    const response: ApiResponse<null> = { data: null, error: 'Climbing area not found', status: 404 }
+    res.status(404).json(response)
+    return
+  }
+  const response: ApiResponse<ClimbingAreaLevel> = { data: level, error: null, status: 200 }
+  res.status(200).json(response)
 })
 
 function coordinate(value: unknown, limit: number): number | null {
