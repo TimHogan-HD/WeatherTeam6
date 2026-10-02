@@ -54,8 +54,11 @@ export function pullMessage(phase: PullPhase): string | null {
 }
 
 /**
- * How fresh the scores on the list are: `GFS · checked 4 min ago`. The
- * **oldest** check across the cards bounds what the reader is looking at. A
+ * How fresh the scores on the list are: `Scores from GFS · forecast checked 4 min ago`.
+ * The model and the age are separate claims: `checked_at` is the oldest check of
+ * every run behind a response (the ensemble's too), not GFS's own, so it is
+ * worded as the crag header words it, never as "GFS checked". The **oldest**
+ * check across the cards bounds what the reader is looking at. A
  * card that has readings but no check time (an older API) makes the whole line
  * unknown, so it is withheld rather than claimed from the other cards.
  */
@@ -80,5 +83,5 @@ export function scoresFreshness(
   const age = minutes < 1 ? 'just now' : minutes < 60 ? `${minutes} min ago` : `${Math.floor(minutes / 60)} h ago`
 
   const models = new Set(scored.map((r) => modelName(r.model)))
-  return models.size === 1 ? `${[...models][0]} · checked ${age}` : `Scores checked ${age}`
+  return models.size === 1 ? `Scores from ${[...models][0]} · forecast checked ${age}` : `Forecast checked ${age}`
 }

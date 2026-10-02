@@ -652,7 +652,7 @@ async function run(): Promise<void> {
     await tp.screenshot({ path: pullShot })
     check(
       `a pull says it will refresh and how fresh the scores are  →  ${pullShot}`,
-      /Release to refresh/.test(pulled) && /GFS · checked/.test(pulled),
+      /Release to refresh/.test(pulled) && /Scores from GFS · forecast checked/.test(pulled),
       pulled.replace(/\s+/g, ' '),
     )
     rescore = true

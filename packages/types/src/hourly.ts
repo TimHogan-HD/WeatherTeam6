@@ -410,8 +410,9 @@ export type ConditionsReadings = {
   /** Today's window and best hour. Null when the model said nothing about today. */
   today: ReadingsDay | null
   /**
-   * `HourlySeries.checked_at` of the run these readings were sliced from: the oldest
-   * time any run behind it was last confirmed the newest upstream. Null with no run.
+   * `HourlySeries.checked_at` of the series these readings were sliced from: the oldest
+   * time **any** run behind it (ensemble included) was last confirmed the newest upstream,
+   * so never attribute it to `model` alone. Null with no run.
    * Optional because the API and the client deploy separately: absent is unknown.
    */
   checked_at?: string | null

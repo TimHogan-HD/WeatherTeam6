@@ -45,12 +45,12 @@ describe('scoresFreshness', () => {
       [readings({ checked_at: '2026-10-01T14:56:00.000Z' }), readings({ checked_at: '2026-10-01T14:20:00.000Z' })],
       NOW,
     )
-    expect(line).toBe('GFS · checked 40 min ago')
+    expect(line).toBe('Scores from GFS · forecast checked 40 min ago')
   })
 
   it('ignores cards without readings: a city, or one still loading', () => {
     expect(scoresFreshness([readings({}), null, undefined, readings({ model: null, checked_at: null })], NOW)).toBe(
-      'GFS · checked 4 min ago',
+      'Scores from GFS · forecast checked 4 min ago',
     )
   })
 
@@ -69,6 +69,6 @@ describe('scoresFreshness', () => {
   })
 
   it('stops naming a model when the cards came from different ones', () => {
-    expect(scoresFreshness([readings({}), readings({ model: 'ecmwf_ifs025' })], NOW)).toBe('Scores checked 4 min ago')
+    expect(scoresFreshness([readings({}), readings({ model: 'ecmwf_ifs025' })], NOW)).toBe('Forecast checked 4 min ago')
   })
 })
