@@ -1,9 +1,11 @@
+import { useRef, type CSSProperties } from 'react'
 import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import { formatElevationFt, rockTypeLabel, type Location } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, row, stack } from '../theme/styles.js'
 import { ChevronLeftIcon } from './Icons.js'
 import { FeedbackButton } from './FeedbackButton.js'
+import { SelectionIndicator, useSelectedRect } from './SelectionIndicator.js'
 
 /**
  * The detail screen's header band, from the WT6 Figma "V2" page's Overview
@@ -141,52 +143,65 @@ export function DetailHeader<T extends string>({
       )}
       {meta === null || meta === '' ? null : <p style={typeV2.meta}>{meta}</p>}
 
-      {tabs === null ? null : (
-        <div
-          role="tablist"
-          aria-label="Location detail"
-          style={{
-            ...row(spacing.tabGap),
-            paddingTop: `${spacing.cardPad}px`,
-            overflowX: 'auto',
-            scrollbarWidth: 'none',
-          }}
-        >
-          {tabs.options.map((option) => {
-            const selected = option.value === tabs.active
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                {...(selected ? { 'aria-controls': tabs.panelId } : {})}
-                onClick={() => tabs.onChange(option.value)}
-                style={{
-                  ...bareButton,
-                  ...stack(spacing.cellPad),
-                  width: 'auto',
-                  flexShrink: 0,
-                  alignItems: 'center',
-                }}
-              >
-                <span style={{ ...typeV2.tab, color: selected ? colorsV2.txt1 : colorsV2.txtTab }}>
-                  {option.label}
-                </span>
-                <span
-                  aria-hidden
-                  style={{
-                    alignSelf: 'stretch',
-                    height: '3px',
-                    borderRadius: `${radius.stepBar}px`,
-                    backgroundColor: selected ? colors.good : 'transparent',
-                  }}
-                />
-              </button>
-            )
-          })}
-        </div>
-      )}
+      {tabs === null ? null : <TabRow tabs={tabs} />}
     </header>
   )
 }
+
+/**
+ * The location's tabs. **One underline slides to the chosen tab** rather than
+ * each tab painting its own (`SelectionIndicator`); in static markup, before
+ * it is measured, the chosen tab paints its own bar. Each tab's tap target
+ * reaches `cellPad` above its label, out of the row's own top padding, so the
+ * row sits where it did and the target clears about 41px at the screen's least
+ * accurate edge (`ui-craft.md` §1).
+ */
+function TabRow<T extends string>({ tabs }: { tabs: NonNullable<DetailHeaderProps<T>['tabs']> }) {
+  const rowRef = useRef<HTMLDivElement>(null)
+  const rect = useSelectedRect(rowRef, '[aria-selected="true"]', tabs.active)
+  return (
+    <div
+      ref={rowRef}
+      role="tablist"
+      aria-label="Location detail"
+      style={{
+        ...row(spacing.tabGap),
+        position: 'relative',
+        paddingTop: `${spacing.cardPad - spacing.cellPad}px`,
+        overflowX: 'auto',
+        scrollbarWidth: 'none',
+      }}
+    >
+      {tabs.options.map((option) => {
+        const selected = option.value === tabs.active
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            {...(selected ? { 'aria-controls': tabs.panelId } : {})}
+            onClick={() => tabs.onChange(option.value)}
+            style={{
+              ...bareButton,
+              ...stack(spacing.cellPad),
+              width: 'auto',
+              flexShrink: 0,
+              alignItems: 'center',
+              paddingTop: `${spacing.cellPad}px`,
+            }}
+          >
+            <span style={{ ...typeV2.tab, color: selected ? colorsV2.txt1 : colorsV2.txtTab }}>{option.label}</span>
+            <span
+              aria-hidden
+              style={{ ...underline, backgroundColor: selected && rect === null ? colors.good : 'transparent' }}
+            />
+          </button>
+        )
+      })}
+      <SelectionIndicator rect={rect} style={{ ...underline, bottom: 0, backgroundColor: colors.good }} />
+    </div>
+  )
+}
+
+const underline: CSSProperties = { alignSelf: 'stretch', height: '3px', borderRadius: `${radius.stepBar}px` }

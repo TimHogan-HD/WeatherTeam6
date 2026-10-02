@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { bottomNav, colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
+import { bottomNav, colors, colorsV2, motion as m, radius, spacing } from '@weatherteam6/design/tokens'
 import { typeV2, withOpacity } from '../theme/tokens.css.js'
 import { navGeometry, type SectionKey } from '../lib/bottomNav.js'
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
@@ -12,8 +12,9 @@ import { NavIcon } from './Icons.js'
  *
  * Unlit tabs are icons; the lit one carries its name in a lime pill. **One pill
  * slides between tabs** rather than each tab painting its own: its leading edge
- * leaves first and its trailing edge follows a beat later with a slight
- * overshoot, so the pill reads as pulled across to the next tab. Under
+ * leaves first and its trailing edge follows a beat later, so the pill reads
+ * as pulled across to the next tab. No overshoot since 2026-10-01: a bar used
+ * this often should answer quickly and settle, not bounce. Under
  * `prefers-reduced-motion` it moves without animating
  * (`design-system-v1.md` § CSS and motion).
  *
@@ -76,7 +77,7 @@ export function TabBar({ active }: { active: SectionKey }) {
               border: `1px solid ${withOpacity(colors.good, 0.3)}`,
               boxSizing: 'border-box',
               pointerEvents: 'none',
-              transition: motion(`${lead} 0.32s ${PULL}, ${trail} 0.46s ${PULL} 0.07s`),
+              transition: motion(`${lead} ${m.pillLeadMs}ms ${PULL}, ${trail} ${m.pillTrailMs}ms ${PULL} ${m.pillTrailDelayMs}ms`),
             }}
           />
         )}
@@ -103,7 +104,7 @@ export function TabBar({ active }: { active: SectionKey }) {
                 borderRadius: `${radius.full}px`,
                 textDecoration: 'none',
                 color: lit ? colors.good : colorsV2.txtTab,
-                transition: motion(`flex-basis 0.46s ${PULL}, color 0.25s ease`),
+                transition: motion(`flex-basis ${m.pillTrailMs}ms ${PULL}, color ${m.pillLeadMs}ms ${PULL}, transform ${m.pressMs}ms ${PULL}`),
               }}
             >
               <NavIcon name={tab.icon} />
@@ -118,7 +119,7 @@ export function TabBar({ active }: { active: SectionKey }) {
                   maxWidth: lit ? `${tab.pillW}px` : 0,
                   opacity: lit ? 1 : 0,
                   transition: motion(
-                    `max-width 0.4s ${PULL}, margin-left 0.4s ${PULL}, opacity 0.22s ease ${lit ? '0.14s' : '0s'}`,
+                    `max-width ${m.pillTrailMs}ms ${PULL}, margin-left ${m.pillTrailMs}ms ${PULL}, opacity ${m.pillLeadMs}ms ${PULL} ${lit ? m.pillLeadMs / 2 : 0}ms`,
                   ),
                 }}
               >
@@ -132,8 +133,7 @@ export function TabBar({ active }: { active: SectionKey }) {
   )
 }
 
-/** Overshoots slightly and settles — the "pull". */
-const PULL = 'cubic-bezier(.3,1.25,.45,1)'
+const PULL = m.easeOut
 
 /**
  * The row's width in CSS px, measured before first paint and on every resize.

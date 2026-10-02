@@ -43,7 +43,8 @@ both agree on it.
 
 - **The more often something happens, the less it should move.** Something used 100+ times
   a day gets no animation. Something used occasionally gets a short one. Something rare can
-  have some delight. The instant press dim is already correct by this rule.
+  have some delight. The press dims at once by this rule; its 97% shrink runs alongside
+  and never delays the dim.
 - **Never `ease-in` on UI**, never `transition: all`, never `scale(0)` (start at 0.95 with
   opacity 0). Animate only `transform` and `opacity`.
 - **Use transitions, not keyframes, for anything a person can interrupt.** A transition
@@ -59,8 +60,7 @@ both agree on it.
   skeleton must have the same shape as the content it stands for, or the screen jumps when
   the content arrives.
 - **Use tabular figures for numbers that change or line up in columns**
-  (`font-variant-numeric: tabular-nums`). The app sets this nowhere, so a figure changes
-  width when it updates, and the chart readout jitters as you scrub.
+  (`font-variant-numeric: tabular-nums`). The body sets it since 2026-10-01.
 
 ## 3. What the phone's browser can do (checked 2026-10-01)
 
@@ -87,22 +87,23 @@ The app has several of these: `WEATHERTEAM6`, `BASALT (DENSE)`, `CONDITIONS NOW 
 and `THE ROCK HERE` as tracked caps; `1 saved · updated just now` and the coordinates in
 monospace; `Hourly ›` and `Daily ›` as links. Most of them came from the Figma file, which
 is a starting point rather than a decision. Each is worth asking about: does this label
-carry information? `THE ROCK HERE` over the heading `Basalt (dense)` probably does not.
+carry information? `THE ROCK HERE` and the `WEATHERTEAM6` above each section title did
+not, and were removed on 2026-10-01; the rest carry a time, a source or a rock.
 
 `npx impeccable detect apps/miniapp/src` found one thing: the bottom bar pill's
-`cubic-bezier(.3, 1.25, .45, 1)` overshoots, which it calls bounce easing. Worth showing the
-owner beside a plain ease-out. **The detector is written for CSS and Tailwind**, so it misses most
-problems in inline styles. A clean result here says little.
+`cubic-bezier(.3, 1.25, .45, 1)` overshoot, which it calls bounce easing. The owner picked
+a plain ease-out on 2026-10-01. **The detector is written for CSS and Tailwind**, so it
+misses most problems in inline styles. A clean result here says little.
 
 ## 5. Candidates on the current screens
 
-These are not decided. Each is a proposal to show as variants (§6).
+Built on 2026-10-01, from the owner's picks: tabular figures, taller location tabs, the
+sliding tab underline and day-chip fill, the growing Measurements panel, the calmer pill,
+the press shrink, pull-to-refresh with the scores' freshness, and a changed score rolling.
+Still open, to show as variants (§6):
 
-1. Tabular figures across every number.
-2. The location tab underline slides between tabs, like the bottom bar pill.
-3. The Measurements disclosure opens with a height transition, and its chevron turns.
-4. The selected day chip on Hourly slides its fill to the new day instead of jumping.
-5. A shared-element view transition from a list card into the location.
+1. A shared-element view transition from a list card into the location. The owner turned
+   down fade, rise and slide screen transitions (`miniapp-patterns`), so ask before this.
 
 ## 6. Tools
 

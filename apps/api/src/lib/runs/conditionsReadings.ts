@@ -42,6 +42,7 @@ export const NOT_A_CRAG_READINGS: ConditionsReadings = {
   utc_offset_seconds: 0,
   now: null,
   today: null,
+  checked_at: null,
 }
 
 /**
@@ -57,10 +58,11 @@ export const READINGS_UNAVAILABLE: ConditionsReadings = {
   utc_offset_seconds: 0,
   now: null,
   today: null,
+  checked_at: null,
 }
 
 export function toConditionsReadings(
-  series: Pick<HourlySeries, 'readings' | 'utc_offset_seconds'>,
+  series: Pick<HourlySeries, 'readings' | 'utc_offset_seconds' | 'checked_at'>,
   todayStr: string,
   now: Date,
 ): ConditionsReadings {
@@ -74,5 +76,6 @@ export function toConditionsReadings(
     utc_offset_seconds: series.utc_offset_seconds,
     now: readingNow(readings.hours, now.getTime()),
     today: readings.days.find((d) => d.local_date === todayStr) ?? null,
+    checked_at: series.checked_at ?? null,
   }
 }

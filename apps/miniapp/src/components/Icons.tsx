@@ -17,7 +17,7 @@ import {
   IconWind,
   IconX,
 } from '@tabler/icons-react'
-import { bottomNav, colors } from '@weatherteam6/design/tokens'
+import { bottomNav, colors, motion } from '@weatherteam6/design/tokens'
 
 /**
  * The icons §8 budgets for, from `@tabler/icons-react` — the web sibling of the
@@ -81,12 +81,15 @@ export const ChevronLeftIcon = ({ color }: IconProps) => (
  *
  * **Turned rather than swapped for a second icon**: two states of one glyph,
  * so an open panel and a closed one cannot come to use two icons that disagree
- * about which is which.
+ * about which is which. It turns over the panel's opening time.
  */
 export const ChevronDownIcon = ({ color, open }: IconProps & { open: boolean }) => (
   <IconChevronDown
     {...props(color)}
-    style={open ? { transform: 'rotate(180deg)' } : {}}
+    style={{
+      transform: open ? 'rotate(180deg)' : 'none',
+      transition: `transform ${motion.disclosureOpenMs}ms ${motion.easeOut}`,
+    }}
   />
 )
 

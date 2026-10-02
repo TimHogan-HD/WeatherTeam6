@@ -35,12 +35,14 @@ const readings = (over: Partial<HourlyReadings> = {}): HourlyReadings => ({
   ...over,
 })
 
-/** The two fields of the series this reads. `-6h` so a UTC offset would show. */
+/** The fields of the series this reads. `-6h` so a UTC offset would show. */
 const series = (
   r: HourlyReadings = readings(),
-): Pick<HourlySeries, 'readings' | 'utc_offset_seconds'> => ({
+  checkedAt?: string | null,
+): Pick<HourlySeries, 'readings' | 'utc_offset_seconds' | 'checked_at'> => ({
   readings: r,
   utc_offset_seconds: -6 * 3600,
+  ...(checkedAt === undefined ? {} : { checked_at: checkedAt }),
 })
 
 describe('toConditionsReadings', () => {
@@ -56,6 +58,15 @@ describe('toConditionsReadings', () => {
     // The clock travels with the readings. Without it a surface would format a
     // window's times against whatever offset it had to hand — issue #33.
     expect(out.utc_offset_seconds).toBe(-6 * 3600)
+  })
+
+  it("carries the run's checked time, and null rather than absent when it had none", () => {
+    const at = new Date('2026-09-21T15:10:00.000Z')
+    expect(toConditionsReadings(series(readings(), '2026-09-21T14:55:00.000Z'), '2026-09-21', at).checked_at).toBe(
+      '2026-09-21T14:55:00.000Z',
+    )
+    expect(toConditionsReadings(series(readings(), null), '2026-09-21', at).checked_at).toBeNull()
+    expect(toConditionsReadings(series(), '2026-09-21', at).checked_at).toBeNull()
   })
 
   /**

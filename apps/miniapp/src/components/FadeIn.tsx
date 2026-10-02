@@ -1,4 +1,5 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { motion } from '@weatherteam6/design/tokens'
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
 
 /**
@@ -23,12 +24,10 @@ export function FadeIn({ children, style }: { children: ReactNode; style?: CSSPr
       style={{
         ...style,
         opacity: reduced || shown ? 1 : 0,
-        transition: reduced ? 'none' : `opacity ${FADE_MS}ms ease-out`,
+        transition: reduced ? 'none' : `opacity ${motion.fadeMs}ms ${motion.easeOut}`,
       }}
     >
       {children}
     </div>
   )
 }
-
-const FADE_MS = 280

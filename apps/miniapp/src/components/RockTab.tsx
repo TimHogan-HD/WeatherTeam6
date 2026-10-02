@@ -340,7 +340,6 @@ function Hero({ name, guide }: { name: string; guide: RockGuide | null }) {
     <section style={{ ...cardV2, padding: 0, overflow: 'hidden' }}>
       <RockArt swatch={guide?.swatch ?? 'pale'} kind={guide?.texture ?? 'crystalline'} />
       <div style={{ ...stack(spacing.listGap), padding: `0 ${spacing.sectionGap}px ${spacing.sectionGap}px` }}>
-        <span style={{ ...typeV2.kicker, color: colorsV2.txtMuted }}>The rock here</span>
         <h2 style={typeV2.screenTitle}>{name}</h2>
         <p style={typeV2.body}>
           {guide?.tagline ?? 'Nobody has recorded the rock here yet, so there’s no guide for it.'}
