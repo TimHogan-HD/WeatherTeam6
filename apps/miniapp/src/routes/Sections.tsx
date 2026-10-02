@@ -17,10 +17,7 @@ function SectionScreen({ title, action, children }: { title: string; action?: Re
   return (
     <main style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
       <header style={{ ...headerBand, ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={stack(spacing.tight)}>
-          <p style={typeV2.eyebrow}>WeatherTeam6</p>
-          <h1 style={typeV2.screenTitle}>{title}</h1>
-        </div>
+        <h1 style={typeV2.screenTitle}>{title}</h1>
         {action}
       </header>
       <div style={{ ...stack(spacing.listGapLg), padding: `${spacing.sectionGap}px`, paddingBottom: navClearance }}>

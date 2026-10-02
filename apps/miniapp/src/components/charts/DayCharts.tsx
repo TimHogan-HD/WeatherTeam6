@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react'
+import { useRef, type CSSProperties, type ReactNode } from 'react'
 import { colors, colorsV2, radius, spacing, toneSurfacesV2 } from '@weatherteam6/design/tokens'
 import {
   EM_DASH,
@@ -20,6 +20,7 @@ import { formatLocalClock, formatTempRangeF } from '../../lib/format.js'
 import { readingTone, scoreTone } from '../../lib/locationList.js'
 import { dayChips, daysOutPhrase, frictionCells, frictionSummary, type FrictionCell } from '../../lib/hourlyDay.js'
 import { useNow } from '../../hooks/useNow.js'
+import { SelectionIndicator, useSelectedRect } from '../SelectionIndicator.js'
 import { HourlyChart } from './HourlyChart.js'
 import { extent, type Extent } from './geometry.js'
 import { identityAxis, rainAxisBare, tempAxisDeg, windAxisBare } from './valueAxis.js'
@@ -185,7 +186,8 @@ export function DayCharts({ series, selectedDate, onSelectDate, score }: DayChar
 
 /**
  * The days as chips. **Pressed buttons, not a second tablist**: the header's
- * tabs are the screen's tablist, and this picks which day that tab shows.
+ * tabs are the screen's tablist, and this picks which day that tab shows. One
+ * fill slides to the open day, as the header's underline does.
  */
 function DayChipRow({
   series,
@@ -196,10 +198,21 @@ function DayChipRow({
   selectedDate: string
   onSelectDate: (localDate: string) => void
 }) {
+  const rowRef = useRef<HTMLDivElement>(null)
+  const rect = useSelectedRect(rowRef, '[aria-pressed="true"]', selectedDate)
   const chips = dayChips(series.days)
   if (chips.length === 0) return null
   return (
-    <div style={{ ...row(spacing.chipGap), alignItems: 'stretch' }} role="group" aria-label="Day">
+    <div
+      ref={rowRef}
+      style={{ ...row(spacing.chipGap), alignItems: 'stretch', position: 'relative' }}
+      role="group"
+      aria-label="Day"
+    >
+      <SelectionIndicator
+        rect={rect}
+        style={{ top: 0, bottom: 0, borderRadius: `${radius.full}px`, backgroundColor: colorsV2.line }}
+      />
       {chips.map((chip) => {
         const selected = chip.local_date === selectedDate
         return (
@@ -212,6 +225,7 @@ function DayChipRow({
             style={{
               ...bareButton,
               ...typeV2.dayTab,
+              position: 'relative',
               flex: '1 1 0',
               minWidth: 0,
               textAlign: 'center',
@@ -220,7 +234,7 @@ function DayChipRow({
               borderWidth: '1px',
               borderColor: colorsV2.line,
               borderRadius: `${radius.full}px`,
-              backgroundColor: selected ? colorsV2.line : 'transparent',
+              backgroundColor: selected && rect === null ? colorsV2.line : 'transparent',
               color: selected ? colorsV2.txt1 : colorsV2.txtMuted,
               // A day the ensemble never reached keeps its place in the row, so
               // counting from Today still lands on the right chip.

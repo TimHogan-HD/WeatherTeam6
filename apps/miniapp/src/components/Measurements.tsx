@@ -1,6 +1,6 @@
 import { useId, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { colorsV2, spacing } from '@weatherteam6/design/tokens'
+import { colorsV2, motion, spacing } from '@weatherteam6/design/tokens'
 import {
   HELD_BACK_LABEL,
   MEASUREMENTS_LABEL,
@@ -11,6 +11,7 @@ import {
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, row, stack } from '../theme/styles.js'
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
 import { ChevronDownIcon } from './Icons.js'
 import { LabelledFigure } from './LabelledFigure.js'
 import { SCORE_EXPLAINER_PATH } from './ScoreExplainer.js'
@@ -37,6 +38,11 @@ import { SCORE_EXPLAINER_PATH } from './ScoreExplainer.js'
  * Its layout style is applied **only while open**: an inline `display` beats the
  * user-agent's `[hidden] { display: none }`, and a flex panel with `hidden` on it
  * would simply stay visible.
+ *
+ * **It grows open and shrinks shut** (owner, 2026-10-01) on a
+ * `grid-template-rows: 0fr → 1fr` transition, which Safari supports where a
+ * `height: auto` transition is Chromium-only. It closes faster than it opens,
+ * and takes `hidden` only once it has finished closing.
  */
 
 /**
@@ -82,6 +88,10 @@ export function Measurements({
   ...input
 }: MeasurementsInput & { lead?: ReactNode; heldBack?: ReadingField[] | null; tileSurface?: CSSProperties }) {
   const [open, setOpen] = useState(false)
+  // Closed and done closing: only then does the panel take `hidden`, so it can
+  // shrink out of view first.
+  const [collapsed, setCollapsed] = useState(true)
+  const reduced = usePrefersReducedMotion()
   const panelId = useId()
   const { groups, sharedSource, notes } = measurements(input)
 
@@ -89,15 +99,23 @@ export function Measurements({
   // that opens onto an empty panel is a promise the screen cannot keep.
   if (groups.length === 0 && notes.length === 0) return lead
 
+  const toggle = () => {
+    if (!open) setCollapsed(false)
+    else if (reduced) setCollapsed(true)
+    setOpen(!open)
+  }
+  const ms = open ? motion.disclosureOpenMs : motion.disclosureCloseMs
+  const ease = `${ms}ms ${motion.easeOut}`
+
   return (
-    <div style={stack(spacing.listGapSm)}>
+    <div>
       <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'center' }}>
         {lead}
         <button
           type="button"
           aria-expanded={open}
           aria-controls={panelId}
-          onClick={() => setOpen((o) => !o)}
+          onClick={toggle}
           style={{
             ...bareButton,
             ...row(spacing.chipGap),
@@ -112,7 +130,23 @@ export function Measurements({
         </button>
       </div>
 
-      <div id={panelId} hidden={!open} style={open ? stack(spacing.cellPad) : {}}>
+      <div
+        onTransitionEnd={(e) => {
+          if (e.target === e.currentTarget && !open) setCollapsed(true)
+        }}
+        style={{
+          display: 'grid',
+          gridTemplateRows: open ? '1fr' : '0fr',
+          opacity: open ? 1 : 0,
+          transition: reduced ? 'none' : `grid-template-rows ${ease}, opacity ${ease}`,
+        }}
+      >
+        <div style={{ overflow: 'hidden', minHeight: 0 }}>
+      <div
+        id={panelId}
+        hidden={collapsed}
+        style={collapsed ? {} : { ...stack(spacing.cellPad), paddingTop: `${spacing.listGapSm}px` }}
+      >
         {heldBack === null ? null : <HeldBack fields={heldBack} />}
         {/* The figures as tiles, like the card's own. Each label says whose
             figure it is, and the line below names each group's model. */}
@@ -142,6 +176,8 @@ export function Measurements({
           <Link to={SCORE_EXPLAINER_PATH} style={{ ...typeV2.note, color: colorsV2.txt1 }}>
             How the score works ›
           </Link>
+        </div>
+      </div>
         </div>
       </div>
     </div>

@@ -65,6 +65,9 @@ body {
   background-color: var(--wt6-v2-bg);
   color: var(--wt6-color-txt1);
   font-family: var(--wt6-font-body);
+  /* Every digit one width, so a figure that updates or a readout being
+     scrubbed does not shift what sits beside it (ui-craft.md §2). */
+  font-variant-numeric: tabular-nums;
   /* The phone's own rubber-band bounce stays on (owner, 2026-09-30: the
      scroll felt stiff without it). `html` paints what it reveals. */
 }
@@ -97,15 +100,47 @@ button,
   -webkit-touch-callout: none;
 }
 
+/* A form control's UA font shorthand resets the figures the body sets. */
+button,
+input,
+select,
+textarea {
+  font-variant-numeric: inherit;
+}
+
 /* A pressed control dims at once, with no transition (owner, 2026-09-30), so
-   a tap shows before a slow screen arrives. Only the innermost pressed
-   control: a card's own retry button dims, not the card around it.
-   `main.tsx` registers a touchstart listener, without which iOS Safari never
-   applies `:active` to a touch. */
+   a tap shows before a slow screen arrives, and shrinks slightly over
+   `motion.pressMs` (owner, 2026-10-01). Only `transform` is transitioned, so
+   the dim never waits. Only the innermost pressed control: a card's own retry
+   button reacts, not the card around it. `main.tsx` registers a touchstart
+   listener, without which iOS Safari never applies `:active` to a touch. A
+   control with its own inline `transition` must list `transform` in it. */
+:is(a, button, [role='button'], [role='tab']) {
+  transition: transform var(--wt6-motion-press-ms) var(--wt6-motion-ease-out);
+}
+
 :is(a, button, [role='button'], [role='tab']):not(:disabled, [aria-disabled='true']):active:not(
     :has(:is(a, button, [role='button'], [role='tab']):active)
   ) {
   opacity: var(--wt6-press-opacity);
+  transform: scale(var(--wt6-press-scale));
+}
+
+/* Reduced motion: everything settles at once, inline transitions included,
+   and a press keeps its dim but not its shrink. Colour and opacity still
+   change; they just do not move. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+    animation-duration: 0s !important;
+  }
+
+  :is(a, button, [role='button'], [role='tab']):active {
+    transform: none !important;
+  }
 }
 
 :focus-visible {

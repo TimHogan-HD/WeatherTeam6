@@ -122,7 +122,6 @@ export function LocationList() {
       {splash ? <Splash /> : null}
       <header style={headerBand}>
         <div style={stack(spacing.tight)}>
-          <p style={typeV2.eyebrow}>WeatherTeam6</p>
           <h1 style={typeV2.screenTitle}>Conditions</h1>
           {meta === null ? null : <p style={typeV2.meta}>{meta}</p>}
         </div>

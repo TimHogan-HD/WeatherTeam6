@@ -1224,11 +1224,39 @@ export const bottomNav = {
 } as const;
 
 /**
- * A control under a finger dims to this opacity, instantly and with no
- * transition (owner, 2026-09-30), so a tap shows before a slow screen arrives.
+ * A control under a finger dims to this opacity instantly, with no transition
+ * (owner, 2026-09-30), so a tap shows before a slow screen arrives. It also
+ * shrinks to `scale` over `motion.pressMs` (owner, 2026-10-01); the dim does not
+ * wait for the shrink.
  */
 export const press = {
   opacity: 0.6,
+  scale: 0.97,
+} as const;
+
+/**
+ * Durations and curves for every animation in the web app (`.claude/docs/ui-craft.md`
+ * §2). Everything settles at once under `prefers-reduced-motion`. `easeOut` is for
+ * a control answering a tap; `drawer` is the iOS sheet curve, for something
+ * released by a finger.
+ */
+export const motion = {
+  easeOut: 'cubic-bezier(0.23, 1, 0.32, 1)',
+  drawer: 'cubic-bezier(0.32, 0.72, 0, 1)',
+  pressMs: 160,
+  /** A tab underline or a day chip's fill moving to the new choice. */
+  slideMs: 220,
+  disclosureOpenMs: 240,
+  disclosureCloseMs: 180,
+  fadeMs: 280,
+  /** The bottom bar's pill: the leading edge, then the trailing edge a beat later. */
+  pillLeadMs: 220,
+  pillTrailMs: 300,
+  pillTrailDelayMs: 40,
+  /** A score's digits rolling to a new run's value. */
+  rollMs: 700,
+  /** How long `was 64` stays beside a score that changed. */
+  wasHoldMs: 4000,
 } as const;
 
 // ─────────────────────────────────────────────
