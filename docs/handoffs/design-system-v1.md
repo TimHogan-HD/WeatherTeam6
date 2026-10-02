@@ -122,7 +122,7 @@ only tool. What still holds:
   which dims at once so a tap shows before a slow screen arrives and shrinks to 97% over
   160 ms; the location tabs' underline and the Hourly day chips' fill sliding to the
   choice; Measurements growing open; a score that a new run changes rolling to its new
-  value with "was 64" beside it; pull-to-refresh on the list, which says how fresh the
+  value with "was 64" beside it; pull-to-refresh on the list and a location's forecast tabs, which says how fresh the
   scores are; the smooth scroll-to-top on the lit tab; `FadeIn` on a card's late weather —
   are the current motion, not exceptions and not fixed. Any of them can be proposed
   differently.

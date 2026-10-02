@@ -24,7 +24,7 @@ import {
  *   touch keeps its target after React replaces it (a card's weather arriving
  *   mid-pull), and a detached element's events never reach the window.
  */
-export function usePullToRefresh(refresh: () => Promise<boolean>): PullPhase {
+export function usePullToRefresh(refresh: () => Promise<boolean>, enabled = true): PullPhase {
   const [phase, setPhase] = useState<PullPhase>({ kind: 'idle' })
   const busy = useRef(false)
   const refreshRef = useRef(refresh)
@@ -33,7 +33,10 @@ export function usePullToRefresh(refresh: () => Promise<boolean>): PullPhase {
   }, [refresh])
 
   useEffect(() => {
+    if (!enabled) return
+    let live = true
     let startY: number | null = null
+    let startX = 0
     let offset = 0
     let timer: ReturnType<typeof setTimeout> | undefined
     let target: Node | null = null
@@ -63,14 +66,19 @@ export function usePullToRefresh(refresh: () => Promise<boolean>): PullPhase {
       unlisten(target)
       // Under 1, not <= 0: a high-density screen can rest at a fractional offset.
       startY = !busy.current && window.scrollY < 1 && e.touches.length === 1 ? (e.touches[0]?.clientY ?? null) : null
+      startX = e.touches[0]?.clientX ?? 0
       offset = 0
       target = startY !== null && e.target instanceof Node ? e.target : null
       listen(target)
     }
     const onMove = (e: TouchEvent) => {
       if (startY === null) return
-      const finger = (e.touches[0]?.clientY ?? startY) - startY
-      if (finger <= 0 && offset === 0) {
+      const touch = e.touches[0]
+      const finger = (touch?.clientY ?? startY) - startY
+      // Until the pull has begun, a drag that is up, or more sideways than
+      // down (scrubbing a chart), is the page's, not a pull.
+      const sideways = Math.abs((touch?.clientX ?? startX) - startX)
+      if (offset === 0 && (finger <= 0 || sideways > finger)) {
         startY = null
         return
       }
@@ -98,6 +106,7 @@ export function usePullToRefresh(refresh: () => Promise<boolean>): PullPhase {
       setPhase({ kind: 'refreshing' })
       const minimum = new Promise((resolve) => setTimeout(resolve, PULL_MIN_REFRESH_MS))
       void Promise.all([refreshRef.current().catch(() => false), minimum]).then(([ok]) => {
+        if (!live) return
         setPhase({ kind: 'settled', ok })
         timer = setTimeout(() => {
           busy.current = false
@@ -111,14 +120,19 @@ export function usePullToRefresh(refresh: () => Promise<boolean>): PullPhase {
     window.addEventListener('touchend', onEnd)
     window.addEventListener('touchcancel', onCancel)
     return () => {
+      // Switched off mid-refresh (another tab): settle back rather than leave
+      // `busy` set, which would refuse every pull once switched on again.
+      live = false
       clearTimeout(timer)
+      busy.current = false
+      setPhase({ kind: 'idle' })
       window.removeEventListener('touchstart', onStart)
       window.removeEventListener('touchmove', onMove)
       window.removeEventListener('touchend', onEnd)
       window.removeEventListener('touchcancel', onCancel)
       unlisten(target)
     }
-  }, [])
+  }, [enabled])
 
   return phase
 }
