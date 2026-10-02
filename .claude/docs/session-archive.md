@@ -4339,3 +4339,35 @@ The client's own patterns are in the `miniapp-patterns` skill, which loads when 
   value** (issue #34). `computeLiveForecast` returns `scores: []` plus
   `scoreUnavailable: 'rainfall_unavailable'` when the rainfall lookup *failed*. A genuinely
   empty result still scores.
+
+---
+
+## 2026-10-02 — branch: feat/map-tab, feat/map-polish — commit: bf1db3b
+
+**Phase completed:** The Map tab (owner's "C2" pick, 2026-10-02) — #304, then polish in #305
+
+**What was built this session:**
+- `apps/miniapp/src/routes/MapScreen.tsx` — `/map`, lazy-loaded: score pins (real buttons, the list's own queries and `cardSummary` suppression), hillshade and contours in feet (`maplibre-contour`), locate me, a long-press (right-click on desktop) to add a spot.
+- `lib/mapStyle.ts`, `lib/mapPins.ts`, `mapV2` tokens — OpenFreeMap Dark recoloured onto tokens; pins drop a location whose coordinates do not parse.
+- `/add?lat=&lon=` — `fromMapPoint`/`mapPointFromSearch` in `lib/addCandidate.ts`; back from that form returns to `/map` (`backTarget`).
+- CSP: `connect-src` adds `tiles.openfreemap.org` and `s3.amazonaws.com`; `img-src` and `worker-src` add `blob:`. No `'unsafe-eval'`.
+- #305: the header band became a title chip (owner picked A of three mocks); the map chunk warms 3 s after sign-in with `prewarm()` and a style/tile-index fetch; the map instance outlives the tab and is discarded on sign-out. Measured on a throttled phone profile: first tile 3.2 s → 1.3 s, all tiles 4.7 s → 2.5 s, a return visit 0 requests.
+- architecture.md: map tiles are the one exception to "external calls are proxied" (owner decision 2026-10-02).
+- Ideas filed: #306 day slider, #307 OpenBeta layer, #308 3D terrain, #309 pin labels overlap; #214 commented (radar as a map layer).
+
+**Known issues / deferred work:**
+- Never tested on a real iPhone: the long-press gesture, and the kept map after iOS drops a backgrounded page's WebGL context.
+- `check:ui` cannot see the production CSP (dev server). The map's CSP was checked once with a one-off probe: `vite preview` plus a Playwright route that adds the `vercel.json` header. That probe was not committed.
+- The map was built by a subagent whose session (`5d0017af`) stopped mid-typecheck at 08:26 when VS Code restarted; this session took the branch over from its worktree.
+
+**Blockers for next session:**
+- None
+
+**What's next:** Nothing scheduled — the owner picks from `gh issue list` (map follow-ups #306–#309, #214; #293 for Wall A)
+
+**Gotchas for next session:**
+- Radar on the map: architecture.md says radar still goes through the API, but IEM tiles are plain image tiles. Proxy them, or widen the tile exception and add the host to the CSP — ask the owner.
+- Pins are DOM markers so they stay buttons; MapLibre's label collision does not apply to them (#309).
+- Auto mode refuses to commit an edit to `.claude/rules/`; the owner turned it off for that one line.
+
+**Does the user need to do anything?** No.
