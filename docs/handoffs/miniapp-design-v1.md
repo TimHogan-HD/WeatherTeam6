@@ -86,9 +86,10 @@ this. Not before.
 /login               sign in with a passphrase
 /                    location list — the Conditions section   (root, behind the gate)
 /location/:id        location detail   (plus the guidebook's wall and route screens)
-/add                 search and add a location   (see §12)
+/add                 search and add a location   (see §12; `?lat=&lon=` opens the form on a map point)
 /feedback            app feedback and forecast checks
-/crags /map /trips   bottom-bar sections, not built yet
+/map                 saved locations as score pins on a relief map; hold to add a spot
+/crags /trips        bottom-bar sections, not built yet
 /profile             Feedback and Sign out
 ```
 
