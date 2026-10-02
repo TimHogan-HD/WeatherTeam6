@@ -30,13 +30,17 @@ import { arrivalScrollY, sectionFor } from './lib/bottomNav.js'
 const queryClient = createQueryClient()
 
 /**
- * MapLibre is most of a megabyte, so the map is its own chunk, fetched the
- * first time the tab opens. A chunk that will not load (offline, or a page
- * from before a deploy asking for a file the new build no longer has) says so
- * with a reload rather than taking the app down.
+ * MapLibre is most of a megabyte, so the map is its own chunk, kept out of the
+ * list's way: `SignedIn` fetches it once the app has settled, so the tab opens
+ * on code already parsed. A chunk that will not load (offline, or a page from
+ * before a deploy asking for a file the new build no longer has) says so with a
+ * reload rather than taking the app down.
  */
+const loadMapScreen = () => import('./routes/MapScreen.js')
+/** Long enough for a cold open's list and scores to go first. */
+const WARM_MAP_AFTER_MS = 3_000
 const MapScreen = lazy(() =>
-  import('./routes/MapScreen.js').then(
+  loadMapScreen().then(
     (m) => ({ default: m.MapScreen }),
     () => ({ default: () => <MapFallback failed /> }),
   ),
@@ -138,6 +142,11 @@ function SignedIn() {
   const { pathname } = useRouterLocation()
   // Asked for once here, so a crag opened later finds its opening tab cached.
   usePreferences()
+  useEffect(() => {
+    // A failure here costs nothing: the tab's own load tries again and says so.
+    const timer = window.setTimeout(() => void loadMapScreen().catch(() => undefined), WARM_MAP_AFTER_MS)
+    return () => window.clearTimeout(timer)
+  }, [])
   const section = sectionFor(pathname)
   return (
     <>

@@ -7,6 +7,7 @@ import {
   Map as MapLibreMap,
   Marker,
   addProtocol,
+  prewarm,
   setWorkerUrl,
   type GeoJSONSource,
   type MapMouseEvent,
@@ -18,13 +19,14 @@ import mlcontour from 'maplibre-contour'
 import { colors, colorsV2, mapPin, motion, radius, spacing } from '@weatherteam6/design/tokens'
 import '../theme/map.css'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, cardV2, headerBand, navBarHeight, row, stack, toneColors, wellV2 } from '../theme/styles.js'
+import { bareButton, cardV2, navBarHeight, row, stack, toneColors, wellV2 } from '../theme/styles.js'
 import { withOpacity } from '../theme/tokens.css.js'
 import { useLocations } from '../hooks/useLocations.js'
 import { alertsQuery, conditionsQuery } from '../hooks/useWeather.js'
 import { useCurrentPosition, type Fix } from '../hooks/useCurrentPosition.js'
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
 import { prefetchDetail } from '../lib/prefetchDetail.js'
+import { getToken, subscribeToToken } from '../lib/authToken.js'
 import { addPathForPoint, formatPoint, type MapPoint } from '../lib/addCandidate.js'
 import { SINGLE_PIN_ZOOM, initialView, mapPins, type MapPin, type MapView } from '../lib/mapPins.js'
 import {
@@ -43,6 +45,20 @@ import { CrossIcon, LocateIcon } from '../components/Icons.js'
 // MapLibre 6 finds its worker beside its own module, which a bundle moves;
 // Vite builds it as a worker and says where it went.
 setWorkerUrl(maplibreWorkerUrl)
+
+// This module loads before the tab is opened (`App.tsx`), so the workers start
+// and the style and tile index reach the browser cache (OpenFreeMap serves both
+// for a day) while the reader is still on the list. A failure only means the
+// map fetches them itself.
+prewarm()
+void fetch(BASEMAP_STYLE_URL)
+  .then((r) => r.json() as Promise<{ sources?: Record<string, { url?: unknown }> }>)
+  .then((style) =>
+    Promise.all(
+      Object.values(style.sources ?? {}).flatMap((s) => (typeof s.url === 'string' ? [fetch(s.url)] : [])),
+    ),
+  )
+  .catch(() => undefined)
 
 /**
  * One terrain source for hillshade and contours, so each DEM tile is fetched
@@ -112,49 +128,37 @@ export function MapScreen() {
   )
   const byId = useMemo(() => new Map(list.map((l) => [l.id, l])), [list])
 
-  const containerRef = useRef<HTMLDivElement>(null)
+  const hostRef = useRef<HTMLDivElement>(null)
+  const chipRef = useRef<HTMLElement>(null)
   const [map, setMap] = useState<MapLibreMap | null>(null)
   const [controlsHeight, setControlsHeight] = useState(0)
 
-  // Framed once, on the first list there is: a later refetch must not pull
-  // the map away from where the reader has moved it.
-  const framed = useRef(false)
   const firstView = locations.data === undefined ? null : initialView(pins)
 
   useEffect(() => {
-    const container = containerRef.current
-    if (container === null) return
-    const created = new MapLibreMap({
-      container,
-      attributionControl: false,
-      dragRotate: false,
-      pitchWithRotate: false,
-      touchPitch: false,
-      maxPitch: 0,
-    })
-    created.touchZoomRotate.disableRotation()
-    created.keyboard.disableRotation()
-    created.setStyle(BASEMAP_STYLE_URL, { transformStyle: (_previous, next) => appMapStyle(next, TERRAIN) })
-    created.addControl(new AttributionControl({ compact: false }), 'bottom-right')
+    const host = hostRef.current
+    if (host === null) return
+    const { map: shown, element } = attachKeptMap(host)
 
     // The controls above sit clear of the attribution, however many lines it wraps to.
-    const corner = container.querySelector('.maplibregl-ctrl-bottom-right')
+    const corner = element.querySelector('.maplibregl-ctrl-bottom-right')
     const observer = new ResizeObserver(() => setControlsHeight(corner?.getBoundingClientRect().height ?? 0))
     if (corner !== null) observer.observe(corner)
 
-    setMap(created)
+    setMap(shown)
     return () => {
       observer.disconnect()
-      created.remove()
+      element.remove()
       setMap(null)
-      framed.current = false
     }
   }, [])
 
   useEffect(() => {
-    if (map === null || framed.current || firstView === null) return
-    framed.current = true
-    frame(map, firstView)
+    if (map === null || firstView === null || !claimFirstFrame()) return
+    // Pins start below the title chip, which sits under the status bar.
+    const chipBottom = chipRef.current?.getBoundingClientRect().bottom ?? 0
+    const top = Math.max(0, chipBottom - map.getContainer().getBoundingClientRect().top)
+    frame(map, firstView, top)
   }, [map, firstView])
 
   const openPin = useCallback((id: string) => void navigate(`/location/${id}`), [navigate])
@@ -205,19 +209,32 @@ export function MapScreen() {
         flexDirection: 'column',
       }}
     >
-      <header style={{ ...headerBand, marginTop: 0 }}>
-        <div style={stack(spacing.tight)}>
-          <h1 style={typeV2.screenTitle}>Map</h1>
+      <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+        <div ref={hostRef} className="wt6-map" style={{ position: 'absolute', inset: 0, ...typeV2.legendSm }} />
+
+        {/* No header band: the map runs up under the status bar, and the title rides in a chip (owner pick, 2026-10-02). */}
+        <header
+          ref={chipRef}
+          style={{
+            ...wellV2,
+            ...row(spacing.listGap),
+            position: 'absolute',
+            top: `calc(env(safe-area-inset-top, 0px) + ${spacing.listGap}px)`,
+            left: `${spacing.sectionGap}px`,
+            maxWidth: `calc(100% - ${spacing.sectionGap * 2}px)`,
+            borderRadius: `${radius.full}px`,
+            padding: `${spacing.tight}px ${spacing.cardPadSm}px`,
+            backgroundColor: withOpacity(colorsV2.surface, 0.92),
+            alignItems: 'baseline',
+          }}
+        >
+          <h1 style={typeV2.controlValue}>Map</h1>
           {locations.isError ? (
             <InlineError message="Couldn't load your locations." onRetry={() => void locations.refetch()} />
           ) : meta === null ? null : (
             <p style={typeV2.meta}>{meta}</p>
           )}
-        </div>
-      </header>
-
-      <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
-        <div ref={containerRef} className="wt6-map" style={{ position: 'absolute', inset: 0, ...typeV2.legendSm }} />
+        </header>
 
         {map === null
           ? null
@@ -321,12 +338,61 @@ const overlayCard: CSSProperties = {
   right: `${spacing.sectionGap}px`,
 }
 
-function frame(map: MapLibreMap, view: MapView): void {
+/**
+ * **The map outlives the tab.** Building one costs a worker, the style and
+ * every tile in view, so the first visit builds it and later visits re-attach
+ * the same element: a return to the tab shows the map as it was left, where
+ * the reader left it. Framing happens once, on the first list there is.
+ */
+let kept: { map: MapLibreMap; element: HTMLDivElement; framed: boolean } | null = null
+
+// Signed out: the next person must not open on this one's view or position.
+subscribeToToken(() => {
+  if (getToken() !== null || kept === null) return
+  kept.map.remove()
+  kept.element.remove()
+  kept = null
+})
+
+function attachKeptMap(host: HTMLDivElement): { map: MapLibreMap; element: HTMLDivElement } {
+  if (kept !== null) {
+    host.appendChild(kept.element)
+    kept.map.resize()
+    return kept
+  }
+  const element = document.createElement('div')
+  Object.assign(element.style, { position: 'absolute', inset: '0' } satisfies Partial<CSSStyleDeclaration>)
+  host.appendChild(element)
+  const map = new MapLibreMap({
+    container: element,
+    attributionControl: false,
+    dragRotate: false,
+    pitchWithRotate: false,
+    touchPitch: false,
+    maxPitch: 0,
+  })
+  map.touchZoomRotate.disableRotation()
+  map.keyboard.disableRotation()
+  map.setStyle(BASEMAP_STYLE_URL, { transformStyle: (_previous, next) => appMapStyle(next, TERRAIN) })
+  map.addControl(new AttributionControl({ compact: false }), 'bottom-right')
+  kept = { map, element, framed: false }
+  return kept
+}
+
+/** True once per kept map: the first list frames it, and nothing after moves it. */
+function claimFirstFrame(): boolean {
+  if (kept === null || kept.framed) return false
+  kept.framed = true
+  return true
+}
+
+function frame(map: MapLibreMap, view: MapView, top: number): void {
   if (view.kind === 'centre') {
     map.jumpTo({ center: view.centre, zoom: view.zoom })
     return
   }
-  map.fitBounds(view.bounds, { padding: FIT_PADDING, maxZoom: SINGLE_PIN_ZOOM, animate: false })
+  const padding = { ...FIT_PADDING, top: top + FIT_PADDING.top }
+  map.fitBounds(view.bounds, { padding, maxZoom: SINGLE_PIN_ZOOM, animate: false })
 }
 
 /**
