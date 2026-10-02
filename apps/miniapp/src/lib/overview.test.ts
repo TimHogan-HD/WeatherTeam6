@@ -17,7 +17,7 @@ import {
   nextLikelyRain,
   shortDate,
   shortDay,
-  todayChart,
+  chartWindow,
 } from './overview.js'
 import { precipDays, precipSummary } from './precipHistory.js'
 
@@ -46,71 +46,109 @@ const series = (hours: HourlySample[], readingHours: HourlyReading[] = []): Hour
     readings: { model: 'gfs_seamless', unavailable_reason: null, hours: readingHours, days: [] },
   }) as unknown as HourlySeries
 
-describe('todayChart', () => {
-  // 06:00 local is 11:00Z; 21:00 local is 02:00Z the next UTC day but the same local day.
-  const hours = [
-    sample('2026-09-28T10:00:00Z', '2026-09-28'), // 05 local, before the chart
-    sample('2026-09-28T11:00:00Z', '2026-09-28', { temp_c: 12, dewpoint_c: 10, wind_kmh: 8, precip_chance_pct: 20 }), // 06
-    sample('2026-09-28T17:00:00Z', '2026-09-28', { temp_c: null, precip_chance_pct: null }), // 12
-    sample('2026-09-29T02:00:00Z', '2026-09-28', { temp_c: 13 }), // 21, next UTC date
-    sample('2026-09-29T04:00:00Z', '2026-09-28'), // 23, after the chart
-    sample('2026-09-29T11:00:00Z', '2026-09-29'), // tomorrow 06
-  ]
+describe('chartWindow', () => {
+  const H = 3_600_000
+  // Local midnight on 9/28 is 05:00Z. The series starts there, as the API's does, and runs two days.
+  const start = Date.parse('2026-09-28T05:00:00Z')
+  const hours = Array.from({ length: 48 }, (_, i) =>
+    sample(new Date(start + i * H).toISOString(), i < 24 ? '2026-09-28' : '2026-09-29'),
+  )
+  /** The `valid_at` of a local hour on 9/28; past 23 runs into 9/29. */
+  const local = (hour: number) => new Date(start + hour * H).toISOString()
   const alerts = { severeAlertEvent: null, alertsPending: false }
 
-  it('draws 06:00 to 22:00 on the location clock, across the UTC date line', () => {
-    const out = todayChart(series(hours), '2026-09-28', null)
-    expect(out.map((h) => h.hour)).toEqual([6, 12, 21])
-    expect(out[0]?.valid_at).toBe('2026-09-28T11:00:00Z')
+  it('runs six hours back and ten ahead of the hour now is in, across midnight', () => {
+    // 20:40 local: the evening the old 06:00-22:00 chart had nothing left to say about.
+    const w = chartWindow(series(hours), Date.parse(local(20)) + 40 * 60_000, null)
+    expect(w?.hours.map((h) => h.hour)).toEqual([14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6])
+    expect(w?.hours.at(-1)?.local_date).toBe('2026-09-29')
+    expect(w?.fromMs).toBe(Date.parse(local(14)))
+    expect(w?.toMs).toBe(Date.parse(local(30)))
+  })
+
+  it('starts at the first hour the series has just after midnight, and keeps its span', () => {
+    const w = chartWindow(series(hours), Date.parse(local(1)) + 30 * 60_000, null)
+    expect(w?.fromMs).toBe(start)
+    expect(w?.hours.map((h) => h.hour)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])
+  })
+
+  it('moves with the clock', () => {
+    const at = (hour: number) => chartWindow(series(hours), Date.parse(local(hour)), null)?.hours[0]?.hour
+    expect([at(12), at(13), at(19)]).toEqual([6, 7, 13])
   })
 
   it('keeps every figure it was given, and a missing one as null rather than 0', () => {
-    const [six, noon] = todayChart(series(hours), '2026-09-28', null)
-    expect(six).toMatchObject({ tempC: 12, dewC: 10, windKmh: 8, chancePct: 20 })
-    expect(noon?.tempC).toBeNull()
-    expect(noon?.chancePct).toBeNull()
+    const given = [
+      sample(local(10), '2026-09-28', { temp_c: 12, dewpoint_c: 10, wind_kmh: 8, precip_chance_pct: 20 }),
+      sample(local(11), '2026-09-28', { temp_c: null, precip_chance_pct: null }),
+    ]
+    const [ten, eleven] = chartWindow(series(given), Date.parse(local(11)), null)?.hours ?? []
+    expect(ten).toMatchObject({ tempC: 12, dewC: 10, windKmh: 8, chancePct: 20 })
+    expect(eleven?.tempC).toBeNull()
+    expect(eleven?.chancePct).toBeNull()
   })
 
   it('joins scores by instant, and scores nothing for a city', () => {
-    // Listed out of order: a positional join would give 06:00 the score of 21:00.
-    const rs = [reading('2026-09-29T02:00:00Z', { score: 52 }), reading('2026-09-28T11:00:00Z', { score: 8 })]
-    const scored = todayChart(series(hours, rs), '2026-09-28', alerts)
-    expect(scored.map((h) => h.score)).toEqual([8, null, 52])
-    expect(todayChart(series(hours, rs), '2026-09-28', null).every((h) => h.score === null)).toBe(true)
+    // Listed out of order: a positional join would swap them.
+    const rs = [reading(local(21), { score: 52 }), reading(local(15), { score: 8 })]
+    const now = Date.parse(local(18))
+    const scored = chartWindow(series(hours, rs), now, alerts)?.hours ?? []
+    expect(scored.find((h) => h.valid_at === local(15))?.score).toBe(8)
+    expect(scored.find((h) => h.valid_at === local(21))?.score).toBe(52)
+    expect(scored.filter((h) => h.score !== null)).toHaveLength(2)
+    expect(chartWindow(series(hours, rs), now, null)?.hours.every((h) => h.score === null)).toBe(true)
   })
 
   it('withholds every score under a Severe+ alert and while alerts load', () => {
-    const rs = [reading('2026-09-28T11:00:00Z', { score: 80 })]
-    const severe = todayChart(series(hours, rs), '2026-09-28', { severeAlertEvent: 'Extreme Heat Warning', alertsPending: false })
-    expect(severe.every((h) => h.score === null)).toBe(true)
-    const pending = todayChart(series(hours, rs), '2026-09-28', { severeAlertEvent: null, alertsPending: true })
-    expect(pending.every((h) => h.score === null)).toBe(true)
+    const rs = [reading(local(15), { score: 80 })]
+    const now = Date.parse(local(15))
+    const severe = chartWindow(series(hours, rs), now, { severeAlertEvent: 'Extreme Heat Warning', alertsPending: false })
+    expect(severe?.hours.every((h) => h.score === null)).toBe(true)
+    const pending = chartWindow(series(hours, rs), now, { severeAlertEvent: null, alertsPending: true })
+    expect(pending?.hours.every((h) => h.score === null)).toBe(true)
   })
 
   it('tolerates a response from an API older than the readings field', () => {
     const old = { utc_offset_seconds: OFFSET, hours } as unknown as HourlySeries
-    expect(todayChart(old, '2026-09-28', alerts).every((h) => h.score === null)).toBe(true)
+    expect(chartWindow(old, Date.parse(local(15)), alerts)?.hours.every((h) => h.score === null)).toBe(true)
+  })
+
+  it('has no window for a series with no hours', () => {
+    expect(chartWindow(series([]), Date.parse(local(15)), null)).toBeNull()
   })
 })
 
 describe('chartHourAt', () => {
-  const at = (hour: number) => ({ valid_at: String(hour), hour, tempC: null, dewC: null, chancePct: null, windKmh: null, score: null })
+  const H = 3_600_000
+  const base = Date.parse('2026-09-28T05:00:00Z')
+  const at = (hour: number) => ({
+    valid_at: String(hour),
+    ms: base + hour * H,
+    hour,
+    local_date: '2026-09-28',
+    tempC: null,
+    dewC: null,
+    chancePct: null,
+    windKmh: null,
+    score: null,
+  })
+  const t = (hour: number) => base + hour * H
   // 13:00 is missing from the run.
   const hours = [at(6), at(7), at(12), at(14), at(22)]
 
   it('selects the hour covering the moment, not the nearest mark', () => {
-    expect(chartHourAt(hours, 14.9)?.hour).toBe(14)
-    expect(chartHourAt(hours, 7.2)?.hour).toBe(7)
+    expect(chartHourAt(hours, t(14.9))?.hour).toBe(14)
+    expect(chartHourAt(hours, t(7.2))?.hour).toBe(7)
   })
 
   it('steps past a missing hour to the nearest one carried, and clamps at the ends', () => {
-    expect(chartHourAt(hours, 13.5)?.hour).toBe(12)
-    expect(chartHourAt(hours, 3)?.hour).toBe(6)
-    expect(chartHourAt(hours, 23.5)?.hour).toBe(22)
+    expect(chartHourAt(hours, t(13.5))?.hour).toBe(12)
+    expect(chartHourAt(hours, t(3))?.hour).toBe(6)
+    expect(chartHourAt(hours, t(23.5))?.hour).toBe(22)
   })
 
   it('has nothing to select on an empty chart', () => {
-    expect(chartHourAt([], 12)).toBeNull()
+    expect(chartHourAt([], t(12))).toBeNull()
   })
 })
 

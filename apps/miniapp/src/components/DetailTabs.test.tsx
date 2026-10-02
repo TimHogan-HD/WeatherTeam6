@@ -431,10 +431,19 @@ describe('DetailView — the Overview tab', () => {
     return html
   }
 
-  /** The Today section's markup alone, so a figure the hero also carries cannot satisfy it. */
-  const todaySection = (html: string) => html.slice(html.indexOf('>Today<'), html.indexOf('</section>', html.indexOf('>Today<')))
+  /**
+   * The chart section's markup alone, so a figure the hero also carries cannot
+   * satisfy it. Throws when the title is missing: an empty slice made every
+   * `not.toContain` here pass vacuously.
+   */
+  const todaySection = (html: string) => {
+    const start = html.indexOf('>Around now<')
+    if (start < 0) throw new Error('no "Around now" section')
+    return html.slice(start, html.indexOf('</section>', start))
+  }
 
-  it('draws today as a chart, the line coloured by the hour’s score', () => {
+  // Now is 07:00 local, so the window runs 01:00-17:00: both scored hours, 09:00 and 12:00, are in it.
+  it('draws the hours around now as a chart, the line coloured by the hour’s score', () => {
     const today = todaySection(overview())
     expect(today).toContain('>9a<')
     expect(today).toContain('>12p<')

@@ -4,11 +4,12 @@ import { EM_DASH, cToF, formatHumidity, formatWindMph, readingNow } from '@weath
 import { typeV2, withOpacity } from '../../theme/tokens.css.js'
 import { row, stack } from '../../theme/styles.js'
 import { formatTempDeg } from '../../lib/format.js'
-import { TODAY_CHART_FROM, TODAY_CHART_TO, chartHourAt, type ChartHour } from '../../lib/overview.js'
+import { CHART_SPAN_HOURS, chartHourAt, shortDay, type ChartHour, type ChartWindow } from '../../lib/overview.js'
 import { BAR_MIN_H, BAR_RADIUS, chartColorsV2, scoreRampColor } from './chartStyle.js'
 
 /**
- * Today, 06:00 to 22:00, as one chart: the air temperature as a line coloured
+ * The hours around now as one chart — six back, ten ahead, moving with the
+ * clock (`chartWindow`): the air temperature as a line coloured
  * by the hour's score on the continuous `scoreScale`, the dew point dashed on
  * the same °F scale (where the two lines meet, the rock condenses), and rain
  * chance as bars on their own 0-100% scale. Owner's pick, 2026-09-30.
@@ -37,9 +38,14 @@ const DEFAULT_WIDTH = 360
 /** Rain bars take the bottom of the plot. */
 const RAIN_SHARE = 0.32
 
-const LABEL_HOURS = [9, 12, 15, 18, 21] as const
+/** A label every three hours on the location clock. */
+const LABEL_EVERY = 3
+/** No label this close to the left edge, where it would sit on "Score". */
+const LABEL_CLEAR_LEFT_H = 1.5
+const HOUR_MS = 3_600_000
 
 function clock(hour: number): string {
+  if (hour === 0) return '12a'
   if (hour === 12) return '12p'
   return hour > 12 ? `${hour - 12}p` : `${hour}a`
 }
@@ -47,12 +53,6 @@ function clock(hour: number): string {
 /** `3pm`, `12pm`, `9am`. */
 function clockLong(hour: number): string {
   return `${clock(hour)}m`
-}
-
-/** The location-clock hour of `nowMs`, fractional. */
-function nowHour(nowMs: number, utcOffsetSeconds: number): number {
-  const d = new Date(nowMs + utcOffsetSeconds * 1000)
-  return d.getUTCHours() + d.getUTCMinutes() / 60
 }
 
 function useSize(): [RefObject<HTMLDivElement | null>, { w: number; h: number }] {
@@ -101,10 +101,11 @@ function Field({ label, value, color, swatch }: { label: string; value: string; 
  * Wind is here as a figure and nowhere on the plot: drawn, it needed a scale
  * of its own and crossed everything else (owner, 2026-09-30).
  */
-function Readout({ hour, isNow }: { hour: ChartHour; isNow: boolean }) {
+function Readout({ hour, isNow, todayDate }: { hour: ChartHour; isNow: boolean; todayDate: string }) {
+  const when = hour.local_date === todayDate ? clockLong(hour.hour) : `${shortDay(hour.local_date, todayDate)} ${clockLong(hour.hour)}`
   return (
     <div aria-live="polite" style={{ ...row(spacing.cellPad), flexWrap: 'wrap', rowGap: `${spacing.micro}px` }}>
-      <span style={{ ...typeV2.rowTitle, fontSize: '13px', whiteSpace: 'nowrap' }}>{isNow ? 'Now' : clockLong(hour.hour)}</span>
+      <span style={{ ...typeV2.rowTitle, fontSize: '13px', whiteSpace: 'nowrap' }}>{isNow ? 'Now' : when}</span>
       <Field label="Temp" value={formatTempDeg(hour.tempC)} />
       <Field label="Dew" value={formatTempDeg(hour.dewC)} swatch="dew" />
       <Field label="Rain" value={formatChance(hour.chancePct)} swatch="rain" />
@@ -119,22 +120,23 @@ function formatChance(pct: number | null): string {
 }
 
 export function TodayChart({
-  hours,
+  window: { fromMs, toMs, hours },
   nowMs,
-  utcOffsetSeconds,
+  todayDate,
   fill,
 }: {
-  hours: readonly ChartHour[]
+  window: ChartWindow
   nowMs: number
-  utcOffsetSeconds: number
+  /** The location's today, so the midnight tick can name the day it starts. */
+  todayDate: string
   /** Grow to take the Overview's spare height. */
   fill: boolean
 }) {
   const [ref, { w, h }] = useSize()
-  // The hour the reader picked, on the location's clock. `null` follows now.
+  // The instant the reader picked, epoch ms. `null` follows now.
   const [picked, setPicked] = useState<number | null>(null)
 
-  const x = (hour: number) => PAD_X + ((hour - TODAY_CHART_FROM) / (TODAY_CHART_TO - TODAY_CHART_FROM)) * (w - 2 * PAD_X)
+  const x = (ms: number) => PAD_X + ((ms - fromMs) / (toMs - fromMs)) * (w - 2 * PAD_X)
   const base = h - PAD_BOTTOM
   const plotH = base - PAD_TOP
   const rainH = plotH * RAIN_SHARE
@@ -149,26 +151,27 @@ export function TodayChart({
   const scored = hours.some((p) => p.score !== null)
   const lineColor = (p: ChartHour) => (p.score === null ? colorsV2.txt2 : scoreRampColor(p.score))
 
-  const now = nowHour(nowMs, utcOffsetSeconds)
-  const nowX = now >= TODAY_CHART_FROM && now <= TODAY_CHART_TO ? x(now) : null
-  const pastX = now > TODAY_CHART_TO ? w - PAD_X : nowX
+  // The window is built around now, but a render can land just past its end
+  // while the clock ticks; the marker is drawn only inside it.
+  const nowX = nowMs >= fromMs && nowMs <= toMs ? x(nowMs) : null
+  const pastX = nowMs > toMs ? w - PAD_X : nowX
 
   // "Now" is `readingNow`'s hour, the one the hero above prints, so the two
   // cannot show different figures for the same moment.
   const nowCell = readingNow(hours, nowMs)
-  const selected = picked === null ? (nowCell ?? chartHourAt(hours, now)) : chartHourAt(hours, picked)
-  const isNow = selected !== null && nowCell !== null && selected.hour === nowCell.hour && nowX !== null
-  /** The chart hour under a clientX, from the element's own box. */
-  const hourAtClient = (clientX: number, box: DOMRect): number =>
-    TODAY_CHART_FROM + ((clientX - box.left - PAD_X) / Math.max(1, box.width - 2 * PAD_X)) * (TODAY_CHART_TO - TODAY_CHART_FROM) + 0.5
+  const selected = picked === null ? (nowCell ?? chartHourAt(hours, nowMs)) : chartHourAt(hours, picked)
+  const isNow = selected !== null && nowCell !== null && selected.ms === nowCell.ms && nowX !== null
+  /** The instant under a clientX, from the element's own box, nudged half an hour so a tap picks the mark it is nearest. */
+  const msAtClient = (clientX: number, box: DOMRect): number =>
+    fromMs + ((clientX - box.left - PAD_X) / Math.max(1, box.width - 2 * PAD_X)) * (toMs - fromMs) + HOUR_MS / 2
   const step = (dir: -1 | 1) => {
     if (selected === null) return
     const i = hours.indexOf(selected)
     const next = hours[i + dir]
-    if (next !== undefined) setPicked(next.hour)
+    if (next !== undefined) setPicked(next.ms)
   }
 
-  const barW = Math.max(5, ((w - 2 * PAD_X) / (TODAY_CHART_TO - TODAY_CHART_FROM)) * 0.55)
+  const barW = Math.max(5, ((w - 2 * PAD_X) / CHART_SPAN_HOURS) * 0.55)
   const barH = (pct: number) => Math.max(BAR_MIN_H, (pct / 100) * rainH)
   const peak = hours.reduce<ChartHour | null>(
     (best, p) => (p.chancePct !== null && (best === null || p.chancePct > (best.chancePct ?? -1)) ? p : best),
@@ -177,8 +180,8 @@ export function TodayChart({
 
   const segments = hours.slice(0, -1).flatMap((p, i) => {
     const q = hours[i + 1]
-    if (q === undefined || p.tempC === null || q.tempC === null || q.hour - p.hour !== 1) return []
-    return [{ key: p.valid_at, x1: x(p.hour), y1: y(p.tempC), x2: x(q.hour), y2: y(q.tempC), color: lineColor(p) }]
+    if (q === undefined || p.tempC === null || q.tempC === null || q.ms - p.ms !== HOUR_MS) return []
+    return [{ key: p.valid_at, x1: x(p.ms), y1: y(p.tempC), x2: x(q.ms), y2: y(q.tempC), color: lineColor(p) }]
   })
 
   let dew = ''
@@ -188,14 +191,16 @@ export function TodayChart({
       open = false
       continue
     }
-    dew += `${open ? 'L' : 'M'}${x(p.hour).toFixed(1)} ${y(p.dewC).toFixed(1)} `
+    dew += `${open ? 'L' : 'M'}${x(p.ms).toFixed(1)} ${y(p.dewC).toFixed(1)} `
     open = true
   }
+
+  const labelled = hours.filter((p) => p.hour % LABEL_EVERY === 0 && p.ms - fromMs >= LABEL_CLEAR_LEFT_H * HOUR_MS)
 
   const tempF = hours.map((p) => p.tempC).filter((v): v is number => v !== null).map((c) => Math.round(cToF(c)))
   const bestScore = hours.reduce<ChartHour | null>((b, p) => (p.score !== null && (b === null || p.score > (b.score ?? -1)) ? p : b), null)
   const label = [
-    `Today ${clock(TODAY_CHART_FROM)} to ${clock(TODAY_CHART_TO)}`,
+    `${clock(hours[0]?.hour ?? 0)} to ${clock(hours[hours.length - 1]?.hour ?? 0)}`,
     tempF.length === 0 ? null : `temperature ${Math.min(...tempF)}° to ${Math.max(...tempF)}°F`,
     bestScore?.score == null ? null : `score highest ${bestScore.score} at ${clock(bestScore.hour)}`,
     peak?.chancePct != null ? `rain chance up to ${formatHumidity(peak.chancePct)}` : null,
@@ -207,7 +212,7 @@ export function TodayChart({
 
   return (
     <div style={{ ...stack(spacing.listGap), ...(fill ? { flex: '1 1 auto' } : {}) }}>
-    {selected === null ? null : <Readout hour={selected} isNow={isNow} />}
+    {selected === null ? null : <Readout hour={selected} isNow={isNow} todayDate={todayDate} />}
     {/*
       The svg is out of flow: the box's height must come from the layout
       alone. In flow, the svg drawn at the last measured height held the box
@@ -222,9 +227,9 @@ export function TodayChart({
     <div
       ref={ref}
       tabIndex={0}
-      aria-label="Today by the hour. Left and right arrows pick an hour."
-      onPointerDown={(e) => setPicked(hourAtClient(e.clientX, e.currentTarget.getBoundingClientRect()))}
-      onPointerMove={(e) => setPicked(hourAtClient(e.clientX, e.currentTarget.getBoundingClientRect()))}
+      aria-label="The hours around now. Left and right arrows pick an hour."
+      onPointerDown={(e) => setPicked(msAtClient(e.clientX, e.currentTarget.getBoundingClientRect()))}
+      onPointerMove={(e) => setPicked(msAtClient(e.clientX, e.currentTarget.getBoundingClientRect()))}
       onPointerLeave={(e) => {
         if (e.pointerType === 'mouse') setPicked(null)
       }}
@@ -260,7 +265,7 @@ export function TodayChart({
           p.chancePct === null ? null : (
             <rect
               key={`r${p.valid_at}`}
-              x={x(p.hour) - barW / 2}
+              x={x(p.ms) - barW / 2}
               y={base - barH(p.chancePct)}
               width={barW}
               height={barH(p.chancePct)}
@@ -279,7 +284,7 @@ export function TodayChart({
         {/* Over the lines, with a halo in the card colour, so a line behind it cannot strike through it. */}
         {peak?.chancePct != null && peak.chancePct >= 10 ? (
           <text
-            x={x(peak.hour)}
+            x={x(peak.ms)}
             y={base - barH(peak.chancePct) - 5}
             textAnchor="middle"
             fill={chartColorsV2.rain}
@@ -306,26 +311,24 @@ export function TodayChart({
           </>
         )}
 
-        {LABEL_HOURS.map((hr) => {
-          const p = hours.find((q) => q.hour === hr)
-          return (
-            <g key={hr}>
-              {p?.tempC == null ? null : (
-                <text x={x(hr)} y={y(p.tempC) - 10} textAnchor="middle" fill={colorsV2.txt1} fontFamily={mono} fontSize={14} fontWeight={500}>
-                  {Math.round(cToF(p.tempC))}°
-                </text>
-              )}
-              <text x={x(hr)} y={base + 15} textAnchor="middle" fill={colorsV2.txtMuted} fontFamily={mono} fontSize={11}>
-                {clock(hr)}
+        {labelled.map((p) => (
+          <g key={p.valid_at}>
+            {p.tempC === null ? null : (
+              <text x={x(p.ms)} y={y(p.tempC) - 10} textAnchor="middle" fill={colorsV2.txt1} fontFamily={mono} fontSize={14} fontWeight={500}>
+                {Math.round(cToF(p.tempC))}°
               </text>
-              {p?.score == null ? null : (
-                <text x={x(hr)} y={base + 31} textAnchor="middle" fill={scoreRampColor(p.score)} fontFamily={mono} fontSize={12} fontWeight={500}>
-                  {p.score}
-                </text>
-              )}
-            </g>
-          )
-        })}
+            )}
+            {/* Midnight names the day it starts, so the hours past it read as tomorrow's. */}
+            <text x={x(p.ms)} y={base + 15} textAnchor="middle" fill={p.hour === 0 ? colorsV2.txt2 : colorsV2.txtMuted} fontFamily={mono} fontSize={11}>
+              {p.hour === 0 ? shortDay(p.local_date, todayDate) : clock(p.hour)}
+            </text>
+            {p.score === null ? null : (
+              <text x={x(p.ms)} y={base + 31} textAnchor="middle" fill={scoreRampColor(p.score)} fontFamily={mono} fontSize={12} fontWeight={500}>
+                {p.score}
+              </text>
+            )}
+          </g>
+        ))}
         {/*
           The row that says what the line's colour is: the scores, in the
           line's own colours, named once at its start. No legend sentence.
@@ -339,12 +342,12 @@ export function TodayChart({
         {/* The picked hour: a rule through it, and a dot on each line. */}
         {selected === null ? null : (
           <g>
-            <line x1={x(selected.hour)} y1={PAD_TOP - 4} x2={x(selected.hour)} y2={base} stroke={withOpacity(colorsV2.txt1, 0.45)} strokeWidth={1.5} />
+            <line x1={x(selected.ms)} y1={PAD_TOP - 4} x2={x(selected.ms)} y2={base} stroke={withOpacity(colorsV2.txt1, 0.45)} strokeWidth={1.5} />
             {selected.dewC === null ? null : (
-              <circle cx={x(selected.hour)} cy={y(selected.dewC)} r={3.5} fill={chartColorsV2.dewPoint} stroke={colorsV2.card} strokeWidth={2} />
+              <circle cx={x(selected.ms)} cy={y(selected.dewC)} r={3.5} fill={chartColorsV2.dewPoint} stroke={colorsV2.card} strokeWidth={2} />
             )}
             {selected.tempC === null ? null : (
-              <circle cx={x(selected.hour)} cy={y(selected.tempC)} r={5} fill={lineColor(selected)} stroke={colorsV2.card} strokeWidth={2} />
+              <circle cx={x(selected.ms)} cy={y(selected.tempC)} r={5} fill={lineColor(selected)} stroke={colorsV2.card} strokeWidth={2} />
             )}
           </g>
         )}
