@@ -29,6 +29,7 @@ npm run user:add            # create or reset an account — the only way one ex
 npm run check:auth          # token auth, including the cross-user denial
 npm run check:add-location  # acceptance check for the add-location flow
 npm run check:delete-trip   # DELETE /trips/:tripId and its FK cascade
+npm run check:record-trips  # the trip recorder's upsert, its cascade, and GET /trips/:tripId/forecast
 npm run check:logbook       # ticks, to-dos and shared boulder positions, including cross-user denial
 npm run check:preferences   # GET/PUT /preferences: upsert, refusals, accounts kept apart
 npm run check:conditions    # GET /conditions composition — the strongest check here
