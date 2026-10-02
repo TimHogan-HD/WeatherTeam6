@@ -437,8 +437,9 @@ describe('DetailView — the Overview tab', () => {
    * `not.toContain` here pass vacuously.
    */
   const todaySection = (html: string) => {
-    const start = html.indexOf('>Around now<')
-    if (start < 0) throw new Error('no "Around now" section')
+    // The h2, not the detail tab of the same name.
+    const start = html.search(/<h2[^>]*>Hourly</)
+    if (start < 0) throw new Error('no "Hourly" section')
     return html.slice(start, html.indexOf('</section>', start))
   }
 
@@ -472,7 +473,7 @@ describe('DetailView — the Overview tab', () => {
 
   it('names the next likely rain from the ensemble’s wet share', () => {
     const html = overview()
-    expect(html).toContain('Next likely rain')
+    expect(html).toContain('Next rain')
     expect(html).toContain('Tue 9/15 · 64%')
   })
 
@@ -542,14 +543,14 @@ describe('DetailView — Precip tab', () => {
     // The readout opens on Today 06:00, which the model read as drying.
     expect(html).toMatch(/Dryness<\/span><span[^>]*>Drying</)
     // A cell names its rock state to a screen reader; a gap says so.
-    expect(html).toContain('aria-label="Sun 18:00–19:00: Precip 0.18 in, Type Rain, Real rain Yes, Dryness Wet"')
-    expect(html).toContain('aria-label="Sun 17:00–18:00: Precip No estimate for this hour, Dryness No reading"')
+    expect(html).toContain('aria-label="Sun 6pm–7pm: Precip 0.18 in, Type Rain, Resets drying Yes, Dryness Wet"')
+    expect(html).toContain('aria-label="Sun 5pm–6pm: Precip No data, Dryness No reading"')
     // The strip and its key.
     expect(html).toContain('>Rock<')
     expect(html).toContain('Rain so far')
     expect(html).toMatch(/>Dry<\/span>.*>Drying<\/span>.*>Wet<\/span>/)
-    // Sun 20:00 is unqualified, so the tab says once that aspect is unrecorded.
-    expect(html).toContain('Aspect unrecorded — sunlit hours lean warm.')
+    // Sun 20:00 is unqualified, so the tab says once that the wall direction is not set.
+    expect(html).toContain('Wall direction not set, so sunny hours may read warm.')
   })
 
   it('draws no rock for a city, or before /hourly carries the history', () => {
@@ -558,7 +559,7 @@ describe('DetailView — Precip tab', () => {
       // No Dryness field in the readout or on any cell (the caveat may still name Dryness).
       expect(html).not.toMatch(/Dryness<\/span>/)
       expect(html).not.toContain(', Dryness ')
-      expect(html).not.toContain('Aspect unrecorded')
+      expect(html).not.toContain('Wall direction not set')
     }
   })
 
@@ -568,17 +569,17 @@ describe('DetailView — Precip tab', () => {
     expect(grid.indexOf('>Today<')).toBeLessThan(grid.indexOf('>Sun<'))
   })
 
-  it('leads with the hours since the last real rain, the week total and wet hours', () => {
+  it('leads with the hours since the last rain, the week total and hours with rain', () => {
     const html = renderPrecip(recent)
-    expect(html).toContain('Last real rain ended')
+    expect(html).toContain('Last rain<')
     // 2026-09-13T19:00 → 09:30 two days later.
     expect(html).toContain('>38<')
     expect(html).toContain('hours ago')
-    expect(html).toContain('Sun 19:00 · that storm left 0.18 in over 1 h')
+    expect(html).toContain('Sun 7pm · 0.18 in over 1 h')
     expect(html).toContain('This week')
     expect(html).toContain('0.19 in')
-    expect(html).toContain('Wet this week')
-    expect(html).toContain('2 h')
+    expect(html).toContain('Hours with rain')
+    expect(html).toMatch(/Hours with rain<\/span><span[^>]*>2</)
   })
 
   it('draws the running total with each real storm, the flat run since, and a gap dashed', () => {
@@ -586,7 +587,7 @@ describe('DetailView — Precip tab', () => {
     expect(html).toContain('Running total')
     expect(html).toContain('aria-label="Running total 0.19 in over 3 days, flat for the last 38 hours"')
     expect(html).toContain('+0.18 in')
-    expect(html).toContain('no real rain · 38 h')
+    expect(html).toContain('no rain · 38 h')
     // 2026-09-14 is missing from the response: bridged dashed, never a solid flat line.
     expect(html).toContain('stroke-dasharray="3 3"')
   })
@@ -596,7 +597,7 @@ describe('DetailView — Precip tab', () => {
     // Today is 2026-09-15: its 06:00 shower and a dry 09:00.
     expect(html).toContain('>Today<')
     expect(html).toContain('>trace<')
-    expect(html).toContain('1 wet hour<')
+    expect(html).toContain('1 hour with rain<')
     // A window that ends before today has no today to total: a dash, never 0 in.
     const yesterday = { ...recent, hours: recent.hours.filter((h) => h.valid_at_local < '2026-09-15') }
     expect(renderPrecip(yesterday)).toContain('no hours yet')
@@ -608,16 +609,15 @@ describe('DetailView — Precip tab', () => {
       hours: [...recent.hours.slice(0, 3), { valid_at_local: '2026-09-15T09:00', precip_mm: 1.2, rain_mm: 1.2, snowfall_cm: 0 }],
     }
     const html = renderPrecip(raining)
-    expect(html).toContain('Real rain in the latest hour')
-    expect(html).toContain('>Now<')
-    expect(html).toContain('this storm so far')
+    expect(html).toContain('Raining now')
+    expect(html).toContain('so far, over')
     expect(html).not.toContain('hours ago')
-    expect(html).not.toContain('Last real rain ended')
+    expect(html).not.toContain('Last rain<')
   })
 
   it('names a lighter shower since without letting it reset the headline', () => {
     const html = renderPrecip(recent)
-    expect(html).toContain('Lighter showers since (trace, last ending today 06:00)')
+    expect(html).toContain('Light showers since: trace, last today 6am')
   })
 
   it('draws every hour as a tappable table, a skipped day as a gap, never a dry 0', () => {
@@ -626,36 +626,36 @@ describe('DetailView — Precip tab', () => {
     // One button per hour: 3 days × 24.
     expect(html.match(/<button[^>]*data-cell=/g)).toHaveLength(72)
     // Sun 19:00 carried the storm; its cell says so to a screen reader.
-    expect(html).toContain('aria-label="Sun 18:00–19:00: Precip 0.18 in, Type Rain, Real rain Yes"')
+    expect(html).toContain('aria-label="Sun 6pm–7pm: Precip 0.18 in, Type Rain, Resets drying Yes"')
     // Monday is missing from the response: every hour says so, and its total is a dash.
-    expect(html).toContain('aria-label="Mon 12:00–13:00: Precip No estimate for this hour"')
+    expect(html).toContain('aria-label="Mon 12pm–1pm: Precip No data"')
     expect(html).toContain('>—<')
     // Stamp 00:00 closes the previous day's last hour, so both days are named.
-    expect(html).toContain('aria-label="Sun 23:00–Mon 00:00: Precip No estimate for this hour"')
-    expect(html).toContain('Model estimates, not gauge readings.')
+    expect(html).toContain('aria-label="Sun 11pm–Mon 12am: Precip No data"')
     expect(html).toContain('Open-Meteo past hours')
     // An API that did not say which models it drew names none.
-    expect(html).not.toContain('Median of')
+    expect(html).not.toContain('forecasts.')
   })
 
   it('opens the readout on the most recent wet hour, with what it carried', () => {
     const html = renderPrecip(recent)
     // Today 06:00's shower is the newest wet hour.
-    expect(html).toContain('Today 05:00–06:00')
-    expect(html).toContain('aria-pressed="true" aria-label="Today 05:00–06:00')
-    expect(html).toMatch(/Real rain<\/span><span[^>]*>No</)
+    expect(html).toContain('Today 5am–6am')
+    expect(html).toContain('aria-pressed="true" aria-label="Today 5am–6am')
+    expect(html).toMatch(/Resets drying<\/span><span[^>]*>No</)
     expect(html).toMatch(/Week so far<\/span><span[^>]*>0\.19 in</)
   })
 
-  it('names the models whose median it drew, and ties the threshold to Dryness only at a crag', () => {
+  it('names the models it drew, and ties the threshold to drying only at a crag', () => {
     const withModels = { ...recent, models: ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless', 'gem_seamless'] }
     const crag = renderPrecip(withModels)
-    expect(crag).toContain('Median of GFS, ECMWF, ICON and GEM. Model estimates, not gauge readings.')
-    expect(crag).toContain('the amount that restarts Dryness.')
+    expect(crag).toContain('From GFS, ECMWF, ICON and GEM forecasts.')
+    expect(crag).toContain('lighter showers don’t reset drying')
     const city = renderPrecip(withModels, false)
-    expect(city).toContain('Median of GFS, ECMWF, ICON and GEM.')
+    expect(city).toContain('From GFS, ECMWF, ICON and GEM forecasts.')
     expect(city).not.toContain('Dryness')
-    expect(city).not.toContain('Inspect rock')
+    expect(city).not.toContain('reset drying')
+    expect(city).not.toContain('Check the rock')
   })
 
   it('calls unknown precipitation precipitation, never rain', () => {
@@ -664,15 +664,18 @@ describe('DetailView — Precip tab', () => {
       hours: recent.hours.map(({ valid_at_local, precip_mm }) => ({ valid_at_local, precip_mm })),
     }
     const html = renderPrecip(legacy)
-    expect(html).toContain('Last real precipitation ended')
-    expect(html).not.toContain('Last real rain')
+    expect(html).toContain('Last precipitation')
+    expect(html).not.toContain('Last rain')
   })
 
-  it('says no hour reached the line rather than that it has not rained', () => {
+  it('says the showers were light rather than that it has not rained', () => {
     const showers = { ...recent, hours: recent.hours.map((h) => ({ ...h, precip_mm: Math.min(h.precip_mm, 0.3), rain_mm: Math.min(h.precip_mm, 0.3) })) }
     const html = renderPrecip(showers)
     expect(html).toContain('>None<')
-    expect(html).toContain('No hour reached 0.02 in during the past 3 days.')
-    expect(html).not.toContain('Lighter showers since')
+    expect(html).toContain('in the past 3 days · light showers only')
+    expect(html).not.toContain('Light showers since')
+    // And a window with no precipitation at all says only the span.
+    const dry = { ...recent, hours: recent.hours.map((h) => ({ ...h, precip_mm: 0, rain_mm: 0 })) }
+    expect(renderPrecip(dry)).not.toContain('light showers only')
   })
 })

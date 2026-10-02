@@ -58,6 +58,6 @@ describe('geolocationErrorLine', () => {
     const lines = [1, 2, 3].map(geolocationErrorLine)
     expect(new Set(lines).size).toBe(3)
     expect(lines[0]).toMatch(/denied/)
-    expect(lines[2]).toMatch(/Timed out/)
+    expect(lines[2]).toMatch(/timed out/)
   })
 })

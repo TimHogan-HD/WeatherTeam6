@@ -93,14 +93,6 @@ function RouteRow({ route, marker, onOpen }: { route: GuidebookRoute; marker: st
   )
 }
 
-/** What OpenBeta lacks for every route on this wall — said once, in the footer, not as a blank per row. */
-function missingNote(wall: GuidebookWall): string {
-  const noDescription = wall.routes.every((r) => r.description === null)
-  // Lengths and bolt counts are absent across every Minnesota route (measured
-  // 2026-09-28), so the snapshot does not carry them at all.
-  return `Lengths, bolt counts${noDescription ? ' and descriptions' : ''} are not recorded in OpenBeta for this wall.`
-}
-
 function WallBody({ locationId, wall }: { locationId: string; wall: GuidebookWall }) {
   const navigate = useNavigate()
   const ordered = leftToRight(wall)
@@ -192,7 +184,7 @@ function WallBody({ locationId, wall }: { locationId: string; wall: GuidebookWal
 
       <SourcesFooter
         sources={[
-          { label: 'Routes', value: `${GUIDEBOOK_SOURCE_LABEL}. ${missingNote(wall)}` },
+          { label: 'Routes', value: GUIDEBOOK_SOURCE_LABEL },
           // Named from the response the week card drew, and only once it did.
           {
             label: 'Good hours',

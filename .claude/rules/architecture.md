@@ -48,12 +48,15 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
 - **The magnitude fence:** `sweatBalance.sweatFrictionFactor` (skin wettedness → grip) is an
   unmeasured guess, kept and quarantined (owner decision 2026-09-21). **Words and ordering
   reach a screen; 0-1 factors do not** — `poor`/`fair`/`good`/`great`, never "friction 0.29",
-  and the copy says it is an estimate. Factors live under `HourlyConditions.diagnostics`;
+  and the app says it is an estimate **once** — in the measurements disclosure
+  (`FRICTION_MECHANISM`) and on How the score works, never under every gauge (owner,
+  2026-10-02). Factors live under `HourlyConditions.diagnostics`;
   `hourlyConditions.test.ts` fails if one is promoted to the top level. `t_surface_c` and
   `condensation_margin_c` stay renderable. The same fence holds for Crag A's penalties:
   they stay in `diagnostics.penalties`, and only their order reaches a response, as
   `held_back_by` from `heldBackBy` (`cragModel.ts`, #218). The client shows it as
-  `Held back by` at the top of the measurements panel, suppressed with the score.
+  `Score breakdown` at the top of the measurements panel, suppressed with the score, and
+  absent — not a "nothing" row — when no penalty costs a point.
 - **The drying clock's rain is the hourly median of the four global models**
   (`lib/weather/rainMedian.ts`, #209), not `THERMAL_MODEL`'s own — GFS alone called wet rock
   dry far more often (`npm run compare:dryness`). HRRR and NBM are left out so a crag abroad

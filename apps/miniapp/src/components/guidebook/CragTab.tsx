@@ -95,7 +95,7 @@ function AreaCard({ guide }: { guide: Guidebook }) {
       {/* Only when it is true: a crag of pure sport routes adds up exactly. */}
       {kindTotal <= guide.crag.route_count ? null : (
         <span style={{ ...typeV2.note, color: colorsV2.txtMuted }}>
-          A route can be more than one type, so the types add up to more than {guide.crag.route_count}.
+          Some routes have more than one type.
         </span>
       )}
     </section>
@@ -142,7 +142,7 @@ export function CragTab(props: CragTabProps) {
       <section style={{ ...cardV2, ...stack(spacing.listGap) }}>
         <h2 style={typeV2.cardTitle}>No guidebook for this spot</h2>
         <p style={{ ...typeV2.note, color: colorsV2.txtMuted }}>
-          No OpenBeta crag is within 2 km of this location. The guidebook covers Minnesota for now.
+          No guidebook crag within 1.2 miles. Minnesota only for now.
         </p>
       </section>
     )
@@ -183,8 +183,7 @@ export function CragTab(props: CragTabProps) {
       */}
       <Card title={many ? 'Walls' : 'Wall'} aside={many ? 'A–Z' : null}>
         <p style={{ ...typeV2.note, color: colorsV2.txtMuted }}>
-          Conditions are for the whole crag — wall aspects aren’t recorded yet, so walls can’t be read
-          separately.
+          Conditions are for the whole crag, not each wall.
         </p>
         <div style={stack(0)}>
           {guide.walls.map((wall) => (

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   CONDENSING_NOTE,
   CURRENT_HOUR_TOLERANCE_MS,
-  FRICTION_ESTIMATE_NOTE,
   UNRECORDED_ASPECT_NOTE,
   fieldLine,
   formatLocalHour,
@@ -221,7 +220,7 @@ describe('summarizeReadings', () => {
   it('keeps the readings but drops the number under a Severe+ alert', () => {
     const s = summary({ severeAlertEvent: 'Extreme Heat Warning' });
     expect(s.readings).toHaveLength(2);
-    expect(s.qualifier).toBe('see the Extreme Heat Warning above');
+    expect(s.qualifier).toBe('Score hidden: Extreme Heat Warning');
     // The number is the thing that reads as actionable, and it is the thing
     // suppression removes. `score` must go with `scoreField` — a surface that
     // draws the number rather than writing it reads that field.
@@ -254,17 +253,12 @@ describe('summarizeReadings', () => {
       reading: reading({ friction: friction({ condensing: true }) }),
       severeAlertEvent: 'Winter Storm Warning',
     });
-    expect(s.qualifier).toBe('see the Winter Storm Warning above');
+    expect(s.qualifier).toBe('Score hidden: Winter Storm Warning');
   });
 
-  it('always carries the friction estimate note when a friction level is shown', () => {
-    expect(summary().notes).toContain(FRICTION_ESTIMATE_NOTE);
-  });
-
-  it('carries no estimate note when there is no friction reading to caveat', () => {
-    expect(summary({ reading: reading({ friction: null }) }).notes).not.toContain(
-      FRICTION_ESTIMATE_NOTE,
-    );
+  it('leaves the estimate caveat to the measurements panel, not the gauges', () => {
+    // Said once, in `measurements()` (owner, 2026-10-02); the measurements tests hold it there.
+    expect(summary().notes.some((n) => /estimat|not measured/i.test(n))).toBe(false);
   });
 
   it('adds the aspect note only when a reading on screen is unqualified', () => {
@@ -343,33 +337,31 @@ describe('what is holding the score down', () => {
       rangeF: { low: 35, high: 65 },
     });
     expect(s.heldBack).toEqual([
-      { label: 'Heat', value: 'air above your 65°F high' },
-      { label: 'Humidity', value: 'dew point above 54°F' },
+      { label: 'Heat', value: 'above 65°F' },
+      { label: 'Humidity', value: 'dew point over 54°F' },
     ]);
   });
 
   it('names the range without quoting one it does not know', () => {
     const s = summary({ reading: reading({ held_back_by: ['cold'] }) });
-    expect(s.heldBack).toEqual([{ label: 'Cold', value: 'air below your range' }]);
+    expect(s.heldBack).toEqual([{ label: 'Cold', value: 'below your range' }]);
   });
 
   it('says the rock is wet or still drying, as the dryness reading does', () => {
     const wet = reading({ rock: rock({ level: 'wet' }), held_back_by: ['wet_rock'] });
     const drying = reading({ rock: rock({ level: 'drying' }), held_back_by: ['wet_rock'] });
-    expect(summary({ reading: wet }).heldBack?.[0]?.value).toBe('wet from recent rain');
-    expect(summary({ reading: drying }).heldBack?.[0]?.value).toBe('still drying after rain');
+    expect(summary({ reading: wet }).heldBack?.[0]?.value).toBe('wet');
+    expect(summary({ reading: drying }).heldBack?.[0]?.value).toBe('drying');
   });
 
-  it('quotes the condensation margin in °F, as an interval', () => {
+  it('names condensation as the rock near its dew point', () => {
     expect(summary({ reading: reading({ held_back_by: ['condensation'] }) }).heldBack?.[0]?.value).toBe(
-      'rock within 4°F of its dew point',
+      'rock near dew point',
     );
   });
 
-  it('says nothing costs a point when the API named none, never that all is clear', () => {
-    expect(summary({ reading: reading({ held_back_by: [] }) }).heldBack).toEqual([
-      { label: 'Nothing', value: 'nothing costs a point' },
-    ]);
+  it('has no breakdown rows when the API named nothing, rather than a row saying so', () => {
+    expect(summary({ reading: reading({ held_back_by: [] }) }).heldBack).toEqual([]);
   });
 
   it('is suppressed with the score, under an alert and while alerts load', () => {

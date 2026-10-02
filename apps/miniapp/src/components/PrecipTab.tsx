@@ -74,6 +74,7 @@ const RUNWAY_TICKS = [0, 12, 24, 48, 72] as const
 const RUNWAY_H = 6
 
 const KIND_NAME: Record<PrecipKind, string> = { rain: 'rain', mix: 'rain and snow', snow: 'snow' }
+const FALLING_NOW: Record<PrecipKind, string> = { rain: 'Raining now', mix: 'Rain and snow now', snow: 'Snowing now' }
 function Card({ title, aside, gap, children }: { title?: string; aside?: string; gap: number; children: ReactNode }) {
   return (
     <section style={{ ...cardV2, ...stack(gap) }}>
@@ -164,7 +165,7 @@ export function PrecipTab({ recent, isClimbingLocation, rock }: PrecipTabProps) 
   const storm =
     lastRealEvent === null
       ? null
-      : `${lastRealEvent.endLocal === endingLocal ? 'this storm so far' : 'that storm left'} ${formatPrecipIn(lastRealEvent.totalMm)} over ${lastRealEvent.spanHours} h`
+      : `${formatPrecipIn(lastRealEvent.totalMm)} over ${lastRealEvent.spanHours} h`
   const lastLight = lighterSince[lighterSince.length - 1]
   const lightMm = lighterSince.reduce((s, h) => s + h.precip_mm, 0)
   const todayHours = data.hours.filter((h) => h.valid_at_local.slice(0, 10) === today)
@@ -192,24 +193,26 @@ export function PrecipTab({ recent, isClimbingLocation, rock }: PrecipTabProps) 
       <Card gap={spacing.listGapLg}>
         {lastReal === null || hoursSinceReal === null ? (
           <div style={stack(spacing.tight)}>
-            <span style={typeV2.factLabel}>Last real rain</span>
+            <span style={typeV2.factLabel}>Last rain</span>
             <span style={typeV2.heroTemp}>None</span>
+            {/* "None" counts only rain heavy enough to reset drying; a lighter shower is still named. */}
             <span style={typeV2.body}>
-              No hour reached {threshold} during the past {days.length} days.
+              in the past {days.length} days{data.hours.some((h) => h.precip_mm > 0) ? ' · light showers only' : ''}
             </span>
           </div>
         ) : rainingNow ? (
           <div style={stack(spacing.tight)}>
-            <span style={typeV2.factLabel}>Real {kindName} in the latest hour</span>
-            <span style={typeV2.heroTemp}>Now</span>
+            <span style={typeV2.factLabel}>
+              {lastRealEvent?.kind == null ? 'Precipitation now' : FALLING_NOW[lastRealEvent.kind]}
+            </span>
+            <span style={typeV2.heroTemp}>{lastRealEvent === null ? 'Now' : formatPrecipIn(lastRealEvent.totalMm)}</span>
             <span style={typeV2.body}>
-              to {when(lastReal.valid_at_local)}
-              {storm === null ? null : ` · ${storm}`}
+              {lastRealEvent === null ? `to ${when(lastReal.valid_at_local)}` : `so far, over ${lastRealEvent.spanHours} h`}
             </span>
           </div>
         ) : (
           <div style={stack(spacing.tight)}>
-            <span style={typeV2.factLabel}>Last real {kindName} ended</span>
+            <span style={typeV2.factLabel}>Last {kindName}</span>
             <div style={{ ...row(spacing.listGap), alignItems: 'baseline' }}>
               <span style={typeV2.heroTemp}>{hoursSinceReal < 48 ? hoursSinceReal : formatSince(hoursSinceReal)}</span>
               <span style={{ ...typeV2.bandValue, color: colorsV2.txt2 }}>
@@ -225,8 +228,7 @@ export function PrecipTab({ recent, isClimbingLocation, rock }: PrecipTabProps) 
         {hoursSinceReal === null || rainingNow ? null : <Runway hours={hoursSinceReal} />}
         {lastLight === undefined || lastReal === null ? null : (
           <p style={typeV2.note}>
-            Lighter showers since ({formatPrecipIn(lightMm)}, last ending {when(lastLight.valid_at_local)}) — each hour
-            under {threshold}, so they don&apos;t count.
+            Light showers since: {formatPrecipIn(lightMm)}, last {when(lastLight.valid_at_local)}
           </p>
         )}
         <div
@@ -241,10 +243,10 @@ export function PrecipTab({ recent, isClimbingLocation, rock }: PrecipTabProps) 
           <Stat
             label="Today"
             value={todayHours.length === 0 ? EM_DASH : formatPrecipIn(todayHours.reduce((s, h) => s + h.precip_mm, 0))}
-            note={todayHours.length === 0 ? 'no hours yet' : `${todayWet} wet ${todayWet === 1 ? 'hour' : 'hours'}`}
+            note={todayHours.length === 0 ? 'no hours yet' : `${todayWet} ${todayWet === 1 ? 'hour' : 'hours'} with rain`}
           />
           <Stat label="This week" value={formatPrecipIn(summary.totalMm)} note={`over ${days.length} days`} />
-          <Stat label="Wet this week" value={`${summary.wetHours} h`} note={`of ${data.hours.length}`} />
+          <Stat label="Hours with rain" value={String(summary.wetHours)} note="this week" />
         </div>
       </Card>
 
@@ -266,11 +268,8 @@ export function PrecipTab({ recent, isClimbingLocation, rock }: PrecipTabProps) 
       </Card>
 
       <p style={{ ...typeV2.note, padding: `0 ${spacing.listGapLg}px` }}>
-        {source === null ? '' : `${source} `}Model estimates, not gauge readings. Real rain is {threshold} or more in an
-        hour{isClimbingLocation ? ', the amount that restarts Dryness.' : '.'}
-        {isClimbingLocation
-          ? ' Shade, seepage, wind channeling and elevation can change conditions route-by-route. Inspect rock before climbing.'
-          : null}
+        {source === null ? '' : `${source} `}Rain here means {threshold} or more in an hour
+        {isClimbingLocation ? '; lighter showers don’t reset drying. Check the rock before you climb.' : '.'}
         {aspectNote ? ` ${UNRECORDED_ASPECT_NOTE}.` : null}
       </p>
     </>

@@ -66,7 +66,7 @@ export function rainChipText(day: ForecastSnapshot, hours: readonly HourlySample
 
 /** What the three chips are, said once under the rows rather than on each. */
 export const DAILY_KEY =
-  "Low and high · rain: the likeliest hour's chance and the median amount · peak wind"
+  'Low–high · rain chance and amount · peak wind'
 
 export type DailyListProps = {
   days: readonly ForecastSnapshot[]

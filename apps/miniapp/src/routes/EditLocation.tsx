@@ -38,7 +38,7 @@ export function EditLocation() {
           <InlineError message="Couldn't load this location." onRetry={() => void location.refetch()} />
         ) : !location.data.is_climbing_location ? (
           // The API refuses rock facts here (409); say why rather than offer a form.
-          <p style={typeV2.body}>Only a climbing area has rock to describe.</p>
+          <p style={typeV2.body}>Only climbing areas have a rock type.</p>
         ) : (
           <EditForm
             key={location.data.id}
@@ -63,14 +63,14 @@ function EditForm({ location, onSaved }: { location: Location; onSaved: () => vo
 
   return (
     <>
-      <Section title="Rock type" note="Sets how long the rock takes to dry after rain, so it changes the score.">
+      <Section title="Rock type" note="Affects drying time and the score.">
         {rockLocked(location) ? (
           <div style={stack(spacing.micro)}>
             <span style={{ ...typeV2.bandValue, color: colorsV2.txt1 }}>
               {location.rock_type === null ? 'Not recorded' : rockTypeLabel(location.rock_type)}
             </span>
             <span style={{ ...typeV2.note, color: colorsV2.txtMuted }}>
-              Set from our research on this crag, so it can’t be changed here.
+              Set for this crag. Can’t be changed.
             </span>
           </div>
         ) : (
@@ -124,7 +124,7 @@ function EditForm({ location, onSaved }: { location: Location; onSaved: () => vo
  */
 function saveErrorLine(error: unknown): string {
   if (error instanceof ApiError && error.status === 409) {
-    return 'The rock type here is now set from our research. Reopen this screen to see it.'
+    return 'This crag’s rock type is now set. Reopen to see it.'
   }
   return 'Couldn’t save. Check your connection and try again.'
 }

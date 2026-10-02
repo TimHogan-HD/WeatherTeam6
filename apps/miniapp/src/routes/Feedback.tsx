@@ -146,7 +146,7 @@ function ForecastCheckForm({
     return <InlineError message="Couldn't load your locations." onRetry={() => void locations.refetch()} />
   }
   if (crags.length === 0) {
-    return <p style={type.bodyMd}>Save a climbing location first — a forecast check is about a crag.</p>
+    return <p style={type.bodyMd}>Add a crag first.</p>
   }
 
   return (
@@ -193,11 +193,11 @@ function ForecastCheckForm({
         ) : conditions.isError ? (
           // A failed fetch is not "the app had no reading" — say which it was.
           <span style={{ ...type.bodySm, color: colors.txt3 }}>
-            Couldn’t load the app’s reading — the check is saved without one.
+            Couldn’t load the app’s reading. You can still save.
           </span>
         ) : snapshot === null ? (
           <span style={{ ...type.bodySm, color: colors.txt3 }}>
-            No reading for that hour — the check is saved without one.
+            No app reading for that hour. You can still save.
           </span>
         ) : (
           <span style={type.bodyMd}>{snapshot.fields.map(fieldLine).join(' · ')}</span>

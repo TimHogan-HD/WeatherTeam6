@@ -21,7 +21,7 @@ import { InlineError, Skeleton } from './States.js'
 
 /**
  * The Overview tab under the hero, owner's pick 2026-09-30 (mockup D+):
- * **Around now** — six hours back and ten ahead as one chart, temperature
+ * **Hourly** — six hours back and ten ahead as one chart, temperature
  * coloured by the hour's score with dew point and rain chance; **Next 3 days** — a column
  * each, with the day's range, rain chance, score and good hours; and rain —
  * when real rain last fell and when rain is next likely.
@@ -106,14 +106,14 @@ function TodaySection({ props }: { props: OverviewTabProps }) {
     )
     body =
       window === null || window.hours.length === 0 ? (
-        <p style={typeV2.body}>No hour-by-hour forecast around now.</p>
+        <p style={typeV2.body}>No hourly forecast right now.</p>
       ) : (
         <TodayChart window={window} nowMs={now} todayDate={todayDate} fill={fill} />
       )
   }
 
   return (
-    <Section title="Around now" link={{ label: 'Hourly', onOpen: props.onOpenHourly }} grow={fill}>
+    <Section title="Hourly" link={{ label: 'See all', onOpen: props.onOpenHourly }} grow={fill}>
       {body}
     </Section>
   )
@@ -254,9 +254,9 @@ function ComingUpSection({ props }: { props: OverviewTabProps }) {
         <>
           {days.length === 0 ? null : <div aria-hidden style={hairline} />}
           <div style={{ ...row(spacing.cellPad), alignItems: 'flex-start' }}>
-            {lastRain === null ? null : <Fact label="Last real rain" value={lastRain} />}
+            {lastRain === null ? null : <Fact label="Last rain" value={lastRain} />}
             {nextValue === null ? null : (
-              <Fact label="Next likely rain" value={nextValue.text} {...(nextValue.color === undefined ? {} : { color: nextValue.color })} />
+              <Fact label="Next rain" value={nextValue.text} {...(nextValue.color === undefined ? {} : { color: nextValue.color })} />
             )}
           </div>
         </>

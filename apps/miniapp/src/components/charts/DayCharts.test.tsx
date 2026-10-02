@@ -272,11 +272,6 @@ describe('DayCharts — the readings belong to the day on screen', () => {
 /** The panel as a reader sees it — tags out, whitespace collapsed. */
 const visible = (html: string): string => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
 
-  it('says the friction reading is an estimate wherever it renders one', () => {
-    // A Phase 3 acceptance criterion, and this tab renders a friction level
-    // without the Daily tab's section anywhere on screen.
-    expect(visible(withScore(DAY_1))).toContain('Friction is estimated')
-  })
 
   it('draws nothing at all with no readings', () => {
     expect(render(series(fullDay))).not.toContain('>30<')
@@ -320,7 +315,7 @@ describe('DayCharts — the spread is drawn on every series that has one', () =>
     // **The band's own fill, not just "a path".** The line is a `<path>` too,
     // so a bare tag assertion passes with the band deleted.
     expect(svg).toContain(`fill="${chartColorsV2.rainBand}"`)
-    expect(render(series(spread))).toContain('8 in 10 runs')
+    expect(render(series(spread))).toContain('>Range<')
   })
 
   it('shades the wind spread under the line, and keeps the gusts as their own', () => {
@@ -356,7 +351,7 @@ describe('DayCharts — the spread is drawn on every series that has one', () =>
     expect(ys.length).toBeGreaterThan(0)
     expect(Math.min(...ys)).toBeLessThan(15)
     expect(html).toContain('Gusts')
-    expect(html).toContain('8 in 10 runs')
+    expect(html).toContain('>Range<')
   })
 })
 
@@ -392,7 +387,7 @@ describe('DayCharts — dew point and humidity', () => {
   })
 
   it('names the model the dew point and humidity came from, and only when one is drawn', () => {
-    expect(render(series(humid))).toContain('Dew point and humidity: Open-Meteo · GFS')
+    expect(render(series(humid))).toContain('Dew point and humidity from Open-Meteo · GFS')
     // The default fixture carries neither column.
     expect(render(series(fullDay))).not.toContain('Dew point and humidity')
     expect(render(series(fullDay))).toContain('No hourly humidity for this day.')
@@ -439,7 +434,7 @@ describe('DayCharts — the conditions card', () => {
     // `best` is the worst hour of the best three-hour run — calling it the
     // best hour would be a claim the model does not make.
     const text = visibleText(withStrip())
-    expect(text).toContain('Readings at 00:00')
+    expect(text).toContain('At 00:00')
     expect(text).not.toContain('Best hour')
   })
 

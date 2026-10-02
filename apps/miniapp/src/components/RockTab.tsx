@@ -342,7 +342,7 @@ function Hero({ name, guide }: { name: string; guide: RockGuide | null }) {
       <div style={{ ...stack(spacing.listGap), padding: `0 ${spacing.sectionGap}px ${spacing.sectionGap}px` }}>
         <h2 style={typeV2.screenTitle}>{name}</h2>
         <p style={typeV2.body}>
-          {guide?.tagline ?? 'Nobody has recorded the rock here yet, so there’s no guide for it.'}
+          {guide?.tagline ?? 'Rock type not set. Add it in Edit crag.'}
         </p>
         {guide === null ? null : (
           <div

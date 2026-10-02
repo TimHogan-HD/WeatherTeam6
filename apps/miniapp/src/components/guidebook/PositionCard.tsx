@@ -78,8 +78,8 @@ export function PositionCard({ wall }: { wall: GuidebookWall }) {
       ) : reading.fix.accuracy_m > POSITION_ACCURACY_MAX_M ? (
         <div style={stack(spacing.listGap)}>
           <span role="status" style={{ ...typeV2.note, color: colorsV2.txt1 }}>
-            Fix: {formatAccuracyFt(reading.fix.accuracy_m)} · too rough to record. Needs{' '}
-            {formatAccuracyFt(POSITION_ACCURACY_MAX_M)} or better.
+            Accuracy {formatAccuracyFt(reading.fix.accuracy_m)} · not accurate enough (needs{' '}
+            {formatAccuracyFt(POSITION_ACCURACY_MAX_M)})
           </span>
           <div style={row(spacing.listGap)}>
             <button type="button" onClick={() => locate()} style={pillButton}>Try again</button>
@@ -89,7 +89,7 @@ export function PositionCard({ wall }: { wall: GuidebookWall }) {
       ) : (
         <div style={stack(spacing.listGap)}>
           <span role="status" style={{ ...typeV2.note, color: colorsV2.txt1 }}>
-            Fix: {formatAccuracyFt(reading.fix.accuracy_m)} · replaces the position every account sees
+            Accuracy {formatAccuracyFt(reading.fix.accuracy_m)} · updates it for everyone
           </span>
           {record.isError ? <InlineError message="Couldn't save the position." /> : null}
           <div style={row(spacing.listGap)}>

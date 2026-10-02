@@ -43,7 +43,6 @@ import {
   humiditySeries,
   rainSeries,
   temperatureSeries,
-  uniformMemberCount,
   valueExtent,
   windSeries,
   windSpreadSeries,
@@ -306,7 +305,7 @@ function ConditionsCard({
       const { score, scoreField } = summary
       const hasTiles = summary.readings.length > 0 || scoreField !== null
       const band = score === null ? null : toneSurfacesV2[scoreTone(score)]
-      const caption = [at === null || !hasTiles ? null : `Readings at ${at}`, ...summary.notes].filter(
+      const caption = [at === null || !hasTiles ? null : `At ${at}`, ...summary.notes].filter(
         (s): s is string => s !== null,
       )
       const cells = frictionCells(series, selectedDate)
@@ -461,7 +460,6 @@ function ChartsCard({
   const windSpread = windSpreadSeries(hours)
   const gusts = gustSeries(hours)
   const humidity = humiditySeries(hours)
-  const members = uniformMemberCount(hours)
 
   const axis = { axis: 'hour' as const, utcOffsetSeconds: series.utc_offset_seconds, v2: V2_AXES, now }
 
@@ -492,7 +490,7 @@ function ChartsCard({
   const deterministic = modelSourceLabel(series.model)
   const attribution =
     deterministic !== null && (hasDewPoint || hasValues(humidity))
-      ? `Dew point and humidity: ${deterministic} · other lines: the forecast runs`
+      ? `Dew point and humidity from ${deterministic}; other lines from the ensemble forecast.`
       : null
 
   const blocks: ReactNode[] = [
@@ -531,7 +529,7 @@ function ChartsCard({
             {hasDewPoint ? (
               <Key label="Dew point" swatch={{ kind: 'line', color: chartColorsV2.dewPoint, dashed: true }} />
             ) : null}
-            <Key label="8 in 10 runs" swatch={{ kind: 'band', color: chartColorsV2.airBand }} />
+            <Key label="Range" swatch={{ kind: 'band', color: chartColorsV2.airBand }} />
             {shade === null ? null : <Key label="Good hours" swatch={{ kind: 'band', color: GOOD_HOURS_KEY }} />}
           </Legend>
         </>
@@ -567,10 +565,10 @@ function ChartsCard({
           */}
           <Legend>
             <Key
-              label={members === null ? 'Average of the runs' : `Average of ${members} runs`}
+              label="Average"
               swatch={{ kind: 'line', color: chartColorsV2.rain }}
             />
-            <Key label="8 in 10 runs" swatch={{ kind: 'band', color: chartColorsV2.rainBand }} />
+            <Key label="Range" swatch={{ kind: 'band', color: chartColorsV2.rainBand }} />
           </Legend>
         </>
       ) : null}
@@ -579,9 +577,9 @@ function ChartsCard({
     <ChartBlock
       key="chance"
       label="Chance of rain"
-      unit="% of runs"
+      unit="Chance"
       value={chancePeak === null ? null : `peak ${Math.round(chancePeak.max)}%`}
-      empty="No chance of rain for this day — the forecast runs carry no wet count."
+      empty="No rain chance for this day."
     >
       {hasValues(chance) ? (
         <HourlyChart
@@ -625,7 +623,7 @@ function ChartsCard({
           <Legend>
             <Key label="Sustained" swatch={{ kind: 'line', color: chartColorsV2.wind }} />
             <Key label="Gusts" swatch={{ kind: 'line', color: chartColorsV2.gust, dashed: true }} />
-            <Key label="8 in 10 runs" swatch={{ kind: 'band', color: chartColorsV2.windBand }} />
+            <Key label="Range" swatch={{ kind: 'band', color: chartColorsV2.windBand }} />
           </Legend>
         </>
       ) : null}

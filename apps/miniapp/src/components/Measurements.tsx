@@ -58,7 +58,7 @@ function sourceLine(groups: readonly MeasurementGroup[], shared: string | null):
     .join(' · ')
 }
 
-/** `Heat · air above your 60°F high`, one line per penalty, most limiting first. */
+/** `Heat · above 60°F`, one line per penalty, most limiting first. */
 function HeldBack({ fields }: { fields: ReadingField[] }) {
   return (
     <div style={stack(spacing.listGapSm)}>
@@ -147,7 +147,7 @@ export function Measurements({
         hidden={collapsed}
         style={collapsed ? {} : { ...stack(spacing.cellPad), paddingTop: `${spacing.listGapSm}px` }}
       >
-        {heldBack === null ? null : <HeldBack fields={heldBack} />}
+        {heldBack === null || heldBack.length === 0 ? null : <HeldBack fields={heldBack} />}
         {/* The figures as tiles, like the card's own. Each label says whose
             figure it is, and the line below names each group's model. */}
         {groups.length === 0 ? null : (

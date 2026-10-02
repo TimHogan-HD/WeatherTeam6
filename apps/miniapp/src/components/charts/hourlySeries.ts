@@ -175,30 +175,6 @@ export function bandRuns(data: readonly SeriesDatum[]): Run[] {
   )
 }
 
-/**
- * The ensemble size, but **only when every hour that has one reports the same
- * size**. Otherwise `null`.
- *
- * `member_count` is how many members reached *that hour*, and the far end of
- * the window is reached by fewer of them. Printing the largest as "143 forecast
- * runs" would attribute the whole band to a sample size most of it does not
- * have — the same class of claim as naming a model that did not answer. When
- * the counts differ, the legend says nothing about how many rather than
- * something that is true of only part of the chart.
- */
-export function uniformMemberCount(hours: readonly HourlySample[]): number | null {
-  let count: number | null = null
-  for (const hour of hours) {
-    if (hour.member_count === null) continue
-    if (count === null) {
-      count = hour.member_count
-      continue
-    }
-    if (count !== hour.member_count) return null
-  }
-  return count
-}
-
 /** The first hour of each local day in the window, in order — the x-axis ticks. */
 export function dayStarts(data: readonly SeriesDatum[]): SeriesDatum[] {
   const out: SeriesDatum[] = []

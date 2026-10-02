@@ -268,20 +268,22 @@ Two cards and a caveat:
   `REWETTING_PRECIP_MM` (0.5 mm, 0.02 in) — the line at which the drying clock restarts —
   so this and Dryness never disagree about when it last rained. The figure is `heroTemp`
   with "hours ago" (days and hours past 48), then the stamp and the storm it ended
-  ("that storm left 0.62 in over 20 h"), then a 0–72 h track. Lighter showers since are
-  named under it and do not reset it: the first build read a noon trace as "last precip
+  ("Sun 7pm · 0.62 in over 20 h"), then a 0–72 h track. Lighter showers since are
+  named under it ("Light showers since: trace, last today 6am") and do not reset it: the first build read a noon trace as "last precip
   4h" on rock the clock had been drying for a day. The kind is named from the storm's
   hours (rain, snow, rain and snow) and is "precipitation" when any hour's kind is unknown.
-  With no hour over the line the headline reads **None**, never a count. Real rain in the
-  window's newest hour reads **Now** ("Real rain in the latest hour", "this storm so far")
-  with no track — the first version said "ended 0 hours ago".
+  With no hour over the line the headline reads **None** ("in the past 7 days", plus
+  "light showers only" when any fell), never a count. Real rain in the window's newest hour
+  reads **Raining now** with the storm's total "so far" and no track — the first version
+  said "ended 0 hours ago". Labels say "Last rain", not "Last real rain"; the threshold is
+  defined once, in the footer.
 - **Today, this week, and wet hours this week** under the headline (owner, 2026-09-29).
   Today is the location's own date; a window that has not reached it shows a dash.
 - **Running total** (round-2 concept 1, added at the owner's request so the tab reads as
   a page, not a drop-down): the window's cumulative precipitation, one day per column
   lined up with the grid below. The largest three storms that reached the real-rain line
   carry their total where they ended; the run since the last real rain is shaded and
-  labelled "no real rain · N h" under the line, so it cannot collide with a storm label.
+  labelled "no rain · N h" under the line, so it cannot collide with a storm label.
   A skipped hour is bridged with a dashed line, never a solid flat one. Touch or hover
   reads out the hour and the total so far.
 - **Rock under the rain** (owner, 2026-09-29: a total that only climbs read as rock that

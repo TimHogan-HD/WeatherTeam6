@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
-import { HELD_BACK_LABEL, SCORE_MODEL_FACTS, cToFDelta, type RangeF } from '@weatherteam6/types'
+import { HELD_BACK_LABEL, REWETTING_PRECIP_MM, SCORE_MODEL_FACTS, cToFDelta, mmToIn, type RangeF } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { cardV2, stack } from '../theme/styles.js'
 
@@ -27,6 +27,7 @@ export function ScoreExplainer({ rangeF }: { rangeF: RangeF }) {
   const high = rangeF === null ? 'the high end of your range' : `your high, ${rangeF.high}°F`
   const low = rangeF === null ? 'the low end of your range' : `your low, ${rangeF.low}°F`
   const condensationF = Math.round(cToFDelta(f.condensationClearMarginC))
+  const rewetIn = mmToIn(REWETTING_PRECIP_MM).toFixed(2)
 
   return (
     <section id={SCORE_EXPLAINER_ID} ref={ref} style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
@@ -44,17 +45,17 @@ export function ScoreExplainer({ rangeF }: { rangeF: RangeF }) {
         </P>
         <P>
           The clock runs on eight walls, one facing each compass direction, and the crag takes the middle
-          one, so a single sunny face can’t make the whole crag read dry. Partly dry rock costs a little
-          less than the same loss of friction would.
+          one, so a single sunny face can’t make the whole crag read dry.
         </P>
         <P>
-          The rain is the median forecast of four global weather models, not a rain gauge, so a local
-          shower can be missed.
+          The rain is the median of four global forecast models (the middle value each hour), not a
+          rain gauge, so a local shower can be missed. Anything under{' '}
+          {rewetIn} in an hour doesn’t reset the clock.
         </P>
       </Part>
 
       <Part title="Friction">
-        <P>Friction starts at full, and four things take it down. Each fades in gradually; none switches on at a line.</P>
+        <P>Friction is an estimate; nothing measures grip. Four things lower it, each gradually:</P>
         <Rule name="Condensation">
           When the rock is within about {condensationF}°F of its dew point, moisture starts to settle on
           it. At the dew point, friction is zero.
@@ -64,15 +65,13 @@ export function ScoreExplainer({ rangeF }: { rangeF: RangeF }) {
         <Rule name="Humidity">Above a dew point of {f.dewStartF}°F, sticky air takes it down.</Rule>
         <P>
           The rock’s temperature is modelled from the forecast’s sun, air and wind for open, flat ground,
-          and runs about two hours behind the sun. Nothing on the wall measures it.
+          and runs about two hours behind the sun. It’s calculated, not measured.
         </P>
       </Part>
 
       <Part title={HELD_BACK_LABEL}>
         <P>
-          Under Measurements on a crag’s Overview, this lists what is costing the score points, biggest
-          first. A cost is listed when it takes at least a point off on its own. When only several small
-          ones together cost a point, the largest is listed.
+          Under Measurements on a crag’s Overview: what’s lowering the score, biggest first.
         </P>
       </Part>
 
@@ -94,9 +93,9 @@ export function ScoreExplainer({ rangeF }: { rangeF: RangeF }) {
 
       <Part title="What it can’t see">
         <P>
-          Shade from the terrain, seepage, wind on one wall, and your skin and rubber. Every cost above is
-          a judgement call that hasn’t yet been checked against real days at the crag. Check this forecast,
-          on a crag’s screen, is how to tell us when it’s wrong.
+          Shade from the terrain, seepage, wind on one wall, and your skin and rubber. These rules are
+          estimates and haven’t been tested against real days yet. Use Check this forecast on a crag to
+          report a miss.
         </P>
       </Part>
     </section>

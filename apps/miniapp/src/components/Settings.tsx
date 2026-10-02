@@ -46,7 +46,7 @@ function SettingsForm({ saved }: { saved: Preferences }) {
     <>
       <Card
         title="Temperature range"
-        note={`Friction, and so the score, starts to fall below the low end and above the high end. The app’s own range is ${TEMP_RANGE_DEFAULT_F.low}–${TEMP_RANGE_DEFAULT_F.high}°F. Like the rest of the friction reading, it’s an estimate.`}
+        note={`The score drops when it’s colder or warmer than this. Default ${TEMP_RANGE_DEFAULT_F.low}–${TEMP_RANGE_DEFAULT_F.high}°F.`}
       >
         <Stepper label="Low" end="low" draft={draft} onChange={change} />
         <Stepper label="High" end="high" draft={draft} onChange={change} />
@@ -72,7 +72,7 @@ function SettingsForm({ saved }: { saved: Preferences }) {
               </button>
             ))}
         </div>
-        <p style={{ ...typeV2.note, color: colorsV2.txtMuted }}>A city has no Rock or Crag tab, and opens on Overview.</p>
+        <p style={{ ...typeV2.note, color: colorsV2.txtMuted }}>Places that aren’t crags always open on Overview.</p>
       </Card>
 
       {update.isError ? <InlineError message="Couldn’t save. Check your connection and try again." /> : null}

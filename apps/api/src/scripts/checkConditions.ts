@@ -125,7 +125,6 @@ async function run(): Promise<void> {
   const { tempRangeFor } = await import('../lib/preferences/preferences.js')
   const { localDateString } = await import('../lib/weather/openMeteo.js')
   const {
-    FRICTION_ESTIMATE_NOTE,
     DRYNESS_LABEL,
     FRICTION_LABEL,
     SCORE_LABEL,
@@ -371,11 +370,6 @@ async function run(): Promise<void> {
     'the score is not in the readings row it is derived from',
     !summary.readings.some((f) => f.label === SCORE_LABEL),
     summary.readings.map((f) => f.label).join(' | '),
-  )
-  check(
-    'the surface is told the friction reading is an estimate',
-    readings.now?.friction == null || summary.notes.includes(FRICTION_ESTIMATE_NOTE),
-    'a friction level is published with no caveat beside it',
   )
   // The quarantine, on the published strings. A 0-1 factor reaching a surface
   // would appear here as a decimal; so would an unrounded score.

@@ -95,7 +95,7 @@ export function SaveBar({
           <span style={type.label}>Rock type</span>
           <span style={type.calDay}>{rockTypeLabel(knownCrag.rock_type)}</span>
           <span style={{ ...type.bodySm, color: colors.txt3 }}>
-            Set from our research on {knownCrag.name}.
+            Set for {knownCrag.name}.
           </span>
         </div>
       ) : draft.isClimbing ? (

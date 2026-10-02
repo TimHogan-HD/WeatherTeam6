@@ -12,6 +12,7 @@ import {
 import { typeV2 } from '../theme/tokens.css.js'
 import { row, stack } from '../theme/styles.js'
 import {
+  clock12,
   dayLabel,
   hourKind,
   isRealRain,
@@ -89,9 +90,9 @@ const hh = (i: number) => String(i).padStart(2, '0')
  * `00:00` closes the previous day's last hour, so both days are named.
  */
 function span(localDate: string, hour: number, today: string): string {
-  if (hour > 0) return `${dayLabel(localDate, today)} ${hh(hour - 1)}:00–${hh(hour)}:00`
+  if (hour > 0) return `${dayLabel(localDate, today)} ${clock12(hour - 1)}–${clock12(hour)}`
   const prev = new Date(Date.parse(`${localDate}T00:00Z`) - 24 * 3600 * 1000).toISOString().slice(0, 10)
-  return `${dayLabel(prev, today)} 23:00–${dayLabel(localDate, today)} 00:00`
+  return `${dayLabel(prev, today)} 11pm–${dayLabel(localDate, today)} 12am`
 }
 
 function Swatch({ color, ring }: { color: string; ring?: string }) {
@@ -130,7 +131,7 @@ function readoutFields(
   if (cell.state === 'ahead') return [{ label: 'Precip', value: 'Still to come' }]
   const dryness =
     rock === undefined ? [] : [{ label: DRYNESS_LABEL, value: rock === null ? 'No reading' : ROCK_LABELS[rock.level] }]
-  if (cell.state === 'missing') return [{ label: 'Precip', value: 'No estimate for this hour' }, ...dryness]
+  if (cell.state === 'missing') return [{ label: 'Precip', value: 'No data' }, ...dryness]
   const h = cell.hour
   const fields = [{ label: 'Precip', value: h.precip_mm > 0 ? formatPrecipIn(h.precip_mm) : 'None' }]
   if (h.precip_mm > 0) {
@@ -138,7 +139,7 @@ function readoutFields(
     fields.push({ label: 'Type', value: kind === null ? 'Unknown' : KIND_LEGEND[kind] })
     const snow = h.snowfall_cm ?? null
     if (snow !== null && snow > 0) fields.push({ label: 'Snow', value: `${(snow / 2.54).toFixed(1)} in` })
-    fields.push({ label: 'Real rain', value: isRealRain(h) ? 'Yes' : 'No' })
+    fields.push({ label: 'Resets drying', value: isRealRain(h) ? 'Yes' : 'No' })
   }
   fields.push(...dryness)
   if (soFarMm !== null) fields.push({ label: 'Week so far', value: formatPrecipIn(soFarMm) })

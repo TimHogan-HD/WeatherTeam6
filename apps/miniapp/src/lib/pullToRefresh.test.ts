@@ -40,17 +40,17 @@ describe('pullMessage', () => {
 })
 
 describe('scoresFreshness', () => {
-  it('names the one model and the oldest check across cards', () => {
+  it('reads the oldest check across cards', () => {
     const line = scoresFreshness(
       [readings({ checked_at: '2026-10-01T14:56:00.000Z' }), readings({ checked_at: '2026-10-01T14:20:00.000Z' })],
       NOW,
     )
-    expect(line).toBe('Scores from GFS · forecast checked 40 min ago')
+    expect(line).toBe('Updated 40 min ago')
   })
 
   it('ignores cards without readings: a city, or one still loading', () => {
     expect(scoresFreshness([readings({}), null, undefined, readings({ model: null, checked_at: null })], NOW)).toBe(
-      'Scores from GFS · forecast checked 4 min ago',
+      'Updated 4 min ago',
     )
   })
 
@@ -66,9 +66,5 @@ describe('scoresFreshness', () => {
 
   it('says nothing when no card has a score to be fresh about', () => {
     expect(scoresFreshness([], NOW)).toBeNull()
-  })
-
-  it('stops naming a model when the cards came from different ones', () => {
-    expect(scoresFreshness([readings({}), readings({ model: 'ecmwf_ifs025' })], NOW)).toBe('Forecast checked 4 min ago')
   })
 })
