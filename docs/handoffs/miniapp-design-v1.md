@@ -89,7 +89,8 @@ this. Not before.
 /add                 search and add a location   (see §12; `?lat=&lon=` opens the form on a map point)
 /feedback            app feedback and forecast checks
 /map                 saved locations as score pins on a relief map; hold to add a spot
-/crags /trips        bottom-bar sections, not built yet
+/trips              trips: the list, /trips/new, /trips/:tripId and /trips/:tripId/crag/:locationId (§13)
+/crags               bottom-bar section, not built yet
 /profile             Feedback and Sign out
 ```
 
@@ -107,6 +108,8 @@ this. Not before.
   | `/location/:id/wall/…` and `…/route/…` | the Crag tab, then the wall |
   | `/add` | `/` |
   | `/add` save form | back to the search **with the query and results intact** — the form is a step within `/add`, not a sibling of it |
+  | `/trips/new`, `/trips/:tripId` | `/trips` |
+  | `/trips/:tripId/crag/:locationId` | the trip's grid |
 
   This table is implemented by `src/lib/backTarget.ts`, which is pure and **overloaded per
   route**, so each caller is handed only the actions it can receive and a new action is a
@@ -114,7 +117,7 @@ this. Not before.
   when given `onBack`; the list passes none.
 - **The bottom bar** (owner, 2026-09-30; reordered 2026-10-01) holds five sections, left to
   right: **Conditions · Trips · Map · Crags · Profile** (`bottomNav` in `packages/design`). Conditions is `/`
-  and owns `/location/*`; Crags, Map and Trips are placeholders that say they are not built;
+  and owns `/location/*`; Crags is a placeholder that says it is not built; Map and Trips (§13) are built;
   Profile holds Feedback and Sign out, which left the list, and the reader's settings (scoring
   Phase 5, 2026-10-01): the temperature range friction is judged against and the tab a crag
   opens on (`Settings.tsx`; a `?tab=` link still wins). Unlit tabs are icons, and the lit
@@ -656,7 +659,7 @@ Contrast rules, layout constants (`screenH` 20, `topSafe` 48, `cardPad` 14, `bot
 
 Not in the Mini App, in v1 or later without a new spec:
 
-- Radar, walls, trips, shade map — designed for the deleted React Native app and out of scope here
+- Radar, walls, shade map — designed for the deleted React Native app and out of scope here. ~~Trips~~ — **built 2026-10-02**, from a new design; see §13
 - ~~Location search or creation~~ — **no longer a non-goal.** Reversed 2026-08-25 on the product call recorded in §12: search, preview, save, and delete are in scope. Editing a saved location's rock type, aspect and wall angle followed on 2026-10-01 — see §12.4
 - History and normals views — no writer exists (issue #25)
 - Any AI-generated commentary or per-hour analysis — removed once already for violating the copy rules; do not reintroduce
@@ -788,3 +791,65 @@ Note that change 2 finally exercises the `fetchArchivePrecip` branch of `liveFor
 The API work in §12.3 is a **prerequisite** for the UI, not a companion to it. It is also entirely independent of the `initData` auth work that Task 6 is blocked on, so it can proceed in parallel rather than waiting.
 
 Recommended: take §12.3 as its own backend task — **Task 5a** — landing before or alongside Task 5's shell work. Task 6 then builds `/add`, the detail screen's unsaved mode, the save bar, and the delete affordance against endpoints that already exist. Building the UI first would mean mocking the whole surface, and `.claude/rules/architecture.md` forbids leaving mock data in a finished feature.
+
+---
+
+## 13. Trips (`/trips`, built 2026-10-02)
+
+Owner-approved design (2026-10-02, "build, we can tweak later"), from the round-3 mock: one
+crag days first, several crags as a grid. Open to change like every other screen.
+
+**Screens.**
+
+- **`/trips`** lists every trip, soonest first: name, dates, how far off ("in 6 days",
+  "underway"), crag count, and "Forecast opens 27 Oct" while the first day is past the
+  16-day horizon. "New trip" in the header.
+- **`/trips/new`** is a task you finish and leave (no bottom bar, back to `/trips`): a name,
+  first and last day (native date inputs), and one or more saved climbing locations.
+  Problems are one line under the form; Create replaces history with the new trip.
+- **`/trips/:tripId`** with one crag opens straight on that crag's view. The header's
+  eyebrow is the crag, the title the trip, the meta its dates, timing and rock.
+  - A tile per trip day, three to a row. A scored tile is the score in its rung's colour,
+    `Dryness · Friction`, then high, chance and amount. A day not scored yet is dashed, "—",
+    "scored from 3 Oct" (its date six days ahead), and the weather.
+  - Tapping a tile opens its card: Dryness, Friction and Score pills, good hours, high and
+    low, rain chance and amount, "Hourly ›" (that day on the crag's Hourly tab, `?date=`),
+    and a small **Agreement** chip.
+  - **Rain over the trip**: the likely total, its range as a bar, each day's amount, and
+    "All 3 days" or "2 of 3 days" from `days_covered`.
+  - **Forecast trend**: the trip total per recording as bars with range whiskers on a left
+    axis in inches, the warmest high as a line on a right axis in °F, each axis in its
+    series' colour, x the recording time; chips "Rain: down 0.16 in", "High: up 5°". No score.
+    Before the first recording: "Trend starts after the next forecast update."
+  - "Delete trip", then "Tap again to delete" (no `confirm()`), back to `/trips`.
+- **With several crags**, `/trips/:tripId` is a crag-by-day grid (a scored cell: score,
+  dryness word, amount; a dashed one: high, chance, amount), each crag's likely total and
+  range, and Delete. Tapping a crag opens `/trips/:tripId/crag/:locationId`, the one-crag
+  view, back to the grid. The grid scrolls sideways inside its card on a long trip.
+
+**Data rules.**
+
+- A tile's score and words are the crag's `/hourly` readings through `summarizeReadings`,
+  joined on `local_date`, with `alertsPending` and Severe+ suppression. Its high, low,
+  chance and amount are the trip outlook's for every day, so a tile never mixes sources for
+  one figure. A city on a trip gets weather only; its readings are never asked for.
+- `days: null` from `GET /trips/:tripId/forecast` reads "Couldn't load the forecast for this
+  crag"; `[]` reads "Forecast opens <date>".
+- Agreement is `agreementShare` (`packages/types`), withheld when `members_wet` is null or
+  no member reached the day. Its meaning is said once, at the foot of the crag view
+  (`AGREEMENT_MEANING`), beside the models named from the response.
+- A trend point over part of the trip (`days_covered < trip_days`) is a **hollow bar**, with
+  a legend key; a change chip compares only points that covered the same days.
+
+**Deliberate choices for the owner to see.**
+
+- The range is labelled **Range**, not the mock's "8 in 10 runs": the copy rule of
+  2026-10-02 ("Range", not "8 in 10 runs") was written after the mock.
+- The one-crag header keeps the **trip's name as the title** and the crag as the eyebrow;
+  the mock titled it with the crag. A trip's name is what its owner typed.
+- Trip-level dates ("in 6 days", "Forecast opens", "scored from") use the **device's date**:
+  a future trip's outlook carries no `is_today` row. A crag a time zone away can be off by a
+  day around midnight.
+- The high line is `colors.sun`, not the mock's amber: amber is the `fair` rung and not
+  available for a data mark.
+- Tiles wrap three to a row; a week-long trip is three rows, not a sideways strip.

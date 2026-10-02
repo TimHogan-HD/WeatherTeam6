@@ -26,6 +26,7 @@ forecast_snapshots      -- no writer (by design)
 trips
 trip_locations
 trip_day_records        -- migration 0025, written by /api/cron/record-trips
+trip_rain_records       -- migration 0026, written by /api/cron/record-trips
 crag_climbability_history   -- no writer (regression, issue #25)
 conditions_reports      -- no writer; superseded by feedback
 feedback                -- migration 0018
@@ -168,6 +169,24 @@ precip_mm_mean        double      -- mean of member daily totals; sums across da
 UNIQUE(location_id, local_date, recorded_at)   -- a rerun inside the hour replaces its row
 ```
 On `DEPENDENT_TABLES`, so a location delete clears it. A row is written only when every source the location needs answered; a failed read writes nothing rather than nulls.
+
+### trip_rain_records
+A trip's rain total and warmest high at one of its locations, per firing of `POST /api/cron/record-trips`: the points of the trip screen's forecast trend, read by `GET /trips/:tripId/trend`. Built by `tripRainRows` from the same `summarizeTripOutlook` that `GET /trips/:tripId/forecast` answers with.
+```typescript
+id            uuid PK
+trip_id       uuid FK → trips.id       -- per trip: a total is summed over one trip's dates
+location_id   uuid FK → locations.id
+recorded_at   timestamptz -- the firing, truncated to the hour
+mean_mm       double      -- mean of member trip totals; null when no member reached every covered day
+p10_mm        double      -- percentiles of member totals, never a sum of daily percentiles
+p90_mm        double
+member_count  int         -- members summed
+days_covered  int         -- trip days inside the horizon; null with the rain
+trip_days     int NOT NULL
+high_c_max    double      -- highest of the covered days' median highs; null when no day had one
+UNIQUE(trip_id, location_id, recorded_at)   -- a rerun inside the hour replaces its row
+```
+**`days_covered < trip_days` marks a total over part of the trip**, which jumps when the next day enters the horizon; the trend draws such a point hollow. A trip with no day inside the horizon writes no row. Written in the same transaction as the location's `trip_day_records`, so both or neither land. `DELETE /trips/:tripId` clears it by `trip_id` in its transaction; `location_id` is on `DEPENDENT_TABLES`.
 
 ### crag_climbability_history
 Accumulated historical climbability pattern per crag per month. Grows over time.
