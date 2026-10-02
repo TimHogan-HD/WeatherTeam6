@@ -17,11 +17,20 @@ import { colorsV2, mapV2 } from '@weatherteam6/design/tokens'
 
 export const BASEMAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/dark'
 
+const link = (href: string, text: string) => `<a href="${href}" target="_blank" rel="noopener">${text}</a>`
+export const BASEMAP_ATTRIBUTION = [
+  link('https://openfreemap.org', 'OpenFreeMap'),
+  link('https://www.openmaptiles.org/', '© OpenMapTiles'),
+  link('https://www.openstreetmap.org/copyright', '© OpenStreetMap contributors'),
+].join(' ')
+
 /** AWS Open Data's Terrarium tiles: keyless, global, metres encoded in RGB. */
 export const DEM_TILES = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'
 export const DEM_MAXZOOM = 14
-export const TERRAIN_ATTRIBUTION =
-  '<a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md" target="_blank" rel="noopener">Terrain: Mapzen / AWS Open Data</a>'
+export const TERRAIN_ATTRIBUTION = link(
+  'https://github.com/tilezen/joerd/blob/master/docs/attribution.md',
+  'Terrain: Mapzen / AWS Open Data',
+)
 
 /** Contours draw from this zoom up; below it they are a grey wash. */
 export const CONTOUR_MINZOOM = 11
@@ -192,8 +201,17 @@ export function appMapStyle(style: StyleSpecification, terrain: TerrainTiles): S
   const labelAt = layers.findIndex((l, i) => i > lastLine && l.type === 'symbol')
   layers.splice(labelAt === -1 ? layers.length : labelAt, 0, labels)
 
+  // OpenFreeMap's TileJSON says "Data from OpenStreetMap"; the licence asks for
+  // the contributors to be named. A style source's attribution outranks its
+  // TileJSON's.
+  const basemap = Object.fromEntries(
+    Object.entries(style.sources).map(([id, source]) => [
+      id,
+      source.type === 'vector' ? { ...source, attribution: BASEMAP_ATTRIBUTION } : source,
+    ]),
+  )
   const sources: Record<string, SourceSpecification> = {
-    ...style.sources,
+    ...basemap,
     [DEM_SOURCE]: {
       type: 'raster-dem',
       encoding: 'terrarium',

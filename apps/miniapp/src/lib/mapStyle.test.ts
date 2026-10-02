@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { LayerSpecification, StyleSpecification } from 'maplibre-gl'
 import { colorsV2, mapV2 } from '@weatherteam6/design/tokens'
-import { appMapStyle, positionFeatures } from './mapStyle.js'
+import { BASEMAP_ATTRIBUTION, TERRAIN_ATTRIBUTION, appMapStyle, positionFeatures } from './mapStyle.js'
 
 /**
  * One layer of every kind the recolour distinguishes, each wearing a colour no
@@ -84,6 +84,12 @@ describe('appMapStyle', () => {
     expect(labels.type === 'symbol' ? labels.layout?.['text-font'] : null).toEqual(['Fixture Sans'])
     expect(styled.sources['wt6-dem']).toMatchObject({ type: 'raster-dem', encoding: 'terrarium', tiles: [TERRAIN.dem] })
     expect(styled.sources['wt6-contours']).toMatchObject({ type: 'vector', tiles: [TERRAIN.contours] })
+  })
+
+  it('credits OpenStreetMap’s contributors on the basemap and the terrain on its own source', () => {
+    expect(styled.sources['openmaptiles']).toMatchObject({ attribution: BASEMAP_ATTRIBUTION })
+    expect(BASEMAP_ATTRIBUTION).toMatch(/OpenFreeMap.*© OpenMapTiles.*© OpenStreetMap contributors/)
+    expect(styled.sources['wt6-dem']).toMatchObject({ attribution: TERRAIN_ATTRIBUTION })
   })
 
   it('does not change the style it was given', () => {
