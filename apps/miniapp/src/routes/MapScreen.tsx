@@ -61,11 +61,18 @@ const TERRAIN = {
   }),
 }
 
+/** A long name is cut short on its pin, so the score beside it stays on screen; the full name is still read aloud. */
+const PIN_NAME_MAX_PX = 150
 /**
  * Room round the pins when the map frames them: a pin's label runs to the
- * right of its dot, so that side needs the width of a crag's name.
+ * right of its dot, so that side needs a label's width.
  */
-const FIT_PADDING = { top: spacing.sectionGap * 3, bottom: spacing.sectionGap * 5, left: spacing.sectionGap * 2, right: 160 }
+const FIT_PADDING = {
+  top: spacing.sectionGap * 3,
+  bottom: spacing.sectionGap * 5,
+  left: spacing.sectionGap * 2,
+  right: PIN_NAME_MAX_PX + spacing.sectionGap * 4,
+}
 /** A fix is shown at least this close, so its accuracy ring has a street round it. */
 const LOCATE_ZOOM = 13
 /** A finger held this long, moving no further than the slop, drops a pin. */
@@ -380,7 +387,16 @@ function PinMarker({
           padding: `${spacing.tight}px ${spacing.inlineGap}px`,
         }}
       >
-        <span style={typeV2.controlValue}>{pin.name}</span>
+        <span
+          style={{
+            ...typeV2.controlValue,
+            maxWidth: `${PIN_NAME_MAX_PX}px`,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {pin.name}
+        </span>
         {pin.score === null || ink === null ? null : <span style={{ ...typeV2.badgeValue, color: ink }}>{pin.score}</span>}
       </span>
     </button>,

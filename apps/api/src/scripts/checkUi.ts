@@ -16,7 +16,7 @@
  * What it does: starts `createApp()` on :3096 with throwaway secrets, starts
  * vite on :5173 pointed at it, creates a throwaway user, signs in through the
  * real login screen, adds a known crag through the API, and opens the list,
- * every detail tab and the add screen at the owner's phone viewport
+ * every detail tab, the map and the add screen at the owner's phone viewport
  * (480x1000). Each screen is screenshotted, and fails on an uncaught page
  * error, a console error, an API response >= 400, a horizontal scroll, or an
  * empty panel. Everything it creates is under the `zz-check-ui` prefix and is
@@ -129,7 +129,8 @@ async function run(): Promise<void> {
   let locationId: string | null = null
   let gpsLocationId: string | null = null
   let token: string | null = null
-  const browser = await chromium.launch()
+  // The Map tab draws with WebGL, which headless Chromium has only in software.
+  const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] })
 
   try {
     // A server already on :5173 would answer the probe below with its own
@@ -423,6 +424,67 @@ async function run(): Promise<void> {
     await bar.getByRole('link', { name: 'Conditions' }).click()
     await page.waitForURL((u) => u.pathname === '/', { timeout: 10_000 }).catch(() => undefined)
     check('Conditions in the bar returns a location to the list', new URL(page.url()).pathname === '/', page.url())
+
+    // 3m. The Map tab: the crag as a pin, its contours close up, and a
+    // right-click (a long-press on a phone) carried through to /add's save form.
+    // It runs on the dev server, so the production CSP is not applied here.
+    await page.goto(`${WEB}/map`)
+    const pin = page.getByRole('button', { name: new RegExp(`^ZZ UI check — Taylors Falls ${STAMP}`) })
+    const pinShown = await pin.waitFor({ timeout: 30_000 }).then(() => true).catch(() => false)
+    check('the map draws the saved crag as a pin', pinShown)
+    const pinBox = await pin.boundingBox()
+    check(
+      'its label, score included, fits on screen however long the name',
+      pinBox !== null && pinBox.x + pinBox.width <= VIEWPORT.width,
+      `ends at ${pinBox ? pinBox.x + pinBox.width : '?'}`,
+    )
+    await page.locator('.maplibregl-canvas').waitFor({ timeout: 30_000 })
+    const attribution = (await page.locator('.maplibregl-ctrl-attrib').innerText().catch(() => '')).replace(/\s+/g, ' ')
+    check(
+      'with OpenFreeMap, OpenMapTiles, OpenStreetMap and the terrain credited',
+      /OpenFreeMap/.test(attribution) && /© OpenMapTiles/.test(attribution) && /© OpenStreetMap contributors/.test(attribution) && /Mapzen \/ AWS Open Data/.test(attribution),
+      attribution,
+    )
+    const attribBox = await page.locator('.maplibregl-ctrl-attrib').boundingBox()
+    const barBox = await bar.boundingBox()
+    check(
+      'and the credit clear of the bottom bar',
+      attribBox !== null && barBox !== null && attribBox.y + attribBox.height <= barBox.y,
+      `credit ends ${attribBox ? attribBox.y + attribBox.height : '?'}, bar starts ${barBox?.y ?? '?'}`,
+    )
+    await page.waitForTimeout(3_000)
+    await screen('map', 5)
+
+    await page.locator('.maplibregl-canvas').focus()
+    for (let i = 0; i < 3; i++) {
+      await page.keyboard.press('Equal')
+      await page.waitForTimeout(700)
+    }
+    await page.waitForTimeout(6_000)
+    await screen('map-crag-z13', 5)
+
+    const mapBox = await page.locator('.maplibregl-canvas').boundingBox()
+    if (mapBox === null) throw new Error('no map canvas — stopping')
+    await page.mouse.click(mapBox.x + mapBox.width / 2, mapBox.y + mapBox.height / 4, { button: 'right' })
+    const addCard = page.getByRole('region', { name: 'Add this spot' })
+    const cardShown = await addCard.waitFor({ timeout: 5_000 }).then(() => true).catch(() => false)
+    check('a right-click on the map offers to add that spot', cardShown)
+    await screen('map-add-card', 5)
+    await addCard.getByRole('button', { name: 'Add', exact: true }).click()
+    await page.waitForURL((u) => u.pathname === '/add', { timeout: 10_000 }).catch(() => undefined)
+    const mapForm = await page
+      .getByText(/^Picked on the map/)
+      .waitFor({ timeout: 30_000 })
+      .then(() => true)
+      .catch(() => false)
+    check('Add opens the save form on the picked point', mapForm && /[?&]lat=-?\d/.test(page.url()), page.url())
+    await screen('map-add-form', 5)
+    await page.getByRole('button', { name: 'Back', exact: true }).click()
+    await page.waitForURL((u) => u.pathname === '/map', { timeout: 10_000 }).catch(() => undefined)
+    check('back from that form returns to the map', new URL(page.url()).pathname === '/map', page.url())
+    await pin.click()
+    await page.waitForURL((u) => u.pathname === `/location/${locationId}`, { timeout: 10_000 }).catch(() => undefined)
+    check('tapping a pin opens its crag', new URL(page.url()).pathname === `/location/${locationId}`, page.url())
 
     // 3c. Settings on Profile (scoring Phase 5): a warmer high end and an
     // opening tab, saved, then a crag opening on that tab.
