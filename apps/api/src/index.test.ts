@@ -42,7 +42,9 @@ beforeAll(async () => {
   await new Promise<void>((resolve) => server.once('listening', resolve))
   const address = server.address() as AddressInfo
   base = `http://127.0.0.1:${String(address.port)}`
-})
+  // Importing the whole app transforms the climbing-area snapshots (~1.3 MB of
+  // source): ~4 s alone, past the default 10 s when every workspace tests at once.
+}, 30_000)
 
 afterAll(() => {
   server.close()

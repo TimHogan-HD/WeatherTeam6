@@ -12,6 +12,7 @@ import { useCreateLocation } from '../hooks/useLocations.js'
 import { Screen } from '../components/Screen.js'
 import { InlineError, SkeletonCards } from '../components/States.js'
 import { SaveBar, type SaveDraft } from '../components/SaveBar.js'
+import { BrowseLevel, BrowseStates, type BrowseAt } from '../components/BrowseAreas.js'
 
 /**
  * `/add` — find a place, then save it (§12.1). This works like saving a location
@@ -34,6 +35,10 @@ export function AddLocation() {
   const [query, setQuery] = useState('')
   const [coordsMode, setCoordsMode] = useState(false)
   const [candidate, setCandidate] = useState<Candidate | null>(null)
+  // The browse levels opened, outermost first; empty is the search screen. State
+  // rather than URLs for the reason the save form is: back keeps what was typed.
+  const [trail, setTrail] = useState<BrowseAt[]>([])
+  const at = trail.at(-1) ?? null
   const [draft, setDraft] = useState<SaveDraft>({ name: '', isClimbing: false, rockType: 'unknown' })
 
   const debouncedQuery = useDebouncedValue(query)
@@ -72,18 +77,21 @@ export function AddLocation() {
   // Back from the save form returns here with the search intact; back from the
   // search goes to the list (§2). `backTarget` owns that distinction.
   const onBack = useCallback(() => {
-    const action = backTarget({ route: 'add', confirming: candidate !== null })
+    const action = backTarget({ route: 'add', confirming: candidate !== null, browsing: at !== null })
     switch (action.kind) {
       case 'closeSaveForm':
         setCandidate(null)
         create.reset()
         reverse.reset()
         return
+      case 'browseUp':
+        setTrail(trail.slice(0, -1))
+        return
       case 'navigate':
         void navigate(action.to)
         return
     }
-  }, [candidate, create, reverse, navigate])
+  }, [candidate, at, trail, create, reverse, navigate])
 
   const onSave = useCallback(() => {
     if (candidate === null) return
@@ -124,6 +132,23 @@ export function AddLocation() {
     )
   }
 
+  if (at !== null) {
+    return (
+      <Screen title="Add a location" onBack={onBack} feedback>
+        <div style={{ marginTop: `${spacing.sectionTop}px` }}>
+          <BrowseLevel
+            // A fresh level per area, so one never shows the last one's rows while loading.
+            key={`${at.state}/${at.areaId ?? ''}`}
+            at={at}
+            onOpen={(child) => setTrail([...trail, { state: at.state, areaId: child.area_id }])}
+            onJump={setTrail}
+            onPick={(entry) => choose(fromGeocode(entry.place))}
+          />
+        </div>
+      </Screen>
+    )
+  }
+
   return (
     <Screen title="Add a location" onBack={onBack} feedback>
       <div style={{ ...stack(spacing.listGap), marginTop: `${spacing.sectionTop}px` }}>
@@ -158,6 +183,9 @@ export function AddLocation() {
         >
           {coordsMode ? 'Search by name instead' : 'Enter coordinates instead'}
         </button>
+
+        {/* Out of the way once a search is typed: the results are the answer then. */}
+        {coordsMode || query.trim() !== '' ? null : <BrowseStates onOpen={(next) => setTrail([next])} />}
       </div>
     </Screen>
   )

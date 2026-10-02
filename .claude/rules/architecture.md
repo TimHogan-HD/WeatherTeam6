@@ -155,6 +155,11 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   Walls are listed A–Z and never placed by OpenBeta's coordinates, which are wrong on the
   ground (owner, 2026-09-29). Grade colours (`gradeScale`/`gradeBoulder`, including status
   hues, owner decision 2026-09-29) are for grade marks only, always beside the printed grade.
+- **`/add`'s climbing-area search and browse read per-state OpenBeta snapshots**
+  (`lib/weather/climbingAreas<Xx>.ts`, `npm run climbing:pull -- <State> <XX>`, one line in
+  `STATES`), never OpenBeta at runtime. Browsing walks `parent_id`, never names, which repeat;
+  an area whose parent was filtered out lists at its state's top level, and
+  `climbingAreas.test.ts` walks every snapshot to prove nothing is unreachable.
 - **The logbook sits beside the snapshot, keyed by OpenBeta ids with no FK** (`lib/logbook/`,
   `routes/logbook.ts`). `route_ticks` and `route_todos` are per user; an unknown id is a 404
   (`routeExists`/`areaExists`). `area_locations` is **shared by every account** — a later

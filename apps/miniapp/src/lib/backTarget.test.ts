@@ -7,7 +7,15 @@ describe('backTarget', () => {
   })
 
   it('leaves the add flow for the list from the search step', () => {
-    expect(backTarget({ route: 'add', confirming: false })).toEqual({ kind: 'navigate', to: '/' })
+    expect(backTarget({ route: 'add', confirming: false, browsing: false })).toEqual({ kind: 'navigate', to: '/' })
+  })
+
+  it('steps up one browse level rather than leaving the add flow', () => {
+    expect(backTarget({ route: 'add', confirming: false, browsing: true })).toEqual({ kind: 'browseUp' })
+  })
+
+  it('closes a save form picked while browsing onto that level, not up past it', () => {
+    expect(backTarget({ route: 'add', confirming: true, browsing: true })).toEqual({ kind: 'closeSaveForm' })
   })
 
   /**
@@ -18,7 +26,7 @@ describe('backTarget', () => {
    * the typing is missing.
    */
   it('returns the add save form to its own search rather than navigating', () => {
-    expect(backTarget({ route: 'add', confirming: true })).toEqual({ kind: 'closeSaveForm' })
+    expect(backTarget({ route: 'add', confirming: true, browsing: false })).toEqual({ kind: 'closeSaveForm' })
   })
 
   /**
@@ -28,8 +36,9 @@ describe('backTarget', () => {
    */
   it('gives every non-root context a back action', () => {
     const actions = [
-      backTarget({ route: 'add', confirming: false }),
-      backTarget({ route: 'add', confirming: true }),
+      backTarget({ route: 'add', confirming: false, browsing: false }),
+      backTarget({ route: 'add', confirming: true, browsing: false }),
+      backTarget({ route: 'add', confirming: false, browsing: true }),
     ]
 
     for (const action of actions) {

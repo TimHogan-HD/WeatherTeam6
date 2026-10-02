@@ -21,13 +21,15 @@ type RawArea = {
   uuid: string
   area_name: string
   pathTokens: string[]
+  /** Ids from USA down to the area itself, matching `pathTokens` one for one. */
+  ancestors: string[]
   totalClimbs: number | null
   metadata: { lat: number | null; lng: number | null }
 }
 
 const query = (state: string, offset: number) => `{
   areas(filter: { path_tokens: { tokens: ["USA", ${JSON.stringify(state)}] } }, limit: ${PAGE}, offset: ${offset}) {
-    uuid area_name pathTokens totalClimbs
+    uuid area_name pathTokens ancestors totalClimbs
     metadata { lat lng }
   }
 }`
@@ -84,8 +86,9 @@ async function main() {
     .map((a) => ({
       uuid: a.uuid,
       name: a.area_name.trim(),
-      // pathTokens runs USA, state, ..., the area itself.
+      // A top-level area's parent is the state, recorded as null.
       parent: a.pathTokens.length > 3 ? (a.pathTokens[a.pathTokens.length - 2] ?? null) : null,
+      parent_id: a.pathTokens.length > 3 ? (a.ancestors[a.ancestors.length - 2] ?? null) : null,
       climbs: a.totalClimbs ?? 0,
       lat: Math.round(a.metadata.lat! * 1e5) / 1e5,
       lon: Math.round(a.metadata.lng! * 1e5) / 1e5,
