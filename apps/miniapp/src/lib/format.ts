@@ -69,12 +69,11 @@ export function formatRunAge(
   const at = Date.parse(stamp)
   if (!Number.isFinite(at)) return null
 
-  const verb = checked ? 'checked' : 'fetched'
   const minutes = Math.floor((now - at) / 60_000)
   if (minutes < 0) return null
-  if (minutes < 1) return `Forecast ${verb} just now`
-  if (minutes < 60) return `Forecast ${verb} ${minutes} min ago`
-  return `Forecast ${verb} ${Math.floor(minutes / 60)} h ago`
+  if (minutes < 1) return 'Updated just now'
+  if (minutes < 60) return `Updated ${minutes} min ago`
+  return `Updated ${Math.floor(minutes / 60)} h ago`
 }
 
 /**

@@ -281,7 +281,7 @@ describe('ConditionsNow — the measurements panel', () => {
     const html = render()
     expect(count(html, 'Dew point')).toBe(1)
     expect(count(html, 'Humidity')).toBe(1)
-    expect(html).toContain('Rain, past hour')
+    expect(html).toContain('Rain (last hour)')
   })
 
   it('carries the rock figures and says the rock temperature is modelled', () => {
@@ -289,8 +289,8 @@ describe('ConditionsNow — the measurements panel', () => {
     // 52 °C surface; a 20 °C margin is 36 °F as an interval — and would be
     // 68°F through `formatTempF`, which is the bug the delta conversion stops.
     expect(html).toContain('126°F')
-    expect(html).toContain('36°F above')
-    expect(html).not.toContain('68°F above')
+    expect(html).toContain('36°F warmer')
+    expect(html).not.toContain('68°F warmer')
     expect(html).toContain(ROCK_TEMPERATURE_MECHANISM)
     expect(html).toContain(FRICTION_MECHANISM)
   })
@@ -333,10 +333,10 @@ describe('ConditionsNow — the measurements panel', () => {
       conditions: settled(scored({ now: { ...reading, held_back_by: ['heat', 'humidity'] } })),
       rangeF: { low: 35, high: 65 },
     })
-    expect(html).toContain('Held back by')
-    expect(html).toContain('air above your 65°F high')
-    expect(html.indexOf('>Heat<')).toBeLessThan(html.indexOf('>Humidity<', html.indexOf('Held back by')))
-    expect(html.indexOf('Held back by')).toBeLessThan(html.indexOf('Rain, past hour'))
+    expect(html).toContain('Score breakdown')
+    expect(html).toContain('above 65°F')
+    expect(html.indexOf('>Heat<')).toBeLessThan(html.indexOf('>Humidity<', html.indexOf('Score breakdown')))
+    expect(html.indexOf('Score breakdown')).toBeLessThan(html.indexOf('Rain (last hour)'))
     expect(html).toContain('href="/profile#score"')
   })
 
@@ -345,6 +345,11 @@ describe('ConditionsNow — the measurements panel', () => {
       conditions: settled(scored({ now: { ...reading, held_back_by: ['heat'] } })),
       severeAlertEvent: 'Extreme Heat Warning',
     })
-    expect(html).not.toContain('Held back by')
+    expect(html).not.toContain('Score breakdown')
+  })
+
+  it('shows no breakdown when nothing is lowering the score', () => {
+    const html = render({ conditions: settled(scored({ now: { ...reading, held_back_by: [] } })) })
+    expect(html).not.toContain('Score breakdown')
   })
 })

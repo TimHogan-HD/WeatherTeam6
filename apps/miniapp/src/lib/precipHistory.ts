@@ -288,9 +288,14 @@ export function formatSince(hours: number): string {
   return `${Math.floor(hours / 24)}d ${hours % 24}h`
 }
 
-/** `21:00`. */
+/** `9pm` for local hour 21 — the 12-hour clock the rest of the app prints. */
+export function clock12(hour: number): string {
+  return `${hour % 12 === 0 ? 12 : hour % 12}${hour < 12 ? 'am' : 'pm'}`
+}
+
+/** `9pm`, from a local `YYYY-MM-DDTHH:MM` stamp. */
 export function clockOf(validAtLocal: string): string {
-  return validAtLocal.slice(11, 16)
+  return clock12(Number(validAtLocal.slice(11, 13)))
 }
 
 /** `Tue`, read from the date itself — never the viewer's timezone. */

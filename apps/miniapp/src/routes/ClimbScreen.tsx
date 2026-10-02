@@ -209,9 +209,6 @@ export function ClimbScreen() {
             />
             <Fact label="Type" value={kindsLine(route.kinds) || 'Not recorded'} recorded={route.kinds.length > 0} />
             <Fact label="First ascent" value={route.first_ascent ?? 'Not recorded'} recorded={route.first_ascent !== null} />
-            {/* OpenBeta carries neither for any Minnesota route (2026-09-28). */}
-            <Fact label="Length" value="Not recorded" recorded={false} />
-            <Fact label="Bolts" value="Not recorded" recorded={false} />
             <Fact
               label="Protection rating"
               value={route.safety === null ? 'Not rated' : SAFETY_WORDS[route.safety]}
@@ -219,19 +216,12 @@ export function ClimbScreen() {
             />
           </div>
         </Card>
-        <Card title="Beta">
-          {route.description === null ? (
-            <div style={{ ...stack(spacing.tight), backgroundColor: colorsV2.surface, borderRadius: `${radius.rowV2}px`, padding: `${spacing.cardPad}px`, textAlign: 'center' }}>
-              <span style={{ ...typeV2.rowTitle }}>No write-up yet</span>
-              <span style={{ ...typeV2.note, color: colorsV2.txtMuted }}>
-                OpenBeta has no description for this route. It’s an open guidebook anyone can edit — beta added
-                there reaches this app at its next guidebook refresh.
-              </span>
-            </div>
-          ) : (
+        {/* Five Minnesota routes carry a description (2026-10-02); the rest show no section at all. */}
+        {route.description === null ? null : (
+          <Card title="Beta">
             <p style={{ ...typeV2.body, color: colorsV2.txt1, whiteSpace: 'pre-line' }}>{route.description}</p>
-          )}
-        </Card>
+          </Card>
+        )}
         <OnTheWall locationId={id} wall={wall} route={route} />
         <SourcesFooter
           sources={[

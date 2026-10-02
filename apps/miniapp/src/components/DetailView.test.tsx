@@ -1,5 +1,6 @@
 import { renderInRouter } from '../test/renderInRouter.js'
 import { describe, expect, it } from 'vitest'
+import { FRICTION_MECHANISM } from '@weatherteam6/types'
 import type {
   Conditions,
   ForecastSnapshot,
@@ -185,7 +186,9 @@ describe('DetailView — a climbing location', () => {
         conditions={ok(redRockScore())}
       />,
     )
-    expect(visible(html)).toContain('Friction is estimated')
+    // Said once, in the measurements panel, not under the gauges.
+    expect(html).toContain(FRICTION_MECHANISM)
+    expect(visible(html)).not.toContain('Friction is estimated, not measured')
   })
 
   it('drops the number under a Severe+ alert but keeps the readings', () => {
@@ -198,7 +201,7 @@ describe('DetailView — a climbing location', () => {
       />,
     )
     expect(html).toContain('Extreme Heat Warning')
-    expect(html).toContain('see the Extreme Heat Warning above')
+    expect(html).toContain('Score hidden: Extreme Heat Warning')
     // The words stay — they are the same fact the warning is about. The number
     // is the part that reads as actionable, and it is what goes.
     expect(visible(html)).toContain('Friction Poor')

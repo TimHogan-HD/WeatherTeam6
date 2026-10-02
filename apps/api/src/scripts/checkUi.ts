@@ -353,9 +353,11 @@ async function run(): Promise<void> {
     await screen('overview-measurements')
     const panelId = await page.getByRole('button', { name: 'Measurements' }).getAttribute('aria-controls')
     const hero = await page.locator('section').first().innerText()
+    // A score under 100 has something lowering it, and the breakdown names it; at 100 there may be none.
+    const shownScore = /Score\s*\n\s*(\d+)/.exec(hero)?.[1]
     check(
-      'the opened measurements say what is holding a shown score down',
-      !/Score\s*\n\s*\d+/.test(hero) || /Held back by/i.test(hero),
+      'the opened measurements say what is lowering a shown score',
+      shownScore === undefined || shownScore === '100' || /Score breakdown/i.test(hero),
       hero.replace(/\s+/g, ' ').slice(0, 300),
     )
     // Closing shrinks the panel first, and only then hides it.
@@ -555,7 +557,7 @@ async function run(): Promise<void> {
     await page.getByRole('button', { name: 'Remove location' }).waitFor({ timeout: 30_000 })
     check('a known crag offers no "Edit crag"', (await page.getByRole('button', { name: 'Edit crag' }).count()) === 0)
     await page.goto(`${WEB}/location/${locationId}/edit`)
-    await page.getByText(/can’t be changed here/).waitFor({ timeout: 30_000 })
+    await page.getByText(/Can’t be changed/).waitFor({ timeout: 30_000 })
     check('the editor shows no bottom bar', (await bar.count()) === 0)
     await screen('edit')
     check(
@@ -765,7 +767,7 @@ async function run(): Promise<void> {
     await tp.screenshot({ path: pullShot })
     check(
       `a pull says it will refresh and how fresh the scores are  →  ${pullShot}`,
-      /Release to refresh/.test(pulled) && /Scores from GFS · forecast checked/.test(pulled),
+      /Release to refresh/.test(pulled) && /Updated (just now|\d+ (min|h) ago)/.test(pulled),
       pulled.replace(/\s+/g, ' ') || '(the panel never opened)',
     )
     check(
@@ -823,7 +825,7 @@ async function run(): Promise<void> {
     const hourlyPull = await dragPanel({ x: 240, y: 400 }, { x: 240, y: 700 })
     check(
       'pulling a crag’s Hourly tab offers a refresh and says how old the forecast is',
-      /Release to refresh/.test(hourlyPull) && /Forecast checked/.test(hourlyPull),
+      /Release to refresh/.test(hourlyPull) && /Updated (just now|\d+ (min|h) ago)/.test(hourlyPull),
       hourlyPull || '(the panel never opened)',
     )
     await tp.getByText(/Up to date|Couldn’t refresh/).waitFor({ timeout: 30_000 }).catch(() => undefined)

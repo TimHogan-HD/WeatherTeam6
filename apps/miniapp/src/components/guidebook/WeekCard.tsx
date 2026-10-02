@@ -77,7 +77,7 @@ export function WeekCard({ locationId }: { locationId: string }) {
     <section style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
       <div style={stack(spacing.tight)}>
         <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
-          <h2 style={typeV2.cardTitle}>Climb it this week</h2>
+          <h2 style={typeV2.cardTitle}>This week</h2>
           <button
             type="button"
             onClick={() => void navigate(detailTabPath(locationId, 'hourly'))}
@@ -87,7 +87,7 @@ export function WeekCard({ locationId }: { locationId: string }) {
           </button>
         </div>
         <span style={{ ...typeV2.note, color: colorsV2.txtMuted }}>
-          Good hours at the crag. Wall aspects aren’t recorded, so this wall shares the crag’s reading.
+          Good hours for the whole crag.
         </span>
       </div>
       {body}

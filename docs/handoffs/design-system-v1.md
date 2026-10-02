@@ -65,6 +65,13 @@ Two rules the client added that belong here now:
 
 - **A reading is a label and a value, never a sentence.** `Dryness: Dry`, `Friction: Great`,
   `Score: 100`. A fluent sentence claims a confidence an estimate has not earned.
+- **Write like a weather app** (owner, 2026-10-02). Standard weather words over coined
+  labels ("Last rain", not "Last real rain"; "Range", not "8 in 10 runs"; "Score breakdown",
+  not "Held back by"). A caveat is said **once** — in the Measurements disclosure and on How
+  the score works — not repeated on every card ("estimated, not measured", "not a gauge").
+  A rule is defined once, where it is explained, never re-explained inline ("each hour under
+  0.02 in, so they don't count"). Error and empty states are one short sentence, no em-dash
+  aside. The rock guide is exempt: its prose was reviewed rock by rock.
 - **The words come from the readings, never from the number.** A ladder mapping a score to a
   phrase can only be as right as the score, which is how 104 °F came to read *"Dry, settled"*.
 

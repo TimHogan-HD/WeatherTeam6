@@ -10,7 +10,6 @@ import {
   rainSeries,
   temperatureSeries,
   timeExtent,
-  uniformMemberCount,
   valueExtent,
   valueRuns,
 } from './hourlySeries.js'
@@ -164,27 +163,6 @@ describe('dayStarts', () => {
       hour(1, { local_date: '2026-09-14', temp_c_p50: 2 }),
     ])
     expect(dayStarts(data)).toHaveLength(2)
-  })
-})
-
-describe('uniformMemberCount', () => {
-  it('is the count when every hour that reports one agrees', () => {
-    expect(uniformMemberCount([hour(0, { member_count: 143 }), hour(1, { member_count: 143 })])).toBe(143)
-  })
-
-  it('ignores hours that report nothing', () => {
-    expect(uniformMemberCount([hour(0, { member_count: 143 }), hour(1)])).toBe(143)
-  })
-
-  it('is null when the ensemble thins out across the window', () => {
-    // The far end of a 7-day window is reached by fewer members. Printing the
-    // largest as "143 forecast runs" attributes the whole band to a sample size
-    // most of it does not have.
-    expect(uniformMemberCount([hour(0, { member_count: 143 }), hour(1, { member_count: 90 })])).toBeNull()
-  })
-
-  it('is null when no hour reports a count at all', () => {
-    expect(uniformMemberCount([hour(0), hour(1)])).toBeNull()
   })
 })
 

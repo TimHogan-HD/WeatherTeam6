@@ -48,9 +48,10 @@
  * it and quarantine it: **words and ordering reach a screen, numbers do not.**
  * Nothing here accepts a 0-1 factor, and `HourlyReading` does not carry one.
  *
- * **2. The copy says the friction reading is an estimate.** On the surface, in
- * the reader's own words — not in a document. `FRICTION_ESTIMATE_NOTE` is that
- * copy and a surface showing a friction level must show it.
+ * **2. The app says the friction reading is an estimate — once.** In the
+ * measurements disclosure (`FRICTION_MECHANISM`) and on How the score works,
+ * not under every gauge: repeated on every surface it read as boilerplate
+ * (owner, 2026-10-02).
  *
  * **3. An unqualified reading is never presented as a measured one.** But it is
  * also not an asterisk on every line: measured live on 2026-09-21, **half of
@@ -151,14 +152,14 @@ export type ReadingField = {
 
 /** The rock reading's name. A property, like *Humidity* — not the subject, *Rock*. */
 export const DRYNESS_LABEL = 'Dryness';
-/** The friction reading's name. `FRICTION_ESTIMATE_NOTE` is what says it is a guess. */
+/** The friction reading's name. `FRICTION_MECHANISM`, in the measurements disclosure, says it is an estimate. */
 export const FRICTION_LABEL = 'Friction';
 /** The derived number's name. Third and last, by the phase's design. */
 export const SCORE_LABEL = 'Score';
 /** The day's window. Not a reading of *now*, which is why it is not in `readingFields`. */
 export const WINDOW_LABEL = 'Good hours';
 /** What is holding the score down (issue #218). Shown with the score and never without it. */
-export const HELD_BACK_LABEL = 'Held back by';
+export const HELD_BACK_LABEL = 'Score breakdown';
 
 export const SCORE_LIMIT_LABELS: Record<ScoreLimit, string> = {
   wet_rock: 'Wet rock',
@@ -199,15 +200,15 @@ export type RangeF = { low: number; high: number } | null;
 export function heldBackReason(limit: ScoreLimit, rock: RockReading | null, range: RangeF): string {
   switch (limit) {
     case 'wet_rock':
-      return rock?.level === 'wet' ? 'wet from recent rain' : 'still drying after rain';
+      return rock?.level === 'wet' ? 'wet' : 'drying';
     case 'condensation':
-      return `rock within ${Math.round(cToFDelta(SCORE_MODEL_FACTS.condensationClearMarginC))}°F of its dew point`;
+      return 'rock near dew point';
     case 'heat':
-      return range === null ? 'air above your range' : `air above your ${range.high}°F high`;
+      return range === null ? 'above your range' : `above ${range.high}°F`;
     case 'humidity':
-      return `dew point above ${SCORE_MODEL_FACTS.dewStartF}°F`;
+      return `dew point over ${SCORE_MODEL_FACTS.dewStartF}°F`;
     case 'cold':
-      return range === null ? 'air below your range' : `air below your ${range.low}°F low`;
+      return range === null ? 'below your range' : `below ${range.low}°F`;
   }
 }
 
@@ -222,8 +223,7 @@ export function heldBackFields(
   rock: RockReading | null,
   range: RangeF,
 ): ReadingField[] {
-  // Empty only at 100: a cost under a point may remain, so never "all clear".
-  if (limits.length === 0) return [{ label: 'Nothing', value: 'nothing costs a point' }];
+  // Empty when nothing costs a point on its own; the surface then shows no breakdown at all.
   return limits.map((l) => ({ label: SCORE_LIMIT_LABELS[l], value: heldBackReason(l, rock, range) }));
 }
 
@@ -360,33 +360,17 @@ export function readingsUnavailableLine(reason: ReadingsUnavailableReason): stri
       // The thermal model is one named model and is never substituted (#155).
       // "No forecast" would be wrong — the weather columns on the same response
       // may well have come back from a different model.
-      return "Can't read the rock right now — the forecast model didn't answer for this spot.";
+      return 'Rock conditions unavailable right now.';
     case 'insufficient_history':
       // Not a failure and not permanent: `T_mass` needs about four days of
       // trailing temperature, which arrives with the next scheduled collection.
-      return 'Not enough recent weather yet to read the rock here. Check back in an hour.';
+      return 'Rock conditions available in about an hour.';
     case 'not_a_climbing_location':
       // Saved as a place rather than a crag. Deliberately not phrased as an
       // error — nothing went wrong, and the reader chose this.
-      return 'Saved as a place, not a crag — no rock reading.';
+      return 'Saved as a place, not a crag.';
   }
 }
-
-/**
- * The copy that says the friction reading is a guess, on the surface.
- *
- * **A Phase 3 acceptance criterion, not a nicety** (§ Open Questions 6). Every
- * step behind this reading is standard physics with published values except
- * one: what a sweating hand does to grip, which nobody has measured. The
- * decision was to keep that step and quarantine it, and this is half of the
- * quarantine — the other half is that no magnitude is published at all.
- *
- * **It is a fragment and that is deliberate.** It used to read *"Friction is an
- * estimate from temperature, humidity and wind — not a measurement."* Which
- * inputs it comes from belongs with the inputs, in the measurements disclosure;
- * what the surface owes the reader here is that the number is not measured.
- */
-export const FRICTION_ESTIMATE_NOTE = 'Friction is estimated, not measured';
 
 /**
  * The copy for an hour whose answer depends on a wall orientation nobody has
@@ -399,7 +383,7 @@ export const FRICTION_ESTIMATE_NOTE = 'Friction is estimated, not measured';
  * must not promise "at most this warm". It says the input is missing and that
  * the reading leans warm, which is what the data supports.
  */
-export const UNRECORDED_ASPECT_NOTE = 'Aspect unrecorded — sunlit hours lean warm';
+export const UNRECORDED_ASPECT_NOTE = 'Wall direction not set, so sunny hours may read warm';
 
 /**
  * The qualifier for a wall sitting below its dew point.
@@ -408,7 +392,7 @@ export const UNRECORDED_ASPECT_NOTE = 'Aspect unrecorded — sunlit hours lean w
  * and it is worth naming because it is the case a climber can act on — the wall
  * is wet with condensation, not with rain, and it will clear when the air does.
  */
-export const CONDENSING_NOTE = 'Below dew point — condensation on the rock';
+export const CONDENSING_NOTE = 'Condensation on the rock';
 
 export type ReadingsSummaryInput = {
   /** The hour being summarised — normally the hour covering now. */
@@ -533,7 +517,7 @@ export function summarizeReadings(input: ReadingsSummaryInput): ReadingsSummary 
   // only one qualifier is ever shown — two reads as a list of complaints.
   const qualifier =
     severeAlertEvent !== null
-      ? `see the ${severeAlertEvent} above`
+      ? `Score hidden: ${severeAlertEvent}`
       : friction?.condensing === true
         ? CONDENSING_NOTE
         : null;
@@ -545,9 +529,9 @@ export function summarizeReadings(input: ReadingsSummaryInput): ReadingsSummary 
     severeAlertEvent !== null || alertsPending ? null : (reading?.score ?? null);
 
   const notes: string[] = [];
-  // Required copy wherever a friction level appears, and nowhere else: a
-  // location showing no friction reading has nothing to caveat.
-  if (friction !== null) notes.push(FRICTION_ESTIMATE_NOTE);
+  // That friction is an estimate is said once, in the measurements disclosure
+  // (`FRICTION_MECHANISM`) and on How the score works — not under every gauge
+  // (owner, 2026-10-02).
   // One note for the whole surface rather than a mark per hour. `qualified` is
   // false for roughly half of every location's hours until Phase 4 writes an
   // aspect, so a per-row flag would be on more rows than off.
@@ -586,8 +570,8 @@ export function summarizeReadings(input: ReadingsSummaryInput): ReadingsSummary 
  *   A reader who disagrees with the gauge can now see *why* it says what it
  *   says, which is the only correction loop this app has until the feedback
  *   button (#143).
- * - **It is where the caveats' mechanism lives.** `FRICTION_ESTIMATE_NOTE` and
- *   `UNRECORDED_ASPECT_NOTE` are fragments by the owner's 2026-09-21 decision —
+ * - **It is where the caveats live.** `UNRECORDED_ASPECT_NOTE` is a
+ *   fragment by the owner's 2026-09-21 decision —
  *   the gauges are terse and a paragraph under them reads as a report. The
  *   explanation did not stop being owed to the reader; it moved here, where
  *   opening the panel is the reader asking for it.
@@ -629,12 +613,12 @@ export const GUSTS_LABEL = 'Gusts';
  * decides which slot a rain bar is drawn in. "Rain now" would move every
  * shower an hour later in the reader's head.
  */
-export const RAIN_PAST_HOUR_LABEL = 'Rain, past hour';
+export const RAIN_PAST_HOUR_LABEL = 'Rain (last hour)';
 export const ROCK_TEMPERATURE_LABEL = 'Rock temperature';
-export const DEW_POINT_MARGIN_LABEL = 'Dew point margin';
+export const DEW_POINT_MARGIN_LABEL = 'Rock vs dew point';
 
 /**
- * The mechanism behind `FRICTION_ESTIMATE_NOTE`.
+ * What says the friction reading is an estimate — once, in the disclosure, not under every gauge.
  *
  * It names the inputs — which is what the fragment used to say and no longer
  * does — and then says plainly where the estimate stops being physics. That
@@ -642,7 +626,7 @@ export const DEW_POINT_MARGIN_LABEL = 'Dew point margin';
  * skin wettedness is standard physics with published values, and the step from
  * there to grip is a judgement no study supports.
  */
-export const FRICTION_MECHANISM = 'Friction: estimated from air, dew point and rock temperature.';
+export const FRICTION_MECHANISM = 'Friction is an estimate based on air temperature, dew point and rock temperature.';
 
 /**
  * The mechanism behind `UNRECORDED_ASPECT_NOTE`.
@@ -654,7 +638,7 @@ export const FRICTION_MECHANISM = 'Friction: estimated from air, dew point and r
  * this warm" is not.
  */
 export const UNRECORDED_ASPECT_MECHANISM =
-  'No wall direction recorded: sun is modelled on flat ground, which usually reads warm.';
+  'Wall direction not set, so sunny hours may read warm.';
 
 /**
  * What the rock group is.
@@ -665,7 +649,7 @@ export const UNRECORDED_ASPECT_MECHANISM =
  * forecast. Printing `126°F` beside `Temperature 84°F` without this line invites
  * a reader to treat the first as an observation.
  */
-export const ROCK_TEMPERATURE_MECHANISM = 'Rock temperature: modelled for open ground, not measured.';
+export const ROCK_TEMPERATURE_MECHANISM = 'Rock temperature is calculated from sun, air and wind.';
 
 /**
  * Where the drying clock's rain came from.
@@ -678,8 +662,7 @@ export const ROCK_TEMPERATURE_MECHANISM = 'Rock temperature: modelled for open g
  */
 export function dryingRainMechanism(models: readonly string[]): string {
   const names = [...new Set(models.map(modelName))];
-  if (names.length === 1) return `Rain: ${names[0]}'s forecast, not a gauge.`;
-  return `Rain: median forecast of ${nameList(names)}, not a gauge.`;
+  return `Rain: ${nameList(names)}.`;
 }
 
 /** `GFS, ECMWF and ICON`. */
@@ -695,7 +678,7 @@ function nameList(names: readonly string[]): string {
 export function recentPrecipSource(models: readonly string[] | undefined): string | null {
   if (models === undefined || models.length === 0) return null;
   const names = [...new Set(models.map(modelName))];
-  return names.length === 1 ? `${names[0]}'s estimate.` : `Median of ${nameList(names)}.`;
+  return `From ${nameList(names)} forecasts.`;
 }
 
 /**
@@ -724,8 +707,8 @@ export function modelSourceLabel(model: string | null): string | null {
 export function dewPointMarginValue(marginC: number | null): string | null {
   if (marginC === null) return null;
   const f = Math.round(cToFDelta(marginC));
-  if (f === 0) return 'at the dew point';
-  return f > 0 ? `${f}°F above` : `${Math.abs(f)}°F below`;
+  if (f === 0) return 'same';
+  return f > 0 ? `${f}°F warmer` : `${Math.abs(f)}°F colder`;
 }
 
 /** The weather fields the disclosure reads. A `HourlySample` satisfies it. */

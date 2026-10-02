@@ -1,4 +1,4 @@
-import { modelName, type ConditionsReadings } from '@weatherteam6/types'
+import type { ConditionsReadings } from '@weatherteam6/types'
 
 /**
  * Pull-to-refresh on the Conditions list: the decisions, kept pure so they are
@@ -82,6 +82,5 @@ export function scoresFreshness(
   if (minutes < 0) return null
   const age = minutes < 1 ? 'just now' : minutes < 60 ? `${minutes} min ago` : `${Math.floor(minutes / 60)} h ago`
 
-  const models = new Set(scored.map((r) => modelName(r.model)))
-  return models.size === 1 ? `Scores from ${[...models][0]} · forecast checked ${age}` : `Forecast checked ${age}`
+  return `Updated ${age}`
 }

@@ -46,9 +46,9 @@ export function geolocationErrorLine(code: number): string {
     case 1:
       return 'Location permission denied. Allow it for this site in the browser settings.'
     case 2:
-      return 'No location fix. Move into the open and try again.'
+      return 'Can’t find your location. Try somewhere with open sky.'
     case 3:
-      return 'Timed out waiting for a fix. Try again.'
+      return 'Location timed out. Try again.'
     default:
       return 'Couldn’t read the location.'
   }

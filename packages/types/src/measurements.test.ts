@@ -73,18 +73,18 @@ describe('dewPointMarginValue', () => {
    */
   it('converts an interval without the scale offset', () => {
     expect(formatTempF(2)).toBe('36°F');
-    expect(dewPointMarginValue(2)).toBe('4°F above');
+    expect(dewPointMarginValue(2)).toBe('4°F warmer');
   });
 
   it('names the direction when the wall is under its dew point', () => {
-    expect(dewPointMarginValue(-1.1)).toBe('2°F below');
+    expect(dewPointMarginValue(-1.1)).toBe('2°F colder');
   });
 
   it('reads a margin that rounds to zero as sitting on the line', () => {
-    // `0°F below` looks like a rendering fault, and which side of the line a
+    // `0°F colder` looks like a rendering fault, and which side of the line a
     // tenth of a degree falls on is below the resolution of a modelled figure.
-    expect(dewPointMarginValue(-0.2)).toBe('at the dew point');
-    expect(dewPointMarginValue(0)).toBe('at the dew point');
+    expect(dewPointMarginValue(-0.2)).toBe('same');
+    expect(dewPointMarginValue(0)).toBe('same');
   });
 
   it('is null for an unmeasured margin, never a zero', () => {
@@ -104,13 +104,13 @@ describe('measurements', () => {
 
   it('carries only the air the card above does not already print', () => {
     const m = both();
-    expect(groupNamed(m, 'Air')?.fields).toEqual([{ label: 'Rain, past hour', value: '0 in' }]);
+    expect(groupNamed(m, 'Air')?.fields).toEqual([{ label: 'Rain (last hour)', value: '0 in' }]);
   });
 
   it('carries the rock figures the readings were derived from', () => {
     const m = both();
     expect(fieldNamed(m, 'Rock', 'Rock temperature')).toBe('71°F');
-    expect(fieldNamed(m, 'Rock', 'Dew point margin')).toBe('10°F above');
+    expect(fieldNamed(m, 'Rock', 'Rock vs dew point')).toBe('10°F warmer');
   });
 
   it('puts the air first, because it is what the reader can check', () => {
@@ -187,9 +187,9 @@ describe('measurements', () => {
     });
     // Between real figures a dash is information: the model answered for this
     // hour and had nothing for this field.
-    expect(fieldNamed(m, 'Air', 'Rain, past hour')).toBe('—');
+    expect(fieldNamed(m, 'Air', 'Rain (last hour)')).toBe('—');
     expect(fieldNamed(m, 'Air', 'Gusts')).toBe('19 mph');
-    expect(fieldNamed(m, 'Rock', 'Dew point margin')).toBe('—');
+    expect(fieldNamed(m, 'Rock', 'Rock vs dew point')).toBe('—');
   });
 
   /**
@@ -204,7 +204,7 @@ describe('measurements', () => {
       rainModels: null,
       readingModel: null,
     });
-    expect(fieldNamed(m, 'Air', 'Rain, past hour')).toBe('0 in');
+    expect(fieldNamed(m, 'Air', 'Rain (last hour)')).toBe('0 in');
   });
 
   it('names a gust only when it is above the sustained wind', () => {
@@ -312,12 +312,12 @@ describe('where the drying clock’s rain came from (issue #209)', () => {
       ...base,
       rainModels: ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless', 'gem_seamless'],
     });
-    expect(m.notes[0]).toBe('Rain: median forecast of GFS, ECMWF, ICON and GEM, not a gauge.');
+    expect(m.notes[0]).toBe('Rain: GFS, ECMWF, ICON and GEM.');
   });
 
   it('names the one model when the rain was one model’s own', () => {
     const m = measurements({ ...base, rainModels: ['gfs_seamless'] });
-    expect(m.notes[0]).toBe("Rain: GFS's forecast, not a gauge.");
+    expect(m.notes[0]).toBe('Rain: GFS.');
   });
 
   it('explains nothing when no dryness reading is on screen, or the source is unnamed', () => {

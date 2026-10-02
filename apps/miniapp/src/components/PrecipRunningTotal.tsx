@@ -293,7 +293,7 @@ export function PrecipRunningTotal({
             color: colorsV2.txt2,
           }}
         >
-          no real rain · {flatHours} h
+          no rain · {flatHours} h
         </span>
       )}
       {active === undefined ? null : (

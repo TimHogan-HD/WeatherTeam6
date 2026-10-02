@@ -52,20 +52,20 @@ describe('formatRunAge', () => {
   const checked = (offsetMs: number) => ({ fetched_at: iso(5 * 3_600_000), checked_at: iso(offsetMs) })
 
   it('crosses each boundary once', () => {
-    expect(formatRunAge(checked(0), NOW)).toBe('Forecast checked just now')
-    expect(formatRunAge(checked(60_000), NOW)).toBe('Forecast checked 1 min ago')
-    expect(formatRunAge(checked(59 * 60_000), NOW)).toBe('Forecast checked 59 min ago')
-    expect(formatRunAge(checked(60 * 60_000), NOW)).toBe('Forecast checked 1 h ago')
+    expect(formatRunAge(checked(0), NOW)).toBe('Updated just now')
+    expect(formatRunAge(checked(60_000), NOW)).toBe('Updated 1 min ago')
+    expect(formatRunAge(checked(59 * 60_000), NOW)).toBe('Updated 59 min ago')
+    expect(formatRunAge(checked(60 * 60_000), NOW)).toBe('Updated 1 h ago')
   })
 
   it('prints the check time, not a fetch hours older', () => {
     // A slow model is refetched only when upstream publishes, so its fetch is
     // routinely hours old while the forecast is current.
-    expect(formatRunAge(checked(10 * 60_000), NOW)).toBe('Forecast checked 10 min ago')
+    expect(formatRunAge(checked(10 * 60_000), NOW)).toBe('Updated 10 min ago')
   })
 
-  it('falls back to the fetch time, under its own word, for an API without checked_at', () => {
-    expect(formatRunAge({ fetched_at: iso(20 * 60_000) }, NOW)).toBe('Forecast fetched 20 min ago')
+  it('falls back to the fetch time for an API without checked_at', () => {
+    expect(formatRunAge({ fetched_at: iso(20 * 60_000) }, NOW)).toBe('Updated 20 min ago')
   })
 
   it('says nothing for a run that did not carry a timestamp', () => {

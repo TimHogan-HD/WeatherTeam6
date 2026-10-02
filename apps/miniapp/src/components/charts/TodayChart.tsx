@@ -227,7 +227,7 @@ export function TodayChart({
     <div
       ref={ref}
       tabIndex={0}
-      aria-label="The hours around now. Left and right arrows pick an hour."
+      aria-label="Hourly forecast. Left and right arrows pick an hour."
       onPointerDown={(e) => setPicked(msAtClient(e.clientX, e.currentTarget.getBoundingClientRect()))}
       onPointerMove={(e) => setPicked(msAtClient(e.clientX, e.currentTarget.getBoundingClientRect()))}
       onPointerLeave={(e) => {
