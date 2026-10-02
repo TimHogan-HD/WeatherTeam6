@@ -48,6 +48,15 @@ const PASSPHRASE = `local-ui-check-${STAMP}`
 /** Taylors Falls: a known crag (locked rock type) with guidebook coverage, so every tab renders. */
 const CRAG = { name: `ZZ UI check — Taylors Falls ${STAMP}`, lat: 45.3955, lon: -92.6616 }
 
+/** Red Wing: a second crag, for a trip with two. */
+const SECOND_CRAG = { name: `ZZ UI check — Red Wing ${STAMP}`, lat: 44.5625, lon: -92.5338 }
+
+/** The device's date `n` days on, as the trip screens read "today". */
+function isoDayFromNow(n: number): string {
+  const d = new Date(Date.now() + n * 86_400_000)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 const here = dirname(fileURLToPath(import.meta.url))
 const miniappDir = resolve(here, '../../../miniapp')
 const viteBin = resolve(here, '../../../../node_modules/vite/bin/vite.js')
@@ -128,6 +137,8 @@ async function run(): Promise<void> {
   let userId: string | null = null
   let locationId: string | null = null
   let gpsLocationId: string | null = null
+  let secondLocationId: string | null = null
+  const tripIds: string[] = []
   let token: string | null = null
   // The Map tab draws with WebGL, which headless Chromium has only in software.
   const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] })
@@ -548,6 +559,80 @@ async function run(): Promise<void> {
     const coldOpened = await page.getByRole('tab', { selected: true }).innerText().catch(() => 'nothing')
     check('a reload of a crag opens on the saved tab too', coldHourly, `opened on ${coldOpened}`)
 
+    // 3e. Trips: the list, the new-trip form, a one-crag trip made through it,
+    // a two-crag trip's grid and one crag of it, then a delete confirmed in-page.
+    const second = await api<Location>('POST', '/locations', token, { ...SECOND_CRAG, is_climbing_location: true })
+    secondLocationId = second.payload.data?.id ?? null
+    check('POST /locations creates a second crag', second.status === 201 && secondLocationId !== null, `got ${second.status}`)
+    await page.goto(`${WEB}/trips`)
+    await page.getByRole('button', { name: 'New trip' }).waitFor({ timeout: 30_000 })
+    await screen('trips-empty', 5)
+    await page.getByRole('button', { name: 'New trip' }).click()
+    await page.getByRole('heading', { name: 'New trip' }).waitFor({ timeout: 10_000 })
+    check('the new-trip form shows no bottom bar', (await bar.count()) === 0)
+    await page.getByLabel('Name').fill(`${PREFIX} one crag`)
+    await page.getByLabel('First day').fill(isoDayFromNow(2))
+    await page.getByLabel('Last day').fill(isoDayFromNow(4))
+    await page.getByLabel(CRAG.name).check()
+    await screen('trip-new', 5)
+    await page.getByRole('button', { name: 'Create trip' }).click()
+    await page.waitForURL(/\/trips\/[0-9a-f-]{36}$/, { timeout: 30_000 }).catch(() => undefined)
+    const oneCragTripId = /\/trips\/([0-9a-f-]{36})$/.exec(page.url())?.[1] ?? null
+    check('Create trip opens the new trip', oneCragTripId !== null, `at ${page.url()}`)
+    if (oneCragTripId !== null) tripIds.push(oneCragTripId)
+    await page.getByRole('region', { name: 'Rain over the trip' }).waitFor({ timeout: 60_000 }).catch(() => undefined)
+    await page.getByRole('region', { name: 'Forecast trend' }).getByText(/Trend starts|update/).waitFor({ timeout: 30_000 }).catch(() => undefined)
+    check('a one-crag trip draws its days, its rain and its trend', (await page.getByRole('group', { name: 'Trip days' }).getByRole('button').count()) === 3)
+    await screen('trip-one-crag')
+
+    if (secondLocationId !== null) {
+      const multi = await api<{ id: string }>('POST', '/trips', token, {
+        name: `${PREFIX} two crags`,
+        startDate: isoDayFromNow(1),
+        endDate: isoDayFromNow(3),
+        cragIds: [locationId, secondLocationId],
+      })
+      const multiId = multi.payload.data?.id ?? null
+      check('POST /trips creates a two-crag trip', multi.status === 201 && multiId !== null, `got ${multi.status}`)
+      if (multiId !== null) {
+        tripIds.push(multiId)
+        await page.goto(`${WEB}/trips/${multiId}`)
+        await page.getByRole('region', { name: 'By day' }).waitFor({ timeout: 60_000 })
+        await screen('trip-multi')
+        await page.getByRole('button', { name: `${SECOND_CRAG.name} ›` }).click()
+        await page.waitForURL((u) => u.pathname === `/trips/${multiId}/crag/${secondLocationId}`, { timeout: 10_000 }).catch(() => undefined)
+        check('a crag in the grid opens its own view', new URL(page.url()).pathname.endsWith(`/crag/${secondLocationId}`), page.url())
+        await screen('trip-multi-crag')
+        await page.getByRole('button', { name: `${PREFIX} two crags` }).click()
+        await page.waitForURL((u) => u.pathname === `/trips/${multiId}`, { timeout: 10_000 }).catch(() => undefined)
+        check('back from one crag returns to the trip', new URL(page.url()).pathname === `/trips/${multiId}`, page.url())
+      }
+    }
+
+    await page.goto(`${WEB}/trips`)
+    await page.getByRole('button', { name: new RegExp(`${PREFIX} one crag`) }).waitFor({ timeout: 30_000 })
+    await screen('trips')
+    if (oneCragTripId !== null) {
+      await page.goto(`${WEB}/trips/${oneCragTripId}`)
+      await page.getByRole('button', { name: 'Delete trip' }).click()
+      await page.getByRole('button', { name: 'Tap again to delete' }).click()
+      await page.waitForURL((u) => u.pathname === '/trips', { timeout: 15_000 }).catch(() => undefined)
+      const gone = await api<null>('GET', `/trips/${oneCragTripId}`, token)
+      check('Delete trip, tapped twice, deletes it and returns to the list', gone.status === 404 && new URL(page.url()).pathname === '/trips', `got ${gone.status} at ${page.url()}`)
+      if (gone.status === 404) tripIds.splice(tripIds.indexOf(oneCragTripId), 1)
+      problems = problems.filter((p) => !p.startsWith('404 GET /api/v1/trips/'))
+    }
+    // The steps below count the list's cards: the two-crag trip and its second crag go now.
+    for (const id of [...tripIds]) {
+      const del = await api<null>('DELETE', `/trips/${id}`, token)
+      if (del.status === 200) tripIds.splice(tripIds.indexOf(id), 1)
+    }
+    if (secondLocationId !== null) {
+      const del = await api<null>('DELETE', `/locations/${secondLocationId}`, token)
+      check('the second crag, with its trip records, deletes cleanly', del.status === 200, `got ${del.status}`)
+      if (del.status === 200) secondLocationId = null
+    }
+
     // 3b. The location editor (scoring Phase 4b). The crag is a known crag, so
     // its rock type is locked and there is nothing to edit: no "Edit crag".
     // A crag-wide aspect and angle are not offered — they wait for the
@@ -883,7 +968,13 @@ async function run(): Promise<void> {
     await browser.close().catch(() => undefined)
     if (vite) vite.kill()
     let cleanupFailed = false
-    for (const id of [locationId, gpsLocationId]) {
+    // A trip holds a foreign key to the user, so it goes before the user does.
+    for (const id of tripIds) {
+      if (token === null) continue
+      const del = await api<null>('DELETE', `/trips/${id}`, token).catch(() => null)
+      if (del === null || del.status >= 300) cleanupFailed = true
+    }
+    for (const id of [locationId, gpsLocationId, secondLocationId]) {
       if (id === null || token === null) continue
       const del = await api<null>('DELETE', `/locations/${id}`, token).catch(() => null)
       if (del === null || del.status >= 300) cleanupFailed = true
@@ -903,7 +994,7 @@ async function run(): Promise<void> {
     server.close()
     await pool.end()
     if (cleanupFailed) {
-      console.error(`\n!! CLEANUP FAILED — remove rows under "${PREFIX}" by hand (user ${userId}, locations ${locationId} and ${gpsLocationId})`)
+      console.error(`\n!! CLEANUP FAILED — remove rows under "${PREFIX}" by hand (user ${userId}, locations ${locationId}, ${gpsLocationId} and ${secondLocationId}, trips ${tripIds.join(', ') || 'none'})`)
     }
   }
 
