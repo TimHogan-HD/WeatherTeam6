@@ -119,7 +119,10 @@ async function run(): Promise<void> {
   let ensemble = null as Awaited<ReturnType<typeof loadStoredEnsemble>>
   let newest = 0
 
-  const ages: { name: string; fetched: Date | null }[] = []
+  const ages: { name: string; fetched: Date | null; checked: Date | null }[] = []
+  // Freshness is `checked_at`, as the app reads it (#179): collect-runs refetches a model
+  // only when Open-Meteo has published since, and otherwise only stamps the check.
+  let newestCheck = 0
 
   for (const row of rows) {
     const key = pointKeyForPlace({
@@ -132,7 +135,10 @@ async function run(): Promise<void> {
       loadStoredEnsemble(key, ANY_AGE),
     ])
     const fetched = d?.fetched_at ?? e?.fetched_at ?? null
-    ages.push({ name: row.name, fetched })
+    const checks = [...(d?.models.map((m) => m.checked_at.getTime()) ?? []), e?.checked_at?.getTime() ?? 0]
+    const checked = Math.max(0, ...checks)
+    newestCheck = Math.max(newestCheck, checked)
+    ages.push({ name: row.name, fetched, checked: checked > 0 ? new Date(checked) : null })
     if (fetched !== null && fetched.getTime() > newest) {
       newest = fetched.getTime()
       picked = row
@@ -141,12 +147,13 @@ async function run(): Promise<void> {
     }
   }
 
+  const hoursAgo = (d: Date) => `${((now.getTime() - d.getTime()) / 3_600_000).toFixed(1)}h ago`
   console.log('  Newest stored run per location:')
   for (const a of ages) {
     const age =
-      a.fetched === null
+      a.fetched === null || a.checked === null
         ? 'never collected'
-        : `${((now.getTime() - a.fetched.getTime()) / 3_600_000).toFixed(1)}h ago`
+        : `fetched ${hoursAgo(a.fetched)}, checked ${hoursAgo(a.checked)}`
     console.log(`    ${a.name.padEnd(28)} ${age}`)
   }
   console.log('')
@@ -161,11 +168,11 @@ async function run(): Promise<void> {
   // Freshness is a real assertion, not a precondition. A stale run means every Mini App
   // request takes the cold path — six deterministic models plus 143 ensemble members
   // inside the function's 60 s ceiling — which is the endpoint's stated worst case.
-  const ageMin = (now.getTime() - newest) / 60_000
+  const ageMin = (now.getTime() - newestCheck) / 60_000
   check(
-    `a run exists that is fresher than RUN_MAX_AGE_MINUTES (${RUN_MAX_AGE_MINUTES}m)`,
-    newest >= freshCutoff.getTime(),
-    `newest is ${(ageMin / 60).toFixed(1)}h old — collect-runs is not keeping up, so every request re-fetches`,
+    `a run was checked inside RUN_MAX_AGE_MINUTES (${RUN_MAX_AGE_MINUTES}m)`,
+    newestCheck >= freshCutoff.getTime(),
+    `newest check is ${(ageMin / 60).toFixed(1)}h old — collect-runs is not keeping up, so every request re-fetches`,
   )
 
   console.log(`\nLocation: ${picked.name} (${picked.id})\n`)
