@@ -127,10 +127,11 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
 - **`HourlyReading.rock_sun_shade` is the warmest and coolest of Crag A's eight compass
   walls' `T_surface`** (owner field report, Barn Bluff 2026-10-04: a south face too hot,
   a shaded one good, under one score). Display only — the score still reads air
-  temperature. Null if any wall's is missing. The Rock group prints *Rock in sun* /
-  *Rock in shade* in place of *Rock temperature* only when the two differ in °F, with
-  `ROCK_SUN_SHADE_MECHANISM`. It names no direction: Crag A does not know which way a
-  crag's walls face (#293).
+  temperature. Null if any wall's is missing. **It renders nowhere** (owner, 2026-10-05):
+  sun and shade belong only on crags the owner has confirmed on the ground — today only
+  Red Wing — and never in Overview's measurements. When a surface brings it back, gate it
+  on a flag on the `KNOWN_CRAGS` entry, not on the data being present. It names no
+  direction: Crag A does not know which way a crag's walls face (#293).
 - **A score over a span is its worst hour, never a mean or a best.** A day's is
   `dayRepresentative`; the Conditions now card's three-hour blocks (`scoreBlocks`) are the
   same rule, and a block with any hour unread or suppressed has no score — the worst of the
