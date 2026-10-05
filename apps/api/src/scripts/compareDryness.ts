@@ -1,7 +1,7 @@
 /**
  * **Which rain should the drying clock read? Measured against rain gauges.**
  *
- * `npm run compare:dryness --workspace=apps/api`
+ * `npm run compare:dryness --workspace=apps/api` (append `-- DLL POU` for only those stations)
  *
  * Issue #209: the dryness reading used `gfs_seamless`'s own rain while the chart
  * beside it drew the ensemble, and the two disagreed about whether it had
@@ -35,9 +35,24 @@
  * Open-Meteo keeps ~4 days of its past hours; the archive (ERA5) is present
  * for comparison and runs days behind, so it cannot drive a live reading.
  *
+ * **Lead time (issue #324).** Past hours are analysis or very short lead,
+ * where the models already agree on when it rains. A second table scores rain
+ * *rules* on what each model forecast one and two days ahead
+ * (`precipitation_previous_dayN` from Open-Meteo's Previous Runs API), with lead
+ * 0 from the same API as the baseline. Crag A re-wets at `WET_MM` (0.05 mm), so a
+ * per-hour median rarely misses the rain; it shrinks it. When the models put a
+ * shower in different hours, the median's storm total is a fraction of each
+ * model's, and the clock, which sizes the drying window from the storm total,
+ * dries the rock early. Both candidates keep the amount:
+ *
+ * - **rolling, N h** — the median of each model's centred N-hour mean. A mean, not
+ *   a sum, so a storm keeps its total.
+ * - **vote, ±N h** — when at least 2 models reach `REWETTING_PRECIP_MM` within ±N
+ *   hours, the mean of those models' ±N-hour means; otherwise the median.
+ *
  * Network only — no database. Its output is the result.
  */
-import type { RockType } from '@weatherteam6/types'
+import { REWETTING_PRECIP_MM, type RockType } from '@weatherteam6/types'
 import { evaluateCragA, rockLevelA } from '../lib/scoring/cragModel.js'
 import type { RockLevel, WeatherHour } from '../lib/scoring/hourlyConditions.js'
 import {
@@ -133,6 +148,94 @@ async function archive(lat: number, lon: number, from: Date, to: Date) {
   return new Map(body.hourly.time.map((t, i) => [t.slice(0, 13), body.hourly.precipitation[i] ?? null]))
 }
 
+const LEADS = [0, 1, 2] as const
+type ByModel = Map<string, Map<HourKey, number | null>>
+
+/** Each global model's rain as forecast `lead` days ahead, per lead. */
+async function previousRuns(lat: number, lon: number, from: Date, to: Date) {
+  const day = (d: Date) => d.toISOString().slice(0, 10)
+  const variable = (lead: number) => (lead === 0 ? 'precipitation' : `precipitation_previous_day${lead}`)
+  const body = JSON.parse(
+    await text(
+      `https://previous-runs-api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+        `&start_date=${day(from)}&end_date=${day(to)}&hourly=${LEADS.map(variable).join(',')}` +
+        `&models=${GLOBAL_DETERMINISTIC_MODELS.join(',')}&timezone=GMT`,
+    ),
+  ) as { hourly: Record<string, (number | null)[]> & { time: string[] } }
+  const keys = body.hourly.time.map((t) => t.slice(0, 13))
+  return new Map(
+    LEADS.map((lead): [number, ByModel] => [
+      lead,
+      new Map(
+        GLOBAL_DETERMINISTIC_MODELS.flatMap((m) => {
+          const values = body.hourly[`${variable(lead)}_${m}`]
+          return values ? [[m, new Map(keys.map((k, i) => [k, values[i] ?? null]))] as const] : []
+        }),
+      ),
+    ]),
+  )
+}
+
+const shift = (key: HourKey, hours: number): HourKey =>
+  hourKey(new Date(new Date(`${key}:00:00Z`).getTime() + hours * 3_600_000))
+
+function median(v: readonly number[]): number {
+  const s = [...v].sort((a, b) => a - b)
+  const m = s.length >> 1
+  return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2
+}
+
+/** A model's mean rain over the hours `offsets` away from `key`, or null if any is unknown. */
+function windowMean(series: Map<HourKey, number | null>, key: HourKey, offsets: readonly number[]): number | null {
+  let sum = 0
+  for (const o of offsets) {
+    const v = series.get(shift(key, o))
+    if (v == null) return null
+    sum += v
+  }
+  return sum / offsets.length
+}
+
+const range = (lo: number, hi: number) => Array.from({ length: hi - lo + 1 }, (_, i) => lo + i)
+
+/** Fewer than this many models at an hour is a gap, as in `rainMedian`. */
+const MIN_MODELS = 3
+
+type Rule = { name: string; rain: (byModel: ByModel, key: HourKey) => number | null }
+
+function medianOver(byModel: ByModel, value: (series: Map<HourKey, number | null>) => number | null) {
+  const known = [...byModel.values()].map(value).filter((v): v is number => v !== null)
+  return known.length >= MIN_MODELS ? median(known) : null
+}
+
+const rolling = (label: string, offsets: number[]): Rule => ({
+  name: `rolling, ${label}`,
+  rain: (byModel, key) => medianOver(byModel, (s) => windowMean(s, key, offsets)),
+})
+
+const vote = (n: number): Rule => ({
+  name: `vote, ±${n} h`,
+  rain: (byModel, key) => {
+    const hourly = medianOver(byModel, (s) => s.get(key) ?? null)
+    if (hourly === null) return null
+    const offsets = range(-n, n)
+    const voters = [...byModel.values()].flatMap((s) => {
+      const mean = windowMean(s, key, offsets)
+      const reached = offsets.some((o) => (s.get(shift(key, o)) ?? 0) >= REWETTING_PRECIP_MM)
+      return mean !== null && reached ? [mean] : []
+    })
+    return voters.length >= 2 ? voters.reduce((a, b) => a + b, 0) / voters.length : hourly
+  },
+})
+
+const RULES: Rule[] = [
+  { name: 'median (shipped)', rain: (byModel, key) => medianOver(byModel, (s) => s.get(key) ?? null) },
+  rolling('3 h', range(-1, 1)),
+  rolling('6 h', range(-3, 2)),
+  vote(1),
+  vote(2),
+]
+
 type Tally = { hit: number; miss: number; falseAlarm: number; correctDry: number }
 const tallies = new Map<string, Tally>()
 function count(key: string, truthWet: boolean, sourceWet: boolean): void {
@@ -152,7 +255,9 @@ async function run(): Promise<void> {
 
   console.log(`\n=== compare:dryness — rain sources against ASOS gauges, past ${PAST_DAYS} days ===\n`)
 
-  for (const [station, near] of STATIONS) {
+  // `npm run compare:dryness -- DLL POU` runs only those stations.
+  const only = process.argv.slice(2).map((s) => s.toUpperCase())
+  for (const [station, near] of STATIONS.filter(([id]) => only.length === 0 || only.includes(id))) {
     try {
       const { rain: gauged, lat, lon } = await gauge(station, from, to)
       if (!Number.isFinite(lat)) throw new Error('no reports')
@@ -181,11 +286,6 @@ async function run(): Promise<void> {
         return v.some((x) => x == null) ? null : (v as number[])
       }
       const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length
-      const median = (v: number[]) => {
-        const s = [...v].sort((a, b) => a - b)
-        const m = s.length >> 1
-        return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2
-      }
       const shipped = rainMedian(det)
       const shippedByKey = new Map<HourKey, number | null>()
       for (const [local, mm] of shipped?.byLocal ?? []) {
@@ -237,6 +337,22 @@ async function run(): Promise<void> {
           sources.forEach((s, si) => count(`${rock}|${s.name}`, t !== 'dry', bySource[si]![i] !== 'dry'))
         })
       }
+
+      // Every lead and rule on the same hours, so a rule with more gaps cannot look better.
+      const runs = await previousRuns(lat, lon, from, to)
+      const leadRules = LEADS.flatMap((lead) =>
+        RULES.map((rule) => ({ key: leadKey(lead, rule.name), rain: (k: HourKey) => rule.rain(runs.get(lead)!, k) })),
+      )
+      for (const rock of ROCKS) {
+        const truth = levels((k) => gauged.get(k) ?? null, rock)
+        const byRule = leadRules.map((r) => levels(r.rain, rock))
+        base.forEach((b, i) => {
+          if (i < WARMUP_HOURS || b.localHour < DAY_FIRST_HOUR || b.localHour > DAY_LAST_HOUR) return
+          const t = truth[i]
+          if (t == null || byRule.some((l) => l[i] == null)) return
+          leadRules.forEach((r, ri) => count(`${rock}|${r.key}`, t !== 'dry', byRule[ri]![i] !== 'dry'))
+        })
+      }
       const wetHours = [...gauged.values()].filter((mm) => mm !== null && mm >= 0.05).length
       console.log(`  ${station.padEnd(4)} ${near.padEnd(20)} ${String(wetHours).padStart(4)} wet hours on the gauge`)
     } catch (err) {
@@ -244,24 +360,38 @@ async function run(): Promise<void> {
     }
   }
 
-  const pct = (a: number, b: number) => (b === 0 ? '—' : ((100 * a) / b).toFixed(1)).padStart(7)
   for (const rock of ROCKS) {
     console.log(`\n  ${rock}`)
-    console.log(`  ${'source'.padEnd(30)}  miss%  false%  Peirce   hours  not dry`)
-    const rows = order.flatMap((name) => {
-      const t = tallies.get(`${rock}|${name}`)
-      return t ? [{ name, t, peirce: t.hit / (t.hit + t.miss) - t.falseAlarm / (t.falseAlarm + t.correctDry) }] : []
-    })
-    rows.sort((a, b) => b.peirce - a.peirce)
-    for (const { name, t, peirce } of rows) {
-      const wet = t.hit + t.miss
-      const dry = t.falseAlarm + t.correctDry
-      console.log(
-        `  ${name.padEnd(30)}${pct(t.miss, wet)}${pct(t.falseAlarm, dry)}${peirce.toFixed(3).padStart(8)}${String(wet + dry).padStart(8)}${String(wet).padStart(9)}`,
-      )
+    table(rock, order, true)
+  }
+  console.log(`\n=== by lead (issue #324) — rules on the four global models, as forecast N days ahead ===`)
+  for (const rock of ROCKS) {
+    for (const lead of LEADS) {
+      console.log(`\n  ${rock}, lead ${lead} day${lead === 1 ? '' : 's'}`)
+      table(rock, RULES.map((r) => leadKey(lead, r.name)), false)
     }
   }
   console.log('')
+}
+
+const leadKey = (lead: number, rule: string) => `lead ${lead}|${rule}`
+
+function table(rock: RockType, names: readonly string[], sortByPeirce: boolean): void {
+  const pct = (a: number, b: number) => (b === 0 ? '—' : ((100 * a) / b).toFixed(1)).padStart(7)
+  console.log(`  ${'source'.padEnd(30)}  miss%  false%  Peirce   hours  not dry`)
+  const rows = names.flatMap((name) => {
+    const t = tallies.get(`${rock}|${name}`)
+    return t ? [{ name, t, peirce: t.hit / (t.hit + t.miss) - t.falseAlarm / (t.falseAlarm + t.correctDry) }] : []
+  })
+  if (sortByPeirce) rows.sort((a, b) => b.peirce - a.peirce)
+  for (const { name, t, peirce } of rows) {
+    const wet = t.hit + t.miss
+    const dry = t.falseAlarm + t.correctDry
+    const label = name.includes('|') ? name.split('|')[1]! : name
+    console.log(
+      `  ${label.padEnd(30)}${pct(t.miss, wet)}${pct(t.falseAlarm, dry)}${peirce.toFixed(3).padStart(8)}${String(wet + dry).padStart(8)}${String(wet).padStart(9)}`,
+    )
+  }
 }
 
 run().catch((err) => {
