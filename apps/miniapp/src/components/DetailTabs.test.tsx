@@ -132,7 +132,18 @@ const score: Conditions = {
       t_surface_c: 18,
       condensation_margin_c: 4,
     },
-    today: { local_date: DAY_1, window: null, best: null },
+    today: {
+      local_date: DAY_1,
+      window: null,
+      best: {
+        valid_at: `${DAY_1}T12:00:00.000Z`,
+        rock: { level: 'dry', qualified: true },
+        friction: { level: 'good', condensing: false, qualified: true },
+        score: 72,
+        t_surface_c: 18,
+        condensation_margin_c: 4,
+      },
+    },
   },
 }
 
@@ -277,7 +288,7 @@ describe('DetailView — tabs', () => {
       )
 
     // The score renders in the hero only once alerts settle, and this fixture
-    // carries a Severe+ alert in no case — so 72 is the hero's third gauge.
+    // carries a Severe+ alert in no case — so 72, the day's, is the hero's third gauge.
     expect(render('overview')).toContain('>72<')
     expect(render('overview')).toContain('Conditions now')
     expect(render('daily')).not.toContain('Conditions now')

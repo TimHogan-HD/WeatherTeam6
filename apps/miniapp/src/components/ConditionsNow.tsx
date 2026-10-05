@@ -2,7 +2,9 @@ import type { CSSProperties, ReactNode } from 'react'
 import { colors, colorsV2, radius, spacing, toneSurfacesV2 } from '@weatherteam6/design/tokens'
 import {
   DRYNESS_LABEL,
+  EM_DASH,
   formatHumidity,
+  formatLocalHour,
   formatTempF,
   formatWindMph,
   readingNow,
@@ -16,8 +18,9 @@ import {
   type ReadingField,
   type ReadingsSummary,
 } from '@weatherteam6/types'
-import { typeV2 } from '../theme/tokens.css.js'
+import { typeV2, withOpacity } from '../theme/tokens.css.js'
 import { row, stack, type ToneName } from '../theme/styles.js'
+import { rainAhead, scoreBlocks, type RainAhead, type ScoreBlock } from '../lib/conditionsBlocks.js'
 import { findToday } from '../lib/forecast.js'
 import { formatLocalClock, formatTempDeg } from '../lib/format.js'
 import { readingTone, scoreTone } from '../lib/locationList.js'
@@ -31,9 +34,12 @@ import { InlineError, Skeleton } from './States.js'
  * **"Now", in one place** — the Overview tab's hero, in the v2 layout from the
  * WT6 Figma "V2" page: the hour's temperature large with the day's labelled
  * high and low beside it, the hour's wind, humidity, dew point and cloud as
- * labelled figures, then the three gauges, the day's good hours as a band,
- * and the caveats on one line with the measurements disclosure. Sized so the
- * Overview fits a phone screen (owner, 2026-09-29).
+ * labelled figures, then the gauges — Dryness and Friction for the hour, the
+ * day's score — the next nine hours as three-hour score blocks, a band naming
+ * rain likely inside them or else the day's good hours, and the caveats on one
+ * line with the measurements disclosure. Sized so the Overview fits a phone
+ * screen (owner, 2026-09-29). The hour's score never stands alone: 9am read
+ * 100 on a day rain arrived at 1pm (owner, Sandstone, 2026-10-03).
  *
  * One card, one label, three parts, in this order:
  *
@@ -62,6 +68,11 @@ import { InlineError, Skeleton } from './States.js'
  */
 
 export const CONDITIONS_NOW_LABEL = 'Conditions now'
+
+/** The third gauge: the day's score, so the hour's never stands for the day (owner, 2026-10-05). */
+export const TODAY_LABEL = 'Today'
+
+const RAIN_BAND = withOpacity(colorsV2.rain, 0.14)
 
 /** The space a still-loading half holds open, so the card does not jump. */
 const WEATHER_H = 102
@@ -241,11 +252,23 @@ function Gauge({
  */
 function Readings({
   summary,
+  todayScore,
   reading,
+  blocks,
+  rain,
+  utcOffsetSeconds,
+  scoreHidden,
   p,
 }: {
   summary: ReadingsSummary
+  /** A Severe+ alert is in force: no score of any span renders. */
+  scoreHidden: boolean
+  /** The day's score, suppressed as the hour's is. `null` after the day's last scored hour. */
+  todayScore: number | null
   reading: HourlyReading | null
+  blocks: readonly ScoreBlock[]
+  rain: RainAhead | null
+  utcOffsetSeconds: number
   p: Palette
 }) {
   if (summary.unavailableLine !== null) {
@@ -254,15 +277,24 @@ function Readings({
     return <p style={typeV2.body}>{summary.unavailableLine}</p>
   }
 
-  const { score, scoreField } = summary
-  const hasGauges = summary.readings.length > 0 || scoreField !== null
+  // The day's score takes the third gauge; the hour's lives in the first block.
+  // Under a Severe+ alert every number goes, and the slots with them.
+  const suppressed = scoreHidden
+  const hasGauges = summary.readings.length > 0 || !suppressed
+
+  const band: CSSProperties = {
+    ...row(spacing.cellPad),
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    borderRadius: `${radius.card}px`,
+    padding: `${spacing.listGapSm}px ${spacing.cardPadSm}px`,
+  }
 
   return (
     <div style={stack(spacing.cellPad)}>
       {/*
-        The readings, then the number: the score is the third gauge, not the
-        headline the other two explain. Nothing at all when there is nothing to
-        read — a row of dashes reads as a measurement of nothing.
+        The readings, then the day's number. Nothing at all when there is
+        nothing to read — a row of dashes reads as a measurement of nothing.
 
         **Dryness is set white and Friction in its rung's colour**, as the
         Figma draws them. The word carries the reading either way; the colour
@@ -282,27 +314,65 @@ function Readings({
               />
             )
           })}
-          {score === null || scoreField === null ? null : (
-            <Gauge field={scoreField} figure muted={p.muted} color={TONE_BASE[scoreTone(score)]} />
+          {suppressed ? null : (
+            <Gauge
+              field={{ label: TODAY_LABEL, value: todayScore === null ? EM_DASH : String(todayScore) }}
+              figure
+              muted={p.muted}
+              color={todayScore === null ? colorsV2.txtMuted : TONE_BASE[scoreTone(todayScore)]}
+            />
           )}
         </div>
       ) : null}
 
       {/*
-        The window is a fact about the day, not about this hour, so it sits in
-        a band of its own rather than joining the gauges.
+        Where the day is going: the next hours in three-hour blocks, each its
+        worst hour's score, the one holding now outlined. A block with no score
+        is dashed — a gap, not a 0, which is wet rock.
       */}
-      {summary.window === null ? null : (
-        <div
-          style={{
-            ...row(spacing.cellPad),
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            backgroundColor: p.band,
-            borderRadius: `${radius.card}px`,
-            padding: `${spacing.listGapSm}px ${spacing.cardPadSm}px`,
-          }}
-        >
+      {blocks.length === 0 || suppressed ? null : (
+        <div style={{ ...row(spacing.chipGapMd), alignItems: 'stretch' }}>
+          {blocks.map((b, i) => {
+            const tone = b.score === null ? null : scoreTone(b.score)
+            return (
+              <div
+                key={b.from}
+                style={{
+                  ...stack(spacing.micro),
+                  flex: '1 1 0',
+                  minWidth: 0,
+                  borderRadius: `${radius.card}px`,
+                  padding: `${spacing.listGapSm}px ${spacing.cellPad}px`,
+                  backgroundColor: tone === null ? p.band : toneSurfacesV2[tone].pill,
+                  boxShadow: i === 0 ? `inset 0 0 0 2px ${tone === null ? p.muted : TONE_BASE[tone]}` : undefined,
+                }}
+              >
+                <span style={{ ...typeV2.tileLabel, color: colorsV2.txt2 }}>
+                  {i === 0 ? `${b.label} · now` : b.label}
+                </span>
+                <span style={{ ...typeV2.tileFigure, color: tone === null ? colorsV2.txtMuted : TONE_BASE[tone] }}>
+                  {b.score === null ? EM_DASH : b.score}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/*
+        Rain inside the blocks outranks the good hours: it is the thing that
+        turns the blocks red, and the reason a fine-looking now can mislead.
+        Otherwise the window, a fact about the day, in a band of its own.
+      */}
+      {rain !== null ? (
+        <div style={{ ...band, backgroundColor: RAIN_BAND }}>
+          <span style={typeV2.bandLabel}>{rain.now ? 'Rain likely' : 'Rain likely from'}</span>
+          <span style={{ ...typeV2.bandValue, color: colorsV2.rain }}>
+            {rain.now ? 'now' : formatLocalHour(rain.from, utcOffsetSeconds)} · {rain.peakPct}%
+          </span>
+        </div>
+      ) : summary.window === null ? null : (
+        <div style={{ ...band, backgroundColor: p.band }}>
           <span style={typeV2.bandLabel}>{summary.window.label}</span>
           <span style={{ ...typeV2.bandValue, color: p.accent }}>{summary.window.value}</span>
         </div>
@@ -390,6 +460,10 @@ export function ConditionsNow({
     rainModels: null,
   }
   let summary: ReadingsSummary | null = null
+  let todayScore: number | null = null
+  let blocks: ScoreBlock[] = []
+  let rain: RainAhead | null = null
+  let utcOffsetSeconds = 0
   let readingsBlock: ReactNode = null
 
   if (conditions !== undefined) {
@@ -426,10 +500,33 @@ export function ConditionsNow({
         unavailableReason: r.unavailable_reason,
         rangeF,
       })
+      utcOffsetSeconds = r.utc_offset_seconds
+      todayScore = summarizeReadings({
+        reading: r.today?.best ?? null,
+        window: null,
+        utcOffsetSeconds: r.utc_offset_seconds,
+        severeAlertEvent,
+        alertsPending: false,
+        unavailableReason: r.unavailable_reason,
+      }).score
+      // The blocks start at the hour the gauges read, and read the hourly
+      // run's readings — the same readings `/conditions` was sliced from.
+      if (r.now !== null && series !== undefined) {
+        blocks = scoreBlocks(series.readings?.hours ?? [], r.now.valid_at, r.utc_offset_seconds, {
+          severeAlertEvent,
+          alertsPending: false,
+        })
+        rain = rainAhead(series.hours, r.now.valid_at, now)
+      }
     }
   }
 
-  const p = palette(summary?.score == null ? null : scoreTone(summary.score))
+  // The card wears the rung of the block holding now — what climbing looks
+  // like over the next hours — or the hour's own while the blocks are not in.
+  // A block with a gap leaves the card plain: the hour alone could read better
+  // than the hours beside it.
+  const cardScore = blocks.length > 0 ? (blocks[0]?.score ?? null) : (summary?.score ?? null)
+  const p = palette(cardScore === null ? null : scoreTone(cardScore))
 
   const weather: ReactNode = forecast.isPending ? (
     <Reserve height={WEATHER_H} />
@@ -463,7 +560,18 @@ export function ConditionsNow({
       {weather}
 
       {summary === null && readingsBlock === null ? null : (
-        summary === null ? readingsBlock : <Readings summary={summary} reading={shown.reading} p={p} />
+        summary === null ? readingsBlock : (
+          <Readings
+            summary={summary}
+            todayScore={todayScore}
+            reading={shown.reading}
+            blocks={blocks}
+            rain={rain}
+            utcOffsetSeconds={utcOffsetSeconds}
+            scoreHidden={severeAlertEvent !== null}
+            p={p}
+          />
+        )
       )}
 
       {/*

@@ -183,7 +183,6 @@ describe('ConditionsNow — one block', () => {
     expect(count(html, CONDITIONS_NOW_LABEL)).toBe(1)
     expect(html).toContain('Dryness')
     expect(html).toContain('Friction')
-    expect(html).toContain('>58<')
   })
 
   it('shows no readings where the caller passed none', () => {
@@ -266,6 +265,92 @@ describe('ConditionsNow — one block', () => {
     const html = render({ forecast: pending, conditions: pending })
     expect(html).not.toContain(CONDITIONS_NOW_LABEL)
     expect(html).toContain('aria-hidden')
+  })
+})
+
+/**
+ * **The hour's score never stands for the day** (owner, Sandstone 2026-10-03:
+ * 9am read 100, rain came at 1pm, the day scored 48). The third gauge is the
+ * day's score, the next nine hours are three-hour blocks scored by their worst
+ * hour, and rain likely inside them takes the band.
+ */
+describe('ConditionsNow — where the day is going', () => {
+  const HOUR = 3_600_000
+  const t = (h: number) => new Date(Date.parse(NOW) + h * HOUR).toISOString()
+  // 6pm (offset 0) onward: 100, 100, 85 | 48, 70, 40 | 0, 0, 0.
+  const SCORES = [100, 100, 85, 48, 70, 40, 0, 0, 0]
+  const hours = SCORES.map((s, i) => ({ ...reading, valid_at: t(i), score: s }))
+  const ahead = (chance: (i: number) => number | null): HourlySeries => ({
+    ...series(hour()),
+    readings: { model: 'gfs_seamless', unavailable_reason: null, hours, days: [] },
+    hours: SCORES.map((_, i) => hour({ valid_at: t(i + 1), precip_chance_pct: chance(i + 1) })),
+  })
+  const withDay = scored({ today: { local_date: DATE, window: null, best: { ...reading, score: 48 } } })
+
+  it('puts the day’s score in the third gauge, not the hour’s', () => {
+    const html = render({ conditions: settled(withDay), series: ahead(() => 0) })
+    expect(html).toContain('>Today<')
+    expect(html).toContain('>48<')
+    expect(html).not.toContain('>58<')
+  })
+
+  it('dashes the day’s score once the day has none, never a 0', () => {
+    const html = render({ conditions: settled(scored()), series: ahead(() => 0) })
+    expect(html).toMatch(/>Today<[\s\S]*?>—</)
+  })
+
+  it('shows three blocks from now, each its worst hour', () => {
+    const html = render({ conditions: settled(withDay), series: ahead(() => 0) })
+    expect(html).toContain('6pm–9pm · now')
+    expect(html).toContain('9pm–12am')
+    expect(html).toContain('12am–3am')
+    expect(html).toContain('>85<')
+    expect(html).toContain('>40<')
+    expect(html).toContain('>0<')
+  })
+
+  it('leaves the card plain when the now block has a gap, rather than wearing the hour’s rung', () => {
+    // The hour reads 58 (amber); a gap later in its block must not let it tint the card.
+    const gappy = ahead(() => 0)
+    const withGap: HourlySeries = {
+      ...gappy,
+      readings: { ...gappy.readings!, hours: hours.filter((h) => h.valid_at !== t(1)) },
+    }
+    const html = render({ conditions: settled(withDay), series: withGap })
+    expect(html).toMatch(/^<section style="background-color:#171f28/)
+    expect(html).toMatch(/· now<\/span><span[^>]*>—</)
+  })
+
+  it('names the hour likely rain begins, in place of the good hours', () => {
+    // Stamped 10pm, so it fell from 9pm; the peak after it is 85.
+    const html = render({
+      conditions: settled(scored({ today: { local_date: DATE, window: { from: t(0), to: t(2), hours: 3, min_score: 85, qualified: true }, best: reading } })),
+      series: ahead((i) => (i < 4 ? 10 : i === 5 ? 85 : 60)),
+    })
+    expect(html).toContain('Rain likely from')
+    expect(html).toContain('9pm · 85%')
+    expect(html).not.toContain('Good hours')
+  })
+
+  it('keeps the good hours when no rain is likely', () => {
+    const html = render({
+      conditions: settled(scored({ today: { local_date: DATE, window: { from: t(0), to: t(2), hours: 3, min_score: 85, qualified: true }, best: reading } })),
+      series: ahead(() => 20),
+    })
+    expect(html).not.toContain('Rain likely')
+    expect(html).toContain('Good hours')
+  })
+
+  it('shows no score of any span under a Severe+ alert', () => {
+    const html = render({
+      conditions: settled(withDay),
+      series: ahead(() => 0),
+      severeAlertEvent: 'Flood Warning',
+    })
+    expect(html).not.toContain('>Today<')
+    expect(html).not.toContain('· now')
+    expect(html).not.toContain('>48<')
+    expect(html).toContain('Dryness')
   })
 })
 
