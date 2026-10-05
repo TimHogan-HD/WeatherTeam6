@@ -134,7 +134,7 @@ function toReading(h: CragAHour): HourlyReading {
 }
 
 /**
- * **The drying clock's rain is the global models' hourly median** whenever the
+ * **The drying clock's rain is the global models' median** whenever the
  * run carries one (`lib/weather/rainMedian.ts`, issue #209). An hour the median
  * could not be formed for is a gap, and the clock withholds from it. A run
  * stored before the median existed has none, and reads its own rain whole —

@@ -18,6 +18,19 @@
  * 26-27% of wet sandstone and limestone hours, and scored per day (the app's
  * day score) it called more wet days dry than this one on every rock type.
  *
+ * **Each model's rain is averaged over six hours first** (`RAIN_WINDOW`, issue
+ * #324). A per-hour median keeps a shower only where the models agree on its
+ * hour. Sandstone, 4 Oct 2026: three models forecast 4-10 mm the day before,
+ * each in a different hour, and the median kept about 1 mm. The clock sizes the
+ * drying window from the storm total, so it read Dry 100 on a wet day.
+ * Averaging rather than summing keeps each storm's total. Scored per day (the
+ * app's day score) against the same gauges at 0, 1 and 2 days' lead, it called
+ * fewer wet days dry on every rock type at every lead. One day ahead, wet
+ * quartzite days called dry went from 32% to 28%, sandstone from 20% to 16% and
+ * limestone from 24% to 16%. The price is 1-4 points more dry days read as not
+ * dry, and the combined score rose in 8 of 9 cells. A vote rule caught more wet
+ * sandstone, at about 7 points more lost days.
+ *
  * Irradiance is still never pooled (issue #155). This pools precipitation
  * alone, and the readings name the models it came from.
  */
@@ -50,8 +63,37 @@ function median(values: readonly number[]): number {
 }
 
 /**
- * The per-hour median of `RAIN_MODELS` in one deterministic response, or null
- * when fewer than `MIN_RAIN_MODELS` of them answered at all.
+ * The hours each model's rain is averaged over before the median: three before
+ * and two after, the window `compare:dryness` measured.
+ */
+export const RAIN_WINDOW = { before: 3, after: 2 } as const
+
+/** `valid_at_local` moved by whole hours. Local stamps from one response share one offset. */
+function shiftLocal(local: string, hours: number): string {
+  return new Date(Date.parse(`${local}:00Z`) + hours * 3_600_000).toISOString().slice(0, 16)
+}
+
+/**
+ * A model's mean rain over `RAIN_WINDOW` around `t`, or null when the model did
+ * not answer at `t` itself, so a gap stays a gap rather than borrowing from its
+ * neighbours. At the ends of a series the window holds only the hours there are.
+ */
+function windowMean(byLocal: ReadonlyMap<string, number | null>, t: string): number | null {
+  if (byLocal.get(t) == null) return null
+  let sum = 0
+  let n = 0
+  for (let o = -RAIN_WINDOW.before; o <= RAIN_WINDOW.after; o++) {
+    const v = byLocal.get(shiftLocal(t, o))
+    if (v == null) continue
+    sum += v
+    n++
+  }
+  return sum / n
+}
+
+/**
+ * The per-hour median of `RAIN_MODELS`' six-hour means in one deterministic
+ * response, or null when fewer than `MIN_RAIN_MODELS` of them answered at all.
  */
 export function rainMedian(result: DeterministicResult): RainMedian | null {
   const series = RAIN_MODELS.flatMap((name) => {
@@ -64,10 +106,7 @@ export function rainMedian(result: DeterministicResult): RainMedian | null {
   const times = new Set(series.flatMap((s) => [...s.byLocal.keys()]))
   const byLocal = new Map<string, number | null>()
   for (const t of times) {
-    const values = series
-      .map((s) => s.byLocal.get(t))
-      .filter((v): v is number => v !== null && v !== undefined)
-    byLocal.set(t, values.length >= MIN_RAIN_MODELS ? median(values) : null)
+    byLocal.set(t, medianOf(series.map((s) => windowMean(s.byLocal, t))))
   }
   return { models: series.map((s) => s.name), byLocal }
 }

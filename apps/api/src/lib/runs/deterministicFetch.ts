@@ -44,7 +44,7 @@ export const FORECAST_DAYS = 7
  * cost if more locations are added.
  *
  * **Requested for all of `RAIN_MODELS`**, because the drying clock reads their
- * hourly median rather than the thermal model's own rain (issue #209), and its
+ * median rather than the thermal model's own rain (issues #209, #324), and its
  * history needs theirs too. Only the thermal model's run is stored from that
  * request; the median rides on its hours as `rain_median_mm`, one column
  * rather than three more runs of trailing rows. It is refreshed when the

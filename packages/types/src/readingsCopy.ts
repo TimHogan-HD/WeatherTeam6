@@ -619,7 +619,7 @@ export const ROCK_TEMPERATURE_MECHANISM = 'Rock temperature is calculated from s
  * Where the drying clock's rain came from.
  *
  * **Required wherever a dryness reading shows**, because the rain behind it is
- * not the rock figures' model: it is the hourly median of several (issue
+ * not the rock figures' model: it is the median of several (issue
  * #209), and the rain chart beside it draws the ensemble. Without this line a
  * reader who sees rain on the chart and `Dryness: Dry` above it has no way to
  * learn the two read different forecasts.
