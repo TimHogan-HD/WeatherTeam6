@@ -45,8 +45,8 @@ import { TEMP_VIEW_H } from './charts/chartStyle.js'
  * - **Overview** — the Conditions now hero, today by the hour, the next three
  *   days' scores, and rain. Built to its V2 frame.
  * - **Daily** — the seven days as tinted rows, built to its V2 frame.
- * - **Hourly** — a chip per day, the open day's readings and friction by the
- *   hour, then its charts. Built to its V2 frame.
+ * - **Hourly** — a chip per day, the open day's readings and good hours,
+ *   then its charts. Built to its V2 frame.
  * - **Precip** — the past week's precipitation: its total, its events and a
  *   bar per day, from the Figma "Precipitation history" frame. Every saved
  *   location has one; a city had rain too.
