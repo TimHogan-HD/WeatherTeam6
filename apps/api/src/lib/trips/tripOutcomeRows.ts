@@ -24,7 +24,8 @@ export type TripOutcomeRow = {
 /**
  * The outcome rows one location writes at one firing: each trip day that is
  * over and at most `OUTCOME_DAYS` behind the location's today. A day the look
- * back has nothing for writes nothing, so a gap never overwrites a reading.
+ * back has nothing for writes nothing, and the upsert keeps a stored figure
+ * over a later gap (`recordTripDays`).
  */
 export function tripOutcomeRows(input: {
   locationId: string

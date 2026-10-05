@@ -197,7 +197,12 @@ function historyRock(past: ReturnType<typeof pastHours>): RockHistoryHour[] {
  * (`dayRepresentative`) over every one of its hours. A day the walk began
  * inside is not whole and is left out.
  */
-function pastDays(past: ReturnType<typeof pastHours<CragAHour>>, utcOffsetSeconds: number): PastReadingsDay[] {
+function pastDays(
+  past: ReturnType<typeof pastHours<CragAHour>>,
+  weather: readonly WeatherHour[],
+  utcOffsetSeconds: number,
+): PastReadingsDay[] {
+  const rainAt = new Map(weather.map((w) => [Date.parse(w.valid_at), w.precip_mm]))
   const byDate = new Map<string, typeof past>()
   for (const p of past) byDate.set(p.date, [...(byDate.get(p.date) ?? []), p])
 
@@ -213,7 +218,8 @@ function pastDays(past: ReturnType<typeof pastHours<CragAHour>>, utcOffsetSecond
     const daytime = hours.filter((p) => localHour(p) >= DAY_FIRST_HOUR && localHour(p) <= DAY_LAST_HOUR)
     const readable = daytime.every((p) => p.rockKnown)
     const best = readable ? dayRepresentative(daytime.map((p) => p.hour), utcOffsetSeconds) : null
-    const rain = hours.map((p) => p.weather?.precip_mm ?? null)
+    // Rain is stamped at the end of its hour: the day's is 01:00 through the next midnight.
+    const rain = hours.map((p) => rainAt.get(Date.parse(p.hour.valid_at) + 3_600_000) ?? null)
     const temps = hours.map((p) => p.weather?.air_temp_c ?? null)
     const whole = <T>(xs: (T | null)[]): xs is T[] => xs.every((x) => x !== null)
     days.push({
@@ -298,6 +304,6 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
     hours: windowed.map(toReading),
     days,
     rock_history,
-    past_days: pastDays(past, input.utcOffsetSeconds),
+    past_days: pastDays(past, weather, input.utcOffsetSeconds),
   }
 }

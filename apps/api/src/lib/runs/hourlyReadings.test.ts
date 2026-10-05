@@ -245,6 +245,18 @@ describe('the trailing history', () => {
     expect(day?.rain_mm).toBe(0)
   })
 
+  it('credits rain stamped at midnight to the day that ended, since the stamp closes its hour', () => {
+    const hours = runHours(120, 48).map((h) =>
+      h.valid_at.toISOString() === '2026-09-20T00:00:00.000Z' ? { ...h, rain_median_mm: 5, precip_mm: 5 } : h,
+    )
+    const out = buildHourlyReadings(
+      input({ deterministic: deterministic([model(THERMAL_MODEL, hours, ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless'])]) }),
+    )
+    const rain = (date: string) => out.past_days?.find((d) => d.local_date === date)?.rain_mm
+    expect(rain('2026-09-19')).toBe(5)
+    expect(rain('2026-09-20')).toBe(0)
+  })
+
   it('leaves out a day the run is missing an hour of, rather than summing what is there', () => {
     const hours = runHours(120, 48).filter((h) => h.valid_at.toISOString() !== '2026-09-19T05:00:00.000Z')
     const out = buildHourlyReadings(input({ deterministic: deterministic([model(THERMAL_MODEL, hours)]) }))

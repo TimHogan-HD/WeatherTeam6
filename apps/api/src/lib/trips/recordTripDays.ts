@@ -11,7 +11,7 @@ import { fetchOutlook } from '../weather/ensembleOutlook.js'
 import { localDateString } from '../weather/openMeteo.js'
 import { tripDayRows, type TripDayRow } from './tripDayRows.js'
 import { tripRainRows, type DatedTrip } from './tripRainRows.js'
-import { OUTCOME_DAYS, tripOutcomeRows } from './tripOutcomeRows.js'
+import { OUTCOME_DAYS, tripOutcomeRows, type TripOutcomeRow } from './tripOutcomeRows.js'
 
 export type RecordTripsResult = {
   /** Distinct locations on trips that had not ended, or ended inside `OUTCOME_DAYS`. */
@@ -220,22 +220,31 @@ async function recordLocation(
           },
         })
     }
-    if (outcomes.length > 0) {
-      await tx
-        .insert(tripDayOutcomes)
-        .values(outcomes)
-        .onConflictDoUpdate({
-          target: [tripDayOutcomes.location_id, tripDayOutcomes.local_date],
-          set: {
-            recorded_at: sql`excluded.recorded_at`,
-            score: sql`excluded.score`,
-            dryness: sql`excluded.dryness`,
-            rain_mm: sql`excluded.rain_mm`,
-            temp_c_max: sql`excluded.temp_c_max`,
-            temp_c_min: sql`excluded.temp_c_min`,
-          },
-        })
-    }
+    if (outcomes.length > 0) await writeOutcomes(tx, outcomes)
   })
   return { days: values.length, trend: trend.length, outcomes: outcomes.length }
+}
+
+/**
+ * Upsert outcome rows. Exported for `check:record-trips`, which proves against
+ * Postgres that a later gap keeps the stored figure.
+ */
+export async function writeOutcomes(executor: Pick<typeof db, 'insert'>, outcomes: TripOutcomeRow[]): Promise<void> {
+  await executor
+    .insert(tripDayOutcomes)
+    .values(outcomes)
+    .onConflictDoUpdate({
+      target: [tripDayOutcomes.location_id, tripDayOutcomes.local_date],
+      // A later firing's gap keeps the stored figure rather than erasing it.
+      // Score and dryness move together, and so do the high and low, so
+      // neither pair mixes two firings.
+      set: {
+        recorded_at: sql`excluded.recorded_at`,
+        score: sql`case when excluded.score is null and excluded.dryness is null then ${tripDayOutcomes.score} else excluded.score end`,
+        dryness: sql`case when excluded.score is null and excluded.dryness is null then ${tripDayOutcomes.dryness} else excluded.dryness end`,
+        rain_mm: sql`coalesce(excluded.rain_mm, ${tripDayOutcomes.rain_mm})`,
+        temp_c_max: sql`case when excluded.temp_c_max is null and excluded.temp_c_min is null then ${tripDayOutcomes.temp_c_max} else excluded.temp_c_max end`,
+        temp_c_min: sql`case when excluded.temp_c_max is null and excluded.temp_c_min is null then ${tripDayOutcomes.temp_c_min} else excluded.temp_c_min end`,
+      },
+    })
 }

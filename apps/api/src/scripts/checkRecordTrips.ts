@@ -68,7 +68,7 @@ async function run(): Promise<void> {
   const { createApp } = await import('../index.js')
   const { db, pool } = await import('../db/index.js')
   const { users, locations, trips, tripLocations, tripDayRecords, tripDayOutcomes, tripRainRecords } = await import('../db/schema.js')
-  const { recordTripDays } = await import('../lib/trips/recordTripDays.js')
+  const { recordTripDays, writeOutcomes } = await import('../lib/trips/recordTripDays.js')
   const { deleteLocationCascade } = await import('../lib/locations/deleteLocation.js')
   const { signToken, expiryFrom } = await import('../lib/auth/token.js')
   const { eq } = await import('drizzle-orm')
@@ -244,6 +244,34 @@ async function run(): Promise<void> {
       rows2.every((r) => !pastDates.includes(r.local_date)),
     )
 
+    console.log('\nA later firing with a gap')
+    const kept = outcomes.find((o) => o.local_date === pastDates[0])
+    if (kept !== undefined) {
+      await writeOutcomes(db, [
+        { location_id: locationId, local_date: kept.local_date, recorded_at: new Date(), score: null, dryness: null, rain_mm: null, temp_c_max: null, temp_c_min: null },
+      ])
+      const [after] = await db.select().from(tripDayOutcomes).where(eq(tripDayOutcomes.id, kept.id))
+      check(
+        'a gap keeps every stored figure',
+        after !== undefined &&
+          after.score === kept.score &&
+          after.dryness === kept.dryness &&
+          after.rain_mm === kept.rain_mm &&
+          after.temp_c_max === kept.temp_c_max &&
+          after.temp_c_min === kept.temp_c_min,
+        JSON.stringify({ kept, after }),
+      )
+      await writeOutcomes(db, [
+        { location_id: locationId, local_date: kept.local_date, recorded_at: new Date(), score: 7, dryness: 'wet', rain_mm: 12.5, temp_c_max: 3, temp_c_min: 1 },
+      ])
+      const [replaced] = await db.select().from(tripDayOutcomes).where(eq(tripDayOutcomes.id, kept.id))
+      check(
+        'a later reading replaces the stored one',
+        replaced?.score === 7 && replaced.dryness === 'wet' && replaced.rain_mm === 12.5 && replaced.temp_c_min === 1,
+        JSON.stringify(replaced),
+      )
+    }
+
     console.log('\nA trip that ended a week ago')
     const oldId = oldLocationId ?? ''
     const [oldDays, oldOutcomes, oldTrend] = await Promise.all([
@@ -258,6 +286,7 @@ async function run(): Promise<void> {
     )
 
     console.log('\nReading the past trip summary')
+    const storedNow = await db.select().from(tripDayOutcomes).where(eq(tripDayOutcomes.location_id, locationId))
     const sumRes = await fetch(`${BASE}/trips/${pastTripId}/summary`, { headers: { Authorization: `Session ${token}` } })
     const sumBody = (await sumRes.json()) as ApiResponse<TripSummary[]>
     const summary = sumBody.data?.[0]
@@ -270,7 +299,7 @@ async function run(): Promise<void> {
     check(
       'each day carries the outcome that was stored',
       summary?.days.every((d) => {
-        const stored = outcomes.find((o) => o.local_date === d.local_date)
+        const stored = storedNow.find((o) => o.local_date === d.local_date)
         return d.outcome !== null && stored !== undefined && d.outcome.rain_mm === stored.rain_mm && d.outcome.score === stored.score
       }) === true,
       JSON.stringify(summary?.days.map((d) => d.outcome)),
