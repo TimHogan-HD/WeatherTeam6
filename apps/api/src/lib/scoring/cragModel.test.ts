@@ -173,6 +173,25 @@ describe('evaluateCragA — the drying clock', () => {
   })
 })
 
+describe('evaluateCragA — rock in sun and in shade', () => {
+  const day4 = (localHour: number) => 4 * 24 + localHour
+
+  it('splits the sunny side from the shaded one on a clear afternoon', () => {
+    const pair = crag(series(6 * 24))[day4(15)]!.rock_sun_shade!
+    expect(pair.sun_c - pair.shade_c).toBeGreaterThan(5)
+  })
+
+  it('reads every face alike at night', () => {
+    const pair = crag(series(6 * 24))[day4(2)]!.rock_sun_shade!
+    expect(pair.sun_c - pair.shade_c).toBeLessThan(0.5)
+  })
+
+  it('withholds the pair when the sun was not measured, rather than reading a sunless afternoon', () => {
+    const hours = series(6 * 24, (i) => (i === day4(15) ? { shortwave_wm2: null } : {}))
+    expect(crag(hours)[day4(15)]!.rock_sun_shade).toBeNull()
+  })
+})
+
 describe('evaluateWallA', () => {
   const wall = (cliffAngleDeg: number) => ({ lat: LAT, lon: LON, aspectDeg: 180, cliffAngleDeg })
 

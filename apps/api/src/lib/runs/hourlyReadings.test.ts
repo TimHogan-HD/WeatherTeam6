@@ -228,12 +228,15 @@ describe('what reaches the response', () => {
       'friction',
       'held_back_by',
       'rock',
+      'rock_sun_shade',
       'score',
       't_surface_c',
       'valid_at',
     ])
     // The penalties reach the response as names in order, never as their values.
     expect(hour!.held_back_by!.every((l) => typeof l === 'string')).toBe(true)
+    // Two modelled temperatures, like t_surface_c — not factors.
+    expect(Object.keys(hour!.rock_sun_shade ?? {}).sort()).toEqual(['shade_c', 'sun_c'])
   })
 
   it('carries one day entry per window date, in order, even for days it cannot score', () => {

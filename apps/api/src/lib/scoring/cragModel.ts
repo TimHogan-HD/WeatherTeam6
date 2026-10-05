@@ -27,7 +27,13 @@
  * was not measured is null, and so is every hour after it until a full drying
  * window has run (issue #34).
  */
-import { TEMP_RANGE_DEFAULT_F, fToC, type RockType, type ScoreLimit } from '@weatherteam6/types'
+import {
+  TEMP_RANGE_DEFAULT_F,
+  fToC,
+  type RockSunShade,
+  type RockType,
+  type ScoreLimit,
+} from '@weatherteam6/types'
 import { MAX_HOURS, MIN_HOURS } from './dryingModel.js'
 import {
   condensationFactor,
@@ -285,37 +291,55 @@ export type CragAOptions = {
 }
 
 /**
+ * An hour of Crag A: the crag's readings, plus the rock temperature on the
+ * warmest and coolest of its eight compass walls. Barn Bluff, 2026-10-04: the
+ * south face baked at a modelled 92 °F while a shaded face sat at 74 °F under
+ * 68 °F air, and the score, which reads air temperature, cannot tell them apart.
+ */
+export type CragAHour = HourlyConditions & { rock_sun_shade: RockSunShade | null }
+
+/** Null when any wall's temperature is missing — a pair from seven walls could miss the sunniest. */
+function sunShade(walls: readonly (number | null)[]): RockSunShade | null {
+  if (walls.some((t) => t === null || !Number.isFinite(t))) return null
+  const ts = walls as number[]
+  return { sun_c: Math.max(...ts), shade_c: Math.min(...ts) }
+}
+
+/**
  * **Crag A — the crag's score, and the only score a location carries.** The
  * drying clock runs on eight vertical walls, one per compass point, and each
  * hour's dryness is their median. A location's recorded aspect and angle are
  * deliberately not inputs: the crag score describes the crag as a whole, and a
  * specific wall is scored by `evaluateWallA` instead.
  *
- * Returns `HourlyConditions` so the readings builder, `bestWindow` and the
- * published projection are unchanged.
+ * Returns `HourlyConditions` widened by the sun/shade pair, so `bestWindow` and
+ * the published projection read it unchanged.
  */
 export function evaluateCragA(
   hours: readonly WeatherHour[],
   options: CragAOptions,
-): HourlyConditions[] {
+): CragAHour[] {
   const { rockType } = options
   // The rock temperature and margin come from the unscaled horizontal series;
   // only the drying clock runs on the eight walls.
   const flat = evaluateHourlyConditions(hours, { rockType, cliffAngleDeg: 0, wall: null })
   const maxHours = dryingWindowHours(rockType, 0).maxHours
-  const tracks = CRAG_ASPECTS.map((aspectDeg) => {
+  const walls = CRAG_ASPECTS.map((aspectDeg) => {
     const evaluated = evaluateHourlyConditions(hours, {
       rockType,
       cliffAngleDeg: 0,
       wall: { lat: options.lat, lon: options.lon, aspectDeg, cliffAngleDeg: 0 },
     })
-    return drynessTrack(hours, evaluated, maxHours, WET_MM)
+    return { evaluated, dry: drynessTrack(hours, evaluated, maxHours, WET_MM) }
   })
   return flat.map((h, i) => {
-    const xs = tracks.map((t) => t[i] ?? null)
+    const xs = walls.map((w) => w.dry[i] ?? null)
     const dry = xs.some((x) => x === null) ? null : median(xs as number[])
     // No one wall's clock, so no one wall's drying hours.
-    return finish(h, hours[i]!, dry, rockType, null, options.range)
+    return {
+      ...finish(h, hours[i]!, dry, rockType, null, options.range),
+      rock_sun_shade: sunShade(walls.map((w) => w.evaluated[i]?.t_surface_c ?? null)),
+    }
   })
 }
 
@@ -404,15 +428,15 @@ function finish(
  * Its score is the day's score. A run containing an unscored hour does not
  * count. Null when no run qualifies.
  */
-export function dayRepresentative(
-  dayHours: readonly HourlyConditions[],
+export function dayRepresentative<H extends HourlyConditions>(
+  dayHours: readonly H[],
   utcOffsetSeconds: number,
-): HourlyConditions | null {
+): H | null {
   const inDay = dayHours.filter((h) => {
     const lh = new Date(Date.parse(h.valid_at) + utcOffsetSeconds * 1000).getUTCHours()
     return lh >= DAY_FIRST_HOUR && lh <= DAY_LAST_HOUR
   })
-  let best: HourlyConditions | null = null
+  let best: H | null = null
   for (let a = 0; a + DAY_RUN_HOURS <= inDay.length; a++) {
     const run = inDay.slice(a, a + DAY_RUN_HOURS)
     // Consecutive in time, not just in the array: a gap in the series breaks the run.

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   FRICTION_MECHANISM,
+  ROCK_SUN_SHADE_MECHANISM,
   ROCK_TEMPERATURE_MECHANISM,
   UNRECORDED_ASPECT_MECHANISM,
   dewPointMarginValue,
@@ -280,6 +281,45 @@ describe('measurements', () => {
       readingModel: null,
     });
     expect(noSurface.notes).not.toContain(ROCK_TEMPERATURE_MECHANISM);
+  });
+
+  describe('rock in sun and in shade', () => {
+    const withPair = (pair: HourlyReading['rock_sun_shade']): Result =>
+      measurements({
+        hour: measuredHour(),
+        weatherModel: 'gfs_seamless',
+        reading: reading({ rock_sun_shade: pair }),
+        rainModels: null,
+        readingModel: 'gfs_seamless',
+      });
+
+    // Barn Bluff, 2026-10-04 15:00: the south face 92°F, a shaded one 74°F.
+    it('prints both sides in place of the one rock temperature, and says what they are', () => {
+      const m = withPair({ sun_c: 33.3, shade_c: 23.3 });
+      expect(groupNamed(m, 'Rock')?.fields.map((f) => f.label)).toEqual([
+        'Rock in sun',
+        'Rock in shade',
+        'Rock vs dew point',
+      ]);
+      expect(fieldNamed(m, 'Rock', 'Rock in sun')).toBe('92°F');
+      expect(fieldNamed(m, 'Rock', 'Rock in shade')).toBe('74°F');
+      expect(m.notes).toContain(ROCK_SUN_SHADE_MECHANISM);
+      expect(m.notes).toContain(ROCK_TEMPERATURE_MECHANISM);
+    });
+
+    it('keeps one rock temperature when every face reads the same °F', () => {
+      const m = withPair({ sun_c: 10.2, shade_c: 10.0 });
+      expect(fieldNamed(m, 'Rock', 'Rock temperature')).toBe('71°F');
+      expect(fieldNamed(m, 'Rock', 'Rock in sun')).toBeNull();
+      expect(m.notes).not.toContain(ROCK_SUN_SHADE_MECHANISM);
+    });
+
+    it('keeps one rock temperature when the pair is missing or an older API sent none', () => {
+      for (const m of [withPair(null), withPair(undefined)]) {
+        expect(fieldNamed(m, 'Rock', 'Rock temperature')).toBe('71°F');
+        expect(m.notes).not.toContain(ROCK_SUN_SHADE_MECHANISM);
+      }
+    });
   });
 
   it('has nothing to show when neither an hour nor a reading arrived', () => {
