@@ -52,7 +52,7 @@ describe('cardSummary', () => {
   it('withholds the number while alerts are still loading, and keeps the readings', () => {
     const s = cardSummary(conditions(reading()), undefined, true)
     expect(s?.score).toBeNull()
-    expect(s?.readings.map((f) => f.value)).toEqual(['Dry', 'Great'])
+    expect(s?.readings.map((f) => f.value)).toEqual(['Dry'])
   })
 
   it('withholds the number under a Severe alert', () => {
@@ -66,29 +66,17 @@ describe('readingTone', () => {
     [],
     false,
   )
-  const [dryness, friction] = s?.readings ?? []
+  const [dryness] = s?.readings ?? []
 
   it('takes each tone from the level the word was made from', () => {
     const r = reading({ rock: { level: 'drying', qualified: true } })
     expect(dryness && readingTone(dryness, r)).toBe('fair')
-    expect(friction && readingTone(friction, r)).toBe('good')
   })
 
-  it('maps every rung', () => {
-    const tone = (rock: 'wet' | 'drying' | 'dry', fr: 'poor' | 'fair' | 'good' | 'great') => {
-      const r = reading({
-        rock: { level: rock, qualified: true },
-        friction: { level: fr, condensing: false, qualified: true },
-      })
-      return [
-        readingTone({ label: 'Dryness', value: '' }, r),
-        readingTone({ label: 'Friction', value: '' }, r),
-      ]
-    }
-    expect(tone('wet', 'poor')).toEqual(['poor', 'poor'])
-    expect(tone('drying', 'fair')).toEqual(['fair', 'fair'])
-    expect(tone('dry', 'good')).toEqual(['good', 'good'])
-    expect(tone('dry', 'great')).toEqual(['good', 'good'])
+  it('maps every rung, and gives friction no tone — it is not a word on screen', () => {
+    const tone = (rock: 'wet' | 'drying' | 'dry') => readingTone({ label: 'Dryness', value: '' }, reading({ rock: { level: rock, qualified: true } }))
+    expect([tone('wet'), tone('drying'), tone('dry')]).toEqual(['poor', 'fair', 'good'])
+    expect(readingTone({ label: 'Friction', value: 'Great' }, reading())).toBeNull()
   })
 
   it('gives a field it does not recognise no tone rather than a borrowed one', () => {

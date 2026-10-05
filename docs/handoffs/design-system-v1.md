@@ -63,8 +63,8 @@ All mockup screens are drawn at **375 × 812** (iPhone logical resolution).
 
 Two rules the client added that belong here now:
 
-- **A reading is a label and a value, never a sentence.** `Dryness: Dry`, `Friction: Great`,
-  `Score: 100`. A fluent sentence claims a confidence an estimate has not earned.
+- **A reading is a label and a value, never a sentence.** `Dryness: Dry`,
+  `Score: 100`. (No `Friction` word since 2026-10-05; its causes are in Score breakdown.) A fluent sentence claims a confidence an estimate has not earned.
 - **Write like a weather app** (owner, 2026-10-02). Standard weather words over coined
   labels ("Last rain", not "Last real rain"; "Range", not "8 in 10 runs"; "Score breakdown",
   not "Held back by"). A caveat is said **once** — in the Measurements disclosure and on How

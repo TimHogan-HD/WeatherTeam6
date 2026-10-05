@@ -190,13 +190,17 @@ Empty state, error state, and loading per §5. No sort or filter controls in v1.
 Overview`, node `129:256`).** The screen is a header band (back, rock type · elevation,
 name, coordinates · forecast age) over six tabs — **Overview, Daily, Hourly, Precip,
 Rock, Crag** — and opens on Overview: the Conditions now hero, **Today** (09-21 every three
-hours, temperature and the friction word), **Next 3 days** (each day's Crag A score as a
+hours, temperature and the score), **Next 3 days** (each day's Crag A score as a
 tinted pill), and **Rain** (last rain, next likely rain). Rock holds the drying card and
 the identity block until its own V2 frame is built; Crag is the guidebook (below). A city
 gets Overview, Daily, Hourly and Precip. Daily and Hourly are built to their own frames
 (below). Deliberate
 departures from the frame:
 
+- **No friction word anywhere** (owner, 2026-10-05): the hero's gauges are Dryness and
+  Today; the Hourly tab's day card is Dryness and Score, with no friction-by-hour strip;
+  list cards and trip tiles print Dryness only. What holds a score down is in Score
+  breakdown, never a phrase on the card.
 - **The hero's score is never the hour's alone** (owner, 2026-10-05, after Sandstone on
   10-03 read 100 at 9am on a day rain arrived at 1pm and scored 48). The third gauge is
   **Today**, the day's score; under it, the next nine hours as three three-hour blocks

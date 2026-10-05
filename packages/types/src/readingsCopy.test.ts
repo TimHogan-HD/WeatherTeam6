@@ -7,7 +7,6 @@ import {
   formatLocalHour,
   readingFields,
   readingNow,
-  readingsShort,
   readingsUnavailableLine,
   summarizeReadings,
   windowValue,
@@ -77,31 +76,21 @@ const printed = (s: ReturnType<typeof summarizeReadings>): string =>
     .join(' ');
 
 describe('readingFields', () => {
-  it('labels each reading rather than writing it as a phrase', () => {
-    expect(readingFields(rock(), friction())).toEqual([
-      { label: 'Dryness', value: 'Dry' },
-      { label: 'Friction', value: 'Great' },
-    ]);
+  it('labels the rock reading rather than writing it as a phrase', () => {
+    expect(readingFields(rock())).toEqual([{ label: 'Dryness', value: 'Dry' }]);
   });
 
-  it('omits a half that could not be read rather than inventing a level', () => {
-    expect(readingFields(null, friction({ level: 'fair' }))).toEqual([
-      { label: 'Friction', value: 'Fair' },
-    ]);
-    expect(readingFields(rock({ level: 'wet' }), null)).toEqual([
-      { label: 'Dryness', value: 'Wet' },
-    ]);
-  });
-
-  it('has nothing to show when neither reading could be read', () => {
-    expect(readingFields(null, null)).toEqual([]);
+  it('has nothing to show when the rock could not be read', () => {
+    expect(readingFields(null)).toEqual([]);
   });
 });
 
-describe('readingsShort', () => {
-  it('drops the labels only where the surface has already named the subject', () => {
-    expect(readingsShort(rock(), friction())).toBe('Dry · Great');
-    expect(readingsShort(null, null)).toBeNull();
+describe('summarizeReadings — no friction word', () => {
+  it('prints no friction grade, even when the air is perfect and the rock is wet', () => {
+    // Sandstone, 2026-10-04: Wet rock under "Friction: Great" (owner, 2026-10-05).
+    const s = summary({ reading: reading({ rock: rock({ level: 'wet' }), score: 44 }) });
+    expect(s.readings).toEqual([{ label: 'Dryness', value: 'Wet' }]);
+    expect(printed(s)).not.toMatch(/Friction|Great/);
   });
 });
 
@@ -182,12 +171,9 @@ describe('readingsUnavailableLine', () => {
 });
 
 describe('summarizeReadings', () => {
-  it('reads out the two gauges and puts the number third', () => {
+  it('reads out the rock and puts the number after it', () => {
     const s = summary();
-    expect(s.readings).toEqual([
-      { label: 'Dryness', value: 'Dry' },
-      { label: 'Friction', value: 'Great' },
-    ]);
+    expect(s.readings).toEqual([{ label: 'Dryness', value: 'Dry' }]);
     expect(s.window).toEqual({ label: 'Good hours', value: '12pm–4pm' });
     expect(s.scoreField).toEqual({ label: 'Score', value: '86' });
     expect(s.score).toBe(86);
@@ -206,20 +192,19 @@ describe('summarizeReadings', () => {
     }
   });
 
-  // The phase's acceptance criterion. The fixture is a high score deliberately:
-  // under the old ladder this is exactly the day that read "Dry, settled".
-  it('never renders a bare good-looking summary for a day with poor friction', () => {
+  // The phase's acceptance criterion, now carried by the number and its
+  // breakdown: dry rock in sticky air is not a bare good-looking summary.
+  it('never renders a bare good-looking summary for a dry day with poor grip', () => {
     const s = summary({
-      reading: reading({ friction: friction({ level: 'poor' }), score: 58 }),
+      reading: reading({ friction: friction({ level: 'poor' }), score: 58, held_back_by: ['humidity'] }),
     });
-    expect(s.readings).toContainEqual({ label: 'Friction', value: 'Poor' });
-    expect(printed(s)).toContain('Friction: Poor');
     expect(s.scoreField).toEqual({ label: 'Score', value: '58' });
+    expect(s.heldBack?.map((f) => f.label)).toEqual(['Humidity']);
   });
 
   it('keeps the readings but drops the number under a Severe+ alert', () => {
     const s = summary({ severeAlertEvent: 'Extreme Heat Warning' });
-    expect(s.readings).toHaveLength(2);
+    expect(s.readings).toHaveLength(1);
     expect(s.qualifier).toBe('Score hidden: Extreme Heat Warning');
     // The number is the thing that reads as actionable, and it is the thing
     // suppression removes. `score` must go with `scoreField` — a surface that
@@ -238,7 +223,7 @@ describe('summarizeReadings', () => {
     expect(s.scoreField).toBeNull();
     // The readings are not suppressed by an alert, so they have nothing to
     // wait for — they arrive first and the number joins them.
-    expect(s.readings).toHaveLength(2);
+    expect(s.readings).toHaveLength(1);
     expect(s.qualifier).toBeNull();
   });
 

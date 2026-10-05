@@ -55,7 +55,7 @@ function day(date: string, over: Partial<ForecastSnapshot> = {}): ForecastSnapsh
   }
 }
 
-/** Red Rock on 2026-08-24: 103 °F, and Crag A reads `Rock: Dry`, `Friction: Poor`, 58. */
+/** Red Rock on 2026-08-24: 103 °F, and Crag A reads `Dryness: Dry`, 58 (its friction was Poor). */
 function redRockScore(): Conditions {
   return {
     location_id: 'loc',
@@ -137,7 +137,7 @@ describe('DetailView — a climbing location', () => {
     // own chart. The day's high and low are still on this line.
     expect(html).toContain('Low 79°')
     // Weather appears before the readings section in document order.
-    expect(visible(html).indexOf('High 103°')).toBeLessThan(visible(html).indexOf('Friction Poor'))
+    expect(visible(html).indexOf('High 103°')).toBeLessThan(visible(html).indexOf('Dryness Dry'))
   })
 
   /**
@@ -156,7 +156,7 @@ describe('DetailView — a climbing location', () => {
         conditions={ok(redRockScore())}
       />,
     )
-    expect(visible(html)).toContain('Friction Poor')
+    expect(visible(html)).toContain('Dryness Dry')
     expect(html).toContain('>71<')
     expect(html).not.toContain('Dry, settled')
     // The five-component score is still on the response and must not reach the
@@ -204,11 +204,11 @@ describe('DetailView — a climbing location', () => {
     expect(html).toContain('Score hidden: Extreme Heat Warning')
     // The words stay — they are the same fact the warning is about. The number
     // is the part that reads as actionable, and it is what goes.
-    expect(visible(html)).toContain('Friction Poor')
+    expect(visible(html)).toContain('Dryness Dry')
     expect(html).not.toContain('>71<')
     // The alert renders above the readings, always (§7 rule 5).
     expect(visible(html).indexOf('Extreme Heat Warning')).toBeLessThan(
-      visible(html).indexOf('Friction Poor'),
+      visible(html).indexOf('Dryness Dry'),
     )
   })
 
@@ -225,7 +225,7 @@ describe('DetailView — a climbing location', () => {
       />,
     )
     expect(html).not.toContain('>71<')
-    expect(visible(html)).not.toContain('Friction Poor')
+    expect(visible(html)).not.toContain('Dryness Dry')
     // The weather is not held up by it.
     expect(html).toContain('High 103°')
   })
@@ -241,7 +241,7 @@ describe('DetailView — a climbing location', () => {
     )
     // The query settled with no data, so nothing is suppressed — and the
     // failure is stated above rather than reading as "no alerts".
-    expect(visible(html)).toContain('Friction Poor')
+    expect(visible(html)).toContain('Dryness Dry')
     expect(html).toContain('>71<')
     expect(html).toContain('load alerts')
   })
