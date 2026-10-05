@@ -43,17 +43,23 @@
  * per-hour median rarely misses the rain; it shrinks it. When the models put a
  * shower in different hours, the median's storm total is a fraction of each
  * model's, and the clock, which sizes the drying window from the storm total,
- * dries the rock early. Both candidates keep the amount:
+ * dries the rock early. Every candidate keeps the amount:
  *
+ * - **median, hourly (before)** — the rule before #324, as the baseline.
+ * - **rainMedian (shipped)** — the function the clock reads, called as is.
  * - **rolling, N h** — the median of each model's centred N-hour mean. A mean, not
- *   a sum, so a storm keeps its total.
+ *   a sum, so a storm keeps its total. `rolling, 6 h` is what shipped, strict
+ *   about gaps; the shipped one differs only at a series' ends and gaps.
  * - **vote, ±N h** — when at least 2 models reach `REWETTING_PRECIP_MM` within ±N
  *   hours, the mean of those models' ±N-hour means; otherwise the median.
+ *
+ * A third table scores whole days: the rock at the hour `dayRepresentative`
+ * picks, which is what a day tile reads. That table decided #324.
  *
  * Network only — no database. Its output is the result.
  */
 import { REWETTING_PRECIP_MM, type RockType } from '@weatherteam6/types'
-import { evaluateCragA, rockLevelA } from '../lib/scoring/cragModel.js'
+import { dayRepresentative, evaluateCragA, rockLevelA } from '../lib/scoring/cragModel.js'
 import type { RockLevel, WeatherHour } from '../lib/scoring/hourlyConditions.js'
 import {
   DETERMINISTIC_MODELS,
@@ -228,8 +234,39 @@ const vote = (n: number): Rule => ({
   },
 })
 
+/** The shipped `rainMedian` itself, on one lead's series stamped in UTC. */
+function shippedRule(): Rule {
+  const cache = new WeakMap<ByModel, ReadonlyMap<string, number | null>>()
+  const blank = {
+    temp_c: null, dewpoint_c: null, humidity_pct: null, wind_kmh: null, wind_gust_kmh: null,
+    wind_dir_deg: null, cloud_pct: null, precip_prob_pct: null, pressure_hpa: null, shortwave_wm2: null,
+  }
+  return {
+    name: 'rainMedian (shipped)',
+    rain: (byModel, key) => {
+      let byLocal = cache.get(byModel)
+      if (!byLocal) {
+        byLocal = rainMedian({
+          models: [...byModel].map(([model, s]) => ({
+            model,
+            probability_is_shared: null,
+            hours: [...s].map(([k, mm]) => ({ ...blank, valid_at_local: `${k}:00`, precip_mm: mm })),
+          })),
+          unavailable_models: [],
+          utc_offset_seconds: 0,
+          model_elevation_m: null,
+          fetched_at: new Date(),
+        })?.byLocal ?? new Map()
+        cache.set(byModel, byLocal)
+      }
+      return byLocal.get(`${key}:00`) ?? null
+    },
+  }
+}
+
 const RULES: Rule[] = [
-  { name: 'median (shipped)', rain: (byModel, key) => medianOver(byModel, (s) => s.get(key) ?? null) },
+  { name: 'median, hourly (before)', rain: (byModel, key) => medianOver(byModel, (s) => s.get(key) ?? null) },
+  shippedRule(),
   rolling('3 h', range(-1, 1)),
   rolling('6 h', range(-3, 2)),
   vote(1),
@@ -296,7 +333,7 @@ async function run(): Promise<void> {
       const own = (n: string) => (k: HourKey) => byModel.get(n)?.get(k) ?? null
 
       const sources: Source[] = [
-        { name: 'gfs_seamless (before)', rain: own('gfs_seamless') },
+        { name: 'gfs_seamless (before #209)', rain: own('gfs_seamless') },
         { name: 'median, global (shipped)', rain: (k) => shippedByKey.get(k) ?? null },
         ...all.filter((n) => n !== 'gfs_seamless').map((n) => ({ name: n, rain: own(n) })),
         { name: 'median, all six', rain: (k) => { const v = at(all, k); return v && median(v) } },
@@ -319,13 +356,35 @@ async function run(): Promise<void> {
           shortwave_wm2: h.shortwave_wm2,
           precip_mm: null,
         }
-        return [{ key: hourKey(when), localHour: Number(h.valid_at_local.slice(11, 13)), weather }]
+        return [{
+          key: hourKey(when),
+          localDate: h.valid_at_local.slice(0, 10),
+          localHour: Number(h.valid_at_local.slice(11, 13)),
+          weather,
+        }]
       })
       const levels = (rain: (k: HourKey) => number | null, rock: RockType): (RockLevel | null)[] =>
         evaluateCragA(
           base.map((b) => ({ ...b.weather, precip_mm: rain(b.key) })),
           { rockType: rock, lat, lon },
         ).map((h) => rockLevelA(h.diagnostics.wetness_factor, rock))
+      const warmEnd = base[WARMUP_HOURS]?.localDate ?? ''
+      /** Per local date past the warm-up, the rock at the day's representative hour; null if it has none. */
+      const dayLevels = (rain: (k: HourKey) => number | null, rock: RockType): Map<string, RockLevel | null> => {
+        const hours = evaluateCragA(
+          base.map((b) => ({ ...b.weather, precip_mm: rain(b.key) })),
+          { rockType: rock, lat, lon },
+        )
+        const byDate = new Map<string, typeof hours>()
+        base.forEach((b, i) => {
+          if (b.localDate <= warmEnd) return
+          byDate.set(b.localDate, [...(byDate.get(b.localDate) ?? []), hours[i]!])
+        })
+        return new Map([...byDate].map(([date, day]) => {
+          const rep = dayRepresentative(day, det.utc_offset_seconds)
+          return [date, rep && rockLevelA(rep.diagnostics.wetness_factor, rock)]
+        }))
+      }
 
       for (const rock of ROCKS) {
         const truth = levels((k) => gauged.get(k) ?? null, rock)
@@ -352,6 +411,14 @@ async function run(): Promise<void> {
           if (t == null || byRule.some((l) => l[i] == null)) return
           leadRules.forEach((r, ri) => count(`${rock}|${r.key}`, t !== 'dry', byRule[ri]![i] !== 'dry'))
         })
+
+        // The app's day: the rock at the hour `dayRepresentative` picks, as a day tile shows it.
+        const dayTruth = dayLevels((k) => gauged.get(k) ?? null, rock)
+        const dayByRule = leadRules.map((r) => dayLevels(r.rain, rock))
+        for (const [date, t] of dayTruth) {
+          if (t == null || dayByRule.some((d) => d.get(date) == null)) continue
+          leadRules.forEach((r, ri) => count(`${rock}|day|${r.key}`, t !== 'dry', dayByRule[ri]!.get(date) !== 'dry'))
+        }
       }
       const wetHours = [...gauged.values()].filter((mm) => mm !== null && mm >= 0.05).length
       console.log(`  ${station.padEnd(4)} ${near.padEnd(20)} ${String(wetHours).padStart(4)} wet hours on the gauge`)
@@ -371,6 +438,13 @@ async function run(): Promise<void> {
       table(rock, RULES.map((r) => leadKey(lead, r.name)), false)
     }
   }
+  console.log(`\n=== by lead, per day — the rock at the hour dayRepresentative picks; "hours" counts days ===`)
+  for (const rock of ROCKS) {
+    for (const lead of LEADS) {
+      console.log(`\n  ${rock}, lead ${lead} day${lead === 1 ? '' : 's'}`)
+      table(rock, RULES.map((r) => `day|${leadKey(lead, r.name)}`), false)
+    }
+  }
   console.log('')
 }
 
@@ -387,7 +461,7 @@ function table(rock: RockType, names: readonly string[], sortByPeirce: boolean):
   for (const { name, t, peirce } of rows) {
     const wet = t.hit + t.miss
     const dry = t.falseAlarm + t.correctDry
-    const label = name.includes('|') ? name.split('|')[1]! : name
+    const label = name.split('|').at(-1)!
     console.log(
       `  ${label.padEnd(30)}${pct(t.miss, wet)}${pct(t.falseAlarm, dry)}${peirce.toFixed(3).padStart(8)}${String(wet + dry).padStart(8)}${String(wet).padStart(9)}`,
     )

@@ -348,7 +348,7 @@ export type HourlyReadings = {
   model: string | null;
   /**
    * The models whose rain the drying clock read — **not necessarily `model`**.
-   * Several names mean the hourly median of those models (issue #209); one name
+   * Several names mean the median of those models' rain (issues #209, #324); one name
    * means that model's own rain. Null when there are no readings.
    *
    * Optional only because the API and the client deploy separately: an absent

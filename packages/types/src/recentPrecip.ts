@@ -2,10 +2,12 @@
  * The wire shape of `GET /api/v1/recent-precip/:locationId` — hourly rain over
  * the days just past.
  *
- * **This is the rainfall the drying clock reads** — the hourly median of the
- * four global models (`rainMedian.ts`, issue #209) — so a reader can tell a
- * single afternoon storm from three days of drizzle without taking "Dryness"
- * on trust. It is a model estimate, not a gauge.
+ * **The same four global models the drying clock reads**, as their median hour
+ * by hour (`rainMedian.ts`, issue #209), so a reader can tell a single
+ * afternoon storm from three days of drizzle without taking "Dryness" on trust.
+ * The clock averages each model over six hours before its median (issue #324);
+ * this chart does not, so a past shower stays in its hour. It is a model
+ * estimate, not a gauge.
  */
 
 /**

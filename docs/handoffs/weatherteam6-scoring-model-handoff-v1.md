@@ -617,9 +617,13 @@ measured one — that is `defect-patterns.md` §3, attribution not backed by the
 - **The drying clock's rain was the one input ever checked against measurements, and it
   failed** (issue #209, shipped 2026-09-29). Against 20 ASOS gauges over 90 days
   (`npm run compare:dryness`), `gfs_seamless`'s own rain called the rock dry in 60% of the
-  daytime hours a gauge said it was still wet (quartzite). The clock now reads the hourly
-  median of the four global models (`lib/weather/rainMedian.ts`), which missed 26%. The gauge
-  is an airport tipping bucket, not the crag, and no other constant here has had even that.
+  daytime hours a gauge said it was still wet (quartzite). The clock then read the hourly
+  median of the four global models (`lib/weather/rainMedian.ts`), which missed 26%. Since
+  #324 (2026-10-05) it reads the median of each model's six-hour mean, because a per-hour
+  median shrank showers the models placed in different hours. Scored per day at one day's
+  lead, wet days called dry fell from 32% to 28% (quartzite), 20% to 16% (sandstone) and
+  24% to 16% (limestone). The gauge is an airport tipping bucket, not the crag, and no other
+  constant here has had even that.
 
 ## Open Questions
 

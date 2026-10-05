@@ -61,14 +61,19 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   `held_back_by` from `heldBackBy` (`cragModel.ts`, #218). The client shows it as
   `Score breakdown` at the top of the measurements panel, suppressed with the score, and
   absent — not a "nothing" row — when no penalty costs a point.
-- **The drying clock's rain is the hourly median of the four global models**
-  (`lib/weather/rainMedian.ts`, #209), not `THERMAL_MODEL`'s own — GFS alone called wet rock
-  dry far more often (`npm run compare:dryness`). HRRR and NBM are left out so a crag abroad
-  gets the same statistic. `readings.rain_models` names the models and the measurements
-  disclosure prints them (`dryingRainMechanism`). A thermal run stored without a median reads
-  its own rain whole and names only itself; an hour with fewer than three models is a gap,
-  never a fallback to GFS. **The Precip tab draws the same median** (`recentPrecipMedian`),
-  never `best_match`. Its "last real rain" is `REWETTING_PRECIP_MM` (`packages/types`), which
+- **The drying clock's rain is the median of the four global models' six-hour means**
+  (`lib/weather/rainMedian.ts`, #209, #324), not `THERMAL_MODEL`'s own — GFS alone called wet
+  rock dry far more often (`npm run compare:dryness`). Each model is averaged over
+  `RAIN_WINDOW` before the median because a per-hour median shrinks a shower the models
+  place in different hours, and the clock sizes drying from the storm total; it is a mean,
+  never a sum, so totals keep. Measured per day at 0-2 days' lead; a model that did not
+  answer an hour is left out of it, never filled from its neighbours. HRRR and NBM are left
+  out so a crag abroad gets the same statistic. `readings.rain_models` names the models and
+  the measurements disclosure prints them (`dryingRainMechanism`). A thermal run stored
+  without a median reads its own rain whole and names only itself; an hour with fewer than
+  three models is a gap, never a fallback to GFS. **The Precip tab draws the same four
+  models' median hour by hour** (`recentPrecipMedian`), never `best_match` and never
+  smoothed — a chart of past rain keeps its hours. Its "last real rain" is `REWETTING_PRECIP_MM` (`packages/types`), which
   `hourlyConditions.SIGNIFICANT_HOURLY_PRECIP_MM` re-exports; a lighter shower never resets
   the headline.
 - **There is one drying table, `MIN_HOURS`/`MAX_HOURS` in `dryingModel.ts`, and everything
