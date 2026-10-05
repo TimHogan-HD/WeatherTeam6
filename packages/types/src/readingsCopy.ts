@@ -26,7 +26,7 @@
  * more it sounds like a report rather than a gauge.
  *
  * So every reading is now a **label and a value**, the way an instrument is
- * read: `Dryness — Dry`, `Friction — Great`, `Score — 100`. Three consequences
+ * read: `Dryness — Dry`, `Score — 100` (a `Friction` word went on 2026-10-05). Three consequences
  * worth keeping:
  *
  * - **A surface composes fields; it does not write sentences.** `ReadingField`
@@ -61,8 +61,6 @@
  */
 import type {
   ConditionsWindow,
-  FrictionLevel,
-  FrictionReading,
   HourlyReading,
   HourlySample,
   ReadingsUnavailableReason,
@@ -128,14 +126,6 @@ export const ROCK_LABELS: Record<RockLevel, string> = {
   dry: 'Dry',
 };
 
-/** How it will feel to climb on, as one word. Four rungs, ordered. */
-export const FRICTION_LABELS: Record<FrictionLevel, string> = {
-  poor: 'Poor',
-  fair: 'Fair',
-  good: 'Good',
-  great: 'Great',
-};
-
 /**
  * One reading, as a gauge is read: what it measures, and what it says.
  *
@@ -145,16 +135,14 @@ export const FRICTION_LABELS: Record<FrictionLevel, string> = {
  * prevent for the sentence it replaced.
  */
 export type ReadingField = {
-  /** What is being read — `Dryness`, `Friction`, `Score`, `Good hours`. */
+  /** What is being read — `Dryness`, `Score`, `Good hours`. */
   label: string;
-  /** What it reads — `Dry`, `Great`, `100`, `7am–11am`. Never a magnitude. */
+  /** What it reads — `Dry`, `100`, `7am–11am`. Never a magnitude. */
   value: string;
 };
 
 /** The rock reading's name. A property, like *Humidity* — not the subject, *Rock*. */
 export const DRYNESS_LABEL = 'Dryness';
-/** The friction reading's name. `FRICTION_MECHANISM`, in the measurements disclosure, says it is an estimate. */
-export const FRICTION_LABEL = 'Friction';
 /** The derived number's name. Third and last, by the phase's design. */
 export const SCORE_LABEL = 'Score';
 /** The day's window. Not a reading of *now*, which is why it is not in `readingFields`. */
@@ -229,28 +217,19 @@ export function heldBackFields(
 }
 
 /**
- * The two readings, as labelled fields.
+ * The rock reading, as a labelled field.
  *
- * **Either half may be missing and neither is invented.** A `Reading` has no
- * "unknown" level — `null` means the model could not read it — and writing
- * *"Dry"* for a wall nobody could measure is defect class 1. A half that is
- * missing is simply absent from the row, and when both are missing the row is
- * empty rather than showing two dashes that read as measurements of nothing.
+ * **A missing reading is not invented.** A `Reading` has no "unknown" level —
+ * `null` means the model could not read it — and writing *"Dry"* for a wall
+ * nobody could measure is defect class 1. It is simply absent: an empty row,
+ * not a dash that reads as a measurement of nothing.
  *
  * **The score is deliberately not here.** It is suppressed under a Severe+
- * alert and these two are not, so building them together would put that rule
+ * alert and the reading is not, so building them together would put that rule
  * somewhere it could be forgotten; `summarizeReadings` owns it.
  */
-export function readingFields(
-  rock: RockReading | null,
-  friction: FrictionReading | null,
-): ReadingField[] {
-  const fields: ReadingField[] = [];
-  if (rock !== null) fields.push({ label: DRYNESS_LABEL, value: ROCK_LABELS[rock.level] });
-  if (friction !== null) {
-    fields.push({ label: FRICTION_LABEL, value: FRICTION_LABELS[friction.level] });
-  }
-  return fields;
+export function readingFields(rock: RockReading | null): ReadingField[] {
+  return rock === null ? [] : [{ label: DRYNESS_LABEL, value: ROCK_LABELS[rock.level] }];
 }
 
 /**
@@ -264,25 +243,6 @@ export function readingFields(
  */
 export function fieldLine(field: ReadingField): string {
   return `${field.label}: ${field.value}`;
-}
-
-/**
- * The two readings where there is room for two words and no more — the end of
- * a daily row, beside its bar: *"Dry · Great"*.
- *
- * **Only for a place that has already said what it is about.** Without the
- * labels the pair is ambiguous, so this is not a shorter `readingFields` to
- * reach for generally; it is the daily list's score column, where the metric
- * toggle above it names the subject.
- *
- * A missing half is omitted rather than filled, exactly as in the fields.
- */
-export function readingsShort(
-  rock: RockReading | null,
-  friction: FrictionReading | null,
-): string | null {
-  const parts = readingFields(rock, friction).map((f) => f.value);
-  return parts.length === 0 ? null : parts.join(' · ');
 }
 
 /**
@@ -429,8 +389,12 @@ export type ReadingsSummaryInput = {
 
 export type ReadingsSummary = {
   /**
-   * `Dryness` and `Friction`, in that order. Empty when neither could be read;
-   * a surface renders nothing rather than a row of dashes.
+   * `Dryness`. Empty when the rock could not be read; a surface renders
+   * nothing rather than a dash that reads as a measurement of nothing.
+   *
+   * **No friction word** (owner, 2026-10-05): grip from the air is half of the
+   * score and stays in it, but as a word it graded an unvalidated estimate and
+   * read `Great` on wet rock. What it costs a score is in the breakdown.
    */
   readings: ReadingField[];
   /**
@@ -457,8 +421,8 @@ export type ReadingsSummary = {
   qualifier: string | null;
   /**
    * The caveats this surface must print, in order — fragments, meant to be
-   * joined and set small. Never empty when a friction level is on screen: the
-   * estimate note is required copy.
+   * joined and set small. The friction estimate note is said once, in the
+   * measurements disclosure.
    */
   notes: string[];
   /** The sentence for "no readings at all". `null` when there are readings. */
@@ -541,7 +505,7 @@ export function summarizeReadings(input: ReadingsSummaryInput): ReadingsSummary 
   }
 
   return {
-    readings: readingFields(rock, friction),
+    readings: readingFields(rock),
     scoreField: score === null ? null : { label: SCORE_LABEL, value: String(score) },
     score,
     // `== null`: an older API omits the field, and `undefined` is not a gap to print.
@@ -565,7 +529,7 @@ export function summarizeReadings(input: ReadingsSummaryInput): ReadingsSummary 
  *
  * Two jobs, and the second is the one that made it worth building:
  *
- * - **It makes a reading checkable.** `Friction: Great` is an estimate with no
+ * - **It makes a reading checkable.** A bare grade is an estimate with no
  *   working shown; `Temperature 72°F · Humidity 41% · Dew point 47°F` is the
  *   weather a climber can check against their own skin and their own morning.
  *   A reader who disagrees with the gauge can now see *why* it says what it

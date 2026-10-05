@@ -34,7 +34,7 @@ import { InlineError, Skeleton } from './States.js'
  * **"Now", in one place** — the Overview tab's hero, in the v2 layout from the
  * WT6 Figma "V2" page: the hour's temperature large with the day's labelled
  * high and low beside it, the hour's wind, humidity, dew point and cloud as
- * labelled figures, then the gauges — Dryness and Friction for the hour, the
+ * labelled figures, then the gauges — Dryness for the hour, the
  * day's score — the next nine hours as three-hour score blocks, a band naming
  * rain likely inside them or else the day's good hours, and the caveats on one
  * line with the measurements disclosure. Sized so the Overview fits a phone
@@ -45,7 +45,7 @@ import { InlineError, Skeleton } from './States.js'
  *
  * 1. **The weather** — the hour covering now, and the day's labelled high and
  *    low. From the hourly run and the forecast.
- * 2. **The readings** — `Dryness`, `Friction`, `Score`, and the day's window.
+ * 2. **The readings** — `Dryness`, the day's score, and the day's window.
  *    From `/conditions`, the same response the list card reads, so a crag
  *    cannot show one reading on the list and another here.
  * 3. **The measurements** — collapsed; what 1 and 2 were read off. See
@@ -296,9 +296,8 @@ function Readings({
         The readings, then the day's number. Nothing at all when there is
         nothing to read — a row of dashes reads as a measurement of nothing.
 
-        **Dryness is set white and Friction in its rung's colour**, as the
-        Figma draws them. The word carries the reading either way; the colour
-        is only ever beside the word it colours.
+        **Dryness is set white**, as the Figma draws it; the word carries
+        the reading. There is no friction word (owner, 2026-10-05).
       */}
       {hasGauges ? (
         <div style={{ ...row(spacing.cellPad), alignItems: 'flex-start' }}>

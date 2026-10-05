@@ -182,7 +182,7 @@ describe('ConditionsNow — one block', () => {
     const html = render({ conditions: settled(scored()) })
     expect(count(html, CONDITIONS_NOW_LABEL)).toBe(1)
     expect(html).toContain('Dryness')
-    expect(html).toContain('Friction')
+    expect(html).not.toContain('>Friction<')
   })
 
   it('shows no readings where the caller passed none', () => {
@@ -225,7 +225,7 @@ describe('ConditionsNow — one block', () => {
       severeAlertEvent: 'Extreme Heat Warning',
     })
     expect(html).not.toContain('>58<')
-    expect(html).toContain('Poor')
+    expect(html).toContain('Dryness')
     expect(html).toContain('Extreme Heat Warning')
   })
 

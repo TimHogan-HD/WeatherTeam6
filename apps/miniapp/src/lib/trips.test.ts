@@ -83,7 +83,7 @@ describe('tripDayTiles', () => {
       outlook: [outlookDay('2026-10-08')],
       readings: readings([readingsDay('2026-10-08', 86)]),
     })
-    expect(thu?.kind === 'scored' && readingWords(thu.summary)).toBe('Dry · Great')
+    expect(thu?.kind === 'scored' && readingWords(thu.summary)).toBe('Dry')
     expect(thu?.weather?.chance).toBe(0.18)
     expect(thu?.weather?.agreement).toBe(0.82)
   })
@@ -100,7 +100,7 @@ describe('tripDayTiles', () => {
       expect(thu?.kind).toBe('scored')
       if (thu?.kind !== 'scored') continue
       expect(thu.summary.score).toBeNull()
-      expect(readingWords(thu.summary)).toBe('Dry · Great')
+      expect(readingWords(thu.summary)).toBe('Dry')
     }
   })
 

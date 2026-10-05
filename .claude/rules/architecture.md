@@ -24,7 +24,7 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   the default; `TEMP_RANGE_DEFAULT_F` (`packages/types`) is the one spelling of 30–60 °F and
   `COLD_START_C`/`HEAT_START_C` derive from it. `/hourly` and `/conditions` read it per
   request through `tempRangeFor` into `ScoringLocation.range`, so **readings are per reader,
-  not per crag** — two partners can see two friction words for one crag. A failed read is a
+  not per crag** — two partners can see two scores for one crag. A failed read is a
   500, never the default. Limits and the 10 °F minimum gap are `TEMP_RANGE_LIMITS_F`. The
   Phase 0 columns on that table (`ideal_temp_*`, `drying_caution`, `include_sun`,
   `window_min_*`) are read by nothing.
@@ -47,7 +47,11 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   daylight — honest, not a bug.
 - **The magnitude fence:** `sweatBalance.sweatFrictionFactor` (skin wettedness → grip) is an
   unmeasured guess, kept and quarantined (owner decision 2026-09-21). **Words and ordering
-  reach a screen; 0-1 factors do not** — `poor`/`fair`/`good`/`great`, never "friction 0.29",
+  reach a screen; 0-1 factors do not** — never "friction 0.29". **Friction is not a word on
+  screen either** (owner, 2026-10-05): it graded an unvalidated estimate and read `Great` on
+  wet rock. It stays in the score, its penalties reach the reader only through Score
+  breakdown, and no surface prints a cause phrase outside it. `FrictionReading` still
+  travels on the response (trip records, the condensation qualifier);
   and the app says it is an estimate **once** — in the measurements disclosure
   (`FRICTION_MECHANISM`) and on How the score works, never under every gauge (owner,
   2026-10-02). Factors live under `HourlyConditions.diagnostics`;
@@ -105,7 +109,7 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   (`packages/types/src/readingsCopy.ts`) is the one implementation; `stateLabel` and
   `summarizeConditions` are deleted.
 - **A reading is a label and a value, never a sentence** (owner decision 2026-09-21):
-  `Dryness: Dry`, `Friction: Great`, `Score: 100`, in that order, from `ReadingField`. Labels
+  `Dryness: Dry`, then `Score: 100`, from `ReadingField`. Labels
   live in `readingsCopy.ts`; `fieldLine` punctuates one for text. Caveats are fragments on one
   line. Which inputs a reading came from belongs in the measurements disclosure.
 - **The measurements disclosure names each group with the model that produced it**

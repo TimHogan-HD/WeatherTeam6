@@ -1,10 +1,8 @@
 import {
   DRYNESS_LABEL,
-  FRICTION_LABEL,
   SCORE_BANDS,
   summarizeReadings,
   type Conditions,
-  type FrictionLevel,
   type HourlyReading,
   type Location,
   type ReadingField,
@@ -60,12 +58,6 @@ export function cardSummary(
 export type Tone = ToneName
 
 const ROCK_TONE: Record<RockLevel, Tone> = { dry: 'good', drying: 'fair', wet: 'poor' }
-const FRICTION_TONE: Record<FrictionLevel, Tone> = {
-  great: 'good',
-  good: 'good',
-  fair: 'fair',
-  poor: 'poor',
-}
 
 /**
  * The tone for one of `summary.readings`, from the level it was worded from.
@@ -76,9 +68,6 @@ const FRICTION_TONE: Record<FrictionLevel, Tone> = {
 export function readingTone(field: ReadingField, reading: HourlyReading | null): Tone | null {
   if (reading === null) return null
   if (field.label === DRYNESS_LABEL && reading.rock !== null) return ROCK_TONE[reading.rock.level]
-  if (field.label === FRICTION_LABEL && reading.friction !== null) {
-    return FRICTION_TONE[reading.friction.level]
-  }
   return null
 }
 

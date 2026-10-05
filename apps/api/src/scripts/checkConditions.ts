@@ -126,7 +126,6 @@ async function run(): Promise<void> {
   const { localDateString } = await import('../lib/weather/openMeteo.js')
   const {
     DRYNESS_LABEL,
-    FRICTION_LABEL,
     SCORE_LABEL,
     isSevereAlert,
     parseNumeric,
@@ -357,10 +356,8 @@ async function run(): Promise<void> {
     summary.readings.map((f) => `${f.label}=${f.value}`).join(' | '),
   )
   check(
-    'the two readings are Dryness then Friction, in that order',
-    summary.readings.every((f) => f.label === DRYNESS_LABEL || f.label === FRICTION_LABEL) &&
-      summary.readings.findIndex((f) => f.label === DRYNESS_LABEL) <=
-        summary.readings.findIndex((f) => f.label === FRICTION_LABEL),
+    'the one reading is Dryness — no friction word (owner, 2026-10-05)',
+    summary.readings.every((f) => f.label === DRYNESS_LABEL),
     summary.readings.map((f) => f.label).join(' | '),
   )
   // The phase's design, asserted structurally rather than on bytes: the score

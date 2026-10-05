@@ -137,11 +137,6 @@ export const colorsV2 = {
   /** The humidity line. */
   humidity: '#7fd1c4',
   /**
-   * `good` friction on the Hourly tab's friction strip — between the lime of
-   * `great` (`colors.good`) and `fair`, so four levels read as an ordering.
-   */
-  frictionGood: '#d7f59a',
-  /**
    * Snow, and rain and snow together, on the Precip tab — beside `rain`.
    * The Figma frame draws a mixed event in `fair` amber; that colour is the
    * conditions ladder's and is not available for a data mark, so the kinds

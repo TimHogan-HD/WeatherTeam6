@@ -1,14 +1,12 @@
 import { useRef, type CSSProperties, type ReactNode } from 'react'
-import { colors, colorsV2, radius, spacing, toneSurfacesV2 } from '@weatherteam6/design/tokens'
+import { colorsV2, radius, spacing, toneSurfacesV2 } from '@weatherteam6/design/tokens'
 import {
   EM_DASH,
-  FRICTION_LABELS,
   formatPrecipIn,
   formatTempF,
   formatWindMph,
   modelSourceLabel,
   summarizeReadings,
-  type FrictionLevel,
   type HourlyReading,
   type HourlySeries,
   type ReadingsSummary,
@@ -18,7 +16,7 @@ import { bareButton, cardV2, row, stack, type ToneName } from '../../theme/style
 import { formatForecastDate } from '../../lib/forecast.js'
 import { formatLocalClock, formatTempRangeF } from '../../lib/format.js'
 import { readingTone, scoreTone } from '../../lib/locationList.js'
-import { dayChips, daysOutPhrase, frictionCells, frictionSummary, type FrictionCell } from '../../lib/hourlyDay.js'
+import { dayChips, daysOutPhrase } from '../../lib/hourlyDay.js'
 import { useNow } from '../../hooks/useNow.js'
 import { SelectionIndicator, useSelectedRect } from '../SelectionIndicator.js'
 import { HourlyChart } from './HourlyChart.js'
@@ -52,7 +50,7 @@ import {
 /**
  * The Hourly tab, from the WT6 Figma "V2" page's `v2 Dark - Hourly` frame
  * (node `129:529`): a chip per day, the open day's conditions — the three
- * readings, the good hours and friction by the hour — then one card of charts:
+ * readings and the good hours — then one card of charts:
  * temperature with the dew point, rain, chance of rain, wind and humidity.
  *
  * **There is no seven-day chart here.** A continuous multi-day series belongs
@@ -89,20 +87,6 @@ const TONE_INK: Record<ToneName, string> = {
   fair: colorsV2.fairInk,
   poor: colorsV2.poorInk,
 }
-
-/**
- * The strip's four levels as an ordering: the frame's lime for `great`, a paler
- * lime for `good`, then the ladder's amber and red. Colour is only ever beside
- * a key that names it.
- */
-const FRICTION_FILL: Record<FrictionLevel, string> = {
-  great: colors.good,
-  good: colorsV2.frictionGood,
-  fair: colors.fair,
-  poor: colors.poor,
-}
-
-const FRICTION_ORDER: readonly FrictionLevel[] = ['poor', 'fair', 'good', 'great']
 
 /**
  * The vertical domain for temperature: **a labelled non-zero floor**, just
@@ -308,7 +292,6 @@ function ConditionsCard({
       const caption = [at === null || !hasTiles ? null : `At ${at}`, ...summary.notes].filter(
         (s): s is string => s !== null,
       )
-      const cells = frictionCells(series, selectedDate)
 
       body = (
         <>
@@ -361,10 +344,7 @@ function ConditionsCard({
           )}
 
           {summary.qualifier === null ? null : <p style={typeV2.body}>{summary.qualifier}</p>}
-          {/* Required copy: the friction estimate note rides with every friction level shown. */}
           {caption.length === 0 ? null : <p style={typeV2.note}>{caption.join(' · ')}</p>}
-
-          {cells.some((c) => c.level !== null) ? <FrictionStrip cells={cells} /> : null}
         </>
       )
     }
@@ -378,61 +358,6 @@ function ConditionsCard({
       </div>
       {body}
     </section>
-  )
-}
-
-/**
- * Friction for each hour of the day as a coloured cell, with its key.
- *
- * **Words and ordering, never magnitudes** — the cells are the four levels,
- * keyed by name, and the strip reads aloud as runs of those words. The frame
- * has no key; one is added because a colour cannot be read aloud and a strip
- * of lime and amber with nothing naming them is a verdict without a label.
- */
-function FrictionStrip({ cells }: { cells: readonly FrictionCell[] }) {
-  return (
-    <div style={stack(spacing.listGapSm)}>
-      <span style={{ ...typeV2.gaugeLabel, color: colorsV2.txtMuted }}>Friction by hour</span>
-      <div
-        role="img"
-        aria-label={frictionSummary(cells)}
-        style={{ ...row(spacing.micro), alignItems: 'flex-start', paddingBottom: '16px' }}
-      >
-        {cells.map((c) => (
-          <div key={c.valid_at} style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
-            <div
-              title={`${c.hour}:00 · ${c.level === null ? 'no reading' : FRICTION_LABELS[c.level]}`}
-              style={{
-                height: '14px',
-                borderRadius: `${radius.stepBar}px`,
-                // No reading is the empty well, not a level — a gap in the
-                // model is a gap in the strip.
-                backgroundColor: c.level === null ? colorsV2.raised : FRICTION_FILL[c.level],
-              }}
-            />
-            {c.tick ? (
-              <span
-                aria-hidden
-                style={{
-                  ...typeV2.axisTick,
-                  position: 'absolute',
-                  top: '18px',
-                  left: 0,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {c.hour}
-              </span>
-            ) : null}
-          </div>
-        ))}
-      </div>
-      <div style={{ ...row(spacing.sectionGap), flexWrap: 'wrap' }}>
-        {FRICTION_ORDER.map((level) => (
-          <Key key={level} label={FRICTION_LABELS[level]} swatch={{ kind: 'band', color: FRICTION_FILL[level] }} />
-        ))}
-      </div>
-    </div>
   )
 }
 

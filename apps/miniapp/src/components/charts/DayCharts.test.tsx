@@ -232,7 +232,7 @@ describe('DayCharts — the readings belong to the day on screen', () => {
     expect(withScore(DAY_1, [])).not.toContain('>30<')
   })
 
-  it('drops the number under a severe alert but keeps the two readings', () => {
+  it('drops the number under a severe alert but keeps the reading', () => {
     // The words are the same fact the warning is about, and they now come from
     // physics that sees heat. The number is what suppression removes.
     const html = renderToStaticMarkup(
@@ -248,7 +248,8 @@ describe('DayCharts — the readings belong to the day on screen', () => {
     )
     expect(html).not.toContain('>30<')
     expect(html).toContain('Excessive Heat Warning')
-    expect(visible(html)).toContain('Friction Good')
+    expect(visible(html)).toContain('Dryness Dry')
+    expect(visible(html)).not.toContain('Friction')
   })
 
   it('holds the number until the alerts query settles', () => {
@@ -421,13 +422,10 @@ describe('DayCharts — the conditions card', () => {
     )
   }
 
-  it('reads the friction strip aloud as runs of words, joined on the instant', () => {
-    expect(withStrip()).toContain('Friction by hour: 00–02 Fair, 03–23 Great')
-  })
-
-  it('keys the strip by name, because a colour cannot be read aloud', () => {
-    const text = visibleText(withStrip())
-    for (const word of ['Poor', 'Fair', 'Good', 'Great']) expect(text).toContain(word)
+  it('draws no friction strip or friction word (owner, 2026-10-05)', () => {
+    const html = withStrip()
+    expect(html).not.toContain('Friction by hour')
+    expect(visibleText(html)).not.toMatch(/Friction|Great/)
   })
 
   it('says which hour the readings are from, not that it is the best one', () => {

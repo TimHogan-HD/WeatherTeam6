@@ -38,13 +38,13 @@ describe('shownReading', () => {
     const r = shownReading(scored(), null)
     expect(r?.valid_at).toBe(NOW)
     expect(r?.model).toBe('gfs_seamless')
-    expect(r?.fields.map((f) => f.label)).toEqual(['Dryness', 'Friction', 'Score'])
+    expect(r?.fields.map((f) => f.label)).toEqual(['Dryness', 'Score'])
     expect(r?.fields.find((f) => f.label === 'Score')?.value).toBe('58')
   })
 
   it('drops the number under a Severe+ alert, as the card does, and keeps the words', () => {
     const r = shownReading(scored(), 'Extreme Heat Warning')
-    expect(r?.fields.map((f) => f.label)).toEqual(['Dryness', 'Friction'])
+    expect(r?.fields.map((f) => f.label)).toEqual(['Dryness'])
   })
 
   it('never carries a 0-1 factor — values are words or the score', () => {
