@@ -1,4 +1,4 @@
-import { colorsV2, spacing, toneSurfacesV2 } from '@weatherteam6/design/tokens'
+import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import {
   DRYNESS_LABEL,
   ROCK_LABELS,
@@ -9,7 +9,7 @@ import {
   type TripTrendPoint,
 } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
-import { bareButton, cardV2, row, stack } from '../../theme/styles.js'
+import { bareButton, cardV2, row, stack, toneColors } from '../../theme/styles.js'
 import { formatTempDeg } from '../../lib/format.js'
 import { ROCK_TONE, scoreTone } from '../../lib/locationList.js'
 import { dayMonthLabel, forecastWords, leadLabel, shortDayLabel } from '../../lib/trips.js'
@@ -141,13 +141,24 @@ export function TripLookBackGrid({
 
 function OutcomeChip({ day }: { day: TripDayLookBack }) {
   const o = day.outcome
-  const tone = o?.score == null ? null : toneSurfacesV2[scoreTone(o.score)]
-  const words = o === null ? '—' : [o.dryness === null ? null : ROCK_LABELS[o.dryness], o.score === null ? null : String(o.score)]
-    .filter((p): p is string => p !== null)
-    .join(' · ') || '—'
+  // Each word in its own pill's colour, so the row and the day's card agree.
+  const parts = [
+    o?.dryness == null ? null : { text: ROCK_LABELS[o.dryness], color: toneColors(ROCK_TONE[o.dryness], 'pill').value },
+    o?.score == null ? null : { text: String(o.score), color: toneColors(scoreTone(o.score), 'pill').value },
+  ].filter((p): p is { text: string; color: string } => p !== null)
   return (
     <span style={{ ...typeV2.note, color: colorsV2.txt2 }}>
-      {shortDayLabel(day.local_date)} <span style={{ color: tone?.pillInk ?? colorsV2.txtMuted }}>{words}</span>
+      {shortDayLabel(day.local_date)}{' '}
+      {parts.length === 0 ? (
+        <span style={{ color: colorsV2.txtMuted }}>—</span>
+      ) : (
+        parts.map((p, i) => (
+          <span key={p.text}>
+            {i > 0 ? ' · ' : ''}
+            <span style={{ color: p.color }}>{p.text}</span>
+          </span>
+        ))
+      )}
     </span>
   )
 }
