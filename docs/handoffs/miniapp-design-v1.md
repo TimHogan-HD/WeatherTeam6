@@ -197,6 +197,13 @@ gets Overview, Daily, Hourly and Precip. Daily and Hourly are built to their own
 (below). Deliberate
 departures from the frame:
 
+- **The hero's score is never the hour's alone** (owner, 2026-10-05, after Sandstone on
+  10-03 read 100 at 9am on a day rain arrived at 1pm and scored 48). The third gauge is
+  **Today**, the day's score; under it, the next nine hours as three three-hour blocks
+  (`lib/conditionsBlocks.ts`), each its worst hour's score, the one holding now outlined,
+  a block with any hour unread dashed. The band names rain likely inside the blocks in
+  the rain colour (`Rain likely from 1pm · 85%`), and otherwise the day's good hours. The
+  card wears the now block's rung. Under a Severe+ alert no score of any span renders.
 - **The day pills are the Crag A day score** (`readings.days[].best`), joined on date and
   suppressed through `summarizeReadings` — never the forecast row's `score`, which is the
   five-component scorer that renders nowhere.

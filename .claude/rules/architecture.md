@@ -127,6 +127,11 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   *Rock in shade* in place of *Rock temperature* only when the two differ in °F, with
   `ROCK_SUN_SHADE_MECHANISM`. It names no direction: Crag A does not know which way a
   crag's walls face (#293).
+- **A score over a span is its worst hour, never a mean or a best.** A day's is
+  `dayRepresentative`; the Conditions now card's three-hour blocks (`scoreBlocks`) are the
+  same rule, and a block with any hour unread or suppressed has no score — the worst of the
+  rest could be better than the missing one. The hero never prints one hour's score as its
+  headline (owner, 2026-10-05).
 - **The number waits for the alerts query, inside `summarizeReadings`** — `alertsPending`
   suppresses the score on its own (defect class 7). **Severe+ suppression drops the number
   and keeps the readings.** A surface must not reach past `ReadingsSummary.score === null`.

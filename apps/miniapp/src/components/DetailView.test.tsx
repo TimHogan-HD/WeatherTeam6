@@ -157,7 +157,7 @@ describe('DetailView — a climbing location', () => {
       />,
     )
     expect(visible(html)).toContain('Friction Poor')
-    expect(html).toContain('>58<')
+    expect(html).toContain('>71<')
     expect(html).not.toContain('Dry, settled')
     // The five-component score is still on the response and must not reach the
     // screen — two numbers for the same day is worse than either.
@@ -205,7 +205,7 @@ describe('DetailView — a climbing location', () => {
     // The words stay — they are the same fact the warning is about. The number
     // is the part that reads as actionable, and it is what goes.
     expect(visible(html)).toContain('Friction Poor')
-    expect(html).not.toContain('>58<')
+    expect(html).not.toContain('>71<')
     // The alert renders above the readings, always (§7 rule 5).
     expect(visible(html).indexOf('Extreme Heat Warning')).toBeLessThan(
       visible(html).indexOf('Friction Poor'),
@@ -224,7 +224,7 @@ describe('DetailView — a climbing location', () => {
         conditions={ok(redRockScore())}
       />,
     )
-    expect(html).not.toContain('>58<')
+    expect(html).not.toContain('>71<')
     expect(visible(html)).not.toContain('Friction Poor')
     // The weather is not held up by it.
     expect(html).toContain('High 103°')
@@ -242,7 +242,7 @@ describe('DetailView — a climbing location', () => {
     // The query settled with no data, so nothing is suppressed — and the
     // failure is stated above rather than reading as "no alerts".
     expect(visible(html)).toContain('Friction Poor')
-    expect(html).toContain('>58<')
+    expect(html).toContain('>71<')
     expect(html).toContain('load alerts')
   })
 
