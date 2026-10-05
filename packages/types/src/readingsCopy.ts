@@ -68,6 +68,7 @@ import type {
   ReadingsUnavailableReason,
   RockLevel,
   RockReading,
+  RockSunShade,
   ScoreLimit,
 } from './hourly.js';
 import { modelName, openMeteoModels } from './conditionsCopy.js';
@@ -615,7 +616,30 @@ export const GUSTS_LABEL = 'Gusts';
  */
 export const RAIN_PAST_HOUR_LABEL = 'Rain (last hour)';
 export const ROCK_TEMPERATURE_LABEL = 'Rock temperature';
+export const ROCK_IN_SUN_LABEL = 'Rock in sun';
+export const ROCK_IN_SHADE_LABEL = 'Rock in shade';
 export const DEW_POINT_MARGIN_LABEL = 'Rock vs dew point';
+
+/**
+ * The sunny and shaded sides, as `Rock in sun 92°F · Rock in shade 74°F`, in
+ * place of the one rock temperature. Null when there is no pair, or when the
+ * two round to the same °F — at night every face reads alike, and two equal
+ * tiles say less than one.
+ */
+function sunShadeValues(pair: RockSunShade | null | undefined): { sun: string; shade: string } | null {
+  if (pair == null) return null;
+  const sun = formatTempF(pair.sun_c);
+  const shade = formatTempF(pair.shade_c);
+  return sun === shade ? null : { sun, shade };
+}
+
+/**
+ * What the sun and shade figures are. Crag A has no record of which way a
+ * crag's walls face, so it reads eight, and these are the warmest and coolest
+ * of them — the warmest may face a way this crag has no wall.
+ */
+export const ROCK_SUN_SHADE_MECHANISM =
+  'Sun and shade are the warmest and coolest of eight walls, one facing each way.';
 
 /**
  * What says the friction reading is an estimate — once, in the disclosure, not under every gauge.
@@ -815,14 +839,22 @@ export function measurements(input: MeasurementsInput): Measurements {
     if (air !== null) groups.push(air);
   }
 
+  const sides = reading === null ? null : sunShadeValues(reading.rock_sun_shade);
   if (reading !== null) {
     const margin = dewPointMarginValue(reading.condensation_margin_c);
     const rock = measuredGroup(ROCK_GROUP_LABEL, modelSourceLabel(readingModel), [
-      {
-        label: ROCK_TEMPERATURE_LABEL,
-        value: formatTempF(reading.t_surface_c),
-        present: reading.t_surface_c !== null,
-      },
+      ...(sides === null
+        ? [
+            {
+              label: ROCK_TEMPERATURE_LABEL,
+              value: formatTempF(reading.t_surface_c),
+              present: reading.t_surface_c !== null,
+            },
+          ]
+        : [
+            { label: ROCK_IN_SUN_LABEL, value: sides.sun, present: true },
+            { label: ROCK_IN_SHADE_LABEL, value: sides.shade, present: true },
+          ]),
       {
         label: DEW_POINT_MARGIN_LABEL,
         value: margin ?? EM_DASH,
@@ -847,7 +879,8 @@ export function measurements(input: MeasurementsInput): Measurements {
   if (reading?.rock?.qualified === false || reading?.friction?.qualified === false) {
     notes.push(UNRECORDED_ASPECT_MECHANISM);
   }
-  if (reading?.t_surface_c != null) notes.push(ROCK_TEMPERATURE_MECHANISM);
+  if (reading?.t_surface_c != null || sides !== null) notes.push(ROCK_TEMPERATURE_MECHANISM);
+  if (sides !== null) notes.push(ROCK_SUN_SHADE_MECHANISM);
 
   return { groups, sharedSource, notes };
 }

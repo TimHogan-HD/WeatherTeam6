@@ -278,7 +278,22 @@ export type HourlyReading = {
    * field is an older API, and renders nothing.
    */
   held_back_by?: ScoreLimit[] | null;
+  /**
+   * Rock surface temperature on the warmest and coolest of Crag A's eight
+   * compass walls this hour. Null when any wall's could not be computed.
+   *
+   * Optional only because the API and the client deploy separately: an absent
+   * field is an older API, and renders nothing.
+   */
+  rock_sun_shade?: RockSunShade | null;
 };
+
+/**
+ * The sunniest and shadiest faces' rock temperature, °C. Modelled, like
+ * `t_surface_c`: no wall is measured. It says how far apart a crag's sides
+ * run, not that the crag has a face pointing either way.
+ */
+export type RockSunShade = { sun_c: number; shade_c: number };
 
 /** The best contiguous run of hours on a day that cleared the minimums. */
 export type ConditionsWindow = {

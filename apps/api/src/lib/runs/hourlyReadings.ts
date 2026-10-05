@@ -46,7 +46,13 @@ import {
   type HourlyConditions,
   type WeatherHour,
 } from '../scoring/hourlyConditions.js'
-import { dayRepresentative, evaluateCragA, heldBackBy, type TempRangeC } from '../scoring/cragModel.js'
+import {
+  dayRepresentative,
+  evaluateCragA,
+  heldBackBy,
+  type CragAHour,
+  type TempRangeC,
+} from '../scoring/cragModel.js'
 import { localDateString } from '../weather/openMeteo.js'
 import type { DeterministicRuns, ModelRun } from './latestRuns.js'
 
@@ -110,7 +116,7 @@ const none = (reason: ReadingsUnavailableReason): HourlyReadings => ({
 })
 
 /** The published projection of an evaluated hour — readings, measurements and the penalties' order, no factors. */
-function toReading(h: HourlyConditions): HourlyReading {
+function toReading(h: CragAHour): HourlyReading {
   return {
     valid_at: h.valid_at,
     rock: h.rock,
@@ -119,6 +125,7 @@ function toReading(h: HourlyConditions): HourlyReading {
     t_surface_c: h.t_surface_c,
     condensation_margin_c: h.condensation_margin_c,
     held_back_by: heldBackBy(h.diagnostics.penalties),
+    rock_sun_shade: h.rock_sun_shade,
   }
 }
 
@@ -212,7 +219,7 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
   if (!windowed.some((h) => h.score !== null)) return none('insufficient_history')
 
   const minScore = input.windowMinScore ?? DEFAULT_WINDOW_MIN_SCORE
-  const byDate = new Map<string, HourlyConditions[]>()
+  const byDate = new Map<string, CragAHour[]>()
   const firstOpenHourMs = input.now.getTime() - 3_600_000
   for (const h of windowed) {
     if (Date.parse(h.valid_at) <= firstOpenHourMs) continue
