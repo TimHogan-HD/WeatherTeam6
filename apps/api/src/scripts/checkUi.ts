@@ -927,7 +927,7 @@ async function run(): Promise<void> {
     rescore = false
     await tp.goto(`${WEB}/location/${locationId}`)
     await tp.getByRole('tab', { name: 'Hourly' }).click()
-    await tp.getByText('Friction by hour').waitFor({ timeout: 60_000 })
+    await tp.getByText('Chance of rain').first().waitFor({ timeout: 60_000 })
     const hourlyPull = await dragPanel({ x: 240, y: 400 }, { x: 240, y: 700 })
     check(
       'pulling a crag’s Hourly tab offers a refresh and says how old the forecast is',
