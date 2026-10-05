@@ -224,7 +224,7 @@ function AgreementChip({ share }: { share: number | null }) {
   )
 }
 
-function CardHead({ title, aside }: { title: string; aside: ReactNode }) {
+export function CardHead({ title, aside }: { title: string; aside: ReactNode }) {
   return (
     <div style={{ ...row(spacing.listGap), justifyContent: 'space-between' }}>
       <h2 style={{ ...typeV2.kicker, color: colorsV2.txtMuted }}>{title}</h2>
@@ -388,7 +388,7 @@ function Swatch({ color, hollow = false, round = false }: { color: string; hollo
   )
 }
 
-function TrendCard({ trend }: { trend: QueryState<readonly TripTrendPoint[]> }) {
+export function TrendCard({ trend }: { trend: QueryState<readonly TripTrendPoint[]> }) {
   const points = trend.data ?? []
   const first = points[0]
   const chips = [rainChangeChip(points), highChangeChip(points)].filter((c): c is string => c !== null)

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient, type UseQueryResult } from '@tanstack/react-query'
-import type { CreateTripInput, Trip, TripOutlook, TripTrend, UpdateTripInput } from '@weatherteam6/types'
+import type { CreateTripInput, Trip, TripOutlook, TripSummary, TripTrend, UpdateTripInput } from '@weatherteam6/types'
 import { apiDelete, apiGet, apiPatch, apiPost } from '../lib/api.js'
 
 export const tripKeys = {
@@ -7,6 +7,7 @@ export const tripKeys = {
   one: (id: string) => ['trip', id] as const,
   forecast: (id: string) => ['trip-forecast', id] as const,
   trend: (id: string) => ['trip-trend', id] as const,
+  summary: (id: string) => ['trip-summary', id] as const,
 }
 
 export function useTrips(): UseQueryResult<Trip[]> {
@@ -25,12 +26,21 @@ export function useTrip(id: string | undefined): UseQueryResult<Trip> {
   })
 }
 
-/** The 16-day outlook per trip location: weather only, never a score. */
-export function useTripForecast(id: string | undefined): UseQueryResult<TripOutlook[]> {
+/** The 16-day outlook per trip location: weather only, never a score. Not asked for once the trip is over. */
+export function useTripForecast(id: string | undefined, enabled = true): UseQueryResult<TripOutlook[]> {
   return useQuery({
     queryKey: tripKeys.forecast(id ?? ''),
     queryFn: () => apiGet<TripOutlook[]>(`/trips/${id ?? ''}/forecast`),
-    enabled: id !== undefined && id !== '',
+    enabled: enabled && id !== undefined && id !== '',
+  })
+}
+
+/** How each trip day turned out, beside what the forecast said. Stored, so asked for only once the trip is over. */
+export function useTripSummary(id: string | undefined, enabled: boolean): UseQueryResult<TripSummary[]> {
+  return useQuery({
+    queryKey: tripKeys.summary(id ?? ''),
+    queryFn: () => apiGet<TripSummary[]>(`/trips/${id ?? ''}/summary`),
+    enabled: enabled && id !== undefined && id !== '',
   })
 }
 
@@ -60,7 +70,7 @@ export function useUpdateTrip(id: string) {
     mutationFn: (input: UpdateTripInput) => apiPatch<Trip>(`/trips/${id}`, input),
     onSuccess: (updated) => {
       queryClient.setQueryData(tripKeys.one(id), updated)
-      for (const key of [tripKeys.all, tripKeys.forecast(id), tripKeys.trend(id)]) {
+      for (const key of [tripKeys.all, tripKeys.forecast(id), tripKeys.trend(id), tripKeys.summary(id)]) {
         void queryClient.invalidateQueries({ queryKey: key })
       }
     },
@@ -83,7 +93,7 @@ export function useDeleteTrip() {
  * so the caller leaves the screen first.
  */
 export function forgetTrip(queryClient: QueryClient, id: string): void {
-  for (const key of [tripKeys.one(id), tripKeys.forecast(id), tripKeys.trend(id)]) {
+  for (const key of [tripKeys.one(id), tripKeys.forecast(id), tripKeys.trend(id), tripKeys.summary(id)]) {
     queryClient.removeQueries({ queryKey: key, type: 'inactive' })
   }
 }

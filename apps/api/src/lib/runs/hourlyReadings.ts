@@ -35,6 +35,7 @@ import type {
   ConditionsWindow,
   HourlyReading,
   HourlyReadings,
+  PastReadingsDay,
   ReadingsDay,
   ReadingsUnavailableReason,
   RockHistoryHour,
@@ -47,6 +48,8 @@ import {
   type WeatherHour,
 } from '../scoring/hourlyConditions.js'
 import {
+  DAY_FIRST_HOUR,
+  DAY_LAST_HOUR,
   dayRepresentative,
   evaluateCragA,
   heldBackBy,
@@ -113,6 +116,7 @@ const none = (reason: ReadingsUnavailableReason): HourlyReadings => ({
   hours: [],
   days: [],
   rock_history: [],
+  past_days: [],
 })
 
 /** The published projection of an evaluated hour — readings, measurements and the penalties' order, no factors. */
@@ -163,24 +167,64 @@ function toWeatherHours(model: ModelRun): WeatherHour[] {
  * starting the clock drier could only have left it dry. Measured on the first
  * fixture: without this, the first days of every history read wet.
  */
-function historyRock(
-  evaluated: readonly HourlyConditions[],
+function pastHours<H extends HourlyConditions>(
+  evaluated: readonly H[],
   weather: readonly WeatherHour[],
   input: BuildReadingsInput,
-): RockHistoryHour[] {
+): { hour: H; weather: WeatherHour | undefined; date: string; rockKnown: boolean }[] {
   const firstDate = input.dates[0]
   if (firstDate === undefined) return []
-  const rainAt = new Map(weather.map((w) => [w.valid_at, w.precip_mm]))
+  const weatherAt = new Map(weather.map((w) => [w.valid_at, w]))
   let reset = false
-  const out: RockHistoryHour[] = []
+  const out: { hour: H; weather: WeatherHour | undefined; date: string; rockKnown: boolean }[] = []
   for (const h of evaluated) {
-    if (localDateString(new Date(h.valid_at), input.utcOffsetSeconds) >= firstDate) break
-    const mm = rainAt.get(h.valid_at) ?? null
+    const date = localDateString(new Date(h.valid_at), input.utcOffsetSeconds)
+    if (date >= firstDate) break
+    const w = weatherAt.get(h.valid_at)
+    const mm = w?.precip_mm ?? null
     if (mm !== null && mm >= SIGNIFICANT_HOURLY_PRECIP_MM) reset = true
-    const known = h.rock !== null && (reset || h.rock.level === 'dry')
-    out.push({ valid_at: h.valid_at, rock: known ? h.rock : null })
+    out.push({ hour: h, weather: w, date, rockKnown: h.rock !== null && (reset || h.rock.level === 'dry') })
   }
   return out
+}
+
+function historyRock(past: ReturnType<typeof pastHours>): RockHistoryHour[] {
+  return past.map((p) => ({ valid_at: p.hour.valid_at, rock: p.rockKnown ? p.hour.rock : null }))
+}
+
+/**
+ * Each whole day before the window, read by the forecast's own day rule
+ * (`dayRepresentative`) over every one of its hours. A day the walk began
+ * inside is not whole and is left out.
+ */
+function pastDays(past: ReturnType<typeof pastHours<CragAHour>>, utcOffsetSeconds: number): PastReadingsDay[] {
+  const byDate = new Map<string, typeof past>()
+  for (const p of past) byDate.set(p.date, [...(byDate.get(p.date) ?? []), p])
+
+  const days: PastReadingsDay[] = []
+  for (const [local_date, hours] of byDate) {
+    const localHour = (p: (typeof hours)[number]): number =>
+      new Date(Date.parse(p.hour.valid_at) + utcOffsetSeconds * 1000).getUTCHours()
+    // Whole: midnight to 23:00 with every hour between, whatever a clock change makes of the count.
+    const first = hours[0]
+    const last = hours[hours.length - 1]
+    if (first === undefined || last === undefined || localHour(first) !== 0 || localHour(last) !== 23) continue
+    if (Date.parse(last.hour.valid_at) - Date.parse(first.hour.valid_at) !== (hours.length - 1) * 3_600_000) continue
+    const daytime = hours.filter((p) => localHour(p) >= DAY_FIRST_HOUR && localHour(p) <= DAY_LAST_HOUR)
+    const readable = daytime.every((p) => p.rockKnown)
+    const best = readable ? dayRepresentative(daytime.map((p) => p.hour), utcOffsetSeconds) : null
+    const rain = hours.map((p) => p.weather?.precip_mm ?? null)
+    const temps = hours.map((p) => p.weather?.air_temp_c ?? null)
+    const whole = <T>(xs: (T | null)[]): xs is T[] => xs.every((x) => x !== null)
+    days.push({
+      local_date,
+      best: best === null ? null : toReading(best),
+      rain_mm: whole(rain) ? rain.reduce((a, b) => a + b, 0) : null,
+      temp_c_max: whole(temps) ? Math.max(...temps) : null,
+      temp_c_min: whole(temps) ? Math.min(...temps) : null,
+    })
+  }
+  return days
 }
 
 /**
@@ -244,7 +288,8 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
     return { local_date, window, best: best === null ? null : toReading(best) }
   })
 
-  const rock_history = historyRock(evaluated, weather, input)
+  const past = pastHours(evaluated, weather, input)
+  const rock_history = historyRock(past)
 
   return {
     model: THERMAL_MODEL,
@@ -253,5 +298,6 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
     hours: windowed.map(toReading),
     days,
     rock_history,
+    past_days: pastDays(past, input.utcOffsetSeconds),
   }
 }

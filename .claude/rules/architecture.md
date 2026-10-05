@@ -319,6 +319,15 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   keeps them, and the client sends only changed fields so a rename never resets anything.
   `trip_day_records` is per location and never touched. An unknown body key is a 400; another
   account's trip or crag is a 404.
+- **An ended trip is read from storage, never forecast.** Once a trip's last day is behind
+  the device's today (`tripIsOver`), its screen asks for no outlook, `/hourly` or alerts and
+  reads `GET /trips/:tripId/summary`: per day, `trip_day_outcomes` (how it turned out) beside
+  the first and last `trip_day_records` that carried a score (`tripDayLookBacks`). The
+  recorder writes an outcome for each trip day 1 to `OUTCOME_DAYS` (3) local days behind,
+  from `HourlyReadings.past_days`, and reads no trip that ended longer ago. "Turned out" is
+  the model's analysis, not observations, and the screen says so once
+  (`LOOK_BACK_SOURCE`). A past day's score is withheld unless every daytime hour's rock is
+  known by the `rock_history` rule, so the walk's starting guess never scores a day.
 - **The trip screen joins two sources on `local_date`, one per figure** (`lib/trips.ts`,
   `tripDayTiles`): score, Dryness and Friction from the crag's `/hourly` readings through
   `summarizeReadings` (alerts pending and Severe+ suppress the number, as everywhere);

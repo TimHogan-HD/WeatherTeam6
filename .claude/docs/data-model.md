@@ -27,6 +27,7 @@ trips
 trip_locations
 trip_day_records        -- migration 0025, written by /api/cron/record-trips
 trip_rain_records       -- migration 0026, written by /api/cron/record-trips
+trip_day_outcomes       -- migration 0027, written by /api/cron/record-trips
 crag_climbability_history   -- no writer (regression, issue #25)
 conditions_reports      -- no writer; superseded by feedback
 feedback                -- migration 0018
@@ -187,6 +188,22 @@ high_c_max    double      -- highest of the covered days' median highs; null whe
 UNIQUE(trip_id, location_id, recorded_at)   -- a rerun inside the hour replaces its row
 ```
 **`days_covered < trip_days` marks a total over part of the trip**, which jumps when the next day enters the horizon; the trend draws such a point hollow. A trip with no day inside the horizon writes no row. Written in the same transaction as the location's `trip_day_records`, so both or neither land. `DELETE /trips/:tripId` clears it by `trip_id` in its transaction; `location_id` is on `DEPENDENT_TABLES`.
+
+### trip_day_outcomes
+How one trip day turned out at one location: `HourlyReadings.past_days`, the model's own look back once the day is over, scored by the forecast's day rule. Read by `GET /trips/:tripId/summary`. The model's analysis, not observations.
+```typescript
+id           uuid PK
+location_id  uuid FK → locations.id   -- per location, like trip_day_records
+local_date   date
+recorded_at  timestamptz -- the firing that last wrote it, truncated to the hour
+score        int         -- past_days.best.score; null unless every daytime hour's rock was known
+dryness      text        -- best.rock.level, null with the score
+rain_mm      double      -- the drying clock's rain median summed over the local day; null past any gap
+temp_c_max   double      -- THERMAL_MODEL's air temperature over the local day; null past any gap
+temp_c_min   double
+UNIQUE(location_id, local_date)   -- rewritten each firing for OUTCOME_DAYS (3), then final
+```
+Written in the recorder's transaction with the day records and trend points. A day the look back has nothing for writes nothing. On `DEPENDENT_TABLES`.
 
 ### crag_climbability_history
 Accumulated historical climbability pattern per crag per month. Grows over time.

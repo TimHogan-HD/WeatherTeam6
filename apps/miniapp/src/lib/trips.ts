@@ -1,6 +1,8 @@
 import {
   agreementShare,
+  ROCK_LABELS,
   cToFDelta,
+  formatPrecipIn,
   mmToIn,
   rainChanceShare,
   summarizeReadings,
@@ -8,6 +10,7 @@ import {
   type OutlookDay,
   type ReadingsSummary,
   type Trip,
+  type TripDayForecast,
   type TripOutlook,
   type TripTrendPoint,
 } from '@weatherteam6/types'
@@ -315,4 +318,36 @@ export function highChangeChip(points: readonly TripTrendPoint[]): string | null
   const f = Math.round(cToFDelta(c))
   if (f === 0) return 'High: no change'
   return `High: ${f > 0 ? 'up' : 'down'} ${Math.abs(f)}°`
+}
+
+/**
+ * A trip whose last day is behind the device's today. Its screen reads what was
+ * stored (`/trips/:tripId/summary`) and asks for no forecast.
+ */
+export function tripIsOver(trip: Pick<Trip, 'endDate'>, today: string): boolean {
+  const toEnd = daysBetween(today, trip.endDate)
+  return toEnd !== null && toEnd < 0
+}
+
+/** `On the day`, `1 day out`, `5 days out`. */
+export function leadLabel(leadDays: number): string {
+  if (leadDays <= 0) return 'On the day'
+  return leadDays === 1 ? '1 day out' : `${leadDays} days out`
+}
+
+/**
+ * What one recording said, as words: `Dry · 100`, or for a recording past the
+ * scored days, its rain: `Rain 35% · 0.12 in`. `null` when it said nothing.
+ */
+export function forecastWords(f: TripDayForecast): string | null {
+  if (f.score !== null || f.dryness !== null) {
+    return [f.dryness === null ? null : ROCK_LABELS[f.dryness], f.score === null ? null : String(f.score)]
+      .filter((p): p is string => p !== null)
+      .join(' · ')
+  }
+  const chance = formatShare(
+    f.member_count === null ? null : rainChanceShare({ members_wet: f.members_wet, member_count: f.member_count }),
+  )
+  if (chance === null && f.precip_mm_mean === null) return null
+  return `Rain ${chance === null ? '' : `${chance} · `}${formatPrecipIn(f.precip_mm_mean)}`
 }

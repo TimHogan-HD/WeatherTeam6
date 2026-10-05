@@ -209,6 +209,61 @@ describe('the trailing history', () => {
     expect(before.every((h) => h.rock === null || h.rock.level === 'dry')).toBe(true)
   })
 
+  it('reads each whole day before the window by the forecast day rule, and leaves out the day the walk began in', () => {
+    const out = buildHourlyReadings(input())
+    // 120 hours back from 12:00 on the 21st starts at 12:00 on the 16th: that day is half a day.
+    expect(out.past_days?.map((d) => d.local_date)).toEqual(['2026-09-17', '2026-09-18', '2026-09-19', '2026-09-20'])
+    const last = out.past_days?.at(-1)
+    expect(last?.rain_mm).toBe(0)
+    expect(last?.temp_c_max).toBe(14)
+    expect(last?.best?.rock?.level).toBe('dry')
+    expect(last?.best?.score).not.toBeNull()
+  })
+
+  it('sums the day’s rain from the median the clock walked, and scores a soaked day wet', () => {
+    const hours = runHours(120, 48).map((h) =>
+      h.valid_at.getTime() >= Date.parse('2026-09-20T08:00:00Z') && h.valid_at.getTime() <= Date.parse('2026-09-20T18:00:00Z')
+        ? { ...h, rain_median_mm: 3, precip_mm: 9, humidity_pct: 95 }
+        : h,
+    )
+    const out = buildHourlyReadings(
+      input({ deterministic: deterministic([model(THERMAL_MODEL, hours, ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless'])]) }),
+    )
+    const day = out.past_days?.find((d) => d.local_date === '2026-09-20')
+    expect(day?.rain_mm).toBe(33)
+    expect(day?.best?.rock?.level).toBe('wet')
+  })
+
+  it('withholds a day’s score while its rock still rests on the walk’s starting guess', () => {
+    // Humid and sunless from the start: the clock never dries, and no rain resets it.
+    const out = buildHourlyReadings(
+      input({ deterministic: deterministic([model(THERMAL_MODEL, runHours(120, 48, { humidity_pct: 99, dewpoint_c: 13.9 }))]) }),
+    )
+    // The 20th is past T_mass's span, so only the guess can withhold it.
+    const day = out.past_days?.find((d) => d.local_date === '2026-09-20')
+    expect(day?.best).toBeNull()
+    expect(day?.rain_mm).toBe(0)
+  })
+
+  it('leaves out a day the run is missing an hour of, rather than summing what is there', () => {
+    const hours = runHours(120, 48).filter((h) => h.valid_at.toISOString() !== '2026-09-19T05:00:00.000Z')
+    const out = buildHourlyReadings(input({ deterministic: deterministic([model(THERMAL_MODEL, hours)]) }))
+    expect(out.past_days?.map((d) => d.local_date)).toEqual(['2026-09-17', '2026-09-18', '2026-09-20'])
+  })
+
+  it('withholds a figure when any hour of the day lacks it, never summing past a gap', () => {
+    const hours = runHours(120, 48).map((h) =>
+      h.valid_at.toISOString() === '2026-09-20T03:00:00.000Z' ? { ...h, rain_median_mm: null, temp_c: null } : h,
+    )
+    const out = buildHourlyReadings(
+      input({ deterministic: deterministic([model(THERMAL_MODEL, hours, ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless'])]) }),
+    )
+    const day = out.past_days?.find((d) => d.local_date === '2026-09-20')
+    expect(day?.rain_mm).toBeNull()
+    expect(day?.temp_c_max).toBeNull()
+    expect(day?.temp_c_min).toBeNull()
+  })
+
   it('sends an empty history, not an absent one, when there are no readings', () => {
     const out = buildHourlyReadings(input({ deterministic: deterministic([model('gem_seamless', runHours(120, 48))]) }))
     expect(out.rock_history).toEqual([])

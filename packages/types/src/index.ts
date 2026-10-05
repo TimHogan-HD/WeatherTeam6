@@ -2,7 +2,7 @@
 // modules and are re-exported here because package.json declares only a "."
 // entry in its exports map — under NodeNext resolution a deep import such as
 // `@weatherteam6/types/units` does not resolve.
-import type { ConditionsReadings } from './hourly.js'
+import type { ConditionsReadings, RockLevel } from './hourly.js'
 
 export * from './scoreComponents.js'
 export * from './units.js'
@@ -381,6 +381,45 @@ export type TripTrendPoint = {
 export type TripTrend = {
   locationId: string
   points: TripTrendPoint[]
+}
+
+/** How a trip day turned out at one location: a `trip_day_outcomes` row. The model's look back, not observations. */
+export type TripDayOutcome = {
+  score: number | null
+  dryness: RockLevel | null
+  rain_mm: number | null
+  temp_c_max: number | null
+  temp_c_min: number | null
+}
+
+/** What one recording of the forecast said about a trip day: a `trip_day_records` row. */
+export type TripDayForecast = {
+  recorded_at: string
+  /** Local days from the recording to the day; 0 is the day itself. */
+  lead_days: number
+  score: number | null
+  dryness: RockLevel | null
+  precip_mm_mean: number | null
+  members_wet: number | null
+  member_count: number | null
+}
+
+/**
+ * One trip day, looked back on. `first` and `last` are the earliest and latest
+ * recordings **that carried a score**, or of any kind when none did, so the two
+ * compare like with like. All three are null when nothing was recorded.
+ */
+export type TripDayLookBack = {
+  local_date: string
+  outcome: TripDayOutcome | null
+  first: TripDayForecast | null
+  last: TripDayForecast | null
+}
+
+/** `GET /trips/:tripId/summary`, one per trip location, every trip date in order. */
+export type TripSummary = {
+  locationId: string
+  days: TripDayLookBack[]
 }
 
 export type CreateLocationInput =

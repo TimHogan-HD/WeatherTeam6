@@ -1,14 +1,15 @@
 import { Router, type Request, type Response } from 'express'
-import { and, eq, asc, inArray } from 'drizzle-orm'
+import { and, eq, asc, gte, inArray, lte } from 'drizzle-orm'
 import { db } from '../db/index.js'
-import { trips, tripLocations, tripRainRecords, locations } from '../db/schema.js'
+import { trips, tripLocations, tripRainRecords, tripDayRecords, tripDayOutcomes, locations } from '../db/schema.js'
 import { MAX_NAME_LENGTH, describeError, isIsoDate, isUuid, sendServerError } from '../lib/http.js'
 import { logger } from '../lib/logger.js'
 import { fetchOutlook, type Outlook } from '../lib/weather/ensembleOutlook.js'
 import { summarizeTripOutlook } from '../lib/trips/tripOutlook.js'
+import { tripDateList, tripDayLookBacks } from '../lib/trips/tripSummary.js'
 import { MAX_TRIP_LOCATIONS, parseTripPatch, updateTrip } from '../lib/trips/updateTrip.js'
 import { parseNumeric, parseNumericRequired } from '@weatherteam6/types'
-import type { ApiResponse, Trip, TripLocation, CreateTripInput, TripOutlook, TripTrend } from '@weatherteam6/types'
+import type { ApiResponse, Trip, TripLocation, CreateTripInput, TripOutlook, TripSummary, TripTrend } from '@weatherteam6/types'
 
 export const tripsRouter = Router()
 
@@ -409,5 +410,77 @@ tripsRouter.get('/trips/:tripId/trend', async (req: Request, res: Response) => {
     res.status(200).json(response)
   } catch (err) {
     sendServerError(res, err, 'GET /trips/:tripId/trend')
+  }
+})
+
+tripsRouter.get('/trips/:tripId/summary', async (req: Request, res: Response) => {
+  const tripId = req.params['tripId']
+  if (!tripId || !isUuid(tripId)) {
+    const response: ApiResponse<null> = { data: null, error: 'Trip not found', status: 404 }
+    res.status(404).json(response)
+    return
+  }
+
+  try {
+    const tripRows = await db
+      .select({ start_date: trips.start_date, end_date: trips.end_date })
+      .from(trips)
+      .where(and(eq(trips.id, tripId), eq(trips.user_id, req.userId)))
+    const tripRow = tripRows[0]
+    if (!tripRow) {
+      const response: ApiResponse<null> = { data: null, error: 'Trip not found', status: 404 }
+      res.status(404).json(response)
+      return
+    }
+
+    // The trip's locations that are still the caller's own, as the forecast route reads them.
+    const owned = await db
+      .select({ id: tripLocations.location_id })
+      .from(tripLocations)
+      .innerJoin(locations, eq(locations.id, tripLocations.location_id))
+      .where(and(eq(tripLocations.trip_id, tripId), eq(locations.user_id, req.userId)))
+    const locationIds = owned.map((r) => r.id)
+    const inTrip = (table: typeof tripDayRecords | typeof tripDayOutcomes) =>
+      and(
+        inArray(table.location_id, locationIds),
+        gte(table.local_date, tripRow.start_date),
+        lte(table.local_date, tripRow.end_date),
+      )
+
+    const [records, outcomes] =
+      locationIds.length === 0
+        ? [[], []]
+        : await Promise.all([
+            db
+              .select({
+                location_id: tripDayRecords.location_id,
+                local_date: tripDayRecords.local_date,
+                recorded_at: tripDayRecords.recorded_at,
+                lead_days: tripDayRecords.lead_days,
+                score: tripDayRecords.score,
+                dryness: tripDayRecords.dryness,
+                precip_mm_mean: tripDayRecords.precip_mm_mean,
+                members_wet: tripDayRecords.members_wet,
+                member_count: tripDayRecords.member_count,
+              })
+              .from(tripDayRecords)
+              .where(inTrip(tripDayRecords)),
+            db.select().from(tripDayOutcomes).where(inTrip(tripDayOutcomes)),
+          ])
+
+    const dates = tripDateList(tripRow.start_date, tripRow.end_date)
+    const data: TripSummary[] = locationIds.map((locationId) => ({
+      locationId,
+      days: tripDayLookBacks({
+        dates,
+        records: records.filter((r) => r.location_id === locationId),
+        outcomes: outcomes.filter((o) => o.location_id === locationId),
+      }),
+    }))
+
+    const response: ApiResponse<TripSummary[]> = { data, error: null, status: 200 }
+    res.status(200).json(response)
+  } catch (err) {
+    sendServerError(res, err, 'GET /trips/:tripId/summary')
   }
 })
