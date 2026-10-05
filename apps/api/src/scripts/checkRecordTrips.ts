@@ -1,5 +1,6 @@
 /**
- * Acceptance check for the trip recorder and `GET /trips/:tripId/forecast`.
+ * Acceptance check for the trip recorder, `GET /trips/:tripId/forecast` and
+ * `GET /trips/:tripId/summary`.
  *
  * Usage, from `apps/api`:
  *   $env:DATABASE_URL = "<Neon pooled connection string>"
@@ -18,7 +19,7 @@
  * console rather than the logger is deliberate: this is an operator-facing CLI.
  */
 
-import type { ApiResponse, TripOutlook, TripTrend } from '@weatherteam6/types'
+import type { ApiResponse, TripOutlook, TripSummary, TripTrend } from '@weatherteam6/types'
 
 const PORT = 3097
 const BASE = `http://127.0.0.1:${PORT}/api/v1`
@@ -66,8 +67,8 @@ async function run(): Promise<void> {
 
   const { createApp } = await import('../index.js')
   const { db, pool } = await import('../db/index.js')
-  const { users, locations, trips, tripLocations, tripDayRecords, tripRainRecords } = await import('../db/schema.js')
-  const { recordTripDays } = await import('../lib/trips/recordTripDays.js')
+  const { users, locations, trips, tripLocations, tripDayRecords, tripDayOutcomes, tripRainRecords } = await import('../db/schema.js')
+  const { recordTripDays, writeOutcomes } = await import('../lib/trips/recordTripDays.js')
   const { deleteLocationCascade } = await import('../lib/locations/deleteLocation.js')
   const { signToken, expiryFrom } = await import('../lib/auth/token.js')
   const { eq } = await import('drizzle-orm')
@@ -79,6 +80,8 @@ async function run(): Promise<void> {
   let userId: string | null = null
   let locationId: string | null = null
   let tripId: string | null = null
+  let oldLocationId: string | null = null
+  const extraTripIds: string[] = []
 
   try {
     const user = await db
@@ -112,6 +115,33 @@ async function run(): Promise<void> {
     tripId = trip[0]?.id ?? null
     if (tripId === null) throw new Error('could not create the trip')
     await db.insert(tripLocations).values({ trip_id: tripId, location_id: locationId })
+
+    // A trip at the same crag that is over: both its days are 1-3 local days
+    // behind wherever the crag is, so both are looked back on.
+    const past = await db
+      .insert(trips)
+      .values({ user_id: userId, name: `${PREFIX} past trip`, start_date: isoDay(now, -3), end_date: isoDay(now, -2) })
+      .returning({ id: trips.id })
+    const pastTripId = past[0]?.id
+    if (pastTripId === undefined) throw new Error('could not create the past trip')
+    extraTripIds.push(pastTripId)
+    await db.insert(tripLocations).values({ trip_id: pastTripId, location_id: locationId })
+
+    // A crag whose only trip ended a week ago: nothing should be read for it.
+    const oldLocation = await db
+      .insert(locations)
+      .values({ user_id: userId, name: `${PREFIX} old crag ${STAMP}`, lat: LAT, lon: LON, is_climbing_location: true, rock_type: 'sandstone' })
+      .returning({ id: locations.id })
+    oldLocationId = oldLocation[0]?.id ?? null
+    if (oldLocationId === null) throw new Error('could not create the old location')
+    const old = await db
+      .insert(trips)
+      .values({ user_id: userId, name: `${PREFIX} old trip`, start_date: isoDay(now, -8), end_date: isoDay(now, -7) })
+      .returning({ id: trips.id })
+    const oldTripId = old[0]?.id
+    if (oldTripId === undefined) throw new Error('could not create the old trip')
+    extraTripIds.push(oldTripId)
+    await db.insert(tripLocations).values({ trip_id: oldTripId, location_id: oldLocationId })
 
     console.log('\nRecording once')
     const first = await recordTripDays(now)
@@ -188,6 +218,94 @@ async function run(): Promise<void> {
     const otherToken = signToken({ sub: '00000000-0000-4000-8000-0000000000fd', exp: expiryFrom() }, TOKEN_SECRET)
     const foreign = await fetch(`${BASE}/trips/${tripId}/trend`, { headers: { Authorization: `Session ${otherToken}` } })
     check("another account reading this trip's trend gets 404", foreign.status === 404, String(foreign.status))
+
+    console.log('\nThe days that are over')
+    const pastDates = [isoDay(now, -3), isoDay(now, -2)]
+    const outcomes = await db.select().from(tripDayOutcomes).where(eq(tripDayOutcomes.location_id, locationId))
+    check(
+      'an outcome for each past trip day, one each after two runs, and none for today or later',
+      pastDates.every((d) => outcomes.filter((o) => o.local_date === d).length === 1) &&
+        outcomes.every((o) => o.local_date < isoDay(now, 0)),
+      outcomes.map((o) => o.local_date).join(','),
+    )
+    check(
+      'each carries the rain and the high and low it turned out to have',
+      outcomes.every((o) => o.rain_mm !== null && o.rain_mm >= 0 && o.temp_c_max !== null && o.temp_c_min !== null && o.temp_c_min <= o.temp_c_max),
+      JSON.stringify(outcomes),
+    )
+    check(
+      'a score comes only with its dryness',
+      outcomes.every((o) => (o.score === null) === (o.dryness === null)),
+      JSON.stringify(outcomes),
+    )
+    check('the recorder counted them', first.outcomeRowsWritten >= 2, String(first.outcomeRowsWritten))
+    check(
+      'no day record was written for a past day',
+      rows2.every((r) => !pastDates.includes(r.local_date)),
+    )
+
+    console.log('\nA later firing with a gap')
+    const kept = outcomes.find((o) => o.local_date === pastDates[0])
+    if (kept !== undefined) {
+      await writeOutcomes(db, [
+        { location_id: locationId, local_date: kept.local_date, recorded_at: new Date(), score: null, dryness: null, rain_mm: null, temp_c_max: null, temp_c_min: null },
+      ])
+      const [after] = await db.select().from(tripDayOutcomes).where(eq(tripDayOutcomes.id, kept.id))
+      check(
+        'a gap keeps every stored figure',
+        after !== undefined &&
+          after.score === kept.score &&
+          after.dryness === kept.dryness &&
+          after.rain_mm === kept.rain_mm &&
+          after.temp_c_max === kept.temp_c_max &&
+          after.temp_c_min === kept.temp_c_min,
+        JSON.stringify({ kept, after }),
+      )
+      await writeOutcomes(db, [
+        { location_id: locationId, local_date: kept.local_date, recorded_at: new Date(), score: 7, dryness: 'wet', rain_mm: 12.5, temp_c_max: 3, temp_c_min: 1 },
+      ])
+      const [replaced] = await db.select().from(tripDayOutcomes).where(eq(tripDayOutcomes.id, kept.id))
+      check(
+        'a later reading replaces the stored one',
+        replaced?.score === 7 && replaced.dryness === 'wet' && replaced.rain_mm === 12.5 && replaced.temp_c_min === 1,
+        JSON.stringify(replaced),
+      )
+    }
+
+    console.log('\nA trip that ended a week ago')
+    const oldId = oldLocationId ?? ''
+    const [oldDays, oldOutcomes, oldTrend] = await Promise.all([
+      db.select().from(tripDayRecords).where(eq(tripDayRecords.location_id, oldId)),
+      db.select().from(tripDayOutcomes).where(eq(tripDayOutcomes.location_id, oldId)),
+      db.select().from(tripRainRecords).where(eq(tripRainRecords.location_id, oldId)),
+    ])
+    check(
+      'nothing is recorded for it',
+      oldDays.length + oldOutcomes.length + oldTrend.length === 0,
+      `${oldDays.length} days, ${oldOutcomes.length} outcomes, ${oldTrend.length} trend`,
+    )
+
+    console.log('\nReading the past trip summary')
+    const storedNow = await db.select().from(tripDayOutcomes).where(eq(tripDayOutcomes.location_id, locationId))
+    const sumRes = await fetch(`${BASE}/trips/${pastTripId}/summary`, { headers: { Authorization: `Session ${token}` } })
+    const sumBody = (await sumRes.json()) as ApiResponse<TripSummary[]>
+    const summary = sumBody.data?.[0]
+    check('GET /trips/:tripId/summary returns 200', sumRes.status === 200, String(sumRes.status))
+    check(
+      'it answers both trip days, in order, under the crag',
+      summary?.locationId === locationId && summary.days.map((d) => d.local_date).join() === pastDates.join(),
+      JSON.stringify(summary),
+    )
+    check(
+      'each day carries the outcome that was stored',
+      summary?.days.every((d) => {
+        const stored = storedNow.find((o) => o.local_date === d.local_date)
+        return d.outcome !== null && stored !== undefined && d.outcome.rain_mm === stored.rain_mm && d.outcome.score === stored.score
+      }) === true,
+      JSON.stringify(summary?.days.map((d) => d.outcome)),
+    )
+    const foreignSummary = await fetch(`${BASE}/trips/${pastTripId}/summary`, { headers: { Authorization: `Session ${otherToken}` } })
+    check("another account reading this trip's summary gets 404", foreignSummary.status === 404, String(foreignSummary.status))
   } catch (err) {
     failed++
     console.log(`\n  ERROR  ${err instanceof Error ? err.message : String(err)}`)
@@ -199,7 +317,11 @@ async function run(): Promise<void> {
         check('deleting the location clears its trip_day_records', removed && left.length === 0, `${left.length} left`)
         const trendLeft = await db.select().from(tripRainRecords).where(eq(tripRainRecords.location_id, locationId))
         check('and its trip_rain_records', trendLeft.length === 0, `${trendLeft.length} left`)
+        const outcomesLeft = await db.select().from(tripDayOutcomes).where(eq(tripDayOutcomes.location_id, locationId))
+        check('and its trip_day_outcomes', outcomesLeft.length === 0, `${outcomesLeft.length} left`)
       }
+      if (oldLocationId !== null && userId !== null) await deleteLocationCascade(oldLocationId, userId)
+      for (const id of extraTripIds) await db.delete(trips).where(eq(trips.id, id))
       if (tripId !== null) await db.delete(trips).where(eq(trips.id, tripId))
       if (userId !== null) await db.delete(users).where(eq(users.id, userId))
       console.log('  cleaned up')

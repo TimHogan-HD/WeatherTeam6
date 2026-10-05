@@ -7,6 +7,7 @@ import {
   type HourlySeries,
   type Location,
   type TripOutlook,
+  type TripTrendPoint,
   type WeatherAlert,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
@@ -15,14 +16,15 @@ import { DetailHeader } from '../components/DetailHeader.js'
 import { InlineError, Skeleton } from '../components/States.js'
 import { TripCragView, type QueryState } from '../components/trips/TripCragView.js'
 import { TripCragGrid } from '../components/trips/TripCragGrid.js'
+import { TripLookBackGrid, TripLookBackView } from '../components/trips/TripLookBack.js'
 import { hourlyQuery } from '../hooks/useHourly.js'
 import { alertsQuery } from '../hooks/useWeather.js'
 import { useLocations } from '../hooks/useLocations.js'
-import { forgetTrip, useDeleteTrip, useTrip, useTripForecast, useTripTrend } from '../hooks/useTrips.js'
+import { forgetTrip, useDeleteTrip, useTrip, useTripForecast, useTripSummary, useTripTrend } from '../hooks/useTrips.js'
 import { backTarget, editTripPath, tripCragPath } from '../lib/backTarget.js'
 import { severeAlertEvent } from '../lib/forecast.js'
 import type { DayReadings } from '../lib/overview.js'
-import { cragCount, deviceToday, formatTripDates, tripDates, tripTiming } from '../lib/trips.js'
+import { cragCount, deviceToday, formatTripDates, tripDates, tripIsOver, tripTiming } from '../lib/trips.js'
 
 /**
  * What a day's score is read from at one crag, or `null` when there is nothing
@@ -52,20 +54,25 @@ export function TripScreen() {
   const { tripId, locationId: cragParam } = useParams<{ tripId: string; locationId?: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const today = deviceToday()
   const trip = useTrip(tripId)
-  const forecast = useTripForecast(tripId)
+  // Once the trip is over nothing is forecast for it: the screen reads what was stored.
+  const over = trip.data !== undefined && tripIsOver(trip.data, today)
+  const forecast = useTripForecast(tripId, trip.data !== undefined && !over)
+  const summary = useTripSummary(tripId, over)
   const trend = useTripTrend(tripId)
   const locations = useLocations()
   const remove = useDeleteTrip()
   const [confirmingDelete, setConfirmingDelete] = useState(false)
-  const today = deviceToday()
 
   const ids = (trip.data?.locations ?? []).map((l) => l.locationId)
   const byId = new Map<string, Location>((locations.data ?? []).map((l) => [l.id, l]))
   // Scores only for a crag: a city's hourly readings are a sentinel, never asked for.
   const scoredIds = ids.filter((id) => byId.get(id)?.is_climbing_location === true)
-  const hourly = useQueries({ queries: ids.map((id) => ({ ...hourlyQuery(id), enabled: scoredIds.includes(id) })) })
-  const alerts = useQueries({ queries: ids.map((id) => alertsQuery(id)) })
+  const hourly = useQueries({
+    queries: ids.map((id) => ({ ...hourlyQuery(id), enabled: !over && scoredIds.includes(id) })),
+  })
+  const alerts = useQueries({ queries: ids.map((id) => ({ ...alertsQuery(id), enabled: !over })) })
   const readingsFor = (id: string): DayReadings | null => {
     const i = ids.indexOf(id)
     const h = hourly[i]
@@ -108,11 +115,39 @@ export function TripScreen() {
     refetch: () => void forecast.refetch(),
   })
 
+  const trendFor = (id: string): QueryState<readonly TripTrendPoint[]> => ({
+    data: trend.data?.find((s) => s.locationId === id)?.points ?? (trend.data === undefined ? undefined : []),
+    isPending: trend.isPending,
+    isError: trend.isError,
+    refetch: () => void trend.refetch(),
+  })
+
   const body =
     trip.isPending ? (
       <Skeleton height={200} />
     ) : trip.isError ? (
       <InlineError message="Couldn't load this trip." onRetry={() => void trip.refetch()} />
+    ) : over && focus !== null ? (
+      <TripLookBackView
+        summary={{
+          data: summary.data === undefined ? undefined : (summary.data.find((s) => s.locationId === focus)?.days ?? []),
+          isPending: summary.isPending,
+          isError: summary.isError,
+          refetch: () => void summary.refetch(),
+        }}
+        trend={trendFor(focus)}
+      />
+    ) : over ? (
+      <TripLookBackGrid
+        summary={{
+          data: summary.data,
+          isPending: summary.isPending,
+          isError: summary.isError,
+          refetch: () => void summary.refetch(),
+        }}
+        names={new Map(ids.map((id) => [id, byId.get(id)?.name ?? 'Crag']))}
+        onOpenCrag={(id) => void navigate(tripCragPath(trip.data.id, id))}
+      />
     ) : focus !== null ? (
       <TripCragView
         locationId={focus}
@@ -123,12 +158,7 @@ export function TripScreen() {
         readings={readingsFor(focus)}
         isCrag={isCrag(focus)}
         scoresFailed={scoresFailed(focus)}
-        trend={{
-          data: trend.data?.find((s) => s.locationId === focus)?.points ?? (trend.data === undefined ? undefined : []),
-          isPending: trend.isPending,
-          isError: trend.isError,
-          refetch: () => void trend.refetch(),
-        }}
+        trend={trendFor(focus)}
       />
     ) : forecast.isPending ? (
       <Skeleton height={220} />

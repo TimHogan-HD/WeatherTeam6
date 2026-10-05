@@ -124,7 +124,7 @@ async function run(): Promise<void> {
 
   const { createApp } = await import('../index.js')
   const { db, pool } = await import('../db/index.js')
-  const { users, userPreferences, feedback } = await import('../db/schema.js')
+  const { users, userPreferences, feedback, tripDayOutcomes, tripDayRecords } = await import('../db/schema.js')
   const { hashPassword } = await import('../lib/auth/password.js')
   const { eq } = await import('drizzle-orm')
   const { chromium } = await import('playwright')
@@ -607,6 +607,53 @@ async function run(): Promise<void> {
         await page.waitForURL((u) => u.pathname === `/trips/${multiId}`, { timeout: 10_000 }).catch(() => undefined)
         check('back from one crag returns to the trip', new URL(page.url()).pathname === `/trips/${multiId}`, page.url())
       }
+    }
+
+    // An ended trip: what was stored, seeded the way the recorder writes it, and
+    // nothing forecast for it. The rows go with the location's cascade.
+    const pastDays = [isoDayFromNow(-2), isoDayFromNow(-1)]
+    const past = await api<{ id: string }>('POST', '/trips', token, {
+      name: `${PREFIX} past`,
+      startDate: pastDays[0],
+      endDate: pastDays[1],
+      cragIds: secondLocationId === null ? [locationId] : [locationId, secondLocationId],
+    })
+    const pastId = past.payload.data?.id ?? null
+    check('POST /trips creates an ended trip', past.status === 201 && pastId !== null, `got ${past.status}`)
+    if (pastId !== null) {
+      tripIds.push(pastId)
+      const at = (daysAgo: number) => new Date(Date.now() - daysAgo * 86_400_000)
+      await db.insert(tripDayRecords).values([
+        { location_id: locationId, local_date: pastDays[0]!, recorded_at: at(4), lead_days: 2, score: 100, dryness: 'dry', members_wet: 20, member_count: 143, precip_mm_mean: 0.3 },
+        { location_id: locationId, local_date: pastDays[0]!, recorded_at: at(2), lead_days: 0, score: 41, dryness: 'wet', members_wet: 70, member_count: 143, precip_mm_mean: 1.2 },
+        { location_id: locationId, local_date: pastDays[1]!, recorded_at: at(3), lead_days: 2, score: 88, dryness: 'drying', members_wet: 30, member_count: 143, precip_mm_mean: 0.2 },
+      ])
+      await db.insert(tripDayOutcomes).values([
+        { location_id: locationId, local_date: pastDays[0]!, recorded_at: at(1), score: 43, dryness: 'wet', rain_mm: 0, temp_c_max: 17.8, temp_c_min: 6.4 },
+        { location_id: locationId, local_date: pastDays[1]!, recorded_at: at(0), score: 96, dryness: 'dry', rain_mm: 0, temp_c_max: 19.1, temp_c_min: 7.2 },
+      ])
+      const forecastCalls: string[] = []
+      const onForecastRequest = (req: { url: () => string }): void => {
+        if (/\/api\/v1\/(hourly|alerts|trips\/[0-9a-f-]+\/forecast)/.test(req.url())) forecastCalls.push(req.url())
+      }
+      page.on('request', onForecastRequest)
+      await page.goto(`${WEB}/trips/${pastId}`)
+      if (secondLocationId !== null) {
+        await page.getByRole('region', { name: 'How it turned out' }).waitFor({ timeout: 30_000 }).catch(() => undefined)
+        await screen('trip-past-multi')
+        await page.getByRole('button', { name: new RegExp(`^${CRAG.name}`) }).click()
+        await page.waitForURL((u) => u.pathname === `/trips/${pastId}/crag/${locationId}`, { timeout: 10_000 }).catch(() => undefined)
+        check('a crag of an ended trip opens its own days', new URL(page.url()).pathname.endsWith(`/crag/${locationId}`), page.url())
+      }
+      await page.getByRole('heading', { name: 'Forecast said' }).first().waitFor({ timeout: 30_000 }).catch(() => undefined)
+      await screen('trip-past')
+      page.off('request', onForecastRequest)
+      check('an ended trip asks for no forecast, hourly or alerts', forecastCalls.length === 0, forecastCalls.join(', '))
+      check('it shows each day as it turned out', (await page.getByText('Turned out', { exact: true }).count()) === 2)
+      check(
+        'and what the forecast said first and last',
+        (await page.getByText('2 days out').count()) === 2 && (await page.getByText('On the day').count()) === 1,
+      )
     }
 
     await page.goto(`${WEB}/trips`)

@@ -57,7 +57,7 @@ export function cardSummary(
 /** Which rung of the status ladder a reading sits on. Colour only — the word is printed too. */
 export type Tone = ToneName
 
-const ROCK_TONE: Record<RockLevel, Tone> = { dry: 'good', drying: 'fair', wet: 'poor' }
+export const ROCK_TONE: Record<RockLevel, Tone> = { dry: 'good', drying: 'fair', wet: 'poor' }
 
 /**
  * The tone for one of `summary.readings`, from the level it was worded from.

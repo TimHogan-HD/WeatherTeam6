@@ -270,6 +270,36 @@ export const tripDayRecords = pgTable(
 )
 
 /**
+ * How one trip day turned out at one location: the model's own look back at
+ * the day once it was over (`HourlyReadings.past_days`), scored by the
+ * forecast's day rule. The model's analysis, not observations.
+ *
+ * **One row per location and day**, keyed like `trip_day_records` so trips to
+ * one crag share it. The recorder rewrites it at each firing while the day is
+ * still in the stored history, so the last write read the most settled
+ * analysis; then it stops, and the row is all that remains of the day.
+ */
+export const tripDayOutcomes = pgTable(
+  'trip_day_outcomes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    location_id: uuid('location_id')
+      .notNull()
+      .references(() => locations.id),
+    local_date: date('local_date').notNull(),
+    /** The firing that last wrote the row, truncated to the hour. */
+    recorded_at: timestamp('recorded_at', { withTimezone: true }).notNull(),
+    /** Null when the day's rock could not be read; see `PastReadingsDay.best`. */
+    score: integer('score'),
+    dryness: text('dryness').$type<RockLevel>(),
+    rain_mm: doublePrecision('rain_mm'),
+    temp_c_max: doublePrecision('temp_c_max'),
+    temp_c_min: doublePrecision('temp_c_min'),
+  },
+  (t) => [unique('trip_day_outcomes_location_day').on(t.location_id, t.local_date)],
+)
+
+/**
  * The trip's rain total and warmest high at one location, as of one cron
  * firing: the points of a trip screen's forecast trend.
  *

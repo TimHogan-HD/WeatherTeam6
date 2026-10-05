@@ -377,6 +377,29 @@ export type HourlyReadings = {
    * older API, and a surface draws nothing rather than a gap.
    */
   rock_history?: RockHistoryHour[];
+  /**
+   * Each whole local day before the window, as the model's analysis has it:
+   * what a day **turned out** to be, read by the same rules as a forecast day.
+   * The trip recorder keeps it once a trip day is over (`trip_day_outcomes`).
+   *
+   * `best` is null unless every daytime hour's rock is known (the
+   * `rock_history` rule), so the walk's "it just rained" start never scores a
+   * day. The figures are null unless every hour of the day has one. The model's
+   * analysis, not observations.
+   *
+   * Optional because the API and the client deploy separately.
+   */
+  past_days?: PastReadingsDay[];
+};
+
+/** One day before the window. See `HourlyReadings.past_days`. */
+export type PastReadingsDay = {
+  local_date: string;
+  best: HourlyReading | null;
+  /** The drying clock's rain over the whole local day: the same median it walked. */
+  rain_mm: number | null;
+  temp_c_max: number | null;
+  temp_c_min: number | null;
 };
 
 /** One past hour's rock state. See `HourlyReadings.rock_history`. */
