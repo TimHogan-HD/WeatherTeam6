@@ -37,10 +37,14 @@ const UNAVAILABLE = "Sign-in isn't available right now. Try again later."
 
 const FAILED = "Couldn't sign in. Check your connection and try again."
 
+/** The API's per-username cap (`loginThrottle.ts`). Retyping now cannot work, so say how long. */
+const THROTTLED = 'Too many tries for this username. Wait 15 minutes and try again.'
+
 function messageFor(error: unknown): string {
   if (!(error instanceof ApiError)) return FAILED
   if (error.status === 401 || error.status === 400) return REJECTED
   if (error.status === 503) return UNAVAILABLE
+  if (error.status === 429) return THROTTLED
   return FAILED
 }
 

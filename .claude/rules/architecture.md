@@ -398,9 +398,16 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   Usernames match `USERNAME_PATTERN`. A new passphrase passes `passphraseProblem`
   (`packages/types/account.ts`: length, repeats, the username, common words under digits
   and symbols), shared by redeem, the join screen and `user:add`; login never applies it. `check:invites` runs it against Postgres.
-- **Two honest limits:** no rate limiting on `POST /api/v1/auth/login` (scrypt cost plus a
-  fixed failure delay is the defence), and no token revocation (rotating `AUTH_TOKEN_SECRET`
-  invalidates everything). Do not describe either as stronger than it is.
+- **Login is capped per username, not per address** (`lib/auth/loginThrottle.ts`,
+  owner decision 2026-10-06): `LOGIN_ATTEMPT_LIMIT` (10) attempts per
+  `LOGIN_ATTEMPT_WINDOW_MS` (15 min), counted in `login_attempts` under a SHA-256 of the
+  username, then a 429 for known and unknown names alike. Each attempt is recorded
+  before scrypt, so a parallel burst cannot outrun the count; a success clears it.
+  Per address would lock every reader out at once, because the web app reaches the API
+  through Vercel's rewrite. **Two honest limits:** anyone who knows a username can keep
+  it locked for as long as they keep guessing, and there is no token revocation
+  (rotating `AUTH_TOKEN_SECRET` invalidates everything). Do not describe either as
+  stronger than it is.
 - **The token is not a JWT:** HMAC-SHA256 over a base64url payload, one algorithm.
   `lib/auth/token.ts` is pure and verifies over the raw payload string, never re-serialised
   claims.

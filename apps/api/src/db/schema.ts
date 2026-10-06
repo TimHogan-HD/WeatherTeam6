@@ -133,6 +133,22 @@ export const invites = pgTable('invites', {
   used_by: uuid('used_by').references(() => users.id),
 })
 
+// One row per sign-in attempt inside the throttle window (`lib/auth/loginThrottle.ts`).
+// `key_hash` is a SHA-256 of the normalised username, never the username: a
+// passphrase typed into the username box must not land here in plain text.
+export const loginAttempts = pgTable(
+  'login_attempts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    key_hash: text('key_hash').notNull(),
+    attempted_at: timestamp('attempted_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('login_attempts_key_attempted_idx').on(t.key_hash, t.attempted_at),
+    index('login_attempts_attempted_idx').on(t.attempted_at),
+  ],
+)
+
 // Adding a table with a `location_id` FK? Add it to DEPENDENT_TABLES in
 // `lib/locations/deleteLocation.ts` too. No FK here declares `onDelete`, so a
 // dependent table left off that list turns DELETE /locations/:id into a
