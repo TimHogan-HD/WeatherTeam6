@@ -36,7 +36,7 @@
 import { randomBytes } from 'node:crypto'
 import { createInterface } from 'node:readline'
 import { PassThrough } from 'node:stream'
-import { MIN_PASSPHRASE_LENGTH } from '@weatherteam6/types'
+import { passphraseProblem } from '@weatherteam6/types'
 
 // Runtime imports are deferred into run(): `../db/index.js` throws at import
 // time when DATABASE_URL is unset, which would pre-empt the explanation below
@@ -162,11 +162,9 @@ async function run(): Promise<void> {
   }
 
   const { value: passphrase, shown } = await resolvePassphrase(args.generate)
-  if (passphrase.length < MIN_PASSPHRASE_LENGTH) {
-    console.error(
-      `\nThat passphrase is ${String(passphrase.length)} characters. There is no rate limiting on` +
-        `\nthe login route, so length is the defence. Use at least ${MIN_PASSPHRASE_LENGTH}, or --generate.\n`,
-    )
+  const weak = shown ? null : passphraseProblem(passphrase, username)
+  if (weak !== null) {
+    console.error(`\nThat passphrase is too easy to guess: ${weak} Or use --generate.\n`)
     process.exit(2)
   }
 

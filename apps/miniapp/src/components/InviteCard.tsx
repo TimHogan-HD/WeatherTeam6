@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
-import type { InviteCreated } from '@weatherteam6/types'
+import { inviteStatus, type InviteCreated } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, btnPrimary, btnPrimaryText, cardV2, row, stack, wellV2 } from '../theme/styles.js'
-import { useAccount, useCreateInvite } from '../hooks/useAccount.js'
+import { useAccount, useCancelInvite, useCreateInvite, useInvites } from '../hooks/useAccount.js'
+import { useNow } from '../hooks/useNow.js'
 import { InlineError } from './States.js'
 
 /**
@@ -13,11 +14,14 @@ import { InlineError } from './States.js'
 export function InviteCard() {
   const account = useAccount()
   const create = useCreateInvite()
+  const cancel = useCancelInvite()
   const [copied, setCopied] = useState(false)
 
   if (account.data?.can_invite !== true) return null
 
-  const invite: InviteCreated | undefined = create.data
+  // A link cancelled from the list below must not stay on screen to be shared.
+  const cancelledShown = cancel.isSuccess && cancel.variables === create.data?.id
+  const invite: InviteCreated | undefined = cancelledShown ? undefined : create.data
   const link = invite === undefined ? null : `${window.location.origin}/join#${invite.code}`
   const canShare = typeof navigator.share === 'function'
 
@@ -45,7 +49,7 @@ export function InviteCard() {
       <div style={stack(spacing.micro)}>
         <h2 style={typeV2.cardTitle}>Invite someone</h2>
         <p style={{ ...typeV2.note, color: colorsV2.txtMuted }}>
-          A link that creates one account. It works once and expires in 7 days.
+          A link that creates one account. It works once and expires in 2 days. Send it to one person, privately.
         </p>
       </div>
 
@@ -104,6 +108,66 @@ export function InviteCard() {
       >
         {create.isPending ? 'Creating…' : link === null ? 'Create invite link' : 'Create another link'}
       </button>
+
+      <InviteList cancel={cancel} />
     </section>
+  )
+}
+
+const shortDate = (iso: string) =>
+  new Date(iso).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+
+/**
+ * Every link the owner has made, with who joined through it. An account the
+ * owner does not recognise here is how a forwarded link would show.
+ */
+function InviteList({ cancel }: { cancel: ReturnType<typeof useCancelInvite> }) {
+  const invites = useInvites()
+  const now = new Date(useNow())
+
+  if (invites.isPending) return null
+  if (invites.isError) {
+    return <InlineError message="Couldn’t load your links." onRetry={() => void invites.refetch()} />
+  }
+  if (invites.data.length === 0) return null
+
+  return (
+    <div style={stack(spacing.listGap)}>
+      <h3 style={{ ...typeV2.gaugeLabel, color: colorsV2.txtMuted }}>Your links</h3>
+      <ul style={{ ...stack(spacing.listGap), listStyle: 'none', margin: 0, padding: 0 }}>
+        {invites.data.map((invite) => {
+          const status = inviteStatus(invite, now)
+          const cancelling = cancel.isPending && cancel.variables === invite.id
+          return (
+            <li key={invite.id} style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={stack(spacing.micro)}>
+                <span style={{ ...typeV2.controlValue, color: colorsV2.txt1 }}>
+                  {status === 'joined' ? `Joined as ${invite.joined_as ?? 'a deleted account'}` : status === 'open' ? 'Not used yet' : 'Expired, never used'}
+                </span>
+                <span style={{ ...typeV2.note, color: colorsV2.txtMuted }}>
+                  {status === 'joined' && invite.used_at !== null
+                    ? shortDate(invite.used_at)
+                    : status === 'open'
+                      ? `Expires ${shortDate(invite.expires_at)}`
+                      : `Made ${shortDate(invite.created_at)}`}
+                </span>
+              </div>
+              {status === 'open' ? (
+                <button
+                  type="button"
+                  disabled={cancelling}
+                  onClick={() => cancel.mutate(invite.id)}
+                  style={{ ...bareButton, ...typeV2.cardLink, width: 'auto', padding: `${spacing.listGap}px`, opacity: cancelling ? 0.5 : 1 }}
+                  aria-label={`Cancel the link that expires ${shortDate(invite.expires_at)}`}
+                >
+                  {cancelling ? 'Cancelling…' : 'Cancel'}
+                </button>
+              ) : null}
+            </li>
+          )
+        })}
+      </ul>
+      {cancel.isError ? <InlineError message="Couldn’t cancel that link. Try again." /> : null}
+    </div>
   )
 }

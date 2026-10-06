@@ -1,7 +1,7 @@
-import { useCallback, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { colors, colorsV2, spacing } from '@weatherteam6/design/tokens'
-import { isValidUsername, MIN_PASSPHRASE_LENGTH } from '@weatherteam6/types'
+import { isValidUsername, MIN_PASSPHRASE_LENGTH, passphraseProblem } from '@weatherteam6/types'
 import { type, typeV2 } from '../theme/tokens.css.js'
 import { bareButton, btnPrimary, btnPrimaryText, inputBox, stack } from '../theme/styles.js'
 import { apiRedeemInvite, ApiError } from '../lib/api.js'
@@ -16,12 +16,16 @@ import { Screen } from '../components/Screen.js'
 
 const UNUSABLE = 'This invite link has expired or has already been used. Ask for a new one.'
 const TAKEN = 'That username is taken. Try another.'
+const WEAK = 'That username or passphrase was refused. Try a longer passphrase of unrelated words.'
 const UNAVAILABLE = "Joining isn't available right now. Try again later."
 const FAILED = "Couldn't create your account. Check your connection and try again."
 
 function messageFor(error: unknown): string {
   if (!(error instanceof ApiError)) return FAILED
   if (error.status === 410) return UNUSABLE
+  // The screen applies the same rules first, so this is a mismatch between
+  // client and server versions mid-deploy.
+  if (error.status === 400) return WEAK
   if (error.status === 409) return TAKEN
   if (error.status === 503) return UNAVAILABLE
   return FAILED
@@ -38,28 +42,25 @@ export function Join() {
 
   const name = username.trim()
   const nameOk = isValidUsername(name)
-  const longEnough = passphrase.length >= MIN_PASSPHRASE_LENGTH
+  const weak = passphraseProblem(passphrase, name)
   const matches = passphrase === repeat
-  const ready = nameOk && longEnough && matches
+  const ready = nameOk && weak === null && matches
 
-  const onSubmit = useCallback(
-    (event: FormEvent) => {
-      event.preventDefault()
-      if (!ready || submitting) return
-      setSubmitting(true)
-      setError(null)
-      apiRedeemInvite({ code, username: name, passphrase })
-        .then((response) => {
-          setToken(response.token)
-          void navigate('/', { replace: true })
-        })
-        .catch((err: unknown) => {
-          setError(messageFor(err))
-          setSubmitting(false)
-        })
-    },
-    [ready, submitting, code, name, passphrase, navigate],
-  )
+  const onSubmit = (event: FormEvent) => {
+    event.preventDefault()
+    if (!ready || submitting) return
+    setSubmitting(true)
+    setError(null)
+    apiRedeemInvite({ code, username: name, passphrase })
+      .then((response) => {
+        setToken(response.token)
+        void navigate('/', { replace: true })
+      })
+      .catch((err: unknown) => {
+        setError(messageFor(err))
+        setSubmitting(false)
+      })
+  }
 
   if (code === '') {
     return (
@@ -104,7 +105,10 @@ export function Join() {
             style={{ ...inputBox, ...type.calDay, width: '100%' }}
             aria-label="Passphrase"
           />
-          {hint(`At least ${MIN_PASSPHRASE_LENGTH} characters. A few words works well.`, !longEnough)}
+          {hint(
+            passphrase === '' ? `At least ${MIN_PASSPHRASE_LENGTH} characters. A few unrelated words works well.` : (weak ?? ''),
+            passphrase === '' || weak !== null,
+          )}
         </label>
 
         <label style={stack(spacing.micro)}>

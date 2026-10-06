@@ -565,6 +565,22 @@ async function run(): Promise<void> {
     joinedUserId = joinedRow[0]?.id ?? null
     check('the joined account exists', joinedUserId !== null)
     await joinContext.close()
+    await page.reload()
+    const joinedRowShown = await page
+      .getByText(`Joined as ${JOIN_USERNAME}`)
+      .waitFor({ timeout: 15_000 })
+      .then(() => true, () => false)
+    check('Profile lists who joined through the link', joinedRowShown)
+    await page.getByRole('button', { name: 'Create invite link' }).click()
+    const cancelButton = page.getByRole('button', { name: /^Cancel the link/ })
+    await cancelButton.waitFor({ timeout: 15_000 })
+    await screen('profile-invites')
+    await cancelButton.click()
+    const cancelGone = await cancelButton
+      .waitFor({ state: 'detached', timeout: 15_000 })
+      .then(() => true, () => false)
+    const shownLinkGone = (await page.getByText(/\/join#/).count()) === 0
+    check('Cancel removes the open link, and the card stops showing it', cancelGone && shownLinkGone)
 
     // 3d. Feedback: an open item shows with Done, and Done clears it.
     const note = `${PREFIX} feedback note`
