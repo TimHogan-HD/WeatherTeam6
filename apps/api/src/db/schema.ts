@@ -118,6 +118,21 @@ export const users = pgTable('users', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
+// An owner-minted, single-use link to create an account (`lib/auth/invites.ts`).
+// Only the SHA-256 of the code is stored, so a read of this table cannot be
+// replayed as a link. `used_at` and `used_by` are set together on redemption.
+export const invites = pgTable('invites', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  code_hash: text('code_hash').notNull().unique(),
+  created_by: uuid('created_by')
+    .notNull()
+    .references(() => users.id),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
+  used_at: timestamp('used_at', { withTimezone: true }),
+  used_by: uuid('used_by').references(() => users.id),
+})
+
 // Adding a table with a `location_id` FK? Add it to DEPENDENT_TABLES in
 // `lib/locations/deleteLocation.ts` too. No FK here declares `onDelete`, so a
 // dependent table left off that list turns DELETE /locations/:id into a

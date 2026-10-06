@@ -12,7 +12,8 @@ import { Screen } from '../components/Screen.js'
  * `docs/handoffs/leave-telegram-v1.md`. It reverses the standing "do not build
  * a login UI" rule, on the owner's instruction; the rest of that rule holds —
  * **no self-serve signup**, so there is no link to one and no "create account"
- * copy. `npm run user:add` is how an account comes to exist.
+ * copy. An account comes from `npm run user:add` or an owner's invite link,
+ * which lands on `/join` instead.
  *
  * No back affordance: there is nothing above this screen, and every other route
  * is behind it.

@@ -1,6 +1,6 @@
 import { requireApiBaseUrl } from '../config/env.js'
 import { clearToken, getToken } from './authToken.js'
-import type { ApiResponse, AuthLoginResponse } from '@weatherteam6/types'
+import type { ApiResponse, AuthLoginResponse, RedeemInviteInput } from '@weatherteam6/types'
 
 /**
  * The single place this app talks to the network. Components never call `fetch`
@@ -159,6 +159,19 @@ export function apiLogin(username: string, passphrase: string): Promise<AuthLogi
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, passphrase }),
+    },
+    false,
+  )
+}
+
+/** The join screen's call, unauthenticated for the same reasons as `apiLogin`. */
+export function apiRedeemInvite(input: RedeemInviteInput): Promise<AuthLoginResponse> {
+  return request<AuthLoginResponse>(
+    '/auth/redeem',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
     },
     false,
   )

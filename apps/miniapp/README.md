@@ -153,8 +153,9 @@ Three things about that path that are easy to get wrong:
   a wrong clock would discard a token it had just been issued and bounce to `/login` with
   no error to explain it. The 401 is authoritative and costs one round trip.
 
-Accounts are created with `npm run user:add` in `apps/api` and nowhere else. **There is no
-self-serve signup** and the login screen must not offer one.
+Accounts are created with `npm run user:add` in `apps/api`, or by redeeming an invite link
+the owner mints on Profile (`/join#<code>`, `routes/Join.tsx`). **There is no self-serve
+signup** and the login screen must not offer one.
 
 `API_SHARED_SECRET` must never reach this bundle — nothing about auth here is a
 build-time value.

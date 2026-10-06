@@ -25,7 +25,8 @@ From `apps/api`, against a real database (`DATABASE_URL` set **in the shell**, n
 
 ```bash
 npm run db:seed             # seed the user + 3 locations
-npm run user:add            # create or reset an account — the only way one exists
+npm run user:add            # create or reset an account (friends normally join by the owner's invite link)
+npm run check:invites       # invite links: owner-only minting, one-time redemption, expiry
 npm run check:auth          # token auth, including the cross-user denial
 npm run check:add-location  # acceptance check for the add-location flow
 npm run check:delete-trip   # DELETE /trips/:tripId and its FK cascade
@@ -69,7 +70,7 @@ Do not create a `.env` file at all — set variables in the shell for the one co
 - All API responses use the shape `{ data, error, status }`.
 - All external API calls are wrapped in try/catch with exponential backoff retry.
 - Never log secrets, tokens, or full API responses in production. Never serialise an error object wholesale into a log — driver errors can carry the connection string; go through `describeError` in `lib/http.ts`.
-- Auth is a signed token, and `requireApiAuth` is the only setter of `req.userId` — see `.claude/rules/architecture.md` § Auth Pattern. There is no self-serve signup.
+- Auth is a signed token, and `requireApiAuth` is the only setter of `req.userId` — see `.claude/rules/architecture.md` § Auth Pattern. There is no self-serve signup: an account comes from `user:add` or an invite link only the owner can mint.
 - Drizzle migrations only — never mutate the DB directly.
 - **Finish the delivery.** Work reaches `main` through a branch, a PR, green CI and a squash merge, all done by you. A PreToolUse hook blocks `git commit` on the default branch and blocks a merge until the CI reviewer's `## Claude review` comment names the PR's head commit (a PR that edits `claude-review.yml` is exempt — the action will not run on it), and a Stop hook refuses to end the turn with uncommitted changes, unpushed commits, a pushed branch with no PR, or a green mergeable PR left open. If the user asks you to pause mid-change, `touch .claude/.wip` and delete it when work resumes; it expires after 12 hours.
 - **A check nothing runs is not a check.** CI runs every root-level `check:*` script, enumerated from `package.json`. `npm run check:hooks` fails if `.claude/settings.json` registers a hook no scenario exercises. `main` is protected for admins too; fix the red check rather than routing around it.

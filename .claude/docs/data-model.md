@@ -19,6 +19,7 @@ Migrations are at `0006` (`weather_alerts.notified_at`). Note `weather_alerts.no
 ## Table List (in dependency order)
 ```
 users
+invites                 -- migration 0028, written by POST /invites and /auth/redeem
 locations
 crags
 rainfall_history
@@ -54,6 +55,20 @@ name        text
 created_at  timestamptz default now()
 ```
 Single row in production. Seeded on first deploy. UUID stored as `DEFAULT_USER_ID` in the Vercel project's environment variables (currently `00000000-0000-0000-0000-000000000001`).
+
+### invites
+```typescript
+id          uuid PK default gen_random_uuid()
+code_hash   text NOT NULL UNIQUE   -- SHA-256 hex of the code; the code itself is never stored
+created_by  uuid NOT NULL → users.id
+created_at  timestamptz default now()
+expires_at  timestamptz NOT NULL   -- created_at + INVITE_TTL_MS (7 days)
+used_at     timestamptz            -- null until redeemed
+used_by     uuid → users.id        -- the account the redemption created
+```
+Owner-minted, single-use links to create an account (`lib/auth/invites.ts`). No
+`location_id`, so `deleteLocationCascade` never touches it. Nothing prunes it; a few rows
+a year.
 
 ### locations
 User-saved locations (crags or general weather spots).
