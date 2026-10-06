@@ -1,6 +1,13 @@
 import { Router, type Request, type Response } from 'express'
-import type { ApiResponse, AuthLoginResponse } from '@weatherteam6/types'
+import {
+  isValidUsername,
+  MAX_PASSPHRASE_LENGTH,
+  MIN_PASSPHRASE_LENGTH,
+  type ApiResponse,
+  type AuthLoginResponse,
+} from '@weatherteam6/types'
 import { authenticateUser } from '../lib/auth/credentials.js'
+import { MAX_CODE_LENGTH, redeemInvite } from '../lib/auth/invites.js'
 import { expiryFrom, signToken } from '../lib/auth/token.js'
 import { logger } from '../lib/logger.js'
 import { sendServerError } from '../lib/http.js'
@@ -14,8 +21,8 @@ export const authRouter = Router()
  * Express matches in registration order, so this handler must *respond* rather
  * than fall through — which it does on every path. An unmatched route under
  * `/api/v1/auth` (a GET, a typo) reaches no handler here and continues to
- * `requireApiAuth`, which 401s it. That is the behaviour we want: the hole in
- * the gate is exactly one method on exactly one path.
+ * `requireApiAuth`, which 401s it. That is the behaviour we want: the holes in
+ * the gate are exactly two POSTs, `/login` and `/redeem`.
  *
  * **No rate limiting.** There is no Redis and no store for counters. scrypt's
  * cost plus `FAILURE_DELAY_MS` below is the whole defence, and passphrase
@@ -50,7 +57,6 @@ function readCredential(value: unknown): string | null {
  * characters; 1024 leaves any real passphrase alone.
  */
 const MAX_USERNAME_LENGTH = 128
-const MAX_PASSPHRASE_LENGTH = 1024
 
 authRouter.post('/login', async (req: Request, res: Response) => {
   const secret = process.env['AUTH_TOKEN_SECRET']
@@ -108,19 +114,79 @@ authRouter.post('/login', async (req: Request, res: Response) => {
       return
     }
 
-    const exp = expiryFrom()
-    const token = signToken({ sub: userId, exp }, secret)
-
     logger.info({ userId }, '[auth] login succeeded')
-    const response: ApiResponse<AuthLoginResponse> = {
-      data: { token, expires_at: new Date(exp * 1000).toISOString() },
-      error: null,
-      status: 200,
-    }
-    res.status(200).json(response)
+    sendToken(res, userId, secret)
   } catch (err) {
     // sendServerError logs through describeError, which reads only known-safe
     // fields — a database driver error here can carry the connection string.
     sendServerError(res, err, 'POST /auth/login')
+  }
+})
+
+function sendToken(res: Response, userId: string, secret: string): void {
+  const exp = expiryFrom()
+  const token = signToken({ sub: userId, exp }, secret)
+  const response: ApiResponse<AuthLoginResponse> = {
+    data: { token, expires_at: new Date(exp * 1000).toISOString() },
+    error: null,
+    status: 200,
+  }
+  res.status(200).json(response)
+}
+
+function sendError(res: Response, status: number, error: string): void {
+  const response: ApiResponse<null> = { data: null, error, status }
+  res.status(status).json(response)
+}
+
+/**
+ * The second hole in the gate: an owner-minted invite (`POST /invites`) traded
+ * for a new account and a session. Like `/login`, it responds on every path.
+ *
+ * 410 for a code that is unknown, used or expired (one answer for all three);
+ * 409 for a taken username, which leaves the invite usable.
+ */
+authRouter.post('/redeem', async (req: Request, res: Response) => {
+  const secret = process.env['AUTH_TOKEN_SECRET']
+  if (!secret) {
+    logger.error('AUTH_TOKEN_SECRET is not configured — refusing to redeem invites')
+    sendError(res, 503, 'API unavailable: server is not configured for authenticated access')
+    return
+  }
+
+  const body = req.body as { code?: unknown; username?: unknown; passphrase?: unknown } | undefined
+  const code = readCredential(body?.code)
+  const username = readCredential(body?.username)
+  const passphrase = readCredential(body?.passphrase)
+
+  if (code === null || username === null || passphrase === null) {
+    sendError(res, 400, 'code, username and passphrase are required')
+    return
+  }
+  if (code.length > MAX_CODE_LENGTH) {
+    sendError(res, 410, 'This invite has expired or has already been used')
+    return
+  }
+  if (!isValidUsername(username)) {
+    sendError(res, 400, 'username must be 2-32 lowercase letters, digits, dots, dashes or underscores')
+    return
+  }
+  if (passphrase.length < MIN_PASSPHRASE_LENGTH || passphrase.length > MAX_PASSPHRASE_LENGTH) {
+    sendError(res, 400, `passphrase must be ${MIN_PASSPHRASE_LENGTH} to ${MAX_PASSPHRASE_LENGTH} characters`)
+    return
+  }
+
+  try {
+    const result = await redeemInvite(code, username, passphrase)
+    if (!result.ok) {
+      logger.warn({ reason: result.reason }, '[auth] invite redemption refused')
+      if (result.reason === 'username_taken') sendError(res, 409, 'That username is taken')
+      else sendError(res, 410, 'This invite has expired or has already been used')
+      return
+    }
+    logger.info({ userId: result.userId }, '[auth] invite redeemed')
+    sendToken(res, result.userId, secret)
+  } catch (err) {
+    sendServerError(res, err, 'POST /auth/redeem')
   }
 })

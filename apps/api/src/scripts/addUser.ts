@@ -15,9 +15,10 @@
  *
  *   npm run user:add -- --username tim --user-id 00000000-0000-0000-0000-000000000001
  *
- * **This is the whole signup flow, and there should not be another one.** The
- * product is the owner plus a few climbing partners; adding one is an operator
- * action, deliberately.
+ * **The owner chooses every account.** This script is one way; the other is an
+ * invite link only the owner can mint from Profile (`lib/auth/invites.ts`),
+ * which lets a friend pick their own passphrase. There is no self-serve signup.
+ * Use this script for the owner's own row and for resetting a passphrase.
  *
  * Passphrase strength is the real control. There is no rate limiting on
  * `POST /api/v1/auth/login` — no Redis, no store for counters — so scrypt's cost
@@ -35,6 +36,7 @@
 import { randomBytes } from 'node:crypto'
 import { createInterface } from 'node:readline'
 import { PassThrough } from 'node:stream'
+import { MIN_PASSPHRASE_LENGTH } from '@weatherteam6/types'
 
 // Runtime imports are deferred into run(): `../db/index.js` throws at import
 // time when DATABASE_URL is unset, which would pre-empt the explanation below
@@ -160,10 +162,10 @@ async function run(): Promise<void> {
   }
 
   const { value: passphrase, shown } = await resolvePassphrase(args.generate)
-  if (passphrase.length < 12) {
+  if (passphrase.length < MIN_PASSPHRASE_LENGTH) {
     console.error(
       `\nThat passphrase is ${String(passphrase.length)} characters. There is no rate limiting on` +
-        '\nthe login route, so length is the defence. Use at least 12, or --generate.\n',
+        `\nthe login route, so length is the defence. Use at least ${MIN_PASSPHRASE_LENGTH}, or --generate.\n`,
     )
     process.exit(2)
   }

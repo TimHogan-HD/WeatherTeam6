@@ -44,6 +44,7 @@ const PREFIX = 'zz-check-ui'
 const STAMP = Date.now()
 const USERNAME = `${PREFIX}-${STAMP}`
 const PASSPHRASE = `local-ui-check-${STAMP}`
+const JOIN_USERNAME = `zz-ui-join-${STAMP}`
 
 /** Taylors Falls: a known crag (locked rock type) with guidebook coverage, so every tab renders. */
 const CRAG = { name: `ZZ UI check — Taylors Falls ${STAMP}`, lat: 45.3955, lon: -92.6616 }
@@ -124,7 +125,7 @@ async function run(): Promise<void> {
 
   const { createApp } = await import('../index.js')
   const { db, pool } = await import('../db/index.js')
-  const { users, userPreferences, feedback, tripDayOutcomes, tripDayRecords } = await import('../db/schema.js')
+  const { users, userPreferences, feedback, tripDayOutcomes, tripDayRecords, invites } = await import('../db/schema.js')
   const { hashPassword } = await import('../lib/auth/password.js')
   const { eq } = await import('drizzle-orm')
   const { chromium } = await import('playwright')
@@ -135,6 +136,7 @@ async function run(): Promise<void> {
 
   let vite: ChildProcess | null = null
   let userId: string | null = null
+  let joinedUserId: string | null = null
   let locationId: string | null = null
   let gpsLocationId: string | null = null
   let secondLocationId: string | null = null
@@ -531,6 +533,38 @@ async function run(): Promise<void> {
     )
     await page.getByRole('status').filter({ hasText: 'Saved.' }).waitFor({ timeout: 15_000 })
     await screen('profile-saved')
+
+    // 3c'. Invites: the throwaway user is this process's owner, mints a link on
+    // Profile, and a signed-out browser redeems it into a new account.
+    process.env['DEFAULT_USER_ID'] = userId
+    await page.goto(`${WEB}/profile`)
+    await page.getByRole('button', { name: 'Create invite link' }).click()
+    const linkBox = page.getByText(/\/join#/)
+    await linkBox.waitFor({ timeout: 15_000 })
+    await screen('profile-invite')
+    const link = (await linkBox.innerText()).trim()
+    check('the invite link points at this app’s /join', link.startsWith(`${WEB}/join#`), link)
+
+    const joinContext = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2 })
+    const joinPage = await joinContext.newPage()
+    const joinProblems: string[] = []
+    joinPage.on('pageerror', (err) => joinProblems.push(`page error: ${err.message}`))
+    await joinPage.goto(link)
+    await joinPage.getByLabel('Username').fill(JOIN_USERNAME)
+    await joinPage.getByLabel('Passphrase', { exact: true }).fill(PASSPHRASE)
+    await joinPage.getByLabel('Repeat passphrase').fill(PASSPHRASE)
+    const joinShot = join(dir, `${String(passed + failed).padStart(2, '0')}-join.png`)
+    await joinPage.screenshot({ path: joinShot, fullPage: true })
+    await joinPage.getByRole('button', { name: 'Create account' }).click()
+    const landed = await joinPage
+      .waitForURL(`${WEB}/`, { timeout: 15_000 })
+      .then(() => true)
+      .catch(() => false)
+    check(`join creates the account and opens the list  →  ${joinShot}`, landed && joinProblems.length === 0, `${joinPage.url()} ${joinProblems.join('; ')}`)
+    const joinedRow = await db.select({ id: users.id }).from(users).where(eq(users.username, JOIN_USERNAME))
+    joinedUserId = joinedRow[0]?.id ?? null
+    check('the joined account exists', joinedUserId !== null)
+    await joinContext.close()
 
     // 3d. Feedback: an open item shows with Done, and Done clears it.
     const note = `${PREFIX} feedback note`
@@ -1048,6 +1082,15 @@ async function run(): Promise<void> {
       if (del === null || del.status >= 300) cleanupFailed = true
     }
     if (userId !== null) {
+      // Invites point at both the inviter and the joined account, so they go before either.
+      await db.delete(invites).where(eq(invites.created_by, userId)).catch(() => {
+        cleanupFailed = true
+      })
+      if (joinedUserId !== null) {
+        await db.delete(users).where(eq(users.id, joinedUserId)).catch(() => {
+          cleanupFailed = true
+        })
+      }
       // The settings and feedback rows hold a foreign key to the user, so they go first.
       await db.delete(feedback).where(eq(feedback.user_id, userId)).catch(() => {
         cleanupFailed = true

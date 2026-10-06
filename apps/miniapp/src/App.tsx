@@ -21,6 +21,7 @@ import { EditLocation } from './routes/EditLocation.js'
 import { usePreferences } from './hooks/usePreferences.js'
 import { LocationList } from './routes/LocationList.js'
 import { Login } from './routes/Login.js'
+import { Join } from './routes/Join.js'
 import { WallScreen } from './routes/WallScreen.js'
 import { ClimbScreen } from './routes/ClimbScreen.js'
 import { MapFallback, Profile, UnbuiltSection } from './routes/Sections.js'
@@ -82,6 +83,7 @@ export function App() {
         <ScrollMemory />
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/join" element={<Join />} />
           <Route
             element={
               <RequireAuth>

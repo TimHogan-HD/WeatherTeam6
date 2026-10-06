@@ -382,8 +382,18 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
   envelope, and a 25 s per-attempt fetch timeout (`FETCH_TIMEOUT_MS`).
 - **A router mounted outside `/api/v1` reads `req.userId` as `undefined`** through a type
   that says it cannot be (defect class 8). Mount inside the gate.
-- Route handlers use `req.userId`, never `DEFAULT_USER_ID`.
-- **No Clerk and no self-serve signup** — `npm run user:add` is an operator action.
+- Route handlers use `req.userId`, never `DEFAULT_USER_ID` — except `isOwner`
+  (`lib/auth/invites.ts`), which compares the two: the owner is the account
+  `DEFAULT_USER_ID` names, and an unset variable means nobody is.
+- **No Clerk and no self-serve signup. The owner chooses every account** (owner decision
+  2026-10-06): `npm run user:add`, or an invite link only the owner can mint from Profile
+  (`POST /invites`, 403 for anyone else). A link works once and expires in
+  `INVITE_TTL_MS` (7 days); the code rides in the URL fragment and only its SHA-256 is
+  stored. `POST /api/v1/auth/redeem` is the second route above the gate: it claims the
+  invite with a conditional update and creates the user in one transaction, so a taken
+  username (409) leaves the link usable and a used, expired or unknown code is one 410.
+  Usernames match `USERNAME_PATTERN` and passphrases `MIN_PASSPHRASE_LENGTH`
+  (`packages/types/account.ts`). `check:invites` runs it against Postgres.
 - **Two honest limits:** no rate limiting on `POST /api/v1/auth/login` (scrypt cost plus a
   fixed failure delay is the defence), and no token revocation (rotating `AUTH_TOKEN_SECRET`
   invalidates everything). Do not describe either as stronger than it is.
