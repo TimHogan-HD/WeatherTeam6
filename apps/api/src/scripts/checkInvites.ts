@@ -12,7 +12,7 @@
  * redeemed accounts in a `finally`.
  */
 
-import type { Account, ApiResponse, AuthLoginResponse, InviteCreated, Location } from '@weatherteam6/types'
+import type { Account, ApiResponse, AuthLoginResponse, InviteCreated, InviteSummary, Location } from '@weatherteam6/types'
 
 const PORT = 3097
 const BASE = `http://127.0.0.1:${PORT}/api/v1`
@@ -101,6 +101,7 @@ async function run(): Promise<void> {
     friendName,
     `${friendName}-2`,
     `${friendName}-3`,
+    `${friendName}-4`,
   ]
 
   try {
@@ -123,7 +124,7 @@ async function run(): Promise<void> {
     const code = minted.payload.data?.code
     if (code === undefined) throw new Error('no invite code — stopping')
     const days = (Date.parse(minted.payload.data?.expires_at ?? '') - Date.now()) / 86_400_000
-    check('it expires in about 7 days', days > 6.9 && days < 7.1, `got ${days}`)
+    check('it expires in about 2 days', days > 1.99 && days < 2.01, `got ${days}`)
     const stored = await db.select().from(invites).where(eq(invites.created_by, ownerId))
     check('the table holds a hash, not the code', stored.length === 1 && stored[0]?.code_hash !== code)
 
@@ -132,6 +133,10 @@ async function run(): Promise<void> {
       body: { code, username: friendName, passphrase: 'short' },
     })
     check('a short passphrase is 400', shortPass.status === 400, `got ${shortPass.status}`)
+    const commonPass = await call<AuthLoginResponse>('POST', '/auth/redeem', {
+      body: { code, username: friendName, passphrase: 'Password1234!' },
+    })
+    check('a common passphrase dressed up with digits is 400', commonPass.status === 400, `got ${commonPass.status}`)
     const badName = await call<AuthLoginResponse>('POST', '/auth/redeem', {
       body: { code, username: 'Has Spaces', passphrase: PASSPHRASE },
     })
@@ -190,6 +195,37 @@ async function run(): Promise<void> {
       .from(users)
       .where(or(eq(users.username, `${friendName}-2`), eq(users.username, `${friendName}-3`)))
     check('and neither refusal created an account', strays.length === 0)
+
+    console.log('\n5. The owner sees who joined, and can cancel an unused link')
+    const otherList = await call<InviteSummary[]>('GET', '/invites', { auth: other })
+    check('GET /invites by a non-owner is 403', otherList.status === 403, `got ${otherList.status}`)
+    const ownList = await call<InviteSummary[]>('GET', '/invites', { auth: owner })
+    const rows = ownList.payload.data ?? []
+    check('GET /invites lists both links, newest first', rows.length === 2 && rows[0]?.id === minted2.payload.data?.id, JSON.stringify(rows))
+    check('the used link names the account it created', rows[1]?.joined_as === friendName && rows[1]?.used_at !== null)
+    check('the unused one names nobody', rows[0]?.joined_as === null && rows[0]?.used_at === null)
+    check('no code is returned in the list', !JSON.stringify(rows).includes(code) && !JSON.stringify(rows).includes(code2))
+
+    const minted3 = await call<InviteCreated>('POST', '/invites', { auth: owner, body: {} })
+    const third = minted3.payload.data
+    if (third === undefined || third === null) throw new Error('no third invite — stopping')
+    const otherCancel = await call<null>('DELETE', `/invites/${third.id}`, { auth: other })
+    check('DELETE /invites/:id by a non-owner is 403', otherCancel.status === 403, `got ${otherCancel.status}`)
+    const usedId = rows[1]?.id ?? ''
+    const usedCancel = await call<null>('DELETE', `/invites/${usedId}`, { auth: owner })
+    check('a used link cannot be cancelled, 404', usedCancel.status === 404, `got ${usedCancel.status}`)
+    const usedKept = await db.select({ id: invites.id }).from(invites).where(eq(invites.id, usedId))
+    check('and its record of who joined is kept', usedKept.length === 1)
+    const cancelled = await call<null>('DELETE', `/invites/${third.id}`, { auth: owner })
+    check('the owner cancels an unused link, 200', cancelled.status === 200, `got ${cancelled.status}`)
+    const afterCancel = await call<AuthLoginResponse>('POST', '/auth/redeem', {
+      body: { code: third.code, username: `${friendName}-4`, passphrase: PASSPHRASE },
+    })
+    check('a cancelled link is 410', afterCancel.status === 410, `got ${afterCancel.status}`)
+    const twice = await call<null>('DELETE', `/invites/${third.id}`, { auth: owner })
+    check('cancelling it again is 404', twice.status === 404, `got ${twice.status}`)
+    const notUuid = await call<null>('DELETE', '/invites/not-a-uuid', { auth: owner })
+    check('a malformed id is 404, not 500', notUuid.status === 404, `got ${notUuid.status}`)
   } catch (err) {
     failed++
     console.log(`\n  ERROR  ${err instanceof Error ? err.message : String(err)}`)

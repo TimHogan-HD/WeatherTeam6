@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import {
   isValidUsername,
   MAX_PASSPHRASE_LENGTH,
-  MIN_PASSPHRASE_LENGTH,
+  passphraseProblem,
   type ApiResponse,
   type AuthLoginResponse,
 } from '@weatherteam6/types'
@@ -171,8 +171,9 @@ authRouter.post('/redeem', async (req: Request, res: Response) => {
     sendError(res, 400, 'username must be 2-32 lowercase letters, digits, dots, dashes or underscores')
     return
   }
-  if (passphrase.length < MIN_PASSPHRASE_LENGTH || passphrase.length > MAX_PASSPHRASE_LENGTH) {
-    sendError(res, 400, `passphrase must be ${MIN_PASSPHRASE_LENGTH} to ${MAX_PASSPHRASE_LENGTH} characters`)
+  const weak = passphraseProblem(passphrase, username)
+  if (weak !== null) {
+    sendError(res, 400, weak)
     return
   }
 

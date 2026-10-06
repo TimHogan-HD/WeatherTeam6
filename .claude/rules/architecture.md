@@ -388,12 +388,16 @@ rule are in `.claude/docs/session-archive.md` under "architecture.md history (mo
 - **No Clerk and no self-serve signup. The owner chooses every account** (owner decision
   2026-10-06): `npm run user:add`, or an invite link only the owner can mint from Profile
   (`POST /invites`, 403 for anyone else). A link works once and expires in
-  `INVITE_TTL_MS` (7 days); the code rides in the URL fragment and only its SHA-256 is
-  stored. `POST /api/v1/auth/redeem` is the second route above the gate: it claims the
+  `INVITE_TTL_MS` (48 hours, short because an unused link is a bearer credential); the
+  code rides in the URL fragment and only its SHA-256 is stored, so the list
+  (`GET /invites`, with `joined_as`) can never return one. `DELETE /invites/:id` cancels
+  an unused link by deleting it; a used one is kept as the record of who joined. A
+  forwarded link shows as an account the owner does not recognise on that list. `POST /api/v1/auth/redeem` is the second route above the gate: it claims the
   invite with a conditional update and creates the user in one transaction, so a taken
   username (409) leaves the link usable and a used, expired or unknown code is one 410.
-  Usernames match `USERNAME_PATTERN` and passphrases `MIN_PASSPHRASE_LENGTH`
-  (`packages/types/account.ts`). `check:invites` runs it against Postgres.
+  Usernames match `USERNAME_PATTERN`. A new passphrase passes `passphraseProblem`
+  (`packages/types/account.ts`: length, repeats, the username, common words under digits
+  and symbols), shared by redeem, the join screen and `user:add`; login never applies it. `check:invites` runs it against Postgres.
 - **Two honest limits:** no rate limiting on `POST /api/v1/auth/login` (scrypt cost plus a
   fixed failure delay is the defence), and no token revocation (rotating `AUTH_TOKEN_SECRET`
   invalidates everything). Do not describe either as stronger than it is.

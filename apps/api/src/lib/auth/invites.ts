@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto'
-import { and, eq, gt, isNull } from 'drizzle-orm'
-import type { InviteCreated } from '@weatherteam6/types'
+import { and, desc, eq, gt, isNull } from 'drizzle-orm'
+import type { InviteCreated, InviteSummary } from '@weatherteam6/types'
 import { db } from '../../db/index.js'
 import { invites, users } from '../../db/schema.js'
 import { hashPassword } from './password.js'
@@ -11,8 +11,14 @@ import { hashPassword } from './password.js'
  * sends the link, and the friend redeems it once.
  */
 
-/** Long enough to reach a friend who checks their messages at the weekend. */
-export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000
+/**
+ * A link is a bearer credential until it is used, so its window is short: two
+ * days to reach a friend, then mint another (owner decision 2026-10-06).
+ */
+export const INVITE_TTL_MS = 48 * 60 * 60 * 1000
+
+/** The owner's list shows this many, newest first. */
+const INVITE_LIST_LIMIT = 20
 
 /** 192 bits: unguessable, so the unauthenticated redeem route needs no rate limit. */
 const CODE_BYTES = 24
@@ -36,8 +42,50 @@ export function isOwner(userId: string): boolean {
 export async function mintInvite(createdBy: string, now: Date = new Date()): Promise<InviteCreated> {
   const code = randomBytes(CODE_BYTES).toString('base64url')
   const expiresAt = new Date(now.getTime() + INVITE_TTL_MS)
-  await db.insert(invites).values({ code_hash: hashCode(code), created_by: createdBy, expires_at: expiresAt })
-  return { code, expires_at: expiresAt.toISOString() }
+  const inserted = await db
+    .insert(invites)
+    .values({ code_hash: hashCode(code), created_by: createdBy, expires_at: expiresAt })
+    .returning({ id: invites.id })
+  const id = inserted[0]?.id
+  if (id === undefined) throw new Error('the invite insert returned no row')
+  return { id, code, expires_at: expiresAt.toISOString() }
+}
+
+/** Who joined through each of the owner's links, so a stranger's account would show. */
+export async function listInvites(createdBy: string): Promise<InviteSummary[]> {
+  const rows = await db
+    .select({
+      id: invites.id,
+      created_at: invites.created_at,
+      expires_at: invites.expires_at,
+      used_at: invites.used_at,
+      joined_as: users.username,
+    })
+    .from(invites)
+    .leftJoin(users, eq(users.id, invites.used_by))
+    .where(eq(invites.created_by, createdBy))
+    .orderBy(desc(invites.created_at))
+    .limit(INVITE_LIST_LIMIT)
+  return rows.map((r) => ({
+    id: r.id,
+    created_at: r.created_at.toISOString(),
+    expires_at: r.expires_at.toISOString(),
+    used_at: r.used_at === null ? null : r.used_at.toISOString(),
+    joined_as: r.joined_as,
+  }))
+}
+
+/**
+ * Deletes an unused link so it can no longer be redeemed. A used link is kept,
+ * because it records who joined. False when there is no unused link with that
+ * id belonging to this owner.
+ */
+export async function cancelInvite(createdBy: string, id: string): Promise<boolean> {
+  const deleted = await db
+    .delete(invites)
+    .where(and(eq(invites.id, id), eq(invites.created_by, createdBy), isNull(invites.used_at)))
+    .returning({ id: invites.id })
+  return deleted.length > 0
 }
 
 export type RedeemResult =

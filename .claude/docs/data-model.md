@@ -62,7 +62,7 @@ id          uuid PK default gen_random_uuid()
 code_hash   text NOT NULL UNIQUE   -- SHA-256 hex of the code; the code itself is never stored
 created_by  uuid NOT NULL → users.id
 created_at  timestamptz default now()
-expires_at  timestamptz NOT NULL   -- created_at + INVITE_TTL_MS (7 days)
+expires_at  timestamptz NOT NULL   -- created_at + INVITE_TTL_MS (48 hours)
 used_at     timestamptz            -- null until redeemed
 used_by     uuid → users.id        -- the account the redemption created
 ```
