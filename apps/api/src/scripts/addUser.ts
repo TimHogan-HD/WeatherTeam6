@@ -20,10 +20,10 @@
  * which lets a friend pick their own passphrase. There is no self-serve signup.
  * Use this script for the owner's own row and for resetting a passphrase.
  *
- * Passphrase strength is the real control. There is no rate limiting on
- * `POST /api/v1/auth/login` — no Redis, no store for counters — so scrypt's cost
- * and a fixed failure delay are all that stand between a weak passphrase and a
- * guessing loop. `--generate` exists so the easy path is also the strong one.
+ * Passphrase strength is still the main control: login is capped per username,
+ * but a patient guesser gets ten tries every fifteen minutes. A typed passphrase
+ * must pass `passphraseProblem`; `--generate` exists so the easy path is also
+ * the strong one.
  *
  * Re-running for an existing username resets that user's passphrase in place;
  * it does not create a second row. Existing tokens for that user keep working —

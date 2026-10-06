@@ -20,6 +20,7 @@ Migrations are at `0006` (`weather_alerts.notified_at`). Note `weather_alerts.no
 ```
 users
 invites                 -- migration 0028, written by POST /invites and /auth/redeem
+login_attempts          -- migration 0029, written by POST /auth/login (the per-username cap)
 locations
 crags
 rainfall_history
@@ -69,6 +70,17 @@ used_by     uuid → users.id        -- the account the redemption created
 Owner-minted, single-use links to create an account (`lib/auth/invites.ts`). No
 `location_id`, so `deleteLocationCascade` never touches it. Nothing prunes it; a few rows
 a year.
+
+### login_attempts
+```typescript
+id            uuid PK default gen_random_uuid()
+key_hash      text NOT NULL          -- SHA-256 of 'login:' + trimmed, lowercased username
+attempted_at  timestamptz default now()
+```
+One row per sign-in attempt inside the 15-minute window (`lib/auth/loginThrottle.ts`).
+Each attempt prunes rows older than the window, and a success deletes its key's rows, so
+the table holds one window at most. Never the username itself: a passphrase typed into the
+username box would otherwise be stored in plain text.
 
 ### locations
 User-saved locations (crags or general weather spots).

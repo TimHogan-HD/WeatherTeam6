@@ -89,7 +89,8 @@ async function run(): Promise<void> {
 
   const { createApp } = await import('../index.js')
   const { db, pool } = await import('../db/index.js')
-  const { users, locations, trips, tripLocations, walls, feedback } = await import('../db/schema.js')
+  const { users, locations, trips, tripLocations, walls, feedback, loginAttempts } = await import('../db/schema.js')
+  const { LOGIN_ATTEMPT_LIMIT, keyFor } = await import('../lib/auth/loginThrottle.js')
   const { hashPassword } = await import('../lib/auth/password.js')
   const { signToken, expiryFrom } = await import('../lib/auth/token.js')
   const { eq, inArray } = await import('drizzle-orm')
@@ -117,6 +118,7 @@ async function run(): Promise<void> {
 
   const userA = { username: `${PREFIX}-a-${STAMP}`, passphrase: 'correct-horse-battery-a' }
   const userB = { username: `${PREFIX}-b-${STAMP}`, passphrase: 'correct-horse-battery-b' }
+  const throttleKeys = ['a', 'b', 'nobody', 'ghost', 'burst'].map((s) => keyFor(`${PREFIX}-${s}-${STAMP}`))
 
   try {
     console.log('\nCreating two users and one location each')
@@ -308,6 +310,49 @@ async function run(): Promise<void> {
     const strayWalls = await db.select({ id: walls.id }).from(walls).where(eq(walls.location_id, locB))
     check('and none of them wrote a row', strayTrips.length === 0 && strayWalls.length === 0)
 
+    console.log('\n3b. Sign-in attempts are capped per username')
+    const tryLogin = (username: string, passphrase: string) =>
+      call<AuthLoginResponse>('POST', '/auth/login', { body: { username, passphrase } })
+    // Section 2's wrong passphrase for A counts; start every username here from nothing.
+    await db.delete(loginAttempts).where(inArray(loginAttempts.key_hash, throttleKeys))
+
+    for (let i = 0; i < LOGIN_ATTEMPT_LIMIT - 1; i++) await tryLogin(userB.username, 'wrong-passphrase-here')
+    const lastTry = await tryLogin(userB.username, userB.passphrase)
+    check(`the right passphrase on attempt ${LOGIN_ATTEMPT_LIMIT} still signs in`, lastTry.status === 200, `got ${lastTry.status}`)
+    const afterSuccess = await db.select({ id: loginAttempts.id }).from(loginAttempts).where(eq(loginAttempts.key_hash, keyFor(userB.username)))
+    check('and a successful sign-in clears the count', afterSuccess.length === 0, `${afterSuccess.length} rows left`)
+
+    for (let i = 0; i < LOGIN_ATTEMPT_LIMIT; i++) await tryLogin(userB.username, 'wrong-passphrase-here')
+    const capped = await tryLogin(userB.username, userB.passphrase)
+    check(`attempt ${LOGIN_ATTEMPT_LIMIT + 1} is 429 even with the right passphrase`, capped.status === 429, `got ${capped.status}`)
+    const otherUser = await tryLogin(userA.username, userA.passphrase)
+    check('another username is unaffected', otherUser.status === 200, `got ${otherUser.status}`)
+
+    const ghost = `${PREFIX}-ghost-${STAMP}`
+    for (let i = 0; i < LOGIN_ATTEMPT_LIMIT; i++) await tryLogin(ghost, 'wrong-passphrase-here')
+    const ghostCapped = await tryLogin(ghost, 'wrong-passphrase-here')
+    check('an unknown username is capped the same way, so the cap reveals nothing', ghostCapped.status === 429, `got ${ghostCapped.status}`)
+
+    const stored = await db.select({ key: loginAttempts.key_hash }).from(loginAttempts)
+    check(
+      'the table holds hashes, never a username',
+      stored.every((r) => r.key !== userB.username && r.key !== ghost && /^[0-9a-f]{64}$/.test(r.key)),
+    )
+
+    const burstName = `${PREFIX}-burst-${STAMP}`
+    const burst = await Promise.all(Array.from({ length: 25 }, () => tryLogin(burstName, 'wrong-passphrase-here')))
+    const checked = burst.filter((r) => r.status === 401).length
+    check(
+      `25 attempts fired at once check at most ${LOGIN_ATTEMPT_LIMIT} passphrases`,
+      checked <= LOGIN_ATTEMPT_LIMIT && burst.every((r) => r.status === 401 || r.status === 429),
+      `${checked} checked; statuses ${[...new Set(burst.map((r) => r.status))].join(', ')}`,
+    )
+    const rowsFor = async (name: string) =>
+      (await db.select({ id: loginAttempts.id }).from(loginAttempts).where(eq(loginAttempts.key_hash, keyFor(name)))).length
+    const atCap = await rowsFor(ghost)
+    for (let i = 0; i < 3; i++) await tryLogin(ghost, 'wrong-passphrase-here')
+    check('refused attempts on a capped username add no rows', (await rowsFor(ghost)) === atCap, `${atCap} → ${await rowsFor(ghost)}`)
+
     console.log('\n4. The other schemes and the mount order still behave')
     const bearer = await call<Location[]>('GET', '/locations', { auth: `Bearer ${SHARED_SECRET}` })
     check('Bearer still works', bearer.status === 200, `got ${bearer.status}`)
@@ -373,6 +418,7 @@ async function run(): Promise<void> {
         await db.delete(feedback).where(inArray(feedback.user_id, createdUserIds))
         await db.delete(users).where(inArray(users.id, createdUserIds))
       }
+      await db.delete(loginAttempts).where(inArray(loginAttempts.key_hash, throttleKeys))
     } catch (err) {
       cleaned = false
       console.log(`\n  CLEANUP FAILED — ${err instanceof Error ? err.message : String(err)}`)

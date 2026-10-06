@@ -8,6 +8,7 @@ import {
 } from '@weatherteam6/types'
 import { authenticateUser } from '../lib/auth/credentials.js'
 import { MAX_CODE_LENGTH, redeemInvite } from '../lib/auth/invites.js'
+import { admitLoginAttempt, clearLoginAttempts } from '../lib/auth/loginThrottle.js'
 import { expiryFrom, signToken } from '../lib/auth/token.js'
 import { logger } from '../lib/logger.js'
 import { sendServerError } from '../lib/http.js'
@@ -24,9 +25,9 @@ export const authRouter = Router()
  * `requireApiAuth`, which 401s it. That is the behaviour we want: the holes in
  * the gate are exactly two POSTs, `/login` and `/redeem`.
  *
- * **No rate limiting.** There is no Redis and no store for counters. scrypt's
- * cost plus `FAILURE_DELAY_MS` below is the whole defence, and passphrase
- * strength is the real control — `npm run user:add` says so at the prompt.
+ * **Login is capped per username** (`lib/auth/loginThrottle.ts`, counted in
+ * Postgres): a 429 after `LOGIN_ATTEMPT_LIMIT` attempts in its window. scrypt's
+ * cost, `FAILURE_DELAY_MS` and `passphraseProblem` on new passphrases do the rest.
  */
 
 /**
@@ -102,6 +103,15 @@ authRouter.post('/login', async (req: Request, res: Response) => {
   }
 
   try {
+    if (!(await admitLoginAttempt(username))) {
+      // Same answer for a known and an unknown username, so the cap is not a
+      // username oracle either.
+      logger.warn({ path: req.path }, '[auth] login throttled')
+      await delay(FAILURE_DELAY_MS)
+      sendError(res, 429, 'Too many sign-in attempts. Try again later.')
+      return
+    }
+
     const userId = await authenticateUser(username, passphrase)
 
     if (userId === null) {
@@ -114,6 +124,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
       return
     }
 
+    await clearLoginAttempts(username)
     logger.info({ userId }, '[auth] login succeeded')
     sendToken(res, userId, secret)
   } catch (err) {
