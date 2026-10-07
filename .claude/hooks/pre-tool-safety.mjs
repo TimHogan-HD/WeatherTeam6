@@ -133,6 +133,15 @@ function stripInertText(cmd) {
   out = out.replace(/@(['"])\r?\n[\s\S]*$/, ' HERESTRING ')
   // -m "..." / -m '...' / --message=...
   out = out.replace(/(-m|--message)(\s+|=)(['"])[\s\S]*?\3/g, '$1 MSG')
+  // A search pattern is data too: `grep -n 'drizzle-kit push' file` was refused
+  // as if it ran the push (2026-10-07). Quoted arguments of a search command are
+  // dropped; a double-quoted one that substitutes a command is kept, since that
+  // command does run.
+  out = out.replace(
+    /(^|&&|\|\||[;\n|(])(\s*(?:grep|egrep|fgrep|rg|git\s+grep|Select-String|sls|findstr)\b)([^;&|\n]*)/gi,
+    (_, sep, verb, args) =>
+      sep + verb + args.replace(/'[^']*'|"(?:(?!\$\(|`)[^"])*"/g, ' PATTERN '),
+  )
   return out
 }
 
@@ -308,7 +317,8 @@ if (tool === 'Bash' || tool === 'PowerShell') {
 
 /* ---------------------------------------------------------------- *
  * 6. Merging a PR the CI reviewer has not reviewed at its head commit.
- *    See lib/reviewGate.mjs. Stands down when GitHub cannot be read.
+ *    See lib/reviewGate.mjs. Fails closed: if GitHub cannot be read, the
+ *    review cannot be confirmed, and the merge is refused.
  * ---------------------------------------------------------------- */
 {
   let target = null
@@ -319,7 +329,14 @@ if (tool === 'Bash' || tool === 'PowerShell') {
   }
   if (target) {
     const state = reviewState(target.pr)
-    if (state && !state.reviewed && !state.exempt) {
+    if (state === null) {
+      block(
+        'Cannot confirm the CI review: GitHub could not be read (`gh api` failed or found no PR ' +
+          'for this branch). The merge gate fails closed. Check `gh auth status` and retry; if gh ' +
+          'cannot work here, tell the user the PR is ready and they can merge by hand.',
+      )
+    }
+    if (!state.reviewed && !state.exempt) {
       block(
         `PR #${state.number} has no "${REVIEW_HEADING}" comment for its head commit ` +
           `${String(state.headSha).slice(0, 7)}. Merging waits for the CI reviewer.\n` +

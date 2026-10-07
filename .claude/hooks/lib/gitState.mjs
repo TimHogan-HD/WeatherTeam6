@@ -93,7 +93,25 @@ export function unpushedCommits() {
   return out ? out.split(/\r?\n/).filter(Boolean) : []
 }
 
-/** Open PRs, as [{number, title, headRefName, mergeable, reviewDecision, state}]. */
+/** `gh api <path>` parsed as JSON, or `null` on any failure. */
+export function ghApi(path) {
+  const raw = gh(['api', path])
+  if (raw === null) return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Open PRs, as [{number, title, headRefName, mergeable, statusCheckRollup}].
+ *
+ * `gh pr list` is GraphQL, which cloud sessions are refused (HTTP 403), so on
+ * 2026-10-07 every gh-backed check here had been silently off in them. REST is
+ * the fallback: the same shape from `pulls`, `pulls/<n>` (the list endpoint
+ * omits `mergeable`), and the head commit's check runs and statuses.
+ */
 export function openPullRequests() {
   const raw = gh([
     'pr',
@@ -103,12 +121,41 @@ export function openPullRequests() {
     '--json',
     'number,title,headRefName,mergeable,statusCheckRollup',
   ])
-  if (!raw) return null // gh unavailable — caller must not treat this as "none".
-  try {
-    return JSON.parse(raw)
-  } catch {
-    return null
+  if (raw) {
+    try {
+      return JSON.parse(raw)
+    } catch {
+      return null
+    }
   }
+  return openPullRequestsRest()
+}
+
+function openPullRequestsRest() {
+  const list = ghApi('repos/{owner}/{repo}/pulls?state=open&per_page=50')
+  if (!Array.isArray(list)) return null // unreadable — never "none"
+  const out = []
+  for (const p of list) {
+    const detail = ghApi(`repos/{owner}/{repo}/pulls/${p.number}`)
+    const runs = ghApi(`repos/{owner}/{repo}/commits/${p.head?.sha}/check-runs?per_page=100`)
+    const status = ghApi(`repos/{owner}/{repo}/commits/${p.head?.sha}/status`)
+    if (!detail || !runs || !status) return null
+    const rollup = [
+      ...(runs.check_runs ?? []).map((r) => ({
+        status: String(r.status ?? '').toUpperCase(),
+        conclusion: String(r.conclusion ?? '').toUpperCase(),
+      })),
+      ...(status.statuses ?? []).map((s) => ({ state: String(s.state ?? '').toUpperCase() })),
+    ]
+    out.push({
+      number: p.number,
+      title: p.title,
+      headRefName: p.head?.ref,
+      mergeable: detail.mergeable === true ? 'MERGEABLE' : detail.mergeable === false ? 'CONFLICTING' : 'UNKNOWN',
+      statusCheckRollup: rollup,
+    })
+  }
+  return out
 }
 
 /** True when every completed check on the PR succeeded and none is pending. */

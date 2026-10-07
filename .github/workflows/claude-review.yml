@@ -8,8 +8,9 @@ name: Claude Review
 # because the user asked for a second audit by hand. This runs on GitHub, on
 # the pushed diff, with no memory of why the code was written that way.
 #
-# Findings are advisory: they post as inline comments and never block the merge.
-# CI is what blocks.
+# Findings are advisory: they post as inline comments and do not fail the job.
+# The job fails only when no summary names the head commit, which is also what
+# the local merge gate (.claude/hooks/lib/reviewGate.mjs) refuses on.
 #
 # REQUIRES the CLAUDE_CODE_OAUTH_TOKEN repository secret. Without it every run
 # skips cleanly with a note rather than failing the PR.
@@ -55,6 +56,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Full review on the first pass (Opus); after that, a push is reviewed only
+      # from the last commit a summary covered (Sonnet, fewer turns). The merge
+      # gate needs a summary per head commit, so before 2026-10-07 every push paid
+      # for a full review. Decision and fallbacks: .claude/hooks/lib/reviewScope.mjs.
+      - name: Choose the review scope
+        id: scope
+        if: steps.cred.outputs.present == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_ACTION: ${{ github.event.action }}
+        run: node .github/scripts/review-scope.mjs
+
       - uses: anthropics/claude-code-action@v1
         if: steps.cred.outputs.present == 'true'
         with:
@@ -69,9 +84,16 @@ jobs:
             Review pull request #${{ github.event.pull_request.number }} in ${{ github.repository }}.
             The PR head is checked out. Base branch: ${{ github.event.pull_request.base.ref }}.
 
-            1. Run `git diff origin/${{ github.event.pull_request.base.ref }}...HEAD` and read the whole diff.
-            2. Read `.claude/rules/defect-patterns.md` and the parts of `.claude/rules/architecture.md`
-               and `CLAUDE.md` that apply to the files changed.
+            Scope: ${{ steps.scope.outputs.mode }}.
+
+            1. If the scope is full: run `git diff origin/${{ github.event.pull_request.base.ref }}...HEAD`
+               and read the whole diff.
+               If the scope is incremental: commit ${{ steps.scope.outputs.since }} was already reviewed in
+               full. Run `git diff ${{ steps.scope.outputs.since }} HEAD -- $(git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD)`
+               and review only that. Do not re-report findings already posted on this PR.
+            2. `.claude/rules/defect-patterns.md`, `.claude/rules/architecture.md` and `CLAUDE.md` load
+               automatically; read them only if they are not already in your context. Apply the parts
+               that govern the files changed.
             3. For each hunk, ask what it does when an input is null, 0, absent, or a fetch fails, and
                whether it breaks a written rule. Read surrounding code and callers with Read/Grep before
                claiming anything; grep for where a field is read, not only where it is set.
@@ -80,7 +102,8 @@ jobs:
                No style nits, no praise.
             5. Finish with exactly one PR comment via `gh pr comment ${{ github.event.pull_request.number }} --body "..."`:
                a "## Claude review" heading, a line "Commit: ${{ github.event.pull_request.head.sha }}"
-               (the full SHA, exactly), the number of findings, and a line "Read: <the files you opened>".
+               (the full SHA, exactly), a line "Scope: ${{ steps.scope.outputs.mode }}", the number of
+               findings, and a line "Read: <the files you opened>".
                If you found nothing, say so and still list what you read. Start the body with
                "## Claude review" and put no other line in it that begins with `#` — no further
                headings, no handoff block. Claude Code refuses a Bash command in which a newline is
@@ -109,9 +132,36 @@ jobs:
           # `gh pr comment` is the one write: the summary line above. `gh pr view`
           # and `gh pr diff` read.
           claude_args: >-
-            --max-turns 60
+            --model ${{ steps.scope.outputs.model }}
+            --max-turns ${{ steps.scope.outputs.max_turns }}
             --allowedTools
             "Read,Grep,Glob,Task,TodoWrite,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status),Bash(git merge-base:*),Bash(git rev-parse:*),Bash(git ls-files:*),Bash(ls:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),mcp__github_inline_comment__create_inline_comment"
+
+      # A run that ends without the summary is a failed run, not a green one: the
+      # check then says what the merge gate already knows, and is fit to be made a
+      # required status check in branch protection.
+      - name: Confirm the summary names the head commit
+        if: steps.cred.outputs.present == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          # The action skips a PR that changes this file (it must match the
+          # default branch), so no summary can exist; the merge gate exempts
+          # such a PR for the same reason.
+          if git diff --name-only "origin/${BASE_REF}...HEAD" | grep -qx '.github/workflows/claude-review.yml'; then
+            echo "::notice title=Review skipped::This PR edits claude-review.yml; the reviewer cannot run on it."
+            exit 0
+          fi
+          found=$(gh api --paginate "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments?per_page=100" \
+            --jq '[.[] | select((.user.login | test("^claude(\\[bot\\])?$"; "i")) and (.body | contains("## Claude review")) and (.body | contains(env.HEAD_SHA)))] | length' \
+            | awk '{s+=$1} END {print s+0}')
+          if [ "$found" -eq 0 ]; then
+            echo "::error title=No review summary::The reviewer posted no '## Claude review' comment naming ${HEAD_SHA}."
+            exit 1
+          fi
 
       # The run log records `permission_denials_count` and nothing about *which*
       # tool was denied, so the two failures above were both diagnosed by

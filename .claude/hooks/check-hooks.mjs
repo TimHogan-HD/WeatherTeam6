@@ -16,6 +16,7 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { mergeRequest, reviewCoversHead } from './lib/reviewGate.mjs'
+import { FULL, INCREMENTAL, lastReviewedSha, pickScope } from './lib/reviewScope.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const PRE = join(here, 'pre-tool-safety.mjs')
@@ -96,6 +97,13 @@ const cases = [
   ['PS Set-Content .env.example', PRE, ps('Set-Content .env.example "KEY="'), ALLOW],
   ['PS Get-ChildItem -Recurse -Force', PRE, ps('Get-ChildItem -Recurse -Force'), ALLOW],
   ['PS npm run test', PRE, ps('npm run test'), ALLOW],
+  // A search pattern is data, not a command (refused live on 2026-10-07).
+  ['grep for drizzle-kit push', PRE, bash("grep -n 'drizzle-kit push' .claude/hooks/check-hooks.mjs"), ALLOW],
+  ['rg for DROP TABLE after a pipe', PRE, bash('git log -p | rg "DROP TABLE"'), ALLOW],
+  ['git grep for TRUNCATE CASCADE', PRE, bash("git grep -n 'truncate locations cascade'"), ALLOW],
+  ['PS Select-String for drizzle-kit push', PRE, ps("Select-String -Pattern 'drizzle-kit push' -Path *.md"), ALLOW],
+  ['a real push after a grep is still caught', PRE, bash("grep -q x f && npx drizzle-kit push"), BLOCK],
+  ['a command substituted into a grep is still caught', PRE, bash('grep "$(npx drizzle-kit push)" f'), BLOCK],
 
   // NOTE: the "prose about a forbidden command" cases used to live here. They
   // carry `git commit` payloads, so once the default-branch guard landed their
@@ -178,7 +186,19 @@ for (const [name, hook, payload, expectedCode, fragment] of cases) {
   const silenceOk =
     hook === POST && !fragment && expectedCode === ALLOW ? output.trim() === '' : true
 
-  if (codeOk && fragmentOk && silenceOk) {
+  // Text the post hook means Claude to read must be where Claude Code reads it:
+  // `hookSpecificOutput.additionalContext`. A bare substring check passed for a
+  // month while the field sat at the top level, unread.
+  let shapeOk = true
+  if (hook === POST && fragment) {
+    try {
+      shapeOk = String(JSON.parse(result.stdout).hookSpecificOutput?.additionalContext ?? '').includes(fragment)
+    } catch {
+      shapeOk = false
+    }
+  }
+
+  if (codeOk && fragmentOk && silenceOk && shapeOk) {
     passes += 1
     console.log(`  PASS  ${name}`)
   } else {
@@ -187,6 +207,7 @@ for (const [name, hook, payload, expectedCode, fragment] of cases) {
     if (!codeOk) console.log(`          expected exit ${expectedCode}, got ${result.code}`)
     if (!fragmentOk) console.log(`          expected output to contain: ${fragment}`)
     if (!silenceOk) console.log(`          expected no output, got: ${output.trim()}`)
+    if (!shapeOk) console.log('          expected the text in hookSpecificOutput.additionalContext')
   }
 }
 
@@ -210,6 +231,21 @@ const gateCases = [
   ['review: a human cannot post the review', reviewCoversHead([bot(`## Claude review\nCommit: ${SHA}`, 'TimHogan-HD')], SHA), false],
   ['review: the old plugin summary does not cover', reviewCoversHead([bot('## Code review\n\nNo issues found.')], SHA), false],
   ['review: no head SHA covers nothing', reviewCoversHead([bot('## Claude review')], ''), false],
+  // The CI reviewer's scope (lib/reviewScope.mjs).
+  ...(() => {
+    const OLD = 'b'.repeat(40)
+    const reviewed = [bot(`## Claude review\nCommit: ${OLD}`)]
+    const scope = (over) =>
+      pickScope({ action: 'synchronize', headSha: SHA, comments: reviewed, isAncestor: () => true, ...over })
+    return [
+      ['scope: a push after a review is incremental from it', scope({}), { ...INCREMENTAL, since: OLD }],
+      ['scope: no earlier summary is full', scope({ comments: [] }), { ...FULL, since: null }],
+      ['scope: a human-posted summary does not count', scope({ comments: [bot(`## Claude review\nCommit: ${OLD}`, 'TimHogan-HD')] }), { ...FULL, since: null }],
+      ['scope: a force-push past the reviewed commit is full', scope({ isAncestor: () => false }), { ...FULL, since: null }],
+      ['scope: ready_for_review is full', scope({ action: 'ready_for_review' }), { ...FULL, since: null }],
+      ['scope: the newest summary is the base', lastReviewedSha([...reviewed, bot(`## Claude review\nCommit: ${'c'.repeat(40)}`)]), 'c'.repeat(40)],
+    ]
+  })(),
 ]
 for (const [name, actual, expected] of gateCases) {
   if (JSON.stringify(actual) === JSON.stringify(expected)) {
@@ -451,12 +487,20 @@ const gitScenarios = [
     'uncommitted changes',
   ],
   [
-    'PreToolUse: gh pr merge stands down when GitHub cannot be read',
+    'PreToolUse: gh pr merge fails closed when GitHub cannot be read',
     (w) => g(w, 'checkout', '-b', 'feat/gate'),
     PRE,
     bash('gh pr merge 5 --squash --delete-branch'),
-    ALLOW,
-    null,
+    BLOCK,
+    'fails closed',
+  ],
+  [
+    'PreToolUse: an MCP merge fails closed when GitHub cannot be read',
+    (w) => g(w, 'checkout', '-b', 'feat/gate'),
+    PRE,
+    { tool_name: 'mcp__github__merge_pull_request', tool_input: { pullNumber: 5 } },
+    BLOCK,
+    'fails closed',
   ],
   [
     'Stop: unpushed commits on main block the turn',
@@ -789,15 +833,42 @@ const sessionScenarios = [
       return ctx.includes('TRUNCATED') ? null : 'did not truncate an oversized state doc'
     },
   ],
+  [
+    'SessionStart: the whole injection stays under the 10,000-character cap',
+    (w) => withState(w, 'x'.repeat(30000)),
+    (out) => {
+      const n = JSON.parse(out).hookSpecificOutput.additionalContext.length
+      return n < 10000 ? null : `injected ${n} characters`
+    },
+  ],
+  [
+    'SessionStart: after a compaction STATE.md is not injected again',
+    (w) => withState(w, '# Current state\nSENTINEL_STATE_BODY\n'),
+    (out) => {
+      const ctx = JSON.parse(out).hookSpecificOutput.additionalContext
+      if (ctx.includes('SENTINEL_STATE_BODY')) return 're-injected STATE.md on compact'
+      return ctx.includes('## Repository') ? null : 'dropped the repository block too'
+    },
+    { source: 'compact' },
+  ],
+  [
+    'SessionStart: after /clear STATE.md is injected',
+    (w) => withState(w, '# Current state\nSENTINEL_STATE_BODY\n'),
+    (out) =>
+      JSON.parse(out).hookSpecificOutput.additionalContext.includes('SENTINEL_STATE_BODY')
+        ? null
+        : 'did not inline STATE.md after /clear',
+    { source: 'clear' },
+  ],
 ]
 
-for (const [name, setup, assertion] of sessionScenarios) {
+for (const [name, setup, assertion, extra] of sessionScenarios) {
   const { root, work } = makeRepo()
   try {
     setup(work)
     const r = spawnSync(process.execPath, [SESSION_START], {
       cwd: work,
-      input: JSON.stringify({ hook_event_name: 'SessionStart', matcher: 'startup' }),
+      input: JSON.stringify({ hook_event_name: 'SessionStart', source: 'startup', ...extra }),
       encoding: 'utf8',
     })
     let problem = null

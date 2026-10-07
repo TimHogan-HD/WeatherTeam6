@@ -182,8 +182,10 @@ const green = prs.filter((p) => p.mergeable === 'MERGEABLE' && checksArePassing(
 // The merge gate (lib/reviewGate.mjs) refuses a PR the CI reviewer has not
 // covered at its head, so asking for that merge would only loop. Green means the
 // reviewer job has finished; if it left no summary, that is the thing to fix.
+// An unreadable review state asks for nothing: the gate fails closed on it, so
+// asking for that merge would only loop.
 const states = green.map((p) => ({ p, s: reviewState(p.number) }))
-const ready = states.filter(({ s }) => s === null || s.reviewed || s.exempt).map(({ p }) => p)
+const ready = states.filter(({ s }) => s !== null && (s.reviewed || s.exempt)).map(({ p }) => p)
 const unreviewed = states.filter(({ s }) => s !== null && !s.reviewed && !s.exempt)
 if (ready.length > 0) {
   blockTurn([

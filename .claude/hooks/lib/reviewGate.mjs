@@ -12,7 +12,7 @@
  * one.
  */
 
-import { gh } from './gitState.mjs'
+import { currentBranch, ghApi } from './gitState.mjs'
 
 export const REVIEW_HEADING = '## Claude review'
 export const REVIEW_WORKFLOW = '.github/workflows/claude-review.yml'
@@ -42,34 +42,31 @@ export function reviewCoversHead(comments, headSha) {
 
 /**
  * `{ number, headSha, reviewed, exempt }` for a PR (the current branch's when
- * `pr` is null), or `null` when GitHub cannot be read — callers stand down
- * rather than guess, as every other gh-backed guard here does.
+ * `pr` is null), or `null` when GitHub cannot be read. The merge guard refuses
+ * on `null` (fail closed, since 2026-10-07): a gate that opens whenever `gh`
+ * fails was open in every cloud session, where GraphQL is refused.
  *
- * `exempt`: the reviewer action refuses to run on a PR that changes its own
- * workflow file, so such a PR can never be reviewed and is not held for one.
+ * REST only, for that reason. `exempt`: the reviewer action refuses to run on a
+ * PR that changes its own workflow file, so such a PR can never be reviewed and
+ * is not held for one.
  */
 export function reviewState(pr) {
-  const raw = gh(['pr', 'view', ...(pr ? [String(pr)] : []), '--json', 'number,headRefOid,files'])
-  if (!raw) return null
-  let view
-  try {
-    view = JSON.parse(raw)
-  } catch {
-    return null
+  let number = pr
+  if (!number) {
+    const branch = currentBranch()
+    const open = branch ? ghApi('repos/{owner}/{repo}/pulls?state=open&per_page=100') : null
+    if (!Array.isArray(open)) return null
+    number = open.find((p) => p?.head?.ref === branch)?.number
+    if (!number) return null
   }
-  const exempt = (view.files ?? []).some((f) => f?.path === REVIEW_WORKFLOW)
-  const comments = gh(['api', `repos/{owner}/{repo}/issues/${view.number}/comments?per_page=100`])
-  if (comments === null) return null
-  let list
-  try {
-    list = JSON.parse(comments)
-  } catch {
-    return null
-  }
+  const view = ghApi(`repos/{owner}/{repo}/pulls/${number}`)
+  const files = ghApi(`repos/{owner}/{repo}/pulls/${number}/files?per_page=100`)
+  const comments = ghApi(`repos/{owner}/{repo}/issues/${number}/comments?per_page=100`)
+  if (!view?.head?.sha || !Array.isArray(files) || !Array.isArray(comments)) return null
   return {
-    number: view.number,
-    headSha: view.headRefOid,
-    reviewed: reviewCoversHead(list, view.headRefOid),
-    exempt,
+    number,
+    headSha: view.head.sha,
+    reviewed: reviewCoversHead(comments, view.head.sha),
+    exempt: files.some((f) => f?.filename === REVIEW_WORKFLOW),
   }
 }
