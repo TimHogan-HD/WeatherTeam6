@@ -33,8 +33,9 @@ function readStdin() {
 function emit(context) {
   process.stdout.write(
     `${JSON.stringify({
-      hookSpecificOutput: { hookEventName: 'PostToolUse' },
-      additionalContext: context,
+      // Inside hookSpecificOutput. Until 2026-10-07 this sat beside it, where
+      // Claude Code does not read it, so the reminder never reached the model.
+      hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: context },
     })}\n`,
   )
   process.exit(0)

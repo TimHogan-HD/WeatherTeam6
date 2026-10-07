@@ -13,14 +13,29 @@ document that was mandatory reading.
 It describes the project *now*. You **replace** the stale parts rather than appending — if a
 gotcha stopped being true, delete it; if the direction changed, rewrite it. There is exactly
 one current version by construction, so it cannot develop the two-ends-newest ordering
-problem the old log had. Keep it short enough to be read at every session start: if it is
-growing past ~1,500 words, something in it is history and belongs in the archive.
+problem the old log had. Keep it short enough to be read at every session start: **under
+6,000 characters.** The SessionStart hook keeps its whole injection under Claude Code's
+10,000-character cap and truncates STATE.md to fit, so anything past that is cut off. If it
+is growing past that, something in it is history and belongs in the archive.
 
 ## 2. Append a full state block to `.claude/docs/session-archive.md`
 
 This is the permanent record and is **never read at session start** — it is grepped when
-someone needs the reasoning behind one specific past decision. Append; never prepend. Use
-this exact format:
+someone needs the reasoning behind one specific past decision. Append; never prepend.
+
+**Never Read or Edit the archive to append to it.** It is over 400 KB (~100k tokens), and the
+Edit tool reads the whole file first. Write the block to a scratch file with the Write tool,
+then append it from the shell:
+
+```bash
+cat <scratch-file> >> .claude/docs/session-archive.md
+```
+```powershell
+Get-Content <scratch-file> -Raw | Add-Content .claude/docs/session-archive.md -NoNewline
+```
+
+Check the result with `tail -n 30` (or `Get-Content -Tail 30`), not a Read. Use this exact
+format:
 
 ```
 ---

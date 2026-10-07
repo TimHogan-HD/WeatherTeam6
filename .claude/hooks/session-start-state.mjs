@@ -31,6 +31,7 @@ import {
   currentBranch,
   defaultBranch,
   gh,
+  ghApi,
   git,
   hasRemote,
   isGitRepo,
@@ -41,8 +42,14 @@ import {
 import { activePeers } from './lib/sessionClaims.mjs'
 
 const STATE_DOC = '.claude/docs/STATE.md'
-/** Guard against a STATE.md that has grown past what it should be. */
-const STATE_DOC_MAX_CHARS = 24000
+/**
+ * Claude Code caps `additionalContext` at 10,000 characters; past that the model
+ * sees a file path and a 2,000-character preview instead. The whole injection is
+ * kept under this budget, and STATE.md is what gives way.
+ */
+const CONTEXT_BUDGET_CHARS = 9500
+/** Issue titles listed; the rest are counted. */
+const ISSUES_SHOWN = 15
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -105,16 +112,31 @@ function pullRequests() {
   ].join('\n')
 }
 
-function issues() {
-  const raw = gh(['issue', 'list', '--state', 'open', '--limit', '30', '--json', 'number,title'])
-  if (!raw) return 'open issues: could not read (gh unavailable)'
-  try {
-    const list = JSON.parse(raw)
-    if (list.length === 0) return 'open issues: none'
-    return [`open issues: ${list.length}`, ...list.map((i) => `  #${i.number} ${i.title}`)].join('\n')
-  } catch {
-    return 'open issues: could not parse'
+/** Open issues, GraphQL first and REST where it is refused (cloud sessions). */
+function openIssues() {
+  const raw = gh(['issue', 'list', '--state', 'open', '--limit', '100', '--json', 'number,title'])
+  if (raw) {
+    try {
+      return JSON.parse(raw)
+    } catch {
+      return null
+    }
   }
+  const rest = ghApi('repos/{owner}/{repo}/issues?state=open&per_page=100')
+  // The issues endpoint also returns PRs.
+  return Array.isArray(rest) ? rest.filter((i) => !i.pull_request) : null
+}
+
+function issues() {
+  const list = openIssues()
+  if (list === null) return 'open issues: could not read (gh unavailable)'
+  if (list.length === 0) return 'open issues: none'
+  const more = list.length > ISSUES_SHOWN ? [`  ...and ${list.length - ISSUES_SHOWN} more: gh issue list`] : []
+  return [
+    `open issues: ${list.length}`,
+    ...list.slice(0, ISSUES_SHOWN).map((i) => `  #${i.number} ${i.title}`),
+    ...more,
+  ].join('\n')
 }
 
 /**
@@ -195,14 +217,13 @@ function toolingWarnings(sessionId) {
   return out
 }
 
-function stateDoc() {
+function stateDoc(maxChars) {
   try {
     const text = readFileSync(STATE_DOC, 'utf8')
-    if (text.length > STATE_DOC_MAX_CHARS) {
+    if (text.length > maxChars) {
       return (
-        `${text.slice(0, STATE_DOC_MAX_CHARS)}\n\n[TRUNCATED — ${STATE_DOC} is over ` +
-        `${STATE_DOC_MAX_CHARS} characters. Per the Session End Protocol it should be ` +
-        `short enough to read every session; move the history into the archive.]`
+        `${text.slice(0, Math.max(0, maxChars))}\n\n[TRUNCATED: ${STATE_DOC} did not fit the ` +
+        `session-start budget. Read the rest of it, and shorten it in /session-end.]`
       )
     }
     return text
@@ -213,13 +234,20 @@ function stateDoc() {
 
 try {
   let sessionId = null
+  let source = 'startup'
   try {
-    sessionId = JSON.parse(await readStdin())?.session_id ?? null
+    const payload = JSON.parse(await readStdin())
+    sessionId = payload?.session_id ?? null
+    if (typeof payload?.source === 'string') source = payload.source
   } catch {
     // No payload: every recent session counts as another one.
   }
 
   if (!isGitRepo()) process.exit(0)
+
+  // After a compaction or a resume, STATE.md is already in the conversation (or
+  // its summary); re-injecting it costs ~2k tokens each time and adds nothing.
+  const withStateDoc = source === 'startup' || source === 'clear'
 
   const sections = [
     '# Injected session state (SessionStart hook)',
@@ -235,11 +263,14 @@ try {
     ...(hasRemote() ? [defaultBranchCi()].filter(Boolean) : []),
     ...toolingWarnings(sessionId),
     '```',
-    '',
-    `## ${STATE_DOC}`,
-    '',
-    stateDoc(),
   ]
+  if (withStateDoc) {
+    const heading = ['', `## ${STATE_DOC}`, '', '']
+    const used = sections.join('\n').length + heading.join('\n').length + 200
+    sections.push(...heading.slice(0, 3), stateDoc(CONTEXT_BUDGET_CHARS - used))
+  } else {
+    sections.push('', `${STATE_DOC} was injected at session start and is not repeated here.`)
+  }
 
   emit(sections.join('\n'))
 } catch {
