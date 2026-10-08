@@ -4,6 +4,8 @@ paths:
   - "apps/api/src/lib/weather/ensembleOutlook.ts"
   - "apps/api/src/routes/{trips,cron}.ts"
   - "packages/types/src/trip*.ts"
+  - "apps/api/src/scripts/check{EditTrip,RecordTrips,DeleteTrip}.ts"
+  - "apps/api/src/db/schema.ts"
   - "apps/miniapp/src/**/*{Trip,trip}*"
 ---
 

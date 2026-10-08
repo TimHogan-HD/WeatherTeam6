@@ -24,6 +24,16 @@ seen them.
 - **Every degradation path must withhold, never inflate** (#21, #32, #34). A missing input
   is a gap on screen and a withheld score, never a plausible number. Any change to what a
   surface says starts from *"what does this say when the inputs are missing"*.
+- **External APIs are proxied, never called from the client** — the fetch lives in
+  `src/lib/weather/`, wrapped in `fetchWithRetry`, behind a thin route returning
+  `{ data, error, status }` (`/geocode`, `/geocode/reverse`, `/radar/frames`).
+- **Map tiles are the one exception** (owner decision 2026-10-02, Map tab).
+  Public, keyless basemap tiles, glyphs and sprites (OpenFreeMap, `tiles.openfreemap.org`)
+  and terrain tiles (AWS Open Data Terrarium, `s3.amazonaws.com`) load straight from the
+  client; nothing but the viewport goes to them. `apps/miniapp/vercel.json`'s CSP names
+  exactly those two hosts in `connect-src`, plus `blob:` for the map's workers and images.
+  Any data source that is not a map tile — radar included, when it comes — still goes
+  through the API.
 
 ## Backend patterns
 

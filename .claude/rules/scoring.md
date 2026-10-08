@@ -6,6 +6,7 @@ paths:
   - "apps/api/src/lib/weather/rainMedian.ts"
   - "apps/api/src/routes/{hourly,conditions,preferences}.ts"
   - "packages/types/src/**"
+  - "apps/miniapp/src/**"
 ---
 
 # Scoring rules

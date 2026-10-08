@@ -5,7 +5,10 @@ paths:
   - "apps/api/src/lib/runs/scoringLocation.ts"
   - "apps/api/src/lib/scoring/rockThermal.ts"
   - "apps/api/src/routes/{locations,logbook,guidebook,walls,geocode}.ts"
-  - "packages/types/src/{wallAngle,geocodeCopy}.ts"
+  - "packages/types/src/{wallAngle,geocodeCopy,knownCrags,rockTypeCopy,rockGuide,logbook}.ts"
+  - "apps/api/src/scripts/{lockKnownCrags,checkAddLocationApi,checkEditLocationApi,checkLogbook}.ts"
+  - ".claude/docs/crag-facts.json"
+  - "apps/api/src/db/schema.ts"
   - "apps/miniapp/src/**/*{Add,Crag,Guidebook,Logbook,Route,Wall,Location}*"
 ---
 
