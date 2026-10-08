@@ -22,7 +22,8 @@ Use `Bash` to confirm rather than suspect, and never to modify anything:
 - `gh issue list` when a doc claims an issue's state.
 
 Prioritize:
-1. Architecture drift from `.claude/rules/architecture.md`
+1. Architecture drift from `.claude/rules/architecture.md` and the scoped rule files its index
+   lists — they load only when you Read a file they govern, so read each one the diff touches
 2. Security — secrets, exposed data, missing auth checks, error objects serialised into logs
 3. Data integrity — missing `user_id`, wrong response shape, N+1 queries, a `location_id` FK
    missing from `DEPENDENT_TABLES`
