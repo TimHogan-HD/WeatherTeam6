@@ -77,7 +77,7 @@ Do not create a `.env` file at all — set variables in the shell for the one co
 
 ## Reference Docs
 
-`.claude/rules/` loads automatically. Read these when the work needs them:
+`.claude/rules/architecture.md` and `defect-patterns.md` load in every session. The other rule files (scoring, readings, locations, weather, trips) load only when a file under their `paths:` is read or edited; `architecture.md` indexes them, and a plan or review reads the ones its paths touch. Read these when the work needs them:
 
 | Work | Read first |
 | --- | --- |

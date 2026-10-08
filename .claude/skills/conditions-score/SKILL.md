@@ -6,8 +6,8 @@ description: Use when implementing or modifying the conditions quality score cal
 # Conditions Score Implementation
 
 Read `.claude/docs/scoring-algorithm.md` and `.claude/docs/scoring-findings.md` before
-implementing. The invariants the scorer must hold are in `.claude/rules/architecture.md`
-§ Backend Patterns.
+implementing. The invariants the scorer must hold are in `.claude/rules/scoring.md` and
+`.claude/rules/readings.md`, which load when a scoring file is opened.
 
 ## Where things are
 

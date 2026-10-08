@@ -76,7 +76,8 @@ fix each one:
   `miniapp-hourly-dataviz-handoff-v1.md`. There is no second task list to mirror it into;
   that arrangement is what the note in §4 is about.
 - A new external API is added to `.claude/docs/api-sources.md`.
-- A new invariant future work must uphold goes in `.claude/rules/architecture.md`, and as a
+- A new invariant future work must uphold goes in the `.claude/rules/` file scoped to the
+  paths it governs (`architecture.md` only if it holds everywhere; its index lists the rest), and as a
   checkbox in the `/review-checklist` skill if it can rot silently.
 - **Specs written in the future tense get a status banner once built**, rather than being
   left to read as unbuilt work.

@@ -951,7 +951,60 @@ for (const [name, setup, assertion, extra] of sessionScenarios) {
   metaCoverageCount = registered.size === 0 ? 1 : registered.size
 }
 
-const total = cases.length + gateCases.length + gitScenarios.length + sessionScenarios.length + metaCoverageCount
+/* ------------------------------------------------------------------ *
+ * Scoped rule files load only when Claude reads or edits a file matching
+ * their `paths:` globs. A glob that matches nothing is a rule that never
+ * loads, and broken frontmatter makes a rule load everywhere; neither shows
+ * up anywhere else. Every glob must match at least one tracked file.
+ * ------------------------------------------------------------------ */
+let ruleCount = 0
+{
+  const rulesDir = join(here, '..', 'rules')
+  const tracked = (spawnSync('git', ['ls-files'], { cwd: join(here, '..', '..'), encoding: 'utf8' }).stdout ?? '')
+    .split('\n')
+    .filter(Boolean)
+  /** `**`, `*`, `?` and `{a,b}` — the subset the rule files use. */
+  const globToRegExp = (glob) => {
+    let re = ''
+    for (let i = 0; i < glob.length; i += 1) {
+      const c = glob[i]
+      if (c === '*' && glob[i + 1] === '*') {
+        re += glob[i + 2] === '/' ? '(?:.*/)?' : '.*'
+        i += glob[i + 2] === '/' ? 2 : 1
+      } else if (c === '*') re += '[^/]*'
+      else if (c === '?') re += '[^/]'
+      else if (c === '{') re += '(?:'
+      else if (c === '}') re += ')'
+      else if (c === ',') re += '|'
+      else re += c.replace(/[.+^$()|[\]\\]/g, '\\$&')
+    }
+    return new RegExp(`^${re}$`)
+  }
+  for (const file of readdirSync(rulesDir).filter((f) => f.endsWith('.md')).sort()) {
+    const text = readFileSync(join(rulesDir, file), 'utf8')
+    if (!text.startsWith('---')) continue // unscoped: loads everywhere by design
+    ruleCount += 1
+    const fm = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(text)
+    const globs = fm ? [...fm[1].matchAll(/^\s*-\s*"([^"]+)"\s*$/gm)].map((m) => m[1]) : []
+    const problems = []
+    if (!fm || !/^paths:\s*$/m.test(fm[1]) || globs.length === 0) problems.push('frontmatter has no paths: list')
+    for (const g of globs) {
+      const re = globToRegExp(g)
+      if (!tracked.some((f) => re.test(f))) problems.push(`"${g}" matches no tracked file`)
+    }
+    if (problems.length === 0) {
+      passes += 1
+      console.log(`  PASS  [rules] ${file}: ${globs.length} path globs, each matches a tracked file`)
+    } else {
+      failures += 1
+      console.log(`  FAIL  [rules] ${file}`)
+      for (const p of problems) console.log(`          ${p}`)
+    }
+  }
+}
+
+const total =
+  cases.length + gateCases.length + gitScenarios.length + sessionScenarios.length + metaCoverageCount + ruleCount
 console.log('')
 console.log(`  ${passes} passed, ${failures} failed, ${total} total`)
 
