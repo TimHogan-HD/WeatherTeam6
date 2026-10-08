@@ -1,7 +1,7 @@
 ---
 name: Explore
 description: Read-only search agent for broad fan-out searches in WeatherTeam6, when answering means sweeping many files and only the conclusion is needed, not the file dumps. Locates code; does not review or audit it. Say how thorough to be.
-model: sonnet
+model: haiku
 effort: low
 tools: Read, Grep, Glob
 omitClaudeMd: true
