@@ -828,13 +828,23 @@ crag days first, several crags as a grid. Open to change like every other screen
     and a small **Agreement** chip.
   - **Rain over the trip**: the likely total, its range as a bar, each day's amount, and
     "All 3 days" or "2 of 3 days" from `days_covered`.
-  - **Forecast trend**: the trip total per recording as bars with range whiskers on a left
-    axis in inches, the warmest high as a line on a right axis in °F, each axis in its
-    series' colour, x the recording time; chips "Rain: down 0.16 in", "High: up 5°". No score.
-    Before the first recording: "Trend starts after the next forecast update."
+  - **Forecast trend**, two views behind "By day" / "Whole trip" chips (owner picked "C"
+    from three mocks, 2026-10-13: the old chart read as the trip days themselves). Each view
+    opens with a line saying what it compares. No score in either.
+    - **By day** (the default): one column per trip day, its first recorded forecast as a
+      dashed bar and its latest as a solid one (rain, left axis in inches), a hollow and a
+      filled dot for the high (right axis, °F), and "−0.06 in · +3°" under the day. A day
+      recorded once draws only the latest and no change; a figure missing at the latest end
+      draws neither end. From `GET /trips/:tripId/trend`'s `days` (`trip_day_records`, so it
+      survives a date edit); withheld, with no toggle, when an older API sends none.
+    - **Whole trip**: the trip total per recording as bars with range whiskers on a left
+      axis in inches, the warmest high as a line on a right axis in °F, each axis in its
+      series' colour, x the recording time, titled "Forecast made on →"; chips "Rain: down
+      0.16 in", "High: up 5°".
+    Before any recording: "Trend starts after the next forecast update."
   - "Edit trip" beside it, as "Edit crag" sits on a crag (owner asked, 2026-10-02):
     `/trips/:tripId/edit`, the new-trip form filled in, no bottom bar, back to the trip. A
-    moved date shows "Changing the dates restarts the forecast trend." before Save; Save
+    moved date shows "Changing the dates restarts the whole-trip trend." before Save; Save
     sends only what changed.
   - "Delete trip", then "Tap again to delete" (no `confirm()`), back to `/trips`.
 - **With several crags**, `/trips/:tripId` is a crag-by-day grid (a scored cell: score,

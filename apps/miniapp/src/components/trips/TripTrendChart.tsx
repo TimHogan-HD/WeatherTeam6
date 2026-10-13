@@ -6,12 +6,14 @@ import { extent, linearScale, linePath, niceTicks, padExtent } from '../charts/g
 import { dateLabel, deviceToday, trendMarks } from '../../lib/trips.js'
 
 const VIEW_W = 420
-const VIEW_H = 190
+const VIEW_H = 204
 const PAD_L = 48
 const PAD_R = 40
 const PAD_T = 12
-const PAD_B = 22
+const PAD_B = 36
 const PLOT_B = VIEW_H - PAD_B
+/** The x axis's title: its dates are when each forecast was made, not trip days. */
+const X_TITLE = 'Forecast made on →'
 const RAIN_COLOR = chartColorsV2.rain
 const HIGH_COLOR = chartColors.temperature
 
@@ -27,7 +29,8 @@ const RAIN_MIN_TOP_IN = 0.1
  * The forecast trend: the trip's rain total at each recording, as a bar with
  * its range as a whisker, on the left axis in inches; the warmest high as a
  * line on the right axis in °F. Each axis wears its series' colour. x is when
- * the recording was made.
+ * the recording was made, and the axis says so: read without it, the dates
+ * look like the trip's own days.
  *
  * **A total over part of the trip is a hollow bar**: it jumps when the next day
  * enters the horizon, and filled it would read as the forecast getting wetter.
@@ -165,13 +168,16 @@ export function TripTrendChart({ points }: { points: readonly TripTrendPoint[] }
         <text
           key={`x${m.ms}`}
           x={x(m.ms)}
-          y={VIEW_H - 6}
+          y={PLOT_B + 16}
           textAnchor={marks.length === 1 ? 'middle' : xLabels.length === 2 && i === 0 ? 'start' : 'end'}
           {...tickProps(colorsV2.txtMuted)}
         >
           {dateLabel(deviceToday(new Date(m.ms)))}
         </text>
       ))}
+      <text x={(PAD_L + VIEW_W - PAD_R) / 2} y={VIEW_H - 4} textAnchor="middle" {...tickProps(colorsV2.txt2)}>
+        {X_TITLE}
+      </text>
     </svg>
   )
 }

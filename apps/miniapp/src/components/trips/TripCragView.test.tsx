@@ -1,8 +1,9 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import type { OutlookDay, TripOutlook, TripTrendPoint } from '@weatherteam6/types'
+import type { OutlookDay, TripDayTrend, TripOutlook, TripTrendPoint } from '@weatherteam6/types'
 import { renderInRouter } from '../../test/renderInRouter.js'
-import { TripCragView } from './TripCragView.js'
+import { TripCragView, TrendCard } from './TripCragView.js'
+import { TripDayTrendChart } from './TripDayTrendChart.js'
 import { TripTrendChart } from './TripTrendChart.js'
 
 const settled = <T,>(data: T) => ({ data, isPending: false, isError: false, refetch: () => {} })
@@ -23,7 +24,7 @@ function day(local_date: string): OutlookDay {
 const DATES = ['2026-10-08', '2026-10-09', '2026-10-10']
 const base = { locationId: 'loc', trip_days: 3 }
 
-function view(outlook: TripOutlook, trend: readonly TripTrendPoint[] = []): string {
+function view(outlook: TripOutlook, trend: readonly TripTrendPoint[] = [], days: readonly TripDayTrend[] | null = null): string {
   return renderInRouter(
     <TripCragView
       locationId="loc"
@@ -34,7 +35,7 @@ function view(outlook: TripOutlook, trend: readonly TripTrendPoint[] = []): stri
       readings={null}
       isCrag
       scoresFailed={null}
-      trend={settled(trend)}
+      trend={settled({ points: trend, days })}
     />,
   )
 }
@@ -55,7 +56,7 @@ describe('TripCragView — the outlook states', () => {
         readings={null}
         isCrag
         scoresFailed={null}
-        trend={settled([])}
+        trend={settled({ points: [], days: null })}
       />,
     )
     expect(notYet).toContain('Forecast opens 15 Oct.')
@@ -98,5 +99,92 @@ describe('TripTrendChart', () => {
     expect(rects[1]).not.toContain('data-partial')
     expect(rects[1]).not.toContain('fill="none"')
     expect(html).toContain('Hollow bars cover part of the trip.')
+  })
+})
+
+const point = (recorded_at: string, mean_mm: number, high_c_max: number): TripTrendPoint => ({
+  recorded_at,
+  mean_mm,
+  p10_mm: 0,
+  p90_mm: mean_mm * 2,
+  days_covered: 3,
+  trip_days: 3,
+  high_c_max,
+})
+
+const at = (recorded_at: string, precip_mm_mean: number | null, temp_c_max: number | null) => ({
+  recorded_at,
+  precip_mm_mean,
+  temp_c_max,
+})
+
+const DAYS: TripDayTrend[] = [
+  { local_date: '2026-10-16', first: at('2026-10-04T12:00:00Z', 2.032, 11.5), last: at('2026-10-13T12:00:00Z', 0.508, 10) },
+  { local_date: '2026-10-17', first: at('2026-10-04T12:00:00Z', 2.54, 12.2), last: at('2026-10-13T12:00:00Z', 0, 13.9) },
+  { local_date: '2026-10-18', first: null, last: null },
+]
+
+describe('TrendCard', () => {
+  const card = (days: readonly TripDayTrend[] | null) =>
+    renderToStaticMarkup(
+      <TrendCard trend={settled({ points: [point('2026-10-04T12:00:00Z', 6, 12), point('2026-10-13T12:00:00Z', 0.5, 14)], days })} />,
+    )
+
+  it('opens on the by-day view, saying which two forecasts it compares', () => {
+    const html = card(DAYS)
+    expect(html).toMatch(/aria-pressed="true"[^>]*>By day</)
+    expect(html).toMatch(/aria-pressed="false"[^>]*>Whole trip</)
+    expect(html).toContain('Each trip day: the first forecast (4 Oct) against the latest (13 Oct).')
+    expect(html).toContain('Rain, 4 Oct')
+    expect(html).not.toContain('Forecast made on')
+  })
+
+  it('names no latest date on a trip whose days were last recorded on different days', () => {
+    const ended: TripDayTrend[] = [
+      { local_date: '2026-10-16', first: at('2026-10-04T12:00:00Z', 2, 11), last: at('2026-10-16T12:00:00Z', 0.5, 10) },
+      { local_date: '2026-10-17', first: at('2026-10-04T12:00:00Z', 2, 11), last: at('2026-10-17T12:00:00Z', 0, 12) },
+    ]
+    const html = card(ended)
+    expect(html).toContain('the first forecast (4 Oct) against its latest.')
+    expect(html).toContain('Rain, latest')
+    expect(html).not.toContain('17 Oct')
+  })
+
+  it('shows only the whole-trip chart, labelled, when the API sends no days', () => {
+    const html = card(null)
+    expect(html).not.toContain('aria-pressed')
+    expect(html).toContain('What each forecast update said about the whole trip.')
+    expect(html).toContain('Forecast made on →')
+  })
+
+  it('keeps the by-day view when the trip has days but no total yet', () => {
+    const html = renderToStaticMarkup(<TrendCard trend={settled({ points: [], days: DAYS })} />)
+    expect(html).not.toContain('Trend starts after the next forecast update.')
+    expect(html).toContain('Fri 16')
+  })
+})
+
+describe('TripDayTrendChart', () => {
+  it('draws both forecasts where a day has two, and states the change under it', () => {
+    const html = renderToStaticMarkup(<TripDayTrendChart days={DAYS} />)
+    expect(html.match(/data-mark="first-rain"/g)).toHaveLength(2)
+    expect(html.match(/data-mark="last-rain"/g)).toHaveLength(2)
+    expect(html).toContain('−0.06 in · −3°')
+    expect(html).toContain('−0.10 in · +3°')
+    expect(html).toContain('No forecast yet')
+  })
+
+  it('draws one forecast alone with no change, and leaves a missing figure unmarked', () => {
+    const once = at('2026-10-13T12:00:00Z', null, 15)
+    const html = renderToStaticMarkup(
+      <TripDayTrendChart days={[{ local_date: '2026-10-16', first: once, last: once }]} />,
+    )
+    expect(html).not.toContain('data-mark="first-rain"')
+    expect(html).not.toContain('data-mark="first-high"')
+    // No rain figure: no bar at all, not a zero-height one that reads as dry.
+    expect(html).not.toContain('data-mark="last-rain"')
+    expect(html).toContain('data-mark="last-high"')
+    expect(html).toContain('one forecast so far')
+    expect(html).not.toMatch(/[+−]\d/)
   })
 })

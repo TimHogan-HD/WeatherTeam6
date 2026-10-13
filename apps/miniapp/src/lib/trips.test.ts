@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import type { HourlyReading, OutlookDay, ReadingsDay, TripOutlook, TripTrendPoint } from '@weatherteam6/types'
+import type { HourlyReading, OutlookDay, ReadingsDay, TripOutlook, TripDayTrend, TripTrendPoint } from '@weatherteam6/types'
 import {
+  dayChangeCaption,
+  dayTrendMarks,
+  dayTrendSpan,
+  hasDayTrend,
   coverageLabel,
   forecastOpens,
   formatTripDates,
@@ -209,5 +213,65 @@ describe('trip labels', () => {
   it('says how much of the trip a total covers', () => {
     expect(coverageLabel(3, 3)).toBe('All 3 days')
     expect(coverageLabel(2, 3)).toBe('2 of 3 days')
+  })
+})
+
+describe('the by-day trend', () => {
+  const at = (recorded_at: string, precip_mm_mean: number | null, temp_c_max: number | null) => ({
+    recorded_at,
+    precip_mm_mean,
+    temp_c_max,
+  })
+  const day = (local_date: string, first: ReturnType<typeof at> | null, last: ReturnType<typeof at> | null): TripDayTrend => ({
+    local_date,
+    first,
+    last,
+  })
+
+  it('names each end\'s date only when every day drawn at that end shares it', () => {
+    const same = [
+      day('2026-10-16', at('2026-10-04T12:00:00Z', 1, 10), at('2026-10-13T12:00:00Z', 0, 12)),
+      day('2026-10-17', at('2026-10-04T12:00:00Z', 1, 10), at('2026-10-13T12:00:00Z', 0, 12)),
+    ]
+    expect(dayTrendSpan(same)).toEqual({ first: '2026-10-04', last: '2026-10-13' })
+
+    const differ = [...same, day('2026-10-18', at('2026-10-05T12:00:00Z', 1, 10), at('2026-10-13T12:00:00Z', 0, 12))]
+    expect(dayTrendSpan(differ).first).toBeNull()
+
+    // An ended trip: each day was last recorded on itself, so no one date is "the latest".
+    const ended = [
+      day('2026-10-16', at('2026-10-04T12:00:00Z', 1, 10), at('2026-10-16T12:00:00Z', 0, 12)),
+      day('2026-10-17', at('2026-10-04T12:00:00Z', 1, 10), at('2026-10-17T12:00:00Z', 0, 12)),
+    ]
+    expect(dayTrendSpan(ended)).toEqual({ first: '2026-10-04', last: null })
+
+    // A day with one recording compares nothing, so its date does not split the caption.
+    const once = at('2026-10-09T12:00:00Z', 1, 10)
+    expect(dayTrendSpan([...same, day('2026-10-18', once, once)]).first).toBe('2026-10-04')
+    expect(dayTrendSpan([day('2026-10-18', null, null)])).toEqual({ first: null, last: null })
+  })
+
+  it('compares each figure only where both ends carry it', () => {
+    const [both, rainOnly, single] = dayTrendMarks([
+      day('2026-10-16', at('2026-10-04T12:00:00Z', 2.54, 10), at('2026-10-13T12:00:00Z', 2.54, 12)),
+      day('2026-10-17', at('2026-10-04T12:00:00Z', 0, null), at('2026-10-13T12:00:00Z', 1.27, 12)),
+      day('2026-10-18', at('2026-10-13T12:00:00Z', 1, 10), at('2026-10-13T12:00:00Z', 1, 10)),
+    ])
+    expect(both && dayChangeCaption(both)).toBe('0.00 in · +4°')
+    expect(rainOnly && dayChangeCaption(rainOnly)).toBe('+0.05 in')
+    expect(single?.single).toBe(true)
+    expect(single && dayChangeCaption(single)).toBeNull()
+  })
+
+  it('draws no first figure beside a missing latest one', () => {
+    const [m] = dayTrendMarks([day('2026-10-16', at('2026-10-04T12:00:00Z', 2.54, 10), at('2026-10-13T12:00:00Z', null, null))])
+    expect(m).toMatchObject({ firstRainMm: null, lastRainMm: null, firstHighC: null, lastHighC: null })
+    expect(m && dayChangeCaption(m)).toBeNull()
+  })
+
+  it('has nothing to draw until some day is recorded, and nothing from an older API', () => {
+    expect(hasDayTrend(null)).toBe(false)
+    expect(hasDayTrend([day('2026-10-16', null, null)])).toBe(false)
+    expect(hasDayTrend([day('2026-10-16', null, at('2026-10-13T12:00:00Z', 0, 10))])).toBe(true)
   })
 })

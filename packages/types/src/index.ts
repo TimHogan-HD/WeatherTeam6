@@ -378,10 +378,33 @@ export type TripTrendPoint = {
   high_c_max: number | null
 }
 
+/** What one recording said about one trip day's weather: a `trip_day_records` row, weather only. */
+export type TripDayTrendPoint = {
+  recorded_at: string
+  precip_mm_mean: number | null
+  temp_c_max: number | null
+}
+
+/**
+ * One trip day's forecast, first recording against the latest, taken among the
+ * recordings that carried weather. Both null when none did; the same recording
+ * twice when only one did, which a reader shows as one figure, not as no change.
+ */
+export type TripDayTrend = {
+  local_date: string
+  first: TripDayTrendPoint | null
+  last: TripDayTrendPoint | null
+}
+
 /** `GET /trips/:tripId/trend`, one per trip location, points oldest first. `[]` before the first recording. */
 export type TripTrend = {
   locationId: string
   points: TripTrendPoint[]
+  /**
+   * Every trip date in order. Optional because the API and the client deploy
+   * separately: absent means an older API, and the by-day view is withheld.
+   */
+  days?: TripDayTrend[]
 }
 
 /** How a trip day turned out at one location: a `trip_day_outcomes` row. The model's look back, not observations. */

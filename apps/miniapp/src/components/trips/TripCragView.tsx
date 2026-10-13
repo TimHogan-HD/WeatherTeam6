@@ -8,10 +8,9 @@ import {
   mmToIn,
   openMeteoModels,
   type TripOutlook,
-  type TripTrendPoint,
 } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
-import { bareButton, cardV2, row, stack, wellV2 } from '../../theme/styles.js'
+import { bareButton, cardV2, chip, chipActive, row, stack, wellV2 } from '../../theme/styles.js'
 import { formatTempDeg } from '../../lib/format.js'
 import { readingTone, scoreTone } from '../../lib/locationList.js'
 import { hourlyDayPath } from '../../lib/backTarget.js'
@@ -19,10 +18,12 @@ import type { DayReadings } from '../../lib/overview.js'
 import {
   coverageLabel,
   dateLabel,
+  dayTrendSpan,
   dayMonthLabel,
   deviceToday,
   forecastOpens,
   formatShare,
+  hasDayTrend,
   highChangeChip,
   outlookState,
   rainChangeChip,
@@ -30,10 +31,12 @@ import {
   shortDayLabel,
   tripDayTiles,
   type DayWeather,
+  type TrendSeries,
   type TripDayTile,
 } from '../../lib/trips.js'
 import { ReadingPill } from '../ReadingPills.js'
 import { InlineError, Skeleton } from '../States.js'
+import { TripDayTrendChart } from './TripDayTrendChart.js'
 import { TripTrendChart } from './TripTrendChart.js'
 
 export type QueryState<T> = { data: T | undefined; isPending: boolean; isError: boolean; refetch: () => void }
@@ -64,7 +67,7 @@ export function TripCragView({
   isCrag: boolean
   /** The crag's `/hourly` failed: a retry, said once above the days. `null` otherwise. */
   scoresFailed: (() => void) | null
-  trend: QueryState<readonly TripTrendPoint[]>
+  trend: QueryState<TrendSeries>
 }) {
   if (outlook.isPending) return <Skeleton height={180} />
   if (outlook.isError) {
@@ -372,7 +375,17 @@ function RangeBar({ meanMm, p10Mm, p90Mm }: { meanMm: number; p10Mm: number; p90
   )
 }
 
-function Swatch({ color, hollow = false, round = false }: { color: string; hollow?: boolean; round?: boolean }) {
+function Swatch({
+  color,
+  hollow = false,
+  round = false,
+  dashed = false,
+}: {
+  color: string
+  hollow?: boolean
+  round?: boolean
+  dashed?: boolean
+}) {
   return (
     <span
       aria-hidden
@@ -382,17 +395,35 @@ function Swatch({ color, hollow = false, round = false }: { color: string; hollo
         height: round ? '8px' : '10px',
         borderRadius: round ? `${radius.full}px` : '2px',
         backgroundColor: hollow ? 'transparent' : color,
-        border: `1.2px solid ${color}`,
+        border: `1.2px ${dashed ? 'dashed' : 'solid'} ${color}`,
       }}
     />
   )
 }
 
-export function TrendCard({ trend }: { trend: QueryState<readonly TripTrendPoint[]> }) {
-  const points = trend.data ?? []
+type TrendView = 'day' | 'total'
+
+const TREND_VIEWS: readonly { value: TrendView; label: string }[] = [
+  { value: 'day', label: 'By day' },
+  { value: 'total', label: 'Whole trip' },
+]
+
+/**
+ * How the forecast has moved, two ways: each trip day's first forecast against
+ * its latest, and the whole trip's rain total and warmest high at every
+ * recording. Both are recordings of the forecast, never the trip days' own
+ * timeline, and each view says so in a line above its chart.
+ *
+ * The by-day view needs `days`, which an older API does not send; then only
+ * the whole-trip chart shows, with no toggle.
+ */
+export function TrendCard({ trend }: { trend: QueryState<TrendSeries> }) {
+  const [view, setView] = useState<TrendView>('day')
+  const points = trend.data?.points ?? []
+  const days = trend.data?.days ?? null
+  const byDay = hasDayTrend(days) ? days : null
+  const shown: TrendView = byDay === null ? 'total' : view
   const first = points[0]
-  const chips = [rainChangeChip(points), highChangeChip(points)].filter((c): c is string => c !== null)
-  const anyPartial = points.some((p) => p.days_covered === null || p.days_covered < p.trip_days)
   return (
     <section style={{ ...cardV2, ...stack(spacing.listGap) }} aria-label="Forecast trend">
       <CardHead
@@ -409,39 +440,100 @@ export function TrendCard({ trend }: { trend: QueryState<readonly TripTrendPoint
         <Skeleton height={120} />
       ) : trend.isError ? (
         <InlineError message="Couldn't load the trend." onRetry={trend.refetch} />
-      ) : points.length === 0 ? (
+      ) : points.length === 0 && byDay === null ? (
         <p style={typeV2.note}>Trend starts after the next forecast update.</p>
       ) : (
         <>
-          <div style={{ ...row(spacing.sectionGap), flexWrap: 'wrap' }}>
-            <span style={{ ...row(spacing.tight), ...typeV2.note, color: colorsV2.rain }}>
-              <Swatch color={colorsV2.rain} /> Rain, trip total · Range
-            </span>
-            <span style={{ ...row(spacing.tight), ...typeV2.note, color: colors.sun }}>
-              <Swatch color={colors.sun} round /> High, warmest day
-            </span>
-            {anyPartial ? (
-              <span style={{ ...row(spacing.tight), ...typeV2.note }}>
-                <Swatch color={colorsV2.rain} hollow /> Part of the trip
-              </span>
-            ) : null}
-          </div>
-          <TripTrendChart points={points} />
-          {chips.length === 0 ? null : (
-            <div style={{ ...row(spacing.listGapSm), flexWrap: 'wrap' }}>
-              {chips.map((c) => (
-                <span
-                  key={c}
-                  style={{ ...wellV2, ...typeV2.note, color: colorsV2.txt2, padding: `${spacing.micro}px ${spacing.listGap}px` }}
+          {byDay === null ? null : (
+            <div role="group" aria-label="Trend view" style={row(spacing.listGapSm)}>
+              {TREND_VIEWS.map((t) => (
+                <button
+                  key={t.value}
+                  type="button"
+                  aria-pressed={shown === t.value}
+                  onClick={() => setView(t.value)}
+                  style={{
+                    ...bareButton,
+                    ...(shown === t.value ? chipActive : chip),
+                    ...typeV2.chip,
+                    color: shown === t.value ? colors.good : colorsV2.txt1,
+                    width: 'auto',
+                  }}
                 >
-                  {c}
-                </span>
+                  {t.label}
+                </button>
               ))}
             </div>
           )}
+          {shown === 'day' && byDay !== null ? <DayTrendView days={byDay} /> : <TotalTrendView points={points} />}
         </>
       )}
     </section>
+  )
+}
+
+function DayTrendView({ days }: { days: NonNullable<TrendSeries['days']> }) {
+  const span = dayTrendSpan(days)
+  const firstName = span.first === null ? 'first forecast' : dateLabel(span.first)
+  const lastName = span.last === null ? 'latest' : dateLabel(span.last)
+  return (
+    <>
+      <p style={{ ...typeV2.note, color: colorsV2.txt2 }}>
+        Each trip day: {span.first === null ? 'its first forecast' : `the first forecast (${firstName})`} against{' '}
+        {span.last === null ? 'its latest' : `the latest (${lastName})`}.
+      </p>
+      <div style={{ ...row(spacing.sectionGap), flexWrap: 'wrap' }}>
+        <span style={{ ...row(spacing.tight), ...typeV2.note, color: colorsV2.rain }}>
+          <Swatch color={colorsV2.rain} hollow dashed /> Rain, {firstName}
+        </span>
+        <span style={{ ...row(spacing.tight), ...typeV2.note, color: colorsV2.rain }}>
+          <Swatch color={colorsV2.rain} /> Rain, {lastName}
+        </span>
+        <span style={{ ...row(spacing.tight), ...typeV2.note, color: colors.sun }}>
+          <Swatch color={colors.sun} hollow round /> High, {firstName} → <Swatch color={colors.sun} round /> {lastName}
+        </span>
+      </div>
+      <TripDayTrendChart days={days} />
+    </>
+  )
+}
+
+function TotalTrendView({ points }: { points: TrendSeries['points'] }) {
+  if (points.length === 0) return <p style={typeV2.note}>Trend starts after the next forecast update.</p>
+  const chips = [rainChangeChip(points), highChangeChip(points)].filter((c): c is string => c !== null)
+  const anyPartial = points.some((p) => p.days_covered === null || p.days_covered < p.trip_days)
+  return (
+    <>
+      <p style={{ ...typeV2.note, color: colorsV2.txt2 }}>
+        What each forecast update said about the whole trip. Newest on the right.
+      </p>
+      <div style={{ ...row(spacing.sectionGap), flexWrap: 'wrap' }}>
+        <span style={{ ...row(spacing.tight), ...typeV2.note, color: colorsV2.rain }}>
+          <Swatch color={colorsV2.rain} /> Rain, trip total · Range
+        </span>
+        <span style={{ ...row(spacing.tight), ...typeV2.note, color: colors.sun }}>
+          <Swatch color={colors.sun} round /> High, warmest day
+        </span>
+        {anyPartial ? (
+          <span style={{ ...row(spacing.tight), ...typeV2.note }}>
+            <Swatch color={colorsV2.rain} hollow /> Part of the trip
+          </span>
+        ) : null}
+      </div>
+      <TripTrendChart points={points} />
+      {chips.length === 0 ? null : (
+        <div style={{ ...row(spacing.listGapSm), flexWrap: 'wrap' }}>
+          {chips.map((c) => (
+            <span
+              key={c}
+              style={{ ...wellV2, ...typeV2.note, color: colorsV2.txt2, padding: `${spacing.micro}px ${spacing.listGap}px` }}
+            >
+              {c}
+            </span>
+          ))}
+        </div>
+      )}
+    </>
   )
 }
 

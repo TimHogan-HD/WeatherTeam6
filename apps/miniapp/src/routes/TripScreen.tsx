@@ -7,7 +7,6 @@ import {
   type HourlySeries,
   type Location,
   type TripOutlook,
-  type TripTrendPoint,
   type WeatherAlert,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
@@ -24,7 +23,7 @@ import { forgetTrip, useDeleteTrip, useTrip, useTripForecast, useTripSummary, us
 import { backTarget, editTripPath, tripCragPath } from '../lib/backTarget.js'
 import { severeAlertEvent } from '../lib/forecast.js'
 import type { DayReadings } from '../lib/overview.js'
-import { cragCount, deviceToday, formatTripDates, tripDates, tripIsOver, tripTiming } from '../lib/trips.js'
+import { cragCount, deviceToday, formatTripDates, tripDates, tripIsOver, tripTiming, type TrendSeries } from '../lib/trips.js'
 
 /**
  * What a day's score is read from at one crag, or `null` when there is nothing
@@ -115,12 +114,15 @@ export function TripScreen() {
     refetch: () => void forecast.refetch(),
   })
 
-  const trendFor = (id: string): QueryState<readonly TripTrendPoint[]> => ({
-    data: trend.data?.find((s) => s.locationId === id)?.points ?? (trend.data === undefined ? undefined : []),
-    isPending: trend.isPending,
-    isError: trend.isError,
-    refetch: () => void trend.refetch(),
-  })
+  const trendFor = (id: string): QueryState<TrendSeries> => {
+    const series = trend.data?.find((s) => s.locationId === id)
+    return {
+      data: trend.data === undefined ? undefined : { points: series?.points ?? [], days: series?.days ?? null },
+      isPending: trend.isPending,
+      isError: trend.isError,
+      refetch: () => void trend.refetch(),
+    }
+  }
 
   const body =
     trip.isPending ? (

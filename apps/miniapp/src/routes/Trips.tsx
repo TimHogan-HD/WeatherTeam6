@@ -173,7 +173,7 @@ export function TripEdit() {
       submitLabel={update.isPending ? 'Saving…' : 'Save'}
       datesNote={(draft) =>
         draft.start !== saved.startDate || draft.end !== saved.endDate
-          ? 'Changing the dates restarts the forecast trend.'
+          ? 'Changing the dates restarts the whole-trip trend.'
           : null
       }
       onSubmit={(draft) => {

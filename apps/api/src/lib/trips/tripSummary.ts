@@ -1,4 +1,11 @@
-import type { RockLevel, TripDayForecast, TripDayLookBack, TripDayOutcome } from '@weatherteam6/types'
+import type {
+  RockLevel,
+  TripDayForecast,
+  TripDayLookBack,
+  TripDayOutcome,
+  TripDayTrend,
+  TripDayTrendPoint,
+} from '@weatherteam6/types'
 
 export type ForecastRecord = {
   local_date: string
@@ -55,6 +62,31 @@ export function tripDayLookBacks(input: {
       first: first === undefined ? null : toForecast(first),
       last: last === undefined ? null : toForecast(last),
     }
+  })
+}
+
+export type DayWeatherRecord = {
+  local_date: string
+  recorded_at: Date
+  precip_mm_mean: number | null
+  temp_c_max: number | null
+}
+
+/**
+ * Every trip date at one location, with the first and the latest recording of
+ * its weather. A recording that carried a score but no weather is passed over:
+ * it would set a gap against a figure and read as a change.
+ */
+export function tripDayTrends(input: { dates: readonly string[]; records: readonly DayWeatherRecord[] }): TripDayTrend[] {
+  return input.dates.map((local_date) => {
+    const pool = input.records
+      .filter((r) => r.local_date === local_date && (r.precip_mm_mean !== null || r.temp_c_max !== null))
+      .sort((a, b) => a.recorded_at.getTime() - b.recorded_at.getTime())
+    const point = (r: DayWeatherRecord | undefined): TripDayTrendPoint | null =>
+      r === undefined
+        ? null
+        : { recorded_at: r.recorded_at.toISOString(), precip_mm_mean: r.precip_mm_mean, temp_c_max: r.temp_c_max }
+    return { local_date, first: point(pool[0]), last: point(pool[pool.length - 1]) }
   })
 }
 
