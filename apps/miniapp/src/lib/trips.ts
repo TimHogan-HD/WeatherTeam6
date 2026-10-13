@@ -11,6 +11,7 @@ import {
   type ReadingsSummary,
   type Trip,
   type TripDayForecast,
+  type TripDayTrend,
   type TripOutlook,
   type TripTrendPoint,
 } from '@weatherteam6/types'
@@ -318,6 +319,83 @@ export function highChangeChip(points: readonly TripTrendPoint[]): string | null
   const f = Math.round(cToFDelta(c))
   if (f === 0) return 'High: no change'
   return `High: ${f > 0 ? 'up' : 'down'} ${Math.abs(f)}°`
+}
+
+/**
+ * The trend card's data for one crag. `days` is `null` from an API older than
+ * the by-day view, which then is withheld rather than drawn empty.
+ */
+export type TrendSeries = {
+  points: readonly TripTrendPoint[]
+  days: readonly TripDayTrend[] | null
+}
+
+/** One trip day on the by-day chart: its first recorded forecast against its latest. */
+export type DayTrendMark = {
+  localDate: string
+  firstRainMm: number | null
+  lastRainMm: number | null
+  firstHighC: number | null
+  lastHighC: number | null
+  /** Only one recording reached the day: there is no "first" to compare, so none is drawn. */
+  single: boolean
+}
+
+/** Every trip day, `null` throughout for a day nothing recorded yet. */
+export function dayTrendMarks(days: readonly TripDayTrend[]): DayTrendMark[] {
+  return days.map((d) => {
+    const single = d.first !== null && d.last !== null && d.first.recorded_at === d.last.recorded_at
+    const lastRainMm = d.last?.precip_mm_mean ?? null
+    const lastHighC = d.last?.temp_c_max ?? null
+    // A first figure is drawn only beside a latest one: a first bar next to an
+    // empty slot reads as the rain falling to nothing.
+    return {
+      localDate: d.local_date,
+      firstRainMm: single || lastRainMm === null ? null : (d.first?.precip_mm_mean ?? null),
+      lastRainMm,
+      firstHighC: single || lastHighC === null ? null : (d.first?.temp_c_max ?? null),
+      lastHighC,
+      single,
+    }
+  })
+}
+
+/** At least one trip day has a recording: the by-day view has something to draw. */
+export function hasDayTrend(days: readonly TripDayTrend[] | null): days is readonly TripDayTrend[] {
+  return days !== null && days.some((d) => d.last !== null)
+}
+
+/**
+ * `−0.06 in · +3°`: how a day's forecast moved from its first recording to its
+ * latest. Each half only when both ends carry it; `null` with neither.
+ */
+export function dayChangeCaption(mark: DayTrendMark): string | null {
+  const parts: string[] = []
+  if (mark.firstRainMm !== null && mark.lastRainMm !== null) {
+    const inches = mmToIn(mark.lastRainMm - mark.firstRainMm)
+    const shown = Math.abs(inches) < 0.005 ? 0 : inches
+    parts.push(`${shown > 0 ? '+' : shown < 0 ? '−' : ''}${Math.abs(shown).toFixed(2)} in`)
+  }
+  if (mark.firstHighC !== null && mark.lastHighC !== null) {
+    const f = Math.round(cToFDelta(mark.lastHighC - mark.firstHighC))
+    parts.push(`${f > 0 ? '+' : f < 0 ? '−' : ''}${Math.abs(f)}°`)
+  }
+  return parts.length === 0 ? null : parts.join(' · ')
+}
+
+/**
+ * The dates the by-day view compares, for its caption: the first recordings'
+ * date when every compared day shares it, else `null` (each day's first came on
+ * a different day, so no one date is true), and the latest recording's date.
+ */
+export function dayTrendSpan(days: readonly TripDayTrend[]): { first: string | null; last: string | null } {
+  const compared = days.filter((d) => d.first !== null && d.last !== null && d.first.recorded_at !== d.last.recorded_at)
+  const firstDates = new Set(compared.map((d) => deviceToday(new Date(d.first?.recorded_at ?? ''))))
+  const lastMs = Math.max(...days.flatMap((d) => (d.last === null ? [] : [Date.parse(d.last.recorded_at)])))
+  return {
+    first: firstDates.size === 1 ? ([...firstDates][0] ?? null) : null,
+    last: Number.isFinite(lastMs) ? deviceToday(new Date(lastMs)) : null,
+  }
 }
 
 /**

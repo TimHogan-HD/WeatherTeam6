@@ -1,5 +1,6 @@
 /**
- * Acceptance check for the trip recorder, `GET /trips/:tripId/forecast` and
+ * Acceptance check for the trip recorder, `GET /trips/:tripId/forecast`,
+ * `GET /trips/:tripId/trend` (its points and its days) and
  * `GET /trips/:tripId/summary`.
  *
  * Usage, from `apps/api`:
@@ -215,6 +216,46 @@ async function run(): Promise<void> {
       series?.locationId === locationId && series.points.length === 1 && series.points[0]?.trip_days === 22,
       JSON.stringify(series),
     )
+    console.log('\nThe trend by day')
+    // An earlier recording of one day, a day before the recorder's, so the
+    // first and the latest differ for it and for no other day.
+    const earlierDay = isoDay(now, 3)
+    const earlierAt = new Date(Math.floor(now.getTime() / 3_600_000) * 3_600_000 - 86_400_000)
+    await db.insert(tripDayRecords).values({
+      location_id: locationId,
+      local_date: earlierDay,
+      recorded_at: earlierAt,
+      lead_days: 4,
+      precip_mm_mean: 9.99,
+      temp_c_max: 1.5,
+    })
+    const byDayRes = await fetch(`${BASE}/trips/${tripId}/trend`, { headers: { Authorization: `Session ${token}` } })
+    const byDay = ((await byDayRes.json()) as ApiResponse<TripTrend[]>).data?.[0]?.days
+    check(
+      'days lists every trip date in order',
+      byDay?.length === 22 && byDay[0]?.local_date === isoDay(now, -1) && byDay[21]?.local_date === isoDay(now, 20),
+      byDay?.map((d) => d.local_date).join(','),
+    )
+    const compared = byDay?.find((d) => d.local_date === earlierDay)
+    check(
+      'a day recorded twice compares the earlier recording with the latest',
+      compared?.first?.precip_mm_mean === 9.99 &&
+        compared.first.temp_c_max === 1.5 &&
+        compared.first.recorded_at === earlierAt.toISOString() &&
+        compared.last !== null &&
+        compared.last.recorded_at > compared.first.recorded_at &&
+        compared.last.precip_mm_mean !== 9.99,
+      JSON.stringify(compared),
+    )
+    const once = byDay?.find((d) => d.local_date === isoDay(now, 5))
+    check(
+      'a day recorded once has the same recording at both ends',
+      once?.first !== null && once?.first !== undefined && once.first.recorded_at === once.last?.recorded_at,
+      JSON.stringify(once),
+    )
+    const beyond = byDay?.find((d) => d.local_date === isoDay(now, 20))
+    check('a day past the horizon has nothing at either end', beyond?.first === null && beyond.last === null, JSON.stringify(beyond))
+
     const otherToken = signToken({ sub: '00000000-0000-4000-8000-0000000000fd', exp: expiryFrom() }, TOKEN_SECRET)
     const foreign = await fetch(`${BASE}/trips/${tripId}/trend`, { headers: { Authorization: `Session ${otherToken}` } })
     check("another account reading this trip's trend gets 404", foreign.status === 404, String(foreign.status))

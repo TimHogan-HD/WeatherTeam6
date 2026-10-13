@@ -125,7 +125,7 @@ async function run(): Promise<void> {
 
   const { createApp } = await import('../index.js')
   const { db, pool } = await import('../db/index.js')
-  const { users, userPreferences, feedback, tripDayOutcomes, tripDayRecords, invites } = await import('../db/schema.js')
+  const { users, userPreferences, feedback, tripDayOutcomes, tripDayRecords, tripRainRecords, invites } = await import('../db/schema.js')
   const { hashPassword } = await import('../lib/auth/password.js')
   const { eq } = await import('drizzle-orm')
   const { chromium } = await import('playwright')
@@ -635,6 +635,46 @@ async function run(): Promise<void> {
     check('a one-crag trip draws its days, its rain and its trend', (await page.getByRole('group', { name: 'Trip days' }).getByRole('button').count()) === 3)
     await screen('trip-one-crag')
 
+    // The trend card with something recorded: each trip day at two firings
+    // (five days ago and an hour ago) and a whole-trip point at each, seeded the
+    // way the recorder writes them. They go with the location's cascade.
+    if (oneCragTripId !== null) {
+      const hourAgo = (h: number) => new Date(Math.floor(Date.now() / 3_600_000) * 3_600_000 - h * 3_600_000)
+      const crag = locationId
+      const firstAt = hourAgo(120)
+      const lastAt = hourAgo(1)
+      const seeded = [
+        { lead: 2, first: { rain: 2.0, high: 11.7 }, last: { rain: 0.5, high: 10 } },
+        { lead: 3, first: { rain: 2.6, high: 12.2 }, last: { rain: 0, high: 13.9 } },
+        { lead: 4, first: { rain: 1.5, high: 12.8 }, last: { rain: 0.1, high: 16.1 } },
+      ]
+      await db.insert(tripDayRecords).values(
+        seeded.flatMap((d) => [
+          { location_id: crag, local_date: isoDayFromNow(d.lead), recorded_at: firstAt, lead_days: d.lead + 5, member_count: 143, members_wet: 60, precip_mm_mean: d.first.rain, temp_c_max: d.first.high },
+          { location_id: crag, local_date: isoDayFromNow(d.lead), recorded_at: lastAt, lead_days: d.lead, member_count: 143, members_wet: 10, precip_mm_mean: d.last.rain, temp_c_max: d.last.high },
+        ]),
+      )
+      await db.insert(tripRainRecords).values([
+        { trip_id: oneCragTripId, location_id: locationId, recorded_at: firstAt, mean_mm: 6.1, p10_mm: 0.5, p90_mm: 18, member_count: 143, days_covered: 3, trip_days: 3, high_c_max: 12.8 },
+        { trip_id: oneCragTripId, location_id: locationId, recorded_at: lastAt, mean_mm: 0.6, p10_mm: 0, p90_mm: 1.3, member_count: 143, days_covered: 3, trip_days: 3, high_c_max: 16.1 },
+      ])
+      await page.reload()
+      const trendCard = page.getByRole('region', { name: 'Forecast trend' })
+      const byDayOpen = await trendCard
+        .getByRole('button', { name: 'By day', pressed: true })
+        .waitFor({ timeout: 30_000 })
+        .then(() => true)
+        .catch(() => false)
+      check('the trend card opens on each trip day, first forecast against the latest', byDayOpen)
+      check('it names the two forecasts it compares', (await trendCard.getByText(/^Each trip day: the first forecast \(/).count()) === 1)
+      check('and draws both for every day', (await trendCard.locator('[data-mark="first-rain"]').count()) === 3 && (await trendCard.locator('[data-mark="last-rain"]').count()) === 3)
+      await trendCard.scrollIntoViewIfNeeded()
+      await screen('trip-trend-by-day')
+      await trendCard.getByRole('button', { name: 'Whole trip' }).click()
+      check('Whole trip shows the totals, with what its dates mean', (await trendCard.getByText('Forecast made on →').count()) === 1)
+      await screen('trip-trend-whole')
+    }
+
     if (secondLocationId !== null) {
       const multi = await api<{ id: string }>('POST', '/trips', token, {
         name: `${PREFIX} two crags`,
@@ -719,18 +759,24 @@ async function run(): Promise<void> {
       await page.getByLabel('Last day').fill(isoDayFromNow(5))
       check(
         'moving a date says the trend restarts, before saving',
-        await page.getByText('Changing the dates restarts the forecast trend.').isVisible(),
+        await page.getByText('Changing the dates restarts the whole-trip trend.').isVisible(),
       )
       await screen('trip-edit', 5)
       await page.getByRole('button', { name: 'Save' }).click()
       await page.waitForURL((u) => u.pathname === `/trips/${oneCragTripId}`, { timeout: 15_000 }).catch(() => undefined)
       const edited = await api<{ name: string; endDate: string }>('GET', `/trips/${oneCragTripId}`, token)
+      // Waited for, not read once: the URL changes before the trip screen paints.
+      const renamed = await page
+        .getByRole('heading', { name: `${PREFIX} edited` })
+        .waitFor({ timeout: 10_000 })
+        .then(() => true)
+        .catch(() => false)
       check(
         'Save returns to the trip with the new name and dates',
         new URL(page.url()).pathname === `/trips/${oneCragTripId}` &&
           edited.payload.data?.name === `${PREFIX} edited` &&
           edited.payload.data.endDate === isoDayFromNow(5) &&
-          (await page.getByRole('heading', { name: `${PREFIX} edited` }).isVisible()),
+          renamed,
         `at ${page.url()} with ${JSON.stringify(edited.payload.data)}`,
       )
       await page.getByRole('button', { name: 'Delete trip' }).click()

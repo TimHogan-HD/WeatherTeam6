@@ -46,6 +46,12 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   /trips/:tripId` clears it by `trip_id`; `location_id` is on `DEPENDENT_TABLES`. `GET
   /trips/:tripId/trend` returns its points per trip location, oldest first, 404 for another
   account's trip.
+- **The trend's `days` are each trip date's first and latest `trip_day_records` that carried
+  weather** (`tripDayTrends`, `lib/trips/tripSummary.ts`), not the scored pair the summary
+  takes: the by-day view compares weather, and weather reaches 16 days. Optional on
+  `TripTrend`, so a client reads its absence as an older API and withholds the view. **A
+  first figure is drawn only beside a latest one** (`dayTrendMarks`), and one recording is
+  one figure, never "no change".
 - **Editing a trip keeps its trend honest** (`PATCH /trips/:tripId`, `lib/trips/updateTrip.ts`,
   `check:edit-trip`). A change of either date deletes every `trip_rain_records` point for the
   trip, because each totalled other days; a removed crag takes only its own points. A rename

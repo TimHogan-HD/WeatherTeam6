@@ -6,7 +6,7 @@ import { MAX_NAME_LENGTH, describeError, isIsoDate, isUuid, sendServerError } fr
 import { logger } from '../lib/logger.js'
 import { fetchOutlook, type Outlook } from '../lib/weather/ensembleOutlook.js'
 import { summarizeTripOutlook } from '../lib/trips/tripOutlook.js'
-import { tripDateList, tripDayLookBacks } from '../lib/trips/tripSummary.js'
+import { tripDateList, tripDayLookBacks, tripDayTrends } from '../lib/trips/tripSummary.js'
 import { MAX_TRIP_LOCATIONS, parseTripPatch, updateTrip } from '../lib/trips/updateTrip.js'
 import { parseNumeric, parseNumericRequired } from '@weatherteam6/types'
 import type { ApiResponse, Trip, TripLocation, CreateTripInput, TripOutlook, TripSummary, TripTrend } from '@weatherteam6/types'
@@ -366,10 +366,11 @@ tripsRouter.get('/trips/:tripId/trend', async (req: Request, res: Response) => {
 
   try {
     const tripRows = await db
-      .select({ id: trips.id })
+      .select({ start_date: trips.start_date, end_date: trips.end_date })
       .from(trips)
       .where(and(eq(trips.id, tripId), eq(trips.user_id, req.userId)))
-    if (!tripRows[0]) {
+    const tripRow = tripRows[0]
+    if (!tripRow) {
       const response: ApiResponse<null> = { data: null, error: 'Trip not found', status: 404 }
       res.status(404).json(response)
       return
@@ -383,13 +384,34 @@ tripsRouter.get('/trips/:tripId/trend', async (req: Request, res: Response) => {
       .where(and(eq(tripLocations.trip_id, tripId), eq(locations.user_id, req.userId)))
     const locationIds = owned.map((r) => r.id)
 
-    const points = locationIds.length > 0
-      ? await db
-          .select()
-          .from(tripRainRecords)
-          .where(and(eq(tripRainRecords.trip_id, tripId), inArray(tripRainRecords.location_id, locationIds)))
-          .orderBy(asc(tripRainRecords.recorded_at))
-      : []
+    const [points, dayRecords] =
+      locationIds.length === 0
+        ? [[], []]
+        : await Promise.all([
+            db
+              .select()
+              .from(tripRainRecords)
+              .where(and(eq(tripRainRecords.trip_id, tripId), inArray(tripRainRecords.location_id, locationIds)))
+              .orderBy(asc(tripRainRecords.recorded_at)),
+            db
+              .select({
+                location_id: tripDayRecords.location_id,
+                local_date: tripDayRecords.local_date,
+                recorded_at: tripDayRecords.recorded_at,
+                precip_mm_mean: tripDayRecords.precip_mm_mean,
+                temp_c_max: tripDayRecords.temp_c_max,
+              })
+              .from(tripDayRecords)
+              .where(
+                and(
+                  inArray(tripDayRecords.location_id, locationIds),
+                  gte(tripDayRecords.local_date, tripRow.start_date),
+                  lte(tripDayRecords.local_date, tripRow.end_date),
+                ),
+              ),
+          ])
+
+    const dates = tripDateList(tripRow.start_date, tripRow.end_date)
 
     const data: TripTrend[] = locationIds.map((locationId) => ({
       locationId,
@@ -404,6 +426,7 @@ tripsRouter.get('/trips/:tripId/trend', async (req: Request, res: Response) => {
           trip_days: p.trip_days,
           high_c_max: p.high_c_max,
         })),
+      days: tripDayTrends({ dates, records: dayRecords.filter((r) => r.location_id === locationId) }),
     }))
 
     const response: ApiResponse<TripTrend[]> = { data, error: null, status: 200 }

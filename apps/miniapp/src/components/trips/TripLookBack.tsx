@@ -6,13 +6,12 @@ import {
   formatPrecipIn,
   type TripDayLookBack,
   type TripSummary,
-  type TripTrendPoint,
 } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
 import { bareButton, cardV2, row, stack, toneColors } from '../../theme/styles.js'
 import { formatTempDeg } from '../../lib/format.js'
 import { ROCK_TONE, scoreTone } from '../../lib/locationList.js'
-import { dayMonthLabel, forecastWords, leadLabel, shortDayLabel } from '../../lib/trips.js'
+import { dayMonthLabel, forecastWords, hasDayTrend, leadLabel, shortDayLabel, type TrendSeries } from '../../lib/trips.js'
 import { ReadingPill } from '../ReadingPills.js'
 import { InlineError, Skeleton } from '../States.js'
 import { CardHead, TrendCard, type QueryState } from './TripCragView.js'
@@ -31,7 +30,7 @@ export function TripLookBackView({
   trend,
 }: {
   summary: QueryState<TripDayLookBack[]>
-  trend: QueryState<readonly TripTrendPoint[]>
+  trend: QueryState<TrendSeries>
 }) {
   if (summary.isPending) return <Skeleton height={180} />
   if (summary.isError || summary.data === undefined) {
@@ -46,7 +45,7 @@ export function TripLookBackView({
       {summary.data.map((day) => (
         <DayLookBack key={day.local_date} day={day} />
       ))}
-      {trend.data?.length === 0 ? null : <TrendCard trend={trend} />}
+      {trend.data?.points.length === 0 && !hasDayTrend(trend.data.days) ? null : <TrendCard trend={trend} />}
       <p style={typeV2.note}>{LOOK_BACK_SOURCE}</p>
     </div>
   )
