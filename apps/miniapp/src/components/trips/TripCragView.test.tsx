@@ -139,6 +139,17 @@ describe('TrendCard', () => {
     expect(html).not.toContain('Forecast made on')
   })
 
+  it('names no latest date on a trip whose days were last recorded on different days', () => {
+    const ended: TripDayTrend[] = [
+      { local_date: '2026-10-16', first: at('2026-10-04T12:00:00Z', 2, 11), last: at('2026-10-16T12:00:00Z', 0.5, 10) },
+      { local_date: '2026-10-17', first: at('2026-10-04T12:00:00Z', 2, 11), last: at('2026-10-17T12:00:00Z', 0, 12) },
+    ]
+    const html = card(ended)
+    expect(html).toContain('the first forecast (4 Oct) against its latest.')
+    expect(html).toContain('Rain, latest')
+    expect(html).not.toContain('17 Oct')
+  })
+
   it('shows only the whole-trip chart, labelled, when the API sends no days', () => {
     const html = card(null)
     expect(html).not.toContain('aria-pressed')

@@ -228,15 +228,22 @@ describe('the by-day trend', () => {
     last,
   })
 
-  it('names the first date only when every compared day shares it', () => {
+  it('names each end\'s date only when every day drawn at that end shares it', () => {
     const same = [
       day('2026-10-16', at('2026-10-04T12:00:00Z', 1, 10), at('2026-10-13T12:00:00Z', 0, 12)),
-      day('2026-10-17', at('2026-10-04T12:00:00Z', 1, 10), at('2026-10-12T12:00:00Z', 0, 12)),
+      day('2026-10-17', at('2026-10-04T12:00:00Z', 1, 10), at('2026-10-13T12:00:00Z', 0, 12)),
     ]
     expect(dayTrendSpan(same)).toEqual({ first: '2026-10-04', last: '2026-10-13' })
 
     const differ = [...same, day('2026-10-18', at('2026-10-05T12:00:00Z', 1, 10), at('2026-10-13T12:00:00Z', 0, 12))]
     expect(dayTrendSpan(differ).first).toBeNull()
+
+    // An ended trip: each day was last recorded on itself, so no one date is "the latest".
+    const ended = [
+      day('2026-10-16', at('2026-10-04T12:00:00Z', 1, 10), at('2026-10-16T12:00:00Z', 0, 12)),
+      day('2026-10-17', at('2026-10-04T12:00:00Z', 1, 10), at('2026-10-17T12:00:00Z', 0, 12)),
+    ]
+    expect(dayTrendSpan(ended)).toEqual({ first: '2026-10-04', last: null })
 
     // A day with one recording compares nothing, so its date does not split the caption.
     const once = at('2026-10-09T12:00:00Z', 1, 10)

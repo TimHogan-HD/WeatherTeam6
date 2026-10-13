@@ -384,17 +384,20 @@ export function dayChangeCaption(mark: DayTrendMark): string | null {
 }
 
 /**
- * The dates the by-day view compares, for its caption: the first recordings'
- * date when every compared day shares it, else `null` (each day's first came on
- * a different day, so no one date is true), and the latest recording's date.
+ * The dates the by-day view compares, for its caption and legend: each end's
+ * date only when every day drawn at that end shares it, else `null`, because
+ * no one date is true. A day stops being recorded once it has passed, so on a
+ * trip under way or over, the days' latest recordings fall on different dates.
  */
 export function dayTrendSpan(days: readonly TripDayTrend[]): { first: string | null; last: string | null } {
+  const shared = (stamps: readonly string[]): string | null => {
+    const dates = new Set(stamps.map((s) => deviceToday(new Date(s))))
+    return dates.size === 1 ? ([...dates][0] ?? null) : null
+  }
   const compared = days.filter((d) => d.first !== null && d.last !== null && d.first.recorded_at !== d.last.recorded_at)
-  const firstDates = new Set(compared.map((d) => deviceToday(new Date(d.first?.recorded_at ?? ''))))
-  const lastMs = Math.max(...days.flatMap((d) => (d.last === null ? [] : [Date.parse(d.last.recorded_at)])))
   return {
-    first: firstDates.size === 1 ? ([...firstDates][0] ?? null) : null,
-    last: Number.isFinite(lastMs) ? deviceToday(new Date(lastMs)) : null,
+    first: shared(compared.flatMap((d) => (d.first === null ? [] : [d.first.recorded_at]))),
+    last: shared(days.flatMap((d) => (d.last === null ? [] : [d.last.recorded_at]))),
   }
 }
 

@@ -479,9 +479,8 @@ function DayTrendView({ days }: { days: NonNullable<TrendSeries['days']> }) {
   return (
     <>
       <p style={{ ...typeV2.note, color: colorsV2.txt2 }}>
-        {span.first === null
-          ? 'Each trip day: its first forecast against the latest.'
-          : `Each trip day: the first forecast (${dateLabel(span.first)}) against the latest (${lastName}).`}
+        Each trip day: {span.first === null ? 'its first forecast' : `the first forecast (${firstName})`} against{' '}
+        {span.last === null ? 'its latest' : `the latest (${lastName})`}.
       </p>
       <div style={{ ...row(spacing.sectionGap), flexWrap: 'wrap' }}>
         <span style={{ ...row(spacing.tight), ...typeV2.note, color: colorsV2.rain }}>
