@@ -175,6 +175,36 @@ describe('fetchOutlook', () => {
     await expect(fetchOutlook(LOC, new Date())).rejects.toThrow('utc_offset_seconds')
   })
 
+  it('pools the models that answered alone when the four-model request 500s', async () => {
+    // A one-model response carries unsuffixed columns (live, 2026-10-13).
+    fetchMock.mockImplementation(async (input) => {
+      const models = new URL(String(input)).searchParams.get('models') ?? ''
+      if (models.includes(',') || models === 'icon_seamless_eps') {
+        return { ok: false, status: 500, text: async () => '' } as Response
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          utc_offset_seconds: -18000,
+          elevation: 372,
+          daily: {
+            time: DATES,
+            precipitation_sum: [0, 1, 2],
+            temperature_2m_max: [10, 11, 12],
+            temperature_2m_min: [0, 1, 2],
+          },
+        }),
+      } as Response
+    })
+
+    const settled = fetchOutlook(LOC, new Date('2026-10-02T12:00:00Z'))
+    await vi.runAllTimersAsync()
+    const outlook = await settled
+    expect(outlook.days[0]?.models).toEqual(['gfs_seamless', 'ecmwf_ifs025', 'gem_global'])
+    expect(outlook.days[0]?.member_count).toBe(3)
+  })
+
   it('throws on a non-retryable upstream error', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: false,

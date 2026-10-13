@@ -39,18 +39,22 @@ function makeTimes(date: string, hours = 24): string[] {
   })
 }
 
-function buildSyntheticHourly(memberCount: number, date: string): Record<string, unknown> {
+function buildSyntheticHourly(
+  memberCount: number,
+  date: string,
+  suffix = SUFFIX,
+): Record<string, unknown> {
   const times = makeTimes(date)
   const hourly: Record<string, unknown> = { time: times }
 
   for (let m = 1; m <= memberCount; m++) {
     const tag = `member${String(m).padStart(2, '0')}`
-    hourly[`precipitation_${tag}${SUFFIX}`] = Array(24).fill(m)
-    hourly[`temperature_2m_${tag}${SUFFIX}`] = Array(24).fill(20 + m)
-    hourly[`windspeed_10m_${tag}${SUFFIX}`] = Array(24).fill(10 + m)
-    hourly[`relativehumidity_2m_${tag}${SUFFIX}`] = Array(24).fill(50 + m)
-    hourly[`dewpoint_2m_${tag}${SUFFIX}`] = Array(24).fill(5 + m)
-    hourly[`shortwave_radiation_${tag}${SUFFIX}`] = Array(24).fill(200 + m * 10)
+    hourly[`precipitation_${tag}${suffix}`] = Array(24).fill(m)
+    hourly[`temperature_2m_${tag}${suffix}`] = Array(24).fill(20 + m)
+    hourly[`windspeed_10m_${tag}${suffix}`] = Array(24).fill(10 + m)
+    hourly[`relativehumidity_2m_${tag}${suffix}`] = Array(24).fill(50 + m)
+    hourly[`dewpoint_2m_${tag}${suffix}`] = Array(24).fill(5 + m)
+    hourly[`shortwave_radiation_${tag}${suffix}`] = Array(24).fill(200 + m * 10)
   }
 
   return hourly
@@ -363,7 +367,101 @@ describe('fetchEnsembleRun — daily figures', () => {
     const result = await settled
 
     expect(result).toBeInstanceOf(Error)
-    expect((result as Error).message).toBe('HTTP 503')
+    expect((result as Error).message).toContain('HTTP 503')
+    expect((result as Error).message).toContain('0 of 4 models')
+    // Four attempts at the four-model request, then two at each model alone.
+    expect(fetchMock).toHaveBeenCalledTimes(4 + 4 * 2)
+  })
+})
+
+describe('fetchEnsembleRun — one model at a time when the four-model request fails', () => {
+  let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    fetchMock = vi.fn<typeof fetch>()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  const failure = { ok: false, status: 500, text: async () => '{"reason":"Something went wrong."}' } as Response
+
+  /**
+   * Live shape (2026-10-13): Open-Meteo 500s the whole request when one model is
+   * broken, and answers a one-model request with unsuffixed columns. Member counts
+   * differ per model so the pooled counts show which model each came from.
+   */
+  function upstream(opts: { broken: string[]; members: Record<string, number>; date?: Record<string, string> }) {
+    fetchMock.mockImplementation(async (input) => {
+      const models = new URL(String(input)).searchParams.get('models') ?? ''
+      if (models.includes(',') || opts.broken.includes(models)) return failure
+      const hourly = buildSyntheticHourly(opts.members[models] ?? 1, opts.date?.[models] ?? '2025-06-01', '')
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ elevation: 100, utc_offset_seconds: -21600, hourly }),
+      } as Response
+    })
+  }
+
+  async function run() {
+    const settled = fetchEnsembleRun(ZERO_LOC).catch((e: unknown) => e)
+    await vi.runAllTimersAsync()
+    return settled
+  }
+
+  it('pools the three models that answered and names only them', async () => {
+    upstream({
+      broken: ['icon_seamless_eps'],
+      members: { gfs_seamless: 2, ecmwf_ifs025: 3, gem_global: 4 },
+    })
+
+    const result = await run()
+    if (result instanceof Error) throw result
+    const { daily, hours } = result as Awaited<ReturnType<typeof fetchEnsembleRun>>
+
+    expect(daily.model_sources).toEqual(['gfs_seamless', 'ecmwf_ifs025', 'gem_global'])
+    expect(daily.utc_offset_seconds).toBe(-21600)
+    expect(hours[0]?.model_member_counts).toEqual({ gfs_seamless: 2, ecmwf_ifs025: 3, gem_global: 4 })
+    expect(hours[0]?.member_count).toBe(9)
+  })
+
+  it('withholds the forecast when two models are down', async () => {
+    upstream({ broken: ['icon_seamless_eps', 'gem_global'], members: {} })
+
+    const result = await run()
+    expect(result).toBeInstanceOf(Error)
+    expect((result as Error).message).toContain('2 of 4 models')
+  })
+
+  it('drops a model whose time axis differs rather than aligning it', async () => {
+    upstream({ broken: [], members: { gem_global: 4 }, date: { gem_global: '2025-06-02' } })
+
+    const result = await run()
+    if (result instanceof Error) throw result
+    const { daily } = result as Awaited<ReturnType<typeof fetchEnsembleRun>>
+    expect(daily.model_sources).toEqual(['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless_eps'])
+  })
+
+  it('does not fan out on a 4xx, which every one-model request would get too', async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 400, text: async () => 'bad' } as Response)
+
+    const result = await run()
+    expect(result).toBeInstanceOf(Error)
+    expect((result as Error).message).toContain('400')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not fan out on a rate limit, which one-model requests would only deepen', async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 429, text: async () => 'slow down' } as Response)
+
+    const result = await run()
+    expect(result).toBeInstanceOf(Error)
+    expect((result as Error).message).toContain('429')
+    // fetchWithRetry's own four attempts at the four-model request, and nothing after.
     expect(fetchMock).toHaveBeenCalledTimes(4)
   })
 })
