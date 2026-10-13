@@ -23,9 +23,9 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   silently ignored. A control run (no `_memberNN`) is a member.
 - **One broken model must not take the ensemble down** (2026-10-13: ICON 500'd the whole
   four-model request and every forecast went blank). Every ensemble request goes through
-  `fetchEnsembleBlock`: on a 5xx, 429 or network failure it asks each model alone, appends
+  `fetchEnsembleBlock`: on a 5xx or network failure it asks each model alone, appends
   `ENSEMBLE_MODEL_SUFFIXES` (a one-model response has unsuffixed columns) and pools what
-  answered; fewer than `MIN_ENSEMBLE_MODELS` (3) withholds. A 4xx does not fan out. The
+  answered; fewer than `MIN_ENSEMBLE_MODELS` (3) withholds. A 4xx or 429 does not fan out. The
   sources footer then names the models that answered, from `model_sources`.
 - **`parseEnsemble` returns `by_model` beside the pooled days, through the same
   `computeDays`.** A model with precipitation but not all six variables goes in

@@ -516,13 +516,16 @@ export async function fetchEnsembleBlock<T extends EnsembleBlockResponse>(
     res = await fetchWithRetry(buildUrl(ENSEMBLE_MODELS).toString())
   } catch (err) {
     firstError = err instanceof Error ? err.message : String(err)
+    // `fetchWithRetry` throws `HTTP 429` once its attempts are spent. A rate limit is not a
+    // broken model, and eight more requests to the same upstream could only deepen it.
+    if (firstError === 'HTTP 429') throw new Error('Open-Meteo ensemble returned 429')
   }
   if (res !== null) {
     if (res.ok) return (await res.json()) as T
     const body = await res.text().catch(() => '')
     logger.debug({ statusCode: res.status, body: body.slice(0, 200) }, `[${label}] error response`)
     // A 4xx is our request, not a broken model: every one-model request would get it too.
-    if (res.status < 500 && res.status !== 429) {
+    if (res.status < 500) {
       throw new Error(`Open-Meteo ensemble returned ${res.status}`)
     }
     firstError = `HTTP ${res.status}`

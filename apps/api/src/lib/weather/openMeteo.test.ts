@@ -454,6 +454,16 @@ describe('fetchEnsembleRun — one model at a time when the four-model request f
     expect((result as Error).message).toContain('400')
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
+
+  it('does not fan out on a rate limit, which one-model requests would only deepen', async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 429, text: async () => 'slow down' } as Response)
+
+    const result = await run()
+    expect(result).toBeInstanceOf(Error)
+    expect((result as Error).message).toContain('429')
+    // fetchWithRetry's own four attempts at the four-model request, and nothing after.
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+  })
 })
 
 function buildNbmDaily(opts: {
