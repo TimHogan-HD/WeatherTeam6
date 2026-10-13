@@ -472,16 +472,119 @@ function applyLapseRate(
 }
 
 /**
- * Fetch the multi-model ensemble forecast and reduce it to daily values.
- *
- * @throws {Error} on HTTP failure after exhausting fetchWithRetry's 4 attempts, or
- * immediately on a non-retryable non-ok status. No internal fallback — callers must catch.
+ * Fewest of the four ensemble models a pooled figure may rest on when the
+ * four-model request has failed and each model is asked alone. Three, as for
+ * the rain median (`MIN_RAIN_MODELS`): one dead model leaves a forecast, two
+ * withhold it.
  */
-function buildEnsembleUrl(location: ForecastLocation): URL {
+export const MIN_ENSEMBLE_MODELS = 3
+
+/** Attempts per model on the one-at-a-time path. The four-model request has already spent its own. */
+const PER_MODEL_ATTEMPTS = 2
+
+type EnsembleBlockResponse = {
+  elevation?: number
+  utc_offset_seconds?: number
+  hourly?: Record<string, unknown>
+  daily?: Record<string, unknown>
+}
+
+/**
+ * GET an ensemble request for all four `ENSEMBLE_MODELS`; if that fails, ask each
+ * model alone and relabel its columns as the four-model response would have.
+ *
+ * Open-Meteo answers the whole request with a 500 when one model is broken on its
+ * side (ICON on 2026-10-13), so one dead model took every forecast with it. A
+ * single-model response names its columns without the model suffix
+ * (`precipitation_member01`, not `precipitation_member01_ncep_gefs_seamless`,
+ * checked live 2026-10-13); appending `ENSEMBLE_MODEL_SUFFIXES` makes the merged
+ * block read exactly like the four-model one, so `parseEnsemble` and
+ * `parseOutlook` pool what answered and `model_sources` names only those models.
+ * A model whose time axis differs from the first one's is dropped, never aligned.
+ *
+ * @throws {Error} when the four-model request fails and fewer than
+ * `MIN_ENSEMBLE_MODELS` answer alone.
+ */
+export async function fetchEnsembleBlock<T extends EnsembleBlockResponse>(
+  buildUrl: (models: string) => URL,
+  block: 'hourly' | 'daily',
+  label: string,
+): Promise<T> {
+  let res: Response | null = null
+  let firstError = ''
+  try {
+    res = await fetchWithRetry(buildUrl(ENSEMBLE_MODELS).toString())
+  } catch (err) {
+    firstError = err instanceof Error ? err.message : String(err)
+  }
+  if (res !== null) {
+    if (res.ok) return (await res.json()) as T
+    const body = await res.text().catch(() => '')
+    logger.debug({ statusCode: res.status, body: body.slice(0, 200) }, `[${label}] error response`)
+    // A 4xx is our request, not a broken model: every one-model request would get it too.
+    if (res.status < 500 && res.status !== 429) {
+      throw new Error(`Open-Meteo ensemble returned ${res.status}`)
+    }
+    firstError = `HTTP ${res.status}`
+  }
+
+  const models = ENSEMBLE_MODELS.split(',')
+  const answers = await Promise.all(
+    models.map(async (model): Promise<T | null> => {
+      try {
+        const res = await fetchWithRetry(buildUrl(model).toString(), PER_MODEL_ATTEMPTS)
+        if (!res.ok) return null
+        const raw = (await res.json()) as T
+        return raw[block] && typeof raw[block] === 'object' ? raw : null
+      } catch {
+        return null
+      }
+    }),
+  )
+
+  let base: T | null = null
+  let baseTime = ''
+  const merged: Record<string, unknown> = {}
+  const used: string[] = []
+  const failed: string[] = []
+  for (const [i, model] of models.entries()) {
+    const raw = answers[i]
+    const suffix = ENSEMBLE_MODEL_SUFFIXES[model]
+    const values = raw?.[block]
+    if (!raw || !values || !Array.isArray(values.time) || suffix === undefined) {
+      failed.push(model)
+      continue
+    }
+    const time = JSON.stringify(values.time)
+    if (base === null) {
+      base = raw
+      baseTime = time
+      merged.time = values.time
+    } else if (time !== baseTime) {
+      failed.push(model)
+      continue
+    }
+    for (const [key, value] of Object.entries(values)) {
+      if (key !== 'time') merged[`${key}${suffix}`] = value
+    }
+    used.push(model)
+  }
+
+  if (base === null || used.length < MIN_ENSEMBLE_MODELS) {
+    throw new Error(
+      `Open-Meteo ensemble failed (${firstError}); ${used.length} of ${models.length} models answered alone`,
+    )
+  }
+  logger.warn({ firstError, failed, used }, `[${label}] four-model request failed; pooled the models that answered`)
+  return { ...base, [block]: merged }
+}
+
+/** The ensemble request for `models`, bucketed into the location's local days. */
+function buildEnsembleUrl(location: ForecastLocation, models: string): URL {
   const url = new URL(ENSEMBLE_URL)
   url.searchParams.set('latitude', String(location.lat))
   url.searchParams.set('longitude', String(location.lon))
-  url.searchParams.set('models', ENSEMBLE_MODELS)
+  url.searchParams.set('models', models)
   url.searchParams.set('hourly', HOURLY_VARS)
   /**
    * **Local days, resolved from the coordinates** (issue #33).
@@ -1451,21 +1554,19 @@ export type EnsembleRun = {
  * scoring consumes, and the hourly percentiles the charts draw. `collect-runs`
  * stores both, and the forecast reads the stored days (`getEnsembleDaily`).
  *
- * @throws {Error} on HTTP failure.
+ * @throws {Error} when the ensemble fails and fewer than `MIN_ENSEMBLE_MODELS`
+ * answer alone (`fetchEnsembleBlock`), or the response has no hourly block.
  */
 export async function fetchEnsembleRun(location: ForecastLocation): Promise<EnsembleRun> {
   const fetched_at = new Date()
-  const res = await fetchWithRetry(buildEnsembleUrl(location).toString())
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    logger.debug(
-      { statusCode: res.status, body: body.slice(0, 200) },
-      '[openMeteo] ensemble error response',
-    )
-    throw new Error(`Open-Meteo ensemble API returned ${res.status}`)
+  const raw = await fetchEnsembleBlock<EnsembleResponse>(
+    (models) => buildEnsembleUrl(location, models),
+    'hourly',
+    'openMeteo',
+  )
+  if (!raw.hourly || typeof raw.hourly !== 'object') {
+    throw new Error('Open-Meteo ensemble carried no hourly block')
   }
-
-  const raw = (await res.json()) as EnsembleResponse
   const daily = parseEnsemble(raw.hourly)
   applyLapseRate(daily.days, location.elevation_m, raw.elevation)
   // Falls back to 0 (i.e. UTC) rather than guessing. A missing offset with local

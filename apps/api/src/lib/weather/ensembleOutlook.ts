@@ -1,12 +1,10 @@
 import type { OutlookDay } from '@weatherteam6/types'
-import { logger } from '../logger.js'
 import {
-  ENSEMBLE_MODELS,
   ENSEMBLE_MODEL_SUFFIXES,
   ENSEMBLE_URL,
   MEASURABLE_PRECIP_MM,
   ensembleMedian,
-  fetchWithRetry,
+  fetchEnsembleBlock,
   lapseShiftC,
   localDateString,
   memberArraysFor,
@@ -114,25 +112,18 @@ export function parseOutlook(
  * @throws {Error} on HTTP failure or a response with no daily block.
  */
 export async function fetchOutlook(location: ForecastLocation, now: Date): Promise<Outlook> {
-  const url = new URL(ENSEMBLE_URL)
-  url.searchParams.set('latitude', String(location.lat))
-  url.searchParams.set('longitude', String(location.lon))
-  url.searchParams.set('models', ENSEMBLE_MODELS)
-  url.searchParams.set('daily', 'temperature_2m_max,temperature_2m_min,precipitation_sum')
-  url.searchParams.set('forecast_days', String(OUTLOOK_DAYS))
-  url.searchParams.set('timezone', 'auto')
-
-  const res = await fetchWithRetry(url.toString())
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    logger.debug(
-      { statusCode: res.status, body: body.slice(0, 200) },
-      '[ensembleOutlook] error response',
-    )
-    throw new Error(`Open-Meteo ensemble outlook returned ${res.status}`)
+  const buildUrl = (models: string): URL => {
+    const url = new URL(ENSEMBLE_URL)
+    url.searchParams.set('latitude', String(location.lat))
+    url.searchParams.set('longitude', String(location.lon))
+    url.searchParams.set('models', models)
+    url.searchParams.set('daily', 'temperature_2m_max,temperature_2m_min,precipitation_sum')
+    url.searchParams.set('forecast_days', String(OUTLOOK_DAYS))
+    url.searchParams.set('timezone', 'auto')
+    return url
   }
 
-  const raw = (await res.json()) as OutlookResponse
+  const raw = await fetchEnsembleBlock<OutlookResponse>(buildUrl, 'daily', 'ensembleOutlook')
   if (!raw.daily || typeof raw.daily !== 'object') {
     throw new Error('Open-Meteo ensemble outlook carried no daily block')
   }
