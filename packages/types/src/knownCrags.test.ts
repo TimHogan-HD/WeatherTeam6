@@ -115,6 +115,13 @@ describe('matchKnownCrag', () => {
     expect(matchKnownCrag(43.47109, -89.74429)).toBeNull()
   })
 
+  it('matches Sandstone, MN at its parent area point as well as in the park', () => {
+    // OpenBeta pins "Sandstone" 11 km west of Robinson Park, where the walls are.
+    expect(matchKnownCrag(46.11369, -93.00083)?.slug).toBe('sandstone-mn')
+    expect(matchKnownCrag(46.1366, -92.86041)?.slug).toBe('robinson-park') // Sigma Wall
+    expect(matchKnownCrag(46.16448, -92.8395)).toBeNull() // Banning State Park
+  })
+
   it('prefers the nearer of two crags in reach', () => {
     // Between Cathedral and Whitehorse Ledges, much closer to Whitehorse.
     expect(matchKnownCrag(44.0525, -71.168)?.slug).toBe('whitehorse-ledge')
