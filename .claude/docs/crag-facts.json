@@ -189,7 +189,7 @@
       "rock": {
         "family": "sandstone",
         "formation": "Hinckley Sandstone",
-        "note": "In a quarry. Quarried faces have no case hardening — no protective rind, which removes the thin-shell failure mode but also removes the armour. Hinckley was selected commercially as a structural building stone, a strong signal it sits near the well-lithified end. No porosity or absorption figures found for it.",
+        "note": "In a quarry. Quarried faces have no case hardening — no protective rind, which removes the thin-shell failure mode but also removes the armour. Hinckley was selected commercially as a structural building stone, a strong signal it sits near the well-lithified end. A quartz arenite, about 96% quartz (rock-drying-research.md §3; GSA 2001 abstract, gsa.confex.com/gsa/2001AM/webprogram/Paper16499.html) — locked as sandstone_quartz_arenite in KNOWN_CRAGS (owner, 2026-10-15). No porosity or absorption figures found for it.",
         "source": "rock-drying-research.md §4.7",
         "confidence": "I"
       },

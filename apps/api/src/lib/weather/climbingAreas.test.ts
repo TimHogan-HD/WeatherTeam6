@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { matchKnownCrag } from '@weatherteam6/types'
 import { MAX_CLIMBING_RESULTS, climbingAreaLevel, climbingStates, searchClimbingAreas } from './climbingAreas.js'
 import { CO_CLIMBING_AREAS } from './climbingAreasCo.js'
 import { MN_CLIMBING_AREAS } from './climbingAreasMn.js'
@@ -98,5 +99,39 @@ describe('browsing climbing areas', () => {
       walk(null)
       expect(seen.size).toBe(areas.length)
     }
+  })
+})
+
+describe('Sandstone, MN — one rock for every area under it (owner, 2026-10-15)', () => {
+  // Walked by parent_id from the snapshot, so a later `climbing:pull` that adds
+  // a wall under Sandstone is checked without editing this test.
+  const root = MN_CLIMBING_AREAS.find((a) => a.name === 'Sandstone' && a.parent_id === null)
+  const under = new Set<string>(root ? [root.uuid] : [])
+  for (let grew = true; grew; ) {
+    grew = false
+    for (const a of MN_CLIMBING_AREAS) {
+      if (a.parent_id !== null && under.has(a.parent_id) && !under.has(a.uuid)) {
+        under.add(a.uuid)
+        grew = true
+      }
+    }
+  }
+  const areas = MN_CLIMBING_AREAS.filter((a) => under.has(a.uuid))
+
+  it('finds the parent and the walls below it', () => {
+    expect(root).toBeDefined()
+    expect(areas.map((a) => a.name)).toEqual(expect.arrayContaining(['Robinson Park', 'Sigma Wall', 'Eldon']))
+  })
+
+  it('locks every one of them to Hinckley quartz arenite', () => {
+    for (const a of areas) {
+      expect(matchKnownCrag(a.lat, a.lon)?.rock_type, a.name).toBe('sandstone_quartz_arenite')
+    }
+  })
+
+  it('leaves Banning State Park, a separate area 3 km north, for the user', () => {
+    const banning = MN_CLIMBING_AREAS.filter((a) => a.name.startsWith('Banning State Park'))
+    expect(banning.length).toBeGreaterThan(0)
+    for (const a of banning) expect(matchKnownCrag(a.lat, a.lon)).toBeNull()
   })
 })
