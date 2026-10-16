@@ -8,6 +8,7 @@ import type {
 } from '@weatherteam6/types'
 import { localDateString } from '../weather/openMeteo.js'
 import { buildHourlyReadings } from './hourlyReadings.js'
+import { buildSkySeries } from './skySeries.js'
 import type { ScoringLocation } from './scoringLocation.js'
 import type {
   DeterministicRuns,
@@ -214,6 +215,8 @@ const NO_READINGS_NOT_A_CRAG: HourlyReadings = {
 
 export type BuildInput = {
   locationId: string
+  /** Where the location is — the sky block places the sun here, crag or not. */
+  point: { lat: number; lon: number }
   deterministic: DeterministicRuns
   ensemble: EnsembleRuns
   /** Whether to include every model that answered. `?models=all`. */
@@ -323,6 +326,13 @@ export function buildHourlySeries(input: BuildInput): HourlySeries {
     hours,
     days,
     readings,
+    sky: buildSkySeries({
+      deterministic,
+      dates,
+      utcOffsetSeconds: offset,
+      lat: input.point.lat,
+      lon: input.point.lon,
+    }),
   }
 
   if (allModels) {

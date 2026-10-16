@@ -113,7 +113,7 @@ function pills(html: string): string[] {
 describe('DailyList — rows', () => {
   it('draws one titled row per day, in date order whatever order they arrive in', () => {
     const html = render(
-      <DailyList days={[day(DATES[2]), day(DATES[0]), day(DATES[1])]} readings={null} hours={[]} />,
+      <DailyList days={[day(DATES[2]), day(DATES[0]), day(DATES[1])]} readings={null} hours={[]} sky={[]} />,
     )
     expect(html).toContain('Next 3 days')
     const titles = [...html.matchAll(/>(\w+day · \d+\/\d+)</g)].map((m) => m[1])
@@ -125,7 +125,7 @@ describe('DailyList — rows', () => {
       <DailyList
         days={[day(DATES[0]), day(DATES[1], { temp_c_min: null })]}
         readings={null}
-        hours={[]}
+        hours={[]} sky={[]}
       />,
     )
     expect(html).toContain('aria-label="Low 50°, high 68°"')
@@ -134,7 +134,7 @@ describe('DailyList — rows', () => {
   })
 
   it('prints the peak wind through the shared formatter', () => {
-    const html = render(<DailyList days={[day(DATES[0])]} readings={null} hours={[]} />)
+    const html = render(<DailyList days={[day(DATES[0])]} readings={null} hours={[]} sky={[]} />)
     expect(html).toContain(`>${formatWindMph(12)}<`)
     expect(html).toContain('peak wind')
   })
@@ -147,7 +147,7 @@ describe('DailyList — the score pill', () => {
       <DailyList
         days={[day(DATES[0]), day(DATES[1])]}
         readings={readings([readingsDay(DATES[1], 40), readingsDay(DATES[0], 90)])}
-        hours={[]}
+        hours={[]} sky={[]}
       />,
     )
     expect(pills(html)).toEqual(['90', '40'])
@@ -158,7 +158,7 @@ describe('DailyList — the score pill', () => {
       <DailyList
         days={[day(DATES[0]), day(DATES[1])]}
         readings={readings([readingsDay(DATES[0], 0), readingsDay(DATES[1], null)])}
-        hours={[]}
+        hours={[]} sky={[]}
       />,
     )
     expect(pills(html)).toEqual(['0'])
@@ -167,12 +167,12 @@ describe('DailyList — the score pill', () => {
   it('is dropped under a Severe+ alert and while the alerts query is in flight', () => {
     const days = [day(DATES[0])]
     const r = [readingsDay(DATES[0], 90)]
-    expect(pills(render(<DailyList days={days} readings={readings(r, { severeAlertEvent: 'Extreme Heat Warning' })} hours={[]} />))).toEqual([])
-    expect(pills(render(<DailyList days={days} readings={readings(r, { alertsPending: true })} hours={[]} />))).toEqual([])
+    expect(pills(render(<DailyList days={days} readings={readings(r, { severeAlertEvent: 'Extreme Heat Warning' })} hours={[]} sky={[]} />))).toEqual([])
+    expect(pills(render(<DailyList days={days} readings={readings(r, { alertsPending: true })} hours={[]} sky={[]} />))).toEqual([])
   })
 
   it('is absent with no readings at all — a city, or /hourly in flight', () => {
-    expect(pills(render(<DailyList days={[day(DATES[0])]} readings={null} hours={[]} />))).toEqual([])
+    expect(pills(render(<DailyList days={[day(DATES[0])]} readings={null} hours={[]} sky={[]} />))).toEqual([])
   })
 
   it('tints the row by the score’s rung, and leaves an unscored row plain', () => {
@@ -180,7 +180,7 @@ describe('DailyList — the score pill', () => {
       <DailyList
         days={[day(DATES[0]), day(DATES[1])]}
         readings={readings([readingsDay(DATES[0], 95)])}
-        hours={[]}
+        hours={[]} sky={[]}
       />,
     )
     expect(html).toContain(`background-color:${toneSurfacesV2.good.row}`)
@@ -196,7 +196,7 @@ describe('DailyList — opening a day', () => {
       <DailyList
         days={week}
         readings={null}
-        hours={[]}
+        hours={[]} sky={[]}
         onSelectDay={() => {}}
         drawableDates={new Set([DATES[0], DATES[1]])}
       />,
@@ -210,7 +210,7 @@ describe('DailyList — opening a day', () => {
       <DailyList
         days={week}
         readings={null}
-        hours={[]}
+        hours={[]} sky={[]}
         onSelectDay={() => {}}
         drawableDates={new Set(DATES)}
       />,
@@ -222,7 +222,7 @@ describe('DailyList — opening a day', () => {
   it('renders no row as a button when there is no hourly data at all', () => {
     // No hourly data at all. A row that looks tappable and does nothing is worse
     // than a row that does not.
-    expect(render(<DailyList days={week} readings={null} hours={[]} />)).not.toContain('<button')
+    expect(render(<DailyList days={week} readings={null} hours={[]} sky={[]} />)).not.toContain('<button')
   })
 })
 
@@ -255,5 +255,33 @@ describe('dayRainChance', () => {
   it('is null when nothing on that day carries a wet count', () => {
     expect(dayRainChance(hoursFor(DATES[0], () => null), DATES[0])).toBeNull()
     expect(dayRainChance([], DATES[0])).toBeNull()
+  })
+})
+
+describe('DailyList — sky', () => {
+  it('puts each day’s sky word beside its own date, joined on the date', () => {
+    const html = render(
+      <DailyList
+        days={[day(DATES[0]), day(DATES[1])]}
+        readings={null}
+        hours={[]}
+        // Reversed, and with a date no row has: a positional join would swap the two words.
+        sky={[
+          { local_date: '2026-09-30', summary: 'cloudy' },
+          { local_date: DATES[1], summary: 'sunny_afternoon' },
+          { local_date: DATES[0], summary: 'sunny' },
+        ]}
+      />,
+    )
+    const words = [...html.matchAll(/>(Sunny|Sunny afternoon|Cloudy)</g)].map((m) => m[1])
+    expect(words).toEqual(['Sunny', 'Sunny afternoon'])
+    expect(html.match(/<svg/g)?.length ?? 0).toBeGreaterThanOrEqual(2)
+  })
+
+  it('shows no sky for a withheld day rather than calling it cloudy', () => {
+    const html = render(
+      <DailyList days={[day(DATES[0])]} readings={null} hours={[]} sky={[{ local_date: DATES[0], summary: null }]} />,
+    )
+    expect(html).not.toMatch(/Sunny|Cloudy|Partly/)
   })
 })

@@ -3,15 +3,18 @@ import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import {
   formatPrecipIn,
   formatWindMph,
+  SKY_DAY_LABEL,
+  skyDayIcon,
   type ForecastSnapshot,
   type HourlySample,
+  type SkyDay,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { cardV2, row, stack, wellV2 } from '../theme/styles.js'
 import { formatTempDeg } from '../lib/format.js'
 import { scoredDays, type DayReadings } from '../lib/overview.js'
 import { DayRowShell, ScorePill } from './DayRow.js'
-import { DropletIcon, WindIcon } from './Icons.js'
+import { DropletIcon, SkyIcon, WindIcon } from './Icons.js'
 
 /**
  * The Daily tab, from the WT6 Figma "V2" page's `v2 Dark - Daily` frame: one
@@ -82,6 +85,13 @@ export type DailyListProps = {
    */
   hours: readonly HourlySample[]
   /**
+   * The hourly response's sky days, for the icon and word beside each date.
+   * Empty while that query is in flight or failed, and from an API too old to
+   * send them. A day absent here, or with a null summary, shows no sky rather
+   * than a guess.
+   */
+  sky: readonly SkyDay[]
+  /**
    * Opens a day in the Hourly tab. Omitted when there is no hourly data at all,
    * which makes every row plain rather than a button
    * that does nothing.
@@ -115,11 +125,13 @@ function Chip({ icon, spoken, children }: { icon: ReactNode; spoken: string; chi
   )
 }
 
-export function DailyList({ days, readings, hours, onSelectDay, drawableDates }: DailyListProps) {
+export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDates }: DailyListProps) {
   const rows = [...days].sort((a, b) => a.forecast_date.localeCompare(b.forecast_date))
   // Joined on the date inside `scoredDays`, never on position: the forecast
   // rows and the readings' days are built by different paths.
   const scored = new Map(scoredDays(rows, readings).map((d) => [d.local_date, d]))
+  // On the date too: the sky days come from the hourly window, not these rows.
+  const skyByDate = new Map(sky.map((d) => [d.local_date, d.summary]))
 
   return (
     <section style={{ ...cardV2, ...stack(spacing.cellPad) }}>
@@ -138,6 +150,7 @@ export function DailyList({ days, readings, hours, onSelectDay, drawableDates }:
           const high = formatTempDeg(day.temp_c_max)
           const rain = rainChipText(day, hours)
           const wind = formatWindMph(day.wind_kmh_max)
+          const skySummary = skyByDate.get(day.forecast_date) ?? null
           return (
             <DayRowShell
               key={day.forecast_date}
@@ -146,7 +159,15 @@ export function DailyList({ days, readings, hours, onSelectDay, drawableDates }:
               style={stack(spacing.listGap)}
             >
               <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
-                <span style={typeV2.rowTitle}>{d.title}</span>
+                <span style={{ ...row(spacing.listGapSm), flexWrap: 'wrap', minWidth: 0 }}>
+                  <span style={typeV2.rowTitle}>{d.title}</span>
+                  {skySummary === null ? null : (
+                    <>
+                      <SkyIcon sky={skyDayIcon(skySummary)} />
+                      <span style={typeV2.daySky}>{SKY_DAY_LABEL[skySummary]}</span>
+                    </>
+                  )}
+                </span>
                 {/*
                   Absent rather than dashed with no score on screen — suppressed
                   under an alert (the banner says why), still loading, a city,

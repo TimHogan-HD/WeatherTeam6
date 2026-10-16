@@ -15,6 +15,8 @@
  * `.claude/rules/defect-patterns.md`.
  */
 
+import type { SkySeries } from './sky.js'
+
 /** One hour, at a real UTC instant, with the chosen deterministic model and the ensemble joined. */
 export type HourlySample = {
   /** UTC instant, ISO 8601. The join key between the two sources. */
@@ -206,6 +208,15 @@ export type HourlySeries = {
    * it be omitted would let a route forget.
    */
   readings: HourlyReadings
+  /**
+   * How sunny each daylight hour and day is, in words (`sky.ts`). For every
+   * location, crag or not: it reads no rock.
+   *
+   * Optional only because the API and the client deploy separately: an absent
+   * field is an older API, and renders nothing. `buildHourlySeries` always
+   * sends it.
+   */
+  sky?: SkySeries
   /**
    * Every deterministic model that answered — present **only** under `?models=all`,
    * absent otherwise. `hours` is populated either way, so a client that ignores the

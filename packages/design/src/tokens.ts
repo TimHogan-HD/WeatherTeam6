@@ -130,6 +130,12 @@ export const colorsV2 = {
   txtTab: '#7d8997',
   /** Chance of rain, as a figure. Also the dew point line on the Hourly tab. */
   rain: '#90cdf4',
+  /**
+   * The sun in the sky icons, Daily and Hourly. A pale yellow kept clear of
+   * the score ladder's `fair` amber, so a sunny day never reads as a fair
+   * score. 12.5:1 on `card`, 13.7:1 on `surface`. Clouds take `txtMuted`.
+   */
+  sun: '#f3e08a',
   /** A chart's value gridlines, on the Hourly tab. */
   grid: '#232e3b',
   /** A chart legend's words, and the sustained-wind line. */
@@ -806,6 +812,13 @@ export const typeV2 = {
     fontSize: 12,
     fontWeight: '500' as const,
     color: colorsV2.txt1,
+  },
+  /** The sky word beside a day's date — "Sunny morning": Barlow 13/500, under the date's weight. */
+  daySky: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    fontWeight: '500' as const,
+    color: colorsV2.txt2,
   },
   /** A fact's label — "Last rain": Barlow 14/500. */
   factLabel: {

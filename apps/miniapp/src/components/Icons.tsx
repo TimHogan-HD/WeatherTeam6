@@ -18,7 +18,8 @@ import {
   IconWind,
   IconX,
 } from '@tabler/icons-react'
-import { bottomNav, colors, motion } from '@weatherteam6/design/tokens'
+import { bottomNav, colors, colorsV2, motion } from '@weatherteam6/design/tokens'
+import type { SkyCondition } from '@weatherteam6/types'
 
 /**
  * The icons §8 budgets for, from `@tabler/icons-react` — the web sibling of the
@@ -121,3 +122,40 @@ export const NavIcon = ({ name }: { name: keyof typeof NAV_ICONS }) => {
   const Glyph = NAV_ICONS[name]
   return <Glyph size={bottomNav.iconSize} stroke={1.8} color="currentColor" aria-hidden />
 }
+
+/** The sun's eight rays, as one path: from radius 6.4 to 8.6 around (12, 12). */
+const RAYS = [0, 45, 90, 135, 180, 225, 270, 315]
+  .map((a) => {
+    const r = (a * Math.PI) / 180
+    const p = (d: number) => `${(12 + Math.cos(r) * d).toFixed(2)} ${(12 + Math.sin(r) * d).toFixed(2)}`
+    return `M${p(6.4)}L${p(8.6)}`
+  })
+  .join('')
+
+const CLOUD = 'M6 19h10.5a3.5 3.5 0 0 0 .3-7 5 5 0 0 0-9.6 1.2A3 3 0 0 0 6 19z'
+
+/**
+ * The sky in one glyph: sun, sun behind cloud, or cloud. **Drawn here, not
+ * Tabler's**: Tabler has no partly-cloudy glyph, and a sun and a cloud from two
+ * icons do not overlap cleanly. Filled, so the three tell apart at 18px.
+ *
+ * Decorative: the word beside it, or the strip cell's own label, says the
+ * condition.
+ */
+export const SkyIcon = ({ sky, size = 18 }: { sky: SkyCondition; size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" style={{ flex: '0 0 auto' }}>
+    {sky === 'sunny' ? (
+      <>
+        <circle cx="12" cy="12" r="4.4" fill={colorsV2.sun} />
+        <path d={RAYS} stroke={colorsV2.sun} strokeWidth="1.6" strokeLinecap="round" />
+      </>
+    ) : null}
+    {sky === 'partly_cloudy' ? (
+      <g transform="translate(-3 -3.5) scale(0.85)">
+        <circle cx="12" cy="12" r="4.4" fill={colorsV2.sun} />
+        <path d={RAYS} stroke={colorsV2.sun} strokeWidth="1.8" strokeLinecap="round" />
+      </g>
+    ) : null}
+    {sky === 'sunny' ? null : <path d={CLOUD} fill={colorsV2.txtMuted} />}
+  </svg>
+)
