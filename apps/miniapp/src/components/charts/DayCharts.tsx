@@ -6,15 +6,19 @@ import {
   formatTempF,
   formatWindMph,
   modelSourceLabel,
+  SKY_DAY_LABEL,
+  SKY_HOUR_LABEL,
   summarizeReadings,
   type HourlyReading,
   type HourlySeries,
   type ReadingsSummary,
+  type SkyHour,
 } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
 import { bareButton, cardV2, row, stack, type ToneName } from '../../theme/styles.js'
 import { formatForecastDate } from '../../lib/forecast.js'
-import { formatLocalClock, formatTempRangeF } from '../../lib/format.js'
+import { formatLocalClock, formatLocalHour, formatLocalHourShort, formatTempRangeF } from '../../lib/format.js'
+import { SkyIcon } from '../Icons.js'
 import { readingTone, scoreTone } from '../../lib/locationList.js'
 import { dayChips, daysOutPhrase } from '../../lib/hourlyDay.js'
 import { useNow } from '../../hooks/useNow.js'
@@ -45,6 +49,7 @@ import {
   windSeries,
   windSpreadSeries,
   gustSeries,
+  HOUR_MS,
 } from './hourlySeries.js'
 
 /**
@@ -162,6 +167,7 @@ export function DayCharts({ series, selectedDate, onSelectDate, score }: DayChar
         summary={summary}
         best={readingsDay?.best ?? null}
       />
+      <SkyCard series={series} selectedDate={selectedDate} />
       <ChartsCard series={series} selectedDate={selectedDate} shade={shade} />
     </>
   )
@@ -357,6 +363,91 @@ function ConditionsCard({
         {out === null ? null : <span style={typeV2.aside}>{out}</span>}
       </div>
       {body}
+    </section>
+  )
+}
+
+/**
+ * **How sunny the open day is, an icon per daylight hour** — Variant A of the
+ * sky mock the owner picked on 2026-10-16. The words are the server's
+ * (`HourlySeries.sky`); this lays them out.
+ *
+ * **A cell is labelled with the hour it covers, not its stamp.** Sunlight is a
+ * mean over the hour *before* `valid_at`, like rain, so the 08:00 sample is
+ * 7–8 am and reads `7a`.
+ *
+ * Absent from an API too old to send the block, and for a day with no
+ * daylight in it. A day the model's sunlight never reached says so rather than
+ * drawing a row of empty cells.
+ */
+function SkyCard({ series, selectedDate }: { series: HourlySeries; selectedDate: string }) {
+  const sky = series.sky
+  if (sky === undefined) return null
+  const hours = sky.hours.filter((h) => h.local_date === selectedDate)
+  if (hours.length === 0) return null
+  const summary = sky.days.find((d) => d.local_date === selectedDate)?.summary ?? null
+  const known = hours.filter((h) => h.sky !== null).length
+  const coveredHour = (h: SkyHour) =>
+    formatLocalHourShort(Date.parse(h.valid_at) - HOUR_MS, series.utc_offset_seconds) ?? EM_DASH
+  const spokenHour = (h: SkyHour) =>
+    formatLocalHour(Date.parse(h.valid_at) - HOUR_MS, series.utc_offset_seconds) ?? EM_DASH
+
+  return (
+    <section style={{ ...cardV2, ...stack(spacing.listGap) }}>
+      <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <h2 style={typeV2.cardTitle}>Sky</h2>
+        {summary === null ? null : <span style={typeV2.aside}>{SKY_DAY_LABEL[summary]}</span>}
+      </div>
+      {known === 0 ? (
+        <p style={typeV2.body}>No sunlight forecast for this day yet.</p>
+      ) : (
+        <>
+          <ul
+            aria-label="Sky by hour"
+            style={{
+              listStyle: 'none',
+              padding: 0,
+              display: 'grid',
+              gridTemplateColumns: `repeat(${hours.length}, minmax(0, 1fr))`,
+              gap: `${spacing.micro}px`,
+            }}
+          >
+            {hours.map((h) => (
+              <li
+                key={h.valid_at}
+                aria-label={`${spokenHour(h)}, ${h.sky === null ? 'no forecast' : SKY_HOUR_LABEL[h.sky]}`}
+                style={{
+                  ...stack(spacing.tight),
+                  alignItems: 'center',
+                  padding: `${spacing.listGapSm}px 0`,
+                  borderRadius: `${radius.chipMd}px`,
+                  backgroundColor: colorsV2.surface,
+                }}
+              >
+                <span aria-hidden style={{ ...typeV2.axisTick, whiteSpace: 'nowrap' }}>
+                  {coveredHour(h)}
+                </span>
+                {h.sky === null ? (
+                  <span
+                    aria-hidden
+                    style={{
+                      width: '22px',
+                      height: '22px',
+                      borderStyle: 'dashed',
+                      borderWidth: '1px',
+                      borderColor: colorsV2.line,
+                      borderRadius: `${radius.chip}px`,
+                    }}
+                  />
+                ) : (
+                  <SkyIcon sky={h.sky} size={22} />
+                )}
+              </li>
+            ))}
+          </ul>
+          {known === hours.length ? null : <p style={typeV2.note}>Dashed hours have no sunlight forecast.</p>}
+        </>
+      )}
     </section>
   )
 }

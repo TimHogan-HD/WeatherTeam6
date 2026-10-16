@@ -49,6 +49,7 @@ export async function getHourlySeries(
 
   return buildHourlySeries({
     locationId: location.id,
+    point: { lat: location.lat, lon: location.lon },
     deterministic,
     ensemble,
     allModels: opts.allModels,

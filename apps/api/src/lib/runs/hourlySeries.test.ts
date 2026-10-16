@@ -21,6 +21,9 @@ const HOUR_MS = 60 * 60 * 1000
 /** Las Vegas in September: UTC-7. Negative, so a UTC-day comparison gets it wrong. */
 const PDT = -7 * 3600
 
+/** Where the fixtures are, for the sky block's sun. */
+const LAS_VEGAS = { lat: 36.17, lon: -115.14 }
+
 function det(overrides: Partial<RunHour> & { valid_at: Date }): RunHour {
   return {
     temp_c: null,
@@ -175,6 +178,7 @@ describe('buildHourlySeries', () => {
     const at = new Date('2026-09-08T20:00:00Z')
     const series = buildHourlySeries({
       locationId: 'loc-1',
+      point: LAS_VEGAS,
       deterministic: runs([model('gfs_seamless', [det({ valid_at: at, temp_c: 31.5 })])]),
       ensemble: ensRuns([ens({ valid_at: at, temp_c_p50: 31.0, temp_c_p10: 28, temp_c_p90: 34 })]),
       allModels: false,
@@ -186,6 +190,9 @@ describe('buildHourlySeries', () => {
     expect(series.hours[0]?.temp_c).toBe(31.5)
     expect(series.hours[0]?.temp_c_p50).toBe(31.0)
     expect(series.hours[0]?.local_date).toBe('2026-09-08')
+    // The sky block goes out on every response, crag or not (`scoring: null` here).
+    expect(series.sky?.model).toBe('gfs_seamless')
+    expect(series.sky?.days.map((d) => d.local_date)).toEqual(series.days.map((d) => d.local_date))
   })
 
   it('keeps an hour that only one source has, with nulls on the other side', () => {
@@ -195,6 +202,7 @@ describe('buildHourlySeries', () => {
     const ensOnly = new Date('2026-09-08T21:00:00Z')
     const series = buildHourlySeries({
       locationId: 'loc-1',
+      point: LAS_VEGAS,
       deterministic: runs([model('gfs_seamless', [det({ valid_at: detOnly, temp_c: 30 })])]),
       ensemble: ensRuns([ens({ valid_at: ensOnly, temp_c_p50: 29 })]),
       allModels: false,
@@ -213,6 +221,7 @@ describe('buildHourlySeries', () => {
     const t = (h: number) => new Date(`2026-09-08T${String(h).padStart(2, '0')}:00:00Z`)
     const series = buildHourlySeries({
       locationId: 'loc-1',
+      point: LAS_VEGAS,
       deterministic: runs([model('gfs_seamless', [det({ valid_at: t(22), temp_c: 1 }), det({ valid_at: t(19), temp_c: 2 })])]),
       ensemble: ensRuns([ens({ valid_at: t(20), temp_c_p50: 3 })]),
       allModels: false,
@@ -231,6 +240,7 @@ describe('buildHourlySeries', () => {
     const outside = new Date('2026-09-20T20:00:00Z') // ensemble reaches 16 days; the window is 7
     const series = buildHourlySeries({
       locationId: 'loc-1',
+      point: LAS_VEGAS,
       deterministic: runs([model('gfs_seamless', [det({ valid_at: inside, temp_c: 30 })])]),
       ensemble: ensRuns([ens({ valid_at: inside, temp_c_p50: 29 }), ens({ valid_at: outside, temp_c_p50: 25 })]),
       allModels: false,
@@ -248,6 +258,7 @@ describe('buildHourlySeries', () => {
     const padded = new Date('2026-09-09T20:00:00Z')
     const series = buildHourlySeries({
       locationId: 'loc-1',
+      point: LAS_VEGAS,
       deterministic: runs([
         model('gfs_seamless', [det({ valid_at: real, temp_c: 30 }), det({ valid_at: padded })]),
       ]),
@@ -268,6 +279,7 @@ describe('buildHourlySeries', () => {
     const at = new Date('2026-09-08T20:00:00Z')
     const series = buildHourlySeries({
       locationId: 'loc-1',
+      point: LAS_VEGAS,
       deterministic: runs([model('gfs_seamless', [det({ valid_at: at })])]),
       ensemble: ensRuns([ens({ valid_at: at, temp_c_p50: 29 })]),
       allModels: false,
@@ -284,6 +296,7 @@ describe('buildHourlySeries', () => {
     const d = runs([model('gfs_seamless', [det({ valid_at: at, temp_c: 30 })])])
     const series = buildHourlySeries({
       locationId: 'loc-1',
+      point: LAS_VEGAS,
       deterministic: { ...d, unavailable_models: ['ncep_hrrr_conus'] },
       ensemble: ensRuns([]),
       allModels: false,
@@ -297,6 +310,7 @@ describe('buildHourlySeries', () => {
     const at = new Date('2026-09-08T20:00:00Z')
     const series = buildHourlySeries({
       locationId: 'loc-1',
+      point: LAS_VEGAS,
       deterministic: runs([model('gfs_seamless', [det({ valid_at: at, temp_c: 30 })])]),
       ensemble: ensRuns([]),
       allModels: false,
@@ -311,6 +325,7 @@ describe('buildHourlySeries', () => {
     const t2 = new Date('2026-09-08T21:00:00Z')
     const series = buildHourlySeries({
       locationId: 'loc-1',
+      point: LAS_VEGAS,
       deterministic: runs([
         model('gfs_seamless', [det({ valid_at: t1, temp_c: 30 }), det({ valid_at: t2, temp_c: 31 })]),
         // Reaches only the first hour; the second is padding.
@@ -340,6 +355,7 @@ describe('buildHourlySeries', () => {
     const at = new Date('2026-09-09T03:00:00Z') // 20:00 local on the 8th
     const series = buildHourlySeries({
       locationId: 'loc-1',
+      point: LAS_VEGAS,
       deterministic: { models: [], unavailable_models: [], utc_offset_seconds: 0, fetched_at: null, checked_at: null },
       ensemble: ensRuns([ens({ valid_at: at, temp_c_p50: 24 })]),
       allModels: false,
@@ -355,6 +371,7 @@ describe('buildHourlySeries', () => {
     const t2 = new Date('2026-09-08T21:00:00Z')
     const series = buildHourlySeries({
       locationId: 'loc-1',
+      point: LAS_VEGAS,
       deterministic: runs([]),
       ensemble: ensRuns([
         ens({ valid_at: t1, members_wet: 86, member_count: 143 }),
@@ -379,6 +396,7 @@ describe('buildHourlySeries', () => {
     const at = new Date('2026-09-08T20:00:00Z')
     const series = buildHourlySeries({
       locationId: 'loc-1',
+      point: LAS_VEGAS,
       deterministic: runs([model('gfs_seamless', [det({ valid_at: at, temp_c: 20 })])], new Date('2026-09-08T19:00:00Z')),
       ensemble: ensRuns([ens({ valid_at: at, temp_c_p50: 21 })], new Date('2026-09-08T18:00:00Z')),
       allModels: false,
@@ -392,6 +410,7 @@ describe('buildHourlySeries', () => {
     const at = new Date('2026-09-08T20:00:00Z')
     const series = buildHourlySeries({
       locationId: 'loc-1',
+      point: LAS_VEGAS,
       deterministic: runs([model('gfs_seamless', [det({ valid_at: at, temp_c: 20 })])], null),
       ensemble: ensRuns([ens({ valid_at: at, temp_c_p50: 21 })], new Date('2026-09-08T18:00:00Z')),
       allModels: false,
@@ -412,6 +431,7 @@ describe('buildHourlySeries — offset selection', () => {
     const at = new Date('2026-09-08T20:00:00Z')
     const series = buildHourlySeries({
       locationId: 'loc-utc',
+      point: LAS_VEGAS,
       deterministic: {
         models: [model('gfs_seamless', [det({ valid_at: at, temp_c: 11 })])],
         unavailable_models: [],
@@ -457,6 +477,7 @@ describe('buildHourlySeries — a recorded wall never replaces the crag score', 
   const build = (wall: { lat: number; lon: number; aspectDeg: number; cliffAngleDeg: number } | null) =>
     buildHourlySeries({
       locationId: 'loc-1',
+      point: LAS_VEGAS,
       deterministic: runs([model('gfs_seamless', hours)]),
       ensemble: ensRuns([]),
       allModels: false,

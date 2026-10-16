@@ -6,6 +6,9 @@ import type {
   HourlySample,
   HourlySeries,
   ReadingsDay,
+  SkyCondition,
+  SkyDaySummary,
+  SkyHour,
 } from '@weatherteam6/types'
 import { DayCharts } from './DayCharts.js'
 import { chartColorsV2 } from './chartStyle.js'
@@ -458,5 +461,46 @@ describe('DayCharts — a trace of rain', () => {
     const block = html.slice(html.indexOf('>Rain<'), html.indexOf('>Chance of rain<'))
     expect(block).toContain('>0.02<')
     expect(block.match(/>0</g)?.length ?? 0).toBeLessThanOrEqual(1)
+  })
+})
+
+describe('DayCharts — sky', () => {
+  // Offset 0, so a stamp's UTC hour is its local hour.
+  const skyHour = (stampHour: number, sky: SkyCondition | null, local_date = DAY_1): SkyHour => ({
+    valid_at: new Date(T0 + stampHour * HOUR_MS).toISOString(),
+    local_date,
+    sky,
+  })
+  const withSky = (hours: SkyHour[], summary: SkyDaySummary | null): HourlySeries => ({
+    ...series(fullDay),
+    sky: { model: 'gfs_seamless', hours, days: [{ local_date: DAY_1, summary }] },
+  })
+
+  it('labels each cell with the hour it covers, and reads each aloud', () => {
+    const html = render(withSky([skyHour(8, 'sunny'), skyHour(9, 'cloudy')], 'partly_cloudy'))
+    // The 08:00 stamp is the mean over 7-8 am.
+    expect(html).toContain('aria-label="7 AM, Sunny"')
+    expect(html).toContain('aria-label="8 AM, Cloudy"')
+    expect(html).toContain('>7a<')
+    expect(html).not.toContain('>9a<')
+    expect(html).toContain('Partly cloudy')
+  })
+
+  it('draws a gap as a dashed cell with a note, and withholds the day word', () => {
+    const html = render(withSky([skyHour(8, 'sunny'), skyHour(9, null)], null))
+    expect(html).toContain('aria-label="8 AM, no forecast"')
+    expect(html).toContain('Dashed hours have no sunlight forecast.')
+    expect(html).not.toContain('Cloudy')
+  })
+
+  it('says so when no hour of the day has sunlight, rather than drawing empty cells', () => {
+    const html = render(withSky([skyHour(8, null), skyHour(9, null)], null))
+    expect(html).toContain('No sunlight forecast for this day yet.')
+    expect(html).not.toContain('Sky by hour')
+  })
+
+  it('draws nothing from an API that sent no sky, or for another day’s hours', () => {
+    expect(render(series(fullDay))).not.toContain('>Sky<')
+    expect(render(withSky([skyHour(8, 'sunny', DAY_2)], null))).not.toContain('>Sky<')
   })
 })

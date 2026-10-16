@@ -254,6 +254,7 @@ async function run(): Promise<void> {
   // ── the series builds, and the join lines up ──────────────────────────────────
   const series = buildHourlySeries({
     locationId: picked.id,
+    point: { lat: Number(picked.lat), lon: Number(picked.lon) },
     deterministic: det,
     ensemble: ens,
     allModels: false,
@@ -319,6 +320,7 @@ async function run(): Promise<void> {
 
   const allSeries = buildHourlySeries({
     locationId: picked.id,
+    point: { lat: Number(picked.lat), lon: Number(picked.lon) },
     deterministic: det,
     ensemble: ens,
     allModels: true,

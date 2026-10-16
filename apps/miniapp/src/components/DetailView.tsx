@@ -286,6 +286,7 @@ export function DetailView({
           days={forecast.data}
           readings={dayReadings}
           hours={hourly?.data?.hours ?? []}
+          sky={hourly?.data?.sky?.days ?? []}
           {...(tabs === undefined || drawableDates === undefined
             ? {}
             : {
