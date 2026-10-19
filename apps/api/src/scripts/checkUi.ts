@@ -294,7 +294,12 @@ async function run(): Promise<void> {
     })
     // The device remembers an empty list, as if every crag were added
     // elsewhere: the splash must wait for the real list, not lift on this one.
-    await page.evaluate(() => localStorage.setItem('wt6.locations', '[]'))
+    // The cards' weather from the steps above is forgotten too, or the list
+    // draws from it and the splash rightly never rises.
+    await page.evaluate(() => {
+      localStorage.setItem('wt6.locations', '[]')
+      localStorage.removeItem('wt6.cards')
+    })
     await page.goto(`${WEB}/`)
     const splashUp = await splash
       .waitFor({ timeout: 10_000 })
