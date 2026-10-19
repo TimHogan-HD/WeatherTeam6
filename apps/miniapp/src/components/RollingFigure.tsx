@@ -21,9 +21,15 @@ export function usePreviousFigure(value: string): string | null {
     shown.current = value
     if (before === value || !DIGITS.test(before) || !DIGITS.test(value)) return
     setWas(before)
+  }, [value])
+  // The hold is its own effect, keyed on `was`. Inside the effect above, a
+  // re-run with the same value (StrictMode does one on mount) cleared the
+  // timer and returned early without re-arming it, and "was" never went away.
+  useEffect(() => {
+    if (was === null) return
     const timer = setTimeout(() => setWas(null), motion.wasHoldMs)
     return () => clearTimeout(timer)
-  }, [value])
+  }, [was])
   return was
 }
 
