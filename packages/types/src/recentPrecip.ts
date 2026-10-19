@@ -20,6 +20,15 @@
  */
 export const REWETTING_PRECIP_MM = 0.5
 
+/**
+ * The threshold a member has to cross to count as wet.
+ *
+ * 0.1 mm is Open-Meteo's own precipitation resolution, so anything below it is
+ * a member reporting nothing rather than a member reporting a trace. Shared so
+ * the client's "Dry all day" and the API's chance of rain draw one line.
+ */
+export const MEASURABLE_PRECIP_MM = 0.1
+
 export type RecentPrecipHour = {
   /**
    * `YYYY-MM-DDTHH:mm`, **local to the location**, exactly as Open-Meteo

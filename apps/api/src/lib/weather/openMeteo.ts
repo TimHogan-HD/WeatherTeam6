@@ -1,4 +1,4 @@
-import type { RecentPrecipHour } from '@weatherteam6/types'
+import { MEASURABLE_PRECIP_MM, type RecentPrecipHour } from '@weatherteam6/types'
 import { logger } from '../logger.js'
 
 export type DailyForecast = {
@@ -1454,13 +1454,7 @@ export type EnsembleHour = {
   model_member_counts: Record<string, number>
 }
 
-/**
- * The threshold a member has to cross to count as wet.
- *
- * 0.1 mm is Open-Meteo's own precipitation resolution, so anything below it is
- * a member reporting nothing rather than a member reporting a trace.
- */
-export const MEASURABLE_PRECIP_MM = 0.1
+export { MEASURABLE_PRECIP_MM }
 
 /**
  * A percentile over the members that actually reported.

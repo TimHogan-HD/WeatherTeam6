@@ -24,6 +24,15 @@ describe('dryDay', () => {
     expect(dryDay(day([0, 10, 4]), '2026-09-28')).toBeNull()
   })
 
+  it('is not dry when a few wet members carry a measurable mean under a low chance', () => {
+    // 2 of 30 members at 15 mm: a 7% chance, a 1 mm mean.
+    const storm = day([0, 7, 4]).map((h, i) => ({ ...h, precip_mm_mean: i === 1 ? 1 : 0 }))
+    expect(dryDay(storm, '2026-09-28')).toBeNull()
+    // Traces under the line in every hour still add up past it.
+    expect(dryDay(day([0, 1, 4], 0.04), '2026-09-28')).toBeNull()
+    expect(dryDay(day([0, 1, 4], 0.03), '2026-09-28')).not.toBeNull()
+  })
+
   it('is not dry when an hour was never read, since that hour could be the wet one', () => {
     expect(dryDay(day([0, null, 4]), '2026-09-28')).toBeNull()
     expect(dryDay(day([0, 1, 4], null), '2026-09-28')).toBeNull()

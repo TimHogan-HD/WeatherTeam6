@@ -1,4 +1,4 @@
-import { readingNow, type HourlyDay, type HourlySample } from '@weatherteam6/types'
+import { MEASURABLE_PRECIP_MM, readingNow, type HourlyDay, type HourlySample } from '@weatherteam6/types'
 import { dayIsDrawable } from '../components/charts/hourlySeries.js'
 import { formatWeekday } from './forecast.js'
 
@@ -71,8 +71,10 @@ export type DryDay = { peakChancePct: number; peakMs: number }
 
 /**
  * "Dry all day" (hybrid look, owner 2026-10-19): every hour's chance of rain is
- * under `DRY_DAY_MAX_CHANCE_PCT`. Fewer than one ensemble member in ten
- * measures rain in any hour, so every hour's median amount is below measurable too.
+ * under `DRY_DAY_MAX_CHANCE_PCT`, so every hour's median amount is below
+ * measurable, **and the day's summed mean is too**. The chance alone is not
+ * enough: two members of thirty with 15 mm in one hour is a 7% chance and a
+ * 1 mm mean, and the card's own header would print that total beside "Dry".
  *
  * **Every hour has to have been read.** An hour missing its chance or its
  * amount could be the wet one, so a day with a gap is not called dry.
@@ -81,12 +83,14 @@ export function dryDay(hours: readonly HourlySample[], localDate: string): DryDa
   const day = hours.filter((h) => h.local_date === localDate)
   if (day.length === 0) return null
   let peak: DryDay | null = null
+  let totalMm = 0
   for (const h of day) {
     if (h.precip_mm_mean === null || h.precip_chance_pct === null) return null
     if (h.precip_chance_pct >= DRY_DAY_MAX_CHANCE_PCT) return null
+    totalMm += h.precip_mm_mean
     if (peak === null || h.precip_chance_pct > peak.peakChancePct) {
       peak = { peakChancePct: h.precip_chance_pct, peakMs: Date.parse(h.valid_at) }
     }
   }
-  return peak
+  return totalMm < MEASURABLE_PRECIP_MM ? peak : null
 }
