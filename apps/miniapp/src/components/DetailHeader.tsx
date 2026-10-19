@@ -13,9 +13,10 @@ import { SelectionIndicator, useSelectedRect } from './SelectionIndicator.js'
  * name, the coordinates and how old the forecast is, then the tabs. Without
  * back, the rock and name take its place beside the Feedback button.
  *
- * It replaces `Screen`'s title row on this route only. The band is the list's
- * `surface` colour, bled to the screen edges and under the status bar exactly
- * as the list's header is, so the two screens read as one app.
+ * It replaces `Screen`'s title row on this route only. Since the hybrid look
+ * it has no fill: it sits on the still ground, as the list's header does. On a
+ * saved location it heads the Overview alone; every other tab has the
+ * `SlimHeader`, and the tabs themselves are the `Dock`.
  */
 
 export type HeaderTab<T extends string> = { value: T; label: string }
@@ -26,9 +27,9 @@ export type HeaderHeading = { eyebrow: string | null; title: string | null; meta
 export type DetailHeaderProps<T extends string> = {
   heading: HeaderHeading
   /**
-   * Where back goes, as words — the wall or crag it returns to — and how. `null`
-   * on a saved location: the bottom bar's Conditions tab is the way back to the
-   * list (owner, 2026-09-30), so a second control would only repeat it.
+   * Where back goes, as words — the wall or crag it returns to, or the list from
+   * a saved location, whose app bar has slid away (hybrid look, owner
+   * 2026-10-19) — and how. `null` hides the control.
    */
   back: { label: string; onBack: () => void } | null
   /** The crag the Feedback button opens a forecast check for. */
@@ -98,18 +99,12 @@ export function DetailHeader<T extends string>({
     <header
       style={{
         ...stack(spacing.tight),
-        backgroundColor: colorsV2.surface,
         marginTop: 'calc(-1 * env(safe-area-inset-top, 0px))',
         paddingTop: `calc(env(safe-area-inset-top, 0px) + ${spacing.topWeb}px)`,
         paddingInline: `${spacing.screenH}px`,
         ...(tabs === null ? { paddingBottom: `${spacing.sectionGap}px` } : {}),
       }}
     >
-      {/*
-        The tap target reaches past the glyph with padding and pulls back with
-        a negative margin, so the chevron sits on the gutter while the target
-        clears 44px — `Screen`'s back control, restyled.
-      */}
       <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'flex-start' }}>
         {back === null ? (
           <div style={stack(spacing.tight)}>
@@ -117,20 +112,7 @@ export function DetailHeader<T extends string>({
             {title === null ? null : <h1 style={typeV2.screenTitle}>{title}</h1>}
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={back.onBack}
-            style={{
-              ...bareButton,
-              ...row(spacing.tight),
-              width: 'auto',
-              margin: `-${spacing.cellPad}px 0 -${spacing.cellPad}px -${spacing.cellPad}px`,
-              padding: `${spacing.cellPad}px`,
-            }}
-          >
-            <ChevronLeftIcon color={colorsV2.txtMuted} />
-            <span style={typeV2.backLink}>{back.label}</span>
-          </button>
+          <BackLink onBack={back.onBack} label={back.label} />
         )}
         <FeedbackButton locationId={feedbackLocationId} />
       </div>
@@ -145,6 +127,30 @@ export function DetailHeader<T extends string>({
 
       {tabs === null ? null : <TabRow tabs={tabs} />}
     </header>
+  )
+}
+
+/**
+ * Back, as words saying where it goes. The tap target reaches past the glyph
+ * with padding and pulls back with a negative margin, so the chevron sits on
+ * the gutter while the target clears 44px.
+ */
+export function BackLink({ onBack, label }: { onBack: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onBack}
+      style={{
+        ...bareButton,
+        ...row(spacing.tight),
+        width: 'auto',
+        margin: `-${spacing.cellPad}px 0 -${spacing.cellPad}px -${spacing.cellPad}px`,
+        padding: `${spacing.cellPad}px`,
+      }}
+    >
+      <ChevronLeftIcon color={colorsV2.txtMuted} />
+      <span style={typeV2.backLink}>{label}</span>
+    </button>
   )
 }
 

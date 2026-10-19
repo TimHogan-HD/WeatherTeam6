@@ -1,9 +1,9 @@
-import { useCallback, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { useLocation as useRouterLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { colors, spacing } from '@weatherteam6/design/tokens'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, navClearance, row, stack } from '../theme/styles.js'
-import { editPath, wallPath } from '../lib/backTarget.js'
+import { backTarget, editPath, openedFromMap, wallPath } from '../lib/backTarget.js'
 import { rockLocked } from '../lib/editLocation.js'
 import { formatRunAge } from '../lib/format.js'
 import { useDeleteLocation, useLocation } from '../hooks/useLocations.js'
@@ -20,15 +20,26 @@ import { DetailView, detailTabs, type DetailTab } from '../components/DetailView
 import { dayIsDrawable, firstDrawableDay } from '../components/charts/hourlySeries.js'
 import { InlineError, Skeleton } from '../components/States.js'
 import { PullToRefresh } from '../components/PullToRefresh.js'
+import { Dock } from '../components/Dock.js'
+import { SlimHeader } from '../components/SlimHeader.js'
+import { findToday, severeAlertEvent } from '../lib/forecast.js'
+import { flipSource, flyFrom, type FlipRect } from '../lib/flip.js'
+import { slimFigure } from '../lib/slimHeader.js'
+import { useEdgeSwipeBack } from '../hooks/useEdgeSwipeBack.js'
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
 
 const TAB_PANEL_ID = 'detail-tab-panel'
 const FORECAST_TABS: ReadonlySet<DetailTab> = new Set(['overview', 'daily', 'hourly', 'precip'])
 
 /**
- * `/location/:id` — a saved location, in the v2 layout: a header band with the
- * tabs, then the open tab. No back link (owner, 2026-09-30): the bottom bar's
- * Conditions tab returns to the list, and the browser's back retraces history.
+ * `/location/:id` — a saved location, a screen you drill into from the list
+ * (hybrid look, owner 2026-10-19). The app bar slides away as it opens
+ * (`barGivesWay`) and the crag's tabs rise in a dock; back, or a swipe in from
+ * the left edge in the installed app, returns to the list and the bar. The
+ * Overview is headed by the full header; every other tab by the slim one,
+ * which carries that tab's key figure.
  */
+
 export function LocationDetail() {
   const navigate = useNavigate()
   const now = useNow()
@@ -82,6 +93,26 @@ export function LocationDetail() {
   const options = location.data === undefined ? null : detailTabs(location.data.is_climbing_location)
   const activeTab = options === null || options.some((o) => o.value === tab) ? tab : 'overview'
 
+  // Back names the section it returns to (`backTarget`); the phone's own back
+  // still retraces history.
+  const backTo = backTarget({ route: 'location', fromMap: openedFromMap(useRouterLocation().state) }).to
+  const backLabel = backTo === '/map' ? 'Map' : 'Conditions'
+  const goBack = useCallback(() => void navigate(backTo), [navigate, backTo])
+  useEdgeSwipeBack(goBack)
+
+  // The day score flies between the Overview's hero and the slim header: where
+  // it stood is read before the tab changes, and played from after it has.
+  const reduced = usePrefersReducedMotion()
+  const flight = useRef<FlipRect | null>(null)
+  const changeTab = useCallback((next: DetailTab) => {
+    flight.current = flipSource('score')
+    setTab(next)
+  }, [])
+  useLayoutEffect(() => {
+    flyFrom('score', flight.current, reduced)
+    flight.current = null
+  }, [activeTab, reduced])
+
   const remove = useDeleteLocation()
   const [confirmingDelete, setConfirmingDelete] = useState(false)
 
@@ -125,7 +156,7 @@ export function LocationDetail() {
           refetch: () => void hourly.refetch(),
           tabs: {
             active: activeTab,
-            onTabChange: setTab,
+            onTabChange: changeTab,
             selectedDate: openDate,
             onSelectDate: setSelectedDate,
             panelId: TAB_PANEL_ID,
@@ -213,16 +244,39 @@ export function LocationDetail() {
       {/* The forecast tabs pull to refresh (owner, 2026-10-01); Rock and Crag
           are reference, with nothing a refetch would change. */}
       <PullToRefresh enabled={FORECAST_TABS.has(activeTab)} freshness={age}>
-      <DetailHeader
-        heading={locationHeading(location.data ?? null, freshness)}
-        back={null}
-        feedbackLocationId={id ?? null}
-        tabs={
-          options === null
-            ? null
-            : { options, active: activeTab, onChange: setTab, panelId: TAB_PANEL_ID }
-        }
-      />
+      {activeTab === 'overview' || location.data === undefined ? (
+        <DetailHeader
+          heading={locationHeading(location.data ?? null, freshness)}
+          back={{ label: backLabel, onBack: goBack }}
+          feedbackLocationId={id ?? null}
+          tabs={null}
+        />
+      ) : (
+        <SlimHeader
+          name={location.data.name}
+          tab={activeTab}
+          figure={slimFigure(activeTab, {
+            isClimbingLocation: location.data.is_climbing_location,
+            forecast: forecast.data,
+            todayDate: findToday(forecast.data)?.forecast_date ?? null,
+            // The same day readings, and the same two alert facts, the Daily rows are suppressed on.
+            readings:
+              location.data.is_climbing_location && hourly.data !== undefined
+                ? {
+                    days: hourly.data.readings?.days ?? [],
+                    utcOffsetSeconds: hourly.data.utc_offset_seconds,
+                    severeAlertEvent: severeAlertEvent(alerts.data),
+                    alertsPending: alerts.isPending,
+                  }
+                : null,
+            hours: hourly.data?.hours ?? [],
+            selectedDate: openDate,
+            nowMs: now,
+          })}
+          back={{ label: backLabel, onBack: goBack }}
+          feedbackLocationId={id ?? null}
+        />
+      )}
       <div
         style={{
           ...stack(spacing.listGapLg),
@@ -233,6 +287,10 @@ export function LocationDetail() {
         {content}
       </div>
       </PullToRefresh>
+      {/* Outside the pull: a fixed element inside a transformed one is fixed to it, not to the screen. */}
+      {options === null ? null : (
+        <Dock tabs={{ options, active: activeTab, onChange: changeTab, panelId: TAB_PANEL_ID }} />
+      )}
     </main>
   )
 }

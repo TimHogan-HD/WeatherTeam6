@@ -314,7 +314,7 @@ async function run(): Promise<void> {
     await page.unroute(slowForecast)
     await firstCard.click()
     await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Conditions' }).click()
+    await page.getByRole('button', { name: 'Conditions' }).click()
     await firstCard.waitFor({ timeout: 10_000 })
     check('coming back to the list shows no splash', (await splash.count()) === 0)
 
@@ -427,19 +427,50 @@ async function run(): Promise<void> {
     await screen('score-explainer')
     await page.goto(`${WEB}/location/${locationId}`)
 
-    // 3a. The bottom bar: every section by tapping it, then Conditions back to
-    // the list — the location screen has no back link of its own.
-    const bar = page.getByRole('navigation', { name: 'Main' })
+    // 3a. A crag is drilled into: the app bar slides away and the crag's dock
+    // takes its place, and back brings the bar back. Then every section by
+    // tapping the bar.
+    const bar = page.getByRole('navigation', { name: 'Main', includeHidden: true })
+    await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
+    await page.waitForTimeout(700)
+    const barAway = await bar.evaluate((el) => ({
+      hidden: el.getAttribute('aria-hidden') === 'true' && el.hasAttribute('inert'),
+      below: el.getBoundingClientRect().top >= window.innerHeight,
+    }))
+    const dockBox = await page.getByRole('tablist').boundingBox()
+    check(
+      'a crag sends the app bar below the screen, out of reach',
+      barAway.hidden && barAway.below,
+      JSON.stringify(barAway),
+    )
+    check(
+      'and its tabs float in a dock at the bottom, clear of the screen edge',
+      dockBox !== null && dockBox.y + dockBox.height <= VIEWPORT.height - 8 && dockBox.y > VIEWPORT.height / 2,
+      dockBox === null ? 'no dock' : `dock ${dockBox.y}–${dockBox.y + dockBox.height}`,
+    )
+    await page.getByRole('tab', { name: 'Daily' }).click()
+    const slim = page.locator('header').first()
+    const slimText = (await slim.innerText()).replace(/\s+/g, ' ')
+    await page.mouse.wheel(0, 900)
+    await page.waitForTimeout(300)
+    const slimTop = await slim.evaluate((el) => el.getBoundingClientRect().top)
+    check(
+      'off Overview the slim header names the crag and the best day, and stays put as the tab scrolls',
+      /best day/.test(slimText) && /ZZ UI check/i.test(slimText) && Math.abs(slimTop) < 1,
+      `${slimText.slice(0, 160)} · top ${slimTop}`,
+    )
+    await screen('tab-daily-scrolled')
+    await page.getByRole('button', { name: 'Conditions' }).click()
+    await page.waitForURL((u) => u.pathname === '/', { timeout: 10_000 }).catch(() => undefined)
+    await page.waitForTimeout(500)
+    const barBack = await bar.evaluate((el) => el.getAttribute('aria-hidden') !== 'true' && el.getBoundingClientRect().top < window.innerHeight)
+    check('back returns a crag to the list, and the app bar with it', new URL(page.url()).pathname === '/' && barBack, page.url())
     for (const section of ['Crags', 'Map', 'Trips', 'Profile']) {
       await bar.getByRole('link', { name: section }).click()
       await screen(`section-${section.toLowerCase()}`, 5)
       const lit = await bar.locator('[aria-current="page"]').getAttribute('aria-label')
       check(`the bar lights ${section} on its own screen`, lit === section, `lit: ${lit}`)
     }
-    await page.goto(`${WEB}/location/${locationId}`)
-    await bar.getByRole('link', { name: 'Conditions' }).click()
-    await page.waitForURL((u) => u.pathname === '/', { timeout: 10_000 }).catch(() => undefined)
-    check('Conditions in the bar returns a location to the list', new URL(page.url()).pathname === '/', page.url())
 
     // 3m. The Map tab: the crag as a pin, its contours close up, and a
     // right-click (a long-press on a phone) carried through to /add's save form.
@@ -502,13 +533,15 @@ async function run(): Promise<void> {
     await page.waitForURL((u) => u.pathname === `/location/${locationId}`, { timeout: 10_000 }).catch(() => undefined)
     check('tapping a pin opens its crag', new URL(page.url()).pathname === `/location/${locationId}`, page.url())
 
-    // The map outlives the tab: coming back shows the one already drawn.
+    // The map outlives the tab: back from the crag it opened shows the one already drawn.
     let mapRequests = 0
     const countMapRequests = (r: { url(): string }) => {
       if (/openfreemap\.org|amazonaws\.com/.test(r.url())) mapRequests++
     }
     page.on('request', countMapRequests)
-    await bar.getByRole('link', { name: 'Map' }).click()
+    await page.getByRole('button', { name: 'Map', exact: true }).click()
+    await page.waitForURL((u) => u.pathname === '/map', { timeout: 10_000 }).catch(() => undefined)
+    check('back from a crag a pin opened returns to the map', new URL(page.url()).pathname === '/map', page.url())
     await pin.waitFor({ timeout: 10_000 })
     await page.waitForTimeout(2_000)
     page.off('request', countMapRequests)
@@ -973,10 +1006,10 @@ async function run(): Promise<void> {
     await openCard()
     const detailY = await scrollY()
     check('a location opened from far down the list opens at its top', detailY === 0, `at ${detailY}`)
-    await bar.getByRole('link', { name: 'Conditions' }).click()
+    await page.getByRole('button', { name: 'Conditions', exact: true }).click()
     await card.waitFor({ timeout: 10_000 })
     const viaTab = await scrollY()
-    check('the lit Conditions tab returns to the list where it was left', near(viaTab), `left at ${listY}, back at ${viaTab}`)
+    check('a crag’s back returns to the list where it was left', near(viaTab), `left at ${listY}, back at ${viaTab}`)
 
     await openCard()
     await page.goBack()

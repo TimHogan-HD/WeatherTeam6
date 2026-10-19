@@ -26,6 +26,7 @@ import { alertsQuery, conditionsQuery } from '../hooks/useWeather.js'
 import { useCurrentPosition, type Fix } from '../hooks/useCurrentPosition.js'
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
 import { prefetchDetail } from '../lib/prefetchDetail.js'
+import { OPENED_FROM_MAP } from '../lib/backTarget.js'
 import { getToken, subscribeToToken } from '../lib/authToken.js'
 import { addPathForPoint, formatPoint, type MapPoint } from '../lib/addCandidate.js'
 import { SINGLE_PIN_ZOOM, initialView, mapPins, type MapPin, type MapView } from '../lib/mapPins.js'
@@ -161,7 +162,10 @@ export function MapScreen() {
     frame(map, firstView, top)
   }, [map, firstView])
 
-  const openPin = useCallback((id: string) => void navigate(`/location/${id}`), [navigate])
+  const openPin = useCallback(
+    (id: string) => void navigate(`/location/${id}`, { state: OPENED_FROM_MAP }),
+    [navigate],
+  )
   const pressPin = useCallback(
     (id: string) => {
       const location = byId.get(id)

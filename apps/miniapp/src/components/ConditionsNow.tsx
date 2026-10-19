@@ -22,6 +22,8 @@ import { typeV2, withOpacity } from '../theme/tokens.css.js'
 import { row, stack, type ToneName } from '../theme/styles.js'
 import { rainAhead, scoreBlocks, type RainAhead, type ScoreBlock } from '../lib/conditionsBlocks.js'
 import { findToday } from '../lib/forecast.js'
+import { FLIP_ATTR } from '../lib/flip.js'
+import { glassCard } from '../theme/glass.js'
 import { formatLocalClock, formatTempDeg } from '../lib/format.js'
 import { readingTone, scoreTone } from '../lib/locationList.js'
 import { useNow } from '../hooks/useNow.js'
@@ -238,7 +240,11 @@ function Gauge({
       <span style={{ ...typeV2.tileLabel, color: muted }}>
         {was === null ? field.label : `${field.label} · was ${was}`}
       </span>
-      <span style={{ ...(figure ? typeV2.tileFigure : typeV2.tileWord), color }}>
+      {/* The day's score flies to the slim header as the reader leaves Overview (`flyFrom`). */}
+      <span
+        {...(figure ? { [FLIP_ATTR]: 'score' } : {})}
+        style={{ ...(figure ? typeV2.tileFigure : typeV2.tileWord), color, display: 'inline-block' }}
+      >
         <RollingFigure value={field.value} from={was} />
       </span>
     </span>
@@ -542,12 +548,10 @@ export function ConditionsNow({
   const stamp =
     stampAt === null || series === undefined ? null : formatLocalClock(stampAt, series.utc_offset_seconds)
 
+  // Glass like every section card; a score on screen tints it with its rung, under the glass.
   const surface: CSSProperties = {
-    backgroundColor: p.fill,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    borderColor: p.line,
-    borderRadius: `${radius.heroV2}px`,
+    ...glassCard,
+    ...(p === PLAIN ? {} : { backgroundColor: p.fill, borderColor: p.line }),
     padding: `${spacing.cardPad}px`,
   }
 

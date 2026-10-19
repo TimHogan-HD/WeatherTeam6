@@ -5,6 +5,7 @@ import { typeV2, withOpacity } from '../theme/tokens.css.js'
 import { navGeometry, type SectionKey } from '../lib/bottomNav.js'
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
 import { NavIcon } from './Icons.js'
+import { glassBar } from '../theme/glass.js'
 
 /**
  * The app's five sections, fixed to the bottom of the screen (owner,
@@ -24,7 +25,7 @@ import { NavIcon } from './Icons.js'
  * Conditions tab is the way back to the list, which is why that screen has no
  * back link of its own — and on that first screen it scrolls to the top.
  */
-export function TabBar({ active }: { active: SectionKey }) {
+export function TabBar({ active, away = false }: { active: SectionKey; away?: boolean }) {
   const rowRef = useRef<HTMLDivElement>(null)
   const rowWidth = useWidth(rowRef)
   const reduced = usePrefersReducedMotion()
@@ -43,16 +44,24 @@ export function TabBar({ active }: { active: SectionKey }) {
   const motion = (css: string) => (reduced ? 'none' : css)
 
   return (
+    // Away on a crag's own screen, where the crag's dock takes its place
+    // (`barGivesWay`): slid below the screen edge, out of the tab order and
+    // hidden from a screen reader, and kept mounted so it can slide back.
     <nav
       aria-label="Main"
+      aria-hidden={away || undefined}
+      inert={away}
       style={{
         position: 'fixed',
         left: 0,
         right: 0,
         bottom: 0,
         zIndex: 10,
-        backgroundColor: withOpacity(colorsV2.surface, 0.97),
-        borderTop: `1px solid ${colorsV2.line}`,
+        ...glassBar,
+        transform: away ? 'translateY(110%)' : 'none',
+        opacity: away ? 0 : 1,
+        pointerEvents: away ? 'none' : undefined,
+        transition: motion(`transform ${m.barMs}ms ${m.easeOut}, opacity ${m.barMs}ms ${m.easeOut}`),
         paddingTop: `${bottomNav.padTop}px`,
         paddingBottom: `calc(${bottomNav.padBottom}px + env(safe-area-inset-bottom, 0px))`,
         paddingLeft: `calc(${spacing.cellPad}px + env(safe-area-inset-left, 0px))`,

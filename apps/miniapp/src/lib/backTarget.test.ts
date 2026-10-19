@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { backTarget } from './backTarget.js'
+import { backTarget, OPENED_FROM_MAP, openedFromMap } from './backTarget.js'
 
 describe('backTarget', () => {
   it('has no back affordance on the list', () => {
@@ -96,6 +96,21 @@ describe('backTarget', () => {
 
   it('returns the trip editor to its trip, not the list', () => {
     expect(backTarget({ route: 'tripEdit', tripId: 't1' })).toEqual({ kind: 'navigate', to: '/trips/t1' })
+  })
+})
+
+describe('backTarget — a saved location, its app bar away', () => {
+  it('returns to the map when a pin opened it', () => {
+    expect(backTarget({ route: 'location', fromMap: openedFromMap({ ...OPENED_FROM_MAP }) })).toEqual({
+      kind: 'navigate',
+      to: '/map',
+    })
+  })
+
+  it('returns to the list from anywhere else, including a reload with no state', () => {
+    for (const state of [null, undefined, {}, { from: 'list' }, 'map']) {
+      expect(backTarget({ route: 'location', fromMap: openedFromMap(state) })).toEqual({ kind: 'navigate', to: '/' })
+    }
   })
 })
 

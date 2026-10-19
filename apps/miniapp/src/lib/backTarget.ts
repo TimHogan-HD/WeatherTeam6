@@ -10,6 +10,7 @@
  * | Route | Back |
  * | --- | --- |
  * | `/` list | hidden |
+ * | `/location/:id` | `/` — or `/map` when a pin opened it |
  * | `/add` search | `/` — or the trip form it was opened from |
  * | `/add` save form | the search or browse level it was picked from, intact |
  * | `/add` save form opened from the map | `/map` |
@@ -19,9 +20,11 @@
  * | `/trips/new`, `/trips/:tripId` | `/trips` |
  * | `/trips/:tripId/crag/:locationId`, `/trips/:tripId/edit` | that trip |
  *
- * A saved location has no back control since the bottom bar arrived (owner,
- * 2026-09-30): its Conditions tab returns to the list, and a tab change is
- * state inside the route, so the old Hourly-to-Daily step is the Daily tab.
+ * A saved location's back returns to the list, or to the map when a pin opened
+ * it (hybrid look, owner 2026-10-19): the app bar slides away while a crag is
+ * open, so back is the only way out. A tab
+ * change is state inside the route, so the old Hourly-to-Daily step is the
+ * Daily tab.
  *
  * The add save form is not a navigation at all: it is state inside `/add`, and
  * sending it to a URL discards the search the user can see on screen. That is
@@ -40,6 +43,7 @@ export type BackContext =
   | { route: 'list' }
   | { route: 'add'; confirming: boolean; browsing: boolean; fromMap: boolean; forTrip: string | null }
   | { route: 'feedback'; fromLocationId: string | null }
+  | { route: 'location'; fromMap: boolean }
   | { route: 'wall'; locationId: string }
   | { route: 'climb'; locationId: string; wallId: string }
   | { route: 'edit'; locationId: string }
@@ -80,6 +84,11 @@ export function backTarget(context: {
   forTrip: string | null
 }): AddBack
 export function backTarget(context: { route: 'feedback'; fromLocationId: string | null }): Navigate
+export function backTarget(context: {
+  route: 'location'
+  /** The map's pin opened the crag (`OPENED_FROM_MAP` in the router state). */
+  fromMap: boolean
+}): Navigate
 export function backTarget(context: { route: 'wall'; locationId: string }): Navigate
 export function backTarget(context: { route: 'climb'; locationId: string; wallId: string }): Navigate
 export function backTarget(context: { route: 'edit'; locationId: string }): Navigate
@@ -102,6 +111,10 @@ export function backTarget(context: BackContext): BackAction {
       // Opened from a crag's "Check this forecast", back returns to that crag
       // rather than dropping the reader at the list.
       return { kind: 'navigate', to: context.fromLocationId === null ? '/' : `/location/${context.fromLocationId}` }
+    // A crag's app bar has slid away, so back is the only way to the section it
+    // was opened from. Anything but a map pin returns to the list.
+    case 'location':
+      return { kind: 'navigate', to: context.fromMap ? '/map' : '/' }
     // The guidebook screens each step out one level: a route to its wall, a
     // wall to the Crag tab it was opened from — not to Overview, which would
     // lose the reader's place in the crag.
@@ -120,6 +133,12 @@ export function backTarget(context: BackContext): BackAction {
       return { kind: 'navigate', to: tripPath(context.tripId) }
   }
 }
+
+/** Router state a map pin sets when it opens a crag, so back returns to the map. */
+export const OPENED_FROM_MAP = { from: 'map' } as const
+
+export const openedFromMap = (state: unknown): boolean =>
+  typeof state === 'object' && state !== null && (state as { from?: unknown }).from === OPENED_FROM_MAP.from
 
 export const tripPath = (tripId: string): string => `/trips/${tripId}`
 export const editTripPath = (tripId: string): string => `${tripPath(tripId)}/edit`

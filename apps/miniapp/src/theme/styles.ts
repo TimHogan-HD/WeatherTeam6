@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { colors, colorsV2, components, radius, spacing } from '@weatherteam6/design/tokens'
 import { boxStyle, textStyle, withOpacity } from './tokens.css.js'
+import { glassCard } from './glass.js'
 
 /**
  * The `components` entries this app actually uses, converted per-entry.
@@ -46,13 +47,11 @@ const hairline = (color: string): CSSProperties => ({
   borderColor: color,
 })
 
-/** A v2 card: opaque fill, hairline, 16px corners and padding. */
-export const cardV2: CSSProperties = {
-  backgroundColor: colorsV2.card,
-  ...hairline(colorsV2.line),
-  borderRadius: `${radius.cardV2}px`,
-  padding: `${spacing.sectionGap}px`,
-}
+/**
+ * A section card: since the hybrid look (owner, 2026-10-19), a frosted glass
+ * pane over the still ground (`theme/glass.ts`), with its 16px padding.
+ */
+export const cardV2: CSSProperties = glassCard
 
 /** A pill-shaped well one step darker than the card — chips, the legend, the sort control. */
 export const wellV2: CSSProperties = {
@@ -140,14 +139,13 @@ export const navClearance = `calc(${spacing.bottomNavH}px + ${bottomClearance})`
 export const navBarHeight = `calc(${spacing.bottomNavH}px + env(safe-area-inset-bottom, 0px))`
 
 /**
- * The top band of a section's first screen — Conditions and the bar's other
- * sections. It runs up under the status bar: `#root` pads by the safe-area
- * inset, and this takes it back so the colour reaches the top edge while the
- * content still clears the notch.
+ * The top of a section's first screen — Conditions and the bar's other
+ * sections. Since the hybrid look it has no fill of its own: the title sits on
+ * the still ground. It still runs up under the status bar (`#root` pads by the
+ * safe-area inset, and this takes it back) so the content clears the notch.
  */
 export const headerBand: CSSProperties = {
   ...stack(spacing.sectionGap),
-  backgroundColor: colorsV2.surface,
   marginTop: 'calc(-1 * env(safe-area-inset-top, 0px))',
   paddingTop: `calc(env(safe-area-inset-top, 0px) + ${spacing.topWeb}px)`,
   paddingInline: `${spacing.screenH}px`,

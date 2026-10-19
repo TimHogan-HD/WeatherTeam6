@@ -27,6 +27,15 @@ export function sectionFor(pathname: string): SectionKey | null {
   return 'conditions'
 }
 
+/**
+ * Whether the app bar gives way to a crag's own dock (owner, 2026-10-19): only on
+ * a saved location's own screen, which is opened from the list and left by back.
+ * Its wall and route screens keep the bar, and its editor has none at all.
+ */
+export function barGivesWay(pathname: string): boolean {
+  return /^\/location\/[^/]+\/?$/.test(pathname)
+}
+
 /** A section's first screen: the path its tab opens. */
 export function isSectionRoot(pathname: string): boolean {
   return bottomNav.tabs.some((t) => t.route === pathname)

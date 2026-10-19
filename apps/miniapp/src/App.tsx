@@ -28,7 +28,7 @@ import { MapFallback, Profile, UnbuiltSection } from './routes/Sections.js'
 import { TripCreate, TripEdit, TripList } from './routes/Trips.js'
 import { TripScreen } from './routes/TripScreen.js'
 import { TabBar } from './components/TabBar.js'
-import { arrivalScrollY, sectionFor } from './lib/bottomNav.js'
+import { arrivalScrollY, barGivesWay, sectionFor } from './lib/bottomNav.js'
 
 const queryClient = createQueryClient()
 
@@ -144,7 +144,8 @@ function RequireAuth({ children }: { children: ReactNode }) {
 /**
  * Every signed-in screen, with the bottom bar under it wherever `sectionFor`
  * places the path in a section. One bar for the whole app, so the pill slides
- * between tabs instead of being redrawn by each screen.
+ * between tabs instead of being redrawn by each screen, and so it can slide
+ * away under a crag's dock and back again rather than vanish.
  */
 function SignedIn() {
   const { pathname } = useRouterLocation()
@@ -159,7 +160,7 @@ function SignedIn() {
   return (
     <>
       <Outlet />
-      {section === null ? null : <TabBar active={section} />}
+      {section === null ? null : <TabBar active={section} away={barGivesWay(pathname)} />}
     </>
   )
 }
