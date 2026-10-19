@@ -137,7 +137,11 @@ export function LocationDetail() {
   }, [activeTab, reduced])
 
   const remove = useDeleteLocation()
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  // Armed for one crag: the switcher keeps this screen mounted, and a remove armed on one
+  // place must not carry to the next, where a single tap would delete it.
+  const [armedFor, setArmedFor] = useState<string | null>(null)
+  const confirmingDelete = armedFor !== null && armedFor === id
+  const removingHere = remove.variables === id
 
   const onDelete = useCallback(() => {
     if (id === undefined) return
@@ -212,7 +216,7 @@ export function LocationDetail() {
         surface the app cannot style, and on iOS an installed PWA renders it
         over the whole screen for a one-word decision.
       */}
-      {remove.isError ? <InlineError message="Couldn't remove this location." /> : null}
+      {remove.isError && removingHere ? <InlineError message="Couldn't remove this location." /> : null}
       {/* One row: stacked, the two text buttons and their tap padding were a band of empty space. */}
       <div style={{ ...row(spacing.cellPad), justifyContent: 'center', flexWrap: 'wrap' }}>
         {location.data.is_climbing_location && id !== undefined ? (
@@ -253,10 +257,10 @@ export function LocationDetail() {
             width: 'auto',
             padding: `${spacing.cellPad}px ${spacing.sectionGap}px`,
           }}
-          onClick={confirmingDelete ? onDelete : () => setConfirmingDelete(true)}
+          onClick={confirmingDelete ? onDelete : () => setArmedFor(id ?? null)}
           disabled={remove.isPending}
         >
-          {remove.isPending ? 'Removing…' : confirmingDelete ? 'Tap again to remove' : 'Remove location'}
+          {remove.isPending && removingHere ? 'Removing…' : confirmingDelete ? 'Tap again to remove' : 'Remove location'}
         </button>
       </div>
     </>
