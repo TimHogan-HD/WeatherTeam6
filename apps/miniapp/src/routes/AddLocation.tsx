@@ -122,8 +122,10 @@ export function AddLocation() {
         setTrail(trail.slice(0, -1))
         return
       case 'navigate':
+        // The form's entry, holding its draft, is the one behind this: step
+        // back to it, as the phone's back does, rather than pushing a copy.
         if (forTrip !== null && action.to === forTrip.returnTo) {
-          void navigate(action.to, { replace: true, state: { tripDraft: forTrip.draft } })
+          void navigate(-1)
           return
         }
         void navigate(action.to)

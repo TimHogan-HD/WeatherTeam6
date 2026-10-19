@@ -637,6 +637,11 @@ async function run(): Promise<void> {
     await page.getByRole('button', { name: 'Back', exact: true }).click()
     await page.getByRole('heading', { name: 'New trip' }).waitFor({ timeout: 10_000 })
     check('back from a trip’s Add a crag returns to the form as it was', await draftKept())
+    await page.getByRole('button', { name: 'Add a crag' }).click()
+    await page.getByRole('heading', { name: 'Add a location' }).waitFor({ timeout: 10_000 })
+    await page.goBack()
+    await page.getByRole('heading', { name: 'New trip' }).waitFor({ timeout: 10_000 }).catch(() => undefined)
+    check('the phone’s back from Add a crag keeps the draft too', await draftKept().catch(() => false))
     const tripAddedName = `${PREFIX} trip-added ${STAMP}`
     await page.getByRole('button', { name: 'Add a crag' }).click()
     await page.getByRole('button', { name: 'Enter coordinates instead' }).click()

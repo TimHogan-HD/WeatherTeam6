@@ -221,11 +221,12 @@ function TripForm({ title, path, initial, onBack, pending, failed, submitLabel, 
   // A ticked place stays listed even if it was saved as not a crag, so nothing
   // the trip will send is hidden from the form sending it.
   const crags = (locations.data ?? []).filter((l) => l.is_climbing_location || draft.locationIds.includes(l.id))
-  // Replace, both ways: the form and the search are one step in the history,
-  // so the phone's back from the returned form does not reopen the search.
+  // The draft is written into this form's own history entry before /add is
+  // pushed, so the phone's back from the search lands on the form as it was.
   const addCrag = () => {
     const forTrip: ForTrip = { returnTo: path, draft }
-    void navigate('/add', { replace: true, state: { forTrip } })
+    void navigate(path, { replace: true, state: { tripDraft: draft } })
+    void navigate('/add', { state: { forTrip } })
   }
   const problem = draftProblem(draft)
   const note = datesNote === null ? null : datesNote(draft)
