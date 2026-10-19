@@ -13,6 +13,7 @@ import { Screen } from '../components/Screen.js'
 import { InlineError, SkeletonCards } from '../components/States.js'
 import { SaveBar, type SaveDraft } from '../components/SaveBar.js'
 import { BrowseLevel, BrowseStates, type BrowseAt } from '../components/BrowseAreas.js'
+import { forTripFromState, withCrag } from '../lib/tripDraft.js'
 
 /**
  * `/add` — find a place, then save it (§12.1). This works like saving a location
@@ -31,10 +32,16 @@ import { BrowseLevel, BrowseStates, type BrowseAt } from '../components/BrowseAr
  * **`/add?lat=…&lon=…` is the Map tab's long-press**: the point is named as a
  * GPS fix is and the form opens on it, and back from that form returns to the
  * map. Coordinates that do not parse are ignored and the search opens as usual.
+ *
+ * **Opened from a trip form's "Add a crag"** (router state `forTrip`), the
+ * climbing toggle starts on, and both back from the search and Save return to
+ * that form with its draft — Save with the new crag ticked.
  */
 
 export function AddLocation() {
   const navigate = useNavigate()
+  const routerState: unknown = useRouterLocation().state
+  const [forTrip] = useState(() => forTripFromState(routerState))
 
   const [query, setQuery] = useState('')
   const [coordsMode, setCoordsMode] = useState(false)
@@ -60,8 +67,8 @@ export function AddLocation() {
   const choose = useCallback((next: Candidate, picked: 'here' | 'map' = 'here') => {
     setCandidate(next)
     setFromMap(picked === 'map')
-    setDraft({ name: next.name, isClimbing: false, rockType: 'unknown' })
-  }, [])
+    setDraft({ name: next.name, isClimbing: forTrip !== null, rockType: 'unknown' })
+  }, [forTrip])
 
   // A fix is named before the form opens. A failed lookup still opens it, with
   // the fallback name and no elevation — the fix itself is good.
@@ -98,7 +105,13 @@ export function AddLocation() {
   // Back from the save form returns here with the search intact; back from the
   // search goes to the list (§2). `backTarget` owns that distinction.
   const onBack = useCallback(() => {
-    const action = backTarget({ route: 'add', confirming: candidate !== null, browsing: at !== null, fromMap })
+    const action = backTarget({
+      route: 'add',
+      confirming: candidate !== null,
+      browsing: at !== null,
+      fromMap,
+      forTrip: forTrip?.returnTo ?? null,
+    })
     switch (action.kind) {
       case 'closeSaveForm':
         setCandidate(null)
@@ -109,10 +122,16 @@ export function AddLocation() {
         setTrail(trail.slice(0, -1))
         return
       case 'navigate':
+        // The form's entry, holding its draft, is the one behind this: step
+        // back to it, as the phone's back does, rather than pushing a copy.
+        if (forTrip !== null && action.to === forTrip.returnTo) {
+          void navigate(-1)
+          return
+        }
         void navigate(action.to)
         return
     }
-  }, [candidate, at, fromMap, trail, create, reverse, navigate])
+  }, [candidate, at, fromMap, forTrip, trail, create, reverse, navigate])
 
   const onSave = useCallback(() => {
     if (candidate === null) return
@@ -131,11 +150,15 @@ export function AddLocation() {
       },
       {
         // Replace rather than push, so back from the new location lands on the
-        // list and not on the form for a place already saved (§2).
-        onSuccess: (created) => void navigate(`/location/${created.id}`, { replace: true }),
+        // list and not on the form for a place already saved (§2). From a trip,
+        // the trip form, with the new crag ticked.
+        onSuccess: (created) =>
+          void (forTrip === null
+            ? navigate(`/location/${created.id}`, { replace: true })
+            : navigate(forTrip.returnTo, { replace: true, state: { tripDraft: withCrag(forTrip.draft, created.id) } })),
       },
     )
-  }, [candidate, draft, knownCrag, create, navigate])
+  }, [candidate, draft, knownCrag, forTrip, create, navigate])
 
   if (candidate !== null) {
     return (

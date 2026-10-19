@@ -10,7 +10,7 @@
  * | Route | Back |
  * | --- | --- |
  * | `/` list | hidden |
- * | `/add` search | `/` |
+ * | `/add` search | `/` — or the trip form it was opened from |
  * | `/add` save form | the search or browse level it was picked from, intact |
  * | `/add` save form opened from the map | `/map` |
  * | `/add` browsing a state | one level up; the state list returns to the search |
@@ -38,7 +38,7 @@ import type { DetailTab } from '../components/DetailView.js'
 /** Which screen the user is looking at, including the in-route state back must see. */
 export type BackContext =
   | { route: 'list' }
-  | { route: 'add'; confirming: boolean; browsing: boolean; fromMap: boolean }
+  | { route: 'add'; confirming: boolean; browsing: boolean; fromMap: boolean; forTrip: string | null }
   | { route: 'feedback'; fromLocationId: string | null }
   | { route: 'wall'; locationId: string }
   | { route: 'climb'; locationId: string; wallId: string }
@@ -71,7 +71,14 @@ export type BackAction = null | AddBack
  * these signatures it is a type error in the route that has not been updated.
  */
 export function backTarget(context: { route: 'list' }): null
-export function backTarget(context: { route: 'add'; confirming: boolean; browsing: boolean; fromMap: boolean }): AddBack
+export function backTarget(context: {
+  route: 'add'
+  confirming: boolean
+  browsing: boolean
+  fromMap: boolean
+  /** The trip form's path when a trip's "Add a crag" opened the search, else null. */
+  forTrip: string | null
+}): AddBack
 export function backTarget(context: { route: 'feedback'; fromLocationId: string | null }): Navigate
 export function backTarget(context: { route: 'wall'; locationId: string }): Navigate
 export function backTarget(context: { route: 'climb'; locationId: string; wallId: string }): Navigate
@@ -90,7 +97,7 @@ export function backTarget(context: BackContext): BackAction {
       if (context.confirming && context.fromMap) return { kind: 'navigate', to: '/map' }
       // The save form closes first, onto the browse level it was picked from.
       if (context.confirming) return { kind: 'closeSaveForm' }
-      return context.browsing ? { kind: 'browseUp' } : { kind: 'navigate', to: '/' }
+      return context.browsing ? { kind: 'browseUp' } : { kind: 'navigate', to: context.forTrip ?? '/' }
     case 'feedback':
       // Opened from a crag's "Check this forecast", back returns to that crag
       // rather than dropping the reader at the list.
