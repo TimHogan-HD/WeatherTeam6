@@ -485,7 +485,12 @@ export type GeocodeResult = {
   /** Set only on a row from OpenBeta's climbing areas rather than the place
    *  geocoder; those rows lead the list. Optional because the API and the client
    *  deploy separately — absent means an ordinary place. */
-  climbing_area?: { climbs: number; parent: string | null } | null
+  climbing_area?: {
+    climbs: number
+    parent: string | null
+    /** The rock locked for this area by `AREA_ROCK` (itself or its nearest listed ancestor), else null or absent. */
+    rock?: { rock_type: RockType; set_by: string } | null
+  } | null
 }
 
 /** A state on `/add`'s browse list — GET /api/v1/climbing-areas. */
@@ -561,3 +566,4 @@ export type ClimbabilityHistory = {
   avg_climbable_days: number
   years_of_data: number
 }
+export * from './areaRock.js'

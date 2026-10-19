@@ -45,6 +45,8 @@ export function Feedback() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const fromLocationId = params.get('location')
+  // A prefilled app note, e.g. the save screen's "Wrong rock type?".
+  const initialMessage = params.get('message') ?? ''
 
   const [kind, setKind] = useState<FeedbackKind>(fromLocationId === null ? 'app' : 'forecast')
   const [saved, setSaved] = useState<FeedbackKind | null>(null)
@@ -73,7 +75,7 @@ export function Feedback() {
         {kind === 'forecast' ? (
           <ForecastCheckForm initialLocationId={fromLocationId} onSaved={() => setSaved('forecast')} />
         ) : (
-          <AppFeedbackForm onSaved={() => setSaved('app')} />
+          <AppFeedbackForm initialMessage={initialMessage} onSaved={() => setSaved('app')} />
         )}
 
         <History />
@@ -224,8 +226,8 @@ function ForecastCheckForm({
   )
 }
 
-function AppFeedbackForm({ onSaved }: { onSaved: () => void }) {
-  const [message, setMessage] = useState('')
+function AppFeedbackForm({ initialMessage, onSaved }: { initialMessage: string; onSaved: () => void }) {
+  const [message, setMessage] = useState(initialMessage)
   const create = useCreateFeedback()
   const ready = message.trim() !== ''
 

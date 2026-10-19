@@ -72,7 +72,7 @@ function facts(location: Location): Fact[] {
       const locked = location.known_crag !== null && location.known_crag !== undefined
       out.push({
         key: 'Rock',
-        value: `${rockTypeLabel(location.rock_type)}${locked ? ' · known crag' : ''}`,
+        value: `${rockTypeLabel(location.rock_type)}${locked ? ' · locked' : ''}`,
       })
     }
     if (location.aspect !== null) {

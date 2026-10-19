@@ -3,7 +3,9 @@ import type {
   ClimbingAreaLevel,
   ClimbingStateSummary,
   GeocodeResult,
+  RockType,
 } from '@weatherteam6/types'
+import { areaRockFor } from '@weatherteam6/types'
 import { CO_CLIMBING_AREAS } from './climbingAreasCo.js'
 import { MN_CLIMBING_AREAS } from './climbingAreasMn.js'
 import { UT_CLIMBING_AREAS } from './climbingAreasUt.js'
@@ -82,6 +84,28 @@ function words(text: string): string[] {
 const everyPrefix = (query: string[], haystack: string[]): boolean =>
   query.every((q) => haystack.some((w) => w.startsWith(q)))
 
+const parentOf = (id: string): string | null => BY_ID.get(id)?.area.parent_id ?? null
+
+/** The rock `AREA_ROCK` locks for an area, through its nearest listed ancestor. */
+function lockedRock(areaId: string): { rock_type: RockType; set_by: string } | null {
+  const hit = areaRockFor(areaId, parentOf)
+  return hit === null ? null : { rock_type: hit.rock_type, set_by: hit.name }
+}
+
+/**
+ * The area-rock lock for a saved point: the climbing area saved at exactly this
+ * point (`/add` saves an area at its own coordinate), else null. A dropped pin
+ * near an area is not that area, so the match is to about 10 m.
+ */
+export function areaRockAt(lat: number, lon: number): { rock_type: RockType; set_by: string; area_id: string } | null {
+  for (const e of INDEX) {
+    if (Math.abs(e.area.lat - lat) > 0.0001 || Math.abs(e.area.lon - lon) > 0.0001) continue
+    const rock = lockedRock(e.area.uuid)
+    if (rock !== null) return { ...rock, area_id: e.area.uuid }
+  }
+  return null
+}
+
 function toPlace(e: Indexed): GeocodeResult {
   return {
     id: e.id,
@@ -95,7 +119,7 @@ function toPlace(e: Indexed): GeocodeResult {
     country: 'United States',
     timezone: null,
     feature_code: null,
-    climbing_area: { climbs: e.area.climbs, parent: e.area.parent },
+    climbing_area: { climbs: e.area.climbs, parent: e.area.parent, rock: lockedRock(e.area.uuid) },
   }
 }
 

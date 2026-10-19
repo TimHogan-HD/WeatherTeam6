@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation as useRouterLocation, useNavigate } from 'react-router-dom'
 import { spacing } from '@weatherteam6/design/tokens'
 import { matchKnownCrag, placeSubtitle, type GeocodeResult, type RockType } from '@weatherteam6/types'
+import type { RockLock } from '../components/SaveBar.js'
 import { type } from '../theme/tokens.css.js'
 import { bareButton, card, chip, inputBox, row, stack } from '../theme/styles.js'
 import { backTarget } from '../lib/backTarget.js'
@@ -38,6 +39,13 @@ import { forTripFromState, withCrag } from '../lib/tripDraft.js'
  * that form with its draft — Save with the new crag ticked.
  */
 
+/** The rock a save will be locked to: a known crag's box first, then the picked area's. */
+function rockLockFor(place: Candidate): RockLock | null {
+  const crag = matchKnownCrag(place.lat, place.lon)
+  if (crag !== null) return crag
+  return place.climbingArea?.rock ?? null
+}
+
 export function AddLocation() {
   const navigate = useNavigate()
   const routerState: unknown = useRouterLocation().state
@@ -57,8 +65,9 @@ export function AddLocation() {
   const create = useCreateLocation()
   // Shown before saving so the picker never offers a choice the API overrules:
   // the server runs the same `matchKnownCrag` and trusts only its own answer.
-  const knownCrag = useMemo(
-    () => (candidate === null ? null : matchKnownCrag(candidate.lat, candidate.lon)),
+  // An OpenBeta area's own lock (`AREA_ROCK`, via the API) when no known crag's box matches.
+  const knownCrag = useMemo<RockLock | null>(
+    () => (candidate === null ? null : rockLockFor(candidate)),
     [candidate],
   )
 
@@ -67,7 +76,8 @@ export function AddLocation() {
   const choose = useCallback((next: Candidate, picked: 'here' | 'map' = 'here') => {
     setCandidate(next)
     setFromMap(picked === 'map')
-    setDraft({ name: next.name, isClimbing: forTrip !== null, rockType: 'unknown' })
+    // An OpenBeta area is a climbing area by definition; a town is not.
+    setDraft({ name: next.name, isClimbing: forTrip !== null || next.climbingArea !== undefined, rockType: 'unknown' })
   }, [forTrip])
 
   // A fix is named before the form opens. A failed lookup still opens it, with

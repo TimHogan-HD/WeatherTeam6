@@ -165,7 +165,7 @@ export function planLocationUpdate(
         return {
           ok: false,
           status: 409,
-          error: `Rock type is locked for this known crag (${row.known_crag})`,
+          error: `Rock type is locked for this place (${row.known_crag}); use feedback to correct it`,
         }
       }
     } else {

@@ -1,48 +1,67 @@
-import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
-import { KNOWN_CRAGS, ROCK_TYPES } from '@weatherteam6/types'
-import { SaveBar, type SaveDraft } from './SaveBar.js'
+import { renderToStaticMarkup } from "react-dom/server";
+import { MemoryRouter } from "react-router-dom";
+import { describe, expect, it } from "vitest";
+import { KNOWN_CRAGS, ROCK_TYPES } from "@weatherteam6/types";
+import { SaveBar, type SaveDraft } from "./SaveBar.js";
 
-const RED_WING = KNOWN_CRAGS.find((c) => c.slug === 'red-wing') ?? null
+const RED_WING = KNOWN_CRAGS.find((c) => c.slug === "red-wing") ?? null;
 
-function render(draft: Partial<SaveDraft>, knownCrag = null as typeof RED_WING): string {
+function render(
+  draft: Partial<SaveDraft>,
+  knownCrag = null as typeof RED_WING,
+): string {
   return renderToStaticMarkup(
-    <SaveBar
-      draft={{ name: 'Somewhere', isClimbing: true, rockType: 'unknown', ...draft }}
-      knownCrag={knownCrag}
-      onChange={() => {}}
-      onSave={() => {}}
-      saving={false}
-      error={null}
-    />,
-  )
+    <MemoryRouter>
+      <SaveBar
+        draft={{
+          name: "Somewhere",
+          isClimbing: true,
+          rockType: "unknown",
+          ...draft,
+        }}
+        knownCrag={knownCrag}
+        onChange={() => {}}
+        onSave={() => {}}
+        saving={false}
+        error={null}
+      />
+    </MemoryRouter>,
+  );
 }
 
-describe('SaveBar — rock type', () => {
-  it('offers every rock type, grouped, as one select', () => {
-    const html = render({})
-    expect(html).toContain('<select')
+describe("SaveBar — rock type", () => {
+  it("offers every rock type, grouped, as one select", () => {
+    const html = render({});
+    expect(html).toContain("<select");
     for (const rockType of ROCK_TYPES) {
-      expect(html).toContain(`value="${rockType}"`)
+      expect(html).toContain(`value="${rockType}"`);
     }
-    expect(html).toContain('<optgroup label="Sandstone"')
-  })
+    expect(html).toContain('<optgroup label="Sandstone"');
+  });
 
   /**
    * The lock, on the surface the user sees before saving. A picker here would
    * be a control whose answer the API throws away.
    */
-  it('shows a known crag’s rock type with no picker at all', () => {
-    expect(RED_WING).not.toBeNull()
-    const html = render({ rockType: 'granite' }, RED_WING)
-    expect(html).not.toContain('<select')
-    expect(html).toContain('Dolomite or limestone (with chert)')
-    expect(html).toContain('Red Wing (Barn Bluff)')
-  })
+  it("shows a known crag’s rock type with no picker at all", () => {
+    expect(RED_WING).not.toBeNull();
+    const html = render({ rockType: "granite" }, RED_WING);
+    expect(html).not.toContain("<select");
+    expect(html).toContain("Dolomite or limestone (with chert)");
+    expect(html).toContain("Red Wing (Barn Bluff)");
+  });
 
-  it('shows neither while the location is not marked as climbing', () => {
-    const html = render({ isClimbing: false }, RED_WING)
-    expect(html).not.toContain('<select')
-    expect(html).not.toContain('Rock type')
-  })
-})
+  it("offers a correction on a locked rock, as prefilled feedback", () => {
+    const html = render({ name: "Barn Bluff" }, RED_WING);
+    expect(html).toContain("Wrong rock type?");
+    expect(html).toContain(
+      "/feedback?message=Wrong%20rock%20type%3A%20Barn%20Bluff",
+    );
+  });
+
+  it("shows neither while the location is not marked as climbing", () => {
+    const html = render({ isClimbing: false }, RED_WING);
+    expect(html).not.toContain("<select");
+    expect(html).not.toContain("Rock type");
+  });
+});
