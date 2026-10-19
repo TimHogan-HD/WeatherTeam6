@@ -7,12 +7,22 @@
  *
  * Vitest never opens a database, and every property here lives in one: the
  * claim is a conditional update, the username clash rolls the claim back, and
- * only the owner may mint. It creates a throwaway owner and a throwaway
- * non-owner under an obvious prefix and removes them, their invites and any
- * redeemed accounts in a `finally`.
+ * only the owner may mint. The owner's view of everyone's feedback is checked
+ * here too, because it needs the same two accounts. It creates a throwaway
+ * owner and a throwaway non-owner under an obvious prefix and removes them,
+ * their invites, their feedback and any redeemed accounts in a `finally`.
  */
 
-import type { Account, ApiResponse, AuthLoginResponse, InviteCreated, InviteSummary, Location } from '@weatherteam6/types'
+import type {
+  Account,
+  ApiResponse,
+  AuthLoginResponse,
+  Feedback,
+  FeedbackFromAnyone,
+  InviteCreated,
+  InviteSummary,
+  Location,
+} from '@weatherteam6/types'
 
 const PORT = 3097
 const BASE = `http://127.0.0.1:${PORT}/api/v1`
@@ -69,7 +79,7 @@ async function run(): Promise<void> {
 
   const { createApp } = await import('../index.js')
   const { db, pool } = await import('../db/index.js')
-  const { users, invites } = await import('../db/schema.js')
+  const { users, invites, feedback } = await import('../db/schema.js')
   const { signToken, expiryFrom } = await import('../lib/auth/token.js')
   const { eq, inArray, or } = await import('drizzle-orm')
 
@@ -226,6 +236,31 @@ async function run(): Promise<void> {
     check('cancelling it again is 404', twice.status === 404, `got ${twice.status}`)
     const notUuid = await call<null>('DELETE', '/invites/not-a-uuid', { auth: owner })
     check('a malformed id is 404, not 500', notUuid.status === 404, `got ${notUuid.status}`)
+
+    console.log("\n6. Only the owner reads and resolves everyone's feedback")
+    check('GET /me says the owner can read all feedback', meOwner.payload.data?.can_read_all_feedback === true)
+    check('GET /me says anyone else cannot', meOther.payload.data?.can_read_all_feedback === false)
+    const sent = await call<Feedback>('POST', '/feedback', {
+      auth: other,
+      body: { kind: 'app', message: `${OTHER_NAME} feedback` },
+    })
+    const sentId = sent.payload.data?.id
+    if (sent.status !== 201 || sentId === undefined) throw new Error(`POST /feedback answered ${sent.status} — stopping`)
+    const allOther = await call<FeedbackFromAnyone[]>('GET', '/feedback/all', { auth: other })
+    check('GET /feedback/all by a non-owner is 403', allOther.status === 403, `got ${allOther.status}`)
+    check('and returns no rows', allOther.payload.data === null)
+    const allOwner = await call<FeedbackFromAnyone[]>('GET', '/feedback/all', { auth: owner })
+    const listed = (allOwner.payload.data ?? []).find((f) => f.id === sentId)
+    check('the owner sees the other account’s item', allOwner.status === 200 && listed !== undefined, `got ${allOwner.status}`)
+    check('named by its sender', listed?.username === OTHER_NAME, `got ${String(listed?.username)}`)
+    const ownFeedback = await call<Feedback[]>('GET', '/feedback', { auth: owner })
+    check("GET /feedback still lists only the owner's own", !(ownFeedback.payload.data ?? []).some((f) => f.id === sentId))
+    const ownerResolves = await call<null>('POST', `/feedback/${sentId}/resolve`, { auth: owner, body: {} })
+    check("the owner resolves another account's item, 200", ownerResolves.status === 200, `got ${ownerResolves.status}`)
+    const afterResolve = await call<FeedbackFromAnyone[]>('GET', '/feedback/all', { auth: owner })
+    check('and it leaves the list', !(afterResolve.payload.data ?? []).some((f) => f.id === sentId))
+    const ownerDeletes = await call<null>('DELETE', `/feedback/${sentId}`, { auth: owner })
+    check("the owner still cannot delete another account's item, 404", ownerDeletes.status === 404, `got ${ownerDeletes.status}`)
   } catch (err) {
     failed++
     console.log(`\n  ERROR  ${err instanceof Error ? err.message : String(err)}`)
@@ -235,6 +270,7 @@ async function run(): Promise<void> {
       const mine = await db.select({ id: users.id }).from(users).where(inArray(users.username, allNames))
       const ids = mine.map((u) => u.id)
       if (ids.length > 0) {
+        await db.delete(feedback).where(inArray(feedback.user_id, ids))
         await db.delete(invites).where(or(inArray(invites.created_by, ids), inArray(invites.used_by, ids)))
         await db.delete(users).where(inArray(users.id, ids))
       }

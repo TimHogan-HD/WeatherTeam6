@@ -158,3 +158,10 @@ export function feedbackSnapshotFor(
     fields: reading.fields.map((f) => ({ label: f.label, value: f.value })),
   };
 }
+
+/**
+ * One row of `GET /feedback/all`: the owner's view of every account's open
+ * feedback, with who sent it. `username` is null for an account that has none
+ * (the seeded user).
+ */
+export type FeedbackFromAnyone = Feedback & { username: string | null };

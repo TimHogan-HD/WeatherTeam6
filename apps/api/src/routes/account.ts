@@ -13,7 +13,7 @@ accountRouter.get('/me', async (req: Request, res: Response) => {
   try {
     const rows = await db.select({ username: users.username }).from(users).where(eq(users.id, req.userId)).limit(1)
     const response: ApiResponse<Account> = {
-      data: { username: rows[0]?.username ?? null, can_invite: isOwner(req.userId) },
+      data: { username: rows[0]?.username ?? null, can_invite: isOwner(req.userId), can_read_all_feedback: isOwner(req.userId) },
       error: null,
       status: 200,
     }
