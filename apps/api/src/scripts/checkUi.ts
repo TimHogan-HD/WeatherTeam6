@@ -319,7 +319,7 @@ async function run(): Promise<void> {
     await page.unroute(slowForecast)
     await firstCard.click()
     await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
-    await page.getByRole('button', { name: 'Conditions' }).click()
+    await page.getByRole('button', { name: 'Back to Conditions' }).click()
     await firstCard.waitFor({ timeout: 10_000 })
     check('coming back to the list shows no splash', (await splash.count()) === 0)
 
@@ -465,11 +465,31 @@ async function run(): Promise<void> {
       `${slimText.slice(0, 160)} · top ${slimTop}`,
     )
     await screen('tab-daily-scrolled')
-    await page.getByRole('button', { name: 'Conditions' }).click()
+    const pill = await page.getByRole('tablist').evaluate((list) => getComputedStyle(list.lastElementChild as HTMLElement).backgroundColor)
+    check('the dock’s chosen tab wears the aqua pill', pill === 'rgba(29, 197, 210, 0.2)', pill)
+    // Every value `data-page` takes on the way back, as a page transition sets and clears it.
+    await page.evaluate(() => {
+      const seen: string[] = []
+      ;(window as unknown as { pagesSeen: string[] }).pagesSeen = seen
+      new MutationObserver(() => {
+        const v = document.documentElement.dataset.page
+        if (v !== undefined) seen.push(v)
+      }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-page'] })
+    })
+    await page.getByRole('button', { name: 'Back to Conditions' }).click()
+    await page.waitForTimeout(150)
+    await screen('page-fade-midway', 5)
     await page.waitForURL((u) => u.pathname === '/', { timeout: 10_000 }).catch(() => undefined)
     await page.waitForTimeout(500)
     const barBack = await bar.evaluate((el) => el.getAttribute('aria-hidden') !== 'true' && el.getBoundingClientRect().top < window.innerHeight)
     check('back returns a crag to the list, and the app bar with it', new URL(page.url()).pathname === '/' && barBack, page.url())
+    const pagesSeen = await page.evaluate(() => (window as unknown as { pagesSeen: string[] }).pagesSeen)
+    const pageNow = await page.evaluate(() => document.documentElement.dataset.page ?? null)
+    check(
+      'and the crag fades out to the list in a page transition, cleared once it lands',
+      pagesSeen.includes('fade') && pageNow === null,
+      `seen ${pagesSeen.join(', ') || 'nothing'}; now ${pageNow}`,
+    )
     for (const section of ['Crags', 'Map', 'Trips', 'Profile']) {
       await bar.getByRole('link', { name: section }).click()
       await screen(`section-${section.toLowerCase()}`, 5)
@@ -544,7 +564,7 @@ async function run(): Promise<void> {
       if (/openfreemap\.org|amazonaws\.com/.test(r.url())) mapRequests++
     }
     page.on('request', countMapRequests)
-    await page.getByRole('button', { name: 'Map', exact: true }).click()
+    await page.getByRole('button', { name: 'Back to Map' }).click()
     await page.waitForURL((u) => u.pathname === '/map', { timeout: 10_000 }).catch(() => undefined)
     check('back from a crag a pin opened returns to the map', new URL(page.url()).pathname === '/map', page.url())
     await pin.waitFor({ timeout: 10_000 })
@@ -670,6 +690,35 @@ async function run(): Promise<void> {
     const second = await api<Location>('POST', '/locations', token, { ...SECOND_CRAG, is_climbing_location: true })
     secondLocationId = second.payload.data?.id ?? null
     check('POST /locations creates a second crag', second.status === 201 && secondLocationId !== null, `got ${second.status}`)
+
+    // 3d′. The switcher across a crag's top: both places listed, the chosen one
+    // underlined in aqua; a switch keeps the tab, swipes the content in, and
+    // replaces the crag, so back still leaves for the list.
+    await page.goto(`${WEB}/`)
+    await page.locator('[role="button"]').first().waitFor({ timeout: 30_000 })
+    await page.goto(`${WEB}/location/${locationId}?tab=daily`)
+    const switcher = page.getByRole('group', { name: 'Saved places' })
+    await switcher.getByRole('button', { name: SECOND_CRAG.name }).waitFor({ timeout: 30_000 })
+    const placesListed = await switcher.getByRole('button').allInnerTexts()
+    check(
+      'a crag’s switcher lists every saved place, the open one chosen',
+      placesListed.length === 2 && (await switcher.getByRole('button', { name: CRAG.name }).getAttribute('aria-pressed')) === 'true',
+      placesListed.join(', '),
+    )
+    await switcher.getByRole('button', { name: SECOND_CRAG.name }).click()
+    await page.waitForURL((u) => u.pathname === `/location/${secondLocationId}`, { timeout: 10_000 }).catch(() => undefined)
+    const swiped = await page.locator('.wt6-swipe').waitFor({ timeout: 5_000 }).then(() => 1, () => 0)
+    const stillDaily = await page.getByRole('tab', { name: 'Daily', selected: true }).count()
+    await screen('crag-switched', 5)
+    check(
+      'switching crags keeps the tab and swipes the new one in',
+      new URL(page.url()).pathname === `/location/${secondLocationId}` && stillDaily === 1 && swiped === 1,
+      `${page.url()}; Daily selected ${stillDaily}; swipe ${swiped}`,
+    )
+    await page.getByRole('button', { name: 'Back to Conditions' }).click()
+    await page.waitForURL((u) => u.pathname === '/', { timeout: 10_000 }).catch(() => undefined)
+    check('and back from the switched crag returns to the list, not the first crag', new URL(page.url()).pathname === '/', page.url())
+
     await page.goto(`${WEB}/trips`)
     await page.getByRole('button', { name: 'New trip' }).waitFor({ timeout: 30_000 })
     await screen('trips-empty', 5)
@@ -1011,7 +1060,7 @@ async function run(): Promise<void> {
     await openCard()
     const detailY = await scrollY()
     check('a location opened from far down the list opens at its top', detailY === 0, `at ${detailY}`)
-    await page.getByRole('button', { name: 'Conditions', exact: true }).click()
+    await page.getByRole('button', { name: 'Back to Conditions' }).click()
     await card.waitFor({ timeout: 10_000 })
     const viaTab = await scrollY()
     check('a crag’s back returns to the list where it was left', near(viaTab), `left at ${listY}, back at ${viaTab}`)
@@ -1084,7 +1133,14 @@ async function run(): Promise<void> {
       timeout: 60_000,
     })
     await tp.waitForLoadState('networkidle')
-    const before = await badge()
+    // Every card's score, not the top one's: the list sorts by score, so the
+    // rescore below can reorder the cards under the label being read.
+    const before = await tp.evaluate(() =>
+      Array.from(document.querySelectorAll('span'))
+        .filter((s) => s.textContent === 'Score')
+        .map((s) => /^Score (\d+)/.exec((s.parentElement?.innerText ?? '').replace(/\s+/g, ' ').trim())?.[1])
+        .filter((n): n is string => n !== undefined),
+    )
 
     // Hand-dispatched touches. `Input.synthesizeScrollGesture` would be the
     // closer stand-in for a finger, but in headless Chromium it delivers
@@ -1139,7 +1195,7 @@ async function run(): Promise<void> {
     check(
       `a score the refresh changed says what it was  →  ${rollShot}`,
       was !== null && before.includes(was.replace('was ', '')),
-      `before "${before}", shows "${was}"`,
+      `before ${before.join(', ')}, shows "${was}"`,
     )
     await tp.waitForTimeout(5_000)
     const after = await badge()

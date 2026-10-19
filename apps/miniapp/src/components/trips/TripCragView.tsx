@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '../../hooks/useNavigate.js'
 import { colors, colorsV2, radius, spacing, toneSurfacesV2 } from '@weatherteam6/design/tokens'
 import {
   AGREEMENT_LABEL,
@@ -456,7 +456,7 @@ export function TrendCard({ trend }: { trend: QueryState<TrendSeries> }) {
                     ...bareButton,
                     ...(shown === t.value ? chipActive : chip),
                     ...typeV2.chip,
-                    color: shown === t.value ? colors.good : colorsV2.txt1,
+                    color: shown === t.value ? colorsV2.brandInk : colorsV2.txt1,
                     width: 'auto',
                   }}
                 >

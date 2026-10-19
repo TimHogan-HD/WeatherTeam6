@@ -10,7 +10,7 @@
  * and React runtime imports.
  */
 import type { CSSProperties } from 'react'
-import { glass, radius, spacing } from '@weatherteam6/design/tokens'
+import { colorsV2, glass, radius, spacing } from '@weatherteam6/design/tokens'
 import { withOpacity } from './tokens.css.js'
 
 type Pane = 'card' | 'header' | 'dock' | 'bar'
@@ -94,6 +94,16 @@ export const glassDock: CSSProperties = {
   borderRadius: `${radius.full}px`,
   boxShadow: layers(glass.dockLayers),
 }
+
+/**
+ * What is chosen, in the mockup's aqua (owner, 2026-10-19): a tab's pill in the
+ * dock and the app bar. The words on it take `colorsV2.brandInk` when lit in
+ * the bar, `txt1` in the dock, as the mockup has them.
+ */
+export const selection = {
+  fill: withOpacity(colorsV2.brand, 0.2),
+  ring: withOpacity(colorsV2.brandInk, 0.3),
+} as const
 
 /** The app's bottom bar. */
 export const glassBar: CSSProperties = { ...pane('bar'), boxShadow: layers(glass.barLayers) }

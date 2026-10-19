@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '../hooks/useNavigate.js'
 import { colors, radius, spacing } from '@weatherteam6/design/tokens'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton } from '../theme/styles.js'

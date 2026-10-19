@@ -1,5 +1,6 @@
 import { useCallback, useState, type ReactNode } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
+import { useNavigate } from '../hooks/useNavigate.js'
 import { colors, spacing } from '@weatherteam6/design/tokens'
 import {
   FEEDBACK_KIND_LABEL,

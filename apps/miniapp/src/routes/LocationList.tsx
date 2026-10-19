@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '../hooks/useNavigate.js'
 import { useQueries } from '@tanstack/react-query'
 import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import type { Conditions, Location, WeatherAlert } from '@weatherteam6/types'

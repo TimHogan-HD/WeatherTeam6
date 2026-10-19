@@ -10,6 +10,7 @@ import {
   useNavigationType,
 } from 'react-router-dom'
 import { createQueryClient } from './lib/queryClient.js'
+import { pageCommitted } from './hooks/useNavigate.js'
 import { getToken, subscribeToToken } from './lib/authToken.js'
 import { forgetLocations } from './lib/rememberedLocations.js'
 import { forgetCards } from './lib/rememberedCards.js'
@@ -148,7 +149,9 @@ function RequireAuth({ children }: { children: ReactNode }) {
  * away under a crag's dock and back again rather than vanish.
  */
 function SignedIn() {
-  const { pathname } = useRouterLocation()
+  const { pathname, key } = useRouterLocation()
+  // The next screen is in the DOM: a page transition waiting on it may take its snapshot.
+  useLayoutEffect(() => pageCommitted(), [key])
   // Asked for once here, so a crag opened later finds its opening tab cached.
   usePreferences()
   useEffect(() => {

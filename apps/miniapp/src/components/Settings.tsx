@@ -64,7 +64,7 @@ function SettingsForm({ saved }: { saved: Preferences }) {
                   ...bareButton,
                   ...(draft.tab === t.value ? chipActive : chip),
                   ...typeV2.chip,
-                  color: draft.tab === t.value ? colors.good : colorsV2.txt1,
+                  color: draft.tab === t.value ? colorsV2.brandInk : colorsV2.txt1,
                   width: 'auto',
                 }}
               >

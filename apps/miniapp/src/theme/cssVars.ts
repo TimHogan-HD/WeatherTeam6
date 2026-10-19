@@ -50,6 +50,11 @@ export function renderTokenCss(): string {
       dockRiseMs: `${motion.dockRiseMs}ms`,
       dockRiseDelayMs: `${motion.dockRiseDelayMs}ms`,
       headerSwapMs: `${motion.headerSwapMs}ms`,
+      pageMs: `${motion.pageMs}ms`,
+      pageDrift: `${motion.pageDriftPct}%`,
+      pageFadeMs: `${motion.pageFadeMs}ms`,
+      pageFadeScale: String(motion.pageFadeScale),
+      swipeMs: `${motion.swipeMs}ms`,
     }),
     ...declarations('glass', glassVars().normal),
   ]

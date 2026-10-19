@@ -1,8 +1,8 @@
 import { useRef } from 'react'
-import { colors, colorsV2, glass, radius, spacing } from '@weatherteam6/design/tokens'
-import { typeV2, withOpacity } from '../theme/tokens.css.js'
+import { colorsV2, glass, motion, radius, spacing } from '@weatherteam6/design/tokens'
+import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton } from '../theme/styles.js'
-import { glassDock } from '../theme/glass.js'
+import { glassDock, selection } from '../theme/glass.js'
 import type { HeaderTab } from './DetailHeader.js'
 import { SelectionIndicator, useSelectedRect } from './SelectionIndicator.js'
 
@@ -36,6 +36,8 @@ export function Dock<T extends string>({ tabs }: { tabs: DockTabs<T> }) {
         right: `${spacing.listGap}px`,
         bottom: `calc(${glass.dockLift}px + env(safe-area-inset-bottom, 0px))`,
         zIndex: 10,
+        // Captured on its own in a page transition, so it rises in place while the screens move.
+        viewTransitionName: 'wt6-dock',
         display: 'flex',
         justifyContent: 'center',
         // The strip either side of the dock is not part of it: taps there reach the page.
@@ -91,6 +93,7 @@ export function Dock<T extends string>({ tabs }: { tabs: DockTabs<T> }) {
         })}
         <SelectionIndicator
           rect={rect}
+          timing={SPRING}
           style={{
             backgroundColor: PILL_FILL,
             boxShadow: PILL_RING,
@@ -105,5 +108,6 @@ export function Dock<T extends string>({ tabs }: { tabs: DockTabs<T> }) {
 }
 
 /** The app bar's lit pill, so a chosen tab reads the same in both bars. */
-const PILL_FILL = withOpacity(colors.good, 0.1)
-const PILL_RING = `inset 0 0 0 1px ${withOpacity(colors.good, 0.3)}`
+const SPRING = `${motion.switcherMs}ms ${motion.spring}`
+const PILL_FILL = selection.fill
+const PILL_RING = `inset 0 0 0 1px ${selection.ring}`

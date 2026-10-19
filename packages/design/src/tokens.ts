@@ -128,6 +128,14 @@ export const colorsV2 = {
   txt2: '#cfdad2',
   /** An unselected tab. */
   txtTab: '#7d8997',
+  /**
+   * The hybrid look's accent (owner, 2026-10-19, the mockup's aqua): what is
+   * chosen — a tab's pill, the lit app-bar tab, the crag switcher's underline —
+   * and the back chevron. `brandInk` is the lighter one for words and icons.
+   * Never a score colour; `good` stays the conditions rung.
+   */
+  brand: '#1DC5D2',
+  brandInk: '#6fe3ec',
   /** Chance of rain, as a figure. Also the dew point line on the Hourly tab. */
   rain: '#90cdf4',
   /**
@@ -686,6 +694,12 @@ export const typeV2 = {
     fontSize: 11,
     fontWeight: '500' as const,
     color: colorsV2.txtMuted,
+  },
+  /** A crag's name in the switcher across a crag's top (owner, 2026-10-19): Barlow Condensed 16/600. Colour is its state. */
+  switcher: {
+    fontFamily: fonts.display,
+    fontSize: 16,
+    fontWeight: '600' as const,
   },
   /** A tab label: Barlow 15/600. Colour is the tab's state. */
   tab: {
@@ -1364,6 +1378,21 @@ export const motion = {
   headerFlyMs: 550,
   /** The slim header's line and figure arriving when the tab under it changes. */
   headerSwapMs: 350,
+  /**
+   * A screen drilled into slides in from the right as the one it left drifts
+   * `pageDriftPct` left and fades; back is the same run the other way
+   * (owner, 2026-10-19, from the hybrid mockup).
+   */
+  pageMs: 420,
+  pageDriftPct: 28,
+  /** A crag opened from the list, or the list returned to: the old screen fades and settles back to `pageFadeScale`. */
+  pageFadeMs: 380,
+  pageFadeScale: 0.97,
+  /** One crag to the next by the switcher: the content arrives `swipePx` from the side moved toward. */
+  swipeMs: 500,
+  swipePx: 40,
+  /** The switcher's underline sliding to the chosen crag, on `spring`. */
+  switcherMs: 500,
 } as const;
 
 /**

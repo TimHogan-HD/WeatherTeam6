@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
+import { useNavigate } from '../hooks/useNavigate.js'
 import { colors, colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { isValidUsername, MIN_PASSPHRASE_LENGTH, passphraseProblem } from '@weatherteam6/types'
 import { type, typeV2 } from '../theme/tokens.css.js'

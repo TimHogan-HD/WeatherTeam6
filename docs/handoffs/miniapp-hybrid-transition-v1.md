@@ -100,9 +100,10 @@ drops one is a regression:
 
 1. **Look and navigation.** Tokens for the glass surfaces, the glow and the radii, then the
    card wrapper, the app bar and dock hand-off, and the slim header. No change to what any
-   reading says. **Built 2026-10-19.** Kept from the live app pending the owner: the lime
-   selection pill (the mockup's is cyan), the five app-bar sections, no crag switcher chips
-   and no page slide. Hourly's header shows the open day's score until Phase 2's scrub.
+   reading says. **Built 2026-10-19**, then the owner's four calls on it the same day: the
+   mockup's aqua for what is chosen (`colorsV2.brand`), the five app-bar sections with no
+   Main tab, the crag switcher across a crag's top (`CragBar`), and the mockup's page
+   transitions (`lib/pageMotion.ts`). Hourly's header shows the open day's score until Phase 2's scrub.
 2. **Overview and Hourly.** The score bars, the four Hourly charts with the shared scrub,
    and the dry-day rain card.
 3. **Daily, Precip and Rock.** The Daily wrap fix, removing the running total, and putting
