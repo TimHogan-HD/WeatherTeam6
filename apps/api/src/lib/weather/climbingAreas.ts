@@ -6,6 +6,7 @@ import type {
 } from '@weatherteam6/types'
 import { CO_CLIMBING_AREAS } from './climbingAreasCo.js'
 import { MN_CLIMBING_AREAS } from './climbingAreasMn.js'
+import { UT_CLIMBING_AREAS } from './climbingAreasUt.js'
 
 /** One OpenBeta area, as stored in a generated `climbingAreas<State>.ts` file. */
 export type ClimbingArea = {
@@ -27,10 +28,12 @@ export const MAX_CLIMBING_RESULTS = 5
  * **The states searched and browsed, each a snapshot from `npm run
  * climbing:pull`.** The owner adds a state when a trip needs it (Minnesota
  * 2026-09-23, Colorado 2026-10-01); a new one is a pulled file and a line here.
+ * Utah is Indian Creek alone (owner, 2026-10-19: "not all of Utah").
  */
 const STATES: readonly { code: string; name: string; areas: readonly ClimbingArea[] }[] = [
   { code: 'MN', name: 'Minnesota', areas: MN_CLIMBING_AREAS },
   { code: 'CO', name: 'Colorado', areas: CO_CLIMBING_AREAS },
+  { code: 'UT', name: 'Utah', areas: UT_CLIMBING_AREAS },
 ]
 
 type Indexed = { area: ClimbingArea; state: (typeof STATES)[number]; name: string[]; all: string[]; id: number }
