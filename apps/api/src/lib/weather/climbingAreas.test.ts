@@ -102,34 +102,50 @@ describe('browsing climbing areas', () => {
   })
 })
 
-describe('Sandstone, MN — one rock for every area under it (owner, 2026-10-15)', () => {
+describe('Minnesota known crags — one rock for every area under each (owner, 2026-10-15)', () => {
   // Walked by parent_id from the snapshot, so a later `climbing:pull` that adds
-  // a wall under Sandstone is checked without editing this test.
-  const root = MN_CLIMBING_AREAS.find((a) => a.name === 'Sandstone' && a.parent_id === null)
-  const under = new Set<string>(root ? [root.uuid] : [])
-  for (let grew = true; grew; ) {
-    grew = false
-    for (const a of MN_CLIMBING_AREAS) {
-      if (a.parent_id !== null && under.has(a.parent_id) && !under.has(a.uuid)) {
-        under.add(a.uuid)
-        grew = true
+  // or re-pins a wall under one of these is checked without editing this test.
+  // OpenBeta's coordinates are wrong often enough that each mispinned area
+  // needed its own KNOWN_CRAGS point.
+  const ROOTS: ReadonlyArray<[string, string]> = [
+    ['Blue Mounds State Park (Luverne)', 'quartzite'],
+    ['Interstate SP (Taylors Falls)', 'basalt_dense'],
+    ['Sandstone', 'sandstone_quartz_arenite'],
+    ['He Mni Can - Barn Bluff (Red Wing)', 'carbonate_cherty'],
+    ['Tettegouche SP (North Shore)', 'rhyolite'],
+    ['Temperance River SP (North Shore)', 'anorthosite'],
+  ]
+
+  function under(rootName: string) {
+    const root = MN_CLIMBING_AREAS.find((a) => a.name === rootName && a.parent_id === null)
+    const ids = new Set<string>(root ? [root.uuid] : [])
+    for (let grew = true; grew; ) {
+      grew = false
+      for (const a of MN_CLIMBING_AREAS) {
+        if (a.parent_id !== null && ids.has(a.parent_id) && !ids.has(a.uuid)) {
+          ids.add(a.uuid)
+          grew = true
+        }
       }
     }
+    return MN_CLIMBING_AREAS.filter((a) => ids.has(a.uuid))
   }
-  const areas = MN_CLIMBING_AREAS.filter((a) => under.has(a.uuid))
 
-  it('finds the parent and the walls below it', () => {
-    expect(root).toBeDefined()
-    expect(areas.map((a) => a.name)).toEqual(expect.arrayContaining(['Robinson Park', 'Sigma Wall', 'Eldon']))
+  it.each(ROOTS)('locks every area under %s to %s', (rootName, rockType) => {
+    const areas = under(rootName)
+    expect(areas.length).toBeGreaterThan(0)
+    for (const a of areas) expect(matchKnownCrag(a.lat, a.lon)?.rock_type, a.name).toBe(rockType)
   })
 
-  it('locks every one of them to Hinckley quartz arenite', () => {
-    for (const a of areas) {
-      expect(matchKnownCrag(a.lat, a.lon)?.rock_type, a.name).toBe('sandstone_quartz_arenite')
-    }
+  it("finds Sandstone's walls below its parent", () => {
+    expect(under('Sandstone').map((a) => a.name)).toEqual(expect.arrayContaining(['Robinson Park', 'Sigma Wall', 'Eldon']))
   })
 
-  it('leaves Banning State Park, a separate area 3 km north, for the user', () => {
+  it("locks no Duluth area to the rhyolite of Tettegouche's mispinned parent", () => {
+    for (const a of under('Duluth Area (Rock and Ice)')) expect(matchKnownCrag(a.lat, a.lon), a.name).toBeNull()
+  })
+
+  it('leaves Banning State Park, a separate area 3 km north of Robinson Park, for the user', () => {
     const banning = MN_CLIMBING_AREAS.filter((a) => a.name.startsWith('Banning State Park'))
     expect(banning.length).toBeGreaterThan(0)
     for (const a of banning) expect(matchKnownCrag(a.lat, a.lon)).toBeNull()
