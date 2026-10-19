@@ -1,4 +1,4 @@
-import type { HourlyDay, HourlySample } from '@weatherteam6/types'
+import { readingNow, type HourlyDay, type HourlySample } from '@weatherteam6/types'
 import { dayIsDrawable } from '../components/charts/hourlySeries.js'
 import { formatWeekday } from './forecast.js'
 
@@ -39,13 +39,12 @@ export function daysOutPhrase(days: readonly HourlyDay[], selectedDate: string):
   return `in ${index} days`
 }
 
-const HOUR_MS = 3_600_000
 const NOON = 12
 
 /**
- * The hour Hourly reads before anyone scrubs: the hour now is in when the open
- * day holds it, else noon on the location's clock, else the day's first hour.
- * `null` when the day has no hours.
+ * The hour Hourly reads before anyone scrubs: `readingNow`'s hour when the open
+ * day holds it, so the header and the Overview's "now" agree; else noon on the
+ * location's clock, else the day's first hour. `null` when the day has no hours.
  */
 export function defaultReadHour(
   hours: readonly HourlySample[],
@@ -53,14 +52,14 @@ export function defaultReadHour(
   utcOffsetSeconds: number,
   nowMs: number,
 ): number | null {
-  const day = hours
-    .filter((h) => h.local_date === localDate)
+  const dayHours = hours.filter((h) => h.local_date === localDate)
+  const day = dayHours
     .map((h) => Date.parse(h.valid_at))
     .filter((ms) => Number.isFinite(ms))
     .sort((a, b) => a - b)
   if (day.length === 0) return null
-  const current = day.find((ms) => ms <= nowMs && nowMs < ms + HOUR_MS)
-  if (current !== undefined) return current
+  const current = readingNow(dayHours, nowMs)
+  if (current !== null && readingNow(hours, nowMs) === current) return Date.parse(current.valid_at)
   const noon = day.find((ms) => new Date(ms + utcOffsetSeconds * 1000).getUTCHours() === NOON)
   return noon ?? day[0]!
 }

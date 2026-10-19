@@ -83,6 +83,9 @@ export function ScoreBars({
 
   const h = hours[sel]!
   const label = hourLabel(h, first, sel === 0, offset)
+  // One label at a time, so two days' runs never print over each other: the
+  // read hour's day, else the first.
+  const labelled = best.find((run) => run.local_date === h.local_date) ?? best[0] ?? null
   const spoken = [
     label,
     h.score === null ? 'no score' : `score ${h.score}`,
@@ -183,10 +186,11 @@ export function ScoreBars({
           })}
         </svg>
 
-        {best.map((run) => {
+        {best
+          .filter((run) => run === labelled)
+          .map((run) => {
           const mid = xOf(slotOf(run.fromMs)) + ((slotOf(run.toMs) - slotOf(run.fromMs) + 1) * step) / 2
           const left = Math.min(100 - LABEL_EDGE_PCT, Math.max(LABEL_EDGE_PCT, (mid / W) * 100))
-          const end = run.toMs + 3_600_000
           return (
             <span
               key={run.local_date}
@@ -200,7 +204,7 @@ export function ScoreBars({
                 pointerEvents: 'none',
               }}
             >
-              Best {formatLocalHourShort(run.fromMs, offset)}–{formatLocalHourShort(end, offset)}{' '}
+              Good hours: {run.span}{' '}
               <span style={{ fontWeight: 700, color: TONE_FILL[scoreTone(run.score)] }}>{run.score}</span>
             </span>
           )

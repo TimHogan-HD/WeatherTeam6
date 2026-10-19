@@ -41,8 +41,13 @@ describe('defaultReadHour', () => {
     (_, i) => ({ valid_at: new Date(START + i * H).toISOString(), local_date: i < 24 ? '2026-09-28' : '2026-09-29' }) as HourlySample,
   )
 
-  it('reads the hour now is in on today', () => {
-    expect(defaultReadHour(hours, '2026-09-28', OFFSET, START + 14 * H + 40 * 60_000)).toBe(START + 14 * H)
+  it('reads the hour every other "now" on the crag reads: 14:20 is 14:00, 14:40 is 15:00', () => {
+    expect(defaultReadHour(hours, '2026-09-28', OFFSET, START + 14 * H + 20 * 60_000)).toBe(START + 14 * H)
+    expect(defaultReadHour(hours, '2026-09-28', OFFSET, START + 14 * H + 40 * 60_000)).toBe(START + 15 * H)
+  })
+
+  it('reads noon on today once now has rolled into tomorrow’s first hour', () => {
+    expect(defaultReadHour(hours, '2026-09-28', OFFSET, START + 23 * H + 40 * 60_000)).toBe(START + 12 * H)
   })
 
   it('reads noon on the location’s clock on any other day, not the viewer’s', () => {

@@ -1,6 +1,8 @@
 import {
   DRYNESS_LABEL,
+  readingNow,
   summarizeReadings,
+  windowValue,
   type HourlyReading,
   type HourlySeries,
 } from '@weatherteam6/types'
@@ -36,8 +38,12 @@ export type BarHour = {
   withheldByAlert: boolean
 }
 
-/** A day's best run, from the server's `ReadingsDay.window`; its score is the run's worst hour. */
-export type BestRun = { local_date: string; fromMs: number; toMs: number; score: number }
+/**
+ * A day's good hours, from the server's `ReadingsDay.window`, with the day's
+ * score. `fromMs`/`toMs` are clipped to the bars; `span` is the whole window as
+ * the card's `Good hours` writes it.
+ */
+export type BestRun = { local_date: string; fromMs: number; toMs: number; span: string; score: number }
 
 export type ScoreBarWindow = { hours: BarHour[]; best: BestRun[] }
 
@@ -55,15 +61,17 @@ function summarize(series: HourlySeries, reading: HourlyReading | null, alerts: 
 }
 
 /**
- * The hours from the one now is in to `SCORE_BAR_HOURS` later, joined to their
- * readings **on `valid_at`**, never on position. `null` when the series has no
- * hour in that span.
+ * `SCORE_BAR_HOURS` hours from the one `readingNow` calls now, so the first bar
+ * is the hour every other "now" on the crag reads. Joined to their readings
+ * **on `valid_at`**, never on position. `null` when the series does not reach now.
  *
- * A best run is listed only when it starts inside the span and its score
+ * A day's good hours are listed when they overlap the bars and the day's score
  * survives suppression, so the underline never names a day the alert hides.
  */
 export function scoreBarWindow(series: HourlySeries, nowMs: number, alerts: Alerts): ScoreBarWindow | null {
-  const fromMs = nowMs - (nowMs % HOUR_MS)
+  const now = readingNow(series.hours, nowMs)
+  if (now === null) return null
+  const fromMs = Date.parse(now.valid_at)
   const toMs = fromMs + (SCORE_BAR_HOURS - 1) * HOUR_MS
 
   const byInstant = new Map<string, HourlyReading>()
@@ -93,10 +101,16 @@ export function scoreBarWindow(series: HourlySeries, nowMs: number, alerts: Aler
     if (day.window === null) continue
     const from = Date.parse(day.window.from)
     const to = Date.parse(day.window.to)
-    if (!Number.isFinite(from) || !Number.isFinite(to) || from < fromMs || to > toMs) continue
+    if (!Number.isFinite(from) || !Number.isFinite(to) || to < fromMs || from > toMs) continue
     const score = summarize(series, day.best, alerts).score
     if (score === null) continue
-    best.push({ local_date: day.local_date, fromMs: from, toMs: to, score })
+    best.push({
+      local_date: day.local_date,
+      fromMs: Math.max(from, fromMs),
+      toMs: Math.min(to, toMs),
+      span: windowValue(day.window, series.utc_offset_seconds),
+      score,
+    })
   }
   return { hours, best }
 }

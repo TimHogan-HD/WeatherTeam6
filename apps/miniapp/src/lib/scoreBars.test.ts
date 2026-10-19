@@ -34,8 +34,8 @@ const series = (opts: { readings?: HourlyReading[]; days?: ReadingsDay[]; hours?
   }) as unknown as HourlySeries
 
 const clear = { severeAlertEvent: null, alertsPending: false }
-// 14:40 local on 9/28.
-const NOW = START + 14 * H + 40 * 60_000
+// 14:20 local on 9/28.
+const NOW = START + 14 * H + 20 * 60_000
 
 describe('scoreBarWindow', () => {
   it('runs 36 hours from the hour now is in', () => {
@@ -43,6 +43,10 @@ describe('scoreBarWindow', () => {
     expect(w.hours).toHaveLength(SCORE_BAR_HOURS)
     expect(w.hours[0]!.ms).toBe(START + 14 * H)
     expect(w.hours.at(-1)!.ms).toBe(START + 49 * H)
+  })
+
+  it('starts on the hour every other "now" on the crag reads, so 14:40 is the 15:00 bar', () => {
+    expect(scoreBarWindow(series(), START + 14 * H + 40 * 60_000, clear)!.hours[0]!.ms).toBe(START + 15 * H)
   })
 
   it('joins readings on the instant, so a missing reading is a stub, never a neighbour’s score', () => {
@@ -74,17 +78,21 @@ describe('scoreBarWindow', () => {
     expect(w.hours[2]!.chancePct).toBeNull()
   })
 
-  it('lists a best run only when it starts in the span and its score survives suppression', () => {
-    const window = (from: number, to: number) => ({ from: at(from), to: at(to), hours: 3, min_score: 70, qualified: true })
+  it('lists good hours that overlap the bars, clipped to them, named as the card names them', () => {
+    const window = (from: number, to: number) => ({ from: at(from), to: at(to), hours: to - from + 1, min_score: 70, qualified: true })
     const days = [
-      // Today's run started at 10:00, before the bars do.
+      // Today's ran out at noon, before the bars start; the second is under way.
       { local_date: '2026-09-28', window: window(10, 12), best: reading(12, 70) },
+      { local_date: '2026-09-28', window: window(13, 17), best: reading(17, 75) },
       { local_date: '2026-09-29', window: window(24 + 11, 24 + 13), best: reading(24 + 13, 91) },
-      { local_date: '2026-09-30', window: window(48 + 11, 48 + 13), best: reading(48 + 13, 88) },
+      // Starts inside the bars and runs past their end.
+      { local_date: '2026-09-30', window: window(48 + 1, 48 + 3), best: reading(48 + 3, 88) },
     ] as ReadingsDay[]
     const w = scoreBarWindow(series({ days }), NOW, clear)!
     expect(w.best).toEqual([
-      { local_date: '2026-09-29', fromMs: START + 35 * H, toMs: START + 37 * H, score: 91 },
+      { local_date: '2026-09-28', fromMs: START + 14 * H, toMs: START + 17 * H, span: '1pm–5pm', score: 75 },
+      { local_date: '2026-09-29', fromMs: START + 35 * H, toMs: START + 37 * H, span: '11am–1pm', score: 91 },
+      { local_date: '2026-09-30', fromMs: START + 49 * H, toMs: START + 49 * H, span: '1am–3am', score: 88 },
     ])
     expect(scoreBarWindow(series({ days }), NOW, { severeAlertEvent: 'Flood Warning', alertsPending: false })!.best).toEqual([])
   })
