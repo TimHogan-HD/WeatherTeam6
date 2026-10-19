@@ -1,5 +1,6 @@
 import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
-import { ROCK_TYPE_GROUPS, isRockType, rockTypeLabel, type KnownCrag, type RockType } from '@weatherteam6/types'
+import { ROCK_TYPE_GROUPS, isRockType, rockTypeLabel, type RockType } from '@weatherteam6/types'
+import { Link } from 'react-router-dom'
 import { type } from '../theme/tokens.css.js'
 import { bareButton, btnPrimary, btnPrimaryText, chip, chipActive, inputBox, stack } from '../theme/styles.js'
 
@@ -20,6 +21,9 @@ import { bareButton, btnPrimary, btnPrimaryText, chip, chipActive, inputBox, sta
  * one, so the toggle defaults **off** and the picker only appears behind it.
  */
 
+/** A locked rock: a known crag, or an OpenBeta area in `AREA_ROCK`. */
+export type RockLock = { readonly name: string; readonly rock_type: RockType }
+
 export type SaveDraft = {
   name: string
   isClimbing: boolean
@@ -35,8 +39,8 @@ export function SaveBar({
   error,
 }: {
   draft: SaveDraft
-  /** The known crag under the candidate, from `matchKnownCrag`, or null. */
-  knownCrag: KnownCrag | null
+  /** The rock lock under the candidate — a known crag's box or a listed area — or null. */
+  knownCrag: RockLock | null
   onChange: (draft: SaveDraft) => void
   onSave: () => void
   saving: boolean
@@ -95,7 +99,13 @@ export function SaveBar({
           <span style={type.label}>Rock type</span>
           <span style={type.calDay}>{rockTypeLabel(knownCrag.rock_type)}</span>
           <span style={{ ...type.bodySm, color: colors.txt3 }}>
-            Set for {knownCrag.name}.
+            Set for {knownCrag.name}.{' '}
+            <Link
+              to={`/feedback?message=${encodeURIComponent(`Wrong rock type: ${draft.name.trim() || knownCrag.name} shows ${rockTypeLabel(knownCrag.rock_type)}. It should be: `)}`}
+              style={{ color: 'inherit', textDecoration: 'underline' }}
+            >
+              Wrong rock type?
+            </Link>
           </span>
         </div>
       ) : draft.isClimbing ? (

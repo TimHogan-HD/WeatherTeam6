@@ -1,4 +1,4 @@
-import { matchKnownCrag, placeSubtitle, type GeocodeResult, type ReverseGeocode } from '@weatherteam6/types'
+import { matchKnownCrag, placeSubtitle, type GeocodeResult, type ReverseGeocode, type RockType } from '@weatherteam6/types'
 import type { Fix } from '../hooks/useCurrentPosition.js'
 import { formatAccuracyFt } from './logbook.js'
 
@@ -12,6 +12,8 @@ export type Candidate = {
   timezone: string | null
   /** The line under the name on the save form, or null for none. */
   detail: string | null
+  /** Set when the pick is an OpenBeta climbing area, with the rock locked for it, if any. */
+  climbingArea?: { rock: { name: string; rock_type: RockType } | null }
 }
 
 export function fromGeocode(result: GeocodeResult): Candidate {
@@ -22,6 +24,16 @@ export function fromGeocode(result: GeocodeResult): Candidate {
     elevationM: result.elevation_m,
     timezone: result.timezone,
     detail: placeSubtitle(result),
+    ...(result.climbing_area == null
+      ? {}
+      : {
+          climbingArea: {
+            rock:
+              result.climbing_area.rock == null
+                ? null
+                : { name: result.climbing_area.rock.set_by, rock_type: result.climbing_area.rock.rock_type },
+          },
+        }),
   }
 }
 
