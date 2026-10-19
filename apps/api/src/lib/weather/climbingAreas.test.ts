@@ -3,6 +3,7 @@ import { matchKnownCrag } from '@weatherteam6/types'
 import { MAX_CLIMBING_RESULTS, climbingAreaLevel, climbingStates, searchClimbingAreas } from './climbingAreas.js'
 import { CO_CLIMBING_AREAS } from './climbingAreasCo.js'
 import { MN_CLIMBING_AREAS } from './climbingAreasMn.js'
+import { UT_CLIMBING_AREAS } from './climbingAreasUt.js'
 
 const names = (q: string) => searchClimbingAreas(q).map((r) => r.name)
 
@@ -36,6 +37,13 @@ describe('searchClimbingAreas', () => {
     expect(shelf?.admin1).toBe('Colorado')
     expect(searchClimbingAreas('red wing')[0]?.admin1).toBe('Minnesota')
     expect(names('eldorado')).toContain('Eldorado Canyon State Park')
+  })
+
+  it('finds Indian Creek as the climbing area, not a town (feedback d4b06f8d)', () => {
+    const creek = searchClimbingAreas('indian creek')[0]
+    expect(creek?.name).toBe('Indian Creek')
+    expect(creek?.admin1).toBe('Utah')
+    expect(names('cat wall')).toContain('Cat Wall')
   })
 
   it('never offers a whole state as a crag', () => {
@@ -78,6 +86,12 @@ describe('browsing climbing areas', () => {
     expect(level.children.length).toBeGreaterThan(0)
   })
 
+  it('opens Utah at Indian Creek alone, not the rest of the state', () => {
+    const level = climbingAreaLevel('UT', null)!
+    expect(level.children.map((c) => c.place.name)).toEqual(['Indian Creek'])
+    expect(level.children[0]?.sub_areas).toBeGreaterThan(0)
+  })
+
   it('refuses an unknown state, an unknown area, and an area asked for under the wrong state', () => {
     expect(climbingAreaLevel('ZZ', null)).toBeNull()
     expect(climbingAreaLevel('CO', '00000000-0000-0000-0000-000000000000')).toBeNull()
@@ -88,6 +102,7 @@ describe('browsing climbing areas', () => {
     for (const [code, areas] of [
       ['CO', CO_CLIMBING_AREAS],
       ['MN', MN_CLIMBING_AREAS],
+      ['UT', UT_CLIMBING_AREAS],
     ] as const) {
       const seen = new Set<string>()
       const walk = (id: string | null): void => {
