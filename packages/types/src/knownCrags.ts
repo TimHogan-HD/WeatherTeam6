@@ -79,6 +79,9 @@ export const KNOWN_CRAGS: readonly KnownCrag[] = [
   { slug: 'taylors-falls', name: 'Taylors Falls (Interstate State Park)', facts: 'Taylors Falls', rock_type: 'basalt_dense', osm: 'relation/6979200', bbox: box(45.3877767, 45.4030297, -92.672682, -92.6505129) },
   { slug: 'palisade-head', name: 'Palisade Head', facts: 'Palisade Head and Shovel Point', rock_type: 'rhyolite', osm: 'way/1364090751', bbox: box(47.318561, 47.3228107, -91.2126159, -91.2088757) },
   { slug: 'shovel-point', name: 'Shovel Point', facts: 'Palisade Head and Shovel Point', rock_type: 'rhyolite', osm: 'node/12801649903', bbox: box(47.3395308, 47.3395308, -91.1848677, -91.1848677) },
+  // OpenBeta pins its "Tettegouche SP" parent, whose only areas are Palisade
+  // Head and Shovel Point, 60 km south-west near Duluth.
+  { slug: 'tettegouche', name: 'Tettegouche State Park', facts: 'Palisade Head and Shovel Point', rock_type: 'rhyolite', osm: 'openbeta/94f21cb4-21bf-59f0-96f7-c319bfe5a61b', bbox: box(46.84985, 46.84985, -92.32298, -92.32298) },
   { slug: 'carlton-peak', name: 'Carlton Peak', facts: 'Carlton Peak', rock_type: 'anorthosite', osm: 'node/1743950114', bbox: box(47.5842551, 47.5842551, -90.8598093, -90.8598093) },
   // Every area under OpenBeta's "Sandstone" is the Hinckley quarry at Robinson
   // Park (owner, 2026-10-15). The park's box (Nominatim, 2026-10-15) reaches all of its walls and
@@ -88,6 +91,11 @@ export const KNOWN_CRAGS: readonly KnownCrag[] = [
   { slug: 'robinson-park', name: 'Sandstone (Robinson Park)', facts: 'Robinson Park', rock_type: 'sandstone_quartz_arenite', osm: 'way/749199562', bbox: box(46.1289399, 46.1343524, -92.8609844, -92.8568354) },
   { slug: 'sandstone-mn', name: 'Sandstone', facts: 'Robinson Park', rock_type: 'sandstone_quartz_arenite', osm: 'openbeta/8bbb8f66-ec75-5d5f-90c7-2811b8d4f27b', bbox: box(46.11369, 46.11369, -93.00083, -93.00083) },
   { slug: 'blue-mounds', name: 'Blue Mounds State Park', facts: 'Blue Mounds State Park', rock_type: 'quartzite', osm: 'way/188688376', bbox: box(43.6888822, 43.7249006, -96.2125406, -96.1720558) },
+  // Two Blue Mounds areas OpenBeta pins outside the park: "North Quarry Area"
+  // 2.5 km west of the box, and its "Kanaranzi Buttress (East Face)" 55 km
+  // south-west, across the South Dakota line. Both are park walls.
+  { slug: 'blue-mounds-north-quarry', name: 'Blue Mounds (North Quarry)', facts: 'Blue Mounds State Park', rock_type: 'quartzite', osm: 'openbeta/b3d63c4d-618a-5826-a1a5-9deecdcb2770', bbox: box(43.68456, 43.68456, -96.24418, -96.24418) },
+  { slug: 'blue-mounds-kanaranzi-east', name: 'Blue Mounds (Kanaranzi Buttress)', facts: 'Blue Mounds State Park', rock_type: 'quartzite', osm: 'openbeta/faf077c7-5912-5a63-8965-b54992cc33c1', bbox: box(43.56016, 43.56016, -96.83175, -96.83175) },
   { slug: 'devils-lake', name: "Devil's Lake State Park", facts: "Devil's Lake", rock_type: 'quartzite', osm: 'relation/11121544', bbox: box(43.3825944, 43.4480577, -89.7587429, -89.6503025) },
   { slug: 'the-needles', name: 'The Needles (Cathedral Spires)', facts: 'The Needles', rock_type: 'granite', osm: 'node/4588696945', bbox: box(43.8488773, 43.8488773, -103.5336924, -103.5336924) },
   { slug: 'spearfish-canyon', name: 'Spearfish Canyon', facts: 'Spearfish Canyon', rock_type: 'carbonate_cherty', osm: 'relation/5625090', bbox: box(44.3397624, 44.3555385, -103.9462456, -103.9171999) },
