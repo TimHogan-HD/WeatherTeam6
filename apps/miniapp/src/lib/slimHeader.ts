@@ -1,12 +1,19 @@
 import {
+  EM_DASH,
   WINDOW_LABEL,
   cToF,
+  formatPrecipIn,
   formatTempF,
+  kmhToMph,
   readingNow,
+  summarizeReadings,
   type ForecastSnapshot,
+  type HourlyReading,
   type HourlySample,
 } from '@weatherteam6/types'
 import type { DetailTab } from '../components/DetailView.js'
+import { formatLocalHour, formatTempDeg } from './format.js'
+import { formatWeekday } from './forecast.js'
 import { dayChance, dayTitle, scoredDays, type DayReadings } from './overview.js'
 
 /**
@@ -40,22 +47,28 @@ export type SlimInputs = {
   hours: readonly HourlySample[]
   /** The day open on Hourly. */
   selectedDate: string | null
+  /** The hour Hourly is reading, epoch ms: the scrub, or its default. `null` while `/hourly` loads. */
+  readMs: number | null
+  /** The hourly readings, joined to `hours` on `valid_at`. Empty for a city and while `/hourly` loads. */
+  hourReadings: readonly HourlyReading[]
+  /** The hourly run's, for the read hour's clock. `null` while `/hourly` loads. */
+  utcOffsetSeconds: number | null
   nowMs: number
 }
 
 /**
- * Daily: the best day ahead by its score. Hourly: the open day's score — the
- * hour being read once the charts share a scrub (Phase 2). Precip: today's
- * highest hourly chance of rain. Rock: how far air sits above its dew point,
- * now. Crag: today's score. A city has no score, so its Daily and Hourly carry
- * the day's high instead.
+ * Daily: the best day ahead by its score. Hourly: the hour the charts are
+ * reading, with every figure they draw for it. Precip: today's highest hourly
+ * chance of rain. Rock: how far air sits above its dew point, now. Crag:
+ * today's score. A city has no score, so its Daily carries the day's high and
+ * its Hourly the hour's air temperature.
  */
 export function slimFigure(tab: Exclude<DetailTab, 'overview'>, i: SlimInputs): SlimFigure {
   switch (tab) {
     case 'daily':
       return i.isClimbingLocation ? bestDay(i) : dayHigh(i, i.todayDate, 'high today')
     case 'hourly':
-      return i.isClimbingLocation ? dayScore(i, i.selectedDate, 'day score') : dayHigh(i, i.selectedDate, 'high')
+      return hourRead(i)
     case 'precip':
       return {
         value: i.todayDate === null ? null : dayChance(i.hours, i.todayDate),
@@ -106,6 +119,62 @@ function dayScore(i: SlimInputs, date: string | null, label: string): SlimFigure
     label,
     tone: 'score',
     line: day === null ? null : dayLine(day.title, day.window),
+  }
+}
+
+const mph = (kmh: number | null): string => (kmh === null ? EM_DASH : String(Math.round(kmhToMph(kmh))))
+
+/**
+ * The hour the Hourly charts are reading: its score, suppressed as everywhere
+ * else, and one line of what the charts draw at it. Air and dew point share a
+ * label, as they share the readout row in the mockup.
+ *
+ * A city has no score, so its figure is the hour's air temperature.
+ */
+function hourRead(i: SlimInputs): SlimFigure {
+  const sample = i.readMs === null ? undefined : i.hours.find((h) => Date.parse(h.valid_at) === i.readMs)
+  const offset = i.utcOffsetSeconds
+  if (sample === undefined || offset === null || i.readMs === null) {
+    return { value: null, unit: null, label: 'hour', tone: i.isClimbingLocation ? 'score' : 'plain', line: null }
+  }
+  const day = sample.local_date === i.todayDate ? 'Today' : formatWeekday(sample.local_date)
+  const label = `${day} ${formatLocalHour(i.readMs, offset) ?? EM_DASH}`
+  const line = [
+    `Air / dew: ${formatTempDeg(sample.temp_c)} / ${formatTempDeg(sample.dewpoint_c)}`,
+    `Rain: ${formatPrecipIn(sample.precip_mm_mean)}, ${sample.precip_chance_pct === null ? EM_DASH : `${sample.precip_chance_pct}%`}`,
+    `Humidity: ${sample.humidity_pct === null ? EM_DASH : `${Math.round(sample.humidity_pct)}%`}`,
+    `Wind / gusts: ${mph(sample.wind_kmh)} / ${mph(sample.wind_gust_kmh)} mph`,
+  ].join(' · ')
+
+  if (!i.isClimbingLocation) {
+    return {
+      value: sample.temp_c === null ? null : Math.round(cToF(sample.temp_c)),
+      unit: '°',
+      label,
+      tone: 'plain',
+      line,
+    }
+  }
+  const reading = i.hourReadings.find((r) => r.valid_at === sample.valid_at) ?? null
+  const score =
+    i.readings === null
+      ? null
+      : summarizeReadings({
+          reading,
+          window: null,
+          utcOffsetSeconds: offset,
+          severeAlertEvent: i.readings.severeAlertEvent,
+          alertsPending: i.readings.alertsPending,
+          unavailableReason: null,
+        }).score
+  const withheld =
+    i.readings !== null && i.readings.severeAlertEvent !== null && reading !== null && reading.score !== null
+  return {
+    value: score,
+    unit: null,
+    label,
+    tone: 'score',
+    line: withheld ? `${line} · Alert: score withheld` : line,
   }
 }
 

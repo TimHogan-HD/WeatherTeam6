@@ -21,6 +21,7 @@ import { useGuidebook } from '../hooks/useGuidebook.js'
 import { DetailHeader, locationHeading } from '../components/DetailHeader.js'
 import { DetailView, detailTabs, type DetailTab } from '../components/DetailView.js'
 import { dayIsDrawable, firstDrawableDay } from '../components/charts/hourlySeries.js'
+import { defaultReadHour } from '../lib/hourlyDay.js'
 import { InlineError, Skeleton } from '../components/States.js'
 import { PullToRefresh } from '../components/PullToRefresh.js'
 import { Dock } from '../components/Dock.js'
@@ -90,6 +91,23 @@ export function LocationDetail() {
   const stillDrawable =
     selectedDate !== null && days.some((d) => d.local_date === selectedDate && dayIsDrawable(d))
   const openDate = stillDrawable ? selectedDate : firstDrawableDay(days)
+
+  // The hour Hourly's charts and header read. A scrub is held with its day, so
+  // picking another day falls back to that day's default rather than to an
+  // hour the new day does not have.
+  const [scrub, setScrub] = useState<{ date: string; ms: number } | null>(null)
+  const readMs =
+    hourly.data === undefined || openDate === null
+      ? null
+      : scrub !== null && scrub.date === openDate
+        ? scrub.ms
+        : defaultReadHour(hourly.data.hours, openDate, hourly.data.utc_offset_seconds, now)
+  const onRead = useCallback(
+    (ms: number) => {
+      if (openDate !== null) setScrub({ date: openDate, ms })
+    },
+    [openDate],
+  )
 
   // A city offers no Rock or Crag tab; a tab held from before the location
   // loaded must not point at one.
@@ -186,6 +204,8 @@ export function LocationDetail() {
             onTabChange: changeTab,
             selectedDate: openDate,
             onSelectDate: setSelectedDate,
+            readMs,
+            onRead,
             panelId: TAB_PANEL_ID,
           },
         }}
@@ -299,6 +319,9 @@ export function LocationDetail() {
                 : null,
             hours: hourly.data?.hours ?? [],
             selectedDate: openDate,
+            readMs,
+            hourReadings: location.data.is_climbing_location ? (hourly.data?.readings?.hours ?? []) : [],
+            utcOffsetSeconds: hourly.data?.utc_offset_seconds ?? null,
             nowMs: now,
           })}
           back={{ label: backLabel, onBack: goBack }}

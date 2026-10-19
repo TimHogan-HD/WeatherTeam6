@@ -20,18 +20,17 @@ import { formatForecastDate } from '../../lib/forecast.js'
 import { formatLocalClock, formatLocalHour, formatLocalHourShort, formatTempRangeF } from '../../lib/format.js'
 import { SkyIcon } from '../Icons.js'
 import { readingTone, scoreTone } from '../../lib/locationList.js'
-import { dayChips, daysOutPhrase } from '../../lib/hourlyDay.js'
+import { dayChips, daysOutPhrase, dryDay } from '../../lib/hourlyDay.js'
 import { useNow } from '../../hooks/useNow.js'
 import { SelectionIndicator, useSelectedRect } from '../SelectionIndicator.js'
 import { HourlyChart } from './HourlyChart.js'
 import { extent, type Extent } from './geometry.js'
 import { identityAxis, rainAxisBare, tempAxisDeg, windAxisBare } from './valueAxis.js'
 import {
-  CHANCE_VIEW_H,
   DAY_VIEW_H,
-  HUMIDITY_VIEW_H,
   OVERLAY_DASH,
-  RAIN_VIEW_H,
+  PAD_LEFT,
+  RAIN_CHART_VIEW_H,
   WIND_VIEW_H,
   TEMP_FLOOR_PAD_C,
   chartColorsV2,
@@ -45,6 +44,7 @@ import {
   humiditySeries,
   rainSeries,
   temperatureSeries,
+  timeExtent,
   valueExtent,
   windSeries,
   windSpreadSeries,
@@ -55,8 +55,11 @@ import {
 /**
  * The Hourly tab, from the WT6 Figma "V2" page's `v2 Dark - Hourly` frame
  * (node `129:529`): a chip per day, the open day's conditions — the three
- * readings and the good hours — then one card of charts:
- * temperature with the dew point, rain, chance of rain, wind and humidity.
+ * readings and the good hours — the sky by the hour, then one card of charts
+ * (hybrid look, owner 2026-10-19): temperature with the dew point and humidity
+ * on its own right-hand scale, rain chance and amount on one chart, and wind.
+ * The charts and the sky strip read one hour together, and the slim header
+ * carries that hour's figures.
  *
  * **There is no seven-day chart here.** A continuous multi-day series belongs
  * on the Daily tab, which is the view about comparing days; this tab is one
@@ -68,6 +71,9 @@ export type DayChartsProps = {
   /** The local date currently open. Always one the caller checked is drawable. */
   selectedDate: string
   onSelectDate: (localDate: string) => void
+  /** The hour every chart reads, epoch ms; held by the route so the slim header reads it too. */
+  readMs: number | null
+  onRead: (ms: number) => void
   /**
    * The readings for **the day on screen**, in the conditions card.
    *
@@ -129,9 +135,8 @@ function rainDomain(data: readonly SeriesDatum[]): Extent | null {
   return { min: 0, max: Math.max(RAIN_MIN_TOP_MM, span.max) }
 }
 
-const V2_AXES = { labelStyle: typeV2.axisTick, gridColor: chartColorsV2.grid }
-
-export function DayCharts({ series, selectedDate, onSelectDate, score }: DayChartsProps) {
+export function DayCharts({ series, selectedDate, onSelectDate, readMs, onRead, score }: DayChartsProps) {
+  const read = { ms: readMs, onRead }
   // **Matched on the date, never on position.** The readings' days and the
   // hours' days are built by different paths in `buildHourlySeries` and
   // windowed separately; lining them up by index holds until one side drops a
@@ -167,8 +172,8 @@ export function DayCharts({ series, selectedDate, onSelectDate, score }: DayChar
         summary={summary}
         best={readingsDay?.best ?? null}
       />
-      <SkyCard series={series} selectedDate={selectedDate} />
-      <ChartsCard series={series} selectedDate={selectedDate} shade={shade} />
+      <SkyCard series={series} selectedDate={selectedDate} read={read} />
+      <ChartsCard series={series} selectedDate={selectedDate} shade={shade} read={read} />
     </>
   )
 }
@@ -380,7 +385,19 @@ function ConditionsCard({
  * daylight in it. A day the model's sunlight never reached says so rather than
  * drawing a row of empty cells.
  */
-function SkyCard({ series, selectedDate }: { series: HourlySeries; selectedDate: string }) {
+function SkyCard({
+  series,
+  selectedDate,
+  read,
+}: {
+  series: HourlySeries
+  selectedDate: string
+  /**
+   * The hour the charts read. A cell covers the hour after the reading it is
+   * lit for, so the `7a` cell lights when 7 AM is read, and a tap reads it.
+   */
+  read: { ms: number | null; onRead: (ms: number) => void }
+}) {
   const sky = series.sky
   if (sky === undefined) return null
   const hours = sky.hours.filter((h) => h.local_date === selectedDate)
@@ -412,16 +429,25 @@ function SkyCard({ series, selectedDate }: { series: HourlySeries; selectedDate:
               gap: `${spacing.micro}px`,
             }}
           >
-            {hours.map((h) => (
+            {hours.map((h) => {
+              const startMs = Date.parse(h.valid_at) - HOUR_MS
+              const lit = read.ms === startMs
+              return (
               <li
                 key={h.valid_at}
                 aria-label={`${spokenHour(h)}, ${h.sky === null ? 'no forecast' : SKY_HOUR_LABEL[h.sky]}`}
+                aria-current={lit ? 'true' : undefined}
+                onClick={() => read.onRead(startMs)}
                 style={{
                   ...stack(spacing.tight),
                   alignItems: 'center',
                   padding: `${spacing.listGapSm}px 0`,
                   borderRadius: `${radius.chipMd}px`,
                   backgroundColor: colorsV2.surface,
+                  borderStyle: 'solid',
+                  borderWidth: '1px',
+                  borderColor: lit ? colorsV2.brand : 'transparent',
+                  cursor: 'pointer',
                 }}
               >
                 <span aria-hidden style={{ ...typeV2.axisTick, whiteSpace: 'nowrap' }}>
@@ -443,7 +469,8 @@ function SkyCard({ series, selectedDate }: { series: HourlySeries; selectedDate:
                   <SkyIcon sky={h.sky} size={22} />
                 )}
               </li>
-            ))}
+              )
+            })}
           </ul>
           {known === hours.length ? null : <p style={typeV2.note}>Dashed hours have no sunlight forecast.</p>}
         </>
@@ -461,10 +488,12 @@ function ChartsCard({
   series,
   selectedDate,
   shade,
+  read,
 }: {
   series: HourlySeries
   selectedDate: string
   shade: { from: number; to: number; color: string } | null
+  read: { ms: number | null; onRead: (ms: number) => void }
 }) {
   const now = useNow()
   const hours = hoursOnDay(series.hours, selectedDate)
@@ -477,7 +506,21 @@ function ChartsCard({
   const gusts = gustSeries(hours)
   const humidity = humiditySeries(hours)
 
-  const axis = { axis: 'hour' as const, utcOffsetSeconds: series.utc_offset_seconds, v2: V2_AXES, now }
+  // **One time axis for every chart**, half an hour past the first and last
+  // hour, so the hour being read sits at the same x on all of them and the
+  // chance columns, centred on their hours, fit inside the plot.
+  const times = timeExtent(temperature) ?? timeExtent(chance) ?? timeExtent(rain) ?? timeExtent(wind)
+  const timeDomain = times === null ? undefined : { min: times.min - HOUR_MS / 2, max: times.max + HOUR_MS / 2 }
+
+  const axis = {
+    axis: 'hour' as const,
+    utcOffsetSeconds: series.utc_offset_seconds,
+    now,
+    read,
+    padRight: PAD_LEFT,
+    glow: true,
+    ...(timeDomain === undefined ? {} : { timeDomain }),
+  }
 
   // The day's total rainfall, or `null` when nothing was measured.
   //
@@ -491,11 +534,11 @@ function ChartsCard({
   const rainHours = rain.filter((d) => d.value !== null)
   const rainTotal = rainHours.length === 0 ? null : rainHours.reduce((s, d) => s + (d.value ?? 0), 0)
   const tempRange = rangeOf(temperature)
-  const chancePeak = rangeOf(chance)
   const gustPeak = rangeOf(gusts)
-  const humidityRange = rangeOf(humidity)
+  const dry = dryDay(series.hours, selectedDate)
 
   const hasDewPoint = hasValues(dewPoint)
+  const hasHumidity = hasValues(humidity)
   const tempDomain = temperatureDomain(hasDewPoint ? [...temperature, ...dewPoint] : temperature)
   const gustDomain = windDomain([...wind, ...windSpread, ...gusts])
   const rainScale = rainDomain(rain)
@@ -505,15 +548,115 @@ function ChartsCard({
   // when one of them is drawn (defect class 3).
   const deterministic = modelSourceLabel(series.model)
   const attribution =
-    deterministic !== null && (hasDewPoint || hasValues(humidity))
+    deterministic !== null && (hasDewPoint || hasHumidity)
       ? `Dew point and humidity from ${deterministic}; other lines from the ensemble forecast.`
       : null
+
+  const percent = (v: number | null) => (v === null ? EM_DASH : `${Math.round(v)}%`)
+
+  // Rain: the chance as columns on the left scale, the amount as a line with
+  // its p10-p90 range on the right. Without any chance the amount stands alone.
+  let rainBody: ReactNode = null
+  if (dry !== null && hasValues(chance)) {
+    rainBody = (
+      <div style={{ position: 'relative' }}>
+        <HourlyChart
+          data={chance}
+          kind="bar"
+          placement="instant"
+          {...axis}
+          bare
+          viewHeight={RAIN_CHART_VIEW_H}
+          color={chartColorsV2.chanceColumn}
+          formatValue={percent}
+          domain={{ min: 0, max: 100 }}
+          valueAxis={identityAxis('%')}
+          title="Rain by hour: dry all day"
+        />
+        <div
+          style={{
+            ...stack(spacing.micro),
+            alignItems: 'center',
+            textAlign: 'center',
+            position: 'absolute',
+            left: '15%',
+            right: '15%',
+            top: '18%',
+            pointerEvents: 'none',
+          }}
+        >
+          <span style={{ ...typeV2.tileWord, color: colorsV2.goodInk }}>Dry all day</span>
+          <span style={{ ...typeV2.note, color: colorsV2.txt2 }}>
+            Highest chance: {dry.peakChancePct}% · {formatLocalHour(dry.peakMs, series.utc_offset_seconds) ?? EM_DASH}
+          </span>
+        </div>
+      </div>
+    )
+  } else if (hasValues(chance)) {
+    rainBody = (
+      <>
+        <HourlyChart
+          data={chance}
+          kind="bar"
+          placement="instant"
+          {...axis}
+          viewHeight={RAIN_CHART_VIEW_H}
+          color={chartColorsV2.chanceColumn}
+          formatValue={percent}
+          domain={{ min: 0, max: 100 }}
+          valueAxis={identityAxis('%')}
+          {...(hasValues(rain) && rainScale !== null
+            ? {
+                secondary: {
+                  data: rain,
+                  color: chartColorsV2.rain,
+                  bandColor: chartColorsV2.rainBand,
+                  domain: rainScale,
+                  valueAxis: rainAxisBare,
+                },
+              }
+            : {})}
+          title="Rain by hour: chance of rain as columns, amount as a line with its range"
+        />
+        <Legend>
+          <Key label="Chance of rain" swatch={{ kind: 'band', color: chartColorsV2.chanceColumn }} />
+          {hasValues(rain) ? (
+            <>
+              <Key label="Average" swatch={{ kind: 'line', color: chartColorsV2.rain }} />
+              <Key label="Range" swatch={{ kind: 'band', color: chartColorsV2.rainBand }} />
+            </>
+          ) : null}
+        </Legend>
+      </>
+    )
+  } else if (hasValues(rain)) {
+    rainBody = (
+      <>
+        <HourlyChart
+          data={rain}
+          kind="line"
+          {...axis}
+          {...(rainScale === null ? {} : { domain: rainScale })}
+          viewHeight={RAIN_CHART_VIEW_H}
+          color={chartColorsV2.rain}
+          bandColor={chartColorsV2.rainBand}
+          formatValue={formatPrecipIn}
+          valueAxis={rainAxisBare}
+          title="Rainfall by hour"
+        />
+        <Legend>
+          <Key label="Average" swatch={{ kind: 'line', color: chartColorsV2.rain }} />
+          <Key label="Range" swatch={{ kind: 'band', color: chartColorsV2.rainBand }} />
+        </Legend>
+      </>
+    )
+  }
 
   const blocks: ReactNode[] = [
     <ChartBlock
       key="temperature"
       label="Temperature"
-      unit="°F"
+      unit={hasHumidity ? '°F · humidity right' : '°F'}
       value={
         tempRange === null
           ? null
@@ -532,19 +675,32 @@ function ChartsCard({
             {...axis}
             {...(tempDomain === null ? {} : { domain: tempDomain })}
             {...(hasDewPoint ? { overlay: { data: dewPoint, color: chartColorsV2.dewPoint, dash: OVERLAY_DASH } } : {})}
+            {...(hasHumidity
+              ? {
+                  // Relative humidity is 0-100 whatever the day did; measuring it
+                  // would stretch a steady 60-65% into a swing across the plot.
+                  secondary: {
+                    data: humidity,
+                    color: chartColorsV2.humidity,
+                    domain: { min: 0, max: 100 },
+                    valueAxis: identityAxis('%'),
+                  },
+                }
+              : {})}
             {...(shade === null ? {} : { shade })}
             viewHeight={DAY_VIEW_H}
             color={chartColorsV2.air}
             bandColor={chartColorsV2.airBand}
             formatValue={formatTempF}
             valueAxis={tempAxisDeg}
-            title="Temperature by hour"
+            title={hasHumidity ? 'Temperature, dew point and humidity by hour' : 'Temperature by hour'}
           />
           <Legend>
             <Key label="Air" swatch={{ kind: 'line', color: chartColorsV2.air }} />
             {hasDewPoint ? (
               <Key label="Dew point" swatch={{ kind: 'line', color: chartColorsV2.dewPoint, dashed: true }} />
             ) : null}
+            {hasHumidity ? <Key label="Humidity" swatch={{ kind: 'line', color: chartColorsV2.humidity }} /> : null}
             <Key label="Range" swatch={{ kind: 'band', color: chartColorsV2.airBand }} />
             {shade === null ? null : <Key label="Good hours" swatch={{ kind: 'band', color: GOOD_HOURS_KEY }} />}
           </Legend>
@@ -555,62 +711,11 @@ function ChartsCard({
     <ChartBlock
       key="rain"
       label="Rain"
-      unit="in / hr"
+      unit={dry !== null || !hasValues(chance) ? 'in / hr' : 'chance left · in / hr right'}
       value={rainTotal === null ? null : formatPrecipIn(rainTotal)}
       empty="No hourly rainfall for this day."
     >
-      {hasValues(rain) ? (
-        <>
-          <HourlyChart
-            data={rain}
-            kind="line"
-            {...axis}
-            {...(rainScale === null ? {} : { domain: rainScale })}
-            viewHeight={RAIN_VIEW_H}
-            color={chartColorsV2.rain}
-            bandColor={chartColorsV2.rainBand}
-            formatValue={formatPrecipIn}
-            valueAxis={rainAxisBare}
-            title="Rainfall by hour"
-          />
-          {/*
-            **The line is an average, and says so.** `precip_mm_mean` is a mean
-            and the band is p10-p90, so on a day nine runs in ten stay dry the
-            band lies flat on zero while the line lifts off it — the forecast,
-            not a drawing error. The run count only when every hour agrees on it.
-          */}
-          <Legend>
-            <Key
-              label="Average"
-              swatch={{ kind: 'line', color: chartColorsV2.rain }}
-            />
-            <Key label="Range" swatch={{ kind: 'band', color: chartColorsV2.rainBand }} />
-          </Legend>
-        </>
-      ) : null}
-    </ChartBlock>,
-
-    <ChartBlock
-      key="chance"
-      label="Chance of rain"
-      unit="Chance"
-      value={chancePeak === null ? null : `peak ${Math.round(chancePeak.max)}%`}
-      empty="No rain chance for this day."
-    >
-      {hasValues(chance) ? (
-        <HourlyChart
-          data={chance}
-          kind="line"
-          {...axis}
-          viewHeight={CHANCE_VIEW_H}
-          color={chartColorsV2.rain}
-          // A whole-percent count of members, not a measurement in a unit.
-          formatValue={(v) => (v === null ? EM_DASH : `${Math.round(v)}%`)}
-          domain={{ min: 0, max: 100 }}
-          valueAxis={identityAxis('%')}
-          title="Chance of rain by hour"
-        />
-      ) : null}
+      {rainBody}
     </ChartBlock>,
 
     <ChartBlock
@@ -644,36 +749,6 @@ function ChartsCard({
         </>
       ) : null}
     </ChartBlock>,
-
-    <ChartBlock
-      key="humidity"
-      label="Humidity"
-      unit="%"
-      value={
-        humidityRange === null
-          ? null
-          : humidityRange.min === humidityRange.max
-            ? `${Math.round(humidityRange.max)}%`
-            : `${Math.round(humidityRange.min)}–${Math.round(humidityRange.max)}%`
-      }
-      empty="No hourly humidity for this day."
-    >
-      {hasValues(humidity) ? (
-        <HourlyChart
-          data={humidity}
-          kind="line"
-          {...axis}
-          viewHeight={HUMIDITY_VIEW_H}
-          color={chartColorsV2.humidity}
-          formatValue={(v) => (v === null ? EM_DASH : `${Math.round(v)}%`)}
-          // Relative humidity is 0-100 whatever the day did; measuring it would
-          // stretch a steady 60-65% into a swing across the whole plot.
-          domain={{ min: 0, max: 100 }}
-          valueAxis={identityAxis('%')}
-          title="Humidity by hour"
-        />
-      ) : null}
-    </ChartBlock>,
   ]
 
   return (
@@ -688,7 +763,6 @@ function ChartsCard({
     </section>
   )
 }
-
 
 /**
  * A chart, its name and unit, the day's own figure for it, and what it says

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { colors, radius, spacing } from '@weatherteam6/design/tokens'
+import { useId, useState, type KeyboardEvent } from 'react'
+import { chartGlow, colors, radius, spacing } from '@weatherteam6/design/tokens'
 import { extent, linearScale, niceTicks, padExtent, type Extent } from './geometry.js'
 import { dayStarts, timeExtent, valueExtent, HOUR_MS, type SeriesDatum } from './hourlySeries.js'
 import { Series, type SeriesKind } from './Series.js'
@@ -12,6 +12,8 @@ import {
   PAD_RIGHT,
   PAD_TOP,
   DOT_R,
+  BEAD_RING_R,
+  GLOW_LINE_W,
   MIN_TICK_GAP,
   VALUE_TICKS,
   VIEW_W,
@@ -100,6 +102,36 @@ export type HourlyChartProps = {
    * and a dot sits on the line. Any other day draws none of it.
    */
   now?: number
+  /**
+   * The hour being read, held by the caller so every chart on the screen reads
+   * the same one (Hourly, hybrid look). Dragging or the arrow keys call
+   * `onRead`; the chart draws a rule and a ring on the hour and no readout of
+   * its own, because the slim header carries it.
+   */
+  read?: { ms: number | null; onRead: (ms: number) => void }
+  /**
+   * A second series on its own right-hand scale: humidity on the temperature
+   * chart, the amount on the rain chart. Its marks are a line, with a band
+   * when `bandColor` is set.
+   */
+  secondary?: {
+    data: readonly SeriesDatum[]
+    color: string
+    bandColor?: string
+    domain: Extent
+    valueAxis: ValueAxis
+  }
+  /**
+   * The time axis's ends, epoch ms. Charts stacked under one scrub pass the
+   * same span so the hour being read sits at the same x on every one of them.
+   */
+  timeDomain?: Extent
+  /** Room right of the plot, user units. A chart with a right-hand scale needs it for the labels. */
+  padRight?: number
+  /** The frame, gridlines and hour labels with no marks: a dry day's rain chart. */
+  bare?: boolean
+  /** The line charts' Soft glow (`chartGlow`), on the primary line and the secondary. */
+  glow?: boolean
 }
 
 /** A tick label needs this much room to its right, or it runs off the chart. */
@@ -205,7 +237,14 @@ export function HourlyChart({
   whiskers = false,
   valueAxis,
   now,
+  read,
+  secondary,
+  timeDomain,
+  padRight = PAD_RIGHT,
+  bare = false,
+  glow = false,
 }: HourlyChartProps) {
+  const glowId = useId()
   // Which hour the pointer is over. `null` when nothing is.
   const [hover, setHover] = useState<number | null>(null)
 
@@ -247,17 +286,19 @@ export function HourlyChart({
   // - an **instant** bar is centred on its timestamp, so it needs half a slot
   //   at *each* end.
   const xDomain: Extent =
-    kind === 'line'
+    timeDomain ??
+    (kind === 'line'
       ? times
       : placement === 'accumulation'
         ? { min: times.min - HOUR_MS, max: times.max }
-        : { min: times.min - HOUR_MS / 2, max: times.max + HOUR_MS / 2 }
+        : { min: times.min - HOUR_MS / 2, max: times.max + HOUR_MS / 2 })
 
   const plotBottom = viewHeight - PAD_BOTTOM
-  const x = linearScale(xDomain, PAD_LEFT, VIEW_W - PAD_RIGHT)
+  const plotRight = VIEW_W - padRight
+  const x = linearScale(xDomain, PAD_LEFT, plotRight)
   const y = linearScale(domain, plotBottom, PAD_TOP)
 
-  const nowX = now !== undefined && now >= xDomain.min && now <= xDomain.max ? x(now) : null
+  const nowX = !bare && now !== undefined && now >= xDomain.min && now <= xDomain.max ? x(now) : null
   const nowValue = now === undefined || kind !== 'line' ? null : valueAt(data, now)
 
   /**
@@ -362,8 +403,41 @@ export function HourlyChart({
   // day's hour, or past the end of a shorter series. A stale index draws a
   // crosshair with no readout beside it, or worse, the right-looking number for
   // the wrong day.
-  const hovered = hover === null ? undefined : data[hover]
+  const hovered = read !== undefined || hover === null ? undefined : data[hover]
   const active = hovered !== undefined && hovered.value !== null ? hovered : undefined
+
+  // The shared hour: a rule wherever it falls on this chart's axis, and the ring
+  // on the primary line's value there, else on the secondary's.
+  const readMs = read?.ms ?? null
+  const ruleMs =
+    read === undefined ? (active?.t ?? null) : readMs !== null && readMs >= xDomain.min && readMs <= xDomain.max ? readMs : null
+  const primaryAtRead = readMs === null || kind !== 'line' ? null : (data.find((d) => d.t === readMs)?.value ?? null)
+  const secondaryAtRead = readMs === null ? null : (secondary?.data.find((d) => d.t === readMs)?.value ?? null)
+  const ySecondary = secondary === undefined ? null : linearScale(secondary.domain, plotBottom, PAD_TOP)
+  const bead =
+    bare || read === undefined || readMs === null
+      ? null
+      : primaryAtRead !== null
+        ? { x: x(readMs), y: y(primaryAtRead), color }
+        : secondaryAtRead !== null && ySecondary !== null && secondary !== undefined
+          ? { x: x(readMs), y: ySecondary(secondaryAtRead), color: secondary.color }
+          : null
+
+  const pickAt = (i: number | null) => {
+    if (read === undefined) {
+      setHover(i)
+      return
+    }
+    const d = i === null ? undefined : data[i]
+    if (d !== undefined) read.onRead(d.t)
+  }
+  const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (read === undefined || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return
+    e.preventDefault()
+    const at = data.findIndex((d) => d.t === readMs)
+    const next = data[at < 0 ? 0 : at + (e.key === 'ArrowRight' ? 1 : -1)]
+    if (next !== undefined) read.onRead(next.t)
+  }
 
   // Keeps the readout inside the card. At the last hour the chip's centre sits
   // at ~99% of the width, which put roughly half of it outside — and nothing in
@@ -380,21 +454,28 @@ export function HourlyChart({
   return (
     <div
       style={{ position: 'relative', width: '100%', touchAction: 'pan-y' }}
-      onMouseMove={(e) => setHover(hourAt(e.clientX, e.currentTarget.getBoundingClientRect()))}
-      onMouseLeave={() => setHover(null)}
+      {...(read === undefined || bare
+        ? {}
+        : { tabIndex: 0, onKeyDown: onKey, 'aria-label': `${title}. Left and right arrows move the hour being read.` })}
+      onMouseMove={(e) => {
+        if (!bare) pickAt(hourAt(e.clientX, e.currentTarget.getBoundingClientRect()))
+      }}
+      onMouseLeave={() => {
+        if (read === undefined) setHover(null)
+      }}
       // `touchAction: pan-y` above keeps the page scrollable while a horizontal
       // drag reads the chart; without it the browser claims the gesture and the
       // readout never moves.
       onTouchStart={(e) => {
         const touch = e.touches[0]
         if (touch !== undefined) {
-          setHover(hourAt(touch.clientX, e.currentTarget.getBoundingClientRect()))
+          if (!bare) pickAt(hourAt(touch.clientX, e.currentTarget.getBoundingClientRect()))
         }
       }}
       onTouchMove={(e) => {
         const touch = e.touches[0]
         if (touch !== undefined) {
-          setHover(hourAt(touch.clientX, e.currentTarget.getBoundingClientRect()))
+          if (!bare) pickAt(hourAt(touch.clientX, e.currentTarget.getBoundingClientRect()))
         }
       }}
       // **The readout is not cleared on touch end.** Lifting a finger is how a
@@ -409,6 +490,20 @@ export function HourlyChart({
         role="img"
         aria-label={summary}
       >
+        {glow ? (
+          <defs>
+            <filter id={glowId} x="-20%" y="-50%" width="140%" height="160%">
+              <feGaussianBlur stdDeviation={chartGlow.blurStdDev} result="blur" />
+              <feComponentTransfer in="blur" result="dim">
+                <feFuncA type="linear" slope={chartGlow.alpha} />
+              </feComponentTransfer>
+              <feMerge>
+                <feMergeNode in="dim" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+        ) : null}
         {/*
           Value gridlines, behind everything. Recessive on purpose — they are a
           reading aid, not data, and a grid that competes with the marks is the
@@ -420,7 +515,7 @@ export function HourlyChart({
         */}
         {shade === undefined ? null : (() => {
           const left = Math.max(PAD_LEFT, x(shade.from - HOUR_MS / 2))
-          const right = Math.min(VIEW_W - PAD_RIGHT, x(shade.to + HOUR_MS / 2))
+          const right = Math.min(plotRight, x(shade.to + HOUR_MS / 2))
           if (!(right > left)) return null
           return (
             <rect
@@ -436,7 +531,7 @@ export function HourlyChart({
           <line
             key={`value-${value}`}
             x1={PAD_LEFT}
-            x2={VIEW_W - PAD_RIGHT}
+            x2={plotRight}
             // **`yDisplay`, not `y`.** The tick is in the reader's unit; `y`
             // maps the canonical one. Mixing them puts a 45°F gridline at the
             // height of 45 °C — off the plot entirely, and invisible because
@@ -469,33 +564,50 @@ export function HourlyChart({
           )
         })}
 
-        <Series
-          data={data}
-          kind={kind}
-          x={x}
-          y={y}
-          color={color}
-          {...(bandColor === undefined ? {} : { bandColor })}
-          {...(bandData === undefined ? {} : { bandData })}
-          {...(colorForValue === undefined ? {} : { colorForValue })}
-          baseY={y(domain.min)}
-          placement={placement}
-          whiskers={whiskers}
-        />
+        {bare ? null : (
+          <>
+            <Series
+              data={data}
+              kind={kind}
+              x={x}
+              y={y}
+              color={color}
+              {...(bandColor === undefined ? {} : { bandColor })}
+              {...(bandData === undefined ? {} : { bandData })}
+              {...(colorForValue === undefined ? {} : { colorForValue })}
+              baseY={y(domain.min)}
+              placement={placement}
+              whiskers={whiskers}
+              {...(glow && kind === 'line' ? { filter: `url(#${glowId})`, width: GLOW_LINE_W } : {})}
+            />
 
-        {/*
-          The overlay, drawn after the main series so it reads as the line on
-          top rather than as one the first is hiding.
-        */}
-        {overlay === undefined ? null : (
-          <Series
-            data={overlay.data}
-            kind="line"
-            x={x}
-            y={y}
-            color={overlay.color}
-            {...(overlay.dash === undefined ? {} : { dash: overlay.dash })}
-          />
+            {/*
+              The overlay, drawn after the main series so it reads as the line on
+              top rather than as one the first is hiding.
+            */}
+            {overlay === undefined ? null : (
+              <Series
+                data={overlay.data}
+                kind="line"
+                x={x}
+                y={y}
+                color={overlay.color}
+                {...(overlay.dash === undefined ? {} : { dash: overlay.dash })}
+              />
+            )}
+
+            {secondary === undefined || ySecondary === null ? null : (
+              <Series
+                data={secondary.data}
+                kind="line"
+                x={x}
+                y={ySecondary}
+                color={secondary.color}
+                {...(secondary.bandColor === undefined ? {} : { bandColor: secondary.bandColor })}
+                {...(glow ? { filter: `url(#${glowId})`, width: GLOW_LINE_W } : {})}
+              />
+            )}
+          </>
         )}
 
         {/*
@@ -522,7 +634,7 @@ export function HourlyChart({
             vectorEffect="non-scaling-stroke"
           />
         )}
-        {nowX === null || nowValue === null ? null : (
+        {nowX === null || nowValue === null || read !== undefined ? null : (
           <circle
             cx={nowX}
             cy={y(nowValue)}
@@ -534,17 +646,32 @@ export function HourlyChart({
           />
         )}
 
-        {/* The hour under the pointer, marked on the plot itself. */}
-        {active === undefined ? null : (
+        {/* The hour being read, marked on the plot itself. */}
+        {ruleMs === null || bare ? null : (
           <line
-            x1={markCentre(active.t)}
-            x2={markCentre(active.t)}
+            x1={markCentre(ruleMs)}
+            x2={markCentre(ruleMs)}
             y1={PAD_TOP}
             y2={plotBottom}
             stroke={chartColors.crosshair}
             strokeWidth={LINE_W}
             vectorEffect="non-scaling-stroke"
           />
+        )}
+        {/* A ring with a coloured dot, never two stacked dots (hybrid look). */}
+        {bead === null ? null : (
+          <g pointerEvents="none">
+            <circle
+              cx={bead.x}
+              cy={bead.y}
+              r={BEAD_RING_R}
+              fill={chartColorsV2.beadFill}
+              stroke={chartColorsV2.beadRing}
+              strokeWidth={1.2}
+              vectorEffect="non-scaling-stroke"
+            />
+            <circle cx={bead.x} cy={bead.y} r={DOT_R} fill={bead.color} />
+          </g>
         )}
       </svg>
 
@@ -564,6 +691,36 @@ export function HourlyChart({
           {writeTick(value)}
         </span>
       ))}
+
+      {/* The secondary's scale, on the right, in its own colour so it reads as that line's. */}
+      {secondary === undefined || bare
+        ? null
+        : (() => {
+            const axis2 = secondary.valueAxis
+            const shown = { min: axis2.toDisplay(secondary.domain.min), max: axis2.toDisplay(secondary.domain.max) }
+            const y2 = linearScale(shown, plotBottom, PAD_TOP)
+            return niceTicks(shown, Math.min(3, wanted))
+              .filter((value, i, all) => {
+                const next = all[i + 1]
+                return next === undefined || axis2.write(next) !== axis2.write(value)
+              })
+              .map((value) => (
+                <span
+                  key={`secondary-label-${value}`}
+                  style={{
+                    ...typeV2.axisTick,
+                    color: secondary.color,
+                    position: 'absolute',
+                    right: 0,
+                    top: pctY(y2(value)),
+                    transform: 'translateY(-50%)',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {axis2.write(value)}
+                </span>
+              ))
+          })()}
 
       {/*
         **The readout, which is the only way to get a bar's own number.** The
@@ -607,7 +764,7 @@ export function HourlyChart({
             padding: `1px ${spacing.chipGap}px`,
             position: 'absolute',
             left: pctX(
-              Math.min(VIEW_W - PAD_RIGHT - NOW_LABEL_W / 2, Math.max(PAD_LEFT + NOW_LABEL_W / 2, nowX)),
+              Math.min(plotRight - NOW_LABEL_W / 2, Math.max(PAD_LEFT + NOW_LABEL_W / 2, nowX)),
             ),
             top: pctY(PAD_TOP),
             transform: 'translate(-50%, -100%)',
@@ -621,7 +778,7 @@ export function HourlyChart({
 
       {ticks.map((tick) => {
         const at = x(tick.t)
-        if (at > VIEW_W - PAD_RIGHT - labelWidth) return null
+        if (at > plotRight - labelWidth) return null
         return (
           <span
             key={`label-${tick.key}`}

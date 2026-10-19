@@ -105,7 +105,14 @@ drops one is a regression:
    Main tab, the crag switcher across a crag's top (`CragBar`), and the mockup's page
    transitions (`lib/pageMotion.ts`). Hourly's header shows the open day's score until Phase 2's scrub.
 2. **Overview and Hourly.** The score bars, the four Hourly charts with the shared scrub,
-   and the dry-day rain card.
+   and the dry-day rain card. **Built 2026-10-19.** Overview opens on 36 hourly score bars
+   (`ScoreBars.tsx`, `lib/scoreBars.ts`) with each day's best run underlined. Hourly reads
+   one hour across the sky strip and the three charts (temperature with dew point and
+   humidity on a right-hand scale, rain chance as columns with the amount as a line, wind),
+   and the slim header follows it (`slimHeader.ts`). A day counts as dry when every hour is
+   read and under 10% chance (`dryDay`); there is no hourly median amount, so the chance
+   stands in for it. Two open calls for the owner: the air line keeps its sun colour rather
+   than the mockup's colour by score, and a score bar's rain dot means a 50% chance or more.
 3. **Daily, Precip and Rock.** The Daily wrap fix, removing the running total, and putting
    the drying clock and condensation chart back on Rock.
 4. **Crag tab and Trips** restyled.

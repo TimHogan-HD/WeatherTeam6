@@ -44,6 +44,9 @@ function inputs(over: Partial<SlimInputs> = {}): SlimInputs {
       sample('2026-09-29T17:00:00Z', '2026-09-29', { precip_chance_pct: 95 }),
     ],
     selectedDate: '2026-09-30',
+    readMs: null,
+    hourReadings: [],
+    utcOffsetSeconds: OFFSET,
     nowMs: NOW,
     ...over,
   }
@@ -77,14 +80,71 @@ describe('slimFigure on Daily', () => {
 })
 
 describe('slimFigure on Hourly', () => {
-  it('reads the open day, not today', () => {
-    const f = slimFigure('hourly', inputs())
-    expect(f.value).toBe(88)
-    expect(f.line).toBe('Wednesday · 9/30 · Good hours: None')
+  // 16:00Z is 11 AM at the crag; 17:00Z is noon.
+  const READ = Date.parse('2026-09-28T16:00:00Z')
+  const hours = [
+    sample('2026-09-28T16:00:00Z', '2026-09-28', {
+      temp_c: 12.4,
+      dewpoint_c: 3.6,
+      precip_mm_mean: 0,
+      precip_chance_pct: 12,
+      humidity_pct: 49.4,
+      wind_kmh: 16,
+      wind_gust_kmh: 29,
+    }),
+    sample('2026-09-28T17:00:00Z', '2026-09-28', { precip_chance_pct: 40 }),
+    sample('2026-09-29T17:00:00Z', '2026-09-29', { temp_c: 20, precip_chance_pct: 95 }),
+  ]
+  const hourReadings = [reading('2026-09-28T16:00:00Z', 73), reading('2026-09-28T17:00:00Z', 95)]
+
+  it('is the read hour’s score, its clock, and every figure the charts draw there', () => {
+    const f = slimFigure('hourly', inputs({ hours, hourReadings, readMs: READ }))
+    expect(f).toMatchObject({ value: 73, label: 'Today 11 AM', tone: 'score' })
+    expect(f.line).toBe('Air / dew: 54° / 38° · Rain: 0 in, 12% · Humidity: 49% · Wind / gusts: 10 / 18 mph')
   })
 
-  it('is a gap when no day is open', () => {
-    expect(slimFigure('hourly', inputs({ selectedDate: null })).value).toBeNull()
+  it('names another day by its weekday', () => {
+    const f = slimFigure('hourly', inputs({ hours, hourReadings, readMs: Date.parse('2026-09-29T17:00:00Z') }))
+    expect(f.label).toBe('Tue 12 PM')
+    // No reading for that hour: a gap, never a borrowed neighbour's score.
+    expect(f.value).toBeNull()
+  })
+
+  it('withholds the score under a Severe+ alert and while alerts load, and keeps the figures', () => {
+    const base = inputs({ hours, hourReadings, readMs: READ })
+    const severe = slimFigure('hourly', { ...base, readings: { ...base.readings!, severeAlertEvent: 'Flood Warning' } })
+    expect(severe.value).toBeNull()
+    expect(severe.line).toMatch(/^Air \/ dew: 54° \/ 38° .* · Alert: score withheld$/)
+    const pending = slimFigure('hourly', { ...base, readings: { ...base.readings!, alertsPending: true } })
+    expect(pending.value).toBeNull()
+    expect(pending.line).not.toMatch(/Alert/)
+  })
+
+  it('dashes a missing figure rather than writing a plausible one', () => {
+    const gappy = [
+      sample('2026-09-28T16:00:00Z', '2026-09-28', {
+        temp_c: null,
+        dewpoint_c: 3.6,
+        precip_mm_mean: null,
+        precip_chance_pct: null,
+        humidity_pct: null,
+        wind_kmh: null,
+        wind_gust_kmh: null,
+      }),
+    ]
+    const f = slimFigure('hourly', inputs({ hours: gappy, hourReadings, readMs: READ }))
+    expect(f.line).toBe('Air / dew: — / 38° · Rain: —, — · Humidity: — · Wind / gusts: — / — mph')
+  })
+
+  it('is the hour’s air temperature for a city', () => {
+    const f = slimFigure('hourly', inputs({ isClimbingLocation: false, readings: null, hours, readMs: READ }))
+    expect(f).toMatchObject({ value: 54, unit: '°', tone: 'plain', label: 'Today 11 AM' })
+  })
+
+  it('is a gap while no hour is read', () => {
+    const f = slimFigure('hourly', inputs({ hours, hourReadings, readMs: null }))
+    expect(f.value).toBeNull()
+    expect(f.line).toBeNull()
   })
 })
 

@@ -1,4 +1,4 @@
-import { colors, colorsV2, scoreScale, tempScale } from '@weatherteam6/design/tokens'
+import { chartGlow, colors, colorsV2, scoreScale, tempScale } from '@weatherteam6/design/tokens'
 import { SCORE_BANDS, TEMP_BAND_C, cToF } from '@weatherteam6/types'
 import { withOpacity } from '../../theme/tokens.css.js'
 
@@ -33,7 +33,6 @@ import { withOpacity } from '../../theme/tokens.css.js'
 export const VIEW_W = 335
 
 export const TEMP_VIEW_H = 132
-export const RAIN_VIEW_H = 76
 
 /** Left gutter for the value labels, which are HTML and sit over the SVG. */
 export const PAD_LEFT = 30
@@ -52,6 +51,15 @@ export const GRID_W = 1
 
 /** A run of one hour draws no path at all, so it is drawn as a dot — 8px across. */
 export const DOT_R = 4
+
+/** The ring round the hour being read, user units: the mockup's 13 of 390, at this width. */
+export const BEAD_RING_R = 11
+
+/**
+ * A glowing line's stroke: the mockup's 5px tube scaled by the Soft glow's
+ * `strokeScale`, so the glow tones it down rather than thickening it.
+ */
+export const GLOW_LINE_W = 5 * chartGlow.strokeScale
 
 /** Below this width a bar has no room for a gap beside it, so it does not get one. */
 export const BAR_GAP_MIN_W = 4
@@ -119,11 +127,9 @@ export const MIN_TICK_GAP = 24
 
 /** One day's 24 bars get more height than the seven-day strip, which is a shape. */
 export const DAY_VIEW_H = 122
-/** Chance of rain is a 0-100 scale with no outliers, so it needs less room. */
-export const CHANCE_VIEW_H = 70
+/** Chance and amount share the rain chart, so it gets more room than either had alone. */
+export const RAIN_CHART_VIEW_H = 100
 export const WIND_VIEW_H = 88
-/** Humidity is 0-100% like the chance of rain, and gets the same room. */
-export const HUMIDITY_VIEW_H = 70
 
 /** The dash for a line that is a different variable from the one it shares a chart with. */
 export const OVERLAY_DASH = '4 3'
@@ -158,6 +164,11 @@ export const chartColorsV2 = {
   nowRing: colorsV2.card,
   /** Laid over the hours already gone, so what is still ahead reads first. */
   past: withOpacity(colorsV2.card, 0.55),
+  /** The ring round the hour being read: frosted glass, so the dot inside carries the colour. */
+  beadFill: withOpacity(colorsV2.txt1, 0.12),
+  beadRing: withOpacity(colorsV2.txt1, 0.55),
+  /** Chance-of-rain columns behind the amount line: the rain hue, quiet enough to read the line over. */
+  chanceColumn: withOpacity(colorsV2.rain, 0.28),
 } as const
 
 /** Corner radius on a bar — the rounded data-end the dataviz guidance asks for. */

@@ -1,5 +1,60 @@
 import { describe, expect, it } from 'vitest'
-import { dayChips, daysOutPhrase } from './hourlyDay.js'
+import type { HourlySample } from '@weatherteam6/types'
+import { dayChips, daysOutPhrase, defaultReadHour, dryDay } from './hourlyDay.js'
+
+describe('dryDay', () => {
+  const H = 3_600_000
+  const START = Date.parse('2026-09-28T05:00:00Z')
+  const day = (chances: (number | null)[], mean: number | null = 0) =>
+    chances.map(
+      (c, i) =>
+        ({
+          valid_at: new Date(START + i * H).toISOString(),
+          local_date: '2026-09-28',
+          precip_chance_pct: c,
+          precip_mm_mean: mean,
+        }) as HourlySample,
+    )
+
+  it('is dry when every hour is under 10%, and names the highest hour', () => {
+    expect(dryDay(day([0, 9, 4]), '2026-09-28')).toEqual({ peakChancePct: 9, peakMs: START + H })
+  })
+
+  it('is not dry once one hour reaches 10%', () => {
+    expect(dryDay(day([0, 10, 4]), '2026-09-28')).toBeNull()
+  })
+
+  it('is not dry when an hour was never read, since that hour could be the wet one', () => {
+    expect(dryDay(day([0, null, 4]), '2026-09-28')).toBeNull()
+    expect(dryDay(day([0, 1, 4], null), '2026-09-28')).toBeNull()
+    expect(dryDay(day([0, 1]), '2026-09-29')).toBeNull()
+  })
+})
+
+describe('defaultReadHour', () => {
+  const OFFSET = -5 * 3600
+  const H = 3_600_000
+  // Local midnight on 9/28 is 05:00Z.
+  const START = Date.parse('2026-09-28T05:00:00Z')
+  const hours = Array.from(
+    { length: 48 },
+    (_, i) => ({ valid_at: new Date(START + i * H).toISOString(), local_date: i < 24 ? '2026-09-28' : '2026-09-29' }) as HourlySample,
+  )
+
+  it('reads the hour now is in on today', () => {
+    expect(defaultReadHour(hours, '2026-09-28', OFFSET, START + 14 * H + 40 * 60_000)).toBe(START + 14 * H)
+  })
+
+  it('reads noon on the location’s clock on any other day, not the viewer’s', () => {
+    expect(defaultReadHour(hours, '2026-09-29', OFFSET, START + 14 * H)).toBe(START + 36 * H)
+  })
+
+  it('falls back to the day’s first hour without a noon, and is null for a day with none', () => {
+    const morning = hours.slice(24, 30)
+    expect(defaultReadHour(morning, '2026-09-29', OFFSET, START)).toBe(START + 24 * H)
+    expect(defaultReadHour(hours, '2026-10-01', OFFSET, START)).toBeNull()
+  })
+})
 
 const days = [
   { local_date: '2026-09-15', has_deterministic: true, has_ensemble: true },
