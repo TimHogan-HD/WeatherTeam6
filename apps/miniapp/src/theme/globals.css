@@ -49,20 +49,20 @@ ol {
 
 html {
   /* What a rubber-band overscroll reveals, above the first screen or below
-     the last. The header band's colour, so pulling down at the top stretches
-     the band rather than opening a darker strip above it; at the bottom the
-     tab bar, the same colour, covers it. Never the browser's white. */
-  background-color: var(--wt6-v2-surface);
+     the last: the ground's own darkest colour, never the browser's white. */
+  background-color: var(--wt6-v2-bg);
   -webkit-text-size-adjust: 100%;
 }
 
-/* The v2 ground: flat near-black, in place of the old slate gradient. The
-   gradient's top was the lightest thing on screen and fought v2's header band,
-   so it went app-wide rather than screen by screen. */
+/* The hybrid look's ground (owner, 2026-10-19): a glow at the top of the
+   screen falling to near-black, and **still** — it is a fixed layer behind
+   the page, so nothing moves behind the glass as the page scrolls.
+   `background-attachment: fixed` would say the same and iOS Safari ignores it. */
 body {
   margin: 0;
   min-height: 100dvh;
-  background-color: var(--wt6-v2-bg);
+  /* No background of its own: one would paint over the ground below, which
+     sits at z-index -1. `html` carries the colour. */
   color: var(--wt6-color-txt1);
   font-family: var(--wt6-font-body);
   /* Every digit one width, so a figure that updates or a readout being
@@ -70,6 +70,39 @@ body {
   font-variant-numeric: tabular-nums;
   /* The phone's own rubber-band bounce stays on (owner, 2026-09-30: the
      scroll felt stiff without it). `html` paints what it reveals. */
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: var(--wt6-glass-ground);
+  pointer-events: none;
+}
+
+/* The crag's dock rising into place as the app bar slides away. */
+@keyframes wt6-dock-rise {
+  from {
+    transform: translateY(150%);
+    opacity: 0;
+  }
+}
+
+.wt6-dock-rise {
+  animation: wt6-dock-rise var(--wt6-motion-dock-rise-ms) var(--wt6-motion-spring) var(--wt6-motion-dock-rise-delay-ms) both;
+}
+
+/* The slim header's line and figure arriving when the tab under it changes. */
+@keyframes wt6-header-swap {
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+}
+
+.wt6-header-swap {
+  animation: wt6-header-swap var(--wt6-motion-header-swap-ms) var(--wt6-motion-ease-out) both;
 }
 
 #root {
@@ -136,6 +169,7 @@ textarea {
     transition-duration: 0s !important;
     transition-delay: 0s !important;
     animation-duration: 0s !important;
+    animation-delay: 0s !important;
   }
 
   :is(a, button, [role='button'], [role='tab']):active {

@@ -1,6 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import { bottomNav } from '@weatherteam6/design/tokens'
-import { arrivalScrollY, navGeometry, sectionFor } from './bottomNav.js'
+import { arrivalScrollY, barGivesWay, navGeometry, sectionFor } from './bottomNav.js'
+
+describe('barGivesWay', () => {
+  it('sends the bar away on a saved location, where its dock takes over', () => {
+    expect(barGivesWay('/location/abc')).toBe(true)
+    expect(barGivesWay('/location/abc/')).toBe(true)
+  })
+
+  it('keeps the bar everywhere else under it, the guidebook screens included', () => {
+    expect(barGivesWay('/')).toBe(false)
+    expect(barGivesWay('/location/abc/wall/w1')).toBe(false)
+    expect(barGivesWay('/location/abc/wall/w1/route/r1')).toBe(false)
+    expect(barGivesWay('/trips/t1/crag/abc')).toBe(false)
+    expect(barGivesWay('/map')).toBe(false)
+  })
+})
 
 describe('arrivalScrollY', () => {
   it('returns the list to where it was left, however the reader comes back', () => {

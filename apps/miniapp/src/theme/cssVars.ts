@@ -14,6 +14,7 @@
 import { colors, colorsV2, motion, press, radius, spacing } from '@weatherteam6/design/tokens'
 import { fontStacks } from './fonts.js'
 import { shadow } from './tokens.css.js'
+import { glassVars } from './glass.js'
 
 const PREFIX = '--wt6'
 
@@ -44,10 +45,21 @@ export function renderTokenCss(): string {
     ...declarations('press', { opacity: String(press.opacity), scale: String(press.scale) }),
     ...declarations('motion', {
       easeOut: motion.easeOut,
+      spring: motion.spring,
       pressMs: `${motion.pressMs}ms`,
+      dockRiseMs: `${motion.dockRiseMs}ms`,
+      dockRiseDelayMs: `${motion.dockRiseDelayMs}ms`,
+      headerSwapMs: `${motion.headerSwapMs}ms`,
     }),
+    ...declarations('glass', glassVars().normal),
   ]
-  return `:root {\n${lines.map((line) => `  ${line}`).join('\n')}\n}\n`
+  const block = (selector: string, decls: string[]) =>
+    `${selector} {\n${decls.map((line) => `  ${line}`).join('\n')}\n}\n`
+  // A reader who asks for less transparency gets every pane near-opaque, from here alone.
+  return (
+    block(':root', lines) +
+    `@media (prefers-reduced-transparency: reduce) {\n${block(':root', declarations('glass', glassVars().opaque))}}\n`
+  )
 }
 
 /** `var(--wt6-color-good)` etc. — for the rare case a value is needed from TS. */

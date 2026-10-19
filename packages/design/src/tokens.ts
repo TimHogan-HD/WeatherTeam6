@@ -661,6 +661,32 @@ export const typeV2 = {
     fontWeight: '500' as const,
     color: colorsV2.txtMuted,
   },
+  /**
+   * The slim header (hybrid look, 2026-10-19): the crag's name in Barlow
+   * Condensed 14/600 capitals, the tab's key figure in Barlow Condensed 44/700,
+   * and what that figure is, in Barlow 11/500 under it. Colour is the figure's.
+   */
+  slimName: {
+    fontFamily: fonts.display,
+    fontSize: 14,
+    fontWeight: '600' as const,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase' as const,
+    lineHeight: 17,
+    color: colorsV2.txt1,
+  },
+  slimFigure: {
+    fontFamily: fonts.display,
+    fontSize: 44,
+    fontWeight: '700' as const,
+    lineHeight: 40,
+  },
+  slimFigureLabel: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    fontWeight: '500' as const,
+    color: colorsV2.txtMuted,
+  },
   /** A tab label: Barlow 15/600. Colour is the tab's state. */
   tab: {
     fontFamily: fonts.body,
@@ -990,6 +1016,8 @@ export const radius = {
   heroV2: 18,
   /** v2 row inside a card — a day row */
   rowV2: 12,
+  /** A glass section card, the hybrid look's (owner, 2026-10-19). */
+  glassCard: 30,
   /** Large card variant */
   cardLg: 11,
   /** Inner element radius */
@@ -1322,6 +1350,89 @@ export const motion = {
   wasHoldMs: 4000,
   /** One breath of the Map tab's locate control while it waits for a fix. */
   locatingPulseMs: 900,
+  /**
+   * The hybrid look's spring (owner, 2026-10-19): it overshoots and settles, for
+   * the crag's dock rising into place. Not for a control answering a tap.
+   */
+  spring: 'cubic-bezier(0.2, 1.5, 0.4, 1)',
+  /** The app bar sliding away as a crag opens, and back as it closes. */
+  barMs: 340,
+  /** The crag's dock rising on `spring`, a beat after the bar starts to leave. */
+  dockRiseMs: 460,
+  dockRiseDelayMs: 120,
+  /** The score flying between the Overview's hero and the slim header. */
+  headerFlyMs: 550,
+  /** The slim header's line and figure arriving when the tab under it changes. */
+  headerSwapMs: 350,
+} as const;
+
+/**
+ * The hybrid look (`docs/handoffs/miniapp-hybrid-transition-v1.md`, owner
+ * 2026-10-19): a still ground, and each section a frosted glass pane over it.
+ * The values are the mockup's (`docs/handoffs/design-mockups/weatherteam6-hybrid.html`)
+ * final `.phone`, `.gc`, `.slim`, `.tabs` and `.appbar` rules.
+ */
+export const glass = {
+  /** The ground: a dark teal glow at the top of the screen falling to near-black. */
+  groundGlow: '#10252b',
+  groundMid: '#0a1215',
+  ground: '#06090b',
+  /** The pane's own colour under the blur. */
+  tint: '#0e161a',
+  /** Light caught by a pane's edges, and the shadow it casts: the alphas below are of these. */
+  light: '#ffffff',
+  shade: '#000000',
+  /**
+   * Each pane: its fill (alpha of `tint`, or of `ground` for the header and
+   * `groundMid` for the bar), from top to bottom where it is a gradient, and
+   * the blur and saturation it applies to what is behind it.
+   */
+  card: { fillTop: 0.36, fillBottom: 0.52, blurPx: 30, saturatePct: 190 },
+  header: { fillTop: 0.52, fillBottom: 0.3, blurPx: 24, saturatePct: 200 },
+  dock: { fillTop: 0.5, fillBottom: 0.5, blurPx: 18, saturatePct: 170 },
+  bar: { fillTop: 0.74, fillBottom: 0.74, blurPx: 18, saturatePct: 160 },
+  /** A card's hairline rim (alpha of `light`), a real border so a chosen card can recolour it. */
+  rim: 0.12,
+  /** The sheen across a card's top-left, and the fainter one at its bottom-right. */
+  sheen: 0.16,
+  sheenLow: 0.08,
+  /** Any pane's fill when the reader asks for less transparency: near-opaque, with no blur. */
+  opaqueFill: 0.92,
+  /** How far above the screen's bottom edge the dock floats. */
+  dockLift: 16,
+  /**
+   * Light and shadow on each pane, as box-shadow layers in px: the lit top
+   * edge, the bottom edge, the inner glow, and the shadow cast on the ground.
+   */
+  cardLayers: [
+    { inset: true, y: 2, blur: 0, spread: 0, of: 'light', alpha: 0.55 },
+    { inset: true, y: -1.5, blur: 0, spread: 0, of: 'light', alpha: 0.18 },
+    { inset: true, y: 0, blur: 20, spread: 3, of: 'light', alpha: 0.09 },
+    { inset: true, y: 16, blur: 28, spread: -16, of: 'light', alpha: 0.36 },
+    { inset: true, y: -20, blur: 32, spread: -20, of: 'shade', alpha: 0.45 },
+    { inset: false, y: 20, blur: 44, spread: -16, of: 'shade', alpha: 0.55 },
+  ],
+  headerLayers: [
+    { inset: true, y: -1, blur: 0, spread: 0, of: 'light', alpha: 0.12 },
+    { inset: false, y: 10, blur: 26, spread: -16, of: 'shade', alpha: 0.6 },
+  ],
+  dockLayers: [
+    { inset: true, y: 1, blur: 0, spread: 0, of: 'light', alpha: 0.2 },
+    { inset: true, y: 0, blur: 0, spread: 1, of: 'light', alpha: 0.08 },
+    { inset: false, y: 12, blur: 30, spread: 0, of: 'shade', alpha: 0.5 },
+  ],
+  barLayers: [{ inset: false, y: -1, blur: 0, spread: 0, of: 'light', alpha: 0.08 }],
+} as const;
+
+/**
+ * The line charts' glow, "Soft" (owner, 2026-10-19; `GL.soft` in the mockup): a
+ * blur of this standard deviation at this alpha under the line, and stroke
+ * widths scaled by `strokeScale`. Phase 2 of the transition draws it.
+ */
+export const chartGlow = {
+  blurStdDev: 1.6,
+  alpha: 0.4,
+  strokeScale: 0.55,
 } as const;
 
 // ─────────────────────────────────────────────

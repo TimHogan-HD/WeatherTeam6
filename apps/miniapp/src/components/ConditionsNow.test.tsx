@@ -317,7 +317,8 @@ describe('ConditionsNow — where the day is going', () => {
       readings: { ...gappy.readings!, hours: hours.filter((h) => h.valid_at !== t(1)) },
     }
     const html = render({ conditions: settled(withDay), series: withGap })
-    expect(html).toMatch(/^<section style="background-color:#171f28/)
+    expect(html).toMatch(/^<section style="[^"]*var\(--wt6-glass-card-fill\)/)
+    expect(html).not.toMatch(/^<section style="[^"]*background-color:/)
     expect(html).toMatch(/· now<\/span><span[^>]*>—</)
   })
 
