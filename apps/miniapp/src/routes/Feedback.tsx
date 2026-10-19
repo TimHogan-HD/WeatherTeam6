@@ -20,7 +20,7 @@ import {
 import { type } from '../theme/tokens.css.js'
 import { bareButton, btnPrimary, btnPrimaryText, card, chip, chipActive, inputBox, row, stack } from '../theme/styles.js'
 import { backTarget } from '../lib/backTarget.js'
-import { fromLocalInputValue, shownReading, toLocalInputValue } from '../lib/feedback.js'
+import { feedbackLines, fromLocalInputValue, shownReading, toLocalInputValue } from '../lib/feedback.js'
 import { severeAlertEvent } from '../lib/forecast.js'
 import { useLocations } from '../hooks/useLocations.js'
 import { useNow } from '../hooks/useNow.js'
@@ -277,33 +277,13 @@ export function HistoryItem({
   resolving?: boolean
   onResolve?: () => void
 }) {
-  const when = new Date(item.observed_at ?? item.created_at)
-  const head = [
-    FEEDBACK_KIND_LABEL[item.kind],
-    item.location_name,
-    Number.isFinite(when.getTime())
-      ? when.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-      : null,
-  ]
-    .filter((p) => p !== null)
-    .join(' · ')
-
-  const verdictLine =
-    item.kind === 'forecast' && item.observed_conditions !== null && item.verdict !== null
-      ? `Rock: ${OBSERVED_CONDITIONS_LABEL[item.observed_conditions]} · Forecast: ${FORECAST_VERDICT_LABEL[item.verdict]}`
-      : null
+  const { head, verdict, appSaid } = feedbackLines(item)
 
   return (
     <article style={{ ...card, ...stack(spacing.micro) }}>
       <span style={{ ...type.bodySm, color: colors.txt3 }}>{head}</span>
-      {verdictLine === null ? null : <span style={type.bodyMd}>{verdictLine}</span>}
-      {item.kind !== 'forecast' ? null : (
-        <span style={{ ...type.bodySm, color: colors.txt3 }}>
-          {item.app_readings === null
-            ? 'No app reading attached'
-            : `App said: ${item.app_readings.fields.map(fieldLine).join(' · ')}`}
-        </span>
-      )}
+      {verdict === null ? null : <span style={type.bodyMd}>{verdict}</span>}
+      {appSaid === null ? null : <span style={{ ...type.bodySm, color: colors.txt3 }}>{appSaid}</span>}
       {item.message === null ? null : <p style={{ ...type.bodyMd, whiteSpace: 'pre-wrap' }}>{item.message}</p>}
       {onResolve === undefined ? null : (
         <button

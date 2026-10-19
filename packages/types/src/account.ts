@@ -57,10 +57,14 @@ export function isValidUsername(value: string): boolean {
   return USERNAME_PATTERN.test(value)
 }
 
-/** `GET /me`. `can_invite` is true for the owner alone. */
+/**
+ * `GET /me`. Both flags are true for the owner alone: `can_invite` gates the
+ * invite card, `can_read_all_feedback` the card of everyone's feedback.
+ */
 export type Account = {
   username: string | null
   can_invite: boolean
+  can_read_all_feedback: boolean
 }
 
 /**

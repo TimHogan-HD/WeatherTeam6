@@ -1,11 +1,12 @@
 import { Router, type Request, type Response } from 'express'
 import { and, desc, eq, isNull, sql } from 'drizzle-orm'
-import type { ApiResponse, Feedback } from '@weatherteam6/types'
+import type { ApiResponse, Feedback, FeedbackFromAnyone } from '@weatherteam6/types'
 import { db } from '../db/index.js'
-import { feedback, locations } from '../db/schema.js'
+import { feedback, locations, users } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
 import { parseFeedbackInput } from '../lib/feedback/parseFeedback.js'
 import { toFeedback } from '../lib/feedback/feedbackRow.js'
+import { isOwner } from '../lib/auth/invites.js'
 
 export const feedbackRouter = Router()
 
@@ -30,6 +31,32 @@ feedbackRouter.get('/feedback', async (req: Request, res: Response) => {
     res.status(200).json(response)
   } catch (err) {
     sendServerError(res, err, 'GET /feedback')
+  }
+})
+
+/**
+ * Every account's open feedback, newest first, with who sent it — the owner's
+ * in-app copy of `npm run feedback -- list`. Anyone else is a 403: the route
+ * exists, they may not read other people's messages.
+ */
+feedbackRouter.get('/feedback/all', async (req: Request, res: Response) => {
+  if (!isOwner(req.userId)) {
+    refuse(res, 403, "Only the owner can read everyone's feedback")
+    return
+  }
+  try {
+    const rows = await db
+      .select({ f: feedback, username: users.username })
+      .from(feedback)
+      .innerJoin(users, eq(users.id, feedback.user_id))
+      .where(isNull(feedback.resolved_at))
+      .orderBy(desc(feedback.created_at))
+      .limit(LIST_LIMIT)
+    const data: FeedbackFromAnyone[] = rows.map(({ f, username }) => ({ ...toFeedback(f), username }))
+    const response: ApiResponse<FeedbackFromAnyone[]> = { data, error: null, status: 200 }
+    res.status(200).json(response)
+  } catch (err) {
+    sendServerError(res, err, 'GET /feedback/all')
   }
 })
 
@@ -90,7 +117,9 @@ feedbackRouter.post('/feedback', async (req: Request, res: Response) => {
 
 /**
  * Marks an item acted on. Idempotent: resolving twice keeps the first time,
- * and both answer 200. Another user's row is the same 404 as a missing one.
+ * and both answer 200. Another user's row is the same 404 as a missing one —
+ * except to the owner, who resolves anyone's from the card of everyone's
+ * feedback, as `npm run feedback -- resolve` always could.
  */
 feedbackRouter.post('/feedback/:feedbackId/resolve', async (req: Request, res: Response) => {
   const id = req.params['feedbackId']
@@ -102,7 +131,7 @@ feedbackRouter.post('/feedback/:feedbackId/resolve', async (req: Request, res: R
     const rows = await db
       .update(feedback)
       .set({ resolved_at: sql`coalesce(${feedback.resolved_at}, now())` })
-      .where(and(eq(feedback.id, id), eq(feedback.user_id, req.userId)))
+      .where(isOwner(req.userId) ? eq(feedback.id, id) : and(eq(feedback.id, id), eq(feedback.user_id, req.userId)))
       .returning({ id: feedback.id })
     if (rows.length === 0) {
       refuse(res, 404, 'Feedback not found')

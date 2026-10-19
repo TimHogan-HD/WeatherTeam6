@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { ConditionsReadings, Conditions, Feedback, HourlyReading } from '@weatherteam6/types'
-import { fromLocalInputValue, shownReading, toLocalInputValue } from './feedback.js'
+import { feedbackLines, fromLocalInputValue, shownReading, toLocalInputValue } from './feedback.js'
 import { HistoryItem } from '../routes/Feedback.js'
 
 const NOW = '2026-09-29T18:00:00.000Z'
@@ -111,6 +111,11 @@ describe('HistoryItem', () => {
     expect(html).toContain('App feedback')
     expect(html).not.toContain('Forecast:')
     expect(html).not.toContain('No app reading')
+  })
+
+  it("names the sender first only on the owner's list", () => {
+    expect(feedbackLines(check, 'kyle').head.startsWith('kyle · Forecast check · Red Rock · ')).toBe(true)
+    expect(feedbackLines(check).head.startsWith('Forecast check · Red Rock · ')).toBe(true)
   })
 
   it('offers Done only when the item can be resolved', () => {

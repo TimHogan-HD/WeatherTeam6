@@ -1,4 +1,13 @@
-import { summarizeReadings, type Conditions, type ReadingField } from '@weatherteam6/types'
+import {
+  FEEDBACK_KIND_LABEL,
+  FORECAST_VERDICT_LABEL,
+  OBSERVED_CONDITIONS_LABEL,
+  fieldLine,
+  summarizeReadings,
+  type Conditions,
+  type Feedback,
+  type ReadingField,
+} from '@weatherteam6/types'
 
 /**
  * What the Conditions card shows for a crag right now, as the fields a forecast
@@ -51,4 +60,45 @@ export function fromLocalInputValue(value: string): number | null {
   const [, y, mo, d, h, mi] = m.map(Number) as [number, number, number, number, number, number]
   const ms = new Date(y, mo - 1, d, h, mi).getTime()
   return Number.isFinite(ms) ? ms : null
+}
+
+/**
+ * The lines an open feedback item prints, shared by the reader's own list on
+ * `/feedback` and the owner's list of everyone's on Profile, so the two never
+ * describe one row differently. `author` leads the head when given — the
+ * owner's list names who sent each item; the reader's own does not.
+ *
+ * `appSaid` is null for app feedback, which carries no reading, and says so in
+ * words for a check that was saved without one — absent is not "the app said
+ * nothing".
+ */
+export function feedbackLines(
+  item: Feedback,
+  author?: string,
+): { head: string; verdict: string | null; appSaid: string | null } {
+  const when = new Date(item.observed_at ?? item.created_at)
+  const head = [
+    author,
+    FEEDBACK_KIND_LABEL[item.kind],
+    item.location_name,
+    Number.isFinite(when.getTime())
+      ? when.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+      : null,
+  ]
+    .filter((p): p is string => p !== null && p !== undefined)
+    .join(' · ')
+
+  const verdict =
+    item.kind === 'forecast' && item.observed_conditions !== null && item.verdict !== null
+      ? `Rock: ${OBSERVED_CONDITIONS_LABEL[item.observed_conditions]} · Forecast: ${FORECAST_VERDICT_LABEL[item.verdict]}`
+      : null
+
+  const appSaid =
+    item.kind !== 'forecast'
+      ? null
+      : item.app_readings === null
+        ? 'No app reading attached'
+        : `App said: ${item.app_readings.fields.map(fieldLine).join(' · ')}`
+
+  return { head, verdict, appSaid }
 }

@@ -594,6 +594,23 @@ async function run(): Promise<void> {
     await item.getByRole('button', { name: 'Done' }).click()
     const cleared = await item.waitFor({ state: 'detached', timeout: 15_000 }).then(() => true, () => false)
     check('Done clears the item from Open feedback', cleared)
+
+    // The owner (still this throwaway user, from 3c') reads everyone's open
+    // feedback on Profile, under each sender's name, and clears it there.
+    const ownerNote = `${PREFIX} feedback for the owner's card`
+    const ownerNoteSent = await api<null>('POST', '/feedback', token, { kind: 'app', message: ownerNote })
+    check('POST /feedback saves a second note', ownerNoteSent.status === 201, `got ${ownerNoteSent.status}`)
+    await page.goto(`${WEB}/profile`)
+    const everyone = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Everyone’s feedback' }) })
+    const ownerItem = everyone.locator('li').filter({ hasText: ownerNote })
+    const ownerItemShown = await ownerItem.waitFor({ timeout: 30_000 }).then(() => true, () => false)
+    const ownerItemText = ownerItemShown ? await ownerItem.innerText() : ''
+    check("Profile lists everyone's feedback, named by sender", ownerItemShown && ownerItemText.includes(USERNAME), ownerItemText)
+    await everyone.scrollIntoViewIfNeeded()
+    await screen('profile-everyones-feedback')
+    await ownerItem.getByRole('button', { name: 'Done' }).click()
+    const ownerCleared = await ownerItem.waitFor({ state: 'detached', timeout: 15_000 }).then(() => true, () => false)
+    check("Done clears it from everyone's feedback", ownerCleared)
     await page.goto(`${WEB}/`)
     await page.locator('[role="button"]').first().click()
     await page.getByRole('tab').first().waitFor({ timeout: 30_000 })

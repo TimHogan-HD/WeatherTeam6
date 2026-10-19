@@ -75,6 +75,10 @@ seen them.
   envelope, and a 25 s per-attempt fetch timeout (`FETCH_TIMEOUT_MS`).
 - **A router mounted outside `/api/v1` reads `req.userId` as `undefined`** through a type
   that says it cannot be (defect class 8). Mount inside the gate.
+- **The owner reads and resolves everyone's open feedback** on Profile (`GET /feedback/all`,
+  403 for anyone else; `POST /feedback/:id/resolve` skips the user filter for the owner
+  alone; delete stays own-row only). `check:invites` covers it. Every other feedback route
+  is the caller's own rows.
 - Route handlers use `req.userId`, never `DEFAULT_USER_ID` — except `isOwner`
   (`lib/auth/invites.ts`), which compares the two: the owner is the account
   `DEFAULT_USER_ID` names, and an unset variable means nobody is.
