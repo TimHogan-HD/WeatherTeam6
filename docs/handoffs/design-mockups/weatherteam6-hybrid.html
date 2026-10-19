@@ -1,0 +1,1128 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
+<title>WeatherTeam6 Hybrid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=Bebas+Neue&family=Work+Sans:wght@400;500;600&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Figtree:wght@400;500;600&family=Oswald:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Hybrid: Liquid Wave structure and fogged-glass weather, M3 Expressive score shapes, foreground motion only on change. Wave layout, Aqua accent palette, the app's own charts redrawn as liquid: glowing tubes, frosted ribbons, filled capsules. Dark single look, like the app. */
+:root{
+  --bg:#06090b; --txt1:#f4f7fa; --txt2:#d3e1e4; --muted:#bccad0; --hair:rgba(255,255,255,.1);
+  --brand:#1DC5D2; --brandInk:#6fe3ec; --onBrand:#032026;
+  --good:#b8f542; --fair:#f6ad55; --poor:#fc8181; --none:#6a7a82; --rain:#bcc7fd; --wind:#7fd1c4; --hum:#c3a6ff;
+  --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow','Segoe UI',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --spring:cubic-bezier(.2,1.5,.4,1); --ease:cubic-bezier(.2,.9,.3,1);
+  color-scheme:dark;
+}
+body{background:#0a0d10;color:var(--txt1);font-family:var(--body);padding-block:24px 48px;padding-inline:16px;box-sizing:border-box}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start;justify-content:center}
+.phone{width:390px;max-width:100%;height:844px;max-height:92vh;min-height:640px;border-radius:44px;overflow:hidden;box-shadow:0 0 0 9px #040506,0 30px 80px #000c;position:relative;background:radial-gradient(130% 60% at 50% -8%,#10252b 0%,#0a1215 48%,var(--bg) 100%);flex:none;isolation:isolate}
+.notes{flex:1 1 320px;min-width:0;max-width:520px;display:flex;flex-direction:column;gap:12px}
+.notes h1{margin:0;font-family:var(--display);font-weight:700;font-size:40px;line-height:1}
+.notes p,.notes li{color:#a9b4ba;line-height:1.55;margin:0;font-size:15px}
+.notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.notes b{color:var(--txt1);font-weight:600}
+button{font:inherit;color:inherit}
+.skyprev{display:flex;flex-wrap:wrap;gap:6px}.skyprev button{font-family:var(--display);font-weight:600;font-size:15px;background:#151a1f;border:1px solid #2a333b;border-radius:999px;padding:7px 13px;cursor:pointer;min-height:40px}.skyprev button:hover{border-color:#1DC5D2}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
+
+.slim{display:block;margin:-18px -22px 0;padding:14px 22px 12px;position:sticky;top:0;z-index:5;background:linear-gradient(rgba(var(--tint,6,9,11),.66),rgba(var(--tint,6,9,11),.42));backdrop-filter:blur(16px) saturate(150%);-webkit-backdrop-filter:blur(16px) saturate(140%);box-shadow:0 1px 0 rgba(255,255,255,.07)}
+.slim > div:first-child{min-width:0}
+.slim .sc .u{font-size:26px;margin-left:1px;vertical-align:top}
+.slim.swap .mt,.slim.swap .sc small{animation:heroIn .35s var(--ease) both}
+.slim .nm{font-family:var(--display);font-weight:600;font-size:14px;letter-spacing:1.4px;text-transform:uppercase;color:var(--txt1);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slim .mt{font-size:12px;color:var(--txt2);margin-top:2px}
+.slim .sc{font-family:var(--display);font-weight:700;font-size:44px;line-height:.9;text-align:right;flex:none;width:92px;white-space:nowrap}
+.slim .sc small{display:block;font-family:var(--body);font-weight:500;font-size:11px;color:var(--muted)}
+.view{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;z-index:2}
+.pageOld{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:1}.pageOld.outR{z-index:3}
+.pageOld.out{animation:oldOut .42s var(--ease) forwards}.pageOld.outR{animation:oldOutR .42s var(--ease) forwards}
+@keyframes oldOut{35%{opacity:0}to{transform:translateX(-28%);opacity:0}}@keyframes oldOutR{to{transform:translateX(100%);opacity:0}}
+.view.pageIn{animation:pageIn .42s var(--ease) both}.view.pageBack{animation:pageBack .42s var(--ease) both}
+@keyframes pageIn{from{transform:translateX(100%)}}@keyframes pageBack{0%{transform:translateX(-28%);opacity:0}45%{opacity:0}}
+.appbar{position:absolute;left:0;right:0;bottom:0;z-index:7;display:flex;justify-content:space-around;padding:8px 4px 18px;background:rgba(10,16,19,.74);backdrop-filter:blur(18px) saturate(160%);-webkit-backdrop-filter:blur(18px) saturate(160%);box-shadow:0 -1px 0 rgba(255,255,255,.08);transition:transform .34s var(--ease),opacity .3s}
+.appbar button{background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:var(--body);font-weight:500;font-size:10.5px;color:var(--muted);min-width:44px;min-height:44px;cursor:pointer;padding:2px 2px}
+.appbar svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round}
+.appbar button[aria-current="page"]{color:var(--brandInk)}
+.appbar.away{transform:translateY(110%);opacity:0;pointer-events:none}
+.dock{transition:transform .46s var(--spring) .12s,opacity .3s .12s}
+.dock.away{transform:translateY(150%);opacity:0;transition:transform .28s var(--ease),opacity .2s}.dock.away .tabs{pointer-events:none}
+.lhead{margin:14px 0 12px}.lhead h2{margin:0;font-family:var(--display);font-weight:700;font-size:40px;line-height:1}.lhead small{color:var(--muted);font-size:12px}
+.clist{display:flex;flex-direction:column}
+.crow{display:grid;grid-template-columns:34px minmax(0,1fr) auto 10px;gap:12px;align-items:center;background:none;border:0;border-top:1px solid rgba(255,255,255,.08);padding:14px 0;text-align:left;cursor:pointer;min-height:64px;width:100%}
+.crow:last-child{border-bottom:1px solid rgba(255,255,255,.08)}.crow:active{background:rgba(255,255,255,.04)}
+.crow .cm{display:flex;flex-direction:column;min-width:0}.crow .cn{font-family:var(--display);font-weight:700;font-size:22px;line-height:1.1}
+.crow small{font-size:12px;color:var(--txt2)}.crow small.al{color:var(--fair)}
+.crow .cs{font-family:var(--display);font-weight:700;font-size:40px;line-height:.9;text-align:right;width:64px}.crow .cs small{display:block;font-family:var(--body);font-size:10px;color:var(--muted);font-weight:500}
+.crow .chev{color:var(--muted);font-size:22px;font-family:var(--display)}
+.toprow{display:flex;align-items:center;gap:6px}.toprow .crags{flex:1;min-width:0}
+.back{background:none;border:0;color:var(--brandInk);font-family:var(--display);font-weight:600;font-size:32px;line-height:1;min-width:32px;min-height:40px;padding:0 4px 4px 0;margin-left:-6px;cursor:pointer;flex:none}
+.slimrow{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:8px}.slimrow .sl{flex:1;min-width:0}.slimrow .mt{font-size:13px;line-height:1.4;color:var(--txt2);margin:0 0 4px}
+#heroN,.slim .sc,.crow .cs,.hvr b,.lens b,.hday b{font-variant-numeric:tabular-nums}
+.hv{margin:16px -6px 0;touch-action:pan-y;cursor:pointer}.hv svg{display:block;width:100%}
+.hv .bar{animation:barUp .7s var(--spring) both;transform-box:fill-box;transform-origin:bottom}
+@keyframes barUp{from{transform:scaleY(0)}}
+.hv .seg{animation:segIn .6s var(--ease) both;transform-box:fill-box;transform-origin:left}
+@keyframes segIn{from{transform:scaleX(0);opacity:0}}
+.hvr{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;font-size:13px;color:var(--txt2);margin-top:2px;min-height:28px}
+.hvr b{font-family:var(--display);font-weight:700;font-size:24px;line-height:1}
+.hdays{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px}
+.hday{background:rgba(255,255,255,.05);border:0;border-radius:18px;padding:12px 10px 10px;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;cursor:pointer;min-width:0;animation:rise2 .55s var(--ease) both;animation-delay:calc(var(--k) * 80ms)}
+.hday:hover{background:rgba(255,255,255,.08)}
+.hday .dn{font-family:var(--display);font-weight:600;font-size:15px;color:var(--txt2)}.hday b{font-family:var(--display);font-weight:700;font-size:44px;line-height:.95}
+.hday .dw{font-family:var(--mono);font-size:11px;color:var(--txt2)}.hday svg{width:100%;height:36px;margin:6px 0 2px;overflow:visible}.hday small{font-size:11px;color:var(--muted)}
+.lastr{display:flex;flex-direction:column;gap:2px;min-width:0}.lastr .lab{font-family:var(--display);font-weight:600;font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#e9f0f2}
+.bigx{font-family:var(--display);font-weight:700;font-size:52px;line-height:.95}.bigx small{font-size:20px;color:var(--txt2);font-weight:600}
+.stat3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--hair)}
+.stat3 span{font-family:var(--display);font-weight:600;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);display:block}
+.stat3 b{font-family:var(--display);font-weight:700;font-size:26px;display:block}.stat3 b small{font-size:14px;color:var(--txt2)}.stat3 > div > small{font-size:11px;color:var(--muted)}
+.dryagain{display:flex;flex-wrap:wrap;gap:2px 10px;align-items:baseline;margin-top:14px}.dryagain span{font-family:var(--display);font-weight:600;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}.dryagain b{font-family:var(--display);font-size:20px}.dryagain small{font-size:11px;color:var(--muted);flex-basis:100%}
+.reveal{animation:waveIn 1.2s cubic-bezier(.5,0,.2,1) both}
+.phead,.prow{display:grid;grid-template-columns:38px minmax(0,1fr) 34px;gap:8px;align-items:center}
+.phead{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:10px}.phead div{display:grid;grid-template-columns:repeat(4,1fr)}.phead > span:last-child{text-align:right}
+.pgrid{display:flex;flex-direction:column;gap:4px;margin-top:4px}
+.prow{animation:rise2 .5s var(--ease) both;animation-delay:calc(var(--r) * 55ms)}
+.pd{font-family:var(--display);font-weight:600;font-size:14px;color:var(--txt2)}.pt{font-family:var(--mono);font-size:10px;color:var(--txt2);text-align:right}
+.pcells{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:2px;touch-action:none;cursor:pointer}
+.pcells i{height:24px;border-radius:4px;background:rgba(255,255,255,.06)}
+.pcells i.none{background:none}.pcells i.ahead{background:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.pcells i.sel{box-shadow:0 0 0 2px #f4f7fa;position:relative;z-index:1}
+.skyprev button[aria-pressed="true"]{border-color:#1DC5D2;color:#6fe3ec}
+.controls{flex:1 1 100%;position:sticky;top:0;z-index:20;margin:-24px -16px 0;padding:10px 16px;background:rgba(10,13,16,.9);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid #1d252c;display:flex;flex-direction:column;gap:6px;min-width:0}
+.crow2{display:flex;align-items:center;gap:8px;min-width:0}.crow2 > span{flex:none;width:44px;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ctl{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;min-width:0;padding:2px}.ctl::-webkit-scrollbar{display:none}
+.ctl button{flex:none;font-family:var(--display);font-weight:600;font-size:14px;background:#151a1f;border:1px solid #2a333b;border-radius:999px;padding:5px 11px;cursor:pointer;min-height:34px;white-space:nowrap}
+.ctl button:hover{border-color:#1DC5D2}.ctl button[aria-pressed="true"]{border-color:#1DC5D2;color:#6fe3ec;background:#0d2a2f}
+.arrive .hv,.arrive #hvr{animation:waveIn 1s cubic-bezier(.5,0,.2,1) both;animation-delay:.34s}
+.still *{animation:none!important}
+/* Liquid glass. The card blurs and saturates what is behind it, takes the hour's ground colour, and is lit like a thick
+   pane: a bright top edge, a rim that catches light at one corner and again at the opposite one, a soft inner glow,
+   and a sheen that slides across as the card moves up the screen. */
+.gc{position:relative;isolation:isolate;margin:12px -10px 0;padding:2px 14px 14px;border-radius:26px;
+  background:radial-gradient(130% 80% at var(--gx,25%) -20%,rgba(255,255,255,.15),rgba(255,255,255,0) 60%),linear-gradient(180deg,rgba(var(--tint,14,22,26),.26),rgba(var(--tint,14,22,26),.44));
+  backdrop-filter:blur(26px) saturate(190%) brightness(1.05);-webkit-backdrop-filter:blur(26px) saturate(190%) brightness(1.05);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.34),inset 0 -1px 0 rgba(255,255,255,.07),inset 0 0 0 .5px rgba(255,255,255,.1),inset 0 10px 24px -14px rgba(255,255,255,.22),inset 0 -14px 26px -18px rgba(0,0,0,.35),0 14px 34px -14px rgba(0,0,0,.5)}
+.gc::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1.2px;pointer-events:none;z-index:1;
+  background:linear-gradient(140deg,rgba(255,255,255,.6),rgba(255,255,255,.1) 22%,rgba(255,255,255,0) 48%,rgba(255,255,255,.06) 72%,rgba(255,255,255,.32));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+.gc::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:-1;
+  background:linear-gradient(112deg,rgba(255,255,255,0) 38%,rgba(255,255,255,.075) 47%,rgba(255,255,255,.02) 52%,rgba(255,255,255,0) 60%);background-size:260% 100%;background-position:var(--sheen,50%) 0}
+.gc>.sect:first-child{margin-top:14px}.gc>:last-child{margin-bottom:0}
+.gc .lines .line:last-child,.gc .drow:last-child{border-bottom:0}
+.gc.gl{padding:0 14px}
+@property --drift{syntax:'<percentage>';inherits:false;initial-value:0%}
+.gc{background:radial-gradient(140% 90% at var(--gx,25%) -25%,rgba(255,255,255,.24),rgba(255,255,255,0) 58%),radial-gradient(90% 60% at 100% 115%,rgba(255,255,255,.08),rgba(255,255,255,0) 60%),linear-gradient(180deg,rgba(var(--tint,14,22,26),.16),rgba(var(--tint,14,22,26),.34));
+  backdrop-filter:blur(30px) saturate(220%) brightness(1.08) contrast(1.05);-webkit-backdrop-filter:blur(30px) saturate(220%) brightness(1.08) contrast(1.05);
+  box-shadow:inset 0 1.5px 0 rgba(255,255,255,.55),inset 0 -1px 0 rgba(255,255,255,.14),inset 0 0 0 1px rgba(255,255,255,.12),inset 0 0 14px 2px rgba(255,255,255,.07),inset 0 14px 26px -16px rgba(255,255,255,.32),inset 0 -18px 30px -20px rgba(0,0,0,.4),0 18px 40px -16px rgba(0,0,0,.55);
+  transform:scaleY(var(--st,1));transform-origin:50% var(--so,50%);transition:transform .7s var(--spring)}
+.gc::before{padding:1.5px;background:linear-gradient(140deg,rgba(255,255,255,.85),rgba(255,255,255,.18) 20%,rgba(255,255,255,0) 45%,rgba(255,255,255,.08) 70%,rgba(255,255,255,.5))}
+.gc::after{background:radial-gradient(38% 55% at calc(var(--drift) + 10%) 30%,rgba(255,255,255,.07),rgba(255,255,255,0) 70%),radial-gradient(30% 45% at calc(90% - var(--drift)) 80%,rgba(160,230,255,.05),rgba(255,255,255,0) 70%),linear-gradient(112deg,rgba(255,255,255,0) 36%,rgba(255,255,255,.13) 46%,rgba(255,255,255,.03) 52%,rgba(255,255,255,0) 60%);
+  background-size:100% 100%,100% 100%,260% 100%;background-position:0 0,0 0,var(--sheen,50%) 0;animation:drift 16s ease-in-out infinite alternate}
+.gc:nth-child(2n)::after{animation-duration:21s;animation-delay:-7s}
+@keyframes drift{to{--drift:80%}}
+.gc::after{content:none}
+.gc{border-radius:30px;background:radial-gradient(140% 90% at 25% -25%,rgba(255,255,255,.24),rgba(255,255,255,0) 58%),radial-gradient(90% 60% at 100% 115%,rgba(255,255,255,.1),rgba(255,255,255,0) 60%),linear-gradient(180deg,rgba(var(--tint,14,22,26),.16),rgba(var(--tint,14,22,26),.34));
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.55),inset 0 -1.5px 0 rgba(255,255,255,.18),inset 0 0 0 1px rgba(255,255,255,.12),inset 0 0 0 7px rgba(255,255,255,.025),inset 0 0 20px 3px rgba(255,255,255,.09),inset 0 16px 28px -16px rgba(255,255,255,.36),inset 0 -20px 32px -20px rgba(0,0,0,.45),0 20px 44px -16px rgba(0,0,0,.55);
+  transform:scale(var(--sx,1),var(--st,1));transition:transform .9s cubic-bezier(.2,1.8,.35,1)}
+.gc{background:radial-gradient(140% 90% at 25% -25%,rgba(255,255,255,.16),rgba(255,255,255,0) 58%),radial-gradient(90% 60% at 100% 115%,rgba(255,255,255,.08),rgba(255,255,255,0) 60%),linear-gradient(180deg,rgba(var(--tint,14,22,26),.36),rgba(var(--tint,14,22,26),.52));backdrop-filter:blur(30px) saturate(190%);-webkit-backdrop-filter:blur(30px) saturate(190%)}
+.hvcard{margin:16px -10px 0;padding:6px 10px 10px}.hvcard .hv{margin:4px -4px 0}
+#pane.pour .gc{animation:gcPour .9s cubic-bezier(.2,1.6,.35,1) both;animation-delay:calc(var(--k,0) * 70ms)}
+@keyframes gcPour{0%{opacity:0;transform:translateY(26px) scale(.94,1.07);border-radius:44px}55%{opacity:1;transform:translateY(-3px) scale(1.015,.985);border-radius:26px}100%{transform:none;border-radius:30px}}
+.slim{background:linear-gradient(rgba(var(--tint,6,9,11),.52),rgba(var(--tint,6,9,11),.3));backdrop-filter:blur(24px) saturate(200%) brightness(1.06);-webkit-backdrop-filter:blur(24px) saturate(200%) brightness(1.06);box-shadow:inset 0 -1px 0 rgba(255,255,255,.22),0 12px 28px -16px rgba(0,0,0,.6)}.gc .crow:first-child{border-top:0}.gc .crow:last-child{border-bottom:0}
+.slim{box-shadow:inset 0 -1px 0 rgba(255,255,255,.12),0 10px 26px -16px rgba(0,0,0,.6)}
+@media (prefers-reduced-transparency:reduce){.gc{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(var(--tint,14,22,26),.92)}}
+.phone{font-synthesis:none;font-family:var(--body)}.phone svg text[font-family^="Barlow"]{font-family:var(--display)}
+.phone[data-type="editorial"] .bigrow .n,.phone[data-type="editorial"] .slim .sc{letter-spacing:-2px}.phone[data-type="poster"] .bigrow .n{letter-spacing:0}
+.hv{margin:14px -22px 0}
+#ptl{touch-action:pan-y;cursor:crosshair}
+.pcells i{height:26px;border-radius:5px;background:rgba(255,255,255,.06)}
+.pcells i.none{background:none;box-shadow:none}.pcells i.ahead{background:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.pcells i.sel{box-shadow:0 0 0 2px #f4f7fa;z-index:1}
+.pcells{gap:3px}.prow{grid-template-columns:42px minmax(0,1fr) 34px}.phead{grid-template-columns:42px minmax(0,1fr) 34px}
+.pd{font-size:15px}.pt{font-family:var(--display);font-weight:700;font-size:15px;color:#d6dcff}.pt em{font-style:normal;font-weight:600;font-size:12px;color:var(--muted)}
+
+
+/* round 7: arrivals */
+.lhead h2,.lhead small{animation:rise2 .6s var(--ease) both}.lhead small{animation-delay:.08s}
+.clist .crow{animation:rowIn .6s var(--ease) both;animation-delay:calc(var(--i) * 70ms + 120ms)}
+.clist .crow .gl{display:inline-flex;animation:pop .7s var(--spring) both;animation-delay:calc(var(--i) * 70ms + 260ms)}
+.clist .crow.hold,.clist .crow.hold .gl{animation:none}
+.clist .foot{animation:rise2 .6s var(--ease) both;animation-delay:.5s}
+@keyframes rowIn{from{transform:translateY(22px);opacity:0}}
+@keyframes rise2{from{transform:translateY(12px);opacity:0}}
+@keyframes pop{from{transform:scale(.3) rotate(-25deg);opacity:0}}
+.pageOld.fade{animation:oldFade .38s var(--ease) forwards}
+@keyframes oldFade{to{opacity:0;transform:scale(.97)}}
+.flying{position:relative;z-index:9}
+.arrive .side{animation:sideIn .6s var(--ease) both;animation-delay:.22s}
+.arrive .lead{animation:rise2 .6s var(--ease) both;animation-delay:.3s}
+.arrive .wave{animation:waveIn 1s cubic-bezier(.5,0,.2,1) both;animation-delay:.34s}
+.arrive .ticks,.arrive .toprow{animation:rise2 .5s var(--ease) both;animation-delay:.42s}
+.arrive #pane > *{animation:rise2 .55s var(--ease) both;animation-delay:calc(var(--k) * 45ms + .48s)}
+.arrive .slim .mt,.arrive .slim .sc small{animation:rise2 .5s var(--ease) both;animation-delay:.25s}
+@keyframes sideIn{from{transform:translateX(26px);opacity:0}}
+@keyframes waveIn{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.swipe .eyebrow,.swipe .side,.swipe .lead,.swipe #pane,.swipe .slim .nm,.swipe .slim .mt{animation:swipeIn .5s var(--ease) both}
+.swipe .side{animation-delay:.04s}.swipe .lead,.swipe .slim .mt{animation-delay:.08s}.swipe #pane{animation-delay:.12s}
+@keyframes swipeIn{from{transform:translateX(var(--dx));opacity:0}}
+.pad{padding:18px 22px 104px;position:relative}
+#heroN,.slim .sc .v{display:inline-block}
+.ghost{position:absolute;pointer-events:none;z-index:0;transform-origin:50% 0;animation:ghostOut .32s var(--ease) forwards}
+@keyframes ghostOut{to{opacity:0;transform:translateY(-12px) scale(.9)}}
+.herobox.grow .eyebrow,.herobox.grow .side,.herobox.grow .lead,.herobox.grow .wave,.herobox.grow .ticks{animation:heroIn .5s var(--ease) both}
+.herobox.grow .side{animation-delay:.05s}.herobox.grow .lead{animation-delay:.08s}.herobox.grow .wave,.herobox.grow .ticks{animation-delay:.12s}
+@keyframes heroIn{from{opacity:0;transform:translateY(-18px) scale(.96)}}
+.enter{animation:enter .5s var(--ease) both}
+@keyframes enter{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}
+
+.crags{display:flex;gap:16px;overflow-x:auto;scrollbar-width:none;position:relative}
+.crags button{background:none;border:0;font-family:var(--display);font-weight:600;font-size:16px;color:var(--muted);padding:6px 0;cursor:pointer;white-space:nowrap;position:relative;min-height:40px}
+.crags button[aria-pressed="true"]{color:var(--txt1)}
+.ind{position:absolute;bottom:2px;left:0;width:0;height:2px;border-radius:2px;background:var(--brand);pointer-events:none;transition:left .5s var(--spring),width .5s var(--spring)}
+.tabs .ind{top:5px;bottom:5px;height:auto;border-radius:999px;background:rgba(29,197,210,.2);box-shadow:inset 0 0 0 1px rgba(111,227,236,.3)}
+@keyframes grow{from{transform:scaleX(0)}to{transform:none}}
+
+/* hero: score, words, and the sky glyph */
+.hero{position:relative;margin-top:10px}
+.eyebrow{font-family:var(--display);font-weight:600;font-size:14px;letter-spacing:1.4px;text-transform:uppercase;color:#e9f0f2}
+.bigrow{display:grid;grid-template-columns:minmax(0,1fr) clamp(118px,36vw,150px);align-items:center;gap:12px;margin-top:6px}
+.bigrow .n{font-family:var(--display);font-weight:700;font-size:150px;line-height:.8;letter-spacing:-3px}
+.bigrow .side{display:flex;flex-direction:column;gap:4px;min-width:0}
+.bigrow .n.w3{font-size:clamp(72px,23vw,112px);letter-spacing:-4px}
+.bigrow .side span{font-family:var(--display);font-weight:600;font-size:18px}
+.bigrow .side small{font-size:12px;color:#e4ecef}
+.sky{width:96px;height:87px;pointer-events:none;margin:-6px 0 -4px -8px}
+.sky .rays{transform-origin:66px 52px;animation:spin 1.6s var(--spring) both}
+@keyframes spin{from{transform:rotate(-45deg) scale(.6);opacity:0}to{transform:none;opacity:1}}
+.sky .sunglow{animation:breathe 1.4s ease-in-out 2 alternate;transform-origin:66px 52px}
+@keyframes breathe{to{transform:scale(1.12);opacity:.5}}
+.sky .cloud{animation:float 1.6s var(--ease) both}
+@keyframes float{from{transform:translateX(-14px);opacity:0}}
+.sky .drop{animation:fall 1.1s linear 3}
+@keyframes fall{from{transform:translateY(-8px);opacity:0}25%{opacity:1}to{transform:translateY(34px);opacity:0}}
+.lead{font-size:15px;line-height:1.5;color:var(--txt2);margin:14px 0 0;max-width:36ch}
+.lead b{color:var(--txt1);font-weight:600}
+
+.wave{position:relative;margin:14px -22px 0;height:170px;touch-action:none;cursor:ew-resize}
+.wave svg{position:absolute;inset:0;width:100%;height:100%}
+.lens{position:absolute;top:0;width:92px;height:92px;margin-left:-46px;border-radius:50%;pointer-events:none;backdrop-filter:blur(3px) saturate(180%) brightness(1.15);-webkit-backdrop-filter:blur(3px) saturate(180%) brightness(1.15);
+  background:radial-gradient(circle at 35% 25%,rgba(255,255,255,.45),rgba(255,255,255,.06) 45%,rgba(29,197,210,.12));box-shadow:inset 0 2px 1px rgba(255,255,255,.7),inset 0 -6px 14px rgba(0,0,0,.25),inset 0 0 0 1px rgba(255,255,255,.25),0 12px 26px rgba(0,0,0,.4);
+  display:flex;flex-direction:column;align-items:center;justify-content:center}
+.lens b{font-family:var(--display);font-weight:700;font-size:32px;line-height:.9}
+.lens small{font-family:var(--mono);font-size:10px}
+.ticks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--muted)}
+
+.dock{position:absolute;left:8px;right:8px;bottom:16px;z-index:6;display:flex;justify-content:center;pointer-events:none}
+.tabs{position:relative;display:flex;padding:5px;max-width:100%;border-radius:999px;background:rgba(var(--tint,14,22,26),.5);backdrop-filter:blur(18px) saturate(170%);-webkit-backdrop-filter:blur(18px) saturate(170%);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),inset 0 0 0 1px rgba(255,255,255,.08),0 12px 30px rgba(0,0,0,.5);overflow-x:auto;scrollbar-width:none;pointer-events:auto}
+.tabs button{background:none;border:0;font-family:var(--display);font-weight:600;font-size:14px;letter-spacing:0;color:var(--muted);padding:8px 7px;z-index:1;cursor:pointer;position:relative;min-height:40px;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--txt1)}
+
+
+.sect{font-family:var(--display);font-weight:600;font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:var(--brandInk);margin:26px 0 8px;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.sect em{font-style:normal;color:var(--muted);letter-spacing:.3px;text-transform:none;font-family:var(--body);font-size:11px;font-weight:400;text-align:right}
+.chart{position:relative;margin:0 -22px;touch-action:pan-y}
+.chart svg{display:block;width:100%;overflow:visible}
+.chart .hit{cursor:crosshair}
+.keyrow{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--muted);margin-top:6px}
+.keyrow i{display:inline-block;width:16px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+.read{display:grid;grid-template-columns:repeat(4,auto);justify-content:space-between;gap:4px 12px;margin-top:10px}
+.read span{font-family:var(--display);font-weight:600;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);display:block}
+.read b{font-family:var(--display);font-weight:700;font-size:21px;white-space:nowrap}
+.why{font-size:12px;color:var(--txt2);margin-top:8px}
+.days{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;text-align:center}
+.days button{background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:6px 0;border-radius:14px;animation:enter .5s var(--ease) both}
+.days button:hover{background:rgba(255,255,255,.05)}
+.days b{font-family:var(--display);font-weight:700;font-size:26px;line-height:1}
+.days span{font-size:10px;color:var(--muted)}
+.ms{font-family:var(--display);font-weight:700;font-size:26px;line-height:1;text-align:center}
+.days .ms{margin:4px 0 2px}
+.drows{display:flex;flex-direction:column}
+.drow{display:grid;grid-template-columns:24px minmax(0,1fr) 44px 104px 34px;gap:8px;align-items:center;background:none;border:0;border-bottom:1px solid var(--hair);padding:8px 0;text-align:left;cursor:pointer;animation:enter .5s var(--ease) both;min-height:56px}
+.drow:hover{background:rgba(255,255,255,.04)}
+.drow .nm{font-family:var(--display);font-weight:600;font-size:18px;line-height:1.1}
+.drow .dsub{grid-column:2/-1;font-size:12px;line-height:1.4;color:var(--txt2);margin-top:-4px}
+.tbar{position:relative;height:6px;border-radius:3px;background:rgba(255,255,255,.08);margin:0 26px}
+.tbar i{position:absolute;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,#7fd1c4,#ffd36b)}
+.tcell{position:relative;font-family:var(--mono);font-size:11px}
+.tcell .lo{position:absolute;left:0;top:-5px;color:var(--muted)}.tcell .hi{position:absolute;right:0;top:-5px}
+.big2{font-family:var(--display);font-weight:700;font-size:30px;line-height:1.05}
+.statrow{display:flex;gap:16px;align-items:center}
+.stat{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;flex:1}
+.stat span{font-family:var(--display);font-weight:600;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);display:block}
+.stat b{font-family:var(--display);font-weight:700;font-size:22px}
+.pourc{stroke-dasharray:1;animation:pourc 1.3s var(--ease) both}
+@keyframes pourc{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+.lines .line{display:grid;grid-template-columns:1fr auto;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--hair);gap:10px}
+.lines span{font-size:14px;color:var(--txt2)}
+.lines b{font-family:var(--display);font-weight:700;font-size:22px}
+.lines small{grid-column:1/3;font-size:11px;color:var(--muted)}
+.order{font-family:var(--display);font-weight:600;font-size:19px;line-height:1.35}
+.order i{font-style:normal;color:var(--muted);margin:0 6px}
+.daychips{display:flex;gap:14px;overflow-x:auto;scrollbar-width:none;margin-top:4px}
+.daychips button{background:none;border:0;font-family:var(--display);font-weight:600;font-size:15px;color:#dfe8eb;cursor:pointer;padding:4px 0;min-height:36px;white-space:nowrap;text-shadow:0 1px 6px rgba(0,0,0,.45)}
+.daychips button[aria-pressed="true"]{color:var(--txt1);border-bottom:2px solid var(--brand)}
+.pinned{position:sticky;top:52px;z-index:3;margin:8px -22px 0;padding:8px 22px 10px;background:linear-gradient(#06090beb 80%,#06090b00)}
+.foot{font-size:11px;color:var(--muted);line-height:1.55;margin-top:24px}
+.tube{animation:pour 1.2s var(--ease) both}
+@keyframes pour{from{stroke-dashoffset:var(--len)}to{stroke-dashoffset:0}}
+.capsule{animation:rise .8s var(--spring) both;transform-box:fill-box;transform-origin:bottom}
+@keyframes rise{from{transform:scaleY(0)}to{transform:none}}
+
+/* round 9: the live app's rock guide, Crag tab, Trips, and the smaller pieces */
+.rockart{margin:-2px -14px 12px;border-radius:30px 30px 0 0;overflow:hidden;height:124px}.rockart svg{display:block;width:100%;height:124px}
+.rh h3{margin:-6px 0 4px;font-family:var(--display);font-weight:700;font-size:32px;line-height:1}.rh p{margin:0;color:var(--txt2);font-size:14px;line-height:1.45}
+.gauges{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.gauge span,.fact span,.iline span,.facts span,.stats span,.lab{font-family:var(--display);font-weight:600;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);display:block}
+.gauge b{font-family:var(--display);font-weight:700;font-size:20px;display:block;margin:2px 0 6px}.gauge div{display:flex;gap:4px}.gauge i{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.12)}.gauge i.on{background:#cfd8dc}
+.fact{margin-top:10px}.fact p,.iline p{margin:3px 0 0;font-size:14px;line-height:1.5;color:var(--txt2)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}.chips span{background:rgba(255,255,255,.07);border-radius:999px;padding:6px 12px;font-family:var(--display);font-weight:600;font-size:14px}
+.iline{display:flex;gap:12px;align-items:flex-start;margin-top:10px}.iline>i{flex:none;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center}
+.care{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}.care li{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--txt2);line-height:1.45}.care svg{flex:none;margin-top:2px}
+.note{font-size:12px;color:var(--muted);line-height:1.5;margin:10px 0 0}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}.facts b{font-family:var(--display);font-weight:700;font-size:19px}.facts b.mono{font-family:var(--mono);font-size:13px;font-weight:500}
+.linkbtn{background:none;border:0;color:var(--brandInk);font-family:var(--display);font-weight:600;font-size:15px;padding:10px 0;min-height:40px;cursor:pointer}.linkbtn.danger{color:var(--poor)}.crumb{padding-top:0}
+.stats{display:grid;gap:10px;margin-top:12px}.stats b{font-family:var(--display);font-weight:700;font-size:24px}
+.wt{margin:2px 0 0;font-family:var(--display);font-weight:700;font-size:28px;line-height:1.05}
+.nowstrip{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:8px}.nowstrip b{font-family:var(--display);font-weight:700;font-size:30px}.nowstrip>span:not(.lab){font-size:13px;color:var(--txt2)}.nowstrip .linkbtn{margin-left:auto;padding:0;min-height:32px}
+.ghist{display:grid;gap:8px;align-items:end;margin-top:6px}.ghist div{display:flex;flex-direction:column;align-items:center;gap:4px}.ghist b{font-family:var(--display);font-weight:700;font-size:16px}.ghist i{width:100%;max-width:36px;border-radius:6px 6px 2px 2px}.ghist span{font-family:var(--mono);font-size:9.5px;color:var(--muted);white-space:nowrap}
+.gbar{display:flex;height:6px;border-radius:3px;overflow:hidden;gap:2px;margin-top:6px}
+.rlist{display:flex;flex-direction:column}
+.rrow{display:grid;grid-template-columns:62px minmax(0,1fr) 12px;gap:10px;align-items:center;background:none;border:0;border-top:1px solid var(--hair);padding:10px 0;text-align:left;cursor:pointer;min-height:52px}.rrow:first-child{border-top:0}.rrow.wall{grid-template-columns:minmax(0,1fr) 12px}
+.rrow b{font-family:var(--display);font-weight:700;font-size:18px}.rrow>span{font-family:var(--display);font-weight:600;font-size:18px;min-width:0}.rrow small{display:block;font-family:var(--body);font-weight:400;font-size:12px;color:var(--muted)}.rrow>i{font-style:normal;color:var(--muted);font-family:var(--display);font-size:20px}
+.pills{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 8px}.pills button{background:rgba(255,255,255,.06);border:1px solid transparent;border-radius:999px;padding:5px 12px;font-family:var(--display);font-weight:600;font-size:14px;min-height:34px;cursor:pointer;color:var(--txt2)}.pills button[aria-pressed="true"]{border-color:rgba(111,227,236,.5);color:var(--brandInk);background:rgba(29,197,210,.14)}
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center}.wk span{font-size:11px;color:var(--muted);display:block}.wk b{font-family:var(--display);font-weight:700;font-size:20px;display:block}.wk small{display:block;font-size:9.5px;color:var(--txt2);line-height:1.3}
+.rtop h3{margin:2px 0 0;font-family:var(--display);font-weight:700;font-size:30px;line-height:1.05}.rtop .grade{font-family:var(--display);font-weight:700;font-size:40px}
+.todo{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:10px 14px;font-family:var(--display);font-weight:600;font-size:16px;cursor:pointer;width:100%;text-align:left;min-height:44px}.todo.on{border-color:rgba(184,245,66,.5);color:var(--good)}
+.tickf{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.tickf label,.tform label{display:flex;flex-direction:column;gap:4px;font-family:var(--display);font-weight:600;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);min-width:0}.tickf .wide{grid-column:1/3}
+.phone input[type=text],.phone input[type=date],.phone select{font:15px var(--body);color:var(--txt1);background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:10px 12px;min-height:44px;width:100%;box-sizing:border-box;color-scheme:dark;letter-spacing:0;text-transform:none}
+.pbtn{background:var(--brand);color:var(--onBrand);border:0;border-radius:999px;padding:10px 18px;font-family:var(--display);font-weight:700;font-size:16px;min-height:44px;cursor:pointer;grid-column:1/-1}
+.tickrow{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--hair);padding:8px 0}.tickrow b{font-family:var(--display);font-size:17px}.tickrow small{display:block;font-size:12px;color:var(--muted)}.tickrow .linkbtn{color:var(--poor)}.cf{font-size:12px;color:var(--txt2)}
+.explain,.sources{font-size:14px;color:var(--txt2);line-height:1.5}.explain summary,.sources summary{cursor:pointer;font-family:var(--display);font-weight:600;font-size:15px;color:var(--brandInk);padding:12px 0}
+.explain h4{margin:12px 0 2px;font-family:var(--display);font-weight:600;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}.explain p{margin:4px 0}
+.tfoot{margin-top:8px;padding:0 4px}
+.fbk{flex:none;background:none;border:1px solid var(--good);color:var(--good);border-radius:999px;padding:4px 12px;font-family:var(--display);font-weight:600;font-size:14px;min-height:34px;cursor:pointer}
+.toast{position:absolute;left:16px;right:16px;bottom:92px;z-index:9;background:rgba(20,30,34,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:14px;padding:12px 14px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.lhead.tl{display:flex;justify-content:space-between;align-items:flex-end;gap:10px}.lhead.tl .pbtn{font-size:15px}
+.tcards{display:flex;flex-direction:column}.tcard{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;cursor:pointer;border:0;color:inherit;padding:16px 18px;margin:12px -10px 0;width:calc(100% + 20px)}
+.tcard .cn{font-family:var(--display);font-weight:700;font-size:22px}.tcard small{font-size:13px;color:var(--txt2)}.tcard small.note{margin:0;color:var(--fair)}
+.tmini{display:flex;gap:3px;margin-top:8px;align-items:center}.tmini i{width:16px;height:6px;border-radius:3px}.tmini b{width:8px}
+.crumbt{font-family:var(--display);font-weight:600;font-size:16px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.ttile{background:rgba(255,255,255,.05);border:1.5px solid transparent;border-radius:16px;padding:10px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;cursor:pointer;min-width:0}.ttile[aria-pressed="true"]{border-color:var(--txt1)}.ttile.dash{background:none;border:1.5px dashed rgba(255,255,255,.22)}.ttile.dash[aria-pressed="true"]{border-style:solid;border-color:var(--txt1)}
+.ttile .dn{font-family:var(--display);font-weight:600;font-size:14px;color:var(--txt2)}.ttile b{font-family:var(--display);font-weight:700;font-size:32px;line-height:1}.ttile b.nos,.gcell b.nos{color:var(--none)}.ttile small{font-size:11.5px;color:var(--txt2)}.ttile small.wx,.gcell small.wx{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.dcard{margin-top:12px;padding-top:12px;border-top:1px solid var(--hair)}.agree{display:inline-block;margin-top:10px;background:rgba(195,166,255,.14);color:#d9c8ff;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:500}
+.tot{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}.tot b{font-family:var(--display);font-weight:700;font-size:40px}.tot b small{font-size:16px;color:var(--txt2);font-weight:600}.tot span{font-size:13px;color:var(--txt2)}
+.rbar{position:relative;height:8px;border-radius:4px;background:rgba(255,255,255,.08);margin:10px 0 14px}.rbar i{position:absolute;top:0;bottom:0;border-radius:4px;background:rgba(165,180,252,.45)}.rbar em{position:absolute;top:-3px;width:3px;height:14px;margin-left:-1.5px;border-radius:2px;background:#e3e8ff}
+.dam{display:grid;gap:6px;align-items:end;text-align:center}.dam div{display:flex;flex-direction:column;align-items:center;gap:2px}.dam i{width:60%;background:#a5b4fc;border-radius:3px 3px 1px 1px}.dam small{font-size:10.5px;color:var(--muted);font-family:var(--mono)}
+.dtcap{display:grid;gap:4px;text-align:center}.dtcap b{font-family:var(--display);font-size:13px;display:block}.dtcap small{display:block;font-family:var(--mono);font-size:9.5px;color:var(--muted)}
+.tgrid{display:grid;gap:6px;overflow-x:auto;padding-bottom:4px;align-items:center}.tgrid .gh{font-family:var(--display);font-weight:600;font-size:13px;color:var(--txt2);text-align:center}.gname{background:none;border:0;text-align:left;font-family:var(--display);font-weight:700;font-size:16px;cursor:pointer;padding:0;min-height:44px}
+.gcell{background:rgba(255,255,255,.05);border:1.5px solid transparent;border-radius:12px;padding:6px 4px;display:flex;flex-direction:column;align-items:center;cursor:pointer;min-width:0}.gcell.dash{background:none;border:1.5px dashed rgba(255,255,255,.22)}.gcell b{font-family:var(--display);font-weight:700;font-size:22px;line-height:1}.gcell small{font-size:10.5px;color:var(--txt2)}
+.lb{padding:10px 0;border-top:1px solid var(--hair)}.lb:first-of-type{border-top:0}.lbr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:6px}.lbr span{font-size:10.5px;color:var(--muted);display:block}.lbr b{font-family:var(--display);font-weight:700;font-size:20px;display:block}.lbr small{font-size:11px;color:var(--txt2)}
+.tacts{display:flex;justify-content:space-between;gap:12px;margin-top:6px}
+.tform{display:grid;grid-template-columns:1fr;gap:12px;padding:16px 16px 18px;margin:12px -10px 0}.tform .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.tform fieldset{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.tform legend{font-family:var(--display);font-weight:600;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;padding:0}
+.tform .chk{flex-direction:row;align-items:center;gap:10px;font:15px var(--body);letter-spacing:0;text-transform:none;color:var(--txt1);min-height:44px}.chk input{width:20px;height:20px;accent-color:var(--brand)}
+.addc{background:none;border:1px dashed rgba(255,255,255,.22);border-radius:12px;padding:10px;color:var(--brandInk);font-family:var(--display);font-weight:600;font-size:15px;cursor:pointer;min-height:44px;margin-top:6px;text-align:left}
+.ferr{color:var(--poor);font-size:13px;min-height:18px}
+.drywrap{position:relative}.dryover{position:absolute;left:56px;right:56px;top:14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:2px;pointer-events:none;text-shadow:0 1px 8px rgba(0,0,0,.6)}.dryover b{font-family:var(--display);font-weight:700;font-size:22px;line-height:1.1;color:var(--good)}.dryover span{font-size:12px;line-height:1.4;color:var(--txt2);max-width:32ch}.dryday{display:flex;flex-direction:column;gap:4px;padding:6px 0 4px}.dryday b{font-family:var(--display);font-weight:700;font-size:28px;color:var(--good)}.dryday span{font-size:13px;line-height:1.5;color:var(--txt2)}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+  <div class="phone" id="phone">
+    <div class="view" id="view"></div>
+    <nav class="dock away" id="dock" aria-label="Crag sections"></nav>
+    <nav class="appbar" id="appbar" aria-label="App"></nav>
+    <div class="toast" id="toast" role="status" hidden></div>
+  </div>
+  <aside class="notes">
+    <h1>Hybrid, clean glass</h1>
+    <p>Dark liquid glass on a still background. Nothing moves behind the cards; things in front move only when a reading changes.</p>
+    <p style="font-size:13px;border:1px solid #2a333b;border-radius:14px;padding:10px 12px"><b>This round.</b> The live app’s features are back. <b>Rock</b> is the app’s field guide again: the stone texture, drying after rain and strength when wet, how it formed and where the holds come from, rain and sun, rock care, and this crag’s facts with Wrong rock type?. The drying clock and the 48-hour condensation chart sit above the guide. <b>Crag</b> is drawn: the OpenBeta area, grades, walls, a wall’s week and routes, and a route’s logbook (to-do, tick, your ticks). <b>Trips</b> is drawn: tap Trips in the app bar. Also back: last and next rain, how the score works, sources, Feedback, rain amount and peak wind on Daily, hours with rain and the running total on Precip, and Agreement (the app does have it; I was wrong to drop it). Air and dew now sit on one line.</p>
+    <ul>
+      <li><b>Locked 2026-10-19:</b> Overview uses the score bars, and the chart glow is Soft.</li>
+      <li><b>Scores are plain numbers.</b> The big score counts to its new value when you switch crags.</li>
+      <li><b>The hero shrinks into the header.</b> Leave Overview and the big score flies up into the slim header; come back and it grows out again.</li>
+      <li><b>The header follows the tab:</b> the best day on Daily, the hour you are reading on Hourly, chance of rain today on Precip, the margin above dew point on Rock.</li>
+      <li><b>Tabs float at the bottom</b> in a glass dock within thumb reach.</li>
+      <li><b>A crag is a screen you drill into.</b> Tap a crag and the app bar slides away while the crag's dock rises in its place. The back arrow, or a swipe in from the left edge, brings the app bar back. Only Conditions is drawn; the other app tabs do nothing here.</li>
+      <li><b>A wavy drying clock</b> on Overview, Precip and Rock fills to the hours since real rain against the rock's drying window, with a tick where the window starts.</li>
+      <li><b>Daily:</b> seven days with the best three-hour window and temperature bars. <b>Hourly:</b> humidity on the temperature chart against its own right-hand scale; chance and amount of rain on one chart. <b>Precip:</b> last rain, today, this week, dry again, every hour of the past week as a grid, the next 48 hours, and the wettest hour each day.</li>
+      <li><b>Trips:</b> the list soonest first with when the forecast opens; a several-crag trip as a crag-by-day grid; one crag's trip as day tiles with Agreement, the rain over the trip with its range, and how the forecast has moved (by day or whole trip); an ended trip's look back; new and edit trip; delete with a second tap.</li><li><b>Not drawn:</b> Map, Profile, Add a crag and Feedback keep their current screens; their buttons say so.</li>
+    </ul>
+    <p style="font-size:13px;border-top:1px solid #2a333b;padding-top:12px">Same rules as the app: chance of rain is the share of wet ensemble members; percentiles shade one hour and are never summed; without a score the air line is neutral ink; an alert withholds the score and keeps every reading; no friction word. Air and wind are ICON, rain the four-model median. Figures, trips and guidebook routes are sample data; crag names are real.</p>
+  </aside>
+
+<script>
+/* ===== Hourly model (sample data in the API's shapes) ===== */
+const NOW=11,T0=-24,T1=168,RAIN_RESET=.04,RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const DN=['Yesterday','Today','Thu','Fri','Sat','Sun','Mon','Tue'],DL=['Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday','Monday','Tuesday'];
+const hl=h=>{h=((h%24)+24)%24;return (h%12||12)+(h<12?' AM':' PM')},hs=h=>{h=((h%24)+24)%24;return (h%12||12)+(h<12?'a':'p')};
+const D=(hi,lo,dew,sun,rain,chance,agree)=>({hi,lo,dew,sun,rain:rain||{},chance,agree});
+const CRAGS=[
+ {id:'rw',name:'Red Wing (Barn Bluff)',short:'Red Wing',rock:'Limestone',win:[8,36],since0:20,alert:null,
+  days:[D(57,40,36,.9,null,5,95),D(58,41,38,.75,null,5,95),D(55,40,46,.15,{9:.05,10:.08,11:.07,12:.05,13:.04},60,60),D(52,37,38,.6,null,20,80),D(57,38,32,1,null,0,100),D(61,42,37,.9,null,10,90),D(54,41,46,.3,{14:.04,15:.06,16:.05},45,55),D(50,36,34,.8,null,15,85)]},
+ {id:'tf',name:'Taylors Falls',short:'Taylors Falls',rock:'Basalt',win:[6,24],since0:30,alert:null,
+  days:[D(55,39,37,.8,null,10,90),D(54,38,40,.6,{5:.05,6:.06,7:.05},10,90),D(51,38,45,.1,{8:.04,9:.07,10:.08,11:.06,12:.05,13:.04},70,70),D(49,35,37,.5,null,25,75),D(55,37,33,1,null,0,100),D(58,40,36,.9,null,5,95),D(52,39,44,.35,{13:.04,14:.05},40,60),D(48,34,33,.8,null,20,80)]},
+ {id:'ph',name:'Palisade Head',short:'Palisade Head',rock:'Rhyolite',win:[6,24],since0:40,alert:null,
+  days:[D(48,38,37,.5,null,20,80),D(47,39,44,.1,{10:.04,11:.05,12:.04,13:.05,14:.06,15:.07,16:.06,17:.05,18:.04},85,85),D(46,38,42,.3,{6:.04},55,55),D(48,36,36,.6,null,15,85),D(52,37,33,.9,null,5,95),D(54,39,36,.8,null,10,90),D(49,38,43,.3,{15:.04,16:.04},35,65),D(46,35,33,.7,null,25,75)]},
+ {id:'wr',name:'Willow River State Park',short:'Willow River',rock:'Dolomite',win:[8,36],since0:26,alert:{day:1,from:14,to:21,text:'Severe thunderstorm warning, 2–9 PM'},
+  days:[D(56,40,37,.8,null,15,85),D(56,40,45,.4,{13:.04,14:.08,15:.06,16:.04},40,60),D(53,38,44,.2,{10:.04,11:.05},65,65),D(50,36,37,.6,null,20,80),D(56,37,33,1,null,0,100),D(59,41,36,.9,null,10,90),D(53,39,44,.3,{14:.05},40,60),D(49,35,34,.8,null,15,85)]},
+];
+function build(c){const H=[];let since=c.since0;
+  for(let t=T0;t<T1;t++){const di=Math.floor(t/24)+1,hr=((t%24)+24)%24,d=c.days[di],f=.5+.5*Math.cos((hr-15)/24*2*Math.PI),rain=d.rain[hr]||0;
+    const air=Math.round(d.lo+(d.hi-d.lo)*f),dew=Math.round(Math.min(air-1,d.dew+(rain?2:0))),sunAt=h=>(h>=7&&h<=19)?Math.sin((h-7)/12*Math.PI)*d.sun:0,rock=Math.round(air+11*sunAt(hr-2)-(rain?2:0));
+    since=rain>=RAIN_RESET?0:since+1;const[lo,hi]=c.win;
+    const dry=rain>0?.05:since<lo?.05+.45*Math.pow(since/lo,1.5):since<hi?.5+.5*Math.pow((since-lo)/(hi-lo),1.6):1;
+    const cold=air>=52?1:air>=35?.62+.022*(air-35):.5,heat=Math.min(air<=62?1:Math.max(.35,1-(air-62)*.035),rock<=60?1:Math.max(.5,1-(rock-60)*.022));
+    const spread=air-dew,hum=spread>=10?1:spread>=5?.8+.04*(spread-5):.6+.04*spread,gap=rock-dew,cond=gap>=4?1:Math.max(.4,.55+.11*gap),fd=Math.pow(dry,.55);
+    const score=Math.round(100*fd*cold*heat*hum*cond);
+    const pens=[['Wet rock',1-fd],['Cool air',1-cold],['Heat',1-heat],['Humidity',1-hum],['Condensation',1-cond]].filter(p=>p[1]>.03).sort((a,b)=>b[1]-a[1]).map(p=>p[0]);
+    const al=!!(c.alert&&di===c.alert.day&&hr>=c.alert.from&&hr<c.alert.to);
+    const lead=Math.max(0,t-NOW), wid=1.2+lead*.05;
+    // chance of rain = share of wet ensemble members; peaks where the median rains
+    const near=[-2,-1,0,1,2].some(k=>d.rain[hr+k]);
+    const chance=Math.round(Math.min(98,rain?Math.max(d.chance,70):near?d.chance*.85:d.chance*.35));
+    const wind=Math.round(5+6*f+(rain?6:0)+(al?8:0)), gust=Math.round(wind*1.6+(al?10:2));
+    H.push({t,di,hr,air,dew,rock,gap,rain,since,dry,word:rain>0||dry<.2?'Wet':dry>=1?'Dry':'Drying',score:al?null:score,pens,alert:al,
+      airLo:Math.round(air-wid),airHi:Math.round(air+wid*1.3),rainHi:+(rain*2.2+(chance/100)*.02).toFixed(3),chance,wind,gust,windLo:Math.round(wind*.7),windHi:Math.round(wind*1.35),
+      hum:Math.max(30,Math.min(99,Math.round(100-spread*3.2))),cloud:rain?'rain':chance>=45?'cloud':chance>=15||d.sun<.5?'partly':'sun',night:hr<7||hr>19});}
+  c.H=H;c.at=t=>H[Math.max(T0,Math.min(T1-1,t))-T0];
+  c.dayScore=di=>{let best=null,start=null;for(let s=8;s<=15;s++){const ts=[0,1,2].map(k=>(di-1)*24+s+k);if(di===1&&ts[0]<NOW)continue;const v=ts.map(t=>c.at(t).score);if(v.includes(null))continue;const m=Math.min(...v);if(best===null||m>best){best=m;start=s;}}return{score:best,start}};
+  c.lastRain=t=>{for(let k=t;k>=T0;k--)if(c.at(k).rain>=RAIN_RESET)return k;return null};}
+CRAGS.forEach(build);
+const hex=s=>s===null?'#6a7a82':s>=75?'#b8f542':s>=50?'#f6ad55':'#fc8181';
+const fi=r=>r?r.toFixed(2).replace(/^0/,''):'0';
+const whyTxt=(c,h)=>h.alert?`${c.alert.text}. Score withheld; readings stay.`:h.pens.length?'Held back by '+h.pens.join(' › ').toLowerCase()+'.':'Nothing holding it back.';
+
+let S={wall:null,route:null,wsort:null,wkind:null,rmArm:false,trip:null,tripCrag:null,tripDay:0,trend:'day',delArm:false,edit:null,draft:null,ferr:'',viz:'strip',vIdx:null,gT:null,screen:'list',crag:'rw',tab:'Overview',sel:NOW,day:1,hIdx:null,pIdx:null,rIdx:null};
+const C=()=>CRAGS.find(c=>c.id===S.crag);
+let uid=0; const id=p=>p+(++uid);
+/* Chart glow, three strengths to compare: blur radius, glow opacity, and a multiplier on line width. */
+let GLOW='soft';const GL={none:{sd:0,a:0,w:.45},soft:{sd:1.6,a:.4,w:.55},orig:{sd:4,a:1,w:1}};
+const gw=w=>+(w*GL[GLOW].w).toFixed(2),shine=a=>`rgba(255,255,255,${(a*GL[GLOW].a).toFixed(2)})`;
+
+function miniShape(score){return `<b class="ms" style="color:${hex(score)}">${score??'—'}</b>`;}
+const count={from:null,to:null,t:1,
+  set(v){if(this.to!==null&&v!==null&&this.to!==v&&!RM){this.from=this.to;this.t=0;}else this.t=1;this.to=v;},
+  tick(dt){if(this.t>=1)return;this.t=Math.min(1,this.t+dt/.7);const e=document.getElementById('heroN');if(!e)return;const k=1-Math.pow(1-this.t,3);e.textContent=Math.round(this.from+(this.to-this.from)*k);}};
+/* wavy progress ring (static waves; the fill pours in on change) */
+function wavyArc(cx,cy,R,frac,amp,k){if(frac<=0)return'';let p='';const N=Math.max(2,Math.round(160*frac));for(let i=0;i<=N;i++){const t=-Math.PI/2+i/N*frac*Math.PI*2,r=R+amp*Math.sin(k*t);p+=(i?'L':'M')+(cx+Math.cos(t)*r).toFixed(1)+' '+(cy+Math.sin(t)*r).toFixed(1);}return p;}
+function dryClock(c,h,size){const f=Math.min(1,h.since/c.win[1]),col=h.word==='Dry'?'#b8f542':h.word==='Drying'?'#f6ad55':'#a5b4fc',g=id('f'),a0=-Math.PI/2+c.win[0]/c.win[1]*Math.PI*2;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 110 110" style="flex:none;overflow:visible" role="img" aria-label="Drying clock: ${h.since} hours since real rain; ${c.rock} dries in ${c.win[0]} to ${c.win[1]} hours">
+    <defs>${defsGlow(g)}</defs><circle cx="55" cy="55" r="40" fill="none" stroke="rgba(255,255,255,.09)" stroke-width="7"/>
+    <line x1="${55+Math.cos(a0)*31}" y1="${55+Math.sin(a0)*31}" x2="${55+Math.cos(a0)*49}" y2="${55+Math.sin(a0)*49}" stroke="#bccad0" stroke-width="2" stroke-linecap="round"/>
+    ${f>0?`<path class="pourc" pathLength="1" d="${wavyArc(55,55,40,f,2.6,12)}" fill="none" stroke="${col}" stroke-width="7" stroke-linecap="round" filter="url(#${g})"/>`:''}
+    <text x="55" y="58" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-weight="700" font-size="24" fill="#f4f7fa">${h.since} h</text>
+    <text x="55" y="72" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="8" fill="#bccad0">since rain</text></svg>`;}
+/* sliding indicator: animates from where it was to the selected button */
+const inds={};
+function slide(sel,act,key){const box=document.querySelector(sel);if(!box)return;const b=box.querySelector(act);if(!b)return;let i=box.querySelector('.ind');if(!i){i=document.createElement('i');i.className='ind';box.appendChild(i);}
+  const prev=inds[key],to={x:b.offsetLeft,w:b.offsetWidth};i.style.transition='none';i.style.left=(prev?prev.x:to.x)+'px';i.style.width=(prev?prev.w:to.w)+'px';void i.offsetWidth;
+  i.style.transition='';i.style.left=to.x+'px';i.style.width=to.w+'px';inds[key]=to;}
+
+/* ===== Glyphs: sun, partly, cloud, rain, moon ===== */
+function glyph(kind,night,size=18){
+  const s=size, sun=`<circle cx="9" cy="9" r="3.6" fill="#ffd36b"/><g stroke="#ffd36b" stroke-width="1.3" stroke-linecap="round">${[0,45,90,135,180,225,270,315].map(a=>{const r=a*Math.PI/180;return `<line x1="${9+Math.cos(r)*5.6}" y1="${9+Math.sin(r)*5.6}" x2="${9+Math.cos(r)*7.4}" y2="${9+Math.sin(r)*7.4}"/>`}).join('')}</g>`;
+  const moon=`<path d="M11.5 3.5a6 6 0 1 0 3.5 10.2A5 5 0 0 1 11.5 3.5z" fill="#dfe6ff"/>`;
+  const cloud=(x,y,c)=>`<path d="M${x} ${y}h8.4a3 3 0 0 0 .2-6 4 4 0 0 0-7.6-.8A2.6 2.6 0 0 0 ${x} ${y}z" fill="${c}"/>`;
+  let g = kind==='rain' ? cloud(3,11,'#b7c3d1')+`<g stroke="#a5b4fc" stroke-width="1.4" stroke-linecap="round"><line x1="6" y1="13" x2="5" y2="16"/><line x1="9.5" y1="13" x2="8.5" y2="16"/><line x1="13" y1="13" x2="12" y2="16"/></g>`
+    : kind==='cloud' ? cloud(3,13,'#c9d3dd')
+    : kind==='partly' ? (night?`<g transform="translate(-2 -2) scale(.8)">${moon}</g>`:`<g transform="translate(-2 -2) scale(.8)">${sun}</g>`)+cloud(5,15,'#d6dee6')
+    : night ? moon : sun;
+  return `<svg width="${s}" height="${s}" viewBox="0 0 18 18" aria-hidden="true">${g}</svg>`;
+}
+function skyHero(h){
+  const k=h.cloud, n=h.night;
+  const sun=`<g class="sunglow"><circle cx="66" cy="52" r="34" fill="#ffd36b" opacity=".18"/></g><g class="rays" stroke="#ffd36b" stroke-width="3" stroke-linecap="round">${Array.from({length:12},(_,i)=>{const a=i*30*Math.PI/180;return `<line x1="${66+Math.cos(a)*28}" y1="${52+Math.sin(a)*28}" x2="${66+Math.cos(a)*38}" y2="${52+Math.sin(a)*38}"/>`}).join('')}</g><circle cx="66" cy="52" r="20" fill="#ffd36b"/>`;
+  const moon=`<path d="M74 24a28 28 0 1 0 16 47 23 23 0 0 1-16-47z" fill="#e3e9ff"/>`;
+  const cloud=(x,y,sc,c)=>`<g class="cloud" transform="translate(${x} ${y}) scale(${sc})"><path d="M0 30h56a18 18 0 0 0 1-36 26 26 0 0 0-49-5A17 17 0 0 0 0 30z" fill="${c}"/></g>`;
+  const drops=Array.from({length:9},(_,i)=>`<line class="drop" x1="${30+i*10}" y1="86" x2="${26+i*10}" y2="96" stroke="#a5b4fc" stroke-width="2.4" stroke-linecap="round" style="animation-delay:${(i*.13).toFixed(2)}s"/>`).join('');
+  let g = k==='rain' ? cloud(20,46,1.2,'#9aa8b8')+cloud(4,58,.9,'#b9c4d0')+drops
+    : k==='cloud' ? cloud(14,40,1.2,'#c3ccd6')+cloud(0,62,.8,'#a9b4c0')
+    : k==='partly' ? (n?moon:sun)+cloud(4,58,1,'#d4dce4')
+    : n ? moon : sun;
+  return `<svg class="sky" viewBox="0 0 132 120" aria-label="${k==='rain'?'Raining':k==='cloud'?'Cloudy':k==='partly'?'Partly cloudy':n?'Clear night':'Sunny'}">${g}</svg>`;
+}
+
+/* ===== shared liquid primitives ===== */
+function smooth(pts){ if(!pts.length) return ''; let d=`M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+  for(let i=0;i<pts.length-1;i++){const p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||p2;d+=` C${(p1[0]+(p2[0]-p0[0])/6).toFixed(1)} ${(p1[1]+(p2[1]-p0[1])/6).toFixed(1)} ${(p2[0]-(p3[0]-p1[0])/6).toFixed(1)} ${(p2[1]-(p3[1]-p1[1])/6).toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;} return d; }
+function ribbon(top,bot){ return smooth(top)+' L'+smooth(bot.slice().reverse()).slice(1)+' Z'; }
+const defsGlow=g=>{const o=GL[GLOW];return o.sd?`<filter id="${g}" x="-20%" y="-50%" width="140%" height="160%"><feGaussianBlur stdDeviation="${o.sd}" result="b"/><feComponentTransfer in="b" result="d"><feFuncA type="linear" slope="${o.a}"/></feComponentTransfer><feMerge><feMergeNode in="d"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`:`<filter id="${g}"><feMerge><feMergeNode in="SourceGraphic"/></feMerge></filter>`;};
+const bead=(x,y,c)=>`<g pointer-events="none"><circle cx="${x}" cy="${y}" r="13" fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/><circle cx="${x}" cy="${y}" r="5" fill="${c}"/></g>`;
+
+/* ===== Overview: the Today chart, liquid ===== */
+function todayChart(c){
+  const W=390,H=230,px=18,top=30,plotB=150,rainTop=plotB+8,rainH=40,scoreY=H-6;
+  const ts=Array.from({length:17},(_,i)=>NOW-6+i), hs_=ts.map(t=>c.at(t));
+  const X=i=>px+i*(W-2*px)/(ts.length-1);
+  const lo=Math.min(...hs_.map(h=>h.dew))-3, hi=Math.max(...hs_.map(h=>h.air))+3, Y=v=>top+(hi-v)/(hi-lo)*(plotB-top);
+  const air=hs_.map((h,i)=>[X(i),Y(h.air)]), dew=hs_.map((h,i)=>[X(i),Y(h.dew)]);
+  const scored=hs_.some(h=>h.score!==null);
+  const gid=id('g'), glow=id('f'), fade=id('m');
+  const stops=hs_.map((h,i)=>`<stop offset="${(i/(ts.length-1)*100).toFixed(1)}%" stop-color="${scored?hex(h.score):'#dfe6ec'}"/>`).join('');
+  const sel=ts.indexOf(S.sel)<0?6:ts.indexOf(S.sel), sh=hs_[sel];
+  const capg=id('cap');
+  const caps=hs_.map((h,i)=>{const w=11,x=X(i)-w/2,fillH=Math.max(1.5,h.chance/100*rainH);return `<rect x="${x}" y="${rainTop}" width="${w}" height="${rainH}" rx="5.5" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.18)"/>
+    <rect class="capsule" x="${x+1}" y="${rainTop+rainH-fillH}" width="${w-2}" height="${fillH}" rx="4.5" fill="url(#${capg})" style="animation-delay:${i*30}ms"/>`;}).join('');
+  const tick=hs_.map((h,i)=>i%3===0?`<g transform="translate(${X(i)-9} 4)">${glyph(h.cloud,h.night)}</g>`:'').join('');
+  const labels=hs_.map((h,i)=>i%3===0?`<text x="${X(i)}" y="${scoreY-14}" font-family="IBM Plex Mono, monospace" font-size="9" fill="#bccad0" text-anchor="middle">${ts[i]===NOW?'now':hs(h.hr)}</text>`:'').join('');
+  const scores=hs_.map((h,i)=>`<text x="${X(i)}" y="${scoreY}" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-weight="700" font-size="${i===sel?15:12}" fill="${scored?hex(h.score):'#bccad0'}" text-anchor="middle" opacity="${ts[i]<NOW?.82:1}">${h.score??'–'}</text>`).join('');
+  const nowX=X(6), len=900;
+  return `<div class="chart" id="today" data-n="${ts.length}" data-x0="${px}" data-w="${W}">
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Today: air temperature coloured by score, dew point dashed, chance of rain as filled capsules, six hours back and ten ahead">
+      <defs><linearGradient id="${gid}">${stops}</linearGradient>${defsGlow(glow)}
+        <linearGradient id="${capg}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e3e8ff"/><stop offset=".25" stop-color="#a5b4fc"/><stop offset="1" stop-color="#6f7fe0"/></linearGradient>
+        <linearGradient id="${fade}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
+      <rect x="${px}" y="${top-6}" width="${nowX-px}" height="${plotB-top+6}" fill="rgba(0,0,0,.18)"/>
+      <line x1="${nowX}" x2="${nowX}" y1="${top-8}" y2="${rainTop+rainH}" stroke="#6fe3ec" stroke-width="1" stroke-dasharray="2 3"/>
+      ${tick}
+      <path d="${smooth(air)} L${X(16)} ${plotB} L${X(0)} ${plotB} Z" fill="url(#${fade})"/>
+      <path d="${smooth(dew)}" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-dasharray="5 4" opacity=".9"/>
+      <path class="tube" d="${smooth(air)}" fill="none" stroke="url(#${gid})" stroke-width="${gw(7)}" stroke-linecap="round" filter="url(#${glow})" style="--len:${len};stroke-dasharray:${len}"/>
+      <path d="${smooth(air)}" fill="none" stroke="${shine(.5)}" stroke-width="1.6" stroke-linecap="round" transform="translate(0 -2)"/>
+      ${caps}
+      ${labels}${scores}
+      <line x1="${X(sel)}" x2="${X(sel)}" y1="${top-8}" y2="${rainTop+rainH}" stroke="rgba(255,255,255,.35)"/>
+      ${bead(X(sel),Y(sh.air),scored?hex(sh.score):'#dfe6ec')}
+      <rect class="hit" x="0" y="0" width="${W}" height="${H}" fill="transparent"/>
+    </svg></div>
+    <div class="keyrow"><span><i style="background:linear-gradient(90deg,#fc8181,#f6ad55,#b8f542)"></i>air, coloured by score</span><span><i style="background:repeating-linear-gradient(90deg,#a5b4fc 0 5px,transparent 5px 9px)"></i>dew point</span><span><i style="background:#a5b4fc;height:8px;width:8px;border-radius:3px"></i>chance of rain</span></div>
+    <div class="read"><div><span>${S.sel===NOW?'Now':hl(sh.hr)}</span><b style="color:${hex(sh.score)}">${sh.score??'—'}</b></div><div><span>Air / dew</span><b>${sh.air}° / ${sh.dew}°</b></div><div><span>Rain</span><b style="color:var(--rain)">${sh.chance}%</b></div><div><span>Dryness</span><b>${sh.word}</b></div></div>
+    <div class="why">${whyTxt(c,sh)}</div>`;
+}
+
+/* ===== Hourly: the app's five charts, liquid, scrubbed together ===== */
+/* ===== Hourly: four charts, scrubbed together. Humidity rides on the temperature chart; rain amount and chance share one. ===== */
+function hourlyCharts(c){
+  const di=S.day, hrs=Array.from({length:24},(_,h)=>c.at((di-1)*24+h)), W=390, px=18, X=i=>px+i*(W-2*px)/23;
+  const idx=S.hIdx??(di===1?NOW:12), sh=hrs[idx];
+  const frame=(H,top,bottom,inner,label,bare=false)=>`<div class="chart hchart" data-w="${W}" data-x0="${px}"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${label}">${inner}
+     ${bare?'':`<line x1="${X(idx)}" x2="${X(idx)}" y1="${top}" y2="${H-bottom}" stroke="rgba(255,255,255,.35)"/>`}
+     ${[0,6,12,18].map(h=>`<text x="${X(h)}" y="${H-2}" font-family="IBM Plex Mono, monospace" font-size="9" fill="#bccad0" text-anchor="middle">${hs(h)}</text>`).join('')}
+     ${di===1&&!bare?`<line x1="${X(NOW)}" x2="${X(NOW)}" y1="${top}" y2="${H-bottom}" stroke="#6fe3ec" stroke-dasharray="2 3"/>`:''}
+     <rect class="hit" x="0" y="0" width="${W}" height="${H}" fill="transparent"/></svg></div>`;
+  const yScale=(vals,top,bot,pad=2)=>{const lo=Math.min(...vals)-pad,hi=Math.max(...vals)+pad;return v=>top+(hi-v)/(hi-lo||1)*(bot-top)};
+  const lab=(x,y,t,anchor,col='#bccad0')=>`<text x="${x}" y="${y}" font-family="IBM Plex Mono, monospace" font-size="9" fill="${col}" text-anchor="${anchor}">${t}</text>`;
+  const grid=(Y,vals,unit,side='end')=>{const lo=Math.min(...vals),hi=Math.max(...vals),step=Math.max(1,Math.round((hi-lo)/3));let o='';for(let v=Math.ceil(lo/step)*step;v<=hi;v+=step)o+=`<line x1="${px}" x2="${W-px}" y1="${Y(v)}" y2="${Y(v)}" stroke="rgba(255,255,255,.06)"/>`+lab(side==='end'?W-px:px,Y(v)-3,v+unit,side);return o;};
+  const tube=(pts,col,w=5)=>{const g=id('f');return `<defs>${defsGlow(g)}</defs><path class="tube" d="${smooth(pts)}" fill="none" stroke="${col}" stroke-width="${gw(w)}" stroke-linecap="round" filter="url(#${g})" style="--len:900;stroke-dasharray:900"/><path d="${smooth(pts)}" fill="none" stroke="${shine(.45)}" stroke-width="1.2" transform="translate(0 -1.5)"/>`;};
+  const frost=(top,bot,col)=>`<path d="${ribbon(top,bot)}" fill="${col}" opacity=".22"/><path d="${smooth(top)}" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="1"/>`;
+  // Temperature, with humidity on its own right-hand scale
+  const tv=hrs.flatMap(h=>[h.airLo,h.airHi,h.dew]),TY=yScale(tv,14,124),HY=v=>14+(1-v/100)*110;
+  const scored=hrs.some(h=>h.score!==null), gid=id('g');
+  const tStops=hrs.map((h,i)=>`<stop offset="${(i/23*100).toFixed(1)}%" stop-color="${scored?hex(h.score):'#dfe6ec'}"/>`).join('');
+  const goodCols=hrs.map((h,i)=>h.score!==null&&h.score>=75?`<rect x="${X(i)-7.5}" y="10" width="15" height="118" fill="#1DC5D2" opacity=".09"/>`:'').join('');
+  const temp=frame(150,10,22,`<defs><linearGradient id="${gid}">${tStops}</linearGradient></defs>${grid(TY,tv,'°','start')}${goodCols}
+    ${[50,100].map(v=>lab(W-px,HY(v)+(v===100?9:-3),v+'%','end','#c3a6ff')).join('')}
+    ${frost(hrs.map((h,i)=>[X(i),TY(h.airHi)]),hrs.map((h,i)=>[X(i),TY(h.airLo)]),'#cfe8ff')}
+    <path d="${smooth(hrs.map((h,i)=>[X(i),HY(h.hum)]))}" fill="none" stroke="#c3a6ff" stroke-width="1.8" opacity=".85"/>
+    <path d="${smooth(hrs.map((h,i)=>[X(i),TY(h.dew)]))}" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-dasharray="5 4"/>
+    ${tube(hrs.map((h,i)=>[X(i),TY(h.air)]),`url(#${gid})`,6)}
+    <circle cx="${X(idx)}" cy="${HY(sh.hum)}" r="3.5" fill="#c3a6ff"/>${bead(X(idx),TY(sh.air),scored?hex(sh.score):'#dfe6ec')}
+    ${hrs.map((h,i)=>i%3===0?`<g transform="translate(${X(i)-7} -2) scale(.78)">${glyph(h.cloud,h.night)}</g>`:'').join('')}`,'Temperature, dew point and humidity by hour');
+  const mxC=hrs.reduce((m,h)=>h.chance>m.chance?h:m,hrs[0]),dryDay=hrs.every(h=>h.rain===0)&&mxC.chance<10;
+  // Rain: chance of rain as columns (left scale), amount as the line with its range (right scale)
+  const rv=hrs.flatMap(h=>[h.rain,h.rainHi]),rmax=Math.max(.02,...rv),RY=v=>14+(1-v/rmax)*92,CY=v=>14+(1-v/100)*92;
+  const rain=frame(140,10,22,`${[0,50,100].map(v=>`<line x1="${px}" x2="${W-px}" y1="${CY(v)}" y2="${CY(v)}" stroke="rgba(255,255,255,.06)"/>`+lab(px,CY(v)-3,v+'%','start')).join('')}
+    ${dryDay?'':lab(W-px,RY(rmax)+9,fi(rmax)+' in','end','#d6dcff')+lab(W-px,RY(rmax/2)-3,fi(rmax/2),'end','#d6dcff')}
+    ${dryDay?'':`${hrs.map((h,i)=>`<rect class="capsule" x="${X(i)-5}" y="${CY(h.chance)}" width="10" height="${(106-CY(h.chance)).toFixed(1)}" rx="5" fill="#a5b4fc" opacity="${i===idx?.55:.24}" style="animation-delay:${i*20}ms"/>`).join('')}
+    ${frost(hrs.map((h,i)=>[X(i),RY(h.rainHi)]),hrs.map((h,i)=>[X(i),RY(0)]),'#e0e5ff')}
+    ${tube(hrs.map((h,i)=>[X(i),RY(h.rain)]),'#dfe4ff',3.5)}${bead(X(idx),RY(sh.rain),'#a5b4fc')}`}`,dryDay?'Rain by hour: dry all day':'Rain by hour: chance of rain as columns, amount as a line with its range',dryDay);
+  // Wind
+  const wv=hrs.flatMap(h=>[h.windLo,h.gust]),WY=yScale(wv,12,98,1);
+  const wind=frame(120,10,22,`${grid(WY,wv,'')}${frost(hrs.map((h,i)=>[X(i),WY(h.windHi)]),hrs.map((h,i)=>[X(i),WY(h.windLo)]),'#7fd1c4')}
+    <path d="${smooth(hrs.map((h,i)=>[X(i),WY(h.gust)]))}" fill="none" stroke="#e8fbf7" stroke-width="2" stroke-dasharray="5 4"/>${tube(hrs.map((h,i)=>[X(i),WY(h.wind)]),'#7fd1c4',5)}${bead(X(idx),WY(sh.wind),'#7fd1c4')}`,'Wind by hour');
+  const chips=[1,2,3,4,5,6,7].map(d=>`<button data-day="${d}" aria-pressed="${d===di}">${DN[d]}</button>`).join('');
+  return `<div class="daychips" role="group" aria-label="Day">${chips}</div>
+    <div class="sect">Temperature and humidity<em>°F left · humidity right · air ICON</em></div>${temp}
+    <div class="keyrow"><span><i style="background:linear-gradient(90deg,#fc8181,#f6ad55,#b8f542)"></i>air</span><span><i style="background:repeating-linear-gradient(90deg,#a5b4fc 0 5px,transparent 5px 9px)"></i>dew point</span><span><i style="background:#c3a6ff"></i>humidity</span><span><i style="background:#cfe8ff;opacity:.5;height:8px"></i>range</span><span><i style="background:#1DC5D2;opacity:.4;height:8px"></i>good hours</span></div>
+    <div class="sect">Rain<em>chance left · in / hr right · median of 4 models</em></div>${dryDay?`<div class="drywrap">${rain}<div class="dryover"><b>Dry all day</b><span>No measurable rain in any hour of the four-model median. Highest chance ${mxC.chance}%, at ${hl(mxC.hr)}.</span></div></div>`:rain}${dryDay?'':`<div class="keyrow"><span><i style="background:#a5b4fc;opacity:.5;width:8px;height:10px;border-radius:4px"></i>chance of rain</span><span><i style="background:#dfe4ff"></i>amount</span><span><i style="background:#e0e5ff;opacity:.4;height:8px"></i>amount range, p10–p90</span></div>`}
+    <div class="sect">Wind<em>mph · ICON</em></div>${wind}
+    <div class="keyrow"><span><i style="background:#7fd1c4"></i>sustained</span><span><i style="background:repeating-linear-gradient(90deg,#e8fbf7 0 5px,transparent 5px 9px)"></i>gusts</span><span><i style="background:#7fd1c4;opacity:.4;height:8px"></i>range</span></div>
+    <p class="foot">The range bands are the 10th to 90th percentile for one hour; they are never added up. Chance of rain is the share of wet ensemble members. ${DN[di]}: ${c.days[di].chance}% chance of rain · Agreement ${c.days[di].agree}%. Agreement is the share of forecast runs that agree on rain or no rain that day.</p>`;
+}
+/* ===== Daily, Precip, Rock ===== */
+const dkey=(c,di)=>{const ds=c.dayScore(di);return ds.score===null?'Withheld':c.at((di-1)*24+ds.start+1).word;};
+const dayGlyph=d=>Object.keys(d.rain).length?'rain':d.chance>=45?'cloud':d.chance>=15||d.sun<.5?'partly':'sun';
+function dailyTab(c){
+  const ds=[1,2,3,4,5,6,7].map(di=>({di,d:c.days[di],ds:c.dayScore(di)}));
+  const lo=Math.min(...ds.map(x=>x.d.lo)),hi=Math.max(...ds.map(x=>x.d.hi)),P=v=>((v-lo)/(hi-lo||1)*100).toFixed(1);
+  const best=ds.filter(x=>x.ds.score!==null).sort((a,b)=>b.ds.score-a.ds.score)[0];
+  const rows=ds.map((x,i)=>{const al=c.alert&&c.alert.day===x.di;
+    const sub=x.ds.score===null?(al?`<span style="color:var(--poor)">${c.alert.text}</span>`:'no full window'+(x.di===1?' left today':'')):(al?`<span style="color:var(--poor)">Alert ${hs(c.alert.from)}–${hs(c.alert.to)}</span> · `:'')+`best ${hs(x.ds.start)}–${hs(x.ds.start+3)}`+(al?'':` · ${dkey(c,x.di)}`);
+    const pk=Math.max(...Array.from({length:24},(_,h)=>c.at((x.di-1)*24+h).gust)),sub2=`${fi(dayAmt(c,x.di))} in · peak wind ${pk} mph`;
+    return `<button class="drow" data-openday="${x.di}" style="animation-delay:${i*45}ms" aria-label="${DL[x.di]}: score ${x.ds.score??'none'}, high ${x.d.hi}, low ${x.d.lo}, ${x.d.chance}% chance of rain">
+      ${glyph(dayGlyph(x.d),false,22)}<span class="nm">${DN[x.di]}</span>${miniShape(x.ds.score,dkey(c,x.di))}
+      <span class="tcell"><span class="lo">${x.d.lo}°</span><span class="hi">${x.d.hi}°</span><span class="tbar" style="display:block;margin-top:12px"><i style="left:${P(x.d.lo)}%;right:${(100-P(x.d.hi)).toFixed(1)}%"></i></span></span>
+      <span style="font-family:var(--display);font-weight:600;font-size:16px;color:var(--rain);text-align:right">${x.d.chance}%</span><span class="dsub">${sub} · ${sub2}</span></button>`;}).join('');
+  return `<div class="sect">Seven days<em>score · low–high · chance of rain</em></div><div class="drows">${rows}</div>
+    <p class="foot">A day score is the worst hour of the best three-hour run between 8 AM and 6 PM; today counts only hours still ahead. Chance of rain is the share of wet ensemble members. Tap a day for its hours.</p>`;
+}
+/* ===== Precip: the past week, as the app's Precip tab has it, then the next two days =====
+   Past hours before the forecast window are sample storms placed so they agree with each crag's
+   hours since real rain. In the app they are the models' own analysis, not gauge readings. */
+const HIST={rw:[[-50,6,.12],[-38,2,.018],[-120,9,.08]],tf:[[-58,4,.07],[-140,11,.05]],ph:[[-72,8,.1],[-50,1,.02]],wr:[[-54,4,.15],[-100,5,.06]]};
+const WK=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],dayShort=di=>di===1?'Today':WK[((3+di-1)%7+7)%7];
+const whenP=t=>{const di=Math.floor(t/24)+1;return `${di===1?'today':dayShort(di)} ${hl(t)}`;};
+const PSTEP=[[0,'#3c4675'],[RAIN_RESET,'#5d6dd2'],[.08,'#8695f2'],[.12,'#b5c0ff'],[.2,'#e6eaff']];
+const pstep=r=>{let col=PSTEP[0][1];for(const [m,cl] of PSTEP)if(r>=m)col=cl;return col;};
+const ROCKC={Dry:'#b8f542',Drying:'#f6ad55',Wet:'#fc8181'};
+function hist(c){if(c._hist)return c._hist;const out=[],[lo,hi]=c.win;let since=200;
+  const rainAt=t=>{let r=0;for(const [s0,L,pk] of HIST[c.id]||[]){const k=t-s0;if(k>=0&&k<L){const v=pk*Math.sin(Math.PI*(k+.5)/L);r=Math.max(r,pk>=RAIN_RESET?Math.max(RAIN_RESET+.006,v):v);}}return +r.toFixed(3);};
+  for(let t=NOW-167;t<=NOW;t++){let rain,word;
+    if(t>=T0){const h=c.at(t);rain=h.rain;word=h.word;}
+    else{rain=rainAt(t);since=rain>=RAIN_RESET?0:since+1;const dry=rain>0?.05:since<lo?.05+.45*Math.pow(since/lo,1.5):since<hi?.5+.5*Math.pow((since-lo)/(hi-lo),1.6):1;word=rain>0||dry<.2?'Wet':dry>=1?'Dry':'Drying';}
+    out.push({t,di:Math.floor(t/24)+1,hr:((t%24)+24)%24,rain,word,real:rain>=RAIN_RESET});}
+  return c._hist=out;}
+function precipSummary(c){const H=hist(c);let li=-1;for(let i=H.length-1;i>=0;i--)if(H[i].real){li=i;break;}
+  const r={H,li,last:li<0?null:H[li],since:li<0?null:NOW-H[li].t,raining:li>=0&&H[li].t===NOW};
+  if(li>=0){let s=li;while(s>0&&H[s-1].rain>0)s--;r.evTotal=H.slice(s,li+1).reduce((a,h)=>a+h.rain,0);r.evSpan=li-s+1;}
+  r.light=H.slice(li+1).filter(h=>h.rain>0);r.lightSum=r.light.reduce((a,h)=>a+h.rain,0);
+  const today=H.filter(h=>h.di===1);r.todaySum=today.reduce((a,h)=>a+h.rain,0);r.todayWet=today.filter(h=>h.rain>0).length;
+  r.week=H.reduce((a,h)=>a+h.rain,0);r.wetH=H.filter(h=>h.rain>0).length;
+  r.events=[];for(let i=0;i<H.length;i++){if(H[i].rain>0&&(i===H.length-1||H[i+1].rain===0)){let s=i;while(s>0&&H[s-1].rain>0)s--;const ev=H.slice(s,i+1);if(ev.some(h=>h.real))r.events.push({s,e:i,total:ev.reduce((a,h)=>a+h.rain,0)});}}
+  return r;}
+function ptAt(c,t){if(t<=NOW){const h=hist(c).find(x=>x.t===t);return h&&{t,di:h.di,hr:h.hr,rain:h.rain,word:h.word,real:h.real,past:true};}
+  const h=c.at(t);return {t,di:h.di,hr:h.hr,rain:h.rain,rainHi:h.rainHi,chance:h.chance,word:h.word,real:h.rain>=RAIN_RESET,past:false};}
+function gridReadout(P,c){const h=ptAt(c,S.gT);if(!h)return '';const dn=h.di===1?'Today':h.di>1?DN[h.di]:dayShort(h.di);
+  return `<div class="read"><div><span>${dn} ${hl(h.hr)}</span><b style="color:var(--rain)">${h.rain>0?fi(h.rain)+' in':'None'}</b></div>`+
+    (h.past?`<div><span>Resets drying</span><b>${h.real?'Yes':'No'}</b></div>`:`<div><span>Chance</span><b style="color:var(--rain)">${h.chance}%</b></div>`)+
+    `<div><span>Rock</span><b style="color:${ROCKC[h.word]}">${h.word}</b></div><div><span>${h.past?'Day total':'Up to (p90)'}</span><b>${h.past?fi(hist(c).filter(x=>x.di===h.di).reduce((a,x)=>a+x.rain,0)):fi(h.rainHi)}</b></div></div>`;}
+/* the past week and the next two days on one line: rain as liquid, the week's running total as a glowing tube, the rock as a ribbon */
+const PTL={n:216,W:390,px:18};
+function ptlSvg(c,P,q){const {n,W,px}=PTL,t0=NOW-167,Hh=214,top=34,base=130,rb=146,X=i=>px+i*(W-2*px)/(n-1),nowX=X(167);
+  const pts=Array.from({length:n},(_,i)=>ptAt(c,t0+i)),rmax=Math.max(.05,...pts.map(p=>p.rain))*1.15,RY=v=>base-v/rmax*(base-top);
+  let cum=0;const cpts=pts.slice(0,168).map((p,i)=>{cum+=p.rain;return [X(i),cum];}),cmax=Math.max(.1,cum),CYv=v=>base-v/cmax*(base-top)*.55;
+  const g=id('f'),rg=id('r'),pg=id('p');
+  const days=pts.map((p,i)=>p.hr===0?`<line x1="${X(i)}" x2="${X(i)}" y1="${top-8}" y2="${rb+14}" stroke="rgba(255,255,255,.08)"/><text x="${X(i)+3}" y="${Hh-4}" font-family="IBM Plex Mono, monospace" font-size="9" fill="${p.past?'#bccad0':'#c9d6dc'}">${p.di===1?'Today':p.di>1?DN[p.di].slice(0,3):dayShort(p.di)}</text>`:'').join('');
+  const past=pts.slice(0,168).map((p,i)=>[X(i),RY(p.rain)]),fut=pts.slice(167).map((p,i)=>[X(i+167),RY(p.rain)]),futHi=pts.slice(167).map((p,i)=>[X(i+167),Math.max(top-8,RY(p.rainHi??p.rain))]);
+  const stops=pts.map((p,i)=>`<stop offset="${(i/(n-1)*100).toFixed(2)}%" stop-color="${ROCKC[p.word]}"/>`).filter((s,i)=>i===0||i===n-1||pts[i].word!==pts[i-1].word||pts[i+1]&&pts[i+1].word!==pts[i].word).join('');
+  const storms=P.events.slice().sort((a,b)=>b.total-a.total).slice(0,3).map(e=>{const i=e.e,x=X(i),y=RY(Math.max(...pts.slice(e.s,e.e+1).map(p=>p.rain)));return `<text x="${Math.max(px+16,Math.min(nowX-16,x))}" y="${Math.max(top-2,y-8)}" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-weight="600" font-size="12" fill="#d6dcff">${fi(e.total)} in</text>`;}).join('');
+  const si=S.gT===null||S.gT===undefined?167:Math.max(0,Math.min(n-1,S.gT-t0)),sp=pts[si];
+  return `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Rain over the past seven days and the next two, with the week's running total and the rock's state beneath">
+    <defs>${defsGlow(g)}<linearGradient id="${rg}">${stops}</linearGradient><linearGradient id="${pg}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c7d0ff" stop-opacity=".85"/><stop offset="1" stop-color="#6f7fe0" stop-opacity=".15"/></linearGradient></defs>
+    <rect x="${px}" y="${top-10}" width="${nowX-px}" height="${rb+14-top+10}" fill="rgba(0,0,0,.16)"/>${days}
+    <path d="${smooth(past)} L${nowX} ${base} L${px} ${base} Z" fill="url(#${pg})"/>
+    <path d="${ribbon(futHi,fut.map(p=>[p[0],base]))}" fill="#a5b4fc" opacity=".16"/>
+    <path d="${smooth(fut)} L${X(n-1)} ${base} L${nowX} ${base} Z" fill="url(#${pg})" opacity=".55"/>
+    <path class="${q?'':'tube'}" d="${smooth(cpts.map(p=>[p[0],CYv(p[1])]))}" fill="none" stroke="#eef2ff" stroke-width="1.8" stroke-linecap="round" opacity=".75" style="--len:900;stroke-dasharray:900"/>
+    <text x="${nowX-4}" y="${CYv(cmax)+15}" text-anchor="end" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-weight="700" font-size="12" fill="#eef2ff" opacity=".85">${fi(cmax)} in this week</text>
+    ${storms}
+    <rect x="${px}" y="${rb}" width="${W-2*px}" height="11" rx="5.5" fill="url(#${rg})" opacity=".85" filter="url(#${g})"/>
+    <line x1="${nowX}" x2="${nowX}" y1="${top-10}" y2="${rb+14}" stroke="#6fe3ec" stroke-dasharray="2 3"/><text x="${nowX+4}" y="${rb-4}" font-family="IBM Plex Mono, monospace" font-size="9" fill="#6fe3ec">now</text>
+    <line x1="${X(si)}" x2="${X(si)}" y1="${top-6}" y2="${rb+12}" stroke="rgba(255,255,255,.5)"/>${bead(X(si),RY(sp.rain),'#a5b4fc')}<circle cx="${X(si)}" cy="${rb+5.5}" r="4" fill="${ROCKC[sp.word]}" stroke="#06090b" stroke-width="1.5"/>
+    <rect class="hit" x="0" y="0" width="${W}" height="${Hh}" fill="transparent"/></svg>`;}
+function precipGrid(P){const by={};P.H.forEach(h=>by[h.t]=h);const rows=[];for(let di=1;di>=-5;di--)rows.push(di);
+  return `<div class="phead"><span></span><div>${['12a','6a','12p','6p'].map(l=>`<span>${l}</span>`).join('')}</div><span></span></div>
+    <div class="pgrid">${rows.map((di,r)=>{const hrs=Array.from({length:24},(_,hr)=>by[(di-1)*24+hr]),have=hrs.filter(Boolean),sum=have.reduce((a,h)=>a+h.rain,0);
+    return `<div class="prow" style="--r:${r}"><span class="pd">${dayShort(di)}</span><div class="pcells" data-di="${di}">${hrs.map((h,hr)=>{const t=(di-1)*24+hr;
+      if(!h)return `<i class="${t>NOW?'ahead':'none'}"></i>`;
+      return `<i class="${t===S.gT?'sel':''}" data-t="${t}"${h.rain>0?` style="background:${pstep(h.rain)}"`:''}></i>`;}).join('')}</div>
+      <span class="pt">${have.length?(sum===0?'<em>dry</em>':sum<.005?'tr':fi(sum)):'—'}</span></div>`;}).join('')}</div>`;}
+/* the next 48 hours: rain as the liquid line with its range, chance of rain as columns beneath */
+function forecastChart(c){const n=48,t0=NOW,hh=Array.from({length:n},(_,i)=>c.at(t0+i)),W=390,Hc=176,px=18,X=i=>px+i*(W-2*px)/(n-1);
+  const idx=Math.min(n-1,S.pIdx??0),sh=hh[idx],rmax=Math.max(.02,...hh.map(h=>h.rainHi)),RY=v=>16+(1-v/rmax)*80,capT=110,capH=36,CY=v=>capT+capH-v/100*capH;
+  const when=t=>{const di=Math.floor(t/24)+1;return `${DN[di]==='Today'?'Today':DN[di]} ${hl(t)}`;};
+  const dl=hh.map((h,i)=>h.hr===0?`<line x1="${X(i)}" x2="${X(i)}" y1="8" y2="${capT+capH}" stroke="rgba(255,255,255,.1)"/><text x="${X(i)+4}" y="${Hc-2}" font-family="IBM Plex Mono, monospace" font-size="9" fill="#bccad0">${DN[h.di]}</text>`:(h.hr===12?`<text x="${X(i)}" y="${Hc-2}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9" fill="#6a7a82">12p</text>`:'')).join('');
+  const caps=hh.map((h,i)=>`<rect class="capsule" x="${X(i)-2.4}" y="${CY(h.chance)}" width="4.8" height="${(capT+capH-CY(h.chance)).toFixed(1)}" rx="2.4" fill="#a5b4fc" opacity="${i===idx?.95:.5}" style="animation-delay:${i*12}ms"/>`).join('');
+  const g=id('f');
+  return `<div class="chart" id="pchart" data-w="${W}" data-x0="${px}"><svg viewBox="0 0 ${W} ${Hc}" role="img" aria-label="Rain, next 48 hours: hourly median with its p10 to p90 range; chance of rain beneath">
+    <defs>${defsGlow(g)}</defs>${dl}
+    <text x="${W-px}" y="${RY(rmax)+9}" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="9" fill="#d6dcff">${fi(rmax)} in</text>
+    <text x="${W-px}" y="${capT+8}" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="9" fill="#bccad0">100%</text>
+    <path d="${ribbon(hh.map((h,i)=>[X(i),RY(h.rainHi)]),hh.map((h,i)=>[X(i),RY(0)]))}" fill="#a5b4fc" opacity=".2"/>
+    <path d="${smooth(hh.map((h,i)=>[X(i),RY(h.rain)]))} L${X(n-1)} ${RY(0)} L${X(0)} ${RY(0)} Z" fill="#a5b4fc" opacity=".3"/>
+    <path class="tube" d="${smooth(hh.map((h,i)=>[X(i),RY(h.rain)]))}" fill="none" stroke="#c7d0ff" stroke-width="${gw(4)}" stroke-linecap="round" filter="url(#${g})" style="--len:1200;stroke-dasharray:1200"/>
+    ${caps}<text x="${X(0)}" y="10" font-family="IBM Plex Mono, monospace" font-size="9" fill="#6fe3ec">now</text>
+    <line x1="${X(idx)}" x2="${X(idx)}" y1="12" y2="${capT+capH}" stroke="rgba(255,255,255,.35)"/>${bead(X(idx),RY(sh.rain),'#a5b4fc')}
+    <rect class="hit" x="0" y="0" width="${W}" height="${Hc}" fill="transparent"/></svg></div>
+    <div class="keyrow"><span><i style="background:#c7d0ff"></i>amount, median</span><span><i style="background:#a5b4fc;opacity:.4;height:8px"></i>range, p10–p90</span><span><i style="background:#a5b4fc;width:5px;height:10px;border-radius:3px"></i>chance of rain</span></div>
+    <div class="read"><div><span>${when(t0+idx)}</span><b style="color:var(--rain)">${sh.rain>0?fi(sh.rain)+' in':'None'}</b></div><div><span>Up to (p90)</span><b>${fi(sh.rainHi)}</b></div><div><span>Chance</span><b style="color:var(--rain)">${sh.chance}%</b></div><div><span>Rock</span><b style="color:${ROCKC[sh.word]}">${sh.word}</b></div></div>`;}
+function precipTab(c){
+  const P=precipSummary(c),nowH=c.at(NOW);if(S.gT===null||S.gT===undefined){const w=P.H.filter(h=>h.rain>0).pop();S.gT=w?w.t:NOW;}
+  let dryAt=null;if(nowH.word!=='Dry')for(let t=NOW;t<T1;t++){if(c.at(t).word==='Dry'){dryAt=t;break;}}
+  const when=t=>{const di=Math.floor(t/24)+1;return `${DN[di]==='Today'?'today':DN[di]} ${hl(t)}`;};
+  const head=P.last===null?`<span class="lab">Last rain</span><div class="bigx">None</div><div class="why">in the past 7 days${P.wetH?' · light showers only':''}</div>`
+    :P.raining?`<span class="lab">Raining now</span><div class="bigx">${fi(P.evTotal)}<small> in</small></div><div class="why">so far, over ${P.evSpan} h</div>`
+    :`<span class="lab">Last rain</span><div class="bigx">${P.since<48?P.since:Math.round(P.since/24)}<small> ${P.since<48?(P.since===1?'hour':'hours'):'days'} ago</small></div><div class="why">${whenP(P.last.t)} · ${fi(P.evTotal)} in over ${P.evSpan} h</div>`;
+  const light=P.last!==null&&P.light.length?`<div class="why">Light showers since: ${fi(P.lightSum)} in, last ${whenP(P.light[P.light.length-1].t)}</div>`:'';
+  const list=[1,2,3,4,5,6,7].map(di=>{const hrs=Array.from({length:24},(_,h)=>c.at((di-1)*24+h)),wet=hrs.reduce((m,h)=>h.rain>m.rain?h:m,hrs[0]);
+    return `<div class="line"><span>${glyph(dayGlyph(c.days[di]),false,18)} ${DN[di]} <span style="color:var(--muted);font-size:12px">· Agreement ${c.days[di].agree}%</span></span><b style="color:var(--rain)">${c.days[di].chance}%</b>
+      <small>${wet.rain>0?`Wettest hour ${hl(wet.hr)}: ${fi(wet.rain)} in median, up to ${fi(wet.rainHi)} in (p90)`:'No hour with measurable rain in the median'}</small></div>`;}).join('');
+  return `<div class="statrow">${dryClock(c,nowH,104)}<div class="lastr">${head}${light}</div></div>
+    <div class="stat3"><div><span>Today</span><b>${fi(P.todaySum)}<small> in</small></b><small>${P.todayWet} ${P.todayWet===1?'hour':'hours'} with rain</small></div><div><span>This week</span><b>${fi(P.week)}<small> in</small></b><small>${P.wetH} ${P.wetH===1?'hour':'hours'} with rain</small></div><div><span>Dry again</span><b>${nowH.word==='Dry'?'Now':dryAt!==null?`${DN[Math.floor(dryAt/24)+1]==='Today'?'':DN[Math.floor(dryAt/24)+1].slice(0,3)+' '}${hs(dryAt)}`:'7 d +'}</b><small>${nowH.word==='Dry'?'rock is dry':'on this forecast'}</small></div></div>
+    <div class="sect">Every hour<em>past week · tap or drag</em></div>
+    <div id="pread">${gridReadout(P,c)}</div>${precipGrid(P)}
+    <div class="sect">Next 48 hours<em>four-model median · drag to read</em></div>${forecastChart(c)}
+    <div class="sect">By day<em>chance of rain · wettest hour</em></div><div class="lines">${list}</div>
+    <p class="foot">Rain here means ${RAIN_RESET.toFixed(2)} in or more in an hour; lighter showers are shown but don't reset drying. Amounts are the hourly median of GFS, ECMWF, ICON and GEM; past hours are the models' own analysis, not gauge readings. In the next 48 hours the shaded band is the 10th to 90th percentile for one hour and is never added up. Chance of rain is the share of wet ensemble members.</p>`;}
+function bindGrid(){
+  const tl=null;if(tl){let down=false;const pick=e=>{const r=tl.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*PTL.W,i=Math.max(0,Math.min(PTL.n-1,Math.round((x-PTL.px)/((PTL.W-2*PTL.px)/(PTL.n-1))))),t=NOW-167+i;if(t!==S.gT){S.gT=t;redrawPane();}};
+    tl.addEventListener('pointerdown',e=>{down=true;tl.setPointerCapture(e.pointerId);pick(e);});tl.addEventListener('pointermove',e=>{if(down)pick(e);});tl.addEventListener('pointerup',()=>down=false);}
+  document.querySelectorAll('.pcells').forEach(row=>{if(!row.addEventListener)return;let down=false;
+  const pick=e=>{const r=row.getBoundingClientRect(),hr=Math.max(0,Math.min(23,Math.floor((e.clientX-r.left)/r.width*24))),t=(+row.dataset.di-1)*24+hr;if(t>NOW||t<NOW-167||t===S.gT)return;S.gT=t;redrawPane();};
+  row.addEventListener('pointerdown',e=>{down=true;row.setPointerCapture(e.pointerId);pick(e);});row.addEventListener('pointermove',e=>{if(down)pick(e);});row.addEventListener('pointerup',()=>down=false);});}
+
+/* ===== The slim header: each tab's key figure ===== */
+function bestDay(c){return [1,2,3,4,5,6,7].map(di=>({di,ds:c.dayScore(di)})).filter(x=>x.ds.score!==null).sort((a,b)=>b.ds.score-a.ds.score)[0]||null;}
+function slimInfo(c){const now=c.at(NOW);
+  if(S.tab==='Daily'){const b=bestDay(c);return b?{v:b.ds.score,col:hex(b.ds.score),lab:'best day',line:`Best window ${DL[b.di]} ${hl(b.ds.start)}–${hl(b.ds.start+3)} · ${dkey(c,b.di)}`}:{v:null,col:hex(null),lab:'no window',line:'No full three-hour window in seven days'};}
+  if(S.tab==='Hourly'){const di=S.day,idx=S.hIdx??(di===1?NOW:12),h=c.at((di-1)*24+idx);return {v:h.score,col:hex(h.score),lab:`${DN[di]} ${hl(idx)}`,line:`Air ${h.air}° · dew ${h.dew}° · rain ${fi(h.rain)} in, ${h.chance}% · humidity ${h.hum}% · wind ${h.wind}/${h.gust} mph`+(h.alert?' · alert, score withheld':'')};}
+  if(S.tab==='Precip')return {v:c.days[1].chance,unit:'%',col:'var(--rain)',lab:'chance today',line:now.rain>0?'Raining now · Dryness: Wet':`Last real rain ${now.since} h ago · Dryness: ${now.word}`};
+  if(S.tab==='Rock'){const g=ROCKG[c.rock];return {v:now.score,col:hex(now.score),lab:now.score===null?'withheld':'score now',line:`${c.rock} · drying after rain: ${DPL[g.dries].toLowerCase()} · ${WSL[g.wet].toLowerCase()} when wet`};}
+  return {v:now.score,col:hex(now.score),lab:now.score===null?'withheld':'score now',line:`Dryness: ${now.word} · ${now.since} h since rain · ${c.rock}`};}
+function slimInner(c){const i=slimInfo(c),v=i.v===null?'—':(count.t<1&&count.from!==null?count.from:i.v);
+  return `<div class="sl"><div class="nm">${c.name}</div><div class="mt">${i.line}</div></div><div class="sc" style="color:${i.col}"><span class="v" id="heroN">${v}</span>${i.unit&&i.v!==null?`<span class="u">${i.unit}</span>`:''}<small>${i.lab}</small></div>`;}
+function dockHtml(){return '<div class="tabs" role="tablist">'+['Overview','Daily','Hourly','Precip','Rock','Crag'].map(t=>`<button role="tab" aria-selected="${t===S.tab}" data-tab="${t}">${t}</button>`).join('')+'</div>';}
+
+/* ===== The Conditions list and the app's own bar ===== */
+const APP=[['main','Main','<path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/>'],['conditions','Conditions','<circle cx="9" cy="8.5" r="3.2"/><path d="M7.5 19h9a3.5 3.5 0 0 0 0-7 5 5 0 0 0-9.4 1.4A2.9 2.9 0 0 0 7.5 19z"/>'],
+  ['trips','Trips','<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>'],['map','Map','<path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14M15 6v14"/>'],
+  ['crags','Crags','<path d="M2 20l7-12 4 6 3-4 6 10z"/>'],['profile','Profile','<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>']];
+function appbarHtml(){return APP.map(([k,l,p])=>`<button data-app="${k}"${k==='conditions'?' aria-current="page"':''}><svg viewBox="0 0 24 24" aria-hidden="true">${p}</svg>${l}</button>`).join('');}
+function listScreen(){
+  const rows=CRAGS.map((c,i)=>{const h=c.at(NOW),ds=c.dayScore(1),al=c.alert&&c.alert.day===1;
+    const sub=al?`<small class="al">${c.alert.text}</small>`:`<small>${ds.score!==null?`Best today ${hl(ds.start)}–${hl(ds.start+3)} at ${ds.score}`:'No full window left today'}</small>`;
+    return `<button class="crow${S.hold===c.id?' hold':''}" data-open="${c.id}" style="--i:${i}"><span class="gl">${glyph(h.cloud,h.night,30)}</span><span class="cm"><span class="cn">${c.short}</span><small>Dryness: ${h.word} · ${c.rock}</small>${sub}</span><span class="cs" style="color:${hex(h.score)}"><span class="num"${h.score!==null&&S.hold!==c.id?` data-v="${h.score}"`:''}>${h.score??'—'}</span><small>${h.score===null?'withheld':'now'}</small></span><span class="chev" aria-hidden="true">›</span></button>`;}).join('');
+  return `<div class="pad"><div class="lhead"><h2>Conditions</h2><small>Your crags · ${hl(NOW)}</small></div><section class="gc gl clist">${rows}</section>
+    <p class="foot">Tap a crag. The app's bar slides away and the crag's sections take its place. The back arrow, or a swipe in from the left edge, brings the bar back.</p></div>`;}
+function bars(){const ab=document.getElementById('appbar');ab.querySelectorAll('[data-app]').forEach(b=>{const on=(b.dataset.app==='conditions'&&S.screen==='list')||(b.dataset.app==='trips'&&S.screen==='trips');on?b.setAttribute('aria-current','page'):b.removeAttribute('aria-current');});ab.classList.toggle('away',!(S.screen==='list'||S.screen==='trips'));document.getElementById('dock').classList.toggle('away',S.screen!=='crag');return;document.getElementById('appbar').classList.toggle('away',S.screen!=='list');document.getElementById('dock').classList.toggle('away',S.screen==='list');}
+/* Motion helpers. flyFrom: FLIP an element from where something else stood. countUp: a number counting in. */
+function flyFrom(el,from,dur=.62,delay=0){if(!el||!from||RM)return;const to=el.getBoundingClientRect();if(!to.height)return;const k=from.height/to.height;
+  el.classList.add('flying');el.style.transformOrigin='0 0';el.style.transition='none';el.style.transform=`translate(${from.left-to.left}px,${from.top-to.top}px) scale(${k})`;void el.offsetWidth;
+  el.style.transition=`transform ${dur}s cubic-bezier(.2,.9,.25,1) ${delay}s`;el.style.transform='';setTimeout(()=>{el.style.transition='';el.style.transformOrigin='';el.classList.remove('flying');},(dur+delay)*1000+60);}
+function countUp(el,to,delay){if(RM){el.textContent=to;return;}const t0=performance.now()+delay;el.textContent='0';
+  const f=n=>{const k=Math.min(1,Math.max(0,(n-t0)/850));el.textContent=Math.round(to*(1-Math.pow(1-k,3)));if(k<1)requestAnimationFrame(f);};requestAnimationFrame(f);}
+function stagger(){document.querySelectorAll('#pane > *').forEach((e,i)=>e.style.setProperty('--k',Math.min(i,12)));}
+/* Push and pop as a shared-element move: the row's score and name fly into the hero (and back),
+   the old page fades under them, and the rest of the new page builds in around them. */
+function go(to,crag){const v=document.getElementById('view'),st=v.scrollTop,old=v.cloneNode(true),prev=S.crag,r=e=>e?e.getBoundingClientRect():null;
+  const src=to==='crag'?{nm:r(v.querySelector(`.crow[data-open="${crag}"] .cn`)),n:r(v.querySelector(`.crow[data-open="${crag}"] .num`))}
+    :{nm:r(v.querySelector('.eyebrow, .slim .nm')),n:S.tab==='Overview'?r(v.querySelector('#heroN')):null};
+  if(crag){S.crag=crag;S.tab='Overview';S.wall=null;S.route=null;S.rmArm=false;S.sel=NOW;S.hIdx=null;S.vIdx=null;S.gT=null;S.pIdx=null;S.rIdx=null;wave.vals=null;}
+  if(to==='list')S.hold=prev;S.screen=to;count.to=null;S.quiet=true;render();S.quiet=false;S.hold=null;v.scrollTop=0;
+  if(RM)return;
+  (to==='crag'?old.querySelectorAll(`.crow[data-open="${crag}"] .cn, .crow[data-open="${crag}"] .num`):old.querySelectorAll('.eyebrow, #heroN, .slim .nm')).forEach(e=>e.style.visibility='hidden');
+  old.removeAttribute('id');old.querySelectorAll('[id]').forEach(e=>e.removeAttribute('id'));old.className='view pageOld fade';
+  const inner=old.firstElementChild;if(inner){inner.classList.remove('enter');inner.style.transform=`translateY(${-st}px)`;}
+  v.parentNode.insertBefore(old,v);setTimeout(()=>old.remove(),420);
+  if(to==='crag'){flyFrom(v.querySelector('.eyebrow, .slim .nm'),src.nm);flyFrom(v.querySelector('#heroN'),src.n);stagger();const p=v.querySelector('.pad');if(p){p.classList.add('arrive');setTimeout(()=>p.classList.remove('arrive'),1600);}}
+  else{flyFrom(v.querySelector(`.crow[data-open="${prev}"] .cn`),src.nm);flyFrom(v.querySelector(`.crow[data-open="${prev}"] .num`),src.n);}
+  }
+/* Switching crags sideways: content slides in from the side you moved toward. */
+function swipeIn(dir){if(RM)return;const p=document.querySelector('.pad');if(!p||!p.classList)return;p.style.setProperty('--dx',(dir*40)+'px');p.classList.add('swipe');setTimeout(()=>p.classList.remove('swipe'),700);}
+(function edgeSwipe(){const p=document.getElementById('phone');if(!p||!p.addEventListener)return;let x0=null;
+  p.addEventListener('pointerdown',e=>{const r=p.getBoundingClientRect();x0=S.screen!=='list'&&S.screen!=='trips'&&e.clientX-r.left<24?e.clientX:null;});
+  p.addEventListener('pointerup',e=>{if(x0!==null&&e.clientX-x0>70)back();x0=null;});})();
+
+/* ===== Overview: the hero graph, four ways to compare (switch in the notes) ===== */
+const VIZ=[['strip','Score bars'],['timeline','Timeline'],['days','Three days'],['wave','Wave and lens (before)']];
+const band=s=>s===null?'w':s>=75?'g':s>=50?'f':'p',BANDN={g:'Good',f:'Fair',p:'Poor',w:'Withheld'},BANDC={g:'#b8f542',f:'#f6ad55',p:'#fc8181',w:'#6a7a82'};
+function hvReadout(c,i){const t=NOW+i,h=c.at(t);return `<div class="hvr"><b style="color:${hex(h.score)}">${h.score??'—'}</b><span>${i===0?'Now':(h.di===1?'':DN[h.di]+' ')+hl(h.hr)}</span><span>Dryness: ${h.word}</span><span style="color:var(--rain)">${h.chance}% rain</span>${h.alert?'<span style="color:var(--poor)">Alert: score withheld</span>':''}</div>`;}
+const HV={W:390,px:18,n:36};const hvX=i=>HV.px+(i+.5)*(HV.W-2*HV.px)/HV.n;
+function bestMarks(c,y,ly){let o='';for(const di of [1,2]){const ds=c.dayScore(di);if(ds.score===null)continue;const i0=(di-1)*24+ds.start-NOW;if(i0<0||i0+2>=HV.n)continue;
+  const a=hvX(i0)-4,b=hvX(i0+2)+4,m=(a+b)/2,lab=`Best ${hs(ds.start)}–${hs(ds.start+3)} · ${ds.score}`,lx=Math.max(HV.px+48,Math.min(HV.W-HV.px-48,m));
+  o+=`<path d="M${a} ${y+4}V${y}H${b}V${y+4}" fill="none" stroke="#d3e1e4" stroke-width="1.2" opacity=".7"/><text x="${lx}" y="${ly}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="#e4ecef">${lab}</text>`;}return o;}
+function hvTicks(c,y){let o='';for(let i=0;i<HV.n;i++){const h=c.at(NOW+i);if(i===0||(h.hr%6===0&&i>=3))o+=`<text x="${hvX(i)}" y="${y}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="${i===0?'#6fe3ec':'#c9d6dc'}">${i===0?'now':h.hr===0?DN[h.di].slice(0,3):hs(h.hr)}</text>`;if(i>0&&h.hr===0)o+=`<line x1="${hvX(i)-5}" x2="${hvX(i)-5}" y1="22" y2="${y-12}" stroke="rgba(255,255,255,.14)" stroke-dasharray="2 3"/>`;}return o;}
+function stripSvg(c,q){const W=HV.W,H=150,top=26,base=122,sel=S.vIdx??0,step=(W-2*HV.px)/HV.n,bw=step*.7;
+  const grads=Object.entries({g:'#b8f542',f:'#f6ad55',p:'#fc8181',w:'#6a7a82'}).map(([k,col])=>`<linearGradient id="sb${k}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}"/><stop offset="1" stop-color="${col}" stop-opacity=".45"/></linearGradient>`).join('');
+  let wins='',bars='',marks='';
+  for(const di of [1,2]){const ds=c.dayScore(di);if(ds.score===null)continue;const i0=(di-1)*24+ds.start-NOW;if(i0<0||i0+2>=HV.n)continue;
+    const a=HV.px+i0*step,w=step*3,lx=Math.max(HV.px+50,Math.min(W-HV.px-50,a+w/2));
+    wins+=`<rect x="${a}" y="${base+5}" width="${w}" height="3" rx="1.5" fill="${hex(ds.score)}"/>
+      <text x="${lx}" y="${top-10}" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-weight="600" font-size="13" fill="#d3e1e4">Best ${hs(ds.start)}–${hs(ds.start+3)} <tspan fill="${hex(ds.score)}" font-weight="700">${ds.score}</tspan></text>`;}
+  for(let i=0;i<HV.n;i++){const h=c.at(NOW+i),x=HV.px+i*step+(step-bw)/2,b=band(h.score),bh=h.score===null?5:Math.max(5,h.score/100*(base-top));
+    bars+=`<path class="${q?'':'bar'}" style="animation-delay:${i*14}ms" d="M${x} ${base}V${base-bh+bw/2}a${bw/2} ${bw/2} 0 0 1 ${bw} 0V${base}Z" fill="url(#sb${b})" opacity="${i===sel?1:.78}"/>`;
+    if(h.rain>0)marks+=`<circle cx="${x+bw/2}" cy="${base-bh-6}" r="${1.8+Math.min(1.6,h.rain*18)}" fill="#a5b4fc"/>`;}
+  const sx=HV.px+sel*step+step/2;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Score for each of the next 36 hours, coloured by band; each day's best three-hour window underlined">
+    <defs>${grads}</defs><line x1="${HV.px}" x2="${W-HV.px}" y1="${base+.5}" y2="${base+.5}" stroke="rgba(255,255,255,.12)"/>
+    ${wins}<line x1="${sx}" x2="${sx}" y1="${top-2}" y2="${base}" stroke="rgba(255,255,255,.22)"/>${bars}${marks}${hvTicks(c,H-4)}<rect class="hit" x="0" y="0" width="${W}" height="${H}" fill="transparent"/></svg>`;}
+function timelineSvg(c,q){const W=HV.W,H=126,y0=40,bh=30,sel=S.vIdx??0,step=(W-2*HV.px)/HV.n;
+  const runs=[];for(let i=0;i<HV.n;i++){const b=band(c.at(NOW+i).score);if(runs.length&&runs[runs.length-1].b===b)runs[runs.length-1].e=i;else runs.push({b,s:i,e:i});}
+  let o='',lab='',rain='',night='';
+  runs.forEach((r,k)=>{const x=HV.px+r.s*step+1,w=(r.e-r.s+1)*step-2;
+    o+=`<rect class="${q?'':'seg'}" style="animation-delay:${k*70}ms" x="${x}" y="${y0}" width="${w}" height="${bh}" rx="9" fill="${BANDC[r.b]}" opacity="${r.b==='w'?.6:.88}"/>`;
+    if(w>=44)lab+=`<text x="${x+8}" y="${y0+19.5}" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-weight="700" font-size="14" fill="#06161a">${BANDN[r.b]}</text>`;});
+  for(let i=0;i<HV.n;i++){const h=c.at(NOW+i),x=hvX(i);if(h.night)night+=`<rect x="${x-step/2}" y="${y0+bh+3}" width="${step}" height="3" fill="#6f7fe0" opacity=".45"/>`;
+    if(h.rain>0)rain+=`<path d="M${x} ${y0-14}c-2.6 3.4-3.4 5-3.4 6.4a3.4 3.4 0 0 0 6.8 0c0-1.4-.8-3-3.4-6.4z" fill="#a5b4fc"/>`;}
+  const sx=hvX(sel);
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="The next 36 hours as runs of good, fair, poor and withheld; night shaded, rain hours marked">${o}${night}${lab}${rain}
+    <line x1="${sx}" x2="${sx}" y1="${y0-6}" y2="${y0+bh+6}" stroke="#f4f7fa" stroke-width="2" stroke-linecap="round"/><circle cx="${sx}" cy="${y0+bh+6}" r="3" fill="#f4f7fa"/>
+    ${bestMarks(c,y0+bh+14,y0+bh+30)}${hvTicks(c,H-4)}
+    <rect class="hit" x="0" y="0" width="${W}" height="${H}" fill="transparent"/></svg>`;}
+function daysViz(c){return `<div class="hdays">${[1,2,3].map((di,k)=>{const ds=c.dayScore(di),pts=[];
+  for(let hr=8;hr<=18;hr++){const s=c.at((di-1)*24+hr).score;if(s!==null&&!(di===1&&hr<NOW))pts.push([(hr-8)*10,34-s/100*30]);}
+  const win=ds.score===null?'':`<rect x="${(ds.start-8)*10}" y="0" width="30" height="36" rx="4" fill="rgba(255,255,255,.1)"/>`;
+  const line=pts.length>1?`<path d="${smooth(pts)}" fill="none" stroke="${hex(ds.score)}" stroke-width="2.2" stroke-linecap="round"/>`:'';
+  const al=c.alert&&c.alert.day===di;
+  return `<button class="hday" data-openday="${di}" style="--k:${k}"><span class="dn">${DN[di]}</span><b style="color:${hex(ds.score)}">${ds.score??'—'}</b>
+    <span class="dw">${ds.score!==null?`${hs(ds.start)}–${hs(ds.start+3)}`:(di===1?'no window left':'no window')}</span>
+    <svg viewBox="-2 -2 104 40" aria-hidden="true">${win}${line}</svg><small>${al?'<span style="color:var(--poor)">Alert '+hs(c.alert.from)+'–'+hs(c.alert.to)+'</span>':'Dryness: '+dkey(c,di)}</small></button>`;}).join('')}</div>`;}
+function heroViz(c){
+  if(S.viz==='wave')return `<div class="wave" id="wave" tabindex="0" aria-label="Score for the next 36 hours; drag the lens to read an hour"><svg id="waveSvg" viewBox="0 0 390 170" preserveAspectRatio="none" aria-hidden="true"></svg><div class="lens" id="lens"><b id="lensN">–</b><small id="lensT"></small></div></div>
+    <div class="ticks"><span>now</span><span>+12 h</span><span>+24 h</span><span>+36 h</span></div>`;
+  if(S.viz==='days')return daysViz(c);
+  return `<section class="gc hvcard"><div class="hv" id="hv" tabindex="0" aria-label="Next 36 hours; drag or use the arrow keys to read an hour">${S.viz==='timeline'?timelineSvg(c):stripSvg(c)}</div><div id="hvr">${hvReadout(c,S.vIdx??0)}</div></section>`;}
+function redrawHero(){const c=C(),hv=document.getElementById('hv');if(!hv)return;hv.innerHTML=S.viz==='timeline'?timelineSvg(c,true):stripSvg(c,true);document.getElementById('hvr').innerHTML=hvReadout(c,S.vIdx??0);}
+function bindHero(){const hv=document.getElementById('hv');if(!hv||!hv.addEventListener)return;let down=false;
+  const pick=e=>{const r=hv.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*HV.W,i=Math.max(0,Math.min(HV.n-1,Math.floor((x-HV.px)/((HV.W-2*HV.px)/HV.n))));if(i!==(S.vIdx??0)){S.vIdx=i;redrawHero();}};
+  hv.addEventListener('pointerdown',e=>{down=true;hv.setPointerCapture(e.pointerId);pick(e);});hv.addEventListener('pointermove',e=>{if(down)pick(e);});hv.addEventListener('pointerup',()=>down=false);
+  hv.addEventListener('keydown',e=>{const d=e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0;if(!d)return;e.preventDefault();S.vIdx=Math.max(0,Math.min(HV.n-1,(S.vIdx??0)+d));redrawHero();});}
+
+/* ===== Rock: the live app's field guide to the rock type (rockGuide in packages/types), then the crag's facts ===== */
+const NO_WIRE='Scrub with a wire brush — use nylon or bristle';
+const ROCKG={
+  Limestone:{sw:{base:'#8a8a84',grain:'#aeaea6',fleck:'#5e5e59'},tex:'pocketed',tagline:'Stone built from ancient sea life.',dries:'days',wet:'softens',styles:['Pockets','Tufas','Crimps','Overhangs'],
+    rain:'The kind isn’t recorded, so we time it like soft limestone. Seeps can run for weeks.',sun:'Steep, shady walls stay climbable when slabs bake.',
+    formed:'Limestone is built from the shells and skeletons of sea creatures that piled up on warm, shallow sea floors.',holds:'Expect pockets and tufas. Slightly acidic rain dissolves pockets into the rock, and water running down the wall builds tufas.',
+    care:['Watch for polish on popular routes'],avoid:['Trusting a seep-stained hold']},
+  Basalt:{sw:{base:'#2c3034',grain:'#454b51',fleck:'#16191c'},tex:'vesicular',tagline:'Lava rock — dense columns or bubbly flow tops.',dries:'day',wet:'softens',styles:['Cracks','Edges','Pockets'],
+    rain:'The kind isn’t recorded, so we time it like the slow, bubbly kind.',sun:'Dark rock soaks up sun, so a sunny face gets hot fast.',
+    formed:'Basalt is lava that cooled quickly at the surface.',holds:'Expect cracks and columns. The lava shrank as it cooled and split into columns, most with six sides, with cracks between them.',
+    care:['Check blocks and bubble edges before weighting them'],avoid:[NO_WIRE]},
+  Rhyolite:{sw:{base:'#6e4f4a',grain:'#8f6a62',fleck:'#3f2c29'},tex:'crystalline',tagline:'Fine-grained volcanic rock, dense and fast to dry.',dries:'hours',wet:'holds',styles:['Edges','Crimps','Cracks'],
+    rain:'Low porosity — sheds rain within hours.',sun:'Darker faces soak up sun and warm quickly.',
+    formed:'Rhyolite is silica-rich lava that cooled fast at the surface, so its crystals are too small to see.',holds:'Expect edges, crimps and cracks on dense, fine-grained rock.',
+    care:['Check blocks and flakes — fractured volcanic rock can be loose'],avoid:[NO_WIRE]},
+  Dolomite:{sw:{base:'#8d9096',grain:'#b4b7bc',fleck:'#5c6066'},tex:'pocketed',tagline:'Limestone’s harder, magnesium-rich cousin.',dries:'day',wet:'softens',styles:['Pockets','Edges','Crimps'],
+    rain:'Pockets hold water after the face has dried, and damp holds can break.',sun:'Pale rock reflects sunlight and stays cooler than dark rock.',
+    formed:'Dolomite is limestone in which magnesium replaced some of the calcium, often before the rock had hardened.',holds:'Expect pockets, edges and crimps. Water seeping through the rock slowly dissolves it and hollows out the pockets.',
+    care:['Check pockets for water before committing'],avoid:['Trusting a seep-stained hold']}};
+const FACTS={rw:{elev:'1,020 ft',ll:'44.5664, -92.5251'},tf:{elev:'800 ft',ll:'45.4019, -92.6502'},ph:{elev:'950 ft',ll:'47.3245, -91.2160'},wr:{elev:'850 ft',ll:'45.0161, -92.6766'}};
+const DPL={hours:'Hours',day:'A day or two',days:'Days'},WSL={holds:'Holds up',softens:'Softens',fragile:'Fragile'},DFILL={hours:1,day:2,days:3},SFILL={holds:3,softens:2,fragile:1};
+function seeded(s){return()=>{s=(s*1664525+1013904223)%4294967296;return s/4294967296;};}
+function rockArt(g){const W=360,H=124,r=seeded(g.tex.length*17+7),c=g.sw;let o='';
+  if(g.tex==='crystalline')for(let i=0;i<260;i++){const s=1.5+r()*4.5,x=r()*W,y=r()*H;o+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${s.toFixed(1)}" height="${(s*(.6+r()*.8)).toFixed(1)}" fill="${r()<.55?c.grain:c.fleck}" opacity="${(.5+r()*.5).toFixed(2)}" transform="rotate(${(r()*90).toFixed(0)} ${x.toFixed(1)} ${y.toFixed(1)})"/>`;}
+  else if(g.tex==='vesicular')for(let i=0;i<120;i++){const rr=1.2+r()*r()*6,x=r()*W,y=r()*H;o+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rr.toFixed(1)}" fill="${c.fleck}" opacity=".9"/><circle cx="${x.toFixed(1)}" cy="${(y-rr*.35).toFixed(1)}" r="${rr.toFixed(1)}" fill="none" stroke="${c.grain}" stroke-width=".8" opacity=".5"/>`;}
+  else{for(let i=0;i<14;i++){const x=r()*W;o+=`<line x1="${x.toFixed(1)}" y1="0" x2="${(x+r()*6).toFixed(1)}" y2="${H}" stroke="${c.fleck}" stroke-width="${(2+r()*5).toFixed(1)}" opacity=".18"/>`;}
+    for(let i=0;i<26;i++){const rx=3+r()*9,x=r()*W,y=r()*H,ry=rx*(.45+r()*.4);o+=`<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="${c.fleck}" opacity=".9"/><ellipse cx="${x.toFixed(1)}" cy="${(y-1).toFixed(1)}" rx="${(rx+1).toFixed(1)}" ry="${(rx*.6).toFixed(1)}" fill="none" stroke="${c.grain}" opacity=".55"/>`;}}
+  const f=id('rf');
+  return `<div class="rockart"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs><linearGradient id="${f}" x1="0" y1="0" x2="0" y2="1"><stop offset=".45" stop-color="#0d1417" stop-opacity="0"/><stop offset="1" stop-color="#0d1417" stop-opacity=".95"/></linearGradient></defs><rect width="${W}" height="${H}" fill="${c.base}"/>${o}<rect width="${W}" height="${H}" fill="url(#${f})"/></svg></div>`;}
+const gauge=(label,word,n)=>`<div class="gauge"><span>${label}</span><b>${word}</b><div>${[1,2,3].map(k=>`<i${k<=n?' class="on"':''}></i>`).join('')}</div></div>`;
+const tick=`<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="#b8f542" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const cross=`<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="#fc8181" stroke-width="2" stroke-linecap="round"/></svg>`;
+function rockReadings(c){
+  const n=48,t0=NOW-6,hh=Array.from({length:n},(_,i)=>c.at(t0+i)),W=390,H=160,px=18,X=i=>px+i*(W-2*px)/(n-1),idx=S.rIdx??6,sh=hh[idx],now=c.at(NOW);
+  const vals=hh.map(h=>h.gap),lo=Math.min(0,...vals)-1,hi=Math.max(8,...vals)+2,Y=v=>12+(hi-v)/(hi-lo)*(H-40);
+  const cond=hh.map((h,i)=>h.gap<4?`<rect x="${X(i)-3.9}" y="8" width="7.8" height="${H-32}" fill="#fc8181" opacity=".14"/>`:'').join('');
+  const days=hh.map((h,i)=>h.hr===0?`<line x1="${X(i)}" x2="${X(i)}" y1="8" y2="${H-24}" stroke="rgba(255,255,255,.1)"/><text x="${X(i)+4}" y="${H-2}" font-family="IBM Plex Mono, monospace" font-size="9" fill="#bccad0">${DN[h.di]}</text>`:'').join('');
+  const step=hi-lo>24?10:5,gr=[];for(let v=Math.ceil(lo/step)*step;v<=hi;v+=step)gr.push(`<line x1="${px}" x2="${W-px}" y1="${Y(v)}" y2="${Y(v)}" stroke="rgba(255,255,255,.06)"/><text x="${W-px}" y="${Y(v)-3}" font-family="IBM Plex Mono, monospace" font-size="9" fill="#bccad0" text-anchor="end">${v}°</text>`);
+  const pts=hh.map((h,i)=>[X(i),Y(h.gap)]),g=id('f'),condHrs=hh.slice(6).filter(h=>h.gap<4).length;
+  return `<div class="sect">Drying<em>${c.rock} · dries in ${c.win[0]}–${c.win[1]} h</em></div>
+    <div class="statrow">${dryClock(c,now,140)}<div class="stat" style="grid-template-columns:1fr"><div><span>Dryness</span><b style="color:${ROCKC[now.word]}">${now.word}</b></div><div><span>Since real rain</span><b>${now.since} h</b></div><div><span>Window starts</span><b>${c.win[0]} h</b><div class="why" style="margin-top:0">the tick on the ring</div></div></div></div>
+    <div class="sect">Condensation<em>°F above dew point · 48 h</em></div>
+    <div class="chart" id="rchart" data-w="${W}" data-x0="${px}"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="How far the rock sits above its dew point, six hours back and 42 ahead; hours within 4 degrees shaded">
+    <defs>${defsGlow(g)}</defs>${gr.join('')}${cond}${days}<rect x="${px}" y="8" width="${X(6)-px}" height="${H-32}" fill="rgba(0,0,0,.2)"/>
+    <line x1="${px}" x2="${W-px}" y1="${Y(4)}" y2="${Y(4)}" stroke="#fc8181" stroke-width="1.2" stroke-dasharray="4 4" opacity=".8"/><text x="${px}" y="${Y(4)-4}" font-family="IBM Plex Mono, monospace" font-size="9" fill="#fc8181">4°</text>
+    <path d="${smooth(pts)} L${X(n-1)} ${Y(lo)} L${X(0)} ${Y(lo)} Z" fill="#7fd1c4" opacity=".12"/>
+    <path class="tube" d="${smooth(pts)}" fill="none" stroke="#7fd1c4" stroke-width="${gw(5)}" stroke-linecap="round" filter="url(#${g})" style="--len:1200;stroke-dasharray:1200"/>
+    <line x1="${X(6)}" x2="${X(6)}" y1="6" y2="${H-24}" stroke="#6fe3ec" stroke-dasharray="2 3"/>
+    <line x1="${X(idx)}" x2="${X(idx)}" y1="6" y2="${H-24}" stroke="rgba(255,255,255,.35)"/>${bead(X(idx),Y(sh.gap),'#7fd1c4')}
+    <rect class="hit" x="0" y="0" width="${W}" height="${H}" fill="transparent"/></svg></div>
+    <div class="keyrow"><span><i style="background:#7fd1c4"></i>rock above dew point</span><span><i style="background:#fc8181;opacity:.5;height:8px"></i>within 4° of dew</span></div>
+    <div class="read"><div><span>${DN[sh.di]} ${hs(sh.hr)}</span><b style="color:${sh.gap<4?'var(--poor)':'#7fd1c4'}">${sh.gap}°</b></div><div><span>Dew</span><b>${sh.dew}°</b></div><div><span>Air</span><b>${sh.air}°</b></div><div><span>Dryness</span><b style="color:${ROCKC[sh.word]}">${sh.word}</b></div></div>
+    <div class="why">${condHrs?`${condHrs} of the next 42 hours bring the rock within 4°F of the dew point, close enough to hold condensation.`:'The rock stays well clear of condensation for the next 42 hours.'}</div>`;}
+function rockTab(c){const g=ROCKG[c.rock],f=FACTS[c.id];
+  return `${rockArt(g)}<div class="rh"><h3>${c.rock}</h3><p>${g.tagline}</p><div class="gauges">${gauge('Drying after rain',DPL[g.dries],DFILL[g.dries])}${gauge('Strength when wet',WSL[g.wet],SFILL[g.wet])}</div></div>
+    ${rockReadings(c)}<div class="sect">How it formed and climbs</div><div class="fact"><span>How it formed</span><p>${g.formed}</p></div><div class="fact"><span>Where the holds come from</span><p>${g.holds}</p></div><div class="chips">${g.styles.map(s=>`<span>${s}</span>`).join('')}</div>
+    <div class="sect">Rain and sun</div><div class="iline"><i>${glyph('rain',false,20)}</i><div><span>Rain</span><p>${g.rain}</p></div></div><div class="iline"><i>${glyph('sun',false,20)}</i><div><span>Sun</span><p>${g.sun}</p></div></div>
+    <div class="sect">Rock care</div><ul class="care">${g.care.map(x=>`<li>${tick}<span>${x}</span></li>`).join('')}${g.avoid.map(x=>`<li>${cross}<span>${x}</span></li>`).join('')}</ul><p class="note">A general guide to this rock type. Walls vary — check the rock before you climb.</p>
+    <div class="sect">This crag<em>${c.name}</em></div><div class="facts"><div><span>Rock</span><b>${c.rock} · locked</b></div><div><span>Elevation</span><b>${f.elev}</b></div><div><span>Coordinates</span><b class="mono">${f.ll}</b></div></div>
+    <div class="why">The rock type is locked to the climbing area's research. Only it moves today's score; Crag A reads the crag from all eight sides.</div>
+    <button class="linkbtn" data-toast="Opens the rock-type correction form, as in the app">Wrong rock type?</button>`;}
+
+/* ===== Crag: the OpenBeta guidebook, a wall, a route and the logbook (sample guidebook data) ===== */
+const GB={
+  rw:{path:['USA','Minnesota','Red Wing'],walls:[['North Buttress',[['Corner Crack','5.7','Trad',1],['Pillar Left','5.9','Sport',2],['Pillar Right','5.10a','Sport',3],['The Seam','5.10c','Trad',4],['Roof Exit','5.11b','Sport',5]]],
+    ['Main Face',[['Easy Slab','5.5','TR',1],['Ledges','5.6','TR',2],['Long Edge','5.8','Sport',3],['Pocket Line','5.10b','Sport',4],['Steep Prow','5.12a','Sport',5],['Twin Cracks','5.9','Trad',6]]],
+    ['Lower Tier',[['Warm-up','5.6','Sport',null],['Short Arete','5.8','TR',null],['Boulder Traverse','V2','Boulder',null]]]]},
+  tf:{path:['USA','Minnesota','Taylors Falls'],walls:[['River Wall',[['Old Route','5.4','TR',1],['Crack One','5.7','Trad',2],['Column Edge','5.9','TR',3],['Overhang','5.11a','TR',4]]],['Upper Cliffs',[['Chimney','5.6','Trad',1],['Dihedral','5.8','Trad',2],['Face Climb','5.10d','TR',3]]]]},
+  ph:{path:['USA','Minnesota','Palisade Head'],walls:[['Main Wall',[['Sea Edge','5.8','Trad',1],['Long Crack','5.9','Trad',2],['The Arete','5.10b','TR',3],['Big Roof','5.11c','Trad',4],['Steep Face','5.12b','TR',5]]]]},
+  wr:{path:['USA','Wisconsin','Willow River'],walls:[['Main Cave',[['Cave Exit','5.11d','Sport',1],['Left Side','5.10a','Sport',2],['Big Steep','5.12c','Sport',3],['Pocket Pull','5.11a','Sport',4]]],['Back Wall',[['Easy Dihedral','5.8','Sport',1],['Ledges','5.9','Sport',2]]]]}};
+const BANDS=[['≤ 5.7','#90cdf4'],['5.8–5.9','#7fd1c4'],['5.10','#b8f542'],['5.11','#f6ad55'],['5.12+','#fc8181'],['V','#b794f4']];
+function bandOf(gr){if(gr[0]==='V')return 5;const m=/^5\.(\d+)/.exec(gr);const n=m?+m[1]:0;return n<=7?0:n<=9?1:n===10?2:n===11?3:4;}
+const gNum=gr=>gr[0]==='V'?100+ +gr.slice(1):(()=>{const m=/^5\.(\d+)([a-d]?)/.exec(gr);return +m[1]+('abcd'.indexOf(m[2])+1)*.2;})();
+function gradeHist(routes){const n=BANDS.map(()=>0);routes.forEach(r=>n[bandOf(r[1])]++);const used=BANDS.map((b,i)=>i).filter(i=>n[i]>0),mx=Math.max(...n);
+  return `<div class="ghist" style="grid-template-columns:repeat(${used.length},minmax(0,1fr))">${used.map(i=>`<div><b>${n[i]}</b><i style="height:${Math.max(6,n[i]/mx*64)}px;background:${BANDS[i][1]}"></i><span>${BANDS[i][0]}</span></div>`).join('')}</div>`;}
+function gradeBar(routes){const n=BANDS.map(()=>0);routes.forEach(r=>n[bandOf(r[1])]++);return `<span class="gbar">${n.map((v,i)=>v?`<i style="flex:${v};background:${BANDS[i][1]}"></i>`:'').join('')}</span>`;}
+const range=rs=>{const s=rs.filter(r=>r[1][0]!=='V').sort((a,b)=>gNum(a[1])-gNum(b[1]));return s.length?(s.length===1?s[0][1]:`${s[0][1]}–${s[s.length-1][1]}`):null;};
+function nowStrip(c){const h=c.at(NOW);return `<div class="nowstrip"><span class="lab">Now</span><b style="color:${hex(h.score)}">${h.score??'—'}</b><span>Dryness: ${h.word}${h.alert?' · <span style="color:var(--poor)">alert</span>':''}</span><button class="linkbtn" data-tab="Overview">Overview ›</button></div>`;}
+const LOG={todo:new Set(['rw:1:3']),ticks:{'rw:0:1':[{d:'2026-10-04',s:'Redpoint',n:'Clipped the anchor at last.'}]},confirm:null};
+function cragTab(c){const G=GB[c.id];
+  if(S.route){const [wi,ri]=S.route,w=G.walls[wi],rt=w[1][ri],key=`${c.id}:${wi}:${ri}`,tk=LOG.ticks[key]||[],nb=w[1].filter(x=>x[3]!==null).sort((a,b)=>a[3]-b[3]);
+    return `<button class="linkbtn crumb" data-wall="${wi}">‹ ${w[0]}</button><div class="rtop"><span class="lab">${rt[2]}</span><h3>${rt[0]}</h3><b class="grade" style="color:${BANDS[bandOf(rt[1])][1]}">${rt[1]}</b></div>
+      <div class="sect">Route</div><div class="facts"><div><span>Type</span><b>${rt[2]}</b></div><div><span>Length</span><b>Not recorded</b></div><div><span>First ascent</span><b>Not recorded</b></div><div><span>Rating</span><b>Not rated</b></div></div>
+      <div class="sect">Logbook</div><button class="todo${LOG.todo.has(key)?' on':''}" data-todo="${key}">${LOG.todo.has(key)?'✓ On to-do list':'+ Add to to-do list'}</button>
+      <form class="tickf" data-tick="${key}"><label>Date<input id="tkd" type="date" value="2026-10-21"></label><label>Style<select id="tks"><option>Onsight</option><option>Flash</option><option>Redpoint</option><option>Top rope</option><option>Attempt</option></select></label><label class="wide">Note (optional)<input id="tkn" type="text" placeholder="How it went"></label><button type="submit" class="pbtn">Tick it</button></form>
+      <div class="lab" style="margin-top:14px">Your ticks</div>${tk.length?tk.map((t,i)=>`<div class="tickrow"><div><b>${t.s}</b><small>${t.d}${t.n?' · '+t.n:''}</small></div>${LOG.confirm===key+i?`<span class="cf">Delete this tick? <button class="linkbtn" data-deltick="${key}|${i}">Delete</button></span>`:`<button class="linkbtn" data-askdel="${key}|${i}">Delete</button>`}</div>`).join(''):'<div class="why">No ticks yet. Only you see your ticks.</div>'}
+      ${nb.length>1?`<div class="sect">On the wall<em>Left → right</em></div><div class="lines">${nb.map(x=>`<div class="line"><span${x===rt?' style="color:var(--txt1);font-weight:600"':''}>${x[3]}. ${x[0]}</span><b style="color:${BANDS[bandOf(x[1])][1]}">${x[1]}</b></div>`).join('')}</div>`:''}
+      <div class="sect">Beta</div><div class="why">Nothing recorded on OpenBeta yet.</div><div class="chips"><span>Mountain Project ↗</span><span>Add beta on OpenBeta ↗</span></div>`;}
+  if(S.wall!==null){const w=G.walls[S.wall],lr=w[1].every(r=>r[3]!==null),sort=S.wsort||(lr?'lr':'grade'),kinds=['All',...new Set(w[1].map(r=>r[2]))],kf=S.wkind||'All';
+    let rs=w[1].map((r,i)=>[r,i]).filter(([r])=>kf==='All'||r[2]===kf);rs.sort((a,b)=>sort==='lr'?a[0][3]-b[0][3]:gNum(a[0][1])-gNum(b[0][1]));
+    const week=[1,2,3,4,5,6,7].map(di=>{const ds=c.dayScore(di);return `<div class="wk"><span>${DN[di]}</span><b style="color:${hex(ds.score)}">${ds.score??'—'}</b><small>${ds.score===null?'No good hours':`${hs(ds.start)}–${hs(ds.start+3)}`}</small><small>${dkey(c,di)}</small></div>`;}).join('');
+    return `<button class="linkbtn crumb" data-wall="-1">‹ ${c.short} guidebook</button><h3 class="wt">${w[0]}</h3>${nowStrip(c)}
+      <div class="sect">This week<em>the crag's reading, not this wall's</em></div><div class="week">${week}</div>
+      <div class="sect">Grades<em>${w[1].length} routes</em></div>${gradeHist(w[1])}
+      <div class="sect">Routes</div><div class="pills">${kinds.map(k=>`<button data-wkind="${k}" aria-pressed="${k===kf}">${k}</button>`).join('')}<span style="flex:1"></span>${lr?`<button data-wsort="lr" aria-pressed="${sort==='lr'}">Left → right</button>`:''}<button data-wsort="grade" aria-pressed="${sort==='grade'}">Grade ↑</button></div>
+      <div class="rlist">${rs.map(([r,i])=>`<button class="rrow" data-route="${S.wall}|${i}"><b style="color:${BANDS[bandOf(r[1])][1]}">${r[1]}</b><span>${r[0]}<small>${r[2]}${LOG.todo.has(`${c.id}:${S.wall}:${i}`)?' · to-do':''}${(LOG.ticks[`${c.id}:${S.wall}:${i}`]||[]).length?' · ticked':''}</small></span><i>›</i></button>`).join('')}</div>`;}
+  const all=G.walls.flatMap(w=>w[1]),k=t=>all.filter(r=>r[2]===t).length;
+  const stats=[['Routes',all.length],['Walls',G.walls.length],['Sport',k('Sport')],['Trad',k('Trad')],['Top rope',k('TR')],['Boulder',k('Boulder')]].filter((s,i)=>i<2||s[1]>0);
+  return `<span class="lab">OpenBeta area</span><h3 class="wt">${c.short}</h3><div class="why" style="margin-top:2px">${G.path.join(' › ')}</div><div class="stats" style="grid-template-columns:repeat(${Math.min(stats.length,5)},1fr)">${stats.map(s=>`<div><span>${s[0]}</span><b>${s[1]}</b></div>`).join('')}</div>
+    <div class="sect">Now<em>the crag's reading</em></div>${nowStrip(c)}
+    <div class="sect">Grades<em>${all.length} routes</em></div>${gradeHist(all)}
+    <div class="sect">Walls<em>A–Z</em></div><div class="rlist">${G.walls.map((w,i)=>[w,i]).sort((a,b)=>a[0][0].localeCompare(b[0][0])).map(([w,i])=>`<button class="rrow wall" data-wall="${i}"><span>${w[0]}<small>${w[1].length} routes${range(w[1])?' · '+range(w[1]):''}</small>${gradeBar(w[1])}</span><i>›</i></button>`).join('')}</div>
+    <p class="foot">Sample guidebook data in the shape OpenBeta returns; the app reads the real area. OpenBeta's wall coordinates are wrong on the ground, so no wall has a position here.</p>
+    <button class="linkbtn danger" data-remove>${S.rmArm?'Tap again to remove':'Remove location'}</button>`;}
+
+/* ===== Shared crag-screen extras: last and next rain, how the score works, sources, feedback ===== */
+function rainLines(c){const P=precipSummary(c);let nx=null;for(let t=NOW+1;t<T1;t++)if(c.at(t).rain>=RAIN_RESET){nx=t;break;}
+  const w=t=>{const di=Math.floor(t/24)+1;return `${di===1?'Today':DN[di]} ${hl(t)}`;};
+  return `<div class="line"><span>Last rain</span><b>${P.last===null?'None in 7 days':P.raining?'Raining now':`${P.since} h ago`}</b>${P.last===null?'':`<small>${whenP(P.last.t)} · ${fi(P.evTotal)} in over ${P.evSpan} h</small>`}</div><div class="line"><span>Next rain</span><b>${nx===null?'None in 7 days':w(nx)}</b>${nx===null?'':`<small>${c.at(nx).chance}% chance · ${fi(c.at(nx).rain)} in median</small>`}</div>`;}
+const EXPLAIN=`<details class="explain"><summary>How the score works</summary>
+  <p>The score runs from 0 to 100 for one hour at the crag. It multiplies two things: how dry the rock is and how good the friction is. If either one is zero, so is the score.</p>
+  <h4>Dryness</h4><p>Rain restarts a drying clock. How long the rock takes depends on its type, from a few hours for granite to two days for some sandstone. Sun-warmed rock, dry air and wind speed it up, and lying snow holds it back.</p><p>The rain is the median of four global forecast models (the middle value each hour), not a rain gauge, so a local shower can be missed. Anything under ${RAIN_RESET.toFixed(2)} in an hour doesn’t reset the clock.</p>
+  <h4>Friction</h4><p>Friction is an estimate; nothing measures grip. Condensation, heat, cold and humidity each lower it, gradually.</p>
+  <h4>A day’s score and Good hours</h4><p>A day’s score is the worst hour of its best 3-hour stretch between 8 AM and 6 PM. Today counts only the hours not yet over.</p>
+  <h4>When there is no score</h4><p>A Severe or Extreme weather warning hides the score and keeps the readings. A forecast hour that is missing shows as a gap, never a guess.</p>
+  <h4>What it can’t see</h4><p>Shade from the terrain, seepage, wind on one wall, and your skin and rubber. Use Check this forecast on a crag to report a miss.</p></details>`;
+const SOURCES=`<details class="sources"><summary>Sources</summary><div class="lines"><div class="line"><span>Air, wind, humidity</span><b>ICON</b></div><div class="line"><span>Rain</span><b>GFS · ECMWF · ICON · GEM median</b></div><div class="line"><span>Chance of rain, ranges</span><b>Open-Meteo ensembles</b></div><div class="line"><span>Alerts</span><b>NWS</b></div></div><p class="note">Sample: the app names only the sources that answered this request.</p></details>`;
+
+/* ===== Trips (sample trips; the app's /trips, /trips/:id and /trips/new) ===== */
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const dOf=di=>new Date(2026,9,20+di),dShort=d=>`${WD[d.getDay()]} ${d.getDate()}`,dMon=d=>`${MON[d.getMonth()]} ${d.getDate()}`;
+const diOf=iso=>{const [y,m,d]=iso.split('-').map(Number);return Math.round((new Date(y,m-1,d)-new Date(2026,9,21))/864e5)+1;};
+const isoOf=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+/* Outlook days past the scored horizon: weather only, no score yet. */
+const OUT={wr:{8:{hi:51,lo:37,chance:30,amt:.03,agree:70},9:{hi:47,lo:33,chance:55,amt:.12,agree:55}}};
+let TRIPS=[
+ {id:'t1',name:'Red Wing weekend',crags:['rw','tf'],d0:3,d1:5},
+ {id:'t2',name:'Willow River long weekend',crags:['wr'],d0:6,d1:9},
+ {id:'t3',name:'North Shore',crags:['ph'],d0:-10,d1:-9},
+ {id:'t4',name:'Thanksgiving at Taylors Falls',crags:['tf'],d0:37,d1:39}];
+const cragBy=k=>CRAGS.find(c=>c.id===k);
+function dayAmt(c,di){let s=0;for(let h=0;h<24;h++)s+=c.at((di-1)*24+h).rain;return s;}
+function tile(c,di){
+  if(di>=1&&di<=7){const d=c.days[di],ds=c.dayScore(di),al=c.alert&&c.alert.day===di;return {di,scored:true,score:ds.score,start:ds.start,word:dkey(c,di),al,w:{hi:d.hi,lo:d.lo,chance:d.chance,amt:dayAmt(c,di),agree:d.agree}};}
+  const o=(OUT[c.id]||{})[di];return {di,scored:false,from:di-6>1?di-6:null,w:o?{hi:o.hi,lo:o.lo,chance:o.chance,amt:o.amt,agree:o.agree}:null};}
+function tripTotal(c,tr){let t=0,any=false;for(let di=tr.d0;di<=tr.d1;di++){const x=tile(c,di);if(!x.w)return null;t+=x.w.amt;any=true;}return any?{t,lo:t*.35,hi:t*2.1+.04}:null;}
+const timing=tr=>tr.d1<1?'ended':tr.d0-1>1?`in ${tr.d0-1} days`:tr.d0-1===1?'tomorrow':tr.d0===1?'today':'underway';
+const tDates=tr=>{const a=dOf(tr.d0),b=dOf(tr.d1);return a.getMonth()===b.getMonth()?`${dMon(a)}–${b.getDate()}`:`${dMon(a)} – ${dMon(b)}`;};
+const opens=tr=>tr.d0-15>1?dOf(tr.d0-15):null;
+const cc=n=>n===1?'1 crag':`${n} crags`;
+/* Recordings of the trip forecast: when each was made, the trip's rain total with its range, the warmest high. */
+function recs(tr){const c=cragBy(tr.crags[0]),tot=tripTotal(c,tr),hiNow=Math.max(...Array.from({length:tr.d1-tr.d0+1},(_,k)=>{const x=tile(c,tr.d0+k);return x.w?x.w.hi:-99;}));
+  const hiN=hiNow<-50?52:hiNow,base=tot?tot.t:.1,ms=[-7,-5,-3,-1,0];return ms.map((m,i)=>({m:dMon(dOf(1+m)),t:+(base*(1.9-.22*i)).toFixed(3),lo:+(base*(.6-.06*i)).toFixed(3),hi:+(base*(3.2-.3*i)+.05).toFixed(3),high:hiN+(4-i)*(i%2?1:-1),partial:i<2}));}
+function trendWhole(tr){const R=recs(tr),W=360,H=150,px=30,top=12,bot=112,n=R.length,X=i=>px+18+i*(W-2*px-36)/(n-1),rm=Math.max(.1,...R.map(r=>r.hi)),RY=v=>bot-v/rm*(bot-top);
+  const hs_=R.map(r=>r.high),tlo=Math.min(...hs_)-3,thi=Math.max(...hs_)+3,TY=v=>bot-(v-tlo)/(thi-tlo)*(bot-top);
+  const allDry=R.every(r=>r.t===0),bars=allDry?'':R.map((r,i)=>`<line x1="${X(i)}" x2="${X(i)}" y1="${RY(r.hi)}" y2="${RY(r.lo)}" stroke="#a5b4fc" stroke-width="1.2"/><rect x="${X(i)-9}" y="${RY(r.t)}" width="18" height="${(bot-RY(r.t)).toFixed(1)}" rx="3" fill="${r.partial?'none':'#a5b4fc'}" stroke="#a5b4fc" stroke-width="1.4" opacity="${r.partial?1:.75}"/>`).join('');
+  const line=`<path d="${smooth(R.map((r,i)=>[X(i),TY(r.high)]))}" fill="none" stroke="#f6ad55" stroke-width="2"/>`+R.map((r,i)=>`<circle cx="${X(i)}" cy="${TY(r.high)}" r="3" fill="#f6ad55"/>`).join('');
+  const t=(x,y,s,a,c='#bccad0')=>`<text x="${x}" y="${y}" font-family="IBM Plex Mono, monospace" font-size="9" fill="${c}" text-anchor="${a}">${s}</text>`;
+  return `<p class="why">The whole trip's rain total and warmest high at every recording. The dates are when each forecast was made, not trip days.</p>
+    <div class="chart" style="margin:0 -6px"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Trip rain total and warmest high at each forecast recording">${t(px-4,RY(rm)+8,fi(rm)+' in','end','#d6dcff')}${t(px-4,bot,'0','end','#d6dcff')}${t(W-px+4,TY(thi-3)+3,Math.round(thi-3)+'°','start','#f6ad55')}${t(W-px+4,TY(tlo+3)+3,Math.round(tlo+3)+'°','start','#f6ad55')}
+    <line x1="${px}" x2="${W-px}" y1="${bot}" y2="${bot}" stroke="rgba(255,255,255,.12)"/>${bars}${line}${R.map((r,i)=>t(X(i),bot+16,r.m,'middle')).join('')}${t(W/2,H-4,'Forecast made on','middle','#8fa0a8')}</svg></div>
+    <div class="keyrow"><span><i style="background:#a5b4fc;height:8px;width:8px"></i>rain total, likely</span><span><i style="background:#a5b4fc;width:2px;height:10px"></i>range</span><span><i style="background:none;border:1.4px solid #a5b4fc;height:8px;width:8px"></i>part of the trip</span><span><i style="background:#f6ad55"></i>warmest high</span></div>
+    <div class="why">${allDry?`Every recording forecast no measurable rain over the trip. Warmest high ${R[0].high}° → ${R[n-1].high}°.`:`Since the first forecast: rain ${fi(R[0].t)} → ${fi(R[n-1].t)} in, warmest high ${R[0].high}° → ${R[n-1].high}°.`}</div>`;}
+function trendDays(tr){const c=cragBy(tr.crags[0]),days=Array.from({length:tr.d1-tr.d0+1},(_,k)=>tile(c,tr.d0+k)).filter(x=>x.w);
+  if(!days.length)return '<p class="why">Trend starts after the next forecast update.</p>';
+  const W=360,H=120,px=30,bot=92,top=10,n=days.length,cw=(W-2*px)/n,X=i=>px+cw*(i+.5),F=x=>({amt:+(x.w.amt*1.7+.02).toFixed(3),hi:x.w.hi+(x.di%2?3:-2)});
+  const rm=Math.max(.05,...days.flatMap(x=>[x.w.amt,F(x).amt])),RY=v=>bot-v/rm*(bot-top),hv=days.flatMap(x=>[x.w.hi,F(x).hi]),tlo=Math.min(...hv)-3,thi=Math.max(...hv)+3,TY=v=>bot-(v-tlo)/(thi-tlo)*(bot-top);
+  const m=days.map((x,i)=>{const f=F(x);return `<rect x="${X(i)-13}" y="${RY(f.amt)}" width="11" height="${(bot-RY(f.amt)).toFixed(1)}" rx="2" fill="none" stroke="#a5b4fc" stroke-dasharray="3 2"/><rect x="${X(i)+2}" y="${RY(x.w.amt)}" width="11" height="${(bot-RY(x.w.amt)).toFixed(1)}" rx="2" fill="#a5b4fc" opacity=".8"/><circle cx="${X(i)-7}" cy="${TY(f.hi)}" r="3.5" fill="none" stroke="#f6ad55" stroke-width="1.4"/><circle cx="${X(i)+8}" cy="${TY(x.w.hi)}" r="3.5" fill="#f6ad55"/>`;}).join('');
+  return `<p class="why">Each trip day's first forecast against its latest.</p><div class="chart" style="margin:0 -6px"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Each trip day's first and latest forecast rain and high"><line x1="${px}" x2="${W-px}" y1="${bot}" y2="${bot}" stroke="rgba(255,255,255,.12)"/>${m}</svg></div>
+    <div class="dtcap" style="grid-template-columns:repeat(${n},minmax(0,1fr))">${days.map(x=>{const f=F(x);return `<div><b>${dShort(dOf(x.di))}</b><small>${fi(f.amt)} → ${fi(x.w.amt)} in</small><small>${f.hi}° → ${x.w.hi}°</small></div>`;}).join('')}</div>
+    <div class="keyrow"><span><i style="background:none;border:1px dashed #a5b4fc;height:8px;width:8px"></i>first rain</span><span><i style="background:#a5b4fc;height:8px;width:8px"></i>latest rain</span><span><i style="background:none;border:1.4px solid #f6ad55;height:8px;width:8px;border-radius:50%"></i>first high</span><span><i style="background:#f6ad55;height:8px;width:8px;border-radius:50%"></i>latest high</span></div>`;}
+function trendCard(tr){const tg=`<div class="pills"><button data-trend="day" aria-pressed="${S.trend==='day'}">By day</button><button data-trend="whole" aria-pressed="${S.trend==='whole'}">Whole trip</button></div>`;
+  return `<div class="sect">How the forecast has moved<em>${recs(tr).length} recordings</em></div>${tg}${S.trend==='day'?trendDays(tr):trendWhole(tr)}`;}
+const agreeChip=a=>a==null?'':`<span class="agree">Agreement ${a}%</span>`;
+function tripCragView(tr,c){const ts=Array.from({length:tr.d1-tr.d0+1},(_,k)=>tile(c,tr.d0+k)),sel=ts[Math.min(S.tripDay,ts.length-1)],tot=tripTotal(c,tr);
+  const tl=ts.map((x,i)=>`<button class="ttile${x.scored?'':' dash'}" data-tday="${i}" aria-pressed="${i===Math.min(S.tripDay,ts.length-1)}"><span class="dn">${dShort(dOf(x.di))}</span>${x.scored?`<b style="color:${hex(x.score)}">${x.score??'—'}</b><small>${x.al?'<span style="color:var(--poor)">Alert</span>':x.word}</small>`:`<b class="nos">—</b><small>${x.from?'Scored from '+dShort(dOf(x.from)):'No forecast'}</small>`}
+    ${x.w?`<small class="wx">${x.w.hi}° · ${x.w.chance}% · ${fi(x.w.amt)} in</small>`:''}</button>`).join('');
+  const day=sel.w?`<div class="dcard"><div class="lab">${DL[sel.di]??WD[dOf(sel.di).getDay()]} ${dMon(dOf(sel.di))}</div>${sel.scored?(sel.score===null?`<div class="big2" style="color:var(--none)">No score</div><div class="why">${sel.al?c.alert.text+'. Score withheld; readings stay.':'No full three-hour window.'}</div>`:`<div class="big2" style="color:${hex(sel.score)}">Best ${hl(sel.start)}–${hl(sel.start+3)} · ${sel.score}</div><div class="why">Dryness: ${sel.word}</div>`):`<div class="big2" style="color:var(--none)">Not scored yet</div><div class="why">${sel.from?`Scores start ${dShort(dOf(sel.from))}, six days out.`:''}</div>`}
+    <div class="read"><div><span>High · low</span><b>${sel.w.hi}° · ${sel.w.lo}°</b></div><div><span>Chance</span><b style="color:var(--rain)">${sel.w.chance}%</b></div><div><span>Amount</span><b>${fi(sel.w.amt)} in</b></div></div>${agreeChip(sel.w.agree)}</div>`:`<div class="why">No forecast for this day yet.</div>`;
+  const amts=ts.filter(x=>x.w),am=Math.max(.02,...amts.map(x=>x.w.amt));
+  const rain=tot?`<div class="tot"><b>${fi(tot.t)}<small> in likely</small></b><span>Range ${fi(tot.lo)}–${fi(tot.hi)} in</span></div><div class="rbar"><i style="left:${tot.lo/tot.hi*100}%;right:0"></i><em style="left:${tot.t/tot.hi*100}%"></em></div>
+    <div class="dam" style="grid-template-columns:repeat(${amts.length},minmax(0,1fr))">${amts.map(x=>`<div><i style="height:${Math.max(2,x.w.amt/am*36)}px"></i><small>${dShort(dOf(x.di))}</small><small>${fi(x.w.amt)}</small></div>`).join('')}</div><p class="note">Amounts add up; a range never does.</p>`:`<p class="why">Not every forecast run reaches these days, so there is no total yet.</p>`;
+  return `<div class="tiles">${tl}</div>${day}<div class="sect">Rain over the trip<em>likely · range</em></div>${rain}${trendCard(tr)}`;}
+function tripGrid(tr){const ds=Array.from({length:tr.d1-tr.d0+1},(_,k)=>tr.d0+k);
+  return `<div class="sect">By day<em>Tap a crag</em></div><div class="tgrid" style="grid-template-columns:96px repeat(${ds.length},minmax(58px,1fr))"><span></span>${ds.map(di=>`<span class="gh">${dShort(dOf(di))}</span>`).join('')}
+    ${tr.crags.map(k=>{const c=cragBy(k);return `<button class="gname" data-tcrag="${k}">${c.short} ›</button>${ds.map(di=>{const x=tile(c,di);return x.scored?`<button class="gcell" data-tcrag="${k}"><b style="color:${hex(x.score)}">${x.score??'—'}</b><small>${x.al?'Alert':x.word}</small><small class="wx">${fi(x.w.amt)} in</small></button>`:`<button class="gcell dash" data-tcrag="${k}"><b class="nos">—</b><small class="wx">${x.w?`${x.w.hi}° · ${x.w.chance}%`:'No forecast'}</small></button>`;}).join('')}`;}).join('')}</div><p class="note">Dashed: not scored yet.</p>
+    <div class="sect">Rain over the trip<em>likely · range</em></div><div class="lines">${tr.crags.map(k=>{const c=cragBy(k),t=tripTotal(c,tr);return `<div class="line"><span>${c.short}</span><b>${t?fi(t.t)+' in':'No total yet'}</b>${t?`<small>${fi(t.lo)}–${fi(t.hi)} in</small>`:''}</div>`;}).join('')}</div>${trendCard(tr)}`;}
+function lookBack(tr){const c=cragBy(tr.crags[0]),days=[{d:dOf(tr.d0),word:'Dry',rain:0,hi:52,f:[40,.1,49],l:[15,.02,51]},{d:dOf(tr.d1),word:'Drying',rain:.05,hi:47,f:[20,.03,50],l:[55,.06,48]}];
+  return `<div class="sect">How it turned out<em>${c.short}</em></div>${days.map(x=>`<div class="lb"><div class="lab">${dShort(x.d)} ${MON[x.d.getMonth()]}</div><div class="lbr"><div><span>Turned out</span><b style="color:${ROCKC[x.word]}">${x.word}</b><small>${fi(x.rain)} in · high ${x.hi}°</small></div><div><span>Forecast said first</span><b>${x.f[0]}%</b><small>${fi(x.f[1])} in · ${x.f[2]}°</small></div><div><span>Last</span><b>${x.l[0]}%</b><small>${fi(x.l[1])} in · ${x.l[2]}°</small></div></div></div>`).join('')}
+    <p class="note">How a day turned out is the forecast model’s own look back at it once it was over, not a weather station’s record.</p>`;}
+function tripsList(){return `<div class="pad"><div class="lhead tl"><div><h2>Trips</h2><small>Soonest first</small></div><button class="pbtn" data-tnew>+ New trip</button></div>
+  <div class="tcards">${TRIPS.slice().sort((a,b)=>(a.d1<1)-(b.d1<1)||a.d0-b.d0).map(tr=>{const o=opens(tr);return `<button class="gc tcard" data-trip="${tr.id}"><span class="cn">${tr.name}</span><small>${[tDates(tr),timing(tr),cc(tr.crags.length)].join(' · ')}</small>${o?`<small class="note">Forecast opens ${dMon(o)}</small>`:''}${tr.d1>=1&&!o?`<span class="tmini">${tr.crags.map(k=>{const c=cragBy(k);return Array.from({length:tr.d1-tr.d0+1},(_,j)=>{const x=tile(c,tr.d0+j);return `<i style="background:${x.scored?hex(x.score):'transparent'};${x.scored?'':'box-shadow:inset 0 0 0 1px rgba(255,255,255,.3)'}"></i>`;}).join('');}).join('<b></b>')}</span>`:''}</button>`;}).join('')}</div>
+  <p class="foot">Sample trips. A trip shows scores for days up to six ahead, weather up to fifteen, and a look back once it is over.</p></div>`;}
+function tripScreen(){const tr=TRIPS.find(t=>t.id===S.trip),multi=tr.crags.length>1,c=S.tripCrag?cragBy(S.tripCrag):(!multi?cragBy(tr.crags[0]):null),o=opens(tr);
+  let body;if(tr.d1<1)body=lookBack(tr)+trendCard(tr);else if(o)body=`<div class="why" style="font-size:14px">No forecast for these days yet. Forecast opens ${dMon(o)}.</div>`;else body=c?tripCragView(tr,c):tripGrid(tr);
+  return `<div class="pad"><div class="toprow"><button class="back" data-tback aria-label="Back">‹</button><span class="crumbt">${c&&multi?tr.name:'Trips'}</span><span style="flex:1"></span><button class="fbk" data-toast="Opens Feedback">Feedback</button></div>
+    <div class="lhead"><h2>${c&&multi?c.short:tr.name}</h2><small>${[tDates(tr),timing(tr),c&&multi?null:cc(tr.crags.length)].filter(Boolean).join(' · ')}</small></div>
+    <div id="pane">${glass(body+`<div class="sect">Trip</div><p class="note">Weather on every tile is the trip outlook's; scores and words are each crag's hourly readings. Agreement is the share of forecast runs that agree on rain or no rain that day.</p>${SOURCES}<div class="tacts"><button class="linkbtn" data-tedit>Edit trip</button><button class="linkbtn danger" data-tdel>${S.delArm?'Tap again to delete':'Delete trip'}</button></div>`)}</div></div>`;}
+function tripForm(){const tr=S.edit?TRIPS.find(t=>t.id===S.edit):null,dr=S.draft;
+  return `<div class="pad"><div class="toprow"><button class="back" data-tback aria-label="Back">‹</button><span class="crumbt">Trips</span></div><div class="lhead"><h2>${tr?'Edit trip':'New trip'}</h2></div>
+  <form class="gc tform" id="tform"><label>Name<input id="tfn" type="text" value="${dr.name}" placeholder="Red Wing weekend"></label><div class="two"><label>First day<input id="tf0" type="date" value="${dr.start}"></label><label>Last day<input id="tf1" type="date" value="${dr.end}"></label></div>
+  ${tr?'<p class="note">Changing the dates restarts the whole-trip trend.</p>':''}
+  <fieldset><legend>Crags</legend>${CRAGS.map(c=>`<label class="chk"><input type="checkbox" id="tfc-${c.id}" value="${c.id}"${dr.crags.includes(c.id)?' checked':''}><span>${c.name}</span></label>`).join('')}<button type="button" class="addc" data-toast="Opens Add a crag; back brings the draft home">+ Add a crag</button></fieldset>
+  <div class="ferr" id="tferr">${S.ferr||''}</div><button class="pbtn" type="submit">${tr?'Save':'Create trip'}</button></form></div>`;}
+
+/* ===== Screen ===== */
+function paneBody(c){
+  const now=c.at(NOW),ds=c.dayScore(1);
+  let body='';
+  if(S.tab==='Overview'){
+    const days=[2,3,4,5,6,7].map((di,i)=>{const s=c.dayScore(di).score,d=c.days[di],k=d.rain&&Object.keys(d.rain).length?'rain':d.chance>=45?'cloud':d.chance>=15||d.sun<.5?'partly':'sun';
+      return `<button data-openday="${di}" style="animation-delay:${i*50}ms" aria-label="${DL[di]}: score ${s??'none'}">${glyph(k,false,22)}${miniShape(s,dkey(c,di))}<span>${DN[di]}</span><span>${d.hi}°/${d.lo}°</span><span style="color:var(--rain)">${d.chance}%</span></button>`}).join('');
+    body=`<div class="sect">Today<em>${ds.score!==null?`day ${ds.score} · best ${hl(ds.start)}–${hl(ds.start+3)}`:'no full window left today'}</em></div>${todayChart(c)}
+      <div class="sect">Next days<em>day score · high/low · chance of rain</em></div><div class="days">${days}</div>
+      ${now.score!==null&&now.pens.length?`<div class="sect">Score breakdown<em>what is holding it back</em></div><div class="order">${now.pens.join('<i>›</i>')}</div>`:''}
+      <div class="sect">Rain<em>four-model median</em></div><div class="lines">${rainLines(c)}</div>
+      <div class="sect">Air<em>ICON</em></div><div class="lines"><div class="line"><span>Dew point</span><b>${now.dew}°F</b></div><div class="line"><span>Humidity</span><b>${now.hum}%</b></div><div class="line"><span>Wind · gusts</span><b>${now.wind} · ${now.gust} mph</b></div></div>
+      <div class="sect">Rock<em>drying · condensation</em></div><div class="statrow" style="align-items:flex-start">${dryClock(c,now,96)}<div class="lines" style="flex:1;min-width:0"><div class="line"><span>Above dew point</span><b style="color:${now.gap<4?'var(--poor)':'var(--txt1)'}">${now.gap}°F</b></div><div class="line"><span>Since real rain</span><b>${now.since} h</b><small>${c.rock} dries in ${c.win[0]}–${c.win[1]} h. Drying-clock rain is the hourly median of GFS, ECMWF, ICON and GEM.</small></div></div></div>`;
+  } else if(S.tab==='Hourly'){ body=hourlyCharts(c); }
+  else if(S.tab==='Daily') body=dailyTab(c);
+  else if(S.tab==='Precip') body=precipTab(c);
+  else if(S.tab==='Rock') body=rockTab(c);
+  else body=cragTab(c);
+  return glass(body)+(S.tab==='Overview'?`<section class="gc">${EXPLAIN}</section>`:'')+(S.tab==='Crag'?'':`<div class="tfoot">${SOURCES}</div>`);
+}
+/* Each section, from its heading to the next, becomes one glass card. A leading day picker stays on the scene. */
+function glass(h){const p=h.split('<div class="sect">'),lead=p.shift(),o=[];if(lead.trim())o.push(/^\s*<div class="daychips"/.test(lead)?lead:`<section class="gc">${lead}</section>`);for(const x of p)o.push(`<section class="gc"><div class="sect">${x}</section>`);return o.join('');}
+let scQ=false,scY=0,scT=0,relax=0;document.getElementById('view')?.addEventListener('scroll',()=>{if(scQ||RM)return;scQ=true;requestAnimationFrame(()=>{scQ=false;const v=document.getElementById('view'),now=performance.now(),dy=v.scrollTop-scY,dt=Math.max(8,now-scT);scY=v.scrollTop;scT=now;const vel=Math.max(-1,Math.min(1,dy/dt/2.5));v.style.setProperty('--st',(1+Math.abs(vel)*.045).toFixed(4));v.style.setProperty('--sx',(1-Math.abs(vel)*.018).toFixed(4));v.style.setProperty('--so',vel>0?'100%':'0%');clearTimeout(relax);relax=setTimeout(()=>{v.style.setProperty('--st','1');v.style.setProperty('--sx','1');},90);});},{passive:true});
+/* Cards pour in: each drops in squashed, overshoots and settles, one after another. */
+function pour(){if(RM)return;const p=document.getElementById('pane');if(!p)return;p.querySelectorAll('.gc').forEach((e,i)=>e.style.setProperty('--k',Math.min(i,8)));p.classList.remove('pour');void p.offsetWidth;p.classList.add('pour');setTimeout(()=>p.classList.remove('pour'),1600);}
+function screen(){
+  const c=C(),now=c.at(NOW),ds=c.dayScore(1);
+  const crags=CRAGS.map(k=>`<button data-crag="${k.id}" aria-pressed="${k.id===c.id}">${k.short}</button>`).join('');
+  
+  const body=paneBody(c);
+  return `<div class="pad${S.quiet?'':' enter'}">
+    ${S.tab==='Overview'?`<div class="toprow"><button class="back" data-back aria-label="Back to Conditions">‹</button><div class="crags" role="group" aria-label="Crag">${crags}</div><button class="fbk" data-toast="Opens Feedback with this crag chosen">Feedback</button></div>`:''}
+    ${S.tab==='Overview'?`<div class="herobox"><div class="hero">
+      <div class="eyebrow">${c.name}</div>
+      <div class="bigrow"><div class="n${now.score!==null&&now.score>=100?' w3':''}" style="color:${hex(now.score)}" aria-label="Score ${now.score??'withheld'}"><span id="heroN">${now.score===null?'—':(count.t<1?count.from:now.score)}</span></div>
+        <div class="side"><span>${now.score===null?'Score withheld':'Score'}</span><span>Dryness: ${now.word}</span><small>${c.rock} · ${hl(NOW)}</small></div></div></div>
+    <p class="lead">${now.score===null?`<b>${c.alert.text}.</b> Readings still print below.`:`${now.rain>0?'Raining now':`${now.since} hours since real rain`}; ${now.air}°F, gusts ${now.gust} mph.`} ${ds.score!==null?`Today's best is <b>${hl(ds.start)}–${hl(ds.start+3)} at ${ds.score}</b>.`:'No full window left today.'}</p>
+    ${heroViz(c)}</div>`:`<div class="slim herobox" id="slim"><div class="toprow"><button class="back" data-back aria-label="Back to Conditions">‹</button><div class="crags" role="group" aria-label="Crag">${crags}</div><button class="fbk" data-toast="Opens Feedback with this crag chosen">Feedback</button></div><div class="slimrow" id="slimrow">${slimInner(c)}</div></div>`}
+    <div id="pane">${body}</div></div>`;
+}
+function tint(){}
+
+/* ===== The wave and lens ===== */
+const wave={x:0,tx:0,ph:0,last:null,vals:null,dirty:true,
+  bind(){const w=document.getElementById('wave');if(!w)return;let down=false;const set=e=>{const r=w.getBoundingClientRect();this.tx=Math.max(0,Math.min(r.width,e.clientX-r.left));};
+    w.addEventListener('pointerdown',e=>{down=true;w.setPointerCapture(e.pointerId);set(e);});w.addEventListener('pointermove',e=>{if(down)set(e);});w.addEventListener('pointerup',()=>down=false);
+    w.addEventListener('keydown',e=>{const st=w.clientWidth/35;if(e.key==='ArrowRight'){this.tx=Math.min(w.clientWidth,this.tx+st);e.preventDefault();}if(e.key==='ArrowLeft'){this.tx=Math.max(0,this.tx-st);e.preventDefault();}});
+    this.tx=0;this.x=0;this.last=null;this.dirty=true;},
+  tick(dt){const svg=document.getElementById('waveSvg');if(!svg)return;const c=C(),W=390,H=170,n=36;
+    const tgt=Array.from({length:n},(_,i)=>H-22-((c.at(NOW+i).score??8)/100)*(H-60));
+    if(!this.vals||RM)this.vals=tgt.slice();let moving=false;
+    this.vals=this.vals.map((v,i)=>{const k=Math.min(1,(dt||.016)*(7-i*.08));const nv=v+(tgt[i]-v)*k;if(Math.abs(tgt[i]-nv)>.3)moving=true;return Math.abs(tgt[i]-nv)>.3?nv:tgt[i];});
+    const pts=this.vals.map((y,i)=>[i*W/(n-1),y]);
+    if(moving||this.dirty){this.dirty=false;
+    const d=smooth(pts),stops=Array.from({length:n},(_,i)=>`<stop offset="${(i/(n-1)*100).toFixed(1)}%" stop-color="${hex(c.at(NOW+i).score)}"/>`).join('');
+    svg.innerHTML=`<defs><linearGradient id="wlg">${stops}</linearGradient><linearGradient id="wfd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient><mask id="wmk"><rect width="390" height="170" fill="url(#wfd)"/></mask></defs>
+      <path d="M0 ${H} L${d.slice(1)} L${W} ${H} Z" fill="url(#wlg)" opacity=".55" mask="url(#wmk)"/><path d="${d}" fill="none" stroke="url(#wlg)" stroke-width="3"/>
+      ${pts.map((p,i)=>c.at(NOW+i).rain?`<circle cx="${p[0]}" cy="10" r="${3+c.at(NOW+i).rain*60}" fill="#a5b4fc" opacity=".85"/>`:'').join('')}`;}
+    const w=document.getElementById('wave');this.x+=(this.tx-this.x)*(RM?1:.18);const idx=Math.max(0,Math.min(n-1,Math.round(this.x/w.clientWidth*(n-1))));
+    const L=document.getElementById('lens');L.style.left=(46+this.x/w.clientWidth*(w.clientWidth-92))+'px';L.style.top=Math.max(0,pts[idx][1]/H*w.clientHeight-46)+'px';
+    if(idx!==this.last){this.last=idx;const h=c.at(NOW+idx);document.getElementById('lensN').textContent=h.score??'—';document.getElementById('lensN').style.color=hex(h.score);document.getElementById('lensT').textContent=idx?hs(h.hr)+(h.di!==1?' '+DN[h.di]:''):'now';}}};
+
+/* ===== Scrubbing the charts ===== */
+function bindCharts(){
+  const t=document.getElementById('today');
+  if(t){let down=false;const pick=e=>{const r=t.getBoundingClientRect(),W=+t.dataset.w,x0=+t.dataset.x0,n=+t.dataset.n;const x=(e.clientX-r.left)/r.width*W;const i=Math.max(0,Math.min(n-1,Math.round((x-x0)/((W-2*x0)/(n-1)))));const tt=NOW-6+i;if(tt!==S.sel){S.sel=tt;redrawPane();}};
+    t.addEventListener('pointerdown',e=>{down=true;t.setPointerCapture(e.pointerId);pick(e);});t.addEventListener('pointermove',e=>{if(down)pick(e);});t.addEventListener('pointerup',()=>down=false);}
+  document.querySelectorAll('.hchart').forEach(ch=>{let down=false;const pick=e=>{const r=ch.getBoundingClientRect(),W=+ch.dataset.w,x0=+ch.dataset.x0;const x=(e.clientX-r.left)/r.width*W;const i=Math.max(0,Math.min(23,Math.round((x-x0)/((W-2*x0)/23))));if(i!==S.hIdx){S.hIdx=i;redrawPane();}};
+    ch.addEventListener('pointerdown',e=>{down=true;ch.setPointerCapture(e.pointerId);pick(e);});ch.addEventListener('pointermove',e=>{if(down)pick(e);});ch.addEventListener('pointerup',()=>down=false);});
+  bindStrip('#pchart','pIdx',48); bindGrid(); bindStrip('#rchart','rIdx',48);
+}
+function bindStrip(sel,key,n){const ch=document.querySelector(sel);if(!ch||!ch.dataset)return;let down=false;const pick=e=>{const r=ch.getBoundingClientRect(),W=+ch.dataset.w,x0=+ch.dataset.x0;const x=(e.clientX-r.left)/r.width*W;const i=Math.max(0,Math.min(n-1,Math.round((x-x0)/((W-2*x0)/(n-1)))));if(i!==S[key]){S[key]=i;redrawPane();}};
+  ch.addEventListener('pointerdown',e=>{down=true;ch.setPointerCapture(e.pointerId);pick(e);});ch.addEventListener('pointermove',e=>{if(down)pick(e);});ch.addEventListener('pointerup',()=>down=false);}
+/* Switching between Overview and the other tabs: the hero's number and name fly into the slim header
+   (FLIP inside the phone, so nothing escapes its clip), the rest of the hero shrinks away, and the
+   tabs slide up. Going back, the number grows out of the header and the hero eases in. */
+function flipRender(after){
+  const v=document.getElementById('view'),q=sel=>v.querySelector(sel),rect=e=>e?e.getBoundingClientRect():null;
+  const o={n:q('#heroN, .slim .sc .v'),nm:q('.eyebrow, .slim .nm'),tabs:q('.tabs'),pane:q('#pane'),box:q('.herobox')};
+  const was={n:rect(o.n),nm:rect(o.nm),tabs:rect(o.tabs),pane:rect(o.pane),box:rect(o.box)},wasHero=!!q('.hero');
+  S.quiet=true;render();S.quiet=false;if(after)after();pour();
+  if(RM||!o.box)return;const toHero=!!q('.hero');if(toHero===wasHero){const sl=q('#slim');if(sl)sl.classList.add('swap');return;}
+  const ease='cubic-bezier(.2,.9,.3,1)';
+  const fly=(el,from,scale)=>{if(!el||!from)return;const to=el.getBoundingClientRect();const k=scale&&to.height?from.height/to.height:1;
+    el.style.transformOrigin='0 0';el.style.transition='none';el.style.transform=`translate(${from.left-to.left}px,${from.top-to.top}px) scale(${k})`;void el.offsetWidth;
+    el.style.transition=`transform .55s ${ease}`;el.style.transform='';setTimeout(()=>{el.style.transition='';el.style.transformOrigin='';},600);};
+  fly(q('#heroN, .slim .sc .v'),was.n,true);fly(q('.eyebrow, .slim .nm'),was.nm,true);fly(q('#pane'),was.pane,false);
+  // what is left of the old header: shrinks and fades where it stood
+  const pad=q('.pad'),pr=rect(pad),g=o.box;g.querySelectorAll('[id]').forEach(e=>e.removeAttribute('id'));
+  g.querySelectorAll('.bigrow .n, .eyebrow, .slim .sc, .slim .nm').forEach(e=>e.style.visibility='hidden');
+  g.classList.remove('grow');g.classList.add('ghost');g.style.left=(was.box.left-pr.left)+'px';g.style.top=(was.box.top-pr.top)+'px';g.style.width=was.box.width+'px';
+  if(pad){pad.appendChild(g);setTimeout(()=>g.remove(),400);}
+  if(toHero){const hb=q('.herobox');if(hb)hb.classList.add('grow');}
+}
+let pending=false;
+function redrawPane(){ if(pending) return; pending=true; requestAnimationFrame(()=>{pending=false;
+  const v=document.getElementById('view'),st=v.scrollTop; const c=C();
+  document.getElementById('pane').innerHTML=paneBody(c);
+  const sl=document.getElementById('slimrow');if(sl){count.to=slimInfo(c).v;count.t=1;sl.innerHTML=slimInner(c);}
+  document.getElementById('pane').classList.add('still');
+  v.scrollTop=st; bindCharts();}); }
+
+function render(){ uid=0; const ab=document.getElementById('appbar');if(!ab.querySelector||!ab.querySelector('[data-app]'))ab.innerHTML=appbarHtml();
+  if(S.screen==='trips'||S.screen==='trip'||S.screen==='tripnew'){document.getElementById('view').innerHTML=S.screen==='trips'?tripsList():S.screen==='trip'?tripScreen():tripForm();bars();if(!S.quiet)pour();return;}
+  if(S.screen==='list'){document.getElementById('view').innerHTML=listScreen();tint();bars();document.querySelectorAll('.crow .num[data-v]').forEach((e,i)=>countUp(e,+e.dataset.v,200+i*70));return;}
+  const c=C(); count.set(S.tab==='Overview'?c.at(NOW).score:slimInfo(c).v);
+  document.getElementById('view').innerHTML=screen(); wave.bind(); bindHero(); bindCharts(); tint();
+  slide('.crags','[aria-pressed="true"]','crag'); try{const cr=document.querySelector('.crags'),a=cr.querySelector('[aria-pressed="true"]');cr.scrollLeft=Math.max(0,a.offsetLeft-(cr.clientWidth-a.offsetWidth)/2);}catch(e){} const dk=document.getElementById('dock');if(!dk.querySelector('[data-tab]'))dk.innerHTML=dockHtml();else dk.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===S.tab)));
+  slide('#dock .tabs','[aria-selected="true"]','tab'); bars(); if(!S.quiet) pour(); }
+document.addEventListener('click',e=>{
+  const ty=e.target.closest('[data-type]');if(ty){document.querySelectorAll('[data-type]').forEach(b=>b.setAttribute('aria-pressed',String(b===ty)));const ph=document.getElementById('phone');ph.style.setProperty('--display',ty.dataset.d);ph.style.setProperty('--body',ty.dataset.b);ph.dataset.type=ty.dataset.type;return;}
+  const gb=e.target.closest('[data-glow]');if(gb){GLOW=gb.dataset.glow;document.querySelectorAll('[data-glow]').forEach(b=>b.setAttribute('aria-pressed',String(b===gb)));if(S.screen==='crag'){const v=document.getElementById('view'),st=v.scrollTop;S.quiet=true;render();S.quiet=false;v.scrollTop=st;}return;}
+  const vz=e.target.closest('[data-viz]');if(vz){S.viz=vz.dataset.viz;S.vIdx=null;document.querySelectorAll('[data-viz]').forEach(b=>b.setAttribute('aria-pressed',String(b===vz)));if(S.screen==='list'){go('crag',S.crag);return;}if(S.tab!=='Overview'){S.tab='Overview';}S.quiet=true;render();S.quiet=false;const p=document.querySelector('.pad');if(p&&!RM){p.classList.add('arrive');setTimeout(()=>p.classList.remove('arrive'),1600);}return;}
+  const op=e.target.closest('[data-open]');if(op){go('crag',op.dataset.open);return;}
+  if(e.target.closest('[data-back]')){go('list');return;}
+  const ap=e.target.closest('[data-app]');if(ap){const k=ap.dataset.app;if(k==='conditions'&&S.screen!=='list'){S.screen='list';S.quiet=true;render();S.quiet=false;}else if(k==='trips'&&S.screen!=='trips'){S.screen='trips';nav(1);}else if(k!=='conditions'&&k!=='trips')toast(ap.textContent.trim()+' is not drawn in this mockup; it keeps its current screen.');return;}
+  const tt=e.target.closest('[data-toast]');if(tt){toast(tt.dataset.toast);return;}
+  const tp=e.target.closest('[data-trip]');if(tp){S.screen='trip';S.trip=tp.dataset.trip;S.tripCrag=null;S.tripDay=0;S.delArm=false;nav(1);return;}
+  if(e.target.closest('[data-tback]')){back();return;}
+  const tc=e.target.closest('[data-tcrag]');if(tc){S.tripCrag=tc.dataset.tcrag;S.tripDay=0;nav(1);return;}
+  const td=e.target.closest('[data-tday]');if(td){S.tripDay=+td.dataset.tday;rr();return;}
+  const tn=e.target.closest('[data-trend]');if(tn){S.trend=tn.dataset.trend;rr();return;}
+  if(e.target.closest('[data-tnew]')){S.screen='tripnew';S.edit=null;S.ferr='';S.draft={name:'',start:'',end:'',crags:[]};nav(1);return;}
+  if(e.target.closest('[data-tedit]')){const tr=TRIPS.find(t=>t.id===S.trip);S.screen='tripnew';S.edit=tr.id;S.ferr='';S.draft={name:tr.name,start:isoOf(dOf(tr.d0)),end:isoOf(dOf(tr.d1)),crags:tr.crags.slice()};nav(1);return;}
+  if(e.target.closest('[data-tdel]')){if(!S.delArm){S.delArm=true;rr();}else{TRIPS=TRIPS.filter(t=>t.id!==S.trip);S.delArm=false;S.screen='trips';nav(-1);toast('Trip deleted');}return;}
+  const wl=e.target.closest('[data-wall]');if(wl){const w=+wl.dataset.wall;S.wall=w<0?null:w;S.route=null;S.wsort=null;S.wkind=null;redrawPane();return;}
+  const ro=e.target.closest('[data-route]');if(ro){S.route=ro.dataset.route.split('|').map(Number);LOG.confirm=null;redrawPane();return;}
+  const ws=e.target.closest('[data-wsort]');if(ws){S.wsort=ws.dataset.wsort;redrawPane();return;}
+  const wk=e.target.closest('[data-wkind]');if(wk){S.wkind=wk.dataset.wkind;redrawPane();return;}
+  const tdo=e.target.closest('[data-todo]');if(tdo){const k=tdo.dataset.todo;LOG.todo.has(k)?LOG.todo.delete(k):LOG.todo.add(k);redrawPane();return;}
+  const ad=e.target.closest('[data-askdel]');if(ad){const [k,i]=ad.dataset.askdel.split('|');LOG.confirm=k+i;redrawPane();return;}
+  const dt=e.target.closest('[data-deltick]');if(dt){const [k,i]=dt.dataset.deltick.split('|');LOG.ticks[k].splice(+i,1);LOG.confirm=null;redrawPane();return;}
+  if(e.target.closest('[data-remove]')){if(!S.rmArm){S.rmArm=true;redrawPane();}else{S.rmArm=false;redrawPane();toast('The app removes the crag here; this mockup keeps it.');}return;}
+  const cr=e.target.closest('[data-crag]');if(cr){if(cr.dataset.crag===S.crag)return;const ix=k=>CRAGS.findIndex(x=>x.id===k),dir=ix(cr.dataset.crag)>ix(S.crag)?1:-1;S.crag=cr.dataset.crag;S.sel=NOW;S.hIdx=null;S.vIdx=null;S.gT=null;S.pIdx=null;S.rIdx=null;S.quiet=true;render();S.quiet=false;swipeIn(dir);return;}
+  const tb=e.target.closest('[data-tab]');if(tb){if(tb.dataset.tab===S.tab)return;S.tab=tb.dataset.tab;S.wall=null;S.route=null;S.rmArm=false;const v=document.getElementById('view');flipRender(()=>{v.scrollTop=0;});return;}
+  const dy=e.target.closest('[data-day]');if(dy){S.day=+dy.dataset.day;S.hIdx=null;const v=document.getElementById('view'),st=v.scrollTop;render();v.scrollTop=st;return;}
+  const od=e.target.closest('[data-openday]');if(od){const v=document.getElementById('view');S.tab='Hourly';S.day=+od.dataset.openday;S.hIdx=null;flipRender(()=>{v.scrollTop=0;});return;}
+});
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.hidden=false;clearTimeout(toast.k);toast.k=setTimeout(()=>{t.hidden=true;},2600);}
+function rr(){const v=document.getElementById('view'),st=v.scrollTop;S.quiet=true;render();S.quiet=false;v.scrollTop=st;}
+function nav(dir){const v=document.getElementById('view');S.quiet=true;render();S.quiet=false;v.scrollTop=0;if(RM)return;v.classList.remove('pageIn','pageBack');void v.offsetWidth;v.classList.add(dir>0?'pageIn':'pageBack');setTimeout(()=>v.classList.remove('pageIn','pageBack'),460);}
+function back(){if(S.screen==='crag'){go('list');return;}
+  if(S.screen==='trip'){const tr=TRIPS.find(t=>t.id===S.trip);if(S.tripCrag&&tr&&tr.crags.length>1){S.tripCrag=null;S.tripDay=0;}else S.screen='trips';}
+  else if(S.screen==='tripnew')S.screen=S.edit?'trip':'trips';S.delArm=false;nav(-1);}
+document.addEventListener('submit',e=>{e.preventDefault();const f=e.target;
+  if(f.dataset.tick){const k=f.dataset.tick;(LOG.ticks[k]=LOG.ticks[k]||[]).unshift({d:f.querySelector('#tkd').value,s:f.querySelector('#tks').value,n:f.querySelector('#tkn').value.trim()});redrawPane();toast('Ticked');return;}
+  if(f.id==='tform'){const d={name:f.querySelector('#tfn').value.trim(),start:f.querySelector('#tf0').value,end:f.querySelector('#tf1').value,crags:CRAGS.map(c=>c.id).filter(k=>f.querySelector('#tfc-'+k).checked)};S.draft=d;
+    const err=d.name===''?'Name the trip.':d.start===''||d.end===''?'Pick the dates.':d.end<d.start?'The trip ends before it starts.':d.crags.length===0?'Pick at least one crag.':'';
+    if(err){S.ferr=err;rr();return;}
+    const rec={name:d.name,crags:d.crags,d0:diOf(d.start),d1:diOf(d.end)};
+    if(S.edit){Object.assign(TRIPS.find(t=>t.id===S.edit),rec);S.trip=S.edit;}else{const id='n'+(TRIPS.length+1)+Date.now()%1000;TRIPS.push({id,...rec});S.trip=id;}
+    S.screen='trip';S.tripCrag=null;S.tripDay=0;nav(1);}});
+let lastT=0;function loop(n){const dt=Math.min(.05,((n||0)-lastT)/1000)||.016;lastT=n||0;wave.tick(dt);count.tick(dt);requestAnimationFrame(loop);}
+render();requestAnimationFrame(loop);
+</script>
+
+
+</body></html>
