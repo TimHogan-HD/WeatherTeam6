@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation as useRouterLocation, useNavigate, useParams } from 'react-router-dom'
 import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import type { Trip, UpdateTripInput } from '@weatherteam6/types'
 import { type, typeV2 } from '../theme/tokens.css.js'
@@ -9,7 +9,8 @@ import { Screen } from '../components/Screen.js'
 import { EmptyState, InlineError, SkeletonCards } from '../components/States.js'
 import { useCreateTrip, useTrip, useTrips, useUpdateTrip } from '../hooks/useTrips.js'
 import { useLocations } from '../hooks/useLocations.js'
-import { NEW_TRIP_PATH, backTarget, tripPath } from '../lib/backTarget.js'
+import { NEW_TRIP_PATH, backTarget, editTripPath, tripPath } from '../lib/backTarget.js'
+import { tripDraftFromState, type ForTrip, type TripDraft } from '../lib/tripDraft.js'
 import { cragCount, dateLabel, deviceToday, forecastOpens, formatTripDates, tripTiming } from '../lib/trips.js'
 import { SectionScreen } from './Sections.js'
 
@@ -81,7 +82,7 @@ function TripCard({ trip, today, onOpen }: { trip: Trip; today: string; onOpen: 
   )
 }
 
-type Draft = { name: string; start: string; end: string; locationIds: string[] }
+type Draft = TripDraft
 
 /** Why the draft cannot be sent yet, or `null` when it can. */
 export function draftProblem(draft: Draft): string | null {
@@ -115,10 +116,14 @@ export function TripCreate() {
   const create = useCreateTrip()
   const today = deviceToday()
   const back = backTarget({ route: 'tripNew' })
+  // Back from "Add a crag" brings the draft home; a fresh open brings none.
+  const routerState: unknown = useRouterLocation().state
+  const [returned] = useState(() => tripDraftFromState(routerState))
   return (
     <TripForm
       title="New trip"
-      initial={{ name: '', start: today, end: today, locationIds: [] }}
+      path={NEW_TRIP_PATH}
+      initial={returned ?? { name: '', start: today, end: today, locationIds: [] }}
       onBack={() => void navigate(back.to)}
       pending={create.isPending}
       failed={create.isError ? 'Couldn’t create the trip.' : null}
@@ -142,6 +147,8 @@ export function TripEdit() {
   const update = useUpdateTrip(tripId ?? '')
   const back = backTarget({ route: 'tripEdit', tripId: tripId ?? '' })
   const onBack = () => void navigate(back.to)
+  const routerState: unknown = useRouterLocation().state
+  const [returned] = useState(() => tripDraftFromState(routerState))
 
   if (trip.isPending) {
     return (
@@ -161,12 +168,16 @@ export function TripEdit() {
   return (
     <TripForm
       title="Edit trip"
-      initial={{
-        name: saved.name,
-        start: saved.startDate,
-        end: saved.endDate,
-        locationIds: (saved.locations ?? []).map((l) => l.locationId),
-      }}
+      path={editTripPath(saved.id)}
+      // The returned draft is diffed against the saved trip like any other edit.
+      initial={
+        returned ?? {
+          name: saved.name,
+          start: saved.startDate,
+          end: saved.endDate,
+          locationIds: (saved.locations ?? []).map((l) => l.locationId),
+        }
+      }
       onBack={onBack}
       pending={update.isPending}
       failed={update.isError ? 'Couldn’t save the trip.' : null}
@@ -190,6 +201,8 @@ export function TripEdit() {
 
 type TripFormProps = {
   title: string
+  /** This form's own path, which "Add a crag" returns to. */
+  path: string
   initial: Draft
   onBack: () => void
   pending: boolean
@@ -200,11 +213,20 @@ type TripFormProps = {
   onSubmit: (draft: Draft) => void
 }
 
-function TripForm({ title, initial, onBack, pending, failed, submitLabel, datesNote, onSubmit }: TripFormProps) {
+function TripForm({ title, path, initial, onBack, pending, failed, submitLabel, datesNote, onSubmit }: TripFormProps) {
+  const navigate = useNavigate()
   const locations = useLocations()
   const [draft, setDraft] = useState<Draft>(initial)
   const [tried, setTried] = useState(false)
-  const crags = (locations.data ?? []).filter((l) => l.is_climbing_location)
+  // A ticked place stays listed even if it was saved as not a crag, so nothing
+  // the trip will send is hidden from the form sending it.
+  const crags = (locations.data ?? []).filter((l) => l.is_climbing_location || draft.locationIds.includes(l.id))
+  // Replace, both ways: the form and the search are one step in the history,
+  // so the phone's back from the returned form does not reopen the search.
+  const addCrag = () => {
+    const forTrip: ForTrip = { returnTo: path, draft }
+    void navigate('/add', { replace: true, state: { forTrip } })
+  }
   const problem = draftProblem(draft)
   const note = datesNote === null ? null : datesNote(draft)
 
@@ -271,8 +293,6 @@ function TripForm({ title, initial, onBack, pending, failed, submitLabel, datesN
             <SkeletonCards count={2} height={44} />
           ) : locations.isError ? (
             <InlineError message="Couldn't load your crags." onRetry={() => void locations.refetch()} />
-          ) : crags.length === 0 ? (
-            <p style={typeV2.body}>Save a crag first, then plan a trip to it.</p>
           ) : (
             crags.map((crag) => {
               const on = draft.locationIds.includes(crag.id)
@@ -297,6 +317,22 @@ function TripForm({ title, initial, onBack, pending, failed, submitLabel, datesN
                 </label>
               )
             })
+          )}
+          {locations.isPending ? null : (
+            <button
+              type="button"
+              onClick={addCrag}
+              style={{
+                ...bareButton,
+                ...row(spacing.listGap),
+                ...cardV2,
+                padding: `${spacing.cellPad}px ${spacing.cardPad}px`,
+                borderStyle: 'dashed',
+              }}
+            >
+              <PlusIcon color={colorsV2.txtMuted} />
+              <span style={typeV2.rowTitle}>Add a crag</span>
+            </button>
           )}
         </fieldset>
         {tried && problem !== null ? <p style={{ ...type.bodySm, color: colors.poor }}>{problem}</p> : null}

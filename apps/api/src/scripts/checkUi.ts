@@ -140,6 +140,7 @@ async function run(): Promise<void> {
   let locationId: string | null = null
   let gpsLocationId: string | null = null
   let secondLocationId: string | null = null
+  let tripAddedLocationId: string | null = null
   const tripIds: string[] = []
   let token: string | null = null
   // The Map tab draws with WebGL, which headless Chromium has only in software.
@@ -624,6 +625,39 @@ async function run(): Promise<void> {
     await page.getByLabel('First day').fill(isoDayFromNow(2))
     await page.getByLabel('Last day').fill(isoDayFromNow(4))
     await page.getByLabel(CRAG.name).check()
+
+    // "Add a crag" leaves the form for /add and comes home with the draft: back
+    // from the search keeps it as it was, Save adds the new crag ticked.
+    const draftKept = async (): Promise<boolean> =>
+      (await page.getByLabel('Name').inputValue()) === `${PREFIX} one crag` &&
+      (await page.getByLabel('Last day').inputValue()) === isoDayFromNow(4) &&
+      (await page.getByLabel(CRAG.name).isChecked())
+    await page.getByRole('button', { name: 'Add a crag' }).click()
+    await page.getByRole('heading', { name: 'Add a location' }).waitFor({ timeout: 10_000 })
+    await page.getByRole('button', { name: 'Back', exact: true }).click()
+    await page.getByRole('heading', { name: 'New trip' }).waitFor({ timeout: 10_000 })
+    check('back from a trip’s Add a crag returns to the form as it was', await draftKept())
+    const tripAddedName = `${PREFIX} trip-added ${STAMP}`
+    await page.getByRole('button', { name: 'Add a crag' }).click()
+    await page.getByRole('button', { name: 'Enter coordinates instead' }).click()
+    await page.getByLabel('Name', { exact: true }).fill(tripAddedName)
+    await page.getByLabel('Latitude').fill('38.07')
+    await page.getByLabel('Longitude').fill('-109.57')
+    await page.getByRole('button', { name: 'Next' }).click()
+    check(
+      'a crag added from a trip starts as a climbing area',
+      (await page.getByRole('button', { name: '✓ Climbing area' }).getAttribute('aria-pressed')) === 'true',
+    )
+    await page.getByRole('button', { name: 'Save' }).click()
+    await page.getByRole('heading', { name: 'New trip' }).waitFor({ timeout: 30_000 }).catch(() => undefined)
+    const addedBox = page.getByLabel(tripAddedName)
+    const addedTicked = await addedBox.isChecked().catch(() => false)
+    check('Save returns to the trip with the draft kept and the new crag ticked', (await draftKept()) && addedTicked)
+    await screen('trip-new-added-crag', 5)
+    const listed = await api<Location[]>('GET', '/locations', token)
+    tripAddedLocationId = listed.payload.data?.find((l) => l.name === tripAddedName)?.id ?? null
+    // This trip is the one-crag trip below.
+    if (addedTicked) await addedBox.uncheck()
     await screen('trip-new', 5)
     await page.getByRole('button', { name: 'Create trip' }).click()
     await page.waitForURL(/\/trips\/[0-9a-f-]{36}$/, { timeout: 30_000 }).catch(() => undefined)
@@ -1138,7 +1172,7 @@ async function run(): Promise<void> {
       const del = await api<null>('DELETE', `/trips/${id}`, token).catch(() => null)
       if (del === null || del.status >= 300) cleanupFailed = true
     }
-    for (const id of [locationId, gpsLocationId, secondLocationId]) {
+    for (const id of [locationId, gpsLocationId, secondLocationId, tripAddedLocationId]) {
       if (id === null || token === null) continue
       const del = await api<null>('DELETE', `/locations/${id}`, token).catch(() => null)
       if (del === null || del.status >= 300) cleanupFailed = true
