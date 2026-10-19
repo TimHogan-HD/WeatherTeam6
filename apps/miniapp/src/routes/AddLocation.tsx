@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation as useRouterLocation, useNavigate } from 'react-router-dom'
+import { useLocation as useRouterLocation } from 'react-router-dom'
+import { useNavigate } from '../hooks/useNavigate.js'
 import { spacing } from '@weatherteam6/design/tokens'
 import { matchKnownCrag, placeSubtitle, type GeocodeResult, type RockType } from '@weatherteam6/types'
 import type { RockLock } from '../components/SaveBar.js'

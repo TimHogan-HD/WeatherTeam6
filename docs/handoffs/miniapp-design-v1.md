@@ -121,7 +121,7 @@ this. Not before.
   Profile holds Feedback and Sign out, which left the list, and the reader's settings (scoring
   Phase 5, 2026-10-01): the temperature range friction is judged against and the tab a crag
   opens on (`Settings.tsx`; a `?tab=` link still wins). Unlit tabs are icons, and the lit
-  one carries its name in a lime pill that slides from tab to tab (`TabBar.tsx`). Tapping a
+  one carries its name in an aqua pill (lime until 2026-10-19) that slides from tab to tab (`TabBar.tsx`). Tapping a
   tab goes to its section's first screen, so a lit Conditions is the way out of a location —
   which is why a saved location lost its back link. A section's first screen keeps its scroll
   position however you return to it, and tapping its lit tab there scrolls it to the top

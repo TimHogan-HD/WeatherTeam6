@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '../../hooks/useNavigate.js'
 import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import type { RockLevel } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'

@@ -1,17 +1,18 @@
 import { useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { bottomNav, colors, colorsV2, motion as m, radius, spacing } from '@weatherteam6/design/tokens'
-import { typeV2, withOpacity } from '../theme/tokens.css.js'
+import { bottomNav, colorsV2, motion as m, radius, spacing } from '@weatherteam6/design/tokens'
+import { typeV2 } from '../theme/tokens.css.js'
 import { navGeometry, type SectionKey } from '../lib/bottomNav.js'
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
 import { NavIcon } from './Icons.js'
-import { glassBar } from '../theme/glass.js'
+import { glassBar, selection } from '../theme/glass.js'
 
 /**
  * The app's five sections, fixed to the bottom of the screen (owner,
  * 2026-09-30; the clickable prototype is the "Bottom tab bar options" canvas).
  *
- * Unlit tabs are icons; the lit one carries its name in a lime pill. **One pill
+ * Unlit tabs are icons; the lit one carries its name in an aqua pill
+ * (`selection`, owner 2026-10-19; lime before). **One pill
  * slides between tabs** rather than each tab painting its own: its leading edge
  * leaves first and its trailing edge follows a beat later, so the pill reads
  * as pulled across to the next tab. No overshoot since 2026-10-01: a bar used
@@ -21,9 +22,8 @@ import { glassBar } from '../theme/glass.js'
  *
  * Links, not tabs: each one changes the URL, and `role="tab"` belongs to the
  * location screen's own row. The lit one is `aria-current="page"`. Tapping it
- * again goes to its section's first screen — from inside a location, the lit
- * Conditions tab is the way back to the list, which is why that screen has no
- * back link of its own — and on that first screen it scrolls to the top.
+ * again goes to its section's first screen, and on that first screen it
+ * scrolls to the top.
  */
 export function TabBar({ active, away = false }: { active: SectionKey; away?: boolean }) {
   const rowRef = useRef<HTMLDivElement>(null)
@@ -57,6 +57,8 @@ export function TabBar({ active, away = false }: { active: SectionKey; away?: bo
         right: 0,
         bottom: 0,
         zIndex: 10,
+        // Captured on its own in a page transition, so it stays put while the screens move.
+        viewTransitionName: 'wt6-bar',
         ...glassBar,
         transform: away ? 'translateY(110%)' : 'none',
         opacity: away ? 0 : 1,
@@ -82,8 +84,8 @@ export function TabBar({ active, away = false }: { active: SectionKey; away?: bo
               left: `${geometry.pill.left}px`,
               right: `${geometry.pill.right}px`,
               borderRadius: `${radius.full}px`,
-              backgroundColor: withOpacity(colors.good, 0.1),
-              border: `1px solid ${withOpacity(colors.good, 0.3)}`,
+              backgroundColor: selection.fill,
+              border: `1px solid ${selection.ring}`,
               boxSizing: 'border-box',
               pointerEvents: 'none',
               transition: motion(`${lead} ${m.pillLeadMs}ms ${PULL}, ${trail} ${m.pillTrailMs}ms ${PULL} ${m.pillTrailDelayMs}ms`),
@@ -112,7 +114,7 @@ export function TabBar({ active, away = false }: { active: SectionKey; away?: bo
                 minWidth: 0,
                 borderRadius: `${radius.full}px`,
                 textDecoration: 'none',
-                color: lit ? colors.good : colorsV2.txtTab,
+                color: lit ? colorsV2.brandInk : colorsV2.txtTab,
                 transition: motion(`flex-basis ${m.pillTrailMs}ms ${PULL}, color ${m.pillLeadMs}ms ${PULL}, transform ${m.pressMs}ms ${PULL}`),
               }}
             >

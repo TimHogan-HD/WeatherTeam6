@@ -1,12 +1,15 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react'
-import { useLocation as useRouterLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { colors, spacing } from '@weatherteam6/design/tokens'
+import { useCallback, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { useLocation as useRouterLocation, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate } from '../hooks/useNavigate.js'
+import { colors, motion, spacing } from '@weatherteam6/design/tokens'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, navClearance, row, stack } from '../theme/styles.js'
-import { backTarget, editPath, openedFromMap, wallPath } from '../lib/backTarget.js'
+import { backTarget, detailTabPath, editPath, openedFromMap, wallPath } from '../lib/backTarget.js'
 import { rockLocked } from '../lib/editLocation.js'
 import { formatRunAge } from '../lib/format.js'
-import { useDeleteLocation, useLocation } from '../hooks/useLocations.js'
+import { useDeleteLocation, useLocation, useLocations } from '../hooks/useLocations.js'
+import { swipeDirection, swipeOf, switcherOptions, switchState } from '../lib/cragSwitch.js'
+import type { CragChoice } from '../components/CragBar.js'
 import { usePreferences } from '../hooks/usePreferences.js'
 import { draftFromPreferences } from '../lib/preferencesForm.js'
 import { useAlerts, useConditions, useForecast } from '../hooks/useWeather.js'
@@ -95,10 +98,30 @@ export function LocationDetail() {
 
   // Back names the section it returns to (`backTarget`); the phone's own back
   // still retraces history.
-  const backTo = backTarget({ route: 'location', fromMap: openedFromMap(useRouterLocation().state) }).to
+  const { state: routerState } = useRouterLocation()
+  const backTo = backTarget({ route: 'location', fromMap: openedFromMap(routerState) }).to
   const backLabel = backTo === '/map' ? 'Map' : 'Conditions'
   const goBack = useCallback(() => void navigate(backTo), [navigate, backTo])
   useEdgeSwipeBack(goBack)
+
+  // The switcher across the top swaps one saved place for the next in place:
+  // a replace, so back still leaves for where the first was opened from, and
+  // the open tab rides in the URL, whether it came from one or was picked. The content swipes in from the side
+  // moved toward.
+  const saved = useLocations().data
+  const places = saved === undefined || location.data === undefined ? null : switcherOptions(saved, location.data)
+  const crags: CragChoice | null =
+    places === null || id === undefined
+      ? null
+      : {
+          options: places,
+          active: id,
+          onChange: (next) => {
+            const direction = swipeDirection(places.map((o) => o.id), id, next)
+            void navigate(detailTabPath(next, activeTab), { replace: true, state: switchState(routerState, direction) })
+          },
+        }
+  const swipe = swipeOf(routerState)
 
   // The day score flies between the Overview's hero and the slim header: where
   // it stood is read before the tab changes, and played from after it has.
@@ -114,7 +137,11 @@ export function LocationDetail() {
   }, [activeTab, reduced])
 
   const remove = useDeleteLocation()
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  // Armed for one crag: the switcher keeps this screen mounted, and a remove armed on one
+  // place must not carry to the next, where a single tap would delete it.
+  const [armedFor, setArmedFor] = useState<string | null>(null)
+  const confirmingDelete = armedFor !== null && armedFor === id
+  const removingHere = remove.variables === id
 
   const onDelete = useCallback(() => {
     if (id === undefined) return
@@ -189,7 +216,7 @@ export function LocationDetail() {
         surface the app cannot style, and on iOS an installed PWA renders it
         over the whole screen for a one-word decision.
       */}
-      {remove.isError ? <InlineError message="Couldn't remove this location." /> : null}
+      {remove.isError && removingHere ? <InlineError message="Couldn't remove this location." /> : null}
       {/* One row: stacked, the two text buttons and their tap padding were a band of empty space. */}
       <div style={{ ...row(spacing.cellPad), justifyContent: 'center', flexWrap: 'wrap' }}>
         {location.data.is_climbing_location && id !== undefined ? (
@@ -230,10 +257,10 @@ export function LocationDetail() {
             width: 'auto',
             padding: `${spacing.cellPad}px ${spacing.sectionGap}px`,
           }}
-          onClick={confirmingDelete ? onDelete : () => setConfirmingDelete(true)}
+          onClick={confirmingDelete ? onDelete : () => setArmedFor(id ?? null)}
           disabled={remove.isPending}
         >
-          {remove.isPending ? 'Removing…' : confirmingDelete ? 'Tap again to remove' : 'Remove location'}
+          {remove.isPending && removingHere ? 'Removing…' : confirmingDelete ? 'Tap again to remove' : 'Remove location'}
         </button>
       </div>
     </>
@@ -248,6 +275,7 @@ export function LocationDetail() {
         <DetailHeader
           heading={locationHeading(location.data ?? null, freshness)}
           back={{ label: backLabel, onBack: goBack }}
+          crags={crags}
           feedbackLocationId={id ?? null}
           tabs={null}
         />
@@ -274,15 +302,21 @@ export function LocationDetail() {
             nowMs: now,
           })}
           back={{ label: backLabel, onBack: goBack }}
+          crags={crags}
           feedbackLocationId={id ?? null}
         />
       )}
       <div
-        style={{
-          ...stack(spacing.listGapLg),
-          padding: `${spacing.sectionGap}px`,
-          paddingBottom: navClearance,
-        }}
+        key={id}
+        className={swipe === null ? undefined : 'wt6-swipe'}
+        style={
+          {
+            ...stack(spacing.listGapLg),
+            padding: `${spacing.sectionGap}px`,
+            paddingBottom: navClearance,
+            ...(swipe === null ? {} : { '--swipe-dx': `${swipe * motion.swipePx}px` }),
+          } as CSSProperties
+        }
       >
         {content}
       </div>

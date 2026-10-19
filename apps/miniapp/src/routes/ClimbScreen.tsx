@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
+import { useNavigate } from '../hooks/useNavigate.js'
 import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import {
   GUIDEBOOK_SOURCE_LABEL,

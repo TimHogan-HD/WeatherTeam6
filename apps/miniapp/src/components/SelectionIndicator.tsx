@@ -41,11 +41,20 @@ export function useSelectedRect(
  * the Hourly day chips' fill. It does not slide into its first place, and
  * under `prefers-reduced-motion` it never slides.
  */
-export function SelectionIndicator({ rect, style }: { rect: SelectedRect | null; style: CSSProperties }) {
+export function SelectionIndicator({
+  rect,
+  style,
+  timing = `${motion.slideMs}ms ${motion.easeOut}`,
+}: {
+  rect: SelectedRect | null
+  style: CSSProperties
+  /** Duration and easing of the slide: the hybrid look's dock and crag switcher spring. */
+  timing?: string
+}) {
   const reduced = usePrefersReducedMotion()
   if (rect === null) return null
   const animate = rect.moved && !reduced
-  const ease = `${motion.slideMs}ms ${motion.easeOut}`
+  const ease = timing
   return (
     <span
       aria-hidden

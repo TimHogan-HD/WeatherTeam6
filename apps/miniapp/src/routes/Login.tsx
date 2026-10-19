@@ -1,5 +1,5 @@
 import { useCallback, useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '../hooks/useNavigate.js'
 import { colors, spacing } from '@weatherteam6/design/tokens'
 import { type } from '../theme/tokens.css.js'
 import { bareButton, btnPrimary, btnPrimaryText, inputBox, stack } from '../theme/styles.js'

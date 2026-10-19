@@ -1,5 +1,6 @@
 import { useCallback, useState, type ReactNode } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
+import { useNavigate } from '../hooks/useNavigate.js'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { ROCK_TYPE_GROUPS, isRockType, rockTypeLabel, type Location } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'

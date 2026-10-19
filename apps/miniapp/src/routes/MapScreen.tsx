@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from '../hooks/useNavigate.js'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
 import {
   AttributionControl,

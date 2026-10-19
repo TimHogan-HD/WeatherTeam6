@@ -105,6 +105,102 @@ body::before {
   animation: wt6-header-swap var(--wt6-motion-header-swap-ms) var(--wt6-motion-ease-out) both;
 }
 
+/* A change of screen (owner, 2026-10-19, the hybrid mockup's moves), through
+   the browser's view transitions: `useNavigate` sets `data-page` on `html` to
+   `pageMotion`'s answer for the length of one. The bar and the crag's dock are
+   captured on their own and left out of the slide: each keeps moving live, the
+   bar sliding away and the dock rising, while the screens change behind them. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  mix-blend-mode: normal;
+  animation-duration: var(--wt6-motion-page-ms);
+  animation-timing-function: var(--wt6-motion-ease-out);
+  animation-fill-mode: both;
+}
+
+html[data-page='in']::view-transition-old(root) {
+  animation-name: wt6-page-drift-out;
+}
+html[data-page='in']::view-transition-new(root) {
+  animation-name: wt6-page-in;
+}
+/* Back: the screen being left slides off to the right, over the one returned to. */
+html[data-page='back']::view-transition-old(root) {
+  z-index: 1;
+  animation-name: wt6-page-out;
+}
+html[data-page='back']::view-transition-new(root) {
+  animation-name: wt6-page-drift-in;
+}
+html[data-page='fade']::view-transition-old(root) {
+  z-index: 1;
+  animation-name: wt6-page-fade;
+  animation-duration: var(--wt6-motion-page-fade-ms);
+}
+html[data-page='fade']::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition-group(wt6-bar),
+::view-transition-group(wt6-dock),
+::view-transition-new(wt6-bar),
+::view-transition-new(wt6-dock) {
+  animation: none;
+}
+::view-transition-old(wt6-bar),
+::view-transition-old(wt6-dock) {
+  display: none;
+}
+
+@keyframes wt6-page-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes wt6-page-drift-out {
+  35% {
+    opacity: 0;
+  }
+  to {
+    transform: translateX(calc(-1 * var(--wt6-motion-page-drift)));
+    opacity: 0;
+  }
+}
+@keyframes wt6-page-out {
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+@keyframes wt6-page-drift-in {
+  0% {
+    transform: translateX(calc(-1 * var(--wt6-motion-page-drift)));
+    opacity: 0;
+  }
+  45% {
+    opacity: 0;
+  }
+}
+@keyframes wt6-page-fade {
+  to {
+    opacity: 0;
+    transform: scale(var(--wt6-motion-page-fade-scale));
+  }
+}
+
+/* One crag to the next by the switcher: the content arrives from the side moved
+   toward (`--swipe-dx`, set where the class is). Backwards fill only, so once it
+   lands no transform is left in effect to trap a fixed descendant. */
+@keyframes wt6-swipe {
+  from {
+    transform: translateX(var(--swipe-dx));
+    opacity: 0;
+  }
+}
+.wt6-swipe {
+  animation: wt6-swipe var(--wt6-motion-swipe-ms) var(--wt6-motion-ease-out) backwards;
+}
+
 #root {
   display: flex;
   flex-direction: column;
@@ -170,6 +266,13 @@ textarea {
     transition-delay: 0s !important;
     animation-duration: 0s !important;
     animation-delay: 0s !important;
+  }
+
+  /* `useNavigate` starts no transition under reduced motion; this holds if one starts anyway. */
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 
   :is(a, button, [role='button'], [role='tab']):active {

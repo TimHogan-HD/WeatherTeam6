@@ -102,8 +102,9 @@ sliding tab underline and day-chip fill, the growing Measurements panel, the cal
 the press shrink, pull-to-refresh with the scores' freshness, and a changed score rolling.
 Still open, to show as variants (§6):
 
-1. A shared-element view transition from a list card into the location. The owner turned
-   down fade, rise and slide screen transitions (`miniapp-patterns`), so ask before this.
+1. A shared-element view transition from a list card into the location. Screen transitions
+   are wanted since 2026-10-19 (the hybrid mockup's in, back and fade, `lib/pageMotion.ts`);
+   a card-to-hero shared element is the next step on top of them.
 
 ## 6. Tools
 

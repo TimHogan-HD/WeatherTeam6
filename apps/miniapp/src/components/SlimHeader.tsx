@@ -8,6 +8,7 @@ import { scoreTone } from '../lib/locationList.js'
 import type { SlimFigure } from '../lib/slimHeader.js'
 import { BackLink } from './DetailHeader.js'
 import { FeedbackButton } from './FeedbackButton.js'
+import { CragBar, type CragChoice } from './CragBar.js'
 
 const TONE_INK = { good: colors.good, fair: colors.fair, poor: colors.poor } as const
 
@@ -31,12 +32,15 @@ export function SlimHeader({
   figure,
   tab,
   back,
+  crags,
   feedbackLocationId,
 }: {
   name: string | null
   figure: SlimFigure
   tab: string
   back: { label: string; onBack: () => void }
+  /** The switcher across the top (`CragBar`); null leaves back and Feedback alone. */
+  crags: CragChoice | null
   feedbackLocationId: string | null
 }) {
   return (
@@ -53,10 +57,14 @@ export function SlimHeader({
         paddingBottom: `${spacing.cellPad}px`,
       }}
     >
-      <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
-        <BackLink onBack={back.onBack} label={back.label} />
-        <FeedbackButton locationId={feedbackLocationId} />
-      </div>
+      {crags === null ? (
+        <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
+          <BackLink onBack={back.onBack} label={back.label} />
+          <FeedbackButton locationId={feedbackLocationId} />
+        </div>
+      ) : (
+        <CragBar back={back} crags={crags} feedbackLocationId={feedbackLocationId} />
+      )}
       <div style={{ ...row(spacing.listGapLg), justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div style={{ ...stack(spacing.micro), flex: '1 1 auto', minWidth: 0 }}>
           {name === null ? null : (

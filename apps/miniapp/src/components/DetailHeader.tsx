@@ -1,11 +1,12 @@
 import { useRef, type CSSProperties } from 'react'
-import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
+import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import { formatElevationFt, rockTypeLabel, type Location } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, row, stack } from '../theme/styles.js'
 import { ChevronLeftIcon } from './Icons.js'
 import { FeedbackButton } from './FeedbackButton.js'
 import { SelectionIndicator, useSelectedRect } from './SelectionIndicator.js'
+import { CragBar, type CragChoice } from './CragBar.js'
 
 /**
  * The detail screen's header band, from the WT6 Figma "V2" page's Overview
@@ -34,6 +35,8 @@ export type DetailHeaderProps<T extends string> = {
   back: { label: string; onBack: () => void } | null
   /** The crag the Feedback button opens a forecast check for. */
   feedbackLocationId: string | null
+  /** A saved location's switcher (`CragBar`), which then heads the band in place of back alone. */
+  crags?: CragChoice | null
   tabs: {
     options: readonly HeaderTab<T>[]
     active: T
@@ -91,6 +94,7 @@ export function DetailHeader<T extends string>({
   heading,
   back,
   feedbackLocationId,
+  crags = null,
   tabs,
 }: DetailHeaderProps<T>) {
   const { eyebrow, title, meta } = heading
@@ -105,6 +109,9 @@ export function DetailHeader<T extends string>({
         ...(tabs === null ? { paddingBottom: `${spacing.sectionGap}px` } : {}),
       }}
     >
+      {back !== null && crags !== null ? (
+        <CragBar back={back} crags={crags} feedbackLocationId={feedbackLocationId} />
+      ) : (
       <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'flex-start' }}>
         {back === null ? (
           <div style={stack(spacing.tight)}>
@@ -116,6 +123,7 @@ export function DetailHeader<T extends string>({
         )}
         <FeedbackButton locationId={feedbackLocationId} />
       </div>
+      )}
 
       {back === null ? null : (
         <>
@@ -200,12 +208,12 @@ function TabRow<T extends string>({ tabs }: { tabs: NonNullable<DetailHeaderProp
             <span style={{ ...typeV2.tab, color: selected ? colorsV2.txt1 : colorsV2.txtTab }}>{option.label}</span>
             <span
               aria-hidden
-              style={{ ...underline, backgroundColor: selected && rect === null ? colors.good : 'transparent' }}
+              style={{ ...underline, backgroundColor: selected && rect === null ? colorsV2.brand : 'transparent' }}
             />
           </button>
         )
       })}
-      <SelectionIndicator rect={rect} style={{ ...underline, bottom: 0, backgroundColor: colors.good }} />
+      <SelectionIndicator rect={rect} style={{ ...underline, bottom: 0, backgroundColor: colorsV2.brand }} />
     </div>
   )
 }

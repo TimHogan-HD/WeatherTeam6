@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useLocation as useRouterLocation, useNavigate, useParams } from 'react-router-dom'
+import { useLocation as useRouterLocation, useParams } from 'react-router-dom'
+import { useNavigate } from '../hooks/useNavigate.js'
 import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import type { Trip, UpdateTripInput } from '@weatherteam6/types'
 import { type, typeV2 } from '../theme/tokens.css.js'
@@ -304,7 +305,7 @@ function TripForm({ title, path, initial, onBack, pending, failed, submitLabel, 
                     ...row(spacing.listGap),
                     ...cardV2,
                     padding: `${spacing.cellPad}px ${spacing.cardPad}px`,
-                    borderColor: on ? colors.good : colorsV2.line,
+                    borderColor: on ? colorsV2.brand : colorsV2.line,
                     cursor: 'pointer',
                   }}
                 >
@@ -312,7 +313,7 @@ function TripForm({ title, path, initial, onBack, pending, failed, submitLabel, 
                     type="checkbox"
                     checked={on}
                     onChange={() => toggle(crag.id)}
-                    style={{ accentColor: colors.good, width: '18px', height: '18px' }}
+                    style={{ accentColor: colorsV2.brand, width: '18px', height: '18px' }}
                   />
                   <span style={typeV2.rowTitle}>{crag.name}</span>
                 </label>

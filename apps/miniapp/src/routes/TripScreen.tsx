@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
+import { useNavigate } from '../hooks/useNavigate.js'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
 import { colors, spacing } from '@weatherteam6/design/tokens'
 import {
