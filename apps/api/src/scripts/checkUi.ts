@@ -1141,48 +1141,45 @@ async function run(): Promise<void> {
       check('and it was saved with the looked-up elevation', elevation !== null && elevation > 200 && elevation < 350, `got ${String(elevation)}`)
     }
 
-    // 4d. The list keeps its place. Two crags fit at 1000 px, so a shorter
-    // screen makes the list scroll.
-    await page.setViewportSize({ width: VIEWPORT.width, height: 400 })
+    // 4d. The list keeps its place. Its three rows fit at 1000 px, so a short
+    // screen makes it scroll; at 400 px only ~100 px of scroll was left.
+    await page.setViewportSize({ width: VIEWPORT.width, height: 300 })
     await page.goto(`${WEB}/`)
     await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
     const { listY, listH } = await page.evaluate(() => {
       window.scrollTo(0, Math.floor((document.documentElement.scrollHeight - window.innerHeight) / 2))
       return { listY: window.scrollY, listH: document.documentElement.scrollHeight }
     })
-    check('the list is tall enough to scroll at 480x400', listY > 50, `scrolled to ${listY} of ${listH}`)
+    check('the list is tall enough to scroll at 480x300', listY > 50, `scrolled to ${listY} of ${listH}`)
     await page.waitForTimeout(200)
     const scrollY = () => page.evaluate(() => window.scrollY)
     const near = (y: number) => Math.abs(y - listY) <= 2
 
     // The URL changes before React draws the next screen, so each read waits
-    // for that screen's own content.
+    // for that screen's own content. The crag screen has role="button"
+    // elements too, so a return waits on the URL and the list's own sort
+    // control, not on a card: reading on the crag screen's scroll of 0 was
+    // this check's "back at 0" (#359).
     const card = page.locator('[role="button"]').first()
     const openCard = async () => {
       await card.click()
       await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
     }
+    const backOnList = async () => {
+      await page.waitForURL(`${WEB}/`, { timeout: 10_000 })
+      await page.getByText('Sort by').first().waitFor({ timeout: 10_000 })
+    }
     await openCard()
     const detailY = await scrollY()
     check('a location opened from far down the list opens at its top', detailY === 0, `at ${detailY}`)
     await page.getByRole('button', { name: 'Back to Conditions' }).click()
-    await card.waitFor({ timeout: 10_000 })
+    await backOnList()
     const viaTab = await scrollY()
     check('a crag’s back returns to the list where it was left', near(viaTab), `left at ${listY}, back at ${viaTab}`)
 
     await openCard()
-    await page.evaluate(() => {
-      const trace: string[] = []
-      ;(window as unknown as { __trace: string[] }).__trace = trace
-      const t0 = performance.now()
-      const id = setInterval(() => trace.push(`${Math.round(performance.now() - t0)}:${location.pathname.length > 1 ? 'D' : 'L'}${window.scrollY}`), 25)
-      setTimeout(() => clearInterval(id), 2_000)
-      window.addEventListener('popstate', () => trace.push(`${Math.round(performance.now() - t0)}:popstate y=${window.scrollY} sr=${history.scrollRestoration}`))
-    })
     await page.goBack()
-    await card.waitFor({ timeout: 10_000 })
-    await page.waitForTimeout(2_100)
-    console.log(`EXPERIMENT back trace: ${(await page.evaluate(() => (window as unknown as { __trace: string[] }).__trace)).join(' ')}`)
+    await backOnList()
     const viaBack = await scrollY()
     check('the phone’s back returns to the list where it was left', near(viaBack), `left at ${listY}, back at ${viaBack}`)
 
