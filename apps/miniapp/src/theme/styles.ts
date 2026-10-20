@@ -60,6 +60,24 @@ export const wellV2: CSSProperties = {
   borderRadius: `${radius.full}px`,
 }
 
+/**
+ * The mockup's `.pills`: one choice among a few — a route filter, a sort, a
+ * trend view. The chosen one is the hybrid's aqua (owner, 2026-10-19).
+ */
+export function choicePill(chosen: boolean): CSSProperties {
+  return {
+    ...bareButton,
+    width: 'auto',
+    flex: '0 0 auto',
+    minHeight: '34px',
+    padding: `${spacing.tight}px ${spacing.cellPad}px`,
+    borderRadius: `${radius.full}px`,
+    border: `1px solid ${chosen ? withOpacity(colorsV2.brandInk, 0.5) : 'transparent'}`,
+    backgroundColor: chosen ? withOpacity(colorsV2.brand, 0.14) : colorsV2.surface,
+    color: chosen ? colorsV2.brandInk : colorsV2.txt2,
+  }
+}
+
 /** The status ladder's rungs, as colour. Only ever beside the word or number they colour. */
 export type ToneName = 'good' | 'fair' | 'poor'
 

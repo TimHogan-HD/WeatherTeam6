@@ -891,6 +891,42 @@ export const typeV2 = {
     lineHeight: 17,
     color: colorsV2.txt2,
   },
+  /** The Crag tab: an area's, a wall's or a route's name (the mockup's `.wt`). */
+  guideTitle: {
+    fontFamily: fonts.display,
+    fontSize: 28,
+    fontWeight: '700' as const,
+    lineHeight: 30,
+    color: colorsV2.txt1,
+  },
+  /** A route's grade under its name (`.rtop .grade`). */
+  routeGrade: {
+    fontFamily: fonts.display,
+    fontSize: 40,
+    fontWeight: '700' as const,
+    lineHeight: 42,
+  },
+  /** A route row's grade and name (`.rrow`). */
+  guideRowGrade: {
+    fontFamily: fonts.display,
+    fontSize: 18,
+    fontWeight: '700' as const,
+    lineHeight: 22,
+  },
+  guideRowName: {
+    fontFamily: fonts.display,
+    fontSize: 18,
+    fontWeight: '600' as const,
+    lineHeight: 22,
+    color: colorsV2.txt1,
+  },
+  /** A day's score in a wall's week (`.wk b`). */
+  weekScore: {
+    fontFamily: fonts.display,
+    fontSize: 20,
+    fontWeight: '700' as const,
+    lineHeight: 24,
+  },
   /** A day's name on Daily — "Wednesday": Barlow Condensed 22/700. */
   dayName: {
     fontFamily: fonts.display,

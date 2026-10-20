@@ -22,7 +22,9 @@
  *
  * A saved location's back returns to the list, or to the map when a pin opened
  * it (hybrid look, owner 2026-10-19): the app bar slides away while a crag is
- * open, so back is the only way out. A tab
+ * open, so back is the only way out. Its walls and routes open inside its Crag
+ * tab (Phase 4a), so back from one leaves the crag too; the crumb at the top
+ * of a wall or route is what steps up a level. A tab
  * change is state inside the route, so the old Hourly-to-Daily step is the
  * Daily tab.
  *
@@ -44,8 +46,6 @@ export type BackContext =
   | { route: 'add'; confirming: boolean; browsing: boolean; fromMap: boolean; forTrip: string | null }
   | { route: 'feedback'; fromLocationId: string | null }
   | { route: 'location'; fromMap: boolean }
-  | { route: 'wall'; locationId: string }
-  | { route: 'climb'; locationId: string; wallId: string }
   | { route: 'edit'; locationId: string }
   | { route: 'tripNew' }
   | { route: 'trip' }
@@ -89,8 +89,6 @@ export function backTarget(context: {
   /** The map's pin opened the crag (`OPENED_FROM_MAP` in the router state). */
   fromMap: boolean
 }): Navigate
-export function backTarget(context: { route: 'wall'; locationId: string }): Navigate
-export function backTarget(context: { route: 'climb'; locationId: string; wallId: string }): Navigate
 export function backTarget(context: { route: 'edit'; locationId: string }): Navigate
 export function backTarget(context: { route: 'tripNew' }): Navigate
 export function backTarget(context: { route: 'trip' }): Navigate
@@ -115,13 +113,6 @@ export function backTarget(context: BackContext): BackAction {
     // was opened from. Anything but a map pin returns to the list.
     case 'location':
       return { kind: 'navigate', to: context.fromMap ? '/map' : '/' }
-    // The guidebook screens each step out one level: a route to its wall, a
-    // wall to the Crag tab it was opened from — not to Overview, which would
-    // lose the reader's place in the crag.
-    case 'wall':
-      return { kind: 'navigate', to: cragTabPath(context.locationId) }
-    case 'climb':
-      return { kind: 'navigate', to: wallPath(context.locationId, context.wallId) }
     case 'edit':
       return { kind: 'navigate', to: `/location/${context.locationId}` }
     case 'tripNew':
@@ -150,9 +141,8 @@ export const hourlyDayPath = (locationId: string, localDate: string): string =>
   `${detailTabPath(locationId, 'hourly')}&date=${localDate}`
 
 /**
- * The guidebook's URLs, spelled once. The wall and route screens are real
- * routes rather than states inside `/location/:id`, so a route can be shared
- * or reloaded. The Crag tab is `?tab=crag`, which the detail screen reads as
+ * The guidebook's URLs, spelled once. A wall and a route draw inside the
+ * Crag tab but keep URLs of their own, so a route can be shared or reloaded. The Crag tab is `?tab=crag`, which the detail screen reads as
  * its opening tab.
  */
 export const cragTabPath = (locationId: string): string => detailTabPath(locationId, 'crag')

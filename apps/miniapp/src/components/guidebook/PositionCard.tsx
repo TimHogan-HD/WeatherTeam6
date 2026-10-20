@@ -1,12 +1,13 @@
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { POSITION_ACCURACY_MAX_M, type GuidebookWall } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
-import { cardV2, row, stack } from '../../theme/styles.js'
+import { row, stack } from '../../theme/styles.js'
 import { formatAccuracyFt, formatInstantDate, mapsHref } from '../../lib/logbook.js'
 import { useRecordPosition } from '../../hooks/useLogbook.js'
 import { useCurrentPosition, type Fix } from '../../hooks/useCurrentPosition.js'
 import { InlineError } from '../States.js'
 import { PrimaryButton, pillButton } from './LogbookCard.js'
+import { GuideCard } from './parts.js'
 
 /**
  * Where this wall or boulder actually is, recorded from a phone standing at it
@@ -33,14 +34,14 @@ export function PositionCard({ wall }: { wall: GuidebookWall }) {
   }
 
   return (
-    <section style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
-      <h2 style={typeV2.cardTitle}>Location</h2>
+    <GuideCard title="Location" aside="recorded at the wall">
+
 
       {position === null ? (
-        <span style={{ ...typeV2.factValue, color: colorsV2.txtMuted }}>Not recorded</span>
+        <span style={{ ...typeV2.lineLabel, color: colorsV2.txtMuted }}>Not recorded</span>
       ) : (
         <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', flexWrap: 'wrap' }}>
-          <span style={{ ...typeV2.factValue, color: colorsV2.txt1 }}>
+          <span style={{ ...typeV2.lineLabel, color: colorsV2.txt1 }}>
             Recorded {formatInstantDate(position.recorded_at)} · {formatAccuracyFt(position.accuracy_m)}
           </span>
           <a
@@ -100,6 +101,6 @@ export function PositionCard({ wall }: { wall: GuidebookWall }) {
           </div>
         </div>
       )}
-    </section>
+    </GuideCard>
   )
 }

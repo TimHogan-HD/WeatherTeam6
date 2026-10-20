@@ -1,14 +1,11 @@
 import {
-  ROCK_LABELS,
-  windowValue,
+  type ForecastSnapshot,
   type Guidebook,
   type GuidebookRoute,
   type GuidebookWall,
-  type HourlySeries,
-  type RockLevel,
   type RouteKind,
 } from '@weatherteam6/types'
-import { shortDay } from './overview.js'
+import { scoredDays, type DayReadings, type NextDay } from './overview.js'
 
 /**
  * The guidebook screens' decisions, apart from their layout so a node test can
@@ -70,27 +67,24 @@ export function mountainProjectHref(webUrl: string, userAgent: string): string {
 
 export const openBetaClimbUrl = (id: string): string => `https://openbeta.io/climbs/${id}`
 
-/** One day of "Climb it this week": its good hours and how dry the rock reads. */
-export type WeekRow = { local_date: string; title: string; hours: string; rock: RockLevel | null; rockLabel: string | null }
+/** How many days a wall's week reaches. */
+export const WALL_WEEK_DAYS = 7
 
 /**
- * The days the readings reach, from today. **The good hours are the crag's**,
- * the same `window` the Daily tab reads, and the dryness is the day's
- * representative hour — never recomputed here. A day before today is dropped:
- * the run's first local day is routinely the tail of one already past.
+ * A wall's week: up to seven days from today, each scored through
+ * `scoredDays` — the Daily tab's join on the date and its suppression, so a
+ * day cannot wear a different number here. **The crag's reading**: no wall has
+ * one of its own. A day before today is dropped: the forecast's first local day
+ * can be the tail of one already past.
  */
-export function weekRows(series: HourlySeries, todayDate: string): WeekRow[] {
-  const days = series.readings?.days ?? []
-  return days
-    .filter((d) => d.local_date >= todayDate)
-    .map((d) => {
-      const rock = d.best?.rock?.level ?? null
-      return {
-        local_date: d.local_date,
-        title: shortDay(d.local_date, todayDate),
-        hours: windowValue(d.window, series.utc_offset_seconds),
-        rock,
-        rockLabel: rock === null ? null : ROCK_LABELS[rock],
-      }
-    })
+export function wallWeek(
+  forecast: readonly ForecastSnapshot[],
+  todayDate: string,
+  readings: DayReadings | null,
+): NextDay[] {
+  const rows = [...forecast]
+    .filter((r) => r.forecast_date >= todayDate)
+    .sort((a, b) => a.forecast_date.localeCompare(b.forecast_date))
+    .slice(0, WALL_WEEK_DAYS)
+  return scoredDays(rows, readings)
 }

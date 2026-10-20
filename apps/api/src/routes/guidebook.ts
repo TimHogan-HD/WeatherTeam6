@@ -13,7 +13,7 @@ export const guidebookRouter = Router()
 
 /**
  * The OpenBeta crag a saved location sits on — its walls and routes — for the
- * Crag tab and the wall and route screens.
+ * Crag tab, with its walls and routes.
  *
  * **`data: null` with a 200 is an answer**: no OpenBeta crag within reach of
  * this location, which is every city and everywhere outside Minnesota today.

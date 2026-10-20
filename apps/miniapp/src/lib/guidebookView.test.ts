@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { HourlySeries, ReadingsDay } from '@weatherteam6/types'
-import { mountainProjectHref, mountainProjectUrl, weekRows } from './guidebookView.js'
+import type { ForecastSnapshot, HourlyReading, ReadingsDay } from '@weatherteam6/types'
+import { WALL_WEEK_DAYS, mountainProjectHref, mountainProjectUrl, wallWeek } from './guidebookView.js'
 
 describe('mountainProjectUrl', () => {
   it('links a numeric id and draws no link otherwise', () => {
@@ -10,29 +10,43 @@ describe('mountainProjectUrl', () => {
   })
 })
 
-describe('weekRows', () => {
-  const day = (local_date: string, over: Partial<ReadingsDay> = {}): ReadingsDay => ({
-    local_date,
-    window: null,
-    best: null,
-    ...over,
+describe('wallWeek', () => {
+  const row = (forecast_date: string, over: Partial<ForecastSnapshot> = {}) =>
+    ({ forecast_date, temp_c_min: 8, temp_c_max: 19, score: 12, ...over }) as ForecastSnapshot
+  const reading = (score: number): HourlyReading => ({
+    valid_at: '2026-09-28T18:00:00Z',
+    rock: { level: 'dry', qualified: true },
+    friction: { level: 'great', condensing: false, qualified: true },
+    score,
+    t_surface_c: 18,
+    condensation_margin_c: 6,
   })
-  const series = (days: ReadingsDay[]) =>
-    ({ utc_offset_seconds: 0, readings: { model: 'gfs_seamless', unavailable_reason: null, hours: [], days } }) as unknown as HourlySeries
+  const day = (local_date: string, score: number): ReadingsDay => ({ local_date, window: null, best: reading(score) })
+  const readings = (days: ReadingsDay[], severe: string | null = null) => ({
+    days,
+    utcOffsetSeconds: 0,
+    severeAlertEvent: severe,
+    alertsPending: false,
+  })
+  // Nine days, out of order, starting the day before today.
+  const forecast = ['2026-09-29', '2026-09-27', '2026-09-28', '2026-10-01', '2026-09-30', '2026-10-02', '2026-10-03', '2026-10-04', '2026-10-05'].map((d) => row(d))
 
-  it('starts at today and drops the tail of a run already past', () => {
-    const rows = weekRows(series([day('2026-09-27'), day('2026-09-28'), day('2026-09-29')]), '2026-09-28')
-    expect(rows.map((r) => r.title)).toEqual(['Today', 'Tue'])
+  it('starts at today, in date order, and stops at seven days', () => {
+    const out = wallWeek(forecast, '2026-09-28', null)
+    expect(out.map((d) => d.local_date)).toEqual(['2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04'])
+    expect(WALL_WEEK_DAYS).toBe(7)
   })
 
-  it('says None for a day with no window and leaves an unread rock without a word', () => {
-    const [row] = weekRows(series([day('2026-09-28')]), '2026-09-28')
-    expect(row?.hours).toBe('None')
-    expect(row?.rockLabel).toBeNull()
+  it('scores each day from the readings joined on its date, never the forecast row’s own', () => {
+    const out = wallWeek(forecast, '2026-09-28', readings([day('2026-09-30', 70), day('2026-09-28', 88)]))
+    expect(out.slice(0, 3).map((d) => d.score)).toEqual([88, null, 70])
+    expect(out.some((d) => d.score === 12)).toBe(false)
   })
 
-  it('is empty, not a crash, when the response carries no readings', () => {
-    expect(weekRows({ utc_offset_seconds: 0 } as unknown as HourlySeries, '2026-09-28')).toEqual([])
+  it('withholds every score under a Severe+ alert and keeps the Dryness', () => {
+    const out = wallWeek(forecast, '2026-09-28', readings([day('2026-09-28', 88)], 'Tornado Warning'))
+    expect(out[0]?.score).toBeNull()
+    expect(out[0]?.dryness).not.toBeNull()
   })
 })
 
