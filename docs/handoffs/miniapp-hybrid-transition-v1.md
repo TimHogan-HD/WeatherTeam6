@@ -2,7 +2,7 @@
 
 Version: v1
 Date: 2026-10-19
-Status: **Decided by the owner; Phases 1 to 4 built (4a the Crag tab, 4b Trips).** Moves `apps/miniapp` to the look in
+Status: **Decided by the owner; all five phases built (4a the Crag tab, 4b Trips).** Moves `apps/miniapp` to the look in
 `docs/handoffs/design-mockups/weatherteam6-hybrid.html`. That mockup is also published
 privately to the owner as https://claude.ai/artifact/18s8fy1HY5D1jR7AxmwE6p, but the
 repo copy is the reference. Where this document and `miniapp-design-v1.md` disagree, this
@@ -244,6 +244,22 @@ drops one is a regression:
    the scored recordings do not carry; an unscored grid cell shows the high and chance, not
    the amount, as the mockup does.
 5. **Map, Profile, Add a crag and Feedback** restyled.
+   **Built 2026-10-20, with no mockup round** (owner decisions above): the four screens take
+   the pieces 4a and 4b drew rather than new ones. Every form is glass cards with aqua
+   section titles (`Sect`), `statLabel` labels over `fieldV2` fields (the trip form's,
+   moved to `theme/styles.ts`), one aqua `brandButton` per form and `choicePill` for a
+   choice among a few; a lesser action (Cancel, Done, Share, Sign out) is `quietButton`.
+   `Screen`, the frame of Add, Feedback, Edit crag, Login and Join, reads `‹ Back` in aqua
+   over the `listTitle` headline, and Profile's header is Trips'. Add's search results and
+   climbing areas are rows in one glass card; the save form is a sticky glass pane.
+   Feedback's own open items are one card. The Map's title chip, locate button and
+   location error are dock glass; a pin's label keeps the glass ground and rim without
+   the blur (one blurred pane per pin would cost frames while panning). `typeV2.cardLink`
+   is aqua now, everywhere. Skeletons and the empty state are glass too. The old
+   `chip`, `chipActive`, `inputBox`, `cardActive` and `sourceBadge` styles are deleted;
+   `btnPrimary` and `card` remain only in the logbook's buttons, `ReadingsSection` and
+   `LocationIdentity`. **Kept as they were:** the Feedback pill (the mockup's `.fbk` is
+   the same lime outline), the pins' tone colours, and every word on these screens.
 
 Each phase is its own PR, verified with `npm run check:ui` from `apps/api`, with the
 screenshots opened, plus the miniapp tests. `prefers-reduced-motion` and

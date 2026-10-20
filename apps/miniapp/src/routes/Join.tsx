@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useNavigate } from '../hooks/useNavigate.js'
-import { colors, colorsV2, spacing } from '@weatherteam6/design/tokens'
+import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { isValidUsername, MIN_PASSPHRASE_LENGTH, passphraseProblem } from '@weatherteam6/types'
-import { type, typeV2 } from '../theme/tokens.css.js'
-import { bareButton, btnPrimary, btnPrimaryText, inputBox, stack } from '../theme/styles.js'
+import { typeV2 } from '../theme/tokens.css.js'
+import { brandButton, cardV2, fieldV2, stack } from '../theme/styles.js'
 import { apiRedeemInvite, ApiError } from '../lib/api.js'
 import { setToken } from '../lib/authToken.js'
 import { Screen } from '../components/Screen.js'
@@ -66,7 +66,7 @@ export function Join() {
   if (code === '') {
     return (
       <Screen title="WeatherTeam6">
-        <p style={{ ...type.screenSub, marginTop: `${spacing.sectionTop}px` }}>
+        <p style={{ ...typeV2.body, fontSize: '15px', marginTop: `${spacing.sectionTop}px` }}>
           This link is missing its invite code. Ask for a new one.
         </p>
       </Screen>
@@ -78,11 +78,11 @@ export function Join() {
 
   return (
     <Screen title="WeatherTeam6">
-      <form onSubmit={onSubmit} style={{ ...stack(spacing.listGap), marginTop: `${spacing.sectionTop}px` }}>
-        <p style={type.screenSub}>You’ve been invited. Pick a username and passphrase.</p>
+      <form onSubmit={onSubmit} style={{ ...cardV2, ...stack(spacing.listGapLg), marginTop: `${spacing.sectionTop}px` }}>
+        <p style={{ ...typeV2.body, fontSize: '15px' }}>You’ve been invited. Pick a username and passphrase.</p>
 
-        <label style={stack(spacing.micro)}>
-          <span style={type.label}>Username</span>
+        <label style={stack(spacing.tight)}>
+          <span style={typeV2.statLabel}>Username</span>
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value.toLowerCase())}
@@ -90,20 +90,20 @@ export function Join() {
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            style={{ ...inputBox, ...type.calDay, width: '100%' }}
+            style={fieldV2}
             aria-label="Username"
           />
           {hint('Lowercase letters, numbers, dots, dashes or underscores. 2 to 32 characters.', name !== '' && !nameOk)}
         </label>
 
-        <label style={stack(spacing.micro)}>
-          <span style={type.label}>Passphrase</span>
+        <label style={stack(spacing.tight)}>
+          <span style={typeV2.statLabel}>Passphrase</span>
           <input
             value={passphrase}
             onChange={(e) => setPassphrase(e.target.value)}
             type="password"
             autoComplete="new-password"
-            style={{ ...inputBox, ...type.calDay, width: '100%' }}
+            style={fieldV2}
             aria-label="Passphrase"
           />
           {hint(
@@ -112,34 +112,28 @@ export function Join() {
           )}
         </label>
 
-        <label style={stack(spacing.micro)}>
-          <span style={type.label}>Repeat passphrase</span>
+        <label style={stack(spacing.tight)}>
+          <span style={typeV2.statLabel}>Repeat passphrase</span>
           <input
             value={repeat}
             onChange={(e) => setRepeat(e.target.value)}
             type="password"
             autoComplete="new-password"
-            style={{ ...inputBox, ...type.calDay, width: '100%' }}
+            style={fieldV2}
             aria-label="Repeat passphrase"
           />
           {hint('Doesn’t match yet.', repeat !== '' && !matches)}
         </label>
 
         {error === null ? null : (
-          <span role="alert" style={{ ...type.bodySm, color: colors.poor }}>
+          <span role="alert" style={{ ...typeV2.body, color: colorsV2.poorInk }}>
             {error}
           </span>
         )}
 
         <button
           type="submit"
-          style={{
-            ...bareButton,
-            ...btnPrimary,
-            ...btnPrimaryText,
-            textAlign: 'center',
-            opacity: !ready || submitting ? 0.5 : 1,
-          }}
+          style={{ ...brandButton, width: '100%', opacity: !ready || submitting ? 0.5 : 1 }}
           disabled={!ready || submitting}
         >
           {submitting ? 'Creating account…' : 'Create account'}

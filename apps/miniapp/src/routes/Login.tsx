@@ -1,8 +1,8 @@
 import { useCallback, useState, type FormEvent } from 'react'
 import { useNavigate } from '../hooks/useNavigate.js'
-import { colors, spacing } from '@weatherteam6/design/tokens'
-import { type } from '../theme/tokens.css.js'
-import { bareButton, btnPrimary, btnPrimaryText, inputBox, stack } from '../theme/styles.js'
+import { colorsV2, spacing } from '@weatherteam6/design/tokens'
+import { typeV2 } from '../theme/tokens.css.js'
+import { brandButton, cardV2, fieldV2, stack } from '../theme/styles.js'
 import { apiLogin, ApiError } from '../lib/api.js'
 import { setToken } from '../lib/authToken.js'
 import { Screen } from '../components/Screen.js'
@@ -91,11 +91,11 @@ export function Login() {
 
   return (
     <Screen title="WeatherTeam6">
-      <form onSubmit={onSubmit} style={{ ...stack(spacing.listGap), marginTop: `${spacing.sectionTop}px` }}>
-        <p style={type.screenSub}>Sign in to see your locations.</p>
+      <form onSubmit={onSubmit} style={{ ...cardV2, ...stack(spacing.listGapLg), marginTop: `${spacing.sectionTop}px` }}>
+        <p style={{ ...typeV2.body, fontSize: '15px' }}>Sign in to see your locations.</p>
 
-        <label style={stack(spacing.micro)}>
-          <span style={type.label}>Username</span>
+        <label style={stack(spacing.tight)}>
+          <span style={typeV2.statLabel}>Username</span>
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -103,13 +103,13 @@ export function Login() {
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            style={{ ...inputBox, ...type.calDay, width: '100%' }}
+            style={fieldV2}
             aria-label="Username"
           />
         </label>
 
-        <label style={stack(spacing.micro)}>
-          <span style={type.label}>Passphrase</span>
+        <label style={stack(spacing.tight)}>
+          <span style={typeV2.statLabel}>Passphrase</span>
           <input
             value={passphrase}
             onChange={(e) => setPassphrase(e.target.value)}
@@ -118,7 +118,7 @@ export function Login() {
             // worth not putting on screen in a car park.
             type="password"
             autoComplete="current-password"
-            style={{ ...inputBox, ...type.calDay, width: '100%' }}
+            style={fieldV2}
             aria-label="Passphrase"
           />
         </label>
@@ -126,20 +126,14 @@ export function Login() {
         {error === null ? null : (
           // role=alert so the message reaches a screen reader; it appears after
           // a submit the user cannot see the result of otherwise.
-          <span role="alert" style={{ ...type.bodySm, color: colors.poor }}>
+          <span role="alert" style={{ ...typeV2.body, color: colorsV2.poorInk }}>
             {error}
           </span>
         )}
 
         <button
           type="submit"
-          style={{
-            ...bareButton,
-            ...btnPrimary,
-            ...btnPrimaryText,
-            textAlign: 'center',
-            opacity: incomplete || submitting ? 0.5 : 1,
-          }}
+          style={{ ...brandButton, width: '100%', opacity: incomplete || submitting ? 0.5 : 1 }}
           disabled={incomplete || submitting}
         >
           {submitting ? 'Signing in…' : 'Sign in'}

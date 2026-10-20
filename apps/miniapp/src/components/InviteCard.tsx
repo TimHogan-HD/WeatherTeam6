@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import { inviteStatus, type InviteCreated } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, btnPrimary, btnPrimaryText, cardV2, row, stack, wellV2 } from '../theme/styles.js'
+import { bareButton, brandButton, cardV2, quietButton, row, stack, wellV2 } from '../theme/styles.js'
+import { Sect } from './charts/liquid.js'
 import { useAccount, useCancelInvite, useCreateInvite, useInvites } from '../hooks/useAccount.js'
 import { useNow } from '../hooks/useNow.js'
 import { InlineError } from './States.js'
@@ -36,19 +37,13 @@ export function InviteCard() {
       .catch(() => undefined)
   }
 
-  const pill = {
-    ...bareButton,
-    width: 'auto',
-    border: `1px solid ${colorsV2.line}`,
-    borderRadius: `${radius.full}px`,
-    padding: `${spacing.listGap}px ${spacing.cardPad}px`,
-  }
+  const pill = { ...quietButton, minHeight: '44px' }
 
   return (
     <section style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
-      <div style={stack(spacing.micro)}>
-        <h2 style={typeV2.cardTitle}>Invite someone</h2>
-        <p style={{ ...typeV2.note, color: colorsV2.txtMuted }}>
+      <div>
+        <Sect title="Invite someone" />
+        <p style={typeV2.body}>
           A link that creates one account. It works once and expires in 2 days. Send it to one person, privately.
         </p>
       </div>
@@ -72,7 +67,7 @@ export function InviteCard() {
           </p>
           <div style={{ ...row(spacing.cellPad), flexWrap: 'wrap' }}>
             <button type="button" style={pill} onClick={() => share(link)}>
-              <span style={typeV2.controlValue}>{canShare ? 'Share' : copied ? 'Copied' : 'Copy link'}</span>
+              {canShare ? 'Share' : copied ? 'Copied' : 'Copy link'}
             </button>
             {canShare ? (
               <button
@@ -80,7 +75,7 @@ export function InviteCard() {
                 style={pill}
                 onClick={() => void navigator.clipboard.writeText(link).then(() => setCopied(true), () => undefined)}
               >
-                <span style={typeV2.controlValue}>{copied ? 'Copied' : 'Copy link'}</span>
+                {copied ? 'Copied' : 'Copy link'}
               </button>
             ) : null}
           </div>
@@ -100,8 +95,7 @@ export function InviteCard() {
           create.mutate()
         }}
         style={{
-          ...bareButton,
-          ...(link === null ? { ...btnPrimary, ...btnPrimaryText } : typeV2.cardLink),
+          ...(link === null ? { ...brandButton, width: '100%' } : { ...bareButton, ...typeV2.cardLink }),
           textAlign: 'center',
           opacity: create.isPending ? 0.5 : 1,
         }}
@@ -133,7 +127,7 @@ function InviteList({ cancel }: { cancel: ReturnType<typeof useCancelInvite> }) 
 
   return (
     <div style={stack(spacing.listGap)}>
-      <h3 style={{ ...typeV2.gaugeLabel, color: colorsV2.txtMuted }}>Your links</h3>
+      <h3 style={typeV2.statLabel}>Your links</h3>
       <ul style={{ ...stack(spacing.listGap), listStyle: 'none', margin: 0, padding: 0 }}>
         {invites.data.map((invite) => {
           const status = inviteStatus(invite, now)

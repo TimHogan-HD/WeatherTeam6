@@ -3,6 +3,7 @@ import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { HELD_BACK_LABEL, REWETTING_PRECIP_MM, SCORE_MODEL_FACTS, cToFDelta, mmToIn, type RangeF } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { cardV2, stack } from '../theme/styles.js'
+import { Sect } from './charts/liquid.js'
 
 /** Where the measurements panel's "How the score works" link lands. */
 export const SCORE_EXPLAINER_ID = 'score'
@@ -24,8 +25,8 @@ export function ScoreExplainer({ rangeF }: { rangeF: RangeF }) {
   }, [])
 
   return (
-    <section id={SCORE_EXPLAINER_ID} ref={ref} style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
-      <h2 style={typeV2.cardTitle}>How the score works</h2>
+    <section id={SCORE_EXPLAINER_ID} ref={ref} style={{ ...cardV2, ...stack(spacing.listGap) }}>
+      <Sect title="How the score works" />
       <ScoreExplainerParts rangeF={rangeF} />
     </section>
   )

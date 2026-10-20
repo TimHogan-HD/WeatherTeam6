@@ -16,10 +16,12 @@ import {
 import 'maplibre-gl/dist/maplibre-gl.css'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import mlcontour from 'maplibre-contour'
-import { colors, colorsV2, mapPin, motion, radius, spacing } from '@weatherteam6/design/tokens'
+import { colors, colorsV2, glass, mapPin, motion, radius, spacing } from '@weatherteam6/design/tokens'
 import '../theme/map.css'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, cardV2, navBarHeight, row, stack, toneColors, wellV2 } from '../theme/styles.js'
+import { bareButton, brandButton, cardV2, navBarHeight, row, stack, toneColors } from '../theme/styles.js'
+import { glassDock } from '../theme/glass.js'
+import { Sect } from '../components/charts/liquid.js'
 import { withOpacity } from '../theme/tokens.css.js'
 import { useLocations } from '../hooks/useLocations.js'
 import { alertsQuery, conditionsQuery } from '../hooks/useWeather.js'
@@ -220,23 +222,21 @@ export function MapScreen() {
         <header
           ref={chipRef}
           style={{
-            ...wellV2,
+            ...glassDock,
             ...row(spacing.listGap),
             position: 'absolute',
             top: `calc(env(safe-area-inset-top, 0px) + ${spacing.listGap}px)`,
             left: `${spacing.sectionGap}px`,
             maxWidth: `calc(100% - ${spacing.sectionGap * 2}px)`,
-            borderRadius: `${radius.full}px`,
-            padding: `${spacing.tight}px ${spacing.cardPadSm}px`,
-            backgroundColor: withOpacity(colorsV2.surface, 0.92),
+            padding: `${spacing.tight}px ${spacing.cardPad}px`,
             alignItems: 'baseline',
           }}
         >
-          <h1 style={typeV2.controlValue}>Map</h1>
+          <h1 style={{ ...typeV2.switcher, color: colorsV2.txt1 }}>Map</h1>
           {locations.isError ? (
             <InlineError message="Couldn't load your locations." onRetry={() => void locations.refetch()} />
           ) : meta === null ? null : (
-            <p style={typeV2.meta}>{meta}</p>
+            <p style={{ ...typeV2.rowSmall, color: colorsV2.txtMuted }}>{meta}</p>
           )}
         </header>
 
@@ -247,10 +247,10 @@ export function MapScreen() {
 
         {emptyList ? (
           <div style={{ ...overlayCard, top: `${spacing.sectionGap}px` }}>
-            <p style={typeV2.cardTitle}>No saved locations yet.</p>
-            <p style={typeV2.note}>Hold a finger on the map to add that spot, or search for one.</p>
-            <button type="button" style={{ ...primaryButton, alignSelf: 'flex-start' }} onClick={() => void navigate('/add')}>
-              <span style={typeV2.button}>Add a location</span>
+            <p style={{ ...typeV2.guideRowName, color: colorsV2.txt1 }}>No saved locations yet.</p>
+            <p style={typeV2.body}>Hold a finger on the map to add that spot, or search for one.</p>
+            <button type="button" style={{ ...brandButton, alignSelf: 'flex-start' }} onClick={() => void navigate('/add')}>
+              Add a location
             </button>
           </div>
         ) : null}
@@ -267,8 +267,8 @@ export function MapScreen() {
           }}
         >
           {reading.kind === 'failed' ? (
-            <div style={{ ...wellV2, ...row(spacing.listGap), ...interactive, borderRadius: `${radius.chipMd}px`, padding: `${spacing.listGap}px ${spacing.cardPadSm}px`, alignSelf: 'stretch', justifyContent: 'space-between' }}>
-              <span role="status" style={typeV2.controlValue}>
+            <div style={{ ...glassDock, ...row(spacing.listGap), ...interactive, borderRadius: `${radius.chipMd}px`, padding: `${spacing.listGap}px ${spacing.cardPad}px`, alignSelf: 'stretch', justifyContent: 'space-between' }}>
+              <span role="status" style={{ ...typeV2.body, color: colorsV2.txt1 }}>
                 {reading.message}
               </span>
               <button type="button" aria-label="Dismiss" style={{ ...bareButton, width: 'auto' }} onClick={cancel}>
@@ -284,7 +284,7 @@ export function MapScreen() {
             onClick={locating ? cancel : () => locate(showFix)}
             style={{
               ...bareButton,
-              ...wellV2,
+              ...glassDock,
               ...interactive,
               width: `${LOCATE_SIZE}px`,
               height: `${LOCATE_SIZE}px`,
@@ -298,19 +298,19 @@ export function MapScreen() {
 
           {dropped === null ? null : (
             <section aria-label="Add this spot" style={{ ...cardV2, ...interactive, ...stack(spacing.listGap), alignSelf: 'stretch' }}>
-              <div style={{ ...row(spacing.listGap), justifyContent: 'space-between' }}>
-                <h2 style={typeV2.cardTitle}>Add this spot</h2>
+              <div style={{ ...row(spacing.listGap), justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <Sect title="Add this spot" />
                 <button type="button" aria-label="Dismiss" style={{ ...bareButton, width: 'auto' }} onClick={() => setDropped(null)}>
                   <CrossIcon color={colorsV2.txtMuted} />
                 </button>
               </div>
-              <p style={typeV2.meta}>{formatPoint(dropped)}</p>
+              <p style={{ ...typeV2.body, color: colorsV2.txt1 }}>{formatPoint(dropped)}</p>
               <button
                 type="button"
-                style={{ ...primaryButton, alignSelf: 'flex-start' }}
+                style={{ ...brandButton, alignSelf: 'flex-start' }}
                 onClick={() => void navigate(addPathForPoint(dropped))}
               >
-                <span style={typeV2.button}>Add</span>
+                Add
               </button>
             </section>
           )}
@@ -324,15 +324,6 @@ export function MapScreen() {
 const LOCATE_SIZE = 42
 
 const interactive: CSSProperties = { pointerEvents: 'auto' }
-
-const primaryButton: CSSProperties = {
-  ...bareButton,
-  ...row(spacing.tight),
-  width: 'auto',
-  backgroundColor: colors.good,
-  borderRadius: `${radius.full}px`,
-  padding: `${spacing.listGap}px ${spacing.cardPad}px`,
-}
 
 const overlayCard: CSSProperties = {
   ...cardV2,
@@ -451,15 +442,18 @@ function PinMarker({
         style={{
           ...row(spacing.listGapSm),
           alignItems: 'baseline',
-          backgroundColor: withOpacity(colorsV2.surface, 0.92),
-          border: `1px solid ${colorsV2.line}`,
+          // The glass's ground and rim without its blur: a blurred pane per pin
+          // would cost the map frames while it pans.
+          backgroundColor: withOpacity(glass.ground, glass.opaqueFill),
+          border: `1px solid ${withOpacity(glass.light, glass.rim)}`,
           borderRadius: `${radius.chipMd}px`,
           padding: `${spacing.tight}px ${spacing.inlineGap}px`,
         }}
       >
         <span
           style={{
-            ...typeV2.controlValue,
+            ...typeV2.dayPick,
+            color: colorsV2.txt1,
             maxWidth: `${PIN_NAME_MAX_PX}px`,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -467,7 +461,7 @@ function PinMarker({
         >
           {pin.name}
         </span>
-        {pin.score === null || ink === null ? null : <span style={{ ...typeV2.badgeValue, color: ink }}>{pin.score}</span>}
+        {pin.score === null || ink === null ? null : <span style={{ ...typeV2.guideRowGrade, color: ink }}>{pin.score}</span>}
       </span>
     </button>,
     element,

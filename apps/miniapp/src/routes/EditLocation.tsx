@@ -4,7 +4,8 @@ import { useNavigate } from '../hooks/useNavigate.js'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { ROCK_TYPE_GROUPS, isRockType, rockTypeLabel, type Location } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, btnPrimary, btnPrimaryText, cardV2, inputBox, stack } from '../theme/styles.js'
+import { brandButton, cardV2, fieldV2, stack } from '../theme/styles.js'
+import { Sect } from '../components/charts/liquid.js'
 import { backTarget, detailTabPath } from '../lib/backTarget.js'
 import { ApiError } from '../lib/api.js'
 import { draftFrom, rockLocked, updateFor, type EditDraft } from '../lib/editLocation.js'
@@ -81,7 +82,7 @@ function EditForm({ location, onSaved }: { location: Location; onSaved: () => vo
               const value = e.target.value
               if (isRockType(value)) setDraft({ rockType: value })
             }}
-            style={{ ...inputBox, ...typeV2.controlValue, color: colorsV2.txt1, width: '100%' }}
+            style={fieldV2}
             aria-label="Rock type"
           >
             {ROCK_TYPE_GROUPS.map((group) => (
@@ -102,13 +103,7 @@ function EditForm({ location, onSaved }: { location: Location; onSaved: () => vo
       {rockLocked(location) ? null : (
         <button
           type="button"
-          style={{
-            ...bareButton,
-            ...btnPrimary,
-            ...btnPrimaryText,
-            textAlign: 'center',
-            opacity: changes === null || update.isPending ? 0.5 : 1,
-          }}
+          style={{ ...brandButton, width: '100%', opacity: changes === null || update.isPending ? 0.5 : 1 }}
           onClick={onSave}
           disabled={changes === null || update.isPending}
         >
@@ -133,9 +128,9 @@ function saveErrorLine(error: unknown): string {
 function Section({ title, note, children }: { title: string; note: string; children: ReactNode }) {
   return (
     <section style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
-      <div style={stack(spacing.micro)}>
-        <h2 style={typeV2.cardTitle}>{title}</h2>
-        <p style={{ ...typeV2.note, color: colorsV2.txtMuted }}>{note}</p>
+      <div>
+        <Sect title={title} />
+        <p style={typeV2.body}>{note}</p>
       </div>
       {children}
     </section>

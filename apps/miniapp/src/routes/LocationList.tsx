@@ -10,7 +10,7 @@ import {
   type RememberedCards,
 } from '../lib/rememberedCards.js'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, cardV2, navClearance, btnPrimary, btnPrimaryText, row, stack, wellV2 } from '../theme/styles.js'
+import { bareButton, brandButton, cardV2, navClearance, row, stack, wellV2 } from '../theme/styles.js'
 import { formatUpdatedAt } from '../lib/format.js'
 import {
   SORT_OPTIONS,
@@ -165,7 +165,7 @@ export function LocationList() {
           <EmptyState
             title="No locations yet."
             action={
-              <button type="button" style={{ ...bareButton, ...btnPrimary, ...btnPrimaryText, textAlign: 'center' }} onClick={openAdd}>
+              <button type="button" style={{ ...brandButton, width: '100%' }} onClick={openAdd}>
                 Add a location
               </button>
             }

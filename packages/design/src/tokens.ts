@@ -1118,12 +1118,12 @@ export const typeV2 = {
     fontWeight: '600' as const,
     color: colorsV2.txt1,
   },
-  /** A card's link to a tab — "Hourly ›": Barlow 14/600, lime. */
+  /** A link inside a card — "Reset", "Create another link": Barlow 14/600, in the hybrid's aqua ink. */
   cardLink: {
     fontFamily: fonts.body,
     fontSize: 14,
     fontWeight: '600' as const,
-    color: colors.good,
+    color: colorsV2.brandInk,
   },
   /** An hour cell's clock label: Plex Mono 11/400. */
   cellHour: {

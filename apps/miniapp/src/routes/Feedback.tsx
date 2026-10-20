@@ -1,7 +1,7 @@
 import { useCallback, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useNavigate } from '../hooks/useNavigate.js'
-import { colors, spacing } from '@weatherteam6/design/tokens'
+import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import {
   FEEDBACK_KIND_LABEL,
   FEEDBACK_KINDS,
@@ -18,8 +18,8 @@ import {
   type ForecastVerdict,
   type ObservedConditions,
 } from '@weatherteam6/types'
-import { type } from '../theme/tokens.css.js'
-import { bareButton, btnPrimary, btnPrimaryText, card, chip, chipActive, inputBox, row, stack } from '../theme/styles.js'
+import { typeV2 } from '../theme/tokens.css.js'
+import { brandButton, cardV2, choicePill, fieldV2, quietButton, row, stack } from '../theme/styles.js'
 import { backTarget } from '../lib/backTarget.js'
 import { feedbackLines, fromLocalInputValue, shownReading, toLocalInputValue } from '../lib/feedback.js'
 import { severeAlertEvent } from '../lib/forecast.js'
@@ -28,6 +28,7 @@ import { useNow } from '../hooks/useNow.js'
 import { useAlerts, useConditions } from '../hooks/useWeather.js'
 import { useCreateFeedback, useFeedbackList, useResolveFeedback } from '../hooks/useFeedback.js'
 import { Screen } from '../components/Screen.js'
+import { Sect } from '../components/charts/liquid.js'
 import { InlineError, SkeletonCards } from '../components/States.js'
 
 /**
@@ -59,7 +60,7 @@ export function Feedback() {
   return (
     <Screen title="Feedback" onBack={onBack}>
       <div style={{ ...stack(spacing.listGapLg), paddingTop: `${spacing.sectionTop}px` }}>
-        <div role="group" aria-label="Kind of feedback" style={{ ...row(spacing.chipGap), flexWrap: 'wrap' }}>
+        <div role="group" aria-label="Kind of feedback" style={{ ...row(spacing.listGapSm), flexWrap: 'wrap' }}>
           {FEEDBACK_KINDS.map((k) => (
             <Choice key={k} active={kind === k} onClick={() => { setKind(k); setSaved(null) }}>
               {FEEDBACK_KIND_LABEL[k]}
@@ -68,7 +69,7 @@ export function Feedback() {
         </div>
 
         {saved === null ? null : (
-          <p role="status" style={{ ...type.bodySm, color: colors.good }}>
+          <p role="status" style={{ ...typeV2.body, color: colorsV2.goodInk }}>
             {FEEDBACK_KIND_LABEL[saved]} saved.
           </p>
         )}
@@ -149,18 +150,13 @@ function ForecastCheckForm({
     return <InlineError message="Couldn't load your locations." onRetry={() => void locations.refetch()} />
   }
   if (crags.length === 0) {
-    return <p style={type.bodyMd}>Add a crag first.</p>
+    return <p style={{ ...typeV2.body, color: colorsV2.txt1 }}>Add a crag first.</p>
   }
 
   return (
-    <section style={{ ...card, ...stack(spacing.listGap) }}>
+    <section style={{ ...cardV2, ...stack(spacing.sectionGap) }}>
       <Field label="Crag">
-        <select
-          value={locationId ?? ''}
-          onChange={(e) => setPicked(e.target.value)}
-          style={{ ...inputBox, ...type.calDay, width: '100%' }}
-          aria-label="Crag"
-        >
+        <select value={locationId ?? ''} onChange={(e) => setPicked(e.target.value)} style={fieldV2} aria-label="Crag">
           {crags.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -175,13 +171,13 @@ function ForecastCheckForm({
           value={when}
           max={toLocalInputValue(now)}
           onChange={(e) => setWhen(e.target.value)}
-          style={{ ...inputBox, ...type.calDay, width: '100%' }}
+          style={fieldV2}
           aria-label="When you saw it"
         />
       </Field>
 
       <Field label="The rock was">
-        <div role="group" aria-label="The rock was" style={{ ...row(spacing.chipGap), flexWrap: 'wrap' }}>
+        <div role="group" aria-label="The rock was" style={{ ...row(spacing.listGapSm), flexWrap: 'wrap' }}>
           {OBSERVED_CONDITIONS.map((c) => (
             <Choice key={c} active={observed === c} onClick={() => setObserved(c)}>
               {OBSERVED_CONDITIONS_LABEL[c]}
@@ -192,23 +188,21 @@ function ForecastCheckForm({
 
       <Field label="The app said">
         {!readingSettled ? (
-          <span style={{ ...type.bodySm, color: colors.txt3 }}>Loading the app’s reading…</span>
+          <span style={typeV2.body}>Loading the app’s reading…</span>
         ) : conditions.isError ? (
           // A failed fetch is not "the app had no reading" — say which it was.
-          <span style={{ ...type.bodySm, color: colors.txt3 }}>
-            Couldn’t load the app’s reading. You can still save.
-          </span>
+          <span style={typeV2.body}>Couldn’t load the app’s reading. You can still save.</span>
         ) : snapshot === null ? (
-          <span style={{ ...type.bodySm, color: colors.txt3 }}>
-            No app reading for that hour. You can still save.
-          </span>
+          <span style={typeV2.body}>No app reading for that hour. You can still save.</span>
         ) : (
-          <span style={type.bodyMd}>{snapshot.fields.map(fieldLine).join(' · ')}</span>
+          <span style={{ ...typeV2.body, fontSize: '15px', color: colorsV2.txt1 }}>
+            {snapshot.fields.map(fieldLine).join(' · ')}
+          </span>
         )}
       </Field>
 
       <Field label="Did it match?">
-        <div role="group" aria-label="Did it match?" style={{ ...row(spacing.chipGap), flexWrap: 'wrap' }}>
+        <div role="group" aria-label="Did it match?" style={{ ...row(spacing.listGapSm), flexWrap: 'wrap' }}>
           {FORECAST_VERDICTS.map((v) => (
             <Choice key={v} active={verdict === v} onClick={() => setVerdict(v)}>
               {FORECAST_VERDICT_LABEL[v]}
@@ -238,7 +232,7 @@ function AppFeedbackForm({ initialMessage, onSaved }: { initialMessage: string; 
   }
 
   return (
-    <section style={{ ...card, ...stack(spacing.listGap) }}>
+    <section style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
       <MessageField label="What’s working, what isn’t" value={message} onChange={setMessage} />
       {create.isError ? <InlineError message="Couldn't send this feedback." /> : null}
       <SubmitButton disabled={!ready || create.isPending} pending={create.isPending} onClick={submit}>
@@ -248,7 +242,10 @@ function AppFeedbackForm({ initialMessage, onSaved }: { initialMessage: string; 
   )
 }
 
-/** The reader's open feedback. "Done" marks an item acted on and it leaves the list. */
+/**
+ * The reader's open feedback, one glass card of items. "Done" marks an item
+ * acted on and it leaves the list.
+ */
 function History() {
   const list = useFeedbackList()
   const resolve = useResolveFeedback()
@@ -256,16 +253,17 @@ function History() {
   if (list.isError) return <InlineError message="Couldn't load your feedback." onRetry={() => void list.refetch()} />
   if (list.data.length === 0) return null
   return (
-    <section style={stack(spacing.listGap)}>
-      <h2 style={type.label}>Open feedback</h2>
+    <section style={{ ...cardV2, ...stack(spacing.listGapLg) }} aria-label="Open feedback">
+      <Sect title="Open feedback" aside={`${list.data.length} open`} />
       {resolve.isError ? <InlineError message="Couldn't mark that done." /> : null}
-      {list.data.map((f) => (
-        <HistoryItem
-          key={f.id}
-          item={f}
-          resolving={resolve.isPending && resolve.variables === f.id}
-          onResolve={() => resolve.mutate(f.id)}
-        />
+      {list.data.map((f, i) => (
+        <div key={f.id} style={i === 0 ? undefined : { borderTop: `1px solid ${colorsV2.line}`, paddingTop: `${spacing.listGapLg}px` }}>
+          <HistoryItem
+            item={f}
+            resolving={resolve.isPending && resolve.variables === f.id}
+            onResolve={() => resolve.mutate(f.id)}
+          />
+        </div>
       ))}
     </section>
   )
@@ -283,17 +281,21 @@ export function HistoryItem({
   const { head, verdict, appSaid } = feedbackLines(item)
 
   return (
-    <article style={{ ...card, ...stack(spacing.micro) }}>
-      <span style={{ ...type.bodySm, color: colors.txt3 }}>{head}</span>
-      {verdict === null ? null : <span style={type.bodyMd}>{verdict}</span>}
-      {appSaid === null ? null : <span style={{ ...type.bodySm, color: colors.txt3 }}>{appSaid}</span>}
-      {item.message === null ? null : <p style={{ ...type.bodyMd, whiteSpace: 'pre-wrap' }}>{item.message}</p>}
+    <article style={stack(spacing.micro)}>
+      <span style={typeV2.note}>{head}</span>
+      {verdict === null ? null : <span style={{ ...typeV2.body, fontSize: '15px', color: colorsV2.txt1 }}>{verdict}</span>}
+      {appSaid === null ? null : <span style={typeV2.note}>{appSaid}</span>}
+      {item.message === null ? null : (
+        <p style={{ ...typeV2.body, fontSize: '15px', color: colorsV2.txt1, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+          {item.message}
+        </p>
+      )}
       {onResolve === undefined ? null : (
         <button
           type="button"
           disabled={resolving}
           onClick={onResolve}
-          style={{ ...bareButton, ...chip, ...type.labelSm, width: 'auto', alignSelf: 'flex-start', opacity: resolving ? 0.5 : 1 }}
+          style={{ ...quietButton, alignSelf: 'flex-start', marginTop: `${spacing.tight}px`, opacity: resolving ? 0.5 : 1 }}
         >
           {resolving ? 'Marking…' : 'Done'}
         </button>
@@ -304,8 +306,8 @@ export function HistoryItem({
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div style={stack(spacing.micro)}>
-      <span style={type.label}>{label}</span>
+    <div style={stack(spacing.tight)}>
+      <span style={typeV2.statLabel}>{label}</span>
       {children}
     </div>
   )
@@ -313,12 +315,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 function Choice({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
   return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      style={{ ...bareButton, ...(active ? chipActive : chip), ...type.labelSm, width: 'auto' }}
-    >
+    <button type="button" aria-pressed={active} onClick={onClick} style={{ ...choicePill(active), ...typeV2.dayPick }}>
       {children}
     </button>
   )
@@ -334,15 +331,14 @@ function MessageField({
   onChange: (v: string) => void
 }) {
   return (
-    <label style={stack(spacing.micro)}>
-      <span style={type.label}>{label}</span>
+    <label style={stack(spacing.tight)}>
+      <span style={typeV2.statLabel}>{label}</span>
       <textarea
         value={value}
         maxLength={FEEDBACK_MESSAGE_MAX}
         rows={4}
         onChange={(e) => onChange(e.target.value)}
-        // iOS zooms the page into any focused control under 16px.
-        style={{ ...inputBox, ...type.bodyMd, fontSize: '16px', width: '100%', resize: 'vertical' }}
+        style={{ ...fieldV2, resize: 'vertical' }}
       />
     </label>
   )
@@ -364,7 +360,7 @@ function SubmitButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      style={{ ...bareButton, ...btnPrimary, ...btnPrimaryText, textAlign: 'center', opacity: disabled ? 0.5 : 1 }}
+      style={{ ...brandButton, width: '100%', opacity: disabled ? 0.5 : 1 }}
     >
       {pending ? 'Saving…' : children}
     </button>

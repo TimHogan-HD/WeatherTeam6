@@ -1,7 +1,8 @@
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import type { ClimbingAreaEntry, ClimbingAreaLevel, ClimbingStateSummary } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, btnPrimary, btnPrimaryText, row, stack } from '../theme/styles.js'
+import { bareButton, brandButton, cardV2, row, stack } from '../theme/styles.js'
+import { Sect } from './charts/liquid.js'
 import { useClimbingAreaLevel, useClimbingStates } from '../hooks/useGeocode.js'
 import { ChevronRightIcon } from './Icons.js'
 import { InlineError, SkeletonCards } from './States.js'
@@ -15,7 +16,19 @@ const count = (n: number, one: string, many: string): string => `${n.toLocaleStr
  * One row: an area to open, or — with nothing inside it — to pick. The two
  * look alike except for the chevron, which only an area that opens carries.
  */
-function AreaRow({ title, meta, opens, onPress }: { title: string; meta: string; opens: boolean; onPress: () => void }) {
+function AreaRow({
+  title,
+  meta,
+  opens,
+  first,
+  onPress,
+}: {
+  title: string
+  meta: string
+  opens: boolean
+  first: boolean
+  onPress: () => void
+}) {
   return (
     <button
       type="button"
@@ -24,12 +37,12 @@ function AreaRow({ title, meta, opens, onPress }: { title: string; meta: string;
         ...bareButton,
         ...row(spacing.listGapLg),
         paddingBlock: `${spacing.cellPad}px`,
-        borderTop: `1px solid ${colorsV2.line}`,
+        borderTop: first ? 'none' : `1px solid ${colorsV2.line}`,
       }}
     >
-      <span style={{ ...stack(spacing.tight), flex: '1 1 auto', minWidth: 0 }}>
-        <span style={typeV2.rowTitle}>{title}</span>
-        <span style={{ ...typeV2.meta, color: colorsV2.txtMuted }}>{meta}</span>
+      <span style={{ ...stack(spacing.micro), flex: '1 1 auto', minWidth: 0 }}>
+        <span style={{ ...typeV2.guideRowName, color: colorsV2.txt1 }}>{title}</span>
+        <span style={{ ...typeV2.rowSmall, color: colorsV2.txtMuted }}>{meta}</span>
       </span>
       {opens ? <ChevronRightIcon color={colorsV2.txtMuted} /> : null}
     </button>
@@ -52,19 +65,18 @@ export function BrowseStates({ onOpen }: { onOpen: (at: BrowseAt) => void }) {
   }
   if (states.data === undefined) return <SkeletonCards count={2} height={56} />
   return (
-    <section style={stack(spacing.listGapSm)} aria-label="Browse climbing areas">
-      <h2 style={{ ...typeV2.eyebrow, color: colorsV2.txtMuted, margin: 0 }}>Browse climbing areas</h2>
-      <div>
-        {states.data.map((s: ClimbingStateSummary) => (
-          <AreaRow
-            key={s.code}
-            title={s.name}
-            meta={`${count(s.climbs, 'climb', 'climbs')} · ${count(s.areas, 'area', 'areas')}`}
-            opens
-            onPress={() => onOpen({ state: s.code, areaId: null })}
-          />
-        ))}
-      </div>
+    <section style={{ ...cardV2, paddingBottom: `${spacing.tight}px` }} aria-label="Browse climbing areas">
+      <Sect title="Browse climbing areas" />
+      {states.data.map((s: ClimbingStateSummary, i) => (
+        <AreaRow
+          key={s.code}
+          title={s.name}
+          meta={`${count(s.climbs, 'climb', 'climbs')} · ${count(s.areas, 'area', 'areas')}`}
+          opens
+          first={i === 0}
+          onPress={() => onOpen({ state: s.code, areaId: null })}
+        />
+      ))}
     </section>
   )
 }
@@ -115,16 +127,16 @@ export function BrowseLevel({
             <button
               type="button"
               onClick={() => onJump(c.trail)}
-              style={{ ...bareButton, ...typeV2.meta, color: colorsV2.txtMuted, minHeight: 44 }}
+              style={{ ...bareButton, ...typeV2.dayPick, color: colorsV2.brandInk, minHeight: 44 }}
             >
               {c.name}
             </button>
-            <span aria-hidden="true" style={{ ...typeV2.meta, color: colorsV2.txtMuted }}>
+            <span aria-hidden="true" style={{ ...typeV2.dayPick, color: colorsV2.txtMuted }}>
               ›
             </span>
           </span>
         ))}
-        <span aria-current="page" style={{ ...typeV2.meta, color: colorsV2.txt1 }}>
+        <span aria-current="page" style={{ ...typeV2.dayPick, color: colorsV2.txt1 }}>
           {area?.place.name ?? data.state.name}
         </span>
       </nav>
@@ -133,23 +145,26 @@ export function BrowseLevel({
         <button
           type="button"
           onClick={() => onPick(area)}
-          style={{ ...bareButton, ...btnPrimary, ...btnPrimaryText, textAlign: 'center' }}
+          style={{ ...brandButton, width: '100%' }}
         >
           Add {area.place.name}
         </button>
       )}
 
-      <div>
-        {data.children.map((child) => (
-          <AreaRow
-            key={child.area_id}
-            title={child.place.name}
-            meta={areaMeta(child)}
-            opens={child.sub_areas > 0}
-            onPress={() => (child.sub_areas > 0 ? onOpen(child) : onPick(child))}
-          />
-        ))}
-      </div>
+      {data.children.length === 0 ? null : (
+        <div style={{ ...cardV2, paddingBlock: `${spacing.tight}px` }}>
+          {data.children.map((child, i) => (
+            <AreaRow
+              key={child.area_id}
+              title={child.place.name}
+              meta={areaMeta(child)}
+              opens={child.sub_areas > 0}
+              first={i === 0}
+              onPress={() => (child.sub_areas > 0 ? onOpen(child) : onPick(child))}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
