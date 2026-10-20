@@ -55,7 +55,7 @@ export type SlimInputs = {
 
 /**
  * Daily: the best day ahead by its score. Hourly: the hour the charts are
- * reading, with every figure they draw for it. Precip: today's highest hourly
+ * reading, its score alone. Precip: today's highest hourly
  * chance of rain. Rock: how far air sits above its dew point, now. Crag:
  * today's score. A city has no score, so its Daily carries the day's high and
  * its Hourly the hour's air temperature.
