@@ -177,7 +177,7 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
               <span style={{ ...typeV2.daySub, gridColumn: '2 / -1' }}>{sub.join(' · ')}</span>
             </>
           )
-          const spoken = `${name} ${date}:${d.score === null ? 'no score' : `score ${d.score}`}, low ${formatTempDeg(day.temp_c_min)}, high ${formatTempDeg(day.temp_c_max)}, ${chance === null ? 'chance of rain unknown' : `${chance}% chance of rain`}`
+          const spoken = `${[name, date].filter((s) => s !== '').join(' ')}: ${d.score === null ? 'no score' : `score ${d.score}`}, low ${formatTempDeg(day.temp_c_min)}, high ${formatTempDeg(day.temp_c_max)}, ${chance === null ? 'chance of rain unknown' : `${chance}% chance of rain`}`
           const style = i === rows.length - 1 ? { ...rowGrid, borderBottom: 'none' } : rowGrid
           return open === null ? (
             <div key={day.forecast_date} style={style}>

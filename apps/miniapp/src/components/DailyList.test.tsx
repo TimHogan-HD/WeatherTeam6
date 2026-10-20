@@ -124,6 +124,13 @@ describe('DailyList — rows', () => {
     expect(dayHeading('2026-10-20', '2026-10-20')).toEqual({ name: 'Today', date: 'Oct 20' })
   })
 
+  it('speaks a tappable row as its day, date and figures', () => {
+    const html = render(
+      <DailyList days={[day(DATES[1])]} readings={null} hours={[]} sky={[]} onSelectDay={() => {}} drawableDates={new Set([DATES[1]])} />,
+    )
+    expect(html).toMatch(/aria-label="Tuesday \w+ \d+: no score, low /)
+  })
+
   it('prints the low and high, and dashes a missing one rather than printing 32°', () => {
     const html = render(
       <DailyList days={[day(DATES[0]), day(DATES[1], { temp_c_min: null })]} readings={null} hours={[]} sky={[]} />,
