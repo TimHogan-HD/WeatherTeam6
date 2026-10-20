@@ -25,6 +25,8 @@ the mockup are sample data. Only the crag names are real.
   `packages/design`; do not restate them in the app.
 - **Overview graph: score bars.** The mockup still contains timeline and three-days
   code, and its control bar has been removed. Build only the score bars.
+  **Removed 2026-10-20** (owner): they repeated the Today chart's hours, so the Overview
+  keeps only Today, which now starts at the hour now is in.
 - **Map, Profile, Add a crag and Feedback** are not drawn in the mockup. Restyle them in
   the same look; there is no separate mockup round.
 
@@ -131,7 +133,7 @@ drops one is a regression:
    **2b, built 2026-10-19: the screens redrawn to the mockup itself** (owner: "the whole
    point of this is for it to look like the mock up"). Overview is the mockup's hero (name,
    the hour's score large, Dryness, the rock and hour, a line of figures, the day's good
-   hours and score), then glass cards: score bars, Today, Next days, Score breakdown, Rain,
+   hours and score), then glass cards: score bars (removed 2026-10-20), Today, Next days, Score breakdown, Rain,
    Air, Rock with the wavy drying clock (`DryingClock.tsx`), and How the score works. The
    Conditions now card, the measurements panel and the slim header on Overview are gone.
    **Since 2026-10-20 Hourly's slim header is the crag's name as a headline and the read
