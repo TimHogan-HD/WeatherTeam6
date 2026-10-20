@@ -134,10 +134,10 @@ drops one is a regression:
    hours and score), then glass cards: score bars, Today, Next days, Score breakdown, Rain,
    Air, Rock with the wavy drying clock (`DryingClock.tsx`), and How the score works. The
    Conditions now card, the measurements panel and the slim header on Overview are gone.
-   **Since 2026-10-20 the hero is the crag's name alone, at 40px** (owner: "remove the
-   metrics in the hero banner and make the name the headline"); the cards under it carry
-   every figure, the score bars' `Now` the hour's score. Only a failed or empty call and the
-   qualifier and notes (the Severe+ notice among them) print under the name. The crag
+   **Since 2026-10-20 Hourly's slim header is the crag's name as a headline and the read
+   hour's score** (owner: "remove the metrics in the hero banner and make the name the
+   headline", meant for Hourly; a first attempt stripped the Overview hero by mistake and
+   was put back). The line of figures went because each chart's chip carries them. The crag
    switcher puts the open place first and the rest after it in saved order, wrapping round,
    so the row only ever scrolls one way.
    Hourly is the day words with an underline and three cards, each with the mockup's title

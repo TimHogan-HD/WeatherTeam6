@@ -67,7 +67,10 @@ export function SlimHeader({
       )}
       <div style={{ ...row(spacing.listGapLg), justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div style={{ ...stack(spacing.micro), flex: '1 1 auto', minWidth: 0 }}>
-          {name === null ? null : (
+          {name === null ? null : tab === 'hourly' ? (
+            // Hourly's charts carry the hour's figures, so the name is the headline (owner, 2026-10-20).
+            <h1 style={{ ...typeV2.slimHeadline, margin: 0 }}>{name}</h1>
+          ) : (
             <h1 style={{ ...typeV2.slimName, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {name}
             </h1>
