@@ -131,15 +131,15 @@ describe('DailyList — rows', () => {
 
   it('prints the rain amount and peak wind through the shared formatters', () => {
     const html = render(<DailyList days={[day(DATES[0])]} readings={null} hours={[]} sky={[]} />)
-    expect(html).toContain(`rain ${formatPrecipIn(1)}`)
+    expect(html).toContain(`${formatPrecipIn(1)} · peak wind`)
     expect(html).toContain(`peak wind ${formatWindMph(12)}`)
   })
 
-  it('names the day’s Dryness beside its score', () => {
+  it('names the day’s good hours and Dryness beside its score', () => {
     const html = render(
       <DailyList days={[day(DATES[0])]} readings={readings([readingsDay(DATES[0], 30, 'wet')])} hours={[]} sky={[]} />,
     )
-    expect(html).toContain('Dryness: Wet')
+    expect(html).toContain('>no good hours · Wet · ')
   })
 
   it('says how a day score and the chance of rain are made', () => {

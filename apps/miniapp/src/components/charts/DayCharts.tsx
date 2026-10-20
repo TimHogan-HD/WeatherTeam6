@@ -14,6 +14,7 @@ import { bareButton, cardV2 } from '../../theme/styles.js'
 import { formatLocalHour } from '../../lib/format.js'
 import { SkyIcon } from '../Icons.js'
 import { dayChips, dryDay } from '../../lib/hourlyDay.js'
+import { dayChance } from '../../lib/overview.js'
 import { useNow } from '../../hooks/useNow.js'
 import { SelectionIndicator, useSelectedRect } from '../SelectionIndicator.js'
 import { chartColorsV2, scoreRampColor } from './chartStyle.js'
@@ -91,8 +92,9 @@ const MM_PER_IN = 25.4
 const AIR_NEUTRAL = chartColorsV2.air
 
 const sectCard: CSSProperties = { ...cardV2, padding: `${spacing.sectionGap}px 14px 14px` }
-/** The chart runs to the card's edges, as the mockup's does. */
-const bleed: CSSProperties = { margin: '0 -14px' }
+/** The chart runs past the card's padding by the mockup's 22px, so its hour labels line up with the card's text. */
+const bleed: CSSProperties = { margin: '0 -22px' }
+const keyInset: CSSProperties = { padding: '0 22px' }
 
 export function DayCharts({ series, selectedDate, onSelectDate, readMs, onRead, score }: DayChartsProps) {
   const now = useNow()
@@ -135,6 +137,8 @@ export function DayCharts({ series, selectedDate, onSelectDate, readMs, onRead, 
   const model = series.model === null ? null : modelName(series.model)
   const humidModel = hasValues(dewPointSeries(hours)) || hasValues(humiditySeries(hours)) ? model : null
   const gustModel = hasValues(gustSeries(hours)) ? model : null
+  const dayLabel = dayChips(series.days).find((c) => c.local_date === selectedDate)?.label ?? null
+  const chanceToday = dayChance(series.hours, selectedDate)
 
   return (
     <>
@@ -159,11 +163,13 @@ export function DayCharts({ series, selectedDate, onSelectDate, readMs, onRead, 
       <section style={sectCard}>
         <Sect title="Wind" aside={`mph${gustModel === null ? '' : ` · gusts ${gustModel}`}`} />
         <WindChart {...frame} hours={hours} />
+        {/* Under the last chart, inside its card, as the mockup's is. */}
+        <p style={{ ...typeV2.keyRow, lineHeight: '1.55', margin: '24px 0 0' }}>
+          The range bands are the 10th to 90th percentile for one hour; they are never added up. Chance of rain is the
+          share of wet ensemble members.
+          {dayLabel === null ? null : ` ${dayLabel}: ${chanceToday === null ? EM_DASH : `${chanceToday}%`} chance of rain at its likeliest hour.`}
+        </p>
       </section>
-      <p style={{ ...typeV2.keyRow, lineHeight: '1.55', margin: `${spacing.sectionGap}px 0 0` }}>
-        The range bands are the 10th to 90th percentile for one hour; they are never added up. Chance of rain is the
-        share of wet ensemble members.
-      </p>
     </>
   )
 }
@@ -397,11 +403,12 @@ function TemperatureChart({
           </g>
         ))}
       </LiquidFrame>
-      <div style={{ padding: '0 14px' }}>
+      <div style={keyInset}>
         <KeyRow
           keys={[
             {
-              label: scored ? 'air, coloured by score' : 'air',
+              // The gradient swatch says the colour is the score, as the mockup's one-word key does.
+              label: 'air',
               swatch: {
                 kind: 'line',
                 background: scored
@@ -532,7 +539,7 @@ function RainChart({
           <Bead x={axis.x(readRain.t)} y={ry(readRain.value)} color={colorsV2.rainMark} />
         )}
       </LiquidFrame>
-      <div style={{ padding: '0 14px' }}>
+      <div style={keyInset}>
         <KeyRow
           keys={[
             ...(hasValues(chance) ? [{ label: 'chance of rain', swatch: { kind: 'capsule' as const, color: colorsV2.rainMark } }] : []),
@@ -603,7 +610,7 @@ function WindChart({
           <Bead x={axis.x(readWind.t)} y={y(readWind.value)} color={chartColorsV2.wind} />
         )}
       </LiquidFrame>
-      <div style={{ padding: '0 14px' }}>
+      <div style={keyInset}>
         <KeyRow
           keys={[
             { label: 'sustained', swatch: { kind: 'line', background: chartColorsV2.wind } },
