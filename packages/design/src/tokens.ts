@@ -788,20 +788,18 @@ export const typeV2 = {
     letterSpacing: 0.3,
     color: colorsV2.txtMuted,
   },
+  /** The read hour's chip over the Overview's Today chart, a step up from the Hourly chips' `keyRow`: Barlow 14/400. */
+  readChip: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    fontWeight: '400' as const,
+    color: colorsV2.txtMuted,
+  },
   /** A chart's key row: Barlow 11/400. */
   keyRow: {
     fontFamily: fonts.body,
     fontSize: 11,
     fontWeight: '400' as const,
-    color: colorsV2.txtMuted,
-  },
-  /** A read-out label under a chart — "NOW", "AIR / DEW": Barlow Condensed 10/600, uppercase. */
-  readLabel: {
-    fontFamily: fonts.display,
-    fontSize: 10,
-    fontWeight: '600' as const,
-    letterSpacing: 1,
-    textTransform: 'uppercase' as const,
     color: colorsV2.txtMuted,
   },
   /** A read-out figure — "54° / 38°": Barlow Condensed 21/700. */

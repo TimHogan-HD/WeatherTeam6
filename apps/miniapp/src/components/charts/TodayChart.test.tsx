@@ -29,7 +29,7 @@ function render(w: ChartWindow, nowMs: number): string {
 /** The readout's air figure, the one the reader takes for "Now". */
 function readoutTemp(nowMs: number): string | undefined {
   const html = render(win(hours, Date.parse('2026-09-30T20:00:00Z')), nowMs)
-  return /Now · air \/ dew<\/span><b[^>]*>([^ <]+)/.exec(html)?.[1]
+  return /data-readout=""[^>]*><b[^>]*>Now<\/b>.*?air <b[^>]*>([^<]+)<\/b>/.exec(html)?.[1]
 }
 
 describe('TodayChart readout', () => {

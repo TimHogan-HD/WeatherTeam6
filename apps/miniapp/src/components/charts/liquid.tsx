@@ -194,7 +194,74 @@ export function timeAxis(fromMs: number, toMs: number): TimeAxis {
   return { fromMs, toMs, x }
 }
 
-export type ReadoutItem = { label: string; value: string; color: string }
+/** One figure in a read chip. `color` is its series' dot; without one the figure stands alone, as Dryness does. */
+export type ReadoutItem = { label: string; value: string; color?: string; valueColor?: string }
+
+/**
+ * The read hour's figures as a chip above a chart, following the read line.
+ * `at` is the line's share of the plotted width, as a percent: the chip moves
+ * left by the same share of its own width, so at the left edge it starts on
+ * the line, mid-chart it centres on it, and at the right edge it ends on it.
+ * That keeps it inside the card without measuring it.
+ */
+export function ReadChip({
+  hour,
+  items,
+  at,
+  large = false,
+}: {
+  hour: string
+  items: readonly ReadoutItem[]
+  at: number
+  /** The Overview's size, a step up from Hourly's. */
+  large?: boolean
+}) {
+  const inset = `${((LIQUID_PX / LIQUID_W) * 100).toFixed(2)}%`
+  const dot = large ? 8 : 6
+  return (
+    <div style={{ position: 'relative', height: large ? '28px' : '22px', margin: `0 ${inset} 2px` }}>
+      <p
+        data-readout=""
+        aria-live="polite"
+        style={{
+          ...(large ? typeV2.readChip : typeV2.keyRow),
+          position: 'absolute',
+          top: 0,
+          left: `${at.toFixed(1)}%`,
+          transform: `translateX(-${at.toFixed(1)}%)`,
+          margin: 0,
+          padding: large ? '3px 11px' : '2px 8px',
+          borderRadius: large ? '13px' : '10px',
+          whiteSpace: 'nowrap',
+          background: withOpacity(colorsV2.txt1, 0.08),
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        <b style={{ color: colorsV2.txt1 }}>{hour}</b>
+        {items.map((r, i) => (
+          <span key={i} style={{ marginLeft: large ? '12px' : '10px' }}>
+            {r.color === undefined ? null : (
+              <i
+                aria-hidden
+                style={{
+                  display: 'inline-block',
+                  width: `${dot}px`,
+                  height: `${dot}px`,
+                  borderRadius: `${dot / 2}px`,
+                  marginRight: '4px',
+                  verticalAlign: 'middle',
+                  background: r.color,
+                }}
+              />
+            )}
+            {r.label === '' ? null : `${r.label} `}
+            <b style={{ color: r.valueColor ?? colorsV2.txt1 }}>{r.value}</b>
+          </span>
+        ))}
+      </p>
+    </div>
+  )
+}
 
 /** The hour nearest a pointer's x, of the instants given. */
 function nearest(instants: readonly number[], ms: number): number | null {
@@ -264,53 +331,14 @@ export function LiquidFrame({
     return label === '12a' || label === '6a' || label === '12p' || label === '6p'
   })
   const nowIn = nowMs >= axis.fromMs && nowMs <= axis.toMs
-  // The line's share of the width, as a percent. The chip moves left by the same share of its own width.
-  // At the left edge it starts on the line, mid-chart it centres on it, and at the right edge it ends on it.
-  // That keeps it inside the card without measuring it.
-  // The row spans the first hour's x to the last's, so the share is of that span.
-  const at = read.ms === null ? 0 : ((axis.x(read.ms) - LIQUID_PX) / (LIQUID_W - 2 * LIQUID_PX)) * 100
-  const inset = `${((LIQUID_PX / LIQUID_W) * 100).toFixed(2)}%`
   return (
     <>
       {bare || read.ms === null || readout === undefined || readout.length === 0 ? null : (
-        <div style={{ position: 'relative', height: '22px', margin: `0 ${inset} 2px` }}>
-          <p
-            data-readout=""
-            style={{
-              ...typeV2.keyRow,
-              position: 'absolute',
-              top: 0,
-              left: `${at.toFixed(1)}%`,
-              transform: `translateX(-${at.toFixed(1)}%)`,
-              margin: 0,
-              padding: '2px 8px',
-              borderRadius: '10px',
-              whiteSpace: 'nowrap',
-              background: withOpacity(colorsV2.txt1, 0.08),
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            <b style={{ color: colorsV2.txt1 }}>{formatLocalHour(read.ms, utcOffsetSeconds) ?? ''}</b>
-            {readout.map((r) => (
-              <span key={r.label} style={{ marginLeft: '10px' }}>
-                <i
-                  aria-hidden
-                  style={{
-                    display: 'inline-block',
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '3px',
-                    marginRight: '4px',
-                    verticalAlign: 'middle',
-                    background: r.color,
-                  }}
-                />
-                {`${r.label} `}
-                <b style={{ color: colorsV2.txt1 }}>{r.value}</b>
-              </span>
-            ))}
-          </p>
-        </div>
+        <ReadChip
+          hour={formatLocalHour(read.ms, utcOffsetSeconds) ?? ''}
+          items={readout}
+          at={((axis.x(read.ms) - LIQUID_PX) / (LIQUID_W - 2 * LIQUID_PX)) * 100}
+        />
       )}
     <svg
       viewBox={`0 0 ${LIQUID_W} ${height}`}
