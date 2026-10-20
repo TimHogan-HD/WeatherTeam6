@@ -1,12 +1,26 @@
 import { useId, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { colorsV2 } from '@weatherteam6/design/tokens'
 import { EM_DASH, cToF, readingNow, type SkyCondition, type SkyHour } from '@weatherteam6/types'
-import { typeV2 } from '../../theme/tokens.css.js'
 import { formatTempDeg } from '../../lib/format.js'
 import { chartHourAt, shortDay, type ChartHour, type ChartWindow } from '../../lib/overview.js'
 import { SkyIcon } from '../Icons.js'
 import { chartColorsV2, scoreRampColor } from './chartStyle.js'
-import { Bead, DISPLAY, KeyRow, LIQUID_PX, LIQUID_W, MONO, Tube, XGradient, runsOf, scale, smoothPath, type Pt } from './liquid.js'
+import {
+  Bead,
+  DISPLAY,
+  KeyRow,
+  LIQUID_PX,
+  LIQUID_W,
+  MONO,
+  ReadChip,
+  Tube,
+  XGradient,
+  runsOf,
+  scale,
+  smoothPath,
+  type Pt,
+  type ReadoutItem,
+} from './liquid.js'
 
 /**
  * The hours around now as one chart — six back, ten ahead, moving with the
@@ -15,7 +29,7 @@ import { Bead, DISPLAY, KeyRow, LIQUID_PX, LIQUID_W, MONO, Tube, XGradient, runs
  * score, the dew point dashed on the same °F scale (where the two meet, the
  * rock condenses), the chance of rain as filled capsules underneath, the sky
  * every three hours along the top, and the hour's score under its label. Tap
- * or drag to read an hour; the read-out below the key follows it.
+ * or drag to read an hour; a chip above the plot, Hourly's a size up, follows it.
  *
  * **Without scores the line is neutral ink**: a city, a Severe+ alert, alerts
  * still loading. A tinted line with no number beside it would be the score
@@ -111,6 +125,14 @@ export function TodayChart({
   return (
     <div>
       <div style={{ margin: '0 -14px' }}>
+        {selected === null ? null : (
+          <ReadChip
+            large
+            hour={isNow ? 'Now' : clockLong(selected.hour)}
+            items={readItems(selected, scored, lineColor(selected), dew.length > 0, hours.some((p) => p.chancePct !== null))}
+            at={((x(selected.ms) - LIQUID_PX) / (LIQUID_W - 2 * LIQUID_PX)) * 100}
+          />
+        )}
         <svg
           viewBox={`0 0 ${LIQUID_W} ${H}`}
           role="img"
@@ -236,45 +258,31 @@ export function TodayChart({
             : []),
         ]}
       />
-      {selected === null ? null : <Readout hour={selected} isNow={isNow} scored={scored} />}
     </div>
   )
 }
 
-/** The read hour's figures, under the key: its score, air and dew point, chance of rain and Dryness. */
-function Readout({ hour, isNow, scored }: { hour: ChartHour; isNow: boolean; scored: boolean }) {
-  const air = hour.tempC === null ? EM_DASH : `${Math.round(cToF(hour.tempC))}°`
-  const cells: { label: string; value: string; color?: string }[] = [
+/**
+ * The read hour's figures for its chip: the score first, coloured as its
+ * number under the axis, then air, dew point and chance of rain with their
+ * series' dots, then Dryness. A series the chart does not draw is left out.
+ */
+function readItems(hour: ChartHour, scored: boolean, airColor: string, hasDew: boolean, hasRain: boolean): ReadoutItem[] {
+  return [
     ...(scored
       ? [
           {
-            label: isNow ? 'Now' : clockLong(hour.hour),
+            label: '',
             value: hour.score === null ? EM_DASH : String(hour.score),
-            ...(hour.score === null ? {} : { color: scoreRampColor(hour.score) }),
+            valueColor: hour.score === null ? colorsV2.txtMuted : scoreRampColor(hour.score),
           },
         ]
       : []),
-    { label: scored ? 'Air / dew' : `${isNow ? 'Now' : clockLong(hour.hour)} · air / dew`, value: `${air} / ${formatTempDeg(hour.dewC)}` },
-    { label: 'Rain', value: hour.chancePct === null ? EM_DASH : `${Math.round(hour.chancePct)}%`, color: colorsV2.rain },
-    ...(hour.dryness === null ? [] : [{ label: 'Dryness', value: hour.dryness }]),
+    { label: 'air', value: hour.tempC === null ? EM_DASH : `${Math.round(cToF(hour.tempC))}°`, color: airColor },
+    ...(hasDew ? [{ label: 'dew', value: formatTempDeg(hour.dewC), color: chartColorsV2.dewPoint }] : []),
+    ...(hasRain
+      ? [{ label: 'rain', value: hour.chancePct === null ? EM_DASH : `${Math.round(hour.chancePct)}%`, color: colorsV2.rainMark }]
+      : []),
+    ...(hour.dryness === null ? [] : [{ label: '', value: hour.dryness }]),
   ]
-  return (
-    <div
-      aria-live="polite"
-      style={{
-        display: 'grid',
-        gridTemplateColumns: `repeat(${cells.length}, auto)`,
-        justifyContent: 'space-between',
-        gap: '4px 12px',
-        marginTop: '10px',
-      }}
-    >
-      {cells.map((c) => (
-        <div key={c.label}>
-          <span style={{ ...typeV2.readLabel, display: 'block' }}>{c.label}</span>
-          <b style={{ ...typeV2.readFigure, whiteSpace: 'nowrap', ...(c.color === undefined ? {} : { color: c.color }) }}>{c.value}</b>
-        </div>
-      ))}
-    </div>
-  )
 }
