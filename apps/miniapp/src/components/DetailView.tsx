@@ -375,8 +375,11 @@ export function DetailView({
             todayDate: findToday(forecast.data)?.forecast_date ?? null,
             readings: dayReadings,
             pending: forecast.isPending || hourly?.isPending === true,
-            failed: hourly?.isError === true,
-            retry: () => hourly?.refetch(),
+            failed: forecast.isError || hourly?.isError === true,
+            retry: () => {
+              forecast.refetch()
+              hourly?.refetch()
+            },
           }}
           onOpenOverview={() => tabs.onTabChange('overview')}
         />

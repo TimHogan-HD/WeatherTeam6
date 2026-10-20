@@ -79,7 +79,7 @@ export type WeekInput = {
   /** Null until `/hourly` has answered. */
   readings: DayReadings | null
   pending: boolean
-  /** `/hourly` failed: the scores are missing, not withheld, and the card says so. */
+  /** `/forecast` or `/hourly` failed: the days are missing, not absent, and the card says so. */
   failed: boolean
   retry: () => void
 }
@@ -90,7 +90,7 @@ export type WeekInput = {
  */
 export function WeekStrip({ week }: { week: WeekInput }) {
   if (week.pending) return <Skeleton height={96} />
-  if (week.failed) return <InlineError message="Couldn't load the hour-by-hour forecast." onRetry={week.retry} />
+  if (week.failed) return <InlineError message="Couldn't load this week's forecast." onRetry={week.retry} />
   const { todayDate } = week
   if (week.forecast === undefined || todayDate === null) {
     return <p style={{ ...typeV2.note, color: colorsV2.txtMuted }}>No forecast for today yet.</p>
