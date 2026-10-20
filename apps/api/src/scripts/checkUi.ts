@@ -421,10 +421,8 @@ async function run(): Promise<void> {
       .getByRole('tab', { name: 'Daily' })
       .evaluate((el) => el.getBoundingClientRect().height)
     check('a location tab is at least 40px tall to tap', tabTall >= 40, `${tabTall}px`)
-    await page.getByRole('tab', { name: tabs[0]!.trim() }).click()
-    await page.getByRole('button', { name: 'Measurements' }).click()
-
-    await page.getByRole('link', { name: /How the score works/ }).click()
+    // The Overview carries the explanation itself; Profile's copy is reached by its anchor.
+    await page.goto(`${WEB}/profile#score`)
     const explainer = page.getByRole('heading', { name: 'How the score works' })
     await explainer.waitFor({ timeout: 10_000 }).catch(() => undefined)
     const top = await explainer.evaluate((el) => el.getBoundingClientRect().top).catch(() => null)
