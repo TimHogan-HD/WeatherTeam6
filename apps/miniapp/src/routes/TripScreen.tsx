@@ -204,7 +204,13 @@ export function TripScreen() {
         {body}
         {t === undefined ? null : (
           <GuideCard title="Trip" label="Trip">
-            {over ? null : <SourcesNote models={outlookModels(forecast.data)} agreement />}
+            {over ? null : (
+              <SourcesNote
+                // One crag's screen names only the models its own outlook read.
+                models={outlookModels(focus === null ? forecast.data : forecast.data?.filter((o) => o.locationId === focus))}
+                agreement
+              />
+            )}
             <div style={{ ...row(spacing.sectionGap), justifyContent: 'space-between' }}>
               <button
                 type="button"
