@@ -136,6 +136,8 @@ export const colorsV2 = {
    */
   brand: '#1DC5D2',
   brandInk: '#6fe3ec',
+  /** Words on a filled `brand` button — "+ New trip", "Create trip" (the mockup's `--onBrand`). */
+  onBrand: '#032026',
   /** Chance of rain, as a figure. The hybrid mockup's `--rain`. */
   rain: '#bcc7fd',
   /** Rain as a mark — chance capsules and columns, rain dots — and the dew point line (hybrid mockup). */
@@ -868,7 +870,14 @@ export const typeV2 = {
     lineHeight: 40,
     color: colorsV2.txt1,
   },
-  /** A crag's name on the list: Barlow Condensed 22/700. */
+  /** A filled `brand` button's label — "+ New trip", "Create trip": Barlow Condensed 16/700 (the mockup's `.pbtn`). */
+  brandButton: {
+    fontFamily: fonts.display,
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: colorsV2.onBrand,
+  },
+  /** A crag's name on the list, and a trip's: Barlow Condensed 22/700. */
   listName: {
     fontFamily: fonts.display,
     fontSize: 22,
