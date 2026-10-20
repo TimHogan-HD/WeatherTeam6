@@ -10,7 +10,7 @@
  * for the line's stroke and a smoothed peak's overshoot, without spending a
  * whole step on headroom.
  */
-export function niceTicks(lo: number, hi: number, count = 3): number[] {
+export function niceTicks(lo: number, hi: number, count = 4): number[] {
   hi += (hi - lo) / 50
   const raw = Math.max(1, (hi - lo) / count)
   const mag = 10 ** Math.floor(Math.log10(raw))

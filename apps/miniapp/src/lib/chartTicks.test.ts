@@ -32,7 +32,9 @@ describe('niceTicks', () => {
 
   it('spends no more than one step on headroom', () => {
     expect(niceTicks(48, 71)).toEqual([40, 50, 60, 70, 80])
-    expect(niceTicks(3, 37.3)).toEqual([0, 20, 40])
+    expect(niceTicks(3, 37.3)).toEqual([0, 10, 20, 30, 40])
+    // The UI check's day: dew point 37°F to a 67°F high, not 20-80.
+    expect(niceTicks(37, 67)).toEqual([30, 40, 50, 60, 70])
   })
 })
 
