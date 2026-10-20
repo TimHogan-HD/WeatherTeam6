@@ -8,6 +8,7 @@
  *   npm run check:ui                 # screenshots to a temp directory
  *   npm run check:ui -- --out <dir>  # or to a directory you name
  *   npm run check:ui -- --tabs-only  # only the crag screen's six tabs
+ *   npm run check:ui -- --sweep      # first remove test users earlier runs left behind
  *
  * Why this exists: UI work here was verified by rebuilding the same local
  * harness by hand every session — a throwaway secret, a local API, vite on
@@ -21,7 +22,7 @@
  * (480x1000). Each screen is screenshotted, and fails on an uncaught page
  * error, a console error, an API response >= 400, a horizontal scroll, or an
  * empty panel. Everything it creates is under the `zz-check-ui` prefix and is
- * removed in `finally`.
+ * removed in `finally`; a run stopped before then is cleared by `--sweep`.
  *
  * It reads the screens; it does not judge them. Open the screenshots.
  *
@@ -44,11 +45,16 @@ const VIEWPORT = { width: 480, height: 1000 }
 /** `--tabs-only`: sign in, add the crag, screenshot its six tabs, stop — for a screen being rebuilt. */
 const TABS_ONLY = process.argv.includes('--tabs-only')
 
+/** `--sweep`: first remove test users older than `STALE_HOURS`, left by runs stopped before their cleanup. */
+const SWEEP = process.argv.includes('--sweep')
+
 const PREFIX = 'zz-check-ui'
 const STAMP = Date.now()
 const USERNAME = `${PREFIX}-${STAMP}`
 const PASSPHRASE = `local-ui-check-${STAMP}`
 const JOIN_USERNAME = `zz-ui-join-${STAMP}`
+/** A test user this old is from a run that stopped before its cleanup. */
+const STALE_HOURS = 2
 
 /** Taylors Falls: a known crag (locked rock type) with guidebook coverage, so every tab renders. */
 const CRAG = { name: `ZZ UI check — Taylors Falls ${STAMP}`, lat: 45.3955, lon: -92.6616 }
@@ -129,10 +135,75 @@ async function run(): Promise<void> {
 
   const { createApp } = await import('../index.js')
   const { db, pool } = await import('../db/index.js')
-  const { users, userPreferences, feedback, tripDayOutcomes, tripDayRecords, tripRainRecords, invites } = await import('../db/schema.js')
+  const {
+    users,
+    userPreferences,
+    feedback,
+    tripDayOutcomes,
+    tripDayRecords,
+    tripRainRecords,
+    tripLocations,
+    trips,
+    invites,
+    locations,
+    walls,
+    conditionsReports,
+    premiumPulls,
+    pushTokens,
+    routeTicks,
+    routeTodos,
+    areaLocations,
+  } = await import('../db/schema.js')
+  const { deleteLocationCascade } = await import('../lib/locations/deleteLocation.js')
   const { hashPassword } = await import('../lib/auth/password.js')
-  const { eq } = await import('drizzle-orm')
+  const { and, eq, inArray, like, lt, or } = await import('drizzle-orm')
   const { chromium } = await import('playwright')
+
+  /**
+   * A throwaway user and everything that names it. Crags go through
+   * `deleteLocationCascade`; trips as `DELETE /trips/:tripId` clears them.
+   * True when the user is gone.
+   */
+  async function removeTestUser(id: string): Promise<boolean> {
+    try {
+      for (const { id: locId } of await db.select({ id: locations.id }).from(locations).where(eq(locations.user_id, id))) {
+        await deleteLocationCascade(locId, id)
+      }
+      await db.transaction(async (tx) => {
+        const owned = (await tx.select({ id: trips.id }).from(trips).where(eq(trips.user_id, id))).map((t) => t.id)
+        if (owned.length > 0) {
+          await tx.delete(tripLocations).where(inArray(tripLocations.trip_id, owned))
+          await tx.delete(tripRainRecords).where(inArray(tripRainRecords.trip_id, owned))
+          await tx.delete(trips).where(inArray(trips.id, owned))
+        }
+        await tx.delete(invites).where(or(eq(invites.created_by, id), eq(invites.used_by, id)))
+        for (const table of [feedback, userPreferences, walls, conditionsReports, premiumPulls, pushTokens, routeTicks, routeTodos]) {
+          await tx.delete(table).where(eq(table.user_id, id))
+        }
+        await tx.delete(areaLocations).where(eq(areaLocations.recorded_by, id))
+        await tx.delete(users).where(eq(users.id, id))
+      })
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  // Runs stopped before their `finally` leave their users behind. Opt-in,
+  // because it deletes rows this run did not create; only older ones go, so a
+  // run started alongside this one keeps its account.
+  const stale = !SWEEP ? [] : await db
+    .select({ id: users.id })
+    .from(users)
+    .where(
+      and(
+        or(like(users.username, `${PREFIX}-%`), like(users.username, 'zz-ui-join-%')),
+        lt(users.created_at, new Date(Date.now() - STALE_HOURS * 3_600_000)),
+      ),
+    )
+  let swept = 0
+  for (const { id } of stale) if (await removeTestUser(id)) swept++
+  if (stale.length > 0) console.log(`Removed ${swept} of ${stale.length} test users left by earlier runs`)
 
   const dir = outDir()
   const server = createApp().listen(API_PORT)
@@ -144,7 +215,6 @@ async function run(): Promise<void> {
   let locationId: string | null = null
   let gpsLocationId: string | null = null
   let secondLocationId: string | null = null
-  let tripAddedLocationId: string | null = null
   const tripIds: string[] = []
   let token: string | null = null
   // The Map tab draws with WebGL, which headless Chromium has only in software.
@@ -794,8 +864,6 @@ async function run(): Promise<void> {
     const addedTicked = await addedBox.isChecked().catch(() => false)
     check('Save returns to the trip with the draft kept and the new crag ticked', (await draftKept()) && addedTicked)
     await screen('trip-new-added-crag', 5)
-    const listed = await api<Location[]>('GET', '/locations', token)
-    tripAddedLocationId = listed.payload.data?.find((l) => l.name === tripAddedName)?.id ?? null
     // This trip is the one-crag trip below.
     if (addedTicked) await addedBox.uncheck()
     await screen('trip-new', 5)
@@ -1141,8 +1209,8 @@ async function run(): Promise<void> {
     await context.close()
 
     // 4g. Pulling the list down refreshes it, and a score a new run changes
-    // rolls to its new value with "was" beside it. A touch context, with every
-    // /conditions answer after the first rewritten to score 42.
+    // rolls to its new value. A touch context, with every /conditions answer
+    // after the first rewritten to score 42.
     const touch = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2, hasTouch: true })
     await touch.addInitScript((t) => localStorage.setItem('wt6.session.token', t), token)
     const tp = await touch.newPage()
@@ -1153,25 +1221,31 @@ async function run(): Promise<void> {
       await route.fulfill({ response, body: rescore ? body.replace(/"score":\d+/g, '"score":42') : body })
     })
     await tp.goto(`${WEB}/`)
-    const badge = () =>
-      tp.evaluate(() => {
-        const badges = Array.from(document.querySelectorAll('span'))
-          .filter((s) => s.textContent === 'Score')
-          .map((s) => (s.parentElement?.innerText ?? '').replace(/\s+/g, ' ').trim())
-        return badges.find((b) => /^Score \d/.test(b)) ?? ''
-      })
-    await tp.waitForFunction(() => /Score\s*\d/.test(document.querySelector('main')?.innerText ?? ''), null, {
-      timeout: 60_000,
-    })
+    // Each card's score cell is its figure over "now". While a new run rolls
+    // it, the figure is a transparent copy beside the aria-hidden digit strip.
+    const scoreCells = () =>
+      tp.evaluate(() =>
+        Array.from(document.querySelectorAll('main small'))
+          .filter((s) => s.textContent === 'now')
+          .map((s) => {
+            const cell = s.parentElement
+            const roll = cell?.querySelector('[aria-hidden]') ?? null
+            const figure = roll === null ? cell?.firstChild?.textContent : roll.previousElementSibling?.textContent
+            return { figure: (figure ?? '').trim(), rolling: roll !== null }
+          }),
+      )
+    const scored = await tp
+      .waitForFunction(
+        () => Array.from(document.querySelectorAll('main small')).some((s) => s.textContent === 'now'),
+        null,
+        { timeout: 60_000 },
+      )
+      .then(() => true, () => false)
+    check('the list prints a score for its crags', scored, 'no card printed a score over "now" within 60 s')
     await tp.waitForLoadState('networkidle')
     // Every card's score, not the top one's: the list sorts by score, so the
-    // rescore below can reorder the cards under the label being read.
-    const before = await tp.evaluate(() =>
-      Array.from(document.querySelectorAll('span'))
-        .filter((s) => s.textContent === 'Score')
-        .map((s) => /^Score (\d+)/.exec((s.parentElement?.innerText ?? '').replace(/\s+/g, ' ').trim())?.[1])
-        .filter((n): n is string => n !== undefined),
-    )
+    // rescore below can reorder the cards under the figure being read.
+    const before = (await scoreCells()).map((c) => c.figure)
 
     // Hand-dispatched touches. `Input.synthesizeScrollGesture` would be the
     // closer stand-in for a finger, but in headless Chromium it delivers
@@ -1216,24 +1290,20 @@ async function run(): Promise<void> {
       .waitFor({ timeout: 30_000 })
       .then(() => true, () => false)
     check('releasing it refreshes, then says it is up to date', refreshing && settled, `refreshing ${refreshing}, settled ${settled}`)
-    const was = await tp
-      .getByText(/^was \d+$/)
-      .first()
-      .innerText({ timeout: 5_000 })
-      .catch(() => null)
+    const rolling = await scoreCells()
     const rollShot = join(dir, `${String(passed + failed).padStart(2, '0')}-list-score-rolled.png`)
     await tp.screenshot({ path: rollShot })
     check(
-      `a score the refresh changed says what it was  →  ${rollShot}`,
-      was !== null && before.includes(was.replace('was ', '')),
-      `before ${before.join(', ')}, shows "${was}"`,
+      `a score the refresh changed rolls to its new value  →  ${rollShot}`,
+      rolling.some((c) => c.rolling && c.figure === '42'),
+      `before ${before.join(', ')}, now ${rolling.map((c) => `${c.figure}${c.rolling ? ' (rolling)' : ''}`).join(', ')}`,
     )
     await tp.waitForTimeout(5_000)
-    const after = await badge()
+    const after = await scoreCells()
     check(
-      'then settles on the new score with no "was"',
-      after === 'Score 42' && (await tp.getByText(/^was \d+$/).count()) === 0,
-      `shows "${after}"`,
+      'then settles on the new score',
+      after.length > 0 && after.every((c) => !c.rolling && c.figure === '42'),
+      after.map((c) => `${c.figure}${c.rolling ? ' (rolling)' : ''}`).join(', '),
     )
 
     // 4h. A location's forecast tabs pull to refresh too; a sideways scrub
@@ -1269,86 +1339,41 @@ async function run(): Promise<void> {
     await touch.close()
 
     // 5. /conditions failing (#261). A fresh context, so no cached readings,
-    // with every /conditions request answered 500. The card must say it is
-    // retrying, then offer a retry — never sit as an empty gap. The 500s are
-    // the scenario, so they are not counted as problems here.
+    // with every /conditions request answered 500. The hero holds its skeleton
+    // through the retries, then must offer a retry — never sit as an empty
+    // gap. The 500s are the scenario, so they are not counted as problems here.
     const failing = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2 })
     await failing.addInitScript((t) => localStorage.setItem('wt6.session.token', t), token)
     const fp = await failing.newPage()
-    // Fail /conditions only once the card itself is drawn: while the forecast
-    // is still pending (through its own retry) the card is one skeleton, which
-    // is loading and correct, but not the state under test.
-    const cardDrawn = fp
-      .getByText(/conditions now/i)
-      .waitFor({ timeout: 90_000 })
-      .catch(() => null)
-    await failing.route('**/api/v1/conditions/**', async (route) => {
-      await cardDrawn
-      await route.fulfill({
+    await failing.route('**/api/v1/conditions/**', (route) =>
+      route.fulfill({
         status: 500,
         contentType: 'application/json',
         body: JSON.stringify({ data: null, error: 'forced by check:ui', status: 500 }),
-      })
-    })
+      }),
+    )
     // Overview by name: this user saved Hourly as their opening tab above.
     await fp.goto(`${WEB}/location/${locationId}?tab=overview`)
-    const retrying = await fp
-      .getByText('Couldn’t reach conditions — trying again')
-      .waitFor({ timeout: 30_000 })
-      .then(() => true)
-      .catch(() => false)
-    const retryShot = join(dir, `${String(passed + failed).padStart(2, '0')}-conditions-retrying.png`)
-    await fp.screenshot({ path: retryShot, fullPage: true })
-    check(`a failing /conditions says it is trying again  →  ${retryShot}`, retrying)
     const gaveUp = await fp
       .getByText("Couldn't load conditions. Tap to retry.")
-      .waitFor({ timeout: 30_000 })
+      .waitFor({ timeout: 60_000 })
       .then(() => true)
       .catch(() => false)
     const errorShot = join(dir, `${String(passed + failed).padStart(2, '0')}-conditions-failed.png`)
     await fp.screenshot({ path: errorShot, fullPage: true })
-    check(`then offers a retry  →  ${errorShot}`, gaveUp)
+    check(`a failing /conditions offers a retry  →  ${errorShot}`, gaveUp)
     await failing.close()
   } finally {
     await browser.close().catch(() => undefined)
     if (vite) vite.kill()
-    let cleanupFailed = false
-    // A trip holds a foreign key to the user, so it goes before the user does.
-    for (const id of tripIds) {
-      if (token === null) continue
-      const del = await api<null>('DELETE', `/trips/${id}`, token).catch(() => null)
-      if (del === null || del.status >= 300) cleanupFailed = true
-    }
-    for (const id of [locationId, gpsLocationId, secondLocationId, tripAddedLocationId]) {
-      if (id === null || token === null) continue
-      const del = await api<null>('DELETE', `/locations/${id}`, token).catch(() => null)
-      if (del === null || del.status >= 300) cleanupFailed = true
-    }
-    if (userId !== null) {
-      // Invites point at both the inviter and the joined account, so they go before either.
-      await db.delete(invites).where(eq(invites.created_by, userId)).catch(() => {
-        cleanupFailed = true
-      })
-      if (joinedUserId !== null) {
-        await db.delete(users).where(eq(users.id, joinedUserId)).catch(() => {
-          cleanupFailed = true
-        })
-      }
-      // The settings and feedback rows hold a foreign key to the user, so they go first.
-      await db.delete(feedback).where(eq(feedback.user_id, userId)).catch(() => {
-        cleanupFailed = true
-      })
-      await db.delete(userPreferences).where(eq(userPreferences.user_id, userId)).catch(() => {
-        cleanupFailed = true
-      })
-      await db.delete(users).where(eq(users.id, userId)).catch(() => {
-        cleanupFailed = true
-      })
+    const leftover: string[] = []
+    for (const id of [joinedUserId, userId]) {
+      if (id !== null && !(await removeTestUser(id))) leftover.push(id)
     }
     server.close()
     await pool.end()
-    if (cleanupFailed) {
-      console.error(`\n!! CLEANUP FAILED — remove rows under "${PREFIX}" by hand (user ${userId}, locations ${locationId}, ${gpsLocationId} and ${secondLocationId}, trips ${tripIds.join(', ') || 'none'})`)
+    if (leftover.length > 0) {
+      console.error(`\n!! CLEANUP FAILED — users ${leftover.join(', ')} are left; \`check:ui -- --sweep\` removes them after ${STALE_HOURS} h`)
     }
   }
 
