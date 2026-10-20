@@ -26,12 +26,10 @@ import { formatSince, type PrecipSummary } from './precipHistory.js'
 /**
  * The chart's span: the hours on either side of now, and it moves with the
  * clock. It used to be fixed at 06:00-22:00, which said nothing useful after
- * dinner (owner, 2026-10-02). Six hours back keeps the afternoon a reader just
- * climbed through in view, drawn as past.
+ * dinner (owner, 2026-10-02). It starts at the hour now is in: the hours
+ * already over are no use to someone deciding whether to go (owner, 2026-10-20).
  */
-export const CHART_HOURS_BACK = 6
-export const CHART_HOURS_AHEAD = 10
-export const CHART_SPAN_HOURS = CHART_HOURS_BACK + CHART_HOURS_AHEAD
+export const CHART_SPAN_HOURS = 16
 
 const HOUR_MS = 3_600_000
 
@@ -75,13 +73,8 @@ export type ChartWindow = {
 }
 
 /**
- * The hours around `nowMs` for the chart: from `CHART_HOURS_BACK` before the
- * hour now is in to `CHART_HOURS_AHEAD` after it.
- *
- * **The series starts at the location's midnight**, so just after midnight
- * the hours back are not there to draw. The window then starts at the first
- * hour the series has and keeps its full span, rather than leaving the left of
- * the chart empty. `null` when the series has no hours at all.
+ * The hours for the chart: from the hour read as now to `CHART_SPAN_HOURS`
+ * after it. `null` when the series has no hours at all.
  *
  * `alerts` is `null` for a city — every hour then has no score
  * rather than an invented one. Readings join the hours **on `valid_at`**,
@@ -92,12 +85,9 @@ export function chartWindow(
   nowMs: number,
   alerts: { severeAlertEvent: string | null; alertsPending: boolean } | null,
 ): ChartWindow | null {
-  const first = series.hours.reduce((min, h) => {
-    const t = Date.parse(h.valid_at)
-    return Number.isFinite(t) ? Math.min(min, t) : min
-  }, Number.POSITIVE_INFINITY)
-  if (!Number.isFinite(first)) return null
-  const fromMs = Math.max(nowMs - (nowMs % HOUR_MS) - CHART_HOURS_BACK * HOUR_MS, first)
+  if (series.hours.length === 0) return null
+  // The nearest hour, as `readingNow` picks it: 12:43 is the 1pm hour, so 12pm is past.
+  const fromMs = Math.round(nowMs / HOUR_MS) * HOUR_MS
   const toMs = fromMs + CHART_SPAN_HOURS * HOUR_MS
 
   const byInstant = new Map<string, HourlyReading>()
