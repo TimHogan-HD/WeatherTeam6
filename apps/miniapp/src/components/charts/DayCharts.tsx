@@ -11,7 +11,6 @@ import {
 } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
 import { bareButton, cardV2 } from '../../theme/styles.js'
-import { formatLocalHour } from '../../lib/format.js'
 import { SkyIcon } from '../Icons.js'
 import { dayChips, dryDay } from '../../lib/hourlyDay.js'
 import { dayChance } from '../../lib/overview.js'
@@ -461,7 +460,7 @@ function RainChart({
     </g>
   ))
 
-  if (dry !== null) {
+  if (dry) {
     return (
       <div style={{ ...bleed, position: 'relative' }}>
         <LiquidFrame {...frameProps} bare title="Rain by hour: dry all day">
@@ -484,8 +483,7 @@ function RainChart({
         >
           <b style={{ ...typeV2.lineFigure, color: colorsV2.goodInk }}>Dry all day</b>
           <span style={{ ...typeV2.heroSideSm, lineHeight: '1.4', maxWidth: '32ch' }}>
-            No measurable rain in any hour of the ensemble mean. Highest chance {dry.peakChancePct}%, at{' '}
-            {formatLocalHour(dry.peakMs, utcOffsetSeconds) ?? EM_DASH}.
+            0% in every hour: no ensemble member has measurable rain all day.
           </span>
         </div>
       </div>

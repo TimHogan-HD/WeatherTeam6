@@ -45,10 +45,12 @@ the mockup are sample data. Only the crag names are real.
 
   Air and dew point share one row in the readout. The scrub marker is a ring with a
   coloured dot, never two stacked dots.
-- **Dry all day on Hourly** (every hour's median amount is 0 and the highest chance is
-  under 10%): the rain card keeps its frame, gridlines and hour labels. It draws no chance
+- **Dry all day on Hourly** (every hour is 0% and the day's mean amount is below
+  measurable): the rain card keeps its frame, gridlines and hour labels. It draws no chance
   columns, no amount line or range, no scrub dot, no now line, no right-hand inch scale
-  and no key. Instead it says "Dry all day" and gives the highest chance and its hour.
+  and no key. Instead it says "Dry all day". **Any chance above 0% draws its column**
+  (owner, 2026-10-20, replacing the first cut's "under 10%": "the data exists, we
+  shouldn't leave it blank unless it's truly that low").
 - **Daily.** The summary under each day wraps across the full row and is never cut off.
 - **Precip.** The running-total chart is removed (`PrecipRunningTotal.tsx`). The tab
   keeps:
@@ -110,7 +112,7 @@ drops one is a regression:
    one hour across the sky strip and the three charts (temperature with dew point and
    humidity on a right-hand scale, rain chance as columns with the amount as a line, wind),
    and the slim header follows it (`slimHeader.ts`). A day counts as dry when every hour is
-   read and under 10% chance (`dryDay`); there is no hourly median amount, so the chance
+   read at 0% chance since 2026-10-20, under 10% before (`dryDay`); there is no hourly median amount, so the chance
    stands in for it.
    **2b, built 2026-10-19: the screens redrawn to the mockup itself** (owner: "the whole
    point of this is for it to look like the mock up"). Overview is the mockup's hero (name,
