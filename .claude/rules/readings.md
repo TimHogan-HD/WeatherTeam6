@@ -63,10 +63,11 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   `dayRepresentative`; the score bars and any block of hours are the
   same rule, and a block with any hour unread or suppressed has no score — the worst of the
   rest could be better than the missing one. **An hour's score may headline only beside
-  the hour it is** (owner, 2026-10-19, superseding 2026-10-05's "never"): the Overview hero
-  prints the hour covering now, names that hour beside it, and keeps the day's good hours
-  and score on the line under it with the score bars below; Hourly's slim header follows
-  the hour being read (`Today 7 PM`).
+  the hour it is** (owner, 2026-10-19, superseding 2026-10-05's "never"): the Overview's
+  score bars print the hour covering now as `Now` beside the day's good hours; Hourly's
+  slim header follows the hour being read (`Today 7 PM`). **The Overview hero is the
+  crag's name alone** (owner, 2026-10-20): no figure, only the notes that stop a reading
+  being read (a failed or empty call, the qualifier, the Severe+ notice).
 - **The number waits for the alerts query, inside `summarizeReadings`** — `alertsPending`
   suppresses the score on its own (defect class 7). **Severe+ suppression drops the number
   and keeps the readings.** A surface must not reach past `ReadingsSummary.score === null`.

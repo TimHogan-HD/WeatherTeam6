@@ -285,7 +285,6 @@ describe('DetailView — tabs', () => {
         />,
       )
 
-    expect(render('overview')).toContain('>72<')
     expect(render('overview')).toContain('data-hero')
     expect(render('daily')).not.toContain('data-hero')
     expect(render('hourly')).not.toContain('data-hero')

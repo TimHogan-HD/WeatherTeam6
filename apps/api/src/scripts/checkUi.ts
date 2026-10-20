@@ -384,13 +384,15 @@ async function run(): Promise<void> {
     // 3b. The Overview says what is lowering a shown score (#218), and explains the score.
     await page.getByRole('tab', { name: tabs[0]!.trim() }).click()
     const hero = await page.locator('[data-hero]').innerText()
+    check('the Overview hero is the name alone, no figure', !/\d{1,3}(?!\d)/.test(hero.replace(/\d{6,}/g, '')), hero.replace(/\s+/g, ' '))
     const overviewText = await page.getByRole('tabpanel').innerText()
     // A score under 100 has something lowering it, and the breakdown names it; at 100 there may be none.
-    const shownScore = /^\s*(\d+)\s*$/m.exec(hero)?.[1]
+    // The hour's score is the score bars' "Now".
+    const shownScore = /(\d+)\s+Now\b/.exec(overviewText)?.[1]
     check(
       'the Overview says what is lowering a shown score',
       shownScore === undefined || shownScore === '100' || /Score breakdown/i.test(overviewText),
-      hero.replace(/\s+/g, ' ').slice(0, 300),
+      overviewText.replace(/\s+/g, ' ').slice(0, 300),
     )
     await page.getByText('How the score works').click()
     await screen('overview-explainer')
@@ -707,6 +709,7 @@ async function run(): Promise<void> {
       placesListed.length === 2 && (await switcher.getByRole('button', { name: CRAG.name }).getAttribute('aria-pressed')) === 'true',
       placesListed.join(', '),
     )
+    check('the open place leads the switcher', placesListed[0] === CRAG.name, placesListed.join(', '))
     await switcher.getByRole('button', { name: SECOND_CRAG.name }).click()
     await page.waitForURL((u) => u.pathname === `/location/${secondLocationId}`, { timeout: 10_000 }).catch(() => undefined)
     const swiped = await page.locator('.wt6-swipe').waitFor({ timeout: 5_000 }).then(() => 1, () => 0)
@@ -717,6 +720,8 @@ async function run(): Promise<void> {
       new URL(page.url()).pathname === `/location/${secondLocationId}` && stillDaily === 1 && swiped === 1,
       `${page.url()}; Daily selected ${stillDaily}; swipe ${swiped}`,
     )
+    const placesAfter = await switcher.getByRole('button').allInnerTexts()
+    check('and the switched-to place now leads the switcher', placesAfter[0] === SECOND_CRAG.name, placesAfter.join(', '))
     await page.getByRole('button', { name: 'Back to Conditions' }).click()
     await page.waitForURL((u) => u.pathname === '/', { timeout: 10_000 }).catch(() => undefined)
     check('and back from the switched crag returns to the list, not the first crag', new URL(page.url()).pathname === '/', page.url())
