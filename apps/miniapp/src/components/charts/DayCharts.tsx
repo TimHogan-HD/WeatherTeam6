@@ -1,5 +1,5 @@
 import { useId, useRef, type CSSProperties, type ReactNode } from 'react'
-import { colorsV2, spacing } from '@weatherteam6/design/tokens'
+import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import {
   EM_DASH,
   cToF,
@@ -14,6 +14,7 @@ import {
 } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
 import { bareButton, cardV2 } from '../../theme/styles.js'
+import { selection } from '../../theme/glass.js'
 import { SkyIcon } from '../Icons.js'
 import { dayChips, dryDay } from '../../lib/hourlyDay.js'
 import { dayChance } from '../../lib/overview.js'
@@ -187,9 +188,11 @@ export function DayCharts({ series, selectedDate, onSelectDate, readMs, onRead, 
 }
 
 /**
- * The days as words, the open one underlined. **Pressed buttons, not a second
- * tablist**: the dock's tabs are the screen's tablist, and this picks which
- * day that tab shows.
+ * The open day's full name as a headline, over a week strip of equal tiles —
+ * word and date — spanning the width (owner, 2026-10-20, variant A of three:
+ * seven full names do not fit a 480px row). One fill slides to the open tile.
+ * **Pressed buttons, not a second tablist**: the dock's tabs are the screen's
+ * tablist, and this picks which day that tab shows.
  */
 function DayPicker({
   series,
@@ -204,52 +207,65 @@ function DayPicker({
   const rect = useSelectedRect(rowRef, '[aria-pressed="true"]', selectedDate)
   const chips = dayChips(series.days)
   if (chips.length === 0) return null
+  const open = chips.find((c) => c.local_date === selectedDate) ?? null
+  const fill = { background: selection.fill, boxShadow: `inset 0 0 0 1.5px ${colorsV2.brand}` }
   return (
-    <div
-      ref={rowRef}
-      role="group"
-      aria-label="Day"
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        gap: '14px',
-        overflowX: 'auto',
-        scrollbarWidth: 'none',
-        position: 'relative',
-      }}
-    >
-      <SelectionIndicator
-        rect={rect}
-        style={{ bottom: 0, height: '2px', borderRadius: '2px', backgroundColor: colorsV2.brand }}
-      />
-      {chips.map((chip) => {
-        const selected = chip.local_date === selectedDate
-        return (
-          <button
-            key={chip.local_date}
-            type="button"
-            aria-pressed={selected}
-            disabled={!chip.drawable}
-            onClick={() => onSelectDate(chip.local_date)}
-            style={{
-              ...bareButton,
-              ...typeV2.dayPick,
-              width: 'auto',
-              flex: '0 0 auto',
-              padding: '4px 0',
-              minHeight: '36px',
-              whiteSpace: 'nowrap',
-              color: selected ? colorsV2.txt1 : colorsV2.txt2,
-              textShadow: '0 1px 6px rgba(0,0,0,0.45)',
-              borderBottom: selected && rect === null ? `2px solid ${colorsV2.brand}` : '2px solid transparent',
-              // A day the ensemble never reached keeps its place, so counting from Today lands on the right word.
-              ...(chip.drawable ? {} : { opacity: 0.35, cursor: 'default' }),
-            }}
-          >
-            {chip.label}
-          </button>
-        )
-      })}
+    <div>
+      {open === null ? null : (
+        <p style={{ ...typeV2.dayHeadline, color: colorsV2.txt1, margin: '0 0 10px' }}>
+          {open.name} <span style={{ fontWeight: 500, color: colorsV2.txt2 }}>{open.date}</span>
+        </p>
+      )}
+      <div
+        ref={rowRef}
+        role="group"
+        aria-label="Day"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${chips.length}, minmax(0, 1fr))`,
+          gap: '4px',
+          position: 'relative',
+        }}
+      >
+        <SelectionIndicator rect={rect} style={{ top: 0, bottom: 0, borderRadius: `${radius.dayTile}px`, ...fill }} />
+        {chips.map((chip) => {
+          const selected = chip.local_date === selectedDate
+          return (
+            <button
+              key={chip.local_date}
+              type="button"
+              aria-pressed={selected}
+              aria-label={`${chip.name}, ${chip.date}`}
+              disabled={!chip.drawable}
+              onClick={() => onSelectDate(chip.local_date)}
+              style={{
+                ...bareButton,
+                position: 'relative',
+                width: 'auto',
+                minWidth: 0,
+                minHeight: '60px',
+                padding: '8px 0',
+                borderRadius: `${radius.dayTile}px`,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                ...(selected && rect === null ? fill : {}),
+                // A day the ensemble never reached keeps its place, so counting from Today lands on the right tile.
+                ...(chip.drawable ? {} : { opacity: 0.35, cursor: 'default' }),
+              }}
+            >
+              <span style={{ ...typeV2.dayTileWord, color: selected ? colorsV2.brandInk : colorsV2.txtMuted }}>
+                {chip.label}
+              </span>
+              <span style={{ ...typeV2.dayTileDate, color: selected ? colorsV2.txt1 : colorsV2.txt2 }}>
+                {chip.dayOfMonth}
+              </span>
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }

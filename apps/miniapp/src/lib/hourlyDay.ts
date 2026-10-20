@@ -9,9 +9,22 @@ import { formatWeekday } from './forecast.js'
 
 export type DayChip = {
   local_date: string
+  /** The tile's small word: `Today`, `Wed`. */
   label: string
+  /** The headline's word when this day is open: `Today`, `Wednesday`. */
+  name: string
+  /** The tile's figure, the day of the month: `21`. */
+  dayOfMonth: string
+  /** Beside the headline: `October 21`. */
+  date: string
   /** False for a day the ensemble never reached: the chip is shown and disabled. */
   drawable: boolean
+}
+
+const utcDay = (isoDate: string, options: Intl.DateTimeFormatOptions): string => {
+  const [y, m, d] = isoDate.split('-').map(Number)
+  if (y === undefined || m === undefined || d === undefined || ![y, m, d].every(Number.isFinite)) return isoDate
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', { ...options, timeZone: 'UTC' })
 }
 
 /**
@@ -26,6 +39,9 @@ export function dayChips(days: readonly HourlyDay[]): DayChip[] {
   return days.map((d, i) => ({
     local_date: d.local_date,
     label: i === 0 ? 'Today' : formatWeekday(d.local_date),
+    name: i === 0 ? 'Today' : utcDay(d.local_date, { weekday: 'long' }),
+    dayOfMonth: utcDay(d.local_date, { day: 'numeric' }),
+    date: utcDay(d.local_date, { month: 'long', day: 'numeric' }),
     drawable: dayIsDrawable(d),
   }))
 }
