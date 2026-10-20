@@ -333,7 +333,7 @@ function ByDay({ hours, today, utcOffsetSeconds }: { hours: readonly HourlySampl
                 {wettest === null
                   ? 'No hourly amounts for this day'
                   : wet
-                    ? `Wettest hour ${formatLocalHour(Date.parse(wettest.valid_at), utcOffsetSeconds) ?? EM_DASH}: ${formatPrecipIn(wettest.precip_mm_mean)} mean, up to ${formatPrecipIn(wettest.precip_mm_p90)} (p90)`
+                    ? `Wettest hour ${formatLocalHour(Date.parse(wettest.valid_at), utcOffsetSeconds) ?? EM_DASH}: ${formatPrecipIn(wettest.precip_mm_mean)} mean · p90 ${formatPrecipIn(wettest.precip_mm_p90)}`
                     : 'No hour with measurable rain in the mean'}
               </small>
             </div>

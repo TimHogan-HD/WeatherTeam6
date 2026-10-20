@@ -194,7 +194,7 @@ drops one is a regression:
    field guide whole and gains a **Drying** card (the clock, Dryness, hours since real rain,
    where the window starts) and a **Condensation** chart (`RockReadings.tsx`):
    `condensation_margin_c` six hours back to 42 ahead, shading the hours under
-   `SCORE_MODEL_FACTS.condensationClearMarginC` (2 °C, printed 4°F). The slim header on Rock
+   `SCORE_MODEL_FACTS.condensationClearMarginC` (2 °C, printed 3.6°F). The slim header on Rock
    is now that same margin now, `rock above dew`, with Dryness under the name; it was air
    minus dew point, which would sit over a chart drawing something else. The Overview's
    stat tiles moved to `StatTiles.tsx` for all three tabs. **Departures, for honesty:** the

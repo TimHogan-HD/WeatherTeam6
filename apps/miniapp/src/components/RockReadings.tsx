@@ -49,7 +49,7 @@ import { Stats } from './StatTiles.js'
  *
  * **The condensation edge is the score's own**: `SCORE_MODEL_FACTS
  * .condensationClearMarginC`, under which Crag A starts taking grip away. The
- * mockup's 4° was sample data; 2 °C rounds to the same 4°F.
+ * mockup's 4° was sample data; 2 °C is printed as 3.6°F, the value the shading uses.
  */
 
 export function DryingCard({
@@ -128,7 +128,8 @@ export function CondensationCard({
   const read = readMs !== null && instants.includes(readMs) ? readMs : nowHour
   const readHour = series.find((h) => h.t === read) ?? null
   const half = (axis.x(first.t + 3_600_000) - axis.x(first.t)) / 2
-  const edge = Math.round(CONDENSATION_EDGE_F)
+  // Printed to the tenth the shading uses (2 °C is 3.6°F), so an hour at 3.8°F is never called "more than 4°F".
+  const edge = Number(CONDENSATION_EDGE_F.toFixed(1))
   const ahead = series.filter((h) => h.t > now && h.marginF !== null).length
   const condHours = condensationHoursAhead(series, now)
   const runs = runsOf(
