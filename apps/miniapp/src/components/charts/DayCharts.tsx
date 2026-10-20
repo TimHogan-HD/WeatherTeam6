@@ -14,6 +14,7 @@ import { bareButton, cardV2 } from '../../theme/styles.js'
 import { SkyIcon } from '../Icons.js'
 import { dayChips, dryDay } from '../../lib/hourlyDay.js'
 import { dayChance } from '../../lib/overview.js'
+import { chanceAxisTop, niceTicks } from '../../lib/chartTicks.js'
 import { useNow } from '../../hooks/useNow.js'
 import { SelectionIndicator, useSelectedRect } from '../SelectionIndicator.js'
 import { chartColorsV2, scoreRampColor } from './chartStyle.js'
@@ -251,29 +252,25 @@ function at(data: readonly SeriesDatum[], ms: number | null): SeriesDatum | null
   return ms === null ? null : (data.find((d) => d.t === ms) ?? null)
 }
 
-/** Grid lines and their labels on a °F or mph scale, about three steps across the span. */
+/**
+ * Gridlines at `ticks`, in label units; `fromLabel` takes a label back to the
+ * data's units for `y`. The ticks come from `niceTicks`, and the chart's own
+ * span is set from the first and last, so nothing draws past the top line.
+ */
 function Grid({
-  min,
-  max,
+  ticks,
+  fromLabel,
   y,
   side,
   unit,
-  toLabel,
 }: {
-  min: number
-  max: number
+  ticks: readonly number[]
+  fromLabel: (label: number) => number
   y: (v: number) => number
   side: 'start' | 'end'
   unit: string
-  toLabel: (v: number) => number
 }) {
-  const lo = toLabel(min)
-  const hi = toLabel(max)
-  const step = Math.max(1, Math.round((hi - lo) / 3))
-  const ticks: number[] = []
-  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) ticks.push(v)
-  // `toLabel` is linear, so the label's own position is found by inverting it on the span.
-  const yOf = (label: number) => y(min + ((label - lo) / (hi - lo || 1)) * (max - min))
+  const yOf = (label: number) => y(fromLabel(label))
   return (
     <>
       {ticks.map((v) => (
@@ -318,8 +315,9 @@ function TemperatureChart({
     ]),
   )
   if (span === null) return <Empty>No hourly temperature for this day.</Empty>
-  const pad = 1.2
-  const y = scale(span.min - pad, span.max + pad, 124, 14)
+  const fToC = (f: number) => ((f - 32) * 5) / 9
+  const ticks = niceTicks(cToF(span.min), cToF(span.max))
+  const y = scale(fToC(ticks[0] ?? 0), fToC(ticks[ticks.length - 1] ?? 0), 124, 14)
   const hy = scale(0, 100, 124, 14)
 
   const scores = new Map(hours.map((h) => [Date.parse(h.valid_at), scoreAt(h.valid_at)]))
@@ -358,7 +356,7 @@ function TemperatureChart({
             stops={temperature.map((d) => ({ at: axis.x(d.t) / LIQUID_W, color: airColor(d.t) }))}
           />
         </defs>
-        <Grid min={span.min - pad} max={span.max + pad} y={y} side="start" unit="°" toLabel={(c) => Math.round(cToF(c))} />
+        <Grid ticks={ticks} fromLabel={fToC} y={y} side="start" unit="°" />
         {goodWindow === null
           ? null
           : instants
@@ -446,14 +444,16 @@ function RainChart({
 
   const H = 140
   const floor = 106
-  const cy = scale(0, 100, floor, 14)
+  const chances = chance.map((d) => d.value).filter((v): v is number => v !== null)
+  const chanceTop = chanceAxisTop(chances.length === 0 ? null : Math.max(...chances))
+  const cy = scale(0, chanceTop, floor, 14)
   const top = Math.max(RAIN_MIN_TOP_MM, ...rain.flatMap((d) => [d.value ?? 0, d.high ?? 0]))
   const ry = scale(0, top, floor, 14)
   const dry = dryDay(series.hours, selectedDate)
   const frameProps = { height: H, top: 10, bottom: 22, axis, instants, utcOffsetSeconds, nowMs, read }
   const inches = (mm: number) => (mm / MM_PER_IN).toFixed(2).replace(/^0/, '')
 
-  const chanceGrid = [0, 50, 100].map((v) => (
+  const chanceGrid = [0, chanceTop / 2, chanceTop].map((v) => (
     <g key={v}>
       <line x1={LIQUID_PX} x2={LIQUID_W - LIQUID_PX} y1={cy(v)} y2={cy(v)} stroke={chartColorsV2.grid} />
       <Label x={LIQUID_PX} y={cy(v) - 3} anchor="start">{`${v}%`}</Label>
@@ -570,9 +570,8 @@ function WindChart({
   const lo = Math.min(...wind.map((d) => d.low ?? d.value ?? Infinity))
   const hi = Math.max(...[...wind, ...gusts].map((d) => Math.max(d.high ?? -Infinity, d.value ?? -Infinity)))
   const kmhPerMph = 1.609344
-  const min = Math.max(0, lo - kmhPerMph)
-  const max = hi + kmhPerMph
-  const y = scale(min, max, 98, 12)
+  const ticks = niceTicks(Math.max(0, lo / kmhPerMph), hi / kmhPerMph)
+  const y = scale((ticks[0] ?? 0) * kmhPerMph, (ticks[ticks.length - 1] ?? 0) * kmhPerMph, 98, 12)
   const readWind = at(wind, read.ms)
   const band = runsOf(wind, (d) => d.low !== null && d.high !== null)
 
@@ -589,7 +588,7 @@ function WindChart({
         read={read}
         title="Wind by hour"
       >
-        <Grid min={min} max={max} y={y} side="end" unit="" toLabel={(k) => Math.round(k / kmhPerMph)} />
+        <Grid ticks={ticks} fromLabel={(mph) => mph * kmhPerMph} y={y} side="end" unit="" />
         {band.map((run, i) => (
           <Frost
             key={i}

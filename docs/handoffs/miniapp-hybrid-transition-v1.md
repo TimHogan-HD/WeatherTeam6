@@ -51,6 +51,12 @@ the mockup are sample data. Only the crag names are real.
   and no key. Instead it says "Dry all day". **Any chance above 0% draws its column**
   (owner, 2026-10-20, replacing the first cut's "under 10%": "the data exists, we
   shouldn't leave it blank unless it's truly that low").
+- **Chart scales on Hourly** (owner, 2026-10-20: a 2% column "looks like 0%", and the gust
+  and air lines ran into the top label). The chance axis tops at the smallest of 10, 20, 50
+  and 100% that holds the day's highest chance (`chanceAxisTop`), with a midline at half.
+  Temperature and wind gridlines come from `niceTicks` (`lib/chartTicks.ts`): steps of 1, 2
+  or 5 times a power of ten, widened out so the top line sits above every value drawn.
+  Humidity keeps its fixed 0–100%.
 - **Daily.** The summary under each day wraps across the full row and is never cut off.
 - **Precip.** The running-total chart is removed (`PrecipRunningTotal.tsx`). The tab
   keeps:

@@ -119,10 +119,12 @@ describe('DayCharts — three cards', () => {
 })
 
 describe('DayCharts — rain', () => {
-  it('draws the chance as one capsule per hour on a defined 0-100% scale', () => {
+  it('draws the chance as one capsule per hour, on the smallest of 10, 20, 50 and 100% that holds the day', () => {
     const svg = chartSvg(render(series(fullDay)), 'Rain by hour')
     expect(count(svg, 'data-chance=""')).toBe(24)
-    expect(svg).toContain('>100%<')
+    // Every hour is 30%, so the axis tops at 50%, not 100%.
+    expect(svg).toContain('>50%<')
+    expect(svg).not.toContain('>100%<')
     expect(render(series(fullDay))).toContain('chance left · in / hr right')
   })
 
@@ -180,7 +182,7 @@ describe('DayCharts — dry all day', () => {
     expect(svg).not.toContain('data-chance')
     expect(svg).not.toContain('data-line')
     expect(svg).not.toContain('data-bead')
-    expect(svg).toContain('>100%<')
+    expect(svg).toContain('>10%<')
     expect(svg).toContain('>6a<')
   })
 
@@ -203,7 +205,18 @@ describe('DayCharts — wind', () => {
     expect(svg).toContain(`stroke="${chartColorsV2.wind}"`)
     expect(svg).toContain('data-gust=""')
     const range = ys(pathD(svg, 'data-range=""'))
-    expect(Math.min(...range)).toBeLessThan(15)
+    // 60 km/h is 37 mph, on a scale topped at the 40 mph line (y 12).
+    expect(Math.min(...range)).toBeLessThan(20)
+    expect(Math.min(...range)).toBeGreaterThanOrEqual(12)
+    expect(svg).toContain('>40<')
+  })
+
+  it('tops the scale at a gridline above the highest gust, so no line runs into its label', () => {
+    const gusty = fullDay.map((h, i) => ({ ...h, wind_gust_kmh: i === 14 ? 47 : 20 }))
+    const svg = chartSvg(render(series(gusty)), 'Wind by hour')
+    // 47 km/h is 29 mph: the top line is 30 at y 12, and the gust stays at or below it.
+    expect(svg).toContain('>30<')
+    expect(Math.min(...ys(pathD(svg, 'data-gust=""')))).toBeGreaterThanOrEqual(11)
   })
 
   it('names the gust model only when gusts are drawn', () => {
