@@ -3,7 +3,7 @@ import { useLocation as useRouterLocation, useParams, useSearchParams } from 're
 import { useNavigate } from '../hooks/useNavigate.js'
 import { colors, motion, spacing } from '@weatherteam6/design/tokens'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, navClearance, row, stack } from '../theme/styles.js'
+import { bareButton, dockClearance, row, stack } from '../theme/styles.js'
 import { backTarget, detailTabPath, editPath, openedFromMap, wallPath } from '../lib/backTarget.js'
 import { rockLocked } from '../lib/editLocation.js'
 import { formatRunAge } from '../lib/format.js'
@@ -335,7 +335,7 @@ export function LocationDetail() {
           {
             ...stack(spacing.listGapLg),
             padding: `${spacing.sectionGap}px`,
-            paddingBottom: navClearance,
+            paddingBottom: dockClearance,
             ...(swipe === null ? {} : { '--swipe-dx': `${swipe * motion.swipePx}px` }),
           } as CSSProperties
         }

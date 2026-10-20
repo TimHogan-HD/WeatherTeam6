@@ -263,6 +263,8 @@ export function DetailView({
           readings={dayReadings}
           hours={hourly?.data?.hours ?? []}
           sky={hourly?.data?.sky?.days ?? []}
+          hourReadings={hourly?.data?.readings?.hours ?? []}
+          utcOffsetSeconds={hourly?.data?.utc_offset_seconds ?? null}
           {...(tabs === undefined || drawableDates === undefined
             ? {}
             : {

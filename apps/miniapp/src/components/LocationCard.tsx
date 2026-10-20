@@ -5,11 +5,15 @@ import {
   DRYNESS_LABEL,
   EM_DASH,
   rockTypeLabel,
+  skyDayIcon,
   summarizeReadings,
   type Location,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { useAlerts, useConditions, useForecast } from '../hooks/useWeather.js'
+import { useHourly } from '../hooks/useHourly.js'
+import { shortSpan } from '../lib/overview.js'
+import { SkyIcon } from './Icons.js'
 import { findToday, severeAlertEvent, sortBySeverity } from '../lib/forecast.js'
 import { prefetchDetail } from '../lib/prefetchDetail.js'
 import { formatTempRangeF } from '../lib/format.js'
@@ -31,8 +35,10 @@ import type { RememberedCard } from '../lib/rememberedCards.js'
  * `is_climbing_location` — it would return a rock-drying score for Chicago if
  * asked, so the client does not ask. A city's row carries today's low and high.
  *
- * No sky glyph, which the mockup draws: `/conditions` carries no sky, and the
- * list does not fetch every crag's hourly run to find one.
+ * The glyph on the left is **today's** sky from the crag's hourly run — the
+ * same query opening the crag reads, so the list warms it. Not the hour's:
+ * the run's sky has daylight hours only, and a moon would claim a night sky
+ * nothing measured. No glyph while it loads or where the day has a gap.
  */
 
 /**
@@ -63,6 +69,7 @@ export function LocationCard({
   const forecast = useForecast(location.id)
   const alerts = useAlerts(location.id)
   const conditions = useConditions(location.id, location.is_climbing_location)
+  const hourly = useHourly(location.id)
 
   // A non-crag's conditions query is disabled and stays pending forever.
   const settled =
@@ -99,6 +106,8 @@ export function LocationCard({
   const rock = location.rock_type == null || location.rock_type === 'unknown' ? null : rockTypeLabel(location.rock_type)
   const alert = alertsData === undefined ? undefined : sortBySeverity(alertsData)[0]
   const today = findToday(forecastData)
+  const todaySky =
+    today === null ? null : (hourly.data?.sky?.days.find((d) => d.local_date === today.forecast_date)?.summary ?? null)
 
   let second: ReactNode = null
   let third: ReactNode = null
@@ -113,11 +122,14 @@ export function LocationCard({
       )
     } else if (summary?.unavailableLine != null) {
       third = <small style={small}>{summary.unavailableLine}</small>
-    } else if (summary?.window != null) {
+    } else if (summary?.window != null && readings !== undefined) {
+      // Daily's words: `good 7a–11p · today 89`. "good", not the mockup's "best": the span is
+      // the day's good hours, not the three-hour run its score comes from.
+      const span = shortSpan(readings.today?.window ?? null, readings.utc_offset_seconds)
       third = (
         <small style={small}>
-          {`${summary.window.label}: ${summary.window.value}`}
-          {dayScore === null ? '' : ` · Today: ${dayScore}`}
+          {span === 'None' ? 'no good hours today' : `good ${span.toLowerCase()}`}
+          {dayScore === null ? '' : ` · today ${dayScore}`}
         </small>
       )
     }
@@ -149,10 +161,10 @@ export function LocationCard({
       tabIndex={0}
       style={{
         display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1fr) auto 10px',
+        gridTemplateColumns: '30px minmax(0, 1fr) auto 10px',
         gap: '12px',
         alignItems: 'center',
-        padding: '14px 0',
+        padding: '12px 0',
         minHeight: '64px',
         cursor: 'pointer',
         borderTop: first ? 'none' : `1px solid ${colorsV2.line}`,
@@ -169,6 +181,7 @@ export function LocationCard({
         }
       }}
     >
+      {todaySky === null ? <span /> : <SkyIcon sky={skyDayIcon(todaySky)} size={30} />}
       <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {/* Wraps rather than truncating: the tail often tells two places apart. */}
         <span style={{ ...typeV2.listName, overflowWrap: 'anywhere' }}>{location.name}</span>

@@ -146,6 +146,19 @@ drops one is a regression:
    `Sunday · good 9a–12p · Dry`. **Departures:** "good" where the mockup says "best" (as 3a);
    no moon glyphs at night, because the sky series has daylight hours only and a moon would
    claim a clear night; no Agreement in the footnote, which nothing computes per day.
+   **3c, built 2026-10-20: fill the space** (owner: "things should fill the space accurately
+   … intentionally full, not stretched"). Daily rows carry a 24-hour strip under each day,
+   each hour coloured by its score through `summarizeReadings` (`lib/dayStrip.ts`; a city's
+   is shaded by chance of rain), under one `12a 6a 12p 6p` axis, so the week fills the
+   screen with readings rather than padding. The Overview's Rain, Air and Rock cards drop the
+   mockup's label-left, figure-right lines for **stat tiles**: label above figure, note under
+   it, equal columns with a hairline between (`typeV2.statLabel`/`statFigure`). **This
+   departs from the mockup at the owner's request**: a label at one edge of a card and its
+   figure at the other were hard to read together. The list's rows gain the mockup's sky
+   glyph, as **today's** sky from the crag's `/hourly` run (the query opening the crag
+   reads), and Daily's `good 7a–11p · today 89`. A crag's screen now clears its floating
+   dock plus the home-indicator inset (`dockClearance`); the bar's clearance left the last
+   line under the dock on a phone with one.
 4. **Crag tab and Trips** restyled.
 5. **Map, Profile, Add a crag and Feedback** restyled.
 

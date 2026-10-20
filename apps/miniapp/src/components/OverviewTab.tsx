@@ -104,24 +104,38 @@ function Card({ title, aside, children }: { title: string; aside?: string | null
   )
 }
 
-/** A labelled line: the label left, the figure right, an optional small line under both. */
-function Line({ label, value, color, note, last }: { label: string; value: string; color?: string; note?: string | null; last?: boolean }) {
+type Stat = { label: string; value: string; unit?: string | null; color?: string; note?: string | null }
+
+/**
+ * Figures as tiles side by side, each with its label above it and its note
+ * under it (owner, 2026-10-20: a label at one end of a card and its figure at
+ * the other were hard to read together). Equal columns, a hairline between.
+ */
+function Stats({ items }: { items: readonly Stat[] }) {
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr auto',
-        alignItems: 'baseline',
-        gap: '0 10px',
-        padding: '8px 0',
-        borderBottom: last === true ? 'none' : `1px solid ${colorsV2.line}`,
-      }}
-    >
-      <span style={typeV2.lineLabel}>{label}</span>
-      <b style={{ ...typeV2.lineFigure, ...(color === undefined ? {} : { color }) }}>{value}</b>
-      {note === undefined || note === null ? null : (
-        <small style={{ ...typeV2.keyRow, gridColumn: '1 / 3' }}>{note}</small>
-      )}
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`, marginTop: '4px' }}>
+      {items.map((s, i) => (
+        <div
+          key={s.label}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px',
+            minWidth: 0,
+            padding: i === 0 ? '2px 12px 2px 0' : '2px 12px',
+            borderLeft: i === 0 ? 'none' : `1px solid ${colorsV2.line}`,
+          }}
+        >
+          <span style={typeV2.statLabel}>{s.label}</span>
+          <b style={{ ...typeV2.statFigure, overflowWrap: 'anywhere', ...(s.color === undefined ? {} : { color: s.color }) }}>
+            {s.value}
+            {s.unit == null || s.value === EM_DASH ? null : (
+              <small style={{ fontSize: '15px', fontWeight: 600, color: colorsV2.txt2, marginLeft: '3px' }}>{s.unit}</small>
+            )}
+          </b>
+          {s.note == null ? null : <small style={typeV2.rowSmall}>{s.note}</small>}
+        </div>
+      ))}
     </div>
   )
 }
@@ -488,28 +502,22 @@ function RainCard({ props }: { props: OverviewTabProps }) {
   const summary = recentPrecip === undefined ? null : precipSummary(recentPrecip, now)
   const last = summary === null || recentPrecip === undefined ? null : lastRainText(summary, precipDays(recentPrecip.hours).length)
   const next = hourly.data === undefined ? null : nextLikelyRain(hourly.data.hours, now)
-  const nextLine: { value: string; color?: string; note: string | null } | null =
+  const nextStat: Stat | null =
     next === null || todayDate === null || next.kind === 'unknown'
       ? null
       : next.kind === 'likely'
-        ? { value: shortDate(next.local_date, todayDate), color: colorsV2.rain, note: `${next.chancePct}% chance` }
+        ? { label: 'Next rain', value: shortDate(next.local_date, todayDate), color: colorsV2.rain, note: `${next.chancePct}% chance` }
         : // "None through Sun 10/25", not "no rain": rain past the ensemble's edge is rain these figures cannot see.
-          { value: `None through ${shortDate(next.throughDate, todayDate)}`, note: null }
+          { label: 'Next rain', value: 'None', note: `through ${shortDate(next.throughDate, todayDate)}` }
   const event = summary?.lastRealEvent ?? null
   const storm = event === null ? null : `${formatPrecipIn(event.totalMm)} over ${event.spanHours} h`
-  if (last === null && nextLine === null) return null
+  const items = [last === null ? null : { label: 'Last rain', value: last, note: storm }, nextStat].filter(
+    (s): s is Stat => s !== null,
+  )
+  if (items.length === 0) return null
   return (
     <Card title="Rain" aside="last real rain · next likely">
-      {last === null ? null : <Line label="Last rain" value={last} note={storm} last={nextLine === null} />}
-      {nextLine === null ? null : (
-        <Line
-          label="Next rain"
-          value={nextLine.value}
-          {...(nextLine.color === undefined ? {} : { color: nextLine.color })}
-          note={nextLine.note}
-          last
-        />
-      )}
+      <Stats items={items} />
     </Card>
   )
 }
@@ -524,9 +532,22 @@ function AirCard({ props }: { props: OverviewTabProps }) {
   const mph = (kmh: number | null) => (kmh === null ? EM_DASH : String(Math.round(kmh / 1.609344)))
   return (
     <Card title="Air" aside={series.model === null ? null : modelName(series.model)}>
-      <Line label="Dew point" value={hour.dewpoint_c === null ? EM_DASH : formatTempF(hour.dewpoint_c)} />
-      <Line label="Humidity" value={formatHumidity(hour.humidity_pct)} />
-      <Line label="Wind · gusts" value={`${mph(hour.wind_kmh)} · ${mph(hour.wind_gust_kmh)} mph`} last />
+      <Stats
+        items={[
+          {
+            label: 'Dew point',
+            value: hour.dewpoint_c === null ? EM_DASH : formatTempF(hour.dewpoint_c),
+            note: hour.temp_c === null ? null : `air ${formatTempF(hour.temp_c)}`,
+          },
+          { label: 'Humidity', value: formatHumidity(hour.humidity_pct) },
+          {
+            label: 'Wind',
+            value: mph(hour.wind_kmh),
+            unit: 'mph',
+            note: hour.wind_gust_kmh === null ? null : `gusts ${mph(hour.wind_gust_kmh)} mph`,
+          },
+        ]}
+      />
     </Card>
   )
 }
@@ -569,17 +590,19 @@ function RockCard({ props, now }: { props: OverviewTabProps; now: Now | null }) 
           }
         />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <Line
-            label="Rock vs dew point"
-            value={margin ?? EM_DASH}
-            {...(marginC !== null && marginC < 2 ? { color: colorsV2.poorInk } : {})}
+          <Stats
+            items={[
+              {
+                label: 'Rock vs dew point',
+                value: margin ?? EM_DASH,
+                ...(marginC !== null && marginC < 2 ? { color: colorsV2.poorInk } : {}),
+              },
+              { label: 'Since real rain', value: since === null ? (noRealRain ?? EM_DASH) : formatSince(since) },
+            ]}
           />
-          <Line
-            label="Since real rain"
-            value={since === null ? (noRealRain ?? EM_DASH) : formatSince(since)}
-            note={`${rock} drying table: ${rockDryingSpan(rockType)}.${mech.length === 0 ? '' : ` ${mech.join(' ')}`}`}
-            last
-          />
+          <p style={{ ...typeV2.keyRow, lineHeight: '16px', margin: '10px 0 0', paddingTop: '10px', borderTop: `1px solid ${colorsV2.line}` }}>
+            {`${rock} drying table: ${rockDryingSpan(rockType)}.${mech.length === 0 ? '' : ` ${mech.join(' ')}`}`}
+          </p>
         </div>
       </div>
     </Card>

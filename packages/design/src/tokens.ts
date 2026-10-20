@@ -801,6 +801,28 @@ export const typeV2 = {
     fontWeight: '700' as const,
     color: colorsV2.txt1,
   },
+  /**
+   * A stat tile's label, above its figure — "DEW POINT": Barlow Condensed
+   * 11/600, uppercase. The tile keeps a label and its figure in one column
+   * rather than at the two ends of a card (owner, 2026-10-20).
+   */
+  statLabel: {
+    fontFamily: fonts.display,
+    fontSize: 11,
+    fontWeight: '600' as const,
+    letterSpacing: 1.1,
+    textTransform: 'uppercase' as const,
+    lineHeight: 14,
+    color: colorsV2.txtMuted,
+  },
+  /** A stat tile's figure — "38°F": Barlow Condensed 28/700, the mockup's `.stat3 b`. */
+  statFigure: {
+    fontFamily: fonts.display,
+    fontSize: 28,
+    fontWeight: '700' as const,
+    lineHeight: 32,
+    color: colorsV2.txt1,
+  },
   /** A labelled line's label — "Dew point": Barlow 14/400. */
   lineLabel: {
     fontFamily: fonts.body,
