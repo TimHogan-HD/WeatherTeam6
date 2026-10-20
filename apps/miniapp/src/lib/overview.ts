@@ -318,8 +318,13 @@ export const LIKELY_RAIN_PCT = 50
 export type NextRain =
   /** The first day, from now on, with an hour at or above `LIKELY_RAIN_PCT`, and that day's highest hourly chance. */
   | { kind: 'likely'; local_date: string; chancePct: number }
-  /** No such hour through `throughDate`, the last day the ensemble reached. */
-  | { kind: 'none'; throughDate: string }
+  /**
+   * No such hour through `throughDate`, the last day the ensemble reached.
+   * `peak` is the highest hourly chance below the threshold and its day (the
+   * earlier on a tie), so "none likely" never hides a 38% day; `null` when
+   * every coming hour is 0%.
+   */
+  | { kind: 'none'; throughDate: string; peak: { local_date: string; chancePct: number } | null }
   /** No hour from now on carries a chance at all — the ensemble said nothing, which is not "dry". */
   | { kind: 'unknown' }
 
@@ -343,7 +348,14 @@ export function nextLikelyRain(hours: readonly HourlySample[], now: number): Nex
   if (last === undefined) return { kind: 'unknown' }
 
   const first = coming.find((h) => (h.precip_chance_pct ?? 0) >= LIKELY_RAIN_PCT)
-  if (first === undefined) return { kind: 'none', throughDate: last.local_date }
+  if (first === undefined) {
+    let peak: { local_date: string; chancePct: number } | null = null
+    for (const h of coming) {
+      const pct = h.precip_chance_pct ?? 0
+      if (pct > (peak?.chancePct ?? 0)) peak = { local_date: h.local_date, chancePct: pct }
+    }
+    return { kind: 'none', throughDate: last.local_date, peak }
+  }
 
   const chancePct = Math.max(
     ...coming

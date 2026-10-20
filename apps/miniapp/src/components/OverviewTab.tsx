@@ -507,8 +507,18 @@ function RainCard({ props }: { props: OverviewTabProps }) {
       ? null
       : next.kind === 'likely'
         ? { label: 'Next rain', value: shortDate(next.local_date, todayDate), color: colorsV2.rain, note: `${next.chancePct}% chance` }
-        : // "None through Sun 10/25", not "no rain": rain past the ensemble's edge is rain these figures cannot see.
-          { label: 'Next rain', value: 'None', note: `through ${shortDate(next.throughDate, todayDate)}` }
+        : // "None likely", never "None": a 38% day is still rain worth knowing about, so its peak is
+          // named, and rain past the ensemble's edge is rain these figures cannot see.
+          {
+            label: 'Next rain',
+            value: 'None likely',
+            note: [
+              next.peak === null ? null : `highest ${next.peak.chancePct}% ${shortDay(next.peak.local_date, todayDate)}`,
+              `through ${shortDate(next.throughDate, todayDate)}`,
+            ]
+              .filter((s): s is string => s !== null)
+              .join(' · '),
+          }
   const event = summary?.lastRealEvent ?? null
   const storm = event === null ? null : `${formatPrecipIn(event.totalMm)} over ${event.spanHours} h`
   const items = [last === null ? null : { label: 'Last rain', value: last, note: storm }, nextStat].filter(

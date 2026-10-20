@@ -253,7 +253,7 @@ describe('nextLikelyRain', () => {
       [h('2026-09-28T18:00:00Z', '2026-09-28', 90), h('2026-09-28T19:00:00Z', '2026-09-28', 10)],
       now,
     )
-    expect(out).toEqual({ kind: 'none', throughDate: '2026-09-28' })
+    expect(out).toEqual({ kind: 'none', throughDate: '2026-09-28', peak: { local_date: '2026-09-28', chancePct: 10 } })
   })
 
   it('counts the hour in progress', () => {
@@ -278,7 +278,22 @@ describe('nextLikelyRain', () => {
       ],
       now,
     )
-    expect(out).toEqual({ kind: 'none', throughDate: '2026-10-01' })
+    expect(out).toEqual({ kind: 'none', throughDate: '2026-10-01', peak: { local_date: '2026-10-01', chancePct: 30 } })
+  })
+
+  it('names the highest chance under the threshold, the earlier day on a tie, and none when every hour is 0%', () => {
+    const out = nextLikelyRain(
+      [
+        h('2026-09-29T15:00:00Z', '2026-09-29', 12),
+        h('2026-09-30T15:00:00Z', '2026-09-30', 38),
+        h('2026-10-01T15:00:00Z', '2026-10-01', 38),
+        h('2026-10-02T15:00:00Z', '2026-10-02', 21),
+      ],
+      now,
+    )
+    expect(out).toEqual({ kind: 'none', throughDate: '2026-10-02', peak: { local_date: '2026-09-30', chancePct: 38 } })
+    const dry = nextLikelyRain([h('2026-09-29T15:00:00Z', '2026-09-29', 0), h('2026-09-30T15:00:00Z', '2026-09-30', 0)], now)
+    expect(dry).toEqual({ kind: 'none', throughDate: '2026-09-30', peak: null })
   })
 })
 
