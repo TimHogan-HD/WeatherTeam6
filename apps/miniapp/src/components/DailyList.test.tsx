@@ -10,7 +10,7 @@ import {
   type ReadingsDay,
 } from '@weatherteam6/types'
 import type { DayReadings } from '../lib/overview.js'
-import { DAILY_FOOT, DailyList, dayRainChance } from './DailyList.js'
+import { DailyList, dailyFoot, dayRainChance } from './DailyList.js'
 
 /**
  * The Daily tab's Seven days card. What it must get right, and what would pass
@@ -143,7 +143,21 @@ describe('DailyList — rows', () => {
   })
 
   it('says how a day score and the chance of rain are made', () => {
-    expect(render(<DailyList days={[day(DATES[0])]} readings={null} hours={[]} sky={[]} />)).toContain(DAILY_FOOT)
+    const city = render(<DailyList days={[day(DATES[0])]} readings={null} hours={[]} sky={[]} />)
+    expect(city).toContain(dailyFoot(false, false))
+    expect(city).not.toContain('A day score is')
+    expect(city).not.toContain('Tap a day')
+    const crag = render(
+      <DailyList
+        days={[day(DATES[0])]}
+        readings={readings([readingsDay(DATES[0], 80)])}
+        hours={[]}
+        sky={[]}
+        onSelectDay={() => {}}
+        drawableDates={new Set([DATES[0]])}
+      />,
+    )
+    expect(crag).toContain(dailyFoot(true, true))
   })
 })
 

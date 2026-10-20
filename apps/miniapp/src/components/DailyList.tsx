@@ -53,8 +53,15 @@ export function dayRainChance(
 }
 
 /** What the rows are, said once under them. */
-export const DAILY_FOOT =
-  'A day score is the worst hour of the best three-hour run between 8 AM and 6 PM; today counts only hours still ahead. Chance of rain is the highest hourly share of wet ensemble members. Rain is the median daily amount. Tap a day for its hours.'
+const FOOT_SCORE =
+  'A day score is the worst hour of the best three-hour run between 8 AM and 6 PM; today counts only hours still ahead.'
+const FOOT_FIGURES = 'Chance of rain is the highest hourly share of wet ensemble members. Rain is the median daily amount.'
+const FOOT_TAP = 'Tap a day for its hours.'
+
+/** The note under the rows: the score's rule only where scores show, and "tap" only where a row opens. */
+export function dailyFoot(scored: boolean, tappable: boolean): string {
+  return [scored ? FOOT_SCORE : null, FOOT_FIGURES, tappable ? FOOT_TAP : null].filter((s) => s !== null).join(' ')
+}
 
 export type DailyListProps = {
   days: readonly ForecastSnapshot[]
@@ -178,7 +185,9 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
           )
         })}
       </div>
-      <p style={{ ...typeV2.keyRow, margin: '10px 0 0', lineHeight: '16px' }}>{DAILY_FOOT}</p>
+      <p style={{ ...typeV2.keyRow, margin: '10px 0 0', lineHeight: '16px' }}>
+        {dailyFoot(readings !== null, onSelectDay !== undefined && rows.some((d) => drawableDates?.has(d.forecast_date) === true))}
+      </p>
       {onSelectDay === undefined ||
       drawableDates === undefined ||
       rows.every((d) => drawableDates.has(d.forecast_date)) ? null : (

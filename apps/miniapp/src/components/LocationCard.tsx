@@ -178,7 +178,9 @@ export function LocationCard({
           appear(
             <>
               {second}
-              {alertLine ?? third}
+              {alertLine}
+              {/* A failed load keeps its Retry under an alert; only the day's line gives way to it. */}
+              {alertLine !== null && summary?.window != null && !(shown === null && conditions.isError) ? null : third}
             </>,
           )
         )}
