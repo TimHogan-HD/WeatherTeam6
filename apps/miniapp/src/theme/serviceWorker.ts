@@ -17,17 +17,23 @@ import { SPLASH_ICON } from './splashIcon.js'
  * It reverses an earlier "no service worker" decision, which turned down one
  * with nothing to cache; this one has the app shell to cache.
  *
- * **Updates arrive one open late.** A deploy changes the file list, so the
- * browser sees a new `sw.js` on the next open, installs it beside the running
- * page and deletes the old copy; the open after that draws the new build. The
- * running page is never swapped under the reader. The one lazy chunk, the Map
- * tab with its worker, is precached with the rest; a page from the old build
- * asking for its old copy after the swap gets a reload line from `App.tsx`
- * rather than a crash.
+ * **A deploy reaches the first open after it** (owner, 2026-10-20; it used to
+ * arrive one open late). The page is asked of the network first and the copy
+ * on the device answers only when the network fails, errs or takes longer
+ * than `NETWORK_FIRST_MS` — offline or on a crag's one bar. The new page
+ * names new hashed scripts, which are not in the old worker's shell and so go
+ * to the network too. Meanwhile the browser installs the new `sw.js` and
+ * deletes the old copy. The running page is never swapped under the reader.
+ * The one lazy chunk, the Map tab with its worker, is precached with the
+ * rest; a page from the old build asking for its old copy after the swap gets
+ * a reload line from `App.tsx` rather than a crash.
  *
  * **Removing it takes a release, not a deletion.** A browser keeps a worker
  * whose script 404s. Retire it by shipping an `sw.js` that unregisters itself.
  */
+/** How long an open waits on the network for the page before drawing the device's copy. A guess, not a measurement. */
+export const NETWORK_FIRST_MS = 2500
+
 export function renderServiceWorker(files: readonly string[], indexHtml: string): string {
   // The icon is the opening splash (`Splash.tsx`), drawn before anything has loaded.
   const precache = ['/index.html', SPLASH_ICON, ...files.map((f) => `/${f}`)].sort()
@@ -41,6 +47,7 @@ export function renderServiceWorker(files: readonly string[], indexHtml: string)
 const CACHE = 'wt6-shell-${version}'
 const PRECACHE = ${JSON.stringify(precache)}
 const SHELL = new Set(PRECACHE)
+const NETWORK_FIRST_MS = ${NETWORK_FIRST_MS}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -65,10 +72,30 @@ self.addEventListener('fetch', (event) => {
   // Every path is the one page (vercel.json rewrites them all to index.html).
   const key = request.mode === 'navigate' ? '/index.html' : url.pathname
   if (!SHELL.has(key)) return
+  const kept = () => caches.match(key, { cacheName: CACHE })
   event.respondWith(
-    caches.match(key, { cacheName: CACHE }).then((hit) => hit ?? fetch(request)),
+    request.mode === 'navigate'
+      ? fresh(request).then((page) => page ?? kept().then((hit) => hit ?? fetch(request)))
+      : kept().then((hit) => hit ?? fetch(request)),
   )
 })
+
+// The network's page, or null when it failed, erred or was slower than NETWORK_FIRST_MS.
+function fresh(request) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), NETWORK_FIRST_MS)
+    fetch(request).then(
+      (response) => {
+        clearTimeout(timer)
+        resolve(response.ok ? response : null)
+      },
+      () => {
+        clearTimeout(timer)
+        resolve(null)
+      },
+    )
+  })
+}
 `
 }
 
