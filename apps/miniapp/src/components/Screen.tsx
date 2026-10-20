@@ -93,7 +93,9 @@ function BackControl({ onBack, centred = false }: { onBack: () => void; centred?
         marginBottom: centred ? `-${spacing.cellPad}px` : undefined,
       }}
     >
-      <span style={{ ...typeV2.dayPick, color: colorsV2.brandInk }}>‹ Back</span>
+      <span style={{ ...typeV2.dayPick, color: colorsV2.brandInk }}>
+        <span aria-hidden="true">‹ </span>Back
+      </span>
     </button>
   )
 }
