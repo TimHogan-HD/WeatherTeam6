@@ -64,33 +64,24 @@ export function defaultReadHour(
   return noon ?? day[0]!
 }
 
-/** A day whose every hourly chance of rain is below this is drawn as dry. */
-export const DRY_DAY_MAX_CHANCE_PCT = 10
-
-export type DryDay = { peakChancePct: number; peakMs: number }
-
 /**
- * "Dry all day" (hybrid look, owner 2026-10-19): every hour's chance of rain is
- * under `DRY_DAY_MAX_CHANCE_PCT`, so every hour's median amount is below
- * measurable, **and the day's summed mean is too**. The chance alone is not
- * enough: two members of thirty with 15 mm in one hour is a 7% chance and a
- * 1 mm mean, and the card's own header would print that total beside "Dry".
+ * "Dry all day" (hybrid look, owner 2026-10-19): **no ensemble member has
+ * measurable rain in any hour** — every hour's chance is 0% — and the day's
+ * summed mean is below measurable. Any chance at all is drawn as its column
+ * (owner, 2026-10-20: "the data exists, we shouldn't leave it blank unless
+ * it's truly that low"); a 6% hour is not hidden behind "dry".
  *
  * **Every hour has to have been read.** An hour missing its chance or its
  * amount could be the wet one, so a day with a gap is not called dry.
  */
-export function dryDay(hours: readonly HourlySample[], localDate: string): DryDay | null {
+export function dryDay(hours: readonly HourlySample[], localDate: string): boolean {
   const day = hours.filter((h) => h.local_date === localDate)
-  if (day.length === 0) return null
-  let peak: DryDay | null = null
+  if (day.length === 0) return false
   let totalMm = 0
   for (const h of day) {
-    if (h.precip_mm_mean === null || h.precip_chance_pct === null) return null
-    if (h.precip_chance_pct >= DRY_DAY_MAX_CHANCE_PCT) return null
+    if (h.precip_mm_mean === null || h.precip_chance_pct === null) return false
+    if (h.precip_chance_pct > 0) return false
     totalMm += h.precip_mm_mean
-    if (peak === null || h.precip_chance_pct > peak.peakChancePct) {
-      peak = { peakChancePct: h.precip_chance_pct, peakMs: Date.parse(h.valid_at) }
-    }
   }
-  return totalMm < MEASURABLE_PRECIP_MM ? peak : null
+  return totalMm < MEASURABLE_PRECIP_MM
 }

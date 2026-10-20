@@ -170,13 +170,13 @@ describe('DayCharts — rain', () => {
 })
 
 describe('DayCharts — dry all day', () => {
-  const dry = fullDay.map((h, i) => ({ ...h, precip_mm_mean: 0, precip_chance_pct: i === 7 ? 6 : 2 }))
+  const dry = fullDay.map((h) => ({ ...h, precip_mm_mean: 0, precip_chance_pct: 0 }))
 
-  it('keeps the frame and its hour labels, draws no marks, and names the highest chance and its hour', () => {
+  it('keeps the frame and its hour labels, draws no marks, and says every hour is 0%', () => {
     const html = render(series(dry), { readMs: T0 + 9 * HOUR_MS })
     const svg = chartSvg(html, 'Rain by hour: dry all day')
     expect(visible(html)).toContain('Dry all day')
-    expect(visible(html)).toContain('Highest chance 6%, at 7 AM')
+    expect(visible(html)).toContain('0% in every hour')
     expect(svg).not.toContain('data-chance')
     expect(svg).not.toContain('data-line')
     expect(svg).not.toContain('data-bead')
@@ -184,9 +184,11 @@ describe('DayCharts — dry all day', () => {
     expect(svg).toContain('>6a<')
   })
 
-  it('is not called dry when one hour reaches 10%, or when an hour was not read', () => {
-    const wetter = dry.map((h, i) => (i === 15 ? { ...h, precip_chance_pct: 10 } : h))
-    expect(render(series(wetter))).not.toContain('Dry all day')
+  it('draws the columns for a low-chance day instead of calling it dry, and is not dry with an hour unread', () => {
+    const low = dry.map((h, i) => (i === 15 ? { ...h, precip_chance_pct: 6 } : h))
+    const html = render(series(low))
+    expect(html).not.toContain('Dry all day')
+    expect(chartSvg(html, 'Rain by hour')).toContain('data-chance=""')
     const gap = dry.map((h, i) => (i === 15 ? { ...h, precip_chance_pct: null } : h))
     expect(render(series(gap))).not.toContain('Dry all day')
   })

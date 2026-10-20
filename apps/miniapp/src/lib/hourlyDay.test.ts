@@ -16,27 +16,24 @@ describe('dryDay', () => {
         }) as HourlySample,
     )
 
-  it('is dry when every hour is under 10%, and names the highest hour', () => {
-    expect(dryDay(day([0, 9, 4]), '2026-09-28')).toEqual({ peakChancePct: 9, peakMs: START + H })
+  it('is dry only when every hour is 0%', () => {
+    expect(dryDay(day([0, 0, 0]), '2026-09-28')).toBe(true)
   })
 
-  it('is not dry once one hour reaches 10%', () => {
-    expect(dryDay(day([0, 10, 4]), '2026-09-28')).toBeNull()
+  it('is not dry once any hour has any chance, however small', () => {
+    expect(dryDay(day([0, 1, 0]), '2026-09-28')).toBe(false)
+    expect(dryDay(day([0, 9, 4]), '2026-09-28')).toBe(false)
   })
 
-  it('is not dry when a few wet members carry a measurable mean under a low chance', () => {
-    // 2 of 30 members at 15 mm: a 7% chance, a 1 mm mean.
-    const storm = day([0, 7, 4]).map((h, i) => ({ ...h, precip_mm_mean: i === 1 ? 1 : 0 }))
-    expect(dryDay(storm, '2026-09-28')).toBeNull()
-    // Traces under the line in every hour still add up past it.
-    expect(dryDay(day([0, 1, 4], 0.04), '2026-09-28')).toBeNull()
-    expect(dryDay(day([0, 1, 4], 0.03), '2026-09-28')).not.toBeNull()
+  it('is not dry when sub-trace amounts add up past measurable at 0% chance', () => {
+    expect(dryDay(day([0, 0, 0], 0.04), '2026-09-28')).toBe(false)
+    expect(dryDay(day([0, 0, 0], 0.03), '2026-09-28')).toBe(true)
   })
 
   it('is not dry when an hour was never read, since that hour could be the wet one', () => {
-    expect(dryDay(day([0, null, 4]), '2026-09-28')).toBeNull()
-    expect(dryDay(day([0, 1, 4], null), '2026-09-28')).toBeNull()
-    expect(dryDay(day([0, 1]), '2026-09-29')).toBeNull()
+    expect(dryDay(day([0, null, 0]), '2026-09-28')).toBe(false)
+    expect(dryDay(day([0, 0, 0], null), '2026-09-28')).toBe(false)
+    expect(dryDay(day([0, 0]), '2026-09-29')).toBe(false)
   })
 })
 
