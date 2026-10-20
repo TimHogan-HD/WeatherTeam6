@@ -358,7 +358,7 @@ async function run(): Promise<void> {
     const reopened = Date.now()
     await page.goto(`${WEB}/`, { waitUntil: 'domcontentloaded' })
     const drawn = await firstCard
-      .getByText('Low–high')
+      .getByText(/^Dryness:/)
       .waitFor({ timeout: 1_500 })
       .then(() => true)
       .catch(() => false)

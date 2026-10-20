@@ -1,34 +1,34 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties } from 'react'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import {
+  DRYNESS_LABEL,
+  EM_DASH,
   formatPrecipIn,
   formatWindMph,
-  SKY_DAY_LABEL,
   skyDayIcon,
   type ForecastSnapshot,
   type HourlySample,
   type SkyDay,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { cardV2, row, stack, wellV2 } from '../theme/styles.js'
+import { bareButton, cardV2 } from '../theme/styles.js'
 import { formatTempDeg } from '../lib/format.js'
-import { scoredDays, type DayReadings } from '../lib/overview.js'
-import { DayRowShell, ScorePill } from './DayRow.js'
-import { DropletIcon, SkyIcon, WindIcon } from './Icons.js'
+import { findToday } from '../lib/forecast.js'
+import { scoredDays, shortDay, type DayReadings } from '../lib/overview.js'
+import { scoreRampColor } from './charts/chartStyle.js'
+import { Sect } from './charts/liquid.js'
+import { SkyIcon } from './Icons.js'
 
 /**
- * The Daily tab, from the WT6 Figma "V2" page's `v2 Dark - Daily` frame: one
- * card, **Next 7 days**, holding a tinted row per day — the date and the day's
- * Crag A score as a pill, over three figure chips: the low and high, the chance
- * and amount of rain, and the peak wind.
+ * The Daily tab in the hybrid look (`docs/handoffs/design-mockups/weatherteam6-hybrid.html`,
+ * `dailyTab`): one glass card, **Seven days**, a row per day — the sky, the
+ * day's name, its score, the low and high on a bar shared by the week, and
+ * the chance of rain; under them the good hours, Dryness, rain amount and
+ * peak wind.
  *
- * **This replaced the metric toggle and the shared-scale range bars**, which
- * the frame does not draw. The ensemble's spread is on the Hourly tab's day
- * charts; the rows carry figures.
- *
- * Rows are tappable and open that day in the Hourly tab. A day the hourly
- * response cannot draw is not tappable: `onSelectDay` is omitted for it rather
- * than opening an empty drill-down.
+ * Rows open that day in the Hourly tab. A day the hourly response cannot draw
+ * is not tappable: `onSelectDay` is omitted for it rather than opening an
+ * empty drill-down.
  */
 
 /**
@@ -52,158 +52,146 @@ export function dayRainChance(
   return chances.length === 0 ? null : Math.round(Math.max(...chances))
 }
 
-/**
- * The rain chip's text: `36% · 0.03 in`.
- *
- * The amount is `precip_mm_p50`, the median of the members' own daily totals —
- * a daily figure, never a sum of hourly percentiles. **With no wet count the
- * chance is left off rather than written as 0%**: `precip_chance_pct` is null
- * for an hour no member reached, and before `/hourly` answers there is no
- * hourly run at all. A zero there is a confidence nobody computed.
- */
-export function rainChipText(day: ForecastSnapshot, hours: readonly HourlySample[]): string {
-  const amount = formatPrecipIn(day.precip_mm_p50)
-  const chance = dayRainChance(hours, day.forecast_date)
-  return chance === null ? amount : `${chance}% · ${amount}`
-}
+/** What the rows are, said once under them. */
+const FOOT_SCORE =
+  'A day score is the worst hour of the best three-hour run between 8 AM and 6 PM; today counts only hours still ahead.'
+const FOOT_FIGURES = 'Chance of rain is the highest hourly share of wet ensemble members. Rain is the median daily amount.'
+const FOOT_TAP = 'Tap a day for its hours.'
 
-/** What the three chips are, said once under the rows rather than on each. */
-export const DAILY_KEY =
-  'Low–high · rain chance and amount · peak wind'
+/** The note under the rows: the score's rule only where scores show, and "tap" only where a row opens. */
+export function dailyFoot(scored: boolean, tappable: boolean): string {
+  return [scored ? FOOT_SCORE : null, FOOT_FIGURES, tappable ? FOOT_TAP : null].filter((s) => s !== null).join(' ')
+}
 
 export type DailyListProps = {
   days: readonly ForecastSnapshot[]
   /**
-   * The per-day readings and alert state the score pill is read from, through
-   * `summarizeReadings`. `null` for a city and while
-   * `/hourly` is in flight — all of which draw rows without a pill.
+   * The per-day readings and alert state the score is read from, through
+   * `summarizeReadings`. `null` for a city and while `/hourly` is in flight —
+   * all of which draw rows with no score.
    */
   readings: DayReadings | null
-  /**
-   * The hourly run's hours, for each day's chance of rain. Empty while the
-   * query is in flight or failed, which leaves the chance off.
-   */
+  /** The hourly run's hours, for each day's chance of rain. Empty while the query is in flight or failed. */
   hours: readonly HourlySample[]
-  /**
-   * The hourly response's sky days, for the icon and word beside each date.
-   * Empty while that query is in flight or failed, and from an API too old to
-   * send them. A day absent here, or with a null summary, shows no sky rather
-   * than a guess.
-   */
+  /** The hourly response's sky days. A day absent here, or with a null summary, shows no sky rather than a guess. */
   sky: readonly SkyDay[]
-  /**
-   * Opens a day in the Hourly tab. Omitted when there is no hourly data at all,
-   * which makes every row plain rather than a button
-   * that does nothing.
-   */
+  /** Opens a day in the Hourly tab. Omitted when there is no hourly data at all. */
   onSelectDay?: (localDate: string) => void
-  /**
-   * The dates the hourly response can actually draw. A date outside this set is
-   * rendered but not tappable. Omit when `onSelectDay` is omitted.
-   */
+  /** The dates the hourly response can actually draw. Omit when `onSelectDay` is omitted. */
   drawableDates?: ReadonlySet<string>
 }
 
-function Chip({ icon, spoken, children }: { icon: ReactNode; spoken: string; children: ReactNode }) {
-  return (
-    <span
-      role="img"
-      aria-label={spoken}
-      style={{
-        ...wellV2,
-        ...row(spacing.tight),
-        flex: '0 0 auto',
-        // Tighter than the frame's 8px sides so a 375px phone fits the three
-        // chips on one line (measured: 273px row, widest row needs 270). At
-        // 360px they still wrap, onto a second line rather than off the card.
-        padding: `${spacing.listGapSm}px`,
-      }}
-    >
-      {icon}
-      {children}
-    </span>
-  )
+const rowGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '24px minmax(0, 1fr) 44px 104px 38px',
+  columnGap: '8px',
+  rowGap: '2px',
+  alignItems: 'center',
+  padding: '8px 0',
+  minHeight: '56px',
+  borderBottom: `1px solid ${colorsV2.line}`,
+  textAlign: 'left',
 }
 
 export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDates }: DailyListProps) {
   const rows = [...days].sort((a, b) => a.forecast_date.localeCompare(b.forecast_date))
-  // Joined on the date inside `scoredDays`, never on position: the forecast
-  // rows and the readings' days are built by different paths.
+  // Joined on the date inside `scoredDays`, never on position.
   const scored = new Map(scoredDays(rows, readings).map((d) => [d.local_date, d]))
-  // On the date too: the sky days come from the hourly window, not these rows.
   const skyByDate = new Map(sky.map((d) => [d.local_date, d.summary]))
+  const todayDate = findToday(rows)?.forecast_date ?? ''
+
+  // One scale for the week, so a bar's place says how warm the day is against the others.
+  const temps = rows.flatMap((d) => [d.temp_c_min, d.temp_c_max]).filter((v): v is number => v !== null)
+  const lo = temps.length === 0 ? 0 : Math.min(...temps)
+  const span = temps.length === 0 ? 1 : Math.max(...temps) - lo || 1
+  const pct = (c: number) => ((c - lo) / span) * 100
 
   return (
-    <section style={{ ...cardV2, ...stack(spacing.cellPad) }}>
-      <h2 style={typeV2.cardTitle}>
-        Next {rows.length} {rows.length === 1 ? 'day' : 'days'}
-      </h2>
-
-      <div style={stack(spacing.listGapSm)}>
-        {rows.map((day) => {
+    <section style={{ ...cardV2, padding: `${spacing.sectionGap}px 14px 14px` }}>
+      <Sect title="Seven days" aside={readings === null ? 'low–high · chance of rain' : 'score · low–high · chance of rain'} />
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {rows.map((day, i) => {
           const d = scored.get(day.forecast_date)
-          // A date `dayTitle` cannot read is not a day anyone can be shown.
           if (d === undefined) return null
-          const tappable =
-            onSelectDay !== undefined && drawableDates?.has(day.forecast_date) === true
-          const low = formatTempDeg(day.temp_c_min)
-          const high = formatTempDeg(day.temp_c_max)
-          const rain = rainChipText(day, hours)
-          const wind = formatWindMph(day.wind_kmh_max)
-          const skySummary = skyByDate.get(day.forecast_date) ?? null
-          return (
-            <DayRowShell
-              key={day.forecast_date}
-              score={d.score}
-              onOpen={tappable ? () => onSelectDay(day.forecast_date) : null}
-              style={stack(spacing.listGap)}
-            >
-              <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
-                <span style={{ ...row(spacing.listGapSm), flexWrap: 'wrap', minWidth: 0 }}>
-                  <span style={typeV2.rowTitle}>{d.title}</span>
-                  {skySummary === null ? null : (
-                    <>
-                      <SkyIcon sky={skyDayIcon(skySummary)} />
-                      <span style={typeV2.daySky}>{SKY_DAY_LABEL[skySummary]}</span>
-                    </>
-                  )}
+          const open = onSelectDay !== undefined && drawableDates?.has(day.forecast_date) === true ? () => onSelectDay(day.forecast_date) : null
+          const summary = skyByDate.get(day.forecast_date) ?? null
+          const chance = dayRainChance(hours, day.forecast_date)
+          const name = shortDay(day.forecast_date, todayDate)
+          const sub = [
+            d.window === null ? null : `Good hours: ${d.window}`,
+            d.dryness === null ? null : `${DRYNESS_LABEL}: ${d.dryness}`,
+            `rain ${formatPrecipIn(day.precip_mm_p50)}`,
+            `peak wind ${formatWindMph(day.wind_kmh_max)}`,
+          ].filter((s): s is string => s !== null)
+          const bar =
+            day.temp_c_min === null || day.temp_c_max === null ? null : (
+              <i
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  bottom: 0,
+                  left: `${pct(day.temp_c_min).toFixed(1)}%`,
+                  right: `${(100 - pct(day.temp_c_max)).toFixed(1)}%`,
+                  borderRadius: '3px',
+                  background: `linear-gradient(90deg, ${colorsV2.tempBarCool}, ${colorsV2.tempBarWarm})`,
+                }}
+              />
+            )
+          const content = (
+            <>
+              {summary === null ? <span /> : <SkyIcon sky={skyDayIcon(summary)} size={22} />}
+              <span style={typeV2.dayName}>{name}</span>
+              <b
+                data-day-score=""
+                style={{
+                  ...typeV2.dayScore,
+                  textAlign: 'center',
+                  color: d.score === null ? colorsV2.txtMuted : scoreRampColor(d.score),
+                }}
+              >
+                {readings === null ? '' : (d.score ?? EM_DASH)}
+              </b>
+              <span style={{ position: 'relative', ...typeV2.axisTick, height: '22px' }}>
+                <span style={{ position: 'absolute', left: 0, top: '-5px', color: colorsV2.txtMuted }}>{formatTempDeg(day.temp_c_min)}</span>
+                <span style={{ position: 'absolute', right: 0, top: '-5px', color: colorsV2.txt1 }}>{formatTempDeg(day.temp_c_max)}</span>
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: '26px',
+                    right: '26px',
+                    top: '12px',
+                    height: '6px',
+                    borderRadius: '3px',
+                    background: colorsV2.tempBarTrack,
+                  }}
+                >
+                  {bar}
                 </span>
-                {/*
-                  Absent rather than dashed with no score on screen — suppressed
-                  under an alert (the banner says why), still loading, a city,
-                  or past the readings. None of them is a score of nothing.
-                */}
-                {d.score === null ? null : <ScorePill score={d.score} />}
-              </div>
-              <div style={{ ...row(spacing.listGapSm), flexWrap: 'wrap' }}>
-                <Chip icon={null} spoken={`Low ${low}, high ${high}`}>
-                  <span style={typeV2.dayChip}>{low}</span>
-                  <span style={typeV2.dayChipStrong}>{high}</span>
-                </Chip>
-                <Chip icon={<DropletIcon color={colorsV2.txtMuted} />} spoken={`Rain: ${rain}`}>
-                  <span style={typeV2.dayChip}>{rain}</span>
-                </Chip>
-                <Chip icon={<WindIcon color={colorsV2.txtMuted} />} spoken={`Peak wind ${wind}`}>
-                  <span style={typeV2.dayChip}>{wind}</span>
-                </Chip>
-              </div>
-            </DayRowShell>
+              </span>
+              <span style={{ ...typeV2.dayChance, textAlign: 'right' }}>{chance === null ? EM_DASH : `${chance}%`}</span>
+              <span style={{ ...typeV2.rowSmall, gridColumn: '2 / -1' }}>{sub.join(' · ')}</span>
+            </>
+          )
+          const spoken = `${name}: ${d.score === null ? 'no score' : `score ${d.score}`}, low ${formatTempDeg(day.temp_c_min)}, high ${formatTempDeg(day.temp_c_max)}, ${chance === null ? 'chance of rain unknown' : `${chance}% chance of rain`}`
+          const style = i === rows.length - 1 ? { ...rowGrid, borderBottom: 'none' } : rowGrid
+          return open === null ? (
+            <div key={day.forecast_date} style={style}>
+              {content}
+            </div>
+          ) : (
+            <button key={day.forecast_date} type="button" onClick={open} aria-label={spoken} style={{ ...bareButton, ...style }}>
+              {content}
+            </button>
           )
         })}
       </div>
-
-      <span style={typeV2.note}>{DAILY_KEY}</span>
-
-      {/*
-        Why some rows do not open. Said once, under the list, rather than as a
-        per-row marker: the reason is the same for all of them.
-        A string expression so it keeps the straight apostrophe every other
-        message in this app uses.
-      */}
+      <p style={{ ...typeV2.keyRow, margin: '10px 0 0', lineHeight: '16px' }}>
+        {dailyFoot(readings !== null, onSelectDay !== undefined && rows.some((d) => drawableDates?.has(d.forecast_date) === true))}
+      </p>
       {onSelectDay === undefined ||
       drawableDates === undefined ||
       rows.every((d) => drawableDates.has(d.forecast_date)) ? null : (
-        <span style={typeV2.note}>{"Days without an hour-by-hour forecast can't be opened."}</span>
+        <p style={{ ...typeV2.keyRow, margin: '6px 0 0' }}>{"Days without an hour-by-hour forecast can't be opened."}</p>
       )}
     </section>
   )

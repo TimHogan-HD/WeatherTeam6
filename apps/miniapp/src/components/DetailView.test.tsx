@@ -352,7 +352,7 @@ describe('DetailView — partial and missing data', () => {
 
   it('shows the seven days alone without hourly data', () => {
     const html = renderInRouter(<DetailView isClimbingLocation={false} forecast={ok([day(TODAY)])} />)
-    expect(html).toMatch(/>Next [0-9]+ days?</)
+    expect(html).toMatch(/<span>Seven days</)
     expect(html).not.toContain('data-hero')
   })
 })

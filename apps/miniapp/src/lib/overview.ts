@@ -186,6 +186,8 @@ export type NextDay = {
   score: number | null
   /** The day's good-hours span, `5am–11pm` or `None`. `null` where the day has no readings. */
   window: string | null
+  /** The day's Dryness word at its representative hour. Kept under an alert, as every reading is. */
+  dryness: string | null
 }
 
 /**
@@ -246,9 +248,9 @@ export type DayReadings = {
  * alerts query still in flight drops the number here as it does on the hero.
  * Joined on the date, never on position.
  */
-function dayReading(localDate: string, readings: DayReadings | null): { score: number | null; window: string | null } {
+function dayReading(localDate: string, readings: DayReadings | null): { score: number | null; window: string | null; dryness: string | null } {
   const day = readings?.days.find((d) => d.local_date === localDate) ?? null
-  if (readings === null || day === null) return { score: null, window: null }
+  if (readings === null || day === null) return { score: null, window: null, dryness: null }
   const summary = summarizeReadings({
     reading: day.best,
     window: day.window,
@@ -257,7 +259,11 @@ function dayReading(localDate: string, readings: DayReadings | null): { score: n
     alertsPending: readings.alertsPending,
     unavailableReason: null,
   })
-  return { score: summary.score, window: summary.window?.value ?? null }
+  return {
+    score: summary.score,
+    window: summary.window?.value ?? null,
+    dryness: summary.readings.find((f) => f.label === DRYNESS_LABEL)?.value ?? null,
+  }
 }
 
 /** Forecast rows, in the order given, as titled days carrying their suppressed score. */
@@ -269,7 +275,7 @@ export function scoredDays(
   for (const row of rows) {
     const title = dayTitle(row.forecast_date)
     if (title === null) continue
-    const { score, window } = dayReading(row.forecast_date, readings)
+    const { score, window, dryness } = dayReading(row.forecast_date, readings)
     out.push({
       local_date: row.forecast_date,
       title,
@@ -277,6 +283,7 @@ export function scoredDays(
       highC: row.temp_c_max,
       score,
       window,
+      dryness,
     })
   }
   return out

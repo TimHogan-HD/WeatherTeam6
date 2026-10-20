@@ -10,7 +10,7 @@ import {
   type RememberedCards,
 } from '../lib/rememberedCards.js'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, navClearance, btnPrimary, btnPrimaryText, headerBand, row, stack, wellV2 } from '../theme/styles.js'
+import { bareButton, cardV2, navClearance, btnPrimary, btnPrimaryText, row, stack, wellV2 } from '../theme/styles.js'
 import { formatUpdatedAt } from '../lib/format.js'
 import {
   SORT_OPTIONS,
@@ -127,12 +127,12 @@ export function LocationList() {
     <main style={{ display: 'flex', flexDirection: 'column', flex: 1, position: 'relative' }}>
       {splash ? <Splash /> : null}
       <PullToRefresh freshness={scoresFreshness(conditions.map((c) => c.data?.readings), now)}>
-      <header style={headerBand}>
-        <div style={stack(spacing.tight)}>
-          <h1 style={typeV2.screenTitle}>Conditions</h1>
-          {meta === null ? null : <p style={typeV2.meta}>{meta}</p>}
-        </div>
-        <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
+      <header style={{ padding: `${spacing.sectionGap}px ${spacing.sectionGap}px 0` }}>
+        <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <div style={stack(spacing.tight)}>
+            <h1 style={{ ...typeV2.listTitle, margin: 0 }}>Conditions</h1>
+            {meta === null ? null : <p style={{ ...typeV2.rowSmall, color: colorsV2.txtMuted, margin: 0 }}>{meta}</p>}
+          </div>
           <button
             type="button"
             onClick={openAdd}
@@ -142,16 +142,18 @@ export function LocationList() {
               width: 'auto',
               backgroundColor: colors.good,
               borderRadius: `${radius.full}px`,
-              padding: `${spacing.listGap}px ${spacing.cardPad}px`,
+              padding: `${spacing.tight}px ${spacing.cellPad}px`,
             }}
           >
             <PlusIcon color={colors.onGood} />
             <span style={typeV2.button}>Add</span>
           </button>
-          {locations.data !== undefined && locations.data.length > 1 ? (
-            <SortControl value={sort} onChange={setSort} />
-          ) : null}
         </div>
+        {locations.data !== undefined && locations.data.length > 1 ? (
+          <div style={{ ...row(spacing.cellPad), justifyContent: 'flex-end', marginTop: `${spacing.listGap}px` }}>
+            <SortControl value={sort} onChange={setSort} />
+          </div>
+        ) : null}
       </header>
 
       <div style={{ ...stack(spacing.listGapLg), padding: `${spacing.sectionGap}px`, paddingBottom: navClearance }}>
@@ -169,14 +171,17 @@ export function LocationList() {
             }
           />
         ) : (
-          ordered.map((location) => (
-            <LocationCard
-              key={location.id}
-              location={location}
-              remembered={remembered?.cards[location.id]}
-              onOpen={openLocation}
-            />
-          ))
+          <section style={{ ...cardV2, padding: '2px 16px' }}>
+            {ordered.map((location, i) => (
+              <LocationCard
+                key={location.id}
+                location={location}
+                remembered={remembered?.cards[location.id]}
+                onOpen={openLocation}
+                first={i === 0}
+              />
+            ))}
+          </section>
         )}
       </div>
       </PullToRefresh>
