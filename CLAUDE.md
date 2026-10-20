@@ -161,7 +161,9 @@ a credential, a dashboard setting, a phone, a product decision.>
 
 **A worktree-isolated session refuses compound shell commands that run git or `cd` elsewhere** ("too complex to verify that it stays inside the worktree"). Run plain, separate commands from the worktree root.
 
-**Read `check:ui`'s failures; do not filter them out.** `--tabs-only` skips the list and trip checks; run the full script before a PR that touches anything outside a crag's tabs. Two list checks were already failing on 2026-10-20 (#359); a new failure is yours until shown otherwise. **Python is not installed** (`python3` is the Windows Store stub and exits 0); use Node or PowerShell. `gh` may not be on `PATH`: `C:\Program Files\GitHub CLI\gh.exe`.
+**Read `check:ui`'s failures; do not filter them out.** `--tabs-only` skips the list and trip checks; run the full script before a PR that touches anything outside a crag's tabs. Two list checks were already failing on 2026-10-20 (#359); a new failure is yours until shown otherwise.
+
+**Python is not installed** (`python3` is the Windows Store stub and exits 0); use Node or PowerShell. `gh` may not be on `PATH`: `C:\Program Files\GitHub CLI\gh.exe`.
 
 **Vercel will not give you a secret back.** Go to the source — Neon's dashboard for `DATABASE_URL` (pooled for runtime, direct for migrations). Never ask the user to paste a secret into the conversation.
 
