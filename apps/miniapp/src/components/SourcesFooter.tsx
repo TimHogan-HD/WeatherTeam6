@@ -21,7 +21,7 @@ export type SourceEntry = { label: string; value: string | null }
  *
  * **Collapsed to one line by default** (owner, 2026-09-30: the open list took
  * too much of every tab). The rows are still in the markup, `hidden` until
- * opened, for the same reasons `Measurements` keeps its panel mounted.
+ * opened.
  */
 export function SourcesFooter({ sources }: { sources: readonly SourceEntry[] }) {
   const [open, setOpen] = useState(false)

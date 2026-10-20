@@ -7,6 +7,7 @@
  * Usage, from `apps/api` (DATABASE_URL set in the shell, no `.env`):
  *   npm run check:ui                 # screenshots to a temp directory
  *   npm run check:ui -- --out <dir>  # or to a directory you name
+ *   npm run check:ui -- --tabs-only  # only the crag screen's six tabs
  *
  * Why this exists: UI work here was verified by rebuilding the same local
  * harness by hand every session — a throwaway secret, a local API, vite on
@@ -39,6 +40,9 @@ const WEB_PORT = 5173
 const API = `http://localhost:${API_PORT}`
 const WEB = `http://localhost:${WEB_PORT}`
 const VIEWPORT = { width: 480, height: 1000 }
+
+/** `--tabs-only`: sign in, add the crag, screenshot its six tabs, stop — for a screen being rebuilt. */
+const TABS_ONLY = process.argv.includes('--tabs-only')
 
 const PREFIX = 'zz-check-ui'
 const STAMP = Date.now()
@@ -237,6 +241,23 @@ async function run(): Promise<void> {
     await page.goto(`${WEB}/`)
     await screen('list')
 
+    async function everyTab(): Promise<void> {
+      await page.goto(`${WEB}/location/${locationId}`)
+      await page.getByRole('tab').first().waitFor({ timeout: 60_000 })
+      const tabs = await page.getByRole('tab').allInnerTexts()
+      check('the detail screen shows the six crag tabs', tabs.length === 6, `got ${tabs.join(', ')}`)
+      for (const label of tabs) {
+        await page.getByRole('tab', { name: label.trim() }).click()
+        await screen(`tab-${label.trim().toLowerCase()}`)
+      }
+    }
+
+    if (TABS_ONLY) {
+      await everyTab()
+      console.log(`\n${passed} passed, ${failed} failed (--tabs-only). Screenshots: ${dir}\n`)
+      return
+    }
+
     // 2a. Opening a crag from its card. Pressing starts the crag screen's
     // fetches before the finger lifts, and the screen draws from the list's
     // copy of the location instead of asking for it again.
@@ -357,39 +378,22 @@ async function run(): Promise<void> {
     check('then the live copies replace them', !/refreshing/.test(refreshedHeader), refreshedHeader.replace(/\s+/g, ' '))
 
     // 3. Every detail tab.
-    await page.goto(`${WEB}/location/${locationId}`)
-    await page.getByRole('tab').first().waitFor({ timeout: 60_000 })
+    await everyTab()
     const tabs = await page.getByRole('tab').allInnerTexts()
-    check('the detail screen shows the six crag tabs', tabs.length === 6, `got ${tabs.join(', ')}`)
-    for (const label of tabs) {
-      await page.getByRole('tab', { name: label.trim() }).click()
-      await screen(`tab-${label.trim().toLowerCase()}`)
-    }
 
-    // 3b. The Overview's measurements, opened: the score is explained first (#218).
+    // 3b. The Overview says what is lowering a shown score (#218), and explains the score.
     await page.getByRole('tab', { name: tabs[0]!.trim() }).click()
-    await page.getByRole('button', { name: 'Measurements' }).click()
-    await screen('overview-measurements')
-    const panelId = await page.getByRole('button', { name: 'Measurements' }).getAttribute('aria-controls')
-    const hero = await page.locator('section').first().innerText()
+    const hero = await page.locator('[data-hero]').innerText()
+    const overviewText = await page.getByRole('tabpanel').innerText()
     // A score under 100 has something lowering it, and the breakdown names it; at 100 there may be none.
-    const shownScore = /Score\s*\n\s*(\d+)/.exec(hero)?.[1]
+    const shownScore = /^\s*(\d+)\s*$/m.exec(hero)?.[1]
     check(
-      'the opened measurements say what is lowering a shown score',
-      shownScore === undefined || shownScore === '100' || /Score breakdown/i.test(hero),
+      'the Overview says what is lowering a shown score',
+      shownScore === undefined || shownScore === '100' || /Score breakdown/i.test(overviewText),
       hero.replace(/\s+/g, ' ').slice(0, 300),
     )
-    // Closing shrinks the panel first, and only then hides it.
-    await page.getByRole('button', { name: 'Measurements' }).click()
-    const panel = page.locator(`[id="${panelId}"]`)
-    const hiddenAtOnce = await panel.evaluate((el) => el.hasAttribute("hidden"))
-    await page.waitForTimeout(500)
-    const hiddenAfter = await panel.evaluate((el) => el.hasAttribute("hidden"))
-    check(
-      'Measurements shrinks shut before it hides its panel',
-      !hiddenAtOnce && hiddenAfter,
-      `hidden at once ${hiddenAtOnce}, after 500ms ${hiddenAfter}`,
-    )
+    await page.getByText('How the score works').click()
+    await screen('overview-explainer')
 
     // One underline slides to the chosen tab and lands under it.
     const underlineUnder = async (label: string) => {
@@ -417,10 +421,8 @@ async function run(): Promise<void> {
       .getByRole('tab', { name: 'Daily' })
       .evaluate((el) => el.getBoundingClientRect().height)
     check('a location tab is at least 40px tall to tap', tabTall >= 40, `${tabTall}px`)
-    await page.getByRole('tab', { name: tabs[0]!.trim() }).click()
-    await page.getByRole('button', { name: 'Measurements' }).click()
-
-    await page.getByRole('link', { name: /How the score works/ }).click()
+    // The Overview carries the explanation itself; Profile's copy is reached by its anchor.
+    await page.goto(`${WEB}/profile#score`)
     const explainer = page.getByRole('heading', { name: 'How the score works' })
     await explainer.waitFor({ timeout: 10_000 }).catch(() => undefined)
     const top = await explainer.evaluate((el) => el.getBoundingClientRect().top).catch(() => null)

@@ -1,6 +1,5 @@
 import { useRef, type CSSProperties } from 'react'
 import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
-import { formatElevationFt, rockTypeLabel, type Location } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, row, stack } from '../theme/styles.js'
 import { ChevronLeftIcon } from './Icons.js'
@@ -46,25 +45,6 @@ export type DetailHeaderProps<T extends string> = {
 }
 
 /**
- * `Sandstone · 741 ft`. **Each part omitted when absent, never dashed** — these
- * are properties of a saved row, and `unknown` is the column's default meaning
- * nobody entered one (the identity block's rule). A city carries no rock type
- * at all, whatever the column holds.
- */
-export function eyebrowText(location: Location): string | null {
-  const parts: string[] = []
-  if (
-    location.is_climbing_location &&
-    location.rock_type !== null &&
-    location.rock_type !== 'unknown'
-  ) {
-    parts.push(rockTypeLabel(location.rock_type))
-  }
-  if (location.elevation_m !== null) parts.push(formatElevationFt(location.elevation_m))
-  return parts.length === 0 ? null : parts.join(' · ')
-}
-
-/**
  * `44.5625, −92.5338`. Four places is about 11 m, the precision a crag
  * coordinate is worth; the minus is the typographic one the Figma draws.
  */
@@ -74,21 +54,8 @@ export function coordText(lat: number, lon: number): string {
 }
 
 /**
- * A saved location's heading. `location` is null while it loads or failed;
- * `freshness` is `forecast fetched 29 min ago`, or null when unmeasured.
- */
-export function locationHeading(location: Location | null, freshness: string | null): HeaderHeading {
-  if (location === null) return { eyebrow: null, title: null, meta: null }
-  return {
-    eyebrow: eyebrowText(location),
-    title: location.name,
-    meta: [coordText(location.lat, location.lon), freshness].filter((p) => p !== null).join(' · '),
-  }
-}
-
-/**
- * The band. The detail screen passes `locationHeading`; the guidebook's wall
- * and route screens have a heading but no saved row of their own.
+ * The band. The Overview passes an empty heading, because its hero names the
+ * crag; the guidebook's wall and route screens pass theirs.
  */
 export function DetailHeader<T extends string>({
   heading,

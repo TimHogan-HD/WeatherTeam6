@@ -23,6 +23,16 @@ export function ScoreExplainer({ rangeF }: { rangeF: RangeF }) {
     if (window.location.hash === `#${SCORE_EXPLAINER_ID}`) ref.current?.scrollIntoView()
   }, [])
 
+  return (
+    <section id={SCORE_EXPLAINER_ID} ref={ref} style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
+      <h2 style={typeV2.cardTitle}>How the score works</h2>
+      <ScoreExplainerParts rangeF={rangeF} />
+    </section>
+  )
+}
+
+/** The explanation's parts, for Profile's card and the Overview's fold-out. */
+export function ScoreExplainerParts({ rangeF }: { rangeF: RangeF }) {
   const f = SCORE_MODEL_FACTS
   const high = rangeF === null ? 'the high end of your range' : `your high, ${rangeF.high}°F`
   const low = rangeF === null ? 'the low end of your range' : `your low, ${rangeF.low}°F`
@@ -30,8 +40,7 @@ export function ScoreExplainer({ rangeF }: { rangeF: RangeF }) {
   const rewetIn = mmToIn(REWETTING_PRECIP_MM).toFixed(2)
 
   return (
-    <section id={SCORE_EXPLAINER_ID} ref={ref} style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
-      <h2 style={typeV2.cardTitle}>How the score works</h2>
+    <>
       <P>
         The score runs from 0 to 100 for one hour at the crag. It multiplies two things: how dry the rock
         is and how good the friction is. If either one is zero, so is the score.
@@ -71,7 +80,7 @@ export function ScoreExplainer({ rangeF }: { rangeF: RangeF }) {
 
       <Part title={HELD_BACK_LABEL}>
         <P>
-          Under Measurements on a crag’s Overview: what’s lowering the score, biggest first.
+          On a crag’s Overview: what’s lowering the score, biggest first.
         </P>
       </Part>
 
@@ -98,7 +107,7 @@ export function ScoreExplainer({ rangeF }: { rangeF: RangeF }) {
           report a miss.
         </P>
       </Part>
-    </section>
+    </>
   )
 }
 

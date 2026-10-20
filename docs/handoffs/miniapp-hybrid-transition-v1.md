@@ -2,7 +2,7 @@
 
 Version: v1
 Date: 2026-10-19
-Status: **Decided by the owner, not yet built.** Moves `apps/miniapp` to the look in
+Status: **Decided by the owner; Phases 1, 2 and 2b built.** Moves `apps/miniapp` to the look in
 `docs/handoffs/design-mockups/weatherteam6-hybrid.html`. That mockup is also published
 privately to the owner as https://claude.ai/artifact/18s8fy1HY5D1jR7AxmwE6p, but the
 repo copy is the reference. Where this document and `miniapp-design-v1.md` disagree, this
@@ -111,8 +111,20 @@ drops one is a regression:
    humidity on a right-hand scale, rain chance as columns with the amount as a line, wind),
    and the slim header follows it (`slimHeader.ts`). A day counts as dry when every hour is
    read and under 10% chance (`dryDay`); there is no hourly median amount, so the chance
-   stands in for it. Two open calls for the owner: the air line keeps its sun colour rather
-   than the mockup's colour by score, and a score bar's rain dot means a 50% chance or more.
+   stands in for it.
+   **2b, built 2026-10-19: the screens redrawn to the mockup itself** (owner: "the whole
+   point of this is for it to look like the mock up"). Overview is the mockup's hero (name,
+   the hour's score large, Dryness, the rock and hour, a line of figures, the day's good
+   hours and score), then glass cards: score bars, Today, Next days, Score breakdown, Rain,
+   Air, Rock with the wavy drying clock (`DryingClock.tsx`), and How the score works. The
+   Conditions now card, the measurements panel and the slim header on Overview are gone.
+   Hourly is the day words with an underline and three cards, each with the mockup's title
+   and aside, glow tube, frost range and bead; the air line is coloured by score, which
+   settles the first open call. **Where it departs from the mockup, for honesty:** the
+   alert banner sits above the name; the line under the score is labelled fragments, not
+   the mockup's sentence; models are named as the response reports them, not "ICON"; no
+   night glyphs, since the sky series covers daylight only; no rock temperature (owner);
+   Hourly has no Agreement. The score bar's rain dot (50% or more) is still the owner's call.
 3. **Daily, Precip and Rock.** The Daily wrap fix, removing the running total, and putting
    the drying clock and condensation chart back on Rock.
 4. **Crag tab and Trips** restyled.

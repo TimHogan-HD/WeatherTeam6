@@ -39,33 +39,34 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
 - **A reading is a label and a value, never a sentence** (owner decision 2026-09-21):
   `Dryness: Dry`, then `Score: 100`, from `ReadingField`. Labels
   live in `readingsCopy.ts`; `fieldLine` punctuates one for text. Caveats are fragments on one
-  line. Which inputs a reading came from belongs in the measurements disclosure.
-- **The measurements disclosure names each group with the model that produced it**
-  (`measurements()` in `readingsCopy.ts`, rendered by `Measurements.tsx`). *Air* is
-  `HourlySeries.model`'s; *Rock* is `THERMAL_MODEL`'s; `sharedSource` names one model only
-  when every group came from it. A temperature interval goes through `cToFDelta`, never
-  `formatTempF`. Rock figures and mechanisms appear only while their gauges are on screen. A
-  group with some figures dashes its gaps; a group with none is omitted. **The panel stays
-  short** (owner, 2026-10-01): *Air* carries only what the card above does not print
-  (gusts, the past hour's rain), the figures render as tiles, each mechanism is one line,
-  and the full explanation is `ScoreExplainer` on Profile, linked from the panel. Every
-  number that explanation quotes comes from `SCORE_MODEL_FACTS`, pinned to the model by
-  `cragModel.test.ts`.
-  `ROCK_TEMPERATURE_MECHANISM` is required wherever a modelled rock temperature prints.
+  line. Which inputs a reading came from belongs on the Overview's Air and Rock cards.
+- **The Overview is the hybrid mockup's cards** (owner, 2026-10-19; `OverviewTab.tsx`) — the
+  measurements disclosure and `Measurements.tsx` are gone. *Air* names `HourlySeries.model`;
+  *Rock* carries `measurements()`'s mechanism notes, `FRICTION_MECHANISM` among them, so the
+  Overview says friction is an estimate once. **No modelled rock temperature prints**
+  (owner, 2026-10-19), so the Rock card drops `ROCK_TEMPERATURE_MECHANISM`; it stays
+  required wherever one does print. The drying clock (`DryingClock.tsx`) draws the hours
+  since real rain against `MIN_HOURS`/`MAX_HOURS` and says so — display only, never the
+  score's own drying. How the score works is `ScoreExplainerParts`, the Overview's last
+  card and Profile's; every number it quotes comes from `SCORE_MODEL_FACTS`, pinned to the
+  model by `cragModel.test.ts`. A temperature interval goes through `cToFDelta`, never
+  `formatTempF`.
 - **`HourlyReading.rock_sun_shade` is the warmest and coolest of Crag A's eight compass
   walls' `T_surface`** (owner field report, Barn Bluff 2026-10-04: a south face too hot,
   a shaded one good, under one score). Display only — the score still reads air
   temperature. Null if any wall's is missing. **It renders nowhere** (owner, 2026-10-05):
   sun and shade belong only on crags the owner has confirmed on the ground — today only
-  Red Wing — and never in Overview's measurements. When a surface brings it back, gate it
+  Red Wing — and never on the Overview. When a surface brings it back, gate it
   on a flag on the `KNOWN_CRAGS` entry, not on the data being present. It names no
   direction: Crag A does not know which way a crag's walls face (#293).
 - **A score over a span is its worst hour, never a mean or a best.** A day's is
-  `dayRepresentative`; the Conditions now card's three-hour blocks (`scoreBlocks`) are the
+  `dayRepresentative`; the score bars and any block of hours are the
   same rule, and a block with any hour unread or suppressed has no score — the worst of the
-  rest could be better than the missing one. The hero never prints one hour's score as its
-  headline (owner, 2026-10-05), **except Hourly's slim header, which follows the hour being
-  read** and names it beside the figure (`Today 7 PM`; owner, 2026-10-19).
+  rest could be better than the missing one. **An hour's score may headline only beside
+  the hour it is** (owner, 2026-10-19, superseding 2026-10-05's "never"): the Overview hero
+  prints the hour covering now, names that hour beside it, and keeps the day's good hours
+  and score on the line under it with the score bars below; Hourly's slim header follows
+  the hour being read (`Today 7 PM`).
 - **The number waits for the alerts query, inside `summarizeReadings`** — `alertsPending`
   suppresses the score on its own (defect class 7). **Severe+ suppression drops the number
   and keeps the readings.** A surface must not reach past `ReadingsSummary.score === null`.

@@ -135,28 +135,25 @@ export const WIND_VIEW_H = 88
 export const OVERLAY_DASH = '4 3'
 
 /**
- * The v2 Hourly tab's marks, from the WT6 Figma "V2" page's Hourly frame.
+ * The Hourly tab's marks, from the hybrid mockup (owner, 2026-10-19).
  *
- * **Two departures, both from the status-colour rule** (`good`/`fair`/`poor`
- * are the conditions ladder and not available for data marks): the frame
- * draws air in `fair` amber and gusts in `poor` red. Air keeps `sun`, which is
- * within a shade of the frame's amber; gusts are a dashed line in the primary
- * ink, so they separate from the grey sustained line without borrowing a
- * rung's colour. The good-hours shading *is* a conditions reading and wears
- * `good`.
+ * Air is coloured by each hour's score where there is one (`scoreRampColor`);
+ * `air` is its neutral ink for a city, and for hours without a score. Gusts
+ * dash in `gust` beside the teal sustained line; good hours are the brand
+ * aqua, as the mockup draws them.
  */
 export const chartColorsV2 = {
-  air: chartColors.temperature,
-  airBand: chartColors.temperatureBand,
-  dewPoint: colorsV2.rain,
-  rain: colorsV2.rain,
-  rainBand: withOpacity(colorsV2.rain, 0.18),
-  wind: colorsV2.legend,
-  windBand: withOpacity(colorsV2.legend, 0.18),
-  gust: colorsV2.txt1,
+  air: colorsV2.airNeutral,
+  airBand: withOpacity(colorsV2.rangeFrost, 0.22),
+  dewPoint: colorsV2.rainMark,
+  rain: colorsV2.rainLine,
+  rainBand: withOpacity(colorsV2.rainLine, 0.22),
+  wind: colorsV2.wind,
+  windBand: withOpacity(colorsV2.wind, 0.22),
+  gust: colorsV2.gust,
   humidity: colorsV2.humidity,
-  grid: colorsV2.grid,
-  goodHours: withOpacity(colors.good, 0.07),
+  grid: 'rgba(255,255,255,0.06)',
+  goodHours: withOpacity(colorsV2.brand, 0.09),
   /** The rule and pill at the current time. Ink, not a status colour: it marks when, not how good. */
   now: colorsV2.txt1,
   /** The pill's text and the ring round the dot: the card, so both cut out cleanly. */
@@ -168,7 +165,7 @@ export const chartColorsV2 = {
   beadFill: withOpacity(colorsV2.txt1, 0.12),
   beadRing: withOpacity(colorsV2.txt1, 0.55),
   /** Chance-of-rain columns behind the amount line: the rain hue, quiet enough to read the line over. */
-  chanceColumn: withOpacity(colorsV2.rain, 0.28),
+  chanceColumn: withOpacity(colorsV2.rainMark, 0.24),
 } as const
 
 /** Corner radius on a bar — the rounded data-end the dataviz guidance asks for. */

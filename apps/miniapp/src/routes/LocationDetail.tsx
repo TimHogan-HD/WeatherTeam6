@@ -18,7 +18,7 @@ import { useNow } from '../hooks/useNow.js'
 import { useRecentPrecip } from '../hooks/useRecentPrecip.js'
 import { useWalls } from '../hooks/useWalls.js'
 import { useGuidebook } from '../hooks/useGuidebook.js'
-import { DetailHeader, locationHeading } from '../components/DetailHeader.js'
+import { DetailHeader } from '../components/DetailHeader.js'
 import { DetailView, detailTabs, type DetailTab } from '../components/DetailView.js'
 import { dayIsDrawable, firstDrawableDay } from '../components/charts/hourlySeries.js'
 import { defaultReadHour } from '../lib/hourlyDay.js'
@@ -169,7 +169,6 @@ export function LocationDetail() {
   // When the runs behind the readings and charts were last confirmed current —
   // the stalest of them, never this client's own fetch time.
   const age = hourly.data === undefined ? null : formatRunAge(hourly.data, now)
-  const freshness = age === null ? null : age.charAt(0).toLowerCase() + age.slice(1)
 
   const content = location.isPending ? (
     <Skeleton height={200} />
@@ -293,7 +292,7 @@ export function LocationDetail() {
       <PullToRefresh enabled={FORECAST_TABS.has(activeTab)} freshness={age}>
       {activeTab === 'overview' || location.data === undefined ? (
         <DetailHeader
-          heading={locationHeading(location.data ?? null, freshness)}
+          heading={{ eyebrow: null, title: null, meta: null }}
           back={{ label: backLabel, onBack: goBack }}
           crags={crags}
           feedbackLocationId={id ?? null}

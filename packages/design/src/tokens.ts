@@ -114,8 +114,8 @@ export const colorsV2 = {
   line: '#2a3644',
   /** Primary text. */
   txt1: '#f4f7fa',
-  /** Secondary text — meta, legend, the card chevron. */
-  txtMuted: '#8e9aa8',
+  /** Secondary text — meta, legend, the card chevron. The hybrid mockup's `--muted`. */
+  txtMuted: '#bccad0',
   /** Text on a `good` tint. */
   goodInk: '#c8f76a',
   /** Text on a `fair` tint. */
@@ -124,8 +124,8 @@ export const colorsV2 = {
   poorInk: '#ff8b91',
   /** A well inside a card: the hour cells of the Overview's Today strip. */
   raised: '#1f2833',
-  /** Secondary text on a tinted surface: the hero's high/low and weather line. */
-  txt2: '#cfdad2',
+  /** Secondary text on a tinted surface: the hero's high/low and weather line. The hybrid mockup's `--txt2`. */
+  txt2: '#d3e1e4',
   /** An unselected tab. */
   txtTab: '#7d8997',
   /**
@@ -136,8 +136,23 @@ export const colorsV2 = {
    */
   brand: '#1DC5D2',
   brandInk: '#6fe3ec',
-  /** Chance of rain, as a figure. Also the dew point line on the Hourly tab. */
-  rain: '#90cdf4',
+  /** Chance of rain, as a figure. The hybrid mockup's `--rain`. */
+  rain: '#bcc7fd',
+  /** Rain as a mark — chance capsules and columns, rain dots — and the dew point line (hybrid mockup). */
+  rainMark: '#a5b4fc',
+  /** The rain amount line on Hourly, and its range band (hybrid mockup). */
+  rainLine: '#dfe4ff',
+  /** The ends of a filled chance capsule on Overview's Today chart, either side of `rainMark` (hybrid mockup). */
+  rainCapsuleTop: '#e3e8ff',
+  rainCapsuleBottom: '#6f7fe0',
+  /** A p10–p90 band on the temperature chart (hybrid mockup). */
+  rangeFrost: '#cfe8ff',
+  /** The air line with no score to colour it: a city, or an hour without one (hybrid mockup). */
+  airNeutral: '#dfe6ec',
+  /** The sustained-wind line and its range (hybrid mockup's `--wind`). */
+  wind: '#7fd1c4',
+  /** Gusts, dashed, beside `wind`. */
+  gust: '#e8fbf7',
   /**
    * The sun in the sky icons, Daily and Hourly. A pale yellow kept clear of
    * the score ladder's `fair` amber, so a sunny day never reads as a fair
@@ -148,8 +163,8 @@ export const colorsV2 = {
   grid: '#232e3b',
   /** A chart legend's words, and the sustained-wind line. */
   legend: '#c9d2dc',
-  /** The humidity line. */
-  humidity: '#7fd1c4',
+  /** The humidity line and its right-hand scale (hybrid mockup's `--hum`). */
+  humidity: '#c3a6ff',
   /**
    * Snow, and rain and snow together, on the Precip tab — beside `rain`.
    * The Figma frame draws a mixed event in `fair` amber; that colour is the
@@ -699,6 +714,129 @@ export const typeV2 = {
   switcher: {
     fontFamily: fonts.display,
     fontSize: 16,
+    fontWeight: '600' as const,
+  },
+  // ── Hybrid look (docs/handoffs/design-mockups/weatherteam6-hybrid.html) ──
+
+  /** The Overview hero's crag name: Barlow Condensed 14/600, uppercase. */
+  heroName: {
+    fontFamily: fonts.display,
+    fontSize: 14,
+    fontWeight: '600' as const,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase' as const,
+    color: colorsV2.txt1,
+  },
+  /** The Overview hero's score: Barlow Condensed 150/700. Colour is the score's. */
+  heroScore: {
+    fontFamily: fonts.display,
+    fontSize: 150,
+    fontWeight: '700' as const,
+    letterSpacing: -3,
+    lineHeight: 120,
+  },
+  /** The hero's side lines — "Score", "Dryness: Dry": Barlow Condensed 18/600. */
+  heroSide: {
+    fontFamily: fonts.display,
+    fontSize: 18,
+    fontWeight: '600' as const,
+    color: colorsV2.txt1,
+  },
+  /** The hero's small side line — "Basalt · 7 PM": Barlow 12/400. */
+  heroSideSm: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    fontWeight: '400' as const,
+    color: colorsV2.txt2,
+  },
+  /** The hero's line under the score: Barlow 15/400. */
+  lead: {
+    fontFamily: fonts.body,
+    fontSize: 15,
+    fontWeight: '400' as const,
+    lineHeight: 22,
+    color: colorsV2.txt2,
+  },
+  /** A glass card's heading — "TODAY", "RAIN": Barlow Condensed 12/600, uppercase, brand ink. */
+  sect: {
+    fontFamily: fonts.display,
+    fontSize: 12,
+    fontWeight: '600' as const,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase' as const,
+    color: colorsV2.brandInk,
+  },
+  /** What a card heading's right side says — "mph · GFS": Barlow 11/400. */
+  sectAside: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    fontWeight: '400' as const,
+    letterSpacing: 0.3,
+    color: colorsV2.txtMuted,
+  },
+  /** A chart's key row: Barlow 11/400. */
+  keyRow: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    fontWeight: '400' as const,
+    color: colorsV2.txtMuted,
+  },
+  /** A read-out label under a chart — "NOW", "AIR / DEW": Barlow Condensed 10/600, uppercase. */
+  readLabel: {
+    fontFamily: fonts.display,
+    fontSize: 10,
+    fontWeight: '600' as const,
+    letterSpacing: 1,
+    textTransform: 'uppercase' as const,
+    color: colorsV2.txtMuted,
+  },
+  /** A read-out figure — "54° / 38°": Barlow Condensed 21/700. */
+  readFigure: {
+    fontFamily: fonts.display,
+    fontSize: 21,
+    fontWeight: '700' as const,
+    color: colorsV2.txt1,
+  },
+  /** A labelled line's label — "Dew point": Barlow 14/400. */
+  lineLabel: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    fontWeight: '400' as const,
+    color: colorsV2.txt2,
+  },
+  /** A labelled line's figure — "38°F": Barlow Condensed 22/700. */
+  lineFigure: {
+    fontFamily: fonts.display,
+    fontSize: 22,
+    fontWeight: '700' as const,
+    color: colorsV2.txt1,
+  },
+  /** Score breakdown's order — "Humidity › Cold": Barlow Condensed 19/600. */
+  order: {
+    fontFamily: fonts.display,
+    fontSize: 19,
+    fontWeight: '600' as const,
+    lineHeight: 26,
+    color: colorsV2.txt1,
+  },
+  /** A next day's score: Barlow Condensed 26/700. */
+  dayScore: {
+    fontFamily: fonts.display,
+    fontSize: 26,
+    fontWeight: '700' as const,
+    lineHeight: 26,
+  },
+  /** A next day's small lines — "Wed", "68°/47°": Barlow 10/400. */
+  daySmall: {
+    fontFamily: fonts.body,
+    fontSize: 10,
+    fontWeight: '400' as const,
+    color: colorsV2.txtMuted,
+  },
+  /** Hourly's day picker — "Today", "Thu": Barlow Condensed 15/600. Colour is its state. */
+  dayPick: {
+    fontFamily: fonts.display,
+    fontSize: 15,
     fontWeight: '600' as const,
   },
   /** A tab label: Barlow 15/600. Colour is the tab's state. */

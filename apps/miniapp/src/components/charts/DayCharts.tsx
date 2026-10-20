@@ -1,69 +1,64 @@
-import { useRef, type CSSProperties, type ReactNode } from 'react'
-import { colorsV2, radius, spacing, toneSurfacesV2 } from '@weatherteam6/design/tokens'
+import { useId, useRef, type CSSProperties, type ReactNode } from 'react'
+import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import {
   EM_DASH,
-  formatPrecipIn,
-  formatTempF,
-  formatWindMph,
-  modelSourceLabel,
-  SKY_DAY_LABEL,
-  SKY_HOUR_LABEL,
+  cToF,
+  modelName,
   summarizeReadings,
   type HourlyReading,
   type HourlySeries,
-  type ReadingsSummary,
-  type SkyHour,
+  type SkyCondition,
 } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
-import { bareButton, cardV2, row, stack, type ToneName } from '../../theme/styles.js'
-import { formatForecastDate } from '../../lib/forecast.js'
-import { formatLocalClock, formatLocalHour, formatLocalHourShort, formatTempRangeF } from '../../lib/format.js'
+import { bareButton, cardV2 } from '../../theme/styles.js'
+import { formatLocalHour } from '../../lib/format.js'
 import { SkyIcon } from '../Icons.js'
-import { readingTone, scoreTone } from '../../lib/locationList.js'
-import { dayChips, daysOutPhrase, dryDay } from '../../lib/hourlyDay.js'
+import { dayChips, dryDay } from '../../lib/hourlyDay.js'
 import { useNow } from '../../hooks/useNow.js'
 import { SelectionIndicator, useSelectedRect } from '../SelectionIndicator.js'
-import { HourlyChart } from './HourlyChart.js'
-import { extent, type Extent } from './geometry.js'
-import { identityAxis, rainAxisBare, tempAxisDeg, windAxisBare } from './valueAxis.js'
+import { chartColorsV2, scoreRampColor } from './chartStyle.js'
 import {
-  DAY_VIEW_H,
-  OVERLAY_DASH,
-  PAD_LEFT,
-  RAIN_CHART_VIEW_H,
-  WIND_VIEW_H,
-  TEMP_FLOOR_PAD_C,
-  chartColorsV2,
-} from './chartStyle.js'
+  Bead,
+  Frost,
+  KeyRow,
+  LIQUID_PX,
+  LIQUID_W,
+  Label,
+  LiquidFrame,
+  Sect,
+  Tube,
+  XGradient,
+  runsOf,
+  scale,
+  smoothPath,
+  timeAxis,
+  valueRuns,
+  type Pt,
+  type TimeAxis,
+} from './liquid.js'
 import {
   type SeriesDatum,
   chanceSeries,
   dewPointSeries,
+  gustSeries,
   hasValues,
   hoursOnDay,
   humiditySeries,
   rainSeries,
   temperatureSeries,
-  timeExtent,
   valueExtent,
-  windSeries,
   windSpreadSeries,
-  gustSeries,
   HOUR_MS,
 } from './hourlySeries.js'
 
 /**
- * The Hourly tab, from the WT6 Figma "V2" page's `v2 Dark - Hourly` frame
- * (node `129:529`): a chip per day, the open day's conditions — the three
- * readings and the good hours — the sky by the hour, then one card of charts
- * (hybrid look, owner 2026-10-19): temperature with the dew point and humidity
- * on its own right-hand scale, rain chance and amount on one chart, and wind.
- * The charts and the sky strip read one hour together, and the slim header
- * carries that hour's figures.
+ * The Hourly tab in the hybrid look (`docs/handoffs/design-mockups/weatherteam6-hybrid.html`,
+ * `hourlyCharts`; owner 2026-10-19): the days as words with an underline, then
+ * three glass cards — temperature and humidity, rain, wind — that read one
+ * hour together. The slim header carries that hour's figures.
  *
  * **There is no seven-day chart here.** A continuous multi-day series belongs
- * on the Daily tab, which is the view about comparing days; this tab is one
- * day's hours and the charts get the screen.
+ * on the Daily tab; this tab is one day's hours and the charts get the screen.
  */
 
 export type DayChartsProps = {
@@ -75,16 +70,9 @@ export type DayChartsProps = {
   readMs: number | null
   onRead: (ms: number) => void
   /**
-   * The readings for **the day on screen**, in the conditions card.
-   *
-   * **The readings themselves come from `series`, not from here.** They are on
-   * the same response as the hours these charts draw, so there is no second
-   * source to keep aligned; what this prop carries is the two facts only the
-   * screen knows — whether a Severe+ alert is active, and whether that query
-   * has settled — plus the flag that says this location is a crag at all.
-   *
-   * Optional as a group rather than as three loose props because the
-   * suppression rules only make sense together.
+   * What only the screen knows about the readings: whether a Severe+ alert is
+   * active, whether that query has settled, and whether this location is a
+   * crag at all. The readings themselves come from `series`.
    */
   score?: {
     severeAlertEvent: string | null
@@ -93,97 +81,99 @@ export type DayChartsProps = {
   }
 }
 
-const TONE_INK: Record<ToneName, string> = {
-  good: colorsV2.goodInk,
-  fair: colorsV2.fairInk,
-  poor: colorsV2.poorInk,
-}
+type Read = { ms: number | null; onRead: (ms: number) => void }
 
-/**
- * The vertical domain for temperature: **a labelled non-zero floor**, just
- * under the coldest of the band and the dew point, just over the warmest. A
- * temperature has no meaningful zero, and the dew point shares the scale, so
- * leaving it out would stroke it below the frame on a humid-free day.
- */
-function temperatureDomain(data: readonly SeriesDatum[]): Extent | null {
-  const span = valueExtent(data)
-  if (span === null) return null
-  return { min: span.min - TEMP_FLOOR_PAD_C, max: span.max + TEMP_FLOOR_PAD_C }
-}
-
-/** Wind rises from a real zero — calm is a meaningful reading, unlike 0 °F. */
-function windDomain(data: readonly SeriesDatum[]): Extent | null {
-  const span = valueExtent(data)
-  if (span === null) return null
-  return { min: 0, max: span.max > 0 ? span.max : 1 }
-}
-
-/** The good-hours key: the plot's 7% tint is too faint to read at swatch size, so the key takes the frame's stronger one. */
-const GOOD_HOURS_KEY = toneSurfacesV2.good.heroLine
-
-/** 0.02 in, the least the rain chart's scale may span. */
+/** 0.02 in, the least the rain chart's scale may span: a trace day must not draw a downpour's shape. */
 const RAIN_MIN_TOP_MM = 0.508
+const MM_PER_IN = 25.4
 
-/**
- * Rain rises from zero to **at least 0.02 in**. Scaled to its own peak, a
- * trace day stretches 0.001 in across the whole plot — a downpour's shape —
- * and every tick rounds to the same `0`, one of them drawn at the top.
- */
-function rainDomain(data: readonly SeriesDatum[]): Extent | null {
-  const span = valueExtent(data)
-  if (span === null) return null
-  return { min: 0, max: Math.max(RAIN_MIN_TOP_MM, span.max) }
-}
+/** Air with no score beside it is neutral ink: a tint with no number would leak the score past its suppression. */
+const AIR_NEUTRAL = chartColorsV2.air
+
+const sectCard: CSSProperties = { ...cardV2, padding: `${spacing.sectionGap}px 14px 14px` }
+/** The chart runs to the card's edges, as the mockup's does. */
+const bleed: CSSProperties = { margin: '0 -14px' }
 
 export function DayCharts({ series, selectedDate, onSelectDate, readMs, onRead, score }: DayChartsProps) {
-  const read = { ms: readMs, onRead }
-  // **Matched on the date, never on position.** The readings' days and the
-  // hours' days are built by different paths in `buildHourlySeries` and
-  // windowed separately; lining them up by index holds until one side drops a
-  // day and then puts Saturday's reading on Friday while still looking right.
+  const now = useNow()
+  const read: Read = { ms: readMs, onRead }
+  const hours = hoursOnDay(series.hours, selectedDate)
+
+  // **Matched on the date, never on position.**
   const readingsDay = (series.readings?.days ?? []).find((d) => d.local_date === selectedDate) ?? null
   const showReadings = score !== undefined && score.showScore && series.readings !== undefined
+  const alerts = { severeAlertEvent: score?.severeAlertEvent ?? null, alertsPending: score?.alertsPending ?? false }
+  const summarize = (reading: HourlyReading | null, withWindow: boolean) =>
+    summarizeReadings({
+      reading,
+      window: withWindow ? (readingsDay?.window ?? null) : null,
+      utcOffsetSeconds: series.utc_offset_seconds,
+      severeAlertEvent: alerts.severeAlertEvent,
+      alertsPending: alerts.alertsPending,
+      unavailableReason: series.readings?.unavailable_reason ?? null,
+    })
 
-  const summary: ReadingsSummary | null = showReadings
-    ? summarizeReadings({
-        reading: readingsDay?.best ?? null,
-        window: readingsDay?.window ?? null,
-        utcOffsetSeconds: series.utc_offset_seconds,
-        severeAlertEvent: score.severeAlertEvent,
-        alertsPending: score.alertsPending,
-        unavailableReason: series.readings?.unavailable_reason ?? null,
-      })
-    : null
+  // Each hour's score as every surface suppresses it, joined on `valid_at`.
+  const byInstant = new Map<string, HourlyReading>()
+  for (const r of series.readings?.hours ?? []) byInstant.set(r.valid_at, r)
+  const scoreAt = (validAt: string): number | null => {
+    if (!showReadings) return null
+    const reading = byInstant.get(validAt) ?? null
+    return reading === null ? null : summarize(reading, false).score
+  }
 
-  // The good hours, shaded on the temperature chart — only while the card
-  // above names them, so the shading never explains something off screen.
-  const goodWindow = summary === null || summary.window === null ? null : (readingsDay?.window ?? null)
-  const shade =
-    goodWindow === null
-      ? null
-      : { from: Date.parse(goodWindow.from), to: Date.parse(goodWindow.to), color: chartColorsV2.goodHours }
+  // The good hours, shaded on the temperature chart only while a summary would name them.
+  const daySummary = showReadings ? summarize(readingsDay?.best ?? null, true) : null
+  const goodWindow = daySummary === null || daySummary.window === null ? null : (readingsDay?.window ?? null)
+
+  const instants = hours.map((h) => Date.parse(h.valid_at)).filter((ms) => Number.isFinite(ms))
+  const first = instants[0]
+  const last = instants[instants.length - 1]
+  const axis = first === undefined || last === undefined ? null : timeAxis(first, Math.max(last, first + HOUR_MS))
+  const frame = { axis, instants, utcOffsetSeconds: series.utc_offset_seconds, nowMs: now, read }
+  // The deterministic model is named only beside a line it drew.
+  const model = series.model === null ? null : modelName(series.model)
+  const humidModel = hasValues(dewPointSeries(hours)) || hasValues(humiditySeries(hours)) ? model : null
+  const gustModel = hasValues(gustSeries(hours)) ? model : null
 
   return (
     <>
-      <DayChipRow series={series} selectedDate={selectedDate} onSelectDate={onSelectDate} />
-      <ConditionsCard
-        series={series}
-        selectedDate={selectedDate}
-        summary={summary}
-        best={readingsDay?.best ?? null}
-      />
-      <SkyCard series={series} selectedDate={selectedDate} read={read} />
-      <ChartsCard series={series} selectedDate={selectedDate} shade={shade} read={read} />
+      <DayPicker series={series} selectedDate={selectedDate} onSelectDate={onSelectDate} />
+      <section style={sectCard}>
+        <Sect
+          title="Temperature and humidity"
+          aside={`°F left · humidity right${humidModel === null ? '' : ` · dew point ${humidModel}`}`}
+        />
+        <TemperatureChart
+          {...frame}
+          hours={hours}
+          scoreAt={scoreAt}
+          goodWindow={goodWindow === null ? null : { from: Date.parse(goodWindow.from), to: Date.parse(goodWindow.to) }}
+          sky={series.sky?.hours.filter((h) => h.local_date === selectedDate) ?? []}
+        />
+      </section>
+      <section style={sectCard}>
+        <Sect title="Rain" aside="chance left · in / hr right · ensemble mean" />
+        <RainChart {...frame} hours={hours} series={series} selectedDate={selectedDate} />
+      </section>
+      <section style={sectCard}>
+        <Sect title="Wind" aside={`mph${gustModel === null ? '' : ` · gusts ${gustModel}`}`} />
+        <WindChart {...frame} hours={hours} />
+      </section>
+      <p style={{ ...typeV2.keyRow, lineHeight: '1.55', margin: `${spacing.sectionGap}px 0 0` }}>
+        The range bands are the 10th to 90th percentile for one hour; they are never added up. Chance of rain is the
+        share of wet ensemble members.
+      </p>
     </>
   )
 }
 
 /**
- * The days as chips. **Pressed buttons, not a second tablist**: the header's
- * tabs are the screen's tablist, and this picks which day that tab shows. One
- * fill slides to the open day, as the header's underline does.
+ * The days as words, the open one underlined. **Pressed buttons, not a second
+ * tablist**: the dock's tabs are the screen's tablist, and this picks which
+ * day that tab shows.
  */
-function DayChipRow({
+function DayPicker({
   series,
   selectedDate,
   onSelectDate,
@@ -199,13 +189,13 @@ function DayChipRow({
   return (
     <div
       ref={rowRef}
-      style={{ ...row(spacing.chipGap), alignItems: 'stretch', position: 'relative' }}
       role="group"
       aria-label="Day"
+      style={{ display: 'flex', gap: '14px', overflowX: 'auto', scrollbarWidth: 'none', position: 'relative' }}
     >
       <SelectionIndicator
         rect={rect}
-        style={{ top: 0, bottom: 0, borderRadius: `${radius.full}px`, backgroundColor: colorsV2.line }}
+        style={{ bottom: 0, height: '2px', borderRadius: '2px', backgroundColor: colorsV2.brand }}
       />
       {chips.map((chip) => {
         const selected = chip.local_date === selectedDate
@@ -218,20 +208,16 @@ function DayChipRow({
             onClick={() => onSelectDate(chip.local_date)}
             style={{
               ...bareButton,
-              ...typeV2.dayTab,
-              position: 'relative',
-              flex: '1 1 0',
-              minWidth: 0,
-              textAlign: 'center',
-              padding: `${spacing.listGapSm}px 0`,
-              borderStyle: 'solid',
-              borderWidth: '1px',
-              borderColor: colorsV2.line,
-              borderRadius: `${radius.full}px`,
-              backgroundColor: selected && rect === null ? colorsV2.line : 'transparent',
-              color: selected ? colorsV2.txt1 : colorsV2.txtMuted,
-              // A day the ensemble never reached keeps its place in the row, so
-              // counting from Today still lands on the right chip.
+              ...typeV2.dayPick,
+              width: 'auto',
+              flex: '0 0 auto',
+              padding: '4px 0',
+              minHeight: '36px',
+              whiteSpace: 'nowrap',
+              color: selected ? colorsV2.txt1 : colorsV2.txt2,
+              textShadow: '0 1px 6px rgba(0,0,0,0.45)',
+              borderBottom: selected && rect === null ? `2px solid ${colorsV2.brand}` : '2px solid transparent',
+              // A day the ensemble never reached keeps its place, so counting from Today lands on the right word.
               ...(chip.drawable ? {} : { opacity: 0.35, cursor: 'default' }),
             }}
           >
@@ -243,588 +229,389 @@ function DayChipRow({
   )
 }
 
-/** One reading as a tile: a small label over the word, or over the score's figure. */
-function Tile({ label, value, color, figure }: { label: string; value: string; color: string; figure: boolean }) {
+type FrameProps = {
+  axis: TimeAxis | null
+  instants: readonly number[]
+  utcOffsetSeconds: number
+  nowMs: number
+  read: Read
+}
+
+function Empty({ children }: { children: ReactNode }) {
+  return <p style={{ ...typeV2.body, margin: 0 }}>{children}</p>
+}
+
+/** The datum at the read hour, if the series has one. */
+function at(data: readonly SeriesDatum[], ms: number | null): SeriesDatum | null {
+  return ms === null ? null : (data.find((d) => d.t === ms) ?? null)
+}
+
+/** Grid lines and their labels on a °F or mph scale, about three steps across the span. */
+function Grid({
+  min,
+  max,
+  y,
+  side,
+  unit,
+  toLabel,
+}: {
+  min: number
+  max: number
+  y: (v: number) => number
+  side: 'start' | 'end'
+  unit: string
+  toLabel: (v: number) => number
+}) {
+  const lo = toLabel(min)
+  const hi = toLabel(max)
+  const step = Math.max(1, Math.round((hi - lo) / 3))
+  const ticks: number[] = []
+  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) ticks.push(v)
+  // `toLabel` is linear, so the label's own position is found by inverting it on the span.
+  const yOf = (label: number) => y(min + ((label - lo) / (hi - lo || 1)) * (max - min))
   return (
-    <div
-      style={{
-        ...stack(spacing.tight),
-        flex: '1 1 0',
-        minWidth: 0,
-        backgroundColor: colorsV2.surface,
-        borderStyle: 'solid',
-        borderWidth: '1px',
-        borderColor: colorsV2.line,
-        borderRadius: `${radius.rowV2}px`,
-        padding: `${spacing.cellPad}px`,
-      }}
-    >
-      <span style={typeV2.tileLabel}>{label}</span>
-      <span style={{ ...(figure ? typeV2.tileFigure : typeV2.tileWord), color }}>{value}</span>
+    <>
+      {ticks.map((v) => (
+        <g key={v}>
+          <line x1={LIQUID_PX} x2={LIQUID_W - LIQUID_PX} y1={yOf(v)} y2={yOf(v)} stroke={chartColorsV2.grid} />
+          <Label x={side === 'end' ? LIQUID_W - LIQUID_PX : LIQUID_PX} y={yOf(v) - 3} anchor={side}>
+            {`${v}${unit}`}
+          </Label>
+        </g>
+      ))}
+    </>
+  )
+}
+
+function TemperatureChart({
+  axis,
+  instants,
+  utcOffsetSeconds,
+  nowMs,
+  read,
+  hours,
+  scoreAt,
+  goodWindow,
+  sky,
+}: FrameProps & {
+  hours: ReturnType<typeof hoursOnDay>
+  scoreAt: (validAt: string) => number | null
+  goodWindow: { from: number; to: number } | null
+  sky: readonly { valid_at: string; sky: SkyCondition | null }[]
+}) {
+  const gradient = useId()
+  const temperature = temperatureSeries(hours)
+  const dew = dewPointSeries(hours)
+  const humidity = humiditySeries(hours)
+  if (axis === null || !hasValues(temperature)) return <Empty>No hourly temperature for this day.</Empty>
+
+  const H = 150
+  const span = valueExtent(
+    [...temperature, ...dew].flatMap((d) => [
+      { ...d, value: d.low ?? d.value },
+      { ...d, value: d.high ?? d.value },
+    ]),
+  )
+  if (span === null) return <Empty>No hourly temperature for this day.</Empty>
+  const pad = 1.2
+  const y = scale(span.min - pad, span.max + pad, 124, 14)
+  const hy = scale(0, 100, 124, 14)
+
+  const scores = new Map(hours.map((h) => [Date.parse(h.valid_at), scoreAt(h.valid_at)]))
+  const scored = [...scores.values()].some((s) => s !== null)
+  const airColor = (ms: number) => {
+    const s = scores.get(ms) ?? null
+    return scored && s !== null ? scoreRampColor(s) : AIR_NEUTRAL
+  }
+
+  const band = runsOf(temperature, (d) => d.low !== null && d.high !== null)
+  const readAir = at(temperature, read.ms)
+  const readHum = at(humidity, read.ms)
+
+  // A sky cell covers the hour before its stamp; its glyph sits over the middle of that hour.
+  const glyphs = sky.filter((h) => {
+    const start = Date.parse(h.valid_at) - HOUR_MS
+    return h.sky !== null && new Date(start + utcOffsetSeconds * 1000).getUTCHours() % 3 === 0
+  })
+
+  return (
+    <div style={bleed}>
+      <LiquidFrame
+        height={H}
+        top={10}
+        bottom={22}
+        axis={axis}
+        instants={instants}
+        utcOffsetSeconds={utcOffsetSeconds}
+        nowMs={nowMs}
+        read={read}
+        title={hasValues(humidity) ? 'Temperature, dew point and humidity by hour' : 'Temperature by hour'}
+      >
+        <defs>
+          <XGradient
+            id={gradient}
+            stops={temperature.map((d) => ({ at: axis.x(d.t) / LIQUID_W, color: airColor(d.t) }))}
+          />
+        </defs>
+        <Grid min={span.min - pad} max={span.max + pad} y={y} side="start" unit="°" toLabel={(c) => Math.round(cToF(c))} />
+        {goodWindow === null
+          ? null
+          : instants
+              .filter((ms) => ms >= goodWindow.from && ms < goodWindow.to)
+              .map((ms) => (
+                <rect key={ms} x={axis.x(ms) - 7.5} y={10} width={15} height={118} fill={chartColorsV2.goodHours} data-good="" />
+              ))}
+        {hasValues(humidity)
+          ? [50, 100].map((v) => (
+              <Label key={v} x={LIQUID_W - LIQUID_PX} y={hy(v) + (v === 100 ? 9 : -3)} anchor="end" color={chartColorsV2.humidity}>
+                {`${v}%`}
+              </Label>
+            ))
+          : null}
+        {band.map((run, i) => (
+          <Frost
+            key={i}
+            top={run.map((d) => [axis.x(d.t), y(d.high ?? 0)] as Pt)}
+            bottom={run.map((d) => [axis.x(d.t), y(d.low ?? 0)] as Pt)}
+            color={chartColorsV2.airBand}
+          />
+        ))}
+        {valueRuns(humidity, axis, hy).map((pts, i) => (
+          <path key={i} d={smoothPath(pts)} fill="none" stroke={chartColorsV2.humidity} strokeWidth={1.8} opacity={0.85} data-humidity="" />
+        ))}
+        {valueRuns(dew, axis, y).map((pts, i) => (
+          <path key={i} d={smoothPath(pts)} fill="none" stroke={chartColorsV2.dewPoint} strokeWidth={2} strokeDasharray="5 4" data-dew="" />
+        ))}
+        {valueRuns(temperature, axis, y).map((pts, i) => (
+          <Tube key={i} d={smoothPath(pts)} stroke={`url(#${gradient})`} width={6} />
+        ))}
+        {readHum === null || readHum.value === null ? null : (
+          <circle cx={axis.x(readHum.t)} cy={hy(readHum.value)} r={3.5} fill={chartColorsV2.humidity} />
+        )}
+        {readAir === null || readAir.value === null ? null : (
+          <Bead x={axis.x(readAir.t)} y={y(readAir.value)} color={airColor(readAir.t)} />
+        )}
+        {glyphs.map((h) => (
+          <g key={h.valid_at} data-sky="" transform={`translate(${(axis.x(Date.parse(h.valid_at) - HOUR_MS / 2) - 7).toFixed(1)} -4)`}>
+            <SkyIcon sky={h.sky as SkyCondition} size={14} />
+          </g>
+        ))}
+      </LiquidFrame>
+      <div style={{ padding: '0 14px' }}>
+        <KeyRow
+          keys={[
+            {
+              label: scored ? 'air, coloured by score' : 'air',
+              swatch: {
+                kind: 'line',
+                background: scored
+                  ? `linear-gradient(90deg, ${scoreRampColor(20)}, ${scoreRampColor(50)}, ${scoreRampColor(90)})`
+                  : AIR_NEUTRAL,
+              },
+            },
+            ...(hasValues(dew) ? [{ label: 'dew point', swatch: { kind: 'dash' as const, color: chartColorsV2.dewPoint } }] : []),
+            ...(hasValues(humidity)
+              ? [{ label: 'humidity', swatch: { kind: 'line' as const, background: chartColorsV2.humidity } }]
+              : []),
+            { label: 'range', swatch: { kind: 'block', background: colorsV2.rangeFrost } },
+            ...(goodWindow === null
+              ? []
+              : [{ label: 'good hours', swatch: { kind: 'block' as const, background: colorsV2.brand, opacity: 0.4 } }]),
+          ]}
+        />
+      </div>
     </div>
   )
 }
 
-/**
- * The open day's name and distance, then — for a crag — its readings.
- *
- * **Every copy decision is `summarizeReadings`**, shared with every other
- * surface: the labels, the suppression of the number under a Severe+ alert and
- * while alerts load, the window's wording and the caveats. This lays it out.
- *
- * The readings are the day's **representative hour, which the server chose**
- * (`ReadingsDay.best`). The frame's caption reads "Best hour"; it is not the
- * best hour — it is the worst hour of the best three-hour run between 08:00 and
- * 18:00 — so the caption says only which hour the readings are from.
- */
-function ConditionsCard({
-  series,
-  selectedDate,
-  summary,
-  best,
-}: {
-  series: HourlySeries
-  selectedDate: string
-  summary: ReadingsSummary | null
-  best: HourlyReading | null
-}) {
-  const out = daysOutPhrase(series.days, selectedDate)
-  const at = best === null ? null : formatLocalClock(Date.parse(best.valid_at), series.utc_offset_seconds)
-
-  let body: ReactNode = null
-  if (summary !== null) {
-    if (summary.unavailableLine !== null) {
-      // A statement about us, never one about the rock (issue #34).
-      body = <p style={typeV2.body}>{summary.unavailableLine}</p>
-    } else {
-      const { score, scoreField } = summary
-      const hasTiles = summary.readings.length > 0 || scoreField !== null
-      const band = score === null ? null : toneSurfacesV2[scoreTone(score)]
-      const caption = [at === null || !hasTiles ? null : `At ${at}`, ...summary.notes].filter(
-        (s): s is string => s !== null,
-      )
-
-      body = (
-        <>
-          {hasTiles ? (
-            <div style={{ ...row(spacing.listGap), alignItems: 'stretch' }}>
-              {summary.readings.map((field) => {
-                const tone = readingTone(field, best)
-                return (
-                  <Tile
-                    key={field.label}
-                    label={field.label}
-                    value={field.value}
-                    figure={false}
-                    color={tone === null ? colorsV2.txt1 : TONE_INK[tone]}
-                  />
-                )
-              })}
-              {scoreField === null ? null : (
-                <Tile label={scoreField.label} value={scoreField.value} figure color={colorsV2.txt1} />
-              )}
-            </div>
-          ) : null}
-
-          {/*
-            The window wears the day score's rung, as the hero's band does —
-            and the plain well when no score is on screen, so a tint is never
-            a verdict nobody can read off.
-          */}
-          {summary.window === null ? null : (
-            <div
-              style={{
-                ...row(spacing.cellPad),
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                backgroundColor: band === null ? colorsV2.raised : band.heroBand,
-                borderRadius: `${radius.card}px`,
-                padding: `${spacing.cellPad}px ${spacing.cardPadSm}px`,
-              }}
-            >
-              <span style={typeV2.bandLabel}>{summary.window.label}</span>
-              <span
-                style={{
-                  ...typeV2.bandValue,
-                  color: score === null ? colorsV2.txt1 : TONE_INK[scoreTone(score)],
-                }}
-              >
-                {summary.window.value}
-              </span>
-            </div>
-          )}
-
-          {summary.qualifier === null ? null : <p style={typeV2.body}>{summary.qualifier}</p>}
-          {caption.length === 0 ? null : <p style={typeV2.note}>{caption.join(' · ')}</p>}
-        </>
-      )
-    }
-  }
-
-  return (
-    <section style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
-      <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <h2 style={typeV2.cardTitle}>{formatForecastDate(selectedDate)}</h2>
-        {out === null ? null : <span style={typeV2.aside}>{out}</span>}
-      </div>
-      {body}
-    </section>
-  )
-}
-
-/**
- * **How sunny the open day is, an icon per daylight hour** — Variant A of the
- * sky mock the owner picked on 2026-10-16. The words are the server's
- * (`HourlySeries.sky`); this lays them out.
- *
- * **A cell is labelled with the hour it covers, not its stamp.** Sunlight is a
- * mean over the hour *before* `valid_at`, like rain, so the 08:00 sample is
- * 7–8 am and reads `7a`.
- *
- * Absent from an API too old to send the block, and for a day with no
- * daylight in it. A day the model's sunlight never reached says so rather than
- * drawing a row of empty cells.
- */
-function SkyCard({
-  series,
-  selectedDate,
+function RainChart({
+  axis,
+  instants,
+  utcOffsetSeconds,
+  nowMs,
   read,
-}: {
-  series: HourlySeries
-  selectedDate: string
-  /**
-   * The hour the charts read. A cell covers the hour after the reading it is
-   * lit for, so the `7a` cell lights when 7 AM is read, and a tap reads it.
-   */
-  read: { ms: number | null; onRead: (ms: number) => void }
-}) {
-  const sky = series.sky
-  if (sky === undefined) return null
-  const hours = sky.hours.filter((h) => h.local_date === selectedDate)
-  if (hours.length === 0) return null
-  const summary = sky.days.find((d) => d.local_date === selectedDate)?.summary ?? null
-  const known = hours.filter((h) => h.sky !== null).length
-  const coveredHour = (h: SkyHour) =>
-    formatLocalHourShort(Date.parse(h.valid_at) - HOUR_MS, series.utc_offset_seconds) ?? EM_DASH
-  const spokenHour = (h: SkyHour) =>
-    formatLocalHour(Date.parse(h.valid_at) - HOUR_MS, series.utc_offset_seconds) ?? EM_DASH
-
-  return (
-    <section style={{ ...cardV2, ...stack(spacing.listGap) }}>
-      <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <h2 style={typeV2.cardTitle}>Sky</h2>
-        {summary === null ? null : <span style={typeV2.aside}>{SKY_DAY_LABEL[summary]}</span>}
-      </div>
-      {known === 0 ? (
-        <p style={typeV2.body}>No sunlight forecast for this day yet.</p>
-      ) : (
-        <>
-          <ul
-            aria-label="Sky by hour"
-            style={{
-              listStyle: 'none',
-              padding: 0,
-              display: 'grid',
-              gridTemplateColumns: `repeat(${hours.length}, minmax(0, 1fr))`,
-              gap: `${spacing.micro}px`,
-            }}
-          >
-            {hours.map((h) => {
-              const startMs = Date.parse(h.valid_at) - HOUR_MS
-              const lit = read.ms === startMs
-              return (
-              <li
-                key={h.valid_at}
-                aria-label={`${spokenHour(h)}, ${h.sky === null ? 'no forecast' : SKY_HOUR_LABEL[h.sky]}`}
-                aria-current={lit ? 'true' : undefined}
-                onClick={() => read.onRead(startMs)}
-                style={{
-                  ...stack(spacing.tight),
-                  alignItems: 'center',
-                  padding: `${spacing.listGapSm}px 0`,
-                  borderRadius: `${radius.chipMd}px`,
-                  backgroundColor: colorsV2.surface,
-                  borderStyle: 'solid',
-                  borderWidth: '1px',
-                  borderColor: lit ? colorsV2.brand : 'transparent',
-                  cursor: 'pointer',
-                }}
-              >
-                <span aria-hidden style={{ ...typeV2.axisTick, whiteSpace: 'nowrap' }}>
-                  {coveredHour(h)}
-                </span>
-                {h.sky === null ? (
-                  <span
-                    aria-hidden
-                    style={{
-                      width: '22px',
-                      height: '22px',
-                      borderStyle: 'dashed',
-                      borderWidth: '1px',
-                      borderColor: colorsV2.line,
-                      borderRadius: `${radius.chip}px`,
-                    }}
-                  />
-                ) : (
-                  <SkyIcon sky={h.sky} size={22} />
-                )}
-              </li>
-              )
-            })}
-          </ul>
-          {known === hours.length ? null : <p style={typeV2.note}>Dashed hours have no sunlight forecast.</p>}
-        </>
-      )}
-    </section>
-  )
-}
-
-/** The day's own range for a chart header, or null when there is nothing to state. */
-function rangeOf(data: readonly SeriesDatum[]): { min: number; max: number } | null {
-  return extent(data.map((d) => d.value))
-}
-
-function ChartsCard({
+  hours,
   series,
   selectedDate,
-  shade,
-  read,
-}: {
-  series: HourlySeries
-  selectedDate: string
-  shade: { from: number; to: number; color: string } | null
-  read: { ms: number | null; onRead: (ms: number) => void }
-}) {
-  const now = useNow()
-  const hours = hoursOnDay(series.hours, selectedDate)
-  const temperature = temperatureSeries(hours)
-  const dewPoint = dewPointSeries(hours)
+}: FrameProps & { hours: ReturnType<typeof hoursOnDay>; series: HourlySeries; selectedDate: string }) {
   const rain = rainSeries(hours)
   const chance = chanceSeries(hours)
-  const wind = windSeries(hours)
-  const windSpread = windSpreadSeries(hours)
-  const gusts = gustSeries(hours)
-  const humidity = humiditySeries(hours)
+  if (axis === null || (!hasValues(rain) && !hasValues(chance))) return <Empty>No hourly rainfall for this day.</Empty>
 
-  // **One time axis for every chart**, half an hour past the first and last
-  // hour, so the hour being read sits at the same x on all of them and the
-  // chance columns, centred on their hours, fit inside the plot.
-  const times = timeExtent(temperature) ?? timeExtent(chance) ?? timeExtent(rain) ?? timeExtent(wind)
-  const timeDomain = times === null ? undefined : { min: times.min - HOUR_MS / 2, max: times.max + HOUR_MS / 2 }
-
-  const axis = {
-    axis: 'hour' as const,
-    utcOffsetSeconds: series.utc_offset_seconds,
-    now,
-    read,
-    padRight: PAD_LEFT,
-    glow: true,
-    ...(timeDomain === undefined ? {} : { timeDomain }),
-  }
-
-  // The day's total rainfall, or `null` when nothing was measured.
-  //
-  // **`?? 0` on every hour would make an all-null day read "none"** — a
-  // forecast of a dry day — directly beside the block's own "no hourly rainfall
-  // for this day". Summing only the hours that have a value, and answering null
-  // when there are none, keeps "dry" and "unknown" apart. `precip_mm_mean` is
-  // also the only precipitation figure that may be summed at all: a sum of
-  // hourly p50s is the median of nothing and reads three to twelve times high
-  // (architecture rule), and `rainSeries` reads exactly that column.
-  const rainHours = rain.filter((d) => d.value !== null)
-  const rainTotal = rainHours.length === 0 ? null : rainHours.reduce((s, d) => s + (d.value ?? 0), 0)
-  const tempRange = rangeOf(temperature)
-  const gustPeak = rangeOf(gusts)
+  const H = 140
+  const floor = 106
+  const cy = scale(0, 100, floor, 14)
+  const top = Math.max(RAIN_MIN_TOP_MM, ...rain.flatMap((d) => [d.value ?? 0, d.high ?? 0]))
+  const ry = scale(0, top, floor, 14)
   const dry = dryDay(series.hours, selectedDate)
+  const frameProps = { height: H, top: 10, bottom: 22, axis, instants, utcOffsetSeconds, nowMs, read }
+  const inches = (mm: number) => (mm / MM_PER_IN).toFixed(2).replace(/^0/, '')
 
-  const hasDewPoint = hasValues(dewPoint)
-  const hasHumidity = hasValues(humidity)
-  const tempDomain = temperatureDomain(hasDewPoint ? [...temperature, ...dewPoint] : temperature)
-  const gustDomain = windDomain([...wind, ...windSpread, ...gusts])
-  const rainScale = rainDomain(rain)
+  const chanceGrid = [0, 50, 100].map((v) => (
+    <g key={v}>
+      <line x1={LIQUID_PX} x2={LIQUID_W - LIQUID_PX} y1={cy(v)} y2={cy(v)} stroke={chartColorsV2.grid} />
+      <Label x={LIQUID_PX} y={cy(v) - 3} anchor="start">{`${v}%`}</Label>
+    </g>
+  ))
 
-  // **Dew point and humidity are the deterministic model's**, not the
-  // ensemble's the other lines draw. Named once, from the response, and only
-  // when one of them is drawn (defect class 3).
-  const deterministic = modelSourceLabel(series.model)
-  const attribution =
-    deterministic !== null && (hasDewPoint || hasHumidity)
-      ? `Dew point and humidity from ${deterministic}; other lines from the ensemble forecast.`
-      : null
-
-  const percent = (v: number | null) => (v === null ? EM_DASH : `${Math.round(v)}%`)
-
-  // Rain: the chance as columns on the left scale, the amount as a line with
-  // its p10-p90 range on the right. Without any chance the amount stands alone.
-  let rainBody: ReactNode = null
-  if (dry !== null && hasValues(chance)) {
-    rainBody = (
-      <div style={{ position: 'relative' }}>
-        <HourlyChart
-          data={chance}
-          kind="bar"
-          placement="instant"
-          {...axis}
-          bare
-          viewHeight={RAIN_CHART_VIEW_H}
-          color={chartColorsV2.chanceColumn}
-          formatValue={percent}
-          domain={{ min: 0, max: 100 }}
-          valueAxis={identityAxis('%')}
-          title="Rain by hour: dry all day"
-        />
+  if (dry !== null) {
+    return (
+      <div style={{ ...bleed, position: 'relative' }}>
+        <LiquidFrame {...frameProps} bare title="Rain by hour: dry all day">
+          {chanceGrid}
+        </LiquidFrame>
         <div
           style={{
-            ...stack(spacing.micro),
+            position: 'absolute',
+            left: '56px',
+            right: '56px',
+            top: '14px',
+            display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             textAlign: 'center',
-            position: 'absolute',
-            left: '15%',
-            right: '15%',
-            top: '18%',
+            gap: '2px',
             pointerEvents: 'none',
+            textShadow: '0 1px 8px rgba(0,0,0,0.6)',
           }}
         >
-          <span style={{ ...typeV2.tileWord, color: colorsV2.goodInk }}>Dry all day</span>
-          <span style={{ ...typeV2.note, color: colorsV2.txt2 }}>
-            Highest chance: {dry.peakChancePct}% · {formatLocalHour(dry.peakMs, series.utc_offset_seconds) ?? EM_DASH}
+          <b style={{ ...typeV2.lineFigure, color: colorsV2.goodInk }}>Dry all day</b>
+          <span style={{ ...typeV2.heroSideSm, lineHeight: '1.4', maxWidth: '32ch' }}>
+            No measurable rain in any hour of the ensemble mean. Highest chance {dry.peakChancePct}%, at{' '}
+            {formatLocalHour(dry.peakMs, utcOffsetSeconds) ?? EM_DASH}.
           </span>
         </div>
       </div>
     )
-  } else if (hasValues(chance)) {
-    rainBody = (
-      <>
-        <HourlyChart
-          data={chance}
-          kind="bar"
-          placement="instant"
-          {...axis}
-          viewHeight={RAIN_CHART_VIEW_H}
-          color={chartColorsV2.chanceColumn}
-          formatValue={percent}
-          domain={{ min: 0, max: 100 }}
-          valueAxis={identityAxis('%')}
-          {...(hasValues(rain) && rainScale !== null
-            ? {
-                secondary: {
-                  data: rain,
-                  color: chartColorsV2.rain,
-                  bandColor: chartColorsV2.rainBand,
-                  domain: rainScale,
-                  valueAxis: rainAxisBare,
-                },
-              }
-            : {})}
-          title="Rain by hour: chance of rain as columns, amount as a line with its range"
-        />
-        <Legend>
-          <Key label="Chance of rain" swatch={{ kind: 'band', color: chartColorsV2.chanceColumn }} />
-          {hasValues(rain) ? (
-            <>
-              <Key label="Average" swatch={{ kind: 'line', color: chartColorsV2.rain }} />
-              <Key label="Range" swatch={{ kind: 'band', color: chartColorsV2.rainBand }} />
-            </>
-          ) : null}
-        </Legend>
-      </>
-    )
-  } else if (hasValues(rain)) {
-    rainBody = (
-      <>
-        <HourlyChart
-          data={rain}
-          kind="line"
-          {...axis}
-          {...(rainScale === null ? {} : { domain: rainScale })}
-          viewHeight={RAIN_CHART_VIEW_H}
-          color={chartColorsV2.rain}
-          bandColor={chartColorsV2.rainBand}
-          formatValue={formatPrecipIn}
-          valueAxis={rainAxisBare}
-          title="Rainfall by hour"
-        />
-        <Legend>
-          <Key label="Average" swatch={{ kind: 'line', color: chartColorsV2.rain }} />
-          <Key label="Range" swatch={{ kind: 'band', color: chartColorsV2.rainBand }} />
-        </Legend>
-      </>
-    )
   }
 
-  const blocks: ReactNode[] = [
-    <ChartBlock
-      key="temperature"
-      label="Temperature"
-      unit={hasHumidity ? '°F · humidity right' : '°F'}
-      value={
-        tempRange === null
-          ? null
-          : // One figure when both ends round to it: `59–59°F` reads as a typo.
-            formatTempF(tempRange.min) === formatTempF(tempRange.max)
-            ? formatTempF(tempRange.max)
-            : formatTempRangeF(tempRange.min, tempRange.max)
-      }
-      empty="No hourly temperature for this day."
-    >
-      {hasValues(temperature) ? (
-        <>
-          <HourlyChart
-            data={temperature}
-            kind="line"
-            {...axis}
-            {...(tempDomain === null ? {} : { domain: tempDomain })}
-            {...(hasDewPoint ? { overlay: { data: dewPoint, color: chartColorsV2.dewPoint, dash: OVERLAY_DASH } } : {})}
-            {...(hasHumidity
-              ? {
-                  // Relative humidity is 0-100 whatever the day did; measuring it
-                  // would stretch a steady 60-65% into a swing across the plot.
-                  secondary: {
-                    data: humidity,
-                    color: chartColorsV2.humidity,
-                    domain: { min: 0, max: 100 },
-                    valueAxis: identityAxis('%'),
-                  },
-                }
-              : {})}
-            {...(shade === null ? {} : { shade })}
-            viewHeight={DAY_VIEW_H}
-            color={chartColorsV2.air}
-            bandColor={chartColorsV2.airBand}
-            formatValue={formatTempF}
-            valueAxis={tempAxisDeg}
-            title={hasHumidity ? 'Temperature, dew point and humidity by hour' : 'Temperature by hour'}
-          />
-          <Legend>
-            <Key label="Air" swatch={{ kind: 'line', color: chartColorsV2.air }} />
-            {hasDewPoint ? (
-              <Key label="Dew point" swatch={{ kind: 'line', color: chartColorsV2.dewPoint, dashed: true }} />
-            ) : null}
-            {hasHumidity ? <Key label="Humidity" swatch={{ kind: 'line', color: chartColorsV2.humidity }} /> : null}
-            <Key label="Range" swatch={{ kind: 'band', color: chartColorsV2.airBand }} />
-            {shade === null ? null : <Key label="Good hours" swatch={{ kind: 'band', color: GOOD_HOURS_KEY }} />}
-          </Legend>
-        </>
-      ) : null}
-    </ChartBlock>,
-
-    <ChartBlock
-      key="rain"
-      label="Rain"
-      unit={dry !== null || !hasValues(chance) ? 'in / hr' : 'chance left · in / hr right'}
-      value={rainTotal === null ? null : formatPrecipIn(rainTotal)}
-      empty="No hourly rainfall for this day."
-    >
-      {rainBody}
-    </ChartBlock>,
-
-    <ChartBlock
-      key="wind"
-      label="Wind"
-      unit="mph"
-      value={gustPeak === null ? null : `gusts ${formatWindMph(gustPeak.max)}`}
-      empty="No hourly wind for this day."
-    >
-      {hasValues(wind) ? (
-        <>
-          <HourlyChart
-            data={wind}
-            kind="line"
-            {...axis}
-            {...(gustDomain === null ? {} : { domain: gustDomain })}
-            viewHeight={WIND_VIEW_H}
-            color={chartColorsV2.wind}
-            bandColor={chartColorsV2.windBand}
-            bandData={windSpread}
-            overlay={{ data: gusts, color: chartColorsV2.gust, dash: OVERLAY_DASH }}
-            formatValue={formatWindMph}
-            valueAxis={windAxisBare}
-            title="Wind by hour"
-          />
-          <Legend>
-            <Key label="Sustained" swatch={{ kind: 'line', color: chartColorsV2.wind }} />
-            <Key label="Gusts" swatch={{ kind: 'line', color: chartColorsV2.gust, dashed: true }} />
-            <Key label="Range" swatch={{ kind: 'band', color: chartColorsV2.windBand }} />
-          </Legend>
-        </>
-      ) : null}
-    </ChartBlock>,
-  ]
-
+  const readRain = at(rain, read.ms)
+  const band = runsOf(rain, (d) => d.low !== null && d.high !== null)
   return (
-    <section style={{ ...cardV2, ...stack(spacing.cellPad) }}>
-      {blocks.map((block, i) => (
-        <div key={i} style={stack(spacing.cellPad)}>
-          {i === 0 ? null : <div aria-hidden style={{ height: '1px', backgroundColor: colorsV2.line }} />}
-          {block}
-        </div>
-      ))}
-      {attribution === null ? null : <p style={typeV2.note}>{attribution}</p>}
-    </section>
-  )
-}
-
-/**
- * A chart, its name and unit, the day's own figure for it, and what it says
- * when it cannot be drawn.
- *
- * **The empty state is per chart, never for the section.** These read different
- * columns of the same response — an hour can carry a temperature and no wet
- * count — so "no forecast for this day" would be a claim the section is not
- * entitled to make.
- */
-function ChartBlock({
-  label,
-  unit,
-  value,
-  empty,
-  children,
-}: {
-  label: string
-  unit: string
-  /** The day's headline figure for this series. Omitted when there is none. */
-  value: string | null
-  empty: string
-  children: ReactNode
-}) {
-  return (
-    <div style={stack(spacing.listGap)}>
-      <div style={{ ...row(spacing.listGapSm), alignItems: 'baseline', width: '100%' }}>
-        <span style={typeV2.chartTitle}>{label}</span>
-        <span style={typeV2.chartUnit}>{unit}</span>
-        {/*
-          The day's own figure, right-aligned. The axis labels state the
-          **scale**; this states the **series**. Confusing the two is how a
-          chart's floor gets read as the day's low.
-        */}
-        {value === null ? null : <span style={{ ...typeV2.chartValue, marginLeft: 'auto' }}>{value}</span>}
+    <div style={bleed}>
+      <LiquidFrame
+        {...frameProps}
+        title={hasValues(chance) ? 'Rain by hour: chance of rain as columns, amount as a line with its range' : 'Rainfall by hour'}
+      >
+        {hasValues(chance) ? chanceGrid : null}
+        {hasValues(rain) ? (
+          <>
+            <Label x={LIQUID_W - LIQUID_PX} y={ry(top) + 9} anchor="end" color={colorsV2.rainLine}>{`${inches(top)} in`}</Label>
+            <Label x={LIQUID_W - LIQUID_PX} y={ry(top / 2) - 3} anchor="end" color={colorsV2.rainLine}>
+              {inches(top / 2)}
+            </Label>
+          </>
+        ) : null}
+        {chance.map((d) =>
+          d.value === null ? null : (
+            <rect
+              key={d.t}
+              x={axis.x(d.t) - 5}
+              y={cy(d.value)}
+              width={10}
+              height={Math.max(0, floor - cy(d.value))}
+              rx={5}
+              fill={colorsV2.rainMark}
+              opacity={d.t === read.ms ? 0.55 : 0.24}
+              data-chance=""
+            />
+          ),
+        )}
+        {band.map((run, i) => (
+          <Frost
+            key={i}
+            top={run.map((d) => [axis.x(d.t), ry(d.high ?? 0)] as Pt)}
+            bottom={run.map((d) => [axis.x(d.t), ry(d.low ?? 0)] as Pt)}
+            color={colorsV2.rainLine}
+          />
+        ))}
+        {valueRuns(rain, axis, ry).map((pts, i) => (
+          <Tube key={i} d={smoothPath(pts)} stroke={chartColorsV2.rain} width={3.5} />
+        ))}
+        {readRain === null || readRain.value === null ? null : (
+          <Bead x={axis.x(readRain.t)} y={ry(readRain.value)} color={colorsV2.rainMark} />
+        )}
+      </LiquidFrame>
+      <div style={{ padding: '0 14px' }}>
+        <KeyRow
+          keys={[
+            ...(hasValues(chance) ? [{ label: 'chance of rain', swatch: { kind: 'capsule' as const, color: colorsV2.rainMark } }] : []),
+            ...(hasValues(rain)
+              ? [
+                  { label: 'amount', swatch: { kind: 'line' as const, background: chartColorsV2.rain } },
+                  { label: 'amount range, p10–p90', swatch: { kind: 'block' as const, background: colorsV2.rainLine, opacity: 0.4 } },
+                ]
+              : []),
+          ]}
+        />
       </div>
-      {children === null ? <p style={typeV2.body}>{empty}</p> : children}
     </div>
   )
 }
 
-function Legend({ children }: { children: ReactNode }) {
-  return <div style={{ ...row(spacing.sectionTop), flexWrap: 'wrap', rowGap: `${spacing.tight}px` }}>{children}</div>
-}
+function WindChart({
+  axis,
+  instants,
+  utcOffsetSeconds,
+  nowMs,
+  read,
+  hours,
+}: FrameProps & { hours: ReturnType<typeof hoursOnDay> }) {
+  const wind = windSpreadSeries(hours)
+  const gusts = gustSeries(hours)
+  if (axis === null || !hasValues(wind)) return <Empty>No hourly wind for this day.</Empty>
 
-type Swatch = { kind: 'line'; color: string; dashed?: boolean } | { kind: 'band'; color: string }
+  const H = 120
+  const lo = Math.min(...wind.map((d) => d.low ?? d.value ?? Infinity))
+  const hi = Math.max(...[...wind, ...gusts].map((d) => Math.max(d.high ?? -Infinity, d.value ?? -Infinity)))
+  const kmhPerMph = 1.609344
+  const min = Math.max(0, lo - kmhPerMph)
+  const max = hi + kmhPerMph
+  const y = scale(min, max, 98, 12)
+  const readWind = at(wind, read.ms)
+  const band = runsOf(wind, (d) => d.low !== null && d.high !== null)
 
-/**
- * A legend key, drawn **the way the mark it names is drawn** — a line at the
- * line's colour (dashed where the line is), a ribbon at the ribbon's fill.
- */
-function Key({ label, swatch }: { label: string; swatch: Swatch }) {
-  const mark: CSSProperties =
-    swatch.kind === 'band'
-      ? { width: '12px', height: '8px', backgroundColor: swatch.color, borderRadius: '1px' }
-      : swatch.dashed === true
-        ? { width: '12px', height: 0, borderTop: `2px dashed ${swatch.color}` }
-        : { width: '12px', height: '2px', backgroundColor: swatch.color, borderRadius: '1px' }
   return (
-    <span style={{ ...row(spacing.listGapSm), ...typeV2.legend }}>
-      <span aria-hidden style={{ ...mark, display: 'block', flex: '0 0 auto' }} />
-      {label}
-    </span>
+    <div style={bleed}>
+      <LiquidFrame
+        height={H}
+        top={10}
+        bottom={22}
+        axis={axis}
+        instants={instants}
+        utcOffsetSeconds={utcOffsetSeconds}
+        nowMs={nowMs}
+        read={read}
+        title="Wind by hour"
+      >
+        <Grid min={min} max={max} y={y} side="end" unit="" toLabel={(k) => Math.round(k / kmhPerMph)} />
+        {band.map((run, i) => (
+          <Frost
+            key={i}
+            top={run.map((d) => [axis.x(d.t), y(d.high ?? 0)] as Pt)}
+            bottom={run.map((d) => [axis.x(d.t), y(d.low ?? 0)] as Pt)}
+            color={chartColorsV2.wind}
+          />
+        ))}
+        {valueRuns(gusts, axis, y).map((pts, i) => (
+          <path key={i} d={smoothPath(pts)} fill="none" stroke={chartColorsV2.gust} strokeWidth={2} strokeDasharray="5 4" data-gust="" />
+        ))}
+        {valueRuns(wind, axis, y).map((pts, i) => (
+          <Tube key={i} d={smoothPath(pts)} stroke={chartColorsV2.wind} width={5} />
+        ))}
+        {readWind === null || readWind.value === null ? null : (
+          <Bead x={axis.x(readWind.t)} y={y(readWind.value)} color={chartColorsV2.wind} />
+        )}
+      </LiquidFrame>
+      <div style={{ padding: '0 14px' }}>
+        <KeyRow
+          keys={[
+            { label: 'sustained', swatch: { kind: 'line', background: chartColorsV2.wind } },
+            ...(hasValues(gusts) ? [{ label: 'gusts', swatch: { kind: 'dash' as const, color: chartColorsV2.gust } }] : []),
+            { label: 'range', swatch: { kind: 'block', background: chartColorsV2.wind, opacity: 0.4 } },
+          ]}
+        />
+      </div>
+    </div>
   )
 }
