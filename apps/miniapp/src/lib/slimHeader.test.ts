@@ -57,7 +57,7 @@ describe('slimFigure on Daily', () => {
     const f = slimFigure('daily', inputs())
     expect(f.value).toBe(88)
     expect(f.label).toBe('best day')
-    expect(f.line).toBe('Tuesday · 9/29 · Good hours: None')
+    expect(f.line).toBe('Tuesday · no good hours · Dry')
   })
 
   it('withholds the figure while alerts load and under a Severe+ alert, as every score is', () => {
@@ -100,7 +100,7 @@ describe('slimFigure on Hourly', () => {
   it('is the read hour’s score, its clock, and every figure the charts draw there', () => {
     const f = slimFigure('hourly', inputs({ hours, hourReadings, readMs: READ }))
     expect(f).toMatchObject({ value: 73, label: 'Today 11 AM', tone: 'score' })
-    expect(f.line).toBe('Air / dew: 54° / 38° · Rain: 0 in, 12% · Humidity: 49% · Wind / gusts: 10 / 18 mph')
+    expect(f.line).toBe('Air 54° · dew 38° · rain 0 in, 12% · humidity 49% · wind 10/18 mph')
   })
 
   it('names another day by its weekday', () => {
@@ -114,7 +114,7 @@ describe('slimFigure on Hourly', () => {
     const base = inputs({ hours, hourReadings, readMs: READ })
     const severe = slimFigure('hourly', { ...base, readings: { ...base.readings!, severeAlertEvent: 'Flood Warning' } })
     expect(severe.value).toBeNull()
-    expect(severe.line).toMatch(/^Air \/ dew: 54° \/ 38° .* · Alert: score withheld$/)
+    expect(severe.line).toMatch(/^Air 54° · dew 38° .* · Alert: score withheld$/)
     const pending = slimFigure('hourly', { ...base, readings: { ...base.readings!, alertsPending: true } })
     expect(pending.value).toBeNull()
     expect(pending.line).not.toMatch(/Alert/)
@@ -133,7 +133,7 @@ describe('slimFigure on Hourly', () => {
       }),
     ]
     const f = slimFigure('hourly', inputs({ hours: gappy, hourReadings, readMs: READ }))
-    expect(f.line).toBe('Air / dew: — / 38° · Rain: —, — · Humidity: — · Wind / gusts: — / — mph')
+    expect(f.line).toBe('Air — · dew 38° · rain —, — · humidity — · wind —/— mph')
   })
 
   it('is the hour’s air temperature for a city', () => {

@@ -6,7 +6,9 @@ import {
   type HourlySample,
   type HourlySeries,
   type ReadingsDay,
+  type ConditionsWindow,
 } from '@weatherteam6/types'
+import { formatLocalHourShort } from './format.js'
 import { formatSince, type PrecipSummary } from './precipHistory.js'
 
 /**
@@ -186,6 +188,8 @@ export type NextDay = {
   score: number | null
   /** The day's good-hours span, `5am–11pm` or `None`. `null` where the day has no readings. */
   window: string | null
+  /** The same span in the mockup's short clock, `5a–11p`, `All day` or `None`. `null` exactly where `window` is. */
+  span: string | null
   /** The day's Dryness word at its representative hour. Kept under an alert, as every reading is. */
   dryness: string | null
 }
@@ -248,9 +252,12 @@ export type DayReadings = {
  * alerts query still in flight drops the number here as it does on the hero.
  * Joined on the date, never on position.
  */
-function dayReading(localDate: string, readings: DayReadings | null): { score: number | null; window: string | null; dryness: string | null } {
+function dayReading(
+  localDate: string,
+  readings: DayReadings | null,
+): { score: number | null; window: string | null; span: string | null; dryness: string | null } {
   const day = readings?.days.find((d) => d.local_date === localDate) ?? null
-  if (readings === null || day === null) return { score: null, window: null, dryness: null }
+  if (readings === null || day === null) return { score: null, window: null, span: null, dryness: null }
   const summary = summarizeReadings({
     reading: day.best,
     window: day.window,
@@ -262,8 +269,19 @@ function dayReading(localDate: string, readings: DayReadings | null): { score: n
   return {
     score: summary.score,
     window: summary.window?.value ?? null,
+    span: summary.window === null ? null : shortSpan(day.window, readings.utcOffsetSeconds),
     dryness: summary.readings.find((f) => f.label === DRYNESS_LABEL)?.value ?? null,
   }
+}
+
+/** `windowValue`'s rules on the short clock: `None`, `All day`, one hour, or `from–to`. */
+export function shortSpan(window: ConditionsWindow | null, utcOffsetSeconds: number): string {
+  if (window === null) return 'None'
+  if (window.hours >= 24) return 'All day'
+  const from = formatLocalHourShort(Date.parse(window.from), utcOffsetSeconds)
+  const to = formatLocalHourShort(Date.parse(window.to), utcOffsetSeconds)
+  if (from === null || to === null) return `${window.hours}h`
+  return from === to ? from : `${from}–${to}`
 }
 
 /** Forecast rows, in the order given, as titled days carrying their suppressed score. */
@@ -275,7 +293,7 @@ export function scoredDays(
   for (const row of rows) {
     const title = dayTitle(row.forecast_date)
     if (title === null) continue
-    const { score, window, dryness } = dayReading(row.forecast_date, readings)
+    const { score, window, span, dryness } = dayReading(row.forecast_date, readings)
     out.push({
       local_date: row.forecast_date,
       title,
@@ -283,6 +301,7 @@ export function scoredDays(
       highC: row.temp_c_max,
       score,
       window,
+      span,
       dryness,
     })
   }

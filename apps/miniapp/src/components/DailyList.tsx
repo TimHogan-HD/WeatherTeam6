@@ -1,7 +1,6 @@
 import type { CSSProperties } from 'react'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import {
-  DRYNESS_LABEL,
   EM_DASH,
   formatPrecipIn,
   formatWindMph,
@@ -117,10 +116,12 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
           const summary = skyByDate.get(day.forecast_date) ?? null
           const chance = dayRainChance(hours, day.forecast_date)
           const name = shortDay(day.forecast_date, todayDate)
+          // The mockup's `best 11a–2p · Dry · 0 in · peak wind 20 mph`. "good", not "best": the
+          // span is the day's good hours, not the three-hour run its score comes from.
           const sub = [
-            d.window === null ? null : `Good hours: ${d.window}`,
-            d.dryness === null ? null : `${DRYNESS_LABEL}: ${d.dryness}`,
-            `rain ${formatPrecipIn(day.precip_mm_p50)}`,
+            d.span === null ? null : d.span === 'None' ? 'no good hours' : `good ${d.span}`,
+            d.dryness,
+            formatPrecipIn(day.precip_mm_p50),
             `peak wind ${formatWindMph(day.wind_kmh_max)}`,
           ].filter((s): s is string => s !== null)
           const bar =

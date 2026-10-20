@@ -17,6 +17,7 @@ import {
   nextLikelyRain,
   shortDate,
   shortDay,
+  shortSpan,
   chartWindow,
 } from './overview.js'
 import { precipDays, precipSummary } from './precipHistory.js'
@@ -335,5 +336,25 @@ describe('lastRainText', () => {
 
   it('says nothing when the window has no hours', () => {
     expect(text({ hours: [], utc_offset_seconds: OFFSET, from_date: null })).toBeNull()
+  })
+})
+
+describe('shortSpan', () => {
+  // UTC-5: 16:00Z is 11 AM at the crag.
+  const span = (from: string, to: string, hours: number) =>
+    shortSpan({ from, to, hours, min_score: 80, qualified: true }, -5 * 3600)
+
+  it('names the span on the crag’s own short clock, not the viewer’s', () => {
+    expect(span('2026-09-28T16:00:00Z', '2026-09-28T19:00:00Z', 4)).toBe('11a–2p')
+  })
+
+  it('says one hour once, all day as words, and no window as None', () => {
+    expect(span('2026-09-28T16:00:00Z', '2026-09-28T16:00:00Z', 1)).toBe('11a')
+    expect(span('2026-09-28T05:00:00Z', '2026-09-29T04:00:00Z', 24)).toBe('All day')
+    expect(shortSpan(null, 0)).toBe('None')
+  })
+
+  it('falls back to the length rather than printing a clock it cannot read', () => {
+    expect(span('not a time', '2026-09-28T19:00:00Z', 4)).toBe('4h')
   })
 })

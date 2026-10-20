@@ -137,6 +137,15 @@ drops one is a regression:
    (`/conditions` carries none); "Good hours" where the mockup says "best 11a–2p", since a
    day's score and its good hours are not one three-hour run; no rain amount beside the next
    rain (there is no hourly median amount).
+   **3b, built 2026-10-20: Hourly and Daily wording and spacing to the mockup** (owner: "the
+   wording at the top of hourly feels off"). Hourly's header is the mockup's line, `Air 54° ·
+   dew 38° · rain 0 in, 2% · humidity 49% · wind 10/18 mph`; the charts bleed 22px past the
+   card padding as the mockup's do; the temperature key is one line (`air`, the gradient
+   swatch carrying the score); the footnote sits inside the Wind card with the day's chance of
+   rain. Daily's rows read `good 11a–2p · Dry · 0 in · peak wind 20 mph`, and its header
+   `Sunday · good 9a–12p · Dry`. **Departures:** "good" where the mockup says "best" (as 3a);
+   no moon glyphs at night, because the sky series has daylight hours only and a moon would
+   claim a clear night; no Agreement in the footnote, which nothing computes per day.
 4. **Crag tab and Trips** restyled.
 5. **Map, Profile, Add a crag and Feedback** restyled.
 

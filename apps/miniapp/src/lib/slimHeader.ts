@@ -1,6 +1,5 @@
 import {
   EM_DASH,
-  WINDOW_LABEL,
   cToF,
   formatPrecipIn,
   formatTempF,
@@ -14,7 +13,7 @@ import {
 import type { DetailTab } from '../components/DetailView.js'
 import { formatLocalHour, formatTempDeg } from './format.js'
 import { formatWeekday } from './forecast.js'
-import { dayChance, dayTitle, scoredDays, type DayReadings } from './overview.js'
+import { dayChance, dayTitle, scoredDays, type DayReadings, type NextDay } from './overview.js'
 
 /**
  * The slim header's figure: the key number of the tab under it, beside the
@@ -91,13 +90,16 @@ function rowsFrom(i: SlimInputs, fromDate: string | null): ForecastSnapshot[] {
     .sort((a, b) => a.forecast_date.localeCompare(b.forecast_date))
 }
 
-function dayLine(title: string, window: string | null): string {
-  return window === null ? title : `${title} · ${WINDOW_LABEL}: ${window}`
+/** The mockup's `Sunday · good 9a–12p · Dry`: the weekday, its good hours and its Dryness. */
+function dayLine(day: NextDay): string {
+  const weekday = day.title.split(' · ')[0] ?? day.title
+  const span = day.span === null ? null : day.span === 'None' ? 'no good hours' : `good ${day.span}`
+  return [weekday, span, day.dryness].filter((s): s is string => s !== null).join(' · ')
 }
 
 /** The highest-scoring day from today on; the earlier of two that tie. */
 function bestDay(i: SlimInputs): SlimFigure {
-  let best: { score: number; title: string; window: string | null } | null = null
+  let best: (NextDay & { score: number }) | null = null
   for (const day of scoredDays(rowsFrom(i, i.todayDate), i.readings)) {
     if (day.score !== null && (best === null || day.score > best.score)) best = { ...day, score: day.score }
   }
@@ -106,7 +108,7 @@ function bestDay(i: SlimInputs): SlimFigure {
     unit: null,
     label: 'best day',
     tone: 'score',
-    line: best === null ? null : dayLine(best.title, best.window),
+    line: best === null ? null : dayLine(best),
   }
 }
 
@@ -118,7 +120,7 @@ function dayScore(i: SlimInputs, date: string | null, label: string): SlimFigure
     unit: null,
     label,
     tone: 'score',
-    line: day === null ? null : dayLine(day.title, day.window),
+    line: day === null ? null : dayLine(day),
   }
 }
 
@@ -139,11 +141,13 @@ function hourRead(i: SlimInputs): SlimFigure {
   }
   const day = sample.local_date === i.todayDate ? 'Today' : formatWeekday(sample.local_date)
   const label = `${day} ${formatLocalHour(i.readMs, offset) ?? EM_DASH}`
+  // The mockup's line, word for word: `Air 54° · dew 38° · rain 0 in, 2% · humidity 49% · wind 10/18 mph`.
   const line = [
-    `Air / dew: ${formatTempDeg(sample.temp_c)} / ${formatTempDeg(sample.dewpoint_c)}`,
-    `Rain: ${formatPrecipIn(sample.precip_mm_mean)}, ${sample.precip_chance_pct === null ? EM_DASH : `${sample.precip_chance_pct}%`}`,
-    `Humidity: ${sample.humidity_pct === null ? EM_DASH : `${Math.round(sample.humidity_pct)}%`}`,
-    `Wind / gusts: ${mph(sample.wind_kmh)} / ${mph(sample.wind_gust_kmh)} mph`,
+    `Air ${formatTempDeg(sample.temp_c)}`,
+    `dew ${formatTempDeg(sample.dewpoint_c)}`,
+    `rain ${formatPrecipIn(sample.precip_mm_mean)}, ${sample.precip_chance_pct === null ? EM_DASH : `${sample.precip_chance_pct}%`}`,
+    `humidity ${sample.humidity_pct === null ? EM_DASH : `${Math.round(sample.humidity_pct)}%`}`,
+    `wind ${mph(sample.wind_kmh)}/${mph(sample.wind_gust_kmh)} mph`,
   ].join(' · ')
 
   if (!i.isClimbingLocation) {
