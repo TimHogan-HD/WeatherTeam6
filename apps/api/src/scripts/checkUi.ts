@@ -379,29 +379,23 @@ async function run(): Promise<void> {
     const refetched = requested.filter((p) => p.endsWith(`/locations/${locationId}`))
     check('the crag screen reuses the list’s copy of the location', refetched.length === 0, `fetched ${refetched.length}×`)
 
-    // 2b. A tapped card opens its crag at once, even when the crag's hourly
-    // series is slow (held back 3 s here). A brief wait for it was tried and
-    // removed: the owner found the tap laggy (2026-10-01).
+    // 2b. A tapped card opens its crag at once, even when the crag screen's
+    // own fetches are slow (its recent rain held back 3 s here; the card
+    // already holds the hourly series). A brief wait for data was tried and
+    // removed: the owner found the tap laggy (2026-10-01). Tapped once the
+    // list has its weather: a tap while every card was still fetching
+    // measured the list's own load (368–1048 ms under software rendering).
     await page.goto(`${WEB}/`)
     const firstCard = page.locator('[role="button"]').first()
     await firstCard.waitFor({ timeout: 30_000 })
     const splash = page.getByRole('status', { name: 'Loading your crags' })
     await splash.waitFor({ state: 'detached', timeout: 10_000 }).catch(() => undefined)
-    const slowHourly = `${API}/api/v1/hourly/**`
-    await page.route(slowHourly, async (route) => {
+    await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
+    const slowCragFetch = `${API}/api/v1/recent-precip/**`
+    await page.route(slowCragFetch, async (route) => {
       await new Promise((r) => setTimeout(r, 3_000))
       await route.continue().catch(() => undefined)
     })
-    // EXPERIMENT: the same tap under reduced motion, which skips the view transition.
-    await page.emulateMedia({ reducedMotion: 'reduce' })
-    const tappedReduced = Date.now()
-    await firstCard.click()
-    await page.waitForURL(/\/location\//, { timeout: 2_500 }).catch(() => undefined)
-    console.log(`EXPERIMENT reduced-motion tap opened after ${Date.now() - tappedReduced} ms`)
-    await page.emulateMedia({ reducedMotion: null })
-    await page.goto(`${WEB}/`)
-    await firstCard.waitFor({ timeout: 30_000 })
-    await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
     const tapped = Date.now()
     await firstCard.click()
     await page.waitForURL(/\/location\//, { timeout: 2_500 }).catch(() => undefined)
@@ -411,7 +405,7 @@ async function run(): Promise<void> {
       /\/location\//.test(page.url()) && openedAfter < 250,
       `opened after ${openedAfter} ms`,
     )
-    await page.unroute(slowHourly)
+    await page.unroute(slowCragFetch)
 
     // 2c. The opening splash: up on a cold load until the cards have their
     // weather, lifted at the cap when they are slow, and never shown on a
