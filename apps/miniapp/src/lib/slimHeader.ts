@@ -93,7 +93,7 @@ function rowsFrom(i: SlimInputs, fromDate: string | null): ForecastSnapshot[] {
 /** The mockup's `Sunday · good 9a–12p · Dry`: the weekday, its good hours and its Dryness. */
 function dayLine(day: NextDay): string {
   const weekday = day.title.split(' · ')[0] ?? day.title
-  const span = day.span === null ? null : day.span === 'None' ? 'no good hours' : `good ${day.span}`
+  const span = day.span === null ? null : day.span === 'None' ? 'no good hours' : `good ${day.span.toLowerCase()}`
   return [weekday, span, day.dryness].filter((s): s is string => s !== null).join(' · ')
 }
 
