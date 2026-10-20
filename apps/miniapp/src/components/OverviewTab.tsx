@@ -536,6 +536,11 @@ function RockCard({ props, now }: { props: OverviewTabProps; now: Now | null }) 
   const reading = now.conditions.readings?.now ?? null
   const summary = props.recentPrecip === undefined ? null : precipSummary(props.recentPrecip, clock)
   const since = summary?.hoursSinceReal ?? null
+  // The measured span ("None in 3 days"), and null for an empty window: never a week asked for but not read.
+  const noRealRain =
+    summary === null || props.recentPrecip === undefined
+      ? null
+      : lastRainText(summary, precipDays(props.recentPrecip.hours).length)
   const margin = dewPointMarginValue(reading?.condensation_margin_c ?? null)
   const marginC = reading?.condensation_margin_c ?? null
   const rainModels = now.conditions.readings?.rain_models ?? null
@@ -557,9 +562,7 @@ function RockCard({ props, now }: { props: OverviewTabProps; now: Now | null }) 
           label={
             since !== null
               ? `Drying clock: ${formatSince(since)} since real rain`
-              : summary === null
-                ? 'Drying clock: no rain record'
-                : 'Drying clock: no real rain this week'
+              : `Drying clock: ${noRealRain ?? 'no rain record'}`
           }
         />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -570,7 +573,7 @@ function RockCard({ props, now }: { props: OverviewTabProps; now: Now | null }) 
           />
           <Line
             label="Since real rain"
-            value={since === null ? (summary === null ? EM_DASH : 'None this week') : formatSince(since)}
+            value={since === null ? (noRealRain ?? EM_DASH) : formatSince(since)}
             note={`${rock} drying table: ${rockDryingSpan(rockType)}.${mech.length === 0 ? '' : ` ${mech.join(' ')}`}`}
             last
           />

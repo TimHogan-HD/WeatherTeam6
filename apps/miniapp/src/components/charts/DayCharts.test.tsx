@@ -147,6 +147,13 @@ describe('DayCharts — rain', () => {
     expect(chartSvg(render(series(fullDay)), 'Rain by hour')).not.toContain('data-range=""')
   })
 
+  it('draws the amount range from p10 to p90, not from zero', () => {
+    // p10 1 mm on a 4 mm scale (floor 106, top 14) sits at y 83; a band from zero would reach the floor.
+    const spread = fullDay.map((h) => ({ ...h, precip_mm_p10: 1, precip_mm_p90: 4 }))
+    const band = ys(pathD(chartSvg(render(series(spread)), 'Rain by hour'), 'data-range=""'))
+    expect(Math.max(...band)).toBeLessThan(90)
+  })
+
   it('draws the chance alone when no hour has an amount, and is not called dry', () => {
     const noAmount = fullDay.map((h) => ({ ...h, precip_mm_mean: null }))
     const html = render(series(noAmount))

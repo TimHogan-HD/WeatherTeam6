@@ -486,7 +486,7 @@ function RainChart({
   }
 
   const readRain = at(rain, read.ms)
-  const band = runsOf(rain, (d) => d.high !== null)
+  const band = runsOf(rain, (d) => d.low !== null && d.high !== null)
   return (
     <div style={bleed}>
       <LiquidFrame
@@ -521,7 +521,7 @@ function RainChart({
           <Frost
             key={i}
             top={run.map((d) => [axis.x(d.t), ry(d.high ?? 0)] as Pt)}
-            bottom={run.map((d) => [axis.x(d.t), ry(0)] as Pt)}
+            bottom={run.map((d) => [axis.x(d.t), ry(d.low ?? 0)] as Pt)}
             color={colorsV2.rainLine}
           />
         ))}
