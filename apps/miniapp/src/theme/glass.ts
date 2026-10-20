@@ -85,6 +85,20 @@ export const glassCard: CSSProperties = {
   padding: `${spacing.sectionGap}px`,
 }
 
+/**
+ * A tile inside a glass card: a trip day, a crag-by-day cell. `dashed` is a
+ * day not scored yet; `chosen` rims the picked one in primary ink.
+ */
+export function glassTile({ dashed, chosen }: { dashed: boolean; chosen: boolean }): CSSProperties {
+  return {
+    backgroundColor: dashed ? 'transparent' : withOpacity(glass.light, glass.tileFill),
+    borderWidth: '1.5px',
+    borderStyle: dashed && !chosen ? 'dashed' : 'solid',
+    borderColor: chosen ? colorsV2.txt1 : dashed ? withOpacity(glass.light, glass.tileDash) : 'transparent',
+    borderRadius: `${radius.cardV2}px`,
+  }
+}
+
 /** The slim header that sticks to the top of a crag's tabs. */
 export const glassHeader: CSSProperties = { ...pane('header'), boxShadow: layers(glass.headerLayers) }
 

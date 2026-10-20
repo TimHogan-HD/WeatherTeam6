@@ -147,6 +147,9 @@ export const colorsV2 = {
   /** The ends of a filled chance capsule on Overview's Today chart, either side of `rainMark` (hybrid mockup). */
   rainCapsuleTop: '#e3e8ff',
   rainCapsuleBottom: '#6f7fe0',
+  /** A trip day's Agreement chip: its tint and its words (the mockup's `.agree`). */
+  agreement: '#c3a6ff',
+  agreementInk: '#d9c8ff',
   /** A p10–p90 band on the temperature chart (hybrid mockup). */
   rangeFrost: '#cfe8ff',
   /** The air line with no score to colour it: a city, or an hour without one (hybrid mockup). */
@@ -1743,6 +1746,13 @@ export const glass = {
   /** The sheen across a card's top-left, and the fainter one at its bottom-right. */
   sheen: 0.16,
   sheenLow: 0.08,
+  /**
+   * A tile inside a glass card — a trip day, a grid cell (the mockup's
+   * `.ttile`, `.gcell`): its fill, and the dashed rim of a day not scored yet
+   * (alphas of `light`).
+   */
+  tileFill: 0.05,
+  tileDash: 0.22,
   /** Any pane's fill when the reader asks for less transparency: near-opaque, with no blur. */
   opaqueFill: 0.92,
   /** How far above the screen's bottom edge the dock floats. */

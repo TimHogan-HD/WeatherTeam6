@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { useParams } from 'react-router-dom'
 import { useNavigate } from '../hooks/useNavigate.js'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
-import { colors, spacing } from '@weatherteam6/design/tokens'
+import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import {
   rockTypeLabel,
   type HourlySeries,
@@ -11,10 +11,11 @@ import {
   type WeatherAlert,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, cardV2, navClearance, stack } from '../theme/styles.js'
-import { DetailHeader } from '../components/DetailHeader.js'
+import { bareButton, navClearance, row, stack } from '../theme/styles.js'
+import { GuideCard } from '../components/guidebook/parts.js'
 import { InlineError, Skeleton } from '../components/States.js'
-import { TripCragView, type QueryState } from '../components/trips/TripCragView.js'
+import { SourcesNote, TripCragView, outlookModels, type QueryState } from '../components/trips/TripCragView.js'
+import { TripHead } from './Trips.js'
 import { TripCragGrid } from '../components/trips/TripCragGrid.js'
 import { TripLookBackGrid, TripLookBackView } from '../components/trips/TripLookBack.js'
 import { hourlyQuery } from '../hooks/useHourly.js'
@@ -101,11 +102,17 @@ export function TripScreen() {
   const meta =
     t === undefined
       ? null
-      : [formatTripDates(t.startDate, t.endDate), tripTiming(t, today), focus === null ? cragCount(ids.length) : rock]
+      : [
+          formatTripDates(t.startDate, t.endDate),
+          tripTiming(t, today),
+          focus === null ? cragCount(ids.length) : null,
+          // A one-crag trip's title is the trip, so its crag is named here.
+          cragParam === undefined && single !== undefined ? (byId.get(single)?.name ?? null) : null,
+          focus === null ? null : rock,
+        ]
           .filter((p): p is string => p !== null)
           .join(' · ')
   const title = cragParam === undefined ? (t?.name ?? null) : (focusLocation?.name ?? null)
-  const eyebrow = cragParam === undefined ? (single === undefined ? null : (byId.get(single)?.name ?? null)) : (t?.name ?? null)
 
   const findOutlook = (id: string): TripOutlook | undefined => forecast.data?.find((o) => o.locationId === id)
   const outlookQuery = (id: string): QueryState<TripOutlook | undefined> => ({
@@ -166,9 +173,9 @@ export function TripScreen() {
     ) : forecast.isPending ? (
       <Skeleton height={220} />
     ) : forecast.isError ? (
-      <section style={cardV2}>
+      <GuideCard title={null}>
         <InlineError message="Couldn't load the trip forecast." onRetry={() => void forecast.refetch()} />
-      </section>
+      </GuideCard>
     ) : (
       <TripCragGrid
         dates={tripDates(trip.data.startDate, trip.data.endDate)}
@@ -187,56 +194,50 @@ export function TripScreen() {
 
   return (
     <main style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-      <DetailHeader
-        heading={{ eyebrow, title, meta }}
+      <TripHead
         back={{ label: back.label, onBack: () => void navigate(back.to) }}
+        title={title}
+        meta={meta}
         feedbackLocationId={focus}
-        tabs={null}
       />
-      <div style={{ ...stack(spacing.listGapLg), padding: `${spacing.sectionGap}px`, paddingBottom: navClearance }}>
+      <div style={{ ...stack(spacing.listGapLg), padding: `0 ${spacing.sectionGap}px`, paddingBottom: navClearance }}>
         {body}
-        {cragParam === undefined && t !== undefined ? (
-          <div style={{ display: 'flex', gap: `${spacing.sectionGap}px` }}>
-          <button
-            type="button"
-            style={{
-              ...bareButton,
-              ...typeV2.factLabel,
-              width: 'auto',
-              padding: `${spacing.cellPad}px 0`,
-            }}
-            onClick={() => void navigate(editTripPath(t.id))}
-          >
-            Edit trip
-          </button>
-          <button
-            type="button"
-            style={{
-              ...bareButton,
-              ...typeV2.factLabel,
-              color: colors.poor,
-              width: 'auto',
-              padding: `${spacing.cellPad}px 0`,
-            }}
-            onClick={
-              confirmingDelete
-                ? () =>
-                    remove.mutate(t.id, {
-                      onSuccess: () => {
-                        void navigate('/trips', { replace: true })
-                        setTimeout(() => forgetTrip(queryClient, t.id), 0)
-                      },
-                    })
-                : () => setConfirmingDelete(true)
-            }
-            disabled={remove.isPending}
-          >
-            {remove.isPending ? 'Deleting…' : confirmingDelete ? 'Tap again to delete' : 'Delete trip'}
-          </button>
-          </div>
-        ) : null}
-        {remove.isError ? <p style={{ ...typeV2.note, color: colors.poor }}>Couldn’t delete the trip.</p> : null}
+        {t === undefined ? null : (
+          <GuideCard title="Trip" label="Trip">
+            {over ? null : <SourcesNote models={outlookModels(forecast.data)} agreement />}
+            <div style={{ ...row(spacing.sectionGap), justifyContent: 'space-between' }}>
+              <button
+                type="button"
+                style={{ ...tripAction, color: colorsV2.brandInk }}
+                onClick={() => void navigate(editTripPath(t.id))}
+              >
+                Edit trip
+              </button>
+              <button
+                type="button"
+                style={{ ...tripAction, color: colorsV2.poorInk }}
+                onClick={
+                  confirmingDelete
+                    ? () =>
+                        remove.mutate(t.id, {
+                          onSuccess: () => {
+                            void navigate('/trips', { replace: true })
+                            setTimeout(() => forgetTrip(queryClient, t.id), 0)
+                          },
+                        })
+                    : () => setConfirmingDelete(true)
+                }
+                disabled={remove.isPending}
+              >
+                {remove.isPending ? 'Deleting…' : confirmingDelete ? 'Tap again to delete' : 'Delete trip'}
+              </button>
+            </div>
+            {remove.isError ? <p style={{ ...typeV2.note, color: colorsV2.poorInk }}>Couldn’t delete the trip.</p> : null}
+          </GuideCard>
+        )}
       </div>
     </main>
   )
 }
+
+const tripAction: CSSProperties = { ...bareButton, ...typeV2.dayPick, width: 'auto', minHeight: '44px' }

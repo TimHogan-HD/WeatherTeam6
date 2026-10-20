@@ -16,10 +16,20 @@ import { InlineError, Skeleton } from '../States.js'
  * drawn to the hybrid mockup's Crag screens (Phase 4a).
  */
 
-/** A glass card with the mockup's aqua section title. */
-export function GuideCard({ title, aside, children }: { title: string | null; aside?: string | null; children: ReactNode }) {
+/** A glass card with the mockup's aqua section title. `label` names it as a region. */
+export function GuideCard({
+  title,
+  aside,
+  label,
+  children,
+}: {
+  title: string | null
+  aside?: string | null
+  label?: string
+  children: ReactNode
+}) {
   return (
-    <section style={{ ...sectCard, ...stack(spacing.listGap) }}>
+    <section style={{ ...sectCard, ...stack(spacing.listGap) }} aria-label={label}>
       {title === null ? null : <Sect title={title} aside={aside ?? null} />}
       {children}
     </section>
