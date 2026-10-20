@@ -513,7 +513,7 @@ function RainCard({ props }: { props: OverviewTabProps }) {
             label: 'Next rain',
             value: 'None likely',
             note: [
-              next.peak === null ? null : `highest ${next.peak.chancePct}% ${shortDay(next.peak.local_date, todayDate)}`,
+              next.peak === null ? null : `highest ${next.peak.chancePct}% ${shortDate(next.peak.local_date, todayDate)}`,
               `through ${shortDate(next.throughDate, todayDate)}`,
             ]
               .filter((s): s is string => s !== null)
