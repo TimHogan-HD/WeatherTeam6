@@ -165,7 +165,11 @@ drops one is a regression:
    **3c, built 2026-10-20: fill the space** (owner: "things should fill the space accurately
    … intentionally full, not stretched"). Daily rows carried a 24-hour strip under each day,
    each hour coloured by its score, **removed 2026-10-20** (owner: "the color bar here is
-   pointless"); the rows keep their 12px padding. The Overview's Rain, Air and Rock cards drop the
+   pointless"). Instead the rows are drawn at phone size (owner: "it doesn't have to be
+   microscopic"): the full weekday with its date under it (`dayHeading`), the score at 34px,
+   the low and high at 15px either side of the bar rather than 9px over it, the chance at
+   20px and the line under at 14px (`typeV2.dayName`, `dayDate`, `dailyScore`, `dayTemp`,
+   `dayChance`, `daySub`), so the week fills a 480×1000 screen. The Overview's Rain, Air and Rock cards drop the
    mockup's label-left, figure-right lines for **stat tiles**: label above figure, note under
    it, equal columns with a hairline between (`typeV2.statLabel`/`statFigure`). **This
    departs from the mockup at the owner's request**: a label at one edge of a card and its

@@ -13,7 +13,7 @@ import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, cardV2 } from '../theme/styles.js'
 import { formatTempDeg } from '../lib/format.js'
 import { findToday } from '../lib/forecast.js'
-import { scoredDays, shortDay, type DayReadings } from '../lib/overview.js'
+import { scoredDays, type DayReadings } from '../lib/overview.js'
 import { scoreRampColor } from './charts/chartStyle.js'
 import { Sect } from './charts/liquid.js'
 import { SkyIcon } from './Icons.js'
@@ -84,14 +84,24 @@ export type DailyListProps = {
 
 const rowGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '24px minmax(0, 1fr) 44px 104px 38px',
+  gridTemplateColumns: '28px minmax(0, 1fr) 56px 124px 44px',
   columnGap: '8px',
-  rowGap: '4px',
+  rowGap: '8px',
   alignItems: 'center',
-  padding: '12px 0',
-  minHeight: '56px',
+  padding: '14px 0',
   borderBottom: `1px solid ${colorsV2.line}`,
   textAlign: 'left',
+}
+
+/** "Today" or the full weekday, and the date under it — "Oct 21". */
+export function dayHeading(isoDate: string, todayDate: string): { name: string; date: string } {
+  const [y, m, d] = isoDate.split('-').map(Number)
+  if (y === undefined || m === undefined || d === undefined || ![y, m, d].every(Number.isFinite)) {
+    return { name: isoDate, date: '' }
+  }
+  const at = new Date(Date.UTC(y, m - 1, d))
+  const name = isoDate === todayDate ? 'Today' : at.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })
+  return { name, date: at.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) }
 }
 
 export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDates }: DailyListProps) {
@@ -116,7 +126,7 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
           const open = onSelectDay !== undefined && drawableDates?.has(day.forecast_date) === true ? () => onSelectDay(day.forecast_date) : null
           const summary = skyByDate.get(day.forecast_date) ?? null
           const chance = dayRainChance(hours, day.forecast_date)
-          const name = shortDay(day.forecast_date, todayDate)
+          const { name, date } = dayHeading(day.forecast_date, todayDate)
           // The mockup's `best 11a–2p · Dry · 0 in · peak wind 20 mph`. "good", not "best": the
           // span is the day's good hours, not the three-hour run its score comes from.
           const sub = [
@@ -141,40 +151,33 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
             )
           const content = (
             <>
-              {summary === null ? <span /> : <SkyIcon sky={skyDayIcon(summary)} size={22} />}
-              <span style={typeV2.dayName}>{name}</span>
+              {summary === null ? <span /> : <SkyIcon sky={skyDayIcon(summary)} size={28} />}
+              <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <span style={{ ...typeV2.dayName, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+                <span style={typeV2.dayDate}>{date}</span>
+              </span>
               <b
                 data-day-score=""
                 style={{
-                  ...typeV2.dayScore,
+                  ...typeV2.dailyScore,
                   textAlign: 'center',
                   color: d.score === null ? colorsV2.txtMuted : scoreRampColor(d.score),
                 }}
               >
                 {readings === null ? '' : (d.score ?? EM_DASH)}
               </b>
-              <span style={{ position: 'relative', ...typeV2.axisTick, height: '22px' }}>
-                <span style={{ position: 'absolute', left: 0, top: '-5px', color: colorsV2.txtMuted }}>{formatTempDeg(day.temp_c_min)}</span>
-                <span style={{ position: 'absolute', right: 0, top: '-5px', color: colorsV2.txt1 }}>{formatTempDeg(day.temp_c_max)}</span>
-                <span
-                  style={{
-                    position: 'absolute',
-                    left: '26px',
-                    right: '26px',
-                    top: '12px',
-                    height: '6px',
-                    borderRadius: '3px',
-                    background: colorsV2.tempBarTrack,
-                  }}
-                >
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', ...typeV2.dayTemp, fontVariantNumeric: 'tabular-nums' }}>
+                <span style={{ width: '30px', textAlign: 'right', color: colorsV2.txtMuted }}>{formatTempDeg(day.temp_c_min)}</span>
+                <span style={{ position: 'relative', flex: '1 1 auto', height: '6px', borderRadius: '3px', background: colorsV2.tempBarTrack }}>
                   {bar}
                 </span>
+                <span style={{ width: '30px', color: colorsV2.txt1 }}>{formatTempDeg(day.temp_c_max)}</span>
               </span>
               <span style={{ ...typeV2.dayChance, textAlign: 'right' }}>{chance === null ? EM_DASH : `${chance}%`}</span>
-              <span style={{ ...typeV2.rowSmall, gridColumn: '2 / -1' }}>{sub.join(' · ')}</span>
+              <span style={{ ...typeV2.daySub, gridColumn: '2 / -1' }}>{sub.join(' · ')}</span>
             </>
           )
-          const spoken = `${name}: ${d.score === null ? 'no score' : `score ${d.score}`}, low ${formatTempDeg(day.temp_c_min)}, high ${formatTempDeg(day.temp_c_max)}, ${chance === null ? 'chance of rain unknown' : `${chance}% chance of rain`}`
+          const spoken = `${[name, date].filter((s) => s !== '').join(' ')}: ${d.score === null ? 'no score' : `score ${d.score}`}, low ${formatTempDeg(day.temp_c_min)}, high ${formatTempDeg(day.temp_c_max)}, ${chance === null ? 'chance of rain unknown' : `${chance}% chance of rain`}`
           const style = i === rows.length - 1 ? { ...rowGrid, borderBottom: 'none' } : rowGrid
           return open === null ? (
             <div key={day.forecast_date} style={style}>
