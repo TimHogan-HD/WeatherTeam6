@@ -5,10 +5,10 @@ import { SPLASH_ICON } from './splashIcon.js'
  * The service worker, written at build time by the `wt6-service-worker` plugin
  * in `vite.config.ts` with the build's own file list baked in.
  *
- * **It keeps the app's own files on the device, and nothing else.** A cold
- * open used to download the page and its scripts before drawing anything; now
- * it draws from the device and the list (`rememberedLocations.ts`) at once,
- * and the weather loads as before. API calls go to another origin and are never
+ * **It keeps the app's own files on the device, and nothing else.** An open
+ * fetches only the small page and takes the scripts from the device, then
+ * draws the list (`rememberedLocations.ts`); offline it draws from the device
+ * alone. The weather loads as before. API calls go to another origin and are never
  * intercepted, so no weather, score or reading is ever served from here. The
  * Google Fonts stylesheet is left to the browser as well: the page's CSP gives
  * a worker no `connect-src` to reach it. The Map tab's tiles, glyphs and
