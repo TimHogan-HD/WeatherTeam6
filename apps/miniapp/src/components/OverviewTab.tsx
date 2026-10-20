@@ -18,6 +18,7 @@ import { useNow } from '../hooks/useNow.js'
 import { scoreRampColor } from './charts/chartStyle.js'
 import { TODAY_CHART_MIN_H, TodayChart } from './charts/TodayChart.js'
 import { InlineError, Skeleton } from './States.js'
+import { ScoreBars } from './ScoreBars.js'
 
 /**
  * The Overview tab under the hero, owner's pick 2026-09-30 (mockup D+):
@@ -265,9 +266,23 @@ function ComingUpSection({ props }: { props: OverviewTabProps }) {
   )
 }
 
+/** A crag's score bars. A city has no score, and a pending or failed `/hourly` is the Hourly section's to report. */
+function ScoreBarsSection({ props }: { props: OverviewTabProps }) {
+  const now = useNow()
+  if (!props.isClimbingLocation || props.hourly.data === undefined) return null
+  return (
+    <ScoreBars
+      series={props.hourly.data}
+      nowMs={now}
+      alerts={{ severeAlertEvent: props.severeAlertEvent, alertsPending: props.alertsPending }}
+    />
+  )
+}
+
 export function OverviewTab(props: OverviewTabProps) {
   return (
     <>
+      <ScoreBarsSection props={props} />
       <TodaySection props={props} />
       <ComingUpSection props={props} />
     </>

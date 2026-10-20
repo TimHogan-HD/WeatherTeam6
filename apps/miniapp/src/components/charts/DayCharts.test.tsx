@@ -77,7 +77,7 @@ function series(hours: HourlySample[], days: HourlyDay[] = [day(DAY_1)]): Hourly
 
 function render(s: HourlySeries, date = DAY_1): string {
   return renderToStaticMarkup(
-    <DayCharts series={s} selectedDate={date} onSelectDate={() => {}} />,
+    <DayCharts series={s} selectedDate={date} onSelectDate={() => {}} readMs={null} onRead={() => {}} />,
   )
 }
 
@@ -102,8 +102,12 @@ describe('DayCharts headers', () => {
     // "unknown" are different answers.
     const dry = fullDay.map((h) => ({ ...h, precip_mm_mean: null }))
     const html = render(series(dry))
-    expect(html).toContain('No hourly rainfall for this day.')
     expect(html).not.toContain('>none<')
+    expect(html).not.toContain('Dry all day')
+    // The chance still draws; the amount it would have drawn over it does not.
+    expect(chartSvg(html, 'Rain by hour')).not.toContain(`stroke="${chartColorsV2.rain}"`)
+    const noRain = fullDay.map((h) => ({ ...h, precip_mm_mean: null, precip_chance_pct: null }))
+    expect(render(series(noRain))).toContain('No hourly rainfall for this day.')
   })
 
   it('counts only the measured hours when coverage is partial', () => {
@@ -113,12 +117,16 @@ describe('DayCharts headers', () => {
     expect(render(series(partial))).toContain('0.03 in')
   })
 
-  it('labels the chance figure as a peak, not as the day’s chance', () => {
-    // A bare "70%" beside "Chance of rain" reads as the day's chance when it is
-    // one hour's. Its siblings are labelled ("gusts 21 mph", a total), so this
-    // one was the odd figure out.
-    const spike = fullDay.map((h, i) => ({ ...h, precip_chance_pct: i === 12 ? 70 : 5 }))
-    expect(render(series(spike))).toContain('peak 70%')
+  it('draws the chance as columns on a 0-100 scale, under the amount on its own scale', () => {
+    // Chance and amount share one chart (hybrid look): the chance on the left
+    // scale, defined rather than measured, and the amount on the right.
+    const spike = fullDay.map((h, i) => ({ ...h, precip_chance_pct: i === 12 ? 70 : 35 }))
+    const html = render(series(spike))
+    const svg = chartSvg(html, 'Rain by hour')
+    expect(svg).toContain(`fill="${chartColorsV2.chanceColumn}"`)
+    expect(svg).toContain(`stroke="${chartColorsV2.rain}"`)
+    expect(html).toContain('>100%<')
+    expect(html).toContain('chance left · in / hr right')
   })
 
   it('labels the wind figure as gusts, which is what it reads', () => {
@@ -207,7 +215,7 @@ describe('DayCharts — the readings belong to the day on screen', () => {
           days,
         )}
         selectedDate={date}
-        onSelectDate={() => {}}
+        onSelectDate={() => {}} readMs={null} onRead={() => {}}
         score={OPEN_SCORE}
       />,
     )
@@ -245,7 +253,7 @@ describe('DayCharts — the readings belong to the day on screen', () => {
           week,
         )}
         selectedDate={DAY_1}
-        onSelectDate={() => {}}
+        onSelectDate={() => {}} readMs={null} onRead={() => {}}
         score={{ severeAlertEvent: 'Excessive Heat Warning', alertsPending: false, showScore: true }}
       />,
     )
@@ -265,7 +273,7 @@ describe('DayCharts — the readings belong to the day on screen', () => {
           week,
         )}
         selectedDate={DAY_1}
-        onSelectDate={() => {}}
+        onSelectDate={() => {}} readMs={null} onRead={() => {}}
         score={{ severeAlertEvent: null, alertsPending: true, showScore: true }}
       />,
     )
@@ -315,7 +323,7 @@ describe('DayCharts — the spread is drawn on every series that has one', () =>
     const spread = Array.from({ length: 24 }, (_, i) =>
       hour(i, DAY_1, { precip_mm_mean: 0.4, precip_mm_p10: 0, precip_mm_p90: 4 }),
     )
-    const svg = chartSvg(render(series(spread)), 'Rainfall by hour')
+    const svg = chartSvg(render(series(spread)), 'Rain by hour')
     // **The band's own fill, not just "a path".** The line is a `<path>` too,
     // so a bare tag assertion passes with the band deleted.
     expect(svg).toContain(`fill="${chartColorsV2.rainBand}"`)
@@ -365,7 +373,7 @@ describe('DayCharts — dew point and humidity', () => {
   )
 
   it('draws the dew point on the temperature chart as a dashed line of its own colour', () => {
-    const svg = chartSvg(render(series(humid)), 'Temperature by hour')
+    const svg = chartSvg(render(series(humid)), 'Temperature, dew point and humidity by hour')
     expect(svg).toContain(`stroke="${chartColorsV2.dewPoint}"`)
     expect(svg).toContain('stroke-dasharray')
     expect(render(series(humid))).toContain('Dew point')
@@ -374,7 +382,7 @@ describe('DayCharts — dew point and humidity', () => {
   it('keeps the dew point inside the plot when it sits far below the air', () => {
     // 5 °C against a band from 12 °C: a domain taken from the band alone puts
     // the dew point below the frame, where SVG draws it over the next chart.
-    const svg = chartSvg(render(series(humid)), 'Temperature by hour')
+    const svg = chartSvg(render(series(humid)), 'Temperature, dew point and humidity by hour')
     const at = svg.indexOf(`stroke="${chartColorsV2.dewPoint}"`)
     const open = svg.lastIndexOf(' d="', at) + 4
     const d = svg.slice(open, svg.indexOf('"', open))
@@ -384,17 +392,26 @@ describe('DayCharts — dew point and humidity', () => {
     expect(Math.max(...ys)).toBeLessThanOrEqual(106)
   })
 
-  it('draws humidity and states the day’s range', () => {
+  it('draws humidity on the temperature chart, on its own 0-100 scale at the right', () => {
     const html = render(series(humid))
-    chartSvg(html, 'Humidity by hour')
-    expect(html).toContain('40–63%')
+    const svg = chartSvg(html, 'Temperature, dew point and humidity by hour')
+    expect(svg).toContain(`stroke="${chartColorsV2.humidity}"`)
+    // **Defined, not measured**: 40-63% drawn against 0-100, so a steady day
+    // stays flat. Measured, 63% would sit at the very top of the plot.
+    const at = svg.indexOf(`stroke="${chartColorsV2.humidity}"`)
+    const open = svg.lastIndexOf(' d="', at) + 4
+    const ys = [...svg.slice(open, svg.indexOf('"', open)).matchAll(/,(-?[0-9.]+)/g)].map((m) => Number(m[1]))
+    // 63% of the 96-unit plot under a 10-unit top pad lands near 45.5.
+    expect(Math.min(...ys)).toBeGreaterThan(40)
+    expect(html).toContain('°F · humidity right')
+    expect(html).toContain('>Humidity<')
   })
 
   it('names the model the dew point and humidity came from, and only when one is drawn', () => {
     expect(render(series(humid))).toContain('Dew point and humidity from Open-Meteo · GFS')
     // The default fixture carries neither column.
     expect(render(series(fullDay))).not.toContain('Dew point and humidity')
-    expect(render(series(fullDay))).toContain('No hourly humidity for this day.')
+    expect(render(series(fullDay))).not.toContain('>Humidity<')
     expect(render(series(fullDay))).not.toContain('>Dew point<')
   })
 })
@@ -419,7 +436,7 @@ describe('DayCharts — the conditions card', () => {
           readings: { model: 'gfs_seamless', unavailable_reason: null, hours: readingHours, days },
         }}
         selectedDate={DAY_1}
-        onSelectDate={() => {}}
+        onSelectDate={() => {}} readMs={null} onRead={() => {}}
         score={score}
       />,
     )
@@ -502,5 +519,49 @@ describe('DayCharts — sky', () => {
   it('draws nothing from an API that sent no sky, or for another day’s hours', () => {
     expect(render(series(fullDay))).not.toContain('>Sky<')
     expect(render(withSky([skyHour(8, 'sunny', DAY_2)], null))).not.toContain('>Sky<')
+  })
+})
+
+describe('DayCharts — dry all day', () => {
+  const dry = fullDay.map((h, i) => ({ ...h, precip_mm_mean: 0, precip_chance_pct: i === 7 ? 6 : 2 }))
+
+  it('keeps the frame and hour labels, draws no marks, and names the highest chance and its hour', () => {
+    const html = render(series(dry))
+    const svg = chartSvg(html, 'Rain by hour')
+    expect(html).toContain('Dry all day')
+    expect(visibleText(html)).toContain('Highest chance: 6% · 7 AM')
+    // No columns, no amount line or range, no right-hand inch scale, no key.
+    expect(svg).not.toContain(chartColorsV2.chanceColumn)
+    expect(svg).not.toContain(`stroke="${chartColorsV2.rain}"`)
+    expect(html).not.toContain('>Chance of rain<')
+    expect(html).not.toContain('>Average<')
+    expect(html).toContain('>100%<')
+    expect(html).toContain('>06<')
+  })
+
+  it('is not called dry when one hour reaches 10%, or when an hour was not read', () => {
+    const wetter = dry.map((h, i) => (i === 15 ? { ...h, precip_chance_pct: 10 } : h))
+    expect(render(series(wetter))).not.toContain('Dry all day')
+    const gap = dry.map((h, i) => (i === 15 ? { ...h, precip_chance_pct: null } : h))
+    expect(render(series(gap))).not.toContain('Dry all day')
+  })
+})
+
+describe('DayCharts — one hour read across every chart', () => {
+  const humid = Array.from({ length: 24 }, (_, i) => hour(i, DAY_1, { dewpoint_c: 5, humidity_pct: 50 }))
+  const readAt = (ms: number | null) =>
+    renderToStaticMarkup(
+      <DayCharts series={series(humid)} selectedDate={DAY_1} onSelectDate={() => {}} readMs={ms} onRead={() => {}} />,
+    )
+
+  it('rings the read hour on the temperature, rain and wind charts', () => {
+    const html = readAt(T0 + 9 * HOUR_MS)
+    for (const title of ['Temperature, dew point and humidity by hour', 'Rain by hour', 'Wind by hour']) {
+      expect(chartSvg(html, title)).toContain(`stroke="${chartColorsV2.beadRing}"`)
+    }
+  })
+
+  it('draws no ring when no hour is read', () => {
+    expect(readAt(null)).not.toContain(chartColorsV2.beadRing)
   })
 })

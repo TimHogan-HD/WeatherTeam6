@@ -165,7 +165,7 @@ function render(tabs: Partial<Tabs> = {}): string {
           active: 'daily',
           onTabChange: () => {},
           selectedDate: DAY_1,
-          onSelectDate: () => {},
+          onSelectDate: () => {}, readMs: null, onRead: () => {},
           panelId: 'panel',
           ...tabs,
         },
@@ -220,7 +220,7 @@ describe('DetailView — tabs', () => {
     const onTabChange = vi.fn()
     const onSelectDate = vi.fn()
     openDayInHourly(
-      { active: 'daily', onTabChange, selectedDate: DAY_1, onSelectDate, panelId: 'panel' },
+      { active: 'daily', onTabChange, selectedDate: DAY_1, onSelectDate, readMs: null, onRead: () => {}, panelId: 'panel' },
       DAY_2,
     )
     expect(onSelectDate).toHaveBeenCalledWith(DAY_2)
@@ -250,7 +250,7 @@ describe('DetailView — tabs', () => {
               active,
               onTabChange: () => {},
               selectedDate: DAY_1,
-              onSelectDate: () => {},
+              onSelectDate: () => {}, readMs: null, onRead: () => {},
               panelId: 'panel',
             },
           }}
@@ -280,7 +280,7 @@ describe('DetailView — tabs', () => {
               active,
               onTabChange: () => {},
               selectedDate: DAY_1,
-              onSelectDate: () => {},
+              onSelectDate: () => {}, readMs: null, onRead: () => {},
               panelId: 'panel',
             },
           }}
@@ -313,7 +313,7 @@ describe('DetailView — tabs', () => {
             active: 'hourly',
             onTabChange: () => {},
             selectedDate: null,
-            onSelectDate: () => {},
+            onSelectDate: () => {}, readMs: null, onRead: () => {},
             panelId: 'panel',
           },
         }}
@@ -339,7 +339,7 @@ describe('DetailView — tabs', () => {
             active: 'daily',
             onTabChange: () => {},
             selectedDate: null,
-            onSelectDate: () => {},
+            onSelectDate: () => {}, readMs: null, onRead: () => {},
             panelId: 'panel',
           },
         }}
@@ -366,7 +366,7 @@ describe('DetailView — tabs', () => {
             active: 'daily',
             onTabChange: () => {},
             selectedDate: null,
-            onSelectDate: () => {},
+            onSelectDate: () => {}, readMs: null, onRead: () => {},
             panelId: 'panel',
           },
         }}
@@ -432,7 +432,7 @@ describe('DetailView — the Overview tab', () => {
             active: 'overview',
             onTabChange: () => {},
             selectedDate: DAY_1,
-            onSelectDate: () => {},
+            onSelectDate: () => {}, readMs: null, onRead: () => {},
             panelId: 'panel',
           },
         }}
@@ -540,7 +540,7 @@ describe('DetailView — Precip tab', () => {
         forecast={ok([day(DAY_1)])}
         hourly={{
           ...ok(hourlySeries),
-          tabs: { active: 'precip', onTabChange: () => {}, selectedDate: DAY_1, onSelectDate: () => {}, panelId: 'panel' },
+          tabs: { active: 'precip', onTabChange: () => {}, selectedDate: DAY_1, onSelectDate: () => {}, readMs: null, onRead: () => {}, panelId: 'panel' },
         }}
         recentPrecip={ok(data)}
       />,

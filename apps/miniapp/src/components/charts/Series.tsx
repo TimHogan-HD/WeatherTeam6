@@ -74,6 +74,10 @@ export type SeriesProps = {
    * read as a second temperature forecast drawn in another colour.
    */
   dash?: string
+  /** Lines only: an SVG filter reference, the chart's glow. */
+  filter?: string
+  /** Lines only: the stroke width, when it is not `LINE_W`. */
+  width?: number
 }
 
 function pointsIn(
@@ -95,7 +99,7 @@ function pointsIn(
   return out
 }
 
-function LineMarks({ data, x, y, color, bandColor, bandData, dash }: Omit<SeriesProps, 'kind'>) {
+function LineMarks({ data, x, y, color, bandColor, bandData, dash, filter, width = LINE_W }: Omit<SeriesProps, 'kind'>) {
   const source = bandData ?? data
   const bands = bandColor === undefined ? [] : bandRuns(source)
   const lines = valueRuns(data)
@@ -122,10 +126,11 @@ function LineMarks({ data, x, y, color, bandColor, bandData, dash }: Omit<Series
               d={path}
               fill="none"
               stroke={color}
-              strokeWidth={LINE_W}
+              strokeWidth={width}
               strokeLinecap="round"
               strokeLinejoin="round"
               {...(dash === undefined ? {} : { strokeDasharray: dash })}
+              {...(filter === undefined ? {} : { filter })}
               vectorEffect="non-scaling-stroke"
             />
           )

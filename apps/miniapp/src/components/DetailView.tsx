@@ -119,6 +119,9 @@ export type DetailViewProps = {
       /** `null` until a day is picked, and when no day in the window is drawable. */
       selectedDate: string | null
       onSelectDate: (localDate: string) => void
+      /** The hour Hourly's charts read together, epoch ms, and the slim header with them. */
+      readMs: number | null
+      onRead: (ms: number) => void
       /** The id the header's tabs point `aria-controls` at. */
       panelId: string
     }
@@ -353,6 +356,8 @@ export function DetailView({
           series={hourly.data}
           selectedDate={tabs.selectedDate}
           onSelectDate={tabs.onSelectDate}
+          readMs={tabs.readMs}
+          onRead={tabs.onRead}
           {...(!showScore
             ? {}
             : { score: { severeAlertEvent: alertEvent, alertsPending, showScore } })}
