@@ -199,7 +199,7 @@ describe('DetailView — tabs', () => {
     const hourly = render({ active: 'hourly' })
     expect(hourly).not.toMatch(/<span>Seven days</)
     // The day picker, then the hybrid look's three cards.
-    expect(hourly).toMatch(/aria-pressed="true"[^>]*>Today</)
+    expect(hourly).toMatch(/aria-pressed="true" aria-label="Today, /)
     for (const title of ['Temperature and humidity', 'Rain', 'Wind']) expect(hourly).toMatch(new RegExp(`<h2[^>]*><span>${title}<`))
   })
 

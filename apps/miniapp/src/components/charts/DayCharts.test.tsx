@@ -394,13 +394,15 @@ describe('DayCharts — day picker', () => {
   it('shows every day, disabling the one the ensemble never reached', () => {
     const html = render(series(fullDay, week))
     expect(html).toContain('>Today<')
-    expect(html).toMatch(/disabled=""[^>]*>Wed</)
-    expect(html).not.toMatch(/disabled=""[^>]*>Thu</)
+    expect(html).toMatch(/aria-label="Wednesday, [^"]*" disabled=""/)
+    expect(html).not.toMatch(/aria-label="Thursday, [^"]*" disabled=""/)
   })
 
   it('marks the open day as the pressed one', () => {
     const html = render(series(fullDay, week), { date: DAY_3 })
-    expect(html).toMatch(/aria-pressed="true"[^>]*>Thu</)
-    expect(html).toMatch(/aria-pressed="false"[^>]*>Today</)
+    expect(html).toMatch(/aria-pressed="true" aria-label="Thursday, /)
+    expect(html).toMatch(/aria-pressed="false" aria-label="Today, /)
+    // The open day's full name heads the strip.
+    expect(html).toMatch(/<p[^>]*>Thursday/)
   })
 })

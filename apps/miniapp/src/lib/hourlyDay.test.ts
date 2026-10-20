@@ -77,10 +77,10 @@ const days = [
 describe('dayChips', () => {
   it('labels the window’s first day Today and keeps an undrawable day in its place', () => {
     expect(dayChips(days)).toEqual([
-      { local_date: '2026-09-15', label: 'Today', drawable: true },
-      { local_date: '2026-09-16', label: 'Wed', drawable: false },
-      { local_date: '2026-09-17', label: 'Thu', drawable: true },
-      { local_date: '2026-09-18', label: 'Fri', drawable: true },
+      { local_date: '2026-09-15', label: 'Today', name: 'Today', dayOfMonth: '15', date: 'September 15', drawable: true },
+      { local_date: '2026-09-16', label: 'Wed', name: 'Wednesday', dayOfMonth: '16', date: 'September 16', drawable: false },
+      { local_date: '2026-09-17', label: 'Thu', name: 'Thursday', dayOfMonth: '17', date: 'September 17', drawable: true },
+      { local_date: '2026-09-18', label: 'Fri', name: 'Friday', dayOfMonth: '18', date: 'September 18', drawable: true },
     ])
   })
 })

@@ -952,6 +952,28 @@ export const typeV2 = {
     fontSize: 15,
     fontWeight: '600' as const,
   },
+  /** Hourly's open day over the week strip — "Wednesday": Barlow Condensed 26/700. */
+  dayHeadline: {
+    fontFamily: fonts.display,
+    fontSize: 26,
+    fontWeight: '700' as const,
+    lineHeight: 30,
+  },
+  /** A week-strip tile's word — "WED", "TODAY": Barlow 13/600, uppercase, tracking 0.06em. Colour is its state. */
+  dayTileWord: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    fontWeight: '600' as const,
+    letterSpacing: 0.78,
+    textTransform: 'uppercase' as const,
+  },
+  /** A week-strip tile's date — "21": Barlow Condensed 26/700. Colour is its state. */
+  dayTileDate: {
+    fontFamily: fonts.display,
+    fontSize: 26,
+    fontWeight: '700' as const,
+    lineHeight: 26,
+  },
   /** A tab label: Barlow 15/600. Colour is the tab's state. */
   tab: {
     fontFamily: fonts.body,
@@ -1313,6 +1335,8 @@ export const radius = {
   rail: 11,
   /** Rail button */
   railBtn: 8,
+  /** A tile in Hourly's week strip, and its selection fill. */
+  dayTile: 14,
 } as const;
 
 // ─────────────────────────────────────────────
