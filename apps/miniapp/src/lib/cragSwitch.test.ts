@@ -6,10 +6,16 @@ import { swipeDirection, swipeOf, switcherOptions, switchState } from './cragSwi
 const place = (id: string, name: string) => ({ id, name }) as Location
 
 describe('the crag switcher', () => {
-  it('lists the saved places in order, adding the one being read if the list predates it', () => {
+  it('puts the place being read first, then the rest in saved order, wrapping round', () => {
+    const saved = [place('a', 'Red Wing'), place('b', 'Barn Bluff'), place('c', 'Taylors Falls')]
+    expect(switcherOptions(saved, place('a', 'Red Wing')).map((o) => o.id)).toEqual(['a', 'b', 'c'])
+    expect(switcherOptions(saved, place('b', 'Barn Bluff')).map((o) => o.id)).toEqual(['b', 'c', 'a'])
+    expect(switcherOptions(saved, place('c', 'Taylors Falls')).map((o) => o.id)).toEqual(['c', 'a', 'b'])
+  })
+
+  it('adds the place being read, first, when the saved list predates it', () => {
     const saved = [place('a', 'Red Wing'), place('b', 'Barn Bluff')]
-    expect(switcherOptions(saved, place('b', 'Barn Bluff')).map((o) => o.id)).toEqual(['a', 'b'])
-    expect(switcherOptions(saved, place('c', 'Taylors Falls')).map((o) => o.id)).toEqual(['a', 'b', 'c'])
+    expect(switcherOptions(saved, place('d', 'Sandstone')).map((o) => o.id)).toEqual(['d', 'a', 'b'])
   })
 
   it('swipes from the side moved toward', () => {

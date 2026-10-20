@@ -6,13 +6,17 @@ export type SwipeDirection = 1 | -1
 const SWIPE_KEY = 'swipe'
 
 /**
- * The places across a crag's top, in saved order. The one being read is
- * always among them: a place saved a moment ago can be missing from a list
- * fetched before it.
+ * The places across a crag's top: the one being read first, then the rest in
+ * saved order, wrapping round (owner, 2026-10-20: "so we only have to scroll
+ * one way"). The one being read is always among them: a place saved a moment
+ * ago can be missing from a list fetched before it.
  */
 export function switcherOptions(saved: readonly Location[], current: Location): { id: string; name: string }[] {
   const options = saved.map((l) => ({ id: l.id, name: l.name }))
-  return options.some((o) => o.id === current.id) ? options : [...options, { id: current.id, name: current.name }]
+  const at = options.findIndex((o) => o.id === current.id)
+  return at < 0
+    ? [{ id: current.id, name: current.name }, ...options]
+    : [...options.slice(at), ...options.slice(0, at)]
 }
 
 export function swipeDirection(order: readonly string[], from: string, to: string): SwipeDirection {
