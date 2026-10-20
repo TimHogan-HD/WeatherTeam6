@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { colors, colorsV2, components, glass as glassTokens, radius, spacing } from '@weatherteam6/design/tokens'
-import { boxStyle, textStyle, withOpacity } from './tokens.css.js'
+import { boxStyle, textStyle, typeV2, withOpacity } from './tokens.css.js'
 import { glassCard } from './glass.js'
 
 /**
@@ -133,6 +133,18 @@ export const bareButton: CSSProperties = {
   textAlign: 'left',
   cursor: 'pointer',
   width: '100%',
+}
+
+/** The mockup's `.pbtn`: a filled aqua pill for a section's main action — "+ New trip", "Create trip". */
+export const brandButton: CSSProperties = {
+  ...bareButton,
+  ...typeV2.brandButton,
+  width: 'auto',
+  minHeight: '44px',
+  padding: `${spacing.listGap}px 18px`,
+  borderRadius: `${radius.full}px`,
+  backgroundColor: colorsV2.brand,
+  textAlign: 'center',
 }
 
 /**

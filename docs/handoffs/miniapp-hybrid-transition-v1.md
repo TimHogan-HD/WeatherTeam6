@@ -2,7 +2,7 @@
 
 Version: v1
 Date: 2026-10-19
-Status: **Decided by the owner; Phases 1, 2 and 3 built, and 4a (the Crag tab).** Moves `apps/miniapp` to the look in
+Status: **Decided by the owner; Phases 1 to 4 built (4a the Crag tab, 4b Trips).** Moves `apps/miniapp` to the look in
 `docs/handoffs/design-mockups/weatherteam6-hybrid.html`. That mockup is also published
 privately to the owner as https://claude.ai/artifact/18s8fy1HY5D1jR7AxmwE6p, but the
 repo copy is the reference. Where this document and `miniapp-design-v1.md` disagree, this
@@ -223,6 +223,26 @@ drops one is a regression:
    Location card (shared positions), which the mockup does not draw; no Length fact (OpenBeta
    records none in the snapshot); the tick form still opens on Tick it rather than sitting
    open, and its styles stay chips rather than a select.
+   **4b, built 2026-10-20: Trips drawn to the mockup.** The list is the mockup's title,
+   "Soonest first" and an aqua **+ New trip** over a glass card per trip; new and edit trip
+   are one glass card under a crumb, with an aqua submit (`brandButton`). A trip opens on
+   the mockup's head (`TripHead`: a crumb, the name large, dates · timing · crags). One
+   crag's trip is a glass card of day tiles (`glassTile`, three to a row, dashed until
+   scored) with the chosen day under them: its score and good hours, Dryness, then High ·
+   low, Chance and Amount as stat tiles and the Agreement chip. Then **Rain over the trip**
+   (the likely total large, its range as a bar, each day's amount as a bar), **How the
+   forecast has moved**, and a closing **Trip** card with where the figures came from,
+   Edit trip and Delete trip, on every trip screen. Several crags are **By day** (the
+   crag-by-day grid) and a rain line per crag. An ended trip is **How it turned out**: per
+   day, Turned out beside Said first and Said last, one column when one recording is all
+   there was. **Departures, for honesty:** no score-coloured strip on the list's trip
+   cards (the owner removed that kind of bar from Daily); the by-day trend names the dates
+   it compares ("Rain, 4 Oct") where the mockup says "first rain"; a day says "Good hours"
+   where the mockup says "Best 3 PM–6 PM", since a day's score and its good hours are not
+   one three-hour run; what the forecast said about an ended day is its words (`Dry ·
+   100`, or the rain chance past the scored days), not the mockup's chance alone, which
+   the scored recordings do not carry; an unscored grid cell shows the high and chance, not
+   the amount, as the mockup does.
 5. **Map, Profile, Add a crag and Feedback** restyled.
 
 Each phase is its own PR, verified with `npm run check:ui` from `apps/api`, with the

@@ -1,70 +1,60 @@
-import { useState } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import { useLocation as useRouterLocation, useParams } from 'react-router-dom'
 import { useNavigate } from '../hooks/useNavigate.js'
-import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
+import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import type { Trip, UpdateTripInput } from '@weatherteam6/types'
-import { type, typeV2 } from '../theme/tokens.css.js'
-import { bareButton, btnPrimary, btnPrimaryText, cardV2, inputBox, row, stack } from '../theme/styles.js'
-import { PlusIcon } from '../components/Icons.js'
-import { Screen } from '../components/Screen.js'
+import { typeV2 } from '../theme/tokens.css.js'
+import { bareButton, bottomClearance, brandButton, cardV2, headerBand, inputBox, navClearance, row, stack } from '../theme/styles.js'
+import { FeedbackButton } from '../components/FeedbackButton.js'
+import { Crumb } from '../components/guidebook/parts.js'
 import { EmptyState, InlineError, SkeletonCards } from '../components/States.js'
 import { useCreateTrip, useTrip, useTrips, useUpdateTrip } from '../hooks/useTrips.js'
 import { useLocations } from '../hooks/useLocations.js'
 import { NEW_TRIP_PATH, backTarget, editTripPath, tripPath } from '../lib/backTarget.js'
 import { tripDraftFromState, type ForTrip, type TripDraft } from '../lib/tripDraft.js'
 import { cragCount, dateLabel, deviceToday, forecastOpens, formatTripDates, tripTiming } from '../lib/trips.js'
-import { SectionScreen } from './Sections.js'
 
-/** `/trips`: every trip, soonest first, as the API orders them. */
+/**
+ * `/trips`: every trip, soonest first, as the API orders them — the hybrid
+ * mockup's title and a glass card per trip (Phase 4b).
+ */
 export function TripList() {
   const navigate = useNavigate()
   const trips = useTrips()
   const today = deviceToday()
   const openNew = () => void navigate(NEW_TRIP_PATH)
   return (
-    <SectionScreen
-      title="Trips"
-      action={
-        <button
-          type="button"
-          onClick={openNew}
-          style={{
-            ...bareButton,
-            ...row(spacing.tight),
-            width: 'auto',
-            backgroundColor: colors.good,
-            borderRadius: `${radius.full}px`,
-            padding: `${spacing.listGap}px ${spacing.cardPad}px`,
-          }}
-        >
-          <PlusIcon color={colors.onGood} />
-          <span style={typeV2.button}>New trip</span>
+    <main style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+      <header style={{ ...headerBand, ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div style={stack(spacing.tight)}>
+          <h1 style={typeV2.listTitle}>Trips</h1>
+          <p style={{ ...typeV2.rowSmall, color: colorsV2.txtMuted }}>Soonest first</p>
+        </div>
+        <button type="button" onClick={openNew} style={brandButton}>
+          + New trip
         </button>
-      }
-    >
-      {trips.isPending ? (
-        <SkeletonCards count={2} height={80} />
-      ) : trips.isError ? (
-        <InlineError message="Couldn't load your trips." onRetry={() => void trips.refetch()} />
-      ) : trips.data.length === 0 ? (
-        <EmptyState
-          title="No trips yet."
-          action={
-            <button
-              type="button"
-              style={{ ...bareButton, ...btnPrimary, ...btnPrimaryText, textAlign: 'center' }}
-              onClick={openNew}
-            >
-              Plan a trip
-            </button>
-          }
-        />
-      ) : (
-        trips.data.map((trip) => (
-          <TripCard key={trip.id} trip={trip} today={today} onOpen={() => void navigate(tripPath(trip.id))} />
-        ))
-      )}
-    </SectionScreen>
+      </header>
+      <div style={{ ...stack(spacing.listGapLg), padding: `0 ${spacing.sectionGap}px`, paddingBottom: navClearance }}>
+        {trips.isPending ? (
+          <SkeletonCards count={2} height={80} />
+        ) : trips.isError ? (
+          <InlineError message="Couldn't load your trips." onRetry={() => void trips.refetch()} />
+        ) : trips.data.length === 0 ? (
+          <EmptyState
+            title="No trips yet."
+            action={
+              <button type="button" style={{ ...brandButton, width: '100%' }} onClick={openNew}>
+                Plan a trip
+              </button>
+            }
+          />
+        ) : (
+          trips.data.map((trip) => (
+            <TripCard key={trip.id} trip={trip} today={today} onOpen={() => void navigate(tripPath(trip.id))} />
+          ))
+        )}
+      </div>
+    </main>
   )
 }
 
@@ -75,11 +65,49 @@ function TripCard({ trip, today, onOpen }: { trip: Trip; today: string; onOpen: 
     .filter((p): p is string => p !== null)
     .join(' · ')
   return (
-    <button type="button" onClick={onOpen} style={{ ...bareButton, ...cardV2, ...stack(spacing.tight) }}>
-      <span style={typeV2.cardName}>{trip.name}</span>
-      <span style={typeV2.meta}>{meta}</span>
-      {opens === null ? null : <span style={typeV2.note}>Forecast opens {dateLabel(opens)}</span>}
+    <button
+      type="button"
+      onClick={onOpen}
+      style={{ ...bareButton, ...cardV2, ...stack(spacing.micro), padding: `${spacing.sectionGap}px 18px` }}
+    >
+      <span style={typeV2.listName}>{trip.name}</span>
+      <span style={{ ...typeV2.rowSmall, fontSize: '13px' }}>{meta}</span>
+      {opens === null ? null : (
+        <span style={{ ...typeV2.rowSmall, fontSize: '13px', color: colorsV2.fairInk }}>Forecast opens {dateLabel(opens)}</span>
+      )}
     </button>
+  )
+}
+
+/**
+ * The top of a trip's screens and its form: a crumb up a level and Feedback,
+ * then the name large with its dates under it (the mockup's `.toprow` and
+ * `.lhead`).
+ */
+export function TripHead({
+  back,
+  title,
+  meta,
+  feedbackLocationId = null,
+  feedback = true,
+}: {
+  back: { label: string; onBack: () => void }
+  title: string | null
+  meta: string | null
+  feedbackLocationId?: string | null
+  feedback?: boolean
+}) {
+  return (
+    <header style={{ ...headerBand, gap: `${spacing.listGap}px` }}>
+      <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', minHeight: '40px' }}>
+        <Crumb label={back.label} onClick={back.onBack} />
+        {feedback ? <FeedbackButton locationId={feedbackLocationId} /> : null}
+      </div>
+      <div style={stack(spacing.tight)}>
+        {title === null ? null : <h1 style={{ ...typeV2.listTitle, overflowWrap: 'anywhere' }}>{title}</h1>}
+        {meta === null || meta === '' ? null : <p style={{ ...typeV2.rowSmall, color: colorsV2.txtMuted }}>{meta}</p>}
+      </div>
+    </header>
   )
 }
 
@@ -123,6 +151,7 @@ export function TripCreate() {
   return (
     <TripForm
       title="New trip"
+      backLabel="Trips"
       path={NEW_TRIP_PATH}
       initial={returned ?? { name: '', start: today, end: today, locationIds: [] }}
       onBack={() => void navigate(back.to)}
@@ -153,22 +182,23 @@ export function TripEdit() {
 
   if (trip.isPending) {
     return (
-      <Screen title="Edit trip" onBack={onBack}>
+      <FormScreen title="Edit trip" backLabel="Trip" onBack={onBack}>
         <SkeletonCards count={3} height={56} />
-      </Screen>
+      </FormScreen>
     )
   }
   if (trip.isError) {
     return (
-      <Screen title="Edit trip" onBack={onBack}>
+      <FormScreen title="Edit trip" backLabel="Trip" onBack={onBack}>
         <InlineError message="Couldn't load the trip." onRetry={() => void trip.refetch()} />
-      </Screen>
+      </FormScreen>
     )
   }
   const saved = trip.data
   return (
     <TripForm
       title="Edit trip"
+      backLabel={saved.name}
       path={editTripPath(saved.id)}
       // The returned draft is diffed against the saved trip like any other edit.
       initial={
@@ -202,6 +232,8 @@ export function TripEdit() {
 
 type TripFormProps = {
   title: string
+  /** Where the crumb goes, in words: `Trips`, or the trip being edited. */
+  backLabel: string
   /** This form's own path, which "Add a crag" returns to. */
   path: string
   initial: Draft
@@ -214,7 +246,7 @@ type TripFormProps = {
   onSubmit: (draft: Draft) => void
 }
 
-function TripForm({ title, path, initial, onBack, pending, failed, submitLabel, datesNote, onSubmit }: TripFormProps) {
+function TripForm({ title, backLabel, path, initial, onBack, pending, failed, submitLabel, datesNote, onSubmit }: TripFormProps) {
   const navigate = useNavigate()
   const locations = useLocations()
   const [draft, setDraft] = useState<Draft>(initial)
@@ -244,29 +276,29 @@ function TripForm({ title, path, initial, onBack, pending, failed, submitLabel, 
       locationIds: d.locationIds.includes(id) ? d.locationIds.filter((x) => x !== id) : [...d.locationIds, id],
     }))
 
-  const field = { ...inputBox, ...type.calDay, width: '100%' }
   return (
-    <Screen title={title} onBack={onBack}>
+    <FormScreen title={title} backLabel={backLabel} onBack={onBack}>
       <form
-        style={{ ...stack(spacing.sectionGap), marginTop: `${spacing.sectionTop}px` }}
+        style={{ ...cardV2, ...stack(spacing.cellPad), padding: `${spacing.sectionGap}px ${spacing.sectionGap}px 18px` }}
         onSubmit={(e) => {
           e.preventDefault()
           submit()
         }}
       >
-        <label style={stack(spacing.micro)}>
-          <span style={type.label}>Name</span>
+        <label style={stack(spacing.tight)}>
+          <span style={typeV2.statLabel}>Name</span>
           <input
             type="text"
             value={draft.name}
             maxLength={100}
+            placeholder="Red Wing weekend"
             onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
             style={field}
           />
         </label>
         <div style={{ ...row(spacing.listGap), alignItems: 'flex-start' }}>
-          <label style={{ ...stack(spacing.micro), flex: 1, minWidth: 0 }}>
-            <span style={type.label}>First day</span>
+          <label style={{ ...stack(spacing.tight), flex: 1, minWidth: 0 }}>
+            <span style={typeV2.statLabel}>First day</span>
             <input
               type="date"
               value={draft.start}
@@ -277,8 +309,8 @@ function TripForm({ title, path, initial, onBack, pending, failed, submitLabel, 
               style={field}
             />
           </label>
-          <label style={{ ...stack(spacing.micro), flex: 1, minWidth: 0 }}>
-            <span style={type.label}>Last day</span>
+          <label style={{ ...stack(spacing.tight), flex: 1, minWidth: 0 }}>
+            <span style={typeV2.statLabel}>Last day</span>
             <input
               type="date"
               value={draft.end}
@@ -289,36 +321,24 @@ function TripForm({ title, path, initial, onBack, pending, failed, submitLabel, 
           </label>
         </div>
         {note === null ? null : <p style={typeV2.note}>{note}</p>}
-        <fieldset style={{ ...stack(spacing.listGapSm), border: 'none', padding: 0, margin: 0 }}>
-          <legend style={{ ...type.label, marginBottom: `${spacing.listGapSm}px` }}>Crags</legend>
+        <fieldset style={{ ...stack(spacing.micro), border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
+          <legend style={{ ...typeV2.statLabel, padding: 0, marginBottom: `${spacing.tight}px` }}>Crags</legend>
           {locations.isPending ? (
             <SkeletonCards count={2} height={44} />
           ) : locations.isError ? (
             <InlineError message="Couldn't load your crags." onRetry={() => void locations.refetch()} />
           ) : (
-            crags.map((crag) => {
-              const on = draft.locationIds.includes(crag.id)
-              return (
-                <label
-                  key={crag.id}
-                  style={{
-                    ...row(spacing.listGap),
-                    ...cardV2,
-                    padding: `${spacing.cellPad}px ${spacing.cardPad}px`,
-                    borderColor: on ? colorsV2.brand : colorsV2.line,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={on}
-                    onChange={() => toggle(crag.id)}
-                    style={{ accentColor: colorsV2.brand, width: '18px', height: '18px' }}
-                  />
-                  <span style={typeV2.rowTitle}>{crag.name}</span>
-                </label>
-              )
-            })
+            crags.map((crag) => (
+              <label key={crag.id} style={{ ...row(spacing.listGap), minHeight: '44px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={draft.locationIds.includes(crag.id)}
+                  onChange={() => toggle(crag.id)}
+                  style={{ accentColor: colorsV2.brand, width: '20px', height: '20px', margin: 0, flexShrink: 0 }}
+                />
+                <span style={{ ...typeV2.body, fontSize: '15px', color: colorsV2.txt1 }}>{crag.name}</span>
+              </label>
+            ))
           )}
           {locations.isPending ? null : (
             <button
@@ -326,27 +346,50 @@ function TripForm({ title, path, initial, onBack, pending, failed, submitLabel, 
               onClick={addCrag}
               style={{
                 ...bareButton,
-                ...row(spacing.listGap),
-                ...cardV2,
-                padding: `${spacing.cellPad}px ${spacing.cardPad}px`,
-                borderStyle: 'dashed',
+                ...typeV2.dayPick,
+                color: colorsV2.brandInk,
+                minHeight: '44px',
+                marginTop: `${spacing.tight}px`,
+                padding: `0 ${spacing.cellPad}px`,
+                border: `1px dashed ${colorsV2.line}`,
+                borderRadius: `${radius.chipMd}px`,
               }}
             >
-              <PlusIcon color={colorsV2.txtMuted} />
-              <span style={typeV2.rowTitle}>Add a crag</span>
+              + Add a crag
             </button>
           )}
         </fieldset>
-        {tried && problem !== null ? <p style={{ ...type.bodySm, color: colors.poor }}>{problem}</p> : null}
-        {failed === null ? null : <p style={{ ...type.bodySm, color: colors.poor }}>{failed}</p>}
-        <button
-          type="submit"
-          disabled={pending}
-          style={{ ...bareButton, ...btnPrimary, ...btnPrimaryText, textAlign: 'center' }}
-        >
+        {tried && problem !== null ? <p style={{ ...typeV2.body, color: colorsV2.poorInk }}>{problem}</p> : null}
+        {failed === null ? null : <p style={{ ...typeV2.body, color: colorsV2.poorInk }}>{failed}</p>}
+        <button type="submit" disabled={pending} style={{ ...brandButton, width: '100%', marginTop: `${spacing.listGap}px` }}>
           {submitLabel}
         </button>
       </form>
-    </Screen>
+    </FormScreen>
   )
+}
+
+/** The form's frame: the crumb back to where it came from, the title, then the card. No bottom bar sits under it. */
+function FormScreen({ title, backLabel, onBack, children }: { title: string; backLabel: string; onBack: () => void; children: ReactNode }) {
+  return (
+    <main style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+      <TripHead back={{ label: backLabel, onBack }} title={title} meta={null} feedback={false} />
+      <div style={{ ...stack(spacing.listGapLg), padding: `0 ${spacing.sectionGap}px`, paddingBottom: bottomClearance }}>
+        {children}
+      </div>
+    </main>
+  )
+}
+
+const field: CSSProperties = {
+  ...inputBox,
+  ...typeV2.body,
+  fontSize: '16px',
+  color: colorsV2.txt1,
+  width: '100%',
+  minHeight: '44px',
+  backgroundColor: colorsV2.surface,
+  borderColor: colorsV2.line,
+  borderRadius: `${radius.chipMd}px`,
+  colorScheme: 'dark',
 }

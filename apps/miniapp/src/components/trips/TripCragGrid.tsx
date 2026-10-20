@@ -1,12 +1,14 @@
 import type { CSSProperties } from 'react'
-import { colorsV2, radius, spacing, toneSurfacesV2 } from '@weatherteam6/design/tokens'
-import { formatPrecipIn, type TripOutlook } from '@weatherteam6/types'
+import { colorsV2, spacing } from '@weatherteam6/design/tokens'
+import { EM_DASH, formatPrecipIn, type TripOutlook } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
-import { bareButton, cardV2, row, stack } from '../../theme/styles.js'
+import { bareButton, stack } from '../../theme/styles.js'
+import { glassTile } from '../../theme/glass.js'
 import { formatTempDeg } from '../../lib/format.js'
-import { scoreTone } from '../../lib/locationList.js'
 import type { DayReadings } from '../../lib/overview.js'
-import { dateLabel, dateParts, formatShare, outlookState, tripDayTiles, type TripDayTile } from '../../lib/trips.js'
+import { formatShare, outlookState, shortDayLabel, tripDayTiles, type TripDayTile } from '../../lib/trips.js'
+import { scoreRampColor } from '../charts/chartStyle.js'
+import { GuideCard } from '../guidebook/parts.js'
 import { InlineError } from '../States.js'
 import { rainTotalParts } from './TripCragView.js'
 
@@ -20,14 +22,14 @@ export type GridCrag = {
   scoresFailed: (() => void) | null
 }
 
-const CELL_MIN_W = 64
+const CELL_MIN_W = 58
 const NAME_COL_W = 96
 
 /**
- * Several crags side by side: a row per crag, a column per trip day. A scored
- * cell is the score, the dryness word and the day's rain; an unscored one is
- * dashed, with the high, chance and amount. The same tiles the one-crag view
- * draws (`tripDayTiles`), so a day cannot read differently on the two.
+ * Several crags side by side (the mockup's `.tgrid`): a row per crag, a column
+ * per trip day. A scored cell is the score, the Dryness word and the day's
+ * rain; an unscored one is dashed, with the high and chance. The same tiles the
+ * one-crag view draws (`tripDayTiles`), so a day cannot read differently on the two.
  *
  * The grid scrolls sideways inside its card on a long trip; the page never does.
  */
@@ -45,18 +47,13 @@ export function TripCragGrid({
   const columns = `${NAME_COL_W}px repeat(${dates.length}, minmax(${CELL_MIN_W}px, 1fr))`
   return (
     <>
-      <section style={{ ...cardV2, ...stack(spacing.listGap) }} aria-label="By day">
-        <div style={{ ...row(spacing.listGap), justifyContent: 'space-between' }}>
-          <h2 style={{ ...typeV2.kicker, color: colorsV2.txtMuted }}>By day</h2>
-          <span style={typeV2.aside}>Tap a crag</span>
-        </div>
-        <div style={{ overflowX: 'auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: columns, gap: `${spacing.listGapSm}px` }}>
+      <GuideCard title="By day" aside="Tap a crag" label="By day">
+        <div style={{ overflowX: 'auto', paddingBottom: `${spacing.micro}px` }}>
+          <div style={{ display: 'grid', gridTemplateColumns: columns, gap: `${spacing.listGapSm}px`, alignItems: 'center' }}>
             <span />
             {dates.map((d) => (
-              <span key={d} style={{ ...stack(0), alignItems: 'center', ...typeV2.cellHour }}>
-                <span style={{ ...typeV2.rowTitle, fontSize: typeV2.cellHour.fontSize }}>{dateParts(d)?.weekday ?? ""}</span>
-                {dateLabel(d)}
+              <span key={d} style={{ ...typeV2.dayPick, fontSize: '13px', color: colorsV2.txt2, textAlign: 'center' }}>
+                {shortDayLabel(d)}
               </span>
             ))}
             {crags.map((crag) => (
@@ -70,35 +67,38 @@ export function TripCragGrid({
             <InlineError key={crag.locationId} message={`Couldn't load the scores for ${crag.name}.`} onRetry={crag.scoresFailed} />
           ),
         )}
-      </section>
-      <section style={{ ...cardV2, ...stack(spacing.listGap) }} aria-label="Rain over the trip">
-        <div style={{ ...row(spacing.listGap), justifyContent: 'space-between' }}>
-          <h2 style={{ ...typeV2.kicker, color: colorsV2.txtMuted }}>Rain over the trip</h2>
-          <span style={typeV2.aside}>likely · range</span>
-        </div>
-        {crags.map((crag) => {
-          const parts = rainTotalParts(crag.outlook)
-          return (
-            <div
-              key={crag.locationId}
-              style={{ ...row(spacing.listGap), justifyContent: 'space-between', alignItems: 'baseline' }}
-            >
-              <span style={typeV2.rowTitle}>{crag.name}</span>
-              {parts === null ? (
-                <span style={typeV2.note}>{rainUnknown(crag.outlook)}</span>
-              ) : (
-                <span style={{ ...row(spacing.listGapSm), alignItems: 'baseline' }}>
-                  <span style={{ ...typeV2.factValue, color: colorsV2.rain }}>{parts.likely}</span>
-                  <span style={typeV2.note}>
+      </GuideCard>
+      <GuideCard title="Rain over the trip" aside="likely · range" label="Rain over the trip">
+        <div style={stack(0)}>
+          {crags.map((crag, i) => {
+            const parts = rainTotalParts(crag.outlook)
+            return (
+              <div
+                key={crag.locationId}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr auto',
+                  alignItems: 'baseline',
+                  columnGap: `${spacing.listGap}px`,
+                  padding: `${spacing.listGap}px 0`,
+                  borderTop: i === 0 ? 'none' : `1px solid ${colorsV2.line}`,
+                }}
+              >
+                <span style={{ ...typeV2.lineLabel, overflowWrap: 'anywhere' }}>{crag.name}</span>
+                <span style={{ ...typeV2.lineFigure, color: parts === null ? colorsV2.txtMuted : colorsV2.txt1 }}>
+                  {parts === null ? rainUnknown(crag.outlook) : parts.likely}
+                </span>
+                {parts === null ? null : (
+                  <span style={{ ...typeV2.rowSmall, color: colorsV2.txtMuted, gridColumn: '1 / 3' }}>
                     {parts.range}
                     {parts.coverage === null ? '' : ` · ${parts.coverage}`}
                   </span>
-                </span>
-              )}
-            </div>
-          )
-        })}
-      </section>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </GuideCard>
     </>
   )
 }
@@ -134,7 +134,7 @@ function CragRow({
       <button
         type="button"
         onClick={() => onOpen(crag.locationId)}
-        style={{ ...bareButton, ...typeV2.rowTitle, alignSelf: 'center', overflowWrap: 'anywhere' }}
+        style={{ ...bareButton, ...typeV2.listName, fontSize: '16px', lineHeight: '20px', minHeight: '44px', textAlign: 'left', overflowWrap: 'anywhere' }}
       >
         {crag.name} ›
       </button>
@@ -152,44 +152,36 @@ const cellBase: CSSProperties = {
   textAlign: 'center',
   minHeight: '62px',
   padding: `${spacing.tight}px ${spacing.micro}px`,
-  borderRadius: `${radius.chipMd}px`,
-  borderWidth: '1px',
-  ...typeV2.note,
-  lineHeight: '16px',
+  ...typeV2.rowSmall,
+  lineHeight: '15px',
 }
 
 function Cell({ tile, unavailable }: { tile: TripDayTile; unavailable: boolean }) {
   const amount = formatPrecipIn(tile.weather?.precipMm ?? null)
   if (tile.kind === 'scored') {
     const score = tile.summary.score
-    const tone = score === null ? null : toneSurfacesV2[scoreTone(score)]
     const dryness = tile.summary.readings[0]?.value ?? null
     return (
-      <div
-        style={{
-          ...cellBase,
-          borderStyle: 'solid',
-          borderColor: tone?.pillLine ?? colorsV2.line,
-          backgroundColor: tone?.row ?? colorsV2.raised,
-        }}
-      >
-        <span style={{ ...typeV2.cellFigure, color: tone?.pillInk ?? colorsV2.txtMuted }}>{score ?? '—'}</span>
-        {dryness === null ? null : <span style={{ color: tone?.pillInk ?? colorsV2.txt2 }}>{dryness}</span>}
-        <span style={{ color: colorsV2.rain }}>{amount}</span>
+      <div style={{ ...cellBase, ...glassTile({ dashed: false, chosen: false }) }}>
+        <span style={{ ...typeV2.lineFigure, lineHeight: '24px', color: score === null ? colorsV2.txtMuted : scoreRampColor(score) }}>
+          {score ?? EM_DASH}
+        </span>
+        {dryness === null ? null : <span>{dryness}</span>}
+        <span style={{ color: colorsV2.txtMuted }}>{amount}</span>
       </div>
     )
   }
   const chance = formatShare(tile.weather?.chance ?? null)
   return (
-    <div style={{ ...cellBase, borderStyle: 'dashed', borderColor: colorsV2.line, color: colorsV2.txt2 }}>
+    <div style={{ ...cellBase, ...glassTile({ dashed: true, chosen: false }) }}>
+      <span style={{ ...typeV2.lineFigure, lineHeight: '24px', color: colorsV2.txtMuted }}>{EM_DASH}</span>
       {unavailable || tile.weather === null ? (
-        <span style={{ color: colorsV2.txtMuted }}>—</span>
+        <span style={{ color: colorsV2.txtMuted }}>{unavailable ? 'Couldn’t load' : 'No forecast'}</span>
       ) : (
-        <>
-          <span>{formatTempDeg(tile.weather.highC)}</span>
-          {chance === null ? null : <span style={{ color: colorsV2.rain }}>{chance}</span>}
-          <span style={{ color: colorsV2.rain }}>{amount}</span>
-        </>
+        <span style={{ color: colorsV2.txtMuted }}>
+          {formatTempDeg(tile.weather.highC)}
+          {chance === null ? '' : ` · ${chance}`}
+        </span>
       )}
     </div>
   )
