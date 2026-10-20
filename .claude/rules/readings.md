@@ -60,12 +60,13 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   on a flag on the `KNOWN_CRAGS` entry, not on the data being present. It names no
   direction: Crag A does not know which way a crag's walls face (#293).
 - **A score over a span is its worst hour, never a mean or a best.** A day's is
-  `dayRepresentative`; the score bars and any block of hours are the
+  `dayRepresentative`; any block of hours is the
   same rule, and a block with any hour unread or suppressed has no score — the worst of the
   rest could be better than the missing one. **An hour's score may headline only beside
   the hour it is** (owner, 2026-10-19, superseding 2026-10-05's "never"): the Overview hero
   prints the hour covering now, names that hour beside it, and keeps the day's good hours
-  and score on the line under it with the score bars below; Hourly's slim header follows
+  and score on the line under it with the Today chart below — one hourly chart, starting
+  at now (owner, 2026-10-20: the score bars repeated it and were removed); Hourly's slim header follows
   the hour being read (`Today 7 PM`). **Hourly's header is the crag's name as its headline
   and that score, with no line of figures** (owner, 2026-10-20): each chart names the read
   hour's figures in its own chip. Only `Alert: score withheld` prints under the name.

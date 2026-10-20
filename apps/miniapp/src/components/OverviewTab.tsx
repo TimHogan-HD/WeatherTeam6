@@ -43,7 +43,6 @@ import { DryingClock } from './DryingClock.js'
 import { SkyIcon } from './Icons.js'
 import { RollingFigure, usePreviousFigure } from './RollingFigure.js'
 import { Stats, type Stat } from './StatTiles.js'
-import { ScoreBars } from './ScoreBars.js'
 import { ScoreExplainerParts } from './ScoreExplainer.js'
 import { InlineError, Skeleton } from './States.js'
 
@@ -299,18 +298,6 @@ function HeroScore({ score }: { score: number | null }) {
     >
       <RollingFigure value={value} from={was} />
     </span>
-  )
-}
-
-function ScoreBarsCard({ props }: { props: OverviewTabProps }) {
-  const now = useNow()
-  if (!props.isClimbingLocation || props.hourly.data === undefined) return null
-  return (
-    <ScoreBars
-      series={props.hourly.data}
-      nowMs={now}
-      alerts={{ severeAlertEvent: props.severeAlertEvent, alertsPending: props.alertsPending }}
-    />
   )
 }
 
@@ -608,7 +595,6 @@ export function OverviewTab(props: OverviewTabProps) {
   return (
     <>
       <Hero props={props} now={now} />
-      <ScoreBarsCard props={props} />
       <TodayCard props={props} now={now} />
       <NextDaysCard props={props} />
       <BreakdownCard now={now} />

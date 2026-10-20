@@ -20,6 +20,7 @@ import {
   shortSpan,
   chartWindow,
 } from './overview.js'
+import { readingNow } from '@weatherteam6/types'
 import { precipDays, precipSummary } from './precipHistory.js'
 
 // Red Wing in September: UTC-5.
@@ -58,24 +59,21 @@ describe('chartWindow', () => {
   const local = (hour: number) => new Date(start + hour * H).toISOString()
   const alerts = { severeAlertEvent: null, alertsPending: false }
 
-  it('runs six hours back and ten ahead of the hour now is in, across midnight', () => {
-    // 20:40 local: the evening the old 06:00-22:00 chart had nothing left to say about.
-    const w = chartWindow(series(hours), Date.parse(local(20)) + 40 * 60_000, null)
-    expect(w?.hours.map((h) => h.hour)).toEqual([14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6])
+  it('runs sixteen hours on from the hour read as now, across midnight, and nothing before it', () => {
+    // 20:40 local reads as the 21:00 hour, so 20:00 is past and not drawn.
+    const nowMs = Date.parse(local(20)) + 40 * 60_000
+    const w = chartWindow(series(hours), nowMs, null)
+    expect(w?.hours[0]?.valid_at).toBe(readingNow(hours, nowMs)?.valid_at)
+    expect(w?.hours.map((h) => h.hour)).toEqual([21, 22, 23, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
     expect(w?.hours.at(-1)?.local_date).toBe('2026-09-29')
-    expect(w?.fromMs).toBe(Date.parse(local(14)))
-    expect(w?.toMs).toBe(Date.parse(local(30)))
+    expect(w?.fromMs).toBe(Date.parse(local(21)))
+    expect(w?.toMs).toBe(Date.parse(local(37)))
   })
 
-  it('starts at the first hour the series has just after midnight, and keeps its span', () => {
-    const w = chartWindow(series(hours), Date.parse(local(1)) + 30 * 60_000, null)
-    expect(w?.fromMs).toBe(start)
-    expect(w?.hours.map((h) => h.hour)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])
-  })
-
-  it('moves with the clock', () => {
-    const at = (hour: number) => chartWindow(series(hours), Date.parse(local(hour)), null)?.hours[0]?.hour
-    expect([at(12), at(13), at(19)]).toEqual([6, 7, 13])
+  it('moves with the clock, turning at the half hour', () => {
+    const at = (hour: number, min: number) =>
+      chartWindow(series(hours), Date.parse(local(hour)) + min * 60_000, null)?.hours[0]?.hour
+    expect([at(0, 0), at(13, 29), at(13, 31), at(19, 59)]).toEqual([0, 13, 14, 20])
   })
 
   it('keeps every figure it was given, and a missing one as null rather than 0', () => {
@@ -83,7 +81,7 @@ describe('chartWindow', () => {
       sample(local(10), '2026-09-28', { temp_c: 12, dewpoint_c: 10, wind_kmh: 8, precip_chance_pct: 20 }),
       sample(local(11), '2026-09-28', { temp_c: null, precip_chance_pct: null }),
     ]
-    const [ten, eleven] = chartWindow(series(given), Date.parse(local(11)), null)?.hours ?? []
+    const [ten, eleven] = chartWindow(series(given), Date.parse(local(10)), null)?.hours ?? []
     expect(ten).toMatchObject({ tempC: 12, dewC: 10, windKmh: 8, chancePct: 20 })
     expect(eleven?.tempC).toBeNull()
     expect(eleven?.chancePct).toBeNull()
@@ -92,7 +90,7 @@ describe('chartWindow', () => {
   it('joins scores by instant, and scores nothing for a city', () => {
     // Listed out of order: a positional join would swap them.
     const rs = [reading(local(21), { score: 52 }), reading(local(15), { score: 8 })]
-    const now = Date.parse(local(18))
+    const now = Date.parse(local(15))
     const scored = chartWindow(series(hours, rs), now, alerts)?.hours ?? []
     expect(scored.find((h) => h.valid_at === local(15))?.score).toBe(8)
     expect(scored.find((h) => h.valid_at === local(21))?.score).toBe(52)
