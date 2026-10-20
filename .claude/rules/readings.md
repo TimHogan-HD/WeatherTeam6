@@ -64,7 +64,8 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   `dayRepresentative`; the Conditions now card's three-hour blocks (`scoreBlocks`) are the
   same rule, and a block with any hour unread or suppressed has no score — the worst of the
   rest could be better than the missing one. The hero never prints one hour's score as its
-  headline (owner, 2026-10-05).
+  headline (owner, 2026-10-05), **except Hourly's slim header, which follows the hour being
+  read** and names it beside the figure (`Today 7 PM`; owner, 2026-10-19).
 - **The number waits for the alerts query, inside `summarizeReadings`** — `alertsPending`
   suppresses the score on its own (defect class 7). **Severe+ suppression drops the number
   and keeps the readings.** A surface must not reach past `ReadingsSummary.score === null`.
