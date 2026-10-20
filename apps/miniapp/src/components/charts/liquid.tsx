@@ -1,7 +1,7 @@
 import { useId, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import { chartGlow, colorsV2 } from '@weatherteam6/design/tokens'
 import { typeV2, withOpacity } from '../../theme/tokens.css.js'
-import { formatLocalHourShort } from '../../lib/format.js'
+import { formatLocalHour, formatLocalHourShort } from '../../lib/format.js'
 import type { SeriesDatum } from './hourlySeries.js'
 
 /**
@@ -194,6 +194,8 @@ export function timeAxis(fromMs: number, toMs: number): TimeAxis {
   return { fromMs, toMs, x }
 }
 
+export type ReadoutItem = { label: string; value: string; color: string }
+
 /** The hour nearest a pointer's x, of the instants given. */
 function nearest(instants: readonly number[], ms: number): number | null {
   let best: number | null = null
@@ -219,6 +221,7 @@ export function LiquidFrame({
   read,
   bare = false,
   title,
+  readout,
   children,
 }: {
   height: number
@@ -233,6 +236,12 @@ export function LiquidFrame({
   /** No reading rule and no now rule: a chart with nothing on it to read. */
   bare?: boolean
   title: string
+  /**
+   * What the chart draws at the read hour, shown above the plot so it tracks
+   * the read line and covers no mark. Each value is the drawn series' own
+   * figure, already formatted, an em dash for a gap.
+   */
+  readout?: readonly ReadoutItem[]
   children: ReactNode
 }) {
   const pick = (e: PointerEvent<SVGSVGElement>) => {
@@ -255,7 +264,54 @@ export function LiquidFrame({
     return label === '12a' || label === '6a' || label === '12p' || label === '6p'
   })
   const nowIn = nowMs >= axis.fromMs && nowMs <= axis.toMs
+  // The line's share of the width, as a percent. The chip moves left by the same share of its own width.
+  // At the left edge it starts on the line, mid-chart it centres on it, and at the right edge it ends on it.
+  // That keeps it inside the card without measuring it.
+  // The row spans the first hour's x to the last's, so the share is of that span.
+  const at = read.ms === null ? 0 : ((axis.x(read.ms) - LIQUID_PX) / (LIQUID_W - 2 * LIQUID_PX)) * 100
+  const inset = `${((LIQUID_PX / LIQUID_W) * 100).toFixed(2)}%`
   return (
+    <>
+      {bare || read.ms === null || readout === undefined || readout.length === 0 ? null : (
+        <div style={{ position: 'relative', height: '22px', margin: `0 ${inset} 2px` }}>
+          <p
+            data-readout=""
+            style={{
+              ...typeV2.keyRow,
+              position: 'absolute',
+              top: 0,
+              left: `${at.toFixed(1)}%`,
+              transform: `translateX(-${at.toFixed(1)}%)`,
+              margin: 0,
+              padding: '2px 8px',
+              borderRadius: '10px',
+              whiteSpace: 'nowrap',
+              background: withOpacity(colorsV2.txt1, 0.08),
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            <b style={{ color: colorsV2.txt1 }}>{formatLocalHour(read.ms, utcOffsetSeconds) ?? ''}</b>
+            {readout.map((r) => (
+              <span key={r.label} style={{ marginLeft: '10px' }}>
+                <i
+                  aria-hidden
+                  style={{
+                    display: 'inline-block',
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '3px',
+                    marginRight: '4px',
+                    verticalAlign: 'middle',
+                    background: r.color,
+                  }}
+                />
+                {`${r.label} `}
+                <b style={{ color: colorsV2.txt1 }}>{r.value}</b>
+              </span>
+            ))}
+          </p>
+        </div>
+      )}
     <svg
       viewBox={`0 0 ${LIQUID_W} ${height}`}
       role="img"
@@ -293,6 +349,7 @@ export function LiquidFrame({
         />
       )}
     </svg>
+    </>
   )
 }
 

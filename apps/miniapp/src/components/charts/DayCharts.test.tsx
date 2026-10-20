@@ -118,6 +118,36 @@ describe('DayCharts — three cards', () => {
   })
 })
 
+describe('DayCharts — the read hour inside each card', () => {
+  /** Each card's readout, as text, in page order. */
+  const readouts = (html: string): string[] =>
+    [...html.matchAll(/<p data-readout=""[^>]*>(.*?)<\/p>/g)].map((m) => visible(m[1] ?? '').trim())
+
+  it('names the hour and the figures each chart draws at it', () => {
+    const day = fullDay.map((h, i) => (i === 9 ? { ...h, temp_c_p50: 10, wind_kmh_p50: 16.1, wind_gust_kmh: 32.2, precip_chance_pct: 4 } : h))
+    const [temp, rain, wind] = readouts(render(series(day), { readMs: T0 + 9 * HOUR_MS }))
+    // The chart's own line, the ensemble median: 10 °C is 50 °F.
+    expect(temp).toBe('9 AM air 50°')
+    expect(rain).toMatch(/^9 AM chance 4% amount /)
+    expect(wind).toBe('9 AM wind 10 mph gusts 20 mph')
+  })
+
+  it('shows a gap as a dash, never a zero, and leaves out a series the chart does not draw', () => {
+    const day = fullDay.map((h, i) => (i === 9 ? { ...h, wind_gust_kmh: null, precip_chance_pct: null } : h))
+    const [, rain, wind] = readouts(render(series(day), { readMs: T0 + 9 * HOUR_MS }))
+    expect(rain).toContain(`chance ${'—'}`)
+    expect(wind).toContain(`gusts ${'—'}`)
+    const calm = fullDay.map((h) => ({ ...h, wind_gust_kmh: null }))
+    expect(readouts(render(series(calm), { readMs: T0 + 9 * HOUR_MS }))[2]).not.toContain('gusts')
+  })
+
+  it('has no readout before an hour is read, and none on a dry day', () => {
+    expect(readouts(render(series(fullDay)))).toEqual([])
+    const dry = fullDay.map((h) => ({ ...h, precip_mm_mean: 0, precip_chance_pct: 0 }))
+    expect(readouts(render(series(dry), { readMs: T0 + 9 * HOUR_MS }))).toHaveLength(2)
+  })
+})
+
 describe('DayCharts — rain', () => {
   it('draws the chance as one capsule per hour, on the smallest of 10, 20, 50 and 100% that holds the day', () => {
     const svg = chartSvg(render(series(fullDay)), 'Rain by hour')

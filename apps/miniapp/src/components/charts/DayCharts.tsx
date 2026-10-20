@@ -3,6 +3,8 @@ import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import {
   EM_DASH,
   cToF,
+  formatPrecipIn,
+  kmhToMph,
   modelName,
   summarizeReadings,
   type HourlyReading,
@@ -14,6 +16,7 @@ import { bareButton, cardV2 } from '../../theme/styles.js'
 import { SkyIcon } from '../Icons.js'
 import { dayChips, dryDay } from '../../lib/hourlyDay.js'
 import { dayChance } from '../../lib/overview.js'
+import { formatTempDeg } from '../../lib/format.js'
 import { chanceAxisTop, niceTicks } from '../../lib/chartTicks.js'
 import { useNow } from '../../hooks/useNow.js'
 import { SelectionIndicator, useSelectedRect } from '../SelectionIndicator.js'
@@ -247,6 +250,9 @@ function Empty({ children }: { children: ReactNode }) {
   return <p style={{ ...typeV2.body, margin: 0 }}>{children}</p>
 }
 
+const percent = (v: number | null): string => (v === null ? EM_DASH : `${Math.round(v)}%`)
+const mph = (kmh: number | null): string => (kmh === null ? EM_DASH : `${Math.round(kmhToMph(kmh))} mph`)
+
 /** The datum at the read hour, if the series has one. */
 function at(data: readonly SeriesDatum[], ms: number | null): SeriesDatum | null {
   return ms === null ? null : (data.find((d) => d.t === ms) ?? null)
@@ -349,6 +355,15 @@ function TemperatureChart({
         nowMs={nowMs}
         read={read}
         title={hasValues(humidity) ? 'Temperature, dew point and humidity by hour' : 'Temperature by hour'}
+        readout={[
+          { label: 'air', value: formatTempDeg(readAir?.value ?? null), color: read.ms === null ? AIR_NEUTRAL : airColor(read.ms) },
+          ...(hasValues(dew)
+            ? [{ label: 'dew', value: formatTempDeg(at(dew, read.ms)?.value ?? null), color: chartColorsV2.dewPoint }]
+            : []),
+          ...(hasValues(humidity)
+            ? [{ label: 'humidity', value: percent(readHum?.value ?? null), color: chartColorsV2.humidity }]
+            : []),
+        ]}
       >
         <defs>
           <XGradient
@@ -497,6 +512,12 @@ function RainChart({
       <LiquidFrame
         {...frameProps}
         title={hasValues(chance) ? 'Rain by hour: chance of rain as columns, amount as a line with its range' : 'Rainfall by hour'}
+        readout={[
+          ...(hasValues(chance)
+            ? [{ label: 'chance', value: percent(at(chance, read.ms)?.value ?? null), color: colorsV2.rainMark }]
+            : []),
+          ...(hasValues(rain) ? [{ label: 'amount', value: formatPrecipIn(readRain?.value ?? null), color: chartColorsV2.rain }] : []),
+        ]}
       >
         {hasValues(chance) ? chanceGrid : null}
         {hasValues(rain) ? (
@@ -587,6 +608,10 @@ function WindChart({
         nowMs={nowMs}
         read={read}
         title="Wind by hour"
+        readout={[
+          { label: 'wind', value: mph(readWind?.value ?? null), color: chartColorsV2.wind },
+          ...(hasValues(gusts) ? [{ label: 'gusts', value: mph(at(gusts, read.ms)?.value ?? null), color: chartColorsV2.gust }] : []),
+        ]}
       >
         <Grid ticks={ticks} fromLabel={(mph) => mph * kmhPerMph} y={y} side="end" unit="" />
         {band.map((run, i) => (

@@ -142,17 +142,22 @@ function hourRead(i: SlimInputs): SlimFigure {
   const day = sample.local_date === i.todayDate ? 'Today' : formatWeekday(sample.local_date)
   const label = `${day} ${formatLocalHour(i.readMs, offset) ?? EM_DASH}`
   // The mockup's line, word for word: `Air 54° · dew 38° · rain 0 in, 2% · humidity 49% · wind 10/18 mph`.
+  // Air and wind are the charts' own lines, the ensemble median, so the header and the chart's
+  // readout under it print one number for the hour. The gust is clamped as the chart clamps it.
+  const air = sample.temp_c_p50
+  const wind = sample.wind_kmh_p50
+  const gust = sample.wind_gust_kmh === null || wind === null ? sample.wind_gust_kmh : Math.max(sample.wind_gust_kmh, wind)
   const line = [
-    `Air ${formatTempDeg(sample.temp_c)}`,
+    `Air ${formatTempDeg(air)}`,
     `dew ${formatTempDeg(sample.dewpoint_c)}`,
     `rain ${formatPrecipIn(sample.precip_mm_mean)}, ${sample.precip_chance_pct === null ? EM_DASH : `${sample.precip_chance_pct}%`}`,
     `humidity ${sample.humidity_pct === null ? EM_DASH : `${Math.round(sample.humidity_pct)}%`}`,
-    `wind ${mph(sample.wind_kmh)}/${mph(sample.wind_gust_kmh)} mph`,
+    `wind ${mph(wind)}/${mph(gust)} mph`,
   ].join(' · ')
 
   if (!i.isClimbingLocation) {
     return {
-      value: sample.temp_c === null ? null : Math.round(cToF(sample.temp_c)),
+      value: air === null ? null : Math.round(cToF(air)),
       unit: '°',
       label,
       tone: 'plain',
