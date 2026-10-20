@@ -6,11 +6,9 @@ import {
   formatWindMph,
   skyDayIcon,
   type ForecastSnapshot,
-  type HourlyReading,
   type HourlySample,
   type SkyDay,
 } from '@weatherteam6/types'
-import { dayStrip, type StripHour } from '../lib/dayStrip.js'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, cardV2 } from '../theme/styles.js'
 import { formatTempDeg } from '../lib/format.js'
@@ -58,20 +56,10 @@ const FOOT_SCORE =
   'A day score is the worst hour of the best three-hour run between 8 AM and 6 PM; today counts only hours still ahead.'
 const FOOT_FIGURES = 'Chance of rain is the highest hourly share of wet ensemble members. Rain is the median daily amount.'
 const FOOT_TAP = 'Tap a day for its hours.'
-const FOOT_STRIP_SCORE = 'The strip under each day is its 24 hours, coloured by the score of each hour; an empty cell is an hour with no score.'
-const FOOT_STRIP_RAIN = 'The strip under each day is its 24 hours, shaded by the chance of rain in each hour; an empty cell is an hour with no figure.'
 
-/**
- * The note under the rows: the score's rule only where scores show, the strip's
- * meaning only where strips draw, and "tap" only where a row opens.
- */
-export function dailyFoot(scored: boolean, tappable: boolean, strips = false): string {
-  return [
-    scored ? FOOT_SCORE : null,
-    FOOT_FIGURES,
-    strips ? (scored ? FOOT_STRIP_SCORE : FOOT_STRIP_RAIN) : null,
-    tappable ? FOOT_TAP : null,
-  ]
+/** The note under the rows: the score's rule only where scores show, and "tap" only where a row opens. */
+export function dailyFoot(scored: boolean, tappable: boolean): string {
+  return [scored ? FOOT_SCORE : null, FOOT_FIGURES, tappable ? FOOT_TAP : null]
     .filter((s) => s !== null)
     .join(' ')
 }
@@ -92,12 +80,6 @@ export type DailyListProps = {
   onSelectDay?: (localDate: string) => void
   /** The dates the hourly response can actually draw. Omit when `onSelectDay` is omitted. */
   drawableDates?: ReadonlySet<string>
-  /**
-   * The hourly run's per-hour readings and its offset, for the strip under
-   * each day. Omitted, or a `null` offset, draws no strips.
-   */
-  hourReadings?: readonly HourlyReading[]
-  utcOffsetSeconds?: number | null
 }
 
 const rowGrid: CSSProperties = {
@@ -112,37 +94,7 @@ const rowGrid: CSSProperties = {
   textAlign: 'left',
 }
 
-const AXIS = [
-  ['12a', 0],
-  ['6a', 6],
-  ['12p', 12],
-  ['6p', 18],
-] as const
-
-/** 24 cells, one per local hour; an hour the run does not carry is an empty cell. */
-function HourStrip({ strip, scored }: { strip: readonly StripHour[]; scored: boolean }) {
-  const byHour = new Map(strip.map((s) => [s.hour, s]))
-  return (
-    <span aria-hidden="true" style={{ gridColumn: '2 / -1', display: 'grid', gridTemplateColumns: 'repeat(24, minmax(0, 1fr))', gap: '2px', height: '8px' }}>
-      {Array.from({ length: 24 }, (_, hour) => {
-        const h = byHour.get(hour)
-        const value = scored ? (h?.score ?? null) : (h?.chancePct ?? null)
-        // An unread hour is an outline; a measured 0% is the solid track, never the same mark.
-        const style: CSSProperties =
-          value === null
-            ? { boxShadow: `inset 0 0 0 1px ${colorsV2.line}` }
-            : scored
-              ? { background: scoreRampColor(value) }
-              : value === 0
-                ? { background: colorsV2.tempBarTrack }
-                : { background: colorsV2.rain, opacity: Math.max(0.2, value / 100) }
-        return <i key={hour} style={{ borderRadius: '2px', ...style }} />
-      })}
-    </span>
-  )
-}
-
-export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDates, hourReadings, utcOffsetSeconds }: DailyListProps) {
+export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDates }: DailyListProps) {
   const rows = [...days].sort((a, b) => a.forecast_date.localeCompare(b.forecast_date))
   // Joined on the date inside `scoredDays`, never on position.
   const scored = new Map(scoredDays(rows, readings).map((d) => [d.local_date, d]))
@@ -154,24 +106,9 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
   const lo = temps.length === 0 ? 0 : Math.min(...temps)
   const span = temps.length === 0 ? 1 : Math.max(...temps) - lo || 1
   const pct = (c: number) => ((c - lo) / span) * 100
-  const offset = utcOffsetSeconds ?? null
-  const strips = offset !== null && hours.length > 0
-  const hasScores = readings !== null
-
   return (
     <section style={{ ...cardV2, padding: `${spacing.sectionGap}px 14px 14px` }}>
       <Sect title="Seven days" aside={readings === null ? 'low–high · chance of rain' : 'score · low–high · chance of rain'} />
-      {strips ? (
-        <div aria-hidden="true" style={{ ...rowGrid, padding: '0 0 2px', minHeight: 0 }}>
-          <span style={{ gridColumn: '2 / -1', position: 'relative', height: '12px', ...typeV2.axisTick }}>
-            {AXIS.map(([label, h]) => (
-              <span key={label} style={{ position: 'absolute', left: `${((h / 24) * 100).toFixed(2)}%`, top: 0 }}>
-                {label}
-              </span>
-            ))}
-          </span>
-        </div>
-      ) : null}
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {rows.map((day, i) => {
           const d = scored.get(day.forecast_date)
@@ -234,9 +171,6 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
                 </span>
               </span>
               <span style={{ ...typeV2.dayChance, textAlign: 'right' }}>{chance === null ? EM_DASH : `${chance}%`}</span>
-              {strips && offset !== null ? (
-                <HourStrip strip={dayStrip(hours, hourReadings ?? [], day.forecast_date, offset, readings)} scored={hasScores} />
-              ) : null}
               <span style={{ ...typeV2.rowSmall, gridColumn: '2 / -1' }}>{sub.join(' · ')}</span>
             </>
           )
@@ -254,7 +188,7 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
         })}
       </div>
       <p style={{ ...typeV2.keyRow, margin: '10px 0 0', lineHeight: '16px' }}>
-        {dailyFoot(hasScores,onSelectDay !== undefined && rows.some((d) => drawableDates?.has(d.forecast_date) === true), strips)}
+        {dailyFoot(readings !== null, onSelectDay !== undefined && rows.some((d) => drawableDates?.has(d.forecast_date) === true))}
       </p>
       {onSelectDay === undefined ||
       drawableDates === undefined ||

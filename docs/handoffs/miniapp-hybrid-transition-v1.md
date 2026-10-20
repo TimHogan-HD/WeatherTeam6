@@ -163,10 +163,9 @@ drops one is a regression:
    no moon glyphs at night, because the sky series has daylight hours only and a moon would
    claim a clear night; no Agreement in the footnote, which nothing computes per day.
    **3c, built 2026-10-20: fill the space** (owner: "things should fill the space accurately
-   … intentionally full, not stretched"). Daily rows carry a 24-hour strip under each day,
-   each hour coloured by its score through `summarizeReadings` (`lib/dayStrip.ts`; a city's
-   is shaded by chance of rain), under one `12a 6a 12p 6p` axis, so the week fills the
-   screen with readings rather than padding. The Overview's Rain, Air and Rock cards drop the
+   … intentionally full, not stretched"). Daily rows carried a 24-hour strip under each day,
+   each hour coloured by its score, **removed 2026-10-20** (owner: "the color bar here is
+   pointless"); the rows keep their 12px padding. The Overview's Rain, Air and Rock cards drop the
    mockup's label-left, figure-right lines for **stat tiles**: label above figure, note under
    it, equal columns with a hairline between (`typeV2.statLabel`/`statFigure`). **This
    departs from the mockup at the owner's request**: a label at one edge of a card and its
