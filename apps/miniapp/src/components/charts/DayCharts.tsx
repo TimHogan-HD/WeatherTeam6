@@ -209,7 +209,14 @@ function DayPicker({
       ref={rowRef}
       role="group"
       aria-label="Day"
-      style={{ display: 'flex', gap: '14px', overflowX: 'auto', scrollbarWidth: 'none', position: 'relative' }}
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: '14px',
+        overflowX: 'auto',
+        scrollbarWidth: 'none',
+        position: 'relative',
+      }}
     >
       <SelectionIndicator
         rect={rect}
