@@ -702,6 +702,14 @@ export const typeV2 = {
     lineHeight: 17,
     color: colorsV2.txt1,
   },
+  /** Hourly's slim header names the crag as its headline (owner, 2026-10-20): Barlow Condensed 28/700. */
+  slimHeadline: {
+    fontFamily: fonts.display,
+    fontSize: 28,
+    fontWeight: '700' as const,
+    lineHeight: 30,
+    color: colorsV2.txt1,
+  },
   slimFigure: {
     fontFamily: fonts.display,
     fontSize: 44,
@@ -722,14 +730,22 @@ export const typeV2 = {
   },
   // ── Hybrid look (docs/handoffs/design-mockups/weatherteam6-hybrid.html) ──
 
-  /** The Overview hero's crag name, the screen's headline (owner, 2026-10-20): Barlow Condensed 40/700. */
+  /** The Overview hero's crag name: Barlow Condensed 14/600, uppercase. */
   heroName: {
     fontFamily: fonts.display,
-    fontSize: 40,
-    fontWeight: '700' as const,
-    letterSpacing: -0.4,
-    lineHeight: 42,
+    fontSize: 14,
+    fontWeight: '600' as const,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase' as const,
     color: colorsV2.txt1,
+  },
+  /** The Overview hero's score: Barlow Condensed 150/700. Colour is the score's. */
+  heroScore: {
+    fontFamily: fonts.display,
+    fontSize: 150,
+    fontWeight: '700' as const,
+    letterSpacing: -3,
+    lineHeight: 120,
   },
   /** The hero's side lines — "Score", "Dryness: Dry": Barlow Condensed 18/600. */
   heroSide: {

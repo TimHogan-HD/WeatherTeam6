@@ -1,9 +1,7 @@
 import {
   EM_DASH,
   cToF,
-  formatPrecipIn,
   formatTempF,
-  kmhToMph,
   readingNow,
   summarizeReadings,
   type ForecastSnapshot,
@@ -11,7 +9,7 @@ import {
   type HourlySample,
 } from '@weatherteam6/types'
 import type { DetailTab } from '../components/DetailView.js'
-import { formatLocalHour, formatTempDeg } from './format.js'
+import { formatLocalHour } from './format.js'
 import { formatWeekday } from './forecast.js'
 import { dayChance, dayTitle, scoredDays, type DayReadings, type NextDay } from './overview.js'
 
@@ -124,14 +122,14 @@ function dayScore(i: SlimInputs, date: string | null, label: string): SlimFigure
   }
 }
 
-const mph = (kmh: number | null): string => (kmh === null ? EM_DASH : String(Math.round(kmhToMph(kmh))))
-
 /**
  * The hour the Hourly charts are reading: its score, suppressed as everywhere
- * else, and one line of what the charts draw at it. Air and dew point share a
- * label, as they share the readout row in the mockup.
+ * else. No line of figures (owner, 2026-10-20): each chart names the hour's own
+ * in its chip, so the name is the header's headline. Only a score withheld by
+ * an alert says so under it.
  *
- * A city has no score, so its figure is the hour's air temperature.
+ * A city has no score, so its figure is the hour's air temperature, the
+ * temperature chart's own median.
  */
 function hourRead(i: SlimInputs): SlimFigure {
   const sample = i.readMs === null ? undefined : i.hours.find((h) => Date.parse(h.valid_at) === i.readMs)
@@ -141,27 +139,14 @@ function hourRead(i: SlimInputs): SlimFigure {
   }
   const day = sample.local_date === i.todayDate ? 'Today' : formatWeekday(sample.local_date)
   const label = `${day} ${formatLocalHour(i.readMs, offset) ?? EM_DASH}`
-  // The mockup's line, word for word: `Air 54° · dew 38° · rain 0 in, 2% · humidity 49% · wind 10/18 mph`.
-  // Air and wind are the charts' own lines, the ensemble median, so the header and the chart's
-  // readout under it print one number for the hour. The gust is clamped as the chart clamps it.
-  const air = sample.temp_c_p50
-  const wind = sample.wind_kmh_p50
-  const gust = sample.wind_gust_kmh === null || wind === null ? sample.wind_gust_kmh : Math.max(sample.wind_gust_kmh, wind)
-  const line = [
-    `Air ${formatTempDeg(air)}`,
-    `dew ${formatTempDeg(sample.dewpoint_c)}`,
-    `rain ${formatPrecipIn(sample.precip_mm_mean)}, ${sample.precip_chance_pct === null ? EM_DASH : `${sample.precip_chance_pct}%`}`,
-    `humidity ${sample.humidity_pct === null ? EM_DASH : `${Math.round(sample.humidity_pct)}%`}`,
-    `wind ${mph(wind)}/${mph(gust)} mph`,
-  ].join(' · ')
-
   if (!i.isClimbingLocation) {
+    const air = sample.temp_c_p50
     return {
       value: air === null ? null : Math.round(cToF(air)),
       unit: '°',
       label,
       tone: 'plain',
-      line,
+      line: null,
     }
   }
   const reading = i.hourReadings.find((r) => r.valid_at === sample.valid_at) ?? null
@@ -183,7 +168,7 @@ function hourRead(i: SlimInputs): SlimFigure {
     unit: null,
     label,
     tone: 'score',
-    line: withheld ? `${line} · Alert: score withheld` : line,
+    line: withheld ? 'Alert: score withheld' : null,
   }
 }
 

@@ -100,15 +100,9 @@ describe('slimFigure on Hourly', () => {
   ]
   const hourReadings = [reading('2026-09-28T16:00:00Z', 73), reading('2026-09-28T17:00:00Z', 95)]
 
-  it('is the read hour’s score, its clock, and every figure the charts draw there', () => {
+  it('is the read hour’s score and its clock, with no line of figures: each chart’s chip carries them', () => {
     const f = slimFigure('hourly', inputs({ hours, hourReadings, readMs: READ }))
-    expect(f).toMatchObject({ value: 73, label: 'Today 11 AM', tone: 'score' })
-    expect(f.line).toBe('Air 54° · dew 38° · rain 0 in, 12% · humidity 49% · wind 10/18 mph')
-  })
-
-  it('clamps a gust below the sustained median up to it, as the wind chart does', () => {
-    const low = [sample('2026-09-28T16:00:00Z', '2026-09-28', { wind_kmh_p50: 16, wind_gust_kmh: 8 })]
-    expect(slimFigure('hourly', inputs({ hours: low, hourReadings, readMs: READ })).line).toMatch(/wind 10\/10 mph$/)
+    expect(f).toMatchObject({ value: 73, label: 'Today 11 AM', tone: 'score', line: null })
   })
 
   it('names another day by its weekday', () => {
@@ -118,35 +112,23 @@ describe('slimFigure on Hourly', () => {
     expect(f.value).toBeNull()
   })
 
-  it('withholds the score under a Severe+ alert and while alerts load, and keeps the figures', () => {
+  it('withholds the score under a Severe+ alert and says so, and withholds it silently while alerts load', () => {
     const base = inputs({ hours, hourReadings, readMs: READ })
     const severe = slimFigure('hourly', { ...base, readings: { ...base.readings!, severeAlertEvent: 'Flood Warning' } })
     expect(severe.value).toBeNull()
-    expect(severe.line).toMatch(/^Air 54° · dew 38° .* · Alert: score withheld$/)
+    expect(severe.line).toBe('Alert: score withheld')
     const pending = slimFigure('hourly', { ...base, readings: { ...base.readings!, alertsPending: true } })
     expect(pending.value).toBeNull()
-    expect(pending.line).not.toMatch(/Alert/)
+    expect(pending.line).toBeNull()
   })
 
-  it('dashes a missing figure rather than writing a plausible one', () => {
-    const gappy = [
-      sample('2026-09-28T16:00:00Z', '2026-09-28', {
-        temp_c: 12,
-        temp_c_p50: null,
-        dewpoint_c: 3.6,
-        precip_mm_mean: null,
-        precip_chance_pct: null,
-        humidity_pct: null,
-        wind_kmh: 16,
-        wind_kmh_p50: null,
-        wind_gust_kmh: null,
-      }),
-    ]
-    const f = slimFigure('hourly', inputs({ hours: gappy, hourReadings, readMs: READ }))
-    expect(f.line).toBe('Air — · dew 38° · rain —, — · humidity — · wind —/— mph')
+  it('dashes a city’s figure with no median air, never the deterministic one', () => {
+    const gappy = [sample('2026-09-28T16:00:00Z', '2026-09-28', { temp_c: 12, temp_c_p50: null })]
+    const f = slimFigure('hourly', inputs({ isClimbingLocation: false, readings: null, hours: gappy, readMs: READ }))
+    expect(f.value).toBeNull()
   })
 
-  it('is the hour’s air temperature for a city', () => {
+  it('is the hour’s median air temperature for a city, the temperature chart’s line', () => {
     const f = slimFigure('hourly', inputs({ isClimbingLocation: false, readings: null, hours, readMs: READ }))
     expect(f).toMatchObject({ value: 54, unit: '°', tone: 'plain', label: 'Today 11 AM' })
   })

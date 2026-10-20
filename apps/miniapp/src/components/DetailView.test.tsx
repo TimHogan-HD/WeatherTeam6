@@ -205,19 +205,31 @@ function overview(over: Over = {}): string {
   )
 }
 
-/** The hero's own section. */
+/** The hero: from the crag's name to the first card. */
 function hero(html: string): string {
-  const from = html.indexOf('data-hero')
+  const from = html.indexOf('<h1')
   if (from < 0) throw new Error('no hero')
-  return html.slice(html.lastIndexOf('<section', from), html.indexOf('</section>', from))
+  return html.slice(from, html.indexOf('<h2', from))
 }
 
 describe('DetailView — the Overview hero', () => {
-  it('headlines the crag’s name and carries no figure', () => {
-    // Owner, 2026-10-20: the cards under the hero carry every figure.
+  it('names the crag and headlines the hour’s score, with its Dryness and the hour beside it', () => {
     const h = hero(overview())
     expect(h).toContain('>Red Rock</h1>')
-    expect(visible(h)).not.toMatch(/\d/)
+    expect(h).toContain('>58<')
+    expect(visible(h)).toContain('Dryness: Dry')
+    expect(visible(h)).toContain('Sandstone · 1pm')
+  })
+
+  it('puts the day’s good hours and score on the line under it, on the location’s clock', () => {
+    // The hour's score is never alone: 9am read 100 on a day rain arrived at 1pm.
+    expect(visible(hero(overview()))).toContain('Good hours: 6am–9am · Today: 71')
+  })
+
+  it('leads with weather in imperial units', () => {
+    const text = visible(hero(overview()))
+    expect(text).toContain('103°F')
+    expect(text).toContain('gusts 20 mph')
   })
 
   it('never renders the old ladder word or the retired five-component score', () => {
@@ -226,19 +238,28 @@ describe('DetailView — the Overview hero', () => {
     expect(html).not.toContain('>80<')
   })
 
-  it('says the score is hidden under a Severe+ alert, under the name', () => {
+  it('drops the number under a Severe+ alert, names the alert, and keeps the readings', () => {
     const html = overview({ alerts: alertsOk([heatWarning]) })
-    expect(visible(hero(html))).toContain('Score hidden: Extreme Heat Warning')
+    const h = hero(html)
+    expect(h).not.toContain('>58<')
+    expect(h).not.toContain('Today: 71')
+    expect(visible(h)).toContain('Score hidden: Extreme Heat Warning')
+    expect(visible(h)).toContain('Dryness: Dry')
     // The banner sits above the hero, always (§7 rule 5).
     expect(html.indexOf('Extreme Heat Warning')).toBeLessThan(html.indexOf('<h1'))
   })
 
-  it('holds its notes until the alerts query settles', () => {
-    expect(visible(hero(overview({ alerts: { data: undefined, isPending: true, isError: false } }))).trim()).toBe('Red Rock')
+  it('holds the readings until the alerts query settles, but not the weather', () => {
+    const h = hero(overview({ alerts: { data: undefined, isPending: true, isError: false } }))
+    expect(h).not.toContain('>58<')
+    expect(visible(h)).not.toContain('Dryness')
+    expect(visible(h)).toContain('103°F')
   })
 
-  it('says the alerts query failed when it settled as an error', () => {
-    expect(overview({ alerts: { data: undefined, isPending: false, isError: true } })).toContain('load alerts')
+  it('shows the readings and the number when the alerts query settled as an error, and says it failed', () => {
+    const html = overview({ alerts: { data: undefined, isPending: false, isError: true } })
+    expect(hero(html)).toContain('>58<')
+    expect(html).toContain('load alerts')
   })
 
   it('treats a 200 with data: null as "no conditions today", not as an error', () => {
@@ -305,7 +326,9 @@ describe('DetailView — a non-climbing location', () => {
     const text = visible(html)
     expect(html).not.toContain('>58<')
     expect(text).not.toMatch(/Dryness|Score breakdown|drying|How the score works/)
-    expect(visible(hero(html)).trim()).toBe('Red Rock')
+    // The hour's air takes the figure, with the day's high and low beside it.
+    expect(text).toContain('Air now')
+    expect(text).toContain('High 103° · Low 79°')
   })
 })
 

@@ -63,14 +63,15 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   `dayRepresentative`; the score bars and any block of hours are the
   same rule, and a block with any hour unread or suppressed has no score — the worst of the
   rest could be better than the missing one. **An hour's score may headline only beside
-  the hour it is** (owner, 2026-10-19, superseding 2026-10-05's "never"): the Overview's
-  score bars print the hour covering now as `Now` beside the day's good hours; Hourly's
-  slim header follows the hour being read (`Today 7 PM`). **The Overview hero is the
-  crag's name alone** (owner, 2026-10-20): no figure, only the notes that stop a reading
-  being read (a failed or empty call, the qualifier, the Severe+ notice).
+  the hour it is** (owner, 2026-10-19, superseding 2026-10-05's "never"): the Overview hero
+  prints the hour covering now, names that hour beside it, and keeps the day's good hours
+  and score on the line under it with the score bars below; Hourly's slim header follows
+  the hour being read (`Today 7 PM`). **Hourly's header is the crag's name as its headline
+  and that score, with no line of figures** (owner, 2026-10-20): each chart names the read
+  hour's figures in its own chip. Only `Alert: score withheld` prints under the name.
 - **A figure printed beside a chart is the series the chart draws.** The Hourly charts draw
   the ensemble medians (`temp_c_p50`, `wind_kmh_p50`; gusts as `max(wind_gust_kmh, p50)`),
-  so the slim header's read-hour line and each chart's read-hour chip use those too. On
+  so each chart's read-hour chip, and a city's figure in Hourly's slim header, use those too. On
   2026-10-20 the header printed deterministic `temp_c` (47°) over a chart reading 50°.
   Before adding a figure near a chart, grep which field the chart plots.
 - **An axis is checked on the screenshot, not the test.** `niceTicks` (`lib/chartTicks.ts`)

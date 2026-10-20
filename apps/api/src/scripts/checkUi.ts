@@ -384,15 +384,13 @@ async function run(): Promise<void> {
     // 3b. The Overview says what is lowering a shown score (#218), and explains the score.
     await page.getByRole('tab', { name: tabs[0]!.trim() }).click()
     const hero = await page.locator('[data-hero]').innerText()
-    check('the Overview hero is the name alone, no figure', !/\d{1,3}(?!\d)/.test(hero.replace(/\d{6,}/g, '')), hero.replace(/\s+/g, ' '))
     const overviewText = await page.getByRole('tabpanel').innerText()
     // A score under 100 has something lowering it, and the breakdown names it; at 100 there may be none.
-    // The hour's score is the score bars' "Now".
-    const shownScore = /(\d+)\s+Now\b/.exec(overviewText)?.[1]
+    const shownScore = /^\s*(\d+)\s*$/m.exec(hero)?.[1]
     check(
       'the Overview says what is lowering a shown score',
       shownScore === undefined || shownScore === '100' || /Score breakdown/i.test(overviewText),
-      overviewText.replace(/\s+/g, ' ').slice(0, 300),
+      hero.replace(/\s+/g, ' ').slice(0, 300),
     )
     await page.getByText('How the score works').click()
     await screen('overview-explainer')
