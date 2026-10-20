@@ -153,7 +153,17 @@ a credential, a dashboard setting, a phone, a product decision.>
 
 **Neon cannot be reached from a restricted cloud dev environment.** `drizzle-kit` uses Neon's WebSocket driver regardless of app code, so migrations must run from an unrestricted machine or with `*.aws.neon.tech` allowlisted.
 
-**The working tree is CRLF on Windows.** Multi-line `sed`/`perl`/`node -e` replacements silently match nothing and report success — use the Edit or Write tool for anything spanning more than one line. **Python is not installed** (`python3` is the Windows Store stub and exits 0); use Node or PowerShell. `gh` may not be on `PATH`: `C:\Program Files\GitHub CLI\gh.exe`.
+**The working tree is mostly CRLF on Windows, not all of it.** About 30 files are LF, `OverviewTab.tsx` among them; `git ls-files --eol <path>` says which. Multi-line `sed`/`perl`/`node -e` replacements silently match nothing and report success. A script that assumes one ending breaks on the other, so use the Edit or Write tool for anything spanning more than one line.
+
+**Never run Prettier.** The repo is not Prettier-formatted and has no config. One run on two files rewrote 965 lines and buried a ten-line change. If it happens, `git checkout -- <file>` and redo the edit by hand.
+
+**From PowerShell, commit with `git commit -F <file>`.** `git commit -F -` fed by a here-string is read as a pathspec, so the commit fails and a following `git push` publishes an empty branch. Write the message to the scratchpad first; the same goes for `gh pr create --body-file`.
+
+**A worktree-isolated session refuses compound shell commands that run git or `cd` elsewhere** ("too complex to verify that it stays inside the worktree"). Run plain, separate commands from the worktree root.
+
+**Read `check:ui`'s failures; do not filter them out.** `--tabs-only` skips the list and trip checks; run the full script before a PR that touches anything outside a crag's tabs. Two list checks were already failing on 2026-10-20 (#359); a new failure is yours until shown otherwise.
+
+**Python is not installed** (`python3` is the Windows Store stub and exits 0); use Node or PowerShell. `gh` may not be on `PATH`: `C:\Program Files\GitHub CLI\gh.exe`.
 
 **Vercel will not give you a secret back.** Go to the source — Neon's dashboard for `DATABASE_URL` (pooled for runtime, direct for migrations). Never ask the user to paste a secret into the conversation.
 
