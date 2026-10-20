@@ -84,12 +84,15 @@ describe('slimFigure on Hourly', () => {
   const READ = Date.parse('2026-09-28T16:00:00Z')
   const hours = [
     sample('2026-09-28T16:00:00Z', '2026-09-28', {
-      temp_c: 12.4,
+      // The deterministic air and wind differ from the medians the charts draw, and must not print.
+      temp_c: 20,
+      temp_c_p50: 12.4,
       dewpoint_c: 3.6,
       precip_mm_mean: 0,
       precip_chance_pct: 12,
       humidity_pct: 49.4,
-      wind_kmh: 16,
+      wind_kmh: 40,
+      wind_kmh_p50: 16,
       wind_gust_kmh: 29,
     }),
     sample('2026-09-28T17:00:00Z', '2026-09-28', { precip_chance_pct: 40 }),
@@ -101,6 +104,11 @@ describe('slimFigure on Hourly', () => {
     const f = slimFigure('hourly', inputs({ hours, hourReadings, readMs: READ }))
     expect(f).toMatchObject({ value: 73, label: 'Today 11 AM', tone: 'score' })
     expect(f.line).toBe('Air 54° · dew 38° · rain 0 in, 12% · humidity 49% · wind 10/18 mph')
+  })
+
+  it('clamps a gust below the sustained median up to it, as the wind chart does', () => {
+    const low = [sample('2026-09-28T16:00:00Z', '2026-09-28', { wind_kmh_p50: 16, wind_gust_kmh: 8 })]
+    expect(slimFigure('hourly', inputs({ hours: low, hourReadings, readMs: READ })).line).toMatch(/wind 10\/10 mph$/)
   })
 
   it('names another day by its weekday', () => {
@@ -123,12 +131,14 @@ describe('slimFigure on Hourly', () => {
   it('dashes a missing figure rather than writing a plausible one', () => {
     const gappy = [
       sample('2026-09-28T16:00:00Z', '2026-09-28', {
-        temp_c: null,
+        temp_c: 12,
+        temp_c_p50: null,
         dewpoint_c: 3.6,
         precip_mm_mean: null,
         precip_chance_pct: null,
         humidity_pct: null,
-        wind_kmh: null,
+        wind_kmh: 16,
+        wind_kmh_p50: null,
         wind_gust_kmh: null,
       }),
     ]

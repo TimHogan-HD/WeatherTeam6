@@ -57,6 +57,14 @@ the mockup are sample data. Only the crag names are real.
   Temperature and wind gridlines come from `niceTicks` (`lib/chartTicks.ts`): steps of 1, 2
   or 5 times a power of ten, widened out so the top line sits above every value drawn.
   Humidity keeps its fixed 0–100%.
+- **The read hour inside each Hourly card** (owner, 2026-10-20: "the measurements for
+  whatever point I select should be visible inside the chart"). Above each plot a chip
+  names the hour and the figures that chart draws at it: air, dew point and humidity; chance
+  and amount; wind and gusts. It slides with the read line and covers no mark. The figures
+  are the drawn series' own (the ensemble median for air and wind), and the slim header's
+  line now reads the same medians, so the screen prints one air and one wind for the hour
+  (it read the deterministic columns before, and showed 47° above a chart reading 50°).
+  A gap is a dash; a dry day's rain card has no chip.
 - **Daily.** The summary under each day wraps across the full row and is never cut off.
 - **Precip.** The running-total chart is removed (`PrecipRunningTotal.tsx`). The tab
   keeps:
