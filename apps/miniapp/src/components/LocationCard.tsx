@@ -1,61 +1,63 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
+import { colors, colorsV2 } from '@weatherteam6/design/tokens'
 import {
-  SCORE_LABEL,
-  formatHumidity,
-  formatPrecipIn,
-  formatWindMph,
-  type ForecastSnapshot,
+  DRYNESS_LABEL,
+  EM_DASH,
+  rockTypeLabel,
+  summarizeReadings,
   type Location,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { cardV2, row, stack, toneColors } from '../theme/styles.js'
 import { useAlerts, useConditions, useForecast } from '../hooks/useWeather.js'
-import { findToday } from '../lib/forecast.js'
+import { findToday, severeAlertEvent, sortBySeverity } from '../lib/forecast.js'
 import { prefetchDetail } from '../lib/prefetchDetail.js'
 import { formatTempRangeF } from '../lib/format.js'
-import { cardSummary, readingTone, scoreTone } from '../lib/locationList.js'
-import { tempColor } from './charts/chartStyle.js'
-import { AlertPill } from './Alerts.js'
-import { ReadingPill } from './ReadingPills.js'
-import { ChevronRightIcon, DropletIcon, HumidityIcon, TemperatureIcon, WindIcon } from './Icons.js'
+import { cardSummary } from '../lib/locationList.js'
+import { scoreRampColor } from './charts/chartStyle.js'
 import { InlineError, Skeleton } from './States.js'
-import { LabelledFigure } from './LabelledFigure.js'
 import { FadeIn } from './FadeIn.js'
 import { RollingFigure, usePreviousFigure } from './RollingFigure.js'
 import type { RememberedCard } from '../lib/rememberedCards.js'
 
 /**
- * One card per saved location — the v2 layout: name and score on the first
- * row, today's weather as four figure chips, then the two readings as tinted
- * pills.
+ * One crag as a row of the Conditions list, in the hybrid look
+ * (`docs/handoffs/design-mockups/weatherteam6-hybrid.html`, `listScreen`): the
+ * name, Dryness and the rock, today's good hours and score, and the hour's
+ * score large on the right with "now" under it.
  *
  * **The conditions call is skipped entirely for a non-climbing location.** A
  * saved location may be a city, and `computeLiveForecast` does not branch on
  * `is_climbing_location` — it would return a rock-drying score for Chicago if
- * asked, so the client does not ask. That also drops two of the three upstream
- * fetches, so general locations load noticeably faster (§3).
+ * asked, so the client does not ask. A city's row carries today's low and high.
+ *
+ * No sky glyph, which the mockup draws: `/conditions` carries no sky, and the
+ * list does not fetch every crag's hourly run to find one.
  */
 
 /**
- * Wraps a control that lives inside the card's own tap target, so activating it
- * does not also open the location. Click only — the card's key handler already
- * ignores events that did not originate on the card itself.
+ * Wraps a control that lives inside the row's own tap target, so activating it
+ * does not also open the location. Click only — the row's key handler already
+ * ignores events that did not originate on the row itself.
  */
-function CardControl({ children }: { children: ReactNode }) {
+function RowControl({ children }: { children: ReactNode }) {
   return <span onClick={(e) => e.stopPropagation()}>{children}</span>
 }
+
+const small: CSSProperties = { ...typeV2.rowSmall, display: 'block' }
 
 export function LocationCard({
   location,
   remembered,
   onOpen,
+  first,
 }: {
   location: Location
-  /** What this card showed last time on this device, drawn until all three live answers are in. */
+  /** What this row showed last time on this device, drawn until all three live answers are in. */
   remembered: RememberedCard | undefined
   onOpen: (id: string) => void
+  /** The first row has no rule above it. */
+  first: boolean
 }) {
   const queryClient = useQueryClient()
   const forecast = useForecast(location.id)
@@ -70,43 +72,96 @@ export function LocationCard({
   const forecastData = shown === null ? forecast.data : shown.forecast
   const alertsData = shown === null ? alerts.data : shown.alerts
   const conditionsData = shown === null ? conditions.data : shown.conditions
+  const alertsPending = shown === null && alerts.isPending
 
-  // Weather that arrives after the card is drawn fades in; weather already in
-  // hand when it mounts — a remembered card, or coming back to the list — does
-  // not. The live copy replacing a remembered one mounts a fresh `FadeIn`, so
-  // it fades in as well.
   const [settledAtMount] = useState(settled)
-  const appear = (node: ReactNode, style?: CSSProperties) =>
-    settledAtMount || shown !== null ? node : <FadeIn style={style}>{node}</FadeIn>
-
-  const today = findToday(forecastData)
+  const appear = (node: ReactNode) => (settledAtMount || shown !== null ? node : <FadeIn>{node}</FadeIn>)
 
   /**
    * From **the same endpoint the detail screen reads**, through the same
    * summary the list sorts by — so a crag cannot show one number here, another
    * on its own screen, and rank by a third.
    */
-  const summary = cardSummary(conditionsData, alertsData, shown === null && alerts.isPending)
-  const reading = conditionsData?.readings?.now ?? null
+  const summary = cardSummary(conditionsData, alertsData, alertsPending)
+  const readings = conditionsData?.readings
+  const dayScore =
+    readings === undefined
+      ? null
+      : summarizeReadings({
+          reading: readings.today?.best ?? null,
+          window: null,
+          utcOffsetSeconds: readings.utc_offset_seconds,
+          severeAlertEvent: severeAlertEvent(alertsData),
+          alertsPending,
+          unavailableReason: readings.unavailable_reason,
+        }).score
+  const dryness = summary?.readings.find((f) => f.label === DRYNESS_LABEL)?.value ?? null
+  const rock = location.rock_type == null || location.rock_type === 'unknown' ? null : rockTypeLabel(location.rock_type)
+  const alert = alertsData === undefined ? undefined : sortBySeverity(alertsData)[0]
+  const today = findToday(forecastData)
+
+  let second: ReactNode = null
+  let third: ReactNode = null
+  if (location.is_climbing_location) {
+    const parts = [dryness === null ? null : `${DRYNESS_LABEL}: ${dryness}`, rock].filter((s): s is string => s !== null)
+    second = parts.length === 0 ? null : <small style={small}>{parts.join(' · ')}</small>
+    if (shown === null && conditions.isError) {
+      third = (
+        <RowControl>
+          <InlineError message="Couldn't load conditions." onRetry={() => void conditions.refetch()} />
+        </RowControl>
+      )
+    } else if (summary?.unavailableLine != null) {
+      third = <small style={small}>{summary.unavailableLine}</small>
+    } else if (summary?.window != null) {
+      third = (
+        <small style={small}>
+          {`${summary.window.label}: ${summary.window.value}`}
+          {dayScore === null ? '' : ` · Today: ${dayScore}`}
+        </small>
+      )
+    }
+  } else if (shown === null && forecast.isError) {
+    third = (
+      <RowControl>
+        <InlineError message="Couldn't load weather." onRetry={() => void forecast.refetch()} />
+      </RowControl>
+    )
+  } else if (today !== null) {
+    second = <small style={small}>{`Today: ${formatTempRangeF(today.temp_c_min, today.temp_c_max)}`}</small>
+  }
+
+  // Alerts outrank everything, so the alert line takes the place of the day's line.
+  const alertLine =
+    shown === null && alerts.isError ? (
+      <small style={{ ...small, color: colorsV2.txtMuted }}>Alerts unavailable</small>
+    ) : alert === undefined ? null : (
+      <small style={{ ...small, color: colors.fair }}>{alert.event}</small>
+    )
+
+  const loading = shown === null && (forecast.isPending || (location.is_climbing_location && conditions.isPending))
 
   return (
-    // A div, not a button. The card is the tap target (§3: tapping the card,
-    // not the pill, opens detail) but it also contains a retry button when a
-    // section fails, and a <button> inside a <button> is invalid markup that
-    // browsers reparse — the inner control ends up outside the card.
+    // A div, not a button: it can contain a retry button, and a <button>
+    // inside a <button> is invalid markup that browsers reparse.
     <div
       role="button"
       tabIndex={0}
-      style={{ ...cardV2, ...stack(spacing.cardPad), cursor: 'pointer' }}
-      // Opens at once. Waiting for the crag's hourly series first was tried
-      // and felt laggy (owner, 2026-10-01); its fetch starts on touch-down.
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1fr) auto 10px',
+        gap: '12px',
+        alignItems: 'center',
+        padding: '14px 0',
+        minHeight: '64px',
+        cursor: 'pointer',
+        borderTop: first ? 'none' : `1px solid ${colorsV2.line}`,
+      }}
+      // Opens at once; the crag's hourly fetch starts on touch-down.
       onPointerDown={() => prefetchDetail(queryClient, location)}
       onClick={() => onOpen(location.id)}
       onKeyDown={(e) => {
-        // Only when the card itself has focus. Without this check, Enter or
-        // Space on the retry button inside would open the location instead of
-        // retrying — the keydown bubbles, and preventDefault here would cancel
-        // the inner button's own activation.
+        // Only when the row itself has focus, so Enter on the retry button retries.
         if (e.target !== e.currentTarget) return
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
@@ -114,148 +169,56 @@ export function LocationCard({
         }
       }}
     >
-      {/* Alerts outrank everything and sit above the score (§7 rule 5), which
-          in v2 is on the title row — so the pill leads the card. An alert that
-          failed to load must not read as "no alerts": its absence is stated. */}
-      {shown === null && alerts.isError ? (
-        <span style={{ ...typeV2.chip, color: colorsV2.txtMuted }}>Alerts unavailable</span>
-      ) : alertsData === undefined || alertsData.length === 0 ? null : (
-        appear(
-          <div>
-            <AlertPill alerts={alertsData} />
-          </div>,
-        )
-      )}
-
-      <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
-        <div style={{ ...row(spacing.cellPad), minWidth: 0 }}>
-          {/* Wraps rather than truncating: the tail is often the part that
-              tells two places apart — "Barn Bluff (Red Wing)". */}
-          <span style={{ ...typeV2.cardName, minWidth: 0, overflowWrap: 'anywhere' }}>
-            {location.name}
-          </span>
-          {summary?.score == null
-            ? null
-            : appear(<ScoreBadge score={summary.score} />, { flex: '0 0 auto' })}
-        </div>
-        <ChevronRightIcon color={colorsV2.txtMuted} />
-      </div>
-
-      {shown === null && forecast.isPending ? (
-        <Skeleton height={26} />
-      ) : shown === null && forecast.isError ? (
-        <CardControl>
-          <InlineError message="Couldn't load weather." onRetry={() => void forecast.refetch()} />
-        </CardControl>
-      ) : today === null ? (
-        <span style={{ ...typeV2.chip, color: colorsV2.txtMuted }}>No reading for today yet.</span>
+      <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        {/* Wraps rather than truncating: the tail often tells two places apart. */}
+        <span style={{ ...typeV2.listName, overflowWrap: 'anywhere' }}>{location.name}</span>
+        {loading ? (
+          <Skeleton height={30} />
+        ) : (
+          appear(
+            <>
+              {second}
+              {alertLine ?? third}
+            </>,
+          )
+        )}
+      </span>
+      {location.is_climbing_location ? (
+        <RowScore
+          score={loading ? undefined : (summary?.score ?? null)}
+          withheld={alertsPending || severeAlertEvent(alertsData) !== null}
+        />
       ) : (
-        appear(<TodayChips day={today} />)
+        <span />
       )}
-
-      {/* The readings as label-and-value pills — never colour alone. The Figma
-          draws "Dryness" and "Friction" as bare tinted words, which leaves the
-          reading itself to the tint; the owner's rule is that a reading is a
-          label and a value (`Dryness: Dry`), and a colour cannot be read aloud.
-
-          Nothing at all when there are no readings, rather than an empty row.
-          A named unavailable reason is a sentence about *us*, and the detail
-          screen this card opens has room for it. */}
-      {summary === null || summary.readings.length === 0 ? null : (
-        appear(
-          <div style={{ ...row(spacing.chipGapMd), flexWrap: 'wrap' }}>
-            {summary.readings.map((field) => (
-              <ReadingPill
-                key={field.label}
-                label={field.label}
-                value={field.value}
-                tone={readingTone(field, reading)}
-              />
-            ))}
-          </div>,
-        )
-      )}
+      <span aria-hidden="true" style={{ ...typeV2.listName, color: colorsV2.txtMuted }}>
+        ›
+      </span>
     </div>
   )
 }
 
 /**
- * The score, beside the name. `summary.score` is already `null` under a
- * Severe+ alert and while alerts are loading, so there is no raw number here to
- * reach past. A score a new run changes while the list is open rolls to its new
- * value with `was 64` beside it for a few seconds.
+ * The hour's score, with "now" under it. `summary.score` is already `null`
+ * under a Severe+ alert and while alerts load, so there is no raw number here
+ * to reach past; a withheld score is a dash over "withheld".
  */
-function ScoreBadge({ score }: { score: number }) {
-  const tone = toneColors(scoreTone(score), 'badge')
-  const was = usePreviousFigure(String(score))
+function RowScore({ score, withheld }: { score: number | null | undefined; withheld: boolean }) {
+  const value = score == null ? EM_DASH : String(score)
+  const was = usePreviousFigure(value)
+  if (score === undefined) return <span style={{ width: '64px' }} />
   return (
     <span
       style={{
-        ...row(spacing.chipGapMd),
-        flex: '0 0 auto',
-        backgroundColor: tone.background,
-        borderRadius: `${radius.chipMd}px`,
-        padding: `${spacing.chipGap}px ${spacing.cellPad}px`,
+        ...typeV2.listScore,
+        width: '64px',
+        textAlign: 'right',
+        fontVariantNumeric: 'tabular-nums',
+        color: score === null ? colorsV2.txtMuted : scoreRampColor(score),
       }}
     >
-      <span style={{ ...typeV2.badgeLabel, color: tone.label }}>{SCORE_LABEL}</span>
-      <span style={{ ...typeV2.badgeValue, color: tone.value }}>
-        <RollingFigure value={String(score)} from={was} />
-      </span>
-      {was === null ? null : <span style={{ ...typeV2.badgeLabel, color: tone.label }}>was {was}</span>}
+      <RollingFigure value={value} from={was} />
+      <small style={{ ...typeV2.daySmall, display: 'block', fontWeight: 500 }}>{score !== null ? 'now' : withheld ? 'withheld' : 'no score'}</small>
     </span>
-  )
-}
-
-/**
- * Today's four figures. **Every one is a daily figure, not a present reading**
- * — the low-to-high range, the median rain total, the day's humidity and its
- * strongest wind — so each label says which daily figure it is: "Low–high",
- * not "Temperature", and "Peak wind", not "Wind" (§3). Each chip also carries
- * a spoken label that says it in full.
- *
- * **The Figma's rain chip reads "0% · 0.0 in", and the percentage is dropped.**
- * The daily row carries no chance of rain — that exists only per hour, as
- * `members_wet / member_count` — and there is no honest way to make one day's
- * figure out of 24 hours' worth. The amount is `precip_mm_p50`, the median of
- * the members' own daily totals, which is a daily figure and not a sum.
- *
- * Colour follows the data ramps, never the status ladder: temperature by the
- * continuous ramp at the day's high, rain in the rain accent once any is
- * forecast.
- */
-function TodayChips({ day }: { day: ForecastSnapshot }) {
-  const rainy = day.precip_mm_p50 !== null && day.precip_mm_p50 > 0
-  return (
-    <div style={{ ...row(spacing.chipGapMd), alignItems: 'stretch' }}>
-      <LabelledFigure
-        icon={<TemperatureIcon color={colorsV2.txtMuted} />}
-        value={formatTempRangeF(day.temp_c_min, day.temp_c_max)}
-        label="Low–high"
-        color={day.temp_c_max === null ? colorsV2.txt1 : tempColor(day.temp_c_max)}
-        spoken={`Low to high today: ${formatTempRangeF(day.temp_c_min, day.temp_c_max)}`}
-      />
-      <LabelledFigure
-        icon={<DropletIcon color={colorsV2.txtMuted} />}
-        value={formatPrecipIn(day.precip_mm_p50)}
-        label="Rain"
-        color={rainy ? colors.rain : colorsV2.txt1}
-        spoken={`Rain today: ${formatPrecipIn(day.precip_mm_p50)}`}
-      />
-      <LabelledFigure
-        icon={<HumidityIcon color={colorsV2.txtMuted} />}
-        value={formatHumidity(day.humidity_pct)}
-        label="Humidity"
-        color={colorsV2.txt1}
-        spoken={`Humidity today: ${formatHumidity(day.humidity_pct)}`}
-      />
-      <LabelledFigure
-        icon={<WindIcon color={colorsV2.txtMuted} />}
-        value={formatWindMph(day.wind_kmh_max)}
-        label="Peak wind"
-        color={colorsV2.txt1}
-        spoken={`Wind today up to ${formatWindMph(day.wind_kmh_max)}`}
-      />
-    </div>
   )
 }

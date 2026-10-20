@@ -127,6 +127,16 @@ drops one is a regression:
    Hourly has no Agreement. The score bar's rain dot (50% or more) is still the owner's call.
 3. **Daily, Precip and Rock.** The Daily wrap fix, removing the running total, and putting
    the drying clock and condensation chart back on Rock.
+   **3a, built 2026-10-19: the Conditions list and Daily drawn to the mockup.** The list is
+   the mockup's title and one glass card of rows (`LocationCard.tsx`): the name, Dryness and
+   rock, the good hours and today's score, and the hour's score large with "now". Add and
+   sort stay; the alert's name takes the day's line. Daily is one Seven days card
+   (`DailyList.tsx`): sky, day, score, the low–high bar on the week's scale, chance of rain,
+   and good hours, Dryness, rain and peak wind under them. The Overview's Rain card names the
+   last storm's amount and length. **Departures, for honesty:** no sky glyph on the list
+   (`/conditions` carries none); "Good hours" where the mockup says "best 11a–2p", since a
+   day's score and its good hours are not one three-hour run; no rain amount beside the next
+   rain (there is no hourly median amount).
 4. **Crag tab and Trips** restyled.
 5. **Map, Profile, Add a crag and Feedback** restyled.
 

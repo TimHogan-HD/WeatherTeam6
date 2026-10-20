@@ -149,6 +149,10 @@ export const colorsV2 = {
   rangeFrost: '#cfe8ff',
   /** The air line with no score to colour it: a city, or an hour without one (hybrid mockup). */
   airNeutral: '#dfe6ec',
+  /** Daily's low–high bar: its cool and warm ends, and the track under it (hybrid mockup's `.tbar`). */
+  tempBarCool: '#7fd1c4',
+  tempBarWarm: '#ffd36b',
+  tempBarTrack: 'rgba(255,255,255,0.08)',
   /** The sustained-wind line and its range (hybrid mockup's `--wind`). */
   wind: '#7fd1c4',
   /** Gusts, dashed, beside `wind`. */
@@ -825,6 +829,52 @@ export const typeV2 = {
     fontSize: 26,
     fontWeight: '700' as const,
     lineHeight: 26,
+  },
+  /** The Conditions list's title: Barlow Condensed 40/700. */
+  listTitle: {
+    fontFamily: fonts.display,
+    fontSize: 40,
+    fontWeight: '700' as const,
+    lineHeight: 40,
+    color: colorsV2.txt1,
+  },
+  /** A crag's name on the list: Barlow Condensed 22/700. */
+  listName: {
+    fontFamily: fonts.display,
+    fontSize: 22,
+    fontWeight: '700' as const,
+    lineHeight: 24,
+    color: colorsV2.txt1,
+  },
+  /** A crag's score on the list: Barlow Condensed 40/700. Colour is the score's. */
+  listScore: {
+    fontFamily: fonts.display,
+    fontSize: 40,
+    fontWeight: '700' as const,
+    lineHeight: 36,
+  },
+  /** The list's and Daily's small lines — "Dryness: Dry · Limestone": Barlow 12/400. */
+  rowSmall: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    fontWeight: '400' as const,
+    lineHeight: 17,
+    color: colorsV2.txt2,
+  },
+  /** A day's name on Daily — "Thu": Barlow Condensed 18/600. */
+  dayName: {
+    fontFamily: fonts.display,
+    fontSize: 18,
+    fontWeight: '600' as const,
+    lineHeight: 20,
+    color: colorsV2.txt1,
+  },
+  /** A day's chance of rain on Daily: Barlow Condensed 16/600, rain ink. */
+  dayChance: {
+    fontFamily: fonts.display,
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: colorsV2.rain,
   },
   /** A next day's small lines — "Wed", "68°/47°": Barlow 10/400. */
   daySmall: {

@@ -10,6 +10,7 @@ import {
   dewPointMarginValue,
   formatElevationFt,
   formatHumidity,
+  formatPrecipIn,
   formatLocalHour,
   formatTempF,
   measurements,
@@ -277,7 +278,7 @@ function Hero({ props, now }: { props: OverviewTabProps; now: Now | null }) {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'minmax(0, 1fr) clamp(118px, 36vw, 150px)',
+              gridTemplateColumns: 'auto minmax(0, 1fr)',
               alignItems: 'center',
               gap: '12px',
               marginTop: '6px',
@@ -494,10 +495,12 @@ function RainCard({ props }: { props: OverviewTabProps }) {
         ? { value: shortDate(next.local_date, todayDate), color: colorsV2.rain, note: `${next.chancePct}% chance` }
         : // "None through Sun 10/25", not "no rain": rain past the ensemble's edge is rain these figures cannot see.
           { value: `None through ${shortDate(next.throughDate, todayDate)}`, note: null }
+  const event = summary?.lastRealEvent ?? null
+  const storm = event === null ? null : `${formatPrecipIn(event.totalMm)} over ${event.spanHours} h`
   if (last === null && nextLine === null) return null
   return (
     <Card title="Rain" aside="last real rain · next likely">
-      {last === null ? null : <Line label="Last rain" value={last} last={nextLine === null} />}
+      {last === null ? null : <Line label="Last rain" value={last} note={storm} last={nextLine === null} />}
       {nextLine === null ? null : (
         <Line
           label="Next rain"

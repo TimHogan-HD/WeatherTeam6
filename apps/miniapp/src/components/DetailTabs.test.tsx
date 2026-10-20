@@ -191,13 +191,13 @@ describe('DetailView — tabs', () => {
 
   it('shows the daily rows on Daily and the day charts on Hourly', () => {
     const daily = render({ active: 'daily' })
-    expect(daily).toMatch(/>Next [0-9]+ days?</)
+    expect(daily).toMatch(/<span>Seven days</)
     // The seven-day strip was removed from Daily on 2026-09-28 (owner): the
     // V2 rows carry the figures, and the Hourly tab carries the charts.
     expect(daily).not.toContain('Hour by hour')
 
     const hourly = render({ active: 'hourly' })
-    expect(hourly).not.toMatch(/>Next [0-9]+ days?</)
+    expect(hourly).not.toMatch(/<span>Seven days</)
     // The day picker, then the hybrid look's three cards.
     expect(hourly).toMatch(/aria-pressed="true"[^>]*>Today</)
     for (const title of ['Temperature and humidity', 'Rain', 'Wind']) expect(hourly).toMatch(new RegExp(`<h2[^>]*><span>${title}<`))
@@ -207,7 +207,7 @@ describe('DetailView — tabs', () => {
     // Three forecast rows, two drawable days. The third row exists — the daily
     // forecast covers it — and must not open two empty charts.
     const html = render({ active: 'daily' })
-    const rowButtons = [...html.matchAll(/<button type="button" style="appearance:none[^>]*>/g)]
+    const rowButtons = [...html.matchAll(/<button type="button" aria-label="[^"]*score[^"]*chance of rain"/g)]
     expect(rowButtons).toHaveLength(2)
     expect(html).toContain('Days without an hour-by-hour forecast can&#x27;t be opened.')
   })
@@ -341,7 +341,7 @@ describe('DetailView — tabs', () => {
         }}
       />,
     )
-    expect(html).toMatch(/>Next [0-9]+ days?</)
+    expect(html).toMatch(/<span>Seven days</)
     expect(html).not.toContain('can&#x27;t be opened')
   })
 
@@ -378,7 +378,7 @@ describe('DetailView — tabs', () => {
       <DetailView isClimbingLocation forecast={ok([day(DAY_1)])} />,
     )
     expect(html).not.toContain('role="tablist"')
-    expect(html).toMatch(/>Next [0-9]+ days?</)
+    expect(html).toMatch(/<span>Seven days</)
   })
 })
 
