@@ -58,6 +58,13 @@ describe('dryAgain', () => {
     })
   })
 
+  it('ends the not-dry span at the last hour read, not at unread hours past it', () => {
+    expect(dryAgain(readings([hour(0, 'wet'), hour(1, 'drying'), hour(2, null), hour(30, null)]), NOW)).toEqual({
+      kind: 'not-in-forecast',
+      throughMs: T0 + 1 * H,
+    })
+  })
+
   it('is a gap when now could not be read, never now', () => {
     expect(dryAgain(readings([hour(0, null), hour(1, 'dry')]), NOW)).toBeNull()
   })

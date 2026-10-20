@@ -59,7 +59,7 @@ export function dryAgain(readings: HourlyReadings | undefined, nowMs: number): D
   for (const h of usable(readings) ?? []) {
     const t = Date.parse(h.valid_at)
     if (!Number.isFinite(t) || t <= nowAt) continue
-    last = Math.max(last, t)
+    if (h.rock !== null) last = Math.max(last, t) // an unread hour is not a day the rock was read as wet
     if (h.rock?.level === 'dry') return { kind: 'at', ms: t }
   }
   return { kind: 'not-in-forecast', throughMs: last }
