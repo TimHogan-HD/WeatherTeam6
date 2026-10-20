@@ -1,6 +1,7 @@
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, cardV2, row, stack } from '../theme/styles.js'
+import { cardV2, quietButton, row, stack } from '../theme/styles.js'
+import { Sect } from './charts/liquid.js'
 import { useAccount } from '../hooks/useAccount.js'
 import { useAllFeedback, useResolveFeedback } from '../hooks/useFeedback.js'
 import { feedbackLines } from '../lib/feedback.js'
@@ -25,9 +26,9 @@ function EveryonesFeedback() {
 
   return (
     <section style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
-      <div style={stack(spacing.micro)}>
-        <h2 style={typeV2.cardTitle}>Everyone’s feedback</h2>
-        <p style={{ ...typeV2.note, color: colorsV2.txtMuted }}>
+      <div>
+        <Sect title="Everyone’s feedback" />
+        <p style={typeV2.body}>
           {list.isSuccess
             ? list.data.length === 0
               ? 'Nothing open.'
@@ -40,25 +41,31 @@ function EveryonesFeedback() {
         <InlineError message="Couldn’t load the feedback." onRetry={() => void list.refetch()} />
       ) : (
         <ul style={{ ...stack(spacing.listGapLg), listStyle: 'none', margin: 0, padding: 0 }}>
-          {list.data.map((item) => {
+          {list.data.map((item, i) => {
             const { head, verdict, appSaid } = feedbackLines(item, item.username ?? 'Unnamed account')
             const resolving = resolve.isPending && resolve.variables === item.id
             return (
-              <li key={item.id} style={stack(spacing.micro)}>
-                <span style={{ ...typeV2.note, color: colorsV2.txtMuted }}>{head}</span>
-                {verdict === null ? null : <span style={{ ...typeV2.controlValue, color: colorsV2.txt1 }}>{verdict}</span>}
-                {appSaid === null ? null : <span style={{ ...typeV2.note, color: colorsV2.txtMuted }}>{appSaid}</span>}
+              <li
+                key={item.id}
+                style={{
+                  ...stack(spacing.micro),
+                  ...(i === 0 ? {} : { borderTop: `1px solid ${colorsV2.line}`, paddingTop: `${spacing.listGapLg}px` }),
+                }}
+              >
+                <span style={typeV2.note}>{head}</span>
+                {verdict === null ? null : <span style={{ ...typeV2.body, fontSize: '15px', color: colorsV2.txt1 }}>{verdict}</span>}
+                {appSaid === null ? null : <span style={typeV2.note}>{appSaid}</span>}
                 {item.message === null ? null : (
-                  <p style={{ ...typeV2.controlValue, color: colorsV2.txt1, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+                  <p style={{ ...typeV2.body, fontSize: '15px', color: colorsV2.txt1, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
                     {item.message}
                   </p>
                 )}
-                <div style={row(spacing.cellPad)}>
+                <div style={{ ...row(spacing.cellPad), marginTop: `${spacing.tight}px` }}>
                   <button
                     type="button"
                     disabled={resolving}
                     onClick={() => resolve.mutate(item.id)}
-                    style={{ ...bareButton, ...typeV2.cardLink, width: 'auto', padding: `${spacing.micro}px 0`, opacity: resolving ? 0.5 : 1 }}
+                    style={{ ...quietButton, opacity: resolving ? 0.5 : 1 }}
                   >
                     {resolving ? 'Marking…' : 'Done'}
                   </button>

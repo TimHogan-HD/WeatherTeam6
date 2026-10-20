@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react'
-import { colors, spacing } from '@weatherteam6/design/tokens'
-import { layout, type } from '../theme/tokens.css.js'
+import { colorsV2, spacing } from '@weatherteam6/design/tokens'
+import { layout, typeV2 } from '../theme/tokens.css.js'
 import { bareButton, bottomClearance, row } from '../theme/styles.js'
-import { ChevronLeftIcon } from './Icons.js'
 import { FeedbackButton } from './FeedbackButton.js'
 
 type ScreenProps = {
@@ -55,7 +54,7 @@ export function Screen({ title, onBack, action, feedback = false, children }: Sc
           gap: `${spacing.inlineGap}px`,
         }}
       >
-        <h1 style={type.screenTitle}>{title}</h1>
+        <h1 style={{ ...typeV2.listTitle, minWidth: 0, overflowWrap: 'anywhere' }}>{title}</h1>
         {action}
       </div>
       {children}
@@ -70,9 +69,10 @@ export function Screen({ title, onBack, action, feedback = false, children }: Sc
  * and a control on each side of a long location name wraps at 360px.
  *
  * The horizontal padding is negative so the glyph lines up with the screen
- * gutter while the tap target still extends past it — a 18px chevron alone is
+ * gutter while the tap target still extends past it — the crumb's line alone is
  * well under the 44px minimum, and padding is the only way to reach it without
- * drawing a box the mockups do not have.
+ * drawing a box the mockups do not have. It reads `‹ Back`, the hybrid
+ * mockup's crumb (`Crumb` in `guidebook/parts.tsx`).
  */
 function BackControl({ onBack, centred = false }: { onBack: () => void; centred?: boolean }) {
   return (
@@ -93,8 +93,9 @@ function BackControl({ onBack, centred = false }: { onBack: () => void; centred?
         marginBottom: centred ? `-${spacing.cellPad}px` : undefined,
       }}
     >
-      <ChevronLeftIcon color={colors.txt2} />
-      <span style={{ ...type.label, color: colors.txt2 }}>Back</span>
+      <span style={{ ...typeV2.dayPick, color: colorsV2.brandInk }}>
+        <span aria-hidden="true">‹ </span>Back
+      </span>
     </button>
   )
 }

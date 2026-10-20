@@ -1,8 +1,9 @@
 import { useState, type ReactNode } from 'react'
-import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
+import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { TEMP_RANGE_DEFAULT_F, type Preferences } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, btnPrimary, btnPrimaryText, cardV2, chip, chipActive, row, stack } from '../theme/styles.js'
+import { bareButton, brandButton, cardV2, choicePill, quietButton, row, stack } from '../theme/styles.js'
+import { Sect } from './charts/liquid.js'
 import { usePreferences, useUpdatePreferences } from '../hooks/usePreferences.js'
 import {
   DEFAULT_DRAFT,
@@ -60,13 +61,7 @@ function SettingsForm({ saved }: { saved: Preferences }) {
                 type="button"
                 aria-pressed={draft.tab === t.value}
                 onClick={() => change({ ...draft, tab: t.value })}
-                style={{
-                  ...bareButton,
-                  ...(draft.tab === t.value ? chipActive : chip),
-                  ...typeV2.chip,
-                  color: draft.tab === t.value ? colorsV2.brandInk : colorsV2.txt1,
-                  width: 'auto',
-                }}
+                style={{ ...choicePill(draft.tab === t.value), ...typeV2.dayPick }}
               >
                 {t.label}
               </button>
@@ -77,7 +72,7 @@ function SettingsForm({ saved }: { saved: Preferences }) {
 
       {update.isError ? <InlineError message="Couldn’t save. Check your connection and try again." /> : null}
       {done && changes === null ? (
-        <p role="status" style={{ ...typeV2.note, color: colors.good }}>
+        <p role="status" style={{ ...typeV2.body, color: colorsV2.goodInk }}>
           Saved.
         </p>
       ) : null}
@@ -85,14 +80,7 @@ function SettingsForm({ saved }: { saved: Preferences }) {
       <div style={{ ...row(spacing.cellPad), alignItems: 'center' }}>
         <button
           type="button"
-          style={{
-            ...bareButton,
-            ...btnPrimary,
-            ...btnPrimaryText,
-            textAlign: 'center',
-            flex: 1,
-            opacity: changes === null || update.isPending ? 0.5 : 1,
-          }}
+          style={{ ...brandButton, flex: 1, opacity: changes === null || update.isPending ? 0.5 : 1 }}
           disabled={changes === null || update.isPending}
           onClick={() => {
             if (changes !== null) update.mutate(changes, { onSuccess: () => setDone(true) })
@@ -122,9 +110,9 @@ function SettingsForm({ saved }: { saved: Preferences }) {
 function Card({ title, note, children }: { title: string; note: string; children: ReactNode }) {
   return (
     <section style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
-      <div style={stack(spacing.micro)}>
-        <h2 style={typeV2.cardTitle}>{title}</h2>
-        <p style={{ ...typeV2.note, color: colorsV2.txtMuted }}>{note}</p>
+      <div>
+        <Sect title={title} />
+        <p style={typeV2.body}>{note}</p>
       </div>
       {children}
     </section>
@@ -153,14 +141,11 @@ function Stepper({
         disabled={!enabled}
         onClick={() => onChange(stepRange(draft, end, delta))}
         style={{
-          ...bareButton,
-          ...chip,
-          ...typeV2.controlValue,
-          color: colorsV2.txt1,
+          ...quietButton,
+          ...typeV2.guideRowName,
           width: `${spacing.sectionGap * 2.75}px`,
           height: `${spacing.sectionGap * 2.75}px`,
           padding: 0,
-          borderRadius: `${radius.full}px`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -173,10 +158,10 @@ function Stepper({
   }
   return (
     <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'center' }}>
-      <span style={{ ...typeV2.gaugeLabel, color: colorsV2.txtMuted }}>{label}</span>
+      <span style={typeV2.statLabel}>{label}</span>
       <div style={{ ...row(spacing.listGapLg), alignItems: 'center' }}>
         {button(-TEMP_STEP_F, '−', `${label} ${TEMP_STEP_F}° colder`)}
-        <span aria-live="polite" style={{ ...typeV2.bandValue, color: colorsV2.txt1, minWidth: `${spacing.sectionGap * 3}px`, textAlign: 'center' }}>
+        <span aria-live="polite" style={{ ...typeV2.lineFigure, color: colorsV2.txt1, minWidth: `${spacing.sectionGap * 4}px`, textAlign: 'center' }}>
           {value}°F
         </span>
         {button(TEMP_STEP_F, '+', `${label} ${TEMP_STEP_F}° warmer`)}

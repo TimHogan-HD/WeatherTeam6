@@ -14,13 +14,8 @@ import { glassCard } from './glass.js'
  */
 
 export const card: CSSProperties = boxStyle(components.card)
-export const cardActive: CSSProperties = boxStyle(components.cardActive)
-export const inputBox: CSSProperties = boxStyle(components.input)
-export const chip: CSSProperties = boxStyle(components.layerChip)
-export const chipActive: CSSProperties = boxStyle(components.layerChipActive)
 export const btnPrimary: CSSProperties = boxStyle(components.btnPrimary)
 export const btnPrimaryText: CSSProperties = textStyle(components.btnPrimaryText)
-export const sourceBadge: CSSProperties = boxStyle(components.sourceBadge)
 
 /**
  * The alert surface. The palette has `goodTint`, `fairTint` and `sunTint` but
@@ -52,6 +47,25 @@ const hairline = (color: string): CSSProperties => ({
  * pane over the still ground (`theme/glass.ts`), with its 16px padding.
  */
 export const cardV2: CSSProperties = glassCard
+
+/**
+ * A text, date, select or textarea field on the glass (the mockup's
+ * `.phone input`). 16px, because iOS zooms the page into any focused control
+ * under that.
+ */
+export const fieldV2: CSSProperties = {
+  ...typeV2.body,
+  fontSize: '16px',
+  color: colorsV2.txt1,
+  width: '100%',
+  minHeight: '44px',
+  boxSizing: 'border-box',
+  padding: `${spacing.cellPad}px ${spacing.listGapLg}px`,
+  backgroundColor: colorsV2.surface,
+  ...hairline(colorsV2.line),
+  borderRadius: `${radius.chipMd}px`,
+  colorScheme: 'dark',
+}
 
 /** A pill-shaped well one step darker than the card — chips, the legend, the sort control. */
 export const wellV2: CSSProperties = {
@@ -146,6 +160,9 @@ export const brandButton: CSSProperties = {
   backgroundColor: colorsV2.brand,
   textAlign: 'center',
 }
+
+/** A lesser action beside or under a `brandButton` — Cancel, Done, Sign out: the unchosen pill. */
+export const quietButton: CSSProperties = { ...choicePill(false), ...typeV2.dayPick, color: colorsV2.txt1, textAlign: 'center' }
 
 /**
  * The space under a screen's last content: the design's bottom inset, or the

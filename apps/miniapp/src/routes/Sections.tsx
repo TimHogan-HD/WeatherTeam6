@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
-import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
+import { spacing } from '@weatherteam6/design/tokens'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, headerBand, navClearance, row, stack } from '../theme/styles.js'
+import { bareButton, headerBand, navClearance, quietButton, row, stack } from '../theme/styles.js'
 import { clearToken } from '../lib/authToken.js'
 import { FeedbackButton } from '../components/FeedbackButton.js'
 import { Settings } from '../components/Settings.js'
@@ -18,11 +18,11 @@ import { draftFromPreferences } from '../lib/preferencesForm.js'
 export function SectionScreen({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
     <main style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-      <header style={{ ...headerBand, ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <h1 style={typeV2.screenTitle}>{title}</h1>
+      <header style={{ ...headerBand, ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1 style={typeV2.listTitle}>{title}</h1>
         {action}
       </header>
-      <div style={{ ...stack(spacing.listGapLg), padding: `${spacing.sectionGap}px`, paddingBottom: navClearance }}>
+      <div style={{ ...stack(spacing.listGapLg), padding: `0 ${spacing.sectionGap}px`, paddingBottom: navClearance }}>
         {children}
       </div>
     </main>
@@ -79,19 +79,8 @@ export function Profile() {
       <EveryonesFeedbackCard />
       <InviteCard />
       <ScoreExplainer rangeF={range === null ? null : { low: range.lowF, high: range.highF }} />
-      <button
-        type="button"
-        style={{
-          ...bareButton,
-          width: 'auto',
-          alignSelf: 'flex-start',
-          border: `1px solid ${colorsV2.line}`,
-          borderRadius: `${radius.full}px`,
-          padding: `${spacing.listGap}px ${spacing.cardPad}px`,
-        }}
-        onClick={clearToken}
-      >
-        <span style={typeV2.controlValue}>Sign out</span>
+      <button type="button" style={{ ...quietButton, alignSelf: 'flex-start', minHeight: '44px' }} onClick={clearToken}>
+        Sign out
       </button>
     </SectionScreen>
   )

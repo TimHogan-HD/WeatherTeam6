@@ -1,8 +1,8 @@
-import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
+import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { ROCK_TYPE_GROUPS, isRockType, rockTypeLabel, type RockType } from '@weatherteam6/types'
 import { Link } from 'react-router-dom'
-import { type } from '../theme/tokens.css.js'
-import { bareButton, btnPrimary, btnPrimaryText, chip, chipActive, inputBox, stack } from '../theme/styles.js'
+import { typeV2 } from '../theme/tokens.css.js'
+import { brandButton, cardV2, choicePill, fieldV2, stack } from '../theme/styles.js'
 
 /**
  * The add flow's save form (§12.1 step 3).
@@ -57,17 +57,10 @@ export function SaveBar({
         // soon as the climbing toggle opens the rock-type row.
         position: 'sticky',
         bottom: 0,
-        // Opaque, or the scroll shows through. The page's own ground, so the
-        // bar reads as part of the surface.
-        backgroundColor: colorsV2.bg,
-        borderStyle: 'solid',
-        borderWidth: '1px',
-        borderColor: colors.line,
-        borderRadius: `${radius.card}px`,
+        // A glass pane: the scroll passes under it frosted, and turns opaque
+        // with reduced transparency like every other pane.
+        ...cardV2,
         marginTop: `${spacing.sectionGap}px`,
-        paddingLeft: `${spacing.cardPad}px`,
-        paddingRight: `${spacing.cardPad}px`,
-        paddingTop: `${spacing.cardPad}px`,
         // The `0px` fallback stays: a browser without this inset resolves the
         // function to nothing, and CSS then drops the whole declaration rather
         // than just the one value — taking `bottomInset` with it.
@@ -75,19 +68,19 @@ export function SaveBar({
         ...stack(spacing.cellPad),
       }}
     >
-      <label style={stack(spacing.micro)}>
-        <span style={type.label}>Name</span>
+      <label style={stack(spacing.tight)}>
+        <span style={typeV2.statLabel}>Name</span>
         <input
           value={draft.name}
           onChange={(e) => onChange({ ...draft, name: e.target.value })}
-          style={{ ...inputBox, ...type.calDay, width: '100%' }}
+          style={fieldV2}
           aria-label="Location name"
         />
       </label>
 
       <button
         type="button"
-        style={{ ...bareButton, ...(draft.isClimbing ? chipActive : chip), ...type.labelSm, width: 'auto' }}
+        style={{ ...choicePill(draft.isClimbing), ...typeV2.dayPick, alignSelf: 'flex-start' }}
         onClick={() => onChange({ ...draft, isClimbing: !draft.isClimbing })}
         aria-pressed={draft.isClimbing}
       >
@@ -95,10 +88,10 @@ export function SaveBar({
       </button>
 
       {draft.isClimbing && knownCrag !== null ? (
-        <div style={stack(spacing.micro)}>
-          <span style={type.label}>Rock type</span>
-          <span style={type.calDay}>{rockTypeLabel(knownCrag.rock_type)}</span>
-          <span style={{ ...type.bodySm, color: colors.txt3 }}>
+        <div style={stack(spacing.tight)}>
+          <span style={typeV2.statLabel}>Rock type</span>
+          <span style={{ ...typeV2.guideRowName, color: colorsV2.txt1 }}>{rockTypeLabel(knownCrag.rock_type)}</span>
+          <span style={typeV2.note}>
             Set for {knownCrag.name}.{' '}
             <Link
               to={`/feedback?message=${encodeURIComponent(`Wrong rock type: ${draft.name.trim() || knownCrag.name} shows ${rockTypeLabel(knownCrag.rock_type)}. It should be: `)}`}
@@ -109,8 +102,8 @@ export function SaveBar({
           </span>
         </div>
       ) : draft.isClimbing ? (
-        <label style={stack(spacing.micro)}>
-          <span style={type.label}>Rock type</span>
+        <label style={stack(spacing.tight)}>
+          <span style={typeV2.statLabel}>Rock type</span>
           {/*
            * A native `<select>`, not chips: twenty-seven values in six families
            * would fill the screen above a sticky bar. `<optgroup>` carries the
@@ -122,7 +115,7 @@ export function SaveBar({
               const value = e.target.value
               if (isRockType(value)) onChange({ ...draft, rockType: value })
             }}
-            style={{ ...inputBox, ...type.calDay, width: '100%' }}
+            style={fieldV2}
             aria-label="Rock type"
           >
             {ROCK_TYPE_GROUPS.map((group) => (
@@ -138,17 +131,11 @@ export function SaveBar({
         </label>
       ) : null}
 
-      {error === null ? null : <span style={{ ...type.bodySm, color: colors.poor }}>{error}</span>}
+      {error === null ? null : <span style={{ ...typeV2.body, color: colorsV2.poorInk }}>{error}</span>}
 
       <button
         type="button"
-        style={{
-          ...bareButton,
-          ...btnPrimary,
-          ...btnPrimaryText,
-          textAlign: 'center',
-          opacity: nameIsEmpty || saving ? 0.5 : 1,
-        }}
+        style={{ ...brandButton, width: '100%', opacity: nameIsEmpty || saving ? 0.5 : 1 }}
         onClick={onSave}
         disabled={nameIsEmpty || saving}
       >

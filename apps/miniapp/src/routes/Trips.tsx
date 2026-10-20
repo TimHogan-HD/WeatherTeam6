@@ -1,10 +1,10 @@
-import { useState, type CSSProperties, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useLocation as useRouterLocation, useParams } from 'react-router-dom'
 import { useNavigate } from '../hooks/useNavigate.js'
 import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import type { Trip, UpdateTripInput } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, bottomClearance, brandButton, cardV2, headerBand, inputBox, navClearance, row, stack } from '../theme/styles.js'
+import { bareButton, bottomClearance, brandButton, cardV2, fieldV2, headerBand, navClearance, row, stack } from '../theme/styles.js'
 import { FeedbackButton } from '../components/FeedbackButton.js'
 import { Crumb } from '../components/guidebook/parts.js'
 import { EmptyState, InlineError, SkeletonCards } from '../components/States.js'
@@ -293,7 +293,7 @@ function TripForm({ title, backLabel, path, initial, onBack, pending, failed, su
             maxLength={100}
             placeholder="Red Wing weekend"
             onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-            style={field}
+            style={fieldV2}
           />
         </label>
         <div style={{ ...row(spacing.listGap), alignItems: 'flex-start' }}>
@@ -306,7 +306,7 @@ function TripForm({ title, backLabel, path, initial, onBack, pending, failed, su
                 const start = e.target.value
                 setDraft((d) => ({ ...d, start, end: d.end < start ? start : d.end }))
               }}
-              style={field}
+              style={fieldV2}
             />
           </label>
           <label style={{ ...stack(spacing.tight), flex: 1, minWidth: 0 }}>
@@ -316,7 +316,7 @@ function TripForm({ title, backLabel, path, initial, onBack, pending, failed, su
               value={draft.end}
               min={draft.start}
               onChange={(e) => setDraft((d) => ({ ...d, end: e.target.value }))}
-              style={field}
+              style={fieldV2}
             />
           </label>
         </div>
@@ -379,17 +379,4 @@ function FormScreen({ title, backLabel, onBack, children }: { title: string; bac
       </div>
     </main>
   )
-}
-
-const field: CSSProperties = {
-  ...inputBox,
-  ...typeV2.body,
-  fontSize: '16px',
-  color: colorsV2.txt1,
-  width: '100%',
-  minHeight: '44px',
-  backgroundColor: colorsV2.surface,
-  borderColor: colorsV2.line,
-  borderRadius: `${radius.chipMd}px`,
-  colorScheme: 'dark',
 }

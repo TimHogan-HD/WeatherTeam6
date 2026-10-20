@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation as useRouterLocation } from 'react-router-dom'
 import { useNavigate } from '../hooks/useNavigate.js'
-import { spacing } from '@weatherteam6/design/tokens'
+import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { matchKnownCrag, placeSubtitle, type GeocodeResult, type RockType } from '@weatherteam6/types'
 import type { RockLock } from '../components/SaveBar.js'
-import { type } from '../theme/tokens.css.js'
-import { bareButton, card, chip, inputBox, row, stack } from '../theme/styles.js'
+import { typeV2 } from '../theme/tokens.css.js'
+import { bareButton, brandButton, cardV2, fieldV2, quietButton, row, stack } from '../theme/styles.js'
+import { ChevronRightIcon, LocateIcon } from '../components/Icons.js'
 import { backTarget } from '../lib/backTarget.js'
 import { fromFix, fromGeocode, fromMapPoint, mapPointFromSearch, type Candidate } from '../lib/addCandidate.js'
 import { useCurrentPosition, type Fix, type PositionReading } from '../hooks/useCurrentPosition.js'
@@ -174,7 +175,7 @@ export function AddLocation() {
   if (candidate !== null) {
     return (
       <Screen title={candidate.name} onBack={onBack} feedback>
-        {candidate.detail === null ? null : <p style={type.screenSub}>{candidate.detail}</p>}
+        {candidate.detail === null ? null : <p style={{ ...typeV2.rowSmall, color: colorsV2.txtMuted }}>{candidate.detail}</p>}
         <SaveBar
           draft={draft}
           knownCrag={knownCrag}
@@ -217,7 +218,7 @@ export function AddLocation() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search for a place"
-              style={{ ...inputBox, ...type.calDay, width: '100%' }}
+              style={fieldV2}
               aria-label="Search for a place"
             />
             <SearchResults
@@ -233,7 +234,7 @@ export function AddLocation() {
 
         <button
           type="button"
-          style={{ ...bareButton, ...type.bodyMd }}
+          style={{ ...bareButton, ...typeV2.dayPick, color: colorsV2.brandInk, width: 'auto', alignSelf: 'flex-start', minHeight: '44px' }}
           onClick={() => setCoordsMode(!coordsMode)}
         >
           {coordsMode ? 'Search by name instead' : 'Enter coordinates instead'}
@@ -267,23 +268,28 @@ function CurrentLocation({
     case 'idle':
     case 'fix':
       return (
-        <button type="button" style={{ ...bareButton, ...card, ...type.cardTitle, textAlign: 'left' }} onClick={onLocate}>
-          Use my current location
+        <button
+          type="button"
+          style={{ ...bareButton, ...cardV2, ...row(spacing.listGapLg), padding: `${spacing.sectionGap}px 18px` }}
+          onClick={onLocate}
+        >
+          <LocateIcon color={colorsV2.brandInk} />
+          <span style={{ ...typeV2.guideRowName, color: colorsV2.txt1 }}>Use my current location</span>
         </button>
       )
     case 'locating':
       return <Working line="Reading location…" onCancel={onCancel} />
     case 'failed':
       return (
-        <div style={{ ...card, ...stack(spacing.listGapSm) }}>
-          <span role="status" style={type.bodyMd}>
+        <div style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
+          <span role="status" style={{ ...typeV2.body, fontSize: '15px', color: colorsV2.txt1 }}>
             {reading.message}
           </span>
           <div style={row(spacing.listGap)}>
-            <button type="button" style={{ ...bareButton, ...chip, ...type.labelSm }} onClick={onLocate}>
+            <button type="button" style={quietButton} onClick={onLocate}>
               Try again
             </button>
-            <button type="button" style={{ ...bareButton, ...chip, ...type.labelSm }} onClick={onCancel}>
+            <button type="button" style={quietButton} onClick={onCancel}>
               Cancel
             </button>
           </div>
@@ -294,11 +300,11 @@ function CurrentLocation({
 
 function Working({ line, onCancel }: { line: string; onCancel: () => void }) {
   return (
-    <div style={{ ...card, ...row(spacing.listGap), justifyContent: 'space-between' }}>
-      <span role="status" style={type.bodyMd}>
+    <div style={{ ...cardV2, ...row(spacing.listGap), justifyContent: 'space-between' }}>
+      <span role="status" style={{ ...typeV2.body, fontSize: '15px', color: colorsV2.txt1 }}>
         {line}
       </span>
-      <button type="button" style={{ ...bareButton, ...chip, ...type.labelSm }} onClick={onCancel}>
+      <button type="button" style={quietButton} onClick={onCancel}>
         Cancel
       </button>
     </div>
@@ -324,22 +330,30 @@ function SearchResults({
   if (error) return <InlineError message="Couldn't search right now." onRetry={onRetry} />
   if (pending) return <SkeletonCards count={3} height={56} />
   if (results === undefined) return null
-  if (results.length === 0) return <p style={type.bodyMd}>No places match that name.</p>
+  if (results.length === 0) return <p style={typeV2.body}>No places match that name.</p>
 
   return (
-    <div style={stack(spacing.listGapSm)}>
-      {results.map((result) => (
+    <div style={{ ...cardV2, paddingBlock: `${spacing.tight}px` }}>
+      {results.map((result, i) => (
         <button
           key={result.id}
           type="button"
-          style={{ ...bareButton, ...card, ...stack(spacing.micro) }}
+          style={{
+            ...bareButton,
+            ...row(spacing.listGapLg),
+            paddingBlock: `${spacing.cellPad}px`,
+            borderTop: i === 0 ? 'none' : `1px solid ${colorsV2.line}`,
+          }}
           onClick={() => onChoose(fromGeocode(result))}
         >
-          <span style={type.cardTitle}>{result.name}</span>
-          {/* Not decoration: `Red Rock Canyon` returns three near-identically
-              named parks in three states, and picking the wrong one silently
-              gives a real forecast for the wrong place (§12.2). */}
-          <span style={type.bodySm}>{placeSubtitle(result)}</span>
+          <span style={{ ...stack(spacing.micro), flex: '1 1 auto', minWidth: 0 }}>
+            <span style={{ ...typeV2.guideRowName, color: colorsV2.txt1 }}>{result.name}</span>
+            {/* Not decoration: `Red Rock Canyon` returns three near-identically
+                named parks in three states, and picking the wrong one silently
+                gives a real forecast for the wrong place (§12.2). */}
+            <span style={{ ...typeV2.rowSmall, color: colorsV2.txtMuted }}>{placeSubtitle(result)}</span>
+          </span>
+          <ChevronRightIcon color={colorsV2.txtMuted} />
         </button>
       ))}
     </div>
@@ -370,19 +384,19 @@ function CoordinateEntry({ onChoose }: { onChoose: (candidate: Candidate) => voi
   }, [name, lat, lon])
 
   return (
-    <div style={stack(spacing.listGapSm)}>
+    <div style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
       {[
         { label: 'Name', value: name, set: setName, mode: 'text' as const },
         { label: 'Latitude', value: lat, set: setLat, mode: 'decimal' as const },
         { label: 'Longitude', value: lon, set: setLon, mode: 'decimal' as const },
       ].map((field) => (
-        <label key={field.label} style={stack(spacing.micro)}>
-          <span style={type.label}>{field.label}</span>
+        <label key={field.label} style={stack(spacing.tight)}>
+          <span style={typeV2.statLabel}>{field.label}</span>
           <input
             value={field.value}
             inputMode={field.mode === 'decimal' ? 'decimal' : 'text'}
             onChange={(e) => field.set(e.target.value)}
-            style={{ ...inputBox, ...type.calDay, width: '100%' }}
+            style={fieldV2}
             aria-label={field.label}
           />
         </label>
@@ -390,7 +404,7 @@ function CoordinateEntry({ onChoose }: { onChoose: (candidate: Candidate) => voi
 
       <button
         type="button"
-        style={{ ...bareButton, ...chip, ...type.labelSm, opacity: problem === null ? 1 : 0.5 }}
+        style={{ ...brandButton, width: '100%', opacity: problem === null ? 1 : 0.5 }}
         disabled={problem !== null}
         onClick={() =>
           onChoose({
@@ -406,7 +420,7 @@ function CoordinateEntry({ onChoose }: { onChoose: (candidate: Candidate) => voi
         Next
       </button>
 
-      {problem === null ? null : <span style={type.bodySm}>{problem}</span>}
+      {problem === null ? null : <span style={typeV2.note}>{problem}</span>}
     </div>
   )
 }
