@@ -68,6 +68,14 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   slim header follows the hour being read (`Today 7 PM`). **The Overview hero is the
   crag's name alone** (owner, 2026-10-20): no figure, only the notes that stop a reading
   being read (a failed or empty call, the qualifier, the Severe+ notice).
+- **A figure printed beside a chart is the series the chart draws.** The Hourly charts draw
+  the ensemble medians (`temp_c_p50`, `wind_kmh_p50`; gusts as `max(wind_gust_kmh, p50)`),
+  so the slim header's read-hour line and each chart's read-hour chip use those too. On
+  2026-10-20 the header printed deterministic `temp_c` (47°) over a chart reading 50°.
+  Before adding a figure near a chart, grep which field the chart plots.
+- **An axis is checked on the screenshot, not the test.** `niceTicks` (`lib/chartTicks.ts`)
+  once drew 20–80° for a 37–67° day. A tick change gets a test on the real range and a
+  look at Hourly at 480×1000.
 - **The number waits for the alerts query, inside `summarizeReadings`** — `alertsPending`
   suppresses the score on its own (defect class 7). **Severe+ suppression drops the number
   and keeps the readings.** A surface must not reach past `ReadingsSummary.score === null`.
