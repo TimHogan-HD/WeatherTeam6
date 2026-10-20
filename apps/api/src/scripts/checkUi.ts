@@ -356,7 +356,9 @@ async function run(): Promise<void> {
 
     // 2a. Opening a crag from its card. Pressing starts the crag screen's
     // fetches before the finger lifts, and the screen draws from the list's
-    // copy of the location instead of asking for it again.
+    // copy of the location instead of asking for it again. Read on the recent
+    // rain: the card already holds the hourly series for its own line, so a
+    // fresh copy of that is rightly not asked for again.
     const requested: string[] = []
     const onRequest = (req: { url(): string }) => {
       if (req.url().startsWith(API)) requested.push(new URL(req.url()).pathname)
@@ -368,8 +370,8 @@ async function run(): Promise<void> {
     await page.mouse.down()
     await page.waitForTimeout(1_000)
     const heldOnList = new URL(page.url()).pathname === '/'
-    const hourlyOnPress = requested.some((p) => p.endsWith(`/hourly/${locationId}`))
-    check('pressing a card starts its hourly fetch before release', heldOnList && hourlyOnPress, `still on list: ${heldOnList}; requests: ${requested.join(', ')}`)
+    const fetchedOnPress = requested.some((p) => p.endsWith(`/recent-precip/${locationId}`))
+    check('pressing a card starts the crag screen’s fetches before release', heldOnList && fetchedOnPress, `still on list: ${heldOnList}; requests: ${requested.join(', ')}`)
     await page.mouse.up()
     await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
     await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
@@ -390,6 +392,16 @@ async function run(): Promise<void> {
       await new Promise((r) => setTimeout(r, 3_000))
       await route.continue().catch(() => undefined)
     })
+    // EXPERIMENT: the same tap under reduced motion, which skips the view transition.
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    const tappedReduced = Date.now()
+    await firstCard.click()
+    await page.waitForURL(/\/location\//, { timeout: 2_500 }).catch(() => undefined)
+    console.log(`EXPERIMENT reduced-motion tap opened after ${Date.now() - tappedReduced} ms`)
+    await page.emulateMedia({ reducedMotion: null })
+    await page.goto(`${WEB}/`)
+    await firstCard.waitFor({ timeout: 30_000 })
+    await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
     const tapped = Date.now()
     await firstCard.click()
     await page.waitForURL(/\/location\//, { timeout: 2_500 }).catch(() => undefined)
@@ -1165,8 +1177,18 @@ async function run(): Promise<void> {
     check('a crag’s back returns to the list where it was left', near(viaTab), `left at ${listY}, back at ${viaTab}`)
 
     await openCard()
+    await page.evaluate(() => {
+      const trace: string[] = []
+      ;(window as unknown as { __trace: string[] }).__trace = trace
+      const t0 = performance.now()
+      const id = setInterval(() => trace.push(`${Math.round(performance.now() - t0)}:${location.pathname.length > 1 ? 'D' : 'L'}${window.scrollY}`), 25)
+      setTimeout(() => clearInterval(id), 2_000)
+      window.addEventListener('popstate', () => trace.push(`${Math.round(performance.now() - t0)}:popstate y=${window.scrollY} sr=${history.scrollRestoration}`))
+    })
     await page.goBack()
     await card.waitFor({ timeout: 10_000 })
+    await page.waitForTimeout(2_100)
+    console.log(`EXPERIMENT back trace: ${(await page.evaluate(() => (window as unknown as { __trace: string[] }).__trace)).join(' ')}`)
     const viaBack = await scrollY()
     check('the phone’s back returns to the list where it was left', near(viaBack), `left at ${listY}, back at ${viaBack}`)
 
