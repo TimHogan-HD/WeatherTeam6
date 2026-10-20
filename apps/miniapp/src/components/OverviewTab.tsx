@@ -42,6 +42,7 @@ import { coordText } from './DetailHeader.js'
 import { DryingClock } from './DryingClock.js'
 import { SkyIcon } from './Icons.js'
 import { RollingFigure, usePreviousFigure } from './RollingFigure.js'
+import { Stats, type Stat } from './StatTiles.js'
 import { ScoreBars } from './ScoreBars.js'
 import { ScoreExplainerParts } from './ScoreExplainer.js'
 import { InlineError, Skeleton } from './States.js'
@@ -101,42 +102,6 @@ function Card({ title, aside, children }: { title: string; aside?: string | null
       <Sect title={title} aside={aside ?? null} />
       {children}
     </section>
-  )
-}
-
-type Stat = { label: string; value: string; unit?: string | null; color?: string; note?: string | null }
-
-/**
- * Figures as tiles side by side, each with its label above it and its note
- * under it (owner, 2026-10-20: a label at one end of a card and its figure at
- * the other were hard to read together). Equal columns, a hairline between.
- */
-function Stats({ items }: { items: readonly Stat[] }) {
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`, marginTop: '4px' }}>
-      {items.map((s, i) => (
-        <div
-          key={s.label}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '2px',
-            minWidth: 0,
-            padding: i === 0 ? '2px 12px 2px 0' : '2px 12px',
-            borderLeft: i === 0 ? 'none' : `1px solid ${colorsV2.line}`,
-          }}
-        >
-          <span style={typeV2.statLabel}>{s.label}</span>
-          <b style={{ ...typeV2.statFigure, overflowWrap: 'anywhere', ...(s.color === undefined ? {} : { color: s.color }) }}>
-            {s.value}
-            {s.unit == null || s.value === EM_DASH ? null : (
-              <small style={{ fontSize: '15px', fontWeight: 600, color: colorsV2.txt2, marginLeft: '3px' }}>{s.unit}</small>
-            )}
-          </b>
-          {s.note == null ? null : <small style={typeV2.rowSmall}>{s.note}</small>}
-        </div>
-      ))}
-    </div>
   )
 }
 

@@ -151,23 +151,19 @@ describe('slimFigure on Precip', () => {
 })
 
 describe('slimFigure on Rock', () => {
-  it('is the margin between the two figures printed beside it', () => {
-    // 12.4 °C prints 54°F and 3.6 °C prints 38°F; the raw interval rounds to 16.
-    const hours = [sample('2026-09-28T17:00:00Z', '2026-09-28', { temp_c: 12.4, dewpoint_c: 3.6 })]
-    const f = slimFigure('rock', inputs({ hours }))
-    expect(f.line).toBe('Air: 54°F · Dew point: 38°F')
-    expect(f.value).toBe(16)
-    const close = [sample('2026-09-28T17:00:00Z', '2026-09-28', { temp_c: 12.2, dewpoint_c: 3.9 })]
-    const g = slimFigure('rock', inputs({ hours: close }))
-    expect(g.line).toBe('Air: 54°F · Dew point: 39°F')
-    expect(g.value).toBe(15)
+  it('is the rock’s margin over its dew point now, the condensation chart’s series, not air minus dew', () => {
+    // Air 15 °C over dew 5 °C would be 18°F; the rock's own 6 °C margin is 11°F.
+    const hourReadings = [reading('2026-09-28T16:00:00Z', 70), reading('2026-09-28T17:00:00Z', 80)]
+    const f = slimFigure('rock', inputs({ hourReadings }))
+    expect(f).toMatchObject({ value: 11, unit: '°', label: 'rock above dew', line: 'Dryness: Dry' })
   })
 
-  it('is a gap when either figure is missing, never the other one alone', () => {
-    const hours = [sample('2026-09-28T17:00:00Z', '2026-09-28', { dewpoint_c: null })]
-    const f = slimFigure('rock', inputs({ hours }))
-    expect(f.value).toBeNull()
-    expect(f.line).toBe('Air: 59°F · Dew point: —')
+  it('is a gap with no reading near now, never a far hour’s margin or 0', () => {
+    const far = [reading('2026-09-29T17:00:00Z', 80)]
+    expect(slimFigure('rock', inputs({ hourReadings: far }))).toMatchObject({ value: null, line: null })
+    const unread = [{ ...reading('2026-09-28T17:00:00Z', 80), condensation_margin_c: null, rock: null }]
+    expect(slimFigure('rock', inputs({ hourReadings: unread }))).toMatchObject({ value: null, line: null })
+    expect(slimFigure('rock', inputs({ hourReadings: [] })).value).toBeNull()
   })
 })
 

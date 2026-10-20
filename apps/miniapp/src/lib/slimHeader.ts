@@ -1,7 +1,9 @@
 import {
   EM_DASH,
+  DRYNESS_LABEL,
+  ROCK_LABELS,
   cToF,
-  formatTempF,
+  cToFDelta,
   readingNow,
   summarizeReadings,
   type ForecastSnapshot,
@@ -56,7 +58,7 @@ export type SlimInputs = {
 /**
  * Daily: the best day ahead by its score. Hourly: the hour the charts are
  * reading, its score alone. Precip: today's highest hourly
- * chance of rain. Rock: how far air sits above its dew point, now. Crag:
+ * chance of rain. Rock: how far the rock sits above its dew point, now. Crag:
  * today's score. A city has no score, so its Daily carries the day's high and
  * its Hourly the hour's air temperature.
  */
@@ -122,6 +124,9 @@ function dayScore(i: SlimInputs, date: string | null, label: string): SlimFigure
   }
 }
 
+/** How far the nearest reading may sit from now and still be called now. */
+const NOW_TOLERANCE_MS = 90 * 60_000
+
 /**
  * The hour the Hourly charts are reading: its score, suppressed as everywhere
  * else. No line of figures (owner, 2026-10-20): each chart names the hour's own
@@ -185,20 +190,22 @@ function dayHigh(i: SlimInputs, date: string | null, label: string): SlimFigure 
 }
 
 /**
- * Air minus dew point, now, in °F. **Taken from the two figures as printed** —
- * each rounded to a whole °F first — so the margin always equals the
- * difference of the numbers on the line beside it. Rounding the raw interval
- * instead puts `16°` beside `Air 54°F · Dew point 39°F`.
+ * How far the rock sits above its dew point now, in °F: the condensation
+ * chart's own series (`condensation_margin_c`), so the header and the chart
+ * under it print one number for the hour. Air minus dew point was shown here
+ * before the chart came back, and would sit beside a different figure. The
+ * line is the rock's Dryness. A city, or an hour the model could not read, is
+ * a gap.
  */
 function dewMargin(i: SlimInputs): SlimFigure {
-  const hour = readingNow(i.hours, i.nowMs)
-  const air = hour?.temp_c ?? null
-  const dew = hour?.dewpoint_c ?? null
+  const reading = readingNow(i.hourReadings, i.nowMs)
+  const near = reading !== null && Math.abs(Date.parse(reading.valid_at) - i.nowMs) <= NOW_TOLERANCE_MS ? reading : null
+  const margin = near?.condensation_margin_c ?? null
   return {
-    value: air === null || dew === null ? null : Math.round(cToF(air)) - Math.round(cToF(dew)),
+    value: margin === null ? null : Math.round(cToFDelta(margin)),
     unit: '°',
-    label: 'above dew point',
+    label: 'rock above dew',
     tone: 'plain',
-    line: hour === null ? null : `Air: ${formatTempF(air)} · Dew point: ${formatTempF(dew)}`,
+    line: near?.rock == null ? null : `${DRYNESS_LABEL}: ${ROCK_LABELS[near.rock.level]}`,
   }
 }

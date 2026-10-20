@@ -2,7 +2,7 @@
 
 Version: v1
 Date: 2026-10-19
-Status: **Decided by the owner; Phases 1, 2 and 2b built.** Moves `apps/miniapp` to the look in
+Status: **Decided by the owner; Phases 1, 2 and 3 built.** Moves `apps/miniapp` to the look in
 `docs/handoffs/design-mockups/weatherteam6-hybrid.html`. That mockup is also published
 privately to the owner as https://claude.ai/artifact/18s8fy1HY5D1jR7AxmwE6p, but the
 repo copy is the reference. Where this document and `miniapp-design-v1.md` disagree, this
@@ -184,6 +184,23 @@ drops one is a regression:
    reads), and Daily's `good 7a–11p · today 89`. A crag's screen now clears its floating
    dock plus the home-indicator inset (`dockClearance`); the bar's clearance left the last
    line under the dock on a phone with one.
+   **3d, built 2026-10-20: Precip and Rock drawn to the mockup.** Precip opens on the
+   drying clock beside the last real rain (whole days past 48 h, as the mockup's `2 days
+   ago`), then tiles for today, this week and **Dry again** (the first hour ahead the
+   readings call the rock dry; `lib/rockReadings.ts`); then Every hour, **Next 48 hours**
+   (Hourly's `RainChart` over the next 48 hours, with `dryHours` for a dry stretch) and
+   **By day** (each day's chance and its wettest hour, mean with that one hour's p90). The
+   running total (`PrecipRunningTotal.tsx`) and its rock strip are deleted. Rock keeps the
+   field guide whole and gains a **Drying** card (the clock, Dryness, hours since real rain,
+   where the window starts) and a **Condensation** chart (`RockReadings.tsx`):
+   `condensation_margin_c` six hours back to 42 ahead, shading the hours under
+   `SCORE_MODEL_FACTS.condensationClearMarginC` (2 °C, printed 4°F). The slim header on Rock
+   is now that same margin now, `rock above dew`, with Dryness under the name; it was air
+   minus dew point, which would sit over a chart drawing something else. The Overview's
+   stat tiles moved to `StatTiles.tsx` for all three tabs. **Departures, for honesty:** the
+   next 48 hours are the ensemble mean, not the mockup's "four-model median" (there is no
+   hourly median ahead); By day carries no Agreement, which nothing computes for a forecast
+   day; the 48-hour chart's readout has no rock word.
 4. **Crag tab and Trips** restyled.
 5. **Map, Profile, Add a crag and Feedback** restyled.
 

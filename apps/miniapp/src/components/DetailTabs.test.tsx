@@ -546,17 +546,16 @@ describe('DetailView — Precip tab', () => {
     return html
   }
 
-  it('shows the rock under the rain: in the readout, as a strip, and with the aspect note once', () => {
+  it('shows the rock under the rain: in the readout, when it is dry again, and with the aspect note once', () => {
     const html = renderPrecip(recent, true, withRock)
     // The readout opens on Today 06:00, which the model read as drying.
     expect(html).toMatch(/Dryness<\/span><span[^>]*>Drying</)
     // A cell names its rock state to a screen reader; a gap says so.
     expect(html).toContain('aria-label="Sun 6pm–7pm: Precip 0.18 in, Type Rain, Resets drying Yes, Dryness Wet"')
     expect(html).toContain('aria-label="Sun 5pm–6pm: Precip No data, Dryness No reading"')
-    // The strip and its key.
-    expect(html).toContain('>Rock<')
-    expect(html).toContain('Rain so far')
-    expect(html).toMatch(/>Dry<\/span>.*>Drying<\/span>.*>Wet<\/span>/)
+    // The 09:00 reading, nearest now, is dry.
+    expect(html).toMatch(/Dry again<\/span><b[^>]*>Now</)
+    expect(html).toContain('rock is dry')
     // Sun 20:00 is unqualified, so the tab says once that the wall direction is not set.
     expect(html).toContain('Wall direction not set, so sunny hours may read warm.')
   })
@@ -569,6 +568,8 @@ describe('DetailView — Precip tab', () => {
       expect(html).not.toContain(', Dryness ')
       expect(html).not.toContain('Wall direction not set')
     }
+    // A city has no rock to dry.
+    expect(renderPrecip(recent, false, withRock)).not.toContain('Dry again')
   })
 
   it('puts today on the top row of the hour grid', () => {
@@ -585,19 +586,12 @@ describe('DetailView — Precip tab', () => {
     expect(html).toContain('hours ago')
     expect(html).toContain('Sun 7pm · 0.18 in over 1 h')
     expect(html).toContain('This week')
-    expect(html).toContain('0.19 in')
-    expect(html).toContain('Hours with rain')
-    expect(html).toMatch(/Hours with rain<\/span><span[^>]*>2</)
+    expect(html).toMatch(/This week<\/span><b[^>]*>0\.19 in</)
+    expect(html).toContain('2 hours with rain')
   })
 
-  it('draws the running total with each real storm, the flat run since, and a gap dashed', () => {
-    const html = renderPrecip(recent)
-    expect(html).toContain('Running total')
-    expect(html).toContain('aria-label="Running total 0.19 in over 3 days, flat for the last 38 hours"')
-    expect(html).toContain('+0.18 in')
-    expect(html).toContain('no rain · 38 h')
-    // 2026-09-14 is missing from the response: bridged dashed, never a solid flat line.
-    expect(html).toContain('stroke-dasharray="3 3"')
+  it('has no running-total chart (owner, 2026-10-19)', () => {
+    expect(renderPrecip(recent)).not.toContain('Running total')
   })
 
   it('totals today on the location’s own date', () => {

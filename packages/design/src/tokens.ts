@@ -157,6 +157,8 @@ export const colorsV2 = {
   wind: '#7fd1c4',
   /** Gusts, dashed, beside `wind`. */
   gust: '#e8fbf7',
+  /** The Rock tab's line of how far the rock sits above its dew point (hybrid mockup's condensation chart). */
+  dewMargin: '#7fd1c4',
   /**
    * The sun in the sky icons, Daily and Hourly. A pale yellow kept clear of
    * the score ladder's `fair` amber, so a sunny day never reads as a fair
