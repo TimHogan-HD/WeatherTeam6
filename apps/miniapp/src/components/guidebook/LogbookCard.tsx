@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
-import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
+import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import {
   TICK_NOTE_MAX,
   TICK_STYLES,
@@ -9,12 +9,13 @@ import {
   type RouteTick,
   type TickStyle,
 } from '@weatherteam6/types'
-import { typeV2 } from '../../theme/tokens.css.js'
-import { bareButton, btnPrimary, btnPrimaryText, cardV2, row, stack, wellV2 } from '../../theme/styles.js'
+import { typeV2, withOpacity } from '../../theme/tokens.css.js'
+import { bareButton, btnPrimary, btnPrimaryText, row, stack, wellV2 } from '../../theme/styles.js'
 import { formatTickDate, localDateString } from '../../lib/logbook.js'
 import { useCreateTick, useDeleteTick, useLogbook, useSetTodo } from '../../hooks/useLogbook.js'
 import { useNow } from '../../hooks/useNow.js'
 import { InlineError, Skeleton } from '../States.js'
+import { GuideCard } from './parts.js'
 
 /**
  * The route screen's logbook: whether the route is on the reader's to-do list,
@@ -173,21 +174,32 @@ function LogbookBody({ route, logbook }: { route: GuidebookRoute; logbook: Logbo
 
   return (
     <>
-      <div style={row(spacing.listGap)}>
+      <button
+        type="button"
+        aria-pressed={onTodo}
+        onClick={() => setTodo.mutate(!onTodo)}
+        style={{
+          ...bareButton,
+          ...typeV2.dayPick,
+          minHeight: '44px',
+          padding: `${spacing.listGap}px ${spacing.cellPad}px`,
+          borderRadius: `${radius.rowV2}px`,
+          backgroundColor: colorsV2.surface,
+          border: `1px solid ${onTodo ? withOpacity(colors.good, 0.5) : colorsV2.line}`,
+          color: onTodo ? colorsV2.goodInk : colorsV2.txt1,
+        }}
+      >
+        {onTodo ? '✓ On to-do list' : '+ Add to to-do list'}
+      </button>
+      {ticking ? null : (
         <button
           type="button"
-          aria-pressed={onTodo}
-          onClick={() => setTodo.mutate(!onTodo)}
-          style={{ ...pillButton, ...(onTodo ? { backgroundColor: colorsV2.raised, borderColor: colorsV2.txtMuted } : {}) }}
+          onClick={() => setTicking(true)}
+          style={{ ...bareButton, ...btnPrimary, ...btnPrimaryText, textAlign: 'center', minHeight: '44px' }}
         >
-          {onTodo ? 'On to-do list' : 'To-do'}
+          Tick it
         </button>
-        {ticking ? null : (
-          <button type="button" onClick={() => setTicking(true)} style={pillButton}>
-            Tick
-          </button>
-        )}
-      </div>
+      )}
       {setTodo.isError ? <InlineError message="Couldn't update your to-do list." /> : null}
       {ticking ? <TickForm route={route} onDone={() => setTicking(false)} /> : null}
       {ticks.length === 0 ? null : (
@@ -207,8 +219,7 @@ function LogbookBody({ route, logbook }: { route: GuidebookRoute; logbook: Logbo
 export function LogbookCard({ route }: { route: GuidebookRoute }) {
   const logbook = useLogbook()
   return (
-    <section style={{ ...cardV2, ...stack(spacing.listGapLg) }}>
-      <h2 style={typeV2.cardTitle}>Logbook</h2>
+    <GuideCard title="Logbook">
       {/* Nothing that reads as an answer until the logbook has loaded: no "To-do" off, no empty tick list. */}
       {logbook.isPending ? (
         <Skeleton height={44} />
@@ -217,6 +228,6 @@ export function LogbookCard({ route }: { route: GuidebookRoute }) {
       ) : (
         <LogbookBody route={route} logbook={logbook.data} />
       )}
-    </section>
+    </GuideCard>
   )
 }

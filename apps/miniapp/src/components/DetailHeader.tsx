@@ -55,7 +55,7 @@ export function coordText(lat: number, lon: number): string {
 
 /**
  * The band. The Overview passes an empty heading, because its hero names the
- * crag; the guidebook's wall and route screens pass theirs.
+ * crag; a trip passes its own.
  */
 export function DetailHeader<T extends string>({
   heading,

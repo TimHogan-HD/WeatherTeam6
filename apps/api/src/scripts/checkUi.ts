@@ -250,6 +250,32 @@ async function run(): Promise<void> {
         await page.getByRole('tab', { name: label.trim() }).click()
         await screen(`tab-${label.trim().toLowerCase()}`)
       }
+      await guidebookLevels()
+    }
+
+    // A wall and a route open inside the Crag tab (hybrid Phase 4a): the dock
+    // stays with Crag chosen, and a crumb steps back up one level.
+    async function guidebookLevels(): Promise<void> {
+      const walls = page.locator('section', { has: page.getByRole('heading', { name: /^Walls?/ }) })
+      await walls.getByRole('button').first().click()
+      await page.waitForURL(/\/wall\/[^/]+$/, { timeout: 30_000 })
+      const cragChosen = async () =>
+        (await page.getByRole('tab').count()) === 6 &&
+        (await page.getByRole('tab', { name: 'Crag' }).getAttribute('aria-selected')) === 'true'
+      check('a wall opens inside the Crag tab, under the dock', await cragChosen())
+      await screen('crag-wall')
+
+      const routes = page.locator('section', { has: page.getByRole('heading', { name: /^Routes/ }) })
+      await routes.locator('button:not([aria-pressed])').first().click()
+      await page.waitForURL(/\/route\/[^/]+$/, { timeout: 30_000 })
+      check('a route opens inside the Crag tab, under the dock', await cragChosen())
+      await screen('crag-route')
+
+      await page.getByRole('button', { name: /^‹ / }).first().click()
+      await page.waitForURL(/\/wall\/[^/]+$/, { timeout: 30_000 })
+      await page.getByRole('button', { name: /^‹ .* guidebook$/ }).click()
+      await page.waitForURL(/\?tab=crag$/, { timeout: 30_000 })
+      check('the crumbs step back up to the wall, then the guidebook', await cragChosen())
     }
 
     if (TABS_ONLY) {

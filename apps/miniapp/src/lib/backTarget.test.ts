@@ -113,19 +113,4 @@ describe('backTarget — a saved location, its app bar away', () => {
     }
   })
 })
-
-describe('backTarget — the guidebook screens', () => {
-  it('returns a wall to the Crag tab it was opened from, not to Overview', () => {
-    expect(backTarget({ route: 'wall', locationId: 'loc' })).toEqual({
-      kind: 'navigate',
-      to: '/location/loc?tab=crag',
-    })
-  })
-
-  it('returns a route to its own wall', () => {
-    expect(backTarget({ route: 'climb', locationId: 'loc', wallId: 'w' })).toEqual({
-      kind: 'navigate',
-      to: '/location/loc/wall/w',
-    })
-  })
-})
+

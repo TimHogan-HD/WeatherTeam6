@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import {
   gradeRange,
@@ -9,17 +8,24 @@ import {
   type WeatherAlert,
 } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
-import { bareButton, cardV2, row, stack } from '../../theme/styles.js'
+import { bareButton, row, stack } from '../../theme/styles.js'
+import { cragTabPath, climbPath, wallPath } from '../../lib/backTarget.js'
+import { findWall } from '../../lib/guidebookView.js'
+import { useNavigate } from '../../hooks/useNavigate.js'
 import { ChevronRightIcon } from '../Icons.js'
-import { NowStrip } from '../ReadingPills.js'
 import { InlineError, Skeleton } from '../States.js'
 import { GradeBar, GradeHistogram, GradeLegend } from './GradeCharts.js'
+import { Crumb, GuideCard, NowLine, type WeekInput } from './parts.js'
+import { WallPane } from './WallPane.js'
+import { RoutePane } from './RoutePane.js'
 
 /**
- * The Crag tab, from the WT6 Figma "03 · Guidebook Flow" frame: the OpenBeta
- * area and its counts, the crag's readings now, its routes by grade, and its
- * walls A–Z, each opening its own screen. The frame's position strip is not
- * drawn: OpenBeta's wall coordinates are wrong on the ground.
+ * The Crag tab, drawn to the hybrid mockup (Phase 4a): the OpenBeta area and
+ * its counts, the crag's reading now, its routes by grade, and its walls A–Z.
+ * **A wall and a route open inside this tab** (`/location/:id/wall/:wallId`,
+ * `…/route/:routeId`), under the crag's switcher and above its dock, as the
+ * mockup draws them; a crumb steps back up one level. No wall is placed on a
+ * map: OpenBeta's wall coordinates are wrong on the ground.
  *
  * **The conditions are the crag's, and the tab says so.** Crag A reads every
  * direction and no wall has a recorded aspect, so a wall cannot honestly be
@@ -27,38 +33,20 @@ import { GradeBar, GradeHistogram, GradeLegend } from './GradeCharts.js'
  */
 
 export type CragTabProps = {
+  locationId: string
   guidebook: {
     data: Guidebook | null | undefined
     isPending: boolean
     isError: boolean
     refetch: () => void
   }
+  /** The wall and route the URL names, or null on the guidebook itself. */
+  at: { wallId: string | null; routeId: string | null }
   conditions: Conditions | null | undefined
   alerts: readonly WeatherAlert[] | undefined
   alertsPending: boolean
+  week: WeekInput
   onOpenOverview: () => void
-  onOpenWall: (wallId: string) => void
-}
-
-function Card({ title, aside, children }: { title: string; aside: string | null; children: ReactNode }) {
-  return (
-    <section style={{ ...cardV2, ...stack(spacing.sectionGap) }}>
-      <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between' }}>
-        <h2 style={typeV2.cardTitle}>{title}</h2>
-        {aside === null ? null : <span style={{ ...typeV2.aside, color: colorsV2.txtMuted }}>{aside}</span>}
-      </div>
-      {children}
-    </section>
-  )
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div style={{ ...stack(spacing.micro), minWidth: 0 }}>
-      <span style={{ ...typeV2.factLabel, color: colorsV2.txtMuted }}>{label}</span>
-      <span style={{ ...typeV2.cellFigure, color: colorsV2.txt1 }}>{value}</span>
-    </div>
-  )
 }
 
 function AreaCard({ guide }: { guide: Guidebook }) {
@@ -74,11 +62,11 @@ function AreaCard({ guide }: { guide: Guidebook }) {
   ].filter((s, i) => i < 2 || s.value > 0)
   const kindTotal = kinds.sport + kinds.trad + kinds.tr + kinds.boulder + kinds.aid + kinds.ice + kinds.mixed
   return (
-    <section style={{ ...cardV2, ...stack(spacing.listGap) }}>
-      <span style={{ ...typeV2.kicker, color: colorsV2.txtMuted }}>OpenBeta area</span>
-      <h2 style={typeV2.cardName}>{guide.crag.name}</h2>
+    <GuideCard title={null}>
+      <span style={typeV2.statLabel}>OpenBeta area</span>
+      <h2 style={typeV2.guideTitle}>{guide.crag.name}</h2>
       {guide.crag.path.length === 0 ? null : (
-        <span style={{ ...typeV2.note, color: colorsV2.txtMuted }}>{guide.crag.path.join(' › ')}</span>
+        <span style={typeV2.rowSmall}>{guide.crag.path.join(' › ')}</span>
       )}
       <div
         style={{
@@ -89,16 +77,17 @@ function AreaCard({ guide }: { guide: Guidebook }) {
         }}
       >
         {stats.map((s) => (
-          <Stat key={s.label} label={s.label} value={s.value} />
+          <div key={s.label} style={{ ...stack(spacing.micro), minWidth: 0 }}>
+            <span style={typeV2.statLabel}>{s.label}</span>
+            <span style={typeV2.statFigure}>{s.value}</span>
+          </div>
         ))}
       </div>
       {/* Only when it is true: a crag of pure sport routes adds up exactly. */}
       {kindTotal <= guide.crag.route_count ? null : (
-        <span style={{ ...typeV2.note, color: colorsV2.txtMuted }}>
-          Some routes have more than one type.
-        </span>
+        <span style={{ ...typeV2.note, color: colorsV2.txtMuted }}>Some routes have more than one type.</span>
       )}
-    </section>
+    </GuideCard>
   )
 }
 
@@ -112,15 +101,14 @@ function WallRow({ wall, onOpen }: { wall: GuidebookWall; onOpen: () => void }) 
       style={{
         ...bareButton,
         ...row(spacing.listGapLg),
+        minHeight: '52px',
         paddingBlock: `${spacing.cellPad}px`,
         borderTop: `1px solid ${colorsV2.line}`,
       }}
     >
       <span style={{ ...stack(spacing.tight), flex: '1 1 auto', minWidth: 0 }}>
-        <span style={typeV2.rowTitle}>{wall.name}</span>
-        <span style={{ ...typeV2.meta, color: colorsV2.txtMuted }}>
-          {range === null ? count : `${count} · ${range}`}
-        </span>
+        <span style={typeV2.guideRowName}>{wall.name}</span>
+        <span style={{ ...typeV2.rowSmall, color: colorsV2.txtMuted }}>{range === null ? count : `${count} · ${range}`}</span>
         <GradeBar routes={wall.routes} />
       </span>
       <ChevronRightIcon color={colorsV2.txtMuted} />
@@ -128,8 +116,62 @@ function WallRow({ wall, onOpen }: { wall: GuidebookWall; onOpen: () => void }) 
   )
 }
 
+function GuideRoot(props: CragTabProps & { guide: Guidebook }) {
+  const navigate = useNavigate()
+  const { guide } = props
+  const routes = guide.walls.flatMap((w) => w.routes)
+  const many = guide.walls.length > 1
+  const now = (
+    <NowLine
+      conditions={props.conditions}
+      alerts={props.alerts}
+      alertsPending={props.alertsPending}
+      trailing={<OverviewLink onClick={props.onOpenOverview} />}
+      labelled={false}
+    />
+  )
+  return (
+    <>
+      <AreaCard guide={guide} />
+
+      <GuideCard title="Now" aside="the crag's reading">
+        {now}
+      </GuideCard>
+
+      <GuideCard title="Grades" aside={`${routes.length} ${routes.length === 1 ? 'route' : 'routes'}`}>
+        <GradeHistogram routes={routes} />
+      </GuideCard>
+
+      {/*
+        No map and no direction. OpenBeta's wall coordinates put Barn Bluff's
+        walls where they are not (owner, 2026-09-29), and a west-to-east order
+        read off the same points would be the same error as a list. A–Z claims
+        nothing about the ground.
+      */}
+      <GuideCard title={many ? 'Walls' : 'Wall'} aside={many ? 'A–Z' : null}>
+        <p style={{ ...typeV2.note, color: colorsV2.txtMuted }}>Conditions are for the whole crag, not each wall.</p>
+        <div style={stack(0)}>
+          {guide.walls.map((wall) => (
+            <WallRow key={wall.id} wall={wall} onOpen={() => void navigate(wallPath(props.locationId, wall.id))} />
+          ))}
+        </div>
+        <GradeLegend routes={routes} withCounts={false} />
+      </GuideCard>
+    </>
+  )
+}
+
+export function OverviewLink({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} style={{ ...bareButton, ...typeV2.dayPick, width: 'auto', color: colorsV2.brandInk }}>
+      Overview ›
+    </button>
+  )
+}
+
 export function CragTab(props: CragTabProps) {
-  const { guidebook } = props
+  const navigate = useNavigate()
+  const { guidebook, at, locationId } = props
   if (guidebook.isPending) return <Skeleton height={240} />
   if (guidebook.isError) {
     return <InlineError message="Couldn't load the guidebook." onRetry={guidebook.refetch} />
@@ -139,59 +181,43 @@ export function CragTab(props: CragTabProps) {
   if (guide === null) {
     // An answer, not a failure: say what was looked for and where it looks.
     return (
-      <section style={{ ...cardV2, ...stack(spacing.listGap) }}>
-        <h2 style={typeV2.cardTitle}>No guidebook for this spot</h2>
-        <p style={{ ...typeV2.note, color: colorsV2.txtMuted }}>
-          No guidebook crag within 1.2 miles. Minnesota only for now.
-        </p>
-      </section>
+      <GuideCard title="No guidebook for this spot">
+        <p style={{ ...typeV2.note, color: colorsV2.txtMuted }}>No guidebook crag within 1.2 miles. Minnesota only for now.</p>
+      </GuideCard>
     )
   }
+  if (at.wallId === null) return <GuideRoot {...props} guide={guide} />
 
-  const routes = guide.walls.flatMap((w) => w.routes)
-  const many = guide.walls.length > 1
-
-  return (
-    <>
-      <AreaCard guide={guide} />
-
-      <NowStrip
-        label="Now"
-        conditions={props.conditions}
-        alerts={props.alerts}
-        alertsPending={props.alertsPending}
-        trailing={
-          <button
-            type="button"
-            onClick={props.onOpenOverview}
-            style={{ ...bareButton, width: 'auto', ...typeV2.cardLink }}
-          >
-            Overview ›
-          </button>
-        }
+  const toGuide = () => void navigate(cragTabPath(locationId))
+  const found = findWall(guide, at.wallId)
+  if (found === null) {
+    // A stale link: the snapshot was re-pulled without this wall. Say so and point back.
+    return (
+      <GuideCard title={null}>
+        <p style={{ ...typeV2.body, color: colorsV2.txt2 }}>This wall isn’t in the guidebook for this location.</p>
+        <Crumb label={`${guide.crag.name} guidebook`} onClick={toGuide} />
+      </GuideCard>
+    )
+  }
+  if (at.routeId === null) {
+    return (
+      <WallPane
+        key={found.wall.id}
+        guideName={guide.crag.name}
+        wall={found.wall}
+        week={props.week}
+        now={<NowLine conditions={props.conditions} alerts={props.alerts} alertsPending={props.alertsPending} trailing={<OverviewLink onClick={props.onOpenOverview} />} />}
+        onUp={toGuide}
+        onOpenRoute={(routeId) => void navigate(climbPath(locationId, found.wall.id, routeId))}
       />
-
-      <Card title="Grades" aside={`${routes.length} ${routes.length === 1 ? 'route' : 'routes'}`}>
-        <GradeHistogram routes={routes} />
-      </Card>
-
-      {/*
-        No map and no direction. OpenBeta's wall coordinates put Barn Bluff's
-        walls where they are not (owner, 2026-09-29), and a west-to-east order
-        read off the same points would be the same error as a list. A–Z claims
-        nothing about the ground.
-      */}
-      <Card title={many ? 'Walls' : 'Wall'} aside={many ? 'A–Z' : null}>
-        <p style={{ ...typeV2.note, color: colorsV2.txtMuted }}>
-          Conditions are for the whole crag, not each wall.
-        </p>
-        <div style={stack(0)}>
-          {guide.walls.map((wall) => (
-            <WallRow key={wall.id} wall={wall} onOpen={() => props.onOpenWall(wall.id)} />
-          ))}
-        </div>
-        <GradeLegend routes={routes} withCounts={false} />
-      </Card>
-    </>
+    )
+  }
+  return (
+    <RoutePane
+      wall={found.wall}
+      routeId={at.routeId}
+      onUp={() => void navigate(wallPath(locationId, found.wall.id))}
+      onOpenRoute={(routeId) => void navigate(climbPath(locationId, found.wall.id, routeId), { replace: true })}
+    />
   )
 }

@@ -4,7 +4,7 @@ import { useNavigate } from '../hooks/useNavigate.js'
 import { colors, motion, spacing } from '@weatherteam6/design/tokens'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, dockClearance, row, stack } from '../theme/styles.js'
-import { backTarget, detailTabPath, editPath, openedFromMap, wallPath } from '../lib/backTarget.js'
+import { backTarget, detailTabPath, editPath, openedFromMap } from '../lib/backTarget.js'
 import { rockLocked } from '../lib/editLocation.js'
 import { formatRunAge } from '../lib/format.js'
 import { useDeleteLocation, useLocation, useLocations } from '../hooks/useLocations.js'
@@ -47,7 +47,9 @@ const FORECAST_TABS: ReadonlySet<DetailTab> = new Set(['overview', 'daily', 'hou
 export function LocationDetail() {
   const navigate = useNavigate()
   const now = useNow()
-  const { id } = useParams<{ id: string }>()
+  // A wall and a route open inside the Crag tab (`/location/:id/wall/:wallId`, `…/route/:routeId`).
+  const { id, wallId, routeId } = useParams<{ id: string; wallId?: string; routeId?: string }>()
+  const inGuide = wallId !== undefined
 
   const location = useLocation(id)
   const forecast = useForecast(id)
@@ -76,7 +78,7 @@ export function LocationDetail() {
   const range = prefs === undefined ? null : draftFromPreferences(prefs)
   const [picked, setTab] = useState<DetailTab | null>(null)
   const asked = searchParams.get('tab') ?? preferred
-  const tab = picked ?? detailTabs(true).find((o) => o.value === asked)?.value ?? 'overview'
+  const tab = inGuide ? 'crag' : picked ?? detailTabs(true).find((o) => o.value === asked)?.value ?? 'overview'
   // `?date=` is a trip day's "Hourly ›" (`hourlyDayPath`); held only while drawable, as any pick is.
   const [selectedDate, setSelectedDate] = useState<string | null>(() => searchParams.get('date'))
 
@@ -145,10 +147,15 @@ export function LocationDetail() {
   // it stood is read before the tab changes, and played from after it has.
   const reduced = usePrefersReducedMotion()
   const flight = useRef<FlipRect | null>(null)
-  const changeTab = useCallback((next: DetailTab) => {
-    flight.current = flipSource('score')
-    setTab(next)
-  }, [])
+  const changeTab = useCallback(
+    (next: DetailTab) => {
+      flight.current = flipSource('score')
+      setTab(next)
+      // Off a wall or a route, another tab is the crag's own screen again.
+      if (inGuide && id !== undefined) void navigate(detailTabPath(id, next))
+    },
+    [inGuide, id, navigate],
+  )
   useLayoutEffect(() => {
     flyFrom('score', flight.current, reduced)
     flight.current = null
@@ -221,9 +228,8 @@ export function LocationDetail() {
           isPending: guidebook.isPending,
           isError: guidebook.isError,
           refetch: () => void guidebook.refetch(),
-          onOpenWall: (wallId: string) => {
-            if (id !== undefined) void navigate(wallPath(id, wallId))
-          },
+          locationId: id ?? '',
+          at: { wallId: wallId ?? null, routeId: routeId ?? null },
         }}
       />
 
@@ -235,53 +241,58 @@ export function LocationDetail() {
         surface the app cannot style, and on iOS an installed PWA renders it
         over the whole screen for a one-word decision.
       */}
-      {remove.isError && removingHere ? <InlineError message="Couldn't remove this location." /> : null}
-      {/* One row: stacked, the two text buttons and their tap padding were a band of empty space. */}
-      <div style={{ ...row(spacing.cellPad), justifyContent: 'center', flexWrap: 'wrap' }}>
-        {location.data.is_climbing_location && id !== undefined ? (
-          <button
-            type="button"
-            style={{
-              ...bareButton,
-              ...typeV2.factLabel,
-              width: 'auto',
-              padding: `${spacing.cellPad}px ${spacing.sectionGap}px`,
-            }}
-            onClick={() => void navigate(`/feedback?location=${encodeURIComponent(id)}`)}
-          >
-            Check this forecast
-          </button>
-        ) : null}
-        {/* A known crag's rock type is locked, so its editor would have nothing to change. */}
-        {location.data.is_climbing_location && !rockLocked(location.data) && id !== undefined ? (
-          <button
-            type="button"
-            style={{
-              ...bareButton,
-              ...typeV2.factLabel,
-              width: 'auto',
-              padding: `${spacing.cellPad}px ${spacing.sectionGap}px`,
-            }}
-            onClick={() => void navigate(editPath(id))}
-          >
-            Edit crag
-          </button>
-        ) : null}
-        <button
-          type="button"
-          style={{
-            ...bareButton,
-            ...typeV2.factLabel,
-            color: colors.poor,
-            width: 'auto',
-            padding: `${spacing.cellPad}px ${spacing.sectionGap}px`,
-          }}
-          onClick={confirmingDelete ? onDelete : () => setArmedFor(id ?? null)}
-          disabled={remove.isPending}
-        >
-          {remove.isPending && removingHere ? 'Removing…' : confirmingDelete ? 'Tap again to remove' : 'Remove location'}
-        </button>
-      </div>
+      {/* The crag's own actions belong to the crag, not to one of its walls or routes. */}
+      {inGuide ? null : (
+        <>
+          {remove.isError && removingHere ? <InlineError message="Couldn't remove this location." /> : null}
+          {/* One row: stacked, the two text buttons and their tap padding were a band of empty space. */}
+          <div style={{ ...row(spacing.cellPad), justifyContent: 'center', flexWrap: 'wrap' }}>
+            {location.data.is_climbing_location && id !== undefined ? (
+              <button
+                type="button"
+                style={{
+                  ...bareButton,
+                  ...typeV2.factLabel,
+                  width: 'auto',
+                  padding: `${spacing.cellPad}px ${spacing.sectionGap}px`,
+                }}
+                onClick={() => void navigate(`/feedback?location=${encodeURIComponent(id)}`)}
+              >
+                Check this forecast
+              </button>
+            ) : null}
+            {/* A known crag's rock type is locked, so its editor would have nothing to change. */}
+            {location.data.is_climbing_location && !rockLocked(location.data) && id !== undefined ? (
+              <button
+                type="button"
+                style={{
+                  ...bareButton,
+                  ...typeV2.factLabel,
+                  width: 'auto',
+                  padding: `${spacing.cellPad}px ${spacing.sectionGap}px`,
+                }}
+                onClick={() => void navigate(editPath(id))}
+              >
+                Edit crag
+              </button>
+            ) : null}
+            <button
+              type="button"
+              style={{
+                ...bareButton,
+                ...typeV2.factLabel,
+                color: colors.poor,
+                width: 'auto',
+                padding: `${spacing.cellPad}px ${spacing.sectionGap}px`,
+              }}
+              onClick={confirmingDelete ? onDelete : () => setArmedFor(id ?? null)}
+              disabled={remove.isPending}
+            >
+              {remove.isPending && removingHere ? 'Removing…' : confirmingDelete ? 'Tap again to remove' : 'Remove location'}
+            </button>
+          </div>
+        </>
+      )}
     </>
   )
 

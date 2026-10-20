@@ -29,11 +29,12 @@ export function sectionFor(pathname: string): SectionKey | null {
 
 /**
  * Whether the app bar gives way to a crag's own dock (owner, 2026-10-19): only on
- * a saved location's own screen, which is opened from the list and left by back.
- * Its wall and route screens keep the bar, and its editor has none at all.
+ * a saved location's own screen, which is opened from the list and left by back,
+ * and its walls and routes, which open inside its Crag tab (Phase 4a). Its
+ * editor has no bar at all.
  */
 export function barGivesWay(pathname: string): boolean {
-  return /^\/location\/[^/]+\/?$/.test(pathname)
+  return /^\/location\/[^/]+(\/wall\/[^/]+(\/route\/[^/]+)?)?\/?$/.test(pathname)
 }
 
 /** A section's first screen: the path its tab opens. */

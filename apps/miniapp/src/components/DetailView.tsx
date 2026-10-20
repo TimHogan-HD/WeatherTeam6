@@ -139,7 +139,7 @@ export type DetailViewProps = {
   /** The saved row behind this screen, for the Rock tab. Optional only so a test can render without it; `LocationDetail` always passes it. */
   location?: Location
   /** The OpenBeta guidebook, for the Crag tab. Optional only so a test can render without it; `LocationDetail` always passes it. */
-  guidebook?: CragTabProps['guidebook'] & { onOpenWall: (wallId: string) => void }
+  guidebook?: CragTabProps['guidebook'] & Pick<CragTabProps, 'locationId' | 'at'>
 }
 
 /** The Next 7 days card's height (the V2 frame's 685), held open while the forecast loads on the Daily tab. */
@@ -368,8 +368,20 @@ export function DetailView({
           conditions={conditions?.data}
           alerts={alerts?.data}
           alertsPending={alertsPending}
+          locationId={guidebook.locationId}
+          at={guidebook.at}
+          week={{
+            forecast: forecast.data,
+            todayDate: findToday(forecast.data)?.forecast_date ?? null,
+            readings: dayReadings,
+            pending: forecast.isPending || hourly?.isPending === true,
+            failed: forecast.isError || hourly?.isError === true,
+            retry: () => {
+              forecast.refetch()
+              hourly?.refetch()
+            },
+          }}
           onOpenOverview={() => tabs.onTabChange('overview')}
-          onOpenWall={guidebook.onOpenWall}
         />
       )
   }

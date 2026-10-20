@@ -6,12 +6,14 @@ describe('barGivesWay', () => {
   it('sends the bar away on a saved location, where its dock takes over', () => {
     expect(barGivesWay('/location/abc')).toBe(true)
     expect(barGivesWay('/location/abc/')).toBe(true)
+    expect(barGivesWay('/location/abc/wall/w1')).toBe(true)
+    expect(barGivesWay('/location/abc/wall/w1/route/r1')).toBe(true)
   })
 
-  it('keeps the bar everywhere else under it, the guidebook screens included', () => {
+  it('keeps the bar everywhere else under it', () => {
     expect(barGivesWay('/')).toBe(false)
-    expect(barGivesWay('/location/abc/wall/w1')).toBe(false)
-    expect(barGivesWay('/location/abc/wall/w1/route/r1')).toBe(false)
+    expect(barGivesWay('/location/abc/edit')).toBe(false)
+    expect(barGivesWay('/location/abc/wall/w1/extra')).toBe(false)
     expect(barGivesWay('/trips/t1/crag/abc')).toBe(false)
     expect(barGivesWay('/map')).toBe(false)
   })

@@ -2,7 +2,7 @@
 
 Version: v1
 Date: 2026-10-19
-Status: **Decided by the owner; Phases 1, 2 and 3 built.** Moves `apps/miniapp` to the look in
+Status: **Decided by the owner; Phases 1, 2 and 3 built, and 4a (the Crag tab).** Moves `apps/miniapp` to the look in
 `docs/handoffs/design-mockups/weatherteam6-hybrid.html`. That mockup is also published
 privately to the owner as https://claude.ai/artifact/18s8fy1HY5D1jR7AxmwE6p, but the
 repo copy is the reference. Where this document and `miniapp-design-v1.md` disagree, this
@@ -204,6 +204,25 @@ drops one is a regression:
    hourly median ahead); By day carries no Agreement, which nothing computes for a forecast
    day; the 48-hour chart's readout has no rock word.
 4. **Crag tab and Trips** restyled.
+   **4a, built 2026-10-20: the Crag tab, a wall and a route drawn to the mockup.** A wall and
+   a route now open **inside the Crag tab**, as the mockup draws them: the crag's switcher,
+   slim header and dock stay, with Crag chosen, and the app bar stays away (`barGivesWay`).
+   Their URLs are kept (`/location/:id/wall/:wallId`, `…/route/:routeId`, both rendered by
+   `LocationDetail`), so a route can still be shared or reloaded. A crumb at the top
+   (`‹ Red Wing guidebook`, `‹ Lower Tier`) steps up one level; back, and the edge swipe,
+   leave the crag, as in the mockup (`backTarget`'s `wall` and `climb` are deleted). The
+   cards take the mockup's aqua titles (`GuideCard`, `components/guidebook/parts.tsx`): the
+   area, Now (`NowLine`: the crag's score large beside its Dryness), Grades, Walls A–Z. A
+   wall is its name with the crag's reading now, **This week** as seven columns (each day's
+   score, good hours and Dryness through `wallWeek`, which is `scoredDays`, so a day cannot
+   wear two numbers), Location, Grades, and Routes with the mockup's pills and each grade in
+   its band's colour. A route is its kind, name and grade large, then Route facts, Logbook
+   (full-width to-do and **Tick it**), On the wall, and Beta with the two outbound links.
+   `WallScreen.tsx`, `ClimbScreen.tsx` and `WeekCard.tsx` are deleted; `check:ui` now opens
+   a wall and a route and walks the crumbs back. **Departures:** the wall keeps the
+   Location card (shared positions), which the mockup does not draw; no Length fact (OpenBeta
+   records none in the snapshot); the tick form still opens on Tick it rather than sitting
+   open, and its styles stay chips rather than a select.
 5. **Map, Profile, Add a crag and Feedback** restyled.
 
 Each phase is its own PR, verified with `npm run check:ui` from `apps/api`, with the
