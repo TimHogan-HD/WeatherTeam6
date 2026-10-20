@@ -130,7 +130,7 @@ describe('chartHourAt', () => {
     dewC: null,
     chancePct: null,
     windKmh: null,
-    score: null,
+    score: null, dryness: null,
   })
   const t = (hour: number) => base + hour * H
   // 13:00 is missing from the run.

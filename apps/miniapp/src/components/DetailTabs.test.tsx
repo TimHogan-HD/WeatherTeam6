@@ -147,6 +147,8 @@ const score: Conditions = {
   },
 }
 
+const visibleText = (html: string): string => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
+
 function ok<T>(data: T) {
   return { data, isPending: false, isError: false, refetch: () => {} }
 }
@@ -196,11 +198,9 @@ describe('DetailView — tabs', () => {
 
     const hourly = render({ active: 'hourly' })
     expect(hourly).not.toMatch(/>Next [0-9]+ days?</)
-    expect(hourly).not.toContain('Hour by hour')
-    // One day, named in full by the pager, with its four charts.
-    expect(hourly).toContain('Mon, Sep 14')
-    expect(hourly).toContain('Chance of rain')
-    expect(hourly).toContain('Wind')
+    // The day picker, then the hybrid look's three cards.
+    expect(hourly).toMatch(/aria-pressed="true"[^>]*>Today</)
+    for (const title of ['Temperature and humidity', 'Rain', 'Wind']) expect(hourly).toMatch(new RegExp(`<h2[^>]*><span>${title}<`))
   })
 
   it('makes only the days the ensemble reached tappable', () => {
@@ -262,11 +262,9 @@ describe('DetailView — tabs', () => {
     }
   })
 
-  it('puts the Conditions now hero on Overview and nowhere else', () => {
-    // **The hero is about today, and Hourly is a day pager.** Today's reading
-    // at the top of a screen showing Saturday is a claim about the wrong day;
-    // the pager carries that day's own readings instead. Daily has no hero in
-    // its V2 frame either.
+  it('puts the hero on Overview and nowhere else', () => {
+    // **The hero is about now, and Hourly is a day pager.** Now's reading at
+    // the top of a screen showing Saturday is a claim about the wrong day.
     const render = (active: 'overview' | 'daily' | 'hourly'): string =>
       renderInRouter(
         <DetailView
@@ -287,14 +285,12 @@ describe('DetailView — tabs', () => {
         />,
       )
 
-    // The score renders in the hero only once alerts settle, and this fixture
-    // carries a Severe+ alert in no case — so 72, the day's, is the hero's third gauge.
     expect(render('overview')).toContain('>72<')
-    expect(render('overview')).toContain('Conditions now')
-    expect(render('daily')).not.toContain('Conditions now')
-    expect(render('hourly')).not.toContain('Conditions now')
+    expect(render('overview')).toContain('data-hero')
+    expect(render('daily')).not.toContain('data-hero')
+    expect(render('hourly')).not.toContain('data-hero')
     // The Hourly tab's own readings come from the *series*, which this fixture
-    // leaves unset — so the pager reports that rather than borrowing today's.
+    // leaves unset — so nothing borrows now's.
     expect(render('hourly')).not.toContain('>72<')
   })
 
@@ -447,53 +443,54 @@ describe('DetailView — the Overview tab', () => {
    * satisfy it. Throws when the title is missing: an empty slice made every
    * `not.toContain` here pass vacuously.
    */
-  const todaySection = (html: string) => {
-    // The h2, not the detail tab of the same name.
-    const start = html.search(/<h2[^>]*>Hourly</)
-    if (start < 0) throw new Error('no "Hourly" section')
+  /** One card's markup, by its h2. Throws when missing: an empty slice made every `not.toContain` pass vacuously. */
+  const card = (html: string, title: string) => {
+    const start = html.search(new RegExp(`<h2[^>]*><span>${title}<`))
+    if (start < 0) throw new Error(`no "${title}" card`)
     return html.slice(start, html.indexOf('</section>', start))
   }
+  const scoreRow = (today: string) => [...today.matchAll(/font-weight="700"[^>]*>([0-9]+|—)<\/text>/g)].map((m) => m[1])
 
   // Now is 07:00 local, so the window runs 01:00-17:00: both scored hours, 09:00 and 12:00, are in it.
-  it('draws the hours around now as a chart, the line coloured by the hour’s score', () => {
-    const today = todaySection(overview())
+  it('draws the hours around now as a chart, with each hour’s score under it', () => {
+    const today = card(overview(), 'Today')
     expect(today).toContain('>9a<')
     expect(today).toContain('>12p<')
-    expect(today).toContain('>Score<')
-    // The readout opens on an hour before anyone taps, and names every figure.
-    for (const field of ['>Temp<', '>Dew<', '>Rain<', '>Wind<']) expect(today).toContain(field)
-    // Both scored hours read 80, printed under their ticks.
-    expect(today.match(/>80</g)?.length).toBe(2)
+    expect(today).toContain('>now<')
+    // Both scored hours read 80; the rest have no reading and show a dash, never a number.
+    const row = scoreRow(today)
+    expect(row.filter((s) => s === '80')).toHaveLength(2)
+    expect(row.filter((s) => s !== '80' && s !== '—')).toHaveLength(0)
   })
 
   it('scores the next days from the Crag A readings, never the forecast row', () => {
-    const html = overview()
-    expect(html).toContain('Next 2 days')
-    expect(html).toMatch(/>91<\/span>/)
-    expect(html).toMatch(/>44<\/span>/)
-    expect(html).not.toMatch(/>13<\/span>/)
+    const next = card(overview(), 'Next days')
+    expect(next).toMatch(/>91<\/b>/)
+    expect(next).toMatch(/>44<\/b>/)
+    expect(next).not.toMatch(/>13</)
   })
 
-  it('drops the day scores under a Severe+ alert and keeps the rows', () => {
+  it('drops every score under a Severe+ alert and keeps the rows', () => {
     const html = overview({ alerts: [heatWarning] })
-    expect(html).toContain('Tue 9/15')
-    expect(html).not.toMatch(/>91<\/span>/)
-    // The line loses its score colour too: a tint with no number is the number leaking.
-    expect(todaySection(html)).not.toContain('>Score<')
+    const next = card(html, 'Next days')
+    expect(next).toContain('>Tue<')
+    expect(next).not.toMatch(/>91<\/b>/)
+    // The Today chart loses its score row and colour too: a tint with no number is the number leaking.
+    expect(scoreRow(card(html, 'Today'))).toHaveLength(0)
   })
 
   it('names the next likely rain from the ensemble’s wet share', () => {
-    const html = overview()
-    expect(html).toContain('Next rain')
-    expect(html).toContain('Tue 9/15 · 64%')
+    const rain = visibleText(card(overview(), 'Rain'))
+    expect(rain).toContain('Next rain Tue 9/15 64% chance')
   })
 
   it('gives a city a neutral chart, day ranges and no score', () => {
     const html = overview({ climbing: false })
-    expect(todaySection(html)).toContain('>9a<')
-    expect(todaySection(html)).not.toContain('>Score<')
-    expect(html).not.toMatch(/>91<\/span>/)
-    expect(html).toContain('50–68°F')
+    const today = card(html, 'Today')
+    expect(today).toContain('>9a<')
+    expect(scoreRow(today)).toHaveLength(0)
+    expect(card(html, 'Next days')).not.toMatch(/>91</)
+    expect(visibleText(card(html, 'Next days'))).toContain('68°/50°')
   })
 })
 

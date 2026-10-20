@@ -1,4 +1,5 @@
 import {
+  DRYNESS_LABEL,
   summarizeReadings,
   type ForecastSnapshot,
   type HourlyReading,
@@ -52,6 +53,8 @@ export type ChartHour = {
    * load, for a city, and for an hour the model did not read.
    */
   score: number | null
+  /** The Dryness word, kept under an alert: the alert withholds the number, not the readings. Null for a city. */
+  dryness: string | null
 }
 
 /** The location-clock hour of a UTC instant, or `null` when either input cannot be read. */
@@ -106,7 +109,7 @@ export function chartWindow(
     const hour = localHour(h.valid_at, series.utc_offset_seconds)
     if (hour === null) continue
     const reading = byInstant.get(h.valid_at) ?? null
-    const score =
+    const summary =
       alerts === null || reading === null
         ? null
         : summarizeReadings({
@@ -116,7 +119,7 @@ export function chartWindow(
             severeAlertEvent: alerts.severeAlertEvent,
             alertsPending: alerts.alertsPending,
             unavailableReason: null,
-          }).score
+          })
     out.push({
       valid_at: h.valid_at,
       ms,
@@ -126,7 +129,8 @@ export function chartWindow(
       dewC: h.dewpoint_c,
       chancePct: h.precip_chance_pct,
       windKmh: h.wind_kmh,
-      score,
+      score: summary?.score ?? null,
+      dryness: summary?.readings.find((f) => f.label === DRYNESS_LABEL)?.value ?? null,
     })
   }
   out.sort((a, b) => a.ms - b.ms)

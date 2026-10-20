@@ -16,20 +16,20 @@ const hour = (h: number, valid_at: string, tempC: number, local_date = '2026-09-
   dewC: null,
   chancePct: null,
   windKmh: null,
-  score: null,
+  score: null, dryness: null,
 })
 
 const hours = [hour(21, '2026-10-01T02:00:00Z', 18.5), hour(22, '2026-10-01T03:00:00Z', 17.2)]
 const win = (hs: ChartHour[], fromMs: number): ChartWindow => ({ fromMs, toMs: fromMs + 16 * H, hours: hs })
 
 function render(w: ChartWindow, nowMs: number): string {
-  return renderToStaticMarkup(<TodayChart window={w} nowMs={nowMs} todayDate="2026-09-30" fill={false} />)
+  return renderToStaticMarkup(<TodayChart window={w} nowMs={nowMs} todayDate="2026-09-30" sky={[]} />)
 }
 
-/** The readout's Temp figure, the one the reader takes for "Now". */
+/** The readout's air figure, the one the reader takes for "Now". */
 function readoutTemp(nowMs: number): string | undefined {
   const html = render(win(hours, Date.parse('2026-09-30T20:00:00Z')), nowMs)
-  return /Now<\/span>.*?Temp<\/span><span[^>]*>([^<]+)</.exec(html)?.[1]
+  return /Now · air \/ dew<\/span><b[^>]*>([^ <]+)/.exec(html)?.[1]
 }
 
 describe('TodayChart readout', () => {

@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { spacing } from '@weatherteam6/design/tokens'
 import type {
   DetailTabKey,
@@ -13,15 +13,13 @@ import type {
 } from '@weatherteam6/types'
 import { GUIDEBOOK_SOURCE_LABEL, RECENT_PRECIP_SOURCE_LABEL } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
-import { navClearance, stack } from '../theme/styles.js'
+import { stack } from '../theme/styles.js'
 import {
   findToday,
   forecastSourceLabel,
   severeAlertEvent,
 } from '../lib/forecast.js'
-import { useScreenRemainder } from '../hooks/useScreenRemainder.js'
 import { AlertBanner } from './Alerts.js'
-import { ConditionsNow } from './ConditionsNow.js'
 import { SourcesFooter, type SourceEntry } from './SourcesFooter.js'
 import { formatTickDate } from '../lib/logbook.js'
 import { InlineError, Skeleton } from './States.js'
@@ -42,8 +40,8 @@ import { TEMP_VIEW_H } from './charts/chartStyle.js'
  * sources footer below. The header band and its tab bar are the route's
  * (`DetailHeader`), because back has to be able to change the tab.
  *
- * - **Overview** — the Conditions now hero, today by the hour, the next three
- *   days' scores, and rain. Built to its V2 frame.
+ * - **Overview** — the crag's name and the hour's score, then a card per
+ *   section (`OverviewTab`), built to the hybrid mockup (owner, 2026-10-19).
  * - **Daily** — the seven days as tinted rows, built to its V2 frame.
  * - **Hourly** — a chip per day, the open day's readings and good hours,
  *   then its charts. Built to its V2 frame.
@@ -64,7 +62,7 @@ import { TEMP_VIEW_H } from './charts/chartStyle.js'
  * can be standing when a warning arrives. The sources footer makes a claim
  * about the whole location, not about one view of it.
  *
- * **Without hourly data there are no tabs**: it shows the hero and the seven
+ * **Without hourly data there are no tabs**: it shows the seven
  * days — the Daily tab without a pager.
  *
  * Sections fail independently. A location whose alerts call failed still shows
@@ -201,10 +199,8 @@ export function DetailView({
   const showScore = isClimbingLocation
   const activeAlertCount = alerts?.data?.length ?? 0
   const tabs = hourly?.tabs
-  // Without hourly data there are no tabs: the hero and the seven days together.
+  // Without hourly data there are no tabs: the seven days alone.
   const active: DetailTab | null = tabs?.active ?? null
-  const panelRef = useRef<HTMLDivElement>(null)
-  const panelTop = useScreenRemainder(panelRef, active === 'overview')
 
   // Which days open a drill-down. **Driven by `days[]`, not by the rows
   // themselves**: a forecast row exists for all seven days whatever the hourly
@@ -243,24 +239,6 @@ export function DetailView({
     },
   ]
 
-  /**
-   * The hero. **Its readings are passed only for a scored location** — a
-   * city has no rock. Their data is
-   * `/conditions`, not `/hourly`, because the list card reads `/conditions`
-   * too, and one endpoint for both is what stops a crag showing one reading on
-   * the list and another here.
-   */
-  const hero = (
-    <ConditionsNow
-      forecast={forecast}
-      series={hourly?.data}
-      {...(showScore && conditions !== undefined ? { conditions } : {})}
-      alertsPending={alertsPending}
-      severeAlertEvent={alertEvent}
-      rangeF={rangeF}
-    />
-  )
-
   // The day scores the Daily rows wear — only for a scored location, and only
   // once `/hourly` has answered; until then the rows carry no pill.
   const dayReadings =
@@ -274,15 +252,10 @@ export function DetailView({
       : null
 
   const daily =
-    // The rows share the forecast query with the hero, which has already said
-    // what went wrong. A second copy of the same error reads as two failures —
-    // except on the Daily tab, where the hero is not on screen to say it.
     forecast.isPending ? (
-      active === 'daily' ? <Skeleton height={DAILY_H} /> : null
+      <Skeleton height={DAILY_H} />
     ) : forecast.isError ? (
-      active === 'daily' ? (
-        <InlineError message="Couldn't load the forecast." onRetry={forecast.refetch} />
-      ) : null
+      <InlineError message="Couldn't load the forecast." onRetry={forecast.refetch} />
     ) : forecast.data === undefined || forecast.data.length === 0 ? null : (
       <>
         <DailyList
@@ -306,33 +279,25 @@ export function DetailView({
 
   let panel: ReactNode
   if (active === null) {
-    panel = (
-      <>
-        {hero}
-        {daily}
-      </>
-    )
+    panel = daily
   } else if (active === 'overview') {
-    panel = (
-      <>
-        {hero}
-        {hourly === undefined || tabs === undefined ? null : (
-          <OverviewTab
-            fill={panelTop !== null}
-            todayDate={findToday(forecast.data)?.forecast_date ?? null}
-            isClimbingLocation={showScore}
-            forecast={{ data: forecast.data }}
-            hourly={hourly}
-            recentPrecip={recentPrecip?.data}
-            severeAlertEvent={alertEvent}
-            alertsPending={alertsPending}
-            drawableDates={drawableDates}
-            onOpenDaily={() => tabs.onTabChange('daily')}
-            onOpenHourly={() => tabs.onTabChange('hourly')}            onOpenDay={(localDate) => openDayInHourly(tabs, localDate)}
-          />
-        )}
-      </>
-    )
+    panel =
+      hourly === undefined || tabs === undefined ? null : (
+        <OverviewTab
+          todayDate={findToday(forecast.data)?.forecast_date ?? null}
+          isClimbingLocation={showScore}
+          location={location}
+          forecast={forecast}
+          conditions={showScore ? conditions : undefined}
+          hourly={hourly}
+          recentPrecip={recentPrecip?.data}
+          severeAlertEvent={alertEvent}
+          alertsPending={alertsPending}
+          rangeF={rangeF}
+          drawableDates={drawableDates}
+          onOpenDay={(localDate) => openDayInHourly(tabs, localDate)}
+        />
+      )
   } else if (active === 'daily') {
     panel = daily
   } else if (active === 'hourly') {
@@ -412,23 +377,7 @@ export function DetailView({
         `tabpanel` with no tablist is a lie about the page structure to a screen
         reader.
       */}
-      {/*
-        **The Overview fills the screen** (owner, 2026-09-30): it is sized to
-        fit one, so the sources and actions below it belong past the fold
-        rather than ending the page halfway down with black under them. The
-        spare height goes to the Today chart, never between sections: spread as
-        gaps, it read as black bars on a tall phone.
-      */}
-      <div
-        ref={panelRef}
-        {...(tabs === undefined ? {} : { id: tabs.panelId, role: 'tabpanel' })}
-        style={{
-          ...stack(spacing.listGapLg),
-          ...(panelTop === null
-            ? {}
-            : { minHeight: `calc(100dvh - ${panelTop}px - ${navClearance})` }),
-        }}
-      >
+      <div {...(tabs === undefined ? {} : { id: tabs.panelId, role: 'tabpanel' })} style={stack(spacing.listGapLg)}>
         {panel}
       </div>
 

@@ -38,7 +38,7 @@
  * - **The caveats are fragments, not sentences.** They are still required copy
  *   (below) and they are still on the surface — they are just no longer prose a
  *   reader has to wade through. The mechanism behind them is in the
- *   measurements disclosure — `measurements()`, at the end of this file.
+ *   Overview's Rock card — `measurements()`, at the end of this file.
  *
  * ## Three things this file must keep
  *
@@ -49,7 +49,7 @@
  * Nothing here accepts a 0-1 factor, and `HourlyReading` does not carry one.
  *
  * **2. The app says the friction reading is an estimate — once.** In the
- * measurements disclosure (`FRICTION_MECHANISM`) and on How the score works,
+ * Overview's Rock card (`FRICTION_MECHANISM`) and on How the score works,
  * not under every gauge: repeated on every surface it read as boilerplate
  * (owner, 2026-10-02).
  *
@@ -421,7 +421,7 @@ export type ReadingsSummary = {
   /**
    * The caveats this surface must print, in order — fragments, meant to be
    * joined and set small. The friction estimate note is said once, in the
-   * measurements disclosure.
+   * Overview's Rock card.
    */
   notes: string[];
   /** The sentence for "no readings at all". `null` when there are readings. */
@@ -493,7 +493,7 @@ export function summarizeReadings(input: ReadingsSummaryInput): ReadingsSummary 
     severeAlertEvent !== null || alertsPending ? null : (reading?.score ?? null);
 
   const notes: string[] = [];
-  // That friction is an estimate is said once, in the measurements disclosure
+  // That friction is an estimate is said once, on the Overview's Rock card
   // (`FRICTION_MECHANISM`) and on How the score works — not under every gauge
   // (owner, 2026-10-02).
   // One note for the whole surface rather than a mark per hour. `qualified` is
