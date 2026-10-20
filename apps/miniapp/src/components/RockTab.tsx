@@ -6,6 +6,8 @@ import {
   rockGuide,
   rockTypeLabel,
   type DryingPace,
+  type HourlyReadings,
+  type RecentPrecip,
   type RockGuide,
   type RockSwatch,
   type RockTexture,
@@ -14,6 +16,7 @@ import {
 import { typeV2 } from '../theme/tokens.css.js'
 import { cardV2, row, stack, wellV2 } from '../theme/styles.js'
 import { CheckIcon, CrossIcon, RainIcon, SunIcon } from './Icons.js'
+import { CondensationCard, DryingCard } from './RockReadings.js'
 
 /**
  * The Rock tab's field guide to the crag's rock: a textured header naming it,
@@ -21,10 +24,10 @@ import { CheckIcon, CrossIcon, RainIcon, SunIcon } from './Icons.js'
  * strength), how it formed and made its holds, rain and sun, and how to look
  * after it. The words are `rockGuide` in `packages/types`.
  *
- * **It is about the rock type, not a reading of this crag**, and the last line
- * says so. Nothing here changes with the weather; the live drying reading is
- * the Overview's and the Precip tab's (owner, 2026-09-30, took the drying card
- * off this tab).
+ * **The guide is about the rock type, not a reading of this crag**, and its
+ * last line says so. Between the header and the guide sit this crag's live
+ * readings, the drying clock and the condensation chart (`RockReadings.tsx`;
+ * owner, 2026-10-19, reversing the 2026-09-30 removal of the drying card).
  */
 
 // ─────────────────────────────────────────────
@@ -394,15 +397,31 @@ export type RockTabProps = {
   rockType: Parameters<typeof rockGuide>[0] | null
   /** The location's facts — aspect, angle, coordinates — placed last. */
   identity: ReactNode
+  /**
+   * The crag's live readings, for the drying and condensation cards. Absent
+   * for a city and while `/hourly` loads: the guide then stands alone.
+   */
+  live?: {
+    readings: HourlyReadings | undefined
+    utcOffsetSeconds: number
+    recent: RecentPrecip | undefined
+  }
 }
 
-export function RockTab({ rockType, identity }: RockTabProps) {
+export function RockTab({ rockType, identity, live }: RockTabProps) {
   const guide = rockType === null ? null : rockGuide(rockType)
   const name = guide === null || rockType === null ? 'Rock type not recorded' : rockTypeLabel(rockType)
 
   return (
     <>
       <Hero name={name} guide={guide} />
+
+      {live === undefined || rockType === null ? null : (
+        <>
+          <DryingCard rockType={rockType} recent={live.recent} readings={live.readings} />
+          <CondensationCard readings={live.readings} utcOffsetSeconds={live.utcOffsetSeconds} />
+        </>
+      )}
 
       {guide === null ? null : (
         <>

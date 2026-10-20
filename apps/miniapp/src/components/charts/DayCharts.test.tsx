@@ -197,7 +197,7 @@ describe('DayCharts — rain', () => {
 
   it('says so when no hour has rain or chance', () => {
     const none = fullDay.map((h) => ({ ...h, precip_mm_mean: null, precip_chance_pct: null }))
-    expect(render(series(none))).toContain('No hourly rainfall for this day.')
+    expect(render(series(none))).toContain('No hourly rainfall for these hours.')
   })
 })
 

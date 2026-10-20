@@ -334,6 +334,9 @@ export function DetailView({
         <PrecipTab
           recent={recentPrecip}
           isClimbingLocation={showScore}
+          rockType={location?.rock_type ?? null}
+          hours={hourly?.data?.hours ?? []}
+          utcOffsetSeconds={hourly?.data?.utc_offset_seconds ?? null}
           {...(showScore && hourly?.data !== undefined
             ? { rock: { readings: hourly.data.readings, utcOffsetSeconds: hourly.data.utc_offset_seconds } }
             : {})}
@@ -343,6 +346,15 @@ export function DetailView({
     panel = (
       <RockTab
         rockType={location?.rock_type ?? null}
+        {...(showScore && hourly?.data !== undefined
+          ? {
+              live: {
+                readings: hourly.data.readings,
+                utcOffsetSeconds: hourly.data.utc_offset_seconds,
+                recent: recentPrecip?.data,
+              },
+            }
+          : {})}
         identity={
           location === undefined ? null : <LocationIdentity location={location} walls={walls} condensed={false} />
         }

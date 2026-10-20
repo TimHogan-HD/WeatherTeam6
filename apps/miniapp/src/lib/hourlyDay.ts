@@ -75,10 +75,14 @@ export function defaultReadHour(
  * amount could be the wet one, so a day with a gap is not called dry.
  */
 export function dryDay(hours: readonly HourlySample[], localDate: string): boolean {
-  const day = hours.filter((h) => h.local_date === localDate)
-  if (day.length === 0) return false
+  return dryHours(hours.filter((h) => h.local_date === localDate))
+}
+
+/** `dryDay`'s rule over any run of hours: the Precip tab's next 48 hours use it too. */
+export function dryHours(hours: readonly HourlySample[]): boolean {
+  if (hours.length === 0) return false
   let totalMm = 0
-  for (const h of day) {
+  for (const h of hours) {
     if (h.precip_mm_mean === null || h.precip_chance_pct === null) return false
     if (h.precip_chance_pct > 0) return false
     totalMm += h.precip_mm_mean

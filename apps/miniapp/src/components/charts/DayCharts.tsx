@@ -8,6 +8,7 @@ import {
   modelName,
   summarizeReadings,
   type HourlyReading,
+  type HourlySample,
   type HourlySeries,
   type SkyCondition,
 } from '@weatherteam6/types'
@@ -94,10 +95,10 @@ const MM_PER_IN = 25.4
 /** Air with no score beside it is neutral ink: a tint with no number would leak the score past its suppression. */
 const AIR_NEUTRAL = chartColorsV2.air
 
-const sectCard: CSSProperties = { ...cardV2, padding: `${spacing.sectionGap}px 14px 14px` }
+export const sectCard: CSSProperties = { ...cardV2, padding: `${spacing.sectionGap}px 14px 14px` }
 /** The chart runs past the card's padding by the mockup's 22px, so its hour labels line up with the card's text. */
-const bleed: CSSProperties = { margin: '0 -22px' }
-const keyInset: CSSProperties = { padding: '0 22px' }
+export const bleed: CSSProperties = { margin: '0 -22px' }
+export const keyInset: CSSProperties = { padding: '0 22px' }
 
 export function DayCharts({ series, selectedDate, onSelectDate, readMs, onRead, score }: DayChartsProps) {
   const now = useNow()
@@ -161,7 +162,15 @@ export function DayCharts({ series, selectedDate, onSelectDate, readMs, onRead, 
       </section>
       <section style={sectCard}>
         <Sect title="Rain" aside="chance left · in / hr right · ensemble mean" />
-        <RainChart {...frame} hours={hours} series={series} selectedDate={selectedDate} />
+        <RainChart
+          {...frame}
+          hours={hours}
+          dry={
+            dryDay(series.hours, selectedDate)
+              ? { title: 'Dry all day', note: '0% in every hour: no ensemble member has measurable rain all day.' }
+              : null
+          }
+        />
       </section>
       <section style={sectCard}>
         <Sect title="Wind" aside={`mph${gustModel === null ? '' : ` · gusts ${gustModel}`}`} />
@@ -238,7 +247,7 @@ function DayPicker({
   )
 }
 
-type FrameProps = {
+export type FrameProps = {
   axis: TimeAxis | null
   instants: readonly number[]
   utcOffsetSeconds: number
@@ -443,19 +452,24 @@ function TemperatureChart({
   )
 }
 
-function RainChart({
+/**
+ * Chance of rain as columns and the ensemble mean amount as a line with its
+ * one-hour range. Hourly draws one day of it, the Precip tab the next 48
+ * hours. `dry` is the caller's verdict (`dryDay`, `dryHours`) and the words
+ * that replace the marks when it holds.
+ */
+export function RainChart({
   axis,
   instants,
   utcOffsetSeconds,
   nowMs,
   read,
   hours,
-  series,
-  selectedDate,
-}: FrameProps & { hours: ReturnType<typeof hoursOnDay>; series: HourlySeries; selectedDate: string }) {
+  dry,
+}: FrameProps & { hours: readonly HourlySample[]; dry: { title: string; note: string } | null }) {
   const rain = rainSeries(hours)
   const chance = chanceSeries(hours)
-  if (axis === null || (!hasValues(rain) && !hasValues(chance))) return <Empty>No hourly rainfall for this day.</Empty>
+  if (axis === null || (!hasValues(rain) && !hasValues(chance))) return <Empty>No hourly rainfall for these hours.</Empty>
 
   const H = 140
   const floor = 106
@@ -464,7 +478,6 @@ function RainChart({
   const cy = scale(0, chanceTop, floor, 14)
   const top = Math.max(RAIN_MIN_TOP_MM, ...rain.flatMap((d) => [d.value ?? 0, d.high ?? 0]))
   const ry = scale(0, top, floor, 14)
-  const dry = dryDay(series.hours, selectedDate)
   const frameProps = { height: H, top: 10, bottom: 22, axis, instants, utcOffsetSeconds, nowMs, read }
   const inches = (mm: number) => (mm / MM_PER_IN).toFixed(2).replace(/^0/, '')
 
@@ -475,10 +488,10 @@ function RainChart({
     </g>
   ))
 
-  if (dry) {
+  if (dry !== null) {
     return (
       <div style={{ ...bleed, position: 'relative' }}>
-        <LiquidFrame {...frameProps} bare title="Rain by hour: dry all day">
+        <LiquidFrame {...frameProps} bare title={`Rain by hour: ${dry.title.toLowerCase()}`}>
           {chanceGrid}
         </LiquidFrame>
         <div
@@ -496,10 +509,8 @@ function RainChart({
             textShadow: '0 1px 8px rgba(0,0,0,0.6)',
           }}
         >
-          <b style={{ ...typeV2.lineFigure, color: colorsV2.goodInk }}>Dry all day</b>
-          <span style={{ ...typeV2.heroSideSm, lineHeight: '1.4', maxWidth: '32ch' }}>
-            0% in every hour: no ensemble member has measurable rain all day.
-          </span>
+          <b style={{ ...typeV2.lineFigure, color: colorsV2.goodInk }}>{dry.title}</b>
+          <span style={{ ...typeV2.heroSideSm, lineHeight: '1.4', maxWidth: '32ch' }}>{dry.note}</span>
         </div>
       </div>
     )
