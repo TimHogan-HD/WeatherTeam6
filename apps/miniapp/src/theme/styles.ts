@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { colors, colorsV2, components, radius, spacing } from '@weatherteam6/design/tokens'
+import { colors, colorsV2, components, glass as glassTokens, radius, spacing } from '@weatherteam6/design/tokens'
 import { boxStyle, textStyle, withOpacity } from './tokens.css.js'
 import { glassCard } from './glass.js'
 
@@ -134,6 +134,15 @@ export const bottomClearance = `max(${spacing.bottomInset}px, env(safe-area-inse
  * still covers the inset once — this adds the bar, not a second inset.
  */
 export const navClearance = `calc(${spacing.bottomNavH}px + ${bottomClearance})`
+
+/**
+ * Room under a crag's screen for its floating dock: the lift, the dock
+ * (a 40px tab, its 4px padding either side, and a 1px rim each side) and a
+ * card gap, **plus** the home-indicator inset. The dock sits above the inset
+ * rather than in it, so `navClearance`'s larger-of rule left the last line
+ * under the dock on a phone with a home indicator.
+ */
+export const dockClearance = `calc(${glassTokens.dockLift + spacing.cellPad * 4 + spacing.tight * 2 + 2 + spacing.listGapLg}px + env(safe-area-inset-bottom, 0px))`
 
 /** The bottom bar's own height, past the home indicator: where a screen that fills the viewport stops. */
 export const navBarHeight = `calc(${spacing.bottomNavH}px + env(safe-area-inset-bottom, 0px))`

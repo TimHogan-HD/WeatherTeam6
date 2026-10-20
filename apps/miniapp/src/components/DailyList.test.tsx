@@ -142,6 +142,26 @@ describe('DailyList — rows', () => {
     expect(html).toContain('>no good hours · Wet · ')
   })
 
+  it('draws a 24-cell hour strip per day only when the run’s offset is known, and says what it is', () => {
+    const hours = hoursFor(DATES[0], () => 20)
+    const strip = (html: string) => html.match(/grid-template-columns:repeat\(24/g)?.length ?? 0
+    const without = render(<DailyList days={[day(DATES[0])]} readings={null} hours={hours} sky={[]} />)
+    expect(strip(without)).toBe(0)
+    expect(without).not.toContain('The strip under each day')
+    const city = render(<DailyList days={[day(DATES[0])]} readings={null} hours={hours} sky={[]} utcOffsetSeconds={0} />)
+    expect(strip(city)).toBe(1)
+    expect(city).toContain(dailyFoot(false, false, true))
+    expect(city).toContain('chance of rain in each hour;')
+    const gaps = render(
+      <DailyList days={[day(DATES[0])]} readings={null} hours={hoursFor(DATES[0], (i) => (i === 0 ? null : 0))} sky={[]} utcOffsetSeconds={0} />,
+    )
+    expect(gaps.match(/box-shadow:inset 0 0 0 1px/g)?.length).toBe(1)
+    const crag = render(
+      <DailyList days={[day(DATES[0])]} readings={readings([readingsDay(DATES[0], 80)])} hours={hours} sky={[]} hourReadings={[]} utcOffsetSeconds={0} />,
+    )
+    expect(crag).toContain('coloured by the score of each hour')
+  })
+
   it('says how a day score and the chance of rain are made', () => {
     const city = render(<DailyList days={[day(DATES[0])]} readings={null} hours={[]} sky={[]} />)
     expect(city).toContain(dailyFoot(false, false))
