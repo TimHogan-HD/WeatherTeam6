@@ -49,14 +49,13 @@ import { InlineError, Skeleton } from './States.js'
 /**
  * The Overview in the hybrid look (`docs/handoffs/design-mockups/weatherteam6-hybrid.html`,
  * owner 2026-10-19): the crag's name, the hour's score large with its Dryness,
- * and one line of figures; then a glass card per section — the score bars,
- * Today, the next days, Score breakdown, Rain, Air, Rock, and how the score
+ * and one line of figures; then a glass card per section — Today, the next days, Score breakdown, Rain, Air, Rock, and how the score
  * works.
  *
  * **The big number is the hour covering now** (owner, 2026-10-19: "the large
  * Overview score"), and it is never alone: the day's good hours and score sit
- * on the line under it, and the score bars under that. 9am read 100 on a day
- * rain arrived at 1pm (owner, 2026-10-03) — the bars are what show the 1pm.
+ * on the line under it, and the Today chart under that. 9am read 100 on a day
+ * rain arrived at 1pm (owner, 2026-10-03) — the chart is what shows the 1pm.
  *
  * **Every reading comes from `/conditions`**, the response the list card
  * reads, so a crag never shows one reading there and another here; the charts

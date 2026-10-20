@@ -74,7 +74,8 @@ export function TodayChart({
   const nowCell = readingNow(hours, nowMs)
   const selected = picked === null ? (nowCell ?? chartHourAt(hours, nowMs)) : chartHourAt(hours, picked)
   const isNow = selected !== null && nowCell !== null && selected.ms === nowCell.ms
-  const nowX = nowMs >= fromMs && nowMs <= toMs ? x(nowMs) : null
+  // On the now column, not the clock: the window starts there, so 12:43 would fall left of it.
+  const nowX = nowCell === null ? null : x(nowCell.ms)
 
   const pick = (e: PointerEvent<SVGSVGElement>) => {
     const box = e.currentTarget.getBoundingClientRect()
@@ -105,7 +106,7 @@ export function TodayChart({
   })
 
   const labelled = hours.filter((p) => p.hour % 3 === 0 || (nowCell !== null && p.ms === nowCell.ms))
-  const label = `Today: air temperature${scored ? ' coloured by score' : ''}, dew point dashed, chance of rain as filled capsules, six hours back and ten ahead`
+  const label = `Today: air temperature${scored ? ' coloured by score' : ''}, dew point dashed, chance of rain as filled capsules, from now to sixteen hours ahead`
 
   return (
     <div>
@@ -134,10 +135,6 @@ export function TodayChart({
             </linearGradient>
           </defs>
 
-          {/* The hours already gone, behind a veil. */}
-          {nowX === null || nowX <= LIQUID_PX ? null : (
-            <rect x={LIQUID_PX} y={TOP - 6} width={nowX - LIQUID_PX} height={PLOT_B - TOP + 6} fill="rgba(0,0,0,0.18)" />
-          )}
           {nowX === null ? null : (
             <line x1={nowX} x2={nowX} y1={TOP - 8} y2={RAIN_TOP + RAIN_H} stroke={colorsV2.brandInk} strokeDasharray="2 3" />
           )}
