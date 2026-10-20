@@ -883,20 +883,51 @@ export const typeV2 = {
     lineHeight: 17,
     color: colorsV2.txt2,
   },
-  /** A day's name on Daily — "Thu": Barlow Condensed 18/600. */
+  /** A day's name on Daily — "Wednesday": Barlow Condensed 22/700. */
   dayName: {
     fontFamily: fonts.display,
-    fontSize: 18,
-    fontWeight: '600' as const,
-    lineHeight: 20,
+    fontSize: 22,
+    fontWeight: '700' as const,
+    lineHeight: 24,
     color: colorsV2.txt1,
   },
-  /** A day's chance of rain on Daily: Barlow Condensed 16/600, rain ink. */
+  /** A day's date under its name on Daily — "Oct 21": Barlow 13/500. */
+  dayDate: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    fontWeight: '500' as const,
+    lineHeight: 16,
+    color: colorsV2.txtMuted,
+  },
+  /** A day's score on Daily: Barlow Condensed 34/700. Colour is the score's. */
+  dailyScore: {
+    fontFamily: fonts.display,
+    fontSize: 34,
+    fontWeight: '700' as const,
+    lineHeight: 34,
+  },
+  /** A day's low and high on Daily, either side of its bar: Barlow 15/600. */
+  dayTemp: {
+    fontFamily: fonts.body,
+    fontSize: 15,
+    fontWeight: '600' as const,
+    lineHeight: 18,
+  },
+  /** A day's chance of rain on Daily: Barlow Condensed 20/600, rain ink. */
   dayChance: {
     fontFamily: fonts.display,
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '600' as const,
+    lineHeight: 22,
     color: colorsV2.rain,
+  },
+  /** Daily's line under a day — "good 9a–11p · Dry · 0 in · peak wind 11 mph": Barlow 14/400. */
+  daySub: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    fontWeight: '400' as const,
+    lineHeight: 20,
+    color: colorsV2.txt2,
   },
   /** A next day's small lines — "Wed", "68°/47°": Barlow 10/400. */
   daySmall: {

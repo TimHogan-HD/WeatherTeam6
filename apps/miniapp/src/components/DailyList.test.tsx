@@ -10,7 +10,7 @@ import {
   type ReadingsDay,
 } from '@weatherteam6/types'
 import type { DayReadings } from '../lib/overview.js'
-import { DailyList, dailyFoot, dayRainChance } from './DailyList.js'
+import { DailyList, dailyFoot, dayHeading, dayRainChance } from './DailyList.js'
 
 /**
  * The Daily tab's Seven days card. What it must get right, and what would pass
@@ -115,8 +115,13 @@ describe('DailyList — rows', () => {
       <DailyList days={[day(DATES[2]), day(DATES[0]), day(DATES[1])]} readings={null} hours={[]} sky={[]} />,
     )
     expect(html).toContain('Seven days')
-    const names = [...html.matchAll(/>(Today|Mon|Tue|Wed|Thu|Fri|Sat|Sun)</g)].map((m) => m[1])
-    expect(names).toEqual(['Today', 'Tue', 'Wed'])
+    const names = [...html.matchAll(/>(Today|\w+day)</g)].map((m) => m[1])
+    expect(names).toEqual(['Today', 'Tuesday', 'Wednesday'])
+  })
+
+  it('names each day in full with its date under it', () => {
+    expect(dayHeading('2026-10-21', '2026-10-20')).toEqual({ name: 'Wednesday', date: 'Oct 21' })
+    expect(dayHeading('2026-10-20', '2026-10-20')).toEqual({ name: 'Today', date: 'Oct 20' })
   })
 
   it('prints the low and high, and dashes a missing one rather than printing 32°', () => {
