@@ -10,6 +10,15 @@
  *   npm run check:ui -- --tabs-only  # only the crag screen's six tabs
  *   npm run check:ui -- --list-only  # only the Conditions list
  *   npm run check:ui -- --sweep      # first remove test users earlier runs left behind
+ *   npm run check:ui -- --record     # also write every upstream weather call to the tape
+ *   npm run check:ui -- --replay     # answer upstream calls from the tape, not the network
+ *
+ * The tape (`fixtures/check-ui-tape.json.gz`, `upstreamTape.ts`) is what the UI
+ * workflow replays on a PR, against a throwaway Postgres (`localPostgres.ts`).
+ * When a replayed run reports calls missing from the tape (a change asks
+ * upstream something new), delete the tape and push: the workflow records a new
+ * one against its empty database. A local recording against Neon would miss the
+ * calls that stored runs answer.
  *
  * Why this exists: UI work here was verified by rebuilding the same local
  * harness by hand every session — a throwaway secret, a local API, vite on
@@ -27,16 +36,19 @@
  *
  * It reads the screens; it does not judge them. Open the screenshots.
  *
- * Workspace-level, like the other database checks: CI does not run it.
+ * `.github/workflows/ui.yml` runs it: replayed on every PR (recording when the
+ * tape is missing), live every night.
  */
 
 import { spawn, type ChildProcess } from 'node:child_process'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { gunzipSync, gzipSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { ApiResponse, Location } from '@weatherteam6/types'
 import type { Page } from 'playwright'
+import type { Tape } from './upstreamTape.js'
 
 const API_PORT = 3096
 const WEB_PORT = 5173
@@ -52,6 +64,9 @@ const LIST_ONLY = process.argv.includes('--list-only')
 
 /** `--sweep`: first remove test users older than `STALE_HOURS`, left by runs stopped before their cleanup. */
 const SWEEP = process.argv.includes('--sweep')
+
+const RECORD = process.argv.includes('--record')
+const REPLAY = process.argv.includes('--replay')
 
 const PREFIX = 'zz-check-ui'
 const STAMP = Date.now()
@@ -76,6 +91,7 @@ function isoDayFromNow(n: number): string {
 const here = dirname(fileURLToPath(import.meta.url))
 const miniappDir = resolve(here, '../../../miniapp')
 const viteBin = resolve(here, '../../../../node_modules/vite/bin/vite.js')
+const tapePath = resolve(here, 'fixtures/check-ui-tape.json.gz')
 
 let passed = 0
 let failed = 0
@@ -137,6 +153,21 @@ async function run(): Promise<void> {
   process.env['API_SHARED_SECRET'] = `local-ui-check-shared-${STAMP}`
   process.env['AUTH_TOKEN_SECRET'] = `local-ui-check-token-${STAMP}`
   process.env['LOG_LEVEL'] ??= 'warn'
+
+  if (RECORD && REPLAY) throw new Error('--record and --replay together would record the tape from itself')
+  const { recordingFetch, replayingFetch, tapeDay } = await import('./upstreamTape.js')
+  const tape: Tape | null = RECORD
+    ? { recordedOn: tapeDay(new Date()), entries: [] }
+    : REPLAY
+      ? (JSON.parse(gunzipSync(readFileSync(tapePath)).toString('utf8')) as Tape)
+      : null
+  const tapeMisses = new Set<string>()
+  if (tape && RECORD) globalThis.fetch = recordingFetch(globalThis.fetch, tape)
+  if (tape && REPLAY) globalThis.fetch = replayingFetch(globalThis.fetch, tape, tapeDay(new Date()), tapeMisses)
+  if (REPLAY && tape) console.log(`Replaying ${tape.entries.length} upstream answers recorded ${tape.recordedOn}`)
+
+  const { useLocalPostgresProxy } = await import('./localPostgres.js')
+  if (await useLocalPostgresProxy()) console.log(`Database: local Postgres through ${process.env['CHECK_UI_WS_PROXY']}`)
 
   const { createApp } = await import('../index.js')
   const { db, pool } = await import('../db/index.js')
@@ -1543,6 +1574,25 @@ async function run(): Promise<void> {
     }
     server.close()
     await pool.end()
+    if (tape && RECORD) {
+      // A rate-limited or failing answer on the tape would replay that failure on every PR.
+      const refused = tape.entries.filter((e) => e.status === 429 || e.status >= 500)
+      if (refused.length > 0) {
+        check('every upstream answer recorded was usable', false, `${refused.length} were 429 or 5xx; the tape was not written. First: ${refused[0]!.key}`)
+      } else {
+        mkdirSync(dirname(tapePath), { recursive: true })
+        writeFileSync(tapePath, gzipSync(JSON.stringify(tape)))
+        console.log(`\nRecorded ${tape.entries.length} upstream answers to ${tapePath}`)
+      }
+    }
+    if (REPLAY) {
+      const missed = [...tapeMisses]
+      check(
+        'every upstream call was on the tape',
+        missed.length === 0,
+        `${missed.length} missing, re-record with --record: ${missed.slice(0, 5).join('  ')}`,
+      )
+    }
     if (leftover.length > 0) {
       console.error(`\n!! CLEANUP FAILED — users ${leftover.join(', ')} are left; \`check:ui -- --sweep\` removes them after ${STALE_HOURS} h`)
     }
