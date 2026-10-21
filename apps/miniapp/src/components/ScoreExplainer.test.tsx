@@ -46,6 +46,7 @@ describe('ScoreExplainer', () => {
 describe('dryingSpan', () => {
   it('prints hours under a day, then days, on each bar', () => {
     expect(dryingSpan(1, 6)).toBe('1–6 h')
+    expect(dryingSpan(6, 24)).toBe('6 h–1 day')
     expect(dryingSpan(12, 48)).toBe('12 h–2 days')
     expect(dryingSpan(48, 120)).toBe('2–5 days')
     expect(renderToStaticMarkup(<ScoreExplainerParts rangeF={null} />)).toContain('>1–6 h<')

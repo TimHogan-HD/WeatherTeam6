@@ -63,12 +63,13 @@ const DRYING_TICKS: readonly [number, string][] = [
   [120, '5 days'],
 ]
 
-/** `1–6 h`, `12 h–2 days`, `2–5 days`: hours until a whole day, then days. */
+/** `1–6 h`, `6 h–1 day`, `2–5 days`: hours until a whole day, then days. */
 export function dryingSpan(min: number, max: number): string {
-  const days = (h: number): string => `${Math.round((h / 24) * 10) / 10}`
+  const days = (h: number): number => Math.round((h / 24) * 10) / 10
+  const unit = (h: number): string => (days(h) === 1 ? 'day' : 'days')
   if (max < 24) return `${min}–${max} h`
-  if (min < 24) return `${min} h–${days(max)} days`
-  return `${days(min)}–${days(max)} days`
+  if (min < 24) return `${min} h–${days(max)} ${unit(max)}`
+  return `${days(min)}–${days(max)} ${unit(max)}`
 }
 
 /**
