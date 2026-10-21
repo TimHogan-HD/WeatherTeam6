@@ -15,7 +15,7 @@
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { classifyPr, ownPrVerdict } from './lib/prWait.mjs'
+import { classifyPr, onlyRequired, ownPrVerdict } from './lib/prWait.mjs'
 import { mergeRequest, reviewCoversHead } from './lib/reviewGate.mjs'
 import { FULL, INCREMENTAL, lastReviewedSha, pickScope } from './lib/reviewScope.mjs'
 
@@ -301,6 +301,19 @@ const gateCases = [
       ['stop: no background_tasks field blocks once', blocks({}, { backgroundTasks: undefined }), true],
       ['stop: no background_tasks field allows a continued turn', blocks({}, { backgroundTasks: undefined, stopHookActive: true }), false],
       ['stop: no PR for the branch is not this check\'s', ownPrVerdict({ pr: undefined, backgroundTasks: [], stopHookActive: false }), null],
+      // 2026-10-21: the optional 10-minute UI check held every PR's wait.
+      ...(() => {
+        const ui = { __typename: 'CheckRun', name: 'check-ui', status: 'IN_PROGRESS', conclusion: '' }
+        const doneReview = { ...running, status: 'COMPLETED', conclusion: 'SUCCESS' }
+        const cut = (rollup, required) => onlyRequired(rollup, required)
+        return [
+          ['required: a pending optional check does not hold a green PR', blocks({ statusCheckRollup: cut([ok, doneReview, ui], ['ci', 'review']) }), false],
+          ['required: a pending required check still blocks', blocks({ statusCheckRollup: cut([ok, running, ui], ['ci', 'review']) }), true],
+          ['required: a required status context is kept', cut([{ context: 'deploy', state: 'PENDING' }], ['deploy']).length, 1],
+          ['required: unreadable protection keeps every check', cut([ok, ui], null).length, 2],
+          ['required: no required checks keeps every check', cut([ok, ui], []).length, 2],
+        ]
+      })(),
     ]
   })(),
 ]

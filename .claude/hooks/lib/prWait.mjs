@@ -109,6 +109,17 @@ export function classifyPr(snap) {
   }
 }
 
+/**
+ * The checks branch protection requires, from `checks`. A slow check nothing
+ * requires (the 10-minute UI check, 2026-10-21) must not hold a merge or a
+ * wait. `required` null (protection unreadable) or empty keeps every check, so
+ * an unreadable rule waits on more, never less.
+ */
+export function onlyRequired(checks, required) {
+  if (!Array.isArray(checks) || !Array.isArray(required) || required.length === 0) return checks
+  return checks.filter((c) => required.includes(c?.name ?? c?.context))
+}
+
 /** True when a still-running background shell task is a `wait:pr` run. */
 export function waiterRunning(backgroundTasks) {
   if (!Array.isArray(backgroundTasks)) return false
