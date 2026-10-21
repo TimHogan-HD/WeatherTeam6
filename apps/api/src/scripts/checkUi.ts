@@ -8,6 +8,7 @@
  *   npm run check:ui                 # screenshots to a temp directory
  *   npm run check:ui -- --out <dir>  # or to a directory you name
  *   npm run check:ui -- --tabs-only  # only the crag screen's six tabs
+ *   npm run check:ui -- --list-only  # only the Conditions list
  *   npm run check:ui -- --sweep      # first remove test users earlier runs left behind
  *
  * Why this exists: UI work here was verified by rebuilding the same local
@@ -44,6 +45,9 @@ const VIEWPORT = { width: 480, height: 1000 }
 
 /** `--tabs-only`: sign in, add the crag, screenshot its six tabs, stop — for a screen being rebuilt. */
 const TABS_ONLY = process.argv.includes('--tabs-only')
+
+/** `--list-only`: the Conditions list's checks (2a–2d, 4d–5) in a few minutes, for work on the list. */
+const LIST_ONLY = process.argv.includes('--list-only')
 
 /** `--sweep`: first remove test users older than `STALE_HOURS`, left by runs stopped before their cleanup. */
 const SWEEP = process.argv.includes('--sweep')
@@ -350,9 +354,10 @@ async function run(): Promise<void> {
 
     if (TABS_ONLY) {
       await everyTab()
-      console.log(`\n${passed} passed, ${failed} failed (--tabs-only). Screenshots: ${dir}\n`)
       return
     }
+
+    const bar = page.getByRole('navigation', { name: 'Main', includeHidden: true })
 
     // 2a. Opening a crag from its card. Pressing starts the crag screen's
     // fetches before the finger lifts, and the screen draws from the list's
@@ -479,6 +484,20 @@ async function run(): Promise<void> {
     const refreshedHeader = await page.locator('header').innerText()
     check('then the live copies replace them', !/refreshing/.test(refreshedHeader), refreshedHeader.replace(/\s+/g, ' '))
 
+    // By 4d the full run's list has three rows: this crag, a crag a trip
+    // added, and a town found by GPS. The same three, straight through the API.
+    if (LIST_ONLY) {
+      for (const place of [
+        { ...SECOND_CRAG, is_climbing_location: true },
+        { name: `ZZ UI check — Edina ${STAMP}`, lat: 44.8897, lon: -93.3499, is_climbing_location: false },
+      ]) {
+        const made = await api<Location>('POST', '/locations', token, place)
+        check(`POST /locations adds ${place.name}`, made.status === 201, `got ${made.status}`)
+      }
+      await listChecks(token)
+      return
+    }
+
     // 3. Every detail tab.
     await everyTab()
     const tabs = await page.getByRole('tab').allInnerTexts()
@@ -539,7 +558,6 @@ async function run(): Promise<void> {
     // 3a. A crag is drilled into: the app bar slides away and the crag's dock
     // takes its place, and back brings the bar back. Then every section by
     // tapping the bar.
-    const bar = page.getByRole('navigation', { name: 'Main', includeHidden: true })
     await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
     await page.waitForTimeout(700)
     const barAway = await bar.evaluate((el) => ({
@@ -1141,253 +1159,259 @@ async function run(): Promise<void> {
       check('and it was saved with the looked-up elevation', elevation !== null && elevation > 200 && elevation < 350, `got ${String(elevation)}`)
     }
 
-    // 4d. The list keeps its place. Its three rows fit at 1000 px, so a short
-    // screen makes it scroll; at 400 px only ~100 px of scroll was left.
-    await page.setViewportSize({ width: VIEWPORT.width, height: 300 })
-    await page.goto(`${WEB}/`)
-    await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
-    const { listY, listH } = await page.evaluate(() => {
-      window.scrollTo(0, Math.floor((document.documentElement.scrollHeight - window.innerHeight) / 2))
-      return { listY: window.scrollY, listH: document.documentElement.scrollHeight }
-    })
-    check('the list is tall enough to scroll at 480x300', listY > 50, `scrolled to ${listY} of ${listH}`)
-    await page.waitForTimeout(200)
-    const scrollY = () => page.evaluate(() => window.scrollY)
-    const near = (y: number) => Math.abs(y - listY) <= 2
+    await listChecks(token)
 
-    // The URL changes before React draws the next screen, so each read waits
-    // for that screen's own content: a return waits on the URL, the list's
-    // own sort control and the end of the page transition.
-    // Tapped where it already is on screen: `locator.click()` scrolls its
-    // target into view first, which moved the list before it was left and
-    // was this check's "back at 0" (#359; a finger does not scroll).
-    const card = page.locator('[role="button"]').first()
-    const openCard = async () => {
-      let tap: { x: number; y: number } | null = null
-      for (const box of await Promise.all((await page.locator('[role="button"]').all()).map((c) => c.boundingBox()))) {
-        const y = box === null ? -1 : box.y + box.height / 2
-        if (box !== null && y > 10 && y < 190) {
-          tap = { x: box.x + box.width / 2, y }
-          break
-        }
-      }
-      if (tap === null) throw new Error('no card on screen at 480x300 — stopping')
-      await page.mouse.click(tap.x, tap.y)
-      await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
-    }
-    const backOnList = async () => {
-      await page.waitForURL(`${WEB}/`, { timeout: 10_000 })
-      await page.getByText('Sort by').first().waitFor({ timeout: 10_000 })
-      // A page transition takes taps until it ends; `useNavigate` clears `data-page` then.
-      await page.waitForFunction(() => document.documentElement.dataset['page'] === undefined, null, { timeout: 5_000 })
-    }
-    await openCard()
-    const detailY = await scrollY()
-    check('a location opened from far down the list opens at its top', detailY === 0, `at ${detailY}`)
-    await page.getByRole('button', { name: 'Back to Conditions' }).click()
-    await backOnList()
-    const viaTab = await scrollY()
-    check('a crag’s back returns to the list where it was left', near(viaTab), `left at ${listY}, back at ${viaTab}`)
-
-    await openCard()
-    await page.goBack()
-    await backOnList()
-    const viaBack = await scrollY()
-    check('the phone’s back returns to the list where it was left', near(viaBack), `left at ${listY}, back at ${viaBack}`)
-
-    await bar.getByRole('link', { name: 'Conditions' }).click()
-    await page.waitForFunction(() => window.scrollY === 0, undefined, { timeout: 5_000 }).catch(() => undefined)
-    check('the lit tab on the list scrolls it to the top', (await scrollY()) === 0 && new URL(page.url()).pathname === '/', `at ${await scrollY()}`)
-
-    // 4e. A control dims while pressed. Released off it, so nothing navigates.
-    const mapTab = bar.getByRole('link', { name: 'Map' })
-    const opacity = () => mapTab.evaluate((el) => getComputedStyle(el).opacity)
-    const box = await mapTab.boundingBox()
-    if (box !== null) {
-      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-      await page.mouse.down()
-      const pressed = await opacity()
-      await page.waitForTimeout(250)
-      const shrunk = await mapTab.evaluate((el) => getComputedStyle(el).transform)
-      check('a pressed tab shrinks to 97%', /^matrix\(0\.97, 0, 0, 0\.97/.test(shrunk), shrunk)
-      await page.mouse.move(0, 0)
-      await page.mouse.up()
-      const released = await opacity()
-      check('a pressed tab dims and comes back when released', pressed === '0.6' && released === '1', `pressed ${pressed}, released ${released}`)
-    } else {
-      check('a pressed tab dims and comes back when released', false, 'the Map tab has no box')
-    }
-
-    // 4f. Holding a card is a press: no tap-highlight box over it, and no
-    // text selection with its copy menu.
-    const held = await card.evaluate((el) => {
-      const s = getComputedStyle(el)
-      return { highlight: s.getPropertyValue('-webkit-tap-highlight-color'), select: s.userSelect }
-    })
-    check(
-      'a held card paints no highlight and selects no text',
-      held.highlight === 'rgba(0, 0, 0, 0)' && held.select === 'none',
-      `highlight ${held.highlight}, user-select ${held.select}`,
-    )
-    await page.setViewportSize(VIEWPORT)
-
-    await context.close()
-
-    // 4g. Pulling the list down refreshes it, and a score a new run changes
-    // rolls to its new value. A touch context, with every /conditions answer
-    // after the first rewritten to score 42.
-    const touch = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2, hasTouch: true })
-    await touch.addInitScript((t) => localStorage.setItem('wt6.session.token', t), token)
-    const tp = await touch.newPage()
-    let rescore = false
-    await tp.route('**/api/v1/conditions/**', async (route) => {
-      const response = await route.fetch()
-      const body = await response.text()
-      await route.fulfill({ response, body: rescore ? body.replace(/"score":\d+/g, '"score":42') : body })
-    })
-    await tp.goto(`${WEB}/`)
-    // Each card's score cell is its figure over "now". While a new run rolls
-    // it, the figure is a transparent copy beside the aria-hidden digit strip.
-    const scoreCells = () =>
-      tp.evaluate(() =>
-        Array.from(document.querySelectorAll('main small'))
-          .filter((s) => s.textContent === 'now')
-          .map((s) => {
-            const cell = s.parentElement
-            const roll = cell?.querySelector('[aria-hidden]') ?? null
-            const figure = roll === null ? cell?.firstChild?.textContent : roll.previousElementSibling?.textContent
-            return { figure: (figure ?? '').trim(), rolling: roll !== null }
-          }),
-      )
-    const scored = await tp
-      .waitForFunction(
-        () => Array.from(document.querySelectorAll('main small')).some((s) => s.textContent === 'now'),
-        null,
-        { timeout: 60_000 },
-      )
-      .then(() => true, () => false)
-    check('the list prints a score for its crags', scored, 'no card printed a score over "now" within 60 s')
-    await tp.waitForLoadState('networkidle')
-    // Every card's score, not the top one's: the list sorts by score, so the
-    // rescore below can reorder the cards under the figure being read.
-    const before = (await scoreCells()).map((c) => c.figure)
-
-    // Hand-dispatched touches. `Input.synthesizeScrollGesture` would be the
-    // closer stand-in for a finger, but in headless Chromium it delivers
-    // touchstart and touchend and never a touchmove, even on a plain page.
-    // Registered after the app's own window listener, so it sees whether the
-    // page took the drag over.
-    await tp.evaluate(() => {
-      const moves: string[] = []
-      ;(window as unknown as { __moves: string[] }).__moves = moves
-      window.addEventListener('touchmove', (e) => moves.push(e.cancelable && e.defaultPrevented ? 'taken' : 'native'), {
-        passive: true,
+    // 4d–5, the list's own checks, as one function: `--list-only` calls it
+    // straight after 2d. A declaration, so it is callable from there.
+    async function listChecks(session: string): Promise<void> {
+      // 4d. The list keeps its place. Its three rows fit at 1000 px, so a short
+      // screen makes it scroll; at 400 px only ~100 px of scroll was left.
+      await page.setViewportSize({ width: VIEWPORT.width, height: 300 })
+      await page.goto(`${WEB}/`)
+      await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
+      const { listY, listH } = await page.evaluate(() => {
+        window.scrollTo(0, Math.floor((document.documentElement.scrollHeight - window.innerHeight) / 2))
+        return { listY: window.scrollY, listH: document.documentElement.scrollHeight }
       })
-    })
-    const cdp = await touch.newCDPSession(tp)
-    const at = (y: number) => [{ x: 240, y }]
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: at(300) })
-    for (let y = 320; y <= 560; y += 20) {
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: at(y) })
-    }
-    const pulled = await tp.locator('main [aria-live="polite"]').innerText()
-    const moves = await tp.evaluate(() => (window as unknown as { __moves: string[] }).__moves)
-    const pullShot = join(dir, `${String(passed + failed).padStart(2, '0')}-list-pulled.png`)
-    await tp.screenshot({ path: pullShot })
-    check(
-      `a pull says it will refresh and how fresh the scores are  →  ${pullShot}`,
-      /Release to refresh/.test(pulled) && /Updated (just now|\d+ (min|h) ago)/.test(pulled),
-      pulled.replace(/\s+/g, ' ') || '(the panel never opened)',
-    )
-    check(
-      'the page takes the drag over rather than the browser bouncing it',
-      moves.length > 0 && moves.every((m) => m === 'taken'),
-      moves.join(' '),
-    )
-    rescore = true
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
-    const refreshing = await tp
-      .getByText('Refreshing…')
-      .waitFor({ timeout: 2_000 })
-      .then(() => true, () => false)
-    const settled = await tp
-      .getByText('Up to date')
-      .waitFor({ timeout: 30_000 })
-      .then(() => true, () => false)
-    check('releasing it refreshes, then says it is up to date', refreshing && settled, `refreshing ${refreshing}, settled ${settled}`)
-    const rolling = await scoreCells()
-    const rollShot = join(dir, `${String(passed + failed).padStart(2, '0')}-list-score-rolled.png`)
-    await tp.screenshot({ path: rollShot })
-    check(
-      `a score the refresh changed rolls to its new value  →  ${rollShot}`,
-      rolling.some((c) => c.rolling && c.figure === '42'),
-      `before ${before.join(', ')}, now ${rolling.map((c) => `${c.figure}${c.rolling ? ' (rolling)' : ''}`).join(', ')}`,
-    )
-    await tp.waitForTimeout(5_000)
-    const after = await scoreCells()
-    check(
-      'then settles on the new score',
-      after.length > 0 && after.every((c) => !c.rolling && c.figure === '42'),
-      after.map((c) => `${c.figure}${c.rolling ? ' (rolling)' : ''}`).join(', '),
-    )
+      check('the list is tall enough to scroll at 480x300', listY > 50, `scrolled to ${listY} of ${listH}`)
+      await page.waitForTimeout(200)
+      const scrollY = () => page.evaluate(() => window.scrollY)
+      const near = (y: number) => Math.abs(y - listY) <= 2
 
-    // 4h. A location's forecast tabs pull to refresh too; a sideways scrub
-    // across a chart is not a pull, and Rock does not pull at all.
-    const dragPanel = async (from: { x: number; y: number }, to: { x: number; y: number }) => {
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] })
-      for (let i = 1; i <= 12; i++) {
-        const point = { x: from.x + ((to.x - from.x) * i) / 12, y: from.y + ((to.y - from.y) * i) / 12 }
-        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [point] })
+      // The URL changes before React draws the next screen, so each read waits
+      // for that screen's own content: a return waits on the URL, the list's
+      // own sort control and the end of the page transition.
+      // Tapped where it already is on screen: `locator.click()` scrolls its
+      // target into view first, which moved the list before it was left and
+      // was this check's "back at 0" (#359; a finger does not scroll).
+      const card = page.locator('[role="button"]').first()
+      const openCard = async () => {
+        let tap: { x: number; y: number } | null = null
+        for (const box of await Promise.all((await page.locator('[role="button"]').all()).map((c) => c.boundingBox()))) {
+          const y = box === null ? -1 : box.y + box.height / 2
+          if (box !== null && y > 10 && y < 190) {
+            tap = { x: box.x + box.width / 2, y }
+            break
+          }
+        }
+        if (tap === null) throw new Error('no card on screen at 480x300 — stopping')
+        await page.mouse.click(tap.x, tap.y)
+        await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
       }
-      const text = await tp.locator('main > [aria-live="polite"]').innerText()
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
-      return text.replace(/\s+/g, ' ').trim()
-    }
-    rescore = false
-    await tp.goto(`${WEB}/location/${locationId}`)
-    await tp.getByRole('tab', { name: 'Hourly' }).click()
-    await tp.getByRole('img', { name: /^Wind by hour/ }).first().waitFor({ timeout: 60_000 })
-    const hourlyPull = await dragPanel({ x: 240, y: 400 }, { x: 240, y: 700 })
-    check(
-      'pulling a crag’s Hourly tab offers a refresh and says how old the forecast is',
-      /Release to refresh/.test(hourlyPull) && /Updated (just now|\d+ (min|h) ago)/.test(hourlyPull),
-      hourlyPull || '(the panel never opened)',
-    )
-    await tp.getByText(/Up to date|Couldn’t refresh/).waitFor({ timeout: 30_000 }).catch(() => undefined)
-    await tp.waitForTimeout(1_500)
-    const scrub = await dragPanel({ x: 100, y: 700 }, { x: 400, y: 760 })
-    check('a sideways scrub across a chart does not pull', scrub === '', scrub)
-    await tp.getByRole('tab', { name: 'Rock' }).click()
-    await tp.waitForTimeout(300)
-    const rockPull = await dragPanel({ x: 240, y: 400 }, { x: 240, y: 700 })
-    check('the Rock tab does not pull to refresh', rockPull === '', rockPull)
-    await touch.close()
+      const backOnList = async () => {
+        await page.waitForURL(`${WEB}/`, { timeout: 10_000 })
+        await page.getByText('Sort by').first().waitFor({ timeout: 10_000 })
+        // A page transition takes taps until it ends; `useNavigate` clears `data-page` then.
+        await page.waitForFunction(() => document.documentElement.dataset['page'] === undefined, null, { timeout: 5_000 })
+      }
+      await openCard()
+      const detailY = await scrollY()
+      check('a location opened from far down the list opens at its top', detailY === 0, `at ${detailY}`)
+      await page.getByRole('button', { name: 'Back to Conditions' }).click()
+      await backOnList()
+      const viaTab = await scrollY()
+      check('a crag’s back returns to the list where it was left', near(viaTab), `left at ${listY}, back at ${viaTab}`)
 
-    // 5. /conditions failing (#261). A fresh context, so no cached readings,
-    // with every /conditions request answered 500. The hero holds its skeleton
-    // through the retries, then must offer a retry — never sit as an empty
-    // gap. The 500s are the scenario, so they are not counted as problems here.
-    const failing = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2 })
-    await failing.addInitScript((t) => localStorage.setItem('wt6.session.token', t), token)
-    const fp = await failing.newPage()
-    await failing.route('**/api/v1/conditions/**', (route) =>
-      route.fulfill({
-        status: 500,
-        contentType: 'application/json',
-        body: JSON.stringify({ data: null, error: 'forced by check:ui', status: 500 }),
-      }),
-    )
-    // Overview by name: this user saved Hourly as their opening tab above.
-    await fp.goto(`${WEB}/location/${locationId}?tab=overview`)
-    const gaveUp = await fp
-      .getByText("Couldn't load conditions. Tap to retry.")
-      .waitFor({ timeout: 60_000 })
-      .then(() => true)
-      .catch(() => false)
-    const errorShot = join(dir, `${String(passed + failed).padStart(2, '0')}-conditions-failed.png`)
-    await fp.screenshot({ path: errorShot, fullPage: true })
-    check(`a failing /conditions offers a retry  →  ${errorShot}`, gaveUp)
-    await failing.close()
+      await openCard()
+      await page.goBack()
+      await backOnList()
+      const viaBack = await scrollY()
+      check('the phone’s back returns to the list where it was left', near(viaBack), `left at ${listY}, back at ${viaBack}`)
+
+      await bar.getByRole('link', { name: 'Conditions' }).click()
+      await page.waitForFunction(() => window.scrollY === 0, undefined, { timeout: 5_000 }).catch(() => undefined)
+      check('the lit tab on the list scrolls it to the top', (await scrollY()) === 0 && new URL(page.url()).pathname === '/', `at ${await scrollY()}`)
+
+      // 4e. A control dims while pressed. Released off it, so nothing navigates.
+      const mapTab = bar.getByRole('link', { name: 'Map' })
+      const opacity = () => mapTab.evaluate((el) => getComputedStyle(el).opacity)
+      const box = await mapTab.boundingBox()
+      if (box !== null) {
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+        await page.mouse.down()
+        const pressed = await opacity()
+        await page.waitForTimeout(250)
+        const shrunk = await mapTab.evaluate((el) => getComputedStyle(el).transform)
+        check('a pressed tab shrinks to 97%', /^matrix\(0\.97, 0, 0, 0\.97/.test(shrunk), shrunk)
+        await page.mouse.move(0, 0)
+        await page.mouse.up()
+        const released = await opacity()
+        check('a pressed tab dims and comes back when released', pressed === '0.6' && released === '1', `pressed ${pressed}, released ${released}`)
+      } else {
+        check('a pressed tab dims and comes back when released', false, 'the Map tab has no box')
+      }
+
+      // 4f. Holding a card is a press: no tap-highlight box over it, and no
+      // text selection with its copy menu.
+      const held = await card.evaluate((el) => {
+        const s = getComputedStyle(el)
+        return { highlight: s.getPropertyValue('-webkit-tap-highlight-color'), select: s.userSelect }
+      })
+      check(
+        'a held card paints no highlight and selects no text',
+        held.highlight === 'rgba(0, 0, 0, 0)' && held.select === 'none',
+        `highlight ${held.highlight}, user-select ${held.select}`,
+      )
+      await page.setViewportSize(VIEWPORT)
+
+      await context.close()
+
+      // 4g. Pulling the list down refreshes it, and a score a new run changes
+      // rolls to its new value. A touch context, with every /conditions answer
+      // after the first rewritten to score 42.
+      const touch = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2, hasTouch: true })
+      await touch.addInitScript((t) => localStorage.setItem('wt6.session.token', t), session)
+      const tp = await touch.newPage()
+      let rescore = false
+      await tp.route('**/api/v1/conditions/**', async (route) => {
+        const response = await route.fetch()
+        const body = await response.text()
+        await route.fulfill({ response, body: rescore ? body.replace(/"score":\d+/g, '"score":42') : body })
+      })
+      await tp.goto(`${WEB}/`)
+      // Each card's score cell is its figure over "now". While a new run rolls
+      // it, the figure is a transparent copy beside the aria-hidden digit strip.
+      const scoreCells = () =>
+        tp.evaluate(() =>
+          Array.from(document.querySelectorAll('main small'))
+            .filter((s) => s.textContent === 'now')
+            .map((s) => {
+              const cell = s.parentElement
+              const roll = cell?.querySelector('[aria-hidden]') ?? null
+              const figure = roll === null ? cell?.firstChild?.textContent : roll.previousElementSibling?.textContent
+              return { figure: (figure ?? '').trim(), rolling: roll !== null }
+            }),
+        )
+      const scored = await tp
+        .waitForFunction(
+          () => Array.from(document.querySelectorAll('main small')).some((s) => s.textContent === 'now'),
+          null,
+          { timeout: 60_000 },
+        )
+        .then(() => true, () => false)
+      check('the list prints a score for its crags', scored, 'no card printed a score over "now" within 60 s')
+      await tp.waitForLoadState('networkidle')
+      // Every card's score, not the top one's: the list sorts by score, so the
+      // rescore below can reorder the cards under the figure being read.
+      const before = (await scoreCells()).map((c) => c.figure)
+
+      // Hand-dispatched touches. `Input.synthesizeScrollGesture` would be the
+      // closer stand-in for a finger, but in headless Chromium it delivers
+      // touchstart and touchend and never a touchmove, even on a plain page.
+      // Registered after the app's own window listener, so it sees whether the
+      // page took the drag over.
+      await tp.evaluate(() => {
+        const moves: string[] = []
+        ;(window as unknown as { __moves: string[] }).__moves = moves
+        window.addEventListener('touchmove', (e) => moves.push(e.cancelable && e.defaultPrevented ? 'taken' : 'native'), {
+          passive: true,
+        })
+      })
+      const cdp = await touch.newCDPSession(tp)
+      const at = (y: number) => [{ x: 240, y }]
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: at(300) })
+      for (let y = 320; y <= 560; y += 20) {
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: at(y) })
+      }
+      const pulled = await tp.locator('main [aria-live="polite"]').innerText()
+      const moves = await tp.evaluate(() => (window as unknown as { __moves: string[] }).__moves)
+      const pullShot = join(dir, `${String(passed + failed).padStart(2, '0')}-list-pulled.png`)
+      await tp.screenshot({ path: pullShot })
+      check(
+        `a pull says it will refresh and how fresh the scores are  →  ${pullShot}`,
+        /Release to refresh/.test(pulled) && /Updated (just now|\d+ (min|h) ago)/.test(pulled),
+        pulled.replace(/\s+/g, ' ') || '(the panel never opened)',
+      )
+      check(
+        'the page takes the drag over rather than the browser bouncing it',
+        moves.length > 0 && moves.every((m) => m === 'taken'),
+        moves.join(' '),
+      )
+      rescore = true
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+      const refreshing = await tp
+        .getByText('Refreshing…')
+        .waitFor({ timeout: 2_000 })
+        .then(() => true, () => false)
+      const settled = await tp
+        .getByText('Up to date')
+        .waitFor({ timeout: 30_000 })
+        .then(() => true, () => false)
+      check('releasing it refreshes, then says it is up to date', refreshing && settled, `refreshing ${refreshing}, settled ${settled}`)
+      const rolling = await scoreCells()
+      const rollShot = join(dir, `${String(passed + failed).padStart(2, '0')}-list-score-rolled.png`)
+      await tp.screenshot({ path: rollShot })
+      check(
+        `a score the refresh changed rolls to its new value  →  ${rollShot}`,
+        rolling.some((c) => c.rolling && c.figure === '42'),
+        `before ${before.join(', ')}, now ${rolling.map((c) => `${c.figure}${c.rolling ? ' (rolling)' : ''}`).join(', ')}`,
+      )
+      await tp.waitForTimeout(5_000)
+      const after = await scoreCells()
+      check(
+        'then settles on the new score',
+        after.length > 0 && after.every((c) => !c.rolling && c.figure === '42'),
+        after.map((c) => `${c.figure}${c.rolling ? ' (rolling)' : ''}`).join(', '),
+      )
+
+      // 4h. A location's forecast tabs pull to refresh too; a sideways scrub
+      // across a chart is not a pull, and Rock does not pull at all.
+      const dragPanel = async (from: { x: number; y: number }, to: { x: number; y: number }) => {
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] })
+        for (let i = 1; i <= 12; i++) {
+          const point = { x: from.x + ((to.x - from.x) * i) / 12, y: from.y + ((to.y - from.y) * i) / 12 }
+          await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [point] })
+        }
+        const text = await tp.locator('main > [aria-live="polite"]').innerText()
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+        return text.replace(/\s+/g, ' ').trim()
+      }
+      rescore = false
+      await tp.goto(`${WEB}/location/${locationId}`)
+      await tp.getByRole('tab', { name: 'Hourly' }).click()
+      await tp.getByRole('img', { name: /^Wind by hour/ }).first().waitFor({ timeout: 60_000 })
+      const hourlyPull = await dragPanel({ x: 240, y: 400 }, { x: 240, y: 700 })
+      check(
+        'pulling a crag’s Hourly tab offers a refresh and says how old the forecast is',
+        /Release to refresh/.test(hourlyPull) && /Updated (just now|\d+ (min|h) ago)/.test(hourlyPull),
+        hourlyPull || '(the panel never opened)',
+      )
+      await tp.getByText(/Up to date|Couldn’t refresh/).waitFor({ timeout: 30_000 }).catch(() => undefined)
+      await tp.waitForTimeout(1_500)
+      const scrub = await dragPanel({ x: 100, y: 700 }, { x: 400, y: 760 })
+      check('a sideways scrub across a chart does not pull', scrub === '', scrub)
+      await tp.getByRole('tab', { name: 'Rock' }).click()
+      await tp.waitForTimeout(300)
+      const rockPull = await dragPanel({ x: 240, y: 400 }, { x: 240, y: 700 })
+      check('the Rock tab does not pull to refresh', rockPull === '', rockPull)
+      await touch.close()
+
+      // 5. /conditions failing (#261). A fresh context, so no cached readings,
+      // with every /conditions request answered 500. The hero holds its skeleton
+      // through the retries, then must offer a retry — never sit as an empty
+      // gap. The 500s are the scenario, so they are not counted as problems here.
+      const failing = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2 })
+      await failing.addInitScript((t) => localStorage.setItem('wt6.session.token', t), session)
+      const fp = await failing.newPage()
+      await failing.route('**/api/v1/conditions/**', (route) =>
+        route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ data: null, error: 'forced by check:ui', status: 500 }),
+        }),
+      )
+      // Overview by name: this user saved Hourly as their opening tab above.
+      await fp.goto(`${WEB}/location/${locationId}?tab=overview`)
+      const gaveUp = await fp
+        .getByText("Couldn't load conditions. Tap to retry.")
+        .waitFor({ timeout: 60_000 })
+        .then(() => true)
+        .catch(() => false)
+      const errorShot = join(dir, `${String(passed + failed).padStart(2, '0')}-conditions-failed.png`)
+      await fp.screenshot({ path: errorShot, fullPage: true })
+      check(`a failing /conditions offers a retry  →  ${errorShot}`, gaveUp)
+      await failing.close()
+    }
   } finally {
     await browser.close().catch(() => undefined)
     if (vite) vite.kill()
@@ -1400,13 +1424,14 @@ async function run(): Promise<void> {
     if (leftover.length > 0) {
       console.error(`\n!! CLEANUP FAILED — users ${leftover.join(', ')} are left; \`check:ui -- --sweep\` removes them after ${STALE_HOURS} h`)
     }
+    const only = TABS_ONLY ? ' (--tabs-only)' : LIST_ONLY ? ' (--list-only)' : ''
+    console.log(`\n${passed} passed, ${failed} failed${only}. Screenshots: ${dir}\n`)
   }
-
-  console.log(`\n${passed} passed, ${failed} failed. Screenshots: ${dir}\n`)
-  process.exit(failed === 0 ? 0 : 1)
 }
 
-run().catch((err: unknown) => {
+// The exit code is set here, not at the end of `run`: the partial runs return
+// from inside its `try`, so `--tabs-only` used to exit 0 on a failure.
+run().then(() => process.exit(failed === 0 ? 0 : 1), (err: unknown) => {
   console.error(`\ncheck:ui stopped: ${err instanceof Error ? err.message : String(err)}`)
   process.exit(1)
 })
