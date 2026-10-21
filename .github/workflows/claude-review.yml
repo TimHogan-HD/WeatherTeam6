@@ -12,8 +12,11 @@ name: Claude Review
 # The job fails only when no summary names the head commit, which is also what
 # the local merge gate (.claude/hooks/lib/reviewGate.mjs) refuses on.
 #
-# REQUIRES the CLAUDE_CODE_OAUTH_TOKEN repository secret. Without it every run
-# skips cleanly with a note rather than failing the PR.
+# `review` is a required status check on `main` (2026-10-21), so a green job
+# must mean a review happened. Each way it can finish green without one is
+# below and deliberate: a draft (skipped, but GitHub will not merge a draft and
+# `ready_for_review` runs it again) and a PR that edits this file (the action
+# refuses to run on it). A missing CLAUDE_CODE_OAUTH_TOKEN fails the job.
 
 on:
   pull_request:
@@ -26,6 +29,8 @@ concurrency:
 jobs:
   review:
     # Drafts are skipped; the reviewer costs tokens and a draft is not ready.
+    # GitHub counts a job skipped here as a passing required check, which is
+    # safe only because a draft cannot merge.
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -35,16 +40,16 @@ jobs:
       issues: read
       id-token: write
     steps:
+      # Until 2026-10-21 a missing secret passed with a notice. With `review`
+      # required, that would be a green check on a PR nobody reviewed.
       - name: Check the review credential is present
         id: cred
         env:
           TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
           if [ -z "$TOKEN" ]; then
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Claude Review skipped::CLAUDE_CODE_OAUTH_TOKEN is not set. Run 'claude setup-token' and add it as a repository secret to enable independent PR review."
-          else
-            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "::error title=No review credential::CLAUDE_CODE_OAUTH_TOKEN is not set, so this PR cannot be reviewed. Run 'claude setup-token' and add it as a repository secret."
+            exit 1
           fi
 
       # fetch-depth: 0, not 1. The reviewer diffs the PR head against its merge
@@ -52,7 +57,6 @@ jobs:
       # find it, so `git diff` returns nothing and the review silently covers an
       # empty diff. Same failure this repo already hit in ci.yml.
       - uses: actions/checkout@v4
-        if: steps.cred.outputs.present == 'true'
         with:
           fetch-depth: 0
 
@@ -62,7 +66,6 @@ jobs:
       # for a full review. Decision and fallbacks: .claude/hooks/lib/reviewScope.mjs.
       - name: Choose the review scope
         id: scope
-        if: steps.cred.outputs.present == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -71,7 +74,6 @@ jobs:
         run: node .github/scripts/review-scope.mjs
 
       - uses: anthropics/claude-code-action@v1
-        if: steps.cred.outputs.present == 'true'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           show_full_output: true
@@ -138,10 +140,9 @@ jobs:
             "Read,Grep,Glob,Task,TodoWrite,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status),Bash(git merge-base:*),Bash(git rev-parse:*),Bash(git ls-files:*),Bash(ls:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),mcp__github_inline_comment__create_inline_comment"
 
       # A run that ends without the summary is a failed run, not a green one: the
-      # check then says what the merge gate already knows, and is fit to be made a
-      # required status check in branch protection.
+      # check then says what the merge gate already knows, which is what lets it
+      # be a required status check on `main`.
       - name: Confirm the summary names the head commit
-        if: steps.cred.outputs.present == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -150,9 +151,16 @@ jobs:
         run: |
           # The action skips a PR that changes this file (it must match the
           # default branch), so no summary can exist; the merge gate exempts
-          # such a PR for the same reason.
-          if git diff --name-only "origin/${BASE_REF}...HEAD" | grep -qx '.github/workflows/claude-review.yml'; then
-            echo "::notice title=Review skipped::This PR edits claude-review.yml; the reviewer cannot run on it."
+          # such a PR for the same reason. The check still goes green, so say
+          # loudly what went unreviewed: keep such a PR to the workflow alone.
+          changed=$(git diff --name-only "origin/${BASE_REF}...HEAD")
+          if echo "$changed" | grep -qx '.github/workflows/claude-review.yml'; then
+            echo "::warning title=Not reviewed::This PR edits claude-review.yml, so the reviewer cannot run on it. Nothing in it was reviewed."
+            {
+              echo "## Not reviewed"
+              echo "This PR edits \`claude-review.yml\`, so the reviewer cannot run. These files passed unreviewed:"
+              echo "$changed" | sed 's/^/- /'
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           found=$(gh api --paginate "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments?per_page=100" \
@@ -168,7 +176,7 @@ jobs:
       # guessing. The execution output has the tool stream in it; keeping it on a
       # failed run means the next one is read rather than inferred.
       - name: Keep the execution output when the reviewer fails
-        if: failure() && steps.cred.outputs.present == 'true'
+        if: failure() && steps.cred.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: claude-review-execution-output
