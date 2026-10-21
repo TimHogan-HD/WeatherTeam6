@@ -7,6 +7,8 @@
       "Bash(npm run lint:*)",
       "Bash(npm run check:hooks:*)",
       "Bash(npm run check:*)",
+      "Bash(npm run wait:pr:*)",
+      "Bash(npm run -s wait:pr:*)",
       "Bash(npm run db:generate:*)",
       "Bash(npm ci)",
       "Bash(npm ci --silent)",

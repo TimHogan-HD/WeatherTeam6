@@ -18,7 +18,8 @@
     "db:studio": "npm run -w apps/api db:studio",
     "check:hooks": "node .claude/hooks/check-hooks.mjs",
     "check:crag-facts": "node scripts/check-crag-facts.mjs",
-    "check:icons": "node apps/miniapp/scripts/check-icons.mjs"
+    "check:icons": "node apps/miniapp/scripts/check-icons.mjs",
+    "wait:pr": "node .claude/hooks/wait-pr.mjs"
   },
   "devDependencies": {
     "eslint": "^9.39.4",
