@@ -163,7 +163,7 @@ a credential, a dashboard setting, a phone, a product decision.>
 
 **Read `check:ui`'s failures; do not filter them out.** `--tabs-only` skips the list and trip checks; run the full script before a PR that touches anything outside a crag's tabs. It was fully green on 2026-10-20 (173/0, #372); a failure is yours until shown otherwise, and is fixed in the PR that finds it, not parked as "known" — parked failures rotted for weeks and cost a whole session.
 
-**A full `check:ui` takes ~10 minutes, and Open-Meteo rate-limits repeated runs.** Run it in the foreground (timeout 600000) when the next step depends on it — a background run plus the Stop hook forces WIP commits every turn. Never chase one failing step with repeated full runs: make one measurement run (a trace, timings), fix, then one confirming run. If a second full run would be needed, cut the run down first (#373). `-- --sweep` removes `zz-` test users left by stopped runs; do it without asking.
+**A full `check:ui` takes ~10 minutes, and Open-Meteo rate-limits repeated runs.** Run it in the foreground (timeout 600000) when the next step depends on it — a background run plus the Stop hook forces WIP commits every turn. Never chase one failing step with repeated full runs: make one measurement run (a trace, timings), fix, then one confirming run. If a second full run would be needed, cut the run down first (#373). `-- --sweep` removes `check:ui`'s own `zz-check-ui`/`zz-ui-join` users older than two hours, left by stopped runs; do it without asking.
 
 **An auto-mode permission denial is the harness, not the owner.** Say so once, with the exact command or permission rule that unblocks it, and do not ask again; "do what's best" is an answer.
 
