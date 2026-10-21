@@ -1156,13 +1156,11 @@ async function run(): Promise<void> {
     const near = (y: number) => Math.abs(y - listY) <= 2
 
     // The URL changes before React draws the next screen, so each read waits
-    // for that screen's own content. The crag screen has role="button"
-    // elements too, so a return waits on the URL and the list's own sort
-    // control, not on a card: reading on the crag screen's scroll of 0 was
-    // this check's "back at 0" (#359).
+    // for that screen's own content: a return waits on the URL, the list's
+    // own sort control and the end of the page transition.
     // Tapped where it already is on screen: `locator.click()` scrolls its
     // target into view first, which moved the list before it was left and
-    // was the rest of "back at 0" (a finger does not scroll).
+    // was this check's "back at 0" (#359; a finger does not scroll).
     const card = page.locator('[role="button"]').first()
     const openCard = async () => {
       let tap: { x: number; y: number } | null = null
