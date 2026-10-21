@@ -1180,6 +1180,8 @@ async function run(): Promise<void> {
     const backOnList = async () => {
       await page.waitForURL(`${WEB}/`, { timeout: 10_000 })
       await page.getByText('Sort by').first().waitFor({ timeout: 10_000 })
+      // A page transition takes taps until it ends; `useNavigate` clears `data-page` then.
+      await page.waitForFunction(() => document.documentElement.dataset['page'] === undefined, null, { timeout: 5_000 })
     }
     await openCard()
     const detailY = await scrollY()
