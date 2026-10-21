@@ -840,6 +840,7 @@ async function run(): Promise<void> {
     )
     const placesAfter = await switcher.getByRole('button').allInnerTexts()
     check('and the switched-to place now leads the switcher', placesAfter[0] === SECOND_CRAG.name, placesAfter.join(', '))
+    check('with the place just left second, one tap back', placesAfter[1] === CRAG.name, placesAfter.join(', '))
     await page.getByRole('button', { name: 'Back to Conditions' }).click()
     await page.waitForURL((u) => u.pathname === '/', { timeout: 10_000 }).catch(() => undefined)
     check('and back from the switched crag returns to the list, not the first crag', new URL(page.url()).pathname === '/', page.url())

@@ -1,21 +1,35 @@
 import { describe, expect, it } from 'vitest'
 import type { Location } from '@weatherteam6/types'
 import { OPENED_FROM_MAP, openedFromMap } from './backTarget.js'
-import { swipeDirection, swipeOf, switcherOptions, switchState } from './cragSwitch.js'
+import { recentOf, swipeDirection, swipeOf, switcherOptions, switchState } from './cragSwitch.js'
 
 const place = (id: string, name: string) => ({ id, name }) as Location
 
 describe('the crag switcher', () => {
-  it('puts the place being read first, then the rest in saved order, wrapping round', () => {
-    const saved = [place('a', 'Red Wing'), place('b', 'Barn Bluff'), place('c', 'Taylors Falls')]
-    expect(switcherOptions(saved, place('a', 'Red Wing')).map((o) => o.id)).toEqual(['a', 'b', 'c'])
-    expect(switcherOptions(saved, place('b', 'Barn Bluff')).map((o) => o.id)).toEqual(['b', 'c', 'a'])
-    expect(switcherOptions(saved, place('c', 'Taylors Falls')).map((o) => o.id)).toEqual(['c', 'a', 'b'])
+  const saved = [place('a', 'Red Wing'), place('b', 'Barn Bluff'), place('c', 'Taylors Falls'), place('d', 'Sandstone')]
+  const ids = (options: { id: string }[]) => options.map((o) => o.id)
+
+  it('opens with the place being read first, then the rest in saved order', () => {
+    expect(ids(switcherOptions(saved, place('c', 'Taylors Falls'), []))).toEqual(['c', 'a', 'b', 'd'])
+  })
+
+  it('puts the place just left second, so it is one tap back', () => {
+    const fromA = ids(switcherOptions(saved, place('a', 'Red Wing'), []))
+    const atC = ids(switcherOptions(saved, place('c', 'Taylors Falls'), fromA))
+    expect(atC).toEqual(['c', 'a', 'b', 'd'])
+    const atB = ids(switcherOptions(saved, place('b', 'Barn Bluff'), atC))
+    expect(atB).toEqual(['b', 'c', 'a', 'd'])
+    expect(ids(switcherOptions(saved, place('c', 'Taylors Falls'), atB))).toEqual(['c', 'b', 'a', 'd'])
+  })
+
+  it('drops a place no longer saved and appends one saved since', () => {
+    const recent = ['b', 'gone', 'a']
+    expect(ids(switcherOptions(saved, place('a', 'Red Wing'), recent))).toEqual(['a', 'b', 'c', 'd'])
   })
 
   it('adds the place being read, first, when the saved list predates it', () => {
-    const saved = [place('a', 'Red Wing'), place('b', 'Barn Bluff')]
-    expect(switcherOptions(saved, place('d', 'Sandstone')).map((o) => o.id)).toEqual(['d', 'a', 'b'])
+    const older = [place('a', 'Red Wing'), place('b', 'Barn Bluff')]
+    expect(ids(switcherOptions(older, place('e', 'Willow River'), []))).toEqual(['e', 'a', 'b'])
   })
 
   it('swipes from the side moved toward', () => {
@@ -24,9 +38,14 @@ describe('the crag switcher', () => {
   })
 
   it('keeps a map-opened crag returning to the map across a switch', () => {
-    const next = switchState({ ...OPENED_FROM_MAP }, 1)
+    const next = switchState({ ...OPENED_FROM_MAP }, 1, ['a', 'b'])
     expect(openedFromMap(next)).toBe(true)
     expect(swipeOf(next)).toBe(1)
+    expect(recentOf(next)).toEqual(['a', 'b'])
+  })
+
+  it('reads no order from a plain arrival or a malformed state', () => {
+    for (const state of [null, undefined, {}, OPENED_FROM_MAP, { recent: 'a' }]) expect(recentOf(state)).toEqual([])
   })
 
   it('reads no swipe from a plain arrival or a reload with no state', () => {

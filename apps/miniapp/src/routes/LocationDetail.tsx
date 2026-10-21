@@ -8,7 +8,7 @@ import { backTarget, detailTabPath, editPath, openedFromMap } from '../lib/backT
 import { rockLocked } from '../lib/editLocation.js'
 import { formatRunAge } from '../lib/format.js'
 import { useDeleteLocation, useLocation, useLocations } from '../hooks/useLocations.js'
-import { swipeDirection, swipeOf, switcherOptions, switchState } from '../lib/cragSwitch.js'
+import { recentOf, swipeDirection, swipeOf, switcherOptions, switchState } from '../lib/cragSwitch.js'
 import type { CragChoice } from '../components/CragBar.js'
 import { usePreferences } from '../hooks/usePreferences.js'
 import { draftFromPreferences } from '../lib/preferencesForm.js'
@@ -129,7 +129,10 @@ export function LocationDetail() {
   // the open tab rides in the URL, whether it came from one or was picked. The content swipes in from the side
   // moved toward.
   const saved = useLocations().data
-  const places = saved === undefined || location.data === undefined ? null : switcherOptions(saved, location.data)
+  const places =
+    saved === undefined || location.data === undefined
+      ? null
+      : switcherOptions(saved, location.data, recentOf(routerState))
   const crags: CragChoice | null =
     places === null || id === undefined
       ? null
@@ -137,8 +140,12 @@ export function LocationDetail() {
           options: places,
           active: id,
           onChange: (next) => {
-            const direction = swipeDirection(places.map((o) => o.id), id, next)
-            void navigate(detailTabPath(next, activeTab), { replace: true, state: switchState(routerState, direction) })
+            const order = places.map((o) => o.id)
+            const direction = swipeDirection(order, id, next)
+            void navigate(detailTabPath(next, activeTab), {
+              replace: true,
+              state: switchState(routerState, direction, order),
+            })
           },
         }
   const swipe = swipeOf(routerState)
