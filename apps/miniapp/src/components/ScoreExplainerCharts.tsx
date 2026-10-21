@@ -60,7 +60,6 @@ const DRYING_TICKS: readonly [number, string][] = [
   [0, '0'],
   [24, '1 day'],
   [48, '2 days'],
-  [72, '3 days'],
   [120, '5 days'],
 ]
 
