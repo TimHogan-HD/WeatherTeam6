@@ -109,7 +109,7 @@ Run `/review-checklist` before opening a PR.
   ```
   `DEFAULT_USER_ID` is optional; the seeded user is `00000000-0000-0000-0000-000000000001`.
 - To see the UI, run `npm run check:ui` from `apps/api` first: there are no preview deploys (see Known Gotchas). It starts `createApp()` and `vite` locally with throwaway secrets, signs in through the login screen as a throwaway user, adds a known crag, and screenshots the list, every detail tab and `/add` at the owner's 480×1000 viewport, failing on page errors, console errors, API responses ≥ 400 and sideways scroll. Open the screenshots it prints — it does not judge how a screen looks. For interaction it does not cover, extend the script rather than rebuilding the harness by hand.
-- `npm run test:mutation --workspace=apps/api` takes ~37 minutes and runs weekly in CI; the owner will stop a local run. Run it on demand only when a survivor would change a decision.
+- `npm run test:mutation --workspace=apps/api` takes ~64 minutes on CI (2026-10-21) and runs weekly there; the owner will stop a local run. Run it on demand only when a survivor would change a decision.
 - State plainly what was and was not verified.
 
 ## Reporting Work

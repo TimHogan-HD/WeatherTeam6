@@ -75,10 +75,8 @@ across 49, 51 and 14 files. `check:ui` was fully green at 173/0 on 2026-10-20 (#
 api file failing while a CPU-heavy script ran beside it, and the rerun passed 49/49. If it
 recurs, find the file.
 
-**Mutation's dry run passes again (#377, 2026-10-21).** It had failed since 2026-10-05,
-because `deployConfig.test.ts` could not find `vercel.json` inside Stryker's sandbox. No
-mutation score has been measured since 2026-09-28; the next full run sets one, and
-`thresholds.break` (67) should be checked against it.
+**Mutation runs again (#377, #380): 71.60% on 2026-10-21**, `thresholds.break` raised to
+71. It takes 64 minutes on CI, under a 120-minute cap. 446 mutants have no covering test.
 
 **Credentials for unattended runs.** `DATABASE_URL`, `CRON_SECRET`, `API_SHARED_SECRET` and
 `VERCEL_TOKEN` are Windows **user** environment variables. Read one with

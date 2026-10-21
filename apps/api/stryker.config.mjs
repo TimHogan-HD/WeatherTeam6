@@ -67,6 +67,7 @@ export default {
   //   2026-08-26  66.09  break 65
   //   2026-09-16  68.14  break 67   (re-measured before rewriting the scorer)
   //   2026-09-21  67.82  break 67   (weekly CI, first run after #137 + #108)
+  //   2026-10-21  71.60  break 71   (first run after #377; 64 min on CI)
   //
   // **The 2026-09-21 dip is not a regression, and it is the trap this ledger sets.**
   // Every file #137 and #108 touched went UP — liveForecast 44.23 → 54.13,
@@ -87,5 +88,5 @@ export default {
   //
   // Raise `break` when the score rises. Lowering it to make a run pass is the
   // move this file exists to prevent.
-  thresholds: { high: 85, low: 70, break: 67 },
+  thresholds: { high: 85, low: 70, break: 71 },
 }
