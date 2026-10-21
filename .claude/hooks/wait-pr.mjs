@@ -18,9 +18,9 @@
  * The logic is `lib/prWait.mjs`, which `check:hooks` covers.
  */
 
-import { currentBranch, ghApi } from './lib/gitState.mjs'
+import { currentBranch, ghApi, requiredCheckNames } from './lib/gitState.mjs'
 import { REVIEW_WORKFLOW, reviewCoversHead } from './lib/reviewGate.mjs'
-import { checkPending, classifyPr } from './lib/prWait.mjs'
+import { checkPending, classifyPr, onlyRequired } from './lib/prWait.mjs'
 
 const POLL_MS = 20_000
 const MAX_UNREADABLE = 3
@@ -65,14 +65,17 @@ function snapshot(number) {
     headSha: sha,
     mergeable: typeof pr.mergeable === 'boolean' ? pr.mergeable : null,
     mergeableState: pr.mergeable_state ?? null,
-    checks: [
-      ...(runs.check_runs ?? []).map((r) => ({
-        name: r.name,
-        status: String(r.status ?? '').toUpperCase(),
-        conclusion: String(r.conclusion ?? '').toUpperCase(),
-      })),
-      ...(status.statuses ?? []).map((s) => ({ name: s.context, state: String(s.state ?? '').toUpperCase() })),
-    ],
+    checks: onlyRequired(
+      [
+        ...(runs.check_runs ?? []).map((r) => ({
+          name: r.name,
+          status: String(r.status ?? '').toUpperCase(),
+          conclusion: String(r.conclusion ?? '').toUpperCase(),
+        })),
+        ...(status.statuses ?? []).map((s) => ({ name: s.context, state: String(s.state ?? '').toUpperCase() })),
+      ],
+      required,
+    ),
     reviewed: reviewCoversHead(comments, sha),
     exempt: files.some((f) => f?.filename === REVIEW_WORKFLOW),
     findings: inline.filter((c) => c?.commit_id === sha && /^claude(\[bot\])?$/i.test(String(c?.user?.login ?? ''))).length,
@@ -80,6 +83,9 @@ function snapshot(number) {
 }
 
 const number = findPr()
+// Only what branch protection requires: a slow optional check (the UI check) never holds the wait.
+const required = requiredCheckNames()
+if (required) console.log(`Waiting on the required checks: ${required.join(', ')}`)
 const started = Date.now()
 let startSha = null
 let unreadable = 0

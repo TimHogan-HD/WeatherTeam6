@@ -96,7 +96,19 @@ const tapePath = resolve(here, 'fixtures/check-ui-tape.json.gz')
 let passed = 0
 let failed = 0
 
+/**
+ * The first upstream URL that answered 429. Once set, the next `check` stops
+ * the run: on 2026-10-21 a rate-limited run kept going on retries and
+ * backoff for 16 minutes before anyone noticed, and its results meant nothing.
+ */
+let rateLimitedBy: string | null = null
+/** Set in `finally`: the cleanup and the summary still report. Before it, every check throws, so a step's own catch cannot swallow the stop. */
+let finishing = false
+
 function check(label: string, ok: boolean, detail = ''): void {
+  if (rateLimitedBy !== null && !finishing) {
+    throw new Error(`upstream rate limit (429) from ${rateLimitedBy}; this run's results would be noise. Wait for the limit to clear, or run with --replay.`)
+  }
   if (ok) {
     passed++
     console.log(`  PASS  ${label}`)
@@ -155,7 +167,7 @@ async function run(): Promise<void> {
   process.env['LOG_LEVEL'] ??= 'warn'
 
   if (RECORD && REPLAY) throw new Error('--record and --replay together would record the tape from itself')
-  const { recordingFetch, replayingFetch, tapeDay } = await import('./upstreamTape.js')
+  const { isUpstream, recordingFetch, replayingFetch, requestUrl, tapeDay } = await import('./upstreamTape.js')
   const tape: Tape | null = RECORD
     ? { recordedOn: tapeDay(new Date()), entries: [] }
     : REPLAY
@@ -165,6 +177,16 @@ async function run(): Promise<void> {
   if (tape && RECORD) globalThis.fetch = recordingFetch(globalThis.fetch, tape)
   if (tape && REPLAY) globalThis.fetch = replayingFetch(globalThis.fetch, tape, tapeDay(new Date()), tapeMisses)
   if (REPLAY && tape) console.log(`Replaying ${tape.entries.length} upstream answers recorded ${tape.recordedOn}`)
+  const tapedFetch = globalThis.fetch
+  globalThis.fetch = async (input, init) => {
+    const res = await tapedFetch(input, init)
+    const url = requestUrl(input)
+    if (res.status === 429 && rateLimitedBy === null && isUpstream(url)) {
+      rateLimitedBy = new URL(url).host
+      console.error(`\n!! ${rateLimitedBy} answered 429: stopping at the next check`)
+    }
+    return res
+  }
 
   const { useLocalPostgresProxy } = await import('./localPostgres.js')
   if (await useLocalPostgresProxy()) console.log(`Database: local Postgres through ${process.env['CHECK_UI_WS_PROXY']}`)
@@ -1566,6 +1588,7 @@ async function run(): Promise<void> {
       await failing.close()
     }
   } finally {
+    finishing = true
     await browser.close().catch(() => undefined)
     if (vite) vite.kill()
     const leftover: string[] = []
@@ -1585,6 +1608,7 @@ async function run(): Promise<void> {
         console.log(`\nRecorded ${tape.entries.length} upstream answers to ${tapePath}`)
       }
     }
+    if (rateLimitedBy !== null) check(`no upstream rate limit (${rateLimitedBy} answered 429)`, false)
     if (REPLAY) {
       const missed = [...tapeMisses]
       check(

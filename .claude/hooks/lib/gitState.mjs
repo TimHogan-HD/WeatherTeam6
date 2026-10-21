@@ -7,6 +7,7 @@
  */
 
 import { execFileSync } from 'node:child_process'
+import { onlyRequired } from './prWait.mjs'
 
 const GIT_TIMEOUT_MS = 5000
 const GH_TIMEOUT_MS = 10000
@@ -104,8 +105,16 @@ export function ghApi(path) {
   }
 }
 
+/** The status checks the default branch requires, or `null` when that cannot be read. */
+export function requiredCheckNames() {
+  const base = defaultBranch() ?? 'main'
+  const rule = ghApi(`repos/{owner}/{repo}/branches/${base}/protection/required_status_checks`)
+  return Array.isArray(rule?.contexts) ? rule.contexts : null
+}
+
 /**
- * Open PRs, as [{number, title, headRefName, mergeable, statusCheckRollup}].
+ * Open PRs, as [{number, title, headRefName, mergeable, statusCheckRollup}],
+ * the rollup cut to the checks branch protection requires (`onlyRequired`).
  *
  * `gh pr list` is GraphQL, which cloud sessions are refused (HTTP 403), so on
  * 2026-10-07 every gh-backed check here had been silently off in them. REST is
@@ -113,6 +122,13 @@ export function ghApi(path) {
  * omits `mergeable`), and the head commit's check runs and statuses.
  */
 export function openPullRequests() {
+  const prs = openPullRequestsUnfiltered()
+  if (!prs) return prs
+  const required = requiredCheckNames()
+  return prs.map((p) => ({ ...p, statusCheckRollup: onlyRequired(p.statusCheckRollup, required) }))
+}
+
+function openPullRequestsUnfiltered() {
   const raw = gh([
     'pr',
     'list',
@@ -142,10 +158,11 @@ function openPullRequestsRest() {
     if (!detail || !runs || !status) return null
     const rollup = [
       ...(runs.check_runs ?? []).map((r) => ({
+        name: r.name,
         status: String(r.status ?? '').toUpperCase(),
         conclusion: String(r.conclusion ?? '').toUpperCase(),
       })),
-      ...(status.statuses ?? []).map((s) => ({ state: String(s.state ?? '').toUpperCase() })),
+      ...(status.statuses ?? []).map((s) => ({ context: s.context, state: String(s.state ?? '').toUpperCase() })),
     ]
     out.push({
       number: p.number,

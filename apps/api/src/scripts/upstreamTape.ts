@@ -81,12 +81,12 @@ export function addEntry(tape: Tape, entry: TapeEntry): void {
   else if (entry.status < 400 || tape.entries[i]!.status >= 400) tape.entries[i] = entry
 }
 
-function isUpstream(url: string): boolean {
+export function isUpstream(url: string): boolean {
   const { hostname } = new URL(url)
   return hostname !== 'localhost' && hostname !== '127.0.0.1'
 }
 
-function requestUrl(input: Parameters<typeof fetch>[0]): string {
+export function requestUrl(input: Parameters<typeof fetch>[0]): string {
   return typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
 }
 
