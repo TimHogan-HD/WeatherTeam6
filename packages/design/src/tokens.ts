@@ -1733,8 +1733,8 @@ export const motion = {
    * lagged on the owner's phone (2026-10-21). Counted for the first
    * `pourSteps` cards; the rest arrive with the last of them.
    */
-  pourMs: 480,
-  pourStepMs: 40,
+  pourMs: 580,
+  pourStepMs: 50,
   pourSteps: 8,
   pourSpring: 'cubic-bezier(0.2, 1.3, 0.4, 1)',
   /** The list's rows and Daily's rows rising into place, each `riseStepMs` after the last. */
