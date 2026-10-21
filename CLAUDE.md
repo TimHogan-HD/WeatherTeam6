@@ -26,21 +26,13 @@ From `apps/api`, against a real database (`DATABASE_URL` set **in the shell**, n
 ```bash
 npm run db:seed             # seed the user + 3 locations
 npm run user:add            # create or reset an account (friends normally join by the owner's invite link)
-npm run check:invites       # invite links: owner-only minting, one-time redemption, expiry
-npm run check:auth          # token auth, the cross-user denial and the sign-in attempt cap
-npm run check:add-location  # acceptance check for the add-location flow
-npm run check:delete-trip   # DELETE /trips/:tripId and its FK cascade
-npm run check:edit-trip     # PATCH /trips/:tripId: what it keeps and clears of the trend, refusals
-npm run check:record-trips  # the trip recorder's upsert, its cascade, and GET /trips/:tripId/forecast
-npm run check:logbook       # ticks, to-dos and shared boulder positions, including cross-user denial
-npm run check:preferences   # GET/PUT /preferences: upsert, refusals, accounts kept apart
 npm run check:conditions    # GET /conditions composition — the strongest check here
-npm run check:hourly        # GET /hourly/:id
-npm run check:weather-runs  # run storage and pruning
 npm run check:ui            # the web app in Chromium at 480x1000: every screen, screenshotted
 npm run feedback -- list    # open feedback from every account
 npm run feedback -- resolve <id>...   # mark items acted on
 ```
+
+The other `check:*` scripts in `apps/api/package.json` are Postgres acceptance checks for the route each one names.
 
 **When a merged change answers a feedback item, resolve it** — open feedback is the to-do list the owner reads in the app.
 
