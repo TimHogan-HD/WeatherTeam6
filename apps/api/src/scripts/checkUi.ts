@@ -1160,9 +1160,21 @@ async function run(): Promise<void> {
     // elements too, so a return waits on the URL and the list's own sort
     // control, not on a card: reading on the crag screen's scroll of 0 was
     // this check's "back at 0" (#359).
+    // Tapped where it already is on screen: `locator.click()` scrolls its
+    // target into view first, which moved the list before it was left and
+    // was the rest of "back at 0" (a finger does not scroll).
     const card = page.locator('[role="button"]').first()
     const openCard = async () => {
-      await card.click()
+      let tap: { x: number; y: number } | null = null
+      for (const box of await Promise.all((await page.locator('[role="button"]').all()).map((c) => c.boundingBox()))) {
+        const y = box === null ? -1 : box.y + box.height / 2
+        if (box !== null && y > 10 && y < 190) {
+          tap = { x: box.x + box.width / 2, y }
+          break
+        }
+      }
+      if (tap === null) throw new Error('no card on screen at 480x300 — stopping')
+      await page.mouse.click(tap.x, tap.y)
       await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
     }
     const backOnList = async () => {
@@ -1178,17 +1190,9 @@ async function run(): Promise<void> {
     check('a crag’s back returns to the list where it was left', near(viaTab), `left at ${listY}, back at ${viaTab}`)
 
     await openCard()
-    await page.evaluate(`(() => {
-      const trace = []; window.__trace = trace; const t0 = performance.now();
-      const tick = () => { trace.push(Math.round(performance.now() - t0) + ':' + (location.pathname.length > 1 ? 'D' : 'L') + ' y' + window.scrollY + ' h' + document.documentElement.scrollHeight); if (performance.now() - t0 < 1500) requestAnimationFrame(tick) };
-      requestAnimationFrame(tick);
-      window.addEventListener('scroll', () => trace.push(Math.round(performance.now() - t0) + ':scroll y' + window.scrollY));
-    })()`)
     await page.goBack()
     await backOnList()
     const viaBack = await scrollY()
-    await page.waitForTimeout(1_600)
-    console.log(`EXPERIMENT back trace (read ${viaBack}): ${(await page.evaluate(() => (window as unknown as { __trace: string[] }).__trace)).join(' | ')}`)
     check('the phone’s back returns to the list where it was left', near(viaBack), `left at ${listY}, back at ${viaBack}`)
 
     await bar.getByRole('link', { name: 'Conditions' }).click()
