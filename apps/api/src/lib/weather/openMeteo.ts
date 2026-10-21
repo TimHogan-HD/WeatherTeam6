@@ -1,5 +1,6 @@
-import { MEASURABLE_PRECIP_MM, type RecentPrecipHour } from '@weatherteam6/types'
+import { MEASURABLE_PRECIP_MM, REWETTING_PRECIP_MM, type RecentPrecipHour } from '@weatherteam6/types'
 import { logger } from '../logger.js'
+import { DAY_LAST_HOUR } from '../scoring/cragModel.js'
 
 export type DailyForecast = {
   date: string // YYYY-MM-DD
@@ -40,6 +41,11 @@ export type OpenMeteoResult = {
    * omitting one makes `by_model` look like the whole ensemble.
    */
   partial_models?: string[]
+  /**
+   * The stricter rain chance per day (`parseRewetDays`), for the trip recorder.
+   * Absent on a run stored before it existed, and on results with no members.
+   */
+  rewet?: RewetDay[]
   /**
    * The location's offset from UTC, as Open-Meteo resolved it from the
    * coordinates (`timezone=auto`). `0` when the upstream did not report one.
@@ -339,6 +345,66 @@ function computeDays(
     })
   }
 
+  return days
+}
+
+/**
+ * A stricter rain chance for one local day: the share of ensemble members with
+ * an hour of rain that re-wets rock (`REWETTING_PRECIP_MM`) between midnight
+ * and the end of the climbing day (`DAY_LAST_HOUR`).
+ *
+ * The trip screen's chance counts a member wet at 0.1 mm over the whole day, so
+ * a trace before dawn or after dark reads the same as an afternoon soaking
+ * (Red Wing, 2026-10-21: 64% against the score's 100). **Recorded beside that
+ * chance, never shown**, until trip outcomes say which of the two predicts a
+ * wet day (`.claude/docs/scoring-findings.md` §6e).
+ */
+export type RewetDay = {
+  local_date: string
+  members_rewet: number
+  /** Members that reported every hour of the window; a member past its horizon is left out. */
+  member_count: number
+}
+
+/** First and last hour stamps counted. A stamp closes its hour, so 01:00 is the first hour after midnight. */
+const REWET_FIRST_STAMP = 1
+const REWET_LAST_STAMP = DAY_LAST_HOUR
+
+/**
+ * Reduce per-member hourly precipitation, stamped in local time
+ * (`YYYY-MM-DDTHH:mm`), to one `RewetDay` per local day. A day no member
+ * covered in full is left out rather than written as 0 of 0.
+ */
+export function parseRewetDays(hourly: Record<string, unknown>): RewetDay[] {
+  const times: unknown[] = Array.isArray(hourly['time']) ? hourly['time'] : []
+  const keys = Object.keys(hourly)
+  const members = Object.values(ENSEMBLE_MODEL_SUFFIXES).flatMap((suffix) =>
+    memberArraysFor(hourly, keys, 'precipitation', suffix),
+  )
+
+  const windowByDate = new Map<string, number[]>()
+  times.forEach((t, i) => {
+    if (typeof t !== 'string' || t.length < 13) return
+    const hour = Number(t.slice(11, 13))
+    if (hour < REWET_FIRST_STAMP || hour > REWET_LAST_STAMP) return
+    const date = t.slice(0, 10)
+    windowByDate.set(date, [...(windowByDate.get(date) ?? []), i])
+  })
+
+  const days: RewetDay[] = []
+  for (const [local_date, indices] of windowByDate) {
+    // A day the response cut short is not a whole window.
+    if (indices.length !== REWET_LAST_STAMP - REWET_FIRST_STAMP + 1) continue
+    let member_count = 0
+    let members_rewet = 0
+    for (const values of members) {
+      const window = indices.map((i) => values[i])
+      if (window.some((v) => v === null || v === undefined)) continue
+      member_count++
+      if (window.some((v) => v != null && v >= REWETTING_PRECIP_MM)) members_rewet++
+    }
+    if (member_count > 0) days.push({ local_date, members_rewet, member_count })
+  }
   return days
 }
 
@@ -1565,6 +1631,7 @@ export async function fetchEnsembleRun(location: ForecastLocation): Promise<Ense
     throw new Error('Open-Meteo ensemble carried no hourly block')
   }
   const daily = parseEnsemble(raw.hourly)
+  daily.rewet = parseRewetDays(raw.hourly)
   applyLapseRate(daily.days, location.elevation_m, raw.elevation)
   // Falls back to 0 (i.e. UTC) rather than guessing. A missing offset with local
   // day buckets would misidentify "today" by at most one day, never a

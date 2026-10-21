@@ -38,7 +38,11 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   location's local today to the horizon; scores come from `getHourlySeries` under the
   location owner's range, with `scored_run_fetched_at` naming the stored run, and a
   non-crag records weather only. **A location writes nothing unless every source it needs
-  answered**: nulls over a good hour would read as "no rain".
+  answered**: nulls over a good hour would read as "no rain". The one exception is
+  `members_rewet`/`rewet_member_count`, a stricter rain chance read from the stored
+  ensemble run after the other sources and shown on no screen: its failure nulls only its
+  pair. **Before any screen reads it**, it needs the outcome comparison in
+  `scoring-findings.md` §6e, and its nulls must then withhold, never read as dry.
 - **`trip_rain_records` is keyed per trip**: `(trip_id, location_id, recorded_at)`, because a
   rain total is summed over one trip's dates. The recorder builds it with `tripRainRows`
   from the same `summarizeTripOutlook` the forecast route answers with, in one transaction

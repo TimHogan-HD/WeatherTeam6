@@ -211,6 +211,13 @@
       "when": 1791300072820,
       "tag": "0029_bent_hydra",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792602525321,
+      "tag": "0030_real_triathlon",
+      "breakpoints": true
     }
   ]
 }
