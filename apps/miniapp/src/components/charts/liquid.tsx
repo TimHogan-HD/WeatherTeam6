@@ -3,6 +3,7 @@ import { chartGlow, colorsV2 } from '@weatherteam6/design/tokens'
 import { typeV2, withOpacity } from '../../theme/tokens.css.js'
 import { formatLocalHour, formatLocalHourShort } from '../../lib/format.js'
 import type { SeriesDatum } from './hourlySeries.js'
+import { StreamIn } from './StreamIn.js'
 
 /**
  * The hybrid look's charts (`docs/handoffs/design-mockups/weatherteam6-hybrid.html`,
@@ -350,7 +351,7 @@ export function LiquidFrame({
       onKeyDown={bare ? undefined : step}
       style={{ display: 'block', width: '100%', overflow: 'visible', touchAction: 'pan-y', cursor: bare ? 'default' : 'crosshair' }}
     >
-      {children}
+      <StreamIn height={height}>{children}</StreamIn>
       {bare || read.ms === null ? null : (
         <line
           x1={axis.x(read.ms)}

@@ -36,6 +36,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { ApiResponse, Location } from '@weatherteam6/types'
+import type { Page } from 'playwright'
 
 const API_PORT = 3096
 const WEB_PORT = 5173
@@ -351,6 +352,126 @@ async function run(): Promise<void> {
       await page.waitForURL(/\?tab=crag$/, { timeout: 30_000 })
       check('the crumbs step back up to the wall, then the guidebook', await cragChosen())
     }
+
+    // 1b. What arrives inside a screen (owner, 2026-10-21, the motion mockup),
+    // read from the animations the browser actually ran rather than a frame.
+    // In contexts of its own, so the crag it opens is not already cached for 2a.
+    async function signedIn(options: { reducedMotion?: 'reduce' } = {}) {
+      const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2, ...options })
+      const tab = await context.newPage()
+      await tab.goto(`${WEB}/login`)
+      await tab.getByLabel('Username').fill(USERNAME)
+      await tab.getByLabel('Passphrase').fill(PASSPHRASE)
+      await tab.getByRole('button', { name: /sign in|log in/i }).click()
+      await tab.waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 30_000 })
+      return { context, tab }
+    }
+    async function motionChecks(): Promise<void> {
+      const { context: moving, tab: page } = await signedIn()
+      try {
+        await motionSteps(page)
+      } finally {
+        await moving.close()
+      }
+    }
+    async function motionSteps(page: Page): Promise<void> {
+      const watch = () =>
+        page.evaluate(() => {
+          // No named functions in here: tsx wraps them in a `__name` the page does not have.
+          const m = { seen: new Set<string>(), clipMin: 1, bead: false, timer: 0 }
+          m.timer = window.setInterval(() => {
+            for (const a of document.getAnimations()) {
+              const effect = a.effect as KeyframeEffect | null
+              if (effect?.pseudoElement) m.seen.add(effect.pseudoElement)
+              if (a instanceof CSSAnimation) m.seen.add(a.animationName)
+            }
+            document.querySelectorAll('[data-stream]').forEach((g) => {
+              const svg = g.closest('svg')
+              const width = Number(svg?.querySelector('clipPath rect')?.getAttribute('width') ?? '0')
+              m.clipMin = Math.min(m.clipMin, width / ((svg?.viewBox.baseVal.width ?? 390) + 800))
+              if (g.nextElementSibling?.getAttribute('opacity') === '1') m.bead = true
+            })
+          }, 16)
+          ;(window as unknown as { __motion: typeof m }).__motion = m
+        })
+      const read = () =>
+        page.evaluate(() => {
+          const m = (window as unknown as { __motion: { seen: Set<string>; clipMin: number; bead: boolean; timer: number } }).__motion
+          window.clearInterval(m.timer)
+          return { seen: [...m.seen], clipMin: m.clipMin, bead: m.bead }
+        })
+
+      await page.goto(`${WEB}/`)
+      await page.locator(`[data-crag-fly="name"][data-crag-fly-id="${locationId}"]`).waitFor({ timeout: 60_000 })
+      await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
+      await watch()
+      await page.locator(`[data-crag-fly="name"][data-crag-fly-id="${locationId}"]`).click()
+      await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
+      await page.waitForTimeout(450)
+      await page.screenshot({ path: join(dir, 'motion-stream-mid.png') })
+      await page.waitForTimeout(2_600)
+      const open = await read()
+      check(
+        'opening a crag carries its name across from the list row',
+        open.seen.some((s) => s.includes('wt6-crag-name')),
+        open.seen.filter((s) => s.startsWith('::')).join(', '),
+      )
+      check(
+        'and the Today chart streams in behind a lead bead',
+        open.clipMin < 0.6 && open.bead,
+        `clip reached ${(open.clipMin * 100).toFixed(0)}% of full, bead ${open.bead ? 'seen' : 'never seen'}`,
+      )
+      const settled = await page.evaluate(() =>
+        Array.from(document.querySelectorAll('[data-stream]')).map((g) => {
+          const rect = g.closest('svg')?.querySelector('clipPath rect')
+          return {
+            drawn: Number(rect?.getAttribute('width')) >= Number(g.closest('svg')?.viewBox.baseVal.width) + 800,
+            beadGone: g.nextElementSibling?.getAttribute('opacity') === '0',
+          }
+        }),
+      )
+      check(
+        'and every chart ends fully drawn, with no lead bead left behind',
+        settled.length > 0 && settled.every((s) => s.drawn && s.beadGone),
+        JSON.stringify(settled),
+      )
+      check('the score flies with the name', open.seen.some((s) => s.includes('wt6-crag-score')), open.seen.filter((s) => s.startsWith('::')).join(', '))
+
+      await watch()
+      await page.getByRole('tab', { name: 'Daily' }).click()
+      await page.waitForTimeout(1_500)
+      const daily = await read()
+      for (const name of ['wt6-pour', 'wt6-rise', 'wt6-grow-x']) {
+        check(`a tab change plays ${name}`, daily.seen.includes(name), daily.seen.join(', '))
+      }
+
+      await watch()
+      await page.getByRole('button', { name: 'Back to Conditions' }).click()
+      await page.locator(`[data-crag-fly="name"][data-crag-fly-id="${locationId}"]`).waitFor({ timeout: 10_000 })
+      await page.waitForTimeout(1_200)
+      const back = await read()
+      check(
+        'going back carries the name into the row, which stays put',
+        back.seen.some((s) => s.includes('wt6-crag-name')) && !back.seen.includes('wt6-rise'),
+        back.seen.join(', '),
+      )
+      await page.screenshot({ path: join(dir, 'motion-list-after.png') })
+
+      const { context: still, tab: calm } = await signedIn({ reducedMotion: 'reduce' })
+      try {
+        await calm.goto(`${WEB}/location/${locationId}`)
+        await calm.locator('[data-stream]').first().waitFor({ timeout: 60_000 })
+        const drawn = await calm.evaluate(() => {
+          const g = document.querySelector('[data-stream]')
+          const rect = g?.closest('svg')?.querySelector('clipPath rect')
+          return Number(rect?.getAttribute('width')) >= Number(g?.closest('svg')?.viewBox.baseVal.width) + 800
+        })
+        check('under reduced motion a chart is drawn whole at once', drawn)
+      } finally {
+        await still.close()
+      }
+    }
+    await motionChecks()
 
     if (TABS_ONLY) {
       await everyTab()

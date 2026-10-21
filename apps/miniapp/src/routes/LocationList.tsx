@@ -178,7 +178,7 @@ export function LocationList() {
                 location={location}
                 remembered={remembered?.cards[location.id]}
                 onOpen={openLocation}
-                first={i === 0}
+                index={i}
               />
             ))}
           </section>

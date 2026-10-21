@@ -23,6 +23,7 @@ import { InlineError, Skeleton } from './States.js'
 import { FadeIn } from './FadeIn.js'
 import { RollingFigure, usePreviousFigure } from './RollingFigure.js'
 import type { RememberedCard } from '../lib/rememberedCards.js'
+import { CRAG_FLY_ATTR, CRAG_FLY_ID_ATTR, flyingCragId } from '../lib/cragFly.js'
 
 /**
  * One crag as a row of the Conditions list, in the hybrid look
@@ -56,15 +57,20 @@ export function LocationCard({
   location,
   remembered,
   onOpen,
-  first,
+  index,
 }: {
   location: Location
   /** What this row showed last time on this device, drawn until all three live answers are in. */
   remembered: RememberedCard | undefined
   onOpen: (id: string) => void
-  /** The first row has no rule above it. */
-  first: boolean
+  /** The row's place in the list: the first has no rule above it, and each rises a step after the one above. */
+  index: number
 }) {
+  const first = index === 0
+  // Fixed at mount, so a list re-sorting as answers arrive never restarts a rise. The
+  // row a crag is being left back to stays put: its name and score fly into it.
+  const [riseAt] = useState(() => (flyingCragId() === location.id ? null : index))
+  const rise = riseAt === null ? undefined : ({ '--wt6-i': riseAt } as CSSProperties)
   const queryClient = useQueryClient()
   const forecast = useForecast(location.id)
   const alerts = useAlerts(location.id)
@@ -159,7 +165,9 @@ export function LocationCard({
     <div
       role="button"
       tabIndex={0}
+      className={rise === undefined ? undefined : 'wt6-rise'}
       style={{
+        ...rise,
         display: 'grid',
         gridTemplateColumns: '30px minmax(0, 1fr) auto 10px',
         gap: '12px',
@@ -181,10 +189,21 @@ export function LocationCard({
         }
       }}
     >
-      {todaySky === null ? <span /> : <SkyIcon sky={skyDayIcon(todaySky)} size={30} />}
+      {todaySky === null ? (
+        <span />
+      ) : (
+        <span className={rise === undefined ? undefined : 'wt6-pop'} style={rise}>
+          <SkyIcon sky={skyDayIcon(todaySky)} size={30} />
+        </span>
+      )}
       <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {/* Wraps rather than truncating: the tail often tells two places apart. */}
-        <span style={{ ...typeV2.listName, overflowWrap: 'anywhere' }}>{location.name}</span>
+        <span
+          {...{ [CRAG_FLY_ATTR]: 'name', [CRAG_FLY_ID_ATTR]: location.id }}
+          style={{ ...typeV2.listName, overflowWrap: 'anywhere' }}
+        >
+          {location.name}
+        </span>
         {loading ? (
           <Skeleton height={30} />
         ) : (
@@ -200,6 +219,7 @@ export function LocationCard({
       </span>
       {location.is_climbing_location ? (
         <RowScore
+          locationId={location.id}
           score={loading ? undefined : (summary?.score ?? null)}
           withheld={alertsPending || severeAlertEvent(alertsData) !== null}
         />
@@ -218,7 +238,15 @@ export function LocationCard({
  * under a Severe+ alert and while alerts load, so there is no raw number here
  * to reach past; a withheld score is a dash over "withheld".
  */
-function RowScore({ score, withheld }: { score: number | null | undefined; withheld: boolean }) {
+function RowScore({
+  locationId,
+  score,
+  withheld,
+}: {
+  locationId: string
+  score: number | null | undefined
+  withheld: boolean
+}) {
   const value = score == null ? EM_DASH : String(score)
   const was = usePreviousFigure(value)
   if (score === undefined) return <span style={{ width: '64px' }} />
@@ -232,7 +260,9 @@ function RowScore({ score, withheld }: { score: number | null | undefined; withh
         color: score === null ? colorsV2.txtMuted : scoreRampColor(score),
       }}
     >
-      <RollingFigure value={value} from={was} />
+      <span {...{ [CRAG_FLY_ATTR]: 'score', [CRAG_FLY_ID_ATTR]: locationId }} style={{ display: 'inline-block' }}>
+        <RollingFigure value={value} from={was} />
+      </span>
       <small style={{ ...typeV2.daySmall, display: 'block', fontWeight: 500 }}>{score !== null ? 'now' : withheld ? 'withheld' : 'no score'}</small>
     </span>
   )

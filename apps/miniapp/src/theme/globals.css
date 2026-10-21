@@ -201,6 +201,98 @@ html[data-page='fade']::view-transition-new(root) {
   animation: wt6-swipe var(--wt6-motion-swipe-ms) var(--wt6-motion-ease-out) backwards;
 }
 
+/* What arrives inside a screen (owner, 2026-10-21, the motion mockup). Every
+   one plays once, when its element is inserted, and fills backwards only, so
+   nothing is left transformed once it lands. */
+
+/* A crag's cards pouring in, each a step after the one above (`DetailView`'s
+   tab panel, keyed on the tab). Cards are the panel's `section`s; the
+   Overview's hero is one and stays put. A chart in a card waits for it
+   (`StreamIn` reads the same position). */
+@keyframes wt6-pour {
+  0% {
+    opacity: 0;
+    transform: translateY(26px) scale(0.94, 1.07);
+    border-radius: 44px;
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.015, 0.985);
+  }
+}
+.wt6-pour > section:not([data-hero]) {
+  animation: wt6-pour var(--wt6-motion-pour-ms) var(--wt6-motion-pour-spring) backwards;
+}
+.wt6-pour > section:nth-of-type(2) { animation-delay: calc(1 * var(--wt6-motion-pour-step-ms)); }
+.wt6-pour > section:nth-of-type(3) { animation-delay: calc(2 * var(--wt6-motion-pour-step-ms)); }
+.wt6-pour > section:nth-of-type(4) { animation-delay: calc(3 * var(--wt6-motion-pour-step-ms)); }
+.wt6-pour > section:nth-of-type(5) { animation-delay: calc(4 * var(--wt6-motion-pour-step-ms)); }
+.wt6-pour > section:nth-of-type(6) { animation-delay: calc(5 * var(--wt6-motion-pour-step-ms)); }
+.wt6-pour > section:nth-of-type(7) { animation-delay: calc(6 * var(--wt6-motion-pour-step-ms)); }
+.wt6-pour > section:nth-of-type(n + 8) { animation-delay: calc(7 * var(--wt6-motion-pour-step-ms)); }
+
+/* A row rising into place, `--wt6-i` steps after the first. */
+@keyframes wt6-rise {
+  from {
+    transform: translateY(22px);
+    opacity: 0;
+  }
+}
+.wt6-rise {
+  animation: wt6-rise var(--wt6-motion-rise-ms) var(--wt6-motion-ease-out) backwards;
+  animation-delay: calc(var(--wt6-i, 0) * var(--wt6-motion-rise-step-ms));
+}
+
+/* A list row's weather icon popping in a beat after its row. */
+@keyframes wt6-pop {
+  from {
+    transform: scale(0.3) rotate(-25deg);
+    opacity: 0;
+  }
+}
+.wt6-pop {
+  display: inline-flex;
+  animation: wt6-pop var(--wt6-motion-pop-ms) var(--wt6-motion-spring) backwards;
+  animation-delay: calc(var(--wt6-i, 0) * var(--wt6-motion-rise-step-ms) + var(--wt6-motion-pop-delay-ms));
+}
+
+/* Daily's temperature bar growing out from its low end, after its row. */
+@keyframes wt6-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+.wt6-grow-x {
+  transform-origin: 0 50%;
+  animation: wt6-grow-x var(--wt6-motion-grow-ms) var(--wt6-motion-ease-out) backwards;
+  animation-delay: calc(var(--wt6-i, 0) * var(--wt6-motion-rise-step-ms) + var(--wt6-motion-pop-delay-ms));
+}
+
+/* An arc drawn along its own length: a path with `pathLength="1"`. */
+@keyframes wt6-arc-fill {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+.wt6-arc-fill {
+  stroke-dasharray: 1;
+  animation: wt6-arc-fill var(--wt6-motion-arc-fill-ms) var(--wt6-motion-ease-out) backwards;
+}
+
+/* A rain column inside a streaming chart grows from its floor (`StreamIn`). */
+[data-stream] [data-chance] {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+
+/* A crag's name and score carried between its list row and its own screen
+   (`lib/cragFly.ts` names the pair for the length of one transition). */
+::view-transition-group(wt6-crag-name),
+::view-transition-group(wt6-crag-score) {
+  animation-duration: var(--wt6-motion-header-fly-ms);
+  animation-timing-function: var(--wt6-motion-ease-out);
+}
+
 #root {
   display: flex;
   flex-direction: column;

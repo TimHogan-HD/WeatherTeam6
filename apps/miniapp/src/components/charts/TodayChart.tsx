@@ -21,6 +21,7 @@ import {
   type Pt,
   type ReadoutItem,
 } from './liquid.js'
+import { StreamIn } from './StreamIn.js'
 
 /**
  * The hours around now as one chart — six back, ten ahead, moving with the
@@ -161,6 +162,7 @@ export function TodayChart({
             <line x1={nowX} x2={nowX} y1={TOP - 8} y2={RAIN_TOP + RAIN_H} stroke={colorsV2.brandInk} strokeDasharray="2 3" />
           )}
 
+          <StreamIn height={H}>
           {glyphs.map((h) => (
             <g key={h.valid_at} transform={`translate(${(x(Date.parse(h.valid_at) - HOUR_MS) - 9).toFixed(1)} 4)`}>
               <SkyIcon sky={h.sky as SkyCondition} size={18} />
@@ -232,6 +234,7 @@ export function TodayChart({
                 </text>
               ))
             : null}
+          </StreamIn>
 
           {selected === null ? null : (
             <>

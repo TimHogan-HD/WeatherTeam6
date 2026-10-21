@@ -73,6 +73,8 @@ export function DryingClock({
       />
       {frac > 0 ? (
         <path
+          className="wt6-arc-fill"
+          pathLength={1}
           d={wavyArc(55, 55, 40, frac, 2.6, 12)}
           fill="none"
           stroke={color}
