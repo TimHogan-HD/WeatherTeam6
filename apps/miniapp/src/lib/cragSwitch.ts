@@ -4,19 +4,31 @@ import type { Location } from '@weatherteam6/types'
 export type SwipeDirection = 1 | -1
 
 const SWIPE_KEY = 'swipe'
+const RECENT_KEY = 'recent'
 
 /**
- * The places across a crag's top: the one being read first, then the rest in
- * saved order, wrapping round (owner, 2026-10-20: "so we only have to scroll
- * one way"). The one being read is always among them: a place saved a moment
- * ago can be missing from a list fetched before it.
+ * The places across a crag's top, most recently read first: the one being read,
+ * then the one just left, one tap back (owner, 2026-10-21; first is what keeps
+ * the scroll one way, 2026-10-20). `recent` is the order the row showed before
+ * this switch, carried in router state; places it does not name follow in saved
+ * order, and places no longer saved drop out. The one being read is always
+ * among them: a place saved a moment ago can be missing from a list fetched
+ * before it.
  */
-export function switcherOptions(saved: readonly Location[], current: Location): { id: string; name: string }[] {
-  const options = saved.map((l) => ({ id: l.id, name: l.name }))
-  const at = options.findIndex((o) => o.id === current.id)
-  return at < 0
-    ? [{ id: current.id, name: current.name }, ...options]
-    : [...options.slice(at), ...options.slice(0, at)]
+export function switcherOptions(
+  saved: readonly Location[],
+  current: Location,
+  recent: readonly string[],
+): { id: string; name: string }[] {
+  const names = new Map(saved.map((l) => [l.id, l.name]))
+  names.set(current.id, current.name)
+  const options: { id: string; name: string }[] = []
+  for (const id of [current.id, ...recent, ...saved.map((l) => l.id)]) {
+    const name = names.get(id)
+    if (name === undefined || options.some((o) => o.id === id)) continue
+    options.push({ id, name })
+  }
+  return options
 }
 
 export function swipeDirection(order: readonly string[], from: string, to: string): SwipeDirection {
@@ -26,11 +38,23 @@ export function swipeDirection(order: readonly string[], from: string, to: strin
 /**
  * The router state for the next place: the current state kept whole, so back
  * still returns to the map when a pin opened the first one, and the direction
- * for the content to arrive from.
+ * for the content to arrive from, and the row's order for the next place to
+ * reorder from.
  */
-export function switchState(state: unknown, direction: SwipeDirection): Record<string, unknown> {
+export function switchState(
+  state: unknown,
+  direction: SwipeDirection,
+  order: readonly string[],
+): Record<string, unknown> {
   const kept = typeof state === 'object' && state !== null ? (state as Record<string, unknown>) : {}
-  return { ...kept, [SWIPE_KEY]: direction }
+  return { ...kept, [SWIPE_KEY]: direction, [RECENT_KEY]: order }
+}
+
+/** The row's order before the last switch; none on a plain arrival or a reload with no state. */
+export function recentOf(state: unknown): string[] {
+  if (typeof state !== 'object' || state === null) return []
+  const value = (state as Record<string, unknown>)[RECENT_KEY]
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : []
 }
 
 export function swipeOf(state: unknown): SwipeDirection | null {
