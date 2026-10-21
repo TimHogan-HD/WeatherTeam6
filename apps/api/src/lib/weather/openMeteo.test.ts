@@ -261,6 +261,8 @@ describe('fetchEnsembleRun — daily figures', () => {
 
     expect(result.days).toHaveLength(1)
     expect(result.model_sources).toContain('gfs_seamless')
+    // Every member rains 1-3 mm an hour, so each re-wets the rock.
+    expect(result.rewet).toEqual([{ local_date: '2025-06-01', members_rewet: 3, member_count: 3 }])
   })
 
   it('applies lapse-rate correction when crag elevation differs from model grid', async () => {

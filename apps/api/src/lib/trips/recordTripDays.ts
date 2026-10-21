@@ -6,6 +6,7 @@ import { describeError } from '../http.js'
 import { logger } from '../logger.js'
 import { tempRangeFor } from '../preferences/preferences.js'
 import { getHourlySeries } from '../runs/fetchHourlySeries.js'
+import { getEnsembleDaily } from '../runs/latestRuns.js'
 import { scoringLocationFor } from '../runs/scoringLocation.js'
 import { fetchOutlook } from '../weather/ensembleOutlook.js'
 import { localDateString } from '../weather/openMeteo.js'
@@ -155,6 +156,23 @@ async function recordLocation(
     throw new Error(`readings unavailable: ${series.readings.unavailable_reason}`)
   }
 
+  // The stricter rain chance, from the ensemble run `collect-runs` stores
+  // (days 0-6), so it costs no request of its own when that run is fresh.
+  // Shown on no screen, so a failure costs only its own columns, and it is read
+  // after the sources above so it is never in their way. Only when a trip day
+  // falls inside the days it reaches (a day of slack, as above).
+  const weekOut = new Date(now.getTime() + 7 * 86_400_000).toISOString().slice(0, 10)
+  const rewet =
+    outlook !== null && ahead.some((t) => t.start <= weekOut)
+      ? await getEnsembleDaily(point, now).then(
+          (daily) => daily.rewet ?? null,
+          (err: unknown) => {
+            logger.warn({ locationId: location.id, err: describeError(err) }, '[recordTripDays] rewet chance failed')
+            return null
+          },
+        )
+      : null
+
   const scoredRun = series?.models?.find((m) => m.model === series.readings.model)
   const values: TripDayRow[] =
     outlook === null
@@ -166,6 +184,7 @@ async function recordLocation(
           outlook,
           readings: series?.readings.days ?? null,
           scoredRunFetchedAt: scoredRun?.fetched_at ? new Date(scoredRun.fetched_at) : null,
+          rewet,
         })
   const trend = outlook === null ? [] : tripRainRows({ locationId: location.id, now, trips: ahead, outlook })
   const outcomes =
@@ -200,6 +219,8 @@ async function recordLocation(
             members_wet: sql`excluded.members_wet`,
             member_count: sql`excluded.member_count`,
             precip_mm_mean: sql`excluded.precip_mm_mean`,
+            members_rewet: sql`excluded.members_rewet`,
+            rewet_member_count: sql`excluded.rewet_member_count`,
           },
         })
     }

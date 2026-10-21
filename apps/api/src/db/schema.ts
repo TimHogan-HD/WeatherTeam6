@@ -296,6 +296,14 @@ export const tripDayRecords = pgTable(
     members_wet: integer('members_wet'),
     member_count: integer('member_count'),
     precip_mm_mean: doublePrecision('precip_mm_mean'),
+    /**
+     * Members with an hour of rain that re-wets rock before the climbing day
+     * ends (`RewetDay`), out of `rewet_member_count`. Recorded beside
+     * `members_wet` to learn which predicts a wet day; no screen reads it.
+     * Null when that request failed: the other figures are still written.
+     */
+    members_rewet: integer('members_rewet'),
+    rewet_member_count: integer('rewet_member_count'),
   },
   (t) => [unique('trip_day_records_location_day_hour').on(t.location_id, t.local_date, t.recorded_at)],
 )

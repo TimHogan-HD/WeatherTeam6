@@ -455,6 +455,15 @@ in the day, which the clock ignores, so a high chance beside a 100 can be traces
 the owner's Red Wing trip (Oct 24/25) read 68% while all four models' own clocks scored the
 day 97-100.
 
+**Recording the stricter chance (2026-10-21).** Since then `trip_day_records` carries
+`members_rewet` / `rewet_member_count` beside `members_wet` for trip days 0-6: the share of
+members with an hour of at least `REWETTING_PRECIP_MM` (0.5 mm) between midnight and
+18:00 local (`parseRewetDays`, from the stored ensemble run). Red Wing on that day's run:
+Oct 24 43% on screen against 9% (13/143), Oct 25 62% against 17% (25/143). No screen
+shows it. **Next:** once `trip_day_outcomes` holds a few weeks of trip days, compare
+which of the two chances separates the days that turned out wet; switch the trip tile
+only if the stricter one does.
+
 ## 7. If you only do three things
 
 1. **Do not let the drying ramp reach full marks as early as it does** (§1.2). It is wrong in

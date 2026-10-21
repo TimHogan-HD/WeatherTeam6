@@ -1,5 +1,5 @@
 import type { FrictionLevel, ReadingsDay, RockLevel } from '@weatherteam6/types'
-import { localDateString } from '../weather/openMeteo.js'
+import { localDateString, type RewetDay } from '../weather/openMeteo.js'
 import type { Outlook } from '../weather/ensembleOutlook.js'
 import { tripDayCount } from './tripOutlook.js'
 
@@ -20,6 +20,8 @@ export type TripDayRow = {
   members_wet: number | null
   member_count: number | null
   precip_mm_mean: number | null
+  members_rewet: number | null
+  rewet_member_count: number | null
 }
 
 export type TripRange = { start: string; end: string }
@@ -35,6 +37,9 @@ export function recordingHour(now: Date): Date {
  *
  * `readings` is null at a location that is not a crag, so those rows carry
  * weather only. A day neither source reached is not written.
+ *
+ * `rewet` is null when it could not be read, and a day it does not reach (past
+ * day 6) has none; either way only its two columns are null.
  */
 export function tripDayRows(input: {
   locationId: string
@@ -43,10 +48,12 @@ export function tripDayRows(input: {
   outlook: Outlook
   readings: ReadingsDay[] | null
   scoredRunFetchedAt: Date | null
+  rewet: RewetDay[] | null
 }): TripDayRow[] {
   const today = localDateString(input.now, input.outlook.utc_offset_seconds)
   const recorded_at = recordingHour(input.now)
   const outlookByDate = new Map(input.outlook.days.map((d) => [d.local_date, d]))
+  const rewetByDate = new Map((input.rewet ?? []).map((d) => [d.local_date, d]))
   const readingsByDate = new Map((input.readings ?? []).map((d) => [d.local_date, d]))
 
   const rows: TripDayRow[] = []
@@ -55,6 +62,7 @@ export function tripDayRows(input: {
     if (!input.ranges.some((r) => date >= r.start && date <= r.end)) continue
 
     const weather = outlookByDate.get(date)
+    const rewet = rewetByDate.get(date)
     const best = readingsByDate.get(date)?.best ?? null
     if (weather === undefined && best === null) continue
 
@@ -72,6 +80,8 @@ export function tripDayRows(input: {
       members_wet: weather?.members_wet ?? null,
       member_count: weather?.member_count ?? null,
       precip_mm_mean: weather?.precip_mm_mean ?? null,
+      members_rewet: rewet?.members_rewet ?? null,
+      rewet_member_count: rewet?.member_count ?? null,
     })
   }
   return rows

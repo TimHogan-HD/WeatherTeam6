@@ -12,6 +12,7 @@ import {
   type ForecastLocation,
   type HourlyPoint,
   type OpenMeteoResult,
+  type RewetDay,
 } from '../weather/openMeteo.js'
 import type { RainMedian } from '../weather/rainMedian.js'
 import { fetchForecastOnlyRuns, fetchThermalRun, type FetchedRuns } from './deterministicFetch.js'
@@ -488,7 +489,7 @@ export async function getEnsembleRuns(
 }
 
 /** What `computeLiveForecast` reads from the ensemble: the pooled days, who made them, and the offset. */
-export type EnsembleDaily = Pick<OpenMeteoResult, 'days' | 'model_sources' | 'utc_offset_seconds'>
+export type EnsembleDaily = Pick<OpenMeteoResult, 'days' | 'model_sources' | 'utc_offset_seconds' | 'rewet'>
 
 /**
  * Every number a stored day must carry. A `Record` so a field added to
@@ -511,10 +512,15 @@ const DAILY_NUMBERS: Record<Exclude<keyof DailyForecast, 'date'>, true> = {
  * `jsonb` is `unknown` to the driver. Anything short of a full day — a missing
  * field, a null, a non-finite number — rejects the whole value, and the caller
  * fetches live. A gap here must not reach the score as a number.
+ *
+ * `rewet` feeds no score and no screen, so a run stored before it existed, or
+ * one carrying a malformed entry, keeps its days and loses only that field.
  */
-export function parseStoredDaily(value: unknown): Pick<OpenMeteoResult, 'days' | 'model_sources'> | null {
+export function parseStoredDaily(
+  value: unknown,
+): Pick<OpenMeteoResult, 'days' | 'model_sources' | 'rewet'> | null {
   if (typeof value !== 'object' || value === null) return null
-  const { days, model_sources } = value as { days?: unknown; model_sources?: unknown }
+  const { days, model_sources, rewet } = value as { days?: unknown; model_sources?: unknown; rewet?: unknown }
   if (!Array.isArray(days) || days.length === 0) return null
   if (!Array.isArray(model_sources) || !model_sources.every((m) => typeof m === 'string')) return null
   for (const day of days as unknown[]) {
@@ -526,7 +532,27 @@ export function parseStoredDaily(value: unknown): Pick<OpenMeteoResult, 'days' |
       if (typeof n !== 'number' || !Number.isFinite(n)) return null
     }
   }
-  return { days: days as DailyForecast[], model_sources: model_sources as string[] }
+  const parsed = { days: days as DailyForecast[], model_sources: model_sources as string[] }
+  return isRewetDays(rewet) ? { ...parsed, rewet } : parsed
+}
+
+function isRewetDays(value: unknown): value is RewetDay[] {
+  const count = (n: unknown): boolean => typeof n === 'number' && Number.isInteger(n) && n >= 0
+  return (
+    Array.isArray(value) &&
+    value.every((d: unknown) => {
+      if (typeof d !== 'object' || d === null) return false
+      const r = d as Record<string, unknown>
+      return (
+        typeof r['local_date'] === 'string' &&
+        /^\d{4}-\d{2}-\d{2}$/.test(r['local_date']) &&
+        count(r['members_rewet']) &&
+        count(r['member_count']) &&
+        (r['member_count'] as number) > 0 &&
+        (r['members_rewet'] as number) <= (r['member_count'] as number)
+      )
+    })
+  )
 }
 
 async function loadStoredEnsembleDaily(
