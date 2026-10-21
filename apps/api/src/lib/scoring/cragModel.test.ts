@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { SCORE_MODEL_FACTS, fToC } from '@weatherteam6/types'
+import { SCORE_MODEL_FACTS, fToC, type RockType } from '@weatherteam6/types'
 import {
   DAY_FIRST_HOUR,
   DAY_LAST_HOUR,
@@ -51,7 +51,7 @@ function series(n: number, over: (i: number, h: WeatherHour) => Partial<WeatherH
   })
 }
 
-const crag = (hours: WeatherHour[], rockType: 'granite' | 'sandstone_eolian' = 'granite') =>
+const crag = (hours: WeatherHour[], rockType: RockType = 'granite') =>
   evaluateCragA(hours, { rockType, lat: LAT, lon: LON })
 
 describe('frictionFactorA', () => {
@@ -162,6 +162,20 @@ describe('evaluateCragA — the drying clock', () => {
     expect(own[111]!.diagnostics.friction_factor).not.toBeNull()
     expect(warmLover[111]!.diagnostics.friction_factor!).toBeGreaterThan(own[111]!.diagnostics.friction_factor!)
     expect(warmLover[111]!.score!).toBeGreaterThan(own[111]!.score!)
+  })
+
+  it('never dries fragile rock faster than the clock on the wall (F17)', () => {
+    // Half an inch over the first night, then sunny, dry days.
+    const wet = (i: number) => (i >= 24 && i < 29 ? { precip_mm: 2.54 } : {})
+    // Both have a 48-hour window; only the arenite breaks when wet.
+    const arenite = crag(series(120, wet), 'sandstone_quartz_arenite')
+    const arkose = crag(series(120, wet), 'sandstone_arkose')
+    // 24 elapsed hours of a 48-hour window can leave the rock no drier than (24/48)².
+    expect(arenite[28 + 24]!.diagnostics.wetness_factor!).toBeLessThanOrEqual(0.25)
+    // The weather's speed-up still applies to a rock that only softens.
+    expect(arkose[28 + 24]!.diagnostics.wetness_factor!).toBeGreaterThan(0.25)
+    const eolian = crag(series(120, wet), 'sandstone_eolian')
+    expect(eolian[28 + 48]!.diagnostics.wetness_factor!).toBeLessThanOrEqual(0.25)
   })
 
   it('lets snow lie and caps dryness while it does', () => {

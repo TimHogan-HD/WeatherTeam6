@@ -128,9 +128,14 @@ The longest run of hours with rock `drying` or `dry`, friction `fair` or better,
 
 ### Still open
 
-From `crag-a-reference/README.md`: a minimum wait after rain for soft and eolian sandstone
-(F17, owner decision); rain-history seeding (#176); Wall A has nothing to score until walls
-are recorded; a condition-report screen, the only way to validate any of this (#143).
+From `crag-a-reference/README.md`: rain-history seeding (#176); Wall A has nothing to score
+until walls are recorded; a condition-report screen, the only way to validate any of this
+(#143).
+
+**Closed 2026-10-21, F17:** rock that breaks when wet (`rockGuide`'s `whenWet: 'fragile'`, and
+`unknown`) never dries faster than elapsed time (`maxDryingRate` in `cragModel.ts`). Red Rock
+48 h after 0.5" in January sun went from 76 to 39. The measurements are in the reference
+README.
 
 ## Drying Time Rules (by rock type)
 

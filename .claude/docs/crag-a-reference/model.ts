@@ -1,14 +1,14 @@
 // Crag A / Wall A reference model and error hunt. Not app code: copy to apps/api/src/scripts/ to run.
 // See README.md beside this file.
 import { writeFileSync } from 'node:fs'
-import { conditionsScore } from '../lib/scoring/conditionsScore.js'
+import { fileURLToPath } from 'node:url'
 import {
   evaluateHourlyConditions,
   dryingWindowHours,
   type WeatherHour,
   type HourlyConditions,
 } from '../lib/scoring/hourlyConditions.js'
-import type { RockType } from '@weatherteam6/types'
+import { rockGuide, type RockType } from '@weatherteam6/types'
 
 const OUT = process.argv[2] ?? 'hunt.json'
 export const FIX = { dry: false, snow: false, shelterReal: false, window: 0 }
@@ -203,28 +203,6 @@ function frictionG(_c: Case, h: HourlyConditions, k: Knobs, w: WeatherHour) {
   const grease = Math.exp(-Math.max(0, cToF(w.dewpoint_c) - k.greaseStartF) / 14)
   const feel = w.air_temp_c === null ? ts : w.air_temp_c + k.sunBlend * (ts - w.air_temp_c)
   return cond * grease * tempFit(cToF(feel), k)
-}
-
-function runV1(c: Case, b: Built) {
-  const evalIdx = HISTORY_DAYS * 24 + (c.evalHours[0] === c.evalHours[1] ? c.evalHours[0] : 14)
-  let lastRainIdx = -1
-  let lastRainMm = 0
-  for (let i = 0; i <= evalIdx; i++) if ((b.hours[i].precip_mm ?? 0) > 0) { lastRainIdx = i; lastRainMm = b.stormMm[i] }
-  const hoursSinceRain = lastRainIdx < 0 ? 720 : evalIdx - lastRainIdx
-  const day = b.hours.slice(HISTORY_DAYS * 24)
-  const hiC = Math.max(...day.map((h) => h.air_temp_c ?? -99))
-  const w14 = b.hours[HISTORY_DAYS * 24 + 14]
-  const rh = (100 * es(w14.dewpoint_c ?? 0)) / es(w14.air_temp_c ?? 0)
-  // rain still to fall today counts as upcoming rain for v1
-  const upcoming = b.hours.slice(evalIdx + 1).reduce((s, h) => s + (h.precip_mm ?? 0), 0) + (c.forecastRainNextMm ?? 0)
-  const windKmh = (c.wx.gust ?? c.wx.wind * 1.4) * 1.609
-  const out = conditionsScore({
-    rockType: c.rock, aspectDegrees: c.aspect, cliffAngle: 0, hoursSinceRain, lastRainMm,
-    forecastRain72hMm: upcoming, forecastRain72hP10: upcoming, forecastRain72hP90: upcoming,
-    currentWindKmh: c.wx.wind * 1.609, maxWindKmh24h: windKmh, currentTempC: tempAt(c.wx, 14),
-    forecastHighC: hiC, currentHumidityPct: rh, forecastDateDaysOut: 0,
-  })
-  return out.score
 }
 
 // ======================= Exploration: sun ratios, wall aspect/angle, crag vs wall =======================
@@ -441,6 +419,8 @@ function dryTrack(c: Case, series: HourlyConditions[], k: Knobs, built: Built): 
   let storm = 0, lastWet = -1e9, swe = 0
   // An overhang sheds light rain: the shelter fraction was calibrated against a 0.5 mm/h wetting threshold, so it keeps it.
   const wetThr = (c.rainScale ?? 1) < 1 ? 0.5 : WET_MM
+  // F17 (2026-10-21): rock that breaks when wet never dries faster than elapsed time.
+  const maxRate = (rockGuide(c.rock)?.whenWet ?? 'fragile') === 'fragile' ? 1 : Infinity
   // After an hour whose rain is unknown, withhold until a full soak would have dried.
   let unknownR = 0
   const out: (number | null)[] = []
@@ -467,7 +447,7 @@ function dryTrack(c: Case, series: HourlyConditions[], k: Knobs, built: Built): 
         if (need >= deepR) { deepR = need; deepN = need }
       } else {
         const e1 = series[i].diagnostics.effective_dry_hours, e0 = i > 0 ? series[i - 1].diagnostics.effective_dry_hours : null
-        const inc = e1 !== null && e0 !== null && e1 >= e0 ? e1 - e0 : 0
+        const inc = e1 !== null && e0 !== null && e1 >= e0 ? Math.min(e1 - e0, maxRate) : 0
         surfR = Math.max(0, surfR - inc)
         unknownR = Math.max(0, unknownR - inc)
         deepR = Math.max(0, deepR - inc)
@@ -494,7 +474,7 @@ function drynessD(c: Case, series: HourlyConditions[], k: Knobs, built: Built, i
 // ======================= Error hunt =======================
 import { readFileSync, existsSync } from 'node:fs'
 // Run from apps/api/src/scripts/ (see README); the data sits beside this file in the repo.
-const WX = new URL('../../../../.claude/docs/crag-a-reference/wx', import.meta.url).pathname
+const WX = fileURLToPath(new URL('../../../../.claude/docs/crag-a-reference/wx', import.meta.url))
 const CRAGS_REAL: { name: string; rock: RockType; lat: number; lon: number }[] = [
   { name: 'redrock', rock: 'sandstone_eolian', lat: 36.13, lon: -115.43 }, { name: 'joshua', rock: 'granite', lat: 34.01, lon: -116.17 },
   { name: 'squamish', rock: 'granite', lat: 49.68, lon: -123.15 }, { name: 'rrg', rock: 'sandstone_quartz_arenite', lat: 37.78, lon: -83.68 },

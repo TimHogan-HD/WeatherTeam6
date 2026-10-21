@@ -30,6 +30,7 @@
 import {
   TEMP_RANGE_DEFAULT_F,
   fToC,
+  rockGuide,
   type RockSunShade,
   type RockType,
   type ScoreLimit,
@@ -94,6 +95,20 @@ export const MELT_PER_C = 0.15
 export const MELT_PER_WM2 = 0.0015
 /** Rain within this many hours of the last wet hour belongs to the same storm. */
 export const STORM_GAP_H = 24
+
+/**
+ * **A rock that breaks when wet never dries faster than the clock on the wall**
+ * (F17, 2026-10-21: the owner asked for a wait after rain; this is the form of
+ * it that moved the test day, measured in `crag-a-reference/README.md`). Its `MAX_HOURS` are the land-manager rules
+ * ("wait 24–48 h"), which are elapsed hours, and the danger is water inside the
+ * rock that sun and dry air on the surface do not reach. Weather can still slow
+ * the clock, never speed it. Red Rock read 76 two days after half an inch in
+ * January sun; this reads 39, and five days after still reads 100.
+ * `unknown` has no guide and counts as fragile, being the most cautious row.
+ */
+export function maxDryingRate(rockType: RockType): number {
+  return (rockGuide(rockType)?.whenWet ?? 'fragile') === 'fragile' ? 1 : Infinity
+}
 
 /** A day is worth its best run of this many consecutive hours, each run valued at its worst hour. */
 export const DAY_RUN_HOURS = 3
@@ -190,7 +205,8 @@ const remainingRamp = (remaining: number, need: number): number =>
  * Two stores: the surface, reset by any wetting, and the soak, topped up by a
  * storm and never lowered by a smaller later one. Each needs
  * `maxHours × min(1, √(storm_in / FULL_SOAK_IN))` of weather-sped drying, and
- * dryness is the worse of `((N − R) / N)²` over the two.
+ * dryness is the worse of `((N − R) / N)²` over the two. Each hour's drying is
+ * capped at `maxRate` hours (`maxDryingRate`).
  *
  * The series' first hour is treated as fully soaked, because the rain before it
  * is unknown (issue #176) — the direction to be wrong in.
@@ -200,6 +216,7 @@ export function drynessTrack(
   evaluated: readonly HourlyConditions[],
   maxHours: number,
   wetThresholdMm: number,
+  maxRate: number,
 ): (number | null)[] {
   const needFor = (mm: number): number => maxHours * Math.min(1, Math.sqrt(mm / 25.4 / FULL_SOAK_IN))
   let deepR = maxHours
@@ -244,7 +261,7 @@ export function drynessTrack(
     } else {
       const e1 = evaluated[i]?.diagnostics.effective_dry_hours ?? null
       const e0 = i > 0 ? (evaluated[i - 1]?.diagnostics.effective_dry_hours ?? null) : null
-      const inc = e1 !== null && e0 !== null && e1 >= e0 ? e1 - e0 : 0
+      const inc = e1 !== null && e0 !== null && e1 >= e0 ? Math.min(e1 - e0, maxRate) : 0
       surfR = Math.max(0, surfR - inc)
       unknownR = Math.max(0, unknownR - inc)
       deepR = Math.max(0, deepR - inc)
@@ -330,7 +347,7 @@ export function evaluateCragA(
       cliffAngleDeg: 0,
       wall: { lat: options.lat, lon: options.lon, aspectDeg, cliffAngleDeg: 0 },
     })
-    return { evaluated, dry: drynessTrack(hours, evaluated, maxHours, WET_MM) }
+    return { evaluated, dry: drynessTrack(hours, evaluated, maxHours, WET_MM, maxDryingRate(rockType)) }
   })
   return flat.map((h, i) => {
     const xs = walls.map((w) => w.dry[i] ?? null)
@@ -375,7 +392,13 @@ export function evaluateWallA(
     wall,
   })
   const maxHours = dryingWindowHours(rockType, Math.max(0, wall.cliffAngleDeg)).maxHours
-  const dry = drynessTrack(sheltered, evaluated, maxHours, scale < 1 ? SHELTERED_WET_MM : WET_MM)
+  const dry = drynessTrack(
+    sheltered,
+    evaluated,
+    maxHours,
+    scale < 1 ? SHELTERED_WET_MM : WET_MM,
+    maxDryingRate(rockType),
+  )
   return evaluated.map((h, i) =>
     finish(h, hours[i]!, dry[i] ?? null, rockType, h.diagnostics.effective_dry_hours),
   )

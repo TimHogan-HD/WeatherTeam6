@@ -27,7 +27,10 @@ import type { RockType } from './index.js'
 /** How long rain keeps it off-limits: `hours` ≤ 12 h, `day` ≤ 48 h, `days` beyond. */
 export type DryingPace = 'hours' | 'day' | 'days'
 
-/** What water does to its strength (§2.4, §3's wet-strength column). */
+/**
+ * What water does to its strength (§2.4, §3's wet-strength column). Not display only:
+ * `fragile` caps the score's drying clock at elapsed time (`maxDryingRate`, apps/api).
+ */
 export type WetStrength = 'holds' | 'softens' | 'fragile'
 
 /** The pattern the tab draws for it. */

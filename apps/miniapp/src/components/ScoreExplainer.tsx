@@ -50,8 +50,9 @@ export function ScoreExplainerParts({ rangeF }: { rangeF: RangeF }) {
       <Part title="Dryness">
         <P>
           Rain restarts a drying clock. How long the rock takes depends on its type, from a few hours for
-          granite to two days for some sandstone. Sun-warmed rock, dry air and wind speed it up, and
-          lying snow holds it back.
+          granite to days for the softest sandstone. Sun-warmed rock, dry air and wind speed it up,
+          except on rock that breaks when wet: water inside it does not leave with the surface, so it
+          never dries faster than its waiting time. Lying snow holds it back.
         </P>
         <P>
           The clock runs on eight walls, one facing each compass direction, and the crag takes the middle
