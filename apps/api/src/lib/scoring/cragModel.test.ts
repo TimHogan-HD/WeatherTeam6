@@ -5,6 +5,8 @@ import {
   DAY_LAST_HOUR,
   DAY_RUN_HOURS,
   DEW_START_C,
+  FULL_SOAK_IN,
+  HEAT_SCALE_C,
   SNOW_DRYNESS_CAP,
   dayRepresentative,
   evaluateCragA,
@@ -26,6 +28,8 @@ describe('SCORE_MODEL_FACTS', () => {
     expect(SCORE_MODEL_FACTS.dayFirstHour).toBe(DAY_FIRST_HOUR)
     expect(SCORE_MODEL_FACTS.dayLastHour).toBe(DAY_LAST_HOUR)
     expect(SCORE_MODEL_FACTS.goodHoursMinScore).toBe(DEFAULT_WINDOW_MIN_SCORE)
+    expect(SCORE_MODEL_FACTS.tempFadeScaleF).toBeCloseTo((HEAT_SCALE_C * 9) / 5, 9)
+    expect(SCORE_MODEL_FACTS.fullSoakIn).toBe(FULL_SOAK_IN)
   })
 })
 
