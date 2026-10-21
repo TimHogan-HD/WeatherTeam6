@@ -58,7 +58,9 @@ export function ScoreExplainerParts({ rangeF, rockType = null }: { rangeF: Range
       <Part title="Dry rock">
         <P>
           Rain starts a drying clock. A light shower needs a short wait; {f.fullSoakIn}&quot; or more needs the
-          rock’s full drying time below. Sun, dry air and wind speed it up, but rock that is weak when wet never
+          rock’s full drying time below. Sun, dry air and wind speed it up. The forecast’s sunshine warms eight
+          imagined walls, one facing each direction, by the hour; the crag takes the middle one, so one sunny face
+          can’t make it read dry. Rock that is weak when wet never
           dries faster than the clock on the wall.
         </P>
         <DryingChart rockType={rockType} />

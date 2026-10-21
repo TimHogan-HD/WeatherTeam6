@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { ScoreExplainer, ScoreExplainerParts, SCORE_EXPLAINER_ID, SCORE_EXPLAINER_PATH } from './ScoreExplainer.js'
-import { bestRun } from './ScoreExplainerCharts.js'
+import { bestRun, dryingSpan } from './ScoreExplainerCharts.js'
 
 describe('ScoreExplainer', () => {
   it('draws the reader’s own range on the grip band', () => {
@@ -40,6 +40,16 @@ describe('ScoreExplainer', () => {
     const html = renderToStaticMarkup(<ScoreExplainer rangeF={null} />)
     expect(html).toContain(`id="${SCORE_EXPLAINER_ID}"`)
     expect(SCORE_EXPLAINER_PATH).toBe('/profile#score')
+  })
+})
+
+describe('dryingSpan', () => {
+  it('prints hours under a day, then days, on each bar', () => {
+    expect(dryingSpan(1, 6)).toBe('1–6 h')
+    expect(dryingSpan(6, 24)).toBe('6 h–1 day')
+    expect(dryingSpan(12, 48)).toBe('12 h–2 days')
+    expect(dryingSpan(48, 120)).toBe('2–5 days')
+    expect(renderToStaticMarkup(<ScoreExplainerParts rangeF={null} />)).toContain('>1–6 h<')
   })
 })
 

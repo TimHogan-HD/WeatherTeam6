@@ -63,6 +63,15 @@ const DRYING_TICKS: readonly [number, string][] = [
   [120, '5 days'],
 ]
 
+/** `1–6 h`, `6 h–1 day`, `2–5 days`: hours until a whole day, then days. */
+export function dryingSpan(min: number, max: number): string {
+  const days = (h: number): number => Math.round((h / 24) * 10) / 10
+  const unit = (h: number): string => (days(h) === 1 ? 'day' : 'days')
+  if (max < 24) return `${min}–${max} h`
+  if (min < 24) return `${min} h–${days(max)} ${unit(max)}`
+  return `${days(min)}–${days(max)} ${unit(max)}`
+}
+
 /**
  * How long a soaked wall takes to dry, per rock, from the drying table. The
  * crag's own rock is added if it is not one of the examples, and picked out.
@@ -101,6 +110,17 @@ export function DryingChart({ rockType }: { rockType: RockType | null }) {
               {mine ? `${rockTypeLabel(r)} (here)` : rockTypeLabel(r)}
             </text>
             <rect x={x0} y={y - 6} width={x1 - x0} height={12} rx={6} fill={mine ? colorsV2.brand : colorsV2.rainMark} opacity={mine ? 1 : 0.55} />
+            <text
+              x={x1 + 52 <= right ? x1 + 6 : x0 - 6}
+              y={y + 4}
+              textAnchor={x1 + 52 <= right ? 'start' : 'end'}
+              fontFamily={DISPLAY}
+              fontSize={12}
+              fontWeight={mine ? 700 : 400}
+              fill={mine ? colorsV2.brandInk : colorsV2.txt2}
+            >
+              {dryingSpan(MIN_HOURS[r], MAX_HOURS[r])}
+            </text>
           </g>
         )
       })}
