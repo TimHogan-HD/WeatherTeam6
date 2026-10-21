@@ -4,78 +4,87 @@ The only state document. `session-archive.md` is history — grep it for the rea
 one past decision, never read it at session start. The SessionStart hook warns when this file
 falls more than 15 commits behind `main`.
 
-Last updated: 2026-10-02 · `main` @ `bf1db3b`
+Last updated: 2026-10-21 · `main` @ `3b35305`, plus the F17 PR
 
 ---
 
 ## Where the project is
 
-**Telegram is gone** (2026-09-23). Auth is a passphrase and a signed token; alert data is
-still collected and delivery is parked. The audience is the owner plus a few climbing
-partners, each with their own list. The cleanup is recoverable from the
-`archive/2026-09-23-pre-cleanup` tag.
+**Telegram is gone** (2026-09-23). Auth is a passphrase and a signed token. Accounts come
+from `user:add` or a one-time invite link the owner mints on Profile (#328, #329); sign-in is
+capped per username (#330). The audience is the owner plus a few climbing partners, each with
+their own list. The cleanup is recoverable from the `archive/2026-09-23-pre-cleanup` tag.
 
-**Crag A is the only score** (owner decision 2026-09-24, `lib/scoring/cragModel.ts`); the
-five-component scorer was retired in #288. The model reads the four global models' median
-rain (#210), rock surface temperature lags the sun by 2 h, measured against USCRN (#226), and
-today counts only the hours still ahead (#227). A new crag is read with rain history from its
-first fetch (#289). Every known crag's rock type was checked against a source (#243). The
-screen says what is holding a score down (#291). Nothing is validated against outcomes: the
-forecast checks the Report button collects are the only path to that.
+**Crag A is the only score** (owner decision 2026-09-24, `lib/scoring/cragModel.ts`). The
+drying clock reads the median of the four global models' six-hour mean rain (#324, #326);
+rock surface temperature lags the sun by 2 h, measured against USCRN (#226); today counts
+only the hours still ahead (#227). **Rock that breaks when wet never dries faster than
+elapsed time** (F17, 2026-10-21, `maxDryingRate`; the owner asked for a wait after rain,
+and a measurement picked this form of it). Before this, Red Rock
+scored 76 two days after half an inch of rain in January sun; now it scores 39. Every known
+crag's rock type was checked against a source (#243). Climbing areas lock the rock type, and
+**Wrong rock type?** corrects it (#342). No friction word appears on any screen (#321). Score
+causes appear only in Score breakdown. Nothing is validated against outcomes: the forecast
+checks the Report button collects are the only path to that.
 
-**The web app is the WT6 Figma V2 design.** A bottom bar — Conditions · Trips · Map · Crags ·
-Profile (#268, #284); Trips and Crags are "not built yet" placeholders.
-- **Conditions** is the list, with an opening splash, remembered cards on a reopen (#276–#280)
-  and pull to refresh (#299–#301). The API is called at the app's own address, so no CORS
-  preflights (#277).
-- **A crag** has Overview, Daily, Hourly, Precip, Rock and Crag tabs. Crag is the OpenBeta
-  guidebook with a logbook (#202, #206). The editor sets the rock type only (#285, #294).
-- **`/add`** searches places and Colorado climbing areas (#302), browses areas by state
-  (#303), names a GPS fix after its town (#267), and opens on a point picked on the map. No
-  weather preview before saving.
-- **Map** (#304, #305): saved crags as score pins on a dark relief map with contours in feet,
-  locate me, and a held finger to add a spot. MapLibre + OpenFreeMap, recoloured from tokens;
-  terrain from AWS Open Data. Tiles load straight from the browser — the one exception to
-  "external calls are proxied" (owner decision 2026-10-02, architecture.md). The map chunk
-  warms 3 s after sign-in and the map outlives the tab; sign-out discards it.
-- **Profile** holds preferences — temperature range, the tab a crag opens on (#286) — and how
-  the score works (#296).
+**The web app is the hybrid look** (owner, 2026-10-19; `docs/handoffs/miniapp-hybrid-transition-v1.md`,
+all five phases built, #345–#370): dark liquid glass on a still background, an aqua
+selection, page transitions, and a crag switcher on top. The bottom bar is Conditions ·
+Trips · Map · Crags · Profile. Opening a crag swaps it for a glass dock of the crag's tabs.
+- **Conditions** is the list, with remembered cards on a reopen and pull to refresh.
+- **A crag** has Overview, Daily, Hourly, Precip, Rock and Crag tabs. The Overview hero is
+  the crag's name, the hour-now score, and one Today chart starting at now (#358, #364).
+  Hourly has four scrubbed charts with figures inside each card (#355). Crag is the OpenBeta
+  guidebook with a logbook, drawn to the mockup (#368).
+- **Trips** is built (#314–#316, #323, #335, #340, #369): a 16-day outlook per trip, a
+  recorded forecast trend (whole trip and by day), editing, and an ended trip's day-by-day
+  summary.
+- **Map** (#304, #305): score pins on a dark relief map. Tiles load straight from the
+  browser, which is the one exception to "external calls are proxied".
+- **Crags** is still the "not built yet" placeholder (`UnbuiltSection`).
+- **Profile** holds preferences, how the score works, invites, and everyone's open
+  feedback for the owner to read and clear (#341).
 
-**Design is an open conversation** with the owner, not a rulebook (#298). CSS and motion are
-allowed (#292); `.claude/docs/ui-craft.md` (#295) and three vendored design skills (#297)
-are the guidance.
+**Design is an open conversation** with the owner, not a rulebook (#298).
 
-**Storage:** weather runs are stored per place (#194), fetched only when Open-Meteo published
-a new run (#195), with no raw payloads (#208). The daily forecast reads the stored ensemble
-run (#274). Neon's 512 MB cap is the constraint behind all of it.
+**Storage:** weather runs are stored per place, fetched only when Open-Meteo published a new
+run, with no raw payloads. The daily forecast reads the stored ensemble run. One broken model
+no longer blanks the ensemble: each model is asked alone and whatever answers is pooled
+(#334). Neon's 512 MB cap is the constraint behind all of it.
 
-**Delivery tooling:** Vercel deploys from `main` only, and only the project a change touched
-(#255). A merge is blocked until the CI reviewer's `## Claude review` comment names the PR's
-head commit (#257). `check:ui` drives the web app in Chromium against the real database
-(#260) and covers every screen, the Map tab included.
+**Delivery tooling:** Vercel deploys from `main` only, and only the project a change touched.
+A merge is blocked until the CI reviewer's `## Claude review` comment names the PR's head
+commit; the gate reads GitHub over REST and fails closed (#331). Rules are split into
+path-scoped files under `.claude/rules/` (#332). `check:ui` drives every screen in Chromium
+against the real database. `--list-only` runs just the list checks in about 2 minutes
+(#375), and `--sweep` removes stale test users (#371).
 
 ### What is running
 
-- **API** — `https://weather-team6-api.vercel.app`. The owner's account exists, username `tim`.
-- **Web app** — https://weatherteam6.vercel.app, installable, with a service worker that
-  caches the app shell (map chunk included). The owner uses it on a phone at about 480×1000
-  CSS px.
-- **cron-job.org** — `check-alerts`, `collect-runs`, `prune-runs`. **`collect-runs` answers
-  `200 OK` when it persists nothing** — that hid a day-long outage on 2026-09-13; whether to
-  change it is undecided.
+- **API** — `https://weather-team6-api.vercel.app`. The owner's account is `tim`.
+- **Web app** — https://weatherteam6.vercel.app, installable. A deploy reaches the first
+  open after it (#367). The owner uses it on a phone at about 480×1000 CSS px.
+- **cron-job.org** — `check-alerts`, `collect-runs`, `prune-runs`. `/api/cron/record-trips`
+  exists too; this rewrite did not check whether it is registered there.
+  **`collect-runs` still answers `200 OK` when it persists nothing.** That hid a day-long
+  outage on 2026-09-13, and whether to change it is undecided.
 
-**Baseline (2026-10-02):** `npm run test` 1,330 passing — 650 api, 460 miniapp, 220 types —
-across 40 / 40 / 12 files; `check:hooks` 109; `check:ui` 106. **Compare the file count, not
-just the test count** — miniapp once printed "123 passed" with three files failing to collect.
+**Baseline (2026-10-21):** `npm run test` 1,555 passing: 757 api, 560 miniapp and 238 types,
+across 49, 51 and 14 files. `check:ui` was fully green at 173/0 on 2026-10-20 (#372).
+**Compare the file count, not just the test count.** One full run on 2026-10-21 showed one
+api file failing while a CPU-heavy script ran beside it, and the rerun passed 49/49. If it
+recurs, find the file.
 
-**Mutation:** the weekly job last passed on 2026-09-28 against `thresholds.break: 67`.
+**Mutation is broken (#377).** The weekly job has failed its dry run since 2026-10-05,
+because `deployConfig.test.ts` cannot find `vercel.json` inside Stryker's sandbox. No
+mutation score has been measured since 2026-09-28.
 
 **Credentials for unattended runs.** `DATABASE_URL`, `CRON_SECRET`, `API_SHARED_SECRET` and
-`VERCEL_TOKEN` are Windows **user** environment variables — read one with
+`VERCEL_TOKEN` are Windows **user** environment variables. Read one with
 `[Environment]::GetEnvironmentVariable('NAME','User')`, because `$env:` can read empty while
 it exists. Never echo one. `AUTH_TOKEN_SECRET` is not among them; a local run generates a
 throwaway. `VERCEL_TOKEN` is team-scoped and reaches `https://api.vercel.com` with no
-`teamId` — that is how env vars get set, because the Vercel MCP's `projectEnvVars` 403s.
+`teamId`. That is how env vars get set, because the Vercel MCP's `projectEnvVars` 403s.
 
 ---
 
@@ -83,30 +92,28 @@ throwaway. `VERCEL_TOKEN` is team-scoped and reaches `https://api.vercel.com` wi
 
 Nothing is scheduled; the owner picks from the open issues (`gh issue list`).
 
-- **Map follow-ups** — a day slider that recolours the pins (#306, the map version of #217),
-  OpenBeta areas as a faint layer (#307), 3D terrain (#308), overlapping pin labels (#309),
-  and radar as a map layer (#214, which needs a decision on proxying IEM tiles first).
-- **#293** — wall direction and angle per guidebook wall; Wall A (`evaluateWallA`) is built
+- **#377**: fix the mutation job's dry run. It is the cheapest item with a real cost.
+- **Open feedback**: krazykoreankyle (2026-10-17) says the score misses tree-covered crags
+  and crags near water. Crag A has no shade or local-humidity input. Not answered yet.
+- **#293**: wall direction and angle per guidebook wall. Wall A (`evaluateWallA`) is built
   and nothing calls it yet. **Do not score `aspectDegrees` directly**: the same aspect flips
   sign by season.
-- **Trips and Crags** are bottom-bar placeholders.
-- **Idea issues #213–#225** — webcams, sensors, trip planner and the rest. Filed, not
-  scheduled.
+- **Map follow-ups**: #306, #307, #308, #309, and radar (#214, which needs a decision on
+  proxying IEM tiles first).
+- **The Crags tab** is a placeholder.
+- **Idea issues** (#213–#225, #313, #317, #318): filed, not scheduled.
 
-Still open on Crag A: a minimum wait after rain for soft sandstone (F17).
-
-**Unfiled:** `/forecast/:id` and `/conditions/:id` each run their own `computeLiveForecast`,
-so one detail view costs two rainfall calls; and ACIS can return a successful response of
-all-`'M'` sentinels, yielding `[]` — indistinguishable from a dry month.
+Still open on Crag A, from `crag-a-reference/README.md`: G5 (overhang in all-day drizzle
+scores 0 on synthetic weather) and G10/F13 (the heat rule can't see an overhang's shade).
 
 ---
 
 ## Working with the owner
 
 - Interact only when it is needed. Design decisions qualify; chasing an unmerged PR does not.
-- **Do not sit watching CI.** Check once with `gh pr checks <n>`, say what is pending, move on.
-- **Visual work goes by side-by-side variants** — mock two or three, screenshot them together
-  at phone size, let the owner pick.
+- **Merge in the same turn**: wait for CI and the review in a bounded loop, then merge.
+- **Visual work goes by side-by-side variants**: mock two or three, screenshot them together
+  at phone size, and let the owner pick.
 - **The owner's field knowledge beats the research docs**, especially on rock and safety.
 
 ---
@@ -115,29 +122,33 @@ all-`'M'` sentinels, yielding `[]` — indistinguishable from a dry month.
 
 `CLAUDE.md` § Known Gotchas carries the rest.
 
-- **Auto mode will not commit an edit to `.claude/rules/`** — it reads as self-modification.
-  The owner turns auto mode off for that change.
+- **Auto mode will not commit an edit to `.claude/rules/`**, because it reads as
+  self-modification. The owner turns auto mode off for that change.
+- **The Crag A reference harness** (`.claude/docs/crag-a-reference/`) answers a model
+  question in under 10 seconds when cut to `accuracy()`. A full run takes 9 minutes and about
+  2 GB. Its README says how.
 - **`check:ui` runs on the dev server, so it never applies the production CSP.** A change to
   `vercel.json`'s headers needs the built app served with them (`vite preview` plus a
-  Playwright route that adds the header) — that is how the Map tab's CSP was checked.
-- **`API_SHARED_SECRET` on preview differs from production** (deliberately). `AUTH_TOKEN_SECRET`
-  is the same across all three targets. Env vars apply to new deployments only.
-- **The reviewer action will not run on a PR that edits `claude-review.yml`** — it requires the
-  file to match `main`. The merge gate exempts such a PR; its first real review is the next PR.
-- **A command containing the text `gh pr merge <n>`** (an echo, a test payload) trips the merge
-  gate. Put such payloads in a file.
-- **Backticks in a bash heredoc or a double-quoted `node -e` are command substitution**, and a
-  quoted heredoc is not reliable either. Write the file with the Write tool.
+  Playwright route that adds the header).
+- **`API_SHARED_SECRET` on preview differs from production** (deliberately).
+  `AUTH_TOKEN_SECRET` is the same across all three targets. Env vars apply to new deployments
+  only.
+- **The reviewer action will not run on a PR that edits `claude-review.yml`.** The merge gate
+  exempts such a PR; its first real review is the next PR.
+- **A command containing the text `gh pr merge <n>`** (an echo, a test payload) trips the
+  merge gate. Put such payloads in a file.
+- **Backticks in a bash heredoc or a double-quoted `node -e` are command substitution.** Write
+  the file with the Write tool.
 - **`sed` with `|` as the delimiter breaks on Markdown table rows.** Use `c\` instead.
-- **A source file can contain a literal NUL byte**, which makes `git diff` and `grep` treat
-  it as binary. `grep -a` and `git diff --text` see it.
+- **A source file can contain a literal NUL byte**, which makes `git diff` and `grep` treat it
+  as binary. `grep -a` and `git diff --text` see it.
 - **`DELETE` does not free Neon space.** `TRUNCATE` reclaims; `VACUUM FULL` needs as much free
   space as the table and cannot run at the cap.
-- **A fresh merge is not a deploy** — check the deployment state before probing production.
+- **A fresh merge is not a deploy.** Check the deployment state before probing production.
 - **`fetchWithRetry` throws after exhausting retries on a 5xx or 429**, so a test mocking 503
   to reach a `!res.ok` branch reaches the `catch` instead. Use 403.
 - **`drizzle-kit generate` needs no database**, only a non-empty `DATABASE_URL`.
-- **Vercel Hobby log retention is ~1 hour.** Check right after a cron fires; filter by message.
+- **Vercel Hobby log retention is ~1 hour.** Check right after a cron fires.
 
 ---
 

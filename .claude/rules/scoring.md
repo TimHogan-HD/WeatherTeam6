@@ -89,6 +89,10 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
 - **There is one drying table, `MIN_HOURS`/`MAX_HOURS` in `packages/types/src/dryingWindow.ts`, and everything
   imports it.** Never reintroduce a copy. Not-recorded kinds (`sandstone`, `limestone`,
   `basalt`) take their family's slowest window and `unknown` is the slowest row.
+- **Rock that breaks when wet never dries faster than elapsed time** (F17, 2026-10-21):
+  `maxDryingRate` caps each hour's drying at one hour for `rockGuide`'s `whenWet: 'fragile'`
+  and for `unknown`. Weather may slow that clock, never speed it. Changing a rock's
+  `whenWet` changes its score, so check it against `crag-a-reference` first.
 - **Every factor ramp reaches its floor at its own band edge — no factor may step** (#148). A
   new factor or band gets a test that walks its input in tenths past both edges.
   `TEMP_BAND_C` no longer feeds any score; it only colours the client's temperature chart.
