@@ -27,7 +27,9 @@ const MAX_UNREADABLE = 3
 
 const args = process.argv.slice(2)
 const timeoutArg = args.indexOf('--timeout-min')
-const timeoutMs = (timeoutArg >= 0 ? Number(args[timeoutArg + 1]) : 9) * 60_000
+// A missing or non-numeric value would make the cap NaN, and the wait would never time out.
+const timeoutMin = timeoutArg >= 0 ? Number(args[timeoutArg + 1]) : 9
+const timeoutMs = (Number.isFinite(timeoutMin) && timeoutMin > 0 ? timeoutMin : 9) * 60_000
 const prArg = args.find((a, i) => /^#?\d+$/.test(a) && args[i - 1] !== '--timeout-min')
 
 function finish(code, outcome, message) {
