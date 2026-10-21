@@ -32,7 +32,7 @@ npm run feedback -- list    # open feedback from every account
 npm run feedback -- resolve <id>...   # mark items acted on
 ```
 
-The other `check:*` scripts in `apps/api/package.json` are Postgres acceptance checks for the route each one names.
+The other `check:*` scripts in `apps/api/package.json` run against the real database; the script under `src/scripts/` says what each covers.
 
 **When a merged change answers a feedback item, resolve it** — open feedback is the to-do list the owner reads in the app.
 
