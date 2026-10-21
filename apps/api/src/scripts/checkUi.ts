@@ -1178,17 +1178,12 @@ async function run(): Promise<void> {
     check('a crag’s back returns to the list where it was left', near(viaTab), `left at ${listY}, back at ${viaTab}`)
 
     await openCard()
-    await page.evaluate(() => {
-      const trace: string[] = []
-      ;(window as unknown as { __trace: string[] }).__trace = trace
-      const t0 = performance.now()
-      const tick = () => {
-        trace.push(`${Math.round(performance.now() - t0)}:${location.pathname.length > 1 ? 'D' : 'L'} y${window.scrollY} h${document.documentElement.scrollHeight}`)
-        if (performance.now() - t0 < 1500) requestAnimationFrame(tick)
-      }
-      requestAnimationFrame(tick)
-      window.addEventListener('scroll', () => trace.push(`${Math.round(performance.now() - t0)}:scroll y${window.scrollY}`))
-    })
+    await page.evaluate(`(() => {
+      const trace = []; window.__trace = trace; const t0 = performance.now();
+      const tick = () => { trace.push(Math.round(performance.now() - t0) + ':' + (location.pathname.length > 1 ? 'D' : 'L') + ' y' + window.scrollY + ' h' + document.documentElement.scrollHeight); if (performance.now() - t0 < 1500) requestAnimationFrame(tick) };
+      requestAnimationFrame(tick);
+      window.addEventListener('scroll', () => trace.push(Math.round(performance.now() - t0) + ':scroll y' + window.scrollY));
+    })()`)
     await page.goBack()
     await backOnList()
     const viaBack = await scrollY()
