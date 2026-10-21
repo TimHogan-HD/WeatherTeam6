@@ -356,7 +356,9 @@ async function run(): Promise<void> {
 
     // 2a. Opening a crag from its card. Pressing starts the crag screen's
     // fetches before the finger lifts, and the screen draws from the list's
-    // copy of the location instead of asking for it again.
+    // copy of the location instead of asking for it again. Read on the recent
+    // rain: the card already holds the hourly series for its own line, so a
+    // fresh copy of that is rightly not asked for again.
     const requested: string[] = []
     const onRequest = (req: { url(): string }) => {
       if (req.url().startsWith(API)) requested.push(new URL(req.url()).pathname)
@@ -368,8 +370,8 @@ async function run(): Promise<void> {
     await page.mouse.down()
     await page.waitForTimeout(1_000)
     const heldOnList = new URL(page.url()).pathname === '/'
-    const hourlyOnPress = requested.some((p) => p.endsWith(`/hourly/${locationId}`))
-    check('pressing a card starts its hourly fetch before release', heldOnList && hourlyOnPress, `still on list: ${heldOnList}; requests: ${requested.join(', ')}`)
+    const fetchedOnPress = requested.some((p) => p.endsWith(`/recent-precip/${locationId}`))
+    check('pressing a card starts the crag screen’s fetches before release', heldOnList && fetchedOnPress, `still on list: ${heldOnList}; requests: ${requested.join(', ')}`)
     await page.mouse.up()
     await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
     await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
@@ -377,16 +379,20 @@ async function run(): Promise<void> {
     const refetched = requested.filter((p) => p.endsWith(`/locations/${locationId}`))
     check('the crag screen reuses the list’s copy of the location', refetched.length === 0, `fetched ${refetched.length}×`)
 
-    // 2b. A tapped card opens its crag at once, even when the crag's hourly
-    // series is slow (held back 3 s here). A brief wait for it was tried and
-    // removed: the owner found the tap laggy (2026-10-01).
+    // 2b. A tapped card opens its crag at once, even when the crag screen's
+    // own fetches are slow (its recent rain held back 3 s here; the card
+    // already holds the hourly series). A brief wait for data was tried and
+    // removed: the owner found the tap laggy (2026-10-01). Tapped once the
+    // list has its weather: a tap while every card was still fetching
+    // measured the list's own load (368–1048 ms under software rendering).
     await page.goto(`${WEB}/`)
     const firstCard = page.locator('[role="button"]').first()
     await firstCard.waitFor({ timeout: 30_000 })
     const splash = page.getByRole('status', { name: 'Loading your crags' })
     await splash.waitFor({ state: 'detached', timeout: 10_000 }).catch(() => undefined)
-    const slowHourly = `${API}/api/v1/hourly/**`
-    await page.route(slowHourly, async (route) => {
+    await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
+    const slowCragFetch = `${API}/api/v1/recent-precip/**`
+    await page.route(slowCragFetch, async (route) => {
       await new Promise((r) => setTimeout(r, 3_000))
       await route.continue().catch(() => undefined)
     })
@@ -399,7 +405,7 @@ async function run(): Promise<void> {
       /\/location\//.test(page.url()) && openedAfter < 250,
       `opened after ${openedAfter} ms`,
     )
-    await page.unroute(slowHourly)
+    await page.unroute(slowCragFetch)
 
     // 2c. The opening splash: up on a cold load until the cards have their
     // weather, lifted at the cap when they are slow, and never shown on a
@@ -1135,38 +1141,57 @@ async function run(): Promise<void> {
       check('and it was saved with the looked-up elevation', elevation !== null && elevation > 200 && elevation < 350, `got ${String(elevation)}`)
     }
 
-    // 4d. The list keeps its place. Two crags fit at 1000 px, so a shorter
-    // screen makes the list scroll.
-    await page.setViewportSize({ width: VIEWPORT.width, height: 400 })
+    // 4d. The list keeps its place. Its three rows fit at 1000 px, so a short
+    // screen makes it scroll; at 400 px only ~100 px of scroll was left.
+    await page.setViewportSize({ width: VIEWPORT.width, height: 300 })
     await page.goto(`${WEB}/`)
     await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
     const { listY, listH } = await page.evaluate(() => {
       window.scrollTo(0, Math.floor((document.documentElement.scrollHeight - window.innerHeight) / 2))
       return { listY: window.scrollY, listH: document.documentElement.scrollHeight }
     })
-    check('the list is tall enough to scroll at 480x400', listY > 50, `scrolled to ${listY} of ${listH}`)
+    check('the list is tall enough to scroll at 480x300', listY > 50, `scrolled to ${listY} of ${listH}`)
     await page.waitForTimeout(200)
     const scrollY = () => page.evaluate(() => window.scrollY)
     const near = (y: number) => Math.abs(y - listY) <= 2
 
     // The URL changes before React draws the next screen, so each read waits
-    // for that screen's own content.
+    // for that screen's own content: a return waits on the URL, the list's
+    // own sort control and the end of the page transition.
+    // Tapped where it already is on screen: `locator.click()` scrolls its
+    // target into view first, which moved the list before it was left and
+    // was this check's "back at 0" (#359; a finger does not scroll).
     const card = page.locator('[role="button"]').first()
     const openCard = async () => {
-      await card.click()
+      let tap: { x: number; y: number } | null = null
+      for (const box of await Promise.all((await page.locator('[role="button"]').all()).map((c) => c.boundingBox()))) {
+        const y = box === null ? -1 : box.y + box.height / 2
+        if (box !== null && y > 10 && y < 190) {
+          tap = { x: box.x + box.width / 2, y }
+          break
+        }
+      }
+      if (tap === null) throw new Error('no card on screen at 480x300 — stopping')
+      await page.mouse.click(tap.x, tap.y)
       await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
+    }
+    const backOnList = async () => {
+      await page.waitForURL(`${WEB}/`, { timeout: 10_000 })
+      await page.getByText('Sort by').first().waitFor({ timeout: 10_000 })
+      // A page transition takes taps until it ends; `useNavigate` clears `data-page` then.
+      await page.waitForFunction(() => document.documentElement.dataset['page'] === undefined, null, { timeout: 5_000 })
     }
     await openCard()
     const detailY = await scrollY()
     check('a location opened from far down the list opens at its top', detailY === 0, `at ${detailY}`)
     await page.getByRole('button', { name: 'Back to Conditions' }).click()
-    await card.waitFor({ timeout: 10_000 })
+    await backOnList()
     const viaTab = await scrollY()
     check('a crag’s back returns to the list where it was left', near(viaTab), `left at ${listY}, back at ${viaTab}`)
 
     await openCard()
     await page.goBack()
-    await card.waitFor({ timeout: 10_000 })
+    await backOnList()
     const viaBack = await scrollY()
     check('the phone’s back returns to the list where it was left', near(viaBack), `left at ${listY}, back at ${viaBack}`)
 
