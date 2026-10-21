@@ -26,6 +26,7 @@ import {
   type RangeF,
   type ReadingsSummary,
   type RecentPrecip,
+  type RockType,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, cardV2 } from '../theme/styles.js'
@@ -574,7 +575,7 @@ function rockDryingSpan(rockType: NonNullable<Location['rock_type']>): string {
   return `${MIN_HOURS[rockType]}–${MAX_HOURS[rockType]} h`
 }
 
-function ExplainerCard({ rangeF }: { rangeF: RangeF }) {
+function ExplainerCard({ rangeF, rockType }: { rangeF: RangeF; rockType: RockType | null }) {
   return (
     <section style={sectCard}>
       <details>
@@ -582,7 +583,7 @@ function ExplainerCard({ rangeF }: { rangeF: RangeF }) {
           How the score works
         </summary>
         <div style={{ display: 'flex', flexDirection: 'column', gap: `${spacing.listGapLg}px`, marginTop: `${spacing.listGap}px` }}>
-          <ScoreExplainerParts rangeF={rangeF} />
+          <ScoreExplainerParts rangeF={rangeF} rockType={rockType} />
         </div>
       </details>
     </section>
@@ -600,7 +601,7 @@ export function OverviewTab(props: OverviewTabProps) {
       <RainCard props={props} />
       <AirCard props={props} />
       <RockCard props={props} now={now} />
-      {props.isClimbingLocation ? <ExplainerCard rangeF={props.rangeF} /> : null}
+      {props.isClimbingLocation ? <ExplainerCard rangeF={props.rangeF} rockType={props.location?.rock_type ?? null} /> : null}
     </>
   )
 }

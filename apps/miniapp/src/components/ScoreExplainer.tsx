@@ -1,9 +1,16 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
-import { HELD_BACK_LABEL, REWETTING_PRECIP_MM, SCORE_MODEL_FACTS, cToFDelta, mmToIn, type RangeF } from '@weatherteam6/types'
+import {
+  HELD_BACK_LABEL,
+  SCORE_MODEL_FACTS,
+  cToFDelta,
+  type RangeF,
+  type RockType,
+} from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { cardV2, stack } from '../theme/styles.js'
 import { Sect } from './charts/liquid.js'
+import { DayScoreExample, DryingChart, GripBand, ScoreEquation } from './ScoreExplainerCharts.js'
 
 /** Where the measurements panel's "How the score works" link lands. */
 export const SCORE_EXPLAINER_ID = 'score'
@@ -32,81 +39,62 @@ export function ScoreExplainer({ rangeF }: { rangeF: RangeF }) {
   )
 }
 
-/** The explanation's parts, for Profile's card and the Overview's fold-out. */
-export function ScoreExplainerParts({ rangeF }: { rangeF: RangeF }) {
+/**
+ * The explanation's parts, for Profile's card and the Overview's fold-out.
+ * `rockType` picks the crag's own rock out in the drying chart; Profile has none.
+ */
+export function ScoreExplainerParts({ rangeF, rockType = null }: { rangeF: RangeF; rockType?: RockType | null }) {
   const f = SCORE_MODEL_FACTS
-  const high = rangeF === null ? 'the high end of your range' : `your high, ${rangeF.high}°F`
-  const low = rangeF === null ? 'the low end of your range' : `your low, ${rangeF.low}°F`
   const condensationF = Math.round(cToFDelta(f.condensationClearMarginC))
-  const rewetIn = mmToIn(REWETTING_PRECIP_MM).toFixed(2)
 
   return (
     <>
       <P>
-        The score runs from 0 to 100 for one hour at the crag. It multiplies two things: how dry the rock
-        is and how good the friction is. If either one is zero, so is the score.
+        The score rates one hour at the crag from 0 to 100. It multiplies two things, so if either one is zero, so
+        is the score.
       </P>
+      <ScoreEquation />
 
-      <Part title="Dryness">
+      <Part title="Dry rock">
         <P>
-          Rain restarts a drying clock. How long the rock takes depends on its type, from a few hours for
-          granite to days for the softest sandstone. Sun-warmed rock, dry air and wind speed it up,
-          except on rock that breaks when wet: water inside it does not leave with the surface, so it
-          never dries faster than its waiting time. Lying snow holds it back.
+          Rain starts a drying clock. A light shower needs a short wait; {f.fullSoakIn}&quot; or more needs the
+          rock’s full drying time below. Sun, dry air and wind speed it up. The forecast’s sunshine warms eight
+          imagined walls, one facing each direction, by the hour; the crag takes the middle one, so one sunny face
+          can’t make it read dry. Rock that is weak when wet never
+          dries faster than the clock on the wall.
         </P>
-        <P>
-          The clock runs on eight walls, one facing each compass direction, and the crag takes the middle
-          one, so a single sunny face can’t make the whole crag read dry.
-        </P>
-        <P>
-          The rain is the median of four global forecast models (the middle value each hour), not a
-          rain gauge, so a local shower can be missed. Anything under{' '}
-          {rewetIn} in an hour doesn’t reset the clock.
-        </P>
+        <DryingChart rockType={rockType} />
+        <Note>Hours after a soaking, from climbers’ rules of thumb. Nobody has measured them.</Note>
       </Part>
 
-      <Part title="Friction">
-        <P>Friction is an estimate; nothing measures grip. Four things lower it, each gradually:</P>
-        <Rule name="Condensation">
-          When the rock is within about {condensationF}°F of its dew point, moisture starts to settle on
-          it. At the dew point, friction is zero.
-        </Rule>
-        <Rule name="Heat">Above {high}, friction falls as the air warms.</Rule>
-        <Rule name="Cold">Below {low}, it falls as the air cools.</Rule>
-        <Rule name="Humidity">Above a dew point of {f.dewStartF}°F, sticky air takes it down.</Rule>
+      <Part title="Good grip">
         <P>
-          The rock’s temperature is modelled from the forecast’s sun, air and wind for open, flat ground,
-          and runs about two hours behind the sun. It’s calculated, not measured.
+          Grip is an estimate. It’s full inside your temperature range and fades the further outside it the air
+          gets. Muggy air (a dew point over {f.dewStartF}°F) lowers it, and
+          so does rock within about {condensationF}°F of its dew point, where moisture settles on it.
         </P>
+        {rangeF === null ? null : <GripBand rangeF={rangeF} />}
       </Part>
 
-      <Part title={HELD_BACK_LABEL}>
+      <Part title="A day’s score">
         <P>
-          On a crag’s Overview: what’s lowering the score, biggest first.
+          It’s the lowest hour of the day’s best {f.dayRunHours} hours in a row between {clock(f.dayFirstHour)} and{' '}
+          {clock(f.dayLastHour)}. Good hours are the longest run scoring {f.goodHoursMinScore} or more. After{' '}
+          {clock(f.dayLastHour)}, today has no score.
         </P>
+        <DayScoreExample />
+        <Note>An example day, not a forecast.</Note>
       </Part>
 
-      <Part title="A day’s score and Good hours">
+      <Part title="When it’s missing or wrong">
         <P>
-          A day’s score is the worst hour of its best {f.dayRunHours}-hour stretch between{' '}
-          {clock(f.dayFirstHour)} and {clock(f.dayLastHour)}. Today counts only the hours not yet over, so
-          after {clock(f.dayLastHour)} today has no score. Good hours are the day’s longest run of hours
-          scoring {f.goodHoursMinScore} or more.
+          A Severe or Extreme warning hides the score but keeps the readings, and a missing forecast hour is a gap,
+          never a guess. {HELD_BACK_LABEL} on a crag lists what’s lowering its score.
         </P>
-      </Part>
-
-      <Part title="When there is no score">
         <P>
-          A Severe or Extreme weather warning hides the score and keeps the readings. A forecast hour that
-          is missing shows as a gap, never a guess.
-        </P>
-      </Part>
-
-      <Part title="What it can’t see">
-        <P>
-          Shade from the terrain, seepage, wind on one wall, and your skin and rubber. These rules are
-          estimates and haven’t been tested against real days yet. Use Check this forecast on a crag to
-          report a miss.
+          The rain is from forecast models, not a gauge, so a local shower can be missed. The score can’t see
+          terrain shade, seepage, wind on one wall, or your skin and rubber, and it hasn’t been checked against real
+          days yet. Use Check this forecast on a crag to report a miss.
         </P>
       </Part>
     </>
@@ -126,10 +114,6 @@ function P({ children }: { children: ReactNode }) {
   return <p style={typeV2.body}>{children}</p>
 }
 
-function Rule({ name, children }: { name: string; children: ReactNode }) {
-  return (
-    <p style={typeV2.body}>
-      <span style={{ color: colorsV2.txt1 }}>{name}.</span> {children}
-    </p>
-  )
+function Note({ children }: { children: ReactNode }) {
+  return <p style={{ ...typeV2.body, fontSize: '13px', color: colorsV2.txtMuted }}>{children}</p>
 }

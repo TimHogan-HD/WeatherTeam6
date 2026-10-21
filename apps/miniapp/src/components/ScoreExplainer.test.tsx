@@ -1,31 +1,65 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { ScoreExplainer, SCORE_EXPLAINER_ID, SCORE_EXPLAINER_PATH } from './ScoreExplainer.js'
+import { ScoreExplainer, ScoreExplainerParts, SCORE_EXPLAINER_ID, SCORE_EXPLAINER_PATH } from './ScoreExplainer.js'
+import { bestRun, dryingSpan } from './ScoreExplainerCharts.js'
 
 describe('ScoreExplainer', () => {
-  it('quotes the reader’s own range in the heat and cold rules', () => {
+  it('draws the reader’s own range on the grip band', () => {
     const html = renderToStaticMarkup(<ScoreExplainer rangeF={{ low: 35, high: 65 }} />)
-    expect(html).toContain('your high, 65°F')
-    expect(html).toContain('your low, 35°F')
+    expect(html).toContain('Grip is full from 35°F to 65°F')
+    expect(html).toContain('>65°F<')
   })
 
-  it('names the range without quoting a default as the reader’s while it loads', () => {
+  it('draws no grip band while the range is unknown, rather than a default as the reader’s', () => {
     const html = renderToStaticMarkup(<ScoreExplainer rangeF={null} />)
-    expect(html).toContain('the high end of your range')
-    expect(html).not.toContain('your high, 60°F')
+    expect(html).not.toContain('Grip is full from')
+    expect(html).not.toContain('60°F<')
   })
 
   it('states the model’s own rules, from the pinned facts', () => {
     const html = renderToStaticMarkup(<ScoreExplainer rangeF={null} />)
     expect(html).toContain('within about 4°F of its dew point')
-    expect(html).toContain('dew point of 54°F')
-    expect(html).toContain('3-hour stretch between 8am and 6pm')
+    expect(html).toContain('dew point over 54°F')
+    expect(html).toContain('best 3 hours in a row between 8am and 6pm')
     expect(html).toContain('scoring 60 or more')
+    expect(html).toContain('0.4&quot; or more needs the')
+  })
+
+  it('picks the crag’s own rock out of the drying chart, adding it when it is not an example', () => {
+    const html = renderToStaticMarkup(<ScoreExplainerParts rangeF={null} rockType="quartzite" />)
+    expect(html).toContain('Quartzite (here)')
+    expect(html).toContain('Quartzite 1 to 6 hours')
+  })
+
+  it('names no rock as the crag’s on Profile, or for an unknown rock', () => {
+    expect(renderToStaticMarkup(<ScoreExplainer rangeF={null} />)).not.toContain('(here)')
+    expect(renderToStaticMarkup(<ScoreExplainerParts rangeF={null} rockType="unknown" />)).not.toContain('(here)')
   })
 
   it('is the anchor the measurements panel links to', () => {
     const html = renderToStaticMarkup(<ScoreExplainer rangeF={null} />)
     expect(html).toContain(`id="${SCORE_EXPLAINER_ID}"`)
     expect(SCORE_EXPLAINER_PATH).toBe('/profile#score')
+  })
+})
+
+describe('dryingSpan', () => {
+  it('prints hours under a day, then days, on each bar', () => {
+    expect(dryingSpan(1, 6)).toBe('1–6 h')
+    expect(dryingSpan(6, 24)).toBe('6 h–1 day')
+    expect(dryingSpan(12, 48)).toBe('12 h–2 days')
+    expect(dryingSpan(48, 120)).toBe('2–5 days')
+    expect(renderToStaticMarkup(<ScoreExplainerParts rangeF={null} />)).toContain('>1–6 h<')
+  })
+})
+
+describe('bestRun', () => {
+  it('takes the run whose worst hour is highest, not the run with the best hour', () => {
+    // 95 sits in a run whose worst is 62; 85-92-88 is the better run.
+    expect(bestRun([40, 55, 70, 85, 92, 88, 82, 95, 90, 62, 45], 3)).toEqual({ start: 3, score: 85 })
+  })
+
+  it('has no run when the day is shorter than one', () => {
+    expect(bestRun([90, 90], 3)).toBeNull()
   })
 })

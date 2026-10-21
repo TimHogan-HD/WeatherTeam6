@@ -151,4 +151,19 @@ describe('parseStoredDaily', () => {
   ])('rejects %s', (_label, value) => {
     expect(parseStoredDaily(value)).toBeNull()
   })
+
+  it('carries the rewet chance a run stored', () => {
+    const rewet = [{ local_date: '2026-09-29', members_rewet: 4, member_count: 143 }]
+    expect(parseStoredDaily({ ...ok, rewet })).toEqual({ ...ok, rewet })
+  })
+
+  it.each([
+    ['a run stored before it existed', undefined],
+    ['more members wet than counted', [{ local_date: '2026-09-29', members_rewet: 5, member_count: 4 }]],
+    ['no members counted', [{ local_date: '2026-09-29', members_rewet: 0, member_count: 0 }]],
+    ['a count stored as text', [{ local_date: '2026-09-29', members_rewet: '4', member_count: 143 }]],
+    ['a malformed date', [{ local_date: '29/09/2026', members_rewet: 4, member_count: 143 }]],
+  ])('keeps the days and drops only the rewet chance for %s', (_label, rewet) => {
+    expect(parseStoredDaily({ ...ok, rewet })).toEqual(ok)
+  })
 })

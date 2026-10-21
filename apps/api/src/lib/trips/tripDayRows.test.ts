@@ -53,6 +53,7 @@ describe('tripDayRows', () => {
       outlook: OUTLOOK,
       readings: null,
       scoredRunFetchedAt: null,
+      rewet: null,
     })
     expect(rows.map((r) => [r.local_date, r.lead_days])).toEqual([
       ['2026-10-02', 0],
@@ -68,6 +69,7 @@ describe('tripDayRows', () => {
       outlook: OUTLOOK,
       readings: null,
       scoredRunFetchedAt: null,
+      rewet: null,
     })
     expect(rows[0]?.recorded_at.toISOString()).toBe('2026-10-03T01:00:00.000Z')
     expect(recordingHour(new Date('2026-10-03T01:59:59Z'))).toEqual(recordingHour(NOW))
@@ -81,6 +83,7 @@ describe('tripDayRows', () => {
       outlook: OUTLOOK,
       readings: [readingsDay('2026-10-02', 80), readingsDay('2026-10-03', 64)],
       scoredRunFetchedAt: FETCHED,
+      rewet: null,
     })
     expect(rows.map((r) => r.score)).toEqual([80, 64, null, null])
     expect(rows[1]).toMatchObject({ dryness: 'dry', friction: 'good', scored_run_fetched_at: FETCHED })
@@ -95,6 +98,7 @@ describe('tripDayRows', () => {
       outlook: OUTLOOK,
       readings: null,
       scoredRunFetchedAt: FETCHED,
+      rewet: null,
     })
     expect(rows).toHaveLength(4)
     expect(rows.every((r) => r.score === null && r.scored_run_fetched_at === null)).toBe(true)
@@ -109,8 +113,44 @@ describe('tripDayRows', () => {
       outlook: { ...OUTLOOK, days: OUTLOOK.days.slice(0, 2) },
       readings: null,
       scoredRunFetchedAt: null,
+      rewet: null,
     })
     expect(rows.map((r) => r.local_date)).toEqual(['2026-10-02', '2026-10-03'])
+  })
+
+  it('carries the rewet chance by date, and a gap where it has none', () => {
+    const rows = tripDayRows({
+      locationId: 'loc',
+      now: NOW,
+      ranges: [{ start: '2026-10-02', end: '2026-10-04' }],
+      outlook: OUTLOOK,
+      readings: null,
+      scoredRunFetchedAt: null,
+      rewet: [
+        { local_date: '2026-10-04', members_rewet: 7, member_count: 140 },
+        { local_date: '2026-10-02', members_rewet: 3, member_count: 143 },
+      ],
+    })
+    expect(rows.map((r) => [r.local_date, r.members_rewet, r.rewet_member_count])).toEqual([
+      ['2026-10-02', 3, 143],
+      ['2026-10-03', null, null],
+      ['2026-10-04', 7, 140],
+    ])
+    expect(rows[1]?.members_wet).toBe(20)
+  })
+
+  it('still writes the weather when the rewet request failed', () => {
+    const rows = tripDayRows({
+      locationId: 'loc',
+      now: NOW,
+      ranges: [{ start: '2026-10-02', end: '2026-10-02' }],
+      outlook: OUTLOOK,
+      readings: null,
+      scoredRunFetchedAt: null,
+      rewet: null,
+    })
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ members_wet: 20, members_rewet: null, rewet_member_count: null })
   })
 
   it('records a day once when two trips cover it', () => {
@@ -124,6 +164,7 @@ describe('tripDayRows', () => {
       outlook: OUTLOOK,
       readings: null,
       scoredRunFetchedAt: null,
+      rewet: null,
     })
     expect(rows.map((r) => r.local_date)).toEqual(['2026-10-02', '2026-10-03', '2026-10-04'])
   })

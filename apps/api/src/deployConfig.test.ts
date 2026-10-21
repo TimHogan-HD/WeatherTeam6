@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
@@ -22,8 +23,23 @@ type VercelJson = {
   headers?: { source: string; headers: { key: string; value: string }[] }[]
 }
 
+/**
+ * The repo root, found by walking up rather than by a fixed `../..`: Stryker
+ * runs this file from a sandbox copy under `apps/api/node_modules/.stryker-tmp/`,
+ * where a fixed relative path lands inside the sandbox (#377).
+ */
+function repoRoot(): string {
+  let dir = dirname(fileURLToPath(import.meta.url))
+  while (!existsSync(join(dir, 'apps', 'miniapp', 'vercel.json'))) {
+    const parent = dirname(dir)
+    if (parent === dir) throw new Error('no ancestor of this test holds apps/miniapp/vercel.json')
+    dir = parent
+  }
+  return dir
+}
+
 function config(app: (typeof APPS)[number]): VercelJson {
-  const path = fileURLToPath(new URL(`../../${app}/vercel.json`, import.meta.url))
+  const path = join(repoRoot(), 'apps', app, 'vercel.json')
   return JSON.parse(readFileSync(path, 'utf8')) as VercelJson
 }
 

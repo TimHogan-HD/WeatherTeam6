@@ -194,9 +194,11 @@ temp_c_min            double
 members_wet           int         -- members at or above 0.1 mm that day
 member_count          int
 precip_mm_mean        double      -- mean of member daily totals; sums across days
+members_rewet         int         -- migration 0030: members with an hour ≥ 0.5 mm, 01:00-18:00 local (RewetDay)
+rewet_member_count    int         -- members that reported every hour of that window
 UNIQUE(location_id, local_date, recorded_at)   -- a rerun inside the hour replaces its row
 ```
-On `DEPENDENT_TABLES`, so a location delete clears it. A row is written only when every source the location needs answered; a failed read writes nothing rather than nulls.
+On `DEPENDENT_TABLES`, so a location delete clears it. A row is written only when every source the location needs answered; a failed read writes nothing rather than nulls. **The exception is the rewet pair**: read from the stored ensemble run (`getEnsembleDaily`, days 0-6), shown on no screen, and null when that read failed, the run predates it, or the day is past day 6 — the rest of the row is still written.
 
 ### trip_rain_records
 A trip's rain total and warmest high at one of its locations, per firing of `POST /api/cron/record-trips`: the points of the trip screen's forecast trend, read by `GET /trips/:tripId/trend`. Built by `tripRainRows` from the same `summarizeTripOutlook` that `GET /trips/:tripId/forecast` answers with.

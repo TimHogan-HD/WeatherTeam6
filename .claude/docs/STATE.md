@@ -75,9 +75,8 @@ across 49, 51 and 14 files. `check:ui` was fully green at 173/0 on 2026-10-20 (#
 api file failing while a CPU-heavy script ran beside it, and the rerun passed 49/49. If it
 recurs, find the file.
 
-**Mutation is broken (#377).** The weekly job has failed its dry run since 2026-10-05,
-because `deployConfig.test.ts` cannot find `vercel.json` inside Stryker's sandbox. No
-mutation score has been measured since 2026-09-28.
+**Mutation runs again (#377, #380): 71.60% on 2026-10-21**, `thresholds.break` raised to
+71. It takes 64 minutes on CI, under a 120-minute cap. 446 mutants have no covering test.
 
 **Credentials for unattended runs.** `DATABASE_URL`, `CRON_SECRET`, `API_SHARED_SECRET` and
 `VERCEL_TOKEN` are Windows **user** environment variables. Read one with
@@ -92,7 +91,6 @@ throwaway. `VERCEL_TOKEN` is team-scoped and reaches `https://api.vercel.com` wi
 
 Nothing is scheduled; the owner picks from the open issues (`gh issue list`).
 
-- **#377**: fix the mutation job's dry run. It is the cheapest item with a real cost.
 - **Open feedback**: krazykoreankyle (2026-10-17) says the score misses tree-covered crags
   and crags near water. Crag A has no shade or local-humidity input. Not answered yet.
 - **#293**: wall direction and angle per guidebook wall. Wall A (`evaluateWallA`) is built

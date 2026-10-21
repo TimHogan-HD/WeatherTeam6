@@ -211,7 +211,7 @@ export async function storeEnsembleRun(
     model_elevation_m: null,
     // Not applicable to an ensemble run, and null here means exactly that.
     precip_prob_is_shared: null,
-    ensemble_daily: { days: run.daily.days, model_sources: run.daily.model_sources },
+    ensemble_daily: { days: run.daily.days, model_sources: run.daily.model_sources, rewet: run.daily.rewet },
   })
   if (!runId) return null
 

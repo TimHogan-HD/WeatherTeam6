@@ -71,6 +71,9 @@ async function run(): Promise<void> {
   const { users, locations, trips, tripLocations, tripDayRecords, tripDayOutcomes, tripRainRecords } = await import('../db/schema.js')
   const { recordTripDays, writeOutcomes } = await import('../lib/trips/recordTripDays.js')
   const { deleteLocationCascade } = await import('../lib/locations/deleteLocation.js')
+  const { storeEnsembleRun } = await import('../lib/runs/storeRun.js')
+  const { pointKeyForPlace } = await import('../lib/runs/pointKey.js')
+  const { fetchEnsembleRun } = await import('../lib/weather/openMeteo.js')
   const { signToken, expiryFrom } = await import('../lib/auth/token.js')
   const { eq } = await import('drizzle-orm')
 
@@ -144,6 +147,13 @@ async function run(): Promise<void> {
     extraTripIds.push(oldTripId)
     await db.insert(tripLocations).values({ trip_id: oldTripId, location_id: oldLocationId })
 
+    // The rewet chance is read from the stored ensemble run, and one stored
+    // before it existed carries none. Store a fresh run, as collect-runs does.
+    console.log('\nStoring a fresh ensemble run for the crag')
+    const crag = { lat: Number(LAT), lon: Number(LON), elevation_m: null }
+    const stored = await storeEnsembleRun(pointKeyForPlace(crag), await fetchEnsembleRun(crag))
+    check('the ensemble run was stored', stored !== null)
+
     console.log('\nRecording once')
     const first = await recordTripDays(now)
     check('the test crag did not fail', !first.failed.includes(locationId), first.failed.join(','))
@@ -165,6 +175,19 @@ async function run(): Promise<void> {
       rows1.some((r) => r.lead_days <= LAST_SCORED_LEAD && r.score !== null && r.scored_run_fetched_at !== null),
     )
     check('every row carries the outlook', rows1.every((r) => (r.member_count ?? 0) > 0 && r.temp_c_max !== null))
+    check(
+      'every scored day carries the rewet chance, no higher than the rain chance, and no later day does',
+      rows1.every((r) =>
+        r.lead_days <= LAST_SCORED_LEAD
+          ? r.members_rewet !== null &&
+            r.rewet_member_count !== null &&
+            r.rewet_member_count > 0 &&
+            r.members_rewet <= r.rewet_member_count &&
+            r.members_rewet <= (r.members_wet ?? 0)
+          : r.lead_days === LAST_SCORED_LEAD + 1 || (r.members_rewet === null && r.rewet_member_count === null),
+      ),
+      rows1.map((r) => `${r.lead_days}:${r.members_rewet}/${r.rewet_member_count} vs ${r.members_wet}/${r.member_count}`).join(' '),
+    )
 
     console.log('\nRecording again inside the same hour')
     const second = await recordTripDays(now)

@@ -174,6 +174,13 @@ export const SCORE_MODEL_FACTS = {
   dayLastHour: 18,
   /** Good hours: the longest run of hours scoring at least this. */
   goodHoursMinScore: 60,
+  /**
+   * °F past either end of the reader's range over which grip fades by a factor
+   * of e. Draws the shape of the fade on How the score works; never printed.
+   */
+  tempFadeScaleF: 21.6,
+  /** A storm of this many inches or more needs the rock's full drying time. */
+  fullSoakIn: 0.4,
 } as const;
 
 /** The reader's temperature range in °F, or null while it is not known. */
