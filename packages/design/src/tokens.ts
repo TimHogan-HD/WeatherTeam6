@@ -1696,7 +1696,7 @@ export const motion = {
   dockRiseMs: 460,
   dockRiseDelayMs: 120,
   /** The score flying between the Overview's hero and the slim header. */
-  headerFlyMs: 550,
+  headerFlyMs: 400,
   /** The slim header's line and figure arriving when the tab under it changes. */
   headerSwapMs: 350,
   /**
@@ -1720,30 +1720,32 @@ export const motion = {
    * line, starting `streamDelayMs` after its card, and the bead fades out over
    * `beadFadeMs` where the line ends.
    */
-  streamMs: 1300,
-  streamDelayMs: 180,
-  beadFadeMs: 420,
+  streamMs: 700,
+  streamDelayMs: 60,
+  beadFadeMs: 250,
   /** A rain column springing up from its floor as the bead passes it, on `spring`. */
-  columnRiseMs: 650,
+  columnRiseMs: 400,
   /**
    * A crag's cards arriving (owner, 2026-10-21, the mockup's "pour"): each
-   * drops in `pourStepMs` after the one above, squashes and settles on
-   * `pourSpring`. Counted for the first `pourSteps` cards; the rest arrive with
-   * the last of them.
+   * rises in `pourStepMs` after the one above and settles on `pourSpring`.
+   * Opacity and position only: a card is glass over a backdrop blur, and
+   * squashing it or rounding its corners redraws that blur every frame, which
+   * lagged on the owner's phone (2026-10-21). Counted for the first
+   * `pourSteps` cards; the rest arrive with the last of them.
    */
-  pourMs: 900,
-  pourStepMs: 70,
+  pourMs: 480,
+  pourStepMs: 40,
   pourSteps: 8,
-  pourSpring: 'cubic-bezier(0.2, 1.6, 0.35, 1)',
+  pourSpring: 'cubic-bezier(0.2, 1.3, 0.4, 1)',
   /** The list's rows and Daily's rows rising into place, each `riseStepMs` after the last. */
-  riseMs: 600,
-  riseStepMs: 70,
+  riseMs: 380,
+  riseStepMs: 35,
   /** A list row's weather icon popping in, on `spring`, `popDelayMs` after its row starts. */
-  popMs: 700,
-  popDelayMs: 140,
+  popMs: 420,
+  popDelayMs: 80,
   /** Daily's temperature bar growing out from its low end, and the drying clock's arc filling. */
-  growMs: 650,
-  arcFillMs: 1300,
+  growMs: 400,
+  arcFillMs: 700,
 } as const;
 
 /**
