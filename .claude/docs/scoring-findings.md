@@ -438,6 +438,23 @@ decided it:
   of a model's run.
 - **A day scored on its single best hour** reads a 93 °F day as Go from a mild 8 am.
 
+## 6e. A day 3-6 days out is scored on one rain forecast (measured 2026-10-21, not acted on)
+
+The drying clock reads the median of the four global models' rain, so a day where two
+models have a shower and two do not scores as if none did. `npm run compare:rain-spread`
+(`apps/api`) runs the clock on each model's own rain at 1-6 days' lead against 17 ASOS
+gauges; its header holds the numbers. In short: the four models' share of dry days is a
+better chance-of-dry than the single forecast at every rock and lead, the mean of their four
+day scores is as accurate as the shipped score and fewer of its good days come out bad, and
+a shipped good day with even one model's clock disagreeing comes out not dry several times
+as often as one where all four agree.
+
+**What it does not cover.** The ensemble's 143 members cannot be backtested: Open-Meteo keeps
+no past ensemble runs. And the ensemble's rain chance counts a member wet at 0.1 mm anywhere
+in the day, which the clock ignores, so a high chance beside a 100 can be traces overnight —
+the owner's Red Wing trip (Oct 24/25) read 68% while all four models' own clocks scored the
+day 97-100.
+
 ## 7. If you only do three things
 
 1. **Do not let the drying ramp reach full marks as early as it does** (§1.2). It is wrong in
