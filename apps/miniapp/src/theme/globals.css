@@ -210,14 +210,9 @@ html[data-page='fade']::view-transition-new(root) {
    Overview's hero is one and stays put. A chart in a card waits for it
    (`StreamIn` reads the same position). */
 @keyframes wt6-pour {
-  0% {
+  from {
     opacity: 0;
-    transform: translateY(26px) scale(0.94, 1.07);
-    border-radius: 44px;
-  }
-  55% {
-    opacity: 1;
-    transform: translateY(-3px) scale(1.015, 0.985);
+    transform: translateY(18px);
   }
 }
 .wt6-pour > section:not([data-hero]) {

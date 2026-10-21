@@ -59,7 +59,7 @@ export function StreamIn({ height, children }: { height: number; children: React
 const REACH = 400
 /** The clip runs this far ahead of the bead, so the bead never sits on a cut edge. */
 const LEAD = 6
-const SAMPLES = 120
+const SAMPLES = 40
 
 type Run = readonly (readonly [number, number])[]
 
