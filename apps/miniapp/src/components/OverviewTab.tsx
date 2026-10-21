@@ -32,6 +32,7 @@ import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, cardV2 } from '../theme/styles.js'
 import { formatTempDeg } from '../lib/format.js'
 import { FLIP_ATTR } from '../lib/flip.js'
+import { CRAG_FLY_ATTR } from '../lib/cragFly.js'
 import { findToday } from '../lib/forecast.js'
 import { chartWindow, dayChance, lastRainText, nextDays, nextLikelyRain, shortDate, shortDay } from '../lib/overview.js'
 import { formatSince, precipDays, precipSummary } from '../lib/precipHistory.js'
@@ -275,7 +276,11 @@ function Hero({ props, now }: { props: OverviewTabProps; now: Now | null }) {
 function HeroFrame({ name, body }: { name: string | null; body: ReactNode }) {
   return (
     <section data-hero="" style={{ marginTop: '-6px' }}>
-      {name === null ? null : <h1 style={{ ...typeV2.heroName, margin: 0 }}>{name}</h1>}
+      {name === null ? null : (
+        <h1 {...{ [CRAG_FLY_ATTR]: 'name' }} style={{ ...typeV2.heroName, margin: 0, width: 'fit-content' }}>
+          {name}
+        </h1>
+      )}
       {body}
     </section>
   )
@@ -287,7 +292,7 @@ function HeroScore({ score }: { score: number | null }) {
   const was = usePreviousFigure(value)
   return (
     <span
-      {...{ [FLIP_ATTR]: 'score' }}
+      {...{ [FLIP_ATTR]: 'score', [CRAG_FLY_ATTR]: 'score' }}
       style={{
         ...typeV2.heroScore,
         ...(value.length >= 3 ? { fontSize: 'clamp(72px, 30vw, 150px)' } : {}),

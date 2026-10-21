@@ -399,9 +399,14 @@ export function DetailView({
       {/*
         Without tabs this is a plain wrapper: no id and no role. A
         `tabpanel` with no tablist is a lie about the page structure to a screen
-        reader.
+        reader. Keyed on the tab, so a tab's cards pour in each time it opens.
       */}
-      <div {...(tabs === undefined ? {} : { id: tabs.panelId, role: 'tabpanel' })} style={stack(spacing.listGapLg)}>
+      <div
+        key={active ?? 'days'}
+        className="wt6-pour"
+        {...(tabs === undefined ? {} : { id: tabs.panelId, role: 'tabpanel' })}
+        style={stack(spacing.listGapLg)}
+      >
         {panel}
       </div>
 

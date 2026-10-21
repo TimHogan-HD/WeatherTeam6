@@ -1714,6 +1714,36 @@ export const motion = {
   swipePx: 40,
   /** The switcher's underline sliding to the chosen crag, on `spring`. */
   switcherMs: 500,
+  /**
+   * A chart arriving (owner, 2026-10-21, the motion mockup's variant C): its
+   * marks are uncovered left to right behind a glowing bead riding the first
+   * line, starting `streamDelayMs` after its card, and the bead fades out over
+   * `beadFadeMs` where the line ends.
+   */
+  streamMs: 1300,
+  streamDelayMs: 180,
+  beadFadeMs: 420,
+  /** A rain column springing up from its floor as the bead passes it, on `spring`. */
+  columnRiseMs: 650,
+  /**
+   * A crag's cards arriving (owner, 2026-10-21, the mockup's "pour"): each
+   * drops in `pourStepMs` after the one above, squashes and settles on
+   * `pourSpring`. Counted for the first `pourSteps` cards; the rest arrive with
+   * the last of them.
+   */
+  pourMs: 900,
+  pourStepMs: 70,
+  pourSteps: 8,
+  pourSpring: 'cubic-bezier(0.2, 1.6, 0.35, 1)',
+  /** The list's rows and Daily's rows rising into place, each `riseStepMs` after the last. */
+  riseMs: 600,
+  riseStepMs: 70,
+  /** A list row's weather icon popping in, on `spring`, `popDelayMs` after its row starts. */
+  popMs: 700,
+  popDelayMs: 140,
+  /** Daily's temperature bar growing out from its low end, and the drying clock's arc filling. */
+  growMs: 650,
+  arcFillMs: 1300,
 } as const;
 
 /**
