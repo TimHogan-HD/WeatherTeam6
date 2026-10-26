@@ -1,13 +1,14 @@
 import { and, eq, inArray } from 'drizzle-orm'
-import type { UpdateTripInput } from '@weatherteam6/types'
+import type { ClimbHours, UpdateTripInput } from '@weatherteam6/types'
 import { db } from '../../db/index.js'
 import { locations, tripLocations, tripRainRecords, trips } from '../../db/schema.js'
 import { MAX_NAME_LENGTH, isIsoDate, isUuid } from '../http.js'
+import { climbHourColumns, isTripClimbHours } from './tripClimbHours.js'
 
 /** A trip is a handful of crags; this only bounds the size of one insert. */
 export const MAX_TRIP_LOCATIONS = 50
 
-const PATCH_KEYS = new Set<string>(['name', 'startDate', 'endDate', 'cragIds'])
+const PATCH_KEYS = new Set<string>(['name', 'startDate', 'endDate', 'cragIds', 'climbHours'])
 
 export type TripPatch = {
   name?: string
@@ -15,6 +16,8 @@ export type TripPatch = {
   endDate?: string
   /** Deduplicated location ids. */
   cragIds?: string[]
+  /** Null: back to the owner's Profile hours. */
+  climbHours?: ClimbHours | null
 }
 
 /**
@@ -53,6 +56,11 @@ export function parseTripPatch(body: unknown): TripPatch | null {
     }
     patch.cragIds = [...new Set(cragIds)]
   }
+  if ('climbHours' in input) {
+    const { climbHours } = input
+    if (!isTripClimbHours(climbHours)) return null
+    patch.climbHours = climbHours
+  }
   return patch
 }
 
@@ -69,7 +77,8 @@ export type UpdateTripResult =
  * trip's days, so a change of dates leaves every earlier point totalling
  * different days: they are deleted and the trend starts again. A removed crag's
  * points go with it. `trip_day_records` is per crag and day, not per trip, and
- * is never touched here.
+ * is never touched here. New climbing hours keep every point: a rain total
+ * does not depend on them.
  */
 export async function updateTrip(userId: string, tripId: string, patch: TripPatch): Promise<UpdateTripResult> {
   return db.transaction(async (tx) => {
@@ -99,6 +108,7 @@ export async function updateTrip(userId: string, tripId: string, patch: TripPatc
         .update(trips)
         .set({
           ...(patch.name !== undefined ? { name: patch.name } : {}),
+          ...(patch.climbHours !== undefined ? climbHourColumns(patch.climbHours) : {}),
           start_date: start,
           end_date: end,
           updated_at: new Date(),

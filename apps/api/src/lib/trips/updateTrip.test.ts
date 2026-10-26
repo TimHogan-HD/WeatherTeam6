@@ -27,4 +27,20 @@ describe('parseTripPatch', () => {
     expect(parseTripPatch({ cragIds: [] })).toBeNull()
     expect(parseTripPatch({ cragIds: ['not-a-uuid'] })).toBeNull()
   })
+
+  it('takes climbing hours, and null as back to Profile', () => {
+    expect(parseTripPatch({ climbHours: { first: 12, last: 20 } })).toEqual({ climbHours: { first: 12, last: 20 } })
+    expect(parseTripPatch({ climbHours: null })).toEqual({ climbHours: null })
+  })
+
+  it('refuses hours with one end, a span under three hours, an hour off the clock or an extra key', () => {
+    expect(parseTripPatch({ climbHours: { first: 12 } })).toBeNull()
+    expect(parseTripPatch({ climbHours: { last: 20 } })).toBeNull()
+    expect(parseTripPatch({ climbHours: { first: 12, last: 13 } })).toBeNull()
+    expect(parseTripPatch({ climbHours: { first: 20, last: 24 } })).toBeNull()
+    expect(parseTripPatch({ climbHours: { first: 8.5, last: 18 } })).toBeNull()
+    expect(parseTripPatch({ climbHours: { first: '8', last: 18 } })).toBeNull()
+    expect(parseTripPatch({ climbHours: { first: 8, last: 18, tz: 'UTC' } })).toBeNull()
+    expect(parseTripPatch({ climbHours: [8, 18] })).toBeNull()
+  })
 })

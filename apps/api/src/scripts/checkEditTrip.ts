@@ -9,7 +9,8 @@
  * and `trip_rain_records`, and what it must keep or clear only shows against
  * Postgres. The rules: a rename keeps the trend; a change of dates clears it
  * (its totals covered other days); removing a crag clears only that crag's
- * trend; another account can neither edit the trip nor add its own crag to it.
+ * trend; new climbing hours keep it, and null sends the trip back to Profile
+ * hours; another account can neither edit the trip nor add its own crag to it.
  *
  * Rows are named with the prefix below and removed in `finally`, including
  * when a step fails partway.
@@ -103,6 +104,7 @@ async function run(): Promise<void> {
 
   const cragIds: string[] = []
   let tripId: string | null = null
+  let secondTripId: string | null = null
   let otherUserId: string | null = null
   let otherCragId: string | null = null
 
@@ -178,6 +180,53 @@ async function run(): Promise<void> {
     check('PATCH with a date returns 200', moved.status === 200 && moved.payload.data?.endDate === '2026-10-11')
     check('a change of dates clears the trend', (await pointsFor()) === 0, `${await pointsFor()} left`)
 
+    console.log('\nClimbing hours')
+    check('a new trip follows Profile hours', created.payload.data?.climbHours === null, JSON.stringify(created.payload.data?.climbHours))
+    await recordPoint(a)
+    const ownHours = await call<Trip>('PATCH', `/trips/${tripId}`, { climbHours: { first: 12, last: 20 } })
+    check('PATCH with hours returns 200', ownHours.status === 200, `got ${ownHours.status} ${String(ownHours.payload.error)}`)
+    const readBack = await call<Trip>('GET', `/trips/${tripId}`)
+    check(
+      'the trip reads back its own hours',
+      readBack.payload.data?.climbHours?.first === 12 && readBack.payload.data.climbHours.last === 20,
+      JSON.stringify(readBack.payload.data?.climbHours),
+    )
+    check('new hours keep the trend', (await pointsFor()) === 1, `${await pointsFor()} left`)
+    const oneEnd = await call<null>('PATCH', `/trips/${tripId}`, { climbHours: { first: 12 } })
+    check('hours with one end are 400', oneEnd.status === 400, `got ${oneEnd.status}`)
+    const short = await call<null>('PATCH', `/trips/${tripId}`, { climbHours: { first: 12, last: 13 } })
+    check('hours under three apart are 400', short.status === 400, `got ${short.status}`)
+    const cleared = await call<Trip>('PATCH', `/trips/${tripId}`, { climbHours: null })
+    check('null goes back to Profile hours', cleared.status === 200 && cleared.payload.data?.climbHours === null)
+    const stored = (
+      await db
+        .select({ first: trips.climb_first_hour, last: trips.climb_last_hour })
+        .from(trips)
+        .where(eq(trips.id, tripId))
+    )[0]
+    check('and both columns are null again', stored?.first === null && stored.last === null, JSON.stringify(stored))
+    const withHours = await call<Trip>('POST', '/trips', {
+      name: `${NAME_PREFIX} trip with hours`,
+      startDate: '2026-10-08',
+      endDate: '2026-10-10',
+      cragIds: [a],
+      climbHours: { first: 6, last: 11 },
+    })
+    check(
+      'a trip can be created with its own hours',
+      withHours.status === 201 && withHours.payload.data?.climbHours?.first === 6 && withHours.payload.data.climbHours.last === 11,
+      `got ${withHours.status} ${JSON.stringify(withHours.payload.data?.climbHours)}`,
+    )
+    secondTripId = withHours.payload.data?.id ?? null
+    const badCreate = await call<null>('POST', '/trips', {
+      name: `${NAME_PREFIX} bad hours`,
+      startDate: '2026-10-08',
+      endDate: '2026-10-10',
+      cragIds: [a],
+      climbHours: { first: 20, last: 24 },
+    })
+    check('creating with hours past 23 is 400', badCreate.status === 400, `got ${badCreate.status}`)
+
     console.log('\nRefusals')
     const backwards = await call<null>('PATCH', `/trips/${tripId}`, { endDate: '2026-10-01' })
     check('an end before the saved start is 400', backwards.status === 400, `got ${backwards.status}`)
@@ -220,6 +269,10 @@ async function run(): Promise<void> {
       if (tripId !== null) {
         const res = await call<null>('DELETE', `/trips/${tripId}`)
         if (res.status !== 200) console.log(`  COULD NOT DELETE the trip: ${res.status}`)
+      }
+      if (secondTripId !== null) {
+        const res = await call<null>('DELETE', `/trips/${secondTripId}`)
+        if (res.status !== 200) console.log(`  COULD NOT DELETE the second trip: ${res.status}`)
       }
       for (const id of cragIds) await deleteLocationCascade(id, process.env['DEFAULT_USER_ID'] ?? '')
       if (otherCragId !== null && otherUserId !== null) await deleteLocationCascade(otherCragId, otherUserId)
