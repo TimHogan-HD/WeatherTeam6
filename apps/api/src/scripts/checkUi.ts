@@ -55,6 +55,8 @@ const WEB_PORT = 5173
 const API = `http://localhost:${API_PORT}`
 const WEB = `http://localhost:${WEB_PORT}`
 const VIEWPORT = { width: 480, height: 1000 }
+/** A transparent 1×1 PNG, the answer to a radar tile a replayed run cannot fetch. */
+const BLANK_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
 
 /** `--tabs-only`: sign in, add the crag, screenshot its six tabs, stop — for a screen being rebuilt. */
 const TABS_ONLY = process.argv.includes('--tabs-only')
@@ -702,13 +704,18 @@ async function run(): Promise<void> {
         const mark = list.lastElementChild as HTMLElement
         return getComputedStyle(mark).transitionProperty
       })
-      await page.waitForTimeout(400)
-      const landed = await page.getByRole('tablist').evaluate((list, name) => {
-        const mark = (list.lastElementChild as HTMLElement).getBoundingClientRect()
-        const tab = Array.from(list.querySelectorAll('[role="tab"]')).find((t) => t.textContent?.trim() === name)
-        const box = tab?.getBoundingClientRect()
-        return box !== undefined && Math.abs(mark.left - box.left) < 1 && Math.abs(mark.width - box.width) < 1
-      }, label)
+      // Waits for it to land rather than a fixed time: a busy CI runner once
+      // missed a fixed 400 ms (2026-10-26), with nothing wrong on screen.
+      const tablist = await page.getByRole('tablist').elementHandle()
+      const landed = await page
+        .waitForFunction(([list, name]) => {
+          const mark = (list?.lastElementChild as HTMLElement | null)?.getBoundingClientRect()
+          const tab = Array.from(list?.querySelectorAll('[role="tab"]') ?? []).find((t) => t.textContent?.trim() === name)
+          const box = tab?.getBoundingClientRect()
+          return mark !== undefined && box !== undefined && Math.abs(mark.left - box.left) < 1 && Math.abs(mark.width - box.width) < 1
+        }, [tablist, label] as const, { timeout: 3_000 })
+        .then(() => true)
+        .catch(() => false)
       return { moving, landed }
     }
     const toDaily = await underlineUnder('Daily')
@@ -827,6 +834,50 @@ async function run(): Promise<void> {
     )
     await page.waitForTimeout(3_000)
     await screen('map', 5)
+
+    // Radar: the toggle names the frame's time, and the tiles asked for are that
+    // frame's. A replayed run moves the frame's date to today, a frame IEM may not
+    // have, so its tiles are answered blank here; a live run fetches them.
+    const radarTiles = /mesonet\.agron\.iastate\.edu\/cache\/tile\.py\/1\.0\.0\/ridge::USCOMP-N0Q-(\d{12})\//
+    if (REPLAY) {
+      await page.route(radarTiles, (route) =>
+        route.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from(BLANK_PNG, 'base64') }),
+      )
+    }
+    const radarStamps = new Set<string>()
+    const radarFailures: string[] = []
+    const watchRadar = (r: { url(): string; status(): number }) => {
+      const stamp = radarTiles.exec(r.url())?.[1]
+      if (stamp === undefined) return
+      radarStamps.add(stamp)
+      if (r.status() >= 400) radarFailures.push(`${r.status()} ${r.url()}`)
+    }
+    page.on('response', watchRadar)
+    const radarLatest = page.waitForResponse((r) => r.url().endsWith('/radar/latest'), { timeout: 30_000 })
+    await page.getByRole('button', { name: /^Radar/ }).click()
+    const latestBody = (await (await radarLatest).json().catch(() => null)) as { data?: { valid_at?: string } } | null
+    const validAt = latestBody?.data?.valid_at ?? ''
+    const radarLabel = page.getByRole('button', { name: /^Radar \d{1,2}:\d{2}/ })
+    const radarNamed = await radarLabel.waitFor({ timeout: 15_000 }).then(() => true).catch(() => false)
+    check('the radar toggle names its frame’s time', radarNamed, validAt)
+    await page.waitForTimeout(4_000)
+    const expected = validAt.slice(0, 16).replace(/[-T:]/g, '')
+    check(
+      'and the tiles asked for are that frame’s, every one answered',
+      radarStamps.size === 1 && radarStamps.has(expected) && radarFailures.length === 0,
+      `stamps ${[...radarStamps].join(',') || 'none'}, expected ${expected}; ${radarFailures[0] ?? 'no failures'}`,
+    )
+    const radarCredit = (await page.locator('.maplibregl-ctrl-attrib').innerText().catch(() => '')).replace(/\s+/g, ' ')
+    check('with the radar credited to IEM', /Radar: Iowa Environmental Mesonet/.test(radarCredit), radarCredit)
+    await screen('map-radar', 5)
+    await radarLabel.click()
+    page.off('response', watchRadar)
+    const radarOff = await page
+      .getByRole('button', { name: 'Radar', exact: true })
+      .waitFor({ timeout: 5_000 })
+      .then(() => true)
+      .catch(() => false)
+    check('and turns off again', radarOff && !(await page.locator('.maplibregl-ctrl-attrib').innerText()).includes('Iowa'))
 
     await page.locator('.maplibregl-canvas').focus()
     for (let i = 0; i < 3; i++) {

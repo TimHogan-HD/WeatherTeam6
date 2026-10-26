@@ -83,10 +83,11 @@ describe('the web app reaches the API at its own address', () => {
 })
 
 /**
- * The Map tab loads public, keyless map tiles straight from the client — the
- * one exception to proxying external calls (architecture.md). The CSP opens
- * exactly the two tile hosts, and `blob:` for MapLibre's and maplibre-contour's
- * workers and images, and nothing that would run a string as code.
+ * The Map tab loads public, keyless map and radar tiles straight from the
+ * client — the one exception to proxying external calls (architecture.md). The
+ * CSP opens exactly the three tile hosts, and `blob:` for MapLibre's and
+ * maplibre-contour's workers and images, and nothing that would run a string
+ * as code.
  */
 describe('the web app’s content security policy', () => {
   const csp = (): Map<string, string[]> => {
@@ -102,12 +103,13 @@ describe('the web app’s content security policy', () => {
     )
   }
 
-  it('lets the map reach its two tile hosts and nothing else new', () => {
+  it('lets the map reach its three tile hosts and nothing else new', () => {
     expect(csp().get('connect-src')).toEqual([
       "'self'",
       'https://*.vercel.app',
       'https://tiles.openfreemap.org',
       'https://s3.amazonaws.com',
+      'https://mesonet.agron.iastate.edu',
     ])
     expect(csp().get('worker-src')).toEqual(["'self'", 'blob:'])
     expect(csp().get('img-src')).toEqual(["'self'", 'data:', 'blob:'])

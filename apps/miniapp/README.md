@@ -168,10 +168,12 @@ editor and guidebook screens, `/add`, `/feedback`, and the bottom bar's sections
 
 **`/map` is its own chunk** (`React.lazy` in `App.tsx`), with MapLibre's worker beside it,
 so the list's bundle does not carry MapLibre. Its tiles, glyphs, sprites and terrain load
-straight from `tiles.openfreemap.org` and `s3.amazonaws.com`, the one exception to proxying
-external calls (`.claude/rules/architecture.md`); `vercel.json`'s CSP names those two hosts
-and `blob:` for the workers, and `deployConfig.test.ts` (in `apps/api`) pins it. A long-press
-on the map opens `/add?lat=…&lon=…`.
+straight from `tiles.openfreemap.org` and `s3.amazonaws.com`, and its radar tiles from
+`mesonet.agron.iastate.edu`, the one exception to proxying external calls
+(`.claude/rules/architecture.md`); `vercel.json`'s CSP names those three hosts and `blob:`
+for the workers, and `deployConfig.test.ts` (in `apps/api`) pins it. The radar frame's time
+comes from the API (`GET /radar/latest`), and the tiles are requested for that time, so
+the label and the picture are one frame. A long-press on the map opens `/add?lat=…&lon=…`.
 
 Back is an in-app control in the screen header (`Screen`'s `onBack`), which
 `miniapp-design-v1.md` §2 and §8 forbade — those rules assumed Telegram's `BackButton`,

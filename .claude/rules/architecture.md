@@ -26,14 +26,16 @@ seen them.
   surface says starts from *"what does this say when the inputs are missing"*.
 - **External APIs are proxied, never called from the client** — the fetch lives in
   `src/lib/weather/`, wrapped in `fetchWithRetry`, behind a thin route returning
-  `{ data, error, status }` (`/geocode`, `/geocode/reverse`, `/radar/frames`).
+  `{ data, error, status }` (`/geocode`, `/geocode/reverse`, `/radar/latest`).
 - **Map tiles are the one exception** (owner decision 2026-10-02, Map tab).
   Public, keyless basemap tiles, glyphs and sprites (OpenFreeMap, `tiles.openfreemap.org`)
   and terrain tiles (AWS Open Data Terrarium, `s3.amazonaws.com`) load straight from the
-  client; nothing but the viewport goes to them. `apps/miniapp/vercel.json`'s CSP names
-  exactly those two hosts in `connect-src`, plus `blob:` for the map's workers and images.
-  Any data source that is not a map tile — radar included, when it comes — still goes
-  through the API.
+  client; nothing but the viewport goes to them. **Radar tiles joined the exception**
+  (owner decision 2026-10-26): IEM's keyless NEXRAD tiles (`mesonet.agron.iastate.edu`)
+  load the same way, but the frame's time — data, not a tile — comes through the API
+  (`/radar/latest`) and the tiles are requested for that time. `apps/miniapp/vercel.json`'s
+  CSP names exactly those three hosts in `connect-src`, plus `blob:` for the map's workers
+  and images. Any data source that is not a map tile still goes through the API.
 
 ## Backend patterns
 

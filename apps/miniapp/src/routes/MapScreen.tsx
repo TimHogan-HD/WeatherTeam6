@@ -12,6 +12,8 @@ import {
   type GeoJSONSource,
   type MapMouseEvent,
   type MapTouchEvent,
+  type RasterSourceSpecification,
+  type RasterTileSource,
 } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
@@ -24,7 +26,7 @@ import { glassDock } from '../theme/glass.js'
 import { Sect } from '../components/charts/liquid.js'
 import { withOpacity } from '../theme/tokens.css.js'
 import { useLocations } from '../hooks/useLocations.js'
-import { alertsQuery, conditionsQuery } from '../hooks/useWeather.js'
+import { alertsQuery, conditionsQuery, useRadarLatest } from '../hooks/useWeather.js'
 import { useCurrentPosition, type Fix } from '../hooks/useCurrentPosition.js'
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
 import { prefetchDetail } from '../lib/prefetchDetail.js'
@@ -42,6 +44,7 @@ import {
   appMapStyle,
   positionFeatures,
 } from '../lib/mapStyle.js'
+import { RADAR_LAYER, RADAR_LAYER_SPEC, RADAR_SOURCE, radarBeforeId, radarSource, radarTime } from '../lib/radar.js'
 import { InlineError } from '../components/States.js'
 import { CrossIcon, LocateIcon } from '../components/Icons.js'
 
@@ -196,6 +199,18 @@ export function MapScreen() {
   )
   const locating = reading.kind === 'locating'
 
+  const [radarOn, setRadarOn] = useState(false)
+  const radar = useRadarLatest(radarOn)
+  const radarValidAt = radarOn ? (radar.data?.valid_at ?? null) : null
+  useRadarLayer(map, radarOn, radarValidAt)
+  const radarLabel = !radarOn
+    ? 'Radar'
+    : radar.isError && radar.data === undefined
+      ? 'Radar unavailable'
+      : radarValidAt === null
+        ? 'Radar …'
+        : `Radar ${radarTime(radarValidAt) ?? ''}`.trim()
+
   const emptyList = locations.isSuccess && !locations.isPlaceholderData && list.length === 0
   const unplaced = list.length - pins.length
   const meta =
@@ -276,6 +291,26 @@ export function MapScreen() {
               </button>
             </div>
           ) : null}
+
+          <button
+            type="button"
+            aria-pressed={radarOn}
+            onClick={() => setRadarOn((on) => !on)}
+            style={{
+              ...bareButton,
+              ...glassDock,
+              ...interactive,
+              ...typeV2.dayPick,
+              width: 'auto',
+              height: `${LOCATE_SIZE}px`,
+              padding: `0 ${spacing.cardPad}px`,
+              borderRadius: `${radius.full}px`,
+              color: radarOn ? colorsV2.brandInk : colorsV2.txt1,
+              ...(radarOn ? { boxShadow: `inset 0 0 0 1px ${colorsV2.brand}` } : {}),
+            }}
+          >
+            {radarLabel}
+          </button>
 
           <button
             type="button"
@@ -466,6 +501,42 @@ function PinMarker({
     </button>,
     element,
   )
+}
+
+/**
+ * Radar is a layer on the kept map while the toggle is on, and gone when it is
+ * off or the tab closes. A new frame swaps the tiles in place rather than
+ * rebuilding the layer, so the old frame stays up until the new one arrives.
+ * No frame time, no layer: a radar that failed draws nothing, which never
+ * reads as "no rain" because the toggle says it is unavailable.
+ */
+function useRadarLayer(map: MapLibreMap | null, on: boolean, validAt: string | null): void {
+  const source = useMemo<RasterSourceSpecification | null>(() => (validAt === null ? null : radarSource(validAt)), [validAt])
+
+  useEffect(() => {
+    if (map === null || source === null) return
+    const draw = () => {
+      const shown = map.getSource<RasterTileSource>(RADAR_SOURCE)
+      if (shown !== undefined) {
+        shown.setTiles(source.tiles ?? [])
+        return
+      }
+      map.addSource(RADAR_SOURCE, source)
+      map.addLayer(RADAR_LAYER_SPEC, radarBeforeId(map.getStyle().layers))
+    }
+    // `load` may have fired already while tiles are still arriving; `idle` always comes.
+    if (map.isStyleLoaded() === true) draw()
+    else map.once('idle', draw)
+    return () => void map.off('idle', draw)
+  }, [map, source])
+
+  useEffect(() => {
+    if (map === null || !on) return
+    return () => {
+      if (map.getLayer(RADAR_LAYER) !== undefined) map.removeLayer(RADAR_LAYER)
+      if (map.getSource(RADAR_SOURCE) !== undefined) map.removeSource(RADAR_SOURCE)
+    }
+  }, [map, on])
 }
 
 /** The spot a long-press picked, until it is added or dismissed. */
