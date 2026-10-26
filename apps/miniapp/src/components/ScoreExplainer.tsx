@@ -59,7 +59,9 @@ export function ScoreExplainerParts({ rangeF, rockType = null }: { rangeF: Range
         <P>
           Rain starts a drying clock. A light shower needs a short wait and only dents the score;
           {` ${f.fullSoakIn}" `}or more needs the rock’s full drying time below and drops it to zero. While rain
-          you’d see on the rock is falling, the score is zero. Sun, dry air and wind speed drying up. The forecast’s sunshine warms eight
+          you’d see on the rock is falling ({`${f.fallingRainInPerHour}" `}an hour or more), the score is zero. The clock
+          counts rain due in the next {f.rainLeadHours} hours, so rock can read wet just before rain arrives; the
+          crag’s overview says when it’s due. Sun, dry air and wind speed drying up. The forecast’s sunshine warms eight
           imagined walls, one facing each direction, by the hour; the crag takes the middle one, so one sunny face
           can’t make it read dry. Rock that is weak when wet never
           dries faster than the clock on the wall.

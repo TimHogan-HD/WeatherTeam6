@@ -181,6 +181,10 @@ export const SCORE_MODEL_FACTS = {
   tempFadeScaleF: 21.6,
   /** A storm of this many inches or more needs the rock's full drying time. */
   fullSoakIn: 0.4,
+  /** Rain falling at this many inches an hour or more scores the hour 0. */
+  fallingRainInPerHour: 0.02,
+  /** The drying clock counts rain due up to this many hours ahead. */
+  rainLeadHours: 2,
 } as const;
 
 /** The reader's temperature range in °F, or null while it is not known. */

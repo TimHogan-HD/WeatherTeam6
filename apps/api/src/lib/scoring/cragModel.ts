@@ -30,6 +30,7 @@
 import {
   REWETTING_PRECIP_MM,
   TEMP_RANGE_DEFAULT_F,
+  WETTING_PRECIP_MM,
   fToC,
   rockGuide,
   type RockSunShade,
@@ -76,11 +77,8 @@ export const DEW_SCALE_C = 10
 
 /** A storm of this many inches (or more) needs the rock type's full drying window. */
 export const FULL_SOAK_IN = 0.4
-/**
- * Rain in an hour that wets an open wall, mm. Open-Meteo reports 0 or ≥ 0.1;
- * 0.05 keeps a float-rounded 0.1 from slipping under. v2 only reset at 0.5.
- */
-export const WET_MM = 0.05
+/** Rain in an hour that wets an open wall, mm (`packages/types`, so the Precip tab draws the same line). v2 only reset at 0.5. */
+export const WET_MM = WETTING_PRECIP_MM
 /**
  * The wetting threshold kept for a sheltered overhang, mm/h — its shelter
  * fraction was calibrated against this, so drizzle does not wet it.
