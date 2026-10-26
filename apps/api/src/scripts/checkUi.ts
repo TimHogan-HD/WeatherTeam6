@@ -626,22 +626,27 @@ async function run(): Promise<void> {
     check('coming back to the list shows no splash', (await splash.count()) === 0)
 
     // 2d. A reopen draws the cards from what this device remembers — no
-    // splash, the age in the header — while every weather call is held back
-    // 3 s; then the live copies replace them.
+    // splash, the age in the header — while every weather call is held back;
+    // then the live copies replace them. "Before the API answers" is checked
+    // as no held call released yet, not as a time budget: a 1.5 s budget
+    // failed on a slow CI runner that was still loading vite's modules
+    // (2026-10-26).
     await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
     const rememberedSaved = await page.evaluate(() => localStorage.getItem('wt6.cards') !== null)
     check('the list remembers its cards’ weather on this device', rememberedSaved)
     const slowWeather = /\/api\/v1\/(forecast|conditions|alerts)\//
+    let weatherReleased = false
     await page.route(slowWeather, async (route) => {
-      await new Promise((r) => setTimeout(r, 3_000))
+      await new Promise((r) => setTimeout(r, 8_000))
+      weatherReleased = true
       await route.continue().catch(() => undefined)
     })
     const reopened = Date.now()
     await page.goto(`${WEB}/`, { waitUntil: 'domcontentloaded' })
     const drawn = await firstCard
       .getByText(/^Dryness:/)
-      .waitFor({ timeout: 1_500 })
-      .then(() => true)
+      .waitFor({ timeout: 7_000 })
+      .then(() => !weatherReleased)
       .catch(() => false)
     const drawnAfter = Date.now() - reopened
     const header = await page.locator('header').innerText()
