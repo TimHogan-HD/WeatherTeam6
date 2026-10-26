@@ -5,6 +5,7 @@ import {
   DAY_LAST_HOUR,
   DAY_RUN_HOURS,
   DEW_START_C,
+  FALLING_RAIN_MM,
   FULL_SOAK_IN,
   HEAT_SCALE_C,
   SNOW_DRYNESS_CAP,
@@ -131,11 +132,33 @@ describe('evaluateCragA — the drying clock', () => {
     expect(out[95]!.rock?.level).toBe('dry')
   })
 
-  it('reads drizzle (0.1 mm) as wet rock — v2 kept drying through it', () => {
-    const out = crag(series(144, (i) => (i === 130 ? { precip_mm: 0.1 } : {})))
+  it('sets the clock back by the rain’s size: drizzle dents, more rain dents further', () => {
+    const at = (mm: number) => crag(series(144, (i) => (i === 130 ? { precip_mm: mm } : {})))[130]!
+    // v2 kept drying through drizzle; it must still cost something.
+    expect(at(0.1).diagnostics.wetness_factor!).toBeLessThan(1)
+    expect(at(0.1).diagnostics.wetness_factor!).toBeGreaterThan(0.5)
+    expect(at(0.3).diagnostics.wetness_factor!).toBeLessThan(at(0.1).diagnostics.wetness_factor!)
+    // Just under the falling-rain line is still a dent, not a zero.
+    expect(at(FALLING_RAIN_MM - 0.01).diagnostics.wetness_factor!).toBeGreaterThan(0)
+  })
+
+  it('reads rain still falling at FALLING_RAIN_MM as wet, however small the storm', () => {
+    const out = crag(series(144, (i) => (i === 130 ? { precip_mm: FALLING_RAIN_MM } : {})))
     expect(out[129]!.diagnostics.wetness_factor).toBe(1)
     expect(out[130]!.diagnostics.wetness_factor).toBe(0)
     expect(out[130]!.score).toBe(0)
+    // Once it stops, the small storm's dent is all that is left.
+    expect(out[131]!.diagnostics.wetness_factor!).toBeGreaterThan(0.5)
+  })
+
+  it('reaches zero only on a full soak', () => {
+    // Fragile rock dries one hour per hour, so the hour after the rain shows the dent itself.
+    const after = (mm: number) =>
+      crag(series(144, (i) => (i >= 126 && i < 130 ? { precip_mm: mm } : {})), 'sandstone_quartz_arenite')[130]!
+    // 0.4" over four hours needs the whole 48-hour window: one hour on, (1/48)².
+    expect(after(2.54).diagnostics.wetness_factor!).toBeLessThan(0.001)
+    // Four hours of mist needs a fraction of it.
+    expect(after(0.1).diagnostics.wetness_factor!).toBeGreaterThan(0.5)
   })
 
   it('a small shower after a big storm does not erase the big soak', () => {
@@ -217,7 +240,7 @@ describe('evaluateWallA', () => {
     const hours = series(96, (i) => (i === 80 ? { precip_mm: 0.3 } : {}))
     const open = evaluateWallA(hours, { rockType: 'granite', wall: wall(0) })
     const roof = evaluateWallA(hours, { rockType: 'granite', wall: wall(-30) })
-    expect(open[80]!.diagnostics.wetness_factor).toBe(0)
+    expect(open[80]!.diagnostics.wetness_factor!).toBeLessThan(1)
     expect(roof[80]!.diagnostics.wetness_factor).toBe(1)
   })
 

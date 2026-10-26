@@ -28,6 +28,7 @@
  * window has run (issue #34).
  */
 import {
+  REWETTING_PRECIP_MM,
   TEMP_RANGE_DEFAULT_F,
   fToC,
   rockGuide,
@@ -85,6 +86,13 @@ export const WET_MM = 0.05
  * fraction was calibrated against this, so drizzle does not wet it.
  */
 export const SHELTERED_WET_MM = 0.5
+/**
+ * Rain falling at this rate or more, mm/h, is rain you would see on the rock:
+ * the hour scores as wet whatever the storm's size (owner, 2026-10-26). Below
+ * it, rain sets the clock back by its size and no more. The same line as the
+ * Precip tab's "real rain", so "raining now" means one thing everywhere.
+ */
+export const FALLING_RAIN_MM = REWETTING_PRECIP_MM
 /** Rain at or below this air temperature lies as snow, °C. */
 export const SNOW_TEMP_C = 0.5
 /** Snow water at or above this, mm, caps dryness at `SNOW_DRYNESS_CAP`. */
@@ -204,9 +212,17 @@ const remainingRamp = (remaining: number, need: number): number =>
  *
  * Two stores: the surface, reset by any wetting, and the soak, topped up by a
  * storm and never lowered by a smaller later one. Each needs
- * `maxHours × min(1, √(storm_in / FULL_SOAK_IN))` of weather-sped drying, and
- * dryness is the worse of `((N − R) / N)²` over the two. Each hour's drying is
- * capped at `maxRate` hours (`maxDryingRate`).
+ * `R = maxHours × min(1, √(storm_in / FULL_SOAK_IN))` of weather-sped drying,
+ * and dryness is the worse of `((maxHours − R) / maxHours)²` over the two. Each
+ * hour's drying is capped at `maxRate` hours (`maxDryingRate`).
+ *
+ * **Rain sets the clock back by its size** (owner, 2026-10-26). The ramp runs
+ * over the rock's whole window, so a mist that needs two hours of a 24-hour
+ * window dips the score to ~92 rather than 0, and only a full soak reaches 0.
+ * Before, the ramp ran over the storm's own need, so every wetting hour read 0
+ * and only the recovery scaled: Barn Bluff on 2026-10-25 scored 0 from noon on
+ * about 0.03" forecast over a dry afternoon. The time to dry is unchanged. Rain
+ * still falling at `FALLING_RAIN_MM` or more reads wet regardless.
  *
  * The series' first hour is treated as fully soaked, because the rain before it
  * is unknown (issue #176) — the direction to be wrong in.
@@ -220,9 +236,7 @@ export function drynessTrack(
 ): (number | null)[] {
   const needFor = (mm: number): number => maxHours * Math.min(1, Math.sqrt(mm / 25.4 / FULL_SOAK_IN))
   let deepR = maxHours
-  let deepN = maxHours
   let surfR = maxHours
-  let surfN = maxHours
   let storm = 0
   let lastWet = -Infinity
   let snowMm = 0
@@ -253,11 +267,7 @@ export function drynessTrack(
       lastWet = i
       const need = needFor(storm)
       surfR = need
-      surfN = need
-      if (need >= deepR) {
-        deepR = need
-        deepN = need
-      }
+      if (need >= deepR) deepR = need
     } else {
       const e1 = evaluated[i]?.diagnostics.effective_dry_hours ?? null
       const e0 = i > 0 ? (evaluated[i - 1]?.diagnostics.effective_dry_hours ?? null) : null
@@ -271,7 +281,7 @@ export function drynessTrack(
       out.push(null)
       continue
     }
-    let d = Math.min(remainingRamp(surfR, surfN), remainingRamp(deepR, deepN))
+    let d = wetMm >= FALLING_RAIN_MM ? 0 : Math.min(remainingRamp(surfR, maxHours), remainingRamp(deepR, maxHours))
     // Snow still lying: not climbable, however dry the rock between patches.
     if (snowMm >= SNOW_LYING_MM) d = Math.min(d, SNOW_DRYNESS_CAP)
     out.push(d)

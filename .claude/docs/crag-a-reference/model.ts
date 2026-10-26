@@ -443,8 +443,10 @@ function dryTrack(c: Case, series: HourlyConditions[], k: Knobs, built: Built): 
         storm = i - lastWet < 24 ? storm + wetMm : wetMm
         lastWet = i
         const need = needFor(storm)
-        surfR = surfN = need
-        if (need >= deepR) { deepR = need; deepN = need }
+        // 2026-10-26 (owner): rain sets the clock back by its size. N stays the full window, so a
+        // mist dents the score and only a full soak reaches 0; the time to dry is unchanged.
+        surfR = need
+        if (need >= deepR) deepR = need
       } else {
         const e1 = series[i].diagnostics.effective_dry_hours, e0 = i > 0 ? series[i - 1].diagnostics.effective_dry_hours : null
         const inc = e1 !== null && e0 !== null && e1 >= e0 ? Math.min(e1 - e0, maxRate) : 0
@@ -454,7 +456,8 @@ function dryTrack(c: Case, series: HourlyConditions[], k: Knobs, built: Built): 
       }
     }
     if (series[i].diagnostics.effective_dry_hours === null || wetMm === null || unknownR > 0) { out.push(null); continue }
-    let d = Math.min(rampR(surfR, surfN), rampR(deepR, deepN))
+    // Rain you would see on the rock (≥ 0.5 mm/h) still falling: wet, however small the storm.
+    let d = wetMm >= 0.5 ? 0 : Math.min(rampR(surfR, surfN), rampR(deepR, deepN))
     // Snow still lying on the crag: not climbable, however dry the rock between patches.
     if (FIX.snow && swe >= 1) d = Math.min(d, 0.25)
     if (c.seeps && storm / 25.4 >= 0.75 && i - lastWet < c.seeps.days * 24) d = Math.min(d, 0.25)
