@@ -53,7 +53,7 @@ export function dayRainChance(
 
 /** What the rows are, said once under them. */
 const FOOT_SCORE =
-  'A day score is the worst hour of the best three-hour run between 8 AM and 6 PM; today counts only hours still ahead.'
+  'A day score is the worst hour of the best three-hour run inside your climbing hours (8 AM to 6 PM unless you change them on Profile); today counts only hours still ahead.'
 const FOOT_FIGURES = 'Chance of rain is the highest hourly share of wet ensemble members. Rain is the median daily amount.'
 const FOOT_TAP = 'Tap a day for its hours.'
 
