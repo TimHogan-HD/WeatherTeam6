@@ -36,18 +36,31 @@ export function validTimeOfKey(key: string): Date | null {
   return Number.isFinite(time) ? new Date(time) : null
 }
 
-/** The newest frame's key, or null when the listing failed or held nothing recent. */
-async function newestKey(now: Date): Promise<string | null> {
-  const from = keyFor(new Date(now.getTime() - LIST_WINDOW_MS))
-  const prefix = from.slice(0, from.lastIndexOf('/') + 1)
-  const url = `${BUCKET}/?list-type=2&prefix=${encodeURIComponent(prefix)}&start-after=${encodeURIComponent(from)}`
-  const res = await fetchWithRetry(url, 3)
+/** One day's keys after `startAfter`, or null when the listing failed. */
+async function listDay(prefix: string, startAfter: string | null): Promise<string[] | null> {
+  const after = startAfter === null ? '' : `&start-after=${encodeURIComponent(startAfter)}`
+  const res = await fetchWithRetry(`${BUCKET}/?list-type=2&prefix=${encodeURIComponent(prefix)}${after}`, 3)
   if (!res.ok) {
     logger.warn({ statusCode: res.status }, '[mrmsRate] listing non-ok')
     return null
   }
-  const keys = [...(await res.text()).matchAll(/<Key>([^<]+)<\/Key>/g)].map((m) => m[1]!).filter((k) => KEY_TIME.test(k))
-  return keys.sort().at(-1) ?? null
+  return [...(await res.text()).matchAll(/<Key>([^<]+)<\/Key>/g)].map((m) => m[1]!).filter((k) => KEY_TIME.test(k))
+}
+
+/**
+ * The newest frame's key, or null when the listing failed or held nothing
+ * recent. Frames are filed by UTC day, so a window that crosses midnight
+ * lists both days — otherwise the new day's frames go unseen until 00:20 UTC.
+ */
+async function newestKey(now: Date): Promise<string | null> {
+  const from = keyFor(new Date(now.getTime() - LIST_WINDOW_MS))
+  const dayOf = (key: string) => key.slice(0, key.lastIndexOf('/') + 1)
+  const today = dayOf(keyFor(now))
+  const lists = await Promise.all(
+    dayOf(from) === today ? [listDay(today, from)] : [listDay(dayOf(from), from), listDay(today, null)],
+  )
+  if (lists.some((l) => l === null)) return null
+  return lists.flatMap((l) => l!).sort().at(-1) ?? null
 }
 
 async function latestFrame(now: Date): Promise<Frame | null> {

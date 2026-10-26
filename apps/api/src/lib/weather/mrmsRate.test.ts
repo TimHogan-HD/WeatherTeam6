@@ -48,12 +48,27 @@ describe('fetchRainRates', () => {
     expect(String(fetchMock.mock.calls[1]![0])).toContain(key('211800'))
   })
 
-  it('lists from 20 minutes back, in the day that time falls on', async () => {
-    fetchMock.mockResolvedValueOnce(answer(200, listing([])))
-    await fetchRainRates(POINTS, new Date('2026-10-27T00:05:00Z'))
-    const url = new URL(String(fetchMock.mock.calls[0]![0]))
-    expect(url.searchParams.get('prefix')).toBe('CONUS/PrecipRate_00.00/20261026/')
-    expect(url.searchParams.get('start-after')).toBe(key('234500'))
+  it('lists from 20 minutes back, and both days when that crosses midnight UTC', async () => {
+    const after = new Date('2026-10-27T00:16:00Z')
+    fetchMock.mockImplementation(async (input) => {
+      const u = new URL(String(input))
+      if (u.searchParams.get('prefix')?.endsWith('20261026/')) return answer(200, listing([key('235800')]))
+      if (u.searchParams.has('prefix')) return answer(200, listing([key('001200', '20261027'), key('001000', '20261027')]))
+      return answer(200)
+    })
+    read.mockReturnValue([0.5, 0, 0])
+    // A 00:12 frame is 4 minutes old; looking only at yesterday found 23:58, 18 minutes old, and withheld.
+    await expect(fetchRainRates(POINTS, after)).resolves.toMatchObject({ validAt: new Date('2026-10-27T00:12:00Z') })
+    const lists = fetchMock.mock.calls.slice(0, 2).map((c) => new URL(String(c[0])).searchParams)
+    expect(lists.map((p) => [p.get('prefix'), p.get('start-after')])).toEqual([
+      ['CONUS/PrecipRate_00.00/20261026/', key('235600')],
+      ['CONUS/PrecipRate_00.00/20261027/', null],
+    ])
+  })
+
+  it('is null when either day of a midnight listing fails', async () => {
+    fetchMock.mockResolvedValueOnce(answer(200, listing([key('235800')]))).mockResolvedValueOnce(answer(403))
+    await expect(fetchRainRates(POINTS, new Date('2026-10-27T00:16:00Z'))).resolves.toBeNull()
   })
 
   it('is null when the newest frame is more than 15 minutes old — no radar, not "no rain"', async () => {
