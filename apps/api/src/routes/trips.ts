@@ -8,6 +8,7 @@ import { fetchOutlook, type Outlook } from '../lib/weather/ensembleOutlook.js'
 import { summarizeTripOutlook } from '../lib/trips/tripOutlook.js'
 import { tripDateList, tripDayLookBacks, tripDayTrends } from '../lib/trips/tripSummary.js'
 import { MAX_TRIP_LOCATIONS, parseTripPatch, updateTrip } from '../lib/trips/updateTrip.js'
+import { climbHourColumns, isTripClimbHours, tripClimbHours } from '../lib/trips/tripClimbHours.js'
 import { parseNumeric, parseNumericRequired } from '@weatherteam6/types'
 import type { ApiResponse, Trip, TripLocation, CreateTripInput, TripOutlook, TripSummary, TripTrend } from '@weatherteam6/types'
 
@@ -33,6 +34,7 @@ function mapTrip(row: TripRow, locs?: TripLocation[]): Trip {
     startDate: row.start_date,
     endDate: row.end_date,
     notes: row.notes,
+    climbHours: tripClimbHours(row),
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at ? row.updated_at.toISOString() : null,
     ...(locs !== undefined ? { locations: locs } : {}),
@@ -75,8 +77,10 @@ tripsRouter.get('/trips', async (req: Request, res: Response) => {
 tripsRouter.post('/trips', async (req: Request, res: Response) => {
   const body = req.body as Partial<CreateTripInput>
   const { name, startDate, endDate, cragIds } = body
+  const climbHours = body.climbHours === undefined ? null : body.climbHours
 
   if (
+    !isTripClimbHours(climbHours) ||
     typeof name !== 'string' ||
     name.trim() === '' ||
     name.trim().length > MAX_NAME_LENGTH ||
@@ -114,6 +118,7 @@ tripsRouter.post('/trips', async (req: Request, res: Response) => {
           name: name.trim(),
           start_date: startDate,
           end_date: endDate,
+          ...climbHourColumns(climbHours),
         })
         .returning()
 

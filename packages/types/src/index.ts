@@ -3,6 +3,7 @@
 // entry in its exports map — under NodeNext resolution a deep import such as
 // `@weatherteam6/types/units` does not resolve.
 import type { ConditionsReadings, RockLevel } from './hourly.js'
+import type { ClimbHours } from './preferences.js'
 
 export * from './scoreComponents.js'
 export * from './units.js'
@@ -279,6 +280,8 @@ export type Trip = {
   startDate: string
   endDate: string
   notes: string | null
+  /** The trip's own climbing hours (#401). Null: the owner's Profile hours. */
+  climbHours: ClimbHours | null
   createdAt: string
   updatedAt: string | null
   locations?: TripLocation[]
@@ -289,9 +292,10 @@ export type CreateTripInput = {
   startDate: string
   endDate: string
   cragIds: string[]
+  climbHours?: ClimbHours | null
 }
 
-/** `PATCH /trips/:tripId`: any of the create fields, at least one. */
+/** `PATCH /trips/:tripId`: any of the create fields, at least one. `climbHours: null` goes back to Profile. */
 export type UpdateTripInput = Partial<CreateTripInput>
 
 /**

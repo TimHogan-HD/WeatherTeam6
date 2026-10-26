@@ -4,8 +4,9 @@ import { db } from '../db/index.js'
 import { locations } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
 import { getHourlySeries } from '../lib/runs/fetchHourlySeries.js'
-import { scoringLocationFor } from '../lib/runs/scoringLocation.js'
+import { scoringLocationFor, type ScoringLocation } from '../lib/runs/scoringLocation.js'
 import { readerScoringFor } from '../lib/preferences/preferences.js'
+import { climbHoursFromQuery } from '../lib/trips/tripClimbHours.js'
 import { parseNumeric, parseNumericRequired } from '@weatherteam6/types'
 import type { ApiResponse, HourlySeries } from '@weatherteam6/types'
 
@@ -51,6 +52,17 @@ hourlyRouter.get('/hourly/:locationId', async (req: Request, res: Response) => {
     return
   }
   const allModels = modelsParam === 'all'
+
+  const tripHours = climbHoursFromQuery(req.query)
+  if (!tripHours.ok) {
+    const response: ApiResponse<null> = {
+      data: null,
+      error: 'climbFirst and climbLast must come together as whole hours 0-23, at least three hours apart',
+      status: 400,
+    }
+    res.status(400).json(response)
+    return
+  }
 
   try {
     const rows = await db
@@ -100,10 +112,13 @@ hourlyRouter.get('/hourly/:locationId', async (req: Request, res: Response) => {
      *   runs only when aspect and angle were both recorded
      *   (`scoringLocationFor`).
      */
-    // A crag's readings are judged against the reader's own temperature range and climbing hours.
-    const scoring = location.is_climbing_location
-      ? scoringLocationFor(location, await readerScoringFor(req.userId))
-      : null
+    // A crag's readings are judged against the reader's own temperature range and climbing
+    // hours; a trip screen's own hours replace the Profile ones, never the range.
+    let scoring: ScoringLocation = null
+    if (location.is_climbing_location) {
+      const reader = await readerScoringFor(req.userId)
+      scoring = scoringLocationFor(location, { ...reader, climbHours: tripHours.hours ?? reader.climbHours })
+    }
 
     // `lat`/`lon` are numeric columns and arrive as strings; `elevation_m` is nullable and
     // must stay null rather than becoming 0 — sea level is a real elevation, and passing

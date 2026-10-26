@@ -234,18 +234,33 @@ export const forecastSnapshots = pgTable('forecast_snapshots', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
-export const trips = pgTable('trips', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  user_id: uuid('user_id')
-    .notNull()
-    .references(() => users.id),
-  name: text('name').notNull(),
-  start_date: date('start_date').notNull(),
-  end_date: date('end_date').notNull(),
-  notes: text('notes'),
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updated_at: timestamp('updated_at', { withTimezone: true }),
-})
+export const trips = pgTable(
+  'trips',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    user_id: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    name: text('name').notNull(),
+    start_date: date('start_date').notNull(),
+    end_date: date('end_date').notNull(),
+    notes: text('notes'),
+    /**
+     * The trip's own climbing hours, both included (#401). Both null: the
+     * owner's Profile hours. Never one without the other.
+     */
+    climb_first_hour: integer('climb_first_hour'),
+    climb_last_hour: integer('climb_last_hour'),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp('updated_at', { withTimezone: true }),
+  },
+  (t) => [
+    check(
+      'trips_climb_hours_paired',
+      sql`(${t.climb_first_hour} IS NULL) = (${t.climb_last_hour} IS NULL)`,
+    ),
+  ],
+)
 
 export const tripLocations = pgTable('trip_locations', {
   id: uuid('id').primaryKey().defaultRandom(),
