@@ -225,6 +225,13 @@
       "when": 1793032192376,
       "tag": "0031_climb_hours",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793040760261,
+      "tag": "0032_trip_climb_hours",
+      "breakpoints": true
     }
   ]
 }
