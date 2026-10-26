@@ -10,6 +10,15 @@
  *   npm run check:ui -- --tabs-only  # only the crag screen's six tabs
  *   npm run check:ui -- --list-only  # only the Conditions list
  *   npm run check:ui -- --sweep      # first remove test users earlier runs left behind
+ *   npm run check:ui -- --record     # also write every upstream weather call to the tape
+ *   npm run check:ui -- --replay     # answer upstream calls from the tape, not the network
+ *
+ * The tape (`fixtures/check-ui-tape.json.gz`, `upstreamTape.ts`) is what the UI
+ * workflow replays on a PR, against a throwaway Postgres (`localPostgres.ts`).
+ * When a replayed run reports calls missing from the tape (a change asks
+ * upstream something new), delete the tape and push: the workflow records a new
+ * one against its empty database. A local recording against Neon would miss the
+ * calls that stored runs answer.
  *
  * Why this exists: UI work here was verified by rebuilding the same local
  * harness by hand every session — a throwaway secret, a local API, vite on
@@ -27,15 +36,19 @@
  *
  * It reads the screens; it does not judge them. Open the screenshots.
  *
- * Workspace-level, like the other database checks: CI does not run it.
+ * `.github/workflows/ui.yml` runs it: replayed on every PR (recording when the
+ * tape is missing), live every night.
  */
 
 import { spawn, type ChildProcess } from 'node:child_process'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { gunzipSync, gzipSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { ApiResponse, Location } from '@weatherteam6/types'
+import type { Page } from 'playwright'
+import type { Tape } from './upstreamTape.js'
 
 const API_PORT = 3096
 const WEB_PORT = 5173
@@ -51,6 +64,9 @@ const LIST_ONLY = process.argv.includes('--list-only')
 
 /** `--sweep`: first remove test users older than `STALE_HOURS`, left by runs stopped before their cleanup. */
 const SWEEP = process.argv.includes('--sweep')
+
+const RECORD = process.argv.includes('--record')
+const REPLAY = process.argv.includes('--replay')
 
 const PREFIX = 'zz-check-ui'
 const STAMP = Date.now()
@@ -75,11 +91,24 @@ function isoDayFromNow(n: number): string {
 const here = dirname(fileURLToPath(import.meta.url))
 const miniappDir = resolve(here, '../../../miniapp')
 const viteBin = resolve(here, '../../../../node_modules/vite/bin/vite.js')
+const tapePath = resolve(here, 'fixtures/check-ui-tape.json.gz')
 
 let passed = 0
 let failed = 0
 
+/**
+ * The first upstream URL that answered 429. Once set, the next `check` stops
+ * the run: on 2026-10-21 a rate-limited run kept going on retries and
+ * backoff for 16 minutes before anyone noticed, and its results meant nothing.
+ */
+let rateLimitedBy: string | null = null
+/** Set in `finally`: the cleanup and the summary still report. Before it, every check throws, so a step's own catch cannot swallow the stop. */
+let finishing = false
+
 function check(label: string, ok: boolean, detail = ''): void {
+  if (rateLimitedBy !== null && !finishing) {
+    throw new Error(`upstream rate limit (429) from ${rateLimitedBy}; this run's results would be noise. Wait for the limit to clear, or run with --replay.`)
+  }
   if (ok) {
     passed++
     console.log(`  PASS  ${label}`)
@@ -136,6 +165,31 @@ async function run(): Promise<void> {
   process.env['API_SHARED_SECRET'] = `local-ui-check-shared-${STAMP}`
   process.env['AUTH_TOKEN_SECRET'] = `local-ui-check-token-${STAMP}`
   process.env['LOG_LEVEL'] ??= 'warn'
+
+  if (RECORD && REPLAY) throw new Error('--record and --replay together would record the tape from itself')
+  const { isUpstream, recordingFetch, replayingFetch, requestUrl, tapeDay } = await import('./upstreamTape.js')
+  const tape: Tape | null = RECORD
+    ? { recordedOn: tapeDay(new Date()), entries: [] }
+    : REPLAY
+      ? (JSON.parse(gunzipSync(readFileSync(tapePath)).toString('utf8')) as Tape)
+      : null
+  const tapeMisses = new Set<string>()
+  if (tape && RECORD) globalThis.fetch = recordingFetch(globalThis.fetch, tape)
+  if (tape && REPLAY) globalThis.fetch = replayingFetch(globalThis.fetch, tape, tapeDay(new Date()), tapeMisses)
+  if (REPLAY && tape) console.log(`Replaying ${tape.entries.length} upstream answers recorded ${tape.recordedOn}`)
+  const tapedFetch = globalThis.fetch
+  globalThis.fetch = async (input, init) => {
+    const res = await tapedFetch(input, init)
+    const url = requestUrl(input)
+    if (res.status === 429 && rateLimitedBy === null && isUpstream(url)) {
+      rateLimitedBy = new URL(url).host
+      console.error(`\n!! ${rateLimitedBy} answered 429: stopping at the next check`)
+    }
+    return res
+  }
+
+  const { useLocalPostgresProxy } = await import('./localPostgres.js')
+  if (await useLocalPostgresProxy()) console.log(`Database: local Postgres through ${process.env['CHECK_UI_WS_PROXY']}`)
 
   const { createApp } = await import('../index.js')
   const { db, pool } = await import('../db/index.js')
@@ -352,6 +406,126 @@ async function run(): Promise<void> {
       check('the crumbs step back up to the wall, then the guidebook', await cragChosen())
     }
 
+    // 1b. What arrives inside a screen (owner, 2026-10-21, the motion mockup),
+    // read from the animations the browser actually ran rather than a frame.
+    // In contexts of its own, so the crag it opens is not already cached for 2a.
+    async function signedIn(options: { reducedMotion?: 'reduce' } = {}) {
+      const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: 2, ...options })
+      const tab = await context.newPage()
+      await tab.goto(`${WEB}/login`)
+      await tab.getByLabel('Username').fill(USERNAME)
+      await tab.getByLabel('Passphrase').fill(PASSPHRASE)
+      await tab.getByRole('button', { name: /sign in|log in/i }).click()
+      await tab.waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 30_000 })
+      return { context, tab }
+    }
+    async function motionChecks(): Promise<void> {
+      const { context: moving, tab: page } = await signedIn()
+      try {
+        await motionSteps(page)
+      } finally {
+        await moving.close()
+      }
+    }
+    async function motionSteps(page: Page): Promise<void> {
+      const watch = () =>
+        page.evaluate(() => {
+          // No named functions in here: tsx wraps them in a `__name` the page does not have.
+          const m = { seen: new Set<string>(), clipMin: 1, bead: false, timer: 0 }
+          m.timer = window.setInterval(() => {
+            for (const a of document.getAnimations()) {
+              const effect = a.effect as KeyframeEffect | null
+              if (effect?.pseudoElement) m.seen.add(effect.pseudoElement)
+              if (a instanceof CSSAnimation) m.seen.add(a.animationName)
+            }
+            document.querySelectorAll('[data-stream]').forEach((g) => {
+              const svg = g.closest('svg')
+              const width = Number(svg?.querySelector('clipPath rect')?.getAttribute('width') ?? '0')
+              m.clipMin = Math.min(m.clipMin, width / ((svg?.viewBox.baseVal.width ?? 390) + 800))
+              if (g.nextElementSibling?.getAttribute('opacity') === '1') m.bead = true
+            })
+          }, 16)
+          ;(window as unknown as { __motion: typeof m }).__motion = m
+        })
+      const read = () =>
+        page.evaluate(() => {
+          const m = (window as unknown as { __motion: { seen: Set<string>; clipMin: number; bead: boolean; timer: number } }).__motion
+          window.clearInterval(m.timer)
+          return { seen: [...m.seen], clipMin: m.clipMin, bead: m.bead }
+        })
+
+      await page.goto(`${WEB}/`)
+      await page.locator(`[data-crag-fly="name"][data-crag-fly-id="${locationId}"]`).waitFor({ timeout: 60_000 })
+      await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
+      await watch()
+      await page.locator(`[data-crag-fly="name"][data-crag-fly-id="${locationId}"]`).click()
+      await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
+      await page.waitForTimeout(450)
+      await page.screenshot({ path: join(dir, 'motion-stream-mid.png') })
+      await page.waitForTimeout(2_600)
+      const open = await read()
+      check(
+        'opening a crag carries its name across from the list row',
+        open.seen.some((s) => s.includes('wt6-crag-name')),
+        open.seen.filter((s) => s.startsWith('::')).join(', '),
+      )
+      check(
+        'and the Today chart streams in behind a lead bead',
+        open.clipMin < 0.6 && open.bead,
+        `clip reached ${(open.clipMin * 100).toFixed(0)}% of full, bead ${open.bead ? 'seen' : 'never seen'}`,
+      )
+      const settled = await page.evaluate(() =>
+        Array.from(document.querySelectorAll('[data-stream]')).map((g) => {
+          const rect = g.closest('svg')?.querySelector('clipPath rect')
+          return {
+            drawn: Number(rect?.getAttribute('width')) >= Number(g.closest('svg')?.viewBox.baseVal.width) + 800,
+            beadGone: g.nextElementSibling?.getAttribute('opacity') === '0',
+          }
+        }),
+      )
+      check(
+        'and every chart ends fully drawn, with no lead bead left behind',
+        settled.length > 0 && settled.every((s) => s.drawn && s.beadGone),
+        JSON.stringify(settled),
+      )
+      check('the score flies with the name', open.seen.some((s) => s.includes('wt6-crag-score')), open.seen.filter((s) => s.startsWith('::')).join(', '))
+
+      await watch()
+      await page.getByRole('tab', { name: 'Daily' }).click()
+      await page.waitForTimeout(1_500)
+      const daily = await read()
+      for (const name of ['wt6-pour', 'wt6-rise', 'wt6-grow-x']) {
+        check(`a tab change plays ${name}`, daily.seen.includes(name), daily.seen.join(', '))
+      }
+
+      await watch()
+      await page.getByRole('button', { name: 'Back to Conditions' }).click()
+      await page.locator(`[data-crag-fly="name"][data-crag-fly-id="${locationId}"]`).waitFor({ timeout: 10_000 })
+      await page.waitForTimeout(1_200)
+      const back = await read()
+      check(
+        'going back carries the name into the row, which stays put',
+        back.seen.some((s) => s.includes('wt6-crag-name')) && !back.seen.includes('wt6-rise'),
+        back.seen.join(', '),
+      )
+      await page.screenshot({ path: join(dir, 'motion-list-after.png') })
+
+      const { context: still, tab: calm } = await signedIn({ reducedMotion: 'reduce' })
+      try {
+        await calm.goto(`${WEB}/location/${locationId}`)
+        await calm.locator('[data-stream]').first().waitFor({ timeout: 60_000 })
+        const drawn = await calm.evaluate(() => {
+          const g = document.querySelector('[data-stream]')
+          const rect = g?.closest('svg')?.querySelector('clipPath rect')
+          return Number(rect?.getAttribute('width')) >= Number(g?.closest('svg')?.viewBox.baseVal.width) + 800
+        })
+        check('under reduced motion a chart is drawn whole at once', drawn)
+      } finally {
+        await still.close()
+      }
+    }
+    await motionChecks()
+
     if (TABS_ONLY) {
       await everyTab()
       return
@@ -452,22 +626,27 @@ async function run(): Promise<void> {
     check('coming back to the list shows no splash', (await splash.count()) === 0)
 
     // 2d. A reopen draws the cards from what this device remembers — no
-    // splash, the age in the header — while every weather call is held back
-    // 3 s; then the live copies replace them.
+    // splash, the age in the header — while every weather call is held back;
+    // then the live copies replace them. "Before the API answers" is checked
+    // as no held call released yet, not as a time budget: a 1.5 s budget
+    // failed on a slow CI runner that was still loading vite's modules
+    // (2026-10-26).
     await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
     const rememberedSaved = await page.evaluate(() => localStorage.getItem('wt6.cards') !== null)
     check('the list remembers its cards’ weather on this device', rememberedSaved)
     const slowWeather = /\/api\/v1\/(forecast|conditions|alerts)\//
+    let weatherReleased = false
     await page.route(slowWeather, async (route) => {
-      await new Promise((r) => setTimeout(r, 3_000))
+      await new Promise((r) => setTimeout(r, 8_000))
+      weatherReleased = true
       await route.continue().catch(() => undefined)
     })
     const reopened = Date.now()
     await page.goto(`${WEB}/`, { waitUntil: 'domcontentloaded' })
     const drawn = await firstCard
       .getByText(/^Dryness:/)
-      .waitFor({ timeout: 1_500 })
-      .then(() => true)
+      .waitFor({ timeout: 7_000 })
+      .then(() => !weatherReleased)
       .catch(() => false)
     const drawnAfter = Date.now() - reopened
     const header = await page.locator('header').innerText()
@@ -831,7 +1010,12 @@ async function run(): Promise<void> {
     await switcher.getByRole('button', { name: SECOND_CRAG.name }).click()
     await page.waitForURL((u) => u.pathname === `/location/${secondLocationId}`, { timeout: 10_000 }).catch(() => undefined)
     const swiped = await page.locator('.wt6-swipe').waitFor({ timeout: 5_000 }).then(() => 1, () => 0)
-    const stillDaily = await page.getByRole('tab', { name: 'Daily', selected: true }).count()
+    // Waited for, not counted: the new crag's tabs render after the swipe starts,
+    // and an instant count read 0 on a fast CI run (2026-10-21).
+    const stillDaily = await page
+      .getByRole('tab', { name: 'Daily', selected: true })
+      .waitFor({ timeout: 10_000 })
+      .then(() => 1, () => 0)
     await screen('crag-switched', 5)
     check(
       'switching crags keeps the tab and swipes the new one in',
@@ -1054,6 +1238,9 @@ async function run(): Promise<void> {
       if (gone.status === 404) tripIds.splice(tripIds.indexOf(oneCragTripId), 1)
     }
     // The steps below count the list's cards: the two-crag trip and its second crag go now.
+    // Off the trips screen first: its background refetch of a trip deleted under
+    // it 404'd, and the next screen took the blame (nightly, 2026-10-22).
+    await page.goto('about:blank')
     for (const id of [...tripIds]) {
       const del = await api<null>('DELETE', `/trips/${id}`, token)
       if (del.status === 200) tripIds.splice(tripIds.indexOf(id), 1)
@@ -1377,7 +1564,14 @@ async function run(): Promise<void> {
         /Release to refresh/.test(hourlyPull) && /Updated (just now|\d+ (min|h) ago)/.test(hourlyPull),
         hourlyPull || '(the panel never opened)',
       )
-      await tp.getByText(/Up to date|Couldn’t refresh/).waitFor({ timeout: 30_000 }).catch(() => undefined)
+      // A live refresh can outlast 30 s; the scrub below then read the pull's own
+      // "Refreshing…" and failed for it (nightly, 2026-10-22 and 10-25).
+      const hourlyRefreshed = await tp
+        .locator('main > [aria-live="polite"]', { hasText: 'Refreshing' })
+        .waitFor({ state: 'hidden', timeout: 90_000 })
+        .then(() => true, () => false)
+      check('the Hourly refresh finishes', hourlyRefreshed, 'still refreshing after 90 s')
+      await tp.getByText(/Up to date|Couldn’t refresh/).waitFor({ timeout: 5_000 }).catch(() => undefined)
       await tp.waitForTimeout(1_500)
       const scrub = await dragPanel({ x: 100, y: 700 }, { x: 400, y: 760 })
       check('a sideways scrub across a chart does not pull', scrub === '', scrub)
@@ -1414,6 +1608,7 @@ async function run(): Promise<void> {
       await failing.close()
     }
   } finally {
+    finishing = true
     await browser.close().catch(() => undefined)
     if (vite) vite.kill()
     const leftover: string[] = []
@@ -1422,6 +1617,26 @@ async function run(): Promise<void> {
     }
     server.close()
     await pool.end()
+    if (tape && RECORD) {
+      // A rate-limited or failing answer on the tape would replay that failure on every PR.
+      const refused = tape.entries.filter((e) => e.status === 429 || e.status >= 500)
+      if (refused.length > 0) {
+        check('every upstream answer recorded was usable', false, `${refused.length} were 429 or 5xx; the tape was not written. First: ${refused[0]!.key}`)
+      } else {
+        mkdirSync(dirname(tapePath), { recursive: true })
+        writeFileSync(tapePath, gzipSync(JSON.stringify(tape)))
+        console.log(`\nRecorded ${tape.entries.length} upstream answers to ${tapePath}`)
+      }
+    }
+    if (rateLimitedBy !== null) check(`no upstream rate limit (${rateLimitedBy} answered 429)`, false)
+    if (REPLAY) {
+      const missed = [...tapeMisses]
+      check(
+        'every upstream call was on the tape',
+        missed.length === 0,
+        `${missed.length} missing, re-record with --record: ${missed.slice(0, 5).join('  ')}`,
+      )
+    }
     if (leftover.length > 0) {
       console.error(`\n!! CLEANUP FAILED — users ${leftover.join(', ')} are left; \`check:ui -- --sweep\` removes them after ${STALE_HOURS} h`)
     }

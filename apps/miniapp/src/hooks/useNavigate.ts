@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { useLocation, useNavigate as useRouterNavigate, type NavigateOptions, type To } from 'react-router-dom'
+import { clearCragFly, cragFlyId, endCragFly, nameCragFly } from '../lib/cragFly.js'
 import { pageMotion } from '../lib/pageMotion.js'
 import { usePrefersReducedMotion } from './usePrefersReducedMotion.js'
 
@@ -30,6 +31,10 @@ const COMMIT_WAIT_MS = 1_500
  * save landing on its result, the crag switcher), a history step, reduced
  * motion and a browser without view transitions all change screen at once.
  * The phone's own back is the browser's, and does not move either.
+ *
+ * A crag opened from the list, or the list returned to, carries the crag's
+ * name and score across (`lib/cragFly.ts`): the pair is named on the old
+ * screen before it is captured, and on the new one once it is in the DOM.
  */
 export function useNavigate(): AppNavigate {
   const navigate = useRouterNavigate()
@@ -49,16 +54,23 @@ export function useNavigate(): AppNavigate {
       }
       const root = document.documentElement
       root.dataset.page = motion
+      const fly = motion === 'fade' ? cragFlyId(pathname, target) : null
+      if (fly !== null) nameCragFly(fly)
       const transition = document.startViewTransition(
         () =>
           new Promise<void>((resolve) => {
-            committed = resolve
+            if (fly !== null) clearCragFly()
+            committed = () => {
+              if (fly !== null) nameCragFly(fly)
+              resolve()
+            }
             window.setTimeout(resolve, COMMIT_WAIT_MS)
             void navigate(to, options)
           }),
       )
       void transition.finished.finally(() => {
         if (root.dataset.page === motion) delete root.dataset.page
+        if (fly !== null) endCragFly()
       })
     },
     [navigate, pathname, reduced],

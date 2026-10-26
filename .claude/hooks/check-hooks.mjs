@@ -15,6 +15,7 @@
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { classifyPr, onlyRequired, ownPrVerdict } from './lib/prWait.mjs'
 import { mergeRequest, reviewCoversHead } from './lib/reviewGate.mjs'
 import { FULL, INCREMENTAL, lastReviewedSha, pickScope } from './lib/reviewScope.mjs'
 
@@ -244,6 +245,75 @@ const gateCases = [
       ['scope: a force-push past the reviewed commit is full', scope({ isAncestor: () => false }), { ...FULL, since: null }],
       ['scope: ready_for_review is full', scope({ action: 'ready_for_review' }), { ...FULL, since: null }],
       ['scope: the newest summary is the base', lastReviewedSha([...reviewed, bot(`## Claude review\nCommit: ${'c'.repeat(40)}`)]), 'c'.repeat(40)],
+    ]
+  })(),
+  // wait:pr's outcome for one poll (lib/prWait.mjs). Shapes as REST returns them.
+  ...(() => {
+    const ok = (name) => ({ name, status: 'COMPLETED', conclusion: 'SUCCESS' })
+    const running = (name) => ({ name, status: 'IN_PROGRESS', conclusion: '' })
+    const snap = (over) => ({
+      merged: false, open: true, headSha: SHA, startSha: SHA, mergeable: true, mergeableState: 'clean',
+      checks: [ok('ci'), ok('review')], reviewed: true, exempt: false, findings: 0, elapsedMs: 60_000, ...over,
+    })
+    const outcome = (over) => classifyPr(snap(over))?.outcome ?? 'waiting'
+    return [
+      ['wait: green and reviewed is ready', outcome({}), 'ready'],
+      ['wait: a running check keeps waiting', outcome({ checks: [ok('ci'), running('review')] }), 'waiting'],
+      ['wait: a failed check is ci-failed', outcome({ checks: [ok('ci'), { name: 'review', status: 'COMPLETED', conclusion: 'FAILURE' }] }), 'ci-failed'],
+      ['wait: a failed commit status is ci-failed', outcome({ checks: [ok('ci'), { name: 'check-ui', state: 'FAILURE' }] }), 'ci-failed'],
+      ['wait: a pending commit status keeps waiting', outcome({ checks: [ok('ci'), { name: 'check-ui', state: 'PENDING' }] }), 'waiting'],
+      // Conflicts start no workflows, so this must not read as "still waiting".
+      ['wait: a conflict is reported, not waited on', outcome({ mergeable: false, mergeableState: 'dirty', checks: [] }), 'conflict'],
+      ['wait: no checks yet, just pushed, keeps waiting', outcome({ checks: [], elapsedMs: 30_000 }), 'waiting'],
+      ['wait: no checks after the grace period is no-checks', outcome({ checks: [], elapsedMs: 4 * 60_000 }), 'no-checks'],
+      ['wait: green with no review summary is no-review', outcome({ reviewed: false }), 'no-review'],
+      ['wait: an exempt PR needs no review', outcome({ reviewed: false, exempt: true }), 'ready'],
+      ['wait: green but behind main is behind', outcome({ mergeableState: 'behind' }), 'behind'],
+      ['wait: a new push mid-wait is head-changed', outcome({ startSha: 'b'.repeat(40) }), 'head-changed'],
+      ['wait: mergeable still computing keeps waiting', outcome({ mergeable: null, mergeableState: 'unknown' }), 'waiting'],
+      ['wait: merged is merged', outcome({ merged: true, open: false }), 'merged'],
+      ['wait: inline findings are named in ready', /2 inline comment/.test(classifyPr(snap({ findings: 2 })).message), true],
+    ]
+  })(),
+  // The Stop hook's verdict on the session's own PR. Shapes as `gh pr list` returns them.
+  ...(() => {
+    const ok = { __typename: 'CheckRun', name: 'ci', status: 'COMPLETED', conclusion: 'SUCCESS' }
+    const running = { __typename: 'CheckRun', name: 'review', status: 'IN_PROGRESS', conclusion: '' }
+    const failed = { __typename: 'CheckRun', name: 'ci', status: 'COMPLETED', conclusion: 'FAILURE' }
+    const pr = (over) => ({ number: 7, title: 't', headRefName: 'feat/x', mergeable: 'MERGEABLE', statusCheckRollup: [ok, running], ...over })
+    const waiter = { id: 'b1', type: 'shell', status: 'running', command: 'npm run wait:pr', description: 'Wait for CI' }
+    const blocks = (over, ctx = {}) => ownPrVerdict({ pr: pr(over), backgroundTasks: [], stopHookActive: false, ...ctx }) !== null
+    return [
+      // The 2026-10-21 failure: "I'll merge when it's green" with nothing running.
+      ['stop: own PR pending with nothing running blocks', blocks({}), true],
+      ['stop: the block names wait:pr', ownPrVerdict({ pr: pr({}), backgroundTasks: [], stopHookActive: false }).join('\n').includes('npm run wait:pr'), true],
+      ['stop: pending blocks again on a continued turn', blocks({}, { stopHookActive: true }), true],
+      ['stop: own PR pending with wait:pr in the background is allowed', blocks({}, { backgroundTasks: [waiter] }), false],
+      ['stop: a finished wait:pr does not count', blocks({}, { backgroundTasks: [{ ...waiter, status: 'completed' }] }), true],
+      ['stop: some other background task does not count', blocks({}, { backgroundTasks: [{ ...waiter, command: 'npm run check:ui' }] }), true],
+      ['stop: checks not started yet blocks', blocks({ statusCheckRollup: [] }), true],
+      ['stop: green is left to the merge checks', blocks({ statusCheckRollup: [ok] }), false],
+      ['stop: a conflict blocks once', blocks({ mergeable: 'CONFLICTING', statusCheckRollup: [] }), true],
+      ['stop: a conflict allows a continued turn', blocks({ mergeable: 'CONFLICTING', statusCheckRollup: [] }, { stopHookActive: true }), false],
+      ['stop: a failed check blocks once', blocks({ statusCheckRollup: [failed] }), true],
+      ['stop: a failed check allows a continued turn', blocks({ statusCheckRollup: [failed] }, { stopHookActive: true }), false],
+      // An older Claude Code sends no background_tasks: nudge once, never loop.
+      ['stop: no background_tasks field blocks once', blocks({}, { backgroundTasks: undefined }), true],
+      ['stop: no background_tasks field allows a continued turn', blocks({}, { backgroundTasks: undefined, stopHookActive: true }), false],
+      ['stop: no PR for the branch is not this check\'s', ownPrVerdict({ pr: undefined, backgroundTasks: [], stopHookActive: false }), null],
+      // 2026-10-21: the optional 10-minute UI check held every PR's wait.
+      ...(() => {
+        const ui = { __typename: 'CheckRun', name: 'check-ui', status: 'IN_PROGRESS', conclusion: '' }
+        const doneReview = { ...running, status: 'COMPLETED', conclusion: 'SUCCESS' }
+        const cut = (rollup, required) => onlyRequired(rollup, required)
+        return [
+          ['required: a pending optional check does not hold a green PR', blocks({ statusCheckRollup: cut([ok, doneReview, ui], ['ci', 'review']) }), false],
+          ['required: a pending required check still blocks', blocks({ statusCheckRollup: cut([ok, running, ui], ['ci', 'review']) }), true],
+          ['required: a required status context is kept', cut([{ context: 'deploy', state: 'PENDING' }], ['deploy']).length, 1],
+          ['required: unreadable protection keeps every check', cut([ok, ui], null).length, 2],
+          ['required: no required checks keeps every check', cut([ok, ui], []).length, 2],
+        ]
+      })(),
     ]
   })(),
 ]

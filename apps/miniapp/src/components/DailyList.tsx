@@ -135,10 +135,14 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
             formatPrecipIn(day.precip_mm_p50),
             `peak wind ${formatWindMph(day.wind_kmh_max)}`,
           ].filter((s): s is string => s !== null)
+          // Each row rises a step after the one above, and its bar grows out after it.
+          const step = { '--wt6-i': i } as CSSProperties
           const bar =
             day.temp_c_min === null || day.temp_c_max === null ? null : (
               <i
+                className="wt6-grow-x"
                 style={{
+                  ...step,
                   position: 'absolute',
                   top: 0,
                   bottom: 0,
@@ -178,13 +182,20 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
             </>
           )
           const spoken = `${[name, date].filter((s) => s !== '').join(' ')}: ${d.score === null ? 'no score' : `score ${d.score}`}, low ${formatTempDeg(day.temp_c_min)}, high ${formatTempDeg(day.temp_c_max)}, ${chance === null ? 'chance of rain unknown' : `${chance}% chance of rain`}`
-          const style = i === rows.length - 1 ? { ...rowGrid, borderBottom: 'none' } : rowGrid
+          const style = { ...step, ...(i === rows.length - 1 ? { ...rowGrid, borderBottom: 'none' } : rowGrid) }
           return open === null ? (
-            <div key={day.forecast_date} style={style}>
+            <div key={day.forecast_date} className="wt6-rise" style={style}>
               {content}
             </div>
           ) : (
-            <button key={day.forecast_date} type="button" onClick={open} aria-label={spoken} style={{ ...bareButton, ...style }}>
+            <button
+              key={day.forecast_date}
+              type="button"
+              onClick={open}
+              aria-label={spoken}
+              className="wt6-rise"
+              style={{ ...bareButton, ...style }}
+            >
               {content}
             </button>
           )

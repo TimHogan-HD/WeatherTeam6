@@ -20,6 +20,9 @@
  * it when the user has explicitly asked to pause mid-change, and delete it when
  * work resumes. It is gitignored.
  *
+ * The session's own PR blocks while CI or the review is pending, unless a
+ * `wait:pr` runs in the background (`lib/prWait.mjs`).
+ *
  * Deliberately NOT checked here: whether tests pass. That belongs to CI and to
  * the review checklist. This hook is about work being *delivered*, not correct.
  *
@@ -38,6 +41,7 @@ import {
   unpushedCommits,
   workingTreeChanges,
 } from './lib/gitState.mjs'
+import { ownPrVerdict } from './lib/prWait.mjs'
 import { reviewState } from './lib/reviewGate.mjs'
 import { activePeers, ownClaims, porcelainPath } from './lib/sessionClaims.mjs'
 
@@ -65,9 +69,13 @@ const raw = await readStdin()
 // from — a session in a worktree otherwise ends with its commits unpushed and
 // this hook looking at the main checkout.
 let sessionId = null
+let backgroundTasks
+let stopHookActive = false
 try {
   const payload = JSON.parse(raw)
   sessionId = payload?.session_id ?? null
+  backgroundTasks = payload?.background_tasks
+  stopHookActive = payload?.stop_hook_active === true
   const cwd = payload?.cwd
   if (typeof cwd === 'string' && cwd) process.chdir(cwd)
 } catch {
@@ -177,6 +185,19 @@ if (branch === base) {
 
 const prs = openPullRequests()
 if (prs === null) process.exit(0) // gh unavailable; do not guess.
+
+// ---- 5a. this branch's PR, still waiting on CI or the review ----------------
+
+// Until 2026-10-21 only a green PR blocked, so a turn ended mid-CI with "I'll
+// merge when it's green" and the owner asked "done?" in session after session.
+if (branch !== base) {
+  const own = ownPrVerdict({
+    pr: prs.find((p) => p.headRefName === branch),
+    backgroundTasks,
+    stopHookActive,
+  })
+  if (own) blockTurn(own)
+}
 
 const green = prs.filter((p) => p.mergeable === 'MERGEABLE' && checksArePassing(p))
 // The merge gate (lib/reviewGate.mjs) refuses a PR the CI reviewer has not

@@ -1,0 +1,134 @@
+name: UI check
+
+# `check:ui` rotted between sessions because it only ran when someone remembered
+# (2026-10-21). This runs it unattended, with no Neon project and no secret: a
+# throwaway Postgres behind Neon's own WebSocket proxy, so the app's driver is
+# the one production uses.
+#
+# On a PR the upstream weather calls are replayed from the recorded tape, so the
+# run does not depend on Open-Meteo's shared-IP rate limits or on today's
+# weather. Every night it runs live instead, which is what notices an upstream
+# change the tape cannot; a nightly failure opens or updates one issue, which
+# the SessionStart hook lists.
+#
+# Not a required check: it has not yet run long enough to be known not to flake.
+
+on:
+  pull_request:
+  schedule:
+    - cron: "17 9 * * *"
+  workflow_dispatch:
+    inputs:
+      live:
+        description: "Call the real upstreams instead of replaying the tape"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      # The driver asks this proxy for `address=postgres:5432`; the regex keeps
+      # it from dialling anything else.
+      wsproxy:
+        image: ghcr.io/neondatabase/wsproxy:latest
+        env:
+          ALLOW_ADDR_REGEX: "^postgres:5432$"
+          LOG_CONN_INFO: "false"
+        ports:
+          - 5488:80
+    env:
+      DATABASE_URL: postgres://postgres:ci-only@postgres:5432/postgres
+      CHECK_UI_WS_PROXY: localhost:5488
+      TAPE: apps/api/src/scripts/fixtures/check-ui-tape.json.gz
+    steps:
+      - uses: actions/checkout@v4
+
+      # With no tape, the run records one: against this same empty database, so
+      # it holds the calls a replay will make (a local recording against Neon
+      # finds stored runs and skips them), and from a runner's IP rather than a
+      # workstation whose Open-Meteo allowance other runs have spent.
+      - name: Choose live, record or replay
+        env:
+          LIVE: ${{ github.event_name == 'schedule' || inputs.live }}
+        run: |
+          if [ "$LIVE" = true ]; then mode=live; elif [ -f "$TAPE" ]; then mode=replay; else mode=record; fi
+          echo "MODE=$mode" >> "$GITHUB_ENV"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the shared packages
+        run: npm run build --workspace=packages/types --workspace=packages/design
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/api
+
+      - name: Apply the migrations
+        run: npm run migrate:local
+        working-directory: apps/api
+
+      - name: Run check:ui (${{ env.MODE }})
+        working-directory: apps/api
+        run: |
+          case "$MODE" in replay) flag=--replay ;; record) flag=--record ;; *) flag= ;; esac
+          npm run check:ui -- --out "$RUNNER_TEMP/ui-check" $flag
+
+      - name: Keep the recorded tape
+        if: ${{ !cancelled() && env.MODE == 'record' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: check-ui-tape
+          path: ${{ env.TAPE }}
+          if-no-files-found: warn
+
+      - name: Keep the screenshots
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-check-${{ env.MODE }}
+          path: ${{ runner.temp }}/ui-check
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Open or update the nightly failure issue
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Nightly UI check failed"
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          body="The live nightly \`check:ui\` failed: $RUN_URL. The screenshots are in the run's ui-check-live artifact. If a PR's replayed run passes, the difference is upstream: fix the app if upstream changed shape, then delete the tape in a PR so its run records a new one."
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi

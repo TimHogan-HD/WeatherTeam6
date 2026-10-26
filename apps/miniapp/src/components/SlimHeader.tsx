@@ -4,6 +4,7 @@ import { typeV2 } from '../theme/tokens.css.js'
 import { row, stack } from '../theme/styles.js'
 import { glassHeader } from '../theme/glass.js'
 import { FLIP_ATTR } from '../lib/flip.js'
+import { CRAG_FLY_ATTR } from '../lib/cragFly.js'
 import { scoreTone } from '../lib/locationList.js'
 import type { SlimFigure } from '../lib/slimHeader.js'
 import { BackLink } from './DetailHeader.js'
@@ -69,9 +70,13 @@ export function SlimHeader({
         <div style={{ ...stack(spacing.micro), flex: '1 1 auto', minWidth: 0 }}>
           {name === null ? null : tab === 'hourly' ? (
             // Hourly's charts carry the hour's figures, so the name is the headline (owner, 2026-10-20).
-            <h1 style={{ ...typeV2.slimHeadline, margin: 0 }}>{name}</h1>
+            <h1 {...{ [CRAG_FLY_ATTR]: 'name' }} style={{ ...typeV2.slimHeadline, margin: 0 }}>{name}</h1>
           ) : (
-            <h1 style={{ ...typeV2.slimName, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            // Only the name flies to the list: this figure can be another hour's, not the row's now.
+            <h1
+              {...{ [CRAG_FLY_ATTR]: 'name' }}
+              style={{ ...typeV2.slimName, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            >
               {name}
             </h1>
           )}
