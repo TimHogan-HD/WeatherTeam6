@@ -4,6 +4,7 @@ import { useNavigate } from '../hooks/useNavigate.js'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import {
+  climbHoursLabel,
   rockTypeLabel,
   type HourlySeries,
   type Location,
@@ -70,8 +71,10 @@ export function TripScreen() {
   const byId = new Map<string, Location>((locations.data ?? []).map((l) => [l.id, l]))
   // Scores only for a crag: a city's hourly readings are a sentinel, never asked for.
   const scoredIds = ids.filter((id) => byId.get(id)?.is_climbing_location === true)
+  // An older API sends no `climbHours`, which reads as Profile hours.
+  const climbHours = trip.data?.climbHours ?? null
   const hourly = useQueries({
-    queries: ids.map((id) => ({ ...hourlyQuery(id), enabled: !over && scoredIds.includes(id) })),
+    queries: ids.map((id) => ({ ...hourlyQuery(id, climbHours), enabled: !over && scoredIds.includes(id) })),
   })
   const alerts = useQueries({ queries: ids.map((id) => ({ ...alertsQuery(id), enabled: !over })) })
   const readingsFor = (id: string): DayReadings | null => {
@@ -109,6 +112,7 @@ export function TripScreen() {
           // A one-crag trip's title is the trip, so its crag is named here.
           cragParam === undefined && single !== undefined ? (byId.get(single)?.name ?? null) : null,
           focus === null ? null : rock,
+          climbHours === null ? null : `Climbing ${climbHoursLabel(climbHours)}`,
         ]
           .filter((p): p is string => p !== null)
           .join(' · ')

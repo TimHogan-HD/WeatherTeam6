@@ -5,6 +5,7 @@ import {
   TEMP_RANGE_LIMITS_F,
   cToF,
   fToC,
+  type ClimbHours,
   type DetailTabKey,
   type Preferences,
   type UpdatePreferencesInput,
@@ -33,14 +34,14 @@ export function draftFromPreferences(p: Preferences): SettingsDraft {
 /**
  * Move one end of the climbing hours by `deltaH`, held inside the day and
  * never closer to the other end than one three-hour run. The control cannot
- * reach a window the API would refuse.
+ * reach a window the API would refuse. Profile's and a trip's hours alike.
  */
-export function stepHours(draft: SettingsDraft, end: 'first' | 'last', deltaH: number): SettingsDraft {
+export function stepHours(hours: ClimbHours, end: 'first' | 'last', deltaH: number): ClimbHours {
   const span = CLIMB_HOURS_MIN_SPAN - 1
   if (end === 'first') {
-    return { ...draft, firstHour: Math.min(Math.max(draft.firstHour + deltaH, 0), draft.lastHour - span) }
+    return { ...hours, first: Math.min(Math.max(hours.first + deltaH, 0), hours.last - span) }
   }
-  return { ...draft, lastHour: Math.max(Math.min(draft.lastHour + deltaH, 23), draft.firstHour + span) }
+  return { ...hours, last: Math.max(Math.min(hours.last + deltaH, 23), hours.first + span) }
 }
 
 /**

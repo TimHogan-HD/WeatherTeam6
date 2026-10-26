@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { forTripFromState, tripDraftFromState, withCrag, type TripDraft } from './tripDraft.js'
 
-const draft: TripDraft = { name: 'Creek week', start: '2026-11-01', end: '2026-11-07', locationIds: ['a'] }
+const draft: TripDraft = { name: 'Creek week', start: '2026-11-01', end: '2026-11-07', locationIds: ['a'], climbHours: null }
 const EDIT = '/trips/3f2a9c1e-0000-4000-8000-000000000001/edit'
 
 describe('forTripFromState', () => {
@@ -33,6 +33,19 @@ describe('tripDraftFromState', () => {
     expect(tripDraftFromState({ tripDraft: draft })).toEqual(draft)
     expect(tripDraftFromState({ forTrip: { returnTo: '/trips/new', draft } })).toBeNull()
     expect(tripDraftFromState(null)).toBeNull()
+  })
+
+  it("keeps a draft's own climbing hours, and reads a draft from before them as Profile hours", () => {
+    const own = { ...draft, climbHours: { first: 12, last: 20 } }
+    expect(tripDraftFromState({ tripDraft: own })).toEqual(own)
+    const { climbHours: _, ...older } = draft
+    expect(tripDraftFromState({ tripDraft: older })).toEqual(draft)
+  })
+
+  it('refuses a draft whose climbing hours are malformed', () => {
+    expect(tripDraftFromState({ tripDraft: { ...draft, climbHours: { first: 12 } } })).toBeNull()
+    expect(tripDraftFromState({ tripDraft: { ...draft, climbHours: { first: 12, last: 13 } } })).toBeNull()
+    expect(tripDraftFromState({ tripDraft: { ...draft, climbHours: '8-18' } })).toBeNull()
   })
 })
 

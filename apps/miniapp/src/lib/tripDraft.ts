@@ -10,20 +10,33 @@
  * history can bring any shape — so each read goes through a parser that
  * answers null rather than trusting it.
  */
+import { isClimbHours, type ClimbHours } from '@weatherteam6/types'
 
-export type TripDraft = { name: string; start: string; end: string; locationIds: string[] }
+/** `climbHours` null: the trip follows the owner's Profile hours. */
+export type TripDraft = { name: string; start: string; end: string; locationIds: string[]; climbHours: ClimbHours | null }
 
 /** What the trip form hands `/add`: where to return, and the draft to return with. */
 export type ForTrip = { returnTo: string; draft: TripDraft }
 
 const isString = (v: unknown): v is string => typeof v === 'string'
 
+/** A draft's hours: absent (a history entry from before #401) or null is Profile hours; anything else must be valid. */
+function parseHours(v: unknown): ClimbHours | null | undefined {
+  if (v === undefined || v === null) return null
+  if (typeof v !== 'object') return undefined
+  const { first, last } = v as Record<string, unknown>
+  if (typeof first !== 'number' || typeof last !== 'number') return undefined
+  return isClimbHours({ first, last }) ? { first, last } : undefined
+}
+
 function parseDraft(v: unknown): TripDraft | null {
   if (typeof v !== 'object' || v === null) return null
   const d = v as Record<string, unknown>
   if (!isString(d.name) || !isString(d.start) || !isString(d.end)) return null
   if (!Array.isArray(d.locationIds) || !d.locationIds.every(isString)) return null
-  return { name: d.name, start: d.start, end: d.end, locationIds: [...d.locationIds] }
+  const climbHours = parseHours(d.climbHours)
+  if (climbHours === undefined) return null
+  return { name: d.name, start: d.start, end: d.end, locationIds: [...d.locationIds], climbHours }
 }
 
 /** `/add`'s router state, if a trip form opened it. */

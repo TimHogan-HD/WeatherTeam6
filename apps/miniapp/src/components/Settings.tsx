@@ -1,14 +1,8 @@
 import { useState, type ReactNode } from 'react'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
-import {
-  CLIMB_HOURS_DEFAULT,
-  TEMP_RANGE_DEFAULT_F,
-  climbHoursLabel,
-  hourLabel,
-  type Preferences,
-} from '@weatherteam6/types'
+import { CLIMB_HOURS_DEFAULT, TEMP_RANGE_DEFAULT_F, climbHoursLabel, type Preferences } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, brandButton, cardV2, choicePill, quietButton, row, stack } from '../theme/styles.js'
+import { bareButton, brandButton, cardV2, choicePill, row, stack } from '../theme/styles.js'
 import { Sect } from './charts/liquid.js'
 import { usePreferences, useUpdatePreferences } from '../hooks/usePreferences.js'
 import {
@@ -18,10 +12,10 @@ import {
   draftFromPreferences,
   isDefault,
   settingsUpdate,
-  stepHours,
   stepRange,
   type SettingsDraft,
 } from '../lib/preferencesForm.js'
+import { ClimbHoursSteppers, Stepper } from './Stepper.js'
 import { detailTabs } from './DetailView.js'
 import { InlineError, Skeleton } from './States.js'
 
@@ -75,26 +69,10 @@ function SettingsForm({ saved }: { saved: Preferences }) {
         title="Climbing hours"
         note={`A day’s score comes from these hours only. Default ${climbHoursLabel(CLIMB_HOURS_DEFAULT)}.`}
       >
-        {(['first', 'last'] as const).map((end) => {
-          const label = end === 'first' ? 'From' : 'Until'
-          const hour = end === 'first' ? draft.firstHour : draft.lastHour
-          const step = (delta: number) => {
-            const next = stepHours(draft, end, delta)
-            return (end === 'first' ? next.firstHour : next.lastHour) === hour ? null : next
-          }
-          return (
-            <Stepper
-              key={end}
-              label={label}
-              value={hourLabel(hour)}
-              down={step(-1)}
-              up={step(1)}
-              downName={`${label} an hour earlier`}
-              upName={`${label} an hour later`}
-              onChange={change}
-            />
-          )
-        })}
+        <ClimbHoursSteppers
+          hours={{ first: draft.firstHour, last: draft.lastHour }}
+          onChange={(h) => change({ ...draft, firstHour: h.first, lastHour: h.last })}
+        />
       </Card>
 
       <Card title="Open a crag on" note="The tab a crag shows first.">
@@ -160,63 +138,5 @@ function Card({ title, note, children }: { title: string; note: string; children
       </div>
       {children}
     </section>
-  )
-}
-
-/** − value + for one end of a setting. `down`/`up` are the draft a tap makes, null when it would move nothing. */
-function Stepper({
-  label,
-  value,
-  down,
-  up,
-  downName,
-  upName,
-  onChange,
-}: {
-  label: string
-  value: string
-  down: SettingsDraft | null
-  up: SettingsDraft | null
-  downName: string
-  upName: string
-  onChange: (d: SettingsDraft) => void
-}) {
-  const button = (next: SettingsDraft | null, glyph: string, name: string) => {
-    const enabled = next !== null
-    return (
-      <button
-        type="button"
-        aria-label={name}
-        disabled={!enabled}
-        onClick={() => {
-          if (next !== null) onChange(next)
-        }}
-        style={{
-          ...quietButton,
-          ...typeV2.guideRowName,
-          width: `${spacing.sectionGap * 2.75}px`,
-          height: `${spacing.sectionGap * 2.75}px`,
-          padding: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          opacity: enabled ? 1 : 0.4,
-        }}
-      >
-        {glyph}
-      </button>
-    )
-  }
-  return (
-    <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'center' }}>
-      <span style={typeV2.statLabel}>{label}</span>
-      <div style={{ ...row(spacing.listGapLg), alignItems: 'center' }}>
-        {button(down, '−', downName)}
-        <span aria-live="polite" style={{ ...typeV2.lineFigure, color: colorsV2.txt1, minWidth: `${spacing.sectionGap * 4}px`, textAlign: 'center' }}>
-          {value}
-        </span>
-        {button(up, '+', upName)}
-      </div>
-    </div>
   )
 }

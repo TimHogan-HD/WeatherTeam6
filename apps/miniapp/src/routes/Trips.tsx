@@ -2,10 +2,29 @@ import { useState, type ReactNode } from 'react'
 import { useLocation as useRouterLocation, useParams } from 'react-router-dom'
 import { useNavigate } from '../hooks/useNavigate.js'
 import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
-import type { Trip, UpdateTripInput } from '@weatherteam6/types'
+import {
+  DEFAULT_PREFERENCES,
+  climbHoursLabel,
+  effectiveClimbHours,
+  type Trip,
+  type UpdateTripInput,
+} from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { bareButton, bottomClearance, brandButton, cardV2, fieldV2, headerBand, navClearance, row, stack } from '../theme/styles.js'
+import {
+  bareButton,
+  bottomClearance,
+  brandButton,
+  cardV2,
+  choicePill,
+  fieldV2,
+  headerBand,
+  navClearance,
+  row,
+  stack,
+} from '../theme/styles.js'
 import { FeedbackButton } from '../components/FeedbackButton.js'
+import { ClimbHoursSteppers } from '../components/Stepper.js'
+import { usePreferences } from '../hooks/usePreferences.js'
 import { Crumb } from '../components/guidebook/parts.js'
 import { EmptyState, InlineError, SkeletonCards } from '../components/States.js'
 import { useCreateTrip, useTrip, useTrips, useUpdateTrip } from '../hooks/useTrips.js'
@@ -136,6 +155,11 @@ export function tripChanges(trip: Trip, draft: Draft): UpdateTripInput {
   const sameCrags =
     saved.length === draft.locationIds.length && draft.locationIds.every((id) => saved.includes(id))
   if (!sameCrags) changes.cragIds = draft.locationIds
+  // An older API sends no `climbHours`, which reads as Profile hours.
+  const savedHours = trip.climbHours ?? null
+  if (draft.climbHours?.first !== savedHours?.first || draft.climbHours?.last !== savedHours?.last) {
+    changes.climbHours = draft.climbHours
+  }
   return changes
 }
 
@@ -153,7 +177,7 @@ export function TripCreate() {
       title="New trip"
       backLabel="Trips"
       path={NEW_TRIP_PATH}
-      initial={returned ?? { name: '', start: today, end: today, locationIds: [] }}
+      initial={returned ?? { name: '', start: today, end: today, locationIds: [], climbHours: null }}
       onBack={() => void navigate(back.to)}
       pending={create.isPending}
       failed={create.isError ? 'Couldn’t create the trip.' : null}
@@ -161,7 +185,13 @@ export function TripCreate() {
       datesNote={null}
       onSubmit={(draft) =>
         create.mutate(
-          { name: draft.name.trim(), startDate: draft.start, endDate: draft.end, cragIds: draft.locationIds },
+          {
+            name: draft.name.trim(),
+            startDate: draft.start,
+            endDate: draft.end,
+            cragIds: draft.locationIds,
+            ...(draft.climbHours === null ? {} : { climbHours: draft.climbHours }),
+          },
           { onSuccess: (trip) => void navigate(tripPath(trip.id), { replace: true }) },
         )
       }
@@ -207,6 +237,7 @@ export function TripEdit() {
           start: saved.startDate,
           end: saved.endDate,
           locationIds: (saved.locations ?? []).map((l) => l.locationId),
+          climbHours: saved.climbHours ?? null,
         }
       }
       onBack={onBack}
@@ -251,6 +282,9 @@ function TripForm({ title, backLabel, path, initial, onBack, pending, failed, su
   const locations = useLocations()
   const [draft, setDraft] = useState<Draft>(initial)
   const [tried, setTried] = useState(false)
+  const prefs = usePreferences()
+  // Own hours start from Profile's; before Profile loads, from the default the steppers then show.
+  const profileHours = effectiveClimbHours(prefs.data ?? DEFAULT_PREFERENCES)
   // A ticked place stays listed even if it was saved as not a crag, so nothing
   // the trip will send is hidden from the form sending it.
   const crags = (locations.data ?? []).filter((l) => l.is_climbing_location || draft.locationIds.includes(l.id))
@@ -357,6 +391,38 @@ function TripForm({ title, backLabel, path, initial, onBack, pending, failed, su
             >
               + Add a crag
             </button>
+          )}
+        </fieldset>
+        <fieldset style={{ ...stack(spacing.listGapSm), border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
+          <legend style={{ ...typeV2.statLabel, padding: 0, marginBottom: `${spacing.tight}px` }}>Climbing hours</legend>
+          <div role="group" aria-label="Climbing hours" style={row(spacing.listGapSm)}>
+            {([
+              ['Same as Profile', null],
+              ['Own hours', draft.climbHours ?? profileHours],
+            ] as const).map(([label, hours]) => {
+              const chosen = (draft.climbHours === null) === (hours === null)
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  aria-pressed={chosen}
+                  onClick={() => setDraft((d) => ({ ...d, climbHours: hours }))}
+                  style={{ ...choicePill(chosen), ...typeV2.dayPick, flex: 1 }}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+          <p style={typeV2.note}>
+            {draft.climbHours !== null
+              ? 'This trip’s day scores read these hours only.'
+              : prefs.data === undefined
+                ? 'Your Profile hours.'
+                : `Your Profile hours, ${climbHoursLabel(profileHours)}.`}
+          </p>
+          {draft.climbHours === null ? null : (
+            <ClimbHoursSteppers hours={draft.climbHours} onChange={(climbHours) => setDraft((d) => ({ ...d, climbHours }))} />
           )}
         </fieldset>
         {tried && problem !== null ? <p style={{ ...typeV2.body, color: colorsV2.poorInk }}>{problem}</p> : null}

@@ -28,14 +28,14 @@ describe('draftFromPreferences', () => {
 
 describe('stepHours', () => {
   it('stops each end inside the day', () => {
-    expect(stepHours({ ...DEFAULT_DRAFT, firstHour: 0 }, 'first', -1).firstHour).toBe(0)
-    expect(stepHours({ ...DEFAULT_DRAFT, lastHour: 23 }, 'last', 1).lastHour).toBe(23)
+    expect(stepHours({ first: 0, last: 18 }, 'first', -1)).toEqual({ first: 0, last: 18 })
+    expect(stepHours({ first: 8, last: 23 }, 'last', 1)).toEqual({ first: 8, last: 23 })
   })
 
   it('always leaves room for one three-hour run', () => {
-    expect(stepHours({ ...DEFAULT_DRAFT, firstHour: 16 }, 'first', 1).firstHour).toBe(16)
-    expect(stepHours({ ...DEFAULT_DRAFT, lastHour: 10 }, 'last', -1).lastHour).toBe(10)
-    expect(stepHours(DEFAULT_DRAFT, 'first', 1).firstHour).toBe(9)
+    expect(stepHours({ first: 16, last: 18 }, 'first', 1).first).toBe(16)
+    expect(stepHours({ first: 8, last: 10 }, 'last', -1).last).toBe(10)
+    expect(stepHours({ first: 8, last: 18 }, 'first', 1)).toEqual({ first: 9, last: 18 })
   })
 })
 
