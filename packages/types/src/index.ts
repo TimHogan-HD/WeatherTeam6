@@ -553,17 +553,9 @@ export type LocationNormal = {
   fetchedAt: string
 }
 
-export type RadarFrame = {
-  time: number
-  path: string
-}
-
-export type RadarFramesResponse = {
-  generated: number
-  host: string
-  tileUrlTemplate: string
-  past: RadarFrame[]
-  nowcast: RadarFrame[]
+/** `GET /radar/latest`: the newest IEM composite radar frame, as an ISO instant. */
+export type RadarLatest = {
+  valid_at: string
 }
 
 export type ClimbabilityHistory = {

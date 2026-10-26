@@ -1,6 +1,20 @@
 import { queryOptions, useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { apiGet } from '../lib/api.js'
-import type { Conditions, ForecastSnapshot, WeatherAlert } from '@weatherteam6/types'
+import type { Conditions, ForecastSnapshot, RadarLatest, WeatherAlert } from '@weatherteam6/types'
+
+/** IEM builds a radar frame every 5 minutes. */
+const RADAR_REFRESH_MS = 5 * 60_000
+
+/** The newest radar frame's time, asked for only while the Map's radar is on, and again every frame after. */
+export function useRadarLatest(enabled: boolean): UseQueryResult<RadarLatest> {
+  return useQuery({
+    queryKey: ['radar', 'latest'] as const,
+    queryFn: () => apiGet<RadarLatest>('/radar/latest'),
+    enabled,
+    staleTime: RADAR_REFRESH_MS,
+    refetchInterval: enabled ? RADAR_REFRESH_MS : false,
+  })
+}
 
 /**
  * The query definitions are exported so a screen that needs several locations'

@@ -104,11 +104,11 @@ ACIS gridded normals (`acisNormals.ts`) are a separate call and remain.
 - **Response:** GeoJSON FeatureCollection. Each feature has `properties.event`, `properties.severity`, `properties.certainty`
 - **Alert tiers for climbing:** Watch → Advisory → Warning → Active, based on CAPE value in `properties.description` + `properties.event` string
 
-## RainViewer
-- **Frame index:** `https://api.rainviewer.com/public/weather-maps.json` — fetch this to get current tile timestamps
-- **Tile URL:** `https://tilecache.rainviewer.com/v2/radar/{timestamp}/256/{z}/{x}/{y}/2/1_1.png`
-- **Nowcast tiles:** available in same response under `nowcast` array
-- Client-side rendering only — fetch frame index from backend, render tiles in mobile
+## IEM NEXRAD radar (Map tab)
+- **Newest frame:** `https://mesonet.agron.iastate.edu/data/gis/images/4326/USCOMP/n0q_0.json` — `meta.valid` is the US composite's valid time (5-minute steps). Fetched by the API (`lib/weather/iemRadar.ts`, `GET /radar/latest`).
+- **Tiles for one frame:** `https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/ridge::USCOMP-N0Q-{YYYYMMDDHHMM}/{z}/{x}/{y}.png` (UTC stamp). Loaded straight from the browser (owner decision 2026-10-26); CORS `*`, cached 5 minutes. A frame not yet built answers 503.
+- **Recent frames without a stamp:** `nexrad-n0q-900913` (latest) and `nexrad-n0q-900913-m05m` … `-m50m`. Their content moves under a fixed URL, so a label cannot be tied to them — use the stamped form.
+- No key. US only. N0Q is ~1 km, so it holds up to about zoom 9–10 and upscales past that. Replaced RainViewer (whose free mosaic stops at zoom 7) on 2026-10-26.
 
 ## Tomorrow.io (Premium On-Demand)
 - **Endpoint:** `https://api.tomorrow.io/v4/weather/forecast`
