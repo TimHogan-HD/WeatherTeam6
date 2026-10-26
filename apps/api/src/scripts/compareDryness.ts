@@ -178,6 +178,29 @@ const RULES: Rule[] = [
   vote(2),
 ]
 
+/**
+ * **The wetting threshold**, measured on the shipped rule: its rain below each of
+ * these, mm/h, is read as none. `WET_MM` (0.05) is what ships. It was set when
+ * an hour of rain was 0 or ≥ 0.1, but the six-hour mean spreads a shower into
+ * hours of a few hundredths, each of which re-wets the rock and scores 0
+ * (owner, Barn Bluff 2026-10-25: about 0.03 in forecast over an afternoon that
+ * stayed dry, scored 0 from noon).
+ *
+ * **Measured 2026-10-26, 17 gauges, 90 days: raising it buys back fewer lost
+ * days than the wet days it calls dry.** Limestone one day ahead, per day: 0.05
+ * missed 17% of wet days and called 13% of dry days not dry; 0.1 missed 23% and
+ * called 10%; 0.2 missed 32% and called 8%. Peirce was best at 0.05 or 0.1 on
+ * every rock and lead, against either truth, and fell from 0.2 up. 0.05 stays.
+ */
+const WET_THRESHOLDS = [0.05, 0.1, 0.2, 0.3, 0.5] as const
+const THRESHOLD_LEADS = [0, 1] as const
+/**
+ * Below this a gauge hour is a trace, which `gauge` counts as 0.1 mm. The
+ * gauge's clock wets on a trace too, which favours a low threshold, so the
+ * threshold table also scores against a truth that ignores traces.
+ */
+const TRACE_MM = 0.2
+
 type Tally = { hit: number; miss: number; falseAlarm: number; correctDry: number }
 const tallies = new Map<string, Tally>()
 function count(key: string, truthWet: boolean, sourceWet: boolean): void {
@@ -325,6 +348,49 @@ async function run(): Promise<void> {
           leadRules.forEach((r, ri) => count(`${rock}|day|${r.key}`, t !== 'dry', dayByRule[ri]!.get(date) !== 'dry'))
         }
       }
+
+      const shipped6h = shippedRule()
+      const thresholdRules = THRESHOLD_LEADS.flatMap((lead) =>
+        WET_THRESHOLDS.map((mm) => ({
+          lead,
+          mm,
+          rain: (k: HourKey) => {
+            const v = shipped6h.rain(runs.get(lead)!, k)
+            return v !== null && v < mm ? 0 : v
+          },
+        })),
+      )
+      const truths = [
+        { name: 'gauge', rain: (k: HourKey) => gauged.get(k) ?? null },
+        {
+          name: 'gauge, no traces',
+          rain: (k: HourKey) => {
+            const v = gauged.get(k) ?? null
+            return v !== null && v < TRACE_MM ? 0 : v
+          },
+        },
+      ]
+      for (const rock of ROCKS) {
+        const byRule = thresholdRules.map((r) => levels(r.rain, rock))
+        const dayByRule = thresholdRules.map((r) => dayLevels(r.rain, rock))
+        for (const truthSource of truths) {
+          const truth = levels(truthSource.rain, rock)
+          base.forEach((b, i) => {
+            if (i < WARMUP_HOURS || b.localHour < DAY_FIRST_HOUR || b.localHour > DAY_LAST_HOUR) return
+            const t = truth[i]
+            if (t == null || byRule.some((l) => l[i] == null)) return
+            thresholdRules.forEach((r, ri) =>
+              count(`${rock}|hour|${thresholdKey(r.lead, truthSource.name, r.mm)}`, t !== 'dry', byRule[ri]![i] !== 'dry'),
+            )
+          })
+          for (const [date, t] of dayLevels(truthSource.rain, rock)) {
+            if (t == null || dayByRule.some((d) => d.get(date) == null)) continue
+            thresholdRules.forEach((r, ri) =>
+              count(`${rock}|day|${thresholdKey(r.lead, truthSource.name, r.mm)}`, t !== 'dry', dayByRule[ri]!.get(date) !== 'dry'),
+            )
+          }
+        }
+      }
       const wetHours = [...gauged.values()].filter((mm) => mm !== null && mm >= 0.05).length
       console.log(`  ${station.padEnd(4)} ${near.padEnd(20)} ${String(wetHours).padStart(4)} wet hours on the gauge`)
     } catch (err) {
@@ -350,10 +416,24 @@ async function run(): Promise<void> {
       table(rock, RULES.map((r) => `day|${leadKey(lead, r.name)}`), false)
     }
   }
+  console.log(`\n=== wetting threshold — the shipped rule with its rain below N mm/h read as none ===`)
+  for (const span of ['hour', 'day'] as const) {
+    for (const rock of ROCKS) {
+      for (const lead of THRESHOLD_LEADS) {
+        console.log(`\n  ${rock}, lead ${lead} day${lead === 1 ? '' : 's'}, per ${span}`)
+        table(
+          rock,
+          ['gauge', 'gauge, no traces'].flatMap((truth) => WET_THRESHOLDS.map((mm) => `${span}|${thresholdKey(lead, truth, mm)}`)),
+          false,
+        )
+      }
+    }
+  }
   console.log('')
 }
 
 const leadKey = (lead: number, rule: string) => `lead ${lead}|${rule}`
+const thresholdKey = (lead: number, truth: string, mm: number) => `lead ${lead}|vs ${truth}, wet at ${mm} mm`
 
 function table(rock: RockType, names: readonly string[], sortByPeirce: boolean): void {
   const pct = (a: number, b: number) => (b === 0 ? '—' : ((100 * a) / b).toFixed(1)).padStart(7)
