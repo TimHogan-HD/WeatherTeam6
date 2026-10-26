@@ -1,5 +1,6 @@
 import { eq, gte, sql } from 'drizzle-orm'
 import { parseNumeric, parseNumericRequired } from '@weatherteam6/types'
+import type { ClimbHours, HourlySeries, PastReadingsDay, ReadingsDay } from '@weatherteam6/types'
 import { db } from '../../db/index.js'
 import { locations, tripDayOutcomes, tripDayRecords, tripLocations, tripRainRecords, trips } from '../../db/schema.js'
 import { describeError } from '../http.js'
@@ -13,6 +14,7 @@ import { localDateString } from '../weather/openMeteo.js'
 import { tripDayRows, type TripDayRow } from './tripDayRows.js'
 import { tripRainRows, type DatedTrip } from './tripRainRows.js'
 import { OUTCOME_DAYS, tripOutcomeRows, type TripOutcomeRow } from './tripOutcomeRows.js'
+import { climbHoursNeeded, daysUnderTripHours, tripClimbHours, type HoursTrip } from './tripClimbHours.js'
 
 export type RecordTripsResult = {
   /** Distinct locations on trips that had not ended, or ended inside `OUTCOME_DAYS`. */
@@ -41,6 +43,8 @@ type LocationRow = {
   cliff_angle: string | null
 }
 
+type RecordedTrip = DatedTrip & HoursTrip
+
 /**
  * Record what the forecast says about every upcoming trip day, per location.
  *
@@ -66,6 +70,8 @@ export async function recordTripDays(now: Date = new Date()): Promise<RecordTrip
       tripId: trips.id,
       start: trips.start_date,
       end: trips.end_date,
+      climb_first_hour: trips.climb_first_hour,
+      climb_last_hour: trips.climb_last_hour,
       location: {
         id: locations.id,
         user_id: locations.user_id,
@@ -83,10 +89,10 @@ export async function recordTripDays(now: Date = new Date()): Promise<RecordTrip
     .innerJoin(locations, eq(locations.id, tripLocations.location_id))
     .where(gte(trips.end_date, cutoff))
 
-  const byLocation = new Map<string, { location: LocationRow; trips: DatedTrip[] }>()
+  const byLocation = new Map<string, { location: LocationRow; trips: RecordedTrip[] }>()
   for (const row of rows) {
     const entry = byLocation.get(row.location.id) ?? { location: row.location, trips: [] }
-    entry.trips.push({ id: row.tripId, start: row.start, end: row.end })
+    entry.trips.push({ id: row.tripId, start: row.start, end: row.end, climbHours: tripClimbHours(row) })
     byLocation.set(row.location.id, entry)
   }
   const entries = [...byLocation.values()]
@@ -122,9 +128,61 @@ export async function recordTripDays(now: Date = new Date()): Promise<RecordTrip
   return result
 }
 
+/**
+ * A crag's readings for its trip dates. The location belongs to one user, so
+ * they are judged against that user's temperature range, and each date against
+ * the climbing hours of the trip covering it (`climbHoursOn`): one series per
+ * distinct hours, usually one. Any series without readings fails the location.
+ */
+async function readTripReadings(
+  location: LocationRow,
+  point: { lat: number; lon: number; elevation_m: number | null },
+  dated: RecordedTrip[],
+  now: Date,
+): Promise<{ days: ReadingsDay[]; pastDays: PastReadingsDay[]; utcOffsetSeconds: number; fetchedAt: Date | null }> {
+  const reader = await readerScoringFor(location.user_id)
+  const read: { hours: ClimbHours; series: HourlySeries }[] = []
+  // In turn rather than together: a location with no stored run fetches and
+  // stores one on the first call, so the rest score that same run.
+  for (const hours of climbHoursNeeded(dated, reader.climbHours)) {
+    const series = await getHourlySeries(
+      { id: location.id, ...point },
+      { allModels: true, now, scoring: scoringLocationFor(location, { ...reader, climbHours: hours }) },
+    )
+    if (series.readings.unavailable_reason !== null) {
+      throw new Error(`readings unavailable: ${series.readings.unavailable_reason}`)
+    }
+    read.push({ hours, series })
+  }
+
+  const fetchedAts = new Set(
+    read.map(({ series }) => series.models?.find((m) => m.model === series.readings.model)?.fetched_at ?? null),
+  )
+  const [first] = read
+  if (first === undefined) throw new Error('no climbing hours to read')
+  // One `scored_run_fetched_at` names every row, so every score must come from that run.
+  if (fetchedAts.size > 1) throw new Error('the climbing-hours series scored different runs')
+  const [fetchedAt] = fetchedAts
+
+  return {
+    days: daysUnderTripHours(
+      read.map(({ hours, series }) => ({ hours, days: series.readings.days })),
+      dated,
+      reader.climbHours,
+    ),
+    pastDays: daysUnderTripHours(
+      read.map(({ hours, series }) => ({ hours, days: series.readings.past_days ?? [] })),
+      dated,
+      reader.climbHours,
+    ),
+    utcOffsetSeconds: first.series.utc_offset_seconds,
+    fetchedAt: fetchedAt ? new Date(fetchedAt) : null,
+  }
+}
+
 async function recordLocation(
   location: LocationRow,
-  dated: DatedTrip[],
+  dated: RecordedTrip[],
   now: Date,
 ): Promise<{ days: number; trend: number; outcomes: number }> {
   const point = {
@@ -138,23 +196,10 @@ async function recordLocation(
   const yesterday = new Date(now.getTime() - 86_400_000).toISOString().slice(0, 10)
   const ahead = dated.filter((t) => t.end >= yesterday)
 
-  // A location row belongs to one user, so its readings are judged against that
-  // user's temperature range and climbing hours.
-  const [outlook, series] = await Promise.all([
+  const [outlook, readings] = await Promise.all([
     ahead.length > 0 ? fetchOutlook(point, now) : Promise.resolve(null),
-    location.is_climbing_location
-      ? readerScoringFor(location.user_id).then((reader) =>
-          getHourlySeries(
-            { id: location.id, ...point },
-            { allModels: true, now, scoring: scoringLocationFor(location, reader) },
-          ),
-        )
-      : Promise.resolve(null),
+    location.is_climbing_location ? readTripReadings(location, point, dated, now) : Promise.resolve(null),
   ])
-
-  if (series !== null && series.readings.unavailable_reason !== null) {
-    throw new Error(`readings unavailable: ${series.readings.unavailable_reason}`)
-  }
 
   // The stricter rain chance, from the ensemble run `collect-runs` stores
   // (days 0-6), so it costs no request of its own when that run is fresh.
@@ -173,7 +218,6 @@ async function recordLocation(
         )
       : null
 
-  const scoredRun = series?.models?.find((m) => m.model === series.readings.model)
   const values: TripDayRow[] =
     outlook === null
       ? []
@@ -182,20 +226,20 @@ async function recordLocation(
           now,
           ranges: ahead,
           outlook,
-          readings: series?.readings.days ?? null,
-          scoredRunFetchedAt: scoredRun?.fetched_at ? new Date(scoredRun.fetched_at) : null,
+          readings: readings?.days ?? null,
+          scoredRunFetchedAt: readings?.fetchedAt ?? null,
           rewet,
         })
   const trend = outlook === null ? [] : tripRainRows({ locationId: location.id, now, trips: ahead, outlook })
   const outcomes =
-    series === null
+    readings === null
       ? []
       : tripOutcomeRows({
           locationId: location.id,
           now,
-          today: localDateString(now, series.utc_offset_seconds),
+          today: localDateString(now, readings.utcOffsetSeconds),
           ranges: dated,
-          pastDays: series.readings.past_days ?? [],
+          pastDays: readings.pastDays,
         })
   if (values.length === 0 && trend.length === 0 && outcomes.length === 0) return { days: 0, trend: 0, outcomes: 0 }
 
