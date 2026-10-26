@@ -28,7 +28,9 @@ export function useUpdatePreferences() {
     mutationFn: (input: UpdatePreferencesInput) => apiPut<Preferences>('/preferences', input),
     onSuccess: (saved, input) => {
       queryClient.setQueryData(preferencesKey, saved)
-      if ('temp_low_c' in input || 'temp_high_c' in input) {
+      // Climbing hours re-pick every day's score, as a new range re-judges friction.
+      const rescored = ['temp_low_c', 'temp_high_c', 'climb_first_hour', 'climb_last_hour'] as const
+      if (rescored.some((k) => k in input)) {
         for (const root of ['conditions', 'hourly']) {
           void queryClient.invalidateQueries({ queryKey: [root] })
         }

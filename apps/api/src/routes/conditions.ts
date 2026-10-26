@@ -12,7 +12,7 @@ import {
 } from '../lib/runs/conditionsReadings.js'
 import { getHourlySeries } from '../lib/runs/fetchHourlySeries.js'
 import { scoringLocationFor } from '../lib/runs/scoringLocation.js'
-import { tempRangeFor } from '../lib/preferences/preferences.js'
+import { readerScoringFor } from '../lib/preferences/preferences.js'
 import { parseNumeric, parseNumericRequired } from '@weatherteam6/types'
 import type { ApiResponse, Conditions } from '@weatherteam6/types'
 
@@ -68,7 +68,7 @@ conditionsRouter.get('/conditions/:locationId', async (req: Request, res: Respon
      * **The readings reach the response only because this argument was passed**
      * — the same shape as `GET /hourly/:id`, and there is no
      * `is_climbing_location` check further down to forget. A crag's readings are
-     * judged against the reader's own temperature range.
+     * judged against the reader's own temperature range and climbing hours.
      *
      * The two placeholders are the ones `/hourly` documents and neither is
      * marked in the response: `rock_type` null takes `unknown`'s slower drying
@@ -76,7 +76,7 @@ conditionsRouter.get('/conditions/:locationId', async (req: Request, res: Respon
      * wall. The one implementation is `scoringLocationFor`, shared with `/hourly`.
      */
     const scoring = location.is_climbing_location
-      ? scoringLocationFor(location, await tempRangeFor(req.userId))
+      ? scoringLocationFor(location, await readerScoringFor(req.userId))
       : null
 
     /**

@@ -30,6 +30,18 @@ describe('parsePreferencesUpdate', () => {
     expect(parsePreferencesUpdate({ default_tab: 'radar' })).toHaveProperty('error')
   })
 
+  it('accepts a whole local hour for each climbing-hours end, or null, and refuses anything else', () => {
+    expect(parsePreferencesUpdate({ climb_first_hour: 0, climb_last_hour: 23 })).toEqual({
+      climb_first_hour: 0,
+      climb_last_hour: 23,
+    })
+    expect(parsePreferencesUpdate({ climb_first_hour: null })).toEqual({ climb_first_hour: null })
+    expect(parsePreferencesUpdate({ climb_first_hour: -1 })).toHaveProperty('error')
+    expect(parsePreferencesUpdate({ climb_last_hour: 24 })).toHaveProperty('error')
+    expect(parsePreferencesUpdate({ climb_last_hour: 12.5 })).toHaveProperty('error')
+    expect(parsePreferencesUpdate({ climb_first_hour: '9' })).toHaveProperty('error')
+  })
+
   it('refuses an unknown key rather than ignoring it, and an empty body', () => {
     expect(parsePreferencesUpdate({ ideal_temp_min_c: 10 })).toHaveProperty('error')
     expect(parsePreferencesUpdate({})).toHaveProperty('error')
@@ -41,7 +53,17 @@ describe('planPreferencesUpdate', () => {
   it('merges the update over what is stored', () => {
     const current = { ...DEFAULT_PREFERENCES, default_tab: 'precip' as const }
     const plan = planPreferencesUpdate(current, { temp_high_c: fToC(70) })
-    expect(plan).toEqual({ ok: true, next: { temp_low_c: null, temp_high_c: fToC(70), default_tab: 'precip' } })
+    expect(plan).toEqual({ ok: true, next: { ...current, temp_high_c: fToC(70) } })
+  })
+
+  it('checks climbing hours against the default end a one-ended window sits under', () => {
+    // Start 4 pm under the default end of 6 pm: three hours, the minimum.
+    expect(planPreferencesUpdate(DEFAULT_PREFERENCES, { climb_first_hour: 16 }).ok).toBe(true)
+    // Start 5 pm: two hours, which holds no three-hour run.
+    expect(planPreferencesUpdate(DEFAULT_PREFERENCES, { climb_first_hour: 17 })).toMatchObject({ ok: false, status: 409 })
+    // An end before the start.
+    expect(planPreferencesUpdate(DEFAULT_PREFERENCES, { climb_last_hour: 6 })).toMatchObject({ ok: false, status: 409 })
+    expect(planPreferencesUpdate(DEFAULT_PREFERENCES, { climb_first_hour: 12, climb_last_hour: 20 }).ok).toBe(true)
   })
 
   it('checks the gap against the default end a one-ended range sits under', () => {
@@ -58,10 +80,14 @@ describe('planPreferencesUpdate', () => {
 describe('preferencesFromRow', () => {
   it('reads no row as every default, and a stored tab it does not know as unset', () => {
     expect(preferencesFromRow(undefined)).toEqual(DEFAULT_PREFERENCES)
-    expect(preferencesFromRow({ temp_low_c: 1, temp_high_c: null, default_tab: 'radar' })).toEqual({
-      temp_low_c: 1,
-      temp_high_c: null,
-      default_tab: null,
-    })
+    expect(
+      preferencesFromRow({
+        temp_low_c: 1,
+        temp_high_c: null,
+        default_tab: 'radar',
+        climb_first_hour: 12,
+        climb_last_hour: null,
+      }),
+    ).toEqual({ temp_low_c: 1, temp_high_c: null, default_tab: null, climb_first_hour: 12, climb_last_hour: null })
   })
 })

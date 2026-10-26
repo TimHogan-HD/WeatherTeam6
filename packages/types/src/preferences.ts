@@ -35,10 +35,20 @@ export type Preferences = {
   temp_high_c: number | null
   /** The tab a crag opens on. Null: Overview. */
   default_tab: DetailTabKey | null
+  /** First local hour (0-23) the reader climbs, included. Null: the default (8 am). */
+  climb_first_hour: number | null
+  /** Last local hour (0-23) the reader climbs, included. Null: the default (6 pm). */
+  climb_last_hour: number | null
 }
 
 /** No row yet reads exactly like a row of nulls. */
-export const DEFAULT_PREFERENCES: Preferences = { temp_low_c: null, temp_high_c: null, default_tab: null }
+export const DEFAULT_PREFERENCES: Preferences = {
+  temp_low_c: null,
+  temp_high_c: null,
+  default_tab: null,
+  climb_first_hour: null,
+  climb_last_hour: null,
+}
 
 /**
  * The body of `PUT /api/v1/preferences`. An absent field is left alone and
@@ -55,4 +65,48 @@ export function effectiveTempRangeC(p: Pick<Preferences, 'temp_low_c' | 'temp_hi
     lowC: p.temp_low_c ?? fToC(TEMP_RANGE_DEFAULT_F.low),
     highC: p.temp_high_c ?? fToC(TEMP_RANGE_DEFAULT_F.high),
   }
+}
+
+/**
+ * **The local hours a day's score is read from** (#401), both included. A day
+ * is worth the worst hour of its best three-hour run inside them, so a good
+ * morning does not carry the day for someone who climbs in the afternoon. The
+ * default is the window the score always used.
+ */
+export const CLIMB_HOURS_DEFAULT = { first: 8, last: 18 } as const
+
+/** Three hours, first and last included: the narrowest window that holds one run. */
+export const CLIMB_HOURS_MIN_SPAN = 3
+
+export type ClimbHours = { first: number; last: number }
+
+/** The window the score uses — the reader's, or the default for any end they left unset. */
+export function effectiveClimbHours(p: Pick<Preferences, 'climb_first_hour' | 'climb_last_hour'>): ClimbHours {
+  return {
+    first: p.climb_first_hour ?? CLIMB_HOURS_DEFAULT.first,
+    last: p.climb_last_hour ?? CLIMB_HOURS_DEFAULT.last,
+  }
+}
+
+/** Whole local hours inside one day, wide enough to hold one three-hour run. */
+export function isClimbHours(h: ClimbHours): boolean {
+  return (
+    Number.isInteger(h.first) &&
+    Number.isInteger(h.last) &&
+    h.first >= 0 &&
+    h.last <= 23 &&
+    h.last - h.first + 1 >= CLIMB_HOURS_MIN_SPAN
+  )
+}
+
+/** `8 am`, `12 pm`, `6 pm`. */
+export function hourLabel(hour: number): string {
+  if (hour === 0) return '12 am'
+  if (hour === 12) return '12 pm'
+  return hour < 12 ? `${hour} am` : `${hour - 12} pm`
+}
+
+/** `8 am – 6 pm`. */
+export function climbHoursLabel(h: ClimbHours): string {
+  return `${hourLabel(h.first)} – ${hourLabel(h.last)}`
 }

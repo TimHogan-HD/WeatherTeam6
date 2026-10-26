@@ -122,7 +122,7 @@ async function run(): Promise<void> {
   } = await import('../lib/runs/conditionsReadings.js')
   const { getHourlySeries } = await import('../lib/runs/fetchHourlySeries.js')
   const { scoringLocationFor } = await import('../lib/runs/scoringLocation.js')
-  const { tempRangeFor } = await import('../lib/preferences/preferences.js')
+  const { readerScoringFor } = await import('../lib/preferences/preferences.js')
   const { localDateString } = await import('../lib/weather/openMeteo.js')
   const {
     DRYNESS_LABEL,
@@ -167,7 +167,7 @@ async function run(): Promise<void> {
 
     // The route judges friction against the reader's range; the reader is the row's owner.
     const scoring = location.is_climbing_location
-      ? scoringLocationFor(location, await tempRangeFor(location.user_id))
+      ? scoringLocationFor(location, await readerScoringFor(location.user_id))
       : null
 
     const [series, activeAlerts] = await Promise.all([

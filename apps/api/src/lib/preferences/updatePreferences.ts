@@ -1,7 +1,11 @@
 import {
+  CLIMB_HOURS_MIN_SPAN,
+  DEFAULT_PREFERENCES,
   TEMP_RANGE_LIMITS_F,
   cToF,
+  effectiveClimbHours,
   effectiveTempRangeC,
+  isClimbHours,
   isDetailTab,
   type Preferences,
   type UpdatePreferencesInput,
@@ -13,7 +17,7 @@ import {
  * `planPreferencesUpdate`, and upserts what it returns.
  */
 
-const FIELDS = ['temp_low_c', 'temp_high_c', 'default_tab'] as const
+const FIELDS = ['temp_low_c', 'temp_high_c', 'default_tab', 'climb_first_hour', 'climb_last_hour'] as const
 
 /**
  * Bounds are checked in °F, the unit they are written in, at a tenth of a
@@ -66,6 +70,18 @@ export function parsePreferencesUpdate(body: unknown): UpdatePreferencesInput | 
     out.default_tab = v
   }
 
+  for (const key of ['climb_first_hour', 'climb_last_hour'] as const) {
+    if (!(key in raw)) continue
+    const v = raw[key]
+    if (v === null) {
+      out[key] = null
+    } else if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > 23) {
+      return { error: `${key} must be a whole local hour from 0 to 23, or null` }
+    } else {
+      out[key] = v
+    }
+  }
+
   return out
 }
 
@@ -86,17 +102,35 @@ export function planPreferencesUpdate(current: Preferences, update: UpdatePrefer
       error: `The range must be at least ${TEMP_RANGE_LIMITS_F.minGap} °F wide`,
     }
   }
+  // Checked on the window the score will use, as the range is: a start set alone sits under the default end.
+  if (!isClimbHours(effectiveClimbHours(next))) {
+    return {
+      ok: false,
+      status: 409,
+      error: `Climbing hours must span at least ${CLIMB_HOURS_MIN_SPAN} hours, start to end`,
+    }
+  }
   return { ok: true, next }
 }
 
 /** A stored row, as the API returns it. An unrecognised stored tab reads as unset. */
 export function preferencesFromRow(
-  row: { temp_low_c: number | null; temp_high_c: number | null; default_tab: string | null } | undefined,
+  row:
+    | {
+        temp_low_c: number | null
+        temp_high_c: number | null
+        default_tab: string | null
+        climb_first_hour: number | null
+        climb_last_hour: number | null
+      }
+    | undefined,
 ): Preferences {
-  if (row === undefined) return { temp_low_c: null, temp_high_c: null, default_tab: null }
+  if (row === undefined) return { ...DEFAULT_PREFERENCES }
   return {
     temp_low_c: row.temp_low_c,
     temp_high_c: row.temp_high_c,
     default_tab: isDetailTab(row.default_tab) ? row.default_tab : null,
+    climb_first_hour: row.climb_first_hour,
+    climb_last_hour: row.climb_last_hour,
   }
 }

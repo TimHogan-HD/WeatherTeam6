@@ -1,4 +1,6 @@
 import {
+  CLIMB_HOURS_DEFAULT,
+  CLIMB_HOURS_MIN_SPAN,
   TEMP_RANGE_DEFAULT_F,
   TEMP_RANGE_LIMITS_F,
   cToF,
@@ -10,9 +12,10 @@ import {
 
 /**
  * The Profile screen's settings, in the units the reader sets them in: whole
- * °F for the range. Pure, so every rule is reachable from a test.
+ * °F for the range, whole local hours for climbing hours. Pure, so every rule
+ * is reachable from a test.
  */
-export type SettingsDraft = { lowF: number; highF: number; tab: DetailTabKey }
+export type SettingsDraft = { lowF: number; highF: number; tab: DetailTabKey; firstHour: number; lastHour: number }
 
 /** One tap of − or +, °F. */
 export const TEMP_STEP_F = 5
@@ -22,7 +25,22 @@ export function draftFromPreferences(p: Preferences): SettingsDraft {
     lowF: p.temp_low_c === null ? TEMP_RANGE_DEFAULT_F.low : Math.round(cToF(p.temp_low_c)),
     highF: p.temp_high_c === null ? TEMP_RANGE_DEFAULT_F.high : Math.round(cToF(p.temp_high_c)),
     tab: p.default_tab ?? 'overview',
+    firstHour: p.climb_first_hour ?? CLIMB_HOURS_DEFAULT.first,
+    lastHour: p.climb_last_hour ?? CLIMB_HOURS_DEFAULT.last,
   }
+}
+
+/**
+ * Move one end of the climbing hours by `deltaH`, held inside the day and
+ * never closer to the other end than one three-hour run. The control cannot
+ * reach a window the API would refuse.
+ */
+export function stepHours(draft: SettingsDraft, end: 'first' | 'last', deltaH: number): SettingsDraft {
+  const span = CLIMB_HOURS_MIN_SPAN - 1
+  if (end === 'first') {
+    return { ...draft, firstHour: Math.min(Math.max(draft.firstHour + deltaH, 0), draft.lastHour - span) }
+  }
+  return { ...draft, lastHour: Math.max(Math.min(draft.lastHour + deltaH, 23), draft.firstHour + span) }
 }
 
 /**
@@ -62,16 +80,30 @@ export function settingsUpdate(p: Preferences, draft: SettingsDraft): UpdatePref
     out.temp_high_c = draft.highF === TEMP_RANGE_DEFAULT_F.high ? null : fToC(draft.highF)
   }
   if (draft.tab !== before.tab) out.default_tab = draft.tab === 'overview' ? null : draft.tab
+  if (draft.firstHour !== before.firstHour) {
+    out.climb_first_hour = draft.firstHour === CLIMB_HOURS_DEFAULT.first ? null : draft.firstHour
+  }
+  if (draft.lastHour !== before.lastHour) {
+    out.climb_last_hour = draft.lastHour === CLIMB_HOURS_DEFAULT.last ? null : draft.lastHour
+  }
   return Object.keys(out).length === 0 ? null : out
 }
 
 /** Whether the draft is the app's defaults throughout — "Reset" is off when it is. */
 export function isDefault(draft: SettingsDraft): boolean {
-  return draft.lowF === TEMP_RANGE_DEFAULT_F.low && draft.highF === TEMP_RANGE_DEFAULT_F.high && draft.tab === 'overview'
+  return (
+    draft.lowF === TEMP_RANGE_DEFAULT_F.low &&
+    draft.highF === TEMP_RANGE_DEFAULT_F.high &&
+    draft.tab === 'overview' &&
+    draft.firstHour === CLIMB_HOURS_DEFAULT.first &&
+    draft.lastHour === CLIMB_HOURS_DEFAULT.last
+  )
 }
 
 export const DEFAULT_DRAFT: SettingsDraft = {
   lowF: TEMP_RANGE_DEFAULT_F.low,
   highF: TEMP_RANGE_DEFAULT_F.high,
   tab: 'overview',
+  firstHour: CLIMB_HOURS_DEFAULT.first,
+  lastHour: CLIMB_HOURS_DEFAULT.last,
 }

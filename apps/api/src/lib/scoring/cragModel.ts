@@ -28,8 +28,10 @@
  * window has run (issue #34).
  */
 import {
+  CLIMB_HOURS_DEFAULT,
   REWETTING_PRECIP_MM,
   TEMP_RANGE_DEFAULT_F,
+  type ClimbHours,
   WETTING_PRECIP_MM,
   fToC,
   rockGuide,
@@ -123,9 +125,13 @@ function breaksWhenWet(rockType: RockType): boolean {
 
 /** A day is worth its best run of this many consecutive hours, each run valued at its worst hour. */
 export const DAY_RUN_HOURS = 3
-/** Local hours a day's run may fall in, inclusive. */
-export const DAY_FIRST_HOUR = 8
-export const DAY_LAST_HOUR = 18
+/**
+ * The default local hours a day's run may fall in, inclusive. A reader's own
+ * climbing hours replace them in the day score (`dayRepresentative`, #401);
+ * the rewetting forecast keeps the default end.
+ */
+export const DAY_FIRST_HOUR = CLIMB_HOURS_DEFAULT.first
+export const DAY_LAST_HOUR = CLIMB_HOURS_DEFAULT.last
 
 const CRAG_ASPECTS = [0, 45, 90, 135, 180, 225, 270, 315] as const
 
@@ -479,17 +485,18 @@ function finish(
 
 /**
  * **The day's representative hour: the worst hour of the best
- * `DAY_RUN_HOURS`-hour run between `DAY_FIRST_HOUR` and `DAY_LAST_HOUR` local.**
- * Its score is the day's score. A run containing an unscored hour does not
- * count. Null when no run qualifies.
+ * `DAY_RUN_HOURS`-hour run inside the reader's climbing hours, local.** The
+ * default is `DAY_FIRST_HOUR`–`DAY_LAST_HOUR`. Its score is the day's score. A
+ * run containing an unscored hour does not count. Null when no run qualifies.
  */
 export function dayRepresentative<H extends HourlyConditions>(
   dayHours: readonly H[],
   utcOffsetSeconds: number,
+  climbHours: ClimbHours = CLIMB_HOURS_DEFAULT,
 ): H | null {
   const inDay = dayHours.filter((h) => {
     const lh = new Date(Date.parse(h.valid_at) + utcOffsetSeconds * 1000).getUTCHours()
-    return lh >= DAY_FIRST_HOUR && lh <= DAY_LAST_HOUR
+    return lh >= climbHours.first && lh <= climbHours.last
   })
   let best: H | null = null
   for (let a = 0; a + DAY_RUN_HOURS <= inDay.length; a++) {

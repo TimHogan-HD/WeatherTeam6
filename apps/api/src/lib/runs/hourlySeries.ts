@@ -314,6 +314,7 @@ export function buildHourlySeries(input: BuildInput): HourlySeries {
           lon: input.scoring.lon,
           now,
           ...(input.scoring.range === undefined ? {} : { range: input.scoring.range }),
+          ...(input.scoring.climbHours === undefined ? {} : { climbHours: input.scoring.climbHours }),
         })
 
   const series: HourlySeries = {
