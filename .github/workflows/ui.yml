@@ -5,16 +5,15 @@ name: UI check
 # throwaway Postgres behind Neon's own WebSocket proxy, so the app's driver is
 # the one production uses.
 #
-# On a PR the upstream weather calls are replayed from the recorded tape, so the
-# run does not depend on Open-Meteo's shared-IP rate limits or on today's
-# weather. Every night it runs live instead, which is what notices an upstream
-# change the tape cannot; a nightly failure opens or updates one issue, which
-# the SessionStart hook lists.
+# Every night it runs live, which is what notices an upstream change the tape
+# cannot; a nightly failure opens or updates one issue, which the SessionStart
+# hook lists. Run by hand (workflow_dispatch), the upstream weather calls are
+# replayed from the recorded tape unless `live` is set.
 #
-# Not a required check: it has not yet run long enough to be known not to flake.
+# Not on PRs (owner, 2026-10-26: the runs cost more time than they caught).
+# Not a required check.
 
 on:
-  pull_request:
   schedule:
     - cron: "17 9 * * *"
   workflow_dispatch:

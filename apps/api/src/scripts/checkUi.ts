@@ -36,8 +36,8 @@
  *
  * It reads the screens; it does not judge them. Open the screenshots.
  *
- * `.github/workflows/ui.yml` runs it: replayed on every PR (recording when the
- * tape is missing), live every night.
+ * `.github/workflows/ui.yml` runs it live every night, and replayed when run by
+ * hand (recording when the tape is missing). Not on PRs (owner, 2026-10-26).
  */
 
 import { spawn, type ChildProcess } from 'node:child_process'
