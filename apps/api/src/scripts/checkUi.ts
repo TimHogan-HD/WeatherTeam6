@@ -704,13 +704,18 @@ async function run(): Promise<void> {
         const mark = list.lastElementChild as HTMLElement
         return getComputedStyle(mark).transitionProperty
       })
-      await page.waitForTimeout(400)
-      const landed = await page.getByRole('tablist').evaluate((list, name) => {
-        const mark = (list.lastElementChild as HTMLElement).getBoundingClientRect()
-        const tab = Array.from(list.querySelectorAll('[role="tab"]')).find((t) => t.textContent?.trim() === name)
-        const box = tab?.getBoundingClientRect()
-        return box !== undefined && Math.abs(mark.left - box.left) < 1 && Math.abs(mark.width - box.width) < 1
-      }, label)
+      // Waits for it to land rather than a fixed time: a busy CI runner once
+      // missed a fixed 400 ms (2026-10-26), with nothing wrong on screen.
+      const tablist = await page.getByRole('tablist').elementHandle()
+      const landed = await page
+        .waitForFunction(([list, name]) => {
+          const mark = (list?.lastElementChild as HTMLElement | null)?.getBoundingClientRect()
+          const tab = Array.from(list?.querySelectorAll('[role="tab"]') ?? []).find((t) => t.textContent?.trim() === name)
+          const box = tab?.getBoundingClientRect()
+          return mark !== undefined && box !== undefined && Math.abs(mark.left - box.left) < 1 && Math.abs(mark.width - box.width) < 1
+        }, [tablist, label] as const, { timeout: 3_000 })
+        .then(() => true)
+        .catch(() => false)
       return { moving, landed }
     }
     const toDaily = await underlineUnder('Daily')
