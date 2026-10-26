@@ -626,22 +626,27 @@ async function run(): Promise<void> {
     check('coming back to the list shows no splash', (await splash.count()) === 0)
 
     // 2d. A reopen draws the cards from what this device remembers — no
-    // splash, the age in the header — while every weather call is held back
-    // 3 s; then the live copies replace them.
+    // splash, the age in the header — while every weather call is held back;
+    // then the live copies replace them. "Before the API answers" is checked
+    // as no held call released yet, not as a time budget: a 1.5 s budget
+    // failed on a slow CI runner that was still loading vite's modules
+    // (2026-10-26).
     await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
     const rememberedSaved = await page.evaluate(() => localStorage.getItem('wt6.cards') !== null)
     check('the list remembers its cards’ weather on this device', rememberedSaved)
     const slowWeather = /\/api\/v1\/(forecast|conditions|alerts)\//
+    let weatherReleased = false
     await page.route(slowWeather, async (route) => {
-      await new Promise((r) => setTimeout(r, 3_000))
+      await new Promise((r) => setTimeout(r, 8_000))
+      weatherReleased = true
       await route.continue().catch(() => undefined)
     })
     const reopened = Date.now()
     await page.goto(`${WEB}/`, { waitUntil: 'domcontentloaded' })
     const drawn = await firstCard
       .getByText(/^Dryness:/)
-      .waitFor({ timeout: 1_500 })
-      .then(() => true)
+      .waitFor({ timeout: 7_000 })
+      .then(() => !weatherReleased)
       .catch(() => false)
     const drawnAfter = Date.now() - reopened
     const header = await page.locator('header').innerText()
@@ -1005,7 +1010,12 @@ async function run(): Promise<void> {
     await switcher.getByRole('button', { name: SECOND_CRAG.name }).click()
     await page.waitForURL((u) => u.pathname === `/location/${secondLocationId}`, { timeout: 10_000 }).catch(() => undefined)
     const swiped = await page.locator('.wt6-swipe').waitFor({ timeout: 5_000 }).then(() => 1, () => 0)
-    const stillDaily = await page.getByRole('tab', { name: 'Daily', selected: true }).count()
+    // Waited for, not counted: the new crag's tabs render after the swipe starts,
+    // and an instant count read 0 on a fast CI run (2026-10-21).
+    const stillDaily = await page
+      .getByRole('tab', { name: 'Daily', selected: true })
+      .waitFor({ timeout: 10_000 })
+      .then(() => 1, () => 0)
     await screen('crag-switched', 5)
     check(
       'switching crags keeps the tab and swipes the new one in',
@@ -1228,6 +1238,9 @@ async function run(): Promise<void> {
       if (gone.status === 404) tripIds.splice(tripIds.indexOf(oneCragTripId), 1)
     }
     // The steps below count the list's cards: the two-crag trip and its second crag go now.
+    // Off the trips screen first: its background refetch of a trip deleted under
+    // it 404'd, and the next screen took the blame (nightly, 2026-10-22).
+    await page.goto('about:blank')
     for (const id of [...tripIds]) {
       const del = await api<null>('DELETE', `/trips/${id}`, token)
       if (del.status === 200) tripIds.splice(tripIds.indexOf(id), 1)
@@ -1551,7 +1564,14 @@ async function run(): Promise<void> {
         /Release to refresh/.test(hourlyPull) && /Updated (just now|\d+ (min|h) ago)/.test(hourlyPull),
         hourlyPull || '(the panel never opened)',
       )
-      await tp.getByText(/Up to date|Couldn’t refresh/).waitFor({ timeout: 30_000 }).catch(() => undefined)
+      // A live refresh can outlast 30 s; the scrub below then read the pull's own
+      // "Refreshing…" and failed for it (nightly, 2026-10-22 and 10-25).
+      const hourlyRefreshed = await tp
+        .locator('main > [aria-live="polite"]', { hasText: 'Refreshing' })
+        .waitFor({ state: 'hidden', timeout: 90_000 })
+        .then(() => true, () => false)
+      check('the Hourly refresh finishes', hourlyRefreshed, 'still refreshing after 90 s')
+      await tp.getByText(/Up to date|Couldn’t refresh/).waitFor({ timeout: 5_000 }).catch(() => undefined)
       await tp.waitForTimeout(1_500)
       const scrub = await dragPanel({ x: 100, y: 700 }, { x: 400, y: 760 })
       check('a sideways scrub across a chart does not pull', scrub === '', scrub)
