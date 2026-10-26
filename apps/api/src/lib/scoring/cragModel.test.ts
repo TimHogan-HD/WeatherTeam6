@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { SCORE_MODEL_FACTS, fToC, type RockType } from '@weatherteam6/types'
+import { RAIN_WINDOW } from '../weather/rainMedian.js'
 import {
   DAY_FIRST_HOUR,
   DAY_LAST_HOUR,
@@ -31,6 +32,8 @@ describe('SCORE_MODEL_FACTS', () => {
     expect(SCORE_MODEL_FACTS.goodHoursMinScore).toBe(DEFAULT_WINDOW_MIN_SCORE)
     expect(SCORE_MODEL_FACTS.tempFadeScaleF).toBeCloseTo((HEAT_SCALE_C * 9) / 5, 9)
     expect(SCORE_MODEL_FACTS.fullSoakIn).toBe(FULL_SOAK_IN)
+    expect(SCORE_MODEL_FACTS.fallingRainInPerHour).toBeCloseTo(FALLING_RAIN_MM / 25.4, 2)
+    expect(SCORE_MODEL_FACTS.rainLeadHours).toBe(RAIN_WINDOW.after)
   })
 })
 

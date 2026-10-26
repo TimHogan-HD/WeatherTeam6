@@ -11,14 +11,19 @@
  */
 
 /**
- * Hourly precipitation that re-wets a wall, mm — the line at which the drying
- * clock (`hourlyConditions`) restarts, and so the line at which the Precip tab
- * calls an hour "real rain". 0.5 mm in an hour is visible rain; below it a
- * shower is shown but does not reset "since the last real rain", exactly as it
- * does not reset Dryness. One constant so the tab and the clock cannot disagree
- * about when it last rained.
+ * Hourly precipitation you would see falling on the rock, mm — the line at
+ * which Crag A scores the hour 0 (`FALLING_RAIN_MM`), and the Precip tab's
+ * "real rain". Lighter rain from `WETTING_PRECIP_MM` up still sets the drying
+ * clock back by its size (owner, 2026-10-26), so "since the last real rain" is
+ * since the last rain heavy enough to stop climbing, not the last wetting.
  */
 export const REWETTING_PRECIP_MM = 0.5
+
+/**
+ * Hourly rain that wets an open wall at all, mm (Crag A's `WET_MM`). Open-Meteo
+ * reports 0 or ≥ 0.1; 0.05 keeps a float-rounded 0.1 from slipping under.
+ */
+export const WETTING_PRECIP_MM = 0.05
 
 /**
  * The threshold a member has to cross to count as wet.

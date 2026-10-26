@@ -644,7 +644,8 @@ describe('DetailView — Precip tab', () => {
     // Today 06:00's shower is the newest wet hour.
     expect(html).toContain('Today 5am–6am')
     expect(html).toContain('aria-pressed="true" aria-label="Today 5am–6am')
-    expect(html).toMatch(/Resets drying<\/span><span[^>]*>No</)
+    // 0.2 mm: enough to set drying back, short of the 0.5 mm that stops climbing.
+    expect(html).toMatch(/Resets drying<\/span><span[^>]*>Partly</)
     expect(html).toMatch(/Week so far<\/span><span[^>]*>0\.19 in</)
   })
 
@@ -652,11 +653,11 @@ describe('DetailView — Precip tab', () => {
     const withModels = { ...recent, models: ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless', 'gem_seamless'] }
     const crag = renderPrecip(withModels)
     expect(crag).toContain('From GFS, ECMWF, ICON and GEM forecasts.')
-    expect(crag).toContain('lighter showers don’t reset drying')
+    expect(crag).toContain('lighter showers set drying back by less')
     const city = renderPrecip(withModels, false)
     expect(city).toContain('From GFS, ECMWF, ICON and GEM forecasts.')
     expect(city).not.toContain('Dryness')
-    expect(city).not.toContain('reset drying')
+    expect(city).not.toContain('drying back')
     expect(city).not.toContain('Check the rock')
   })
 

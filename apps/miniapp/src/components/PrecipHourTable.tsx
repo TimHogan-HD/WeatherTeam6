@@ -7,6 +7,7 @@ import {
   mmToIn,
   REWETTING_PRECIP_MM,
   ROCK_LABELS,
+  WETTING_PRECIP_MM,
   type RockReading,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
@@ -139,7 +140,8 @@ function readoutFields(
     fields.push({ label: 'Type', value: kind === null ? 'Unknown' : KIND_LEGEND[kind] })
     const snow = h.snowfall_cm ?? null
     if (snow !== null && snow > 0) fields.push({ label: 'Snow', value: `${(snow / 2.54).toFixed(1)} in` })
-    fields.push({ label: 'Resets drying', value: isRealRain(h) ? 'Yes' : 'No' })
+    // Partly: enough to set the clock back by its size, not enough to stop climbing (#397).
+    fields.push({ label: 'Resets drying', value: isRealRain(h) ? 'Yes' : h.precip_mm >= WETTING_PRECIP_MM ? 'Partly' : 'No' })
   }
   fields.push(...dryness)
   if (soFarMm !== null) fields.push({ label: 'Week so far', value: formatPrecipIn(soFarMm) })

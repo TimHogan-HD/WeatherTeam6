@@ -47,10 +47,10 @@ import { InlineError, Skeleton } from './States.js'
  * **The running-total chart is gone** (owner, 2026-10-19). The week's total is
  * a tile; the grid carries each day's.
  *
- * **"Real rain" is `REWETTING_PRECIP_MM` in an hour** — the line at which the
- * drying clock restarts — so the headline and Dryness never disagree about
- * when it last rained. A lighter shower since is shown in the grid and named
- * under the headline, but does not reset it.
+ * **"Real rain" is `REWETTING_PRECIP_MM` in an hour** — rain heavy enough
+ * that the score reads 0 while it falls. A lighter shower since is shown in the
+ * grid and named under the headline; it sets drying back by its size
+ * (`WETTING_PRECIP_MM` and up) but does not move the headline.
  *
  * **The past is the four models' median; the next 48 hours are the ensemble
  * mean.** Two sources, so each card names its own, and the footnote both.
@@ -270,7 +270,7 @@ export function PrecipTab({ recent, isClimbingLocation, rockType, rock, hours, u
 
       <p style={{ ...typeV2.note, padding: `0 ${spacing.listGapLg}px` }}>
         {source === null ? '' : `${source} `}Rain here means {threshold} or more in an hour
-        {isClimbingLocation ? '; lighter showers don’t reset drying. Check the rock before you climb.' : '.'}
+        {isClimbingLocation ? '; lighter showers set drying back by less. Check the rock before you climb.' : '.'}
         {aspectNote ? ` ${UNRECORDED_ASPECT_NOTE}.` : null} Ahead, amounts are the ensemble mean; the shaded band is
         the 10th to 90th percentile for one hour and is never added up. Chance of rain is the share of wet ensemble
         members.
