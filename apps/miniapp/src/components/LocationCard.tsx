@@ -10,7 +10,7 @@ import {
   type Location,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { useAlerts, useConditions, useForecast } from '../hooks/useWeather.js'
+import { useAlerts, useConditions, useForecast, useRainNow } from '../hooks/useWeather.js'
 import { useHourly } from '../hooks/useHourly.js'
 import { shortSpan } from '../lib/overview.js'
 import { SkyIcon } from './Icons.js'
@@ -21,6 +21,7 @@ import { cardSummary } from '../lib/locationList.js'
 import { scoreRampColor } from './charts/chartStyle.js'
 import { InlineError, Skeleton } from './States.js'
 import { FadeIn } from './FadeIn.js'
+import { RainNowPill } from './RainNowPill.js'
 import { RollingFigure, usePreviousFigure } from './RollingFigure.js'
 import type { RememberedCard } from '../lib/rememberedCards.js'
 import { CRAG_FLY_ATTR, CRAG_FLY_ID_ATTR, flyingCragId } from '../lib/cragFly.js'
@@ -29,7 +30,8 @@ import { CRAG_FLY_ATTR, CRAG_FLY_ID_ATTR, flyingCragId } from '../lib/cragFly.js
  * One crag as a row of the Conditions list, in the hybrid look
  * (`docs/handoffs/design-mockups/weatherteam6-hybrid.html`, `listScreen`): the
  * name, Dryness and the rock, today's good hours and score, and the hour's
- * score large on the right with "now" under it.
+ * score large on the right with "now" under it. Radar's "Raining" pill, when
+ * there is one, closes the text column (#313).
  *
  * **The conditions call is skipped entirely for a non-climbing location.** A
  * saved location may be a city, and `computeLiveForecast` does not branch on
@@ -76,6 +78,7 @@ export function LocationCard({
   const alerts = useAlerts(location.id)
   const conditions = useConditions(location.id, location.is_climbing_location)
   const hourly = useHourly(location.id)
+  const rainNow = useRainNow()
 
   // A non-crag's conditions query is disabled and stays pending forever.
   const settled =
@@ -216,6 +219,12 @@ export function LocationCard({
             </>,
           )
         )}
+        <RainNowPill
+          rainNow={rainNow.data}
+          locationId={location.id}
+          utcOffsetSeconds={readings?.utc_offset_seconds ?? hourly.data?.utc_offset_seconds ?? null}
+          size="card"
+        />
       </span>
       {location.is_climbing_location ? (
         <RowScore

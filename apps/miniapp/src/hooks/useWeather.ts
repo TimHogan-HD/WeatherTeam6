@@ -1,6 +1,6 @@
 import { queryOptions, useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { apiGet } from '../lib/api.js'
-import type { Conditions, ForecastSnapshot, RadarLatest, WeatherAlert } from '@weatherteam6/types'
+import type { Conditions, ForecastSnapshot, RadarLatest, RainNow, WeatherAlert } from '@weatherteam6/types'
 
 /** IEM builds a radar frame every 5 minutes. */
 const RADAR_REFRESH_MS = 5 * 60_000
@@ -13,6 +13,22 @@ export function useRadarLatest(enabled: boolean): UseQueryResult<RadarLatest> {
     enabled,
     staleTime: RADAR_REFRESH_MS,
     refetchInterval: enabled ? RADAR_REFRESH_MS : false,
+  })
+}
+
+/** MRMS publishes a rain-rate frame every 2 minutes; the API reuses one for as long. */
+const RAIN_NOW_REFRESH_MS = 2 * 60_000
+
+/**
+ * Radar rain rate at every saved place, one query for the list and every
+ * Overview (#313). `null` (no recent frame) and an error both say nothing.
+ */
+export function useRainNow(): UseQueryResult<RainNow | null> {
+  return useQuery({
+    queryKey: ['rain-now'] as const,
+    queryFn: () => apiGet<RainNow | null>('/rain-now'),
+    staleTime: RAIN_NOW_REFRESH_MS,
+    refetchInterval: RAIN_NOW_REFRESH_MS,
   })
 }
 

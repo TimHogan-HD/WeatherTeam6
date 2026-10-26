@@ -8,6 +8,7 @@ import type {
   HourlySample,
   HourlySeries,
   Location,
+  RainNow,
   WeatherAlert,
 } from '@weatherteam6/types'
 import { DetailView, type DetailViewProps } from './DetailView.js'
@@ -224,6 +225,38 @@ describe('DetailView — the Overview hero', () => {
   it('puts the day’s good hours and score on the line under it, on the location’s clock', () => {
     // The hour's score is never alone: 9am read 100 on a day rain arrived at 1pm.
     expect(visible(hero(overview()))).toContain('Good hours: 6am–9am · Today: 71')
+  })
+
+  describe('radar rain now (#313)', () => {
+    const radar = (rate: number | null, validAt = `${TODAY}T20:06:00.000Z`): RainNow => ({
+      valid_at: validAt,
+      places: [{ location_id: redRock.id, rate_mm_h: rate }],
+    })
+
+    it('names the band, the rate and the radar time on the crag’s clock', () => {
+      expect(visible(hero(overview({ rainNow: radar(2.9) })))).toContain('Raining now · moderate, 0.11 in/hr · radar 1:06pm')
+    })
+
+    it('says Drizzle below the line that zeroes the score', () => {
+      expect(visible(hero(overview({ rainNow: radar(0.3) })))).toContain('Drizzle now · 0.01 in/hr · radar 1:06pm')
+    })
+
+    it.each([
+      ['no radar answer', undefined],
+      ['no recent frame', null],
+      ['nothing falling', radar(0)],
+      ['no radar coverage', radar(null)],
+      ['a frame older than 15 minutes', radar(2.9, `${TODAY}T19:54:00.000Z`)],
+      ['another place’s rain', { valid_at: `${TODAY}T20:06:00.000Z`, places: [{ location_id: 'other', rate_mm_h: 9 }] }],
+    ])('says nothing for %s — never "not raining"', (_name, rainNow) => {
+      const h = hero(overview({ rainNow }))
+      expect(h).not.toContain('data-rain-now')
+      expect(visible(h)).not.toMatch(/Raining|Drizzle|radar/)
+    })
+
+    it('shows under a Severe+ alert too: rain is not a score', () => {
+      expect(visible(hero(overview({ rainNow: radar(9), alerts: alertsOk([heatWarning]) })))).toContain('Raining now · heavy')
+    })
   })
 
   it('leads with weather in imperial units', () => {

@@ -12,7 +12,7 @@
  */
 import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import { fetchWithRetry } from '../lib/weather/openMeteo.js'
-import { decodeMrms, valueAt } from './mrmsGrib.js'
+import { readMrmsPoints } from '../lib/weather/mrmsGrib.js'
 import { MRMS_PAIRS } from './mrmsPoints.js'
 
 const BUCKET = 'https://noaa-mrms-pds.s3.amazonaws.com/CONUS/MultiSensor_QPE_01H_Pass2_00.00'
@@ -66,16 +66,12 @@ async function run(): Promise<void> {
         console.error(`${hour} ${res.status}`)
         continue
       }
-      const grid = decodeMrms(Buffer.from(await res.arrayBuffer()))
-      const at = (lat: number, lon: number) => {
-        const v = valueAt(grid, lat, lon)
-        return v === null || v < 0 ? null : Math.round(v * 100) / 100
-      }
-      const crag = MRMS_PAIRS.map((p) => at(p.lat, p.lon))
-      const airport = MRMS_PAIRS.map((p) => {
-        const a = ap.get(p.station)!
-        return at(a.lat, a.lon)
-      })
+      const points = [...MRMS_PAIRS, ...MRMS_PAIRS.map((p) => ap.get(p.station)!)]
+      const values = readMrmsPoints(Buffer.from(await res.arrayBuffer()), points).map((v) =>
+        v === null || v < 0 ? null : Math.round(v * 100) / 100,
+      )
+      const crag = values.slice(0, MRMS_PAIRS.length)
+      const airport = values.slice(MRMS_PAIRS.length)
       appendFileSync(outPath, `${JSON.stringify({ hour, crag, airport })}\n`)
     } catch (err) {
       failed++
