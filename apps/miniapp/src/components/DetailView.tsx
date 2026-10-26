@@ -7,6 +7,7 @@ import type {
   HourlySeries,
   Location,
   RangeF,
+  RainNow,
   RecentPrecip,
   Wall,
   WeatherAlert,
@@ -134,6 +135,8 @@ export type DetailViewProps = {
     isError: boolean
     refetch: () => void
   }
+  /** Radar's rain at every saved place (#313); `undefined` while loading or failed, which says nothing. */
+  rainNow?: RainNow | null
   /** The crag's named walls, for the identity block. Optional only so a test can render without it; `LocationDetail` always passes it. */
   walls?: readonly Wall[]
   /** The saved row behind this screen, for the Rock tab. Optional only so a test can render without it; `LocationDetail` always passes it. */
@@ -190,6 +193,7 @@ export function DetailView({
   conditions,
   hourly,
   recentPrecip,
+  rainNow,
   walls,
   location,
   guidebook,
@@ -291,6 +295,7 @@ export function DetailView({
           conditions={showScore ? conditions : undefined}
           hourly={hourly}
           recentPrecip={recentPrecip?.data}
+          rainNow={rainNow}
           severeAlertEvent={alertEvent}
           alertsPending={alertsPending}
           rangeF={rangeF}

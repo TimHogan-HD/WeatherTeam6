@@ -110,6 +110,12 @@ ACIS gridded normals (`acisNormals.ts`) are a separate call and remain.
 - **Recent frames without a stamp:** `nexrad-n0q-900913` (latest) and `nexrad-n0q-900913-m05m` … `-m50m`. Their content moves under a fixed URL, so a label cannot be tied to them — use the stamped form.
 - No key. US only. N0Q is ~1 km, so it holds up to about zoom 9–10 and upscales past that. Replaced RainViewer (whose free mosaic stops at zoom 7) on 2026-10-26.
 
+## MRMS radar rain rate ("Raining now", #313)
+- **Product:** `CONUS/PrecipRate_00.00` on AWS Open Data (`https://noaa-mrms-pds.s3.amazonaws.com`), mm/hr, 1 km, a frame every 2 minutes landing ~3 minutes after its valid time, ~625 kB gzipped GRIB2 (PNG packing). Negatives mean no coverage.
+- **Newest frame:** an S3 `list-type=2` listing with `prefix` = the day of now−20 min and `start-after` = that minute's key; the valid time is in the file name. Fetched by the API (`lib/weather/mrmsRate.ts`, `GET /rain-now`), one frame per instance reused for 2 minutes, read at every saved place at once (`lib/weather/mrmsGrib.ts`: unfilters only the rows down to the southernmost point, ~0.2–0.6 s; the whole grid took 7.5 s).
+- **Withholds:** no frame younger than 15 minutes (`RAIN_NOW_MAX_AGE_MS`) is `data: null`; the client also hides a frame that has aged on screen.
+- Off the `check:ui` tape (`upstreamTape.ts` `OFF_TAPE`): binary, minute-keyed, and a replayed frame is always stale. No key, no allowance.
+
 ## Tomorrow.io (Premium On-Demand)
 - **Endpoint:** `https://api.tomorrow.io/v4/weather/forecast`
 - **Auth:** `apikey` query param

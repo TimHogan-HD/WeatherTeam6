@@ -96,6 +96,18 @@ export function isUpstream(url: string): boolean {
   return hostname !== 'localhost' && hostname !== '127.0.0.1'
 }
 
+/**
+ * Upstreams the tape cannot hold, asked live in every mode. MRMS radar (#313):
+ * its frames are binary, its listing URL changes by the minute, and a replayed
+ * frame is hours old, which the app rightly withholds. It is keyless AWS Open
+ * Data with no allowance to protect.
+ */
+const OFF_TAPE = /^https:\/\/noaa-mrms-pds\.s3\.amazonaws\.com\//
+
+function onTape(url: string): boolean {
+  return isUpstream(url) && !OFF_TAPE.test(url)
+}
+
 export function requestUrl(input: Parameters<typeof fetch>[0]): string {
   return typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
 }
@@ -108,7 +120,7 @@ export function recordingFetch(realFetch: typeof fetch, tape: Tape): typeof fetc
   return async (input, init) => {
     const url = requestUrl(input)
     const res = await realFetch(input, init)
-    if (!isUpstream(url)) return res
+    if (!onTape(url)) return res
     const body = await res.clone().text()
     addEntry(tape, { key: tapeKey(url, tape.recordedOn), status: res.status, contentType: res.headers.get('content-type'), body })
     return res
@@ -126,7 +138,7 @@ export function replayingFetch(realFetch: typeof fetch, tape: Tape, today: strin
   const byKey = new Map(tape.entries.map((e) => [roundPoint(e.key), e]))
   return async (input, init) => {
     const url = requestUrl(input)
-    if (!isUpstream(url)) return realFetch(input, init)
+    if (!onTape(url)) return realFetch(input, init)
     const entry = byKey.get(tapeKey(url, today))
     if (!entry) {
       misses.add(url)

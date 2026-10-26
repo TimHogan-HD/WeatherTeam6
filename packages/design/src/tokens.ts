@@ -147,6 +147,9 @@ export const colorsV2 = {
   /** The ends of a filled chance capsule on Overview's Today chart, either side of `rainMark` (hybrid mockup). */
   rainCapsuleTop: '#e3e8ff',
   rainCapsuleBottom: '#6f7fe0',
+  /** The "Raining now" pill (#313): `rainMark` as a tint and a border, words in `rain`. */
+  rainTint: 'rgba(165,180,252,0.14)',
+  rainTintBorder: 'rgba(165,180,252,0.38)',
   /** A trip day's Agreement chip: its tint and its words (the mockup's `.agree`). */
   agreement: '#c3a6ff',
   agreementInk: '#d9c8ff',

@@ -25,6 +25,7 @@ import {
   type Location,
   type RangeF,
   type ReadingsSummary,
+  type RainNow,
   type RecentPrecip,
   type RockType,
 } from '@weatherteam6/types'
@@ -37,6 +38,7 @@ import { findToday } from '../lib/forecast.js'
 import { chartWindow, dayChance, lastRainText, nextDays, nextLikelyRain, rainDueText, shortDate, shortDay } from '../lib/overview.js'
 import { formatSince, precipDays, precipSummary } from '../lib/precipHistory.js'
 import { useNow } from '../hooks/useNow.js'
+import { RainNowPill } from './RainNowPill.js'
 import { scoreRampColor } from './charts/chartStyle.js'
 import { Sect } from './charts/liquid.js'
 import { TodayChart } from './charts/TodayChart.js'
@@ -86,6 +88,8 @@ export type OverviewTabProps = {
   hourly: { data: HourlySeries | undefined; isPending: boolean; isError: boolean; refetch: () => void }
   /** The past week's precipitation, for last rain. `undefined` until it arrives or when it failed. */
   recentPrecip: RecentPrecip | undefined
+  /** Radar's rain at every saved place (#313). `undefined` until it arrives or when it failed. */
+  rainNow?: RainNow | null
   severeAlertEvent: string | null
   alertsPending: boolean
   rangeF: RangeF
@@ -146,6 +150,16 @@ function Hero({ props, now }: { props: OverviewTabProps; now: Now | null }) {
   const { location, hourly, recentPrecip, forecast } = props
   const hour = hourly.data === undefined ? null : readingNow(hourly.data.hours, clock)
   const name = location?.name ?? null
+  // Radar's word on rain falling now (#313); it does not wait on conditions or alerts.
+  const rain =
+    location === undefined ? null : (
+      <RainNowPill
+        rainNow={props.rainNow}
+        locationId={location.id}
+        utcOffsetSeconds={props.conditions?.data?.readings?.utc_offset_seconds ?? hourly.data?.utc_offset_seconds ?? null}
+        size="hero"
+      />
+    )
 
   const lastRain =
     recentPrecip === undefined ? null : lastRainText(precipSummary(recentPrecip, clock), precipDays(recentPrecip.hours).length)
@@ -170,7 +184,7 @@ function Hero({ props, now }: { props: OverviewTabProps; now: Now | null }) {
     if (pending && props.conditions?.isError !== true) {
       return (
         <HeroFrame
-          name={name}
+          name={name} rain={rain}
           body={
             <>
               <Skeleton height={150} />
@@ -181,12 +195,12 @@ function Hero({ props, now }: { props: OverviewTabProps; now: Now | null }) {
       )
     }
     if (props.conditions?.isError === true) {
-      return <HeroFrame name={name} body={<InlineError message="Couldn't load conditions." onRetry={props.conditions.refetch} />} />
+      return <HeroFrame name={name} rain={rain} body={<InlineError message="Couldn't load conditions." onRetry={props.conditions.refetch} />} />
     }
     if (now === null || now.summary.unavailableLine !== null) {
       return (
         <HeroFrame
-          name={name}
+          name={name} rain={rain}
           body={<p style={typeV2.lead}>{now?.summary.unavailableLine ?? 'No conditions for today yet.'}</p>}
         />
       )
@@ -255,7 +269,7 @@ function Hero({ props, now }: { props: OverviewTabProps; now: Now | null }) {
 
   return (
     <HeroFrame
-      name={name}
+      name={name} rain={rain}
       body={
         <>
           <div
@@ -277,7 +291,7 @@ function Hero({ props, now }: { props: OverviewTabProps; now: Now | null }) {
   )
 }
 
-function HeroFrame({ name, body }: { name: string | null; body: ReactNode }) {
+function HeroFrame({ name, rain, body }: { name: string | null; rain: ReactNode; body: ReactNode }) {
   return (
     <section data-hero="" style={{ marginTop: '-6px' }}>
       {name === null ? null : (
@@ -285,6 +299,7 @@ function HeroFrame({ name, body }: { name: string | null; body: ReactNode }) {
           {name}
         </h1>
       )}
+      {rain}
       {body}
     </section>
   )

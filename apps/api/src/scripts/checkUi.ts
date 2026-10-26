@@ -46,7 +46,7 @@ import { gunzipSync, gzipSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { ApiResponse, Location } from '@weatherteam6/types'
+import type { ApiResponse, Location, RainNow } from '@weatherteam6/types'
 import type { Page } from 'playwright'
 import type { Tape } from './upstreamTape.js'
 
@@ -370,6 +370,26 @@ async function run(): Promise<void> {
 
     await page.goto(`${WEB}/`)
     await screen('list')
+
+    // 2'. Radar rain now (#313), asked live from MRMS in every mode. No recent
+    // frame is `data: null`, never an error. When radar has rain at the crag,
+    // the card must say so; when it has none, the card must not.
+    const rainNow = await api<RainNow | null>('GET', '/rain-now', token)
+    const rainHere = rainNow.payload.data?.places.find((p) => p.location_id === locationId)
+    check(
+      'GET /rain-now answers for every saved place, or null without a recent frame',
+      rainNow.status === 200 && (rainNow.payload.data === null || rainHere !== undefined),
+      `got ${rainNow.status}, ${JSON.stringify(rainNow.payload.data)?.slice(0, 200)}`,
+    )
+    if (rainNow.payload.data !== null && rainHere !== undefined) {
+      const raining = (rainHere.rate_mm_h ?? 0) > 0
+      const pills = await page.locator('[data-rain-now]').count()
+      check(
+        `the card's rain pill follows radar (${rainHere.rate_mm_h ?? 'no coverage'} mm/hr)`,
+        raining ? pills === 1 : pills === 0,
+        `${pills} pill(s)`,
+      )
+    }
 
     async function everyTab(): Promise<void> {
       await page.goto(`${WEB}/location/${locationId}`)

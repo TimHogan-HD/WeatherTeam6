@@ -13,6 +13,7 @@ export * from './hourly.js'
 export * from './sky.js'
 export * from './compass.js'
 export * from './recentPrecip.js'
+export * from './rainNowCopy.js'
 export * from './rockTypeCopy.js'
 export * from './rockGuide.js'
 export * from './dryingWindow.js'
@@ -556,6 +557,21 @@ export type LocationNormal = {
 /** `GET /radar/latest`: the newest IEM composite radar frame, as an ISO instant. */
 export type RadarLatest = {
   valid_at: string
+}
+
+/**
+ * `GET /rain-now`: MRMS radar rain rate at each of the caller's places, all
+ * from one frame. `data: null` when there is no frame from the last 15
+ * minutes — "no radar", never "not raining".
+ */
+export type RainNow = {
+  /** The radar frame's valid time, ISO. */
+  valid_at: string
+  places: {
+    location_id: string
+    /** Millimetres an hour; null where radar has no coverage. */
+    rate_mm_h: number | null
+  }[]
 }
 
 export type ClimbabilityHistory = {

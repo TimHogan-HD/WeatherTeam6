@@ -109,6 +109,18 @@ describe('record, then replay on a later day', () => {
     expect(misses.size).toBe(0)
   })
 
+  it('asks MRMS radar live in both modes and never tapes it', async () => {
+    const mrms = 'https://noaa-mrms-pds.s3.amazonaws.com/?list-type=2&prefix=CONUS/PrecipRate_00.00/20261021/'
+    const tape: Tape = { recordedOn: '2026-10-21', entries: [] }
+    await recordingFetch(upstream as typeof fetch, tape)(mrms)
+    expect(tape.entries).toEqual([])
+
+    const misses = new Set<string>()
+    const res = await replayingFetch(upstream as typeof fetch, tape, '2026-10-25', misses)(mrms)
+    expect(((await res.json()) as { asked: string }).asked).toBe(mrms)
+    expect(misses.size).toBe(0)
+  })
+
   it('answers a request the tape does not hold with a 404 and lists it', async () => {
     const misses = new Set<string>()
     const play = replayingFetch(upstream as typeof fetch, { recordedOn: '2026-10-21', entries: [] }, '2026-10-21', misses)

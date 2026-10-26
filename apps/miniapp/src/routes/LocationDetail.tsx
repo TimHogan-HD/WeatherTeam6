@@ -12,7 +12,7 @@ import { recentOf, swipeDirection, swipeOf, switcherOptions, switchState } from 
 import type { CragChoice } from '../components/CragBar.js'
 import { usePreferences } from '../hooks/usePreferences.js'
 import { draftFromPreferences } from '../lib/preferencesForm.js'
-import { useAlerts, useConditions, useForecast } from '../hooks/useWeather.js'
+import { useAlerts, useConditions, useForecast, useRainNow } from '../hooks/useWeather.js'
 import { useHourly } from '../hooks/useHourly.js'
 import { useNow } from '../hooks/useNow.js'
 import { useRecentPrecip } from '../hooks/useRecentPrecip.js'
@@ -57,6 +57,7 @@ export function LocationDetail() {
   const conditions = useConditions(id, location.data?.is_climbing_location)
   const hourly = useHourly(id)
   const recentPrecip = useRecentPrecip(id)
+  const rainNow = useRainNow()
   const walls = useWalls(id, location.data?.is_climbing_location)
   const guidebook = useGuidebook(id, location.data?.is_climbing_location)
   const [searchParams] = useSearchParams()
@@ -228,6 +229,7 @@ export function LocationDetail() {
           isError: recentPrecip.isError,
           refetch: () => void recentPrecip.refetch(),
         }}
+        rainNow={rainNow.data}
         walls={walls.data}
         location={location.data}
         guidebook={{
