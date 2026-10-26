@@ -125,7 +125,7 @@ jobs:
         run: |
           title="Nightly UI check failed"
           existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
-          body="The live nightly \`check:ui\` failed: $RUN_URL. The screenshots are in the run's ui-check-live artifact. If a PR's replayed run passes, the difference is upstream: fix the app if upstream changed shape, then delete the tape in a PR so its run records a new one."
+          body="The live nightly \`check:ui\` failed: $RUN_URL. The screenshots are in the run's ui-check-live artifact. To compare, dispatch this workflow by hand (it replays the tape): if that run passes, the difference is upstream. Fix the app if upstream changed shape, then delete the tape on a branch and dispatch the workflow on it, so the run records a new one (the check-ui-tape artifact) to commit."
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --body "$body"
           else
