@@ -50,10 +50,20 @@ const DATE = /(?<!\d)\d{4}-\d{2}-\d{2}(?!\d)/g
 const EPOCH_MS = /(?<![\d.])\d{13}(?!\d)/g
 const EPOCH_SEC = /(?<![\d.])\d{10}(?!\d)/g
 
+// A point picked on the map lands wherever the zoom animation settled, a little
+// different each run (#403), so the place-naming calls key on ~1 km, not the
+// exact fix. Only those two: a forecast keeps its exact point.
+const NAMES_A_POINT = /nominatim\.openstreetmap\.org\/reverse|\/v1\/elevation\?/
+const COORD = /([?&](?:lat|lon|latitude|longitude)=)(-?\d+\.\d+)/g
+
+function roundPoint(key: string): string {
+  return NAMES_A_POINT.test(key) ? key.replace(COORD, (_, name: string, v: string) => `${name}${Number(v).toFixed(2)}`) : key
+}
+
 /** `url` with each date near `anchorDay` written as its offset, the same on any day the request is made. */
 export function tapeKey(url: string, anchorDay: string): string {
   const anchor = dayNumber(anchorDay)
-  return url.replace(DATE, (whole) => {
+  return roundPoint(url).replace(DATE, (whole) => {
     const offset = dayNumber(whole) - anchor
     return Math.abs(offset) <= NEAR_DAYS ? `@D${offset >= 0 ? '+' : ''}${offset}` : whole
   })
@@ -112,7 +122,8 @@ export function recordingFetch(realFetch: typeof fetch, tape: Tape): typeof fetc
  */
 export function replayingFetch(realFetch: typeof fetch, tape: Tape, today: string, misses: Set<string>): typeof fetch {
   const days = daysBetween(tape.recordedOn, today)
-  const byKey = new Map(tape.entries.map((e) => [e.key, e]))
+  // Keys recorded before `roundPoint` hold the exact fix; rounding them here is a no-op on the rest.
+  const byKey = new Map(tape.entries.map((e) => [roundPoint(e.key), e]))
   return async (input, init) => {
     const url = requestUrl(input)
     if (!isUpstream(url)) return realFetch(input, init)
