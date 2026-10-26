@@ -12,6 +12,27 @@ describe('tapeKey', () => {
   it('gives the same key for the same relative request on a later day', () => {
     expect(tapeKey('https://x.test/?start_date=2026-11-02', '2026-11-09')).toBe(tapeKey('https://x.test/?start_date=2026-10-14', '2026-10-21'))
   })
+
+  it('keys a place-naming call on ~1 km, and a forecast on its exact point', () => {
+    const reverse = (lat: string) => `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=-92.6616&format=jsonv2`
+    const elevation = (lat: string) => `https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=-92.6616`
+    expect(tapeKey(reverse('45.41032'), '2026-10-26')).toBe(tapeKey(reverse('45.41177'), '2026-10-26'))
+    expect(tapeKey(elevation('45.41032'), '2026-10-26')).toBe(tapeKey(elevation('45.41177'), '2026-10-26'))
+    expect(tapeKey(reverse('45.3955'), '2026-10-26')).not.toBe(tapeKey(reverse('45.41032'), '2026-10-26'))
+    const forecast = 'https://api.open-meteo.com/v1/forecast?latitude=45.3955&longitude=-92.6616'
+    expect(tapeKey(forecast, '2026-10-26')).toBe(forecast)
+  })
+
+  it('replays a tape recorded with exact fixes under the rounded key', async () => {
+    const tape: Tape = {
+      recordedOn: '2026-10-26',
+      entries: [{ key: 'https://api.open-meteo.com/v1/elevation?latitude=45.41177&longitude=-92.6616', status: 200, contentType: 'application/json', body: '{"elevation":[285]}' }],
+    }
+    const misses = new Set<string>()
+    const res = await replayingFetch(fetch, tape, '2026-10-26', misses)('https://api.open-meteo.com/v1/elevation?latitude=45.41032&longitude=-92.6616')
+    expect(res.status).toBe(200)
+    expect(misses.size).toBe(0)
+  })
 })
 
 describe('shiftBody', () => {

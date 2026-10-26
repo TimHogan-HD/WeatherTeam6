@@ -9,7 +9,7 @@ import {
   type ConditionsWindow,
 } from '@weatherteam6/types'
 import { formatLocalHourShort } from './format.js'
-import { formatSince, type PrecipSummary } from './precipHistory.js'
+import { clock12, formatSince, type PrecipSummary } from './precipHistory.js'
 
 /**
  * The Overview tab's logic, apart from its markup: which hours the Today chart
@@ -353,6 +353,34 @@ export function nextLikelyRain(hours: readonly HourlySample[], now: number): Nex
       .map((h) => h.precip_chance_pct ?? 0),
   )
   return { kind: 'likely', local_date: first.local_date, chancePct }
+}
+
+/**
+ * How far ahead the hero names rain on its way. The drying clock averages rain
+ * from three hours before to two after each hour (`RAIN_WINDOW`, #324), so rock
+ * can read Wet up to two hours before rain arrives; with no rain behind it,
+ * "Last rain: None" beside Wet needs the rain ahead named (Robinson Park, #402).
+ */
+export const RAIN_DUE_HOURS = 3
+
+/**
+ * `Rain due 4pm`: the first hour within `RAIN_DUE_HOURS` whose chance reaches
+ * `LIKELY_RAIN_PCT`, named by the hour its rain starts — a stamp closes the
+ * hour it describes. `Rain due now` when that is the hour in progress. `null`
+ * when none is likely, and when no hour ahead carries a chance: unknown is not
+ * dry, but it is not rain due either, so nothing is said.
+ */
+export function rainDueText(hours: readonly HourlySample[], now: number, utcOffsetSeconds: number): string | null {
+  if (!Number.isFinite(utcOffsetSeconds)) return null
+  const until = now + RAIN_DUE_HOURS * 3_600_000
+  const due = hours.find((h) => {
+    const t = Date.parse(h.valid_at)
+    return Number.isFinite(t) && t > now && t <= until && (h.precip_chance_pct ?? 0) >= LIKELY_RAIN_PCT
+  })
+  if (due === undefined) return null
+  const start = Date.parse(due.valid_at) - 3_600_000
+  if (start <= now) return 'Rain due now'
+  return `Rain due ${clock12(new Date(start + utcOffsetSeconds * 1000).getUTCHours())}`
 }
 
 /** `Today`, or `Sat`, for a `YYYY-MM-DD` in the location's calendar. */

@@ -972,9 +972,15 @@ async function run(): Promise<void> {
     check("Done clears it from everyone's feedback", ownerCleared)
     await page.goto(`${WEB}/`)
     await page.locator('[role="button"]').first().click()
-    await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
-    const opened = await page.getByRole('tab', { selected: true }).innerText()
-    check('a crag now opens on the saved tab', opened.trim() === 'Hourly', `opened on ${opened}`)
+    // Waited for, as the cold load below is: the tabs can draw before the
+    // preferences answer, and reading the selection then raced them (#403).
+    const warmHourly = await page
+      .getByRole('tab', { name: 'Hourly', selected: true })
+      .waitFor({ timeout: 30_000 })
+      .then(() => true)
+      .catch(() => false)
+    const opened = await page.getByRole('tab', { selected: true }).innerText().catch(() => 'nothing')
+    check('a crag now opens on the saved tab', warmHourly, `opened on ${opened}`)
     // A cold load of the crag's own URL: the preferences are still in flight
     // when the screen mounts, and the saved tab must win once they arrive.
     await page.goto(`${WEB}/location/${locationId}`)
