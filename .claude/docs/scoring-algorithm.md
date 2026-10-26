@@ -50,6 +50,9 @@ domain guard.
   it (2026-10-26): it called more wet days dry than it gave dry days back, so it stays.
 - **Falling rain:** an hour with ≥ `FALLING_RAIN_MM` (0.5 mm, `REWETTING_PRECIP_MM`) reads
   dryness 0 whatever the storm's size — rain you would see on the rock (owner, 2026-10-26).
+  On rock that breaks when wet, any wetting rain still falling also labels the hour `wet`
+  (`fallingOn`), so drizzle under that line never reads Drying or joins a best window on
+  that rock; its score keeps the scaled dent.
 - **Storm size:** rain hours with gaps under `STORM_GAP_H` (24 h) add up to one storm.
   `need = MAX_HOURS[rock] × min(1, √(storm_in / 0.4))`, so a 0.4" storm needs the rock type's
   full window and a small shower needs less.

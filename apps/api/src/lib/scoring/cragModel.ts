@@ -115,7 +115,12 @@ export const STORM_GAP_H = 24
  * `unknown` has no guide and counts as fragile, being the most cautious row.
  */
 export function maxDryingRate(rockType: RockType): number {
-  return (rockGuide(rockType)?.whenWet ?? 'fragile') === 'fragile' ? 1 : Infinity
+  return breaksWhenWet(rockType) ? 1 : Infinity
+}
+
+/** `rockGuide`'s `whenWet: 'fragile'`, and `unknown`, which has no guide. */
+function breaksWhenWet(rockType: RockType): boolean {
+  return (rockGuide(rockType)?.whenWet ?? 'fragile') === 'fragile'
 }
 
 /** A day is worth its best run of this many consecutive hours, each run valued at its worst hour. */
@@ -290,15 +295,29 @@ export function drynessTrack(
 }
 
 /**
- * `wet` until the rock has done the rock type's `MIN_HOURS` share of its
- * window, `dry` when both stores are empty. Same boundaries as v2's
- * `rockLevel`, expressed on the dryness ramp so a small storm scales them down.
+ * `wet` while more than `MAX_HOURS − MIN_HOURS` of drying remains, `dry` when
+ * both stores are empty. The ramp runs over the full window, so only a storm
+ * needing more than that reads `wet` once it stops; a smaller one reads
+ * `drying` from its first dry hour. Rain still falling is the caller's to add
+ * (`fallingOn`): `FALLING_RAIN_MM` already zeroes dryness, and rock that
+ * breaks when wet reads `wet` under any rain (`finish`).
  */
 export function rockLevelA(dryness: number | null, rockType: RockType): RockLevel | null {
   if (dryness === null || !Number.isFinite(dryness)) return null
   if (dryness >= 1) return 'dry'
   const wetBelow = Math.pow(MIN_HOURS[rockType] / MAX_HOURS[rockType], 2)
   return dryness < wetBelow ? 'wet' : 'drying'
+}
+
+/**
+ * **Rain landing on rock that breaks when wet makes it `wet`, however light**
+ * (review of #397). The scaled ramp reads six hours of 0.4 mm/h drizzle on
+ * quartz arenite as dryness 0.27, above its `wet` line, so without this the
+ * rock read Drying while it was still drizzling and those hours could join a
+ * best window. The score keeps its dent; only the word and the window change.
+ */
+function fallingOn(rainMm: number | null, wetThresholdMm: number, rockType: RockType): boolean {
+  return breaksWhenWet(rockType) && rainMm !== null && rainMm >= wetThresholdMm
 }
 
 function median(xs: readonly number[]): number {
@@ -363,8 +382,9 @@ export function evaluateCragA(
     const xs = walls.map((w) => w.dry[i] ?? null)
     const dry = xs.some((x) => x === null) ? null : median(xs as number[])
     // No one wall's clock, so no one wall's drying hours.
+    const raining = fallingOn(hours[i]!.precip_mm, WET_MM, rockType)
     return {
-      ...finish(h, hours[i]!, dry, rockType, null, options.range),
+      ...finish(h, hours[i]!, dry, rockType, null, raining, options.range),
       rock_sun_shade: sunShade(walls.map((w) => w.evaluated[i]?.t_surface_c ?? null)),
     }
   })
@@ -402,15 +422,17 @@ export function evaluateWallA(
     wall,
   })
   const maxHours = dryingWindowHours(rockType, Math.max(0, wall.cliffAngleDeg)).maxHours
-  const dry = drynessTrack(
-    sheltered,
-    evaluated,
-    maxHours,
-    scale < 1 ? SHELTERED_WET_MM : WET_MM,
-    maxDryingRate(rockType),
-  )
+  const dry = drynessTrack(sheltered, evaluated, maxHours, scale < 1 ? SHELTERED_WET_MM : WET_MM, maxDryingRate(rockType))
+  const wetThreshold = scale < 1 ? SHELTERED_WET_MM : WET_MM
   return evaluated.map((h, i) =>
-    finish(h, hours[i]!, dry[i] ?? null, rockType, h.diagnostics.effective_dry_hours),
+    finish(
+      h,
+      hours[i]!,
+      dry[i] ?? null,
+      rockType,
+      h.diagnostics.effective_dry_hours,
+      fallingOn(sheltered[i]!.precip_mm, wetThreshold, rockType),
+    ),
   )
 }
 
@@ -420,6 +442,7 @@ function finish(
   dryness: number | null,
   rockType: RockType,
   effectiveDryHours: number | null,
+  rainingOnFragile: boolean,
   range?: TempRangeC,
 ): HourlyConditions {
   const massTempC = base.diagnostics.t_mass_c
@@ -432,7 +455,8 @@ function finish(
       : { wet_rock: Math.pow(Math.min(1, Math.max(0, dryness)), DRYNESS_EXPONENT), ...fp }
   const fLevel = frictionLevel(friction)
   const condensing = isCondensing(base.condensation_margin_c)
-  const rLevel = rockLevelA(dryness, rockType)
+  const level = rockLevelA(dryness, rockType)
+  const rLevel = level !== null && rainingOnFragile ? 'wet' : level
   return {
     valid_at: base.valid_at,
     // Neither score depends on a wall orientation nobody recorded: Crag A reads

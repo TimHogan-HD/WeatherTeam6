@@ -151,6 +151,18 @@ describe('evaluateCragA — the drying clock', () => {
     expect(out[131]!.diagnostics.wetness_factor!).toBeGreaterThan(0.5)
   })
 
+  it('reads rock that breaks when wet as Wet under any rain, and other rock as Drying', () => {
+    // Six hours of 0.4 mm/h drizzle, just under the falling-rain line.
+    const drizzle = series(144, (i) => (i >= 124 && i < 130 ? { precip_mm: FALLING_RAIN_MM - 0.1 } : {}))
+    const arenite = crag(drizzle, 'sandstone_quartz_arenite')
+    const granite = crag(drizzle, 'granite')
+    for (let i = 124; i < 130; i++) expect(arenite[i]!.rock?.level).toBe('wet')
+    // The dent is the score's; only the word changed.
+    expect(arenite[129]!.score!).toBeGreaterThan(0)
+    expect(arenite[130]!.rock?.level).toBe('drying')
+    expect(granite[127]!.rock?.level).toBe('drying')
+  })
+
   it('reaches zero only on a full soak', () => {
     // Fragile rock dries one hour per hour, so the hour after the rain shows the dent itself.
     const after = (mm: number) =>
