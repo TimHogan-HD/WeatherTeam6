@@ -15,6 +15,7 @@ import {
   nextDays,
   lastRainText,
   nextLikelyRain,
+  rainDueText,
   shortDate,
   shortDay,
   shortSpan,
@@ -309,6 +310,31 @@ describe('shortDate', () => {
     expect(shortDate('2026-10-06', '2026-09-30')).toBe('Tue 10/6')
     expect(shortDate('2026-09-30', '2026-09-30')).toBe('Today')
     expect(shortDate('not-a-date', '2026-09-30')).toBe('not-a-date')
+  })
+})
+
+describe('rainDueText', () => {
+  // 2:30pm local on 9/28 (UTC-5). The hour stamped 16:00 local holds 3–4pm's rain.
+  const now = Date.parse('2026-09-28T19:30:00Z')
+  const at = (localHour: number, pct: number | null) =>
+    sample(`2026-09-28T${String(localHour + 5).padStart(2, '0')}:00:00.000Z`, '2026-09-28', { precip_chance_pct: pct })
+
+  it('names the hour rain starts, from the stamp that closes it', () => {
+    expect(rainDueText([at(15, 10), at(16, LIKELY_RAIN_PCT), at(17, 90)], now, OFFSET)).toBe('Rain due 3pm')
+  })
+
+  it('says now when the likely hour is the one in progress', () => {
+    expect(rainDueText([at(14, 90), at(15, 90)], now, OFFSET)).toBe('Rain due now')
+  })
+
+  it('says nothing past the window, below the line, or with no chance known', () => {
+    expect(rainDueText([at(18, 90)], now, OFFSET)).toBeNull()
+    expect(rainDueText([at(16, LIKELY_RAIN_PCT - 1)], now, OFFSET)).toBeNull()
+    expect(rainDueText([at(16, null)], now, OFFSET)).toBeNull()
+  })
+
+  it('ignores an hour already over', () => {
+    expect(rainDueText([at(13, 90), at(14, 0)], now, OFFSET)).toBeNull()
   })
 })
 

@@ -34,7 +34,7 @@ import { formatTempDeg } from '../lib/format.js'
 import { FLIP_ATTR } from '../lib/flip.js'
 import { CRAG_FLY_ATTR } from '../lib/cragFly.js'
 import { findToday } from '../lib/forecast.js'
-import { chartWindow, dayChance, lastRainText, nextDays, nextLikelyRain, shortDate, shortDay } from '../lib/overview.js'
+import { chartWindow, dayChance, lastRainText, nextDays, nextLikelyRain, rainDueText, shortDate, shortDay } from '../lib/overview.js'
 import { formatSince, precipDays, precipSummary } from '../lib/precipHistory.js'
 import { useNow } from '../hooks/useNow.js'
 import { scoreRampColor } from './charts/chartStyle.js'
@@ -149,8 +149,12 @@ function Hero({ props, now }: { props: OverviewTabProps; now: Now | null }) {
 
   const lastRain =
     recentPrecip === undefined ? null : lastRainText(precipSummary(recentPrecip, clock), precipDays(recentPrecip.hours).length)
+  // Rain on its way can already read Wet (#402); it is not said while rain is falling now.
+  const rainDue =
+    hourly.data === undefined || lastRain === 'Now' ? null : rainDueText(hourly.data.hours, clock, hourly.data.utc_offset_seconds)
   const weather = [
     lastRain === null ? null : `Last rain: ${lastRain}`,
+    rainDue,
     hour?.temp_c == null ? null : formatTempF(hour.temp_c),
     hour?.wind_gust_kmh == null ? null : `gusts ${Math.round(hour.wind_gust_kmh / 1.609344)} mph`,
   ].filter((s): s is string => s !== null)
