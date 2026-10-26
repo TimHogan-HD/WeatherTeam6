@@ -1005,7 +1005,12 @@ async function run(): Promise<void> {
     await switcher.getByRole('button', { name: SECOND_CRAG.name }).click()
     await page.waitForURL((u) => u.pathname === `/location/${secondLocationId}`, { timeout: 10_000 }).catch(() => undefined)
     const swiped = await page.locator('.wt6-swipe').waitFor({ timeout: 5_000 }).then(() => 1, () => 0)
-    const stillDaily = await page.getByRole('tab', { name: 'Daily', selected: true }).count()
+    // Waited for, not counted: the new crag's tabs render after the swipe starts,
+    // and an instant count read 0 on a fast CI run (2026-10-21).
+    const stillDaily = await page
+      .getByRole('tab', { name: 'Daily', selected: true })
+      .waitFor({ timeout: 10_000 })
+      .then(() => 1, () => 0)
     await screen('crag-switched', 5)
     check(
       'switching crags keeps the tab and swipes the new one in',
