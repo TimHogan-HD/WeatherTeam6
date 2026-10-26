@@ -23,7 +23,7 @@ rm src/scripts/crag-a-model.ts
 ```
 
 It prints the error checks and accuracy "as picked" and "corrected". Expected corrected output:
-crag days 28/28, fresh crag 18/18, wall days WA 33/33, fresh wall WA 8/10 (G5, G10), one
+crag days 28/28, fresh crag 18/18, wall days WA 33/33 (CA 32/33, A3), fresh wall WA 8/10 (G5, G10), one
 explained overhang flag at Joshua Tree, and one explained `H5 step in rain amount` (soft
 sandstone 24 h after rain, 5 points at 0.018"). Fresh crag was 17/18 (F17) until the
 fragile-rock rate cap below, and the H5 flag arrived with it.
@@ -52,7 +52,13 @@ through in v2).
 **Dryness:** rain-size clock on v2's weather-sped effective hours.
 - Storm = rain hours with gaps under 24 h. `need = MAX_HOURS[rock] × min(1, √(storm_in / 0.4))`.
 - Two stores: surface (reset by any wetting) and soak (topped up by a storm, never lowered by a
-  smaller later one). `dryness = min(((N−R)/N)²)` over both.
+  smaller later one). `dryness = min(((N−R)/N)²)` over both, with `N` the rock's full window
+  (`maxH`) and `R = need` at a wetting. Until 2026-10-26 `N` was the storm's own need, so every
+  wetting hour read 0 and only the recovery scaled; the owner found that too strict (Barn Bluff,
+  2026-10-25: about 0.03" over a dry afternoon scored 0 from noon). Now rain sets the clock back
+  by its size, and an hour with ≥ 0.5 mm/h still falling reads 0. The change moved C13
+  45 → 65, A1 13 → 43 (now passing on CA), A2 13 → 43 and F12 18 → 28, all inside their bands,
+  and nothing else.
 - Rock whose guide says it breaks when wet (`whenWet: 'fragile'`, and `unknown`) dries at most
   one hour per elapsed hour: weather can slow its clock, never speed it (F17, 2026-10-21; the
   owner asked for a wait after rain, and this form was picked by the measurement below). The table's hours for those rocks are land-manager waiting times, and the

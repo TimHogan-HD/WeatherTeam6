@@ -46,7 +46,13 @@ domain guard.
 ### Dryness: the drying clock, 0-1 per hour (`drynessTrack`)
 
 - **Wetting:** an hour with ≥ `WET_MM` (0.05 mm) of rain. Open-Meteo reports 0 or ≥ 0.1, so
-  this is any measurable rain; v2 reset only at 0.5 mm/h.
+  this is any measurable rain; v2 reset only at 0.5 mm/h. `compare:dryness` measured raising
+  it (2026-10-26): it called more wet days dry than it gave dry days back, so it stays.
+- **Falling rain:** an hour with ≥ `FALLING_RAIN_MM` (0.5 mm, `REWETTING_PRECIP_MM`) reads
+  dryness 0 whatever the storm's size — rain you would see on the rock (owner, 2026-10-26).
+  On rock that breaks when wet, any wetting rain still falling also labels the hour `wet`
+  (`fallingOn`), so drizzle under that line never reads Drying or joins a best window on
+  that rock; its score keeps the scaled dent.
 - **Storm size:** rain hours with gaps under `STORM_GAP_H` (24 h) add up to one storm.
   `need = MAX_HOURS[rock] × min(1, √(storm_in / 0.4))`, so a 0.4" storm needs the rock type's
   full window and a small shower needs less.
@@ -55,8 +61,13 @@ domain guard.
 - **Drying rate:** each dry hour removes the increase in v2's `effective_dry_hours`, the
   clock that runs faster with sun, wind and vapour-pressure deficit
   (`rockThermal.effectiveDryingHours`).
-- `dryness = min(((N − R) / N)²)` over the two stores, where `N` is the store's need and `R`
-  what remains. The square curves slowly at first: rock strength returns late (issue #137).
+- `dryness = min(((N − R) / N)²)` over the two stores, where `N` is the rock's full window
+  `MAX_HOURS` and `R` what remains. The square curves slowly at first: rock strength returns
+  late (issue #137). **Rain sets the clock back by its size** (owner, 2026-10-26): `N` was the
+  storm's own need until then, so every wetting hour read 0 and only the recovery scaled —
+  Barn Bluff scored 0 from noon on 2026-10-25 for about 0.03" forecast over a dry afternoon.
+  Now a mist dips to ~90 and only a full soak reaches 0; the time to dry, and so the hour the
+  rock reads `dry`, is unchanged.
 - **Snow:** rain at ≤ 0.5 °C builds snow water; melt `0.15 mm/h per °C + 0.0015 × shortwave`
   wets the rock again; dryness ≤ 0.25 while ≥ 1 mm lies. The melt rates are a guess nothing
   has checked.
