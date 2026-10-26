@@ -1,18 +1,41 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_PREFERENCES, fToC } from '@weatherteam6/types'
-import { DEFAULT_DRAFT, canStep, draftFromPreferences, settingsUpdate, stepRange } from './preferencesForm.js'
+import { DEFAULT_DRAFT, canStep, draftFromPreferences, settingsUpdate, stepHours, stepRange } from './preferencesForm.js'
 
 describe('draftFromPreferences', () => {
   it('opens unset ends on Crag A’s own 30–60 °F and Overview', () => {
-    expect(draftFromPreferences(DEFAULT_PREFERENCES)).toEqual({ lowF: 30, highF: 60, tab: 'overview' })
+    expect(draftFromPreferences(DEFAULT_PREFERENCES)).toEqual({
+      lowF: 30,
+      highF: 60,
+      tab: 'overview',
+      firstHour: 8,
+      lastHour: 18,
+    })
   })
 
   it('reads a stored °C end back as the whole °F it was set in', () => {
-    expect(draftFromPreferences({ temp_low_c: fToC(15), temp_high_c: fToC(75), default_tab: 'hourly' })).toEqual({
-      lowF: 15,
-      highF: 75,
-      tab: 'hourly',
-    })
+    expect(
+      draftFromPreferences({
+        ...DEFAULT_PREFERENCES,
+        temp_low_c: fToC(15),
+        temp_high_c: fToC(75),
+        default_tab: 'hourly',
+        climb_first_hour: 12,
+      }),
+    ).toEqual({ lowF: 15, highF: 75, tab: 'hourly', firstHour: 12, lastHour: 18 })
+  })
+})
+
+describe('stepHours', () => {
+  it('stops each end inside the day', () => {
+    expect(stepHours({ ...DEFAULT_DRAFT, firstHour: 0 }, 'first', -1).firstHour).toBe(0)
+    expect(stepHours({ ...DEFAULT_DRAFT, lastHour: 23 }, 'last', 1).lastHour).toBe(23)
+  })
+
+  it('always leaves room for one three-hour run', () => {
+    expect(stepHours({ ...DEFAULT_DRAFT, firstHour: 16 }, 'first', 1).firstHour).toBe(16)
+    expect(stepHours({ ...DEFAULT_DRAFT, lastHour: 10 }, 'last', -1).lastHour).toBe(10)
+    expect(stepHours(DEFAULT_DRAFT, 'first', 1).firstHour).toBe(9)
   })
 })
 
@@ -48,5 +71,11 @@ describe('settingsUpdate', () => {
     expect(settingsUpdate(DEFAULT_PREFERENCES, { ...DEFAULT_DRAFT, tab: 'precip' })).toEqual({ default_tab: 'precip' })
     const stored = { ...DEFAULT_PREFERENCES, default_tab: 'precip' as const }
     expect(settingsUpdate(stored, DEFAULT_DRAFT)).toEqual({ default_tab: null })
+  })
+
+  it('sends a moved climbing hour, and one moved back to the default as null', () => {
+    expect(settingsUpdate(DEFAULT_PREFERENCES, { ...DEFAULT_DRAFT, firstHour: 12 })).toEqual({ climb_first_hour: 12 })
+    const stored = { ...DEFAULT_PREFERENCES, climb_last_hour: 20 }
+    expect(settingsUpdate(stored, DEFAULT_DRAFT)).toEqual({ climb_last_hour: null })
   })
 })

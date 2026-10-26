@@ -218,6 +218,13 @@
       "when": 1792602525321,
       "tag": "0030_real_triathlon",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793032192376,
+      "tag": "0031_climb_hours",
+      "breakpoints": true
     }
   ]
 }

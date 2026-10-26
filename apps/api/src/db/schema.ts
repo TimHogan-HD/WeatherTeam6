@@ -637,6 +637,12 @@ export const userPreferences = pgTable('user_preferences', {
   temp_low_c: doublePrecision('temp_low_c'),
   temp_high_c: doublePrecision('temp_high_c'),
   default_tab: text('default_tab'),
+  /**
+   * The local hours, both included, a day's score is read from (#401). Null is
+   * the default 8 am–6 pm (`CLIMB_HOURS_DEFAULT`), as for the range above.
+   */
+  climb_first_hour: integer('climb_first_hour'),
+  climb_last_hour: integer('climb_last_hour'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updated_at: timestamp('updated_at', { withTimezone: true }),
 })

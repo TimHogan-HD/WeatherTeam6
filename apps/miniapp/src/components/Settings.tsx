@@ -1,6 +1,12 @@
 import { useState, type ReactNode } from 'react'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
-import { TEMP_RANGE_DEFAULT_F, type Preferences } from '@weatherteam6/types'
+import {
+  CLIMB_HOURS_DEFAULT,
+  TEMP_RANGE_DEFAULT_F,
+  climbHoursLabel,
+  hourLabel,
+  type Preferences,
+} from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, brandButton, cardV2, choicePill, quietButton, row, stack } from '../theme/styles.js'
 import { Sect } from './charts/liquid.js'
@@ -12,6 +18,7 @@ import {
   draftFromPreferences,
   isDefault,
   settingsUpdate,
+  stepHours,
   stepRange,
   type SettingsDraft,
 } from '../lib/preferencesForm.js'
@@ -20,8 +27,9 @@ import { InlineError, Skeleton } from './States.js'
 
 /**
  * The Profile screen's settings (scoring Phase 5, owner decision 2026-10-01):
- * the temperature range friction is judged against, and the tab a crag opens
- * on. One Save for both, sending only what changed.
+ * the temperature range friction is judged against, the hours a day's score
+ * is read from (#401), and the tab a crag opens on. One Save for all, sending
+ * only what changed.
  */
 export function Settings() {
   const prefs = usePreferences()
@@ -49,8 +57,44 @@ function SettingsForm({ saved }: { saved: Preferences }) {
         title="Temperature range"
         note={`The score drops when it’s colder or warmer than this. Default ${TEMP_RANGE_DEFAULT_F.low}–${TEMP_RANGE_DEFAULT_F.high}°F.`}
       >
-        <Stepper label="Low" end="low" draft={draft} onChange={change} />
-        <Stepper label="High" end="high" draft={draft} onChange={change} />
+        {(['low', 'high'] as const).map((end) => (
+          <Stepper
+            key={end}
+            label={end === 'low' ? 'Low' : 'High'}
+            value={`${end === 'low' ? draft.lowF : draft.highF}°F`}
+            down={canStep(draft, end, -TEMP_STEP_F) ? stepRange(draft, end, -TEMP_STEP_F) : null}
+            up={canStep(draft, end, TEMP_STEP_F) ? stepRange(draft, end, TEMP_STEP_F) : null}
+            downName={`${end === 'low' ? 'Low' : 'High'} ${TEMP_STEP_F}° colder`}
+            upName={`${end === 'low' ? 'Low' : 'High'} ${TEMP_STEP_F}° warmer`}
+            onChange={change}
+          />
+        ))}
+      </Card>
+
+      <Card
+        title="Climbing hours"
+        note={`A day’s score comes from these hours only. Default ${climbHoursLabel(CLIMB_HOURS_DEFAULT)}.`}
+      >
+        {(['first', 'last'] as const).map((end) => {
+          const label = end === 'first' ? 'From' : 'Until'
+          const hour = end === 'first' ? draft.firstHour : draft.lastHour
+          const step = (delta: number) => {
+            const next = stepHours(draft, end, delta)
+            return (end === 'first' ? next.firstHour : next.lastHour) === hour ? null : next
+          }
+          return (
+            <Stepper
+              key={end}
+              label={label}
+              value={hourLabel(hour)}
+              down={step(-1)}
+              up={step(1)}
+              downName={`${label} an hour earlier`}
+              upName={`${label} an hour later`}
+              onChange={change}
+            />
+          )
+        })}
       </Card>
 
       <Card title="Open a crag on" note="The tab a crag shows first.">
@@ -119,27 +163,34 @@ function Card({ title, note, children }: { title: string; note: string; children
   )
 }
 
-/** − value + for one end of the range, in steps of `TEMP_STEP_F`. */
+/** − value + for one end of a setting. `down`/`up` are the draft a tap makes, null when it would move nothing. */
 function Stepper({
   label,
-  end,
-  draft,
+  value,
+  down,
+  up,
+  downName,
+  upName,
   onChange,
 }: {
   label: string
-  end: 'low' | 'high'
-  draft: SettingsDraft
+  value: string
+  down: SettingsDraft | null
+  up: SettingsDraft | null
+  downName: string
+  upName: string
   onChange: (d: SettingsDraft) => void
 }) {
-  const value = end === 'low' ? draft.lowF : draft.highF
-  const button = (delta: number, glyph: string, name: string) => {
-    const enabled = canStep(draft, end, delta)
+  const button = (next: SettingsDraft | null, glyph: string, name: string) => {
+    const enabled = next !== null
     return (
       <button
         type="button"
         aria-label={name}
         disabled={!enabled}
-        onClick={() => onChange(stepRange(draft, end, delta))}
+        onClick={() => {
+          if (next !== null) onChange(next)
+        }}
         style={{
           ...quietButton,
           ...typeV2.guideRowName,
@@ -160,11 +211,11 @@ function Stepper({
     <div style={{ ...row(spacing.cellPad), justifyContent: 'space-between', alignItems: 'center' }}>
       <span style={typeV2.statLabel}>{label}</span>
       <div style={{ ...row(spacing.listGapLg), alignItems: 'center' }}>
-        {button(-TEMP_STEP_F, '−', `${label} ${TEMP_STEP_F}° colder`)}
+        {button(down, '−', downName)}
         <span aria-live="polite" style={{ ...typeV2.lineFigure, color: colorsV2.txt1, minWidth: `${spacing.sectionGap * 4}px`, textAlign: 'center' }}>
-          {value}°F
+          {value}
         </span>
-        {button(TEMP_STEP_F, '+', `${label} ${TEMP_STEP_F}° warmer`)}
+        {button(up, '+', upName)}
       </div>
     </div>
   )

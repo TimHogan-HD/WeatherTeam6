@@ -4,7 +4,7 @@ import { db } from '../../db/index.js'
 import { locations, tripDayOutcomes, tripDayRecords, tripLocations, tripRainRecords, trips } from '../../db/schema.js'
 import { describeError } from '../http.js'
 import { logger } from '../logger.js'
-import { tempRangeFor } from '../preferences/preferences.js'
+import { readerScoringFor } from '../preferences/preferences.js'
 import { getHourlySeries } from '../runs/fetchHourlySeries.js'
 import { getEnsembleDaily } from '../runs/latestRuns.js'
 import { scoringLocationFor } from '../runs/scoringLocation.js'
@@ -139,14 +139,14 @@ async function recordLocation(
   const ahead = dated.filter((t) => t.end >= yesterday)
 
   // A location row belongs to one user, so its readings are judged against that
-  // user's temperature range.
+  // user's temperature range and climbing hours.
   const [outlook, series] = await Promise.all([
     ahead.length > 0 ? fetchOutlook(point, now) : Promise.resolve(null),
     location.is_climbing_location
-      ? tempRangeFor(location.user_id).then((range) =>
+      ? readerScoringFor(location.user_id).then((reader) =>
           getHourlySeries(
             { id: location.id, ...point },
-            { allModels: true, now, scoring: scoringLocationFor(location, range) },
+            { allModels: true, now, scoring: scoringLocationFor(location, reader) },
           ),
         )
       : Promise.resolve(null),

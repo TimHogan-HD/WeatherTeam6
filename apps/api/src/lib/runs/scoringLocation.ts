@@ -1,4 +1,4 @@
-import { compassDegrees, parseNumeric, parseNumericRequired, type RockType } from '@weatherteam6/types'
+import { compassDegrees, parseNumeric, parseNumericRequired, type ClimbHours, type RockType } from '@weatherteam6/types'
 import type { WallOrientation } from '../scoring/rockThermal.js'
 import type { TempRangeC } from '../scoring/cragModel.js'
 
@@ -27,7 +27,12 @@ export type ScoringLocation = {
    * partners can see two friction words for one crag. Absent is Crag A's own.
    */
   range?: TempRangeC
+  /** The reader's climbing hours, which the day score is read from (#401). Absent is 8 am–6 pm. */
+  climbHours?: ClimbHours
 } | null
+
+/** What one reader's settings change about a crag's readings (`readerScoringFor`). */
+export type ReaderScoring = { range: TempRangeC; climbHours: ClimbHours }
 
 /** The columns `scoringLocationFor` reads, as the database returns them. */
 export type ScoringLocationRow = {
@@ -59,7 +64,7 @@ export const DEFAULT_CLIFF_ANGLE_DEG = 45
  * - `aspect` not one of the 16 compass points → **no wall**. `aspectToDegrees`
  *   would answer 180 for it, which is a fabricated south face.
  */
-export function scoringLocationFor(row: ScoringLocationRow, range?: TempRangeC): ScoringLocation {
+export function scoringLocationFor(row: ScoringLocationRow, reader?: ReaderScoring): ScoringLocation {
   if (!row.is_climbing_location) return null
 
   const recordedAngle = parseNumeric(row.cliff_angle)
@@ -82,6 +87,6 @@ export function scoringLocationFor(row: ScoringLocationRow, range?: TempRangeC):
             cliffAngleDeg: angle,
           }
         : null,
-    ...(range === undefined ? {} : { range }),
+    ...(reader === undefined ? {} : { range: reader.range, climbHours: reader.climbHours }),
   }
 }

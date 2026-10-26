@@ -31,7 +31,9 @@
  * while still looking plausible. Same rule as the per-day score join in
  * `computeLiveForecast`.
  */
+import { CLIMB_HOURS_DEFAULT } from '@weatherteam6/types'
 import type {
+  ClimbHours,
   ConditionsWindow,
   HourlyReading,
   HourlyReadings,
@@ -48,8 +50,6 @@ import {
   type WeatherHour,
 } from '../scoring/hourlyConditions.js'
 import {
-  DAY_FIRST_HOUR,
-  DAY_LAST_HOUR,
   dayRepresentative,
   evaluateCragA,
   heldBackBy,
@@ -107,6 +107,8 @@ export type BuildReadingsInput = {
   windowMinScore?: number
   /** The reader's temperature range for friction (`user_preferences`); absent is Crag A's own. */
   range?: TempRangeC
+  /** The local hours a day's score is read from (`user_preferences`, #401); absent is 8 am–6 pm. */
+  climbHours?: ClimbHours
 }
 
 const none = (reason: ReadingsUnavailableReason): HourlyReadings => ({
@@ -201,6 +203,7 @@ function pastDays(
   past: ReturnType<typeof pastHours<CragAHour>>,
   weather: readonly WeatherHour[],
   utcOffsetSeconds: number,
+  climbHours: ClimbHours,
 ): PastReadingsDay[] {
   const rainAt = new Map(weather.map((w) => [Date.parse(w.valid_at), w.precip_mm]))
   const byDate = new Map<string, typeof past>()
@@ -215,9 +218,9 @@ function pastDays(
     const last = hours[hours.length - 1]
     if (first === undefined || last === undefined || localHour(first) !== 0 || localHour(last) !== 23) continue
     if (Date.parse(last.hour.valid_at) - Date.parse(first.hour.valid_at) !== (hours.length - 1) * 3_600_000) continue
-    const daytime = hours.filter((p) => localHour(p) >= DAY_FIRST_HOUR && localHour(p) <= DAY_LAST_HOUR)
+    const daytime = hours.filter((p) => localHour(p) >= climbHours.first && localHour(p) <= climbHours.last)
     const readable = daytime.every((p) => p.rockKnown)
-    const best = readable ? dayRepresentative(daytime.map((p) => p.hour), utcOffsetSeconds) : null
+    const best = readable ? dayRepresentative(daytime.map((p) => p.hour), utcOffsetSeconds, climbHours) : null
     // Rain is stamped at the end of its hour: the day's is 01:00 through the next midnight.
     const rain = hours.map((p) => rainAt.get(Date.parse(p.hour.valid_at) + 3_600_000) ?? null)
     const temps = hours.map((p) => p.weather?.air_temp_c ?? null)
@@ -269,6 +272,7 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
   if (!windowed.some((h) => h.score !== null)) return none('insufficient_history')
 
   const minScore = input.windowMinScore ?? DEFAULT_WINDOW_MIN_SCORE
+  const climbHours = input.climbHours ?? CLIMB_HOURS_DEFAULT
   const byDate = new Map<string, CragAHour[]>()
   const firstOpenHourMs = input.now.getTime() - 3_600_000
   for (const h of windowed) {
@@ -289,7 +293,7 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
      * can pick differently. Its score is the day's score. The single best hour
      * it replaced let one mild 8 am hour carry a hot day.
      */
-    const best = dayRepresentative(dayHours, input.utcOffsetSeconds)
+    const best = dayRepresentative(dayHours, input.utcOffsetSeconds, climbHours)
 
     return { local_date, window, best: best === null ? null : toReading(best) }
   })
@@ -304,6 +308,6 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
     hours: windowed.map(toReading),
     days,
     rock_history,
-    past_days: pastDays(past, weather, input.utcOffsetSeconds),
+    past_days: pastDays(past, weather, input.utcOffsetSeconds, climbHours),
   }
 }

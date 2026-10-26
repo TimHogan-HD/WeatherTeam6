@@ -289,6 +289,15 @@ describe('dayRepresentative', () => {
     expect(dayRepresentative([at(8, 90), at(9, null), at(10, 90)], OFFSET)).toBeNull()
     expect(dayRepresentative([at(8, 90), at(10, 90), at(11, 90)], OFFSET)).toBeNull()
   })
+
+  // #401: a perfect morning scored 100 for someone who only climbs after noon.
+  it("reads the day from the reader's climbing hours, both ends included", () => {
+    const hours = [at(8, 100), at(9, 100), at(10, 100), at(11, 40), at(12, 50), at(13, 60), at(14, 55)]
+    expect(dayRepresentative(hours, OFFSET)?.score).toBe(100)
+    expect(dayRepresentative(hours, OFFSET, { first: 12, last: 14 })?.score).toBe(50)
+    // The last hour counts: 12-14 holds exactly one run, 12-13 none.
+    expect(dayRepresentative(hours, OFFSET, { first: 12, last: 13 })).toBeNull()
+  })
 })
 
 describe('heldBackBy', () => {

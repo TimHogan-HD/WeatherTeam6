@@ -81,9 +81,9 @@ export function ScoreExplainerParts({ rangeF, rockType = null }: { rangeF: Range
 
       <Part title="A day’s score">
         <P>
-          It’s the lowest hour of the day’s best {f.dayRunHours} hours in a row between {clock(f.dayFirstHour)} and{' '}
-          {clock(f.dayLastHour)}. Good hours are the longest run scoring {f.goodHoursMinScore} or more. After{' '}
-          {clock(f.dayLastHour)}, today has no score.
+          It’s the lowest hour of the day’s best {f.dayRunHours} hours in a row inside your climbing hours,{' '}
+          {clock(f.dayFirstHour)} to {clock(f.dayLastHour)} unless you change them on Profile. Good hours are the
+          longest run scoring {f.goodHoursMinScore} or more. After your last climbing hour, today has no score.
         </P>
         <DayScoreExample />
         <Note>An example day, not a forecast.</Note>
