@@ -1233,6 +1233,9 @@ async function run(): Promise<void> {
       if (gone.status === 404) tripIds.splice(tripIds.indexOf(oneCragTripId), 1)
     }
     // The steps below count the list's cards: the two-crag trip and its second crag go now.
+    // Off the trips screen first: its background refetch of a trip deleted under
+    // it 404'd, and the next screen took the blame (nightly, 2026-10-22).
+    await page.goto('about:blank')
     for (const id of [...tripIds]) {
       const del = await api<null>('DELETE', `/trips/${id}`, token)
       if (del.status === 200) tripIds.splice(tripIds.indexOf(id), 1)
@@ -1556,7 +1559,14 @@ async function run(): Promise<void> {
         /Release to refresh/.test(hourlyPull) && /Updated (just now|\d+ (min|h) ago)/.test(hourlyPull),
         hourlyPull || '(the panel never opened)',
       )
-      await tp.getByText(/Up to date|Couldn’t refresh/).waitFor({ timeout: 30_000 }).catch(() => undefined)
+      // A live refresh can outlast 30 s; the scrub below then read the pull's own
+      // "Refreshing…" and failed for it (nightly, 2026-10-22 and 10-25).
+      const hourlyRefreshed = await tp
+        .locator('main > [aria-live="polite"]', { hasText: 'Refreshing' })
+        .waitFor({ state: 'hidden', timeout: 90_000 })
+        .then(() => true, () => false)
+      check('the Hourly refresh finishes', hourlyRefreshed, 'still refreshing after 90 s')
+      await tp.getByText(/Up to date|Couldn’t refresh/).waitFor({ timeout: 5_000 }).catch(() => undefined)
       await tp.waitForTimeout(1_500)
       const scrub = await dragPanel({ x: 100, y: 700 }, { x: 400, y: 760 })
       check('a sideways scrub across a chart does not pull', scrub === '', scrub)
