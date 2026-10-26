@@ -43,6 +43,12 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   ensemble run after the other sources and shown on no screen: its failure nulls only its
   pair. **Before any screen reads it**, it needs the outcome comparison in
   `scoring-findings.md` §6e, and its nulls must then withhold, never read as dry.
+- **A trip's own climbing hours** (`trips.climb_first_hour`/`climb_last_hour`, both null or
+  both set, `lib/trips/tripClimbHours.ts`, #401) replace the owner's Profile hours for that
+  trip only. The trip screen sends them to `/hourly` as `climbFirst`/`climbLast`; the
+  temperature range stays Profile's. The recorder scores each trip date under the hours of
+  the trip covering it, or under Profile hours when two trips covering one date disagree,
+  since the record is per location and day. Changing them keeps `trip_rain_records`.
 - **`trip_rain_records` is keyed per trip**: `(trip_id, location_id, recorded_at)`, because a
   rain total is summed over one trip's dates. The recorder builds it with `tripRainRows`
   from the same `summarizeTripOutlook` the forecast route answers with, in one transaction
