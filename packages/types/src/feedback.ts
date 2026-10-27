@@ -42,12 +42,22 @@ export const SUN_EXPOSURES = ['full_sun', 'mostly_sun', 'mixed', 'mostly_shade',
 export type SunExposure = (typeof SUN_EXPOSURES)[number];
 
 /**
- * How much the trees around a wall shade it. A wall in the woods can stay in
- * shade, and stay wet, at hours the terrain alone says are sunny — the input
- * #398's drying clock would need.
+ * What kept the sun off a wall that was not in full sun, as the climber saw
+ * it — any that apply. The point is the cause, not the amount: trees (#398),
+ * the way the wall faces (#293), cloud on the day, an overhang above the
+ * routes, or other terrain. Each needs a different input to model, so a later
+ * comparison has to know which it was.
  */
-export const TREE_COVERS = ['open', 'partly', 'under'] as const;
-export type TreeCover = (typeof TREE_COVERS)[number];
+export const SHADE_CAUSES = ['trees', 'clouds', 'overhang', 'facing', 'terrain'] as const;
+export type ShadeCause = (typeof SHADE_CAUSES)[number];
+
+/**
+ * The wall's steepness in climbers' words. Words, not degrees: a climber at
+ * the base can say "overhanging" but not "20°", and `locations.cliff_angle`
+ * runs backwards from climbers' usage (`climbing-terminology-research.md`).
+ */
+export const WALL_ANGLES = ['slab', 'vertical', 'overhang', 'roof'] as const;
+export type WallAngle = (typeof WALL_ANGLES)[number];
 
 /**
  * The directions the form offers for which way a wall faces: eight, because
@@ -139,14 +149,23 @@ export type ForecastStop = {
   started_at: string;
   /** UTC instant, ISO 8601, after `started_at`; null when not said. */
   ended_at: string | null;
+  /**
+   * What the rock was like on this wall. The check's own `observed_conditions`
+   * is the whole crag's: every stop's word when they agree, `mixed` when they
+   * do not. Optional for the deploy reason `sub_walls` is: absent on a row
+   * stored before the field reads as null.
+   */
+  rock?: ObservedConditions | null;
   sun_exposure: SunExposure | null;
   /**
-   * Which way the wall faces, as the climber judged it. Optional for the deploy
-   * reason `sub_walls` is: absent on a row stored before the field reads as null.
+   * What kept the sun off, any that apply. Empty when not said, and always
+   * empty with no `sun_exposure` or full sun. Absent reads as `[]`.
    */
+  shade_causes?: ShadeCause[];
+  /** Which way the wall faces, as the climber judged it. Absent reads as null. */
   facing?: CompassPoint | null;
-  /** How much tree shade the wall had. Absent reads as null, as `facing`. */
-  tree_cover?: TreeCover | null;
+  /** How steep the wall is. Absent reads as null. */
+  angle?: WallAngle | null;
 };
 
 export type CreateForecastFeedbackInput = {
@@ -215,15 +234,47 @@ export const SUN_EXPOSURE_LABEL: Record<SunExposure, string> = {
   full_shade: 'Full shade',
 };
 
-export function isTreeCover(v: unknown): v is TreeCover {
-  return typeof v === 'string' && (TREE_COVERS as readonly string[]).includes(v);
+/** The sun buttons' words: short enough for one row of five; the field label says "sun". */
+export const SUN_EXPOSURE_SHORT_LABEL: Record<SunExposure, string> = {
+  full_sun: 'Full',
+  mostly_sun: 'Most',
+  mixed: 'Half',
+  mostly_shade: 'Little',
+  full_shade: 'None',
+};
+
+export function isShadeCause(v: unknown): v is ShadeCause {
+  return typeof v === 'string' && (SHADE_CAUSES as readonly string[]).includes(v);
 }
 
-export const TREE_COVER_LABEL: Record<TreeCover, string> = {
-  open: 'No trees',
-  partly: 'Some trees',
-  under: 'Under trees',
+export const SHADE_CAUSE_LABEL: Record<ShadeCause, string> = {
+  trees: 'Trees',
+  clouds: 'Clouds',
+  overhang: 'Overhang',
+  facing: 'Faces away',
+  terrain: 'Hill or rock nearby',
 };
+
+export function isWallAngle(v: unknown): v is WallAngle {
+  return typeof v === 'string' && (WALL_ANGLES as readonly string[]).includes(v);
+}
+
+export const WALL_ANGLE_LABEL: Record<WallAngle, string> = {
+  slab: 'Slab',
+  vertical: 'Vertical',
+  overhang: 'Overhang',
+  roof: 'Roof',
+};
+
+/**
+ * The whole crag's rock from each wall's: their word when every wall that
+ * said one agrees, `mixed` when they differ, `null` when none said.
+ */
+export function cragRockOf(rocks: readonly (ObservedConditions | null)[]): ObservedConditions | null {
+  const said = [...new Set(rocks.filter((r): r is ObservedConditions => r !== null))];
+  if (said.length === 0) return null;
+  return said.length === 1 ? (said[0] as ObservedConditions) : 'mixed';
+}
 
 export const FEEDBACK_KIND_LABEL: Record<FeedbackKind, string> = {
   app: 'App feedback',

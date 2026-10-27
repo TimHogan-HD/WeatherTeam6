@@ -4,20 +4,24 @@ import {
   FEEDBACK_SPAN_MAX_HOURS,
   FORECAST_VERDICT_LABEL,
   OBSERVED_CONDITIONS_LABEL,
+  SHADE_CAUSE_LABEL,
   SUN_EXPOSURE_LABEL,
-  TREE_COVER_LABEL,
+  WALL_ANGLE_LABEL,
   fieldLine,
   summarizeReadings,
   type Conditions,
   type Feedback,
   type ForecastStop,
+  type ForecastVerdict,
   type GuidebookRoute,
   type GuidebookSubWall,
   type GuidebookWall,
+  type ObservedConditions,
   type ReadingField,
   type CompassPoint,
+  type ShadeCause,
   type SunExposure,
-  type TreeCover,
+  type WallAngle,
 } from '@weatherteam6/types'
 
 /**
@@ -109,16 +113,44 @@ export type StopDraft = {
   routes: string
   from: string
   to: string
+  rock: ObservedConditions | null
   sun: SunExposure | null
+  shadeCauses: ShadeCause[]
   facing: CompassPoint | null
-  trees: TreeCover | null
+  angle: WallAngle | null
 }
 
 /** The area or wall select's value for "not in the guidebook" — not a uuid, so never sent as one. */
 export const OTHER_AREA = 'other'
 
 export function emptyStop(from: string): StopDraft {
-  return { areaPick: '', areaText: '', wallPick: '', wall: '', routePicks: [], routesTyped: false, routes: '', from, to: '', sun: null, facing: null, trees: null }
+  return {
+    areaPick: '',
+    areaText: '',
+    wallPick: '',
+    wall: '',
+    routePicks: [],
+    routesTyped: false,
+    routes: '',
+    from,
+    to: '',
+    rock: null,
+    sun: null,
+    shadeCauses: [],
+    facing: null,
+    angle: null,
+  }
+}
+
+/** What the wall is like belongs to the wall: a new crag or area clears it, with the place. */
+export const CLEARED_PLACE: Partial<StopDraft> = { wallPick: '', routePicks: [], facing: null, angle: null }
+
+/** Whether a sun answer leaves something to explain: anything short of full sun. */
+export const sunWasBlocked = (sun: SunExposure | null): boolean => sun !== null && sun !== 'full_sun'
+
+/** What picking a sun answer changes: causes of shade go with full sun or none said. */
+export function pickSun(sun: SunExposure | null): Partial<StopDraft> {
+  return sunWasBlocked(sun) ? { sun } : { sun, shadeCauses: [] }
 }
 
 /** The guidebook area a stop picked, or null when it was typed or not said. */
@@ -206,6 +238,18 @@ export function stopProblem(day: string, stop: StopDraft, earliestMs: number | n
 }
 
 /**
+ * The answer a check still needs before it can be saved, or `null`: each
+ * wall's rock, then the verdict. Said beside Save as a hint, not an error —
+ * a form just opened has answered nothing yet.
+ */
+export function missingAnswer(stops: readonly StopDraft[], verdict: ForecastVerdict | null): string | null {
+  const unsaid = stops.findIndex((s) => s.rock === null)
+  if (unsaid !== -1) return stops.length === 1 ? 'Say what the rock was like.' : `Say what the rock was like at wall ${unsaid + 1}.`
+  if (verdict === null) return 'Say whether the app matched.'
+  return null
+}
+
+/**
  * The stops as `POST /feedback` takes them. A picked area sends its id and
  * name; a typed one only its name. `null` while any start time is missing.
  */
@@ -233,9 +277,11 @@ export function stopsPayload(
       routes: picked === null || s.routesTyped ? blankToNull(s.routes) : null,
       started_at: new Date(start).toISOString(),
       ended_at: end === null ? null : new Date(end).toISOString(),
+      rock: s.rock,
       sun_exposure: s.sun,
+      shade_causes: sunWasBlocked(s.sun) ? s.shadeCauses : [],
       facing: s.facing,
-      tree_cover: s.trees,
+      angle: s.angle,
     })
   }
   return out
@@ -246,24 +292,48 @@ const timeOf = (iso: string): string | null => {
   return Number.isFinite(d.getTime()) ? d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : null
 }
 
-/** `Cyclops Area · Left side · Routes: Pine Tree · 10:00 AM – 1:00 PM · Mostly shade · Faces SE · Some trees` */
+/**
+ * `Cyclops Area · Left side · Routes: Pine Tree · 10:00 AM – 1:00 PM · Rock: Damp ·
+ * Mostly shade · Shaded by: Trees, Clouds · Faces SE · Overhang`
+ */
 export function stopLine(stop: ForecastStop): string {
   const start = timeOf(stop.started_at)
   const end = stop.ended_at === null ? null : timeOf(stop.ended_at)
   // `route_picks` is absent on a row from an API older than route picking.
   const routes = [...(stop.route_picks ?? []).map((r) => r.name), ...(stop.routes === null ? [] : [stop.routes])]
+  // The rest are absent on a row from an API older than the fields.
+  const causes = stop.shade_causes ?? []
   return [
     stop.area_name,
     stop.wall,
     routes.length === 0 ? null : `Routes: ${routes.join(', ')}`,
     start === null ? null : end === null ? start : `${start} – ${end}`,
+    stop.rock === undefined || stop.rock === null ? null : `Rock: ${OBSERVED_CONDITIONS_LABEL[stop.rock]}`,
     stop.sun_exposure === null ? null : SUN_EXPOSURE_LABEL[stop.sun_exposure],
-    // Both absent on a row from an API older than the fields.
+    causes.length === 0 ? null : `Shaded by: ${causes.map((c) => SHADE_CAUSE_LABEL[c]).join(', ')}`,
     stop.facing === undefined || stop.facing === null ? null : `Faces ${stop.facing}`,
-    stop.tree_cover === undefined || stop.tree_cover === null ? null : TREE_COVER_LABEL[stop.tree_cover],
+    stop.angle === undefined || stop.angle === null ? null : WALL_ANGLE_LABEL[stop.angle],
   ]
     .filter((p): p is string => p !== null)
     .join(' · ')
+}
+
+/**
+ * The one line a folded wall shows on the form: the place, the start, and the
+ * rock and sun as said so far — or that nothing is said yet.
+ */
+export function draftLine(stop: StopDraft, areas: readonly GuidebookWall[]): string {
+  const area = pickedArea(stop, areas)
+  const place = area?.name ?? blankToNull(stop.areaText)
+  const start = timeOnDay('2000-01-01', stop.from)
+  const parts = [
+    place,
+    start === null ? null : timeOf(new Date(start).toISOString()),
+    stop.rock === null ? null : OBSERVED_CONDITIONS_LABEL[stop.rock],
+    stop.sun === null ? null : SUN_EXPOSURE_LABEL[stop.sun],
+    stop.facing === null ? null : `Faces ${stop.facing}`,
+  ].filter((p): p is string => p !== null)
+  return parts.length === 0 ? 'Nothing said yet' : parts.join(' · ')
 }
 
 /**
