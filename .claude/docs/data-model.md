@@ -284,7 +284,10 @@ verdict             forecast_verdict   -- 'matched' | 'partly' | 'missed'; requi
 app_readings        jsonb              -- FeedbackAppReadings | null: labelled words, never 0-1 factors
 stops               jsonb              -- ForecastStop[] | null (migration 0035): one per wall climbed —
                                        -- area_id/area_name, wall_id/wall, route_picks [{id,name}], routes (typed),
-                                       -- started_at, ended_at, sun_exposure.
+                                       -- started_at, ended_at, sun_exposure, facing (one of the 16
+                                       -- COMPASS_POINTS; the form offers 8), tree_cover ('open'|'partly'|'under').
+                                       -- facing and tree_cover are the climber's word, read by nothing yet
+                                       -- (#293, #398); stops stored before them read back with both null.
                                        -- Only started_at is required; each starts within 16 h of observed_at.
                                        -- area_id must be one of the crag's guidebook areas, wall_id one of that
                                        -- area's sub_walls, each route pick on that wall (or the area without one):

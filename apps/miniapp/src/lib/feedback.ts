@@ -5,6 +5,7 @@ import {
   FORECAST_VERDICT_LABEL,
   OBSERVED_CONDITIONS_LABEL,
   SUN_EXPOSURE_LABEL,
+  TREE_COVER_LABEL,
   fieldLine,
   summarizeReadings,
   type Conditions,
@@ -14,7 +15,9 @@ import {
   type GuidebookSubWall,
   type GuidebookWall,
   type ReadingField,
+  type CompassPoint,
   type SunExposure,
+  type TreeCover,
 } from '@weatherteam6/types'
 
 /**
@@ -107,13 +110,15 @@ export type StopDraft = {
   from: string
   to: string
   sun: SunExposure | null
+  facing: CompassPoint | null
+  trees: TreeCover | null
 }
 
 /** The area or wall select's value for "not in the guidebook" — not a uuid, so never sent as one. */
 export const OTHER_AREA = 'other'
 
 export function emptyStop(from: string): StopDraft {
-  return { areaPick: '', areaText: '', wallPick: '', wall: '', routePicks: [], routesTyped: false, routes: '', from, to: '', sun: null }
+  return { areaPick: '', areaText: '', wallPick: '', wall: '', routePicks: [], routesTyped: false, routes: '', from, to: '', sun: null, facing: null, trees: null }
 }
 
 /** The guidebook area a stop picked, or null when it was typed or not said. */
@@ -229,6 +234,8 @@ export function stopsPayload(
       started_at: new Date(start).toISOString(),
       ended_at: end === null ? null : new Date(end).toISOString(),
       sun_exposure: s.sun,
+      facing: s.facing,
+      tree_cover: s.trees,
     })
   }
   return out
@@ -239,7 +246,7 @@ const timeOf = (iso: string): string | null => {
   return Number.isFinite(d.getTime()) ? d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : null
 }
 
-/** `Cyclops Area · Left side · Routes: Pine Tree · 10:00 AM – 1:00 PM · Mostly shade` */
+/** `Cyclops Area · Left side · Routes: Pine Tree · 10:00 AM – 1:00 PM · Mostly shade · Faces SE · Some trees` */
 export function stopLine(stop: ForecastStop): string {
   const start = timeOf(stop.started_at)
   const end = stop.ended_at === null ? null : timeOf(stop.ended_at)
@@ -251,6 +258,9 @@ export function stopLine(stop: ForecastStop): string {
     routes.length === 0 ? null : `Routes: ${routes.join(', ')}`,
     start === null ? null : end === null ? start : `${start} – ${end}`,
     stop.sun_exposure === null ? null : SUN_EXPOSURE_LABEL[stop.sun_exposure],
+    // Both absent on a row from an API older than the fields.
+    stop.facing === undefined || stop.facing === null ? null : `Faces ${stop.facing}`,
+    stop.tree_cover === undefined || stop.tree_cover === null ? null : TREE_COVER_LABEL[stop.tree_cover],
   ]
     .filter((p): p is string => p !== null)
     .join(' · ')

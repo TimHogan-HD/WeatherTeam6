@@ -140,6 +140,19 @@ describe('parseFeedbackInput — forecast checks', () => {
       expect(stopError({ area_id: 'cyclops' })).toMatch(/area_id/)
     })
 
+    it('keeps which way the wall faces and its trees, absent as not said', () => {
+      expect(withStops([{ ...STOP, facing: 'SE', tree_cover: 'partly' }])).toMatchObject({ stops: [{ facing: 'SE', tree_cover: 'partly' }] })
+      // Any of the 16 points, the spelling a location's aspect uses, though the form offers 8.
+      expect(withStops([{ ...STOP, facing: 'NNW' }])).toMatchObject({ stops: [{ facing: 'NNW', tree_cover: null }] })
+      expect(withStops([STOP])).toMatchObject({ stops: [{ facing: null, tree_cover: null }] })
+    })
+
+    it('refuses a direction or tree cover it does not know', () => {
+      expect(stopError({ facing: 'se' })).toMatch(/^stops\[0\]\.facing must be one of N, NNE/)
+      expect(stopError({ facing: 135 })).toMatch(/^stops\[0\]\.facing/)
+      expect(stopError({ tree_cover: 'forest' })).toMatch(/^stops\[0\]\.tree_cover must be one of 'open', 'partly', 'under'/)
+    })
+
     it('names the stop that failed, not just the field', () => {
       expect(error(withStops([STOP, { ...STOP, sun_exposure: 'sunny' }]))).toMatch(/^stops\[1\]\.sun_exposure/)
     })
@@ -363,7 +376,7 @@ describe('toFeedback', () => {
       verdict: 'missed',
       app_readings: SNAPSHOT,
       // Stored before walls and routes could be picked: none were.
-      stops: [{ ...STORED_STOP, wall_id: null, route_picks: [] }],
+      stops: [{ ...STORED_STOP, wall_id: null, route_picks: [], facing: null, tree_cover: null }],
       created_at: '2026-09-29T18:00:00.000Z',
     })
   })
@@ -376,7 +389,7 @@ describe('toFeedback', () => {
   it('reads a stored stop dated long ago — the future limit is for writes only', () => {
     const old = { ...row, observed_at: new Date('2025-01-01T10:00:00.000Z') }
     const stop = { ...STORED_STOP, started_at: '2025-01-01T10:00:00.000Z', ended_at: '2025-01-01T12:00:00.000Z' }
-    expect(toFeedback({ ...old, stops: [stop] }).stops).toEqual([{ ...stop, wall_id: null, route_picks: [] }])
+    expect(toFeedback({ ...old, stops: [stop] }).stops).toEqual([{ ...stop, wall_id: null, route_picks: [], facing: null, tree_cover: null }])
   })
 
   it('reads a stored snapshot that no longer parses as no snapshot', () => {

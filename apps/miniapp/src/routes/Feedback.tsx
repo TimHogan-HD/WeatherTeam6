@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react'
+import { useCallback, useState, type CSSProperties, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useNavigate } from '../hooks/useNavigate.js'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
@@ -16,6 +16,9 @@ import {
   OBSERVED_CONDITIONS_LABEL,
   SUN_EXPOSURE_LABEL,
   SUN_EXPOSURES,
+  TREE_COVER_LABEL,
+  TREE_COVERS,
+  WALL_FACING_CHOICES,
   feedbackSnapshotFor,
   fieldLine,
   type CreateFeedbackInput,
@@ -170,8 +173,8 @@ function ForecastCheckForm({
 
   const pickCrag = (id: string) => {
     setPicked(id)
-    // Areas, walls and routes belong to the crag; times and sun do not.
-    setStops((list) => list.map((s) => ({ ...s, areaPick: '', areaText: '', wallPick: '', routePicks: [] })))
+    // Areas, walls, routes and what the wall is like belong to the crag; times and sun do not.
+    setStops((list) => list.map((s) => ({ ...s, areaPick: '', areaText: '', wallPick: '', routePicks: [], facing: null, trees: null })))
   }
 
   const submit = () => {
@@ -294,8 +297,9 @@ function ForecastCheckForm({
 }
 
 /**
- * One place climbed: area, wall, routes, hours and sun. Each is its own sun
- * observation, so a day that moves walls records each wall's own.
+ * One place climbed: area, wall, routes, hours, sun, and which way the wall
+ * faces and how treed it is. Each is its own sun observation, so a day that
+ * moves walls records each wall's own.
  */
 function StopCard({
   index,
@@ -344,8 +348,8 @@ function StopCard({
         ) : areas.length === 0 ? null : (
           <select
             value={stop.areaPick}
-            // A wall and routes belong to their area.
-            onChange={(e) => onChange({ areaPick: e.target.value, wallPick: '', routePicks: [] })}
+            // A wall, its routes and what it is like belong to their area.
+            onChange={(e) => onChange({ areaPick: e.target.value, wallPick: '', routePicks: [], facing: null, trees: null })}
             style={fieldV2}
             aria-label={`Area ${n}`}
           >
@@ -491,6 +495,28 @@ function StopCard({
         </div>
       </Field>
 
+      {/* What the guidebook does not record (#293, #398): beside the sun above,
+          these say why a wall was in sun or shade at those hours. */}
+      <Field label="Wall faces (optional)">
+        <div role="group" aria-label={`Wall ${n} faces`} style={gridOf(4)}>
+          {WALL_FACING_CHOICES.map((d) => (
+            <Choice key={d} fill active={stop.facing === d} onClick={() => onChange({ facing: stop.facing === d ? null : d })}>
+              {d}
+            </Choice>
+          ))}
+        </div>
+      </Field>
+
+      <Field label="Trees (optional)">
+        <div role="group" aria-label={`Trees at wall ${n}`} style={gridOf(3)}>
+          {TREE_COVERS.map((t) => (
+            <Choice key={t} fill active={stop.trees === t} onClick={() => onChange({ trees: stop.trees === t ? null : t })}>
+              {TREE_COVER_LABEL[t]}
+            </Choice>
+          ))}
+        </div>
+      </Field>
+
       {problem === null ? null : (
         <span role="alert" style={{ ...typeV2.note, color: colorsV2.poorInk }}>
           {problem}
@@ -597,9 +623,28 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-function Choice({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+/** Equal columns gutter to gutter, so a short row of choices is not packed left. */
+const gridOf = (columns: number): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+  gap: `${spacing.listGapSm}px`,
+})
+
+function Choice({
+  active,
+  fill = false,
+  onClick,
+  children,
+}: {
+  active: boolean
+  /** Fill its grid cell rather than size to the word. */
+  fill?: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  const style: CSSProperties = { ...choicePill(active), ...typeV2.dayPick, ...(fill ? { width: '100%', textAlign: 'center' } : {}) }
   return (
-    <button type="button" aria-pressed={active} onClick={onClick} style={{ ...choicePill(active), ...typeV2.dayPick }}>
+    <button type="button" aria-pressed={active} onClick={onClick} style={style}>
       {children}
     </button>
   )

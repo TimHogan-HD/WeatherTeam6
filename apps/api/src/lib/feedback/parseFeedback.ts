@@ -9,11 +9,15 @@ import {
   FEEDBACK_ROUTES_TEXT_MAX,
   FEEDBACK_SPAN_MAX_HOURS,
   FEEDBACK_STOPS_MAX,
+  COMPASS_POINTS,
   SUN_EXPOSURES,
+  TREE_COVERS,
+  isCompassPoint,
   isFeedbackKind,
   isForecastVerdict,
   isObservedConditions,
   isSunExposure,
+  isTreeCover,
   type FeedbackAppReadings,
   type ForecastRoutePick,
   type ForecastStop,
@@ -56,7 +60,7 @@ const FORECAST_FIELDS = [
   'app_readings',
   'stops',
 ] as const
-const STOP_FIELDS = ['area_id', 'area_name', 'wall_id', 'wall', 'route_picks', 'routes', 'started_at', 'ended_at', 'sun_exposure'] as const
+const STOP_FIELDS = ['area_id', 'area_name', 'wall_id', 'wall', 'route_picks', 'routes', 'started_at', 'ended_at', 'sun_exposure', 'facing', 'tree_cover'] as const
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -196,6 +200,15 @@ export function parseStops(v: unknown, observedAtMs: number, latestMs: number): 
       return { error: `${at}.sun_exposure must be one of ${SUN_EXPOSURES.map((x) => `'${x}'`).join(', ')}` }
     }
 
+    const facing = r['facing'] ?? null
+    if (facing !== null && !isCompassPoint(facing)) {
+      return { error: `${at}.facing must be one of ${COMPASS_POINTS.join(', ')}, or null` }
+    }
+    const trees = r['tree_cover'] ?? null
+    if (trees !== null && !isTreeCover(trees)) {
+      return { error: `${at}.tree_cover must be one of ${TREE_COVERS.map((x) => `'${x}'`).join(', ')}` }
+    }
+
     out.push({
       area_id: areaId,
       area_name: areaName,
@@ -206,6 +219,8 @@ export function parseStops(v: unknown, observedAtMs: number, latestMs: number): 
       started_at: new Date(startMs).toISOString(),
       ended_at: endMs === null ? null : new Date(endMs).toISOString(),
       sun_exposure: sun,
+      facing,
+      tree_cover: trees,
     })
   }
   return out
