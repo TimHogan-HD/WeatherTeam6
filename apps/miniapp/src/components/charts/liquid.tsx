@@ -183,16 +183,62 @@ export function Label({
   )
 }
 
+/**
+ * A scale's figures stand in a gutter of their own beside the plot, so no line
+ * or mark runs through one (owner, 2026-10-27, the slimmer of the gutters
+ * mocked): `SCALE_EDGE` in from the viewBox's edge, a little outside the
+ * card's text, and `SCALE_GAP` clear of the plot.
+ */
+const SCALE_EDGE = 14
+const SCALE_GAP = 4
+/** IBM Plex Mono's advance at a `Label`'s 9 units. */
+const LABEL_CHAR_W = 5.4
+
+/** The longest scale figure at each side, in characters; 0 for a side with none. */
+export type ScaleChars = { left: number; right: number }
+
+/** The plot's inset at a side whose longest figure is `chars` long. A side with none keeps `LIQUID_PX`. */
+function gutter(chars: number): number {
+  return chars === 0 ? LIQUID_PX : SCALE_EDGE + chars * LABEL_CHAR_W + SCALE_GAP
+}
+
+/** The plot's left and right edges, in viewBox units, for figures this long at each side. */
+export function plotSpan(chars: ScaleChars): { left: number; right: number } {
+  return { left: gutter(chars.left), right: LIQUID_W - gutter(chars.right) }
+}
+
+/** A scale figure in its gutter, centred on the gridline at `y`. */
+export function ScaleFigure({
+  side,
+  y,
+  color,
+  children,
+}: {
+  side: 'start' | 'end'
+  y: number
+  color?: string
+  children: ReactNode
+}) {
+  return (
+    <Label x={side === 'start' ? SCALE_EDGE : LIQUID_W - SCALE_EDGE} y={y + 3} anchor={side} color={color}>
+      {children}
+    </Label>
+  )
+}
+
 export type TimeAxis = {
   fromMs: number
   toMs: number
+  /** The plot's edges: the first hour's x and the last's. */
+  left: number
+  right: number
   x: (ms: number) => number
 }
 
-/** The day's hours across the viewBox, first hour at the left padding and last at the right. */
-export function timeAxis(fromMs: number, toMs: number): TimeAxis {
-  const x = scale(fromMs, toMs, LIQUID_PX, LIQUID_W - LIQUID_PX)
-  return { fromMs, toMs, x }
+/** The day's hours across the plot, first hour at its left edge and last at its right. */
+export function timeAxis(fromMs: number, toMs: number, chars: ScaleChars = { left: 0, right: 0 }): TimeAxis {
+  const { left, right } = plotSpan(chars)
+  return { fromMs, toMs, left, right, x: scale(fromMs, toMs, left, right) }
 }
 
 /** One figure in a read chip. `color` is its series' dot; without one the figure stands alone, as Dryness does. */
@@ -209,18 +255,27 @@ export function ReadChip({
   hour,
   items,
   at,
+  span,
   large = false,
 }: {
   hour: string
   items: readonly ReadoutItem[]
   at: number
+  /** The plot's edges in viewBox units, which the chip's track spans. */
+  span: { left: number; right: number }
   /** The Overview's size, a step up from Hourly's. */
   large?: boolean
 }) {
-  const inset = `${((LIQUID_PX / LIQUID_W) * 100).toFixed(2)}%`
+  const share = (v: number) => `${((v / LIQUID_W) * 100).toFixed(2)}%`
   const dot = large ? 8 : 6
   return (
-    <div style={{ position: 'relative', height: large ? '28px' : '22px', margin: `0 ${inset} 2px` }}>
+    <div
+      style={{
+        position: 'relative',
+        height: large ? '28px' : '22px',
+        margin: `0 ${share(LIQUID_W - span.right)} 2px ${share(span.left)}`,
+      }}
+    >
       <p
         data-readout=""
         aria-live="polite"
@@ -329,7 +384,7 @@ export function LiquidFrame({
   const pick = (e: PointerEvent<SVGSVGElement>) => {
     const box = e.currentTarget.getBoundingClientRect()
     const vx = ((e.clientX - box.left) / Math.max(1, box.width)) * LIQUID_W
-    const ms = axis.fromMs + ((vx - LIQUID_PX) / (LIQUID_W - 2 * LIQUID_PX)) * (axis.toMs - axis.fromMs)
+    const ms = axis.fromMs + ((vx - axis.left) / (axis.right - axis.left)) * (axis.toMs - axis.fromMs)
     const hit = nearest(instants, ms)
     if (hit !== null && hit !== read.ms) read.onRead(hit)
   }
@@ -353,7 +408,8 @@ export function LiquidFrame({
         <ReadChip
           hour={formatLocalHour(read.ms, utcOffsetSeconds) ?? ''}
           items={readout}
-          at={((axis.x(read.ms) - LIQUID_PX) / (LIQUID_W - 2 * LIQUID_PX)) * 100}
+          at={((axis.x(read.ms) - axis.left) / (axis.right - axis.left)) * 100}
+          span={axis}
         />
       )}
     <svg
