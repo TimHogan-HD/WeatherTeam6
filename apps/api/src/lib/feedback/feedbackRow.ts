@@ -1,13 +1,21 @@
-import type { Feedback } from '@weatherteam6/types'
+import type { Feedback, ForecastStop } from '@weatherteam6/types'
 import type { feedback } from '../../db/schema.js'
-import { parseAppReadings } from './parseFeedback.js'
+import { parseAppReadings, parseStops } from './parseFeedback.js'
 
 type FeedbackRow = typeof feedback.$inferSelect
 
+/** The row's stops, through the validator that let them in; a list that no longer parses is none. */
+function storedStops(row: FeedbackRow): ForecastStop[] {
+  if (row.stops === null || row.observed_at === null) return []
+  const stops = parseStops(row.stops, row.observed_at.getTime(), Number.POSITIVE_INFINITY)
+  return 'error' in stops ? [] : stops
+}
+
 /**
- * A stored row as the API returns it. `app_readings` is `jsonb`, typed
- * `unknown` by Drizzle, and goes back through the same validator that let it
- * in — a row that no longer parses reads as "no snapshot", never as a cast.
+ * A stored row as the API returns it. `app_readings` and `stops` are `jsonb`,
+ * typed `unknown` by Drizzle, and go back through the same validators that let
+ * them in — a row that no longer parses reads as "no snapshot" or "no stops",
+ * never as a cast.
  */
 export function toFeedback(row: FeedbackRow): Feedback {
   const readings = row.app_readings === null ? null : parseAppReadings(row.app_readings)
@@ -21,11 +29,7 @@ export function toFeedback(row: FeedbackRow): Feedback {
     observed_conditions: row.observed_conditions,
     verdict: row.verdict,
     app_readings: readings !== null && 'error' in readings ? null : readings,
-    area_id: row.area_id,
-    area_name: row.area_name,
-    wall: row.wall,
-    observed_until: row.observed_until === null ? null : row.observed_until.toISOString(),
-    sun_exposure: row.sun_exposure,
+    stops: storedStops(row),
     created_at: row.created_at.toISOString(),
   }
 }

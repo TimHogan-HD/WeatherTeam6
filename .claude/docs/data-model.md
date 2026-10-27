@@ -282,12 +282,11 @@ observed_at         timestamptz        -- required for 'forecast'
 observed_conditions overall_status     -- required for 'forecast'
 verdict             forecast_verdict   -- 'matched' | 'partly' | 'missed'; required for 'forecast'
 app_readings        jsonb              -- FeedbackAppReadings | null: labelled words, never 0-1 factors
-area_id             text               -- OpenBeta area id; must be one of the crag's guidebook areas (route-checked, no FK)
-area_name           text               -- picked or typed; required with area_id
-wall                text               -- free text: wall, buttress or route
-observed_until      timestamptz        -- end of the climbing span; >= observed_at, at most 16 h after (migration 0034)
-sun_exposure        sun_exposure       -- 'full_sun' | 'mostly_sun' | 'mixed' | 'mostly_shade' | 'full_shade'
-                                       -- every detail column above is optional; null = not said
+stops               jsonb              -- ForecastStop[] | null (migration 0035): one per wall climbed —
+                                       -- area_id/area_name, wall, routes, started_at, ended_at, sun_exposure.
+                                       -- Only started_at is required; each starts within 16 h of observed_at.
+                                       -- area_id must be one of the crag's guidebook areas (route-checked, no FK).
+                                       -- parseStops validates on write and on read; null = none named
 created_at          timestamptz default now()
 resolved_at         timestamptz        -- null = open; set once acted on (migration 0024)
 INDEX(user_id, created_at); CHECK constraints enforce the per-kind required fields

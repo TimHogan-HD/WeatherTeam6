@@ -1,4 +1,4 @@
-import type { FEEDBACK_KINDS, FORECAST_VERDICTS, FrictionLevel, OBSERVED_CONDITIONS, RockLevel, RockType, SUN_EXPOSURES } from '@weatherteam6/types'
+import type { FEEDBACK_KINDS, FORECAST_VERDICTS, FrictionLevel, OBSERVED_CONDITIONS, RockLevel, RockType } from '@weatherteam6/types'
 import {
   pgTable,
   pgEnum,
@@ -95,11 +95,7 @@ export const overallStatusEnum = pgEnum('overall_status', ['dry', 'damp', 'wet',
 
 export const feedbackKindEnum = pgEnum('feedback_kind', ['app', 'forecast'])
 
-export const forecastVerdictEnum = pgEnum('forecast_verdict', ['matched', 'partly', 'missed'])
-
-export const sunExposureEnum = pgEnum('sun_exposure', ['full_sun', 'mostly_sun', 'mixed', 'mostly_shade', 'full_shade'])
-
-// Tables
+export const forecastVerdictEnum = pgEnum('forecast_verdict', ['matched', 'partly', 'missed'])// Tables
 
 /**
  * `username` and `password_hash` are both nullable, and **a row with either one
@@ -460,13 +456,12 @@ export const feedback = pgTable(
     verdict: forecastVerdictEnum('verdict'),
     /** `FeedbackAppReadings` — words the screen showed, never a 0-1 factor. */
     app_readings: jsonb('app_readings'),
-    /** OpenBeta's area id from the guidebook snapshot — no FK, like the logbook's. */
-    area_id: text('area_id'),
-    area_name: text('area_name'),
-    wall: text('wall'),
-    /** When the climber stopped; `observed_at` is then when they started. */
-    observed_until: timestamp('observed_until', { withTimezone: true }),
-    sun_exposure: sunExposureEnum('sun_exposure'),
+    /**
+     * `ForecastStop[]` — area, wall, routes, hours and sun per place climbed.
+     * Null for app feedback and a check that named none. Area ids are OpenBeta's,
+     * with no FK, like the logbook's; `parseStops` validates on the way in and out.
+     */
+    stops: jsonb('stops'),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     /**
      * When the item was acted on. Null is open. A resolved row leaves
@@ -485,15 +480,11 @@ export const feedback = pgTable(
       'feedback_forecast_is_complete',
       sql`${t.kind} <> 'forecast' OR (${t.observed_at} IS NOT NULL AND ${t.observed_conditions} IS NOT NULL AND ${t.verdict} IS NOT NULL)`,
     ),
-    check(
-      'feedback_span_is_forward',
-      sql`${t.observed_until} IS NULL OR (${t.observed_at} IS NOT NULL AND ${t.observed_until} >= ${t.observed_at})`,
-    ),
   ],
 )
 
-// The Postgres enums above spell out `FEEDBACK_KINDS`, `FORECAST_VERDICTS`,
-// `OBSERVED_CONDITIONS` and `SUN_EXPOSURES` from `@weatherteam6/types`; a value added to one side
+// The Postgres enums above spell out `FEEDBACK_KINDS`, `FORECAST_VERDICTS` and
+// `OBSERVED_CONDITIONS` from `@weatherteam6/types`; a value added to one side
 // only fails to compile here rather than failing an insert in production.
 type _FeedbackKindsMatch = Assert<
   Equal<(typeof feedbackKindEnum.enumValues)[number], (typeof FEEDBACK_KINDS)[number]>
@@ -503,9 +494,6 @@ type _ForecastVerdictsMatch = Assert<
 >
 type _ObservedConditionsMatch = Assert<
   Equal<(typeof overallStatusEnum.enumValues)[number], (typeof OBSERVED_CONDITIONS)[number]>
->
-type _SunExposuresMatch = Assert<
-  Equal<(typeof sunExposureEnum.enumValues)[number], (typeof SUN_EXPOSURES)[number]>
 >
 type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false
 type Assert<_T extends true> = never

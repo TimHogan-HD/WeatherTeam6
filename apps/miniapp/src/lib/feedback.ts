@@ -9,7 +9,10 @@ import {
   summarizeReadings,
   type Conditions,
   type Feedback,
+  type ForecastStop,
+  type GuidebookWall,
   type ReadingField,
+  type SunExposure,
 } from '@weatherteam6/types'
 
 /**
@@ -65,37 +68,133 @@ export function fromLocalInputValue(value: string): number | null {
   return Number.isFinite(ms) ? ms : null
 }
 
-/**
- * The end of a climbing span from a `time` input's `HH:MM`, on the start's own
- * day — a session at a crag does not cross midnight. `null` for an empty or
- * invalid value, or one that does not come after the start.
- */
-export function untilFromTimeValue(fromMs: number, value: string): number | null {
-  const m = /^(\d{2}):(\d{2})$/.exec(value)
-  if (m === null) return null
-  const d = new Date(fromMs)
-  d.setHours(Number(m[1]), Number(m[2]), 0, 0)
-  const ms = d.getTime()
-  return Number.isFinite(ms) && ms > fromMs ? ms : null
+/** A `date` input's value for an instant, on this device's clock. */
+export function toLocalDateValue(ms: number): string {
+  return toLocalInputValue(ms).slice(0, 10)
+}
+
+/** A `time` input's value for an instant, on this device's clock. */
+export function toLocalTimeValue(ms: number): string {
+  return toLocalInputValue(ms).slice(11)
 }
 
 /**
- * Why a typed Finished time would be refused, or `null` when it is fine or
- * empty — the server's own limits (`parseObservedUntil`), said on the field
- * rather than as a failed save.
+ * The instant a `date` input's day and a `time` input's `HH:MM` name together,
+ * or `null` for an empty or invalid one. A check is one day at the crag, so
+ * every stop's times are on the check's day.
  */
-export function untilProblem(fromMs: number | null, value: string, nowMs: number): string | null {
-  if (value === '' || fromMs === null) return null
-  const untilMs = untilFromTimeValue(fromMs, value)
-  if (untilMs === null) return 'The finish time must be after the start, on the same day.'
-  if (untilMs > nowMs + FEEDBACK_CLOCK_SKEW_MS) return 'The finish time can’t be later than now.'
-  if (untilMs - fromMs > FEEDBACK_SPAN_MAX_HOURS * 3600_000) {
-    return `The finish time must be within ${FEEDBACK_SPAN_MAX_HOURS} hours of the start.`
+export function timeOnDay(day: string, time: string): number | null {
+  return fromLocalInputValue(`${day}T${time}`)
+}
+
+/**
+ * One row of the form's stop list, as typed. `areaPick` is a guidebook area id,
+ * `OTHER_AREA` for a typed name, or `''` for not said.
+ */
+export type StopDraft = {
+  areaPick: string
+  areaText: string
+  wall: string
+  routes: string
+  from: string
+  to: string
+  sun: SunExposure | null
+}
+
+/** The area select's value for "not in the guidebook" — not a uuid, so never sent as one. */
+export const OTHER_AREA = 'other'
+
+export function emptyStop(from: string): StopDraft {
+  return { areaPick: '', areaText: '', wall: '', routes: '', from, to: '', sun: null }
+}
+
+const blankToNull = (s: string): string | null => (s.trim() === '' ? null : s.trim())
+
+/**
+ * The earliest start and the latest end (or start) across the stops, or
+ * `null` while any start is missing. The check's `observed_at` is the first;
+ * the snapshot attaches to a reading anywhere between the two.
+ */
+export function stopsSpan(day: string, stops: readonly StopDraft[]): { fromMs: number; untilMs: number } | null {
+  let fromMs = Number.POSITIVE_INFINITY
+  let untilMs = Number.NEGATIVE_INFINITY
+  for (const s of stops) {
+    const start = timeOnDay(day, s.from)
+    if (start === null) return null
+    const end = s.to === '' ? null : timeOnDay(day, s.to)
+    fromMs = Math.min(fromMs, start)
+    untilMs = Math.max(untilMs, end ?? start)
+  }
+  return stops.length === 0 ? null : { fromMs, untilMs }
+}
+
+/**
+ * Why a stop would be refused, or `null` — the server's own limits
+ * (`parseStops`), said under the row rather than as a failed save.
+ * `earliestMs` is the earliest start across every stop.
+ */
+export function stopProblem(day: string, stop: StopDraft, earliestMs: number | null, nowMs: number): string | null {
+  const start = timeOnDay(day, stop.from)
+  if (start === null) return 'Add a start time.'
+  const latest = nowMs + FEEDBACK_CLOCK_SKEW_MS
+  if (start > latest) return 'The start time can’t be later than now.'
+  const end = stop.to === '' ? null : timeOnDay(day, stop.to)
+  if (stop.to !== '' && (end === null || end <= start)) return 'The finish must be after the start.'
+  if (end !== null && end > latest) return 'The finish time can’t be later than now.'
+  if (earliestMs !== null && (end ?? start) - earliestMs > FEEDBACK_SPAN_MAX_HOURS * 3600_000) {
+    return `Every stop must fall within ${FEEDBACK_SPAN_MAX_HOURS} hours of the first.`
   }
   return null
 }
 
-const timeOf =(d: Date): string => d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+/**
+ * The stops as `POST /feedback` takes them. A picked area sends its id and
+ * name; a typed one only its name. `null` while any start time is missing.
+ */
+export function stopsPayload(
+  day: string,
+  stops: readonly StopDraft[],
+  areas: readonly GuidebookWall[],
+): ForecastStop[] | null {
+  const out: ForecastStop[] = []
+  for (const s of stops) {
+    const picked = areas.find((a) => a.id === s.areaPick) ?? null
+    const typed = areas.length === 0 || s.areaPick === OTHER_AREA
+    const start = timeOnDay(day, s.from)
+    if (start === null) return null
+    const end = s.to === '' ? null : timeOnDay(day, s.to)
+    out.push({
+      area_id: typed ? null : (picked?.id ?? null),
+      area_name: typed ? blankToNull(s.areaText) : (picked?.name ?? null),
+      wall: blankToNull(s.wall),
+      routes: blankToNull(s.routes),
+      started_at: new Date(start).toISOString(),
+      ended_at: end === null ? null : new Date(end).toISOString(),
+      sun_exposure: s.sun,
+    })
+  }
+  return out
+}
+
+const timeOf = (iso: string): string | null => {
+  const d = new Date(iso)
+  return Number.isFinite(d.getTime()) ? d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : null
+}
+
+/** `Cyclops Area · Left side · Routes: Pine Tree · 10:00 AM – 1:00 PM · Mostly shade` */
+export function stopLine(stop: ForecastStop): string {
+  const start = timeOf(stop.started_at)
+  const end = stop.ended_at === null ? null : timeOf(stop.ended_at)
+  return [
+    stop.area_name,
+    stop.wall,
+    stop.routes === null ? null : `Routes: ${stop.routes}`,
+    start === null ? null : end === null ? start : `${start} – ${end}`,
+    stop.sun_exposure === null ? null : SUN_EXPOSURE_LABEL[stop.sun_exposure],
+  ]
+    .filter((p): p is string => p !== null)
+    .join(' · ')
+}
 
 /**
  * The lines an open feedback item prints, shared by the reader's own list on
@@ -110,18 +209,14 @@ const timeOf =(d: Date): string => d.toLocaleTimeString(undefined, { hour: 'nume
 export function feedbackLines(
   item: Feedback,
   author?: string,
-): { head: string; verdict: string | null; where: string | null; appSaid: string | null } {
+): { head: string; verdict: string | null; stops: string[]; appSaid: string | null } {
   const when = new Date(item.observed_at ?? item.created_at)
-  // Absent on a row from an API older than the field: read as "not said".
-  const untilIso = item.observed_until ?? null
-  const until = untilIso === null ? null : new Date(untilIso)
   const head = [
     author,
     FEEDBACK_KIND_LABEL[item.kind],
     item.location_name,
     Number.isFinite(when.getTime())
-      ? when.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) +
-        (until !== null && Number.isFinite(until.getTime()) ? ` – ${timeOf(until)}` : '')
+      ? when.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
       : null,
   ]
     .filter((p): p is string => p !== null && p !== undefined)
@@ -139,9 +234,8 @@ export function feedbackLines(
         ? 'No app reading attached'
         : `App said: ${item.app_readings.fields.map(fieldLine).join(' · ')}`
 
-  const sun = item.sun_exposure ?? null
-  const whereParts = [item.area_name ?? null, item.wall ?? null, sun === null ? null : SUN_EXPOSURE_LABEL[sun]].filter((p): p is string => p !== null)
-  const where = item.kind === 'forecast' && whereParts.length > 0 ? whereParts.join(' · ') : null
+  // Absent on a row from an API older than the field: no stops named.
+  const stops = item.kind === 'forecast' ? (item.stops ?? []).map(stopLine) : []
 
-  return { head, verdict, where, appSaid }
+  return { head, verdict, stops, appSaid }
 }

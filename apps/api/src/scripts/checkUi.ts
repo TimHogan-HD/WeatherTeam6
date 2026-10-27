@@ -1124,11 +1124,17 @@ async function run(): Promise<void> {
 
     // 3d‴. A forecast check at Red Wing offers Barn Bluff's guidebook areas.
     await page.goto(`${WEB}/feedback?location=${secondLocationId}`)
-    const areaSelect = page.getByRole('combobox', { name: 'Area' })
+    const areaSelect = page.getByRole('combobox', { name: 'Area 1' })
     const areaShown = await areaSelect.waitFor({ timeout: 30_000 }).then(() => true, () => false)
     const areaOptions = areaShown ? await areaSelect.locator('option').count() : 0
-    await screen('feedback-forecast-check')
     check('the forecast check lists the crag’s guidebook areas', areaOptions > 2, `${areaOptions} options`)
+    await page.getByRole('button', { name: 'Add another wall' }).click()
+    const secondStop = await page
+      .getByRole('combobox', { name: 'Area 2' })
+      .waitFor({ timeout: 10_000 })
+      .then(() => true, () => false)
+    await screen('feedback-forecast-check')
+    check('Add another wall adds a second stop with its own area list', secondStop)
 
     await page.goto(`${WEB}/trips`)
     await page.getByRole('button', { name: 'New trip' }).waitFor({ timeout: 30_000 })

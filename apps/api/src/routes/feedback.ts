@@ -88,12 +88,14 @@ feedbackRouter.post('/feedback', async (req: Request, res: Response) => {
 
     // A picked area must be one the crag's own guidebook lists — the client
     // only offers those, so anything else is a stale or forged id.
-    if (parsed.kind === 'forecast' && parsed.area_id !== null && place !== null) {
-      const areaId = parsed.area_id
-      const walls = guidebookFor(place.lat, place.lon)?.walls ?? []
-      if (!walls.some((w) => w.id === areaId)) {
-        refuse(res, 400, "area_id is not one of this crag's guidebook areas")
-        return
+    if (parsed.kind === 'forecast' && place !== null) {
+      const picked = parsed.stops.map((s) => s.area_id).filter((id): id is string => id !== null)
+      if (picked.length > 0) {
+        const areaIds = new Set((guidebookFor(place.lat, place.lon)?.walls ?? []).map((w) => w.id))
+        if (!picked.every((id) => areaIds.has(id))) {
+          refuse(res, 400, "A stop's area_id is not one of this crag's guidebook areas")
+          return
+        }
       }
     }
 
@@ -115,11 +117,7 @@ feedbackRouter.post('/feedback', async (req: Request, res: Response) => {
             observed_conditions: parsed.observed_conditions,
             verdict: parsed.verdict,
             app_readings: parsed.app_readings,
-            area_id: parsed.area_id,
-            area_name: parsed.area_name,
-            wall: parsed.wall,
-            observed_until: parsed.observed_until,
-            sun_exposure: parsed.sun_exposure,
+            stops: parsed.stops.length === 0 ? null : parsed.stops,
           }
 
     const inserted = await db.insert(feedback).values(values).returning()

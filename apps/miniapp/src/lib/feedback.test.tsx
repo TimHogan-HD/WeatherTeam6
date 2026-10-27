@@ -1,7 +1,19 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import type { ConditionsReadings, Conditions, Feedback, HourlyReading } from '@weatherteam6/types'
-import { feedbackLines, fromLocalInputValue, shownReading, toLocalInputValue, untilFromTimeValue, untilProblem } from './feedback.js'
+import type { ConditionsReadings, Conditions, Feedback, ForecastStop, GuidebookWall, HourlyReading } from '@weatherteam6/types'
+import {
+  OTHER_AREA,
+  emptyStop,
+  feedbackLines,
+  fromLocalInputValue,
+  shownReading,
+  stopProblem,
+  stopsPayload,
+  stopsSpan,
+  timeOnDay,
+  toLocalInputValue,
+  type StopDraft,
+} from './feedback.js'
 import { HistoryItem } from '../routes/Feedback.js'
 
 const NOW = '2026-09-29T18:00:00.000Z'
@@ -75,40 +87,68 @@ describe('datetime-local round trip', () => {
   })
 })
 
-describe('untilFromTimeValue', () => {
-  const from = new Date(2026, 8, 29, 10, 30).getTime()
+describe('stops', () => {
+  const DAY = '2026-09-29'
+  const at = (h: number, m = 0) => new Date(2026, 8, 29, h, m).getTime()
+  const stop = (from: string, to = '', patch: Partial<StopDraft> = {}): StopDraft => ({ ...emptyStop(from), to, ...patch })
 
-  it('puts the end time on the start’s own day', () => {
-    expect(untilFromTimeValue(from, '14:15')).toBe(new Date(2026, 8, 29, 14, 15).getTime())
+  it('puts every time on the check’s day', () => {
+    expect(timeOnDay(DAY, '14:15')).toBe(at(14, 15))
+    expect(timeOnDay(DAY, '')).toBeNull()
+    expect(timeOnDay('', '14:15')).toBeNull()
   })
 
-  it('refuses an end at or before the start, and an empty or malformed value', () => {
-    expect(untilFromTimeValue(from, '10:30')).toBeNull()
-    expect(untilFromTimeValue(from, '09:00')).toBeNull()
-    expect(untilFromTimeValue(from, '')).toBeNull()
-    expect(untilFromTimeValue(from, '2pm')).toBeNull()
-  })
-})
-
-describe('untilProblem', () => {
-  const from = new Date(2026, 8, 29, 6, 0).getTime()
-  const H = 3600_000
-
-  it('passes an empty value and a finish between the start and now', () => {
-    expect(untilProblem(from, '', from + 20 * H)).toBeNull()
-    expect(untilProblem(from, '14:00', from + 9 * H)).toBeNull()
+  it('spans the earliest start to the latest end, out of order and with open ends', () => {
+    expect(stopsSpan(DAY, [stop('13:00', '15:00'), stop('09:30'), stop('15:15')])).toEqual({
+      fromMs: at(9, 30),
+      untilMs: at(15, 15),
+    })
+    // Withheld while a start is missing, rather than spanning the rest.
+    expect(stopsSpan(DAY, [stop('09:00'), stop('')])).toBeNull()
   })
 
-  it('refuses a finish later than now — the server would 400 it', () => {
+  it('passes a stop between the start and now', () => {
+    expect(stopProblem(DAY, stop('09:00', '12:00'), at(9), at(14))).toBeNull()
+    expect(stopProblem(DAY, stop('09:00'), at(9), at(14))).toBeNull()
+  })
+
+  it('says why a stop would be refused, under the row — the server would 400 each', () => {
+    expect(stopProblem(DAY, stop(''), null, at(14))).toMatch(/start time/)
+    expect(stopProblem(DAY, stop('12:00', '11:00'), at(9), at(14))).toMatch(/after the start/)
+    expect(stopProblem(DAY, stop('12:00', '12:00'), at(9), at(14))).toMatch(/after the start/)
     // Filled in at 14:00 with an expected 17:00 finish.
-    expect(untilProblem(from, '17:00', from + 8 * H)).toMatch(/later than now/)
+    expect(stopProblem(DAY, stop('12:00', '17:00'), at(9), at(14))).toMatch(/finish time can’t be later/)
+    expect(stopProblem(DAY, stop('15:00'), at(9), at(14))).toMatch(/start time can’t be later/)
     // Five minutes of clock skew pass, as on the server.
-    expect(untilProblem(from, '14:05', from + 8 * H)).toBeNull()
+    expect(stopProblem(DAY, stop('12:00', '14:05'), at(9), at(14))).toBeNull()
+    expect(stopProblem(DAY, stop('21:30', '22:30'), at(6), at(23))).toMatch(/within 16 hours/)
   })
 
-  it('refuses a span past the limit and a finish before the start', () => {
-    expect(untilProblem(from, '22:30', from + 18 * H)).toMatch(/within 16 hours/)
-    expect(untilProblem(from, '05:00', from + 8 * H)).toMatch(/after the start/)
+  it('sends a picked area’s id and name, a typed one’s name only, and blanks as null', () => {
+    const areas = [{ id: 'a1', name: 'Cyclops Area' }] as GuidebookWall[]
+    const payload = stopsPayload(
+      DAY,
+      [
+        stop('09:00', '11:00', { areaPick: 'a1', wall: ' left ', routes: '', sun: 'mostly_shade' }),
+        stop('11:15', '', { areaPick: OTHER_AREA, areaText: ' Winter Wall ' }),
+        stop('13:00', '', { areaPick: '' }),
+      ],
+      areas,
+    )
+    expect(payload).toEqual([
+      { area_id: 'a1', area_name: 'Cyclops Area', wall: 'left', routes: null, started_at: new Date(at(9)).toISOString(), ended_at: new Date(at(11)).toISOString(), sun_exposure: 'mostly_shade' },
+      { area_id: null, area_name: 'Winter Wall', wall: null, routes: null, started_at: new Date(at(11, 15)).toISOString(), ended_at: null, sun_exposure: null },
+      { area_id: null, area_name: null, wall: null, routes: null, started_at: new Date(at(13)).toISOString(), ended_at: null, sun_exposure: null },
+    ])
+  })
+
+  it('sends a typed area when the crag has no guidebook, whatever the pick', () => {
+    const [only] = stopsPayload(DAY, [stop('09:00', '', { areaPick: 'a1', areaText: 'The Main Wall' })], []) ?? []
+    expect(only).toMatchObject({ area_id: null, area_name: 'The Main Wall' })
+  })
+
+  it('sends nothing while a start time is missing', () => {
+    expect(stopsPayload(DAY, [stop('09:00'), stop('')], [])).toBeNull()
   })
 })
 
@@ -123,33 +163,33 @@ describe('HistoryItem', () => {
     observed_conditions: 'damp',
     verdict: 'missed',
     app_readings: { valid_at: NOW, model: 'gfs_seamless', fields: [{ label: 'Dryness', value: 'Dry' }] },
-    area_id: null,
-    area_name: null,
-    wall: null,
-    observed_until: null,
-    sun_exposure: null,
+    stops: [],
     created_at: NOW,
   }
 
-  it('says where and in how much sun, and leaves the line out when nothing was said', () => {
-    const html = renderToStaticMarkup(
-      <HistoryItem item={{ ...check, area_name: 'Cyclops Area', wall: 'left arete', sun_exposure: 'mostly_shade' }} />,
-    )
-    expect(html).toContain('Cyclops Area · left arete · Mostly shade')
-    expect(feedbackLines(check).where).toBeNull()
-    expect(feedbackLines({ ...check, sun_exposure: 'full_sun' }).where).toBe('Full sun')
+  const STOP: ForecastStop = {
+    area_id: null,
+    area_name: 'Cyclops Area',
+    wall: 'left side',
+    routes: 'Pine Tree',
+    started_at: NOW,
+    ended_at: new Date(Date.parse(NOW) + 3 * 3600_000).toISOString(),
+    sun_exposure: 'mostly_shade',
+  }
+
+  it('prints one line per stop, in order, each with its own hours and sun', () => {
+    const second: ForecastStop = { ...STOP, area_name: 'Winter Wall', wall: null, routes: null, ended_at: null, sun_exposure: 'full_sun' }
+    const { stops } = feedbackLines({ ...check, stops: [STOP, second] })
+    expect(stops).toHaveLength(2)
+    expect(stops[0]).toMatch(/^Cyclops Area · left side · Routes: Pine Tree · \d{1,2}:\d{2}.* – \d{1,2}:\d{2}.* · Mostly shade$/)
+    expect(stops[1]).toMatch(/^Winter Wall · \d{1,2}:\d{2}[^–]* · Full sun$/)
+    expect(renderToStaticMarkup(<HistoryItem item={{ ...check, stops: [STOP, second] }} />)).toContain('Winter Wall')
   })
 
-  it('reads a row from an older API, with no detail fields at all, as not said', () => {
-    const { area_id: _a, area_name: _n, wall: _w, observed_until: _u, sun_exposure: _s, ...old } = check
-    const lines = feedbackLines(old as Feedback)
-    expect(lines.where).toBeNull()
-    expect(lines.head).not.toContain('–')
-  })
-
-  it('prints the end of a climbing span after its start', () => {
-    const until = new Date(Date.parse(NOW) + 3 * 3600_000).toISOString()
-    expect(feedbackLines({ ...check, observed_until: until }).head).toMatch(/ – \d{1,2}:\d{2}/)
+  it('prints no stop lines when none were named, or for a row from an older API', () => {
+    expect(feedbackLines(check).stops).toEqual([])
+    const { stops: _omit, ...old } = check
+    expect(feedbackLines(old as Feedback).stops).toEqual([])
   })
 
   it('shows what the climber saw beside what the app said', () => {

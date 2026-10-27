@@ -42,7 +42,7 @@ function EveryonesFeedback() {
       ) : (
         <ul style={{ ...stack(spacing.listGapLg), listStyle: 'none', margin: 0, padding: 0 }}>
           {list.data.map((item, i) => {
-            const { head, verdict, where, appSaid } = feedbackLines(item, item.username ?? 'Unnamed account')
+            const { head, verdict, stops, appSaid } = feedbackLines(item, item.username ?? 'Unnamed account')
             const resolving = resolve.isPending && resolve.variables === item.id
             return (
               <li
@@ -54,7 +54,11 @@ function EveryonesFeedback() {
               >
                 <span style={typeV2.note}>{head}</span>
                 {verdict === null ? null : <span style={{ ...typeV2.body, fontSize: '15px', color: colorsV2.txt1 }}>{verdict}</span>}
-                {where === null ? null : <span style={typeV2.note}>{where}</span>}
+                {stops.map((line, j) => (
+                  <span key={j} style={typeV2.note}>
+                    {line}
+                  </span>
+                ))}
                 {appSaid === null ? null : <span style={typeV2.note}>{appSaid}</span>}
                 {item.message === null ? null : (
                   <p style={{ ...typeV2.body, fontSize: '15px', color: colorsV2.txt1, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
