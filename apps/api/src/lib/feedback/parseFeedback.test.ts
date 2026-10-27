@@ -154,7 +154,7 @@ describe('parseFeedbackInput — forecast checks', () => {
       expect(stopError({ facing: 'se' })).toMatch(/^stops\[0\]\.facing must be one of N, NNE/)
       expect(stopError({ facing: 135 })).toMatch(/^stops\[0\]\.facing/)
       expect(stopError({ angle: 'steep' })).toMatch(/^stops\[0\]\.angle must be one of 'slab', 'vertical', 'overhang', 'roof'/)
-      expect(stopError({ shade_causes: ['fog'] })).toMatch(/^stops\[0\]\.shade_causes must be a list of 'trees'/)
+      expect(stopError({ shade_causes: ['fog'] })).toMatch(/^stops\[0\]\.shade_causes must be a list of 'clouds'/)
       expect(stopError({ shade_causes: 'trees' })).toMatch(/^stops\[0\]\.shade_causes/)
       expect(stopError({ shade_causes: ['trees', 'trees'] })).toMatch(/each once/)
     })

@@ -43,13 +43,19 @@ export type SunExposure = (typeof SUN_EXPOSURES)[number];
 
 /**
  * What kept the sun off a wall that was not in full sun, as the climber saw
- * it — any that apply. The point is the cause, not the amount: trees (#398),
- * the way the wall faces (#293), cloud on the day, an overhang above the
- * routes, or other terrain. Each needs a different input to model, so a later
- * comparison has to know which it was.
+ * it — any that apply. The point is whether it was the day or the spot: cloud
+ * passes, while trees (#398), a cave or roof and the way the wall faces (#293)
+ * shade it on every clear day too. Each needs a different input to model, so a
+ * later comparison has to know which it was.
  */
-export const SHADE_CAUSES = ['trees', 'clouds', 'overhang', 'facing', 'terrain'] as const;
+export const SHADE_CAUSES = ['clouds', 'trees', 'overhang', 'facing', 'terrain'] as const;
 export type ShadeCause = (typeof SHADE_CAUSES)[number];
+
+/**
+ * The causes the form offers. `terrain` is no longer offered (owner,
+ * 2026-10-27) but is still accepted, so a check saved with it reads back.
+ */
+export const SHADE_CAUSE_CHOICES = ['clouds', 'trees', 'overhang', 'facing'] as const satisfies readonly ShadeCause[];
 
 /**
  * The wall's steepness in climbers' words. Words, not degrees: a climber at
@@ -227,20 +233,11 @@ export function isSunExposure(v: unknown): v is SunExposure {
 }
 
 export const SUN_EXPOSURE_LABEL: Record<SunExposure, string> = {
-  full_sun: 'Full sun',
+  full_sun: 'All sun',
   mostly_sun: 'Mostly sun',
-  mixed: 'Half and half',
+  mixed: 'Sun and shade',
   mostly_shade: 'Mostly shade',
-  full_shade: 'Full shade',
-};
-
-/** The sun buttons' words: short enough for one row of five; the field label says "sun". */
-export const SUN_EXPOSURE_SHORT_LABEL: Record<SunExposure, string> = {
-  full_sun: 'Full',
-  mostly_sun: 'Most',
-  mixed: 'Half',
-  mostly_shade: 'Little',
-  full_shade: 'None',
+  full_shade: 'All shade',
 };
 
 export function isShadeCause(v: unknown): v is ShadeCause {
@@ -249,9 +246,9 @@ export function isShadeCause(v: unknown): v is ShadeCause {
 
 export const SHADE_CAUSE_LABEL: Record<ShadeCause, string> = {
   trees: 'Trees',
-  clouds: 'Clouds',
-  overhang: 'Overhang',
-  facing: 'Faces away',
+  clouds: 'The weather',
+  overhang: 'Cave or roof',
+  facing: 'Faces away from sun',
   terrain: 'Hill or rock nearby',
 };
 

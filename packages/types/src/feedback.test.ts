@@ -4,7 +4,7 @@ import {
   SHADE_CAUSES,
   SHADE_CAUSE_LABEL,
   SUN_EXPOSURES,
-  SUN_EXPOSURE_SHORT_LABEL,
+  SUN_EXPOSURE_LABEL,
   cragRockOf,
   feedbackSnapshotFor,
   isForecastVerdict,
@@ -23,7 +23,7 @@ describe('cragRockOf', () => {
 
 describe('the form’s words', () => {
   it('gives every sun answer and cause of shade a distinct label', () => {
-    expect(new Set(SUN_EXPOSURES.map((s) => SUN_EXPOSURE_SHORT_LABEL[s])).size).toBe(SUN_EXPOSURES.length)
+    expect(new Set(SUN_EXPOSURES.map((s) => SUN_EXPOSURE_LABEL[s])).size).toBe(SUN_EXPOSURES.length)
     expect(new Set(SHADE_CAUSES.map((c) => SHADE_CAUSE_LABEL[c])).size).toBe(SHADE_CAUSES.length)
   })
 })

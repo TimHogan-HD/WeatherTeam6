@@ -301,7 +301,7 @@ describe('HistoryItem', () => {
     const { stops } = feedbackLines({ ...check, stops: [STOP, second] })
     expect(stops).toHaveLength(2)
     expect(stops[0]).toMatch(/^Cyclops Area · left side · Routes: Pine Tree · \d{1,2}:\d{2}.* – \d{1,2}:\d{2}.* · Mostly shade$/)
-    expect(stops[1]).toMatch(/^Winter Wall · \d{1,2}:\d{2}[^–]* · Full sun$/)
+    expect(stops[1]).toMatch(/^Winter Wall · \d{1,2}:\d{2}[^–]* · All sun$/)
     expect(renderToStaticMarkup(<HistoryItem item={{ ...check, stops: [STOP, second] }} />)).toContain('Winter Wall')
   })
 
@@ -315,7 +315,7 @@ describe('HistoryItem', () => {
   it('prints the wall’s rock, what shaded it, its direction and angle, and nothing for a row from an older API', () => {
     const told: ForecastStop = { ...STOP, rock: 'damp', shade_causes: ['trees', 'facing'], facing: 'SW', angle: 'roof' }
     expect(feedbackLines({ ...check, stops: [told] }).stops[0]).toMatch(
-      /· Rock: Damp · Mostly shade · Shaded by: Trees, Faces away · Faces SW · Roof$/,
+      /· Rock: Damp · Mostly shade · Shaded by: Trees, Faces away from sun · Faces SW · Roof$/,
     )
     expect(feedbackLines({ ...check, stops: [STOP] }).stops[0]).toMatch(/· \d{1,2}:\d{2}[^·]* · Mostly shade$/)
   })

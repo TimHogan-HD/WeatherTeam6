@@ -14,10 +14,10 @@ import {
   FORECAST_VERDICTS,
   OBSERVED_CONDITIONS,
   OBSERVED_CONDITIONS_LABEL,
+  SHADE_CAUSE_CHOICES,
   SHADE_CAUSE_LABEL,
   SHADE_CAUSES,
   SUN_EXPOSURE_LABEL,
-  SUN_EXPOSURE_SHORT_LABEL,
   SUN_EXPOSURES,
   WALL_ANGLE_LABEL,
   WALL_ANGLES,
@@ -359,8 +359,6 @@ function StopCard({
   const choices = area === null ? [] : routeChoices(area, stop.wallPick)
   const unpicked = choices.filter((r) => !stop.routePicks.includes(r.id))
   const pickedRoutes = choices.filter((r) => stop.routePicks.includes(r.id))
-  // Shut until asked for, but shown open whenever it holds an answer, so nothing said is hidden.
-  const [moreOpen, setMoreOpen] = useState(false)
   const bodyId = `wall-${n}-body`
   return (
     <div
@@ -421,73 +419,62 @@ function StopCard({
           </Question>
 
           <Field label="Sun on the rock">
-            <div role="group" aria-label={`Sun on wall ${n}`} style={gridOf(5)}>
-              {SUN_EXPOSURES.map((s) => (
+            {/* Three over two, in order: five in one row cut "Sun and shade" short at phone width. */}
+            <div role="group" aria-label={`Sun on wall ${n}`} style={gridOf(6)}>
+              {SUN_EXPOSURES.map((s, i) => (
                 // A second tap clears it: "not said" must stay reachable once picked.
-                <Choice
-                  key={s}
-                  fill
-                  active={stop.sun === s}
-                  label={SUN_EXPOSURE_LABEL[s]}
-                  onClick={() => onChange(pickSun(stop.sun === s ? null : s))}
-                >
-                  {SUN_EXPOSURE_SHORT_LABEL[s]}
-                </Choice>
+                <div key={s} style={{ gridColumn: `span ${i < 3 ? 2 : 3}` }}>
+                  <Choice fill active={stop.sun === s} onClick={() => onChange(pickSun(stop.sun === s ? null : s))}>
+                    {SUN_EXPOSURE_LABEL[s]}
+                  </Choice>
+                </div>
               ))}
             </div>
           </Field>
 
-          {/* Why it was not in full sun, which the amount alone cannot say:
-              trees (#398), the way it faces (#293), the day's cloud, an overhang
-              above, or other terrain. */}
+          {/* Why it was not in full sun, which the amount alone cannot say: the
+              day (cloud) or the spot (trees #398, a roof, the way it faces #293). */}
           {sunWasBlocked(stop.sun) ? (
-            <Field label="What kept the sun off?" hint="Pick any that apply">
-              <div role="group" aria-label={`What shaded wall ${n}`} style={gridOf(6)}>
-                {SHADE_CAUSES.map((c, i) => (
-                  <div key={c} style={{ gridColumn: `span ${i < 3 ? 2 : 3}` }}>
-                    <Choice
-                      fill
-                      active={stop.shadeCauses.includes(c)}
-                      onClick={() =>
-                        onChange({
-                          shadeCauses: stop.shadeCauses.includes(c)
-                            ? stop.shadeCauses.filter((x) => x !== c)
-                            : SHADE_CAUSES.filter((x) => x === c || stop.shadeCauses.includes(x)),
-                        })
-                      }
-                    >
-                      {SHADE_CAUSE_LABEL[c]}
-                    </Choice>
-                  </div>
+            <Field label="What shaded it?" hint="Pick any that apply">
+              <div role="group" aria-label={`What shaded wall ${n}`} style={gridOf(2)}>
+                {SHADE_CAUSE_CHOICES.map((c) => (
+                  <Choice
+                    key={c}
+                    fill
+                    active={stop.shadeCauses.includes(c)}
+                    onClick={() =>
+                      onChange({
+                        shadeCauses: stop.shadeCauses.includes(c)
+                          ? stop.shadeCauses.filter((x) => x !== c)
+                          : SHADE_CAUSES.filter((x) => x === c || stop.shadeCauses.includes(x)),
+                      })
+                    }
+                  >
+                    {SHADE_CAUSE_LABEL[c]}
+                  </Choice>
                 ))}
               </div>
             </Field>
           ) : null}
 
-          <Disclosure
-            label="More about this wall"
-            open={moreOpen || stop.facing !== null || stop.angle !== null}
-            onToggle={() => setMoreOpen(!moreOpen)}
-          >
-            <Field label="Wall faces">
-              <div role="group" aria-label={`Wall ${n} faces`} style={gridOf(4)}>
-                {WALL_FACING_CHOICES.map((d) => (
-                  <Choice key={d} fill active={stop.facing === d} onClick={() => onChange({ facing: stop.facing === d ? null : d })}>
-                    {d}
-                  </Choice>
-                ))}
-              </div>
-            </Field>
-            <Field label="Wall angle">
-              <div role="group" aria-label={`Wall ${n} angle`} style={gridOf(4)}>
-                {WALL_ANGLES.map((a) => (
-                  <Choice key={a} fill active={stop.angle === a} onClick={() => onChange({ angle: stop.angle === a ? null : a })}>
-                    {WALL_ANGLE_LABEL[a]}
-                  </Choice>
-                ))}
-              </div>
-            </Field>
-          </Disclosure>
+          <Field label="Wall faces">
+            <div role="group" aria-label={`Wall ${n} faces`} style={gridOf(4)}>
+              {WALL_FACING_CHOICES.map((d) => (
+                <Choice key={d} fill active={stop.facing === d} onClick={() => onChange({ facing: stop.facing === d ? null : d })}>
+                  {d}
+                </Choice>
+              ))}
+            </div>
+          </Field>
+          <Field label="Wall angle">
+            <div role="group" aria-label={`Wall ${n} angle`} style={gridOf(4)}>
+              {WALL_ANGLES.map((a) => (
+                <Choice key={a} fill active={stop.angle === a} onClick={() => onChange({ angle: stop.angle === a ? null : a })}>
+                  {WALL_ANGLE_LABEL[a]}
+                </Choice>
+              ))}
+            </div>
+          </Field>
 
           {onRemove === undefined ? null : (
             <button type="button" onClick={onRemove} style={{ ...quietButton, alignSelf: 'flex-start' }} aria-label={`Remove wall ${n}`}>
@@ -853,21 +840,18 @@ const gridOf = (columns: number): CSSProperties => ({
 function Choice({
   active,
   fill = false,
-  label,
   onClick,
   children,
 }: {
   active: boolean
   /** Fill its grid cell rather than size to the word. */
   fill?: boolean
-  /** The full words, when the button shows a short form of them. */
-  label?: string
   onClick: () => void
   children: ReactNode
 }) {
   const style: CSSProperties = { ...choicePill(active), ...typeV2.dayPick, ...(fill ? { width: '100%', textAlign: 'center' } : {}) }
   return (
-    <button type="button" aria-pressed={active} aria-label={label} onClick={onClick} style={style}>
+    <button type="button" aria-pressed={active} onClick={onClick} style={style}>
       {children}
     </button>
   )
