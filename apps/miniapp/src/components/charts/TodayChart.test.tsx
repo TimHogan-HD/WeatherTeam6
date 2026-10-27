@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { readingNow } from '@weatherteam6/types'
+import { fToC, readingNow } from '@weatherteam6/types'
 import type { ChartHour, ChartWindow } from '../../lib/overview.js'
 import { TodayChart } from './TodayChart.js'
 
@@ -58,5 +58,22 @@ describe('TodayChart axis', () => {
     expect(html).toContain('>Thu</text>')
     expect(html).not.toContain('>12a</text>')
     expect(html).toContain('>3a</text>')
+  })
+
+  // #399: a 52–68 °F afternoon, the range the scale was mocked on.
+  it('labels °F gridlines that bracket the warmest and coolest hour', () => {
+    const day = [
+      hour(21, '2026-10-01T02:00:00Z', fToC(52)),
+      hour(22, '2026-10-01T03:00:00Z', fToC(68)),
+    ]
+    const html = render(win(day, Date.parse('2026-09-30T20:00:00Z')), Date.parse('2026-10-01T02:00:00Z'))
+    const labels = [...html.matchAll(/text-anchor="end"[^>]*>(\d+)°<\/text>/g)].map((m) => Number(m[1]))
+    expect(labels).toEqual([50, 55, 60, 65, 70])
+  })
+
+  it('draws no gridlines without a temperature', () => {
+    const blank = [{ ...hour(21, '2026-10-01T02:00:00Z', 0), tempC: null }]
+    const html = render(win(blank, Date.parse('2026-09-30T20:00:00Z')), Date.parse('2026-10-01T02:00:00Z'))
+    expect(html).not.toMatch(/\d°<\/text>/)
   })
 })

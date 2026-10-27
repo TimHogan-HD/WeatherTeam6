@@ -26,7 +26,9 @@ the mockup are sample data. Only the crag names are real.
 - **Overview graph: score bars.** The mockup still contains timeline and three-days
   code, and its control bar has been removed. Build only the score bars.
   **Removed 2026-10-20** (owner): they repeated the Today chart's hours, so the Overview
-  keeps only Today, which now starts at the hour now is in.
+  keeps only Today, which now starts at the hour now is in. **Today has °F gridlines**
+  (owner, 2026-10-26, #399), labelled at the right end, picked from gridlines,
+  right-margin ticks, and a high and low printed on the line.
 - **Map, Profile, Add a crag and Feedback** are not drawn in the mockup. Restyle them in
   the same look; there is no separate mockup round.
 

@@ -1,14 +1,16 @@
 import { useId, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { colorsV2 } from '@weatherteam6/design/tokens'
-import { EM_DASH, cToF, readingNow, type SkyCondition, type SkyHour } from '@weatherteam6/types'
+import { EM_DASH, cToF, fToC, readingNow, type SkyCondition, type SkyHour } from '@weatherteam6/types'
 import { formatTempDeg } from '../../lib/format.js'
 import { chartHourAt, shortDay, type ChartHour, type ChartWindow } from '../../lib/overview.js'
 import { SkyIcon } from '../Icons.js'
+import { niceTicks } from '../../lib/chartTicks.js'
 import { chartColorsV2, scoreRampColor } from './chartStyle.js'
 import {
   Bead,
   DISPLAY,
   KeyRow,
+  Label,
   LIQUID_PX,
   LIQUID_W,
   MONO,
@@ -28,8 +30,8 @@ import { StreamIn } from './StreamIn.js'
  * clock (`chartWindow`) — drawn as the hybrid mockup's `todayChart` (owner,
  * 2026-10-19): the air temperature as a glowing line coloured by each hour's
  * score, the dew point dashed on the same °F scale (where the two meet, the
- * rock condenses), the chance of rain as filled capsules underneath, the sky
- * every three hours along the top, and the hour's score under its label. Tap
+ * rock condenses), gridlines for that scale labelled at the right end, the
+ * chance of rain as filled capsules underneath, the sky every three hours along the top, and the hour's score under its label. Tap
  * or drag to read an hour; a chip above the plot, Hourly's a size up, follows it.
  *
  * **Without scores the line is neutral ink**: a city, a Severe+ alert, alerts
@@ -78,9 +80,10 @@ export function TodayChart({
 
   const x = scale(fromMs, toMs, LIQUID_PX, LIQUID_W - LIQUID_PX)
   const temps = hours.flatMap((p) => [p.tempC, p.dewC]).filter((v): v is number => v !== null)
-  const lo = temps.length === 0 ? 0 : Math.min(...temps) - 1.7
-  const hi = temps.length === 0 ? 1 : Math.max(...temps) + 1.7
-  const y = scale(lo, hi, PLOT_B, TOP)
+  // Gridlines in °F, as Daily's temperature chart has them (#399); the span is
+  // the ticks', so nothing draws past the top line.
+  const ticks = temps.length === 0 ? [] : niceTicks(cToF(Math.min(...temps)), cToF(Math.max(...temps)))
+  const y = scale(fToC(ticks[0] ?? 32), fToC(ticks[ticks.length - 1] ?? 34), PLOT_B, TOP)
 
   const scored = hours.some((p) => p.score !== null)
   const lineColor = (p: ChartHour) => (p.score === null ? chartColorsV2.air : scoreRampColor(p.score))
@@ -161,6 +164,14 @@ export function TodayChart({
           {nowX === null ? null : (
             <line x1={nowX} x2={nowX} y1={TOP - 8} y2={RAIN_TOP + RAIN_H} stroke={colorsV2.brandInk} strokeDasharray="2 3" />
           )}
+
+          {ticks.map((v) => (
+            <g key={`g${v}`}>
+              <line x1={LIQUID_PX} x2={LIQUID_W - LIQUID_PX} y1={y(fToC(v))} y2={y(fToC(v))} stroke={chartColorsV2.grid} />
+              {/* At the right end: the window starts at now, so the left edge is under the now bead. */}
+              <Label x={LIQUID_W - LIQUID_PX} y={y(fToC(v)) - 3} anchor="end">{`${v}°`}</Label>
+            </g>
+          ))}
 
           <StreamIn height={H}>
           {glyphs.map((h) => (
