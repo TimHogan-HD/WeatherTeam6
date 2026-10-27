@@ -179,17 +179,25 @@ async function run(): Promise<void> {
     const barnId = barn.payload.data.id
     createdLocations.push(barnId)
     const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString()
+    const { guidebookFor } = await import('../lib/guidebook/guidebook.js')
+    const barnWalls = guidebookFor(BARN_BLUFF.lat, BARN_BLUFF.lon)?.walls ?? []
+    const cyclopsRoute = barnWalls.find((w) => w.id === CYCLOPS_AREA_ID)?.routes[0]
+    const winterRoute = barnWalls.find((w) => w.name === 'Winter Wall')?.routes[0]
+    if (cyclopsRoute === undefined || winterRoute === undefined) throw new Error('setup: Barn Bluff has no Cyclops or Winter Wall routes in the snapshot')
+    // Keys in the order the API writes them, so the round trip compares as text.
     const stops = [
       {
         area_id: CYCLOPS_AREA_ID,
         area_name: 'Cyclops Area',
+        wall_id: null,
         wall: 'left side',
-        routes: 'Pine Tree, Cyclops',
+        route_picks: [{ id: cyclopsRoute.id, name: cyclopsRoute.name }],
+        routes: 'Unlisted one',
         started_at: hoursAgo(3),
         ended_at: hoursAgo(1.5),
         sun_exposure: 'mostly_shade',
       },
-      { area_id: null, area_name: 'Somewhere typed', wall: null, routes: null, started_at: hoursAgo(1), ended_at: null, sun_exposure: 'full_sun' },
+      { area_id: null, area_name: 'Somewhere typed', wall_id: null, wall: null, route_picks: [], routes: null, started_at: hoursAgo(1), ended_at: null, sun_exposure: 'full_sun' },
     ]
     const detailed = await call<Feedback>('POST', '/feedback', {
       kind: 'forecast',
@@ -219,6 +227,17 @@ async function run(): Promise<void> {
     })
     check("a Barn Bluff area in any stop on Red Rock is a 400", foreign.status === 400, `got ${foreign.status}`)
     if (foreign.payload.data !== null) createdFeedback.push(foreign.payload.data.id)
+    const offWall = await call<Feedback>('POST', '/feedback', {
+      kind: 'forecast',
+      location_id: barnId,
+      observed_at: stops[0]?.started_at,
+      observed_conditions: 'dry',
+      verdict: 'matched',
+      app_readings: null,
+      stops: [{ ...stops[0], route_picks: [{ id: winterRoute.id, name: winterRoute.name }] }],
+    })
+    check('a Winter Wall route picked on Cyclops Area is a 400', offWall.status === 400, `got ${offWall.status} ${String(offWall.payload.error)}`)
+    if (offWall.payload.data !== null) createdFeedback.push(offWall.payload.data.id)
 
     console.log('\nApp feedback')
     const appFb = await call<Feedback>('POST', '/feedback', { kind: 'app', message: tag })

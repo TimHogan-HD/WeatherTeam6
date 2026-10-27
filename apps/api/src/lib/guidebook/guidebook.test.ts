@@ -91,6 +91,27 @@ describe('guidebookFor', () => {
     expect(wall?.routes.map((r) => r.id)).toEqual(['x'])
     expect(wall?.ordered).toBe(false)
   })
+
+  it("lists a wall's sub-walls by name, each with its whole subtree's routes, and skips an empty one", () => {
+    const nested = [
+      area({ id: 'mn', parent: null, lat: null, lon: null }),
+      area({ id: 'crag' }),
+      area({ id: 'wall', parent: 'crag' }),
+      area({ id: 'z-buttress', parent: 'wall', routes: [route('z1')] }),
+      area({ id: 'a-slab', parent: 'wall' }),
+      area({ id: 'a-slab-left', parent: 'a-slab', routes: [route('s1'), route('s2')] }),
+      area({ id: 'empty', parent: 'wall' }),
+    ]
+    const wall = guidebookFor(45, -93, nested)?.walls[0]
+    expect(wall?.sub_walls).toEqual([
+      { id: 'a-slab', name: 'a-slab', route_ids: ['s1', 's2'] },
+      { id: 'z-buttress', name: 'z-buttress', route_ids: ['z1'] },
+    ])
+  })
+
+  it('gives a wall with no sub-areas no sub-walls — it is itself the wall', () => {
+    expect(guidebookFor(45, -93, CRAG)?.walls.every((w) => w.sub_walls?.length === 0)).toBe(true)
+  })
 })
 
 describe('the Minnesota snapshot', () => {
