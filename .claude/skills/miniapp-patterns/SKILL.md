@@ -129,8 +129,10 @@ renders wrong-but-plausible if broken:
   measured. (The Daily tab drew such bars until the V2 card replaced them with figure
   chips on 2026-09-28; the rule stands for the next one.)
 - **A day's score goes through `scoredDays` in `lib/overview.ts`**, which suppresses it via
-  `summarizeReadings` and joins on the date. Every surface that shows a day's score uses
-  it, so one day cannot wear two numbers or two colours.
+  `summarizeReadings` and joins on the date. Daily, the slim header, the guidebook and the
+  Overview share it, so one day cannot wear two numbers or two colours there. The trip
+  screen is the exception: `tripDayTiles` (`lib/trips.ts`) calls `summarizeReadings`
+  itself, so a change to `scoredDays` does not reach trips.
 - **The Hourly tab (`charts/DayCharts.tsx`, decisions in `lib/hourlyDay.ts`) draws two
   models on one chart.** Air, rain, chance and wind are the ensemble; dew point and
   humidity are `HourlySeries.model`'s deterministic columns, and a caption names that model
