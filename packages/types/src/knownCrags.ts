@@ -53,6 +53,12 @@ export type KnownCrag = {
   /** OpenStreetMap feature the box came from, `type/id` — or `openbeta/<area uuid>` where OSM has none. */
   readonly osm: string
   readonly bbox: { readonly south: number; readonly north: number; readonly west: number; readonly east: number }
+  /**
+   * The owner has confirmed sun and shade here on the ground (owner,
+   * 2026-10-05), so the Rock tab may show when the sun is on each wall
+   * (`sunWallsFor`). Absent everywhere else.
+   */
+  readonly sun_confirmed?: true
 }
 
 /**
@@ -74,7 +80,7 @@ const box = (south: number, north: number, west: number, east: number) => ({ sou
 
 export const KNOWN_CRAGS: readonly KnownCrag[] = [
   // ── Upper Midwest (rock-drying-research.md §4.7, §4.9) ──────────────────────
-  { slug: 'red-wing', name: 'Red Wing (Barn Bluff)', facts: 'Red Wing', rock_type: 'carbonate_cherty', osm: 'way/198488517', bbox: box(44.5678138, 44.5710421, -92.5326664, -92.5192596) },
+  { slug: 'red-wing', name: 'Red Wing (Barn Bluff)', facts: 'Red Wing', rock_type: 'carbonate_cherty', osm: 'way/198488517', bbox: box(44.5678138, 44.5710421, -92.5326664, -92.5192596), sun_confirmed: true },
   { slug: 'willow-river', name: 'Willow River State Park', facts: 'Willow River State Park', rock_type: 'dolomite', osm: 'relation/9406770', bbox: box(44.999414, 45.039142, -92.7315964, -92.6273822) },
   { slug: 'taylors-falls', name: 'Taylors Falls (Interstate State Park)', facts: 'Taylors Falls', rock_type: 'basalt_dense', osm: 'relation/6979200', bbox: box(45.3877767, 45.4030297, -92.672682, -92.6505129) },
   { slug: 'palisade-head', name: 'Palisade Head', facts: 'Palisade Head and Shovel Point', rock_type: 'rhyolite', osm: 'way/1364090751', bbox: box(47.318561, 47.3228107, -91.2126159, -91.2088757) },

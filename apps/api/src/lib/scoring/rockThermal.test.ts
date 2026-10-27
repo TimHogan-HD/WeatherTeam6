@@ -22,7 +22,6 @@ import {
   surfaceCoefficient,
   surfaceTemperature,
   erbsDiffuseFraction,
-  solarPosition,
   wallIrradianceWm2,
   type SurfaceTemperatureInput,
   type WallOrientation,
@@ -574,39 +573,6 @@ const JUNE_MORNING = new Date('2026-06-21T14:30:00Z')
 function wall(aspectDeg: number, cliffAngleDeg: number): WallOrientation {
   return { ...RED_ROCK, aspectDeg, cliffAngleDeg }
 }
-
-describe('solarPosition', () => {
-  it('puts the solstice noon sun at 90° − |lat − declination|', () => {
-    // Independent of the Fourier series: at solar noon elevation is
-    // 90 − |φ − δ|, with δ = ±23.44° at the solstices.
-    const june = solarPosition(JUNE_NOON, RED_ROCK.lat, RED_ROCK.lon)
-    const dec = solarPosition(DEC_NOON, RED_ROCK.lat, RED_ROCK.lon)
-    expect(june?.elevationDeg).toBeCloseTo(90 - (36.13 - 23.44), 0)
-    expect(dec?.elevationDeg).toBeCloseTo(90 - (36.13 + 23.44), 0)
-  })
-
-  it('reads azimuth clockwise from north: south at noon in the north, north in the south', () => {
-    const north = solarPosition(JUNE_NOON, RED_ROCK.lat, RED_ROCK.lon)
-    expect(Math.abs((north?.azimuthDeg ?? 0) - 180)).toBeLessThan(5)
-    // Sydney-ish latitude, same longitude so the same instant is solar noon.
-    const south = solarPosition(DEC_NOON, -33.9, RED_ROCK.lon)
-    const az = south?.azimuthDeg ?? 180
-    expect(Math.min(az, 360 - az)).toBeLessThan(5)
-  })
-
-  it('has the morning sun in the east and a negative elevation at night', () => {
-    const morning = solarPosition(JUNE_MORNING, RED_ROCK.lat, RED_ROCK.lon)
-    expect(morning?.azimuthDeg).toBeGreaterThan(45)
-    expect(morning?.azimuthDeg).toBeLessThan(100)
-    const night = solarPosition(new Date('2026-06-21T08:00:00Z'), RED_ROCK.lat, RED_ROCK.lon)
-    expect(night?.elevationDeg).toBeLessThan(0)
-  })
-
-  it('returns null for an invalid instant or coordinate rather than a sun', () => {
-    expect(solarPosition(new Date('nope'), 0, 0)).toBeNull()
-    expect(solarPosition(JUNE_NOON, Number.NaN, 0)).toBeNull()
-  })
-})
 
 describe('erbsDiffuseFraction', () => {
   it('is continuous at both breakpoints of the published piecewise fit', () => {

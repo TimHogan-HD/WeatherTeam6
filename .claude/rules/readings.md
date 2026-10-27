@@ -59,6 +59,12 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   Red Wing — and never on the Overview. When a surface brings it back, gate it
   on a flag on the `KNOWN_CRAGS` entry, not on the data being present. It names no
   direction: Crag A does not know which way a crag's walls face (#293).
+- **Sun on the wall** (#415, Rock tab, `SunOnWallCard.tsx`) is the first such surface, gated
+  on `KnownCrag.sun_confirmed` through `sunWallsFor` (`packages/types/src/sun.ts`). Each
+  face is found in USGS 1 m lidar and named for the nearest OpenBeta wall (owner,
+  2026-10-27: every detected face); its skyline is computed by `npm run sun:walls` into
+  `sunWallsData.ts`, never at request time. Terrain only, said on the card; it never feeds
+  the score.
 - **A score over a span is its worst hour, never a mean or a best.** A day's is
   `dayRepresentative`; any block of hours is the
   same rule, and a block with any hour unread or suppressed has no score — the worst of the

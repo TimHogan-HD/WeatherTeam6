@@ -398,6 +398,11 @@ async function run(): Promise<void> {
       for (const label of tabs) {
         await page.getByRole('tab', { name: label.trim() }).click()
         await screen(`tab-${label.trim().toLowerCase()}`)
+        if (label.trim() === 'Rock') {
+          // Sun and shade only where the owner confirmed them (#415): not Taylors Falls.
+          const sun = await page.getByRole('heading', { name: /Sun on the wall/ }).count()
+          check('a crag the owner has not confirmed shows no sun on the wall', sun === 0, `${sun} card(s)`)
+        }
       }
       await guidebookLevels()
     }
@@ -1101,6 +1106,18 @@ async function run(): Promise<void> {
     const placesAfter = await switcher.getByRole('button').allInnerTexts()
     check('and the switched-to place now leads the switcher', placesAfter[0] === SECOND_CRAG.name, placesAfter.join(', '))
     check('with the place just left second, one tap back', placesAfter[1] === CRAG.name, placesAfter.join(', '))
+
+    // 3d″. Sun on the wall (#415): Red Wing is the one crag the owner confirmed,
+    // so its Rock tab lists every lidar face; Taylors Falls' shows none (below).
+    await page.getByRole('tab', { name: 'Rock' }).click()
+    const sunCard = await page
+      .getByRole('heading', { name: /Sun on the wall/ })
+      .waitFor({ timeout: 10_000 })
+      .then(() => true, () => false)
+    const sunWalls = await page.locator('[data-sun-wall]').count()
+    if (sunCard) await page.getByRole('heading', { name: /Sun on the wall/ }).scrollIntoViewIfNeeded()
+    await screen('rock-sun-red-wing', 5)
+    check('Red Wing’s Rock tab shows when the sun is on each wall', sunCard && sunWalls >= 1, `card ${sunCard}; ${sunWalls} walls`)
     await page.getByRole('button', { name: 'Back to Conditions' }).click()
     await page.waitForURL((u) => u.pathname === '/', { timeout: 10_000 }).catch(() => undefined)
     check('and back from the switched crag returns to the list, not the first crag', new URL(page.url()).pathname === '/', page.url())

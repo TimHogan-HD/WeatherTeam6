@@ -51,6 +51,8 @@
  * function is enforced: see `MAX_PLAUSIBLE_SHORTWAVE_WM2`.
  */
 
+import { solarPosition } from '@weatherteam6/types'
+
 /**
  * **Solar absorptance of rock, and it is one number on purpose** — Open Question
  * 4 in the handoff, deferred to this phase to be answered on a measurement
@@ -394,63 +396,6 @@ const MIN_BEAM_ELEVATION_DEG = 5
 export const GROUND_ALBEDO = 0.2
 
 const DEG = Math.PI / 180
-
-/**
- * **Where the sun is, from coordinates and a UTC instant.** NOAA's general
- * solar position equations (Spencer's Fourier series for declination and the
- * equation of time), good to well under a degree — far inside everything else
- * this file is uncertain about.
- *
- * Azimuth is degrees clockwise from north, the same convention as `aspect`.
- * `elevationDeg` is negative at night.
- */
-export function solarPosition(at: Date, lat: number, lon: number): {
-  elevationDeg: number
-  azimuthDeg: number
-} | null {
-  const t = at.getTime()
-  if (!Number.isFinite(t) || !Number.isFinite(lat) || !Number.isFinite(lon)) return null
-
-  const yearStart = Date.UTC(at.getUTCFullYear(), 0, 1)
-  const dayOfYear = Math.floor((t - yearStart) / 86_400_000) + 1
-  const utcHours = at.getUTCHours() + at.getUTCMinutes() / 60 + at.getUTCSeconds() / 3600
-  const g = ((2 * Math.PI) / 365) * (dayOfYear - 1 + (utcHours - 12) / 24)
-
-  const eqTimeMin =
-    229.18 *
-    (0.000075 +
-      0.001868 * Math.cos(g) -
-      0.032077 * Math.sin(g) -
-      0.014615 * Math.cos(2 * g) -
-      0.040849 * Math.sin(2 * g))
-  const decl =
-    0.006918 -
-    0.399912 * Math.cos(g) +
-    0.070257 * Math.sin(g) -
-    0.006758 * Math.cos(2 * g) +
-    0.000907 * Math.sin(2 * g) -
-    0.002697 * Math.cos(3 * g) +
-    0.00148 * Math.sin(3 * g)
-
-  const trueSolarMin = utcHours * 60 + eqTimeMin + 4 * lon
-  const hourAngle = (trueSolarMin / 4 - 180) * DEG
-  const phi = lat * DEG
-
-  const cosZenith = Math.min(
-    1,
-    Math.max(-1, Math.sin(phi) * Math.sin(decl) + Math.cos(phi) * Math.cos(decl) * Math.cos(hourAngle)),
-  )
-  const elevationDeg = 90 - Math.acos(cosZenith) / DEG
-
-  // Measured from south, positive westward, then turned to clockwise-from-north.
-  const fromSouth = Math.atan2(
-    Math.sin(hourAngle),
-    Math.cos(hourAngle) * Math.sin(phi) - Math.tan(decl) * Math.cos(phi),
-  )
-  const azimuthDeg = (((fromSouth / DEG + 180) % 360) + 360) % 360
-
-  return { elevationDeg, azimuthDeg }
-}
 
 /**
  * **Erbs, Klein & Duffie (1982) diffuse fraction** from the hourly clearness
