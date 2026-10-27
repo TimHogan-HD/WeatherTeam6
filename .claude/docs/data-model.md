@@ -286,8 +286,9 @@ app_readings        jsonb              -- FeedbackAppReadings | null: labelled w
 stops               jsonb              -- ForecastStop[] | null (migration 0035): one per wall climbed —
                                        -- area_id/area_name, wall_id/wall, route_picks [{id,name}], routes (typed),
                                        -- started_at, ended_at, rock (OBSERVED_CONDITIONS; the form requires it),
-                                       -- sun_exposure, shade_causes (SHADE_CAUSES: trees|clouds|overhang|facing|
-                                       -- terrain, any, only with sun short of full), facing (one of the 16
+                                       -- sun_exposure, shade_causes (SHADE_CAUSES: clouds|trees|overhang|facing|
+                                       -- terrain, any, only with sun short of full; the form offers all but
+                                       -- terrain, kept so older checks read back), facing (one of the 16
                                        -- COMPASS_POINTS; the form offers 8), angle (slab|vertical|overhang|roof).
                                        -- The climber's word on each wall's direction, shape and why it was shaded:
                                        -- the start of a per-wall record (#293, #398), read by nothing yet. Stops

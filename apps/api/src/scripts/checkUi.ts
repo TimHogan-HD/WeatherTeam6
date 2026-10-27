@@ -1144,19 +1144,17 @@ async function run(): Promise<void> {
     await page.getByRole('group', { name: 'Sun on wall 1' }).getByRole('button', { name: 'Mostly shade' }).click()
     const causes = await shaded.getByRole('button').count()
     if (causes > 0) await shaded.getByRole('button', { name: 'Trees', exact: true }).click()
-    check('what kept the sun off is asked only after a sun short of full', causesBefore === 0 && causes === 5, `${causesBefore} before; ${causes} causes`)
-    // Direction and angle wait behind "More about this wall".
+    check('what shaded it is asked only after a sun short of full', causesBefore === 0 && causes === 4, `${causesBefore} before; ${causes} causes`)
+    // Direction and angle sit in the open wall, behind nothing.
     const facing = page.getByRole('group', { name: 'Wall 1 faces' })
-    const hiddenFacing = await facing.count()
-    await page.getByRole('button', { name: 'More about this wall' }).click()
     const directions = await facing.getByRole('button').count()
     if (directions > 0) await facing.getByRole('button', { name: 'SE', exact: true }).click()
     const pressed = await facing.locator('[aria-pressed="true"]').count()
     const angles = await page.getByRole('group', { name: 'Wall 1 angle' }).getByRole('button').count()
     check(
-      'More about this wall opens 8 directions that hold one, and 4 angles',
-      hiddenFacing === 0 && directions === 8 && pressed === 1 && angles === 4,
-      `folded ${hiddenFacing}; ${directions} directions; ${pressed} pressed; ${angles} angles`,
+      'the open wall shows 8 directions that hold one, and 4 angles',
+      directions === 8 && pressed === 1 && angles === 4,
+      `${directions} directions; ${pressed} pressed; ${angles} angles`,
     )
     await screen('feedback-wall-open')
     await page.getByRole('button', { name: 'Add another wall' }).click()
