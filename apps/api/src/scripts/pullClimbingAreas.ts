@@ -17,6 +17,7 @@
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import type { ClimbingArea } from '../lib/weather/climbingAreas.js'
+import { REPINNED_AREAS } from '../lib/weather/climbingAreaRepins.js'
 
 const ENDPOINT = 'https://api.openbeta.io/'
 /** `areas` defaults to a **silent** `limit` of 50; asking for too much in one query is a 502. */
@@ -104,8 +105,8 @@ async function main() {
       parent: a.pathTokens.length > topLength ? (a.pathTokens[a.pathTokens.length - 2] ?? null) : null,
       parent_id: a.pathTokens.length > topLength ? (a.ancestors[a.ancestors.length - 2] ?? null) : null,
       climbs: a.totalClimbs ?? 0,
-      lat: Math.round(a.metadata.lat! * 1e5) / 1e5,
-      lon: Math.round(a.metadata.lng! * 1e5) / 1e5,
+      lat: REPINNED_AREAS.get(a.uuid)?.lat ?? Math.round(a.metadata.lat! * 1e5) / 1e5,
+      lon: REPINNED_AREAS.get(a.uuid)?.lon ?? Math.round(a.metadata.lng! * 1e5) / 1e5,
     }))
     // Most climbs first, then id, so a re-pull diffs as the data's change and not OpenBeta's paging.
     .sort((x, y) => y.climbs - x.climbs || x.uuid.localeCompare(y.uuid))

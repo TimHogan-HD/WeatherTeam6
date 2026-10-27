@@ -4,6 +4,7 @@ import { MAX_CLIMBING_RESULTS, climbingAreaLevel, climbingStates, searchClimbing
 import { CO_CLIMBING_AREAS } from './climbingAreasCo.js'
 import { MN_CLIMBING_AREAS } from './climbingAreasMn.js'
 import { UT_CLIMBING_AREAS } from './climbingAreasUt.js'
+import { REPINNED_AREAS } from './climbingAreaRepins.js'
 
 const names = (q: string) => searchClimbingAreas(q).map((r) => r.name)
 
@@ -150,6 +151,19 @@ describe('Minnesota known crags — one rock for every area under each (owner, 2
     const areas = under(rootName)
     expect(areas.length).toBeGreaterThan(0)
     for (const a of areas) expect(matchKnownCrag(a.lat, a.lon)?.rock_type, a.name).toBe(rockType)
+  })
+
+  it('offers Sandstone at Robinson Park, not at OpenBeta’s point 11 km west (#417)', () => {
+    const sandstone = searchClimbingAreas('sandstone')[0]
+    expect(sandstone?.name).toBe('Sandstone')
+    expect(matchKnownCrag(sandstone!.lat, sandstone!.lon)?.slug).toBe('robinson-park')
+  })
+
+  it('carries every re-pin in the committed snapshots', () => {
+    for (const [uuid, point] of REPINNED_AREAS) {
+      const a = [...MN_CLIMBING_AREAS, ...CO_CLIMBING_AREAS, ...UT_CLIMBING_AREAS].find((x) => x.uuid === uuid)
+      expect(a && { lat: a.lat, lon: a.lon }, uuid).toEqual(point)
+    }
   })
 
   it("finds Sandstone's walls below its parent", () => {
