@@ -273,14 +273,15 @@ function nearest(instants: readonly number[], ms: number): number | null {
 
 /**
  * Marks a scrub chart as focused by a tap or a click, so `globals.css` draws no
- * focus ring round it; the next key press clears the mark and the ring returns.
- * iOS Safari counts a tap on a focusable SVG as `:focus-visible`.
+ * focus ring round it; a key press or leaving the chart clears the mark, so
+ * keyboard focus always gets the ring. iOS Safari counts a tap on a focusable
+ * SVG as `:focus-visible`. Press only — a mouse hover must not mark it.
  */
-export function markTapped(e: PointerEvent<Element>) {
+export function markTapped(e: { currentTarget: Element }) {
   e.currentTarget.setAttribute('data-tapped', '')
 }
 
-export function clearTapped(e: KeyboardEvent<Element>) {
+export function clearTapped(e: { currentTarget: Element }) {
   e.currentTarget.removeAttribute('data-tapped')
 }
 
@@ -326,7 +327,6 @@ export function LiquidFrame({
   children: ReactNode
 }) {
   const pick = (e: PointerEvent<SVGSVGElement>) => {
-    markTapped(e)
     const box = e.currentTarget.getBoundingClientRect()
     const vx = ((e.clientX - box.left) / Math.max(1, box.width)) * LIQUID_W
     const ms = axis.fromMs + ((vx - LIQUID_PX) / (LIQUID_W - 2 * LIQUID_PX)) * (axis.toMs - axis.fromMs)
@@ -361,7 +361,8 @@ export function LiquidFrame({
       role="img"
       aria-label={title}
       tabIndex={bare ? undefined : 0}
-      onPointerDown={bare ? undefined : pick}
+      onPointerDown={bare ? undefined : (e) => (markTapped(e), pick(e))}
+      onBlur={bare ? undefined : clearTapped}
       onPointerMove={bare ? undefined : (e) => e.buttons > 0 || e.pointerType === 'mouse' ? pick(e) : undefined}
       onKeyDown={bare ? undefined : step}
       style={{ display: 'block', width: '100%', overflow: 'visible', touchAction: 'pan-y', cursor: bare ? 'default' : 'crosshair' }}

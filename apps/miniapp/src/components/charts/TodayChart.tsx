@@ -98,7 +98,6 @@ export function TodayChart({
   const nowX = nowCell === null ? null : x(nowCell.ms)
 
   const pick = (e: PointerEvent<SVGSVGElement>) => {
-    markTapped(e)
     const box = e.currentTarget.getBoundingClientRect()
     const vx = ((e.clientX - box.left) / Math.max(1, box.width)) * LIQUID_W
     setPicked(fromMs + ((vx - LIQUID_PX) / (LIQUID_W - 2 * LIQUID_PX)) * (toMs - fromMs) + HOUR_MS / 2)
@@ -146,7 +145,8 @@ export function TodayChart({
           role="img"
           aria-label={label}
           tabIndex={0}
-          onPointerDown={pick}
+          onPointerDown={(e) => (markTapped(e), pick(e))}
+          onBlur={clearTapped}
           onPointerMove={(e) => (e.buttons > 0 || e.pointerType === 'mouse' ? pick(e) : undefined)}
           onPointerLeave={(e) => (e.pointerType === 'mouse' ? setPicked(null) : undefined)}
           onKeyDown={step}
