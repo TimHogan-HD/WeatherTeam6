@@ -18,7 +18,7 @@ before writing a screen; if a decision is not written there, it is not settled.
 | --- | --- |
 | `src/theme/tokens.css.ts` | Web adapter for `@weatherteam6/design/tokens`. `type`, `shadow` and `layout` are React Native shaped and cannot be used directly (§0a). |
 | `src/theme/styles.ts` | The per-entry `components` audit §0a asks for, plus the alert tint derived from `colors.poor` (the palette has `goodTint` and `fairTint` but no `poorTint`). |
-| `src/theme/fonts.ts` | Maps the `expo-font` family names onto CSS families and fallback stacks. `BarlowCondensed` → `"Barlow Condensed"`. |
+| `src/theme/fonts.ts` | Maps the tokens' font names (left from the Expo app) onto CSS families and fallback stacks. `BarlowCondensed` → `"Barlow Condensed"`. |
 | `src/theme/cssVars.ts` | Renders the tokens as `:root` custom properties. Served through the `virtual:wt6-tokens.css` module built in `vite.config.ts`, so the block lands in the bundled stylesheet rather than being injected after first paint. |
 | `src/theme/globals.css` | Gradient surface, `env(safe-area-inset-*)` padding, `100dvh`. The insets are only non-zero because `index.html` sets `viewport-fit=cover`. |
 | `src/theme/webManifest.ts` | The PWA manifest, built from the tokens. Emitted by a plugin in `vite.config.ts`, not committed as JSON. |
@@ -91,13 +91,10 @@ with, since they are easy to get wrong if it is ever recreated:
 
 The deployed app no longer needs CORS: it calls its own address. The API's CORS allowlist
 (`apps/api/src/lib/cors.ts`) still matters for the dev server, which calls the API directly. `https://weatherteam6.vercel.app`
-and `http://localhost:5173` are in the default list; a preview deployment needs
-`CORS_ALLOWED_ORIGINS` to include `https://*.vercel.app`.
+and `http://localhost:5173` are in the default list.
 
-**Preview deployments are behind Vercel SSO** (`ssoProtection: all_except_custom_domains`),
-so a preview URL answers 302 to a Vercel login page rather than this app. Driving a
-preview with a browser needs either a protection-bypass secret or SSO off for previews —
-both are security settings and are the owner's call.
+There are no preview deployments: Vercel builds `main` only (`git.deploymentEnabled`).
+Drive the UI locally instead (`npm run check:ui`).
 
 ## Installing it
 

@@ -4,7 +4,9 @@
  * Those mockup files were deleted on 2026-09-23 — recover them from the
  * `archive/2026-09-23-pre-cleanup` tag. Canonical source was the `.crux-phone`
  * CSS custom properties block in radar.css.
- * Target: React Native (StyleSheet / inline styles)
+ * Shape: React Native style objects, from the deleted Expo app. The web app is the only
+ * consumer and reads `type`, `shadow` and `layout` through its adapter,
+ * `apps/miniapp/src/theme/tokens.css.ts`.
  *
  * Usage:
  *   import { colors, type, spacing, radius, shadow } from '@weatherteam6/design/tokens'
@@ -415,8 +417,9 @@ export const tempScale = [
 // ─────────────────────────────────────────────
 // TYPOGRAPHY
 // ─────────────────────────────────────────────
-// Load via expo-font: 'BarlowCondensed-*' and 'Barlow-*'
-// Google Fonts: Barlow Condensed (400/500/600/700), Barlow (400/500/600)
+// Google Fonts: Barlow Condensed (400/500/600/700), Barlow (400/500/600).
+// The family names below are the old expo-font names; the web maps them in
+// `apps/miniapp/src/theme/fonts.ts`.
 
 /**
  * `mono` is v2's figure face — every number on a v2 card. Tabular figures, so a
@@ -1391,7 +1394,6 @@ export const radius = {
 // ─────────────────────────────────────────────
 // SHADOWS / GLOWS
 // No drop shadows on cards. Glow accents only.
-// In RN: use shadow props + elevation for iOS/Android, or react-native-shadow-2.
 // ─────────────────────────────────────────────
 
 export const shadow = {

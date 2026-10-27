@@ -41,7 +41,7 @@ suite; reading the diff is what caught them.
 - [ ] Exponential backoff retry on 429 and 5xx
 - [ ] No API keys or secrets in source code
 - [ ] NWS calls include `User-Agent` header
-- [ ] IEM ASOS obs checked for staleness (reject if >90 min old)
+- [ ] A new caller of `fetchCurrentObs` (IEM ASOS; nothing calls it today) rejects an observation more than 90 min old
 - [ ] Array fields are element-validated (non-finite/sentinel → null), and index alignment between parallel arrays (e.g. `time[]` vs value arrays) is preserved — never `.filter()` a parallel axis
 
 ## Database
@@ -67,7 +67,7 @@ suite; reading the diff is what caught them.
 
 ## Client (the web app)
 - [ ] No direct API calls from components — all fetches go through React Query hooks
-- [ ] No hardcoded API base URLs — use build-time env config (`VITE_API_BASE_URL`)
+- [ ] No hardcoded API base URLs — calls go through `config/env.ts`; a production build calls its own `/api/...`, and `VITE_API_BASE_URL` is for development only
 - [ ] Colors/spacing/type come from `packages/design` — not redefined locally
 - [ ] `type`, `shadow` and `layout` come from `src/theme/tokens.css.ts`, never straight from `@weatherteam6/design/tokens` — they are React Native shaped, and the RN font family name silently falls back to the system font in CSS
 - [ ] No hand-written `--wt6-*` declaration — the `:root` block is generated from the tokens by `src/theme/cssVars.ts`
@@ -78,7 +78,7 @@ suite; reading the diff is what caught them.
 - [ ] Nothing reintroduces a client-side `expires_at` check — a wrong device clock then discards a token it was just issued and dead-ends on `/login`
 - [ ] A new screen behind the gate is wrapped in `RequireAuth`, and a new back affordance goes through `backTarget` rather than calling `navigate('/')` — two of the five targets are not navigations
 - [ ] A colour reaching the manifest, `theme-color` or `public/icons/` still comes from the tokens; `npm run check:icons` passes after any palette change
-- [ ] Copy follows the copy rules in `docs/handoffs/design-system-v1.md` — no climbing opinions, score is never the headline, imperial units
+- [ ] Copy follows the copy rules in `docs/handoffs/design-system-v1.md` — no climbing opinions, imperial units, and a score headlines only beside the hour it is (`readings.md`)
 - [ ] Nothing formats a nullable weather value by hand — the `packages/types` formatters return an em dash, and `null` coerced to `0` renders a plausible `32°F` / `0 mph` instead of a visible gap
 - [ ] The readings and the suppression come from `readingsCopy.ts`, not reimplemented — and no surface derives a word from the score, which is what `stateLabel` did and why it is gone
 - [ ] `GET /conditions/:id` is not called for a non-climbing location, and no score, breakdown or hours-since-rain renders for one

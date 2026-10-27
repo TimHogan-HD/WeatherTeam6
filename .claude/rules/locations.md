@@ -14,7 +14,7 @@ paths:
 
 # Locations and rock
 
-Saved places, known crags, rock types, the guidebook snapshot and the logbook. Part of the architecture rules, split out of `architecture.md` on 2026-10-08 so it
+Saved places, known crags, rock types, the guidebook snapshot and the logbook. Part of the architecture rules; it
 loads only when a matching file is read or edited. The global rules, and the index of every
 scoped file, are in `architecture.md`. Reasoning behind a rule: grep
 `.claude/docs/session-archive.md`.

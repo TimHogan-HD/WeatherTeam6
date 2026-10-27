@@ -1,7 +1,7 @@
 import { fonts } from '@weatherteam6/design/tokens'
 
 /**
- * `fonts.display` / `fonts.body` are `expo-font` family names — `BarlowCondensed`,
+ * `fonts.display` / `fonts.body` are the deleted Expo app's font names — `BarlowCondensed`,
  * `Barlow`. The CSS family names have a space in them, and passing the token value
  * straight into `font-family` matches nothing and falls back to the system font
  * without saying so (miniapp-design-v1.md §0a).
@@ -35,7 +35,7 @@ export const fontStacks = {
 } as const
 
 /**
- * Maps an `expo-font` family token onto the stack the web should use for it.
+ * Maps a font family token onto the stack the web should use for it.
  *
  * Throws on anything else rather than defaulting to the body stack. Defaulting
  * would reintroduce exactly what this module exists to prevent: a third or

@@ -341,7 +341,8 @@ cost_usd    numeric
 ```
 
 ### push_tokens
-Expo push notification tokens.
+Expo push notification tokens from the deleted mobile app. Nothing writes or reads it;
+only `check:ui`'s cleanup touches it.
 ```typescript
 id          uuid PK
 user_id     uuid FK → users.id

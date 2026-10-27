@@ -10,7 +10,7 @@ paths:
 
 # Weather fetches and stored runs
 
-Upstream fetches, ensemble statistics, and how runs are stored, read and pruned. Part of the architecture rules, split out of `architecture.md` on 2026-10-08 so it
+Upstream fetches, ensemble statistics, and how runs are stored, read and pruned. Part of the architecture rules; it
 loads only when a matching file is read or edited. The global rules, and the index of every
 scoped file, are in `architecture.md`. Reasoning behind a rule: grep
 `.claude/docs/session-archive.md`.

@@ -15,7 +15,7 @@ Existing motion to match, all on the `motion` tokens: the bottom bar's sliding p
 (`TabBar.tsx`); the press (one `:active` rule in `globals.css`: an instant dim to
 `press.opacity`, a shrink to `press.scale` — a control with its own inline `transition`
 must list `transform` in it); `SelectionIndicator` for a mark that slides to a choice;
-Measurements' `grid-template-rows` disclosure; `RollingFigure` for a score a new run
+`RollingFigure` for a score a new run
 changes (never on first draw); `FadeIn`. **Pull-to-refresh** (`PullToRefresh.tsx`,
 gesture in `usePullToRefresh`, decisions in `lib/pullToRefresh.ts`) is on the list and a
 location's forecast tabs (Overview, Daily, Hourly, Precip; not Rock or Crag). Its
@@ -128,23 +128,20 @@ renders wrong-but-plausible if broken:
   cannot be wrong. Score is a **fixed** 0-100, because its scale is defined rather than
   measured. (The Daily tab drew such bars until the V2 card replaced them with figure
   chips on 2026-09-28; the rule stands for the next one.)
-- **A day's score pill is `ScorePill` on `DayRowShell` (`components/DayRow.tsx`),** fed
-  through `scoredDays` in `lib/overview.ts`, which suppress it via
-  `summarizeReadings`. The Overview and Daily tabs share both, so one day cannot wear two
-  numbers or two colours.
+- **A day's score goes through `scoredDays` in `lib/overview.ts`**, which suppresses it via
+  `summarizeReadings` and joins on the date. Every surface that shows a day's score uses
+  it, so one day cannot wear two numbers or two colours.
 - **The Hourly tab (`charts/DayCharts.tsx`, decisions in `lib/hourlyDay.ts`) draws two
   models on one chart.** Air, rain, chance and wind are the ensemble; dew point and
   humidity are `HourlySeries.model`'s deterministic columns, and a caption names that model
-  from the response. The friction strip joins `readings.hours` to the hours **on
-  `valid_at`**, shows levels never factors, and reads aloud as runs of words. Rain's scale
+  from the response. Rain's scale
   runs to at least 0.02 in — below that every tick rounds to `0` and the de-duplication
   labels the *top* of the plot zero.
 - **The Precip tab (`PrecipTab.tsx`, decisions in `lib/precipHistory.ts`) is model
   estimates, and says so.** It names no gauge, radar or confidence, and an event's kind comes
   only from `rain_mm`/`snowfall_cm` — a missing one withholds the pill rather than calling it
   rain. A date the response skipped is `totalMm: null`, drawn as an empty well, never a
-  dry stub. Its source is `RECENT_PRECIP_SOURCE_LABEL`, which differs from the drying
-  model's `rainfallSourceLabel` and is named beside it in the footer.
+  dry stub. Its source is `RECENT_PRECIP_SOURCE_LABEL`.
 - **An hourly axis reads the location's clock, from `utc_offset_seconds`.** The four labels
   are the same strings either way, so only their *positions* move — a chart on the viewer's
   clock prints a correct-looking axis against the wrong hours. Issue #33's shape exactly.
@@ -160,7 +157,7 @@ renders wrong-but-plausible if broken:
   rendered as empty rounded squares. Take the surface piece by piece at that size.
 - **Only the current hour may be called "now".** Every daily field is an extreme —
   `temp_c_max` is a *maximum*, and labelling it a present reading is the factual error §3
-  names. `currentHour` reads the hour covering this moment from the hourly run and returns
+  names. `readingNow` (`packages/types/src/readingsCopy.ts`) reads the hour covering this moment and returns
   `null` past `CURRENT_HOUR_TOLERANCE_MS` rather than the nearest one. **And a day's high
   and low are labelled wherever they appear beside it**: unlabelled, the pair reads as the
   headline the moment the current reading is absent, which is a pending query away.
@@ -186,7 +183,7 @@ renders wrong-but-plausible if broken:
 - **No hardcoded mock data in production components.** `MOCK_*` constants, `mockXyz()` functions, and bell-curve approximations are stubs that must be replaced before a feature is complete. Stubs are only acceptable during the phase that explicitly introduces them, and must be wired to real data in that phase or the immediately following one.
 - **Auth:** the app authenticates with a session token from `POST /api/v1/auth/login`, sent as `Authorization: Session <token>` and held in `localStorage` by `src/lib/authToken.ts`. **A 401 on an authenticated call clears the token** — in `api.ts`, once, for every call — and `RequireAuth` in `App.tsx` redirects on the token being gone rather than on a status it saw. Three things not to reinvent: `apiLogin` is the one **unauthenticated** call and must not clear on its 401, which means a wrong passphrase rather than a dead session; a **503** must not clear either, because it means the server has no signing key and the login screen cannot work; and `expires_at` is **deliberately not stored**, because a client-side expiry check on a device with a wrong clock discards a token it was just issued and bounces to `/login` with nothing to explain it.
 - **The query cache is cleared when the token goes**, from a module-scope subscription in `App.tsx` rather than an effect in the component the redirect is unmounting. Two partners on one tablet: the second signs in with their own valid token, nothing 401s, nothing refetches, and the first one's crags stay on the list.
-- **`API_SHARED_SECRET` must never reach this bundle**, and nothing about auth is a build-time value. Preview deployments are behind Vercel SSO (`ssoProtection: all_except_custom_domains`), so a preview URL answers 302 to a Vercel login page; turning that off is a security setting and the owner's call.
+- **`API_SHARED_SECRET` must never reach this bundle**, and nothing about auth is a build-time value.
 
 ## Client Patterns
 - **Design tokens reach the web through the adapter, never directly.** `packages/design` targets React Native. `colors`, `spacing`, `radius`, `uvScale` and `units` are plain data and are imported straight from `@weatherteam6/design/tokens`; **`type`, `shadow` and `layout` are RN-shaped and must come from `apps/miniapp/src/theme/tokens.css.ts`** — RN's unitless `fontSize`, string `fontWeight`, `shadowColor`/`shadowOffset`/`shadowOpacity`, `flex: 1` and `paddingHorizontal` have no CSS meaning, and `fonts.display` (`'BarlowCondensed'`) matches no CSS family, so it falls back to the system font without saying so. The adapter **derives** every value from an import and never restates a literal — that is what keeps it inside "never redefine colors, spacing, or type scale in an app". A component that hardcodes a hex, a px size, or a font name has broken this rule even if it looks right on screen.
@@ -196,7 +193,7 @@ renders wrong-but-plausible if broken:
 - **The client never asks for a score it must not show.** The model would score a city if asked, so `useConditions` is gated on the location being a climbing location, and the readings section is absent otherwise. Do not "fix" a missing score by relaxing that gate.
 - **The sources footer is computed from the response, never written down.** The forecast models come from `model_sources`. A source is omitted rather than guessed when the data is absent — including NWS when the alerts call failed. Naming a source that never ran is a false attribution, which is what the "quote data sources by name" rule exists to prevent.
 - **"Today" is whichever row the server flagged `is_today`, and the client must not re-derive it** (issue #33). `findToday` reads the flag. It falls back to a UTC date comparison **only** when no row in the response carries the flag at all, which means a response cached from before the fix; a row that simply has `is_today: false` is a real answer. When nothing matches, the screen says so — it must never fall back to the first row, which relabels tomorrow's numbers as today's.
-- **The words and the suppression live in `packages/types/src/readingsCopy.ts`**, because every surface must say the same thing about the same crag. **The words are the two readings themselves, never a phrase derived from the number** — `stateLabel` and `summarizeConditions` were deleted in Phase 3b for exactly that reason, and a ladder must not be reintroduced. **They are labelled fields rather than prose** (`Dryness: Dry`, `Friction: Great`, `Score: 100`): the owner's verdict on the first version was that plain-English readings read as fact. `ScoreChip` was deleted with it — the score is the third gauge in the row, drawn by `ReadingsSection`. Suppression under a Severe+ alert drops the **number** and keeps the readings, which is the reverse of the rule it replaced: the words now come from physics that sees heat, and the number is the part that reads as actionable.
+- **The words and the suppression live in `packages/types/src/readingsCopy.ts`**, because every surface must say the same thing about the same crag. **The words are the two readings themselves, never a phrase derived from the number** — `stateLabel` and `summarizeConditions` were deleted in Phase 3b for exactly that reason, and a ladder must not be reintroduced. **They are labelled fields rather than prose** (`Dryness: Dry`, `Score: 100`): the owner's verdict on the first version was that plain-English readings read as fact. `ScoreChip` was deleted with it — the score is the third gauge in the row, drawn by `ReadingsSection`. Suppression under a Severe+ alert drops the **number** and keeps the readings, which is the reverse of the rule it replaced: the words now come from physics that sees heat, and the number is the part that reads as actionable.
 - **A card that is itself a tap target must not be a `<button>`** if anything inside it is interactive. `LocationCard` contains a retry control, and a `<button>` inside a `<button>` is invalid markup the browser reparses, moving the inner control out of the card.
 - **React Query** remains the agreed state management layer for server data. No Redux, no Zustand, no Context for server state.
 - All API calls go through React Query hooks. Components never call `fetch` directly.

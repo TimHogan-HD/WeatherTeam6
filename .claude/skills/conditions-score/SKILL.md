@@ -20,7 +20,8 @@ implementing. The invariants the scorer must hold are in `.claude/rules/scoring.
 - `rockThermal.ts`, `hourlyConditions.ts` — the v2 layers. They supply Crag A's `T_mass`,
   `T_surface` and weather-sped drying rate; v2's own score and `sweatBalance.ts` friction
   reach no response.
-- `dryingModel.ts` — the one `MIN_HOURS`/`MAX_HOURS` table, shared by every model.
+- `dryingModel.ts` — re-exports `MIN_HOURS`/`MAX_HOURS`; the one table lives in
+  `packages/types/src/dryingWindow.ts`.
 - `liveForecast.ts` — `computeLiveForecast(location)`: the daily forecast, **weather only**,
   and the location's local `todayStr`. Nothing is persisted; its synthesized `id`s
   (`${locationId}:${date}`) are not stable across requests.
