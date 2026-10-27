@@ -185,11 +185,11 @@ export function Label({
 
 /**
  * A scale's figures stand in a gutter of their own beside the plot, so no line
- * or mark runs through one (owner, 2026-10-27, the slimmer of the gutters
- * mocked): `SCALE_EDGE` in from the viewBox's edge, a little outside the
- * card's text, and `SCALE_GAP` clear of the plot.
+ * or mark runs through one (owner, 2026-10-27, as slim as they go):
+ * `SCALE_EDGE` in from the viewBox's edge, just inside the card's rim, and
+ * `SCALE_GAP` clear of the plot, room for a line's glow where it ends.
  */
-const SCALE_EDGE = 14
+const SCALE_EDGE = 10
 const SCALE_GAP = 4
 /** IBM Plex Mono's advance at a `Label`'s 9 units. */
 const LABEL_CHAR_W = 5.4
