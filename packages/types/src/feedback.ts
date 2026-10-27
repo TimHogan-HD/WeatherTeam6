@@ -50,6 +50,10 @@ export const FEEDBACK_READING_TEXT_MAX = 60;
 export const FEEDBACK_OBSERVED_MAX_AGE_DAYS = 60;
 /** Longest area or wall name accepted. OpenBeta's longest Minnesota area name is 52. */
 export const FEEDBACK_PLACE_TEXT_MAX = 80;
+/** Longest routes line accepted — a few route names, comma-separated. */
+export const FEEDBACK_ROUTES_TEXT_MAX = 200;
+/** Most stops one check may list. A long day moves walls a handful of times, not dozens. */
+export const FEEDBACK_STOPS_MAX = 8;
 /** The longest a check's climbing span may run — one day at the crag, not a trip. */
 export const FEEDBACK_SPAN_MAX_HOURS = 16;
 /** A check may be entered a few minutes "ahead" by a phone whose clock runs fast. */
@@ -80,26 +84,38 @@ export type CreateAppFeedbackInput = {
 };
 
 /**
- * Where on the crag, when, and in how much sun — every part optional, because
- * a check with only the rock's state is still a check. `null` is "not said",
- * never "none".
+ * One place the climber spent time during a check: an area, a wall, the routes,
+ * when, and how much sun the rock got there. A day that moves walls is several
+ * stops, and each is its own sun observation at its own hours — the data a
+ * per-wall sun model needs (#293, #415).
+ *
+ * Only `started_at` is required; everything else `null` is "not said", never
+ * "none".
  */
-export type ForecastCheckDetails = {
+export type ForecastStop = {
   /** OpenBeta's id for the guidebook area picked, or null when typed or not said. */
   area_id: string | null;
   /** The area's name as the climber saw it — kept beside the id so it survives a new snapshot. */
   area_name: string | null;
-  /** Free text: the wall, buttress or route within the area. */
+  /** Free text: the wall or buttress within the area. */
   wall: string | null;
-  /** UTC instant, ISO 8601 — when they stopped. `observed_at` is when they started. */
-  observed_until: string | null;
+  /** Free text: the route or routes climbed there. */
+  routes: string | null;
+  /** UTC instant, ISO 8601. */
+  started_at: string;
+  /** UTC instant, ISO 8601, after `started_at`; null when not said. */
+  ended_at: string | null;
   sun_exposure: SunExposure | null;
 };
 
 export type CreateForecastFeedbackInput = {
   kind: 'forecast';
   location_id: string;
-  /** UTC instant, ISO 8601 — when the climber saw the rock, or started climbing when `observed_until` is set. */
+  /**
+   * UTC instant, ISO 8601 — when the climber saw the rock. With stops, the
+   * earliest stop's start: every stop must begin inside
+   * `FEEDBACK_SPAN_MAX_HOURS` of it.
+   */
   observed_at: string;
   observed_conditions: ObservedConditions;
   verdict: ForecastVerdict;
@@ -110,7 +126,9 @@ export type CreateForecastFeedbackInput = {
    * sends `null` explicitly when it had nothing to attach.
    */
   app_readings: FeedbackAppReadings | null;
-} & Partial<ForecastCheckDetails>;
+  /** Where and when, in the order climbed. Absent or `[]` when not said. */
+  stops?: ForecastStop[];
+};
 
 export type CreateFeedbackInput = CreateAppFeedbackInput | CreateForecastFeedbackInput;
 
@@ -127,8 +145,10 @@ export type Feedback = {
   observed_conditions: ObservedConditions | null;
   verdict: ForecastVerdict | null;
   app_readings: FeedbackAppReadings | null;
+  /** `[]` for app feedback and for a check that named no stop. */
+  stops: ForecastStop[];
   created_at: string;
-} & ForecastCheckDetails;
+};
 
 export function isFeedbackKind(v: unknown): v is FeedbackKind {
   return typeof v === 'string' && (FEEDBACK_KINDS as readonly string[]).includes(v);

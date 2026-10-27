@@ -44,9 +44,8 @@ async function run(): Promise<void> {
           .join(' · ')
         console.log(`\n${f.id}\n  ${head}`)
         if (f.kind === 'forecast') {
-          const until = f.observed_until === null ? '' : ` to ${f.observed_until.toISOString().slice(11, 16)}`
-          console.log(`  observed ${f.observed_at?.toISOString().slice(0, 16) ?? '—'}${until}: rock ${f.observed_conditions ?? '—'}, forecast ${f.verdict ?? '—'}`)
-          console.log(`  where: ${[f.area_name, f.wall].filter((p) => p !== null).join(' · ') || 'not said'}, sun: ${f.sun_exposure ?? 'not said'}`)
+          console.log(`  observed ${f.observed_at?.toISOString().slice(0, 16) ?? '—'}: rock ${f.observed_conditions ?? '—'}, forecast ${f.verdict ?? '—'}`)
+          console.log(`  stops: ${f.stops === null ? 'none named' : JSON.stringify(f.stops)}`)
           console.log(`  app said: ${f.app_readings === null ? 'nothing attached' : JSON.stringify(f.app_readings)}`)
         }
         if (f.message !== null) console.log(`  ${f.message.replace(/\n/g, '\n  ')}`)

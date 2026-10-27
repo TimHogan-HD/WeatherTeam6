@@ -3,7 +3,9 @@ import {
   FEEDBACK_MESSAGE_MAX,
   FEEDBACK_OBSERVED_MAX_AGE_DAYS,
   FEEDBACK_PLACE_TEXT_MAX,
+  FEEDBACK_ROUTES_TEXT_MAX,
   FEEDBACK_SPAN_MAX_HOURS,
+  FEEDBACK_STOPS_MAX,
 } from '@weatherteam6/types'
 import { parseAppReadings, parseFeedbackInput } from './parseFeedback.js'
 import { toFeedback } from './feedbackRow.js'
@@ -81,68 +83,91 @@ describe('parseFeedbackInput — forecast checks', () => {
       verdict: 'missed',
       message: 'Seeping on the left side',
       app_readings: SNAPSHOT,
-      area_id: null,
-      area_name: null,
-      wall: null,
-      observed_until: null,
-      sun_exposure: null,
+      stops: [],
     })
   })
 
-  it('keeps where, until when and how much sun, trimmed', () => {
-    const r = parseFeedbackInput(
-      {
-        ...CHECK,
-        observed_at: '2026-09-29T14:00:00.000Z',
-        area_id: AREA,
-        area_name: ' Cyclops Area ',
-        wall: '  left arete ',
-        observed_until: '2026-09-29T17:45:00.000Z',
-        sun_exposure: 'mostly_shade',
-      },
-      NOW,
-    )
-    expect(r).toMatchObject({
+  describe('stops', () => {
+    // CHECK is observed at 17:30Z; NOW is 18:00Z. These start the day earlier.
+    const DAY = { ...CHECK, observed_at: '2026-09-29T14:00:00.000Z' }
+    const STOP = {
       area_id: AREA,
-      area_name: 'Cyclops Area',
-      wall: 'left arete',
-      observed_until: new Date('2026-09-29T17:45:00.000Z'),
+      area_name: ' Cyclops Area ',
+      wall: '  left side ',
+      routes: ' Pine Tree, Cyclops ',
+      started_at: '2026-09-29T14:00:00.000Z',
+      ended_at: '2026-09-29T15:30:00.000Z',
       sun_exposure: 'mostly_shade',
+    }
+    const withStops = (stops: unknown, base: object = DAY) => parseFeedbackInput({ ...base, stops }, NOW)
+    const stopError = (patch: object, base: object = DAY) => error(withStops([{ ...STOP, ...patch }], base))
+
+    it('keeps several stops in order, trimmed, each with its own sun', () => {
+      const second = { ...STOP, area_id: null, area_name: 'Winter Wall', wall: null, routes: null, started_at: '2026-09-29T15:45:00.000Z', ended_at: null, sun_exposure: 'full_sun' }
+      expect(withStops([STOP, second])).toMatchObject({
+        stops: [
+          { area_id: AREA, area_name: 'Cyclops Area', wall: 'left side', routes: 'Pine Tree, Cyclops', started_at: STOP.started_at, ended_at: STOP.ended_at, sun_exposure: 'mostly_shade' },
+          { area_id: null, area_name: 'Winter Wall', wall: null, routes: null, started_at: second.started_at, ended_at: null, sun_exposure: 'full_sun' },
+        ],
+      })
     })
-  })
 
-  it('reads a blank area or wall as not said, and refuses one over the limit', () => {
-    expect(parseFeedbackInput({ ...CHECK, area_name: '   ', wall: '' }, NOW)).toMatchObject({ area_name: null, wall: null })
-    const long = 'x'.repeat(FEEDBACK_PLACE_TEXT_MAX + 1)
-    expect(error(parseFeedbackInput({ ...CHECK, wall: long }, NOW))).toMatch(/wall is longer/)
-    expect(error(parseFeedbackInput({ ...CHECK, wall: 'x'.repeat(FEEDBACK_PLACE_TEXT_MAX) }, NOW))).toBeNull()
-  })
+    it('reads absent and null stops as none, and blank text as not said', () => {
+      expect(parseFeedbackInput(DAY, NOW)).toMatchObject({ stops: [] })
+      expect(withStops(null)).toMatchObject({ stops: [] })
+      expect(withStops([{ started_at: STOP.started_at, wall: '  ', routes: '' }])).toMatchObject({
+        stops: [{ area_id: null, area_name: null, wall: null, routes: null, ended_at: null, sun_exposure: null }],
+      })
+    })
 
-  it('refuses an area id with no name, and one that is not an id', () => {
-    expect(error(parseFeedbackInput({ ...CHECK, area_id: AREA }, NOW))).toMatch(/area_name is required/)
-    expect(error(parseFeedbackInput({ ...CHECK, area_id: 'cyclops', area_name: 'Cyclops' }, NOW))).toMatch(/area_id/)
-  })
+    it('caps the list and each text field at its limit', () => {
+      expect(error(withStops(Array.from({ length: FEEDBACK_STOPS_MAX + 1 }, () => STOP)))).toMatch(/at most/)
+      expect(error(withStops(Array.from({ length: FEEDBACK_STOPS_MAX }, () => STOP)))).toBeNull()
+      expect(stopError({ wall: 'x'.repeat(FEEDBACK_PLACE_TEXT_MAX + 1) })).toMatch(/stops\[0\]\.wall is longer/)
+      expect(stopError({ wall: 'x'.repeat(FEEDBACK_PLACE_TEXT_MAX) })).toBeNull()
+      expect(stopError({ routes: 'x'.repeat(FEEDBACK_ROUTES_TEXT_MAX + 1) })).toMatch(/routes is longer/)
+      expect(stopError({ routes: 'x'.repeat(FEEDBACK_ROUTES_TEXT_MAX) })).toBeNull()
+    })
 
-  it('refuses an end time before the start, in the future, or past a day of climbing', () => {
-    const at = (iso: string) => error(parseFeedbackInput({ ...CHECK, observed_until: iso }, NOW))
-    // CHECK starts at 17:30Z; NOW is 18:00Z.
-    expect(at('2026-09-29T17:30:00.000Z')).toBeNull()
-    expect(at('2026-09-29T17:29:00.000Z')).toBe('observed_until is before observed_at')
-    expect(at('2026-09-29T18:06:00.000Z')).toBe('observed_until is in the future')
-    expect(at('2026-09-29T17:45')).toMatch(/UTC offset/)
-    const early = { ...CHECK, observed_at: '2026-09-29T01:00:00.000Z' }
-    const span = (h: number) => new Date(Date.parse(early.observed_at) + h * 3600_000 + 60_000).toISOString()
-    expect(error(parseFeedbackInput({ ...early, observed_until: span(FEEDBACK_SPAN_MAX_HOURS) }, NOW))).toMatch(/hours after/)
-    expect(error(parseFeedbackInput({ ...early, observed_until: span(FEEDBACK_SPAN_MAX_HOURS - 1) }, NOW))).toBeNull()
-  })
+    it('refuses an area id with no name, and one that is not an id', () => {
+      expect(stopError({ area_name: null })).toMatch(/area_name is required/)
+      expect(stopError({ area_id: 'cyclops' })).toMatch(/area_id/)
+    })
 
-  it('refuses a sun amount outside the list', () => {
-    expect(error(parseFeedbackInput({ ...CHECK, sun_exposure: 'sunny' }, NOW))).toMatch(/sun_exposure/)
-    expect(parseFeedbackInput({ ...CHECK, sun_exposure: null }, NOW)).toMatchObject({ sun_exposure: null })
-  })
+    it('names the stop that failed, not just the field', () => {
+      expect(error(withStops([STOP, { ...STOP, sun_exposure: 'sunny' }]))).toMatch(/^stops\[1\]\.sun_exposure/)
+    })
 
-  it('refuses the new fields on app feedback rather than dropping them', () => {
-    expect(error(parseFeedbackInput({ kind: 'app', message: 'hi', wall: 'x' }, NOW))).toMatch(/wall/)
+    it('requires a start inside the check’s day, not before observed_at, not in the future', () => {
+      expect(stopError({ started_at: undefined })).toMatch(/started_at must be/)
+      expect(stopError({ started_at: '2026-09-29T14:00' })).toMatch(/UTC offset/)
+      expect(stopError({ started_at: '2026-09-29T13:59:00.000Z' })).toBe('stops[0].started_at is before observed_at')
+      expect(stopError({ started_at: '2026-09-29T18:06:00.000Z', ended_at: null })).toBe('stops[0].started_at is in the future')
+      expect(stopError({ started_at: '2026-09-29T18:04:00.000Z', ended_at: null })).toBeNull()
+      const early = { ...CHECK, observed_at: '2026-09-29T01:00:00.000Z' }
+      const after = (h: number) => new Date(Date.parse(early.observed_at) + h * 3600_000 + 60_000).toISOString()
+      expect(stopError({ started_at: after(FEEDBACK_SPAN_MAX_HOURS), ended_at: null }, early)).toMatch(/hours after/)
+      expect(stopError({ started_at: after(FEEDBACK_SPAN_MAX_HOURS - 1), ended_at: null }, early)).toBeNull()
+    })
+
+    it('refuses an end at or before its start, in the future, or past the day', () => {
+      expect(stopError({ ended_at: STOP.started_at })).toMatch(/after its started_at/)
+      expect(stopError({ ended_at: '2026-09-29T18:06:00.000Z' })).toBe('stops[0].ended_at is in the future')
+      const early = { ...CHECK, observed_at: '2026-09-29T01:00:00.000Z' }
+      const at = { started_at: '2026-09-29T01:00:00.000Z' }
+      expect(stopError({ ...at, ended_at: '2026-09-29T17:01:00.000Z' }, early)).toMatch(/hours after/)
+      expect(stopError({ ...at, ended_at: '2026-09-29T16:59:00.000Z' }, early)).toBeNull()
+    })
+
+    it('refuses an unknown key inside a stop, and a stop that is not an object', () => {
+      expect(stopError({ sun: 'shade' })).toMatch(/Unsupported field\(s\) in stops\[0\]: sun/)
+      expect(error(withStops(['Cyclops']))).toMatch(/stops\[0\] must be an object/)
+      expect(error(withStops({ 0: STOP }))).toMatch(/stops must be a list/)
+    })
+
+    it('refuses stops on app feedback rather than dropping them', () => {
+      expect(error(parseFeedbackInput({ kind: 'app', message: 'hi', stops: [] }, NOW))).toMatch(/stops/)
+    })
   })
 
   it('accepts app_readings: null — the app had nothing for that hour', () => {
@@ -225,6 +250,16 @@ describe('parseAppReadings', () => {
   })
 })
 
+const STORED_STOP = {
+  area_id: null,
+  area_name: 'Cyclops Area',
+  wall: null,
+  routes: 'Pine Tree',
+  started_at: '2026-09-29T17:30:00.000Z',
+  ended_at: '2026-09-29T19:00:00.000Z',
+  sun_exposure: 'full_sun',
+}
+
 describe('toFeedback', () => {
   const row = {
     id: '22222222-2222-4222-8222-222222222222',
@@ -239,11 +274,7 @@ describe('toFeedback', () => {
     observed_conditions: 'wet' as const,
     verdict: 'missed' as const,
     app_readings: SNAPSHOT as unknown,
-    area_id: null,
-    area_name: 'Cyclops Area',
-    wall: null,
-    observed_until: new Date('2026-09-29T19:00:00.000Z'),
-    sun_exposure: 'full_sun' as const,
+    stops: [STORED_STOP] as unknown,
     created_at: new Date('2026-09-29T18:00:00.000Z'),
     resolved_at: null,
   }
@@ -259,13 +290,20 @@ describe('toFeedback', () => {
       observed_conditions: 'wet',
       verdict: 'missed',
       app_readings: SNAPSHOT,
-      area_id: null,
-      area_name: 'Cyclops Area',
-      wall: null,
-      observed_until: '2026-09-29T19:00:00.000Z',
-      sun_exposure: 'full_sun',
+      stops: [STORED_STOP],
       created_at: '2026-09-29T18:00:00.000Z',
     })
+  })
+
+  it('reads stored stops that no longer parse, or a null column, as none', () => {
+    expect(toFeedback({ ...row, stops: [{ garbage: true }] }).stops).toEqual([])
+    expect(toFeedback({ ...row, stops: null }).stops).toEqual([])
+  })
+
+  it('reads a stored stop dated long ago — the future limit is for writes only', () => {
+    const old = { ...row, observed_at: new Date('2025-01-01T10:00:00.000Z') }
+    const stop = { ...STORED_STOP, started_at: '2025-01-01T10:00:00.000Z', ended_at: '2025-01-01T12:00:00.000Z' }
+    expect(toFeedback({ ...old, stops: [stop] }).stops).toEqual([stop])
   })
 
   it('reads a stored snapshot that no longer parses as no snapshot', () => {

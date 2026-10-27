@@ -5,15 +5,18 @@ import {
   FEEDBACK_PLACE_TEXT_MAX,
   FEEDBACK_READING_FIELDS_MAX,
   FEEDBACK_READING_TEXT_MAX,
+  FEEDBACK_ROUTES_TEXT_MAX,
   FEEDBACK_SPAN_MAX_HOURS,
+  FEEDBACK_STOPS_MAX,
+  SUN_EXPOSURES,
   isFeedbackKind,
   isForecastVerdict,
   isObservedConditions,
   isSunExposure,
   type FeedbackAppReadings,
+  type ForecastStop,
   type ForecastVerdict,
   type ObservedConditions,
-  type SunExposure,
 } from '@weatherteam6/types'
 import { isUuid } from '../http.js'
 
@@ -36,11 +39,7 @@ export type ParsedFeedback =
       verdict: ForecastVerdict
       message: string | null
       app_readings: FeedbackAppReadings | null
-      area_id: string | null
-      area_name: string | null
-      wall: string | null
-      observed_until: Date | null
-      sun_exposure: SunExposure | null
+      stops: ForecastStop[]
     }
 
 const APP_FIELDS = ['kind', 'message', 'location_id'] as const
@@ -52,12 +51,9 @@ const FORECAST_FIELDS = [
   'verdict',
   'message',
   'app_readings',
-  'area_id',
-  'area_name',
-  'wall',
-  'observed_until',
-  'sun_exposure',
+  'stops',
 ] as const
+const STOP_FIELDS = ['area_id', 'area_name', 'wall', 'routes', 'started_at', 'ended_at', 'sun_exposure'] as const
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -78,7 +74,7 @@ export function parseFeedbackInput(body: unknown, nowMs: number): ParsedFeedback
     return { error: `Unsupported field(s) for ${kind} feedback: ${unknown.join(', ')}` }
   }
 
-  const message = parseMessage(raw['message'])
+  const message = parseText(raw['message'], 'message', FEEDBACK_MESSAGE_MAX)
   if (typeof message === 'object' && message !== null) return message
 
   if (kind === 'app') {
@@ -111,26 +107,8 @@ export function parseFeedbackInput(body: unknown, nowMs: number): ParsedFeedback
   const readings = parseAppReadings(raw['app_readings'])
   if (readings !== null && 'error' in readings) return readings
 
-  const areaName = parsePlaceText(raw['area_name'], 'area_name')
-  if (typeof areaName === 'object' && areaName !== null) return areaName
-  const wall = parsePlaceText(raw['wall'], 'wall')
-  if (typeof wall === 'object' && wall !== null) return wall
-
-  const areaId = raw['area_id']
-  if (areaId !== undefined && areaId !== null) {
-    // Whether it is one of *this* crag's areas needs the location, so the route checks that.
-    if (typeof areaId !== 'string' || !isUuid(areaId)) return { error: 'area_id must be a guidebook area id or null' }
-    // An id with no name would print as a blank on every list that shows it.
-    if (areaName === null) return { error: 'area_name is required with area_id' }
-  }
-
-  const until = parseObservedUntil(raw['observed_until'], observedAt, nowMs)
-  if (until !== null && !(until instanceof Date)) return until
-
-  const sun = raw['sun_exposure']
-  if (sun !== undefined && sun !== null && !isSunExposure(sun)) {
-    return { error: "sun_exposure must be one of 'full_sun', 'mostly_sun', 'mixed', 'mostly_shade', 'full_shade'" }
-  }
+  const stops = raw['stops'] === undefined ? [] : parseStops(raw['stops'], observedAt.getTime(), nowMs + FEEDBACK_CLOCK_SKEW_MS)
+  if ('error' in stops) return stops
 
   return {
     kind,
@@ -140,51 +118,96 @@ export function parseFeedbackInput(body: unknown, nowMs: number): ParsedFeedback
     verdict,
     message,
     app_readings: readings,
-    area_id: typeof areaId === 'string' ? areaId : null,
-    area_name: areaName,
-    wall,
-    observed_until: until,
-    sun_exposure: isSunExposure(sun) ? sun : null,
+    stops,
   }
 }
 
+/**
+ * Validate a check's stops. Also used on the way **out** of the database, as
+ * `parseAppReadings` is, with `latestMs` at infinity: a stored list that no
+ * longer parses reads as no stops rather than being cast.
+ *
+ * Every stop starts inside the check's day — at or after `observed_at` and
+ * within `FEEDBACK_SPAN_MAX_HOURS` of it — and ends after it starts. Whether
+ * an `area_id` is one of *this* crag's areas needs the location, so the route
+ * checks that.
+ */
+export function parseStops(v: unknown, observedAtMs: number, latestMs: number): ForecastStop[] | Refusal {
+  if (v === null) return []
+  if (!Array.isArray(v) || v.length > FEEDBACK_STOPS_MAX) {
+    return { error: `stops must be a list of at most ${FEEDBACK_STOPS_MAX}` }
+  }
+  const dayEndMs = observedAtMs + FEEDBACK_SPAN_MAX_HOURS * 3600_000
+  const out: ForecastStop[] = []
+  for (const [i, s] of (v as unknown[]).entries()) {
+    const at = `stops[${i}]`
+    if (typeof s !== 'object' || s === null || Array.isArray(s)) return { error: `${at} must be an object` }
+    const r = s as Record<string, unknown>
+    const unknown = Object.keys(r).filter((k) => !(STOP_FIELDS as readonly string[]).includes(k))
+    if (unknown.length > 0) return { error: `Unsupported field(s) in ${at}: ${unknown.join(', ')}` }
+
+    const areaName = parseText(r['area_name'], `${at}.area_name`, FEEDBACK_PLACE_TEXT_MAX)
+    if (typeof areaName === 'object' && areaName !== null) return areaName
+    const wall = parseText(r['wall'], `${at}.wall`, FEEDBACK_PLACE_TEXT_MAX)
+    if (typeof wall === 'object' && wall !== null) return wall
+    const routes = parseText(r['routes'], `${at}.routes`, FEEDBACK_ROUTES_TEXT_MAX)
+    if (typeof routes === 'object' && routes !== null) return routes
+
+    const areaId = r['area_id'] ?? null
+    if (areaId !== null) {
+      if (typeof areaId !== 'string' || !isUuid(areaId)) return { error: `${at}.area_id must be a guidebook area id or null` }
+      // An id with no name would print as a blank on every list that shows it.
+      if (areaName === null) return { error: `${at}.area_name is required with area_id` }
+    }
+
+    const startMs = parseInstant(r['started_at'])
+    if (startMs === null) return { error: `${at}.started_at must be an ISO 8601 instant with a UTC offset` }
+    if (startMs < observedAtMs) return { error: `${at}.started_at is before observed_at` }
+    if (startMs > dayEndMs) return { error: `${at}.started_at is more than ${FEEDBACK_SPAN_MAX_HOURS} hours after observed_at` }
+    if (startMs > latestMs) return { error: `${at}.started_at is in the future` }
+
+    const endedAt = r['ended_at'] ?? null
+    let endMs: number | null = null
+    if (endedAt !== null) {
+      endMs = parseInstant(endedAt)
+      if (endMs === null) return { error: `${at}.ended_at must be an ISO 8601 instant with a UTC offset, or null` }
+      if (endMs <= startMs) return { error: `${at}.ended_at must be after its started_at` }
+      if (endMs > dayEndMs) return { error: `${at}.ended_at is more than ${FEEDBACK_SPAN_MAX_HOURS} hours after observed_at` }
+      if (endMs > latestMs) return { error: `${at}.ended_at is in the future` }
+    }
+
+    const sun = r['sun_exposure'] ?? null
+    if (sun !== null && !isSunExposure(sun)) {
+      return { error: `${at}.sun_exposure must be one of ${SUN_EXPOSURES.map((x) => `'${x}'`).join(', ')}` }
+    }
+
+    out.push({
+      area_id: areaId,
+      area_name: areaName,
+      wall,
+      routes,
+      started_at: new Date(startMs).toISOString(),
+      ended_at: endMs === null ? null : new Date(endMs).toISOString(),
+      sun_exposure: sun,
+    })
+  }
+  return out
+}
+
+/** Milliseconds for an ISO instant that carries its offset; `null` otherwise. */
+function parseInstant(v: unknown): number | null {
+  if (typeof v !== 'string' || !/(Z|[+-]\d{2}:\d{2})$/.test(v)) return null
+  const ms = Date.parse(v)
+  return Number.isFinite(ms) ? ms : null
+}
+
 /** `null` for absent or blank; the trimmed text otherwise. */
-function parsePlaceText(v: unknown, name: string): string | null | Refusal {
+function parseText(v: unknown, name: string, max: number): string | null | Refusal {
   if (v === undefined || v === null) return null
   if (typeof v !== 'string') return { error: `${name} must be text` }
   const trimmed = v.trim()
   if (trimmed === '') return null
-  if (trimmed.length > FEEDBACK_PLACE_TEXT_MAX) {
-    return { error: `${name} is longer than ${FEEDBACK_PLACE_TEXT_MAX} characters` }
-  }
-  return trimmed
-}
-
-/** The end of the climbing span: after its start, not in the future, and one day's climbing at most. */
-function parseObservedUntil(v: unknown, from: Date, nowMs: number): Date | null | Refusal {
-  if (v === undefined || v === null) return null
-  if (typeof v !== 'string' || !/(Z|[+-]\d{2}:\d{2})$/.test(v)) {
-    return { error: 'observed_until must be an ISO 8601 instant with a UTC offset' }
-  }
-  const ms = Date.parse(v)
-  if (!Number.isFinite(ms)) return { error: 'observed_until is not a valid date' }
-  if (ms > nowMs + FEEDBACK_CLOCK_SKEW_MS) return { error: 'observed_until is in the future' }
-  if (ms < from.getTime()) return { error: 'observed_until is before observed_at' }
-  if (ms - from.getTime() > FEEDBACK_SPAN_MAX_HOURS * 3600_000) {
-    return { error: `observed_until is more than ${FEEDBACK_SPAN_MAX_HOURS} hours after observed_at` }
-  }
-  return new Date(ms)
-}
-
-/** `null` for absent or blank; the trimmed text otherwise. */
-function parseMessage(v: unknown): string | null | Refusal {
-  if (v === undefined || v === null) return null
-  if (typeof v !== 'string') return { error: 'message must be text' }
-  const trimmed = v.trim()
-  if (trimmed === '') return null
-  if (trimmed.length > FEEDBACK_MESSAGE_MAX) {
-    return { error: `message is longer than ${FEEDBACK_MESSAGE_MAX} characters` }
-  }
+  if (trimmed.length > max) return { error: `${name} is longer than ${max} characters` }
   return trimmed
 }
 

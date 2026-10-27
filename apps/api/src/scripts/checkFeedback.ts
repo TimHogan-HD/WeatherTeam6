@@ -166,7 +166,7 @@ async function run(): Promise<void> {
     if (bare.payload.data !== null) createdFeedback.push(bare.payload.data.id)
     check('and stores null, not {}', bare.payload.data?.app_readings === null)
 
-    console.log('\nWhere, until when, and how much sun')
+    console.log('\nSeveral stops, each with its own area, wall, routes, hours and sun')
     const barn = await call<Location>('POST', '/locations', {
       name: `${tag} barn`,
       ...BARN_BLUFF,
@@ -178,39 +178,46 @@ async function run(): Promise<void> {
     }
     const barnId = barn.payload.data.id
     createdLocations.push(barnId)
-    const startedAt = new Date(Date.now() - 3 * 3600_000)
+    const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString()
+    const stops = [
+      {
+        area_id: CYCLOPS_AREA_ID,
+        area_name: 'Cyclops Area',
+        wall: 'left side',
+        routes: 'Pine Tree, Cyclops',
+        started_at: hoursAgo(3),
+        ended_at: hoursAgo(1.5),
+        sun_exposure: 'mostly_shade',
+      },
+      { area_id: null, area_name: 'Somewhere typed', wall: null, routes: null, started_at: hoursAgo(1), ended_at: null, sun_exposure: 'full_sun' },
+    ]
     const detailed = await call<Feedback>('POST', '/feedback', {
       kind: 'forecast',
       location_id: barnId,
-      observed_at: startedAt.toISOString(),
-      observed_until: new Date().toISOString(),
+      observed_at: stops[0]?.started_at,
       observed_conditions: 'dry',
       verdict: 'partly',
       app_readings: null,
-      area_id: CYCLOPS_AREA_ID,
-      area_name: 'Cyclops Area',
-      wall: 'left arete',
-      sun_exposure: 'mostly_shade',
+      stops,
     })
-    check('POST with area, wall, span and sun returns 201', detailed.status === 201, `got ${detailed.status} ${String(detailed.payload.error)}`)
+    check('POST with two stops returns 201', detailed.status === 201, `got ${detailed.status} ${String(detailed.payload.error)}`)
     const d = detailed.payload.data
     if (d !== null) createdFeedback.push(d.id)
-    check(
-      'and every detail comes back as sent',
-      d?.area_id === CYCLOPS_AREA_ID && d.area_name === 'Cyclops Area' && d.wall === 'left arete' && d.sun_exposure === 'mostly_shade',
-    )
-    check('observed_until round-trips through timestamptz', d?.observed_until !== null && d?.observed_until !== undefined && Date.parse(d.observed_until) > startedAt.getTime())
+    check('both stops round-trip through jsonb, in order, unchanged', JSON.stringify(d?.stops) === JSON.stringify(stops), JSON.stringify(d?.stops))
+    const listed = await call<Feedback[]>('GET', '/feedback')
+    const back = (listed.payload.data ?? []).find((f) => f.id === d?.id)
+    check('and GET reads them back the same', JSON.stringify(back?.stops) === JSON.stringify(stops))
+    check('a check with no stops reads back as []', (listed.payload.data ?? []).find((f) => f.id === checkRow?.id)?.stops.length === 0)
     const foreign = await call<Feedback>('POST', '/feedback', {
       kind: 'forecast',
       location_id: locationId,
-      observed_at: new Date().toISOString(),
+      observed_at: stops[0]?.started_at,
       observed_conditions: 'dry',
       verdict: 'matched',
       app_readings: null,
-      area_id: CYCLOPS_AREA_ID,
-      area_name: 'Cyclops Area',
+      stops: [stops[1], stops[0]],
     })
-    check("a Barn Bluff area on Red Rock is a 400", foreign.status === 400, `got ${foreign.status}`)
+    check("a Barn Bluff area in any stop on Red Rock is a 400", foreign.status === 400, `got ${foreign.status}`)
     if (foreign.payload.data !== null) createdFeedback.push(foreign.payload.data.id)
 
     console.log('\nApp feedback')
