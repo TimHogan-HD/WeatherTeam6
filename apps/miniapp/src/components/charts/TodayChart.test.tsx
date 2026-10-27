@@ -67,7 +67,7 @@ describe('TodayChart axis', () => {
       hour(22, '2026-10-01T03:00:00Z', fToC(68)),
     ]
     const html = render(win(day, Date.parse('2026-09-30T20:00:00Z')), Date.parse('2026-10-01T02:00:00Z'))
-    const labels = [...html.matchAll(/text-anchor="end"[^>]*>(\d+)°<\/text>/g)].map((m) => Number(m[1]))
+    const labels = [...html.matchAll(/text-anchor="start"[^>]*>(\d+)°<\/text>/g)].map((m) => Number(m[1]))
     expect(labels).toEqual([50, 55, 60, 65, 70])
   })
 

@@ -93,12 +93,13 @@ type Read = { ms: number | null; onRead: (ms: number) => void }
 const RAIN_MIN_TOP_MM = 0.508
 const MM_PER_IN = 25.4
 /**
- * The longest scale figure each side of the day's charts prints: `100%` at both
- * (chance and temperature left, humidity right; rain's inches are bare, as the
- * card's title names the unit). Every chart under one scrub takes the same
- * gutters, so the read hour stands at one x on each.
+ * Each day chart prints one scale, at the left, `100%` its longest figure
+ * (owner, 2026-10-27: a right-hand column read as an ugly gap). A second
+ * series — humidity, the rain amount — is read in the chart's chip. Every
+ * chart under one scrub takes the same gutters, so the read hour stands at one
+ * x on each.
  */
-export const DAY_SCALES: ScaleChars = { left: 4, right: 4 }
+export const DAY_SCALES: ScaleChars = { left: 4, right: 0 }
 
 /** Air with no score beside it is neutral ink: a tint with no number would leak the score past its suppression. */
 const AIR_NEUTRAL = chartColorsV2.air
@@ -158,7 +159,7 @@ export function DayCharts({ series, selectedDate, onSelectDate, readMs, onRead, 
       <section style={sectCard}>
         <Sect
           title="Temperature and humidity"
-          aside={`°F left · humidity right${humidModel === null ? '' : ` · dew point ${humidModel}`}`}
+          aside={`°F${humidModel === null ? '' : ` · dew point ${humidModel}`}`}
         />
         <TemperatureChart
           {...frame}
@@ -169,7 +170,7 @@ export function DayCharts({ series, selectedDate, onSelectDate, readMs, onRead, 
         />
       </section>
       <section style={sectCard}>
-        <Sect title="Rain" aside="chance left · in / hr right · ensemble mean" />
+        <Sect title="Rain" aside="% · ensemble mean" />
         <RainChart
           {...frame}
           hours={hours}
@@ -418,13 +419,6 @@ function TemperatureChart({
               .map((ms) => (
                 <rect key={ms} x={axis.x(ms) - 7.5} y={10} width={15} height={118} fill={chartColorsV2.goodHours} data-good="" />
               ))}
-        {hasValues(humidity)
-          ? [50, 100].map((v) => (
-              <ScaleFigure key={v} side="end" y={hy(v)} color={chartColorsV2.humidity}>
-                {`${v}%`}
-              </ScaleFigure>
-            ))
-          : null}
         {band.map((run, i) => (
           <Frost
             key={i}
@@ -561,10 +555,10 @@ export function RainChart({
         ]}
       >
         {hasValues(chance) ? chanceGrid : null}
-        {hasValues(rain) ? (
+        {hasValues(rain) && !hasValues(chance) ? (
           <>
-            <ScaleFigure side="end" y={ry(top)} color={colorsV2.rainLine}>{inches(top)}</ScaleFigure>
-            <ScaleFigure side="end" y={ry(top / 2)} color={colorsV2.rainLine}>
+            <ScaleFigure side="start" y={ry(top)} color={colorsV2.rainLine}>{inches(top)}</ScaleFigure>
+            <ScaleFigure side="start" y={ry(top / 2)} color={colorsV2.rainLine}>
               {inches(top / 2)}
             </ScaleFigure>
           </>
@@ -654,7 +648,7 @@ function WindChart({
           ...(hasValues(gusts) ? [{ label: 'gusts', value: mph(at(gusts, read.ms)?.value ?? null), color: chartColorsV2.gust }] : []),
         ]}
       >
-        <Grid axis={axis} ticks={ticks} fromLabel={(mph) => mph * kmhPerMph} y={y} side="end" unit="" />
+        <Grid axis={axis} ticks={ticks} fromLabel={(mph) => mph * kmhPerMph} y={y} side="start" unit="" />
         {band.map((run, i) => (
           <Frost
             key={i}

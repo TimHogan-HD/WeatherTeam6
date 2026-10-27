@@ -119,10 +119,10 @@ export function CondensationCard({
   const ticks = niceTicks(Math.min(0, ...values), Math.max(CONDENSATION_EDGE_F * 2, ...values))
   // Printed to the tenth the shading uses (2 °C is 3.6°F), so an hour at 3.8°F is never called "more than 4°F".
   const edge = Number(CONDENSATION_EDGE_F.toFixed(1))
-  // The ticks' figures stand at the right, the edge's at the left.
+  // The ticks' figures stand at the left, as every chart's do; the key names the edge.
   const axis = timeAxis(first.t, Math.max(last.t, first.t + 3_600_000), {
-    left: `${edge}°`.length,
-    right: Math.max(0, ...ticks.map((v) => `${v}°`.length)),
+    left: Math.max(0, ...ticks.map((v) => `${v}°`.length)),
+    right: 0,
   })
   const lo = ticks[0] ?? 0
   const hi = ticks[ticks.length - 1] ?? CONDENSATION_EDGE_F * 2
@@ -164,7 +164,7 @@ export function CondensationCard({
           {ticks.map((v) => (
             <g key={v}>
               <line x1={axis.left} x2={axis.right} y1={y(v)} y2={y(v)} stroke={chartColorsV2.grid} />
-              <ScaleFigure side="end" y={y(v)}>{`${v}°`}</ScaleFigure>
+              <ScaleFigure side="start" y={y(v)}>{`${v}°`}</ScaleFigure>
             </g>
           ))}
           {now > first.t ? (
@@ -194,7 +194,6 @@ export function CondensationCard({
             strokeDasharray="4 4"
             opacity={0.8}
           />
-          <ScaleFigure side="start" y={y(CONDENSATION_EDGE_F)} color={colorsV2.poorInk}>{`${edge}°`}</ScaleFigure>
           {runs.map((pts, i) => (
             <Tube key={i} d={smoothPath(pts)} stroke={colorsV2.dewMargin} width={4} />
           ))}

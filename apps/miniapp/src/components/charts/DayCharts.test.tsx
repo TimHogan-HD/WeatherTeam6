@@ -155,15 +155,16 @@ describe('DayCharts — rain', () => {
     // Every hour is 30%, so the axis tops at 50%, not 100%.
     expect(svg).toContain('>50%<')
     expect(svg).not.toContain('>100%<')
-    expect(render(series(fullDay))).toContain('chance left · in / hr right')
+    expect(render(series(fullDay))).toContain('% · ensemble mean')
   })
 
-  it('draws the amount as a line on its own inch scale', () => {
+  it('prints the inch scale only when no chance scale holds the left', () => {
     const svg = chartSvg(render(series(fullDay)), 'Rain by hour')
     expect(svg).toContain(`stroke="${chartColorsV2.rain}"`)
-    // 0.4 mm an hour is under the 0.02 in floor, so the scale tops at .02 in,
-    // printed bare: the card's title names the unit.
-    expect(svg).toContain('>.02<')
+    expect(svg).not.toContain('>.02<')
+    // 0.4 mm an hour is under the 0.02 in floor, so the scale tops at .02 in.
+    const noChance = fullDay.map((h) => ({ ...h, precip_chance_pct: null }))
+    expect(chartSvg(render(series(noChance)), 'Rain')).toContain('>.02<')
   })
 
   it('keeps a trace on a readable scale rather than stretching it across the plot', () => {
@@ -278,11 +279,12 @@ describe('DayCharts — dew point and humidity', () => {
     const svg = chartSvg(render(series(humid)), TEMP_TITLE)
     // 63% on a 124→14 scale is y ≈ 54.7; stretched to its own peak it would sit at 14.
     expect(Math.min(...ys(pathD(svg, 'data-humidity=""')))).toBeGreaterThan(50)
-    expect(svg).toContain('>100%<')
+    // One scale per chart, °F at the left; humidity is read in the chip.
+    expect(svg).not.toContain('>100%<')
   })
 
   it('names the model only when it drew a dew point or humidity', () => {
-    expect(render(series(humid))).toContain('humidity right · dew point GFS')
+    expect(render(series(humid))).toContain('°F · dew point GFS')
     const plain = render(series(fullDay))
     expect(plain).not.toContain('dew point GFS')
     expect(chartSvg(plain, 'Temperature by hour')).not.toContain('data-humidity')

@@ -249,7 +249,7 @@ export function PrecipTab({ recent, isClimbingLocation, rockType, rock, hours, u
       </Card>
 
       {axis === null || utcOffsetSeconds === null ? null : (
-        <Card title="Next 48 hours" aside="in / hr right · ensemble mean · drag to read">
+        <Card title="Next 48 hours" aside="ensemble mean · drag to read">
           <RainChart
             axis={axis}
             instants={instants}

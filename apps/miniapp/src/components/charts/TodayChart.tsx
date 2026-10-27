@@ -7,6 +7,7 @@ import { SkyIcon } from '../Icons.js'
 import { niceTicks } from '../../lib/chartTicks.js'
 import { chartColorsV2, scoreRampColor } from './chartStyle.js'
 import {
+  BEAD_RING_R,
   Bead,
   DISPLAY,
   KeyRow,
@@ -85,9 +86,12 @@ export function TodayChart({
   // the ticks', so nothing draws past the top line.
   const ticks = temps.length === 0 ? [] : niceTicks(cToF(Math.min(...temps)), cToF(Math.max(...temps)))
   const y = scale(fToC(ticks[0] ?? 32), fToC(ticks[ticks.length - 1] ?? 34), PLOT_B, TOP)
-  // The figures stand at the right end: the window starts at now, so the left edge is under the now bead.
-  const span = plotSpan({ left: 0, right: Math.max(0, ...ticks.map((v) => `${v}°`.length)) })
-  const x = scale(fromMs, toMs, span.left, span.right)
+  // The figures stand at the left, as every chart's do. The window starts at
+  // now, so the first hour sits a bead's ring in from the gridlines' start and
+  // the now bead never covers a figure.
+  const span = plotSpan({ left: Math.max(0, ...ticks.map((v) => `${v}°`.length)), right: 0 })
+  const hoursSpan = { left: span.left + BEAD_RING_R, right: span.right }
+  const x = scale(fromMs, toMs, hoursSpan.left, hoursSpan.right)
 
   const scored = hours.some((p) => p.score !== null)
   const lineColor = (p: ChartHour) => (p.score === null ? chartColorsV2.air : scoreRampColor(p.score))
@@ -102,7 +106,7 @@ export function TodayChart({
   const pick = (e: PointerEvent<SVGSVGElement>) => {
     const box = e.currentTarget.getBoundingClientRect()
     const vx = ((e.clientX - box.left) / Math.max(1, box.width)) * LIQUID_W
-    setPicked(fromMs + ((vx - span.left) / (span.right - span.left)) * (toMs - fromMs) + HOUR_MS / 2)
+    setPicked(fromMs + ((vx - hoursSpan.left) / (hoursSpan.right - hoursSpan.left)) * (toMs - fromMs) + HOUR_MS / 2)
   }
   const step = (e: KeyboardEvent<SVGSVGElement>) => {
     clearTapped(e)
@@ -139,8 +143,8 @@ export function TodayChart({
             large
             hour={isNow ? 'Now' : clockLong(selected.hour)}
             items={readItems(selected, scored, lineColor(selected), dew.length > 0, hours.some((p) => p.chancePct !== null))}
-            at={((x(selected.ms) - span.left) / (span.right - span.left)) * 100}
-            span={span}
+            at={((x(selected.ms) - hoursSpan.left) / (hoursSpan.right - hoursSpan.left)) * 100}
+            span={hoursSpan}
           />
         )}
         <svg
@@ -175,7 +179,7 @@ export function TodayChart({
           {ticks.map((v) => (
             <g key={`g${v}`}>
               <line x1={span.left} x2={span.right} y1={y(fToC(v))} y2={y(fToC(v))} stroke={chartColorsV2.grid} />
-              <ScaleFigure side="end" y={y(fToC(v))}>{`${v}°`}</ScaleFigure>
+              <ScaleFigure side="start" y={y(fToC(v))}>{`${v}°`}</ScaleFigure>
             </g>
           ))}
 
