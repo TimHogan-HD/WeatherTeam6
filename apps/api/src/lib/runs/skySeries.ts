@@ -17,8 +17,8 @@
  * low the sun is. The ratio answers the question asked — how much sun reaches
  * the rock — and needs no input the score does not already read.
  */
-import type { SkyCondition, SkyDay, SkyDaySummary, SkyHour, SkySeries } from '@weatherteam6/types'
-import { MAX_PLAUSIBLE_SHORTWAVE_WM2, solarPosition } from '../scoring/rockThermal.js'
+import { solarPosition, type SkyCondition, type SkyDay, type SkyDaySummary, type SkyHour, type SkySeries } from '@weatherteam6/types'
+import { MAX_PLAUSIBLE_SHORTWAVE_WM2 } from '../scoring/rockThermal.js'
 import { localDateString } from '../weather/openMeteo.js'
 import { THERMAL_MODEL } from './hourlyReadings.js'
 import type { DeterministicRuns } from './latestRuns.js'

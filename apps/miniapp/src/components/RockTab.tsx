@@ -11,12 +11,14 @@ import {
   type RockGuide,
   type RockSwatch,
   type RockTexture,
+  type SunWalls,
   type WetStrength,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { cardV2, row, stack, wellV2 } from '../theme/styles.js'
 import { CheckIcon, CrossIcon, RainIcon, SunIcon } from './Icons.js'
 import { CondensationCard, DryingCard } from './RockReadings.js'
+import { SunOnWallCard } from './SunOnWallCard.js'
 
 /**
  * The Rock tab's field guide to the crag's rock: a textured header naming it,
@@ -406,9 +408,11 @@ export type RockTabProps = {
     utcOffsetSeconds: number
     recent: RecentPrecip | undefined
   }
+  /** When the sun is on each wall; null except at a crag the owner has confirmed (`sunWallsFor`). */
+  sunWalls: SunWalls | null
 }
 
-export function RockTab({ rockType, identity, live }: RockTabProps) {
+export function RockTab({ rockType, identity, live, sunWalls }: RockTabProps) {
   const guide = rockType === null ? null : rockGuide(rockType)
   const name = guide === null || rockType === null ? 'Rock type not recorded' : rockTypeLabel(rockType)
 
@@ -422,6 +426,8 @@ export function RockTab({ rockType, identity, live }: RockTabProps) {
           <CondensationCard readings={live.readings} utcOffsetSeconds={live.utcOffsetSeconds} />
         </>
       )}
+
+      {sunWalls === null ? null : <SunOnWallCard data={sunWalls} />}
 
       {guide === null ? null : (
         <>

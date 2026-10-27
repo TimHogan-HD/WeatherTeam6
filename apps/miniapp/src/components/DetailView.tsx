@@ -12,7 +12,7 @@ import type {
   Wall,
   WeatherAlert,
 } from '@weatherteam6/types'
-import { GUIDEBOOK_SOURCE_LABEL, RECENT_PRECIP_SOURCE_LABEL } from '@weatherteam6/types'
+import { GUIDEBOOK_SOURCE_LABEL, RECENT_PRECIP_SOURCE_LABEL, sunWallsFor } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { stack } from '../theme/styles.js'
 import {
@@ -351,6 +351,7 @@ export function DetailView({
     panel = (
       <RockTab
         rockType={location?.rock_type ?? null}
+        sunWalls={sunWallsFor(location?.known_crag)}
         {...(showScore && hourly?.data !== undefined
           ? {
               live: {
