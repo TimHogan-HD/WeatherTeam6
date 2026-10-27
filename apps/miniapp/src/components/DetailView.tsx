@@ -12,7 +12,7 @@ import type {
   Wall,
   WeatherAlert,
 } from '@weatherteam6/types'
-import { GUIDEBOOK_SOURCE_LABEL, RECENT_PRECIP_SOURCE_LABEL, sunWallsFor } from '@weatherteam6/types'
+import { GUIDEBOOK_SOURCE_LABEL, RECENT_PRECIP_SOURCE_LABEL, SUN_WALLS_SOURCE_LABEL, sunWallsFor } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { stack } from '../theme/styles.js'
 import {
@@ -222,6 +222,8 @@ export function DetailView({
       ? undefined
       : new Set(hourlyDays.filter(dayIsDrawable).map((d) => d.local_date))
 
+  const sunWalls = sunWallsFor(location?.known_crag)
+
   const sources: SourceEntry[] = [
     { label: 'Forecast', value: forecastSourceLabel(forecast.data) },
     // The Precip tab and the Overview's last rain read this, from a different
@@ -241,6 +243,9 @@ export function DetailView({
           ? null
           : `${GUIDEBOOK_SOURCE_LABEL}, ${formatTickDate(guidebook.data.snapshot_date)}`,
     },
+    // The Rock tab's Sun on the wall card: committed skylines, so named
+    // whenever the card can show, with the date the lidar was read.
+    { label: 'Sun', value: sunWalls === null ? null : `${SUN_WALLS_SOURCE_LABEL}, ${formatTickDate(sunWalls.computed)}` },
   ]
 
   // The day scores the Daily rows wear — only for a scored location, and only
@@ -351,7 +356,7 @@ export function DetailView({
     panel = (
       <RockTab
         rockType={location?.rock_type ?? null}
-        sunWalls={sunWallsFor(location?.known_crag)}
+        sunWalls={sunWalls}
         {...(showScore && hourly?.data !== undefined
           ? {
               live: {

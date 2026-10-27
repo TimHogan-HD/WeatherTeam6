@@ -219,7 +219,7 @@ standard, and a measured study agrees. **Test it before it becomes a constant.**
 | --- | --- | --- |
 | Was the rain blown onto this face? | aspect × wind direction **at the hours it rained** | ❌ precip history is **daily totals**, no wind |
 | Is this face in the drying wind? | aspect × wind direction after rain | ❌ wind modifier is a scalar speed threshold |
-| How much sun does it take? | aspect × sun position × terrain | ❌ see §2 |
+| How much sun does it take? | aspect × sun position × terrain | ❌ in the score, see §2. Display only: the Rock tab's Sun on the wall card (#415) has lidar skylines per face on owner-confirmed crags |
 
 **And the same aspect flips sign between seasons** — a crag sheltered from the drying wind is
 out of condition in spring and in condition in midsummer because it is also sheltered from the

@@ -342,6 +342,17 @@ gauge is a band of `MAX_HOURS`, held to it by `dryingModel.test.ts`, and `unknow
 guide. Care advice is general rock knowledge the owner asked for, not a go/no-go on the
 forecast, so the no-opinions rule is not in play.
 
+**Sun on the wall — added 2026-10-27 (#415), no Figma frame.** On a crag the owner has
+confirmed sun and shade at (`KnownCrag.sun_confirmed`, today only Red Wing), the Rock tab
+carries a *Sun on the wall* card after the drying and condensation cards, before the
+guide (`SunOnWallCard.tsx`, rows from `lib/sunOnWall.ts`). A date field picks the day
+(today by default, *Today* as the aside); each lidar-detected face is a row: the nearest
+OpenBeta wall's name and *faces SSE*, a 4 AM–10 PM strip (night, daylight, sun in
+`colorsV2.sun`) and *Sun: 8:00 AM–4:25 PM · 8 h 25 min* or *Sun: none*, with 6 AM / Noon /
+6 PM under the last strip. Times are the crag's own clock, to 5 minutes. The note says
+what is not modelled (trees, overhangs) and that a face's name can be off. Display only:
+it never feeds the score, and a crag without the flag has no card at all.
+
 **Crag tab, wall and route screens — added 2026-09-29 from the WT6 Figma restyle page's
 "03 · Guidebook Flow" and "04 · Route Detail" sections (`v2 Dark — Crag` 63:2, `— Wall`
 63:224, `— Route` 64:2).** The Crag tab is the OpenBeta crag the location sits on: the

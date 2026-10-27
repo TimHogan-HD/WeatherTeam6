@@ -92,6 +92,9 @@ export type SunWalls = {
   readonly walls: readonly SunWall[]
 }
 
+/** Where every skyline comes from (`buildSunWalls.ts`): lidar near the wall, Terrarium tiles out to 20 km. */
+export const SUN_WALLS_SOURCE_LABEL = 'USGS 3DEP lidar and AWS Terrarium terrain'
+
 /**
  * The crag's walls, **only where the owner has confirmed sun and shade on the
  * ground** — the `KNOWN_CRAGS` entry's `sun_confirmed` (owner, 2026-10-05:
