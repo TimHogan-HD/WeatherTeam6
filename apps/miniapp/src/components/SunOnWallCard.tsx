@@ -4,6 +4,7 @@ import type { SunWalls } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { fieldV2, stack } from '../theme/styles.js'
 import { useNow } from '../hooks/useNow.js'
+import { formatTickDate } from '../lib/logbook.js'
 import { formatSunMinutes, localYmd, sunWallRows, type DayBand } from '../lib/sunOnWall.js'
 import { sectCard } from './charts/DayCharts.js'
 import { Sect } from './charts/liquid.js'
@@ -90,7 +91,7 @@ export function SunOnWallCard({ data }: { data: SunWalls }) {
         </div>
 
         <p style={typeV2.note}>
-          Hills and ridges only: USGS lidar near the wall, AWS Terrarium terrain beyond, read {data.computed}. Trees and overhangs are not modelled. Each face
+          Hills and ridges only: USGS lidar near the wall, AWS Terrarium terrain beyond, read {formatTickDate(data.computed)}. Trees and overhangs are not modelled. Each face
           carries the nearest OpenBeta wall’s name, which can be off. Times to the nearest 5 minutes.
         </p>
       </div>

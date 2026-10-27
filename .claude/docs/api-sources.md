@@ -137,13 +137,10 @@ ACIS gridded normals (`acisNormals.ts`) are a separate call and remain.
 - **Two API quirks the generator works around, measured 2026-09-28/29:** `areas(filter:)` returns every **climb's** `metadata.mp_id` as null while `area(uuid:)` returns the real one, so the script makes a second narrow pass per area (1,848 of 1,861 routes have one); and `leftRightIndex` is `999999` for "not placed", which the script stores as null. 82 of 250 walls with routes have ties or no positions, so a wall is `ordered` only when every route has its own position — the UI offers "left to right" only then.
 - **Coverage:** no length and no bolt count on any Minnesota route, a description on 5, a protection rating on a handful. The screens say "Not recorded" rather than leaving a blank.
 
-## suncalc
-- **Package:** `suncalc` npm package — client-side only, no API
-- **Use:** Solar position math for shade window calculation
-- **Inputs:** lat, lon, date, wall aspect (degrees), cliff angle
-- **Key functions:** `SunCalc.getPosition()`, `SunCalc.getTimes()`
-
-## ShadeMap SDK
-- **Use:** Terrain-based shade modeling per crag
-- **Requires:** ShadeMap API key
-- **Client-side only** — do not call from backend
+## Sun position and terrain skylines (Sun on the wall, #415)
+- **Sun position is our own code, not a package:** `solarPosition` (NOAA's equations) in `packages/types/src/sun.ts`, shared by the Rock tab's card and `rockThermal`'s wall irradiance. `suncalc` was planned here once and never installed.
+- **The skylines are computed once by `npm run sun:walls --workspace=apps/api`** (`src/scripts/buildSunWalls.ts`) and committed as `packages/types/src/sunWallsData.ts`. Nothing below is called at request time or from the client; re-run it when a `KNOWN_CRAGS` entry gains `sun_confirmed`.
+- **USGS 3DEP 1 m lidar** (public domain), listed by the National Map products API: `https://tnmaccess.nationalmap.gov/api/v1/products?datasets=Digital Elevation Model (DEM) 1 meter&bbox=w,s,e,n&outputFormat=JSON`, each tile a cloud-optimised GeoTIFF read in windows through `geotiff`'s `fromUrl` (a dev dependency of the API, used by this script only). **Read every file listed and merge them newest first:** the first file listed can be blank over the crag (Sandstone's was, 2026-10-27), and Red Wing needed both WI_Statewide_2021 and MN_GoodhueCounty_2020. Tiles are in UTM metres on NAD83; the script converts in-line.
+- **AWS Open Data Terrarium tiles** (`s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png`, the Map tab's terrain source) carry the skyline past the lidar window out to 20 km. Elevation is `R×256 + G + B/256 − 32768` metres; the PNG is decoded in the script with `zlib`, no image package.
+- **The crag's time zone comes from Open-Meteo** (`/v1/forecast?timezone=auto&daily=sunrise`), stored as an IANA zone so the client gets clock changes right.
+- **ShadeMap is not used.** A link out to it for tree shade is still an idea on #415; its SDK needs a key and would be a client call, which the map-tile exception in `architecture.md` does not cover.

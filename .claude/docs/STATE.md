@@ -96,6 +96,9 @@ Nothing is scheduled; the owner picks from the open issues (`gh issue list`).
 - **#293**: wall direction and angle per guidebook wall. Wall A (`evaluateWallA`) is built
   and nothing calls it yet. **Do not score `aspectDegrees` directly**: the same aspect flips
   sign by season.
+- **#415 Sun on the wall**: built for Red Wing (#419, 2026-10-27), on the Rock tab, display
+  only. Another crag needs the owner's `sun_confirmed`, then `npm run sun:walls`. A ShadeMap
+  link and tree shade are still open on the issue.
 - **Map follow-ups**: #306, #307, #308, #309, and radar (#214, which needs a decision on
   proxying IEM tiles first).
 - **The Crags tab** is a placeholder.

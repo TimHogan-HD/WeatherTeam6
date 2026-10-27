@@ -1257,7 +1257,7 @@ That is three distinct uses of one field:
 | --- | --- | --- |
 | **Exposure to wetting** — did the rain blow onto this face? | aspect × wind direction **at the hours it rained** | Nothing. `fetchPrecipHistory` returns daily totals with no wind |
 | **Wind-driven drying** — is this face in the drying wind? | aspect × wind direction after the rain | Nothing. `dryingModel`'s wind modifier is a scalar speed threshold, direction-blind |
-| **Solar gain** — how much sun does this face take? | aspect × sun position × terrain | Nothing — see §21.6 |
+| **Solar gain** — how much sun does this face take? | aspect × sun position × terrain | Nothing in the score — see §21.6. Sun on the wall (#415, display only) has terrain skylines per face at owner-confirmed crags |
 
 **A climber arrived independently at §18.1's catch ratio.** §18.1 closed the overhang question
 using wind-driven-rain literature from building physics, where wetting is `U_crit = v·tan α`, a

@@ -9,6 +9,7 @@ Open the app at [weatherteam6.vercel.app](https://weatherteam6.vercel.app). Weat
 - **Check conditions at your saved places.** See current weather readings and a seven-day outlook, then open a day for its hour-by-hour forecast.
 - **Compare locations.** Save climbing areas and other places, and sort your list by the conditions estimate.
 - **Get context for the rock.** For climbing locations, WeatherTeam6 considers recent precipitation, the forecast, and the rock type when estimating drying and grip. Known crags may have their rock type filled in automatically.
+- **See when the sun is on each wall.** At crags where the project owner has checked sun and shade on the ground (Red Wing for now), the Rock tab lists each wall with its hours of direct sun for any day you pick. It accounts for hills and ridges, not trees, and does not change the score.
 - **Review recent precipitation.** The Precip tab shows recent rain and snow estimates, including their timing and daily totals.
 - **See active severe weather alerts.** Alerts are shown in the app when available for a saved location.
 
@@ -75,6 +76,10 @@ npm run db:studio    # open the Drizzle database browser
 ### How the weather gets to the app
 
 Forecasts are computed by the API when requested. Separate, authenticated HTTP endpoints collect weather runs, prune old runs, and refresh severe weather alerts on an external schedule; the project does not run a background queue. Weather providers and observations vary by location, and the detail screen names the sources used.
+
+### How the sun hours are worked out
+
+The Rock tab's sun hours are not fetched per request. `npm run sun:walls --workspace=apps/api` reads USGS 1 m lidar around each confirmed crag, finds the cliff faces, and records the skyline each face sees, using lidar nearby and AWS Terrarium terrain out to 20 km. The result is committed as `packages/types/src/sunWallsData.ts`. The app then checks the sun's position against that skyline every five minutes of the chosen day. The [weather source notes](.claude/docs/api-sources.md) describe the sources and their quirks.
 
 ### Scoring models and algorithms
 

@@ -27,6 +27,9 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   knows the new types has deployed.** `PATCH /locations/:id` refuses a rock-type change on a
   `known_crag` row with a 409. A `KNOWN_CRAGS` entry needs a `crag-facts.json` family mapping
   to exactly one §7 value and a box no larger than ~30 km (`knownCrags.test.ts`).
+  **`sun_confirmed: true` is the owner's word** that sun and shade were checked on the ground;
+  set it only on their say-so, then run `npm run sun:walls` (`sun.test.ts` fails on a flagged
+  crag without skylines, and on skylines for an unflagged one).
 - **`PATCH /locations/:id` speaks climbers' wall angle** (`wall_angle_deg`, degrees past
   vertical, positive overhanging); `cliff_angle` keeps 0 vertical, 90 slab. `wallAngle.ts`
   (`packages/types`) is the only place the sign flips. **An unknown body key is a 400.** Rules
@@ -36,7 +39,7 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   `cliff_angle` were recorded; the 45° default and `aspectToDegrees`'s 180 fallback are never
   a recorded wall. With a wall, `rockThermal.wallIrradianceWm2` replaces the horizontal value
   (sun position, Erbs split, isotropic sky) and every computed hour is qualified. The sun is
-  taken mid-hour, because Open-Meteo stamps shortwave at the end of the hour it averages. Terrain shading is not modelled (reads hotter —
+  taken mid-hour, because Open-Meteo stamps shortwave at the end of the hour it averages. Terrain shading is not modelled in the score (the Rock tab's Sun on the wall skylines are display only, `readings.md`) (reads hotter —
   the safe direction). An overhang dries on the vertical factor.
 - **`insertGeneralLocation` (`lib/locations/createLocation.ts`) is the one write behind
   `POST /locations`.** `is_climbing_location` is always explicit, never inferred

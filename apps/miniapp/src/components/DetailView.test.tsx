@@ -351,6 +351,12 @@ describe('DetailView — sources', () => {
   it('does not claim NWS when no alert is being shown', () => {
     expect(overview()).not.toContain('NWS')
   })
+
+  it('names the sun skylines only at a crag the owner confirmed sun at', () => {
+    expect(overview({ location: { ...redRock, known_crag: 'red-wing' } })).toContain('USGS 3DEP lidar and AWS Terrarium terrain')
+    expect(overview({ location: { ...redRock, known_crag: 'taylors-falls' } })).not.toContain('USGS')
+    expect(overview()).not.toContain('USGS')
+  })
 })
 
 describe('DetailView — a non-climbing location', () => {
