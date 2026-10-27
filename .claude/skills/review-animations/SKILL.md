@@ -21,7 +21,7 @@ What is built today, so a suggestion starts from the right place:
   `motion.pressMs` (one `:active` rule in `globals.css`); the dim never waits.
 - The bottom bar pill slides, leading edge first, on `motion.easeOut` with no overshoot
   (`TabBar.tsx`). The location tabs' underline and the Hourly day chips' fill slide
-  (`SelectionIndicator.tsx`); Measurements grows open; a changed score rolls
+  (`SelectionIndicator.tsx`); a changed score rolls
   (`RollingFigure.tsx`); the list and a location's forecast tabs pull to refresh. Durations and curves are the `motion`
   tokens in `packages/design`.
 - Colours and sizes come from the tokens through the `--wt6-*` custom properties, and every

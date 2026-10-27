@@ -11,8 +11,8 @@ paths:
 
 # Scoring rules
 
-How Crag A scores, and what may feed it. Part of the architecture rules, split out of `architecture.md` on 2026-10-08 so it
-loads only when a matching file is read or edited. The global rules, and the index of every
+How Crag A scores, and what may feed it. Part of the architecture rules; it loads only when a
+matching file is read or edited. The global rules, and the index of every
 scoped file, are in `architecture.md`. Reasoning behind a rule: grep
 `.claude/docs/session-archive.md`.
 
@@ -106,6 +106,6 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
 
 ## State machine: forecast window
 
-- `>14 days out`: climatological normals only, no conditions score
-- `7-14 days out`: low-confidence ensemble, score shown with low confidence label
-- `<7 days out`: full conditions score active, p10/p90 bands shown
+- `0-6 days out`: Crag A's score from the `/hourly` readings, with p10/p90 bands
+- `7-15 days out`: the 16-day ensemble outlook — weather only, no score (`trips.md`)
+- Beyond the outlook: nothing. `location_normals` has no writer.

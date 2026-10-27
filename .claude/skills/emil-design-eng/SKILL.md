@@ -21,7 +21,7 @@ What is built today, so a suggestion starts from the right place:
   `motion.pressMs` (one `:active` rule in `globals.css`); the dim never waits.
 - The bottom bar pill slides, leading edge first, on `motion.easeOut` with no overshoot
   (`TabBar.tsx`). The location tabs' underline and the Hourly day chips' fill slide
-  (`SelectionIndicator.tsx`); Measurements grows open; a changed score rolls
+  (`SelectionIndicator.tsx`); a changed score rolls
   (`RollingFigure.tsx`); the list and a location's forecast tabs pull to refresh. Durations and curves are the `motion`
   tokens in `packages/design`.
 - Colours and sizes come from the tokens through the `--wt6-*` custom properties, and every
@@ -66,7 +66,7 @@ People select tools based on the overall experience, not just functionality. Goo
 
 ## Review Format (Required)
 
-When reviewing UI code, you MUST use a markdown table with Before/After columns. Do NOT use a list with "Before:" and "After:" on separate lines. Always output an actual markdown table like this:
+When reviewing UI code, present the changes as a markdown table with Before and After columns, not as a list of "Before:" and "After:" lines:
 
 | Before | After | Why |
 | --- | --- | --- |

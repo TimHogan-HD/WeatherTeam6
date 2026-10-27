@@ -18,5 +18,5 @@ design tokens). Project docs are under `.claude/docs/` and `docs/handoffs/`; sev
 
 Prefer Grep and Glob to Read. Read a file only around the lines that matter.
 
-Report in under 300 words unless asked for more: each finding as `path:line` and one line on
-what is there. Say what you searched for and did not find; an absent result is an answer.
+Report only the findings, unless asked for more: each as `path:line` and one line on what is
+there. Say what you searched for and did not find; an absent result is an answer.
