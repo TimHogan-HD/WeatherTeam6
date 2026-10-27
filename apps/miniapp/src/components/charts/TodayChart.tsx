@@ -17,6 +17,8 @@ import {
   ReadChip,
   Tube,
   XGradient,
+  clearTapped,
+  markTapped,
   runsOf,
   scale,
   smoothPath,
@@ -96,11 +98,13 @@ export function TodayChart({
   const nowX = nowCell === null ? null : x(nowCell.ms)
 
   const pick = (e: PointerEvent<SVGSVGElement>) => {
+    markTapped(e)
     const box = e.currentTarget.getBoundingClientRect()
     const vx = ((e.clientX - box.left) / Math.max(1, box.width)) * LIQUID_W
     setPicked(fromMs + ((vx - LIQUID_PX) / (LIQUID_W - 2 * LIQUID_PX)) * (toMs - fromMs) + HOUR_MS / 2)
   }
   const step = (e: KeyboardEvent<SVGSVGElement>) => {
+    clearTapped(e)
     const dir = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
     if (dir === 0 || selected === null) return
     e.preventDefault()

@@ -272,6 +272,19 @@ function nearest(instants: readonly number[], ms: number): number | null {
 }
 
 /**
+ * Marks a scrub chart as focused by a tap or a click, so `globals.css` draws no
+ * focus ring round it; the next key press clears the mark and the ring returns.
+ * iOS Safari counts a tap on a focusable SVG as `:focus-visible`.
+ */
+export function markTapped(e: PointerEvent<Element>) {
+  e.currentTarget.setAttribute('data-tapped', '')
+}
+
+export function clearTapped(e: KeyboardEvent<Element>) {
+  e.currentTarget.removeAttribute('data-tapped')
+}
+
+/**
  * One chart's frame: the viewBox, the hour labels every six hours, the
  * reading rule and the now rule, and the hit area that picks an hour.
  *
@@ -313,6 +326,7 @@ export function LiquidFrame({
   children: ReactNode
 }) {
   const pick = (e: PointerEvent<SVGSVGElement>) => {
+    markTapped(e)
     const box = e.currentTarget.getBoundingClientRect()
     const vx = ((e.clientX - box.left) / Math.max(1, box.width)) * LIQUID_W
     const ms = axis.fromMs + ((vx - LIQUID_PX) / (LIQUID_W - 2 * LIQUID_PX)) * (axis.toMs - axis.fromMs)
@@ -320,6 +334,7 @@ export function LiquidFrame({
     if (hit !== null && hit !== read.ms) read.onRead(hit)
   }
   const step = (e: KeyboardEvent<SVGSVGElement>) => {
+    clearTapped(e)
     const dir = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
     if (dir === 0) return
     e.preventDefault()
