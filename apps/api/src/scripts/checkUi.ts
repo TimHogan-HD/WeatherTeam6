@@ -1122,6 +1122,14 @@ async function run(): Promise<void> {
     await page.waitForURL((u) => u.pathname === '/', { timeout: 10_000 }).catch(() => undefined)
     check('and back from the switched crag returns to the list, not the first crag', new URL(page.url()).pathname === '/', page.url())
 
+    // 3d‴. A forecast check at Red Wing offers Barn Bluff's guidebook areas.
+    await page.goto(`${WEB}/feedback?location=${secondLocationId}`)
+    const areaSelect = page.getByRole('combobox', { name: 'Area' })
+    const areaShown = await areaSelect.waitFor({ timeout: 30_000 }).then(() => true, () => false)
+    const areaOptions = areaShown ? await areaSelect.locator('option').count() : 0
+    await screen('feedback-forecast-check')
+    check('the forecast check lists the crag’s guidebook areas', areaOptions > 2, `${areaOptions} options`)
+
     await page.goto(`${WEB}/trips`)
     await page.getByRole('button', { name: 'New trip' }).waitFor({ timeout: 30_000 })
     await screen('trips-empty', 5)

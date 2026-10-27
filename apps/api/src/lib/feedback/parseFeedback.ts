@@ -1,14 +1,19 @@
 import {
+  FEEDBACK_CLOCK_SKEW_MS,
   FEEDBACK_MESSAGE_MAX,
   FEEDBACK_OBSERVED_MAX_AGE_DAYS,
+  FEEDBACK_PLACE_TEXT_MAX,
   FEEDBACK_READING_FIELDS_MAX,
   FEEDBACK_READING_TEXT_MAX,
+  FEEDBACK_SPAN_MAX_HOURS,
   isFeedbackKind,
   isForecastVerdict,
   isObservedConditions,
+  isSunExposure,
   type FeedbackAppReadings,
   type ForecastVerdict,
   type ObservedConditions,
+  type SunExposure,
 } from '@weatherteam6/types'
 import { isUuid } from '../http.js'
 
@@ -31,6 +36,11 @@ export type ParsedFeedback =
       verdict: ForecastVerdict
       message: string | null
       app_readings: FeedbackAppReadings | null
+      area_id: string | null
+      area_name: string | null
+      wall: string | null
+      observed_until: Date | null
+      sun_exposure: SunExposure | null
     }
 
 const APP_FIELDS = ['kind', 'message', 'location_id'] as const
@@ -42,10 +52,13 @@ const FORECAST_FIELDS = [
   'verdict',
   'message',
   'app_readings',
+  'area_id',
+  'area_name',
+  'wall',
+  'observed_until',
+  'sun_exposure',
 ] as const
 
-/** A check may be entered a few minutes "ahead" by a phone whose clock runs fast. */
-const CLOCK_SKEW_MS = 5 * 60 * 1000
 const DAY_MS = 24 * 60 * 60 * 1000
 
 type Refusal = { error: string }
@@ -98,6 +111,27 @@ export function parseFeedbackInput(body: unknown, nowMs: number): ParsedFeedback
   const readings = parseAppReadings(raw['app_readings'])
   if (readings !== null && 'error' in readings) return readings
 
+  const areaName = parsePlaceText(raw['area_name'], 'area_name')
+  if (typeof areaName === 'object' && areaName !== null) return areaName
+  const wall = parsePlaceText(raw['wall'], 'wall')
+  if (typeof wall === 'object' && wall !== null) return wall
+
+  const areaId = raw['area_id']
+  if (areaId !== undefined && areaId !== null) {
+    // Whether it is one of *this* crag's areas needs the location, so the route checks that.
+    if (typeof areaId !== 'string' || !isUuid(areaId)) return { error: 'area_id must be a guidebook area id or null' }
+    // An id with no name would print as a blank on every list that shows it.
+    if (areaName === null) return { error: 'area_name is required with area_id' }
+  }
+
+  const until = parseObservedUntil(raw['observed_until'], observedAt, nowMs)
+  if (until !== null && !(until instanceof Date)) return until
+
+  const sun = raw['sun_exposure']
+  if (sun !== undefined && sun !== null && !isSunExposure(sun)) {
+    return { error: "sun_exposure must be one of 'full_sun', 'mostly_sun', 'mixed', 'mostly_shade', 'full_shade'" }
+  }
+
   return {
     kind,
     location_id: loc,
@@ -106,7 +140,40 @@ export function parseFeedbackInput(body: unknown, nowMs: number): ParsedFeedback
     verdict,
     message,
     app_readings: readings,
+    area_id: typeof areaId === 'string' ? areaId : null,
+    area_name: areaName,
+    wall,
+    observed_until: until,
+    sun_exposure: isSunExposure(sun) ? sun : null,
   }
+}
+
+/** `null` for absent or blank; the trimmed text otherwise. */
+function parsePlaceText(v: unknown, name: string): string | null | Refusal {
+  if (v === undefined || v === null) return null
+  if (typeof v !== 'string') return { error: `${name} must be text` }
+  const trimmed = v.trim()
+  if (trimmed === '') return null
+  if (trimmed.length > FEEDBACK_PLACE_TEXT_MAX) {
+    return { error: `${name} is longer than ${FEEDBACK_PLACE_TEXT_MAX} characters` }
+  }
+  return trimmed
+}
+
+/** The end of the climbing span: after its start, not in the future, and one day's climbing at most. */
+function parseObservedUntil(v: unknown, from: Date, nowMs: number): Date | null | Refusal {
+  if (v === undefined || v === null) return null
+  if (typeof v !== 'string' || !/(Z|[+-]\d{2}:\d{2})$/.test(v)) {
+    return { error: 'observed_until must be an ISO 8601 instant with a UTC offset' }
+  }
+  const ms = Date.parse(v)
+  if (!Number.isFinite(ms)) return { error: 'observed_until is not a valid date' }
+  if (ms > nowMs + FEEDBACK_CLOCK_SKEW_MS) return { error: 'observed_until is in the future' }
+  if (ms < from.getTime()) return { error: 'observed_until is before observed_at' }
+  if (ms - from.getTime() > FEEDBACK_SPAN_MAX_HOURS * 3600_000) {
+    return { error: `observed_until is more than ${FEEDBACK_SPAN_MAX_HOURS} hours after observed_at` }
+  }
+  return new Date(ms)
 }
 
 /** `null` for absent or blank; the trimmed text otherwise. */
@@ -129,7 +196,7 @@ function parseObservedAt(v: unknown, nowMs: number): Date | Refusal {
   }
   const ms = Date.parse(v)
   if (!Number.isFinite(ms)) return { error: 'observed_at is not a valid date' }
-  if (ms > nowMs + CLOCK_SKEW_MS) return { error: 'observed_at is in the future' }
+  if (ms > nowMs + FEEDBACK_CLOCK_SKEW_MS) return { error: 'observed_at is in the future' }
   if (ms < nowMs - FEEDBACK_OBSERVED_MAX_AGE_DAYS * DAY_MS) {
     return { error: `observed_at is more than ${FEEDBACK_OBSERVED_MAX_AGE_DAYS} days ago` }
   }
