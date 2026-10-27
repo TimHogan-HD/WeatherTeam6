@@ -32,10 +32,16 @@ import {
   OTHER_AREA,
   emptyStop,
   feedbackLines,
+  pickRoute,
+  pickWall,
+  pickedArea,
+  routeChoices,
+  routeOptionLabel,
   shownReading,
   stopProblem,
   stopsPayload,
   stopsSpan,
+  subWallsOf,
   toLocalDateValue,
   toLocalTimeValue,
   type StopDraft,
@@ -164,8 +170,8 @@ function ForecastCheckForm({
 
   const pickCrag = (id: string) => {
     setPicked(id)
-    // Areas belong to the crag; times and sun do not.
-    setStops((list) => list.map((s) => ({ ...s, areaPick: '', areaText: '' })))
+    // Areas, walls and routes belong to the crag; times and sun do not.
+    setStops((list) => list.map((s) => ({ ...s, areaPick: '', areaText: '', wallPick: '', routePicks: [] })))
   }
 
   const submit = () => {
@@ -310,6 +316,11 @@ function StopCard({
 }) {
   const n = index + 1
   const typedArea = areas.length === 0 || stop.areaPick === OTHER_AREA
+  const area = typedArea ? null : pickedArea(stop, areas)
+  const walls = area === null ? [] : subWallsOf(area)
+  const choices = area === null ? [] : routeChoices(area, stop.wallPick)
+  const unpicked = choices.filter((r) => !stop.routePicks.includes(r.id))
+  const pickedRoutes = choices.filter((r) => stop.routePicks.includes(r.id))
   return (
     <div
       role="group"
@@ -333,7 +344,8 @@ function StopCard({
         ) : areas.length === 0 ? null : (
           <select
             value={stop.areaPick}
-            onChange={(e) => onChange({ areaPick: e.target.value })}
+            // A wall and routes belong to their area.
+            onChange={(e) => onChange({ areaPick: e.target.value, wallPick: '', routePicks: [] })}
             style={fieldV2}
             aria-label={`Area ${n}`}
           >
@@ -359,28 +371,90 @@ function StopCard({
         ) : null}
       </Field>
 
-      <Field label="Wall (optional)">
-        <input
-          type="text"
-          value={stop.wall}
-          maxLength={FEEDBACK_PLACE_TEXT_MAX}
-          onChange={(e) => onChange({ wall: e.target.value })}
-          placeholder="e.g. the left side"
-          style={fieldV2}
-          aria-label={`Wall ${n} name`}
-        />
-      </Field>
+      {/* A picked area with no walls of its own is itself the wall — every
+          Red Wing area — so there is nothing to ask. */}
+      {area !== null && walls.length === 0 ? null : (
+        <Field label="Wall (optional)">
+          {walls.length === 0 ? null : (
+            <select
+              value={stop.wallPick}
+              onChange={(e) => area !== null && onChange(pickWall(stop, area, e.target.value))}
+              style={fieldV2}
+              aria-label={`Wall ${n} in the area`}
+            >
+              <option value="">Pick a wall</option>
+              {walls.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+              <option value={OTHER_AREA}>Somewhere else</option>
+            </select>
+          )}
+          {area === null || stop.wallPick === OTHER_AREA ? (
+            <input
+              type="text"
+              value={stop.wall}
+              maxLength={FEEDBACK_PLACE_TEXT_MAX}
+              onChange={(e) => onChange({ wall: e.target.value })}
+              placeholder="e.g. the left side"
+              style={fieldV2}
+              aria-label={`Wall ${n} name`}
+            />
+          ) : null}
+        </Field>
+      )}
 
       <Field label="Routes (optional)">
-        <input
-          type="text"
-          value={stop.routes}
-          maxLength={FEEDBACK_ROUTES_TEXT_MAX}
-          onChange={(e) => onChange({ routes: e.target.value })}
-          placeholder="e.g. Pine Tree, Cyclops"
-          style={fieldV2}
-          aria-label={`Routes ${n}`}
-        />
+        {area === null ? null : (
+          <>
+            {pickedRoutes.length === 0 ? null : (
+              <div style={{ ...row(spacing.listGapSm), flexWrap: 'wrap' }}>
+                {pickedRoutes.map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => onChange({ routePicks: stop.routePicks.filter((id) => id !== r.id) })}
+                    style={{ ...choicePill(true), ...typeV2.dayPick }}
+                    aria-label={`Remove ${r.name}`}
+                  >
+                    {r.name} ✕
+                  </button>
+                ))}
+              </div>
+            )}
+            <select
+              // Always back on the prompt: each pick adds one route.
+              value=""
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === OTHER_AREA) onChange({ routesTyped: true })
+                else if (v !== '') onChange(pickRoute(stop, area, v))
+              }}
+              style={fieldV2}
+              aria-label={`Routes ${n}`}
+            >
+              <option value="">{pickedRoutes.length === 0 ? 'Add a route' : 'Add another route'}</option>
+              {unpicked.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {routeOptionLabel(r)}
+                </option>
+              ))}
+              {stop.routesTyped ? null : <option value={OTHER_AREA}>A route not listed</option>}
+            </select>
+          </>
+        )}
+        {area === null || stop.routesTyped ? (
+          <input
+            type="text"
+            value={stop.routes}
+            maxLength={FEEDBACK_ROUTES_TEXT_MAX}
+            onChange={(e) => onChange({ routes: e.target.value })}
+            placeholder={area === null ? 'e.g. Pine Tree, Cyclops' : 'Routes not in the list'}
+            style={fieldV2}
+            aria-label={area === null ? `Routes ${n}` : `Other routes ${n}`}
+          />
+        ) : null}
       </Field>
 
       <div style={{ ...row(spacing.listGapSm), alignItems: 'flex-end' }}>

@@ -64,6 +64,22 @@ export type GuidebookWall = {
    * separately: a client reads an absent field as `null`, a gap.
    */
   position?: AreaPosition | null
+  /**
+   * The walls or boulders inside this one that hold routes, by name — OpenBeta's
+   * own sub-areas (Taylors Falls' bouldering area, Blue Mounds' trails). Empty
+   * when the wall has none and so is itself one wall, as every Red Wing area
+   * is. Optional for the same deploy reason as `position`: absent reads as `[]`.
+   */
+  sub_walls?: GuidebookSubWall[]
+}
+
+/** A wall inside a `GuidebookWall`. Its routes are in the parent's `routes`, named here by id. */
+export type GuidebookSubWall = {
+  /** OpenBeta's area uuid. */
+  id: string
+  name: string
+  /** Every route in this sub-wall's subtree. */
+  route_ids: string[]
 }
 
 export type Guidebook = {

@@ -5,6 +5,7 @@ import {
   FEEDBACK_PLACE_TEXT_MAX,
   FEEDBACK_READING_FIELDS_MAX,
   FEEDBACK_READING_TEXT_MAX,
+  FEEDBACK_ROUTE_PICKS_MAX,
   FEEDBACK_ROUTES_TEXT_MAX,
   FEEDBACK_SPAN_MAX_HOURS,
   FEEDBACK_STOPS_MAX,
@@ -14,8 +15,10 @@ import {
   isObservedConditions,
   isSunExposure,
   type FeedbackAppReadings,
+  type ForecastRoutePick,
   type ForecastStop,
   type ForecastVerdict,
+  type GuidebookWall,
   type ObservedConditions,
 } from '@weatherteam6/types'
 import { isUuid } from '../http.js'
@@ -53,7 +56,7 @@ const FORECAST_FIELDS = [
   'app_readings',
   'stops',
 ] as const
-const STOP_FIELDS = ['area_id', 'area_name', 'wall', 'routes', 'started_at', 'ended_at', 'sun_exposure'] as const
+const STOP_FIELDS = ['area_id', 'area_name', 'wall_id', 'wall', 'route_picks', 'routes', 'started_at', 'ended_at', 'sun_exposure'] as const
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -160,6 +163,18 @@ export function parseStops(v: unknown, observedAtMs: number, latestMs: number): 
       if (areaName === null) return { error: `${at}.area_name is required with area_id` }
     }
 
+    // A wall or a route is only a guidebook pick inside a picked area — the
+    // route checks each id against that area's own walls and routes.
+    const wallId = r['wall_id'] ?? null
+    if (wallId !== null) {
+      if (typeof wallId !== 'string' || !isUuid(wallId)) return { error: `${at}.wall_id must be a guidebook wall id or null` }
+      if (areaId === null) return { error: `${at}.wall_id needs an area_id` }
+      if (wall === null) return { error: `${at}.wall is required with wall_id` }
+    }
+    const picks = parseRoutePicks(r['route_picks'], at)
+    if ('error' in picks) return picks
+    if (picks.length > 0 && areaId === null) return { error: `${at}.route_picks needs an area_id` }
+
     const startMs = parseInstant(r['started_at'])
     if (startMs === null) return { error: `${at}.started_at must be an ISO 8601 instant with a UTC offset` }
     if (startMs < observedAtMs) return { error: `${at}.started_at is before observed_at` }
@@ -184,12 +199,65 @@ export function parseStops(v: unknown, observedAtMs: number, latestMs: number): 
     out.push({
       area_id: areaId,
       area_name: areaName,
+      wall_id: wallId,
       wall,
+      route_picks: picks,
       routes,
       started_at: new Date(startMs).toISOString(),
       ended_at: endMs === null ? null : new Date(endMs).toISOString(),
       sun_exposure: sun,
     })
+  }
+  return out
+}
+
+/**
+ * Why a check's guidebook picks do not belong to its crag, or `null`. Each
+ * stop's area must be one of the crag's walls, its wall one of that area's
+ * sub-walls, and each route on the picked wall — or anywhere in the area when
+ * no wall was picked. The client offers only those, so anything else is a
+ * stale or forged id.
+ */
+export function stopsGuidebookProblem(stops: readonly ForecastStop[], walls: readonly GuidebookWall[]): string | null {
+  for (const [i, s] of stops.entries()) {
+    if (s.area_id === null) continue
+    const area = walls.find((w) => w.id === s.area_id)
+    if (area === undefined) return `stops[${i}].area_id is not one of this crag's guidebook areas`
+    let routeIds = new Set(area.routes.map((r) => r.id))
+    if (s.wall_id !== null) {
+      const sub = (area.sub_walls ?? []).find((w) => w.id === s.wall_id)
+      if (sub === undefined) return `stops[${i}].wall_id is not a wall in ${area.name}`
+      routeIds = new Set(sub.route_ids)
+    }
+    const stray = s.route_picks.find((p) => !routeIds.has(p.id))
+    if (stray !== undefined) return `stops[${i}].route_picks: ${stray.name} is not on that wall`
+  }
+  return null
+}
+
+/**
+ * A stop's picked routes. Absent is `[]`: a stop stored before routes could be
+ * picked, or sent by a client that predates them, picked none.
+ */
+function parseRoutePicks(v: unknown, at: string): ForecastRoutePick[] | Refusal {
+  if (v === undefined || v === null) return []
+  if (!Array.isArray(v) || v.length > FEEDBACK_ROUTE_PICKS_MAX) {
+    return { error: `${at}.route_picks must be a list of at most ${FEEDBACK_ROUTE_PICKS_MAX}` }
+  }
+  const out: ForecastRoutePick[] = []
+  for (const [j, p] of (v as unknown[]).entries()) {
+    const pat = `${at}.route_picks[${j}]`
+    if (typeof p !== 'object' || p === null || Array.isArray(p)) return { error: `${pat} must be an object` }
+    const r = p as Record<string, unknown>
+    const unknown = Object.keys(r).filter((k) => k !== 'id' && k !== 'name')
+    if (unknown.length > 0) return { error: `Unsupported field(s) in ${pat}: ${unknown.join(', ')}` }
+    const id = r['id']
+    if (typeof id !== 'string' || !isUuid(id)) return { error: `${pat}.id must be a guidebook route id` }
+    if (out.some((x) => x.id === id)) return { error: `${pat} repeats a route` }
+    const name = parseText(r['name'], `${pat}.name`, FEEDBACK_PLACE_TEXT_MAX)
+    if (typeof name === 'object' && name !== null) return name
+    if (name === null) return { error: `${pat}.name is required` }
+    out.push({ id, name })
   }
   return out
 }

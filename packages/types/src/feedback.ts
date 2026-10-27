@@ -52,6 +52,8 @@ export const FEEDBACK_OBSERVED_MAX_AGE_DAYS = 60;
 export const FEEDBACK_PLACE_TEXT_MAX = 80;
 /** Longest routes line accepted — a few route names, comma-separated. */
 export const FEEDBACK_ROUTES_TEXT_MAX = 200;
+/** Most guidebook routes one stop may pick. A session on one wall is a handful of routes. */
+export const FEEDBACK_ROUTE_PICKS_MAX = 20;
 /** Most stops one check may list. A long day moves walls a handful of times, not dozens. */
 export const FEEDBACK_STOPS_MAX = 8;
 /** The longest a check's climbing span may run — one day at the crag, not a trip. */
@@ -83,6 +85,9 @@ export type CreateAppFeedbackInput = {
   location_id?: string | null;
 };
 
+/** A guidebook route a stop names: OpenBeta's climb id and its name as picked. */
+export type ForecastRoutePick = { id: string; name: string };
+
 /**
  * One place the climber spent time during a check: an area, a wall, the routes,
  * when, and how much sun the rock got there. A day that moves walls is several
@@ -97,9 +102,21 @@ export type ForecastStop = {
   area_id: string | null;
   /** The area's name as the climber saw it — kept beside the id so it survives a new snapshot. */
   area_name: string | null;
-  /** Free text: the wall or buttress within the area. */
+  /**
+   * OpenBeta's id for the wall picked inside the area — one of its
+   * `GuidebookWall.sub_walls`. Null when typed, not said, or when the area has
+   * no sub-walls and so is itself the wall (every Red Wing area).
+   */
+  wall_id: string | null;
+  /** The wall's name: the picked one's, or typed. Requires `area_id` when `wall_id` is set. */
   wall: string | null;
-  /** Free text: the route or routes climbed there. */
+  /**
+   * Guidebook routes picked, each on the picked wall (or anywhere in the area
+   * when no wall is picked). Empty when none were picked; names kept beside
+   * the ids for the same reason as `area_name`.
+   */
+  route_picks: ForecastRoutePick[];
+  /** Free text: routes climbed that the list did not have, or every route when the area was typed. */
   routes: string | null;
   /** UTC instant, ISO 8601. */
   started_at: string;

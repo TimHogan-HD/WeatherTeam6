@@ -1128,6 +1128,15 @@ async function run(): Promise<void> {
     const areaShown = await areaSelect.waitFor({ timeout: 30_000 }).then(() => true, () => false)
     const areaOptions = areaShown ? await areaSelect.locator('option').count() : 0
     check('the forecast check lists the crag’s guidebook areas', areaOptions > 2, `${areaOptions} options`)
+    // A Red Wing area is itself one wall: picking it asks no wall, and lists its routes.
+    if (areaShown) await areaSelect.selectOption({ label: 'Cyclops Area' })
+    const routeSelect = page.getByRole('combobox', { name: 'Routes 1' })
+    const routeOptions = areaShown ? await routeSelect.locator('option').count().catch(() => 0) : 0
+    const wallAsked = await page.getByRole('combobox', { name: 'Wall 1 in the area' }).count()
+    check('picking Cyclops Area lists its routes and asks no wall', routeOptions > 2 && wallAsked === 0, `${routeOptions} route options; wall select ${wallAsked}`)
+    if (routeOptions > 2) await routeSelect.selectOption({ index: 1 })
+    const routeChip = await page.getByRole('button', { name: /^Remove (?!wall)/ }).count()
+    check('a picked route shows as a removable chip', routeChip === 1, `${routeChip} chips`)
     await page.getByRole('button', { name: 'Add another wall' }).click()
     const secondStop = await page
       .getByRole('combobox', { name: 'Area 2' })

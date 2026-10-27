@@ -283,9 +283,13 @@ observed_conditions overall_status     -- required for 'forecast'
 verdict             forecast_verdict   -- 'matched' | 'partly' | 'missed'; required for 'forecast'
 app_readings        jsonb              -- FeedbackAppReadings | null: labelled words, never 0-1 factors
 stops               jsonb              -- ForecastStop[] | null (migration 0035): one per wall climbed —
-                                       -- area_id/area_name, wall, routes, started_at, ended_at, sun_exposure.
+                                       -- area_id/area_name, wall_id/wall, route_picks [{id,name}], routes (typed),
+                                       -- started_at, ended_at, sun_exposure.
                                        -- Only started_at is required; each starts within 16 h of observed_at.
-                                       -- area_id must be one of the crag's guidebook areas (route-checked, no FK).
+                                       -- area_id must be one of the crag's guidebook areas, wall_id one of that
+                                       -- area's sub_walls, each route pick on that wall (or the area without one):
+                                       -- stopsGuidebookProblem, route-checked, no FK. Stops stored before picks
+                                       -- read back with wall_id null and route_picks [].
                                        -- parseStops validates on write and on read; null = none named
 created_at          timestamptz default now()
 resolved_at         timestamptz        -- null = open; set once acted on (migration 0024)

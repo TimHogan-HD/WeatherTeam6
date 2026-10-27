@@ -10,6 +10,8 @@ import {
   type Conditions,
   type Feedback,
   type ForecastStop,
+  type GuidebookRoute,
+  type GuidebookSubWall,
   type GuidebookWall,
   type ReadingField,
   type SunExposure,
@@ -89,23 +91,74 @@ export function timeOnDay(day: string, time: string): number | null {
 
 /**
  * One row of the form's stop list, as typed. `areaPick` is a guidebook area id,
- * `OTHER_AREA` for a typed name, or `''` for not said.
+ * `OTHER_AREA` for a typed name, or `''` for not said; `wallPick` the same
+ * for a wall inside the picked area. `routePicks` are guidebook route ids;
+ * `routes` is typed — every route when the area was typed, otherwise the ones
+ * the list did not have, shown once `routesTyped` is set.
  */
 export type StopDraft = {
   areaPick: string
   areaText: string
+  wallPick: string
   wall: string
+  routePicks: string[]
+  routesTyped: boolean
   routes: string
   from: string
   to: string
   sun: SunExposure | null
 }
 
-/** The area select's value for "not in the guidebook" — not a uuid, so never sent as one. */
+/** The area or wall select's value for "not in the guidebook" — not a uuid, so never sent as one. */
 export const OTHER_AREA = 'other'
 
 export function emptyStop(from: string): StopDraft {
-  return { areaPick: '', areaText: '', wall: '', routes: '', from, to: '', sun: null }
+  return { areaPick: '', areaText: '', wallPick: '', wall: '', routePicks: [], routesTyped: false, routes: '', from, to: '', sun: null }
+}
+
+/** The guidebook area a stop picked, or null when it was typed or not said. */
+export function pickedArea(stop: StopDraft, areas: readonly GuidebookWall[]): GuidebookWall | null {
+  return areas.find((a) => a.id === stop.areaPick) ?? null
+}
+
+/** The area's walls. Empty when the area is itself one wall, as every Red Wing area is. */
+export function subWallsOf(area: GuidebookWall): GuidebookSubWall[] {
+  return area.sub_walls ?? []
+}
+
+/**
+ * The routes a stop may pick, A–Z: the picked wall's, or the whole area's
+ * while no wall is picked or the wall was typed.
+ */
+export function routeChoices(area: GuidebookWall, wallPick: string): GuidebookRoute[] {
+  const wall = subWallsOf(area).find((w) => w.id === wallPick)
+  const ids = wall === undefined ? null : new Set(wall.route_ids)
+  return area.routes.filter((r) => ids === null || ids.has(r.id)).sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/**
+ * What picking a route changes. With no wall picked yet, the route's own wall
+ * is picked for it, so the stop is tied to the wall the route is on — but only
+ * when every route already picked is on that wall too, since picking a wall
+ * hides the routes that are not on it.
+ */
+export function pickRoute(stop: StopDraft, area: GuidebookWall, routeId: string): Partial<StopDraft> {
+  const routePicks = stop.routePicks.includes(routeId) ? stop.routePicks : [...stop.routePicks, routeId]
+  if (stop.wallPick !== '') return { routePicks }
+  const wall = subWallsOf(area).find((w) => w.route_ids.includes(routeId))
+  return wall === undefined || !routePicks.every((id) => wall.route_ids.includes(id)) ? { routePicks } : { routePicks, wallPick: wall.id }
+}
+
+/** `Pine Tree 5.9`, `Fat Bob V4`; the name alone when OpenBeta has no grade. */
+export function routeOptionLabel(route: GuidebookRoute): string {
+  const grade = route.yds ?? route.vscale
+  return grade === null ? route.name : `${route.name} ${grade}`
+}
+
+/** What picking a wall changes: routes that are not on it are dropped. */
+export function pickWall(stop: StopDraft, area: GuidebookWall, wallPick: string): Partial<StopDraft> {
+  const on = new Set(routeChoices(area, wallPick).map((r) => r.id))
+  return { wallPick, routePicks: stop.routePicks.filter((id) => on.has(id)) }
 }
 
 const blankToNull = (s: string): string | null => (s.trim() === '' ? null : s.trim())
@@ -158,16 +211,21 @@ export function stopsPayload(
 ): ForecastStop[] | null {
   const out: ForecastStop[] = []
   for (const s of stops) {
-    const picked = areas.find((a) => a.id === s.areaPick) ?? null
     const typed = areas.length === 0 || s.areaPick === OTHER_AREA
+    const picked = typed ? null : pickedArea(s, areas)
     const start = timeOnDay(day, s.from)
     if (start === null) return null
     const end = s.to === '' ? null : timeOnDay(day, s.to)
+    const wall = picked === null ? undefined : subWallsOf(picked).find((w) => w.id === s.wallPick)
+    const routes = picked === null ? [] : routeChoices(picked, s.wallPick).filter((r) => s.routePicks.includes(r.id))
     out.push({
-      area_id: typed ? null : (picked?.id ?? null),
+      area_id: picked?.id ?? null,
       area_name: typed ? blankToNull(s.areaText) : (picked?.name ?? null),
-      wall: blankToNull(s.wall),
-      routes: blankToNull(s.routes),
+      wall_id: wall?.id ?? null,
+      // A picked area with no walls of its own is itself the wall: nothing to send.
+      wall: wall !== undefined ? wall.name : picked === null || s.wallPick === OTHER_AREA ? blankToNull(s.wall) : null,
+      route_picks: routes.map((r) => ({ id: r.id, name: r.name })),
+      routes: picked === null || s.routesTyped ? blankToNull(s.routes) : null,
       started_at: new Date(start).toISOString(),
       ended_at: end === null ? null : new Date(end).toISOString(),
       sun_exposure: s.sun,
@@ -185,10 +243,12 @@ const timeOf = (iso: string): string | null => {
 export function stopLine(stop: ForecastStop): string {
   const start = timeOf(stop.started_at)
   const end = stop.ended_at === null ? null : timeOf(stop.ended_at)
+  // `route_picks` is absent on a row from an API older than route picking.
+  const routes = [...(stop.route_picks ?? []).map((r) => r.name), ...(stop.routes === null ? [] : [stop.routes])]
   return [
     stop.area_name,
     stop.wall,
-    stop.routes === null ? null : `Routes: ${stop.routes}`,
+    routes.length === 0 ? null : `Routes: ${routes.join(', ')}`,
     start === null ? null : end === null ? start : `${start} – ${end}`,
     stop.sun_exposure === null ? null : SUN_EXPOSURE_LABEL[stop.sun_exposure],
   ]

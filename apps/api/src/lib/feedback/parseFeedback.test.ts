@@ -3,16 +3,22 @@ import {
   FEEDBACK_MESSAGE_MAX,
   FEEDBACK_OBSERVED_MAX_AGE_DAYS,
   FEEDBACK_PLACE_TEXT_MAX,
+  FEEDBACK_ROUTE_PICKS_MAX,
   FEEDBACK_ROUTES_TEXT_MAX,
   FEEDBACK_SPAN_MAX_HOURS,
   FEEDBACK_STOPS_MAX,
+  type GuidebookRoute,
+  type GuidebookWall,
 } from '@weatherteam6/types'
-import { parseAppReadings, parseFeedbackInput } from './parseFeedback.js'
+import { parseAppReadings, parseFeedbackInput, stopsGuidebookProblem } from './parseFeedback.js'
 import { toFeedback } from './feedbackRow.js'
 
 const NOW = Date.parse('2026-09-29T18:00:00.000Z')
 const LOC = '11111111-1111-4111-8111-111111111111'
 const AREA = '33333333-3333-5333-8333-333333333333'
+const WALL = '44444444-4444-5444-8444-444444444444'
+const ROUTE = '55555555-5555-5555-8555-555555555555'
+const OTHER_ROUTE = '66666666-6666-5666-8666-666666666666'
 
 const SNAPSHOT = {
   valid_at: '2026-09-29T18:00:00.000Z',
@@ -138,6 +144,34 @@ describe('parseFeedbackInput — forecast checks', () => {
       expect(error(withStops([STOP, { ...STOP, sun_exposure: 'sunny' }]))).toMatch(/^stops\[1\]\.sun_exposure/)
     })
 
+    it('keeps a picked wall and picked routes, trimmed, and reads them absent as none', () => {
+      const picked = { ...STOP, wall_id: WALL, wall: ' Sizzlefoot Wall ', route_picks: [{ id: ROUTE, name: ' Pine Tree ' }] }
+      expect(withStops([picked])).toMatchObject({
+        stops: [{ wall_id: WALL, wall: 'Sizzlefoot Wall', route_picks: [{ id: ROUTE, name: 'Pine Tree' }] }],
+      })
+      expect(withStops([STOP])).toMatchObject({ stops: [{ wall_id: null, route_picks: [] }] })
+    })
+
+    it('refuses a wall or route pick outside a picked area, or without its name', () => {
+      const typed = { area_id: null, area_name: 'Somewhere' }
+      expect(stopError({ ...typed, wall_id: WALL })).toBe('stops[0].wall_id needs an area_id')
+      expect(stopError({ ...typed, route_picks: [{ id: ROUTE, name: 'Pine Tree' }] })).toBe('stops[0].route_picks needs an area_id')
+      expect(stopError({ wall_id: WALL, wall: null })).toMatch(/wall is required with wall_id/)
+      expect(stopError({ wall_id: 'sizzlefoot' })).toMatch(/wall_id must be/)
+      expect(stopError({ route_picks: [{ id: ROUTE, name: '  ' }] })).toMatch(/route_picks\[0\]\.name is required/)
+      expect(stopError({ route_picks: [{ id: 'pine-tree', name: 'Pine Tree' }] })).toMatch(/route_picks\[0\]\.id/)
+      expect(stopError({ route_picks: [{ id: ROUTE, name: 'Pine Tree', grade: '5.9' }] })).toMatch(/Unsupported field\(s\) in stops\[0\]\.route_picks\[0\]: grade/)
+    })
+
+    it('refuses a repeated route and caps the picks', () => {
+      const pick = { id: ROUTE, name: 'Pine Tree' }
+      expect(stopError({ route_picks: [pick, pick] })).toMatch(/route_picks\[1\] repeats a route/)
+      const ids = Array.from({ length: FEEDBACK_ROUTE_PICKS_MAX + 1 }, (_, k) => `55555555-5555-5555-8555-${String(k).padStart(12, '0')}`)
+      const many = (n: number) => ids.slice(0, n).map((id) => ({ id, name: 'r' }))
+      expect(stopError({ route_picks: many(FEEDBACK_ROUTE_PICKS_MAX + 1) })).toMatch(/at most/)
+      expect(stopError({ route_picks: many(FEEDBACK_ROUTE_PICKS_MAX) })).toBeNull()
+    })
+
     it('requires a start inside the check’s day, not before observed_at, not in the future', () => {
       expect(stopError({ started_at: undefined })).toMatch(/started_at must be/)
       expect(stopError({ started_at: '2026-09-29T14:00' })).toMatch(/UTC offset/)
@@ -223,6 +257,44 @@ describe('parseFeedbackInput — forecast checks', () => {
   })
 })
 
+describe('stopsGuidebookProblem', () => {
+  const r = (id: string): GuidebookRoute => ({
+    id, name: id, yds: null, french: null, vscale: null, kinds: [], first_ascent: null, safety: null, left_right: null, mp_id: null, description: null,
+  })
+  // An area holding one sub-wall (ROUTE) and a route directly on the area (OTHER_ROUTE).
+  const WALLS: GuidebookWall[] = [
+    {
+      id: AREA, name: 'Bouldering', lat: null, lon: null, mp_id: null, ordered: false,
+      routes: [r(ROUTE), r(OTHER_ROUTE)],
+      sub_walls: [{ id: WALL, name: 'Sizzlefoot Wall', route_ids: [ROUTE] }],
+    },
+  ]
+  const stop = (over: object) => ({
+    area_id: AREA, area_name: 'Bouldering', wall_id: null, wall: null, route_picks: [], routes: null,
+    started_at: '2026-09-29T14:00:00.000Z', ended_at: null, sun_exposure: null, ...over,
+  })
+  const pick = (id: string) => [{ id, name: id }]
+
+  it("accepts the crag's own area, its sub-wall, and routes on them", () => {
+    expect(stopsGuidebookProblem([stop({ wall_id: WALL, wall: 'Sizzlefoot Wall', route_picks: pick(ROUTE) })], WALLS)).toBeNull()
+    // No wall picked: any route in the area.
+    expect(stopsGuidebookProblem([stop({ route_picks: pick(OTHER_ROUTE) })], WALLS)).toBeNull()
+    expect(stopsGuidebookProblem([stop({ area_id: null })], [])).toBeNull()
+  })
+
+  it('refuses an area of another crag, a wall of another area, and a route off the picked wall', () => {
+    expect(stopsGuidebookProblem([stop({ area_id: WALL })], WALLS)).toMatch(/^stops\[0\]\.area_id/)
+    expect(stopsGuidebookProblem([stop({ wall_id: AREA, wall: 'x' })], WALLS)).toMatch(/^stops\[0\]\.wall_id is not a wall in Bouldering/)
+    // On the area, but not on the wall picked.
+    expect(stopsGuidebookProblem([stop({}), stop({ wall_id: WALL, wall: 'Sizzlefoot Wall', route_picks: pick(OTHER_ROUTE) })], WALLS)).toMatch(/^stops\[1\]\.route_picks/)
+  })
+
+  it('reads a wall from an older API with no sub_walls as having none', () => {
+    const { sub_walls: _, ...older } = WALLS[0]!
+    expect(stopsGuidebookProblem([stop({ wall_id: WALL, wall: 'x' })], [older])).toMatch(/wall_id/)
+  })
+})
+
 describe('parseAppReadings', () => {
   it('refuses an empty field list — a snapshot of nothing is null, not []', () => {
     expect(parseAppReadings({ ...SNAPSHOT, fields: [] })).toHaveProperty('error')
@@ -290,7 +362,8 @@ describe('toFeedback', () => {
       observed_conditions: 'wet',
       verdict: 'missed',
       app_readings: SNAPSHOT,
-      stops: [STORED_STOP],
+      // Stored before walls and routes could be picked: none were.
+      stops: [{ ...STORED_STOP, wall_id: null, route_picks: [] }],
       created_at: '2026-09-29T18:00:00.000Z',
     })
   })
@@ -303,7 +376,7 @@ describe('toFeedback', () => {
   it('reads a stored stop dated long ago — the future limit is for writes only', () => {
     const old = { ...row, observed_at: new Date('2025-01-01T10:00:00.000Z') }
     const stop = { ...STORED_STOP, started_at: '2025-01-01T10:00:00.000Z', ended_at: '2025-01-01T12:00:00.000Z' }
-    expect(toFeedback({ ...old, stops: [stop] }).stops).toEqual([stop])
+    expect(toFeedback({ ...old, stops: [stop] }).stops).toEqual([{ ...stop, wall_id: null, route_picks: [] }])
   })
 
   it('reads a stored snapshot that no longer parses as no snapshot', () => {

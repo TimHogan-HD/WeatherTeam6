@@ -1,15 +1,20 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import type { ConditionsReadings, Conditions, Feedback, ForecastStop, GuidebookWall, HourlyReading } from '@weatherteam6/types'
+import type { ConditionsReadings, Conditions, Feedback, ForecastStop, GuidebookRoute, GuidebookWall, HourlyReading } from '@weatherteam6/types'
 import {
   OTHER_AREA,
   emptyStop,
   feedbackLines,
   fromLocalInputValue,
+  pickRoute,
+  pickWall,
+  routeChoices,
+  routeOptionLabel,
   shownReading,
   stopProblem,
   stopsPayload,
   stopsSpan,
+  subWallsOf,
   timeOnDay,
   toLocalInputValue,
   type StopDraft,
@@ -124,22 +129,92 @@ describe('stops', () => {
     expect(stopProblem(DAY, stop('21:30', '22:30'), at(6), at(23))).toMatch(/within 16 hours/)
   })
 
+  const route = (id: string, grade: string | null = null): GuidebookRoute => ({
+    id, name: id, yds: grade, french: null, vscale: null, kinds: [], first_ascent: null, safety: null, left_right: null, mp_id: null, description: null,
+  })
+  // Red Wing's shape: an area that is itself one wall.
+  const CYCLOPS = { id: 'a1', name: 'Cyclops Area', routes: [route('Pine Tree', '5.9'), route('Cyclops')], sub_walls: [] } as unknown as GuidebookWall
+  // Taylors Falls' shape: an area holding walls, and one route on the area itself.
+  const BOULDERING = {
+    id: 'b1',
+    name: 'Bouldering',
+    routes: [route('Zed'), route('Sizzle'), route('Path One'), route('Loose')],
+    sub_walls: [
+      { id: 'w-path', name: 'Path Area', route_ids: ['Path One'] },
+      { id: 'w-sizzle', name: 'Sizzlefoot Wall', route_ids: ['Zed', 'Sizzle'] },
+    ],
+  } as unknown as GuidebookWall
+  const AREAS = [CYCLOPS, BOULDERING]
+
   it('sends a picked area’s id and name, a typed one’s name only, and blanks as null', () => {
-    const areas = [{ id: 'a1', name: 'Cyclops Area' }] as GuidebookWall[]
     const payload = stopsPayload(
       DAY,
       [
-        stop('09:00', '11:00', { areaPick: 'a1', wall: ' left ', routes: '', sun: 'mostly_shade' }),
-        stop('11:15', '', { areaPick: OTHER_AREA, areaText: ' Winter Wall ' }),
+        stop('09:00', '11:00', { areaPick: 'a1', routes: '', sun: 'mostly_shade' }),
+        stop('11:15', '', { areaPick: OTHER_AREA, areaText: ' Winter Wall ', wall: ' left ', routes: ' Pine Tree ' }),
         stop('13:00', '', { areaPick: '' }),
       ],
-      areas,
+      AREAS,
     )
     expect(payload).toEqual([
-      { area_id: 'a1', area_name: 'Cyclops Area', wall: 'left', routes: null, started_at: new Date(at(9)).toISOString(), ended_at: new Date(at(11)).toISOString(), sun_exposure: 'mostly_shade' },
-      { area_id: null, area_name: 'Winter Wall', wall: null, routes: null, started_at: new Date(at(11, 15)).toISOString(), ended_at: null, sun_exposure: null },
-      { area_id: null, area_name: null, wall: null, routes: null, started_at: new Date(at(13)).toISOString(), ended_at: null, sun_exposure: null },
+      { area_id: 'a1', area_name: 'Cyclops Area', wall_id: null, wall: null, route_picks: [], routes: null, started_at: new Date(at(9)).toISOString(), ended_at: new Date(at(11)).toISOString(), sun_exposure: 'mostly_shade' },
+      { area_id: null, area_name: 'Winter Wall', wall_id: null, wall: 'left', route_picks: [], routes: 'Pine Tree', started_at: new Date(at(11, 15)).toISOString(), ended_at: null, sun_exposure: null },
+      { area_id: null, area_name: null, wall_id: null, wall: null, route_picks: [], routes: null, started_at: new Date(at(13)).toISOString(), ended_at: null, sun_exposure: null },
     ])
+  })
+
+  it('sends a picked wall and picked routes by id with their names', () => {
+    const [only] = stopsPayload(DAY, [stop('09:00', '', { areaPick: 'b1', wallPick: 'w-sizzle', routePicks: ['Zed', 'Sizzle'] })], AREAS) ?? []
+    expect(only).toMatchObject({
+      area_id: 'b1',
+      wall_id: 'w-sizzle',
+      wall: 'Sizzlefoot Wall',
+      route_picks: [{ id: 'Sizzle', name: 'Sizzle' }, { id: 'Zed', name: 'Zed' }],
+      routes: null,
+    })
+  })
+
+  it('sends no typed wall for an area that is itself the wall, and typed routes only once asked for', () => {
+    const [cyclops] = stopsPayload(DAY, [stop('09:00', '', { areaPick: 'a1', wall: 'left', routes: 'Old route' })], AREAS) ?? []
+    expect(cyclops).toMatchObject({ wall_id: null, wall: null, routes: null })
+    const [typed] = stopsPayload(DAY, [stop('09:00', '', { areaPick: 'a1', routesTyped: true, routes: ' Old route ' })], AREAS) ?? []
+    expect(typed).toMatchObject({ routes: 'Old route' })
+    const [other] = stopsPayload(DAY, [stop('09:00', '', { areaPick: 'b1', wallPick: OTHER_AREA, wall: ' North face ' })], AREAS) ?? []
+    expect(other).toMatchObject({ wall_id: null, wall: 'North face' })
+  })
+
+  it('offers a picked wall’s routes only, the whole area’s without one, A–Z', () => {
+    expect(routeChoices(BOULDERING, 'w-sizzle').map((r) => r.id)).toEqual(['Sizzle', 'Zed'])
+    expect(routeChoices(BOULDERING, '').map((r) => r.id)).toEqual(['Loose', 'Path One', 'Sizzle', 'Zed'])
+    expect(routeChoices(BOULDERING, OTHER_AREA)).toHaveLength(4)
+    expect(subWallsOf(CYCLOPS)).toEqual([])
+    // An older API with no sub_walls field: no walls, not a crash.
+    expect(subWallsOf({ ...BOULDERING, sub_walls: undefined })).toEqual([])
+  })
+
+  it('ties a route picked before its wall to the wall it is on', () => {
+    expect(pickRoute(stop('09:00'), BOULDERING, 'Zed')).toEqual({ routePicks: ['Zed'], wallPick: 'w-sizzle' })
+    // A route on the area itself names no wall.
+    expect(pickRoute(stop('09:00'), BOULDERING, 'Loose')).toEqual({ routePicks: ['Loose'] })
+    // A route already picked off that wall would vanish under it, so no wall is picked.
+    const withLoose = stop('09:00', '', { areaPick: 'b1', routePicks: ['Loose'] })
+    expect(pickRoute(withLoose, BOULDERING, 'Zed')).toEqual({ routePicks: ['Loose', 'Zed'] })
+    expect(stopsPayload(DAY, [{ ...withLoose, ...pickRoute(withLoose, BOULDERING, 'Zed') }], AREAS)?.[0]?.route_picks.map((r) => r.id)).toEqual(['Loose', 'Zed'])
+    // A second route on the same wall keeps it.
+    expect(pickRoute(stop('09:00', '', { routePicks: ['Sizzle'] }), BOULDERING, 'Zed')).toEqual({ routePicks: ['Sizzle', 'Zed'], wallPick: 'w-sizzle' })
+    // Never moves a wall already picked.
+    expect(pickRoute(stop('09:00', '', { wallPick: OTHER_AREA }), BOULDERING, 'Zed')).toEqual({ routePicks: ['Zed'] })
+  })
+
+  it('drops routes that are not on a newly picked wall', () => {
+    const s = stop('09:00', '', { areaPick: 'b1', routePicks: ['Zed', 'Path One'] })
+    expect(pickWall(s, BOULDERING, 'w-path')).toEqual({ wallPick: 'w-path', routePicks: ['Path One'] })
+    expect(pickWall(s, BOULDERING, '')).toEqual({ wallPick: '', routePicks: ['Zed', 'Path One'] })
+  })
+
+  it('labels a route with its grade when it has one', () => {
+    expect(routeOptionLabel(route('Pine Tree', '5.9'))).toBe('Pine Tree 5.9')
+    expect(routeOptionLabel(route('Cyclops'))).toBe('Cyclops')
   })
 
   it('sends a typed area when the crag has no guidebook, whatever the pick', () => {
@@ -170,7 +245,9 @@ describe('HistoryItem', () => {
   const STOP: ForecastStop = {
     area_id: null,
     area_name: 'Cyclops Area',
+    wall_id: null,
     wall: 'left side',
+    route_picks: [],
     routes: 'Pine Tree',
     started_at: NOW,
     ended_at: new Date(Date.parse(NOW) + 3 * 3600_000).toISOString(),
@@ -184,6 +261,13 @@ describe('HistoryItem', () => {
     expect(stops[0]).toMatch(/^Cyclops Area · left side · Routes: Pine Tree · \d{1,2}:\d{2}.* – \d{1,2}:\d{2}.* · Mostly shade$/)
     expect(stops[1]).toMatch(/^Winter Wall · \d{1,2}:\d{2}[^–]* · Full sun$/)
     expect(renderToStaticMarkup(<HistoryItem item={{ ...check, stops: [STOP, second] }} />)).toContain('Winter Wall')
+  })
+
+  it('prints picked routes before typed ones, and a stop from an older API without picks', () => {
+    const picked: ForecastStop = { ...STOP, route_picks: [{ id: 'r1', name: 'Cyclops' }], routes: 'Unlisted' }
+    expect(feedbackLines({ ...check, stops: [picked] }).stops[0]).toMatch(/· Routes: Cyclops, Unlisted ·/)
+    const { route_picks: _omit, ...older } = STOP
+    expect(feedbackLines({ ...check, stops: [older as ForecastStop] }).stops[0]).toMatch(/· Routes: Pine Tree ·/)
   })
 
   it('prints no stop lines when none were named, or for a row from an older API', () => {

@@ -104,6 +104,12 @@ function toWall(node: Node): GuidebookWall {
     mp_id: node.area.mp_id,
     routes: node.routes,
     ordered: isOrdered(node),
+    // One level down, by the same rule as the crag's walls: a child with no
+    // routes anywhere under it is nothing a climber could have been on.
+    sub_walls: node.children
+      .filter((c) => c.routes.length > 0)
+      .map((c) => ({ id: c.area.id, name: c.area.name, route_ids: c.routes.map((r) => r.id) }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
   }
 }
 

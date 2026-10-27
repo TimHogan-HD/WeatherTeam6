@@ -4,7 +4,7 @@ import type { ApiResponse, Feedback, FeedbackFromAnyone } from '@weatherteam6/ty
 import { db } from '../db/index.js'
 import { feedback, locations, users } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
-import { parseFeedbackInput } from '../lib/feedback/parseFeedback.js'
+import { parseFeedbackInput, stopsGuidebookProblem } from '../lib/feedback/parseFeedback.js'
 import { toFeedback } from '../lib/feedback/feedbackRow.js'
 import { isOwner } from '../lib/auth/invites.js'
 import { guidebookFor } from '../lib/guidebook/guidebook.js'
@@ -86,16 +86,12 @@ feedbackRouter.post('/feedback', async (req: Request, res: Response) => {
       place = { name: row.name, lat: Number(row.lat), lon: Number(row.lon) }
     }
 
-    // A picked area must be one the crag's own guidebook lists — the client
-    // only offers those, so anything else is a stale or forged id.
-    if (parsed.kind === 'forecast' && place !== null) {
-      const picked = parsed.stops.map((s) => s.area_id).filter((id): id is string => id !== null)
-      if (picked.length > 0) {
-        const areaIds = new Set((guidebookFor(place.lat, place.lon)?.walls ?? []).map((w) => w.id))
-        if (!picked.every((id) => areaIds.has(id))) {
-          refuse(res, 400, "A stop's area_id is not one of this crag's guidebook areas")
-          return
-        }
+    // Picked areas, walls and routes must be this crag's own.
+    if (parsed.kind === 'forecast' && place !== null && parsed.stops.some((s) => s.area_id !== null)) {
+      const problem = stopsGuidebookProblem(parsed.stops, guidebookFor(place.lat, place.lon)?.walls ?? [])
+      if (problem !== null) {
+        refuse(res, 400, problem)
+        return
       }
     }
 
