@@ -8,8 +8,10 @@ import { SPLASH_ICON } from './splashIcon.js'
  * **It keeps the app's own files on the device, and nothing else.** An open
  * fetches only the small page and takes the scripts from the device, then
  * draws the list (`rememberedLocations.ts`); offline it draws from the device
- * alone. The weather loads as before. API calls go to another origin and are never
- * intercepted, so no weather, score or reading is ever served from here. The
+ * alone. The weather loads as before. API calls share the page's origin through
+ * `vercel.json`'s rewrite, but only precached shell paths ever match and nothing
+ * is put in the cache at runtime, so no weather, score, reading or other
+ * account's data is ever served from here. The
  * Google Fonts stylesheet is left to the browser as well: the page's CSP gives
  * a worker no `connect-src` to reach it. The Map tab's tiles, glyphs and
  * terrain are on other origins too, so they are never cached here either.

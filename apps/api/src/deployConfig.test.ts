@@ -103,10 +103,11 @@ describe('the web app’s content security policy', () => {
     )
   }
 
+  // No `*.vercel.app`: a production build calls its own `/api`, and that
+  // wildcard would let injected script post the session token to any Vercel site.
   it('lets the map reach its three tile hosts and nothing else new', () => {
     expect(csp().get('connect-src')).toEqual([
       "'self'",
-      'https://*.vercel.app',
       'https://tiles.openfreemap.org',
       'https://s3.amazonaws.com',
       'https://mesonet.agron.iastate.edu',
