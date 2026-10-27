@@ -1137,18 +1137,39 @@ async function run(): Promise<void> {
     if (routeOptions > 2) await routeSelect.selectOption({ index: 1 })
     const routeChip = await page.getByRole('button', { name: /^Remove (?!wall)/ }).count()
     check('a picked route shows as a removable chip', routeChip === 1, `${routeChip} chips`)
+    // Each wall has its own rock; what kept the sun off is asked only once the sun was short of full.
+    await page.getByRole('group', { name: 'Rock at wall 1' }).getByRole('button', { name: 'Wet', exact: true }).click()
+    const shaded = page.getByRole('group', { name: 'What shaded wall 1' })
+    const causesBefore = await shaded.count()
+    await page.getByRole('group', { name: 'Sun on wall 1' }).getByRole('button', { name: 'Mostly shade' }).click()
+    const causes = await shaded.getByRole('button').count()
+    if (causes > 0) await shaded.getByRole('button', { name: 'Trees', exact: true }).click()
+    check('what kept the sun off is asked only after a sun short of full', causesBefore === 0 && causes === 5, `${causesBefore} before; ${causes} causes`)
+    // Direction and angle wait behind "More about this wall".
     const facing = page.getByRole('group', { name: 'Wall 1 faces' })
+    const hiddenFacing = await facing.count()
+    await page.getByRole('button', { name: 'More about this wall' }).click()
     const directions = await facing.getByRole('button').count()
     if (directions > 0) await facing.getByRole('button', { name: 'SE', exact: true }).click()
     const pressed = await facing.locator('[aria-pressed="true"]').count()
-    check('the wall-faces question offers 8 directions and holds one', directions === 8 && pressed === 1, `${directions} directions; ${pressed} pressed`)
+    const angles = await page.getByRole('group', { name: 'Wall 1 angle' }).getByRole('button').count()
+    check(
+      'More about this wall opens 8 directions that hold one, and 4 angles',
+      hiddenFacing === 0 && directions === 8 && pressed === 1 && angles === 4,
+      `folded ${hiddenFacing}; ${directions} directions; ${pressed} pressed; ${angles} angles`,
+    )
+    await screen('feedback-wall-open')
     await page.getByRole('button', { name: 'Add another wall' }).click()
     const secondStop = await page
       .getByRole('combobox', { name: 'Area 2' })
       .waitFor({ timeout: 10_000 })
       .then(() => true, () => false)
+    const firstWall = page.getByRole('group', { name: 'Wall 1', exact: true })
+    const firstFolded = (await firstWall.getByRole('button', { expanded: false }).count()) === 1
+    const firstLine = firstFolded ? await firstWall.getByRole('button').first().innerText() : ''
     await screen('feedback-forecast-check')
-    check('Add another wall adds a second stop with its own area list', secondStop)
+    check('Add another wall opens a second stop with its own area list', secondStop)
+    check('and folds the first to one line of what it said', firstFolded && /Cyclops Area[\s\S]*Wet · Mostly shade · Faces SE/.test(firstLine), firstLine)
 
     await page.goto(`${WEB}/trips`)
     await page.getByRole('button', { name: 'New trip' }).waitFor({ timeout: 30_000 })

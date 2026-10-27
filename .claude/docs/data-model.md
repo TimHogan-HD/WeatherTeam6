@@ -279,15 +279,19 @@ location_name       text               -- copied at write time; survives the del
 lat, lon            double precision   -- copied at write time
 message             text               -- required (non-blank) for 'app'
 observed_at         timestamptz        -- required for 'forecast'
-observed_conditions overall_status     -- required for 'forecast'
+observed_conditions overall_status     -- required for 'forecast'; the whole crag's. When any stop says its
+                                       -- rock, it must be cragRockOf the stops' (their word, or 'mixed')
 verdict             forecast_verdict   -- 'matched' | 'partly' | 'missed'; required for 'forecast'
 app_readings        jsonb              -- FeedbackAppReadings | null: labelled words, never 0-1 factors
 stops               jsonb              -- ForecastStop[] | null (migration 0035): one per wall climbed —
                                        -- area_id/area_name, wall_id/wall, route_picks [{id,name}], routes (typed),
-                                       -- started_at, ended_at, sun_exposure, facing (one of the 16
-                                       -- COMPASS_POINTS; the form offers 8), tree_cover ('open'|'partly'|'under').
-                                       -- facing and tree_cover are the climber's word, read by nothing yet
-                                       -- (#293, #398); stops stored before them read back with both null.
+                                       -- started_at, ended_at, rock (OBSERVED_CONDITIONS; the form requires it),
+                                       -- sun_exposure, shade_causes (SHADE_CAUSES: trees|clouds|overhang|facing|
+                                       -- terrain, any, only with sun short of full), facing (one of the 16
+                                       -- COMPASS_POINTS; the form offers 8), angle (slab|vertical|overhang|roof).
+                                       -- The climber's word on each wall's direction, shape and why it was shaded:
+                                       -- the start of a per-wall record (#293, #398), read by nothing yet. Stops
+                                       -- stored before them read back with nulls and shade_causes [].
                                        -- Only started_at is required; each starts within 16 h of observed_at.
                                        -- area_id must be one of the crag's guidebook areas, wall_id one of that
                                        -- area's sub_walls, each route pick on that wall (or the area without one):

@@ -1,10 +1,32 @@
 import { describe, it, expect } from 'vitest'
 import {
   FEEDBACK_SNAPSHOT_TOLERANCE_MS,
+  SHADE_CAUSES,
+  SHADE_CAUSE_LABEL,
+  SUN_EXPOSURES,
+  SUN_EXPOSURE_SHORT_LABEL,
+  cragRockOf,
   feedbackSnapshotFor,
   isForecastVerdict,
   isObservedConditions,
 } from './index.js'
+
+describe('cragRockOf', () => {
+  it('is the walls’ word when they agree, Mixed when they differ, null when none said', () => {
+    expect(cragRockOf(['wet', 'wet'])).toBe('wet')
+    expect(cragRockOf(['wet', 'dry'])).toBe('mixed')
+    expect(cragRockOf(['dry', null])).toBe('dry')
+    expect(cragRockOf([null, null])).toBeNull()
+    expect(cragRockOf([])).toBeNull()
+  })
+})
+
+describe('the form’s words', () => {
+  it('gives every sun answer and cause of shade a distinct label', () => {
+    expect(new Set(SUN_EXPOSURES.map((s) => SUN_EXPOSURE_SHORT_LABEL[s])).size).toBe(SUN_EXPOSURES.length)
+    expect(new Set(SHADE_CAUSES.map((c) => SHADE_CAUSE_LABEL[c])).size).toBe(SHADE_CAUSES.length)
+  })
+})
 
 const READING = {
   valid_at: '2026-09-29T17:00:00.000Z',

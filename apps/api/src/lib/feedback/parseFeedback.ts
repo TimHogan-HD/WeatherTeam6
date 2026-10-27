@@ -10,20 +10,25 @@ import {
   FEEDBACK_SPAN_MAX_HOURS,
   FEEDBACK_STOPS_MAX,
   COMPASS_POINTS,
+  OBSERVED_CONDITIONS,
+  SHADE_CAUSES,
   SUN_EXPOSURES,
-  TREE_COVERS,
+  WALL_ANGLES,
+  cragRockOf,
   isCompassPoint,
   isFeedbackKind,
   isForecastVerdict,
   isObservedConditions,
+  isShadeCause,
   isSunExposure,
-  isTreeCover,
+  isWallAngle,
   type FeedbackAppReadings,
   type ForecastRoutePick,
   type ForecastStop,
   type ForecastVerdict,
   type GuidebookWall,
   type ObservedConditions,
+  type ShadeCause,
 } from '@weatherteam6/types'
 import { isUuid } from '../http.js'
 
@@ -60,7 +65,24 @@ const FORECAST_FIELDS = [
   'app_readings',
   'stops',
 ] as const
-const STOP_FIELDS = ['area_id', 'area_name', 'wall_id', 'wall', 'route_picks', 'routes', 'started_at', 'ended_at', 'sun_exposure', 'facing', 'tree_cover'] as const
+const STOP_FIELDS = [
+  'area_id',
+  'area_name',
+  'wall_id',
+  'wall',
+  'route_picks',
+  'routes',
+  'started_at',
+  'ended_at',
+  'rock',
+  'sun_exposure',
+  'shade_causes',
+  'facing',
+  'angle',
+  // Retired with #425: accepted and dropped, so a row saved by #424's client still
+  // reads back with its walls, and a cached client of that version can still save.
+  'tree_cover',
+] as const
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -116,6 +138,11 @@ export function parseFeedbackInput(body: unknown, nowMs: number): ParsedFeedback
 
   const stops = raw['stops'] === undefined ? [] : parseStops(raw['stops'], observedAt.getTime(), nowMs + FEEDBACK_CLOCK_SKEW_MS)
   if ('error' in stops) return stops
+  // The crag's rock is its walls' when they said one, so the two cannot disagree in the table.
+  const cragRock = cragRockOf(stops.map((s) => s.rock ?? null))
+  if (cragRock !== null && cragRock !== observed) {
+    return { error: `observed_conditions must be '${cragRock}', from the stops' rock` }
+  }
 
   return {
     kind,
@@ -195,18 +222,28 @@ export function parseStops(v: unknown, observedAtMs: number, latestMs: number): 
       if (endMs > latestMs) return { error: `${at}.ended_at is in the future` }
     }
 
+    const rock = r['rock'] ?? null
+    if (rock !== null && !isObservedConditions(rock)) {
+      return { error: `${at}.rock must be one of ${OBSERVED_CONDITIONS.map((x) => `'${x}'`).join(', ')}, or null` }
+    }
     const sun = r['sun_exposure'] ?? null
     if (sun !== null && !isSunExposure(sun)) {
       return { error: `${at}.sun_exposure must be one of ${SUN_EXPOSURES.map((x) => `'${x}'`).join(', ')}` }
+    }
+    const causes = parseShadeCauses(r['shade_causes'], at)
+    if ('error' in causes) return causes
+    // A cause of shade on a wall in full sun, or with no sun said, is a contradiction.
+    if (causes.length > 0 && (sun === null || sun === 'full_sun')) {
+      return { error: `${at}.shade_causes needs a sun_exposure other than 'full_sun'` }
     }
 
     const facing = r['facing'] ?? null
     if (facing !== null && !isCompassPoint(facing)) {
       return { error: `${at}.facing must be one of ${COMPASS_POINTS.join(', ')}, or null` }
     }
-    const trees = r['tree_cover'] ?? null
-    if (trees !== null && !isTreeCover(trees)) {
-      return { error: `${at}.tree_cover must be one of ${TREE_COVERS.map((x) => `'${x}'`).join(', ')}` }
+    const angle = r['angle'] ?? null
+    if (angle !== null && !isWallAngle(angle)) {
+      return { error: `${at}.angle must be one of ${WALL_ANGLES.map((x) => `'${x}'`).join(', ')}, or null` }
     }
 
     out.push({
@@ -218,12 +255,22 @@ export function parseStops(v: unknown, observedAtMs: number, latestMs: number): 
       routes,
       started_at: new Date(startMs).toISOString(),
       ended_at: endMs === null ? null : new Date(endMs).toISOString(),
+      rock,
       sun_exposure: sun,
+      shade_causes: causes,
       facing,
-      tree_cover: trees,
+      angle,
     })
   }
   return out
+}
+
+/** A stop's causes of shade, each once. Absent is `[]`, as `route_picks`. */
+function parseShadeCauses(v: unknown, at: string): ShadeCause[] | Refusal {
+  if (v === undefined || v === null) return []
+  const refusal = { error: `${at}.shade_causes must be a list of ${SHADE_CAUSES.map((x) => `'${x}'`).join(', ')}, each once` }
+  if (!Array.isArray(v) || !v.every(isShadeCause) || new Set(v).size !== v.length) return refusal
+  return v
 }
 
 /**

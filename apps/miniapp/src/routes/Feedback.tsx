@@ -1,7 +1,7 @@
 import { useCallback, useState, type CSSProperties, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useNavigate } from '../hooks/useNavigate.js'
-import { colorsV2, spacing } from '@weatherteam6/design/tokens'
+import { colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
 import {
   FEEDBACK_KIND_LABEL,
   FEEDBACK_KINDS,
@@ -14,28 +14,37 @@ import {
   FORECAST_VERDICTS,
   OBSERVED_CONDITIONS,
   OBSERVED_CONDITIONS_LABEL,
+  SHADE_CAUSE_LABEL,
+  SHADE_CAUSES,
   SUN_EXPOSURE_LABEL,
+  SUN_EXPOSURE_SHORT_LABEL,
   SUN_EXPOSURES,
-  TREE_COVER_LABEL,
-  TREE_COVERS,
+  WALL_ANGLE_LABEL,
+  WALL_ANGLES,
   WALL_FACING_CHOICES,
+  cragRockOf,
   feedbackSnapshotFor,
   fieldLine,
   type CreateFeedbackInput,
   type Feedback as FeedbackRow,
   type FeedbackKind,
   type ForecastVerdict,
+  type GuidebookRoute,
+  type GuidebookSubWall,
   type GuidebookWall,
-  type ObservedConditions,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
-import { brandButton, cardV2, choicePill, fieldV2, quietButton, row, stack } from '../theme/styles.js'
+import { bareButton, brandButton, cardV2, choicePill, fieldV2, quietButton, row, stack } from '../theme/styles.js'
 import { backTarget } from '../lib/backTarget.js'
 import {
+  CLEARED_PLACE,
   OTHER_AREA,
+  draftLine,
   emptyStop,
   feedbackLines,
+  missingAnswer,
   pickRoute,
+  pickSun,
   pickWall,
   pickedArea,
   routeChoices,
@@ -45,6 +54,7 @@ import {
   stopsPayload,
   stopsSpan,
   subWallsOf,
+  sunWasBlocked,
   toLocalDateValue,
   toLocalTimeValue,
   type StopDraft,
@@ -132,9 +142,13 @@ function ForecastCheckForm({
   const now = useNow()
   const [day, setDay] = useState(() => toLocalDateValue(Date.now()))
   const [stops, setStops] = useState<StopDraft[]>(() => [emptyStop(toLocalTimeValue(Date.now()))])
-  const [observed, setObserved] = useState<ObservedConditions | null>(null)
+  // One wall open at a time; the rest fold to a line each.
+  const [openStop, setOpenStop] = useState<number | null>(0)
   const [verdict, setVerdict] = useState<ForecastVerdict | null>(null)
   const [message, setMessage] = useState('')
+  const [notesOpen, setNotesOpen] = useState(false)
+  // The crag's rock is its walls': their word when they agree, Mixed when not.
+  const observed = cragRockOf(stops.map((s) => s.rock))
 
   const conditions = useConditions(locationId ?? undefined, locationId === null ? undefined : true)
   const alerts = useAlerts(locationId ?? undefined)
@@ -157,29 +171,37 @@ function ForecastCheckForm({
       ? null
       : feedbackSnapshotFor(shownReading(conditions.data, severeAlertEvent(alerts.data)), span.fromMs, span.untilMs)
 
+  const missing = missingAnswer(stops, verdict)
   const ready =
     locationId !== null &&
     span !== null &&
     problems.every((p) => p === null) &&
+    missing === null &&
     observed !== null &&
     verdict !== null &&
     readingSettled
 
   const setStop = (i: number, patch: Partial<StopDraft>) =>
     setStops((list) => list.map((s, j) => (j === i ? { ...s, ...patch } : s)))
-  // A new stop starts where the last one finished, which is usually true.
-  const addStop = () => setStops((list) => [...list, emptyStop(list[list.length - 1]?.to || toLocalTimeValue(Date.now()))])
-  const removeStop = (i: number) => setStops((list) => list.filter((_, j) => j !== i))
+  // A new stop starts where the last one finished, which is usually true, and opens.
+  const addStop = () => {
+    setStops((list) => [...list, emptyStop(list[list.length - 1]?.to || toLocalTimeValue(Date.now()))])
+    setOpenStop(stops.length)
+  }
+  const removeStop = (i: number) => {
+    setStops((list) => list.filter((_, j) => j !== i))
+    setOpenStop((o) => (o === null || o === i ? null : o > i ? o - 1 : o))
+  }
 
   const pickCrag = (id: string) => {
     setPicked(id)
-    // Areas, walls, routes and what the wall is like belong to the crag; times and sun do not.
-    setStops((list) => list.map((s) => ({ ...s, areaPick: '', areaText: '', wallPick: '', routePicks: [], facing: null, trees: null })))
+    // Areas, walls, routes and what the wall is like belong to the crag; times, rock and sun do not.
+    setStops((list) => list.map((s) => ({ ...s, areaPick: '', areaText: '', ...CLEARED_PLACE })))
   }
 
   const submit = () => {
     const payload = stopsPayload(day, stops, areas)
-    if (!ready || payload === null) return
+    if (!ready || payload === null || observed === null) return
     const input: CreateFeedbackInput = {
       kind: 'forecast',
       location_id: locationId,
@@ -192,10 +214,11 @@ function ForecastCheckForm({
     }
     create.mutate(input, {
       onSuccess: () => {
-        setObserved(null)
         setVerdict(null)
         setMessage('')
+        setNotesOpen(false)
         setStops([emptyStop(toLocalTimeValue(Date.now()))])
+        setOpenStop(0)
         onSaved()
       },
     })
@@ -210,100 +233,109 @@ function ForecastCheckForm({
   }
 
   return (
-    <section style={{ ...cardV2, ...stack(spacing.sectionGap) }}>
-      <Field label="Crag">
-        <select value={locationId ?? ''} onChange={(e) => pickCrag(e.target.value)} style={fieldV2} aria-label="Crag">
-          {crags.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-      </Field>
-
-      <Field label="Day">
-        <input
-          type="date"
-          value={day}
-          min={toLocalDateValue(now - FEEDBACK_OBSERVED_MAX_AGE_DAYS * 86_400_000)}
-          max={toLocalDateValue(now)}
-          onChange={(e) => setDay(e.target.value)}
-          style={fieldV2}
-          aria-label="Day"
-        />
-      </Field>
-
-      {stops.map((stop, i) => (
-        <StopCard
-          key={i}
-          index={i}
-          stop={stop}
-          problem={problems[i] ?? null}
-          areas={areas}
-          areasPending={guidebook.isPending}
-          onChange={(patch) => setStop(i, patch)}
-          onRemove={stops.length === 1 ? undefined : () => removeStop(i)}
-        />
-      ))}
-      {stops.length >= FEEDBACK_STOPS_MAX ? null : (
-        <button type="button" onClick={addStop} style={{ ...quietButton, alignSelf: 'stretch' }}>
-          Add another wall
-        </button>
-      )}
-
-      <Field label="The rock was">
-        <div role="group" aria-label="The rock was" style={{ ...row(spacing.listGapSm), flexWrap: 'wrap' }}>
-          {OBSERVED_CONDITIONS.map((c) => (
-            <Choice key={c} active={observed === c} onClick={() => setObserved(c)}>
-              {OBSERVED_CONDITIONS_LABEL[c]}
-            </Choice>
-          ))}
+    <>
+      <section style={{ ...cardV2, ...stack(spacing.sectionGap) }} aria-label="Where you climbed">
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 2fr)', gap: `${spacing.listGapSm}px` }}>
+          <Field label="Crag">
+            <select value={locationId ?? ''} onChange={(e) => pickCrag(e.target.value)} style={fieldV2} aria-label="Crag">
+              {crags.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Day">
+            <input
+              type="date"
+              value={day}
+              min={toLocalDateValue(now - FEEDBACK_OBSERVED_MAX_AGE_DAYS * 86_400_000)}
+              max={toLocalDateValue(now)}
+              onChange={(e) => setDay(e.target.value)}
+              style={fieldV2}
+              aria-label="Day"
+            />
+          </Field>
         </div>
-      </Field>
 
-      <Field label="The app said">
-        {!readingSettled ? (
-          <span style={typeV2.body}>Loading the app’s reading…</span>
-        ) : conditions.isError ? (
-          // A failed fetch is not "the app had no reading" — say which it was.
-          <span style={typeV2.body}>Couldn’t load the app’s reading. You can still save.</span>
-        ) : snapshot === null ? (
-          <span style={typeV2.body}>No app reading for that time. You can still save.</span>
-        ) : (
-          <span style={{ ...typeV2.body, fontSize: '15px', color: colorsV2.txt1 }}>
-            {snapshot.fields.map(fieldLine).join(' · ')}
-          </span>
-        )}
-      </Field>
-
-      <Field label="Did it match?">
-        <div role="group" aria-label="Did it match?" style={{ ...row(spacing.listGapSm), flexWrap: 'wrap' }}>
-          {FORECAST_VERDICTS.map((v) => (
-            <Choice key={v} active={verdict === v} onClick={() => setVerdict(v)}>
-              {FORECAST_VERDICT_LABEL[v]}
-            </Choice>
+        <div style={stack(spacing.listGapSm)}>
+          <span style={typeV2.guideRowName}>Where you climbed</span>
+          {stops.map((stop, i) => (
+            <StopCard
+              key={i}
+              index={i}
+              stop={stop}
+              open={openStop === i}
+              onToggle={() => setOpenStop(openStop === i ? null : i)}
+              problem={problems[i] ?? null}
+              areas={areas}
+              areasPending={guidebook.isPending}
+              onChange={(patch) => setStop(i, patch)}
+              onRemove={stops.length === 1 ? undefined : () => removeStop(i)}
+            />
           ))}
+          {stops.length >= FEEDBACK_STOPS_MAX ? null : (
+            <button type="button" onClick={addStop} style={{ ...quietButton, alignSelf: 'stretch' }}>
+              Add another wall
+            </button>
+          )}
         </div>
-      </Field>
+      </section>
 
-      <MessageField label="Notes (optional)" value={message} onChange={setMessage} />
+      <section style={{ ...cardV2, ...stack(spacing.sectionGap) }} aria-label="The app’s forecast">
+        <Field label="The app said">
+          {!readingSettled ? (
+            <span style={typeV2.body}>Loading the app’s reading…</span>
+          ) : conditions.isError ? (
+            // A failed fetch is not "the app had no reading" — say which it was.
+            <span style={typeV2.body}>Couldn’t load the app’s reading. You can still save.</span>
+          ) : snapshot === null ? (
+            <span style={typeV2.body}>No app reading for that time. You can still save.</span>
+          ) : (
+            <span style={{ ...typeV2.body, fontSize: '15px', color: colorsV2.txt1 }}>
+              {snapshot.fields.map(fieldLine).join(' · ')}
+            </span>
+          )}
+        </Field>
 
-      {create.isError ? <InlineError message="Couldn't save this check." /> : null}
-      <SubmitButton disabled={!ready || create.isPending} pending={create.isPending} onClick={submit}>
-        Save check
-      </SubmitButton>
-    </section>
+        <Question label="Did the app match?">
+          <div role="group" aria-label="Did it match?" style={gridOf(3)}>
+            {FORECAST_VERDICTS.map((v) => (
+              <Choice key={v} fill active={verdict === v} onClick={() => setVerdict(v)}>
+                {FORECAST_VERDICT_LABEL[v]}
+              </Choice>
+            ))}
+          </div>
+        </Question>
+
+        <Disclosure label="Add a note" open={notesOpen || message !== ''} onToggle={() => setNotesOpen(!notesOpen)}>
+          <MessageField label="Notes" value={message} onChange={setMessage} />
+        </Disclosure>
+
+        {create.isError ? <InlineError message="Couldn't save this check." /> : null}
+        {missing === null ? null : <span style={{ ...typeV2.note, textAlign: 'center' }}>{missing}</span>}
+        <SubmitButton disabled={!ready || create.isPending} pending={create.isPending} onClick={submit}>
+          Save check
+        </SubmitButton>
+      </section>
+    </>
   )
 }
 
 /**
- * One place climbed: area, wall, routes, hours, sun, and which way the wall
- * faces and how treed it is. Each is its own sun observation, so a day that
- * moves walls records each wall's own.
+ * One place climbed: area, wall, routes, hours, the rock, the sun and what
+ * kept it off, and which way the wall faces and how steep it is. Each is its
+ * own observation, so a day that moves walls records each wall's own — the
+ * start of a per-wall record of direction and shape (#293), kept in feedback
+ * for now.
+ *
+ * Folded, it is one line; the form keeps one wall open at a time.
  */
 function StopCard({
   index,
   stop,
+  open,
+  onToggle,
   problem,
   areas,
   areasPending,
@@ -312,6 +344,8 @@ function StopCard({
 }: {
   index: number
   stop: StopDraft
+  open: boolean
+  onToggle: () => void
   problem: string | null
   areas: readonly GuidebookWall[]
   areasPending: boolean
@@ -325,22 +359,183 @@ function StopCard({
   const choices = area === null ? [] : routeChoices(area, stop.wallPick)
   const unpicked = choices.filter((r) => !stop.routePicks.includes(r.id))
   const pickedRoutes = choices.filter((r) => stop.routePicks.includes(r.id))
+  // Shut until asked for, but shown open whenever it holds an answer, so nothing said is hidden.
+  const [moreOpen, setMoreOpen] = useState(false)
+  const bodyId = `wall-${n}-body`
   return (
     <div
       role="group"
       aria-label={`Wall ${n}`}
-      style={{ ...stack(spacing.listGapLg), borderTop: `1px solid ${colorsV2.line}`, paddingTop: `${spacing.listGapLg}px` }}
+      style={{
+        ...stack(0),
+        backgroundColor: colorsV2.raised,
+        border: `1px solid ${colorsV2.line}`,
+        borderRadius: `${radius.chipMd}px`,
+      }}
     >
-      <div style={{ ...row(spacing.listGapSm), justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={typeV2.statLabel}>Wall {n}</span>
-        {onRemove === undefined ? null : (
-          <button type="button" onClick={onRemove} style={quietButton} aria-label={`Remove wall ${n}`}>
-            Remove
-          </button>
-        )}
-      </div>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-controls={bodyId}
+        style={{
+          ...bareButton,
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1fr) auto',
+          alignItems: 'center',
+          gap: `${spacing.tight}px ${spacing.listGapSm}px`,
+          padding: `${spacing.cellPad}px ${spacing.listGapLg}px`,
+          textAlign: 'left',
+        }}
+      >
+        <span style={stack(spacing.micro)}>
+          <span style={typeV2.guideRowName}>{area?.name ?? (stop.areaText.trim() || `Wall ${n}`)}</span>
+          {open ? null : <span style={typeV2.rowSmall}>{draftLine(stop)}</span>}
+        </span>
+        <Chevron open={open} />
+      </button>
 
-      <Field label="Area (optional)">
+      {open ? (
+        <div id={bodyId} style={{ ...stack(spacing.listGapLg), padding: `0 ${spacing.listGapLg}px ${spacing.listGapLg}px` }}>
+          <WallPlace
+            n={n}
+            stop={stop}
+            area={area}
+            areas={areas}
+            areasPending={areasPending}
+            typedArea={typedArea}
+            walls={walls}
+            unpicked={unpicked}
+            pickedRoutes={pickedRoutes}
+            onChange={onChange}
+          />
+
+          <Question label="The rock was">
+            <div role="group" aria-label={`Rock at wall ${n}`} style={gridOf(4)}>
+              {OBSERVED_CONDITIONS.map((c) => (
+                <Choice key={c} fill active={stop.rock === c} onClick={() => onChange({ rock: c })}>
+                  {OBSERVED_CONDITIONS_LABEL[c]}
+                </Choice>
+              ))}
+            </div>
+          </Question>
+
+          <Field label="Sun on the rock">
+            <div role="group" aria-label={`Sun on wall ${n}`} style={gridOf(5)}>
+              {SUN_EXPOSURES.map((s) => (
+                // A second tap clears it: "not said" must stay reachable once picked.
+                <Choice
+                  key={s}
+                  fill
+                  active={stop.sun === s}
+                  label={SUN_EXPOSURE_LABEL[s]}
+                  onClick={() => onChange(pickSun(stop.sun === s ? null : s))}
+                >
+                  {SUN_EXPOSURE_SHORT_LABEL[s]}
+                </Choice>
+              ))}
+            </div>
+          </Field>
+
+          {/* Why it was not in full sun, which the amount alone cannot say:
+              trees (#398), the way it faces (#293), the day's cloud, an overhang
+              above, or other terrain. */}
+          {sunWasBlocked(stop.sun) ? (
+            <Field label="What kept the sun off?" hint="Pick any that apply">
+              <div role="group" aria-label={`What shaded wall ${n}`} style={gridOf(6)}>
+                {SHADE_CAUSES.map((c, i) => (
+                  <div key={c} style={{ gridColumn: `span ${i < 3 ? 2 : 3}` }}>
+                    <Choice
+                      fill
+                      active={stop.shadeCauses.includes(c)}
+                      onClick={() =>
+                        onChange({
+                          shadeCauses: stop.shadeCauses.includes(c)
+                            ? stop.shadeCauses.filter((x) => x !== c)
+                            : SHADE_CAUSES.filter((x) => x === c || stop.shadeCauses.includes(x)),
+                        })
+                      }
+                    >
+                      {SHADE_CAUSE_LABEL[c]}
+                    </Choice>
+                  </div>
+                ))}
+              </div>
+            </Field>
+          ) : null}
+
+          <Disclosure
+            label="More about this wall"
+            open={moreOpen || stop.facing !== null || stop.angle !== null}
+            onToggle={() => setMoreOpen(!moreOpen)}
+          >
+            <Field label="Wall faces">
+              <div role="group" aria-label={`Wall ${n} faces`} style={gridOf(4)}>
+                {WALL_FACING_CHOICES.map((d) => (
+                  <Choice key={d} fill active={stop.facing === d} onClick={() => onChange({ facing: stop.facing === d ? null : d })}>
+                    {d}
+                  </Choice>
+                ))}
+              </div>
+            </Field>
+            <Field label="Wall angle">
+              <div role="group" aria-label={`Wall ${n} angle`} style={gridOf(4)}>
+                {WALL_ANGLES.map((a) => (
+                  <Choice key={a} fill active={stop.angle === a} onClick={() => onChange({ angle: stop.angle === a ? null : a })}>
+                    {WALL_ANGLE_LABEL[a]}
+                  </Choice>
+                ))}
+              </div>
+            </Field>
+          </Disclosure>
+
+          {onRemove === undefined ? null : (
+            <button type="button" onClick={onRemove} style={{ ...quietButton, alignSelf: 'flex-start' }} aria-label={`Remove wall ${n}`}>
+              Remove this wall
+            </button>
+          )}
+        </div>
+      ) : null}
+
+      {problem === null ? null : (
+        <span
+          role="alert"
+          style={{ ...typeV2.note, color: colorsV2.poorInk, padding: `0 ${spacing.listGapLg}px ${spacing.cellPad}px` }}
+        >
+          {problem}
+        </span>
+      )}
+    </div>
+  )
+}
+
+/** A wall's area, wall, routes and hours. */
+function WallPlace({
+  n,
+  stop,
+  area,
+  areas,
+  areasPending,
+  typedArea,
+  walls,
+  unpicked,
+  pickedRoutes,
+  onChange,
+}: {
+  n: number
+  stop: StopDraft
+  area: GuidebookWall | null
+  areas: readonly GuidebookWall[]
+  areasPending: boolean
+  typedArea: boolean
+  walls: readonly GuidebookSubWall[]
+  unpicked: readonly GuidebookRoute[]
+  pickedRoutes: readonly GuidebookRoute[]
+  onChange: (patch: Partial<StopDraft>) => void
+}) {
+  return (
+    <>
+      <Field label="Area">
         {/* Held until the guidebook settles: a box typed into while it loads
             would be swapped for the list and its text dropped. */}
         {areasPending ? (
@@ -349,7 +544,7 @@ function StopCard({
           <select
             value={stop.areaPick}
             // A wall, its routes and what it is like belong to their area.
-            onChange={(e) => onChange({ areaPick: e.target.value, wallPick: '', routePicks: [], facing: null, trees: null })}
+            onChange={(e) => onChange({ areaPick: e.target.value, ...CLEARED_PLACE })}
             style={fieldV2}
             aria-label={`Area ${n}`}
           >
@@ -378,7 +573,7 @@ function StopCard({
       {/* A picked area with no walls of its own is itself the wall — every
           Red Wing area — so there is nothing to ask. */}
       {area !== null && walls.length === 0 ? null : (
-        <Field label="Wall (optional)">
+        <Field label="Wall">
           {walls.length === 0 ? null : (
             <select
               value={stop.wallPick}
@@ -409,7 +604,7 @@ function StopCard({
         </Field>
       )}
 
-      <Field label="Routes (optional)">
+      <Field label="Routes">
         {area === null ? null : (
           <>
             {pickedRoutes.length === 0 ? null : (
@@ -473,7 +668,7 @@ function StopCard({
           />
         </div>
         <div style={{ ...stack(spacing.tight), flex: '1 1 0', minWidth: 0 }}>
-          <span style={typeV2.statLabel}>To (optional)</span>
+          <span style={typeV2.statLabel}>Until</span>
           <input
             type="time"
             value={stop.to}
@@ -483,46 +678,7 @@ function StopCard({
           />
         </div>
       </div>
-
-      <Field label="Sun on the rock (optional)">
-        <div role="group" aria-label={`Sun on wall ${n}`} style={{ ...row(spacing.listGapSm), flexWrap: 'wrap' }}>
-          {SUN_EXPOSURES.map((s) => (
-            // A second tap clears it: "not said" must stay reachable once picked.
-            <Choice key={s} active={stop.sun === s} onClick={() => onChange({ sun: stop.sun === s ? null : s })}>
-              {SUN_EXPOSURE_LABEL[s]}
-            </Choice>
-          ))}
-        </div>
-      </Field>
-
-      {/* What the guidebook does not record (#293, #398): beside the sun above,
-          these say why a wall was in sun or shade at those hours. */}
-      <Field label="Wall faces (optional)">
-        <div role="group" aria-label={`Wall ${n} faces`} style={gridOf(4)}>
-          {WALL_FACING_CHOICES.map((d) => (
-            <Choice key={d} fill active={stop.facing === d} onClick={() => onChange({ facing: stop.facing === d ? null : d })}>
-              {d}
-            </Choice>
-          ))}
-        </div>
-      </Field>
-
-      <Field label="Trees (optional)">
-        <div role="group" aria-label={`Trees at wall ${n}`} style={gridOf(3)}>
-          {TREE_COVERS.map((t) => (
-            <Choice key={t} fill active={stop.trees === t} onClick={() => onChange({ trees: stop.trees === t ? null : t })}>
-              {TREE_COVER_LABEL[t]}
-            </Choice>
-          ))}
-        </div>
-      </Field>
-
-      {problem === null ? null : (
-        <span role="alert" style={{ ...typeV2.note, color: colorsV2.poorInk }}>
-          {problem}
-        </span>
-      )}
-    </div>
+    </>
   )
 }
 
@@ -614,15 +770,79 @@ export function HistoryItem({
   )
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <div style={stack(spacing.tight)}>
-      <span style={typeV2.statLabel}>{label}</span>
+      <span style={{ ...row(spacing.listGapSm), justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <span style={typeV2.statLabel}>{label}</span>
+        {hint === undefined ? null : <span style={typeV2.rowSmall}>{hint}</span>}
+      </span>
       {children}
     </div>
   )
 }
 
+/** A question the check needs answered, set larger than the optional fields around it. */
+function Question({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div style={stack(spacing.listGapSm)}>
+      <span style={typeV2.guideRowName}>{label}</span>
+      {children}
+    </div>
+  )
+}
+
+/** A quiet "show more" row that opens what it holds beneath it. */
+function Disclosure({
+  label,
+  open,
+  onToggle,
+  children,
+}: {
+  label: string
+  open: boolean
+  onToggle: () => void
+  children: ReactNode
+}) {
+  return (
+    <div style={stack(spacing.listGapLg)}>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        style={{
+          ...bareButton,
+          ...row(spacing.tight),
+          alignItems: 'center',
+          alignSelf: 'flex-start',
+          width: 'auto',
+          ...typeV2.dayPick,
+          color: colorsV2.brandInk,
+        }}
+      >
+        <Chevron open={open} />
+        {label}
+      </button>
+      {open ? children : null}
+    </div>
+  )
+}
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <span
+      aria-hidden
+      style={{
+        display: 'inline-block',
+        color: colorsV2.txtMuted,
+        transform: open ? 'rotate(180deg)' : 'none',
+        transition: 'transform 160ms ease-out',
+      }}
+    >
+      ⌄
+    </span>
+  )
+}
 /** Equal columns gutter to gutter, so a short row of choices is not packed left. */
 const gridOf = (columns: number): CSSProperties => ({
   display: 'grid',
@@ -633,18 +853,21 @@ const gridOf = (columns: number): CSSProperties => ({
 function Choice({
   active,
   fill = false,
+  label,
   onClick,
   children,
 }: {
   active: boolean
   /** Fill its grid cell rather than size to the word. */
   fill?: boolean
+  /** The full words, when the button shows a short form of them. */
+  label?: string
   onClick: () => void
   children: ReactNode
 }) {
   const style: CSSProperties = { ...choicePill(active), ...typeV2.dayPick, ...(fill ? { width: '100%', textAlign: 'center' } : {}) }
   return (
-    <button type="button" aria-pressed={active} onClick={onClick} style={style}>
+    <button type="button" aria-pressed={active} aria-label={label} onClick={onClick} style={style}>
       {children}
     </button>
   )

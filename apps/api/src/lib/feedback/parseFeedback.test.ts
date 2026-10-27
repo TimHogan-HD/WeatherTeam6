@@ -140,17 +140,41 @@ describe('parseFeedbackInput — forecast checks', () => {
       expect(stopError({ area_id: 'cyclops' })).toMatch(/area_id/)
     })
 
-    it('keeps which way the wall faces and its trees, absent as not said', () => {
-      expect(withStops([{ ...STOP, facing: 'SE', tree_cover: 'partly' }])).toMatchObject({ stops: [{ facing: 'SE', tree_cover: 'partly' }] })
+    it('keeps the wall’s rock, what shaded it, its direction and angle, absent as not said', () => {
+      expect(
+        withStops([{ ...STOP, rock: 'damp', shade_causes: ['trees', 'facing'], facing: 'SE', angle: 'overhang' }]),
+      ).toMatchObject({ stops: [{ rock: 'damp', shade_causes: ['trees', 'facing'], facing: 'SE', angle: 'overhang' }] })
       // Any of the 16 points, the spelling a location's aspect uses, though the form offers 8.
-      expect(withStops([{ ...STOP, facing: 'NNW' }])).toMatchObject({ stops: [{ facing: 'NNW', tree_cover: null }] })
-      expect(withStops([STOP])).toMatchObject({ stops: [{ facing: null, tree_cover: null }] })
+      expect(withStops([{ ...STOP, facing: 'NNW' }])).toMatchObject({ stops: [{ facing: 'NNW' }] })
+      expect(withStops([STOP])).toMatchObject({ stops: [{ rock: null, shade_causes: [], facing: null, angle: null }] })
     })
 
-    it('refuses a direction or tree cover it does not know', () => {
+    it('refuses a rock, cause, direction or angle it does not know', () => {
+      expect(stopError({ rock: 'soaked' })).toMatch(/^stops\[0\]\.rock must be one of 'dry', 'damp', 'wet', 'mixed'/)
       expect(stopError({ facing: 'se' })).toMatch(/^stops\[0\]\.facing must be one of N, NNE/)
       expect(stopError({ facing: 135 })).toMatch(/^stops\[0\]\.facing/)
-      expect(stopError({ tree_cover: 'forest' })).toMatch(/^stops\[0\]\.tree_cover must be one of 'open', 'partly', 'under'/)
+      expect(stopError({ angle: 'steep' })).toMatch(/^stops\[0\]\.angle must be one of 'slab', 'vertical', 'overhang', 'roof'/)
+      expect(stopError({ shade_causes: ['fog'] })).toMatch(/^stops\[0\]\.shade_causes must be a list of 'trees'/)
+      expect(stopError({ shade_causes: 'trees' })).toMatch(/^stops\[0\]\.shade_causes/)
+      expect(stopError({ shade_causes: ['trees', 'trees'] })).toMatch(/each once/)
+    })
+
+    it('refuses a cause of shade on a wall in full sun or with no sun said', () => {
+      expect(stopError({ sun_exposure: 'full_sun', shade_causes: ['trees'] })).toMatch(/needs a sun_exposure other than 'full_sun'/)
+      expect(stopError({ sun_exposure: null, shade_causes: ['clouds'] })).toMatch(/needs a sun_exposure/)
+      expect(stopError({ sun_exposure: 'full_sun', shade_causes: [] })).toBeNull()
+    })
+
+    it('holds the crag’s rock to its walls’: their word when they agree, Mixed when not', () => {
+      const wet = { ...STOP, rock: 'wet' }
+      const dry = { ...STOP, rock: 'dry', started_at: '2026-09-29T15:45:00.000Z', ended_at: null }
+      expect(error(withStops([wet], { ...DAY, observed_conditions: 'wet' }))).toBeNull()
+      expect(error(withStops([wet], { ...DAY, observed_conditions: 'dry' }))).toBe("observed_conditions must be 'wet', from the stops' rock")
+      expect(error(withStops([wet, dry], { ...DAY, observed_conditions: 'mixed' }))).toBeNull()
+      expect(error(withStops([wet, dry], { ...DAY, observed_conditions: 'wet' }))).toMatch(/must be 'mixed'/)
+      // A wall that said nothing does not count; with none said, the crag's own word stands.
+      expect(error(withStops([wet, { ...dry, rock: null }], { ...DAY, observed_conditions: 'wet' }))).toBeNull()
+      expect(error(withStops([STOP], { ...DAY, observed_conditions: 'dry' }))).toBeNull()
     })
 
     it('names the stop that failed, not just the field', () => {
@@ -376,9 +400,17 @@ describe('toFeedback', () => {
       verdict: 'missed',
       app_readings: SNAPSHOT,
       // Stored before walls and routes could be picked: none were.
-      stops: [{ ...STORED_STOP, wall_id: null, route_picks: [], facing: null, tree_cover: null }],
+      stops: [{ ...STORED_STOP, wall_id: null, route_picks: [], rock: null, shade_causes: [], facing: null, angle: null }],
       created_at: '2026-09-29T18:00:00.000Z',
     })
+  })
+
+  it('reads a stop saved with the retired tree_cover, dropping only that field', () => {
+    const saved = { ...STORED_STOP, facing: 'SE', tree_cover: 'partly' }
+    const [back] = toFeedback({ ...row, stops: [saved] }).stops
+    expect(back).toMatchObject({ area_name: STORED_STOP.area_name, facing: 'SE' })
+    expect(back).not.toHaveProperty('tree_cover')
+    expect(parseFeedbackInput({ ...CHECK, stops: [{ ...saved, started_at: CHECK.observed_at, ended_at: null }] }, NOW)).not.toHaveProperty('error')
   })
 
   it('reads stored stops that no longer parse, or a null column, as none', () => {
@@ -389,7 +421,9 @@ describe('toFeedback', () => {
   it('reads a stored stop dated long ago — the future limit is for writes only', () => {
     const old = { ...row, observed_at: new Date('2025-01-01T10:00:00.000Z') }
     const stop = { ...STORED_STOP, started_at: '2025-01-01T10:00:00.000Z', ended_at: '2025-01-01T12:00:00.000Z' }
-    expect(toFeedback({ ...old, stops: [stop] }).stops).toEqual([{ ...stop, wall_id: null, route_picks: [], facing: null, tree_cover: null }])
+    expect(toFeedback({ ...old, stops: [stop] }).stops).toEqual([
+      { ...stop, wall_id: null, route_picks: [], rock: null, shade_causes: [], facing: null, angle: null },
+    ])
   })
 
   it('reads a stored snapshot that no longer parses as no snapshot', () => {

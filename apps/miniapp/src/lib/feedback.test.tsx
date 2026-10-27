@@ -3,10 +3,13 @@ import { describe, expect, it } from 'vitest'
 import type { ConditionsReadings, Conditions, Feedback, ForecastStop, GuidebookRoute, GuidebookWall, HourlyReading } from '@weatherteam6/types'
 import {
   OTHER_AREA,
+  draftLine,
   emptyStop,
   feedbackLines,
   fromLocalInputValue,
+  missingAnswer,
   pickRoute,
+  pickSun,
   pickWall,
   routeChoices,
   routeOptionLabel,
@@ -95,7 +98,8 @@ describe('datetime-local round trip', () => {
 describe('stops', () => {
   const DAY = '2026-09-29'
   const at = (h: number, m = 0) => new Date(2026, 8, 29, h, m).getTime()
-  const stop = (from: string, to = '', patch: Partial<StopDraft> = {}): StopDraft => ({ ...emptyStop(from), to, ...patch })
+  // Each wall needs its rock said; the stops here said Dry unless a test says otherwise.
+  const stop = (from: string, to = '', patch: Partial<StopDraft> = {}): StopDraft => ({ ...emptyStop(from), to, rock: 'dry', ...patch })
 
   it('puts every time on the check’s day', () => {
     expect(timeOnDay(DAY, '14:15')).toBe(at(14, 15))
@@ -129,6 +133,35 @@ describe('stops', () => {
     expect(stopProblem(DAY, stop('21:30', '22:30'), at(6), at(23))).toMatch(/within 16 hours/)
   })
 
+  it('names the answer still missing: each wall’s rock, then the verdict', () => {
+    expect(emptyStop('09:00').rock).toBeNull()
+    expect(missingAnswer([stop('09:00', '', { rock: null })], 'matched')).toBe('Say what the rock was like.')
+    expect(missingAnswer([stop('09:00'), stop('11:00', '', { rock: null })], 'matched')).toBe('Say what the rock was like at wall 2.')
+    expect(missingAnswer([stop('09:00')], null)).toBe('Say whether the app matched.')
+    expect(missingAnswer([stop('09:00'), stop('11:00')], 'partly')).toBeNull()
+    // A missing rock is not a refusal under the row: the form just opened has answered nothing.
+    expect(stopProblem(DAY, stop('09:00', '', { rock: null }), at(9), at(14))).toBeNull()
+  })
+
+  it('drops what kept the sun off once the sun is full or unsaid, and never sends it then', () => {
+    expect(pickSun('mostly_shade')).toEqual({ sun: 'mostly_shade' })
+    expect(pickSun('full_sun')).toEqual({ sun: 'full_sun', shadeCauses: [] })
+    expect(pickSun(null)).toEqual({ sun: null, shadeCauses: [] })
+    // A draft can still hold causes from before (state set outside pickSun); the payload drops them.
+    const [full, shade] =
+      stopsPayload(DAY, [stop('09:00', '', { sun: 'full_sun', shadeCauses: ['trees'] }), stop('10:00', '', { sun: 'mixed', shadeCauses: ['trees', 'clouds'] })], []) ?? []
+    expect(full?.shade_causes).toEqual([])
+    expect(shade?.shade_causes).toEqual(['trees', 'clouds'])
+  })
+
+  it('folds a wall to the start, rock and sun said so far, leaving the place to its name', () => {
+    expect(draftLine(stop('09:00', '', { areaPick: 'a1', rock: 'wet', sun: 'mostly_shade', facing: 'SE' }))).toMatch(
+      /^\d{1,2}:00.* · Wet · Mostly shade · Faces SE$/,
+    )
+    expect(draftLine({ ...emptyStop('') })).toBe('Nothing said yet')
+    expect(draftLine(stop('', '', { areaPick: OTHER_AREA, areaText: ' Winter Wall ', rock: null }))).toBe('Nothing said yet')
+  })
+
   const route = (id: string, grade: string | null = null): GuidebookRoute => ({
     id, name: id, yds: grade, french: null, vscale: null, kinds: [], first_ascent: null, safety: null, left_right: null, mp_id: null, description: null,
   })
@@ -157,15 +190,19 @@ describe('stops', () => {
       AREAS,
     )
     expect(payload).toEqual([
-      { area_id: 'a1', area_name: 'Cyclops Area', wall_id: null, wall: null, route_picks: [], routes: null, started_at: new Date(at(9)).toISOString(), ended_at: new Date(at(11)).toISOString(), sun_exposure: 'mostly_shade', facing: null, tree_cover: null },
-      { area_id: null, area_name: 'Winter Wall', wall_id: null, wall: 'left', route_picks: [], routes: 'Pine Tree', started_at: new Date(at(11, 15)).toISOString(), ended_at: null, sun_exposure: null, facing: null, tree_cover: null },
-      { area_id: null, area_name: null, wall_id: null, wall: null, route_picks: [], routes: null, started_at: new Date(at(13)).toISOString(), ended_at: null, sun_exposure: null, facing: null, tree_cover: null },
+      { area_id: 'a1', area_name: 'Cyclops Area', wall_id: null, wall: null, route_picks: [], routes: null, started_at: new Date(at(9)).toISOString(), ended_at: new Date(at(11)).toISOString(), rock: 'dry', sun_exposure: 'mostly_shade', shade_causes: [], facing: null, angle: null },
+      { area_id: null, area_name: 'Winter Wall', wall_id: null, wall: 'left', route_picks: [], routes: 'Pine Tree', started_at: new Date(at(11, 15)).toISOString(), ended_at: null, rock: 'dry', sun_exposure: null, shade_causes: [], facing: null, angle: null },
+      { area_id: null, area_name: null, wall_id: null, wall: null, route_picks: [], routes: null, started_at: new Date(at(13)).toISOString(), ended_at: null, rock: 'dry', sun_exposure: null, shade_causes: [], facing: null, angle: null },
     ])
   })
 
-  it('sends which way each wall faces and its trees, each its own', () => {
-    const payload = stopsPayload(DAY, [stop('09:00', '', { areaPick: 'a1', facing: 'SE', trees: 'partly' }), stop('11:00', '', { facing: 'N' })], AREAS)
-    expect(payload?.map((s) => [s.facing, s.tree_cover])).toEqual([['SE', 'partly'], ['N', null]])
+  it('sends each wall’s own rock, direction and angle', () => {
+    const payload = stopsPayload(
+      DAY,
+      [stop('09:00', '', { areaPick: 'a1', rock: 'wet', facing: 'SE', angle: 'overhang' }), stop('11:00', '', { facing: 'N' })],
+      AREAS,
+    )
+    expect(payload?.map((s) => [s.rock, s.facing, s.angle])).toEqual([['wet', 'SE', 'overhang'], ['dry', 'N', null]])
   })
 
   it('sends a picked wall and picked routes by id with their names', () => {
@@ -275,10 +312,12 @@ describe('HistoryItem', () => {
     expect(feedbackLines({ ...check, stops: [older as ForecastStop] }).stops[0]).toMatch(/· Routes: Pine Tree ·/)
   })
 
-  it('prints which way the wall faces and its trees last, and nothing for a row from an older API', () => {
-    const told: ForecastStop = { ...STOP, facing: 'SW', tree_cover: 'under' }
-    expect(feedbackLines({ ...check, stops: [told] }).stops[0]).toMatch(/· Mostly shade · Faces SW · Under trees$/)
-    expect(feedbackLines({ ...check, stops: [STOP] }).stops[0]).toMatch(/· Mostly shade$/)
+  it('prints the wall’s rock, what shaded it, its direction and angle, and nothing for a row from an older API', () => {
+    const told: ForecastStop = { ...STOP, rock: 'damp', shade_causes: ['trees', 'facing'], facing: 'SW', angle: 'roof' }
+    expect(feedbackLines({ ...check, stops: [told] }).stops[0]).toMatch(
+      /· Rock: Damp · Mostly shade · Shaded by: Trees, Faces away · Faces SW · Roof$/,
+    )
+    expect(feedbackLines({ ...check, stops: [STOP] }).stops[0]).toMatch(/· \d{1,2}:\d{2}[^·]* · Mostly shade$/)
   })
 
   it('prints no stop lines when none were named, or for a row from an older API', () => {
