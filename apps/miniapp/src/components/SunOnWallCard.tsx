@@ -90,7 +90,7 @@ export function SunOnWallCard({ data }: { data: SunWalls }) {
         </div>
 
         <p style={typeV2.note}>
-          Hills and ridges only, from USGS lidar read {data.computed}. Trees and overhangs are not modelled. Each face
+          Hills and ridges only: USGS lidar near the wall, AWS Terrarium terrain beyond, read {data.computed}. Trees and overhangs are not modelled. Each face
           carries the nearest OpenBeta wall’s name, which can be off. Times to the nearest 5 minutes.
         </p>
       </div>
