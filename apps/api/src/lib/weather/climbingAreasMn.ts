@@ -16,7 +16,7 @@ export const MN_CLIMBING_AREAS: readonly ClimbingArea[] = [
   {"uuid":"0e733a12-f01e-573a-8643-30f0d6c6b432","name":"Jeff's World (MN/CA border)","parent":null,"parent_id":null,"climbs":134,"lat":48.33553,"lon":-92.46228},
   {"uuid":"30a45958-e575-57da-a3a8-5dd6cc749cab","name":"Bouldering @ Blue Mounds","parent":"Blue Mounds State Park (Luverne)","parent_id":"50692134-d3ae-5e3b-a314-0bdba4e826c9","climbs":127,"lat":43.69786,"lon":-96.18295},
   {"uuid":"94f21cb4-21bf-59f0-96f7-c319bfe5a61b","name":"Tettegouche SP (North Shore)","parent":null,"parent_id":null,"climbs":102,"lat":46.84985,"lon":-92.32298},
-  {"uuid":"8bbb8f66-ec75-5d5f-90c7-2811b8d4f27b","name":"Sandstone","parent":null,"parent_id":null,"climbs":97,"lat":46.11369,"lon":-93.00083},
+  {"uuid":"8bbb8f66-ec75-5d5f-90c7-2811b8d4f27b","name":"Sandstone","parent":null,"parent_id":null,"climbs":97,"lat":46.13502,"lon":-92.85925},
   {"uuid":"01da3209-2291-5954-ae63-e34f733e133d","name":"Little Foxx Canyon","parent":"Duluth Bouldering","parent_id":"e7659e06-f7af-5876-b3c2-1d0655546b83","climbs":95,"lat":46.76644,"lon":-92.16599},
   {"uuid":"5308da59-1bb6-5d34-a990-2abdf0cb8467","name":"Interstate State Park Bouldering","parent":"Interstate SP (Taylors Falls)","parent_id":"4984f66c-a9cf-577b-8b74-52608b2bfff7","climbs":86,"lat":45.3987,"lon":-92.65279},
   {"uuid":"d3d9ce52-7c0b-555e-8146-3e834e3921a4","name":"Palisade Head","parent":"Tettegouche SP (North Shore)","parent_id":"94f21cb4-21bf-59f0-96f7-c319bfe5a61b","climbs":80,"lat":47.32016,"lon":-91.21086},
