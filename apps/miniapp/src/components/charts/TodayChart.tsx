@@ -86,12 +86,9 @@ export function TodayChart({
   // the ticks', so nothing draws past the top line.
   const ticks = temps.length === 0 ? [] : niceTicks(cToF(Math.min(...temps)), cToF(Math.max(...temps)))
   const y = scale(fToC(ticks[0] ?? 32), fToC(ticks[ticks.length - 1] ?? 34), PLOT_B, TOP)
-  // The figures stand at the left, as every chart's do. The window starts at
-  // now, so the first hour sits a bead's ring in from the gridlines' start and
-  // the now bead never covers a figure.
+  // The figures stand at the left, as every chart's do.
   const span = plotSpan({ left: Math.max(0, ...ticks.map((v) => `${v}°`.length)), right: 0 })
-  const hoursSpan = { left: span.left + BEAD_RING_R, right: span.right }
-  const x = scale(fromMs, toMs, hoursSpan.left, hoursSpan.right)
+  const x = scale(fromMs, toMs, span.left, span.right)
 
   const scored = hours.some((p) => p.score !== null)
   const lineColor = (p: ChartHour) => (p.score === null ? chartColorsV2.air : scoreRampColor(p.score))
@@ -103,10 +100,17 @@ export function TodayChart({
   // On the now column, not the clock: the window starts there, so 12:43 would fall left of it.
   const nowX = nowCell === null ? null : x(nowCell.ms)
 
+  // The read bead's ring reaches into the gutter at the first hours, where the
+  // window starts at now: a figure it would touch (the ring, plus a figure's
+  // half-height of 4) is left out while it does.
+  const beadAt = selected === null || selected.tempC === null ? null : { x: x(selected.ms), y: y(selected.tempC) }
+  const covered = (gy: number) =>
+    beadAt !== null && beadAt.x - BEAD_RING_R < span.left && Math.abs(beadAt.y - gy) < BEAD_RING_R + 4
+
   const pick = (e: PointerEvent<SVGSVGElement>) => {
     const box = e.currentTarget.getBoundingClientRect()
     const vx = ((e.clientX - box.left) / Math.max(1, box.width)) * LIQUID_W
-    setPicked(fromMs + ((vx - hoursSpan.left) / (hoursSpan.right - hoursSpan.left)) * (toMs - fromMs) + HOUR_MS / 2)
+    setPicked(fromMs + ((vx - span.left) / (span.right - span.left)) * (toMs - fromMs) + HOUR_MS / 2)
   }
   const step = (e: KeyboardEvent<SVGSVGElement>) => {
     clearTapped(e)
@@ -143,8 +147,8 @@ export function TodayChart({
             large
             hour={isNow ? 'Now' : clockLong(selected.hour)}
             items={readItems(selected, scored, lineColor(selected), dew.length > 0, hours.some((p) => p.chancePct !== null))}
-            at={((x(selected.ms) - hoursSpan.left) / (hoursSpan.right - hoursSpan.left)) * 100}
-            span={hoursSpan}
+            at={((x(selected.ms) - span.left) / (span.right - span.left)) * 100}
+            span={span}
           />
         )}
         <svg
@@ -179,7 +183,7 @@ export function TodayChart({
           {ticks.map((v) => (
             <g key={`g${v}`}>
               <line x1={span.left} x2={span.right} y1={y(fToC(v))} y2={y(fToC(v))} stroke={chartColorsV2.grid} />
-              <ScaleFigure side="start" y={y(fToC(v))}>{`${v}°`}</ScaleFigure>
+              {covered(y(fToC(v))) ? null : <ScaleFigure side="start" y={y(fToC(v))}>{`${v}°`}</ScaleFigure>}
             </g>
           ))}
 
