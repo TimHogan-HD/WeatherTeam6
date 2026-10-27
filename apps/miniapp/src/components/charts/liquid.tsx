@@ -135,11 +135,13 @@ export function Frost({ top, bottom, color }: { top: readonly Pt[]; bottom: read
   )
 }
 
+export const BEAD_RING_R = 13
+
 /** The hour being read, on a line: a glass ring around a dot of the line's colour. */
 export function Bead({ x, y, color }: { x: number; y: number; color: string }) {
   return (
     <g pointerEvents="none" data-bead="">
-      <circle cx={x} cy={y} r={13} fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.55)" strokeWidth={1.2} />
+      <circle cx={x} cy={y} r={BEAD_RING_R} fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.55)" strokeWidth={1.2} />
       <circle cx={x} cy={y} r={5} fill={color} />
     </g>
   )
