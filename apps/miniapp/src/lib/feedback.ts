@@ -1,7 +1,10 @@
 import {
+  FEEDBACK_CLOCK_SKEW_MS,
   FEEDBACK_KIND_LABEL,
+  FEEDBACK_SPAN_MAX_HOURS,
   FORECAST_VERDICT_LABEL,
   OBSERVED_CONDITIONS_LABEL,
+  SUN_EXPOSURE_LABEL,
   fieldLine,
   summarizeReadings,
   type Conditions,
@@ -63,6 +66,38 @@ export function fromLocalInputValue(value: string): number | null {
 }
 
 /**
+ * The end of a climbing span from a `time` input's `HH:MM`, on the start's own
+ * day — a session at a crag does not cross midnight. `null` for an empty or
+ * invalid value, or one that does not come after the start.
+ */
+export function untilFromTimeValue(fromMs: number, value: string): number | null {
+  const m = /^(\d{2}):(\d{2})$/.exec(value)
+  if (m === null) return null
+  const d = new Date(fromMs)
+  d.setHours(Number(m[1]), Number(m[2]), 0, 0)
+  const ms = d.getTime()
+  return Number.isFinite(ms) && ms > fromMs ? ms : null
+}
+
+/**
+ * Why a typed Finished time would be refused, or `null` when it is fine or
+ * empty — the server's own limits (`parseObservedUntil`), said on the field
+ * rather than as a failed save.
+ */
+export function untilProblem(fromMs: number | null, value: string, nowMs: number): string | null {
+  if (value === '' || fromMs === null) return null
+  const untilMs = untilFromTimeValue(fromMs, value)
+  if (untilMs === null) return 'The finish time must be after the start, on the same day.'
+  if (untilMs > nowMs + FEEDBACK_CLOCK_SKEW_MS) return 'The finish time can’t be later than now.'
+  if (untilMs - fromMs > FEEDBACK_SPAN_MAX_HOURS * 3600_000) {
+    return `The finish time must be within ${FEEDBACK_SPAN_MAX_HOURS} hours of the start.`
+  }
+  return null
+}
+
+const timeOf =(d: Date): string => d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+
+/**
  * The lines an open feedback item prints, shared by the reader's own list on
  * `/feedback` and the owner's list of everyone's on Profile, so the two never
  * describe one row differently. `author` leads the head when given — the
@@ -75,14 +110,18 @@ export function fromLocalInputValue(value: string): number | null {
 export function feedbackLines(
   item: Feedback,
   author?: string,
-): { head: string; verdict: string | null; appSaid: string | null } {
+): { head: string; verdict: string | null; where: string | null; appSaid: string | null } {
   const when = new Date(item.observed_at ?? item.created_at)
+  // Absent on a row from an API older than the field: read as "not said".
+  const untilIso = item.observed_until ?? null
+  const until = untilIso === null ? null : new Date(untilIso)
   const head = [
     author,
     FEEDBACK_KIND_LABEL[item.kind],
     item.location_name,
     Number.isFinite(when.getTime())
-      ? when.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+      ? when.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) +
+        (until !== null && Number.isFinite(until.getTime()) ? ` – ${timeOf(until)}` : '')
       : null,
   ]
     .filter((p): p is string => p !== null && p !== undefined)
@@ -100,5 +139,9 @@ export function feedbackLines(
         ? 'No app reading attached'
         : `App said: ${item.app_readings.fields.map(fieldLine).join(' · ')}`
 
-  return { head, verdict, appSaid }
+  const sun = item.sun_exposure ?? null
+  const whereParts = [item.area_name ?? null, item.wall ?? null, sun === null ? null : SUN_EXPOSURE_LABEL[sun]].filter((p): p is string => p !== null)
+  const where = item.kind === 'forecast' && whereParts.length > 0 ? whereParts.join(' · ') : null
+
+  return { head, verdict, where, appSaid }
 }

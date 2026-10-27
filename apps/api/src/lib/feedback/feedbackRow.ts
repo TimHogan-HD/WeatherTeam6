@@ -21,6 +21,11 @@ export function toFeedback(row: FeedbackRow): Feedback {
     observed_conditions: row.observed_conditions,
     verdict: row.verdict,
     app_readings: readings !== null && 'error' in readings ? null : readings,
+    area_id: row.area_id,
+    area_name: row.area_name,
+    wall: row.wall,
+    observed_until: row.observed_until === null ? null : row.observed_until.toISOString(),
+    sun_exposure: row.sun_exposure,
     created_at: row.created_at.toISOString(),
   }
 }

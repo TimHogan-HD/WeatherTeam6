@@ -31,6 +31,15 @@ export type ObservedConditions = (typeof OBSERVED_CONDITIONS)[number];
 export const FORECAST_VERDICTS = ['matched', 'partly', 'missed'] as const;
 export type ForecastVerdict = (typeof FORECAST_VERDICTS)[number];
 
+/**
+ * How much sun the rock the climber was on got while they were there. The
+ * score has no shade input (Crag A scores eight compass walls and takes the
+ * median), so this is what a later comparison needs to tell "the model was
+ * wrong" from "the model was right about a wall nobody climbed".
+ */
+export const SUN_EXPOSURES = ['full_sun', 'mostly_sun', 'mixed', 'mostly_shade', 'full_shade'] as const;
+export type SunExposure = (typeof SUN_EXPOSURES)[number];
+
 /** Longest free-text message accepted, in characters. */
 export const FEEDBACK_MESSAGE_MAX = 4000;
 /** Most reading fields a snapshot may carry — the screen shows at most four. */
@@ -39,6 +48,12 @@ export const FEEDBACK_READING_FIELDS_MAX = 8;
 export const FEEDBACK_READING_TEXT_MAX = 60;
 /** How far back a forecast check may be dated. Older than this is a memory. */
 export const FEEDBACK_OBSERVED_MAX_AGE_DAYS = 60;
+/** Longest area or wall name accepted. OpenBeta's longest Minnesota area name is 52. */
+export const FEEDBACK_PLACE_TEXT_MAX = 80;
+/** The longest a check's climbing span may run — one day at the crag, not a trip. */
+export const FEEDBACK_SPAN_MAX_HOURS = 16;
+/** A check may be entered a few minutes "ahead" by a phone whose clock runs fast. */
+export const FEEDBACK_CLOCK_SKEW_MS = 5 * 60 * 1000;
 
 /**
  * What the app was showing, captured by the client when the check was entered.
@@ -64,10 +79,27 @@ export type CreateAppFeedbackInput = {
   location_id?: string | null;
 };
 
+/**
+ * Where on the crag, when, and in how much sun — every part optional, because
+ * a check with only the rock's state is still a check. `null` is "not said",
+ * never "none".
+ */
+export type ForecastCheckDetails = {
+  /** OpenBeta's id for the guidebook area picked, or null when typed or not said. */
+  area_id: string | null;
+  /** The area's name as the climber saw it — kept beside the id so it survives a new snapshot. */
+  area_name: string | null;
+  /** Free text: the wall, buttress or route within the area. */
+  wall: string | null;
+  /** UTC instant, ISO 8601 — when they stopped. `observed_at` is when they started. */
+  observed_until: string | null;
+  sun_exposure: SunExposure | null;
+};
+
 export type CreateForecastFeedbackInput = {
   kind: 'forecast';
   location_id: string;
-  /** UTC instant, ISO 8601 — when the climber saw the rock. */
+  /** UTC instant, ISO 8601 — when the climber saw the rock, or started climbing when `observed_until` is set. */
   observed_at: string;
   observed_conditions: ObservedConditions;
   verdict: ForecastVerdict;
@@ -78,7 +110,7 @@ export type CreateForecastFeedbackInput = {
    * sends `null` explicitly when it had nothing to attach.
    */
   app_readings: FeedbackAppReadings | null;
-};
+} & Partial<ForecastCheckDetails>;
 
 export type CreateFeedbackInput = CreateAppFeedbackInput | CreateForecastFeedbackInput;
 
@@ -96,7 +128,7 @@ export type Feedback = {
   verdict: ForecastVerdict | null;
   app_readings: FeedbackAppReadings | null;
   created_at: string;
-};
+} & ForecastCheckDetails;
 
 export function isFeedbackKind(v: unknown): v is FeedbackKind {
   return typeof v === 'string' && (FEEDBACK_KINDS as readonly string[]).includes(v);
@@ -109,6 +141,18 @@ export function isObservedConditions(v: unknown): v is ObservedConditions {
 export function isForecastVerdict(v: unknown): v is ForecastVerdict {
   return typeof v === 'string' && (FORECAST_VERDICTS as readonly string[]).includes(v);
 }
+
+export function isSunExposure(v: unknown): v is SunExposure {
+  return typeof v === 'string' && (SUN_EXPOSURES as readonly string[]).includes(v);
+}
+
+export const SUN_EXPOSURE_LABEL: Record<SunExposure, string> = {
+  full_sun: 'Full sun',
+  mostly_sun: 'Mostly sun',
+  mixed: 'Half and half',
+  mostly_shade: 'Mostly shade',
+  full_shade: 'Full shade',
+};
 
 export const FEEDBACK_KIND_LABEL: Record<FeedbackKind, string> = {
   app: 'App feedback',
@@ -136,22 +180,28 @@ export const FORECAST_VERDICT_LABEL: Record<ForecastVerdict, string> = {
 export const FEEDBACK_SNAPSHOT_TOLERANCE_MS = 60 * 60 * 1000;
 
 /**
- * The snapshot to attach to a check observed at `observedAtMs`, or `null`.
+ * The snapshot to attach to a check observed at `observedAtMs` — or climbed
+ * from `observedAtMs` until `untilMs` — or `null`.
  *
- * **A reading is attached only when it describes the hour being reported on.**
+ * **A reading is attached only when it describes an hour being reported on.**
  * A check dated yesterday afternoon against a reading of this morning would
  * record a comparison nobody made — the app never said that about that hour —
  * and it would look exactly like a real one in the table (defect class 3).
+ * With a span, any hour inside it counts, so a check entered at the end of a
+ * session still carries the reading of its last hour; `valid_at` says which.
  * Empty fields are also `null`: *"the app showed nothing"* is not a reading.
  */
 export function feedbackSnapshotFor(
   reading: { valid_at: string; model: string | null; fields: ReadingField[] } | null,
   observedAtMs: number,
+  untilMs: number | null = null,
 ): FeedbackAppReadings | null {
   if (reading === null || reading.fields.length === 0) return null;
   const readingMs = Date.parse(reading.valid_at);
   if (!Number.isFinite(readingMs) || !Number.isFinite(observedAtMs)) return null;
-  if (Math.abs(readingMs - observedAtMs) > FEEDBACK_SNAPSHOT_TOLERANCE_MS) return null;
+  const endMs = untilMs !== null && Number.isFinite(untilMs) && untilMs > observedAtMs ? untilMs : observedAtMs;
+  if (readingMs < observedAtMs - FEEDBACK_SNAPSHOT_TOLERANCE_MS) return null;
+  if (readingMs > endMs + FEEDBACK_SNAPSHOT_TOLERANCE_MS) return null;
   return {
     valid_at: reading.valid_at,
     model: reading.model,

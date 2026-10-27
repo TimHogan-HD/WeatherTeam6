@@ -6,10 +6,13 @@ import {
   FEEDBACK_KIND_LABEL,
   FEEDBACK_KINDS,
   FEEDBACK_MESSAGE_MAX,
+  FEEDBACK_PLACE_TEXT_MAX,
   FORECAST_VERDICT_LABEL,
   FORECAST_VERDICTS,
   OBSERVED_CONDITIONS,
   OBSERVED_CONDITIONS_LABEL,
+  SUN_EXPOSURE_LABEL,
+  SUN_EXPOSURES,
   feedbackSnapshotFor,
   fieldLine,
   type CreateFeedbackInput,
@@ -17,12 +20,14 @@ import {
   type FeedbackKind,
   type ForecastVerdict,
   type ObservedConditions,
+  type SunExposure,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { brandButton, cardV2, choicePill, fieldV2, quietButton, row, stack } from '../theme/styles.js'
 import { backTarget } from '../lib/backTarget.js'
-import { feedbackLines, fromLocalInputValue, shownReading, toLocalInputValue } from '../lib/feedback.js'
+import { feedbackLines, fromLocalInputValue, shownReading, toLocalInputValue, untilFromTimeValue, untilProblem } from '../lib/feedback.js'
 import { severeAlertEvent } from '../lib/forecast.js'
+import { useGuidebook } from '../hooks/useGuidebook.js'
 import { useLocations } from '../hooks/useLocations.js'
 import { useNow } from '../hooks/useNow.js'
 import { useAlerts, useConditions } from '../hooks/useWeather.js'
@@ -86,6 +91,11 @@ export function Feedback() {
   )
 }
 
+/** The area select's value for "not in the guidebook" — not a uuid, so never sent as one. */
+const OTHER_AREA = 'other'
+
+const blankToNull = (s: string): string | null => (s.trim() === '' ? null : s.trim())
+
 function ForecastCheckForm({
   initialLocationId,
   onSaved,
@@ -103,15 +113,32 @@ function ForecastCheckForm({
 
   const now = useNow()
   const [when, setWhen] = useState(() => toLocalInputValue(Date.now()))
+  const [untilTime, setUntilTime] = useState('')
   const [observed, setObserved] = useState<ObservedConditions | null>(null)
   const [verdict, setVerdict] = useState<ForecastVerdict | null>(null)
   const [message, setMessage] = useState('')
+  // `areaPick` is a guidebook area id, OTHER_AREA for a typed one, or '' for not said.
+  const [areaPick, setAreaPick] = useState('')
+  const [areaText, setAreaText] = useState('')
+  const [wall, setWall] = useState('')
+  const [sun, setSun] = useState<SunExposure | null>(null)
 
   const conditions = useConditions(locationId ?? undefined, locationId === null ? undefined : true)
   const alerts = useAlerts(locationId ?? undefined)
+  const guidebook = useGuidebook(locationId ?? undefined, locationId === null ? undefined : true)
   const create = useCreateFeedback()
 
+  // A failed or empty guidebook is a typed area, not a missing field.
+  const areas = guidebook.data?.walls ?? []
+  const pickedArea = areas.find((a) => a.id === areaPick) ?? null
+  const typedArea = areas.length === 0 || areaPick === OTHER_AREA
+
   const observedMs = fromLocalInputValue(when)
+  const untilMs = observedMs === null ? null : untilFromTimeValue(observedMs, untilTime)
+  // Refused here, on the field, rather than saved as "no end time" or sent
+  // to a 400 that the screen can only call a failed save.
+  const untilError = untilProblem(observedMs, untilTime, now)
+  const untilInvalid = untilError !== null
   // The snapshot waits for the alerts query as the card does: an unsettled
   // alerts query reads as "no alert", and the score would be recorded as shown
   // when the card would have withheld it (defect class 7).
@@ -119,10 +146,22 @@ function ForecastCheckForm({
   const snapshot =
     observedMs === null || !readingSettled
       ? null
-      : feedbackSnapshotFor(shownReading(conditions.data, severeAlertEvent(alerts.data)), observedMs)
+      : feedbackSnapshotFor(shownReading(conditions.data, severeAlertEvent(alerts.data)), observedMs, untilMs)
 
   const ready =
-    locationId !== null && observedMs !== null && observed !== null && verdict !== null && readingSettled
+    locationId !== null &&
+    observedMs !== null &&
+    !untilInvalid &&
+    observed !== null &&
+    verdict !== null &&
+    readingSettled
+
+  const pickCrag = (id: string) => {
+    setPicked(id)
+    setAreaPick('')
+    setAreaText('')
+    setWall('')
+  }
 
   const submit = () => {
     if (!ready) return
@@ -134,12 +173,20 @@ function ForecastCheckForm({
       verdict,
       message: message.trim() === '' ? null : message,
       app_readings: snapshot,
+      area_id: typedArea ? null : (pickedArea?.id ?? null),
+      area_name: typedArea ? blankToNull(areaText) : (pickedArea?.name ?? null),
+      wall: blankToNull(wall),
+      observed_until: untilMs === null ? null : new Date(untilMs).toISOString(),
+      sun_exposure: sun,
     }
     create.mutate(input, {
       onSuccess: () => {
         setObserved(null)
         setVerdict(null)
         setMessage('')
+        setUntilTime('')
+        setSun(null)
+        // Area and wall stay: a second check from the same day is usually the same spot.
         onSaved()
       },
     })
@@ -156,7 +203,7 @@ function ForecastCheckForm({
   return (
     <section style={{ ...cardV2, ...stack(spacing.sectionGap) }}>
       <Field label="Crag">
-        <select value={locationId ?? ''} onChange={(e) => setPicked(e.target.value)} style={fieldV2} aria-label="Crag">
+        <select value={locationId ?? ''} onChange={(e) => pickCrag(e.target.value)} style={fieldV2} aria-label="Crag">
           {crags.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -165,15 +212,71 @@ function ForecastCheckForm({
         </select>
       </Field>
 
-      <Field label="When you saw it">
+      <Field label="Area (optional)">
+        {/* Held until the guidebook settles: a box typed into while it loads
+            would be swapped for the list and its text dropped. */}
+        {guidebook.isPending ? (
+          <span style={typeV2.body}>Loading the crag’s areas…</span>
+        ) : areas.length === 0 ? null : (
+          <select value={areaPick} onChange={(e) => setAreaPick(e.target.value)} style={fieldV2} aria-label="Area">
+            <option value="">Pick an area</option>
+            {areas.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+            <option value={OTHER_AREA}>Somewhere else</option>
+          </select>
+        )}
+        {typedArea && !guidebook.isPending ? (
+          <input
+            type="text"
+            value={areaText}
+            maxLength={FEEDBACK_PLACE_TEXT_MAX}
+            onChange={(e) => setAreaText(e.target.value)}
+            placeholder="e.g. Cyclops Area"
+            style={fieldV2}
+            aria-label={areas.length === 0 ? 'Area' : 'Area name'}
+          />
+        ) : null}
+      </Field>
+
+      <Field label="Wall or route (optional)">
+        <input
+          type="text"
+          value={wall}
+          maxLength={FEEDBACK_PLACE_TEXT_MAX}
+          onChange={(e) => setWall(e.target.value)}
+          placeholder="e.g. the left arete"
+          style={fieldV2}
+          aria-label="Wall or route"
+        />
+      </Field>
+
+      <Field label="Started climbing">
         <input
           type="datetime-local"
           value={when}
           max={toLocalInputValue(now)}
           onChange={(e) => setWhen(e.target.value)}
           style={fieldV2}
-          aria-label="When you saw it"
+          aria-label="Started climbing"
         />
+      </Field>
+
+      <Field label="Finished (optional)">
+        <input
+          type="time"
+          value={untilTime}
+          onChange={(e) => setUntilTime(e.target.value)}
+          style={fieldV2}
+          aria-label="Finished"
+        />
+        {untilError === null ? null : (
+          <span role="alert" style={{ ...typeV2.note, color: colorsV2.poorInk }}>
+            {untilError}
+          </span>
+        )}
       </Field>
 
       <Field label="The rock was">
@@ -186,6 +289,17 @@ function ForecastCheckForm({
         </div>
       </Field>
 
+      <Field label="Sun on the rock (optional)">
+        <div role="group" aria-label="Sun on the rock" style={{ ...row(spacing.listGapSm), flexWrap: 'wrap' }}>
+          {SUN_EXPOSURES.map((s) => (
+            // A second tap clears it: "not said" must stay reachable once picked.
+            <Choice key={s} active={sun === s} onClick={() => setSun(sun === s ? null : s)}>
+              {SUN_EXPOSURE_LABEL[s]}
+            </Choice>
+          ))}
+        </div>
+      </Field>
+
       <Field label="The app said">
         {!readingSettled ? (
           <span style={typeV2.body}>Loading the app’s reading…</span>
@@ -193,7 +307,7 @@ function ForecastCheckForm({
           // A failed fetch is not "the app had no reading" — say which it was.
           <span style={typeV2.body}>Couldn’t load the app’s reading. You can still save.</span>
         ) : snapshot === null ? (
-          <span style={typeV2.body}>No app reading for that hour. You can still save.</span>
+          <span style={typeV2.body}>No app reading for that time. You can still save.</span>
         ) : (
           <span style={{ ...typeV2.body, fontSize: '15px', color: colorsV2.txt1 }}>
             {snapshot.fields.map(fieldLine).join(' · ')}
@@ -278,12 +392,13 @@ export function HistoryItem({
   resolving?: boolean
   onResolve?: () => void
 }) {
-  const { head, verdict, appSaid } = feedbackLines(item)
+  const { head, verdict, where, appSaid } = feedbackLines(item)
 
   return (
     <article style={stack(spacing.micro)}>
       <span style={typeV2.note}>{head}</span>
       {verdict === null ? null : <span style={{ ...typeV2.body, fontSize: '15px', color: colorsV2.txt1 }}>{verdict}</span>}
+      {where === null ? null : <span style={typeV2.note}>{where}</span>}
       {appSaid === null ? null : <span style={typeV2.note}>{appSaid}</span>}
       {item.message === null ? null : (
         <p style={{ ...typeV2.body, fontSize: '15px', color: colorsV2.txt1, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
