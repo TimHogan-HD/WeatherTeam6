@@ -272,6 +272,20 @@ function nearest(instants: readonly number[], ms: number): number | null {
 }
 
 /**
+ * Marks a scrub chart as focused by a tap or a click, so `globals.css` draws no
+ * focus ring round it; a key press or leaving the chart clears the mark, so
+ * keyboard focus always gets the ring. iOS Safari counts a tap on a focusable
+ * SVG as `:focus-visible`. Press only — a mouse hover must not mark it.
+ */
+export function markTapped(e: { currentTarget: Element }) {
+  e.currentTarget.setAttribute('data-tapped', '')
+}
+
+export function clearTapped(e: { currentTarget: Element }) {
+  e.currentTarget.removeAttribute('data-tapped')
+}
+
+/**
  * One chart's frame: the viewBox, the hour labels every six hours, the
  * reading rule and the now rule, and the hit area that picks an hour.
  *
@@ -320,6 +334,7 @@ export function LiquidFrame({
     if (hit !== null && hit !== read.ms) read.onRead(hit)
   }
   const step = (e: KeyboardEvent<SVGSVGElement>) => {
+    clearTapped(e)
     const dir = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
     if (dir === 0) return
     e.preventDefault()
@@ -346,7 +361,8 @@ export function LiquidFrame({
       role="img"
       aria-label={title}
       tabIndex={bare ? undefined : 0}
-      onPointerDown={bare ? undefined : pick}
+      onPointerDown={bare ? undefined : (e) => (markTapped(e), pick(e))}
+      onBlur={bare ? undefined : clearTapped}
       onPointerMove={bare ? undefined : (e) => e.buttons > 0 || e.pointerType === 'mouse' ? pick(e) : undefined}
       onKeyDown={bare ? undefined : step}
       style={{ display: 'block', width: '100%', overflow: 'visible', touchAction: 'pan-y', cursor: bare ? 'default' : 'crosshair' }}

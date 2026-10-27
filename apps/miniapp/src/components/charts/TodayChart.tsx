@@ -17,6 +17,8 @@ import {
   ReadChip,
   Tube,
   XGradient,
+  clearTapped,
+  markTapped,
   runsOf,
   scale,
   smoothPath,
@@ -101,6 +103,7 @@ export function TodayChart({
     setPicked(fromMs + ((vx - LIQUID_PX) / (LIQUID_W - 2 * LIQUID_PX)) * (toMs - fromMs) + HOUR_MS / 2)
   }
   const step = (e: KeyboardEvent<SVGSVGElement>) => {
+    clearTapped(e)
     const dir = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
     if (dir === 0 || selected === null) return
     e.preventDefault()
@@ -142,7 +145,8 @@ export function TodayChart({
           role="img"
           aria-label={label}
           tabIndex={0}
-          onPointerDown={pick}
+          onPointerDown={(e) => (markTapped(e), pick(e))}
+          onBlur={clearTapped}
           onPointerMove={(e) => (e.buttons > 0 || e.pointerType === 'mouse' ? pick(e) : undefined)}
           onPointerLeave={(e) => (e.pointerType === 'mouse' ? setPicked(null) : undefined)}
           onKeyDown={step}

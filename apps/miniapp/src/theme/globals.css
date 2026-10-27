@@ -371,3 +371,8 @@ textarea {
   outline: 2px solid var(--wt6-color-good);
   outline-offset: 2px;
 }
+
+/* A chart a finger focused (`markTapped`): the read line already shows the hour picked. */
+[data-tapped]:focus {
+  outline: none;
+}
