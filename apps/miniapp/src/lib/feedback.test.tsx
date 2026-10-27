@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { ConditionsReadings, Conditions, Feedback, HourlyReading } from '@weatherteam6/types'
-import { feedbackLines, fromLocalInputValue, shownReading, toLocalInputValue } from './feedback.js'
+import { feedbackLines, fromLocalInputValue, shownReading, toLocalInputValue, untilFromTimeValue } from './feedback.js'
 import { HistoryItem } from '../routes/Feedback.js'
 
 const NOW = '2026-09-29T18:00:00.000Z'
@@ -75,6 +75,21 @@ describe('datetime-local round trip', () => {
   })
 })
 
+describe('untilFromTimeValue', () => {
+  const from = new Date(2026, 8, 29, 10, 30).getTime()
+
+  it('puts the end time on the start’s own day', () => {
+    expect(untilFromTimeValue(from, '14:15')).toBe(new Date(2026, 8, 29, 14, 15).getTime())
+  })
+
+  it('refuses an end at or before the start, and an empty or malformed value', () => {
+    expect(untilFromTimeValue(from, '10:30')).toBeNull()
+    expect(untilFromTimeValue(from, '09:00')).toBeNull()
+    expect(untilFromTimeValue(from, '')).toBeNull()
+    expect(untilFromTimeValue(from, '2pm')).toBeNull()
+  })
+})
+
 describe('HistoryItem', () => {
   const check: Feedback = {
     id: 'f1',
@@ -86,8 +101,34 @@ describe('HistoryItem', () => {
     observed_conditions: 'damp',
     verdict: 'missed',
     app_readings: { valid_at: NOW, model: 'gfs_seamless', fields: [{ label: 'Dryness', value: 'Dry' }] },
+    area_id: null,
+    area_name: null,
+    wall: null,
+    observed_until: null,
+    sun_exposure: null,
     created_at: NOW,
   }
+
+  it('says where and in how much sun, and leaves the line out when nothing was said', () => {
+    const html = renderToStaticMarkup(
+      <HistoryItem item={{ ...check, area_name: 'Cyclops Area', wall: 'left arete', sun_exposure: 'mostly_shade' }} />,
+    )
+    expect(html).toContain('Cyclops Area · left arete · Mostly shade')
+    expect(feedbackLines(check).where).toBeNull()
+    expect(feedbackLines({ ...check, sun_exposure: 'full_sun' }).where).toBe('Full sun')
+  })
+
+  it('reads a row from an older API, with no detail fields at all, as not said', () => {
+    const { area_id: _a, area_name: _n, wall: _w, observed_until: _u, sun_exposure: _s, ...old } = check
+    const lines = feedbackLines(old as Feedback)
+    expect(lines.where).toBeNull()
+    expect(lines.head).not.toContain('–')
+  })
+
+  it('prints the end of a climbing span after its start', () => {
+    const until = new Date(Date.parse(NOW) + 3 * 3600_000).toISOString()
+    expect(feedbackLines({ ...check, observed_until: until }).head).toMatch(/ – \d{1,2}:\d{2}/)
+  })
 
   it('shows what the climber saw beside what the app said', () => {
     const html = renderToStaticMarkup(<HistoryItem item={check} />)

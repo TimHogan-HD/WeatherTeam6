@@ -1,10 +1,16 @@
 import { describe, it, expect } from 'vitest'
-import { FEEDBACK_MESSAGE_MAX, FEEDBACK_OBSERVED_MAX_AGE_DAYS } from '@weatherteam6/types'
+import {
+  FEEDBACK_MESSAGE_MAX,
+  FEEDBACK_OBSERVED_MAX_AGE_DAYS,
+  FEEDBACK_PLACE_TEXT_MAX,
+  FEEDBACK_SPAN_MAX_HOURS,
+} from '@weatherteam6/types'
 import { parseAppReadings, parseFeedbackInput } from './parseFeedback.js'
 import { toFeedback } from './feedbackRow.js'
 
 const NOW = Date.parse('2026-09-29T18:00:00.000Z')
 const LOC = '11111111-1111-4111-8111-111111111111'
+const AREA = '33333333-3333-5333-8333-333333333333'
 
 const SNAPSHOT = {
   valid_at: '2026-09-29T18:00:00.000Z',
@@ -75,7 +81,68 @@ describe('parseFeedbackInput — forecast checks', () => {
       verdict: 'missed',
       message: 'Seeping on the left side',
       app_readings: SNAPSHOT,
+      area_id: null,
+      area_name: null,
+      wall: null,
+      observed_until: null,
+      sun_exposure: null,
     })
+  })
+
+  it('keeps where, until when and how much sun, trimmed', () => {
+    const r = parseFeedbackInput(
+      {
+        ...CHECK,
+        observed_at: '2026-09-29T14:00:00.000Z',
+        area_id: AREA,
+        area_name: ' Cyclops Area ',
+        wall: '  left arete ',
+        observed_until: '2026-09-29T17:45:00.000Z',
+        sun_exposure: 'mostly_shade',
+      },
+      NOW,
+    )
+    expect(r).toMatchObject({
+      area_id: AREA,
+      area_name: 'Cyclops Area',
+      wall: 'left arete',
+      observed_until: new Date('2026-09-29T17:45:00.000Z'),
+      sun_exposure: 'mostly_shade',
+    })
+  })
+
+  it('reads a blank area or wall as not said, and refuses one over the limit', () => {
+    expect(parseFeedbackInput({ ...CHECK, area_name: '   ', wall: '' }, NOW)).toMatchObject({ area_name: null, wall: null })
+    const long = 'x'.repeat(FEEDBACK_PLACE_TEXT_MAX + 1)
+    expect(error(parseFeedbackInput({ ...CHECK, wall: long }, NOW))).toMatch(/wall is longer/)
+    expect(error(parseFeedbackInput({ ...CHECK, wall: 'x'.repeat(FEEDBACK_PLACE_TEXT_MAX) }, NOW))).toBeNull()
+  })
+
+  it('refuses an area id with no name, and one that is not an id', () => {
+    expect(error(parseFeedbackInput({ ...CHECK, area_id: AREA }, NOW))).toMatch(/area_name is required/)
+    expect(error(parseFeedbackInput({ ...CHECK, area_id: 'cyclops', area_name: 'Cyclops' }, NOW))).toMatch(/area_id/)
+  })
+
+  it('refuses an end time before the start, in the future, or past a day of climbing', () => {
+    const at = (iso: string) => error(parseFeedbackInput({ ...CHECK, observed_until: iso }, NOW))
+    // CHECK starts at 17:30Z; NOW is 18:00Z.
+    expect(at('2026-09-29T17:30:00.000Z')).toBeNull()
+    expect(at('2026-09-29T17:29:00.000Z')).toBe('observed_until is before observed_at')
+    expect(at('2026-09-29T18:06:00.000Z')).toBe('observed_until is in the future')
+    expect(at('2026-09-29T17:45')).toMatch(/UTC offset/)
+    const early = { ...CHECK, observed_at: '2026-09-29T01:00:00.000Z' }
+    const span = (h: number) => new Date(Date.parse(early.observed_at) + h * 3600_000 + 60_000).toISOString()
+    expect(error(parseFeedbackInput({ ...early, observed_until: span(FEEDBACK_SPAN_MAX_HOURS) }, NOW))).toMatch(/hours after/)
+    expect(error(parseFeedbackInput({ ...early, observed_until: span(FEEDBACK_SPAN_MAX_HOURS - 1) }, NOW))).toBeNull()
+  })
+
+  it('refuses a sun amount outside the list', () => {
+    expect(error(parseFeedbackInput({ ...CHECK, sun_exposure: 'sunny' }, NOW))).toMatch(/sun_exposure/)
+    expect(parseFeedbackInput({ ...CHECK, sun_exposure: null }, NOW)).toMatchObject({ sun_exposure: null })
+  })
+
+  it('refuses the new fields on app feedback rather than dropping them', () => {
+    expect(error(parseFeedbackInput({ kind: 'app', message: 'hi', wall: 'x' }, NOW))).toMatch(/wall/)
   })
 
   it('accepts app_readings: null — the app had nothing for that hour', () => {
@@ -172,6 +239,11 @@ describe('toFeedback', () => {
     observed_conditions: 'wet' as const,
     verdict: 'missed' as const,
     app_readings: SNAPSHOT as unknown,
+    area_id: null,
+    area_name: 'Cyclops Area',
+    wall: null,
+    observed_until: new Date('2026-09-29T19:00:00.000Z'),
+    sun_exposure: 'full_sun' as const,
     created_at: new Date('2026-09-29T18:00:00.000Z'),
     resolved_at: null,
   }
@@ -187,6 +259,11 @@ describe('toFeedback', () => {
       observed_conditions: 'wet',
       verdict: 'missed',
       app_readings: SNAPSHOT,
+      area_id: null,
+      area_name: 'Cyclops Area',
+      wall: null,
+      observed_until: '2026-09-29T19:00:00.000Z',
+      sun_exposure: 'full_sun',
       created_at: '2026-09-29T18:00:00.000Z',
     })
   })

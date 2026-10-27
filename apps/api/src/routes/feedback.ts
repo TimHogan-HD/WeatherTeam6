@@ -7,6 +7,7 @@ import { isUuid, sendServerError } from '../lib/http.js'
 import { parseFeedbackInput } from '../lib/feedback/parseFeedback.js'
 import { toFeedback } from '../lib/feedback/feedbackRow.js'
 import { isOwner } from '../lib/auth/invites.js'
+import { guidebookFor } from '../lib/guidebook/guidebook.js'
 
 export const feedbackRouter = Router()
 
@@ -85,6 +86,17 @@ feedbackRouter.post('/feedback', async (req: Request, res: Response) => {
       place = { name: row.name, lat: Number(row.lat), lon: Number(row.lon) }
     }
 
+    // A picked area must be one the crag's own guidebook lists — the client
+    // only offers those, so anything else is a stale or forged id.
+    if (parsed.kind === 'forecast' && parsed.area_id !== null && place !== null) {
+      const areaId = parsed.area_id
+      const walls = guidebookFor(place.lat, place.lon)?.walls ?? []
+      if (!walls.some((w) => w.id === areaId)) {
+        refuse(res, 400, "area_id is not one of this crag's guidebook areas")
+        return
+      }
+    }
+
     const common = {
       user_id: req.userId,
       location_id: parsed.location_id,
@@ -103,6 +115,11 @@ feedbackRouter.post('/feedback', async (req: Request, res: Response) => {
             observed_conditions: parsed.observed_conditions,
             verdict: parsed.verdict,
             app_readings: parsed.app_readings,
+            area_id: parsed.area_id,
+            area_name: parsed.area_name,
+            wall: parsed.wall,
+            observed_until: parsed.observed_until,
+            sun_exposure: parsed.sun_exposure,
           }
 
     const inserted = await db.insert(feedback).values(values).returning()

@@ -31,6 +31,9 @@ const SECRET = 'local-acceptance-check'
 const NAME_PREFIX = 'ZZ feedback check'
 
 const RED_ROCK = { lat: 36.15192, lon: -115.45413 }
+/** OpenBeta's Cyclops Area point, inside Barn Bluff's guidebook. */
+const BARN_BLUFF = { lat: 44.56905, lon: -92.52198 }
+const CYCLOPS_AREA_ID = '16a9295d-9dda-5b6b-b610-7c6dfa297ce5'
 
 let passed = 0
 let failed = 0
@@ -163,6 +166,53 @@ async function run(): Promise<void> {
     if (bare.payload.data !== null) createdFeedback.push(bare.payload.data.id)
     check('and stores null, not {}', bare.payload.data?.app_readings === null)
 
+    console.log('\nWhere, until when, and how much sun')
+    const barn = await call<Location>('POST', '/locations', {
+      name: `${tag} barn`,
+      ...BARN_BLUFF,
+      is_climbing_location: true,
+      rock_type: 'limestone',
+    })
+    if (barn.status !== 201 || barn.payload.data === null) {
+      throw new Error(`setup: POST /locations (Barn Bluff) answered ${barn.status} ${String(barn.payload.error)}`)
+    }
+    const barnId = barn.payload.data.id
+    createdLocations.push(barnId)
+    const startedAt = new Date(Date.now() - 3 * 3600_000)
+    const detailed = await call<Feedback>('POST', '/feedback', {
+      kind: 'forecast',
+      location_id: barnId,
+      observed_at: startedAt.toISOString(),
+      observed_until: new Date().toISOString(),
+      observed_conditions: 'dry',
+      verdict: 'partly',
+      app_readings: null,
+      area_id: CYCLOPS_AREA_ID,
+      area_name: 'Cyclops Area',
+      wall: 'left arete',
+      sun_exposure: 'mostly_shade',
+    })
+    check('POST with area, wall, span and sun returns 201', detailed.status === 201, `got ${detailed.status} ${String(detailed.payload.error)}`)
+    const d = detailed.payload.data
+    if (d !== null) createdFeedback.push(d.id)
+    check(
+      'and every detail comes back as sent',
+      d?.area_id === CYCLOPS_AREA_ID && d.area_name === 'Cyclops Area' && d.wall === 'left arete' && d.sun_exposure === 'mostly_shade',
+    )
+    check('observed_until round-trips through timestamptz', d?.observed_until !== null && d?.observed_until !== undefined && Date.parse(d.observed_until) > startedAt.getTime())
+    const foreign = await call<Feedback>('POST', '/feedback', {
+      kind: 'forecast',
+      location_id: locationId,
+      observed_at: new Date().toISOString(),
+      observed_conditions: 'dry',
+      verdict: 'matched',
+      app_readings: null,
+      area_id: CYCLOPS_AREA_ID,
+      area_name: 'Cyclops Area',
+    })
+    check("a Barn Bluff area on Red Rock is a 400", foreign.status === 400, `got ${foreign.status}`)
+    if (foreign.payload.data !== null) createdFeedback.push(foreign.payload.data.id)
+
     console.log('\nApp feedback')
     const appFb = await call<Feedback>('POST', '/feedback', { kind: 'app', message: tag })
     check('POST app feedback returns 201', appFb.status === 201, `got ${appFb.status}`)
@@ -182,7 +232,7 @@ async function run(): Promise<void> {
     const list = await call<Feedback[]>('GET', '/feedback')
     check('GET returns 200', list.status === 200)
     const mine = (list.payload.data ?? []).filter((f) => createdFeedback.includes(f.id))
-    check('GET lists all three rows', mine.length === 3, `found ${mine.length}`)
+    check('GET lists all four rows', mine.length === 4, `found ${mine.length}`)
     const leaked = (list.payload.data ?? []).filter((f) => f.message?.startsWith(NAME_PREFIX) && !createdFeedback.includes(f.id))
     check('and no refused request left a row behind', leaked.every((f) => f.message !== tag))
 
@@ -207,7 +257,7 @@ async function run(): Promise<void> {
     console.log('\nDeleting the location detaches its checks')
     const removed = await call<null>('DELETE', `/locations/${locationId}`)
     check('DELETE /locations answers 200, not a foreign-key 500', removed.status === 200, `got ${removed.status}`)
-    if (removed.status === 200) createdLocations.pop()
+    if (removed.status === 200) createdLocations.splice(createdLocations.indexOf(locationId), 1)
     const after = await call<Feedback[]>('GET', '/feedback')
     const survived = (after.payload.data ?? []).find((f) => f.id === checkRow?.id)
     check('the forecast check survived', survived !== undefined)

@@ -30,6 +30,22 @@ describe('feedbackSnapshotFor', () => {
     expect(feedbackSnapshotFor(READING, HOUR_MS - FEEDBACK_SNAPSHOT_TOLERANCE_MS - 60_000)).toBeNull()
   })
 
+  it('attaches a reading from any hour of a climbing span, and none outside it', () => {
+    const H = 3600_000
+    // Climbed 10:00–17:00 relative to a 17:00 reading: the last hour counts.
+    expect(feedbackSnapshotFor(READING, HOUR_MS - 7 * H, HOUR_MS)).not.toBeNull()
+    expect(feedbackSnapshotFor(READING, HOUR_MS - 7 * H, HOUR_MS - 3 * H)).toBeNull()
+    // Without the end, the same start is seven hours off and attaches nothing.
+    expect(feedbackSnapshotFor(READING, HOUR_MS - 7 * H)).toBeNull()
+    expect(feedbackSnapshotFor(READING, HOUR_MS - 7 * H, null)).toBeNull()
+  })
+
+  it('ignores an end that is not after the start rather than widening backwards', () => {
+    const H = 3600_000
+    expect(feedbackSnapshotFor(READING, HOUR_MS + 2 * H, HOUR_MS - 5 * H)).toBeNull()
+    expect(feedbackSnapshotFor(READING, HOUR_MS - 7 * H, Number.NaN)).toBeNull()
+  })
+
   it('never pairs a check dated yesterday with this hour’s reading', () => {
     expect(feedbackSnapshotFor(READING, HOUR_MS - 24 * 3600_000)).toBeNull()
   })
