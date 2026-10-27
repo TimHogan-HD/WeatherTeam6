@@ -196,8 +196,10 @@ async function run(): Promise<void> {
         started_at: hoursAgo(3),
         ended_at: hoursAgo(1.5),
         sun_exposure: 'mostly_shade',
+        facing: 'SE',
+        tree_cover: 'partly',
       },
-      { area_id: null, area_name: 'Somewhere typed', wall_id: null, wall: null, route_picks: [], routes: null, started_at: hoursAgo(1), ended_at: null, sun_exposure: 'full_sun' },
+      { area_id: null, area_name: 'Somewhere typed', wall_id: null, wall: null, route_picks: [], routes: null, started_at: hoursAgo(1), ended_at: null, sun_exposure: 'full_sun', facing: null, tree_cover: null },
     ]
     const detailed = await call<Feedback>('POST', '/feedback', {
       kind: 'forecast',

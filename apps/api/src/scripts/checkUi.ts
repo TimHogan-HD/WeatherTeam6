@@ -1137,6 +1137,11 @@ async function run(): Promise<void> {
     if (routeOptions > 2) await routeSelect.selectOption({ index: 1 })
     const routeChip = await page.getByRole('button', { name: /^Remove (?!wall)/ }).count()
     check('a picked route shows as a removable chip', routeChip === 1, `${routeChip} chips`)
+    const facing = page.getByRole('group', { name: 'Wall 1 faces' })
+    const directions = await facing.getByRole('button').count()
+    if (directions > 0) await facing.getByRole('button', { name: 'SE', exact: true }).click()
+    const pressed = await facing.locator('[aria-pressed="true"]').count()
+    check('the wall-faces question offers 8 directions and holds one', directions === 8 && pressed === 1, `${directions} directions; ${pressed} pressed`)
     await page.getByRole('button', { name: 'Add another wall' }).click()
     const secondStop = await page
       .getByRole('combobox', { name: 'Area 2' })

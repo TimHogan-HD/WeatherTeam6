@@ -157,10 +157,15 @@ describe('stops', () => {
       AREAS,
     )
     expect(payload).toEqual([
-      { area_id: 'a1', area_name: 'Cyclops Area', wall_id: null, wall: null, route_picks: [], routes: null, started_at: new Date(at(9)).toISOString(), ended_at: new Date(at(11)).toISOString(), sun_exposure: 'mostly_shade' },
-      { area_id: null, area_name: 'Winter Wall', wall_id: null, wall: 'left', route_picks: [], routes: 'Pine Tree', started_at: new Date(at(11, 15)).toISOString(), ended_at: null, sun_exposure: null },
-      { area_id: null, area_name: null, wall_id: null, wall: null, route_picks: [], routes: null, started_at: new Date(at(13)).toISOString(), ended_at: null, sun_exposure: null },
+      { area_id: 'a1', area_name: 'Cyclops Area', wall_id: null, wall: null, route_picks: [], routes: null, started_at: new Date(at(9)).toISOString(), ended_at: new Date(at(11)).toISOString(), sun_exposure: 'mostly_shade', facing: null, tree_cover: null },
+      { area_id: null, area_name: 'Winter Wall', wall_id: null, wall: 'left', route_picks: [], routes: 'Pine Tree', started_at: new Date(at(11, 15)).toISOString(), ended_at: null, sun_exposure: null, facing: null, tree_cover: null },
+      { area_id: null, area_name: null, wall_id: null, wall: null, route_picks: [], routes: null, started_at: new Date(at(13)).toISOString(), ended_at: null, sun_exposure: null, facing: null, tree_cover: null },
     ])
+  })
+
+  it('sends which way each wall faces and its trees, each its own', () => {
+    const payload = stopsPayload(DAY, [stop('09:00', '', { areaPick: 'a1', facing: 'SE', trees: 'partly' }), stop('11:00', '', { facing: 'N' })], AREAS)
+    expect(payload?.map((s) => [s.facing, s.tree_cover])).toEqual([['SE', 'partly'], ['N', null]])
   })
 
   it('sends a picked wall and picked routes by id with their names', () => {
@@ -268,6 +273,12 @@ describe('HistoryItem', () => {
     expect(feedbackLines({ ...check, stops: [picked] }).stops[0]).toMatch(/· Routes: Cyclops, Unlisted ·/)
     const { route_picks: _omit, ...older } = STOP
     expect(feedbackLines({ ...check, stops: [older as ForecastStop] }).stops[0]).toMatch(/· Routes: Pine Tree ·/)
+  })
+
+  it('prints which way the wall faces and its trees last, and nothing for a row from an older API', () => {
+    const told: ForecastStop = { ...STOP, facing: 'SW', tree_cover: 'under' }
+    expect(feedbackLines({ ...check, stops: [told] }).stops[0]).toMatch(/· Mostly shade · Faces SW · Under trees$/)
+    expect(feedbackLines({ ...check, stops: [STOP] }).stops[0]).toMatch(/· Mostly shade$/)
   })
 
   it('prints no stop lines when none were named, or for a row from an older API', () => {

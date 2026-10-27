@@ -1,3 +1,4 @@
+import type { CompassPoint } from './compass.js';
 import type { ReadingField } from './readingsCopy.js';
 
 /**
@@ -39,6 +40,22 @@ export type ForecastVerdict = (typeof FORECAST_VERDICTS)[number];
  */
 export const SUN_EXPOSURES = ['full_sun', 'mostly_sun', 'mixed', 'mostly_shade', 'full_shade'] as const;
 export type SunExposure = (typeof SUN_EXPOSURES)[number];
+
+/**
+ * How much the trees around a wall shade it. A wall in the woods can stay in
+ * shade, and stay wet, at hours the terrain alone says are sunny — the input
+ * #398's drying clock would need.
+ */
+export const TREE_COVERS = ['open', 'partly', 'under'] as const;
+export type TreeCover = (typeof TREE_COVERS)[number];
+
+/**
+ * The directions the form offers for which way a wall faces: eight, because
+ * a climber standing at the base can tell NE from E but not ENE from E. The
+ * server accepts any of the 16 `COMPASS_POINTS`, the same spelling
+ * `locations.aspect` uses.
+ */
+export const WALL_FACING_CHOICES = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] as const satisfies readonly CompassPoint[];
 
 /** Longest free-text message accepted, in characters. */
 export const FEEDBACK_MESSAGE_MAX = 4000;
@@ -123,6 +140,13 @@ export type ForecastStop = {
   /** UTC instant, ISO 8601, after `started_at`; null when not said. */
   ended_at: string | null;
   sun_exposure: SunExposure | null;
+  /**
+   * Which way the wall faces, as the climber judged it. Optional for the deploy
+   * reason `sub_walls` is: absent on a row stored before the field reads as null.
+   */
+  facing?: CompassPoint | null;
+  /** How much tree shade the wall had. Absent reads as null, as `facing`. */
+  tree_cover?: TreeCover | null;
 };
 
 export type CreateForecastFeedbackInput = {
@@ -189,6 +213,16 @@ export const SUN_EXPOSURE_LABEL: Record<SunExposure, string> = {
   mixed: 'Half and half',
   mostly_shade: 'Mostly shade',
   full_shade: 'Full shade',
+};
+
+export function isTreeCover(v: unknown): v is TreeCover {
+  return typeof v === 'string' && (TREE_COVERS as readonly string[]).includes(v);
+}
+
+export const TREE_COVER_LABEL: Record<TreeCover, string> = {
+  open: 'No trees',
+  partly: 'Some trees',
+  under: 'Under trees',
 };
 
 export const FEEDBACK_KIND_LABEL: Record<FeedbackKind, string> = {
