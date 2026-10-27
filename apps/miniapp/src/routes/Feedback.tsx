@@ -390,7 +390,7 @@ function StopCard({
       >
         <span style={stack(spacing.micro)}>
           <span style={typeV2.guideRowName}>{area?.name ?? (stop.areaText.trim() || `Wall ${n}`)}</span>
-          {open ? null : <span style={typeV2.rowSmall}>{draftLine(stop, areas)}</span>}
+          {open ? null : <span style={typeV2.rowSmall}>{draftLine(stop)}</span>}
         </span>
         <Chevron open={open} />
       </button>

@@ -154,12 +154,12 @@ describe('stops', () => {
     expect(shade?.shade_causes).toEqual(['trees', 'clouds'])
   })
 
-  it('folds a wall to the place, start, rock and sun said so far', () => {
-    expect(draftLine(stop('09:00', '', { areaPick: 'a1', rock: 'wet', sun: 'mostly_shade', facing: 'SE' }), AREAS)).toMatch(
-      /^Cyclops Area · \d{1,2}:00.* · Wet · Mostly shade · Faces SE$/,
+  it('folds a wall to the start, rock and sun said so far, leaving the place to its name', () => {
+    expect(draftLine(stop('09:00', '', { areaPick: 'a1', rock: 'wet', sun: 'mostly_shade', facing: 'SE' }))).toMatch(
+      /^\d{1,2}:00.* · Wet · Mostly shade · Faces SE$/,
     )
-    expect(draftLine({ ...emptyStop('') }, AREAS)).toBe('Nothing said yet')
-    expect(draftLine(stop('', '', { areaPick: OTHER_AREA, areaText: ' Winter Wall ', rock: null }), AREAS)).toBe('Winter Wall')
+    expect(draftLine({ ...emptyStop('') })).toBe('Nothing said yet')
+    expect(draftLine(stop('', '', { areaPick: OTHER_AREA, areaText: ' Winter Wall ', rock: null }))).toBe('Nothing said yet')
   })
 
   const route = (id: string, grade: string | null = null): GuidebookRoute => ({

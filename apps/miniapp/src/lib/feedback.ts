@@ -319,15 +319,13 @@ export function stopLine(stop: ForecastStop): string {
 }
 
 /**
- * The one line a folded wall shows on the form: the place, the start, and the
- * rock and sun as said so far — or that nothing is said yet.
+ * The line under a folded wall's name on the form: the start, and the rock
+ * and sun as said so far — or that nothing is said yet. The place is the
+ * name above it, so it is not repeated.
  */
-export function draftLine(stop: StopDraft, areas: readonly GuidebookWall[]): string {
-  const area = pickedArea(stop, areas)
-  const place = area?.name ?? blankToNull(stop.areaText)
+export function draftLine(stop: StopDraft): string {
   const start = timeOnDay('2000-01-01', stop.from)
   const parts = [
-    place,
     start === null ? null : timeOf(new Date(start).toISOString()),
     stop.rock === null ? null : OBSERVED_CONDITIONS_LABEL[stop.rock],
     stop.sun === null ? null : SUN_EXPOSURE_LABEL[stop.sun],

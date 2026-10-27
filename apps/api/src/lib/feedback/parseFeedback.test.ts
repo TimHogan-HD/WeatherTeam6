@@ -405,6 +405,14 @@ describe('toFeedback', () => {
     })
   })
 
+  it('reads a stop saved with the retired tree_cover, dropping only that field', () => {
+    const saved = { ...STORED_STOP, facing: 'SE', tree_cover: 'partly' }
+    const [back] = toFeedback({ ...row, stops: [saved] }).stops
+    expect(back).toMatchObject({ area_name: STORED_STOP.area_name, facing: 'SE' })
+    expect(back).not.toHaveProperty('tree_cover')
+    expect(parseFeedbackInput({ ...CHECK, stops: [{ ...saved, started_at: CHECK.observed_at, ended_at: null }] }, NOW)).not.toHaveProperty('error')
+  })
+
   it('reads stored stops that no longer parse, or a null column, as none', () => {
     expect(toFeedback({ ...row, stops: [{ garbage: true }] }).stops).toEqual([])
     expect(toFeedback({ ...row, stops: null }).stops).toEqual([])

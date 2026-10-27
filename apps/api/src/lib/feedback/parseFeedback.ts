@@ -79,6 +79,9 @@ const STOP_FIELDS = [
   'shade_causes',
   'facing',
   'angle',
+  // Retired with #425: accepted and dropped, so a row saved by #424's client still
+  // reads back with its walls, and a cached client of that version can still save.
+  'tree_cover',
 ] as const
 
 const DAY_MS = 24 * 60 * 60 * 1000
