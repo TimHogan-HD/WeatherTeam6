@@ -196,6 +196,12 @@ describe('stops', () => {
     expect(pickRoute(stop('09:00'), BOULDERING, 'Zed')).toEqual({ routePicks: ['Zed'], wallPick: 'w-sizzle' })
     // A route on the area itself names no wall.
     expect(pickRoute(stop('09:00'), BOULDERING, 'Loose')).toEqual({ routePicks: ['Loose'] })
+    // A route already picked off that wall would vanish under it, so no wall is picked.
+    const withLoose = stop('09:00', '', { areaPick: 'b1', routePicks: ['Loose'] })
+    expect(pickRoute(withLoose, BOULDERING, 'Zed')).toEqual({ routePicks: ['Loose', 'Zed'] })
+    expect(stopsPayload(DAY, [{ ...withLoose, ...pickRoute(withLoose, BOULDERING, 'Zed') }], AREAS)?.[0]?.route_picks.map((r) => r.id)).toEqual(['Loose', 'Zed'])
+    // A second route on the same wall keeps it.
+    expect(pickRoute(stop('09:00', '', { routePicks: ['Sizzle'] }), BOULDERING, 'Zed')).toEqual({ routePicks: ['Sizzle', 'Zed'], wallPick: 'w-sizzle' })
     // Never moves a wall already picked.
     expect(pickRoute(stop('09:00', '', { wallPick: OTHER_AREA }), BOULDERING, 'Zed')).toEqual({ routePicks: ['Zed'] })
   })

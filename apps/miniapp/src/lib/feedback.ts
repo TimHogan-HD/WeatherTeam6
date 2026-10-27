@@ -138,13 +138,15 @@ export function routeChoices(area: GuidebookWall, wallPick: string): GuidebookRo
 
 /**
  * What picking a route changes. With no wall picked yet, the route's own wall
- * is picked for it, so the stop is tied to the wall the route is on.
+ * is picked for it, so the stop is tied to the wall the route is on — but only
+ * when every route already picked is on that wall too, since picking a wall
+ * hides the routes that are not on it.
  */
 export function pickRoute(stop: StopDraft, area: GuidebookWall, routeId: string): Partial<StopDraft> {
   const routePicks = stop.routePicks.includes(routeId) ? stop.routePicks : [...stop.routePicks, routeId]
   if (stop.wallPick !== '') return { routePicks }
   const wall = subWallsOf(area).find((w) => w.route_ids.includes(routeId))
-  return wall === undefined ? { routePicks } : { routePicks, wallPick: wall.id }
+  return wall === undefined || !routePicks.every((id) => wall.route_ids.includes(id)) ? { routePicks } : { routePicks, wallPick: wall.id }
 }
 
 /** `Pine Tree 5.9`, `Fat Bob V4`; the name alone when OpenBeta has no grade. */
