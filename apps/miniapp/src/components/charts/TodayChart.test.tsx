@@ -71,6 +71,15 @@ describe('TodayChart axis', () => {
     expect(labels).toEqual([50, 55, 60, 65, 70])
   })
 
+  it('leaves out the one figure the now bead covers at the first hour, and keeps the rest', () => {
+    const from = Date.parse('2026-10-01T02:00:00Z')
+    const day = [hour(21, '2026-10-01T02:00:00Z', fToC(50)), hour(22, '2026-10-01T03:00:00Z', fToC(70))]
+    const html = render(win(day, from), from)
+    const labels = [...html.matchAll(/text-anchor="start"[^>]*>(\d+)°<\/text>/g)].map((m) => Number(m[1]))
+    // The bead sits on the 50° gridline at the plot's left edge.
+    expect(labels).toEqual([60, 70, 80])
+  })
+
   it('draws no gridlines without a temperature', () => {
     const blank = [{ ...hour(21, '2026-10-01T02:00:00Z', 0), tempC: null }]
     const html = render(win(blank, Date.parse('2026-09-30T20:00:00Z')), Date.parse('2026-10-01T02:00:00Z'))

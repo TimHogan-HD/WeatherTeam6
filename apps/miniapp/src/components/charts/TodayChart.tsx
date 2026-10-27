@@ -101,10 +101,11 @@ export function TodayChart({
   const nowX = nowCell === null ? null : x(nowCell.ms)
 
   // The read bead's ring reaches into the gutter at the first hours, where the
-  // window starts at now: a figure it would sit on is left out while it does.
+  // window starts at now: a figure it would touch (the ring, plus a figure's
+  // half-height of 4) is left out while it does.
   const beadAt = selected === null || selected.tempC === null ? null : { x: x(selected.ms), y: y(selected.tempC) }
   const covered = (gy: number) =>
-    beadAt !== null && beadAt.x - BEAD_RING_R < span.left && Math.abs(beadAt.y - gy) < BEAD_RING_R
+    beadAt !== null && beadAt.x - BEAD_RING_R < span.left && Math.abs(beadAt.y - gy) < BEAD_RING_R + 4
 
   const pick = (e: PointerEvent<SVGSVGElement>) => {
     const box = e.currentTarget.getBoundingClientRect()
