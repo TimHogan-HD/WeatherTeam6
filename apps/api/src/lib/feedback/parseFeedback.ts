@@ -1,4 +1,5 @@
 import {
+  FEEDBACK_CLOCK_SKEW_MS,
   FEEDBACK_MESSAGE_MAX,
   FEEDBACK_OBSERVED_MAX_AGE_DAYS,
   FEEDBACK_PLACE_TEXT_MAX,
@@ -58,8 +59,6 @@ const FORECAST_FIELDS = [
   'sun_exposure',
 ] as const
 
-/** A check may be entered a few minutes "ahead" by a phone whose clock runs fast. */
-const CLOCK_SKEW_MS = 5 * 60 * 1000
 const DAY_MS = 24 * 60 * 60 * 1000
 
 type Refusal = { error: string }
@@ -169,7 +168,7 @@ function parseObservedUntil(v: unknown, from: Date, nowMs: number): Date | null 
   }
   const ms = Date.parse(v)
   if (!Number.isFinite(ms)) return { error: 'observed_until is not a valid date' }
-  if (ms > nowMs + CLOCK_SKEW_MS) return { error: 'observed_until is in the future' }
+  if (ms > nowMs + FEEDBACK_CLOCK_SKEW_MS) return { error: 'observed_until is in the future' }
   if (ms < from.getTime()) return { error: 'observed_until is before observed_at' }
   if (ms - from.getTime() > FEEDBACK_SPAN_MAX_HOURS * 3600_000) {
     return { error: `observed_until is more than ${FEEDBACK_SPAN_MAX_HOURS} hours after observed_at` }
@@ -197,7 +196,7 @@ function parseObservedAt(v: unknown, nowMs: number): Date | Refusal {
   }
   const ms = Date.parse(v)
   if (!Number.isFinite(ms)) return { error: 'observed_at is not a valid date' }
-  if (ms > nowMs + CLOCK_SKEW_MS) return { error: 'observed_at is in the future' }
+  if (ms > nowMs + FEEDBACK_CLOCK_SKEW_MS) return { error: 'observed_at is in the future' }
   if (ms < nowMs - FEEDBACK_OBSERVED_MAX_AGE_DAYS * DAY_MS) {
     return { error: `observed_at is more than ${FEEDBACK_OBSERVED_MAX_AGE_DAYS} days ago` }
   }

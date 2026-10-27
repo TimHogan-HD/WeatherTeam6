@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { ConditionsReadings, Conditions, Feedback, HourlyReading } from '@weatherteam6/types'
-import { feedbackLines, fromLocalInputValue, shownReading, toLocalInputValue, untilFromTimeValue } from './feedback.js'
+import { feedbackLines, fromLocalInputValue, shownReading, toLocalInputValue, untilFromTimeValue, untilProblem } from './feedback.js'
 import { HistoryItem } from '../routes/Feedback.js'
 
 const NOW = '2026-09-29T18:00:00.000Z'
@@ -87,6 +87,28 @@ describe('untilFromTimeValue', () => {
     expect(untilFromTimeValue(from, '09:00')).toBeNull()
     expect(untilFromTimeValue(from, '')).toBeNull()
     expect(untilFromTimeValue(from, '2pm')).toBeNull()
+  })
+})
+
+describe('untilProblem', () => {
+  const from = new Date(2026, 8, 29, 6, 0).getTime()
+  const H = 3600_000
+
+  it('passes an empty value and a finish between the start and now', () => {
+    expect(untilProblem(from, '', from + 20 * H)).toBeNull()
+    expect(untilProblem(from, '14:00', from + 9 * H)).toBeNull()
+  })
+
+  it('refuses a finish later than now — the server would 400 it', () => {
+    // Filled in at 14:00 with an expected 17:00 finish.
+    expect(untilProblem(from, '17:00', from + 8 * H)).toMatch(/later than now/)
+    // Five minutes of clock skew pass, as on the server.
+    expect(untilProblem(from, '14:05', from + 8 * H)).toBeNull()
+  })
+
+  it('refuses a span past the limit and a finish before the start', () => {
+    expect(untilProblem(from, '22:30', from + 18 * H)).toMatch(/within 16 hours/)
+    expect(untilProblem(from, '05:00', from + 8 * H)).toMatch(/after the start/)
   })
 })
 

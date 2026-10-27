@@ -25,7 +25,7 @@ import {
 import { typeV2 } from '../theme/tokens.css.js'
 import { brandButton, cardV2, choicePill, fieldV2, quietButton, row, stack } from '../theme/styles.js'
 import { backTarget } from '../lib/backTarget.js'
-import { feedbackLines, fromLocalInputValue, shownReading, toLocalInputValue, untilFromTimeValue } from '../lib/feedback.js'
+import { feedbackLines, fromLocalInputValue, shownReading, toLocalInputValue, untilFromTimeValue, untilProblem } from '../lib/feedback.js'
 import { severeAlertEvent } from '../lib/forecast.js'
 import { useGuidebook } from '../hooks/useGuidebook.js'
 import { useLocations } from '../hooks/useLocations.js'
@@ -135,9 +135,10 @@ function ForecastCheckForm({
 
   const observedMs = fromLocalInputValue(when)
   const untilMs = observedMs === null ? null : untilFromTimeValue(observedMs, untilTime)
-  // A typed end time that is not after the start is refused here rather than
-  // quietly saved as "no end time".
-  const untilInvalid = untilTime !== '' && untilMs === null
+  // Refused here, on the field, rather than saved as "no end time" or sent
+  // to a 400 that the screen can only call a failed save.
+  const untilError = untilProblem(observedMs, untilTime, now)
+  const untilInvalid = untilError !== null
   // The snapshot waits for the alerts query as the card does: an unsettled
   // alerts query reads as "no alert", and the score would be recorded as shown
   // when the card would have withheld it (defect class 7).
@@ -271,11 +272,11 @@ function ForecastCheckForm({
           style={fieldV2}
           aria-label="Finished"
         />
-        {untilInvalid ? (
+        {untilError === null ? null : (
           <span role="alert" style={{ ...typeV2.note, color: colorsV2.poorInk }}>
-            The end time must be after the start, on the same day.
+            {untilError}
           </span>
-        ) : null}
+        )}
       </Field>
 
       <Field label="The rock was">

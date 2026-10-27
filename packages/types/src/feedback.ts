@@ -52,6 +52,8 @@ export const FEEDBACK_OBSERVED_MAX_AGE_DAYS = 60;
 export const FEEDBACK_PLACE_TEXT_MAX = 80;
 /** The longest a check's climbing span may run — one day at the crag, not a trip. */
 export const FEEDBACK_SPAN_MAX_HOURS = 16;
+/** A check may be entered a few minutes "ahead" by a phone whose clock runs fast. */
+export const FEEDBACK_CLOCK_SKEW_MS = 5 * 60 * 1000;
 
 /**
  * What the app was showing, captured by the client when the check was entered.

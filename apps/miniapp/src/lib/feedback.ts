@@ -1,5 +1,7 @@
 import {
+  FEEDBACK_CLOCK_SKEW_MS,
   FEEDBACK_KIND_LABEL,
+  FEEDBACK_SPAN_MAX_HOURS,
   FORECAST_VERDICT_LABEL,
   OBSERVED_CONDITIONS_LABEL,
   SUN_EXPOSURE_LABEL,
@@ -77,7 +79,23 @@ export function untilFromTimeValue(fromMs: number, value: string): number | null
   return Number.isFinite(ms) && ms > fromMs ? ms : null
 }
 
-const timeOf = (d: Date): string => d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+/**
+ * Why a typed Finished time would be refused, or `null` when it is fine or
+ * empty — the server's own limits (`parseObservedUntil`), said on the field
+ * rather than as a failed save.
+ */
+export function untilProblem(fromMs: number | null, value: string, nowMs: number): string | null {
+  if (value === '' || fromMs === null) return null
+  const untilMs = untilFromTimeValue(fromMs, value)
+  if (untilMs === null) return 'The finish time must be after the start, on the same day.'
+  if (untilMs > nowMs + FEEDBACK_CLOCK_SKEW_MS) return 'The finish time can’t be later than now.'
+  if (untilMs - fromMs > FEEDBACK_SPAN_MAX_HOURS * 3600_000) {
+    return `The finish time must be within ${FEEDBACK_SPAN_MAX_HOURS} hours of the start.`
+  }
+  return null
+}
+
+const timeOf =(d: Date): string => d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 
 /**
  * The lines an open feedback item prints, shared by the reader's own list on
