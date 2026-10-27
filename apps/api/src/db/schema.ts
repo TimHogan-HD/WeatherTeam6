@@ -525,15 +525,6 @@ export const locationNormals = pgTable(
   (t) => [unique().on(t.location_id, t.month)],
 )
 
-export const pushTokens = pgTable('push_tokens', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  user_id: uuid('user_id')
-    .notNull()
-    .references(() => users.id),
-  token: text('token').notNull().unique(),
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-})
-
 export const weatherAlerts = pgTable(
   'weather_alerts',
   {

@@ -232,6 +232,13 @@
       "when": 1793040760261,
       "tag": "0032_trip_climb_hours",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793067358816,
+      "tag": "0033_spicy_tyrannus",
+      "breakpoints": true
     }
   ]
 }
