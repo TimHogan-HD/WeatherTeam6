@@ -164,7 +164,10 @@ describe('DayCharts — rain', () => {
     expect(svg).not.toContain('>.02<')
     // 0.4 mm an hour is under the 0.02 in floor, so the scale tops at .02 in.
     const noChance = fullDay.map((h) => ({ ...h, precip_chance_pct: null }))
-    expect(chartSvg(render(series(noChance)), 'Rain')).toContain('>.02<')
+    const html = render(series(noChance))
+    expect(chartSvg(html, 'Rain')).toContain('>.02<')
+    // The card's title names the unit the scale is in.
+    expect(html).toContain('in / hr · ensemble mean')
   })
 
   it('keeps a trace on a readable scale rather than stretching it across the plot', () => {

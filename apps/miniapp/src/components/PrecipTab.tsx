@@ -31,7 +31,7 @@ import { dryHours } from '../lib/hourlyDay.js'
 import { dayChance } from '../lib/overview.js'
 import { formatLocalHour } from '../lib/format.js'
 import { useNow } from '../hooks/useNow.js'
-import { DAY_SCALES, RainChart, sectCard } from './charts/DayCharts.js'
+import { DAY_SCALES, RainChart, rainScaleUnit, sectCard } from './charts/DayCharts.js'
 import { Sect, timeAxis } from './charts/liquid.js'
 import { DryingClock } from './DryingClock.js'
 import { PrecipHourTable } from './PrecipHourTable.js'
@@ -249,7 +249,7 @@ export function PrecipTab({ recent, isClimbingLocation, rockType, rock, hours, u
       </Card>
 
       {axis === null || utcOffsetSeconds === null ? null : (
-        <Card title="Next 48 hours" aside="ensemble mean · drag to read">
+        <Card title="Next 48 hours" aside={`${rainScaleUnit(ahead)} · ensemble mean · drag to read`}>
           <RainChart
             axis={axis}
             instants={instants}

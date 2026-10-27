@@ -101,6 +101,11 @@ const MM_PER_IN = 25.4
  */
 export const DAY_SCALES: ScaleChars = { left: 4, right: 0 }
 
+/** The unit of the scale `RainChart` draws for these hours: chance when any hour has one, else the amount. */
+export function rainScaleUnit(hours: readonly HourlySample[]): string {
+  return hasValues(chanceSeries(hours)) ? '%' : 'in / hr'
+}
+
 /** Air with no score beside it is neutral ink: a tint with no number would leak the score past its suppression. */
 const AIR_NEUTRAL = chartColorsV2.air
 
@@ -170,7 +175,7 @@ export function DayCharts({ series, selectedDate, onSelectDate, readMs, onRead, 
         />
       </section>
       <section style={sectCard}>
-        <Sect title="Rain" aside="% · ensemble mean" />
+        <Sect title="Rain" aside={`${rainScaleUnit(hours)} · ensemble mean`} />
         <RainChart
           {...frame}
           hours={hours}
