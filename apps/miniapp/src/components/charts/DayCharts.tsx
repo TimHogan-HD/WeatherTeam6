@@ -27,10 +27,9 @@ import {
   Bead,
   Frost,
   KeyRow,
-  LIQUID_PX,
   LIQUID_W,
-  Label,
   LiquidFrame,
+  ScaleFigure,
   Sect,
   Tube,
   XGradient,
@@ -40,6 +39,7 @@ import {
   timeAxis,
   valueRuns,
   type Pt,
+  type ScaleChars,
   type TimeAxis,
 } from './liquid.js'
 import {
@@ -92,6 +92,13 @@ type Read = { ms: number | null; onRead: (ms: number) => void }
 /** 0.02 in, the least the rain chart's scale may span: a trace day must not draw a downpour's shape. */
 const RAIN_MIN_TOP_MM = 0.508
 const MM_PER_IN = 25.4
+/**
+ * The longest scale figure each side of the day's charts prints: `100%` at both
+ * (chance and temperature left, humidity right; rain's inches are bare, as the
+ * card's title names the unit). Every chart under one scrub takes the same
+ * gutters, so the read hour stands at one x on each.
+ */
+export const DAY_SCALES: ScaleChars = { left: 4, right: 4 }
 
 /** Air with no score beside it is neutral ink: a tint with no number would leak the score past its suppression. */
 const AIR_NEUTRAL = chartColorsV2.air
@@ -136,7 +143,7 @@ export function DayCharts({ series, selectedDate, onSelectDate, readMs, onRead, 
   const instants = hours.map((h) => Date.parse(h.valid_at)).filter((ms) => Number.isFinite(ms))
   const first = instants[0]
   const last = instants[instants.length - 1]
-  const axis = first === undefined || last === undefined ? null : timeAxis(first, Math.max(last, first + HOUR_MS))
+  const axis = first === undefined || last === undefined ? null : timeAxis(first, Math.max(last, first + HOUR_MS), DAY_SCALES)
   const frame = { axis, instants, utcOffsetSeconds: series.utc_offset_seconds, nowMs: now, read }
   // The deterministic model is named only beside a line it drew.
   const model = series.model === null ? null : modelName(series.model)
@@ -296,12 +303,14 @@ function at(data: readonly SeriesDatum[], ms: number | null): SeriesDatum | null
  * span is set from the first and last, so nothing draws past the top line.
  */
 function Grid({
+  axis,
   ticks,
   fromLabel,
   y,
   side,
   unit,
 }: {
+  axis: TimeAxis
   ticks: readonly number[]
   fromLabel: (label: number) => number
   y: (v: number) => number
@@ -313,10 +322,8 @@ function Grid({
     <>
       {ticks.map((v) => (
         <g key={v}>
-          <line x1={LIQUID_PX} x2={LIQUID_W - LIQUID_PX} y1={yOf(v)} y2={yOf(v)} stroke={chartColorsV2.grid} />
-          <Label x={side === 'end' ? LIQUID_W - LIQUID_PX : LIQUID_PX} y={yOf(v) - 3} anchor={side}>
-            {`${v}${unit}`}
-          </Label>
+          <line x1={axis.left} x2={axis.right} y1={yOf(v)} y2={yOf(v)} stroke={chartColorsV2.grid} />
+          <ScaleFigure side={side} y={yOf(v)}>{`${v}${unit}`}</ScaleFigure>
         </g>
       ))}
     </>
@@ -403,7 +410,7 @@ function TemperatureChart({
             stops={temperature.map((d) => ({ at: axis.x(d.t) / LIQUID_W, color: airColor(d.t) }))}
           />
         </defs>
-        <Grid ticks={ticks} fromLabel={fToC} y={y} side="start" unit="°" />
+        <Grid axis={axis} ticks={ticks} fromLabel={fToC} y={y} side="start" unit="°" />
         {goodWindow === null
           ? null
           : instants
@@ -413,9 +420,9 @@ function TemperatureChart({
               ))}
         {hasValues(humidity)
           ? [50, 100].map((v) => (
-              <Label key={v} x={LIQUID_W - LIQUID_PX} y={hy(v) + (v === 100 ? 9 : -3)} anchor="end" color={chartColorsV2.humidity}>
+              <ScaleFigure key={v} side="end" y={hy(v)} color={chartColorsV2.humidity}>
                 {`${v}%`}
-              </Label>
+              </ScaleFigure>
             ))
           : null}
         {band.map((run, i) => (
@@ -506,8 +513,8 @@ export function RainChart({
 
   const chanceGrid = [0, chanceTop / 2, chanceTop].map((v) => (
     <g key={v}>
-      <line x1={LIQUID_PX} x2={LIQUID_W - LIQUID_PX} y1={cy(v)} y2={cy(v)} stroke={chartColorsV2.grid} />
-      <Label x={LIQUID_PX} y={cy(v) - 3} anchor="start">{`${v}%`}</Label>
+      <line x1={axis.left} x2={axis.right} y1={cy(v)} y2={cy(v)} stroke={chartColorsV2.grid} />
+      <ScaleFigure side="start" y={cy(v)}>{`${v}%`}</ScaleFigure>
     </g>
   ))
 
@@ -556,10 +563,10 @@ export function RainChart({
         {hasValues(chance) ? chanceGrid : null}
         {hasValues(rain) ? (
           <>
-            <Label x={LIQUID_W - LIQUID_PX} y={ry(top) + 9} anchor="end" color={colorsV2.rainLine}>{`${inches(top)} in`}</Label>
-            <Label x={LIQUID_W - LIQUID_PX} y={ry(top / 2) - 3} anchor="end" color={colorsV2.rainLine}>
+            <ScaleFigure side="end" y={ry(top)} color={colorsV2.rainLine}>{inches(top)}</ScaleFigure>
+            <ScaleFigure side="end" y={ry(top / 2)} color={colorsV2.rainLine}>
               {inches(top / 2)}
-            </Label>
+            </ScaleFigure>
           </>
         ) : null}
         {chance.map((d) =>
@@ -647,7 +654,7 @@ function WindChart({
           ...(hasValues(gusts) ? [{ label: 'gusts', value: mph(at(gusts, read.ms)?.value ?? null), color: chartColorsV2.gust }] : []),
         ]}
       >
-        <Grid ticks={ticks} fromLabel={(mph) => mph * kmhPerMph} y={y} side="end" unit="" />
+        <Grid axis={axis} ticks={ticks} fromLabel={(mph) => mph * kmhPerMph} y={y} side="end" unit="" />
         {band.map((run, i) => (
           <Frost
             key={i}

@@ -161,8 +161,9 @@ describe('DayCharts — rain', () => {
   it('draws the amount as a line on its own inch scale', () => {
     const svg = chartSvg(render(series(fullDay)), 'Rain by hour')
     expect(svg).toContain(`stroke="${chartColorsV2.rain}"`)
-    // 0.4 mm an hour is under the 0.02 in floor, so the scale tops at .02 in.
-    expect(svg).toContain('>.02 in<')
+    // 0.4 mm an hour is under the 0.02 in floor, so the scale tops at .02 in,
+    // printed bare: the card's title names the unit.
+    expect(svg).toContain('>.02<')
   })
 
   it('keeps a trace on a readable scale rather than stretching it across the plot', () => {

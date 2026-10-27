@@ -10,15 +10,15 @@ import {
   Bead,
   DISPLAY,
   KeyRow,
-  Label,
-  LIQUID_PX,
   LIQUID_W,
   MONO,
   ReadChip,
+  ScaleFigure,
   Tube,
   XGradient,
   clearTapped,
   markTapped,
+  plotSpan,
   runsOf,
   scale,
   smoothPath,
@@ -80,12 +80,14 @@ export function TodayChart({
   // The instant the reader picked, epoch ms. `null` follows now.
   const [picked, setPicked] = useState<number | null>(null)
 
-  const x = scale(fromMs, toMs, LIQUID_PX, LIQUID_W - LIQUID_PX)
   const temps = hours.flatMap((p) => [p.tempC, p.dewC]).filter((v): v is number => v !== null)
   // Gridlines in °F, as Daily's temperature chart has them (#399); the span is
   // the ticks', so nothing draws past the top line.
   const ticks = temps.length === 0 ? [] : niceTicks(cToF(Math.min(...temps)), cToF(Math.max(...temps)))
   const y = scale(fToC(ticks[0] ?? 32), fToC(ticks[ticks.length - 1] ?? 34), PLOT_B, TOP)
+  // The figures stand at the right end: the window starts at now, so the left edge is under the now bead.
+  const span = plotSpan({ left: 0, right: Math.max(0, ...ticks.map((v) => `${v}°`.length)) })
+  const x = scale(fromMs, toMs, span.left, span.right)
 
   const scored = hours.some((p) => p.score !== null)
   const lineColor = (p: ChartHour) => (p.score === null ? chartColorsV2.air : scoreRampColor(p.score))
@@ -100,7 +102,7 @@ export function TodayChart({
   const pick = (e: PointerEvent<SVGSVGElement>) => {
     const box = e.currentTarget.getBoundingClientRect()
     const vx = ((e.clientX - box.left) / Math.max(1, box.width)) * LIQUID_W
-    setPicked(fromMs + ((vx - LIQUID_PX) / (LIQUID_W - 2 * LIQUID_PX)) * (toMs - fromMs) + HOUR_MS / 2)
+    setPicked(fromMs + ((vx - span.left) / (span.right - span.left)) * (toMs - fromMs) + HOUR_MS / 2)
   }
   const step = (e: KeyboardEvent<SVGSVGElement>) => {
     clearTapped(e)
@@ -137,7 +139,8 @@ export function TodayChart({
             large
             hour={isNow ? 'Now' : clockLong(selected.hour)}
             items={readItems(selected, scored, lineColor(selected), dew.length > 0, hours.some((p) => p.chancePct !== null))}
-            at={((x(selected.ms) - LIQUID_PX) / (LIQUID_W - 2 * LIQUID_PX)) * 100}
+            at={((x(selected.ms) - span.left) / (span.right - span.left)) * 100}
+            span={span}
           />
         )}
         <svg
@@ -171,9 +174,8 @@ export function TodayChart({
 
           {ticks.map((v) => (
             <g key={`g${v}`}>
-              <line x1={LIQUID_PX} x2={LIQUID_W - LIQUID_PX} y1={y(fToC(v))} y2={y(fToC(v))} stroke={chartColorsV2.grid} />
-              {/* At the right end: the window starts at now, so the left edge is under the now bead. */}
-              <Label x={LIQUID_W - LIQUID_PX} y={y(fToC(v)) - 3} anchor="end">{`${v}°`}</Label>
+              <line x1={span.left} x2={span.right} y1={y(fToC(v))} y2={y(fToC(v))} stroke={chartColorsV2.grid} />
+              <ScaleFigure side="end" y={y(fToC(v))}>{`${v}°`}</ScaleFigure>
             </g>
           ))}
 

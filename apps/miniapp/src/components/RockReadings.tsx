@@ -26,10 +26,8 @@ import { chartColorsV2 } from './charts/chartStyle.js'
 import {
   Bead,
   KeyRow,
-  LIQUID_PX,
-  LIQUID_W,
-  Label,
   LiquidFrame,
+  ScaleFigure,
   Sect,
   Tube,
   runsOf,
@@ -118,8 +116,14 @@ export function CondensationCard({
   const last = series[series.length - 1]
   if (values.length === 0 || first === undefined || last === undefined) return null
 
-  const axis = timeAxis(first.t, Math.max(last.t, first.t + 3_600_000))
   const ticks = niceTicks(Math.min(0, ...values), Math.max(CONDENSATION_EDGE_F * 2, ...values))
+  // Printed to the tenth the shading uses (2 °C is 3.6°F), so an hour at 3.8°F is never called "more than 4°F".
+  const edge = Number(CONDENSATION_EDGE_F.toFixed(1))
+  // The ticks' figures stand at the right, the edge's at the left.
+  const axis = timeAxis(first.t, Math.max(last.t, first.t + 3_600_000), {
+    left: `${edge}°`.length,
+    right: Math.max(0, ...ticks.map((v) => `${v}°`.length)),
+  })
   const lo = ticks[0] ?? 0
   const hi = ticks[ticks.length - 1] ?? CONDENSATION_EDGE_F * 2
   const y = scale(lo, hi, H - BOTTOM, TOP + 4)
@@ -128,8 +132,6 @@ export function CondensationCard({
   const read = readMs !== null && instants.includes(readMs) ? readMs : nowHour
   const readHour = series.find((h) => h.t === read) ?? null
   const half = (axis.x(first.t + 3_600_000) - axis.x(first.t)) / 2
-  // Printed to the tenth the shading uses (2 °C is 3.6°F), so an hour at 3.8°F is never called "more than 4°F".
-  const edge = Number(CONDENSATION_EDGE_F.toFixed(1))
   const ahead = series.filter((h) => h.t > now && h.marginF !== null).length
   const condHours = condensationHoursAhead(series, now)
   const runs = runsOf(
@@ -161,12 +163,12 @@ export function CondensationCard({
         >
           {ticks.map((v) => (
             <g key={v}>
-              <line x1={LIQUID_PX} x2={LIQUID_W - LIQUID_PX} y1={y(v)} y2={y(v)} stroke={chartColorsV2.grid} />
-              <Label x={LIQUID_W - LIQUID_PX} y={y(v) - 3} anchor="end">{`${v}°`}</Label>
+              <line x1={axis.left} x2={axis.right} y1={y(v)} y2={y(v)} stroke={chartColorsV2.grid} />
+              <ScaleFigure side="end" y={y(v)}>{`${v}°`}</ScaleFigure>
             </g>
           ))}
           {now > first.t ? (
-            <rect x={LIQUID_PX} y={TOP} width={Math.max(0, axis.x(Math.min(now, last.t)) - LIQUID_PX)} height={H - BOTTOM - TOP} fill={chartColorsV2.past} />
+            <rect x={axis.left} y={TOP} width={Math.max(0, axis.x(Math.min(now, last.t)) - axis.left)} height={H - BOTTOM - TOP} fill={chartColorsV2.past} />
           ) : null}
           {series.map((h) =>
             h.marginF === null || h.marginF >= CONDENSATION_EDGE_F ? null : (
@@ -183,8 +185,8 @@ export function CondensationCard({
             ),
           )}
           <line
-            x1={LIQUID_PX}
-            x2={LIQUID_W - LIQUID_PX}
+            x1={axis.left}
+            x2={axis.right}
             y1={y(CONDENSATION_EDGE_F)}
             y2={y(CONDENSATION_EDGE_F)}
             stroke={colorsV2.poorInk}
@@ -192,7 +194,7 @@ export function CondensationCard({
             strokeDasharray="4 4"
             opacity={0.8}
           />
-          <Label x={LIQUID_PX} y={y(CONDENSATION_EDGE_F) - 4} anchor="start" color={colorsV2.poorInk}>{`${edge}°`}</Label>
+          <ScaleFigure side="start" y={y(CONDENSATION_EDGE_F)} color={colorsV2.poorInk}>{`${edge}°`}</ScaleFigure>
           {runs.map((pts, i) => (
             <Tube key={i} d={smoothPath(pts)} stroke={colorsV2.dewMargin} width={4} />
           ))}
