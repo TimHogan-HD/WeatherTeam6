@@ -38,7 +38,7 @@ export type SlimInputs = {
   /** The location's local today, from the forecast's `is_today`. */
   todayDate: string | null
   /**
-   * The day scores, suppressed through `summarizeReadings` as everywhere else.
+   * The day scores, through `summarizeReadings` as everywhere else.
    * `null` for a city and while `/hourly` is in flight.
    */
   readings: DayReadings | null
@@ -128,10 +128,9 @@ function dayScore(i: SlimInputs, date: string | null, label: string): SlimFigure
 const NOW_TOLERANCE_MS = 90 * 60_000
 
 /**
- * The hour the Hourly charts are reading: its score, suppressed as everywhere
- * else. No line of figures (owner, 2026-10-20): each chart names the hour's own
- * in its chip, so the name is the header's headline. Only a score withheld by
- * an alert says so under it.
+ * The hour the Hourly charts are reading: its score. No line of figures (owner,
+ * 2026-10-20): each chart names the hour's own in its chip, so the name is the
+ * header's headline.
  *
  * A city has no score, so its figure is the hour's air temperature, the
  * temperature chart's own median.
@@ -162,19 +161,9 @@ function hourRead(i: SlimInputs): SlimFigure {
           reading,
           window: null,
           utcOffsetSeconds: offset,
-          severeAlertEvent: i.readings.severeAlertEvent,
-          alertsPending: i.readings.alertsPending,
           unavailableReason: null,
         }).score
-  const withheld =
-    i.readings !== null && i.readings.severeAlertEvent !== null && reading !== null && reading.score !== null
-  return {
-    value: score,
-    unit: null,
-    label,
-    tone: 'score',
-    line: withheld ? 'Alert: score withheld' : null,
-  }
+  return { value: score, unit: null, label, tone: 'score', line: null }
 }
 
 function dayHigh(i: SlimInputs, date: string | null, label: string): SlimFigure {

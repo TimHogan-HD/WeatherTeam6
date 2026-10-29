@@ -134,8 +134,8 @@ The longest run of hours with rock `drying` or `dry`, friction `fair` or better,
   be one: `stateLabel` and `summarizeConditions` were deleted for this.
 - **The number's colour** uses `SCORE_BANDS` (`packages/types/src/conditionsCopy.ts`):
   ≥ 80, ≥ 60, ≥ 40, below. Colour only, no words.
-- **Severe+ NWS alerts drop the number and keep the readings.** The number also waits for the
-  alerts query (`alertsPending`). Both live in `summarizeReadings`.
+- **No alert withholds the number** (owner, 2026-10-29), and the number does not wait for
+  the alerts query. Warnings show beside the score on the crag screen and the trip screen (`AlertBanner`) and on the list card; a map pin is a dot and carries the score alone. See `.claude/rules/readings.md`.
 
 ### Still open
 

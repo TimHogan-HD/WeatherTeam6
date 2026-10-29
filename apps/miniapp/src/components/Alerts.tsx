@@ -1,5 +1,5 @@
 import { colors, spacing } from '@weatherteam6/design/tokens'
-import { isSevereAlert, type WeatherAlert } from '@weatherteam6/types'
+import type { WeatherAlert } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { alertSurface, stack } from '../theme/styles.js'
 import { sortBySeverity } from '../lib/forecast.js'
@@ -35,32 +35,4 @@ export function AlertBanner({ alerts }: { alerts: readonly WeatherAlert[] }) {
       ))}
     </div>
   )
-}
-
-/**
- * The list card's pill: event name only (§3). Tapping the card, not the pill,
- * opens detail — so this is not interactive.
- */
-export function AlertPill({ alerts }: { alerts: readonly WeatherAlert[] }) {
-  const alert = sortBySeverity(alerts)[0]
-  if (alert === undefined) return null
-
-  return (
-    <span
-      style={{
-        ...alertSurface,
-        display: 'inline-block',
-        padding: `${spacing.micro}px ${spacing.inlineGap}px`,
-        ...type.labelSm,
-        color: colors.poor,
-      }}
-    >
-      {alert.event}
-    </span>
-  )
-}
-
-/** Whether any of these alerts triggers §7's suppression rule. */
-export function hasSevereAlert(alerts: readonly WeatherAlert[] | undefined): boolean {
-  return alerts?.some((a) => isSevereAlert(a.severity)) ?? false
 }

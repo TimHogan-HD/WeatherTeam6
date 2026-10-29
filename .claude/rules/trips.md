@@ -79,7 +79,7 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   known by the `rock_history` rule, so the walk's starting guess never scores a day.
 - **The trip screen joins two sources on `local_date`, one per figure** (`lib/trips.ts`,
   `tripDayTiles`): score, Dryness and Friction from the crag's `/hourly` readings through
-  `summarizeReadings` (alerts pending and Severe+ suppress the number, as everywhere);
+  `summarizeReadings`, as everywhere (no alert withholds the number, owner, 2026-10-29);
   high, low, chance and amount from the trip outlook for every day, so no tile mixes two
   sources for one figure. **Agreement** is `agreementShare` (`packages/types/tripCopy.ts`),
   the majority side of `members_wet` against the rest, withheld when either is unknown, and

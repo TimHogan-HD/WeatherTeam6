@@ -35,8 +35,6 @@ function inputs(over: Partial<SlimInputs> = {}): SlimInputs {
     readings: {
       days: [day('2026-09-27', 99), day('2026-09-28', 61), day('2026-09-29', 88), day('2026-09-30', 88)],
       utcOffsetSeconds: OFFSET,
-      severeAlertEvent: null,
-      alertsPending: false,
     },
     hours: [
       sample('2026-09-28T16:00:00Z', '2026-09-28', { precip_chance_pct: 12 }),
@@ -58,19 +56,6 @@ describe('slimFigure on Daily', () => {
     expect(f.value).toBe(88)
     expect(f.label).toBe('best day')
     expect(f.line).toBe('Tuesday · no good hours · Dry')
-  })
-
-  it('withholds the figure while alerts load and under a Severe+ alert, as every score is', () => {
-    const base = inputs()
-    if (base.readings === null) throw new Error('fixture')
-    for (const readings of [
-      { ...base.readings, alertsPending: true },
-      { ...base.readings, severeAlertEvent: 'Excessive Heat Warning' },
-    ]) {
-      const f = slimFigure('daily', { ...base, readings })
-      expect(f.value).toBeNull()
-      expect(f.line).toBeNull()
-    }
   })
 
   it('carries a city’s high today instead, since a city has no score', () => {
@@ -110,16 +95,6 @@ describe('slimFigure on Hourly', () => {
     expect(f.label).toBe('Tue 12 PM')
     // No reading for that hour: a gap, never a borrowed neighbour's score.
     expect(f.value).toBeNull()
-  })
-
-  it('withholds the score under a Severe+ alert and says so, and withholds it silently while alerts load', () => {
-    const base = inputs({ hours, hourReadings, readMs: READ })
-    const severe = slimFigure('hourly', { ...base, readings: { ...base.readings!, severeAlertEvent: 'Flood Warning' } })
-    expect(severe.value).toBeNull()
-    expect(severe.line).toBe('Alert: score withheld')
-    const pending = slimFigure('hourly', { ...base, readings: { ...base.readings!, alertsPending: true } })
-    expect(pending.value).toBeNull()
-    expect(pending.line).toBeNull()
   })
 
   it('dashes a city’s figure with no median air, never the deterministic one', () => {

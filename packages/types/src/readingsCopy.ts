@@ -234,9 +234,7 @@ export function heldBackFields(
  * nobody could measure is defect class 1. It is simply absent: an empty row,
  * not a dash that reads as a measurement of nothing.
  *
- * **The score is deliberately not here.** It is suppressed under a Severe+
- * alert and the reading is not, so building them together would put that rule
- * somewhere it could be forgotten; `summarizeReadings` owns it.
+ * **The score is deliberately not here**; `summarizeReadings` writes it.
  */
 export function readingFields(rock: RockReading | null): ReadingField[] {
   return rock === null ? [] : [{ label: DRYNESS_LABEL, value: ROCK_LABELS[rock.level] }];
@@ -372,22 +370,6 @@ export type ReadingsSummaryInput = {
   window: ConditionsWindow | null;
   /** The location's own offset, for the window's clock times. */
   utcOffsetSeconds: number;
-  /**
-   * The event name of an active Severe or Extreme alert, e.g.
-   * `Extreme Heat Warning`. **`null` also means "no alert"**, so a caller whose
-   * alerts query has not settled passes `alertsPending` as well rather than
-   * letting an unsettled query read as an all-clear.
-   */
-  severeAlertEvent: string | null;
-  /**
-   * Whether the alerts query is still in flight. **The number waits for it** —
-   * drawing a score before suppression can be decided shows an unsuppressed
-   * number under a warning that has not arrived yet (defect class 7).
-   *
-   * Optional because a caller holding a settled list of alerts — the bot — has
-   * nothing to wait for.
-   */
-  alertsPending?: boolean;
   /** Set when there are no readings at all; `reading` and `window` are then null. */
   unavailableReason: ReadingsUnavailableReason | null;
   /**
@@ -411,23 +393,22 @@ export type ReadingsSummary = {
    * The score as a field, for a surface that writes it — **third, after the
    * readings, never above them**.
    *
-   * `null` when the score was not computed, when a Severe+ alert is active, and
-   * while the alerts query is in flight. A caller must not substitute the raw
-   * number.
+   * `null` when the score was not computed. **No alert withholds it** (owner,
+   * 2026-10-29): a warning is shown beside the score, never instead of it,
+   * until the app has an alert system deep enough to justify hiding a number.
    */
   scoreField: ReadingField | null;
-  /** The bare score, for a surface that draws rather than writes it. Same suppression. */
+  /** The bare score, for a surface that draws rather than writes it. */
   score: number | null;
   /**
    * What is holding the score down, from `heldBackFields`, set under
-   * `HELD_BACK_LABEL`. **Same suppression as the score**: the reason for a
-   * number the reader cannot see is the number leaking through. Also `null`
-   * when the API did not send the order.
+   * `HELD_BACK_LABEL`. `null` with the score, and when the API did not send
+   * the order.
    */
   heldBack: ReadingField[] | null;
   /** `Good hours` and its span. `null` when there are no readings at all. */
   window: ReadingField | null;
-  /** *"see the Extreme Heat Warning above"*, or the condensation qualifier. */
+  /** The condensation qualifier, or `null`. */
   qualifier: string | null;
   /**
    * The caveats this surface must print, in order — fragments, meant to be
@@ -442,20 +423,15 @@ export type ReadingsSummary = {
 /**
  * Everything a surface says about one hour's readings, in one place.
  *
- * ## The suppression rule, and how it differs from the one it replaces
+ * ## No alert suppression
  *
- * `summarizeConditions` dropped the **word** under a Severe+ alert and kept the
- * **number**. This does the opposite, and the reversal is the whole point of
- * the model change:
- *
- * - The words are now derived from physics that sees heat. *"Friction — Poor"*
- *   beside an Extreme Heat Warning is not the contradiction *"Dry, settled"*
- *   was — it is the same fact the warning is about, and hiding it leaves the
- *   reader with less.
- * - The **number** is the convenience, and it is the thing that reads as
- *   actionable. Under an active Severe+ alert it is dropped entirely and the
- *   alert is named instead, which is how *"safety stays out of the number"*
- *   (§ Constraints) is carried on a surface.
+ * Until 2026-10-29 an active Severe+ alert dropped the number and named the
+ * alert, and the number waited for the alerts query. The owner removed both:
+ * one warning hid every day's score regardless of when it applied, and any
+ * Severe warning counted, relevant to climbing or not. Withholding a score for
+ * safety needs a deeper alert and warning system first. Until then the alerts
+ * show in their own banner beside the score, and the score stays out of safety
+ * by measuring only rock and grip.
  *
  * There is **no component-based suppression**, because there are no components.
  * A day with `Friction: Poor` cannot render a bare good-looking summary for the
@@ -467,8 +443,6 @@ export function summarizeReadings(input: ReadingsSummaryInput): ReadingsSummary 
     reading,
     window,
     utcOffsetSeconds,
-    severeAlertEvent,
-    alertsPending = false,
     unavailableReason,
   } = input;
 
@@ -488,20 +462,8 @@ export function summarizeReadings(input: ReadingsSummaryInput): ReadingsSummary 
   const rock = reading?.rock ?? null;
   const friction = reading?.friction ?? null;
 
-  // An alert outranks everything, exactly as it did before (§7 rule 5), and
-  // only one qualifier is ever shown — two reads as a list of complaints.
-  const qualifier =
-    severeAlertEvent !== null
-      ? `Score hidden: ${severeAlertEvent}`
-      : friction?.condensing === true
-        ? CONDENSING_NOTE
-        : null;
-
-  // Suppressed under a Severe+ alert and while the alerts query is in flight,
-  // and `null` is the only signal. A caller that reaches past this for
-  // `reading.score` is defeating the rule.
-  const score =
-    severeAlertEvent !== null || alertsPending ? null : (reading?.score ?? null);
+  const qualifier = friction?.condensing === true ? CONDENSING_NOTE : null;
+  const score = reading?.score ?? null;
 
   const notes: string[] = [];
   // That friction is an estimate is said once, on the Overview's Rock card

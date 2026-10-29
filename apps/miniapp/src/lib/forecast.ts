@@ -96,11 +96,6 @@ export function sortBySeverity(alerts: readonly WeatherAlert[]): WeatherAlert[] 
   )
 }
 
-/** The event name of an active Severe+ alert, for §7's suppression rule. */
-export function severeAlertEvent(alerts: readonly WeatherAlert[] | undefined): string | null {
-  return alerts?.find((a) => isSevereAlert(a.severity))?.event ?? null
-}
-
 /**
  * Source attribution now lives in `@weatherteam6/types` — the bot must name the
  * same sources for the same location, and one implementation is the only way

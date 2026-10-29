@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Conditions, ConditionsReadings, HourlyReading, Location, WeatherAlert } from '@weatherteam6/types'
+import type { Conditions, ConditionsReadings, HourlyReading, Location } from '@weatherteam6/types'
 import { EMPTY_VIEW, SINGLE_PIN_ZOOM, initialView, mapPins, type PinSource } from './mapPins.js'
 
 const reading: HourlyReading = {
@@ -22,15 +22,12 @@ const scored = (score: number): Conditions => {
   return { readings } as Conditions
 }
 
-const severe = { id: 'a', event: 'Extreme Heat Warning', severity: 'Severe', headline: null } as WeatherAlert
-
 const crag = (over: Partial<Location> = {}): Location =>
   ({ id: 'c1', name: 'Taylors Falls', lat: 45.3955, lon: -92.6616, is_climbing_location: true, ...over }) as Location
 
 const source = (over: Partial<PinSource> = {}): PinSource => ({
   location: crag(),
   conditions: { data: scored(84), isPending: false },
-  alerts: { data: [], isPending: false },
   ...over,
 })
 
@@ -44,14 +41,6 @@ describe('mapPins', () => {
   it('carries a settled crag’s score and its rung', () => {
     expect(only(source())).toEqual({ id: 'c1', name: 'Taylors Falls', lat: 45.3955, lon: -92.6616, score: 84, tone: 'good' })
     expect(only(source({ conditions: { data: scored(31), isPending: false } }))?.tone).toBe('poor')
-  })
-
-  it('draws no number while alerts are pending, however good the reading', () => {
-    expect(only(source({ alerts: { data: undefined, isPending: true } }))).toMatchObject({ score: null, tone: null })
-  })
-
-  it('draws no number under a Severe alert', () => {
-    expect(only(source({ alerts: { data: [severe], isPending: false } }))).toMatchObject({ score: null, tone: null })
   })
 
   it('draws no number for a place that is not a crag, even with a cached reading', () => {

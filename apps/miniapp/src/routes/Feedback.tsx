@@ -59,11 +59,10 @@ import {
   toLocalTimeValue,
   type StopDraft,
 } from '../lib/feedback.js'
-import { severeAlertEvent } from '../lib/forecast.js'
 import { useGuidebook } from '../hooks/useGuidebook.js'
 import { useLocations } from '../hooks/useLocations.js'
 import { useNow } from '../hooks/useNow.js'
-import { useAlerts, useConditions } from '../hooks/useWeather.js'
+import { useConditions } from '../hooks/useWeather.js'
 import { useCreateFeedback, useFeedbackList, useResolveFeedback } from '../hooks/useFeedback.js'
 import { Screen } from '../components/Screen.js'
 import { Sect } from '../components/charts/liquid.js'
@@ -151,7 +150,6 @@ function ForecastCheckForm({
   const observed = cragRockOf(stops.map((s) => s.rock))
 
   const conditions = useConditions(locationId ?? undefined, locationId === null ? undefined : true)
-  const alerts = useAlerts(locationId ?? undefined)
   const guidebook = useGuidebook(locationId ?? undefined, locationId === null ? undefined : true)
   const create = useCreateFeedback()
 
@@ -162,14 +160,11 @@ function ForecastCheckForm({
   // Refused under the row, rather than sent to a 400 the screen can only
   // call a failed save.
   const problems = stops.map((s) => stopProblem(day, s, span?.fromMs ?? null, now))
-  // The snapshot waits for the alerts query as the card does: an unsettled
-  // alerts query reads as "no alert", and the score would be recorded as shown
-  // when the card would have withheld it (defect class 7).
-  const readingSettled = !conditions.isPending && !alerts.isPending
+  const readingSettled = !conditions.isPending
   const snapshot =
     span === null || !readingSettled
       ? null
-      : feedbackSnapshotFor(shownReading(conditions.data, severeAlertEvent(alerts.data)), span.fromMs, span.untilMs)
+      : feedbackSnapshotFor(shownReading(conditions.data), span.fromMs, span.untilMs)
 
   const missing = missingAnswer(stops, verdict)
   const ready =

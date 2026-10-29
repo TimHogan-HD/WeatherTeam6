@@ -166,7 +166,7 @@ function ok<T>(data: T) {
 }
 
 function alertsOk(data: WeatherAlert[]) {
-  return { data, isPending: false, isError: false }
+  return { data, isError: false }
 }
 
 beforeEach(() => {
@@ -271,26 +271,18 @@ describe('DetailView — the Overview hero', () => {
     expect(html).not.toContain('>80<')
   })
 
-  it('drops the number under a Severe+ alert, names the alert, and keeps the readings', () => {
+  // Owner, 2026-10-29: a warning sits beside the score, never in place of it.
+  it('keeps the number under a Severe+ alert, with the alert in its banner above', () => {
     const html = overview({ alerts: alertsOk([heatWarning]) })
     const h = hero(html)
-    expect(h).not.toContain('>58<')
-    expect(h).not.toContain('Today: 71')
-    expect(visible(h)).toContain('Score hidden: Extreme Heat Warning')
+    expect(h).toContain('>58<')
+    expect(visible(h)).not.toContain('Score hidden')
     expect(visible(h)).toContain('Dryness: Dry')
-    // The banner sits above the hero, always (§7 rule 5).
     expect(html.indexOf('Extreme Heat Warning')).toBeLessThan(html.indexOf('<h1'))
   })
 
-  it('holds the readings until the alerts query settles, but not the weather', () => {
-    const h = hero(overview({ alerts: { data: undefined, isPending: true, isError: false } }))
-    expect(h).not.toContain('>58<')
-    expect(visible(h)).not.toContain('Dryness')
-    expect(visible(h)).toContain('103°F')
-  })
-
-  it('shows the readings and the number when the alerts query settled as an error, and says it failed', () => {
-    const html = overview({ alerts: { data: undefined, isPending: false, isError: true } })
+  it('shows the readings and the number when the alerts query failed, and says it failed', () => {
+    const html = overview({ alerts: { data: undefined, isError: true } })
     expect(hero(html)).toContain('>58<')
     expect(html).toContain('load alerts')
   })

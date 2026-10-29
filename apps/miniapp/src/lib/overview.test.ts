@@ -58,12 +58,11 @@ describe('chartWindow', () => {
   )
   /** The `valid_at` of a local hour on 9/28; past 23 runs into 9/29. */
   const local = (hour: number) => new Date(start + hour * H).toISOString()
-  const alerts = { severeAlertEvent: null, alertsPending: false }
 
   it('runs sixteen hours on from the hour read as now, across midnight, and nothing before it', () => {
     // 20:40 local reads as the 21:00 hour, so 20:00 is past and not drawn.
     const nowMs = Date.parse(local(20)) + 40 * 60_000
-    const w = chartWindow(series(hours), nowMs, null)
+    const w = chartWindow(series(hours), nowMs, false)
     expect(w?.hours[0]?.valid_at).toBe(readingNow(hours, nowMs)?.valid_at)
     expect(w?.hours.map((h) => h.hour)).toEqual([21, 22, 23, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
     expect(w?.hours.at(-1)?.local_date).toBe('2026-09-29')
@@ -73,7 +72,7 @@ describe('chartWindow', () => {
 
   it('moves with the clock, turning at the half hour', () => {
     const at = (hour: number, min: number) =>
-      chartWindow(series(hours), Date.parse(local(hour)) + min * 60_000, null)?.hours[0]?.hour
+      chartWindow(series(hours), Date.parse(local(hour)) + min * 60_000, false)?.hours[0]?.hour
     expect([at(0, 0), at(13, 29), at(13, 31), at(19, 59)]).toEqual([0, 13, 14, 20])
   })
 
@@ -82,7 +81,7 @@ describe('chartWindow', () => {
       sample(local(10), '2026-09-28', { temp_c: 12, dewpoint_c: 10, wind_kmh: 8, precip_chance_pct: 20 }),
       sample(local(11), '2026-09-28', { temp_c: null, precip_chance_pct: null }),
     ]
-    const [ten, eleven] = chartWindow(series(given), Date.parse(local(10)), null)?.hours ?? []
+    const [ten, eleven] = chartWindow(series(given), Date.parse(local(10)), false)?.hours ?? []
     expect(ten).toMatchObject({ tempC: 12, dewC: 10, windKmh: 8, chancePct: 20 })
     expect(eleven?.tempC).toBeNull()
     expect(eleven?.chancePct).toBeNull()
@@ -92,29 +91,20 @@ describe('chartWindow', () => {
     // Listed out of order: a positional join would swap them.
     const rs = [reading(local(21), { score: 52 }), reading(local(15), { score: 8 })]
     const now = Date.parse(local(15))
-    const scored = chartWindow(series(hours, rs), now, alerts)?.hours ?? []
+    const scored = chartWindow(series(hours, rs), now, true)?.hours ?? []
     expect(scored.find((h) => h.valid_at === local(15))?.score).toBe(8)
     expect(scored.find((h) => h.valid_at === local(21))?.score).toBe(52)
     expect(scored.filter((h) => h.score !== null)).toHaveLength(2)
-    expect(chartWindow(series(hours, rs), now, null)?.hours.every((h) => h.score === null)).toBe(true)
-  })
-
-  it('withholds every score under a Severe+ alert and while alerts load', () => {
-    const rs = [reading(local(15), { score: 80 })]
-    const now = Date.parse(local(15))
-    const severe = chartWindow(series(hours, rs), now, { severeAlertEvent: 'Extreme Heat Warning', alertsPending: false })
-    expect(severe?.hours.every((h) => h.score === null)).toBe(true)
-    const pending = chartWindow(series(hours, rs), now, { severeAlertEvent: null, alertsPending: true })
-    expect(pending?.hours.every((h) => h.score === null)).toBe(true)
+    expect(chartWindow(series(hours, rs), now, false)?.hours.every((h) => h.score === null)).toBe(true)
   })
 
   it('tolerates a response from an API older than the readings field', () => {
     const old = { utc_offset_seconds: OFFSET, hours } as unknown as HourlySeries
-    expect(chartWindow(old, Date.parse(local(15)), alerts)?.hours.every((h) => h.score === null)).toBe(true)
+    expect(chartWindow(old, Date.parse(local(15)), true)?.hours.every((h) => h.score === null)).toBe(true)
   })
 
   it('has no window for a series with no hours', () => {
-    expect(chartWindow(series([]), Date.parse(local(15)), null)).toBeNull()
+    expect(chartWindow(series([]), Date.parse(local(15)), false)).toBeNull()
   })
 })
 
@@ -184,12 +174,7 @@ describe('nextDays', () => {
     row('2026-10-02'),
   ]
 
-  const readings = (days: ReadingsDay[], over: { severe?: string | null; pending?: boolean } = {}) => ({
-    days,
-    utcOffsetSeconds: OFFSET,
-    severeAlertEvent: over.severe ?? null,
-    alertsPending: over.pending ?? false,
-  })
+  const readings = (days: ReadingsDay[]) => ({ days, utcOffsetSeconds: OFFSET })
 
   it('lists the three days after today in date order', () => {
     const out = nextDays(forecast, '2026-09-28', null)
@@ -218,14 +203,6 @@ describe('nextDays', () => {
     expect(nextDays(forecast, '2026-09-28', null).every((d) => d.score === null)).toBe(true)
     const partial = nextDays(forecast, '2026-09-28', readings([day('2026-09-29', 88)]))
     expect(partial.map((d) => d.score)).toEqual([88, null, null])
-  })
-
-  it('withholds every score under a Severe+ alert and while alerts load', () => {
-    const days = [day('2026-09-29', 88), day('2026-09-30', 70)]
-    const severe = nextDays(forecast, '2026-09-28', readings(days, { severe: 'Extreme Heat Warning' }))
-    expect(severe.every((d) => d.score === null)).toBe(true)
-    const pending = nextDays(forecast, '2026-09-28', readings(days, { pending: true }))
-    expect(pending.every((d) => d.score === null)).toBe(true)
   })
 })
 

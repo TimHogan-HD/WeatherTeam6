@@ -21,32 +21,24 @@ import { TripCragGrid } from '../components/trips/TripCragGrid.js'
 import { TripLookBackGrid, TripLookBackView } from '../components/trips/TripLookBack.js'
 import { hourlyQuery } from '../hooks/useHourly.js'
 import { alertsQuery } from '../hooks/useWeather.js'
+import { AlertBanner } from '../components/Alerts.js'
 import { useLocations } from '../hooks/useLocations.js'
 import { forgetTrip, useDeleteTrip, useTrip, useTripForecast, useTripSummary, useTripTrend } from '../hooks/useTrips.js'
 import { backTarget, editTripPath, tripCragPath } from '../lib/backTarget.js'
-import { severeAlertEvent } from '../lib/forecast.js'
 import type { DayReadings } from '../lib/overview.js'
 import { cragCount, deviceToday, formatTripDates, tripDates, tripIsOver, tripTiming, type TrendSeries } from '../lib/trips.js'
 
 /**
  * What a day's score is read from at one crag, or `null` when there is nothing
  * to score with: `/hourly` in flight or failed, an API older than `readings`,
- * a location that is not a crag. The number also waits for the alerts query,
- * inside `summarizeReadings` (`alertsPending`), and stays withheld when it
- * fails: this screen has no "alerts unavailable" line, so a failed check must
- * not read as "no alerts".
+ * a location that is not a crag.
  */
-export function dayReadingsFor(
-  hourly: { data: HourlySeries | undefined },
-  alerts: { data: readonly WeatherAlert[] | undefined; isPending: boolean; isError: boolean },
-): DayReadings | null {
+export function dayReadingsFor(hourly: { data: HourlySeries | undefined }): DayReadings | null {
   const readings = hourly.data?.readings
   if (hourly.data === undefined || readings === undefined || readings.unavailable_reason !== null) return null
   return {
     days: readings.days,
     utcOffsetSeconds: hourly.data.utc_offset_seconds,
-    severeAlertEvent: severeAlertEvent(alerts.data),
-    alertsPending: alerts.isPending || alerts.isError,
   }
 }
 
@@ -78,12 +70,23 @@ export function TripScreen() {
   const hourly = useQueries({
     queries: ids.map((id) => ({ ...hourlyQuery(id, climbHours), enabled: !over && scoredIds.includes(id) })),
   })
-  const alerts = useQueries({ queries: ids.map((id) => ({ ...alertsQuery(id), enabled: !over })) })
   const readingsFor = (id: string): DayReadings | null => {
-    const i = ids.indexOf(id)
-    const h = hourly[i]
-    const a = alerts[i]
-    return h === undefined || a === undefined || !scoredIds.includes(id) ? null : dayReadingsFor(h, a)
+    const h = hourly[ids.indexOf(id)]
+    return h === undefined || !scoredIds.includes(id) ? null : dayReadingsFor(h)
+  }
+  // The crags' active warnings, shown above the days: no alert withholds a score
+  // (owner, 2026-10-29), so the warning has to be on screen beside it. An ended
+  // trip reads storage, not forecasts, and asks for none.
+  const alerts = useQueries({ queries: ids.map((id) => ({ ...alertsQuery(id), enabled: !over })) })
+  const alertsFor = (id: string): TripAlertsCrag => {
+    const a = alerts[ids.indexOf(id)]
+    return {
+      id,
+      name: byId.get(id)?.name ?? 'Crag',
+      alerts: a?.data ?? [],
+      // A failed check is said, never read as "no warnings" (defect class 2).
+      retry: a?.isError === true ? () => void a.refetch() : null,
+    }
   }
 
   // The trip form offers only crags; until the list loads, a location is taken to be one.
@@ -207,6 +210,7 @@ export function TripScreen() {
         feedbackLocationId={focus}
       />
       <div style={{ ...stack(spacing.listGapLg), padding: `0 ${spacing.sectionGap}px`, paddingBottom: navClearance }}>
+        {over ? null : <TripAlerts crags={(focus === null ? ids : [focus]).map(alertsFor)} />}
         {body}
         {t === undefined ? null : (
           <GuideCard title="Trip" label="Trip">
@@ -253,3 +257,32 @@ export function TripScreen() {
 }
 
 const tripAction: CSSProperties = { ...bareButton, ...typeV2.dayPick, width: 'auto', minHeight: '44px' }
+
+export type TripAlertsCrag = {
+  id: string
+  name: string
+  /** `[]` while the check loads, as on the crag screen, and when it failed. */
+  alerts: readonly WeatherAlert[]
+  /** The alerts check failed: its retry. `null` otherwise. */
+  retry: (() => void) | null
+}
+
+/**
+ * The trip's active warnings, above the days, and any crag whose check failed.
+ * One crag's are unlabelled, as on its own screen; several crags each name
+ * theirs. Nothing renders when every check answered with no warning.
+ */
+export function TripAlerts({ crags }: { crags: readonly TripAlertsCrag[] }) {
+  const shown = crags.filter((c) => c.alerts.length > 0 || c.retry !== null)
+  if (shown.length === 0) return null
+  return (
+    <div style={stack(spacing.listGapSm)}>
+      {shown.map((c) => (
+        <div key={c.id} style={stack(spacing.micro)}>
+          {crags.length > 1 ? <span style={typeV2.lineLabel}>{c.name}</span> : null}
+          {c.retry === null ? <AlertBanner alerts={c.alerts} /> : <InlineError message="Couldn't load alerts." onRetry={c.retry} />}
+        </div>
+      ))}
+    </div>
+  )
+}

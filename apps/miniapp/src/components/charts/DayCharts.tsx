@@ -76,15 +76,10 @@ export type DayChartsProps = {
   readMs: number | null
   onRead: (ms: number) => void
   /**
-   * What only the screen knows about the readings: whether a Severe+ alert is
-   * active, whether that query has settled, and whether this location is a
+   * What only the screen knows about the readings: whether this location is a
    * crag at all. The readings themselves come from `series`.
    */
-  score?: {
-    severeAlertEvent: string | null
-    alertsPending: boolean
-    showScore: boolean
-  }
+  score?: { showScore: boolean }
 }
 
 type Read = { ms: number | null; onRead: (ms: number) => void }
@@ -106,7 +101,7 @@ export function rainScaleUnit(hours: readonly HourlySample[]): string {
   return hasValues(chanceSeries(hours)) ? '%' : 'in / hr'
 }
 
-/** Air with no score beside it is neutral ink: a tint with no number would leak the score past its suppression. */
+/** Air with no score beside it is neutral ink: a tint with no number would claim a score nobody can read. */
 const AIR_NEUTRAL = chartColorsV2.air
 
 export const sectCard: CSSProperties = { ...cardV2, padding: `${spacing.sectionGap}px 14px 14px` }
@@ -122,18 +117,15 @@ export function DayCharts({ series, selectedDate, onSelectDate, readMs, onRead, 
   // **Matched on the date, never on position.**
   const readingsDay = (series.readings?.days ?? []).find((d) => d.local_date === selectedDate) ?? null
   const showReadings = score !== undefined && score.showScore && series.readings !== undefined
-  const alerts = { severeAlertEvent: score?.severeAlertEvent ?? null, alertsPending: score?.alertsPending ?? false }
   const summarize = (reading: HourlyReading | null, withWindow: boolean) =>
     summarizeReadings({
       reading,
       window: withWindow ? (readingsDay?.window ?? null) : null,
       utcOffsetSeconds: series.utc_offset_seconds,
-      severeAlertEvent: alerts.severeAlertEvent,
-      alertsPending: alerts.alertsPending,
       unavailableReason: series.readings?.unavailable_reason ?? null,
     })
 
-  // Each hour's score as every surface suppresses it, joined on `valid_at`.
+  // Each hour's score, joined on `valid_at`.
   const byInstant = new Map<string, HourlyReading>()
   for (const r of series.readings?.hours ?? []) byInstant.set(r.valid_at, r)
   const scoreAt = (validAt: string): number | null => {

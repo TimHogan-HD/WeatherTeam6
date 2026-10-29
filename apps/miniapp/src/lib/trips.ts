@@ -167,7 +167,7 @@ export function dayWeather(day: OutlookDay): DayWeather {
 }
 
 export type TripDayTile =
-  /** Inside the crag's readings: the words and the score, suppressed as every surface suppresses it. */
+  /** Inside the crag's readings: the words and the score, through `summarizeReadings` as on every surface. */
   | {
       kind: 'scored'
       local_date: string
@@ -207,8 +207,6 @@ export function tripDayTiles(input: {
         reading: day.best,
         window: day.window,
         utcOffsetSeconds: input.readings.utcOffsetSeconds,
-        severeAlertEvent: input.readings.severeAlertEvent,
-        alertsPending: input.readings.alertsPending,
         unavailableReason: null,
       })
       return { kind: 'scored', local_date, weather, summary, reading: day.best }

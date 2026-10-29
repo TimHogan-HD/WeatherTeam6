@@ -102,7 +102,8 @@ interactive descendant, for click *and* key events separately.
 
 - The conditions score rendered before the alerts query resolved, so a location under an
   active Severe+ warning briefly showed an **unsuppressed** score — exactly the state the
-  suppression rule exists to prevent.
+  suppression rule existed to prevent. (The owner removed alert suppression on 2026-10-29;
+  the class stands for any output that depends on two async sources.)
 
 **How to find it:** when output depends on two async sources, check what renders while
 one is still pending. "Briefly wrong" is still wrong when the rule is about safety.

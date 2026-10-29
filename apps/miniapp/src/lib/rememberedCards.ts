@@ -7,9 +7,8 @@ import type { Conditions, ForecastSnapshot, WeatherAlert } from '@weatherteam6/t
  * for a moment rather than a splash).
  *
  * **A card is remembered whole or not at all.** Forecast, conditions and alerts
- * are swapped for the live ones together, so a card never prints a score
- * suppressed by one moment's alerts and computed from another moment's
- * conditions. The score it shows is the one the card printed at `savedAt`.
+ * are swapped for the live ones together, so a card never prints one moment's
+ * alert beside another moment's score. The score it shows is the one the card printed at `savedAt`.
  *
  * **It is a placeholder, never cache data**, like `rememberedLocations`: the
  * crag screen never sees it. Stored on the phone, not in the database.

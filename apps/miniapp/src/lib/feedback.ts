@@ -40,7 +40,6 @@ import {
  */
 export function shownReading(
   conditions: Conditions | null | undefined,
-  severeAlertEvent: string | null,
 ): { valid_at: string; model: string | null; fields: ReadingField[] } | null {
   const r = conditions?.readings
   if (r === undefined || r === null || r.now === null || r.unavailable_reason !== null) return null
@@ -48,8 +47,6 @@ export function shownReading(
     reading: r.now,
     window: null,
     utcOffsetSeconds: r.utc_offset_seconds,
-    severeAlertEvent,
-    alertsPending: false,
     unavailableReason: null,
   })
   const fields = summary.scoreField === null ? summary.readings : [...summary.readings, summary.scoreField]

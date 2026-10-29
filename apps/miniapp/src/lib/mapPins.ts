@@ -1,9 +1,9 @@
-import type { Conditions, Location, WeatherAlert } from '@weatherteam6/types'
+import type { Conditions, Location } from '@weatherteam6/types'
 import { cardSummary, scoreTone, type Tone } from './locationList.js'
 
 /**
  * One saved location on the Map tab. `score` is the number its list card
- * prints, under the same suppression, and `tone` its rung; both null draw a
+ * prints, and `tone` its rung; both null draw a
  * neutral dot and the name alone.
  */
 export type MapPin = { id: string; name: string; lon: number; lat: number; score: number | null; tone: Tone | null }
@@ -14,25 +14,23 @@ type Answer<T> = { data: T | undefined; isPending: boolean }
 export type PinSource = {
   location: Location
   conditions: Answer<Conditions | null>
-  alerts: Answer<WeatherAlert[]>
 }
 
 /**
  * The pins, through `cardSummary` exactly as the list's cards go: no number
- * while alerts are pending or under a Severe+ alert, none for a place that is
- * not a crag, and none until conditions have answered.
+ * for a place that is not a crag, and none until conditions have answered.
  *
  * A location whose coordinates are not finite, or not on the globe, has no
  * pin: placing it at 0,0 would draw a crag in the Gulf of Guinea.
  */
 export function mapPins(sources: readonly PinSource[]): MapPin[] {
   const pins: MapPin[] = []
-  for (const { location, conditions, alerts } of sources) {
+  for (const { location, conditions } of sources) {
     const lat = coordinate(location.lat, 90)
     const lon = coordinate(location.lon, 180)
     if (lat === null || lon === null) continue
     const score = location.is_climbing_location
-      ? (cardSummary(conditions.data, alerts.data, alerts.isPending)?.score ?? null)
+      ? (cardSummary(conditions.data)?.score ?? null)
       : null
     pins.push({ id: location.id, name: location.name, lat, lon, score, tone: score === null ? null : scoreTone(score) })
   }

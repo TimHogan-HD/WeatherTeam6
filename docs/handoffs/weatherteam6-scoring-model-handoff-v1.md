@@ -88,7 +88,9 @@ than from constants nobody measured.
 - **The score stays 0–100** (owner decision, `scoring-findings.md` §5.1). The two word-readings
   are published *alongside* it, not instead of it.
 - **Safety stays out of the number.** The community position is that only lightning and extreme
-  wind are safety inputs, and the existing Severe+ alert suppression already carries them. Wind
+  wind are safety inputs, and the existing Severe+ alert suppression already carries them.
+  *(Owner, 2026-10-29: alert suppression is removed until there is a deeper alert and warning
+  system; warnings now show beside the score, never in place of it.)* Wind
   enters this model physically — it cools the rock and dries it — not as a danger component.
 - **No terrain shading.** It needs a digital elevation model this project does not have.
   CragReport has one; we do not, and must not imply we do.

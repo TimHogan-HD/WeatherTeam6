@@ -616,7 +616,7 @@ The defect is not that heat forces a low score; it is that heat **costs at most 
    | `null` | Too far out to score |
 
    These describe rock and weather. "Mixed" is a condition; "marginal — check the details" was advice.
-4. **Score suppression.** *(This is the rule that makes today's 103°F case defensible.)* When **any component scores 0**, or **an active alert of severity `Severe` or higher exists**, the state label is not shown alone. The limiting factor is named instead:
+4. **Score suppression.** *(Superseded 2026-10-29: the owner removed alert suppression; no alert withholds the score until there is a deeper alert and warning system. See `.claude/rules/readings.md`.)* *(This is the rule that makes today's 103°F case defensible.)* When **any component scores 0**, or **an active alert of severity `Severe` or higher exists**, the state label is not shown alone. The limiting factor is named instead:
 
    > Score 80 (high confidence) — limited by temperature
 
@@ -866,7 +866,8 @@ crag days first, several crags as a grid. Open to change like every other screen
 **Data rules.**
 
 - A tile's score and words are the crag's `/hourly` readings through `summarizeReadings`,
-  joined on `local_date`, with `alertsPending` and Severe+ suppression. Its high, low,
+  joined on `local_date` (alert suppression removed 2026-10-29; the crags' warnings show
+  above the days instead). Its high, low,
   chance and amount are the trip outlook's for every day, so a tile never mixes sources for
   one figure. A city on a trip gets weather only; its readings are never asked for.
 - `days: null` from `GET /trips/:tripId/forecast` reads "Couldn't load the forecast for this

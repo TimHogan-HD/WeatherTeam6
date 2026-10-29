@@ -26,7 +26,7 @@ import { glassDock } from '../theme/glass.js'
 import { Sect } from '../components/charts/liquid.js'
 import { withOpacity } from '../theme/tokens.css.js'
 import { useLocations } from '../hooks/useLocations.js'
-import { alertsQuery, conditionsQuery, useRadarLatest } from '../hooks/useWeather.js'
+import { conditionsQuery, useRadarLatest } from '../hooks/useWeather.js'
 import { useCurrentPosition, type Fix } from '../hooks/useCurrentPosition.js'
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
 import { prefetchDetail } from '../lib/prefetchDetail.js'
@@ -111,7 +111,7 @@ const PENDING = { data: undefined, isPending: true } as const
  *
  * **The pins are the list's own answers.** The same query definitions fill the
  * same cache entries, so opening the map after the list asks for nothing, and
- * a pin's number is withheld by exactly the rules the card follows.
+ * a pin's number is the card's.
  *
  * Map tiles, glyphs, sprites and terrain load straight from OpenFreeMap and
  * AWS Open Data, the one exception to "external APIs are proxied"
@@ -128,10 +128,7 @@ export function MapScreen() {
   const locations = useLocations()
   const list = useMemo(() => locations.data ?? [], [locations.data])
   const conditions = useQueries({ queries: list.map((l) => conditionsQuery(l.id, l.is_climbing_location)) })
-  const alerts = useQueries({ queries: list.map((l) => alertsQuery(l.id)) })
-  const pins = mapPins(
-    list.map((location, i) => ({ location, conditions: conditions[i] ?? PENDING, alerts: alerts[i] ?? PENDING })),
-  )
+  const pins = mapPins(list.map((location, i) => ({ location, conditions: conditions[i] ?? PENDING })))
   const byId = useMemo(() => new Map(list.map((l) => [l.id, l])), [list])
 
   const hostRef = useRef<HTMLDivElement>(null)

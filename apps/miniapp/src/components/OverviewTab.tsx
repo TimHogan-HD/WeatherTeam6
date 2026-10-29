@@ -90,8 +90,6 @@ export type OverviewTabProps = {
   recentPrecip: RecentPrecip | undefined
   /** Radar's rain at every saved place (#313). `undefined` until it arrives or when it failed. */
   rainNow?: RainNow | null
-  severeAlertEvent: string | null
-  alertsPending: boolean
   rangeF: RangeF
   /** Days the hourly charts can draw. `undefined` until `/hourly` answers. */
   drawableDates: ReadonlySet<string> | undefined
@@ -109,10 +107,10 @@ function Card({ title, aside, children }: { title: string; aside?: string | null
   )
 }
 
-/** The hour's readings, as every surface suppresses them. Null without readings to read. */
+/** The hour's readings. Null without readings to read. */
 type Now = {
   summary: ReadingsSummary
-  /** The day's score, suppressed as the hour's is. */
+  /** The day's score. */
   dayScore: number | null
   dryness: string | null
   readingAt: string | null
@@ -126,8 +124,6 @@ function readNow(props: OverviewTabProps): Now | null {
   const r = data.readings
   const base = {
     utcOffsetSeconds: r.utc_offset_seconds,
-    severeAlertEvent: props.severeAlertEvent,
-    alertsPending: props.alertsPending,
     unavailableReason: r.unavailable_reason,
   }
   const summary = summarizeReadings({ ...base, reading: r.now, window: r.today?.window ?? null, rangeF: props.rangeF })
@@ -178,9 +174,7 @@ function Hero({ props, now }: { props: OverviewTabProps; now: Now | null }) {
   let lead: ReactNode = weather.length === 0 ? null : <span>{weather.join(' · ')}</span>
 
   if (props.isClimbingLocation) {
-    // Held whole until the alerts settle (defect class 7): a reading drawn first sits under a warning yet to arrive.
-    // The weather line does not wait on it.
-    const pending = props.conditions === undefined || props.conditions.isPending || props.alertsPending
+    const pending = props.conditions === undefined || props.conditions.isPending
     if (pending && props.conditions?.isError !== true) {
       return (
         <HeroFrame
@@ -329,10 +323,8 @@ function TodayCard({ props, now: reading }: { props: OverviewTabProps; now: Now 
   const now = useNow()
   const { hourly, todayDate, isClimbingLocation } = props
   const window = reading?.summary.window ?? null
-  // "No score left today" only when the score could have been shown: never under an alert, pending or active.
-  const suppressed = props.alertsPending || props.severeAlertEvent !== null
   const aside =
-    !isClimbingLocation || reading === null || reading.summary.unavailableLine !== null || suppressed
+    !isClimbingLocation || reading === null || reading.summary.unavailableLine !== null
       ? null
       : [reading.dayScore === null ? null : `day ${reading.dayScore}`, window === null ? null : `good hours ${window.value}`]
           .filter((s) => s !== null)
@@ -346,11 +338,7 @@ function TodayCard({ props, now: reading }: { props: OverviewTabProps; now: Now 
   } else if (hourly.data === undefined || todayDate === null) {
     return null
   } else {
-    const w = chartWindow(
-      hourly.data,
-      now,
-      isClimbingLocation ? { severeAlertEvent: props.severeAlertEvent, alertsPending: props.alertsPending } : null,
-    )
+    const w = chartWindow(hourly.data, now, isClimbingLocation)
     body =
       w === null || w.hours.length === 0 ? (
         <p style={typeV2.body}>No hourly forecast right now.</p>
@@ -393,8 +381,6 @@ function NextDaysCard({ props }: { props: OverviewTabProps }) {
       ? {
           days: hourly.data.readings?.days ?? [],
           utcOffsetSeconds: hourly.data.utc_offset_seconds,
-          severeAlertEvent: props.severeAlertEvent,
-          alertsPending: props.alertsPending,
         }
       : null,
     6,

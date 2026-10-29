@@ -49,7 +49,7 @@ function readingsDay(local_date: string, score: number): ReadingsDay {
 }
 
 function readings(days: ReadingsDay[], over: Partial<DayReadings> = {}): DayReadings {
-  return { days, utcOffsetSeconds: -18000, severeAlertEvent: null, alertsPending: false, ...over }
+  return { days, utcOffsetSeconds: -18000, ...over }
 }
 
 const DATES = ['2026-10-08', '2026-10-09', '2026-10-10']
@@ -92,21 +92,6 @@ describe('tripDayTiles', () => {
     expect(thu?.weather?.agreement).toBe(0.82)
   })
 
-  it('withholds the score while alerts load and under a Severe+ alert, and keeps the words', () => {
-    for (const over of [{ alertsPending: true }, { severeAlertEvent: 'Extreme Heat Warning' }]) {
-      const [thu] = tripDayTiles({
-        dates: ['2026-10-08'],
-        today: TODAY,
-      isCrag: true,
-        outlook: [outlookDay('2026-10-08')],
-        readings: readings([readingsDay('2026-10-08', 86)], over),
-      })
-      expect(thu?.kind).toBe('scored')
-      if (thu?.kind !== 'scored') continue
-      expect(thu.summary.score).toBeNull()
-      expect(readingWords(thu.summary)).toBe('Dry')
-    }
-  })
 
   it('says when an unscored day will be scored, and nothing once that date has come', () => {
     const tiles = tripDayTiles({ dates: DATES, today: TODAY,
