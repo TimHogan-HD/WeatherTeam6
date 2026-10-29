@@ -87,8 +87,8 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
 - **No alert withholds the score, and the score does not wait for alerts** (owner, 2026-10-29).
   Until 2026-10-29 a Severe+ alert dropped the number and the number waited for the alerts
   query; one warning hid every day regardless of when it applied, and any Severe warning
-  counted whether it mattered at a crag or not. Warnings show in their own banner beside
-  the score. Bringing suppression back is the owner's call, and needs an alert system that
+  counted whether it mattered at a crag or not. Warnings show beside the score on
+  the crag screen and the trip screen (`AlertBanner`) and on the list card; a map pin is a dot and carries the score alone. Bringing suppression back is the owner's call, and needs an alert system that
   knows a warning's hours and kind. A surface still must not reach past
   `ReadingsSummary.score === null`, which now means only "no reading".
 - **Two sentinels:** `NOT_A_CRAG_READINGS` (`not_a_climbing_location`, the reader's choice)

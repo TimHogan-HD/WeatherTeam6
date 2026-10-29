@@ -866,7 +866,8 @@ crag days first, several crags as a grid. Open to change like every other screen
 **Data rules.**
 
 - A tile's score and words are the crag's `/hourly` readings through `summarizeReadings`,
-  joined on `local_date`, with `alertsPending` and Severe+ suppression. Its high, low,
+  joined on `local_date` (alert suppression removed 2026-10-29; the crags' warnings show
+  above the days instead). Its high, low,
   chance and amount are the trip outlook's for every day, so a tile never mixes sources for
   one figure. A city on a trip gets weather only; its readings are never asked for.
 - `days: null` from `GET /trips/:tripId/forecast` reads "Couldn't load the forecast for this

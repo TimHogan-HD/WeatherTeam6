@@ -36,26 +36,3 @@ export function AlertBanner({ alerts }: { alerts: readonly WeatherAlert[] }) {
     </div>
   )
 }
-
-/**
- * The list card's pill: event name only (§3). Tapping the card, not the pill,
- * opens detail — so this is not interactive.
- */
-export function AlertPill({ alerts }: { alerts: readonly WeatherAlert[] }) {
-  const alert = sortBySeverity(alerts)[0]
-  if (alert === undefined) return null
-
-  return (
-    <span
-      style={{
-        ...alertSurface,
-        display: 'inline-block',
-        padding: `${spacing.micro}px ${spacing.inlineGap}px`,
-        ...type.labelSm,
-        color: colors.poor,
-      }}
-    >
-      {alert.event}
-    </span>
-  )
-}

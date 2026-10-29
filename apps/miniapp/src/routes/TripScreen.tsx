@@ -9,6 +9,7 @@ import {
   type HourlySeries,
   type Location,
   type TripOutlook,
+  type WeatherAlert,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, navClearance, row, stack } from '../theme/styles.js'
@@ -19,6 +20,8 @@ import { TripHead } from './Trips.js'
 import { TripCragGrid } from '../components/trips/TripCragGrid.js'
 import { TripLookBackGrid, TripLookBackView } from '../components/trips/TripLookBack.js'
 import { hourlyQuery } from '../hooks/useHourly.js'
+import { alertsQuery } from '../hooks/useWeather.js'
+import { AlertBanner } from '../components/Alerts.js'
 import { useLocations } from '../hooks/useLocations.js'
 import { forgetTrip, useDeleteTrip, useTrip, useTripForecast, useTripSummary, useTripTrend } from '../hooks/useTrips.js'
 import { backTarget, editTripPath, tripCragPath } from '../lib/backTarget.js'
@@ -71,6 +74,11 @@ export function TripScreen() {
     const h = hourly[ids.indexOf(id)]
     return h === undefined || !scoredIds.includes(id) ? null : dayReadingsFor(h)
   }
+  // The crags' active warnings, shown above the days: no alert withholds a score
+  // (owner, 2026-10-29), so the warning has to be on screen beside it. An ended
+  // trip reads storage, not forecasts, and asks for none.
+  const alerts = useQueries({ queries: ids.map((id) => ({ ...alertsQuery(id), enabled: !over })) })
+  const alertsFor = (id: string): readonly WeatherAlert[] => alerts[ids.indexOf(id)]?.data ?? []
 
   // The trip form offers only crags; until the list loads, a location is taken to be one.
   const isCrag = (id: string): boolean => byId.get(id)?.is_climbing_location !== false
@@ -193,6 +201,7 @@ export function TripScreen() {
         feedbackLocationId={focus}
       />
       <div style={{ ...stack(spacing.listGapLg), padding: `0 ${spacing.sectionGap}px`, paddingBottom: navClearance }}>
+        {over ? null : <TripAlerts crags={(focus === null ? ids : [focus]).map((id) => ({ id, name: byId.get(id)?.name ?? 'Crag', alerts: alertsFor(id) }))} />}
         {body}
         {t === undefined ? null : (
           <GuideCard title="Trip" label="Trip">
@@ -239,3 +248,22 @@ export function TripScreen() {
 }
 
 const tripAction: CSSProperties = { ...bareButton, ...typeV2.dayPick, width: 'auto', minHeight: '44px' }
+
+/**
+ * The trip's active warnings, above the days. One crag's are unlabelled, as on
+ * its own screen; several crags each name theirs. Nothing renders without one.
+ */
+export function TripAlerts({ crags }: { crags: readonly { id: string; name: string; alerts: readonly WeatherAlert[] }[] }) {
+  const warned = crags.filter((c) => c.alerts.length > 0)
+  if (warned.length === 0) return null
+  return (
+    <div style={stack(spacing.listGapSm)}>
+      {warned.map((c) => (
+        <div key={c.id} style={stack(spacing.micro)}>
+          {crags.length > 1 ? <span style={typeV2.lineLabel}>{c.name}</span> : null}
+          <AlertBanner alerts={c.alerts} />
+        </div>
+      ))}
+    </div>
+  )
+}

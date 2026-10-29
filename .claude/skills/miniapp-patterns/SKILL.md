@@ -163,8 +163,8 @@ renders wrong-but-plausible if broken:
   and low are labelled wherever they appear beside it**: unlabelled, the pair reads as the
   headline the moment the current reading is absent, which is a pending query away.
 - **No alert withholds a score** (owner, 2026-10-29). `summarizeReadings` takes no alert input, and
-  nothing that draws a score waits for the alerts query. Warnings show in `AlertBanner` and
-  `AlertPill`, beside the number. Bringing suppression back is a product decision.
+  nothing that draws a score waits for the alerts query. Warnings show beside the number on
+  the crag screen and the trip screen (`AlertBanner`) and on the list card; a map pin is a dot and carries the score alone. A new screen that draws a score shows its crag's warnings too. Bringing suppression back is a product decision.
 - **A day is tappable on `has_ensemble`, not on a forecast row existing.** `/forecast/:id`
   returns seven days whatever the hourly models reached; these charts draw the ensemble, so
   a day it never reached opens two empty charts. A selected day is also dropped once the
