@@ -1,6 +1,6 @@
 import { useId, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { colorsV2 } from '@weatherteam6/design/tokens'
-import { EM_DASH, cToF, fToC, readingNow, type SkyCondition, type SkyHour } from '@weatherteam6/types'
+import { EM_DASH, clock12, cToF, fToC, readingNow, type SkyCondition, type SkyHour } from '@weatherteam6/types'
 import { formatTempDeg } from '../../lib/format.js'
 import { chartHourAt, shortDay, type ChartHour, type ChartWindow } from '../../lib/overview.js'
 import { SkyIcon } from '../Icons.js'
@@ -49,18 +49,6 @@ const RAIN_TOP = PLOT_B + 8
 const RAIN_H = 40
 const SCORE_Y = H - 6
 const HOUR_MS = 3_600_000
-
-function clock(hour: number): string {
-  if (hour === 0) return '12a'
-  if (hour === 12) return '12p'
-  return hour > 12 ? `${hour - 12}p` : `${hour}a`
-}
-
-/** `3 PM`, as the read-out names an hour. */
-function clockLong(hour: number): string {
-  const twelve = hour % 12 === 0 ? 12 : hour % 12
-  return `${twelve} ${hour < 12 ? 'AM' : 'PM'}`
-}
 
 export function TodayChart({
   window: { fromMs, toMs, hours },
@@ -145,7 +133,7 @@ export function TodayChart({
         {selected === null ? null : (
           <ReadChip
             large
-            hour={isNow ? 'Now' : clockLong(selected.hour)}
+            hour={isNow ? 'Now' : clock12(selected.hour, 'upper')}
             items={readItems(selected, scored, lineColor(selected), dew.length > 0, hours.some((p) => p.chancePct !== null))}
             at={((x(selected.ms) - span.left) / (span.right - span.left)) * 100}
             span={span}
@@ -239,7 +227,7 @@ export function TodayChart({
               fill={colorsV2.txtMuted}
               textAnchor="middle"
             >
-              {nowCell !== null && p.ms === nowCell.ms ? 'now' : p.hour === 0 ? shortDay(p.local_date, todayDate) : clock(p.hour)}
+              {nowCell !== null && p.ms === nowCell.ms ? 'now' : p.hour === 0 ? shortDay(p.local_date, todayDate) : clock12(p.hour, 'tick')}
             </text>
           ))}
           {scored

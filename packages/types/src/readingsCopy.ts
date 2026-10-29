@@ -68,6 +68,7 @@ import type {
   RockReading,
   ScoreLimit,
 } from './hourly.js';
+import { clock12 } from './clock.js';
 import { modelName, openMeteoModels } from './conditionsCopy.js';
 import {
   EM_DASH,
@@ -266,10 +267,7 @@ export function formatLocalHour(validAt: string, utcOffsetSeconds: number): stri
   if (!Number.isFinite(t)) return null;
   const offset = Number.isFinite(utcOffsetSeconds) ? utcOffsetSeconds : 0;
   const local = new Date(t + offset * 1000);
-  const h24 = local.getUTCHours();
-  const suffix = h24 < 12 ? 'am' : 'pm';
-  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
-  return `${h12}${suffix}`;
+  return clock12(local.getUTCHours(), 'compact');
 }
 
 /**

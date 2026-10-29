@@ -1,5 +1,6 @@
 import {
   DRYNESS_LABEL,
+  clock12,
   summarizeReadings,
   type ForecastSnapshot,
   type HourlyReading,
@@ -9,7 +10,7 @@ import {
   type ConditionsWindow,
 } from '@weatherteam6/types'
 import { formatLocalHourShort } from './format.js'
-import { clock12, formatSince, type PrecipSummary } from './precipHistory.js'
+import { formatSince, type PrecipSummary } from './precipHistory.js'
 
 /**
  * The Overview tab's logic, apart from its markup: which hours the Today chart
@@ -369,7 +370,7 @@ export function rainDueText(hours: readonly HourlySample[], now: number, utcOffs
   if (due === undefined) return null
   const start = Date.parse(due.valid_at) - 3_600_000
   if (start <= now) return 'Rain due now'
-  return `Rain due ${clock12(new Date(start + utcOffsetSeconds * 1000).getUTCHours())}`
+  return `Rain due ${clock12(new Date(start + utcOffsetSeconds * 1000).getUTCHours(), 'compact')}`
 }
 
 /** `Today`, or `Sat`, for a `YYYY-MM-DD` in the location's calendar. */

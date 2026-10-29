@@ -2,7 +2,7 @@
  * Small display helpers with no React in them, kept out of the components so
  * their boundaries can be tested directly.
  */
-import { EM_DASH, cToF } from '@weatherteam6/types'
+import { EM_DASH, clock12, cToF } from '@weatherteam6/types'
 
 /**
  * A day's low to high, as `47–66°F`.
@@ -34,7 +34,11 @@ export function formatTempDeg(c: number | null): string {
 export function formatUpdatedAt(updatedAt: number, now: number): string | null {
   if (updatedAt === 0) return null
 
-  const minutes = Math.floor((now - updatedAt) / 60_000)
+  return updatedAgo(Math.floor((now - updatedAt) / 60_000))
+}
+
+/** `Updated just now`, `Updated 5 min ago`, `Updated 2 h ago`: the one wording for an age. */
+function updatedAgo(minutes: number): string {
   if (minutes < 1) return 'Updated just now'
   if (minutes < 60) return `Updated ${minutes} min ago`
   return `Updated ${Math.floor(minutes / 60)} h ago`
@@ -70,10 +74,7 @@ export function formatRunAge(
   if (!Number.isFinite(at)) return null
 
   const minutes = Math.floor((now - at) / 60_000)
-  if (minutes < 0) return null
-  if (minutes < 1) return 'Updated just now'
-  if (minutes < 60) return `Updated ${minutes} min ago`
-  return `Updated ${Math.floor(minutes / 60)} h ago`
+  return minutes < 0 ? null : updatedAgo(minutes)
 }
 
 /**
@@ -99,9 +100,7 @@ export function formatLocalHour(t: number, utcOffsetSeconds: number): string | n
   const hour = shifted.getUTCHours()
   if (!Number.isFinite(hour)) return null
 
-  const suffix = hour < 12 ? 'AM' : 'PM'
-  const twelve = hour % 12 === 0 ? 12 : hour % 12
-  return `${twelve} ${suffix}`
+  return clock12(hour, 'upper')
 }
 
 /**
@@ -138,7 +137,5 @@ export function formatLocalHourShort(t: number, utcOffsetSeconds: number): strin
   const hour = new Date(t + utcOffsetSeconds * 1000).getUTCHours()
   if (!Number.isFinite(hour)) return null
 
-  const suffix = hour < 12 ? 'a' : 'p'
-  const twelve = hour % 12 === 0 ? 12 : hour % 12
-  return `${twelve}${suffix}`
+  return clock12(hour, 'tick')
 }

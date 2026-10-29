@@ -3,6 +3,7 @@ import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import {
   HELD_BACK_LABEL,
   SCORE_MODEL_FACTS,
+  clock12,
   cToFDelta,
   type RangeF,
   type RockType,
@@ -15,8 +16,6 @@ import { DayScoreExample, DryingChart, GripBand, ScoreEquation } from './ScoreEx
 /** Where the measurements panel's "How the score works" link lands. */
 export const SCORE_EXPLAINER_ID = 'score'
 export const SCORE_EXPLAINER_PATH = `/profile#${SCORE_EXPLAINER_ID}`
-
-const clock = (h: number): string => `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? 'am' : 'pm'}`
 
 /**
  * **How the score works, in full** — the explanation the measurements panel
@@ -82,7 +81,7 @@ export function ScoreExplainerParts({ rangeF, rockType = null }: { rangeF: Range
       <Part title="A day’s score">
         <P>
           It’s the lowest hour of the day’s best {f.dayRunHours} hours in a row inside your climbing hours,{' '}
-          {clock(f.dayFirstHour)} to {clock(f.dayLastHour)} unless you change them on Profile. Good hours are the
+          {clock12(f.dayFirstHour, 'compact')} to {clock12(f.dayLastHour, 'compact')} unless you change them on Profile. Good hours are the
           longest run scoring {f.goodHoursMinScore} or more. After your last climbing hour, today has no score.
         </P>
         <DayScoreExample />

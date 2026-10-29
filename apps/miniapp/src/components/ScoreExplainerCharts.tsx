@@ -1,6 +1,6 @@
 import { useId } from 'react'
 import { colors, colorsV2, spacing } from '@weatherteam6/design/tokens'
-import { MAX_HOURS, MIN_HOURS, SCORE_MODEL_FACTS, rockTypeLabel, type RockType } from '@weatherteam6/types'
+import { MAX_HOURS, MIN_HOURS, SCORE_MODEL_FACTS, clock12, rockTypeLabel, type RockType } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { scoreColor } from './charts/chartStyle.js'
 import { DISPLAY, LIQUID_W, MONO, scale } from './charts/liquid.js'
@@ -208,8 +208,6 @@ export function bestRun(scores: readonly number[], run: number): { start: number
   return best
 }
 
-const hourLabel = (h: number): string => `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? 'a' : 'p'}`
-
 /** An example day: each hour's score, the best run boxed, and the day's score it gives. */
 export function DayScoreExample() {
   const f = SCORE_MODEL_FACTS
@@ -253,7 +251,7 @@ export function DayScoreExample() {
             </text>
             {i % 2 === 0 ? (
               <text x={cx} y={base + 16} textAnchor="middle" fontFamily={MONO} fontSize={11} fill={colorsV2.txtMuted}>
-                {hourLabel(f.dayFirstHour + i)}
+                {clock12(f.dayFirstHour + i, 'tick')}
               </text>
             ) : null}
           </g>

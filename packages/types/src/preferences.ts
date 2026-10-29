@@ -3,6 +3,7 @@
  * the temperature range friction is judged against, and the tab a crag opens
  * on. One row per account; every field null means "the app's default".
  */
+import { clock12 } from './clock.js'
 
 /** The crag screen's tabs, in order. The client's `DetailTab` is this union. */
 export const DETAIL_TABS = ['overview', 'daily', 'hourly', 'precip', 'rock', 'crag'] as const
@@ -101,9 +102,7 @@ export function isClimbHours(h: ClimbHours): boolean {
 
 /** `8 am`, `12 pm`, `6 pm`. */
 export function hourLabel(hour: number): string {
-  if (hour === 0) return '12 am'
-  if (hour === 12) return '12 pm'
-  return hour < 12 ? `${hour} am` : `${hour - 12} pm`
+  return clock12(hour, 'spaced')
 }
 
 /** `8 am – 6 pm`. */
