@@ -30,7 +30,7 @@ describe('TripAlerts', () => {
     severity: 'Extreme',
     headline: 'Dangerously hot through Friday',
   } as WeatherAlert
-  const crag = (id: string, alerts: WeatherAlert[]) => ({ id, name: `Crag ${id}`, alerts })
+  const crag = (id: string, alerts: WeatherAlert[], retry: (() => void) | null = null) => ({ id, name: `Crag ${id}`, alerts, retry })
 
   // The score is no longer withheld under a warning, so the warning itself must be on screen.
   it('shows a crag\'s warning, unlabelled when the trip has one crag', () => {
@@ -46,7 +46,12 @@ describe('TripAlerts', () => {
     expect(html).not.toContain('Crag a')
   })
 
-  it('renders nothing when no crag has a warning', () => {
+  it('says a failed check failed, never reading it as no warnings', () => {
+    const html = renderToStaticMarkup(<TripAlerts crags={[crag('a', [], () => {})]} />)
+    expect(html).toContain("Couldn&#x27;t load alerts. Tap to retry.")
+  })
+
+  it('renders nothing when every check answered with no warning', () => {
     expect(renderToStaticMarkup(<TripAlerts crags={[crag('a', []), crag('b', [])]} />)).toBe('')
   })
 })

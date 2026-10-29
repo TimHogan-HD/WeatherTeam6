@@ -78,7 +78,16 @@ export function TripScreen() {
   // (owner, 2026-10-29), so the warning has to be on screen beside it. An ended
   // trip reads storage, not forecasts, and asks for none.
   const alerts = useQueries({ queries: ids.map((id) => ({ ...alertsQuery(id), enabled: !over })) })
-  const alertsFor = (id: string): readonly WeatherAlert[] => alerts[ids.indexOf(id)]?.data ?? []
+  const alertsFor = (id: string): TripAlertsCrag => {
+    const a = alerts[ids.indexOf(id)]
+    return {
+      id,
+      name: byId.get(id)?.name ?? 'Crag',
+      alerts: a?.data ?? [],
+      // A failed check is said, never read as "no warnings" (defect class 2).
+      retry: a?.isError === true ? () => void a.refetch() : null,
+    }
+  }
 
   // The trip form offers only crags; until the list loads, a location is taken to be one.
   const isCrag = (id: string): boolean => byId.get(id)?.is_climbing_location !== false
@@ -201,7 +210,7 @@ export function TripScreen() {
         feedbackLocationId={focus}
       />
       <div style={{ ...stack(spacing.listGapLg), padding: `0 ${spacing.sectionGap}px`, paddingBottom: navClearance }}>
-        {over ? null : <TripAlerts crags={(focus === null ? ids : [focus]).map((id) => ({ id, name: byId.get(id)?.name ?? 'Crag', alerts: alertsFor(id) }))} />}
+        {over ? null : <TripAlerts crags={(focus === null ? ids : [focus]).map(alertsFor)} />}
         {body}
         {t === undefined ? null : (
           <GuideCard title="Trip" label="Trip">
@@ -249,19 +258,29 @@ export function TripScreen() {
 
 const tripAction: CSSProperties = { ...bareButton, ...typeV2.dayPick, width: 'auto', minHeight: '44px' }
 
+export type TripAlertsCrag = {
+  id: string
+  name: string
+  /** `[]` while the check loads, as on the crag screen, and when it failed. */
+  alerts: readonly WeatherAlert[]
+  /** The alerts check failed: its retry. `null` otherwise. */
+  retry: (() => void) | null
+}
+
 /**
- * The trip's active warnings, above the days. One crag's are unlabelled, as on
- * its own screen; several crags each name theirs. Nothing renders without one.
+ * The trip's active warnings, above the days, and any crag whose check failed.
+ * One crag's are unlabelled, as on its own screen; several crags each name
+ * theirs. Nothing renders when every check answered with no warning.
  */
-export function TripAlerts({ crags }: { crags: readonly { id: string; name: string; alerts: readonly WeatherAlert[] }[] }) {
-  const warned = crags.filter((c) => c.alerts.length > 0)
-  if (warned.length === 0) return null
+export function TripAlerts({ crags }: { crags: readonly TripAlertsCrag[] }) {
+  const shown = crags.filter((c) => c.alerts.length > 0 || c.retry !== null)
+  if (shown.length === 0) return null
   return (
     <div style={stack(spacing.listGapSm)}>
-      {warned.map((c) => (
+      {shown.map((c) => (
         <div key={c.id} style={stack(spacing.micro)}>
           {crags.length > 1 ? <span style={typeV2.lineLabel}>{c.name}</span> : null}
-          <AlertBanner alerts={c.alerts} />
+          {c.retry === null ? <AlertBanner alerts={c.alerts} /> : <InlineError message="Couldn't load alerts." onRetry={c.retry} />}
         </div>
       ))}
     </div>
