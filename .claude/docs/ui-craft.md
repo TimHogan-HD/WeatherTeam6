@@ -120,9 +120,10 @@ Still open, to show as variants (§6):
   three variants), `pstack:principle-experience-first`.
 - **Vendored design skills** (2026-10-01, in `.claude/skills/`, each with an "In this repo"
   section listing where the repo overrides it):
-  - `emil-design-eng`: motion judgement; loads on its own for `apps/miniapp` work.
-  - `review-animations`: a strict motion review; runs only when invoked as
-    `/review-animations`.
+  - `motion`: motion judgement, and a strict motion review as `/motion review`; loads on its
+    own for `apps/miniapp` work. Merged on 2026-10-29 from `emil-design-eng` and
+    `review-animations`, cut to what the app uses; an owner-chosen `motion` token is never a
+    finding.
   - `web-design-guidelines`: Vercel's interface rules, frozen in `RULES.md` rather than
     fetched live; for UI and accessibility reviews.
 
