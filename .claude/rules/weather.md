@@ -40,8 +40,8 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   `precip_mm_mean` is the only precipitation figure that sums. p10/p90 shade one mark, never a
   step, day or header total; the mean often sits outside them, and that is not a fault.
 - **Hourly precipitation is stamped at the end of its hour**, so a bar owns the hour before
-  its timestamp; an instantaneous reading is centred. `Series.tsx` has `accumulationLeft` and
-  `instantLeft` so the choice is explicit.
+  its timestamp; an instantaneous reading is centred. The charts place each mark inline,
+  `valid_at - HOUR_MS` for an hour's span (`DayCharts.tsx`'s sky row, `TodayChart.tsx`).
 - **A deterministic multi-model response labels its columns only while more than one model
   has coverage.** `parseDeterministicHourly` trusts a bare column only when exactly one model
   was requested; otherwise it reports `ambiguous` and `fetchDeterministicHourly` re-asks one

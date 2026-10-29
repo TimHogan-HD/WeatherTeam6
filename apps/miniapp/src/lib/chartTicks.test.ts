@@ -26,6 +26,25 @@ describe('niceTicks', () => {
     ticks.forEach((t, i) => expect(t).toBe((ticks[0] ?? 0) + i * step))
   })
 
+  it('steps under 1 only when asked, and lands on clean decimals', () => {
+    // A trip's rain in inches: with the default whole-number step this was [0, 1].
+    expect(niceTicks(0, 0.37, 3, 0.1)).toEqual([0, 0.2, 0.4])
+    expect(niceTicks(0, 0.3, 3, 0.1)).toEqual([0, 0.2, 0.4])
+    expect(niceTicks(0, 0.08, 3, 0.01)).toEqual([0, 0.05, 0.1])
+    expect(niceTicks(0, 0.37)).toEqual([0, 1])
+  })
+
+  it.each([
+    [0, 0.37, 0.1],
+    [0, 1.26, 0.1],
+    [0, 0.08, 0.01],
+    [0, 0.1, 0.01],
+  ])('puts the top decimal tick above every value (%s to %s, min step %s)', (lo, hi, minStep) => {
+    const ticks = niceTicks(lo, hi, 3, minStep)
+    expect(ticks[0]).toBeLessThanOrEqual(lo)
+    expect(ticks[ticks.length - 1]).toBeGreaterThan(hi)
+  })
+
   it('keeps at least two ticks on a flat day', () => {
     expect(niceTicks(61, 61).length).toBeGreaterThanOrEqual(2)
   })

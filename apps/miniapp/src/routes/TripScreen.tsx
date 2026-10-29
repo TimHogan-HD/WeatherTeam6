@@ -32,11 +32,13 @@ import { cragCount, deviceToday, formatTripDates, tripDates, tripIsOver, tripTim
  * What a day's score is read from at one crag, or `null` when there is nothing
  * to score with: `/hourly` in flight or failed, an API older than `readings`,
  * a location that is not a crag. The number also waits for the alerts query,
- * inside `summarizeReadings` (`alertsPending`).
+ * inside `summarizeReadings` (`alertsPending`), and stays withheld when it
+ * fails: this screen has no "alerts unavailable" line, so a failed check must
+ * not read as "no alerts".
  */
 export function dayReadingsFor(
   hourly: { data: HourlySeries | undefined },
-  alerts: { data: readonly WeatherAlert[] | undefined; isPending: boolean },
+  alerts: { data: readonly WeatherAlert[] | undefined; isPending: boolean; isError: boolean },
 ): DayReadings | null {
   const readings = hourly.data?.readings
   if (hourly.data === undefined || readings === undefined || readings.unavailable_reason !== null) return null
@@ -44,7 +46,7 @@ export function dayReadingsFor(
     days: readings.days,
     utcOffsetSeconds: hourly.data.utc_offset_seconds,
     severeAlertEvent: severeAlertEvent(alerts.data),
-    alertsPending: alerts.isPending,
+    alertsPending: alerts.isPending || alerts.isError,
   }
 }
 

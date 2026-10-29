@@ -2,7 +2,8 @@ import { colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { cToF, mmToIn, type TripDayTrend } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
 import { chartColors, chartColorsV2, BAR_MIN_H, BAR_RADIUS, WHISKER_W } from '../charts/chartStyle.js'
-import { extent, linearScale, niceTicks, padExtent } from '../charts/geometry.js'
+import { extent, linearScale, padExtent } from '../charts/geometry.js'
+import { niceTicks } from '../../lib/chartTicks.js'
 import { dayChangeCaption, dayTrendMarks, shortDayLabel } from '../../lib/trips.js'
 
 const VIEW_W = 420
@@ -40,15 +41,19 @@ export function TripDayTrendChart({ days }: { days: readonly TripDayTrend[] }) {
 
   const rainsIn = marks.flatMap((m) => [m.firstRainMm, m.lastRainMm].flatMap((v) => (v === null ? [] : [mmToIn(v)])))
   const rainTop = Math.max(RAIN_MIN_TOP_IN, ...rainsIn)
-  const rainTicks = niceTicks({ min: 0, max: rainTop }, 3)
+  const rainTicks = niceTicks(0, rainTop, 3, 0.01)
   const yRain = linearScale({ min: 0, max: Math.max(rainTop, ...rainTicks) }, PLOT_B, PAD_T)
   const barTop = (mm: number) => Math.min(yRain(mmToIn(mm)), PLOT_B - BAR_MIN_H)
 
   const highsF = marks.flatMap((m) => [m.firstHighC, m.lastHighC].map((c) => (c === null ? null : cToF(c))))
   const highExtent = extent(highsF)
   const highDomain = highExtent === null ? null : padExtent(highExtent, 0.2, 10)
-  const yHigh = highDomain === null ? null : linearScale(highDomain, PLOT_B, PAD_T)
-  const highTicks = highDomain === null ? [] : niceTicks(highDomain, 3)
+  const highTicks = highDomain === null ? [] : niceTicks(highDomain.min, highDomain.max, 3)
+  // The axis runs tick to tick, so the warmest high always sits under the top label.
+  const yHigh =
+    highDomain === null
+      ? null
+      : linearScale({ min: highTicks[0] ?? highDomain.min, max: highTicks[highTicks.length - 1] ?? highDomain.max }, PLOT_B, PAD_T)
 
   const captions = marks.map((m) => (m.lastRainMm === null && m.lastHighC === null ? 'No forecast yet' : dayChangeCaption(m)))
   const label =

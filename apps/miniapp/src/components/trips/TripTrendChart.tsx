@@ -2,7 +2,8 @@ import { colorsV2 } from '@weatherteam6/design/tokens'
 import { cToF, mmToIn, type TripTrendPoint } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
 import { chartColors, chartColorsV2, BAR_MIN_H, BAR_RADIUS, LINE_W, WHISKER_W } from '../charts/chartStyle.js'
-import { extent, linearScale, linePath, niceTicks, padExtent } from '../charts/geometry.js'
+import { extent, linearScale, linePath, padExtent } from '../charts/geometry.js'
+import { niceTicks } from '../../lib/chartTicks.js'
 import { dateLabel, deviceToday, trendMarks } from '../../lib/trips.js'
 
 const VIEW_W = 420
@@ -51,15 +52,19 @@ export function TripTrendChart({ points }: { points: readonly TripTrendPoint[] }
     RAIN_MIN_TOP_IN,
     ...marks.flatMap((m) => [m.p90Mm, m.rainMm].flatMap((v) => (v === null ? [] : [mmToIn(v)]))),
   )
-  const rainTicks = niceTicks({ min: 0, max: rainTop }, 3)
+  const rainTicks = niceTicks(0, rainTop, 3, 0.1)
   const rainMax = Math.max(rainTop, ...rainTicks)
   const yRain = linearScale({ min: 0, max: rainMax }, PLOT_B, PAD_T)
 
   const highsF = marks.map((m) => (m.highC === null ? null : cToF(m.highC)))
   const highExtent = extent(highsF)
   const highDomain = highExtent === null ? null : padExtent(highExtent, 0.2, 10)
-  const yHigh = highDomain === null ? null : linearScale(highDomain, PLOT_B, PAD_T)
-  const highTicks = highDomain === null ? [] : niceTicks(highDomain, 3)
+  const highTicks = highDomain === null ? [] : niceTicks(highDomain.min, highDomain.max, 3)
+  // The axis runs tick to tick, so the warmest high always sits under the top label.
+  const yHigh =
+    highDomain === null
+      ? null
+      : linearScale({ min: highTicks[0] ?? highDomain.min, max: highTicks[highTicks.length - 1] ?? highDomain.max }, PLOT_B, PAD_T)
 
   const barW = Math.max(3, Math.min(14, ((VIEW_W - PAD_L - PAD_R) / marks.length) * 0.45))
   const highPoints = yHigh === null

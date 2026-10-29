@@ -100,7 +100,7 @@ suite; reading the diff is what caught them.
 - [ ] A user-visible source list is derived from what was actually *read*, not what was requested — `model_sources` reports only the models `parseEnsemble` consumes
 - [ ] A model added to `ENSEMBLE_MODELS` also has an entry in `ENSEMBLE_MODEL_SUFFIXES` — the key suffix is not derivable from the model name, and a missing entry means the model is fetched and silently ignored
 - [ ] A per-day figure a user reads as a forecast (high, low, peak wind) is `ensembleMedian` of per-member daily extremes — **not** a global `Math.max`/`Math.min` across members and hours, which reports the single most extreme member
-- [ ] A rain mark covers the hour *before* its timestamp; an instantaneous reading is centred on its timestamp. `Series.tsx` has one helper per convention — do not inherit the other one
+- [ ] A rain mark covers the hour *before* its timestamp; an instantaneous reading is centred on its timestamp. Each chart places its marks inline (`valid_at - HOUR_MS` for a span) — check which convention a new mark copies
 
 ## Verification
 - [ ] The change was **run**, not just compiled — an external-API call had its response read, a database write was made and read back

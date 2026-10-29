@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
-  bandPath,
   contiguousRuns,
   extent,
   linePath,
   linearScale,
   padExtent,
-  niceTicks,
   unionExtent,
 } from './geometry.js'
 
@@ -136,58 +134,5 @@ describe('linePath', () => {
 
   it('rounds coordinates', () => {
     expect(linePath([{ x: 1.23456, y: 2 }, { x: 3, y: 4 }])).toBe('M1.23,2 L3,4')
-  })
-})
-
-describe('bandPath', () => {
-  it('runs along the upper edge and back along the lower one', () => {
-    const upper = [{ x: 0, y: 0 }, { x: 10, y: 0 }]
-    const lower = [{ x: 0, y: 5 }, { x: 10, y: 5 }]
-    expect(bandPath(upper, lower)).toBe('M0,0 L10,0 L10,5 L0,5 Z')
-  })
-
-  it('is empty when the two edges are different lengths', () => {
-    expect(bandPath([{ x: 0, y: 0 }], [])).toBe('')
-    expect(bandPath([], [])).toBe('')
-  })
-})
-
-describe('niceTicks', () => {
-  it('lands on round numbers, not on even fractions of the span', () => {
-    // A domain of 51.2-74.8 divided evenly into four gives 57.1 / 63.0 / 68.9 —
-    // arithmetically even and useless to read a bar against.
-    expect(niceTicks({ min: 51.2, max: 74.8 }, 4)).toEqual([55, 60, 65, 70])
-  })
-
-  it('includes zero for a magnitude scale', () => {
-    // 25 is not a 1/2/5/10 step, so the ramp lands on twenties.
-    expect(niceTicks({ min: 0, max: 100 }, 4)).toEqual([0, 20, 40, 60, 80, 100])
-  })
-
-  it('never prints a negative zero', () => {
-    // `-0` survives arithmetic and reaches a formatter as "-0".
-    const ticks = niceTicks({ min: -10, max: 10 }, 4)
-    expect(ticks).toContain(0)
-    expect(ticks.some((t) => Object.is(t, -0))) .toBe(false)
-  })
-
-  it('drops ticks that would fall outside the domain rather than drawing off-frame', () => {
-    const ticks = niceTicks({ min: 2.4, max: 3.1 }, 3)
-    expect(ticks.every((t) => t >= 2.4 && t <= 3.1)).toBe(true)
-  })
-
-  it('is empty for a domain with no width, rather than looping forever', () => {
-    expect(niceTicks({ min: 5, max: 5 }, 3)).toEqual([])
-    expect(niceTicks({ min: 0, max: Number.NaN }, 3)).toEqual([])
-  })
-})
-
-describe('niceTicks — fewer ticks on a short plot', () => {
-  it('honours the count it is asked for, so the caller can cut it down', () => {
-    // `VALUE_TICKS` is an aim, not a promise: the 70-unit chance chart asked
-    // for four and got six, 8.8 units apart under a 10px label. The caller
-    // divides its plot height by `MIN_TICK_GAP` and asks for fewer.
-    expect(niceTicks({ min: 0, max: 100 }, 2)).toEqual([0, 50, 100])
-    expect(niceTicks({ min: 0, max: 100 }, 4)).toEqual([0, 20, 40, 60, 80, 100])
   })
 })
