@@ -69,7 +69,7 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   `condensation_margin_c` stay renderable. The same fence holds for Crag A's penalties:
   they stay in `diagnostics.penalties`, and only their order reaches a response, as
   `held_back_by` from `heldBackBy` (`cragModel.ts`, #218). The client shows it as
-  the Overview's `Score breakdown` card, suppressed with the score, and
+  the Overview's `Score breakdown` card, absent with the score, and
   absent — not a "nothing" row — when no penalty costs a point.
 - **The drying clock's rain is the median of the four global models' six-hour means**
   (`lib/weather/rainMedian.ts`, #209, #324), not `THERMAL_MODEL`'s own — GFS alone called wet

@@ -37,9 +37,9 @@ import { StreamIn } from './StreamIn.js'
  * chance of rain as filled capsules underneath, the sky every three hours along the top, and the hour's score under its label. Tap
  * or drag to read an hour; a chip above the plot, Hourly's a size up, follows it.
  *
- * **Without scores the line is neutral ink**: a city, a Severe+ alert, alerts
- * still loading. A tinted line with no number beside it would be the score
- * leaking through the suppression rule.
+ * **Without scores the line is neutral ink**: a city, or hours the model did
+ * not read. A tinted line with no number beside it would claim a score nobody
+ * can read.
  */
 
 const H = 230

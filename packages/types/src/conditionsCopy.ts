@@ -19,7 +19,7 @@
  * built to make impossible, and leaving it exported is an invitation.
  *
  * **What is still live.** `SCORE_BANDS` rungs Crag A's number and colours it,
- * `isSevereAlert` decides which alerts suppress it, and the source labels are
+ * `isSevereAlert` ranks the alert banners, and the source labels are
  * per-response attribution. The rain record (`formatHoursSinceRain`,
  * `formatLastRain`), `scoreUnavailableLine` and `rainfallSourceLabel` went with
  * the five-component scorer in scoring Phase 5b (2026-10-01).
@@ -44,12 +44,11 @@ export const SCORE_BANDS = {
 } as const;
 
 /**
- * NWS severities that outrank everything else on a surface (§7 rules 4 and 5).
+ * NWS severities that rank first among the alert banners.
  *
- * **Still live, and it is the one part of the old suppression model that
- * survived Phase 3b unchanged.** What it suppresses moved — it used to remove
- * the ladder word and keep the number, and now it removes the number and keeps
- * the readings — but which alerts count did not.
+ * **It no longer suppresses anything** (owner, 2026-10-29): until there is a
+ * deeper alert and warning system, a warning sits beside the score, never in
+ * place of it.
  */
 export function isSevereAlert(severity: string): boolean {
   const normalized = severity.trim().toLowerCase();

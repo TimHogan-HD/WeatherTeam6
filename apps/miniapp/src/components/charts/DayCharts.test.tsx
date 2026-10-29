@@ -70,8 +70,8 @@ function series(hours: HourlySample[], days: HourlyDay[] = [day(DAY_1)]): Hourly
   }
 }
 
-type Score = { severeAlertEvent: string | null; alertsPending: boolean; showScore: boolean }
-const OPEN: Score = { severeAlertEvent: null, alertsPending: false, showScore: true }
+type Score = { showScore: boolean }
+const OPEN: Score = { showScore: true }
 
 function render(s: HourlySeries, { date = DAY_1, readMs = null as number | null, score = undefined as Score | undefined } = {}): string {
   return renderToStaticMarkup(
@@ -329,17 +329,10 @@ describe('DayCharts — the score on the air line', () => {
     expect(chartSvg(render(scored(), { score: OPEN }), TEMP_TITLE.replace(', dew point and humidity', ''))).toContain(ramp)
   })
 
-  it('draws the air neutral under a Severe+ alert, while alerts are pending, and for a city', () => {
-    const title = 'Temperature by hour'
-    for (const score of [
-      { ...OPEN, severeAlertEvent: 'Excessive Heat Warning' },
-      { ...OPEN, alertsPending: true },
-      { ...OPEN, showScore: false },
-    ]) {
-      const svg = chartSvg(render(scored(), { score }), title)
-      expect(svg).not.toContain(ramp)
-      expect(svg).toContain(`stop-color="${chartColorsV2.air}"`)
-    }
+  it('draws the air neutral for a city', () => {
+    const svg = chartSvg(render(scored(), { score: { showScore: false } }), 'Temperature by hour')
+    expect(svg).not.toContain(ramp)
+    expect(svg).toContain(`stop-color="${chartColorsV2.air}"`)
   })
 
   it('shades the good hours only while the day has a named window', () => {

@@ -48,12 +48,11 @@ export type ChartHour = {
   chancePct: number | null
   windKmh: number | null
   /**
-   * The hour's Crag A score, **suppressed exactly as every surface suppresses
-   * it** (`summarizeReadings`): `null` under a Severe+ alert, while alerts
-   * load, for a city, and for an hour the model did not read.
+   * The hour's Crag A score, through `summarizeReadings`: `null` for a city
+   * and for an hour the model did not read.
    */
   score: number | null
-  /** The Dryness word, kept under an alert: the alert withholds the number, not the readings. Null for a city. */
+  /** The Dryness word. Null for a city. */
   dryness: string | null
 }
 
@@ -76,14 +75,14 @@ export type ChartWindow = {
  * The hours for the chart: from the hour read as now to `CHART_SPAN_HOURS`
  * after it. `null` when the series has no hours at all.
  *
- * `alerts` is `null` for a city — every hour then has no score
+ * `scored` is false for a city — every hour then has no score
  * rather than an invented one. Readings join the hours **on `valid_at`**,
  * never on position, and an API older than `readings` scores nothing.
  */
 export function chartWindow(
   series: HourlySeries,
   nowMs: number,
-  alerts: { severeAlertEvent: string | null; alertsPending: boolean } | null,
+  scored: boolean,
 ): ChartWindow | null {
   if (series.hours.length === 0) return null
   // The nearest hour, as `readingNow` picks it: 12:43 is the 1pm hour, so 12pm is past.
@@ -91,7 +90,7 @@ export function chartWindow(
   const toMs = fromMs + CHART_SPAN_HOURS * HOUR_MS
 
   const byInstant = new Map<string, HourlyReading>()
-  if (alerts !== null) {
+  if (scored) {
     for (const r of series.readings?.hours ?? []) byInstant.set(r.valid_at, r)
   }
   const out: ChartHour[] = []
@@ -102,14 +101,12 @@ export function chartWindow(
     if (hour === null) continue
     const reading = byInstant.get(h.valid_at) ?? null
     const summary =
-      alerts === null || reading === null
+      !scored || reading === null
         ? null
         : summarizeReadings({
             reading,
             window: null,
             utcOffsetSeconds: series.utc_offset_seconds,
-            severeAlertEvent: alerts.severeAlertEvent,
-            alertsPending: alerts.alertsPending,
             unavailableReason: null,
           })
     out.push({
@@ -171,9 +168,8 @@ export type NextDay = {
   lowC: number | null
   highC: number | null
   /**
-   * The day's Crag A score, **suppressed exactly as every other surface
-   * suppresses it** — through `summarizeReadings`. `null` for a city, a day
-   * the model did not reach, under a Severe+ alert, and while alerts load.
+   * The day's Crag A score, through `summarizeReadings`. `null` for a city
+   * and a day the model did not reach.
    */
   score: number | null
   /** The day's good-hours span, `5am–11pm` or `None`. `null` where the day has no readings. */
@@ -224,23 +220,18 @@ export function nextDays(
 }
 
 /**
- * What a day's score is read from: the hourly response's per-day readings,
- * and the two alert facts `summarizeReadings` suppresses the number on.
+ * What a day's score is read from: the hourly response's per-day readings.
  * `null` for a city and while `/hourly` is in flight —
  * every one of which gives rows with no score rather than an invented one.
  */
 export type DayReadings = {
   days: readonly ReadingsDay[]
   utcOffsetSeconds: number
-  severeAlertEvent: string | null
-  alertsPending: boolean
 }
 
 /**
- * The day's Crag A score, **suppressed exactly as every other surface
- * suppresses it** — through `summarizeReadings`, so a Severe+ alert or an
- * alerts query still in flight drops the number here as it does on the hero.
- * Joined on the date, never on position.
+ * The day's Crag A score, through `summarizeReadings` as on every other
+ * surface. Joined on the date, never on position.
  */
 function dayReading(
   localDate: string,
@@ -252,8 +243,6 @@ function dayReading(
     reading: day.best,
     window: day.window,
     utcOffsetSeconds: readings.utcOffsetSeconds,
-    severeAlertEvent: readings.severeAlertEvent,
-    alertsPending: readings.alertsPending,
     unavailableReason: null,
   })
   return {
@@ -274,7 +263,7 @@ export function shortSpan(window: ConditionsWindow | null, utcOffsetSeconds: num
   return from === to ? from : `${from}–${to}`
 }
 
-/** Forecast rows, in the order given, as titled days carrying their suppressed score. */
+/** Forecast rows, in the order given, as titled days carrying their score. */
 export function scoredDays(
   rows: readonly ForecastSnapshot[],
   readings: DayReadings | null,

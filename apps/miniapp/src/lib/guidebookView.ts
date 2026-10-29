@@ -72,7 +72,7 @@ export const WALL_WEEK_DAYS = 7
 
 /**
  * A wall's week: up to seven days from today, each scored through
- * `scoredDays` — the Daily tab's join on the date and its suppression, so a
+ * `scoredDays` — the Daily tab's join on the date, so a
  * day cannot wear a different number here. **The crag's reading**: no wall has
  * one of its own. A day before today is dropped: the forecast's first local day
  * can be the tail of one already past.

@@ -56,7 +56,6 @@ const summary = (over: Partial<Parameters<typeof summarizeReadings>[0]> = {}) =>
     reading: reading(),
     window: window(),
     utcOffsetSeconds: 0,
-    severeAlertEvent: null,
     unavailableReason: null,
     ...over,
   });
@@ -202,28 +201,12 @@ describe('summarizeReadings', () => {
     expect(s.heldBack?.map((f) => f.label)).toEqual(['Humidity']);
   });
 
-  it('keeps the readings but drops the number under a Severe+ alert', () => {
-    const s = summary({ severeAlertEvent: 'Extreme Heat Warning' });
-    expect(s.readings).toHaveLength(1);
-    expect(s.qualifier).toBe('Score hidden: Extreme Heat Warning');
-    // The number is the thing that reads as actionable, and it is the thing
-    // suppression removes. `score` must go with `scoreField` — a surface that
-    // draws the number rather than writing it reads that field.
-    expect(s.scoreField).toBeNull();
-    expect(s.score).toBeNull();
-  });
-
-  // Defect class 7, and the reason this decision moved in here: a null
-  // `severeAlertEvent` cannot tell "no alert" from "the alerts query has not
-  // answered yet", so a surface drawing the score off it alone would show an
-  // unsuppressed number for as long as that query takes.
-  it('withholds the number while the alerts query is still in flight', () => {
-    const s = summary({ alertsPending: true });
-    expect(s.score).toBeNull();
-    expect(s.scoreField).toBeNull();
-    // The readings are not suppressed by an alert, so they have nothing to
-    // wait for — they arrive first and the number joins them.
-    expect(s.readings).toHaveLength(1);
+  // Owner, 2026-10-29: no alert withholds the score. The input has no alert
+  // field at all, so nothing here can be told about one.
+  it('takes no alert input, so the score is the reading\'s own', () => {
+    const s = summary({ reading: reading({ score: 92 }) });
+    expect(s.score).toBe(92);
+    expect(s.scoreField).toEqual({ label: 'Score', value: '92' });
     expect(s.qualifier).toBeNull();
   });
 
@@ -231,14 +214,6 @@ describe('summarizeReadings', () => {
     expect(summary({ reading: reading({ friction: friction({ condensing: true }) }) }).qualifier).toBe(
       CONDENSING_NOTE,
     );
-  });
-
-  it('lets the alert outrank condensation rather than listing both', () => {
-    const s = summary({
-      reading: reading({ friction: friction({ condensing: true }) }),
-      severeAlertEvent: 'Winter Storm Warning',
-    });
-    expect(s.qualifier).toBe('Score hidden: Winter Storm Warning');
   });
 
   it('leaves the estimate caveat to the measurements panel, not the gauges', () => {
@@ -349,10 +324,8 @@ describe('what is holding the score down', () => {
     expect(summary({ reading: reading({ held_back_by: [] }) }).heldBack).toEqual([]);
   });
 
-  it('is suppressed with the score, under an alert and while alerts load', () => {
-    const r = reading({ held_back_by: ['heat'] });
-    expect(summary({ reading: r, severeAlertEvent: 'Extreme Heat Warning' }).heldBack).toBeNull();
-    expect(summary({ reading: r, alertsPending: true }).heldBack).toBeNull();
+  it('is absent with the score', () => {
+    expect(summary({ reading: reading({ held_back_by: ['heat'], score: null }) }).heldBack).toBeNull();
   });
 
   it('prints nothing for an older API that does not send the order', () => {

@@ -4,7 +4,6 @@ import type {
   Conditions,
   HourlyReading,
   Location,
-  WeatherAlert,
 } from '@weatherteam6/types'
 import { cardSummary, readingTone, scoreTone, sortLocations } from './locationList.js'
 
@@ -30,42 +29,29 @@ const conditions = (now: HourlyReading | null): Conditions => {
   return { readings } as Conditions
 }
 
-const alert = (severity: string): WeatherAlert =>
-  ({ id: 'a', event: 'Extreme Heat Warning', severity, headline: null }) as WeatherAlert
-
 const loc = (id: string, name: string): Location => ({ id, name }) as Location
 
 describe('cardSummary', () => {
   it('prints nothing for a location whose conditions were never asked for', () => {
-    expect(cardSummary(undefined, [], false)).toBeNull()
+    expect(cardSummary(undefined)).toBeNull()
   })
 
   it('prints nothing for a response from an API older than the readings', () => {
     // Absent is "the server did not send it", not "the model could not read it".
-    expect(cardSummary({} as Conditions, [], false)).toBeNull()
+    expect(cardSummary({} as Conditions)).toBeNull()
   })
 
-  it('carries the score once alerts have settled with nothing severe', () => {
-    expect(cardSummary(conditions(reading()), [], false)?.score).toBe(91)
-  })
-
-  it('withholds the number while alerts are still loading, and keeps the readings', () => {
-    const s = cardSummary(conditions(reading()), undefined, true)
-    expect(s?.score).toBeNull()
+  // Owner, 2026-10-29: alerts no longer withhold the score, so the card's
+  // number does not depend on them at all.
+  it('carries the score and the readings', () => {
+    const s = cardSummary(conditions(reading()))
+    expect(s?.score).toBe(91)
     expect(s?.readings.map((f) => f.value)).toEqual(['Dry'])
-  })
-
-  it('withholds the number under a Severe alert', () => {
-    expect(cardSummary(conditions(reading()), [alert('Severe')], false)?.score).toBeNull()
   })
 })
 
 describe('readingTone', () => {
-  const s = cardSummary(
-    conditions(reading({ rock: { level: 'drying', qualified: true } })),
-    [],
-    false,
-  )
+  const s = cardSummary(conditions(reading({ rock: { level: 'drying', qualified: true } })))
   const [dryness] = s?.readings ?? []
 
   it('takes each tone from the level the word was made from', () => {

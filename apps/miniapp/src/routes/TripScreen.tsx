@@ -9,7 +9,6 @@ import {
   type HourlySeries,
   type Location,
   type TripOutlook,
-  type WeatherAlert,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, navClearance, row, stack } from '../theme/styles.js'
@@ -20,33 +19,23 @@ import { TripHead } from './Trips.js'
 import { TripCragGrid } from '../components/trips/TripCragGrid.js'
 import { TripLookBackGrid, TripLookBackView } from '../components/trips/TripLookBack.js'
 import { hourlyQuery } from '../hooks/useHourly.js'
-import { alertsQuery } from '../hooks/useWeather.js'
 import { useLocations } from '../hooks/useLocations.js'
 import { forgetTrip, useDeleteTrip, useTrip, useTripForecast, useTripSummary, useTripTrend } from '../hooks/useTrips.js'
 import { backTarget, editTripPath, tripCragPath } from '../lib/backTarget.js'
-import { severeAlertEvent } from '../lib/forecast.js'
 import type { DayReadings } from '../lib/overview.js'
 import { cragCount, deviceToday, formatTripDates, tripDates, tripIsOver, tripTiming, type TrendSeries } from '../lib/trips.js'
 
 /**
  * What a day's score is read from at one crag, or `null` when there is nothing
  * to score with: `/hourly` in flight or failed, an API older than `readings`,
- * a location that is not a crag. The number also waits for the alerts query,
- * inside `summarizeReadings` (`alertsPending`), and stays withheld when it
- * fails: this screen has no "alerts unavailable" line, so a failed check must
- * not read as "no alerts".
+ * a location that is not a crag.
  */
-export function dayReadingsFor(
-  hourly: { data: HourlySeries | undefined },
-  alerts: { data: readonly WeatherAlert[] | undefined; isPending: boolean; isError: boolean },
-): DayReadings | null {
+export function dayReadingsFor(hourly: { data: HourlySeries | undefined }): DayReadings | null {
   const readings = hourly.data?.readings
   if (hourly.data === undefined || readings === undefined || readings.unavailable_reason !== null) return null
   return {
     days: readings.days,
     utcOffsetSeconds: hourly.data.utc_offset_seconds,
-    severeAlertEvent: severeAlertEvent(alerts.data),
-    alertsPending: alerts.isPending || alerts.isError,
   }
 }
 
@@ -78,12 +67,9 @@ export function TripScreen() {
   const hourly = useQueries({
     queries: ids.map((id) => ({ ...hourlyQuery(id, climbHours), enabled: !over && scoredIds.includes(id) })),
   })
-  const alerts = useQueries({ queries: ids.map((id) => ({ ...alertsQuery(id), enabled: !over })) })
   const readingsFor = (id: string): DayReadings | null => {
-    const i = ids.indexOf(id)
-    const h = hourly[i]
-    const a = alerts[i]
-    return h === undefined || a === undefined || !scoredIds.includes(id) ? null : dayReadingsFor(h, a)
+    const h = hourly[ids.indexOf(id)]
+    return h === undefined || !scoredIds.includes(id) ? null : dayReadingsFor(h)
   }
 
   // The trip form offers only crags; until the list loads, a location is taken to be one.

@@ -8,10 +8,8 @@ import {
   type ReadingField,
   type ReadingsSummary,
   type RockLevel,
-  type WeatherAlert,
 } from '@weatherteam6/types'
 import type { ToneName } from '../theme/styles.js'
-import { severeAlertEvent } from './forecast.js'
 
 /**
  * The list screen's logic, apart from its markup: what a card says, what colour
@@ -31,25 +29,14 @@ import { severeAlertEvent } from './forecast.js'
  * non-climbing location, whose conditions are never asked for. `readings`
  * absent from a settled response is an API older than this client, not a model
  * with nothing to say — the card shows nothing rather than an invented reason.
- *
- * The readings do not wait for alerts and the **number** does: `severeAlertEvent`
- * answers null for a query in flight exactly as it does for "no alert", so
- * `alertsPending` travels with it. An alerts *error* has settled with no data,
- * and nothing is suppressed.
  */
-export function cardSummary(
-  conditions: Conditions | null | undefined,
-  alerts: readonly WeatherAlert[] | undefined,
-  alertsPending: boolean,
-): ReadingsSummary | null {
+export function cardSummary(conditions: Conditions | null | undefined): ReadingsSummary | null {
   const readings = conditions?.readings
   if (readings === undefined) return null
   return summarizeReadings({
     reading: readings.now,
     window: readings.today?.window ?? null,
     utcOffsetSeconds: readings.utc_offset_seconds,
-    severeAlertEvent: severeAlertEvent(alerts),
-    alertsPending,
     unavailableReason: readings.unavailable_reason,
   })
 }

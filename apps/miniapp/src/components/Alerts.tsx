@@ -1,5 +1,5 @@
 import { colors, spacing } from '@weatherteam6/design/tokens'
-import { isSevereAlert, type WeatherAlert } from '@weatherteam6/types'
+import type { WeatherAlert } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { alertSurface, stack } from '../theme/styles.js'
 import { sortBySeverity } from '../lib/forecast.js'
@@ -58,9 +58,4 @@ export function AlertPill({ alerts }: { alerts: readonly WeatherAlert[] }) {
       {alert.event}
     </span>
   )
-}
-
-/** Whether any of these alerts triggers §7's suppression rule. */
-export function hasSevereAlert(alerts: readonly WeatherAlert[] | undefined): boolean {
-  return alerts?.some((a) => isSevereAlert(a.severity)) ?? false
 }

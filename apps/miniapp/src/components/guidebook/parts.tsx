@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
-import type { Conditions, ForecastSnapshot, WeatherAlert } from '@weatherteam6/types'
+import type { Conditions, ForecastSnapshot } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
 import { bareButton, row, stack } from '../../theme/styles.js'
 import { cardSummary } from '../../lib/locationList.js'
@@ -51,25 +51,20 @@ export function Crumb({ label, onClick }: { label: string; onClick: () => void }
 
 /**
  * The crag's reading now — `Now 100 Dryness: Dry` — through `cardSummary`,
- * so the score waits for the alerts and is withheld under one exactly as the
- * list's is. **It is the crag's**, on a wall and a route too: no wall has a
- * reading of its own.
+ * as the list's is. **It is the crag's**, on a wall and a route too: no wall
+ * has a reading of its own.
  */
 export function NowLine({
   conditions,
-  alerts,
-  alertsPending,
   trailing,
   labelled = true,
 }: {
   conditions: Conditions | null | undefined
-  alerts: readonly WeatherAlert[] | undefined
-  alertsPending: boolean
   trailing: ReactNode
   /** False inside a card already titled Now. */
   labelled?: boolean
 }) {
-  const summary = cardSummary(conditions, alerts, alertsPending)
+  const summary = cardSummary(conditions)
   if (summary === null || summary.readings.length === 0) return null
   return (
     <div style={{ ...row(spacing.listGap), flexWrap: 'wrap', alignItems: 'baseline' }}>

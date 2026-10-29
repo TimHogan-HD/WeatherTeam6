@@ -80,7 +80,7 @@ suite; reading the diff is what caught them.
 - [ ] A colour reaching the manifest, `theme-color` or `public/icons/` still comes from the tokens; `npm run check:icons` passes after any palette change
 - [ ] Copy follows the copy rules in `docs/handoffs/design-system-v1.md` — no climbing opinions, imperial units, and a score headlines only beside the hour it is (`readings.md`)
 - [ ] Nothing formats a nullable weather value by hand — the `packages/types` formatters return an em dash, and `null` coerced to `0` renders a plausible `32°F` / `0 mph` instead of a visible gap
-- [ ] The readings and the suppression come from `readingsCopy.ts`, not reimplemented — and no surface derives a word from the score, which is what `stateLabel` did and why it is gone
+- [ ] The readings and the score come from `readingsCopy.ts`, not reimplemented, no surface withholds a score for an alert (owner, 2026-10-29), and no surface derives a word from the score, which is what `stateLabel` did and why it is gone
 - [ ] `GET /conditions/:id` is not called for a non-climbing location, and no score, breakdown or hours-since-rain renders for one
 - [ ] The sources footer is derived from `model_sources`, and omits a source rather than guessing one — including NWS when the alerts call failed
 - [ ] "Today" comes from the server's `is_today` flag, never a date the client derived — and a missing row says so rather than falling back to the first row

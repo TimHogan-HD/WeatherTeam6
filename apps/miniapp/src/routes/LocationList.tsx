@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from '../hooks/useNavigate.js'
 import { useQueries } from '@tanstack/react-query'
 import { colors, colorsV2, radius, spacing } from '@weatherteam6/design/tokens'
-import type { Conditions, Location, WeatherAlert } from '@weatherteam6/types'
+import type { Conditions, Location } from '@weatherteam6/types'
 import {
   rememberCards,
   rememberedCards,
@@ -68,7 +68,7 @@ export function LocationList() {
   })
   const alerts = useQueries({ queries: list.map((l) => alertsQuery(l.id)) })
 
-  const settledScores = settledScoresOf(list, conditions, alerts)
+  const settledScores = settledScoresOf(list, conditions)
   const scores = settledScores ?? rememberedScoresOf(list, remembered)
   const ordered = sortLocations(list, sort, scores)
 
@@ -196,7 +196,7 @@ function lowerFirst(text: string): string {
 type Settling<T> = { data: T | undefined; isPending: boolean; dataUpdatedAt: number }
 
 /**
- * Every card's **suppressed** score, once all of them have settled; `null`
+ * Every card's score, once all of them have settled; `null`
  * until then, which `sortLocations` reads as "keep the added order".
  *
  * A non-climbing location's conditions query is disabled and stays pending
@@ -205,16 +205,13 @@ type Settling<T> = { data: T | undefined; isPending: boolean; dataUpdatedAt: num
 function settledScoresOf(
   locations: readonly Location[],
   conditions: readonly Settling<Conditions | null>[],
-  alerts: readonly Settling<WeatherAlert[]>[],
 ): ReadonlyMap<string, number | null> | null {
   const scores = new Map<string, number | null>()
   for (const [i, location] of locations.entries()) {
     const c = conditions[i]
-    const a = alerts[i]
-    if (c === undefined || a === undefined) return null
-    if (a.isPending) return null
+    if (c === undefined) return null
     if (location.is_climbing_location && c.isPending) return null
-    scores.set(location.id, cardSummary(c.data, a.data, false)?.score ?? null)
+    scores.set(location.id, cardSummary(c.data)?.score ?? null)
   }
   return scores
 }
@@ -232,7 +229,7 @@ function rememberedScoresOf(
   for (const location of locations) {
     const card = remembered.cards[location.id]
     if (card === undefined) return null
-    scores.set(location.id, cardSummary(card.conditions, card.alerts, false)?.score ?? null)
+    scores.set(location.id, cardSummary(card.conditions)?.score ?? null)
   }
   return scores
 }

@@ -15,11 +15,7 @@ import type {
 import { GUIDEBOOK_SOURCE_LABEL, RECENT_PRECIP_SOURCE_LABEL, SUN_WALLS_SOURCE_LABEL, sunWallsFor } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { stack } from '../theme/styles.js'
-import {
-  findToday,
-  forecastSourceLabel,
-  severeAlertEvent,
-} from '../lib/forecast.js'
+import { findToday, forecastSourceLabel } from '../lib/forecast.js'
 import { AlertBanner } from './Alerts.js'
 import { SourcesFooter, type SourceEntry } from './SourcesFooter.js'
 import { formatTickDate } from '../lib/logbook.js'
@@ -82,8 +78,6 @@ export type DetailViewProps = {
   }
   alerts?: {
     data: WeatherAlert[] | undefined
-    /** Gates the score: suppression cannot be decided before this settles. */
-    isPending: boolean
     isError: boolean
   }
   conditions?: {
@@ -198,8 +192,6 @@ export function DetailView({
   location,
   guidebook,
 }: DetailViewProps) {
-  const alertEvent = severeAlertEvent(alerts?.data)
-  const alertsPending = alerts?.isPending === true
   const showScore = isClimbingLocation
   const activeAlertCount = alerts?.data?.length ?? 0
   const tabs = hourly?.tabs
@@ -255,8 +247,6 @@ export function DetailView({
       ? {
           days: hourly.data.readings?.days ?? [],
           utcOffsetSeconds: hourly.data.utc_offset_seconds,
-          severeAlertEvent: alertEvent,
-          alertsPending,
         }
       : null
 
@@ -301,8 +291,6 @@ export function DetailView({
           hourly={hourly}
           recentPrecip={recentPrecip?.data}
           rainNow={rainNow}
-          severeAlertEvent={alertEvent}
-          alertsPending={alertsPending}
           rangeF={rangeF}
           drawableDates={drawableDates}
           onOpenDay={(localDate) => openDayInHourly(tabs, localDate)}
@@ -335,7 +323,7 @@ export function DetailView({
           onRead={tabs.onRead}
           {...(!showScore
             ? {}
-            : { score: { severeAlertEvent: alertEvent, alertsPending, showScore } })}
+            : { score: { showScore } })}
         />
       )
   } else if (active === 'precip') {
@@ -377,8 +365,6 @@ export function DetailView({
         <CragTab
           guidebook={guidebook}
           conditions={conditions?.data}
-          alerts={alerts?.data}
-          alertsPending={alertsPending}
           locationId={guidebook.locationId}
           at={guidebook.at}
           week={{

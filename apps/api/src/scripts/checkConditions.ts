@@ -48,8 +48,8 @@
  *    `HourlyConditions.diagnostics` and must not reach a surface. A unit test
  *    asserts that at the type boundary; this asserts it on **a real reading
  *    built from a real run**, where a future edit would break it.
- *  - **A Severe+ alert suppresses the number and keeps the words.** Measured
- *    against the location's own live alert rows, not a fabricated one.
+ *  - **No alert withholds the number** (owner, 2026-10-29): the published score
+ *    is the reading's own whatever alerts are active, which are printed beside it.
  *
  * **Read-only**, other than the write-back `getHourlySeries` already performs
  * when no stored run is fresh. It creates no rows and has nothing to clean up.
@@ -335,7 +335,6 @@ async function run(): Promise<void> {
     reading: readings.now,
     window,
     utcOffsetSeconds: readings.utc_offset_seconds,
-    severeAlertEvent: severeEvent,
     unavailableReason: readings.unavailable_reason,
   })
 
@@ -430,32 +429,11 @@ async function run(): Promise<void> {
     }
   }
 
-  // ── Severe+ drops the number and keeps the words ──────────────────────────
-  //
-  // Run against a synthesised event as well as the live one, because a location
-  // with no active warning is the common case and the rule would otherwise go
-  // unexercised on most runs. The *inputs* are the real reading either way.
-  const suppressed = summarizeReadings({
-    reading: readings.now,
-    window,
-    utcOffsetSeconds: readings.utc_offset_seconds,
-    severeAlertEvent: severeEvent ?? 'Extreme Heat Warning',
-    unavailableReason: readings.unavailable_reason,
-  })
+  // ── No alert withholds the number (owner, 2026-10-29) ──────────────────────
   check(
-    'a Severe+ alert drops the number',
-    suppressed.score === null && suppressed.scoreField === null,
-    `score ${String(suppressed.score)}`,
-  )
-  check(
-    'and keeps the readings — they are the same fact the warning is about',
-    suppressed.readings.length === summary.readings.length,
-    `${String(suppressed.readings.length)} vs ${String(summary.readings.length)}`,
-  )
-  check(
-    'and names the alert rather than staying silent about why',
-    suppressed.qualifier !== null && suppressed.qualifier.includes('Warning'),
-    suppressed.qualifier ?? '(none)',
+    'the published score is the reading\'s own, whatever alerts are active',
+    summary.score === (readings.now?.score ?? null),
+    `summary ${String(summary.score)} vs reading ${String(readings.now?.score ?? null)}`,
   )
 
   // ── A place saved as a place gets no rock reading at all ──────────────────
@@ -467,7 +445,6 @@ async function run(): Promise<void> {
       reading: placeGather.readings.now,
       window: placeGather.readings.today?.window ?? null,
       utcOffsetSeconds: placeGather.readings.utc_offset_seconds,
-      severeAlertEvent: null,
       unavailableReason: placeGather.readings.unavailable_reason,
     })
     check(

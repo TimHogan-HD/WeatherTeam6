@@ -22,12 +22,7 @@ describe('wallWeek', () => {
     condensation_margin_c: 6,
   })
   const day = (local_date: string, score: number): ReadingsDay => ({ local_date, window: null, best: reading(score) })
-  const readings = (days: ReadingsDay[], severe: string | null = null) => ({
-    days,
-    utcOffsetSeconds: 0,
-    severeAlertEvent: severe,
-    alertsPending: false,
-  })
+  const readings = (days: ReadingsDay[]) => ({ days, utcOffsetSeconds: 0 })
   // Nine days, out of order, starting the day before today.
   const forecast = ['2026-09-29', '2026-09-27', '2026-09-28', '2026-10-01', '2026-09-30', '2026-10-02', '2026-10-03', '2026-10-04', '2026-10-05'].map((d) => row(d))
 
@@ -41,12 +36,6 @@ describe('wallWeek', () => {
     const out = wallWeek(forecast, '2026-09-28', readings([day('2026-09-30', 70), day('2026-09-28', 88)]))
     expect(out.slice(0, 3).map((d) => d.score)).toEqual([88, null, 70])
     expect(out.some((d) => d.score === 12)).toBe(false)
-  })
-
-  it('withholds every score under a Severe+ alert and keeps the Dryness', () => {
-    const out = wallWeek(forecast, '2026-09-28', readings([day('2026-09-28', 88)], 'Tornado Warning'))
-    expect(out[0]?.score).toBeNull()
-    expect(out[0]?.dryness).not.toBeNull()
   })
 })
 

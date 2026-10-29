@@ -55,30 +55,25 @@ function scored(readings: Partial<ConditionsReadings> | null = {}): Conditions {
 
 describe('shownReading', () => {
   it('captures the words and the score the card prints, with the reading’s own hour and model', () => {
-    const r = shownReading(scored(), null)
+    const r = shownReading(scored())
     expect(r?.valid_at).toBe(NOW)
     expect(r?.model).toBe('gfs_seamless')
     expect(r?.fields.map((f) => f.label)).toEqual(['Dryness', 'Score'])
     expect(r?.fields.find((f) => f.label === 'Score')?.value).toBe('58')
   })
 
-  it('drops the number under a Severe+ alert, as the card does, and keeps the words', () => {
-    const r = shownReading(scored(), 'Extreme Heat Warning')
-    expect(r?.fields.map((f) => f.label)).toEqual(['Dryness'])
-  })
-
   it('never carries a 0-1 factor — values are words or the score', () => {
-    const r = shownReading(scored(), null)
+    const r = shownReading(scored())
     for (const f of r?.fields ?? []) expect(f.value).not.toMatch(/^0\.\d+$/)
   })
 
   it('attaches nothing when there is nothing on screen', () => {
-    expect(shownReading(null, null)).toBeNull()
-    expect(shownReading(undefined, null)).toBeNull()
+    expect(shownReading(null)).toBeNull()
+    expect(shownReading(undefined)).toBeNull()
     // An older API with no `readings` field at all.
-    expect(shownReading(scored(null), null)).toBeNull()
-    expect(shownReading(scored({ now: null }), null)).toBeNull()
-    expect(shownReading(scored({ unavailable_reason: 'model_unavailable' }), null)).toBeNull()
+    expect(shownReading(scored(null))).toBeNull()
+    expect(shownReading(scored({ now: null }))).toBeNull()
+    expect(shownReading(scored({ unavailable_reason: 'model_unavailable' }))).toBeNull()
   })
 })
 

@@ -14,7 +14,7 @@ import { useAlerts, useConditions, useForecast, useRainNow } from '../hooks/useW
 import { useHourly } from '../hooks/useHourly.js'
 import { shortSpan } from '../lib/overview.js'
 import { SkyIcon } from './Icons.js'
-import { findToday, severeAlertEvent, sortBySeverity } from '../lib/forecast.js'
+import { findToday, sortBySeverity } from '../lib/forecast.js'
 import { prefetchDetail } from '../lib/prefetchDetail.js'
 import { formatTempRangeF } from '../lib/format.js'
 import { cardSummary } from '../lib/locationList.js'
@@ -88,7 +88,6 @@ export function LocationCard({
   const forecastData = shown === null ? forecast.data : shown.forecast
   const alertsData = shown === null ? alerts.data : shown.alerts
   const conditionsData = shown === null ? conditions.data : shown.conditions
-  const alertsPending = shown === null && alerts.isPending
 
   const [settledAtMount] = useState(settled)
   const appear = (node: ReactNode) => (settledAtMount || shown !== null ? node : <FadeIn>{node}</FadeIn>)
@@ -98,7 +97,7 @@ export function LocationCard({
    * summary the list sorts by — so a crag cannot show one number here, another
    * on its own screen, and rank by a third.
    */
-  const summary = cardSummary(conditionsData, alertsData, alertsPending)
+  const summary = cardSummary(conditionsData)
   const readings = conditionsData?.readings
   const dayScore =
     readings === undefined
@@ -107,8 +106,6 @@ export function LocationCard({
           reading: readings.today?.best ?? null,
           window: null,
           utcOffsetSeconds: readings.utc_offset_seconds,
-          severeAlertEvent: severeAlertEvent(alertsData),
-          alertsPending,
           unavailableReason: readings.unavailable_reason,
         }).score
   const dryness = summary?.readings.find((f) => f.label === DRYNESS_LABEL)?.value ?? null
@@ -230,7 +227,6 @@ export function LocationCard({
         <RowScore
           locationId={location.id}
           score={loading ? undefined : (summary?.score ?? null)}
-          withheld={alertsPending || severeAlertEvent(alertsData) !== null}
         />
       ) : (
         <span />
@@ -242,20 +238,8 @@ export function LocationCard({
   )
 }
 
-/**
- * The hour's score, with "now" under it. `summary.score` is already `null`
- * under a Severe+ alert and while alerts load, so there is no raw number here
- * to reach past; a withheld score is a dash over "withheld".
- */
-function RowScore({
-  locationId,
-  score,
-  withheld,
-}: {
-  locationId: string
-  score: number | null | undefined
-  withheld: boolean
-}) {
+/** The hour's score, with "now" under it; a dash over "no score" when there is none. */
+function RowScore({ locationId, score }: { locationId: string; score: number | null | undefined }) {
   const value = score == null ? EM_DASH : String(score)
   const was = usePreviousFigure(value)
   if (score === undefined) return <span style={{ width: '64px' }} />
@@ -272,7 +256,7 @@ function RowScore({
       <span {...{ [CRAG_FLY_ATTR]: 'score', [CRAG_FLY_ID_ATTR]: locationId }} style={{ display: 'inline-block' }}>
         <RollingFigure value={value} from={was} />
       </span>
-      <small style={{ ...typeV2.daySmall, display: 'block', fontWeight: 500 }}>{score !== null ? 'now' : withheld ? 'withheld' : 'no score'}</small>
+      <small style={{ ...typeV2.daySmall, display: 'block', fontWeight: 500 }}>{score !== null ? 'now' : 'no score'}</small>
     </span>
   )
 }

@@ -26,7 +26,7 @@ import { InlineError, Skeleton } from '../components/States.js'
 import { PullToRefresh } from '../components/PullToRefresh.js'
 import { Dock } from '../components/Dock.js'
 import { SlimHeader } from '../components/SlimHeader.js'
-import { findToday, severeAlertEvent } from '../lib/forecast.js'
+import { findToday } from '../lib/forecast.js'
 import { flipSource, flyFrom, type FlipRect } from '../lib/flip.js'
 import { slimFigure } from '../lib/slimHeader.js'
 import { useEdgeSwipeBack } from '../hooks/useEdgeSwipeBack.js'
@@ -200,7 +200,7 @@ export function LocationDetail() {
           isError: forecast.isError,
           refetch: () => void forecast.refetch(),
         }}
-        alerts={{ data: alerts.data, isPending: alerts.isPending, isError: alerts.isError }}
+        alerts={{ data: alerts.data, isError: alerts.isError }}
         conditions={{
           data: conditions.data,
           isPending: conditions.isPending,
@@ -326,14 +326,12 @@ export function LocationDetail() {
             isClimbingLocation: location.data.is_climbing_location,
             forecast: forecast.data,
             todayDate: findToday(forecast.data)?.forecast_date ?? null,
-            // The same day readings, and the same two alert facts, the Daily rows are suppressed on.
+            // The same day readings the Daily rows score from.
             readings:
               location.data.is_climbing_location && hourly.data !== undefined
                 ? {
                     days: hourly.data.readings?.days ?? [],
                     utcOffsetSeconds: hourly.data.utc_offset_seconds,
-                    severeAlertEvent: severeAlertEvent(alerts.data),
-                    alertsPending: alerts.isPending,
                   }
                 : null,
             hours: hourly.data?.hours ?? [],

@@ -67,7 +67,7 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   the score.
 - **A score over a span is its worst hour, never a mean or a best.** A day's is
   `dayRepresentative`; any block of hours is the
-  same rule, and a block with any hour unread or suppressed has no score — the worst of the
+  same rule, and a block with any hour unread has no score — the worst of the
   rest could be better than the missing one. **An hour's score may headline only beside
   the hour it is** (owner, 2026-10-19, superseding 2026-10-05's "never"): the Overview hero
   prints the hour covering now, names that hour beside it, and keeps the day's good hours
@@ -75,7 +75,7 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   at now (owner, 2026-10-20: the score bars repeated it and were removed); Hourly's slim header follows
   the hour being read (`Today 7 PM`). **Hourly's header is the crag's name as its headline
   and that score, with no line of figures** (owner, 2026-10-20): each chart names the read
-  hour's figures in its own chip. Only `Alert: score withheld` prints under the name.
+  hour's figures in its own chip.
 - **A figure printed beside a chart is the series the chart draws.** The Hourly charts draw
   the ensemble medians (`temp_c_p50`, `wind_kmh_p50`; gusts as `max(wind_gust_kmh, p50)`),
   so each chart's read-hour chip, and a city's figure in Hourly's slim header, use those too. On
@@ -84,9 +84,13 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
 - **An axis is checked on the screenshot, not the test.** `niceTicks` (`lib/chartTicks.ts`)
   once drew 20–80° for a 37–67° day. A tick change gets a test on the real range and a
   look at Hourly at 480×1000.
-- **The number waits for the alerts query, inside `summarizeReadings`** — `alertsPending`
-  suppresses the score on its own (defect class 7). **Severe+ suppression drops the number
-  and keeps the readings.** A surface must not reach past `ReadingsSummary.score === null`.
+- **No alert withholds the score, and the score does not wait for alerts** (owner, 2026-10-29).
+  Until 2026-10-29 a Severe+ alert dropped the number and the number waited for the alerts
+  query; one warning hid every day regardless of when it applied, and any Severe warning
+  counted whether it mattered at a crag or not. Warnings show in their own banner beside
+  the score. Bringing suppression back is the owner's call, and needs an alert system that
+  knows a warning's hours and kind. A surface still must not reach past
+  `ReadingsSummary.score === null`, which now means only "no reading".
 - **Two sentinels:** `NOT_A_CRAG_READINGS` (`not_a_climbing_location`, the reader's choice)
   and `READINGS_UNAVAILABLE` (`model_unavailable`, a gap), both beside `toConditionsReadings`.
   **An absent `readings` field is neither** — it is an older API during a deploy, and renders

@@ -16,8 +16,8 @@ import { DailyList, dailyFoot, dayHeading, dayRainChance } from './DailyList.js'
  * The Daily tab's Seven days card. What it must get right, and what would pass
  * every gate while wrong on screen:
  *
- * - the score is the Crag A day score, joined on the date and **suppressed** the
- *   way the hero suppresses it — never the forecast row's five-component score;
+ * - the score is the Crag A day score, joined on the date — never the forecast
+ *   row's five-component score;
  * - a missing figure is a dash, never 32° or 0%;
  * - a row opens a drill-down only when the hourly charts can draw that day.
  */
@@ -69,7 +69,7 @@ function readingsDay(localDate: string, score: number | null, rock: 'dry' | 'wet
 }
 
 function readings(days: ReadingsDay[], over: Partial<DayReadings> = {}): DayReadings {
-  return { days, utcOffsetSeconds: 0, severeAlertEvent: null, alertsPending: false, ...over }
+  return { days, utcOffsetSeconds: 0, ...over }
 }
 
 /** 24 hours of `localDate`, every field null but the chance of rain. */
@@ -212,13 +212,6 @@ describe('DailyList — the score', () => {
       />,
     )
     expect(scores(html)).toEqual(['0', EM_DASH])
-  })
-
-  it('is withheld under a Severe+ alert and while the alerts query is in flight', () => {
-    const days = [day(DATES[0])]
-    const r = [readingsDay(DATES[0], 90)]
-    expect(scores(render(<DailyList days={days} readings={readings(r, { severeAlertEvent: 'Extreme Heat Warning' })} hours={[]} sky={[]} />))).toEqual([EM_DASH])
-    expect(scores(render(<DailyList days={days} readings={readings(r, { alertsPending: true })} hours={[]} sky={[]} />))).toEqual([EM_DASH])
   })
 
   it('is empty with no readings at all — a city, or /hourly in flight', () => {

@@ -5,7 +5,6 @@ import {
   type Conditions,
   type Guidebook,
   type GuidebookWall,
-  type WeatherAlert,
 } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
 import { bareButton, row, stack } from '../../theme/styles.js'
@@ -43,8 +42,6 @@ export type CragTabProps = {
   /** The wall and route the URL names, or null on the guidebook itself. */
   at: { wallId: string | null; routeId: string | null }
   conditions: Conditions | null | undefined
-  alerts: readonly WeatherAlert[] | undefined
-  alertsPending: boolean
   week: WeekInput
   onOpenOverview: () => void
 }
@@ -124,8 +121,6 @@ function GuideRoot(props: CragTabProps & { guide: Guidebook }) {
   const now = (
     <NowLine
       conditions={props.conditions}
-      alerts={props.alerts}
-      alertsPending={props.alertsPending}
       trailing={<OverviewLink onClick={props.onOpenOverview} />}
       labelled={false}
     />
@@ -206,7 +201,7 @@ export function CragTab(props: CragTabProps) {
         guideName={guide.crag.name}
         wall={found.wall}
         week={props.week}
-        now={<NowLine conditions={props.conditions} alerts={props.alerts} alertsPending={props.alertsPending} trailing={<OverviewLink onClick={props.onOpenOverview} />} />}
+        now={<NowLine conditions={props.conditions} trailing={<OverviewLink onClick={props.onOpenOverview} />} />}
         onUp={toGuide}
         onOpenRoute={(routeId) => void navigate(climbPath(locationId, found.wall.id, routeId))}
       />

@@ -137,8 +137,10 @@ Nothing runs on an in-process schedule. Scoring and recent rainfall are computed
 request; scheduled work is `/api/cron/*` on cron-job.org (`background-work` skill).
 
 - **`/api/cron/check-alerts` collects and never delivers** — there is no notification channel
-  (owner's parked decision). Keep it scheduled: Severe+ rows suppress scores. Do not build a
-  channel without asking.
+  (owner's parked decision). Keep it scheduled: the stored rows are the warnings every crag
+  screen shows. **No alert withholds a score** (owner, 2026-10-29): a warning sits beside the
+  number until the app has an alert and warning system deep enough to justify hiding one.
+  Do not build a channel, or bring suppression back, without asking.
 - **A per-location loop that calls upstream runs under `Promise.allSettled`, never
   sequentially** — `fetchWithRetry`'s backoff times the number of locations walks into
   `maxDuration: 60`.

@@ -4,7 +4,6 @@ import {
   findToday,
   forecastSourceLabel,
   formatForecastDate,
-  severeAlertEvent,
   sortBySeverity,
 } from './forecast.js'
 
@@ -128,12 +127,5 @@ describe('alert ranking', () => {
       alert('Extreme Heat Warning', 'Extreme'),
     ])
     expect(sorted[0]?.event).toBe('Extreme Heat Warning')
-  })
-
-  it('reports a Severe+ event for the suppression rule and ignores lesser ones', () => {
-    expect(severeAlertEvent([alert('Extreme Heat Warning', 'Extreme')])).toBe('Extreme Heat Warning')
-    expect(severeAlertEvent([alert('Wind Advisory', 'Moderate')])).toBeNull()
-    expect(severeAlertEvent([])).toBeNull()
-    expect(severeAlertEvent(undefined)).toBeNull()
   })
 })

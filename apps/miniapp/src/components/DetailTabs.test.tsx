@@ -160,7 +160,7 @@ function render(tabs: Partial<Tabs> = {}): string {
     <DetailView
       isClimbingLocation
       forecast={ok([day(DAY_1), day(DAY_2), day(DAY_3)])}
-      alerts={{ data: [], isPending: false, isError: false }}
+      alerts={{ data: [], isError: false }}
       hourly={{
         ...ok(series),
         tabs: {
@@ -242,7 +242,7 @@ describe('DetailView — tabs', () => {
         <DetailView
           isClimbingLocation
           forecast={ok([day(DAY_1), day(DAY_2), day(DAY_3)])}
-          alerts={{ data: [heatWarning], isPending: false, isError: false }}
+          alerts={{ data: [heatWarning], isError: false }}
           conditions={ok(score)}
           hourly={{
             ...ok(series),
@@ -270,7 +270,7 @@ describe('DetailView — tabs', () => {
         <DetailView
           isClimbingLocation
           forecast={ok([day(DAY_1), day(DAY_2), day(DAY_3)])}
-          alerts={{ data: [], isPending: false, isError: false }}
+          alerts={{ data: [], isError: false }}
           conditions={ok(score)}
           hourly={{
             ...ok(series),
@@ -420,7 +420,7 @@ describe('DetailView — the Overview tab', () => {
         // The rows carry the retired five-component score, 13. It must not
         // appear anywhere: Crag A is the score on every screen.
         forecast={ok([day(DAY_1), { ...day(DAY_2), score: 13 }, { ...day(DAY_3), score: 13 }])}
-        alerts={{ data: over.alerts ?? [], isPending: false, isError: false }}
+        alerts={{ data: over.alerts ?? [], isError: false }}
         conditions={ok(score)}
         hourly={{
           ...ok(withReadings),
@@ -470,13 +470,13 @@ describe('DetailView — the Overview tab', () => {
     expect(next).not.toMatch(/>13</)
   })
 
-  it('drops every score under a Severe+ alert and keeps the rows', () => {
+  it('keeps every score under a Severe+ alert (owner, 2026-10-29)', () => {
     const html = overview({ alerts: [heatWarning] })
     const next = card(html, 'Next days')
     expect(next).toContain('>Tue<')
-    expect(next).not.toMatch(/>91<\/b>/)
-    // The Today chart loses its score row and colour too: a tint with no number is the number leaking.
-    expect(scoreRow(card(html, 'Today'))).toHaveLength(0)
+    expect(next).toMatch(/>91<\/b>/)
+    expect(scoreRow(card(html, 'Today'))).toEqual(scoreRow(card(overview(), 'Today')))
+    expect(scoreRow(card(html, 'Today')).length).toBeGreaterThan(0)
   })
 
   it('names the next likely rain from the ensemble’s wet share', () => {
