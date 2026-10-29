@@ -65,6 +65,7 @@ export function renderTokenCss(): string {
       popDelayMs: `${motion.popDelayMs}ms`,
       growMs: `${motion.growMs}ms`,
       arcFillMs: `${motion.arcFillMs}ms`,
+      disclosureOpenMs: `${motion.disclosureOpenMs}ms`,
     }),
     ...declarations('glass', glassVars().normal),
   ]

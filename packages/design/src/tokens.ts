@@ -179,8 +179,13 @@ export const colorsV2 = {
   grid: '#232e3b',
   /** A chart legend's words, and the sustained-wind line. */
   legend: '#c9d2dc',
-  /** The humidity line and its right-hand scale (hybrid mockup's `--hum`). */
-  humidity: '#c3a6ff',
+  /**
+   * The humidity line on Hourly's temperature chart. Orchid (owner, 2026-10-29):
+   * it shares that chart with the dashed dew-point line in `rainMark`, and the
+   * mockup's violet `--hum` was a second shade of the same hue. `agreement`
+   * keeps the violet; it appears only on Trips.
+   */
+  humidity: '#ee9fe0',
   /**
    * Snow, and rain and snow together, on the Precip tab — beside `rain`.
    * The Figma frame draws a mixed event in `fair` amber; that colour is the
@@ -394,16 +399,21 @@ export const gradeBoulder = '#b794f4';
  * score itself (the Overview's Today line). Owner, 2026-09-30: a range rather
  * than hard cut-offs.
  *
- * The stops sit at the middle of each `SCORE_BANDS` rung — poor 0-39, fair
- * 40-59, good 60+ — so a band's own centre keeps its status colour and the
- * edges blend: 39 and 40 are neighbours, not a jump from red to amber. These
- * are the status hues because this mark *is* the ladder; no other data mark
- * borrows them.
+ * **The colour never contradicts the band word** (owner, 2026-10-29). Each
+ * `SCORE_BANDS` rung — poor under 40, fair 40-59, good 60+ — holds its own
+ * status hue flat, and the ramp blends only within 4 points of each edge
+ * (36→44, 56→64), so 39 and 40 stay neighbours without a 61 reading amber.
+ * The stops once sat at each rung's middle (20 · 50 · 80), which painted a
+ * 61, a good hour, nearer fair than good. Above 64 good brightens to its ink
+ * by 100, so a 95 still stands out from a 64. These are the status hues
+ * because this mark *is* the ladder; no other data mark borrows them.
  */
 export const scoreScale = [
-  { score: 20, color: colors.poor },
-  { score: 50, color: colors.fair },
-  { score: 80, color: colors.good },
+  { score: 36, color: colors.poor },
+  { score: 44, color: colors.fair },
+  { score: 56, color: colors.fair },
+  { score: 64, color: colors.good },
+  { score: 100, color: colorsV2.goodInk },
 ] as const
 
 export const tempScale = [
@@ -743,22 +753,51 @@ export const typeV2 = {
   },
   // ── Hybrid look (docs/handoffs/design-mockups/weatherteam6-hybrid.html) ──
 
-  /** The Overview hero's crag name: Barlow Condensed 14/600, uppercase. */
+  /** The Overview hero's crag name: Barlow Condensed 34/700 (overview rework, owner 2026-10-29). */
   heroName: {
     fontFamily: fonts.display,
-    fontSize: 14,
-    fontWeight: '600' as const,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase' as const,
+    fontSize: 34,
+    fontWeight: '700' as const,
+    lineHeight: 36,
     color: colorsV2.txt1,
   },
-  /** The Overview hero's score: Barlow Condensed 150/700. Colour is the score's. */
+  /** "Score at 2pm", under the hero's name: Barlow 13/400. */
+  heroWhen: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    fontWeight: '400' as const,
+    color: colorsV2.txtMuted,
+  },
+  /** The Overview hero's score: Barlow Condensed 124/700. Colour is the score's. */
   heroScore: {
     fontFamily: fonts.display,
-    fontSize: 150,
+    fontSize: 124,
     fontWeight: '700' as const,
-    letterSpacing: -3,
-    lineHeight: 120,
+    letterSpacing: -2,
+    lineHeight: 102,
+  },
+  /** A Score breakdown row's cause — "Humidity": Barlow Condensed 18/700. */
+  whyTitle: {
+    fontFamily: fonts.display,
+    fontSize: 18,
+    fontWeight: '700' as const,
+    lineHeight: 22,
+    color: colorsV2.txt1,
+  },
+  /** A Score breakdown row's figure — "dew point 57°F": Barlow Condensed 15/600. */
+  whyFigure: {
+    fontFamily: fonts.display,
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: colorsV2.txt2,
+  },
+  /** A Score breakdown row's rule and meaning: Barlow 13/400. */
+  whyText: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    fontWeight: '400' as const,
+    lineHeight: 18,
+    color: colorsV2.txt2,
   },
   /** The hero's side lines — "Score", "Dryness: Dry": Barlow Condensed 18/600. */
   heroSide: {

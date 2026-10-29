@@ -37,8 +37,8 @@
  *   secondary" means once the readings above it are the subject.
  * - **The caveats are fragments, not sentences.** They are still required copy
  *   (below) and they are still on the surface — they are just no longer prose a
- *   reader has to wade through. The mechanism behind them is in the
- *   Overview's Rock card — `measurements()`, at the end of this file.
+ *   reader has to wade through. The mechanism behind them is
+ *   `measurements()`, at the end of this file.
  *
  * ## Three things this file must keep
  *
@@ -48,8 +48,8 @@
  * it and quarantine it: **words and ordering reach a screen, numbers do not.**
  * Nothing here accepts a 0-1 factor, and `HourlyReading` does not carry one.
  *
- * **2. The app says the friction reading is an estimate — once.** In the
- * Overview's Rock card (`FRICTION_MECHANISM`) and on How the score works,
+ * **2. The app says the friction reading is an estimate — once.** On the
+ * Rock tab's Condensation card (`FRICTION_MECHANISM`) and on How the score works,
  * not under every gauge: repeated on every surface it read as boilerplate
  * (owner, 2026-10-02).
  *
@@ -410,8 +410,8 @@ export type ReadingsSummary = {
   qualifier: string | null;
   /**
    * The caveats this surface must print, in order — fragments, meant to be
-   * joined and set small. The friction estimate note is said once, in the
-   * Overview's Rock card.
+   * joined and set small. The friction estimate note is said once, on the
+   * Rock tab's Condensation card.
    */
   notes: string[];
   /** The sentence for "no readings at all". `null` when there are readings. */
@@ -464,7 +464,7 @@ export function summarizeReadings(input: ReadingsSummaryInput): ReadingsSummary 
   const score = reading?.score ?? null;
 
   const notes: string[] = [];
-  // That friction is an estimate is said once, on the Overview's Rock card
+  // That friction is an estimate is said once, on the Rock tab's Condensation card
   // (`FRICTION_MECHANISM`) and on How the score works — not under every gauge
   // (owner, 2026-10-02).
   // One note for the whole surface rather than a mark per hour. `qualified` is

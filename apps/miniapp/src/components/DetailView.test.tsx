@@ -206,6 +206,14 @@ function overview(over: Over = {}): string {
   )
 }
 
+/** One glass card, from its title to the next one's. */
+function card(html: string, title: string): string {
+  const from = html.indexOf(`<span>${title}</span>`)
+  if (from < 0) throw new Error(`no ${title} card`)
+  const next = html.indexOf('<h2', from)
+  return html.slice(from, next < 0 ? undefined : next)
+}
+
 /** The hero: from the crag's name to the first card. */
 function hero(html: string): string {
   const from = html.indexOf('<h1')
@@ -214,17 +222,22 @@ function hero(html: string): string {
 }
 
 describe('DetailView — the Overview hero', () => {
-  it('names the crag and headlines the hour’s score, with its Dryness and the hour beside it', () => {
+  it('names the crag and headlines the hour’s score, named for its hour, with four readings beside it', () => {
     const h = hero(overview())
     expect(h).toContain('>Red Rock</h1>')
     expect(h).toContain('>58<')
-    expect(visible(h)).toContain('Dryness: Dry')
-    expect(visible(h)).toContain('Sandstone · 1pm')
+    const text = visible(h)
+    expect(text).toContain('Score at 1pm')
+    expect(text).toContain('Dryness Dry')
+    expect(text).toContain('Rock Sandstone fragile when wet')
+    expect(text).toContain('Air 103°F high 103° · low 79°')
   })
 
-  it('puts the day’s good hours and score on the line under it, on the location’s clock', () => {
-    // The hour's score is never alone: 9am read 100 on a day rain arrived at 1pm.
-    expect(visible(hero(overview()))).toContain('Good hours: 6am–9am · Today: 71')
+  it('names today’s good hours on the location’s clock, and shows one score: the hour’s (owner, 2026-10-29)', () => {
+    const text = visible(hero(overview()))
+    expect(text).toContain('Good hours 6a–9a 4 hours')
+    // The day's 71 lives only in Next days' Today column.
+    expect(text).not.toContain('71')
   })
 
   describe('radar rain now (#313)', () => {
@@ -259,10 +272,9 @@ describe('DetailView — the Overview hero', () => {
     })
   })
 
-  it('leads with weather in imperial units', () => {
-    const text = visible(hero(overview()))
-    expect(text).toContain('103°F')
-    expect(text).toContain('gusts 20 mph')
+  it('gives the weather in imperial units', () => {
+    expect(visible(hero(overview()))).toContain('103°F')
+    expect(visible(card(overview(), 'Right now'))).toContain('Wind 10 mph gusts 20')
   })
 
   it('never renders the old ladder word or the retired five-component score', () => {
@@ -277,7 +289,7 @@ describe('DetailView — the Overview hero', () => {
     const h = hero(html)
     expect(h).toContain('>58<')
     expect(visible(h)).not.toContain('Score hidden')
-    expect(visible(h)).toContain('Dryness: Dry')
+    expect(visible(h)).toContain('Dryness Dry')
     expect(html.indexOf('Extreme Heat Warning')).toBeLessThan(html.indexOf('<h1'))
   })
 
@@ -305,31 +317,82 @@ describe('DetailView — the Overview hero', () => {
   })
 })
 
-describe('DetailView — the Overview cards', () => {
-  it('says friction is an estimate once, on the Rock card', () => {
+describe('DetailView — the Overview sections', () => {
+  it('is four sections: the hero, Today, Next days and Right now (owner, 2026-10-29)', () => {
     const html = overview()
-    expect(html.split(FRICTION_MECHANISM).length - 1).toBe(1)
-    expect(visible(html)).toContain('How the score works')
-  })
-
-  it('shows the Rock card without a rock temperature (owner, 2026-10-19)', () => {
-    const text = visible(overview())
-    expect(text).toContain('Rock vs dew point')
-    expect(text).toContain('Sandstone drying table')
+    const titles = [...html.matchAll(/<h2[^>]*><span>([^<]+)<\/span>/g)].map((m) => m[1])
+    expect(titles).toEqual(['Today', 'Next days', 'Right now'])
+    // Friction's estimate note moved to the Rock tab; How the score works is on Profile.
+    expect(html).not.toContain(FRICTION_MECHANISM)
+    expect(visible(html)).not.toMatch(/Rock vs dew point|drying table/)
     // 48.2 °C is 119 °F; a modelled rock temperature must not print.
-    expect(text).not.toContain('119°')
+    expect(visible(html)).not.toContain('119°')
   })
 
-  it('names the air model on the Air card', () => {
-    const html = overview()
-    const at = html.indexOf('>Air<')
-    expect(at).toBeGreaterThan(0)
-    expect(html.slice(at, at + 400)).toContain('GFS')
+  it('names the air model the figures came from under Right now', () => {
+    expect(visible(card(overview(), 'Right now'))).toContain('Air: GFS')
   })
 
   it('says the forecast failed on the Overview, where Next days reads it', () => {
     const html = overview({ forecast: { data: undefined, isPending: false, isError: true, refetch: () => {} } })
     expect(html).toContain('load the forecast.')
+  })
+})
+
+describe('DetailView — the Score breakdown', () => {
+  const at = (h: number) => new Date(Date.parse(`${TODAY}T20:00:00.000Z`) + h * HOUR_MS).toISOString()
+  /** Humidity and condensation now; humidity stops being named at 3pm local, condensation never in the run. */
+  const held = (model: string | null = 'gfs_seamless'): Over => {
+    const readings = [
+      readingHour(58, { valid_at: at(0), held_back_by: ['humidity', 'condensation'] }),
+      readingHour(60, { valid_at: at(1), held_back_by: ['humidity', 'condensation'] }),
+      readingHour(66, { valid_at: at(2), held_back_by: ['condensation'] }),
+    ]
+    const conditions = redRockScore()
+    return {
+      conditions: ok({ ...conditions, readings: { ...conditions.readings!, now: readings[0]! } }),
+      hourly: {
+        ...hourlySeries,
+        model,
+        readings: { model: 'gfs_seamless', unavailable_reason: null, hours: readings, days: [] },
+      },
+    }
+  }
+
+  it('starts closed, inside the hero, and counts the causes', () => {
+    const h = hero(overview(held()))
+    expect(h).toMatch(/<details class="wt6-why"(?![^>]*open)/)
+    expect(visible(h)).toContain('Score breakdown 2 things cost points')
+  })
+
+  it('gives each cause its figure, its rule, its meaning and when it eases, never a penalty size', () => {
+    const text = visible(hero(overview(held())))
+    expect(text).toContain('Humidity dew point 28°F Points come off once the dew point is above 54°F.')
+    // 22:00Z is 3pm at Red Rock.
+    expect(text).toContain('Eases ≈ 3pm, when the dew point drops to 28°F')
+    expect(text).not.toMatch(/\d+ (pts|points)/)
+  })
+
+  it('names condensation with no figure, says the rock temperature is modelled, and omits an eases the run does not reach', () => {
+    const text = visible(hero(overview(held())))
+    expect(text).toContain('Condensation Points come off when the rock is within 3.6°F of its dew point.')
+    expect(text).toContain('modelled, not measured')
+    expect(text.match(/Eases/g)).toHaveLength(1)
+  })
+
+  it('prints no dew point beside the rule when the weather columns are another model’s', () => {
+    const text = visible(hero(overview(held('icon_seamless'))))
+    expect(text).not.toContain('dew point 28°F')
+    expect(text).toContain('Eases ≈ 3pm')
+    expect(text).not.toContain('when the dew point')
+  })
+
+  it('links to How the score works on Profile', () => {
+    expect(hero(overview(held()))).toMatch(/href="\/profile#score"[^>]*>How the score works ›/)
+  })
+
+  it('is absent when nothing costs a point', () => {
+    expect(hero(overview())).not.toContain('Score breakdown')
   })
 })
 

@@ -182,6 +182,11 @@ describe('nextDays', () => {
     expect(out[0]?.title).toBe('Tuesday · 9/29')
   })
 
+  it('starts at today when asked, for the Overview’s Today column', () => {
+    const out = nextDays(forecast, '2026-09-28', null, 3, true)
+    expect(out.map((d) => d.local_date)).toEqual(['2026-09-28', '2026-09-29', '2026-09-30'])
+  })
+
   it('takes the score from the readings joined on date, never the forecast row’s own', () => {
     // Reversed: a positional join would give 9/29 the score of 10/01.
     const out = nextDays(
@@ -221,7 +226,8 @@ describe('nextLikelyRain', () => {
       ],
       now,
     )
-    expect(out).toEqual({ kind: 'likely', local_date: '2026-09-30', chancePct: 71 })
+    // Starts at the first likely hour, not the day's peak.
+    expect(out).toEqual({ kind: 'likely', local_date: '2026-09-30', chancePct: 71, from_valid_at: '2026-09-30T15:00:00Z' })
   })
 
   it('ignores hours that have already happened', () => {

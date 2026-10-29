@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { colorsV2 } from '@weatherteam6/design/tokens'
 import {
   EM_DASH,
+  FRICTION_MECHANISM,
   MAX_HOURS,
   MIN_HOURS,
   rockTypeLabel,
@@ -217,6 +218,10 @@ export function CondensationCard({
             ? `${condHours} of the next ${ahead} hours bring the rock within ${edge}°F of its dew point, where the score starts to count condensation against grip.`
             : `The rock stays more than ${edge}°F above its dew point for the next ${ahead} hours.`}
       </p>
+      {/* Said once in the app, here (owner, 2026-10-29: it left the Overview). */}
+      {readings?.hours.some((h) => h.friction != null) === true ? (
+        <p style={{ ...typeV2.keyRow, lineHeight: '16px', margin: '8px 0 0' }}>{FRICTION_MECHANISM}</p>
+      ) : null}
     </section>
   )
 }

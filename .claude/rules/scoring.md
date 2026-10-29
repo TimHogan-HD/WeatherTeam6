@@ -62,14 +62,14 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   wet rock. It stays in the score, its penalties reach the reader only through Score
   breakdown, and no surface prints a cause phrase outside it. `FrictionReading` still
   travels on the response (trip records, the condensation qualifier);
-  and the app says it is an estimate **once** — on the Overview's Rock card
-  (`FRICTION_MECHANISM`) and on How the score works, never under every gauge (owner,
-  2026-10-02). Factors live under `HourlyConditions.diagnostics`;
+  and the app says it is an estimate **once** — on the Rock tab's Condensation card
+  (`FRICTION_MECHANISM`, moved off the Overview 2026-10-29) and on How the score works,
+  never under every gauge (owner, 2026-10-02). Factors live under `HourlyConditions.diagnostics`;
   `hourlyConditions.test.ts` fails if one is promoted to the top level. `t_surface_c` and
   `condensation_margin_c` stay renderable. The same fence holds for Crag A's penalties:
   they stay in `diagnostics.penalties`, and only their order reaches a response, as
   `held_back_by` from `heldBackBy` (`cragModel.ts`, #218). The client shows it as
-  the Overview's `Score breakdown` card, absent with the score, and
+  the Overview hero's `Score breakdown` disclosure, absent with the score, and
   absent — not a "nothing" row — when no penalty costs a point.
 - **The drying clock's rain is the median of the four global models' six-hour means**
   (`lib/weather/rainMedian.ts`, #209, #324), not `THERMAL_MODEL`'s own — GFS alone called wet
@@ -79,7 +79,7 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   never a sum, so totals keep. Measured per day at 0-2 days' lead; a model that did not
   answer an hour is left out of it, never filled from its neighbours. HRRR and NBM are left
   out so a crag abroad gets the same statistic. `readings.rain_models` names the models and
-  the Overview's Rock card prints them (`dryingRainMechanism`). A thermal run stored
+  the Overview's Right now source line prints them. A thermal run stored
   without a median reads its own rain whole and names only itself; an hour with fewer than
   three models is a gap, never a fallback to GFS. **The Precip tab draws the same four
   models' median hour by hour** (`recentPrecipMedian`), never `best_match` and never

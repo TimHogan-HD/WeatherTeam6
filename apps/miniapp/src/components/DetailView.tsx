@@ -294,6 +294,7 @@ export function DetailView({
           rangeF={rangeF}
           drawableDates={drawableDates}
           onOpenDay={(localDate) => openDayInHourly(tabs, localDate)}
+          onOpenTab={(tab) => tabs.onTabChange(tab)}
         />
       )
   } else if (active === 'daily') {

@@ -480,8 +480,8 @@ describe('DetailView — the Overview tab', () => {
   })
 
   it('names the next likely rain from the ensemble’s wet share', () => {
-    const rain = visibleText(card(overview(), 'Rain'))
-    expect(rain).toContain('Next rain Tue 9/15 64% chance')
+    const rain = visibleText(card(overview(), 'Right now'))
+    expect(rain).toContain('Next rain Tue 64% · from')
   })
 
   it('gives a city a neutral chart, day ranges and no score', () => {

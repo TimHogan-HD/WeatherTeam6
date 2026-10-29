@@ -39,18 +39,30 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
 - **A reading is a label and a value, never a sentence** (owner decision 2026-09-21):
   `Dryness: Dry`, then `Score: 100`, from `ReadingField`. Labels
   live in `readingsCopy.ts`; `fieldLine` punctuates one for text. Caveats are fragments on one
-  line. Which inputs a reading came from belongs on the Overview's Air and Rock cards.
-- **The Overview is the hybrid mockup's cards** (owner, 2026-10-19; `OverviewTab.tsx`) — the
-  measurements disclosure and `Measurements.tsx` are gone. *Air* names `HourlySeries.model`;
-  *Rock* carries `measurements()`'s mechanism notes, `FRICTION_MECHANISM` among them, so the
-  Overview says friction is an estimate once. **No modelled rock temperature prints**
-  (owner, 2026-10-19), so the Rock card drops `ROCK_TEMPERATURE_MECHANISM`; it stays
-  required wherever one does print. The drying clock (`DryingClock.tsx`) draws the hours
-  since real rain against `MIN_HOURS`/`MAX_HOURS` and says so — display only, never the
-  score's own drying. How the score works is `ScoreExplainerParts`, the Overview's last
-  card and Profile's; every number it quotes comes from `SCORE_MODEL_FACTS`, pinned to the
-  model by `cragModel.test.ts`. A temperature interval goes through `cToFDelta`, never
-  `formatTempF`.
+  line. Which inputs a reading came from belongs on the Overview's Right now source line.
+- **The Overview is four sections: Hero, Today, Next days, Right now** (owner, 2026-10-29,
+  the overview rework; `OverviewTab.tsx`). The Rain, Air, Rock, Score breakdown and How the
+  score works cards are gone. The hero is the name, `Score at <hour>`, the hour's score, and
+  a 2×2 of Dryness, Rock (with `rockGuide`'s `whenWet` word), Air and Good hours. **Score
+  breakdown is a closed `<details>` inside the hero**, absent with the score and when
+  `held_back_by` is empty. Each cause row (`lib/scoreBreakdown.ts`) gives today's figure,
+  the rule from `SCORE_MODEL_FACTS` or the reader's range, one plain line, and `Eases ≈`
+  from the first hour ahead whose `held_back_by` drops the cause. A gap in the readings,
+  or their end, omits the line. **Never a penalty's size.** A dew point or air figure
+  prints only when `HourlySeries.model` is the readings' model. Condensation names no
+  figure and says the rock temperature is modelled (#436). **Right now** is Last rain and
+  Next rain, which open Precip, and Wind, which opens Hourly. Under them one source line
+  names `HourlySeries.model` and the drying clock's rain models.
+- **How the score works is on Profile only** (owner, 2026-10-29): `ScoreExplainer`, reached
+  from the breakdown's `How the score works ›`. Every number it quotes comes from
+  `SCORE_MODEL_FACTS`, pinned to the model by `cragModel.test.ts`. A temperature interval
+  goes through `cToFDelta`, never `formatTempF`.
+- **The Rock tab carries the friction note** (owner, 2026-10-29): `FRICTION_MECHANISM`,
+  once, on the Condensation card (`RockReadings.tsx`) when any hour has a friction reading.
+  **No modelled rock temperature prints** (owner, 2026-10-19), so `ROCK_TEMPERATURE_MECHANISM`
+  stays required only wherever one does print. The drying clock (`DryingClock.tsx`) draws
+  the hours since real rain against `MIN_HOURS`/`MAX_HOURS` and says so. It is display only,
+  never the score's own drying.
 - **`HourlyReading.rock_sun_shade` is the warmest and coolest of Crag A's eight compass
   walls' `T_surface`** (owner field report, Barn Bluff 2026-10-04: a south face too hot,
   a shaded one good, under one score). Display only — the score still reads air
@@ -70,9 +82,10 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   same rule, and a block with any hour unread has no score — the worst of the
   rest could be better than the missing one. **An hour's score may headline only beside
   the hour it is** (owner, 2026-10-19, superseding 2026-10-05's "never"): the Overview hero
-  prints the hour covering now, names that hour beside it, and keeps the day's good hours
-  and score on the line under it with the Today chart below — one hourly chart, starting
-  at now (owner, 2026-10-20: the score bars repeated it and were removed); Hourly's slim header follows
+  prints the hour covering now as its one score, named `Score at <hour>`, with the Today
+  chart below it, one hourly chart starting at now (owner, 2026-10-20: the score bars
+  repeated it and were removed). **The day's score is only in Next days' Today column**
+  (owner, 2026-10-29), never in the hero or Today's aside. Hourly's slim header follows
   the hour being read (`Today 7 PM`). **Hourly's header is the crag's name as its headline
   and that score, with no line of figures** (owner, 2026-10-20): each chart names the read
   hour's figures in its own chip.
