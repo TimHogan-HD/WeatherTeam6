@@ -329,6 +329,16 @@ describe('DetailView — the Overview sections', () => {
     expect(visible(html)).not.toContain('119°')
   })
 
+  it('starts next rain an hour before its stamp, the hour it falls in', () => {
+    // i = 30 is stamped 6am Wednesday at Red Rock; that rain falls from 5am.
+    const wet = { ...hourlySeries, hours: hourlySeries.hours.map((h, i) => ({ ...h, precip_chance_pct: i >= 30 ? 60 : 2 })) }
+    expect(visible(card(overview({ hourly: wet }), 'Right now'))).toContain('Next rain Wed 60% · from 5am')
+  })
+
+  it('dates the end of a dry outlook, so a weekday a week out never reads as yesterday', () => {
+    expect(visible(card(overview(), 'Right now'))).toContain('None likely through Wed 8/26')
+  })
+
   it('names the air model the figures came from under Right now', () => {
     expect(visible(card(overview(), 'Right now'))).toContain('Air: GFS')
   })

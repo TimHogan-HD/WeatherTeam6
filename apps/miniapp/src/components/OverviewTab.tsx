@@ -537,12 +537,13 @@ function RightNowCard({ props }: { props: OverviewTabProps }) {
   let lastNote: string | null = null
   if (lastText === 'Now') {
     last = 'Now'
-  } else if (summary?.hoursSinceReal != null && lastDate !== null && todayDate !== null) {
-    last = shortDay(lastDate, todayDate)
+  } else if (summary?.hoursSinceReal != null) {
+    // Without today's date the day cannot be named, but the rain is still known: a dash and its age.
+    last = lastDate === null || todayDate === null ? EM_DASH : shortDay(lastDate, todayDate)
     lastNote = [event === null ? null : formatPrecipIn(event.totalMm), `${formatSince(summary.hoursSinceReal)} ago`]
       .filter((s): s is string => s !== null)
       .join(' · ')
-  } else if (lastText !== null) {
+  } else if (summary?.lastReal === null && lastText !== null) {
     // "None in 7 days": the measured span, never a week asked for but not read.
     last = 'None'
     lastNote = lastText.replace(/^None /, '')
@@ -553,13 +554,16 @@ function RightNowCard({ props }: { props: OverviewTabProps }) {
   let nextNote: string | null = null
   if (next !== null && todayDate !== null && series !== undefined) {
     if (next.kind === 'likely') {
-      const from = formatLocalHour(next.from_valid_at, series.utc_offset_seconds)
+      // Stamped at the end of the hour it falls in, so it starts an hour before its stamp (as `rainDueText`).
+      const startMs = Date.parse(next.from_valid_at) - 3_600_000
+      const from = Number.isFinite(startMs) ? formatLocalHour(new Date(startMs).toISOString(), series.utc_offset_seconds) : null
       nextValue = shortDay(next.local_date, todayDate)
       nextNote = [`${next.chancePct}%`, from === null ? null : `from ${from}`].filter((s): s is string => s !== null).join(' · ')
     } else if (next.kind === 'none') {
       // "None likely", never "None": rain past the ensemble's edge is rain these figures cannot see.
       nextValue = 'None likely'
-      nextNote = `through ${shortDay(next.throughDate, todayDate)}`
+      // With its date: a weekday alone a week out reads as yesterday (`shortDate`).
+      nextNote = `through ${shortDate(next.throughDate, todayDate)}`
     }
   }
 
