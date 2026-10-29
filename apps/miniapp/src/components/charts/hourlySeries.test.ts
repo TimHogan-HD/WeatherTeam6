@@ -1,15 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { HourlyDay, HourlySample } from '@weatherteam6/types'
 import {
-  bandRuns,
   dayIsDrawable,
-  dayStarts,
   firstDrawableDay,
   hasValues,
   hoursOnDay,
   rainSeries,
   temperatureSeries,
-  timeExtent,
   valueExtent,
   valueRuns,
 } from './hourlySeries.js'
@@ -129,51 +126,10 @@ describe('valueRuns', () => {
   })
 })
 
-describe('bandRuns', () => {
-  it('needs both edges — a half-known band is not a band', () => {
-    const data = temperatureSeries([
-      hour(0, { temp_c_p50: 10, temp_c_p10: 8, temp_c_p90: 12 }),
-      hour(1, { temp_c_p50: 11, temp_c_p10: 9, temp_c_p90: null }),
-      hour(2, { temp_c_p50: 12, temp_c_p10: 10, temp_c_p90: 14 }),
-    ])
-    expect(bandRuns(data)).toEqual([
-      { start: 0, end: 0 },
-      { start: 2, end: 2 },
-    ])
-  })
-})
-
-describe('dayStarts', () => {
-  it('is the first hour of each local day, in order', () => {
-    const data = temperatureSeries([
-      hour(0, { local_date: '2026-09-14', temp_c_p50: 1 }),
-      hour(1, { local_date: '2026-09-14', temp_c_p50: 2 }),
-      hour(2, { local_date: '2026-09-15', temp_c_p50: 3 }),
-    ])
-    expect(dayStarts(data).map((d) => d.localDate)).toEqual(['2026-09-14', '2026-09-15'])
-    expect(dayStarts(data)[1]?.value).toBe(3)
-  })
-
-  it('uses the server-sent local day, not the instant', () => {
-    // `local_date` is the location's calendar day and the client must not
-    // re-derive it (#33). Two hours on the same UTC day can be different local
-    // days, and the boundary follows the server.
-    const data = temperatureSeries([
-      hour(0, { local_date: '2026-09-13', temp_c_p50: 1 }),
-      hour(1, { local_date: '2026-09-14', temp_c_p50: 2 }),
-    ])
-    expect(dayStarts(data)).toHaveLength(2)
-  })
-})
-
 describe('extents', () => {
   it('covers the band as well as the line', () => {
     const data = temperatureSeries([hour(0, { temp_c_p50: 10, temp_c_p10: 2, temp_c_p90: 20 })])
     expect(valueExtent(data)).toEqual({ min: 2, max: 20 })
-  })
-
-  it('reports no time span for an empty window', () => {
-    expect(timeExtent([])).toBeNull()
   })
 })
 

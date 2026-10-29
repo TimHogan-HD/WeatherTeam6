@@ -137,11 +137,6 @@ export function valueExtent(data: readonly SeriesDatum[]): Extent | null {
   ])
 }
 
-/** The time span the chart covers, or `null` when there are no hours. */
-export function timeExtent(data: readonly SeriesDatum[]): Extent | null {
-  return extent(data.map((d) => d.t))
-}
-
 const adjacent =
   (data: readonly SeriesDatum[]) =>
   (previous: number, index: number): boolean => {
@@ -161,31 +156,6 @@ export function valueRuns(data: readonly SeriesDatum[]): Run[] {
     },
     adjacent(data),
   )
-}
-
-/** Runs of hours where **both** band edges are present — a half-known band is not a band. */
-export function bandRuns(data: readonly SeriesDatum[]): Run[] {
-  return contiguousRuns(
-    data.length,
-    (i) => {
-      const d = data[i]
-      return d !== undefined && d.low !== null && d.high !== null
-    },
-    adjacent(data),
-  )
-}
-
-/** The first hour of each local day in the window, in order — the x-axis ticks. */
-export function dayStarts(data: readonly SeriesDatum[]): SeriesDatum[] {
-  const out: SeriesDatum[] = []
-  let previous: string | null = null
-  for (const d of data) {
-    if (d.localDate !== previous) {
-      out.push(d)
-      previous = d.localDate
-    }
-  }
-  return out
 }
 
 /**

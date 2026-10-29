@@ -77,10 +77,9 @@ renders wrong-but-plausible if broken:
   between 14:00 and 15:00, so its bar spans the hour *before* its timestamp. `temp_c_p50`
   at 15:00 is the temperature *at* 15:00, so its mark is **centred** on it. Reusing the
   rain placement for temperature put the peak an hour early under a correct-looking axis —
-  self-consistent, and caught by review rather than by any gate. `Series.tsx` has one
-  helper per convention (`accumulationLeft`, `instantLeft`) so the choice is made
-  explicitly; `HourlyChart` widens the x-window to match (an hour back for bars, half a
-  slot each side for range marks).
+  self-consistent, and caught by review rather than by any gate. The charts place marks
+  inline, so the choice is made at each one: `valid_at - HOUR_MS` starts an hour's span
+  (`DayCharts.tsx`'s sky row, `TodayChart.tsx`).
 - **Temperature is a bar rising from a *labelled non-zero floor*, with a whisker over it.**
   The reasoning that produced a floating translucent box instead was sound and the
   conclusion was wrong: a temperature genuinely has no meaningful zero, but the answer is
@@ -195,7 +194,7 @@ renders wrong-but-plausible if broken:
 - **The client never asks for a score it must not show.** The model would score a city if asked, so `useConditions` is gated on the location being a climbing location, and the readings section is absent otherwise. Do not "fix" a missing score by relaxing that gate.
 - **The sources footer is computed from the response, never written down.** The forecast models come from `model_sources`. A source is omitted rather than guessed when the data is absent — including NWS when the alerts call failed. Naming a source that never ran is a false attribution, which is what the "quote data sources by name" rule exists to prevent.
 - **"Today" is whichever row the server flagged `is_today`, and the client must not re-derive it** (issue #33). `findToday` reads the flag. It falls back to a UTC date comparison **only** when no row in the response carries the flag at all, which means a response cached from before the fix; a row that simply has `is_today: false` is a real answer. When nothing matches, the screen says so — it must never fall back to the first row, which relabels tomorrow's numbers as today's.
-- **The words and the suppression live in `packages/types/src/readingsCopy.ts`**, because every surface must say the same thing about the same crag. **The words are the two readings themselves, never a phrase derived from the number** — `stateLabel` and `summarizeConditions` were deleted in Phase 3b for exactly that reason, and a ladder must not be reintroduced. **They are labelled fields rather than prose** (`Dryness: Dry`, `Score: 100`): the owner's verdict on the first version was that plain-English readings read as fact. `ScoreChip` was deleted with it — the score is the third gauge in the row, drawn by `ReadingsSection`. Suppression under a Severe+ alert drops the **number** and keeps the readings, which is the reverse of the rule it replaced: the words now come from physics that sees heat, and the number is the part that reads as actionable.
+- **The words and the suppression live in `packages/types/src/readingsCopy.ts`**, because every surface must say the same thing about the same crag. **The words are the two readings themselves, never a phrase derived from the number** — `stateLabel` and `summarizeConditions` were deleted in Phase 3b for exactly that reason, and a ladder must not be reintroduced. **They are labelled fields rather than prose** (`Dryness: Dry`, `Score: 100`): the owner's verdict on the first version was that plain-English readings read as fact. `ScoreChip` was deleted with it — every surface reads the score from `summarizeReadings`, never from the raw number. Suppression under a Severe+ alert drops the **number** and keeps the readings, which is the reverse of the rule it replaced: the words now come from physics that sees heat, and the number is the part that reads as actionable.
 - **A card that is itself a tap target must not be a `<button>`** if anything inside it is interactive. `LocationCard` contains a retry control, and a `<button>` inside a `<button>` is invalid markup the browser reparses, moving the inner control out of the card.
 - **React Query** remains the agreed state management layer for server data. No Redux, no Zustand, no Context for server state.
 - All API calls go through React Query hooks. Components never call `fetch` directly.
