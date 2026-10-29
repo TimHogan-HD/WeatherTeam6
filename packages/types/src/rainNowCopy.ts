@@ -1,3 +1,4 @@
+import { hour12, meridiem } from './clock.js'
 import { SCORE_MODEL_FACTS } from './readingsCopy.js'
 
 /**
@@ -44,8 +45,7 @@ export function formatRadarTime(validAt: string, utcOffsetSeconds: number): stri
   if (!Number.isFinite(t) || !Number.isFinite(utcOffsetSeconds)) return null
   const local = new Date(t + utcOffsetSeconds * 1000)
   const h24 = local.getUTCHours()
-  const h12 = h24 % 12 === 0 ? 12 : h24 % 12
-  return `${h12}:${String(local.getUTCMinutes()).padStart(2, '0')}${h24 < 12 ? 'am' : 'pm'}`
+  return `${hour12(h24)}:${String(local.getUTCMinutes()).padStart(2, '0')}${meridiem(h24, 'compact')}`
 }
 
 export type RainNowInput = {

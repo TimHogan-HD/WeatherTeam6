@@ -7,6 +7,7 @@ import type { ClimbHours } from './preferences.js'
 
 export * from './scoreComponents.js'
 export * from './units.js'
+export * from './clock.js'
 export * from './conditionsCopy.js'
 export * from './geocodeCopy.js'
 export * from './hourly.js'

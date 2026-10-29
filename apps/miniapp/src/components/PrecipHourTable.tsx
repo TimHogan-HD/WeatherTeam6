@@ -9,11 +9,11 @@ import {
   ROCK_LABELS,
   WETTING_PRECIP_MM,
   type RockReading,
+  clock12,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { row, stack } from '../theme/styles.js'
 import {
-  clock12,
   dayLabel,
   hourKind,
   isRealRain,
@@ -91,7 +91,7 @@ const hh = (i: number) => String(i).padStart(2, '0')
  * `00:00` closes the previous day's last hour, so both days are named.
  */
 function span(localDate: string, hour: number, today: string): string {
-  if (hour > 0) return `${dayLabel(localDate, today)} ${clock12(hour - 1)}–${clock12(hour)}`
+  if (hour > 0) return `${dayLabel(localDate, today)} ${clock12(hour - 1, 'compact')}–${clock12(hour, 'compact')}`
   const prev = new Date(Date.parse(`${localDate}T00:00Z`) - 24 * 3600 * 1000).toISOString().slice(0, 10)
   return `${dayLabel(prev, today)} 11pm–${dayLabel(localDate, today)} 12am`
 }
