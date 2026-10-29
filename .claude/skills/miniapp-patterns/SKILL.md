@@ -55,8 +55,9 @@ renders wrong-but-plausible if broken:
   available for data marks.** Temperature uses `sun`; rain uses the `radar*` intensity ramp.
   **One exception: a mark that draws the score itself** — the Overview's Today line
   (`charts/TodayChart.tsx`) is coloured by the hour's score on `scoreScale`, a continuous
-  ramp with its stops at the middle of each `SCORE_BANDS` rung (owner, 2026-09-30: a range,
-  not hard cut-offs). `scoreRampColor` is that ramp; `scoreColor` stays the stepped ladder the
+  ramp (owner, 2026-09-30: a range, not hard cut-offs) that holds each `SCORE_BANDS` rung's
+  hue flat and blends only within 4 points of 40 and 60, so the colour never contradicts the
+  band word (owner, 2026-10-29). `scoreRampColor` is that ramp; `scoreColor` stays the stepped ladder the
   pills and tints use. Without a score on screen (a city, an hour the model did not read) the
   line is neutral ink, because a tint with no number claims a score nobody can read.
 - **A chart that cannot be drawn says so — and says only what *it* could not draw.** A

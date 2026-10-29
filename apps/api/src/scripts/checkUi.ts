@@ -718,8 +718,17 @@ async function run(): Promise<void> {
       shownScore === undefined || shownScore === '100' || /Score breakdown/i.test(overviewText),
       hero.replace(/\s+/g, ' ').slice(0, 300),
     )
-    await page.getByText('How the score works').click()
-    await screen('overview-explainer')
+    // The breakdown sits closed inside the hero, and links to How the score works on Profile.
+    const breakdown = page.locator('[data-hero] details.wt6-why')
+    if ((await breakdown.count()) > 0) {
+      await breakdown.locator('summary').click()
+      await screen('overview-breakdown')
+      await breakdown.getByRole('link', { name: 'How the score works ›' }).click()
+      await page.waitForURL(/\/profile#score$/, { timeout: 10_000 }).catch(() => undefined)
+      check('the breakdown links to How the score works on Profile', /\/profile#score$/.test(page.url()), page.url())
+      await page.goto(`${WEB}/location/${locationId}`)
+      await page.getByRole('tab').first().waitFor({ timeout: 30_000 })
+    }
 
     // One underline slides to the chosen tab and lands under it.
     const underlineUnder = async (label: string) => {
@@ -752,7 +761,7 @@ async function run(): Promise<void> {
       .getByRole('tab', { name: 'Daily' })
       .evaluate((el) => el.getBoundingClientRect().height)
     check('a location tab is at least 40px tall to tap', tabTall >= 40, `${tabTall}px`)
-    // The Overview carries the explanation itself; Profile's copy is reached by its anchor.
+    // How the score works lives on Profile only, reached by its anchor.
     await page.goto(`${WEB}/profile#score`)
     const explainer = page.getByRole('heading', { name: 'How the score works' })
     await explainer.waitFor({ timeout: 10_000 }).catch(() => undefined)

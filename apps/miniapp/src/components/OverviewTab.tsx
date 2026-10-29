@@ -4,18 +4,15 @@ import {
   DRYNESS_LABEL,
   EM_DASH,
   HELD_BACK_LABEL,
-  MAX_HOURS,
-  MIN_HOURS,
-  ROCK_TEMPERATURE_MECHANISM,
-  dewPointMarginValue,
+  WET_STRENGTH_LABEL,
   formatElevationFt,
   formatHumidity,
-  formatPrecipIn,
   formatLocalHour,
+  formatPrecipIn,
   formatTempF,
-  measurements,
   modelName,
   readingNow,
+  rockGuide,
   rockTypeLabel,
   skyDayIcon,
   summarizeReadings,
@@ -27,7 +24,6 @@ import {
   type ReadingsSummary,
   type RainNow,
   type RecentPrecip,
-  type RockType,
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, cardV2 } from '../theme/styles.js'
@@ -35,35 +31,35 @@ import { formatTempDeg } from '../lib/format.js'
 import { FLIP_ATTR } from '../lib/flip.js'
 import { CRAG_FLY_ATTR } from '../lib/cragFly.js'
 import { findToday } from '../lib/forecast.js'
-import { chartWindow, dayChance, lastRainText, nextDays, nextLikelyRain, rainDueText, shortDate, shortDay } from '../lib/overview.js'
+import { chartWindow, dayChance, lastRainText, nextDays, nextLikelyRain, rainDueText, shortDate, shortDay, shortSpan } from '../lib/overview.js'
 import { formatSince, precipDays, precipSummary } from '../lib/precipHistory.js'
+import { breakdownCount, breakdownRows, type BreakdownRow } from '../lib/scoreBreakdown.js'
 import { useNow } from '../hooks/useNow.js'
+import { useNavigate } from '../hooks/useNavigate.js'
 import { RainNowPill } from './RainNowPill.js'
 import { scoreRampColor } from './charts/chartStyle.js'
 import { Sect } from './charts/liquid.js'
 import { TodayChart } from './charts/TodayChart.js'
 import { coordText } from './DetailHeader.js'
-import { DryingClock } from './DryingClock.js'
 import { SkyIcon } from './Icons.js'
 import { RollingFigure, usePreviousFigure } from './RollingFigure.js'
-import { Stats, type Stat } from './StatTiles.js'
-import { ScoreExplainerParts } from './ScoreExplainer.js'
+import { SCORE_EXPLAINER_PATH } from './ScoreExplainer.js'
 import { InlineError, Skeleton } from './States.js'
 
 /**
- * The Overview in the hybrid look (`docs/handoffs/design-mockups/weatherteam6-hybrid.html`,
- * owner 2026-10-19): the crag's name, the hour's score large with its Dryness,
- * and one line of figures; then a glass card per section — Today, the next days, Score breakdown, Rain, Air, Rock, and how the score
- * works.
+ * The crag Overview (owner, 2026-10-29, the overview rework's "A · revised"):
+ * four sections — the hero, Today, Next days, Right now.
  *
- * **The big number is the hour covering now** (owner, 2026-10-19: "the large
- * Overview score"), and it is never alone: the day's good hours and score sit
- * on the line under it, and the Today chart under that. 9am read 100 on a day
- * rain arrived at 1pm (owner, 2026-10-03) — the chart is what shows the 1pm.
+ * **The hero shows one score, the hour covering now**, named beside it ("Score
+ * at 2pm"). The day's score is only in Next days' Today column. To the score's
+ * right sit four readings — Dryness, Rock, Air, Good hours — and under it the
+ * Score breakdown, closed, which explains each cause and when it eases.
  *
  * **Every reading comes from `/conditions`**, the response the list card
  * reads, so a crag never shows one reading there and another here; the charts
- * read `/hourly`. **Sections fail independently** (§5).
+ * and the weather figures read `/hourly`. **Sections fail independently** (§5).
+ * How the score works is on Profile, reached from the breakdown; friction's
+ * estimate note is on the Rock tab.
  */
 
 export type OverviewTabProps = {
@@ -94,6 +90,8 @@ export type OverviewTabProps = {
   /** Days the hourly charts can draw. `undefined` until `/hourly` answers. */
   drawableDates: ReadonlySet<string> | undefined
   onOpenDay: (localDate: string) => void
+  /** Right now's figures open the tab that draws them. */
+  onOpenTab: (tab: 'precip' | 'hourly') => void
 }
 
 const sectCard: CSSProperties = { ...cardV2, padding: `${spacing.sectionGap}px 14px 14px` }
@@ -107,11 +105,11 @@ function Card({ title, aside, children }: { title: string; aside?: string | null
   )
 }
 
+const mph = (kmh: number): number => Math.round(kmh / 1.609344)
+
 /** The hour's readings. Null without readings to read. */
 type Now = {
   summary: ReadingsSummary
-  /** The day's score. */
-  dayScore: number | null
   dryness: string | null
   readingAt: string | null
   utcOffsetSeconds: number
@@ -122,14 +120,15 @@ function readNow(props: OverviewTabProps): Now | null {
   const data = props.conditions?.data
   if (data == null || data.readings === undefined) return null
   const r = data.readings
-  const base = {
+  const summary = summarizeReadings({
     utcOffsetSeconds: r.utc_offset_seconds,
     unavailableReason: r.unavailable_reason,
-  }
-  const summary = summarizeReadings({ ...base, reading: r.now, window: r.today?.window ?? null, rangeF: props.rangeF })
+    reading: r.now,
+    window: r.today?.window ?? null,
+    rangeF: props.rangeF,
+  })
   return {
     summary,
-    dayScore: summarizeReadings({ ...base, reading: r.today?.best ?? null, window: null }).score,
     dryness: summary.readings.find((f) => f.label === DRYNESS_LABEL)?.value ?? null,
     readingAt: r.now?.valid_at ?? null,
     utcOffsetSeconds: r.utc_offset_seconds,
@@ -137,10 +136,7 @@ function readNow(props: OverviewTabProps): Now | null {
   }
 }
 
-/**
- * The hero: the crag's name, the hour's score large, what it is beside it, and
- * one line of figures under it — labelled fragments, never a sentence.
- */
+/** The hero: the crag's name, the hour's score large, four readings beside it, and the breakdown under it. */
 function Hero({ props, now }: { props: OverviewTabProps; now: Now | null }) {
   const clock = useNow()
   const { location, hourly, recentPrecip, forecast } = props
@@ -157,144 +153,154 @@ function Hero({ props, now }: { props: OverviewTabProps; now: Now | null }) {
       />
     )
 
-  const lastRain =
-    recentPrecip === undefined ? null : lastRainText(precipSummary(recentPrecip, clock), precipDays(recentPrecip.hours).length)
+  const summary = recentPrecip === undefined ? null : precipSummary(recentPrecip, clock)
+  const lastRain = summary === null || recentPrecip === undefined ? null : lastRainText(summary, precipDays(recentPrecip.hours).length)
   // Rain on its way can already read Wet (#402); it is not said while rain is falling now.
   const rainDue =
     hourly.data === undefined || lastRain === 'Now' ? null : rainDueText(hourly.data.hours, clock, hourly.data.utc_offset_seconds)
-  const weather = [
-    lastRain === null ? null : `Last rain: ${lastRain}`,
-    rainDue,
-    hour?.temp_c == null ? null : formatTempF(hour.temp_c),
-    hour?.wind_gust_kmh == null ? null : `gusts ${Math.round(hour.wind_gust_kmh / 1.609344)} mph`,
-  ].filter((s): s is string => s !== null)
-
-  let figure: ReactNode
-  let side: ReactNode
-  let lead: ReactNode = weather.length === 0 ? null : <span>{weather.join(' · ')}</span>
-
-  if (props.isClimbingLocation) {
-    const pending = props.conditions === undefined || props.conditions.isPending
-    if (pending && props.conditions?.isError !== true) {
-      return (
-        <HeroFrame
-          name={name} rain={rain}
-          body={
-            <>
-              <Skeleton height={150} />
-              {weather.length === 0 ? null : <p style={{ ...typeV2.lead, margin: '14px 0 0' }}>{weather.join(' · ')}</p>}
-            </>
-          }
-        />
-      )
-    }
-    if (props.conditions?.isError === true) {
-      return <HeroFrame name={name} rain={rain} body={<InlineError message="Couldn't load conditions." onRetry={props.conditions.refetch} />} />
-    }
-    if (now === null || now.summary.unavailableLine !== null) {
-      return (
-        <HeroFrame
-          name={name} rain={rain}
-          body={<p style={typeV2.lead}>{now?.summary.unavailableLine ?? 'No conditions for today yet.'}</p>}
-        />
-      )
-    }
-    const score = now.summary.score
-    const rock = location?.rock_type == null || location.rock_type === 'unknown' ? null : rockTypeLabel(location.rock_type)
-    const at = now.readingAt === null ? null : formatLocalHour(now.readingAt, now.utcOffsetSeconds)
-    figure = <HeroScore score={score} />
-    side = (
-      <>
-        <span style={typeV2.heroSide}>Score</span>
-        {now.dryness === null ? null : <span style={typeV2.heroSide}>{`${DRYNESS_LABEL}: ${now.dryness}`}</span>}
-        <small style={typeV2.heroSideSm}>{[rock, at].filter((s) => s !== null).join(' · ')}</small>
-      </>
-    )
-    const day =
-      now.summary.window === null ? null : (
-        <span>
-          {now.summary.window.label}: <b style={{ color: colorsV2.txt1, fontWeight: 600 }}>{now.summary.window.value}</b>
-          {now.dayScore === null ? null : (
-            <>
-              {' · '}Today: <b style={{ color: colorsV2.txt1, fontWeight: 600 }}>{now.dayScore}</b>
-            </>
-          )}
-        </span>
-      )
-    const caveats = [now.summary.qualifier, ...now.summary.notes].filter((s): s is string => s !== null)
-    lead = (
-      <>
-        {weather.length === 0 ? null : <span style={{ display: 'block' }}>{weather.join(' · ')}</span>}
-        {day === null ? null : <span style={{ display: 'block' }}>{day}</span>}
-        {caveats.length === 0 ? null : <span style={{ display: 'block', ...typeV2.keyRow }}>{caveats.join(' · ')}</span>}
-      </>
-    )
-  } else {
-    // A city has no score: the hour's air temperature takes the figure, and the day's labelled high and low sit beside it.
-    const today = findToday(forecast.data)
-    figure = (
-      <span style={{ ...typeV2.heroScore, fontSize: '112px', color: colorsV2.txt1 }}>
-        {hour?.temp_c == null ? EM_DASH : formatTempDeg(hour.temp_c)}
-      </span>
-    )
-    side = (
-      <>
-        <span style={typeV2.heroSide}>Air now</span>
-        {today === null ? null : (
-          <span style={typeV2.heroSide}>
-            High {formatTempDeg(today.temp_c_max)} · Low {formatTempDeg(today.temp_c_min)}
-          </span>
-        )}
-        {location === undefined ? null : (
-          <small style={typeV2.heroSideSm}>
-            {[location.elevation_m === null ? null : formatElevationFt(location.elevation_m), coordText(location.lat, location.lon)]
-              .filter((s) => s !== null)
-              .join(' · ')}
-          </small>
-        )}
-      </>
-    )
-    const extra = [
-      hour?.humidity_pct == null ? null : `Humidity ${formatHumidity(hour.humidity_pct)}`,
-      hour?.wind_kmh == null ? null : `wind ${Math.round(hour.wind_kmh / 1.609344)} mph`,
-    ].filter((s): s is string => s !== null)
-    lead = [...weather, ...extra].length === 0 ? null : <span>{[...weather, ...extra].join(' · ')}</span>
+  const today = findToday(forecast.data)
+  const air: Cell = {
+    label: 'Air',
+    value: hour?.temp_c == null ? EM_DASH : formatTempF(hour.temp_c),
+    // The day's extremes, labelled: unlabelled, the pair reads as now the moment the hour is absent.
+    note:
+      today === null || (today.temp_c_max === null && today.temp_c_min === null)
+        ? null
+        : `high ${formatTempDeg(today.temp_c_max)} · low ${formatTempDeg(today.temp_c_min)}`,
   }
 
-  return (
-    <HeroFrame
-      name={name} rain={rain}
-      body={
-        <>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'auto minmax(0, 1fr)',
-              alignItems: 'center',
-              gap: '12px',
-              marginTop: '6px',
-            }}
-          >
-            {figure}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>{side}</div>
+  if (!props.isClimbingLocation) {
+    // A city has no score: the hour's air temperature takes the figure, and the day's labelled high and low sit beside it.
+    const weather = [
+      lastRain === null ? null : `Last rain: ${lastRain}`,
+      rainDue,
+      hour?.humidity_pct == null ? null : `Humidity ${formatHumidity(hour.humidity_pct)}`,
+      hour?.wind_kmh == null ? null : `wind ${mph(hour.wind_kmh)} mph`,
+      hour?.wind_gust_kmh == null ? null : `gusts ${mph(hour.wind_gust_kmh)} mph`,
+    ].filter((s): s is string => s !== null)
+    return (
+      <HeroFrame name={name} rain={rain}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr)', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
+          <span style={{ ...typeV2.heroScore, fontSize: '112px', color: colorsV2.txt1 }}>
+            {hour?.temp_c == null ? EM_DASH : formatTempDeg(hour.temp_c)}
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
+            <span style={typeV2.heroSide}>Air now</span>
+            {today === null ? null : (
+              <span style={typeV2.heroSide}>
+                High {formatTempDeg(today.temp_c_max)} · Low {formatTempDeg(today.temp_c_min)}
+              </span>
+            )}
+            {location === undefined ? null : (
+              <small style={typeV2.heroSideSm}>
+                {[location.elevation_m === null ? null : formatElevationFt(location.elevation_m), coordText(location.lat, location.lon)]
+                  .filter((s) => s !== null)
+                  .join(' · ')}
+              </small>
+            )}
           </div>
-          {lead === null ? null : <p style={{ ...typeV2.lead, margin: '14px 0 0' }}>{lead}</p>}
-        </>
-      }
-    />
+        </div>
+        {weather.length === 0 ? null : <p style={{ ...typeV2.lead, margin: '14px 0 0' }}>{weather.join(' · ')}</p>}
+      </HeroFrame>
+    )
+  }
+
+  const pending = props.conditions === undefined || props.conditions.isPending
+  if (pending && props.conditions?.isError !== true) {
+    return (
+      <HeroFrame name={name} rain={rain}>
+        <Skeleton height={124} />
+      </HeroFrame>
+    )
+  }
+  if (props.conditions?.isError === true) {
+    return (
+      <HeroFrame name={name} rain={rain}>
+        <InlineError message="Couldn't load conditions." onRetry={props.conditions.refetch} />
+      </HeroFrame>
+    )
+  }
+  if (now === null || now.summary.unavailableLine !== null) {
+    return (
+      <HeroFrame name={name} rain={rain}>
+        <p style={typeV2.lead}>{now?.summary.unavailableLine ?? 'No conditions for today yet.'}</p>
+      </HeroFrame>
+    )
+  }
+
+  const at = now.readingAt === null ? null : formatLocalHour(now.readingAt, now.utcOffsetSeconds)
+  const since = summary?.hoursSinceReal ?? null
+  const rockType = location?.rock_type ?? null
+  const guide = rockType === null ? null : rockGuide(rockType)
+  const todayWindow = now.conditions.readings?.today?.window ?? null
+  const cells: Cell[] = [
+    {
+      label: DRYNESS_LABEL,
+      value: now.dryness ?? EM_DASH,
+      note: since !== null ? `${formatSince(since)} since real rain` : lastRain === null ? null : `real rain: ${lastRain.toLowerCase()}`,
+    },
+    {
+      label: 'Rock',
+      value: rockType === null || rockType === 'unknown' ? 'Not recorded' : rockTypeLabel(rockType),
+      note: guide === null ? null : `${WET_STRENGTH_LABEL[guide.whenWet].toLowerCase()} when wet`,
+    },
+    air,
+    {
+      label: 'Good hours',
+      // Through the summary, so the window is said exactly where the readings say it.
+      value: now.summary.window === null ? EM_DASH : shortSpan(todayWindow, now.utcOffsetSeconds),
+      note: now.summary.window === null || todayWindow === null ? null : `${todayWindow.hours} ${todayWindow.hours === 1 ? 'hour' : 'hours'}`,
+    },
+  ]
+  const caveats = [rainDue, now.summary.qualifier, ...now.summary.notes].filter((s): s is string => s !== null)
+
+  return (
+    <HeroFrame name={name} rain={rain} when={at === null ? null : `Score at ${at}`}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr)', alignItems: 'center', columnGap: '18px', marginTop: '8px' }}>
+        <HeroScore score={now.summary.score} />
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+            gap: '12px',
+            borderLeft: `1px solid ${colorsV2.line}`,
+            paddingLeft: '16px',
+          }}
+        >
+          {cells.map((c) => (
+            <ReadingCell key={c.label} cell={c} />
+          ))}
+        </div>
+      </div>
+      {caveats.length === 0 ? null : <p style={{ ...typeV2.keyRow, margin: '12px 0 0' }}>{caveats.join(' · ')}</p>}
+      <Breakdown props={props} now={now} />
+    </HeroFrame>
   )
 }
 
-function HeroFrame({ name, rain, body }: { name: string | null; rain: ReactNode; body: ReactNode }) {
+type Cell = { label: string; value: string; note: string | null }
+
+function ReadingCell({ cell }: { cell: Cell }) {
   return (
-    <section data-hero="" style={{ marginTop: '-6px' }}>
+    <div style={{ display: 'grid', gap: '1px', minWidth: 0 }}>
+      <span style={typeV2.statLabel}>{cell.label}</span>
+      <b style={{ ...typeV2.readFigure, lineHeight: '22px' }}>{cell.value}</b>
+      {cell.note === null ? null : <small style={{ ...typeV2.heroSideSm, color: colorsV2.txtMuted }}>{cell.note}</small>}
+    </div>
+  )
+}
+
+function HeroFrame({ name, rain, when = null, children }: { name: string | null; rain: ReactNode; when?: string | null; children: ReactNode }) {
+  return (
+    <section data-hero="" style={sectCard}>
       {name === null ? null : (
         <h1 {...{ [CRAG_FLY_ATTR]: 'name' }} style={{ ...typeV2.heroName, margin: 0, width: 'fit-content' }}>
           {name}
         </h1>
       )}
+      {when === null ? null : <p style={{ ...typeV2.heroWhen, margin: '4px 0 0' }}>{when}</p>}
       {rain}
-      {body}
+      {children}
     </section>
   )
 }
@@ -308,7 +314,7 @@ function HeroScore({ score }: { score: number | null }) {
       {...{ [FLIP_ATTR]: 'score', [CRAG_FLY_ATTR]: 'score' }}
       style={{
         ...typeV2.heroScore,
-        ...(value.length >= 3 ? { fontSize: 'clamp(72px, 30vw, 150px)' } : {}),
+        ...(value.length >= 3 ? { fontSize: 'clamp(72px, 24vw, 108px)' } : {}),
         color: score === null ? colorsV2.txtMuted : scoreRampColor(score),
         display: 'inline-block',
         fontVariantNumeric: 'tabular-nums',
@@ -319,16 +325,91 @@ function HeroScore({ score }: { score: number | null }) {
   )
 }
 
+/**
+ * What is costing the hour's score points, closed until asked. Absent with the
+ * score (`heldBack` is null whenever the score is), and when nothing costs a
+ * point. Each cause's rule and when it eases; never how much it costs.
+ */
+function Breakdown({ props, now }: { props: OverviewTabProps; now: Now }) {
+  const navigate = useNavigate()
+  const held = now.summary.heldBack
+  const reading = now.conditions.readings?.now ?? null
+  const limits = reading?.held_back_by ?? null
+  if (held === null || held.length === 0 || reading === null || limits == null) return null
+  const series = props.hourly.data
+  const rows = breakdownRows({
+    limits,
+    now: reading,
+    readings: series?.readings?.hours ?? [],
+    hours: series?.hours ?? [],
+    sameModel: series !== undefined && series.model !== null && series.model === now.conditions.readings?.model,
+    rangeF: props.rangeF,
+    utcOffsetSeconds: now.utcOffsetSeconds,
+    todayDate: props.todayDate,
+  })
+  return (
+    <details className="wt6-why" style={{ borderTop: `1px solid ${colorsV2.line}`, marginTop: '14px', paddingTop: '10px' }}>
+      <summary
+        style={{ display: 'flex', alignItems: 'center', gap: '10px', minHeight: '32px', cursor: 'pointer', ...typeV2.whyFigure }}
+      >
+        <span>{HELD_BACK_LABEL}</span>
+        <span style={{ ...typeV2.heroSideSm, color: colorsV2.txtMuted, marginLeft: 'auto' }}>{breakdownCount(rows.length)}</span>
+      </summary>
+      <ol style={{ listStyle: 'none', padding: 0, margin: '8px 0 0', display: 'grid', gap: '10px' }}>
+        {rows.map((row, i) => (
+          <WhyRow key={row.limit} n={i + 1} row={row} />
+        ))}
+      </ol>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '8px', ...typeV2.note }}>
+        <span>Biggest cost first</span>
+        <a
+          href={SCORE_EXPLAINER_PATH}
+          onClick={(e) => {
+            e.preventDefault()
+            navigate(SCORE_EXPLAINER_PATH)
+          }}
+          style={{ color: colorsV2.brandInk, textDecoration: 'none' }}
+        >
+          How the score works ›
+        </a>
+      </div>
+    </details>
+  )
+}
+
+function WhyRow({ n, row }: { n: number; row: BreakdownRow }) {
+  return (
+    <li
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '22px minmax(0, 1fr)',
+        columnGap: '10px',
+        rowGap: '4px',
+        padding: '10px 12px',
+        borderRadius: '16px',
+        background: colorsV2.raised,
+      }}
+    >
+      <span style={{ ...typeV2.whyFigure, color: colorsV2.txtMuted, gridRow: 'span 4' }}>{n}</span>
+      <p style={{ ...typeV2.whyTitle, margin: 0, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+        <span>{row.label}</span>
+        {row.figure === null ? null : <span style={typeV2.whyFigure}>{row.figure}</span>}
+      </p>
+      <p style={{ ...typeV2.whyText, margin: 0 }}>{row.rule}</p>
+      <p style={{ ...typeV2.whyText, margin: 0 }}>{row.meaning}</p>
+      {row.eases === null ? null : <p style={{ ...typeV2.whyText, color: colorsV2.brandInk, margin: 0 }}>{row.eases}</p>}
+    </li>
+  )
+}
+
 function TodayCard({ props, now: reading }: { props: OverviewTabProps; now: Now | null }) {
   const now = useNow()
   const { hourly, todayDate, isClimbingLocation } = props
   const window = reading?.summary.window ?? null
   const aside =
-    !isClimbingLocation || reading === null || reading.summary.unavailableLine !== null
+    !isClimbingLocation || reading === null || reading.summary.unavailableLine !== null || window === null
       ? null
-      : [reading.dayScore === null ? null : `day ${reading.dayScore}`, window === null ? null : `good hours ${window.value}`]
-          .filter((s) => s !== null)
-          .join(' · ') || 'no score left today'
+      : `good hours ${window.value}`
 
   let body: ReactNode
   if (hourly.isPending) {
@@ -384,6 +465,7 @@ function NextDaysCard({ props }: { props: OverviewTabProps }) {
         }
       : null,
     6,
+    true,
   )
   if (days.length === 0) return null
   const skyDays = hourly.data?.sky?.days ?? []
@@ -439,164 +521,104 @@ function NextDaysCard({ props }: { props: OverviewTabProps }) {
   )
 }
 
-/** What is holding the score down, biggest first. Absent with the score, and when nothing costs a point. */
-function BreakdownCard({ now }: { now: Now | null }) {
-  const held = now?.summary.heldBack ?? null
-  if (held === null || held.length === 0) return null
-  return (
-    <Card title={HELD_BACK_LABEL} aside="what is holding it back">
-      <p style={{ ...typeV2.order, margin: 0 }}>
-        {held.map((f, i) => (
-          <span key={f.label}>
-            {i === 0 ? null : <i style={{ fontStyle: 'normal', color: colorsV2.txtMuted, margin: '0 6px' }}>›</i>}
-            {f.label}
-          </span>
-        ))}
-      </p>
-      <p style={{ ...typeV2.keyRow, margin: '6px 0 0' }}>{held.map((f) => `${f.label}: ${f.value}`).join(' · ')}</p>
-    </Card>
-  )
-}
+type Figure = { label: string; value: string; note: string | null; tab: 'precip' | 'hourly'; tabLabel: string }
 
-function RainCard({ props }: { props: OverviewTabProps }) {
+/** Last rain, next rain and wind, each opening the tab that draws it; then where the figures came from. */
+function RightNowCard({ props }: { props: OverviewTabProps }) {
   const now = useNow()
   const { recentPrecip, hourly, todayDate } = props
+  const series = hourly.data
   const summary = recentPrecip === undefined ? null : precipSummary(recentPrecip, now)
-  const last = summary === null || recentPrecip === undefined ? null : lastRainText(summary, precipDays(recentPrecip.hours).length)
-  const next = hourly.data === undefined ? null : nextLikelyRain(hourly.data.hours, now)
-  const nextStat: Stat | null =
-    next === null || todayDate === null || next.kind === 'unknown'
-      ? null
-      : next.kind === 'likely'
-        ? { label: 'Next rain', value: shortDate(next.local_date, todayDate), color: colorsV2.rain, note: `${next.chancePct}% chance` }
-        : // "None likely", never "None": a 38% day is still rain worth knowing about, so its peak is
-          // named, and rain past the ensemble's edge is rain these figures cannot see.
-          {
-            label: 'Next rain',
-            value: 'None likely',
-            note: [
-              next.peak === null ? null : `highest ${next.peak.chancePct}% ${shortDate(next.peak.local_date, todayDate)}`,
-              `through ${shortDate(next.throughDate, todayDate)}`,
-            ]
-              .filter((s): s is string => s !== null)
-              .join(' · '),
-          }
+  const lastText = summary === null || recentPrecip === undefined ? null : lastRainText(summary, precipDays(recentPrecip.hours).length)
   const event = summary?.lastRealEvent ?? null
-  const storm = event === null ? null : `${formatPrecipIn(event.totalMm)} over ${event.spanHours} h`
-  const items = [last === null ? null : { label: 'Last rain', value: last, note: storm }, nextStat].filter(
-    (s): s is Stat => s !== null,
-  )
-  if (items.length === 0) return null
-  return (
-    <Card title="Rain" aside="last real rain · next likely">
-      <Stats items={items} />
-    </Card>
-  )
-}
+  const lastDate = summary?.lastReal?.valid_at_local.slice(0, 10) ?? null
 
-/** The hour's air, from the weather model it names. */
-function AirCard({ props }: { props: OverviewTabProps }) {
-  const now = useNow()
-  const series = props.hourly.data
-  if (series === undefined) return null
-  const hour = readingNow(series.hours, now)
-  if (hour === null) return null
-  const mph = (kmh: number | null) => (kmh === null ? EM_DASH : String(Math.round(kmh / 1.609344)))
-  return (
-    <Card title="Air" aside={series.model === null ? null : modelName(series.model)}>
-      <Stats
-        items={[
-          {
-            label: 'Dew point',
-            value: hour.dewpoint_c === null ? EM_DASH : formatTempF(hour.dewpoint_c),
-            note: hour.temp_c === null ? null : `air ${formatTempF(hour.temp_c)}`,
-          },
-          { label: 'Humidity', value: formatHumidity(hour.humidity_pct) },
-          {
-            label: 'Wind',
-            value: mph(hour.wind_kmh),
-            unit: 'mph',
-            note: hour.wind_gust_kmh === null ? null : `gusts ${mph(hour.wind_gust_kmh)} mph`,
-          },
-        ]}
-      />
-    </Card>
-  )
-}
+  let last: Figure['value'] = EM_DASH
+  let lastNote: string | null = null
+  if (lastText === 'Now') {
+    last = 'Now'
+  } else if (summary?.hoursSinceReal != null) {
+    // Without today's date the day cannot be named, but the rain is still known: a dash and its age.
+    last = lastDate === null || todayDate === null ? EM_DASH : shortDay(lastDate, todayDate)
+    lastNote = [event === null ? null : formatPrecipIn(event.totalMm), `${formatSince(summary.hoursSinceReal)} ago`]
+      .filter((s): s is string => s !== null)
+      .join(' · ')
+  } else if (summary?.lastReal === null && lastText !== null) {
+    // "None in 7 days": the measured span, never a week asked for but not read.
+    last = 'None'
+    lastNote = lastText.replace(/^None /, '')
+  }
 
-/** The drying clock beside the rock's margin over its dew point and the hours since real rain. */
-function RockCard({ props, now }: { props: OverviewTabProps; now: Now | null }) {
-  const clock = useNow()
-  const rockType = props.location?.rock_type ?? null
-  if (!props.isClimbingLocation || rockType === null || now === null) return null
-  const reading = now.conditions.readings?.now ?? null
-  const summary = props.recentPrecip === undefined ? null : precipSummary(props.recentPrecip, clock)
-  const since = summary?.hoursSinceReal ?? null
-  // The measured span ("None in 3 days"), and null for an empty window: never a week asked for but not read.
-  const noRealRain =
-    summary === null || props.recentPrecip === undefined
-      ? null
-      : lastRainText(summary, precipDays(props.recentPrecip.hours).length)
-  const margin = dewPointMarginValue(reading?.condensation_margin_c ?? null)
-  const marginC = reading?.condensation_margin_c ?? null
-  const rainModels = now.conditions.readings?.rain_models ?? null
-  const mech = measurements({
-    hour: null,
-    weatherModel: null,
-    reading,
-    readingModel: now.conditions.readings?.model ?? null,
-    rainModels,
-  }).notes.filter((n) => n !== ROCK_TEMPERATURE_MECHANISM) // rock temperature is not shown (owner, 2026-10-19)
-  const rock = rockTypeLabel(rockType)
+  const next = series === undefined ? null : nextLikelyRain(series.hours, now)
+  let nextValue = EM_DASH
+  let nextNote: string | null = null
+  if (next !== null && todayDate !== null && series !== undefined) {
+    if (next.kind === 'likely') {
+      // Stamped at the end of the hour it falls in, so it starts an hour before its stamp (as `rainDueText`).
+      const startMs = Date.parse(next.from_valid_at) - 3_600_000
+      const from = Number.isFinite(startMs) ? formatLocalHour(new Date(startMs).toISOString(), series.utc_offset_seconds) : null
+      nextValue = shortDay(next.local_date, todayDate)
+      nextNote = [`${next.chancePct}%`, from === null ? null : `from ${from}`].filter((s): s is string => s !== null).join(' · ')
+    } else if (next.kind === 'none') {
+      // "None likely", never "None": rain past the ensemble's edge is rain these figures cannot see.
+      nextValue = 'None likely'
+      // With its date: a weekday alone a week out reads as yesterday (`shortDate`).
+      nextNote = `through ${shortDate(next.throughDate, todayDate)}`
+    }
+  }
+
+  const hour = series === undefined ? null : readingNow(series.hours, now)
+  const figures: Figure[] = [
+    { label: 'Last rain', value: last, note: lastNote, tab: 'precip', tabLabel: 'Precip' },
+    { label: 'Next rain', value: nextValue, note: nextNote, tab: 'precip', tabLabel: 'Precip' },
+    {
+      label: 'Wind',
+      value: hour?.wind_kmh == null ? EM_DASH : `${mph(hour.wind_kmh)} mph`,
+      note: hour?.wind_gust_kmh == null ? null : `gusts ${mph(hour.wind_gust_kmh)}`,
+      tab: 'hourly',
+      tabLabel: 'Hourly',
+    },
+  ]
+  if (figures.every((f) => f.value === EM_DASH) && series === undefined && recentPrecip === undefined) return null
+
+  // Named from the responses: the air model `/hourly` chose, and the drying clock's rain models
+  // by name, since the hero's Dryness rests on them (`dryingRainMechanism`'s rule).
+  const rainModels = props.conditions?.data?.readings?.rain_models ?? null
+  const rainNames = rainModels === null ? [] : [...new Set(rainModels.map(modelName))]
+  const sources = [
+    series?.model == null ? null : `Air: ${modelName(series.model)}`,
+    rainNames.length === 0 ? null : rainNames.length === 1 ? `rain: ${rainNames[0]}` : `rain: median of ${rainNames.join(', ')}`,
+  ].filter((s): s is string => s !== null)
+
   return (
-    <Card title="Rock" aside="drying · condensation">
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-        <DryingClock
-          hours={since}
-          rockType={rockType}
-          dryness={now.dryness}
-          label={
-            since !== null
-              ? `Drying clock: ${formatSince(since)} since real rain`
-              : `Drying clock: ${noRealRain ?? 'no rain record'}`
-          }
-        />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <Stats
-            items={[
-              {
-                label: 'Rock vs dew point',
-                value: margin ?? EM_DASH,
-                ...(marginC !== null && marginC < 2 ? { color: colorsV2.poorInk } : {}),
-              },
-              { label: 'Since real rain', value: since === null ? (noRealRain ?? EM_DASH) : formatSince(since) },
-            ]}
-          />
-          <p style={{ ...typeV2.keyRow, lineHeight: '16px', margin: '10px 0 0', paddingTop: '10px', borderTop: `1px solid ${colorsV2.line}` }}>
-            {`${rock} drying table: ${rockDryingSpan(rockType)}.${mech.length === 0 ? '' : ` ${mech.join(' ')}`}`}
-          </p>
-        </div>
+    <Card title="Right now">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '6px' }}>
+        {figures.map((f) => (
+          <button
+            key={f.label}
+            type="button"
+            onClick={() => props.onOpenTab(f.tab)}
+            aria-label={`${f.label}: ${f.value}${f.note === null ? '' : `, ${f.note}`}. Open ${f.tabLabel}`}
+            style={{
+              ...bareButton,
+              display: 'grid',
+              alignContent: 'start',
+              gap: '1px',
+              padding: '8px 8px 10px',
+              borderRadius: '16px',
+              background: colorsV2.raised,
+              minWidth: 0,
+            }}
+          >
+            <span style={typeV2.statLabel}>{f.label}</span>
+            <b style={{ ...typeV2.readFigure, fontSize: '24px', lineHeight: '26px' }}>{f.value}</b>
+            {f.note === null ? null : <small style={typeV2.keyRow}>{f.note}</small>}
+            <em style={{ ...typeV2.keyRow, fontStyle: 'normal', color: colorsV2.brandInk, marginTop: '3px' }}>{f.tabLabel} ›</em>
+          </button>
+        ))}
       </div>
+      {sources.length === 0 ? null : <p style={{ ...typeV2.keyRow, margin: '10px 2px 0' }}>{sources.join(' · ')}</p>}
     </Card>
-  )
-}
-
-function rockDryingSpan(rockType: NonNullable<Location['rock_type']>): string {
-  return `${MIN_HOURS[rockType]}–${MAX_HOURS[rockType]} h`
-}
-
-function ExplainerCard({ rangeF, rockType }: { rangeF: RangeF; rockType: RockType | null }) {
-  return (
-    <section style={sectCard}>
-      <details>
-        <summary style={{ ...typeV2.heroSide, fontSize: '15px', color: colorsV2.brandInk, cursor: 'pointer', padding: '0 0 4px' }}>
-          How the score works
-        </summary>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: `${spacing.listGapLg}px`, marginTop: `${spacing.listGap}px` }}>
-          <ScoreExplainerParts rangeF={rangeF} rockType={rockType} />
-        </div>
-      </details>
-    </section>
   )
 }
 
@@ -607,11 +629,7 @@ export function OverviewTab(props: OverviewTabProps) {
       <Hero props={props} now={now} />
       <TodayCard props={props} now={now} />
       <NextDaysCard props={props} />
-      <BreakdownCard now={now} />
-      <RainCard props={props} />
-      <AirCard props={props} />
-      <RockCard props={props} now={now} />
-      {props.isClimbingLocation ? <ExplainerCard rangeF={props.rangeF} rockType={props.location?.rock_type ?? null} /> : null}
+      <RightNowCard props={props} />
     </>
   )
 }

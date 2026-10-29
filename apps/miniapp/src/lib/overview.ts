@@ -212,9 +212,11 @@ export function nextDays(
   todayDate: string,
   readings: DayReadings | null,
   count = 3,
+  /** Start at today: the Overview's Next days, the only place the day's score shows (owner, 2026-10-29). */
+  includeToday = false,
 ): NextDay[] {
   const rows = [...forecast]
-    .filter((row) => row.forecast_date > todayDate)
+    .filter((row) => (includeToday ? row.forecast_date >= todayDate : row.forecast_date > todayDate))
     .sort((a, b) => a.forecast_date.localeCompare(b.forecast_date))
     .slice(0, count)
   return scoredDays(rows, readings)
@@ -297,7 +299,7 @@ export const LIKELY_RAIN_PCT = 50
 
 export type NextRain =
   /** The first day, from now on, with an hour at or above `LIKELY_RAIN_PCT`, and that day's highest hourly chance. */
-  | { kind: 'likely'; local_date: string; chancePct: number }
+  | { kind: 'likely'; local_date: string; chancePct: number; /** `valid_at` of the first likely hour: when it starts. */ from_valid_at: string }
   /**
    * No such hour through `throughDate`, the last day the ensemble reached.
    * `peak` is the highest hourly chance below the threshold and its day (the
@@ -342,7 +344,7 @@ export function nextLikelyRain(hours: readonly HourlySample[], now: number): Nex
       .filter((h) => h.local_date === first.local_date)
       .map((h) => h.precip_chance_pct ?? 0),
   )
-  return { kind: 'likely', local_date: first.local_date, chancePct }
+  return { kind: 'likely', local_date: first.local_date, chancePct, from_valid_at: first.valid_at }
 }
 
 /**

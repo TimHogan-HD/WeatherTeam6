@@ -13,7 +13,7 @@ import { cardV2, stack } from '../theme/styles.js'
 import { Sect } from './charts/liquid.js'
 import { DayScoreExample, DryingChart, GripBand, ScoreEquation } from './ScoreExplainerCharts.js'
 
-/** Where the measurements panel's "How the score works" link lands. */
+/** Where the Overview's Score breakdown links, "How the score works ›". */
 export const SCORE_EXPLAINER_ID = 'score'
 export const SCORE_EXPLAINER_PATH = `/profile#${SCORE_EXPLAINER_ID}`
 
@@ -39,7 +39,7 @@ export function ScoreExplainer({ rangeF }: { rangeF: RangeF }) {
 }
 
 /**
- * The explanation's parts, for Profile's card and the Overview's fold-out.
+ * The explanation's parts, for Profile's card (on Profile only since 2026-10-29).
  * `rockType` picks the crag's own rock out in the drying chart; Profile has none.
  */
 export function ScoreExplainerParts({ rangeF, rockType = null }: { rangeF: RangeF; rockType?: RockType | null }) {
