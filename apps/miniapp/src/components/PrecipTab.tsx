@@ -271,9 +271,8 @@ export function PrecipTab({ recent, isClimbingLocation, rockType, rock, hours, u
       <p style={{ ...typeV2.note, padding: `0 ${spacing.listGapLg}px` }}>
         {source === null ? '' : `${source} `}Rain here means {threshold} or more in an hour
         {isClimbingLocation ? '; lighter showers set drying back by less. Check the rock before you climb.' : '.'}
-        {aspectNote ? ` ${UNRECORDED_ASPECT_NOTE}.` : null} Ahead, amounts are the ensemble mean; the shaded band is
-        the 10th to 90th percentile for one hour and is never added up. Chance of rain is the share of wet ensemble
-        members.
+        {aspectNote ? ` ${UNRECORDED_ASPECT_NOTE}.` : null} Ahead, each column adds up six hours of the ensemble
+        mean; its chance is the likeliest of those hours, the share of wet ensemble members.
       </p>
     </>
   )

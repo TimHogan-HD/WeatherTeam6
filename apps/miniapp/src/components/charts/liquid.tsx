@@ -361,6 +361,7 @@ export function LiquidFrame({
   bare = false,
   title,
   readout,
+  readLabel,
   children,
 }: {
   height: number
@@ -381,6 +382,8 @@ export function LiquidFrame({
    * figure, already formatted, an em dash for a gap.
    */
   readout?: readonly ReadoutItem[]
+  /** The readout's heading when it reads more than the hour, as a span of hours does. */
+  readLabel?: string
   children: ReactNode
 }) {
   const pick = (e: PointerEvent<SVGSVGElement>) => {
@@ -408,7 +411,7 @@ export function LiquidFrame({
     <>
       {bare || read.ms === null || readout === undefined || readout.length === 0 ? null : (
         <ReadChip
-          hour={formatLocalHour(read.ms, utcOffsetSeconds) ?? ''}
+          hour={readLabel ?? formatLocalHour(read.ms, utcOffsetSeconds) ?? ''}
           items={readout}
           at={((axis.x(read.ms) - axis.left) / (axis.right - axis.left)) * 100}
           span={axis}
