@@ -128,7 +128,7 @@ drops one is a regression:
    and the dry-day rain card. **Built 2026-10-19.** Overview opens on 36 hourly score bars
    (`ScoreBars.tsx`, `lib/scoreBars.ts`) with each day's best run underlined. Hourly reads
    one hour across the sky strip and the three charts (temperature with dew point and
-   humidity on a right-hand scale, rain chance as columns with the amount as a line, wind),
+   humidity on a right-hand scale, rain in 3-hour blocks, wind),
    and the slim header follows it (`slimHeader.ts`). A day counts as dry when every hour is
    read at 0% chance since 2026-10-20, under 10% before (`dryDay`); there is no hourly median amount, so the chance
    stands in for it.
@@ -192,7 +192,8 @@ drops one is a regression:
    drying clock beside the last real rain (whole days past 48 h, as the mockup's `2 days
    ago`), then tiles for today, this week and **Dry again** (the first hour ahead the
    readings call the rock dry; `lib/rockReadings.ts`); then Every hour, **Next 48 hours**
-   (Hourly's `RainChart` over the next 48 hours, with `dryHours` for a dry stretch) and
+   (Hourly's `RainChart` over the next 48 hours in 6-hour blocks, with `dryHours` for a dry
+   stretch) and
    **By day** (each day's chance and its wettest hour, mean with that one hour's p90). The
    running total (`PrecipRunningTotal.tsx`) and its rock strip are deleted. Rock keeps the
    field guide whole and gains a **Drying** card (the clock, Dryness, hours since real rain,

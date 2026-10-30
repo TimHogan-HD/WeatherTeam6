@@ -42,6 +42,12 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
 - **Hourly precipitation is stamped at the end of its hour**, so a bar owns the hour before
   its timestamp; an instantaneous reading is centred. The charts place each mark inline,
   `valid_at - HOUR_MS` for an hour's span (`DayCharts.tsx`'s sky row, `TodayChart.tsx`).
+- **The rain charts read in blocks** (owner, 2026-10-30, mockup version 1; `RainChart`,
+  `charts/rainBlocks.ts`): Hourly's day in threes, Precip's 48 hours in sixes. Each block
+  is a column of total inches (the sum of `precip_mm_mean`) on a printed inch scale with
+  its figure on top, and a pill under it with the **likeliest hour's** chance, never a
+  combined one. Any unread hour withholds that block's figure. The old chart's hidden
+  amount scale made a trace look like a downpour; a rain amount on screen has a scale.
 - **A deterministic multi-model response labels its columns only while more than one model
   has coverage.** `parseDeterministicHourly` trusts a bare column only when exactly one model
   was requested; otherwise it reports `ambiguous` and `fetchDeterministicHourly` re-asks one

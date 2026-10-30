@@ -18,8 +18,9 @@ import { selection } from '../../theme/glass.js'
 import { SkyIcon } from '../Icons.js'
 import { dayChips, dryDay } from '../../lib/hourlyDay.js'
 import { dayChance } from '../../lib/overview.js'
-import { formatTempDeg } from '../../lib/format.js'
-import { chanceAxisTop, niceTicks } from '../../lib/chartTicks.js'
+import { formatLocalHour, formatTempDeg } from '../../lib/format.js'
+import { weekdayOf } from '../../lib/precipHistory.js'
+import { niceTicks } from '../../lib/chartTicks.js'
 import { useNow } from '../../hooks/useNow.js'
 import { SelectionIndicator, useSelectedRect } from '../SelectionIndicator.js'
 import { chartColorsV2, scoreRampColor } from './chartStyle.js'
@@ -29,6 +30,7 @@ import {
   KeyRow,
   LIQUID_W,
   LiquidFrame,
+  MONO,
   ScaleFigure,
   Sect,
   Tube,
@@ -44,18 +46,27 @@ import {
 } from './liquid.js'
 import {
   type SeriesDatum,
-  chanceSeries,
   dewPointSeries,
   gustSeries,
   hasValues,
   hoursOnDay,
   humiditySeries,
-  rainSeries,
   temperatureSeries,
   valueExtent,
   windSpreadSeries,
   HOUR_MS,
 } from './hourlySeries.js'
+import {
+  type RainBlock,
+  blockAt,
+  columnInches,
+  mmToIn,
+  rainBlockHours,
+  rainBlocks,
+  rainFloorIn,
+  rainTopIn,
+  scaleInches,
+} from './rainBlocks.js'
 
 /**
  * The Hourly tab in the hybrid look (`docs/handoffs/design-mockups/weatherteam6-hybrid.html`,
@@ -84,9 +95,6 @@ export type DayChartsProps = {
 
 type Read = { ms: number | null; onRead: (ms: number) => void }
 
-/** 0.02 in, the least the rain chart's scale may span: a trace day must not draw a downpour's shape. */
-const RAIN_MIN_TOP_MM = 0.508
-const MM_PER_IN = 25.4
 /**
  * Each day chart prints one scale, at the left, `100%` its longest figure
  * (owner, 2026-10-27: a right-hand column read as an ugly gap). A second
@@ -96,9 +104,9 @@ const MM_PER_IN = 25.4
  */
 export const DAY_SCALES: ScaleChars = { left: 4, right: 0 }
 
-/** The unit of the scale `RainChart` draws for these hours: chance when any hour has one, else the amount. */
+/** The unit of the scale `RainChart` draws for these hours: inches in each block. */
 export function rainScaleUnit(hours: readonly HourlySample[]): string {
-  return hasValues(chanceSeries(hours)) ? '%' : 'in / hr'
+  return `in per ${rainBlockHours(hours)} hours`
 }
 
 /** Air with no score beside it is neutral ink: a tint with no number would claim a score nobody can read. */
@@ -183,8 +191,8 @@ export function DayCharts({ series, selectedDate, onSelectDate, readMs, onRead, 
         <WindChart {...frame} hours={hours} />
         {/* Under the last chart, inside its card, as the mockup's is. */}
         <p style={{ ...typeV2.keyRow, lineHeight: '1.55', margin: '24px 0 0' }}>
-          The range bands are the 10th to 90th percentile for one hour; they are never added up. Chance of rain is the
-          share of wet ensemble members.
+          The range bands are the 10th to 90th percentile for one hour; they are never added up. Rain adds up each
+          hour’s ensemble mean; a block’s chance is its likeliest hour, the share of wet ensemble members.
           {dayLabel === null ? null : ` ${dayLabel}: ${chanceToday === null ? EM_DASH : `${chanceToday}%`} chance of rain at its likeliest hour.`}
         </p>
       </section>
@@ -474,10 +482,15 @@ function TemperatureChart({
 }
 
 /**
- * Chance of rain as columns and the ensemble mean amount as a line with its
- * one-hour range. Hourly draws one day of it, the Precip tab the next 48
- * hours. `dry` is the caller's verdict (`dryDay`, `dryHours`) and the words
- * that replace the marks when it holds.
+ * Rain in blocks of hours (owner, 2026-10-30, mockup version 1 of the rain
+ * charts): each block's total inches as a column with its figure on top, on an
+ * inch scale, and its chance in a pill underneath. The old chart drew the
+ * amount on a scale it never printed, so a trace looked like a downpour, and
+ * its hourly chance capsules crowded together.
+ *
+ * Hourly draws one day of it in threes, the Precip tab the next 48 hours in
+ * sixes (`rainBlocks`). `dry` is the caller's verdict (`dryDay`, `dryHours`)
+ * and the words that replace the marks when it holds.
  */
 export function RainChart({
   axis,
@@ -488,32 +501,31 @@ export function RainChart({
   hours,
   dry,
 }: FrameProps & { hours: readonly HourlySample[]; dry: { title: string; note: string } | null }) {
-  const rain = rainSeries(hours)
-  const chance = chanceSeries(hours)
-  if (axis === null || (!hasValues(rain) && !hasValues(chance))) return <Empty>No hourly rainfall for these hours.</Empty>
+  const blocks = rainBlocks(hours)
+  const size = rainBlockHours(hours)
+  const hasAmount = blocks.some((b) => b.totalMm !== null)
+  const hasChance = blocks.some((b) => b.chancePct !== null)
+  if (axis === null || (!hasAmount && !hasChance)) return <Empty>No hourly rainfall for these hours.</Empty>
 
-  const H = 140
-  const floor = 106
-  const chances = chance.map((d) => d.value).filter((v): v is number => v !== null)
-  const chanceTop = chanceAxisTop(chances.length === 0 ? null : Math.max(...chances))
-  const cy = scale(0, chanceTop, floor, 14)
-  const top = Math.max(RAIN_MIN_TOP_MM, ...rain.flatMap((d) => [d.value ?? 0, d.high ?? 0]))
-  const ry = scale(0, top, floor, 14)
+  const H = 176
+  const floor = 126
+  const peak = 30
+  const topIn = rainTopIn(Math.max(0, ...blocks.map((b) => (b.totalMm === null ? 0 : mmToIn(b.totalMm)))), rainFloorIn(size))
+  const y = scale(0, topIn, floor, peak)
   const frameProps = { height: H, top: 10, bottom: 22, axis, instants, utcOffsetSeconds, nowMs, read }
-  const inches = (mm: number) => (mm / MM_PER_IN).toFixed(2).replace(/^0/, '')
 
-  const chanceGrid = [0, chanceTop / 2, chanceTop].map((v) => (
+  const inchGrid = [0, topIn / 2, topIn].map((v) => (
     <g key={v}>
-      <line x1={axis.left} x2={axis.right} y1={cy(v)} y2={cy(v)} stroke={chartColorsV2.grid} />
-      <ScaleFigure side="start" y={cy(v)}>{`${v}%`}</ScaleFigure>
+      <line x1={axis.left} x2={axis.right} y1={y(v)} y2={y(v)} stroke={chartColorsV2.grid} />
+      <ScaleFigure side="start" y={y(v)}>{scaleInches(v)}</ScaleFigure>
     </g>
   ))
 
   if (dry !== null) {
     return (
       <div style={{ ...bleed, position: 'relative' }}>
-        <LiquidFrame {...frameProps} bare title={`Rain by hour: ${dry.title.toLowerCase()}`}>
-          {chanceGrid}
+        <LiquidFrame {...frameProps} bare title={`Rain: ${dry.title.toLowerCase()}`}>
+          {inchGrid}
         </LiquidFrame>
         <div
           style={{
@@ -537,69 +549,101 @@ export function RainChart({
     )
   }
 
-  const readRain = at(rain, read.ms)
-  const band = runsOf(rain, (d) => d.low !== null && d.high !== null)
+  const readBlock = blockAt(blocks, read.ms)
+  const spanOf = (b: RainBlock) => {
+    const from = formatLocalHour(b.fromMs, utcOffsetSeconds)
+    const to = formatLocalHour(b.toMs, utcOffsetSeconds)
+    if (from === null || to === null) return ''
+    return `${from}–${to}${size === 6 ? ` ${weekdayOf(b.localDate)}` : ''}`
+  }
   return (
     <div style={bleed}>
       <LiquidFrame
         {...frameProps}
-        title={hasValues(chance) ? 'Rain by hour: chance of rain as columns, amount as a line with its range' : 'Rainfall by hour'}
-        readout={[
-          ...(hasValues(chance)
-            ? [{ label: 'chance', value: percent(at(chance, read.ms)?.value ?? null), color: colorsV2.rainMark }]
-            : []),
-          ...(hasValues(rain) ? [{ label: 'amount', value: formatPrecipIn(readRain?.value ?? null), color: chartColorsV2.rain }] : []),
-        ]}
+        title={`Rain in ${size}-hour blocks: total inches as columns, chance of rain underneath`}
+        readLabel={readBlock === null ? undefined : spanOf(readBlock)}
+        readout={
+          readBlock === null
+            ? []
+            : [
+                ...(hasAmount
+                  ? [{ label: 'total', value: formatPrecipIn(readBlock.totalMm), color: colorsV2.rainAmount }]
+                  : []),
+                ...(hasChance
+                  ? [{ label: 'chance up to', value: percent(readBlock.chancePct), color: colorsV2.rainMark }]
+                  : []),
+              ]
+        }
       >
-        {hasValues(chance) ? chanceGrid : null}
-        {hasValues(rain) && !hasValues(chance) ? (
-          <>
-            <ScaleFigure side="start" y={ry(top)} color={colorsV2.rainLine}>{inches(top)}</ScaleFigure>
-            <ScaleFigure side="start" y={ry(top / 2)} color={colorsV2.rainLine}>
-              {inches(top / 2)}
-            </ScaleFigure>
-          </>
-        ) : null}
-        {chance.map((d) =>
-          d.value === null ? null : (
-            <rect
-              key={d.t}
-              x={axis.x(d.t) - 5}
-              y={cy(d.value)}
-              width={10}
-              height={Math.max(0, floor - cy(d.value))}
-              rx={5}
-              fill={colorsV2.rainMark}
-              opacity={d.t === read.ms ? 0.55 : 0.24}
-              data-chance=""
-            />
-          ),
-        )}
-        {band.map((run, i) => (
-          <Frost
-            key={i}
-            top={run.map((d) => [axis.x(d.t), ry(d.high ?? 0)] as Pt)}
-            bottom={run.map((d) => [axis.x(d.t), ry(d.low ?? 0)] as Pt)}
-            color={colorsV2.rainLine}
-          />
-        ))}
-        {valueRuns(rain, axis, ry).map((pts, i) => (
-          <Tube key={i} d={smoothPath(pts)} stroke={chartColorsV2.rain} width={3.5} />
-        ))}
-        {readRain === null || readRain.value === null ? null : (
-          <Bead x={axis.x(readRain.t)} y={ry(readRain.value)} color={colorsV2.rainMark} />
-        )}
+        {hasAmount ? inchGrid : null}
+        {blocks.map((b) => {
+          // The block spans its hours' rain, each hour ending at its stamp, so
+          // the first starts an hour left of the plot: it reaches into the
+          // gutter, clear of the scale figures, rather than shrink.
+          const x0 = axis.x(b.fromMs)
+          const x1 = Math.min(axis.right, axis.x(b.toMs))
+          const mid = (x0 + x1) / 2
+          const w = x1 - x0
+          const bw = Math.min(30, w - 8)
+          // A block too narrow for its figures (a short last block) is read in the chip alone.
+          const labelled = w >= 30
+          const isRead = b === readBlock
+          const top = b.totalMm === null ? floor : Math.min(y(mmToIn(b.totalMm)), floor - 2)
+          return (
+            <g key={b.fromMs} data-block="">
+              {isRead ? (
+                <rect x={x0 + 1} y={peak - 22} width={Math.max(0, w - 2)} height={floor - peak + 50} rx={9} fill="#fff" fillOpacity={0.055} />
+              ) : null}
+              {b.totalMm === null || b.totalMm === 0 || bw <= 0 ? null : (
+                <rect
+                  x={mid - bw / 2}
+                  y={top}
+                  width={bw}
+                  height={floor - top}
+                  rx={4}
+                  fill={colorsV2.rainAmount}
+                  fillOpacity={isRead ? 1 : 0.8}
+                  data-amount=""
+                />
+              )}
+              {!hasAmount || !labelled ? null : (
+                <text x={mid} y={top - 6} fontFamily={MONO} fontSize={10.5} fontWeight={700} fill={colorsV2.rainAmount} textAnchor="middle">
+                  {columnInches(b.totalMm)}
+                </text>
+              )}
+              {!hasChance || !labelled ? null : (
+                <g data-chance="">
+                  <rect
+                    x={mid - 15}
+                    y={floor + 7}
+                    width={30}
+                    height={16}
+                    rx={8}
+                    fill={colorsV2.rainMark}
+                    fillOpacity={b.chancePct === null ? 0.1 : 0.1 + (0.5 * b.chancePct) / 100}
+                  />
+                  <text
+                    x={mid}
+                    y={floor + 18.5}
+                    fontFamily={MONO}
+                    fontSize={9.5}
+                    fontWeight={600}
+                    fill={b.chancePct !== null && b.chancePct >= 50 ? colorsV2.txt1 : colorsV2.rainMark}
+                    textAnchor="middle"
+                  >
+                    {percent(b.chancePct)}
+                  </text>
+                </g>
+              )}
+            </g>
+          )
+        })}
       </LiquidFrame>
       <div style={keyInset}>
         <KeyRow
           keys={[
-            ...(hasValues(chance) ? [{ label: 'chance of rain', swatch: { kind: 'capsule' as const, color: colorsV2.rainMark } }] : []),
-            ...(hasValues(rain)
-              ? [
-                  { label: 'amount', swatch: { kind: 'line' as const, background: chartColorsV2.rain } },
-                  { label: 'amount range, p10–p90', swatch: { kind: 'block' as const, background: colorsV2.rainLine, opacity: 0.4 } },
-                ]
-              : []),
+            ...(hasAmount ? [{ label: `inches in ${size} hours`, swatch: { kind: 'block' as const, background: colorsV2.rainAmount } }] : []),
+            ...(hasChance ? [{ label: 'chance at the likeliest hour', swatch: { kind: 'capsule' as const, color: colorsV2.rainMark } }] : []),
           ]}
         />
       </div>

@@ -124,18 +124,22 @@ describe('DayCharts — the read hour inside each card', () => {
     [...html.matchAll(/<p data-readout=""[^>]*>(.*?)<\/p>/g)].map((m) => visible(m[1] ?? '').trim())
 
   it('names the hour and the figures each chart draws at it', () => {
-    const day = fullDay.map((h, i) => (i === 9 ? { ...h, temp_c_p50: 10, wind_kmh_p50: 16.1, wind_gust_kmh: 32.2, precip_chance_pct: 4 } : h))
+    const day = fullDay.map((h, i) =>
+      i === 9 ? { ...h, temp_c_p50: 10, wind_kmh_p50: 16.1, wind_gust_kmh: 32.2 } : i >= 10 && i <= 11 ? { ...h, precip_chance_pct: 4 } : h,
+    )
     const [temp, rain, wind] = readouts(render(series(day), { readMs: T0 + 9 * HOUR_MS }))
     // The chart's own line, the ensemble median: 10 °C is 50 °F.
     expect(temp).toBe('9 AM air 50°')
-    expect(rain).toMatch(/^9 AM chance 4% amount /)
+    // Rain reads the block holding 9 AM: the hours stamped 9, 10 and 11, whose
+    // rain falls from 8 AM to 11 AM. 1.2 mm in all; 30% at its likeliest hour.
+    expect(rain).toBe('8 AM–11 AM total 0.05 in chance up to 30%')
     expect(wind).toBe('9 AM wind 10 mph gusts 20 mph')
   })
 
   it('shows a gap as a dash, never a zero, and leaves out a series the chart does not draw', () => {
     const day = fullDay.map((h, i) => (i === 9 ? { ...h, wind_gust_kmh: null, precip_chance_pct: null } : h))
     const [, rain, wind] = readouts(render(series(day), { readMs: T0 + 9 * HOUR_MS }))
-    expect(rain).toContain(`chance ${'—'}`)
+    expect(rain).toContain(`chance up to ${'—'}`)
     expect(wind).toContain(`gusts ${'—'}`)
     const calm = fullDay.map((h) => ({ ...h, wind_gust_kmh: null }))
     expect(readouts(render(series(calm), { readMs: T0 + 9 * HOUR_MS }))[2]).not.toContain('gusts')
@@ -148,55 +152,53 @@ describe('DayCharts — the read hour inside each card', () => {
   })
 })
 
-describe('DayCharts — rain', () => {
-  it('draws the chance as one capsule per hour, on the smallest of 10, 20, 50 and 100% that holds the day', () => {
-    const svg = chartSvg(render(series(fullDay)), 'Rain by hour')
-    expect(count(svg, 'data-chance=""')).toBe(24)
-    // Every hour is 30%, so the axis tops at 50%, not 100%.
-    expect(svg).toContain('>50%<')
-    expect(svg).not.toContain('>100%<')
-    expect(render(series(fullDay))).toContain('% · ensemble mean')
+describe('DayCharts — rain in 3-hour blocks', () => {
+  const RAIN = 'Rain in 3-hour blocks'
+
+  it('draws eight blocks, each with its inches on top and its chance underneath, on a printed inch scale', () => {
+    const html = render(series(fullDay))
+    const svg = chartSvg(html, RAIN)
+    expect(count(svg, 'data-block=""')).toBe(8)
+    expect(count(svg, 'data-amount=""')).toBe(8)
+    expect(count(svg, 'data-chance=""')).toBe(8)
+    // Three hours of 0.4 mm is 1.2 mm, 0.047 in; every hour is 30%.
+    expect(svg).toContain('>.05&quot;<')
+    expect(svg).toContain('>30%<')
+    // A small day keeps the 0.2 in scale, so it reads small.
+    expect(svg).toContain('>.2&quot;<')
+    expect(svg).toContain('>.1&quot;<')
+    expect(html).toContain('in per 3 hours · ensemble mean')
   })
 
-  it('prints the inch scale only when no chance scale holds the left', () => {
-    const svg = chartSvg(render(series(fullDay)), 'Rain by hour')
-    expect(svg).toContain(`stroke="${chartColorsV2.rain}"`)
-    expect(svg).not.toContain('>.02<')
-    // 0.4 mm an hour is under the 0.02 in floor, so the scale tops at .02 in.
-    const noChance = fullDay.map((h) => ({ ...h, precip_chance_pct: null }))
-    const html = render(series(noChance))
-    expect(chartSvg(html, 'Rain')).toContain('>.02<')
-    // The card's title names the unit the scale is in.
-    expect(html).toContain('in / hr · ensemble mean')
+  it('adds up the hours’ means but takes the likeliest hour’s chance, never a sum', () => {
+    const day = fullDay.map((h, i) => (i < 3 ? { ...h, precip_mm_mean: 10, precip_chance_pct: [10, 20, 40][i] ?? null } : h))
+    const svg = chartSvg(render(series(day)), RAIN)
+    // 30 mm is 1.18 in, and the scale grows to hold it.
+    expect(svg).toContain('>1.2&quot;<')
+    expect(svg).toContain('>40%<')
+    expect(svg).not.toContain('>70%<')
   })
 
-  it('keeps a trace on a readable scale rather than stretching it across the plot', () => {
+  it('withholds a block with an unread hour rather than adding up the rest', () => {
+    const day = fullDay.map((h, i) => (i === 4 ? { ...h, precip_mm_mean: null, precip_chance_pct: null } : h))
+    const svg = chartSvg(render(series(day)), RAIN)
+    expect(count(svg, 'data-amount=""')).toBe(7)
+    expect(count(svg, '>—<')).toBe(2)
+  })
+
+  it('calls a trace a trace', () => {
     const trace = fullDay.map((h) => ({ ...h, precip_mm_mean: 0.02 }))
-    const svg = chartSvg(render(series(trace)), 'Rain by hour')
-    const line = ys(pathD(svg, `stroke="${chartColorsV2.rain}"`))
-    // floor 106, top 14: 0.02 mm of a 0.508 mm scale sits within 4 units of the floor.
-    expect(Math.min(...line)).toBeGreaterThan(100)
-  })
-
-  it('shades the amount range only where the members spread', () => {
-    const spread = fullDay.map((h) => ({ ...h, precip_mm_p10: 0, precip_mm_p90: 4 }))
-    expect(chartSvg(render(series(spread)), 'Rain by hour')).toContain('data-range=""')
-    expect(chartSvg(render(series(fullDay)), 'Rain by hour')).not.toContain('data-range=""')
-  })
-
-  it('draws the amount range from p10 to p90, not from zero', () => {
-    // p10 1 mm on a 4 mm scale (floor 106, top 14) sits at y 83; a band from zero would reach the floor.
-    const spread = fullDay.map((h) => ({ ...h, precip_mm_p10: 1, precip_mm_p90: 4 }))
-    const band = ys(pathD(chartSvg(render(series(spread)), 'Rain by hour'), 'data-range=""'))
-    expect(Math.max(...band)).toBeLessThan(90)
+    const svg = chartSvg(render(series(trace)), RAIN)
+    expect(count(svg, '>tr<')).toBe(8)
+    expect(svg).toContain('>.2&quot;<')
   })
 
   it('draws the chance alone when no hour has an amount, and is not called dry', () => {
     const noAmount = fullDay.map((h) => ({ ...h, precip_mm_mean: null }))
     const html = render(series(noAmount))
-    const svg = chartSvg(html, 'Rain by hour')
+    const svg = chartSvg(html, RAIN)
     expect(svg).toContain('data-chance=""')
-    expect(svg).not.toContain(`stroke="${chartColorsV2.rain}"`)
+    expect(svg).not.toContain('data-amount')
     expect(html).not.toContain('Dry all day')
   })
 
@@ -209,23 +211,22 @@ describe('DayCharts — rain', () => {
 describe('DayCharts — dry all day', () => {
   const dry = fullDay.map((h) => ({ ...h, precip_mm_mean: 0, precip_chance_pct: 0 }))
 
-  it('keeps the frame and its hour labels, draws no marks, and says every hour is 0%', () => {
+  it('keeps the frame, its inch scale and hour labels, draws no marks, and says every hour is 0%', () => {
     const html = render(series(dry), { readMs: T0 + 9 * HOUR_MS })
-    const svg = chartSvg(html, 'Rain by hour: dry all day')
+    const svg = chartSvg(html, 'Rain: dry all day')
     expect(visible(html)).toContain('Dry all day')
     expect(visible(html)).toContain('0% in every hour')
     expect(svg).not.toContain('data-chance')
-    expect(svg).not.toContain('data-line')
-    expect(svg).not.toContain('data-bead')
-    expect(svg).toContain('>10%<')
+    expect(svg).not.toContain('data-amount')
+    expect(svg).toContain('>.2&quot;<')
     expect(svg).toContain('>6a<')
   })
 
-  it('draws the columns for a low-chance day instead of calling it dry, and is not dry with an hour unread', () => {
+  it('draws the blocks for a low-chance day instead of calling it dry, and is not dry with an hour unread', () => {
     const low = dry.map((h, i) => (i === 15 ? { ...h, precip_chance_pct: 6 } : h))
     const html = render(series(low))
     expect(html).not.toContain('Dry all day')
-    expect(chartSvg(html, 'Rain by hour')).toContain('data-chance=""')
+    expect(chartSvg(html, 'Rain in 3-hour blocks')).toContain('>6%<')
     const gap = dry.map((h, i) => (i === 15 ? { ...h, precip_chance_pct: null } : h))
     expect(render(series(gap))).not.toContain('Dry all day')
   })
@@ -349,12 +350,11 @@ describe('DayCharts — the score on the air line', () => {
 describe('DayCharts — one hour read across every chart', () => {
   const humid = fullDay.map((h) => ({ ...h, dewpoint_c: 5, humidity_pct: 50 }))
 
-  it('beads the read hour on the temperature, rain and wind charts', () => {
+  it('beads the read hour on the temperature and wind charts, and rules it on all three', () => {
     const html = render(series(humid), { readMs: T0 + 9 * HOUR_MS })
-    for (const title of [TEMP_TITLE, 'Rain by hour', 'Wind by hour']) {
-      const svg = chartSvg(html, title)
-      expect(svg).toContain('data-bead=""')
-      expect(svg).toContain('data-read=""')
+    for (const title of [TEMP_TITLE, 'Wind by hour']) expect(chartSvg(html, title)).toContain('data-bead=""')
+    for (const title of [TEMP_TITLE, 'Rain in 3-hour blocks', 'Wind by hour']) {
+      expect(chartSvg(html, title)).toContain('data-read=""')
     }
   })
 

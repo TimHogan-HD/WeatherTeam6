@@ -146,6 +146,12 @@ export const colorsV2 = {
   rainMark: '#a5b4fc',
   /** The rain amount line on Hourly, and its range band (hybrid mockup). */
   rainLine: '#dfe4ff',
+  /**
+   * Rain as an amount in inches: the rain charts' block columns and their
+   * figures, a cyan apart from `rainMark`'s chance (owner, 2026-10-30, rain
+   * chart mockup version 1).
+   */
+  rainAmount: '#7fd1f0',
   /** The ends of a filled chance capsule on Overview's Today chart, either side of `rainMark` (hybrid mockup). */
   rainCapsuleTop: '#e3e8ff',
   rainCapsuleBottom: '#6f7fe0',
