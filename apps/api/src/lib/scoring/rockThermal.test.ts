@@ -22,6 +22,7 @@ import {
   surfaceCoefficient,
   surfaceTemperature,
   erbsDiffuseFraction,
+  wallBeamWm2,
   wallIrradianceWm2,
   type SurfaceTemperatureInput,
   type WallOrientation,
@@ -592,6 +593,15 @@ describe('erbsDiffuseFraction', () => {
 })
 
 describe('wallIrradianceWm2', () => {
+  it('splits off the direct sun: none on a face the sun is behind, part of the total on one it faces', () => {
+    expect(wallBeamWm2(800, JUNE_NOON, wall(0, 0))).toBe(0)
+    expect(wallIrradianceWm2(800, JUNE_NOON, wall(0, 0))!).toBeGreaterThan(0)
+    const beam = wallBeamWm2(800, JUNE_NOON, wall(180, 0))!
+    expect(beam).toBeGreaterThan(0)
+    expect(beam).toBeLessThan(wallIrradianceWm2(800, JUNE_NOON, wall(180, 0))!)
+    expect(wallBeamWm2(null, JUNE_NOON, wall(180, 0))).toBeNull()
+  })
+
   it('returns the horizontal value unchanged for a flat slab, whatever its aspect', () => {
     // β = 0: cos θ = cos θz, sky view 1, ground view 0 — the identity that
     // makes the transposition consistent with its own input.

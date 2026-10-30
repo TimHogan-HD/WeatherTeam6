@@ -23,7 +23,10 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   walls, median taken. A location's score is always Crag A: its recorded aspect and angle are
   not inputs. **Wall A (`evaluateWallA`)** scores individual walls only and nothing calls it
   yet. Friction is condensation × heat × humidity × cold from air temperature, dew point and
-  `T_mass` — no sun. A day's score is the worst hour of its best 3-hour run between 08:00 and
+  `T_mass` — no sun in Crag A. **Wall A's heat and cold read air plus the direct sun on that
+  wall** (`sunWarmingC`, owner 2026-10-30, from Winter Wall at Red Wing too hot on 10/4 and
+  10/19 while Crag A read 100): the beam only, gated by the lidar skyline, zero on a
+  tree-shaded wall, lagged like `T_surface`, null when the sun was not measured. A day's score is the worst hour of its best 3-hour run between 08:00 and
   18:00 local (`dayRepresentative`). **Today counts only hours not yet over**
   (`buildHourlyReadings`'s `now`); after 18:00 today has no score. The port is checked
   hour-for-hour against `.claude/docs/crag-a-reference/model.ts` — a change that moves a
