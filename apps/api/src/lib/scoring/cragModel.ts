@@ -14,11 +14,13 @@
  *   point, through `rockThermal`'s wall geometry, and the hour's dryness is
  *   their median.
  * - **Wall A** (`evaluateWallA`) scores one specific wall, with the overhang's
- *   rain shelter applied. It is never a crag's score and nothing calls it yet.
+ *   rain shelter applied and its heat and cold read from air plus the direct
+ *   sun on that wall (`sunWarmingC`). It is never a crag's score and nothing
+ *   calls it yet.
  *
  * Friction is the heat/humidity/cold rule (`frictionFactorA`), not v2's sweat
  * balance: it reads air temperature, dew point and the rock mass's margin over
- * the dew point, so it still answers when shortwave is missing.
+ * the dew point, so Crag A's still answers when shortwave is missing.
  *
  * Built on top of `evaluateHourlyConditions`, which still supplies `T_mass`,
  * `T_surface` and the weather-sped drying rate. Its own score is discarded.
@@ -38,6 +40,8 @@ import {
   type RockSunShade,
   type RockType,
   type ScoreLimit,
+  type SunWall,
+  sunOnWallAt,
 } from '@weatherteam6/types'
 import { MAX_HOURS, MIN_HOURS } from './dryingModel.js'
 import {
@@ -50,7 +54,14 @@ import {
   type ScorePenalties,
   type WeatherHour,
 } from './hourlyConditions.js'
-import { isCondensing, type WallOrientation } from './rockThermal.js'
+import {
+  SOLAR_ABSORPTANCE,
+  isCondensing,
+  laggedSurfaceC,
+  surfaceCoefficient,
+  wallBeamWm2,
+  type WallOrientation,
+} from './rockThermal.js'
 
 /** Weight on dryness. Friction carries no exponent: v2's 0.45 is what let heat through. */
 export const DRYNESS_EXPONENT = 0.55
@@ -147,24 +158,38 @@ export function shelterScale(cliffAngleDeg: number): number {
 /** Friction's four penalties, each 0-1. Their product is `frictionFactorA`. */
 export type FrictionPenalties = Record<Exclude<ScoreLimit, 'wet_rock'>, number>
 
-/** Null when any input is missing — never a default. */
+/**
+ * Null when any input is missing — never a default.
+ *
+ * Heat and cold read air temperature plus `sunWarmingC`, the direct sun on the
+ * wall. Crag A passes 0: it does not know which way any wall faces. Wall A
+ * passes its own (`sunWarmingC`), and a null one withholds, because sun nobody
+ * measured could be the heat that decides the hour.
+ */
 export function frictionPenaltiesA(
   massTempC: number | null,
   airTempC: number | null,
   dewPointC: number | null,
   range: TempRangeC = DEFAULT_RANGE,
+  sunWarmingC: number | null = 0,
 ): FrictionPenalties | null {
-  if (massTempC === null || airTempC === null || dewPointC === null) return null
-  if (!Number.isFinite(massTempC) || !Number.isFinite(airTempC) || !Number.isFinite(dewPointC)) {
+  if (massTempC === null || airTempC === null || dewPointC === null || sunWarmingC === null) return null
+  if (
+    !Number.isFinite(massTempC) ||
+    !Number.isFinite(airTempC) ||
+    !Number.isFinite(dewPointC) ||
+    !Number.isFinite(sunWarmingC)
+  ) {
     return null
   }
   const condensation = condensationFactor(massTempC - dewPointC)
   if (condensation === null) return null
+  const feltC = airTempC + sunWarmingC
   return {
     condensation,
-    heat: Math.exp(-Math.max(0, airTempC - range.highC) / HEAT_SCALE_C),
+    heat: Math.exp(-Math.max(0, feltC - range.highC) / HEAT_SCALE_C),
     humidity: Math.exp(-Math.max(0, dewPointC - DEW_START_C) / DEW_SCALE_C),
-    cold: Math.exp(-Math.max(0, range.lowC - airTempC) / HEAT_SCALE_C),
+    cold: Math.exp(-Math.max(0, range.lowC - feltC) / HEAT_SCALE_C),
   }
 }
 
@@ -398,11 +423,74 @@ export type WallAOptions = {
   rockType: RockType
   /** The wall being scored: its aspect, angle (stored convention) and position. */
   wall: WallOrientation
+  /**
+   * The wall's lidar skyline (`SUN_WALLS`), which decides when terrain lets
+   * direct sun reach it. Absent, only the way the wall faces decides, which
+   * reads a shaded wall as sunlit: hotter, the direction to be wrong in.
+   */
+  skyline?: SunWall | null
+  /** Trees keep direct sun off this wall (owner field report). No sun warming at all. */
+  treeShaded?: boolean
+}
+
+/** Instants per hour at which the skyline is asked whether the sun is on the wall. */
+export const SUN_SAMPLES_PER_HOUR = 4
+
+/**
+ * **How much direct sun warms the wall above air temperature, °C, per hour.**
+ * Wall A's heat and cold read air plus this (owner, 2026-10-30): on 2026-10-04
+ * and 2026-10-19 Winter Wall at Red Wing was too hot to climb in 60s air while
+ * the shaded side was jacket weather, and Crag A scored both 100.
+ *
+ * Only the sun's disc counts (`wallBeamWm2`), times the share of the hour the
+ * skyline lets it through, through the same sol-air term and the same
+ * `SURFACE_TAU_HOURS` lag as `T_surface`. Sky and ground light are left out on
+ * purpose: they reach a shaded face too, and counting them read every shaded
+ * Red Wing wall 7-10 °F above air on clear summer afternoons, which climbers
+ * do not report. Cloud is already in the shortwave, so an overcast hour warms
+ * little.
+ *
+ * Null when the sun was not measured (shortwave, air or wind missing), except
+ * on a tree-shaded wall, which reads 0 whatever the sky did.
+ */
+export function sunWarmingC(
+  hours: readonly WeatherHour[],
+  wall: WallOrientation,
+  skyline: SunWall | null = null,
+  treeShaded = false,
+): (number | null)[] {
+  if (treeShaded) return hours.map(() => 0)
+  const out: (number | null)[] = []
+  let previous: number | null = null
+  for (const h of hours) {
+    const end = Date.parse(h.valid_at)
+    let instant: number | null = null
+    const ho = surfaceCoefficient(h.air_temp_c, h.wind_kmh)
+    if (Number.isFinite(end) && ho !== null && ho > 0) {
+      // Open-Meteo's shortwave is the mean of the hour before its stamp.
+      const beam = wallBeamWm2(h.shortwave_wm2, new Date(end - 1_800_000), wall)
+      if (beam !== null) {
+        const reached =
+          skyline === null
+            ? 1
+            : Array.from({ length: SUN_SAMPLES_PER_HOUR }, (_, k) =>
+                sunOnWallAt(skyline, end - ((k + 0.5) / SUN_SAMPLES_PER_HOUR) * 3_600_000),
+              ).filter(Boolean).length / SUN_SAMPLES_PER_HOUR
+        instant = (SOLAR_ABSORPTANCE * beam * reached) / ho
+      }
+    }
+    previous = laggedSurfaceC(previous, instant)
+    out.push(previous)
+  }
+  return out
 }
 
 /**
  * **Wall A — one specific wall's score, and never a crag's.** The same model as
  * Crag A on the one recorded wall, with the overhang's rain shelter applied.
+ *
+ * Its heat and cold read the sun on this wall (`sunWarmingC`); its drying
+ * clock still credits sun the skyline or trees may block.
  *
  * Nothing calls this yet: it is for scoring individual walls (the `walls`
  * table), and it must not be substituted for a location's crag score.
@@ -428,6 +516,7 @@ export function evaluateWallA(
   const maxHours = dryingWindowHours(rockType, Math.max(0, wall.cliffAngleDeg)).maxHours
   const dry = drynessTrack(sheltered, evaluated, maxHours, scale < 1 ? SHELTERED_WET_MM : WET_MM, maxDryingRate(rockType))
   const wetThreshold = scale < 1 ? SHELTERED_WET_MM : WET_MM
+  const sun = sunWarmingC(hours, wall, options.skyline ?? null, options.treeShaded ?? false)
   return evaluated.map((h, i) =>
     finish(
       h,
@@ -436,6 +525,8 @@ export function evaluateWallA(
       rockType,
       h.diagnostics.effective_dry_hours,
       fallingOn(sheltered[i]!.precip_mm, wetThreshold, rockType),
+      undefined,
+      sun[i] ?? null,
     ),
   )
 }
@@ -448,9 +539,10 @@ function finish(
   effectiveDryHours: number | null,
   rainingOnFragile: boolean,
   range?: TempRangeC,
+  sunWarming: number | null = 0,
 ): HourlyConditions {
   const massTempC = base.diagnostics.t_mass_c
-  const fp = frictionPenaltiesA(massTempC, weather.air_temp_c, weather.dewpoint_c, range)
+  const fp = frictionPenaltiesA(massTempC, weather.air_temp_c, weather.dewpoint_c, range, sunWarming)
   const friction = fp === null ? null : fp.condensation * fp.heat * fp.humidity * fp.cold
   const score = scoreA(dryness, friction)
   const penalties: ScorePenalties | null =

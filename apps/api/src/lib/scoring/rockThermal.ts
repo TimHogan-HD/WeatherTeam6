@@ -448,10 +448,32 @@ export function wallIrradianceWm2(
   at: Date,
   wall: WallOrientation,
 ): number | null {
+  const parts = wallIrradianceParts(ghiWm2, at, wall)
+  return parts === null ? null : parts.beam + parts.sky + parts.ground
+}
+
+/**
+ * **The direct-sun part of `wallIrradianceWm2`, W/m²**: the sun's disc on the
+ * face, without the sky and ground light every face gets in shade. Zero when
+ * the sun is behind the face. This is the light a skyline or a tree takes away,
+ * so it is what Wall A's sun warming is made of (`sunWarmingC`, `cragModel.ts`).
+ */
+export function wallBeamWm2(ghiWm2: number | null, at: Date, wall: WallOrientation): number | null {
+  const parts = wallIrradianceParts(ghiWm2, at, wall)
+  return parts === null ? null : parts.beam
+}
+
+type WallIrradiance = { beam: number; sky: number; ground: number }
+
+function wallIrradianceParts(
+  ghiWm2: number | null,
+  at: Date,
+  wall: WallOrientation,
+): WallIrradiance | null {
   if (ghiWm2 === null || !Number.isFinite(ghiWm2)) return null
   if (ghiWm2 < 0 || ghiWm2 > MAX_PLAUSIBLE_SHORTWAVE_WM2) return null
   if (!Number.isFinite(wall.aspectDeg) || !Number.isFinite(wall.cliffAngleDeg)) return null
-  if (ghiWm2 === 0) return 0
+  if (ghiWm2 === 0) return { beam: 0, sky: 0, ground: 0 }
 
   const sun = solarPosition(at, wall.lat, wall.lon)
   if (sun === null) return null
@@ -465,7 +487,7 @@ export function wallIrradianceWm2(
   // Sun near or below the horizon while the hourly mean is non-zero: the hour
   // straddled sunrise or sunset. All of it is treated as sky light.
   if (sun.elevationDeg < MIN_BEAM_ELEVATION_DEG) {
-    return ghiWm2 * skyView + reflected
+    return { beam: 0, sky: ghiWm2 * skyView, ground: reflected }
   }
 
   const cosZenith = Math.sin(sun.elevationDeg * DEG)
@@ -484,7 +506,7 @@ export function wallIrradianceWm2(
     Math.sin(zenith) * Math.sin(beta) * Math.cos((sun.azimuthDeg - wall.aspectDeg) * DEG)
   const beamOnWall = cosIncidence > 0 ? (beamHorizontal * cosIncidence) / cosZenith : 0
 
-  return beamOnWall + diffuse * skyView + reflected
+  return { beam: beamOnWall, sky: diffuse * skyView, ground: reflected }
 }
 
 export type SurfaceTemperatureInput = {

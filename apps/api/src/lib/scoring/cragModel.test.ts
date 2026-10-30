@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { SCORE_MODEL_FACTS, fToC, type RockType } from '@weatherteam6/types'
+import { SCORE_MODEL_FACTS, fToC, solarPosition, sunWallsFor, type RockType, type SunWall } from '@weatherteam6/types'
 import { RAIN_WINDOW } from '../weather/rainMedian.js'
 import {
   DAY_FIRST_HOUR,
@@ -9,6 +9,7 @@ import {
   FALLING_RAIN_MM,
   FULL_SOAK_IN,
   HEAT_SCALE_C,
+  HEAT_START_C,
   SNOW_DRYNESS_CAP,
   dayRepresentative,
   evaluateCragA,
@@ -18,6 +19,7 @@ import {
   rockLevelA,
   scoreA,
   shelterScale,
+  sunWarmingC,
 } from './cragModel.js'
 import { CONDENSATION_CLEAR_MARGIN_C, type HourlyConditions, type WeatherHour } from './hourlyConditions.js'
 import { DEFAULT_WINDOW_MIN_SCORE } from '../runs/hourlyReadings.js'
@@ -267,6 +269,101 @@ describe('evaluateWallA', () => {
     expect(north.slice(100).map((h) => h.diagnostics.wetness_factor)).not.toEqual(
       whole.slice(100).map((h) => h.diagnostics.wetness_factor),
     )
+  })
+})
+
+describe('evaluateWallA — sun on the wall', () => {
+  const south = { lat: LAT, lon: LON, aspectDeg: 180, cliffAngleDeg: 0 }
+  const day4 = (localHour: number) => 4 * 24 + localHour
+  const heatOf = (h: HourlyConditions) => h.diagnostics.penalties!.heat
+  const coldOf = (h: HourlyConditions) => h.diagnostics.penalties!.cold
+  const warm = series(6 * 24, (_, h) => ({ air_temp_c: h.air_temp_c! + 10 }))
+
+  it('charges a sunlit wall heat the same wall under trees does not pay', () => {
+    const lit = evaluateWallA(warm, { rockType: 'granite', wall: south })[day4(13)]!
+    const trees = evaluateWallA(warm, { rockType: 'granite', wall: south, treeShaded: true })[day4(13)]!
+    expect(heatOf(lit)).toBeLessThan(heatOf(trees) - 0.1)
+    // Under trees the wall reads air temperature, exactly as Crag A does.
+    const air = warm[day4(13)]!.air_temp_c!
+    expect(heatOf(trees)).toBeCloseTo(Math.exp(-Math.max(0, air - HEAT_START_C) / HEAT_SCALE_C), 10)
+    expect(lit.score!).toBeLessThan(trees.score!)
+  })
+
+  it('warms a cold wall, so a sunny face beats a shaded one in winter air', () => {
+    const cold = series(6 * 24, (_, h) => ({ air_temp_c: h.air_temp_c! - 24, dewpoint_c: -20 }))
+    const lit = evaluateWallA(cold, { rockType: 'granite', wall: south })[day4(13)]!
+    const trees = evaluateWallA(cold, { rockType: 'granite', wall: south, treeShaded: true })[day4(13)]!
+    expect(coldOf(lit)).toBeGreaterThan(coldOf(trees) + 0.1)
+    expect(lit.score!).toBeGreaterThan(trees.score!)
+  })
+
+  it('fades after sunset, and reads none on a face the sun is behind', () => {
+    // The lag carries a little of the afternoon into the night, as T_surface's does.
+    expect(sunWarmingC(warm, south)[day4(2)]!).toBeLessThan(0.5)
+    const north = sunWarmingC(warm, { ...south, aspectDeg: 0 })
+    expect(north[day4(13)]).toBe(0)
+  })
+
+  it('takes no warming where the skyline hides the sun', () => {
+    const walled: SunWall = { name: 'Pit', aspect_deg: 180, height_m: 10, foot: { lat: LAT, lon: LON }, horizon_deg: Array.from({ length: 360 }, () => 89) }
+    expect(sunWarmingC(warm, south, walled).every((c) => c === 0)).toBe(true)
+  })
+
+  it('warms little under cloud: the cloud is already in the shortwave', () => {
+    const overcast = warm.map((h) => ({ ...h, shortwave_wm2: h.shortwave_wm2! * 0.15, cloud_pct: 100 }))
+    const clear = sunWarmingC(warm, south)[day4(13)]!
+    expect(clear).toBeGreaterThan(5)
+    expect(sunWarmingC(overcast, south)[day4(13)]!).toBeLessThan(clear * 0.15)
+  })
+
+  it('withholds an hour whose sun was not measured, unless trees shade the wall', () => {
+    const gap = warm.map((h, i) => (i === day4(13) ? { ...h, shortwave_wm2: null } : h))
+    expect(evaluateWallA(gap, { rockType: 'granite', wall: south })[day4(13)]!.score).toBeNull()
+    expect(evaluateWallA(gap, { rockType: 'granite', wall: south, treeShaded: true })[day4(13)]!.score).not.toBeNull()
+  })
+
+  /**
+   * Owner visit, Red Wing (Barn Bluff), 2026-10-19: Winter Wall in the sun too hot,
+   * jackets on the tree-shaded north side, and Crag A scored the hour 100. Air,
+   * dew point and wind are Red Wing airport (RGK) METARs for that day, repeated
+   * for six days so the rock mass and drying clock settle; the shortwave is
+   * clear-sky (Haurwitz), as the sky was. Winter Wall's skyline is the real lidar one.
+   */
+  it('Red Wing, 2026-10-19: Winter Wall in sun is too hot, the shaded side is good', () => {
+    // Local hours 00-23 (UTC-5).
+    const airF = [55.6, 51.6, 49.3, 46.2, 46, 46, 55.2, 49, 48, 46.4, 42.3, 40.6, 40.5, 40, 45.3, 50.5, 54.7, 57.6, 60, 62.6, 64, 66.2, 66.6, 63.7]
+    const dewF = [43.5, 43.7, 43, 42.6, 42.8, 44.2, 37.2, 37.4, 38, 38, 37.4, 37, 38, 37.2, 41.5, 43.5, 43.3, 42.8, 43, 42.6, 44, 44.2, 44.2, 43.7]
+    const windKt = [0, 0, 3, 0, 3, 3, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 3, 4, 6, 7, 7, 7, 5, 3]
+    // The METARs are stamped in UTC; index them by the UTC hour (local + 5).
+    const at = (utcHour: number) => (utcHour % 24 + 24) % 24
+    const walls = sunWallsFor('red-wing')!.walls
+    const winter = walls.find((w) => w.name === 'Winter Wall')!
+    const roof = walls.find((w) => w.name === 'Large Roof Area')!
+    const { lat, lon } = winter.foot
+    const start = Date.parse('2026-10-14T05:00:00Z')
+    const hours: WeatherHour[] = Array.from({ length: 6 * 24 }, (_, i) => {
+      const t = start + i * HOUR_MS
+      const u = at(new Date(t).getUTCHours() - 1)
+      const sun = solarPosition(new Date(t - HOUR_MS / 2), lat, lon)!
+      const cz = Math.sin((sun.elevationDeg * Math.PI) / 180)
+      return {
+        valid_at: new Date(t).toISOString(),
+        air_temp_c: fToC(airF[u]!),
+        dewpoint_c: fToC(dewF[u]!),
+        wind_kmh: windKt[u]! * 1.852,
+        cloud_pct: 0,
+        shortwave_wm2: cz > 0 ? 1098 * cz * Math.exp(-0.057 / cz) : 0,
+        precip_mm: 0,
+      }
+    })
+    const orient = (w: SunWall) => ({ lat: w.foot.lat, lon: w.foot.lon, aspectDeg: w.aspect_deg, cliffAngleDeg: 0 })
+    const onePm = 5 * 24 + 13
+    const winterWall = evaluateWallA(hours, { rockType: 'carbonate_cherty', wall: orient(winter), skyline: winter })[onePm]!
+    const shaded = evaluateWallA(hours, { rockType: 'carbonate_cherty', wall: orient(roof), skyline: roof, treeShaded: true })[onePm]!
+    const cragA = evaluateCragA(hours, { rockType: 'carbonate_cherty', lat, lon })[onePm]!
+    expect(cragA.score).toBeGreaterThanOrEqual(90)
+    expect(shaded.score).toBeGreaterThanOrEqual(90)
+    expect(winterWall.score!).toBeLessThan(40)
   })
 })
 
