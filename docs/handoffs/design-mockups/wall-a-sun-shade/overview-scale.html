@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sun and shade at scale</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07090c;--card:rgba(23,31,40,.72);--line:#2a3644;--t1:#f4f7fa;--mut:#bccad0;--t2:#d3e1e4;--brand:#1DC5D2;--bink:#6fe3ec;--raised:#1f2833}
+*{box-sizing:border-box}
+body{margin:0;background:#020304;color:var(--t1);font-family:Barlow,system-ui,sans-serif;display:flex;gap:28px;padding:24px;align-items:flex-start}
+.col{width:480px;flex:none}
+.tag{font:700 22px 'Barlow Condensed';color:var(--bink);margin:0 0 4px}
+.tagsub{font:400 14px Barlow;color:var(--mut);margin:0 0 12px;min-height:60px}
+.phone{width:480px;min-height:1000px;background:radial-gradient(120% 60% at 20% 0%,#0f2a33 0%,#07090c 55%),var(--bg);border-radius:28px;padding:16px;border:1px solid #1a222c;overflow:hidden}
+.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:16px 14px 14px;margin-bottom:12px}
+h1{font:700 32px/1 'Barlow Condensed';margin:0}
+.when{font:400 13px Barlow;color:var(--mut);margin:4px 0 0}
+.illus{font:600 11px Barlow;color:#ffd27a;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 2px}
+.chips span{font:500 13px Barlow;padding:5px 11px;border-radius:999px;background:var(--raised);color:var(--t2);border:1px solid var(--line)}
+.chips span.on{background:#0f3a40;border-color:var(--brand);color:var(--t1)}
+.lab{font:600 11px 'Barlow Condensed';letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.fig{font:700 20px/22px 'Barlow Condensed';display:block}
+small{font:400 12px Barlow;color:var(--mut)}
+.sun{color:#ffd27a}.shd{color:#9fb3c8}
+.big{font:700 112px/0.9 'Barlow Condensed';font-variant-numeric:tabular-nums}
+.hero{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:18px;align-items:center;margin-top:8px}
+.cells{display:grid;grid-template-columns:1fr 1fr;gap:10px;border-left:1px solid var(--line);padding-left:14px}
+.sides{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.side{background:var(--raised);border-radius:16px;padding:10px 12px;display:grid;grid-template-columns:auto 1fr;column-gap:10px;align-items:center}
+.side .n{font:700 44px/1 'Barlow Condensed';grid-row:span 3;font-variant-numeric:tabular-nums}
+.k{font:600 12px 'Barlow Condensed';letter-spacing:.06em;text-transform:uppercase}
+.w{font:600 16px 'Barlow Condensed'}
+.duo{display:grid;grid-template-columns:1fr 1fr;margin-top:10px}
+.duo>div+div{border-left:1px solid var(--line);padding-left:16px}
+.duo .big{font-size:92px;display:block;margin:2px 0}
+.duo .k{display:block;font-size:13px}
+.duo .w{display:block;font-size:18px}
+.why{border-top:1px solid var(--line);margin-top:12px;padding-top:10px;display:flex;font:600 15px 'Barlow Condensed'}
+.why span{margin-left:auto;font:400 12px Barlow;color:var(--mut)}
+.sect{font:700 20px 'Barlow Condensed';margin:0 0 8px;display:flex;align-items:baseline}
+.sect small{margin-left:auto}
+.wl{display:grid;grid-template-columns:34px 18px 1fr auto;gap:2px 8px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}
+.wl:first-of-type{border-top:0}
+.wl b{font:700 24px 'Barlow Condensed';font-variant-numeric:tabular-nums;text-align:right}
+.wl .nm{font:600 16px 'Barlow Condensed'}
+.wl .ar{font:400 12px Barlow;color:var(--mut);text-align:right}
+.more{font:500 14px Barlow;color:var(--bink);margin-top:8px}
+.legend{display:flex;gap:14px;font:400 12px Barlow;color:var(--mut);margin-top:4px;flex-wrap:wrap}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+.mini{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px 14px;margin-bottom:12px}
+.mini .cap{font:600 12px Barlow;color:var(--bink);margin-bottom:6px}
+.mini .duo .big{font-size:60px}
+.one{display:flex;align-items:center;gap:14px;margin-top:4px}
+.one .big{font-size:72px}
+.gap{font:700 60px/0.9 'Barlow Condensed';color:var(--mut)}
+</style></head><body>
+<script>
+const stops=[[36,'#fc8181'],[44,'#f6ad55'],[56,'#f6ad55'],[64,'#b8f542'],[100,'#c8f76a']];
+function col(s){if(s<=36)return stops[0][1];for(let i=1;i<stops.length;i++){if(s<=stops[i][0]){const [a,ca]=stops[i-1],[b,cb]=stops[i];const t=(s-a)/(b-a);const h=x=>parseInt(x,16);const m=k=>Math.round(h(ca.slice(k,k+2))*(1-t)+h(cb.slice(k,k+2))*t).toString(16).padStart(2,'0');return '#'+m(1)+m(3)+m(5)}}return stops.at(-1)[1]}
+const lbl=h=>(h%12||12)+(h<12?' AM':' PM');
+
+// Illustrative crag: three areas, nine walls. Made-up numbers, 1 PM on a clear October day.
+const WALLS=[
+ {n:'Ice Box',a:'North Bowl',sun:0,s:100},{n:'The Cave',a:'North Bowl',sun:0,s:97},{n:'Gully Wall',a:'North Bowl',sun:0,s:95},
+ {n:'East Arete',a:'Back Side',sun:0,s:92},{n:'Green Corner',a:'North Bowl',sun:0,s:90,tree:1},{n:'West Face',a:'Back Side',sun:0,s:88},
+ {n:'Long Dihedral',a:'Main Wall',sun:1,s:26},{n:'Orange Prow',a:'Main Wall',sun:1,s:22},{n:'Sun Slab',a:'Main Wall',sun:1,s:18},
+];
+const H=[8,9,10,11,12,13,14,15,16,17,18];
+const SUNL={v:[88,70,52,40,30,26,24,28,40,62,85],segs:[[0,2,'East Arete'],[3,5,'Long Dihedral'],[6,10,'West Face']]};
+const SHDL={v:[100,100,100,99,99,100,100,100,100,100,100],segs:[[0,10,'Ice Box']]};
+
+function chart(series,{w=430,h=170}={}){const n=H.length,x=i=>16+i*(w-32)/(n-1),y=s=>h-38-(s/100)*(h-56);
+ let g=`<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}">`;
+ [0,50,100].forEach(v=>g+=`<line x1="10" x2="${w-6}" y1="${y(v)}" y2="${y(v)}" stroke="#2a3644" stroke-dasharray="${v?'2 4':''}"/>`);
+ g+=`<line x1="${x(5)}" x2="${x(5)}" y1="8" y2="${h-34}" stroke="#6fe3ec" stroke-opacity=".5"/>`;
+ series.forEach((s,si)=>{const d=s.v.map((v,i)=>(i?'L':'M')+x(i)+' '+y(v)).join(' ');
+  g+=`<path d="${d}" fill="none" stroke="${s.c}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" ${s.dash?'stroke-dasharray="6 5"':''}/>`;
+  if(s.segs&&s.segs.length>1){s.segs.forEach(([a,b,nm],k)=>{const yy=h-24+si*0;
+   g+=`<line x1="${x(a)-4}" x2="${x(b)+4}" y1="${h-26}" y2="${h-26}" stroke="${s.c}" stroke-width="2" opacity=".7"/>`;
+   g+=`<text x="${(x(a)+x(b))/2}" y="${h-14}" fill="${s.c}" font-family="Barlow" font-size="11" text-anchor="middle">${nm}</text>`;
+   if(k)g+=`<circle cx="${x(a)}" cy="${y(s.v[a])}" r="4" fill="#07090c" stroke="${s.c}" stroke-width="2"/>`;})}});
+ H.forEach((hh,i)=>{if(i%2===0)g+=`<text x="${x(i)}" y="${h-1}" fill="#bccad0" font-family="Barlow" font-size="11" text-anchor="middle">${lbl(hh)}</text>`});
+ return g+'</svg>'}
+
+const head=(area)=>`<div class="illus">Illustrative crag · made-up numbers</div><h1>Pine Bluff</h1><p class="when">Score at 1 PM</p>
+ <div class="chips">${['All areas','Main Wall','North Bowl','Back Side'].map(a=>`<span class="${a===area?'on':''}">${a}</span>`).join('')}</div>`;
+const best=(sun,area)=>WALLS.filter(w=>w.sun===sun&&(area==='All areas'||w.a===area)).sort((a,b)=>b.s-a.s);
+function sideTile(sun,area){const l=best(sun,area);if(!l.length)return `<div class="side"><span class="n gap">—</span><span class="k ${sun?'sun':'shd'}">${sun?'☀ Best in sun':'Best in shade'}</span><span class="w">No wall</span><small>${sun?'in sun at 1 PM':'in shade at 1 PM'}</small></div>`;
+ const b=l[0];return `<div class="side"><span class="n" style="color:${col(b.s)}">${b.s}</span><span class="k ${sun?'sun':'shd'}">${sun?'☀ Best in sun':'Best in shade'}</span><span class="w">${b.n}</span><small>${area==='All areas'?b.a+' · ':''}${l.length} wall${l.length>1?'s':''} ${sun?'in sun':'in shade'}</small></div>`}
+function duoCol(sun,area){const l=best(sun,area),b=l[0];return `<div><span class="k ${sun?'sun':'shd'}">${sun?'☀ Best in sun':'Best in shade'}</span><span class="big" style="color:${col(b.s)}">${b.s}</span><span class="w">${b.n}</span><small>${b.a} · ${l.length} of 9 walls</small></div>`}
+function wallList(area,max=5){const l=WALLS.filter(w=>area==='All areas'||w.a===area).sort((a,b)=>b.s-a.s);
+ return `<div class="card"><p class="sect">Walls at 1 PM<small>by score</small></p>${l.slice(0,max).map(w=>`<div class="wl"><b style="color:${col(w.s)}">${w.s}</b><span class="${w.sun?'sun':'shd'}">${w.sun?'☀':'◐'}</span><span class="nm">${w.n}</span><span class="ar">${w.a}${w.tree?' · trees':''}</span></div>`).join('')}
+ ${l.length>max?`<div class="more">All ${l.length} walls ›</div>`:''}</div>`}
+const today=`<div class="card"><p class="sect">Today<small>best wall each hour</small></p>${chart([{...SUNL,c:'#ffd27a'},{...SHDL,c:'#9fb3c8',dash:1}])}
+ <div class="legend"><span><i style="background:#ffd27a"></i>Best in sun (wall changes as the sun moves)</span><span><i style="background:#9fb3c8"></i>Best in shade · Ice Box all day</span></div></div>`;
+
+const B=`<div class="card">${head('All areas')}<div class="duo">${duoCol(1,'All areas')}${duoCol(0,'All areas')}</div>
+ <div class="why">Score breakdown<span>per wall ›</span></div></div>${today}${wallList('All areas',4)}`;
+
+const A=`<div class="card">${head('Main Wall')}
+ <div class="hero"><span class="big" style="color:${col(100)}">100</span><div class="cells"><div><span class="lab">Dryness</span><b class="fig">Dry</b><small>9 days since rain</small></div><div><span class="lab">Air</span><b class="fig">64°F</b><small>high 68°</small></div><div><span class="lab">Rock</span><b class="fig">Sandstone</b></div><div><span class="lab">Good hours</span><b class="fig">All day</b></div></div></div>
+ <div class="sides">${sideTile(1,'Main Wall')}${sideTile(0,'Main Wall')}</div>
+ <div class="why">Score breakdown<span>1 cause ›</span></div></div>${wallList('Main Wall',5)}
+ <p class="note" style="font:400 12px Barlow;color:var(--mut)">Area chip picked: the tiles and list cover Main Wall only. Every Main Wall wall faces south, so the shade tile says so instead of inventing a number. The big 100 stays the crag score (Crag A, eight imaginary walls), which is the A problem at scale: it no longer agrees with any wall shown under it.</p>`;
+
+const E=`
+ <div class="mini"><div class="cap">Overcast 1 PM: sun barely warms anything</div><div class="duo"><div><span class="k sun">☀ Best in sun</span><span class="big" style="color:${col(96)}">96</span><span class="w">Long Dihedral</span></div><div><span class="k shd">Best in shade</span><span class="big" style="color:${col(100)}">100</span><span class="w">Ice Box</span></div></div><small>Close numbers are the answer: sun or shade, it doesn't matter today.</small></div>
+ <div class="mini"><div class="cap">8 AM: only the east faces have sun</div><div class="duo"><div><span class="k sun">☀ Best in sun</span><span class="big" style="color:${col(88)}">88</span><span class="w">East Arete</span><small>1 of 9 walls</small></div><div><span class="k shd">Best in shade</span><span class="big" style="color:${col(100)}">100</span><span class="w">Ice Box</span><small>8 of 9 walls</small></div></div></div>
+ <div class="mini"><div class="cap">Sunlight not in the forecast for this hour</div><div class="duo"><div><span class="k sun">☀ Best in sun</span><span class="gap" style="display:block;margin:6px 0">—</span><small>sunlight not forecast</small></div><div><span class="k shd">Best in shade</span><span class="big" style="color:${col(100)}">100</span><span class="w">Green Corner</span><small>tree-shaded walls still score</small></div></div></div>
+ <div class="mini"><div class="cap">Red Wing, real 10/19 numbers: same layout, two walls</div><div class="duo"><div><span class="k sun">☀ Best in sun</span><span class="big" style="color:${col(20)}">20</span><span class="w">Winter Wall</span><small>2 of 6 walls</small></div><div><span class="k shd">Best in shade</span><span class="big" style="color:${col(100)}">100</span><span class="w">Large Roof</span><small>4 of 6 walls</small></div></div></div>
+ <div class="mini"><div class="cap">Crag with no wall data (Willow River today)</div><small>No sun/shade row at all. The crag score shows as it does now.</small></div>`;
+
+document.body.innerHTML=[
+ ['B at scale · best in sun vs best in shade','Sides are regrouped every hour by whether sun is on the wall now, so it is always two numbers no matter how many walls. Area chips scope it. The wall list carries the detail.',B],
+ ['A at scale · crag score + two tiles','Same tiles under the hero, scoped by the area chip. Works, but shows the conflict: the headline 100 is Crag A and no listed wall is 100 on this area.',A],
+ ['Edge states','What each side says when the inputs are thin. Withhold, never inflate.',E],
+].map(([t,s,h])=>`<div class="col"><p class="tag">${t}</p><p class="tagsub">${s}</p><div class="phone">${h}</div></div>`).join('');
+</script>
+</body></html>
