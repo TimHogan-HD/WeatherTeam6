@@ -19,7 +19,8 @@ async function run(): Promise<void> {
   await useLocalPostgresProxy()
   const { and, eq, sql } = await import('drizzle-orm')
   const { db } = await import('../db/index.js')
-  const { radarRainHours } = await import('../db/schema.js')
+  const { locations, radarRainHours } = await import('../db/schema.js')
+  const { inMrmsGrid } = await import('../lib/weather/mrmsQpe.js')
   const { collectRadarRain, loadRadarRain } = await import('../lib/runs/radarRain.js')
   let failures = 0
   const check = (ok: boolean, what: string) => {
@@ -51,10 +52,22 @@ async function run(): Promise<void> {
     check(first.hoursFailed.length === 0, 'every listed hour was fetched and read')
     check(first.pruned !== null, 'the prune ran')
 
-    // Red Wing, a saved crag in every account the owner seeded.
-    const redWing = await loadRadarRain({ lat: 44.5625, lon: -92.5338 })
-    console.log(`Red Wing: ${redWing === null ? 'no read' : `${redWing.size} hours stored`}`)
-    if (first.cells > 0) check(redWing !== null, 'the drying clock can read what was stored')
+    // Read back at each saved crag's own coordinates, as `getHourlySeries` does, so a
+    // key the collector writes and the reader cannot find shows up as zero hours.
+    const crags = await db
+      .select({ name: locations.name, lat: locations.lat, lon: locations.lon })
+      .from(locations)
+      .where(eq(locations.is_climbing_location, true))
+    let readable = 0
+    for (const c of crags) {
+      const p = { lat: parseFloat(c.lat), lon: parseFloat(c.lon) }
+      if (!inMrmsGrid(p)) continue
+      const hours = await loadRadarRain(p)
+      console.log(`${c.name}: ${hours === null ? 'read failed' : `${hours.size} hours stored`}`)
+      check(hours !== null && hours.size > 0, `${c.name}: the drying clock reads the hours the collector stored`)
+      readable++
+    }
+    check(readable === first.cells || first.cells === 0, 'every US crag the collector counted was read back')
     check((await loadRadarRain({ lat: 36.95, lon: 26.98 })) === null, 'a crag outside the US reads no radar')
   } finally {
     try {
