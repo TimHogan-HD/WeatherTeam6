@@ -43,6 +43,8 @@ export type ScoringLocation = {
    * where the owner confirmed sun and shade (`sunWallsFor`), else empty.
    */
   walls: ScoringWall[]
+  /** Count each good day's weather models that leave the rock wet (`ReadingsDay.rain_split`); `/hourly` only. */
+  rainSplit?: boolean
 } | null
 
 /** What one reader's settings change about a crag's readings (`readerScoringFor`). */

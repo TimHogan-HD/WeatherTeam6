@@ -102,6 +102,14 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   `REWETTING_PRECIP_MM` (`packages/types`, re-exported as
   `hourlyConditions.SIGNIFICANT_HOURLY_PRECIP_MM`), is named under it when a lighter shower
   fell since, and is what the drying clock and "since real rain" count from.
+- **A good day counts the weather models that say it'll be wet** (owner, 2026-11-02,
+  `ReadingsDay.rain_split`, `addRainSplit` in `lib/runs/hourlyReadings.ts`). For a day scored
+  `RAIN_SPLIT_MIN_SCORE` (80) or more, the drying clock runs once per `RAIN_MODELS` model on
+  that model's own rain from today on (the median before, the only trailing rain stored) and
+  counts the models whose day reads not dry. It never changes the score. A model missing an
+  hour is left out, never read as dry; under `MIN_RAIN_MODELS` the count is null. `/hourly`
+  only (four more clocks, ~14 ms each). Measured by `compare:rain-spread`: a good day with two
+  models wet was wet on the gauges about half the time.
 - **There is one drying table, `MIN_HOURS`/`MAX_HOURS` in `packages/types/src/dryingWindow.ts`, and everything
   imports it.** Never reintroduce a copy. Not-recorded kinds (`sandstone`, `limestone`,
   `basalt`) take their family's slowest window and `unknown` is the slowest row.

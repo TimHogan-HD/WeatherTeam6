@@ -20,6 +20,8 @@ import {
   shortDay,
   shortSpan,
   chartWindow,
+  rainSplitShown,
+  rainSplitText,
 } from './overview.js'
 import { readingNow } from '@weatherteam6/types'
 import { precipDays, precipSummary } from './precipHistory.js'
@@ -379,5 +381,28 @@ describe('shortSpan', () => {
 
   it('falls back to the length rather than printing a clock it cannot read', () => {
     expect(span('not a time', '2026-09-28T19:00:00Z', 4)).toBe('4h')
+  })
+})
+describe('rainSplitShown', () => {
+  const at = (score: number, rain_split?: ReadingsDay['rain_split']): ReadingsDay[] => [
+    { local_date: '2026-09-22', window: null, best: reading('2026-09-22T15:00:00Z', { score }), ...(rain_split === undefined ? {} : { rain_split }) },
+  ]
+
+  it('shows two or more wet models on a day scored 80 or more', () => {
+    expect(rainSplitShown(at(80, { wet: 2, models: 4 }), '2026-09-22')).toEqual({ wet: 2, models: 4 })
+    expect(rainSplitShown(at(100, { wet: 2, models: 3 }), '2026-09-22')).toEqual({ wet: 2, models: 3 })
+  })
+
+  it('stays quiet under 80, with one wet model, and for a field an older API never sent', () => {
+    expect(rainSplitShown(at(79, { wet: 4, models: 4 }), '2026-09-22')).toBeNull()
+    expect(rainSplitShown(at(95, { wet: 1, models: 4 }), '2026-09-22')).toBeNull()
+    expect(rainSplitShown(at(95, null), '2026-09-22')).toBeNull()
+    expect(rainSplitShown(at(95), '2026-09-22')).toBeNull()
+    expect(rainSplitShown(undefined, '2026-09-22')).toBeNull()
+    expect(rainSplitShown(at(95, { wet: 2, models: 4 }), '2026-09-23')).toBeNull()
+  })
+
+  it('reads aloud as a count', () => {
+    expect(rainSplitText({ wet: 3, models: 4 })).toBe("3 of 4 weather models say it'll be wet")
   })
 })

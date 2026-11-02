@@ -31,7 +31,19 @@ import { formatTempDeg } from '../lib/format.js'
 import { FLIP_ATTR } from '../lib/flip.js'
 import { CRAG_FLY_ATTR } from '../lib/cragFly.js'
 import { findToday } from '../lib/forecast.js'
-import { chartWindow, dayChance, lastRainText, nextDays, nextLikelyRain, rainDueText, shortDate, shortDay, shortSpan } from '../lib/overview.js'
+import {
+  chartWindow,
+  dayChance,
+  lastRainText,
+  nextDays,
+  nextLikelyRain,
+  rainDueText,
+  rainSplitShown,
+  rainSplitText,
+  shortDate,
+  shortDay,
+  shortSpan,
+} from '../lib/overview.js'
 import { formatSince, precipDays, precipSummary } from '../lib/precipHistory.js'
 import { breakdownCount, breakdownRows, type BreakdownRow } from '../lib/scoreBreakdown.js'
 import { wallDayPair, type WallDayPair } from '../lib/wallLine.js'
@@ -492,6 +504,9 @@ function NextDaysCard({ props }: { props: OverviewTabProps }) {
   // Sun and shade walls (#445): a day whose groups differ by more than ten points shows both in place of the crag's.
   const walls = isClimbingLocation ? (hourly.data?.readings?.walls ?? []) : []
   const anyPair = walls.length > 0 && days.some((d) => wallDayPair(walls, d.local_date)?.kind === 'pair')
+  // A good day where two or more weather models say it'll be wet shows them as dots under the score.
+  const readingDays = isClimbingLocation ? hourly.data?.readings?.days : undefined
+  const anySplit = days.some((d) => rainSplitShown(readingDays, d.local_date) !== null)
   return (
     <Card title="Next days" aside={aside}>
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))`, gap: '4px', textAlign: 'center' }}>
@@ -500,6 +515,7 @@ function NextDaysCard({ props }: { props: OverviewTabProps }) {
           const chance = hourly.data === undefined ? null : dayChance(hourly.data.hours, day.local_date)
           const open = props.drawableDates?.has(day.local_date) === true ? () => props.onOpenDay(day.local_date) : null
           const pair = walls.length === 0 ? null : wallDayPair(walls, day.local_date)
+          const split = rainSplitShown(readingDays, day.local_date)
           const content = (
             <>
               {summary === null ? <span style={{ height: '22px' }} /> : <SkyIcon sky={skyDayIcon(summary)} size={22} />}
@@ -512,6 +528,9 @@ function NextDaysCard({ props }: { props: OverviewTabProps }) {
                     {day.score ?? EM_DASH}
                   </b>
                 </span>
+              ) : null}
+              {anySplit ? (
+                <RainSplitDots wet={split?.wet ?? 0} models={split?.models ?? 0} label={split === null ? null : rainSplitText(split)} />
               ) : null}
               <span style={{ ...typeV2.daySmall, color: colorsV2.txt2 }}>{shortDay(day.local_date, todayDate)}</span>
               <span style={typeV2.daySmall}>
@@ -544,7 +563,7 @@ function NextDaysCard({ props }: { props: OverviewTabProps }) {
                   : day.score === null
                     ? 'no score'
                     : `score ${day.score}`
-              }`}
+              }${split === null ? '' : `, ${rainSplitText(split)}`}`}
               style={{ ...bareButton, ...style, width: 'auto' }}
             >
               {content}
@@ -552,7 +571,41 @@ function NextDaysCard({ props }: { props: OverviewTabProps }) {
           )
         })}
       </div>
+      {anySplit ? (
+        <p style={{ ...typeV2.note, margin: '10px 2px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <RainSplitDots wet={1} models={2} label={null} />
+          {"weather models that say it'll be wet"}
+        </p>
+      ) : null}
     </Card>
+  )
+}
+
+/**
+ * One dot per weather model read, filled for each that says it'll be wet
+ * (`ReadingsDay.rain_split`). With no models it holds the row's height, so
+ * every column's day name stays on one line. `label` reads the count aloud;
+ * null leaves the dots decorative (the key, the empty slot).
+ */
+function RainSplitDots({ wet, models, label }: { wet: number; models: number; label: string | null }) {
+  return (
+    <span
+      {...(label === null ? { 'aria-hidden': true } : { role: 'img', 'aria-label': label })}
+      style={{ display: 'inline-flex', gap: '3px', height: '12px', alignItems: 'center' }}>
+      {Array.from({ length: models }, (_, i) => (
+        <i
+          key={i}
+          style={{
+            width: '7px',
+            height: '7px',
+            borderRadius: '50%',
+            border: `1.5px solid ${colorsV2.rainMark}`,
+            background: i < wet ? colorsV2.rainMark : 'transparent',
+            boxSizing: 'border-box',
+          }}
+        />
+      ))}
+    </span>
   )
 }
 
