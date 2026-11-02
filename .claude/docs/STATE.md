@@ -97,10 +97,15 @@ throwaway. `VERCEL_TOKEN` is team-scoped and reaches `https://api.vercel.com` wi
 
 Nothing is scheduled; the owner picks from the open issues (`gh issue list`).
 
+- **#445 Sun and shade walls on the Overview** (queued by the owner, 2026-11-02): Wall A per
+  wall on `/conditions`, then the Overview and a walls × hours grid. Start from
+  `docs/handoffs/wall-a-sun-shade-v1.md`; the hero layout and the tree-shaded wall list are
+  still the owner's to decide.
+
 - **Open feedback**: krazykoreankyle (2026-10-17) says the score misses tree-covered crags
   and crags near water. Crag A has no shade or local-humidity input. Not answered yet.
 - **#293**: wall direction and angle per guidebook wall. Wall A (`evaluateWallA`) is built
-  and nothing calls it yet. **Do not score `aspectDegrees` directly**: the same aspect flips
+  and nothing calls it yet (#445 is the plan to call it). **Do not score `aspectDegrees` directly**: the same aspect flips
   sign by season.
 - **#415 Sun on the wall**: built for Red Wing (#419, 2026-10-27), on the Rock tab, display
   only. Another crag needs the owner's `sun_confirmed`, then `npm run sun:walls`. A ShadeMap

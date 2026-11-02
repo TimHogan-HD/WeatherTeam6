@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sun and shade variants</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07090c;--card:rgba(23,31,40,.72);--line:#2a3644;--t1:#f4f7fa;--mut:#bccad0;--t2:#d3e1e4;--brand:#1DC5D2;--bink:#6fe3ec;--raised:#1f2833;--good:#b8f542;--goodInk:#c8f76a;--fair:#f6ad55;--poor:#fc8181}
+*{box-sizing:border-box}
+body{margin:0;background:#020304;color:var(--t1);font-family:Barlow,system-ui,sans-serif;display:flex;gap:28px;padding:24px;align-items:flex-start}
+.col{width:480px;flex:none}
+.tag{font:700 22px 'Barlow Condensed';color:var(--bink);margin:0 0 4px}
+.tagsub{font:400 14px Barlow;color:var(--mut);margin:0 0 12px;min-height:40px}
+.phone{width:480px;min-height:1000px;background:radial-gradient(120% 60% at 20% 0%,#0f2a33 0%,#07090c 55%),var(--bg);border-radius:28px;padding:16px;border:1px solid #1a222c;overflow:hidden}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:12px;font:500 14px Barlow;color:var(--mut)}
+.top .b{color:var(--brand);font-size:26px;line-height:1}
+.top .cr{border-bottom:2px solid var(--brand);color:var(--t1);padding-bottom:2px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:18px 14px 14px;backdrop-filter:blur(18px);margin-bottom:12px}
+h1{font:700 34px/1 'Barlow Condensed';margin:0}
+.when{font:400 13px Barlow;color:var(--mut);margin:4px 0 0}
+.hero{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:18px;align-items:center;margin-top:8px}
+.big{font:700 124px/0.9 'Barlow Condensed';font-variant-numeric:tabular-nums}
+.big3{font-size:clamp(72px,24vw,108px)}
+.cells{display:grid;grid-template-columns:1fr 1fr;gap:12px;border-left:1px solid var(--line);padding-left:16px}
+.lab{font:600 11px 'Barlow Condensed';letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.fig{font:700 21px/22px 'Barlow Condensed';display:block}
+small{font:400 12px Barlow;color:var(--mut)}
+.why{border-top:1px solid var(--line);margin-top:14px;padding-top:10px;display:flex;font:600 15px 'Barlow Condensed'}
+.why span{margin-left:auto;font:400 12px Barlow;color:var(--mut)}
+.sect{font:700 20px 'Barlow Condensed';margin:0 0 10px}
+.sides{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.side{background:var(--raised);border-radius:16px;padding:10px 12px;display:grid;grid-template-columns:auto 1fr;column-gap:10px;align-items:center}
+.side .n{font:700 44px/1 'Barlow Condensed';font-variant-numeric:tabular-nums;grid-row:span 3}
+.side .k{font:600 12px 'Barlow Condensed';letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.side .w{font:600 16px 'Barlow Condensed'}
+.sun{color:#ffd27a}.shd{color:#9fb3c8}
+.duo{display:grid;grid-template-columns:1fr 1fr;margin-top:10px}
+.duo>div{padding:0 4px}
+.duo>div+div{border-left:1px solid var(--line);padding-left:16px}
+.duo .big{font-size:96px;display:block;margin:2px 0}
+.duo .k{display:block;font:600 13px 'Barlow Condensed';letter-spacing:.06em;text-transform:uppercase}
+.duo .w{font:600 18px 'Barlow Condensed';display:block;margin-top:2px}
+.row4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.note{font:400 11px Barlow;color:var(--mut);margin:10px 0 0}
+.chip{font:400 14px Barlow;color:var(--t2);margin-bottom:6px}
+.legend{display:flex;gap:14px;font:400 12px Barlow;color:var(--mut);margin-top:6px}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+.days{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;text-align:center}
+.days b{font:700 26px 'Barlow Condensed';display:block}
+.days span{font:400 12px Barlow;color:var(--t2)}
+.ghost{opacity:.45}
+</style></head><body>
+
+<script>
+// Red Wing, 2026-10-19, from 1 PM: real Wall A output (Winter Wall in sun, Large Roof under trees) and Crag A.
+const H=[13,14,15,16,17,18,19,20], SUN=[20,20,22,25,32,49,88,100], SHADE=[100,89,83,75,74,84,100,100];
+const stops=[[36,'#fc8181'],[44,'#f6ad55'],[56,'#f6ad55'],[64,'#b8f542'],[100,'#c8f76a']];
+function col(s){if(s<=36)return stops[0][1];for(let i=1;i<stops.length;i++){if(s<=stops[i][0]){const [a,ca]=stops[i-1],[b,cb]=stops[i];const t=(s-a)/(b-a);const h=x=>parseInt(x,16);const m=k=>Math.round(h(ca.slice(k,k+2))*(1-t)+h(cb.slice(k,k+2))*t).toString(16).padStart(2,'0');return '#'+m(1)+m(3)+m(5)}}return stops.at(-1)[1]}
+function lbl(h){return (h%12||12)+(h<12?' AM':' PM')}
+function chart(series,{w=420,h=150}={}){const n=H.length,x=i=>14+i*(w-28)/(n-1),y=s=>h-22-(s/100)*(h-40);
+ let svg=`<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}">`;
+ [0,50,100].forEach(v=>svg+=`<line x1="10" x2="${w-6}" y1="${y(v)}" y2="${y(v)}" stroke="#2a3644" stroke-dasharray="${v?'2 4':''}"/>`);
+ for(const s of series){const d=s.v.map((v,i)=>(i?'L':'M')+x(i)+' '+y(v)).join(' ');
+  svg+=`<path d="${d}" fill="none" stroke="${s.c}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" ${s.dash?'stroke-dasharray="6 5"':''}/>`;
+  s.v.forEach((v,i)=>{if(i===0)svg+=`<circle cx="${x(i)}" cy="${y(v)}" r="5" fill="${col(v)}" stroke="#07090c" stroke-width="2"/>`})}
+ H.forEach((hh,i)=>{if(i%2===0)svg+=`<text x="${x(i)}" y="${h-4}" fill="#bccad0" font-family="Barlow" font-size="11" text-anchor="middle">${lbl(hh)}</text>`});
+ return svg+'</svg>'}
+function todayOne(){return `<div class="card"><p class="sect">Today</p><div class="chip">1 PM · score 100 · 60°F</div>${chart([{v:SHADE,c:'#c8f76a'}])}</div>`}
+function todayTwo(){return `<div class="card"><p class="sect">Today</p><div class="chip">1 PM · <span class="sun">Sun side 20</span> · <span class="shd">Shade side 100</span> · 60°F</div>${chart([{v:SUN,c:'#ffd27a'},{v:SHADE,c:'#9fb3c8',dash:1}])}<div class="legend"><span><i style="background:#ffd27a"></i>Sun side · Winter Wall</span><span><i style="background:#9fb3c8"></i>Shade side · Large Roof</span></div></div>`}
+const cells=`<div class="cells"><div><span class="lab">Dryness</span><b class="fig">Dry</b><small>9 days since real rain</small></div><div><span class="lab">Rock</span><b class="fig">Cherty limestone</b><small>softens when wet</small></div><div><span class="lab">Air</span><b class="fig">60°F</b><small>high 67° · low 40°</small></div><div><span class="lab">Good hours</span><b class="fig">8 AM–6 PM</b><small>11 hours</small></div></div>`;
+const topBar=`<div class="top"><span class="b">‹</span><span class="cr">Red Wing (Barn Bluff)</span><span>Sandstone</span><span>Willow River</span></div>`;
+const why=`<div class="why">Score breakdown<span>1 cause ›</span></div>`;
+const nextDays=`<div class="card ghost"><p class="sect">Next days</p><div class="days"><div><b style="color:#c8f76a">100</b><span>Today</span></div><div><b style="color:#c8f76a">92</b><span>Tue</span></div><div><b style="color:#b8f542">71</b><span>Wed</span></div><div><b style="color:#f6ad55">48</b><span>Thu</span></div><div><b style="color:#c8f76a">88</b><span>Fri</span></div></div></div>`;
+
+const A=`${topBar}<div class="card"><h1>Red Wing (Barn Bluff)</h1><p class="when">Score at 1 PM</p>
+ <div class="hero"><span class="big big3" style="color:${col(100)}">100</span>${cells}</div>
+ <div class="sides">
+  <div class="side"><span class="n" style="color:${col(20)}">20</span><span class="k sun">☀ Sun side</span><span class="w">Winter Wall</span><small>sun on it until 6 PM</small></div>
+  <div class="side"><span class="n" style="color:${col(100)}">100</span><span class="k shd">Shade side</span><span class="w">Large Roof</span><small>shaded by trees</small></div>
+ </div>${why}</div>${todayOne()}${nextDays}`;
+
+const B=`${topBar}<div class="card"><h1>Red Wing (Barn Bluff)</h1><p class="when">Score at 1 PM</p>
+ <div class="duo">
+  <div><span class="k sun">☀ Sun side</span><span class="big" style="color:${col(20)}">20</span><span class="w">Winter Wall</span><small>sun on it until 6 PM</small></div>
+  <div><span class="k shd">Shade side</span><span class="big" style="color:${col(100)}">100</span><span class="w">Large Roof</span><small>shaded by trees</small></div>
+ </div>
+ <div class="row4"><div><span class="lab">Dryness</span><b class="fig">Dry</b></div><div><span class="lab">Rock</span><b class="fig">Limestone</b></div><div><span class="lab">Air</span><b class="fig">60°F</b></div><div><span class="lab">Good hrs</span><b class="fig">All day</b></div></div>
+ ${why}</div>${todayTwo()}${nextDays}`;
+
+const C=`${topBar}<div class="card"><h1>Red Wing (Barn Bluff)</h1><p class="when">Score at 1 PM</p>
+ <div class="hero"><span class="big big3" style="color:${col(100)}">100</span>${cells}</div>
+ <p class="note">Crag score. The sun side and shade side are on the chart below.</p>${why}</div>${todayTwo()}${nextDays}`;
+
+document.body.innerHTML=[
+ ['A · Two tiles under the hero','The crag score stays the headline; a sun-side and a shade-side tile sit beneath it.',A],
+ ['B · Two scores are the hero','At crags with wall data the two side scores replace the crag score; Today draws both.',B],
+ ['C · Two lines on Today','The hero is unchanged; Today draws the sun side and the shade side through the day.',C],
+].map(([t,s,h])=>`<div class="col"><p class="tag">${t}</p><p class="tagsub">${s}</p><div class="phone">${h}</div></div>`).join('');
+</script>
+</body></html>

@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sun and shade at scale</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07090c;--card:rgba(23,31,40,.72);--line:#2a3644;--t1:#f4f7fa;--mut:#bccad0;--t2:#d3e1e4;--brand:#1DC5D2;--bink:#6fe3ec;--raised:#1f2833}
+*{box-sizing:border-box}
+body{margin:0;background:#020304;color:var(--t1);font-family:Barlow,system-ui,sans-serif;display:flex;gap:28px;padding:24px;align-items:flex-start}
+.col{width:480px;flex:none}
+.tag{font:700 22px 'Barlow Condensed';color:var(--bink);margin:0 0 4px}
+.tagsub{font:400 14px Barlow;color:var(--mut);margin:0 0 12px;min-height:60px}
+.phone{width:480px;min-height:1000px;background:radial-gradient(120% 60% at 20% 0%,#0f2a33 0%,#07090c 55%),var(--bg);border-radius:28px;padding:16px;border:1px solid #1a222c;overflow:hidden}
+.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:16px 14px 14px;margin-bottom:12px}
+h1{font:700 32px/1 'Barlow Condensed';margin:0}
+.when{font:400 13px Barlow;color:var(--mut);margin:4px 0 0}
+.illus{font:600 11px Barlow;color:#ffd27a;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 2px}
+.chips span{font:500 13px Barlow;padding:5px 11px;border-radius:999px;background:var(--raised);color:var(--t2);border:1px solid var(--line)}
+.chips span.on{background:#0f3a40;border-color:var(--brand);color:var(--t1)}
+.lab{font:600 11px 'Barlow Condensed';letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.fig{font:700 20px/22px 'Barlow Condensed';display:block}
+small{font:400 12px Barlow;color:var(--mut)}
+.sun{color:#ffd27a}.shd{color:#9fb3c8}
+.big{font:700 112px/0.9 'Barlow Condensed';font-variant-numeric:tabular-nums}
+.hero{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:18px;align-items:center;margin-top:8px}
+.cells{display:grid;grid-template-columns:1fr 1fr;gap:10px;border-left:1px solid var(--line);padding-left:14px}
+.sides{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.side{background:var(--raised);border-radius:16px;padding:10px 12px;display:grid;grid-template-columns:auto 1fr;column-gap:10px;align-items:center}
+.side .n{font:700 44px/1 'Barlow Condensed';grid-row:span 3;font-variant-numeric:tabular-nums}
+.k{font:600 12px 'Barlow Condensed';letter-spacing:.06em;text-transform:uppercase}
+.w{font:600 16px 'Barlow Condensed'}
+.duo{display:grid;grid-template-columns:1fr 1fr;margin-top:10px}
+.duo>div+div{border-left:1px solid var(--line);padding-left:16px}
+.duo .big{font-size:92px;display:block;margin:2px 0}
+.duo .k{display:block;font-size:13px}
+.duo .w{display:block;font-size:18px}
+.why{border-top:1px solid var(--line);margin-top:12px;padding-top:10px;display:flex;font:600 15px 'Barlow Condensed'}
+.why span{margin-left:auto;font:400 12px Barlow;color:var(--mut)}
+.sect{font:700 20px 'Barlow Condensed';margin:0 0 8px;display:flex;align-items:baseline}
+.sect small{margin-left:auto}
+.wl{display:grid;grid-template-columns:34px 18px 1fr auto;gap:2px 8px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}
+.wl:first-of-type{border-top:0}
+.wl b{font:700 24px 'Barlow Condensed';font-variant-numeric:tabular-nums;text-align:right}
+.wl .nm{font:600 16px 'Barlow Condensed'}
+.wl .ar{font:400 12px Barlow;color:var(--mut);text-align:right}
+.more{font:500 14px Barlow;color:var(--bink);margin-top:8px}
+.legend{display:flex;gap:14px;font:400 12px Barlow;color:var(--mut);margin-top:4px;flex-wrap:wrap}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+.mini{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px 14px;margin-bottom:12px}
+.mini .cap{font:600 12px Barlow;color:var(--bink);margin-bottom:6px}
+.mini .duo .big{font-size:60px}
+.one{display:flex;align-items:center;gap:14px;margin-top:4px}
+.one .big{font-size:72px}
+.gap{font:700 60px/0.9 'Barlow Condensed';color:var(--mut)}
+.tap{position:relative;cursor:pointer}
+.chev{font:500 12px Barlow;color:var(--bink);display:flex;align-items:center;gap:3px;margin-top:4px}
+.pin{font:600 10px Barlow;letter-spacing:.05em;text-transform:uppercase;color:#07090c;background:var(--bink);border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:2px}
+.duo>div.tap{border-radius:14px;padding:6px 8px;margin:-6px 0}
+.duo>div.tap.sel{background:rgba(29,197,210,.10);outline:1px solid var(--brand)}
+.dim{position:relative}
+.dim::after{content:'';position:absolute;inset:0;background:rgba(2,3,4,.62);border-radius:28px}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:2;background:#121a22;border-top:1px solid var(--line);border-radius:22px 22px 28px 28px;padding:10px 16px 18px}
+.grab{width:40px;height:4px;border-radius:2px;background:#3a4756;margin:0 auto 10px}
+.sh{font:700 22px 'Barlow Condensed';margin:0}
+.ss{font:400 13px Barlow;color:var(--mut);margin:2px 0 10px}
+.opt{display:grid;grid-template-columns:22px 34px 1fr auto;gap:8px;align-items:center;padding:9px 6px;border-top:1px solid var(--line)}
+.opt b{font:700 22px 'Barlow Condensed';text-align:right;font-variant-numeric:tabular-nums}
+.opt .nm{font:600 16px 'Barlow Condensed'}
+.opt .r{font:400 12px Barlow;color:var(--mut)}
+.opt.on{background:rgba(29,197,210,.10);border-radius:10px}
+.radio{width:16px;height:16px;border-radius:50%;border:2px solid #56677a}
+.on .radio{border-color:var(--brand);box-shadow:inset 0 0 0 3px #121a22;background:var(--brand)}
+.grp{font:600 11px 'Barlow Condensed';letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin:10px 0 2px 6px}
+.phone{position:relative}
+.duo small{display:block}
+.side.tap{grid-template-columns:auto 1fr;padding:12px;border:1px solid transparent}
+.side.tap.sel{border-color:var(--brand);background:rgba(29,197,210,.10)}
+.side .n{font-size:48px}
+.side small{display:block}
+.side .chev{grid-column:2;margin-top:3px}
+.sides{margin-top:14px}
+.chart-h{font:400 12px Barlow;color:var(--mut)}
+.col{width:440px}.phone{width:440px}
+.big{font-size:112px}
+.dots{display:flex;gap:6px;justify-content:center;margin-top:10px}
+.dots i{width:7px;height:7px;border-radius:50%;background:#3a4756}
+.dots i.on{background:var(--bink);width:18px;border-radius:4px}
+.pg{font:600 12px 'Barlow Condensed';letter-spacing:.06em;text-transform:uppercase;margin-top:6px}
+.peek{position:absolute;right:-34px;top:120px;width:60px;height:150px;border-radius:16px;background:var(--raised);opacity:.55;border:1px solid var(--line);display:flex;align-items:center;padding-left:8px;font:700 34px 'Barlow Condensed';color:#fc8181}
+.hcard{position:relative;overflow:hidden}
+.ssline{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;background:var(--raised);border-radius:14px;font:600 17px 'Barlow Condensed'}
+.ssline b{font:700 24px 'Barlow Condensed';font-variant-numeric:tabular-nums}
+.ssline .sep{color:var(--mut);font-weight:400}
+.ssline .chev{margin:0 0 0 auto}
+.quiet{margin-top:12px;font:400 13px Barlow;color:var(--mut);display:flex;gap:8px;align-items:center}
+.quiet b{color:var(--t2);font-weight:500}
+.hint{font:400 11px Barlow;color:var(--mut);text-align:center;margin-top:4px}
+.phone{min-height:0;padding-bottom:4px}
+body{flex-wrap:wrap;width:1440px}
+.grid{display:grid;grid-template-columns:96px repeat(11,1fr);gap:2px;font:400 11px Barlow;color:var(--mut);align-items:center}
+.grid .c{height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font:600 10px Barlow;color:#07090c}
+.grid .c.s{outline:2px solid #fff3c4;outline-offset:-2px}
+.grid .wn{font:600 13px 'Barlow Condensed';color:var(--t1);white-space:nowrap;overflow:hidden}
+.grid .ag{grid-column:1/-1;font:600 10px 'Barlow Condensed';letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin-top:6px}
+.days{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;text-align:center}
+.days b{font:700 24px 'Barlow Condensed';display:block}
+.days span{font:400 12px Barlow;color:var(--t2)}
+.days .pair{display:flex;justify-content:center;gap:6px;font:700 20px 'Barlow Condensed'}
+.days .pair em{font:400 11px Barlow;font-style:normal;display:block}
+.seg{display:flex;background:var(--raised);border-radius:12px;padding:3px;gap:3px;margin-top:8px}
+.seg span{flex:1;text-align:center;padding:8px 0;border-radius:9px;font:500 14px Barlow;color:var(--t2)}
+.seg span.on{background:#0f3a40;color:var(--t1);outline:1px solid var(--brand)}
+.strike{text-decoration:line-through;color:var(--mut)}
+.slider{height:4px;background:#2a3644;border-radius:2px;position:relative;margin:16px 4px 6px}
+.slider i{position:absolute;left:45%;top:-7px;width:18px;height:18px;border-radius:50%;background:var(--bink)}
+.days .pair span{font:700 22px "Barlow Condensed"}
+</style></head><body>
+<script>
+const stops=[[36,'#fc8181'],[44,'#f6ad55'],[56,'#f6ad55'],[64,'#b8f542'],[100,'#c8f76a']];
+function col(s){if(s<=36)return stops[0][1];for(let i=1;i<stops.length;i++){if(s<=stops[i][0]){const [a,ca]=stops[i-1],[b,cb]=stops[i];const t=(s-a)/(b-a);const h=x=>parseInt(x,16);const m=k=>Math.round(h(ca.slice(k,k+2))*(1-t)+h(cb.slice(k,k+2))*t).toString(16).padStart(2,'0');return '#'+m(1)+m(3)+m(5)}}return stops.at(-1)[1]}
+const lbl=h=>(h%12||12)+(h<12?' AM':' PM'), sl=h=>(h%12||12)+(h<12?'a':'p');
+const H=[8,9,10,11,12,13,14,15,16,17,18];
+// Illustrative Pine Bluff walls: [name, area, sun from, sun to, score in shade, low in sun]
+const PB=[['Ice Box','North Bowl',99,0,100,100],['The Cave','North Bowl',99,0,97,97],['Gully Wall','North Bowl',99,0,95,95],['Green Corner','North Bowl',99,0,90,90],
+ ['East Arete','Back Side',7,11,92,52],['West Face','Back Side',14,18,100,24],['Long Dihedral','Main Wall',10,15,96,24],['Orange Prow','Main Wall',11,18,96,22],['Sun Slab','Main Wall',9,17,96,18]];
+const at=(w,h)=>{const [, ,a,b,sh,lo]=w;if(h<a||h>b)return h===b+1?Math.round((sh+lo)/2+15):sh;const mid=(a+b)/2,span=(b-a)/2||1;return Math.round(lo+(sh-lo)*0.6*Math.abs(h-mid)/span)};
+const sunAt=(w,h)=>h>=w[2]&&h<=w[3];
+
+const G=`<div class="card"><p class="sect">Walls today<small>outlined = sun on the wall</small></p><div class="grid"><span></span>${H.map((h,i)=>`<span style="text-align:center">${i%2?'':sl(h)}</span>`).join('')}
+ ${['Main Wall','Back Side','North Bowl'].map(a=>`<div class="ag">${a}</div>`+PB.filter(w=>w[1]===a).map(w=>`<span class="wn">${w[0]}</span>`+H.map(h=>{const s=at(w,h);return `<span class="c${sunAt(w,h)?' s':''}" style="background:${col(s)}">${s}</span>`}).join('')).join('')).join('')}
+ </div><small style="display:block;margin-top:8px">Tap a row to pin that wall on the Overview.</small></div>`;
+
+const T2=`<div class="card"><p class="lab" style="margin:0 0 8px">Red Wing 10/19, real</p><div class="side"><span class="n" style="color:${col(20)}">20</span><span class="k sun">☀ Best in sun</span><span class="w">Winter Wall</span><small>Under 50 until the sun leaves at 5:55 PM</small></div>
+ <p class="lab" style="margin:14px 0 8px">Pine Bluff, illustrative</p><div class="side"><span class="n" style="color:${col(24)}">24</span><span class="k sun">☀ Best in sun</span><span class="w">Long Dihedral</span><small>Above 60 again at 4 PM, when the sun leaves</small></div>
+ <div class="side" style="margin-top:10px"><span class="n" style="color:${col(88)}">88</span><span class="k sun">☀ Best in sun</span><span class="w">East Arete</span><small>Good until 10 AM, then under 60 until 12 PM</small></div></div>`;
+
+const days=[['Today',20,100],['Sat',35,96],['Sun',71,64],['Mon',90,52],['Tue',88,60]];
+const T3=`<div class="card"><p class="sect">Next days<small>illustrative · cold snap from Sun</small></p><div class="days">${days.map(([d,s,h])=>`<div><div class="pair"><span style="color:${col(s)}">☀${s}</span></div><div class="pair"><span style="color:${col(h)}">◐${h}</span></div><span>${d}</span></div>`).join('')}</div>
+ <small style="display:block;margin-top:10px">The sun walls take over when it turns cold. A day with walls within 10 points shows one number (rule 1).</small></div>`;
+
+const T4=`<div class="card"><p class="sect">Profile · Wall preference</p><div class="seg"><span>Auto</span><span>☀ Sun</span><span class="on">◐ Shade</span></div><small style="display:block;margin-top:6px">Applies to every crag with wall data. Pinning a wall on a crag still overrides it.</small></div>
+ <div class="card"><h1 style="font-size:24px">Red Wing (Barn Bluff)</h1><p class="when">Score at 1 PM</p><div class="ssline"><span class="shd">◐ Shade walls</span><span>Large Roof</span><b style="color:${col(100)}">100</b><span class="chev">your setting ▾</span></div></div>`;
+
+// Plan view: real Red Wing wall feet and aspects
+const RW=[['Annadonia',25,44.5694,-92.52148,null],['Cyclops',172,44.56897,-92.52192,null],['Large Roof',37,44.57008,-92.52493,100],['New Vice',40,44.56994,-92.52364,null],['Perfect Crimb',4,44.56965,-92.52259,null],['Winter Wall',164,44.56899,-92.5211,20]];
+function plan(){const W=400,Hh=230,la0=44.5687,la1=44.5705,lo0=-92.5255,lo1=-92.5205;const X=lo=>20+(lo-lo0)/(lo1-lo0)*(W-40),Y=la=>Hh-20-(la-la0)/(la1-la0)*(Hh-40);
+ let g=`<svg width="100%" viewBox="0 0 ${W} ${Hh}"><rect width="${W}" height="${Hh}" rx="14" fill="#0d141b"/>`;
+ g+=`<path d="${RW.slice().sort((a,b)=>a[3]-b[3]).map((w,i)=>(i?'L':'M')+X(w[3])+' '+Y(w[2])).join(' ')}" stroke="#2a3644" stroke-width="18" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+ RW.forEach(([n,asp,la,lo,s])=>{const x=X(lo),y=Y(la),r=asp*Math.PI/180,dx=Math.sin(r),dy=-Math.cos(r);const c=s===null?'#56677a':col(s);
+  g+=`<line x1="${x-dy*16}" y1="${y+dx*16}" x2="${x+dy*16}" y2="${y-dx*16}" stroke="${c}" stroke-width="6" stroke-linecap="round"/>`;
+  g+=`<line x1="${x}" y1="${y}" x2="${x+dx*16}" y2="${y+dy*16}" stroke="${c}" stroke-width="1.5" opacity=".8"/>`;
+  g+=`<text x="${x+dx*30}" y="${y+dy*30+4}" fill="#d3e1e4" font-family="Barlow Condensed" font-size="13" text-anchor="middle">${n}${s!==null?' '+s:''}</text>`});
+ g+=`<text x="${W-24}" y="30" fill="#ffd27a" font-size="22" text-anchor="middle">☀</text><text x="${W-24}" y="46" fill="#bccad0" font-family="Barlow" font-size="10" text-anchor="middle">SSW</text>`;
+ return g+'</svg>'}
+const T5=`<div class="card"><p class="sect">Red Wing at 1 PM<small>real wall positions</small></p>${plan()}<div class="slider"><i></i></div><div style="display:flex;justify-content:space-between;font:400 11px Barlow;color:var(--mut)"><span>8 AM</span><span>1 PM</span><span>6 PM</span></div>
+ <small style="display:block;margin-top:8px">Grey walls: scores not computed for this mockup. Tick marks show which way each wall faces.</small></div>`;
+
+const T6=`<div class="card"><p class="sect">Today's walls</p>
+ <p class="lab" style="margin:0">Neutral version (fits the copy rules)</p><p style="font:500 15px Barlow;margin:4px 0 12px">Highest-scoring wall: <b>Ice Box</b>, 8 AM–6 PM</p>
+ <p class="lab" style="margin:0">Advice version (breaks "no climbing opinions")</p><p class="strike" style="font:500 15px Barlow;margin:4px 0">Climb Ice Box until 2 PM, then head to East Arete.</p>
+ <small style="display:block;margin-top:10px">The neutral sentence is the grid in idea 1, read out loud.</small></div>`;
+
+document.body.innerHTML=[
+ ['1 · Walls × hours grid','Every wall, every hour, coloured by score. White outline = sun on the wall. Illustrative crag.',G],
+ ['2 · When the sun wall is good','One more line on the sun tile.',T2],
+ ['3 · Sun and shade in Next days','Two numbers per day, for planning around the cold-weather flip.',T3],
+ ['4 · Account-wide wall preference','Set once in Profile instead of pinning per crag.',T4],
+ ['5 · Crag map coloured by score','Plan view with a time slider. Wall positions and facings are real Red Wing data.',T5],
+ ['6 · Follow-the-shade sentence','Only the neutral version survives the copy rules.',T6],
+].map(([t,s,h])=>`<div class="col"><p class="tag">${t}</p><p class="tagsub">${s}</p><div class="phone">${h}</div></div>`).join('');
+</script>
+</body></html>
