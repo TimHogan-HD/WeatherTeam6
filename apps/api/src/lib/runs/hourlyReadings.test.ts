@@ -438,7 +438,6 @@ describe('the rain the drying clock reads (issue #209)', () => {
   })
 })
 
-<<<<<<< HEAD
 describe('radar overrules the median (owner, 2026-11-02)', () => {
   const RAIN_MODELS = ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless', 'gem_seamless']
   /** The median put 6 mm at 09:00 and 10:00; the rock reads wet at noon without radar. */
@@ -488,7 +487,9 @@ describe('radar overrules the median (owner, 2026-11-02)', () => {
     )
     expect(rockAtNoon(out)).not.toBe('dry')
     expect(out.rain_radar).toBe(false)
-=======
+  })
+})
+
 /**
  * `rain_split`: each good day's weather models that leave the rock wet. The
  * thermal run carries the median (zero here); each model's own rain is what
@@ -577,6 +578,5 @@ describe('rain_split', () => {
     const d = day(out, '2026-09-22')!
     expect(d.best?.score ?? 0).toBeLessThan(80)
     expect(d.rain_split).toBeNull()
->>>>>>> origin/main
   })
 })

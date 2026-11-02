@@ -58,11 +58,7 @@ import {
   type TempRangeC,
 } from '../scoring/cragModel.js'
 import { localDateString } from '../weather/openMeteo.js'
-<<<<<<< HEAD
-import { radarChecked } from '../weather/rainMedian.js'
-=======
-import { MIN_RAIN_MODELS, RAIN_MODELS } from '../weather/rainMedian.js'
->>>>>>> origin/main
+import { MIN_RAIN_MODELS, RAIN_MODELS, radarChecked } from '../weather/rainMedian.js'
 import { buildWallReadings, type ScoringWall } from './wallReadings.js'
 import type { DeterministicRuns, ModelRun } from './latestRuns.js'
 
@@ -119,19 +115,17 @@ export type BuildReadingsInput = {
   /** The crag's lidar walls, scored one by one beside it (#445); absent or empty, none. */
   walls?: readonly ScoringWall[]
   /**
-<<<<<<< HEAD
    * NOAA radar rain at the crag, keyed by the hour's end in epoch ms
    * (`loadRadarRain`). Absent or null: outside the US, not stored yet, or the
    * read failed, and the clock reads the models alone.
    */
   radarRain?: ReadonlyMap<number, number | null> | null
-=======
+  /**
    * Count each good day's weather models that leave the rock wet
    * (`ReadingsDay.rain_split`). Four more drying clocks, ~14 ms each, so only
    * `/hourly` asks; absent or false, the field is left off.
    */
   rainSplit?: boolean
->>>>>>> origin/main
 }
 
 const none = (reason: ReadingsUnavailableReason): HourlyReadings => ({
