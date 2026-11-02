@@ -75,7 +75,8 @@ export async function gauge(station: string, from: Date, to: Date) {
 /**
  * Each global model's rain as forecast `lead` days ahead, per lead, from
  * Open-Meteo's Previous Runs API (`precipitation_previous_dayN`). Lead 0 is the
- * same API's own series, the baseline.
+ * same API's own series, the baseline. `extraModels` asks for models beyond the
+ * four (`compare:rain-spread`'s AIFS) in the same request.
  */
 export async function previousRuns(
   lat: number,
@@ -83,14 +84,16 @@ export async function previousRuns(
   from: Date,
   to: Date,
   leads: readonly number[],
+  extraModels: readonly string[] = [],
 ): Promise<Map<number, ByModel>> {
+  const models = [...GLOBAL_DETERMINISTIC_MODELS, ...extraModels]
   const day = (d: Date) => d.toISOString().slice(0, 10)
   const variable = (lead: number) => (lead === 0 ? 'precipitation' : `precipitation_previous_day${lead}`)
   const body = JSON.parse(
     await text(
       `https://previous-runs-api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
         `&start_date=${day(from)}&end_date=${day(to)}&hourly=${leads.map(variable).join(',')}` +
-        `&models=${GLOBAL_DETERMINISTIC_MODELS.join(',')}&timezone=GMT`,
+        `&models=${models.join(',')}&timezone=GMT`,
     ),
   ) as { hourly: Record<string, (number | null)[]> & { time: string[] } }
   const keys = body.hourly.time.map((t) => t.slice(0, 13))
@@ -98,7 +101,7 @@ export async function previousRuns(
     leads.map((lead): [number, ByModel] => [
       lead,
       new Map(
-        GLOBAL_DETERMINISTIC_MODELS.flatMap((m) => {
+        models.flatMap((m) => {
           const values = body.hourly[`${variable(lead)}_${m}`]
           return values ? [[m, new Map(keys.map((k, i) => [k, values[i] ?? null]))] as const] : []
         }),
@@ -107,8 +110,11 @@ export async function previousRuns(
   )
 }
 
-/** The shipped `rainMedian` itself, on one lead's series stamped in UTC, keyed `YYYY-MM-DDTHH:00`. */
-export function shippedMedian(byModel: ByModel): ReadonlyMap<string, number | null> {
+/**
+ * The shipped `rainMedian` itself, on one lead's series stamped in UTC, keyed
+ * `YYYY-MM-DDTHH:00`. `models` overrides which of `byModel`'s series it takes.
+ */
+export function shippedMedian(byModel: ByModel, models?: readonly string[]): ReadonlyMap<string, number | null> {
   const blank = {
     temp_c: null, dewpoint_c: null, humidity_pct: null, wind_kmh: null, wind_gust_kmh: null,
     wind_dir_deg: null, cloud_pct: null, precip_prob_pct: null, pressure_hpa: null, shortwave_wm2: null,
@@ -124,6 +130,6 @@ export function shippedMedian(byModel: ByModel): ReadonlyMap<string, number | nu
       utc_offset_seconds: 0,
       model_elevation_m: null,
       fetched_at: new Date(),
-    })?.byLocal ?? new Map()
+    }, models)?.byLocal ?? new Map()
   )
 }

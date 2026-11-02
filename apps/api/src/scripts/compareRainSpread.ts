@@ -54,11 +54,31 @@
  * and all four clocks had the rock dry, it came out not dry 1-7% of the time
  * at 1-4 days; when one clock disagreed, 8-40%; two or more, mostly 25-90%.
  * Not decided: whether the app adopts any of it.
+ *
+ * **AIFS (2026-11-02).** ECMWF's AI model, `ecmwf_aifs025_single`, rides in the
+ * same Previous Runs request (its ensemble keeps no past runs, as above). It is
+ * scored alone, as a fifth model in the median and the mean of scores, and in
+ * GEM's place in the median. Every candidate is scored on the days all five
+ * models answered, so the four-model rows differ slightly from the first run's.
+ *
+ * **AIFS run (2026-11-02, 17 stations, 2026-08-04 to 11-02).** Alone it was the
+ * worst forecast in the table: day scores 6-10 points too low at every rock and
+ * lead (it keeps rock wet with light rain the gauges did not record), Brier up
+ * to 2.4× the shipped median's (worse in every cell but sandstone at 6 days),
+ * and 8-23 points fewer good days kept. As a
+ * fifth model in the median it moved little: on sandstone it cut the good-scored
+ * days that were not dry by 1-6 points and MAE by up to 1.2, at 0-3.5 points of
+ * good days kept (one lead gained 3), and it made quartzite slightly worse (MAE
+ * +0.6 at 1 day). In GEM's place it was mostly worse than as a fifth. Added to
+ * the mean of scores it changed Brier by no more than 0.006 against the four
+ * alone. The four models'
+ * share stays the bigger lever; AIFS adds caution, not skill. Its ensemble,
+ * which might differ, cannot be scored here.
  */
 import type { RockType } from '@weatherteam6/types'
 import { dayRepresentative, evaluateCragA, rockLevelA } from '../lib/scoring/cragModel.js'
 import type { WeatherHour } from '../lib/scoring/hourlyConditions.js'
-import { fetchDeterministicHourly, localTimeToUtc } from '../lib/weather/openMeteo.js'
+import { GLOBAL_DETERMINISTIC_MODELS, fetchDeterministicHourly, localTimeToUtc } from '../lib/weather/openMeteo.js'
 import { gauge, hourKey, previousRuns, shippedMedian, STATIONS, type HourKey } from './rainGauges.js'
 
 const PAST_DAYS = 90
@@ -74,17 +94,43 @@ const BAD = 50
 type Day = { score: number; dry: boolean }
 type Forecast = { score: number; pDry: number }
 
-const CANDIDATES = ['median rain (shipped)', 'mean of 4 scores', 'worst of 4', 'shipped × share dry'] as const
+/** ECMWF's AI model, as Open-Meteo's Previous Runs API names its single run. */
+const AIFS = 'ecmwf_aifs025_single'
+/** The shipped four with AIFS in GEM's place. */
+const AIFS_FOR_GEM = GLOBAL_DETERMINISTIC_MODELS.map((m) => (m === 'gem_seamless' ? AIFS : m))
+
+const CANDIDATES = [
+  'median rain (shipped)',
+  'mean of 4 scores',
+  'worst of 4',
+  'shipped × share dry',
+  'AIFS alone',
+  'median of 5 (+AIFS)',
+  'median, AIFS for GEM',
+  'mean of 5 scores',
+] as const
 type Candidate = (typeof CANDIDATES)[number]
 
-function combine(median: Day, models: readonly Day[]): Record<Candidate, Forecast> {
+const single = (d: Day): Forecast => ({ score: d.score, pDry: d.dry ? 1 : 0 })
+const meanOf = (models: readonly Day[]): Forecast => ({
+  score: models.reduce((a, m) => a + m.score, 0) / models.length,
+  pDry: models.filter((m) => m.dry).length / models.length,
+})
+
+type Medians = { shipped: Day; withAifs: Day; aifsForGem: Day }
+
+function combine(median: Medians, models: readonly Day[], aifs: Day): Record<Candidate, Forecast> {
   const scores = models.map((m) => m.score)
   const shareDry = models.filter((m) => m.dry).length / models.length
   return {
-    'median rain (shipped)': { score: median.score, pDry: median.dry ? 1 : 0 },
-    'mean of 4 scores': { score: scores.reduce((a, b) => a + b, 0) / scores.length, pDry: shareDry },
+    'median rain (shipped)': single(median.shipped),
+    'mean of 4 scores': meanOf(models),
     'worst of 4': { score: Math.min(...scores), pDry: shareDry === 1 ? 1 : 0 },
-    'shipped × share dry': { score: median.score * shareDry, pDry: shareDry },
+    'shipped × share dry': { score: median.shipped.score * shareDry, pDry: shareDry },
+    'AIFS alone': single(aifs),
+    'median of 5 (+AIFS)': single(median.withAifs),
+    'median, AIFS for GEM': single(median.aifsForGem),
+    'mean of 5 scores': meanOf([...models, aifs]),
   }
 }
 
@@ -117,7 +163,7 @@ function tally(key: string, f: Forecast, truth: Day): void {
 async function run(): Promise<void> {
   const to = new Date()
   const from = new Date(to.getTime() - PAST_DAYS * 86_400_000)
-  console.log(`\n=== compare:rain-spread — one rain forecast or four, against ASOS gauges, past ${PAST_DAYS} days ===\n`)
+  console.log(`\n=== compare:rain-spread — one rain forecast or several, AIFS among them, against ASOS gauges, past ${PAST_DAYS} days ===\n`)
 
   const only = process.argv.slice(2).map((s) => s.toUpperCase())
   for (const [station, near] of STATIONS.filter(([id]) => only.length === 0 || only.includes(id))) {
@@ -127,7 +173,7 @@ async function run(): Promise<void> {
       const det = await fetchDeterministicHourly({ lat, lon, elevation_m: null }, ['gfs_seamless'], 1, PAST_DAYS)
       const thermal = det.models.find((m) => m.model === 'gfs_seamless')
       if (!thermal) throw new Error('gfs_seamless did not answer')
-      const runs = await previousRuns(lat, lon, from, to, LEADS)
+      const runs = await previousRuns(lat, lon, from, to, LEADS, [AIFS])
 
       const base = thermal.hours.flatMap((h) => {
         const when = localTimeToUtc(h.valid_at_local, det.utc_offset_seconds)
@@ -169,15 +215,25 @@ async function run(): Promise<void> {
         const truth = days((k) => gauged.get(k) ?? null, rock)
         for (const lead of LEADS) {
           const byModel = runs.get(lead)!
-          if (byModel.size < 4) continue
-          const median = shippedMedian(byModel)
-          const medianDays = days((k) => median.get(`${k}:00`) ?? null, rock)
-          const modelDays = [...byModel.values()].map((s) => days((k) => s.get(k) ?? null, rock))
+          const aifsSeries = byModel.get(AIFS)
+          if (!aifsSeries || GLOBAL_DETERMINISTIC_MODELS.some((m) => !byModel.has(m))) continue
+          const medianDays = (models: readonly string[]) => {
+            const median = shippedMedian(byModel, models)
+            return days((k) => median.get(`${k}:00`) ?? null, rock)
+          }
+          const shippedDays = medianDays(GLOBAL_DETERMINISTIC_MODELS)
+          const withAifsDays = medianDays([...GLOBAL_DETERMINISTIC_MODELS, AIFS])
+          const aifsForGemDays = medianDays(AIFS_FOR_GEM)
+          const modelDays = GLOBAL_DETERMINISTIC_MODELS.map((m) => days((k) => byModel.get(m)!.get(k) ?? null, rock))
+          const aifsDays = days((k) => aifsSeries.get(k) ?? null, rock)
           for (const [date, t] of truth) {
-            const m = medianDays.get(date)
+            const m = shippedDays.get(date)
+            const withAifs = withAifsDays.get(date)
+            const aifsForGem = aifsForGemDays.get(date)
+            const aifs = aifsDays.get(date)
             const each = modelDays.map((d) => d.get(date))
-            if (!m || each.some((d) => !d)) continue
-            const forecasts = combine(m, each as Day[])
+            if (!m || !withAifs || !aifsForGem || !aifs || each.some((d) => !d)) continue
+            const forecasts = combine({ shipped: m, withAifs, aifsForGem }, each as Day[], aifs)
             for (const c of CANDIDATES) tally(`${rock}|${lead}|${c}`, forecasts[c], t)
             if (m.score >= GOOD) {
               const k = `${rock}|${lead}|${each.filter((d) => !d!.dry).length}`
