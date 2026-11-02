@@ -14,7 +14,8 @@ implementing. The invariants the scorer must hold are in `.claude/rules/scoring.
 `apps/api/src/lib/scoring/`:
 
 - `cragModel.ts` — **Crag A, the number on every screen** (`evaluateCragA`,
-  `dayRepresentative`), plus Wall A (`evaluateWallA`), which nothing calls yet. Called from
+  `dayRepresentative`), plus Wall A (`evaluateWallA`), which scores lidar walls beside the crag
+  (`lib/runs/wallReadings.ts`, #445) and never a location. Called from
   `lib/runs/hourlyReadings.ts`. Checked hour for hour against
   `.claude/docs/crag-a-reference/model.ts` until 2026-11-02, when the port deliberately
   diverged: per-wall condensation floored at half (`condensationA`) and a one-hour-per-hour

@@ -71,6 +71,14 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   Red Wing — and never on the Overview. When a surface brings it back, gate it
   on a flag on the `KNOWN_CRAGS` entry, not on the data being present. It names no
   direction: Crag A does not know which way a crag's walls face (#293).
+- **Sun and shade walls may reach the Overview** (owner, 2026-11-02, #445, overriding
+  2026-10-05's "never on the Overview" above) — Wall A per lidar wall, not
+  `rock_sun_shade`, and only through `HourlyReadings.walls`, which is empty unless the crag
+  has `sun_confirmed`. The chosen layout is one tappable line under the hero (idea 4):
+  `☀ <best wall in sun> <score> · ◐ <best wall in shade> <score>`, read with `sunShadeAt`
+  for the hero's hour, and one quiet line instead when the pair is `alike` (rule 1). Next
+  days pairs come from `sunShadeOnDay`. A withheld group prints a gap, never another
+  group's number. The crag's score stays Crag A's everywhere.
 - **Sun on the wall** (#415, Rock tab, `SunOnWallCard.tsx`) is the first such surface, gated
   on `KnownCrag.sun_confirmed` through `sunWallsFor` (`packages/types/src/sun.ts`). Each
   face is found in USGS 1 m lidar and named for the nearest OpenBeta wall (owner,

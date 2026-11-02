@@ -8,6 +8,7 @@ const row = (over: Partial<ScoringLocationRow> = {}): ScoringLocationRow => ({
   rock_type: 'sandstone',
   aspect: null,
   cliff_angle: null,
+  known_crag: null,
   ...over,
 })
 
@@ -23,6 +24,7 @@ describe('scoringLocationFor', () => {
       lon: -115.43,
       cliffAngleDeg: DEFAULT_CLIFF_ANGLE_DEG,
       wall: null,
+      walls: [],
     })
   })
 
@@ -35,6 +37,7 @@ describe('scoringLocationFor', () => {
       lon: -115.43,
       cliffAngleDeg: -15,
       wall: { lat: 36.13, lon: -115.43, aspectDeg: 135, cliffAngleDeg: -15 },
+      walls: [],
     })
   })
 

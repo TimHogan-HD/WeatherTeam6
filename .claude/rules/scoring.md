@@ -21,8 +21,8 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
 - **The score on every screen is Crag A (`lib/scoring/cragModel.ts`), owner decision
   2026-09-24.** `score = 100 × dryness^0.55 × friction`, the drying clock on eight vertical
   walls, median taken. A location's score is always Crag A: its recorded aspect and angle are
-  not inputs. **Wall A (`evaluateWallA`)** scores individual walls only and nothing calls it
-  yet. Friction is condensation × heat × humidity × cold from air temperature, dew point,
+  not inputs. **Wall A (`evaluateWallA`)** scores individual walls only, never a location:
+  `HourlyReadings.walls` (#445) carries it per lidar wall beside Crag A (below). Friction is condensation × heat × humidity × cold from air temperature, dew point,
   `T_mass` and, for condensation only, each wall's sun (below) — no sun in Crag A's heat. **Wall A's heat and cold read air plus the direct sun on that
   wall** (`sunWarmingC`, owner 2026-10-30, from Winter Wall at Red Wing too hot on 10/4 and
   10/19 while Crag A read 100): the beam only, gated by the lidar skyline, zero on a
@@ -32,6 +32,17 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   hour-for-hour against `.claude/docs/crag-a-reference/model.ts` — a change that moves a
   result needs an argument. **Every constant is a judgement call**; nothing is validated
   against outcomes (#143).
+- **Sun and shade walls** (#445, owner 2026-11-02; `lib/runs/wallReadings.ts`,
+  `packages/types/src/wallSunShade.ts`). For a crag with `sun_confirmed`, `/hourly` scores
+  each `SUN_WALLS` face with Wall A (vertical, its lidar skyline, `KnownCrag.tree_shaded`,
+  the reader's range) over the readings' window. `/conditions` and the trip recorder do
+  not. An hour's `in_sun` is geometry: the sun on the face for at least half the hour, never
+  under trees, so an overcast hour still has walls in sun and their scores converge. **Walls
+  regroup every hour**; each group's answer is its best wall, withheld if any wall in it is
+  unscored. A day's sun group is the walls with `SUN_DAY_MIN_HOURS` (2) sun hours inside
+  the reader's climbing hours, scored by their own `dayRepresentative`; the shade group is
+  the rest. Within `SUN_SHADE_ALIKE_POINTS` (10) the two read alike (rule 1). Measured on
+  the Red Wing run, 2026-11-02: +42 ms per request, +69 kB of JSON before compression.
 - **A reader's temperature range moves Crag A's friction edges, and nothing else** (scoring
   Phase 5, owner decision 2026-10-01). `user_preferences.temp_low_c`/`temp_high_c`, null for
   the default; `TEMP_RANGE_DEFAULT_F` (`packages/types`) is the one spelling of 30–60 °F and

@@ -482,7 +482,7 @@ describe('buildHourlySeries — a recorded wall never replaces the crag score', 
       ensemble: ensRuns([]),
       allModels: false,
       now,
-      scoring: { rockType: 'granite', lat: 36.13, lon: -115.43, cliffAngleDeg: 0, wall },
+      scoring: { rockType: 'granite', lat: 36.13, lon: -115.43, cliffAngleDeg: 0, wall, walls: [] },
     })
   const noon = (s: ReturnType<typeof build>) =>
     s.readings?.hours.find((h) => h.valid_at === '2026-09-08T20:00:00.000Z')

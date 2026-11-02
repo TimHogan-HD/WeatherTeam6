@@ -1,6 +1,15 @@
-import { compassDegrees, parseNumeric, parseNumericRequired, type ClimbHours, type RockType } from '@weatherteam6/types'
+import {
+  compassDegrees,
+  knownCragBySlug,
+  parseNumeric,
+  parseNumericRequired,
+  sunWallsFor,
+  type ClimbHours,
+  type RockType,
+} from '@weatherteam6/types'
 import type { WallOrientation } from '../scoring/rockThermal.js'
 import type { TempRangeC } from '../scoring/cragModel.js'
+import type { ScoringWall } from './wallReadings.js'
 
 /**
  * The crag facts the v2 readings need, or **null when this location is not a
@@ -29,6 +38,11 @@ export type ScoringLocation = {
   range?: TempRangeC
   /** The reader's climbing hours, which the day score is read from (#401). Absent is 8 am–6 pm. */
   climbHours?: ClimbHours
+  /**
+   * The crag's lidar walls, each scored by Wall A beside the crag (#445): only
+   * where the owner confirmed sun and shade (`sunWallsFor`), else empty.
+   */
+  walls: ScoringWall[]
 } | null
 
 /** What one reader's settings change about a crag's readings (`readerScoringFor`). */
@@ -42,6 +56,15 @@ export type ScoringLocationRow = {
   rock_type: RockType | null
   aspect: string | null
   cliff_angle: string | null
+  known_crag: string | null
+}
+
+/** A known crag's lidar walls, with the owner's tree-shaded ones marked. */
+export function scoringWallsFor(knownCrag: string | null): ScoringWall[] {
+  const walls = sunWallsFor(knownCrag)
+  if (walls === null) return []
+  const trees = new Set(knownCragBySlug(knownCrag)?.tree_shaded ?? [])
+  return walls.walls.map((skyline) => ({ skyline, treeShaded: trees.has(skyline.name) }))
 }
 
 /**
@@ -87,6 +110,7 @@ export function scoringLocationFor(row: ScoringLocationRow, reader?: ReaderScori
             cliffAngleDeg: angle,
           }
         : null,
+    walls: scoringWallsFor(row.known_crag),
     ...(reader === undefined ? {} : { range: reader.range, climbHours: reader.climbHours }),
   }
 }
