@@ -21,7 +21,12 @@ rock surface temperature lags the sun by 2 h, measured against USCRN (#226); tod
 only the hours still ahead (#227). **Rock that breaks when wet never dries faster than
 elapsed time** (F17, 2026-10-21, `maxDryingRate`; the owner asked for a wait after rain,
 and a measurement picked this form of it). Before this, Red Rock
-scored 76 two days after half an inch of rain in January sun; now it scores 39. Every known
+scored 76 two days after half an inch of rain in January sun; now it scores 39. **Since
+#442 (2026-11-02) every dry hour credits at least one hour, so rock reads dry within its
+full window of real time, and condensation is read per wall with sun, never taking more
+than half the score.** It cleared the 15 zero hours friends found dry at Red Wing and
+Sandstone on 10/31–11/1. The owner accepted that five judged reference days now read
+marginal or Go (`crag-a-reference/README.md`). Every known
 crag's rock type was checked against a source (#243). Climbing areas lock the rock type, and
 **Wrong rock type?** corrects it (#342). No friction word appears on any screen (#321). Score
 causes appear only in Score breakdown. Nothing is validated against outcomes: the forecast

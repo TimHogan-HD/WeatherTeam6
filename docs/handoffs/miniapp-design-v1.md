@@ -278,6 +278,12 @@ Hourly and Rock, on every saved location. It replaces the first build from the
 found hard to look at — pale blue on blue, and the answer left for the reader to assemble.
 Two cards and a caveat:
 
+- **Superseded 2026-11-02 (owner, #442): the headline is now the last rain of any size**,
+  and the last real rain is named under it ("Last real rain: Sun 7pm · 0.62 in over 20 h",
+  or "No real rain in the past 7 days") whenever a lighter shower fell since; "Light
+  showers since" and "light showers only" are gone. The headline that named only real rain
+  read "2 days ago" above a tile saying 0.03 in today. The drying clock beside it still
+  counts from real rain. The rest of this bullet is the earlier design.
 - **Headline: how long since the last real rain.** "Real rain" is an hour at or above
   `REWETTING_PRECIP_MM` (0.5 mm, 0.02 in) — the line at which the drying clock restarts —
   so this and Dryness never disagree about when it last rained. The figure is `heroTemp`

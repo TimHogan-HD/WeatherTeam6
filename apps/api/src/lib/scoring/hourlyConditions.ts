@@ -243,6 +243,11 @@ export function rockLevel(
  * the bulk of the wall, which is the multi-day lag that makes 10 °C and 90%
  * humidity mean opposite things depending on what the rock has been sitting at
  * (`scoring-findings.md` §3.1).
+ *
+ * The score does not read it this way any more: Crag A and Wall A pass each
+ * wall's margin with that wall's sun added and floor the median at half
+ * (`cragModel.condensationA`, 2026-11-02). This mass-only margin is still the
+ * response's `condensation_margin_c`.
  */
 export function condensationFactor(marginC: number | null): number | null {
   if (marginC === null || !Number.isFinite(marginC)) return null
