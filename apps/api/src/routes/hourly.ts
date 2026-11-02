@@ -119,7 +119,9 @@ hourlyRouter.get('/hourly/:locationId', async (req: Request, res: Response) => {
     let scoring: ScoringLocation = null
     if (location.is_climbing_location) {
       const reader = await readerScoringFor(req.userId)
-      scoring = scoringLocationFor(location, { ...reader, climbHours: tripHours.hours ?? reader.climbHours })
+      const base = scoringLocationFor(location, { ...reader, climbHours: tripHours.hours ?? reader.climbHours })
+      // Each good day's weather models that leave the rock wet: the Overview's Next days reads it.
+      scoring = base === null ? null : { ...base, rainSplit: true }
     }
 
     // `lat`/`lon` are numeric columns and arrive as strings; `elevation_m` is nullable and

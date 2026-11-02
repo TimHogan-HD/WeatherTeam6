@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rain split mockup</title>
+<style>
+:root{--bg:#07090c;--card:#171f28;--raised:#1f2833;--line:#2a3644;--txt1:#f4f7fa;--muted:#bccad0;--txt2:#d3e1e4;--good:#b8f542;--fair:#f6ad55;--fairInk:#f8bd72;--fairTint:rgba(246,173,85,.12);--fairBorder:rgba(246,173,85,.40);--rain:#bcc7fd;--rainMark:#a5b4fc}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt1);font:15px/1.35 system-ui,-apple-system,Segoe UI,sans-serif}
+.wrap{max-width:480px;margin:0 auto;padding:16px}
+h2{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:22px 0 8px}
+.card{background:var(--card);border-radius:18px;padding:14px}
+.sect{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}.sect b{font-size:16px}.sect span{font-size:12px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;text-align:center}
+.day{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;border-radius:14px}
+.sky{font-size:18px;height:22px}.score{font-size:22px;font-weight:700;margin:4px 0 2px}
+.small{font-size:12px}.name{color:var(--txt2)}.ch{color:var(--rain)}
+.slot{height:18px;display:flex;align-items:center;justify-content:center}
+.word{font-size:10.5px;font-weight:600;color:var(--fairInk);background:var(--fairTint);border:1px solid var(--fairBorder);border-radius:999px;padding:0 4px;line-height:16px;white-space:nowrap}
+.pips{display:flex;gap:3px}.pips i{width:7px;height:7px;border-radius:50%;border:1.5px solid var(--rainMark)}.pips i.on{background:var(--rainMark)}
+.drop{font-size:12px;font-weight:600;color:var(--rain);white-space:nowrap}
+.note{margin:10px 2px 0;font-size:12.5px;color:var(--muted)}
+.sheet{margin-top:10px;background:var(--raised);border-radius:12px;padding:10px 12px;font-size:13px;color:var(--txt2)}
+.sheet b{color:var(--txt1)}
+.cap{font-size:12.5px;color:var(--muted);margin:6px 2px 0}
+</style></head><body><div class="wrap">
+<p class="cap">Wed scores 100 and Thu 92, but some of the four weather models forecast rain those days. In the backtest, a good score with 2 models calling rain was wet about half the time; with 3 or 4, about two thirds to three quarters.</p>
+
+<h2>Chosen (owner, 2026-11-02): dots, one per weather model</h2>
+<div class="card"><div class="sect"><b>Next days</b><span>day score · high/low · chance of rain</span></div>
+<div class="grid">
+<div class="day"><span class="sky">☁️</span><b class="score" style="color:var(--fair)">64</b><span class="slot"></span><span class="small name">Today</span><span class="small">48°/36°</span><span class="small ch">40%</span></div>
+<div class="day"><span class="sky">☀️</span><b class="score" style="color:var(--good)">100</b><span class="slot"></span><span class="small name">Tue</span><span class="small">55°/38°</span><span class="small ch">5%</span></div>
+<div class="day"><span class="sky">⛅</span><b class="score" style="color:var(--good)">100</b><span class="slot"><span class="pips"><i class="on"></i><i class="on"></i><i></i><i></i></span></span><span class="small name">Wed</span><span class="small">57°/41°</span><span class="small ch">35%</span></div>
+<div class="day"><span class="sky">⛅</span><b class="score" style="color:var(--good)">92</b><span class="slot"><span class="pips"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></span><span class="small name">Thu</span><span class="small">54°/40°</span><span class="small ch">55%</span></div>
+<div class="day"><span class="sky">☀️</span><b class="score" style="color:var(--good)">100</b><span class="slot"></span><span class="small name">Fri</span><span class="small">52°/35°</span><span class="small ch">10%</span></div>
+<div class="day"><span class="sky">☀️</span><b class="score" style="color:var(--good)">85</b><span class="slot"></span><span class="small name">Sat</span><span class="small">50°/33°</span><span class="small ch">5%</span></div>
+</div>
+<p class="note"><span class="pips" style="display:inline-flex;vertical-align:middle;margin-right:6px"><i class="on"></i><i></i></span>weather models that say it'll be wet</p></div>
+
+</div></body></html>
