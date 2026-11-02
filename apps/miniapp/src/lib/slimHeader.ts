@@ -190,10 +190,12 @@ function dewMargin(i: SlimInputs): SlimFigure {
   const reading = readingNow(i.hourReadings, i.nowMs)
   const near = reading !== null && Math.abs(Date.parse(reading.valid_at) - i.nowMs) <= NOW_TOLERANCE_MS ? reading : null
   const margin = near?.condensation_margin_c ?? null
+  const f = margin === null ? null : Math.round(cToFDelta(margin))
   return {
-    value: margin === null ? null : Math.round(cToFDelta(margin)),
+    // Below the dew point says so, never a negative "above" (owner, 2026-11-02).
+    value: f === null ? null : Math.abs(f),
     unit: '°',
-    label: 'rock above dew',
+    label: f !== null && f < 0 ? 'rock below dew' : 'rock above dew',
     tone: 'plain',
     line: near?.rock == null ? null : `${DRYNESS_LABEL}: ${ROCK_LABELS[near.rock.level]}`,
   }
