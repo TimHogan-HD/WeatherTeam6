@@ -60,6 +60,18 @@
  * scored alone, as a fifth model in the median and the mean of scores, and in
  * GEM's place in the median. Every candidate is scored on the days all five
  * models answered, so the four-model rows differ slightly from the first run's.
+ *
+ * **AIFS run (2026-11-02, 17 stations, 2026-08-04 to 11-02).** Alone it was the
+ * worst forecast in the table: day scores 7-10 points too low at every rock and
+ * lead (it keeps rock wet with light rain the gauges did not record), Brier
+ * 1.1-2.4× the shipped median's, and 14-35 points fewer good days kept. As a
+ * fifth model in the median it moved little: on sandstone it cut the good-scored
+ * days that were not dry by 1-6 points and MAE by up to 1.2, at 0-3.5 points of
+ * good days kept, and it made quartzite slightly worse (MAE +0.6 at 1 day). In
+ * GEM's place it was worse than as a fifth. Added to the mean of scores it
+ * changed Brier by no more than 0.005 against the four alone. The four models'
+ * share stays the bigger lever; AIFS adds caution, not skill. Its ensemble,
+ * which might differ, cannot be scored here.
  */
 import type { RockType } from '@weatherteam6/types'
 import { dayRepresentative, evaluateCragA, rockLevelA } from '../lib/scoring/cragModel.js'
