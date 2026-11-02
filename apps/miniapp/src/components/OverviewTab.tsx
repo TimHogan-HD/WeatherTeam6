@@ -34,6 +34,7 @@ import { findToday } from '../lib/forecast.js'
 import { chartWindow, dayChance, lastRainText, nextDays, nextLikelyRain, rainDueText, shortDate, shortDay, shortSpan } from '../lib/overview.js'
 import { formatSince, precipDays, precipSummary } from '../lib/precipHistory.js'
 import { breakdownCount, breakdownRows, type BreakdownRow } from '../lib/scoreBreakdown.js'
+import { wallDayPair, type WallDayPair } from '../lib/wallLine.js'
 import { useNow } from '../hooks/useNow.js'
 import { useNavigate } from '../hooks/useNavigate.js'
 import { RainNowPill } from './RainNowPill.js'
@@ -45,6 +46,7 @@ import { SkyIcon } from './Icons.js'
 import { RollingFigure, usePreviousFigure } from './RollingFigure.js'
 import { SCORE_EXPLAINER_PATH } from './ScoreExplainer.js'
 import { InlineError, Skeleton } from './States.js'
+import { WallLineRow } from './WallSunShade.js'
 
 /**
  * The crag Overview (owner, 2026-10-29, the overview rework's "A · revised"):
@@ -259,6 +261,8 @@ function Hero({ props, now }: { props: OverviewTabProps; now: Now | null }) {
     },
   ]
   const caveats = [rainDue, now.summary.qualifier, ...now.summary.notes].filter((s): s is string => s !== null)
+  // Sun and shade walls (#445): only a crag with `sun_confirmed` carries any; absent is an older API.
+  const walls = hourly.data?.readings?.walls ?? []
 
   return (
     <HeroFrame name={name} rain={rain} when={at === null ? null : `Score at ${at}`}>
@@ -278,6 +282,16 @@ function Hero({ props, now }: { props: OverviewTabProps; now: Now | null }) {
           ))}
         </div>
       </div>
+      {location === undefined || now.readingAt === null || walls.length === 0 ? null : (
+        <WallLineRow
+          key={location.id}
+          walls={walls}
+          locationId={location.id}
+          validAt={now.readingAt}
+          utcOffsetSeconds={now.utcOffsetSeconds}
+          todayDate={props.todayDate}
+        />
+      )}
       {caveats.length === 0 ? null : <p style={{ ...typeV2.keyRow, margin: '12px 0 0' }}>{caveats.join(' · ')}</p>}
       <Breakdown props={props} now={now} />
     </HeroFrame>
@@ -475,6 +489,9 @@ function NextDaysCard({ props }: { props: OverviewTabProps }) {
   )
   if (days.length === 0) return null
   const skyDays = hourly.data?.sky?.days ?? []
+  // Sun and shade walls (#445): a day whose groups differ by more than ten points shows both in place of the crag's.
+  const walls = isClimbingLocation ? (hourly.data?.readings?.walls ?? []) : []
+  const anyPair = walls.length > 0 && days.some((d) => wallDayPair(walls, d.local_date)?.kind === 'pair')
   return (
     <Card title="Next days" aside={aside}>
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))`, gap: '4px', textAlign: 'center' }}>
@@ -482,13 +499,19 @@ function NextDaysCard({ props }: { props: OverviewTabProps }) {
           const summary = skyDays.find((d) => d.local_date === day.local_date)?.summary ?? null
           const chance = hourly.data === undefined ? null : dayChance(hourly.data.hours, day.local_date)
           const open = props.drawableDates?.has(day.local_date) === true ? () => props.onOpenDay(day.local_date) : null
+          const pair = walls.length === 0 ? null : wallDayPair(walls, day.local_date)
           const content = (
             <>
               {summary === null ? <span style={{ height: '22px' }} /> : <SkyIcon sky={skyDayIcon(summary)} size={22} />}
-              {isClimbingLocation ? (
-                <b style={{ ...typeV2.dayScore, margin: '4px 0 2px', color: day.score === null ? colorsV2.txtMuted : scoreRampColor(day.score) }}>
-                  {day.score ?? EM_DASH}
-                </b>
+              {pair?.kind === 'pair' ? (
+                <DayPair pair={pair} />
+              ) : isClimbingLocation ? (
+                // Beside a pair, a lone score takes the pair's height so every day's name stays on one line.
+                <span style={anyPair ? { display: 'flex', alignItems: 'center', minHeight: `${DAY_PAIR_HEIGHT}px` } : undefined}>
+                  <b style={{ ...typeV2.dayScore, margin: '4px 0 2px', color: day.score === null ? colorsV2.txtMuted : scoreRampColor(day.score) }}>
+                    {day.score ?? EM_DASH}
+                  </b>
+                </span>
               ) : null}
               <span style={{ ...typeV2.daySmall, color: colorsV2.txt2 }}>{shortDay(day.local_date, todayDate)}</span>
               <span style={typeV2.daySmall}>
@@ -515,7 +538,13 @@ function NextDaysCard({ props }: { props: OverviewTabProps }) {
               key={day.local_date}
               type="button"
               onClick={open}
-              aria-label={`${shortDate(day.local_date, todayDate)}: ${day.score === null ? 'no score' : `score ${day.score}`}`}
+              aria-label={`${shortDate(day.local_date, todayDate)}: ${
+                pair?.kind === 'pair'
+                  ? `best wall in sun ${pair.sun ?? 'not scored'}, best wall in shade ${pair.shade ?? 'not scored'}`
+                  : day.score === null
+                    ? 'no score'
+                    : `score ${day.score}`
+              }`}
               style={{ ...bareButton, ...style, width: 'auto' }}
             >
               {content}
@@ -524,6 +553,35 @@ function NextDaysCard({ props }: { props: OverviewTabProps }) {
         })}
       </div>
     </Card>
+  )
+}
+
+/** Two 22px lines and the 2px above them. */
+const DAY_PAIR_HEIGHT = 46
+
+/** A day's best wall in sun over its best in shade, in the crag score's place (#445). A withheld group is a dash. */
+function DayPair({ pair }: { pair: Extract<WallDayPair, { kind: 'pair' }> }) {
+  const one = (icon: string, iconColor: string, score: number | null) => (
+    <b
+      style={{
+        ...typeV2.dayScore,
+        fontSize: '20px',
+        lineHeight: '22px',
+        color: score === null ? colorsV2.txtMuted : scoreRampColor(score),
+        fontVariantNumeric: 'tabular-nums',
+      }}
+    >
+      <span aria-hidden="true" style={{ color: iconColor, fontSize: '14px', marginRight: '1px' }}>
+        {icon}
+      </span>
+      {score ?? EM_DASH}
+    </b>
+  )
+  return (
+    <span style={{ display: 'grid', margin: '2px 0 0' }}>
+      {one('☀', colorsV2.sun, pair.sun)}
+      {one('◐', colorsV2.txtMuted, pair.shade)}
+    </span>
   )
 }
 

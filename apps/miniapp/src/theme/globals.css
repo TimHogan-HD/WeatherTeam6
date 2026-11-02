@@ -361,6 +361,21 @@ textarea {
   transform: rotate(90deg);
 }
 
+/* The wall sheet (`WallSunShade.tsx`, #445): a modal `<dialog>` that rises
+   from the bottom over a dimmed page. */
+.wt6-sheet {
+  animation: wt6-sheet-rise var(--wt6-motion-disclosure-open-ms) var(--wt6-motion-ease-out);
+}
+.wt6-sheet::backdrop {
+  background: color-mix(in srgb, var(--wt6-v2-bg) 62%, transparent);
+}
+@keyframes wt6-sheet-rise {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
 /* Reduced motion: everything settles at once, inline transitions included,
    and a press keeps its dim but not its shrink. Colour and opacity still
    change; they just do not move. */

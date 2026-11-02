@@ -41,6 +41,12 @@ is where the state is kept.
 **Phase 1 (API) is built:** `HourlyReadings.walls` on `/hourly`, paired by `sunShadeAt` and
 `sunShadeOnDay` (`packages/types`). `scoring.md` and `readings.md` hold the rules.
 
+**Phase 2 (Overview) is built:** the idea-4 line under the hero, rule 1's quiet line, the
+wall sheet, the pinned wall per crag on the device, and Next days pairs
+(`apps/miniapp/src/components/WallSunShade.tsx`, `lib/wallLine.ts`). Not built: the two
+wall lines the idea-4 mockup adds to the Today chart. **Phase 3** (the walls × hours grid
+on the Crag tab) is next.
+
 ## Open (owner)
 
 The owner's own field test of Winter Wall at 55 °F and sunny, which settles whether the sun

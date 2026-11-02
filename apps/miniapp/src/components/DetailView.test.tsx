@@ -9,6 +9,7 @@ import type {
   HourlySeries,
   Location,
   RainNow,
+  WallReadings,
   WeatherAlert,
 } from '@weatherteam6/types'
 import { DetailView, type DetailViewProps } from './DetailView.js'
@@ -403,6 +404,48 @@ describe('DetailView — the Score breakdown', () => {
 
   it('is absent when nothing costs a point', () => {
     expect(hero(overview())).not.toContain('Score breakdown')
+  })
+})
+
+describe('DetailView — sun and shade walls (#445)', () => {
+  const T = `${TODAY}T20:00:00.000Z`
+  const wall = (name: string, score: number | null, inSun: boolean, dayScore: number | null = score): WallReadings => ({
+    name,
+    aspect_deg: 180,
+    tree_shaded: false,
+    hours: [{ valid_at: T, score, in_sun: inSun }],
+    days: [{ local_date: TOMORROW, score: dayScore, sun_hours: inSun ? 5 : 0 }],
+  })
+  const withWalls = (walls: WallReadings[]): Over => ({
+    hourly: { ...hourlySeries, readings: { model: 'gfs_seamless', unavailable_reason: null, hours: [], days: [], walls } },
+  })
+
+  it('puts the best wall in sun and in shade on one tappable line under the hero, the crag’s score unchanged', () => {
+    const h = visible(hero(overview(withWalls([wall('Winter Wall', 20, true), wall('Large Roof', 100, false)]))))
+    expect(h).toContain('Winter Wall 20 · ◐ Large Roof 100')
+    expect(h).toContain('Score at 1pm')
+    expect(hero(overview(withWalls([wall('Winter Wall', 20, true), wall('Large Roof', 100, false)])))).toContain('aria-haspopup="dialog"')
+  })
+
+  it('is one quiet line within ten points (rule 1)', () => {
+    const h = visible(hero(overview(withWalls([wall('Winter Wall', 92, true), wall('Large Roof', 100, false)]))))
+    expect(h).toContain('Sun and shade walls alike')
+    expect(h).not.toContain('Winter Wall')
+  })
+
+  it('prints a gap for a withheld group, never the other group’s number', () => {
+    const h = visible(hero(overview(withWalls([wall('Winter Wall', null, true), wall('Large Roof', 100, false)]))))
+    expect(h).toContain('Not scored — · ◐ Large Roof 100')
+  })
+
+  it('draws nothing for a crag without walls, or an older API', () => {
+    expect(visible(hero(overview()))).not.toContain('◐')
+    expect(visible(hero(overview(withWalls([]))))).not.toContain('◐')
+  })
+
+  it('shows a day’s pair in Next days in place of the crag’s day score', () => {
+    const days = card(overview(withWalls([wall('Winter Wall', 20, true, 35), wall('Large Roof', 100, false, 96)])), 'Next days')
+    expect(visible(days)).toContain('☀ 35 ◐ 96')
   })
 })
 

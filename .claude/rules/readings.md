@@ -78,7 +78,13 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   `☀ <best wall in sun> <score> · ◐ <best wall in shade> <score>`, read with `sunShadeAt`
   for the hero's hour, and one quiet line instead when the pair is `alike` (rule 1). Next
   days pairs come from `sunShadeOnDay`. A withheld group prints a gap, never another
-  group's number. The crag's score stays Crag A's everywhere.
+  group's number. The crag's score stays Crag A's everywhere. **Built (Phase 2,
+  `WallSunShade.tsx`, `lib/wallLine.ts`):** the line opens a sheet of every wall (grouped
+  by sun and shade at that hour until walls carry an area, #293) with Auto at the top; a
+  pinned wall is remembered per crag on the device (`wt6.pinnedWalls`) and the line then
+  names it, its score and whether it is in sun, rule 1 or not. A Next days column shows
+  `☀ / ◐` only when its pair is apart; alike, or every wall in one group, keeps the crag's
+  day score.
 - **Sun on the wall** (#415, Rock tab, `SunOnWallCard.tsx`) is the first such surface, gated
   on `KnownCrag.sun_confirmed` through `sunWallsFor` (`packages/types/src/sun.ts`). Each
   face is found in USGS 1 m lidar and named for the nearest OpenBeta wall (owner,
