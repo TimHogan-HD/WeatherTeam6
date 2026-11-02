@@ -141,9 +141,14 @@ describe('condensationA', () => {
     const cond = (i: number) => out[i]!.diagnostics.penalties!.condensation
     const night = 4 * 24 + 4
     const afternoon = 4 * 24 + 14
-    expect(out[afternoon]!.condensation_margin_c!).toBeLessThan(0)
+    expect(out[afternoon]!.diagnostics.t_mass_c! - 13).toBeLessThan(0)
     expect(cond(night)).toBe(CONDENSATION_FLOOR)
     expect(cond(afternoon)).toBeGreaterThan(CONDENSATION_FLOOR)
+    // The published margin and flag are the ones the score read, not the mass's.
+    expect(out[night]!.condensation_margin_c!).toBeLessThan(0)
+    expect(out[night]!.friction?.condensing).toBe(true)
+    expect(out[afternoon]!.condensation_margin_c!).toBeGreaterThan(0)
+    expect(out[afternoon]!.friction?.condensing).toBe(false)
   })
 })
 

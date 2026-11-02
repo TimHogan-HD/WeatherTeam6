@@ -604,7 +604,12 @@ function finish(
       ? null
       : { wet_rock: Math.pow(Math.min(1, Math.max(0, dryness)), DRYNESS_EXPONENT), ...fp }
   const fLevel = frictionLevel(friction)
-  const condensing = isCondensing(base.condensation_margin_c)
+  // The margin the score read: the median wall's, sun included (2026-11-02), so
+  // the Rock tab cannot say condensing while the score takes nothing off.
+  const dew = weather.dewpoint_c
+  const margin =
+    fp === null || massTempC === null || dew === null ? null : median(excess.map((x) => massTempC + x! - dew))
+  const condensing = isCondensing(margin)
   const level = rockLevelA(dryness, rockType)
   const rLevel = level !== null && rainingOnFragile ? 'wet' : level
   return {
@@ -617,7 +622,7 @@ function finish(
       fLevel === null || condensing === null ? null : { level: fLevel, condensing, qualified: true },
     score,
     t_surface_c: base.t_surface_c,
-    condensation_margin_c: base.condensation_margin_c,
+    condensation_margin_c: margin,
     diagnostics: {
       t_mass_c: massTempC,
       skin_wettedness: null,

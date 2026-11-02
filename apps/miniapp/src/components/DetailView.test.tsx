@@ -385,7 +385,7 @@ describe('DetailView — the Score breakdown', () => {
 
   it('names condensation with no figure, says the rock temperature is modelled, and omits an eases the run does not reach', () => {
     const text = visible(hero(overview(held())))
-    expect(text).toContain('Condensation Points come off when the rock is within 3.6°F of its dew point.')
+    expect(text).toContain('Condensation Points come off when the rock is within 3.6°F of its dew point, at most 50% of the score.')
     expect(text).toContain('modelled, not measured')
     expect(text.match(/Eases/g)).toHaveLength(1)
   })

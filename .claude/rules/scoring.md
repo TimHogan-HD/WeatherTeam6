@@ -109,8 +109,8 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   `CONDENSATION_FLOOR` (0.5, a guess). `T_mass` alone is a days-long air average; read as
   the rock it zeroed 15 sunlit hours at Red Wing and Sandstone on 10/31–11/1, all checked
   dry in the field. The margin takes the sun, so a missing shortwave withholds friction.
-  `condensation_margin_c` and `friction.condensing` on the response are still the mass
-  margin (#436).
+  Crag A's and Wall A's `condensation_margin_c` and `friction.condensing` are that median
+  wall's margin, the one the score read, so the Rock tab and Score breakdown agree.
 - **Every factor ramp reaches its floor at its own band edge — no factor may step** (#148). A
   new factor or band gets a test that walks its input in tenths past both edges.
   `TEMP_BAND_C` no longer feeds any score; it only colours the client's temperature chart.
