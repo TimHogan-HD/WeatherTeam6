@@ -14,6 +14,9 @@
  *    wrong is the shipped four-model median — and how wrong is the airport
  *    gauge `compare:dryness` uses as its truth, moved to the crag?
  *
+ * Question 1 also scores two ways of letting radar overrule the median
+ * (`radarVeto`). They are left out of question 2, whose truth is radar itself.
+ *
  * Network only — no database.
  */
 import { readFileSync } from 'node:fs'
@@ -41,6 +44,30 @@ const PAUSE_MS = 20_000
 type HourKey = string
 const hourKey = (d: Date): HourKey => d.toISOString().slice(0, 13)
 type Rain = (key: HourKey) => number | null
+
+/** The hours the shipped median averages each model over (`RAIN_WINDOW`: three before, two after). */
+const VETO_WINDOW = [-3, -2, -1, 0, 1, 2]
+const shiftKey = (k: HourKey, h: number): HourKey => hourKey(new Date(Date.parse(`${k}:00:00Z`) + h * 3_600_000))
+
+/**
+ * **Radar overrules the models** (owner, 2026-11-02: cut days lost to rain that
+ * never fell). Where radar read under `WET_MM` across the median's whole six-hour
+ * window, the hour is dry whatever the models said. Otherwise the median stands,
+ * or with `larger` the larger of radar and the median. An hour of the window radar
+ * has no value for leaves the median alone, as production would while Pass2 lags.
+ */
+function radarVeto(radar: Rain, median: Rain, larger: boolean): Rain {
+  return (k) => {
+    const m = median(k)
+    if (m === null) return null
+    const window = VETO_WINDOW.map((h) => radar(shiftKey(k, h)))
+    if (window.some((v) => v === null)) return m
+    const total = window.reduce<number>((s, v) => s + (v ?? 0), 0)
+    if (total < WET_MM) return 0
+    const r = radar(k)
+    return larger && r !== null ? Math.max(r, m) : m
+  }
+}
 
 async function text(url: string): Promise<string> {
   const res = await fetchWithRetry(url)
@@ -231,6 +258,8 @@ async function run(): Promise<void> {
               const b = ap.shipped.get(k) ?? null
               return a === null || b === null ? null : Math.max(a, b)
             }],
+            ['radar veto on shipped', radarVeto(mAirport, (k) => ap.shipped.get(k) ?? null, false)],
+            ['radar veto, else larger', radarVeto(mAirport, (k) => ap.shipped.get(k) ?? null, true)],
           ], rock)
       }
 
