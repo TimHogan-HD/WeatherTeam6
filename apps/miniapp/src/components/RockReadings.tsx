@@ -16,9 +16,13 @@ import { formatSince, precipDays, precipSummary } from '../lib/precipHistory.js'
 import {
   CONDENSATION_EDGE_F,
   MARGIN_AHEAD_HOURS,
-  condensationHoursAhead,
+  MARGIN_ZONE_LABELS,
+  condensationHeadline,
   drynessNow,
   marginSeries,
+  marginWords,
+  marginZone,
+  type MarginZone,
 } from '../lib/rockReadings.js'
 import { useNow } from '../hooks/useNow.js'
 import { bleed, keyInset, sectCard } from './charts/DayCharts.js'
@@ -26,6 +30,7 @@ import { chartColorsV2 } from './charts/chartStyle.js'
 import {
   Bead,
   KeyRow,
+  Label,
   LiquidFrame,
   ScaleFigure,
   Sect,
@@ -43,7 +48,8 @@ import { Stats } from './StatTiles.js'
  * The Rock tab's live readings, above the field guide (owner, 2026-10-19,
  * reversing the 2026-09-30 removal of the drying card): the drying clock with
  * the rock's Dryness and its drying window, and how far the rock sits above
- * its dew point over 48 hours.
+ * its dew point over the next 42 hours, in three named zones (owner,
+ * 2026-11-02, variant A): dew on rock under 0°, close to dew under the edge.
  *
  * **The condensation edge is the score's own**: `SCORE_MODEL_FACTS
  * .condensationClearMarginC`, under which Crag A starts taking grip away. The
@@ -121,9 +127,9 @@ export function CondensationCard({
   if (values.length === 0 || first === undefined || last === undefined) return null
 
   const ticks = niceTicks(Math.min(0, ...values), Math.max(CONDENSATION_EDGE_F * 2, ...values))
-  // Printed to the tenth the shading uses (2 °C is 3.6°F), so an hour at 3.8°F is never called "more than 4°F".
+  // Printed to the tenth the zones use (2 °C is 3.6°F), so an hour at 3.8°F is never called "more than 4°F".
   const edge = Number(CONDENSATION_EDGE_F.toFixed(1))
-  // The ticks' figures stand at the left, as every chart's do; the key names the edge.
+  // The ticks' figures stand at the left, as every chart's do; the zones are named inside the chart.
   const axis = timeAxis(first.t, Math.max(last.t, first.t + 3_600_000), {
     left: Math.max(0, ...ticks.map((v) => `${v}°`.length)),
     right: 0,
@@ -135,9 +141,12 @@ export function CondensationCard({
   const nowHour = instants.reduce<number | null>((b, t) => (b === null || Math.abs(t - now) < Math.abs(b - now) ? t : b), null)
   const read = readMs !== null && instants.includes(readMs) ? readMs : nowHour
   const readHour = series.find((h) => h.t === read) ?? null
-  const half = (axis.x(first.t + 3_600_000) - axis.x(first.t)) / 2
-  const ahead = series.filter((h) => h.t > now && h.marginF !== null).length
-  const condHours = condensationHoursAhead(series, now)
+  const zone = readHour === null || readHour.marginF === null ? null : marginZone(readHour.marginF)
+  // A zone's band and its name, drawn only where the scale reaches it and there is room for the name.
+  const bands: { zone: MarginZone; top: number; bottom: number; color: string }[] = [
+    { zone: 'dew', top: y(0), bottom: y(lo), color: colorsV2.poorInk },
+    { zone: 'near', top: y(CONDENSATION_EDGE_F), bottom: y(0), color: colorsV2.fairInk },
+  ]
   const runs = runsOf(
     series.map((h) => ({ t: h.t, v: h.marginF })),
     (h) => h.v !== null,
@@ -145,7 +154,10 @@ export function CondensationCard({
 
   return (
     <section style={sectCard}>
-      <Sect title="Condensation" aside={`°F rock above dew point · ${MARGIN_AHEAD_HOURS + 6} h`} />
+      <Sect title="Condensation" aside={`°F rock vs dew point · next ${MARGIN_AHEAD_HOURS} h`} />
+      <p style={{ ...typeV2.lead, color: colorsV2.txt1, fontWeight: '600', margin: '0 0 8px' }}>
+        {condensationHeadline(series, now, utcOffsetSeconds)}
+      </p>
       <div style={bleed}>
         <LiquidFrame
           height={H}
@@ -156,48 +168,61 @@ export function CondensationCard({
           utcOffsetSeconds={utcOffsetSeconds}
           nowMs={now}
           read={{ ms: read, onRead: setReadMs }}
-          title={`How far the rock sits above its dew point, six hours back and ${MARGIN_AHEAD_HOURS} ahead; hours within ${edge}°F shaded`}
+          title={`How far the rock sits above or below its dew point, now and ${MARGIN_AHEAD_HOURS} hours ahead: under 0° dew on rock, under ${edge}° close to dew`}
           readout={[
             {
-              label: 'rock above dew',
-              value: readHour === null || readHour.marginF === null ? EM_DASH : `${Math.round(readHour.marginF)}°F`,
+              label: zone === null ? 'rock vs dew' : MARGIN_ZONE_LABELS[zone],
+              value:
+                readHour === null || readHour.marginF === null
+                  ? EM_DASH
+                  : marginWords(readHour.marginF),
               color: colorsV2.dewMargin,
             },
           ]}
         >
+          {bands.map((b) =>
+            b.bottom - b.top <= 0 ? null : (
+              <rect
+                key={b.zone}
+                x={axis.left}
+                y={b.top}
+                width={axis.right - axis.left}
+                height={b.bottom - b.top}
+                fill={b.color}
+                opacity={0.14}
+                data-zone={b.zone}
+              />
+            ),
+          )}
           {ticks.map((v) => (
             <g key={v}>
               <line x1={axis.left} x2={axis.right} y1={y(v)} y2={y(v)} stroke={chartColorsV2.grid} />
               <ScaleFigure side="start" y={y(v)}>{`${v}°`}</ScaleFigure>
             </g>
           ))}
-          {now > first.t ? (
-            <rect x={axis.left} y={TOP} width={Math.max(0, axis.x(Math.min(now, last.t)) - axis.left)} height={H - BOTTOM - TOP} fill={chartColorsV2.past} />
-          ) : null}
-          {series.map((h) =>
-            h.marginF === null || h.marginF >= CONDENSATION_EDGE_F ? null : (
-              <rect
-                key={h.t}
-                x={axis.x(h.t) - half}
-                y={TOP}
-                width={half * 2}
-                height={H - BOTTOM - TOP}
-                fill={colorsV2.poorInk}
-                opacity={0.14}
-                data-condensing=""
-              />
-            ),
-          )}
+          <line x1={axis.left} x2={axis.right} y1={y(0)} y2={y(0)} stroke={colorsV2.poorInk} strokeWidth={1.2} opacity={0.8} />
           <line
             x1={axis.left}
             x2={axis.right}
             y1={y(CONDENSATION_EDGE_F)}
             y2={y(CONDENSATION_EDGE_F)}
-            stroke={colorsV2.poorInk}
+            stroke={colorsV2.fairInk}
             strokeWidth={1.2}
             strokeDasharray="4 4"
             opacity={0.8}
           />
+          {bands.map((b) =>
+            b.bottom - b.top < 14 ? null : (
+              <Label key={b.zone} x={axis.right - 4} y={b.bottom - 4} anchor="end" color={b.color}>
+                {MARGIN_ZONE_LABELS[b.zone]}
+              </Label>
+            ),
+          )}
+          {y(CONDENSATION_EDGE_F) - TOP < 14 ? null : (
+            <Label x={axis.right - 4} y={TOP + 10} anchor="end">
+              {MARGIN_ZONE_LABELS.clear}
+            </Label>
+          )}
           {runs.map((pts, i) => (
             <Tube key={i} d={smoothPath(pts)} stroke={colorsV2.dewMargin} width={4} />
           ))}
@@ -208,18 +233,13 @@ export function CondensationCard({
         <div style={keyInset}>
           <KeyRow
             keys={[
-              { label: 'rock above dew point', swatch: { kind: 'line', background: colorsV2.dewMargin } },
-              { label: `within ${edge}° of dew`, swatch: { kind: 'block', background: colorsV2.poorInk, opacity: 0.4 } },
+              { label: 'rock above or below dew point', swatch: { kind: 'line', background: colorsV2.dewMargin } },
             ]}
           />
         </div>
       </div>
       <p style={{ ...typeV2.rowSmall, margin: '12px 0 0' }}>
-        {ahead === 0
-          ? 'No rock readings for the hours ahead.'
-          : condHours > 0
-            ? `${condHours} of the next ${ahead} hours bring the rock within ${edge}°F of its dew point, where the score starts to count condensation against grip.`
-            : `The rock stays more than ${edge}°F above its dew point for the next ${ahead} hours.`}
+        {`Under ${edge}°F the score counts condensation against grip. The rock temperature is modelled, so the zones are likely, not certain.`}
       </p>
       {/* Said once in the app, here (owner, 2026-10-29: it left the Overview). */}
       {readings?.hours.some((h) => h.friction != null) === true ? (
