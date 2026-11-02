@@ -84,7 +84,11 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   pinned wall is remembered per crag on the device (`wt6.pinnedWalls`) and the line then
   names it, its score and whether it is in sun, rule 1 or not. A Next days column shows
   `☀ / ◐` only when its pair is apart; alike, or every wall in one group, keeps the crag's
-  day score.
+  day score. **Phase 3 (`guidebook/WallGrid.tsx`, `lib/wallGrid.ts`):** the Crag tab's
+  walls × hours grid, every wall's Wall A score for each of the reader's climbing hours
+  (placed by the stamp's local hour, as `inClimbHours` counts them), ringed while in sun. A
+  wall missing an hour is a blank cell, never a neighbour's figure. A row pins its wall, the
+  same pin as the sheet.
 - **Sun on the wall** (#415, Rock tab, `SunOnWallCard.tsx`) is the first such surface, gated
   on `KnownCrag.sun_confirmed` through `sunWallsFor` (`packages/types/src/sun.ts`). Each
   face is found in USGS 1 m lidar and named for the nearest OpenBeta wall (owner,

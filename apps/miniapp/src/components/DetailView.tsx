@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { spacing } from '@weatherteam6/design/tokens'
 import type {
+  ClimbHours,
   DetailTabKey,
   Conditions,
   ForecastSnapshot,
@@ -12,7 +13,7 @@ import type {
   Wall,
   WeatherAlert,
 } from '@weatherteam6/types'
-import { GUIDEBOOK_SOURCE_LABEL, RECENT_PRECIP_SOURCE_LABEL, SUN_WALLS_SOURCE_LABEL, sunWallsFor } from '@weatherteam6/types'
+import { CLIMB_HOURS_DEFAULT, GUIDEBOOK_SOURCE_LABEL, RECENT_PRECIP_SOURCE_LABEL, SUN_WALLS_SOURCE_LABEL, sunWallsFor } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { stack } from '../theme/styles.js'
 import { findToday, forecastSourceLabel } from '../lib/forecast.js'
@@ -137,6 +138,8 @@ export type DetailViewProps = {
   location?: Location
   /** The OpenBeta guidebook, for the Crag tab. Optional only so a test can render without it; `LocationDetail` always passes it. */
   guidebook?: CragTabProps['guidebook'] & Pick<CragTabProps, 'locationId' | 'at'>
+  /** The reader's climbing hours, the Crag tab's wall grid's columns. The default until preferences load. */
+  climbHours?: ClimbHours
 }
 
 /** The Next 7 days card's height (the V2 frame's 685), held open while the forecast loads on the Daily tab. */
@@ -191,6 +194,7 @@ export function DetailView({
   walls,
   location,
   guidebook,
+  climbHours = CLIMB_HOURS_DEFAULT,
 }: DetailViewProps) {
   const showScore = isClimbingLocation
   const activeAlertCount = alerts?.data?.length ?? 0
@@ -379,6 +383,16 @@ export function DetailView({
               hourly?.refetch()
             },
           }}
+          wallHours={
+            showScore && hourly?.data !== undefined
+              ? {
+                  walls: hourly.data.readings?.walls ?? [],
+                  todayDate: findToday(forecast.data)?.forecast_date ?? null,
+                  climbHours,
+                  utcOffsetSeconds: hourly.data.utc_offset_seconds,
+                }
+              : null
+          }
           onOpenOverview={() => tabs.onTabChange('overview')}
         />
       )

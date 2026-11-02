@@ -12,6 +12,7 @@ import { recentOf, swipeDirection, swipeOf, switcherOptions, switchState } from 
 import type { CragChoice } from '../components/CragBar.js'
 import { usePreferences } from '../hooks/usePreferences.js'
 import { draftFromPreferences } from '../lib/preferencesForm.js'
+import { effectiveClimbHours } from '@weatherteam6/types'
 import { useAlerts, useConditions, useForecast, useRainNow } from '../hooks/useWeather.js'
 import { useHourly } from '../hooks/useHourly.js'
 import { useNow } from '../hooks/useNow.js'
@@ -240,6 +241,7 @@ export function LocationDetail() {
           locationId: id ?? '',
           at: { wallId: wallId ?? null, routeId: routeId ?? null },
         }}
+        {...(prefs === undefined ? {} : { climbHours: effectiveClimbHours(prefs) })}
       />
 
       {/*

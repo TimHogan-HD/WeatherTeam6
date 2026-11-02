@@ -1,6 +1,6 @@
 # Sun and shade walls on the Overview: handoff v1
 
-Phase 1 built; Phases 2 and 3 queued (owner, 2026-11-02). Tracking issue: **#445**, which holds the plan, the open
+Phases 1–3 built (owner queued them 2026-11-02). Tracking issue: **#445**, which holds the plan, the open
 decisions and the evidence. This file is the entry point a new session reads first; the issue
 is where the state is kept.
 
@@ -44,8 +44,14 @@ is where the state is kept.
 **Phase 2 (Overview) is built:** the idea-4 line under the hero, rule 1's quiet line, the
 wall sheet, the pinned wall per crag on the device, and Next days pairs
 (`apps/miniapp/src/components/WallSunShade.tsx`, `lib/wallLine.ts`). Not built: the two
-wall lines the idea-4 mockup adds to the Today chart. **Phase 3** (the walls × hours grid
-on the Crag tab) is next.
+wall lines the idea-4 mockup adds to the Today chart.
+
+**Phase 3 (Crag tab) is built:** the walls × hours grid under the Crag tab's Now card
+(`components/guidebook/WallGrid.tsx`, `lib/wallGrid.ts`). One row per lidar wall, A–Z until
+walls carry an area (#293); one column per hour of the reader's climbing hours, today's or
+tomorrow's once today's are over; each cell is Wall A's score on the score ramp, ringed in
+`sun` while the sun is on the wall. Tapping a row pins that wall (the Overview's pin), and
+tapping the pinned row returns to Auto. Not built: the area grouping, which waits on #293.
 
 ## Open (owner)
 
