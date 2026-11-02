@@ -13,7 +13,7 @@ there is no tester gate.
 | Model | Where | Status |
 |---|---|---|
 | **Crag A** (`evaluateCragA`) | `cragModel.ts` | **Live.** Every crag's score, list card, detail screen, daily pills |
-| **Wall A** (`evaluateWallA`) | `cragModel.ts` | Built, **not called**. Scores one recorded wall; never a crag's score |
+| **Wall A** (`evaluateWallA`) | `cragModel.ts` | **Live** beside the crag's score: each lidar wall of a `sun_confirmed` crag on `/hourly` (`lib/runs/wallReadings.ts`, #445). Never a crag's score |
 | v2 layers (`rockThermal`, `hourlyConditions`) | `lib/scoring/` | Live as **inputs** to Crag A (`T_mass`, `T_surface`, drying rate). Its own score and sweat-balance friction reach no response |
 
 Where the research lives: `.claude/docs/crag-a-reference/README.md` (why these two models, the
