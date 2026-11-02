@@ -852,6 +852,33 @@ export const weatherEnsembleHours = pgTable(
   (t) => [primaryKey({ columns: [t.run_id, t.valid_at] })],
 )
 
+/**
+ * **Measured rain at a crag, one row per hour:** NOAA MRMS gauge-corrected
+ * radar (MultiSensor QPE 01H Pass2), written by `POST /api/cron/collect-radar`
+ * (`lib/runs/radarRain.ts`). The drying clock reads it through `radarChecked`
+ * (`lib/weather/rainMedian.ts`) to overrule the models' rain.
+ *
+ * **US only.** A place outside MRMS's CONUS grid gets no rows, and its clock
+ * reads the models' median as before.
+ *
+ * `cell_key` is `radarKeyFor`: coordinates only, because radar does not depend
+ * on the elevation a forecast is asked for. No `location_id`, so
+ * `deleteLocationCascade` does not touch it. `valid_at` is the END of the hour
+ * the rain fell in, the way Open-Meteo stamps hourly rain; it is an observation
+ * time, so pruning by it is right here (unlike `weather_run_hours`).
+ */
+export const radarRainHours = pgTable(
+  'radar_rain_hours',
+  {
+    cell_key: text('cell_key').notNull(),
+    valid_at: timestamp('valid_at', { withTimezone: true }).notNull(),
+    /** Null when the file was read and radar had no value at this cell (no coverage). Never 0 for that. */
+    precip_mm: doublePrecision('precip_mm'),
+    fetched_at: timestamp('fetched_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.cell_key, t.valid_at] })],
+)
+
 // ─────────────────────────────────────────────
 // Guidebook — the logbook and recorded boulder positions
 // ─────────────────────────────────────────────

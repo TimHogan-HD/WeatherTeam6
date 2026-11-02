@@ -29,7 +29,7 @@ import {
   fetchWithRetry,
   localTimeToUtc,
 } from '../lib/weather/openMeteo.js'
-import { rainMedian } from '../lib/weather/rainMedian.js'
+import { radarChecked, rainMedian } from '../lib/weather/rainMedian.js'
 import { MRMS_PAIRS } from './mrmsPoints.js'
 
 const PAST_DAYS = 90
@@ -45,27 +45,18 @@ type HourKey = string
 const hourKey = (d: Date): HourKey => d.toISOString().slice(0, 13)
 type Rain = (key: HourKey) => number | null
 
-/** The hours the shipped median averages each model over (`RAIN_WINDOW`: three before, two after). */
-const VETO_WINDOW = [-3, -2, -1, 0, 1, 2]
-const shiftKey = (k: HourKey, h: number): HourKey => hourKey(new Date(Date.parse(`${k}:00:00Z`) + h * 3_600_000))
-
 /**
  * **Radar overrules the models** (owner, 2026-11-02: cut days lost to rain that
- * never fell). Where radar read under `WET_MM` across the median's whole six-hour
- * window, the hour is dry whatever the models said. Otherwise the median stands,
- * or with `larger` the larger of radar and the median. An hour of the window radar
- * has no value for leaves the median alone, as production would while Pass2 lags.
+ * never fell). With `larger`, the rule the app ships (`radarChecked`). Without
+ * it, the plain veto the owner did not choose, kept for comparison: radar dry
+ * across the window zeroes the hour, and otherwise the median stands.
  */
 function radarVeto(radar: Rain, median: Rain, larger: boolean): Rain {
+  const radarAt = (ms: number) => radar(hourKey(new Date(ms)))
   return (k) => {
     const m = median(k)
-    if (m === null) return null
-    const window = VETO_WINDOW.map((h) => radar(shiftKey(k, h)))
-    if (window.some((v) => v === null)) return m
-    const total = window.reduce<number>((s, v) => s + (v ?? 0), 0)
-    if (total < WET_MM) return 0
-    const r = radar(k)
-    return larger && r !== null ? Math.max(r, m) : m
+    const checked = radarChecked(m, Date.parse(`${k}:00:00Z`), radarAt)
+    return larger || checked.precip_mm === 0 ? checked.precip_mm : m
   }
 }
 

@@ -43,3 +43,15 @@ export function pointKeyForPlace(place: ForecastPlace): string {
   const elevation = elevation_m === null ? 'none' : String(Math.round(elevation_m))
   return `pt:${lat.toFixed(COORD_PLACES)},${lon.toFixed(COORD_PLACES)}@${elevation}`
 }
+
+/**
+ * The identity of a radar cell, for `radar_rain_hours.cell_key`: coordinates
+ * only, since radar rain does not depend on the elevation a forecast is asked
+ * for. Same rounding as `pointKeyForPlace`, so one crag is one key.
+ *
+ * @throws {Error} when a coordinate is not a finite number.
+ */
+export function radarKeyFor(p: { readonly lat: number; readonly lon: number }): string {
+  if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon)) throw new Error('radarKeyFor: lat and lon must be finite')
+  return `r:${p.lat.toFixed(COORD_PLACES)},${p.lon.toFixed(COORD_PLACES)}`
+}

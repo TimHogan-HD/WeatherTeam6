@@ -109,5 +109,9 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
 - **`weather_run_hours` and `weather_ensemble_hours` key off `run_id`**; `pruneWeatherRuns`
   and `deleteRunsForPoint` delete children first, driven by the parent rows. Never prune hours
   by their `valid_at`, which is a forecast time.
+- **`radar_rain_hours` is observed rain, keyed by `radarKeyFor` (coordinates, no elevation)**
+  and pruned by `valid_at` past `RADAR_RETENTION_MS` (8 days), which is right for an
+  observation time. A null `precip_mm` is radar with no value at that cell, never 0. About
+  24 rows per US crag a day.
 - **No run stores `raw`** (since 2026-09-29). **Retention is 2 days** (`pruneRuns.ts`) because
   Neon's free tier caps the project at 512 MB — a capacity limit, not a preference.

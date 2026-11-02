@@ -222,6 +222,8 @@ export type BuildInput = {
   /** Whether to include every model that answered. `?models=all`. */
   allModels: boolean
   now: Date
+  /** NOAA radar rain at the crag for the drying clock (`loadRadarRain`); absent or null reads the models alone. */
+  radarRain?: ReadonlyMap<number, number | null> | null
   /**
    * The crag facts the v2 readings need, or **null for a location that is not a
    * crag**.
@@ -316,6 +318,7 @@ export function buildHourlySeries(input: BuildInput): HourlySeries {
           ...(input.scoring.range === undefined ? {} : { range: input.scoring.range }),
           ...(input.scoring.climbHours === undefined ? {} : { climbHours: input.scoring.climbHours }),
           walls: input.scoring.walls,
+          radarRain: input.radarRain ?? null,
         })
 
   const series: HourlySeries = {

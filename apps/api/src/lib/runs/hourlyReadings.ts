@@ -57,6 +57,7 @@ import {
   type TempRangeC,
 } from '../scoring/cragModel.js'
 import { localDateString } from '../weather/openMeteo.js'
+import { radarChecked } from '../weather/rainMedian.js'
 import { buildWallReadings, type ScoringWall } from './wallReadings.js'
 import type { DeterministicRuns, ModelRun } from './latestRuns.js'
 
@@ -112,11 +113,18 @@ export type BuildReadingsInput = {
   climbHours?: ClimbHours
   /** The crag's lidar walls, scored one by one beside it (#445); absent or empty, none. */
   walls?: readonly ScoringWall[]
+  /**
+   * NOAA radar rain at the crag, keyed by the hour's end in epoch ms
+   * (`loadRadarRain`). Absent or null: outside the US, not stored yet, or the
+   * read failed, and the clock reads the models alone.
+   */
+  radarRain?: ReadonlyMap<number, number | null> | null
 }
 
 const none = (reason: ReadingsUnavailableReason): HourlyReadings => ({
   model: null,
   rain_models: null,
+  rain_radar: false,
   unavailable_reason: reason,
   hours: [],
   days: [],
@@ -145,20 +153,38 @@ function toReading(h: CragAHour): HourlyReading {
  * could not be formed for is a gap, and the clock withholds from it. A run
  * stored before the median existed has none, and reads its own rain whole —
  * never mixed hour by hour, so `rain_models` can name one source.
+ *
+ * **Radar then overrules the median where it can** (`radarChecked`, owner
+ * 2026-11-02): only the median, because that is what `compare:mrms` measured
+ * the rule against. `byRadar` says whether any hour was decided by it.
  */
-function toWeatherHours(model: ModelRun): WeatherHour[] {
+function toWeatherHours(
+  model: ModelRun,
+  radar: ReadonlyMap<number, number | null> | null,
+): { hours: WeatherHour[]; byRadar: boolean } {
   const median = model.rain_models !== null
-  return [...model.hours]
+  const radarAt = (ms: number) => radar?.get(ms)
+  let byRadar = false
+  const hours = [...model.hours]
     .sort((a, b) => a.valid_at.getTime() - b.valid_at.getTime())
-    .map((h) => ({
-      valid_at: h.valid_at.toISOString(),
-      air_temp_c: h.temp_c,
-      dewpoint_c: h.dewpoint_c,
-      wind_kmh: h.wind_kmh,
-      cloud_pct: h.cloud_pct,
-      shortwave_wm2: h.shortwave_wm2,
-      precip_mm: median ? h.rain_median_mm : h.precip_mm,
-    }))
+    .map((h) => {
+      let precip_mm = median ? h.rain_median_mm : h.precip_mm
+      if (median && radar !== null) {
+        const checked = radarChecked(precip_mm, h.valid_at.getTime(), radarAt)
+        precip_mm = checked.precip_mm
+        byRadar ||= checked.byRadar
+      }
+      return {
+        valid_at: h.valid_at.toISOString(),
+        air_temp_c: h.temp_c,
+        dewpoint_c: h.dewpoint_c,
+        wind_kmh: h.wind_kmh,
+        cloud_pct: h.cloud_pct,
+        shortwave_wm2: h.shortwave_wm2,
+        precip_mm,
+      }
+    })
+  return { hours, byRadar }
 }
 
 /**
@@ -255,7 +281,7 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
   if (model === undefined || model.hours.length === 0) return none('model_unavailable')
 
   // Crag A (`cragModel.ts`): the crag's score, whatever wall the location records.
-  const weather = toWeatherHours(model)
+  const { hours: weather, byRadar } = toWeatherHours(model, input.radarRain ?? null)
   const evaluated = evaluateCragA(weather, {
     rockType: input.rockType,
     lat: input.lat,
@@ -308,6 +334,7 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
   return {
     model: THERMAL_MODEL,
     rain_models: model.rain_models === null ? [THERMAL_MODEL] : [...model.rain_models],
+    rain_radar: byRadar,
     unavailable_reason: null,
     hours: windowed.map(toReading),
     days,

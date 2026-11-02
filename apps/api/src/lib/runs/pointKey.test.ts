@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pointKeyForPlace } from './pointKey.js'
+import { pointKeyForPlace, radarKeyFor } from './pointKey.js'
 
 describe('pointKeyForPlace', () => {
   it('gives two saved copies of the same crag one key', () => {
@@ -34,5 +34,16 @@ describe('pointKeyForPlace', () => {
       pointKeyForPlace({ lat: 0, lon: Number.POSITIVE_INFINITY, elevation_m: null }),
     ).toThrow()
     expect(() => pointKeyForPlace({ lat: 0, lon: 0, elevation_m: Number.NaN })).toThrow()
+  })
+})
+
+describe('radarKeyFor', () => {
+  it('is the coordinates alone, rounded as the point key rounds them', () => {
+    expect(radarKeyFor({ lat: 44.56251, lon: -92.53379 })).toBe('r:44.5625,-92.5338')
+    expect(radarKeyFor({ lat: 44.56251, lon: -92.53379 })).toBe(radarKeyFor({ lat: 44.56249, lon: -92.53381 }))
+  })
+
+  it('throws on a coordinate that is not a number, rather than keying every broken point together', () => {
+    expect(() => radarKeyFor({ lat: Number.NaN, lon: -92 })).toThrow()
   })
 })

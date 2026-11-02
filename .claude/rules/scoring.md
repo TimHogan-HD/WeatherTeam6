@@ -102,6 +102,15 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   `REWETTING_PRECIP_MM` (`packages/types`, re-exported as
   `hourlyConditions.SIGNIFICANT_HOURLY_PRECIP_MM`), is named under it when a lighter shower
   fell since, and is what the drying clock and "since real rain" count from.
+- **At a US crag, NOAA radar overrules that median, cautiously** (owner, 2026-11-02,
+  `radarChecked` in `rainMedian.ts`, measured by `compare:mrms` #452): radar under
+  `MEASURABLE_PRECIP_MM` across the median's whole six-hour window zeroes the hour; radar
+  rain there gives the larger of radar's hour and the median, never less than the models.
+  Any hour of the window without radar (outside the US, not collected yet, the newest three
+  or four hours) leaves the median. Only a median-carrying run is checked. `readings.rain_radar`
+  is true when radar decided an hour, and the Right now source line then says
+  "checked against NOAA radar". **The Precip tab still draws the median alone**, so on a
+  vetoed shower it can show rain the clock did not count.
 - **There is one drying table, `MIN_HOURS`/`MAX_HOURS` in `packages/types/src/dryingWindow.ts`, and everything
   imports it.** Never reintroduce a copy. Not-recorded kinds (`sandstone`, `limestone`,
   `basalt`) take their family's slowest window and `unknown` is the slowest row.

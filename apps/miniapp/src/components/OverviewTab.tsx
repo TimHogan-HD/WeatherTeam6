@@ -649,9 +649,13 @@ function RightNowCard({ props }: { props: OverviewTabProps }) {
   // by name, since the hero's Dryness rests on them (`dryingRainMechanism`'s rule).
   const rainModels = props.conditions?.data?.readings?.rain_models ?? null
   const rainNames = rainModels === null ? [] : [...new Set(rainModels.map(modelName))]
+  // Radar is named only when the response says it decided an hour (`rain_radar`, 2026-11-02).
+  const radar = props.conditions?.data?.readings?.rain_radar === true ? ', checked against NOAA radar' : ''
   const sources = [
     series?.model == null ? null : `Air: ${modelName(series.model)}`,
-    rainNames.length === 0 ? null : rainNames.length === 1 ? `rain: ${rainNames[0]}` : `rain: median of ${rainNames.join(', ')}`,
+    rainNames.length === 0
+      ? null
+      : `${rainNames.length === 1 ? `rain: ${rainNames[0]}` : `rain: median of ${rainNames.join(', ')}`}${radar}`,
   ].filter((s): s is string => s !== null)
 
   return (

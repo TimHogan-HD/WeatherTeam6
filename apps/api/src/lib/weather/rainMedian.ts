@@ -34,7 +34,7 @@
  * Irradiance is still never pooled (issue #155). This pools precipitation
  * alone, and the readings name the models it came from.
  */
-import type { RecentPrecip, RecentPrecipHour } from '@weatherteam6/types'
+import { MEASURABLE_PRECIP_MM, type RecentPrecip, type RecentPrecipHour } from '@weatherteam6/types'
 import {
   GLOBAL_DETERMINISTIC_MODELS,
   type DeterministicResult,
@@ -160,4 +160,43 @@ export function recentPrecipMedian(fetched: RecentPrecipByModel): RecentPrecip {
     from_date: fetched.from_date,
     models: hours.length > 0 ? answered.map((m) => m.model) : [],
   }
+}
+
+/**
+ * **Radar overrules the median, cautiously** (owner, 2026-11-02, after #452).
+ * `radarAt` is NOAA MRMS gauge-corrected hourly rain at the crag, keyed by the
+ * hour's end in epoch ms; absent and null both mean "radar has nothing".
+ *
+ * - **Radar read under `MEASURABLE_PRECIP_MM` across the whole six hours the
+ *   median averages** (`RAIN_WINDOW`): the hour is dry. This is the veto. It
+ *   cuts the days the models' rain kept dry rock reading wet.
+ * - **Radar saw rain in that window:** the larger of radar's hour and the
+ *   median. Radar alone misses light rain the gauges catch (#281, #282), so it
+ *   may add rain but never take away the models' rain on a wet day.
+ * - **Any hour of the window missing from radar:** the median, unchanged.
+ *   Outside the US, before the radar is stored, and the newest three or four hours (whose
+ *   window reaches past the newest radar hour) all read the median as before.
+ *
+ * Measured by `compare:mrms` on 14 Minnesota pairs over 30 days against the
+ * airport gauges: lost days fell on every rock type (quartzite 4.5% to 2.9%,
+ * sandstone 8.9% to 6.7%, limestone 5.5% to 5.0%) while missed wet rock moved
+ * between -1.1 and +2.0 points.
+ *
+ * Returns `byRadar` true when radar decided the hour, so the readings can say
+ * the clock's rain was checked against it.
+ */
+export function radarChecked(
+  median: number | null,
+  validAtMs: number,
+  radarAt: (ms: number) => number | null | undefined,
+): { precip_mm: number | null; byRadar: boolean } {
+  if (median === null) return { precip_mm: null, byRadar: false }
+  let total = 0
+  for (let o = -RAIN_WINDOW.before; o <= RAIN_WINDOW.after; o++) {
+    const v = radarAt(validAtMs + o * 3_600_000)
+    if (v === null || v === undefined) return { precip_mm: median, byRadar: false }
+    total += v
+  }
+  if (total < MEASURABLE_PRECIP_MM) return { precip_mm: 0, byRadar: true }
+  return { precip_mm: Math.max(radarAt(validAtMs)!, median), byRadar: true }
 }

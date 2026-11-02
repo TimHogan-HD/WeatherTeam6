@@ -2,6 +2,7 @@ import type { HourlySeries } from '@weatherteam6/types'
 import type { ForecastLocation } from '../weather/openMeteo.js'
 import { getDeterministicRuns, getEnsembleRuns } from './latestRuns.js'
 import { buildHourlySeries } from './hourlySeries.js'
+import { loadRadarRain } from './radarRain.js'
 
 /**
  * The impure half of the hourly series: fetch both runs for a point, then hand them to
@@ -42,9 +43,12 @@ export async function getHourlySeries(
 ): Promise<HourlySeries> {
   const now = opts.now ?? new Date()
 
-  const [deterministic, ensemble] = await Promise.all([
+  // Radar only feeds the drying clock, so a place that is not scored never reads it.
+  // `loadRadarRain` never throws: a failed read is null and the clock reads the models.
+  const [deterministic, ensemble, radarRain] = await Promise.all([
     getDeterministicRuns(location, now),
     getEnsembleRuns(location, now),
+    opts.scoring === null ? Promise.resolve(null) : loadRadarRain(location, now),
   ])
 
   return buildHourlySeries({
@@ -55,5 +59,6 @@ export async function getHourlySeries(
     allModels: opts.allModels,
     now,
     scoring: opts.scoring,
+    radarRain,
   })
 }
