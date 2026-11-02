@@ -68,11 +68,11 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   a shaded one good, under one score). Display only — the score still reads air
   temperature. Null if any wall's is missing. **It renders nowhere** (owner, 2026-10-05):
   sun and shade belong only on crags the owner has confirmed on the ground — today only
-  Red Wing — and never on the Overview. When a surface brings it back, gate it
+  Red Wing. When a surface brings it back, gate it
   on a flag on the `KNOWN_CRAGS` entry, not on the data being present. It names no
   direction: Crag A does not know which way a crag's walls face (#293).
-- **Sun and shade walls may reach the Overview** (owner, 2026-11-02, #445, overriding
-  2026-10-05's "never on the Overview" above) — Wall A per lidar wall, not
+- **Sun and shade walls reach the Overview** (owner, 2026-11-02, #445, overriding
+  2026-10-05's "never on the Overview") — Wall A per lidar wall, not
   `rock_sun_shade`, and only through `HourlyReadings.walls`, which is empty unless the crag
   has `sun_confirmed`. The chosen layout is one tappable line under the hero (idea 4):
   `☀ <best wall in sun> <score> · ◐ <best wall in shade> <score>`, read with `sunShadeAt`

@@ -20,15 +20,14 @@ is where the state is kept.
 ## Decided
 
 - Sun vs shade appears on the Overview for crags with wall data. This overrides
-  `readings.md`'s "never on the Overview" (2026-10-05); write the override into
-  `readings.md` and `scoring.md` in the first PR that ships it.
+  2026-10-05's "never on the Overview"; `readings.md` and `scoring.md` record it.
 - Walls are regrouped every hour by whether the sun is on them then. Each group shows its best
   wall, by name.
 - **Rule 1:** within ~10 points, show today's Overview plus one quiet line; the sun/shade
   element appears only when the gap is real.
 - Tapping the sun/shade element opens a sheet to pick a wall (grouped by area, Auto at the
   top). A pinned card names the wall and its current sun/shade state.
-- Wanted next to it: a walls × hours grid on the Crag tab, and ☀/◐ pairs in Next days.
+- Next to it: a walls × hours grid on the Crag tab, and ☀/◐ pairs in Next days (both built).
 
 ## Decided 2026-11-02 (owner)
 
@@ -56,7 +55,8 @@ tapping the pinned row returns to Auto. Not built: the area grouping, which wait
 ## Open (owner)
 
 The owner's own field test of Winter Wall at 55 °F and sunny, which settles whether the sun
-boost is too strong. Details in #445.
+boost is too strong. Details in #445. Unbuilt and unscheduled: the Today chart's two wall
+lines and the sheet's area grouping (#293).
 
 ## Mockups
 

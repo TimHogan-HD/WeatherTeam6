@@ -41,7 +41,9 @@ Trips · Map · Crags · Profile. Opening a crag swaps it for a glass dock of th
 - **A crag** has Overview, Daily, Hourly, Precip, Rock and Crag tabs. The Overview hero is
   the crag's name, the hour-now score, and one Today chart starting at now (#358, #364).
   Hourly has four scrubbed charts with figures inside each card (#355). Crag is the OpenBeta
-  guidebook with a logbook, drawn to the mockup (#368).
+  guidebook with a logbook, drawn to the mockup (#368). On a crag with lidar walls (today
+  only Red Wing) the Overview adds a best-in-sun / best-in-shade line under the hero and
+  pairs in Next days, and the Crag tab a walls × hours grid (#445).
 - **Trips** is built (#314–#316, #323, #335, #340, #369): a 16-day outlook per trip, a
   recorded forecast trend (whole trip and by day), editing, and an ended trip's day-by-day
   summary.
@@ -97,16 +99,15 @@ throwaway. `VERCEL_TOKEN` is team-scoped and reaches `https://api.vercel.com` wi
 
 Nothing is scheduled; the owner picks from the open issues (`gh issue list`).
 
-- **#445 Sun and shade walls on the Overview** (queued by the owner, 2026-11-02): Wall A per
-  wall on `/conditions`, then the Overview and a walls × hours grid. Start from
-  `docs/handoffs/wall-a-sun-shade-v1.md`; the hero layout and the tree-shaded wall list are
-  still the owner's to decide.
-
+- **#445 Sun and shade walls**: all three phases built (#447–#449, 2026-11-02). Still open
+  on the issue: the owner's Winter Wall field test at 55 °F and sunny (is the sun boost too
+  strong?) and the two wall lines on the Today chart. `docs/handoffs/wall-a-sun-shade-v1.md`
+  is the entry point.
 - **Open feedback**: krazykoreankyle (2026-10-17) says the score misses tree-covered crags
   and crags near water. Crag A has no shade or local-humidity input. Not answered yet.
 - **#293**: wall direction and angle per guidebook wall. Wall A (`evaluateWallA`) now
-  scores Red Wing's lidar walls on `/hourly` (#445 Phase 1); the Overview line is Phase 2. **Do not score `aspectDegrees` directly**: the same aspect flips
-  sign by season.
+  scores Red Wing's lidar walls (#445); they wait on #293 to be grouped by area. **Do not
+  score `aspectDegrees` directly**: the same aspect flips sign by season.
 - **#415 Sun on the wall**: built for Red Wing (#419, 2026-10-27), on the Rock tab, display
   only. Another crag needs the owner's `sun_confirmed`, then `npm run sun:walls`. A ShadeMap
   link and tree shade are still open on the issue.

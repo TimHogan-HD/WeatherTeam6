@@ -118,7 +118,6 @@ by keeping 0.5 mm/h for sheltered walls.
 
 ## Still open
 
-- Wall A (`evaluateWallA`) is built but not wired to anything; it needs recorded walls.
 - G5: an overhang in all-day drizzle scores 0 because the synthetic weather sets dew point =
   air temperature in rain. Check on real drizzle days.
 - G10 / F13: the heat rule can't see an overhang's shade on a warm humid afternoon.
