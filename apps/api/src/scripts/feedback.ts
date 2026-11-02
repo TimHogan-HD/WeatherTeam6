@@ -5,6 +5,10 @@
  * Usage, from `apps/api`:
  *   npm run feedback -- list              open items, oldest first
  *   npm run feedback -- resolve <id>...   mark items acted on
+ *   npm run feedback -- facing <id> <stop> <point>
+ *                                         correct a stop's wall direction (stop
+ *                                         counts from 1), when the climber says
+ *                                         they named it wrong
  *
  * Resolve an item once the change that answers it has merged. A resolved row
  * leaves the list in the app and here, and stays in the table: a forecast check
@@ -19,8 +23,8 @@ async function run(): Promise<void> {
     process.exit(2)
   }
   const [command, ...ids] = process.argv.slice(2)
-  if (command !== 'list' && command !== 'resolve') {
-    console.error('\nUsage: npm run feedback -- list | resolve <id>...\n')
+  if (command !== 'list' && command !== 'resolve' && command !== 'facing') {
+    console.error('\nUsage: npm run feedback -- list | resolve <id>... | facing <id> <stop> <point>\n')
     process.exit(2)
   }
 
@@ -28,8 +32,31 @@ async function run(): Promise<void> {
   const { db, pool } = await import('../db/index.js')
   const { feedback, users } = await import('../db/schema.js')
   const { isUuid } = await import('../lib/http.js')
+  const { isCompassPoint } = await import('@weatherteam6/types')
 
   try {
+    if (command === 'facing') {
+      const [id, stopArg, point] = ids
+      const stop = Number(stopArg)
+      if (id === undefined || !isUuid(id) || !Number.isInteger(stop) || stop < 1 || !isCompassPoint(point)) {
+        console.error('\nGive a feedback id, a stop number from 1, and a compass point (N, NE, …)\n')
+        process.exitCode = 2
+        return
+      }
+      const [row] = await db.select({ stops: feedback.stops }).from(feedback).where(eq(feedback.id, id))
+      const stops = row?.stops
+      if (!Array.isArray(stops) || stops.length < stop || typeof stops[stop - 1] !== 'object' || stops[stop - 1] === null) {
+        console.error(`\nNo stop ${stop} on ${id}\n`)
+        process.exitCode = 1
+        return
+      }
+      const was = (stops[stop - 1] as { facing?: unknown }).facing ?? null
+      const next = stops.map((s: unknown, i) => (i === stop - 1 ? { ...(s as object), facing: point } : s))
+      await db.update(feedback).set({ stops: next }).where(eq(feedback.id, id))
+      console.log(`  stop ${stop} of ${id}: facing ${String(was)} → ${point}`)
+      return
+    }
+
     if (command === 'list') {
       const rows = await db
         .select({ f: feedback, username: users.username })

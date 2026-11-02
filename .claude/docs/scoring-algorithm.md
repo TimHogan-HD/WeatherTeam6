@@ -60,7 +60,10 @@ domain guard.
   never lowered by a smaller later one, so a shower does not erase a big soak.
 - **Drying rate:** each dry hour removes the increase in v2's `effective_dry_hours`, the
   clock that runs faster with sun, wind and vapour-pressure deficit
-  (`rockThermal.effectiveDryingHours`).
+  (`rockThermal.effectiveDryingHours`), **but never less than one hour** (owner,
+  2026-11-02): rock reads dry within `MAX_HOURS` of real time after rain, whatever the
+  weather. Rock that breaks when wet is also capped at one (`maxDryingRate`), so it dries at
+  exactly elapsed time.
 - `dryness = min(((N − R) / N)²)` over the two stores, where `N` is the rock's full window
   `MAX_HOURS` and `R` what remains. The square curves slowly at first: rock strength returns
   late (issue #137). **Rain sets the clock back by its size** (owner, 2026-10-26): `N` was the
@@ -85,15 +88,20 @@ shelter was calibrated against. An overhang dries on the vertical factor, not fa
 ```
 friction = condensation × heat × humidity × cold
 
-condensation = clamp((T_mass − Td) / 2 °C, 0, 1)
+condensation = max(0.5, median over walls of clamp((T_mass + T_surface,wall − Ta − Td) / 2 °C, 0, 1))
 heat         = exp(−max(0, Ta − 60 °F) / 12 °C)
 humidity     = exp(−max(0, Td − 54 °F) / 10 °C)
 cold         = exp(−max(0, 30 °F − Ta) / 12 °C)
 ```
 
-Air temperature, dew point and `T_mass` only. It reads no sunlight, so it still answers when
-shortwave is missing, and it cannot see an overhang's shade on a warm humid afternoon
-(G10 / F13 in the reference README). Any input null → null, never a default.
+**Condensation** (`condensationA`, owner 2026-11-02) reads each wall's sun on top of
+`T_mass` — Crag A's eight walls, Wall A's one — and is floored at `CONDENSATION_FLOOR`
+(0.5, a guess). `T_mass` alone is a days-long air average; read as the rock, it zeroed every
+sunlit hour at Red Wing and Sandstone on 10/31–11/1 that friends checked dry. Because the
+margin takes the sun, a missing shortwave withholds friction. Heat, humidity and cold read
+air and dew point only (Wall A's heat and cold add the wall's direct sun), so they cannot see
+an overhang's shade on a warm humid afternoon (G10 / F13 in the reference README). Any input
+null → null, never a default.
 
 ### Withholding
 
@@ -146,7 +154,8 @@ until walls are recorded; a condition-report screen, the only way to validate an
 **Closed 2026-10-21, F17:** rock that breaks when wet (`rockGuide`'s `whenWet: 'fragile'`, and
 `unknown`) never dries faster than elapsed time (`maxDryingRate` in `cragModel.ts`). Red Rock
 48 h after 0.5" in January sun went from 76 to 39. The measurements are in the reference
-README.
+README. Relaxed 2026-11-02: weather no longer slows any rock's clock either (the one-hour
+floor above).
 
 ## Drying Time Rules (by rock type)
 

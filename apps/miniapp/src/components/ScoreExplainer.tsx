@@ -62,8 +62,8 @@ export function ScoreExplainerParts({ rangeF, rockType = null }: { rangeF: Range
           counts rain due in the next {f.rainLeadHours} hours, so rock can read wet just before rain arrives; the
           crag’s overview says when it’s due. Sun, dry air and wind speed drying up. The forecast’s sunshine warms eight
           imagined walls, one facing each direction, by the hour; the crag takes the middle one, so one sunny face
-          can’t make it read dry. Rock that is weak when wet never
-          dries faster than the clock on the wall.
+          can’t make it read dry. Cold, damp or still weather never holds rock wet past its full drying time.
+          Rock that is weak when wet dries by the clock on the wall, whatever the weather.
         </P>
         <DryingChart rockType={rockType} />
         <Note>Hours after a soaking, from climbers’ rules of thumb. Nobody has measured them.</Note>
@@ -73,7 +73,9 @@ export function ScoreExplainerParts({ rangeF, rockType = null }: { rangeF: Range
         <P>
           Grip is an estimate. It’s full inside your temperature range and fades the further outside it the air
           gets. Muggy air (a dew point over {f.dewStartF}°F) lowers it, and
-          so does rock within about {condensationF}°F of its dew point, where moisture settles on it.
+          so does rock within about {condensationF}°F of its dew point, where moisture settles on it. The rock’s
+          temperature there is modelled for each imagined wall, sun included, so it can take at most{' '}
+          {Math.round(f.condensationMaxCut * 100)}% off the score.
         </P>
         {rangeF === null ? null : <GripBand rangeF={rangeF} />}
       </Part>
@@ -90,7 +92,7 @@ export function ScoreExplainerParts({ rangeF, rockType = null }: { rangeF: Range
 
       <Part title="When it’s missing or wrong">
         <P>
-          A Severe or Extreme warning hides the score but keeps the readings, and a missing forecast hour is a gap,
+          A weather warning shows beside the score and never hides it, and a missing forecast hour is a gap,
           never a guess. {HELD_BACK_LABEL} on a crag lists what’s lowering its score.
         </P>
         <P>

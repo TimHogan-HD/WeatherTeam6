@@ -146,7 +146,11 @@ describe('precipSummary', () => {
     // 20:00 → 09:00 the next day on the location's clock. Read in UTC it would be 19.
     expect(s.hoursSinceReal).toBe(13)
     expect(s.lastRealEvent).toMatchObject({ startLocal: '2026-09-27T17:00', endLocal: '2026-09-27T21:00', spanHours: 4 })
-    expect(s.lighterSince.map((x) => x.valid_at_local)).toEqual(['2026-09-27T21:00', '2026-09-28T06:00'])
+    // "Last rain" is the 06:00 shower after it, a separate event, three hours before 09:00.
+    expect(s.lastWet?.valid_at_local).toBe('2026-09-28T06:00')
+    expect(s.hoursSinceWet).toBe(3)
+    expect(s.lastWetEvent).toMatchObject({ startLocal: '2026-09-28T05:00', endLocal: '2026-09-28T06:00', spanHours: 1 })
+    expect(s.lastWetEvent).not.toBe(s.lastRealEvent)
     expect(s.wetHours).toBe(5)
     expect(s.totalMm).toBeCloseTo(1.7)
     expect(s.endingLocal).toBe('2026-09-28T09:00')
@@ -160,9 +164,26 @@ describe('precipSummary', () => {
     expect(s.lastReal).toBeNull()
     expect(s.hoursSinceReal).toBeNull()
     expect(s.lastRealEvent).toBeNull()
-    // Every shower counts as "since", because there is no real rain to be since.
-    expect(s.lighterSince).toHaveLength(1)
+    // The shower is still the last rain.
+    expect(s.lastWet?.valid_at_local).toBe('2026-09-28T06:00')
     expect(s.wetHours).toBe(1)
+  })
+
+  it('names one event both last rain and last real rain when nothing fell since', () => {
+    const s = precipSummary(
+      { hours: [h('2026-09-28T05:00', 0.8), h('2026-09-28T06:00', 0.2), h('2026-09-28T09:00', 0)], utc_offset_seconds: offset, from_date: null },
+      now,
+    )
+    expect(s.lastWet?.valid_at_local).toBe('2026-09-28T06:00')
+    expect(s.lastReal?.valid_at_local).toBe('2026-09-28T05:00')
+    expect(s.lastWetEvent).toBe(s.lastRealEvent)
+  })
+
+  it('has no last rain at all in a dry window', () => {
+    const s = precipSummary({ hours: [h('2026-09-28T09:00', 0)], utc_offset_seconds: offset, from_date: null }, now)
+    expect(s.lastWet).toBeNull()
+    expect(s.hoursSinceWet).toBeNull()
+    expect(s.lastWetEvent).toBeNull()
   })
 })
 

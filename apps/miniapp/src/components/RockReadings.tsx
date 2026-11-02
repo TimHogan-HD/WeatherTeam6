@@ -12,7 +12,6 @@ import {
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { niceTicks } from '../lib/chartTicks.js'
-import { lastRainText } from '../lib/overview.js'
 import { formatSince, precipDays, precipSummary } from '../lib/precipHistory.js'
 import {
   CONDENSATION_EDGE_F,
@@ -64,7 +63,11 @@ export function DryingCard({
   const summary = recent === undefined ? null : precipSummary(recent, now)
   const since = summary?.hoursSinceReal ?? null
   // The measured span ("None in 3 days"), and null for an empty window: never a week asked for but not read.
-  const noRealRain = summary === null || recent === undefined ? null : lastRainText(summary, precipDays(recent.hours).length)
+  // Not `lastRainText`: that names a shower of any size, and this card is the real rain's.
+  const noRealRain =
+    summary === null || recent === undefined || summary.endingLocal === null
+      ? null
+      : `None in ${precipDays(recent.hours).length} days`
   const dryness = drynessNow(readings, now)
   const min = MIN_HOURS[rockType]
   const max = MAX_HOURS[rockType]

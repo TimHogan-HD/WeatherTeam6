@@ -10,7 +10,9 @@ import {
   FULL_SOAK_IN,
   HEAT_SCALE_C,
   HEAT_START_C,
+  CONDENSATION_FLOOR,
   SNOW_DRYNESS_CAP,
+  condensationA,
   dayRepresentative,
   evaluateCragA,
   evaluateWallA,
@@ -21,13 +23,14 @@ import {
   shelterScale,
   sunWarmingC,
 } from './cragModel.js'
-import { CONDENSATION_CLEAR_MARGIN_C, type HourlyConditions, type WeatherHour } from './hourlyConditions.js'
+import { CONDENSATION_CLEAR_MARGIN_C, dryingWindowHours, type HourlyConditions, type WeatherHour } from './hourlyConditions.js'
 import { DEFAULT_WINDOW_MIN_SCORE } from '../runs/hourlyReadings.js'
 
 describe('SCORE_MODEL_FACTS', () => {
   it('states the rules the model actually runs on', () => {
     expect(fToC(SCORE_MODEL_FACTS.dewStartF)).toBeCloseTo(DEW_START_C, 9)
     expect(SCORE_MODEL_FACTS.condensationClearMarginC).toBe(CONDENSATION_CLEAR_MARGIN_C)
+    expect(SCORE_MODEL_FACTS.condensationMaxCut).toBe(1 - CONDENSATION_FLOOR)
     expect(SCORE_MODEL_FACTS.dayRunHours).toBe(DAY_RUN_HOURS)
     expect(SCORE_MODEL_FACTS.dayFirstHour).toBe(DAY_FIRST_HOUR)
     expect(SCORE_MODEL_FACTS.dayLastHour).toBe(DAY_LAST_HOUR)
@@ -69,11 +72,12 @@ describe('frictionFactorA', () => {
     expect(frictionFactorA(12, 12, 0)).toBeCloseTo(1, 6)
   })
 
-  it('falls with heat, humidity and cold, and is 0 at the dew point', () => {
+  it('falls with heat, humidity and cold, and is halved, never zeroed, at the dew point', () => {
     expect(frictionFactorA(30, 30, 0)!).toBeLessThan(0.31)
     expect(frictionFactorA(25, 20, 20)!).toBeLessThan(0.6)
     expect(frictionFactorA(-10, -10, -20)!).toBeLessThan(0.5)
-    expect(frictionFactorA(10, 12, 10)).toBe(0)
+    expect(frictionFactorA(10, 12, 10)).toBe(CONDENSATION_FLOOR)
+    expect(frictionFactorA(5, 12, 10)).toBe(CONDENSATION_FLOOR)
   })
 
   it('keeps its own 30–60 °F range when the reader has none', () => {
@@ -98,6 +102,48 @@ describe('frictionFactorA', () => {
     expect(frictionFactorA(null, 12, 0)).toBeNull()
     expect(frictionFactorA(12, null, 0)).toBeNull()
     expect(frictionFactorA(12, 12, null)).toBeNull()
+  })
+})
+
+describe('condensationA', () => {
+  it('takes the median wall, and never less than CONDENSATION_FLOOR', () => {
+    // Mass 1.5 °C over the dew point on a wall at air temperature: three quarters of the clear margin.
+    expect(condensationA(11.5, 10, [0])).toBeCloseTo(0.75, 10)
+    // Five walls the sun lifts past the clear margin outvote three in shade, and not the other way round.
+    expect(condensationA(10, 10, [3, 3, 3, 3, 3, 0, 0, 0])).toBe(1)
+    expect(condensationA(10, 10, [3, 3, 3, 0, 0, 0, 0, 0])).toBe(CONDENSATION_FLOOR)
+    // Below the dew point on every wall: halved, never zeroed.
+    expect(condensationA(5, 10, [0, -1])).toBe(CONDENSATION_FLOOR)
+  })
+
+  it('does not step: walked in tenths past both edges', () => {
+    let prev = condensationA(10, 10, [-1])!
+    for (let k = -10; k <= 30; k++) {
+      const f = condensationA(10, 10, [k / 10])!
+      expect(f).toBeGreaterThanOrEqual(prev)
+      expect(f - prev).toBeLessThan(0.051)
+      prev = f
+    }
+    expect(prev).toBe(1)
+  })
+
+  it('withholds when any wall is missing', () => {
+    expect(condensationA(10, 8, [0, null])).toBeNull()
+    expect(condensationA(10, 8, [0, NaN])).toBeNull()
+    expect(condensationA(10, 8, [])).toBeNull()
+  })
+
+  it('lets the sun on Crag A’s walls clear rock whose mass sits at the dew point', () => {
+    // Dew point held just over the rock mass (a constructed case: above the air at night),
+    // so the mass alone reads condensing all day.
+    const muggy = series(6 * 24, () => ({ dewpoint_c: 13 }))
+    const out = crag(muggy)
+    const cond = (i: number) => out[i]!.diagnostics.penalties!.condensation
+    const night = 4 * 24 + 4
+    const afternoon = 4 * 24 + 14
+    expect(out[afternoon]!.condensation_margin_c!).toBeLessThan(0)
+    expect(cond(night)).toBe(CONDENSATION_FLOOR)
+    expect(cond(afternoon)).toBeGreaterThan(CONDENSATION_FLOOR)
   })
 })
 
@@ -222,6 +268,23 @@ describe('evaluateCragA — the drying clock', () => {
     expect(eolian[28 + 48]!.diagnostics.wetness_factor!).toBeLessThanOrEqual(0.25)
   })
 
+  it('reads any rock dry once its full window of real time has passed, however damp and still (2026-11-02)', () => {
+    // A full soak, then cold, overcast, still, near-saturated days that would barely dry anything.
+    const gloom = series(160, (i) =>
+      i >= 24 && i < 29
+        ? { precip_mm: 5 }
+        : i >= 29
+          ? { air_temp_c: 4, dewpoint_c: 3.5, wind_kmh: 0, cloud_pct: 100, shortwave_wm2: 0 }
+          : {},
+    )
+    for (const rock of ['granite', 'sandstone_quartz_arenite', 'unknown'] as const) {
+      const max = dryingWindowHours(rock, 0).maxHours
+      const out = crag(gloom, rock)
+      expect(out[28 + max - 1]!.diagnostics.wetness_factor!).toBeLessThan(1)
+      expect(out[28 + max]!.diagnostics.wetness_factor).toBe(1)
+    }
+  })
+
   it('lets snow lie and caps dryness while it does', () => {
     const cold = series(96, (i) =>
       i >= 48 && i < 52 ? { precip_mm: 3, air_temp_c: -3 } : i >= 52 ? { air_temp_c: -3, shortwave_wm2: 0 } : {},
@@ -263,11 +326,13 @@ describe('evaluateWallA', () => {
 
   it('scores the wall it is handed, not the crag', () => {
     // A north wall in the same weather dries on its own clock, not the eight-wall median.
-    const hours = series(144, (i) => (i === 100 ? { precip_mm: 2 } : {}))
-    const north = evaluateWallA(hours, { rockType: 'sandstone_eolian', wall: { ...wall(0), aspectDeg: 0 } })
-    const whole = crag(hours, 'sandstone_eolian')
-    expect(north.slice(100).map((h) => h.diagnostics.wetness_factor)).not.toEqual(
-      whole.slice(100).map((h) => h.diagnostics.wetness_factor),
+    // Granite, rained on at 10am: rock that breaks when wet dries at elapsed time on every
+    // wall alike, and so does any rock overnight, when no wall dries faster than that.
+    const hours = series(144, (i) => (i === 106 ? { precip_mm: 5 } : {}))
+    const north = evaluateWallA(hours, { rockType: 'granite', wall: { ...wall(0), aspectDeg: 0 } })
+    const whole = crag(hours, 'granite')
+    expect(north.slice(106).map((h) => h.diagnostics.wetness_factor)).not.toEqual(
+      whole.slice(106).map((h) => h.diagnostics.wetness_factor),
     )
   })
 })
@@ -316,10 +381,13 @@ describe('evaluateWallA — sun on the wall', () => {
     expect(sunWarmingC(overcast, south)[day4(13)]!).toBeLessThan(clear * 0.15)
   })
 
-  it('withholds an hour whose sun was not measured, unless trees shade the wall', () => {
+  it('withholds an hour whose sun was not measured, under trees too', () => {
     const gap = warm.map((h, i) => (i === day4(13) ? { ...h, shortwave_wm2: null } : h))
+    expect(sunWarmingC(gap, south)[day4(13)]).toBeNull()
+    expect(sunWarmingC(gap, south, null, true)[day4(13)]).toBe(0)
     expect(evaluateWallA(gap, { rockType: 'granite', wall: south })[day4(13)]!.score).toBeNull()
-    expect(evaluateWallA(gap, { rockType: 'granite', wall: south, treeShaded: true })[day4(13)]!.score).not.toBeNull()
+    // Trees take the heat term's sun away, but condensation still reads the wall's modelled surface.
+    expect(evaluateWallA(gap, { rockType: 'granite', wall: south, treeShaded: true })[day4(13)]!.score).toBeNull()
   })
 
   /**

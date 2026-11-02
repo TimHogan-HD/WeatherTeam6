@@ -14,6 +14,18 @@ directory stays as the reference the port is checked against.
 - Decision page with every result: https://claude.ai/artifact/GpBjWbgwe3omFZNjVdFUuw (private
   to the owner).
 
+**The port diverges from `model.ts` on purpose since 2026-11-02** (owner, after field checks
+at Red Wing and Sandstone on 10/31–11/1 found dry rock through 15 hours the app scored 0):
+condensation is read per wall (`T_mass + (T_surface − air) − dew`, median of the eight, floored
+at 0.5), and every dry hour credits at least one hour of drying. `model.ts` is unchanged.
+Measured here with both ported behind a switch: the drying floor alone passes every check
+(moves F3 45 → 67, F12 28 → 54, F17 39 → 48, all in band). With the condensation change too:
+crag 24/28, fresh crag 17/18, wall WA 29/33. C11 (warm humid air after a cold snap) 0 → 47,
+the floor's alone (a 0.25 floor kept it at 24). C14 4 → 48, C17 9 → 64, C19 7 → 65 and
+F9 0 → 47, grey humid days after heavy rain, flip whatever the floor: the mass-only
+condensation penalty had been what held them at No. The owner chose this over a 0.25 floor
+and over the drying floor alone: field outcomes over the judged test days.
+
 ## Run it
 
 ```bash

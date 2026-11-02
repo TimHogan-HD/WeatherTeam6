@@ -344,8 +344,9 @@ describe('lastRainText', () => {
     expect(text(recent({ '2026-09-29T19:00': 1 }))).toBe('10h ago')
   })
 
-  it('ignores a trace below the real-rain line', () => {
-    expect(text(recent({ '2026-09-29T19:00': 1, '2026-09-30T02:00': 0.1 }))).toBe('10h ago')
+  it('counts a shower below the real-rain line, as the Precip tab does (owner, 2026-11-02)', () => {
+    expect(text(recent({ '2026-09-29T19:00': 1, '2026-09-30T02:00': 0.1 }))).toBe('3h ago')
+    expect(text(recent({ '2026-09-30T05:00': 0.1 }))).toBe('Now')
   })
 
   it('says none in the window, naming the window', () => {

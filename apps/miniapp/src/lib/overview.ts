@@ -400,18 +400,18 @@ export function shortDate(isoDate: string, todayDate: string): string {
 
 /**
  * The Overview's "Last rain", **from the same summary as the Precip tab's
- * headline** — the four-model median and `REWETTING_PRECIP_MM`, hour by hour.
- * It once read the five-component drying model's archive figure, which counts
- * only days over 2 mm and measures from the end of the UTC day, so the two
- * tabs could name different storms for the same crag.
+ * headline** — the four-model median, hour by hour, rain of any size (owner,
+ * 2026-11-02). It once read the five-component drying model's archive figure,
+ * which counts only days over 2 mm and measures from the end of the UTC day,
+ * so the two tabs could name different storms for the same crag.
  *
  * `null` when the window has no hours: a gap in the record, not a dry week.
  */
 export function lastRainText(summary: PrecipSummary, windowDays: number): string | null {
-  const { lastReal, hoursSinceReal, endingLocal } = summary
+  const { lastWet, hoursSinceWet, endingLocal } = summary
   if (endingLocal === null) return null
-  if (lastReal === null || hoursSinceReal === null) return `None in ${windowDays} days`
-  // Real rain in the window's newest hour is still falling, as the Precip tab reads it.
-  if (lastReal.valid_at_local === endingLocal) return 'Now'
-  return `${formatSince(hoursSinceReal)} ago`
+  if (lastWet === null || hoursSinceWet === null) return `None in ${windowDays} days`
+  // Rain in the window's newest hour is still falling, as the Precip tab reads it.
+  if (lastWet.valid_at_local === endingLocal) return 'Now'
+  return `${formatSince(hoursSinceWet)} ago`
 }
