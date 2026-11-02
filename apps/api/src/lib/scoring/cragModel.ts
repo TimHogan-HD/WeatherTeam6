@@ -182,15 +182,25 @@ export function condensationA(
   dewPointC: number,
   surfaceExcessC: readonly (number | null)[],
 ): number | null {
-  if (surfaceExcessC.length === 0) return null
-  const factors: number[] = []
-  for (const excess of surfaceExcessC) {
-    if (excess === null || !Number.isFinite(excess)) return null
-    const f = condensationFactor(massTempC + excess - dewPointC)
-    if (f === null) return null
-    factors.push(f)
-  }
-  return Math.max(CONDENSATION_FLOOR, median(factors))
+  const margin = condensationMarginA(massTempC, dewPointC, surfaceExcessC)
+  const f = condensationFactor(margin)
+  return f === null ? null : Math.max(CONDENSATION_FLOOR, f)
+}
+
+/**
+ * The median wall's margin over the dew point, °C — the one `condensationA`
+ * scores and the response publishes. Median of margins, then the factor, so
+ * the published figure is exactly what the score read even with an even wall
+ * count. Null when any input is missing.
+ */
+export function condensationMarginA(
+  massTempC: number,
+  dewPointC: number,
+  surfaceExcessC: readonly (number | null)[],
+): number | null {
+  if (surfaceExcessC.length === 0 || !Number.isFinite(massTempC) || !Number.isFinite(dewPointC)) return null
+  if (surfaceExcessC.some((x) => x === null || !Number.isFinite(x))) return null
+  return median((surfaceExcessC as number[]).map((x) => massTempC + x - dewPointC))
 }
 
 /**
@@ -607,8 +617,7 @@ function finish(
   // The margin the score read: the median wall's, sun included (2026-11-02), so
   // the Rock tab cannot say condensing while the score takes nothing off.
   const dew = weather.dewpoint_c
-  const margin =
-    fp === null || massTempC === null || dew === null ? null : median(excess.map((x) => massTempC + x! - dew))
+  const margin = fp === null || massTempC === null || dew === null ? null : condensationMarginA(massTempC, dew, excess)
   const condensing = isCondensing(margin)
   const level = rockLevelA(dryness, rockType)
   const rLevel = level !== null && rainingOnFragile ? 'wet' : level

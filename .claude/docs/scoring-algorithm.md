@@ -88,7 +88,7 @@ shelter was calibrated against. An overhang dries on the vertical factor, not fa
 ```
 friction = condensation × heat × humidity × cold
 
-condensation = max(0.5, median over walls of clamp((T_mass + T_surface,wall − Ta − Td) / 2 °C, 0, 1))
+condensation = max(0.5, clamp(median over walls of (T_mass + T_surface,wall − Ta − Td) / 2 °C, 0, 1))
 heat         = exp(−max(0, Ta − 60 °F) / 12 °C)
 humidity     = exp(−max(0, Td − 54 °F) / 10 °C)
 cold         = exp(−max(0, 30 °F − Ta) / 12 °C)

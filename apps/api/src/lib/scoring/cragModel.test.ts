@@ -127,6 +127,13 @@ describe('condensationA', () => {
     expect(prev).toBe(1)
   })
 
+  it('scores the median wall’s margin, so the published margin is the one it read (#444 review)', () => {
+    // Middle walls at +1 and +3 °C: the median margin is 2 °C, clear — not the 0.75 a median of factors gives.
+    expect(condensationA(10, 10, [1, 1, 1, 1, 3, 3, 3, 3])).toBe(1)
+    // Middle walls at −0.5 and +1.5: margin +0.5, a quarter of the clear margin, floored.
+    expect(condensationA(10, 10, [-0.5, -0.5, -0.5, -0.5, 1.5, 1.5, 1.5, 1.5])).toBe(CONDENSATION_FLOOR)
+  })
+
   it('withholds when any wall is missing', () => {
     expect(condensationA(10, 8, [0, null])).toBeNull()
     expect(condensationA(10, 8, [0, NaN])).toBeNull()
