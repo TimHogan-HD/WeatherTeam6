@@ -438,6 +438,7 @@ describe('the rain the drying clock reads (issue #209)', () => {
   })
 })
 
+<<<<<<< HEAD
 describe('radar overrules the median (owner, 2026-11-02)', () => {
   const RAIN_MODELS = ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless', 'gem_seamless']
   /** The median put 6 mm at 09:00 and 10:00; the rock reads wet at noon without radar. */
@@ -487,5 +488,95 @@ describe('radar overrules the median (owner, 2026-11-02)', () => {
     )
     expect(rockAtNoon(out)).not.toBe('dry')
     expect(out.rain_radar).toBe(false)
+=======
+/**
+ * `rain_split`: each good day's weather models that leave the rock wet. The
+ * thermal run carries the median (zero here); each model's own rain is what
+ * splits the count. The fixture's shower lands on the 22nd at 04:00-06:00,
+ * before the day's climbing hours, heavy enough that a model with it reads the
+ * rock wet through the morning — and the median of four models, two of them
+ * dry, never sees it.
+ */
+describe('rain_split', () => {
+  const RAIN = ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless', 'gem_seamless']
+  const shower = (hours: RunHour[]): RunHour[] =>
+    hours.map((h) => {
+      const iso = h.valid_at.toISOString()
+      return iso >= '2026-09-22T04' && iso < '2026-09-22T07' ? { ...h, precip_mm: 8 } : h
+    })
+  const thermal = (rain = false) => model(THERMAL_MODEL, rain ? shower(runHours(120, 48)) : runHours(120, 48), RAIN)
+  const other = (name: string, rain = false) => model(name, rain ? shower(runHours(12, 48)) : runHours(12, 48))
+  const day = (out: ReturnType<typeof buildHourlyReadings>, date: string) => out.days.find((d) => d.local_date === date)
+
+  it('counts the models whose own rain leaves a good day wet', () => {
+    const out = buildHourlyReadings(
+      input({
+        rainSplit: true, rockType: 'sandstone',
+        deterministic: deterministic([thermal(), other('ecmwf_ifs025'), other('icon_seamless', true), other('gem_seamless', true)]),
+      }),
+    )
+    const d = day(out, '2026-09-22')!
+    expect(d.best?.score ?? 0).toBeGreaterThanOrEqual(80)
+    expect(d.rain_split).toEqual({ wet: 2, models: 4 })
+  })
+
+  it('is left off when the caller did not ask', () => {
+    const out = buildHourlyReadings(
+      input({ rockType: 'sandstone', deterministic: deterministic([thermal(), other('ecmwf_ifs025'), other('icon_seamless', true), other('gem_seamless', true)]) }),
+    )
+    expect(day(out, '2026-09-22')).not.toHaveProperty('rain_split')
+  })
+
+  it('counts three models when one did not answer, and withholds with two', () => {
+    const three = buildHourlyReadings(
+      input({ rainSplit: true, rockType: 'sandstone', deterministic: deterministic([thermal(), other('icon_seamless', true), other('gem_seamless', true)]) }),
+    )
+    expect(day(three, '2026-09-22')!.rain_split).toEqual({ wet: 2, models: 3 })
+
+    const two = buildHourlyReadings(
+      input({ rainSplit: true, rockType: 'sandstone', deterministic: deterministic([thermal(), other('icon_seamless', true)]) }),
+    )
+    expect(day(two, '2026-09-22')!.rain_split).toBeNull()
+  })
+
+  it('withholds a model whose rain has a gap, never reading it as dry', () => {
+    const gappy = model(
+      'ecmwf_ifs025',
+      runHours(12, 48).map((h) => (h.valid_at.toISOString().startsWith('2026-09-22T10') ? { ...h, precip_mm: null } : h)),
+    )
+    const out = buildHourlyReadings(
+      input({ rainSplit: true, rockType: 'sandstone', deterministic: deterministic([thermal(), gappy, other('icon_seamless', true), other('gem_seamless', true)]) }),
+    )
+    expect(day(out, '2026-09-22')!.rain_split).toEqual({ wet: 2, models: 3 })
+  })
+
+  it('reads the week before today as the median, not each model', () => {
+    const pastShower = (name: string) =>
+      model(
+        name,
+        runHours(120, 48).map((h) => (h.valid_at.toISOString().startsWith('2026-09-20T1') ? { ...h, precip_mm: 30 } : h)),
+      )
+    const out = buildHourlyReadings(
+      input({
+        rainSplit: true, rockType: 'sandstone',
+        deterministic: deterministic([thermal(), pastShower('ecmwf_ifs025'), pastShower('icon_seamless'), pastShower('gem_seamless')]),
+      }),
+    )
+    expect(day(out, '2026-09-21')!.rain_split).toEqual({ wet: 0, models: 4 })
+  })
+
+  it('is null on a day the median itself scores under 80', () => {
+    const wetMedian = model(
+      THERMAL_MODEL,
+      runHours(120, 48).map((h) => (h.valid_at.toISOString().startsWith('2026-09-22T0') ? { ...h, rain_median_mm: 8 } : h)),
+      RAIN,
+    )
+    const out = buildHourlyReadings(
+      input({ rainSplit: true, rockType: 'sandstone', deterministic: deterministic([wetMedian, other('ecmwf_ifs025', true), other('icon_seamless', true), other('gem_seamless', true)]) }),
+    )
+    const d = day(out, '2026-09-22')!
+    expect(d.best?.score ?? 0).toBeLessThan(80)
+    expect(d.rain_split).toBeNull()
+>>>>>>> origin/main
   })
 })

@@ -31,11 +31,12 @@
  * while still looking plausible. Same rule as the per-day score join in
  * `computeLiveForecast`.
  */
-import { CLIMB_HOURS_DEFAULT } from '@weatherteam6/types'
+import { CLIMB_HOURS_DEFAULT, RAIN_SPLIT_MIN_SCORE } from '@weatherteam6/types'
 import type {
   ClimbHours,
   ConditionsWindow,
   HourlyReading,
+  RainSplit,
   HourlyReadings,
   PastReadingsDay,
   ReadingsDay,
@@ -57,7 +58,11 @@ import {
   type TempRangeC,
 } from '../scoring/cragModel.js'
 import { localDateString } from '../weather/openMeteo.js'
+<<<<<<< HEAD
 import { radarChecked } from '../weather/rainMedian.js'
+=======
+import { MIN_RAIN_MODELS, RAIN_MODELS } from '../weather/rainMedian.js'
+>>>>>>> origin/main
 import { buildWallReadings, type ScoringWall } from './wallReadings.js'
 import type { DeterministicRuns, ModelRun } from './latestRuns.js'
 
@@ -114,11 +119,19 @@ export type BuildReadingsInput = {
   /** The crag's lidar walls, scored one by one beside it (#445); absent or empty, none. */
   walls?: readonly ScoringWall[]
   /**
+<<<<<<< HEAD
    * NOAA radar rain at the crag, keyed by the hour's end in epoch ms
    * (`loadRadarRain`). Absent or null: outside the US, not stored yet, or the
    * read failed, and the clock reads the models alone.
    */
   radarRain?: ReadonlyMap<number, number | null> | null
+=======
+   * Count each good day's weather models that leave the rock wet
+   * (`ReadingsDay.rain_split`). Four more drying clocks, ~14 ms each, so only
+   * `/hourly` asks; absent or false, the field is left off.
+   */
+  rainSplit?: boolean
+>>>>>>> origin/main
 }
 
 const none = (reason: ReadingsUnavailableReason): HourlyReadings => ({
@@ -267,6 +280,83 @@ function pastDays(
 }
 
 /**
+ * The window's hours not yet over, by local date. Today counts only from the
+ * hour covering now: an hour that has passed cannot carry the day.
+ */
+function openHoursByDate<H extends HourlyConditions>(hours: readonly H[], input: BuildReadingsInput): Map<string, H[]> {
+  const inWindow = new Set(input.dates)
+  const firstOpenHourMs = input.now.getTime() - 3_600_000
+  const byDate = new Map<string, H[]>()
+  for (const h of hours) {
+    if (Date.parse(h.valid_at) <= firstOpenHourMs) continue
+    const date = localDateString(new Date(h.valid_at), input.utcOffsetSeconds)
+    if (!inWindow.has(date)) continue
+    const list = byDate.get(date) ?? []
+    list.push(h)
+    byDate.set(date, list)
+  }
+  return byDate
+}
+
+/**
+ * **Each good day's count of weather models that leave the rock wet**
+ * (`ReadingsDay.rain_split`, owner 2026-11-02).
+ *
+ * The drying clock runs once per `RAIN_MODELS` model on the thermal model's
+ * weather with that model's own rain, the run `compare:rain-spread` scored.
+ * **Before today the rain stays the median**: the trailing week is stored only
+ * as the median (`deterministicFetch.ts`), and those hours are each model's
+ * analysis, where the four agree closely. A model's day counts only when its
+ * own clock gave the day a score: a missing hour withholds that model, never
+ * reads as dry. Fewer than `MIN_RAIN_MODELS` scored, and the day has no count.
+ *
+ * Skipped outright when no day scores `RAIN_SPLIT_MIN_SCORE`, the only days
+ * a count is shown on.
+ */
+function addRainSplit(
+  days: ReadingsDay[],
+  weather: readonly WeatherHour[],
+  input: BuildReadingsInput,
+  climbHours: ClimbHours,
+): void {
+  const good = (d: ReadingsDay): boolean => (d.best?.score ?? -1) >= RAIN_SPLIT_MIN_SCORE
+  for (const d of days) d.rain_split = null
+  if (!days.some(good)) return
+  const firstDate = input.dates[0]
+  if (firstDate === undefined) return
+
+  // Per date, one verdict per model that scored it: true is "rock not dry".
+  const verdicts = new Map<string, boolean[]>()
+  for (const name of RAIN_MODELS) {
+    const run = input.deterministic.models.find((m) => m.model === name)
+    if (run === undefined || !run.hours.some((h) => h.precip_mm !== null)) continue
+    const own = new Map(run.hours.map((h) => [h.valid_at.getTime(), h.precip_mm]))
+    const series = weather.map((w) => {
+      const date = localDateString(new Date(w.valid_at), input.utcOffsetSeconds)
+      return date < firstDate ? w : { ...w, precip_mm: own.get(Date.parse(w.valid_at)) ?? null }
+    })
+    const evaluated = evaluateCragA(series, {
+      rockType: input.rockType,
+      lat: input.lat,
+      lon: input.lon,
+      ...(input.range === undefined ? {} : { range: input.range }),
+    })
+    for (const [date, hours] of openHoursByDate(evaluated, input)) {
+      const best = dayRepresentative(hours, input.utcOffsetSeconds, climbHours)
+      if (best?.score == null || best.rock === null) continue
+      verdicts.set(date, [...(verdicts.get(date) ?? []), best.rock.level !== 'dry'])
+    }
+  }
+
+  for (const d of days) {
+    const v = verdicts.get(d.local_date) ?? []
+    if (!good(d) || v.length < MIN_RAIN_MODELS) continue
+    const split: RainSplit = { wet: v.filter(Boolean).length, models: v.length }
+    d.rain_split = split
+  }
+}
+
+/**
  * Build the readings block for a published window.
  *
  * Returns a **reason** rather than an empty block when it cannot answer, so a
@@ -303,15 +393,7 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
 
   const minScore = input.windowMinScore ?? DEFAULT_WINDOW_MIN_SCORE
   const climbHours = input.climbHours ?? CLIMB_HOURS_DEFAULT
-  const byDate = new Map<string, CragAHour[]>()
-  const firstOpenHourMs = input.now.getTime() - 3_600_000
-  for (const h of windowed) {
-    if (Date.parse(h.valid_at) <= firstOpenHourMs) continue
-    const date = localDateString(new Date(h.valid_at), input.utcOffsetSeconds)
-    const list = byDate.get(date) ?? []
-    list.push(h)
-    byDate.set(date, list)
-  }
+  const byDate = openHoursByDate(windowed, input)
 
   const days: ReadingsDay[] = input.dates.map((local_date) => {
     const dayHours = byDate.get(local_date) ?? []
@@ -327,6 +409,7 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
 
     return { local_date, window, best: best === null ? null : toReading(best) }
   })
+  if (input.rainSplit === true) addRainSplit(days, weather, input, climbHours)
 
   const past = pastHours(evaluated, weather, input)
   const rock_history = historyRock(past)

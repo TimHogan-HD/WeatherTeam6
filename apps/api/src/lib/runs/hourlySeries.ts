@@ -319,6 +319,7 @@ export function buildHourlySeries(input: BuildInput): HourlySeries {
           ...(input.scoring.climbHours === undefined ? {} : { climbHours: input.scoring.climbHours }),
           walls: input.scoring.walls,
           radarRain: input.radarRain ?? null,
+          ...(input.scoring.rainSplit === true ? { rainSplit: true } : {}),
         })
 
   const series: HourlySeries = {

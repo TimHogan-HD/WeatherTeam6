@@ -333,7 +333,28 @@ export type ReadingsDay = {
    * apart.
    */
   best: HourlyReading | null;
+  /**
+   * **How many of the global weather models, each read on its own, leave the
+   * rock wet on this day** (owner, 2026-11-02). The day's score runs the drying
+   * clock once, on the four models' middle rain, so two models with a shower
+   * and two without read as dry. This runs the clock once per model, on that
+   * model's own rain from today on, and counts the models whose day reads the
+   * rock not dry; `models` is how many gave the day a score. Measured in
+   * `compare:rain-spread`: a day scored 80 or more with two models wet was wet
+   * on the gauges about half the time.
+   *
+   * Null when fewer than three models gave a score, or the day's own score is
+   * under `RAIN_SPLIT_MIN_SCORE`. **Absent when the response did not ask**
+   * (`/conditions`, trips) and on an older API — read it `?? null`.
+   */
+  rain_split?: RainSplit | null;
 };
+
+/** `ReadingsDay.rain_split`: weather models whose own forecast leaves the rock wet, of those read. */
+export type RainSplit = { wet: number; models: number };
+
+/** A day scored at least this high carries `rain_split`: the good days a split forecast can spoil. */
+export const RAIN_SPLIT_MIN_SCORE = 80;
 
 /**
  * Why no reading could be produced. **Null when readings are present.**

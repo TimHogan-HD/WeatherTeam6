@@ -412,7 +412,19 @@ describe('DetailView — the Overview tab', () => {
     },
   }
 
-  const overview = (over: { alerts?: WeatherAlert[]; climbing?: boolean } = {}): string => {
+  // DAY_2 (91) has two of four weather models wet; DAY_3 (44) has three, but scores under 80.
+  const withSplits: HourlySeries = {
+    ...withReadings,
+    readings: {
+      ...withReadings.readings!,
+      days: withReadings.readings!.days.map((d) => ({
+        ...d,
+        rain_split: d.local_date === DAY_2 ? { wet: 2, models: 4 } : { wet: 3, models: 4 },
+      })),
+    },
+  }
+
+  const overview = (over: { alerts?: WeatherAlert[]; climbing?: boolean; splits?: boolean } = {}): string => {
     vi.setSystemTime(new Date(T0 + 12 * HOUR_MS))
     const html = renderInRouter(
       <DetailView
@@ -423,7 +435,7 @@ describe('DetailView — the Overview tab', () => {
         alerts={{ data: over.alerts ?? [], isError: false }}
         conditions={ok(score)}
         hourly={{
-          ...ok(withReadings),
+          ...ok(over.splits === true ? withSplits : withReadings),
           tabs: {
             active: 'overview',
             onTabChange: () => {},
@@ -477,6 +489,19 @@ describe('DetailView — the Overview tab', () => {
     expect(next).toMatch(/>91<\/b>/)
     expect(scoreRow(card(html, 'Today'))).toEqual(scoreRow(card(overview(), 'Today')))
     expect(scoreRow(card(html, 'Today')).length).toBeGreaterThan(0)
+  })
+
+  it('dots a good day whose weather models split on rain, and keys them once (owner, 2026-11-02)', () => {
+    const next = card(overview({ splits: true }), 'Next days')
+    expect(next.match(/aria-label="Tue[^"]*2 of 4 weather models say it&#x27;ll be wet"/g) ?? []).toHaveLength(1)
+    // Three of four on a day scored 44: the score already says it, so no dots.
+    expect(next).not.toContain('3 of 4')
+    expect(visibleText(next)).toMatch(/weather models that say it(&#x27;|')ll be wet/)
+  })
+
+  it('shows no dots and no key when no good day splits', () => {
+    const next = card(overview(), 'Next days')
+    expect(next).not.toContain('weather models')
   })
 
   it('names the next likely rain from the ensemble’s wet share', () => {

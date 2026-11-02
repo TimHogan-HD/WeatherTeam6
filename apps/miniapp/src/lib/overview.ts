@@ -1,11 +1,13 @@
 import {
   DRYNESS_LABEL,
+  RAIN_SPLIT_MIN_SCORE,
   clock12,
   summarizeReadings,
   type ForecastSnapshot,
   type HourlyReading,
   type HourlySample,
   type HourlySeries,
+  type RainSplit,
   type ReadingsDay,
   type ConditionsWindow,
 } from '@weatherteam6/types'
@@ -414,4 +416,27 @@ export function lastRainText(summary: PrecipSummary, windowDays: number): string
   // Rain in the window's newest hour is still falling, as the Precip tab reads it.
   if (lastWet.valid_at_local === endingLocal) return 'Now'
   return `${formatSince(hoursSinceWet)} ago`
+}
+
+/** A good day shows its weather models once at least this many say it'll be wet. */
+export const RAIN_SPLIT_MIN_WET = 2
+
+/**
+ * The weather models that say a good day will be wet, when the Next days
+ * column shows them (owner, 2026-11-02): the day scored
+ * `RAIN_SPLIT_MIN_SCORE` or more and at least `RAIN_SPLIT_MIN_WET` of its
+ * models say wet. In `compare:rain-spread` such days were wet on the rain
+ * gauges about half the time. Null otherwise, and for an API that sent no
+ * `rain_split`.
+ */
+export function rainSplitShown(days: readonly ReadingsDay[] | undefined, localDate: string): RainSplit | null {
+  const day = days?.find((d) => d.local_date === localDate)
+  const split = day?.rain_split ?? null
+  if (split === null || (day?.best?.score ?? -1) < RAIN_SPLIT_MIN_SCORE) return null
+  return split.wet >= RAIN_SPLIT_MIN_WET ? split : null
+}
+
+/** How the dots read aloud: `2 of 4 weather models say it'll be wet`. */
+export function rainSplitText(split: RainSplit): string {
+  return `${split.wet} of ${split.models} weather models say it'll be wet`
 }
