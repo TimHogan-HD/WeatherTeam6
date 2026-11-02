@@ -24,6 +24,7 @@ import {
   precipSummary,
   rockByStamp,
   runningTotal,
+  type PrecipEvent,
   type PrecipKind,
 } from '../lib/precipHistory.js'
 import { dryAgain, drynessNow, type DryAgain } from '../lib/rockReadings.js'
@@ -47,10 +48,12 @@ import { InlineError, Skeleton } from './States.js'
  * **The running-total chart is gone** (owner, 2026-10-19). The week's total is
  * a tile; the grid carries each day's.
  *
- * **"Real rain" is `REWETTING_PRECIP_MM` in an hour** — rain heavy enough
- * that the score reads 0 while it falls. A lighter shower since is shown in the
- * grid and named under the headline; it sets drying back by its size
- * (`WETTING_PRECIP_MM` and up) but does not move the headline.
+ * **The headline is the last rain of any size** (owner, 2026-11-02): it once
+ * named only real rain, and read "2 days ago" above a tile saying 0.03 in
+ * today. **"Real rain" is `REWETTING_PRECIP_MM` in an hour** — rain heavy
+ * enough that the score reads 0 while it falls, and what the drying clock
+ * beside it runs from — so it is named under the headline whenever a lighter
+ * shower has fallen since.
  *
  * **The past is the four models' median; the next 48 hours are the ensemble
  * mean.** Two sources, so each card names its own, and the footnote both.
@@ -146,16 +149,23 @@ export function PrecipTab({ recent, isClimbingLocation, rockType, rock, hours, u
     return `${label === 'Today' ? 'today' : label} ${clockOf(validAtLocal)}`
   }
 
-  const { lastReal, hoursSinceReal, lastRealEvent, lighterSince, endingLocal } = summary
-  const kindName = lastRealEvent?.kind == null ? 'precipitation' : KIND_NAME[lastRealEvent.kind]
+  const { lastWet, hoursSinceWet, lastWetEvent, lastReal, hoursSinceReal, lastRealEvent, endingLocal } = summary
+  const kindName = lastWetEvent?.kind == null ? 'precipitation' : KIND_NAME[lastWetEvent.kind]
   const threshold = `${mmToIn(REWETTING_PRECIP_MM).toFixed(2)} in`
-  // Real rain in the window's newest hour is rain falling now, not rain that
+  // Rain in the window's newest hour is rain falling now, not rain that
   // "ended 0 hours ago"; a storm reaching that hour is still going.
-  const rainingNow = lastReal !== null && lastReal.valid_at_local === endingLocal
-  const storm =
-    lastRealEvent === null ? null : `${formatPrecipIn(lastRealEvent.totalMm)} over ${lastRealEvent.spanHours} h`
-  const lastLight = lighterSince[lighterSince.length - 1]
-  const lightMm = lighterSince.reduce((s, h) => s + h.precip_mm, 0)
+  const rainingNow = lastWet !== null && lastWet.valid_at_local === endingLocal
+  const spanOf = (e: PrecipEvent | null) => (e === null ? null : `${formatPrecipIn(e.totalMm)} over ${e.spanHours} h`)
+  const storm = spanOf(lastWetEvent)
+  // The real rain the drying clock runs from, said under the headline when the headline is a lighter shower since.
+  const realLine =
+    lastReal === null
+      ? lastWet === null
+        ? null
+        : `No real rain in the past ${days.length} days`
+      : lastRealEvent !== null && lastRealEvent === lastWetEvent
+        ? null
+        : `Last real rain: ${[when(lastReal.valid_at_local), spanOf(lastRealEvent)].filter((s) => s !== null).join(' · ')}`
   const todayHours = data.hours.filter((h) => h.valid_at_local.slice(0, 10) === today)
   const todayWet = todayHours.filter((h) => h.precip_mm > 0).length
   const running = runningTotal(days, data.hours)
@@ -185,26 +195,21 @@ export function PrecipTab({ recent, isClimbingLocation, rockType, rock, hours, u
   ]
 
   const headline =
-    lastReal === null || hoursSinceReal === null ? (
-      <Headline
-        label="Last rain"
-        figure="None"
-        // "None" counts only rain heavy enough to reset drying; a lighter shower is still named.
-        note={`in the past ${days.length} days${data.hours.some((h) => h.precip_mm > 0) ? ' · light showers only' : ''}`}
-      />
+    lastWet === null || hoursSinceWet === null ? (
+      <Headline label="Last rain" figure="None" note={`in the past ${days.length} days`} />
     ) : rainingNow ? (
       <Headline
-        label={lastRealEvent?.kind == null ? 'Precipitation now' : FALLING_NOW[lastRealEvent.kind]}
-        figure={lastRealEvent === null ? 'Now' : formatPrecipIn(lastRealEvent.totalMm)}
-        note={lastRealEvent === null ? `to ${when(lastReal.valid_at_local)}` : `so far, over ${lastRealEvent.spanHours} h`}
+        label={lastWetEvent?.kind == null ? 'Precipitation now' : FALLING_NOW[lastWetEvent.kind]}
+        figure={lastWetEvent === null ? 'Now' : formatPrecipIn(lastWetEvent.totalMm)}
+        note={lastWetEvent === null ? `to ${when(lastWet.valid_at_local)}` : `so far, over ${lastWetEvent.spanHours} h`}
       />
     ) : (
       <Headline
         label={`Last ${kindName}`}
-        // Whole days past two days, as the mockup's `2 days ago`; the clock beside it carries the hours.
-        figure={String(hoursSinceReal < 48 ? hoursSinceReal : Math.floor(hoursSinceReal / 24))}
-        unit={hoursSinceReal < 48 ? (hoursSinceReal === 1 ? 'hour ago' : 'hours ago') : 'days ago'}
-        note={`${when(lastReal.valid_at_local)}${storm === null ? '' : ` · ${storm}`}`}
+        // Whole days past two days, as the mockup's `2 days ago`.
+        figure={String(hoursSinceWet < 48 ? hoursSinceWet : Math.floor(hoursSinceWet / 24))}
+        unit={hoursSinceWet < 48 ? (hoursSinceWet === 1 ? 'hour ago' : 'hours ago') : 'days ago'}
+        note={`${when(lastWet.valid_at_local)}${storm === null ? '' : ` · ${storm}`}`}
       />
     )
 
@@ -232,11 +237,7 @@ export function PrecipTab({ recent, isClimbingLocation, rockType, rock, hours, u
           )}
           <div style={{ flex: 1, minWidth: 0, ...stack(spacing.micro) }}>
             {headline}
-            {lastLight === undefined || lastReal === null ? null : (
-              <span style={typeV2.rowSmall}>
-                Light showers since: {formatPrecipIn(lightMm)}, last {when(lastLight.valid_at_local)}
-              </span>
-            )}
+            {realLine === null ? null : <span style={typeV2.rowSmall}>{realLine}</span>}
           </div>
         </div>
         <div style={{ paddingTop: `${spacing.listGapLg}px`, borderTop: `1px solid ${colorsV2.line}` }}>

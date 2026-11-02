@@ -235,14 +235,18 @@ describe('the trailing history', () => {
   })
 
   it('withholds a day’s score while its rock still rests on the walk’s starting guess', () => {
-    // Humid and sunless from the start: the clock never dries, and no rain resets it.
-    const out = buildHourlyReadings(
-      input({ deterministic: deterministic([model(THERMAL_MODEL, runHours(120, 48, { humidity_pct: 99, dewpoint_c: 13.9 }))]) }),
-    )
+    // Humid and sunless from the start, and no rain resets the clock. Every dry hour still
+    // credits one (2026-11-02), so the guess lasts the rock's full window: 120 hours for
+    // `sandstone`, which reaches past the 20th from the walk's start on the 16th.
+    const hours = runHours(120, 48, { humidity_pct: 99, dewpoint_c: 13.9 })
+    const out = buildHourlyReadings(input({ rockType: 'sandstone', deterministic: deterministic([model(THERMAL_MODEL, hours)]) }))
     // The 20th is past T_mass's span, so only the guess can withhold it.
     const day = out.past_days?.find((d) => d.local_date === '2026-09-20')
     expect(day?.best).toBeNull()
     expect(day?.rain_mm).toBe(0)
+    // Granite's six-hour window is long worked off by then: the guess no longer holds it.
+    const granite = buildHourlyReadings(input({ deterministic: deterministic([model(THERMAL_MODEL, hours)]) }))
+    expect(granite.past_days?.find((d) => d.local_date === '2026-09-20')?.best?.rock?.level).toBe('dry')
   })
 
   it('credits rain stamped at midnight to the day that ended, since the stamp closes its hour', () => {

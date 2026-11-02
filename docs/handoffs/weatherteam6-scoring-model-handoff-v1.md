@@ -151,6 +151,11 @@ are two different numbers and conflating them is the current humidity bug (#140)
 regardless of whether it has rained. This replaces the fixed relative-humidity curve, which
 `scoring-findings.md` §3.1 shows cannot be right in principle. It is also CragReport's "grease
 factor" and the answer to a question the research marked open twice.
+*(Owner, 2026-11-02: the score's penalty now reads each wall's margin, `T_mass + (T_surface −
+air) − T_dew`, takes the median wall and never cuts the score by more than half; read on
+`T_mass` alone it zeroed 15 sunlit hours that field checks found dry. And every dry hour now
+credits at least one hour of drying, so the clock below never runs slower than elapsed time.
+The cost on the reference test days is in `crag-a-reference/README.md`.)*
 
 **1d. Drying rate** — the existing rock-type drying window, but with the clock running at a
 rate set by evaporation potential (sun, wind, vapour-pressure deficit) rather than flat elapsed

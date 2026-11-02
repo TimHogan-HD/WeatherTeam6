@@ -200,14 +200,22 @@ export function hourGrid(days: readonly PrecipDay[], hours: readonly RecentPreci
 export type PrecipSummary = {
   totalMm: number
   wetHours: number
+  /**
+   * The last hour with any rain or snow at all, or `null` when none fell in the
+   * window. **What "Last rain" names** (owner, 2026-11-02): headlining only real
+   * rain read "2 days ago" above "today 0.03 in".
+   */
+  lastWet: RecentPrecipHour | null
+  /** Whole hours from the end of that hour to now, on the location's clock. */
+  hoursSinceWet: number | null
+  /** The event the last wet hour belongs to — the newest. */
+  lastWetEvent: PrecipEvent | null
   /** The last hour at or above `REWETTING_PRECIP_MM`, or `null` when none fell in the window. */
   lastReal: RecentPrecipHour | null
   /** Whole hours from the end of that hour to now, on the location's clock. */
   hoursSinceReal: number | null
   /** The event the last real hour belongs to. */
   lastRealEvent: PrecipEvent | null
-  /** Wet hours after the last real one — showers too light to restart the drying clock. */
-  lighterSince: readonly RecentPrecipHour[]
   /** The newest hour in the window — what "to" names. */
   endingLocal: string | null
 }
@@ -217,33 +225,39 @@ export function precipSummary(recent: RecentPrecip, nowMs: number): PrecipSummar
   let totalMm = 0
   let wetHours = 0
   let lastRealIndex = -1
+  let lastWetIndex = -1
   hours.forEach((h, i) => {
     totalMm += h.precip_mm
-    if (isWet(h)) wetHours += 1
+    if (isWet(h)) {
+      wetHours += 1
+      lastWetIndex = i
+    }
     if (isRealRain(h)) lastRealIndex = i
   })
   const lastReal = hours[lastRealIndex] ?? null
+  const lastWet = hours[lastWetIndex] ?? null
 
   // The stamps are the location's wall clock; so is this, shifted by the
   // response's own offset (issue #33) — never the viewer's timezone.
   const offset = Number.isFinite(recent.utc_offset_seconds) ? recent.utc_offset_seconds : 0
   const localNow = nowMs + offset * 1000
-  const hoursSinceReal =
-    lastReal === null ? null : Math.max(0, Math.floor((localNow - localMs(lastReal.valid_at_local)) / HOUR_MS))
-  const lastRealEvent =
-    lastReal === null
+  const since = (h: RecentPrecipHour | null) =>
+    h === null ? null : Math.max(0, Math.floor((localNow - localMs(h.valid_at_local)) / HOUR_MS))
+  const events = precipEvents(hours)
+  const eventOf = (h: RecentPrecipHour | null) =>
+    h === null
       ? null
-      : (precipEvents(hours).find(
-          (e) => e.startLocal < lastReal.valid_at_local && lastReal.valid_at_local <= e.endLocal,
-        ) ?? null)
+      : (events.find((e) => e.startLocal < h.valid_at_local && h.valid_at_local <= e.endLocal) ?? null)
 
   return {
     totalMm,
     wetHours,
+    lastWet,
+    hoursSinceWet: since(lastWet),
+    lastWetEvent: eventOf(lastWet),
     lastReal,
-    hoursSinceReal,
-    lastRealEvent,
-    lighterSince: hours.slice(lastRealIndex + 1).filter(isWet),
+    hoursSinceReal: since(lastReal),
+    lastRealEvent: eventOf(lastReal),
     endingLocal: hours[hours.length - 1]?.valid_at_local ?? null,
   }
 }

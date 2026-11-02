@@ -22,8 +22,8 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   2026-09-24.** `score = 100 × dryness^0.55 × friction`, the drying clock on eight vertical
   walls, median taken. A location's score is always Crag A: its recorded aspect and angle are
   not inputs. **Wall A (`evaluateWallA`)** scores individual walls only and nothing calls it
-  yet. Friction is condensation × heat × humidity × cold from air temperature, dew point and
-  `T_mass` — no sun in Crag A. **Wall A's heat and cold read air plus the direct sun on that
+  yet. Friction is condensation × heat × humidity × cold from air temperature, dew point,
+  `T_mass` and, for condensation only, each wall's sun (below) — no sun in Crag A's heat. **Wall A's heat and cold read air plus the direct sun on that
   wall** (`sunWarmingC`, owner 2026-10-30, from Winter Wall at Red Wing too hot on 10/4 and
   10/19 while Crag A read 100): the beam only, gated by the lidar skyline, zero on a
   tree-shaded wall, lagged like `T_surface`, null when the sun was not measured. A day's score is the worst hour of its best 3-hour run between 08:00 and
@@ -86,16 +86,31 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   without a median reads its own rain whole and names only itself; an hour with fewer than
   three models is a gap, never a fallback to GFS. **The Precip tab draws the same four
   models' median hour by hour** (`recentPrecipMedian`), never `best_match` and never
-  smoothed — a chart of past rain keeps its hours. Its "last real rain" is `REWETTING_PRECIP_MM` (`packages/types`), which
-  `hourlyConditions.SIGNIFICANT_HOURLY_PRECIP_MM` re-exports; a lighter shower never resets
-  the headline.
+  smoothed — a chart of past rain keeps its hours. Its headline, and the Overview's "Last
+  rain", is the last rain of any size (owner, 2026-11-02); the last real rain,
+  `REWETTING_PRECIP_MM` (`packages/types`, re-exported as
+  `hourlyConditions.SIGNIFICANT_HOURLY_PRECIP_MM`), is named under it when a lighter shower
+  fell since, and is what the drying clock and "since real rain" count from.
 - **There is one drying table, `MIN_HOURS`/`MAX_HOURS` in `packages/types/src/dryingWindow.ts`, and everything
   imports it.** Never reintroduce a copy. Not-recorded kinds (`sandstone`, `limestone`,
   `basalt`) take their family's slowest window and `unknown` is the slowest row.
 - **Rock that breaks when wet never dries faster than elapsed time** (F17, 2026-10-21):
   `maxDryingRate` caps each hour's drying at one hour for `rockGuide`'s `whenWet: 'fragile'`
-  and for `unknown`. Weather may slow that clock, never speed it. Changing a rock's
-  `whenWet` changes its score, so check it against `crag-a-reference` first.
+  and for `unknown`. Changing a rock's `whenWet` changes its score, so check it against
+  `crag-a-reference` first.
+- **Every dry hour credits at least one hour of drying** (owner, 2026-11-02, `drynessTrack`):
+  rock reads dry within its `MAX_HOURS` of real time after rain, however cool, still or humid
+  the weather. It relaxes F17: fragile rock now dries at exactly elapsed time, and weather
+  slows no rock's clock. Sandstone read Wet 17 three days after rain on 2026-10-31 while a
+  friend stood at bone-dry rock. The walk's "soaked" first hour is worked off the same way.
+- **Condensation is read wall by wall and never takes more than half the score** (owner,
+  2026-11-02, `condensationA`): each wall's margin is `T_mass + (T_surface − air) − dew`, the
+  factor is the median wall's (Crag A's eight, Wall A's one), floored at
+  `CONDENSATION_FLOOR` (0.5, a guess). `T_mass` alone is a days-long air average; read as
+  the rock it zeroed 15 sunlit hours at Red Wing and Sandstone on 10/31–11/1, all checked
+  dry in the field. The margin takes the sun, so a missing shortwave withholds friction.
+  `condensation_margin_c` and `friction.condensing` on the response are still the mass
+  margin (#436).
 - **Every factor ramp reaches its floor at its own band edge — no factor may step** (#148). A
   new factor or band gets a test that walks its input in tenths past both edges.
   `TEMP_BAND_C` no longer feeds any score; it only colours the client's temperature chart.

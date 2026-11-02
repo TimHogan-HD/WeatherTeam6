@@ -19,8 +19,9 @@
  *   calls it yet.
  *
  * Friction is the heat/humidity/cold rule (`frictionFactorA`), not v2's sweat
- * balance: it reads air temperature, dew point and the rock mass's margin over
- * the dew point, so Crag A's still answers when shortwave is missing.
+ * balance: it reads air temperature, dew point and each wall's margin over the
+ * dew point (`condensationA`). That margin takes the wall's sun, so an hour
+ * whose shortwave is missing has no friction and no score.
  *
  * Built on top of `evaluateHourlyConditions`, which still supplies `T_mass`,
  * `T_surface` and the weather-sped drying rate. Its own score is discarded.
@@ -120,9 +121,10 @@ export const STORM_GAP_H = 24
  * (F17, 2026-10-21: the owner asked for a wait after rain; this is the form of
  * it that moved the test day, measured in `crag-a-reference/README.md`). Its `MAX_HOURS` are the land-manager rules
  * ("wait 24–48 h"), which are elapsed hours, and the danger is water inside the
- * rock that sun and dry air on the surface do not reach. Weather can still slow
- * the clock, never speed it. Red Rock read 76 two days after half an inch in
- * January sun; this reads 39, and five days after still reads 100.
+ * rock that sun and dry air on the surface do not reach. Red Rock read 76 two
+ * days after half an inch in January sun; this reads 39, and five days after
+ * still reads 100. With `drynessTrack`'s one-hour floor (2026-11-02) such rock
+ * dries at exactly elapsed time: weather no longer slows it either.
  * `unknown` has no guide and counts as fragile, being the most cautious row.
  */
 export function maxDryingRate(rockType: RockType): number {
@@ -159,12 +161,49 @@ export function shelterScale(cliffAngleDeg: number): number {
 export type FrictionPenalties = Record<Exclude<ScoreLimit, 'wet_rock'>, number>
 
 /**
+ * **Condensation never takes more than half the score** (owner, 2026-11-02).
+ * The floor is a guess, not a measurement: the rock temperature behind the
+ * penalty is modelled (#436), and field checks at Red Wing and Sandstone on
+ * 10/31–11/1 found dry rock through every hour it zeroed.
+ */
+export const CONDENSATION_FLOOR = 0.5
+
+/**
+ * **Water on the rock, 0-1, read wall by wall** (owner, 2026-11-02). Each
+ * wall's margin is `T_mass` plus that wall's sun excess (`T_surface − air`)
+ * less the dew point; the hour's factor is the median wall's, floored at
+ * `CONDENSATION_FLOOR`. `T_mass` alone is a days-long air average, and read as
+ * the rock it zeroed 15 sunlit hours that weekend.
+ *
+ * `surfaceExcessC` is one entry per wall. Null when any input is missing.
+ */
+export function condensationA(
+  massTempC: number,
+  dewPointC: number,
+  surfaceExcessC: readonly (number | null)[],
+): number | null {
+  if (surfaceExcessC.length === 0) return null
+  const factors: number[] = []
+  for (const excess of surfaceExcessC) {
+    if (excess === null || !Number.isFinite(excess)) return null
+    const f = condensationFactor(massTempC + excess - dewPointC)
+    if (f === null) return null
+    factors.push(f)
+  }
+  return Math.max(CONDENSATION_FLOOR, median(factors))
+}
+
+/**
  * Null when any input is missing — never a default.
  *
  * Heat and cold read air temperature plus `sunWarmingC`, the direct sun on the
  * wall. Crag A passes 0: it does not know which way any wall faces. Wall A
  * passes its own (`sunWarmingC`), and a null one withholds, because sun nobody
  * measured could be the heat that decides the hour.
+ *
+ * Condensation reads `surfaceExcessC`, one wall's `T_surface − air` each
+ * (`condensationA`): Crag A's eight, Wall A's one. The default is a single
+ * wall at air temperature.
  */
 export function frictionPenaltiesA(
   massTempC: number | null,
@@ -172,6 +211,7 @@ export function frictionPenaltiesA(
   dewPointC: number | null,
   range: TempRangeC = DEFAULT_RANGE,
   sunWarmingC: number | null = 0,
+  surfaceExcessC: readonly (number | null)[] = [0],
 ): FrictionPenalties | null {
   if (massTempC === null || airTempC === null || dewPointC === null || sunWarmingC === null) return null
   if (
@@ -182,7 +222,7 @@ export function frictionPenaltiesA(
   ) {
     return null
   }
-  const condensation = condensationFactor(massTempC - dewPointC)
+  const condensation = condensationA(massTempC, dewPointC, surfaceExcessC)
   if (condensation === null) return null
   const feltC = airTempC + sunWarmingC
   return {
@@ -248,7 +288,14 @@ const remainingRamp = (remaining: number, need: number): number =>
  * storm and never lowered by a smaller later one. Each needs
  * `R = maxHours × min(1, √(storm_in / FULL_SOAK_IN))` of weather-sped drying,
  * and dryness is the worse of `((maxHours − R) / maxHours)²` over the two. Each
- * hour's drying is capped at `maxRate` hours (`maxDryingRate`).
+ * dry hour's drying is at least one hour and at most `maxRate` hours
+ * (`maxDryingRate`).
+ *
+ * **The one-hour floor is the drying ceiling** (owner, 2026-11-02): rock reads
+ * dry within its `maxHours` of real time after the rain stops, however cool,
+ * still or humid those hours were. Before it, Sandstone read Wet 17 at 11am on
+ * 2026-10-31, three days after rain, while a friend stood at bone-dry rock;
+ * the clock had credited a few hours of the seventy since.
  *
  * **Rain sets the clock back by its size** (owner, 2026-10-26). The ramp runs
  * over the rock's whole window, so a mist that needs two hours of a 24-hour
@@ -305,7 +352,8 @@ export function drynessTrack(
     } else {
       const e1 = evaluated[i]?.diagnostics.effective_dry_hours ?? null
       const e0 = i > 0 ? (evaluated[i - 1]?.diagnostics.effective_dry_hours ?? null) : null
-      const inc = e1 !== null && e0 !== null && e1 >= e0 ? Math.min(e1 - e0, maxRate) : 0
+      // Every dry hour credits at least one (owner, 2026-11-02), so no weather keeps rock wet past its window.
+      const inc = e1 !== null && e0 !== null ? Math.min(Math.max(e1 - e0, 1), maxRate) : 0
       surfR = Math.max(0, surfR - inc)
       unknownR = Math.max(0, unknownR - inc)
       deepR = Math.max(0, deepR - inc)
@@ -412,8 +460,9 @@ export function evaluateCragA(
     const dry = xs.some((x) => x === null) ? null : median(xs as number[])
     // No one wall's clock, so no one wall's drying hours.
     const raining = fallingOn(hours[i]!.precip_mm, WET_MM, rockType)
+    const surfaces = walls.map((w) => w.evaluated[i]?.t_surface_c ?? null)
     return {
-      ...finish(h, hours[i]!, dry, rockType, null, raining, options.range),
+      ...finish(h, hours[i]!, dry, rockType, null, raining, surfaces, options.range),
       rock_sun_shade: sunShade(walls.map((w) => w.evaluated[i]?.t_surface_c ?? null)),
     }
   })
@@ -525,6 +574,7 @@ export function evaluateWallA(
       rockType,
       h.diagnostics.effective_dry_hours,
       fallingOn(sheltered[i]!.precip_mm, wetThreshold, rockType),
+      [h.t_surface_c],
       undefined,
       sun[i] ?? null,
     ),
@@ -538,11 +588,15 @@ function finish(
   rockType: RockType,
   effectiveDryHours: number | null,
   rainingOnFragile: boolean,
+  /** Each wall's `T_surface`, for condensation: Crag A's eight, Wall A's one. */
+  wallSurfacesC: readonly (number | null)[],
   range?: TempRangeC,
   sunWarming: number | null = 0,
 ): HourlyConditions {
   const massTempC = base.diagnostics.t_mass_c
-  const fp = frictionPenaltiesA(massTempC, weather.air_temp_c, weather.dewpoint_c, range, sunWarming)
+  const air = weather.air_temp_c
+  const excess = wallSurfacesC.map((t) => (t === null || air === null ? null : t - air))
+  const fp = frictionPenaltiesA(massTempC, air, weather.dewpoint_c, range, sunWarming, excess)
   const friction = fp === null ? null : fp.condensation * fp.heat * fp.humidity * fp.cold
   const score = scoreA(dryness, friction)
   const penalties: ScorePenalties | null =

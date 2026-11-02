@@ -237,7 +237,13 @@ function Hero({ props, now }: { props: OverviewTabProps; now: Now | null }) {
     {
       label: DRYNESS_LABEL,
       value: now.dryness ?? EM_DASH,
-      note: since !== null ? `${formatSince(since)} since real rain` : lastRain === null ? null : `real rain: ${lastRain.toLowerCase()}`,
+      // "Last rain" names any shower; the drying runs from real rain, so this says that one.
+      note:
+        since !== null
+          ? `${formatSince(since)} since real rain`
+          : summary === null || summary.endingLocal === null || recentPrecip === undefined
+            ? null
+            : `no real rain in ${precipDays(recentPrecip.hours).length} days`,
     },
     {
       label: 'Rock',
@@ -530,20 +536,20 @@ function RightNowCard({ props }: { props: OverviewTabProps }) {
   const series = hourly.data
   const summary = recentPrecip === undefined ? null : precipSummary(recentPrecip, now)
   const lastText = summary === null || recentPrecip === undefined ? null : lastRainText(summary, precipDays(recentPrecip.hours).length)
-  const event = summary?.lastRealEvent ?? null
-  const lastDate = summary?.lastReal?.valid_at_local.slice(0, 10) ?? null
+  const event = summary?.lastWetEvent ?? null
+  const lastDate = summary?.lastWet?.valid_at_local.slice(0, 10) ?? null
 
   let last: Figure['value'] = EM_DASH
   let lastNote: string | null = null
   if (lastText === 'Now') {
     last = 'Now'
-  } else if (summary?.hoursSinceReal != null) {
+  } else if (summary?.hoursSinceWet != null) {
     // Without today's date the day cannot be named, but the rain is still known: a dash and its age.
     last = lastDate === null || todayDate === null ? EM_DASH : shortDay(lastDate, todayDate)
-    lastNote = [event === null ? null : formatPrecipIn(event.totalMm), `${formatSince(summary.hoursSinceReal)} ago`]
+    lastNote = [event === null ? null : formatPrecipIn(event.totalMm), `${formatSince(summary.hoursSinceWet)} ago`]
       .filter((s): s is string => s !== null)
       .join(' · ')
-  } else if (summary?.lastReal === null && lastText !== null) {
+  } else if (summary?.lastWet === null && lastText !== null) {
     // "None in 7 days": the measured span, never a week asked for but not read.
     last = 'None'
     lastNote = lastText.replace(/^None /, '')

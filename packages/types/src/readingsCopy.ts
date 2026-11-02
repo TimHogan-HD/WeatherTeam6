@@ -168,6 +168,8 @@ export const SCORE_MODEL_FACTS = {
   dewStartF: 54,
   /** Margin, °C, between the rock and its dew point below which condensation costs grip. */
   condensationClearMarginC: 2,
+  /** The most condensation can take off the score, as a fraction of it. */
+  condensationMaxCut: 0.5,
   /** A day's score: the worst hour of its best run of this many hours… */
   dayRunHours: 3,
   /** …between these local hours, inclusive. */

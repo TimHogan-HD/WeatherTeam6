@@ -578,13 +578,13 @@ describe('DetailView — Precip tab', () => {
     expect(grid.indexOf('>Today<')).toBeLessThan(grid.indexOf('>Sun<'))
   })
 
-  it('leads with the hours since the last rain, the week total and hours with rain', () => {
+  it('leads with the hours since the last rain of any size, the week total and hours with rain', () => {
     const html = renderPrecip(recent)
     expect(html).toContain('Last rain<')
-    // 2026-09-13T19:00 → 09:30 two days later.
-    expect(html).toContain('>38<')
+    // Today 06:00's trace → 09:30 (owner, 2026-11-02: not Sunday's storm, 38 hours back).
+    expect(html).toContain('>3<')
     expect(html).toContain('hours ago')
-    expect(html).toContain('Sun 7pm · 0.18 in over 1 h')
+    expect(html).toContain('today 6am · trace over 1 h')
     expect(html).toContain('This week')
     expect(html).toMatch(/This week<\/span><b[^>]*>0\.19 in</)
     expect(html).toContain('2 hours with rain')
@@ -617,9 +617,12 @@ describe('DetailView — Precip tab', () => {
     expect(html).not.toContain('Last rain<')
   })
 
-  it('names a lighter shower since without letting it reset the headline', () => {
+  it('names the real rain the drying clock runs from under a lighter shower since', () => {
     const html = renderPrecip(recent)
-    expect(html).toContain('Light showers since: trace, last today 6am')
+    expect(html).toContain('Last real rain: Sun 7pm · 0.18 in over 1 h')
+    // With nothing lighter since, the headline is the real rain and says it once.
+    const stormOnly = { ...recent, hours: recent.hours.filter((h) => h.valid_at_local < '2026-09-15') }
+    expect(renderPrecip(stormOnly)).not.toContain('Last real rain')
   })
 
   it('draws every hour as a tappable table, a skipped day as a gap, never a dry 0', () => {
@@ -671,14 +674,16 @@ describe('DetailView — Precip tab', () => {
     expect(html).not.toContain('Last rain')
   })
 
-  it('says the showers were light rather than that it has not rained', () => {
+  it('headlines a light shower and says no real rain fell, rather than that it has not rained', () => {
     const showers = { ...recent, hours: recent.hours.map((h) => ({ ...h, precip_mm: Math.min(h.precip_mm, 0.3), rain_mm: Math.min(h.precip_mm, 0.3) })) }
     const html = renderPrecip(showers)
-    expect(html).toContain('>None<')
-    expect(html).toContain('in the past 3 days · light showers only')
-    expect(html).not.toContain('Light showers since')
-    // And a window with no precipitation at all says only the span.
+    expect(html).not.toContain('>None<')
+    expect(html).toContain('No real rain in the past 3 days')
+    // And a window with no precipitation at all says None, and only the span.
     const dry = { ...recent, hours: recent.hours.map((h) => ({ ...h, precip_mm: 0, rain_mm: 0 })) }
-    expect(renderPrecip(dry)).not.toContain('light showers only')
+    const dryHtml = renderPrecip(dry)
+    expect(dryHtml).toContain('>None<')
+    expect(dryHtml).toContain('in the past 3 days')
+    expect(dryHtml).not.toContain('real rain in the past')
   })
 })
