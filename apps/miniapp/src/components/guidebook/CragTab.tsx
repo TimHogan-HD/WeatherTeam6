@@ -17,6 +17,7 @@ import { GradeBar, GradeHistogram, GradeLegend } from './GradeCharts.js'
 import { Crumb, GuideCard, NowLine, type WeekInput } from './parts.js'
 import { WallPane } from './WallPane.js'
 import { RoutePane } from './RoutePane.js'
+import { WallGridCard } from './WallGrid.js'
 
 /**
  * The Crag tab, drawn to the hybrid mockup (Phase 4a): the OpenBeta area and
@@ -27,8 +28,10 @@ import { RoutePane } from './RoutePane.js'
  * map: OpenBeta's wall coordinates are wrong on the ground.
  *
  * **The conditions are the crag's, and the tab says so.** Crag A reads every
- * direction and no wall has a recorded aspect, so a wall cannot honestly be
- * given a reading of its own.
+ * direction and no guidebook wall has a recorded aspect, so a guidebook wall
+ * cannot honestly be given a reading of its own. The one exception is a crag
+ * with lidar walls (`sun_confirmed`, #445): its walls × hours grid scores each
+ * lidar face with Wall A, under the face's own name.
  */
 
 export type CragTabProps = {
@@ -43,6 +46,8 @@ export type CragTabProps = {
   at: { wallId: string | null; routeId: string | null }
   conditions: Conditions | null | undefined
   week: WeekInput
+  /** Sun and shade walls (#445): only a crag with `sun_confirmed` carries any. Null until `/hourly` answers. */
+  wallHours?: Omit<Parameters<typeof WallGridCard>[0], 'locationId'> | null
   onOpenOverview: () => void
 }
 
@@ -132,6 +137,10 @@ function GuideRoot(props: CragTabProps & { guide: Guidebook }) {
       <GuideCard title="Now" aside="the crag's reading">
         {now}
       </GuideCard>
+
+      {props.wallHours == null || props.wallHours.walls.length === 0 ? null : (
+        <WallGridCard {...props.wallHours} locationId={props.locationId} />
+      )}
 
       <GuideCard title="Grades" aside={`${routes.length} ${routes.length === 1 ? 'route' : 'routes'}`}>
         <GradeHistogram routes={routes} />

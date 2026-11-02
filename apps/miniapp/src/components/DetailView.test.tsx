@@ -449,6 +449,65 @@ describe('DetailView — sun and shade walls (#445)', () => {
   })
 })
 
+describe('DetailView — the Crag tab’s walls × hours grid (#445)', () => {
+  // 2 PM local (21:00Z) is inside the default climbing hours and still ahead at NOW, 1:10 PM.
+  const T = `${TODAY}T21:00:00.000Z`
+  const wall = (name: string, score: number | null, inSun: boolean): WallReadings => ({
+    name,
+    aspect_deg: 180,
+    tree_shaded: false,
+    hours: [{ valid_at: T, score, in_sun: inSun }],
+    days: [],
+  })
+  const guide = {
+    snapshot_date: TODAY,
+    crag: { id: 'c', name: 'Barn Bluff', path: [], lat: 0, lon: 0, mp_id: null, route_count: 0 },
+    walls: [],
+  }
+  const cragTab = (walls: WallReadings[] | undefined) => {
+    const hourly: HourlySeries = {
+      ...hourlySeries,
+      readings: { model: 'gfs_seamless', unavailable_reason: null, hours: [], days: [], ...(walls === undefined ? {} : { walls }) },
+    }
+    return renderInRouter(
+      <DetailView
+        isClimbingLocation
+        location={redRock}
+        forecast={ok([day(TODAY), day(TOMORROW)])}
+        alerts={alertsOk([])}
+        conditions={ok(redRockScore())}
+        guidebook={{ ...ok(guide), locationId: 'loc', at: { wallId: null, routeId: null } }}
+        hourly={{
+          ...ok(hourly),
+          tabs: {
+            active: 'crag',
+            onTabChange: () => {},
+            selectedDate: TODAY,
+            onSelectDate: () => {},
+            readMs: null,
+            onRead: () => {},
+            panelId: 'panel',
+          },
+        }}
+      />,
+    )
+  }
+
+  it('draws each wall’s score at the hour, sun or shade, with a way to pin it', () => {
+    const html = cragTab([wall('Winter Wall', 20, true), wall('Large Roof', 100, false)])
+    const text = visible(html)
+    expect(text).toContain('Walls today')
+    expect(text).toContain('Large Roof 100')
+    expect(text).toContain('Winter Wall 20')
+    expect(html).toContain('aria-label="Winter Wall: 2p 20 in sun. Pin on the Overview"')
+  })
+
+  it('draws no grid for a crag without walls, or an older API', () => {
+    expect(visible(cragTab([]))).not.toContain('Walls today')
+    expect(visible(cragTab(undefined))).not.toContain('Walls today')
+  })
+})
+
 describe('DetailView — sources', () => {
   it('names the sources the response reports, not a hardcoded list', () => {
     const html = overview({ alerts: alertsOk([heatWarning]) })
