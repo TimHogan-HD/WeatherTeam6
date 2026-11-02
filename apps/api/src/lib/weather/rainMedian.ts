@@ -94,9 +94,11 @@ function windowMean(byLocal: ReadonlyMap<string, number | null>, t: string): num
 /**
  * The per-hour median of `RAIN_MODELS`' six-hour means in one deterministic
  * response, or null when fewer than `MIN_RAIN_MODELS` of them answered at all.
+ * `models` is for the `compare:*` harnesses that score another set; the app
+ * always reads `RAIN_MODELS`.
  */
-export function rainMedian(result: DeterministicResult): RainMedian | null {
-  const series = RAIN_MODELS.flatMap((name) => {
+export function rainMedian(result: DeterministicResult, models: readonly string[] = RAIN_MODELS): RainMedian | null {
+  const series = models.flatMap((name) => {
     const model = result.models.find((m) => m.model === name)
     if (!model || !model.hours.some((h) => h.precip_mm !== null)) return []
     return [{ name, byLocal: new Map(model.hours.map((h) => [h.valid_at_local, h.precip_mm])) }]
