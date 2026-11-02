@@ -137,6 +137,8 @@ export type DampSpell = {
   open: boolean
   /** Hours under the edge after this spell, read later in the series. */
   laterHours: number
+  /** The first hour after this spell at or under the dew point, or `null`: a later spell may reach dew when this one does not. */
+  laterDewFromMs: number | null
 }
 
 /**
@@ -162,7 +164,9 @@ export function firstDampSpell(series: readonly MarginHour[]): DampSpell | null 
     after.marginF !== null &&
     after.marginF >= CONDENSATION_EDGE_F &&
     after.t - (series[end]?.t ?? after.t) <= HOUR_MS * 1.5
-  const dew = spell.find((h) => h.marginF !== null && marginZone(h.marginF) === 'dew')
+  const isDew = (h: MarginHour) => h.marginF !== null && marginZone(h.marginF) === 'dew'
+  const dew = spell.find(isDew)
+  const laterDew = series.slice(end + 1).find(isDew)
   return {
     fromMs: series[start]?.t ?? 0,
     toMs: series[end]?.t ?? 0,
@@ -172,6 +176,7 @@ export function firstDampSpell(series: readonly MarginHour[]): DampSpell | null 
     laterHours: series
       .slice(end + 1)
       .filter((h) => h.marginF !== null && h.marginF < CONDENSATION_EDGE_F).length,
+    laterDewFromMs: laterDew?.t ?? null,
   }
 }
 
@@ -219,6 +224,12 @@ export function condensationHeadline(series: readonly MarginHour[], nowMs: numbe
       : isNow(spell.dewFromMs)
         ? ' Dew likely on the rock now.'
         : ` Dew likely on the rock from ${at(spell.dewFromMs)}.`
-  const later = spell.laterHours > 0 ? ' Near it again later.' : ''
+  // A later spell that reaches dew gets its time; only a later brush with the edge is "near it again".
+  const later =
+    spell.laterDewFromMs !== null
+      ? ` Dew likely on the rock ${spell.dewFromMs === null ? '' : 'again '}from ${at(spell.laterDewFromMs)}.`
+      : spell.laterHours > 0
+        ? ' Near it again later.'
+        : ''
   return near + dew + later
 }

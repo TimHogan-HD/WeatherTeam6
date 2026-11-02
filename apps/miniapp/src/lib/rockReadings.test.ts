@@ -119,6 +119,7 @@ describe('firstDampSpell', () => {
       clearFromMs: T0 + 5 * H,
       open: false,
       laterHours: 1,
+      laterDewFromMs: null,
     })
   })
 
@@ -174,6 +175,16 @@ describe('condensationHeadline', () => {
     const s = marginSeries(readings([hour(1, 'dry', -1), hour(2, 'dry', 5)]), NOW)
     expect(condensationHeadline(s, NOW, 0)).toBe(
       'Rock near its dew point from 1 PM until 2 PM. Dew likely on the rock from 1 PM.',
+    )
+  })
+
+  it('names a later spell that reaches dew, rather than calling it near', () => {
+    // 1 PM brushes the edge; 6 PM to 9 PM is under the dew point.
+    expect(condensationHeadline(series([5, 1, 5, 5, 5, 5, -2, -2, -2, -2, 5]), NOW, 0)).toBe(
+      'Rock near its dew point from 1 PM until 2 PM. Dew likely on the rock from 6 PM.',
+    )
+    expect(condensationHeadline(series([5, -1, 5, 5, -2, 5]), NOW, 0)).toBe(
+      'Rock near its dew point from 1 PM until 2 PM. Dew likely on the rock from 1 PM. Dew likely on the rock again from 4 PM.',
     )
   })
 
