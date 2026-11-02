@@ -21,7 +21,8 @@ rock surface temperature lags the sun by 2 h, measured against USCRN (#226); tod
 only the hours still ahead (#227). **Rock that breaks when wet never dries faster than
 elapsed time** (F17, 2026-10-21, `maxDryingRate`; the owner asked for a wait after rain,
 and a measurement picked this form of it). Before this, Red Rock
-scored 76 two days after half an inch of rain in January sun; now it scores 39. **Since
+scored 76 two days after half an inch of rain in January sun; F17 brought it to 39, and
+#442 to 48. **Since
 #442 (2026-11-02) every dry hour credits at least one hour, so rock reads dry within its
 full window of real time, and condensation is read per wall with sun, never taking more
 than half the score.** It cleared the 15 zero hours friends found dry at Red Wing and
