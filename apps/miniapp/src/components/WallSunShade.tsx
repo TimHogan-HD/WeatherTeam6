@@ -92,9 +92,12 @@ export function WallLineRow({
     const state = line.inSun === null ? null : line.inSun ? 'in sun' : 'in shade'
     body = (
       <span style={{ ...row, ...typeV2.whyFigure }}>
-        <span aria-hidden="true" style={{ color: line.inSun === true ? colorsV2.sun : colorsV2.txtMuted }}>
-          {line.inSun === true ? SUN : SHADE}
-        </span>
+        {/* No reading for the hour says neither sun nor shade. */}
+        {line.inSun === null ? null : (
+          <span aria-hidden="true" style={{ color: line.inSun ? colorsV2.sun : colorsV2.txtMuted }}>
+            {line.inSun ? SUN : SHADE}
+          </span>
+        )}
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{line.name}</span>
         <Figure score={line.score} />
         {state === null ? null : <span style={{ ...typeV2.keyRow, color: colorsV2.txtMuted }}>{state}</span>}
@@ -209,7 +212,7 @@ function WallSheet({
       className="wt6-sheet"
       aria-labelledby="wt6-wall-sheet-title"
       onClose={onClose}
-      // A tap on the backdrop lands on the dialog itself.
+      // A tap on the backdrop lands on the dialog itself; the content fills it edge to edge, so no tap inside does.
       onClick={(e) => {
         if (e.target === e.currentTarget) ref.current?.close()
       }}
@@ -220,7 +223,7 @@ function WallSheet({
         maxHeight: '85vh',
         overflowY: 'auto',
         boxSizing: 'border-box',
-        padding: '10px 16px calc(18px + env(safe-area-inset-bottom))',
+        padding: 0,
         border: 'none',
         borderTop: `1px solid ${colorsV2.line}`,
         borderRadius: '22px 22px 0 0',
@@ -228,30 +231,32 @@ function WallSheet({
         color: colorsV2.txt1,
       }}
     >
-      <div aria-hidden="true" style={{ width: '40px', height: '4px', borderRadius: '2px', background: colorsV2.line, margin: '0 auto 10px' }} />
-      <h2 id="wt6-wall-sheet-title" style={{ ...typeV2.whyFigure, fontSize: '22px', margin: 0 }}>
-        Pick a wall
-      </h2>
-      <p style={{ ...typeV2.keyRow, color: colorsV2.txtMuted, margin: '2px 0 10px' }}>
-        {at === null ? 'Wall scores' : `Scores at ${at}`}. {SUN} in sun, {SHADE} in shade. Sun hours are the rest of today’s climbing hours.
-      </p>
-      <Option on={pinned === null} onClick={() => onPick(null)} icon={null} name="Auto: best walls" note="sun and shade" />
-      {groups.map((g) => (
-        <div key={g.title}>
-          <p style={{ ...typeV2.statLabel, margin: '10px 0 2px 6px' }}>{g.title}</p>
-          {g.rows.map((o) => (
-            <Option
-              key={o.name}
-              on={pinned === o.name}
-              onClick={() => onPick(o.name)}
-              score={o.score}
-              icon={o.inSun === true ? 'sun' : o.inSun === false ? 'shade' : null}
-              name={o.name}
-              note={sunHoursText(o)}
-            />
-          ))}
-        </div>
-      ))}
+      <div style={{ padding: '10px 16px calc(18px + env(safe-area-inset-bottom, 0px))', display: 'flow-root' }}>
+        <div aria-hidden="true" style={{ width: '40px', height: '4px', borderRadius: '2px', background: colorsV2.line, margin: '0 auto 10px' }} />
+        <h2 id="wt6-wall-sheet-title" style={{ ...typeV2.whyFigure, fontSize: '22px', margin: 0 }}>
+          Pick a wall
+        </h2>
+        <p style={{ ...typeV2.keyRow, color: colorsV2.txtMuted, margin: '2px 0 10px' }}>
+          {at === null ? 'Wall scores' : `Scores at ${at}`}. {SUN} in sun, {SHADE} in shade. Sun hours are the rest of today’s climbing hours.
+        </p>
+        <Option on={pinned === null} onClick={() => onPick(null)} icon={null} name="Auto: best walls" note="sun and shade" />
+        {groups.map((g) => (
+          <div key={g.title}>
+            <p style={{ ...typeV2.statLabel, margin: '10px 0 2px 6px' }}>{g.title}</p>
+            {g.rows.map((o) => (
+              <Option
+                key={o.name}
+                on={pinned === o.name}
+                onClick={() => onPick(o.name)}
+                score={o.score}
+                icon={o.inSun === true ? 'sun' : o.inSun === false ? 'shade' : null}
+                name={o.name}
+                note={sunHoursText(o)}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
     </dialog>
   )
 }
