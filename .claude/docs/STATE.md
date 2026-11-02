@@ -104,8 +104,8 @@ Nothing is scheduled; the owner picks from the open issues (`gh issue list`).
 
 - **Open feedback**: krazykoreankyle (2026-10-17) says the score misses tree-covered crags
   and crags near water. Crag A has no shade or local-humidity input. Not answered yet.
-- **#293**: wall direction and angle per guidebook wall. Wall A (`evaluateWallA`) is built
-  and nothing calls it yet (#445 is the plan to call it). **Do not score `aspectDegrees` directly**: the same aspect flips
+- **#293**: wall direction and angle per guidebook wall. Wall A (`evaluateWallA`) now
+  scores Red Wing's lidar walls on `/hourly` (#445 Phase 1); the Overview line is Phase 2. **Do not score `aspectDegrees` directly**: the same aspect flips
   sign by season.
 - **#415 Sun on the wall**: built for Red Wing (#419, 2026-10-27), on the Rock tab, display
   only. Another crag needs the owner's `sun_confirmed`, then `npm run sun:walls`. A ShadeMap

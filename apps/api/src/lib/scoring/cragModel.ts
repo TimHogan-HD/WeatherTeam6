@@ -15,8 +15,8 @@
  *   their median.
  * - **Wall A** (`evaluateWallA`) scores one specific wall, with the overhang's
  *   rain shelter applied and its heat and cold read from air plus the direct
- *   sun on that wall (`sunWarmingC`). It is never a crag's score and nothing
- *   calls it yet.
+ *   sun on that wall (`sunWarmingC`). It is never a crag's score; it is
+ *   published beside one as `HourlyReadings.walls` (#445).
  *
  * Friction is the heat/humidity/cold rule (`frictionFactorA`), not v2's sweat
  * balance: it reads air temperature, dew point and each wall's margin over the
@@ -490,10 +490,25 @@ export type WallAOptions = {
   skyline?: SunWall | null
   /** Trees keep direct sun off this wall (owner field report). No sun warming at all. */
   treeShaded?: boolean
+  /** The reader's temperature range, as Crag A takes it; absent is Wall A's own. */
+  range?: TempRangeC
 }
 
 /** Instants per hour at which the skyline is asked whether the sun is on the wall. */
 export const SUN_SAMPLES_PER_HOUR = 4
+
+/**
+ * The share of the hour ending at `endMs` that the skyline lets the sun onto
+ * the wall, 0-1, from `SUN_SAMPLES_PER_HOUR` instants. Geometry only: cloud is
+ * the shortwave's business.
+ */
+export function sunShareOfHour(skyline: SunWall, endMs: number): number {
+  return (
+    Array.from({ length: SUN_SAMPLES_PER_HOUR }, (_, k) =>
+      sunOnWallAt(skyline, endMs - ((k + 0.5) / SUN_SAMPLES_PER_HOUR) * 3_600_000),
+    ).filter(Boolean).length / SUN_SAMPLES_PER_HOUR
+  )
+}
 
 /**
  * **How much direct sun warms the wall above air temperature, °C, per hour.**
@@ -529,12 +544,7 @@ export function sunWarmingC(
       // Open-Meteo's shortwave is the mean of the hour before its stamp.
       const beam = wallBeamWm2(h.shortwave_wm2, new Date(end - 1_800_000), wall)
       if (beam !== null) {
-        const reached =
-          skyline === null
-            ? 1
-            : Array.from({ length: SUN_SAMPLES_PER_HOUR }, (_, k) =>
-                sunOnWallAt(skyline, end - ((k + 0.5) / SUN_SAMPLES_PER_HOUR) * 3_600_000),
-              ).filter(Boolean).length / SUN_SAMPLES_PER_HOUR
+        const reached = skyline === null ? 1 : sunShareOfHour(skyline, end)
         instant = (SOLAR_ABSORPTANCE * beam * reached) / ho
       }
     }
@@ -551,8 +561,10 @@ export function sunWarmingC(
  * Its heat and cold read the sun on this wall (`sunWarmingC`); its drying
  * clock still credits sun the skyline or trees may block.
  *
- * Nothing calls this yet: it is for scoring individual walls (the `walls`
- * table), and it must not be substituted for a location's crag score.
+ * `buildHourlyReadings` calls it for each lidar wall of a crag with confirmed
+ * sun and shade (#445), published beside the crag's score as
+ * `HourlyReadings.walls`. It must never be substituted for a location's crag
+ * score.
  */
 export function evaluateWallA(
   hours: readonly WeatherHour[],
@@ -585,7 +597,7 @@ export function evaluateWallA(
       h.diagnostics.effective_dry_hours,
       fallingOn(sheltered[i]!.precip_mm, wetThreshold, rockType),
       [h.t_surface_c],
-      undefined,
+      options.range,
       sun[i] ?? null,
     ),
   )
@@ -643,6 +655,12 @@ function finish(
   }
 }
 
+/** Whether an hour's stamp falls in the reader's climbing hours, local, inclusive: the hours a day is read from. */
+export function inClimbHours(validAt: string, utcOffsetSeconds: number, climbHours: ClimbHours): boolean {
+  const lh = new Date(Date.parse(validAt) + utcOffsetSeconds * 1000).getUTCHours()
+  return lh >= climbHours.first && lh <= climbHours.last
+}
+
 /**
  * **The day's representative hour: the worst hour of the best
  * `DAY_RUN_HOURS`-hour run inside the reader's climbing hours, local.** The
@@ -654,10 +672,7 @@ export function dayRepresentative<H extends HourlyConditions>(
   utcOffsetSeconds: number,
   climbHours: ClimbHours = CLIMB_HOURS_DEFAULT,
 ): H | null {
-  const inDay = dayHours.filter((h) => {
-    const lh = new Date(Date.parse(h.valid_at) + utcOffsetSeconds * 1000).getUTCHours()
-    return lh >= climbHours.first && lh <= climbHours.last
-  })
+  const inDay = dayHours.filter((h) => inClimbHours(h.valid_at, utcOffsetSeconds, climbHours))
   let best: H | null = null
   for (let a = 0; a + DAY_RUN_HOURS <= inDay.length; a++) {
     const run = inDay.slice(a, a + DAY_RUN_HOURS)

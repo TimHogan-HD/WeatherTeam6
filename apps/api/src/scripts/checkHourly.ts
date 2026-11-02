@@ -263,7 +263,7 @@ async function run(): Promise<void> {
     // point of this script is the round trip rather than the rock type, so it
     // is scored as an unrecorded kind on the default angle. That is exactly
     // what a user-added location carries today.
-    scoring: { rockType: 'unknown', lat: Number(picked.lat), lon: Number(picked.lon), cliffAngleDeg: 45, wall: null },
+    scoring: { rockType: 'unknown', lat: Number(picked.lat), lon: Number(picked.lon), cliffAngleDeg: 45, wall: null, walls: [] },
   })
 
   check('the series has hours', series.hours.length > 0, `got ${series.hours.length}`)
@@ -325,7 +325,7 @@ async function run(): Promise<void> {
     ensemble: ens,
     allModels: true,
     now,
-    scoring: { rockType: 'unknown', lat: Number(picked.lat), lon: Number(picked.lon), cliffAngleDeg: 45, wall: null },
+    scoring: { rockType: 'unknown', lat: Number(picked.lat), lon: Number(picked.lon), cliffAngleDeg: 45, wall: null, walls: [] },
   })
   const oneByte = Buffer.byteLength(JSON.stringify(series), 'utf8')
   const allByte = Buffer.byteLength(JSON.stringify(allSeries), 'utf8')

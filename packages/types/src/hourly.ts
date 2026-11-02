@@ -16,6 +16,7 @@
  */
 
 import type { SkySeries } from './sky.js'
+import type { WallReadings } from './wallSunShade.js'
 
 /** One hour, at a real UTC instant, with the chosen deterministic model and the ensemble joined. */
 export type HourlySample = {
@@ -401,6 +402,16 @@ export type HourlyReadings = {
    * Optional because the API and the client deploy separately.
    */
   past_days?: PastReadingsDay[];
+  /**
+   * **Each lidar wall's Wall A score, hour by hour and day by day** (#445), for
+   * a crag the owner confirmed sun and shade on (`sunWallsFor`). Empty for
+   * every other crag. Display only: the crag's score is still Crag A's, in
+   * `hours` and `days`. `sunShadeAt` and `sunShadeOnDay` pair them.
+   *
+   * Optional because the API and the client deploy separately: absent is an
+   * older API, and a surface draws nothing.
+   */
+  walls?: WallReadings[];
 };
 
 /** One day before the window. See `HourlyReadings.past_days`. */

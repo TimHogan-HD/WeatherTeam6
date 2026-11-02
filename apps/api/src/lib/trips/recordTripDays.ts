@@ -147,7 +147,8 @@ async function readTripReadings(
   for (const hours of climbHoursNeeded(dated, reader.climbHours)) {
     const series = await getHourlySeries(
       { id: location.id, ...point },
-      { allModels: true, now, scoring: scoringLocationFor(location, { ...reader, climbHours: hours }) },
+      // No walls: a trip records the crag's score only.
+      { allModels: true, now, scoring: scoringLocationFor({ ...location, known_crag: null }, { ...reader, climbHours: hours }) },
     )
     if (series.readings.unavailable_reason !== null) {
       throw new Error(`readings unavailable: ${series.readings.unavailable_reason}`)

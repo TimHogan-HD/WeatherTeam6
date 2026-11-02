@@ -76,7 +76,8 @@ conditionsRouter.get('/conditions/:locationId', async (req: Request, res: Respon
      * wall. The one implementation is `scoringLocationFor`, shared with `/hourly`.
      */
     const scoring = location.is_climbing_location
-      ? scoringLocationFor(location, await readerScoringFor(req.userId))
+      ? // No walls: this response carries the crag's readings only, and scoring them costs a Wall A per wall.
+        scoringLocationFor({ ...location, known_crag: null }, await readerScoringFor(req.userId))
       : null
 
     /**

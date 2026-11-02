@@ -1,6 +1,6 @@
 # Sun and shade walls on the Overview: handoff v1
 
-Queued, not built (owner, 2026-11-02). Tracking issue: **#445**, which holds the plan, the open
+Phase 1 built; Phases 2 and 3 queued (owner, 2026-11-02). Tracking issue: **#445**, which holds the plan, the open
 decisions and the evidence. This file is the entry point a new session reads first; the issue
 is where the state is kept.
 
@@ -9,7 +9,7 @@ is where the state is kept.
 - **Built:** Wall A's heat and cold read air plus the direct sun on that wall (#439,
   `sunWarmingC` in `apps/api/src/lib/scoring/cragModel.ts`). Beam only, gated by the lidar
   skyline, zero on a tree-shaded wall, lagged like `T_surface`, null when sunlight was not
-  forecast. Nothing calls `evaluateWallA` from a route yet.
+  forecast. `/hourly` publishes it per wall as `HourlyReadings.walls` (Phase 1).
 - **Wall data:** only Red Wing has lidar walls (`SUN_WALLS['red-wing']`, six walls, generated
   by `npm run sun:walls`; never hand-edit `sunWallsData.ts`). The skyline is bare earth, so
   tree shade must be a hand-set list. Walls carry no area yet (#293).
@@ -30,11 +30,21 @@ is where the state is kept.
   top). A pinned card names the wall and its current sun/shade state.
 - Wanted next to it: a walls × hours grid on the Crag tab, and ☀/◐ pairs in Next days.
 
+## Decided 2026-11-02 (owner)
+
+- **Hero layout: idea 4**, one tappable line under the hero (`overview-34.html`).
+- **Tree-shaded at Red Wing:** Annadonia, Large Roof, New Vice, Perfect Crimb
+  (`KnownCrag.tree_shaded`).
+- **Day rule:** the sun group is the walls with at least 2 sun hours inside the climbing
+  hours, the shade group the rest; each group's day score is its best wall's.
+
+**Phase 1 (API) is built:** `HourlyReadings.walls` on `/hourly`, paired by `sunShadeAt` and
+`sunShadeOnDay` (`packages/types`). `scoring.md` and `readings.md` hold the rules.
+
 ## Open (owner)
 
-Hero layout (idea 3 swipe vs idea 4 one line; Claude recommends 4), the tree-shaded wall list,
-the day rule for Next days, and the owner's own field test of Winter Wall at 55 °F and sunny.
-Details in #445.
+The owner's own field test of Winter Wall at 55 °F and sunny, which settles whether the sun
+boost is too strong. Details in #445.
 
 ## Mockups
 

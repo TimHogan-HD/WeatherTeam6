@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { SCORE_MODEL_FACTS, fToC, solarPosition, sunWallsFor, type RockType, type SunWall } from '@weatherteam6/types'
+import { SCORE_MODEL_FACTS, fToC, sunWallsFor, type RockType, type SunWall } from '@weatherteam6/types'
 import { RAIN_WINDOW } from '../weather/rainMedian.js'
+import { RED_WING_ONE_PM, redWing20261019 } from './redWing20261019.fixture.js'
 import {
   DAY_FIRST_HOUR,
   DAY_LAST_HOUR,
@@ -402,42 +403,15 @@ describe('evaluateWallA — sun on the wall', () => {
     expect(evaluateWallA(gap, { rockType: 'granite', wall: south, treeShaded: true })[day4(13)]!.score).toBeNull()
   })
 
-  /**
-   * Owner visit, Red Wing (Barn Bluff), 2026-10-19: Winter Wall in the sun too hot,
-   * jackets on the tree-shaded north side, and Crag A scored the hour 100. Air,
-   * dew point and wind are Red Wing airport (RGK) METARs for that day, repeated
-   * for six days so the rock mass and drying clock settle; the shortwave is
-   * clear-sky (Haurwitz), as the sky was. Winter Wall's skyline is the real lidar one.
-   */
+  // `redWing20261019.fixture.ts` says where the day comes from. Winter Wall's skyline is the real lidar one.
   it('Red Wing, 2026-10-19: Winter Wall in sun is too hot, the shaded side is good', () => {
-    // Local hours 00-23 (UTC-5).
-    const airF = [55.6, 51.6, 49.3, 46.2, 46, 46, 55.2, 49, 48, 46.4, 42.3, 40.6, 40.5, 40, 45.3, 50.5, 54.7, 57.6, 60, 62.6, 64, 66.2, 66.6, 63.7]
-    const dewF = [43.5, 43.7, 43, 42.6, 42.8, 44.2, 37.2, 37.4, 38, 38, 37.4, 37, 38, 37.2, 41.5, 43.5, 43.3, 42.8, 43, 42.6, 44, 44.2, 44.2, 43.7]
-    const windKt = [0, 0, 3, 0, 3, 3, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 3, 4, 6, 7, 7, 7, 5, 3]
-    // The METARs are stamped in UTC; index them by the UTC hour (local + 5).
-    const at = (utcHour: number) => (utcHour % 24 + 24) % 24
     const walls = sunWallsFor('red-wing')!.walls
     const winter = walls.find((w) => w.name === 'Winter Wall')!
     const roof = walls.find((w) => w.name === 'Large Roof Area')!
     const { lat, lon } = winter.foot
-    const start = Date.parse('2026-10-14T05:00:00Z')
-    const hours: WeatherHour[] = Array.from({ length: 6 * 24 }, (_, i) => {
-      const t = start + i * HOUR_MS
-      const u = at(new Date(t).getUTCHours() - 1)
-      const sun = solarPosition(new Date(t - HOUR_MS / 2), lat, lon)!
-      const cz = Math.sin((sun.elevationDeg * Math.PI) / 180)
-      return {
-        valid_at: new Date(t).toISOString(),
-        air_temp_c: fToC(airF[u]!),
-        dewpoint_c: fToC(dewF[u]!),
-        wind_kmh: windKt[u]! * 1.852,
-        cloud_pct: 0,
-        shortwave_wm2: cz > 0 ? 1098 * cz * Math.exp(-0.057 / cz) : 0,
-        precip_mm: 0,
-      }
-    })
+    const hours = redWing20261019(lat, lon)
     const orient = (w: SunWall) => ({ lat: w.foot.lat, lon: w.foot.lon, aspectDeg: w.aspect_deg, cliffAngleDeg: 0 })
-    const onePm = 5 * 24 + 13
+    const onePm = RED_WING_ONE_PM
     const winterWall = evaluateWallA(hours, { rockType: 'carbonate_cherty', wall: orient(winter), skyline: winter })[onePm]!
     const shaded = evaluateWallA(hours, { rockType: 'carbonate_cherty', wall: orient(roof), skyline: roof, treeShaded: true })[onePm]!
     const cragA = evaluateCragA(hours, { rockType: 'carbonate_cherty', lat, lon })[onePm]!

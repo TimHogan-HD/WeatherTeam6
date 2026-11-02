@@ -29,7 +29,10 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   to exactly one §7 value and a box no larger than ~30 km (`knownCrags.test.ts`).
   **`sun_confirmed: true` is the owner's word** that sun and shade were checked on the ground;
   set it only on their say-so, then run `npm run sun:walls` (`sun.test.ts` fails on a flagged
-  crag without skylines, and on skylines for an unflagged one).
+  crag without skylines, and on skylines for an unflagged one). **`tree_shaded`** names the
+  `SUN_WALLS` faces trees keep the sun off, by the owner's word (Red Wing's four N/NE walls,
+  2026-11-02, "not 100%"); the skyline is bare earth, so this list is the only tree shade.
+  `wallSunShade.test.ts` fails on a name the crag's walls do not have.
 - **`PATCH /locations/:id` speaks climbers' wall angle** (`wall_angle_deg`, degrees past
   vertical, positive overhanging); `cliff_angle` keeps 0 vertical, 90 slab. `wallAngle.ts`
   (`packages/types`) is the only place the sign flips. **An unknown body key is a 400.** Rules

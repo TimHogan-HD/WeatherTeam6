@@ -75,6 +75,8 @@ hourlyRouter.get('/hourly/:locationId', async (req: Request, res: Response) => {
         rock_type: locations.rock_type,
         cliff_angle: locations.cliff_angle,
         aspect: locations.aspect,
+        // A known crag with confirmed sun and shade also gets its walls scored (#445).
+        known_crag: locations.known_crag,
       })
       .from(locations)
       .where(and(eq(locations.id, locationId), eq(locations.user_id, req.userId)))

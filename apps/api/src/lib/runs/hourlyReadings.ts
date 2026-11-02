@@ -57,6 +57,7 @@ import {
   type TempRangeC,
 } from '../scoring/cragModel.js'
 import { localDateString } from '../weather/openMeteo.js'
+import { buildWallReadings, type ScoringWall } from './wallReadings.js'
 import type { DeterministicRuns, ModelRun } from './latestRuns.js'
 
 /**
@@ -109,6 +110,8 @@ export type BuildReadingsInput = {
   range?: TempRangeC
   /** The local hours a day's score is read from (`user_preferences`, #401); absent is 8 am–6 pm. */
   climbHours?: ClimbHours
+  /** The crag's lidar walls, scored one by one beside it (#445); absent or empty, none. */
+  walls?: readonly ScoringWall[]
 }
 
 const none = (reason: ReadingsUnavailableReason): HourlyReadings => ({
@@ -119,6 +122,7 @@ const none = (reason: ReadingsUnavailableReason): HourlyReadings => ({
   days: [],
   rock_history: [],
   past_days: [],
+  walls: [],
 })
 
 /** The published projection of an evaluated hour — readings, measurements and the penalties' order, no factors. */
@@ -309,5 +313,15 @@ export function buildHourlyReadings(input: BuildReadingsInput): HourlyReadings {
     days,
     rock_history,
     past_days: pastDays(past, weather, input.utcOffsetSeconds, climbHours),
+    walls: buildWallReadings({
+      weather,
+      walls: input.walls ?? [],
+      rockType: input.rockType,
+      dates: input.dates,
+      utcOffsetSeconds: input.utcOffsetSeconds,
+      now: input.now,
+      climbHours,
+      ...(input.range === undefined ? {} : { range: input.range }),
+    }),
   }
 }

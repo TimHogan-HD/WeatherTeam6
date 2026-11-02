@@ -167,7 +167,7 @@ async function run(): Promise<void> {
 
     // The route judges friction against the reader's range; the reader is the row's owner.
     const scoring = location.is_climbing_location
-      ? scoringLocationFor(location, await readerScoringFor(location.user_id))
+      ? scoringLocationFor({ ...location, known_crag: null }, await readerScoringFor(location.user_id))
       : null
 
     const [series, activeAlerts] = await Promise.all([

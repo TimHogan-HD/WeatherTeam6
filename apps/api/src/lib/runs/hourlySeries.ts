@@ -315,6 +315,7 @@ export function buildHourlySeries(input: BuildInput): HourlySeries {
           now,
           ...(input.scoring.range === undefined ? {} : { range: input.scoring.range }),
           ...(input.scoring.climbHours === undefined ? {} : { climbHours: input.scoring.climbHours }),
+          walls: input.scoring.walls,
         })
 
   const series: HourlySeries = {
