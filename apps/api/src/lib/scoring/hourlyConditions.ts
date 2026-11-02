@@ -246,8 +246,8 @@ export function rockLevel(
  *
  * The score does not read it this way any more: Crag A and Wall A pass each
  * wall's margin with that wall's sun added and floor the median at half
- * (`cragModel.condensationA`, 2026-11-02). This mass-only margin is still the
- * response's `condensation_margin_c`.
+ * (`cragModel.condensationA`, 2026-11-02), and publish that median wall's
+ * margin as `condensation_margin_c`.
  */
 export function condensationFactor(marginC: number | null): number | null {
   if (marginC === null || !Number.isFinite(marginC)) return null

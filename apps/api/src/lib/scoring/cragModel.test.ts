@@ -127,6 +127,13 @@ describe('condensationA', () => {
     expect(prev).toBe(1)
   })
 
+  it('scores the median wall’s margin, so the published margin is the one it read (#444 review)', () => {
+    // Middle walls at +1 and +3 °C: the median margin is 2 °C, clear — not the 0.75 a median of factors gives.
+    expect(condensationA(10, 10, [1, 1, 1, 1, 3, 3, 3, 3])).toBe(1)
+    // Middle walls at −0.5 and +1.5: margin +0.5, a quarter of the clear margin, floored.
+    expect(condensationA(10, 10, [-0.5, -0.5, -0.5, -0.5, 1.5, 1.5, 1.5, 1.5])).toBe(CONDENSATION_FLOOR)
+  })
+
   it('withholds when any wall is missing', () => {
     expect(condensationA(10, 8, [0, null])).toBeNull()
     expect(condensationA(10, 8, [0, NaN])).toBeNull()
@@ -141,9 +148,14 @@ describe('condensationA', () => {
     const cond = (i: number) => out[i]!.diagnostics.penalties!.condensation
     const night = 4 * 24 + 4
     const afternoon = 4 * 24 + 14
-    expect(out[afternoon]!.condensation_margin_c!).toBeLessThan(0)
+    expect(out[afternoon]!.diagnostics.t_mass_c! - 13).toBeLessThan(0)
     expect(cond(night)).toBe(CONDENSATION_FLOOR)
     expect(cond(afternoon)).toBeGreaterThan(CONDENSATION_FLOOR)
+    // The published margin and flag are the ones the score read, not the mass's.
+    expect(out[night]!.condensation_margin_c!).toBeLessThan(0)
+    expect(out[night]!.friction?.condensing).toBe(true)
+    expect(out[afternoon]!.condensation_margin_c!).toBeGreaterThan(0)
+    expect(out[afternoon]!.friction?.condensing).toBe(false)
   })
 })
 
