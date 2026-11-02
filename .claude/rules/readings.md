@@ -57,6 +57,13 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   from the breakdown's `How the score works ›`. Every number it quotes comes from
   `SCORE_MODEL_FACTS`, pinned to the model by `cragModel.test.ts`. A temperature interval
   goes through `cToFDelta`, never `formatTempF`.
+- **The Condensation card is three named zones over the next 42 hours** (owner, 2026-11-02,
+  variant A; `RockReadings.tsx`, `lib/rockReadings.ts`): `dew on rock` at or under 0°,
+  `close to dew` under the score's edge, `clear of dew` above it, from the hour covering now.
+  Its headline gives the first spell near dew as times (`condensationHeadline`); "until"
+  names an hour read clear, never an unread or missing one, which ends the spell as a gap.
+  A margin under 0 prints as `below`, here and in the Rock tab's slim header, never as a
+  negative "above".
 - **The Rock tab carries the friction note** (owner, 2026-10-29): `FRICTION_MECHANISM`,
   once, on the Condensation card (`RockReadings.tsx`) when any hour has a friction reading.
   **No modelled rock temperature prints** (owner, 2026-10-19), so `ROCK_TEMPERATURE_MECHANISM`

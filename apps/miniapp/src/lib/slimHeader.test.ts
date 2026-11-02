@@ -133,6 +133,11 @@ describe('slimFigure on Rock', () => {
     expect(f).toMatchObject({ value: 11, unit: '°', label: 'rock above dew', line: 'Dryness: Dry' })
   })
 
+  it('says below dew with the size of the gap, never a negative "above"', () => {
+    const hourReadings = [{ ...reading('2026-09-28T17:00:00Z', 80), condensation_margin_c: -3 }]
+    expect(slimFigure('rock', inputs({ hourReadings }))).toMatchObject({ value: 5, label: 'rock below dew' })
+  })
+
   it('is a gap with no reading near now, never a far hour’s margin or 0', () => {
     const far = [reading('2026-09-29T17:00:00Z', 80)]
     expect(slimFigure('rock', inputs({ hourReadings: far }))).toMatchObject({ value: null, line: null })
