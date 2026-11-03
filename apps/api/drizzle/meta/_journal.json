@@ -288,6 +288,13 @@
       "when": 1793712199285,
       "tag": "0040_curious_sentinel",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1793719987833,
+      "tag": "0041_supreme_praxagora",
+      "breakpoints": true
     }
   ]
 }

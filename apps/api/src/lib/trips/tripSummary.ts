@@ -6,6 +6,7 @@ import type {
   TripDayTrend,
   TripDayTrendPoint,
 } from '@weatherteam6/types'
+import { reportForDay } from '../weather/cocorahsGauge.js'
 
 export type ForecastRecord = {
   local_date: string
@@ -130,6 +131,48 @@ export function withGaugeDays(
               hours_expected: row.hours_expected,
             },
     }
+  })
+}
+
+export type VolunteerReportRow = {
+  station: string
+  station_name: string
+  report_date: string
+  obs_hour: number | null
+  rain_mm: number
+}
+
+/**
+ * Each look-back day with the nearest volunteer gauge that reported for it
+ * (`reportForDay`), else null. `gauges` is the crag's candidates nearest first,
+ * so a skipped day falls to the next station rather than reading dry, and two
+ * days can name two stations.
+ */
+export function withVolunteerGauges(
+  days: readonly TripDayLookBack[],
+  gauges: readonly { station: string; distance_km: number }[],
+  rows: readonly VolunteerReportRow[],
+): TripDayLookBack[] {
+  return days.map((day) => {
+    for (const gauge of gauges) {
+      const report = reportForDay(
+        day.local_date,
+        rows.filter((r) => r.station === gauge.station),
+      )
+      if (report === null || report.obs_hour === null) continue
+      return {
+        ...day,
+        volunteer_gauge: {
+          station: report.station,
+          name: report.station_name,
+          distance_km: gauge.distance_km,
+          rain_mm: report.rain_mm,
+          report_date: report.report_date,
+          obs_hour: report.obs_hour,
+        },
+      }
+    }
+    return { ...day, volunteer_gauge: null }
   })
 }
 

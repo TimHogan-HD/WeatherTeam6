@@ -67,6 +67,30 @@ describe('TripLookBackView', () => {
     expect(html).toContain(GAUGE_SOURCE)
   })
 
+  it('prints a volunteer report with its morning-to-morning window, and explains it', () => {
+    const html = view([
+      {
+        local_date: '2026-10-29',
+        outcome: null,
+        first: null,
+        last: null,
+        gauge: null,
+        volunteer_gauge: {
+          station: 'WI-PC-38',
+          name: 'Hager City 1.8 WNW',
+          distance_km: 6.1,
+          rain_mm: 10.67,
+          report_date: '2026-10-30',
+          obs_hour: 7,
+        },
+      },
+      { local_date: '2026-10-30', outcome: null, first: null, last: null, volunteer_gauge: null },
+    ])
+    expect(html).toContain('Volunteer gauge at Hager City 1.8 WNW, 4 mi away: 0.42 in, 7 am 29 Oct – 7 am 30 Oct')
+    expect(html.match(/Volunteer gauge at/g)).toHaveLength(1)
+    expect(html).toContain(GAUGE_SOURCE)
+  })
+
   it('does not explain a gauge line on a trip that has none', () => {
     const html = view([{ local_date: '2026-10-10', outcome: null, first: null, last: null, gauge: null }])
     expect(html).toContain(LOOK_BACK_SOURCE)

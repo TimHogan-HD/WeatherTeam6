@@ -334,6 +334,34 @@ export const tripDayGauges = pgTable(
 )
 
 /**
+ * A volunteer rain gauge's daily report (CoCoRaHS, `lib/weather/cocorahsGauge.ts`):
+ * the trip recorder writes the reports of a looked-back crag's nearest
+ * `VOLUNTEER_CANDIDATES` stations, and the summary takes, per day, the nearest
+ * that reported (`reportForDay`).
+ *
+ * **One reading a day, not a calendar day**: `report_date` is the date the gauge
+ * was read, at `obs_hour` local, and the figure covers the 24 hours before it.
+ * A day the volunteer skipped has no row, never a zero. Keyed per station and
+ * report like `trip_day_gauges`, with no FK, for the same reasons.
+ */
+export const tripDayVolunteerGauges = pgTable(
+  'trip_day_volunteer_gauges',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    station: text('station').notNull(),
+    /** The station's own name, e.g. `Hager City 1.8 WNW`, from the report. */
+    station_name: text('station_name').notNull(),
+    report_date: date('report_date').notNull(),
+    /** Local hour the gauge was read; null when IEM has none, and then the report stands for no day. */
+    obs_hour: integer('obs_hour'),
+    /** The firing that last wrote the row, truncated to the hour. */
+    recorded_at: timestamp('recorded_at', { withTimezone: true }).notNull(),
+    rain_mm: doublePrecision('rain_mm').notNull(),
+  },
+  (t) => [unique('trip_day_volunteer_gauges_station_report').on(t.station, t.report_date)],
+)
+
+/**
  * The trip's rain total and warmest high at one location, as of one cron
  * firing: the points of a trip screen's forecast trend.
  *

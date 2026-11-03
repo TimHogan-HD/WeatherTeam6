@@ -78,7 +78,7 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   (`LOOK_BACK_SOURCE`). A past day's score is withheld unless every daytime hour's rock is
   known by the `rock_history` rule, so the walk's starting guess never scores a day.
 - **A looked-back day carries the nearest airport gauge's rain** (`trip_day_gauges`,
-  `lib/weather/asosGauge.ts`), the one observation on an ended trip. `nearestGauge` picks
+  `lib/weather/asosGauge.ts`), one of two observations on an ended trip. `nearestGauge` picks
   from the committed `asosStations.ts` within `GAUGE_MAX_KM` (25 km), never a
   `STUCK_GAUGES` station, so Red Wing and every crag outside the US have none. The recorder
   writes it for each outcome day, **after its transaction and outside the
@@ -88,6 +88,16 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   is keyed by station with no FK, so the summary finds a crag's row by computing its station
   again, reads it in its own query, and treats a failure as no gauge. `TripDayLookBack.gauge`
   is optional; absent reads as null.
+- **A looked-back day also carries the nearest volunteer gauge that reported**
+  (`trip_day_volunteer_gauges`, `lib/weather/cocorahsGauge.ts`, #463), for crags whose airport
+  gauge is far or stuck (Red Wing's is WI-PC-38, 6 km). The recorder reads the
+  `VOLUNTEER_CANDIDATES` (3) nearest stations of the committed `cocorahsStations.ts`, picked
+  by recent reports rather than listing, under the same after-the-transaction rule; the
+  summary takes per day the nearest whose report stands for it (`reportForDay`), so two days
+  can name two stations. **A report is one reading over the 24 hours before it, not a
+  calendar day**: the screen prints its window (`7 am 29 Oct – 7 am 30 Oct`) and it never
+  drives the drying clock. A skipped day is no line, never a dry one.
+  `TripDayLookBack.volunteer_gauge` is optional; absent reads as null.
 - **An ended trip asks how each day went** (item 1 of the trip add-ons, 2026-11-03). At a
   crag, each looked-back day the reader can still date a check for
   (`FEEDBACK_OBSERVED_MAX_AGE_DAYS`, `checkInState`) offers "How was it?", which opens the

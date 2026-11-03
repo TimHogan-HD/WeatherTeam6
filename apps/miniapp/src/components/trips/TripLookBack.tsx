@@ -3,9 +3,11 @@ import {
   EM_DASH,
   ROCK_LABELS,
   formatPrecipIn,
+  hourLabel,
   kmToMi,
   type TripDayGauge,
   type TripDayLookBack,
+  type TripDayVolunteerGauge,
   type TripSummary,
 } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
@@ -13,7 +15,7 @@ import { bareButton, quietButton, row, stack, toneColors } from '../../theme/sty
 import { initialCheckDay } from '../../lib/feedback.js'
 import { formatTempDeg } from '../../lib/format.js'
 import { ROCK_TONE } from '../../lib/locationList.js'
-import { dayMonthLabel, forecastWords, hasDayTrend, leadLabel, shortDayLabel, type TrendSeries } from '../../lib/trips.js'
+import { dateLabel, dayMonthLabel, forecastWords, hasDayTrend, leadLabel, shortDayLabel, type TrendSeries } from '../../lib/trips.js'
 import { scoreRampColor } from '../charts/chartStyle.js'
 import { GuideCard } from '../guidebook/parts.js'
 import { InlineError, Skeleton } from '../States.js'
@@ -25,7 +27,7 @@ export const LOOK_BACK_SOURCE =
 
 /** Said after `LOOK_BACK_SOURCE` only when a day has a gauge line to explain. */
 export const GAUGE_SOURCE =
-  'A rain gauge line is the nearest airport gauge’s measurement: one spot, which a passing shower can miss.'
+  'A rain gauge line is one spot’s measurement, which a passing shower can miss. An airport gauge is summed over the day; a volunteer’s is read once a day and covers the 24 hours shown.'
 
 /**
  * A day's gauge reading as one line, or null when there is none. A day with an
@@ -37,6 +39,23 @@ export function gaugeLine(gauge: TripDayGauge | null | undefined): string | null
   const miles = Math.max(1, Math.round(kmToMi(gauge.distance_km)))
   const where = `Rain gauge at ${gauge.station}, ${miles} mi away`
   return gauge.rain_mm === null ? `${where}: not every hour reported` : `${where}: ${formatPrecipIn(gauge.rain_mm)}`
+}
+
+/**
+ * A volunteer gauge's report as one line, or null when none reported. It is
+ * one reading over the 24 hours before it, not the calendar day, so the
+ * window is printed as it is: `7 am 29 Oct – 7 am 30 Oct`.
+ */
+export function volunteerGaugeLine(gauge: TripDayVolunteerGauge | null | undefined): string | null {
+  if (gauge == null) return null
+  const miles = Math.max(1, Math.round(kmToMi(gauge.distance_km)))
+  const at = hourLabel(gauge.obs_hour)
+  const window = `${at} ${dateLabel(dateBefore(gauge.report_date))} – ${at} ${dateLabel(gauge.report_date)}`
+  return `Volunteer gauge at ${gauge.name}, ${miles} mi away: ${formatPrecipIn(gauge.rain_mm)}, ${window}`
+}
+
+function dateBefore(iso: string): string {
+  return new Date(Date.parse(`${iso}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
 }
 
 /**
@@ -93,7 +112,9 @@ export function TripLookBackView({
           />
         ))}
         <p style={typeV2.note}>
-          {summary.data.some((d) => gaugeLine(d.gauge) !== null) ? `${LOOK_BACK_SOURCE} ${GAUGE_SOURCE}` : LOOK_BACK_SOURCE}
+          {summary.data.some((d) => gaugeLine(d.gauge) !== null || volunteerGaugeLine(d.volunteer_gauge) !== null)
+            ? `${LOOK_BACK_SOURCE} ${GAUGE_SOURCE}`
+            : LOOK_BACK_SOURCE}
         </p>
       </GuideCard>
       {trend.data?.points.length === 0 && !hasDayTrend(trend.data.days) ? null : <TrendCard trend={trend} />}
@@ -130,6 +151,7 @@ function DayLookBack({
 }) {
   const o = day.outcome
   const gauge = gaugeLine(day.gauge)
+  const volunteer = volunteerGaugeLine(day.volunteer_gauge)
   const turned: Column =
     o === null
       ? { label: 'Turned out', figure: EM_DASH, color: colorsV2.txtMuted, note: 'Not recorded' }
@@ -170,6 +192,7 @@ function DayLookBack({
       <span style={typeV2.statLabel}>{dayMonthLabel(day.local_date)}</span>
       <Columns items={[turned, ...said]} />
       {gauge === null ? null : <p style={typeV2.rowSmall}>{gauge}</p>}
+      {volunteer === null ? null : <p style={typeV2.rowSmall}>{volunteer}</p>}
       {checkIn === 'checked' ? (
         <p style={{ ...typeV2.rowSmall, color: colorsV2.goodInk }}>You checked this day in</p>
       ) : checkIn === 'open' && onCheckIn !== undefined ? (

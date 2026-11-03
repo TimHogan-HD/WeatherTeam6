@@ -44,6 +44,7 @@
     "check:runs-storage": "tsx src/scripts/checkRunsStorage.ts",
     "check:forecast-stored": "tsx src/scripts/checkForecastStored.ts",
     "gauges:pull": "tsx src/scripts/pullAsosStations.ts",
+    "volunteer-gauges:pull": "tsx src/scripts/pullCocorahsStations.ts",
     "compare:dryness": "tsx src/scripts/compareDryness.ts",
     "collect:mrms": "tsx src/scripts/collectMrms.ts",
     "compare:mrms": "tsx src/scripts/compareMrms.ts",

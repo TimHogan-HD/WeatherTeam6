@@ -7,9 +7,11 @@ import {
   tripDayTrends,
   withCheckIns,
   withGaugeDays,
+  withVolunteerGauges,
   type DayWeatherRecord,
   type ForecastRecord,
   type GaugeDayRow,
+  type VolunteerReportRow,
 } from './tripSummary.js'
 
 const rec = (recorded_at: string, lead_days: number, score: number | null, local_date = '2026-10-04'): ForecastRecord => ({
@@ -151,6 +153,45 @@ describe('withGaugeDays', () => {
   it('carries a short day through as null rain with its counts', () => {
     const days = withGaugeDays([day('2026-10-04')], { station: 'DLL', distance_km: 13.2 }, [row('DLL', '2026-10-04', null)])
     expect(days[0]?.gauge).toMatchObject({ rain_mm: null, hours_reported: 20 })
+  })
+})
+
+describe('withVolunteerGauges', () => {
+  const day = (local_date: string): TripDayLookBack => ({ local_date, outcome: null, first: null, last: null })
+  const report = (station: string, report_date: string, rain_mm: number, obs_hour: number | null = 7): VolunteerReportRow => ({
+    station,
+    station_name: `${station} name`,
+    report_date,
+    obs_hour,
+    rain_mm,
+  })
+  const near = [
+    { station: 'WI-PC-38', distance_km: 6.1 },
+    { station: 'MN-GH-1', distance_km: 9.4 },
+  ]
+
+  it('takes the nearest station that reported for each day, falling to the next when it skipped one', () => {
+    const days = withVolunteerGauges([day('2026-10-29'), day('2026-10-30')], near, [
+      report('WI-PC-38', '2026-10-30', 10.67),
+      report('MN-GH-1', '2026-10-30', 8),
+      // WI-PC-38 skipped the 31st, so the 30th falls to MN-GH-1.
+      report('MN-GH-1', '2026-10-31', 1.2),
+    ])
+    expect(days[0]?.volunteer_gauge).toEqual({
+      station: 'WI-PC-38',
+      name: 'WI-PC-38 name',
+      distance_km: 6.1,
+      rain_mm: 10.67,
+      report_date: '2026-10-30',
+      obs_hour: 7,
+    })
+    expect(days[1]?.volunteer_gauge).toMatchObject({ station: 'MN-GH-1', distance_km: 9.4, report_date: '2026-10-31' })
+  })
+
+  it('is null when no candidate reported, and ignores a station that is not the crag’s', () => {
+    const days = withVolunteerGauges([day('2026-10-29')], near, [report('WI-XX-9', '2026-10-30', 4)])
+    expect(days[0]?.volunteer_gauge).toBeNull()
+    expect(withVolunteerGauges([day('2026-10-29')], [], [report('WI-PC-38', '2026-10-30', 4)])[0]?.volunteer_gauge).toBeNull()
   })
 })
 

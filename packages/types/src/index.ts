@@ -449,6 +449,12 @@ export type TripDayLookBack = {
    */
   gauge?: TripDayGauge | null
   /**
+   * The nearest volunteer gauge that reported for this day: a
+   * `trip_day_volunteer_gauges` row. Null when none in reach reported, nothing
+   * was recorded, or the read failed. Optional like `gauge`.
+   */
+  volunteer_gauge?: TripDayVolunteerGauge | null
+  /**
    * Whether the caller has a forecast check at this crag on this day, resolved
    * or not: the trip screen then says so instead of asking. Absent from an
    * older API, which the screen reads as not known and still offers the check.
@@ -469,6 +475,25 @@ export type TripDayGauge = {
   rain_mm: number | null
   hours_reported: number
   hours_expected: number
+}
+
+/**
+ * One volunteer's daily report (CoCoRaHS) standing for a trip day: read once,
+ * at `obs_hour` local on `report_date`, covering the 24 hours before. Not a
+ * calendar day, so the screen prints the window as it is.
+ */
+export type TripDayVolunteerGauge = {
+  /** The station's id, e.g. `WI-PC-38`. */
+  station: string
+  /** The station's own name, e.g. `Hager City 1.8 WNW`. */
+  name: string
+  /** Straight-line km from the crag. */
+  distance_km: number
+  rain_mm: number
+  /** The date the gauge was read; the window starts the day before. */
+  report_date: string
+  /** Local hour the gauge was read, 0-23. */
+  obs_hour: number
 }
 
 /** `GET /trips/:tripId/summary`, one per trip location, every trip date in order. */
