@@ -207,15 +207,3 @@ export function checksAgainstForecast(
     return row
   })
 }
-
-/**
- * The local date a check was observed on, at the station's zone when the crag
- * has a gauge, else the longitude's solar offset: close enough to put a
- * daytime check on its day, which is all the join needs.
- */
-export function checkLocalDate(observedAt: Date, tz: string | null, lon: number): string {
-  if (tz !== null) {
-    return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(observedAt)
-  }
-  return new Date(observedAt.getTime() + Math.round(lon / 15) * 3_600_000).toISOString().slice(0, 10)
-}

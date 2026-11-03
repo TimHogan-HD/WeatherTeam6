@@ -836,7 +836,10 @@ crag days first, several crags as a grid. Open to change like every other screen
   2026-11-03, `splitTrips`); they are kept, never archived, because their summary is the only
   record of how the forecast did. With nothing coming up the list says "No trips coming up."
   above the fold. An ended trip's screen offers **Plan again**: `/trips/new` with its name,
-  crags and climbing hours, dates left to pick (`planAgainDraft`).
+  crags and climbing hours, dates left to pick (`planAgainDraft`). Each looked-back day at a
+  crag carries the nearest airport gauge's rain when one is within 25 km, and a quiet
+  **How was it?** that opens the forecast check on that crag and day and returns to the trip;
+  once answered the day reads "You checked this day in" (2026-11-03, `checkInState`).
 - **`/trips/new`** is a task you finish and leave (no bottom bar, back to `/trips`): a name,
   first and last day (native date inputs), and one or more saved climbing locations.
   Problems are one line under the form; Create replaces history with the new trip.

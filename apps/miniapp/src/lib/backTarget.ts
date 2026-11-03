@@ -15,7 +15,7 @@
  * | `/add` save form | the search or browse level it was picked from, intact |
  * | `/add` save form opened from the map | `/map` |
  * | `/add` browsing a state | one level up; the state list returns to the search |
- * | `/feedback` | the location it was opened from, else `/` |
+ * | `/feedback` | the trip it was opened from, else the location, else `/` |
  * | `/location/:id/edit` | that location |
  * | `/trips/new`, `/trips/:tripId` | `/trips` |
  * | `/trips/:tripId/crag/:locationId`, `/trips/:tripId/edit` | that trip |
@@ -44,7 +44,7 @@ import type { DetailTab } from '../components/DetailView.js'
 export type BackContext =
   | { route: 'list' }
   | { route: 'add'; confirming: boolean; browsing: boolean; fromMap: boolean; forTrip: string | null }
-  | { route: 'feedback'; fromLocationId: string | null }
+  | { route: 'feedback'; fromLocationId: string | null; fromTripId?: string | null }
   | { route: 'location'; fromMap: boolean }
   | { route: 'edit'; locationId: string }
   | { route: 'tripNew' }
@@ -83,7 +83,12 @@ export function backTarget(context: {
   /** The trip form's path when a trip's "Add a crag" opened the search, else null. */
   forTrip: string | null
 }): AddBack
-export function backTarget(context: { route: 'feedback'; fromLocationId: string | null }): Navigate
+export function backTarget(context: {
+  route: 'feedback'
+  fromLocationId: string | null
+  /** An ended trip's "How was it?" opened the check (`checkInPath`). */
+  fromTripId?: string | null
+}): Navigate
 export function backTarget(context: {
   route: 'location'
   /** The map's pin opened the crag (`OPENED_FROM_MAP` in the router state). */
@@ -106,8 +111,9 @@ export function backTarget(context: BackContext): BackAction {
       if (context.confirming) return { kind: 'closeSaveForm' }
       return context.browsing ? { kind: 'browseUp' } : { kind: 'navigate', to: context.forTrip ?? '/' }
     case 'feedback':
-      // Opened from a crag's "Check this forecast", back returns to that crag
-      // rather than dropping the reader at the list.
+      // Opened from an ended trip's day, back returns to the trip; from a
+      // crag's "Check this forecast", to that crag, rather than the list.
+      if (context.fromTripId != null) return { kind: 'navigate', to: tripPath(context.fromTripId) }
       return { kind: 'navigate', to: context.fromLocationId === null ? '/' : `/location/${context.fromLocationId}` }
     // A crag's app bar has slid away, so back is the only way to the section it
     // was opened from. Anything but a map pin returns to the list.
@@ -135,6 +141,10 @@ export const tripPath = (tripId: string): string => `/trips/${tripId}`
 export const editTripPath = (tripId: string): string => `${tripPath(tripId)}/edit`
 export const tripCragPath = (tripId: string, locationId: string): string => `${tripPath(tripId)}/crag/${locationId}`
 export const NEW_TRIP_PATH = '/trips/new'
+
+/** The forecast check for one crag on one past trip day, which returns to the trip (`Feedback`). */
+export const checkInPath = (tripId: string, locationId: string, localDate: string): string =>
+  `/feedback?location=${encodeURIComponent(locationId)}&day=${localDate}&trip=${encodeURIComponent(tripId)}`
 
 /** A crag's Hourly tab, opened on one day. */
 export const hourlyDayPath = (locationId: string, localDate: string): string =>

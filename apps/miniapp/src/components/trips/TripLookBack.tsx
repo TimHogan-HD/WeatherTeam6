@@ -8,7 +8,8 @@ import {
   type TripSummary,
 } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
-import { bareButton, row, stack, toneColors } from '../../theme/styles.js'
+import { bareButton, quietButton, row, stack, toneColors } from '../../theme/styles.js'
+import { initialCheckDay } from '../../lib/feedback.js'
 import { formatTempDeg } from '../../lib/format.js'
 import { ROCK_TONE } from '../../lib/locationList.js'
 import { dayMonthLabel, forecastWords, hasDayTrend, leadLabel, shortDayLabel, type TrendSeries } from '../../lib/trips.js'
@@ -38,17 +39,37 @@ export function gaugeLine(gauge: TripDayGauge | null | undefined): string | null
 }
 
 /**
+ * What a past day offers for a check-in: `checked` when the reader already has
+ * a forecast check there that day, `open` while a check can still be saved
+ * for it (`FEEDBACK_OBSERVED_MAX_AGE_DAYS`), else `closed`. An older API sends
+ * no `checked_in`, which reads as not known, so the day is still offered.
+ */
+export function checkInState(day: TripDayLookBack, nowMs: number): 'checked' | 'open' | 'closed' {
+  if (day.checked_in === true) return 'checked'
+  return initialCheckDay(day.local_date, nowMs) === day.local_date ? 'open' : 'closed'
+}
+
+/**
  * One crag's trip once it is over (the mockup's `.lb`): each day as it turned
  * out, beside what the forecast said first and last, then how the forecast
  * moved. Everything here was stored while the trip was ahead; nothing is
  * fetched from upstream.
+ *
+ * With `onCheckIn`, each day the reader can still report on offers "How was
+ * it?", which opens the forecast check on that crag and day: the one place a
+ * trip learns what the rock was actually like.
  */
 export function TripLookBackView({
   summary,
   trend,
+  onCheckIn,
+  nowMs,
 }: {
   summary: QueryState<TripDayLookBack[]>
   trend: QueryState<TrendSeries>
+  onCheckIn?: (localDate: string) => void
+  /** The screen's clock (`useNow`): which days a check can still be dated for. */
+  nowMs: number
 }) {
   if (summary.isPending) return <Skeleton height={180} />
   if (summary.isError || summary.data === undefined) {
@@ -62,7 +83,13 @@ export function TripLookBackView({
     <div style={stack(spacing.listGapLg)}>
       <GuideCard title="How it turned out" label="How it turned out">
         {summary.data.map((day, i) => (
-          <DayLookBack key={day.local_date} day={day} first={i === 0} />
+          <DayLookBack
+            key={day.local_date}
+            day={day}
+            first={i === 0}
+            checkIn={onCheckIn === undefined ? null : checkInState(day, nowMs)}
+            onCheckIn={onCheckIn === undefined ? undefined : () => onCheckIn(day.local_date)}
+          />
         ))}
         <p style={typeV2.note}>
           {summary.data.some((d) => gaugeLine(d.gauge) !== null) ? `${LOOK_BACK_SOURCE} ${GAUGE_SOURCE}` : LOOK_BACK_SOURCE}
@@ -89,7 +116,17 @@ function Columns({ items }: { items: readonly Column[] }) {
   )
 }
 
-function DayLookBack({ day, first }: { day: TripDayLookBack; first: boolean }) {
+function DayLookBack({
+  day,
+  first,
+  checkIn,
+  onCheckIn,
+}: {
+  day: TripDayLookBack
+  first: boolean
+  checkIn: ReturnType<typeof checkInState> | null
+  onCheckIn: (() => void) | undefined
+}) {
   const o = day.outcome
   const gauge = gaugeLine(day.gauge)
   const turned: Column =
@@ -132,6 +169,13 @@ function DayLookBack({ day, first }: { day: TripDayLookBack; first: boolean }) {
       <span style={typeV2.statLabel}>{dayMonthLabel(day.local_date)}</span>
       <Columns items={[turned, ...said]} />
       {gauge === null ? null : <p style={typeV2.rowSmall}>{gauge}</p>}
+      {checkIn === 'checked' ? (
+        <p style={{ ...typeV2.rowSmall, color: colorsV2.goodInk }}>You checked this day in</p>
+      ) : checkIn === 'open' && onCheckIn !== undefined ? (
+        <button type="button" onClick={onCheckIn} style={{ ...quietButton, alignSelf: 'flex-start' }}>
+          How was it?
+        </button>
+      ) : null}
       {o !== null && o.dryness === null && o.score === null ? (
         <p style={typeV2.note}>The rock could not be read for this day.</p>
       ) : null}

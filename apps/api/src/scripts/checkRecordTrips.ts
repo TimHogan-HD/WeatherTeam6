@@ -70,7 +70,7 @@ async function run(): Promise<void> {
 
   const { createApp } = await import('../index.js')
   const { db, pool } = await import('../db/index.js')
-  const { users, locations, trips, tripLocations, tripDayRecords, tripDayOutcomes, tripDayGauges, tripRainRecords } =
+  const { users, locations, trips, tripLocations, tripDayRecords, tripDayOutcomes, tripDayGauges, tripRainRecords, feedback } =
     await import('../db/schema.js')
   const { recordTripDays, writeGaugeDays, writeOutcomes } = await import('../lib/trips/recordTripDays.js')
   const { deleteLocationCascade } = await import('../lib/locations/deleteLocation.js')
@@ -378,6 +378,17 @@ async function run(): Promise<void> {
     )
 
     console.log('\nReading the past trip summary')
+    // A forecast check on the first past day, at 20:00Z: midday at Red Rock.
+    const checkedDay = pastDates[0] ?? isoDay(now, -3)
+    await db.insert(feedback).values({
+      user_id: userId,
+      kind: 'forecast',
+      location_id: locationId,
+      location_name: `${PREFIX} crag`,
+      observed_at: new Date(`${checkedDay}T20:00:00Z`),
+      observed_conditions: 'dry',
+      verdict: 'matched',
+    })
     const storedNow = await db.select().from(tripDayOutcomes).where(eq(tripDayOutcomes.location_id, locationId))
     const sumRes = await fetch(`${BASE}/trips/${pastTripId}/summary`, { headers: { Authorization: `Session ${token}` } })
     const sumBody = (await sumRes.json()) as ApiResponse<TripSummary[]>
@@ -401,6 +412,11 @@ async function run(): Promise<void> {
       summary?.days.every((d) => d.gauge === null || (typeof d.gauge?.station === 'string' && typeof d.gauge.distance_km === 'number')) === true,
       JSON.stringify(summary?.days.map((d) => d.gauge)),
     )
+    check(
+      'the checked day reads checked in, and only that day',
+      summary?.days.every((d) => d.checked_in === (d.local_date === checkedDay)) === true,
+      JSON.stringify(summary?.days.map((d) => [d.local_date, d.checked_in])),
+    )
     const foreignSummary = await fetch(`${BASE}/trips/${pastTripId}/summary`, { headers: { Authorization: `Session ${otherToken}` } })
     check("another account reading this trip's summary gets 404", foreignSummary.status === 404, String(foreignSummary.status))
   } catch (err) {
@@ -421,6 +437,7 @@ async function run(): Promise<void> {
       await db.delete(tripDayGauges).where(eq(tripDayGauges.station, GAUGE_STATION))
       for (const id of extraTripIds) await db.delete(trips).where(eq(trips.id, id))
       if (tripId !== null) await db.delete(trips).where(eq(trips.id, tripId))
+      if (userId !== null) await db.delete(feedback).where(eq(feedback.user_id, userId))
       if (userId !== null) await db.delete(users).where(eq(users.id, userId))
       console.log('  cleaned up')
     } catch (err) {

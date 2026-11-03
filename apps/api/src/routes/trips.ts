@@ -1,12 +1,29 @@
 import { Router, type Request, type Response } from 'express'
 import { and, eq, asc, gte, inArray, lte } from 'drizzle-orm'
 import { db } from '../db/index.js'
-import { trips, tripLocations, tripRainRecords, tripDayRecords, tripDayOutcomes, tripDayGauges, locations } from '../db/schema.js'
+import {
+  feedback,
+  trips,
+  tripLocations,
+  tripRainRecords,
+  tripDayRecords,
+  tripDayOutcomes,
+  tripDayGauges,
+  locations,
+} from '../db/schema.js'
 import { MAX_NAME_LENGTH, describeError, isIsoDate, isUuid, sendServerError } from '../lib/http.js'
 import { logger } from '../lib/logger.js'
 import { fetchOutlook, type Outlook } from '../lib/weather/ensembleOutlook.js'
 import { summarizeTripOutlook } from '../lib/trips/tripOutlook.js'
-import { tripDateList, tripDayLookBacks, tripDayTrends, withGaugeDays, type GaugeDayRow } from '../lib/trips/tripSummary.js'
+import {
+  localDateAt,
+  tripDateList,
+  tripDayLookBacks,
+  tripDayTrends,
+  withCheckIns,
+  withGaugeDays,
+  type GaugeDayRow,
+} from '../lib/trips/tripSummary.js'
 import { nearestGauge } from '../lib/weather/asosGauge.js'
 import { MAX_TRIP_LOCATIONS, parseTripPatch, updateTrip } from '../lib/trips/updateTrip.js'
 import { climbHourColumns, isTripClimbHours, tripClimbHours } from '../lib/trips/tripClimbHours.js'
@@ -506,16 +523,46 @@ tripsRouter.get('/trips/:tripId/summary', async (req: Request, res: Response) =>
       tripRow.start_date,
       tripRow.end_date,
     )
+    // The caller's own forecast checks at these crags, resolved or not, a day
+    // either side of the trip so any zone's local day is inside the window.
+    const checks =
+      locationIds.length === 0
+        ? []
+        : await db
+            .select({ location_id: feedback.location_id, observed_at: feedback.observed_at })
+            .from(feedback)
+            .where(
+              and(
+                eq(feedback.user_id, req.userId),
+                eq(feedback.kind, 'forecast'),
+                inArray(feedback.location_id, locationIds),
+                gte(feedback.observed_at, new Date(Date.parse(tripRow.start_date) - 86_400_000)),
+                lte(feedback.observed_at, new Date(Date.parse(tripRow.end_date) + 2 * 86_400_000)),
+              ),
+            )
+    const lonOf = new Map(owned.map((r) => [r.id, parseNumericRequired(r.lon)]))
+    const checkedOn = (locationId: string): Set<string> =>
+      new Set(
+        checks.flatMap((c) =>
+          c.location_id !== locationId || c.observed_at === null
+            ? []
+            : [localDateAt(c.observed_at, gauges.get(locationId)?.tz ?? null, lonOf.get(locationId) ?? 0)],
+        ),
+      )
+
     const data: TripSummary[] = locationIds.map((locationId) => ({
       locationId,
-      days: withGaugeDays(
-        tripDayLookBacks({
-          dates,
-          records: records.filter((r) => r.location_id === locationId),
-          outcomes: outcomes.filter((o) => o.location_id === locationId),
-        }),
-        gauges.get(locationId) ?? null,
-        gaugeRows,
+      days: withCheckIns(
+        withGaugeDays(
+          tripDayLookBacks({
+            dates,
+            records: records.filter((r) => r.location_id === locationId),
+            outcomes: outcomes.filter((o) => o.location_id === locationId),
+          }),
+          gauges.get(locationId) ?? null,
+          gaugeRows,
+        ),
+        checkedOn(locationId),
       ),
     }))
 

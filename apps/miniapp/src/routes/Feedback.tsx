@@ -42,6 +42,8 @@ import {
   draftLine,
   emptyStop,
   feedbackLines,
+  firstStopTime,
+  initialCheckDay,
   missingAnswer,
   pickRoute,
   pickSun,
@@ -78,12 +80,16 @@ import { InlineError, SkeletonCards } from '../components/States.js'
  * - **App feedback**: free text about the app.
  *
  * `?location=<id>` preselects the crag, opens on the check, and sends back to
- * that crag rather than to the list.
+ * that crag rather than to the list. An ended trip's "How was it?" adds
+ * `&day=<YYYY-MM-DD>&trip=<id>` (`checkInPath`): the check opens on that day,
+ * and saving it, or back, returns to the trip.
  */
 export function Feedback() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const fromLocationId = params.get('location')
+  const fromTripId = params.get('trip')
+  const [initialDay] = useState(() => initialCheckDay(params.get('day'), Date.now()))
   // A prefilled app note, e.g. the save screen's "Wrong rock type?".
   const initialMessage = params.get('message') ?? ''
 
@@ -91,8 +97,13 @@ export function Feedback() {
   const [saved, setSaved] = useState<FeedbackKind | null>(null)
 
   const onBack = useCallback(() => {
-    void navigate(backTarget({ route: 'feedback', fromLocationId }).to)
-  }, [navigate, fromLocationId])
+    void navigate(backTarget({ route: 'feedback', fromLocationId, fromTripId }).to)
+  }, [navigate, fromLocationId, fromTripId])
+  // A trip day's check returns to the trip, which now says the day is checked in.
+  const onCheckSaved = useCallback(() => {
+    if (fromTripId !== null) onBack()
+    else setSaved('forecast')
+  }, [fromTripId, onBack])
 
   return (
     <Screen title="Feedback" onBack={onBack}>
@@ -112,7 +123,7 @@ export function Feedback() {
         )}
 
         {kind === 'forecast' ? (
-          <ForecastCheckForm initialLocationId={fromLocationId} onSaved={() => setSaved('forecast')} />
+          <ForecastCheckForm initialLocationId={fromLocationId} initialDay={initialDay} onSaved={onCheckSaved} />
         ) : (
           <AppFeedbackForm initialMessage={initialMessage} onSaved={() => setSaved('app')} />
         )}
@@ -125,9 +136,11 @@ export function Feedback() {
 
 function ForecastCheckForm({
   initialLocationId,
+  initialDay,
   onSaved,
 }: {
   initialLocationId: string | null
+  initialDay: string
   onSaved: () => void
 }) {
   const locations = useLocations()
@@ -139,8 +152,8 @@ function ForecastCheckForm({
   const locationId = crags.some((c) => c.id === picked) ? picked : (crags[0]?.id ?? null)
 
   const now = useNow()
-  const [day, setDay] = useState(() => toLocalDateValue(Date.now()))
-  const [stops, setStops] = useState<StopDraft[]>(() => [emptyStop(toLocalTimeValue(Date.now()))])
+  const [day, setDay] = useState(initialDay)
+  const [stops, setStops] = useState<StopDraft[]>(() => [emptyStop(firstStopTime(initialDay, Date.now()))])
   // One wall open at a time; the rest fold to a line each.
   const [openStop, setOpenStop] = useState<number | null>(0)
   const [verdict, setVerdict] = useState<ForecastVerdict | null>(null)
