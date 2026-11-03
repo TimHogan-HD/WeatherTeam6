@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { formatPrecipIn } from '@weatherteam6/types'
 import {
   VOLUNTEER_CANDIDATES,
   fetchVolunteerReports,
@@ -20,15 +21,18 @@ const daily = (date: string, precip: number | null, temp_hour: number | null = 7
 describe('parseReports', () => {
   const dates = new Set(['2026-10-29', '2026-10-30'])
 
-  it('reads inches as millimetres, a trace as nothing, and keeps only the asked dates', () => {
+  it('reads inches as millimetres, keeps a trace above zero, and keeps only the asked dates', () => {
     const reports = parseReports(
       { data: [daily('2026-10-28', 1), daily('2026-10-29', 0.0001), daily('2026-10-30', 0.42)] },
       dates,
     )
     expect(reports).toEqual([
-      { station: 'WI-PC-38', station_name: 'Hager City 1.8 WNW', report_date: '2026-10-29', obs_hour: 7, rain_mm: 0 },
-      { station: 'WI-PC-38', station_name: 'Hager City 1.8 WNW', report_date: '2026-10-30', obs_hour: 7, rain_mm: 10.67 },
+      { station: 'WI-PC-38', station_name: 'Hager City 1.8 WNW', report_date: '2026-10-29', obs_hour: 7, rain_mm: 0.0025 },
+      { station: 'WI-PC-38', station_name: 'Hager City 1.8 WNW', report_date: '2026-10-30', obs_hour: 7, rain_mm: 10.668 },
     ])
+    // A trace prints as one, never as a dry day.
+    expect(formatPrecipIn(reports[0]?.rain_mm ?? null)).toBe('trace')
+    expect(parseReports({ data: [daily('2026-10-29', 0)] }, dates)[0]?.rain_mm).toBe(0)
   })
 
   it('leaves out a day the volunteer did not report, never a dry one', () => {

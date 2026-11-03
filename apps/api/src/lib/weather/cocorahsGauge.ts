@@ -88,8 +88,9 @@ type DailyRow = { station?: unknown; name?: unknown; date?: unknown; precip?: un
 /**
  * IEM's `daily.json` rows as reports, kept to `dates`. A row without a rain
  * figure is a day the volunteer did not report it, and is left out. A trace
- * (IEM's 0.0001 in) is below the smallest measurable amount and reads as 0.
- * Pure, for the tests.
+ * (IEM's 0.0001 in) stays above zero, unlike an airport hour's: it is the
+ * day's one figure, and says the volunteer saw rain too small to measure, so
+ * `formatPrecipIn` prints `trace`, never `0 in`. Pure, for the tests.
  */
 export function parseReports(body: unknown, dates: ReadonlySet<string>): VolunteerReport[] {
   const rows = (body as { data?: unknown } | null)?.data
@@ -104,7 +105,8 @@ export function parseReports(body: unknown, dates: ReadonlySet<string>): Volunte
         station_name: typeof r.name === 'string' && r.name.trim() !== '' ? r.name.trim() : r.station,
         report_date: r.date,
         obs_hour: hour,
-        rain_mm: r.precip < 0.001 ? 0 : Math.round(r.precip * 25.4 * 100) / 100,
+        // Four places, so a trace's 0.0025 mm stays above zero.
+        rain_mm: Math.round(r.precip * 25.4 * 10_000) / 10_000,
       },
     ]
   })

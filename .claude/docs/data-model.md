@@ -200,7 +200,7 @@ station_name    text      -- e.g. 'Hager City 1.8 WNW', from the report
 report_date     date      -- the date the gauge was read; covers the 24 hours before
 obs_hour        int       -- local hour it was read (usually 7); null stands for no day
 recorded_at     timestamptz -- the firing that last wrote it, truncated to the hour
-rain_mm         double    -- not null: a report without a figure is no row; a trace is 0
+rain_mm         double    -- not null: a report without a figure is no row; a trace is 0.0025, so it prints 'trace'
 UNIQUE(station, report_date)
 ```
 **One reading a day, not a calendar day**: a morning reading dated the 30th stands for the 29th, an afternoon or evening one (`AFTERNOON_READING_HOUR`, 13) for its own date. A skipped day has no row, never a zero. Same no-FK reasoning as `trip_day_gauges`; a later read replaces a row, since volunteers correct reports (`writeVolunteerReports`).
