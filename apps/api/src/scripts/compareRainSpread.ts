@@ -74,6 +74,18 @@
  * alone. The four models'
  * share stays the bigger lever; AIFS adds caution, not skill. Its ensemble,
  * which might differ, cannot be scored here.
+ *
+ * **Bands run (2026-11-02, same stations and window): where the Next days dots
+ * should start (`RAIN_SPLIT_MIN_SCORE`, 80 at the time).** Leads 1-6 pooled. In
+ * every band from 60 up, days with 2+ models' clocks not dry were wet far more
+ * often than days with 0-1: sandstone 58-71% against 2-20%, limestone 59-66%
+ * against 8-15%, carbonate_cherty 43-54% against 5-9%, quartzite 26-40%
+ * against 2-4% (its 2+ rows are 26-43 days). 70-79 is as telling as 80-89:
+ * sandstone 69.5% against 11.4%, limestone 66.3% against 8.3%. The cost of
+ * going lower is how many days carry dots: at 70-79, 54% of sandstone days and
+ * 36% of limestone; at 60-69, 76% and 48%, where the dots stop picking days out.
+ * Raising the start to 90 would drop dots from 80-89 days that came out wet
+ * 43-65% of the time.
  */
 import type { RockType } from '@weatherteam6/types'
 import { dayRepresentative, evaluateCragA, rockLevelA } from '../lib/scoring/cragModel.js'
