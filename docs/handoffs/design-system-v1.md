@@ -77,30 +77,15 @@ Two rules the client added that belong here now:
 
 ## Mockup reference
 
-`docs/handoffs/design-mockups/weatherteam6UI.html` — a self-contained HTML/CSS/vanilla-JS
-prototype covering Home, Locations, Crag Detail, the weather data sheets and the hourly
-analysis screen. Open it directly in a browser. Read it for exact layout geometry, SVG
-maths, component structure and token usage.
+`docs/handoffs/design-mockups/weatherteam6-hybrid.html` — the current look (owner,
+2026-10-19). Open it directly in a browser; `miniapp-hybrid-transition-v1.md` says what it
+covers and where the app departs from it. **Open the mockup itself, not a prose summary of
+it** — one phase was built twice for reading a description instead of opening the file.
 
-**It is visual reference only.** Where it and `miniapp-design-v1.md` disagree, the spec
-wins. **And the mockup itself is the spec, not a prose summary of it** — one phase was built
-twice for reading a description instead of opening the file.
-
-The mockups for radar, walls and trip creation were drawn for the deleted mobile app and
-were removed with it.
-
-### Two copy-rule repairs already made to that file — do not undo them
-
-1. An earlier draft of the hourly screen called the Claude API to generate a
-   *"Go — conditions are suitable for climbing"* / *"No-go — [reason]"* verdict per hour.
-   That violates the locked no-opinions rule and was removed entirely — markup, JS and CSS.
-   **Do not reintroduce per-hour AI analysis**; it needs its own copy review if it returns.
-2. Several "What This Means" cells in the Temperature, Wind and Cloud Cover sheets carried
-   hardcoded text inferring climbing suitability or gear behaviour — a *"Sweet Spot ·
-   Climbing Temp"* cell, a wind note quoting a **fabricated** drying-speed percentage for a
-   given wall aspect, a *"For Climbing · Good — rope easy to manage"* cell. They were
-   rewritten to plain factual readouts. Use the corrected copy as written, not as a template
-   for inferring new climbing-opinion phrasing elsewhere.
+The June prototype this section used to name was deleted on 2026-11-03 (it is in git). One
+rule from repairing it still stands: **do not reintroduce per-hour AI analysis** such as a
+*"Go"* / *"No-go"* verdict per hour. It breaks the no-opinions rule, and it needs its own
+copy review if it returns.
 
 ## Not built yet
 

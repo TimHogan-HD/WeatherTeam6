@@ -9,11 +9,12 @@ Open the app at [weatherteam6.vercel.app](https://weatherteam6.vercel.app). Weat
 - **Check conditions at your saved places.** See current weather readings and a seven-day outlook, then open a day for its hour-by-hour forecast.
 - **Compare locations.** Save climbing areas and other places, and sort your list by the conditions estimate.
 - **Get context for the rock.** For climbing locations, WeatherTeam6 considers recent precipitation, the forecast, and the rock type when estimating drying and grip. Known crags may have their rock type filled in automatically.
-- **See when the sun is on each wall.** At crags where the project owner has checked sun and shade on the ground (Red Wing for now), the Rock tab lists each wall with its hours of direct sun for any day you pick. It accounts for hills and ridges, not trees, and does not change the score.
+- **See when the sun is on each wall.** At crags where the project owner has checked sun and shade on the ground (Red Wing for now), the Rock tab lists each wall with its hours of direct sun for any day you pick, and the Overview names the best wall in sun and in shade with a score for each. Sun hours account for hills and ridges, not trees. The crag's own score does not change.
 - **Review recent precipitation.** The Precip tab shows recent rain and snow estimates, including their timing and daily totals.
 - **See active severe weather alerts.** Alerts are shown in the app when available for a saved location.
+- **Plan a trip.** The Trips tab gives a 16-day outlook for a trip's crags, tracks how the forecast changes as the dates approach, and looks back over each day once the trip has ended.
 
-To get started, sign in, choose **Add**, search for a place (or enter its coordinates), preview its weather, and save it. When you save, choose whether the place is a climbing location (and, if so, its rock type) to see climbing-specific details. The app cannot change that choice after saving yet.
+To get started, sign in, choose **Add**, search for a place (or enter its coordinates), and save it. When you save, choose whether the place is a climbing location (and, if so, its rock type) to see climbing-specific details. The app cannot change that choice after saving yet.
 
 ## About the conditions estimate
 
@@ -23,7 +24,7 @@ Forecasts and measurements come from external weather services. The app names th
 
 ## What to expect
 
-WeatherTeam6 is designed to help with day-to-day climbing decisions and short-range planning. The web app does not currently have a trip-planning screen. It does not send push notifications; severe weather alerts appear in the app when available, but are not sent to you separately.
+WeatherTeam6 is designed to help with day-to-day climbing decisions and planning up to about two weeks out. It does not send push notifications; severe weather alerts appear in the app when available, but are not sent to you separately.
 
 The app can be added to a phone’s home screen. It needs an internet connection to load weather and location data.
 
@@ -33,7 +34,7 @@ WeatherTeam6 is a TypeScript monorepo managed with npm workspaces and Turborepo.
 
 | Area | What lives there |
 | --- | --- |
-| `apps/miniapp` | The React web app: location search and previews, saved locations, forecasts, precipitation history, and climbing details. It builds to a static site and can be installed from a browser through its web app manifest; it has no service worker and does not work offline. |
+| `apps/miniapp` | The React web app: location search, saved locations, forecasts, precipitation history, trips, a map, and climbing details. It builds to a static site and can be installed from a browser through its web app manifest; its service worker keeps only the app's own files on the device, so weather always needs a connection. |
 | `apps/api` | The Express API, weather data integrations, scoring, authentication, and database access. It runs locally as a Node server and deploys through a Vercel serverless entry point. |
 | `packages/types` | Types and shared domain helpers used by the client and API. |
 | `packages/design` | Shared visual design tokens used by the web app. |
@@ -75,7 +76,7 @@ npm run db:studio    # open the Drizzle database browser
 
 ### How the weather gets to the app
 
-Forecasts are computed by the API when requested. Separate, authenticated HTTP endpoints collect weather runs, prune old runs, and refresh severe weather alerts on an external schedule; the project does not run a background queue. Weather providers and observations vary by location, and the detail screen names the sources used.
+Forecasts are computed by the API when requested. Separate, authenticated HTTP endpoints collect weather runs and radar rain, prune old runs, record trip forecasts, and refresh severe weather alerts on an external schedule; the project does not run a background queue. Weather providers and observations vary by location, and the detail screen names the sources used.
 
 ### How the sun hours are worked out
 
@@ -97,7 +98,7 @@ Think of dryness as two timers: one for water on the surface, and one for water 
 
 ![Grip: condensation 1.0, heat 0.48, dampness 1.0 and cold 1.0 multiply to about 0.48](docs/images/crag-a-2-grip.png)
 
-Grip asks four simple questions: could water condense on the rock, is it too hot, is the air damp, or is it too cold? A value of 1.0 means that check does not reduce the estimate. The condensation check uses the modelled temperature of the rock mass, not the surface temperature the app displays. The heat formula uses a gradual penalty: `exp` means the factor falls smoothly as air temperature rises above 60°F, rather than dropping suddenly. The damp-air penalty starts above a 54°F dew point; the cold penalty starts below 30°F. Grip is an estimate, not a direct measurement.
+Grip asks four simple questions: could water condense on the rock, is it too hot, is the air damp, or is it too cold? A value of 1.0 means that check does not reduce the estimate. The condensation check estimates each wall's temperature, including the sun on it, takes the median wall, and never cuts the score by more than half. The heat formula uses a gradual penalty: `exp` means the factor falls smoothly as air temperature rises above 60°F, rather than dropping suddenly. The damp-air penalty starts above a 54°F dew point; the cold penalty starts below 30°F. Grip is an estimate, not a direct measurement.
 
 #### 3. Turn hourly estimates into a daily score
 
@@ -107,14 +108,7 @@ The score runs from 0 to 100; higher means the model estimates more favorable co
 
 Crag A estimates eight vertical faces around the compass and takes their median dryness; it does not score one specific recorded wall. If required inputs are missing, the score is withheld rather than shown as zero or treated as dry conditions. The model does not know about rain before its weather series begins, so it treats the rock as fully soaked at that point. As a result, a newly added crag can read wet for several days.
 
-### Other scoring code
-
-| Model | Status | What it does |
-| --- | --- | --- |
-| **Crag A** | Powers the climbing score in the app. | Combines dryness and grip into a 0–100 score. See [`cragModel.ts`](apps/api/src/lib/scoring/cragModel.ts). |
-| **Hourly weather evaluation** | Supports Crag A. | Estimates rock temperatures and weather-driven drying inputs; its separate score is not the score shown in the app. |
-| **Wall A** | Implemented in the API, not used by the app. | Applies the model to one wall, including its orientation, angle, and rain shelter. |
-| **Five-part scorer** | Retained in the forecast code; not the app’s climbing score. | The earlier model allocates 40 points to drying, 25 to upcoming rain, 15 to wind, 12 to temperature, and 8 to humidity. |
+The code is in [`cragModel.ts`](apps/api/src/lib/scoring/cragModel.ts). **Wall A** applies the same model to one wall; at crags where the owner has confirmed sun and shade, the app shows it per wall beside the crag's score.
 
 The model contains assumptions that have not been validated against climbing outcomes. Use its scores as decision support, and check actual conditions at the crag. More detail is in the [scoring algorithm notes](.claude/docs/scoring-algorithm.md) and [scoring findings](.claude/docs/scoring-findings.md).
 
@@ -127,6 +121,6 @@ The model contains assumptions that have not been validated against climbing out
 - [Scoring model](.claude/docs/scoring-algorithm.md) and [scoring findings](.claude/docs/scoring-findings.md)
 - [Weather source notes](.claude/docs/api-sources.md)
 - [Web app README](apps/miniapp/README.md)
-- [Web app screen spec](docs/handoffs/miniapp-design-v1.md), [design system](docs/handoffs/design-system-v1.md), and the [mockup](docs/handoffs/design-mockups/weatherteam6UI.html) itself
+- [Web app screen spec](docs/handoffs/miniapp-design-v1.md), [design system](docs/handoffs/design-system-v1.md), and the [mockup](docs/handoffs/design-mockups/weatherteam6-hybrid.html) itself
 
 These references can evolve alongside the code; when they disagree, verify behavior in the current implementation.

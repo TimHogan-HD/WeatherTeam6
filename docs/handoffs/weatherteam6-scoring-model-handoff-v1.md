@@ -1,119 +1,17 @@
-# WeatherTeam6: Scoring Model v2 — Handoff
+# WeatherTeam6: Scoring Model v2 — record
 
-Version: v1
-Date: 2026-09-16
-Status: **Phases 0 through 3 are built and live, 2026-09-21.** The two readings are on
-every conditions surface and **the number a user sees is now the v2 one** — the
-five-component score is still computed and is rendered nowhere. Phase 4 (the location
-editor) is next and is the one that makes `aspect` and `cliff_angle` real; Phase 5 deletes
-the old scorer. *Update 2026-10-01: Phases 4 and 5 have shipped — see § Phase 5.*
+**A record, not direction.** The score on every screen is Crag A (owner decision 2026-09-24),
+described in `.claude/docs/scoring-algorithm.md` and `.claude/rules/scoring.md`: read those
+to change anything. This model's own score no longer reaches a response. What survives of it
+in the app is Layer 1 (`rockThermal.ts`, `hourlyConditions.ts`, `sweatBalance.ts` feed Crag A)
+and the reasoning below, which is kept because code comments cite it and because it records
+why the app's numbers have the shape they do.
 
-Every open question is answered except **Q3**, which 3b could only *ask* — whether the
-0-100 number survives now that it can be seen beside the readings. Read § Open Questions
-before starting a phase, and measure before arguing about a number — a deferral is a decision
-about *when*, not permission to pick one quietly. **Phase 5b (2026-10-01) deleted the
-five-component scorer and `compare:scoring` with it;** every mention of either below is
-history, recoverable from git.
-
-## Context
-
-Issue #21 says extreme heat can only cost 12 of 100 points, so 104 °F reads as a good day.
-Three attempts to fix it inside the current model — reweight temperature, cap the total, or
-take the geometric mean — each failed for the same reason, and the reason is the model's
-shape rather than its constants. This document specifies the replacement.
-
-## Current State
-
-**What exists.** `conditionsScore.ts` scores five components against a fixed point budget —
-drying 40, upcoming rain 25, wind 15, temperature 12, humidity 8 — and adds them up.
-`computeLiveForecast` runs it once per day over seven days of pooled ensemble daily
-aggregates. The drying clock is per-day and correct as of #108; the drying ramp is concave as
-of #137.
-
-**What is broken.**
-
-1. **Four good components outvote one fatal one.** A weighted sum has no veto, so 104 °F
-   costs 12 points and the day lands at 88. That is issue #21, and it is structural.
-2. **A 12% share cannot express "no".** Measured in the comparison harness: under a weighted
-   geometric mean, a component at its floor costs `1 - floor^(w/Σw)`. At temperature's weight
-   that bounds the cost at 30%, so 104 °F still scores 70. Raising the weight enough to fix it
-   (39 of 100) makes a 37 mph gale score *better* than before, because the exponents are shares
-   of one total — fixing temperature takes the share from wind and drying.
-3. **The temperature component had a cliff at 95 °F** — issue #148, **fixed 2026-09-21**. It
-   scored 6 of 12 at 95.0 °F and 0 at 95.2 °F, a 6-point step in the total from a fifth of a
-   degree, and every mechanism that makes a zero matter amplified it: 22 points under the
-   geometric mean, 33 under a veto. The upper ramp now runs 12→0 across 22–35 °C, so both
-   edges reach 0 exactly at the band and the step is gone — at the cost of a harsher upper
-   half (25 °C moved from 11 of 12 to 9). That is a patch on a component the model below
-   replaces outright; it is here so the numbers in this document are read against what
-   production now does, not against the step.
-4. **Three inputs are fetched and thrown away.** `dewpoint_c` is stored and never read.
-   Shortwave radiation is aggregated on every request and dropped. `aspectDegrees` is computed,
-   passed into `ScoreInput`, and never read by any scorer — so sun direction scores zero points.
-   `cliff_angle` defaults to 45 and nothing writes it for a user-added location.
-5. **"Upcoming rain in the next 72 hours" is a trip-planning number living inside a per-day
-   score.** Since #108 each day's own rain already reaches that day's drying clock, so the
-   component double-counts rain that the day it belongs to will score for itself.
-
-**What the field does instead.** Verified at first hand, 2026-09-16:
-
-| Product | Shape |
-| --- | --- |
-| **CragReport** | Three derived quantities — rock surface temperature, a grease factor from dew-point depression, and wind at the wall — not weather variables with point budgets. `ideal_c` is a **request parameter**: what counts as too hot is the user's setting |
-| **crag.day** | Publishes **dryness and friction separately, in words**, hourly, and never combines them |
-| **Climbit** | Folds sun, humidity, wind and UV into a climbing "feels like" temperature; the score comes from that plus rain. Preferences menu |
-| **Prime Condies** | Nothing but user thresholds — counts how many of the next 24 hours clear them |
-
-Nobody in the field allocates a fixed point budget to temperature. Two of the four publish
-two readings rather than one. Three of the four let the user set what "ideal" means.
-
-**CragReport's scoring API was returning `SCORING_FAILURE` throughout this session, so no live
-competitor number was captured.** Their architecture above comes from their own "how it works"
-page, read at first hand.
-
-## Objective
-
-Replace the five-bucket weighted sum with a model that answers the two questions climbers
-actually ask, separately, and derives a single rankable number from them:
-
-1. **Is the rock dry?**
-2. **Will it feel good to climb on?**
-
-The result must make a deal-breaker rule unnecessary rather than add one, score hourly so a
-day reports its window rather than an average, and take its thresholds from the user rather
-than from constants nobody measured.
-
-## Constraints / Non-Goals
-
-- **The score stays 0–100** (owner decision, `scoring-findings.md` §5.1). The two word-readings
-  are published *alongside* it, not instead of it.
-- **Safety stays out of the number.** The community position is that only lightning and extreme
-  wind are safety inputs, and the existing Severe+ alert suppression already carries them.
-  *(Owner, 2026-10-29: alert suppression is removed until there is a deeper alert and warning
-  system; warnings now show beside the score, never in place of it.)* Wind
-  enters this model physically — it cools the rock and dries it — not as a danger component.
-- **No terrain shading.** It needs a digital elevation model this project does not have.
-  CragReport has one; we do not, and must not imply we do.
-- **No rock-strength modelling.** No constant in the app is a strength figure and none is added.
-- **Not validated against outcomes, and this document does not claim to fix that.** The feedback
-  button (#143) remains the only path to knowing whether any of this predicts anything.
-
-## Pre-Implementation Checklist
-
-- [ ] Verify Open-Meteo returns `shortwave_radiation` on the **deterministic** hourly endpoint
-      for every model in `DETERMINISTIC_MODELS`, one model at a time, before adding the column.
-      `probeModels.ts` is the existing harness for exactly this — Open-Meteo drops unsupported
-      variables from a multi-model response silently.
-- [ ] Confirm `dewpoint_2m` is present in every deterministic hourly response, not only the
-      ensemble one.
-- [ ] Re-measure the mutation baseline before rewriting the scorer, as #108 did. `liveForecast.ts`
-      was the weakest file at 44%; it is being rewritten again here.
-- [ ] Read `.claude/rules/defect-patterns.md` §1 before writing any formatter — every derived
-      quantity in this document is nullable and several of them render as plausible numbers when
-      they are actually missing.
-- [ ] Check `npm run compare:scoring --workspace=apps/api` still asserts its baseline against the
-      real scorer. It is the before/after instrument for this whole piece of work and it must be
-      extended, not replaced.
+Written 2026-09-16; cut to this on 2026-11-03 (the full plan and phase notes are in git).
+`conditionsScore.ts`, the five-component "v1" scorer, `compare:scoring` and the bot it mentions
+are all deleted, and alert suppression was removed on 2026-10-29. Figures quoted below were
+measured on the v2 model and are history. Before proposing a weight, veto or cap, measure it
+with `compare:dryness` and `compare:rock-temp`.
 
 ## The Model
 
@@ -135,6 +33,10 @@ T_surface = T_air + (α · I_wall) / h_c − skyCooling
 | `I_wall` | horizontal shortwave × geometry factor from aspect, tilt and sun position | With no aspect recorded, see § Unknown aspect below — the qualification is **per hour**, not per location |
 | `h_c` | `5.7 + 3.8·v` (v in m/s) | McAdams flat-plate correlation. **Verify at implementation** — it is a building-surface figure, not a rock one |
 | `skyCooling` | ~3.9 °C horizontal, ~0 vertical, scaled by cloud cover | ASHRAE. A vertical wall barely sees the sky, which is convenient and correct |
+
+**Superseded by the code:** the denominator is `h_o = h_c + h_r`, convection plus long-wave
+radiation (`surfaceCoefficient`), not `h_c`. With convection alone the first report put 127 °C
+on a wall at 900 W/m² in dead calm.
 
 **1b. Rock mass temperature `T_mass`** — an exponentially smoothed trailing temperature over
 days, not hours. It exists because of the single most useful thing in the research:
@@ -325,318 +227,38 @@ define a window.
 has to defend and becomes the user's own band — which is what CragReport passes as `ideal_c` on
 every request and what Prime Condies is built entirely out of.
 
-## Phases
+## Phases, as shipped
 
 ### Phase 0 — Data plumbing and preferences
-Add `shortwave_radiation` to the deterministic hourly request and a `shortwave_wm2` column on
-`weather_run_hours`. Migration for the new `user_preferences` columns, all defaulted so no
-existing row breaks.
-**Acceptance:** `check:weather-runs` shows a non-null shortwave for a daylight hour at a real
-location; existing preferences rows read back unchanged.
-**Git checkpoint:** one PR.
-
-**DONE — 2026-09-21, PR #154.** All six models carry `shortwave_radiation`; a live collection
-stored 6,076 hours of it. Two things it turned up that Phase 1 inherits:
-
-- **`gem_seamless`'s shortwave is ~3× too high past day 4** (issue #155). Picking which model
-  feeds `T_surface` is now a Phase 1 decision that cannot be deferred, and pooling the four is
-  ruled out.
-- **Shortwave's horizon is shorter than its model's** — NBM, 42 hours against 48 of temperature.
-  A null mid-series is routine, and `T_surface` is null for that hour rather than sunless.
+Done 2026-09-21 (#154): `shortwave_wm2` on `weather_run_hours` and the `user_preferences`
+columns of Layer 5, which nothing reads.
 
 ### Phase 1 — The derived quantities, as pure functions
-`src/lib/scoring/rockThermal.ts` — `T_surface`, `T_mass`, condensation margin, drying rate. No
-database, no network, no Express. **Open Question 4 is answered here**: build with one `α` and
-print what a pale-to-dark spread moves `T_surface` by, in °C. Tested against hand-worked cases at the boundaries, not
-against a helper that shares their assumptions (`defect-patterns.md` §11).
-**Acceptance:** a south-facing wall in full sun reads meaningfully above air temperature and a
-shaded one reads at or below it; a wall whose mass sits below the dew point reports condensing.
-**Git checkpoint:** one PR.
-
-**DONE — 2026-09-21.** `rockThermal.ts`, 61 tests, and `npm run compare:thermal
---workspace=apps/api` as the report. All three acceptance cases hold. **Nothing reads any of
-it** — no score, response or surface has changed. Four things Phase 2 inherits:
-
-- **Open Question 4 is ANSWERED: one `α`, and not by rock type.** § 1 of `compare:thermal` is
-  the evidence. Across 36 sunlit hours, a pale-to-dark spread (α 0.4 → 0.9, from the albedo
-  figures in `rock-drying-research.md` §3) moves `T_surface` by **at most 0.5 °C on an hour the
-  model calls qualified** and up to 44 °C on one it does not. Rock tone only matters on the
-  hours whose reading is *already* flagged as unanswerable without an aspect nothing writes —
-  so a per-type table would buy precision exactly where the model has declined to be precise,
-  and it is inert until Phase 4 anyway. **Revisit only once aspect exists.**
-- **The sol-air denominator is `h_o = h_c + h_r`, not `h_c`.** The spec's Layer 1a wrote
-  `/ h_c`; ASHRAE's `h_o` is explicitly convection *plus* long-wave radiation, and the two are
-  the same size in still air. Built with convection alone, the first report put **127 °C** on a
-  wall at 900 W/m² in dead calm. With radiation it reads 77 °C. Corrected in the code
-  (`surfaceCoefficient`) — treat Layer 1a's formula above as superseded by it.
-- **Irradiance comes from `gfs_seamless`, one model, never pooled** — the #155 decision this
-  phase could not defer. Global, longest shortwave horizon measured (384 h), and in family with
-  ECMWF and ICON. The half a pure function can enforce is enforced: a shortwave reading above
-  **1400 W/m²** is treated as a gap, not a measurement.
-- **The two known biases run opposite ways and neither is calibrated.** Unscaled horizontal
-  irradiance reads the wall hot; Jürges/McAdams `h_c` runs ~40% above ASHRAE's own tabulated
-  `h_o` at the same wind and reads it cool. **Do not quote a net direction** — there is no
-  measurement behind one.
+Done 2026-09-21: `rockThermal.ts`, with `npm run compare:thermal --workspace=apps/api` as the
+report that answers Open Question 4. Irradiance comes from `gfs_seamless` alone, never pooled
+(#155), and a reading above 1400 W/m² is a gap.
 
 ### Phase 2 — Readings, hourly scoring, and the comparison
-The two readings, the derived score, and hourly evaluation over the existing deterministic +
-ensemble join that `GET /hourly/:locationId` already performs. `compare:scoring` gains the new
-model as a column beside the current one, over real locations.
-**Acceptance:** the harness prints old and new side by side for every scenario. The 104 °F
-case reads **materially below the *Mixed* band** with `Friction: Poor` and `Rock: Dry`, and
-no cap, veto or clamp appears anywhere in the code that produced it. The 40s figure in
-Layer 3 is illustrative and **is not the acceptance criterion** — the criteria are the
-ordering and the absence of a cap. Whatever this phase measures replaces that table.
-
-Also demonstrate continuity: the component must not step across a band edge the way the
-current one did at 95 °F (issue #148). Walk the temperature axis in tenths and assert no
-single tenth moves the score by more than a point. The v1 scorer now carries exactly that
-test (`conditionsScore.test.ts`, "continuous across both band edges") — the new model inherits
-the invariant rather than introducing it, and it is the assertion to port first.
-**Git checkpoint:** one PR, and **stop here for the owner to look at the numbers.**
-
-**DONE — 2026-09-21, and STOPPED HERE for the owner.** `hourlyConditions.ts` (Layers 2, 3
-and 4), `sweatBalance.ts` (the hand's half of Layer 1e), 61 tests, `compare:scoring`
-extended with the whole v2 model beside the current one, and `npm run compare:hourly-v2
---workspace=apps/api` running it against a real location's live weather. **Nothing reads
-any of it** — no score, response or surface has changed.
-
-**Every acceptance criterion holds except one, and that one is a judgement the owner has
-to make.** The 104 °F case reads `Rock: Dry`, `Friction: Poor` and **58** with sun on the
-wall, 65 in shade, against production's 88. There is no cap, no veto and no clamp on the
-total anywhere in the model. But 58 is *inside* the Mixed band rather than materially below
-it, and that is Decision C in § 5 of the harness.
-
-Five things Phase 3 inherits:
-
-- **Open Question 1 is ANSWERED only as far as a measurement can answer it.** The three
-  weight splits are columns in `compare:scoring` and the split barely moves anything: 104 °F
-  reads 58 / 55 / 66 across `0.55/0.45`, `0.50/0.50` and `0.65/0.35`. **The choice that
-  actually decides the model is the sweat map, which the spec did not anticipate**, and it
-  is Decision B in the same section. `exp(-w)` is recommended and the reason is issue #148,
-  not taste — see the next bullet.
-- **A weighted geometric mean has unbounded slope at zero, and that is the #148 defect
-  waiting to happen in a model with no bands.** `x^0.45` has an infinite derivative at
-  `x = 0`, so a factor that reaches *exactly* zero collapses into it rather than arriving.
-  Measured: the literal dry-skin-fraction map `1 − w` steps **12 points off a tenth of a
-  degree** at the point heat stress becomes uncompensable; `exp(-w)` never reaches zero and
-  holds the invariant across the whole axis. The condensation factor has the same shape and
-  is **left alone deliberately** — its collapse happens entirely inside the bottom band,
-  with `poor` and *"Wet or unsettled"* on both sides of it, so no screen changes what it
-  says. Softening it costs a floor, which is the clamp this model exists to do without.
-- **Cold costs nothing in friction and a great deal in drying, and only the first was
-  designed.** Both friction mechanisms genuinely improve as it gets colder, so there is no
-  cold penalty. But a cold wall barely dries — the vapour-pressure deficit collapses with
-  temperature — so a week after rain at −20 °C the model still will not call the rock dry,
-  where v1 handed out full credit at 168 flat hours. **That is the single largest difference
-  between the two models on ordinary days**, larger than the 104 °F case everyone is
-  watching, and Phase 3's copy has to carry it.
-- **Wind is now purely a benefit.** 60 km/h scores 100 where v1 scored 85. That follows from
-  § Constraints — safety stays out of the number and the Severe+ suppression carries it —
-  but it is worth seeing before a surface renders it.
-- **`rock.qualified` is false for any window containing daylight**, because the drying clock
-  runs off `T_surface` and every sunlit hour's irradiance depends on an aspect nothing
-  writes. `friction.qualified` behaves as § Unknown aspect intended (a dawn window is
-  qualified); the rock reading cannot, and Phase 3 has to decide what that says on screen
-  rather than printing an asterisk on every location.
-
-Three deliberate deviations from this document, each recorded where it was made:
-
-- **`rock` and `friction` are nullable** on `HourlyConditions`, against § Data Shapes. A
-  `Reading` has no "unknown" level and inventing `dry` for a wall nobody watched is defect
-  class 1.
-- **The hand's vapour-pressure deficit is taken at skin temperature, not at `T_surface`.**
-  § What friction is made of says the same quantity does two jobs; it cannot. `es(66 °C)` is
-  five times `es(35 °C)`, so the rock's deficit would read a baking wall as the best possible
-  drying conditions for skin.
-- **Layer 4 (`bestWindow`) shipped here rather than in Phase 3**, because the live harness
-  needed it to say anything useful and it is thirty pure lines.
-
+Done 2026-09-21: `hourlyConditions.ts` and `sweatBalance.ts`. A factor that reaches exactly
+zero steps 12 points off a tenth of a degree under a weighted geometric mean (#148), which is
+why the sweat map is `exp(-w)`. The hand's vapour-pressure deficit is taken at skin
+temperature, not `T_surface`.
 
 ### Phase 3 — Surfaces
-Mini App and bot show the two readings and the day's window; the number becomes secondary.
-`SCORE_BANDS`, `stateLabel` and the suppression rule are rewritten against the new meaning.
-**Acceptance:** a day with `Friction: Poor` never renders a bare good-looking summary.
-
-**Two acceptance criteria added 2026-09-21 by the owner's decision on the friction model
-(§ Open Questions 6).** Both are about the one unvalidated step, not about layout:
-
-- **No surface renders a friction magnitude.** Words and ordering only. The 0-1 factors are
-  under `HourlyConditions.diagnostics` and `hourlyConditions.test.ts` fails if one is
-  promoted; a response type that names its fields cannot leak one by accident.
-- **The copy says the friction reading is an estimate**, in the reader's own words, on the
-  surface itself rather than in a doc. It is the one part of the model with a guess in the
-  middle of it, and a confident-looking label is the whole risk.
-**Git checkpoint:** one PR.
-
-**DONE — split into 3a and 3b, both shipped 2026-09-21.**
-
-- **3a** (PR #160) — the readings reach `GET /hourly/:locationId`. No surface changed.
-- **3b** — the surfaces. `readingsCopy.ts` in `packages/types` is the shared copy model;
-  the Mini App's `ReadingsSection` replaced `ScoreSection` on the detail screen and the
-  Hourly pager, the list card reads the same readings, and the bot's conditions panel
-  leads with them. `GET /conditions/:locationId` carries `ConditionsReadings` so one crag
-  cannot show two different numbers on two screens.
-
-**Both added acceptance criteria hold, and were checked on real output rather than on a
-fixture** — `npm run check:conditions --workspace=apps/api` renders the reply for a real
-saved crag and asserts them on the bytes: no friction magnitude anywhere, and the estimate
-sentence present wherever a friction level is.
-
-Four things Phase 4 and 5 inherit:
-
-- **`stateLabel`, `summarizeConditions` and `limitingComponent` are deleted, not
-  deprecated.** The words are no longer derived from the number, so the ladder had nothing
-  left to map and the suppression had no components to name. Leaving a function that can
-  put *"Dry, settled"* on a 104 °F day in an exported module is an invitation, not a
-  fallback.
-- **The suppression reversed direction and that is the substantive change.** The old rule
-  dropped the *word* under a Severe+ alert and kept the number; this drops the *number* and
-  keeps the readings. The words now come from physics that sees heat, so they are the same
-  fact the warning is about; the number is the part that reads as actionable.
-- **The five-component score is computed on every request and rendered nowhere.** Only its
-  `hours_since_rain` still reaches a screen, as the rain record. Phase 5's deletion is now
-  a deletion rather than a migration.
-- **A window in the past still renders as that day's window.** *"Good hours: 6am–9am"* on
-  a screen opened at 2pm is a true statement about today that reads like advice for now.
-  Phase 5 owns the copy pass; it is named here so it is not rediscovered as a bug.
+Done 2026-09-21 (#160 and 3b): `readingsCopy.ts` in `packages/types` is the shared copy model.
+`stateLabel`, `summarizeConditions` and `limitingComponent` are deleted, not deprecated. Two
+criteria from Open Question 6 still hold: no surface renders a friction magnitude, and the app
+says the friction reading is an estimate (`.claude/rules/scoring.md`, the magnitude fence). The
+suppression this phase rewrote was removed on 2026-10-29.
 
 ### Phase 4 — The location editor
-Rock type, aspect and tilt, editable per location. This is `miniapp-design-v1.md` §12.4's
-deferred scope and the research calls it *"the single biggest blocker on this entire research
-document."* It is what makes `I_wall` real rather than a default, and it fixes `cliff_angle`,
-which currently runs backwards from what climbers mean.
-**The Phase 3a measurement that sharpens this.** Running the model against the owner's own
-saved crags on 2026-09-21: **every location had `cliff_angle` unset and defaulted to 45**,
-and one had no `rock_type` at all. Nothing in the response marks either — `qualified`
-covers the sun and nothing else — so a reading built on two placeholders is
-indistinguishable from one built on recorded crag data. That is not a rendering problem
-Phase 3 can fix with copy alone; it is the case for this phase.
-
-**Acceptance:** a saved location's aspect and tilt change its score in the direction a climber
-would predict.
-**Git checkpoint:** one PR.
-
-**4a SHIPPED 2026-09-23 — rock types, drying windows, known crags.** Split out ahead of
-the editor by the owner's request. Three owner decisions, each recorded where it lives:
-
-- **The full `rock-drying-research.md` §7 taxonomy**, 27 values, with §7's hours as
-  `MIN_HOURS`/`MAX_HOURS`. Both scorers read that one table, so **the v2 Dryness
-  reading moved as well as the five-component number** — `hourlyConditions` takes its
-  drying window from the same place.
-- **Not-recorded kinds take their family's slowest window**, and `unknown` is the
-  slowest row of all (48–120h). Every saved location holding `sandstone`, `limestone`,
-  `granite` or `unknown` reads differently from this date.
-- **Known crags are locked.** `KNOWN_CRAGS` (`packages/types`) holds 54 crags whose
-  rock the research pins to one §7 value, each with an OSM bounding box; a climbing
-  location within `KNOWN_CRAG_REACH_KM` of one takes its rock type on save and the
-  picker does not offer a choice. `npm run locations:lock-known-crags` applies it to
-  rows saved before.
-
-**4b is what remains of this phase**: `PATCH /locations/:id` and the editor for aspect,
-tilt and an unlocked rock type, plus the aspect geometry in `rockThermal` that makes
-`I_wall` real. The acceptance line above belongs to 4b.
-
-**4b server half SHIPPED 2026-09-23** — the endpoint and the geometry; the editor screen is
-the client half. Decisions made on the way, each recorded where it lives:
-
-- **The API speaks climbers' angle** (`wall_angle_deg`, positive overhanging); the column
-  keeps its convention and takes negatives for overhang. No migration.
-- **The geometry needs both fields.** An aspect with no angle, or the reverse, keeps the
-  unscaled path and the per-hour `qualified` rule — the 45° placeholder is not a wall.
-- **`I_wall`** = NOAA sun position, Erbs (1982) beam/diffuse split, Liu-Jordan isotropic
-  transposition, ground albedo 0.2. No terrain shading.
-- **Overhangs dry on the vertical factor.** The line extended would dry a roof 30% faster;
-  that is a wetting effect (§18.1's catch ratio), not a faster clock.
-- **The acceptance line holds on the unit tests** (`hourlyConditions.test.ts` § a recorded
-  wall): at a clear 29 °C solstice noon, a north wall reads 36 °C and scores 82, a south wall
-  43 °C / 81, a south-facing 70° slab 63 °C / 76. **The friction reading barely separates the
-  two walls** — its skin term dominates at that heat — which is the model's answer, not a
-  wiring fault; recorded so it is not rediscovered as one.
-
-**4b client half SHIPPED 2026-10-01** — the editor screen, `/location/:id/edit`. Owner
-decision on the way: build aspect and angle now although **Crag A does not read them** (it
-scores eight imaginary walls round the crag), and say so on the screen beside each. So the
-acceptance line above — aspect and tilt moving the score — is met only in
-`hourlyConditions.test.ts` § a recorded wall; on screen it waits for Wall A to be wired to a recorded wall.
+Shipped 2026-09-23 and 2026-10-01: 27 rock types, known crags locked, `PATCH /locations/:id`
+and `/location/:id/edit`. Crag A does not read aspect or angle (`.claude/rules/locations.md`).
 
 ### Phase 5 — Preferences UI, then retirement
-The preferences screen, then delete the five-component scorer, `SCORE_COMPONENT_MAX`, and the
-sections of `scoring-algorithm.md` that describe it.
-**Acceptance:** no reference to `component_upcoming_rain` remains outside a migration.
-**Git checkpoint:** one PR.
-
-**5a SHIPPED 2026-10-01 — preferences.** The owner chose two settings: a **temperature
-range** (where Crag A's cold and heat friction penalties start, default 30–60 °F, each end
-movable within `TEMP_RANGE_LIMITS_F`, at least 10 °F apart) and the **tab a crag opens on**.
-Both are on the Profile screen; `GET`/`PUT /preferences`; three nullable columns on the
-existing `user_preferences` (migration 0022), whose Phase 0 columns stay unread. Readings are
-now per reader (`architecture.md`). Units, alert thresholds, drying caution and the sun
-toggle were not chosen.
-
-**5b SHIPPED 2026-10-01 — the five-component scorer is gone.** `conditionsScore.ts`,
-`SCORE_COMPONENT_MAX`, the ACIS station-rainfall lookup, `compare:scoring`/`compare:scoring-v2`
-and the `conditions_scores` table (migration 0023) are deleted. `GET /conditions/:id` returns
-`{ location_id, forecast_date, readings }` and nothing else; `GET /forecast/:id` returns
-weather only. Acceptance holds: `component_upcoming_rain` appears only in migrations. **Still
-open from this phase:** the temperature chart's colours stay centred on `TEMP_BAND_C`
-(50–72 °F) while Crag A docks friction from 60 °F — an owner decision.
-
-## Data Shapes / Schemas
-
-```typescript
-type Reading = { level: 'wet' | 'drying' | 'dry'; qualified: boolean }
-type Friction = { level: 'poor' | 'fair' | 'good' | 'great'; condensing: boolean; qualified: boolean }
-
-type HourlyConditions = {
-  valid_at: string
-  rock: Reading
-  friction: Friction
-  score: number | null            // null when an input could not be measured — never 0
-  t_surface_c: number | null      // null when shortwave is missing; never defaulted to air temp
-  condensation_margin_c: number | null
-}
-```
-
-**`qualified` is false for an hour whose answer depends on a geometry we do not have** — see
-§ Unknown aspect. It is decided per hour, not per location: the same wall is qualified at 6am
-and unqualified at 1pm. A surface must say so rather than present an unqualified reading as a
-measured one — that is `defect-patterns.md` §3, attribution not backed by the data.
-
-## Known Risks / Watch Points
-
-- **Physics on top of folklore.** The drying constants have no measured basis. A sol-air
-  temperature computed to a tenth of a degree, multiplied by a rock-type window someone made
-  up in 1975, is not a precise answer. Say so in the copy.
-- **Every score on every screen moves.** There is no subset of users to roll out to; the
-  harness is the only before/after instrument.
-- **The ensemble carries uncertainty for temperature, wind and precipitation — not for dew
-  point or shortwave.** The confidence label must not silently start covering quantities the
-  ensemble never measured.
-- **`weather_run_hours` retention is 2 days.** `T_mass` needs a multi-day trailing temperature,
-  which means re-fetching from the archive API the way rainfall history already does. Do not
-  plan on the stored hours being there.
-- **Open-Meteo drops unsupported variables from a multi-model response silently** and answers
-  200. Probe one model at a time.
-- **A null derived quantity must withhold the reading, not degrade to a plausible one.**
-  `T_surface` falling back to air temperature when shortwave is missing would be the exact
-  defect class this repo ships most often.
-- **The drying clock's rain was the one input ever checked against measurements, and it
-  failed** (issue #209, shipped 2026-09-29). Against 20 ASOS gauges over 90 days
-  (`npm run compare:dryness`), `gfs_seamless`'s own rain called the rock dry in 60% of the
-  daytime hours a gauge said it was still wet (quartzite). The clock then read the hourly
-  median of the four global models (`lib/weather/rainMedian.ts`), which missed 26%. Since
-  #324 (2026-10-05) it reads the median of each model's six-hour mean, because a per-hour
-  median shrank showers the models placed in different hours. Scored per day at one day's
-  lead, wet days called dry fell from 32% to 28% (quartzite), 20% to 16% (sandstone) and
-  24% to 16% (limestone). The gauge is an airport tipping bucket, not the crag, and no other
-  constant here has had even that. **Since 2026-11-02 NOAA radar overrules the median at US
-  crags** (`radarChecked`, owner's "cautious" rule): radar dry across the six-hour window
-  zeroes the hour, radar rain takes the larger of radar and the median. `compare:mrms` (#452,
-  14 Minnesota pairs, 30 days, airport gauges) measured lost days falling on every rock
-  (quartzite 4.5% to 2.9%, sandstone 8.9% to 6.7%, limestone 5.5% to 5.0%) and missed wet
-  rock moving -1.1 to +2.0 points. One month, one state, autumn: rerun it after a summer of
-  convective showers before trusting it further.
+Shipped 2026-10-01: a temperature range and the tab a crag opens on (5a), and the five-component
+scorer deleted (5b). Still open: the temperature chart's colours stay centred on `TEMP_BAND_C`
+(50–72 °F) while Crag A docks friction from 60 °F, which is the owner's call.
 
 ## Open Questions
 

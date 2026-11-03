@@ -1,356 +1,75 @@
 # Data Model
 
-Read this before any database work. This is the source of truth for the schema.
+**`apps/api/src/db/schema.ts` is the source of truth** for every column, type and constraint,
+and its comments explain most of them. This file is the map: which tables exist, how they
+hang together, and what the schema cannot show. Behaviour rules live in the scoped rule files
+(`weather.md`, `trips.md`, `locations.md`).
+
+## Tables (in dependency order)
+
+```
+users
+invites                   -- owner-minted account links; POST /invites, /auth/redeem
+login_attempts            -- the per-username sign-in cap; POST /auth/login
+locations                 -- the hub: saved crags and weather spots
+trips
+trip_locations
+trip_day_records          -- what the forecast said, per location; /api/cron/record-trips
+trip_rain_records         -- trip totals for the trend, per trip; /api/cron/record-trips
+trip_day_outcomes         -- how a day turned out; /api/cron/record-trips
+trip_day_gauges           -- airport gauge per station and day (no FK); /api/cron/record-trips
+trip_day_volunteer_gauges -- CoCoRaHS report per station (no FK); /api/cron/record-trips
+feedback                  -- app feedback and forecast checks
+route_ticks               -- logbook (OpenBeta ids, no FK)
+route_todos               -- logbook (OpenBeta ids, no FK)
+area_locations            -- recorded boulder positions, shared by every account
+user_preferences
+walls
+weather_alerts            -- /api/cron/check-alerts
+weather_runs              -- one fetch of one model at one place (point_key, no location_id); /api/cron/collect-runs
+weather_run_hours         -- a deterministic run's hours, keyed off run_id
+weather_ensemble_hours    -- an ensemble run's hours as percentiles, keyed off run_id
+radar_rain_hours          -- observed rain per radar cell (no location_id); /api/cron/collect-radar
+```
+
+## Key relationships
+
+- Everything a person owns traces back to `users.id`. The owner is the account
+  `DEFAULT_USER_ID` names (`isOwner`).
+- `locations` is the hub: trips, alerts, walls and the trip records all FK to it. No FK
+  declares `onDelete`, so a new `location_id` FK goes on `DEPENDENT_TABLES`
+  (`lib/locations/deleteLocation.ts`) and a new `trip_id` FK is cleared by `DELETE /trips/:tripId`.
+- Weather storage hangs off a place, not a location row: `weather_runs.point_key`, and
+  `radar_rain_hours.cell_key`. Deleting a location does not touch either.
+- A user saves a crag by creating a `locations` row from the `/add` search (OpenBeta snapshots
+  and Open-Meteo places).
+
+## Notes the schema does not carry
+
+- **`locations.cliff_angle` runs opposite to climbers:** 0 vertical, 90 flat slab, negative
+  overhanging. The API speaks `wall_angle_deg = -cliff_angle` (`wallAngle.ts`).
+- **`walls.angle_deg` is degrees from vertical**, and `aspect_deg` is the facing direction, 0-359.
+- **`feedback.stops` is `ForecastStop[]`, the climber's word on each wall climbed**: area, wall,
+  routes, hours, rock, sun, facing, angle and why it was shaded. It is the start of a per-wall
+  record (#293, #398), read by nothing yet. `parseStops` validates it on write and on read, and
+  `stopsGuidebookProblem` checks area, wall and route ids against the guidebook (no FK).
+- **`feedback` is detached from a deleted location, and acted-on rows are resolved, not
+  deleted**: a forecast check stays evidence for #143.
+- **`trip_day_records` writes all or nothing per location, except the rewet pair**
+  (`members_rewet`, `rewet_member_count`), which is null when its own read failed.
+- **`trip_day_gauges` and `trip_day_volunteer_gauges` are written after the recorder's
+  transaction**, so a failure loses the gauge line and never a trip record. Their readers find
+  a row by computing the station again.
+- **`login_attempts` holds one window at most**: each attempt prunes older rows and a success
+  deletes its key's. **Nothing prunes `invites`**; it grows by a few rows a year.
+- **`user_preferences`: only `temp_low_c`, `temp_high_c`, `default_tab` and the climbing hours
+  are read.** The rest has no reader.
 
 ## Dropped tables
 
-Migration 0040 (2026-11-03) dropped seven tables that nothing read or wrote, all empty on Neon: `crags`, `rainfall_history`, `forecast_snapshots`, `crag_climbability_history`, `conditions_reports`, `premium_pulls` and `location_normals`, with the `rainfall_source` enum. Forecasts and recent rain are computed live; forecast checks live in `feedback`. Monthly normals or a climbable-days history would be a new product decision and a new table, not a revival.
-
-Note `weather_alerts.notified_at` lives on the row, so **any code path that deletes and re-inserts alert rows also resets notification dedup state** — see issue #26.
-
-## Table List (in dependency order)
-```
-users
-invites                 -- migration 0028, written by POST /invites and /auth/redeem
-login_attempts          -- migration 0029, written by POST /auth/login (the per-username cap)
-locations
-trips
-trip_locations
-trip_day_records        -- migration 0025, written by /api/cron/record-trips
-trip_rain_records       -- migration 0026, written by /api/cron/record-trips
-trip_day_outcomes       -- migration 0027, written by /api/cron/record-trips
-trip_day_gauges         -- migration 0038, written by /api/cron/record-trips, keyed by station (no FK)
-trip_day_volunteer_gauges -- migration 0041, written by /api/cron/record-trips, keyed by station (no FK)
-feedback                -- migration 0018
-route_ticks             -- migration 0019
-route_todos             -- migration 0019
-area_locations          -- migration 0019, shared by every account
-user_preferences
-walls
-weather_alerts
-radar_rain_hours        -- migration 0037, written by /api/cron/collect-radar
-```
-
-
-## Tables
-
-### users
-```typescript
-id          uuid PK default gen_random_uuid()
-name        text
-created_at  timestamptz default now()
-```
-Single row in production. Seeded on first deploy. UUID stored as `DEFAULT_USER_ID` in the Vercel project's environment variables (currently `00000000-0000-0000-0000-000000000001`).
-
-### invites
-```typescript
-id          uuid PK default gen_random_uuid()
-code_hash   text NOT NULL UNIQUE   -- SHA-256 hex of the code; the code itself is never stored
-created_by  uuid NOT NULL → users.id
-created_at  timestamptz default now()
-expires_at  timestamptz NOT NULL   -- created_at + INVITE_TTL_MS (48 hours)
-used_at     timestamptz            -- null until redeemed
-used_by     uuid → users.id        -- the account the redemption created
-```
-Owner-minted, single-use links to create an account (`lib/auth/invites.ts`). No
-`location_id`, so `deleteLocationCascade` never touches it. Nothing prunes it; a few rows
-a year.
-
-### login_attempts
-```typescript
-id            uuid PK default gen_random_uuid()
-key_hash      text NOT NULL          -- SHA-256 of 'login:' + trimmed, lowercased username
-attempted_at  timestamptz default now()
-```
-One row per sign-in attempt inside the 15-minute window (`lib/auth/loginThrottle.ts`).
-Each attempt prunes rows older than the window, and a success deletes its key's rows, so
-the table holds one window at most. Never the username itself: a passphrase typed into the
-username box would otherwise be stored in plain text.
-
-### locations
-User-saved locations (crags or general weather spots).
-```typescript
-id              uuid PK
-user_id         uuid FK → users.id
-name            text
-lat             numeric
-lon             numeric
-is_climbing_location  boolean default false   -- renamed from is_crag
-rock_type       rock_type enum -- ROCK_TYPES in packages/types: 27 values since 0015
-                        -- (rock-drying-research.md §7), or null
-known_crag      text    -- KNOWN_CRAGS slug, or null. Set = rock_type is locked:
-                        -- written from the research on save, never from a body.
-                        -- Written only by resolveRockType (POST /locations) and
-                        -- npm run locations:lock-known-crags (existing rows).
-aspect          text    -- wall facing direction e.g. 'NW', used for shade calc
-cliff_angle     numeric -- 0 vertical, 90 flat slab, NEGATIVE overhanging (runs opposite to
-                        --   climbers; the API speaks wall_angle_deg = -cliff_angle, wallAngle.ts)
-asos_station    text    -- nearest IEM ASOS station ID e.g. 'KMSN'
-asos_network    text    -- IEM network e.g. 'WI_ASOS'
-nws_office      text    -- e.g. 'MPX'
-nws_grid_x      int
-nws_grid_y      int
-timezone        text    -- IANA tz string e.g. 'America/Chicago'
-alerts_checked_at timestamptz -- last check-alerts run NWS answered and every warning stored;
-                        --   null = never checked (0039). The client prints "Warnings not
-                        --   checked recently" past ALERTS_CHECK_STALE_MS (2 h).
-created_at      timestamptz default now()
-```
-
-### conditions_scores
-**Dropped** in migration 0023 (scoring Phase 5b, 2026-10-01). It had no writer since scores went live per request.
-
-### trips
-User trip projects with forecast tracking.
-```typescript
-id          uuid PK
-user_id     uuid FK → users.id
-name        text
-start_date  date
-end_date    date
-notes       text
-created_at  timestamptz default now()
-```
-
-### trip_locations
-Locations attached to a trip.
-```typescript
-id          uuid PK
-trip_id     uuid FK → trips.id
-location_id uuid FK → locations.id
-```
-
-### trip_day_records
-What the forecast said about one trip day at one location, per firing of `POST /api/cron/record-trips` (`lib/trips/recordTripDays.ts`). The trend a trip screen plots as the day approaches.
-```typescript
-id                    uuid PK
-location_id           uuid FK → locations.id   -- per location, not per trip: two trips to one crag share it
-local_date            date        -- the forecast day, local to the location
-recorded_at           timestamptz -- the firing, truncated to the hour
-lead_days             int         -- local days from today at recording; 0 is today
-scored_run_fetched_at timestamptz -- fetched_at of the stored THERMAL_MODEL run the score read; null without a score
-score                 int         -- ReadingsDay.best.score; null past the readings (7 days) and at a non-crag
-dryness               text        -- best.rock.level: wet | drying | dry
-friction              text        -- best.friction.level: poor | fair | good | great
-temp_c_max            double      -- 16-day outlook: median of member highs
-temp_c_min            double
-members_wet           int         -- members at or above 0.1 mm that day
-member_count          int
-precip_mm_mean        double      -- mean of member daily totals; sums across days
-members_rewet         int         -- migration 0030: members with an hour ≥ 0.5 mm, 01:00-18:00 local (RewetDay)
-rewet_member_count    int         -- members that reported every hour of that window
-UNIQUE(location_id, local_date, recorded_at)   -- a rerun inside the hour replaces its row
-```
-On `DEPENDENT_TABLES`, so a location delete clears it. A row is written only when every source the location needs answered; a failed read writes nothing rather than nulls. **The exception is the rewet pair**: read from the stored ensemble run (`getEnsembleDaily`, days 0-6), shown on no screen, and null when that read failed, the run predates it, or the day is past day 6 — the rest of the row is still written.
-
-### trip_rain_records
-A trip's rain total and warmest high at one of its locations, per firing of `POST /api/cron/record-trips`: the points of the trip screen's forecast trend, read by `GET /trips/:tripId/trend`. Built by `tripRainRows` from the same `summarizeTripOutlook` that `GET /trips/:tripId/forecast` answers with.
-```typescript
-id            uuid PK
-trip_id       uuid FK → trips.id       -- per trip: a total is summed over one trip's dates
-location_id   uuid FK → locations.id
-recorded_at   timestamptz -- the firing, truncated to the hour
-mean_mm       double      -- mean of member trip totals; null when no member reached every covered day
-p10_mm        double      -- percentiles of member totals, never a sum of daily percentiles
-p90_mm        double
-member_count  int         -- members summed
-days_covered  int         -- trip days inside the horizon; null with the rain
-trip_days     int NOT NULL
-high_c_max    double      -- highest of the covered days' median highs; null when no day had one
-UNIQUE(trip_id, location_id, recorded_at)   -- a rerun inside the hour replaces its row
-```
-**`days_covered < trip_days` marks a total over part of the trip**, which jumps when the next day enters the horizon; the trend draws such a point hollow. A trip with no day inside the horizon writes no row. Written in the same transaction as the location's `trip_day_records`, so both or neither land. `DELETE /trips/:tripId` clears it by `trip_id` in its transaction; `location_id` is on `DEPENDENT_TABLES`.
-
-### trip_day_outcomes
-How one trip day turned out at one location: `HourlyReadings.past_days`, the model's own look back once the day is over, scored by the forecast's day rule. Read by `GET /trips/:tripId/summary`. The model's analysis, not observations.
-```typescript
-id           uuid PK
-location_id  uuid FK → locations.id   -- per location, like trip_day_records
-local_date   date
-recorded_at  timestamptz -- the firing that last wrote it, truncated to the hour
-score        int         -- past_days.best.score; null unless every daytime hour's rock was known
-dryness      text        -- best.rock.level, null with the score
-rain_mm      double      -- the drying clock's rain median summed over the local day; null past any gap
-temp_c_max   double      -- THERMAL_MODEL's air temperature over the local day; null past any gap
-temp_c_min   double
-UNIQUE(location_id, local_date)   -- rewritten each firing for OUTCOME_DAYS (3), then final
-```
-Written in the recorder's transaction with the day records and trend points. A day the look back has nothing for writes nothing. On `DEPENDENT_TABLES`.
-
-### trip_day_gauges
-Measured rain at the airport gauge nearest a trip crag (`nearestGauge`, `lib/weather/asosGauge.ts`: the committed `asosStations.ts` snapshot, within `GAUGE_MAX_KM` 25 km, never a `STUCK_GAUGES` station), one row per station and local day. One of two observations in a trip's look back, beside `trip_day_volunteer_gauges`. Read by `GET /trips/:tripId/summary` as `TripDayLookBack.gauge`, and by `compare:trip-lead`.
-```typescript
-id              uuid PK
-station         text      -- IEM's ASOS id, e.g. DLL; no FK, and no location_id
-local_date      date      -- the station's own local day (its IANA zone from the snapshot)
-recorded_at     timestamptz -- the firing that last wrote it, truncated to the hour
-rain_mm         double    -- the day's hourly p01i summed; null unless every hour reported
-hours_reported  int
-hours_expected  int       -- 23 or 25 on a clock-change day
-UNIQUE(station, local_date)
-```
-**Keyed per station, not per location**, so two crags near one airport share a row and the reader finds a crag's row by computing its station again. With no FK it is not on `DEPENDENT_TABLES`, and a deploy before the migration loses only the gauge line: the recorder writes it after its transaction and logs a failure, and the summary reads it in its own query and treats a failure as no gauge. A later read that heard from fewer hours leaves a row alone (`writeGaugeDays`).
-
-### trip_day_volunteer_gauges
-A volunteer rain gauge's daily report (CoCoRaHS, `lib/weather/cocorahsGauge.ts`, #463): the recorder reads the `VOLUNTEER_CANDIDATES` (3) nearest stations in the committed `cocorahsStations.ts` snapshot within `GAUGE_MAX_KM`, and writes every report that could stand for a looked-back day (the day's date and the next). Read by `GET /trips/:tripId/summary` as `TripDayLookBack.volunteer_gauge`: per day, the nearest candidate whose report stands for it (`reportForDay`).
-```typescript
-id              uuid PK
-station         text      -- CoCoRaHS id, e.g. WI-PC-38; no FK, and no location_id
-station_name    text      -- e.g. 'Hager City 1.8 WNW', from the report
-report_date     date      -- the date the gauge was read; covers the 24 hours before
-obs_hour        int       -- local hour it was read (usually 7); null stands for no day
-recorded_at     timestamptz -- the firing that last wrote it, truncated to the hour
-rain_mm         double    -- not null: a report without a figure is no row; a trace is 0.0025, so it prints 'trace'
-UNIQUE(station, report_date)
-```
-**One reading a day, not a calendar day**: a morning reading dated the 30th stands for the 29th, an afternoon or evening one (`AFTERNOON_READING_HOUR`, 13) for its own date. A skipped day has no row, never a zero. Same no-FK reasoning as `trip_day_gauges`; a later read replaces a row, since volunteers correct reports (`writeVolunteerReports`).
-
-### feedback
-App feedback and forecast checks (`POST/GET /api/v1/feedback`, `POST /feedback/:id/resolve`,
-`DELETE /feedback/:id`;
-rules in `lib/feedback/parseFeedback.ts`, Postgres behaviour in `npm run check:feedback`).
-A forecast check stores **what the app showed** (`app_readings`) beside **what the climber
-saw**, so it can later be scored against the model (#143).
-```typescript
-id                  uuid PK
-user_id             uuid FK → users.id
-kind                feedback_kind      -- 'app' | 'forecast'
-location_id         uuid FK → locations.id, nullable -- set null when the location is deleted
-location_name       text               -- copied at write time; survives the delete
-lat, lon            double precision   -- copied at write time
-message             text               -- required (non-blank) for 'app'
-observed_at         timestamptz        -- required for 'forecast'
-observed_conditions overall_status     -- required for 'forecast'; the whole crag's. When any stop says its
-                                       -- rock, it must be cragRockOf the stops' (their word, or 'mixed')
-verdict             forecast_verdict   -- 'matched' | 'partly' | 'missed'; required for 'forecast'
-app_readings        jsonb              -- FeedbackAppReadings | null: labelled words, never 0-1 factors
-stops               jsonb              -- ForecastStop[] | null (migration 0035): one per wall climbed —
-                                       -- area_id/area_name, wall_id/wall, route_picks [{id,name}], routes (typed),
-                                       -- started_at, ended_at, rock (OBSERVED_CONDITIONS; the form requires it),
-                                       -- sun_exposure, shade_causes (SHADE_CAUSES: clouds|trees|overhang|facing|
-                                       -- terrain, any, only with sun short of full; the form offers all but
-                                       -- terrain, kept so older checks read back), facing (one of the 16
-                                       -- COMPASS_POINTS; the form offers 8), angle (slab|vertical|overhang|roof).
-                                       -- The climber's word on each wall's direction, shape and why it was shaded:
-                                       -- the start of a per-wall record (#293, #398), read by nothing yet. Stops
-                                       -- stored before them read back with nulls and shade_causes [].
-                                       -- Only started_at is required; each starts within 16 h of observed_at.
-                                       -- area_id must be one of the crag's guidebook areas, wall_id one of that
-                                       -- area's sub_walls, each route pick on that wall (or the area without one):
-                                       -- stopsGuidebookProblem, route-checked, no FK. Stops stored before picks
-                                       -- read back with wall_id null and route_picks [].
-                                       -- parseStops validates on write and on read; null = none named
-created_at          timestamptz default now()
-resolved_at         timestamptz        -- null = open; set once acted on (migration 0024)
-INDEX(user_id, created_at); CHECK constraints enforce the per-kind required fields
-```
-**`deleteLocationCascade` detaches feedback rather than deleting it** — a check is evidence
-about a place and outlives the saved location.
-
-**Acted-on feedback is resolved, not deleted.** `GET /feedback` lists open rows only; "Done"
-in the app and `npm run feedback -- resolve <id>` set `resolved_at` and the row stays — a
-resolved forecast check is still #143 evidence.
-
-### route_ticks, route_todos, area_locations
-The logbook and recorded boulder positions (`GET /logbook`, `POST/DELETE /logbook/ticks`,
-`PUT/DELETE /logbook/todos/:routeId`, `PUT /guidebook/areas/:areaId/position`; rules in
-`lib/logbook/parseLogbook.ts`, Postgres behaviour in `npm run check:logbook`). Routes and
-areas live in the committed OpenBeta snapshot, not a table, so `route_id` and `area_id` are
-OpenBeta uuids as text with **no FK**; the API refuses an id the snapshot does not hold.
-```typescript
-// route_ticks — one climb of one route by one user
-id          uuid PK
-user_id     uuid FK → users.id
-route_id    text               -- OpenBeta climb uuid
-ticked_on   date               -- the climber's local day
-style       tick_style         -- 'send' | 'flash' | 'onsight' | 'attempt'
-laps        integer            -- null when not entered, never 0
-note        text
-created_at  timestamptz default now()
-INDEX(user_id, route_id)
-
-// route_todos — a route a user wants to climb
-user_id     uuid FK → users.id
-route_id    text
-created_at  timestamptz default now()
-PK(user_id, route_id)            -- a second PUT is a no-op
-
-// area_locations — where a boulder is, from a phone standing at it
-area_id     text PK            -- OpenBeta area uuid; one row per area
-lat, lon    double precision
-accuracy_m  double precision   -- the phone's estimate; the API refuses > 50 m
-recorded_by uuid FK → users.id -- never returned by any response
-recorded_at timestamptz default now()
-INDEX(recorded_by)
-```
-**`area_locations` is shared by every account** (owner decision 2026-09-29): a later
-recording replaces the earlier one, whoever made either. OpenBeta's own point is never
-copied here. None of the three has a `location_id`, so deleting a location leaves them alone.
-
-### walls
-Individual walls within a climbing location (added migration 0003).
-```typescript
-id              uuid PK
-location_id     uuid FK → locations.id
-user_id         uuid FK → users.id
-name            text
-aspect_deg      int         -- 0-359, wall facing direction
-aspect_source   text        -- how aspect was determined
-angle_deg       int         -- degrees from vertical
-angle_band      text        -- categorical band
-route_count     int
-created_at      timestamptz default now()
-updated_at      timestamptz
-```
-
-### weather_alerts
-Active NWS alerts per location (added migration 0002; `notified_at` added 0006).
-```typescript
-id              uuid PK
-location_id     uuid FK → locations.id
-nws_alert_id    text
-event           text
-severity        text
-certainty       text
-headline        text
-description     text
-effective       timestamptz
-expires         timestamptz
-notified_at     timestamptz -- NULL until sent to Telegram; the dedup key
-created_at      timestamptz default now()
-UNIQUE(location_id, nws_alert_id)
-```
-Written by `runAlertsCheck()` in `lib/alerts/checkAlerts.ts`, driven by
-`POST /api/cron/check-alerts`. **`notified_at` lives on the row**, so pruning and
-re-inserting a row resets its notification state — see issue #26.
-
-### user_preferences
-```typescript
-id                      uuid PK
-user_id                 uuid FK → users.id UNIQUE
-temp_unit               text default 'F'
-precip_unit             text default 'in'
-default_rock_type       text
-alert_enabled           boolean default true
-alert_min_score         int default 70
-ideal_temp_min_c        double precision default 10 NOT NULL
-ideal_temp_max_c        double precision default 22 NOT NULL
-drying_caution          text default 'normal' NOT NULL   -- relaxed | normal | cautious
-include_sun             boolean default true NOT NULL
-window_min_rock         text default 'drying' NOT NULL   -- wet | drying | dry
-window_min_friction     text default 'fair' NOT NULL     -- poor | fair | good | great
-created_at              timestamptz default now()
-```
-**The six columns from `ideal_temp_min_c` down are Layer 5 of the v2 scoring
-model, added by migration `0012` on 2026-09-21, and nothing reads any of them
-yet** — including the rest of `user_preferences`, which has no reader either.
-They exist because the migration is the slow half and the later phases need the
-column set settled. Defaults are the current hardcoded constants where one exists
-(`ideal_temp_*` is `TEMP_BAND_C`, `drying_caution: 'normal'` is `MAX_HOURS`
-unchanged); the two window minimums have no precedent and are judgement calls
-recorded as such in `schema.ts`.
-
-## Key Relationships
-- Everything traces back to `users.id` via FK — even with auth off
-- `locations` is the hub: trips, alerts, walls and the trip records all FK to it
-- A user saves a crag by creating a `locations` row from the `/add` search (OpenBeta snapshots and Open-Meteo places)
+Migration 0040 (2026-11-03) dropped seven tables that nothing read or wrote, all empty on Neon:
+`crags`, `rainfall_history`, `forecast_snapshots`, `crag_climbability_history`,
+`conditions_reports`, `premium_pulls` and `location_normals`, with the `rainfall_source` enum.
+Migration 0023 dropped `conditions_scores`. Forecasts and recent rain are computed live;
+forecast checks live in `feedback`. Monthly normals or a climbable-days history would be a new
+product decision and a new table, not a revival.

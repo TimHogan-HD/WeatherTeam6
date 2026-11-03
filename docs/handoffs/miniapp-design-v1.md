@@ -581,7 +581,7 @@ Per the locked copy rule, **p10/p50/p90 never appear in prose.** Those terms are
 >   estimated.
 >
 > `packages/types/src/readingsCopy.ts` is the implementation and
-> `docs/handoffs/weatherteam6-scoring-model-handoff-v1.md` § Phase 3 is the spec. Read them
+> `.claude/rules/readings.md` holds its rules. Read them
 > before treating anything below as a description of what ships.
 
 ### What is live today
