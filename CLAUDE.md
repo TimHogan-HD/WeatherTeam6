@@ -62,14 +62,14 @@ Do not create a `.env` file at all — set variables in the shell for the one co
 - All API responses use the shape `{ data, error, status }`.
 - All external API calls are wrapped in try/catch with exponential backoff retry.
 - Never log secrets, tokens, or full API responses in production. Never serialise an error object wholesale into a log — driver errors can carry the connection string; go through `describeError` in `lib/http.ts`.
-- Auth is a signed token, and `requireApiAuth` is the only setter of `req.userId` — see `.claude/rules/architecture.md` § Auth Pattern. There is no self-serve signup: an account comes from `user:add` or an invite link only the owner can mint.
+- Auth is a signed token, and `requireApiAuth` is the only setter of `req.userId` — see `.claude/rules/architecture.md` § Auth Pattern, and `auth.md` for the detail. There is no self-serve signup: an account comes from `user:add` or an invite link only the owner can mint.
 - Drizzle migrations only — never mutate the DB directly.
-- **Finish the delivery.** Work reaches `main` through a branch, a PR, green CI and a squash merge, all done by you. A PreToolUse hook blocks `git commit` on the default branch and blocks a merge until the CI reviewer's `## Claude review` comment names the PR's head commit (a PR that edits `claude-review.yml` is exempt — the action will not run on it; the gate reads GitHub over REST and refuses when it cannot), and a Stop hook refuses to end the turn with uncommitted changes, unpushed commits, a pushed branch with no PR, or the branch's own PR left open green and mergeable, or still waiting on CI or the review with nothing watching it. Another branch's PR never holds a turn, and neither does a draft. **Wait with `npm run wait:pr`** (foreground, timeout 600000, or in the background, where its exit wakes you): it prints one outcome — ready, ci-failed, no-review, conflict, behind, no-checks, head-changed or timeout — and never hand back "I'll merge when it's green". If the user asks you to pause mid-change, `touch .claude/.wip` and delete it when work resumes; it expires after 12 hours.
-- **A check nothing runs is not a check.** CI runs every root-level `check:*` script, enumerated from `package.json`, and the `apps/api` checks that need only Postgres (auth, invites, edit-location, delete-trip, edit-trip, feedback, logbook, preferences) against a throwaway Postgres, as `ui.yml` does; a new such check goes on that list in `ci.yml`. `npm run check:hooks` fails if `.claude/settings.json` registers a hook no scenario exercises. `main` is protected for admins too and requires both `ci` and `review` (2026-10-21), so GitHub itself refuses an unreviewed merge; fix the red check rather than routing around it. A PR that edits `claude-review.yml` passes `review` unreviewed, so keep such a PR to the workflow alone. Auto-merge stays off: the reviewer's findings are advisory, and you fix them before merging.
+- **Finish the delivery.** Work reaches `main` through a branch, a PR, green CI and a squash merge, all done by you. Hooks enforce this and say what they want when they block. **Wait with `npm run wait:pr`** (foreground, timeout 600000, or in the background, where its exit wakes you) and never hand back "I'll merge when it's green". If the user asks you to pause mid-change, `touch .claude/.wip` and delete it when work resumes; it expires after 12 hours.
+- **A check nothing runs is not a check.** CI runs every root-level `check:*` script and the `apps/api` checks that need only Postgres; a new such check goes on that list in `ci.yml`. `npm run check:hooks` fails if `.claude/settings.json` registers a hook no scenario exercises. `main` requires both `ci` and `review`, for admins too, so fix the red check rather than routing around it. A PR that edits `claude-review.yml` passes `review` unreviewed, so keep such a PR to the workflow alone. Auto-merge stays off: the reviewer's findings are advisory, and you fix them before merging.
 
 ## Reference Docs
 
-`.claude/rules/architecture.md` and `defect-patterns.md` load in every session. The other rule files (scoring, readings, locations, weather, trips) load only when a file under their `paths:` is read or edited; `architecture.md` indexes them, and a plan or review reads the ones its paths touch. Read these when the work needs them:
+`.claude/rules/architecture.md` and `defect-patterns.md` load in every session. The other rule files (scoring, readings, locations, weather, trips, auth) load only when a file under their `paths:` is read or edited; `architecture.md` indexes them, and a plan or review reads the ones its paths touch. Read these when the work needs them:
 
 | Work | Read first |
 | --- | --- |
@@ -85,6 +85,7 @@ Do not create a `.env` file at all — set variables in the shell for the one co
 | Dataviz Phase 5 | `docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` — parked; its phase numbers are its own |
 | CSS, hover, transitions or animation | `docs/handoffs/design-system-v1.md` § CSS and motion — allowed since 2026-10-01, on tokens, with `prefers-reduced-motion` |
 | Placement, motion numbers, platform features, design tools | `.claude/docs/ui-craft.md` |
+| Setting up or repairing a Vercel project, or migrating from a restricted environment | `apps/api/README.md` |
 
 Paywalled or unfetchable source material goes in `.claude/research-inbox/` (gitignored except its README). Commit the claim, quote and citation — never the article.
 
@@ -109,7 +110,8 @@ Run `/review-checklist` before opening a PR.
   npm run check:add-location
   ```
   `DEFAULT_USER_ID` is optional; the seeded user is `00000000-0000-0000-0000-000000000001`.
-- `npm run check:ui` (from `apps/api`) is the UI harness; there are no preview deploys (see Known Gotchas). Do not run it by routine — see the end of this bullet. It starts `createApp()` and `vite` locally with throwaway secrets, signs in through the login screen as a throwaway user, adds a known crag, and screenshots the list, every detail tab and `/add` at the owner's 480×1000 viewport, failing on page errors, console errors, API responses ≥ 400 and sideways scroll. Open the screenshots it prints — it does not judge how a screen looks. For interaction it does not cover, extend the script rather than rebuilding the harness by hand. **The `UI check` workflow (`ui.yml`) runs it live every night, not on PRs** (owner, 2026-10-26: PR runs and routine local runs cost more time and credits than they caught — run it locally only to reproduce a nightly failure, with the narrowest flag). It runs against a throwaway Postgres; a hand-dispatched run replays the weather calls from `apps/api/src/scripts/fixtures/check-ui-tape.json.gz`, and a nightly failure opens the "Nightly UI check failed" issue. When a replayed run fails "every upstream call was on the tape", the change asks upstream something new: delete the tape and dispatch the workflow, and the run records a new one (the `check-ui-tape` artifact) to commit. Never record it locally: against Neon the app reads stored runs and skips calls an empty database makes, and this machine's Open-Meteo allowance is shared with every other session's runs.
+- `npm run check:ui` (from `apps/api`) is the UI harness: every screen in Chromium at the owner's 480×1000, failing on page errors, console errors, API responses ≥ 400 and sideways scroll. It does not judge how a screen looks, so open the screenshots it prints. For interaction it does not cover, extend the script; its header covers the flags and the replay tape.
+- **`ui.yml` runs `check:ui` every night, not on PRs** (owner, 2026-10-26), and a failure opens an issue. Run it locally only to reproduce a nightly failure: foreground (timeout 600000, a full run takes ~10 minutes), the narrowest flag, and one measurement run then one confirming run, because Open-Meteo rate-limits repeats. A failure is yours until shown otherwise, and is fixed in the PR that finds it. `-- --sweep` removes test users left by stopped runs; do it without asking.
 - `npm run test:mutation --workspace=apps/api` takes ~64 minutes on CI (2026-10-21) and runs weekly there; the owner will stop a local run. Run it on demand only when a survivor would change a decision.
 - State plainly what was and was not verified.
 
@@ -136,15 +138,7 @@ a credential, a dashboard setting, a phone, a product decision.>
 
 **`vite` is pinned at the repo root so the web app's plugins resolve the right copy.** `apps/api`'s vitest pulls in an older vite that npm hoists, and `@vitejs/plugin-react` then resolves it instead of `apps/miniapp`'s — the build dies with `Package subpath './internal' is not defined`. Do not remove the root `vite` devDependency.
 
-**Never set `NODE_ENV=production` as a Vercel environment variable.** npm then omits devDependencies, and the root postinstall that builds the shared packages dies with `tsc: command not found`.
-
-**Vercel framework preset must be "Other", not "Express".** `apps/api/api/index.ts` exports a `handler(req, res)`, not an app; the Express preset fails confusingly at runtime.
-
-**Vercel deploys from `main` only, and only the project a change touched.** The Hobby plan allows 100 deployments a day; on 2026-09-30 a morning of PRs spent them all (59 on unused previews) and the last fix could not ship until the next day. Both `vercel.json` files set `git.deploymentEnabled` to main-only and an `ignoreCommand` that skips a build when the app's directory, `packages/` and the root manifests are unchanged since its last deployment; `deployConfig.test.ts` holds both. There are no PR previews — drive the UI locally (§ Verification). A rate-limited merge ships with the next one, or by "Redeploy" in the dashboard.
-
-**`apps/api/vercel.json` skips the build step deliberately.** `outputDirectory` points at an intentionally empty `public/`; without it, deploys fail with "No Output Directory named public found".
-
-**Neon cannot be reached from a restricted cloud dev environment.** `drizzle-kit` uses Neon's WebSocket driver regardless of app code, so migrations must run from an unrestricted machine or with `*.aws.neon.tech` allowlisted.
+**Vercel deploys from `main` only, and only the project a change touched.** There are no PR previews, so drive the UI locally (§ Verification). A merge that hit the deployment limit ships with the next one, or by "Redeploy" in the dashboard.
 
 **The working tree is mostly CRLF on Windows, not all of it.** About 30 files are LF, `OverviewTab.tsx` among them; `git ls-files --eol <path>` says which. Multi-line `sed`/`perl`/`node -e` replacements silently match nothing and report success. A script that assumes one ending breaks on the other, so use the Edit or Write tool for anything spanning more than one line.
 
@@ -153,10 +147,6 @@ a credential, a dashboard setting, a phone, a product decision.>
 **From PowerShell, commit with `git commit -F <file>`.** `git commit -F -` fed by a here-string is read as a pathspec, so the commit fails and a following `git push` publishes an empty branch. Write the message to the scratchpad first; the same goes for `gh pr create --body-file`.
 
 **A worktree-isolated session refuses compound shell commands that run git or `cd` elsewhere** ("too complex to verify that it stays inside the worktree"). Run plain, separate commands from the worktree root.
-
-**Read `check:ui`'s failures; do not filter them out.** It is not a pre-PR step (owner, 2026-10-26); the nightly run is the gate, and a local run reproduces one of its failures with the narrowest flag (`--tabs-only`, `--list-only`). It was fully green on 2026-10-20 (173/0, #372); a failure is yours until shown otherwise, and is fixed in the PR that finds it, not parked as "known" — parked failures rotted for weeks and cost a whole session.
-
-**A full `check:ui` takes ~10 minutes, and Open-Meteo rate-limits repeated runs.** When reproducing a nightly failure, run it in the foreground (timeout 600000) — a background run plus the Stop hook forces WIP commits every turn. Never chase one failing step with repeated full runs: make one measurement run (a trace, timings), fix, then one confirming run. If a second full run would be needed, cut the run down first (#373). `-- --sweep` removes `check:ui`'s own `zz-check-ui`/`zz-ui-join` users older than two hours, left by stopped runs; do it without asking.
 
 **An auto-mode permission denial is the harness, not the owner.** Say so once, with the exact command or permission rule that unblocks it, and do not ask again; "do what's best" is an answer.
 
