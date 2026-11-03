@@ -466,8 +466,26 @@ describe('radar overrules the median (owner, 2026-11-02)', () => {
     expect(out.rain_models).toEqual(RAIN_MODELS)
   })
 
-  it('keeps the rock wet where radar saw the rain too', () => {
-    const out = build(radarUpTo(NOW, 2))
+  /**
+   * Radar saw a trace where the models put 6 mm. Radar alone would read the
+   * rock dry at noon; the rule keeps the models' rain, so it stays wet.
+   */
+  it('keeps the models’ rain where radar saw only a trace of it', () => {
+    const trace = radarUpTo(NOW, 0)
+    for (const iso of ['2026-09-21T09:00:00.000Z', '2026-09-21T10:00:00.000Z']) trace.set(Date.parse(iso), 0.1)
+    const radarOnly = buildHourlyReadings(
+      input({
+        deterministic: deterministic([
+          model(
+            THERMAL_MODEL,
+            wetMedianHours.map((h) => ({ ...h, rain_median_mm: trace.get(h.valid_at.getTime()) ?? h.rain_median_mm })),
+            RAIN_MODELS,
+          ),
+        ]),
+      }),
+    )
+    expect(rockAtNoon(radarOnly)).toBe('dry')
+    const out = build(trace)
     expect(rockAtNoon(out)).not.toBe('dry')
     expect(out.rain_radar).toBe(true)
   })
