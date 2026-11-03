@@ -166,6 +166,15 @@ export const chartColorsV2 = {
   beadRing: withOpacity(colorsV2.txt1, 0.55),
   /** Chance-of-rain columns behind the amount line: the rain hue, quiet enough to read the line over. */
   chanceColumn: withOpacity(colorsV2.rainMark, 0.24),
+  /**
+   * The Sun card's cloud cover, behind the sun bars: faded so the sun reads
+   * first, brighter at the read hour. Context, not the figure: the readout
+   * prints the exact %. Contrast on `card` is measured in `chartStyle.test.ts`.
+   */
+  sunCloud: withOpacity(colorsV2.txt1, 0.13),
+  sunCloudRead: withOpacity(colorsV2.txt1, 0.26),
+  /** The cloud key swatch and readout dot: the read-hour shade, so the key matches what is pointed at. */
+  sunCloudKey: withOpacity(colorsV2.txt1, 0.26),
 } as const
 
 /** Corner radius on a bar — the rounded data-end the dataviz guidance asks for. */

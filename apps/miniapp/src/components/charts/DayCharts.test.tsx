@@ -8,8 +8,9 @@ import type {
   ReadingsDay,
   SkyCondition,
   SkyHour,
+  SunHour,
 } from '@weatherteam6/types'
-import { DayCharts } from './DayCharts.js'
+import { DayCharts, hourSpanLabel, sunReadout } from './DayCharts.js'
 import { chartColorsV2, scoreRampColor } from './chartStyle.js'
 import { HOUR_MS } from './hourlySeries.js'
 
@@ -371,7 +372,7 @@ describe('DayCharts — sky glyphs', () => {
   })
   const withSky = (hours: SkyHour[]): HourlySeries => ({
     ...series(fullDay),
-    sky: { model: 'gfs_seamless', hours, days: [{ local_date: DAY_1, summary: null }] },
+    sky: { model: 'gfs_seamless', hours, sun: [], days: [{ local_date: DAY_1, summary: null, sun_min: null, sun_windows: null, sun_by_model: [] }] },
   })
   // A glyph is a nested <svg>, so the chart is cut at the next card, not at the first </svg>.
   const glyphs = (html: string) => count(html.slice(0, html.indexOf('aria-label="Rain')), 'data-sky=""')
@@ -403,5 +404,79 @@ describe('DayCharts — day picker', () => {
     expect(html).toMatch(/aria-pressed="false" aria-label="Today, /)
     // The open day's full name heads the strip.
     expect(html).toMatch(/<p[^>]*>Thursday/)
+  })
+})
+
+describe('DayCharts — Sun card', () => {
+  // UTC offset 0 here: stamp n covers hour n−1. Night through the 06:00 stamp, daylight 07:00–19:00.
+  const sunHour = (stamp: number, over: Partial<SunHour> = {}): SunHour => ({
+    valid_at: new Date(T0 + stamp * HOUR_MS).toISOString(),
+    local_date: DAY_1,
+    daylight: stamp >= 7 && stamp <= 19,
+    sun_min: stamp >= 7 && stamp <= 19 ? 60 : 0,
+    shortwave_wm2: stamp >= 7 && stamp <= 19 ? 650 : 0,
+    cloud_pct: 20,
+    ...over,
+  })
+  const day = (over: Record<number, Partial<SunHour>> = {}) =>
+    Array.from({ length: 24 }, (_, i) => sunHour(i + 1, over[i + 1] ?? {}))
+  const withSun = (sun: SunHour[]): HourlySeries => ({
+    ...series(fullDay),
+    sky: { model: 'gfs_seamless', hours: [], sun, days: [] },
+  })
+  const card = (html: string) => html.slice(html.indexOf('>Sun<'), html.indexOf('aria-label="Rain'))
+
+  it('draws a bar per daylight hour, cloud behind every hour, and one night word per night run', () => {
+    const html = card(render(withSun(day())))
+    expect(count(html, 'data-sun=""')).toBe(13)
+    expect(count(html, 'data-cloud=""')).toBe(24)
+    expect(count(html, 'data-night=""')).toBe(2)
+    expect(html).toContain('min of sun · % cloud · GFS')
+  })
+
+  it('marks an unanswered daylight hour as a gap, not as an empty bar', () => {
+    const html = card(render(withSun(day({ 12: { sun_min: null } }))))
+    expect(count(html, 'data-sun=""')).toBe(12)
+    expect(count(html, 'data-sun-gap=""')).toBe(1)
+  })
+
+  it('says there is no forecast yet, and names no model, when no daylight hour was answered', () => {
+    const html = card(render(withSun(day(Object.fromEntries(Array.from({ length: 24 }, (_, i) => [i + 1, { sun_min: null }]))))))
+    expect(html).toContain('No sunshine forecast for this day yet.')
+    expect(html).not.toContain('· GFS')
+  })
+
+  it('reads the hour the bar covers, ending at its stamp', () => {
+    const html = card(render(withSun(day()), { readMs: T0 + 13 * HOUR_MS }))
+    expect(html).toContain('12–1 PM')
+    expect(html).toContain('60 min')
+  })
+})
+
+describe('hourSpanLabel', () => {
+  it('names the hour before the stamp, its half of the day once unless it crosses noon or midnight', () => {
+    expect(hourSpanLabel(T0 + 13 * HOUR_MS, 0)).toBe('12–1 PM')
+    expect(hourSpanLabel(T0 + 12 * HOUR_MS, 0)).toBe('11 AM–12 PM')
+    expect(hourSpanLabel(T0 + 9 * HOUR_MS, 0)).toBe('8–9 AM')
+  })
+})
+
+describe('sunReadout', () => {
+  const h = (over: Partial<SunHour>): SunHour => ({
+    valid_at: '2026-09-15T13:00:00.000Z', local_date: DAY_1, daylight: true, sun_min: 10, shortwave_wm2: 150, cloud_pct: 70, ...over,
+  })
+  const text = (items: ReturnType<typeof sunReadout>) => items.map((i) => `${i.label} ${i.value}`.trim()).join(' · ')
+
+  it('gives the minutes, the strength word with its figure, and cloud', () => {
+    expect(text(sunReadout(h({})))).toBe('sun 10 min · weak 150 W/m² · cloud 70%')
+    expect(text(sunReadout(h({ sun_min: 60, shortwave_wm2: 820, cloud_pct: 0 })))).toBe('sun 60 min · strong 820 W/m² · cloud 0%')
+  })
+  it('calls sunlight with no bright sun "through cloud", not weak sun', () => {
+    expect(text(sunReadout(h({ sun_min: 0, shortwave_wm2: 90, cloud_pct: 90 })))).toBe('sun 0 min · through cloud 90 W/m² · cloud 90%')
+  })
+  it('prints a gap as an em dash, never 0, and night as night', () => {
+    expect(text(sunReadout(h({ sun_min: null, shortwave_wm2: null, cloud_pct: null })))).toBe('sun — · — · cloud —')
+    expect(text(sunReadout(h({ daylight: false, sun_min: 0, shortwave_wm2: 0 })))).toBe('night · cloud 70%')
+    expect(text(sunReadout(null))).toBe('sun — · cloud —')
   })
 })

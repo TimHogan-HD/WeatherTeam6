@@ -12,6 +12,8 @@ import {
   type HourlySample,
   type HourlySeries,
   type SkyCondition,
+  type SunHour,
+  sunStrength,
 } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
 import { bareButton, cardV2 } from '../../theme/styles.js'
@@ -24,7 +26,7 @@ import { weekdayOf } from '../../lib/precipHistory.js'
 import { niceTicks } from '../../lib/chartTicks.js'
 import { useNow } from '../../hooks/useNow.js'
 import { SelectionIndicator, useSelectedRect } from '../SelectionIndicator.js'
-import { chartColorsV2, scoreRampColor } from './chartStyle.js'
+import { BAR_MIN_H, BAR_RADIUS, chartColorsV2, scoreRampColor } from './chartStyle.js'
 import {
   Bead,
   Frost,
@@ -158,6 +160,10 @@ export function DayCharts({ series, selectedDate, onSelectDate, readMs, onRead, 
   const gustModel = hasValues(gustSeries(hours)) ? model : null
   const dayLabel = dayChips(series.days).find((c) => c.local_date === selectedDate)?.label ?? null
   const chanceToday = dayChance(series.hours, selectedDate)
+  const sunHours = series.sky?.sun?.filter((h) => h.local_date === selectedDate) ?? []
+  // Named only beside bars it drew: a run stored before sunshine was fetched answers no hour.
+  const sunModel =
+    series.sky?.model == null || !sunHours.some((h) => h.sun_min !== null) ? null : modelName(series.sky.model)
 
   return (
     <>
@@ -174,6 +180,13 @@ export function DayCharts({ series, selectedDate, onSelectDate, readMs, onRead, 
           goodWindow={goodWindow === null ? null : { from: Date.parse(goodWindow.from), to: Date.parse(goodWindow.to) }}
           sky={series.sky?.hours.filter((h) => h.local_date === selectedDate) ?? []}
         />
+      </section>
+      <section style={sectCard}>
+        <Sect
+          title="Sun"
+          aside={`min of sun · % cloud${sunModel === null ? '' : ` · ${sunModel}`}`}
+        />
+        <SunChart {...frame} sun={sunHours} />
       </section>
       <section style={sectCard}>
         <Sect title="Rain" aside={`${rainScaleUnit(hours)} · ensemble mean`} />
@@ -716,6 +729,186 @@ function WindChart({
             { label: 'range', swatch: { kind: 'block', background: chartColorsV2.wind, opacity: 0.4 } },
           ]}
         />
+      </div>
+    </div>
+  )
+}
+
+/** `12–1 PM`, or `11 AM–12 PM` across noon: the hour a sun bar covers, which ends at its stamp. */
+export function hourSpanLabel(endMs: number, utcOffsetSeconds: number): string | null {
+  const a = formatLocalHour(endMs - HOUR_MS, utcOffsetSeconds)
+  const b = formatLocalHour(endMs, utcOffsetSeconds)
+  if (a === null || b === null) return null
+  const [an, am] = a.split(' ')
+  const [bn, bm] = b.split(' ')
+  return am === bm ? `${an}–${bn} ${bm}` : `${a}–${b}`
+}
+
+/**
+ * The Sun card's read-hour figures: minutes of sun, how strong the sunlight
+ * is (a word and its W/m²), and cloud. Every gap is an em dash, never 0.
+ */
+export function sunReadout(h: SunHour | null): { label: string; value: string; color?: string }[] {
+  const cloud = { label: 'cloud', value: h === null ? EM_DASH : percent(h.cloud_pct), color: chartColorsV2.sunCloudKey }
+  if (h === null) return [{ label: 'sun', value: EM_DASH, color: colorsV2.sun }, cloud]
+  if (!h.daylight) return [{ label: '', value: 'night' }, cloud]
+  const sun = { label: 'sun', value: h.sun_min === null ? EM_DASH : `${Math.round(h.sun_min)} min`, color: colorsV2.sun }
+  const word = sunStrength(h.shortwave_wm2)
+  const wm2 = h.shortwave_wm2 === null ? EM_DASH : `${Math.round(h.shortwave_wm2)} W/m²`
+  // An hour with sunlight but no bright sun is light through cloud, not weak sun.
+  const strength =
+    word === null
+      ? { label: '', value: wm2 }
+      : h.sun_min !== null && h.sun_min < 1
+        ? { label: 'through cloud', value: wm2 }
+        : { label: word, value: wm2 }
+  return [sun, strength, cloud]
+}
+
+/**
+ * **Minutes of bright sun per hour, with the cloud behind** (owner, 2026-11-03,
+ * #469–#472, cloud as option B; mockup `docs/handoffs/design-mockups/sun-hours.html`).
+ *
+ * A bar owns the hour before its stamp and stands on a fixed 0–60 minute
+ * scale, so a short bar is a short spell of sun, never a rescaled one. Behind
+ * each hour a faded grey bar is the share of the sky in cloud, brighter at the
+ * read hour. Night hours carry no bar and one `night` word per run. A daylight
+ * hour the model did not answer is a dashed gap mark, never an empty bar —
+ * an empty bar is a measured hour without sun.
+ */
+function SunChart({ axis, instants, utcOffsetSeconds, nowMs, read, sun }: FrameProps & { sun: readonly SunHour[] }) {
+  if (axis === null) return <Empty>No hourly sun for this day.</Empty>
+  if (!sun.some((h) => h.daylight && h.sun_min !== null)) {
+    return <Empty>No sunshine forecast for this day yet.</Empty>
+  }
+  const H = 120
+  const base = 98
+  const topY = 14
+  const y = scale(0, 60, base, topY)
+  const cy = scale(0, 100, base, topY)
+  const hourW = instants.length > 1 ? (axis.right - axis.left) / (instants.length - 1) : 14
+  const span = (h: SunHour) => {
+    const end = Date.parse(h.valid_at)
+    const x0 = Math.max(axis.left - hourW / 2, axis.x(end - HOUR_MS))
+    const x1 = Math.min(axis.right + hourW / 2, axis.x(end))
+    return { x: x0 + 1, w: Math.max(1, x1 - x0 - 2), mid: (x0 + x1) / 2, end }
+  }
+  const readHour = read.ms === null ? null : (sun.find((h) => Date.parse(h.valid_at) === read.ms) ?? null)
+
+  // One `night` word per run of night hours, at the run's middle.
+  const nightRuns: SunHour[][] = []
+  for (const h of sun) {
+    const last = nightRuns[nightRuns.length - 1]
+    const prev = last?.[last.length - 1]
+    if (!h.daylight && prev !== undefined && Date.parse(prev.valid_at) + HOUR_MS === Date.parse(h.valid_at)) last!.push(h)
+    else if (!h.daylight) nightRuns.push([h])
+  }
+
+  return (
+    <div style={bleed}>
+      <LiquidFrame
+        height={H}
+        top={10}
+        bottom={22}
+        axis={axis}
+        instants={instants}
+        utcOffsetSeconds={utcOffsetSeconds}
+        nowMs={nowMs}
+        read={read}
+        title="Minutes of sun and cloud cover by hour"
+        readLabel={read.ms === null ? undefined : (hourSpanLabel(read.ms, utcOffsetSeconds) ?? undefined)}
+        readout={sunReadout(readHour)}
+      >
+        {[0, 30, 60].map((v) => (
+          <g key={v}>
+            <line x1={axis.left} x2={axis.right} y1={y(v)} y2={y(v)} stroke={chartColorsV2.grid} />
+            <ScaleFigure side="start" y={y(v)}>{v === 0 ? '0' : `${v}m`}</ScaleFigure>
+          </g>
+        ))}
+        {sun.map((h) => {
+          if (h.cloud_pct === null) return null
+          const b = span(h)
+          const isRead = read.ms !== null && b.end === read.ms
+          const top = cy(Math.min(100, Math.max(0, h.cloud_pct)))
+          return (
+            <rect
+              key={`c${h.valid_at}`}
+              data-cloud=""
+              x={b.x}
+              y={top}
+              width={b.w}
+              height={Math.max(0, base - top)}
+              rx={2}
+              fill={isRead ? chartColorsV2.sunCloudRead : chartColorsV2.sunCloud}
+            />
+          )
+        })}
+        {sun.map((h) => {
+          if (!h.daylight) return null
+          const b = span(h)
+          if (h.sun_min === null) {
+            return (
+              <line
+                key={`s${h.valid_at}`}
+                data-sun-gap=""
+                x1={b.x}
+                x2={b.x + b.w}
+                y1={base - 3}
+                y2={base - 3}
+                stroke={colorsV2.txtMuted}
+                strokeWidth={1.5}
+                strokeDasharray="2 2"
+              />
+            )
+          }
+          const top = y(Math.min(60, Math.max(0, h.sun_min)))
+          const height = Math.max(BAR_MIN_H, base - top)
+          return (
+            <rect
+              key={`s${h.valid_at}`}
+              data-sun=""
+              x={b.x}
+              y={base - height}
+              width={b.w}
+              height={height}
+              rx={Math.min(BAR_RADIUS, b.w / 2)}
+              fill={colorsV2.sun}
+              opacity={h.sun_min < 1 ? 0.35 : 1}
+            />
+          )
+        })}
+        {nightRuns.map((run) => {
+          const a = span(run[0]!)
+          const z = span(run[run.length - 1]!)
+          if (z.x + z.w - a.x < 34) return null
+          return (
+            <text
+              key={`n${run[0]!.valid_at}`}
+              data-night=""
+              x={(a.x + z.x + z.w) / 2}
+              y={base - 6}
+              textAnchor="middle"
+              fill={colorsV2.txtMuted}
+              style={{ font: `500 11px ${MONO}` }}
+            >
+              night
+            </text>
+          )
+        })}
+      </LiquidFrame>
+      <div style={keyInset}>
+        <KeyRow
+          keys={[
+            { label: 'minutes of sun', swatch: { kind: 'block', background: colorsV2.sun, opacity: 1 } },
+            { label: 'cloud', swatch: { kind: 'block', background: chartColorsV2.sunCloudKey, opacity: 1 } },
+          ]}
+        />
+        <p style={{ ...typeV2.keyRow, lineHeight: '1.55', margin: '10px 0 0' }}>
+          Yellow: minutes of the hour the sun is out bright enough to cast a shadow. Grey behind: how much of the sky
+          is cloud. Strength is the sunlight reaching flat ground: strong is 700 W/m² and up (a clear summer midday),
+          weak is under 300. Terrain shade and a wall’s angle are not in it, and past day 3 an hour’s sun is a rough
+          guess.
+        </p>
       </div>
     </div>
   )

@@ -37,6 +37,7 @@ function det(overrides: Partial<RunHour> & { valid_at: Date }): RunHour {
     precip_prob_pct: null,
     pressure_hpa: null,
     shortwave_wm2: null,
+    sunshine_s: null,
     rain_median_mm: null,
     ...overrides,
   }
@@ -471,6 +472,7 @@ describe('buildHourlySeries — a recorded wall never replaces the crag score', 
         cloud_pct: 0,
         // Daylight at Las Vegas in September is roughly 13Z-02Z.
         shortwave_wm2: utc >= 14 || utc <= 1 ? 800 : 0,
+        sunshine_s: null,
       }),
     )
   }

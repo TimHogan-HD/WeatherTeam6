@@ -157,7 +157,7 @@ export async function previousRuns(
 export function shippedMedian(byModel: ByModel, models?: readonly string[]): ReadonlyMap<string, number | null> {
   const blank = {
     temp_c: null, dewpoint_c: null, humidity_pct: null, wind_kmh: null, wind_gust_kmh: null,
-    wind_dir_deg: null, cloud_pct: null, precip_prob_pct: null, pressure_hpa: null, shortwave_wm2: null,
+    wind_dir_deg: null, cloud_pct: null, precip_prob_pct: null, pressure_hpa: null, shortwave_wm2: null, sunshine_s: null,
   }
   return (
     rainMedian({

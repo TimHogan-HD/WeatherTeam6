@@ -57,7 +57,12 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   unknown. No surface renders the column; a renderer that does must have
   `probability_is_shared` false.
 - **`shortwave_wm2` has three states: a number, 0 (night, a measurement) and null (no
-  answer).** Never `?? 0` on this path. Not on the `/hourly` response yet.
+  answer).** Never `?? 0` on this path. On `/hourly` only as `sky.sun[].shortwave_wm2`
+  (`THERMAL_MODEL`'s), read as a strength word.
+- **`sunshine_s` is seconds of bright sun (direct ≥ 120 W/m², WMO) in the hour before the
+  stamp; 0 is a dull hour, null no answer** (`weather_run_hours`, 2026-11-03). Every
+  deterministic model answers it; it shares the shortwave horizon, so NBM and HRRR stop
+  early. Rows stored before it existed are null, so a crag reads gaps until its next collect.
 - **`gem_seamless`'s shortwave is ~3× too high past day 4 — it never feeds irradiance**
   (#155). The other three may be pooled only on a measured gain (#212, `scoring.md`).
 - **An hour with no values at all is not stored**; a stored row keeps its nulls. **"This

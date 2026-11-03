@@ -20,6 +20,7 @@ function hour(valid_at_local: string, precip_mm: number | null): HourlyPoint {
     precip_prob_pct: null,
     pressure_hpa: 1010,
     shortwave_wm2: 0,
+    sunshine_s: null,
   }
 }
 

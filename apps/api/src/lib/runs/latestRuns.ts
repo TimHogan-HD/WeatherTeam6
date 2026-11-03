@@ -241,6 +241,7 @@ export async function loadStoredDeterministic(
       precip_prob_pct: h.precip_prob_pct,
       pressure_hpa: h.pressure_hpa,
       shortwave_wm2: h.shortwave_wm2,
+      sunshine_s: h.sunshine_s,
       rain_median_mm: h.rain_median_mm,
     }
     if (bucket) bucket.push(row)
