@@ -50,8 +50,8 @@ function inToMm(inches: number | null | undefined): number | null {
  *   - The observation timestamp is older than 90 minutes (stale)
  *
  * IMPORTANT: `p01i` is a 1-hour precip reading, NOT a daily total. Use this
- * only as a same-day rain indicator (is it currently raining?). Daily precip
- * totals come exclusively from ACIS — see acis.ts.
+ * only as a same-day rain indicator (is it currently raining?). Daily gauge
+ * totals come from the archive endpoint — see asosGauge.ts.
  */
 export async function fetchCurrentObs(
   stationId: string,

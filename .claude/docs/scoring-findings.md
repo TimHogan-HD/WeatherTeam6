@@ -169,19 +169,20 @@ a site chosen for fast erosion. Direction and scale, not a number.
 
 ## 2. Dead wiring — things that look live and are not
 
-All **[R]**, all verified by reading the source this session.
+**Resolved — every row below was fixed or removed by Crag A (2026-09-24 onward).
+Rechecked against the code 2026-11-03.** Kept for the pattern at the end, which still holds.
 
-| What | State | Consequence |
+| What | Then (2026-09-16) | Now |
 | --- | --- | --- |
-| **`ScoreInput.aspectDegrees`** | Computed in `liveForecast.ts:205`, passed in, **never read** | **Sun direction scores zero points.** Now carries a warning comment |
-| **Solar radiation** | Fetched and aggregated on every request, then **dropped**. Its only column is on `forecast_snapshots`, which nothing writes | The physical input both competitors use for sun is already being paid for and thrown away |
-| **`dewpoint_c`** | Stored, **never read** | It is one of the two terms in the condensation rule (§3.1) — and the metric climbers actually use |
-| **`ScoreInput.currentTempC`** | **Never read** — carries a warning comment | Already caused one near-miss: a draft rule that would have hidden a 103 °F heat warning |
-| **`cliff_angle`** | Default `45`, and **nothing writes it** for user-added locations | Every user location is scored at a value that means "severe overhang" to a climber and "half-slab" to us |
+| **`ScoreInput.aspectDegrees`** | Passed in, **never read** | Gone with the five-component scorer. A location's aspect is not a Crag A input |
+| **Solar radiation** | Fetched, then **dropped** | `shortwave_wm2` is stored per hour and drives `T_surface`, the drying rate and per-wall condensation (`rockThermal.ts`) |
+| **`dewpoint_c`** | Stored, **never read** | Read by Crag A's humidity and condensation factors |
+| **`ScoreInput.currentTempC`** | **Never read** | Gone with the five-component scorer |
+| **`cliff_angle`** | Default `45`, scored as if recorded | Crag A ignores it; Wall A geometry runs only on a recorded aspect and angle (`scoringLocationFor`), never the default |
 
-**`aspectDegrees` is the second instance of `defect-patterns.md` §10 in the same type.** Both
-now carry warnings. The pattern is worth naming: *this repo plumbs fields it does not consume,
-and readers reason from them.*
+**`aspectDegrees` was the second instance of `defect-patterns.md` §10 in the same type.** The
+pattern is worth naming: *this repo plumbs fields it does not consume, and readers reason
+from them.*
 
 ---
 
@@ -204,6 +205,10 @@ wall stay greasy" is not a duration; it is a comparison between **rock temperatu
 lag of air temperature)** and **dew point (current)**. And it is §13.9's Yungang result —
 condensation driving wetting cycles in caves rain never reaches — arriving independently from
 Peak District climbers.
+
+**Built (Crag A, 2026-09-24; per wall with sun since 2026-11-02).** `T_mass`, a trailing air
+average from 7 stored past days, plus each wall's sun, is compared against dew point
+(`condensationA`, `scoring.md`). The paragraph below is the original proposal.
 
 **What it would change:** a trailing temperature average as a rock-temperature proxy, compared
 against `dewpoint_c`, replacing or gating the RH curve. **Blocked on data we delete:**
@@ -360,7 +365,9 @@ them.
 - **Vaporization plane depth** — the dominant control on evaporation rate, moving it by up to
   2.2 orders of magnitude. Measuring it is a **patented laboratory technique**.
 - **Albedo and lichen cover** — needed for any real rock-temperature model.
-- **Terrain occlusion** — needs a DEM we do not have. Climbit has one.
+- **Terrain occlusion** — Climbit has a DEM. **Partly answered since:** `npm run sun:walls`
+  computes lidar skylines for owner-confirmed crags (Red Wing today), used by Wall A and the
+  Rock tab, not by Crag A's score.
 - **Route-level granularity** — one row per crag cannot express a cliff whose drying class
   changes with height, and both the Nuttall result and the wind-driven-rain literature say it
   does. Mountain Project's answer was to attach facts to the smallest area unit; ours has no

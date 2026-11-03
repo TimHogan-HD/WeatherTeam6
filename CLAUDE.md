@@ -49,7 +49,7 @@ Run `npm run db:generate` before `npm run db:migrate` — never `drizzle-kit pus
 
 - **`VITE_API_BASE_URL` is for development only.** A production build calls its own `/api/...`, which `apps/miniapp/vercel.json` forwards to the API — no CORS preflights. It is inlined into a public bundle, so never put a credential in any `VITE_*` variable.
 - **`API_SHARED_SECRET` and `AUTH_TOKEN_SECRET` are both fail-closed** — either unset means 503 on all of `/api/v1/*`. `CRON_SECRET` is a credential too.
-- **`TOMORROW_IO_API_KEY` and `RAINVIEWER_KEY` are deliberately absent.** Tomorrow.io was replaced by ACIS; RainViewer was replaced by IEM's keyless radar.
+- **`TOMORROW_IO_API_KEY` and `RAINVIEWER_KEY` are deliberately absent.** Tomorrow.io and ACIS are no longer called (rain now comes from the four-model median and NOAA radar); RainViewer was replaced by IEM's keyless radar.
 - There is no photo storage; a photo feature would add its own storage variables.
 
 Do not create a `.env` file at all — set variables in the shell for the one command that needs them.

@@ -857,10 +857,10 @@ export type RecentPrecipByModel = {
  * Hourly precipitation over the past `pastDays`, from `/v1/forecast`'s
  * `past_days`.
  *
- * **Why this exists at all:** the rainfall record behind the drying model is a
- * *daily* series — ACIS day totals, or the archive API's `precipitation_sum` —
- * so the most it could ever say was "it rained today". That is useless to
- * someone deciding whether the rock has had time to dry: rain that stopped at
+ * **Why this exists at all:** the rainfall record behind the old drying model was
+ * a *daily* series — ACIS day totals (no longer called), or the archive API's
+ * `precipitation_sum` — so the most it could ever say was "it rained today".
+ * That is useless to someone deciding whether the rock has had time to dry: rain that stopped at
  * 3am and rain still falling at 5pm are the same sentence.
  *
  * **The timing and the amount must come from this same series.** The daily
