@@ -162,6 +162,7 @@ describe('markSharedProbability', () => {
       precip_prob_pct: v,
       pressure_hpa: null,
       shortwave_wm2: null,
+      sunshine_s: null,
     })),
   })
 

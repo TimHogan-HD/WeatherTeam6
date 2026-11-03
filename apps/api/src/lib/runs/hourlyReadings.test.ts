@@ -45,6 +45,7 @@ function runHours(
       precip_prob_pct: 0,
       pressure_hpa: 1010,
       shortwave_wm2: 0,
+      sunshine_s: null,
       rain_median_mm: 0,
       ...over,
     })

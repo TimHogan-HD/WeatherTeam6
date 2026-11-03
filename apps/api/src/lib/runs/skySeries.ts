@@ -1,47 +1,47 @@
 /**
- * **Stored runs → how sunny each daylight hour and day is, in words.**
+ * **Stored runs → how sunny each hour and day is.**
  *
  * Pure, like `hourlySeries.ts` and `hourlyReadings.ts` beside it.
  *
- * Each daylight hour's forecast sunlight is compared with what a cloudless sky
- * would give at that place and hour, and the share sorts it into `sunny`,
- * `partly_cloudy` or `cloudy`. The reader sees only the word (owner decision
- * 2026-10-16); the ratio never leaves this file.
+ * Everything reads Open-Meteo's `sunshine_duration`: the seconds of each hour
+ * with direct sun of at least 120 W/m², the WMO definition of sunshine. It
+ * replaced a cloudless-sky ratio of `shortwave_radiation` (#472), whose 0.75 /
+ * 0.4 cut-offs nothing had checked; sunshine minutes are a defined, measured
+ * quantity a reader can picture ("40 minutes of the hour").
  *
- * **The sunlight is `THERMAL_MODEL`'s**, the same series the drying clock runs
- * on, so the sky on screen is the one the score saw — and never `gem_seamless`,
- * whose shortwave runs ~3× high past day 4 (#155).
- *
- * **Why a cloudless-sky ratio and not cloud cover.** `cloud_pct` counts thin
- * high cloud the sun shines straight through, and it says nothing about how
- * low the sun is. The ratio answers the question asked — how much sun reaches
- * the rock — and needs no input the score does not already read.
+ * **The sun is `THERMAL_MODEL`'s**, the same run the drying clock reads, so the
+ * sky on screen is the one the score saw — and never `gem_seamless`, whose
+ * shortwave (and so its sunshine) runs ~3× high past day 4 (#155). The other
+ * global models are read only to say when the forecasts differ (#470).
  */
-import { solarPosition, type SkyCondition, type SkyDay, type SkyDaySummary, type SkyHour, type SkySeries } from '@weatherteam6/types'
+import { solarPosition, type SkyCondition, type SkyDay, type SkyDaySummary, type SkyHour, type SkySeries, type SunHour, type SunWindow } from '@weatherteam6/types'
 import { MAX_PLAUSIBLE_SHORTWAVE_WM2 } from '../scoring/rockThermal.js'
 import { localDateString } from '../weather/openMeteo.js'
 import { THERMAL_MODEL } from './hourlyReadings.js'
-import type { DeterministicRuns } from './latestRuns.js'
+import type { DeterministicRuns, RunHour } from './latestRuns.js'
 
 const HOUR_MS = 3_600_000
-const DEG = Math.PI / 180
 
 /**
- * **An hour is shown when the sun is this high at its middle.** Below it the
- * cloudless figure is a few tens of W/m² and GFS's low-sun sunlight runs under
- * it: at 5°, real GFS for Sandstone on a cloudless 17 October 2026 (0% cloud)
- * read its last hour, 57 W/m², as partly cloudy. So the strip is the hours with
- * sun worth having, not sunrise to sunset.
+ * **An hour gets a sky word when the sun is this high at its middle.** Below it
+ * a clear sky's beam is weak and short, and a sunless hour there says little
+ * about the day. The Sun card and the day's total count every hour.
  */
 export const SKY_MIN_ELEVATION_DEG = 10
 
+/** An hour with at least this many minutes of sun is `sunny`; under `CLOUDY_MAX_SUN_MIN` it is `cloudy`. */
+export const SUNNY_MIN_SUN_MIN = 45
+export const CLOUDY_MAX_SUN_MIN = 15
+
+/** An hour belongs to a sunny window with at least half of it in sun. */
+export const WINDOW_MIN_SUN_MIN = 30
+
 /**
- * The share of cloudless sunshine at or above which an hour is `sunny`, and
- * the share below which it is `cloudy`. **A starting guess**, to be tuned
- * against what the owner sees at the crag; nothing has been measured.
+ * The models compared for "forecasts differ". The four global models less
+ * `gem_seamless` (#155); HRRR and NBM stop inside two days and would compare
+ * only the near days, so a crag abroad would get a different statistic.
  */
-export const SUNNY_MIN_RATIO = 0.75
-export const CLOUDY_MAX_RATIO = 0.4
+export const SUN_AGREEMENT_MODELS = ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless'] as const
 
 /** A day is `sunny` or `cloudy` outright when this share of its hours is. */
 const DAY_OUTRIGHT_SHARE = 0.75
@@ -50,45 +50,32 @@ const HALF_SUNNY_SHARE = 0.6
 const HALF_NOT_SHARE = 0.4
 
 /**
- * Haurwitz's cloudless-sky global horizontal irradiance, W/m², for a sun this
- * far above the horizon. The simplest of the standard clear-sky models and
- * close enough for three words; 0 with the sun down.
+ * Seconds of sunshine → minutes, or null when it is not a measurement. A small
+ * overrun is rounding upstream; anything past it is a broken value, not sun.
  */
-export function clearSkyWm2(elevationDeg: number): number {
-  if (!(elevationDeg > 0)) return 0
-  const cosZ = Math.sin(elevationDeg * DEG)
-  return 1098 * cosZ * Math.exp(-0.057 / cosZ)
+export function sunMinutes(seconds: number | null): number | null {
+  if (seconds === null || !Number.isFinite(seconds)) return null
+  if (seconds < 0 || seconds > 3660) return null
+  return Math.min(60, seconds / 60)
 }
 
-/**
- * The cloudless figure averaged over the hour ending at `at`, because
- * Open-Meteo's `shortwave_radiation` is the mean over the **preceding** hour.
- * Sampled at four quarter-hour midpoints, so an hour the sun rose inside is
- * not compared with a sun that was up all hour.
- */
-function clearSkyHourMeanWm2(at: Date, lat: number, lon: number): number | null {
-  let sum = 0
-  for (const minutesBack of [52.5, 37.5, 22.5, 7.5]) {
-    const sun = solarPosition(new Date(at.getTime() - minutesBack * 60_000), lat, lon)
-    if (sun === null) return null
-    sum += clearSkyWm2(sun.elevationDeg)
-  }
-  return sum / 4
+/** Sunlight on flat ground, or null when it is not a measurement. 0 (night) survives. */
+function plausibleShortwave(wm2: number | null): number | null {
+  if (wm2 === null || !Number.isFinite(wm2)) return null
+  if (wm2 < 0 || wm2 > MAX_PLAUSIBLE_SHORTWAVE_WM2) return null
+  return wm2
 }
 
-/** One hour's word, or null when its sunlight is missing or not a measurement. */
-export function skyCondition(shortwaveWm2: number | null, clearWm2: number | null): SkyCondition | null {
-  if (shortwaveWm2 === null || !Number.isFinite(shortwaveWm2)) return null
-  if (shortwaveWm2 < 0 || shortwaveWm2 > MAX_PLAUSIBLE_SHORTWAVE_WM2) return null
-  if (clearWm2 === null || !(clearWm2 > 0)) return null
-  const ratio = shortwaveWm2 / clearWm2
-  if (ratio >= SUNNY_MIN_RATIO) return 'sunny'
-  if (ratio < CLOUDY_MAX_RATIO) return 'cloudy'
+/** One hour's word from its minutes of sun, or null for a gap. */
+export function skyCondition(sunMin: number | null): SkyCondition | null {
+  if (sunMin === null || !Number.isFinite(sunMin)) return null
+  if (sunMin >= SUNNY_MIN_SUN_MIN) return 'sunny'
+  if (sunMin < CLOUDY_MAX_SUN_MIN) return 'cloudy'
   return 'partly_cloudy'
 }
 
 /**
- * A day from its daylight hours, in order. **Null if any hour is a gap**: the
+ * A day from its sky-word hours, in order. **Null if any hour is a gap**: the
  * missing one could be the only sunny hour, and "cloudy" said over it would
  * be a guess.
  */
@@ -110,6 +97,28 @@ export function summarizeSkyDay(hours: readonly (SkyCondition | null)[]): SkyDay
   return 'partly_cloudy'
 }
 
+/**
+ * Runs of consecutive hours with at least `WINDOW_MIN_SUN_MIN` of sun, as local
+ * wall-clock hours. `hours` is the day's daylight hours, in order, each with
+ * the local hour its span starts at; none may be a gap (the caller checks).
+ */
+export function sunWindows(hours: readonly { startHour: number; sunMin: number }[]): SunWindow[] {
+  const out: SunWindow[] = []
+  let open: SunWindow | null = null
+  for (const h of hours) {
+    const sunny = h.sunMin >= WINDOW_MIN_SUN_MIN
+    if (sunny && open !== null && open.end_hour === h.startHour) {
+      open.end_hour = h.startHour + 1
+    } else if (sunny) {
+      open = { start_hour: h.startHour, end_hour: h.startHour + 1 }
+      out.push(open)
+    } else {
+      open = null
+    }
+  }
+  return out
+}
+
 export type BuildSkyInput = {
   deterministic: DeterministicRuns
   /** The local dates the published series covers, in order. */
@@ -119,36 +128,97 @@ export type BuildSkyInput = {
   lon: number
 }
 
+type ByStamp = Map<number, RunHour>
+
+function indexRun(deterministic: DeterministicRuns, model: string): ByStamp | null {
+  const run = deterministic.models.find((m) => m.model === model)
+  if (run === undefined) return null
+  const out: ByStamp = new Map()
+  for (const h of run.hours) out.set(h.valid_at.getTime(), h)
+  return out
+}
+
 /**
  * **Daylight is decided by the sun, not by which hours the run returned.** An
  * hour the model did not reach is still daylight, so it goes out as a gap
  * rather than vanishing and leaving a day that looks complete.
  */
 export function buildSkySeries(input: BuildSkyInput): SkySeries {
-  const run = input.deterministic.models.find((m) => m.model === THERMAL_MODEL)
-  const shortwaveAt = new Map<number, number | null>()
-  if (run !== undefined) for (const h of run.hours) shortwaveAt.set(h.valid_at.getTime(), h.shortwave_wm2)
+  const thermal = indexRun(input.deterministic, THERMAL_MODEL)
+  const others = SUN_AGREEMENT_MODELS.map((model) => ({ model, at: indexRun(input.deterministic, model) }))
 
   const hours: SkyHour[] = []
+  const sun: SunHour[] = []
   const days: SkyDay[] = []
   for (const local_date of input.dates) {
     const midnightUtc = Date.parse(`${local_date}T00:00:00Z`) - input.utcOffsetSeconds * 1000
-    const dayHours: (SkyCondition | null)[] = []
+    const words: (SkyCondition | null)[] = []
+    const daylightStamps: number[] = []
+    const windowHours: { startHour: number; sunMin: number }[] = []
+    let total: number | null = 0
+
     // Stamps 01:00 through the next midnight: each covers the hour before it.
     for (let h = 1; h <= 24; h++) {
       const at = new Date(midnightUtc + h * HOUR_MS)
-      if (localDateString(new Date(at.getTime() - HOUR_MS / 2), input.utcOffsetSeconds) !== local_date) continue
-      const mid = solarPosition(new Date(at.getTime() - HOUR_MS / 2), input.lat, input.lon)
-      if (mid === null || mid.elevationDeg < SKY_MIN_ELEVATION_DEG) continue
-      const sky = skyCondition(
-        shortwaveAt.get(at.getTime()) ?? null,
-        clearSkyHourMeanWm2(at, input.lat, input.lon),
-      )
-      dayHours.push(sky)
+      const mid = new Date(at.getTime() - HOUR_MS / 2)
+      if (localDateString(mid, input.utcOffsetSeconds) !== local_date) continue
+      const start = solarPosition(new Date(at.getTime() - HOUR_MS), input.lat, input.lon)
+      const end = solarPosition(at, input.lat, input.lon)
+      const atMid = solarPosition(mid, input.lat, input.lon)
+      const daylight = start !== null && end !== null && Math.max(start.elevationDeg, end.elevationDeg) > 0
+
+      const row = thermal?.get(at.getTime())
+      const sunMin = sunMinutes(row?.sunshine_s ?? null)
+      sun.push({
+        valid_at: at.toISOString(),
+        local_date,
+        daylight,
+        sun_min: sunMin,
+        shortwave_wm2: plausibleShortwave(row?.shortwave_wm2 ?? null),
+        cloud_pct: row?.cloud_pct ?? null,
+      })
+
+      if (!daylight) continue
+      daylightStamps.push(at.getTime())
+      if (sunMin === null) total = null
+      else if (total !== null) total += sunMin
+      // The local hour this span starts at; a DST day shifts the label, not the sum.
+      const startHour = new Date(at.getTime() - HOUR_MS + input.utcOffsetSeconds * 1000).getUTCHours()
+      if (sunMin !== null) windowHours.push({ startHour, sunMin })
+
+      if (atMid === null || atMid.elevationDeg < SKY_MIN_ELEVATION_DEG) continue
+      const sky = skyCondition(sunMin)
+      words.push(sky)
       hours.push({ valid_at: at.toISOString(), local_date, sky })
     }
-    days.push({ local_date, summary: summarizeSkyDay(dayHours) })
+
+    const answered = total !== null && daylightStamps.length > 0
+    const sun_by_model: SkyDay['sun_by_model'] = []
+    if (answered) {
+      for (const o of others) {
+        if (o.at === null) continue
+        let sum = 0
+        let whole = true
+        for (const t of daylightStamps) {
+          const m = sunMinutes(o.at.get(t)?.sunshine_s ?? null)
+          if (m === null) {
+            whole = false
+            break
+          }
+          sum += m
+        }
+        if (whole) sun_by_model.push({ model: o.model, sun_min: Math.round(sum) })
+      }
+    }
+
+    days.push({
+      local_date,
+      summary: summarizeSkyDay(words),
+      sun_min: answered ? Math.round(total ?? 0) : null,
+      sun_windows: answered ? sunWindows(windowHours) : null,
+      sun_by_model,
+    })
   }
 
-  return { model: run === undefined ? null : THERMAL_MODEL, hours, days }
+  return { model: thermal === null ? null : THERMAL_MODEL, hours, sun, days }
 }
