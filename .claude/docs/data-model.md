@@ -41,6 +41,7 @@ location_normals        -- no writer (regression, issue #25)
 user_preferences
 walls
 weather_alerts
+radar_rain_hours        -- migration 0037, written by /api/cron/collect-radar
 ```
 
 16 tables. `walls`, `location_normals`, and `weather_alerts` were added after the

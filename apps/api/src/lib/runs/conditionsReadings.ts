@@ -70,6 +70,7 @@ export function toConditionsReadings(
   return {
     model: readings.model,
     rain_models: readings.rain_models ?? null,
+    rain_radar: readings.rain_radar ?? false,
     unavailable_reason: readings.unavailable_reason,
     // The location's own clock, carried with the readings rather than looked up
     // beside them — it is what the window's times are rendered against.

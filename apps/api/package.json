@@ -40,6 +40,7 @@
     "check:weather-runs": "tsx src/scripts/checkWeatherRuns.ts",
     "check:hourly": "tsx src/scripts/checkHourly.ts",
     "check:walls": "tsx src/scripts/checkWalls.ts",
+    "check:radar-rain": "tsx src/scripts/checkRadarRain.ts",
     "check:runs-storage": "tsx src/scripts/checkRunsStorage.ts",
     "check:forecast-stored": "tsx src/scripts/checkForecastStored.ts",
     "compare:dryness": "tsx src/scripts/compareDryness.ts",

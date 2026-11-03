@@ -116,6 +116,11 @@ ACIS gridded normals (`acisNormals.ts`) are a separate call and remain.
 - **Withholds:** no frame younger than 15 minutes (`RAIN_NOW_MAX_AGE_MS`) is `data: null`; the client also hides a frame that has aged on screen.
 - Off the `check:ui` tape (`upstreamTape.ts` `OFF_TAPE`): binary, minute-keyed, and a replayed frame is always stale. No key, no allowance.
 
+## MRMS hourly rain (the drying clock, 2026-11-02)
+- **Product:** `CONUS/MultiSensor_QPE_01H_Pass2_00.00`, same bucket: gauge-corrected rain for the hour ending at the file's stamp, 1 km, landing ~57 minutes after the hour, ~0.9 MB. Pass1 (~16 min) and radar-only (~3 min) exist; Pass2 was the one `compare:mrms` measured.
+- **Collected, not read live:** `POST /api/cron/collect-radar` (`lib/runs/radarRain.ts`, `lib/weather/mrmsQpe.ts`), hourly at :15, lists each UTC day it needs and fetches up to `RADAR_FILES_PER_RUN` (12) missing hours, newest first, reading every saved US crag from each file (~1 s per file, measured). Rows in `radar_rain_hours`, pruned past 8 days. A crag outside `MRMS_CONUS` gets none.
+- **Read by** `loadRadarRain` in `getHourlySeries`, into `radarChecked` (`rainMedian.ts`). A failed listing or file is a gap, never zeros; a failed read is the models' median alone.
+
 ## Tomorrow.io (Premium On-Demand)
 - **Endpoint:** `https://api.tomorrow.io/v4/weather/forecast`
 - **Auth:** `apikey` query param

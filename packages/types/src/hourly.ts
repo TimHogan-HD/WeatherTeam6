@@ -388,6 +388,13 @@ export type HourlyReadings = {
    * field is an older API, not a reading with no rain source.
    */
   rain_models?: string[] | null;
+  /**
+   * True when NOAA radar decided the drying clock's rain for at least one hour
+   * (`radarChecked`, owner 2026-11-02): US crags once radar is stored. False
+   * when the clock read the models alone. Optional for the same reason as
+   * `rain_models`: absent is an older API, not "no radar".
+   */
+  rain_radar?: boolean;
   unavailable_reason: ReadingsUnavailableReason | null;
   /** Ordered by `valid_at`. Joined to `HourlySeries.hours` by instant, not index. */
   hours: HourlyReading[];
@@ -471,6 +478,8 @@ export type ConditionsReadings = {
   model: string | null
   /** The models the drying clock's rain came from. See `HourlyReadings.rain_models`. */
   rain_models?: string[] | null
+  /** Whether radar checked that rain. See `HourlyReadings.rain_radar`. */
+  rain_radar?: boolean
   unavailable_reason: ReadingsUnavailableReason | null
   /**
    * Seconds to add to a UTC instant to get **the location's** wall clock.

@@ -45,7 +45,7 @@ seen them.
 - Route helpers live in `lib/http.ts`. Validate `uuid` params with `isUuid` (404, not a 500);
   funnel caught errors through `sendServerError`, which logs via `describeError` — never widen
   it to serialise an error object.
-- `/api/cron/collect-runs`, `/api/cron/prune-runs` and `/api/cron/record-trips` are gated on `CRON_SECRET` through
+- `/api/cron/collect-runs`, `/api/cron/prune-runs`, `/api/cron/record-trips` and `/api/cron/collect-radar` are gated on `CRON_SECRET` through
   `cronGateFailed`, with `Promise.allSettled` across locations.
 - **A client reads an absent column as a gap.** API and client deploy separately, and
   `undefined` passes every `=== null` guard. Normalise with `?? null` where a response becomes

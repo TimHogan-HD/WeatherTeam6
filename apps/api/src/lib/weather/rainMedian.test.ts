@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DeterministicResult, HourlyPoint, RecentPrecipByModel } from './openMeteo.js'
-import { rainMedian, recentPrecipMedian } from './rainMedian.js'
+import { radarChecked, rainMedian, recentPrecipMedian } from './rainMedian.js'
 
 /** Hourly local stamps from 2026-09-25T04:00. */
 const stamp = (i: number) => new Date(Date.UTC(2026, 8, 25, 4 + i)).toISOString().slice(0, 16)
@@ -205,5 +205,46 @@ describe('recentPrecipMedian', () => {
     )
     expect(out.hours[0]?.rain_mm).toBeNull()
     expect(out.hours[0]?.snowfall_cm).toBe(1)
+  })
+})
+
+describe('radarChecked: radar overrules the median, cautiously (owner, 2026-11-02)', () => {
+  const T0 = Date.UTC(2026, 10, 1, 12)
+  const H = 3_600_000
+  /** Radar for the six hours the median averages (T0-3h..T0+2h); `at` overrides one hour. */
+  const radar = (mm: number, at: Record<number, number | null> = {}) => (ms: number) => {
+    const o = (ms - T0) / H
+    if (o < -3 || o > 2) return undefined
+    return o in at ? at[o] : mm
+  }
+
+  it('zeroes the hour when radar read no rain across the whole window', () => {
+    expect(radarChecked(1.2, T0, radar(0))).toEqual({ precip_mm: 0, byRadar: true })
+  })
+
+  it('counts the window as dry only under 0.1 mm in total, not per hour', () => {
+    // 0.02 mm in each of six hours is 0.12 mm: rain fell, so the median stands.
+    expect(radarChecked(1.2, T0, radar(0.02))).toEqual({ precip_mm: 1.2, byRadar: true })
+    expect(radarChecked(1.2, T0, radar(0.01))).toEqual({ precip_mm: 0, byRadar: true })
+  })
+
+  it('takes the larger of radar’s hour and the median when radar saw rain', () => {
+    expect(radarChecked(0.4, T0, radar(0, { 0: 3 }))).toEqual({ precip_mm: 3, byRadar: true })
+    // Radar under the median never takes the models' rain away on a wet day.
+    expect(radarChecked(2, T0, radar(0, { 0: 0.5 }))).toEqual({ precip_mm: 2, byRadar: true })
+    // Rain elsewhere in the window, none this hour: the median stands.
+    expect(radarChecked(2, T0, radar(0, { [-3]: 1 }))).toEqual({ precip_mm: 2, byRadar: true })
+  })
+
+  it('leaves the median alone when any hour of the window has no radar, at either end', () => {
+    for (const o of [-3, 0, 2]) {
+      expect(radarChecked(1.2, T0, radar(0, { [o]: null }))).toEqual({ precip_mm: 1.2, byRadar: false })
+    }
+    // The newest hours: their window reaches past the newest radar hour.
+    expect(radarChecked(1.2, T0, (ms) => (ms > T0 ? undefined : 0))).toEqual({ precip_mm: 1.2, byRadar: false })
+  })
+
+  it('keeps a gap a gap: no median, no reading, whatever radar says', () => {
+    expect(radarChecked(null, T0, radar(5))).toEqual({ precip_mm: null, byRadar: false })
   })
 })

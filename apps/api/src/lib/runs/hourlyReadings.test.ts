@@ -438,6 +438,76 @@ describe('the rain the drying clock reads (issue #209)', () => {
   })
 })
 
+describe('radar overrules the median (owner, 2026-11-02)', () => {
+  const RAIN_MODELS = ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless', 'gem_seamless']
+  /** The median put 6 mm at 09:00 and 10:00; the rock reads wet at noon without radar. */
+  const wetMedianHours = runHours(120, 48).map((h) =>
+    ['2026-09-21T09:00:00.000Z', '2026-09-21T10:00:00.000Z'].includes(h.valid_at.toISOString())
+      ? { ...h, rain_median_mm: 6 }
+      : h,
+  )
+  /** Radar read every hour from 120 h back to `last`, all at `mm`. */
+  const radarUpTo = (last: Date, mm: number) => {
+    const m = new Map<number, number | null>()
+    for (let t = NOW.getTime() - 120 * 3_600_000; t <= last.getTime(); t += 3_600_000) m.set(t, mm)
+    return m
+  }
+  const build = (radarRain: ReadonlyMap<number, number | null> | null) =>
+    buildHourlyReadings(
+      input({ deterministic: deterministic([model(THERMAL_MODEL, wetMedianHours, RAIN_MODELS)]), radarRain }),
+    )
+  const rockAtNoon = (out: ReturnType<typeof buildHourlyReadings>) =>
+    out.hours.find((h) => h.valid_at === '2026-09-21T12:00:00.000Z')?.rock?.level
+
+  it('reads the rock dry where radar saw no rain, and says radar decided', () => {
+    const out = build(radarUpTo(NOW, 0))
+    expect(rockAtNoon(out)).toBe('dry')
+    expect(out.rain_radar).toBe(true)
+    expect(out.rain_models).toEqual(RAIN_MODELS)
+  })
+
+  /**
+   * Radar saw a trace where the models put 6 mm. Radar alone would read the
+   * rock dry at noon; the rule keeps the models' rain, so it stays wet.
+   */
+  it('keeps the models’ rain where radar saw only a trace of it', () => {
+    const trace = radarUpTo(NOW, 0)
+    for (const iso of ['2026-09-21T09:00:00.000Z', '2026-09-21T10:00:00.000Z']) trace.set(Date.parse(iso), 0.1)
+    const radarOnly = buildHourlyReadings(
+      input({
+        deterministic: deterministic([
+          model(
+            THERMAL_MODEL,
+            wetMedianHours.map((h) => ({ ...h, rain_median_mm: trace.get(h.valid_at.getTime()) ?? h.rain_median_mm })),
+            RAIN_MODELS,
+          ),
+        ]),
+      }),
+    )
+    expect(rockAtNoon(radarOnly)).toBe('dry')
+    const out = build(trace)
+    expect(rockAtNoon(out)).not.toBe('dry')
+    expect(out.rain_radar).toBe(true)
+  })
+
+  it('reads the median alone without radar, and with radar that stops before the rain', () => {
+    expect(rockAtNoon(build(null))).not.toBe('dry')
+    expect(build(null).rain_radar).toBe(false)
+    expect(rockAtNoon(build(radarUpTo(new Date('2026-09-21T06:00:00Z'), 0)))).not.toBe('dry')
+  })
+
+  it('never checks a run’s own rain, which the rule was not measured on', () => {
+    const own = runHours(120, 48).map((h) =>
+      h.valid_at.toISOString() === '2026-09-21T10:00:00.000Z' ? { ...h, precip_mm: 6 } : h,
+    )
+    const out = buildHourlyReadings(
+      input({ deterministic: deterministic([model(THERMAL_MODEL, own, null)]), radarRain: radarUpTo(NOW, 0) }),
+    )
+    expect(rockAtNoon(out)).not.toBe('dry')
+    expect(out.rain_radar).toBe(false)
+  })
+})
+
 /**
  * `rain_split`: each good day's weather models that leave the rock wet. The
  * thermal run carries the median (zero here); each model's own rain is what

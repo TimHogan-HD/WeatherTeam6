@@ -630,7 +630,13 @@ measured one — that is `defect-patterns.md` §3, attribution not backed by the
   median shrank showers the models placed in different hours. Scored per day at one day's
   lead, wet days called dry fell from 32% to 28% (quartzite), 20% to 16% (sandstone) and
   24% to 16% (limestone). The gauge is an airport tipping bucket, not the crag, and no other
-  constant here has had even that.
+  constant here has had even that. **Since 2026-11-02 NOAA radar overrules the median at US
+  crags** (`radarChecked`, owner's "cautious" rule): radar dry across the six-hour window
+  zeroes the hour, radar rain takes the larger of radar and the median. `compare:mrms` (#452,
+  14 Minnesota pairs, 30 days, airport gauges) measured lost days falling on every rock
+  (quartzite 4.5% to 2.9%, sandstone 8.9% to 6.7%, limestone 5.5% to 5.0%) and missed wet
+  rock moving -1.1 to +2.0 points. One month, one state, autumn: rerun it after a summer of
+  convective showers before trusting it further.
 
 ## Open Questions
 

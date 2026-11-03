@@ -6,6 +6,7 @@ import { runAlertsCheck } from '../lib/alerts/checkAlerts.js'
 import { collectWeatherRuns } from '../lib/runs/collectRuns.js'
 import { pruneWeatherRuns } from '../lib/runs/pruneRuns.js'
 import { recordTripDays } from '../lib/trips/recordTripDays.js'
+import { collectRadarRain } from '../lib/runs/radarRain.js'
 import type { ApiResponse } from '@weatherteam6/types'
 
 export const cronRouter = Router()
@@ -147,5 +148,25 @@ cronRouter.post('/prune-runs', async (req: Request, res: Response) => {
     res.status(200).json(response)
   } catch (err) {
     sendServerError(res, err, 'POST /api/cron/prune-runs')
+  }
+})
+
+/**
+ * Store NOAA MRMS hourly radar rain at every saved US crag (`collectRadarRain`),
+ * which the drying clock reads to overrule the models' rain (owner, 2026-11-02).
+ *
+ * Schedule it hourly, a quarter past: a Pass2 hour lands about an hour after it
+ * ends. Answers 200 with `hoursFailed` and `listingFailed`, like `/collect-runs`,
+ * because a partial collection is a real outcome and the next run retries it.
+ */
+cronRouter.post('/collect-radar', async (req: Request, res: Response) => {
+  if (cronGateFailed(req, res)) return
+
+  try {
+    const result = await collectRadarRain()
+    const response: ApiResponse<typeof result> = { data: result, error: null, status: 200 }
+    res.status(200).json(response)
+  } catch (err) {
+    sendServerError(res, err, 'POST /api/cron/collect-radar')
   }
 })
