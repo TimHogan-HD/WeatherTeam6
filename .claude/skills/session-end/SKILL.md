@@ -71,8 +71,7 @@ without the full block above.
 The session block is a record, not a substitute — the files agents are *told to read* must
 not contradict what shipped. Before ending, grep for every reference to what you changed and
 fix each one:
-- A phase marked complete in the handoff that owns it —
-  `weatherteam6-scoring-model-handoff-v1.md`, `miniapp-design-v1.md`, or
+- A phase marked complete in the handoff that owns it — `miniapp-design-v1.md` or
   `miniapp-hourly-dataviz-handoff-v1.md`. There is no second task list to mirror it into;
   that arrangement is what the note in §4 is about.
 - A new external API is added to `.claude/docs/api-sources.md`.

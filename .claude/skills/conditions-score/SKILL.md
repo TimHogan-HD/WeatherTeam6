@@ -43,7 +43,7 @@ Crag A:
   hour.
 - Every constant in `cragModel.ts` is a judgement call. Changing one needs an argument against
   the reference model's test days, not a commit message. Changing how the factors combine
-  starts in the scoring-model handoff, and is measured (`compare:dryness`,
+  starts in `scoring-algorithm.md`, and is measured (`compare:dryness`,
   `compare:rock-temp`) before it is proposed.
 - Words on a surface come from `summarizeReadings` (`packages/types/src/readingsCopy.ts`),
   never from the number. Do not write a score-to-text mapping.
