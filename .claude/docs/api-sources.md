@@ -79,11 +79,13 @@ Read this before any weather fetch work. Every source has gotchas that will wast
   client-side before a request is spent.
 
 ## Open-Meteo Air Quality
-- **Endpoint:** `https://air-quality-api.open-meteo.com/v1/air-quality`
-- **Variables:** `us_aqi,pm2_5,pm10`
-- US AQI scale: 0-50 Good, 51-100 Moderate, 101-150 Unhealthy for Sensitive Groups
+**Not called.** Nothing in the code fetches air quality; smoke is an idea (#224). If it is
+built: `https://air-quality-api.open-meteo.com/v1/air-quality`, variables `us_aqi,pm2_5,pm10`,
+US AQI 0-50 Good, 51-100 Moderate, 101-150 Unhealthy for Sensitive Groups.
 
 ## IEM ASOS (Current Observations)
+**Not called** (checked 2026-11-03): `fetchCurrentObs` in `lib/weather/iemAsos.ts` has no
+caller. The notes below stand for whoever revives it.
 - **Endpoint:** `https://mesonet.agron.iastate.edu/json/current.py?station={ID}&network={NETWORK}`
 - **Staleness check:** Reject obs older than 90 minutes. Field: `utc_valid`
 - **Station IDs matter:** Use `KMSN` not `MSN`. Always K-prefix for US ASOS.
@@ -101,9 +103,10 @@ Read this before any weather fetch work. Every source has gotchas that will wast
 - **Stuck gauges:** RGK (Red Wing), TWM (Two Harbors) and BJC (Broomfield) read zero through real rain (`compare:rain-spread`); `STUCK_GAUGES` keeps them from standing for a crag. Red Wing has no other station within 25 km (SYN is 40).
 
 ## NOAA ACIS (Verified Precipitation)
-**No longer called** (scoring Phase 5b, 2026-10-01). The station lookup (`StnData`,
-`lib/weather/acis.ts`) fed only the retired five-component scorer and was deleted with it.
-ACIS gridded normals (`acisNormals.ts`) are a separate call and remain.
+**No longer called.** The station lookup (`StnData`, `lib/weather/acis.ts`) fed only the
+retired five-component scorer and was deleted with it (scoring Phase 5b, 2026-10-01). The
+gridded normals (`acisNormals.ts`) had no caller and were deleted in #461 (2026-11-03), so
+the app holds no climate normals.
 
 ## NWS Alerts
 - **Endpoint:** `https://api.weather.gov/alerts/active?point={lat},{lon}`
@@ -130,7 +133,7 @@ ACIS gridded normals (`acisNormals.ts`) are a separate call and remain.
 - **Read by** `loadRadarRain` in `getHourlySeries`, into `radarChecked` (`rainMedian.ts`). A failed listing or file is a gap, never zeros; a failed read is the models' median alone.
 
 ## Tomorrow.io
-Replaced by ACIS and no longer called; its cost log table, `premium_pulls`, was dropped in migration 0040.
+No longer called; its cost log table, `premium_pulls`, was dropped in migration 0040.
 
 ## OpenBeta Climbing Areas
 - **What uses it:** the `/add` search. `lib/weather/climbingAreas<Xx>.ts` are **generated snapshots**, one per state, of every area with a climb and a coordinate — Minnesota (313, fetched 2026-09-23 by hand) and Colorado (6,035, pulled 2026-10-01). `searchClimbingAreas` puts up to 5 matches above Open-Meteo's places, each labelled with its own state, and `climbingAreaLevel` serves the browse list one level at a time by OpenBeta id (`parent_id`, from `ancestors`; names repeat). An area whose parent was filtered out is listed at its state's top level, so every area stays reachable. States are added when the owner's trips need them; a new one is `npm run climbing:pull --workspace=apps/api -- <State> <XX>` and a line in `STATES`. Nothing calls OpenBeta at runtime. Licence CC0; the subtitle names it anyway.
