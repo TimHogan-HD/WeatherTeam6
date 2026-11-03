@@ -74,7 +74,12 @@ seen them.
   `check:auth` covers it.
 - **`createApp` hardens Express:** no `X-Powered-By`, `nosniff`, `frame-ancestors 'none'`,
   `Cache-Control: no-store`, a 32 kB JSON limit, body-parser failures as 400/413 in the
-  envelope, and a 25 s per-attempt fetch timeout (`FETCH_TIMEOUT_MS`).
+  envelope, and a 25 s per-attempt fetch timeout (`FETCH_TIMEOUT_MS`) inside a 45 s budget
+  for all of a `fetchWithRetry` call's attempts (`FETCH_BUDGET_MS`). **The budget is per
+  call, not per request:** calls awaited one after another must fit the function's 60 s
+  `maxDuration` together, by sharing a deadline (`fetchEnsembleBlock`'s fallback) or by
+  giving the first a short one of its own (`fetchAvailability`, `METADATA_BUDGET_MS`, before
+  `collect-runs` fetches).
 - **A router mounted outside `/api/v1` reads `req.userId` as `undefined`** through a type
   that says it cannot be (defect class 8). Mount inside the gate.
 - **The owner reads and resolves everyone's open feedback** on Profile (`GET /feedback/all`,
@@ -123,7 +128,8 @@ seen them.
 - **No FK declares `onDelete`**, so deletes clear dependents explicitly in one transaction.
   `DELETE /locations/:id` goes through `deleteLocationCascade`
   (`src/lib/locations/deleteLocation.ts`), which walks `DEPENDENT_TABLES`. **A new table with
-  a `location_id` FK goes on that list.** Do not add cascades to the schema without deciding
+  a `location_id` FK goes on that list** (or on `DETACHED_TABLES`, as `feedback` is);
+  `deleteLocation.test.ts` fails on any FK to `locations` that is on neither. Do not add cascades to the schema without deciding
   what they mean for every delete.
 - **`feedback` is detached, not deleted** — `deleteLocationCascade` sets its `location_id`
   null, because a forecast check is evidence about a place (#143).

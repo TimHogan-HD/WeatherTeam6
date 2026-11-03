@@ -106,14 +106,18 @@ export function parseDatasetRun(body: unknown): DatasetRun | null {
   return { availableAt: new Date(seconds * 1000) }
 }
 
+/** Metadata answers are a few hundred bytes; a read slower than this is not coming. */
+export const METADATA_BUDGET_MS = 8_000
+
 /**
  * Read every dataset in `MODEL_SOURCES` once. Open-Meteo does not count
  * metadata requests against the API limits.
  *
  * Never throws: a failed read leaves that source out, and `needsFetch` treats
- * an absent source as changed. Two attempts rather than four — this runs
- * inside the collection's `maxDuration`, and the cost of giving up is one
- * ordinary fetch.
+ * an absent source as changed. Two attempts inside `METADATA_BUDGET_MS` rather
+ * than the default budget: `collectWeatherRuns` awaits this before its own
+ * fetches, which take up to `FETCH_BUDGET_MS`, and the two must fit the
+ * function's 60 s `maxDuration`. The cost of giving up is one ordinary fetch.
  */
 export async function fetchAvailability(): Promise<{ runs: Availability; unreadable: string[] }> {
   const sources = new Map<string, MetadataSource>()
@@ -121,9 +125,10 @@ export async function fetchAvailability(): Promise<{ runs: Availability; unreada
     for (const s of list) sources.set(sourceKey(s), s)
   }
 
+  const deadline = Date.now() + METADATA_BUDGET_MS
   const settled = await Promise.allSettled(
     [...sources].map(async ([key, source]) => {
-      const res = await fetchWithRetry(metadataUrl(source), 2)
+      const res = await fetchWithRetry(metadataUrl(source), 2, undefined, deadline)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const run = parseDatasetRun(await res.json())
       if (run === null) throw new Error('no last_run_availability_time')

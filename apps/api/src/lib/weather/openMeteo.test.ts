@@ -5,6 +5,10 @@ import {
   fetchEnsembleRun,
   fetchNBM,
   fetchRecentHourlyPrecip,
+  fetchWithRetry,
+  FETCH_BUDGET_MS,
+  FETCH_TIMEOUT_MS,
+  MIN_ATTEMPT_MS,
   type ForecastLocation,
 } from './openMeteo.js'
 
@@ -465,6 +469,86 @@ describe('fetchEnsembleRun — one model at a time when the four-model request f
     expect((result as Error).message).toContain('429')
     // fetchWithRetry's own four attempts at the four-model request, and nothing after.
     expect(fetchMock).toHaveBeenCalledTimes(4)
+  })
+})
+
+describe('fetchWithRetry — total time budget', () => {
+  let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>
+  /** The per-attempt timeout each call asked for, in call order. */
+  let timeouts: number[]
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-11-03T12:00:00Z'))
+    timeouts = []
+    // AbortSignal.timeout runs on a real timer; record the limit and let the hung fetch
+    // below spend exactly that much fake time, as a connection that never answers would.
+    vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms: number) => {
+      timeouts.push(ms)
+      return new AbortController().signal
+    })
+    fetchMock = vi.fn<typeof fetch>()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  /** An upstream that accepts the connection and never answers. */
+  function hang() {
+    fetchMock.mockImplementation(async () => {
+      vi.setSystemTime(Date.now() + (timeouts.at(-1) ?? 0))
+      throw new DOMException('The operation was aborted due to timeout', 'TimeoutError')
+    })
+  }
+
+  async function settle<T>(p: Promise<T>): Promise<T | Error> {
+    const caught = p.catch((e: unknown) => (e instanceof Error ? e : new Error(String(e))))
+    await vi.runAllTimersAsync()
+    return caught
+  }
+
+  it('stops retrying a hung upstream inside the budget, not after four full timeouts', async () => {
+    hang()
+    const start = Date.now()
+
+    const result = await settle(fetchWithRetry('https://example.test/'))
+
+    expect(result).toBeInstanceOf(Error)
+    // 25 s, 1 s backoff, then only the 19 s left; no room for a third attempt.
+    expect(timeouts).toEqual([FETCH_TIMEOUT_MS, FETCH_BUDGET_MS - FETCH_TIMEOUT_MS - 1_000])
+    expect(Date.now() - start).toBeLessThanOrEqual(FETCH_BUDGET_MS)
+  })
+
+  it('makes no attempt once a shared deadline has passed', async () => {
+    const result = await settle(fetchWithRetry('https://example.test/', 4, undefined, Date.now() + MIN_ATTEMPT_MS - 1))
+
+    expect(result).toBeInstanceOf(Error)
+    expect((result as Error).message).toBe('fetch budget spent')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('still makes all four attempts when each fails fast', async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 503 } as Response)
+
+    const result = await settle(fetchWithRetry('https://example.test/'))
+
+    expect((result as Error).message).toBe('HTTP 503')
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+  })
+
+  it('keeps the ensemble request and its one-model fallback inside one budget', async () => {
+    hang()
+    const start = Date.now()
+
+    const result = await settle(fetchEnsembleRun(ZERO_LOC))
+
+    // The four-model request spends the budget; the fallback finds none left and withholds.
+    expect(result).toBeInstanceOf(Error)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(Date.now() - start).toBeLessThanOrEqual(FETCH_BUDGET_MS)
   })
 })
 
