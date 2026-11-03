@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sun hours mockup</title>
+<style>
+:root{--bg:#07090c;--card:#171f28;--raised:#1f2833;--line:#2a3644;--txt1:#f4f7fa;--muted:#bccad0;--txt2:#d3e1e4;--good:#b8f542;--fair:#f6ad55;--rain:#bcc7fd;--sun:#f3e08a;--sunDim:rgba(243,224,138,.16);--cloud:#8b9aa3}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt1);font:15px/1.35 system-ui,-apple-system,Segoe UI,sans-serif}
+.wrap{max-width:480px;margin:0 auto;padding:16px}
+h2{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:26px 0 8px}
+.card{background:var(--card);border-radius:18px;padding:14px}
+.sect{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}.sect b{font-size:16px}.sect span{font-size:12px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;text-align:center}
+.day{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0}
+.score{font-size:22px;font-weight:700;margin:4px 0 2px}
+.small{font-size:12px}.name{color:var(--txt2)}.ch{color:var(--rain)}
+.sunh{font-size:12px;font-weight:600;color:var(--sun);white-space:nowrap}
+.sunh.wide{color:var(--muted);font-weight:500}
+.gap{font-size:12px;color:var(--muted)}
+.meter{width:34px;height:6px;border-radius:3px;background:var(--sunDim);overflow:hidden;margin:3px 0 1px}.meter i{display:block;height:100%;background:var(--sun);border-radius:3px}
+.row{display:grid;grid-template-columns:44px 30px 1fr auto;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:0}
+.row .d{color:var(--txt2);font-size:14px}.row .w{font-size:14px}.row .w small{display:block;font-size:12px;color:var(--sun);font-weight:600}
+.row .w small.wide{color:var(--muted);font-weight:500}
+.row .t{font-size:14px;text-align:right;white-space:nowrap}
+.band{display:grid;grid-template-columns:repeat(9,1fr);gap:3px;margin:4px 0 6px}
+.band i{height:14px;border-radius:4px;background:var(--sun)}
+.band i.gapc{background:none;border:1.5px dashed var(--line)}
+.bars{display:grid;grid-template-columns:repeat(9,1fr);gap:3px;height:28px;align-items:end;margin:4px 0 6px}
+.bars i{display:block;background:var(--sun);border-radius:3px 3px 1px 1px;min-height:2px}
+.bars i.gapc{background:none;border:1.5px dashed var(--line);height:100%}
+.hrs{display:grid;grid-template-columns:repeat(9,1fr);gap:3px;font-size:11px;color:var(--muted);text-align:center}
+.chart{height:70px;margin-top:8px;border-radius:10px;background:linear-gradient(180deg,rgba(29,197,210,.10),rgba(29,197,210,0));border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted)}
+.note{margin:10px 2px 0;font-size:12.5px;color:var(--muted)}
+.cap{font-size:12.5px;color:var(--muted);margin:6px 2px 0}
+.tag{display:inline-block;font-size:11px;font-weight:700;color:#032026;background:#6fe3ec;border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:1px}
+svg{display:block}
+</style></head><body><div class="wrap">
+
+<p class="cap">Sandstone, early November: about 7 hours a day with the sun above 10°. "Sun hours" is the day's forecast sunshine divided by a cloudless day's, times those 7 hours. It's the scoring model's (GFS) number. Later days add the spread across the other models. No watts and no percentages; the hourly band shows the same share without a number.</p>
+
+<!-- reusable glyphs -->
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="#f3e08a"/><g stroke="#f3e08a" stroke-width="2" stroke-linecap="round"><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g></symbol>
+<symbol id="pc" viewBox="0 0 24 24"><circle cx="9" cy="9" r="4.5" fill="#f3e08a"/><path d="M7 20h11a4 4 0 0 0 0-8 5.5 5.5 0 0 0-10.6 1.5A3.3 3.3 0 0 0 7 20z" fill="#8b9aa3"/></symbol>
+<symbol id="cl" viewBox="0 0 24 24"><path d="M6 19h12a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.7A3.7 3.7 0 0 0 6 19z" fill="#8b9aa3"/></symbol>
+</defs></svg>
+
+<h2>Overview · Next days <span class="tag">A · text</span></h2>
+<div class="card"><div class="sect"><b>Next days</b><span>score · sun · high/low · rain</span></div>
+<div class="grid">
+<div class="day"><svg width="22" height="22"><use href="#cl"/></svg><b class="score" style="color:var(--fair)">64</b><span class="sunh">1 h sun</span><span class="small name">Today</span><span class="small">48°/36°</span><span class="small ch">40%</span></div>
+<div class="day"><svg width="22" height="22"><use href="#sun"/></svg><b class="score" style="color:var(--good)">100</b><span class="sunh">6 h sun</span><span class="small name">Tue</span><span class="small">55°/38°</span><span class="small ch">5%</span></div>
+<div class="day"><svg width="22" height="22"><use href="#pc"/></svg><b class="score" style="color:var(--good)">96</b><span class="sunh">4 h sun</span><span class="small name">Wed</span><span class="small">57°/41°</span><span class="small ch">15%</span></div>
+<div class="day"><svg width="22" height="22"><use href="#pc"/></svg><b class="score" style="color:var(--good)">92</b><span class="sunh wide">2–5 h</span><span class="small name">Thu</span><span class="small">54°/40°</span><span class="small ch">20%</span></div>
+<div class="day"><svg width="22" height="22"><use href="#sun"/></svg><b class="score" style="color:var(--good)">100</b><span class="sunh wide">3–6 h</span><span class="small name">Fri</span><span class="small">52°/35°</span><span class="small ch">10%</span></div>
+<div class="day"><span style="height:22px"></span><b class="score" style="color:var(--good)">85</b><span class="gap">—</span><span class="small name">Sat</span><span class="small">50°/33°</span><span class="small ch">5%</span></div>
+</div>
+<p class="note">Thu and Fri: the models disagree, so it shows their range in grey. Sat: the scoring model didn't reach every daylight hour, so there's no sun figure, just a dash.</p></div>
+
+<h2>Overview · Next days <span class="tag">B · meter</span></h2>
+<div class="card"><div class="sect"><b>Next days</b><span>score · sun · high/low · rain</span></div>
+<div class="grid">
+<div class="day"><svg width="22" height="22"><use href="#cl"/></svg><b class="score" style="color:var(--fair)">64</b><span class="meter"><i style="width:14%"></i></span><span class="small name">Today</span><span class="small">48°/36°</span><span class="small ch">40%</span></div>
+<div class="day"><svg width="22" height="22"><use href="#sun"/></svg><b class="score" style="color:var(--good)">100</b><span class="meter"><i style="width:86%"></i></span><span class="small name">Tue</span><span class="small">55°/38°</span><span class="small ch">5%</span></div>
+<div class="day"><svg width="22" height="22"><use href="#pc"/></svg><b class="score" style="color:var(--good)">96</b><span class="meter"><i style="width:57%"></i></span><span class="small name">Wed</span><span class="small">57°/41°</span><span class="small ch">15%</span></div>
+<div class="day"><svg width="22" height="22"><use href="#pc"/></svg><b class="score" style="color:var(--good)">92</b><span class="meter"><i style="width:43%"></i></span><span class="small name">Thu</span><span class="small">54°/40°</span><span class="small ch">20%</span></div>
+<div class="day"><svg width="22" height="22"><use href="#sun"/></svg><b class="score" style="color:var(--good)">100</b><span class="meter"><i style="width:64%"></i></span><span class="small name">Fri</span><span class="small">52°/35°</span><span class="small ch">10%</span></div>
+<div class="day"><span style="height:22px"></span><b class="score" style="color:var(--good)">85</b><span class="gap" style="line-height:10px">—</span><span class="small name">Sat</span><span class="small">50°/33°</span><span class="small ch">5%</span></div>
+</div>
+<p class="note">Fits more easily at 480 px, but it can't show the models disagreeing, and it's one more thing to learn to read.</p></div>
+
+<h2>Daily · Seven days</h2>
+<div class="card">
+<div class="row"><span class="d">Today</span><svg width="28" height="28"><use href="#cl"/></svg><span class="w">Cloudy<small>1 h sun</small></span><span class="t">48° / 36°</span></div>
+<div class="row"><span class="d">Tue</span><svg width="28" height="28"><use href="#sun"/></svg><span class="w">Sunny<small>6 of 7 h sun</small></span><span class="t">55° / 38°</span></div>
+<div class="row"><span class="d">Wed</span><svg width="28" height="28"><use href="#pc"/></svg><span class="w">Sunny afternoon<small>4 of 7 h sun</small></span><span class="t">57° / 41°</span></div>
+<div class="row"><span class="d">Thu</span><svg width="28" height="28"><use href="#pc"/></svg><span class="w">Partly cloudy<small class="wide">2–5 of 7 h sun · models differ</small></span><span class="t">54° / 40°</span></div>
+</div>
+<p class="note">The word still says when the sun is out; the second line says how much. "of 7 h" is short in November and grows in summer, so a 6 h day in June isn't confused with a 6 h day now.</p>
+
+<h2>Hourly / Today chart · sun band <span class="tag">A · fill</span></h2>
+<div class="card"><div class="sect"><b>Wed</b><span>sun by hour</span></div>
+<div class="band">
+<i style="opacity:.25"></i><i style="opacity:.3"></i><i style="opacity:.45"></i><i style="opacity:.55"></i><i style="opacity:.85"></i><i style="opacity:.95"></i><i style="opacity:.95"></i><i style="opacity:.9"></i><i class="gapc"></i>
+</div>
+<div class="hrs"><span>8a</span><span>9a</span><span>10a</span><span>11a</span><span>12p</span><span>1p</span><span>2p</span><span>3p</span><span>4p</span></div>
+<div class="chart">temperature / score chart, as today</div>
+<p class="note">Replaces the glyph every 3 h: one cell per daylight hour, brighter for more sun. 4 pm has a dashed outline because the model didn't reach that hour; a missing hour is never drawn dim, since dim would read as cloud.</p></div>
+
+<h2>Hourly / Today chart · sun band <span class="tag">B · height</span></h2>
+<div class="card"><div class="sect"><b>Wed</b><span>sun by hour</span></div>
+<div class="bars">
+<i style="height:25%"></i><i style="height:30%"></i><i style="height:45%"></i><i style="height:55%"></i><i style="height:85%"></i><i style="height:95%"></i><i style="height:95%"></i><i style="height:90%"></i><i class="gapc"></i>
+</div>
+<div class="hrs"><span>8a</span><span>9a</span><span>10a</span><span>11a</span><span>12p</span><span>1p</span><span>2p</span><span>3p</span><span>4p</span></div>
+<div class="chart">temperature / score chart, as today</div>
+<p class="note">Bar height is easier to compare than brightness, but it takes more vertical space, and on a card already holding four charts it competes with the rain capsules.</p></div>
+
+</div></body></html>
