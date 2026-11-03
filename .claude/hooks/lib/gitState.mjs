@@ -113,7 +113,7 @@ export function requiredCheckNames() {
 }
 
 /**
- * Open PRs, as [{number, title, headRefName, mergeable, statusCheckRollup}],
+ * Open PRs, as [{number, title, headRefName, isDraft, mergeable, statusCheckRollup}],
  * the rollup cut to the checks branch protection requires (`onlyRequired`).
  *
  * `gh pr list` is GraphQL, which cloud sessions are refused (HTTP 403), so on
@@ -135,7 +135,7 @@ function openPullRequestsUnfiltered() {
     '--state',
     'open',
     '--json',
-    'number,title,headRefName,mergeable,statusCheckRollup',
+    'number,title,headRefName,isDraft,mergeable,statusCheckRollup',
   ])
   if (raw) {
     try {
@@ -168,6 +168,7 @@ function openPullRequestsRest() {
       number: p.number,
       title: p.title,
       headRefName: p.head?.ref,
+      isDraft: p.draft === true,
       mergeable: detail.mergeable === true ? 'MERGEABLE' : detail.mergeable === false ? 'CONFLICTING' : 'UNKNOWN',
       statusCheckRollup: rollup,
     })

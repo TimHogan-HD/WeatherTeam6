@@ -8,6 +8,12 @@
  * The clock averages each model over six hours before its median (issue #324);
  * this chart does not, so a past shower stays in its hour. It is a model
  * estimate, not a gauge.
+ *
+ * **Then checked against NOAA radar, as the clock is** (`radarChecked`, issue
+ * #468): where MRMS saw no measurable rain across an hour's six-hour window the
+ * hour reads dry, and where it saw rain the larger of radar and the median
+ * stands. Before #468 the tab drew the median alone and could show a storm the
+ * score had already ruled out.
  */
 
 /**
@@ -57,6 +63,13 @@ export type RecentPrecipHour = {
    */
   readonly rain_mm?: number | null
   readonly snowfall_cm?: number | null
+  /**
+   * The models' median for this hour, **present only where radar changed
+   * `precip_mm`** (issue #468), so a surface can say "the models had 0.30 in;
+   * radar saw none at the crag". Absent means radar left the hour alone, or
+   * did not check it, or the API is older than the field.
+   */
+  readonly model_precip_mm?: number
 }
 
 export type RecentPrecip = {
@@ -72,4 +85,9 @@ export type RecentPrecip = {
    * drew. Empty when none answered; absent from an API older than the field.
    */
   readonly models?: readonly string[]
+  /**
+   * True when NOAA radar decided at least one hour (`radarChecked`), the same
+   * meaning as `HourlyReadings.rain_radar`. Absent is an older API, not "no radar".
+   */
+  readonly rain_radar?: boolean
 }

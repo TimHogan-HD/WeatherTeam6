@@ -131,6 +131,17 @@ export function waiterRunning(backgroundTasks) {
 }
 
 /**
+ * The open PRs the Stop hook's merge checks may hold a turn for. A draft never
+ * is: the reviewer skips drafts by design, so one can never satisfy the check
+ * (2026-11-03: a draft another session left open blocked an unrelated session's
+ * stop more than twenty times). Another branch's PR blocks once, while
+ * `stopHookActive` is false; a continued turn is held only for the session's own.
+ */
+export function prsToFinish({ prs, branch, stopHookActive }) {
+  return prs.filter((p) => p.isDraft !== true && (!stopHookActive || p.headRefName === branch))
+}
+
+/**
  * The Stop hook's verdict on the open PR for the session's own branch, from
  * `gh pr list`'s shape (`mergeable`, `statusCheckRollup`). Returns block lines,
  * or `null` to leave the turn to the hook's other checks.
