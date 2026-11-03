@@ -7,6 +7,7 @@ import {
   tripDayGauges,
   tripDayOutcomes,
   tripDayRecords,
+  tripDayVolunteerGauges,
   tripLocations,
   tripRainRecords,
   trips,
@@ -18,6 +19,7 @@ import { getHourlySeries } from '../runs/fetchHourlySeries.js'
 import { getEnsembleDaily } from '../runs/latestRuns.js'
 import { scoringLocationFor } from '../runs/scoringLocation.js'
 import { fetchGaugeDays, nearestGauge } from '../weather/asosGauge.js'
+import { fetchVolunteerReports, nearestVolunteerGauges } from '../weather/cocorahsGauge.js'
 import { fetchOutlook } from '../weather/ensembleOutlook.js'
 import { localDateString } from '../weather/openMeteo.js'
 import { recordingHour, tripDayRows, type TripDayRow } from './tripDayRows.js'
@@ -38,6 +40,11 @@ export type RecordTripsResult = {
    * failed gauge read costs only these, and is not in `failed`.
    */
   gaugeRowsWritten: number
+  /**
+   * `trip_day_volunteer_gauges` rows: the reports of each outcome crag's
+   * nearest volunteer gauges. Failures cost only these, like `gaugeRowsWritten`.
+   */
+  volunteerRowsWritten: number
   /**
    * Location ids where a read failed, so nothing was written for them. Named so a
    * partial run cannot read as a complete one (see `CollectResult`).
@@ -121,6 +128,7 @@ export async function recordTripDays(now: Date = new Date()): Promise<RecordTrip
     trendRowsWritten: 0,
     outcomeRowsWritten: 0,
     gaugeRowsWritten: 0,
+    volunteerRowsWritten: 0,
     failed: [],
   }
   settled.forEach((entry, i) => {
@@ -130,6 +138,7 @@ export async function recordTripDays(now: Date = new Date()): Promise<RecordTrip
       result.trendRowsWritten += entry.value.trend
       result.outcomeRowsWritten += entry.value.outcomes
       result.gaugeRowsWritten += entry.value.gauges
+      result.volunteerRowsWritten += entry.value.volunteers
       return
     }
     result.failed.push(id)
@@ -201,7 +210,7 @@ async function recordLocation(
   location: LocationRow,
   dated: RecordedTrip[],
   now: Date,
-): Promise<{ days: number; trend: number; outcomes: number; gauges: number }> {
+): Promise<{ days: number; trend: number; outcomes: number; gauges: number; volunteers: number }> {
   const point = {
     lat: parseNumericRequired(location.lat),
     lon: parseNumericRequired(location.lon),
@@ -258,7 +267,9 @@ async function recordLocation(
           ranges: dated,
           pastDays: readings.pastDays,
         })
-  if (values.length === 0 && trend.length === 0 && outcomes.length === 0) return { days: 0, trend: 0, outcomes: 0, gauges: 0 }
+  if (values.length === 0 && trend.length === 0 && outcomes.length === 0) {
+    return { days: 0, trend: 0, outcomes: 0, gauges: 0, volunteers: 0 }
+  }
 
   // One transaction, so a failed second write cannot leave this hour's day
   // records beside last hour's trend point.
@@ -306,16 +317,75 @@ async function recordLocation(
   })
   // After the transaction and outside it, like the rewet chance: a gauge is a
   // second, independent observation, so its failure costs only its own rows.
-  const gauges =
+  const lookedBack = outcomes.map((o) => o.local_date)
+  const [gauges, volunteers] =
     outcomes.length === 0
-      ? 0
-      : await recordGauge(
-          location.id,
-          point,
-          outcomes.map((o) => o.local_date),
-          now,
-        )
-  return { days: values.length, trend: trend.length, outcomes: outcomes.length, gauges }
+      ? [0, 0]
+      : await Promise.all([
+          recordGauge(location.id, point, lookedBack, now),
+          recordVolunteerGauges(location.id, point, lookedBack, now),
+        ])
+  return { days: values.length, trend: trend.length, outcomes: outcomes.length, gauges, volunteers }
+}
+
+/**
+ * The reports of the crag's nearest volunteer gauges that could stand for the
+ * days just looked back on (`trip_day_volunteer_gauges`). Every candidate is
+ * read, because which one reported is only known from the reports; the summary
+ * picks per day. Returns the rows written. Each station's failure is logged
+ * and costs only its rows, never a dry day.
+ */
+async function recordVolunteerGauges(
+  locationId: string,
+  point: { lat: number; lon: number },
+  dates: string[],
+  now: Date,
+): Promise<number> {
+  const candidates = nearestVolunteerGauges(point.lat, point.lon)
+  if (candidates.length === 0) return 0
+  const settled = await Promise.allSettled(candidates.map((g) => fetchVolunteerReports(g.station, dates)))
+  const reports = settled.flatMap((s, i) => {
+    if (s.status === 'fulfilled') return s.value
+    logger.warn(
+      { locationId, station: candidates[i]?.station, err: describeError(s.reason) },
+      '[recordTripDays] volunteer gauge failed',
+    )
+    return []
+  })
+  if (reports.length === 0) return 0
+  try {
+    await writeVolunteerReports(
+      db,
+      reports.map((r) => ({ ...r, recorded_at: recordingHour(now) })),
+    )
+    return reports.length
+  } catch (err) {
+    logger.warn({ locationId, err: describeError(err) }, '[recordTripDays] volunteer gauge write failed')
+    return 0
+  }
+}
+
+/**
+ * Upsert volunteer reports. A volunteer can correct a report, so a later read
+ * replaces the stored one. A report later withdrawn keeps its row: the
+ * recorder only ever writes reports it read. Exported for `check:record-trips`.
+ */
+export async function writeVolunteerReports(
+  executor: Pick<typeof db, 'insert'>,
+  rows: (typeof tripDayVolunteerGauges.$inferInsert)[],
+): Promise<void> {
+  await executor
+    .insert(tripDayVolunteerGauges)
+    .values(rows)
+    .onConflictDoUpdate({
+      target: [tripDayVolunteerGauges.station, tripDayVolunteerGauges.report_date],
+      set: {
+        station_name: sql`excluded.station_name`,
+        obs_hour: sql`excluded.obs_hour`,
+        recorded_at: sql`excluded.recorded_at`,
+        rain_mm: sql`excluded.rain_mm`,
+      },
+    })
 }
 
 /**

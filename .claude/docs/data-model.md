@@ -20,6 +20,7 @@ trip_day_records        -- migration 0025, written by /api/cron/record-trips
 trip_rain_records       -- migration 0026, written by /api/cron/record-trips
 trip_day_outcomes       -- migration 0027, written by /api/cron/record-trips
 trip_day_gauges         -- migration 0038, written by /api/cron/record-trips, keyed by station (no FK)
+trip_day_volunteer_gauges -- migration 0041, written by /api/cron/record-trips, keyed by station (no FK)
 feedback                -- migration 0018
 route_ticks             -- migration 0019
 route_todos             -- migration 0019
@@ -177,7 +178,7 @@ UNIQUE(location_id, local_date)   -- rewritten each firing for OUTCOME_DAYS (3),
 Written in the recorder's transaction with the day records and trend points. A day the look back has nothing for writes nothing. On `DEPENDENT_TABLES`.
 
 ### trip_day_gauges
-Measured rain at the airport gauge nearest a trip crag (`nearestGauge`, `lib/weather/asosGauge.ts`: the committed `asosStations.ts` snapshot, within `GAUGE_MAX_KM` 25 km, never a `STUCK_GAUGES` station), one row per station and local day. The only observation in a trip's look back. Read by `GET /trips/:tripId/summary` as `TripDayLookBack.gauge`, and by `compare:trip-lead`.
+Measured rain at the airport gauge nearest a trip crag (`nearestGauge`, `lib/weather/asosGauge.ts`: the committed `asosStations.ts` snapshot, within `GAUGE_MAX_KM` 25 km, never a `STUCK_GAUGES` station), one row per station and local day. One of two observations in a trip's look back, beside `trip_day_volunteer_gauges`. Read by `GET /trips/:tripId/summary` as `TripDayLookBack.gauge`, and by `compare:trip-lead`.
 ```typescript
 id              uuid PK
 station         text      -- IEM's ASOS id, e.g. DLL; no FK, and no location_id
@@ -189,6 +190,20 @@ hours_expected  int       -- 23 or 25 on a clock-change day
 UNIQUE(station, local_date)
 ```
 **Keyed per station, not per location**, so two crags near one airport share a row and the reader finds a crag's row by computing its station again. With no FK it is not on `DEPENDENT_TABLES`, and a deploy before the migration loses only the gauge line: the recorder writes it after its transaction and logs a failure, and the summary reads it in its own query and treats a failure as no gauge. A later read that heard from fewer hours leaves a row alone (`writeGaugeDays`).
+
+### trip_day_volunteer_gauges
+A volunteer rain gauge's daily report (CoCoRaHS, `lib/weather/cocorahsGauge.ts`, #463): the recorder reads the `VOLUNTEER_CANDIDATES` (3) nearest stations in the committed `cocorahsStations.ts` snapshot within `GAUGE_MAX_KM`, and writes every report that could stand for a looked-back day (the day's date and the next). Read by `GET /trips/:tripId/summary` as `TripDayLookBack.volunteer_gauge`: per day, the nearest candidate whose report stands for it (`reportForDay`).
+```typescript
+id              uuid PK
+station         text      -- CoCoRaHS id, e.g. WI-PC-38; no FK, and no location_id
+station_name    text      -- e.g. 'Hager City 1.8 WNW', from the report
+report_date     date      -- the date the gauge was read; covers the 24 hours before
+obs_hour        int       -- local hour it was read (usually 7); null stands for no day
+recorded_at     timestamptz -- the firing that last wrote it, truncated to the hour
+rain_mm         double    -- not null: a report without a figure is no row; a trace is 0.0025, so it prints 'trace'
+UNIQUE(station, report_date)
+```
+**One reading a day, not a calendar day**: a morning reading dated the 30th stands for the 29th, an afternoon or evening one (`AFTERNOON_READING_HOUR`, 13) for its own date. A skipped day has no row, never a zero. Same no-FK reasoning as `trip_day_gauges`; a later read replaces a row, since volunteers correct reports (`writeVolunteerReports`).
 
 ### feedback
 App feedback and forecast checks (`POST/GET /api/v1/feedback`, `POST /feedback/:id/resolve`,

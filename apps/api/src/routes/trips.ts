@@ -9,6 +9,7 @@ import {
   tripDayRecords,
   tripDayOutcomes,
   tripDayGauges,
+  tripDayVolunteerGauges,
   locations,
 } from '../db/schema.js'
 import { MAX_NAME_LENGTH, describeError, isIsoDate, isUuid, sendServerError } from '../lib/http.js'
@@ -22,9 +23,12 @@ import {
   tripDayTrends,
   withCheckIns,
   withGaugeDays,
+  withVolunteerGauges,
   type GaugeDayRow,
+  type VolunteerReportRow,
 } from '../lib/trips/tripSummary.js'
 import { nearestGauge } from '../lib/weather/asosGauge.js'
+import { nearestVolunteerGauges, shiftDate } from '../lib/weather/cocorahsGauge.js'
 import { MAX_TRIP_LOCATIONS, parseTripPatch, updateTrip } from '../lib/trips/updateTrip.js'
 import { climbHourColumns, isTripClimbHours, tripClimbHours } from '../lib/trips/tripClimbHours.js'
 import { parseNumeric, parseNumericRequired } from '@weatherteam6/types'
@@ -523,6 +527,14 @@ tripsRouter.get('/trips/:tripId/summary', async (req: Request, res: Response) =>
       tripRow.start_date,
       tripRow.end_date,
     )
+    const volunteers = new Map(
+      owned.map((r) => [r.id, nearestVolunteerGauges(parseNumericRequired(r.lat), parseNumericRequired(r.lon))] as const),
+    )
+    const volunteerRows = await readVolunteerReports(
+      [...new Set([...volunteers.values()].flatMap((g) => g.map((v) => v.station)))],
+      tripRow.start_date,
+      shiftDate(tripRow.end_date, 1),
+    )
     // The caller's own forecast checks at these crags, resolved or not, a day
     // either side of the trip so any zone's local day is inside the window.
     const checks =
@@ -553,14 +565,18 @@ tripsRouter.get('/trips/:tripId/summary', async (req: Request, res: Response) =>
     const data: TripSummary[] = locationIds.map((locationId) => ({
       locationId,
       days: withCheckIns(
-        withGaugeDays(
-          tripDayLookBacks({
-            dates,
-            records: records.filter((r) => r.location_id === locationId),
-            outcomes: outcomes.filter((o) => o.location_id === locationId),
-          }),
-          gauges.get(locationId) ?? null,
-          gaugeRows,
+        withVolunteerGauges(
+          withGaugeDays(
+            tripDayLookBacks({
+              dates,
+              records: records.filter((r) => r.location_id === locationId),
+              outcomes: outcomes.filter((o) => o.location_id === locationId),
+            }),
+            gauges.get(locationId) ?? null,
+            gaugeRows,
+          ),
+          volunteers.get(locationId) ?? [],
+          volunteerRows,
         ),
         checkedOn(locationId),
       ),
@@ -599,6 +615,36 @@ async function readGaugeDays(stations: string[], start: string, end: string): Pr
       )
   } catch (err) {
     logger.warn({ err: describeError(err) }, '[trips] gauge read failed')
+    return []
+  }
+}
+
+/**
+ * The volunteer reports that could stand for a trip's dates: read from the
+ * first day to the day after the last, since a morning reading stands for the
+ * day before it. A failure reads as no volunteer gauge (logged), as above.
+ */
+async function readVolunteerReports(stations: string[], from: string, to: string): Promise<VolunteerReportRow[]> {
+  if (stations.length === 0) return []
+  try {
+    return await db
+      .select({
+        station: tripDayVolunteerGauges.station,
+        station_name: tripDayVolunteerGauges.station_name,
+        report_date: tripDayVolunteerGauges.report_date,
+        obs_hour: tripDayVolunteerGauges.obs_hour,
+        rain_mm: tripDayVolunteerGauges.rain_mm,
+      })
+      .from(tripDayVolunteerGauges)
+      .where(
+        and(
+          inArray(tripDayVolunteerGauges.station, stations),
+          gte(tripDayVolunteerGauges.report_date, from),
+          lte(tripDayVolunteerGauges.report_date, to),
+        ),
+      )
+  } catch (err) {
+    logger.warn({ err: describeError(err) }, '[trips] volunteer gauge read failed')
     return []
   }
 }

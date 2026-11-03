@@ -102,6 +102,12 @@ caller. The notes below stand for whoever revives it.
 - **Stations:** `npm run gauges:pull` regenerates `asosStations.ts` from `geojson/network/{ST}_ASOS.geojson`, keeping stations that are `online`, have no `archive_end`, and have `HAS_PHOUR`. 2,489 on 2026-11-03.
 - **Stuck gauges:** RGK (Red Wing), TWM (Two Harbors) and BJC (Broomfield) read zero through real rain (`compare:rain-spread`); `STUCK_GAUGES` keeps them from standing for a crag. Red Wing has no other station within 25 km (SYN is 40).
 
+## IEM CoCoRaHS archive (volunteer gauge reports, #463)
+- **Endpoint:** `https://mesonet.agron.iastate.edu/api/1/daily.json?station={ID}&network={ST}_COCORAHS&year={Y}&month={M}` (`reportUrl`, `lib/weather/cocorahsGauge.ts`). Keyless. The network is the id's state prefix: `WI-PC-38` is `WI_COCORAHS`.
+- **One report a day:** `date` is the day the gauge was read, `temp_hour` the local hour (7 for most; 2026-11-01 in Minnesota ranged 0-23), `precip` inches over the 24 hours before. A trace is `0.0001`, kept above zero (unlike an ASOS hour's `T`) since it is the day's one figure. A day not reported has `precip` null or no row.
+- **Network-wide:** `?network={ST}_COCORAHS&date={YYYY-MM-DD}` returns every station's report for one day (~400 kB for Minnesota); the pull script uses it.
+- **Stations:** `npm run volunteer-gauges:pull` regenerates `cocorahsStations.ts`: stations in `geojson/network/{ST}_COCORAHS.geojson` that reported on any of three sample days. IEM lists about five times as many as report (6,006 in Minnesota, ~1,050 reporting on 2026-11-01). 18,487 on 2026-11-03, 576 kB.
+
 ## NOAA ACIS (Verified Precipitation)
 **No longer called.** The station lookup (`StnData`, `lib/weather/acis.ts`) fed only the
 retired five-component scorer and was deleted with it (scoring Phase 5b, 2026-10-01). The

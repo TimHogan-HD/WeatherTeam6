@@ -70,9 +70,19 @@ async function run(): Promise<void> {
 
   const { createApp } = await import('../index.js')
   const { db, pool } = await import('../db/index.js')
-  const { users, locations, trips, tripLocations, tripDayRecords, tripDayOutcomes, tripDayGauges, tripRainRecords, feedback } =
-    await import('../db/schema.js')
-  const { recordTripDays, writeGaugeDays, writeOutcomes } = await import('../lib/trips/recordTripDays.js')
+  const {
+    users,
+    locations,
+    trips,
+    tripLocations,
+    tripDayRecords,
+    tripDayOutcomes,
+    tripDayGauges,
+    tripDayVolunteerGauges,
+    tripRainRecords,
+    feedback,
+  } = await import('../db/schema.js')
+  const { recordTripDays, writeGaugeDays, writeOutcomes, writeVolunteerReports } = await import('../lib/trips/recordTripDays.js')
   const { deleteLocationCascade } = await import('../lib/locations/deleteLocation.js')
   const { storeEnsembleRun } = await import('../lib/runs/storeRun.js')
   const { pointKeyForPlace } = await import('../lib/runs/pointKey.js')
@@ -364,6 +374,27 @@ async function run(): Promise<void> {
       JSON.stringify(gaugeRows),
     )
 
+    console.log('\nVolunteer gauge reports')
+    const volunteerRow = (rain_mm: number) => ({
+      station: GAUGE_STATION,
+      station_name: `${PREFIX} gauge`,
+      report_date: pastDates[0] ?? isoDay(now, -3),
+      obs_hour: 7,
+      recorded_at: new Date(),
+      rain_mm,
+    })
+    await writeVolunteerReports(db, [volunteerRow(10.67)])
+    await writeVolunteerReports(db, [volunteerRow(9.4)])
+    const volunteerRows = await db
+      .select()
+      .from(tripDayVolunteerGauges)
+      .where(eq(tripDayVolunteerGauges.station, GAUGE_STATION))
+    check(
+      'a corrected report replaces the stored one, in one row',
+      volunteerRows.length === 1 && volunteerRows[0]?.rain_mm === 9.4 && volunteerRows[0].obs_hour === 7,
+      JSON.stringify(volunteerRows),
+    )
+
     console.log('\nA trip that ended a week ago')
     const oldId = oldLocationId ?? ''
     const [oldDays, oldOutcomes, oldTrend] = await Promise.all([
@@ -413,6 +444,18 @@ async function run(): Promise<void> {
       JSON.stringify(summary?.days.map((d) => d.gauge)),
     )
     check(
+      'each day answers a volunteer gauge field, a report with its window or null',
+      summary?.days.every(
+        (d) =>
+          d.volunteer_gauge === null ||
+          (typeof d.volunteer_gauge?.name === 'string' &&
+            typeof d.volunteer_gauge.rain_mm === 'number' &&
+            typeof d.volunteer_gauge.obs_hour === 'number' &&
+            d.volunteer_gauge.report_date > d.local_date === d.volunteer_gauge.obs_hour < 13),
+      ) === true,
+      JSON.stringify(summary?.days.map((d) => d.volunteer_gauge)),
+    )
+    check(
       'the checked day reads checked in, and only that day',
       summary?.days.every((d) => d.checked_in === (d.local_date === checkedDay)) === true,
       JSON.stringify(summary?.days.map((d) => [d.local_date, d.checked_in])),
@@ -435,6 +478,7 @@ async function run(): Promise<void> {
       }
       if (oldLocationId !== null && userId !== null) await deleteLocationCascade(oldLocationId, userId)
       await db.delete(tripDayGauges).where(eq(tripDayGauges.station, GAUGE_STATION))
+      await db.delete(tripDayVolunteerGauges).where(eq(tripDayVolunteerGauges.station, GAUGE_STATION))
       for (const id of extraTripIds) await db.delete(trips).where(eq(trips.id, id))
       if (tripId !== null) await db.delete(trips).where(eq(trips.id, tripId))
       if (userId !== null) await db.delete(feedback).where(eq(feedback.user_id, userId))
