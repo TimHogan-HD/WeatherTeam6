@@ -15,7 +15,7 @@
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { classifyPr, onlyRequired, ownPrVerdict } from './lib/prWait.mjs'
+import { classifyPr, onlyRequired, ownPrVerdict, prsToFinish } from './lib/prWait.mjs'
 import { mergeRequest, reviewCoversHead } from './lib/reviewGate.mjs'
 import { FULL, INCREMENTAL, lastReviewedSha, pickScope } from './lib/reviewScope.mjs'
 
@@ -314,6 +314,21 @@ const gateCases = [
           ['required: no required checks keeps every check', cut([ok, ui], []).length, 2],
         ]
       })(),
+    ]
+  })(),
+  // Which open PRs the Stop hook's merge checks may hold a turn for. 2026-11-03:
+  // another session's draft, which the reviewer skips, blocked a stop 20+ times.
+  ...(() => {
+    const pr = (over) => ({ number: 9, title: 't', headRefName: 'feat/other', isDraft: false, ...over })
+    const held = (prs, ctx = {}) =>
+      prsToFinish({ prs, branch: 'feat/x', stopHookActive: false, ...ctx }).map((p) => p.number).join(',')
+    return [
+      ['finish: another branch\'s PR blocks a first stop', held([pr({})]), '9'],
+      ['finish: a draft never blocks', held([pr({ isDraft: true })]), ''],
+      ['finish: a draft on the own branch never blocks either', held([pr({ isDraft: true, headRefName: 'feat/x' })]), ''],
+      ['finish: another branch\'s PR allows a continued turn', held([pr({})], { stopHookActive: true }), ''],
+      ['finish: the own PR still blocks a continued turn', held([pr({}), pr({ number: 7, headRefName: 'feat/x' })], { stopHookActive: true }), '7'],
+      ['finish: no isDraft field is not a draft', held([pr({ isDraft: undefined })]), '9'],
     ]
   })(),
 ]
