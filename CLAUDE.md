@@ -130,7 +130,7 @@ a credential, a dashboard setting, a phone, a product decision.>
 <The single next action, and who does it. If it is blocked, say what on.>
 ```
 
-"Yes" is only for things the user alone can do; unstarted work goes under Next step. Name one next step, not a backlog.
+"Yes" is only for things the user alone can do; unstarted work goes under Next step. Name one next step, not a backlog. The block goes in once per stretch of work: when a Stop hook re-fires on a state you have already reported, answer in one line and do not repeat it.
 
 ## Known Gotchas
 

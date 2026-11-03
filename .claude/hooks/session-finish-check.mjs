@@ -21,7 +21,8 @@
  * work resumes. It is gitignored.
  *
  * The session's own PR blocks while CI or the review is pending, unless a
- * `wait:pr` runs in the background (`lib/prWait.mjs`).
+ * `wait:pr` runs in the background (`lib/prWait.mjs`). Any other green PR blocks
+ * once, never a draft (`prsToFinish`).
  *
  * Deliberately NOT checked here: whether tests pass. That belongs to CI and to
  * the review checklist. This hook is about work being *delivered*, not correct.
@@ -41,7 +42,7 @@ import {
   unpushedCommits,
   workingTreeChanges,
 } from './lib/gitState.mjs'
-import { ownPrVerdict } from './lib/prWait.mjs'
+import { ownPrVerdict, prsToFinish } from './lib/prWait.mjs'
 import { reviewState } from './lib/reviewGate.mjs'
 import { activePeers, ownClaims, porcelainPath } from './lib/sessionClaims.mjs'
 
@@ -199,7 +200,11 @@ if (branch !== base) {
   if (own) blockTurn(own)
 }
 
-const green = prs.filter((p) => p.mergeable === 'MERGEABLE' && checksArePassing(p))
+// Drafts are left out, and another branch's PR blocks only a first stop
+// (`prsToFinish`): it may be another session's work in progress.
+const green = prsToFinish({ prs, branch, stopHookActive }).filter(
+  (p) => p.mergeable === 'MERGEABLE' && checksArePassing(p),
+)
 // The merge gate (lib/reviewGate.mjs) refuses a PR the CI reviewer has not
 // covered at its head, so asking for that merge would only loop. Green means the
 // reviewer job has finished; if it left no summary, that is the thing to fix.
