@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { tripDateList, tripDayLookBacks, tripDayTrends, type DayWeatherRecord, type ForecastRecord } from './tripSummary.js'
+import type { TripDayLookBack } from '@weatherteam6/types'
+import {
+  tripDateList,
+  tripDayLookBacks,
+  tripDayTrends,
+  withGaugeDays,
+  type DayWeatherRecord,
+  type ForecastRecord,
+  type GaugeDayRow,
+} from './tripSummary.js'
 
 const rec = (recorded_at: string, lead_days: number, score: number | null, local_date = '2026-10-04'): ForecastRecord => ({
   local_date,
@@ -109,5 +118,36 @@ describe('tripDayTrends', () => {
       { local_date: '2026-10-16', first: null, last: null },
       { local_date: '2026-10-17', first: null, last: null },
     ])
+  })
+})
+
+describe('withGaugeDays', () => {
+  const day = (local_date: string): TripDayLookBack => ({ local_date, outcome: null, first: null, last: null })
+  const row = (station: string, local_date: string, rain_mm: number | null): GaugeDayRow => ({
+    station,
+    local_date,
+    rain_mm,
+    hours_reported: rain_mm === null ? 20 : 24,
+    hours_expected: 24,
+  })
+
+  it('joins the crag’s own station on each date and leaves a date without a row null', () => {
+    const days = withGaugeDays([day('2026-10-04'), day('2026-10-05')], { station: 'DLL', distance_km: 13.2 }, [
+      row('DLL', '2026-10-04', 2.5),
+      row('MSN', '2026-10-05', 9),
+    ])
+    expect(days[0]?.gauge).toEqual({ station: 'DLL', distance_km: 13.2, rain_mm: 2.5, hours_reported: 24, hours_expected: 24 })
+    // MSN's reading for the 5th belongs to another crag's gauge.
+    expect(days[1]?.gauge).toBeNull()
+  })
+
+  it('gives a crag with no gauge in reach null on every day, whatever rows exist', () => {
+    const days = withGaugeDays([day('2026-10-04')], null, [row('DLL', '2026-10-04', 2.5)])
+    expect(days[0]?.gauge).toBeNull()
+  })
+
+  it('carries a short day through as null rain with its counts', () => {
+    const days = withGaugeDays([day('2026-10-04')], { station: 'DLL', distance_km: 13.2 }, [row('DLL', '2026-10-04', null)])
+    expect(days[0]?.gauge).toMatchObject({ rain_mm: null, hours_reported: 20 })
   })
 })

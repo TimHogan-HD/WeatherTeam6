@@ -1,5 +1,12 @@
 import { colorsV2, spacing } from '@weatherteam6/design/tokens'
-import { EM_DASH, ROCK_LABELS, formatPrecipIn, type TripDayLookBack, type TripSummary } from '@weatherteam6/types'
+import {
+  EM_DASH,
+  ROCK_LABELS,
+  formatPrecipIn,
+  type TripDayGauge,
+  type TripDayLookBack,
+  type TripSummary,
+} from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
 import { bareButton, row, stack, toneColors } from '../../theme/styles.js'
 import { formatTempDeg } from '../../lib/format.js'
@@ -13,6 +20,22 @@ import { TrendCard, type QueryState } from './TripCragView.js'
 /** Said once under the days: what "turned out" rests on. */
 export const LOOK_BACK_SOURCE =
   'How a day turned out is the forecast model’s own look back at it once it was over, not a weather station’s record.'
+
+/** Said after `LOOK_BACK_SOURCE` only when a day has a gauge line to explain. */
+export const GAUGE_SOURCE =
+  'A rain gauge line is the nearest airport gauge’s measurement: one spot, which a passing shower can miss.'
+
+/**
+ * A day's gauge reading as one line, or null when there is none. A day with an
+ * hour unreported says so rather than printing a total that may have missed
+ * the hour it rained in.
+ */
+export function gaugeLine(gauge: TripDayGauge | null | undefined): string | null {
+  if (gauge == null) return null
+  const miles = Math.max(1, Math.round(gauge.distance_km * 0.621371))
+  const where = `Rain gauge at ${gauge.station}, ${miles} mi away`
+  return gauge.rain_mm === null ? `${where}: not every hour reported` : `${where}: ${formatPrecipIn(gauge.rain_mm)}`
+}
 
 /**
  * One crag's trip once it is over (the mockup's `.lb`): each day as it turned
@@ -41,7 +64,9 @@ export function TripLookBackView({
         {summary.data.map((day, i) => (
           <DayLookBack key={day.local_date} day={day} first={i === 0} />
         ))}
-        <p style={typeV2.note}>{LOOK_BACK_SOURCE}</p>
+        <p style={typeV2.note}>
+          {summary.data.some((d) => gaugeLine(d.gauge) !== null) ? `${LOOK_BACK_SOURCE} ${GAUGE_SOURCE}` : LOOK_BACK_SOURCE}
+        </p>
       </GuideCard>
       {trend.data?.points.length === 0 && !hasDayTrend(trend.data.days) ? null : <TrendCard trend={trend} />}
     </div>
@@ -66,6 +91,7 @@ function Columns({ items }: { items: readonly Column[] }) {
 
 function DayLookBack({ day, first }: { day: TripDayLookBack; first: boolean }) {
   const o = day.outcome
+  const gauge = gaugeLine(day.gauge)
   const turned: Column =
     o === null
       ? { label: 'Turned out', figure: EM_DASH, color: colorsV2.txtMuted, note: 'Not recorded' }
@@ -105,6 +131,7 @@ function DayLookBack({ day, first }: { day: TripDayLookBack; first: boolean }) {
     >
       <span style={typeV2.statLabel}>{dayMonthLabel(day.local_date)}</span>
       <Columns items={[turned, ...said]} />
+      {gauge === null ? null : <p style={typeV2.rowSmall}>{gauge}</p>}
       {o !== null && o.dryness === null && o.score === null ? (
         <p style={typeV2.note}>The rock could not be read for this day.</p>
       ) : null}

@@ -27,6 +27,8 @@ const BASE = `http://127.0.0.1:${PORT}/api/v1`
 const SHARED_SECRET = 'local-acceptance-check'
 const TOKEN_SECRET = 'local-acceptance-token-secret'
 const PREFIX = 'zz-check-record-trips'
+/** No real station has a lowercase id, so this row can never be a real gauge's. */
+const GAUGE_STATION = 'zz-check'
 const STAMP = Date.now()
 
 // Red Rock Canyon NCA, Nevada.
@@ -68,8 +70,9 @@ async function run(): Promise<void> {
 
   const { createApp } = await import('../index.js')
   const { db, pool } = await import('../db/index.js')
-  const { users, locations, trips, tripLocations, tripDayRecords, tripDayOutcomes, tripRainRecords } = await import('../db/schema.js')
-  const { recordTripDays, writeOutcomes } = await import('../lib/trips/recordTripDays.js')
+  const { users, locations, trips, tripLocations, tripDayRecords, tripDayOutcomes, tripDayGauges, tripRainRecords } =
+    await import('../db/schema.js')
+  const { recordTripDays, writeGaugeDays, writeOutcomes } = await import('../lib/trips/recordTripDays.js')
   const { deleteLocationCascade } = await import('../lib/locations/deleteLocation.js')
   const { storeEnsembleRun } = await import('../lib/runs/storeRun.js')
   const { pointKeyForPlace } = await import('../lib/runs/pointKey.js')
@@ -336,6 +339,31 @@ async function run(): Promise<void> {
       )
     }
 
+    console.log('\nGauge days')
+    const gaugeRow = (hours_reported: number, rain_mm: number | null) => ({
+      station: GAUGE_STATION,
+      local_date: pastDates[0] ?? isoDay(now, -3),
+      recorded_at: new Date(),
+      rain_mm,
+      hours_reported,
+      hours_expected: 24,
+    })
+    await writeGaugeDays(db, [gaugeRow(24, 3.3)])
+    await writeGaugeDays(db, [gaugeRow(18, null)])
+    const [keptGauge] = await db.select().from(tripDayGauges).where(eq(tripDayGauges.station, GAUGE_STATION))
+    check(
+      'a short later read keeps the complete total',
+      keptGauge?.rain_mm === 3.3 && keptGauge.hours_reported === 24,
+      JSON.stringify(keptGauge),
+    )
+    await writeGaugeDays(db, [gaugeRow(24, 0)])
+    const gaugeRows = await db.select().from(tripDayGauges).where(eq(tripDayGauges.station, GAUGE_STATION))
+    check(
+      'an equally complete later read replaces it, in one row',
+      gaugeRows.length === 1 && gaugeRows[0]?.rain_mm === 0,
+      JSON.stringify(gaugeRows),
+    )
+
     console.log('\nA trip that ended a week ago')
     const oldId = oldLocationId ?? ''
     const [oldDays, oldOutcomes, oldTrend] = await Promise.all([
@@ -368,6 +396,11 @@ async function run(): Promise<void> {
       }) === true,
       JSON.stringify(summary?.days.map((d) => d.outcome)),
     )
+    check(
+      'each day answers a gauge field, a reading or null',
+      summary?.days.every((d) => d.gauge === null || (typeof d.gauge?.station === 'string' && typeof d.gauge.distance_km === 'number')) === true,
+      JSON.stringify(summary?.days.map((d) => d.gauge)),
+    )
     const foreignSummary = await fetch(`${BASE}/trips/${pastTripId}/summary`, { headers: { Authorization: `Session ${otherToken}` } })
     check("another account reading this trip's summary gets 404", foreignSummary.status === 404, String(foreignSummary.status))
   } catch (err) {
@@ -385,6 +418,7 @@ async function run(): Promise<void> {
         check('and its trip_day_outcomes', outcomesLeft.length === 0, `${outcomesLeft.length} left`)
       }
       if (oldLocationId !== null && userId !== null) await deleteLocationCascade(oldLocationId, userId)
+      await db.delete(tripDayGauges).where(eq(tripDayGauges.station, GAUGE_STATION))
       for (const id of extraTripIds) await db.delete(trips).where(eq(trips.id, id))
       if (tripId !== null) await db.delete(trips).where(eq(trips.id, tripId))
       if (userId !== null) await db.delete(users).where(eq(users.id, userId))

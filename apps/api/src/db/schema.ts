@@ -352,6 +352,37 @@ export const tripDayOutcomes = pgTable(
 )
 
 /**
+ * A rain gauge's measured total for one day: the nearest ASOS station to a
+ * trip crag (`nearestGauge`, `lib/weather/asosGauge.ts`), written by the trip
+ * recorder beside `trip_day_outcomes` for each trip day it looks back on.
+ *
+ * **Keyed per station and day, not per location**: a gauge reading belongs to
+ * the gauge, two crags near one airport share it, and the reader finds a
+ * crag's row by computing its station again. `local_date` is the station's own
+ * local day (its IANA zone from the snapshot). No FK, so deleting a location
+ * has nothing here to clear, and a deploy that reaches this table before its
+ * migration only loses the gauge line, never a location delete.
+ *
+ * `rain_mm` is null unless every hour of the day reported; the two counts say
+ * how short a day was. A row is rewritten while the day is looked back on, so
+ * late reports fill in.
+ */
+export const tripDayGauges = pgTable(
+  'trip_day_gauges',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    station: text('station').notNull(),
+    local_date: date('local_date').notNull(),
+    /** The firing that last wrote the row, truncated to the hour. */
+    recorded_at: timestamp('recorded_at', { withTimezone: true }).notNull(),
+    rain_mm: doublePrecision('rain_mm'),
+    hours_reported: integer('hours_reported').notNull(),
+    hours_expected: integer('hours_expected').notNull(),
+  },
+  (t) => [unique('trip_day_gauges_station_day').on(t.station, t.local_date)],
+)
+
+/**
  * The trip's rain total and warmest high at one location, as of one cron
  * firing: the points of a trip screen's forecast trend.
  *

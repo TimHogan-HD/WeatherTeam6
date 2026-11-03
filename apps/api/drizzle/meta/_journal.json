@@ -267,6 +267,13 @@
       "when": 1793656433164,
       "tag": "0037_known_payback",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1793670956848,
+      "tag": "0038_bent_big_bertha",
+      "breakpoints": true
     }
   ]
 }

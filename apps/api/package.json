@@ -43,6 +43,7 @@
     "check:radar-rain": "tsx src/scripts/checkRadarRain.ts",
     "check:runs-storage": "tsx src/scripts/checkRunsStorage.ts",
     "check:forecast-stored": "tsx src/scripts/checkForecastStored.ts",
+    "gauges:pull": "tsx src/scripts/pullAsosStations.ts",
     "compare:dryness": "tsx src/scripts/compareDryness.ts",
     "collect:mrms": "tsx src/scripts/collectMrms.ts",
     "compare:mrms": "tsx src/scripts/compareMrms.ts",
@@ -51,6 +52,7 @@
     "compare:thermal": "tsx src/scripts/compareThermal.ts",
     "compare:rock-temp": "tsx src/scripts/compareRockTemp.ts",
     "compare:trailing-days": "tsx src/scripts/compareTrailingDays.ts",
+    "compare:trip-lead": "tsx src/scripts/compareTripLead.ts",
     "check:ui": "tsx src/scripts/checkUi.ts"
   },
   "dependencies": {
