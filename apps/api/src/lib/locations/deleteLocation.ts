@@ -25,7 +25,7 @@ import {
  * blast radius at this one flow: a schema-wide cascade would also silently
  * change what `DELETE /trips/:id` and any future delete do.
  */
-const DEPENDENT_TABLES = [
+export const DEPENDENT_TABLES = [
   tripLocations,
   tripDayRecords,
   tripRainRecords,
@@ -33,6 +33,9 @@ const DEPENDENT_TABLES = [
   weatherAlerts,
   walls,
 ] as const
+
+/** Tables whose `location_id` is set null, not deleted, when the location goes. */
+export const DETACHED_TABLES = [feedback] as const
 
 /**
  * Delete a location and everything that references it, in one transaction.
@@ -71,7 +74,9 @@ export async function deleteLocationCascade(
     // place, and the row already carries the place's name and coordinates.
     // Not filtered by user: any row still referencing the location would make
     // the delete below a foreign-key violation.
-    await tx.update(feedback).set({ location_id: null }).where(eq(feedback.location_id, locationId))
+    for (const table of DETACHED_TABLES) {
+      await tx.update(table).set({ location_id: null }).where(eq(table.location_id, locationId))
+    }
 
     const deleted = await tx
       .delete(locations)

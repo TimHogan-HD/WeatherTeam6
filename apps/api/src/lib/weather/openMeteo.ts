@@ -127,15 +127,37 @@ const LAPSE_RATE_C_PER_M = 0.0065
  */
 export const FETCH_TIMEOUT_MS = 25_000
 
+/**
+ * Ceiling on one `fetchWithRetry` call, attempts and backoff together. Four
+ * attempts at `FETCH_TIMEOUT_MS` would be 100 s plus 7 s of backoff, and the API
+ * function dies at `maxDuration: 60` (`apps/api/vercel.json`): a hung upstream
+ * would kill the request instead of failing one fetch the caller can withhold.
+ * Left short of 60 s for the work after the fetch.
+ */
+export const FETCH_BUDGET_MS = 45_000
+
+/** An attempt with less time than this left is not started: it could only time out. */
+export const MIN_ATTEMPT_MS = 2_000
+
+/**
+ * @param deadline epoch ms after which no attempt starts and none runs on. Defaults
+ * to `FETCH_BUDGET_MS` from now; pass one shared deadline when a fallback request
+ * follows a failed one, so the pair together stays inside the budget.
+ * @throws the last attempt's error, or `fetch budget spent` when the deadline left
+ * no room for a first attempt.
+ */
 export async function fetchWithRetry(
   url: string,
   maxAttempts = 4,
   headers?: Record<string, string>,
+  deadline: number = Date.now() + FETCH_BUDGET_MS,
 ): Promise<Response> {
-  let lastErr: Error = new Error('no attempts made')
+  let lastErr: Error = new Error('fetch budget spent')
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const remaining = deadline - Date.now()
+    if (remaining < MIN_ATTEMPT_MS) break
     try {
-      const signal = AbortSignal.timeout(FETCH_TIMEOUT_MS)
+      const signal = AbortSignal.timeout(Math.min(FETCH_TIMEOUT_MS, remaining))
       const res = await fetch(url, headers ? { headers, signal } : { signal })
       if (res.ok) return res
       if (res.status !== 429 && res.status < 500) return res
@@ -145,6 +167,8 @@ export async function fetchWithRetry(
     }
     if (attempt < maxAttempts - 1) {
       const delay = Math.pow(2, attempt) * 1000
+      // A backoff that leaves no room for the next attempt only delays the failure.
+      if (deadline - Date.now() - delay < MIN_ATTEMPT_MS) break
       await new Promise<void>((r) => setTimeout(r, delay))
     }
   }
@@ -578,8 +602,11 @@ export async function fetchEnsembleBlock<T extends EnsembleBlockResponse>(
 ): Promise<T> {
   let res: Response | null = null
   let firstError = ''
+  // One deadline for the four-model request and the one-model fallback together: two
+  // budgets back to back would run past the function's 60 s limit.
+  const deadline = Date.now() + FETCH_BUDGET_MS
   try {
-    res = await fetchWithRetry(buildUrl(ENSEMBLE_MODELS).toString())
+    res = await fetchWithRetry(buildUrl(ENSEMBLE_MODELS).toString(), undefined, undefined, deadline)
   } catch (err) {
     firstError = err instanceof Error ? err.message : String(err)
     // `fetchWithRetry` throws `HTTP 429` once its attempts are spent. A rate limit is not a
@@ -601,7 +628,7 @@ export async function fetchEnsembleBlock<T extends EnsembleBlockResponse>(
   const answers = await Promise.all(
     models.map(async (model): Promise<T | null> => {
       try {
-        const res = await fetchWithRetry(buildUrl(model).toString(), PER_MODEL_ATTEMPTS)
+        const res = await fetchWithRetry(buildUrl(model).toString(), PER_MODEL_ATTEMPTS, undefined, deadline)
         if (!res.ok) return null
         const raw = (await res.json()) as T
         return raw[block] && typeof raw[block] === 'object' ? raw : null

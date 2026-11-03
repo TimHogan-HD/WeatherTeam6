@@ -105,6 +105,8 @@ const cases = [
   ['PS Select-String for drizzle-kit push', PRE, ps("Select-String -Pattern 'drizzle-kit push' -Path *.md"), ALLOW],
   ['a real push after a grep is still caught', PRE, bash("grep -q x f && npx drizzle-kit push"), BLOCK],
   ['a command substituted into a grep is still caught', PRE, bash('grep "$(npx drizzle-kit push)" f'), BLOCK],
+  ['a grep pattern with | inside its quotes is data', PRE, bash('ls; grep -n "prettier\\|drizzle-kit push\\|db:push" f | head'), ALLOW],
+  ['a real push piped after a quoted grep is still caught', PRE, bash('grep -n "a\\|b" f | npx drizzle-kit push'), BLOCK],
 
   // NOTE: the "prose about a forbidden command" cases used to live here. They
   // carry `git commit` payloads, so once the default-branch guard landed their
@@ -611,6 +613,23 @@ const gitScenarios = [
     {},
     BLOCK,
     'unpushed commit',
+  ],
+  [
+    // 2026-11-03: a branch cut from main's tip, no upstream, read 6 merged commits as
+    // unpushed because the local origin/main ref was older than the remote.
+    'Stop: commits already on the remote default branch are not unpushed when the local ref is stale',
+    (w) => {
+      writeFileSync(join(w, 'a.txt'), 'a')
+      g(w, 'add', '-A')
+      g(w, 'commit', '-m', 'merged on the remote')
+      g(w, 'push', 'origin', 'main')
+      g(w, 'update-ref', 'refs/remotes/origin/main', 'HEAD~1')
+      g(w, 'checkout', '-b', 'feat/stale-ref')
+    },
+    STOP,
+    {},
+    ALLOW,
+    null,
   ],
   [
     'PreToolUse: git commit on the default branch is blocked',

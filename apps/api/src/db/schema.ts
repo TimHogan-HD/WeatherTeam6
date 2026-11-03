@@ -145,6 +145,7 @@ export const loginAttempts = pgTable(
 // `lib/locations/deleteLocation.ts` too. No FK here declares `onDelete`, so a
 // dependent table left off that list turns DELETE /locations/:id into a
 // foreign-key violation — a 500 that only appears once real data exists.
+// `deleteLocation.test.ts` fails until it is on that list or DETACHED_TABLES.
 export const locations = pgTable('locations', {
   id: uuid('id').primaryKey().defaultRandom(),
   user_id: uuid('user_id')

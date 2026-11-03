@@ -1,6 +1,8 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   COLLECTED_MODELS,
+  METADATA_BUDGET_MS,
+  fetchAvailability,
   MODEL_SOURCES,
   REFETCH_BACKSTOP_MS,
   metadataUrl,
@@ -129,5 +131,41 @@ describe('staleSources', () => {
       ['forecast:retired', { availableAt: hoursAgo(37) }],
     ])
     expect(staleSources(runs, NOW)).toEqual(['forecast:retired'])
+  })
+})
+
+describe('fetchAvailability', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    vi.useRealTimers()
+  })
+
+  // collectWeatherRuns awaits this before fetches that take up to 45 s, and the
+  // two must fit the function's 60 s maxDuration.
+  it('gives up on a hung metadata endpoint inside its own short budget', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(NOW)
+    const timeouts: number[] = []
+    vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms: number) => {
+      timeouts.push(ms)
+      return new AbortController().signal
+    })
+    // Every source hangs until its attempt's timeout.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        vi.setSystemTime(Date.now() + (timeouts.at(-1) ?? 0))
+        throw new DOMException('The operation was aborted due to timeout', 'TimeoutError')
+      }),
+    )
+
+    const pending = fetchAvailability()
+    await vi.runAllTimersAsync()
+    const result = await pending
+
+    expect(result.runs.size).toBe(0)
+    expect(result.unreadable.length).toBeGreaterThan(0)
+    expect(Date.now() - NOW.getTime()).toBeLessThanOrEqual(METADATA_BUDGET_MS)
   })
 })

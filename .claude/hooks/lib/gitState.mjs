@@ -11,6 +11,7 @@ import { onlyRequired } from './prWait.mjs'
 
 const GIT_TIMEOUT_MS = 5000
 const GH_TIMEOUT_MS = 10000
+const FETCH_TIMEOUT_MS = 15000
 
 /** Run a command and return trimmed stdout, or `null` on any failure. */
 function tryRun(file, args, timeout, cwd) {
@@ -87,7 +88,15 @@ export function unpushedCommits() {
     // never-pushed feature branch still counts as outstanding work.
     const base = defaultBranch()
     if (!base) return []
-    const out = git(['log', `origin/${base}..HEAD`, '--oneline'])
+    let out = git(['log', `origin/${base}..HEAD`, '--oneline'])
+    if (out) {
+      // The local origin/<base> can lag the remote: a branch cut from a newer main
+      // then reads main's own merged commits as unpushed (2026-11-03). Refresh it
+      // before reporting; only this path pays for the fetch. A failed fetch keeps
+      // the answer from the ref we have.
+      tryRun('git', ['fetch', '--quiet', 'origin', base], FETCH_TIMEOUT_MS)
+      out = git(['log', `origin/${base}..HEAD`, '--oneline'])
+    }
     return out ? out.split(/\r?\n/).filter(Boolean) : []
   }
   const out = git(['log', `${upstream}..HEAD`, '--oneline'])
