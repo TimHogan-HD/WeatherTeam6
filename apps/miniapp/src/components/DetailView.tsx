@@ -13,7 +13,7 @@ import type {
   Wall,
   WeatherAlert,
 } from '@weatherteam6/types'
-import { CLIMB_HOURS_DEFAULT, GUIDEBOOK_SOURCE_LABEL, RECENT_PRECIP_SOURCE_LABEL, SUN_WALLS_SOURCE_LABEL, sunWallsFor } from '@weatherteam6/types'
+import { CLIMB_HOURS_DEFAULT, GUIDEBOOK_SOURCE_LABEL, modelName, RECENT_PRECIP_SOURCE_LABEL, SUN_WALLS_SOURCE_LABEL, sunWallsFor } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { stack } from '../theme/styles.js'
 import { alertsUnchecked, findToday, forecastSourceLabel } from '../lib/forecast.js'
@@ -221,6 +221,11 @@ export function DetailView({
       : new Set(hourlyDays.filter(dayIsDrawable).map((d) => d.local_date))
 
   const sunWalls = sunWallsFor(location?.known_crag)
+  // The model whose sunshine the Sun card and Daily's sun lines read, from the
+  // response — and only once one hour of it was answered: a run stored before
+  // sunshine was fetched names nothing (defect class 3).
+  const sky = hourly?.data?.sky
+  const sunshineModel = sky?.model == null || !(sky.sun ?? []).some((h) => h.sun_min !== null) ? null : sky.model
 
   const sources: SourceEntry[] = [
     { label: 'Forecast', value: forecastSourceLabel(forecast.data) },
@@ -243,6 +248,7 @@ export function DetailView({
     },
     // The Rock tab's Sun on the wall card: committed skylines, so named
     // whenever the card can show, with the date the lidar was read.
+    { label: 'Sunshine', value: sunshineModel === null ? null : `${modelName(sunshineModel)} via Open-Meteo` },
     { label: 'Sun', value: sunWalls === null ? null : `${SUN_WALLS_SOURCE_LABEL}, ${formatTickDate(sunWalls.computed)}` },
   ]
 

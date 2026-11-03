@@ -1,114 +1,107 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sun mockup</title>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sun hours</title>
 <style>
-:root{--bg:#07090c;--card:#171f28;--line:#2a3644;--txt1:#f4f7fa;--muted:#bccad0;--txt2:#d3e1e4;--rain:#bcc7fd;--sun:#f3e08a;--cloud:#4a5866;--temp:#f6ad55}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt1);font:15px/1.35 system-ui,-apple-system,Segoe UI,sans-serif}
-.wrap{max-width:480px;margin:0 auto;padding:16px}
-h2{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:26px 0 8px}
-.card{background:var(--card);border-radius:18px;padding:14px}
-.sect{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}.sect b{font-size:16px}.sect span{font-size:12px;color:var(--muted)}
-.row{display:grid;grid-template-columns:44px 30px 1fr auto auto;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
-.row:first-of-type{border-top:0}
-.row .d{color:var(--txt2);font-size:14px}.row .w{font-size:14px}.row .w small{display:block;font-size:12px;color:var(--muted)}
-.row .t{font-size:14px;text-align:right;white-space:nowrap}
-.chip{font-size:11.5px;font-weight:600;border-radius:999px;padding:2px 8px;white-space:nowrap;border:1px solid}
-.chip.low{color:var(--sun);border-color:rgba(243,224,138,.35)}
-.chip.mod{color:#2a2410;background:rgba(243,224,138,.7);border-color:transparent}
-.chip.high{color:#2a2410;background:var(--sun);border-color:transparent}
-.chip.none{border:0;padding:0}
-.tl{height:30px;border-radius:8px;overflow:hidden;display:flex;margin-top:6px}
-.tl div{height:100%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
-.tl .c{background:var(--cloud);color:var(--txt2)}.tl .s{background:var(--sun);color:#2a2410}
-.tl .g{background:repeating-linear-gradient(45deg,transparent 0 5px,var(--line) 5px 7px)}
-.ticks{position:relative;height:16px;font-size:11px;color:var(--muted);margin-top:3px}
-.ticks span{position:absolute;transform:translateX(-50%);white-space:nowrap}
-.ticks span:first-child{transform:none}.ticks span:last-child{transform:translateX(-100%)}
-.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:6px;flex-wrap:wrap}
-.legend em{display:inline-block;width:14px;height:10px;border-radius:2px;vertical-align:-1px;margin-right:5px}
-.note{margin:10px 2px 0;font-size:12.5px;color:var(--muted)}
-.cap{font-size:13px;color:var(--txt2);margin:6px 2px 0}
-.tag{display:inline-block;font-size:11px;font-weight:700;color:#032026;background:#6fe3ec;border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:1px}
-svg{display:block}
-</style></head><body><div class="wrap">
+  :root { --bg:#0b1117; --card:#171f28; --txt1:#f4f7fa; --txt2:#d3e1e4; --muted:#bccad0; --line:rgba(255,255,255,.08); --sun:#f3e08a; --brand:#5fd3e4; }
+  body { margin:0; background:var(--bg); color:var(--txt2); font:15px/1.45 system-ui, sans-serif; }
+  main { max-width:480px; margin:0 auto; padding:20px 16px 48px; }
+  h1 { color:var(--txt1); font-size:20px; margin:0 0 4px; }
+  .lede { color:var(--muted); font-size:13px; margin:0 0 20px; }
+  h2 { font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--brand); margin:0 0 8px; display:flex; justify-content:space-between; }
+  h2 em { font-style:normal; text-transform:none; letter-spacing:0; color:var(--muted); font-weight:400; }
+  section { background:var(--card); border-radius:22px; padding:18px 14px 14px; margin:0 0 18px; }
+  .row { display:grid; grid-template-columns:28px minmax(0,1fr) 44px; column-gap:8px; row-gap:4px; padding:12px 0; border-bottom:1px solid var(--line); }
+  .row:last-of-type { border-bottom:none; }
+  .name { color:var(--txt1); font-weight:600; }
+  .sub { grid-column:2 / -1; font-size:14px; }
+  .sunny { color:var(--sun); font-weight:600; }
+  .gap { color:var(--muted); }
+  .foot, .note { font-size:12px; color:var(--muted); margin:10px 0 0; }
+  .chip { display:inline-block; font-size:13px; background:rgba(244,247,250,.08); border-radius:10px; padding:2px 8px; margin:0 0 6px 40px; white-space:nowrap; }
+  .chip b { color:var(--txt1); }
+  .chip i { display:inline-block; width:6px; height:6px; border-radius:3px; margin-right:4px; vertical-align:middle; }
+  svg { display:block; width:100%; }
+  .why { font-size:13px; color:var(--muted); }
+  .why li { margin:0 0 6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Sun hours: the built design</h1>
+  <p class="lede">Owner decisions 2026-11-03, ideas #469–#472. Overview keeps its icon, now sorted from sunshine minutes. Daily says the day's sun in words. Hourly gets a Sun card: minutes of sun per hour, with the cloud cover faded behind (option B). Figures below are illustrative.</p>
 
-<p class="cap">Next days is unchanged: the sun/cloud icon only. The work there is making sure the icon is right (#472). Example: Sandstone, Wed Nov 5.</p>
+  <section aria-label="Daily">
+    <h2>Seven days <em>score · low–high · chance of rain</em></h2>
+    <div class="row"><span>☀</span><span class="name">Friday</span><span>2%</span>
+      <span class="sub">good all day · Dry · 0 in · peak wind 8 mph</span>
+      <span class="sub sunny">Sun 8a–4p · 8 h</span></div>
+    <div class="row"><span>⛅</span><span class="name">Saturday</span><span>20%</span>
+      <span class="sub">good 10a–6p · Dry · 0 in · peak wind 9 mph</span>
+      <span class="sub sunny">Sun 8–9a, 2–4p · 3 h</span></div>
+    <div class="row"><span>⛅</span><span class="name">Sunday</span><span>30%</span>
+      <span class="sub">good 1p–6p · Drying · 0.02 in · peak wind 12 mph</span>
+      <span class="sub sunny">Sun 5 h, on and off</span></div>
+    <div class="row"><span>☁</span><span class="name">Monday</span><span>90%</span>
+      <span class="sub">no good hours · Wet · 0.6 in · peak wind 14 mph</span>
+      <span class="sub">No sun</span></div>
+    <div class="row"><span>⛅</span><span class="name">Tuesday</span><span>40%</span>
+      <span class="sub">good 2p–6p · Drying · 0.06 in · peak wind 15 mph</span>
+      <span class="sub">Sun 0–3 h · forecasts differ</span></div>
+    <div class="row"><span></span><span class="name">Wednesday</span><span>—</span>
+      <span class="sub">— · —</span>
+      <span class="sub gap">Sun —</span></div>
+    <p class="foot">… Rain is the median daily amount. Sun is the hours of bright sunshine. Tap a day for its hours.</p>
+  </section>
 
-<svg width="0" height="0" style="position:absolute"><defs>
-<symbol id="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="#f3e08a"/><g stroke="#f3e08a" stroke-width="2" stroke-linecap="round"><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g></symbol>
-<symbol id="pc" viewBox="0 0 24 24"><circle cx="9" cy="9" r="4.5" fill="#f3e08a"/><path d="M7 20h11a4 4 0 0 0 0-8 5.5 5.5 0 0 0-10.6 1.5A3.3 3.3 0 0 0 7 20z" fill="#8b9aa3"/></symbol>
-<symbol id="cl" viewBox="0 0 24 24"><path d="M6 19h12a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.7A3.7 3.7 0 0 0 6 19z" fill="#8b9aa3"/></symbol>
-</defs></svg>
+  <section aria-label="Hourly Sun card">
+    <h2>Sun <em>min of sun · % cloud · GFS</em></h2>
+    <span class="chip"><b>12–1 PM</b> &nbsp;<i style="background:var(--sun)"></i>sun <b>10 min</b> &nbsp;weak <b>150 W/m²</b> &nbsp;<i style="background:rgba(244,247,250,.26)"></i>cloud <b>70%</b></span>
+    <svg viewBox="0 0 400 130" role="img" aria-label="Minutes of sun and cloud cover by hour">
+      <g fill="#bccad0" font-size="10" font-family="ui-monospace, monospace">
+        <text x="0" y="20">60m</text><text x="0" y="60">30m</text><text x="0" y="100">0</text>
+      </g>
+      <g stroke="rgba(255,255,255,.06)"><line x1="34" x2="396" y1="17" y2="17"/><line x1="34" x2="396" y1="57" y2="57"/><line x1="34" x2="396" y1="97" y2="97"/></g>
+      <g id="bars"></g>
+      <g fill="#bccad0" font-size="11" font-family="ui-monospace, monospace">
+        <text x="70" y="91" text-anchor="middle">night</text><text x="360" y="91" text-anchor="middle">night</text>
+        <text x="34" y="120">12a</text><text x="120" y="120">6a</text><text x="210" y="120">12p</text><text x="300" y="120">6p</text>
+      </g>
+    </svg>
+    <p class="note">Yellow: minutes of the hour the sun is out bright enough to cast a shadow. Grey behind: how much of the sky is cloud. Strength is the sunlight reaching flat ground: strong is 700 W/m² and up (a clear summer midday), weak is under 300. Terrain shade and a wall’s angle are not in it, and past day 3 an hour’s sun is a rough guess.</p>
+  </section>
 
-<h2>Daily · Seven days</h2>
-<div class="card">
-<div class="row"><span class="d">Today</span><svg width="28" height="28"><use href="#cl"/></svg><span class="w">No sun<small>&nbsp;</small></span><span class="chip none"></span><span class="t">48° / 36°</span></div>
-<div class="row"><span class="d">Tue</span><svg width="28" height="28"><use href="#sun"/></svg><span class="w">Sun 9 am – 3 pm<small>6 hours</small></span><span class="chip low">Low</span><span class="t">55° / 38°</span></div>
-<div class="row"><span class="d">Wed</span><svg width="28" height="28"><use href="#pc"/></svg><span class="w">Sun 12 – 4 pm<small>4 hours</small></span><span class="chip low">Low</span><span class="t">57° / 41°</span></div>
-<div class="row"><span class="d">Thu</span><svg width="28" height="28"><use href="#pc"/></svg><span class="w">Sun 2 – 5 hours<small>Forecasts differ</small></span><span class="chip low">Low</span><span class="t">54° / 40°</span></div>
-</div>
-<p class="note">The chip is sun strength: Low, Moderate or High. In November it reads Low even on a clear day. June looks like <span class="chip high">High</span> and April like <span class="chip mod">Moderate</span>.</p>
-
-<h2>Hourly · day bar (approved)</h2>
-<div class="card"><div class="sect"><b>Wed, Nov 5</b><span>Sun 12 – 4 pm · Low</span></div>
-<div class="tl"><div class="c" style="flex:3">Cloudy</div><div class="s" style="flex:4">Sunny</div><div class="g" style="flex:1"></div></div>
-<div class="ticks"><span style="left:0">9 am</span><span style="left:37.5%">12 pm</span><span style="left:87.5%">4 pm</span><span style="left:100%">5 pm</span></div>
-</div>
-
-<h2>On a graph <span class="tag">A · Sun chart</span></h2>
-<div class="card"><div class="sect"><b>Sun</b><span>strength by hour</span></div>
-<svg id="sunchart" viewBox="0 0 448 170" width="100%"></svg>
-<div class="legend"><span><em style="background:var(--sun)"></em>forecast sun</span><span><em style="background:var(--cloud)"></em>blocked by cloud</span></div>
-<p class="note">Its own chart card, like Temperature, Rain and Wind. The height is how strong the sun is, on a scale that's the same all year: November sits near Low, and June midday reaches High. Yellow is the sun that gets through, grey is what cloud takes away. Here it's cloudy until noon and clear after.</p></div>
-
-<h2>On a graph <span class="tag">B · on the temperature chart</span></h2>
-<div class="card"><div class="sect"><b>Temperature and humidity</b><span>°F</span></div>
-<svg id="tempchart" viewBox="0 0 448 150" width="100%"></svg>
-<div class="legend"><span><em style="background:rgba(243,224,138,.22)"></em>sunny hours</span><span><em style="background:var(--temp);height:3px;vertical-align:3px"></em>temperature</span></div>
-<p class="note">No new chart: sunny hours are shaded behind the temperature line. You can see the afternoon warm up once the sun comes out. It shows when, but not how strong.</p></div>
-
-<p class="note" style="margin-top:20px">My pick: <b>A</b>. It's the only one that shows strength, and the Hourly cards already have one chart per topic.</p>
-
-</div>
+  <section aria-label="Rules">
+    <h2>What it follows</h2>
+    <ul class="why">
+      <li>Sun minutes are Open-Meteo's <code>sunshine_duration</code> (WMO: direct sun ≥ 120 W/m²) from the scoring model, GFS. A bar owns the hour before its stamp, on a fixed 0–60 scale.</li>
+      <li>A gap is never "no sun": an unanswered daylight hour is a dashed mark, an unanswered day is <code>Sun —</code> and has no icon. A measured sunless hour is a faint stub.</li>
+      <li>Windows are runs of hours with at least 30 min of sun. Up to two are listed; more read "on and off".</li>
+      <li>"Forecasts differ" when GFS, ECMWF and ICON's day totals spread 3 h or more (GEM never: #155). <code>compare:sky</code> set the 3 h.</li>
+      <li>Strength is a word with its W/m² in the readout only. An hour with light but no bright sun reads "through cloud".</li>
+      <li>The cloud bars are faded on purpose (1.47:1, 2.28:1 at the read hour); the readout prints the exact %.</li>
+      <li>UV is left out: it tracks heating poorly at low sun.</li>
+    </ul>
+  </section>
+</main>
 <script>
-const NS='http://www.w3.org/2000/svg';
-function el(p,tag,attrs,text){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(text!==undefined)e.textContent=text;p.appendChild(e);return e}
-const H0=7,H1=17,L=58,R=440,T=10,B=140;
-const x=h=>L+(h-H0)/(H1-H0)*(R-L);
-// Sun chart: y is strength on a fixed year scale (1 = June midday clear sky).
-(function(){
-  const s=document.getElementById('sunchart'),y=v=>B-v*(B-T);
-  for(const [v,l] of [[0,''],[1/3,'Low'],[2/3,'Moderate'],[1,'High']]){
-    el(s,'line',{x1:L,x2:R,y1:y(v),y2:y(v),stroke:'#2a3644','stroke-width':1});
-    if(l)el(s,'text',{x:L-6,y:y(v-1/6)+4,'text-anchor':'end','font-size':11,fill:'#bccad0'},l);
-  }
-  const clear=h=>Math.max(0,0.42*Math.sin(Math.PI*(h-6.95)/(16.9-6.95)));
-  const ratio=h=>h<12?0.3:h<16?0.95:null;
-  const pts=[];for(let h=H0;h<=H1;h+=0.1)pts.push(h);
-  const path=(f)=>pts.map((h,i)=>(i?'L':'M')+x(h).toFixed(1)+' '+y(f(h)).toFixed(1)).join(' ');
-  // grey = what clear sky would give, drawn first
-  el(s,'path',{d:path(clear)+` L${x(H1)} ${B} L${x(H0)} ${B} Z`,fill:'#4a5866'});
-  // yellow = forecast, up to 4 pm
-  const fc=pts.filter(h=>h<=16);
-  el(s,'path',{d:fc.map((h,i)=>(i?'L':'M')+x(h).toFixed(1)+' '+y(clear(h)*ratio(Math.min(h,15.99))).toFixed(1)).join(' ')+` L${x(16)} ${B} L${x(H0)} ${B} Z`,fill:'#f3e08a'});
-  // gap hour 4-5 pm: hatched, no fill claim
-  const pat=el(el(s,'defs',{}),'pattern',{id:'hatch',width:6,height:6,patternUnits:'userSpaceOnUse',patternTransform:'rotate(45)'});
-  el(pat,'rect',{width:2,height:6,fill:'#2a3644'});
-  el(s,'rect',{x:x(16),y:T,width:x(17)-x(16),height:B-T,fill:'url(#hatch)'});
-  el(s,'rect',{x:x(16),y:T,width:x(17)-x(16),height:B-T,fill:'#171f28',opacity:.35});
-  for(const [h,l] of [[7,'7a'],[9,'9a'],[12,'12p'],[15,'3p'],[17,'5p']])el(s,'text',{x:x(h),y:B+16,'text-anchor':'middle','font-size':11,fill:'#bccad0'},l);
-  el(s,'text',{x:x(13.9),y:y(0.47),'text-anchor':'middle','font-size':11,fill:'#f3e08a'},'clear, low sun');
-  el(s,'text',{x:x(9.6),y:y(0.3),'text-anchor':'middle','font-size':11,fill:'#d3e1e4'},'cloud');
-})();
-// Temperature chart with sunny hours shaded.
-(function(){
-  const s=document.getElementById('tempchart'),B2=124,lo=36,hi=60,y=v=>B2-(v-lo)/(hi-lo)*(B2-T);
-  for(const v of [40,50,60]){el(s,'line',{x1:L,x2:R,y1:y(v),y2:y(v),stroke:'#2a3644'});el(s,'text',{x:L-6,y:y(v)+4,'text-anchor':'end','font-size':11,fill:'#bccad0'},v+'°')}
-  el(s,'rect',{x:x(12),y:T,width:x(16)-x(12),height:B2-T,fill:'rgba(243,224,138,.18)'});
-  el(s,'text',{x:x(14),y:T+14,'text-anchor':'middle','font-size':11,fill:'#f3e08a'},'sunny');
-  const temp={7:41,8:42,9:43,10:45,11:46,12:49,13:53,14:56,15:57,16:55,17:52};
-  el(s,'path',{d:Object.entries(temp).map(([h,v],i)=>(i?'L':'M')+x(+h)+' '+y(v).toFixed(1)).join(' '),fill:'none',stroke:'#f6ad55','stroke-width':2.5,'stroke-linejoin':'round'});
-  for(const [h,l] of [[7,'7a'],[9,'9a'],[12,'12p'],[15,'3p'],[17,'5p']])el(s,'text',{x:x(h),y:B2+18,'text-anchor':'middle','font-size':11,fill:'#bccad0'},l);
-})();
+  const sun = [0,0,0,0,0,0,0,8,40,55,60,25,10,30,60,60,45,5,0,0,0,0,0,0]
+  const cloud = [90,90,80,60,50,40,30,30,20,20,10,70,90,40,10,10,20,40,60,80,90,90,90,90]
+  const g = document.getElementById('bars'), ns = 'http://www.w3.org/2000/svg', w = 362 / 24
+  const day = (i) => i >= 7 && i <= 17
+  cloud.forEach((c, i) => {
+    const r = document.createElementNS(ns, 'rect'), h = (c / 100) * 80
+    r.setAttribute('x', 34 + i * w + 1); r.setAttribute('width', w - 2); r.setAttribute('y', 97 - h); r.setAttribute('height', h); r.setAttribute('rx', 2)
+    r.setAttribute('fill', i === 12 ? 'rgba(244,247,250,.26)' : 'rgba(244,247,250,.13)'); g.appendChild(r)
+  })
+  sun.forEach((m, i) => {
+    if (!day(i)) return
+    const r = document.createElementNS(ns, 'rect'), h = Math.max(1.5, (m / 60) * 80)
+    r.setAttribute('x', 34 + i * w + 1); r.setAttribute('width', w - 2); r.setAttribute('y', 97 - h); r.setAttribute('height', h); r.setAttribute('rx', 3)
+    r.setAttribute('fill', '#f3e08a'); if (m < 1) r.setAttribute('opacity', .35); g.appendChild(r)
+  })
 </script>
-</body></html>
+</body>
+</html>
