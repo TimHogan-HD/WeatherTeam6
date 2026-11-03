@@ -7,7 +7,8 @@
  *
  * Read-only. It reads `trip_day_records` (what the forecast said, at each lead),
  * `trip_day_outcomes` (the model's look back at the day), `trip_day_gauges` (the
- * nearest airport gauge, where there is one) and `feedback` forecast checks
+ * nearest airport gauge, where there is one), `trip_day_volunteer_gauges` (the
+ * nearest volunteer gauge that reported, #463) and `feedback` forecast checks
  * (what climbers saw), and prints three tables:
  *
  * 1. **Score drift by lead.** For each lead 1-6, how far the day's score moved
@@ -16,8 +17,8 @@
  *    how far out a trip score is worth reading.
  * 2. **Which rain chance** (`scoring-findings.md` §6e). Brier of the tile's
  *    `members_wet` chance against the stricter `members_rewet`, on the same
- *    days, at each lead, against two truths: the look back's rain and the
- *    gauge's. A day is wet at `MEASURABLE_PRECIP_MM` and again at
+ *    days, at each lead, against three truths: the look back's rain, the
+ *    airport gauge's and the volunteer gauge's. A day is wet at `MEASURABLE_PRECIP_MM` and again at
  *    `REWETTING_PRECIP_MM`, the two chances' own thresholds. Lower wins; the
  *    tile switches only if the stricter chance wins on the gauge.
  * 3. **Checks against the forecast.** Each forecast check at a crag on a
@@ -29,12 +30,17 @@
  * `n`. The look back is the model's analysis, so table 1's error and table 2's
  * model truth score the model against itself. A gauge is one point up to 25 km
  * from the crag, and a day with an hour unreported has no gauge truth. Red Wing
- * has no usable gauge (`STUCK_GAUGES`).
+ * has no usable airport gauge (`STUCK_GAUGES`); its truth is the volunteer's.
+ * A volunteer report is one reading over 24 hours, usually 7 am to 7 am, so
+ * it covers the climbing day and the night after, not the calendar day the
+ * chance is for: a shower after midnight counts against the day. A skipped
+ * report is no truth, never a dry day.
  *
  * console rather than the logger is deliberate: this is an operator-facing CLI.
  */
 import { MEASURABLE_PRECIP_MM, REWETTING_PRECIP_MM, parseNumericRequired } from '@weatherteam6/types'
 import { nearestGauge } from '../lib/weather/asosGauge.js'
+import { nearestVolunteerGauges, reportForDay } from '../lib/weather/cocorahsGauge.js'
 import { localDateAt } from '../lib/trips/tripSummary.js'
 import {
   checksAgainstForecast,
@@ -57,11 +63,13 @@ async function main(): Promise<void> {
     process.exit(2)
   }
   const { db, pool } = await import('../db/index.js')
-  const { feedback, locations, tripDayGauges, tripDayOutcomes, tripDayRecords } = await import('../db/schema.js')
+  const { feedback, locations, tripDayGauges, tripDayOutcomes, tripDayRecords, tripDayVolunteerGauges } = await import(
+    '../db/schema.js'
+  )
   const { eq } = await import('drizzle-orm')
 
   try {
-    const [records, outcomes, gauges, places, checks] = await Promise.all([
+    const [records, outcomes, gauges, volunteerReports, places, checks] = await Promise.all([
       db
         .select({
           location_id: tripDayRecords.location_id,
@@ -77,6 +85,14 @@ async function main(): Promise<void> {
         .from(tripDayRecords),
       db.select().from(tripDayOutcomes),
       db.select().from(tripDayGauges),
+      db
+        .select({
+          station: tripDayVolunteerGauges.station,
+          report_date: tripDayVolunteerGauges.report_date,
+          obs_hour: tripDayVolunteerGauges.obs_hour,
+          rain_mm: tripDayVolunteerGauges.rain_mm,
+        })
+        .from(tripDayVolunteerGauges),
       db.select({ id: locations.id, lat: locations.lat, lon: locations.lon }).from(locations),
       db
         .select({
@@ -93,26 +109,36 @@ async function main(): Promise<void> {
       places.map((p) => {
         const lat = parseNumericRequired(p.lat)
         const lon = parseNumericRequired(p.lon)
-        return [p.id, { lon, gauge: nearestGauge(lat, lon) }] as const
+        return [p.id, { lon, gauge: nearestGauge(lat, lon), volunteers: nearestVolunteerGauges(lat, lon) }] as const
       }),
     )
     const gaugeRain = new Map(gauges.map((g) => [`${g.station}|${g.local_date}`, g.rain_mm]))
+    const reportsOf = new Map<string, typeof volunteerReports>()
+    for (const r of volunteerReports) reportsOf.set(r.station, [...(reportsOf.get(r.station) ?? []), r])
 
     const truths: DayTruth[] = outcomes.map((o) => {
-      const g = gaugeOf.get(o.location_id)?.gauge ?? null
+      const place = gaugeOf.get(o.location_id)
+      const g = place?.gauge ?? null
+      // The nearest volunteer whose report stands for the day, as the look back shows it.
+      const volunteer =
+        (place?.volunteers ?? [])
+          .map((v) => reportForDay(o.local_date, reportsOf.get(v.station) ?? []))
+          .find((r) => r !== null) ?? null
       return {
         location_id: o.location_id,
         local_date: o.local_date,
         outcome_score: o.score,
         outcome_rain_mm: o.rain_mm,
         gauge_rain_mm: g === null ? null : (gaugeRain.get(`${g.station}|${o.local_date}`) ?? null),
+        volunteer_rain_mm: volunteer?.rain_mm ?? null,
       }
     })
     const byDay = lastAtEachLead(records)
 
     console.log(
       `\n${records.length} recordings over ${byDay.size} crag-days, ${outcomes.length} looked back on, ` +
-        `${truths.filter((t) => t.gauge_rain_mm !== null).length} with a whole gauge day, ${checks.length} forecast checks.`,
+        `${truths.filter((t) => t.gauge_rain_mm !== null).length} with a whole gauge day, ` +
+        `${truths.filter((t) => t.volunteer_rain_mm !== null).length} with a volunteer report, ${checks.length} forecast checks.`,
     )
 
     console.log('\n1. Score drift: the day’s score at each lead against the day itself and the look back')
@@ -126,10 +152,10 @@ async function main(): Promise<void> {
 
     for (const wetMm of [MEASURABLE_PRECIP_MM, REWETTING_PRECIP_MM]) {
       console.log(`\n2. Which rain chance, a day wet at ${wetMm} mm (Brier, lower is better; same days for both)`)
-      console.log('truth  lead    n  wet  members_wet  members_rewet')
+      console.log('truth      lead    n  wet  members_wet  members_rewet')
       for (const r of rainChanceComparison(byDay, truths, CHANCE_LEADS, wetMm)) {
         console.log(
-          `${r.truth.padEnd(5)} ${String(r.lead).padStart(5)} ${String(r.n).padStart(4)} ${String(r.wet).padStart(4)} ` +
+          `${r.truth.padEnd(9)} ${String(r.lead).padStart(5)} ${String(r.n).padStart(4)} ${String(r.wet).padStart(4)} ` +
             `${fmt(r.brierWet, 3).padStart(12)} ${fmt(r.brierRewet, 3).padStart(14)}`,
         )
       }

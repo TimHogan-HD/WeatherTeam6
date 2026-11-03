@@ -56,6 +56,13 @@
  * A third table scores whole days: the rock at the hour `dayRepresentative`
  * picks, which is what a day tile reads. That table decided #324.
  *
+ * **Volunteer gauges (#463).** Red Wing, Two Harbors and Boulder have no
+ * airport gauge that reads rain (`STUCK_GAUGES`), so a last table scores the
+ * same rules at their crags against CoCoRaHS volunteers: whether each rule's
+ * total over a report's 24 hours reaches what the volunteer measured. One
+ * reading a day cannot run the clock, so it scores the rain, not the rock.
+ * `-- VOLUNTEER` runs only that table.
+ *
  * Network only — no database. Its output is the result.
  */
 import { REWETTING_PRECIP_MM, type RockType } from '@weatherteam6/types'
@@ -67,6 +74,12 @@ import {
   GLOBAL_DETERMINISTIC_MODELS,
   localTimeToUtc,
 } from '../lib/weather/openMeteo.js'
+import {
+  fetchVolunteerReports,
+  nearestVolunteerGauges,
+  reportForDay,
+  type VolunteerReport,
+} from '../lib/weather/cocorahsGauge.js'
 import { rainMedian } from '../lib/weather/rainMedian.js'
 import {
   gauge,
@@ -75,6 +88,8 @@ import {
   shippedMedian,
   STATIONS,
   text,
+  windowRain,
+  zonedHourToUtc,
   type ByModel,
   type HourKey,
 } from './rainGauges.js'
@@ -429,17 +444,106 @@ async function run(): Promise<void> {
       }
     }
   }
+  if (only.length === 0 || only.includes('VOLUNTEER')) await volunteerTables(from, to)
   console.log('')
+}
+
+/**
+ * **Crags whose airport gauge is stuck at zero** (`STUCK_GAUGES`), scored
+ * against volunteer gauges instead (#463). Coordinates are the crags', to the
+ * nearest few hundred metres; the volunteers are the nearest that report
+ * (`nearestVolunteerGauges`).
+ */
+const VOLUNTEER_SITES: [name: string, lat: number, lon: number, tz: string][] = [
+  ['Barn Bluff, Red Wing MN', 44.569, -92.522, 'America/Chicago'],
+  ['Shovel Point MN', 47.318, -91.207, 'America/Chicago'],
+  ['Eldorado Canyon CO', 39.931, -105.289, 'America/Denver'],
+]
+
+/**
+ * A report window is wet at these totals: 0.254 mm is 0.01 in, the least a
+ * volunteer writes down (a trace is below it), and 2.54 mm is 0.1 in.
+ */
+const VOLUNTEER_WET_MM = [0.254, 2.54] as const
+
+/**
+ * **The rain rules against volunteer gauges, one report at a time.** A volunteer
+ * reads once a day, so this cannot run the clock: it asks whether each rule's
+ * forecast total over the report's own 24 hours (usually 7 am to 7 am) reaches
+ * the threshold when the gauge's did. Each day takes the nearest volunteer whose
+ * report stands for it (`reportForDay`), as the trip look back does; a skipped
+ * report is no truth. Every lead and rule is scored on the same reports.
+ *
+ * **Measured 2026-11-03, three crags, 263 reports over 90 days: the shipped
+ * rule holds.** One day ahead, `rainMedian` had the best Peirce at 0.254 mm
+ * (0.621; it missed 19% of wet reports) and was within 0.02 of the best at
+ * 2.54 mm (0.766, `rolling, 3 h` 0.779). The hourly median it replaced trailed
+ * at every lead.
+ */
+async function volunteerTables(from: Date, to: Date): Promise<void> {
+  console.log(
+    `\n=== volunteer gauges (#463) — rain rules over each report's 24 hours, where the airport gauge is stuck; ` +
+      `"hours" counts reports, "not dry" the wet ones ===\n`,
+  )
+  const keys = LEADS.flatMap((lead) => RULES.map((r) => leadKey(lead, r.name)))
+  const days: string[] = []
+  for (let t = from.getTime() + 86_400_000; t < to.getTime() - 86_400_000; t += 86_400_000) {
+    days.push(new Date(t).toISOString().slice(0, 10))
+  }
+  for (const [name, lat, lon, tz] of VOLUNTEER_SITES) {
+    try {
+      const candidates = nearestVolunteerGauges(lat, lon)
+      if (candidates.length === 0) throw new Error('no volunteer gauge reports within reach')
+      const reports = new Map<string, VolunteerReport[]>()
+      for (const c of candidates) {
+        try {
+          reports.set(c.station, await fetchVolunteerReports(c.station, days))
+        } catch (err) {
+          console.log(`  ${name}: ${c.station} skipped: ${(err as Error).message}`)
+        }
+      }
+      const runs = await previousRuns(lat, lon, from, to, LEADS)
+      let scored = 0
+      for (const day of days) {
+        const report = candidates
+          .map((c) => reportForDay(day, reports.get(c.station) ?? []))
+          .find((r) => r !== null)
+        if (!report || report.obs_hour === null) continue
+        const end = zonedHourToUtc(report.report_date, report.obs_hour, tz)
+        const totals = LEADS.flatMap((lead) =>
+          RULES.map((rule) => windowRain((k) => rule.rain(runs.get(lead)!, k), end)),
+        )
+        if (totals.some((v) => v === null)) continue
+        scored++
+        for (const mm of VOLUNTEER_WET_MM) {
+          keys.forEach((key, i) =>
+            count(`volunteer|${mm}|${key}`, report.rain_mm >= mm, totals[i]! >= mm),
+          )
+        }
+      }
+      const stations = candidates.map((c) => `${c.station} ${c.distance_km} km`).join(', ')
+      console.log(`  ${name.padEnd(24)} ${String(scored).padStart(4)} reports scored (${stations})`)
+    } catch (err) {
+      console.log(`  ${name.padEnd(24)} skipped: ${(err as Error).message}`)
+    }
+  }
+  for (const mm of VOLUNTEER_WET_MM) {
+    for (const lead of LEADS) {
+      console.log(`\n  wet at ${mm} mm, lead ${lead} day${lead === 1 ? '' : 's'}`)
+      table(`volunteer|${mm}`, RULES.map((r) => leadKey(lead, r.name)), false)
+    }
+  }
 }
 
 const leadKey = (lead: number, rule: string) => `lead ${lead}|${rule}`
 const thresholdKey = (lead: number, truth: string, mm: number) => `lead ${lead}|vs ${truth}, wet at ${mm} mm`
 
-function table(rock: RockType, names: readonly string[], sortByPeirce: boolean): void {
+/** `prefix` is a rock, or `volunteer|<mm>` for the volunteer tables. */
+function table(prefix: string, names: readonly string[], sortByPeirce: boolean): void {
   const pct = (a: number, b: number) => (b === 0 ? '—' : ((100 * a) / b).toFixed(1)).padStart(7)
   console.log(`  ${'source'.padEnd(30)}  miss%  false%  Peirce   hours  not dry`)
   const rows = names.flatMap((name) => {
-    const t = tallies.get(`${rock}|${name}`)
+    const t = tallies.get(`${prefix}|${name}`)
     return t ? [{ name, t, peirce: t.hit / (t.hit + t.miss) - t.falseAlarm / (t.falseAlarm + t.correctDry) }] : []
   })
   if (sortByPeirce) rows.sort((a, b) => b.peirce - a.peirce)

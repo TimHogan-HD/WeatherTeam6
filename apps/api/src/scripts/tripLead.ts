@@ -16,7 +16,7 @@ export type LeadRecord = {
   rewet_member_count: number | null
 }
 
-/** How a day turned out: the model's look back and, where there is one, the gauge. */
+/** How a day turned out: the model's look back and, where there are any, the gauges. */
 export type DayTruth = {
   location_id: string
   local_date: string
@@ -24,6 +24,23 @@ export type DayTruth = {
   outcome_rain_mm: number | null
   /** Null for no gauge in reach, nothing stored, or a day with an hour unreported. */
   gauge_rain_mm: number | null
+  /**
+   * The nearest volunteer gauge whose report stands for the day (`reportForDay`):
+   * its 24 hours, usually 7 am to 7 am, not the calendar day. Null for no
+   * volunteer in reach or no report.
+   */
+  volunteer_rain_mm: number | null
+}
+
+/** Which measurement a day's rain is read from. */
+export type Truth = 'model' | 'gauge' | 'volunteer'
+
+const TRUTHS: readonly Truth[] = ['model', 'gauge', 'volunteer']
+
+function truthRain(t: DayTruth, truth: Truth): number | null {
+  if (truth === 'model') return t.outcome_rain_mm
+  if (truth === 'gauge') return t.gauge_rain_mm
+  return t.volunteer_rain_mm
 }
 
 const dayKey = (location_id: string, local_date: string) => `${location_id}|${local_date}`
@@ -101,7 +118,7 @@ export function scoreDrift(
 
 export type ChanceRow = {
   lead: number
-  truth: 'model' | 'gauge'
+  truth: Truth
   /** Days where both chances and the truth are known: the two are scored on the same days. */
   n: number
   /** Days of those that were wet. */
@@ -128,7 +145,7 @@ export function rainChanceComparison(
 ): ChanceRow[] {
   const truthByDay = new Map(truths.map((t) => [dayKey(t.location_id, t.local_date), t]))
   const rows: ChanceRow[] = []
-  for (const truth of ['model', 'gauge'] as const) {
+  for (const truth of TRUTHS) {
     for (const lead of leads) {
       const wetErr: number[] = []
       const rewetErr: number[] = []
@@ -137,7 +154,7 @@ export function rainChanceComparison(
         const r = byLead.get(lead)
         const t = truthByDay.get(key)
         if (r === undefined || t === undefined) continue
-        const rain = truth === 'model' ? t.outcome_rain_mm : t.gauge_rain_mm
+        const rain = truthRain(t, truth)
         const pWet = share(r.members_wet, r.member_count)
         const pRewet = share(r.members_rewet, r.rewet_member_count)
         if (rain === null || pWet === null || pRewet === null) continue

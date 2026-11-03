@@ -25,6 +25,7 @@ const truth = (over: Partial<DayTruth> = {}): DayTruth => ({
   outcome_score: null,
   outcome_rain_mm: null,
   gauge_rain_mm: null,
+  volunteer_rain_mm: null,
   ...over,
 })
 
@@ -112,6 +113,19 @@ describe('rainChanceComparison', () => {
     const rows = rainChanceComparison(lastAtEachLead([chances(70, 10)]), [truth({ outcome_rain_mm: 0, gauge_rain_mm: null })], [1], 0.5)
     expect(rows.find((r) => r.truth === 'gauge')).toMatchObject({ n: 0, brierWet: null })
     expect(rows.find((r) => r.truth === 'model')).toMatchObject({ n: 1, wet: 0 })
+  })
+
+  it('scores the volunteer gauge on its own reports, apart from the airport gauge', () => {
+    const rows = rainChanceComparison(
+      lastAtEachLead([chances(70, 10), chances(80, 90, '2026-10-11')]),
+      [truth({ gauge_rain_mm: 0, volunteer_rain_mm: 6 }), truth({ local_date: '2026-10-11', gauge_rain_mm: 6 })],
+      [1],
+      0.5,
+    )
+    expect(rows.find((r) => r.truth === 'volunteer')).toMatchObject({ n: 1, wet: 1 })
+    // members_wet on the one reported day: (0.7 - 1)² = 0.09.
+    expect(rows.find((r) => r.truth === 'volunteer')?.brierWet).toBeCloseTo(0.09)
+    expect(rows.find((r) => r.truth === 'gauge')).toMatchObject({ n: 2, wet: 1 })
   })
 
   it('counts rain exactly at the threshold as wet', () => {
