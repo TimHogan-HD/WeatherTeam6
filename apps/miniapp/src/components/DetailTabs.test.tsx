@@ -689,6 +689,28 @@ describe('DetailView — Precip tab', () => {
     expect(city).not.toContain('Check the rock')
   })
 
+  it('says what radar overruled, and names radar only when it decided an hour (#468)', () => {
+    const checked: RecentPrecip = {
+      ...recent,
+      models: ['gfs_seamless', 'ecmwf_ifs025', 'icon_seamless', 'gem_seamless'],
+      rain_radar: true,
+      hours: [
+        { valid_at_local: '2026-09-13T19:00', precip_mm: 0, rain_mm: 0, snowfall_cm: 0, model_precip_mm: 7.6 },
+        ...recent.hours.slice(1),
+      ],
+    }
+    const html = renderPrecip(checked)
+    expect(html).toContain('Radar saw none of the models&#x27; 0.30 in at the crag, last Sun 7pm.')
+    expect(html).toContain('ICON and GEM forecasts, checked against NOAA radar.')
+    // Sunday's storm is gone: no real rain is left in the window.
+    expect(html).not.toContain('Last real rain')
+    expect(renderPrecip(checked, false)).toContain('Radar saw none of the models&#x27; 0.30 in here, last Sun 7pm.')
+    // Without the flag, radar is never named and nothing is said overruled.
+    const plain = renderPrecip({ ...recent, models: checked.models })
+    expect(plain).not.toContain('radar')
+    expect(plain).not.toContain('Radar')
+  })
+
   it('calls unknown precipitation precipitation, never rain', () => {
     const legacy = {
       ...recent,

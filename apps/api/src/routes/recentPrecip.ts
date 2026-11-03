@@ -4,7 +4,8 @@ import { db } from '../db/index.js'
 import { locations } from '../db/schema.js'
 import { isUuid, sendServerError } from '../lib/http.js'
 import { fetchRecentHourlyPrecip } from '../lib/weather/openMeteo.js'
-import { RAIN_MODELS, recentPrecipMedian } from '../lib/weather/rainMedian.js'
+import { RAIN_MODELS, radarCheckedRecent, recentPrecipMedian } from '../lib/weather/rainMedian.js'
+import { loadRadarRain } from '../lib/runs/radarRain.js'
 import { trimToObservedHours } from '../lib/weather/recentPrecipWindow.js'
 import { parseNumericRequired } from '@weatherteam6/types'
 import type { ApiResponse, RecentPrecip } from '@weatherteam6/types'
@@ -32,7 +33,9 @@ const PAST_DAYS = 6
  * (`recentPrecipMedian`), not Open-Meteo's `best_match`. The client never calls
  * Open-Meteo itself — that would bypass `fetchWithRetry` and the
  * `{ data, error, status }` contract both (architecture rule, § External APIs
- * are proxied).
+ * are proxied). **Then checked against stored NOAA radar** (`radarCheckedRecent`,
+ * issue #468), the same check the drying clock's rain goes through, so the tab
+ * never shows a storm the score has ruled out.
  *
  * **Why it is worth a round trip at all:** the conditions score says "climbable
  * in ~10h", and this is the rainfall behind that sentence. Without it the
@@ -72,17 +75,19 @@ recentPrecipRouter.get('/recent-precip/:locationId', async (req: Request, res: R
     }
 
     // `lat`/`lon` are numeric columns and arrive from the driver as strings.
-    const fetched = await fetchRecentHourlyPrecip(
-      parseNumericRequired(location.lat),
-      parseNumericRequired(location.lon),
-      PAST_DAYS,
-      RAIN_MODELS,
-    )
+    const lat = parseNumericRequired(location.lat)
+    const lon = parseNumericRequired(location.lon)
+    // `loadRadarRain` never throws: a failed read is null, and the tab reads
+    // the models' median as it did before radar.
+    const [fetched, radar] = await Promise.all([
+      fetchRecentHourlyPrecip(lat, lon, PAST_DAYS, RAIN_MODELS),
+      loadRadarRain({ lat, lon }),
+    ])
 
     // The fetch reaches a day into the forecast so the current hour is in it;
     // "recent rain" must not include hours that have not happened. See
     // `trimToObservedHours`.
-    const recent: RecentPrecip = trimToObservedHours(recentPrecipMedian(fetched), new Date())
+    const recent: RecentPrecip = trimToObservedHours(radarCheckedRecent(recentPrecipMedian(fetched), radar), new Date())
 
     const response: ApiResponse<RecentPrecip> = { data: recent, error: null, status: 200 }
     res.json(response)

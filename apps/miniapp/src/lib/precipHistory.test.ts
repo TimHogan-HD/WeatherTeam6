@@ -8,6 +8,7 @@ import {
   precipDays,
   precipEvents,
   precipSummary,
+  radarOverrule,
   rockByStamp,
   runningTotal,
 } from './precipHistory.js'
@@ -214,5 +215,30 @@ describe('formatting', () => {
   it('names the location’s own today', () => {
     expect(dayLabel('2026-09-29T13:00', '2026-09-29')).toBe('Today')
     expect(dayLabel('2026-09-28T13:00', '2026-09-29')).toBe('Mon')
+  })
+})
+
+describe('radarOverrule (#468)', () => {
+  const h = (valid_at_local: string, precip_mm: number, model_precip_mm?: number): RecentPrecipHour =>
+    model_precip_mm === undefined ? { valid_at_local, precip_mm } : { valid_at_local, precip_mm, model_precip_mm }
+
+  it('sums the rain radar dried and the rain it added, and names the newest dried hour', () => {
+    const out = radarOverrule([
+      h('2026-11-02T14:00', 0, 3),
+      h('2026-11-02T15:00', 0, 4.6),
+      h('2026-11-02T16:00', 1.2),
+      h('2026-11-03T09:00', 2.5, 1),
+    ])
+    expect(out.removedMm).toBeCloseTo(7.6)
+    expect(out.removedLast).toBe('2026-11-02T15:00')
+    expect(out.addedMm).toBeCloseTo(1.5)
+  })
+
+  it('reads an hour without the models’ figure as untouched: an older API changes nothing', () => {
+    expect(radarOverrule([h('2026-11-02T14:00', 3), h('2026-11-02T15:00', 0)])).toEqual({
+      removedMm: 0,
+      removedLast: null,
+      addedMm: 0,
+    })
   })
 })
