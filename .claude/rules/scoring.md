@@ -109,8 +109,10 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   Any hour of the window without radar (outside the US, not collected yet, the newest three
   or four hours) leaves the median. Only a median-carrying run is checked. `readings.rain_radar`
   is true when radar decided an hour, and the Right now source line then says
-  "checked against NOAA radar". **The Precip tab still draws the median alone**, so on a
-  vetoed shower it can show rain the clock did not count.
+  "checked against NOAA radar". **The Precip tab goes through the same check** (#468,
+  `radarCheckedRecent`), applied to its per-hour median: an hour radar changed carries
+  the median as `model_precip_mm`, the top card says what radar dried or added, and the
+  footnote names radar when `rain_radar` is true.
 - **A good day counts the weather models that say it'll be wet** (owner, 2026-11-02,
   `ReadingsDay.rain_split`, `addRainSplit` in `lib/runs/hourlyReadings.ts`). For a day scored
   `RAIN_SPLIT_MIN_SCORE` (70, owner 2026-11-03) or more, the drying clock runs once per `RAIN_MODELS` model on

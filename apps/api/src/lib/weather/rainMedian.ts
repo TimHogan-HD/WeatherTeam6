@@ -200,3 +200,45 @@ export function radarChecked(
   if (total < MEASURABLE_PRECIP_MM) return { precip_mm: 0, byRadar: true }
   return { precip_mm: Math.max(radarAt(validAtMs)!, median), byRadar: true }
 }
+
+/**
+ * **The Precip tab's record, checked against radar the way the drying clock's
+ * is** (issue #468). Without this the tab drew the models' median alone, so a
+ * storm that passed ten miles off kept its bars and its "Last real rain" while
+ * the score, which radar had already told the rock was dry, read Go.
+ *
+ * Each hour goes through `radarChecked` with the tab's own per-hour median, so
+ * the veto and the "larger of the two" are the clock's rules. The clock applies
+ * them to six-hour means and the tab to single hours (see `recentPrecipMedian`),
+ * so a shower keeps its hour here.
+ *
+ * `valid_at_local` is turned back into the hour's end with the response's one
+ * offset: Open-Meteo stamps a whole response with a single offset
+ * (`shiftLocal`), so this is exact across a clock change. `radar` null (outside
+ * the grid, or the read failed) returns `recent` unchanged, with `rain_radar`
+ * false.
+ *
+ * An hour radar changed carries the median as `model_precip_mm`. A vetoed hour
+ * reads 0 throughout, its kind included; an hour radar raised keeps the
+ * median's rain and snow, which say only what kind fell.
+ */
+export function radarCheckedRecent(
+  recent: RecentPrecip,
+  radar: ReadonlyMap<number, number | null> | null,
+): RecentPrecip {
+  if (radar === null) return { ...recent, rain_radar: false }
+  const offsetMs = (Number.isFinite(recent.utc_offset_seconds) ? recent.utc_offset_seconds : 0) * 1000
+  const radarAt = (ms: number) => radar.get(ms)
+  let byRadar = false
+  const hours = recent.hours.map((h): RecentPrecipHour => {
+    const endMs = Date.parse(`${h.valid_at_local}:00Z`) - offsetMs
+    if (!Number.isFinite(endMs)) return h
+    const checked = radarChecked(h.precip_mm, endMs, radarAt)
+    byRadar ||= checked.byRadar
+    const mm = checked.precip_mm
+    if (!checked.byRadar || mm === null || mm === h.precip_mm) return h
+    if (mm === 0) return { ...h, precip_mm: 0, rain_mm: 0, snowfall_cm: 0, model_precip_mm: h.precip_mm }
+    return { ...h, precip_mm: mm, model_precip_mm: h.precip_mm }
+  })
+  return { ...recent, hours, rain_radar: byRadar }
+}
