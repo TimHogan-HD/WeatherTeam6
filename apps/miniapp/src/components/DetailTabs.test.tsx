@@ -412,7 +412,7 @@ describe('DetailView — the Overview tab', () => {
     },
   }
 
-  // DAY_2 (91) has two of four weather models wet; DAY_3 (44) has three, but scores under 80.
+  // DAY_2 (91) has two of four weather models wet; DAY_3 (44) has three, but scores under 70.
   const withSplits: HourlySeries = {
     ...withReadings,
     readings: {

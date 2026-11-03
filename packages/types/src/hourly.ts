@@ -340,8 +340,9 @@ export type ReadingsDay = {
    * and two without read as dry. This runs the clock once per model, on that
    * model's own rain from today on, and counts the models whose day reads the
    * rock not dry; `models` is how many gave the day a score. Measured in
-   * `compare:rain-spread`: a day scored 80 or more with two models wet was wet
-   * on the gauges about half the time.
+   * `compare:rain-spread`: a day scored 70 or more with two or more models wet
+   * was wet on the gauges six or seven times in ten on sandstone and limestone,
+   * against about one in ten with fewer.
    *
    * Null when fewer than three models gave a score, or the day's own score is
    * under `RAIN_SPLIT_MIN_SCORE`. **Absent when the response did not ask**
@@ -353,8 +354,13 @@ export type ReadingsDay = {
 /** `ReadingsDay.rain_split`: weather models whose own forecast leaves the rock wet, of those read. */
 export type RainSplit = { wet: number; models: number };
 
-/** A day scored at least this high carries `rain_split`: the good days a split forecast can spoil. */
-export const RAIN_SPLIT_MIN_SCORE = 80;
+/**
+ * A day scored at least this high carries `rain_split`: the days a split
+ * forecast can spoil. 70, not 80 (owner, 2026-11-03): `compare:rain-spread`'s
+ * band run found the dots as telling at 70-79 as at 80-89; at 60-69 they land
+ * on most sandstone days and stop picking any out.
+ */
+export const RAIN_SPLIT_MIN_SCORE = 70;
 
 /**
  * Why no reading could be produced. **Null when readings are present.**

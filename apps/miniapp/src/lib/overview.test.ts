@@ -388,13 +388,14 @@ describe('rainSplitShown', () => {
     { local_date: '2026-09-22', window: null, best: reading('2026-09-22T15:00:00Z', { score }), ...(rain_split === undefined ? {} : { rain_split }) },
   ]
 
-  it('shows two or more wet models on a day scored 80 or more', () => {
-    expect(rainSplitShown(at(80, { wet: 2, models: 4 }), '2026-09-22')).toEqual({ wet: 2, models: 4 })
+  it('shows two or more wet models on a day scored 70 or more', () => {
+    expect(rainSplitShown(at(70, { wet: 2, models: 4 }), '2026-09-22')).toEqual({ wet: 2, models: 4 })
+    expect(rainSplitShown(at(79, { wet: 2, models: 4 }), '2026-09-22')).toEqual({ wet: 2, models: 4 })
     expect(rainSplitShown(at(100, { wet: 2, models: 3 }), '2026-09-22')).toEqual({ wet: 2, models: 3 })
   })
 
-  it('stays quiet under 80, with one wet model, and for a field an older API never sent', () => {
-    expect(rainSplitShown(at(79, { wet: 4, models: 4 }), '2026-09-22')).toBeNull()
+  it('stays quiet under 70, with one wet model, and for a field an older API never sent', () => {
+    expect(rainSplitShown(at(69, { wet: 4, models: 4 }), '2026-09-22')).toBeNull()
     expect(rainSplitShown(at(95, { wet: 1, models: 4 }), '2026-09-22')).toBeNull()
     expect(rainSplitShown(at(95, null), '2026-09-22')).toBeNull()
     expect(rainSplitShown(at(95), '2026-09-22')).toBeNull()

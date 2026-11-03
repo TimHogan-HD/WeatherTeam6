@@ -584,7 +584,7 @@ describe('rain_split', () => {
     expect(day(out, '2026-09-21')!.rain_split).toEqual({ wet: 0, models: 4 })
   })
 
-  it('is null on a day the median itself scores under 80', () => {
+  it('is null on a day the median itself scores under RAIN_SPLIT_MIN_SCORE (70)', () => {
     const wetMedian = model(
       THERMAL_MODEL,
       runHours(120, 48).map((h) => (h.valid_at.toISOString().startsWith('2026-09-22T0') ? { ...h, rain_median_mm: 8 } : h)),
@@ -594,7 +594,7 @@ describe('rain_split', () => {
       input({ rainSplit: true, rockType: 'sandstone', deterministic: deterministic([wetMedian, other('ecmwf_ifs025', true), other('icon_seamless', true), other('gem_seamless', true)]) }),
     )
     const d = day(out, '2026-09-22')!
-    expect(d.best?.score ?? 0).toBeLessThan(80)
+    expect(d.best?.score ?? 0).toBeLessThan(70)
     expect(d.rain_split).toBeNull()
   })
 })
