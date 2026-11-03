@@ -16,6 +16,7 @@ import {
   type TripTrendPoint,
 } from '@weatherteam6/types'
 import type { DayReadings } from './overview.js'
+import type { TripDraft } from './tripDraft.js'
 
 /**
  * The Trips tab's logic, apart from its markup. Pure, so each rule is reachable
@@ -406,6 +407,38 @@ export function dayTrendSpan(days: readonly TripDayTrend[]): { first: string | n
 export function tripIsOver(trip: Pick<Trip, 'endDate'>, today: string): boolean {
   const toEnd = daysBetween(today, trip.endDate)
   return toEnd !== null && toEnd < 0
+}
+
+/**
+ * The Trips list in two parts: trips still to come or underway, in the API's
+ * order (soonest first), and ended trips, the most recently ended first. An
+ * ended trip is kept, never archived or hidden for good: its summary is the
+ * only record of how the forecast did, so the list folds it away instead.
+ */
+export function splitTrips<T extends Pick<Trip, 'startDate' | 'endDate'>>(
+  trips: readonly T[],
+  today: string,
+): { coming: T[]; past: T[] } {
+  const coming = trips.filter((t) => !tripIsOver(t, today))
+  const past = trips
+    .filter((t) => tripIsOver(t, today))
+    .sort((a, b) => (a.endDate === b.endDate ? b.startDate.localeCompare(a.startDate) : b.endDate.localeCompare(a.endDate)))
+  return { coming, past }
+}
+
+/**
+ * A new trip's form filled from an old one: its name, crags and climbing
+ * hours, with no dates, so the form asks for them rather than reusing a past
+ * pair. An older API sends no `climbHours`, which reads as Profile hours.
+ */
+export function planAgainDraft(trip: Pick<Trip, 'name' | 'locations' | 'climbHours'>): TripDraft {
+  return {
+    name: trip.name,
+    start: '',
+    end: '',
+    locationIds: (trip.locations ?? []).map((l) => l.locationId),
+    climbHours: trip.climbHours ?? null,
+  }
 }
 
 /** `On the day`, `1 day out`, `5 days out`. */

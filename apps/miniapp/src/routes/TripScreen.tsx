@@ -24,9 +24,18 @@ import { alertsQuery } from '../hooks/useWeather.js'
 import { AlertBanner } from '../components/Alerts.js'
 import { useLocations } from '../hooks/useLocations.js'
 import { forgetTrip, useDeleteTrip, useTrip, useTripForecast, useTripSummary, useTripTrend } from '../hooks/useTrips.js'
-import { backTarget, editTripPath, tripCragPath } from '../lib/backTarget.js'
+import { NEW_TRIP_PATH, backTarget, editTripPath, tripCragPath } from '../lib/backTarget.js'
 import type { DayReadings } from '../lib/overview.js'
-import { cragCount, deviceToday, formatTripDates, tripDates, tripIsOver, tripTiming, type TrendSeries } from '../lib/trips.js'
+import {
+  cragCount,
+  deviceToday,
+  formatTripDates,
+  planAgainDraft,
+  tripDates,
+  tripIsOver,
+  tripTiming,
+  type TrendSeries,
+} from '../lib/trips.js'
 
 /**
  * What a day's score is read from at one crag, or `null` when there is nothing
@@ -221,7 +230,17 @@ export function TripScreen() {
                 agreement
               />
             )}
-            <div style={{ ...row(spacing.sectionGap), justifyContent: 'space-between' }}>
+            <div style={{ ...row(spacing.sectionGap), justifyContent: 'space-between', flexWrap: 'wrap' }}>
+              {over ? (
+                // A new trip with this one's crags and hours, dates left to pick.
+                <button
+                  type="button"
+                  style={{ ...tripAction, color: colorsV2.brandInk }}
+                  onClick={() => void navigate(NEW_TRIP_PATH, { state: { tripDraft: planAgainDraft(t) } })}
+                >
+                  Plan again
+                </button>
+              ) : null}
               <button
                 type="button"
                 style={{ ...tripAction, color: colorsV2.brandInk }}

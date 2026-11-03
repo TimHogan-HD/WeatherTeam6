@@ -342,8 +342,9 @@ textarea {
   transform: scale(var(--wt6-press-scale));
 }
 
-/* The Overview's Score breakdown (`OverviewTab.tsx`): no native marker, a
-   chevron that turns down when it opens. */
+/* The Overview's Score breakdown (`OverviewTab.tsx`) and the Trips list's
+   Past trips (`Trips.tsx`): no native marker, a chevron that turns down when
+   it opens. */
 .wt6-why > summary {
   list-style: none;
 }

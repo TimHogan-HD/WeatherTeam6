@@ -77,6 +77,12 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   the model's analysis, not observations, and the screen says so once
   (`LOOK_BACK_SOURCE`). A past day's score is withheld unless every daytime hour's rock is
   known by the `rock_history` rule, so the walk's starting guess never scores a day.
+- **Ended trips are kept, folded away, not deleted** (owner, 2026-11-03). `/trips` lists
+  coming and underway trips in the API's order and ended ones under a closed `Past trips (n)`,
+  latest end first (`splitTrips`, `lib/trips.ts`); the split is client-side, on `tripIsOver`.
+  Deleting a trip loses its look-back, so the list never nudges toward it. **Plan again**
+  (`planAgainDraft`) opens `/trips/new` with the old trip's name, crags and hours through the
+  form's `tripDraft` router state, dates empty, so a past pair is never reused by default.
 - **The trip screen joins two sources on `local_date`, one per figure** (`lib/trips.ts`,
   `tripDayTiles`): score, Dryness and Friction from the crag's `/hourly` readings through
   `summarizeReadings`, as everywhere (no alert withholds the number, owner, 2026-10-29);

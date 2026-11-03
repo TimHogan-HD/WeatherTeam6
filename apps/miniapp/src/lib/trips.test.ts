@@ -10,8 +10,10 @@ import {
   formatTripDates,
   highChangeChip,
   outlookState,
+  planAgainDraft,
   rainChangeChip,
   readingWords,
+  splitTrips,
   tripDates,
   tripDayTiles,
   tripTiming,
@@ -258,5 +260,79 @@ describe('the by-day trend', () => {
     expect(hasDayTrend(null)).toBe(false)
     expect(hasDayTrend([day('2026-10-16', null, null)])).toBe(false)
     expect(hasDayTrend([day('2026-10-16', null, at('2026-10-13T12:00:00Z', 0, 10))])).toBe(true)
+  })
+})
+
+describe('splitTrips', () => {
+  const trip = (id: string, startDate: string, endDate: string) => ({ id, startDate, endDate })
+  const today = '2026-11-03'
+
+  it('keeps coming and underway trips in the API order and puts ended ones apart', () => {
+    const { coming, past } = splitTrips(
+      [
+        trip('old', '2026-09-01', '2026-09-03'),
+        trip('underway', '2026-11-02', '2026-11-04'),
+        trip('ends-today', '2026-11-01', '2026-11-03'),
+        trip('next', '2026-11-20', '2026-11-22'),
+      ],
+      today,
+    )
+    expect(coming.map((t) => t.id)).toEqual(['underway', 'ends-today', 'next'])
+    expect(past.map((t) => t.id)).toEqual(['old'])
+  })
+
+  it('lists ended trips by the day they ended, latest first, whatever the API order', () => {
+    const { past } = splitTrips(
+      [
+        trip('sept', '2026-09-01', '2026-09-03'),
+        // Started earlier but ended later than 'oct-short': ordered by its end.
+        trip('long', '2026-09-20', '2026-10-30'),
+        trip('oct-short', '2026-10-10', '2026-10-11'),
+        trip('yesterday', '2026-11-02', '2026-11-02'),
+      ],
+      today,
+    )
+    expect(past.map((t) => t.id)).toEqual(['yesterday', 'long', 'oct-short', 'sept'])
+  })
+
+  it('breaks a tie on the end day by the later start', () => {
+    const { past } = splitTrips(
+      [trip('three-day', '2026-10-08', '2026-10-10'), trip('one-day', '2026-10-10', '2026-10-10')],
+      today,
+    )
+    expect(past.map((t) => t.id)).toEqual(['one-day', 'three-day'])
+  })
+
+  it('does not reorder the array it was given', () => {
+    const input = [trip('a', '2026-09-01', '2026-09-02'), trip('b', '2026-10-01', '2026-10-02')]
+    splitTrips(input, today)
+    expect(input.map((t) => t.id)).toEqual(['a', 'b'])
+  })
+})
+
+describe('planAgainDraft', () => {
+  it('takes the name, crags and hours and leaves the dates to pick', () => {
+    const draft = planAgainDraft({
+      name: 'Red Wing weekend',
+      locations: [
+        { id: '1', tripId: 't', locationId: 'a', createdAt: '2026-10-01T00:00:00Z' },
+        { id: '2', tripId: 't', locationId: 'b', createdAt: '2026-10-01T00:00:00Z' },
+      ],
+      climbHours: { first: 9, last: 16 },
+    })
+    expect(draft).toEqual({
+      name: 'Red Wing weekend',
+      start: '',
+      end: '',
+      locationIds: ['a', 'b'],
+      climbHours: { first: 9, last: 16 },
+    })
+  })
+
+  it('reads an older API without climbHours or locations as Profile hours and no crags', () => {
+    // What an older API sends: neither field, though the type says `climbHours` is always there.
+    const draft = planAgainDraft({ name: 'Old trip' } as Parameters<typeof planAgainDraft>[0])
+    expect(draft.climbHours).toBeNull()
+    expect(draft.locationIds).toEqual([])
   })
 })
