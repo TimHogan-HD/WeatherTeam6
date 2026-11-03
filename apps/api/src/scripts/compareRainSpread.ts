@@ -74,6 +74,18 @@
  * alone. The four models'
  * share stays the bigger lever; AIFS adds caution, not skill. Its ensemble,
  * which might differ, cannot be scored here.
+ *
+ * **Bands run (2026-11-02, same stations and window): where the Next days dots
+ * should start (`RAIN_SPLIT_MIN_SCORE`, 80 at the time).** Leads 1-6 pooled. In
+ * every band from 60 up, days with 2+ models' clocks not dry were wet far more
+ * often than days with 0-1: sandstone 58-71% against 2-20%, limestone 59-66%
+ * against 8-15%, carbonate_cherty 43-54% against 5-9%, quartzite 26-40%
+ * against 2-4% (its 2+ rows are 26-43 days). 70-79 is as telling as 80-89:
+ * sandstone 69.5% against 11.4%, limestone 66.3% against 8.3%. The cost of
+ * going lower is how many days carry dots: at 70-79, 54% of sandstone days and
+ * 36% of limestone; at 60-69, 76% and 48%, where the dots stop picking days out.
+ * Raising the start to 90 would drop dots from 80-89 days that came out wet
+ * 43-65% of the time (quartzite 27%).
  */
 import type { RockType } from '@weatherteam6/types'
 import { dayRepresentative, evaluateCragA, rockLevelA } from '../lib/scoring/cragModel.js'
@@ -140,6 +152,11 @@ const blank = (): Tally => ({ n: 0, absErr: 0, bias: 0, brier: 0, called: 0, cal
 
 /** Shipped score ≥ GOOD, split by how many models' own clocks said not dry: [days, not-dry days, days below BAD]. */
 const split = new Map<string, [number, number, number]>()
+
+/** The shipped score's bands, for where the app's dots should start (`RAIN_SPLIT_MIN_SCORE`). */
+const BANDS = [90, 80, 70, 60] as const
+/** Per rock and band, all leads pooled: [days, not dry] for days 0-1 models wet, then 2 or more (the dots). */
+const bandSplit = new Map<string, [number, number, number, number]>()
 
 function tally(key: string, f: Forecast, truth: Day): void {
   const t = tallies.get(key) ?? blank()
@@ -240,6 +257,14 @@ async function run(): Promise<void> {
               const s = split.get(k) ?? [0, 0, 0]
               split.set(k, [s[0] + 1, s[1] + (t.dry ? 0 : 1), s[2] + (t.score < BAD ? 1 : 0)])
             }
+            const band = BANDS.find((b) => m.score >= b)
+            if (band !== undefined) {
+              const k = `${rock}|${band}`
+              const b = bandSplit.get(k) ?? [0, 0, 0, 0]
+              const dotted = each.filter((d) => !d!.dry).length >= 2
+              const wet = t.dry ? 0 : 1
+              bandSplit.set(k, dotted ? [b[0], b[1], b[2] + 1, b[3] + wet] : [b[0] + 1, b[1] + wet, b[2], b[3]])
+            }
             if (rock === 'sandstone' && lead === 1 && !t.dry) wetDays++
           }
         }
@@ -277,6 +302,16 @@ async function run(): Promise<void> {
         return `${String(n).padStart(11)}${pct(wet, n).slice(-6)}${pct(bad, n).slice(-5)}`
       })
       console.log(`    lead ${lead} d    ${cells.join('')}`)
+    }
+  }
+
+  console.log(`\n=== by the shipped score's band, leads 1-${LEADS[LEADS.length - 1]} pooled: days with 0-1 models' clocks not dry, then 2 or more (the app's dots) ===`)
+  for (const rock of ROCKS) {
+    console.log(`\n  ${rock.padEnd(18)}${'0-1 wet: days'.padStart(15)}${'wet%'.padStart(7)}${'2+ wet: days'.padStart(15)}${'wet%'.padStart(7)}${'dotted%'.padStart(9)}`)
+    for (const band of BANDS) {
+      const [n0, w0, n2, w2] = bandSplit.get(`${rock}|${band}`) ?? [0, 0, 0, 0]
+      const label = band === 90 ? '90-100' : `${band}-${band + 9}`
+      console.log(`    ${label.padEnd(16)}${String(n0).padStart(15)}${pct(w0, n0).slice(-7)}${String(n2).padStart(15)}${pct(w2, n2).slice(-7)}${pct(n2, n0 + n2).slice(-9)}`)
     }
   }
   console.log('')
