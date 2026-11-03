@@ -31,11 +31,12 @@ import { useCreateTrip, useTrip, useTrips, useUpdateTrip } from '../hooks/useTri
 import { useLocations } from '../hooks/useLocations.js'
 import { NEW_TRIP_PATH, backTarget, editTripPath, tripPath } from '../lib/backTarget.js'
 import { tripDraftFromState, type ForTrip, type TripDraft } from '../lib/tripDraft.js'
-import { cragCount, dateLabel, deviceToday, forecastOpens, formatTripDates, tripTiming } from '../lib/trips.js'
+import { cragCount, dateLabel, deviceToday, forecastOpens, formatTripDates, splitTrips, tripTiming } from '../lib/trips.js'
 
 /**
- * `/trips`: every trip, soonest first, as the API orders them — the hybrid
- * mockup's title and a glass card per trip (Phase 4b).
+ * `/trips`: coming trips soonest first, as the API orders them, then ended
+ * trips folded away (`TripSections`) — the hybrid mockup's title and a glass
+ * card per trip (Phase 4b).
  */
 export function TripList() {
   const navigate = useNavigate()
@@ -68,12 +69,67 @@ export function TripList() {
             }
           />
         ) : (
-          trips.data.map((trip) => (
-            <TripCard key={trip.id} trip={trip} today={today} onOpen={() => void navigate(tripPath(trip.id))} />
-          ))
+          <TripSections trips={trips.data} today={today} onNew={openNew} onOpen={(id) => void navigate(tripPath(id))} />
         )}
       </div>
     </main>
+  )
+}
+
+/**
+ * Coming trips first, then ended ones folded under `Past trips (n)`, most
+ * recently ended first (`splitTrips`). Ended trips are kept: their summary is
+ * the record of how the forecast did.
+ */
+export function TripSections({
+  trips,
+  today,
+  onNew,
+  onOpen,
+}: {
+  trips: readonly Trip[]
+  today: string
+  onNew: () => void
+  onOpen: (id: string) => void
+}) {
+  const { coming, past } = splitTrips(trips, today)
+  return (
+    <>
+      {coming.length === 0 ? (
+        <EmptyState
+          title="No trips coming up."
+          action={
+            <button type="button" style={{ ...brandButton, width: '100%' }} onClick={onNew}>
+              Plan a trip
+            </button>
+          }
+        />
+      ) : (
+        coming.map((trip) => <TripCard key={trip.id} trip={trip} today={today} onOpen={() => onOpen(trip.id)} />)
+      )}
+      {past.length === 0 ? null : (
+        <details className="wt6-why" style={{ marginTop: `${spacing.listGap}px` }}>
+          <summary
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              minHeight: '44px',
+              cursor: 'pointer',
+              ...typeV2.lineLabel,
+            }}
+          >
+            <span>Past trips ({past.length})</span>
+            <span style={{ ...typeV2.rowSmall, color: colorsV2.txtMuted, marginLeft: 'auto' }}>Latest first</span>
+          </summary>
+          <div style={{ ...stack(spacing.listGapLg), marginTop: `${spacing.listGapSm}px` }}>
+            {past.map((trip) => (
+              <TripCard key={trip.id} trip={trip} today={today} onOpen={() => onOpen(trip.id)} />
+            ))}
+          </div>
+        </details>
+      )}
+    </>
   )
 }
 
