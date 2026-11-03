@@ -1031,6 +1031,14 @@ const DETERMINISTIC_HOURLY_VARS = [
    * is a gap to withhold a reading for, never a zero — 0 W/m² is midnight.
    */
   'shortwave_radiation',
+  /**
+   * Seconds of the **preceding** hour with direct sun of at least 120 W/m² (the
+   * WMO definition, so "bright enough to cast a shadow"). Open-Meteo derives it
+   * from each model's own radiation; every model in `DETERMINISTIC_MODELS` and
+   * the ensemble endpoint answered it, probed 2026-11-03. It shares the
+   * shortwave horizon, so NBM and HRRR stop early and their tail is a gap.
+   */
+  'sunshine_duration',
 ] as const
 
 /** One hour of one model's deterministic output. Every field is nullable on purpose. */
@@ -1059,6 +1067,11 @@ export type HourlyPoint = {
    * aspect in `docs/handoffs/weatherteam6-scoring-model-handoff-v1.md`.
    */
   shortwave_wm2: number | null
+  /**
+   * Seconds of bright sun in the hour before the stamp, 0–3600. **0 is a
+   * measured dull or dark hour; null is no answer.**
+   */
+  sunshine_s: number | null
 }
 
 export type ModelHourly = {
@@ -1154,6 +1167,7 @@ function hoursForModel(
   const pop = col('precipitation_probability')
   const pressure = col('surface_pressure')
   const shortwave = col('shortwave_radiation')
+  const sunshine = col('sunshine_duration')
 
   const out: HourlyPoint[] = []
   for (let i = 0; i < times.length; i++) {
@@ -1176,6 +1190,7 @@ function hoursForModel(
       precip_prob_pct: pop[i] ?? null,
       pressure_hpa: pressure[i] ?? null,
       shortwave_wm2: shortwave[i] ?? null,
+      sunshine_s: sunshine[i] ?? null,
     })
   }
   return out

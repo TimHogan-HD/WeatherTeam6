@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { cToF } from '@weatherteam6/types'
-import { IDEAL_TEMP_C, tempColor } from './chartStyle.js'
+import { colorsV2 } from '@weatherteam6/design/tokens'
+import { IDEAL_TEMP_C, chartColorsV2, tempColor } from './chartStyle.js'
 
 /**
  * The temperature ramp is **continuous**, so the properties worth asserting are
@@ -83,5 +84,42 @@ describe('tempColor', () => {
 
   it('answers a non-finite temperature with the no-data colour, never a real one', () => {
     expect(tempColor(Number.NaN)).not.toMatch(/^rgb\(/)
+  })
+})
+
+describe('Sun card contrast (measured 2026-11-03, on the card colour)', () => {
+  const rgba = (css: string): [number, number, number, number] => {
+    const m = /rgba?\((\d+),(\d+),(\d+)(?:,([\d.]+))?\)/.exec(css)
+    if (m === null) throw new Error(`not an rgb()/rgba() colour: ${css}`)
+    return [Number(m[1]), Number(m[2]), Number(m[3]), m[4] === undefined ? 1 : Number(m[4])]
+  }
+  const hex = (h: string): [number, number, number] => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) as [number, number, number]
+  const lin = (c: number) => {
+    const v = c / 255
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+  }
+  const lum = ([r, g, b]: readonly number[]) => 0.2126 * lin(r!) + 0.7152 * lin(g!) + 0.0722 * lin(b!)
+  const ratio = (a: readonly number[], b: readonly number[]) => {
+    const [x, y] = [lum(a), lum(b)]
+    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)
+  }
+  const card = hex(colorsV2.card)
+  const over = (css: string) => {
+    const [r, g, b, a] = rgba(css)
+    return [r, g, b].map((c, i) => c * a + card[i]! * (1 - a))
+  }
+  const sun = hex(colorsV2.sun)
+
+  it('keeps the sun bars far above 3:1, on the card and on the brightest cloud behind them', () => {
+    expect(ratio(sun, card)).toBeGreaterThan(12)
+    expect(ratio(sun, over(chartColorsV2.sunCloudRead))).toBeGreaterThan(5)
+  })
+
+  it('draws the cloud faded on purpose: under 3:1, with the read hour clearly brighter', () => {
+    // A backdrop, not the figure: the readout prints the exact % as text. Faded 1.47:1, read 2.28:1.
+    const faded = ratio(over(chartColorsV2.sunCloud), card)
+    const lit = ratio(over(chartColorsV2.sunCloudRead), card)
+    expect(faded).toBeGreaterThan(1.4)
+    expect(lit).toBeGreaterThan(faded + 0.6)
   })
 })

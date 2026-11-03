@@ -148,6 +148,7 @@ async function run(): Promise<void> {
              * which never opens a connection.
              */
             shortwave_wm2: i === 0 ? 0 : i === 1 ? 512.5 : null,
+            sunshine_s: i === 0 ? 0 : i === 1 ? 1800 : null,
           })),
         },
       ],
@@ -199,6 +200,11 @@ async function run(): Promise<void> {
       `got ${String(hours[2]?.shortwave_wm2)}`,
     )
     check(
+      'sunshine 0 — a dull hour — reads back as 0, and a gap as null',
+      hours[0]?.sunshine_s === 0 && hours[1]?.sunshine_s === 1800 && hours[2]?.sunshine_s === null,
+      `got ${String(hours[0]?.sunshine_s)}, ${String(hours[1]?.sunshine_s)}, ${String(hours[2]?.sunshine_s)}`,
+    )
+    check(
       'valid_at was shifted out of local time by the offset',
       hours[0]?.valid_at.toISOString() === '2026-09-01T07:00:00.000Z',
       `got ${String(hours[0]?.valid_at.toISOString())}`,
@@ -232,6 +238,7 @@ async function run(): Promise<void> {
             // The retry carries a *different* shortwave for the same hours, so
             // the upsert is checked to overwrite rather than keep the first value.
             shortwave_wm2: i === 0 ? 0 : i === 1 ? 640 : null,
+            sunshine_s: null,
           })),
         },
       ],
@@ -418,6 +425,7 @@ async function run(): Promise<void> {
               precip_prob_pct: null,
               pressure_hpa: null,
               shortwave_wm2: null,
+              sunshine_s: null,
             },
           ],
         },
@@ -642,6 +650,7 @@ function emptyHour(valid_at_local: string) {
     precip_prob_pct: null as number | null,
     pressure_hpa: null as number | null,
     shortwave_wm2: null as number | null,
+    sunshine_s: null as number | null,
   }
 }
 

@@ -108,6 +108,7 @@ async function storeOneModel(
       // is. It is also why this column is added here rather than left out: an
       // hour Open-Meteo answers with shortwave alone is a measured hour.
       h.shortwave_wm2,
+      h.sunshine_s,
     ]
     if (!hasAnyValue(values)) continue
 
@@ -124,6 +125,7 @@ async function storeOneModel(
       precip_prob_pct: h.precip_prob_pct,
       pressure_hpa: h.pressure_hpa,
       shortwave_wm2: h.shortwave_wm2,
+      sunshine_s: h.sunshine_s,
       rain_median_mm: rain?.byLocal.get(h.valid_at_local) ?? null,
     })
   }
@@ -159,6 +161,7 @@ async function storeOneModel(
             precip_prob_pct: sqlExcluded('precip_prob_pct'),
             pressure_hpa: sqlExcluded('pressure_hpa'),
             shortwave_wm2: sqlExcluded('shortwave_wm2'),
+            sunshine_s: sqlExcluded('sunshine_s'),
             rain_median_mm: sqlExcluded('rain_median_mm'),
           },
         })

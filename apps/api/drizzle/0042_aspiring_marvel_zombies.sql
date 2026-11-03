@@ -1,0 +1,1 @@
+ALTER TABLE "weather_run_hours" ADD COLUMN "sunshine_s" double precision;

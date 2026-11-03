@@ -9,6 +9,7 @@ import {
   type HourlySample,
   type ReadingsDay,
 } from '@weatherteam6/types'
+import type { SkyDay } from '@weatherteam6/types'
 import type { DayReadings } from '../lib/overview.js'
 import { DailyList, dailyFoot, dayHeading, dayRainChance } from './DailyList.js'
 
@@ -263,6 +264,8 @@ describe('dayRainChance', () => {
   })
 })
 
+const NO_SUN = { sun_min: null, sun_windows: null, sun_by_model: [] }
+
 describe('DailyList — sky', () => {
   it('draws a sky only for days the response has one for, joined on the date', () => {
     const html = render(
@@ -271,12 +274,43 @@ describe('DailyList — sky', () => {
         readings={null}
         hours={[]}
         sky={[
-          { local_date: '2026-09-30', summary: 'cloudy' },
-          { local_date: DATES[1], summary: 'sunny' },
-          { local_date: DATES[0], summary: null },
+          { local_date: '2026-09-30', summary: 'cloudy', ...NO_SUN },
+          { local_date: DATES[1], summary: 'sunny', ...NO_SUN },
+          { local_date: DATES[0], summary: null, ...NO_SUN },
         ]}
       />,
     )
     expect(html.match(/<svg/g)?.length ?? 0).toBe(1)
+  })
+})
+
+describe('DailyList — sun line', () => {
+  const sunDay = (local_date: string, sun: Partial<SkyDay>): SkyDay => ({ local_date, summary: null, ...NO_SUN, ...sun })
+  const line = (html: string) => /data-sun-line="(\w+)"[^>]*>([^<]*)</.exec(html)
+
+  it('says the day’s sun in the sun colour, under the figures', () => {
+    const html = render(
+      <DailyList days={[day(DATES[0])]} readings={null} hours={[]} sky={[sunDay(DATES[0], { sun_min: 480, sun_windows: [{ start_hour: 8, end_hour: 16 }] })]} />,
+    )
+    expect(line(html)?.slice(1)).toEqual(['sunny', 'Sun 8a–4p · 8 h'])
+    expect(html).toContain('Sun is the hours of bright sunshine.')
+  })
+
+  it('prints a gap mark for an unanswered day, never "No sun"', () => {
+    const html = render(<DailyList days={[day(DATES[0])]} readings={null} hours={[]} sky={[sunDay(DATES[0], {})]} />)
+    expect(line(html)?.slice(1)).toEqual(['gap', 'Sun —'])
+    expect(html).not.toContain('No sun')
+  })
+
+  it('reads a measured dull day as "No sun", in the ordinary ink', () => {
+    const html = render(<DailyList days={[day(DATES[0])]} readings={null} hours={[]} sky={[sunDay(DATES[0], { sun_min: 0, sun_windows: [] })]} />)
+    expect(line(html)?.slice(1)).toEqual(['dull', 'No sun'])
+  })
+
+  it('shows no sun line, and no sun footnote, for an older API’s sky day without sun fields', () => {
+    const old = { local_date: DATES[0], summary: 'sunny' } as unknown as SkyDay
+    const html = render(<DailyList days={[day(DATES[0])]} readings={null} hours={[]} sky={[old]} />)
+    expect(html).not.toContain('data-sun-line')
+    expect(html).not.toContain('bright sunshine')
   })
 })

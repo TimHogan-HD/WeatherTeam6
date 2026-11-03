@@ -5,6 +5,7 @@ import {
   formatPrecipIn,
   formatWindMph,
   skyDayIcon,
+  sunDayLine,
   type ForecastSnapshot,
   type HourlySample,
   type SkyDay,
@@ -56,10 +57,14 @@ const FOOT_SCORE =
   'A day score is the worst hour of the best three-hour run inside your climbing hours (8 AM to 6 PM unless you change them on Profile); today counts only hours still ahead.'
 const FOOT_FIGURES = 'Chance of rain is the highest hourly share of wet ensemble members. Rain is the median daily amount.'
 const FOOT_TAP = 'Tap a day for its hours.'
+const FOOT_SUN = 'Sun is the hours of bright sunshine.'
 
-/** The note under the rows: the score's rule only where scores show, and "tap" only where a row opens. */
-export function dailyFoot(scored: boolean, tappable: boolean): string {
-  return [scored ? FOOT_SCORE : null, FOOT_FIGURES, tappable ? FOOT_TAP : null]
+/**
+ * The note under the rows: the score's rule only where scores show, the sun
+ * line's meaning only where one shows, and "tap" only where a row opens.
+ */
+export function dailyFoot(scored: boolean, tappable: boolean, sun = false): string {
+  return [scored ? FOOT_SCORE : null, FOOT_FIGURES, sun ? FOOT_SUN : null, tappable ? FOOT_TAP : null]
     .filter((s) => s !== null)
     .join(' ')
 }
@@ -109,6 +114,8 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
   // Joined on the date inside `scoredDays`, never on position.
   const scored = new Map(scoredDays(rows, readings).map((d) => [d.local_date, d]))
   const skyByDate = new Map(sky.map((d) => [d.local_date, d.summary]))
+  // An older API's sky days carry no sun fields: those rows show no sun line rather than a gap mark.
+  const sunByDate = new Map(sky.filter((d) => d.sun_windows !== undefined).map((d) => [d.local_date, sunDayLine(d)]))
   const todayDate = findToday(rows)?.forecast_date ?? ''
 
   // One scale for the week, so a bar's place says how warm the day is against the others.
@@ -125,6 +132,7 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
           if (d === undefined) return null
           const open = onSelectDay !== undefined && drawableDates?.has(day.forecast_date) === true ? () => onSelectDay(day.forecast_date) : null
           const summary = skyByDate.get(day.forecast_date) ?? null
+          const sun = sunByDate.get(day.forecast_date) ?? null
           const chance = dayRainChance(hours, day.forecast_date)
           const { name, date } = dayHeading(day.forecast_date, todayDate)
           // The mockup's `best 11a–2p · Dry · 0 in · peak wind 20 mph`. "good", not "best": the
@@ -179,9 +187,22 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
               </span>
               <span style={{ ...typeV2.dayChance, textAlign: 'right' }}>{chance === null ? EM_DASH : `${chance}%`}</span>
               <span style={{ ...typeV2.daySub, gridColumn: '2 / -1' }}>{sub.join(' · ')}</span>
+              {sun === null ? null : (
+                <span
+                  data-sun-line={sun.gap ? 'gap' : sun.sunny ? 'sunny' : 'dull'}
+                  style={{
+                    ...typeV2.daySub,
+                    gridColumn: '2 / -1',
+                    marginTop: '-4px',
+                    ...(sun.sunny ? { color: colorsV2.sun, fontWeight: 600 } : {}),
+                  }}
+                >
+                  {sun.text}
+                </span>
+              )}
             </>
           )
-          const spoken = `${[name, date].filter((s) => s !== '').join(' ')}: ${d.score === null ? 'no score' : `score ${d.score}`}, low ${formatTempDeg(day.temp_c_min)}, high ${formatTempDeg(day.temp_c_max)}, ${chance === null ? 'chance of rain unknown' : `${chance}% chance of rain`}`
+          const spoken = `${[name, date].filter((s) => s !== '').join(' ')}: ${d.score === null ? 'no score' : `score ${d.score}`}, low ${formatTempDeg(day.temp_c_min)}, high ${formatTempDeg(day.temp_c_max)}, ${chance === null ? 'chance of rain unknown' : `${chance}% chance of rain`}${sun === null ? '' : sun.gap ? ', sun unknown' : `, ${sun.text}`}`
           const style = { ...step, ...(i === rows.length - 1 ? { ...rowGrid, borderBottom: 'none' } : rowGrid) }
           return open === null ? (
             <div key={day.forecast_date} className="wt6-rise" style={style}>
@@ -202,7 +223,11 @@ export function DailyList({ days, readings, hours, sky, onSelectDay, drawableDat
         })}
       </div>
       <p style={{ ...typeV2.keyRow, margin: '10px 0 0', lineHeight: '16px' }}>
-        {dailyFoot(readings !== null, onSelectDay !== undefined && rows.some((d) => drawableDates?.has(d.forecast_date) === true))}
+        {dailyFoot(
+          readings !== null,
+          onSelectDay !== undefined && rows.some((d) => drawableDates?.has(d.forecast_date) === true),
+          rows.some((d) => sunByDate.has(d.forecast_date)),
+        )}
       </p>
       {onSelectDay === undefined ||
       drawableDates === undefined ||

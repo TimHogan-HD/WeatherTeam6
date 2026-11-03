@@ -59,6 +59,17 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   least two filled (`rainSplitShown`); one key line under the row, `weather models that say
   it'll be wet`; the column reads the count aloud. Never on a score under 70 (owner, 2026-11-03, from 80), never a
   sentence about the rock.
+- **Sun is minutes of bright sunshine, from `THERMAL_MODEL`** (owner, 2026-11-03, #469–#472;
+  `lib/runs/skySeries.ts`, `packages/types/src/sky.ts`, mockup
+  `docs/handoffs/design-mockups/sun-hours.html`). The day icon sorts on it (≥ 45 min sunny,
+  < 15 cloudy), replacing the unchecked clear-sky ratio. Daily's second line is
+  `sunDayLine`: up to two windows of ≥ 30-minute hours and the total, else "on and off";
+  "forecasts differ" with a range when GFS, ECMWF and ICON spread `SUN_DIFFER_MIN` (3 h,
+  `compare:sky`), never GEM. Hourly's Sun card draws minutes on a fixed 0–60 scale with
+  cloud faded behind; strength is a word plus W/m² in the readout only (`sunStrength`,
+  700/300). **A gap is `Sun —` or a dashed mark, never "No sun" or an empty bar.** Flat
+  ground only, said on the card. The Sources footer names the model only once an hour of
+  sunshine was answered.
 - **How the score works is on Profile only** (owner, 2026-10-29): `ScoreExplainer`, reached
   from the breakdown's `How the score works ›`. Every number it quotes comes from
   `SCORE_MODEL_FACTS`, pinned to the model by `cragModel.test.ts`. A temperature interval

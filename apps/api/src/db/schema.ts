@@ -730,6 +730,12 @@ export const weatherRunHours = pgTable(
      */
     shortwave_wm2: doublePrecision('shortwave_wm2'),
     /**
+     * Seconds of bright sun (direct beam ≥ 120 W/m²) in the hour before
+     * `valid_at`, 0–3600. Null is no answer, never a dull hour: every row
+     * written before 2026-11 is null.
+     */
+    sunshine_s: doublePrecision('sunshine_s'),
+    /**
      * **Not this model's own rain.** The median of `weather_runs.rain_models`' six-hour means
      * from the same fetch, stored beside the thermal model's hours because that
      * is the only run with trailing history. The drying clock reads it; nothing
