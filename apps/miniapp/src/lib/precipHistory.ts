@@ -319,3 +319,34 @@ export function weekdayOf(localDate: string): string {
 export function dayLabel(localDate: string, today: string): string {
   return localDate.slice(0, 10) === today ? 'Today' : weekdayOf(localDate)
 }
+
+/**
+ * What radar changed in the window (issue #468): the models' rain it saw none
+ * of at the crag, and the rain it saw beyond the models. `/recent-precip` marks
+ * every hour radar changed with `model_precip_mm`; an hour without it is one
+ * radar left alone or never checked, and counts toward neither.
+ *
+ * `removedLast` is the newest hour radar dried, so the tab can say when.
+ */
+export type RadarOverrule = {
+  removedMm: number
+  removedLast: string | null
+  addedMm: number
+}
+
+export function radarOverrule(hours: readonly RecentPrecipHour[]): RadarOverrule {
+  let removedMm = 0
+  let removedLast: string | null = null
+  let addedMm = 0
+  for (const h of hours) {
+    const model = h.model_precip_mm
+    if (model === undefined || !Number.isFinite(model)) continue
+    if (h.precip_mm < model) {
+      removedMm += model - h.precip_mm
+      if (removedLast === null || h.valid_at_local > removedLast) removedLast = h.valid_at_local
+    } else {
+      addedMm += h.precip_mm - model
+    }
+  }
+  return { removedMm, removedLast, addedMm }
+}

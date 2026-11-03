@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DeterministicResult, HourlyPoint, RecentPrecipByModel } from './openMeteo.js'
-import { radarChecked, rainMedian, recentPrecipMedian } from './rainMedian.js'
+import { radarChecked, radarCheckedRecent, rainMedian, recentPrecipMedian } from './rainMedian.js'
 
 /** Hourly local stamps from 2026-09-25T04:00. */
 const stamp = (i: number) => new Date(Date.UTC(2026, 8, 25, 4 + i)).toISOString().slice(0, 16)
@@ -246,5 +246,68 @@ describe('radarChecked: radar overrules the median, cautiously (owner, 2026-11-0
 
   it('keeps a gap a gap: no median, no reading, whatever radar says', () => {
     expect(radarChecked(null, T0, radar(5))).toEqual({ precip_mm: null, byRadar: false })
+  })
+})
+
+describe('radarCheckedRecent: the Precip tab reads the radar-checked rain the clock does (#468)', () => {
+  /** Central Standard Time: a local stamp is six hours behind its UTC end. */
+  const OFFSET = -6 * 3600
+  /** Local stamps 2026-11-01T00:00 onward, and each one's UTC end. */
+  const local = (i: number) => new Date(Date.UTC(2026, 10, 1, i)).toISOString().slice(0, 16)
+  const endMs = (i: number) => Date.UTC(2026, 10, 1, i) - OFFSET * 1000
+  const recent = (mm: number[]) => ({
+    hours: mm.map((precip_mm, i) => ({ valid_at_local: local(i), precip_mm, rain_mm: precip_mm, snowfall_cm: 0.5 })),
+    utc_offset_seconds: OFFSET,
+    from_date: '2026-11-01',
+    models: ['ecmwf_ifs025', 'gfs_global', 'icon_global', 'gem_global'],
+  })
+  /** Radar for local hours 0..`through`, keyed by each hour's UTC end. */
+  const radar = (through: number, at: Record<number, number> = {}) =>
+    new Map(Array.from({ length: through + 1 }, (_, i) => [endMs(i), at[i] ?? 0] as const))
+
+  it('dries an hour the models wet and radar saw nothing in, keeping the models’ figure', () => {
+    // Model rain at local 15:00; radar has every hour through 20:00, all dry.
+    const mm = Array.from({ length: 21 }, (_, i) => (i === 15 ? 7.6 : 0))
+    const out = radarCheckedRecent(recent(mm), radar(20))
+    expect(out.rain_radar).toBe(true)
+    expect(out.hours[15]).toEqual({
+      valid_at_local: local(15),
+      precip_mm: 0,
+      rain_mm: 0,
+      snowfall_cm: 0,
+      model_precip_mm: 7.6,
+    })
+    // An hour radar agreed with is passed through untouched, with no model figure.
+    expect(out.hours[10]).toEqual(recent(mm).hours[10])
+  })
+
+  it('reads radar at the hour’s UTC end, not its local stamp', () => {
+    // Radar rain keyed at local 15:00's true end: the hour is wet and raised to radar's amount.
+    const mm = Array.from({ length: 21 }, (_, i) => (i === 15 ? 1 : 0))
+    const out = radarCheckedRecent(recent(mm), radar(20, { 15: 4 }))
+    expect(out.hours[15]).toMatchObject({ precip_mm: 4, model_precip_mm: 1, rain_mm: 1, snowfall_cm: 0.5 })
+    // Read at the local stamp as if it were UTC, the same radar would sit six hours off and veto it.
+    const wrong = new Map([...radar(26, {})].map(([ms, v]) => [ms, ms === Date.UTC(2026, 10, 1, 15) ? 4 : v]))
+    expect(radarCheckedRecent(recent(mm), wrong).hours[15]?.precip_mm).toBe(0)
+  })
+
+  it('leaves the newest hours to the models when their window reaches past the radar', () => {
+    const mm = Array.from({ length: 21 }, () => 2)
+    const out = radarCheckedRecent(recent(mm), radar(18))
+    // Hour 16's window ends at 18: checked. Hour 17's reaches 19: the median stands.
+    expect(out.hours[16]).toMatchObject({ precip_mm: 0, model_precip_mm: 2 })
+    expect(out.hours[17]).toEqual(recent(mm).hours[17])
+    expect(out.hours[20]).toEqual(recent(mm).hours[20])
+  })
+
+  it('outside the radar grid or after a failed read, changes nothing and names no radar', () => {
+    const r = recent([0, 3, 0])
+    expect(radarCheckedRecent(r, null)).toEqual({ ...r, rain_radar: false })
+  })
+
+  it('names radar only when it decided an hour', () => {
+    // Radar stored, but only far from these hours: every window has a hole.
+    const far = new Map([[endMs(100), 0]])
+    expect(radarCheckedRecent(recent([0, 3, 0]), far).rain_radar).toBe(false)
   })
 })

@@ -22,6 +22,7 @@ import {
   hourGrid,
   precipDays,
   precipSummary,
+  radarOverrule,
   rockByStamp,
   runningTotal,
   type PrecipEvent,
@@ -55,8 +56,11 @@ import { InlineError, Skeleton } from './States.js'
  * beside it runs from — so it is named under the headline whenever a lighter
  * shower has fallen since.
  *
- * **The past is the four models' median; the next 48 hours are the ensemble
- * mean.** Two sources, so each card names its own, and the footnote both.
+ * **The past is the four models' median, checked against NOAA radar as the
+ * drying clock's rain is; the next 48 hours are the ensemble mean.** Two
+ * sources, so each card names its own, and the footnote both. Where radar
+ * changed the models' rain the top card says so (issue #468), so a storm the
+ * score has ruled out never vanishes from the tab without a word.
  */
 
 export type PrecipTabProps = {
@@ -138,7 +142,7 @@ export function PrecipTab({ recent, isClimbingLocation, rockType, rock, hours, u
     return <p style={typeV2.body}>No precipitation history for this location yet.</p>
   }
 
-  const source = recentPrecipSource(data.models)
+  const source = recentPrecipSource(data.models, data.rain_radar)
   const summary = precipSummary(data, now)
   const grid = hourGrid(days, data.hours)
   const offset = Number.isFinite(data.utc_offset_seconds) ? data.utc_offset_seconds : 0
@@ -166,6 +170,18 @@ export function PrecipTab({ recent, isClimbingLocation, rockType, rock, hours, u
       : lastRealEvent !== null && lastRealEvent === lastWetEvent
         ? null
         : `Last real rain: ${[when(lastReal.valid_at_local), spanOf(lastRealEvent)].filter((s) => s !== null).join(' · ')}`
+  // What radar overruled, said under the headline: the clock ran on the same correction.
+  // Only an amount that prints as inches is said; a "trace" overruled is not news.
+  const overrule = radarOverrule(data.hours)
+  const printable = (mm: number) => mmToIn(mm) >= 0.01
+  const radarLines = [
+    printable(overrule.removedMm) && overrule.removedLast !== null
+      ? `Radar saw none of the models' ${formatPrecipIn(overrule.removedMm)} ${isClimbingLocation ? 'at the crag' : 'here'}, last ${when(overrule.removedLast)}.`
+      : null,
+    printable(overrule.addedMm)
+      ? `Radar saw ${formatPrecipIn(overrule.addedMm)} more than the models.`
+      : null,
+  ].filter((s): s is string => s !== null)
   const todayHours = data.hours.filter((h) => h.valid_at_local.slice(0, 10) === today)
   const todayWet = todayHours.filter((h) => h.precip_mm > 0).length
   const running = runningTotal(days, data.hours)
@@ -238,6 +254,11 @@ export function PrecipTab({ recent, isClimbingLocation, rockType, rock, hours, u
           <div style={{ flex: 1, minWidth: 0, ...stack(spacing.micro) }}>
             {headline}
             {realLine === null ? null : <span style={typeV2.rowSmall}>{realLine}</span>}
+            {radarLines.map((line) => (
+              <span key={line} style={typeV2.rowSmall}>
+                {line}
+              </span>
+            ))}
           </div>
         </div>
         <div style={{ paddingTop: `${spacing.listGapLg}px`, borderTop: `1px solid ${colorsV2.line}` }}>

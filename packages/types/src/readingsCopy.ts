@@ -610,12 +610,13 @@ function nameList(names: readonly string[]): string {
 /**
  * Where the Precip tab's figures came from, or `null` when the response did
  * not say — an older API, or no model answered — so nothing is named that the
- * response does not back.
+ * response does not back. Radar is named only when the response says it
+ * decided an hour (`rain_radar`, issue #468).
  */
-export function recentPrecipSource(models: readonly string[] | undefined): string | null {
+export function recentPrecipSource(models: readonly string[] | undefined, radar?: boolean): string | null {
   if (models === undefined || models.length === 0) return null;
   const names = [...new Set(models.map(modelName))];
-  return `From ${nameList(names)} forecasts.`;
+  return `From ${nameList(names)} forecasts${radar === true ? ', checked against NOAA radar' : ''}.`;
 }
 
 /**
