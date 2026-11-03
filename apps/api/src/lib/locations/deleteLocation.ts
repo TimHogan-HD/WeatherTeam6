@@ -1,14 +1,8 @@
 import { and, eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import {
-  cragClimbabilityHistory,
-  conditionsReports,
   feedback,
-  forecastSnapshots,
-  locationNormals,
   locations,
-  premiumPulls,
-  rainfallHistory,
   tripDayRecords,
   tripRainRecords,
   tripDayOutcomes,
@@ -32,16 +26,10 @@ import {
  * change what `DELETE /trips/:id` and any future delete do.
  */
 const DEPENDENT_TABLES = [
-  rainfallHistory,
-  forecastSnapshots,
   tripLocations,
   tripDayRecords,
   tripRainRecords,
   tripDayOutcomes,
-  cragClimbabilityHistory,
-  conditionsReports,
-  premiumPulls,
-  locationNormals,
   weatherAlerts,
   walls,
 ] as const

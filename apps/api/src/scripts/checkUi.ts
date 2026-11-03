@@ -207,8 +207,6 @@ async function run(): Promise<void> {
     invites,
     locations,
     walls,
-    conditionsReports,
-    premiumPulls,
     routeTicks,
     routeTodos,
     areaLocations,
@@ -236,7 +234,7 @@ async function run(): Promise<void> {
           await tx.delete(trips).where(inArray(trips.id, owned))
         }
         await tx.delete(invites).where(or(eq(invites.created_by, id), eq(invites.used_by, id)))
-        for (const table of [feedback, userPreferences, walls, conditionsReports, premiumPulls, routeTicks, routeTodos]) {
+        for (const table of [feedback, userPreferences, walls, routeTicks, routeTodos]) {
           await tx.delete(table).where(eq(table.user_id, id))
         }
         await tx.delete(areaLocations).where(eq(areaLocations.recorded_by, id))

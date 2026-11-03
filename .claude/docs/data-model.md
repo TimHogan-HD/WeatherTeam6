@@ -2,19 +2,11 @@
 
 Read this before any database work. This is the source of truth for the schema.
 
-## ⚠️ Four tables currently have no writer
+## Dropped tables
 
-The Telegram Crossover migration (PR #20) deleted the BullMQ workers that populated these. The tables still exist and are still read — they just never fill up. **Do not assume a query against them returns data.**
+Migration 0040 (2026-11-03) dropped seven tables that nothing read or wrote, all empty on Neon: `crags`, `rainfall_history`, `forecast_snapshots`, `crag_climbability_history`, `conditions_reports`, `premium_pulls` and `location_normals`, with the `rainfall_source` enum. Forecasts and recent rain are computed live; forecast checks live in `feedback`. Monthly normals or a climbable-days history would be a new product decision and a new table, not a revival.
 
-| Table | Status |
-|-------|--------|
-| `forecast_snapshots` | **Intentionally dead.** Forecasts are computed live per request (`lib/scoring/liveForecast.ts`). Nothing writes here by design. |
-| `crag_climbability_history` | **Dead — issue #25.** The `rainfallHistory` worker's backfill branch was its only writer. Its route, `GET /locations/:id/history`, and the code that computed it were deleted 2026-11-03; only the delete cascade touches the table. |
-| `location_normals` | **Dead — issue #25.** Same worker was the only writer. `GET /locations/:id/normals` and `acisNormals.ts` were deleted 2026-11-03. |
-
-`rainfall_history` is also no longer written on a schedule; recent precipitation is fetched live per request from Open-Meteo. The ACIS station lookup was deleted with the old scorer in Phase 5b.
-
-Migrations are at `0006` (`weather_alerts.notified_at`). Note `weather_alerts.notified_at` lives on the row, so **any code path that deletes and re-inserts alert rows also resets notification dedup state** — see issue #26.
+Note `weather_alerts.notified_at` lives on the row, so **any code path that deletes and re-inserts alert rows also resets notification dedup state** — see issue #26.
 
 ## Table List (in dependency order)
 ```
@@ -22,31 +14,22 @@ users
 invites                 -- migration 0028, written by POST /invites and /auth/redeem
 login_attempts          -- migration 0029, written by POST /auth/login (the per-username cap)
 locations
-crags
-rainfall_history
-forecast_snapshots      -- no writer (by design)
 trips
 trip_locations
 trip_day_records        -- migration 0025, written by /api/cron/record-trips
 trip_rain_records       -- migration 0026, written by /api/cron/record-trips
 trip_day_outcomes       -- migration 0027, written by /api/cron/record-trips
 trip_day_gauges         -- migration 0038, written by /api/cron/record-trips, keyed by station (no FK)
-crag_climbability_history   -- no writer (regression, issue #25)
-conditions_reports      -- no writer; superseded by feedback
 feedback                -- migration 0018
 route_ticks             -- migration 0019
 route_todos             -- migration 0019
 area_locations          -- migration 0019, shared by every account
-premium_pulls
-location_normals        -- no writer (regression, issue #25)
 user_preferences
 walls
 weather_alerts
 radar_rain_hours        -- migration 0037, written by /api/cron/collect-radar
 ```
 
-16 tables. `walls`, `location_normals`, and `weather_alerts` were added after the
-original 13-table spec (migrations 0002, 0003, 0005).
 
 ## Tables
 
@@ -110,51 +93,6 @@ timezone        text    -- IANA tz string e.g. 'America/Chicago'
 alerts_checked_at timestamptz -- last check-alerts run NWS answered and every warning stored;
                         --   null = never checked (0039). The client prints "Warnings not
                         --   checked recently" past ALERTS_CHECK_STALE_MS (2 h).
-created_at      timestamptz default now()
-```
-
-### crags
-OpenBeta crag data. **Nothing reads or writes it** since its importer, search route and `{ cragId }` save were deleted (2026-11-03); dropping it is the owner's call.
-```typescript
-id              uuid PK
-openbeta_id     text UNIQUE
-name            text
-lat             numeric
-lon             numeric
-rock_type       text
-area_name       text
-state           text
-created_at      timestamptz default now()
-```
-
-### rainfall_history
-Ground-truth observed precipitation per location per day.
-```typescript
-id              uuid PK
-location_id     uuid FK → locations.id
-date            date
-precip_mm       numeric
-source          text    -- 'acis' | 'open_meteo_historical' | 'iem_asos'
-verified        boolean default false   -- true if from ACIS
-created_at      timestamptz default now()
-UNIQUE(location_id, date)
-```
-
-### forecast_snapshots
-Point-in-time forecast captures. **No longer written** — the `forecast-snapshot` job and the `snapshot-cleanup` job that pruned this table were both deleted. Forecasts are computed live per request in `lib/scoring/liveForecast.ts` and returned in-memory.
-```typescript
-id              uuid PK
-location_id     uuid FK → locations.id
-captured_at     timestamptz
-forecast_date   date
-precip_mm_p10   numeric
-precip_mm_p50   numeric
-precip_mm_p90   numeric
-temp_c_min      numeric
-temp_c_max      numeric
-wind_kmh_max    numeric
-humidity_pct    numeric
-model_sources   text[]  -- which models contributed
 created_at      timestamptz default now()
 ```
 
@@ -252,43 +190,12 @@ UNIQUE(station, local_date)
 ```
 **Keyed per station, not per location**, so two crags near one airport share a row and the reader finds a crag's row by computing its station again. With no FK it is not on `DEPENDENT_TABLES`, and a deploy before the migration loses only the gauge line: the recorder writes it after its transaction and logs a failure, and the summary reads it in its own query and treats a failure as no gauge. A later read that heard from fewer hours leaves a row alone (`writeGaugeDays`).
 
-### crag_climbability_history
-Accumulated historical climbability pattern per crag per month. Grows over time.
-```typescript
-id              uuid PK
-location_id     uuid FK → locations.id
-month           int     -- 1-12
-year            int
-climbable_days  int
-total_days      int
-avg_precip_mm   numeric
-created_at      timestamptz default now()
-UNIQUE(location_id, month, year)
-```
-
-### conditions_reports
-User-submitted field reports.
-```typescript
-id              uuid PK
-location_id     uuid FK → locations.id
-user_id         uuid FK → users.id
-reported_at     timestamptz default now()
-visited_at      date
-overall_status  text    -- 'dry' | 'damp' | 'wet' | 'mixed'
-rating          int     -- 1-5
-notes           text
-photo_urls      text[]  -- R2 keys, not public URLs
-forecast_matched boolean -- did conditions match app prediction?
-created_at      timestamptz default now()
-```
-
 ### feedback
 App feedback and forecast checks (`POST/GET /api/v1/feedback`, `POST /feedback/:id/resolve`,
 `DELETE /feedback/:id`;
 rules in `lib/feedback/parseFeedback.ts`, Postgres behaviour in `npm run check:feedback`).
 A forecast check stores **what the app showed** (`app_readings`) beside **what the climber
-saw**, so it can later be scored against the model (#143). `conditions_reports` is left
-unwritten: it stores only a bare `forecast_matched` boolean.
+saw**, so it can later be scored against the model (#143).
 ```typescript
 id                  uuid PK
 user_id             uuid FK → users.id
@@ -365,16 +272,6 @@ INDEX(recorded_by)
 recording replaces the earlier one, whoever made either. OpenBeta's own point is never
 copied here. None of the three has a `location_id`, so deleting a location leaves them alone.
 
-### premium_pulls
-Log of Tomorrow.io on-demand pulls for cost tracking.
-```typescript
-id          uuid PK
-user_id     uuid FK → users.id
-location_id uuid FK → locations.id
-pulled_at   timestamptz default now()
-cost_usd    numeric
-```
-
 ### walls
 Individual walls within a climbing location (added migration 0003).
 ```typescript
@@ -389,21 +286,6 @@ angle_band      text        -- categorical band
 route_count     int
 created_at      timestamptz default now()
 updated_at      timestamptz
-```
-
-### location_normals
-30-year ACIS gridded climatological normals per location per month (added migration 0005).
-**No writer — see issue #25.**
-```typescript
-id                  uuid PK
-location_id         uuid FK → locations.id
-month               int     -- 1-12
-precip_normal_mm    numeric
-temp_max_normal_c   numeric
-temp_min_normal_c   numeric
-source              text default 'acis_grid_91_20'
-fetched_at          timestamptz default now()
-UNIQUE(location_id, month)
 ```
 
 ### weather_alerts
@@ -455,6 +337,5 @@ recorded as such in `schema.ts`.
 
 ## Key Relationships
 - Everything traces back to `users.id` via FK — even with auth off
-- `locations` is the hub: forecast_snapshots, rainfall_history, and conditions_reports all FK to it
-- `crags` is a separate, unused reference table — not the same as `locations`
+- `locations` is the hub: trips, alerts, walls and the trip records all FK to it
 - A user saves a crag by creating a `locations` row from the `/add` search (OpenBeta snapshots and Open-Meteo places)

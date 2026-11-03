@@ -154,4 +154,4 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
 
 - `0-6 days out`: Crag A's score from the `/hourly` readings, with p10/p90 bands
 - `7-15 days out`: the 16-day ensemble outlook — weather only, no score (`trips.md`)
-- Beyond the outlook: nothing. `location_normals` has no writer.
+- Beyond the outlook: nothing. There are no stored climate normals.
