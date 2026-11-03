@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient, type UseQueryResult } from '@tanstack/react-query'
 import type { CreateFeedbackInput, Feedback, FeedbackFromAnyone } from '@weatherteam6/types'
 import { apiGet, apiPost } from '../lib/api.js'
+import { TRIP_SUMMARY_KEY } from './useTrips.js'
 
 const feedbackKey = ['feedback'] as const
 /** Under `feedbackKey`, so resolving or saving refreshes both lists. */
@@ -14,11 +15,25 @@ export function useFeedbackList(): UseQueryResult<Feedback[]> {
   })
 }
 
+/**
+ * What a saved check makes stale: both feedback lists, and every trip
+ * summary, whose `checked_in` it may have just set. Without the second, an
+ * ended trip opened from the check showed its cached "How was it?" for the
+ * query's whole stale time, and a second tap saved a duplicate check.
+ * Returned so the mutation waits for it before its caller navigates.
+ */
+export function invalidateAfterFeedback(queryClient: QueryClient): Promise<unknown> {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: feedbackKey }),
+    queryClient.invalidateQueries({ queryKey: [TRIP_SUMMARY_KEY] }),
+  ])
+}
+
 export function useCreateFeedback() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: CreateFeedbackInput) => apiPost<Feedback>('/feedback', input),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: feedbackKey }),
+    onSuccess: () => invalidateAfterFeedback(queryClient),
   })
 }
 

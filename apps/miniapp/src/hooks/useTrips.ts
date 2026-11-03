@@ -2,12 +2,15 @@ import { useMutation, useQuery, useQueryClient, type QueryClient, type UseQueryR
 import type { CreateTripInput, Trip, TripOutlook, TripSummary, TripTrend, UpdateTripInput } from '@weatherteam6/types'
 import { apiDelete, apiGet, apiPatch, apiPost } from '../lib/api.js'
 
+/** Every trip summary's key starts with this; a saved check invalidates them all. */
+export const TRIP_SUMMARY_KEY = 'trip-summary'
+
 export const tripKeys = {
   all: ['trips'] as const,
   one: (id: string) => ['trip', id] as const,
   forecast: (id: string) => ['trip-forecast', id] as const,
   trend: (id: string) => ['trip-trend', id] as const,
-  summary: (id: string) => ['trip-summary', id] as const,
+  summary: (id: string) => [TRIP_SUMMARY_KEY, id] as const,
 }
 
 export function useTrips(): UseQueryResult<Trip[]> {
