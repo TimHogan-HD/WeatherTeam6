@@ -6,7 +6,9 @@ import {
   draftLine,
   emptyStop,
   feedbackLines,
+  firstStopTime,
   fromLocalInputValue,
+  initialCheckDay,
   missingAnswer,
   pickRoute,
   pickSun,
@@ -356,5 +358,37 @@ describe('HistoryItem', () => {
     const pending = renderToStaticMarkup(<HistoryItem item={check} resolving onResolve={() => {}} />)
     expect(pending).toContain('Marking…')
     expect(pending).toContain('disabled')
+  })
+})
+
+describe('initialCheckDay', () => {
+  // Noon on 2026-11-03 on this device's clock, whatever zone the tests run in.
+  const now = new Date(2026, 10, 3, 12, 0).getTime()
+
+  it('opens on a trip day the server would take', () => {
+    expect(initialCheckDay('2026-10-24', now)).toBe('2026-10-24')
+    expect(initialCheckDay('2026-11-03', now)).toBe('2026-11-03')
+  })
+
+  it('opens on today for a day past the 60-day limit, a future day, or none', () => {
+    expect(initialCheckDay('2026-09-03', now)).toBe('2026-11-03')
+    expect(initialCheckDay('2026-09-04', now)).toBe('2026-09-04')
+    expect(initialCheckDay('2026-11-04', now)).toBe('2026-11-03')
+    expect(initialCheckDay(null, now)).toBe('2026-11-03')
+  })
+
+  it('opens on today for a malformed or impossible date rather than one the browser rolls over', () => {
+    expect(initialCheckDay('2026-10-2', now)).toBe('2026-11-03')
+    expect(initialCheckDay('2026-02-30', now)).toBe('2026-11-03')
+    expect(initialCheckDay('<script>', now)).toBe('2026-11-03')
+  })
+})
+
+describe('firstStopTime', () => {
+  const now = new Date(2026, 10, 3, 14, 5).getTime()
+
+  it('starts today’s check at now, and an earlier day’s blank rather than a guessed hour', () => {
+    expect(firstStopTime('2026-11-03', now)).toBe('14:05')
+    expect(firstStopTime('2026-10-24', now)).toBe('')
   })
 })

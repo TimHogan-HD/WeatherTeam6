@@ -24,7 +24,8 @@ import { alertsQuery } from '../hooks/useWeather.js'
 import { AlertBanner } from '../components/Alerts.js'
 import { useLocations } from '../hooks/useLocations.js'
 import { forgetTrip, useDeleteTrip, useTrip, useTripForecast, useTripSummary, useTripTrend } from '../hooks/useTrips.js'
-import { NEW_TRIP_PATH, backTarget, editTripPath, tripCragPath } from '../lib/backTarget.js'
+import { useNow } from '../hooks/useNow.js'
+import { NEW_TRIP_PATH, backTarget, checkInPath, editTripPath, tripCragPath } from '../lib/backTarget.js'
 import type { DayReadings } from '../lib/overview.js'
 import {
   cragCount,
@@ -60,6 +61,7 @@ export function TripScreen() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const today = deviceToday()
+  const now = useNow()
   const trip = useTrip(tripId)
   // Once the trip is over nothing is forecast for it: the screen reads what was stored.
   const over = trip.data !== undefined && tripIsOver(trip.data, today)
@@ -164,6 +166,13 @@ export function TripScreen() {
           refetch: () => void summary.refetch(),
         }}
         trend={trendFor(focus)}
+        nowMs={now}
+        // A check is a crag's: the form lists crags only, and would fall back to another one.
+        onCheckIn={
+          byId.get(focus)?.is_climbing_location === true
+            ? (day) => void navigate(checkInPath(trip.data.id, focus, day))
+            : undefined
+        }
       />
     ) : over ? (
       <TripLookBackGrid

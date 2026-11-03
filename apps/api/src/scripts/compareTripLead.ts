@@ -35,8 +35,8 @@
  */
 import { MEASURABLE_PRECIP_MM, REWETTING_PRECIP_MM, parseNumericRequired } from '@weatherteam6/types'
 import { nearestGauge } from '../lib/weather/asosGauge.js'
+import { localDateAt } from '../lib/trips/tripSummary.js'
 import {
-  checkLocalDate,
   checksAgainstForecast,
   lastAtEachLead,
   rainChanceComparison,
@@ -138,7 +138,7 @@ async function main(): Promise<void> {
     const onDays: CheckOnDay[] = checks.flatMap((c) => {
       const place = c.location_id === null ? undefined : gaugeOf.get(c.location_id)
       if (c.location_id === null || place === undefined || c.observed_at === null || c.observed_conditions === null) return []
-      const local_date = checkLocalDate(c.observed_at, place.gauge?.tz ?? null, place.lon)
+      const local_date = localDateAt(c.observed_at, place.gauge?.tz ?? null, place.lon)
       return byDay.has(`${c.location_id}|${local_date}`)
         ? [{ location_id: c.location_id, local_date, observed: c.observed_conditions }]
         : []

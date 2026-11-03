@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  checkLocalDate,
   checksAgainstForecast,
   lastAtEachLead,
   rainChanceComparison,
@@ -135,17 +134,5 @@ describe('checksAgainstForecast', () => {
   it('counts a check with no score ahead as unscored', () => {
     const rows = checksAgainstForecast(lastAtEachLead([]), [{ location_id: 'A', local_date: '2026-10-10', observed: 'dry' }])
     expect(rows.find((r) => r.observed === 'dry')?.unscored).toBe(1)
-  })
-})
-
-describe('checkLocalDate', () => {
-  it('puts a Chicago evening check on its own day, not the next UTC one', () => {
-    expect(checkLocalDate(at('2026-10-10T23:30:00Z'), 'America/Chicago', -92.5)).toBe('2026-10-10')
-    expect(checkLocalDate(at('2026-10-11T00:30:00Z'), 'America/Chicago', -92.5)).toBe('2026-10-10')
-  })
-
-  it('falls back to the longitude’s offset without a gauge zone', () => {
-    expect(checkLocalDate(at('2026-10-11T00:30:00Z'), null, -92.5)).toBe('2026-10-10')
-    expect(checkLocalDate(at('2026-10-10T23:30:00Z'), null, 10)).toBe('2026-10-11')
   })
 })

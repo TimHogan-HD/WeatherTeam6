@@ -88,6 +88,17 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   is keyed by station with no FK, so the summary finds a crag's row by computing its station
   again, reads it in its own query, and treats a failure as no gauge. `TripDayLookBack.gauge`
   is optional; absent reads as null.
+- **An ended trip asks how each day went** (item 1 of the trip add-ons, 2026-11-03). At a
+  crag, each looked-back day the reader can still date a check for
+  (`FEEDBACK_OBSERVED_MAX_AGE_DAYS`, `checkInState`) offers "How was it?", which opens the
+  ordinary forecast check through `checkInPath` with the crag and day set; saving or back
+  returns to the trip. **It is a `feedback` row like any other**, with no trip id: the
+  analysis joins it to the trip's records on crag and local date (`localDateAt`). The form
+  attaches no app reading for a past day (`feedbackSnapshotFor`), and an earlier day's first
+  start time is blank, never a guessed hour saved as an observation (`firstStopTime`). The
+  summary's `checked_in` counts the caller's checks **resolved or not**, since resolving
+  means the owner read one; absent from an older API, the day is still offered. Never offered
+  for a city on a trip: the form lists crags only and would fall back to another.
 - **`compare:trip-lead` reads what trips stored** (`apps/api`, read-only): score drift by lead,
   `members_wet` against `members_rewet` (§6e) on the same days against the look back and the
   gauge, and forecast checks on recorded days. Each lead keeps its latest recording, so a day

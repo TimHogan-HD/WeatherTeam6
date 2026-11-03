@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { TripDayForecast, TripDayLookBack } from '@weatherteam6/types'
-import { GAUGE_SOURCE, LOOK_BACK_SOURCE, TripLookBackView, gaugeLine } from './TripLookBack.js'
+import { GAUGE_SOURCE, LOOK_BACK_SOURCE, TripLookBackView, checkInState, gaugeLine } from './TripLookBack.js'
 
 const settled = <T,>(data: T) => ({ data, isPending: false, isError: false, refetch: () => {} })
 
@@ -16,7 +16,9 @@ const said = (recorded_at: string, lead_days: number, score: number): TripDayFor
 })
 
 function view(days: TripDayLookBack[]): string {
-  return renderToStaticMarkup(<TripLookBackView summary={settled(days)} trend={settled({ points: [], days: null })} />)
+  return renderToStaticMarkup(
+    <TripLookBackView summary={settled(days)} trend={settled({ points: [], days: null })} nowMs={Date.now()} />,
+  )
 }
 
 describe('TripLookBackView', () => {
@@ -69,6 +71,42 @@ describe('TripLookBackView', () => {
     const html = view([{ local_date: '2026-10-10', outcome: null, first: null, last: null, gauge: null }])
     expect(html).toContain(LOOK_BACK_SOURCE)
     expect(html).not.toContain(GAUGE_SOURCE)
+  })
+})
+
+describe('check-in', () => {
+  const now = new Date(2026, 10, 3, 12, 0).getTime()
+  const day = (local_date: string, checked_in?: boolean): TripDayLookBack => ({
+    local_date,
+    outcome: null,
+    first: null,
+    last: null,
+    ...(checked_in === undefined ? {} : { checked_in }),
+  })
+  const render = (days: TripDayLookBack[], onCheckIn?: (d: string) => void) =>
+    renderToStaticMarkup(
+      <TripLookBackView summary={settled(days)} trend={settled({ points: [], days: null })} onCheckIn={onCheckIn} nowMs={now} />,
+    )
+
+  it('asks about a day not yet checked in, and says so of one that was', () => {
+    const html = render([day('2026-10-24', false), day('2026-10-25', true)], () => {})
+    expect(html.match(/How was it\?/g)).toHaveLength(1)
+    expect(html).toContain('You checked this day in')
+  })
+
+  it('still asks when an older API sent no checked_in', () => {
+    expect(checkInState(day('2026-10-24'), now)).toBe('open')
+  })
+
+  it('stops asking once the day is past the limit a check can be dated', () => {
+    expect(checkInState(day('2026-09-03', false), now)).toBe('closed')
+    expect(render([day('2026-09-03', false)], () => {})).not.toContain('How was it?')
+  })
+
+  it('offers nothing without a handler: a city on a trip has no check', () => {
+    const html = render([day('2026-10-24', false)])
+    expect(html).not.toContain('How was it?')
+    expect(html).not.toContain('checked this day in')
   })
 })
 

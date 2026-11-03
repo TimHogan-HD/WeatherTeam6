@@ -1,5 +1,6 @@
 import {
   FEEDBACK_CLOCK_SKEW_MS,
+  FEEDBACK_OBSERVED_MAX_AGE_DAYS,
   FEEDBACK_KIND_LABEL,
   FEEDBACK_SPAN_MAX_HOURS,
   FORECAST_VERDICT_LABEL,
@@ -82,6 +83,28 @@ export function toLocalDateValue(ms: number): string {
 /** A `time` input's value for an instant, on this device's clock. */
 export function toLocalTimeValue(ms: number): string {
   return toLocalInputValue(ms).slice(11)
+}
+
+/**
+ * The day a check opens on: `?day=` when it is a real date the server would
+ * take (today, or up to `FEEDBACK_OBSERVED_MAX_AGE_DAYS` back), else today.
+ * A trip day's "How was it?" sends one; anything else is a stale or hand-typed
+ * link and opens on today rather than on a day that cannot be saved.
+ */
+export function initialCheckDay(param: string | null, nowMs: number): string {
+  const today = toLocalDateValue(nowMs)
+  if (param === null || !/^\d{4}-\d{2}-\d{2}$/.test(param) || timeOnDay(param, '12:00') === null) return today
+  if (toLocalDateValue(timeOnDay(param, '12:00') ?? nowMs) !== param) return today
+  const earliest = toLocalDateValue(nowMs - FEEDBACK_OBSERVED_MAX_AGE_DAYS * 86_400_000)
+  return param >= earliest && param <= today ? param : today
+}
+
+/**
+ * A new check's first start time: now, on today; blank on an earlier day,
+ * where any time filled in would be a guess saved as an observation.
+ */
+export function firstStopTime(day: string, nowMs: number): string {
+  return day === toLocalDateValue(nowMs) ? toLocalTimeValue(nowMs) : ''
 }
 
 /**

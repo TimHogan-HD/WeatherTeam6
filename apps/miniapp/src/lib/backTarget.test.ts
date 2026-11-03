@@ -84,6 +84,11 @@ describe('backTarget', () => {
     expect(backTarget({ route: 'feedback', fromLocationId: null })).toEqual({ kind: 'navigate', to: '/' })
   })
 
+  it('returns a trip day’s check to the trip, ahead of the crag it names', () => {
+    expect(backTarget({ route: 'feedback', fromLocationId: 'abc', fromTripId: 't1' })).toEqual({ kind: 'navigate', to: '/trips/t1' })
+    expect(backTarget({ route: 'feedback', fromLocationId: 'abc', fromTripId: null })).toEqual({ kind: 'navigate', to: '/location/abc' })
+  })
+
   it('returns a location editor to its location, saved or not', () => {
     expect(backTarget({ route: 'edit', locationId: 'abc' })).toEqual({ kind: 'navigate', to: '/location/abc' })
   })
@@ -113,4 +118,4 @@ describe('backTarget — a saved location, its app bar away', () => {
     }
   })
 })
-
+

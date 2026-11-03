@@ -3,7 +3,9 @@ import type { TripDayLookBack } from '@weatherteam6/types'
 import {
   tripDateList,
   tripDayLookBacks,
+  localDateAt,
   tripDayTrends,
+  withCheckIns,
   withGaugeDays,
   type DayWeatherRecord,
   type ForecastRecord,
@@ -149,5 +151,30 @@ describe('withGaugeDays', () => {
   it('carries a short day through as null rain with its counts', () => {
     const days = withGaugeDays([day('2026-10-04')], { station: 'DLL', distance_km: 13.2 }, [row('DLL', '2026-10-04', null)])
     expect(days[0]?.gauge).toMatchObject({ rain_mm: null, hours_reported: 20 })
+  })
+})
+
+describe('localDateAt', () => {
+  it('puts a Chicago evening check on its own day, not the next UTC one', () => {
+    expect(localDateAt(new Date('2026-10-10T23:30:00Z'), 'America/Chicago', -92.5)).toBe('2026-10-10')
+    expect(localDateAt(new Date('2026-10-11T00:30:00Z'), 'America/Chicago', -92.5)).toBe('2026-10-10')
+  })
+
+  it('falls back to the longitude’s offset without a gauge zone', () => {
+    expect(localDateAt(new Date('2026-10-11T00:30:00Z'), null, -92.5)).toBe('2026-10-10')
+    expect(localDateAt(new Date('2026-10-10T23:30:00Z'), null, 10)).toBe('2026-10-11')
+  })
+})
+
+describe('withCheckIns', () => {
+  it('marks only the days with a check, and every other day false, not absent', () => {
+    const days = withCheckIns(
+      [
+        { local_date: '2026-10-04', outcome: null, first: null, last: null },
+        { local_date: '2026-10-05', outcome: null, first: null, last: null },
+      ],
+      new Set(['2026-10-05', '2026-10-09']),
+    )
+    expect(days.map((d) => d.checked_in)).toEqual([false, true])
   })
 })

@@ -454,6 +454,12 @@ export type TripDayLookBack = {
    * because the API and the client deploy separately; absent reads as null.
    */
   gauge?: TripDayGauge | null
+  /**
+   * Whether the caller has a forecast check at this crag on this day, resolved
+   * or not: the trip screen then says so instead of asking. Absent from an
+   * older API, which the screen reads as not known and still offers the check.
+   */
+  checked_in?: boolean
 }
 
 /**

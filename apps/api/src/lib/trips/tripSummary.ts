@@ -132,3 +132,25 @@ export function withGaugeDays(
     }
   })
 }
+
+/**
+ * The local date an instant falls on at a crag: in the crag's gauge zone when
+ * it has one, else the longitude's solar offset. Close enough to put a
+ * daytime check on its day, which is all a join on dates needs; the server
+ * stores no zone for a location.
+ */
+export function localDateAt(at: Date, tz: string | null, lon: number): string {
+  if (tz !== null) {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(at)
+  }
+  return new Date(at.getTime() + Math.round(lon / 15) * 3_600_000).toISOString().slice(0, 10)
+}
+
+/**
+ * Each look-back day marked with whether the caller has a forecast check at
+ * the crag on it (`checkedDates`, local dates). Every check counts, resolved
+ * or not: resolving means the owner read it, not that the day is unanswered.
+ */
+export function withCheckIns(days: readonly TripDayLookBack[], checkedDates: ReadonlySet<string>): TripDayLookBack[] {
+  return days.map((day) => ({ ...day, checked_in: checkedDates.has(day.local_date) }))
+}
