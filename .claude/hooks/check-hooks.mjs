@@ -317,17 +317,17 @@ const gateCases = [
     ]
   })(),
   // Which open PRs the Stop hook's merge checks may hold a turn for. 2026-11-03:
-  // another session's draft, which the reviewer skips, blocked a stop 20+ times.
+  // another session's PR must not prompt this one, draft or not.
   ...(() => {
-    const pr = (over) => ({ number: 9, title: 't', headRefName: 'feat/other', isDraft: false, ...over })
-    const held = (prs, ctx = {}) =>
-      prsToFinish({ prs, branch: 'feat/x', stopHookActive: false, ...ctx }).map((p) => p.number).join(',')
+    const pr = (over) => ({ number: 9, title: 't', headRefName: 'feat/x', isDraft: false, ...over })
+    const held = (prs, branch = 'feat/x') =>
+      prsToFinish({ prs, branch }).map((p) => p.number).join(',')
     return [
-      ['finish: another branch\'s PR blocks a first stop', held([pr({})]), '9'],
-      ['finish: a draft never blocks', held([pr({ isDraft: true })]), ''],
-      ['finish: a draft on the own branch never blocks either', held([pr({ isDraft: true, headRefName: 'feat/x' })]), ''],
-      ['finish: another branch\'s PR allows a continued turn', held([pr({})], { stopHookActive: true }), ''],
-      ['finish: the own PR still blocks a continued turn', held([pr({}), pr({ number: 7, headRefName: 'feat/x' })], { stopHookActive: true }), '7'],
+      ['finish: the own PR blocks', held([pr({})]), '9'],
+      ['finish: another branch\'s PR never blocks', held([pr({ headRefName: 'feat/other' })]), ''],
+      ['finish: on the default branch nobody\'s PR blocks', held([pr({})], 'main'), ''],
+      ['finish: a draft on the own branch never blocks', held([pr({ isDraft: true })]), ''],
+      ['finish: only the own PR is held', held([pr({ headRefName: 'feat/other' }), pr({ number: 7 })]), '7'],
       ['finish: no isDraft field is not a draft', held([pr({ isDraft: undefined })]), '9'],
     ]
   })(),
