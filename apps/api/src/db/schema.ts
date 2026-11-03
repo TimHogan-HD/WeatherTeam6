@@ -179,6 +179,12 @@ export const locations = pgTable('locations', {
   nws_grid_x: integer('nws_grid_x'),
   nws_grid_y: integer('nws_grid_y'),
   timezone: text('timezone'),
+  /**
+   * When `check-alerts` last heard NWS answer for this place and stored every
+   * warning it gave. **Null means never checked**, so an empty `weather_alerts`
+   * set cannot be read as "no warnings" for a new place or a stopped schedule.
+   */
+  alerts_checked_at: timestamp('alerts_checked_at', { withTimezone: true }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updated_at: timestamp('updated_at', { withTimezone: true }),
 })

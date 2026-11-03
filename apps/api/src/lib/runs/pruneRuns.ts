@@ -80,23 +80,17 @@ export async function pruneWeatherRuns(now: Date = new Date()): Promise<PruneRes
     // One transaction per batch: a batch either loses its run and all its hours
     // or none of them, so an interrupted prune never leaves a run whose hours
     // are half gone.
+    // Counted from the driver's `rowCount`, not `.returning`: a batch of runs
+    // carries tens of thousands of hours, and returning them only to count them
+    // ships every id back over the connection.
     await db.transaction(async (tx) => {
-      const ensembleGone = await tx
-        .delete(weatherEnsembleHours)
-        .where(inArray(weatherEnsembleHours.run_id, ids))
-        .returning({ run_id: weatherEnsembleHours.run_id })
-      const hoursGone = await tx
-        .delete(weatherRunHours)
-        .where(inArray(weatherRunHours.run_id, ids))
-        .returning({ run_id: weatherRunHours.run_id })
-      const runsGone = await tx
-        .delete(weatherRuns)
-        .where(inArray(weatherRuns.id, ids))
-        .returning({ id: weatherRuns.id })
+      const ensembleGone = await tx.delete(weatherEnsembleHours).where(inArray(weatherEnsembleHours.run_id, ids))
+      const hoursGone = await tx.delete(weatherRunHours).where(inArray(weatherRunHours.run_id, ids))
+      const runsGone = await tx.delete(weatherRuns).where(inArray(weatherRuns.id, ids))
 
-      result.ensembleHoursDeleted += ensembleGone.length
-      result.hoursDeleted += hoursGone.length
-      result.runsDeleted += runsGone.length
+      result.ensembleHoursDeleted += ensembleGone.rowCount ?? 0
+      result.hoursDeleted += hoursGone.rowCount ?? 0
+      result.runsDeleted += runsGone.rowCount ?? 0
     })
   }
 

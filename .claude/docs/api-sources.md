@@ -142,7 +142,7 @@ ACIS gridded normals (`acisNormals.ts`) are a separate call and remain.
 - **Why a snapshot, measured 2026-09-23:** the GraphQL API at `https://api.openbeta.io/` took 4-13 s per name search and returned 502 on two of seven — unusable as type-ahead. There is **no public area export**: `OpenBeta/openbeta-export` is private and `climbing-data` holds only 2020 route records.
 - **How a snapshot is pulled:** `areas(filter:{path_tokens:{tokens:["USA","<State>"]}},limit:200,offset:n)` until a short page (`pullClimbingAreas.ts`; the Minnesota file predates the script and split parents and leaves by hand). The state's own root area is dropped. The default `limit` is **50 and silent** — Red Wing was missing until pagination. `bulkAreas` returned 502 or []. Retry 502s and connection resets; they are routine.
 - **Coverage:** 206k of OpenBeta's 231k climbs are in the USA; France has 71. It fixes US search and adds little in Europe. No elevation, no rock type, no aspect.
-- **The `crags` table and `importCrags.ts` are unused** by this — they predate it and still assume an export format that does not exist.
+- **The `crags` table is unused** by this — it predates it. Its importer, its search route and the `{ cragId }` save were deleted 2026-11-03; the table stays until the owner decides to drop it.
 
 ## OpenBeta Routes (the guidebook)
 - **What uses it:** `GET /api/v1/guidebook/:locationId` — the Crag tab, its walls and its routes. `lib/guidebook/guidebookMn.ts` is a **generated snapshot** of every Minnesota area and route (384 areas, 1,861 routes, ~513 KB), regenerated with `npm run guidebook:pull --workspace=apps/api` and committed. Nothing calls OpenBeta at runtime, for the reasons in the section above.

@@ -1,0 +1,1 @@
+ALTER TABLE "locations" ADD COLUMN "alerts_checked_at" timestamp with time zone;

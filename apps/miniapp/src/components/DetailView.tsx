@@ -16,7 +16,8 @@ import type {
 import { CLIMB_HOURS_DEFAULT, GUIDEBOOK_SOURCE_LABEL, RECENT_PRECIP_SOURCE_LABEL, SUN_WALLS_SOURCE_LABEL, sunWallsFor } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { stack } from '../theme/styles.js'
-import { findToday, forecastSourceLabel } from '../lib/forecast.js'
+import { alertsUnchecked, findToday, forecastSourceLabel } from '../lib/forecast.js'
+import { useNow } from '../hooks/useNow.js'
 import { AlertBanner } from './Alerts.js'
 import { SourcesFooter, type SourceEntry } from './SourcesFooter.js'
 import { formatTickDate } from '../lib/logbook.js'
@@ -196,6 +197,7 @@ export function DetailView({
   guidebook,
   climbHours = CLIMB_HOURS_DEFAULT,
 }: DetailViewProps) {
+  const now = useNow()
   const showScore = isClimbingLocation
   const activeAlertCount = alerts?.data?.length ?? 0
   const tabs = hourly?.tabs
@@ -405,7 +407,7 @@ export function DetailView({
         // visible rather than looking like "no alerts".
         <InlineError message="Couldn't load alerts." />
       ) : alerts?.data === undefined ? null : (
-        <AlertBanner alerts={alerts.data} />
+        <AlertBanner alerts={alerts.data} unchecked={alertsUnchecked(location?.alerts_checked_at, now)} />
       )}
 
       {/*

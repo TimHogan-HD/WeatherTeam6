@@ -57,9 +57,6 @@ const DEPENDENT_TABLES = [
  * without touching anything. All its statements share one transaction, so a
  * mid-way failure leaves the location and its dependents fully intact rather
  * than a location whose history has been half-removed.
- *
- * Known gap: `conditions_reports` rows may reference photos in R2. The rows go,
- * the objects do not — orphaned objects are left for a future cleanup pass.
  */
 export async function deleteLocationCascade(
   locationId: string,

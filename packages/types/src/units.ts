@@ -20,7 +20,11 @@
 export const EM_DASH = '—';
 
 export const cToF = (c: number): number => (c * 9) / 5 + 32;
-export const kmhToMph = (kmh: number): number => kmh * 0.621371;
+/** The one spelling of the mile; every km and km/h conversion goes through it. */
+export const MI_PER_KM = 0.621371;
+export const kmhToMph = (kmh: number): number => kmh * MI_PER_KM;
+export const mphToKmh = (mph: number): number => mph / MI_PER_KM;
+export const kmToMi = (km: number): number => km * MI_PER_KM;
 export const mmToIn = (mm: number): number => mm / 25.4;
 
 export const formatTempF = (c: number | null): string =>

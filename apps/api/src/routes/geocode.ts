@@ -19,8 +19,7 @@ export const geocodeRouter = Router()
  * rules as every other external call.
  *
  * A too-short query is an empty 200, not a 400 — the client calls this as the
- * user types, and the first keystroke is not a client error. Matches how
- * GET /locations/search handles the same case.
+ * user types, and the first keystroke is not a client error.
  */
 geocodeRouter.get('/geocode', async (req: Request, res: Response) => {
   const raw = req.query['q']

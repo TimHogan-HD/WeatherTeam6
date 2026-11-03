@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ForecastSnapshot, WeatherAlert } from '@weatherteam6/types'
 import {
+  ALERTS_CHECK_STALE_MS,
+  alertsUnchecked,
   findToday,
   forecastSourceLabel,
   formatForecastDate,
@@ -127,5 +129,26 @@ describe('alert ranking', () => {
       alert('Extreme Heat Warning', 'Extreme'),
     ])
     expect(sorted[0]?.event).toBe('Extreme Heat Warning')
+  })
+})
+
+describe('alertsUnchecked', () => {
+  const now = Date.parse('2026-11-03T18:00:00Z')
+
+  it('says nothing for an older API that sends no stamp', () => {
+    expect(alertsUnchecked(undefined, now)).toBe(false)
+  })
+
+  it('is unchecked for a place NWS was never asked about', () => {
+    expect(alertsUnchecked(null, now)).toBe(true)
+  })
+
+  it('is checked up to the limit and unchecked just past it', () => {
+    expect(alertsUnchecked(new Date(now - ALERTS_CHECK_STALE_MS).toISOString(), now)).toBe(false)
+    expect(alertsUnchecked(new Date(now - ALERTS_CHECK_STALE_MS - 1000).toISOString(), now)).toBe(true)
+  })
+
+  it('reads an unparseable stamp as unchecked, never as fresh', () => {
+    expect(alertsUnchecked('not a date', now)).toBe(true)
   })
 })

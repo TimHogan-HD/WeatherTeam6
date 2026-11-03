@@ -54,4 +54,13 @@ describe('TripAlerts', () => {
   it('renders nothing when every check answered with no warning', () => {
     expect(renderToStaticMarkup(<TripAlerts crags={[crag('a', []), crag('b', [])]} />)).toBe('')
   })
+
+  it('says a crag NWS was not asked about lately went unchecked, never reading it as no warnings', () => {
+    const html = renderToStaticMarkup(
+      <TripAlerts crags={[crag('a', []), { ...crag('b', []), unchecked: true }]} />,
+    )
+    expect(html).toContain('Crag b')
+    expect(html).toContain('Warnings not checked recently')
+    expect(html).not.toContain('Crag a')
+  })
 })

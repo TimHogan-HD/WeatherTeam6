@@ -21,6 +21,7 @@ import { TripCragGrid } from '../components/trips/TripCragGrid.js'
 import { TripLookBackGrid, TripLookBackView } from '../components/trips/TripLookBack.js'
 import { hourlyQuery } from '../hooks/useHourly.js'
 import { alertsQuery } from '../hooks/useWeather.js'
+import { alertsUnchecked } from '../lib/forecast.js'
 import { AlertBanner } from '../components/Alerts.js'
 import { useLocations } from '../hooks/useLocations.js'
 import { forgetTrip, useDeleteTrip, useTrip, useTripForecast, useTripSummary, useTripTrend } from '../hooks/useTrips.js'
@@ -97,6 +98,7 @@ export function TripScreen() {
       alerts: a?.data ?? [],
       // A failed check is said, never read as "no warnings" (defect class 2).
       retry: a?.isError === true ? () => void a.refetch() : null,
+      unchecked: a?.data !== undefined && alertsUnchecked(byId.get(id)?.alerts_checked_at, now),
     }
   }
 
@@ -293,22 +295,24 @@ export type TripAlertsCrag = {
   alerts: readonly WeatherAlert[]
   /** The alerts check failed: its retry. `null` otherwise. */
   retry: (() => void) | null
+  /** NWS was not asked about this crag lately (`alertsUnchecked`). */
+  unchecked?: boolean
 }
 
 /**
- * The trip's active warnings, above the days, and any crag whose check failed.
- * One crag's are unlabelled, as on its own screen; several crags each name
- * theirs. Nothing renders when every check answered with no warning.
+ * The trip's active warnings, above the days, and any crag whose check failed
+ * or went unchecked. One crag's are unlabelled, as on its own screen; several
+ * crags each name theirs. Nothing renders when every check answered with no warning.
  */
 export function TripAlerts({ crags }: { crags: readonly TripAlertsCrag[] }) {
-  const shown = crags.filter((c) => c.alerts.length > 0 || c.retry !== null)
+  const shown = crags.filter((c) => c.alerts.length > 0 || c.retry !== null || c.unchecked === true)
   if (shown.length === 0) return null
   return (
     <div style={stack(spacing.listGapSm)}>
       {shown.map((c) => (
         <div key={c.id} style={stack(spacing.micro)}>
           {crags.length > 1 ? <span style={typeV2.lineLabel}>{c.name}</span> : null}
-          {c.retry === null ? <AlertBanner alerts={c.alerts} /> : <InlineError message="Couldn't load alerts." onRetry={c.retry} />}
+          {c.retry === null ? <AlertBanner alerts={c.alerts} unchecked={c.unchecked} /> : <InlineError message="Couldn't load alerts." onRetry={c.retry} />}
         </div>
       ))}
     </div>

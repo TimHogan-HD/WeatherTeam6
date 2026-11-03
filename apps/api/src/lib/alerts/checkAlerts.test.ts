@@ -21,12 +21,16 @@ const fetchNwsAlerts = vi.fn()
 //   await db.select({...}).from(t)
 //   await db.insert(t).values(v).onConflictDoUpdate(s)
 //   await db.delete(t).where(w)
+//   await db.update(t).set(v).where(w)
 const selectFrom = vi.fn()
+const upsert = vi.fn((_set: unknown) => Promise.resolve(undefined))
 const deleteWhere = vi.fn((_where: unknown) => Promise.resolve(undefined))
+const updateWhere = vi.fn((_where: unknown) => Promise.resolve(undefined))
 const db = {
   select: () => ({ from: selectFrom }),
-  insert: () => ({ values: () => ({ onConflictDoUpdate: () => Promise.resolve(undefined) }) }),
+  insert: () => ({ values: () => ({ onConflictDoUpdate: upsert }) }),
   delete: () => ({ where: deleteWhere }),
+  update: () => ({ set: () => ({ where: updateWhere }) }),
 }
 
 vi.mock('../../db/index.js', () => ({ db, pool: {} }))
@@ -135,7 +139,7 @@ describe('runAlertsCheck', () => {
   it('scopes the prune to the alerts NWS did not return, not to the whole location', async () => {
     // The `activeIds.length > 0` branch matters: taking the empty-set path with
     // active alerts present would delete the rows just upserted, so a live
-    // Severe+ warning would stop suppressing its location's score.
+    // warning would vanish from every screen that shows it.
     fetchNwsAlerts.mockResolvedValue([])
     await runAlertsCheck()
     const wholeLocation = boundValues(deleteWhere.mock.calls[0]?.[0])
@@ -159,6 +163,39 @@ describe('runAlertsCheck', () => {
 
     expect(scoped).not.toEqual(wholeLocation)
     expect(scoped).toContain('urn:oid:2.49.0.1.840.0.abc123')
+  })
+
+  // alerts_checked_at is what lets a screen tell "no warnings" from "not checked".
+  // It must vouch only for a location whose warnings are all stored.
+
+  it('stamps alerts_checked_at on every location NWS answered', async () => {
+    fetchNwsAlerts.mockResolvedValue([])
+    await runAlertsCheck()
+    expect(updateWhere).toHaveBeenCalledTimes(LOCATIONS.length)
+  })
+
+  it('does not stamp a location whose fetch was unavailable', async () => {
+    fetchNwsAlerts.mockResolvedValueOnce(null).mockResolvedValue([])
+    await runAlertsCheck()
+    expect(updateWhere).toHaveBeenCalledTimes(LOCATIONS.length - 1)
+  })
+
+  it('does not stamp a location whose warning failed to store', async () => {
+    fetchNwsAlerts.mockResolvedValue([
+      {
+        nws_alert_id: 'urn:oid:2.49.0.1.840.0.abc123',
+        event: 'Flash Flood Warning',
+        severity: 'Severe',
+        certainty: 'Likely',
+        headline: 'Flash Flood Warning',
+        description: 'Water',
+        effective: null,
+        expires: null,
+      },
+    ])
+    upsert.mockRejectedValueOnce(new Error('disk full'))
+    await expect(runAlertsCheck()).rejects.toThrow(/disk full/)
+    expect(updateWhere).toHaveBeenCalledTimes(LOCATIONS.length - 1)
   })
 })
 

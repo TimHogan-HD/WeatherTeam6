@@ -1,8 +1,8 @@
-import { colors, spacing } from '@weatherteam6/design/tokens'
+import { colors, colorsV2, spacing } from '@weatherteam6/design/tokens'
 import type { WeatherAlert } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { alertSurface, stack } from '../theme/styles.js'
-import { sortBySeverity } from '../lib/forecast.js'
+import { ALERTS_UNCHECKED_LINE, sortBySeverity } from '../lib/forecast.js'
 
 /**
  * Alerts outrank everything and render above the score on every surface (§7
@@ -17,9 +17,13 @@ import { sortBySeverity } from '../lib/forecast.js'
  * §Design System requires matching it exactly (§8).
  */
 
-/** Full-width banner for the detail screen. Event, severity, and the NWS headline. */
-export function AlertBanner({ alerts }: { alerts: readonly WeatherAlert[] }) {
-  if (alerts.length === 0) return null
+/**
+ * Full-width banner for the detail screen. Event, severity, and the NWS headline.
+ * `unchecked` adds one quiet line under them (`alertsUnchecked`), so a missing
+ * check never reads as "no warnings".
+ */
+export function AlertBanner({ alerts, unchecked = false }: { alerts: readonly WeatherAlert[]; unchecked?: boolean }) {
+  if (alerts.length === 0 && !unchecked) return null
 
   return (
     <div style={stack(spacing.listGapSm)}>
@@ -33,6 +37,7 @@ export function AlertBanner({ alerts }: { alerts: readonly WeatherAlert[] }) {
           ) : null}
         </div>
       ))}
+      {unchecked ? <p style={{ ...type.bodySm, color: colorsV2.txtMuted }}>{ALERTS_UNCHECKED_LINE}</p> : null}
     </div>
   )
 }

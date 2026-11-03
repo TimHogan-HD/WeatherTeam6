@@ -1,34 +1,26 @@
 import { Router, type Request, type Response } from 'express'
-import { and, asc, avg, count, eq, ilike, or, sql } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { db } from '../db/index.js'
-import { locations, crags, locationNormals, cragClimbabilityHistory } from '../db/schema.js'
-import { MAX_NAME_LENGTH, MAX_QUERY_LENGTH, isUuid, sendServerError } from '../lib/http.js'
+import { locations } from '../db/schema.js'
+import { MAX_NAME_LENGTH, isUuid, sendServerError } from '../lib/http.js'
 import { insertGeneralLocation } from '../lib/locations/createLocation.js'
-import { resolveRockType } from '../lib/locations/resolveRockType.js'
 import { deleteLocationCascade } from '../lib/locations/deleteLocation.js'
 import { parseLocationUpdate, planLocationUpdate } from '../lib/locations/updateLocation.js'
 import { isRockType, parseNumeric, ROCK_TYPES, wallAngleFromCliffAngle } from '@weatherteam6/types'
-import type { ApiResponse, Location, Crag, CreateLocationInput, LocationNormal, ClimbabilityHistory } from '@weatherteam6/types'
+import type { ApiResponse, Location, CreateLocationInput } from '@weatherteam6/types'
 
 export const locationsRouter = Router()
 
 type LocationRow = typeof locations.$inferSelect
-type CragRow = typeof crags.$inferSelect
-
-/**
- * **Both of these derive from `ROCK_TYPES` now.** The gate was a hand-written
- * `Set` and the message a hand-written sentence, so adding a rock type anywhere
- * else in the app left this route rejecting it with a 400 — and the message
- * still naming the old five, which is the worst version of that bug because it
- * reads like the caller's mistake.
- */
-function parseRockType(v: string | null | undefined): Location['rock_type'] {
-  return isRockType(v) ? v : null
-}
 
 /** The longest IANA zone name is 30 characters; this only bounds junk. */
 const MAX_TIMEZONE_LENGTH = 64
 
+/**
+ * **Derived from `ROCK_TYPES`.** The message was a hand-written sentence, so
+ * adding a rock type anywhere else in the app left this route rejecting it with
+ * a 400 that still named the old five — which reads like the caller's mistake.
+ */
 const ROCK_TYPE_ERROR = `rock_type must be one of ${ROCK_TYPES.join(', ')}`
 
 /** Elevations outside this range are data errors, not places. */
@@ -150,22 +142,9 @@ function mapLocation(row: LocationRow): Location {
     nws_grid_x: row.nws_grid_x,
     nws_grid_y: row.nws_grid_y,
     timezone: row.timezone,
+    alerts_checked_at: row.alerts_checked_at?.toISOString() ?? null,
     created_at: row.created_at.toISOString(),
     updated_at: row.updated_at?.toISOString() ?? null,
-  }
-}
-
-function mapCrag(row: CragRow): Crag {
-  return {
-    id: row.id,
-    openbeta_id: row.openbeta_id,
-    name: row.name,
-    lat: parseFloat(row.lat),
-    lon: parseFloat(row.lon),
-    rock_type: row.rock_type ?? null,
-    area_name: row.area_name ?? null,
-    state: row.state ?? null,
-    created_at: row.created_at.toISOString(),
   }
 }
 
@@ -179,108 +158,10 @@ locationsRouter.get('/locations', async (req: Request, res: Response) => {
   }
 })
 
-// Must be registered before GET /locations/:id — Express matches in declaration order
-locationsRouter.get('/locations/search', async (req: Request, res: Response) => {
-  // Truncated rather than refused: the client calls this as the user types.
-  const q = typeof req.query['q'] === 'string' ? req.query['q'].trim().slice(0, MAX_QUERY_LENGTH) : ''
-  const latStr = typeof req.query['lat'] === 'string' ? req.query['lat'] : null
-  const lonStr = typeof req.query['lon'] === 'string' ? req.query['lon'] : null
-
-  if (q.length < 1 && (!latStr || !lonStr)) {
-    const response: ApiResponse<Crag[]> = { data: [], error: null, status: 200 }
-    res.status(200).json(response)
-    return
-  }
-
-  try {
-    let rows: CragRow[]
-
-    if (q.length >= 1) {
-      rows = await db
-        .select()
-        .from(crags)
-        .where(or(ilike(crags.name, `%${q}%`), ilike(crags.area_name, `%${q}%`), ilike(crags.state, `%${q}%`)))
-        .limit(20)
-    } else {
-      // Nearby search: sort by Haversine distance from provided lat/lon
-      const lat = parseFloat(latStr!)
-      const lon = parseFloat(lonStr!)
-      if (!isFinite(lat) || !isFinite(lon)) {
-        const response: ApiResponse<Crag[]> = { data: [], error: null, status: 200 }
-        res.status(200).json(response)
-        return
-      }
-      rows = await db
-        .select()
-        .from(crags)
-        .orderBy(
-          sql`(
-            6371 * acos(
-              cos(radians(${lat})) * cos(radians(${crags.lat}::float)) *
-              cos(radians(${crags.lon}::float) - radians(${lon})) +
-              sin(radians(${lat})) * sin(radians(${crags.lat}::float))
-            )
-          )`
-        )
-        .limit(20)
-    }
-
-    const response: ApiResponse<Crag[]> = { data: rows.map(mapCrag), error: null, status: 200 }
-    res.status(200).json(response)
-  } catch (err) {
-    sendServerError(res, err, 'GET /locations/search')
-  }
-})
-
 locationsRouter.post('/locations', async (req: Request, res: Response) => {
   const body = req.body as Partial<CreateLocationInput>
 
-  if ('cragId' in body && body.cragId) {
-    // Save a climbing location from the crags table
-    const cragId = body.cragId
-    if (!isUuid(cragId)) {
-      const response: ApiResponse<null> = { data: null, error: 'Invalid crag id', status: 400 }
-      res.status(400).json(response)
-      return
-    }
-
-    try {
-      const cragRows = await db.select().from(crags).where(eq(crags.id, cragId)).limit(1)
-      const crag = cragRows[0]
-      if (!crag) {
-        const response: ApiResponse<null> = { data: null, error: 'Crag not found', status: 404 }
-        res.status(404).json(response)
-        return
-      }
-
-      // The same lock as the general branch: an imported crag's free-text
-      // rock type loses to the research wherever the two overlap.
-      const rock = resolveRockType({
-        lat: parseFloat(crag.lat),
-        lon: parseFloat(crag.lon),
-        is_climbing_location: true,
-        rock_type: parseRockType(crag.rock_type),
-      })
-      const inserted = await db
-        .insert(locations)
-        .values({
-          user_id: req.userId,
-          name: crag.name,
-          lat: crag.lat,
-          lon: crag.lon,
-          is_climbing_location: true,
-          rock_type: rock.rock_type,
-          known_crag: rock.known_crag,
-        })
-        .returning()
-      const row = inserted[0]
-      if (!row) throw new Error('Insert returned no row')
-      const response: ApiResponse<Location> = { data: mapLocation(row), error: null, status: 201 }
-      res.status(201).json(response)
-    } catch (err) {
-      sendServerError(res, err, 'POST /locations (crag)')
-    }
-  } else if ('name' in body && 'lat' in body && 'lon' in body) {
+  if ('name' in body && 'lat' in body && 'lon' in body) {
     // Save a location from the add flow: a geocoder result, or hand-entered
     // coordinates. Climbing is a property of the saved location, not a
     // precondition for saving one — see miniapp-design-v1.md §12.
@@ -308,7 +189,7 @@ locationsRouter.post('/locations', async (req: Request, res: Response) => {
       sendServerError(res, err, 'POST /locations (general)')
     }
   } else {
-    const response: ApiResponse<null> = { data: null, error: 'Must provide cragId or name+lat+lon', status: 400 }
+    const response: ApiResponse<null> = { data: null, error: 'Must provide name+lat+lon', status: 400 }
     res.status(400).json(response)
   }
 })
@@ -420,98 +301,6 @@ locationsRouter.patch('/locations/:id', async (req: Request, res: Response) => {
     res.status(200).json(response)
   } catch (err) {
     sendServerError(res, err, 'PATCH /locations/:id')
-  }
-})
-
-locationsRouter.get('/locations/:id/normals', async (req: Request, res: Response) => {
-  const locationId = req.params['id']
-  if (!locationId || !isUuid(locationId)) {
-    const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
-    res.status(404).json(response)
-    return
-  }
-
-  try {
-    const ownerCheck = await db
-      .select({ id: locations.id })
-      .from(locations)
-      .where(and(eq(locations.id, locationId), eq(locations.user_id, req.userId)))
-      .limit(1)
-
-    if (!ownerCheck[0]) {
-      const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
-      res.status(404).json(response)
-      return
-    }
-
-    const rows = await db
-      .select()
-      .from(locationNormals)
-      .where(eq(locationNormals.location_id, locationId))
-      .orderBy(asc(locationNormals.month))
-
-    const data: LocationNormal[] = rows.map((r) => ({
-      id: r.id,
-      locationId: r.location_id,
-      month: r.month,
-      precipNormalMm: parseFloat(r.precip_normal_mm),
-      tempMaxNormalC: parseFloat(r.temp_max_normal_c),
-      tempMinNormalC: parseFloat(r.temp_min_normal_c),
-      source: r.source,
-      fetchedAt: r.fetched_at.toISOString(),
-    }))
-
-    const response: ApiResponse<LocationNormal[]> = { data, error: null, status: 200 }
-    res.status(200).json(response)
-  } catch (err) {
-    sendServerError(res, err, 'GET /locations/:id/normals')
-  }
-})
-
-// Must be registered before GET /locations/:id — Express matches in declaration order
-locationsRouter.get('/locations/:id/history', async (req: Request, res: Response) => {
-  const { id } = req.params
-  if (!id || !isUuid(id)) {
-    const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
-    res.status(404).json(response)
-    return
-  }
-
-  try {
-    // Ownership first: the history table is keyed by location alone, so
-    // without this any caller could read any location's history by id.
-    const owned = await db
-      .select({ id: locations.id })
-      .from(locations)
-      .where(and(eq(locations.id, id), eq(locations.user_id, req.userId)))
-      .limit(1)
-    if (!owned[0]) {
-      const response: ApiResponse<null> = { data: null, error: 'Location not found', status: 404 }
-      res.status(404).json(response)
-      return
-    }
-
-    const rows = await db
-      .select({
-        month: cragClimbabilityHistory.month,
-        avg_climbable_days: avg(cragClimbabilityHistory.climbable_days),
-        years_of_data: count(cragClimbabilityHistory.year),
-      })
-      .from(cragClimbabilityHistory)
-      .where(eq(cragClimbabilityHistory.location_id, id))
-      .groupBy(cragClimbabilityHistory.month)
-      .orderBy(asc(cragClimbabilityHistory.month))
-
-    const data: ClimbabilityHistory[] = rows.map((r) => ({
-      month: r.month,
-      avg_climbable_days: parseFloat(r.avg_climbable_days ?? '0'),
-      years_of_data: r.years_of_data,
-    }))
-
-    const response: ApiResponse<ClimbabilityHistory[]> = { data, error: null, status: 200 }
-    res.status(200).json(response)
-  } catch (err) {
-    sendServerError(res, err, 'GET /locations/:id/history')
   }
 })
 

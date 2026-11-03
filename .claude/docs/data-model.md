@@ -9,8 +9,8 @@ The Telegram Crossover migration (PR #20) deleted the BullMQ workers that popula
 | Table | Status |
 |-------|--------|
 | `forecast_snapshots` | **Intentionally dead.** Forecasts are computed live per request (`lib/scoring/liveForecast.ts`). Nothing writes here by design. |
-| `crag_climbability_history` | **Unintentionally dead — see issue #25.** The `rainfallHistory` worker's backfill branch was its only writer. `GET /locations/:id/history` therefore returns `[]` forever. |
-| `location_normals` | **Unintentionally dead — see issue #25.** Same worker was the only writer. `GET /locations/:id/normals` returns `[]` forever. |
+| `crag_climbability_history` | **Dead — issue #25.** The `rainfallHistory` worker's backfill branch was its only writer. Its route, `GET /locations/:id/history`, and the code that computed it were deleted 2026-11-03; only the delete cascade touches the table. |
+| `location_normals` | **Dead — issue #25.** Same worker was the only writer. `GET /locations/:id/normals` and `acisNormals.ts` were deleted 2026-11-03. |
 
 `rainfall_history` is also no longer written on a schedule; recent precipitation is fetched live per request from Open-Meteo. The ACIS station lookup was deleted with the old scorer in Phase 5b.
 
@@ -107,11 +107,14 @@ nws_office      text    -- e.g. 'MPX'
 nws_grid_x      int
 nws_grid_y      int
 timezone        text    -- IANA tz string e.g. 'America/Chicago'
+alerts_checked_at timestamptz -- last check-alerts run NWS answered and every warning stored;
+                        --   null = never checked (0039). The client prints "Warnings not
+                        --   checked recently" past ALERTS_CHECK_STALE_MS (2 h).
 created_at      timestamptz default now()
 ```
 
 ### crags
-OpenBeta crag data. Populated via seed script from OpenBeta export.
+OpenBeta crag data. **Nothing reads or writes it** since its importer, search route and `{ cragId }` save were deleted (2026-11-03); dropping it is the owner's call.
 ```typescript
 id              uuid PK
 openbeta_id     text UNIQUE
@@ -453,5 +456,5 @@ recorded as such in `schema.ts`.
 ## Key Relationships
 - Everything traces back to `users.id` via FK — even with auth off
 - `locations` is the hub: forecast_snapshots, rainfall_history, and conditions_reports all FK to it
-- `crags` is a separate read-only reference table seeded from OpenBeta — not the same as `locations`
-- A user "saves" a crag by creating a `locations` row, optionally linked by name/coords to a `crags` row
+- `crags` is a separate, unused reference table — not the same as `locations`
+- A user saves a crag by creating a `locations` row from the `/add` search (OpenBeta snapshots and Open-Meteo places)
