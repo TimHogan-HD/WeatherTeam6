@@ -426,7 +426,8 @@ export const RAIN_SPLIT_MIN_WET = 2
  * column shows them (owner, 2026-11-02): the day scored
  * `RAIN_SPLIT_MIN_SCORE` or more and at least `RAIN_SPLIT_MIN_WET` of its
  * models say wet. In `compare:rain-spread` such days were wet on the rain
- * gauges about half the time. Null otherwise, and for an API that sent no
+ * gauges six or seven times in ten on sandstone and limestone, against about
+ * one in ten without. Null otherwise, and for an API that sent no
  * `rain_split`.
  */
 export function rainSplitShown(days: readonly ReadingsDay[] | undefined, localDate: string): RainSplit | null {

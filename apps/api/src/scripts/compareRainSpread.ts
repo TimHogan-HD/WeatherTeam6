@@ -85,7 +85,8 @@
  * going lower is how many days carry dots: at 70-79, 54% of sandstone days and
  * 36% of limestone; at 60-69, 76% and 48%, where the dots stop picking days out.
  * Raising the start to 90 would drop dots from 80-89 days that came out wet
- * 43-65% of the time (quartzite 27%).
+ * 43-65% of the time (quartzite 27%). The owner set the start to 70
+ * (2026-11-03).
  */
 import type { RockType } from '@weatherteam6/types'
 import { dayRepresentative, evaluateCragA, rockLevelA } from '../lib/scoring/cragModel.js'

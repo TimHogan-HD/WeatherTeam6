@@ -55,9 +55,9 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   names `HourlySeries.model` and the drying clock's rain models.
 - **Next days dots a good day whose weather models split on rain** (owner, 2026-11-02,
   option B with C's words; mockup `docs/handoffs/design-mockups/rain-split.html`). One dot per
-  model read, filled for each that says it'll be wet, under a day scored 80 or more with at
+  model read, filled for each that says it'll be wet, under a day scored 70 or more with at
   least two filled (`rainSplitShown`); one key line under the row, `weather models that say
-  it'll be wet`; the column reads the count aloud. Never on a score under 80, never a
+  it'll be wet`; the column reads the count aloud. Never on a score under 70 (owner, 2026-11-03, from 80), never a
   sentence about the rock.
 - **How the score works is on Profile only** (owner, 2026-10-29): `ScoreExplainer`, reached
   from the breakdown's `How the score works ›`. Every number it quotes comes from
