@@ -16,6 +16,11 @@ None of it blocks work. Neither item has been confirmed done since 2026-09-23.
 2. **Delete `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_WEBHOOK_SECRET` and
    `AUTH_ENABLED`** from both Vercel projects. Nothing reads them; three are live credentials.
 
+## Working with the owner
+
+- Interact only when it is needed. Design decisions qualify; chasing an unmerged PR does not.
+- **The owner's field knowledge beats the research docs**, especially on rock and safety.
+
 ## Where the project is
 
 The audience is the owner (account `tim`) plus a few climbing partners, each with their own

@@ -15,7 +15,7 @@ locations                 -- the hub: saved crags and weather spots
 trips
 trip_locations
 trip_day_records          -- what the forecast said, per location; /api/cron/record-trips
-trip_rain_records         -- trip totals for the trend, per trip; /api/cron/record-trips
+trip_rain_records         -- trip totals for the trend, per trip and location; /api/cron/record-trips
 trip_day_outcomes         -- how a day turned out; /api/cron/record-trips
 trip_day_gauges           -- airport gauge per station and day (no FK); /api/cron/record-trips
 trip_day_volunteer_gauges -- CoCoRaHS report per station (no FK); /api/cron/record-trips
