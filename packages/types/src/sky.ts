@@ -186,7 +186,7 @@ const hoursOf = (min: number): number => Math.round(min / 60)
 
 /**
  * The Daily row's second line: `Sun 8a–4p · 8 h`, `Sun 8–9a, 2–4p · 3 h`,
- * `Sun 5 h, on and off`, `No sun`, `Sun 0–3 h · forecasts differ`, or the gap
+ * `Sun 5 h, on and off`, `Sun under 1 h`, `No sun`, `Sun 0–3 h · forecasts differ`, or the gap
  * mark `Sun —` when the day was not fully answered.
  */
 export function sunDayLine(day: Pick<SkyDay, 'sun_min' | 'sun_windows' | 'sun_by_model'>): SunDayLine {
@@ -201,8 +201,10 @@ export function sunDayLine(day: Pick<SkyDay, 'sun_min' | 'sun_windows' | 'sun_by
     }
   }
 
+  // "No sun" only when the forecast has none: up to 29 minutes rounds to 0 h but is still sun.
+  if (day.sun_min < 1) return { text: 'No sun', sunny: false, gap: false }
   const h = hoursOf(day.sun_min)
-  if (h === 0) return { text: 'No sun', sunny: false, gap: false }
+  if (h === 0) return { text: 'Sun under 1 h', sunny: false, gap: false }
   const ws = day.sun_windows
   if (ws.length >= 1 && ws.length <= SUN_MAX_WINDOWS) {
     return { text: `Sun ${ws.map(sunWindowLabel).join(', ')} · ${h} h`, sunny: true, gap: false }

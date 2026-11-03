@@ -38,9 +38,11 @@ describe('sunDayLine', () => {
     expect(sunDayLine(day(null, null))).toEqual({ text: 'Sun —', sunny: false, gap: true })
   })
 
-  it('says "No sun" for under half an hour, as a reading', () => {
+  it('says "No sun" only for none, and "under 1 h" for a little, as readings', () => {
     expect(sunDayLine(day(0, []))).toEqual({ text: 'No sun', sunny: false, gap: false })
-    expect(sunDayLine(day(29, []))).toEqual({ text: 'No sun', sunny: false, gap: false })
+    expect(sunDayLine(day(0.9, []))).toEqual({ text: 'No sun', sunny: false, gap: false })
+    expect(sunDayLine(day(1, []))).toEqual({ text: 'Sun under 1 h', sunny: false, gap: false })
+    expect(sunDayLine(day(29, []))).toEqual({ text: 'Sun under 1 h', sunny: false, gap: false })
   })
 
   it('lists one or two windows with the total', () => {
