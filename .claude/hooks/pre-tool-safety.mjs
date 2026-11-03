@@ -137,10 +137,14 @@ function stripInertText(cmd) {
   // as if it ran the push (2026-10-07). Quoted arguments of a search command are
   // dropped; a double-quoted one that substitutes a command is kept, since that
   // command does run.
+  // The arguments are read quote-aware: a `|` or `;` inside a quoted pattern
+  // (`grep "a\|drizzle-kit push"`) is part of the pattern, not the end of the
+  // command. Reading to the first bare `|` cut that pattern open, and a
+  // read-only grep was refused (2026-11-03).
   out = out.replace(
-    /(^|&&|\|\||[;\n|(])(\s*(?:grep|egrep|fgrep|rg|git\s+grep|Select-String|sls|findstr)\b)([^;&|\n]*)/gi,
+    /(^|&&|\|\||[;\n|(])(\s*(?:grep|egrep|fgrep|rg|git\s+grep|Select-String|sls|findstr)\b)((?:'[^']*'|"(?:\\.|[^"\\])*"|[^;&|\n'"])*)/gi,
     (_, sep, verb, args) =>
-      sep + verb + args.replace(/'[^']*'|"(?:(?!\$\(|`)[^"])*"/g, ' PATTERN '),
+      sep + verb + args.replace(/'[^']*'|"(?:(?!\$\(|`)(?:\\.|[^"\\]))*"/g, ' PATTERN '),
   )
   return out
 }
