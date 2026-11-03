@@ -10,6 +10,7 @@ import {
   formatLocalHour,
   formatPrecipIn,
   formatTempF,
+  kmhToMph,
   modelName,
   readingNow,
   rockGuide,
@@ -119,7 +120,7 @@ function Card({ title, aside, children }: { title: string; aside?: string | null
   )
 }
 
-const mph = (kmh: number): number => Math.round(kmh / 1.609344)
+const mph = (kmh: number): number => Math.round(kmhToMph(kmh))
 
 /** The hour's readings. Null without readings to read. */
 type Now = {

@@ -3,6 +3,7 @@ import {
   EM_DASH,
   ROCK_LABELS,
   formatPrecipIn,
+  kmToMi,
   type TripDayGauge,
   type TripDayLookBack,
   type TripSummary,
@@ -33,7 +34,7 @@ export const GAUGE_SOURCE =
  */
 export function gaugeLine(gauge: TripDayGauge | null | undefined): string | null {
   if (gauge == null) return null
-  const miles = Math.max(1, Math.round(gauge.distance_km * 0.621371))
+  const miles = Math.max(1, Math.round(kmToMi(gauge.distance_km)))
   const where = `Rain gauge at ${gauge.station}, ${miles} mi away`
   return gauge.rain_mm === null ? `${where}: not every hour reported` : `${where}: ${formatPrecipIn(gauge.rain_mm)}`
 }

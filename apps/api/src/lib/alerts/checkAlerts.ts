@@ -17,9 +17,10 @@ import { fetchNwsAlerts } from '../weather/nwsAlerts.js'
  * replaces the bot will want exactly that claim-before-send mechanism — but
  * until then it is null on every row and **must not be read as "not yet sent"**.
  *
- * What still depends on this running: `GET /api/v1/alerts`, and the Severe+
- * suppression of the score in `summarizeReadings`. A stale alert table is worse
- * than an empty one, which is why the schedule stays registered.
+ * What still depends on this running: `GET /api/v1/alerts`, the warnings every
+ * crag screen and list card shows beside the score. No alert withholds a score
+ * (owner, 2026-10-29). Each location's `alerts_checked_at` is stamped only when
+ * NWS answered for it, so a screen can tell "no warnings" from "not checked".
  */
 export async function runAlertsCheck(): Promise<void> {
   logger.info('[checkAlerts] run started')
@@ -115,6 +116,12 @@ export async function runAlertsCheck(): Promise<void> {
           )
       } else {
         await db.delete(weatherAlerts).where(eq(weatherAlerts.location_id, loc.id))
+      }
+
+      // Stamped only when every warning NWS gave is stored: a failed upsert
+      // leaves the old stamp to age, never one that vouches for a missing row.
+      if (errors.length === 0) {
+        await db.update(locations).set({ alerts_checked_at: new Date() }).where(eq(locations.id, loc.id))
       }
 
       logger.info({ locationId: loc.id, alertCount: alerts.length }, '[checkAlerts] location processed')

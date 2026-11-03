@@ -12,9 +12,10 @@ import {
 import { typeV2 } from '../theme/tokens.css.js'
 import { useAlerts, useConditions, useForecast, useRainNow } from '../hooks/useWeather.js'
 import { useHourly } from '../hooks/useHourly.js'
+import { useNow } from '../hooks/useNow.js'
 import { shortSpan } from '../lib/overview.js'
 import { SkyIcon } from './Icons.js'
-import { findToday, sortBySeverity } from '../lib/forecast.js'
+import { ALERTS_UNCHECKED_LINE, alertsUnchecked, findToday, sortBySeverity } from '../lib/forecast.js'
 import { prefetchDetail } from '../lib/prefetchDetail.js'
 import { formatTempRangeF } from '../lib/format.js'
 import { cardSummary } from '../lib/locationList.js'
@@ -79,6 +80,7 @@ export function LocationCard({
   const conditions = useConditions(location.id, location.is_climbing_location)
   const hourly = useHourly(location.id)
   const rainNow = useRainNow()
+  const now = useNow()
 
   // A non-crag's conditions query is disabled and stays pending forever.
   const settled =
@@ -150,12 +152,15 @@ export function LocationCard({
   }
 
   // Alerts outrank everything, so the alert line takes the place of the day's line.
+  // A warning NWS was not asked about lately is as unknown as a failed call.
   const alertLine =
     shown === null && alerts.isError ? (
       <small style={{ ...small, color: colorsV2.txtMuted }}>Alerts unavailable</small>
-    ) : alert === undefined ? null : (
+    ) : alert !== undefined ? (
       <small style={{ ...small, color: colors.fair }}>{alert.event}</small>
-    )
+    ) : alertsData !== undefined && alertsUnchecked(location.alerts_checked_at, now) ? (
+      <small style={{ ...small, color: colorsV2.txtMuted }}>{ALERTS_UNCHECKED_LINE}</small>
+    ) : null
 
   const loading = shown === null && (forecast.isPending || (location.is_climbing_location && conditions.isPending))
 

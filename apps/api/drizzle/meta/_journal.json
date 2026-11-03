@@ -274,6 +274,13 @@
       "when": 1793670956848,
       "tag": "0038_bent_big_bertha",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1793708226640,
+      "tag": "0039_old_hydra",
+      "breakpoints": true
     }
   ]
 }

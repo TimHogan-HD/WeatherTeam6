@@ -20,6 +20,25 @@ concurrency:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    # The database checks' throwaway Postgres, reached the way `ui.yml` reaches
+    # it: through Neon's own WebSocket proxy, so the driver is production's.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      wsproxy:
+        image: ghcr.io/neondatabase/wsproxy:latest
+        env:
+          ALLOW_ADDR_REGEX: "^postgres:5432$"
+          LOG_CONN_INFO: "false"
+        ports:
+          - 5488:80
     steps:
       - uses: actions/checkout@v4
         with:
@@ -75,9 +94,8 @@ jobs:
       # list of issues did. Deriving it means a new root `check:*` script is in
       # CI the moment it exists.
       #
-      # Workspace-level `check:*` scripts (apps/api's check:add-location,
-      # check:delete-trip) are deliberately NOT run here: they need a real
-      # DATABASE_URL. The convention is that a root-level check is hermetic.
+      # Workspace-level `check:*` scripts are not root checks: a root-level check
+      # is hermetic. The ones that need only Postgres run in the next step.
       - name: Repo checks (all root check:* scripts)
         run: |
           set -euo pipefail
@@ -92,5 +110,33 @@ jobs:
           for c in "${checks[@]}"; do
             echo "::group::npm run $c"
             npm run "$c"
+            echo "::endgroup::"
+          done
+
+      # The acceptance scripts that are the only tests of the auth gate, the
+      # cross-account 404s and the delete cascades (Vitest never reaches
+      # Postgres). Before 2026-11-03 they ran only when a session remembered.
+      # Each needs nothing but the local app and the database; the ones that
+      # call a weather upstream (check:add-location, check:conditions, ...) are
+      # left out so this job never spends the shared Open-Meteo allowance.
+      # Each script's own command comes from apps/api/package.json, run with
+      # the preload that points the driver at the proxy.
+      - name: Database checks (throwaway Postgres)
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgres://postgres:ci-only@postgres:5432/postgres
+          CHECK_UI_WS_PROXY: localhost:5488
+        run: |
+          set -euo pipefail
+          npm run migrate:local
+          run_with_proxy() {
+            local file
+            file=$(node -p "require('./package.json').scripts['$1'].replace(/^tsx /, '')")
+            npx tsx --import ./src/scripts/localPostgresPreload.ts $file
+          }
+          run_with_proxy db:seed
+          for c in auth invites edit-location delete-trip edit-trip feedback logbook preferences; do
+            echo "::group::check:$c"
+            run_with_proxy "check:$c"
             echo "::endgroup::"
           done

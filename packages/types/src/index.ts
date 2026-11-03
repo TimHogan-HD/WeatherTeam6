@@ -159,20 +159,14 @@ export type Location = {
   nws_grid_x: number | null
   nws_grid_y: number | null
   timezone: string | null
+  /**
+   * When NWS warnings were last checked for this place; null when never. Optional
+   * because the API and the client deploy separately — absent is unknown, and
+   * shows no "not checked" line rather than a false one.
+   */
+  alerts_checked_at?: string | null
   created_at: string
   updated_at: string | null
-}
-
-export type Crag = {
-  id: string
-  openbeta_id: string
-  name: string
-  lat: number
-  lon: number
-  rock_type: string | null
-  area_name: string | null
-  state: string | null
-  created_at: string
 }
 
 export type ForecastSnapshot = {
@@ -483,22 +477,20 @@ export type TripSummary = {
   days: TripDayLookBack[]
 }
 
-export type CreateLocationInput =
-  | { cragId: string }
-  | {
-      name: string
-      lat: number
-      lon: number
-      // Carried through from the geocoder, or null on the manual-coordinate path.
-      // Without it applyLapseRate returns early and a saved location reports
-      // different temperatures than its own pre-save preview did.
-      elevation_m?: number | null
-      timezone?: string | null
-      is_climbing_location?: boolean
-      // Only meaningful when is_climbing_location is true. Left unset it resolves
-      // to 'unknown' — 48h drying — see miniapp-design-v1.md §12.1.
-      rock_type?: RockType | null
-    }
+export type CreateLocationInput = {
+  name: string
+  lat: number
+  lon: number
+  // Carried through from the geocoder, or null on the manual-coordinate path.
+  // Without it applyLapseRate returns early and a saved location reports
+  // different temperatures than its own pre-save preview did.
+  elevation_m?: number | null
+  timezone?: string | null
+  is_climbing_location?: boolean
+  // Only meaningful when is_climbing_location is true. Left unset it resolves
+  // to 'unknown' — 48h drying — see miniapp-design-v1.md §12.1.
+  rock_type?: RockType | null
+}
 
 /** One place from GET /api/v1/geocode — Open-Meteo's geocoding API, proxied server-side. */
 export type GeocodeResult = {
@@ -573,17 +565,6 @@ export type ReverseGeocode = {
   elevation_m: number | null
 }
 
-export type LocationNormal = {
-  id: string
-  locationId: string
-  month: number
-  precipNormalMm: number
-  tempMaxNormalC: number
-  tempMinNormalC: number
-  source: string
-  fetchedAt: string
-}
-
 /** `GET /radar/latest`: the newest IEM composite radar frame, as an ISO instant. */
 export type RadarLatest = {
   valid_at: string
@@ -604,9 +585,4 @@ export type RainNow = {
   }[]
 }
 
-export type ClimbabilityHistory = {
-  month: number // 1–12
-  avg_climbable_days: number
-  years_of_data: number
-}
 export * from './areaRock.js'

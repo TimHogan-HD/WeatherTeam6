@@ -89,6 +89,27 @@ export function formatWeekday(isoDate: string): string {
   return date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })
 }
 
+/**
+ * How old a place's last NWS check may be before its warnings read as not
+ * checked. A judgement call: several missed runs of the schedule, and generous
+ * because the stamp rides on the location list, which the app caches.
+ */
+export const ALERTS_CHECK_STALE_MS = 2 * 60 * 60 * 1000
+
+export const ALERTS_UNCHECKED_LINE = 'Warnings not checked recently'
+
+/**
+ * Whether a place's warnings went unchecked lately, so an empty list must not
+ * read as "no warnings" (defect class 2): a place saved since the last run, or
+ * a schedule that stopped. `undefined` is an older API and says nothing.
+ */
+export function alertsUnchecked(checkedAt: string | null | undefined, now: number): boolean {
+  if (checkedAt === undefined) return false
+  if (checkedAt === null) return true
+  const at = Date.parse(checkedAt)
+  return !Number.isFinite(at) || now - at > ALERTS_CHECK_STALE_MS
+}
+
 /** Severe and Extreme first, so the banner order matches the ranking §7 uses. */
 export function sortBySeverity(alerts: readonly WeatherAlert[]): WeatherAlert[] {
   return [...alerts].sort(

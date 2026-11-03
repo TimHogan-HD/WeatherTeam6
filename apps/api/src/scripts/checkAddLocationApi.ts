@@ -25,7 +25,7 @@
  * reveal them, so Neon's dashboard is the source for `DATABASE_URL`.
  *
  * console rather than the logger is deliberate — this is an operator-facing CLI,
- * same as `importCrags.ts`, and its output is the result.
+ * and its output is the result.
  */
 
 import type { ForecastSnapshot, Location, ApiResponse, ReverseGeocode } from '@weatherteam6/types'

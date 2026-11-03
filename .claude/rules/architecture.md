@@ -70,7 +70,7 @@ seen them.
   the gate to Vercel. `/api/cron/*` keeps its own `CRON_SECRET` auth.
 - **Every location id a caller supplies is checked against `req.userId`** — in the path, in
   a body (`POST /trips`'s `cragIds`, `POST /walls`'s `locationId`), or as the key of a table
-  without `user_id` (`crag_climbability_history`, `location_normals`). A 404, never a 403;
+  without `user_id` (`GET /alerts/:locationId` over `weather_alerts`). A 404, never a 403;
   `check:auth` covers it.
 - **`createApp` hardens Express:** no `X-Powered-By`, `nosniff`, `frame-ancestors 'none'`,
   `Cache-Control: no-store`, a 32 kB JSON limit, body-parser failures as 400/413 in the

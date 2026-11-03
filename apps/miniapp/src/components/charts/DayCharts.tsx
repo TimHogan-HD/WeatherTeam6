@@ -6,6 +6,7 @@ import {
   formatPrecipIn,
   kmhToMph,
   modelName,
+  mphToKmh,
   summarizeReadings,
   type HourlyReading,
   type HourlySample,
@@ -666,9 +667,8 @@ function WindChart({
   const H = 120
   const lo = Math.min(...wind.map((d) => d.low ?? d.value ?? Infinity))
   const hi = Math.max(...[...wind, ...gusts].map((d) => Math.max(d.high ?? -Infinity, d.value ?? -Infinity)))
-  const kmhPerMph = 1.609344
-  const ticks = niceTicks(Math.max(0, lo / kmhPerMph), hi / kmhPerMph)
-  const y = scale((ticks[0] ?? 0) * kmhPerMph, (ticks[ticks.length - 1] ?? 0) * kmhPerMph, 98, 12)
+  const ticks = niceTicks(Math.max(0, kmhToMph(lo)), kmhToMph(hi))
+  const y = scale(mphToKmh(ticks[0] ?? 0), mphToKmh(ticks[ticks.length - 1] ?? 0), 98, 12)
   const readWind = at(wind, read.ms)
   const band = runsOf(wind, (d) => d.low !== null && d.high !== null)
 
@@ -689,7 +689,7 @@ function WindChart({
           ...(hasValues(gusts) ? [{ label: 'gusts', value: mph(at(gusts, read.ms)?.value ?? null), color: chartColorsV2.gust }] : []),
         ]}
       >
-        <Grid axis={axis} ticks={ticks} fromLabel={(mph) => mph * kmhPerMph} y={y} side="start" unit="" />
+        <Grid axis={axis} ticks={ticks} fromLabel={mphToKmh} y={y} side="start" unit="" />
         {band.map((run, i) => (
           <Frost
             key={i}

@@ -287,15 +287,6 @@ async function run(): Promise<void> {
       `got ${crossWall.status}`,
     )
 
-    const crossHistory = await call<null>('GET', `/locations/${locB}/history`, {
-      auth: `Session ${token}`,
-    })
-    check(
-      "GET /locations/:id/history on B's location is 404 for A",
-      crossHistory.status === 404,
-      `got ${crossHistory.status}`,
-    )
-
     const feedbackB = await db
       .insert(feedback)
       .values({ user_id: idB, kind: 'app', message: `${PREFIX} feedback` })

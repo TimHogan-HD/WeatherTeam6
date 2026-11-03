@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { Router, type Request, type Response } from 'express'
-import { sendServerError } from '../lib/http.js'
+import { describeError, sendServerError } from '../lib/http.js'
 import { logger } from '../lib/logger.js'
 import { runAlertsCheck } from '../lib/alerts/checkAlerts.js'
 import { collectWeatherRuns } from '../lib/runs/collectRuns.js'
@@ -56,10 +56,11 @@ function cronGateFailed(req: Request, res: Response): boolean {
  * **It collects; it does not deliver.** `notifyPendingAlerts` went with the bot
  * in migration Phase 3 and alerts are parked — there is no notification channel
  * in the product until one is chosen (`docs/handoffs/leave-telegram-v1.md`
- * § Risks). The data still matters: `GET /api/v1/alerts` reads it, and a Severe+
- * row suppresses the location's score in `summarizeReadings`. **The schedule
- * stays registered with cron-job.org** — unregistering it would leave every
- * surface reading a stale alert table, which is worse than a quiet one.
+ * § Risks). The data still matters: `GET /api/v1/alerts` reads it, and every
+ * crag screen shows its warnings beside the score, which no alert withholds
+ * (owner, 2026-10-29). **The schedule stays registered with cron-job.org** —
+ * without it each location's `alerts_checked_at` ages and its screens say the
+ * warnings were not checked.
  *
  * Answers 200 with `refreshFailed` rather than a 500, because a run that failed
  * on one location out of five is a partial outcome the schedule should not
@@ -76,7 +77,7 @@ cronRouter.post('/check-alerts', async (req: Request, res: Response) => {
     try {
       await runAlertsCheck()
     } catch (err) {
-      refreshError = err instanceof Error ? err.message : String(err)
+      refreshError = describeError(err)
       logger.error({ err: refreshError }, '[cron] alerts refresh failed')
     }
 

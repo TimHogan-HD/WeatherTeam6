@@ -49,9 +49,16 @@ function hasAnyValue(values: (number | null)[]): boolean {
  * — or that overlaps itself — updates one row rather than accumulating
  * duplicates. `fetched_at` comes from the fetch, not from `now()`, which is what
  * makes the retry land on the same key.
+ *
+ * Called inside the same transaction as the run's hours: the row's `checked_at`
+ * says the run is current, so a run row whose hours failed to land would be
+ * served as complete and then confirmed by every collection until the backstop.
  */
-async function upsertRun(values: typeof weatherRuns.$inferInsert): Promise<string | null> {
-  const inserted = await db
+async function upsertRun(
+  executor: Pick<typeof db, 'insert'>,
+  values: typeof weatherRuns.$inferInsert,
+): Promise<string | null> {
+  const inserted = await executor
     .insert(weatherRuns)
     // A run is current at the moment it is fetched.
     .values({ ...values, checked_at: values.fetched_at })
@@ -78,16 +85,7 @@ async function storeOneModel(
   utcOffsetSeconds: number,
   rain: RainMedian | null,
 ): Promise<StoredRun | null> {
-  const runId = await upsertRun({
-    ...base,
-    model: model.model,
-    kind: 'deterministic',
-    precip_prob_is_shared: model.probability_is_shared,
-    rain_models: rain?.models ?? null,
-  })
-  if (!runId) return null
-
-  const rows: (typeof weatherRunHours.$inferInsert)[] = []
+  const rows: Omit<typeof weatherRunHours.$inferInsert, 'run_id'>[] = []
   for (const h of model.hours) {
     const valid_at = localTimeToUtc(h.valid_at_local, utcOffsetSeconds)
     // A timestamp that would not parse is a gap, not hour zero. Dropping the row
@@ -114,7 +112,6 @@ async function storeOneModel(
     if (!hasAnyValue(values)) continue
 
     rows.push({
-      run_id: runId,
       valid_at,
       temp_c: h.temp_c,
       dewpoint_c: h.dewpoint_c,
@@ -131,32 +128,44 @@ async function storeOneModel(
     })
   }
 
-  for (const chunk of chunked(rows, INSERT_CHUNK)) {
-    await db
-      .insert(weatherRunHours)
-      .values(chunk)
-      // Same run, same hour, re-collected: overwrite rather than fail. The PK is
-      // (run_id, valid_at), so this is the retry path, not a merge of two runs.
-      .onConflictDoUpdate({
-        target: [weatherRunHours.run_id, weatherRunHours.valid_at],
-        set: {
-          temp_c: sqlExcluded('temp_c'),
-          dewpoint_c: sqlExcluded('dewpoint_c'),
-          humidity_pct: sqlExcluded('humidity_pct'),
-          precip_mm: sqlExcluded('precip_mm'),
-          wind_kmh: sqlExcluded('wind_kmh'),
-          wind_gust_kmh: sqlExcluded('wind_gust_kmh'),
-          wind_dir_deg: sqlExcluded('wind_dir_deg'),
-          cloud_pct: sqlExcluded('cloud_pct'),
-          precip_prob_pct: sqlExcluded('precip_prob_pct'),
-          pressure_hpa: sqlExcluded('pressure_hpa'),
-          shortwave_wm2: sqlExcluded('shortwave_wm2'),
-          rain_median_mm: sqlExcluded('rain_median_mm'),
-        },
-      })
-  }
+  // The run row and its hours land together or not at all (see `upsertRun`).
+  return db.transaction(async (tx) => {
+    const runId = await upsertRun(tx, {
+      ...base,
+      model: model.model,
+      kind: 'deterministic',
+      precip_prob_is_shared: model.probability_is_shared,
+      rain_models: rain?.models ?? null,
+    })
+    if (!runId) return null
 
-  return { run_id: runId, model: model.model, hours: rows.length }
+    for (const chunk of chunked(rows, INSERT_CHUNK)) {
+      await tx
+        .insert(weatherRunHours)
+        .values(chunk.map((row) => ({ ...row, run_id: runId })))
+        // Same run, same hour, re-collected: overwrite rather than fail. The PK is
+        // (run_id, valid_at), so this is the retry path, not a merge of two runs.
+        .onConflictDoUpdate({
+          target: [weatherRunHours.run_id, weatherRunHours.valid_at],
+          set: {
+            temp_c: sqlExcluded('temp_c'),
+            dewpoint_c: sqlExcluded('dewpoint_c'),
+            humidity_pct: sqlExcluded('humidity_pct'),
+            precip_mm: sqlExcluded('precip_mm'),
+            wind_kmh: sqlExcluded('wind_kmh'),
+            wind_gust_kmh: sqlExcluded('wind_gust_kmh'),
+            wind_dir_deg: sqlExcluded('wind_dir_deg'),
+            cloud_pct: sqlExcluded('cloud_pct'),
+            precip_prob_pct: sqlExcluded('precip_prob_pct'),
+            pressure_hpa: sqlExcluded('pressure_hpa'),
+            shortwave_wm2: sqlExcluded('shortwave_wm2'),
+            rain_median_mm: sqlExcluded('rain_median_mm'),
+          },
+        })
+    }
+
+    return { run_id: runId, model: model.model, hours: rows.length }
+  })
 }
 
 /**
@@ -202,63 +211,64 @@ export async function storeEnsembleRun(
   point_key: string,
   run: EnsembleRun,
 ): Promise<StoredRun | null> {
-  const runId = await upsertRun({
-    point_key,
-    model: ENSEMBLE_RUN_MODEL,
-    kind: 'ensemble',
-    fetched_at: run.fetched_at,
-    utc_offset_seconds: run.daily.utc_offset_seconds,
-    model_elevation_m: null,
-    // Not applicable to an ensemble run, and null here means exactly that.
-    precip_prob_is_shared: null,
-    ensemble_daily: { days: run.daily.days, model_sources: run.daily.model_sources, rewet: run.daily.rewet },
-  })
-  if (!runId) return null
-
-  const rows: (typeof weatherEnsembleHours.$inferInsert)[] = []
+  const rows: Omit<typeof weatherEnsembleHours.$inferInsert, 'run_id'>[] = []
   for (const h of run.hours) {
     const valid_at = localTimeToUtc(h.valid_at_local, run.daily.utc_offset_seconds)
     if (valid_at === null) continue
     // No members reported at this hour: every percentile is null and the row
     // would assert nothing. Past the 168h horizon that is most of them.
     if (h.member_count === 0) continue
-    rows.push(ensembleRow(runId, valid_at, h))
+    rows.push(ensembleRow(valid_at, h))
   }
 
-  for (const chunk of chunked(rows, INSERT_CHUNK)) {
-    await db
-      .insert(weatherEnsembleHours)
-      .values(chunk)
-      .onConflictDoUpdate({
-        target: [weatherEnsembleHours.run_id, weatherEnsembleHours.valid_at],
-        set: {
-          precip_mm_p10: sqlExcluded('precip_mm_p10'),
-          precip_mm_p50: sqlExcluded('precip_mm_p50'),
-          precip_mm_p90: sqlExcluded('precip_mm_p90'),
-          temp_c_p10: sqlExcluded('temp_c_p10'),
-          temp_c_p50: sqlExcluded('temp_c_p50'),
-          temp_c_p90: sqlExcluded('temp_c_p90'),
-          wind_kmh_p10: sqlExcluded('wind_kmh_p10'),
-          wind_kmh_p50: sqlExcluded('wind_kmh_p50'),
-          wind_kmh_p90: sqlExcluded('wind_kmh_p90'),
-          precip_mm_mean: sqlExcluded('precip_mm_mean'),
-          members_wet: sqlExcluded('members_wet'),
-          member_count: sqlExcluded('member_count'),
-          model_member_counts: sqlExcluded('model_member_counts'),
-        },
-      })
-  }
+  // The run row and its hours land together or not at all (see `upsertRun`).
+  return db.transaction(async (tx) => {
+    const runId = await upsertRun(tx, {
+      point_key,
+      model: ENSEMBLE_RUN_MODEL,
+      kind: 'ensemble',
+      fetched_at: run.fetched_at,
+      utc_offset_seconds: run.daily.utc_offset_seconds,
+      model_elevation_m: null,
+      // Not applicable to an ensemble run, and null here means exactly that.
+      precip_prob_is_shared: null,
+      ensemble_daily: { days: run.daily.days, model_sources: run.daily.model_sources, rewet: run.daily.rewet },
+    })
+    if (!runId) return null
 
-  return { run_id: runId, model: ENSEMBLE_RUN_MODEL, hours: rows.length }
+    for (const chunk of chunked(rows, INSERT_CHUNK)) {
+      await tx
+        .insert(weatherEnsembleHours)
+        .values(chunk.map((row) => ({ ...row, run_id: runId })))
+        .onConflictDoUpdate({
+          target: [weatherEnsembleHours.run_id, weatherEnsembleHours.valid_at],
+          set: {
+            precip_mm_p10: sqlExcluded('precip_mm_p10'),
+            precip_mm_p50: sqlExcluded('precip_mm_p50'),
+            precip_mm_p90: sqlExcluded('precip_mm_p90'),
+            temp_c_p10: sqlExcluded('temp_c_p10'),
+            temp_c_p50: sqlExcluded('temp_c_p50'),
+            temp_c_p90: sqlExcluded('temp_c_p90'),
+            wind_kmh_p10: sqlExcluded('wind_kmh_p10'),
+            wind_kmh_p50: sqlExcluded('wind_kmh_p50'),
+            wind_kmh_p90: sqlExcluded('wind_kmh_p90'),
+            precip_mm_mean: sqlExcluded('precip_mm_mean'),
+            members_wet: sqlExcluded('members_wet'),
+            member_count: sqlExcluded('member_count'),
+            model_member_counts: sqlExcluded('model_member_counts'),
+          },
+        })
+    }
+
+    return { run_id: runId, model: ENSEMBLE_RUN_MODEL, hours: rows.length }
+  })
 }
 
 function ensembleRow(
-  run_id: string,
   valid_at: Date,
   h: EnsembleHour,
-): typeof weatherEnsembleHours.$inferInsert {
+): Omit<typeof weatherEnsembleHours.$inferInsert, 'run_id'> {
   return {
-    run_id,
     valid_at,
     precip_mm_p10: h.precip_mm_p10,
     precip_mm_p50: h.precip_mm_p50,

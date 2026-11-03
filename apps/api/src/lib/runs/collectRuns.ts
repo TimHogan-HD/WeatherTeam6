@@ -1,6 +1,7 @@
 import { desc, inArray } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { locations, weatherRuns } from '../../db/schema.js'
+import { describeError } from '../http.js'
 import { logger } from '../logger.js'
 import {
   fetchAvailability,
@@ -171,7 +172,7 @@ export async function collectWeatherRuns(now: Date = new Date()): Promise<Collec
         if (run.status === 'rejected') {
           deterministicOk = false
           logger.warn(
-            { pointKey: point_key, request: label, err: describe(run.reason) },
+            { pointKey: point_key, request: label, err: describeError(run.reason) },
             '[collectRuns] deterministic fetch failed',
           )
           continue
@@ -198,7 +199,7 @@ export async function collectWeatherRuns(now: Date = new Date()): Promise<Collec
         }
       } else {
         logger.warn(
-          { pointKey: point_key, err: describe(ensemble.reason) },
+          { pointKey: point_key, err: describeError(ensemble.reason) },
           '[collectRuns] ensemble fetch failed',
         )
       }
@@ -239,7 +240,7 @@ export async function collectWeatherRuns(now: Date = new Date()): Promise<Collec
     }
     result.failed.push(key)
     logger.error(
-      { pointKey: key, err: describe(entry.reason) },
+      { pointKey: key, err: describeError(entry.reason) },
       '[collectRuns] point failed',
     )
   })
@@ -267,14 +268,4 @@ export async function collectWeatherRuns(now: Date = new Date()): Promise<Collec
     logger.info(summary, '[collectRuns] collection complete')
   }
   return result
-}
-
-/**
- * Only the message, never the object.
- *
- * A rejection here can carry a database driver error, and those hold the
- * connection string on fields a wholesale serialisation would print.
- */
-function describe(reason: unknown): string {
-  return reason instanceof Error ? reason.message : String(reason)
 }

@@ -1,8 +1,6 @@
-import { isRockType, type RockType } from '@weatherteam6/types'
 import { logger } from '../lib/logger.js'
 import { db, pool } from './index.js'
-import { users, locations, crags } from './schema.js'
-import { or, eq } from 'drizzle-orm'
+import { users, locations } from './schema.js'
 
 const USER_UUID = '00000000-0000-0000-0000-000000000001'
 
@@ -45,18 +43,6 @@ const SEED_LOCATIONS = [
   },
 ]
 
-/**
- * A crag's free-text `rock_type`, narrowed to one this build knows.
- *
- * Anything unrecognised becomes `unknown` rather than being dropped — these are
- * imported strings and "granodiorite" is a real answer that is simply not one of
- * ours. `unknown` is the conservative row, so a miss costs a longer drying
- * window, never a shorter one.
- */
-function toRockType(v: string | null | undefined): RockType {
-  return isRockType(v) ? v : 'unknown'
-}
-
 async function seed(): Promise<void> {
   logger.info('Seeding user…')
   await db
@@ -83,42 +69,6 @@ async function seed(): Promise<void> {
         asos_network: loc.asos_network,
       })
       .onConflictDoNothing()
-  }
-
-  // Seed MN/WI crags from the crags reference table as climbing locations.
-  // Requires importCrags.ts to have been run first with MN/WI OpenBeta data.
-  const mnwiCrags = await db
-    .select()
-    .from(crags)
-    .where(or(eq(crags.state, 'MN'), eq(crags.state, 'WI')))
-
-  if (mnwiCrags.length > 0) {
-    // Pre-fetch existing location names to avoid duplicate inserts (locations has no unique-name constraint)
-    const existingLocations = await db
-      .select({ name: locations.name })
-      .from(locations)
-      .where(eq(locations.user_id, USER_UUID))
-    const existingNames = new Set(existingLocations.map((r) => r.name))
-
-    const toInsert = mnwiCrags.filter((c) => !existingNames.has(c.name))
-
-    if (toInsert.length > 0) {
-      await db.insert(locations).values(
-        toInsert.map((crag) => ({
-          user_id: USER_UUID,
-          name: crag.name,
-          lat: String(crag.lat),
-          lon: String(crag.lon),
-          is_climbing_location: true,
-          rock_type: toRockType(crag.rock_type),
-        })),
-      )
-      logger.info(`Seeded ${toInsert.length} MN/WI climbing locations`)
-    } else {
-      logger.info('MN/WI locations already seeded — skipping')
-    }
-  } else {
-    logger.info('No MN/WI crags found in crags table — run importCrags.ts first')
   }
 
   logger.info('Seed complete.')

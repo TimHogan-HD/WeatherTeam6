@@ -1,6 +1,7 @@
 import { and, eq, gte, inArray, lt, sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { locations, radarRainHours } from '../../db/schema.js'
+import { describeError } from '../http.js'
 import { logger } from '../logger.js'
 import { fetchQpeHour, inMrmsGrid, publishedQpeHours } from '../weather/mrmsQpe.js'
 import type { LatLon } from '../weather/mrmsGrib.js'
@@ -118,10 +119,9 @@ export async function collectRadarRain(now: Date = new Date()): Promise<RadarCol
     const deleted = await db
       .delete(radarRainHours)
       .where(lt(radarRainHours.valid_at, new Date(now.getTime() - RADAR_RETENTION_MS)))
-      .returning({ cell_key: radarRainHours.cell_key })
-    result.pruned = deleted.length
+    result.pruned = deleted.rowCount ?? 0
   } catch (err) {
-    logger.error({ err: err instanceof Error ? err.message : String(err) }, '[radarRain] prune failed')
+    logger.error({ err: describeError(err) }, '[radarRain] prune failed')
   }
 
   if (result.listingFailed || result.hoursFailed.length > 0) {
@@ -153,7 +153,7 @@ export async function loadRadarRain(p: LatLon, now: Date = new Date()): Promise<
       )
     return new Map(rows.map((r) => [r.valid_at.getTime(), r.precip_mm]))
   } catch (err) {
-    logger.warn({ err: err instanceof Error ? err.message : String(err) }, '[radarRain] read failed; models only')
+    logger.warn({ err: describeError(err) }, '[radarRain] read failed; models only')
     return null
   }
 }
