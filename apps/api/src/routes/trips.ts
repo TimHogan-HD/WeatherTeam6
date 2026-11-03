@@ -1,12 +1,13 @@
 import { Router, type Request, type Response } from 'express'
 import { and, eq, asc, gte, inArray, lte } from 'drizzle-orm'
 import { db } from '../db/index.js'
-import { trips, tripLocations, tripRainRecords, tripDayRecords, tripDayOutcomes, locations } from '../db/schema.js'
+import { trips, tripLocations, tripRainRecords, tripDayRecords, tripDayOutcomes, tripDayGauges, locations } from '../db/schema.js'
 import { MAX_NAME_LENGTH, describeError, isIsoDate, isUuid, sendServerError } from '../lib/http.js'
 import { logger } from '../lib/logger.js'
 import { fetchOutlook, type Outlook } from '../lib/weather/ensembleOutlook.js'
 import { summarizeTripOutlook } from '../lib/trips/tripOutlook.js'
-import { tripDateList, tripDayLookBacks, tripDayTrends } from '../lib/trips/tripSummary.js'
+import { tripDateList, tripDayLookBacks, tripDayTrends, withGaugeDays, type GaugeDayRow } from '../lib/trips/tripSummary.js'
+import { nearestGauge } from '../lib/weather/asosGauge.js'
 import { MAX_TRIP_LOCATIONS, parseTripPatch, updateTrip } from '../lib/trips/updateTrip.js'
 import { climbHourColumns, isTripClimbHours, tripClimbHours } from '../lib/trips/tripClimbHours.js'
 import { parseNumeric, parseNumericRequired } from '@weatherteam6/types'
@@ -463,7 +464,7 @@ tripsRouter.get('/trips/:tripId/summary', async (req: Request, res: Response) =>
 
     // The trip's locations that are still the caller's own, as the forecast route reads them.
     const owned = await db
-      .select({ id: tripLocations.location_id })
+      .select({ id: tripLocations.location_id, lat: locations.lat, lon: locations.lon })
       .from(tripLocations)
       .innerJoin(locations, eq(locations.id, tripLocations.location_id))
       .where(and(eq(tripLocations.trip_id, tripId), eq(locations.user_id, req.userId)))
@@ -497,13 +498,25 @@ tripsRouter.get('/trips/:tripId/summary', async (req: Request, res: Response) =>
           ])
 
     const dates = tripDateList(tripRow.start_date, tripRow.end_date)
+    const gauges = new Map(
+      owned.map((r) => [r.id, nearestGauge(parseNumericRequired(r.lat), parseNumericRequired(r.lon))] as const),
+    )
+    const gaugeRows = await readGaugeDays(
+      [...new Set([...gauges.values()].flatMap((g) => (g === null ? [] : [g.station])))],
+      tripRow.start_date,
+      tripRow.end_date,
+    )
     const data: TripSummary[] = locationIds.map((locationId) => ({
       locationId,
-      days: tripDayLookBacks({
-        dates,
-        records: records.filter((r) => r.location_id === locationId),
-        outcomes: outcomes.filter((o) => o.location_id === locationId),
-      }),
+      days: withGaugeDays(
+        tripDayLookBacks({
+          dates,
+          records: records.filter((r) => r.location_id === locationId),
+          outcomes: outcomes.filter((o) => o.location_id === locationId),
+        }),
+        gauges.get(locationId) ?? null,
+        gaugeRows,
+      ),
     }))
 
     const response: ApiResponse<TripSummary[]> = { data, error: null, status: 200 }
@@ -512,3 +525,33 @@ tripsRouter.get('/trips/:tripId/summary', async (req: Request, res: Response) =>
     sendServerError(res, err, 'GET /trips/:tripId/summary')
   }
 })
+
+/**
+ * The gauge days for a trip's dates at the stations its crags read from. Its
+ * own query, and a failure reads as no gauge (logged), so the look back never
+ * fails for want of an observation it can do without.
+ */
+async function readGaugeDays(stations: string[], start: string, end: string): Promise<GaugeDayRow[]> {
+  if (stations.length === 0) return []
+  try {
+    return await db
+      .select({
+        station: tripDayGauges.station,
+        local_date: tripDayGauges.local_date,
+        rain_mm: tripDayGauges.rain_mm,
+        hours_reported: tripDayGauges.hours_reported,
+        hours_expected: tripDayGauges.hours_expected,
+      })
+      .from(tripDayGauges)
+      .where(
+        and(
+          inArray(tripDayGauges.station, stations),
+          gte(tripDayGauges.local_date, start),
+          lte(tripDayGauges.local_date, end),
+        ),
+      )
+  } catch (err) {
+    logger.warn({ err: describeError(err) }, '[trips] gauge read failed')
+    return []
+  }
+}

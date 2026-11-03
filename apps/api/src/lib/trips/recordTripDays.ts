@@ -2,16 +2,25 @@ import { eq, gte, sql } from 'drizzle-orm'
 import { parseNumeric, parseNumericRequired } from '@weatherteam6/types'
 import type { ClimbHours, HourlySeries, PastReadingsDay, ReadingsDay } from '@weatherteam6/types'
 import { db } from '../../db/index.js'
-import { locations, tripDayOutcomes, tripDayRecords, tripLocations, tripRainRecords, trips } from '../../db/schema.js'
+import {
+  locations,
+  tripDayGauges,
+  tripDayOutcomes,
+  tripDayRecords,
+  tripLocations,
+  tripRainRecords,
+  trips,
+} from '../../db/schema.js'
 import { describeError } from '../http.js'
 import { logger } from '../logger.js'
 import { readerScoringFor } from '../preferences/preferences.js'
 import { getHourlySeries } from '../runs/fetchHourlySeries.js'
 import { getEnsembleDaily } from '../runs/latestRuns.js'
 import { scoringLocationFor } from '../runs/scoringLocation.js'
+import { fetchGaugeDays, nearestGauge } from '../weather/asosGauge.js'
 import { fetchOutlook } from '../weather/ensembleOutlook.js'
 import { localDateString } from '../weather/openMeteo.js'
-import { tripDayRows, type TripDayRow } from './tripDayRows.js'
+import { recordingHour, tripDayRows, type TripDayRow } from './tripDayRows.js'
 import { tripRainRows, type DatedTrip } from './tripRainRows.js'
 import { OUTCOME_DAYS, tripOutcomeRows, type TripOutcomeRow } from './tripOutcomeRows.js'
 import { climbHoursNeeded, daysUnderTripHours, tripClimbHours, type HoursTrip } from './tripClimbHours.js'
@@ -24,6 +33,11 @@ export type RecordTripsResult = {
   trendRowsWritten: number
   /** `trip_day_outcomes` rows: one per trip day that is over and still being looked back on. */
   outcomeRowsWritten: number
+  /**
+   * `trip_day_gauges` rows: the nearest gauge's day for each outcome row. A
+   * failed gauge read costs only these, and is not in `failed`.
+   */
+  gaugeRowsWritten: number
   /**
    * Location ids where a read failed, so nothing was written for them. Named so a
    * partial run cannot read as a complete one (see `CollectResult`).
@@ -106,6 +120,7 @@ export async function recordTripDays(now: Date = new Date()): Promise<RecordTrip
     rowsWritten: 0,
     trendRowsWritten: 0,
     outcomeRowsWritten: 0,
+    gaugeRowsWritten: 0,
     failed: [],
   }
   settled.forEach((entry, i) => {
@@ -114,6 +129,7 @@ export async function recordTripDays(now: Date = new Date()): Promise<RecordTrip
       result.rowsWritten += entry.value.days
       result.trendRowsWritten += entry.value.trend
       result.outcomeRowsWritten += entry.value.outcomes
+      result.gaugeRowsWritten += entry.value.gauges
       return
     }
     result.failed.push(id)
@@ -185,7 +201,7 @@ async function recordLocation(
   location: LocationRow,
   dated: RecordedTrip[],
   now: Date,
-): Promise<{ days: number; trend: number; outcomes: number }> {
+): Promise<{ days: number; trend: number; outcomes: number; gauges: number }> {
   const point = {
     lat: parseNumericRequired(location.lat),
     lon: parseNumericRequired(location.lon),
@@ -242,7 +258,7 @@ async function recordLocation(
           ranges: dated,
           pastDays: readings.pastDays,
         })
-  if (values.length === 0 && trend.length === 0 && outcomes.length === 0) return { days: 0, trend: 0, outcomes: 0 }
+  if (values.length === 0 && trend.length === 0 && outcomes.length === 0) return { days: 0, trend: 0, outcomes: 0, gauges: 0 }
 
   // One transaction, so a failed second write cannot leave this hour's day
   // records beside last hour's trend point.
@@ -288,7 +304,69 @@ async function recordLocation(
     }
     if (outcomes.length > 0) await writeOutcomes(tx, outcomes)
   })
-  return { days: values.length, trend: trend.length, outcomes: outcomes.length }
+  // After the transaction and outside it, like the rewet chance: a gauge is a
+  // second, independent observation, so its failure costs only its own rows.
+  const gauges =
+    outcomes.length === 0
+      ? 0
+      : await recordGauge(
+          location.id,
+          point,
+          outcomes.map((o) => o.local_date),
+          now,
+        )
+  return { days: values.length, trend: trend.length, outcomes: outcomes.length, gauges }
+}
+
+/**
+ * The nearest gauge's measured rain for the days just looked back on
+ * (`trip_day_gauges`). Returns the rows written. A crag with no gauge in reach
+ * writes none, and a failure is logged and writes none, never a dry day.
+ */
+async function recordGauge(
+  locationId: string,
+  point: { lat: number; lon: number },
+  dates: string[],
+  now: Date,
+): Promise<number> {
+  const gauge = nearestGauge(point.lat, point.lon)
+  if (gauge === null) return 0
+  try {
+    const days = await fetchGaugeDays(gauge, dates)
+    if (days.length === 0) return 0
+    await writeGaugeDays(
+      db,
+      days.map((d) => ({ station: gauge.station, recorded_at: recordingHour(now), ...d })),
+    )
+    return days.length
+  } catch (err) {
+    logger.warn({ locationId, station: gauge.station, err: describeError(err) }, '[recordTripDays] gauge failed')
+    return 0
+  }
+}
+
+/**
+ * Upsert gauge days. A later read that heard from fewer hours than the stored
+ * row (an archive hiccup) leaves the row alone, so a complete total is never
+ * replaced by a short one. Exported for `check:record-trips`.
+ */
+export async function writeGaugeDays(
+  executor: Pick<typeof db, 'insert'>,
+  rows: (typeof tripDayGauges.$inferInsert)[],
+): Promise<void> {
+  await executor
+    .insert(tripDayGauges)
+    .values(rows)
+    .onConflictDoUpdate({
+      target: [tripDayGauges.station, tripDayGauges.local_date],
+      set: {
+        recorded_at: sql`excluded.recorded_at`,
+        rain_mm: sql`excluded.rain_mm`,
+        hours_reported: sql`excluded.hours_reported`,
+        hours_expected: sql`excluded.hours_expected`,
+      },
+      setWhere: sql`excluded.hours_reported >= ${tripDayGauges.hours_reported}`,
+    })
 }
 
 /**

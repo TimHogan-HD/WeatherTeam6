@@ -448,6 +448,27 @@ export type TripDayLookBack = {
   outcome: TripDayOutcome | null
   first: TripDayForecast | null
   last: TripDayForecast | null
+  /**
+   * The nearest rain gauge's measured day: a `trip_day_gauges` row. Null when no
+   * gauge is in reach, nothing was recorded, or the read failed. Optional
+   * because the API and the client deploy separately; absent reads as null.
+   */
+  gauge?: TripDayGauge | null
+}
+
+/**
+ * One day at the airport gauge nearest a trip crag (IEM's ASOS archive): an
+ * observation, unlike `TripDayOutcome`. `rain_mm` is null unless every hour
+ * of the day reported, so a short day never reads drier than it was.
+ */
+export type TripDayGauge = {
+  /** The station's id, e.g. `DLL`. */
+  station: string
+  /** Straight-line km from the crag; a gauge is a point, and storms are smaller than 25 km. */
+  distance_km: number
+  rain_mm: number | null
+  hours_reported: number
+  hours_expected: number
 }
 
 /** `GET /trips/:tripId/summary`, one per trip location, every trip date in order. */

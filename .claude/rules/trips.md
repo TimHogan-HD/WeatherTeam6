@@ -77,6 +77,22 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   the model's analysis, not observations, and the screen says so once
   (`LOOK_BACK_SOURCE`). A past day's score is withheld unless every daytime hour's rock is
   known by the `rock_history` rule, so the walk's starting guess never scores a day.
+- **A looked-back day carries the nearest airport gauge's rain** (`trip_day_gauges`,
+  `lib/weather/asosGauge.ts`), the one observation on an ended trip. `nearestGauge` picks
+  from the committed `asosStations.ts` within `GAUGE_MAX_KM` (25 km), never a
+  `STUCK_GAUGES` station, so Red Wing and every crag outside the US have none. The recorder
+  writes it for each outcome day, **after its transaction and outside the
+  every-source-answered rule**: a failure is logged and writes nothing, never a dry day. A
+  day is summed in the station's own zone, and **any hour unreported withholds the total**
+  (`rain_mm` null, counts kept); the screen then says "not every hour reported". The table
+  is keyed by station with no FK, so the summary finds a crag's row by computing its station
+  again, reads it in its own query, and treats a failure as no gauge. `TripDayLookBack.gauge`
+  is optional; absent reads as null.
+- **`compare:trip-lead` reads what trips stored** (`apps/api`, read-only): score drift by lead,
+  `members_wet` against `members_rewet` (§6e) on the same days against the look back and the
+  gauge, and forecast checks on recorded days. Each lead keeps its latest recording, so a day
+  is not weighed by how often the cron fired. Change a tile or a claim about lead time only
+  on its gauge rows, with their `n` beside the number.
 - **Ended trips are kept, folded away, not deleted** (owner, 2026-11-03). `/trips` lists
   coming and underway trips in the API's order and ended ones under a closed `Past trips (n)`,
   latest end first (`splitTrips`, `lib/trips.ts`); the split is client-side, on `tripIsOver`.

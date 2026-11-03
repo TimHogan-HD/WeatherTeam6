@@ -96,3 +96,39 @@ export function tripDateList(start: string, end: string): string[] {
   for (let t = Date.parse(start); t <= Date.parse(end); t += 86_400_000) out.push(new Date(t).toISOString().slice(0, 10))
   return out
 }
+
+export type GaugeDayRow = {
+  station: string
+  local_date: string
+  rain_mm: number | null
+  hours_reported: number
+  hours_expected: number
+}
+
+/**
+ * Each look-back day with its crag's gauge day: the row for the crag's nearest
+ * station on that date, else null. A crag with no gauge in reach has null on
+ * every day, never another crag's gauge.
+ */
+export function withGaugeDays(
+  days: readonly TripDayLookBack[],
+  gauge: { station: string; distance_km: number } | null,
+  rows: readonly GaugeDayRow[],
+): TripDayLookBack[] {
+  return days.map((day) => {
+    const row = gauge === null ? undefined : rows.find((r) => r.station === gauge.station && r.local_date === day.local_date)
+    return {
+      ...day,
+      gauge:
+        gauge === null || row === undefined
+          ? null
+          : {
+              station: row.station,
+              distance_km: gauge.distance_km,
+              rain_mm: row.rain_mm,
+              hours_reported: row.hours_reported,
+              hours_expected: row.hours_expected,
+            },
+    }
+  })
+}

@@ -464,6 +464,12 @@ shows it. **Next:** once `trip_day_outcomes` holds a few weeks of trip days, com
 which of the two chances separates the days that turned out wet; switch the trip tile
 only if the stricter one does.
 
+**The harness exists (2026-11-03): `npm run compare:trip-lead`** (`apps/api`, read-only,
+needs `DATABASE_URL`). Its second table is this comparison: Brier for each chance on the
+same days, at leads 0-6, against the look back's rain and against the nearest airport
+gauge (`trip_day_gauges`), at both 0.1 mm and 0.5 mm. Decide on the gauge rows; the look
+back is the model grading itself. Not yet run: nothing here could reach Neon.
+
 ## 7. If you only do three things
 
 1. **Do not let the drying ramp reach full marks as early as it does** (§1.2). It is wrong in

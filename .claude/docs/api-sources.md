@@ -92,6 +92,14 @@ Read this before any weather fetch work. Every source has gotchas that will wast
 - **Fields:** `tmpf` (temp F), `dwpf` (dewpoint F), `sknt` (wind knots), `p01i` (1h precip inches), `mslp` (sea level pressure mb), `relh` (relative humidity %)
 - Convert wind knots → km/h: multiply by 1.852
 
+## IEM ASOS archive (trip gauge days)
+- **Endpoint:** `https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?station={ID}&data=p01i&...&tz=Etc/UTC&format=onlycomma&missing=M&trace=T&report_type=3` (`gaugeUrl`, `lib/weather/asosGauge.ts`). Keyless.
+- **IDs here are bare** (`DLL`, not `KDLL`), unlike `current.py` above.
+- **Routine reports only** (`report_type=3`): one at :5x each hour, covering the hour ending at the next :00. Specials would double-count.
+- `M` is missing and leaves the hour unreported; `T` is a trace and adds nothing. A day with any hour unreported has no total.
+- **Stations:** `npm run gauges:pull` regenerates `asosStations.ts` from `geojson/network/{ST}_ASOS.geojson`, keeping stations that are `online`, have no `archive_end`, and have `HAS_PHOUR`. 2,489 on 2026-11-03.
+- **Stuck gauges:** RGK (Red Wing), TWM (Two Harbors) and BJC (Broomfield) read zero through real rain (`compare:rain-spread`); `STUCK_GAUGES` keeps them from standing for a crag. Red Wing has no other station within 25 km (SYN is 40).
+
 ## NOAA ACIS (Verified Precipitation)
 **No longer called** (scoring Phase 5b, 2026-10-01). The station lookup (`StnData`,
 `lib/weather/acis.ts`) fed only the retired five-component scorer and was deleted with it.

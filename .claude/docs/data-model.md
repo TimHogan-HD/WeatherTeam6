@@ -30,6 +30,7 @@ trip_locations
 trip_day_records        -- migration 0025, written by /api/cron/record-trips
 trip_rain_records       -- migration 0026, written by /api/cron/record-trips
 trip_day_outcomes       -- migration 0027, written by /api/cron/record-trips
+trip_day_gauges         -- migration 0038, written by /api/cron/record-trips, keyed by station (no FK)
 crag_climbability_history   -- no writer (regression, issue #25)
 conditions_reports      -- no writer; superseded by feedback
 feedback                -- migration 0018
@@ -233,6 +234,20 @@ temp_c_min   double
 UNIQUE(location_id, local_date)   -- rewritten each firing for OUTCOME_DAYS (3), then final
 ```
 Written in the recorder's transaction with the day records and trend points. A day the look back has nothing for writes nothing. On `DEPENDENT_TABLES`.
+
+### trip_day_gauges
+Measured rain at the airport gauge nearest a trip crag (`nearestGauge`, `lib/weather/asosGauge.ts`: the committed `asosStations.ts` snapshot, within `GAUGE_MAX_KM` 25 km, never a `STUCK_GAUGES` station), one row per station and local day. The only observation in a trip's look back. Read by `GET /trips/:tripId/summary` as `TripDayLookBack.gauge`, and by `compare:trip-lead`.
+```typescript
+id              uuid PK
+station         text      -- IEM's ASOS id, e.g. DLL; no FK, and no location_id
+local_date      date      -- the station's own local day (its IANA zone from the snapshot)
+recorded_at     timestamptz -- the firing that last wrote it, truncated to the hour
+rain_mm         double    -- the day's hourly p01i summed; null unless every hour reported
+hours_reported  int
+hours_expected  int       -- 23 or 25 on a clock-change day
+UNIQUE(station, local_date)
+```
+**Keyed per station, not per location**, so two crags near one airport share a row and the reader finds a crag's row by computing its station again. With no FK it is not on `DEPENDENT_TABLES`, and a deploy before the migration loses only the gauge line: the recorder writes it after its transaction and logs a failure, and the summary reads it in its own query and treats a failure as no gauge. A later read that heard from fewer hours leaves a row alone (`writeGaugeDays`).
 
 ### crag_climbability_history
 Accumulated historical climbability pattern per crag per month. Grows over time.
