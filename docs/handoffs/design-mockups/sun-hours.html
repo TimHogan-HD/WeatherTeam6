@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sun mockup</title>
 <style>
-:root{--bg:#07090c;--card:#171f28;--line:#2a3644;--txt1:#f4f7fa;--muted:#bccad0;--txt2:#d3e1e4;--good:#b8f542;--fair:#f6ad55;--rain:#bcc7fd;--sun:#f3e08a;--ghost:rgba(243,224,138,.45)}
+:root{--bg:#07090c;--card:#171f28;--line:#2a3644;--txt1:#f4f7fa;--muted:#bccad0;--txt2:#d3e1e4;--good:#b8f542;--fair:#f6ad55;--rain:#bcc7fd;--sun:#f3e08a;--cloud:#4a5866}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt1);font:15px/1.35 system-ui,-apple-system,Segoe UI,sans-serif}
 .wrap{max-width:480px;margin:0 auto;padding:16px}
 h2{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:26px 0 8px}
@@ -12,27 +12,31 @@ h2{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
 .day{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0}
 .score{font-size:22px;font-weight:700;margin:4px 0 2px}
 .small{font-size:12px}.name{color:var(--txt2)}.ch{color:var(--rain)}
-.sunw{font-size:11.5px;line-height:1.2;font-weight:600;color:var(--sun);min-height:28px}
-.sunw.unsure{color:var(--muted);font-weight:500}
+.sky{font-size:11.5px;line-height:1.2;color:var(--txt2);min-height:28px}
 .row{display:grid;grid-template-columns:44px 30px 1fr auto;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
 .row:first-of-type{border-top:0}
 .row .d{color:var(--txt2);font-size:14px}.row .w{font-size:14px}.row .w small{display:block;font-size:12.5px;color:var(--muted)}
 .row .t{font-size:14px;text-align:right;white-space:nowrap}
-.str{color:var(--sun);font-weight:600}
-.bars{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:3px;height:56px;align-items:end;margin:4px 0 4px;position:relative}
-.bars span{position:relative;height:100%;display:flex;align-items:flex-end}
-.bars span b{position:absolute;left:0;right:0;bottom:0;border:1.5px solid var(--ghost);border-bottom:0;border-radius:4px 4px 0 0}
-.bars span i{position:relative;display:block;width:100%;background:var(--sun);border-radius:3px 3px 0 0}
-.bars span.gap b{border-style:dashed;border-color:var(--line)}
-.hrs{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:3px;font-size:11px;color:var(--muted);text-align:center}
-.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:8px;flex-wrap:wrap}
-.legend em{display:inline-block;width:12px;height:10px;border-radius:2px;vertical-align:-1px;margin-right:5px;font-style:normal}
+.tl{position:relative;height:30px;border-radius:8px;overflow:hidden;display:flex;margin-top:6px}
+.tl div{height:100%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
+.tl .c{background:var(--cloud);color:var(--txt2)}
+.tl .s{background:var(--sun);color:#2a2410}
+.tl .p{background:linear-gradient(90deg,var(--cloud),var(--sun));color:#1d1f22}
+.tl .g{background:repeating-linear-gradient(45deg,transparent 0 5px,var(--line) 5px 7px);color:var(--muted)}
+.ticks{position:relative;height:16px;font-size:11px;color:var(--muted);margin-top:3px}
+.ticks span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.ticks span:first-child{transform:none}.ticks span:last-child{transform:translateX(-100%)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;margin-top:14px}
+.kv dt{color:var(--muted)}.kv dd{margin:0}
+.scale{display:flex;gap:3px;margin-top:4px}
+.scale span{flex:1;text-align:center;font-size:12px;padding:3px 0;border-radius:6px;background:#222c37;color:var(--muted)}
+.scale span.on{background:var(--sun);color:#2a2410;font-weight:700}
 .note{margin:10px 2px 0;font-size:12.5px;color:var(--muted)}
 .cap{font-size:13px;color:var(--txt2);margin:6px 2px 0}
 svg{display:block}
 </style></head><body><div class="wrap">
 
-<p class="cap">Two things, said plainly: <b>how long the sun is out</b> and <b>how strong it is</b>. In November a cloudless day still has weak sun, and July sun on the same rock is far stronger. Example crag: Sandstone, early November.</p>
+<p class="cap">The sky in standard forecast terms, plus two facts a climber can use: <b>when the sun is out</b> and <b>how strong it is</b>. Example: Sandstone, early November.</p>
 
 <svg width="0" height="0" style="position:absolute"><defs>
 <symbol id="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="#f3e08a"/><g stroke="#f3e08a" stroke-width="2" stroke-linecap="round"><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g></symbol>
@@ -41,59 +45,50 @@ svg{display:block}
 </defs></svg>
 
 <h2>Overview · Next days</h2>
-<div class="card"><div class="sect"><b>Next days</b><span>score · sun · high/low · rain</span></div>
+<div class="card"><div class="sect"><b>Next days</b><span>score · sky · high/low · rain</span></div>
 <div class="grid">
-<div class="day"><svg width="22" height="22"><use href="#cl"/></svg><b class="score" style="color:var(--fair)">64</b><span class="sunw">Little sun</span><span class="small name">Today</span><span class="small">48°/36°</span><span class="small ch">40%</span></div>
-<div class="day"><svg width="22" height="22"><use href="#sun"/></svg><b class="score" style="color:var(--good)">100</b><span class="sunw">Sun all day</span><span class="small name">Tue</span><span class="small">55°/38°</span><span class="small ch">5%</span></div>
-<div class="day"><svg width="22" height="22"><use href="#pc"/></svg><b class="score" style="color:var(--good)">96</b><span class="sunw">Sun after noon</span><span class="small name">Wed</span><span class="small">57°/41°</span><span class="small ch">15%</span></div>
-<div class="day"><svg width="22" height="22"><use href="#pc"/></svg><b class="score" style="color:var(--good)">92</b><span class="sunw unsure">Some sun?</span><span class="small name">Thu</span><span class="small">54°/40°</span><span class="small ch">20%</span></div>
-<div class="day"><svg width="22" height="22"><use href="#sun"/></svg><b class="score" style="color:var(--good)">100</b><span class="sunw unsure">Mostly sunny?</span><span class="small name">Fri</span><span class="small">52°/35°</span><span class="small ch">10%</span></div>
-<div class="day"><span style="height:22px"></span><b class="score" style="color:var(--good)">85</b><span class="sunw unsure">—</span><span class="small name">Sat</span><span class="small">50°/33°</span><span class="small ch">5%</span></div>
+<div class="day"><svg width="22" height="22"><use href="#cl"/></svg><b class="score" style="color:var(--fair)">64</b><span class="sky">Cloudy</span><span class="small name">Today</span><span class="small">48°/36°</span><span class="small ch">40%</span></div>
+<div class="day"><svg width="22" height="22"><use href="#sun"/></svg><b class="score" style="color:var(--good)">100</b><span class="sky">Sunny</span><span class="small name">Tue</span><span class="small">55°/38°</span><span class="small ch">5%</span></div>
+<div class="day"><svg width="22" height="22"><use href="#pc"/></svg><b class="score" style="color:var(--good)">96</b><span class="sky">Sunny afternoon</span><span class="small name">Wed</span><span class="small">57°/41°</span><span class="small ch">15%</span></div>
+<div class="day"><svg width="22" height="22"><use href="#pc"/></svg><b class="score" style="color:var(--good)">92</b><span class="sky">Partly sunny</span><span class="small name">Thu</span><span class="small">54°/40°</span><span class="small ch">20%</span></div>
+<div class="day"><svg width="22" height="22"><use href="#sun"/></svg><b class="score" style="color:var(--good)">100</b><span class="sky">Mostly sunny</span><span class="small name">Fri</span><span class="small">52°/35°</span><span class="small ch">10%</span></div>
+<div class="day"><span style="height:22px"></span><b class="score" style="color:var(--good)">85</b><span class="sky">—</span><span class="small name">Sat</span><span class="small">50°/33°</span><span class="small ch">5%</span></div>
 </div>
-<p class="note">Just words, no numbers. A question mark in grey means the forecasts disagree about the sky. A dash means there's no forecast for every hour of that day yet.</p></div>
+<p class="note">The sky in one or two words, the same terms a weather service uses. Sat has a dash because the forecast doesn't cover all of that day's daylight yet.</p></div>
 
 <h2>Daily · Seven days</h2>
 <div class="card">
-<div class="row"><span class="d">Today</span><svg width="28" height="28"><use href="#cl"/></svg><span class="w">Cloudy<small>About 1 hour of sun</small></span><span class="t">48° / 36°</span></div>
-<div class="row"><span class="d">Tue</span><svg width="28" height="28"><use href="#sun"/></svg><span class="w">Sun all day<small>About 6 hours · <span class="str">weak sun</span>, low in the sky</small></span><span class="t">55° / 38°</span></div>
-<div class="row"><span class="d">Wed</span><svg width="28" height="28"><use href="#pc"/></svg><span class="w">Sun after noon<small>About 4 hours · <span class="str">weak sun</span></small></span><span class="t">57° / 41°</span></div>
-<div class="row"><span class="d">Thu</span><svg width="28" height="28"><use href="#pc"/></svg><span class="w">Some sun<small>Forecasts disagree: 2 to 5 hours</small></span><span class="t">54° / 40°</span></div>
+<div class="row"><span class="d">Today</span><svg width="28" height="28"><use href="#cl"/></svg><span class="w">Cloudy<small>Sun about 1 hour</small></span><span class="t">48° / 36°</span></div>
+<div class="row"><span class="d">Tue</span><svg width="28" height="28"><use href="#sun"/></svg><span class="w">Sunny<small>Sun 9 am – 3 pm · Low strength</small></span><span class="t">55° / 38°</span></div>
+<div class="row"><span class="d">Wed</span><svg width="28" height="28"><use href="#pc"/></svg><span class="w">Sunny afternoon<small>Sun 12 – 4 pm · Low strength</small></span><span class="t">57° / 41°</span></div>
+<div class="row"><span class="d">Thu</span><svg width="28" height="28"><use href="#pc"/></svg><span class="w">Partly sunny<small>Forecasts differ: 2 to 5 hours of sun</small></span><span class="t">54° / 40°</span></div>
 </div>
-<p class="note">Strength is the sun at its highest that day compared with the strongest sun this crag ever gets (midday in late June). That gives three words: <b>strong</b>, <b>medium</b>, <b>weak</b>. It only appears on days with real sun, because "weak sun" on a cloudy day would just be confusing.</p>
 
-<h2>Hourly · sun by hour</h2>
-<div class="card"><div class="sect"><b>Wed, Nov 5</b><span>weak sun</span></div>
-<div class="bars" style="--n:8">
-<span><b style="height:16%"></b><i style="height:4%"></i></span>
-<span><b style="height:26%"></b><i style="height:8%"></i></span>
-<span><b style="height:33%"></b><i style="height:15%"></i></span>
-<span><b style="height:37%"></b><i style="height:20%"></i></span>
-<span><b style="height:38%"></b><i style="height:35%"></i></span>
-<span><b style="height:35%"></b><i style="height:33%"></i></span>
-<span><b style="height:29%"></b><i style="height:27%"></i></span>
-<span class="gap"><b style="height:20%"></b></span>
+<h2>Hourly · a day opened</h2>
+<div class="card"><div class="sect"><b>Wed, Nov 5</b><span>Sunny afternoon</span></div>
+<div class="tl">
+<div class="c" style="flex:3">Cloudy</div>
+<div class="s" style="flex:4">Sunny</div>
+<div class="g" style="flex:1"></div>
 </div>
-<div class="hrs" style="--n:8"><span>9a</span><span>10a</span><span>11a</span><span>12p</span><span>1p</span><span>2p</span><span>3p</span><span>4p</span></div>
-<div class="legend"><span><em style="background:var(--sun)"></em>sun forecast</span><span><em style="border:1.5px solid var(--ghost)"></em>if the sky were clear</span></div>
-<p class="note">Taller means stronger sun. Morning is cloudy (yellow well below the outline), and the afternoon is clear (yellow fills the outline). Even clear November sun only reaches about 40% of the height. 4 pm has a dashed outline because the forecast doesn't reach that hour.</p></div>
+<div class="ticks"><span style="left:0">9 am</span><span style="left:37.5%">12 pm</span><span style="left:87.5%">4 pm</span><span style="left:100%">5 pm</span></div>
+<dl class="kv">
+<dt>Sun</dt><dd>12 – 4 pm, about 4 hours</dd>
+<dt>Strength</dt><dd><div class="scale" style="margin-top:0"><span class="on">Low</span><span>Moderate</span><span>High</span></div></dd>
+</dl>
+<p class="note">One bar for the day, morning on the left. Yellow means sun, grey means cloud. The striped end is an hour the forecast doesn't cover yet. Strength is how high the sun gets: low in winter, high in summer. A sunny day with low strength barely warms the rock.</p></div>
 
-<h2>Same crag in July, for comparison</h2>
-<div class="card"><div class="sect"><b>Sat, Jul 11</b><span>strong sun</span></div>
-<div class="bars" style="--n:12">
-<span><b style="height:35%"></b><i style="height:30%"></i></span>
-<span><b style="height:50%"></b><i style="height:46%"></i></span>
-<span><b style="height:65%"></b><i style="height:62%"></i></span>
-<span><b style="height:78%"></b><i style="height:75%"></i></span>
-<span><b style="height:89%"></b><i style="height:85%"></i></span>
-<span><b style="height:96%"></b><i style="height:93%"></i></span>
-<span><b style="height:99%"></b><i style="height:60%"></i></span>
-<span><b style="height:96%"></b><i style="height:40%"></i></span>
-<span><b style="height:89%"></b><i style="height:50%"></i></span>
-<span><b style="height:78%"></b><i style="height:72%"></i></span>
-<span><b style="height:65%"></b><i style="height:62%"></i></span>
-<span><b style="height:50%"></b><i style="height:46%"></i></span>
+<h2>The same crag in July</h2>
+<div class="card"><div class="sect"><b>Sat, Jul 11</b><span>Mostly sunny</span></div>
+<div class="tl">
+<div class="s" style="flex:5">Sunny</div>
+<div class="c" style="flex:3">Cloudy</div>
+<div class="s" style="flex:4">Sunny</div>
 </div>
-<div class="hrs" style="--n:12"><span>8a</span><span></span><span>10a</span><span></span><span>12p</span><span></span><span>2p</span><span></span><span>4p</span><span></span><span>6p</span><span></span></div>
-<p class="note">Same scale, so July's bars stand much taller than November's. Clouds build in the early afternoon. Daily row: <i>"Mostly sunny · About 10 hours · <span class="str">strong sun</span>, high in the sky"</i>.</p></div>
+<div class="ticks"><span style="left:0">7 am</span><span style="left:41.7%">12 pm</span><span style="left:66.7%">3 pm</span><span style="left:100%">7 pm</span></div>
+<dl class="kv">
+<dt>Sun</dt><dd>7 am – 12 pm and 3 – 7 pm, about 9 hours</dd>
+<dt>Strength</dt><dd><div class="scale" style="margin-top:0"><span>Low</span><span>Moderate</span><span class="on">High</span></div></dd>
+</dl></div>
 
 </div></body></html>
