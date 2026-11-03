@@ -69,4 +69,5 @@ not Vercel Cron, which caps at once a day on Hobby.
 ## Before adding scheduled work
 
 Prefer computing it live. `crag_climbability_history` and `location_normals` lost their only
-writer when the old jobs were deleted (issue #25) — a new cron for them is a product decision.
+writer when the old jobs were deleted (issue #25) and were dropped in migration 0040 — bringing
+monthly history or normals back is a product decision.

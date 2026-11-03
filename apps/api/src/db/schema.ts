@@ -85,12 +85,6 @@ export const rockTypeEnum = pgEnum('rock_type', ROCK_TYPE_ENUM_VALUES)
 function assertEveryRockTypeIsInTheEnum<_T extends never>(): void {}
 assertEveryRockTypeIsInTheEnum<Exclude<RockType, (typeof ROCK_TYPE_ENUM_VALUES)[number]>>()
 
-export const rainfallSourceEnum = pgEnum('rainfall_source', [
-  'acis',
-  'open_meteo_historical',
-  'iem_asos',
-])
-
 export const overallStatusEnum = pgEnum('overall_status', ['dry', 'damp', 'wet', 'mixed'])
 
 export const feedbackKindEnum = pgEnum('feedback_kind', ['app', 'forecast'])
@@ -187,55 +181,6 @@ export const locations = pgTable('locations', {
   alerts_checked_at: timestamp('alerts_checked_at', { withTimezone: true }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updated_at: timestamp('updated_at', { withTimezone: true }),
-})
-
-export const crags = pgTable('crags', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  openbeta_id: text('openbeta_id').notNull().unique(),
-  name: text('name').notNull(),
-  lat: numeric('lat').notNull(),
-  lon: numeric('lon').notNull(),
-  rock_type: text('rock_type'),
-  area_name: text('area_name'),
-  state: text('state'),
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-})
-
-export const rainfallHistory = pgTable(
-  'rainfall_history',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    location_id: uuid('location_id')
-      .notNull()
-      .references(() => locations.id),
-    date: date('date').notNull(),
-    precip_mm: numeric('precip_mm').notNull(),
-    source: rainfallSourceEnum('source').notNull(),
-    station_id: text('station_id'),
-    verified: boolean('verified').default(false).notNull(),
-    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => [unique().on(t.location_id, t.date)],
-)
-
-export const forecastSnapshots = pgTable('forecast_snapshots', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  location_id: uuid('location_id')
-    .notNull()
-    .references(() => locations.id),
-  captured_at: timestamp('captured_at', { withTimezone: true }).notNull(),
-  forecast_date: date('forecast_date').notNull(),
-  precip_mm_p10: numeric('precip_mm_p10'),
-  precip_mm_p50: numeric('precip_mm_p50'),
-  precip_mm_p90: numeric('precip_mm_p90'),
-  temp_c_min: numeric('temp_c_min'),
-  temp_c_max: numeric('temp_c_max'),
-  wind_kmh_max: numeric('wind_kmh_max'),
-  humidity_pct: numeric('humidity_pct'),
-  dewpoint_c: numeric('dewpoint_c'),
-  shortwave_wm2: numeric('shortwave_wm2'),
-  model_sources: text('model_sources').array(),
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
 export const trips = pgTable(
@@ -423,48 +368,12 @@ export const tripRainRecords = pgTable(
   (t) => [unique('trip_rain_records_trip_location_hour').on(t.trip_id, t.location_id, t.recorded_at)],
 )
 
-export const cragClimbabilityHistory = pgTable(
-  'crag_climbability_history',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    location_id: uuid('location_id')
-      .notNull()
-      .references(() => locations.id),
-    month: integer('month').notNull(),
-    year: integer('year').notNull(),
-    climbable_days: integer('climbable_days').notNull().default(0),
-    total_days: integer('total_days').notNull().default(0),
-    created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => [unique().on(t.location_id, t.month, t.year)],
-)
-
-export const conditionsReports = pgTable('conditions_reports', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  location_id: uuid('location_id')
-    .notNull()
-    .references(() => locations.id),
-  user_id: uuid('user_id')
-    .notNull()
-    .references(() => users.id),
-  reported_at: timestamp('reported_at', { withTimezone: true }).defaultNow().notNull(),
-  visited_at: date('visited_at'),
-  overall_status: overallStatusEnum('overall_status'),
-  rating: integer('rating'),
-  notes: text('notes'),
-  photo_urls: text('photo_urls').array(),
-  forecast_matched: boolean('forecast_matched'),
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-})
-
 /**
  * App feedback and forecast checks — `lib/feedback/`, `routes/feedback.ts`.
  *
- * **Not `conditions_reports`.** That table has no writer, requires a location,
- * and stores `forecast_matched` as a bare boolean with nothing saying what the
- * forecast was. A check here keeps what the app showed (`app_readings`) beside
- * what the climber saw, which is the only form in which it can later be scored
- * against the model (issue #143).
+ * A check keeps what the app showed (`app_readings`) beside what the climber
+ * saw, which is the only form in which it can later be scored against the
+ * model (issue #143).
  *
  * **A check outlives its location.** `deleteLocationCascade` detaches these
  * rows (`location_id` → null) rather than deleting them, and `location_name`,
@@ -534,37 +443,6 @@ type _ObservedConditionsMatch = Assert<
 >
 type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false
 type Assert<_T extends true> = never
-
-export const premiumPulls = pgTable('premium_pulls', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  location_id: uuid('location_id')
-    .notNull()
-    .references(() => locations.id),
-  user_id: uuid('user_id')
-    .notNull()
-    .references(() => users.id),
-  pulled_at: timestamp('pulled_at', { withTimezone: true }).defaultNow().notNull(),
-  raw_response: jsonb('raw_response'),
-  cost_usd: numeric('cost_usd'),
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-})
-
-export const locationNormals = pgTable(
-  'location_normals',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    location_id: uuid('location_id')
-      .notNull()
-      .references(() => locations.id),
-    month: integer('month').notNull(),
-    precip_normal_mm: numeric('precip_normal_mm').notNull(),
-    temp_max_normal_c: numeric('temp_max_normal_c').notNull(),
-    temp_min_normal_c: numeric('temp_min_normal_c').notNull(),
-    source: text('source').notNull().default('acis_grid_91_20'),
-    fetched_at: timestamp('fetched_at', { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => [unique().on(t.location_id, t.month)],
-)
 
 export const weatherAlerts = pgTable(
   'weather_alerts',

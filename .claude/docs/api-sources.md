@@ -129,12 +129,8 @@ ACIS gridded normals (`acisNormals.ts`) are a separate call and remain.
 - **Collected, not read live:** `POST /api/cron/collect-radar` (`lib/runs/radarRain.ts`, `lib/weather/mrmsQpe.ts`), hourly at :15, lists each UTC day it needs and fetches up to `RADAR_FILES_PER_RUN` (12) missing hours, newest first, reading every saved US crag from each file (~1 s per file, measured). Rows in `radar_rain_hours`, pruned past 8 days. A crag outside `MRMS_CONUS` gets none.
 - **Read by** `loadRadarRain` in `getHourlySeries`, into `radarChecked` (`rainMedian.ts`). A failed listing or file is a gap, never zeros; a failed read is the models' median alone.
 
-## Tomorrow.io (Premium On-Demand)
-- **Endpoint:** `https://api.tomorrow.io/v4/weather/forecast`
-- **Auth:** `apikey` query param
-- **Use:** On-demand only, triggered by user action. Never poll automatically.
-- **Cost:** Log every call to `premium_pulls` table with estimated cost
-- **Rate limit:** Varies by plan. Add 1s delay between calls if batching.
+## Tomorrow.io
+Replaced by ACIS and no longer called; its cost log table, `premium_pulls`, was dropped in migration 0040.
 
 ## OpenBeta Climbing Areas
 - **What uses it:** the `/add` search. `lib/weather/climbingAreas<Xx>.ts` are **generated snapshots**, one per state, of every area with a climb and a coordinate — Minnesota (313, fetched 2026-09-23 by hand) and Colorado (6,035, pulled 2026-10-01). `searchClimbingAreas` puts up to 5 matches above Open-Meteo's places, each labelled with its own state, and `climbingAreaLevel` serves the browse list one level at a time by OpenBeta id (`parent_id`, from `ancestors`; names repeat). An area whose parent was filtered out is listed at its state's top level, so every area stays reachable. States are added when the owner's trips need them; a new one is `npm run climbing:pull --workspace=apps/api -- <State> <XX>` and a line in `STATES`. Nothing calls OpenBeta at runtime. Licence CC0; the subtitle names it anyway.

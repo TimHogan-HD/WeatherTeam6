@@ -281,6 +281,13 @@
       "when": 1793708226640,
       "tag": "0039_old_hydra",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1793712199285,
+      "tag": "0040_curious_sentinel",
+      "breakpoints": true
     }
   ]
 }
