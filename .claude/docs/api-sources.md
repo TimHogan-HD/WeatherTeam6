@@ -29,6 +29,10 @@ Read this before any weather fetch work. Every source has gotchas that will wast
   models define it. **Its horizon is shorter than the model's**: NBM answered 42 hours of it
   against 48 of temperature at Red Rock, so nulls appear mid-series. 0 W/m² is night and null is
   unmeasured — they are different rows to the model that consumes them.
+- **`sunshine_duration` was added 2026-11-03** for the Sun card and Daily's sun line: seconds of
+  the preceding hour with direct sun ≥ 120 W/m². Probed at Taylors Falls that day: all six
+  models answer it, with the shortwave horizon (NBM 52 h, HRRR 61 h of 192), and the ensemble
+  endpoint defines it per member (not fetched). `compare:sky` scores it against USCRN.
 - **`gem_seamless`'s shortwave is ~3× too high past day 4 and must not be trusted** — issue #155.
   Measured at San Juan on 2026-09-21: 2847 W/m² where GFS said 946 at the same hour, against a
   physical surface maximum near 1100. Days 1–3 are in family with the other models, day 4 is the
