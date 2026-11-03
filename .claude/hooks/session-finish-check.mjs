@@ -21,8 +21,8 @@
  * work resumes. It is gitignored.
  *
  * The session's own PR blocks while CI or the review is pending, unless a
- * `wait:pr` runs in the background (`lib/prWait.mjs`). Any other green PR blocks
- * once, never a draft (`prsToFinish`).
+ * `wait:pr` runs in the background (`lib/prWait.mjs`). No other PR ever blocks,
+ * and neither does a draft (`prsToFinish`).
  *
  * Deliberately NOT checked here: whether tests pass. That belongs to CI and to
  * the review checklist. This hook is about work being *delivered*, not correct.
@@ -150,7 +150,7 @@ if (branch === base) {
       'then push and open a PR.',
     ])
   }
-  // On base, clean, synced — check for PRs left open below.
+  // On base, clean, synced: no PR of this session's to wait on below.
 } else {
   // ---- 3. a feature branch with commits that are not pushed ----------------
 
@@ -200,9 +200,9 @@ if (branch !== base) {
   if (own) blockTurn(own)
 }
 
-// Drafts are left out, and another branch's PR blocks only a first stop
-// (`prsToFinish`): it may be another session's work in progress.
-const green = prsToFinish({ prs, branch, stopHookActive }).filter(
+// Only this branch's PR, and not a draft (`prsToFinish`): any other PR is another
+// session's work.
+const green = prsToFinish({ prs, branch }).filter(
   (p) => p.mergeable === 'MERGEABLE' && checksArePassing(p),
 )
 // The merge gate (lib/reviewGate.mjs) refuses a PR the CI reviewer has not
