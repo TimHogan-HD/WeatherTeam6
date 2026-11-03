@@ -22,6 +22,7 @@ async function run(): Promise<void> {
   const { locations, radarRainHours } = await import('../db/schema.js')
   const { inMrmsGrid } = await import('../lib/weather/mrmsQpe.js')
   const { collectRadarRain, loadRadarRain } = await import('../lib/runs/radarRain.js')
+  const { radarKeyFor } = await import('../lib/runs/pointKey.js')
   let failures = 0
   const check = (ok: boolean, what: string) => {
     console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`)
@@ -58,16 +59,16 @@ async function run(): Promise<void> {
       .select({ name: locations.name, lat: locations.lat, lon: locations.lon })
       .from(locations)
       .where(eq(locations.is_climbing_location, true))
-    let readable = 0
+    const cellsRead = new Set<string>()
     for (const c of crags) {
       const p = { lat: parseFloat(c.lat), lon: parseFloat(c.lon) }
       if (!inMrmsGrid(p)) continue
       const hours = await loadRadarRain(p)
       console.log(`${c.name}: ${hours === null ? 'read failed' : `${hours.size} hours stored`}`)
       check(hours !== null && hours.size > 0, `${c.name}: the drying clock reads the hours the collector stored`)
-      readable++
+      cellsRead.add(radarKeyFor(p))
     }
-    check(readable === first.cells || first.cells === 0, 'every US crag the collector counted was read back')
+    check(cellsRead.size === first.cells, `every US cell the collector counted was read back (${cellsRead.size} of ${first.cells})`)
     check((await loadRadarRain({ lat: 36.95, lon: 26.98 })) === null, 'a crag outside the US reads no radar')
   } finally {
     try {
