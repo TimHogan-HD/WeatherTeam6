@@ -48,6 +48,12 @@ seen them.
   it to serialise an error object.
 - `/api/cron/collect-runs`, `/api/cron/prune-runs`, `/api/cron/record-trips` and `/api/cron/collect-radar` are gated on `CRON_SECRET` through
   `cronGateFailed`, with `Promise.allSettled` across locations.
+- **Fetches run a 25 s per-attempt timeout (`FETCH_TIMEOUT_MS`) inside a 45 s budget** for all
+  of a `fetchWithRetry` call's attempts (`FETCH_BUDGET_MS`). **The budget is per call, not per
+  request:** calls awaited one after another must fit the function's 60 s `maxDuration`
+  together, by sharing a deadline (`fetchEnsembleBlock`'s fallback) or by giving the first a
+  short one of its own (`fetchAvailability`, `METADATA_BUDGET_MS`, before `collect-runs`
+  fetches).
 - **A client reads an absent column as a gap.** API and client deploy separately, and
   `undefined` passes every `=== null` guard. Normalise with `?? null` where a response becomes
   marks (`hourlySeries.ts`, `toDatum`).

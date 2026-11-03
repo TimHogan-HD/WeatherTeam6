@@ -26,12 +26,7 @@ and the index of every scoped file, are in `architecture.md`. Reasoning behind a
   the gate to Vercel. `/api/cron/*` keeps its own `CRON_SECRET` auth.
 - **`createApp` hardens Express:** no `X-Powered-By`, `nosniff`, `frame-ancestors 'none'`,
   `Cache-Control: no-store`, a 32 kB JSON limit, body-parser failures as 400/413 in the
-  envelope, and a 25 s per-attempt fetch timeout (`FETCH_TIMEOUT_MS`) inside a 45 s budget
-  for all of a `fetchWithRetry` call's attempts (`FETCH_BUDGET_MS`). **The budget is per
-  call, not per request:** calls awaited one after another must fit the function's 60 s
-  `maxDuration` together, by sharing a deadline (`fetchEnsembleBlock`'s fallback) or by
-  giving the first a short one of its own (`fetchAvailability`, `METADATA_BUDGET_MS`, before
-  `collect-runs` fetches).
+  envelope.
 - **The owner reads and resolves everyone's open feedback** on Profile (`GET /feedback/all`,
   403 for anyone else; `POST /feedback/:id/resolve` skips the user filter for the owner
   alone; delete stays own-row only). `check:invites` covers it. Every other feedback route
