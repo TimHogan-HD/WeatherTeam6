@@ -107,6 +107,7 @@ caller. The notes below stand for whoever revives it.
 - **One report a day:** `date` is the day the gauge was read, `temp_hour` the local hour (7 for most; 2026-11-01 in Minnesota ranged 0-23), `precip` inches over the 24 hours before. A trace is `0.0001`, kept above zero (unlike an ASOS hour's `T`) since it is the day's one figure. A day not reported has `precip` null or no row.
 - **Network-wide:** `?network={ST}_COCORAHS&date={YYYY-MM-DD}` returns every station's report for one day (~400 kB for Minnesota); the pull script uses it.
 - **Stations:** `npm run volunteer-gauges:pull` regenerates `cocorahsStations.ts`: stations in `geojson/network/{ST}_COCORAHS.geojson` that reported on any of three sample days. IEM lists about five times as many as report (6,006 in Minnesota, ~1,050 reporting on 2026-11-01). 18,487 on 2026-11-03, 576 kB.
+- **Read by:** the trip recorder (`trip_day_volunteer_gauges`), `compare:trip-lead` from what it stored, and `compare:dryness`'s volunteer table, live, at the three crags whose airport gauge is stuck (`-- VOLUNTEER`).
 
 ## NOAA ACIS (Verified Precipitation)
 **No longer called.** The station lookup (`StnData`, `lib/weather/acis.ts`) fed only the

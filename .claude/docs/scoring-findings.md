@@ -474,8 +474,11 @@ only if the stricter one does.
 **The harness exists (2026-11-03): `npm run compare:trip-lead`** (`apps/api`, read-only,
 needs `DATABASE_URL`). Its second table is this comparison: Brier for each chance on the
 same days, at leads 0-6, against the look back's rain and against the nearest airport
-gauge (`trip_day_gauges`), at both 0.1 mm and 0.5 mm. Decide on the gauge rows; the look
-back is the model grading itself. Not yet run: nothing here could reach Neon.
+gauge (`trip_day_gauges`) and the nearest volunteer gauge (`trip_day_volunteer_gauges`,
+#463, which covers Red Wing), at both 0.1 mm and 0.5 mm. Decide on the gauge rows; the look
+back is the model grading itself. **First run, 2026-11-03: too few days to decide** (7 airport
+days, 10 volunteer days). `members_wet` scored lower than `members_rewet` on most rows, so
+nothing yet argues for switching the tile.
 
 ## 7. If you only do three things
 

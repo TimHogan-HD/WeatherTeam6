@@ -72,6 +72,46 @@ export async function gauge(station: string, from: Date, to: Date) {
   return { rain, lat, lon }
 }
 
+/** How far `tz`'s wall clock runs ahead of UTC at `ms`, in ms. */
+function zoneOffsetMs(ms: number, tz: string): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).formatToParts(ms)
+  const n = (type: string) => Number(parts.find((p) => p.type === type)?.value)
+  return Date.UTC(n('year'), n('month') - 1, n('day'), n('hour'), n('minute')) - ms
+}
+
+/**
+ * The instant `hour`:00 on `ymd` reads on a wall clock in `tz`: a volunteer's
+ * reading hour is local. The offset is taken twice, so a date on the far side
+ * of a daylight-saving change from its first guess still lands on its hour.
+ */
+export function zonedHourToUtc(ymd: string, hour: number, tz: string): Date {
+  const wall = Date.parse(`${ymd}T${String(hour).padStart(2, '0')}:00:00Z`)
+  const first = wall - zoneOffsetMs(wall, tz)
+  return new Date(wall - zoneOffsetMs(first, tz))
+}
+
+/**
+ * Rain over the `hours` hours ending at `end`, from a series stamped at the end
+ * of each hour, or null if any hour is unknown: a gap is never read as dry.
+ */
+export function windowRain(rain: (key: HourKey) => number | null, end: Date, hours = 24): number | null {
+  let sum = 0
+  for (let i = 0; i < hours; i++) {
+    const mm = rain(hourKey(new Date(end.getTime() - i * 3_600_000)))
+    if (mm === null) return null
+    sum += mm
+  }
+  return sum
+}
+
 /**
  * Each global model's rain as forecast `lead` days ahead, per lead, from
  * Open-Meteo's Previous Runs API (`precipitation_previous_dayN`). Lead 0 is the

@@ -110,10 +110,12 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   means the owner read one; absent from an older API, the day is still offered. Never offered
   for a city on a trip: the form lists crags only and would fall back to another.
 - **`compare:trip-lead` reads what trips stored** (`apps/api`, read-only): score drift by lead,
-  `members_wet` against `members_rewet` (§6e) on the same days against the look back and the
-  gauge, and forecast checks on recorded days. Each lead keeps its latest recording, so a day
-  is not weighed by how often the cron fired. Change a tile or a claim about lead time only
-  on its gauge rows, with their `n` beside the number.
+  `members_wet` against `members_rewet` (§6e) on the same days against the look back, the
+  airport gauge and the volunteer gauge, and forecast checks on recorded days. Each lead keeps
+  its latest recording, so a day is not weighed by how often the cron fired. The volunteer
+  truth is the report the look back shows (`reportForDay`), 7 am to 7 am rather than the
+  calendar day the chance is for. Change a tile or a claim about lead time only on its gauge
+  rows (airport or volunteer), with their `n` beside the number.
 - **Ended trips are kept, folded away, not deleted** (owner, 2026-11-03). `/trips` lists
   coming and underway trips in the API's order and ended ones under a closed `Past trips (n)`,
   latest end first (`splitTrips`, `lib/trips.ts`); the split is client-side, on `tripIsOver`.
