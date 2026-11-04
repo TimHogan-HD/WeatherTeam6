@@ -33,8 +33,9 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   10/19 while Crag A read 100): the beam only, gated by the lidar skyline, zero on a
   tree-shaded wall, lagged like `T_surface`, null when the sun was not measured. A day's score is the worst hour of its best 3-hour run between 08:00 and
   18:00 local (`dayRepresentative`). **Today counts only hours not yet over**
-  (`buildHourlyReadings`'s `now`); after 18:00 today has no score. The port is checked
-  hour-for-hour against `.claude/docs/crag-a-reference/model.ts` — a change that moves a
+  (`buildHourlyReadings`'s `now`); after 18:00 today has no score. The port has diverged
+  from `.claude/docs/crag-a-reference/model.ts` on purpose since 2026-11-02 (per-wall
+  condensation, a drying floor; its README records what moved) — a change that moves a
   result needs an argument. **Every constant is a judgement call**; nothing is validated
   against outcomes (#143).
 - **Sun and shade walls** (#445, owner 2026-11-02; `lib/runs/wallReadings.ts`,
@@ -152,10 +153,7 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
 - **Every degradation path must withhold, never inflate** (#21, #32, #34). Any change to the
   score starts from *"what does this say when the inputs are missing"*, never from
   re-weighting (`scoring-findings.md` §6c).
-- **The five-component scorer is gone** (scoring Phase 5b, 2026-10-01): `conditionsScore.ts`,
-  its station-rainfall lookup (`acis.ts`), `compare:scoring` and the `conditions_scores`
-  table. `computeLiveForecast` now returns weather only. Recover any of it from git history,
-  not by rebuilding it.
+- **Do not rebuild the five-component scorer** (deleted 2026-10-01); git history has it.
 
 ## State machine: forecast window
 

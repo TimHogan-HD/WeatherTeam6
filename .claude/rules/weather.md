@@ -80,8 +80,6 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   cuts it with `trimToObservedHours` (`lib/weather/recentPrecipWindow.ts`). **A window's
   caption is measured, not requested** — derive the span from the timestamps received;
   `RecentPrecip.from_date` makes a miss read as "none in this window".
-- **There is no weather preview before saving** (owner decision 2026-09-30); `GET /preview`
-  is deleted. `/add` picks a place, shows a save form, and Save opens the saved screen.
 - **`GET /geocode/reverse` names a GPS fix** — Nominatim for the town (identifying
   User-Agent, two attempts, per its usage policy) and Open-Meteo for the terrain elevation,
   side by side. Either failing leaves its fields null; the client then falls back to
