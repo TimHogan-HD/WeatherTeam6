@@ -3,7 +3,7 @@
 The only state document, injected at session start, so keep it under 6,000 characters. It holds
 only what no other file says: how the product stands is in `.claude/rules/`, issues in
 `gh issue list`, feedback in `npm run feedback -- list`, history in `session-archive.md` (grep
-it, never read it). A rewrite that finds the same fact in a rule file deletes it here.
+it, never read it). A fact a rule file holds is deleted here.
 
 Last updated: 2026-11-04
 
@@ -15,6 +15,8 @@ None of it blocks work. Neither item has been confirmed done since 2026-09-23.
    that now 404s. Needs `TELEGRAM_BOT_TOKEN` in the owner's own shell, then `deleteWebhook`.
 2. **Delete `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_WEBHOOK_SECRET` and
    `AUTH_ENABLED`** from both Vercel projects. Nothing reads them; three are live credentials.
+3. **Paste the `pg_stat_statements` top 15 by `total_exec_time`** from Neon's SQL editor, to
+   decide whether any query needs an index.
 
 ## Working with the owner
 
@@ -76,21 +78,24 @@ Nothing is scheduled; the owner picks from the open issues.
 - **`API_SHARED_SECRET` on preview differs from production** (deliberately).
   `AUTH_TOKEN_SECRET` is the same across all three targets. Env vars apply to new deployments
   only.
-- **The reviewer action will not run on a PR that edits `claude-review.yml`.** Its first real
-  review is the next PR.
 - **Delivery moved to GitHub on 2026-11-04** (#495, #496): `review` fails on blocking
-  findings, drafts are reviewed, and sessions arm auto-merge and end the turn. The local merge
-  gate is gone. Auto-merge is on and the repo is squash-only. A cloud session cannot read
-  whether "require branches to be up to date" is off on `main`; if PRs sit "behind", it is on.
-- **Backticks in a bash heredoc or a double-quoted `node -e` are command substitution.** Write
-  the file with the Write tool.
-- **`sed` with `|` as the delimiter breaks on Markdown table rows.** Use `c\` instead.
-- **A source file can contain a literal NUL byte**, which makes `git diff` and `grep` treat it
-  as binary. `grep -a` and `git diff --text` see it.
+  findings, drafts are reviewed, sessions arm auto-merge (squash-only) and end the turn.
+  **Armed auto-merge can sit on a green, clean PR** (#513, #520): merge it directly. Marking a
+  draft ready seconds after opening starts two `review` runs that cancel each other.
+- **A check stuck "in progress" after its steps finished is GitHub's**: see githubstatus.com.
+  A cloud token cannot re-run or cancel (403).
+- **Dependabot runs read the Dependabot copy of `CLAUDE_CODE_OAUTH_TOKEN`** (both copies
+  expire ~Aug 2027). `@dependabot rebase` picks up a new workflow; a re-run does not. The
+  `undici` alerts wait on `@vercel/node` (type-only import); production audit is clean.
+- **Vercel clones 10 commits deep.** `ignoreCommand` ends in `|| exit 1` so a last-deployed
+  commit out of reach builds instead of failing (#520). The API runs in `cle1`, next to Neon
+  (us-east-2).
+- **Neon point-in-time restore covers only 6 hours** (free plan). Take a snapshot
+  (Backup & Restore) before `db:migrate` on production.
 - **`DELETE` does not free Neon space.** `TRUNCATE` reclaims; `VACUUM FULL` needs as much free
   space as the table and cannot run at the cap.
 - **A fresh merge is not a deploy.** Check the deployment state before probing production.
 - **`fetchWithRetry` throws after exhausting retries on a 5xx or 429**, so a test mocking 503
   to reach a `!res.ok` branch reaches the `catch` instead. Use 403.
 - **`drizzle-kit generate` needs no database**, only a non-empty `DATABASE_URL`.
-- **Vercel Hobby log retention is ~1 hour.** Check right after a cron fires.
+- **Vercel Hobby keeps logs ~1 hour.** Check right after a cron fires.
