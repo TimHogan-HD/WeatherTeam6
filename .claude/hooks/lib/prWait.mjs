@@ -257,7 +257,9 @@ export function ownPrVerdict({ pr, backgroundTasks, stopHookActive, autoMergeAll
   }
   if (pr.autoMerge === true) {
     if (pending.length === 0 || cloud || stopHookActive) return null
-    if (!Array.isArray(backgroundTasks) || waiterRunning(backgroundTasks)) return null
+    // No background_tasks field (Claude Code before 2.1.145) cannot show a
+    // waiter, so it blocks once like the unarmed path; stopHookActive lets it go.
+    if (waiterRunning(backgroundTasks)) return null
     return [
       `UNFINISHED: ${head} is armed to auto-merge but ${pending.map((c) => c.name ?? c.context ?? 'unnamed').join(', ') || 'its checks'} are still running, and nothing will tell you if one fails.`,
       '',

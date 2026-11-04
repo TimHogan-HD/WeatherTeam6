@@ -316,6 +316,7 @@ const gateCases = [
       ['auto: armed and pending locally with wait:pr running is allowed', blocks({ autoMerge: true }, { autoMergeAllowed: true, backgroundTasks: [waiter] }), false],
       ['auto: armed and pending in a cloud session is allowed', blocks({ autoMerge: true }, { autoMergeAllowed: true, cloud: true }), false],
       ['auto: armed and pending allows a continued turn', blocks({ autoMerge: true }, { autoMergeAllowed: true, stopHookActive: true }), false],
+      ['auto: armed and pending with no background_tasks field blocks once', blocks({ autoMerge: true }, { autoMergeAllowed: true, backgroundTasks: undefined }), true],
       ['auto: armed and green is allowed', blocks({ autoMerge: true, statusCheckRollup: [ok] }, { autoMergeAllowed: true }), false],
       ['auto: armed but failed blocks once', blocks({ autoMerge: true, statusCheckRollup: [failed] }, { autoMergeAllowed: true }), true],
       ['auto: not armed blocks', blocks({}, { autoMergeAllowed: true }), true],
