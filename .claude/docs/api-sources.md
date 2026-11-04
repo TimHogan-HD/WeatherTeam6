@@ -113,6 +113,9 @@ caller. The notes below stand for whoever revives it.
 - **Stations:** `npm run volunteer-gauges:pull` regenerates `cocorahsStations.ts`: stations in `geojson/network/{ST}_COCORAHS.geojson` that reported on any of three sample days. IEM lists about five times as many as report (6,006 in Minnesota, ~1,050 reporting on 2026-11-01). 18,487 on 2026-11-03, 576 kB.
 - **Read by:** the trip recorder (`trip_day_volunteer_gauges`), `compare:trip-lead` from what it stored, and `compare:dryness`'s volunteer table, live, at the three crags whose airport gauge is stuck (`-- VOLUNTEER`).
 
+## NOAA ACIS
+No longer called (deleted 2026-10-01 and 2026-11-03). A source line naming it, as `miniapp-design-v1.md`'s bot-era examples do, is defect class 3.
+
 ## NWS Alerts
 - **Endpoint:** `https://api.weather.gov/alerts/active?point={lat},{lon}`
 - **Required header:** `User-Agent: weatherteam6/1.0 your@email.com` — requests without this get blocked
