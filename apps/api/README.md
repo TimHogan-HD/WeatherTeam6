@@ -23,6 +23,11 @@ to main-only and an `ignoreCommand` that skips a build when the app's directory,
 the root manifests are unchanged since its last deployment. `src/deployConfig.test.ts` holds
 both.
 
+**The function runs in `cle1` (Cleveland, AWS us-east-2), next to Neon.** `regions` in
+`vercel.json` overrides the project setting; Hobby allows one region. Vercel's default is `iad1`,
+and each database query from there crossed regions. If Neon ever moves, move this with it. The
+`x-vercel-id` response header names the region a request ran in (`<edge>::<function>::…`).
+
 ## Neon
 
 **Neon cannot be reached from a restricted cloud dev environment.** `drizzle-kit` uses Neon's

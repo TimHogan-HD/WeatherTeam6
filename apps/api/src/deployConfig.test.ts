@@ -17,6 +17,7 @@ import { describe, expect, it } from 'vitest'
 const APPS = ['api', 'miniapp'] as const
 
 type VercelJson = {
+  regions?: string[]
   git?: { deploymentEnabled?: Record<string, boolean> }
   ignoreCommand?: string
   rewrites?: { source: string; destination: string }[]
@@ -61,6 +62,19 @@ describe('the Vercel deployment budget', () => {
     for (const path of [' . ', '../../packages', '../../package.json', '../../package-lock.json']) {
       expect(cmd).toContain(path)
     }
+  })
+})
+
+/**
+ * Neon is in AWS us-east-2 (Ohio), and Vercel's default function region is
+ * iad1 (us-east-1). A `/conditions` call makes several queries one after
+ * another, each paying the cross-region round trip, so the API runs in cle1,
+ * Vercel's us-east-2 region (2026-11-04). Removing `regions` silently puts it
+ * back in iad1; nothing else would notice.
+ */
+describe('the API runs next to its database', () => {
+  it('pins the function to cle1, the region Neon is in', () => {
+    expect(config('api').regions).toEqual(['cle1'])
   })
 })
 
