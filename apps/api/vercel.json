@@ -3,7 +3,7 @@
   "buildCommand": "echo 'No build step: api/ is compiled by Vercel, workspace packages are built in the root postinstall'",
   "outputDirectory": "public",
   "git": { "deploymentEnabled": { "*": false, "**": false, "main": true } },
-  "ignoreCommand": "git diff --quiet \"${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}\" HEAD -- . ../../packages ../../package.json ../../package-lock.json",
+  "ignoreCommand": "git diff --quiet \"${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}\" HEAD -- . ../../packages ../../package.json ../../package-lock.json || exit 1",
   "regions": ["cle1"],
   "functions": {
     "api/index.ts": {
