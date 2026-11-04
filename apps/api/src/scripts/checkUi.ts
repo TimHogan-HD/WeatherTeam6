@@ -402,7 +402,31 @@ async function run(): Promise<void> {
           check('a crag the owner has not confirmed shows no sun on the wall', sun === 0, `${sun} card(s)`)
         }
       }
+      await rearrangeCards()
       await guidebookLevels()
+    }
+
+    // The reader's card order (owner, 2026-11-03): moved, kept over a reload, and reset.
+    async function rearrangeCards(): Promise<void> {
+      const open = async () => {
+        await page.getByRole('tab', { name: 'Hourly', exact: true }).click()
+        await page.getByRole('button', { name: 'Rearrange cards' }).click()
+      }
+      const rows = () => page.$$eval('[data-card-row]', (r) => r.map((e) => (e as HTMLElement).dataset['cardRow']).join())
+      await open()
+      await page.getByRole('button', { name: 'Move Wind up' }).click()
+      const moved = await rows()
+      check('Rearrange cards moves Wind above Rain', moved.endsWith('wind,rain'), moved)
+      await page.getByRole('button', { name: 'Done' }).click()
+      await page.reload()
+      await page.getByRole('tab').first().waitFor({ timeout: 60_000 })
+      await open()
+      const kept = await rows()
+      check('the card order survives a reload', kept === moved, kept)
+      await page.getByRole('button', { name: 'Reset order' }).click()
+      const reset = await rows()
+      check('Reset order restores Hourly', reset.endsWith('rain,wind'), reset)
+      await page.getByRole('button', { name: 'Done' }).click()
     }
 
     // A wall and a route open inside the Crag tab (hybrid Phase 4a): the dock

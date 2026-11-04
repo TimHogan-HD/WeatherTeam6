@@ -33,6 +33,7 @@ import { dryHours } from '../lib/hourlyDay.js'
 import { dayChance } from '../lib/overview.js'
 import { formatLocalHour } from '../lib/format.js'
 import { useNow } from '../hooks/useNow.js'
+import { CardStack } from './CardStack.js'
 import { DAY_SCALES, RainChart, rainScaleUnit, sectCard } from './charts/DayCharts.js'
 import { Sect, timeAxis } from './charts/liquid.js'
 import { DryingClock } from './DryingClock.js'
@@ -237,58 +238,84 @@ export function PrecipTab({ recent, isClimbingLocation, rockType, rock, hours, u
 
   return (
     <>
-      <Card>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-          {rockType === null || !isClimbingLocation ? null : (
-            <DryingClock
-              hours={hoursSinceReal}
-              rockType={rockType}
-              dryness={dryness}
-              label={
-                hoursSinceReal === null
-                  ? `Drying clock: no real rain in ${days.length} days`
-                  : `Drying clock: ${formatSince(hoursSinceReal)} since real rain`
-              }
-            />
-          )}
-          <div style={{ flex: 1, minWidth: 0, ...stack(spacing.micro) }}>
-            {headline}
-            {realLine === null ? null : <span style={typeV2.rowSmall}>{realLine}</span>}
-            {radarLines.map((line) => (
-              <span key={line} style={typeV2.rowSmall}>
-                {line}
-              </span>
-            ))}
-          </div>
-        </div>
-        <div style={{ paddingTop: `${spacing.listGapLg}px`, borderTop: `1px solid ${colorsV2.line}` }}>
-          <Stats items={tiles} />
-        </div>
-      </Card>
-
-      <Card title="Every hour" aside={`past week · to ${endingLocal === null ? EM_DASH : when(endingLocal)}`}>
-        <PrecipHourTable days={days} grid={grid} points={running.points} rock={rockMap} today={today} />
-      </Card>
-
-      {axis === null || utcOffsetSeconds === null ? null : (
-        <Card title="Next 48 hours" aside={`${rainScaleUnit(ahead)} · ensemble mean · drag to read`}>
-          <RainChart
-            axis={axis}
-            instants={instants}
-            utcOffsetSeconds={utcOffsetSeconds}
-            nowMs={now}
-            read={{ ms: read, onRead: setReadMs }}
-            hours={ahead}
-            dry={
-              dryHours(ahead)
-                ? { title: 'Dry for 48 hours', note: '0% in every hour: no ensemble member has measurable rain.' }
-                : null
-            }
-          />
-        </Card>
-      )}
-
-      {utcOffsetSeconds === null ? null : <ByDay hours={hours} today={today} utcOffsetSeconds={utcOffsetSeconds} />}
+      <CardStack
+        tab="precip"
+        cards={[
+          {
+            id: 'lastRain',
+            title: 'Last rain',
+            node: (
+              <Card>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                  {rockType === null || !isClimbingLocation ? null : (
+                    <DryingClock
+                      hours={hoursSinceReal}
+                      rockType={rockType}
+                      dryness={dryness}
+                      label={
+                        hoursSinceReal === null
+                          ? `Drying clock: no real rain in ${days.length} days`
+                          : `Drying clock: ${formatSince(hoursSinceReal)} since real rain`
+                      }
+                    />
+                  )}
+                  <div style={{ flex: 1, minWidth: 0, ...stack(spacing.micro) }}>
+                    {headline}
+                    {realLine === null ? null : <span style={typeV2.rowSmall}>{realLine}</span>}
+                    {radarLines.map((line) => (
+                      <span key={line} style={typeV2.rowSmall}>
+                        {line}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ paddingTop: `${spacing.listGapLg}px`, borderTop: `1px solid ${colorsV2.line}` }}>
+                  <Stats items={tiles} />
+                </div>
+              </Card>
+            ),
+          },
+          {
+            id: 'everyHour',
+            title: 'Every hour',
+            node: (
+              <Card title="Every hour" aside={`past week · to ${endingLocal === null ? EM_DASH : when(endingLocal)}`}>
+                <PrecipHourTable days={days} grid={grid} points={running.points} rock={rockMap} today={today} />
+              </Card>
+            ),
+          },
+          axis === null || utcOffsetSeconds === null
+            ? null
+            : {
+                id: 'next48',
+                title: 'Next 48 hours',
+                node: (
+                  <Card title="Next 48 hours" aside={`${rainScaleUnit(ahead)} · ensemble mean · drag to read`}>
+                    <RainChart
+                      axis={axis}
+                      instants={instants}
+                      utcOffsetSeconds={utcOffsetSeconds}
+                      nowMs={now}
+                      read={{ ms: read, onRead: setReadMs }}
+                      hours={ahead}
+                      dry={
+                        dryHours(ahead)
+                          ? { title: 'Dry for 48 hours', note: '0% in every hour: no ensemble member has measurable rain.' }
+                          : null
+                      }
+                    />
+                  </Card>
+                ),
+              },
+          utcOffsetSeconds === null
+            ? null
+            : {
+                id: 'byDay',
+                title: 'By day',
+                node: <ByDay hours={hours} today={today} utcOffsetSeconds={utcOffsetSeconds} />,
+              },
+        ]}
+      />
 
       <p style={{ ...typeV2.note, padding: `0 ${spacing.listGapLg}px` }}>
         {source === null ? '' : `${source} `}Rain here means {threshold} or more in an hour

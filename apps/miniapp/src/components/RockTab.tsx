@@ -17,6 +17,7 @@ import {
 import { typeV2 } from '../theme/tokens.css.js'
 import { cardV2, row, stack, wellV2 } from '../theme/styles.js'
 import { CheckIcon, CrossIcon, RainIcon, SunIcon } from './Icons.js'
+import { CardStack } from './CardStack.js'
 import { CondensationCard, DryingCard } from './RockReadings.js'
 import { SunOnWallCard } from './SunOnWallCard.js'
 
@@ -420,51 +421,80 @@ export function RockTab({ rockType, identity, live, sunWalls }: RockTabProps) {
     <>
       <Hero name={name} guide={guide} />
 
-      {live === undefined || rockType === null ? null : (
-        <>
-          <DryingCard rockType={rockType} recent={live.recent} readings={live.readings} />
-          <CondensationCard readings={live.readings} utcOffsetSeconds={live.utcOffsetSeconds} />
-        </>
-      )}
-
-      {sunWalls === null ? null : <SunOnWallCard data={sunWalls} />}
-
-      {guide === null ? null : (
-        <>
-          <Card title="How it formed and climbs">
-            <Fact label="How it formed" text={guide.formed} />
-            <Fact label="Where the holds come from" text={guide.holds} />
-            <div style={{ ...row(spacing.listGapSm), flexWrap: 'wrap' }}>
-              {guide.styles.map((style) => (
-                <span
-                  key={style}
-                  style={{
-                    ...wellV2,
-                    ...typeV2.controlValue,
-                    color: colorsV2.txt1,
-                    padding: `${spacing.listGapSm}px ${spacing.listGapLg}px`,
-                  }}
-                >
-                  {style}
-                </span>
-              ))}
-            </div>
-          </Card>
-
-          <Card title="Rain and sun">
-            <IconLine icon={<RainIcon color={colorsV2.rain} />} title="Rain" text={guide.rain} />
-            <IconLine icon={<SunIcon color={colors.sun} />} title="Sun" text={guide.sun} />
-          </Card>
-
-          <Card title="Rock care">
-            <CareList items={guide.care} kind="do" />
-            <CareList items={guide.avoid} kind="dont" />
-            <p style={typeV2.note}>
-              A general guide to this rock type. Walls vary — check the rock before you climb.
-            </p>
-          </Card>
-        </>
-      )}
+      <CardStack
+        tab="rock"
+        cards={[
+          live === undefined || rockType === null
+            ? null
+            : {
+                id: 'drying',
+                title: 'Drying',
+                node: <DryingCard rockType={rockType} recent={live.recent} readings={live.readings} />,
+              },
+          live === undefined || rockType === null
+            ? null
+            : {
+                id: 'condensation',
+                title: 'Condensation',
+                node: <CondensationCard readings={live.readings} utcOffsetSeconds={live.utcOffsetSeconds} />,
+              },
+          sunWalls === null ? null : { id: 'sunOnWall', title: 'Sun on the wall', node: <SunOnWallCard data={sunWalls} /> },
+          guide === null
+            ? null
+            : {
+                id: 'formed',
+                title: 'How it formed and climbs',
+                node: (
+                  <Card title="How it formed and climbs">
+                    <Fact label="How it formed" text={guide.formed} />
+                    <Fact label="Where the holds come from" text={guide.holds} />
+                    <div style={{ ...row(spacing.listGapSm), flexWrap: 'wrap' }}>
+                      {guide.styles.map((style) => (
+                        <span
+                          key={style}
+                          style={{
+                            ...wellV2,
+                            ...typeV2.controlValue,
+                            color: colorsV2.txt1,
+                            padding: `${spacing.listGapSm}px ${spacing.listGapLg}px`,
+                          }}
+                        >
+                          {style}
+                        </span>
+                      ))}
+                    </div>
+                  </Card>
+                ),
+              },
+          guide === null
+            ? null
+            : {
+                id: 'rainSun',
+                title: 'Rain and sun',
+                node: (
+                  <Card title="Rain and sun">
+                    <IconLine icon={<RainIcon color={colorsV2.rain} />} title="Rain" text={guide.rain} />
+                    <IconLine icon={<SunIcon color={colors.sun} />} title="Sun" text={guide.sun} />
+                  </Card>
+                ),
+              },
+          guide === null
+            ? null
+            : {
+                id: 'care',
+                title: 'Rock care',
+                node: (
+                  <Card title="Rock care">
+                    <CareList items={guide.care} kind="do" />
+                    <CareList items={guide.avoid} kind="dont" />
+                    <p style={typeV2.note}>
+                      A general guide to this rock type. Walls vary — check the rock before you climb.
+                    </p>
+                  </Card>
+                ),
+              },
+        ]}
+      />
 
       {identity}
     </>

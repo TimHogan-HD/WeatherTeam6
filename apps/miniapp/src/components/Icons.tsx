@@ -1,4 +1,6 @@
 import {
+  IconArrowDown,
+  IconArrowUp,
   IconCalendar,
   IconCheck,
   IconChevronDown,
@@ -60,6 +62,10 @@ export const HumidityIcon = ({ color }: IconProps) => <IconRipple {...props(colo
 
 /** The list's Add button, in v2. */
 export const PlusIcon = ({ color }: IconProps) => <IconPlus {...props(color)} size={16} stroke={2.25} />
+
+/** Moves a card up or down its tab. The button carries the name; the arrow is decorative. */
+export const ArrowUpIcon = ({ color }: IconProps) => <IconArrowUp {...props(color)} size={20} />
+export const ArrowDownIcon = ({ color }: IconProps) => <IconArrowDown {...props(color)} size={20} />
 
 /** The card's "opens" affordance in v2. Decorative — the whole card is the target. */
 export const ChevronRightIcon = ({ color }: IconProps) => (
