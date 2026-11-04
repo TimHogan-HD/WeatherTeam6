@@ -5,27 +5,22 @@ description: Ending a work session — rewrite STATE.md, append the permanent re
 
 # Session End Protocol
 
-Two files, and they do different jobs. Getting this backwards is what produced a 165KB
-document that was mandatory reading.
+`STATE.md` is the present and is read at every session start. `session-archive.md` is the
+past and is only grepped. Keep each fact in the one that matches it.
 
 ## 1. Rewrite `.claude/docs/STATE.md`
 
-It describes the project *now*. You **replace** the stale parts rather than appending — if a
-gotcha stopped being true, delete it; if the direction changed, rewrite it. There is exactly
-one current version by construction, so it cannot develop the two-ends-newest ordering
-problem the old log had. Keep it short enough to be read at every session start: **under
-6,000 characters.** The SessionStart hook keeps its whole injection under Claude Code's
-10,000-character cap and truncates STATE.md to fit, so anything past that is cut off. If it
-is growing past that, something in it is history and belongs in the archive.
+**Replace** the stale parts rather than appending: a gotcha that stopped being true is
+deleted, a changed direction is rewritten. Keep it **under 6,000 characters.** The
+SessionStart hook keeps its whole injection under Claude Code's 10,000-character cap and
+truncates STATE.md to fit. If it grows past that, something in it is history and belongs in
+the archive.
 
-## 2. Append a full state block to `.claude/docs/session-archive.md`
+## 2. Append a block to `.claude/docs/session-archive.md`
 
-This is the permanent record and is **never read at session start** — it is grepped when
-someone needs the reasoning behind one specific past decision. Append; never prepend.
-
-**Never Read or Edit the archive to append to it.** It is over 400 KB (~100k tokens), and the
-Edit tool reads the whole file first. Write the block to a scratch file with the Write tool,
-then append it from the shell:
+Append; never prepend. **Never Read or Edit the archive to append to it.** It is over 400 KB,
+and the Edit tool reads the whole file first. Write the block to a scratch file with the
+Write tool, then append it from the shell:
 
 ```bash
 cat <scratch-file> >> .claude/docs/session-archive.md
@@ -34,46 +29,38 @@ cat <scratch-file> >> .claude/docs/session-archive.md
 Get-Content <scratch-file> -Raw | Add-Content .claude/docs/session-archive.md -NoNewline
 ```
 
-Check the result with `tail -n 30` (or `Get-Content -Tail 30`), not a Read. Use this exact
-format:
+Check the result with `tail -n 30` (or `Get-Content -Tail 30`), not a Read. Use this format:
 
 ```
 ---
 
-## YYYY-MM-DD — branch: <branch> — commit: <short-hash>
+## YYYY-MM-DD — <short title>
 
-**Phase completed:** <phase name and number>
+**Merged:** #<PR> — <squash commit on main> (one line per PR; "none" if nothing merged)
 
-**What was built this session:**
+**What changed:**
 - <file or feature> — <one-line description>
-- ...
 
-**Known issues / deferred work:**
-- <anything left incomplete, version mismatches noticed, TODOs punted>
+**Decisions:** <owner decisions made this session, dated, with the reason; omit if none>
 
-**Blockers for next session:**
-- <anything the next session must resolve before proceeding>
+**Left open:** <unfinished work, open PRs, deferred findings, issues filed; omit if none>
 
-**What's next:** Phase <n> — `git checkout -b phase/<n>-<name>` off `<base branch>` — read `<handoff doc path and section>` before writing any UI
+**Gotchas:** <non-obvious details not captured in a rule file or handoff; omit if none>
 
-**Gotchas for next session:**
-- <cross-file dependency, ordering constraint, spec gap, or non-obvious detail not captured in the plan or handoff docs>
-- None if nothing to flag
-
-**Does the user need to do anything?** <Yes/No, then the specific actions only they can do — a credential, a dashboard setting, a phone, a product decision. "No" is a valid and useful answer; never manufacture one.>
+**Does the user need to do anything?** <Yes/No, then the specific actions only they can do — a credential, a dashboard setting, a phone, a product decision.>
 ```
 
-Stub entries (timestamps only, no content) are noise — never append a session-end line
-without the full block above.
+Record the squash commit on `main`, not the branch commit, which the squash erases. If the
+PR has not merged yet, write its number and fix the hash after the merge. A block with no
+content beyond a date is noise; do not append one.
 
-## 3. Reconcile the docs the block just made stale
+## 3. Reconcile the docs the session made stale
 
-The session block is a record, not a substitute — the files agents are *told to read* must
-not contradict what shipped. Before ending, grep for every reference to what you changed and
-fix each one:
+The files agents are *told to read* must not contradict what shipped. A stale rule is worse
+than a missing one, because an agent obeying it refuses correct work. Grep for every
+reference to what you changed and fix each one:
 - A phase marked complete in the handoff that owns it, such as `miniapp-design-v1.md`
-  or `wall-a-sun-shade-v1.md`. There is no second task list to mirror it into;
-  that arrangement is what the note in §4 is about.
+  or `wall-a-sun-shade-v1.md`.
 - A new external API is added to `.claude/docs/api-sources.md`.
 - A new invariant future work must uphold goes in the `.claude/rules/` file scoped to the
   paths it governs (`architecture.md` only if it holds everywhere; its index lists the rest), and as a
@@ -82,20 +69,7 @@ fix each one:
   left to read as unbuilt work.
 - Anything a doc says is missing, broken, or "does not exist yet" that now exists.
 
-This is not tidying. A stale rule is worse than a missing one: "Two screens only — do not let
-them creep back in" survived three weeks past the spec that added a third screen, and any
-agent obeying it would have refused to build a feature that was already specified and whose
-API was already merged.
+## 4. Prefer deleting a copy to maintaining it
 
-## 4. But prefer deleting the copy to maintaining it
-
-Every item above is a place a fact has to be mirrored by hand, and hand-mirroring is what
-failed: 66% of one thirty-commit stretch was documentation repairing other documentation, and
-the most recent one — titled *"record the corrected issue state"* — touched one file and left
-the other wrong. Before adding a fact to a second document, ask whether the first can simply
-be **read** instead. Issue state is now `gh issue list` for exactly this reason. A fact that
-lives in one place cannot drift.
-
-## 5. After a squash merge, correct the commit hash in the block you just wrote
-
-The branch commit it names ceases to exist; record the squashed hash on `main` instead.
+Before adding a fact to a second document, ask whether the first can be **read** instead.
+Issue state is `gh issue list`, never a table in a doc, for this reason.
