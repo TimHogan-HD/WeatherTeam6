@@ -1,7 +1,7 @@
 /**
  * The session token, and the one place it is stored.
  *
- * Phase 2 of `docs/handoffs/leave-telegram-v1.md`: the app's credential used to
+ * Phase 2 of the leave-Telegram migration (PR #169): the app's credential used to
  * be `Telegram.WebApp.initData`, handed to us by the platform on every launch.
  * Outside Telegram there is no platform, so the token from
  * `POST /api/v1/auth/login` is held here and travels as `Authorization: Session

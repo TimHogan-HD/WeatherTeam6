@@ -4,7 +4,7 @@ import { colorsV2 } from '@weatherteam6/design/tokens'
  * The PWA manifest, built from the design tokens rather than written out as
  * JSON in `public/`.
  *
- * Phase 2 of `docs/handoffs/leave-telegram-v1.md`: the bot's menu button was
+ * Phase 2 of the leave-Telegram migration (PR #169): the bot's menu button was
  * the app's home-screen shell, and Add to Home Screen replaces it. `standalone`
  * is what removes the browser chrome; without it the installed app is a
  * bookmark with an address bar.

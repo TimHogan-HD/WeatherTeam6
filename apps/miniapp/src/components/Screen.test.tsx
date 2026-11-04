@@ -4,7 +4,7 @@ import { Screen } from './Screen.js'
 
 /**
  * The back affordance `miniapp-design-v1.md` §2 and §8 forbade, required from
- * Phase 2 of `docs/handoffs/leave-telegram-v1.md` onwards because there is no
+ * Phase 2 of the leave-Telegram migration (PR #169) onwards because there is no
  * Telegram `BackButton` in a browser.
  *
  * Both halves matter. Missing where it is needed strands the user on a screen

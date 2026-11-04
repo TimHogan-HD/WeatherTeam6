@@ -7,7 +7,7 @@
  *
  * The viewport height and the safe-area insets were Telegram's
  * `--tg-viewport-stable-height` and `--tg-safe-area-inset-*` until Phase 2 of
- * `docs/handoffs/leave-telegram-v1.md`; they now come from the platform's own
+ * the leave-Telegram migration (PR #169); they now come from the platform's own
  * `100dvh` and `env(safe-area-inset-*)`, which were already the fallback
  * values. `env()` keeps its `0px` fallback: a browser that does not support a
  * given inset resolves the function to nothing, and CSS then drops the whole

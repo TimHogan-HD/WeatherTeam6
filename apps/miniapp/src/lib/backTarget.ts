@@ -1,7 +1,7 @@
 /**
  * Where "back" goes, as data rather than as three copies of an `if`.
  *
- * Until Phase 2 of `docs/handoffs/leave-telegram-v1.md` this was Telegram's
+ * Until Phase 2 of the leave-Telegram migration (PR #169) this was Telegram's
  * `BackButton`, registered per route by `useBackButton`. There is no
  * `BackButton` in an ordinary browser, so the in-app arrow that
  * `miniapp-design-v1.md` §2 and §8 forbade is now required — but the per-route
