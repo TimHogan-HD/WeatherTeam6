@@ -4,6 +4,7 @@
   "outputDirectory": "public",
   "git": { "deploymentEnabled": { "*": false, "**": false, "main": true } },
   "ignoreCommand": "git diff --quiet \"${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}\" HEAD -- . ../../packages ../../package.json ../../package-lock.json",
+  "regions": ["cle1"],
   "functions": {
     "api/index.ts": {
       "maxDuration": 60
