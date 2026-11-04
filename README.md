@@ -43,7 +43,7 @@ WeatherTeam6 is a TypeScript monorepo managed with npm workspaces and Turborepo.
 
 ### Local development
 
-Use Node.js 20 or newer and the npm version specified by `package.json`. Install dependencies from the repository root:
+Use Node.js 24 (what Vercel runs and CI tests on) or newer and the npm version specified by `package.json`. Install dependencies from the repository root:
 
 ```bash
 npm ci
