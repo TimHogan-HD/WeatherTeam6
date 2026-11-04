@@ -20,9 +20,10 @@
  * it when the user has explicitly asked to pause mid-change, and delete it when
  * work resumes. It is gitignored.
  *
- * The session's own PR blocks while CI or the review is pending, unless a
- * `wait:pr` runs in the background (`lib/prWait.mjs`). No other PR ever blocks,
- * and neither does a draft (`prsToFinish`).
+ * With auto-merge allowed on the repository (owner, 2026-11-04) the session's
+ * own PR blocks until auto-merge is armed, and then GitHub does the rest. Where
+ * it is not allowed, the PR blocks while CI or the review is pending, unless a
+ * `wait:pr` runs in the background (`lib/prWait.mjs`). No other PR ever blocks.
  *
  * Deliberately NOT checked here: whether tests pass. That belongs to CI and to
  * the review checklist. This hook is about work being *delivered*, not correct.
@@ -32,6 +33,7 @@
 
 import { existsSync, statSync } from 'node:fs'
 import {
+  autoMergeAllowed,
   checksArePassing,
   currentBranch,
   defaultBranch,
@@ -42,7 +44,7 @@ import {
   unpushedCommits,
   workingTreeChanges,
 } from './lib/gitState.mjs'
-import { ownPrVerdict, prsToFinish } from './lib/prWait.mjs'
+import { LAND, ownPrVerdict, prsToFinish } from './lib/prWait.mjs'
 import { reviewState } from './lib/reviewGate.mjs'
 import { activePeers, ownClaims, porcelainPath } from './lib/sessionClaims.mjs'
 
@@ -137,6 +139,7 @@ if (changes.length > 0) {
 
 // ---- 2. committing on the default branch -----------------------------------
 
+let prs = null
 if (branch === base) {
   const ahead = unpushedCommits()
   if (ahead.length > 0) {
@@ -167,7 +170,9 @@ if (branch === base) {
 
   // ---- 4. a pushed feature branch with no PR ------------------------------
 
-  const prs = openPullRequests()
+  // Read once, here, for this step and step 5: in a cloud session it is 1 + 3N
+  // REST calls, so not before the uncommitted and unpushed checks.
+  prs = openPullRequests()
   if (prs !== null) {
     const mine = prs.find((p) => p.headRefName === branch)
     const branchHasCommits = (git(['log', `origin/${base}..HEAD`, '--oneline']) ?? '').trim()
@@ -184,8 +189,10 @@ if (branch === base) {
 
 // ---- 5. an open PR that is green and mergeable -----------------------------
 
-const prs = openPullRequests()
-if (prs === null) process.exit(0) // gh unavailable; do not guess.
+// On the default branch there is no PR of this session's (step 2), and gh
+// unavailable is not a reason to guess.
+if (prs === null) process.exit(0)
+const allowAuto = autoMergeAllowed()
 
 // ---- 5a. this branch's PR, still waiting on CI or the review ----------------
 
@@ -196,9 +203,14 @@ if (branch !== base) {
     pr: prs.find((p) => p.headRefName === branch),
     backgroundTasks,
     stopHookActive,
+    autoMergeAllowed: allowAuto,
   })
   if (own) blockTurn(own)
 }
+
+// With auto-merge allowed, arming it is the whole hand-off (5a); the session
+// never merges by hand, so the checks below would only ask for what GitHub does.
+if (allowAuto === true) process.exit(0)
 
 // Only this branch's PR, and not a draft (`prsToFinish`): any other PR is another
 // session's work.
@@ -220,8 +232,8 @@ if (ready.length > 0) {
     ...ready.map((p) => `  #${p.number}  ${p.title}`),
     '',
     'The user has a standing preference that you merge rather than hand PRs back.',
-    'Read the reviewer\'s inline findings first and deal with each one. Then merge:',
-    `  gh pr merge <n> --squash --delete-branch`,
+    'Read the reviewer\'s inline findings first and deal with each one. Then',
+    `  ${LAND.merge('<n>')}`,
     'Then switch to the default branch and pull.',
   ])
 }

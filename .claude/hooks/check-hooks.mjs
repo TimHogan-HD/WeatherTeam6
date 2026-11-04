@@ -16,7 +16,7 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { classifyPr, onlyRequired, ownPrVerdict, prsToFinish } from './lib/prWait.mjs'
-import { mergeRequest, reviewCoversHead } from './lib/reviewGate.mjs'
+import { reviewCoversHead } from './lib/reviewGate.mjs'
 import { FULL, INCREMENTAL, lastReviewedSha, pickScope } from './lib/reviewScope.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -140,7 +140,7 @@ const cases = [
   // repo happens to be on — they live in `gitScenarios` with a controlled repo.
 
   // ---- post-push --------------------------------------------------------
-  ['gh pr create points at the review gate', POST, bash('gh pr create --fill'), ALLOW, 'Claude review'],
+  ['gh pr create points at the blocking review check', POST, bash('gh pr create --fill'), ALLOW, 'blocking findings'],
   ['git push alone is silent (CI re-reviews pushes)', POST, bash('git push -u origin HEAD'), ALLOW],
   ['unrelated command is silent', POST, bash('npm run test'), ALLOW],
 ]
@@ -215,19 +215,13 @@ for (const [name, hook, payload, expectedCode, fragment] of cases) {
 }
 
 /* ------------------------------------------------------------------ *
- * The merge gate's pure parts. The gh-backed part stands down offline, which
- * the scratch-repo scenario below asserts; the live path needs GitHub and is
- * exercised by merging a real PR.
+ * The review-state, review-scope and PR-wait logic, pure. The gh-backed parts
+ * stand down offline; the live path needs GitHub and is exercised by landing a
+ * real PR.
  * ------------------------------------------------------------------ */
 const SHA = 'a'.repeat(40)
 const bot = (body, login = 'claude[bot]') => ({ user: { login }, body })
 const gateCases = [
-  ['merge: numbered', mergeRequest('gh pr merge 256 --squash --delete-branch'), { pr: 256 }],
-  ['merge: current branch', mergeRequest('gh pr merge --squash'), { pr: null }],
-  ['merge: quoted gh.exe path', mergeRequest('"/c/Program Files/GitHub CLI/gh.exe" pr merge 12 --squash'), { pr: 12 }],
-  ['merge: number after a later && is not the PR', mergeRequest('gh pr merge --squash && git pull origin 3'), { pr: null }],
-  ['merge: gh pr view is not a merge', mergeRequest('gh pr view 256'), null],
-  ['merge: git merge is not a PR merge', mergeRequest('git merge main'), null],
   ['review: heading and head SHA covers', reviewCoversHead([bot(`## Claude review\nCommit: ${SHA}`)], SHA), true],
   ['review: an earlier commit does not cover', reviewCoversHead([bot(`## Claude review\nCommit: ${'b'.repeat(40)}`)], SHA), false],
   ['review: SHA without the heading does not cover', reviewCoversHead([bot(`Commit: ${SHA}`)], SHA), false],
@@ -275,6 +269,19 @@ const gateCases = [
       ['wait: mergeable still computing keeps waiting', outcome({ mergeable: null, mergeableState: 'unknown' }), 'waiting'],
       ['wait: merged is merged', outcome({ merged: true, open: false }), 'merged'],
       ['wait: inline findings are named in ready', /2 inline comment/.test(classifyPr(snap({ findings: 2 })).message), true],
+      // 2026-11-04: a green draft reached no-review, whose rerun re-skipped.
+      ['wait: a green draft is draft, not no-review', outcome({ draft: true, reviewed: false }), 'draft'],
+      ['wait: a pending draft keeps waiting', outcome({ draft: true, checks: [ok('ci'), running('review')] }), 'waiting'],
+      // A background wait must outlast arming, or a later red check wakes nobody.
+      ['wait: armed and pending keeps waiting', outcome({ autoMerge: true, checks: [ok('ci'), running('review')] }), 'waiting'],
+      ['wait: armed and green keeps waiting for the merge', outcome({ autoMerge: true }), 'waiting'],
+      ['wait: armed then merged is merged', outcome({ autoMerge: true, merged: true, open: false }), 'merged'],
+      ['wait: armed but failed is ci-failed', outcome({ autoMerge: true, checks: [ok('ci'), { name: 'review', status: 'COMPLETED', conclusion: 'FAILURE' }] }), 'ci-failed'],
+      ['wait: a failed review explains blocking findings', /blocking findings/.test(classifyPr(snap({ checks: [ok('ci'), { name: 'review', status: 'COMPLETED', conclusion: 'FAILURE' }] })).message), true],
+      ['wait: ready says arm when auto-merge is allowed', /--auto/.test(classifyPr(snap({ number: 5, autoMergeAllowed: true })).message), true],
+      ['wait: ready says merge over REST when it is not', /pulls\/5\/merge/.test(classifyPr(snap({ number: 5, autoMergeAllowed: false })).message), true],
+      // GraphQL is refused in cloud sessions, so no advice may need it.
+      ['wait: no outcome names gh pr update-branch', [classifyPr(snap({ mergeableState: 'behind' })), classifyPr(snap({}))].some((v) => /gh pr update-branch|gh pr merge \S+ --squash --delete-branch\.?$/.test(v.message)), false],
     ]
   })(),
   // The Stop hook's verdict on the session's own PR. Shapes as `gh pr list` returns them.
@@ -303,6 +310,17 @@ const gateCases = [
       ['stop: no background_tasks field blocks once', blocks({}, { backgroundTasks: undefined }), true],
       ['stop: no background_tasks field allows a continued turn', blocks({}, { backgroundTasks: undefined, stopHookActive: true }), false],
       ['stop: no PR for the branch is not this check\'s', ownPrVerdict({ pr: undefined, backgroundTasks: [], stopHookActive: false }), null],
+      // Auto-merge allowed (owner, 2026-11-04): arming it is the hand-off.
+      ['auto: armed and pending is allowed', blocks({ autoMerge: true }, { autoMergeAllowed: true }), false],
+      ['auto: armed and green is allowed', blocks({ autoMerge: true, statusCheckRollup: [ok] }, { autoMergeAllowed: true }), false],
+      ['auto: armed but failed blocks once', blocks({ autoMerge: true, statusCheckRollup: [failed] }, { autoMergeAllowed: true }), true],
+      ['auto: not armed blocks', blocks({}, { autoMergeAllowed: true }), true],
+      ['auto: not armed names the arm command', ownPrVerdict({ pr: pr({}), backgroundTasks: [], stopHookActive: false, autoMergeAllowed: true }).join('\n').includes('enable_pr_auto_merge'), true],
+      ['auto: not armed allows a continued turn', blocks({}, { autoMergeAllowed: true, stopHookActive: true }), false],
+      ['auto: not armed and green still blocks', blocks({ statusCheckRollup: [ok] }, { autoMergeAllowed: true }), true],
+      ['draft: the own draft blocks once', blocks({ isDraft: true }, { autoMergeAllowed: true }), true],
+      ['draft: the own draft allows a continued turn', blocks({ isDraft: true }, { autoMergeAllowed: true, stopHookActive: true }), false],
+      ['draft: the block says how to mark it ready', ownPrVerdict({ pr: pr({ isDraft: true }), backgroundTasks: [], stopHookActive: false }).join('\n').includes('update_pull_request'), true],
       // 2026-10-21: the optional 10-minute UI check held every PR's wait.
       ...(() => {
         const ui = { __typename: 'CheckRun', name: 'check-ui', status: 'IN_PROGRESS', conclusion: '' }
@@ -573,21 +591,22 @@ const gitScenarios = [
     BLOCK,
     'uncommitted changes',
   ],
+  // 2026-11-04: the local merge gate is gone; GitHub's required review check is the gate.
   [
-    'PreToolUse: gh pr merge fails closed when GitHub cannot be read',
+    'PreToolUse: gh pr merge is left to GitHub',
     (w) => g(w, 'checkout', '-b', 'feat/gate'),
     PRE,
-    bash('gh pr merge 5 --squash --delete-branch'),
-    BLOCK,
-    'fails closed',
+    bash('gh pr merge 5 --auto --squash --delete-branch'),
+    ALLOW,
+    null,
   ],
   [
-    'PreToolUse: an MCP merge fails closed when GitHub cannot be read',
+    'PreToolUse: an MCP merge is left to GitHub',
     (w) => g(w, 'checkout', '-b', 'feat/gate'),
     PRE,
     { tool_name: 'mcp__github__merge_pull_request', tool_input: { pullNumber: 5 } },
-    BLOCK,
-    'fails closed',
+    ALLOW,
+    null,
   ],
   [
     'Stop: unpushed commits on main block the turn',

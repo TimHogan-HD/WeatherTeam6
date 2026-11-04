@@ -98,18 +98,32 @@ function repoStatus() {
   return lines.join('\n')
 }
 
-function pullRequests() {
+/**
+ * Only this branch's PR in full. Until 2026-11-04 every open PR was listed with
+ * "checks not green", and sessions read another session's live PR as their own
+ * to-do and circled on it. Other PRs are a count and their numbers, marked as
+ * not this session's.
+ */
+function pullRequests(branch) {
   const prs = openPullRequests()
   if (prs === null) return 'open PRs: could not read (gh unavailable)'
   if (prs.length === 0) return 'open PRs: none'
-  return [
-    `open PRs: ${prs.length}`,
-    ...prs.map((p) => {
-      const green = checksArePassing(p) ? 'checks green' : 'checks not green'
-      const merge = p.mergeable === 'MERGEABLE' ? 'mergeable' : String(p.mergeable ?? 'unknown').toLowerCase()
-      return `  #${p.number} ${p.title} [${p.headRefName}] — ${green}, ${merge}`
-    }),
-  ].join('\n')
+  const own = prs.filter((p) => p.headRefName === branch)
+  const others = prs.filter((p) => p.headRefName !== branch)
+  const lines = []
+  for (const p of own) {
+    const green = checksArePassing(p) ? 'checks green' : 'checks not green'
+    const merge = p.mergeable === 'MERGEABLE' ? 'mergeable' : String(p.mergeable ?? 'unknown').toLowerCase()
+    const state = [p.isDraft ? 'draft' : null, p.autoMerge ? 'auto-merge armed' : null].filter(Boolean).join(', ')
+    lines.push(`this branch's PR: #${p.number} ${p.title} — ${green}, ${merge}${state ? `, ${state}` : ''}`)
+  }
+  if (own.length === 0) lines.push("this branch's PR: none")
+  if (others.length > 0) {
+    lines.push(
+      `other open PRs: ${others.length} (${others.map((p) => `#${p.number}`).join(', ')}), other sessions' work: do not act on them unless the user asks`,
+    )
+  }
+  return lines.join('\n')
 }
 
 /** Open issues, GraphQL first and REST where it is refused (cloud sessions). */
@@ -258,7 +272,7 @@ try {
     '## Repository',
     '```',
     repoStatus(),
-    hasRemote() ? pullRequests() : 'open PRs: no remote',
+    hasRemote() ? pullRequests(currentBranch()) : 'open PRs: no remote',
     hasRemote() ? issues() : 'open issues: no remote',
     ...(hasRemote() ? [defaultBranchCi()].filter(Boolean) : []),
     ...toolingWarnings(sessionId),

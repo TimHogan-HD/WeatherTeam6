@@ -1,6 +1,9 @@
 /**
- * The merge gate: a PR merges only after the CI reviewer has posted its summary
- * for the PR's current head commit.
+ * Whether the CI reviewer has posted its summary for a PR's current head commit.
+ *
+ * Until 2026-11-04 this backed a local merge gate in pre-tool-safety.mjs. GitHub
+ * enforces the same thing through the required `review` check, so the gate is
+ * gone; `wait:pr` and the Stop hook still read the state to say what is missing.
  *
  * Written 2026-09-30. PRs were merging about two minutes after they opened,
  * the local `/code-review` the post-PR hook asked for ran in 6 of 59 sessions,
@@ -12,22 +15,10 @@
  * one.
  */
 
-import { currentBranch, ghApi } from './gitState.mjs'
+import { currentBranch, ghApi, ghApiAll } from './gitState.mjs'
 
 export const REVIEW_HEADING = '## Claude review'
 export const REVIEW_WORKFLOW = '.github/workflows/claude-review.yml'
-
-/**
- * The PR a merge command targets: `{ pr: number | null }` for a merge of a
- * numbered PR or of the current branch's PR, or `null` when the command merges
- * nothing. Covers `gh`, `gh.exe` and a quoted full path to either.
- */
-export function mergeRequest(command) {
-  const m = /\bgh(?:\.exe)?['"]?\s+pr\s+merge\b([^;&|\n]*)/i.exec(String(command))
-  if (!m) return null
-  const number = /(?:^|\s)#?(\d+)(?=\s|$)/.exec(m[1])
-  return { pr: number ? Number(number[1]) : null }
-}
 
 /** True when a comment by the reviewer bot carries the heading and this head SHA. */
 export function reviewCoversHead(comments, headSha) {
@@ -42,9 +33,8 @@ export function reviewCoversHead(comments, headSha) {
 
 /**
  * `{ number, headSha, reviewed, exempt }` for a PR (the current branch's when
- * `pr` is null), or `null` when GitHub cannot be read. The merge guard refuses
- * on `null` (fail closed, since 2026-10-07): a gate that opens whenever `gh`
- * fails was open in every cloud session, where GraphQL is refused.
+ * `pr` is null), or `null` when GitHub cannot be read; callers ask for nothing
+ * on `null` rather than guess.
  *
  * REST only, for that reason. `exempt`: the reviewer action refuses to run on a
  * PR that changes its own workflow file, so such a PR can never be reviewed and
@@ -60,8 +50,8 @@ export function reviewState(pr) {
     if (!number) return null
   }
   const view = ghApi(`repos/{owner}/{repo}/pulls/${number}`)
-  const files = ghApi(`repos/{owner}/{repo}/pulls/${number}/files?per_page=100`)
-  const comments = ghApi(`repos/{owner}/{repo}/issues/${number}/comments?per_page=100`)
+  const files = ghApiAll(`repos/{owner}/{repo}/pulls/${number}/files`)
+  const comments = ghApiAll(`repos/{owner}/{repo}/issues/${number}/comments`)
   if (!view?.head?.sha || !Array.isArray(files) || !Array.isArray(comments)) return null
   return {
     number,

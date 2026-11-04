@@ -13,12 +13,13 @@
  * wakes the session instead.
  *
  * Reads GitHub over REST only (GraphQL is refused in cloud sessions). Exit
- * codes: 0 ready or merged, 3 conflict, 4 ci-failed, 5 behind, 6 no-review,
- * 7 no-checks, 8 head-changed, 9 closed, 10 timeout, 11 GitHub unreadable.
+ * codes: 0 ready or merged, 3 conflict, 4 ci-failed, 5 behind,
+ * 6 no-review, 7 no-checks, 8 head-changed, 9 closed, 10 timeout, 11 GitHub
+ * unreadable, 12 draft.
  * The logic is `lib/prWait.mjs`, which `check:hooks` covers.
  */
 
-import { currentBranch, ghApi, requiredCheckNames } from './lib/gitState.mjs'
+import { autoMergeAllowed, currentBranch, ghApi, ghApiAll, requiredCheckNames } from './lib/gitState.mjs'
 import { REVIEW_WORKFLOW, reviewCoversHead } from './lib/reviewGate.mjs'
 import { checkPending, classifyPr, onlyRequired } from './lib/prWait.mjs'
 
@@ -55,13 +56,17 @@ function snapshot(number) {
   if (!sha) return null
   const runs = ghApi(`repos/{owner}/{repo}/commits/${sha}/check-runs?per_page=100`)
   const status = ghApi(`repos/{owner}/{repo}/commits/${sha}/status`)
-  const comments = ghApi(`repos/{owner}/{repo}/issues/${number}/comments?per_page=100`)
-  const inline = ghApi(`repos/{owner}/{repo}/pulls/${number}/comments?per_page=100`)
-  const files = ghApi(`repos/{owner}/{repo}/pulls/${number}/files?per_page=100`)
+  const comments = ghApiAll(`repos/{owner}/{repo}/issues/${number}/comments`)
+  const inline = ghApiAll(`repos/{owner}/{repo}/pulls/${number}/comments`)
+  const files = ghApiAll(`repos/{owner}/{repo}/pulls/${number}/files`)
   if (!runs || !status || !Array.isArray(comments) || !Array.isArray(inline) || !Array.isArray(files)) return null
   return {
     merged: pr.merged === true,
     open: pr.state === 'open',
+    number,
+    draft: pr.draft === true,
+    autoMerge: pr.auto_merge != null,
+    autoMergeAllowed: allowAuto,
     headSha: sha,
     mergeable: typeof pr.mergeable === 'boolean' ? pr.mergeable : null,
     mergeableState: pr.mergeable_state ?? null,
@@ -85,6 +90,7 @@ function snapshot(number) {
 const number = findPr()
 // Only what branch protection requires: a slow optional check (the UI check) never holds the wait.
 const required = requiredCheckNames()
+const allowAuto = autoMergeAllowed()
 if (required) console.log(`Waiting on the required checks: ${required.join(', ')}`)
 const started = Date.now()
 let startSha = null

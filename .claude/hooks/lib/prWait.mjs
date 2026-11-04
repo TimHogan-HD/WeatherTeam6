@@ -20,6 +20,28 @@ export const NO_CHECKS_GRACE_MS = 3 * 60_000
 
 export const WAIT_COMMAND = 'npm run wait:pr'
 
+/**
+ * The commands a session runs to land a PR, local first and cloud second.
+ * Cloud sessions are refused GraphQL (HTTP 403), and `gh pr ready`,
+ * `gh pr merge` and `gh pr update-branch` are GraphQL, so every one of them
+ * failed there while the hooks kept naming them (2026-11-04). The GitHub MCP
+ * tools and REST work in both.
+ */
+export const LAND = {
+  ready: (n) =>
+    `mark it ready: gh pr ready ${n}  (cloud: the GitHub MCP tool update_pull_request with draft: false)`,
+  arm: (n) =>
+    `arm auto-merge: gh pr merge ${n} --auto --squash --delete-branch  (cloud: the GitHub MCP tool enable_pr_auto_merge, mergeMethod SQUASH)`,
+  merge: (n) =>
+    `merge it: gh api -X PUT repos/{owner}/{repo}/pulls/${n}/merge -f merge_method=squash  (or the GitHub MCP tool merge_pull_request, merge_method squash)`,
+  update: (n) => `bring main in: gh api -X PUT repos/{owner}/{repo}/pulls/${n}/update-branch`,
+}
+
+/** What a failed `review` check means since it gates on blocking findings. */
+const REVIEW_FAILED =
+  ' A failed review means blocking findings or no verdict: read the newest "## Claude review" comment and its inline comments, ' +
+  'then fix and push, or reply on the inline comment showing why it is not a defect and re-run the job (gh run rerun <id>).'
+
 const upper = (v) => String(v ?? '').toUpperCase()
 
 /** A check is `{ name?, status?, conclusion?, state? }` — GraphQL rollup or REST. */
@@ -40,8 +62,9 @@ export function checkPending(check) {
 
 /**
  * One poll of `wait-pr.mjs`, decided. `snap`:
- * `{ merged, open, headSha, startSha, mergeable (true|false|null), mergeableState,
- *    checks[], reviewed, exempt, findings, elapsedMs }`.
+ * `{ merged, open, number, draft, autoMerge, autoMergeAllowed (true|false|null),
+ *    headSha, startSha, mergeable (true|false|null), mergeableState, checks[],
+ *    reviewed, exempt, findings, elapsedMs }`.
  * Returns `null` while still waiting, else `{ outcome, code, message }`.
  */
 export function classifyPr(snap) {
@@ -66,10 +89,11 @@ export function classifyPr(snap) {
     }
   }
   if (failed.length > 0) {
+    const review = failed.some((c) => (c.name ?? c.context) === 'review') ? REVIEW_FAILED : ''
     return {
       outcome: 'ci-failed',
       code: 4,
-      message: `Failed: ${names(failed)}. Read the log (gh run view --log-failed), fix, push, and wait again.`,
+      message: `Failed: ${names(failed)}. Read the log (gh run view --log-failed), fix, push, and wait again.${review}`,
     }
   }
   if (snap.checks.length === 0) {
@@ -80,7 +104,21 @@ export function classifyPr(snap) {
       message: 'No checks have reported on the head commit after three minutes. Check that the workflows ran (gh run list --limit 5).',
     }
   }
+  const n = snap.number ?? '<n>'
   if (pending.length > 0) return null
+  // Armed and green: GitHub is merging it, and the next poll reads `merged`. A
+  // wait run in the background must outlast this, or a red check after arming
+  // would wake nobody.
+  if (snap.autoMerge && !snap.draft && snap.mergeableState !== 'behind') return null
+  // 2026-11-04: a draft used to reach no-review, whose rerun advice re-ran a job
+  // that skipped drafts again. Drafts are reviewed now; a green one only needs marking ready.
+  if (snap.draft) {
+    return {
+      outcome: 'draft',
+      code: 12,
+      message: `Green, but a draft, so it cannot merge. If it is finished, ${LAND.ready(n)}, then ${snap.autoMergeAllowed === true ? LAND.arm(n) : LAND.merge(n)}.`,
+    }
+  }
   if (!snap.reviewed && !snap.exempt) {
     return {
       outcome: 'no-review',
@@ -94,18 +132,18 @@ export function classifyPr(snap) {
     return {
       outcome: 'behind',
       code: 5,
-      message: 'Green and reviewed, but main has moved and branch protection needs the branch up to date. Run gh pr update-branch, then wait again.',
+      message: `Green and reviewed, but main has moved and branch protection needs the branch up to date. ${LAND.update(n)}, then wait again.`,
     }
   }
   if (snap.mergeable === null) return null // GitHub is still computing it
   const findings =
     snap.findings > 0
-      ? ` The reviewer left ${snap.findings} inline comment(s) on this commit: read each and fix it or reply why it is not a defect before merging.`
+      ? ` The reviewer left ${snap.findings} inline comment(s) on this commit; the blocking ones already failed the check, so these are advisory: fix each that is right in this PR or reply why not.`
       : ''
   return {
     outcome: 'ready',
     code: 0,
-    message: `Green, reviewed at the head commit, and mergeable.${findings} Then: gh pr merge <n> --squash --delete-branch.`,
+    message: `Green, reviewed at the head commit, and mergeable.${findings} Then ${snap.autoMergeAllowed === true ? LAND.arm(n) : LAND.merge(n)}.`,
   }
 }
 
@@ -132,8 +170,8 @@ export function waiterRunning(backgroundTasks) {
 
 /**
  * The open PRs the Stop hook's merge checks may hold a turn for: only the
- * session's own branch's, and never a draft, because the reviewer skips drafts
- * by design. Owner, 2026-11-03: a PR unrelated to the chat must not prompt at
+ * session's own branch's, and never a draft (`ownPrVerdict` handles the own
+ * draft). Owner, 2026-11-03: a PR unrelated to the chat must not prompt at
  * all. A draft another session left open had blocked a stop more than twenty
  * times, and blocking once still told a session to merge another's live PR.
  */
@@ -143,8 +181,20 @@ export function prsToFinish({ prs, branch }) {
 
 /**
  * The Stop hook's verdict on the open PR for the session's own branch, from
- * `gh pr list`'s shape (`mergeable`, `statusCheckRollup`). Returns block lines,
- * or `null` to leave the turn to the hook's other checks.
+ * `gh pr list`'s shape (`mergeable`, `statusCheckRollup`, `isDraft`,
+ * `autoMerge`). Returns block lines, or `null` to leave the turn to the hook's
+ * other checks.
+ *
+ * With auto-merge allowed (owner, 2026-11-04) the turn ends once the PR is
+ * armed: GitHub merges when `ci` and `review` pass, so nothing is left for
+ * the session to hold the turn for. A failure on an armed PR still blocks
+ * once, because GitHub will never merge it.
+ *
+ * - Armed: allowed.
+ * - A draft: blocked once. Mark it ready and arm it, or say why it stays a draft.
+ * - Not armed, auto-merge allowed: blocked once, naming the command to arm it.
+ *
+ * Auto-merge not allowed or unreadable keeps the older rules:
  *
  * - Pending with a `wait:pr` running in the background: allowed, because its
  *   exit wakes the session.
@@ -155,7 +205,7 @@ export function prsToFinish({ prs, branch }) {
  * - Conflicting or failed: blocked once. Stopping to tell the owner why is
  *   sometimes right; stopping without a word is not.
  */
-export function ownPrVerdict({ pr, backgroundTasks, stopHookActive }) {
+export function ownPrVerdict({ pr, backgroundTasks, stopHookActive, autoMergeAllowed = null }) {
   if (!pr) return null
   const rollup = Array.isArray(pr.statusCheckRollup) ? pr.statusCheckRollup : []
   const failed = rollup.filter(checkFailed)
@@ -167,7 +217,7 @@ export function ownPrVerdict({ pr, backgroundTasks, stopHookActive }) {
     return [
       `UNFINISHED: ${head} conflicts with main, so GitHub will run no checks on it and it can never go green.`,
       '',
-      'Rebase onto origin/main and push, then wait for CI and the review:',
+      'Merge origin/main into the branch, resolve, and push, then wait for CI and the review:',
       `  ${WAIT_COMMAND}   (foreground, timeout 600000)`,
       'If you are stopping to ask the owner something, say so in the reply.',
     ]
@@ -182,6 +232,27 @@ export function ownPrVerdict({ pr, backgroundTasks, stopHookActive }) {
       'If you are stopping to ask the owner something, say so in the reply.',
     ]
   }
+  if (pr.autoMerge === true) return null
+  if (pr.isDraft === true) {
+    if (stopHookActive) return null
+    return [
+      `UNFINISHED: ${head} is a draft, so it cannot merge.`,
+      '',
+      `If the work is finished, ${LAND.ready(pr.number)}, then ${autoMergeAllowed === true ? LAND.arm(pr.number) : 'wait for CI and the review and merge it'}.`,
+      'If it stays a draft on purpose (the owner asked, or it is unfinished), say so in the reply.',
+    ]
+  }
+  if (autoMergeAllowed === true) {
+    if (stopHookActive) return null
+    return [
+      `UNFINISHED: ${head} is open and auto-merge is not armed, so nothing will merge it.`,
+      '',
+      `Read the reviewer's findings once it has posted, then ${LAND.arm(pr.number)}.`,
+      'Once it is armed you may end the turn: GitHub merges when ci and review pass, and a failure wakes you',
+      `(a PR webhook in the cloud; locally, ${WAIT_COMMAND} run in the background).`,
+      'If arming fails, say what it printed in the reply.',
+    ]
+  }
   if (pending.length === 0 && rollup.length > 0) return null // green: the hook's merge checks take it
   if (waiterRunning(backgroundTasks)) return null
   if (!Array.isArray(backgroundTasks) && stopHookActive) return null
@@ -190,7 +261,7 @@ export function ownPrVerdict({ pr, backgroundTasks, stopHookActive }) {
     '',
     'Do not hand this back with "I\'ll merge when it\'s green". CI and the review take about two minutes. Wait for them:',
     `  ${WAIT_COMMAND}   (foreground, timeout 600000; or run_in_background, whose exit wakes you)`,
-    'It prints one outcome: ready, ci-failed, no-review, conflict, behind, no-checks, head-changed or timeout. Act on it, then merge.',
+    'It prints one outcome: merged, ready, draft, ci-failed, no-review, conflict, behind, no-checks, head-changed or timeout. Act on it, then merge.',
     'Only if a job is hung and the owner must step in: say so, and touch .claude/.wip.',
   ]
 }
