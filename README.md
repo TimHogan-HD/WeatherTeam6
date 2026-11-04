@@ -62,7 +62,16 @@ npm run check:crag-facts   # every crag fact carries a source and confidence
 npm run check:icons        # the PWA icons still match the design tokens
 ```
 
-CI runs every root-level `check:*` script, enumerated from `package.json`.
+CI runs every root-level `check:*` script, enumerated from `package.json`, and the API's database checks against a throwaway Postgres.
+
+### Getting a change onto `main`
+
+GitHub is the gate; nothing merges locally.
+
+- Open a PR from a branch (a draft is fine: drafts are reviewed too).
+- Two GitHub Actions checks are required on `main`, for admins as well: `ci` (build, typecheck, lint, tests, every check above) and `review` (an independent Claude reviewer, [`claude-review.yml`](.github/workflows/claude-review.yml)). `review` fails on blocking findings; clear one by fixing it, or by replying on its inline comment and re-running the job. Advisory findings do not block.
+- When the work is finished, mark the PR ready and turn on auto-merge (squash). GitHub merges once both checks pass. The repository allows squash merges only.
+- Vercel deploys from `main` only; there are no PR previews.
 
 The API needs database and authentication settings to serve real data. See [.env.example](.env.example) for the variable names and [CLAUDE.md](CLAUDE.md) for project-specific setup and handling instructions. Set variables in the shell for the command that needs them rather than keeping a `.env` file. Note that the API's `dev` script loads `apps/api/.env` and fails when that file is absent; CLAUDE.md describes how to run the API locally without one. Production settings are held by the Vercel projects.
 
