@@ -85,7 +85,7 @@ export function classifyPr(snap) {
     return {
       outcome: 'conflict',
       code: 3,
-      message: 'The PR conflicts with main, so GitHub runs no checks on it. Rebase onto origin/main, push, and wait again.',
+      message: 'The PR conflicts with main, so GitHub runs no checks on it. Merge origin/main into the branch, resolve, push, and wait again.',
     }
   }
   if (failed.length > 0) {
