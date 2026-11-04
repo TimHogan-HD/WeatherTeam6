@@ -89,16 +89,18 @@ route list is `App.tsx`; `vercel.json` rewrites every path to `index.html`.
   token being gone, never on a status it saw; `api.ts` is the one place a 401 clears it.
 - **Back is per route** (`src/lib/backTarget.ts`, a pure function overloaded per route, so
   a new action is a type error rather than a control that does nothing). A blanket "go to
-  `/`" is wrong: two targets are not navigations at all.
+  `/`" is wrong: the save form and browse steps are state inside `/add`, not navigations.
 
   | Route | Back goes to |
   | --- | --- |
   | `/` | no control |
-  | `/location/:id`, any tab | the list; the map when a pin opened it; the trip when a trip day did |
-  | `…/wall/…`, `…/route/…` | the Crag tab, then the wall |
+  | `/location/:id`, any tab, its walls and routes | `/`, or `/map` when a pin opened it. A wall or route's crumb steps up a level |
   | `/location/:id/edit` | the location |
-  | `/add` | `/` |
-  | `/add` save form | the search **with its query and results intact** — the form is a step inside `/add` |
+  | `/add` search | `/`, or the trip form it was opened from |
+  | `/add` save form | the search or browse level it was picked from, **intact** — the form is a step inside `/add` |
+  | `/add` save form from a map long-press | `/map` |
+  | `/add` browsing a state | one level up; the state list returns to the search |
+  | `/feedback` | the trip it was opened from, else the location, else `/` |
   | `/trips/new`, `/trips/:tripId` | `/trips` |
   | `/trips/:tripId/edit`, `/trips/:tripId/crag/:locationId` | the trip |
 
