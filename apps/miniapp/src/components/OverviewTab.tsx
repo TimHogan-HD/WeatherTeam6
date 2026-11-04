@@ -28,6 +28,7 @@ import {
 } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, cardV2 } from '../theme/styles.js'
+import { CardStack } from './CardStack.js'
 import { formatTempDeg } from '../lib/format.js'
 import { FLIP_ATTR } from '../lib/flip.js'
 import { CRAG_FLY_ATTR } from '../lib/cragFly.js'
@@ -749,9 +750,14 @@ export function OverviewTab(props: OverviewTabProps) {
   return (
     <>
       <Hero props={props} now={now} />
-      <TodayCard props={props} now={now} />
-      <NextDaysCard props={props} />
-      <RightNowCard props={props} />
+      <CardStack
+        tab="overview"
+        cards={[
+          { id: 'today', title: 'Today', node: <TodayCard props={props} now={now} /> },
+          { id: 'nextDays', title: 'Next days', node: <NextDaysCard props={props} /> },
+          { id: 'rightNow', title: 'Right now', node: <RightNowCard props={props} /> },
+        ]}
+      />
     </>
   )
 }

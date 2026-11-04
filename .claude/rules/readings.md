@@ -53,6 +53,12 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   figure and says the rock temperature is modelled (#436). **Right now** is Last rain and
   Next rain, which open Precip, and Wind, which opens Hourly. Under them one source line
   names `HourlySeries.model` and the drying clock's rain models.
+- **The reader orders a tab's cards, on this device** (owner, 2026-11-03; `CardStack.tsx`,
+  `lib/cardOrder.ts`, `wt6.cardOrder`). Overview, Hourly, Precip and Rock each keep one order
+  for every crag. It is a mode with up and down arrows, never a drag on a card, because a drag
+  on a chart reads an hour. The Overview's hero, the Rock tab's hero and its facts card stay
+  put. A saved order only arranges: no card is hidden, and what a card says never depends on
+  its place, so a note that speaks for several cards sits under the stack, not in one of them.
 - **Next days dots a good day whose weather models split on rain** (owner, 2026-11-02,
   option B with C's words; mockup `docs/handoffs/design-mockups/rain-split.html`). One dot per
   model read, filled for each that says it'll be wet, under a day scored 70 or more with at

@@ -18,6 +18,7 @@ import {
 import { typeV2 } from '../../theme/tokens.css.js'
 import { bareButton, cardV2 } from '../../theme/styles.js'
 import { selection } from '../../theme/glass.js'
+import { CardStack } from '../CardStack.js'
 import { SkyIcon } from '../Icons.js'
 import { dayChips, dryDay } from '../../lib/hourlyDay.js'
 import { dayChance } from '../../lib/overview.js'
@@ -74,8 +75,9 @@ import {
 /**
  * The Hourly tab in the hybrid look (`docs/handoffs/design-mockups/weatherteam6-hybrid.html`,
  * `hourlyCharts`; owner 2026-10-19): the days as words with an underline, then
- * three glass cards — temperature and humidity, rain, wind — that read one
- * hour together. The slim header carries that hour's figures.
+ * glass cards — temperature and humidity, sun, rain, wind, in the order the
+ * reader chose (`CardStack`) — that read one hour together. The slim header
+ * carries that hour's figures.
  *
  * **There is no seven-day chart here.** A continuous multi-day series belongs
  * on the Daily tab; this tab is one day's hours and the charts get the screen.
@@ -168,48 +170,77 @@ export function DayCharts({ series, selectedDate, onSelectDate, readMs, onRead, 
   return (
     <>
       <DayPicker series={series} selectedDate={selectedDate} onSelectDate={onSelectDate} />
-      <section style={sectCard}>
-        <Sect
-          title="Temperature and humidity"
-          aside={`°F${humidModel === null ? '' : ` · dew point ${humidModel}`}`}
-        />
-        <TemperatureChart
-          {...frame}
-          hours={hours}
-          scoreAt={scoreAt}
-          goodWindow={goodWindow === null ? null : { from: Date.parse(goodWindow.from), to: Date.parse(goodWindow.to) }}
-          sky={series.sky?.hours.filter((h) => h.local_date === selectedDate) ?? []}
-        />
-      </section>
-      <section style={sectCard}>
-        <Sect
-          title="Sun"
-          aside={`min of sun · % cloud${sunModel === null ? '' : ` · ${sunModel}`}`}
-        />
-        <SunChart {...frame} sun={sunHours} />
-      </section>
-      <section style={sectCard}>
-        <Sect title="Rain" aside={`${rainScaleUnit(hours)} · ensemble mean`} />
-        <RainChart
-          {...frame}
-          hours={hours}
-          dry={
-            dryDay(series.hours, selectedDate)
-              ? { title: 'Dry all day', note: '0% in every hour: no ensemble member has measurable rain all day.' }
-              : null
-          }
-        />
-      </section>
-      <section style={sectCard}>
-        <Sect title="Wind" aside={`mph${gustModel === null ? '' : ` · gusts ${gustModel}`}`} />
-        <WindChart {...frame} hours={hours} />
-        {/* Under the last chart, inside its card, as the mockup's is. */}
-        <p style={{ ...typeV2.keyRow, lineHeight: '1.55', margin: '24px 0 0' }}>
-          The range bands are the 10th to 90th percentile for one hour; they are never added up. Rain adds up each
-          hour’s ensemble mean; a block’s chance is its likeliest hour, the share of wet ensemble members.
-          {dayLabel === null ? null : ` ${dayLabel}: ${chanceToday === null ? EM_DASH : `${chanceToday}%`} chance of rain at its likeliest hour.`}
-        </p>
-      </section>
+      <CardStack
+        tab="hourly"
+        cards={[
+          {
+            id: 'temperature',
+            title: 'Temperature and humidity',
+            node: (
+              <section style={sectCard}>
+                <Sect
+                  title="Temperature and humidity"
+                  aside={`°F${humidModel === null ? '' : ` · dew point ${humidModel}`}`}
+                />
+                <TemperatureChart
+                  {...frame}
+                  hours={hours}
+                  scoreAt={scoreAt}
+                  goodWindow={goodWindow === null ? null : { from: Date.parse(goodWindow.from), to: Date.parse(goodWindow.to) }}
+                  sky={series.sky?.hours.filter((h) => h.local_date === selectedDate) ?? []}
+                />
+              </section>
+            ),
+          },
+          {
+            id: 'sun',
+            title: 'Sun',
+            node: (
+              <section style={sectCard}>
+                <Sect
+                  title="Sun"
+                  aside={`min of sun · % cloud${sunModel === null ? '' : ` · ${sunModel}`}`}
+                />
+                <SunChart {...frame} sun={sunHours} />
+              </section>
+            ),
+          },
+          {
+            id: 'rain',
+            title: 'Rain',
+            node: (
+              <section style={sectCard}>
+                <Sect title="Rain" aside={`${rainScaleUnit(hours)} · ensemble mean`} />
+                <RainChart
+                  {...frame}
+                  hours={hours}
+                  dry={
+                    dryDay(series.hours, selectedDate)
+                      ? { title: 'Dry all day', note: '0% in every hour: no ensemble member has measurable rain all day.' }
+                      : null
+                  }
+                />
+              </section>
+            ),
+          },
+          {
+            id: 'wind',
+            title: 'Wind',
+            node: (
+              <section style={sectCard}>
+                <Sect title="Wind" aside={`mph${gustModel === null ? '' : ` · gusts ${gustModel}`}`} />
+                <WindChart {...frame} hours={hours} />
+              </section>
+            ),
+          },
+        ]}
+      />
+      {/* Under the cards, not in the Wind card: it speaks for all of them, and any of them can be last. */}
+      <p style={{ ...typeV2.note, padding: `0 ${spacing.listGapLg}px` }}>
+        The range bands are the 10th to 90th percentile for one hour; they are never added up. Rain adds up each
+        hour’s ensemble mean; a block’s chance is its likeliest hour, the share of wet ensemble members.
+        {dayLabel === null ? null : ` ${dayLabel}: ${chanceToday === null ? EM_DASH : `${chanceToday}%`} chance of rain at its likeliest hour.`}
+      </p>
     </>
   )
 }
