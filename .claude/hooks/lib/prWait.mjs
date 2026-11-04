@@ -262,7 +262,8 @@ export function ownPrVerdict({ pr, backgroundTasks, stopHookActive, autoMergeAll
       `Read the reviewer's findings once it has posted, then ${LAND.arm(pr.number)}.`,
       'Once it is armed you may end the turn: GitHub merges when ci and review pass, and a failure wakes you',
       `(a PR webhook in the cloud; locally, ${WAIT_COMMAND} run in the background).`,
-      'If arming fails, say what it printed in the reply.',
+      `If GitHub refuses to arm it because it is already mergeable (every check green), ${LAND.merge(pr.number)}.`,
+      'If arming fails for any other reason, say what it printed in the reply.',
     ]
   }
   if (pending.length === 0 && rollup.length > 0) return null // green: the hook's merge checks take it
