@@ -1,4 +1,4 @@
-import { readdirSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -24,7 +24,11 @@ function testedSources(dir, prefix) {
     if (entry.isDirectory()) {
       out.push(...testedSources(join(dir, entry.name), rel + '/'))
     } else if (entry.name.endsWith('.test.ts')) {
-      out.push(rel.replace(/\.test\.ts$/, '.ts'))
+      // A test can cover something other than a same-named source file
+      // (deployConfig.test.ts reads the vercel.json files). Listing a source
+      // that does not exist only makes Stryker warn on every run.
+      const source = entry.name.replace(/\.test\.ts$/, '.ts')
+      if (existsSync(join(dir, source))) out.push(prefix + source)
     }
   }
   return out
