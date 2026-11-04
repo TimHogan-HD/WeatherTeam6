@@ -58,7 +58,7 @@ All mockup screens are drawn at **375 × 812** (iPhone logical resolution).
 - **No p10/p50/p90 jargon** — plain language only ("models broadly agree", "firms up inside a week")
 - Charts fill the full time axis with no gaps
 - **Score is a derived signal** — it headlines only beside the hour it is (owner, 2026-10-19; `.claude/rules/readings.md`)
-- **Always quote data sources by name** (NWS, HRRR/ensemble, ACIS climatology, OpenBeta) — and derive the name from the response, never write it down
+- **Always quote data sources by name** (NWS, HRRR/ensemble, OpenBeta) — and derive the name from the response, never write it down
 - **Imperial units throughout**: °F, mph, in, ft, mi. The API returns metric; the formatters in `packages/types` convert
 
 Two rules the client added that belong here now:

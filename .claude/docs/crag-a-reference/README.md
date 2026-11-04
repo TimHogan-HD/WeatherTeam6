@@ -3,7 +3,7 @@
 Research from 2026-09-24. **Shipped the same day** in `apps/api/src/lib/scoring/cragModel.ts`
 (owner decision: everyone, no tester gate). Crag A is every location's score; Wall A
 (`evaluateWallA`) scores individual walls only and never stands in for a crag. This
-directory stays as the reference the port is checked against.
+directory is the research record; the port has diverged from it since 2026-11-02 (below).
 
 - `model.ts` — every candidate model, test day and error check from the comparison. The
   corrected Crag A and Wall A are `hourScoreOpt('CA' | 'WA', …)` with
