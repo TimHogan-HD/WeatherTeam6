@@ -165,7 +165,7 @@ comes from the API (`GET /radar/latest`), and the tiles are requested for that t
 the label and the picture are one frame. A long-press on the map opens `/add?lat=…&lon=…`.
 
 Back is an in-app control in the screen header (`Screen`'s `onBack`), which
-`miniapp-design-v1.md` §2 and §8 forbade — those rules assumed Telegram's `BackButton`,
+an earlier `miniapp-design-v1.md` forbade — those rules assumed Telegram's `BackButton`,
 and there is none in a browser. **The per-route back targets in §2 are unchanged** and
 live in `src/lib/backTarget.ts` as a pure function, because two of them are not
 navigations at all: back on the Hourly tab shows the Daily tab, and back from the `/add`

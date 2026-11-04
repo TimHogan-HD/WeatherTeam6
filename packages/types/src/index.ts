@@ -513,7 +513,7 @@ export type CreateLocationInput = {
   timezone?: string | null
   is_climbing_location?: boolean
   // Only meaningful when is_climbing_location is true. Left unset it resolves
-  // to 'unknown' — 48h drying — see miniapp-design-v1.md §12.1.
+  // to 'unknown', the slowest drying row — see miniapp-design-v1.md §12.1.
   rock_type?: RockType | null
 }
 
