@@ -103,6 +103,10 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           show_full_output: true
+          # The action refuses PRs opened by a bot unless it is named here, and
+          # `review` is required, so without this every Dependabot PR is red.
+          # Dependabot runs read the Dependabot copy of CLAUDE_CODE_OAUTH_TOKEN.
+          allowed_bots: "dependabot[bot]"
           # The prompt is this repo's own, not the `code-review` plugin's command.
           # Under the plugin, 60 PRs in a row (#196-#255) got "No issues found"
           # or no comment at all, from runs of 3-4 turns and 4-12 seconds — too
