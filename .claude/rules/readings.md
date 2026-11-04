@@ -40,53 +40,37 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   `Dryness: Dry`, then `Score: 100`, from `ReadingField`. Labels
   live in `readingsCopy.ts`; `fieldLine` punctuates one for text. Caveats are fragments on one
   line. Which inputs a reading came from belongs on the Overview's Right now source line.
-- **The Overview is four sections: Hero, Today, Next days, Right now** (owner, 2026-10-29,
-  the overview rework; `OverviewTab.tsx`). The Rain, Air, Rock, Score breakdown and How the
-  score works cards are gone. The hero is the name, `Score at <hour>`, the hour's score, and
-  a 2×2 of Dryness, Rock (with `rockGuide`'s `whenWet` word), Air and Good hours. **Score
-  breakdown is a closed `<details>` inside the hero**, absent with the score and when
-  `held_back_by` is empty. Each cause row (`lib/scoreBreakdown.ts`) gives today's figure,
-  the rule from `SCORE_MODEL_FACTS` or the reader's range, one plain line, and `Eases ≈`
-  from the first hour ahead whose `held_back_by` drops the cause. A gap in the readings,
-  or their end, omits the line. **Never a penalty's size.** A dew point or air figure
-  prints only when `HourlySeries.model` is the readings' model. Condensation names no
-  figure and says the rock temperature is modelled (#436). **Right now** is Last rain and
-  Next rain, which open Precip, and Wind, which opens Hourly. Under them one source line
-  names `HourlySeries.model` and the drying clock's rain models.
+- **The Overview's layout is `OverviewTab.tsx`'s** (Hero, Today, Next days, Right now; owner,
+  2026-10-29). What it must not do: **Score breakdown never states a penalty's size.** Each
+  cause row (`lib/scoreBreakdown.ts`) gives today's figure, the rule from
+  `SCORE_MODEL_FACTS` or the reader's range, and `Eases ≈`; a gap in the readings, or their
+  end, omits the line; the disclosure is absent with the score and when `held_back_by` is
+  empty. A dew point or air figure prints only when `HourlySeries.model` is the readings'
+  model. Condensation names no figure and says the rock temperature is modelled (#436).
 - **The reader orders a tab's cards, on this device** (owner, 2026-11-03; `CardStack.tsx`,
   `lib/cardOrder.ts`, `wt6.cardOrder`). Overview, Hourly, Precip and Rock each keep one order
   for every crag. It is a mode with up and down arrows, never a drag on a card, because a drag
   on a chart reads an hour. The Overview's hero, the Rock tab's hero and its facts card stay
   put. A saved order only arranges: no card is hidden, and what a card says never depends on
   its place, so a note that speaks for several cards sits under the stack, not in one of them.
-- **Next days dots a good day whose weather models split on rain** (owner, 2026-11-02,
-  option B with C's words; mockup `docs/handoffs/design-mockups/rain-split.html`). One dot per
-  model read, filled for each that says it'll be wet, under a day scored 70 or more with at
-  least two filled (`rainSplitShown`); one key line under the row, `weather models that say
-  it'll be wet`; the column reads the count aloud. Never on a score under 70 (owner, 2026-11-03, from 80), never a
-  sentence about the rock.
-- **Sun is minutes of bright sunshine, from `THERMAL_MODEL`** (owner, 2026-11-03, #469–#472;
-  `lib/runs/skySeries.ts`, `packages/types/src/sky.ts`, mockup
-  `docs/handoffs/design-mockups/sun-hours.html`). The day icon sorts on it (≥ 45 min sunny,
-  < 15 cloudy), replacing the unchecked clear-sky ratio. Daily's second line is
-  `sunDayLine`: up to two windows of ≥ 30-minute hours and the total, else "on and off";
-  "forecasts differ" with a range when GFS, ECMWF and ICON spread `SUN_DIFFER_MIN` (3 h,
-  `compare:sky`), never GEM. Hourly's Sun card draws minutes on a fixed 0–60 scale with
-  cloud faded behind; strength is a word plus W/m² in the readout only (`sunStrength`,
-  700/300). **A gap is `Sun —` or a dashed mark, never "No sun" or an empty bar.** Flat
-  ground only, said on the card. The Sources footer names the model only once an hour of
-  sunshine was answered.
+- **Next days' rain-split dots** (the count is `scoring.md`'s; mockup
+  `docs/handoffs/design-mockups/rain-split.html`) show only through `rainSplitShown`: a day
+  at `RAIN_SPLIT_MIN_SCORE` or more with at least two models wet. Never a sentence about
+  the rock.
+- **Sun is minutes of bright sunshine, from `THERMAL_MODEL`** (#469–#472;
+  `lib/runs/skySeries.ts`, `packages/types/src/sky.ts`; layout in `sunDayLine` and Hourly's
+  Sun card). "Forecasts differ" compares GFS, ECMWF and ICON (`SUN_DIFFER_MIN`,
+  `compare:sky`), never GEM. **A gap is `Sun —` or a dashed mark, never "No sun" or an
+  empty bar.** Flat ground only, said on the card. The Sources footer names the model only
+  once an hour of sunshine was answered.
 - **How the score works is on Profile only** (owner, 2026-10-29): `ScoreExplainer`, reached
   from the breakdown's `How the score works ›`. Every number it quotes comes from
   `SCORE_MODEL_FACTS`, pinned to the model by `cragModel.test.ts`. A temperature interval
   goes through `cToFDelta`, never `formatTempF`.
-- **The Condensation card is three named zones over the next 42 hours** (owner, 2026-11-02,
-  variant A; `RockReadings.tsx`, `lib/rockReadings.ts`): `dew on rock` at or under 0°,
-  `close to dew` under the score's edge, `clear of dew` above it, from the hour covering now.
-  Its headline gives the first spell near dew as times (`condensationHeadline`); "until"
-  names an hour read clear, never an unread or missing one, which ends the spell as a gap.
-  A margin under 0 prints as `below`, here and in the Rock tab's slim header, never as a
-  negative "above".
+- **The Condensation card** (`RockReadings.tsx`, `lib/rockReadings.ts`): its headline's
+  "until" names an hour read clear, never an unread or missing one, which ends the spell as
+  a gap. A margin under 0 prints as `below`, here and in the Rock tab's slim header, never
+  as a negative "above".
 - **The Rock tab carries the friction note** (owner, 2026-10-29): `FRICTION_MECHANISM`,
   once, on the Condensation card (`RockReadings.tsx`) when any hour has a friction reading.
   **No modelled rock temperature prints** (owner, 2026-10-19), so `ROCK_TEMPERATURE_MECHANISM`
@@ -101,24 +85,13 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   Red Wing. When a surface brings it back, gate it
   on a flag on the `KNOWN_CRAGS` entry, not on the data being present. It names no
   direction: Crag A does not know which way a crag's walls face (#293).
-- **Sun and shade walls reach the Overview** (owner, 2026-11-02, #445, overriding
-  2026-10-05's "never on the Overview") — Wall A per lidar wall, not
-  `rock_sun_shade`, and only through `HourlyReadings.walls`, which is empty unless the crag
-  has `sun_confirmed`. The chosen layout is one tappable line under the hero (idea 4):
-  `☀ <best wall in sun> <score> · ◐ <best wall in shade> <score>`, read with `sunShadeAt`
-  for the hero's hour, and one quiet line instead when the pair is `alike` (rule 1). Next
-  days pairs come from `sunShadeOnDay`. A withheld group prints a gap, never another
-  group's number. The crag's score stays Crag A's everywhere. **Built (Phase 2,
-  `WallSunShade.tsx`, `lib/wallLine.ts`):** the line opens a sheet of every wall (grouped
-  by sun and shade at that hour until walls carry an area, #293) with Auto at the top; a
-  pinned wall is remembered per crag on the device (`wt6.pinnedWalls`) and the line then
-  names it, its score and whether it is in sun, rule 1 or not. A Next days column shows
-  `☀ / ◐` only when its pair is apart; alike, or every wall in one group, keeps the crag's
-  day score. **Phase 3 (`guidebook/WallGrid.tsx`, `lib/wallGrid.ts`):** the Crag tab's
-  walls × hours grid, every wall's Wall A score for each of the reader's climbing hours
-  (placed by the stamp's local hour, as `inClimbHours` counts them), ringed while in sun. A
-  wall missing an hour is a blank cell, never a neighbour's figure. A row pins its wall, the
-  same pin as the sheet.
+- **Sun and shade walls reach the Overview and the Crag tab** (owner, 2026-11-02, #445,
+  overriding 2026-10-05's "never on the Overview") as Wall A per lidar wall, only through
+  `HourlyReadings.walls`, never `rock_sun_shade`. Layout is `WallSunShade.tsx` and
+  `lib/wallLine.ts` (the line under the hero, its sheet, the pin) and
+  `guidebook/WallGrid.tsx` and `lib/wallGrid.ts` (walls × hours). A withheld group prints a
+  gap, never another group's number; a wall missing an hour is a blank cell, never a
+  neighbour's figure. The crag's score stays Crag A's everywhere.
 - **Sun on the wall** (#415, Rock tab, `SunOnWallCard.tsx`) is the first such surface, gated
   on `KnownCrag.sun_confirmed` through `sunWallsFor` (`packages/types/src/sun.ts`). Each
   face is found in USGS 1 m lidar and named for the nearest OpenBeta wall (owner,
@@ -145,13 +118,8 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
 - **An axis is checked on the screenshot, not the test.** `niceTicks` (`lib/chartTicks.ts`)
   once drew 20–80° for a 37–67° day. A tick change gets a test on the real range and a
   look at Hourly at 480×1000.
-- **No alert withholds the score, and the score does not wait for alerts** (owner, 2026-10-29).
-  Until 2026-10-29 a Severe+ alert dropped the number and the number waited for the alerts
-  query; one warning hid every day regardless of when it applied, and any Severe warning
-  counted whether it mattered at a crag or not. Warnings show beside the score on
-  the crag screen and the trip screen (`AlertBanner`) and on the list card; a map pin is a dot and carries the score alone. Bringing suppression back is the owner's call, and needs an alert system that
-  knows a warning's hours and kind. A surface still must not reach past
-  `ReadingsSummary.score === null`, which now means only "no reading".
+- **`ReadingsSummary.score === null` means only "no reading"**, and no surface reaches past
+  it. Alerts never withhold it (`architecture.md` § Background jobs).
 - **Two sentinels:** `NOT_A_CRAG_READINGS` (`not_a_climbing_location`, the reader's choice)
   and `READINGS_UNAVAILABLE` (`model_unavailable`, a gap), both beside `toConditionsReadings`.
   **An absent `readings` field is neither** — it is an older API during a deploy, and renders

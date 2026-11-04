@@ -31,7 +31,7 @@ suite; reading the diff is what caught them.
 - [ ] Route handlers contain no business logic (logic belongs in `src/lib/`)
 - [ ] No type definitions duplicated outside `packages/types`
 - [ ] `req.userId` used in routes — never `process.env.DEFAULT_USER_ID` directly
-- [ ] **A new router is mounted inside `/api/v1`, or brings its own identity.** `requireApiAuth` is the only setter of `req.userId` there, and `req.userId` is typed non-optional `string` — a router mounted outside every setter reads `undefined` with no type error and no test failure, and simply finds nothing (defect class 8)
+- [ ] **A new router is mounted inside `/api/v1`, or brings its own identity** (`architecture.md` § Auth Pattern, defect class 8)
 - [ ] A credential is never logged, echoed in a response, or written to the terminal — including **indirectly**. The hidden passphrase prompt in `user:add` leaked on backspace because readline rewrites `prompt + line-so-far` as one chunk; a guard keyed on the prompt let it through
 - [ ] API response shape is `{ data, error, status }` — no exceptions
 - [ ] No raw SQL queries unless Drizzle cannot express it (comment why if used)
@@ -68,19 +68,14 @@ suite; reading the diff is what caught them.
 ## Client (the web app)
 - [ ] No direct API calls from components — all fetches go through React Query hooks
 - [ ] No hardcoded API base URLs — calls go through `config/env.ts`; a production build calls its own `/api/...`, and `VITE_API_BASE_URL` is for development only
-- [ ] Colors/spacing/type come from `packages/design` — not redefined locally
-- [ ] `type`, `shadow` and `layout` come from `src/theme/tokens.css.ts`, never straight from `@weatherteam6/design/tokens` — they are React Native shaped, and the RN font family name silently falls back to the system font in CSS
-- [ ] No hand-written `--wt6-*` declaration — the `:root` block is generated from the tokens by `src/theme/cssVars.ts`
-- [ ] A token property added in `packages/design` has a mapping in the adapter — not a widened type or a silenced throw; RN/CSS defaults differ (flex `column` vs `row`, `border-width` needing `border-style`) and a missing mapping renders wrong rather than failing
-- [ ] Vertical spacing comes from tokens, not browser default margins — `globals.css` resets them, and a new text element that needs spacing gets it from the type scale
+- [ ] Tokens follow `miniapp-patterns` § Client Patterns: colours, spacing and type from `packages/design`; `type`, `shadow` and `layout` through `src/theme/tokens.css.ts`; no hand-written `--wt6-*`; a new token property mapped in the adapter, not a widened type or a silenced throw; vertical spacing from tokens
 - [ ] Every `env(safe-area-inset-*)` reference keeps its `0px` fallback, and `index.html` still sets `viewport-fit=cover` — without the latter every inset silently computes to 0 on a notched phone, and without the former CSS drops the whole declaration
-- [ ] **A 401 on an authenticated call clears the token; nothing else does.** `apiLogin` is the one unauthenticated call (its 401 is a wrong passphrase, not a dead session) and a 503 means the server has no signing key, so neither may clear. A new call added outside `request()` bypasses this entirely
-- [ ] Nothing reintroduces a client-side `expires_at` check — a wrong device clock then discards a token it was just issued and dead-ends on `/login`
+- [ ] The session token follows `miniapp-patterns` § Client Mandate: only a 401 on an authenticated call clears it, no client-side `expires_at` check, and a new call goes through `request()`
 - [ ] A new screen behind the gate is wrapped in `RequireAuth`, and a new back affordance goes through `backTarget` rather than calling `navigate('/')` — two of the five targets are not navigations
 - [ ] A colour reaching the manifest, `theme-color` or `public/icons/` still comes from the tokens; `npm run check:icons` passes after any palette change
 - [ ] Copy follows the copy rules in `docs/handoffs/design-system-v1.md` — no climbing opinions, imperial units, and a score headlines only beside the hour it is (`readings.md`)
 - [ ] Nothing formats a nullable weather value by hand — the `packages/types` formatters return an em dash, and `null` coerced to `0` renders a plausible `32°F` / `0 mph` instead of a visible gap
-- [ ] The readings and the score come from `readingsCopy.ts`, not reimplemented, no surface withholds a score for an alert (owner, 2026-10-29), and no surface derives a word from the score, which is what `stateLabel` did and why it is gone
+- [ ] The readings and the score come from `readingsCopy.ts`, and no surface derives a word from the score (`readings.md`) or withholds one for an alert (`architecture.md`)
 - [ ] `GET /conditions/:id` is not called for a non-climbing location, and no score, breakdown or hours-since-rain renders for one
 - [ ] The sources footer is derived from `model_sources`, and omits a source rather than guessing one — including NWS when the alerts call failed
 - [ ] "Today" comes from the server's `is_today` flag, never a date the client derived — and a missing row says so rather than falling back to the first row
@@ -95,12 +90,12 @@ suite; reading the diff is what caught them.
 - [ ] A precipitation **total** over more than one hour comes from `precip_mm_mean`, never from summing `precip_mm_p10/p50/p90` — a percentile is not additive, and a summed p50 is the median of nothing. A percentile shown against a multi-hour step describes **one hour** of it, and the surface says so
 - [ ] A chance of rain is `members_wet / member_count`, never `precipitation_probability` — and a null wet count or a zero member count **withholds** the figure rather than showing 0%
 - [ ] "This model has no data here" is decided on the **values**, not on rows being absent — Open-Meteo pads every model out to the longest horizon in the request, so a model past its own horizon returns real rows full of nulls. `precip_prob_pct` cannot be the evidence either way: that series outlives the model it was requested with
-- [ ] Reading-to-text goes through `summarizeReadings` — no surface writes its own mapping, or two screens drift apart on the same crag. A friction **magnitude** never reaches a screen, and the Rock tab's Condensation card says friction is an estimate — said once there and on How the score works, not repeated under every gauge
-- [ ] A reading is rendered as a label and a value, never as a sentence — a surface composes `ReadingField`s (and `fieldLine` where there is no layout), and no component writes its own label
+- [ ] A friction **magnitude** never reaches a screen, and friction is called an estimate only where `scoring.md`'s fence says
+- [ ] A reading is a label and a value, never a sentence (`readings.md`, `ReadingField`)
 - [ ] A user-visible source list is derived from what was actually *read*, not what was requested — `model_sources` reports only the models `parseEnsemble` consumes
 - [ ] A model added to `ENSEMBLE_MODELS` also has an entry in `ENSEMBLE_MODEL_SUFFIXES` — the key suffix is not derivable from the model name, and a missing entry means the model is fetched and silently ignored
 - [ ] A per-day figure a user reads as a forecast (high, low, peak wind) is `ensembleMedian` of per-member daily extremes — **not** a global `Math.max`/`Math.min` across members and hours, which reports the single most extreme member
-- [ ] A rain mark covers the hour *before* its timestamp; an instantaneous reading is centred on its timestamp. Each chart places its marks inline (`valid_at - HOUR_MS` for a span) — check which convention a new mark copies
+- [ ] A new chart mark is placed as `miniapp-patterns` § Charts says: a rain span ends at its timestamp, an instantaneous reading is centred on it
 
 ## Verification
 - [ ] The change was **run**, not just compiled — an external-API call had its response read, a database write was made and read back

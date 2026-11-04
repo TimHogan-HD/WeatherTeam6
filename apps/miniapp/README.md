@@ -139,17 +139,9 @@ app sends it as `Authorization: Session <token>`. `src/lib/authToken.ts` holds i
 `localStorage`, `src/hooks/useAuth.ts` exposes it to React, and `RequireAuth` in `App.tsx`
 sends a signed-out user to `/login`.
 
-Three things about that path that are easy to get wrong:
-
-- **A 401 on an authenticated call clears the token**, in `src/lib/api.ts`. That clear is
-  what `RequireAuth` reacts to — it does not observe status codes itself. A 503 does
-  **not** clear: that means the server has no `AUTH_TOKEN_SECRET`, and signing the user
-  out would send them to a login screen that cannot work either.
-- **`apiLogin` is the one unauthenticated call.** A 401 from it means a wrong passphrase,
-  not a dead session, so it must not clear anything.
-- **`expires_at` is deliberately not stored.** A client-side expiry check on a device with
-  a wrong clock would discard a token it had just been issued and bounce to `/login` with
-  no error to explain it. The 401 is authoritative and costs one round trip.
+What clears the token, and why `apiLogin`'s 401, a 503 and `expires_at` must not, is in
+the `miniapp-patterns` skill (`.claude/skills/miniapp-patterns/SKILL.md`, § Client
+Mandate).
 
 Accounts are created with `npm run user:add` in `apps/api`, or by redeeming an invite link
 the owner mints on Profile (`/join#<code>`, `routes/Join.tsx`). **There is no self-serve

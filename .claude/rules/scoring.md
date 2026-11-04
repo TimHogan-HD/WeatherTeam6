@@ -47,8 +47,8 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   regroup every hour**; each group's answer is its best wall, withheld if any wall in it is
   unscored. A day's sun group is the walls with `SUN_DAY_MIN_HOURS` (2) sun hours inside
   the reader's climbing hours, scored by their own `dayRepresentative`; the shade group is
-  the rest. Within `SUN_SHADE_ALIKE_POINTS` (10) the two read alike (rule 1). Measured on
-  the Red Wing run, 2026-11-02: +42 ms per request, +69 kB of JSON before compression.
+  the rest. Within `SUN_SHADE_ALIKE_POINTS` (10) the two read alike (rule 1). Display rules
+  are in `readings.md`.
 - **A reader's temperature range moves Crag A's friction edges, and nothing else** (scoring
   Phase 5, owner decision 2026-10-01). `user_preferences.temp_low_c`/`temp_high_c`, null for
   the default; `TEMP_RANGE_DEFAULT_F` (`packages/types`) is the one spelling of 30–60 °F and
@@ -88,9 +88,8 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   `hourlyConditions.test.ts` fails if one is promoted to the top level. `t_surface_c` and
   `condensation_margin_c` stay renderable. The same fence holds for Crag A's penalties:
   they stay in `diagnostics.penalties`, and only their order reaches a response, as
-  `held_back_by` from `heldBackBy` (`cragModel.ts`, #218). The client shows it as
-  the Overview hero's `Score breakdown` disclosure, absent with the score, and
-  absent — not a "nothing" row — when no penalty costs a point.
+  `held_back_by` from `heldBackBy` (`cragModel.ts`, #218); Score breakdown's display rules
+  are in `readings.md`.
 - **The drying clock's rain is the median of the four global models' six-hour means**
   (`lib/weather/rainMedian.ts`, #209, #324), not `THERMAL_MODEL`'s own — GFS alone called wet
   rock dry far more often (`npm run compare:dryness`). Each model is averaged over
@@ -116,17 +115,16 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   or four hours) leaves the median. Only a median-carrying run is checked. `readings.rain_radar`
   is true when radar decided an hour, and the Right now source line then says
   "checked against NOAA radar". **The Precip tab goes through the same check** (#468,
-  `radarCheckedRecent`), applied to its per-hour median: an hour radar changed carries
-  the median as `model_precip_mm`, the top card says what radar dried or added, and the
-  footnote names radar when `rain_radar` is true.
+  `radarCheckedRecent`), applied to its per-hour median; an hour radar changed carries the
+  median as `model_precip_mm`, and the tab names radar only when `rain_radar` is true.
 - **A good day counts the weather models that say it'll be wet** (owner, 2026-11-02,
   `ReadingsDay.rain_split`, `addRainSplit` in `lib/runs/hourlyReadings.ts`). For a day scored
-  `RAIN_SPLIT_MIN_SCORE` (70, owner 2026-11-03) or more, the drying clock runs once per `RAIN_MODELS` model on
-  that model's own rain from today on (the median before, the only trailing rain stored) and
-  counts the models whose day reads not dry. It never changes the score. A model missing an
-  hour is left out, never read as dry; under `MIN_RAIN_MODELS` the count is null. `/hourly`
-  only (four more clocks, ~14 ms each). Measured by `compare:rain-spread`: from 70 up, a day with two
-  or more models wet was wet on the gauges six or seven times in ten (sandstone, limestone).
+  `RAIN_SPLIT_MIN_SCORE` (70, owner 2026-11-03) or more, the drying clock runs once per
+  `RAIN_MODELS` model on that model's own rain from today on (the median before) and counts
+  the models whose day reads not dry. It never changes the score. A model missing an hour
+  is left out, never read as dry; under `MIN_RAIN_MODELS` the count is null. `/hourly`
+  only. `compare:rain-spread` measured the threshold: from 70 up, two or more models wet
+  was wet on the gauges six or seven times in ten. Display rules are in `readings.md`.
 - **There is one drying table, `MIN_HOURS`/`MAX_HOURS` in `packages/types/src/dryingWindow.ts`, and everything
   imports it.** Never reintroduce a copy. Not-recorded kinds (`sandstone`, `limestone`,
   `basalt`) take their family's slowest window and `unknown` is the slowest row.
