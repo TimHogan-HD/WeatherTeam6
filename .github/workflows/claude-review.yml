@@ -191,8 +191,8 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           # The action skips a PR that changes this file (it must match the
-          # default branch), so no summary can exist; the merge gate exempts
-          # such a PR for the same reason. The check still goes green, so say
+          # default branch), so no summary can exist; wait:pr and the Stop hook
+          # exempt such a PR for the same reason. The check still goes green, so say
           # loudly what went unreviewed: keep such a PR to the workflow alone.
           changed=$(git diff --name-only "origin/${BASE_REF}...HEAD")
           if echo "$changed" | grep -qx '.github/workflows/claude-review.yml'; then
