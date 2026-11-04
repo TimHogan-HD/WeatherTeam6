@@ -21,7 +21,7 @@
 
 import { autoMergeAllowed, currentBranch, ghApi, ghApiAll, requiredCheckNames } from './lib/gitState.mjs'
 import { REVIEW_WORKFLOW, reviewCoversHead } from './lib/reviewGate.mjs'
-import { checkPending, classifyPr, onlyRequired } from './lib/prWait.mjs'
+import { checkPending, classifyPr, latestPerName, onlyRequired } from './lib/prWait.mjs'
 
 const POLL_MS = 20_000
 const MAX_UNREADABLE = 3
@@ -71,14 +71,15 @@ function snapshot(number) {
     mergeable: typeof pr.mergeable === 'boolean' ? pr.mergeable : null,
     mergeableState: pr.mergeable_state ?? null,
     checks: onlyRequired(
-      [
+      latestPerName([
         ...(runs.check_runs ?? []).map((r) => ({
           name: r.name,
+          startedAt: r.started_at,
           status: String(r.status ?? '').toUpperCase(),
           conclusion: String(r.conclusion ?? '').toUpperCase(),
         })),
         ...(status.statuses ?? []).map((s) => ({ name: s.context, state: String(s.state ?? '').toUpperCase() })),
-      ],
+      ]),
       required,
     ),
     reviewed: reviewCoversHead(comments, sha),

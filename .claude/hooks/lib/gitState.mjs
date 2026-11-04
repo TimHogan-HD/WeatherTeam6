@@ -7,7 +7,7 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { onlyRequired } from './prWait.mjs'
+import { latestPerName, onlyRequired } from './prWait.mjs'
 
 const GIT_TIMEOUT_MS = 5000
 const GH_TIMEOUT_MS = 10000
@@ -170,7 +170,7 @@ export function openPullRequests() {
   const prs = openPullRequestsUnfiltered()
   if (!prs) return prs
   const required = requiredCheckNames()
-  return prs.map((p) => ({ ...p, statusCheckRollup: onlyRequired(p.statusCheckRollup, required) }))
+  return prs.map((p) => ({ ...p, statusCheckRollup: onlyRequired(latestPerName(p.statusCheckRollup), required) }))
 }
 
 function openPullRequestsUnfiltered() {
@@ -204,6 +204,7 @@ function openPullRequestsRest() {
     const rollup = [
       ...(runs.check_runs ?? []).map((r) => ({
         name: r.name,
+        startedAt: r.started_at,
         status: String(r.status ?? '').toUpperCase(),
         conclusion: String(r.conclusion ?? '').toUpperCase(),
       })),

@@ -158,6 +158,25 @@ export function onlyRequired(checks, required) {
   return checks.filter((c) => required.includes(c?.name ?? c?.context))
 }
 
+/**
+ * One check per name: the newest run. A run cancelled because a newer one
+ * replaced it (concurrency, or a PR marked ready mid-review) stays on the
+ * commit as "cancelled", and until 2026-11-04 the hooks read it as a failure
+ * while GitHub, which judges only the newest run, did not. Order is by start
+ * time; a check without one keeps its list position (REST lists newest first).
+ */
+export function latestPerName(checks) {
+  if (!Array.isArray(checks)) return checks
+  const started = (c) => Date.parse(c?.startedAt ?? c?.started_at ?? '') || 0
+  const seen = new Map()
+  for (const c of checks) {
+    const name = c?.name ?? c?.context
+    const kept = seen.get(name)
+    if (name === undefined || !kept || started(c) > started(kept)) seen.set(name ?? Symbol('unnamed'), c)
+  }
+  return [...seen.values()]
+}
+
 /** True when a still-running background shell task is a `wait:pr` run. */
 export function waiterRunning(backgroundTasks) {
   if (!Array.isArray(backgroundTasks)) return false

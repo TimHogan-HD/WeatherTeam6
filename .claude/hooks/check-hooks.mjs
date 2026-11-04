@@ -15,7 +15,7 @@
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { classifyPr, onlyRequired, ownPrVerdict, prsToFinish } from './lib/prWait.mjs'
+import { classifyPr, latestPerName, onlyRequired, ownPrVerdict, prsToFinish } from './lib/prWait.mjs'
 import { reviewCoversHead } from './lib/reviewGate.mjs'
 import { FULL, INCREMENTAL, lastReviewedSha, pickScope } from './lib/reviewScope.mjs'
 
@@ -336,6 +336,17 @@ const gateCases = [
           ['required: a required status context is kept', cut([{ context: 'deploy', state: 'PENDING' }], ['deploy']).length, 1],
           ['required: unreadable protection keeps every check', cut([ok, ui], null).length, 2],
           ['required: no required checks keeps every check', cut([ok, ui], []).length, 2],
+          // #496, 2026-11-04: marking ready cancelled a review run; the newer run is the check.
+          ...(() => {
+            const old = { name: 'review', status: 'COMPLETED', conclusion: 'CANCELLED', startedAt: '2026-11-04T03:16:05Z' }
+            const now = { name: 'review', status: 'IN_PROGRESS', conclusion: '', startedAt: '2026-11-04T03:16:08Z' }
+            return [
+              ['latest: a superseded cancelled run is dropped', JSON.stringify(latestPerName([old, now, ok])), JSON.stringify([now, ok])],
+              ['latest: order does not matter', JSON.stringify(latestPerName([now, old])), JSON.stringify([now])],
+              ['latest: a superseded cancel does not block as failed', blocks({ statusCheckRollup: latestPerName([ok, old, now]) }, { stopHookActive: true }), true],
+              ['latest: without start times the first listed is kept', latestPerName([{ name: 'x', id: 2 }, { name: 'x', id: 1 }])[0].id, 2],
+            ]
+          })(),
         ]
       })(),
     ]
