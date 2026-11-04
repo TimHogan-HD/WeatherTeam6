@@ -63,6 +63,14 @@ describe('the Vercel deployment budget', () => {
       expect(cmd).toContain(path)
     }
   })
+
+  // Vercel clones 10 commits deep. When the last deployed commit is further
+  // back, `git diff` exits 128 ("bad object"), and Vercel fails the build on
+  // any code but 0 or 1: the web app's #510, #516 and #513 builds all died
+  // that way on 2026-11-04. A base it cannot see means "build", not "error".
+  it.each(APPS)('%s builds when its last deployed commit is out of reach', (app) => {
+    expect(config(app).ignoreCommand?.endsWith(' || exit 1')).toBe(true)
+  })
 })
 
 /**

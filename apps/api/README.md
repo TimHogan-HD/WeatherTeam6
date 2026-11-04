@@ -20,7 +20,8 @@ found".
 morning of PRs spent them all (59 on unused previews) and the last fix could not ship until the
 next day. Both `vercel.json` files (this one and `apps/miniapp`'s) set `git.deploymentEnabled`
 to main-only and an `ignoreCommand` that skips a build when the app's directory, `packages/` and
-the root manifests are unchanged since its last deployment. `src/deployConfig.test.ts` holds
+the root manifests are unchanged since its last deployment (when that commit is beyond Vercel's
+10-commit clone, `|| exit 1` turns git's error into a build). `src/deployConfig.test.ts` holds
 both.
 
 **The function runs in `cle1` (Cleveland, AWS us-east-2), next to Neon.** `regions` in
