@@ -6,10 +6,11 @@
  * pre-tool-safety.mjs: `python3` here is the Windows Store stub, so the command
  * always parsed as an empty string and this hook never fired.
  *
- * It also replaces a second dead hook. `.claude/settings.json` matched
- * `mcp__github__create_pull_request`, but no GitHub MCP server is configured in
- * this project — PRs are opened with the `gh` CLI through Bash, so that matcher
- * could never fire either. Both paths are handled here.
+ * It also replaced a second hook on `mcp__github__create_pull_request`, which
+ * never fired locally: the project configures no GitHub MCP server, and a local
+ * session opens PRs with `gh pr create`. A cloud session does open PRs through
+ * the GitHub MCP tool, so this hook does not fire there; the `review` check and
+ * the Stop hook still cover that PR.
  *
  * Output is JSON `additionalContext` rather than bare stdout: PostToolUse stdout
  * is informational, whereas additionalContext is delivered to the model as

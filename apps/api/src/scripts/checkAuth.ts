@@ -15,9 +15,10 @@
  * removes them in a `finally` block even when a step fails partway through. It
  * says so loudly if cleanup did not work.
  *
- * This is a **workspace-level** check: `ci.yml` deliberately runs only
- * root-level `check:*` scripts, because these need a real DATABASE_URL. Run it
- * by hand; it is not a merge gate.
+ * This is a **workspace-level** check that needs only Postgres, so `ci.yml`
+ * runs it on every PR against a throwaway database ("Database checks"), and the
+ * required `ci` check fails with it. Run it by hand against a real
+ * DATABASE_URL to reproduce a failure.
  *
  * console rather than the logger is deliberate — this is an operator-facing CLI
  * and its output is the result.
