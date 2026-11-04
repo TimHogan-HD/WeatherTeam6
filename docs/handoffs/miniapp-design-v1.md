@@ -313,9 +313,10 @@ rules are in `readings.md`.
 7. **No copy points at a surface that does not exist.**
 8. **A city never gets a rock reading** (§3).
 
-Two notes are required, each **once**: friction is an estimate (`FRICTION_MECHANISM`, on
-the Rock tab's Condensation card and How the score works), and where a modelled rock
-temperature prints, that it is modelled (`ROCK_TEMPERATURE_MECHANISM`). No AI-written
+Two notes are required. **Friction is an estimate**: `FRICTION_MECHANISM` prints once, on
+the Rock tab's Condensation card when any hour has a friction reading, and How the score
+works says it in its own words; never under every gauge. **Where a modelled rock
+temperature prints, it says it is modelled** (`ROCK_TEMPERATURE_MECHANISM`). No AI-written
 commentary.
 
 ---
