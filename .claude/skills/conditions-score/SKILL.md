@@ -29,10 +29,6 @@ implementing. The invariants the scorer must hold are in `.claude/rules/scoring.
   and the location's local `todayStr`. Nothing is persisted; its synthesized `id`s
   (`${locationId}:${date}`) are not stable across requests.
 
-The five-component scorer (`conditionsScore.ts`, `ScoreInput`/`ScoreOutput`/`ScoreBreakdown`)
-was deleted in scoring Phase 5b (2026-10-01). Recover it from git history if it is ever
-needed for comparison; do not rebuild it.
-
 ## Gotchas
 
 Crag A:

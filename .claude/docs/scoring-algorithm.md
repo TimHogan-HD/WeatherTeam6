@@ -17,9 +17,10 @@ there is no tester gate.
 | v2 layers (`rockThermal`, `hourlyConditions`) | `lib/scoring/` | Live as **inputs** to Crag A (`T_mass`, `T_surface`, drying rate). Its own score and sweat-balance friction reach no response |
 
 Where the research lives: `.claude/docs/crag-a-reference/README.md` (why these two models, the
-seven errors corrected, what is still open) and `model.ts` beside it, the reference the port is
-checked against hour for hour. A change that moves a result there needs an argument, not a
-commit message. `scoring-findings.md` §6d records the switch.
+seven errors corrected, what is still open) and `model.ts` beside it. The port has diverged
+from `model.ts` on purpose since 2026-11-02 (per-wall condensation floored at half, and a
+drying floor of one hour per dry hour); the README records what that moved. A change that
+moves a result needs an argument, not a commit message. `scoring-findings.md` §6d records the switch.
 
 ## Crag A
 
@@ -205,10 +206,3 @@ Fresh granite (6h) dries before dense basalt (8h); §7 re-examined granite.
 
 **Angle** (`dryingAngleFactor`): 0° vertical is the base, a 90° slab takes 30% longer, an
 overhang takes the vertical base. Crag A's eight walls are vertical, so it always uses the base.
-
-## Retired: the five-component scorer
-
-`conditionsScore.ts` (drying 40, rain 25, wind 15, temperature 12, humidity 8) was deleted in
-scoring Phase 5b (2026-10-01), with its station-rainfall lookup, `compare:scoring` and the
-`conditions_scores` table. No score had rendered from it since Crag A went live. If a
-comparison ever needs it, read it from version history; do not rebuild it.
