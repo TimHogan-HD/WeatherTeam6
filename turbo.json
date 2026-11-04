@@ -29,7 +29,7 @@
     "lint": {},
     "test": {
       "dependsOn": ["^build"],
-      "outputs": []
+      "cache": false
     }
   }
 }
