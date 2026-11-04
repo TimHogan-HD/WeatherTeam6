@@ -13,12 +13,14 @@
  *   npm run check:ui -- --record     # also write every upstream weather call to the tape
  *   npm run check:ui -- --replay     # answer upstream calls from the tape, not the network
  *
- * The tape (`fixtures/check-ui-tape.json.gz`, `upstreamTape.ts`) is what the UI
- * workflow replays on a PR, against a throwaway Postgres (`localPostgres.ts`).
- * When a replayed run reports calls missing from the tape (a change asks
- * upstream something new), delete the tape and push: the workflow records a new
- * one against its empty database. A local recording against Neon would miss the
- * calls that stored runs answer.
+ * The tape (`fixtures/check-ui-tape.json.gz`, `upstreamTape.ts`) is what a
+ * hand-dispatched run of the UI workflow replays, against a throwaway Postgres
+ * (`localPostgres.ts`). When a replayed run reports calls missing from the tape
+ * (a change asks upstream something new), delete the tape and dispatch the
+ * workflow: it records a new one against its empty database, as the
+ * `check-ui-tape` artifact to commit. Never record locally: against Neon a run
+ * skips the calls stored runs answer, and this machine's Open-Meteo allowance is
+ * shared with every other session's runs.
  *
  * Why this exists: UI work here was verified by rebuilding the same local
  * harness by hand every session — a throwaway secret, a local API, vite on
