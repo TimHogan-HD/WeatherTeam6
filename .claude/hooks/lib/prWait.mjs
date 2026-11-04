@@ -124,7 +124,7 @@ export function classifyPr(snap) {
       outcome: 'no-review',
       code: 6,
       message:
-        'Every check passed, but the reviewer posted no "## Claude review" summary naming the head commit, so the merge gate will refuse. ' +
+        'Every check passed, but the reviewer posted no "## Claude review" summary naming the head commit, so the required review check cannot have passed on it. ' +
         'Rerun it: gh run list --workflow "Claude Review" --limit 3, then gh run rerun <id>.',
     }
   }
@@ -190,7 +190,11 @@ export function prsToFinish({ prs, branch }) {
  * the session to hold the turn for. A failure on an armed PR still blocks
  * once, because GitHub will never merge it.
  *
- * - Armed: allowed.
+ * - Armed, checks done: allowed (GitHub is merging it).
+ * - Armed, checks pending: allowed in a cloud session, whose PR subscription
+ *   wakes it on a red check; locally only with a `wait:pr` in the background,
+ *   or nothing would tell the session that GitHub will never merge it. Blocked
+ *   once otherwise.
  * - A draft: blocked once. Mark it ready and arm it, or say why it stays a draft.
  * - Not armed, auto-merge allowed: blocked once, naming the command to arm it.
  *
@@ -205,7 +209,7 @@ export function prsToFinish({ prs, branch }) {
  * - Conflicting or failed: blocked once. Stopping to tell the owner why is
  *   sometimes right; stopping without a word is not.
  */
-export function ownPrVerdict({ pr, backgroundTasks, stopHookActive, autoMergeAllowed = null }) {
+export function ownPrVerdict({ pr, backgroundTasks, stopHookActive, autoMergeAllowed = null, cloud = false }) {
   if (!pr) return null
   const rollup = Array.isArray(pr.statusCheckRollup) ? pr.statusCheckRollup : []
   const failed = rollup.filter(checkFailed)
@@ -232,7 +236,15 @@ export function ownPrVerdict({ pr, backgroundTasks, stopHookActive, autoMergeAll
       'If you are stopping to ask the owner something, say so in the reply.',
     ]
   }
-  if (pr.autoMerge === true) return null
+  if (pr.autoMerge === true) {
+    if (pending.length === 0 || cloud || stopHookActive) return null
+    if (!Array.isArray(backgroundTasks) || waiterRunning(backgroundTasks)) return null
+    return [
+      `UNFINISHED: ${head} is armed to auto-merge but ${pending.map((c) => c.name ?? c.context ?? 'unnamed').join(', ') || 'its checks'} are still running, and nothing will tell you if one fails.`,
+      '',
+      `Run ${WAIT_COMMAND} in the background (run_in_background) before ending the turn: its exit wakes you on a red check.`,
+    ]
+  }
   if (pr.isDraft === true) {
     if (stopHookActive) return null
     return [

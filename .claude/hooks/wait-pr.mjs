@@ -108,7 +108,8 @@ for (;;) {
     const verdict = classifyPr({ ...snap, startSha, elapsedMs: Date.now() - started })
     if (verdict) finish(verdict.code, verdict.outcome, `#${number} @ ${snap.headSha.slice(0, 7)}: ${verdict.message}`)
     const waiting = snap.checks.filter(checkPending).map((c) => c.name)
-    const line = `#${number} @ ${snap.headSha.slice(0, 7)}: waiting on ${waiting.length > 0 ? waiting.join(', ') : 'checks to start'}`
+    const on = waiting.length > 0 ? waiting.join(', ') : snap.autoMerge && snap.checks.length > 0 ? 'GitHub to merge it (armed, checks done)' : 'checks to start'
+    const line = `#${number} @ ${snap.headSha.slice(0, 7)}: waiting on ${on}`
     if (line !== lastLine) console.log(line)
     lastLine = line
   }

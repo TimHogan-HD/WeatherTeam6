@@ -204,6 +204,7 @@ if (branch !== base) {
     backgroundTasks,
     stopHookActive,
     autoMergeAllowed: allowAuto,
+    cloud: process.env.CLAUDE_CODE_REMOTE === 'true',
   })
   if (own) blockTurn(own)
 }
@@ -217,11 +218,11 @@ if (allowAuto === true) process.exit(0)
 const green = prsToFinish({ prs, branch }).filter(
   (p) => p.mergeable === 'MERGEABLE' && checksArePassing(p),
 )
-// The merge gate (lib/reviewGate.mjs) refuses a PR the CI reviewer has not
-// covered at its head, so asking for that merge would only loop. Green means the
-// reviewer job has finished; if it left no summary, that is the thing to fix.
-// An unreadable review state asks for nothing: the gate fails closed on it, so
-// asking for that merge would only loop.
+// The fallback path, with auto-merge not allowed. GitHub's required `review`
+// check refuses a merge the CI reviewer has not covered at its head, so asking
+// for that merge would only loop. Green means the reviewer job has finished; if
+// it left no summary, that is the thing to fix. An unreadable review state
+// (`reviewState` null) asks for nothing rather than guess.
 const states = green.map((p) => ({ p, s: reviewState(p.number) }))
 const ready = states.filter(({ s }) => s !== null && (s.reviewed || s.exempt)).map(({ p }) => p)
 const unreviewed = states.filter(({ s }) => s !== null && !s.reviewed && !s.exempt)

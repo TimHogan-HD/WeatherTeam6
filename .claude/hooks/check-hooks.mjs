@@ -311,7 +311,11 @@ const gateCases = [
       ['stop: no background_tasks field allows a continued turn', blocks({}, { backgroundTasks: undefined, stopHookActive: true }), false],
       ['stop: no PR for the branch is not this check\'s', ownPrVerdict({ pr: undefined, backgroundTasks: [], stopHookActive: false }), null],
       // Auto-merge allowed (owner, 2026-11-04): arming it is the hand-off.
-      ['auto: armed and pending is allowed', blocks({ autoMerge: true }, { autoMergeAllowed: true }), false],
+      // Reviewer, #496: armed and pending locally with no waiter left nothing to report a red check.
+      ['auto: armed and pending locally with no waiter blocks once', blocks({ autoMerge: true }, { autoMergeAllowed: true }), true],
+      ['auto: armed and pending locally with wait:pr running is allowed', blocks({ autoMerge: true }, { autoMergeAllowed: true, backgroundTasks: [waiter] }), false],
+      ['auto: armed and pending in a cloud session is allowed', blocks({ autoMerge: true }, { autoMergeAllowed: true, cloud: true }), false],
+      ['auto: armed and pending allows a continued turn', blocks({ autoMerge: true }, { autoMergeAllowed: true, stopHookActive: true }), false],
       ['auto: armed and green is allowed', blocks({ autoMerge: true, statusCheckRollup: [ok] }, { autoMergeAllowed: true }), false],
       ['auto: armed but failed blocks once', blocks({ autoMerge: true, statusCheckRollup: [failed] }, { autoMergeAllowed: true }), true],
       ['auto: not armed blocks', blocks({}, { autoMergeAllowed: true }), true],

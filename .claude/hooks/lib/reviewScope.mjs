@@ -1,7 +1,7 @@
 /**
  * How much of a PR the CI reviewer reads on this run.
  *
- * The merge gate (reviewGate.mjs) wants a review naming every head commit, so
+ * The required `review` check wants a summary naming every head commit, so
  * before 2026-10-07 each push re-reviewed the whole PR from scratch. Now the
  * first review is full, and a later push is reviewed from the last commit the
  * reviewer already covered: the full diff once, then only what changed.
