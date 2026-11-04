@@ -107,9 +107,12 @@ request; scheduled work is `/api/cron/*` on cron-job.org (`background-work` skil
 
 - **`/api/cron/check-alerts` collects and never delivers** — there is no notification channel
   (owner's parked decision). Keep it scheduled: the stored rows are the warnings every crag
-  screen shows. **No alert withholds a score** (owner, 2026-10-29): a warning sits beside the
-  number until the app has an alert and warning system deep enough to justify hiding one.
-  Do not build a channel, or bring suppression back, without asking.
+  screen shows. **No alert withholds a score, and no score waits for alerts** (owner,
+  2026-10-29): `summarizeReadings` takes no alert input, and a warning sits beside the
+  number (`AlertBanner` on the crag and trip screens, the list card; a map pin carries the
+  score alone) until the app has an alert system that knows a warning's hours and kind. A
+  new screen that draws a score shows its crag's warnings. Do not build a channel, or bring
+  suppression back, without asking.
 - **A per-location loop that calls upstream runs under `Promise.allSettled`, never
   sequentially** — `fetchWithRetry`'s backoff times the number of locations walks into
   `maxDuration: 60`.

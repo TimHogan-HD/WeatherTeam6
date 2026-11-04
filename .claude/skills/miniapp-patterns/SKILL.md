@@ -1,6 +1,6 @@
 ---
 name: miniapp-patterns
-description: Client patterns and invariants for the WeatherTeam6 web app (apps/miniapp) — the design-token adapter, the session token and the back affordance, React Query rules, null-safe formatting, score suppression and the is_today flag. Use when writing, reviewing or changing anything under apps/miniapp, or any packages/design token consumed by it.
+description: Client patterns and invariants for the WeatherTeam6 web app (apps/miniapp) — the design-token adapter, the session token and the back affordance, React Query rules, null-safe formatting, chart placement and the is_today flag. Use when writing, reviewing or changing anything under apps/miniapp, or any packages/design token consumed by it.
 paths: apps/miniapp/**, packages/design/**
 ---
 
@@ -34,10 +34,14 @@ first screen keeps its place however you return, any other screen only on back.
 Inline SVG, no chart library — `miniapp-design-v1.md` §8. Each rule below is one that
 renders wrong-but-plausible if broken:
 
-- **A rain bar covers the hour *before* its timestamp.** Precipitation is stamped at the end
-  of the hour it fell in, so an 02:00 sample describes 01:00-02:00 — the same convention
-  the API layer stores it under. Drawing it forward moves every shower an hour later and nothing
-  typechecks differently.
+- **A rain bar covers the hour *before* its timestamp; an instantaneous reading is centred
+  on its timestamp.** Precipitation is stamped at the end of the hour it fell in, so
+  `precip_mm_mean` at 15:00 fell between 14:00 and 15:00 — the convention the API stores it
+  under. `temp_c_p50` at 15:00 is the temperature *at* 15:00. Drawing rain forward moves
+  every shower an hour later; reusing the rain placement for temperature put the peak an
+  hour early under a correct-looking axis, and nothing typechecks differently. The charts
+  place marks inline, so the choice is made at each one: `valid_at - HOUR_MS` starts an
+  hour's span (`DayCharts.tsx`'s sky row, `TodayChart.tsx`).
 - **Two different things break a series, and both are real gaps**: a null value, and a
   missing row. An hour with no values at all is never stored, so its absence is a two-hour
   step between two good rows. `contiguousRuns` takes an adjacency predicate for that.
@@ -73,14 +77,6 @@ renders wrong-but-plausible if broken:
   run that produced any particular column. The deterministic and ensemble runs are cached
   independently and can be an hour apart; an age line is a freshness claim about what the
   reader is looking at, and the staler half bounds it.
-- **An accumulation and an instantaneous reading are placed differently on the same axis,
-  and the rain rule does not generalise.** `precip_mm_mean` at 15:00 is the rain that fell
-  between 14:00 and 15:00, so its bar spans the hour *before* its timestamp. `temp_c_p50`
-  at 15:00 is the temperature *at* 15:00, so its mark is **centred** on it. Reusing the
-  rain placement for temperature put the peak an hour early under a correct-looking axis —
-  self-consistent, and caught by review rather than by any gate. The charts place marks
-  inline, so the choice is made at each one: `valid_at - HOUR_MS` starts an hour's span
-  (`DayCharts.tsx`'s sky row, `TodayChart.tsx`).
 - **Temperature is a bar rising from a *labelled non-zero floor*, with a whisker over it.**
   The reasoning that produced a floating translucent box instead was sound and the
   conclusion was wrong: a temperature genuinely has no meaningful zero, but the answer is
@@ -140,10 +136,12 @@ renders wrong-but-plausible if broken:
   runs to at least 0.02 in — below that every tick rounds to `0` and the de-duplication
   labels the *top* of the plot zero.
 - **The Precip tab (`PrecipTab.tsx`, decisions in `lib/precipHistory.ts`) is model
-  estimates, and says so.** It names no gauge, radar or confidence, and an event's kind comes
-  only from `rain_mm`/`snowfall_cm` — a missing one withholds the pill rather than calling it
-  rain. A date the response skipped is `totalMm: null`, drawn as an empty well, never a
-  dry stub. Its source is `RECENT_PRECIP_SOURCE_LABEL`.
+  estimates, checked against NOAA radar at a US crag, and says so.** It names radar only
+  when `rain_radar` is true and says what radar dried or added (#468, `scoring.md`); it
+  names no gauge or confidence. An event's kind comes only from `rain_mm`/`snowfall_cm` — a
+  missing one withholds the pill rather than calling it rain. A date the response skipped is
+  `totalMm: null`, drawn as an empty well, never a dry stub. The tab's own source line is
+  `recentPrecipSource`; the Sources footer's entry is `RECENT_PRECIP_SOURCE_LABEL`.
 - **An hourly axis reads the location's clock, from `utc_offset_seconds`.** The four labels
   are the same strings either way, so only their *positions* move — a chart on the viewer's
   clock prints a correct-looking axis against the wrong hours. Issue #33's shape exactly.
@@ -163,9 +161,6 @@ renders wrong-but-plausible if broken:
   `null` past `CURRENT_HOUR_TOLERANCE_MS` rather than the nearest one. **And a day's high
   and low are labelled wherever they appear beside it**: unlabelled, the pair reads as the
   headline the moment the current reading is absent, which is a pending query away.
-- **No alert withholds a score** (owner, 2026-10-29). `summarizeReadings` takes no alert input, and
-  nothing that draws a score waits for the alerts query. Warnings show beside the number on
-  the crag screen and the trip screen (`AlertBanner`) and on the list card; a map pin is a dot and carries the score alone. A new screen that draws a score shows its crag's warnings too. Bringing suppression back is a product decision.
 - **A day is tappable on `has_ensemble`, not on a forecast row existing.** `/forecast/:id`
   returns seven days whatever the hourly models reached; these charts draw the ensemble, so
   a day it never reached opens two empty charts. A selected day is also dropped once the
@@ -192,11 +187,14 @@ renders wrong-but-plausible if broken:
 - **The client never asks for a score it must not show.** The model would score a city if asked, so `useConditions` is gated on the location being a climbing location, and the readings section is absent otherwise. Do not "fix" a missing score by relaxing that gate.
 - **The sources footer is computed from the response, never written down.** The forecast models come from `model_sources`. A source is omitted rather than guessed when the data is absent — including NWS when the alerts call failed. Naming a source that never ran is a false attribution, which is what the "quote data sources by name" rule exists to prevent.
 - **"Today" is whichever row the server flagged `is_today`, and the client must not re-derive it** (issue #33). `findToday` reads the flag. It falls back to a UTC date comparison **only** when no row in the response carries the flag at all, which means a response cached from before the fix; a row that simply has `is_today: false` is a real answer. When nothing matches, the screen says so — it must never fall back to the first row, which relabels tomorrow's numbers as today's.
-- **The words live in `packages/types/src/readingsCopy.ts`**, because every surface must say the same thing about the same crag. **The words are the two readings themselves, never a phrase derived from the number** — `stateLabel` and `summarizeConditions` were deleted in Phase 3b for exactly that reason, and a ladder must not be reintroduced. **They are labelled fields rather than prose** (`Dryness: Dry`, `Score: 100`): the owner's verdict on the first version was that plain-English readings read as fact. `ScoreChip` was deleted with it — every surface reads the score from `summarizeReadings`, never from the raw number. No alert hides the number or the readings (owner, 2026-10-29).
+- **The words and the score come from `packages/types/src/readingsCopy.ts`** (`readings.md` § Readings on screen): labelled fields, never a phrase derived from the number, and every surface reads the score through `summarizeReadings`, never from the raw number. `stateLabel`, `summarizeConditions` and `ScoreChip` are deleted; do not reintroduce a ladder.
 - **A card that is itself a tap target must not be a `<button>`** if anything inside it is interactive. `LocationCard` contains a retry control, and a `<button>` inside a `<button>` is invalid markup the browser reparses, moving the inner control out of the card.
 - **React Query** remains the agreed state management layer for server data. No Redux, no Zustand, no Context for server state.
 - All API calls go through React Query hooks. Components never call `fetch` directly.
 - **The deployed app calls its own address** (`/api/...`, forwarded by `vercel.json`); `VITE_API_BASE_URL` points a development build at an API and a production build ignores it (`config/env.ts`). Two origins cost a CORS preflight per request. Never hardcode an API URL in a component.
 - **Back is an in-app control and `backTarget` decides where it goes.** `miniapp-design-v1.md` §2 and §8 once forbade an in-app back arrow, on the assumption of a platform-provided one; there is none in a browser, so this is it, and those rules are overridden. **The per-route back targets in §2 are unchanged**, and one of them is not a navigation: back from the `/add` save form returns to the search with its query and results intact. `lib/backTarget.ts` is pure and **overloaded per route**, so each caller is handed only the actions it can receive and a new action is a type error rather than a back button that silently does nothing. `Screen` renders the control when given `onBack`, and the list passes none — a control that navigates to the screen already showing is the same bug with the destination wrong instead of the count. **A saved location is drilled into** (hybrid look, owner 2026-10-19): the app bar slides below the screen, `aria-hidden` and `inert` (`barGivesWay`), the crag's tabs rise in a floating glass `Dock`, and back, or an edge swipe in the installed app only (`lib/edgeSwipe.ts`, so it never doubles the browser's own), returns to the list. The Dock is rendered outside `PullToRefresh`, because a `position: fixed` element inside a transformed ancestor is fixed to that ancestor. Off Overview the large score gives way to `SlimHeader`, whose figure follows the tab (`lib/slimHeader.ts`, through `summarizeReadings` like every score). `sectionFor` (`lib/bottomNav.ts`) decides which section a path is in and hides the bar on `/add`, `/feedback` and a location's editor (`/location/:id/edit`, whose form logic is `lib/editLocation.ts`: only changed fields are sent, a locked rock type never); screens under the bar pad by `navClearance`, the rest by `bottomClearance`.
 - **The PWA manifest and `theme-color` are generated from the tokens** by the `wt6-webmanifest` plugin in `vite.config.ts` (source: `src/theme/webManifest.ts`), and the `public/icons/` PNGs by `scripts/generate-icons.mjs`, guarded by the root `check:icons`. None of it may become a static file with a hex in it. **The service worker caches the app shell and nothing else** (`src/theme/serviceWorker.ts`, written into `dist/sw.js` at build): same-origin `index.html` and hashed assets only. It must never intercept the API or serve a reading — a cached forecast on screen is a stale number that looks live. Retire it by shipping an `sw.js` that unregisters, never by deleting the file.
-- **The crag screen opens on what the list already has.** `useLocation` is seeded from the `['locations']` cache (same `mapLocation` row), and a card's `pointerdown` runs `prefetchDetail`, which uses the screen's own query definitions and repeats the climbing-only gates because `prefetchQuery` ignores `enabled`. Prefetching every card on load was rejected for upstream cost. **A tapped card opens its crag at once.** Waiting up to 300 ms for the crag's hourly series first (so the screen opened whole) shipped and was removed the same day: the owner found the tap laggy, and prefers a brief grey Today chart (2026-10-01). The screen change does move (owner, 2026-10-19, reversing the 2026-10-01 refusal): `pageMotion` (`lib/pageMotion.ts`) picks in, back or fade, and the app's `useNavigate` (`hooks/useNavigate.ts`, never react-router's directly) runs it as a view transition whose snapshot waits for the new screen's commit (`pageCommitted`, from the signed-in shell); the bar and dock are captured on their own and keep moving live. Replaces, history steps and reduced motion never move. The crag switcher (`CragBar`, decisions in `lib/cragSwitch.ts`) replaces the crag, keeps the tab and router state, and swipes the content in (`wt6-swipe`). `check:ui` asserts the tap opens within 250 ms with the series held back. **The list's first load holds an opening splash** (`Splash.tsx`: the app icon on the manifest background, matching Android's launch screen) until every card's forecast, alerts and conditions have settled, capped at `SPLASH_MAX_MS` (1 s), and never again in that page load — so a cold open shows filled cards, not grey bars (owner, 2026-10-01). The service worker keeps the icon (`SPLASH_ICON`). The cold-open list is `rememberedLocations` as `placeholderData`, never cache data, forgotten with the token. **A reopen draws the cards' weather from `rememberedCards`** (owner decision 2026-10-01): the last forecast, conditions and alerts each card showed, saved on the device once all three were in, and drawn **whole or not at all** until all three live answers settle — never mixed, so a score is never suppressed by one moment's alerts and computed from another's conditions. When every card has one, the splash does not show; the header reads "updated … · refreshing" while any card is drawn from memory. A snapshot from another device-local day or older than `REMEMBERED_CARDS_MAX_AGE_MS` (12 h, a judgement call) is ignored — yesterday's `is_today` would print yesterday as today. Remembered figures are not dimmed (contrast floors); weather that arrives after a card is drawn fades in through `FadeIn`. Prop-passed to `LocationCard`, never cache data; forgotten with the token. `check:ui` holds the weather calls back 3 s and asserts the reopen draws from memory.
+- **A tapped card opens its crag at once, on what the list already has.** `useLocation` is seeded from the `['locations']` cache (same `mapLocation` row), and a card's `pointerdown` runs `prefetchDetail`, which uses the screen's own query definitions and repeats the climbing-only gates because `prefetchQuery` ignores `enabled`. Prefetching every card on load was rejected for upstream cost; waiting up to 300 ms for the hourly series was removed as laggy (owner, 2026-10-01: a brief grey Today chart is preferred). `check:ui` asserts the tap opens within 250 ms with the series held back.
+- **Screen changes go through the app's `useNavigate`** (`hooks/useNavigate.ts`, never react-router's directly; owner, 2026-10-19). `pageMotion` (`lib/pageMotion.ts`) picks in, back or fade, run as a view transition whose snapshot waits for the new screen's commit (`pageCommitted`); the bar and dock are captured on their own. Replaces, history steps and reduced motion never move. The crag switcher (`CragBar`, `lib/cragSwitch.ts`) keeps the tab and router state.
+- **The list's first load holds the splash** (`Splash.tsx`) until every card's forecast, alerts and conditions have settled, capped at `SPLASH_MAX_MS`, and never again in that page load (owner, 2026-10-01). The cold-open list is `rememberedLocations` as `placeholderData`, never cache data, forgotten with the token.
+- **A reopen draws the cards' weather from `rememberedCards`** (owner, 2026-10-01): each card's last forecast, conditions and alerts, saved once all three were in, and drawn **whole or not at all** until all three live answers settle, so a card never mixes two moments. A snapshot from another device-local day or older than `REMEMBERED_CARDS_MAX_AGE_MS` is ignored — yesterday's `is_today` would print yesterday as today. Remembered figures are not dimmed (contrast floors), and the header says "· refreshing" while any card is drawn from memory. Prop-passed to `LocationCard`, never cache data; forgotten with the token. `check:ui` asserts the reopen draws from memory.

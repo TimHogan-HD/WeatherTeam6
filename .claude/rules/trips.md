@@ -98,33 +98,22 @@ scoped file, are in `architecture.md`. Reasoning behind a rule: grep
   calendar day**: the screen prints its window (`7 am 29 Oct – 7 am 30 Oct`) and it never
   drives the drying clock. A skipped day is no line, never a dry one.
   `TripDayLookBack.volunteer_gauge` is optional; absent reads as null.
-- **An ended trip asks how each day went** (item 1 of the trip add-ons, 2026-11-03). At a
-  crag, each looked-back day the reader can still date a check for
-  (`FEEDBACK_OBSERVED_MAX_AGE_DAYS`, `checkInState`) offers "How was it?", which opens the
-  ordinary forecast check through `checkInPath` with the crag and day set; saving or back
-  returns to the trip. **It is a `feedback` row like any other**, with no trip id: the
-  analysis joins it to the trip's records on crag and local date (`localDateAt`). The form
-  attaches no app reading for a past day (`feedbackSnapshotFor`), and an earlier day's first
-  start time is blank, never a guessed hour saved as an observation (`firstStopTime`). The
-  summary's `checked_in` counts the caller's checks **resolved or not**, since resolving
-  means the owner read one; absent from an older API, the day is still offered. Never offered
-  for a city on a trip: the form lists crags only and would fall back to another.
-- **`compare:trip-lead` reads what trips stored** (`apps/api`, read-only): score drift by lead,
-  `members_wet` against `members_rewet` (§6e) on the same days against the look back, the
-  airport gauge and the volunteer gauge, and forecast checks on recorded days. Each lead keeps
-  its latest recording, so a day is not weighed by how often the cron fired. The volunteer
-  truth is the report the look back shows (`reportForDay`), 7 am to 7 am rather than the
-  calendar day the chance is for. Change a tile or a claim about lead time only on its gauge
-  rows (airport or volunteer), with their `n` beside the number.
-- **Ended trips are kept, folded away, not deleted** (owner, 2026-11-03). `/trips` lists
-  coming and underway trips in the API's order and ended ones under a closed `Past trips (n)`,
-  latest end first (`splitTrips`, `lib/trips.ts`); the split is client-side, on `tripIsOver`.
-  Deleting a trip loses its look-back, so the list never nudges toward it. **Plan again**
-  (`planAgainDraft`) opens `/trips/new` with the old trip's name, crags and hours through the
-  form's `tripDraft` router state, dates empty, so a past pair is never reused by default.
+- **An ended trip's "How was it?" is a `feedback` row like any other** (2026-11-03;
+  `checkInState`, `checkInPath`), with no trip id: the analysis joins it to the trip's
+  records on crag and local date (`localDateAt`). The form attaches no app reading for a
+  past day (`feedbackSnapshotFor`), and an earlier day's start time is blank, never a
+  guessed hour saved as an observation (`firstStopTime`). `checked_in` counts the caller's
+  checks resolved or not. Never offered for a city: the form lists crags only and would
+  fall back to another.
+- **`compare:trip-lead` reads what trips stored** (`apps/api`, read-only; its header says
+  what it compares). Change a tile or a claim about lead time only on its gauge rows
+  (airport or volunteer), with their `n` beside the number.
+- **Ended trips are kept, folded away, never nudged toward deletion** (owner, 2026-11-03;
+  `splitTrips`, `planAgainDraft` in `lib/trips.ts`): deleting a trip loses its look-back.
+  Plan again leaves the dates empty, so a past pair is never reused by default.
 - **The trip screen joins two sources on `local_date`, one per figure** (`lib/trips.ts`,
   `tripDayTiles`): score, Dryness and Friction from the crag's `/hourly` readings through
-  `summarizeReadings`, as everywhere (no alert withholds the number, owner, 2026-10-29);
+  `summarizeReadings`, as everywhere;
   high, low, chance and amount from the trip outlook for every day, so no tile mixes two
   sources for one figure. **Agreement** is `agreementShare` (`packages/types/tripCopy.ts`),
   the majority side of `members_wet` against the rest, withheld when either is unknown, and
