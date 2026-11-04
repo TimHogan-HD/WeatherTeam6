@@ -31,4 +31,4 @@ files), never edit files in `drizzle/` by hand, never run SQL directly against t
   driver only supports pre-batched transactions.
 - **Do not use `pg` / `node-postgres`** — TCP pooling does not work from Vercel functions.
 - `drizzle-kit` uses the WebSocket driver too, so migrations cannot run from a restricted
-  cloud sandbox — see `CLAUDE.md` § Known Gotchas.
+  cloud sandbox — see `apps/api/README.md`.

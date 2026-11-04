@@ -5,8 +5,13 @@ paths:
   - "apps/api/src/lib/preferences/**"
   - "apps/api/src/lib/weather/rainMedian.ts"
   - "apps/api/src/routes/{hourly,conditions,preferences}.ts"
-  - "packages/types/src/**"
-  - "apps/miniapp/src/**"
+  - "packages/types/src/{conditionsCopy,dryingWindow,feedback,hourly,knownCrags,preferences,rainNowCopy,readingsCopy,recentPrecip,rockGuide,scoreComponents,sun,sunWallsData,units,wallSunShade}*"
+  - "apps/miniapp/src/components/{DailyList,DryingClock,LocationCard,OverviewTab,Precip,Rock,ScoreExplainer,Settings,SunOnWallCard,WallSunShade}*"
+  - "apps/miniapp/src/components/{charts,trips}/**"
+  - "apps/miniapp/src/components/guidebook/{WallGrid,parts}*"
+  - "apps/miniapp/src/lib/{feedback,mapPins,overview,precipHistory,preferencesForm,rockReadings,scoreBreakdown,slimHeader,sunOnWall,trips,wallGrid,wallLine}*"
+  - "apps/miniapp/src/hooks/usePreferences*"
+  - "apps/miniapp/src/routes/{LocationList,MapScreen}*"
 ---
 
 # Scoring rules

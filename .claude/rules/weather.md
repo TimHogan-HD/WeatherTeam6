@@ -4,7 +4,11 @@ paths:
   - "apps/api/src/routes/{cron,forecast,recentPrecip,radar,geocode,alerts,hourly}.ts"
   - "apps/api/src/scripts/**"
   - "apps/api/src/db/schema.ts"
-  - "apps/miniapp/src/**"
+  - "apps/miniapp/src/components/{BrowseAreas,DailyList,DetailView,LocationCard,OverviewTab,Precip,RainNowPill,SourcesFooter}*"
+  - "apps/miniapp/src/components/{charts,trips}/**"
+  - "apps/miniapp/src/hooks/{useCurrentPosition,useGeocode,useRecentPrecip,useWeather}*"
+  - "apps/miniapp/src/lib/{feedback,forecast,format,hourlyDay,overview,precipHistory,radar,rememberedCards,rockReadings,scoreBreakdown,slimHeader,trips,wallGrid,wallLine}*"
+  - "apps/miniapp/src/routes/{AddLocation,MapScreen,TripScreen}*"
   - "apps/miniapp/vercel.json"
 ---
 
