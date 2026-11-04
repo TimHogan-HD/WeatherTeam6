@@ -13,14 +13,15 @@
  * wakes the session instead.
  *
  * Reads GitHub over REST only (GraphQL is refused in cloud sessions). Exit
- * codes: 0 ready or merged, 3 conflict, 4 ci-failed, 5 behind, 6 no-review,
- * 7 no-checks, 8 head-changed, 9 closed, 10 timeout, 11 GitHub unreadable.
+ * codes: 0 ready or merged, 3 conflict, 4 ci-failed, 5 behind,
+ * 6 no-review, 7 no-checks, 8 head-changed, 9 closed, 10 timeout, 11 GitHub
+ * unreadable, 12 draft.
  * The logic is `lib/prWait.mjs`, which `check:hooks` covers.
  */
 
-import { currentBranch, ghApi, requiredCheckNames } from './lib/gitState.mjs'
+import { autoMergeAllowed, currentBranch, ghApi, ghApiAll, requiredCheckNames } from './lib/gitState.mjs'
 import { REVIEW_WORKFLOW, reviewCoversHead } from './lib/reviewGate.mjs'
-import { checkPending, classifyPr, onlyRequired } from './lib/prWait.mjs'
+import { checkPending, classifyPr, latestPerName, onlyRequired } from './lib/prWait.mjs'
 
 const POLL_MS = 20_000
 const MAX_UNREADABLE = 3
@@ -55,25 +56,30 @@ function snapshot(number) {
   if (!sha) return null
   const runs = ghApi(`repos/{owner}/{repo}/commits/${sha}/check-runs?per_page=100`)
   const status = ghApi(`repos/{owner}/{repo}/commits/${sha}/status`)
-  const comments = ghApi(`repos/{owner}/{repo}/issues/${number}/comments?per_page=100`)
-  const inline = ghApi(`repos/{owner}/{repo}/pulls/${number}/comments?per_page=100`)
-  const files = ghApi(`repos/{owner}/{repo}/pulls/${number}/files?per_page=100`)
+  const comments = ghApiAll(`repos/{owner}/{repo}/issues/${number}/comments`)
+  const inline = ghApiAll(`repos/{owner}/{repo}/pulls/${number}/comments`)
+  const files = ghApiAll(`repos/{owner}/{repo}/pulls/${number}/files`)
   if (!runs || !status || !Array.isArray(comments) || !Array.isArray(inline) || !Array.isArray(files)) return null
   return {
     merged: pr.merged === true,
     open: pr.state === 'open',
+    number,
+    draft: pr.draft === true,
+    autoMerge: pr.auto_merge != null,
+    autoMergeAllowed: allowAuto,
     headSha: sha,
     mergeable: typeof pr.mergeable === 'boolean' ? pr.mergeable : null,
     mergeableState: pr.mergeable_state ?? null,
     checks: onlyRequired(
-      [
+      latestPerName([
         ...(runs.check_runs ?? []).map((r) => ({
           name: r.name,
+          startedAt: r.started_at,
           status: String(r.status ?? '').toUpperCase(),
           conclusion: String(r.conclusion ?? '').toUpperCase(),
         })),
         ...(status.statuses ?? []).map((s) => ({ name: s.context, state: String(s.state ?? '').toUpperCase() })),
-      ],
+      ]),
       required,
     ),
     reviewed: reviewCoversHead(comments, sha),
@@ -85,6 +91,7 @@ function snapshot(number) {
 const number = findPr()
 // Only what branch protection requires: a slow optional check (the UI check) never holds the wait.
 const required = requiredCheckNames()
+const allowAuto = autoMergeAllowed()
 if (required) console.log(`Waiting on the required checks: ${required.join(', ')}`)
 const started = Date.now()
 let startSha = null
@@ -102,7 +109,8 @@ for (;;) {
     const verdict = classifyPr({ ...snap, startSha, elapsedMs: Date.now() - started })
     if (verdict) finish(verdict.code, verdict.outcome, `#${number} @ ${snap.headSha.slice(0, 7)}: ${verdict.message}`)
     const waiting = snap.checks.filter(checkPending).map((c) => c.name)
-    const line = `#${number} @ ${snap.headSha.slice(0, 7)}: waiting on ${waiting.length > 0 ? waiting.join(', ') : 'checks to start'}`
+    const on = waiting.length > 0 ? waiting.join(', ') : snap.autoMerge && snap.checks.length > 0 ? 'GitHub to merge it (armed, checks done)' : 'checks to start'
+    const line = `#${number} @ ${snap.headSha.slice(0, 7)}: waiting on ${on}`
     if (line !== lastLine) console.log(line)
     lastLine = line
   }

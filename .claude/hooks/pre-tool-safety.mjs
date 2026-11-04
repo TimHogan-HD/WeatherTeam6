@@ -23,7 +23,6 @@
 import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 import { currentBranch, defaultBranch, isGitRepo } from './lib/gitState.mjs'
-import { REVIEW_HEADING, mergeRequest, reviewState } from './lib/reviewGate.mjs'
 import { recordToolUse } from './lib/sessionClaims.mjs'
 
 /**
@@ -320,38 +319,11 @@ if (tool === 'Bash' || tool === 'PowerShell') {
 }
 
 /* ---------------------------------------------------------------- *
- * 6. Merging a PR the CI reviewer has not reviewed at its head commit.
- *    See lib/reviewGate.mjs. Fails closed: if GitHub cannot be read, the
- *    review cannot be confirmed, and the merge is refused.
+ * 6. (Removed 2026-11-04.) A merge gate here refused `gh pr merge` until a
+ *    "## Claude review" comment named the head commit. GitHub already
+ *    requires the `review` check, set only by GitHub Actions and enforced for
+ *    admins, and it missed a REST merge anyway. GitHub is the gate now.
  * ---------------------------------------------------------------- */
-{
-  let target = null
-  if (tool === 'Bash' || tool === 'PowerShell') target = mergeRequest(command)
-  else if (/merge_pull_request$/.test(tool)) {
-    const n = Number(toolInput.pullNumber ?? toolInput.pull_number)
-    target = { pr: Number.isFinite(n) && n > 0 ? n : null }
-  }
-  if (target) {
-    const state = reviewState(target.pr)
-    if (state === null) {
-      block(
-        'Cannot confirm the CI review: GitHub could not be read (`gh api` failed or found no PR ' +
-          'for this branch). The merge gate fails closed. Check `gh auth status` and retry; if gh ' +
-          'cannot work here, tell the user the PR is ready and they can merge by hand.',
-      )
-    }
-    if (!state.reviewed && !state.exempt) {
-      block(
-        `PR #${state.number} has no "${REVIEW_HEADING}" comment for its head commit ` +
-          `${String(state.headSha).slice(0, 7)}. Merging waits for the CI reviewer.\n` +
-          '  - still running: check once with `gh pr checks`, then end the turn and say so\n' +
-          '  - finished without posting: rerun it — `gh run list --workflow "Claude Review" ' +
-          '--limit 3`, then `gh run rerun <id>`\n' +
-          'If the reviewer cannot run at all, tell the user; they can merge by hand.',
-      )
-    }
-  }
-}
 
 // Reached only when no guard blocked, so a refused write is never claimed.
 const WRITING_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])

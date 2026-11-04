@@ -7,7 +7,7 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { onlyRequired } from './prWait.mjs'
+import { latestPerName, onlyRequired } from './prWait.mjs'
 
 const GIT_TIMEOUT_MS = 5000
 const GH_TIMEOUT_MS = 10000
@@ -39,7 +39,7 @@ export function git(args, cwd) {
  */
 export function gh(args) {
   const direct = tryRun('gh', args, GH_TIMEOUT_MS)
-  if (direct !== null) return direct
+  if (direct !== null || process.platform !== 'win32') return direct
   return tryRun('C:\\Program Files\\GitHub CLI\\gh.exe', args, GH_TIMEOUT_MS)
 }
 
@@ -114,15 +114,51 @@ export function ghApi(path) {
   }
 }
 
-/** The status checks the default branch requires, or `null` when that cannot be read. */
-export function requiredCheckNames() {
-  const base = defaultBranch() ?? 'main'
-  const rule = ghApi(`repos/{owner}/{repo}/branches/${base}/protection/required_status_checks`)
-  return Array.isArray(rule?.contexts) ? rule.contexts : null
+/**
+ * Every page of a REST list (`path` must not carry `page=`), or `null` when a
+ * page cannot be read. A PR with more than 100 comments hid the newest review
+ * summary from a single read while the workflow, which paginates, saw it.
+ */
+export function ghApiAll(path, maxPages = 10) {
+  const sep = path.includes('?') ? '&' : '?'
+  const out = []
+  for (let page = 1; page <= maxPages; page += 1) {
+    const chunk = ghApi(`${path}${sep}per_page=100&page=${page}`)
+    if (!Array.isArray(chunk)) return null
+    out.push(...chunk)
+    if (chunk.length < 100) return out
+  }
+  return out
 }
 
 /**
- * Open PRs, as [{number, title, headRefName, isDraft, mergeable, statusCheckRollup}],
+ * The status checks the default branch requires, or `null` when that cannot be read.
+ *
+ * Cloud sessions are refused the protection endpoint (403), and until
+ * 2026-11-04 that made every wait there count Vercel's preview statuses too.
+ * `GET branches/<base>` is readable there and carries the same list.
+ */
+export function requiredCheckNames() {
+  const base = defaultBranch() ?? 'main'
+  const rule = ghApi(`repos/{owner}/{repo}/branches/${base}/protection/required_status_checks`)
+  if (Array.isArray(rule?.contexts)) return rule.contexts
+  const branch = ghApi(`repos/{owner}/{repo}/branches/${base}`)
+  const contexts = branch?.protection?.required_status_checks?.contexts
+  return Array.isArray(contexts) ? contexts : null
+}
+
+/**
+ * Whether the repository lets a PR arm auto-merge: `true`, `false`, or `null`
+ * when it cannot be read. With it on (owner, 2026-11-04) a session arms
+ * auto-merge and ends its turn, and GitHub merges once `ci` and `review` pass.
+ */
+export function autoMergeAllowed() {
+  const repo = ghApi('repos/{owner}/{repo}')
+  return typeof repo?.allow_auto_merge === 'boolean' ? repo.allow_auto_merge : null
+}
+
+/**
+ * Open PRs, as [{number, title, headRefName, isDraft, autoMerge, mergeable, statusCheckRollup}],
  * the rollup cut to the checks branch protection requires (`onlyRequired`).
  *
  * `gh pr list` is GraphQL, which cloud sessions are refused (HTTP 403), so on
@@ -134,7 +170,7 @@ export function openPullRequests() {
   const prs = openPullRequestsUnfiltered()
   if (!prs) return prs
   const required = requiredCheckNames()
-  return prs.map((p) => ({ ...p, statusCheckRollup: onlyRequired(p.statusCheckRollup, required) }))
+  return prs.map((p) => ({ ...p, statusCheckRollup: onlyRequired(latestPerName(p.statusCheckRollup), required) }))
 }
 
 function openPullRequestsUnfiltered() {
@@ -144,11 +180,11 @@ function openPullRequestsUnfiltered() {
     '--state',
     'open',
     '--json',
-    'number,title,headRefName,isDraft,mergeable,statusCheckRollup',
+    'number,title,headRefName,isDraft,autoMergeRequest,mergeable,statusCheckRollup',
   ])
   if (raw) {
     try {
-      return JSON.parse(raw)
+      return JSON.parse(raw).map(({ autoMergeRequest, ...p }) => ({ ...p, autoMerge: autoMergeRequest != null }))
     } catch {
       return null
     }
@@ -168,6 +204,7 @@ function openPullRequestsRest() {
     const rollup = [
       ...(runs.check_runs ?? []).map((r) => ({
         name: r.name,
+        startedAt: r.started_at,
         status: String(r.status ?? '').toUpperCase(),
         conclusion: String(r.conclusion ?? '').toUpperCase(),
       })),
@@ -178,6 +215,7 @@ function openPullRequestsRest() {
       title: p.title,
       headRefName: p.head?.ref,
       isDraft: p.draft === true,
+      autoMerge: detail.auto_merge != null,
       mergeable: detail.mergeable === true ? 'MERGEABLE' : detail.mergeable === false ? 'CONFLICTING' : 'UNKNOWN',
       statusCheckRollup: rollup,
     })

@@ -78,8 +78,10 @@ Nothing is scheduled; the owner picks from the open issues.
   only.
 - **The reviewer action will not run on a PR that edits `claude-review.yml`.** Its first real
   review is the next PR.
-- **A command containing the text `gh pr merge <n>`** (an echo, a test payload) trips the merge
-  gate. Put such payloads in a file.
+- **Delivery moved to GitHub on 2026-11-04**: `review` fails on blocking findings, drafts are
+  reviewed, and sessions arm auto-merge instead of merging. The local merge gate is gone. The
+  owner still has to allow auto-merge and untick "require branches to be up to date" on `main`;
+  until then the hooks fall back to wait-and-merge.
 - **Backticks in a bash heredoc or a double-quoted `node -e` are command substitution.** Write
   the file with the Write tool.
 - **`sed` with `|` as the delimiter breaks on Markdown table rows.** Use `c\` instead.
