@@ -61,7 +61,7 @@ jobs:
       CHECK_UI_WS_PROXY: localhost:5488
       TAPE: apps/api/src/scripts/fixtures/check-ui-tape.json.gz
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # With no tape, the run records one: against this same empty database, so
       # it holds the calls a replay will make (a local recording against Neon
@@ -75,7 +75,7 @@ jobs:
           echo "MODE=$mode" >> "$GITHUB_ENV"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: "npm"
@@ -102,7 +102,7 @@ jobs:
 
       - name: Keep the recorded tape
         if: ${{ !cancelled() && env.MODE == 'record' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: check-ui-tape
           path: ${{ env.TAPE }}
@@ -110,7 +110,7 @@ jobs:
 
       - name: Keep the screenshots
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ui-check-${{ env.MODE }}
           path: ${{ runner.temp }}/ui-check
