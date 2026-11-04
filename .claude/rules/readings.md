@@ -8,10 +8,7 @@ paths:
 
 # Readings on screen
 
-What a reading may say, where it comes from, and what the client may assume of the API. Part of the architecture rules; it
-loads only when a matching file is read or edited. The global rules, and the index of every
-scoped file, are in `architecture.md`. Reasoning behind a rule: grep
-`.claude/docs/session-archive.md`.
+What a reading may say, where it comes from, and what the client may assume of the API.
 
 ## Readings on screen
 

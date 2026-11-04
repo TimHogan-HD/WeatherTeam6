@@ -15,10 +15,7 @@ paths:
 
 # Auth rules
 
-Tokens, accounts and invites, the login cap, CORS and Express hardening. Part of the
-architecture rules; it loads only when a matching file is read or edited. The global rules,
-and the index of every scoped file, are in `architecture.md`. Reasoning behind a rule: grep
-`.claude/docs/session-archive.md`.
+Tokens, accounts and invites, the login cap, CORS and Express hardening.
 
 - **`/api/v1/*` is gated by `requireApiAuth`** (`middleware/apiAuth.ts`), the only setter of
   `req.userId`: `Session <token>` → the token's subject; `Bearer <API_SHARED_SECRET>` →
