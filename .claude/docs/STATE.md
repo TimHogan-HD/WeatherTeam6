@@ -5,7 +5,7 @@ only what no other file says: how the product stands is in `.claude/rules/`, iss
 `gh issue list`, feedback in `npm run feedback -- list`, history in `session-archive.md` (grep
 it, never read it). A rewrite that finds the same fact in a rule file deletes it here.
 
-Last updated: 2026-11-03
+Last updated: 2026-11-04
 
 ## What the user owes
 
@@ -78,10 +78,10 @@ Nothing is scheduled; the owner picks from the open issues.
   only.
 - **The reviewer action will not run on a PR that edits `claude-review.yml`.** Its first real
   review is the next PR.
-- **Delivery moved to GitHub on 2026-11-04**: `review` fails on blocking findings, drafts are
-  reviewed, and sessions arm auto-merge instead of merging. The local merge gate is gone. The
-  owner still has to allow auto-merge and untick "require branches to be up to date" on `main`;
-  until then the hooks fall back to wait-and-merge.
+- **Delivery moved to GitHub on 2026-11-04** (#495, #496): `review` fails on blocking
+  findings, drafts are reviewed, and sessions arm auto-merge and end the turn. The local merge
+  gate is gone. Auto-merge is on and the repo is squash-only. A cloud session cannot read
+  whether "require branches to be up to date" is off on `main`; if PRs sit "behind", it is on.
 - **Backticks in a bash heredoc or a double-quoted `node -e` are command substitution.** Write
   the file with the Write tool.
 - **`sed` with `|` as the delimiter breaks on Markdown table rows.** Use `c\` instead.
