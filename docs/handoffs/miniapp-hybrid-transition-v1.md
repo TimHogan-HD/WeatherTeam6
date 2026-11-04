@@ -102,7 +102,7 @@ drops one is a regression:
 - Feedback
 - Agreement on trip days (`agreementShare`, `AGREEMENT_MEANING`)
 - rain amount and peak wind on Daily
-- an alert withholding the score while keeping every reading
+- alerts beside the score, which no alert withholds (owner, 2026-10-29)
 - the location identity facts
 - the Crag tab: the OpenBeta area, grades, walls, a wall's week, routes, and a route's
   to-do, tick and ticks

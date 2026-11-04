@@ -114,7 +114,7 @@ caller. The notes below stand for whoever revives it.
 - **Read by:** the trip recorder (`trip_day_volunteer_gauges`), `compare:trip-lead` from what it stored, and `compare:dryness`'s volunteer table, live, at the three crags whose airport gauge is stuck (`-- VOLUNTEER`).
 
 ## NOAA ACIS
-No longer called (deleted 2026-10-01 and 2026-11-03). A source line naming it, as `miniapp-design-v1.md`'s bot-era examples do, is defect class 3.
+No longer called (deleted 2026-10-01 and 2026-11-03). A source line naming it is defect class 3.
 
 ## NWS Alerts
 - **Endpoint:** `https://api.weather.gov/alerts/active?point={lat},{lon}`

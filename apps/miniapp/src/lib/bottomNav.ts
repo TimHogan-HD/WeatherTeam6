@@ -8,7 +8,7 @@ export type SectionKey = NavTab['key']
  *
  * A saved location and its guidebook screens are inside Conditions, which is
  * where they are opened from. `/add`, `/feedback` and a location's editor are
- * tasks you finish and leave (`miniapp-design-v1.md` §9), so they carry their
+ * tasks you finish and leave (`miniapp-design-v1.md` §2), so they carry their
  * own back control and no bar; `null` is that answer. Anything unrecognised is
  * Conditions, because `App` sends an unknown path to `/`.
  */
