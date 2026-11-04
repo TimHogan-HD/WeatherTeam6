@@ -4405,3 +4405,62 @@ and wall-aware scoring became their own work (`wall-a-sun-shade-v1.md`, #445), t
 rain chart shipped on the Precip tab from `/recent-precip`, and `collect-runs` now names the
 locations that wrote nothing. The wall-angle convention trap it warned about is in
 `climbing-terminology-research.md`. The plan is in git history.
+
+---
+
+## 2026-11-04 — GitHub, Vercel and Neon tuned; Dependabot backlog cleared
+
+**Merged:**
+- #504 — 2d2b502
+- #505 — 0e0fd6e
+- #508 — 7c051f5
+- #509 — c630e9a
+- #510 — ff954c5
+- #511 — eddee34
+- #512 — 8be9686
+- #513 — 8efc562
+- #515 — 8ba4003
+- #516 — 011fa4d
+- #517 — b2f51c5
+- #519 — 9d9fe42
+- #520 — 30e5ab0
+- #521 — b6c2944
+
+**What changed:**
+- Docs and settings describe the GitHub-gated delivery (#504).
+- `claude-review.yml` is SHA-pinned (#505) and lets `dependabot[bot]` through, so required `review` can pass on Dependabot PRs (#508).
+- `.github/dependabot.yml` (#509): weekly npm and Actions groups, 7-day cooldown, drizzle majors ignored.
+- CI uses Vercel Remote Cache for turbo (#511):
+  - `TURBO_TOKEN` is a secret and `TURBO_TEAM` a variable.
+  - `globalDependencies` covers `tsconfig.base.json` and `eslint.config.mjs`.
+  - Tests are never cached.
+  - Build, typecheck and lint replay in under 2 s on a warm cache.
+- The API function runs in `cle1`, next to Neon in us-east-2 (#517). `deployConfig.test.ts` holds it.
+- All workflows run Node 24 with every action SHA-pinned, and root engines is `>=24` (#520).
+- Both `vercel.json` `ignoreCommand`s end in `|| exit 1` (#520). Vercel clones 10 commits deep. The web app's last deploy (f2400f5) was 11 back, `git diff` exited 128, and the #510/#516/#513 builds errored.
+- vitest 5 (#515). Stryker core and vitest-runner 10 together (#521).
+- `stryker.config.mjs` derives `mutate` only from tests whose source file exists. Five tests check something else, so the old list named missing files.
+- Closed as superseded: #514, #518, #506, #507.
+
+**Decisions:** Owner, 2026-11-04: Dependabot on, with its own copy of `CLAUDE_CODE_OAUTH_TOKEN`; Turbo remote cache on; Fluid compute on; `pg_stat_statements` on. `maxDuration` stays 60.
+
+**Left open:**
+- Docs-only fast path in CI, deferred.
+- `collect-runs` returns 200 when nothing persisted.
+- `check:ui` against a Neon branch.
+- Weather-table partitioning.
+- Miniapp preview deployments, the owner's call.
+- `undici`/`path-to-regexp` alerts wait on `@vercel/node` (type-only import). `npm audit --omit=dev` is 0; 28 dev-only alerts remain.
+
+**Gotchas:**
+- A 16:05 UTC GitHub Actions incident left #521's runs reporting "in progress" after every step finished. Cancel and force-cancel both answered 409 "not in progress", and a new push started fresh runs.
+- Armed auto-merge did not fire on green, clean #513 and #520, so both were merged directly.
+- Opening a draft and marking it ready seconds later starts two `review` runs that cancel each other.
+- Moved from STATE.md: backticks in a bash heredoc or a double-quoted `node -e` are command substitution, so write the file with the Write tool.
+- Moved from STATE.md: `sed` with `|` as the delimiter breaks on Markdown table rows; use `c\` instead.
+- Moved from STATE.md: a source file can contain a literal NUL byte, which makes `git diff` and `grep` treat it as binary. `grep -a` and `git diff --text` see it.
+
+**Does the user need to do anything?** Yes:
+- Paste the `pg_stat_statements` top 15 after a day of traffic.
+- Take a Neon snapshot before any production `db:migrate`, because the restore window is 6 hours.
+- `CLAUDE_CODE_OAUTH_TOKEN` (both copies) expires around Aug 2027.
