@@ -20,6 +20,13 @@ concurrency:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    # Vercel Remote Cache for turbo: a build, typecheck or lint whose inputs a
+    # previous run already hashed is replayed instead of re-run. Tests are
+    # never cached (turbo.json). A Dependabot run cannot read Actions
+    # secrets, so it gets an empty token and turbo builds without the cache.
+    env:
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
     # The database checks' throwaway Postgres, reached the way `ui.yml` reaches
     # it: through Neon's own WebSocket proxy, so the driver is production's.
     services:
