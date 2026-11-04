@@ -80,13 +80,13 @@ jobs:
       # base; a depth-1 checkout has neither the base commit nor the history to
       # find it, so `git diff` returns nothing and the review silently covers an
       # empty diff. Same failure this repo already hit in ci.yml.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
 
       # Full review on the first pass (Opus); after that, a push is reviewed only
-      # from the last commit a summary covered (Sonnet, fewer turns). The merge
-      # gate needs a summary per head commit, so before 2026-10-07 every push paid
+      # from the last commit a summary covered (Sonnet, fewer turns). The required
+      # `review` check runs on every head commit, so before 2026-10-07 every push paid
       # for a full review. Decision and fallbacks: .claude/hooks/lib/reviewScope.mjs.
       - name: Choose the review scope
         id: scope
@@ -98,7 +98,7 @@ jobs:
           EVENT_ACTION: ${{ github.event.action }}
         run: node .github/scripts/review-scope.mjs
 
-      - uses: anthropics/claude-code-action@v1
+      - uses: anthropics/claude-code-action@c0949c50a78c1ec8ce2647db36629b870e715d0c # v1.0.268
         if: steps.existing.outputs.reviewed != 'true'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -233,7 +233,7 @@ jobs:
       # failed run means the next one is read rather than inferred.
       - name: Keep the execution output when the reviewer fails
         if: failure() && steps.cred.outcome == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: claude-review-execution-output
           path: ${{ runner.temp }}/claude-execution-output.json
