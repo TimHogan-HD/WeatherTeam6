@@ -90,6 +90,7 @@ function RearrangePanel({
   onDone: () => void
 }) {
   const panel = useRef<HTMLElement>(null)
+  const done = useRef<HTMLButtonElement>(null)
   const [announced, setAnnounced] = useState('')
   // The list replaces whatever the reader was scrolled to, which may be far below it.
   useEffect(() => {
@@ -146,6 +147,8 @@ function RearrangePanel({
           <button
             type="button"
             onClick={() => {
+              // This button goes with the reset, and focus would fall to the top of the page with it.
+              done.current?.focus({ preventScroll: true })
               onReset()
               setAnnounced('Cards back in their original order')
             }}
@@ -154,7 +157,7 @@ function RearrangePanel({
             Reset order
           </button>
         )}
-        <button type="button" onClick={onDone} style={{ ...brandButton, width: 'auto', minHeight: '44px' }}>
+        <button ref={done} type="button" onClick={onDone} style={{ ...brandButton, width: 'auto', minHeight: '44px' }}>
           Done
         </button>
       </div>

@@ -429,6 +429,8 @@ async function run(): Promise<void> {
       const reset = await rows()
       check('Reset order restores Hourly', reset.endsWith('rain,wind'), reset)
       await page.getByRole('button', { name: 'Done' }).click()
+      // `guidebookLevels` runs next and starts on the tab `everyTab` ended on.
+      await page.getByRole('tab', { name: 'Crag', exact: true }).click()
     }
 
     // A wall and a route open inside the Crag tab (hybrid Phase 4a): the dock
