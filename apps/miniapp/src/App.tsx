@@ -72,7 +72,7 @@ subscribeToToken(() => {
  * guidebook's walls and routes (inside a crag's Crag tab), and the bottom bar's other four sections
  * — and no server routes: Vercel rewrites every path to `index.html`
  * (miniapp-design-v1.md §2, plus `/login` from Phase 2 of
- * `docs/handoffs/leave-telegram-v1.md`, and `/feedback`). An unrecognised path lands on the list
+ * the leave-Telegram migration (PR #169), and `/feedback`). An unrecognised path lands on the list
  * silently; the app never renders an error for a bad URL.
  */
 export function App() {

@@ -100,7 +100,7 @@ export const forecastVerdictEnum = pgEnum('forecast_verdict', ['matched', 'partl
  * lookup is the single place that decision is made.
  *
  * There is no signup flow and should not be one — `npm run user:add` creates a
- * row, per `docs/handoffs/leave-telegram-v1.md` § Phase 1.
+ * row, per the leave-Telegram migration (PR #167).
  */
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),

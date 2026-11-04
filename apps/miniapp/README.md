@@ -3,7 +3,7 @@
 Vite + React, static build. This is the project's only client.
 
 It began as a Telegram Mini App and the directory name is the last of that. Phase 2 of
-`docs/handoffs/leave-telegram-v1.md` made it a standalone web app: it authenticates with
+the leave-Telegram migration (PR #169) made it a standalone web app: it authenticates with
 its own token, carries its own back affordance, and installs to a home screen through a
 PWA manifest. **Nothing here reads `Telegram.WebApp` any more.**
 
@@ -69,7 +69,7 @@ properties, so §0a's "audit per-entry" applies. Use the exported `boxStyle` /
 ## Deployment
 
 **Live at https://weatherteam6.vercel.app.** Since Phase 2 of
-`docs/handoffs/leave-telegram-v1.md` it is an ordinary web app: open the URL in any
+the leave-Telegram migration (PR #169) it is an ordinary web app: open the URL in any
 browser, sign in, and optionally Add to Home Screen. It is no longer opened from a
 Telegram menu button and no longer authenticates by `initData`.
 

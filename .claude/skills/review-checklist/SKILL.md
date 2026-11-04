@@ -103,7 +103,7 @@ suite; reading the diff is what caught them.
 - [ ] What was *not* verified is stated explicitly, in the commit or the session notes
 
 ## Docs
-- [ ] The handoff for the line of work being advanced records what shipped — `miniapp-design-v1.md` or `miniapp-hourly-dataviz-handoff-v1.md`; a scoring change goes in `scoring-algorithm.md`. A new external API goes in `.claude/docs/api-sources.md`
+- [ ] The handoff for the line of work being advanced records what shipped — `miniapp-design-v1.md` or the line's own handoff in `docs/handoffs/`; a scoring change goes in `scoring-algorithm.md`. A new external API goes in `.claude/docs/api-sources.md`
 - [ ] No doc still describes the shipped thing as missing, planned, or "does not exist yet" — a stale rule misdirects the next agent more than a missing one does
 - [ ] A new invariant future work must uphold is written into the `.claude/rules/` file scoped to its paths (`architecture.md` only if it holds everywhere), not just the session notes
 

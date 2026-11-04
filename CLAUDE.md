@@ -84,7 +84,6 @@ Do not create a `.env` file at all — set variables in the shell for the one co
 | Sun and shade walls on the Overview, Wall A per wall (#445) | `docs/handoffs/wall-a-sun-shade-v1.md`, then the mockups it lists, opened in a browser |
 | The hybrid look transition (owner, 2026-10-19) | `docs/handoffs/miniapp-hybrid-transition-v1.md`, then its mockup `docs/handoffs/design-mockups/weatherteam6-hybrid.html` opened in a browser. For the items it lists it wins over `miniapp-design-v1.md` |
 | Any UI phase | `docs/handoffs/miniapp-design-v1.md` (the current screen spec — open, see Rules) and `docs/handoffs/design-system-v1.md`. Open the mockup itself (`docs/handoffs/design-mockups/weatherteam6-hybrid.html`), not a prose summary of it — one phase was built twice from the description |
-| Dataviz Phase 5 | `docs/handoffs/miniapp-hourly-dataviz-handoff-v1.md` — parked; its phase numbers are its own |
 | CSS, hover, transitions or animation | `docs/handoffs/design-system-v1.md` § CSS and motion — allowed since 2026-10-01, on tokens, with `prefers-reduced-motion` |
 | Placement, motion numbers, platform features, design tools | `.claude/docs/ui-craft.md` |
 | Setting up or repairing a Vercel project, or migrating from a restricted environment | `apps/api/README.md` |

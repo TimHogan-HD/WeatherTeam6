@@ -1,5 +1,5 @@
 /**
- * Acceptance check for token auth (`docs/handoffs/leave-telegram-v1.md` Phase 1).
+ * Acceptance check for token auth (PR #167, Phase 1 of the leave-Telegram migration).
  *
  * Usage, from `apps/api`:
  *   $env:DATABASE_URL = "<Neon pooled connection string>"

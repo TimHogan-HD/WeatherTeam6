@@ -2,7 +2,7 @@
  * Which browser origins may call this API.
  *
  * It was `Access-Control-Allow-Origin: *` until Phase 1 of
- * `docs/handoffs/leave-telegram-v1.md`, because the only browser client was a
+ * the leave-Telegram migration (PR #167), because the only browser client was a
  * Telegram webview. Now that an ordinary browser opens the app with a token in
  * `localStorage`, the wildcard is worth closing — but be clear about what that
  * buys: every route still requires an `Authorization` header and there are no

@@ -9,7 +9,7 @@ import { Screen } from '../components/Screen.js'
 
 /**
  * `/login` — the app's front door, added by Phase 2 of
- * `docs/handoffs/leave-telegram-v1.md`. It reverses the standing "do not build
+ * the leave-Telegram migration (PR #169). It reverses the standing "do not build
  * a login UI" rule, on the owner's instruction; the rest of that rule holds —
  * **no self-serve signup**, so there is no link to one and no "create account"
  * copy. An account comes from `npm run user:add` or an owner's invite link,

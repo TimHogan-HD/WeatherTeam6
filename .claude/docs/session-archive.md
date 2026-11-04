@@ -4371,3 +4371,37 @@ The client's own patterns are in the `miniapp-patterns` skill, which loads when 
 - Auto mode refuses to commit an edit to `.claude/rules/`; the owner turned it off for that one line.
 
 **Does the user need to do anything?** No.
+
+## leave-telegram-v1.md (deleted 2026-11-04)
+
+The plan that took the app off Telegram, in four phases: token auth (PR #167), the web app
+standing alone (PR #169), deleting the bot (PR #171), and the docs sweep (2026-09-23). Code
+comments cite those PRs; the full plan is in git history at `docs/handoffs/leave-telegram-v1.md`.
+It was the only record of three decisions, kept here:
+
+**Why the bot went.** The only recorded reason for adopting Telegram was "zero ongoing cost,
+no server to keep alive", written after every Railway deploy failed, and a static site on
+Vercel meets it equally. Against it: Mini App origin lockdown meant preview URLs could not
+open as a Mini App, so nothing was tested before production and Playwright could not drive
+the UI; about 5,500 production and 3,000 test lines of bot code served a chat surface rebuilt
+three times on device feedback; and the platform imposed a 15-second callback deadline, a
+64-byte `callback_data` budget and two opposite HTML-escaping rules.
+
+**Owner decisions, 2026-09-22:**
+
+- The bot: delete Telegram entirely. No bot, no webhook, no alert delivery.
+- Auth: a passphrase that yields a signed token, with no Clerk and no self-serve signup.
+  Telegram's chat id had been the whole identity boundary.
+- Alerts: parked. Alert data keeps being collected; delivery is a future decision, because
+  the bot was the product's only notification channel.
+- Audience: the owner plus a few climbing partners, so the identity seam was built once,
+  properly.
+
+## miniapp-hourly-dataviz-handoff-v1.md (deleted 2026-11-04)
+
+The plan behind the hourly endpoint, per-day scores, the chart primitives and the Daily and
+Hourly tabs (#97; Phases 1 to 3, shipped 2026-09-14 and 15). Its unbuilt phases were overtaken: walls
+and wall-aware scoring became their own work (`wall-a-sun-shade-v1.md`, #445), the recent
+rain chart shipped on the Precip tab from `/recent-precip`, and `collect-runs` now names the
+locations that wrote nothing. The wall-angle convention trap it warned about is in
+`climbing-terminology-research.md`. The plan is in git history.

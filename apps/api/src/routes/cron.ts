@@ -55,8 +55,8 @@ function cronGateFailed(req: Request, res: Response): boolean {
  *
  * **It collects; it does not deliver.** `notifyPendingAlerts` went with the bot
  * in migration Phase 3 and alerts are parked — there is no notification channel
- * in the product until one is chosen (`docs/handoffs/leave-telegram-v1.md`
- * § Risks). The data still matters: `GET /api/v1/alerts` reads it, and every
+ * in the product until one is chosen (owner, 2026-09-22;
+ * `session-archive.md` § leave-telegram-v1.md). The data still matters: `GET /api/v1/alerts` reads it, and every
  * crag screen shows its warnings beside the score, which no alert withholds
  * (owner, 2026-10-29). **The schedule stays registered with cron-job.org** —
  * without it each location's `alerts_checked_at` ages and its screens say the

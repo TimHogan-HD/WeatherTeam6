@@ -27,7 +27,7 @@ import type { SkyCondition } from '@weatherteam6/types'
  * The icons §8 budgets for, from `@tabler/icons-react` — the web sibling of the
  * RN package §Design System names, with the same icon names.
  *
- * **`chevron-left` is here as of Phase 2 of `leave-telegram-v1.md`**, which
+ * **`chevron-left` is here as of Phase 2 of the leave-Telegram migration (PR #169)**, which
  * reverses §8's "not chevron-left" and §2's "no in-app back arrow". Those rules
  * said back is Telegram's `BackButton` and a second affordance is a bug; in an
  * ordinary browser there is no first affordance, so this is the only one. The
