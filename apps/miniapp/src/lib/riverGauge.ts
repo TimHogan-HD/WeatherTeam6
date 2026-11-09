@@ -42,12 +42,19 @@ export function spotWord(state: RiverState): string {
   }
 }
 
-/** `Falling 0.09 ft` over the last day; null when the points do not cover one. */
+/**
+ * `Falling 0.09 ft over 25 h`; null when the points do not cover most of a
+ * day. **The hours are measured from the points**, not the window asked for:
+ * USGS's posting lag and any gap move the span between 18 and 26 h.
+ */
 export function changeLine(reading: Pick<RiverGaugeReading, 'points'>): string | null {
   const change = riverChangeFt(reading.points)
-  if (change === null) return null
-  if (change === 0) return 'Steady over 24 h'
-  return `${change < 0 ? 'Falling' : 'Rising'} ${Math.abs(change).toFixed(2)} ft over 24 h`
+  const first = reading.points[0]
+  const latest = reading.points.at(-1)
+  if (change === null || first === undefined || latest === undefined) return null
+  const hours = Math.round((Date.parse(latest.at) - Date.parse(first.at)) / 3_600_000)
+  if (change === 0) return `Steady over ${hours} h`
+  return `${change < 0 ? 'Falling' : 'Rising'} ${Math.abs(change).toFixed(2)} ft over ${hours} h`
 }
 
 /**

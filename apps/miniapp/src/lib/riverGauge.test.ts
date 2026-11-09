@@ -54,7 +54,14 @@ describe('changeLine', () => {
   })
 
   it('says falling for a drop over the day', () => {
-    expect(changeLine(reading([{ msAgo: 24 * H, ft: 4.97 }, { msAgo: H, ft: 4.88 }]))).toBe('Falling 0.09 ft over 24 h')
+    expect(changeLine(reading([{ msAgo: 24 * H, ft: 4.97 }, { msAgo: H, ft: 4.88 }]))).toBe('Falling 0.09 ft over 23 h')
+  })
+
+  it('names the span the points cover, not the window asked for', () => {
+    // USGS's lag: newest 1.5 h old, first at the window's 26 h edge.
+    expect(changeLine(reading([{ msAgo: 26 * H, ft: 5.1 }, { msAgo: 1.5 * H, ft: 5.0 }]))).toBe('Falling 0.10 ft over 25 h')
+    // The early part of the window missing.
+    expect(changeLine(reading([{ msAgo: 19 * H, ft: 4.9 }, { msAgo: H, ft: 4.95 }]))).toBe('Rising 0.05 ft over 18 h')
   })
 })
 
