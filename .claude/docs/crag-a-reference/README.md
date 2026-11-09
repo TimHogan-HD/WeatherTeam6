@@ -26,6 +26,17 @@ F9 0 → 47, grey humid days after heavy rain, flip whatever the floor: the mass
 condensation penalty had been what held them at No. The owner chose this over a 0.25 floor
 and over the drying floor alone: field outcomes over the judged test days.
 
+**Third divergence, 2026-11-09: new rain adds to the water left in the rock.** `model.ts`
+adds rain within 24 h of the last wet hour to one storm total and resets the clock to that
+total's need, which throws away the drying since: 0.3 mm eighteen hours after a soak restarts
+the whole window, and the same 0.3 mm twenty-five hours after costs a fraction. Its surface
+store never decides a reading, because it is never above the soak store. The port carries one
+figure, turns it back into rain at each wetting, adds the hour's rain and sizes again
+(`drynessTrack`). Ported into a copy of `model.ts` (line 443, the wetting branch) and run cut
+to `accuracy()`: every line unchanged, crag 28/28, fresh crag 18/18, wall WA 33/33 (CA 32/33,
+A3), fresh wall 8/10 (G5, G10). No test day has rain after a partial dry-out, so the test days
+neither argue for nor against it; the argument is the step.
+
 ## Run it
 
 ```bash

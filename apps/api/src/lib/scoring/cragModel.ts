@@ -113,8 +113,6 @@ export const SNOW_DRYNESS_CAP = 0.25
 /** Melt, mm/h per °C above freezing, plus per W/m² of shortwave. A guess nothing has checked. */
 export const MELT_PER_C = 0.15
 export const MELT_PER_WM2 = 0.0015
-/** Rain within this many hours of the last wet hour belongs to the same storm. */
-export const STORM_GAP_H = 24
 
 /**
  * **A rock that breaks when wet never dries faster than the clock on the wall**
@@ -294,12 +292,21 @@ const remainingRamp = (remaining: number, need: number): number =>
 /**
  * **The drying clock, 0-1 per hour.** Ported from the reference `dryTrack`.
  *
- * Two stores: the surface, reset by any wetting, and the soak, topped up by a
- * storm and never lowered by a smaller later one. Each needs
- * `R = maxHours × min(1, √(storm_in / FULL_SOAK_IN))` of weather-sped drying,
- * and dryness is the worse of `((maxHours − R) / maxHours)²` over the two. Each
- * dry hour's drying is at least one hour and at most `maxRate` hours
- * (`maxDryingRate`).
+ * One figure is carried: `R`, the hours of drying the rock still needs. Rain of
+ * `x` inches on dry rock needs `maxHours × min(1, √(x / FULL_SOAK_IN))`, and
+ * dryness is `((maxHours − R) / maxHours)²`. Each dry hour takes off at least
+ * one hour and at most `maxRate` hours (`maxDryingRate`) of weather-sped drying.
+ *
+ * **New rain adds to the water still in the rock, not to a storm total**
+ * (2026-11-09). `R` is turned back into the rain that would need it, the hour's
+ * rain is added, and `R` is sized again from the sum. Rain that never stops
+ * adds up exactly as a storm total did. Rain after a dry spell adds to what is
+ * left: until this change it was added to everything that had fallen in the
+ * last 24 hours and the drying since was thrown away, so 0.3 mm eighteen hours
+ * after a soak took dolomite from 74 to 0 for another full day, while the same
+ * 0.3 mm twenty-five hours after cost 19 points. The other half of the old
+ * rule let rain more than a day after a soak add nothing unless it was the
+ * bigger storm; now it adds its share.
  *
  * **The one-hour floor is the drying ceiling** (owner, 2026-11-02): rock reads
  * dry within its `maxHours` of real time after the rain stops, however cool,
@@ -325,11 +332,12 @@ export function drynessTrack(
   wetThresholdMm: number,
   maxRate: number,
 ): (number | null)[] {
-  const needFor = (mm: number): number => maxHours * Math.min(1, Math.sqrt(mm / 25.4 / FULL_SOAK_IN))
-  let deepR = maxHours
-  let surfR = maxHours
-  let storm = 0
-  let lastWet = -Infinity
+  const fullSoakMm = FULL_SOAK_IN * 25.4
+  const needFor = (mm: number): number => maxHours * Math.min(1, Math.sqrt(mm / fullSoakMm))
+  /** The rain that would need `remaining` hours: `needFor` run backwards. A full window is a full soak. */
+  const rainFor = (remaining: number): number =>
+    maxHours <= 0 ? 0 : fullSoakMm * Math.pow(Math.min(1, remaining / maxHours), 2)
+  let remainingR = maxHours
   let snowMm = 0
   // After an hour whose rain is unknown, withhold until a full window would have dried.
   let unknownR = 0
@@ -354,26 +362,22 @@ export function drynessTrack(
     if (wetMm === null) {
       unknownR = maxHours
     } else if (wetMm >= wetThresholdMm) {
-      storm = i - lastWet < STORM_GAP_H ? storm + wetMm : wetMm
-      lastWet = i
-      const need = needFor(storm)
-      surfR = need
-      if (need >= deepR) deepR = need
+      // Never less than before: `needFor` rises with rain, and float error must not dry the rock.
+      remainingR = Math.max(remainingR, needFor(rainFor(remainingR) + wetMm))
     } else {
       const e1 = evaluated[i]?.diagnostics.effective_dry_hours ?? null
       const e0 = i > 0 ? (evaluated[i - 1]?.diagnostics.effective_dry_hours ?? null) : null
       // Every dry hour credits at least one (owner, 2026-11-02), so no weather keeps rock wet past its window.
       const inc = e1 !== null && e0 !== null ? Math.min(Math.max(e1 - e0, 1), maxRate) : 0
-      surfR = Math.max(0, surfR - inc)
       unknownR = Math.max(0, unknownR - inc)
-      deepR = Math.max(0, deepR - inc)
+      remainingR = Math.max(0, remainingR - inc)
     }
 
     if (evaluated[i]?.diagnostics.effective_dry_hours == null || wetMm === null || unknownR > 0) {
       out.push(null)
       continue
     }
-    let d = wetMm >= FALLING_RAIN_MM ? 0 : Math.min(remainingRamp(surfR, maxHours), remainingRamp(deepR, maxHours))
+    let d = wetMm >= FALLING_RAIN_MM ? 0 : remainingRamp(remainingR, maxHours)
     // Snow still lying: not climbable, however dry the rock between patches.
     if (snowMm >= SNOW_LYING_MM) d = Math.min(d, SNOW_DRYNESS_CAP)
     out.push(d)
@@ -383,8 +387,8 @@ export function drynessTrack(
 
 /**
  * `wet` while more than `MAX_HOURS − MIN_HOURS` of drying remains, `dry` when
- * both stores are empty. The ramp runs over the full window, so only a storm
- * needing more than that reads `wet` once it stops; a smaller one reads
+ * none remains. The ramp runs over the full window, so only rain
+ * needing more than that reads `wet` once it stops; less reads
  * `drying` from its first dry hour. Rain still falling is the caller's to add
  * (`fallingOn`): `FALLING_RAIN_MM` already zeroes dryness, and rock that
  * breaks when wet reads `wet` under any rain (`finish`).

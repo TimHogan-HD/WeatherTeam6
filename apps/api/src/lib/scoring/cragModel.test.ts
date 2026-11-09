@@ -248,6 +248,48 @@ describe('evaluateCragA — the drying clock', () => {
     }
   })
 
+  // Arenite breaks when wet, so it dries exactly one hour per hour and the sums below are exact.
+  const soak = (i: number) => (i >= 100 && i < 104 ? { precip_mm: 5 } : {})
+  const dry = (out: HourlyConditions[], i: number) => out[i]!.diagnostics.wetness_factor!
+
+  it('adds a trace after a soak to what is left, and keeps the drying already done (2026-11-09)', () => {
+    // 20 mm, seventeen dry hours, then 0.3 mm in the eighteenth.
+    const out = crag(series(160, (i) => (i === 121 ? { precip_mm: 0.3 } : soak(i))), 'sandstone_quartz_arenite')
+    // 17 of 48 hours done: (17/48)².
+    expect(dry(out, 120)).toBeCloseTo(0.1254, 3)
+    // 31 h left is 4.24 mm of the 10.16 mm full soak; 4.54 mm needs 32.1 h: (15.9/48)².
+    // The storm total (20.3 mm) restarted the whole window here and read 0.
+    expect(dry(out, 121)).toBeCloseTo(0.11, 2)
+  })
+
+  it('has no step in how long after a soak the next rain falls', () => {
+    // The same 0.3 mm, one to sixty hours after the soak: the reading in its hour.
+    const atTrace = Array.from({ length: 60 }, (_, k) => {
+      const at = 104 + k
+      return dry(crag(series(170, (i) => (i === at ? { precip_mm: 0.3 } : soak(i))), 'sandstone_quartz_arenite'), at)
+    })
+    for (let k = 1; k < atTrace.length; k++) {
+      expect(atTrace[k]!).toBeGreaterThanOrEqual(atTrace[k - 1]!)
+      // An hour's drying is at most 2/48 of the squared ramp; a 24-hour storm rule jumped 0.2 here.
+      expect(atTrace[k]! - atTrace[k - 1]!).toBeLessThan(0.05)
+    }
+    // Once the soak has dried, the trace costs what it costs on dry rock.
+    const alone = dry(crag(series(170, (i) => (i === 163 ? { precip_mm: 0.3 } : {})), 'sandstone_quartz_arenite'), 163)
+    expect(atTrace[59]!).toBeCloseTo(alone, 9)
+  })
+
+  it('adds rain more than a day after a soak, even when it is the smaller of the two', () => {
+    // 20 mm on a 96-hour rock, then 0.4 mm thirty hours on: less than what is left, and still more water.
+    const both = crag(series(260, (i) => (i === 134 ? { precip_mm: 0.4 } : soak(i))), 'sandstone_eolian')
+    const soakOnly = crag(series(260, soak), 'sandstone_eolian')
+    expect(dry(soakOnly, 133)).toBe(dry(both, 133))
+    // The wet hour itself earns no drying, which alone puts it one hour behind. The added
+    // water is 2.7 h more (66 h left is 4.8 mm; 5.2 mm needs 68.7 h), so it runs over two behind.
+    for (let i = 136; i < 190; i++) expect(dry(both, i)).toBeLessThan(dry(soakOnly, i - 2))
+    // It dries later, not never.
+    expect(dry(both, 259)).toBe(1)
+  })
+
   it('withholds an hour of unknown rain and every hour after it until a full window has dried', () => {
     const out = crag(series(192, (i) => (i === 120 ? { precip_mm: null } : {})))
     expect(out[119]!.score).not.toBeNull()
