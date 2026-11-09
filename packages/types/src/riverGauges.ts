@@ -15,8 +15,10 @@ export type RiverGauge = {
   site: string
   /** The river and the gauge's place, as a reader would name it. */
   river: string
-  /** What the line is for: the boulder or wall the river cuts off. */
+  /** What the line is for: the problem the river cuts off, with its grade. */
   spot: string
+  /** The boulder or wall `spot` is on. */
+  boulder: string
   /** Gage height, ft, at or below which `spot` was reachable. */
   reachable_at_or_below_ft: number
   /** Who set the line and from what reading. */
@@ -26,12 +28,14 @@ export type RiverGauge = {
 export const RIVER_GAUGES: Readonly<Record<string, readonly RiverGauge[]>> = {
   // Kettle River below Sandstone (USGS 05336700). On 2026-11-08 the gauge read
   // 4.90-4.98 ft (about 4.94 ft through midday) and the river was "JUST low
-  // enough" to try the Beach boulder at Eldon (owner, 2026-11-09).
+  // enough" to try the Beach boulder at Eldon (owner, 2026-11-09); the problem is Best
+  // Boulder in Minnesota, V5 (owner, 2026-11-09: "Best v5 climbable under 5ft").
   'robinson-park': [
     {
       site: 'USGS-05336700',
       river: 'Kettle River below Sandstone',
-      spot: 'Beach boulder',
+      spot: 'Best Boulder in Minnesota V5',
+      boulder: 'Beach boulder',
       reachable_at_or_below_ft: 4.95,
       line_source: 'Owner, 8 Nov 2026: just low enough at 4.94 ft',
     },

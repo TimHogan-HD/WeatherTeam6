@@ -38,8 +38,8 @@ describe('overviewShows', () => {
 describe('overviewLine', () => {
   it('names the height and the line when above it', () => {
     expect(overviewLine(reading([{ msAgo: H, ft: 5.2 }]), NOW)).toEqual({
-      label: 'Beach boulder',
-      value: 'River 5.20 ft, above the 4.95 ft line',
+      label: 'Best Boulder in Minnesota V5',
+      value: 'Too high: river 5.20 ft, climbable at 4.95 ft or lower',
     })
   })
 

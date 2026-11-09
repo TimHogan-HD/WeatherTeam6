@@ -28,13 +28,18 @@ export function readingClock(at: string, utcOffsetSeconds: number | null): strin
   return formatAt(at, utcOffsetSeconds, { hour: 'numeric', minute: '2-digit' })
 }
 
+/** `Climbable at 4.95 ft or lower`: the line, said as what it means for the problem. */
+export function climbableLine(lineFt: number): string {
+  return `Climbable at ${formatFt(lineFt)} or lower`
+}
+
 /** The spot's word for a state: what the line says, not what the river is doing. */
 export function spotWord(state: RiverState): string {
   switch (state.kind) {
     case 'reachable':
-      return 'At or under the line'
+      return 'Low enough to climb'
     case 'high':
-      return 'Above the line'
+      return 'Too high to climb'
     case 'stale':
       return 'No recent reading'
     case 'unavailable':
@@ -73,14 +78,14 @@ export function overviewLine(
   utcOffsetSeconds: number | null = null,
 ): { label: string; value: string } {
   const state = riverState(reading, nowMs)
-  const line = formatFt(reading.reachable_at_or_below_ft)
   const label = reading.spot
+  const climbable = climbableLine(reading.reachable_at_or_below_ft).toLowerCase()
   switch (state.kind) {
     case 'high':
-      return { label, value: `River ${formatFt(state.height_ft)}, above the ${line} line` }
+      return { label, value: `Too high: river ${formatFt(state.height_ft)}, ${climbable}` }
     case 'reachable':
       // Never on the Overview (`overviewShows`); worded truthfully all the same.
-      return { label, value: `River ${formatFt(state.height_ft)}, at or under the ${line} line` }
+      return { label, value: `Low enough: river ${formatFt(state.height_ft)}, ${climbable}` }
     case 'stale':
       return { label, value: `No river reading since ${readingDay(state.at, utcOffsetSeconds)}` }
     case 'unavailable':
