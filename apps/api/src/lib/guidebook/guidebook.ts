@@ -1,5 +1,6 @@
 import type { Guidebook, GuidebookRoute, GuidebookWall } from '@weatherteam6/types'
 import { MN_GUIDEBOOK, MN_GUIDEBOOK_DATE } from './guidebookMn.js'
+import { GUIDEBOOK_OVERLAY, type OverlayArea } from './guidebookOverlay.js'
 
 /** One OpenBeta area as `guidebookMn.ts` stores it, routes already in the response's shape. */
 export type SnapshotArea = {
@@ -113,13 +114,110 @@ function toWall(node: Node): GuidebookWall {
   }
 }
 
+/**
+ * The snapshot with the hand-written overlay laid over it: each overlay area
+ * becomes a child of its OpenBeta parent, takes the routes it names off that
+ * parent, and adds the problems OpenBeta lacks.
+ *
+ * **It never throws and never duplicates a route**, because a re-pull can move
+ * things under it. Whatever it cannot apply cleanly it skips and names in
+ * `problems`, and `guidebook.test.ts` fails on any problem with the committed
+ * files, so a pull that broke the overlay is caught before it ships:
+ * - a route claimed twice stays on the first boulder that claims it;
+ * - a claimed id that is not on the parent (unknown, or moved by OpenBeta into a
+ *   sub-area of its own) stays where OpenBeta put it;
+ * - an OpenBeta child of the same name is used instead of a second boulder;
+ * - an added problem whose Mountain Project id OpenBeta now has is dropped.
+ */
+export function applyOverlay(
+  areas: readonly SnapshotArea[],
+  overlay: readonly OverlayArea[],
+): { areas: SnapshotArea[]; problems: string[] } {
+  const problems: string[] = []
+  // Copies, so the committed snapshot is never mutated.
+  const out = areas.map((a) => ({ ...a, routes: [...a.routes] }))
+  const byId = new Map(out.map((a) => [a.id, a]))
+  const routeIds = new Set(out.flatMap((a) => a.routes.map((r) => r.id)))
+  const mpIds = new Set(out.flatMap((a) => a.routes.map((r) => r.mp_id)).filter((m): m is string => m !== null))
+  const claimed = new Set<string>()
+
+  for (const entry of overlay) {
+    const parent = byId.get(entry.parent)
+    if (parent === undefined) {
+      problems.push(`${entry.name}: parent ${entry.parent} is not in the snapshot`)
+      continue
+    }
+    if (byId.has(entry.id)) {
+      problems.push(`${entry.name}: id ${entry.id} is already an area in the snapshot`)
+      continue
+    }
+    const key = entry.name.trim().toLowerCase()
+    let target = out.find((a) => a.parent === parent.id && a.name.trim().toLowerCase() === key)
+    if (target !== undefined) {
+      problems.push(`${entry.name}: OpenBeta now has this area under ${parent.name}; the overlay entry can go`)
+    } else {
+      target = {
+        id: entry.id,
+        name: entry.name,
+        path: [...parent.path, parent.name],
+        parent: parent.id,
+        lat: null,
+        lon: null,
+        mp_id: null,
+        routes: [],
+      }
+      out.push(target)
+      byId.set(target.id, target)
+    }
+
+    for (const id of entry.route_ids) {
+      if (claimed.has(id)) {
+        problems.push(`${entry.name}: route ${id} is already on another overlay boulder`)
+        continue
+      }
+      const i = parent.routes.findIndex((r) => r.id === id)
+      if (i === -1) {
+        if (!target.routes.some((r) => r.id === id)) {
+          problems.push(`${entry.name}: route ${id} is not directly on ${parent.name}`)
+        }
+        continue
+      }
+      claimed.add(id)
+      target.routes.push(...parent.routes.splice(i, 1))
+    }
+    for (const r of entry.routes) {
+      if (routeIds.has(r.id)) {
+        problems.push(`${entry.name}: route id ${r.id} (${r.name}) is already in the snapshot`)
+        continue
+      }
+      if (r.mp_id !== null && mpIds.has(r.mp_id)) {
+        problems.push(`${entry.name}: OpenBeta now has ${r.name} (Mountain Project ${r.mp_id}); the overlay entry can go`)
+        continue
+      }
+      routeIds.add(r.id)
+      if (r.mp_id !== null) mpIds.add(r.mp_id)
+      target.routes.push(r)
+    }
+  }
+  return { areas: out, problems }
+}
+
+let overlaid: SnapshotArea[] | null = null
+
+/** The areas every request reads: the Minnesota snapshot with the overlay applied, built once per process. */
+export function guidebookAreas(): readonly SnapshotArea[] {
+  overlaid ??= applyOverlay(MN_GUIDEBOOK, GUIDEBOOK_OVERLAY).areas
+  return overlaid
+}
+
 let snapshotIds: { areas: Set<string>; routes: Set<string> } | null = null
 
-/** Built on first use: ~380 areas and ~1,900 routes, read once per process. */
+/** Built on first use: ~400 areas and ~1,900 routes, read once per process. */
 function idsInSnapshot(): { areas: Set<string>; routes: Set<string> } {
+  const areas = guidebookAreas()
   snapshotIds ??= {
-    areas: new Set(MN_GUIDEBOOK.map((a) => a.id)),
-    routes: new Set(MN_GUIDEBOOK.flatMap((a) => a.routes.map((r) => r.id))),
+    areas: new Set(areas.map((a) => a.id)),
+    routes: new Set(areas.flatMap((a) => a.routes.map((r) => r.id))),
   }
   return snapshotIds
 }
@@ -137,6 +235,26 @@ export function areaExists(id: string): boolean {
   return idsInSnapshot().areas.has(id)
 }
 
+type Candidate = { node: Node; km: number; depth: number }
+
+/** True when one node is the other or contains it. */
+function overlaps(a: Node, b: Node, byId: Map<string, Node>): boolean {
+  const within = (inner: Node, outer: Node): boolean => {
+    for (let n: Node | undefined = inner; n !== undefined; n = n.area.parent === null ? undefined : byId.get(n.area.parent)) {
+      if (n === outer) return true
+    }
+    return false
+  }
+  return within(a, b) || within(b, a)
+}
+
+function wallsOf(node: Node): GuidebookWall[] {
+  const withRoutes = node.children.filter((c) => c.routes.length > 0)
+  // A crag with no sub-areas is its own single wall, so the wall screen is
+  // still one tap away rather than missing.
+  return (withRoutes.length === 0 ? [node] : withRoutes).map(toWall)
+}
+
 /**
  * The crag a saved location sits on, with its walls and routes — or null when
  * no OpenBeta crag is within reach, which is the ordinary answer for a city and
@@ -146,38 +264,68 @@ export function areaExists(id: string): boolean {
  * Barn Bluff is Barn Bluff and not whichever wall's point happens to be nearer.
  * Distance breaks a tie. Areas spread wider than `CRAG_MAX_SPAN_KM` are regions
  * and are passed over for the crags inside them.
+ *
+ * **Every other crag within reach lists its walls too** (owner, 2026-11-09), in
+ * `nearby`: Sandstone's Robinson Park and Eldon sit 0.2 km apart under one
+ * saved location, and a forecast check at Eldon could not name Eldon while
+ * only Robinson Park was offered. Each further crag must be disjoint from every
+ * one already taken — never a wall of one, never the region around it — and
+ * among those with the same routes the outermost is taken, so Eldon arrives as
+ * one wall of Sandstone Bouldering with its boulders under it rather than as
+ * two dozen boulders loose in the list.
  */
 export function guidebookFor(
   lat: number,
   lon: number,
-  areas: readonly SnapshotArea[] = MN_GUIDEBOOK,
+  areas: readonly SnapshotArea[] = guidebookAreas(),
   snapshotDate: string = MN_GUIDEBOOK_DATE,
 ): Guidebook | null {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null
 
-  let best: { node: Node; km: number } | null = null
-  for (const node of buildTree(areas)) {
+  const tree = buildTree(areas)
+  const byId = new Map(tree.map((n) => [n.area.id, n]))
+  const depthOf = (node: Node): number => {
+    let d = 0
+    for (let n = node; n.area.parent !== null && byId.has(n.area.parent); n = byId.get(n.area.parent) as Node) d += 1
+    return d
+  }
+
+  const candidates: Candidate[] = []
+  for (const node of tree) {
     if (node.box === null || node.routes.length === 0) continue
     if (node.area.lat === null || node.area.lon === null) continue
     if (kmAcross(node.box) > CRAG_MAX_SPAN_KM) continue
     const km = kmOutside(lat, lon, node.box)
     if (km > GUIDEBOOK_REACH_KM) continue
+    candidates.push({ node, km, depth: depthOf(node) })
+  }
+
+  // The crag itself, by the rule that has always picked it: most routes, then nearest.
+  let best: Candidate | null = null
+  for (const c of candidates) {
     if (
       best === null ||
-      node.routes.length > best.node.routes.length ||
-      (node.routes.length === best.node.routes.length && km < best.km)
+      c.node.routes.length > best.node.routes.length ||
+      (c.node.routes.length === best.node.routes.length && c.km < best.km)
     ) {
-      best = { node, km }
+      best = c
     }
   }
   if (best === null) return null
 
+  const taken: Node[] = [best.node]
+  const others = candidates
+    .filter((c) => c !== best)
+    .sort((a, b) => b.node.routes.length - a.node.routes.length || a.depth - b.depth || a.km - b.km)
+  for (const c of others) {
+    if (taken.some((t) => overlaps(t, c.node, byId))) continue
+    taken.push(c.node)
+  }
+
   const { node } = best
-  const withRoutes = node.children.filter((c) => c.routes.length > 0)
-  // A crag with no sub-areas is its own single wall, so the wall screen is
-  // still one tap away rather than missing.
-  const walls = (withRoutes.length === 0 ? [node] : withRoutes)
-    .map(toWall)
+  const nearby = taken.slice(1)
+  const walls = taken
+    .flatMap(wallsOf)
     // By name. **Not west to east**: OpenBeta's wall points are wrong on the
     // ground at Barn Bluff (owner, 2026-09-29), so an order read off them
     // states a layout nobody measured.
@@ -194,6 +342,7 @@ export function guidebookFor(
       mp_id: node.area.mp_id,
       route_count: node.routes.length,
     },
+    nearby: nearby.map((n) => ({ id: n.area.id, name: n.area.name, route_count: n.routes.length })),
     walls,
   }
 }

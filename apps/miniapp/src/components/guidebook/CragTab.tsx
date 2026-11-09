@@ -54,8 +54,11 @@ export type CragTabProps = {
 function AreaCard({ guide }: { guide: Guidebook }) {
   const routes = guide.walls.flatMap((w) => w.routes)
   const kinds = kindCounts(routes)
+  // Absent from an older API reads as none.
+  const nearby = guide.nearby ?? []
   const stats = [
-    { label: 'Routes', value: guide.crag.route_count },
+    // Every listed wall's routes, the nearby crags' included, so the figure matches the list below.
+    { label: 'Routes', value: routes.length },
     { label: 'Walls', value: guide.walls.length },
     { label: 'Sport', value: kinds.sport },
     { label: 'Trad', value: kinds.trad },
@@ -69,6 +72,11 @@ function AreaCard({ guide }: { guide: Guidebook }) {
       <h2 style={typeV2.guideTitle}>{guide.crag.name}</h2>
       {guide.crag.path.length === 0 ? null : (
         <span style={typeV2.rowSmall}>{guide.crag.path.join(' › ')}</span>
+      )}
+      {nearby.length === 0 ? null : (
+        <span style={{ ...typeV2.rowSmall, color: colorsV2.txtMuted }}>
+          Also within reach: {nearby.map((c) => c.name).join(', ')}
+        </span>
       )}
       <div
         style={{
@@ -86,7 +94,7 @@ function AreaCard({ guide }: { guide: Guidebook }) {
         ))}
       </div>
       {/* Only when it is true: a crag of pure sport routes adds up exactly. */}
-      {kindTotal <= guide.crag.route_count ? null : (
+      {kindTotal <= routes.length ? null : (
         <span style={{ ...typeV2.note, color: colorsV2.txtMuted }}>Some routes have more than one type.</span>
       )}
     </GuideCard>

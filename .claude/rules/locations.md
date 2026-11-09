@@ -47,7 +47,11 @@ Saved places, known crags, rock types, the guidebook snapshot and the logbook.
   (`packages/types/geocodeCopy.ts`), one implementation (#82).
 - **The guidebook is a committed OpenBeta snapshot, never a runtime call**
   (`lib/guidebook/guidebookMn.ts`, `npm run guidebook:pull`), linked by `guidebookFor` on every
-  request — nothing stored on `locations`. Conditions are the **crag's**: no wall or route
+  request — nothing stored on `locations`. **Every other crag within reach lists its walls
+  too** (`Guidebook.nearby`, owner 2026-11-09: Sandstone's Robinson Park and Eldon share one
+  location). **`guidebookOverlay.ts` is hand-written boulders and problems** the snapshot
+  lacks (Eldon's, by the owner's grouping), laid over each pull by `applyOverlay`; a pull that
+  breaks it fails `guidebook.test.ts`. Its ids are fixed: never change one. Conditions are the **crag's**: no wall or route
   screen shows its own reading. "Left to right" renders only where `GuidebookWall.ordered`.
   Walls are listed A–Z and never placed by OpenBeta's coordinates, which are wrong on the
   ground (owner, 2026-09-29). Grade colours (`gradeScale`/`gradeBoulder`, including status
