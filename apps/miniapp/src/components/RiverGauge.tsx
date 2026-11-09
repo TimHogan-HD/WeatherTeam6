@@ -2,7 +2,7 @@ import { colors, colorsV2, spacing } from '@weatherteam6/design/tokens'
 import { riverState, type RiverGaugeReading } from '@weatherteam6/types'
 import { typeV2 } from '../theme/tokens.css.js'
 import { alertSurface, cardV2, row, stack } from '../theme/styles.js'
-import { changeLine, formatFt, overviewLine, overviewShows, readingClock, spotWord } from '../lib/riverGauge.js'
+import { changeLine, climbableLine, formatFt, overviewLine, overviewShows, readingClock, spotWord } from '../lib/riverGauge.js'
 
 /**
  * A river gauge a crag's climbing depends on (`RIVER_GAUGES`): the Rock tab's
@@ -42,9 +42,10 @@ export function RiverGaugeCard({
       {change === null ? null : <p style={{ ...typeV2.body, color: colorsV2.txt2 }}>{change}</p>}
       <div style={stack(spacing.micro)}>
         <span style={{ ...typeV2.gaugeLabel, color: colorsV2.txtMuted }}>
-          {reading.spot} · line {formatFt(reading.reachable_at_or_below_ft)}
+          {reading.spot} · {reading.boulder}
         </span>
         <p style={{ ...typeV2.body, color: wordColor }}>{spotWord(state)}</p>
+        <p style={{ ...typeV2.body, color: colorsV2.txt2 }}>{climbableLine(reading.reachable_at_or_below_ft)}</p>
       </div>
       <p style={typeV2.note}>
         {reading.line_source}. USGS readings are provisional. A guide from one day, not a safety call — look at the
