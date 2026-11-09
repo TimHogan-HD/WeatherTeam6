@@ -82,6 +82,13 @@ export type GuidebookSubWall = {
   route_ids: string[]
 }
 
+/** A crag named beside the one a location links to. */
+export type GuidebookCragRef = {
+  id: string
+  name: string
+  route_count: number
+}
+
 export type Guidebook = {
   /** The date the snapshot behind this answer was pulled from OpenBeta. */
   snapshot_date: string
@@ -93,9 +100,20 @@ export type Guidebook = {
     lat: number
     lon: number
     mp_id: string | null
+    /** This crag's own routes, not `nearby`'s. */
     route_count: number
   }
-  /** The crag's direct sub-areas, by name — OpenBeta's wall points are not reliable enough to order by. A crag with no sub-areas is its own single wall. */
+  /**
+   * Other crags within reach of the same saved location, whose walls are in
+   * `walls` too: Sandstone's Robinson Park and Eldon sit under one location.
+   * Optional because the API and the client deploy separately: absent reads as `[]`.
+   */
+  nearby?: GuidebookCragRef[]
+  /**
+   * The crag's direct sub-areas and every `nearby` crag's, by name — OpenBeta's
+   * wall points are not reliable enough to order by. A crag with no sub-areas
+   * is its own single wall.
+   */
   walls: GuidebookWall[]
 }
 

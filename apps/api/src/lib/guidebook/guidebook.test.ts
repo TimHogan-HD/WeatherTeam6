@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { GuidebookRoute } from '@weatherteam6/types'
-import { CRAG_MAX_SPAN_KM, GUIDEBOOK_REACH_KM, guidebookFor, type SnapshotArea } from './guidebook.js'
+import { applyOverlay, CRAG_MAX_SPAN_KM, GUIDEBOOK_REACH_KM, guidebookFor, type SnapshotArea } from './guidebook.js'
 import { MN_GUIDEBOOK } from './guidebookMn.js'
+import { ELDON, GUIDEBOOK_OVERLAY, type OverlayArea } from './guidebookOverlay.js'
+import { stopsGuidebookProblem } from '../feedback/parseFeedback.js'
 
 const route = (id: string, left_right: number | null = null): GuidebookRoute => ({
   id,
@@ -112,14 +114,127 @@ describe('guidebookFor', () => {
   it('gives a wall with no sub-areas no sub-walls — it is itself the wall', () => {
     expect(guidebookFor(45, -93, CRAG)?.walls.every((w) => w.sub_walls?.length === 0)).toBe(true)
   })
+
+  it("lists a second crag within reach beside the first, the larger crag still the location's", () => {
+    const two = [
+      ...CRAG,
+      area({ id: 'other', lat: 45 + km(0.5), lon: -93 }),
+      area({ id: 'boulders', parent: 'other', lat: 45 + km(0.5), lon: -93, routes: [route('b1')] }),
+    ]
+    const g = guidebookFor(45, -93, two)
+    expect(g?.crag.id).toBe('crag')
+    expect(g?.crag.route_count).toBe(4)
+    expect(g?.nearby).toEqual([{ id: 'other', name: 'other', route_count: 1 }])
+    expect(g?.walls.map((w) => w.id)).toEqual(['boulders', 'east', 'west'])
+  })
+
+  it('never lists a wall of the crag, or the region around it, as another crag', () => {
+    // 'west' and 'east' are within reach and hold routes, and so would 'mn' if it had a point.
+    const g = guidebookFor(45, -93, [...CRAG.slice(1), area({ id: 'mn', parent: null, lat: 45, lon: -93 })])
+    expect(g?.nearby).toEqual([])
+    expect(g?.walls.map((w) => w.id)).toEqual(['east', 'west'])
+  })
+
+  it('takes the outermost of two nested areas with the same routes, so its boulders stay sub-walls', () => {
+    const chain = [
+      ...CRAG,
+      area({ id: 'bouldering', lat: 45 + km(0.5), lon: -93 }),
+      area({ id: 'field', parent: 'bouldering', lat: 45 + km(0.5), lon: -93 }),
+      area({ id: 'rock', parent: 'field', lat: 45 + km(0.5), lon: -93, routes: [route('r1')] }),
+    ]
+    const g = guidebookFor(45, -93, chain)
+    expect(g?.nearby?.map((c) => c.id)).toEqual(['bouldering'])
+    const field = g?.walls.find((w) => w.id === 'field')
+    expect(field?.sub_walls).toEqual([{ id: 'rock', name: 'rock', route_ids: ['r1'] }])
+  })
+})
+
+const boulder = (over: Partial<OverlayArea> & { id: string }): OverlayArea => ({
+  name: over.id,
+  parent: 'field',
+  route_ids: [],
+  routes: [],
+  ...over,
+})
+
+const FIELD = [
+  area({ id: 'mn', parent: null, lat: null, lon: null }),
+  area({ id: 'field', routes: [route('p1'), route('p2'), { ...route('p3'), mp_id: '300' }] }),
+]
+
+describe('applyOverlay', () => {
+  it('moves the routes a boulder names off its parent and adds the problems OpenBeta lacks', () => {
+    const { areas, problems } = applyOverlay(FIELD, [
+      boulder({ id: 'big', route_ids: ['p1', 'p2'], routes: [{ ...route('new'), mp_id: '400' }] }),
+    ])
+    expect(problems).toEqual([])
+    expect(areas.find((a) => a.id === 'field')?.routes.map((r) => r.id)).toEqual(['p3'])
+    const big = areas.find((a) => a.id === 'big')
+    expect(big?.routes.map((r) => r.id)).toEqual(['p1', 'p2', 'new'])
+    expect(big?.path).toEqual(['USA', 'Minnesota', 'field'])
+    // The committed snapshot is never mutated.
+    expect(FIELD[1]?.routes).toHaveLength(3)
+  })
+
+  it('keeps a problem listed on two boulders on the first, and says so', () => {
+    const { areas, problems } = applyOverlay(FIELD, [
+      boulder({ id: 'a', route_ids: ['p1'] }),
+      boulder({ id: 'b', route_ids: ['p1', 'p2'] }),
+    ])
+    expect(areas.find((a) => a.id === 'a')?.routes.map((r) => r.id)).toEqual(['p1'])
+    expect(areas.find((a) => a.id === 'b')?.routes.map((r) => r.id)).toEqual(['p2'])
+    expect(problems).toEqual(['b: route p1 is already on another overlay boulder'])
+  })
+
+  it('skips an id the snapshot does not hold, and a parent it does not hold', () => {
+    const { areas, problems } = applyOverlay(FIELD, [
+      boulder({ id: 'a', route_ids: ['nope', 'p1'] }),
+      boulder({ id: 'lost', parent: 'gone' }),
+    ])
+    expect(areas.find((a) => a.id === 'a')?.routes.map((r) => r.id)).toEqual(['p1'])
+    expect(areas.some((a) => a.id === 'lost')).toBe(false)
+    expect(problems).toEqual(['a: route nope is not directly on field', 'lost: parent gone is not in the snapshot'])
+  })
+
+  it('uses a boulder OpenBeta has since added under the same name, never a second copy', () => {
+    const pulled = [...FIELD, area({ id: 'ob-big', name: 'Big', parent: 'field', routes: [route('p9')] })]
+    const { areas, problems } = applyOverlay(pulled, [
+      boulder({ id: 'big', name: 'Big', route_ids: ['p1'], routes: [{ ...route('new'), mp_id: '400' }] }),
+    ])
+    expect(areas.some((a) => a.id === 'big')).toBe(false)
+    expect(areas.find((a) => a.id === 'ob-big')?.routes.map((r) => r.id)).toEqual(['p9', 'p1', 'new'])
+    expect(problems).toEqual(['Big: OpenBeta now has this area under field; the overlay entry can go'])
+  })
+
+  it('leaves a route OpenBeta has moved into its own boulder where OpenBeta put it', () => {
+    const moved = [
+      area({ id: 'mn', parent: null, lat: null, lon: null }),
+      area({ id: 'field', routes: [route('p2')] }),
+      area({ id: 'ob-rock', parent: 'field', routes: [route('p1')] }),
+    ]
+    const { areas, problems } = applyOverlay(moved, [boulder({ id: 'mine', route_ids: ['p1', 'p2'] })])
+    expect(areas.flatMap((a) => a.routes).filter((r) => r.id === 'p1')).toHaveLength(1)
+    expect(areas.find((a) => a.id === 'ob-rock')?.routes.map((r) => r.id)).toEqual(['p1'])
+    expect(areas.find((a) => a.id === 'mine')?.routes.map((r) => r.id)).toEqual(['p2'])
+    expect(problems).toEqual(['mine: route p1 is not directly on field'])
+  })
+
+  it('drops an added problem once OpenBeta carries its Mountain Project id', () => {
+    const { areas, problems } = applyOverlay(FIELD, [
+      boulder({ id: 'a', routes: [{ ...route('dup'), name: 'Dup', mp_id: '300' }] }),
+    ])
+    expect(areas.flatMap((a) => a.routes).some((r) => r.id === 'dup')).toBe(false)
+    expect(problems).toEqual(['a: OpenBeta now has Dup (Mountain Project 300); the overlay entry can go'])
+  })
 })
 
 describe('the Minnesota snapshot', () => {
-  it('links the saved Red Wing location to Barn Bluff and its seven walls', () => {
+  it('links the saved Red Wing location to Barn Bluff and its seven walls, with Memorial Park beside it', () => {
     // The owner's saved row, ~1.2 km from OpenBeta's point for the crag.
     const g = guidebookFor(44.5625, -92.5338)
     expect(g?.crag.name).toBe('He Mni Can - Barn Bluff (Red Wing)')
-    expect(g?.walls).toHaveLength(7)
+    expect(g?.nearby?.map((c) => c.name)).toEqual(['Memorial Park (Red Wing)'])
+    expect(g?.walls.filter((w) => w.name !== 'Memorial Park (Red Wing)')).toHaveLength(7)
     expect(g?.walls.find((w) => w.name === 'Winter Wall')?.ordered).toBe(true)
   })
 
@@ -127,6 +242,57 @@ describe('the Minnesota snapshot', () => {
     const routes = MN_GUIDEBOOK.flatMap((a) => a.routes)
     const withId = routes.filter((r) => r.mp_id !== null).length
     expect(withId / routes.length).toBeGreaterThan(0.9)
+  })
+
+  it('applies the committed overlay with nothing skipped, and leaves no problem loose on Eldon', () => {
+    const { areas, problems } = applyOverlay(MN_GUIDEBOOK, GUIDEBOOK_OVERLAY)
+    expect(problems).toEqual([])
+    expect(areas.find((a) => a.id === ELDON)?.routes).toEqual([])
+    const ids = GUIDEBOOK_OVERLAY.flatMap((b) => [b.id, ...b.routes.map((r) => r.id)])
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it("offers Eldon's boulders at the owner's Sandstone location, beside Robinson Park's walls", () => {
+    // The owner's saved Sandstone row, which links to Robinson Park.
+    const g = guidebookFor(46.1355, -92.8602)
+    expect(g?.crag.name).toBe('Robinson Park')
+    expect(g?.nearby?.map((c) => c.name)).toEqual(['Sandstone Bouldering'])
+    const eldon = g?.walls.find((w) => w.id === ELDON)
+    expect(eldon?.routes).toHaveLength(37 + 21)
+    expect(eldon?.sub_walls).toHaveLength(GUIDEBOOK_OVERLAY.length)
+    const raven = eldon?.sub_walls?.find((s) => s.name === 'Raven Boulder')
+    const names = (raven?.route_ids ?? []).map((id) => eldon?.routes.find((r) => r.id === id)?.name)
+    expect(names).toEqual(['The Raven', 'The Raven Stand', 'Chairman Meow', 'Apocalypse Meow', 'Raven Droppings'])
+  })
+
+  it('accepts a forecast check on an Eldon boulder at Sandstone, and still one on Robinson Park', () => {
+    const walls = guidebookFor(46.1355, -92.8602)?.walls ?? []
+    const eldon = walls.find((w) => w.id === ELDON)
+    const raven = eldon?.sub_walls?.find((s) => s.name === 'Raven Boulder')
+    const theRaven = eldon?.routes.find((r) => r.name === 'The Raven')
+    const robinson = walls.find((w) => w.name === 'Robinson Park Bouldering')
+    const stop = {
+      area_id: ELDON,
+      area_name: 'Eldon',
+      wall_id: raven?.id ?? null,
+      wall: 'Raven Boulder',
+      route_picks: theRaven === undefined ? [] : [{ id: theRaven.id, name: theRaven.name }],
+      routes: null,
+      started_at: '2026-11-08T19:00:00.000Z',
+      ended_at: null,
+      rock: null,
+      sun_exposure: null,
+      shade_causes: [],
+      facing: null,
+      angle: null,
+    }
+    expect(raven).toBeDefined()
+    expect(stopsGuidebookProblem([stop], walls)).toBeNull()
+    const pocket = eldon?.routes.find((r) => r.name === 'Pocket Hercules')
+    expect(
+      stopsGuidebookProblem([{ ...stop, route_picks: pocket === undefined ? [] : [{ id: pocket.id, name: pocket.name }] }], walls),
+    ).toBe('stops[0].route_picks: Pocket Hercules is not on that wall')
+    expect(stopsGuidebookProblem([{ ...stop, area_id: robinson?.id ?? '', area_name: 'Robinson Park Bouldering', wall_id: null, wall: null, route_picks: [] }], walls)).toBeNull()
   })
 
   it('carries no OpenBeta sentinel as a wall position', () => {
