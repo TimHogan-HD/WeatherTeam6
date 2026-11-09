@@ -168,19 +168,25 @@ export const CONDENSATION_FLOOR = 0.5
 
 /**
  * **Water on the rock, 0-1, read wall by wall** (owner, 2026-11-02). Each
- * wall's margin is `T_mass` plus that wall's sun excess (`T_surface − air`)
- * less the dew point; the hour's factor is the median wall's, floored at
- * `CONDENSATION_FLOOR`. `T_mass` alone is a days-long air average, and read as
- * the rock it zeroed 15 sunlit hours that weekend.
+ * wall's margin is `T_mass` plus that wall's lagged solar gain
+ * (`diagnostics.solar_gain_c`) less the dew point; the hour's factor is the
+ * median wall's, floored at `CONDENSATION_FLOOR`. `T_mass` alone is a
+ * days-long air average, and read as the rock it zeroed 15 sunlit hours that
+ * weekend.
  *
- * `surfaceExcessC` is one entry per wall. Null when any input is missing.
+ * The gain, not `T_surface − air` (#534): the lagged `T_surface` trails the
+ * air, so that difference put a warming morning's rock below both its mass and
+ * the air (Sandstone 42 where the sun alone gives 84, 2026-11-09 11 am) and
+ * added warmth in the evening.
+ *
+ * `solarGainC` is one entry per wall. Null when any input is missing.
  */
 export function condensationA(
   massTempC: number,
   dewPointC: number,
-  surfaceExcessC: readonly (number | null)[],
+  solarGainC: readonly (number | null)[],
 ): number | null {
-  const margin = condensationMarginA(massTempC, dewPointC, surfaceExcessC)
+  const margin = condensationMarginA(massTempC, dewPointC, solarGainC)
   const f = condensationFactor(margin)
   return f === null ? null : Math.max(CONDENSATION_FLOOR, f)
 }
@@ -194,11 +200,11 @@ export function condensationA(
 export function condensationMarginA(
   massTempC: number,
   dewPointC: number,
-  surfaceExcessC: readonly (number | null)[],
+  solarGainC: readonly (number | null)[],
 ): number | null {
-  if (surfaceExcessC.length === 0 || !Number.isFinite(massTempC) || !Number.isFinite(dewPointC)) return null
-  if (surfaceExcessC.some((x) => x === null || !Number.isFinite(x))) return null
-  return median((surfaceExcessC as number[]).map((x) => massTempC + x - dewPointC))
+  if (solarGainC.length === 0 || !Number.isFinite(massTempC) || !Number.isFinite(dewPointC)) return null
+  if (solarGainC.some((x) => x === null || !Number.isFinite(x))) return null
+  return median((solarGainC as number[]).map((x) => massTempC + x - dewPointC))
 }
 
 /**
@@ -209,9 +215,9 @@ export function condensationMarginA(
  * passes its own (`sunWarmingC`), and a null one withholds, because sun nobody
  * measured could be the heat that decides the hour.
  *
- * Condensation reads `surfaceExcessC`, one wall's `T_surface − air` each
+ * Condensation reads `solarGainC`, one wall's lagged solar gain each
  * (`condensationA`): Crag A's eight, Wall A's one. The default is a single
- * wall at air temperature.
+ * wall the sun does not warm.
  */
 export function frictionPenaltiesA(
   massTempC: number | null,
@@ -219,7 +225,7 @@ export function frictionPenaltiesA(
   dewPointC: number | null,
   range: TempRangeC = DEFAULT_RANGE,
   sunWarmingC: number | null = 0,
-  surfaceExcessC: readonly (number | null)[] = [0],
+  solarGainC: readonly (number | null)[] = [0],
 ): FrictionPenalties | null {
   if (massTempC === null || airTempC === null || dewPointC === null || sunWarmingC === null) return null
   if (
@@ -230,7 +236,7 @@ export function frictionPenaltiesA(
   ) {
     return null
   }
-  const condensation = condensationA(massTempC, dewPointC, surfaceExcessC)
+  const condensation = condensationA(massTempC, dewPointC, solarGainC)
   if (condensation === null) return null
   const feltC = airTempC + sunWarmingC
   return {
@@ -474,9 +480,9 @@ export function evaluateCragA(
     const dry = xs.some((x) => x === null) ? null : median(xs as number[])
     // No one wall's clock, so no one wall's drying hours.
     const raining = fallingOn(hours[i]!.precip_mm, WET_MM, rockType)
-    const surfaces = walls.map((w) => w.evaluated[i]?.t_surface_c ?? null)
+    const gains = walls.map((w) => w.evaluated[i]?.diagnostics.solar_gain_c ?? null)
     return {
-      ...finish(h, hours[i]!, dry, rockType, null, raining, surfaces, options.range),
+      ...finish(h, hours[i]!, dry, rockType, null, raining, gains, options.range),
       rock_sun_shade: sunShade(walls.map((w) => w.evaluated[i]?.t_surface_c ?? null)),
     }
   })
@@ -600,7 +606,7 @@ export function evaluateWallA(
       rockType,
       h.diagnostics.effective_dry_hours,
       fallingOn(sheltered[i]!.precip_mm, wetThreshold, rockType),
-      [h.t_surface_c],
+      [h.diagnostics.solar_gain_c],
       options.range,
       sun[i] ?? null,
     ),
@@ -614,15 +620,14 @@ function finish(
   rockType: RockType,
   effectiveDryHours: number | null,
   rainingOnFragile: boolean,
-  /** Each wall's `T_surface`, for condensation: Crag A's eight, Wall A's one. */
-  wallSurfacesC: readonly (number | null)[],
+  /** Each wall's lagged solar gain, for condensation: Crag A's eight, Wall A's one. */
+  wallSolarGainC: readonly (number | null)[],
   range?: TempRangeC,
   sunWarming: number | null = 0,
 ): HourlyConditions {
   const massTempC = base.diagnostics.t_mass_c
   const air = weather.air_temp_c
-  const excess = wallSurfacesC.map((t) => (t === null || air === null ? null : t - air))
-  const fp = frictionPenaltiesA(massTempC, air, weather.dewpoint_c, range, sunWarming, excess)
+  const fp = frictionPenaltiesA(massTempC, air, weather.dewpoint_c, range, sunWarming, wallSolarGainC)
   const friction = fp === null ? null : fp.condensation * fp.heat * fp.humidity * fp.cold
   const score = scoreA(dryness, friction)
   const penalties: ScorePenalties | null =
@@ -633,7 +638,7 @@ function finish(
   // The margin the score read: the median wall's, sun included (2026-11-02), so
   // the Rock tab cannot say condensing while the score takes nothing off.
   const dew = weather.dewpoint_c
-  const margin = fp === null || massTempC === null || dew === null ? null : condensationMarginA(massTempC, dew, excess)
+  const margin = fp === null || massTempC === null || dew === null ? null : condensationMarginA(massTempC, dew, wallSolarGainC)
   const condensing = isCondensing(margin)
   const level = rockLevelA(dryness, rockType)
   const rLevel = level !== null && rainingOnFragile ? 'wet' : level
@@ -654,6 +659,12 @@ function finish(
       wetness_factor: dryness,
       friction_factor: friction,
       effective_dry_hours: effectiveDryHours,
+      // The median wall's gain, the one the margin read: Crag A's `base` is the
+      // horizontal series, whose gain no wall sees.
+      solar_gain_c:
+        wallSolarGainC.length === 0 || wallSolarGainC.some((g) => g === null || !Number.isFinite(g))
+          ? null
+          : median(wallSolarGainC as number[]),
       penalties,
     },
   }

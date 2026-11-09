@@ -17,7 +17,7 @@ directory is the research record; the port has diverged from it since 2026-11-02
 **The port diverges from `model.ts` on purpose since 2026-11-02** (owner, after field checks
 at Red Wing and Sandstone on 10/31–11/1 found dry rock through 15 hours the app scored 0):
 condensation is read per wall (`T_mass + (T_surface − air) − dew`, median of the eight, floored
-at 0.5), and every dry hour credits at least one hour of drying. `model.ts` is unchanged.
+at 0.5; the sun term became the lagged solar gain alone on 2026-11-09, below), and every dry hour credits at least one hour of drying. `model.ts` is unchanged.
 Measured here with both ported behind a switch: the drying floor alone passes every check
 (moves F3 45 → 67, F12 28 → 54, F17 39 → 48, all in band). With the condensation change too:
 crag 24/28, fresh crag 17/18, wall WA 29/33. C11 (warm humid air after a cold snap) 0 → 47,
@@ -36,6 +36,19 @@ figure, turns it back into rain at each wetting, adds the hour's rain and sizes 
 to `accuracy()`: every line unchanged, crag 28/28, fresh crag 18/18, wall WA 33/33 (CA 32/33,
 A3), fresh wall 8/10 (G5, G10). No test day has rain after a partial dry-out, so the test days
 neither argue for nor against it; the argument is the step.
+
+**2026-11-09: the condensation margin adds the wall's sun and nothing else** (#534).
+`T_surface − air` also carried how far the lagged surface trails the air, and the sky cooling,
+so a warming morning read the rock below its own mass and an evening read it warmer. On 14 days
+of live forecasts at five crags it penalised 17 daytime morning hours where the sun alone
+penalises 5 (Sandstone 2026-11-09 11 am: 42 → 84). Measured here by running the port itself
+(`evaluateCragA` / `evaluateWallA` on each case's built hours, graded by `dayBest` with the
+corrected `FIX`), before and after: one test day moved, G5 Wall A 27 → 47 (overhang in all-day
+drizzle, now in band). Every other day score is unchanged. The port as shipped grades crag
+23/28 (C11, C14, C17, C19, C23), fresh crag 17/18 (F9), wall CA 27/33, wall WA 20/33, fresh
+wall CA 8/10 (G5, G10), fresh wall WA 7/10 (G1, G9, G10), both before and after apart from G5.
+Those differ from the figures above because the port carries Wall A's sun-warmed heat and cold
+(2026-10-30), which `model.ts` does not.
 
 ## Run it
 

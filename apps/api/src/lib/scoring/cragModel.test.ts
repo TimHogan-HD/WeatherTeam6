@@ -158,6 +158,44 @@ describe('condensationA', () => {
     expect(out[afternoon]!.condensation_margin_c!).toBeGreaterThan(0)
     expect(out[afternoon]!.friction?.condensing).toBe(false)
   })
+
+  it('adds the sun and nothing else: a warming morning does not chill the rock below its mass (#534)', () => {
+    // Overcast, no sun at all, air swinging 16 °C a day. The lagged surface trails the air
+    // all morning, so `T_surface − air` would put the rock below its own mass.
+    const grey = series(6 * 24, (i) => {
+      const lh = i % 24
+      return { air_temp_c: 12 + 8 * Math.cos((2 * Math.PI * (lh - 15)) / 24), shortwave_wm2: 0, cloud_pct: 100, dewpoint_c: 3 }
+    })
+    const out = crag(grey)
+    const morning = 4 * 24 + 10
+    const h = out[morning]!
+    expect(h.t_surface_c!).toBeLessThan(grey[morning]!.air_temp_c! - 0.5)
+    for (const x of out.slice(4 * 24)) {
+      expect(x.condensation_margin_c!).toBeCloseTo(x.diagnostics.t_mass_c! - 3, 10)
+    }
+  })
+
+  it('never reads a wall below its mass: the gain only lifts it, sunny or not (#534)', () => {
+    const out = crag(series(6 * 24, () => ({ dewpoint_c: 8 })))
+    for (const x of out.slice(4 * 24)) {
+      expect(x.condensation_margin_c!).toBeGreaterThanOrEqual(x.diagnostics.t_mass_c! - 8 - 1e-9)
+    }
+    // The published gain is the median wall's, the one the margin read, not the horizontal one.
+    for (const x of out.slice(4 * 24)) {
+      expect(x.condensation_margin_c!).toBeCloseTo(x.diagnostics.t_mass_c! + x.diagnostics.solar_gain_c! - 8, 10)
+    }
+    // And the sun still lifts it: early afternoon is clear of the mass alone.
+    const afternoon = out[4 * 24 + 14]!
+    expect(afternoon.condensation_margin_c!).toBeGreaterThan(afternoon.diagnostics.t_mass_c! - 8 + 1)
+  })
+
+  it('publishes Wall A’s margin as T_mass + that wall’s lagged gain − dew', () => {
+    const hours = series(6 * 24, () => ({ dewpoint_c: 8 }))
+    const out = evaluateWallA(hours, { rockType: 'granite', wall: { lat: LAT, lon: LON, aspectDeg: 90, cliffAngleDeg: 0 } })
+    for (const x of out.slice(4 * 24)) {
+      expect(x.condensation_margin_c!).toBeCloseTo(x.diagnostics.t_mass_c! + x.diagnostics.solar_gain_c! - 8, 10)
+    }
+  })
 })
 
 describe('scoreA', () => {
@@ -441,7 +479,7 @@ describe('evaluateWallA — sun on the wall', () => {
     expect(sunWarmingC(gap, south)[day4(13)]).toBeNull()
     expect(sunWarmingC(gap, south, null, true)[day4(13)]).toBe(0)
     expect(evaluateWallA(gap, { rockType: 'granite', wall: south })[day4(13)]!.score).toBeNull()
-    // Trees take the heat term's sun away, but condensation still reads the wall's modelled surface.
+    // Trees take the heat term's sun away, but condensation still reads the wall's modelled sun.
     expect(evaluateWallA(gap, { rockType: 'granite', wall: south, treeShaded: true })[day4(13)]!.score).toBeNull()
   })
 

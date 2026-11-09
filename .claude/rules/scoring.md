@@ -135,7 +135,10 @@ How Crag A scores, and what may feed it.
   slows no rock's clock. Sandstone read Wet 17 three days after rain on 2026-10-31 while a
   friend stood at bone-dry rock. The walk's "soaked" first hour is worked off the same way.
 - **Condensation is read wall by wall and never takes more than half the score** (owner,
-  2026-11-02, `condensationA`): each wall's margin is `T_mass + (T_surface − air) − dew`, the
+  2026-11-02, `condensationA`): each wall's margin is `T_mass + gain − dew`, where `gain` is
+  that wall's solar gain lagged like `T_surface` (`diagnostics.solar_gain_c`, #534). Never
+  `T_surface − air`: the lagged surface trails the air, so that term chilled every warming
+  morning and warmed every evening. The
   factor is the median wall's (Crag A's eight, Wall A's one), floored at
   `CONDENSATION_FLOOR` (0.5, a guess). `T_mass` alone is a days-long air average; read as
   the rock it zeroed 15 sunlit hours at Red Wing and Sandstone on 10/31–11/1, all checked
