@@ -129,6 +129,12 @@ No longer called (deleted 2026-10-01 and 2026-11-03). A source line naming it is
 - **Recent frames without a stamp:** `nexrad-n0q-900913` (latest) and `nexrad-n0q-900913-m05m` … `-m50m`. Their content moves under a fixed URL, so a label cannot be tied to them — use the stamped form.
 - No key. US only. N0Q is ~1 km, so it holds up to about zoom 9–10 and upscales past that. Replaced RainViewer (whose free mosaic stops at zoom 7) on 2026-10-26.
 
+## USGS Water Data (river gage height, 2026-11-09)
+- **Endpoint:** `https://api.waterdata.usgs.gov/ogcapi/v0/collections/continuous/items` with `monitoring_location_id=USGS-<site>`, `parameter_code=00065` (gage height, ft), `time=<from>/<to>` (ISO interval), `properties=time,value,unit_of_measure`, `skipGeometry=true`. Values arrive as strings. Fetched by the API (`lib/weather/usgsRiver.ts`, `GET /river-gauges/:locationId`), live per request, 15 s budget.
+- **Which gauges:** `RIVER_GAUGES` in `packages/types/src/riverGauges.ts`, keyed by known crag, each with the owner's line for one spot (Kettle River below Sandstone, `USGS-05336700`, Beach boulder at or below 4.95 ft). Display only, never the score.
+- 15-minute observations posted with a lag of 1–2 h; past `RIVER_STALE_MS` (6 h) the reading is shown as stale, and no answer is a gap, never a low river. Provisional data.
+- **Not the legacy `waterservices.usgs.gov`**: USGS retires it on 2027-02-22, with degradation from November 2026. No key; the keyless rate limit is per IP and a crag screen makes one call per gauge.
+
 ## MRMS radar rain rate ("Raining now", #313)
 - **Product:** `CONUS/PrecipRate_00.00` on AWS Open Data (`https://noaa-mrms-pds.s3.amazonaws.com`), mm/hr, 1 km, a frame every 2 minutes landing ~3 minutes after its valid time, ~625 kB gzipped GRIB2 (PNG packing). Negatives mean no coverage.
 - **Newest frame:** an S3 `list-type=2` listing with `prefix` = the day of now−20 min and `start-after` = that minute's key; the valid time is in the file name. Fetched by the API (`lib/weather/mrmsRate.ts`, `GET /rain-now`), one frame per instance reused for 2 minutes, read at every saved place at once (`lib/weather/mrmsGrib.ts`: unfilters only the rows down to the southernmost point, ~0.2–0.6 s; the whole grid took 7.5 s).
