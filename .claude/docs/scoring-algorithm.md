@@ -97,7 +97,7 @@ shelter was calibrated against. An overhang dries on the vertical factor, not fa
 ```
 friction = condensation × heat × humidity × cold
 
-condensation = max(0.5, clamp(median over walls of (T_mass + T_surface,wall − Ta − Td) / 2 °C, 0, 1))
+condensation = max(0.5, clamp(median over walls of (T_mass + gain_wall − Td) / 2 °C, 0, 1))
 heat         = exp(−max(0, Ta − 60 °F) / 12 °C)
 humidity     = exp(−max(0, Td − 54 °F) / 10 °C)
 cold         = exp(−max(0, 30 °F − Ta) / 12 °C)
@@ -105,7 +105,9 @@ cold         = exp(−max(0, 30 °F − Ta) / 12 °C)
 
 **Condensation** (`condensationA`, owner 2026-11-02) reads each wall's sun on top of
 `T_mass` — Crag A's eight walls, Wall A's one — and is floored at `CONDENSATION_FLOOR`
-(0.5, a guess). `T_mass` alone is a days-long air average; read as the rock, it zeroed every
+(0.5, a guess). `gain_wall` is the wall's solar gain lagged like `T_surface`
+(`diagnostics.solar_gain_c`), never `T_surface − air`, which also carried the surface's lag
+behind the air and chilled every warming morning (#534). `T_mass` alone is a days-long air average; read as the rock, it zeroed every
 sunlit hour at Red Wing and Sandstone on 10/31–11/1 that friends checked dry. Because the
 margin takes the sun, a missing shortwave withholds friction. Heat, humidity and cold read
 air and dew point only (Wall A's heat and cold add the wall's direct sun), so they cannot see

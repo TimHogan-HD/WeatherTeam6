@@ -474,6 +474,7 @@ describe('bestWindow', () => {
       wetness_factor: 1,
       friction_factor: level === 'great' ? 0.9 : 0.2,
       effective_dry_hours: 500,
+      solar_gain_c: 0,
       penalties: null,
     },
   })
