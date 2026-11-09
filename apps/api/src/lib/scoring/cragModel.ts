@@ -659,7 +659,12 @@ function finish(
       wetness_factor: dryness,
       friction_factor: friction,
       effective_dry_hours: effectiveDryHours,
-      solar_gain_c: base.diagnostics.solar_gain_c,
+      // The median wall's gain, the one the margin read: Crag A's `base` is the
+      // horizontal series, whose gain no wall sees.
+      solar_gain_c:
+        wallSolarGainC.length === 0 || wallSolarGainC.some((g) => g === null || !Number.isFinite(g))
+          ? null
+          : median(wallSolarGainC as number[]),
       penalties,
     },
   }

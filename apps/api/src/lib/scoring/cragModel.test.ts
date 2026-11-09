@@ -180,6 +180,10 @@ describe('condensationA', () => {
     for (const x of out.slice(4 * 24)) {
       expect(x.condensation_margin_c!).toBeGreaterThanOrEqual(x.diagnostics.t_mass_c! - 8 - 1e-9)
     }
+    // The published gain is the median wall's, the one the margin read, not the horizontal one.
+    for (const x of out.slice(4 * 24)) {
+      expect(x.condensation_margin_c!).toBeCloseTo(x.diagnostics.t_mass_c! + x.diagnostics.solar_gain_c! - 8, 10)
+    }
     // And the sun still lifts it: early afternoon is clear of the mass alone.
     const afternoon = out[4 * 24 + 14]!
     expect(afternoon.condensation_margin_c!).toBeGreaterThan(afternoon.diagnostics.t_mass_c! - 8 + 1)

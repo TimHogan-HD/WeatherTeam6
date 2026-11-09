@@ -369,7 +369,8 @@ export type HourlyDiagnostics = {
   /**
    * The sun's warming of this surface above air, °C, lagged like `T_surface`
    * (`SURFACE_TAU_HOURS`). Null when `T_surface` is. Crag A's condensation adds
-   * it to `T_mass` (#534); `T_surface − air` would also carry how far the lagged
+   * it to `T_mass` (#534), and Crag A and Wall A publish the median wall's
+   * gain, the one their margin read; `T_surface − air` would also carry how far the lagged
    * surface trails the air, and the sky cooling.
    */
   solar_gain_c: number | null
