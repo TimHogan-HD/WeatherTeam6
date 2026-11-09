@@ -611,3 +611,4 @@ export type RainNow = {
 }
 
 export * from './areaRock.js'
+export * from './riverGauges.js'

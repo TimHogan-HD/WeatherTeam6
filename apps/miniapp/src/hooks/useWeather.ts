@@ -1,6 +1,14 @@
 import { queryOptions, useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { apiGet } from '../lib/api.js'
-import type { Conditions, ForecastSnapshot, RadarLatest, RainNow, WeatherAlert } from '@weatherteam6/types'
+import {
+  riverGaugesFor,
+  type Conditions,
+  type ForecastSnapshot,
+  type RadarLatest,
+  type RainNow,
+  type RiverGaugeReading,
+  type WeatherAlert,
+} from '@weatherteam6/types'
 
 /** IEM builds a radar frame every 5 minutes. */
 const RADAR_REFRESH_MS = 5 * 60_000
@@ -97,4 +105,24 @@ export const alertsQuery = (id: string | undefined) =>
 
 export function useAlerts(id: string | undefined): UseQueryResult<WeatherAlert[]> {
   return useQuery(alertsQuery(id))
+}
+
+/**
+ * The river gauges of a crag that has any (`RIVER_GAUGES`), with the last day
+ * of gage height. Asked only for such a crag, so no other screen makes the
+ * request. Refetched every 15 minutes, the gauge's own interval.
+ */
+export const riverGaugesQuery = (id: string | undefined, knownCrag: string | null | undefined) =>
+  queryOptions({
+    queryKey: ['river-gauges', id ?? ''] as const,
+    queryFn: () => apiGet<RiverGaugeReading[]>(`/river-gauges/${id ?? ''}`),
+    enabled: id !== undefined && id !== '' && riverGaugesFor(knownCrag).length > 0,
+    refetchInterval: 15 * 60_000,
+  })
+
+export function useRiverGauges(
+  id: string | undefined,
+  knownCrag: string | null | undefined,
+): UseQueryResult<RiverGaugeReading[]> {
+  return useQuery(riverGaugesQuery(id, knownCrag))
 }

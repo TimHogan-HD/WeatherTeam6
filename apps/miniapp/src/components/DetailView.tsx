@@ -10,9 +10,11 @@ import type {
   RangeF,
   RainNow,
   RecentPrecip,
+  RiverGaugeReading,
   Wall,
   WeatherAlert,
 } from '@weatherteam6/types'
+import { RiverGaugeCard, RiverOverviewLines } from './RiverGauge.js'
 import { CLIMB_HOURS_DEFAULT, GUIDEBOOK_SOURCE_LABEL, modelName, RECENT_PRECIP_SOURCE_LABEL, SUN_WALLS_SOURCE_LABEL, sunWallsFor } from '@weatherteam6/types'
 import { type } from '../theme/tokens.css.js'
 import { stack } from '../theme/styles.js'
@@ -80,6 +82,15 @@ export type DetailViewProps = {
   }
   alerts?: {
     data: WeatherAlert[] | undefined
+    isError: boolean
+  }
+  /**
+   * The crag's river gauges (`RIVER_GAUGES`): a card on Rock, and a line on
+   * Overview only when a river is above its spot's line or has no reading.
+   * Optional only so a test can render without it; `LocationDetail` always passes it.
+   */
+  river?: {
+    data: RiverGaugeReading[] | undefined
     isError: boolean
   }
   conditions?: {
@@ -188,6 +199,7 @@ export function DetailView({
   rangeF = null,
   forecast,
   alerts,
+  river,
   conditions,
   hourly,
   recentPrecip,
@@ -250,7 +262,39 @@ export function DetailView({
     // whenever the card can show, with the date the lidar was read.
     { label: 'Sunshine', value: sunshineModel === null ? null : `${modelName(sunshineModel)} via Open-Meteo` },
     { label: 'Sun', value: sunWalls === null ? null : `${SUN_WALLS_SOURCE_LABEL}, ${formatTickDate(sunWalls.computed)}` },
+    // Named only once a gauge answered with a reading: an empty answer showed nothing of USGS's.
+    {
+      label: 'River',
+      value: river?.data?.some((r) => r.points.length > 0) === true ? 'USGS Water Data, provisional' : null,
+    },
   ]
+
+  const utcOffsetSeconds = hourly?.data?.utc_offset_seconds ?? null
+  const riverCard: ReactNode =
+    river === undefined
+      ? null
+      : river.isError
+        ? <InlineError message="Couldn't load the river gauge." />
+        : river.data === undefined || river.data.length === 0
+          ? null
+          : (
+              <div style={stack(spacing.listGapLg)}>
+                {river.data.map((r) => (
+                  <RiverGaugeCard key={r.site + r.spot} reading={r} nowMs={now} utcOffsetSeconds={utcOffsetSeconds} />
+                ))}
+              </div>
+            )
+  // The Overview carries a gauge only when it is above its line or has no
+  // reading (owner, 2026-11-09). A failed request shows too: nothing there
+  // would read as "low enough".
+  const riverOverview: ReactNode =
+    river === undefined
+      ? null
+      : river.isError
+        ? <InlineError message="Couldn't load the river gauge." />
+        : river.data === undefined
+          ? null
+          : <RiverOverviewLines readings={river.data} nowMs={now} utcOffsetSeconds={utcOffsetSeconds} />
 
   // The day scores the Daily rows wear — only for a scored location, and only
   // once `/hourly` has answered; until then the rows carry no pill.
@@ -358,6 +402,7 @@ export function DetailView({
       <RockTab
         rockType={location?.rock_type ?? null}
         sunWalls={sunWalls}
+        river={riverCard}
         {...(showScore && hourly?.data !== undefined
           ? {
               live: {
@@ -415,6 +460,8 @@ export function DetailView({
       ) : alerts?.data === undefined ? null : (
         <AlertBanner alerts={alerts.data} unchecked={alertsUnchecked(location?.alerts_checked_at, now)} />
       )}
+
+      {active === 'overview' ? riverOverview : null}
 
       {/*
         Without tabs this is a plain wrapper: no id and no role. A

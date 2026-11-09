@@ -13,7 +13,7 @@ import type { CragChoice } from '../components/CragBar.js'
 import { usePreferences } from '../hooks/usePreferences.js'
 import { draftFromPreferences } from '../lib/preferencesForm.js'
 import { effectiveClimbHours } from '@weatherteam6/types'
-import { useAlerts, useConditions, useForecast, useRainNow } from '../hooks/useWeather.js'
+import { useAlerts, useConditions, useForecast, useRainNow, useRiverGauges } from '../hooks/useWeather.js'
 import { useHourly } from '../hooks/useHourly.js'
 import { useNow } from '../hooks/useNow.js'
 import { useRecentPrecip } from '../hooks/useRecentPrecip.js'
@@ -55,6 +55,7 @@ export function LocationDetail() {
   const location = useLocation(id)
   const forecast = useForecast(id)
   const alerts = useAlerts(id)
+  const river = useRiverGauges(id, location.data?.known_crag)
   const conditions = useConditions(id, location.data?.is_climbing_location)
   const hourly = useHourly(id)
   const recentPrecip = useRecentPrecip(id)
@@ -202,6 +203,7 @@ export function LocationDetail() {
           refetch: () => void forecast.refetch(),
         }}
         alerts={{ data: alerts.data, isError: alerts.isError }}
+        river={{ data: river.data, isError: river.isError }}
         conditions={{
           data: conditions.data,
           isPending: conditions.isPending,
