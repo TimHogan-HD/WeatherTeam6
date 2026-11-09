@@ -18,8 +18,9 @@ implementing. The invariants the scorer must hold are in `.claude/rules/scoring.
   (`lib/runs/wallReadings.ts`, #445) and never a location. Called from
   `lib/runs/hourlyReadings.ts`. Checked hour for hour against
   `.claude/docs/crag-a-reference/model.ts` until 2026-11-02, when the port deliberately
-  diverged: per-wall condensation floored at half (`condensationA`) and a one-hour-per-hour
-  drying floor (`drynessTrack`). The reference README records what that moved.
+  diverged: per-wall condensation floored at half (`condensationA`), a one-hour-per-hour
+  drying floor and, since 2026-11-09, new rain adding to the water left rather than to a
+  storm total (both `drynessTrack`). The reference README records what that moved.
 - `rockThermal.ts`, `hourlyConditions.ts` — the v2 layers. They supply Crag A's `T_mass`,
   `T_surface` and weather-sped drying rate; v2's own score and `sweatBalance.ts` friction
   reach no response.

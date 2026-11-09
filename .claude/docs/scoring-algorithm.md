@@ -18,8 +18,9 @@ there is no tester gate.
 
 Where the research lives: `.claude/docs/crag-a-reference/README.md` (why these two models, the
 seven errors corrected, what is still open) and `model.ts` beside it. The port has diverged
-from `model.ts` on purpose since 2026-11-02 (per-wall condensation floored at half, and a
-drying floor of one hour per dry hour); the README records what that moved. A change that
+from `model.ts` on purpose since 2026-11-02 (per-wall condensation floored at half, a
+drying floor of one hour per dry hour, and since 2026-11-09 new rain adding to the water
+left rather than to a storm total); the README records what that moved. A change that
 moves a result needs an argument, not a commit message. `scoring-findings.md` §6d records the switch.
 
 ## Crag A
@@ -54,18 +55,25 @@ domain guard.
   On rock that breaks when wet, any wetting rain still falling also labels the hour `wet`
   (`fallingOn`), so drizzle under that line never reads Drying or joins a best window on
   that rock; its score keeps the scaled dent.
-- **Storm size:** rain hours with gaps under `STORM_GAP_H` (24 h) add up to one storm.
-  `need = MAX_HOURS[rock] × min(1, √(storm_in / 0.4))`, so a 0.4" storm needs the rock type's
-  full window and a small shower needs less.
-- **Two stores.** The surface is reset by any wetting. The soak is topped up by a storm and
-  never lowered by a smaller later one, so a shower does not erase a big soak.
+- **Rain size:** rain of `x` inches on dry rock needs
+  `MAX_HOURS[rock] × min(1, √(x / 0.4))` hours, so 0.4" needs the rock type's full window
+  and a small shower needs less.
+- **New rain adds to the water still in the rock** (2026-11-09). The clock carries one
+  figure, `R`, the hours of drying still needed. At a wetting hour `R` is turned back into
+  the rain that would need it (`0.4" × (R / MAX_HOURS)²`), the hour's rain is added, and `R`
+  is sized again from the sum. Rain that never stops adds up to its total. Rain after a dry
+  spell adds to what is left, so a shower never erases a soak and never restarts one.
+  Until then rain within 24 h of the last wet hour was added to the whole storm and the
+  drying since was thrown away: 0.3 mm eighteen hours after a soak took dolomite from 74 to
+  0 for another day, while the same 0.3 mm twenty-five hours after cost 19 points. Rain
+  more than 24 h after a soak added nothing unless it was the bigger of the two.
 - **Drying rate:** each dry hour removes the increase in v2's `effective_dry_hours`, the
   clock that runs faster with sun, wind and vapour-pressure deficit
   (`rockThermal.effectiveDryingHours`), **but never less than one hour** (owner,
   2026-11-02): rock reads dry within `MAX_HOURS` of real time after rain, whatever the
   weather. Rock that breaks when wet is also capped at one (`maxDryingRate`), so it dries at
   exactly elapsed time.
-- `dryness = min(((N − R) / N)²)` over the two stores, where `N` is the rock's full window
+- `dryness = ((N − R) / N)²`, where `N` is the rock's full window
   `MAX_HOURS` and `R` what remains. The square curves slowly at first: rock strength returns
   late (issue #137). **Rain sets the clock back by its size** (owner, 2026-10-26): `N` was the
   storm's own need until then, so every wetting hour read 0 and only the recovery scaled —
