@@ -105,7 +105,9 @@ suite; reading the diff is what caught them.
 ## Docs
 - [ ] The handoff for the line of work being advanced records what shipped — `miniapp-design-v1.md` or the line's own handoff in `docs/handoffs/`; a scoring change goes in `scoring-algorithm.md`. A new external API goes in `.claude/docs/api-sources.md`
 - [ ] No doc still describes the shipped thing as missing, planned, or "does not exist yet" — a stale rule misdirects the next agent more than a missing one does
-- [ ] A new invariant future work must uphold is written into the `.claude/rules/` file scoped to its paths (`architecture.md` only if it holds everywhere), not just the session notes
+- [ ] A new invariant future work must uphold is written into the `.claude/rules/` file scoped to its paths (`architecture.md` only if it holds everywhere), and as a checkbox here if it can rot silently
+- [ ] Every reference to what changed was grepped and fixed: a spec in the future tense gets a status banner once built, and a phase marked complete in the handoff that owns it
+- [ ] A fact the next session needs (an ops gotcha, an owner decision, an owner action) is in the file that governs it — `CLAUDE.md` § Owner actions outstanding, `apps/api/README.md`, or a comment beside the code. There is no state document. Before adding a fact to a second file, ask whether the first can be read instead
 
 ## Reporting
 - [ ] The report ends with a **handoff block**: does the user need to do anything (yes/no, in bold, first), and the single next step — see CLAUDE.md § Reporting Work. Applies to recaps, summaries and PR bodies alike

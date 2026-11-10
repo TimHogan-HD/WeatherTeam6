@@ -34,3 +34,42 @@ and each database query from there crossed regions. If Neon ever moves, move thi
 **Neon cannot be reached from a restricted cloud dev environment.** `drizzle-kit` uses Neon's
 WebSocket driver regardless of app code, so migrations must run from an unrestricted machine or
 with `*.aws.neon.tech` allowlisted.
+
+**Point-in-time restore covers only 6 hours** (free plan). Take a snapshot (Backup & Restore)
+before `db:migrate` on production.
+
+**`DELETE` does not free space.** `TRUNCATE` reclaims it; `VACUUM FULL` needs as much free space
+as the table and cannot run at the 512 MB cap.
+
+**`drizzle-kit generate` needs no database**, only a non-empty `DATABASE_URL`.
+
+## Running against production
+
+The API is `https://weather-team6-api.vercel.app`; `/health` is the unauthenticated probe.
+
+**A fresh merge is not a deploy.** Check the deployment's state and commit before probing
+production. Env vars apply to new deployments only.
+
+**Hobby keeps function logs about an hour.** Read a cron's logs right after it fires.
+
+**`API_SHARED_SECRET` on preview differs from production** (deliberately); `AUTH_TOKEN_SECRET`
+is the same on all three targets.
+
+**Credentials for unattended runs are Windows user environment variables** on the owner's
+machine: `DATABASE_URL`, `CRON_SECRET`, `API_SHARED_SECRET` and `VERCEL_TOKEN`. Read one with
+`[Environment]::GetEnvironmentVariable('NAME','User')`, because `$env:` can read empty while it
+exists, and never echo it. `AUTH_TOKEN_SECRET` is not among them; a local run generates a
+throwaway. `VERCEL_TOKEN` is team-scoped and reaches `https://api.vercel.com` with no `teamId`;
+it is how env vars get set, because the Vercel MCP's `projectEnvVars` 403s.
+
+**cron-job.org** calls `check-alerts`, `collect-runs` and `prune-runs`. `record-trips` and
+`collect-radar` exist too; confirm in cron-job.org that they are registered before relying on
+their rows.
+
+## GitHub Actions
+
+**A check stuck "in progress" after its steps finished is GitHub's**; see githubstatus.com. A
+cloud session's token cannot re-run or cancel a run (403).
+
+**Dependabot runs read the Dependabot copy of `CLAUDE_CODE_OAUTH_TOKEN`** (both copies expire
+about Aug 2027). `@dependabot rebase` picks up a changed workflow; a re-run does not.

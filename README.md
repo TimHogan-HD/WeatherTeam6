@@ -123,7 +123,6 @@ The model contains assumptions that have not been validated against climbing out
 
 ### Useful project references
 
-- [Current project state](.claude/docs/STATE.md)
 - [Architecture rules](.claude/rules/architecture.md)
 - [Defect patterns](.claude/rules/defect-patterns.md) — read before reviewing a diff
 - [Data model](.claude/docs/data-model.md)

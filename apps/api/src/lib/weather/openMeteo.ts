@@ -144,7 +144,9 @@ export const MIN_ATTEMPT_MS = 2_000
  * to `FETCH_BUDGET_MS` from now; pass one shared deadline when a fallback request
  * follows a failed one, so the pair together stays inside the budget.
  * @throws the last attempt's error, or `fetch budget spent` when the deadline left
- * no room for a first attempt.
+ * no room for a first attempt. A 5xx or 429 is retried and then thrown, so a test
+ * that mocks 503 to reach a caller's `!res.ok` branch reaches its `catch` instead:
+ * mock 403 for that.
  */
 export async function fetchWithRetry(
   url: string,

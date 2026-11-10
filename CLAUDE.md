@@ -4,6 +4,18 @@ Climbing conditions platform + general weather app. Core purpose: tell the user 
 
 **The client is a standalone web app** at https://weatherteam6.vercel.app — `apps/miniapp`, Vite + React, installable through a PWA manifest, signed in with a session token. The directory name is the last of a Telegram Mini App that no longer exists.
 
+The audience is the owner (account `tim`, on a phone at about 480×1000) and a few climbing partners, each with their own list. Crag A is the only score, and nothing is validated against outcomes yet: the forecast checks the Report button collects are the only path to that. Four bottom tabs: Conditions, Trips, Map, Profile.
+
+**Working with the owner.** Interact only when it is needed: design decisions qualify, chasing an unmerged PR does not. The owner's field knowledge beats the research docs, especially on rock and safety.
+
+## Owner actions outstanding
+
+Delete a line when the owner confirms it done. None blocks work.
+
+- Tear down the Telegram webhook (`deleteWebhook`, with `TELEGRAM_BOT_TOKEN` in the owner's own shell); Telegram still posts to a path that 404s.
+- Delete `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_WEBHOOK_SECRET` and `AUTH_ENABLED` from both Vercel projects. Nothing reads them; three are live credentials.
+- Paste the `pg_stat_statements` top 15 by `total_exec_time` from Neon's SQL editor, to decide whether any query needs an index.
+
 ## Stack
 
 `package.json` and the workspace manifests are the authoritative record of what is installed. What they cannot tell you:
@@ -89,13 +101,13 @@ Do not create a `.env` file at all — set variables in the shell for the one co
 
 Paywalled or unfetchable source material goes in `.claude/research-inbox/` (gitignored except its README). Commit the claim, quote and citation — never the article.
 
-## Session Start and End
+## Session Start
 
-The `SessionStart` hook injects branch, working tree, open PRs and issues, CI on `main`, and `.claude/docs/STATE.md`. Use it instead of re-running `git log` or `gh issue list`. If that block is missing, read `STATE.md` and run `git log --oneline -5` yourself. Then run the shared-package build above. Read issue state from GitHub (`gh issue list`, or MCP `list_issues` in the cloud), never from a table in a document. Grep `.claude/docs/session-archive.md` only for the reasoning behind one past decision.
+The `SessionStart` hook injects branch, working tree, open PRs and issues, and CI on `main`. Use it instead of re-running `git log` or `gh issue list`. If that block is missing, run `git log --oneline -5` yourself. Then run the shared-package build above. Read issue state from GitHub (`gh issue list`, or MCP `list_issues` in the cloud), never from a table in a document. Grep `.claude/docs/session-archive.md` (frozen 2026-11-10) only for the reasoning behind one past decision; the reasoning since then is in the PR bodies.
 
 If the user says "next phase", "continue" or "do Phase X", say in one sentence which phase and branch, and proceed from the docs.
 
-To end a session, invoke `/session-end`.
+There is no end-of-session ritual. A fact the next session needs goes in the file that governs it, in the PR that makes it true (`/review-checklist` § Docs).
 
 ## Verification
 
@@ -147,6 +159,10 @@ a credential, a dashboard setting, a phone, a product decision.>
 **From PowerShell, commit with `git commit -F <file>`.** `git commit -F -` fed by a here-string is read as a pathspec, so the commit fails and a following `git push` publishes an empty branch. Write the message to the scratchpad first; the same goes for `gh pr create --body-file`.
 
 **A worktree-isolated session refuses compound shell commands that run git or `cd` elsewhere** ("too complex to verify that it stays inside the worktree"). Run plain, separate commands from the worktree root.
+
+**Auto mode will not commit an edit to `.claude/rules/`**, because it reads as self-modification; the owner turns auto mode off for that change.
+
+**Marking a draft ready seconds after opening it starts two `review` runs that cancel each other.** Wait for the first to start.
 
 **An auto-mode permission denial is the harness, not the owner.** Say so once, with the exact command or permission rule that unblocks it, and do not ask again; "do what's best" is an answer.
 

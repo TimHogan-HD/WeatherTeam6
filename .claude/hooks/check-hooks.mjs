@@ -854,28 +854,16 @@ for (const [name, setup, hook, payload, expectedCode, fragment] of gitScenarios)
  * hook that throws costs a whole session.
  * ------------------------------------------------------------------ */
 
-function withState(work, body) {
-  mkdirSync(join(work, '.claude', 'docs'), { recursive: true })
-  writeFileSync(join(work, '.claude', 'docs', 'STATE.md'), body)
-}
-
-/** Commit STATE.md, then `after` more commits on top of it. */
-function stateCommittedThen(work, after) {
-  withState(work, '# s')
-  g(work, 'add', '-A')
-  g(work, 'commit', '-m', 'state')
-  for (let i = 0; i < after; i += 1) {
-    writeFileSync(join(work, `f${i}.txt`), String(i))
-    g(work, 'add', '-A')
-    g(work, 'commit', '-m', `c${i}`)
-  }
+/** The `.claude` directory the pause flag lives in. */
+function withClaudeDir(work) {
+  mkdirSync(join(work, '.claude'), { recursive: true })
 }
 
 const sessionScenarios = [
   [
     'SessionStart: warns when .claude/.wip exists',
     (w) => {
-      withState(w, '# s')
+      withClaudeDir(w)
       writeFileSync(join(w, '.claude', '.wip'), '')
     },
     (out) => {
@@ -884,41 +872,23 @@ const sessionScenarios = [
     },
   ],
   [
-    'SessionStart: warns when STATE.md is many commits behind',
-    (w) => stateCommittedThen(w, 16),
-    (out) => {
-      const ctx = JSON.parse(out).hookSpecificOutput.additionalContext
-      return ctx.includes('was last changed 16 commits ago') ? null : 'did not flag a stale STATE.md'
-    },
-  ],
-  [
-    'SessionStart: a recently updated STATE.md is not flagged',
-    (w) => stateCommittedThen(w, 2),
-    (out) => {
-      const ctx = JSON.parse(out).hookSpecificOutput.additionalContext
-      if (ctx.includes('commits ago')) return 'flagged a fresh STATE.md as stale'
-      return ctx.includes('.claude/.wip exists') ? 'reported a pause flag that does not exist' : null
-    },
-  ],
-  [
     'SessionStart: emits valid JSON naming the current branch',
     (w) => {
       g(w, 'checkout', '-b', 'feat/session-a')
-      withState(w, '# Current state\nSENTINEL_STATE_BODY\n')
+      withClaudeDir(w)
     },
     (out) => {
       const parsed = JSON.parse(out)
       const ctx = parsed.hookSpecificOutput.additionalContext
       if (parsed.hookSpecificOutput.hookEventName !== 'SessionStart') return 'wrong hookEventName'
       if (!ctx.includes('feat/session-a')) return 'did not name the current branch'
-      if (!ctx.includes('SENTINEL_STATE_BODY')) return 'did not inline STATE.md'
       return null
     },
   ],
   [
     'SessionStart: warns when another session is working in this checkout',
     (w) => {
-      withState(w, '# s')
+      withClaudeDir(w)
       runIn(w, PRE, { ...bash('ls'), session_id: 'peer-session' })
     },
     (out) => {
@@ -930,7 +900,7 @@ const sessionScenarios = [
   ],
   [
     'SessionStart: no other-session warning when none has been active',
-    (w) => withState(w, '# s'),
+    (w) => withClaudeDir(w),
     (out) => {
       const ctx = JSON.parse(out).hookSpecificOutput.additionalContext
       return ctx.includes('Another Claude session') ? 'warned about a session that does not exist' : null
@@ -938,7 +908,7 @@ const sessionScenarios = [
   ],
   [
     'SessionStart: flags the default branch as a place not to commit',
-    (w) => withState(w, '# s'),
+    (w) => withClaudeDir(w),
     (out) => {
       const ctx = JSON.parse(out).hookSpecificOutput.additionalContext
       return ctx.includes('DEFAULT BRANCH') ? null : 'did not flag the default branch'
@@ -947,7 +917,7 @@ const sessionScenarios = [
   [
     'SessionStart: reports uncommitted changes rather than claiming clean',
     (w) => {
-      withState(w, '# s')
+      withClaudeDir(w)
       writeFileSync(join(w, 'dirty.txt'), 'x')
     },
     (out) => {
@@ -955,49 +925,6 @@ const sessionScenarios = [
       if (ctx.includes('working tree: clean')) return 'claimed a dirty tree was clean'
       return ctx.includes('dirty.txt') ? null : 'did not list the changed file'
     },
-  ],
-  [
-    'SessionStart: a missing STATE.md is reported, not fatal',
-    (w) => {},
-    (out) => {
-      const ctx = JSON.parse(out).hookSpecificOutput.additionalContext
-      return ctx.includes('could not be read') ? null : 'did not report the missing state doc'
-    },
-  ],
-  [
-    'SessionStart: an oversized STATE.md is truncated with a warning',
-    (w) => withState(w, 'x'.repeat(30000)),
-    (out) => {
-      const ctx = JSON.parse(out).hookSpecificOutput.additionalContext
-      return ctx.includes('TRUNCATED') ? null : 'did not truncate an oversized state doc'
-    },
-  ],
-  [
-    'SessionStart: the whole injection stays under the 10,000-character cap',
-    (w) => withState(w, 'x'.repeat(30000)),
-    (out) => {
-      const n = JSON.parse(out).hookSpecificOutput.additionalContext.length
-      return n < 10000 ? null : `injected ${n} characters`
-    },
-  ],
-  [
-    'SessionStart: after a compaction STATE.md is not injected again',
-    (w) => withState(w, '# Current state\nSENTINEL_STATE_BODY\n'),
-    (out) => {
-      const ctx = JSON.parse(out).hookSpecificOutput.additionalContext
-      if (ctx.includes('SENTINEL_STATE_BODY')) return 're-injected STATE.md on compact'
-      return ctx.includes('## Repository') ? null : 'dropped the repository block too'
-    },
-    { source: 'compact' },
-  ],
-  [
-    'SessionStart: after /clear STATE.md is injected',
-    (w) => withState(w, '# Current state\nSENTINEL_STATE_BODY\n'),
-    (out) =>
-      JSON.parse(out).hookSpecificOutput.additionalContext.includes('SENTINEL_STATE_BODY')
-        ? null
-        : 'did not inline STATE.md after /clear',
-    { source: 'clear' },
   ],
 ]
 
