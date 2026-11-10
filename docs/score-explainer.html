@@ -1,0 +1,483 @@
+<title>Crag Score Math</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; each section = plain-language claim, then a live widget that proves it. Palette follows the app's hybrid look. */
+:root {
+  --bg: #07090c; --surface: #10161d; --card: #171f28; --line: #2a3644;
+  --fg: #f4f7fa; --muted: #bccad0; --dim: #7d8997;
+  --brand: #1DC5D2; --brand-ink: #6fe3ec; --on-brand: #032026;
+  --good: #c8f76a; --fair: #f8bd72; --poor: #ff8b91; --rain: #a5b4fc; --sun: #f3e08a;
+  --f-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+  --bg: #f3f6f8; --surface: #ffffff; --card: #e9eef2; --line: #c9d3db;
+  --fg: #0d1520; --muted: #3b4a57; --dim: #5d6b78;
+  --brand: #0e8f99; --brand-ink: #0a6f77; --on-brand: #ffffff;
+  --good: #4d7a00; --fair: #a45f00; --poor: #c0303a; --rain: #4b5bd1; --sun: #8a6d00;
+  color-scheme: light; } }
+:root[data-theme="light"] {
+  --bg: #f3f6f8; --surface: #ffffff; --card: #e9eef2; --line: #c9d3db;
+  --fg: #0d1520; --muted: #3b4a57; --dim: #5d6b78;
+  --brand: #0e8f99; --brand-ink: #0a6f77; --on-brand: #ffffff;
+  --good: #4d7a00; --fair: #a45f00; --poor: #c0303a; --rain: #4b5bd1; --sun: #8a6d00;
+  color-scheme: light; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 17px; line-height: 1.55; }
+.wrap { max-width: 760px; margin: 0 auto; padding-block: 40px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 56px; }
+h1, h2, h3 { font-family: var(--f-display); font-weight: 700; line-height: 1.05; text-wrap: balance; margin: 0; letter-spacing: 0.01em; }
+h1 { font-size: clamp(40px, 9vw, 64px); }
+h2 { font-size: clamp(30px, 6vw, 40px); }
+h3 { font-size: 22px; font-weight: 600; }
+p { margin: 0; max-width: 65ch; }
+.eyebrow { font-family: var(--f-display); font-weight: 600; font-size: 14px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--brand-ink); }
+section { display: flex; flex-direction: column; gap: 16px; }
+.lede { color: var(--muted); font-size: 19px; }
+.mono, code { font-family: var(--f-mono); font-size: 0.88em; }
+code { background: var(--card); padding: 1px 5px; border-radius: 4px; }
+.say { border-left: 3px solid var(--brand); padding: 4px 0 4px 14px; color: var(--fg); font-style: italic; }
+.say::before { content: "Say it like this: "; font-style: normal; font-family: var(--f-display); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; font-size: 13px; color: var(--brand-ink); display: block; }
+ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; max-width: 65ch; }
+.muted { color: var(--muted); }
+.small { font-size: 14px; }
+
+/* The equation */
+.equation { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; font-family: var(--f-display); font-weight: 700; font-size: clamp(28px, 7vw, 46px); }
+.equation .op { color: var(--dim); font-weight: 500; }
+.chip { padding: 2px 14px 4px; border-radius: 10px; border: 2px solid currentColor; }
+.chip.score { color: var(--brand-ink); }
+.chip.dry { color: var(--rain); }
+.chip.grip { color: var(--sun); }
+
+/* Widget panel */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 16px; }
+.controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px 20px; }
+.ctl { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ctl label { font-size: 14px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+.ctl label output { font-family: var(--f-mono); color: var(--fg); }
+input[type=range] { width: 100%; accent-color: var(--brand); }
+select { font: inherit; font-size: 15px; background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.readout { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: baseline; }
+.big { font-family: var(--f-display); font-weight: 700; font-size: 56px; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat { display: flex; flex-direction: column; gap: 2px; }
+.stat .k { font-size: 13px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.08em; font-family: var(--f-display); font-weight: 600; }
+.stat .v { font-family: var(--f-mono); font-size: 17px; }
+.pill { display: inline-block; font-family: var(--f-display); font-weight: 600; font-size: 15px; padding: 2px 10px; border-radius: 999px; border: 1.5px solid currentColor; }
+.c-good { color: var(--good); } .c-fair { color: var(--fair); } .c-poor { color: var(--poor); } .c-dim { color: var(--dim); }
+.chart { width: 100%; height: auto; display: block; }
+.chart text { font-family: var(--f-mono); font-size: 11px; fill: var(--dim); }
+.scroll { overflow-x: auto; }
+.scroll > svg.chart { min-width: 600px; }
+
+/* Factor bars */
+.bars { display: flex; flex-direction: column; gap: 10px; }
+.bar { display: grid; grid-template-columns: 120px 1fr 56px; gap: 10px; align-items: center; }
+.bar .name { font-size: 15px; }
+.bar .track { height: 12px; background: var(--card); border-radius: 6px; overflow: hidden; }
+.bar .fill { height: 100%; background: var(--sun); border-radius: 6px; transition: width .15s; }
+.bar .val { font-family: var(--f-mono); font-size: 14px; text-align: right; }
+.bar.total .fill { background: var(--brand); }
+.bar.total .name { font-weight: 600; }
+@media (max-width: 440px) { .bar { grid-template-columns: 92px 1fr 48px; } }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tabs button { font: inherit; font-family: var(--f-display); font-weight: 600; font-size: 16px; background: var(--card); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; cursor: pointer; }
+.tabs button[aria-pressed="true"] { background: var(--brand); color: var(--on-brand); border-color: var(--brand); }
+
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+th { font-family: var(--f-display); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; font-size: 13px; color: var(--dim); }
+td.n { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+details summary { cursor: pointer; font-family: var(--f-display); font-weight: 600; font-size: 18px; color: var(--brand-ink); }
+
+.cheat { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.cheat div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cheat b { font-family: var(--f-display); font-size: 19px; font-weight: 600; }
+.foot { color: var(--dim); font-size: 14px; border-top: 1px solid var(--line); padding-top: 16px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+<header style="display:flex;flex-direction:column;gap:18px">
+  <div class="eyebrow">WeatherTeam6 · how the number is made</div>
+  <h1>Crag Score Math</h1>
+  <p class="lede">Every crag's score answers two questions for each hour: is the rock dry, and will it stick? Each answer is a number from 0 to 1. Multiply them, times 100, and that is the score.</p>
+  <div class="equation" aria-label="Score equals 100 times dryness times grip">
+    <span class="chip score">Score</span><span class="op">=</span><span>100</span><span class="op">×</span><span class="chip dry">Dryness</span><span class="op">×</span><span class="chip grip">Grip</span>
+  </div>
+  <p class="say">The app asks how dry the rock is and how good the friction is, each out of 100%, and multiplies them. Dry rock in sweaty heat scores low. Perfect temps on soaked rock scores low. You need both.</p>
+</header>
+
+<section aria-labelledby="try">
+  <div class="eyebrow">Start here</div>
+  <h2 id="try">Why multiply, not average</h2>
+  <p>Multiplying means either factor alone can sink the score. Averaging would let a perfect, crisp day hide a wet wall. Drag the two sliders.</p>
+  <div class="panel">
+    <div class="controls">
+      <div class="ctl"><label for="q-d">Dryness <output id="q-dv"></output></label><input id="q-d" type="range" min="0" max="100" value="90"></div>
+      <div class="ctl"><label for="q-g">Grip <output id="q-gv"></output></label><input id="q-g" type="range" min="0" max="100" value="70"></div>
+    </div>
+    <div class="readout">
+      <div class="stat"><span class="k">Score</span><span class="big" id="q-s"></span></div>
+      <div class="stat"><span class="k">If it averaged instead</span><span class="v" id="q-avg"></span></div>
+    </div>
+    <p class="small muted">Score colour in the app: <span class="c-good">60 and up</span>, <span class="c-fair">40 to 59</span>, <span class="c-poor">below 40</span>. Colour only. The words on screen (Wet, Drying, Dry) come from the readings, never from the number.</p>
+  </div>
+</section>
+
+<section aria-labelledby="flow">
+  <div class="eyebrow">The whole pipeline</div>
+  <h2 id="flow">From forecast to number</h2>
+  <p>Every hour, for the next 7 days, plus 7 days of past weather so the app knows when it last rained.</p>
+  <div class="scroll">
+  <svg class="chart" viewBox="0 0 720 400" role="img" aria-label="Flow diagram: forecast inputs feed the drying clock and four grip factors, which combine into the hourly score, then the day score and good hours">
+    <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--dim)"/></marker></defs>
+    <g style="font-family:var(--f-body);font-size:13px">
+      <!-- inputs -->
+      <g>
+        <rect x="8" y="20" width="168" height="360" rx="12" style="fill:var(--surface);stroke:var(--line)"/>
+        <text x="22" y="46" style="fill:var(--brand-ink);font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:.08em">FORECAST, HOURLY</text>
+        <text x="22" y="82" style="fill:var(--rain);font-size:14px">Rain (4-model median)</text>
+        <text x="22" y="122" style="fill:var(--fg);font-size:14px">Sun, wind, humidity</text>
+        <text x="22" y="162" style="fill:var(--fg);font-size:14px">Rock type</text>
+        <text x="22" y="230" style="fill:var(--fg);font-size:14px">Air temp, last 2 days</text>
+        <text x="22" y="270" style="fill:var(--fg);font-size:14px">Dew point</text>
+        <text x="22" y="310" style="fill:var(--fg);font-size:14px">Air temp, this hour</text>
+        <text x="22" y="350" style="fill:var(--sun);font-size:14px">Sun on 8 walls</text>
+      </g>
+      <!-- dryness -->
+      <rect x="226" y="60" width="180" height="110" rx="12" style="fill:var(--card);stroke:var(--rain);stroke-width:1.5"/>
+      <text x="242" y="88" style="fill:var(--rain);font-family:var(--f-display);font-weight:700;font-size:20px">Drying clock</text>
+      <text x="242" y="112" style="fill:var(--muted)">hours of drying left</text>
+      <text x="242" y="132" style="fill:var(--muted)">rain adds, dry hours</text>
+      <text x="242" y="152" style="fill:var(--muted)">subtract</text>
+      <!-- grip -->
+      <rect x="226" y="200" width="180" height="180" rx="12" style="fill:var(--card);stroke:var(--sun);stroke-width:1.5"/>
+      <text x="242" y="228" style="fill:var(--sun);font-family:var(--f-display);font-weight:700;font-size:20px">Grip</text>
+      <text x="242" y="254" style="fill:var(--fg)">Condensation</text>
+      <text x="242" y="280" style="fill:var(--fg)">Humidity</text>
+      <text x="242" y="306" style="fill:var(--fg)">Heat</text>
+      <text x="242" y="332" style="fill:var(--fg)">Cold</text>
+      <text x="242" y="360" style="fill:var(--muted)">multiplied together</text>
+      <!-- arrows in -->
+      <path d="M176 80 H 220" style="stroke:var(--dim);fill:none" marker-end="url(#ar)"/>
+      <path d="M176 118 H 220" style="stroke:var(--dim);fill:none" marker-end="url(#ar)"/>
+      <path d="M176 158 H 220" style="stroke:var(--dim);fill:none" marker-end="url(#ar)"/>
+      <path d="M176 226 L 220 250" style="stroke:var(--dim);fill:none" marker-end="url(#ar)"/>
+      <path d="M176 266 L 220 274" style="stroke:var(--dim);fill:none" marker-end="url(#ar)"/>
+      <path d="M176 306 L 220 304" style="stroke:var(--dim);fill:none" marker-end="url(#ar)"/>
+      <path d="M176 346 L 220 258" style="stroke:var(--dim);fill:none" marker-end="url(#ar)"/>
+      <!-- score -->
+      <rect x="456" y="160" width="110" height="80" rx="12" style="fill:var(--brand);"/>
+      <text x="511" y="196" text-anchor="middle" style="fill:var(--on-brand);font-family:var(--f-display);font-weight:700;font-size:22px">Hour</text>
+      <text x="511" y="222" text-anchor="middle" style="fill:var(--on-brand);font-family:var(--f-mono);font-size:12px">100×D×G</text>
+      <path d="M406 115 C 440 115, 430 185, 452 190" style="stroke:var(--rain);fill:none;stroke-width:1.5" marker-end="url(#ar)"/>
+      <path d="M406 290 C 440 290, 430 215, 452 210" style="stroke:var(--sun);fill:none;stroke-width:1.5" marker-end="url(#ar)"/>
+      <!-- outputs -->
+      <rect x="606" y="70" width="108" height="100" rx="12" style="fill:var(--surface);stroke:var(--line)"/>
+      <text x="618" y="96" style="fill:var(--fg);font-family:var(--f-display);font-weight:700;font-size:18px">Day score</text>
+      <text x="618" y="118" style="fill:var(--muted);font-size:12px">worst hour of</text>
+      <text x="618" y="134" style="fill:var(--muted);font-size:12px">the best 3-hour</text>
+      <text x="618" y="150" style="fill:var(--muted);font-size:12px">run, 8 am–6 pm</text>
+      <rect x="606" y="230" width="108" height="100" rx="12" style="fill:var(--surface);stroke:var(--line)"/>
+      <text x="618" y="256" style="fill:var(--fg);font-family:var(--f-display);font-weight:700;font-size:18px">Good hours</text>
+      <text x="618" y="278" style="fill:var(--muted);font-size:12px">longest run</text>
+      <text x="618" y="294" style="fill:var(--muted);font-size:12px">scoring 60+,</text>
+      <text x="618" y="310" style="fill:var(--muted);font-size:12px">rock not wet</text>
+      <path d="M566 190 L 600 135" style="stroke:var(--dim);fill:none" marker-end="url(#ar)"/>
+      <path d="M566 210 L 600 265" style="stroke:var(--dim);fill:none" marker-end="url(#ar)"/>
+    </g>
+  </svg>
+  </div>
+</section>
+
+<section aria-labelledby="dry">
+  <div class="eyebrow" style="color:var(--rain)">Factor 1</div>
+  <h2 id="dry">Dryness: the drying clock</h2>
+  <p>Each rock type has a <b>drying window</b>: how many hours a full soak (0.4 inches of rain or more) takes to dry. Granite is 6 hours. Soft sandstone is 120. The clock tracks one number, the <b>hours of drying still needed</b>.</p>
+  <ul>
+    <li><b>Rain adds hours.</b> Smaller rain needs less: a tenth of an inch needs half the window, not a quarter (it scales with the square root of the rain).</li>
+    <li><b>Each dry hour subtracts at least one hour.</b> Sun, wind and dry air can make an hour count for up to 3. Rock that gets fragile when wet (soft sandstone, porous limestone, unknown) always dries at exactly 1 hour per hour.</li>
+    <li><b>Dryness is the share of the window that has dried, squared.</b> Squaring makes it climb slowly at first: half dried scores 25, three quarters 56. Rock strength comes back late.</li>
+    <li><b>Rain falling hard enough to see</b> (0.02 in/h or more) scores the hour 0, whatever the storm size.</li>
+  </ul>
+  <div class="panel">
+    <div class="controls">
+      <div class="ctl"><label for="d-rock">Rock type</label><select id="d-rock"></select></div>
+      <div class="ctl"><label for="d-rain">Rain <output id="d-rainv"></output></label><input id="d-rain" type="range" min="1" max="60" value="20"></div>
+      <div class="ctl"><label for="d-rate">Drying weather <output id="d-ratev"></output></label><input id="d-rate" type="range" min="10" max="30" value="10"></div>
+    </div>
+    <svg class="chart" id="d-chart" viewBox="0 0 640 240" role="img" aria-label="Score with perfect grip over hours since the rain stopped"></svg>
+    <div class="readout">
+      <div class="stat"><span class="k">Right after the rain</span><span class="v" id="d-start"></span></div>
+      <div class="stat"><span class="k">Reads 60+ after</span><span class="v" id="d-60"></span></div>
+      <div class="stat"><span class="k">Fully dry after</span><span class="v" id="d-full"></span></div>
+    </div>
+    <p class="small muted" id="d-note"></p>
+  </div>
+  <p class="say">Every rock has a drying time after a real soak. A small shower uses up part of it. Each dry hour knocks at least an hour off, more in sun and wind. The score stays low until most of that time has passed, because wet rock is weak and greasy longer than the surface looks.</p>
+  <details>
+    <summary>Rain on top of rain, snow, and the first hour</summary>
+    <ul style="margin-top:10px">
+      <li>New rain adds to the water still in the rock. A shower after a soak never resets the clock to zero, and never makes it longer than a fresh soak of the combined rain.</li>
+      <li>Rain at or below 33 °F builds up as snow. Melt re-wets the rock, and while 1 mm of snow water lies, dryness is capped at 0.25.</li>
+      <li>The very first hour of history is treated as soaked, because the rain before it is unknown. That is the safe direction to be wrong.</li>
+      <li>The app imagines eight walls facing every compass direction at the crag and takes the middle one each hour.</li>
+    </ul>
+  </details>
+</section>
+
+<section aria-labelledby="grip">
+  <div class="eyebrow" style="color:var(--sun)">Factor 2</div>
+  <h2 id="grip">Grip: four penalties, multiplied</h2>
+  <p>Grip starts at 100% and four things can take it down. Each fades smoothly past its edge. None can flip on suddenly.</p>
+  <ul>
+    <li><b>Heat</b>: above 60 °F air, grip fades. About 21 °F past the edge it is down to 37%.</li>
+    <li><b>Cold</b>: below 30 °F, the same fade. Both edges move if you set your own range in Profile.</li>
+    <li><b>Humidity</b>: dew point above 54 °F (sticky air) fades grip. 18 °F past that, it is at 37%.</li>
+    <li><b>Condensation</b>: if the rock is near the dew point, it sweats. The rock's temperature is its slow memory of the last two days of air, plus the sun warming each wall. Clear once the rock is 3.6 °F (2 °C) above the dew point. It can never take more than half the score.</li>
+  </ul>
+  <div class="panel">
+    <div class="controls">
+      <div class="ctl"><label for="g-air">Air temp <output id="g-airv"></output></label><input id="g-air" type="range" min="0" max="100" value="72"></div>
+      <div class="ctl"><label for="g-dew">Dew point <output id="g-dewv"></output></label><input id="g-dew" type="range" min="-10" max="78" value="50"></div>
+      <div class="ctl"><label for="g-margin">Rock above dew point <output id="g-marginv"></output></label><input id="g-margin" type="range" min="-6" max="12" step="0.5" value="8"></div>
+    </div>
+    <div class="bars" id="g-bars"></div>
+    <p class="small" id="g-held"></p>
+  </div>
+  <p class="say">Grip goes down when it's hot, freezing, muggy, or when the rock is cold enough that moisture condenses on it. The app multiplies those together. The Score breakdown tells you which one is costing the most.</p>
+</section>
+
+<section aria-labelledby="day">
+  <div class="eyebrow">From hours to days</div>
+  <h2 id="day">How a day gets one number</h2>
+  <p>The day's score is the <b>worst hour of the day's best 3-hour run</b> between 8 am and 6 pm (your climbing hours, adjustable in Profile). One lucky mild hour cannot carry a hot day, and one wet morning does not ruin a good afternoon. An hour with no data breaks the run.</p>
+  <div class="panel">
+    <div class="tabs" role="group" aria-label="Example day">
+      <button type="button" data-day="0" aria-pressed="true">Drying morning</button>
+      <button type="button" data-day="1">Hot afternoon</button>
+      <button type="button" data-day="2">Showers</button>
+    </div>
+    <svg class="chart" id="day-chart" viewBox="0 0 640 220" role="img" aria-label="Example day's hourly scores with the best 3-hour run highlighted"></svg>
+    <div class="readout">
+      <div class="stat"><span class="k">Day score</span><span class="big" id="day-score"></span></div>
+      <div class="stat"><span class="k">Best run</span><span class="v" id="day-run"></span></div>
+      <div class="stat"><span class="k">Good hours (60+)</span><span class="v" id="day-good"></span></div>
+    </div>
+    <p class="small muted">Example days, made up to show the rule. Good hours also need the rock not reading Wet and grip at least fair.</p>
+  </div>
+  <p class="say">A day's number is the worst hour in the best three-hour block you could climb. So a 70 means you get at least three straight hours at 70 or better.</p>
+</section>
+
+<section aria-labelledby="blank">
+  <div class="eyebrow">When there's no number</div>
+  <h2 id="blank">A blank beats a guess</h2>
+  <ul>
+    <li>If any input is missing (rain not measured, no sun reading, too little history), the hour has <b>no score</b>, not a made-up one.</li>
+    <li>After an hour of unknown rain, every hour stays blank until a full drying window could have passed.</li>
+    <li>Weather alerts show beside the score. They never change or hide it.</li>
+    <li>Days 7 to 15 show weather only, no score.</li>
+  </ul>
+  <p class="say">If the app doesn't know, it shows a dash instead of guessing.</p>
+</section>
+
+<section aria-labelledby="rocks">
+  <div class="eyebrow">Reference</div>
+  <h2 id="rocks">Drying windows by rock</h2>
+  <p>"Wet until" is when the rock stops reading Wet after a full soak and starts reading Drying. "Dry after" is the full window. These are field rules and climber consensus, not measurements; nobody has measured drying time for climbing rock.</p>
+  <div class="scroll"><table id="rock-table"><thead><tr><th>Rock</th><th>Wet until</th><th>Dry after</th><th>Weather can speed it</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section aria-labelledby="cheat">
+  <div class="eyebrow">For your partners</div>
+  <h2 id="cheat">The 30-second version</h2>
+  <div class="cheat">
+    <div><b>Two questions</b><span class="muted">Is it dry? Will it stick? Each 0 to 100%, multiplied.</span></div>
+    <div><b>Rock type matters most after rain</b><span class="muted">Granite is back in hours, soft sandstone takes days.</span></div>
+    <div><b>Sweet spot 30–60 °F</b><span class="muted">Outside it, and above a 54 °F dew point, grip fades. Set your own range in Profile.</span></div>
+    <div><b>Day = your 3 best hours</b><span class="muted">The weakest hour of the best 3-hour block between 8 and 6.</span></div>
+    <div><b>Blank means unknown</b><span class="muted">No data, no number. It never guesses.</span></div>
+    <div><b>It's not proven yet</b><span class="muted">Every constant is a judgement call. Hit Report at the crag; that's how it gets checked.</span></div>
+  </div>
+</section>
+
+<p class="foot">Built from the live model in <code>apps/api/src/lib/scoring/cragModel.ts</code> (Crag A) and the drying table in <code>packages/types/src/dryingWindow.ts</code>, as of 2026-11-10. The widgets use the same formulas with simplified inputs: the real model runs eight walls and a weather-driven drying rate hour by hour.</p>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, text) { var e = document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; }
+  function tone(s) { return s >= 60 ? "c-good" : s >= 40 ? "c-fair" : "c-poor"; }
+  function toneVar(s) { return s >= 60 ? "var(--good)" : s >= 40 ? "var(--fair)" : "var(--poor)"; }
+  function fmtH(h) { if (h < 1) return "under 1 h"; if (h < 48) return Math.round(h) + " h"; var d = h / 24; return (Math.round(d * 10) / 10) + " days (" + Math.round(h) + " h)"; }
+
+  /* ---- Quick calculator ---- */
+  function quick() {
+    var d = +$("q-d").value, g = +$("q-g").value;
+    $("q-dv").textContent = d + "%"; $("q-gv").textContent = g + "%";
+    var s = Math.round(d * g / 100);
+    var big = $("q-s"); big.textContent = s; big.className = "big " + tone(s);
+    $("q-avg").textContent = Math.round((d + g) / 2) + " (hides the weak factor)";
+  }
+  $("q-d").addEventListener("input", quick); $("q-g").addEventListener("input", quick); quick();
+
+  /* ---- Rock table (MIN_HOURS / MAX_HOURS / fragile from packages/types) ---- */
+  var ROCKS = [
+    ["slate", "Slate", 1, 4, false], ["granite", "Granite", 1, 6, false], ["anorthosite", "Anorthosite", 1, 6, false],
+    ["quartzite", "Quartzite", 1, 6, false], ["rhyolite", "Rhyolite", 2, 8, false], ["basalt_dense", "Basalt (dense)", 2, 8, false],
+    ["gneiss_schist", "Gneiss / schist", 2, 12, false], ["granite_weathered", "Granite (weathered)", 3, 12, false],
+    ["tuff_welded", "Tuff (welded)", 4, 16, false], ["limestone_dense", "Limestone (dense)", 4, 18, false],
+    ["dolomite", "Dolomite", 6, 24, false], ["carbonate_cherty", "Cherty carbonate", 6, 24, false],
+    ["basalt_vesicular", "Basalt (vesicular)", 12, 48, false], ["sandstone_ferruginous", "Sandstone (iron-cemented)", 12, 48, false],
+    ["sandstone_arkose", "Sandstone (arkose)", 12, 48, false], ["sandstone_quartz_arenite", "Sandstone (quartz arenite)", 24, 48, true],
+    ["syenite_porous", "Syenite (porous)", 24, 48, true], ["limestone_porous", "Limestone (porous)", 24, 72, true],
+    ["conglomerate", "Conglomerate", 24, 72, false], ["tuff_nonwelded", "Tuff (non-welded)", 36, 96, true],
+    ["sandstone_eolian", "Sandstone (eolian)", 36, 96, true], ["sandstone_soft", "Sandstone (soft)", 48, 120, true],
+    ["volcanic_breccia", "Volcanic breccia", 48, 120, true], ["unknown", "Unknown", 48, 120, true]
+  ];
+  var tbody = document.querySelector("#rock-table tbody");
+  ROCKS.forEach(function (r, i) {
+    var tr = document.createElement("tr");
+    [r[1], r[2] + " h", r[3] + " h", r[4] ? "No, fragile when wet" : "Yes, up to 3×"].forEach(function (t, j) {
+      var td = document.createElement("td"); td.textContent = t; if (j === 1 || j === 2) td.className = "n"; if (j === 3 && r[4]) td.className = "c-fair"; tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+    var o = document.createElement("option"); o.value = i; o.textContent = r[1] + " (" + r[3] + " h)"; $("d-rock").appendChild(o);
+  });
+  $("d-rock").value = String(10); // dolomite
+
+  /* ---- Drying clock ---- */
+  function drying() {
+    var r = ROCKS[+$("d-rock").value], minH = r[2], N = r[3], fragile = r[4];
+    var inches = +$("d-rain").value / 100;
+    var rateIn = +$("d-rate").value / 10;
+    var rate = fragile ? 1 : rateIn;
+    $("d-rainv").textContent = inches.toFixed(2) + " in";
+    $("d-ratev").textContent = rateIn.toFixed(1) + "× " + (rateIn < 1.3 ? "(cool, still)" : rateIn < 2.2 ? "(some sun, breeze)" : "(sunny, windy, dry)");
+    var R0 = N * Math.min(1, Math.sqrt(inches / 0.4));
+    var wetBelow = Math.pow(minH / N, 2);
+    function dry(t) { var R = Math.max(0, R0 - rate * t); return Math.pow((N - R) / N, 2); }
+    var tFull = R0 / rate;
+    // dryness >= 0.6  <=>  R <= N(1 - sqrt(.6))
+    var R60 = N * (1 - Math.sqrt(0.6)); var t60 = Math.max(0, (R0 - R60) / rate);
+    var s0 = Math.round(100 * dry(0));
+    $("d-start").innerHTML = '<span class="' + tone(s0) + '">' + s0 + "</span> " + (dry(0) < wetBelow ? "· Wet" : dry(0) >= 1 ? "· Dry" : "· Drying");
+    $("d-60").textContent = t60 <= 0 ? "right away" : fmtH(t60);
+    $("d-full").textContent = fmtH(tFull);
+    $("d-note").textContent = fragile
+      ? r[1] + " is fragile when wet, so it dries at exactly 1 hour per hour whatever the weather. Wet until the rock reads " + Math.round(wetBelow * 100) + "% dry."
+      : "Drying weather multiplies how fast the clock runs, capped at 3×. The rock reads Wet below " + Math.round(wetBelow * 100) + "% dryness.";
+
+    var svg = $("d-chart"); while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var W = 640, H = 240, L = 40, Rm = 12, T = 12, B = 30;
+    var span = Math.max(tFull * 1.15, 2);
+    var x = function (t) { return L + (t / span) * (W - L - Rm); };
+    var y = function (v) { return T + (1 - v / 100) * (H - T - B); };
+    // wet band
+    var wetEnd = 0; for (var t = 0; t <= span; t += span / 400) { if (dry(t) < wetBelow) wetEnd = t; }
+    if (dry(0) < wetBelow) svg.appendChild(el("rect", { x: x(0), y: T, width: Math.max(0, x(wetEnd) - x(0)), height: H - T - B, style: "fill:var(--rain);opacity:.12" }));
+    [0, 20, 40, 60, 80, 100].forEach(function (v) {
+      svg.appendChild(el("line", { x1: L, x2: W - Rm, y1: y(v), y2: y(v), style: "stroke:var(--line);stroke-width:" + (v === 60 ? 1.5 : 1) + (v === 60 ? ";stroke-dasharray:4 4" : "") }));
+      svg.appendChild(el("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end" }, v));
+    });
+    var step = span <= 12 ? 2 : span <= 30 ? 6 : span <= 80 ? 12 : 24;
+    for (var tk = 0; tk <= span; tk += step) svg.appendChild(el("text", { x: x(tk), y: H - 10, "text-anchor": "middle" }, tk + "h"));
+    var d = ""; for (var i = 0; i <= 200; i++) { var tt = span * i / 200; d += (i ? "L" : "M") + x(tt).toFixed(1) + "," + y(100 * dry(tt)).toFixed(1); }
+    svg.appendChild(el("path", { d: d, style: "fill:none;stroke:var(--rain);stroke-width:2.5" }));
+    if (dry(0) < wetBelow && wetEnd > 0) svg.appendChild(el("text", { x: x(wetEnd / 2), y: T + 16, "text-anchor": "middle", style: "fill:var(--rain)" }, "reads Wet"));
+    svg.appendChild(el("text", { x: W - Rm, y: y(60) - 6, "text-anchor": "end" }, "60 = good hours line"));
+    svg.appendChild(el("text", { x: L + 4, y: T + 34 }, "score with perfect grip, by hours since rain stopped"));
+  }
+  ["d-rock", "d-rain", "d-rate"].forEach(function (id) { $(id).addEventListener("input", drying); });
+  drying();
+
+  /* ---- Grip ---- */
+  var toC = function (f) { return (f - 32) * 5 / 9; }, dC = function (df) { return df * 5 / 9; };
+  function grip() {
+    var air = +$("g-air").value, dewIn = +$("g-dew").value, m = +$("g-margin").value;
+    var dew = Math.min(dewIn, air);
+    $("g-airv").textContent = air + " °F"; $("g-dewv").textContent = dew + " °F" + (dewIn > air ? " (capped at air)" : "");
+    $("g-marginv").textContent = (m >= 0 ? "+" : "") + m + " °F";
+    var heat = Math.exp(-Math.max(0, toC(air) - toC(60)) / 12);
+    var cold = Math.exp(-Math.max(0, toC(30) - toC(air)) / 12);
+    var hum = Math.exp(-Math.max(0, toC(dew) - toC(54)) / 10);
+    var cond = Math.max(0.5, Math.min(1, Math.max(0, dC(m) / 2)));
+    var total = heat * cold * hum * cond;
+    var rows = [["Condensation", cond], ["Humidity", hum], ["Heat", heat], ["Cold", cold], ["Grip", total]];
+    var box = $("g-bars"); box.innerHTML = "";
+    rows.forEach(function (r, i) {
+      var div = document.createElement("div"); div.className = "bar" + (i === 4 ? " total" : "");
+      div.innerHTML = '<span class="name"></span><span class="track"><span class="fill"></span></span><span class="val"></span>';
+      div.querySelector(".name").textContent = r[0];
+      div.querySelector(".fill").style.width = (r[1] * 100).toFixed(1) + "%";
+      div.querySelector(".val").textContent = Math.round(r[1] * 100) + "%";
+      box.appendChild(div);
+    });
+    var named = rows.slice(0, 4).filter(function (r) { return Math.round(r[1] * 100) < 100; }).sort(function (a, b) { return a[1] - b[1]; });
+    $("g-held").innerHTML = named.length
+      ? "Held back by: <b>" + named.map(function (r) { return r[0].toLowerCase(); }).join(", then ") + "</b>. The smallest factor costs the most, so it is named first, as in the app's Score breakdown."
+      : "Nothing is holding grip back.";
+  }
+  ["g-air", "g-dew", "g-margin"].forEach(function (id) { $(id).addEventListener("input", grip); });
+  grip();
+
+  /* ---- Day score ---- */
+  // Example hourly scores 0..23 (null = no data). Made up to illustrate the rule.
+  var DAYS = [
+    [null,null,null,null,null,null,8,12,18,26,38,52,64,74,82,86,88,87,84,null,null,null,null,null],
+    [null,null,null,null,null,null,70,82,90,94,88,76,62,48,40,36,38,44,55,null,null,null,null,null],
+    [null,null,null,null,null,null,80,84,86,0,0,30,44,0,0,22,34,48,58,null,null,null,null,null]
+  ];
+  function day(k) {
+    var s = DAYS[k], best = null;
+    for (var h = 8; h + 2 <= 18; h++) {
+      var run = [s[h], s[h + 1], s[h + 2]];
+      if (run.some(function (v) { return v == null; })) continue;
+      var w = Math.min.apply(null, run);
+      if (!best || w > best.w) best = { h: h, w: w };
+    }
+    var gs = -1, gl = 0, cs = -1, cl = 0;
+    for (var i = 0; i < 24; i++) { if (s[i] != null && s[i] >= 60) { if (cs < 0) cs = i; cl = i - cs + 1; if (cl > gl) { gl = cl; gs = cs; } } else cs = -1; }
+    var lbl = function (h) { var hh = h % 12 || 12; return hh + (h < 12 ? " am" : " pm"); };
+    var big = $("day-score"); big.textContent = best ? best.w : "—"; big.className = "big " + (best ? tone(best.w) : "c-dim");
+    $("day-run").textContent = best ? lbl(best.h) + " to " + lbl(best.h + 3) : "none";
+    $("day-good").textContent = gl ? lbl(gs) + " to " + lbl(gs + gl) + " (" + gl + " h)" : "none";
+
+    var svg = $("day-chart"); while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var W = 640, H = 220, L = 34, R = 8, T = 10, B = 28, bw = (W - L - R) / 24;
+    var y = function (v) { return T + (1 - v / 100) * (H - T - B); };
+    svg.appendChild(el("rect", { x: L + 8 * bw, y: T, width: 11 * bw, height: H - T - B, style: "fill:var(--card)" }));
+    svg.appendChild(el("text", { x: L + 8 * bw + 4, y: T + 12 }, "8 am – 6 pm"));
+    [0, 40, 60, 80, 100].forEach(function (v) {
+      svg.appendChild(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), style: "stroke:var(--line)" + (v === 60 ? ";stroke-dasharray:4 4" : "") }));
+      svg.appendChild(el("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end" }, v));
+    });
+    if (best) svg.appendChild(el("rect", { x: L + best.h * bw - 1, y: T, width: 3 * bw + 2, height: H - T - B, rx: 4, style: "fill:none;stroke:var(--brand);stroke-width:2" }));
+    for (var j = 0; j < 24; j++) {
+      var v = s[j];
+      if (j % 3 === 0) svg.appendChild(el("text", { x: L + j * bw + bw / 2, y: H - 10, "text-anchor": "middle" }, (j % 12 || 12) + (j < 12 ? "a" : "p")));
+      if (v == null) { svg.appendChild(el("line", { x1: L + j * bw + 3, x2: L + (j + 1) * bw - 3, y1: y(0), y2: y(0), style: "stroke:var(--dim);stroke-dasharray:2 2" })); continue; }
+      var hgt = Math.max(2, y(0) - y(v));
+      var isWorst = best && j >= best.h && j < best.h + 3 && v === best.w;
+      svg.appendChild(el("rect", { x: L + j * bw + 2, y: y(0) - hgt, width: bw - 4, height: hgt, rx: 2, style: "fill:" + toneVar(v) + ";opacity:" + (isWorst ? 1 : 0.55) }));
+      if (isWorst) svg.appendChild(el("text", { x: L + j * bw + bw / 2, y: y(v) - 5, "text-anchor": "middle", style: "fill:var(--fg);font-weight:500" }, v));
+    }
+  }
+  var btns = document.querySelectorAll("[data-day]");
+  btns.forEach(function (b) { b.addEventListener("click", function () { btns.forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); }); day(+b.dataset.day); }); });
+  day(0);
+})();
+</script>
