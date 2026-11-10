@@ -1845,6 +1845,8 @@ export const glass = {
   header: { fillTop: 0.52, fillBottom: 0.3, blurPx: 24, saturatePct: 200 },
   dock: { fillTop: 0.5, fillBottom: 0.5, blurPx: 18, saturatePct: 170 },
   bar: { fillTop: 0.74, fillBottom: 0.74, blurPx: 18, saturatePct: 160 },
+  /** The Map's radar legend: the dock's fill with a light blur, so the radar under it still shows (owner, 2026-11-10). */
+  legend: { fillTop: 0.5, fillBottom: 0.5, blurPx: 3, saturatePct: 100 },
   /** A card's hairline rim (alpha of `light`), a real border so a chosen card can recolour it. */
   rim: 0.12,
   /** The sheen across a card's top-left, and the fainter one at its bottom-right. */

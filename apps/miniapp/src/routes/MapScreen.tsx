@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from '../hooks/useNavigate.js'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
@@ -22,7 +22,7 @@ import { colors, colorsV2, glass, mapPin, motion, radius, spacing } from '@weath
 import '../theme/map.css'
 import { typeV2 } from '../theme/tokens.css.js'
 import { bareButton, brandButton, cardV2, navBarHeight, row, stack, toneColors } from '../theme/styles.js'
-import { glassDock } from '../theme/glass.js'
+import { glassDock, glassLegend } from '../theme/glass.js'
 import { Sect } from '../components/charts/liquid.js'
 import { withOpacity } from '../theme/tokens.css.js'
 import { useLocations } from '../hooks/useLocations.js'
@@ -44,7 +44,7 @@ import {
   appMapStyle,
   positionFeatures,
 } from '../lib/mapStyle.js'
-import { RADAR_BANDS, RADAR_FAINT_NOTE, RADAR_LAYER, RADAR_LAYER_SPEC, RADAR_SOURCE, radarBeforeId, radarSource, radarTime } from '../lib/radar.js'
+import { RADAR_BANDS, RADAR_FAINT_NOTE, type RadarBand, RADAR_LAYER, RADAR_LAYER_SPEC, RADAR_SOURCE, radarBeforeId, radarSource, radarTime } from '../lib/radar.js'
 import { InlineError } from '../components/States.js'
 import { CrossIcon, LocateIcon } from '../components/Icons.js'
 
@@ -355,38 +355,97 @@ export function MapScreen() {
 }
 
 /**
- * What the radar's colours mean, while a frame is drawn. The bar is the tiles'
- * own ramp (`RADAR_BANDS`), each band as wide as its dBZ span, so a colour on
- * the map sits over the word for it.
+ * What the radar's colours mean, while a frame is drawn. Folded, it is one slim
+ * pill, the ramp between its two ends; a tap opens the four bands and the note
+ * on the faint one, and another folds it (owner, 2026-11-10: the open legend
+ * sat in the way). The fold is remembered on this device. The bar is the
+ * tiles' own ramp (`RADAR_BANDS`), each band as wide as its dBZ span, so a
+ * colour on the map sits over the word for it.
  */
 function RadarLegend() {
+  const [open, setOpen] = useState(readLegendOpen)
+  const noteId = useId()
+  const toggle = () => {
+    writeLegendOpen(!open)
+    setOpen(!open)
+  }
+  const words: CSSProperties = { ...typeV2.legendSm, color: colorsV2.txt1, whiteSpace: 'nowrap' }
   return (
-    <figure
-      aria-label="Radar legend"
+    <button
+      type="button"
+      // The label replaces the content as the name, so the open bands are named
+      // in it and the note is the description: a screen reader hears what is shown.
+      aria-label={open ? `Colour key for radar: ${RADAR_BANDS.map((b) => b.label).join(', ')}` : 'Colour key for radar'}
+      aria-describedby={open ? noteId : undefined}
+      aria-expanded={open}
+      onClick={toggle}
       style={{
-        ...glassDock,
-        ...stack(spacing.tight),
-        margin: 0,
-        width: `${RADAR_LEGEND_WIDTH}px`,
+        ...bareButton,
+        ...glassLegend,
+        ...interactive,
+        width: open ? `${RADAR_LEGEND_WIDTH}px` : 'auto',
         maxWidth: '100%',
-        padding: `${spacing.listGap}px ${spacing.cardPad}px`,
-        borderRadius: `${radius.chipMd}px`,
+        textAlign: 'left',
+        ...(open
+          ? { ...stack(spacing.tight), padding: `${spacing.listGap}px ${spacing.cardPad}px`, borderRadius: `${radius.chipMd}px` }
+          : { ...row(spacing.listGap), padding: `${spacing.tight}px ${spacing.listGap}px`, borderRadius: `${radius.full}px` }),
       }}
     >
-      <div style={{ display: 'flex', width: '100%' }}>
-        {RADAR_BANDS.map((band) => (
-          <div key={band.label} style={{ ...stack(spacing.tight), flex: `${band.toDbz - band.fromDbz} 0 0`, minWidth: 0 }}>
-            <div aria-hidden="true" style={{ height: '8px', background: `linear-gradient(90deg, ${band.colors.join(', ')})` }} />
-            <span style={{ ...typeV2.legendSm, color: colorsV2.txt1, whiteSpace: 'nowrap' }}>{band.label}</span>
-          </div>
-        ))}
-      </div>
-      <figcaption style={{ ...typeV2.legendSm }}>{RADAR_FAINT_NOTE}</figcaption>
-    </figure>
+      {open ? (
+        <>
+          <span style={{ display: 'flex', width: '100%' }}>
+            {RADAR_BANDS.map((band) => (
+              <span key={band.label} style={{ ...stack(spacing.tight), flex: `${band.toDbz - band.fromDbz} 0 0`, minWidth: 0 }}>
+                <span aria-hidden="true" style={{ height: '6px', background: rampOf([band]) }} />
+                <span style={words}>{band.label}</span>
+              </span>
+            ))}
+          </span>
+          <span id={noteId} style={{ ...typeV2.legendSm }}>{RADAR_FAINT_NOTE}</span>
+        </>
+      ) : (
+        <>
+          <span style={words}>{RADAR_BANDS[0]?.label}</span>
+          <span aria-hidden="true" style={{ width: `${RADAR_RAMP_FOLDED}px`, height: '6px', borderRadius: `${radius.full}px`, background: rampOf(RADAR_BANDS) }} />
+          <span style={words}>{RADAR_BANDS.at(-1)?.label}</span>
+        </>
+      )}
+    </button>
   )
 }
 
-const RADAR_LEGEND_WIDTH = 280
+/** One gradient across the bands given, each as wide as its dBZ span. */
+function rampOf(bands: readonly RadarBand[]): string {
+  const from = bands[0]?.fromDbz ?? 0
+  const span = (bands.at(-1)?.toDbz ?? from) - from || 1
+  const stops = bands.flatMap((band) =>
+    band.colors.map((color, i) => {
+      const dbz = band.fromDbz + ((band.toDbz - band.fromDbz) * i) / Math.max(band.colors.length - 1, 1)
+      return `${color} ${(((dbz - from) / span) * 100).toFixed(1)}%`
+    }),
+  )
+  return `linear-gradient(90deg, ${stops.join(', ')})`
+}
+
+const RADAR_LEGEND_WIDTH = 260
+const RADAR_RAMP_FOLDED = 88
+const LEGEND_OPEN_KEY = 'wt6.radarLegendOpen'
+
+function readLegendOpen(): boolean {
+  try {
+    return window.localStorage.getItem(LEGEND_OPEN_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function writeLegendOpen(open: boolean): void {
+  try {
+    window.localStorage.setItem(LEGEND_OPEN_KEY, open ? '1' : '0')
+  } catch {
+    // A blocked store only means the fold is not remembered.
+  }
+}
 
 /** The locate control is as tall as the bottom bar's lit pill. */
 const LOCATE_SIZE = 42

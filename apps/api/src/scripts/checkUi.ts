@@ -933,7 +933,7 @@ async function run(): Promise<void> {
     )
     const radarCredit = (await page.locator('.maplibregl-ctrl-attrib').innerText().catch(() => '')).replace(/\s+/g, ' ')
     check('with the radar credited to IEM', /Radar: Iowa Environmental Mesonet/.test(radarCredit), radarCredit)
-    const radarLegend = page.getByRole('figure', { name: 'Radar legend' })
+    const radarLegend = page.getByRole('button', { name: /^Colour key for radar/ })
     check('and its legend shown', await radarLegend.isVisible())
     await screen('map-radar', 5)
     await radarLabel.click()
