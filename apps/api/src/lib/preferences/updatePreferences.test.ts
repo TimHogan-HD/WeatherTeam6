@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_PREFERENCES, fToC } from '@weatherteam6/types'
+import { DEFAULT_PREFERENCES, SETUP_VERSION, fToC, needsSetup } from '@weatherteam6/types'
 import { parsePreferencesUpdate, planPreferencesUpdate, preferencesFromRow } from './updatePreferences.js'
 
 describe('parsePreferencesUpdate', () => {
@@ -40,6 +40,17 @@ describe('parsePreferencesUpdate', () => {
     expect(parsePreferencesUpdate({ climb_last_hour: 24 })).toHaveProperty('error')
     expect(parsePreferencesUpdate({ climb_last_hour: 12.5 })).toHaveProperty('error')
     expect(parsePreferencesUpdate({ climb_first_hour: '9' })).toHaveProperty('error')
+  })
+
+  it('accepts a setup version the app has shipped, or null, and refuses anything else', () => {
+    expect(parsePreferencesUpdate({ setup_version: SETUP_VERSION })).toEqual({ setup_version: SETUP_VERSION })
+    expect(parsePreferencesUpdate({ setup_version: 1 })).toEqual({ setup_version: 1 })
+    expect(parsePreferencesUpdate({ setup_version: null })).toEqual({ setup_version: null })
+    // A version not shipped yet would hide a screen the reader never saw.
+    expect(parsePreferencesUpdate({ setup_version: SETUP_VERSION + 1 })).toHaveProperty('error')
+    expect(parsePreferencesUpdate({ setup_version: 0 })).toHaveProperty('error')
+    expect(parsePreferencesUpdate({ setup_version: 1.5 })).toHaveProperty('error')
+    expect(parsePreferencesUpdate({ setup_version: '1' })).toHaveProperty('error')
   })
 
   it('refuses an unknown key rather than ignoring it, and an empty body', () => {
@@ -87,7 +98,23 @@ describe('preferencesFromRow', () => {
         default_tab: 'radar',
         climb_first_hour: 12,
         climb_last_hour: null,
+        setup_version: 1,
       }),
-    ).toEqual({ temp_low_c: 1, temp_high_c: null, default_tab: null, climb_first_hour: 12, climb_last_hour: null })
+    ).toEqual({
+      temp_low_c: 1,
+      temp_high_c: null,
+      default_tab: null,
+      climb_first_hour: 12,
+      climb_last_hour: null,
+      setup_version: 1,
+    })
+  })
+})
+
+describe('needsSetup', () => {
+  it('is true for an account that never saw the screen, or saw an older one', () => {
+    expect(needsSetup({ setup_version: null })).toBe(true)
+    expect(needsSetup({ setup_version: SETUP_VERSION - 1 })).toBe(true)
+    expect(needsSetup({ setup_version: SETUP_VERSION })).toBe(false)
   })
 })

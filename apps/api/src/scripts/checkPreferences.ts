@@ -18,7 +18,15 @@
  * console rather than the logger is deliberate — the output is the result.
  */
 
-import { fToC, type ApiResponse, type HourlySeries, type Preferences } from '@weatherteam6/types'
+import {
+  SETUP_VERSION,
+  fToC,
+  needsSetup,
+  type ApiResponse,
+  type HourlySeries,
+  type Preferences,
+  type SetupPreview,
+} from '@weatherteam6/types'
 
 const PORT = 3095
 const BASE = `http://127.0.0.1:${PORT}/api/v1`
@@ -167,6 +175,46 @@ async function run(): Promise<void> {
     check('an end outside its limits is a 400', outOfBounds.status === 400, `got ${outOfBounds.status}`)
     const unknown = await call<Preferences>('PUT', '/preferences', tokenA, { ideal_temp_min_c: 10 })
     check('an unknown field is a 400', unknown.status === 400, `got ${unknown.status}`)
+
+    console.log('\nThe welcome screen (#543)')
+    check(
+      'a new account has not seen it',
+      fresh.payload.data?.setup_version === null && needsSetup(fresh.payload.data),
+      JSON.stringify(fresh.payload.data),
+    )
+    const done = await call<Preferences>('PUT', '/preferences', tokenA, { setup_version: SETUP_VERSION })
+    check(
+      'finishing or skipping it saves the version and leaves the other settings alone',
+      done.status === 200 &&
+        done.payload.data?.setup_version === SETUP_VERSION &&
+        !needsSetup(done.payload.data) &&
+        close(done.payload.data.temp_low_c, fToC(15)) &&
+        done.payload.data.default_tab === 'hourly',
+      `${done.status} ${JSON.stringify(done.payload.data)}`,
+    )
+    const future = await call<Preferences>('PUT', '/preferences', tokenA, { setup_version: SETUP_VERSION + 1 })
+    check('a version the app has not shipped is a 400', future.status === 400, `got ${future.status}`)
+    const stored = await db
+      .select({ v: userPreferences.setup_version })
+      .from(userPreferences)
+      .where(inArray(userPreferences.user_id, [idA]))
+    check('the column holds the saved version', stored[0]?.v === SETUP_VERSION, JSON.stringify(stored))
+    const preview = await call<SetupPreview>('GET', `/setup/preview?first=8&last=23&low_c=${fToC(0)}&high_c=${fToC(80)}`, tokenA)
+    check(
+      '/setup/preview scores the example week on the draft, beside the defaults',
+      preview.status === 200 &&
+        preview.payload.data?.days.length === 5 &&
+        preview.payload.data.days.some((d) => d.score !== d.default_score),
+      `${preview.status} ${String(preview.payload.error)}`,
+    )
+    const narrowPreview = await call<SetupPreview>('GET', '/setup/preview?first=10&last=11', tokenA)
+    check('/setup/preview refuses a window a save would refuse', narrowPreview.status === 409, `got ${narrowPreview.status}`)
+    const previewed = await call<Preferences>('GET', '/preferences', tokenA)
+    check(
+      'and a preview saved nothing',
+      previewed.payload.data?.climb_last_hour === null && previewed.payload.data.temp_high_c === null,
+      JSON.stringify(previewed.payload.data),
+    )
 
     console.log('\nAccounts are separate')
     const other = await call<Preferences>('GET', '/preferences', tokenB)

@@ -1,6 +1,7 @@
 import {
   CLIMB_HOURS_MIN_SPAN,
   DEFAULT_PREFERENCES,
+  SETUP_VERSION,
   TEMP_RANGE_LIMITS_F,
   cToF,
   effectiveClimbHours,
@@ -17,7 +18,7 @@ import {
  * `planPreferencesUpdate`, and upserts what it returns.
  */
 
-const FIELDS = ['temp_low_c', 'temp_high_c', 'default_tab', 'climb_first_hour', 'climb_last_hour'] as const
+const FIELDS = ['temp_low_c', 'temp_high_c', 'default_tab', 'climb_first_hour', 'climb_last_hour', 'setup_version'] as const
 
 /**
  * Bounds are checked in °F, the unit they are written in, at a tenth of a
@@ -82,6 +83,15 @@ export function parsePreferencesUpdate(body: unknown): UpdatePreferencesInput | 
     }
   }
 
+  // A version the app has not shipped is refused: it would hide a screen the reader never saw.
+  if ('setup_version' in raw) {
+    const v = raw['setup_version']
+    if (v !== null && (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > SETUP_VERSION)) {
+      return { error: `setup_version must be a whole number from 1 to ${SETUP_VERSION}, or null` }
+    }
+    out.setup_version = v
+  }
+
   return out
 }
 
@@ -122,6 +132,7 @@ export function preferencesFromRow(
         default_tab: string | null
         climb_first_hour: number | null
         climb_last_hour: number | null
+        setup_version: number | null
       }
     | undefined,
 ): Preferences {
@@ -132,5 +143,6 @@ export function preferencesFromRow(
     default_tab: isDetailTab(row.default_tab) ? row.default_tab : null,
     climb_first_hour: row.climb_first_hour,
     climb_last_hour: row.climb_last_hour,
+    setup_version: row.setup_version,
   }
 }

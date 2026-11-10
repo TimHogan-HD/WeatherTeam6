@@ -1,0 +1,1 @@
+ALTER TABLE "user_preferences" ADD COLUMN "setup_version" integer;

@@ -597,6 +597,13 @@ export const userPreferences = pgTable('user_preferences', {
    */
   climb_first_hour: integer('climb_first_hour'),
   climb_last_hour: integer('climb_last_hour'),
+  /**
+   * The welcome screen's version this account last finished or skipped (#543).
+   * Null is "never seen it", which every existing row starts as, so every
+   * account sees the screen once. A version rather than a flag, so a later
+   * setting can ask again by raising `SETUP_VERSION` (`packages/types`).
+   */
+  setup_version: integer('setup_version'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updated_at: timestamp('updated_at', { withTimezone: true }),
 })

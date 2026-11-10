@@ -62,8 +62,10 @@ radar_rain_hours          -- observed rain per radar cell (no location_id); /api
   a row by computing the station again.
 - **`login_attempts` holds one window at most**: each attempt prunes older rows and a success
   deletes its key's. **Nothing prunes `invites`**; it grows by a few rows a year.
-- **`user_preferences`: only `temp_low_c`, `temp_high_c`, `default_tab` and the climbing hours
-  are read.** The rest has no reader.
+- **`user_preferences`: only `temp_low_c`, `temp_high_c`, `default_tab`, the climbing hours and
+  `setup_version` are read.** The rest has no reader, `temp_unit` and `precip_unit` included: the app
+  prints °F and inches everywhere. `setup_version` is the welcome screen last finished or skipped
+  (#543); null is never, and below `SETUP_VERSION` the app shows it on open.
 
 ## Dropped tables
 
