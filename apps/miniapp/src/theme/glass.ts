@@ -13,7 +13,7 @@ import type { CSSProperties } from 'react'
 import { colorsV2, glass, radius, spacing } from '@weatherteam6/design/tokens'
 import { withOpacity } from './tokens.css.js'
 
-type Pane = 'card' | 'header' | 'dock' | 'bar'
+type Pane = 'card' | 'header' | 'dock' | 'bar' | 'legend'
 type Layer = { inset: boolean; y: number; blur: number; spread: number; of: 'light' | 'shade'; alpha: number }
 
 const PANE_COLOUR: Record<Pane, string> = {
@@ -21,6 +21,7 @@ const PANE_COLOUR: Record<Pane, string> = {
   dock: glass.tint,
   header: glass.ground,
   bar: glass.groundMid,
+  legend: glass.tint,
 }
 
 function fill(pane: Pane): string {
@@ -40,7 +41,7 @@ function layers(list: readonly Layer[]): string {
 
 /** The custom properties, as `glass-*` names: the see-through set, and the one for less transparency. */
 export function glassVars(): { normal: Record<string, string>; opaque: Record<string, string> } {
-  const panes: Pane[] = ['card', 'header', 'dock', 'bar']
+  const panes: Pane[] = ['card', 'header', 'dock', 'bar', 'legend']
   const normal: Record<string, string> = {
     // The ground is still: a glow at the top of the screen falling to near-black.
     ground: `radial-gradient(130% 60% at 50% -8%, ${glass.groundGlow} 0%, ${glass.groundMid} 48%, ${glass.ground} 100%)`,
@@ -101,6 +102,12 @@ export function glassTile({ dashed, chosen }: { dashed: boolean; chosen: boolean
 
 /** The slim header that sticks to the top of a crag's tabs. */
 export const glassHeader: CSSProperties = { ...pane('header'), boxShadow: layers(glass.headerLayers) }
+
+/** The Map's radar legend: the dock's shape on a thinner pane, so the radar shows through. */
+export const glassLegend: CSSProperties = {
+  ...pane('legend'),
+  boxShadow: layers(glass.dockLayers),
+}
 
 /** The crag's floating dock. */
 export const glassDock: CSSProperties = {
