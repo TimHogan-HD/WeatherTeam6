@@ -289,8 +289,6 @@ export function MapScreen() {
             </div>
           ) : null}
 
-          {radarValidAt === null ? null : <RadarLegend />}
-
           <button
             type="button"
             aria-pressed={radarOn}
@@ -348,6 +346,8 @@ export function MapScreen() {
               </button>
             </section>
           )}
+
+          {radarValidAt === null ? null : <RadarLegend />}
         </div>
       </div>
     </main>
@@ -356,9 +356,11 @@ export function MapScreen() {
 
 /**
  * What the radar's colours mean, while a frame is drawn. Folded, it is one slim
- * pill, the ramp between its two ends; a tap opens the four bands and the note
- * on the faint one, and another folds it (owner, 2026-11-10: the open legend
- * sat in the way). The fold is remembered on this device. The bar is the
+ * strip across the foot of the map, the ramp running the width between its two
+ * ends, under the controls rather than among them (owner, 2026-11-10: like a
+ * rain map's "Less rain – More rain" bar). A tap opens the four bands and the
+ * note on the faint one, and another folds it. The fold is remembered on this
+ * device. The bar is the
  * tiles' own ramp (`RADAR_BANDS`), each band as wide as its dBZ span, so a
  * colour on the map sits over the word for it.
  */
@@ -383,12 +385,11 @@ function RadarLegend() {
         ...bareButton,
         ...glassLegend,
         ...interactive,
-        width: open ? `${RADAR_LEGEND_WIDTH}px` : 'auto',
-        maxWidth: '100%',
+        alignSelf: 'stretch',
         textAlign: 'left',
         ...(open
           ? { ...stack(spacing.tight), padding: `${spacing.listGap}px ${spacing.cardPad}px`, borderRadius: `${radius.chipMd}px` }
-          : { ...row(spacing.listGap), padding: `${spacing.tight}px ${spacing.listGap}px`, borderRadius: `${radius.full}px` }),
+          : { ...row(spacing.listGap), padding: `${spacing.tight}px ${spacing.cardPad}px`, borderRadius: `${radius.full}px` }),
       }}
     >
       {open ? (
@@ -406,7 +407,7 @@ function RadarLegend() {
       ) : (
         <>
           <span style={words}>{RADAR_BANDS[0]?.label}</span>
-          <span aria-hidden="true" style={{ width: `${RADAR_RAMP_FOLDED}px`, height: '6px', borderRadius: `${radius.full}px`, background: rampOf(RADAR_BANDS) }} />
+          <span aria-hidden="true" style={{ flex: 1, minWidth: 0, height: '6px', borderRadius: `${radius.full}px`, background: rampOf(RADAR_BANDS) }} />
           <span style={words}>{RADAR_BANDS.at(-1)?.label}</span>
         </>
       )}
@@ -427,8 +428,6 @@ function rampOf(bands: readonly RadarBand[]): string {
   return `linear-gradient(90deg, ${stops.join(', ')})`
 }
 
-const RADAR_LEGEND_WIDTH = 260
-const RADAR_RAMP_FOLDED = 88
 const LEGEND_OPEN_KEY = 'wt6.radarLegendOpen'
 
 function readLegendOpen(): boolean {
