@@ -21,7 +21,7 @@ How Crag A scores, and what may feed it.
 ## Scoring model
 
 - **The score on every screen is Crag A (`lib/scoring/cragModel.ts`), owner decision
-  2026-09-24.** `score = 100 × dryness^0.55 × friction`, the drying clock on eight vertical
+  2026-09-24.** `score = 100 × dryness × friction` (no exponent on either, #536), the drying clock on eight vertical
   walls, median taken. A location's score is always Crag A: its recorded aspect and angle are
   not inputs. **Wall A (`evaluateWallA`)** scores individual walls only, never a location:
   `HourlyReadings.walls` (#445) carries it per lidar wall beside Crag A (below). Friction is condensation × heat × humidity × cold from air temperature, dew point,

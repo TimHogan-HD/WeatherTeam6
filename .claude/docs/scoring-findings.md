@@ -101,7 +101,8 @@ down; the largest move is 10 points, at exactly half the drying window. `MAX_HOU
 touched — pushing full marks later is a separate lever, and that ceiling is pinned to
 `dryingModel`'s `estimated_dry` by a cross-module test. **The exponent 2 is the judgement
 call this caveat demanded be written down**: it is `RAMP_EXPONENT` in `conditionsScore.ts` and
-says so there.
+says so there. Crag A kept the square in `dryness` but scored `dryness^0.55`, which undid it
+(score ≈ progress^1.1) until 2026-11-10 (#536).
 
 ---
 

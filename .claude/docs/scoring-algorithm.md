@@ -19,18 +19,21 @@ there is no tester gate.
 Where the research lives: `.claude/docs/crag-a-reference/README.md` (why these two models, the
 seven errors corrected, what is still open) and `model.ts` beside it. The port has diverged
 from `model.ts` on purpose since 2026-11-02 (per-wall condensation floored at half, a
-drying floor of one hour per dry hour, and since 2026-11-09 new rain adding to the water
-left rather than to a storm total); the README records what that moved. A change that
+drying floor of one hour per dry hour, since 2026-11-09 new rain adding to the water
+left rather than to a storm total, and since 2026-11-10 no exponent on dryness); the README records what that moved. A change that
 moves a result needs an argument, not a commit message. `scoring-findings.md` §6d records the switch.
 
 ## Crag A
 
 ```
-score = round(100 × dryness^0.55 × friction)        # both factors 0-1
+score = round(100 × dryness × friction)        # both factors 0-1
 ```
 
-`DRYNESS_EXPONENT = 0.55`. Friction carries **no** exponent: v2's `friction^0.45` is what let
-heat through. Either factor null → score null. There is no cap, veto or clamp beyond the 0-1
+Neither factor carries an exponent. Friction lost v2's `friction^0.45` because it let heat
+through. Dryness lost v2's `^0.55` on 2026-11-10 (#536, owner): on top of the squared ramp it
+made the score follow drying progress to the power 1.1, almost a straight line (a quarter,
+half and three quarters of the window scored 22, 47, 73; now 6, 25, 56). The 60-point line
+that starts good hours moved from 63% to 78% of the window. Either factor null → score null. There is no cap, veto or clamp beyond the 0-1
 domain guard.
 
 ### Inputs
@@ -75,7 +78,7 @@ domain guard.
   exactly elapsed time.
 - `dryness = ((N − R) / N)²`, where `N` is the rock's full window
   `MAX_HOURS` and `R` what remains. The square curves slowly at first: rock strength returns
-  late (issue #137). **Rain sets the clock back by its size** (owner, 2026-10-26): `N` was the
+  late (issue #137). The score reads dryness as it is, so the curve reaches the number (#536). **Rain sets the clock back by its size** (owner, 2026-10-26): `N` was the
   storm's own need until then, so every wetting hour read 0 and only the recovery scaled —
   Barn Bluff scored 0 from noon on 2026-10-25 for about 0.03" forecast over a dry afternoon.
   Now a mist dips to ~90 and only a full soak reaches 0; the time to dry, and so the hour the

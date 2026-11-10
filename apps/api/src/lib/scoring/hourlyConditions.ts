@@ -376,7 +376,7 @@ export type HourlyDiagnostics = {
   solar_gain_c: number | null
   /**
    * Each of Crag A's penalties as its own multiplier on the score, wet rock as
-   * `dryness^0.55`. Null when the score is, and always on v2's own path.
+   * `dryness` itself. Null when the score is, and always on v2's own path.
    * **Never rendered** — only their order, through `heldBackBy`.
    */
   penalties: ScorePenalties | null

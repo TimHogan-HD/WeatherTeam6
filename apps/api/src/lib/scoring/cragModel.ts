@@ -6,7 +6,7 @@
  * here that moves a result there needs an argument, not a commit message.
  *
  * ```
- * score = 100 × dryness^0.55 × friction
+ * score = 100 × dryness × friction
  * ```
  *
  * - **Crag A** (`evaluateCragA`) is a crag's score and the only one a location
@@ -63,9 +63,6 @@ import {
   wallBeamWm2,
   type WallOrientation,
 } from './rockThermal.js'
-
-/** Weight on dryness. Friction carries no exponent: v2's 0.45 is what let heat through. */
-export const DRYNESS_EXPONENT = 0.55
 
 /**
  * Friction starts falling above this air temperature, °C (60 °F) — unless the
@@ -284,12 +281,19 @@ export function heldBackBy(penalties: ScorePenalties | null): ScoreLimit[] | nul
   return Math.round(100 * product) < 100 ? ordered.slice(0, 1) : []
 }
 
+/**
+ * **No exponent on either factor** (#536, owner 2026-11-10). Dryness is
+ * already the squared drying ramp, so the score climbs slowly at first: a
+ * quarter of the window dried scores 6, half 25, three quarters 56. v2's
+ * `dryness^0.55` survived the switch to Crag A and made that ramp almost a
+ * straight line (22, 47, 73). Friction lost its 0.45 for letting heat through.
+ */
 export function scoreA(dryness: number | null, friction: number | null): number | null {
   if (dryness === null || friction === null) return null
   if (!Number.isFinite(dryness) || !Number.isFinite(friction)) return null
   const d = Math.min(1, Math.max(0, dryness))
   const f = Math.min(1, Math.max(0, friction))
-  return Math.round(100 * Math.pow(d, DRYNESS_EXPONENT) * f)
+  return Math.round(100 * d * f)
 }
 
 const remainingRamp = (remaining: number, need: number): number =>
@@ -633,7 +637,7 @@ function finish(
   const penalties: ScorePenalties | null =
     fp === null || dryness === null || score === null
       ? null
-      : { wet_rock: Math.pow(Math.min(1, Math.max(0, dryness)), DRYNESS_EXPONENT), ...fp }
+      : { wet_rock: Math.min(1, Math.max(0, dryness)), ...fp }
   const fLevel = frictionLevel(friction)
   // The margin the score read: the median wall's, sun included (2026-11-02), so
   // the Rock tab cannot say condensing while the score takes nothing off.

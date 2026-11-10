@@ -199,9 +199,12 @@ describe('condensationA', () => {
 })
 
 describe('scoreA', () => {
-  it('is 100 × dryness^0.55 × friction, with no exponent on friction', () => {
+  it('is 100 × dryness × friction, with no exponent on either (#536)', () => {
     expect(scoreA(1, 0.5)).toBe(50)
-    expect(scoreA(0.25, 1)).toBe(Math.round(100 * Math.pow(0.25, 0.55)))
+    // Half the drying window done is dryness 0.25: the score keeps the ramp's curve.
+    // Under the old dryness^0.55 this was 47.
+    expect(scoreA(0.25, 1)).toBe(25)
+    expect(scoreA(0.25, 0.5)).toBe(13)
     expect(scoreA(null, 1)).toBeNull()
     expect(scoreA(1, null)).toBeNull()
   })
