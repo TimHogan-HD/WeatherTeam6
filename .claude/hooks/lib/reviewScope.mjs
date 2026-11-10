@@ -15,6 +15,23 @@ import { REVIEW_HEADING } from './reviewGate.mjs'
 
 export const FULL = { mode: 'full', model: 'claude-opus-5-5', maxTurns: 40 }
 export const INCREMENTAL = { mode: 'incremental', model: 'claude-sonnet-5-5', maxTurns: 20 }
+/**
+ * A full review that does not need Opus (2026-11-10): a Dependabot bump, or a
+ * diff that changes no code — only Markdown and images. Of 40 runs measured
+ * that week, Dependabot full reviews averaged $0.30 on Opus for a lockfile and
+ * a version string. Any code file in the diff, or a diff that cannot be read,
+ * keeps the Opus review.
+ */
+export const LIGHT = { mode: 'full', model: 'claude-sonnet-5-5', maxTurns: 20 }
+
+const NO_CODE = /\.(md|png|jpe?g|gif|webp|svg)$/i
+
+/** True when the PR needs no Opus pass: a Dependabot PR, or no code in the diff. */
+export function isLightReview({ author, changedFiles }) {
+  if (/^dependabot\[bot\]$/i.test(String(author ?? ''))) return true
+  if (!Array.isArray(changedFiles) || changedFiles.length === 0) return false
+  return changedFiles.every((f) => NO_CODE.test(String(f)))
+}
 
 /** The commit the newest reviewer-bot summary names, or null. */
 export function lastReviewedSha(comments) {
@@ -33,10 +50,10 @@ export function lastReviewedSha(comments) {
  * `{ mode, model, maxTurns, since }`. `isAncestor(sha)` says whether `sha` is
  * still in the head's history; `since` is null for a full review.
  */
-export function pickScope({ action, headSha, comments, isAncestor }) {
+export function pickScope({ action, headSha, comments, isAncestor, author = null, changedFiles = null }) {
   const since = lastReviewedSha(comments)
   if (action !== 'synchronize' || !since || since === headSha || !isAncestor(since)) {
-    return { ...FULL, since: null }
+    return { ...(isLightReview({ author, changedFiles }) ? LIGHT : FULL), since: null }
   }
   return { ...INCREMENTAL, since }
 }

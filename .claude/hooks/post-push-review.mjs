@@ -58,12 +58,14 @@ const command = String(input?.tool_input?.command ?? '')
 if (/\bgh\s+pr\s+create\b/.test(command)) {
   // The required `review` check fails on blocking findings (claude-review.yml),
   // so this asks for what the check cannot: that the advisory ones were read.
+  // It no longer suggests a local /code-review as well (2026-11-10): the CI
+  // reviewer already runs Opus on every PR, a local pass shares the session's
+  // blind spot (claude-review.yml header), and it doubled the cost of a PR.
   emit(
     'A pull request was just opened. The required `review` check fails on the CI ' +
       'reviewer\'s blocking findings; its advisory ones do not block. When it posts, read ' +
       'every inline finding and fix it or reply on the PR why it is not a defect — the ' +
-      'defects this project ships pass typecheck, lint and the suite. For a large or risky ' +
-      'diff, also run /code-review high locally.',
+      'defects this project ships pass typecheck, lint and the suite.',
   )
 }
 

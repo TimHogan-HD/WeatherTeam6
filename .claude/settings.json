@@ -84,7 +84,14 @@
     ],
     "deny": [
       "Write(./.env)",
-      "Edit(./.env)"
+      "Edit(./.env)",
+      "Read(apps/api/drizzle/meta/*_snapshot.json)",
+      "Read(package-lock.json)",
+      "Read(apps/api/src/lib/weather/climbingAreasCo.ts)",
+      "Read(apps/api/src/lib/weather/climbingAreasMn.ts)",
+      "Read(apps/api/src/lib/weather/cocorahsStations.ts)",
+      "Read(apps/api/src/lib/weather/asosStations.ts)",
+      "Read(apps/api/src/lib/guidebook/guidebookMn.ts)"
     ],
     "ask": [
       "Bash(git push --force:*)",

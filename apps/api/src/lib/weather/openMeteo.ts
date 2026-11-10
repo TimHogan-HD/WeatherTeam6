@@ -31,7 +31,7 @@ export type OpenMeteoResult = {
    * model-disagreement views. `parseEnsemble` used to flatten the per-model
    * grouping it had already built and throw the attribution away.
    *
-   * Absent on results that have no ensemble behind them at all (`fetchNBM`) —
+   * Absent on results that have no ensemble behind them at all —
    * **a missing value is unknown here, not "one model"**.
    */
   by_model?: EnsembleModelDays[]
@@ -71,13 +71,6 @@ type EnsembleResponse = {
   hourly: Record<string, unknown>
 }
 
-type NbmResponse = {
-  latitude: number
-  longitude: number
-  elevation?: number
-  daily?: Record<string, unknown>
-}
-
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast'
 export const ENSEMBLE_URL = 'https://ensemble-api.open-meteo.com/v1/ensemble'
 /**
@@ -105,18 +98,6 @@ export const ENSEMBLE_MODEL_SUFFIXES: Record<string, string> = {
 }
 const HOURLY_VARS =
   'precipitation,temperature_2m,windspeed_10m,relativehumidity_2m,dewpoint_2m,shortwave_radiation'
-const NBM_DAILY_VARS = [
-  'precipitation_sum',
-  'precipitation_p10',
-  'precipitation_p50',
-  'precipitation_p90',
-  'temperature_2m_max',
-  'temperature_2m_min',
-  'wind_speed_10m_max',
-  'relative_humidity_2m_mean',
-  'dewpoint_2m_mean',
-  'shortwave_radiation_sum',
-].join(',')
 const LAPSE_RATE_C_PER_M = 0.0065
 
 /**
@@ -716,155 +697,6 @@ export function localDateString(now: Date, utcOffsetSeconds: number): string {
   // behaviour, which is wrong by at most a day, rather than a crash.
   const offset = Number.isFinite(utcOffsetSeconds) ? utcOffsetSeconds : 0
   return new Date(now.getTime() + offset * 1000).toISOString().slice(0, 10)
-}
-
-/**
- * Fetch the NBM daily forecast.
- *
- * Returns null only for shape problems (missing daily payload, missing p10/p90
- * quantiles, empty time axis) so the caller can fall back to the ensemble.
- *
- * @throws {Error} on HTTP failure after exhausting fetchWithRetry's 4 attempts, or
- * immediately on a non-retryable non-ok status. No internal fallback — callers must catch.
- */
-export async function fetchNBM(
-  location: ForecastLocation,
-): Promise<OpenMeteoResult | null> {
-  const url = new URL(FORECAST_URL)
-  url.searchParams.set('latitude', String(location.lat))
-  url.searchParams.set('longitude', String(location.lon))
-  url.searchParams.set('models', 'ncep_nbm_conus')
-  url.searchParams.set('daily', NBM_DAILY_VARS)
-  url.searchParams.set('timezone', 'UTC')
-
-  logger.debug({ lat: location.lat, lon: location.lon }, '[openMeteo] fetching NBM forecast')
-
-  const res = await fetchWithRetry(url.toString())
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    logger.debug(
-      { statusCode: res.status, body: body.slice(0, 200) },
-      '[openMeteo] NBM error response',
-    )
-    throw new Error(`Open-Meteo NBM API returned ${res.status}`)
-  }
-
-  const raw = (await res.json()) as NbmResponse
-  const daily = raw.daily
-  if (!daily) {
-    logger.debug({}, '[openMeteo] NBM response had no daily payload — falling back to ensemble')
-    return null
-  }
-
-  // Decision rule: return null if either quantile key is missing.
-  if (!Array.isArray(daily['precipitation_p10']) || !Array.isArray(daily['precipitation_p90'])) {
-    logger.debug(
-      {},
-      '[openMeteo] NBM response missing precipitation_p10/p90 — falling back to ensemble',
-    )
-    return null
-  }
-
-  const times: string[] = toStringArray(daily['time'])
-  if (times.length === 0) return null
-
-  const p10 = toNullableNumberArray(daily, 'precipitation_p10')
-  const p50Arr = toNullableNumberArray(daily, 'precipitation_p50')
-  const p50Fallback = toNullableNumberArray(daily, 'precipitation_sum')
-  const p90 = toNullableNumberArray(daily, 'precipitation_p90')
-  const tMin = toNullableNumberArray(daily, 'temperature_2m_min')
-  const tMax = toNullableNumberArray(daily, 'temperature_2m_max')
-  const wind = toNullableNumberArray(daily, 'wind_speed_10m_max')
-  const humid = toNullableNumberArray(daily, 'relative_humidity_2m_mean')
-  const dew = toNullableNumberArray(daily, 'dewpoint_2m_mean')
-  const shortwave = toNullableNumberArray(daily, 'shortwave_radiation_sum')
-
-  const days: DailyForecast[] = []
-  for (let i = 0; i < times.length; i++) {
-    const date = times[i]
-    if (!date) continue
-    const p50Val = p50Arr[i] ?? p50Fallback[i] ?? 0
-    days.push({
-      date,
-      precip_mm_p10: p10[i] ?? 0,
-      precip_mm_p50: p50Val,
-      precip_mm_p90: p90[i] ?? 0,
-      temp_c_min: tMin[i] ?? 0,
-      temp_c_max: tMax[i] ?? 0,
-      wind_kmh_max: wind[i] ?? 0,
-      humidity_pct: humid[i] ?? 50,
-      dewpoint_c: dew[i] ?? 0,
-      shortwave_wm2: shortwave[i] ?? 0,
-    })
-  }
-
-  applyLapseRate(days, location.elevation_m, raw.elevation)
-
-  // NBM is unused (issue #22). It kept requesting timezone=UTC, so 0 is the
-  // honest offset for the buckets it would produce.
-  return { days, model_sources: ['nbm'], utc_offset_seconds: 0 }
-}
-
-const ARCHIVE_URL = 'https://archive-api.open-meteo.com/v1/archive'
-
-export type ArchiveDailyPrecip = {
-  date: string // YYYY-MM-DD
-  precip_mm: number
-}
-
-/**
- * Fetch daily precipitation totals from Open-Meteo's historical archive, for
- * locations with no nearby ASOS station (see fetchPrecipHistory in acis.ts,
- * which is preferred when a station is available).
- *
- * @throws {Error} on HTTP failure after exhausting fetchWithRetry's 4 attempts, or
- * immediately on a non-retryable non-ok status.
- */
-export async function fetchArchivePrecip(
-  lat: number,
-  lon: number,
-  fromDate: string,
-  toDate: string,
-): Promise<ArchiveDailyPrecip[]> {
-  const url = new URL(ARCHIVE_URL)
-  url.searchParams.set('latitude', String(lat))
-  url.searchParams.set('longitude', String(lon))
-  url.searchParams.set('start_date', fromDate)
-  url.searchParams.set('end_date', toDate)
-  url.searchParams.set('daily', 'precipitation_sum')
-  // Local days, matching the forecast call. A rain "day" must mean the same
-  // thing on both sides of the drying model: bucketing rainfall by UTC day while
-  // the forecast is bucketed locally would put an evening shower on the wrong
-  // date and shift hours-since-rain by up to a day.
-  url.searchParams.set('timezone', 'auto')
-
-  logger.debug({ lat, lon, fromDate, toDate }, '[openMeteo] fetching archive precip history')
-
-  const res = await fetchWithRetry(url.toString())
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    logger.debug(
-      { statusCode: res.status, body: body.slice(0, 200) },
-      '[openMeteo] archive error response',
-    )
-    throw new Error(`Open-Meteo archive API returned ${res.status}`)
-  }
-
-  const raw = (await res.json()) as { daily?: Record<string, unknown> }
-  const daily = raw.daily
-  if (!daily) return []
-
-  const times = toStringArray(daily['time'])
-  const precip = toNullableNumberArray(daily, 'precipitation_sum')
-
-  const out: ArchiveDailyPrecip[] = []
-  for (let i = 0; i < times.length; i++) {
-    const date = times[i]
-    const mm = precip[i]
-    if (!date || mm === null || mm === undefined) continue
-    out.push({ date, precip_mm: mm })
-  }
-  return out
 }
 
 // ---------------------------------------------------------------------------

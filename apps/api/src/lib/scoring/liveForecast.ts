@@ -40,7 +40,7 @@ function parseNum(v: string | null | undefined, fallback: number): number {
  *
  * The ensemble is the only forecast source. NBM is not called: Open-Meteo
  * defines no NBM precipitation quantiles under any name (issue #22), so the NBM
- * branch never returned data. `fetchNBM` is left in place, tested and unused.
+ * branch never returned data, and `fetchNBM` was deleted (#483).
  */
 export async function computeLiveForecast(
   location: LiveForecastLocation,

@@ -21,7 +21,25 @@ try {
   const comments = JSON.parse(
     run('gh', ['api', '--paginate', '--slurp', `repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100`]),
   ).flat()
+  // Who opened the PR and which files it changes, for the Dependabot / no-code
+  // light review. Unreadable means unknown, and unknown keeps the Opus review.
+  let author = null
+  let changedFiles = null
+  try {
+    const pr = JSON.parse(run('gh', ['api', `repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}`]))
+    author = pr?.user?.login ?? null
+    const base = pr?.base?.ref
+    if (base) {
+      changedFiles = run('git', ['diff', '--name-only', `origin/${base}...${HEAD_SHA}`])
+        .split('\n')
+        .filter(Boolean)
+    }
+  } catch {
+    // Keep the defaults.
+  }
   scope = pickScope({
+    author,
+    changedFiles,
     action: EVENT_ACTION,
     headSha: HEAD_SHA,
     comments,
