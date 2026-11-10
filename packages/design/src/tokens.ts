@@ -409,6 +409,30 @@ export const radarN0q = {
 } as const;
 
 /**
+ * The Map's rain-total legend (24 and 72 hours): IEM's MRMS accumulation
+ * colours at each inch mark, from pyIEM `mrms.make_colorramp()` read through
+ * IEM's millimetre-to-index encoding (`scripts/mrms/make_mrms_rasters.py`).
+ * Like `radarN0q`, it matches the tiles IEM draws and is never restyled.
+ * `radarNoCoverage` is the grey IEM paints where radar does not reach.
+ */
+export const radarRainIn = {
+  0.01: '#0006ff',
+  0.1: '#003cff',
+  0.25: '#0096ff',
+  0.5: '#00fea2',
+  0.75: '#00fe06',
+  1: '#8afe00',
+  1.5: '#c6fe00',
+  2: '#fed800',
+  3: '#fe6000',
+  4: '#fe0006',
+  6: '#fe0096',
+  10: '#fe24fe',
+} as const;
+
+export const radarNoCoverage = '#909090';
+
+/**
  * Air temperature, as a **diverging ramp around the ideal climbing temperature**.
  *
  * A named scale rather than five loose colours, exactly as `uvScale` above is — it is one
@@ -1755,6 +1779,9 @@ export const motion = {
   rollMs: 700,
   /** How long `was 64` stays beside a score that changed. */
   wasHoldMs: 4000,
+  /** One frame of the Map's radar loop while it plays; the newest and the last forecast frame hold for `radarHoldMs`. */
+  radarFrameMs: 500,
+  radarHoldMs: 1500,
   /** One breath of the Map tab's locate control while it waits for a fix. */
   locatingPulseMs: 900,
   /**

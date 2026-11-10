@@ -231,8 +231,14 @@ owner, and not visible in the code's shape:
 `routes/MapScreen.tsx`, its own lazy chunk. Every saved location as a pin carrying its
 score alone (warnings stay on the list and the crag); the pins are the list's own cached
 answers. Hold a finger (right-click on a desktop) to add that spot; locate-me shows the
-phone. Tiles and radar load straight from the hosts `architecture.md` names, and the radar
-frame's time comes from `/radar/latest`. Radar is on when the tab opens (owner, 2026-11-10), with a
+phone. Tiles and radar load straight from the hosts `architecture.md` names, and every radar
+frame's time comes from `/radar/layers`. Three chips pick the layer (owner, 2026-11-10; a
+second tap on the lit one turns it off): **Radar**, the last hour of radar then the next six
+of the HRRR forecast on one timeline with play and a slider, a forecast frame labelled
+`Forecast … · HRRR model` and the bar under the slider dashed where the forecast starts;
+**24h rain** and **72h rain**, MRMS radar-only totals named by their span, with an inch
+legend (`radarRainIn`) and IEM's grey where radar does not reach (`radarNoCoverage`).
+Satellite is out for now (owner, 2026-11-10). Display only, never the score. Radar is on when the tab opens (owner, 2026-11-10), with a
 legend while a frame is drawn: a slim full-width Faint–Heavy strip at the foot of the map, under
 the controls, on a thin glass pane (`glassLegend`), until tapped open; the fold is remembered on the device. Open: IEM's own colours (`radarN0q`) in four bands
 from 0 dBZ, Faint to Heavy, and a note that faint can be drizzle, light snow or non-rain echo.

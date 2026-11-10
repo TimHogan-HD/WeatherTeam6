@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express';
-import { fetchLatestRadar } from '../lib/weather/iemRadar.js';
+import { fetchLatestRadar, fetchRadarLayers } from '../lib/weather/iemRadar.js';
 import { fetchRainRates } from '../lib/weather/mrmsRate.js';
 import { sendServerError } from '../lib/http.js';
 import { db } from '../db/index.js';
@@ -19,6 +19,19 @@ radarRouter.get('/radar/latest', async (_req: Request, res: Response) => {
     res.json({ data: latest, error: null, status: 200 });
   } catch (err) {
     sendServerError(res, err, 'Failed to fetch radar');
+  }
+});
+
+/**
+ * Frame times for every Map layer: the last hour of radar, the 24 and 72 hour
+ * rain totals, and the HRRR forecast frames. Each part is null on its own when
+ * IEM did not answer for it, so the route answers 200 with whatever it has.
+ */
+radarRouter.get('/radar/layers', async (_req: Request, res: Response) => {
+  try {
+    res.json({ data: await fetchRadarLayers(), error: null, status: 200 });
+  } catch (err) {
+    sendServerError(res, err, 'Failed to fetch radar layers');
   }
 });
 

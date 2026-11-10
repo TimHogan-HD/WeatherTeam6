@@ -596,6 +596,29 @@ export type RadarLatest = {
   valid_at: string
 }
 
+/** The span a radar rain total covers, ISO instants. */
+export type RadarPeriod = {
+  start_at: string
+  end_at: string
+}
+
+/**
+ * `GET /radar/layers`: the frame times for every layer the Map can draw, each
+ * read from IEM and each null on its own when IEM did not answer for it. Null
+ * means "not available", never "no rain". Display only: nothing here reaches a
+ * score.
+ */
+export type RadarLayers = {
+  /** Composite reflectivity frames from about the last hour, oldest first; the last is the newest frame. */
+  past: string[] | null
+  /** MRMS radar-only rain over the last 24 hours. */
+  rain_24h: RadarPeriod | null
+  /** MRMS radar-only rain over the last 72 hours. */
+  rain_72h: RadarPeriod | null
+  /** HRRR forecast reflectivity: the model run, and the frames after the newest radar frame, oldest first. */
+  forecast: { run_at: string; frames: string[] } | null
+}
+
 /**
  * `GET /rain-now`: MRMS radar rain rate at each of the caller's places, all
  * from one frame. `data: null` when there is no frame from the last 15

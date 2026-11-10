@@ -898,11 +898,11 @@ async function run(): Promise<void> {
     // 3m. The Map tab: the crag as a pin, its contours close up, and a
     // right-click (a long-press on a phone) carried through to /add's save form.
     // It runs on the dev server, so the production CSP is not applied here.
-    // Radar is on when the tab opens: the toggle names the frame's time, and the
-    // tiles asked for are that frame's, so both are watched from before the page
-    // loads. A replayed run moves the frame's date to today, a frame IEM may not
-    // have, so its tiles are answered blank here; a live run fetches them.
-    const radarTiles = /mesonet\.agron\.iastate\.edu\/cache\/tile\.py\/1\.0\.0\/ridge::USCOMP-N0Q-(\d{12})\//
+    // Radar is on when the tab opens: the timeline names the frame's time, and
+    // the tiles asked for are that frame's, so both are watched from before the
+    // page loads. A replayed run moves the frames' dates to today, frames IEM may
+    // not have, so every IEM tile is answered blank here; a live run fetches them.
+    const radarTiles = /mesonet\.agron\.iastate\.edu\/cache\/tile\.py\/1\.0\.0\/([^/]+)\//
     if (REPLAY) {
       await page.route(radarTiles, (route) =>
         route.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from(BLANK_PNG, 'base64') }),
@@ -919,8 +919,8 @@ async function run(): Promise<void> {
     page.on('response', watchRadar)
     // Caught where it is made: the steps before its await can outlast the timeout
     // or throw, and an unhandled rejection would end the run before cleanup.
-    const radarLatest = page
-      .waitForResponse((r) => r.url().endsWith('/radar/latest'), { timeout: 30_000 })
+    const radarLayers = page
+      .waitForResponse((r) => r.url().endsWith('/radar/layers'), { timeout: 30_000 })
       .catch(() => null)
     await page.goto(`${WEB}/map`)
     const pin = page.getByRole('button', { name: new RegExp(`^ZZ UI check — Taylors Falls ${STAMP}`) })
@@ -949,34 +949,62 @@ async function run(): Promise<void> {
     await page.waitForTimeout(3_000)
     await screen('map', 5)
 
-    const latestResponse = await radarLatest
-    const latestBody = (latestResponse === null ? null : await latestResponse.json().catch(() => null)) as { data?: { valid_at?: string } } | null
-    const validAt = latestBody?.data?.valid_at ?? ''
-    const radarLabel = page.getByRole('button', { name: /^Radar \d{1,2}:\d{2}/ })
-    const radarNamed = await radarLabel.waitFor({ timeout: 15_000 }).then(() => true).catch(() => false)
-    check('the radar toggle names its frame’s time', radarNamed, validAt)
+    const layersResponse = await radarLayers
+    const layersBody = (layersResponse === null ? null : await layersResponse.json().catch(() => null)) as {
+      data?: { past?: string[] | null; rain_24h?: { end_at?: string } | null }
+    } | null
+    const validAt = layersBody?.data?.past?.at(-1) ?? ''
+    const stampOf = (iso: string) => iso.slice(0, 16).replace(/[-T:]/g, '')
+    const radarTime = page.getByRole('slider', { name: 'Radar time' })
+    const radarNamed = await radarTime.waitFor({ timeout: 15_000 }).then(() => true).catch(() => false)
+    const timeText = radarNamed ? ((await radarTime.getAttribute('aria-valuetext')) ?? '') : ''
+    check('the radar timeline names its newest frame’s time', /^Radar \d{1,2}:\d{2}.*latest/.test(timeText), `${timeText} (${validAt})`)
     await page.waitForTimeout(4_000)
-    const expected = validAt.slice(0, 16).replace(/[-T:]/g, '')
+    const expected = `ridge::USCOMP-N0Q-${stampOf(validAt)}`
     check(
-      'and the tiles asked for are that frame’s, every one answered',
+      'and the tiles asked for are that frame’s alone until the timeline is touched, every one answered',
       radarStamps.size === 1 && radarStamps.has(expected) && radarFailures.length === 0,
-      `stamps ${[...radarStamps].join(',') || 'none'}, expected ${expected}; ${radarFailures[0] ?? 'no failures'}`,
+      `layers ${[...radarStamps].join(',') || 'none'}, expected ${expected}; ${radarFailures[0] ?? 'no failures'}`,
     )
     const radarCredit = (await page.locator('.maplibregl-ctrl-attrib').innerText().catch(() => '')).replace(/\s+/g, ' ')
     check('with the radar credited to IEM', /Radar: Iowa Environmental Mesonet/.test(radarCredit), radarCredit)
     const radarLegend = page.getByRole('button', { name: /^Colour key for radar/ })
     check('and its legend shown', await radarLegend.isVisible())
     await screen('map-radar', 5)
-    await radarLabel.click()
+
+    // The 24 hour rain total: its span named, its own tiles and legend.
+    const rainChip = page.getByRole('button', { name: '24h rain', exact: true })
+    radarStamps.clear()
+    await rainChip.click()
+    const rainEnd = layersBody?.data?.rain_24h?.end_at ?? null
+    const rainStatus = await page
+      .getByRole('status')
+      .filter({ hasText: /^Rain in the 24 h/ })
+      .waitFor({ timeout: 10_000 })
+      .then(() => true)
+      .catch(() => false)
+    check('the 24h rain chip names the span its total covers', rainEnd === null || rainStatus, rainEnd ?? 'no total from IEM')
+    await page.waitForTimeout(4_000)
+    const rainLayer = rainEnd === null ? null : `mrms::p24h-${stampOf(rainEnd)}`
+    check(
+      'and draws that total’s tiles, with its own legend',
+      rainLayer === null ||
+        (radarStamps.has(rainLayer) &&
+          radarFailures.length === 0 &&
+          (await page.getByRole('button', { name: /^Colour key for rain totals/ }).isVisible())),
+      `layers ${[...radarStamps].join(',') || 'none'}, expected ${rainLayer ?? 'none'}; ${radarFailures[0] ?? 'no failures'}`,
+    )
+    await screen('map-rain24', 5)
+    await rainChip.click()
     page.off('response', watchRadar)
     const radarOff = await page
-      .getByRole('button', { name: 'Radar', exact: true })
-      .waitFor({ timeout: 5_000 })
+      .getByRole('button', { name: /^Colour key/ })
+      .waitFor({ state: 'detached', timeout: 5_000 })
       .then(() => true)
       .catch(() => false)
     check(
-      'and turns off again, its legend with it',
-      radarOff && !(await page.locator('.maplibregl-ctrl-attrib').innerText()).includes('Iowa') && !(await radarLegend.isVisible()),
+      'and a second tap turns the layer off, its legend and credit with it',
+      radarOff && (await rainChip.getAttribute('aria-pressed')) === 'false' && !(await page.locator('.maplibregl-ctrl-attrib').innerText()).includes('Iowa'),
     )
 
     await page.locator('.maplibregl-canvas').focus()

@@ -10,6 +10,8 @@ import {
   IconCurrentLocation,
   IconDroplet,
   IconHelpCircle,
+  IconPlayerPause,
+  IconPlayerPlay,
   IconMap,
   IconPlus,
   IconRipple,
@@ -110,6 +112,10 @@ export const CheckIcon = ({ color }: IconProps) => <IconCheck {...props(color)} 
 export const CrossIcon = ({ color }: IconProps) => <IconX {...props(color)} size={14} stroke={2.25} />
 
 /** The Map tab's locate-me control: a control on its own, so the bar's icon size. */
+/** The Map radar loop's play and pause. */
+export const PlayIcon = ({ color }: IconProps) => <IconPlayerPlay {...props(color)} size={18} stroke={2} />
+export const PauseIcon = ({ color }: IconProps) => <IconPlayerPause {...props(color)} size={18} stroke={2} />
+
 export const LocateIcon = ({ color }: IconProps) => (
   <IconCurrentLocation {...props(color)} size={bottomNav.iconSize} stroke={1.8} />
 )

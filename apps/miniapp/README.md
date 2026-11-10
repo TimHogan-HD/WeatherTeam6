@@ -160,9 +160,11 @@ so the list's bundle does not carry MapLibre. Its tiles, glyphs, sprites and ter
 straight from `tiles.openfreemap.org` and `s3.amazonaws.com`, and its radar tiles from
 `mesonet.agron.iastate.edu`, the one exception to proxying external calls
 (`.claude/rules/architecture.md`); `vercel.json`'s CSP names those three hosts and `blob:`
-for the workers, and `deployConfig.test.ts` (in `apps/api`) pins it. The radar frame's time
-comes from the API (`GET /radar/latest`), and the tiles are requested for that time, so
-the label and the picture are one frame. A long-press on the map opens `/add?lat=…&lon=…`.
+for the workers, and `deployConfig.test.ts` (in `apps/api`) pins it. Every radar frame's time
+comes from the API (`GET /radar/layers`: the last hour of radar, the HRRR forecast frames,
+the 24 and 72 hour rain totals), and the tiles are requested for those times, so the label
+and the picture are one frame; while a picked frame loads, the one before stays up and the
+label keeps naming it. A long-press on the map opens `/add?lat=…&lon=…`.
 
 Back is an in-app control in the screen header (`Screen`'s `onBack`), which
 an earlier `miniapp-design-v1.md` forbade — those rules assumed Telegram's `BackButton`,
