@@ -15,6 +15,7 @@ import {
   IconMap,
   IconPlus,
   IconRipple,
+  IconStack2,
   IconSun,
   IconTemperature,
   IconUser,
@@ -115,6 +116,9 @@ export const CrossIcon = ({ color }: IconProps) => <IconX {...props(color)} size
 /** The Map radar loop's play and pause. */
 export const PlayIcon = ({ color }: IconProps) => <IconPlayerPlay {...props(color)} size={18} stroke={2} />
 export const PauseIcon = ({ color }: IconProps) => <IconPlayerPause {...props(color)} size={18} stroke={2} />
+
+/** The Map layer pill's glyph: the same size as its label, so the pill reads as a control at a glance. */
+export const LayersIcon = ({ color }: IconProps) => <IconStack2 {...props(color)} size={18} stroke={2} />
 
 export const LocateIcon = ({ color }: IconProps) => (
   <IconCurrentLocation {...props(color)} size={bottomNav.iconSize} stroke={1.8} />
