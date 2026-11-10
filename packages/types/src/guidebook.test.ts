@@ -85,6 +85,11 @@ describe('sortByGrade', () => {
     const sorted = sortByGrade([route({ name: 'none' }), yds('5.11a'), yds('5.8')])
     expect(sorted.map((r) => r.name)).toEqual(['5.8', '5.11a', 'none'])
   })
+
+  it('puts the hardest first descending, and still leaves an unreadable grade last', () => {
+    const sorted = sortByGrade([route({ name: 'none' }), yds('5.8'), yds('5.11a'), yds('5.10b')], 'desc')
+    expect(sorted.map((r) => r.name)).toEqual(['5.11a', '5.10b', '5.8', 'none'])
+  })
 })
 
 describe('gradeRange', () => {

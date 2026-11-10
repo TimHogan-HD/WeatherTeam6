@@ -250,12 +250,19 @@ export function gradeRange(routes: readonly Grades[]): string | null {
   return lo.label === hi.label ? lo.label : `${lo.label} – ${hi.label}`
 }
 
-/** Easiest first; an unreadable grade last, then by name so the order is stable. */
-export function sortByGrade<T extends Grades & { name: string }>(routes: readonly T[]): T[] {
+/**
+ * Easiest first, or hardest first with `'desc'`; an unreadable grade last in
+ * both directions, then by name so the order is stable.
+ */
+export function sortByGrade<T extends Grades & { name: string }>(
+  routes: readonly T[],
+  direction: 'asc' | 'desc' = 'asc',
+): T[] {
+  const sign = direction === 'asc' ? 1 : -1
   return [...routes].sort((a, b) => {
     const ka = gradeSortKey(a)
     const kb = gradeSortKey(b)
-    if (ka !== kb) return ka === null ? 1 : kb === null ? -1 : ka - kb
+    if (ka !== kb) return ka === null ? 1 : kb === null ? -1 : sign * (ka - kb)
     return a.name.localeCompare(b.name)
   })
 }
