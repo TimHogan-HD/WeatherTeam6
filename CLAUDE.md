@@ -12,8 +12,6 @@ The audience is the owner (account `tim`, on a phone at about 480×1000) and a f
 
 Delete a line when the owner confirms it done. None blocks work.
 
-- Tear down the Telegram webhook (`deleteWebhook`, with `TELEGRAM_BOT_TOKEN` in the owner's own shell); Telegram still posts to a path that 404s.
-- Delete `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_WEBHOOK_SECRET` and `AUTH_ENABLED` from both Vercel projects. Nothing reads them; three are live credentials.
 - Paste the `pg_stat_statements` top 15 by `total_exec_time` from Neon's SQL editor, to decide whether any query needs an index.
 
 ## Stack
