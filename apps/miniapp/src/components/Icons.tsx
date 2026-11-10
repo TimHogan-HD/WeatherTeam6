@@ -11,7 +11,6 @@ import {
   IconDroplet,
   IconHelpCircle,
   IconMap,
-  IconMountain,
   IconPlus,
   IconRipple,
   IconSun,
@@ -115,9 +114,8 @@ export const LocateIcon = ({ color }: IconProps) => (
   <IconCurrentLocation {...props(color)} size={bottomNav.iconSize} stroke={1.8} />
 )
 
-/** The bottom bar's five glyphs, keyed by the Tabler name `bottomNav` gives each tab. */
+/** The bottom bar's four glyphs, keyed by the Tabler name `bottomNav` gives each tab. */
 const NAV_ICONS = {
-  mountain: IconMountain,
   sun: IconSun,
   map: IconMap,
   calendar: IconCalendar,

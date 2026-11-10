@@ -45,7 +45,6 @@ describe('sectionFor', () => {
   })
 
   it('names each other section by its own route', () => {
-    expect(sectionFor('/crags')).toBe('crags')
     expect(sectionFor('/map')).toBe('map')
     expect(sectionFor('/trips')).toBe('trips')
     expect(sectionFor('/trips/abc/crag/def')).toBe('trips')
@@ -85,7 +84,7 @@ describe('navGeometry', () => {
   })
 
   it('puts the pill exactly over the lit tab, at either end of the row', () => {
-    for (const key of ['crags', 'conditions', 'profile'] as const) {
+    for (const key of ['map', 'conditions', 'profile'] as const) {
       const { widths, pill } = navGeometry(ROW, key)
       const i = bottomNav.tabs.findIndex((t) => t.key === key)
       const left = widths.slice(0, i).reduce((s, w) => s + w + bottomNav.gap, 0)

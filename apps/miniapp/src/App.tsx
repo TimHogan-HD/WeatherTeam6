@@ -23,7 +23,7 @@ import { usePreferences } from './hooks/usePreferences.js'
 import { LocationList } from './routes/LocationList.js'
 import { Login } from './routes/Login.js'
 import { Join } from './routes/Join.js'
-import { MapFallback, Profile, UnbuiltSection } from './routes/Sections.js'
+import { MapFallback, Profile } from './routes/Sections.js'
 import { TripCreate, TripEdit, TripList } from './routes/Trips.js'
 import { TripScreen } from './routes/TripScreen.js'
 import { TabBar } from './components/TabBar.js'
@@ -69,7 +69,7 @@ subscribeToToken(() => {
 
 /**
  * Client-side routes only — list, detail, add, login and feedback, the
- * guidebook's walls and routes (inside a crag's Crag tab), and the bottom bar's other four sections
+ * guidebook's walls and routes (inside a crag's Crag tab), and the bottom bar's other three sections
  * — and no server routes: Vercel rewrites every path to `index.html`
  * (miniapp-design-v1.md §2, plus `/login` from Phase 2 of
  * the leave-Telegram migration (PR #169), and `/feedback`). An unrecognised path lands on the list
@@ -97,7 +97,6 @@ export function App() {
             <Route path="/location/:id/wall/:wallId/route/:routeId" element={<LocationDetail />} />
             <Route path="/add" element={<AddLocation />} />
             <Route path="/feedback" element={<Feedback />} />
-            <Route path="/crags" element={<UnbuiltSection title="Crags" />} />
             <Route
               path="/map"
               element={

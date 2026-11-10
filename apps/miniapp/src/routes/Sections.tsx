@@ -13,7 +13,7 @@ import { draftFromPreferences } from '../lib/preferencesForm.js'
 
 /**
  * A bottom-bar section's first screen, in the Conditions list's header band so
- * the five sections read as one app.
+ * the four sections read as one app.
  */
 export function SectionScreen({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
@@ -26,20 +26,6 @@ export function SectionScreen({ title, action, children }: { title: string; acti
         {children}
       </div>
     </main>
-  )
-}
-
-/**
- * `/crags` — a section the bottom bar names before it has a screen. The owner
- * is the only reader and asked for the tab anyway (2026-09-30), so it says
- * plainly that it is not built rather than borrowing another screen's content.
- * `/map` and `/trips` are built (`MapScreen.tsx`, `Trips.tsx`).
- */
-export function UnbuiltSection({ title }: { title: string }) {
-  return (
-    <SectionScreen title={title}>
-      <p style={typeV2.meta}>Not built yet.</p>
-    </SectionScreen>
   )
 }
 

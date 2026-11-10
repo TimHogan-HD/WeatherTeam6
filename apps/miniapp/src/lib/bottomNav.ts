@@ -65,7 +65,7 @@ export type NavGeometry = {
 
 /**
  * The lit tab is exactly as wide as its pill — icon, label and padding
- * (`pillW`) — and the other four share what is left. So the pill has somewhere
+ * (`pillW`) — and the other three share what is left. So the pill has somewhere
  * definite to slide to, which a row of equal tabs would not give it: an equal
  * slot is too narrow for "Conditions" and too wide for "Map".
  *
