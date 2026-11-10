@@ -64,9 +64,9 @@ Do not create a `.env` file at all — set variables in the shell for the one co
 - Drizzle migrations only — never mutate the DB directly.
 - **Finish the delivery** (owner, 2026-11-04). Work reaches `main` through a branch, a PR, green `ci` and `review`, and a squash merge. GitHub is the gate; you open the PR and hand it to GitHub. The same steps run locally and in a cloud session:
   1. Push and open the PR. A cloud session opens it as a draft; drafts are reviewed too.
-  2. When the work is finished, mark it ready (`gh pr ready <n>`, or in the cloud the GitHub MCP `update_pull_request` with `draft: false`) and arm auto-merge (`gh pr merge <n> --auto --squash --delete-branch`, or in the cloud the GitHub MCP `enable_pr_auto_merge`, method SQUASH). GitHub refuses to arm a PR that is already green and mergeable; merge that one directly (`merge_pull_request`, squash). In the cloud every `gh pr` subcommand fails with 403 (GraphQL), so use the MCP tools or `gh api` REST there.
+  2. When the work is finished, mark it ready (`gh pr ready <n>`, or in the cloud the GitHub MCP `update_pull_request` with `draft: false`) and arm auto-merge (`gh pr merge <n> --auto --squash --delete-branch`, or in the cloud the GitHub MCP `enable_pr_auto_merge`, method SQUASH). A PR already green and mergeable cannot be armed, and an armed one can sit green without merging (#513, #520); merge either directly (`merge_pull_request`, squash). In the cloud every `gh pr` subcommand fails with 403 (GraphQL), so use the MCP tools or `gh api` REST there.
   3. End the turn. GitHub merges when both checks pass. A red check or a conflict wakes a cloud session through its PR subscription; locally, run `npm run wait:pr` in the background before ending the turn so its exit wakes you. Either way a red check is yours to fix.
-  Until the repository allows auto-merge, the hooks fall back to waiting with `npm run wait:pr` and merging over REST, and say so when they block. Only the PR for your own branch is yours: others belong to other sessions, and you act on one only when the user asks. If the user asks you to pause mid-change, `touch .claude/.wip` and delete it when work resumes; it expires after 12 hours.
+  Only the PR for your own branch is yours: others belong to other sessions, and you act on one only when the user asks. If the user asks you to pause mid-change, `touch .claude/.wip` and delete it when work resumes; it expires after 12 hours.
 - **A check nothing runs is not a check.** CI runs every root-level `check:*` script and the `apps/api` checks that need only Postgres; a new such check goes on that list in `ci.yml`. `npm run check:hooks` fails if `.claude/settings.json` registers a hook no scenario exercises. `main` requires both `ci` and `review`, set only by GitHub Actions and enforced for admins too, so fix the red check rather than routing around it. `review` fails on the reviewer's blocking findings; clear one by fixing it, or by replying on its inline comment with why it is not a defect and re-running the job. Advisory findings do not block: fix the ones that are right in the same PR, or reply why not. A PR that edits `claude-review.yml` passes `review` unreviewed, so keep such a PR to the workflow alone.
 
 ## Reference Docs
@@ -82,8 +82,7 @@ Do not create a `.env` file at all — set variables in the shell for the one co
 | Drying model or rock types | `.claude/docs/rock-drying-research.md` — §10 first (most figures it checked were misattributed); per-crag facts in `.claude/docs/crag-facts.json` |
 | Wall angle, aspect, temperature/humidity scoring, `walls` | `.claude/docs/climbing-terminology-research.md` — `cliff_angle` runs backwards from climbers' usage and `aspectDegrees` scores nothing |
 | Sun and shade walls on the Overview, Wall A per wall (#445) | `docs/handoffs/wall-a-sun-shade-v1.md`, then the mockups it lists, opened in a browser |
-| The hybrid look transition (owner, 2026-10-19) | `docs/handoffs/miniapp-hybrid-transition-v1.md`, then its mockup `docs/handoffs/design-mockups/weatherteam6-hybrid.html` opened in a browser. For the items it lists it wins over `miniapp-design-v1.md` |
-| Any UI phase | `docs/handoffs/miniapp-design-v1.md` (the current screen spec — open, see Rules) and `docs/handoffs/design-system-v1.md`. Open the mockup itself (`docs/handoffs/design-mockups/weatherteam6-hybrid.html`), not a prose summary of it — one phase was built twice from the description |
+| Any UI work | `docs/handoffs/miniapp-design-v1.md` (the current screen spec — open, see Rules), `design-system-v1.md`, and `miniapp-hybrid-transition-v1.md` (built; wins for the items it lists). Open the mockup itself (`docs/handoffs/design-mockups/weatherteam6-hybrid.html`), not a prose summary of it — one phase was built twice from the description |
 | CSS, hover, transitions or animation | `docs/handoffs/design-system-v1.md` § CSS and motion — allowed since 2026-10-01, on tokens, with `prefers-reduced-motion` |
 | Placement, motion numbers, platform features, design tools | `.claude/docs/ui-craft.md` |
 | Setting up or repairing a Vercel project, or migrating from a restricted environment | `apps/api/README.md` |
@@ -92,7 +91,7 @@ Paywalled or unfetchable source material goes in `.claude/research-inbox/` (giti
 
 ## Session Start and End
 
-The `SessionStart` hook injects branch, working tree, open PRs and issues, CI on `main`, and `.claude/docs/STATE.md`. Use it instead of re-running `git log` or `gh issue list`. If that block is missing, read `STATE.md` and run `git log --oneline -5` yourself. Then run the shared-package build above. Read issue state from `gh issue list`, never from a table in a document. Grep `.claude/docs/session-archive.md` only for the reasoning behind one past decision.
+The `SessionStart` hook injects branch, working tree, open PRs and issues, CI on `main`, and `.claude/docs/STATE.md`. Use it instead of re-running `git log` or `gh issue list`. If that block is missing, read `STATE.md` and run `git log --oneline -5` yourself. Then run the shared-package build above. Read issue state from GitHub (`gh issue list`, or MCP `list_issues` in the cloud), never from a table in a document. Grep `.claude/docs/session-archive.md` only for the reasoning behind one past decision.
 
 If the user says "next phase", "continue" or "do Phase X", say in one sentence which phase and branch, and proceed from the docs.
 
@@ -137,7 +136,7 @@ a credential, a dashboard setting, a phone, a product decision.>
 
 ## Known Gotchas
 
-**`vite` is pinned at the repo root so the web app's plugins resolve the right copy.** `apps/api`'s vitest pulls in an older vite that npm hoists, and `@vitejs/plugin-react` then resolves it instead of `apps/miniapp`'s — the build dies with `Package subpath './internal' is not defined`. Do not remove the root `vite` devDependency.
+**Keep the root `vite` devDependency.** It stops a second, older vite being hoisted, which `@vitejs/plugin-react` would resolve (`Package subpath './internal' is not defined`). Since vitest 5 (#515) the lockfile holds one vite; keep it that way.
 
 **Vercel deploys from `main` only, and only the project a change touched.** There are no PR previews, so drive the UI locally (§ Verification). A merge that hit the deployment limit ships with the next one, or by "Redeploy" in the dashboard.
 
