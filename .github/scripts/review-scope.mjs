@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Writes the CI reviewer's scope (mode, model, max_turns, since) to
+ * Writes the CI reviewer's scope (mode, model, max_turns, since, unchanged) to
  * $GITHUB_OUTPUT. The decision is `pickScope` in .claude/hooks/lib/reviewScope.mjs,
  * covered by `npm run check:hooks`; this only gathers its inputs.
  *
@@ -25,10 +25,11 @@ try {
   // light review. Unreadable means unknown, and unknown keeps the Opus review.
   let author = null
   let changedFiles = null
+  let base = null
   try {
     const pr = JSON.parse(run('gh', ['api', `repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}`]))
     author = pr?.user?.login ?? null
-    const base = pr?.base?.ref
+    base = pr?.base?.ref ?? null
     if (base) {
       changedFiles = run('git', ['diff', '--name-only', `origin/${base}...${HEAD_SHA}`])
         .split('\n')
@@ -43,6 +44,19 @@ try {
     action: EVENT_ACTION,
     headSha: HEAD_SHA,
     comments,
+    // The PR's own diff, as git patch-id sees it (line numbers ignored, context
+    // kept), at the reviewed commit and at the head. Equal means the push
+    // brought in only main's changes, none of them inside the PR's hunks.
+    prUnchanged: (since) => {
+      if (!base) return false
+      const id = (sha) => {
+        const diff = run('git', ['diff', `origin/${base}...${sha}`])
+        if (!diff) return null
+        return execFileSync('git', ['patch-id', '--stable'], { input: diff, encoding: 'utf8' }).split(' ')[0] || null
+      }
+      const before = id(since)
+      return before !== null && before === id(HEAD_SHA)
+    },
     isAncestor: (sha) => {
       try {
         run('git', ['merge-base', '--is-ancestor', sha, HEAD_SHA])
@@ -61,6 +75,7 @@ const lines = [
   `model=${scope.model}`,
   `max_turns=${scope.maxTurns}`,
   `since=${scope.since ?? ''}`,
+  `unchanged=${scope.unchanged === true}`,
 ]
 if (GITHUB_OUTPUT) appendFileSync(GITHUB_OUTPUT, lines.join('\n') + '\n')
 console.log(lines.join('\n'))

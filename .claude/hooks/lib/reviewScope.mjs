@@ -47,13 +47,36 @@ export function lastReviewedSha(comments) {
 }
 
 /**
- * `{ mode, model, maxTurns, since }`. `isAncestor(sha)` says whether `sha` is
- * still in the head's history; `since` is null for a full review.
+ * `{ mode, model, maxTurns, since }`, plus `unchanged: true` on an incremental
+ * scope whose push changed nothing in the PR's own diff. `isAncestor(sha)` says
+ * whether `sha` is still in the head's history; `since` is null for a full
+ * review.
+ *
+ * `prUnchanged(since)` (2026-11-10) says whether the PR's own changes against
+ * its base are the same at the head as at `since`: a merge from main that
+ * touched none of the PR's hunks. The incremental diff of such a push is
+ * main's already-reviewed code, so the workflow can confirm the earlier review
+ * instead of paying for a Sonnet pass over it. Anything but `true` (false,
+ * unknown, a throw) reviews as before.
  */
-export function pickScope({ action, headSha, comments, isAncestor, author = null, changedFiles = null }) {
+export function pickScope({
+  action,
+  headSha,
+  comments,
+  isAncestor,
+  author = null,
+  changedFiles = null,
+  prUnchanged = () => false,
+}) {
   const since = lastReviewedSha(comments)
   if (action !== 'synchronize' || !since || since === headSha || !isAncestor(since)) {
     return { ...(isLightReview({ author, changedFiles }) ? LIGHT : FULL), since: null }
   }
-  return { ...INCREMENTAL, since }
+  let unchanged = false
+  try {
+    unchanged = prUnchanged(since) === true
+  } catch {
+    // Unknown is reviewed.
+  }
+  return unchanged ? { ...INCREMENTAL, since, unchanged: true } : { ...INCREMENTAL, since }
 }

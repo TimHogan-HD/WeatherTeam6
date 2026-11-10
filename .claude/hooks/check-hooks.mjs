@@ -253,6 +253,11 @@ const gateCases = [
       ['scope: an unreadable diff keeps Opus', scope({ comments: [], changedFiles: [] }), { ...FULL, since: null }],
       ['scope: unknown files keep Opus', scope({ comments: [], changedFiles: null }), { ...FULL, since: null }],
       ['scope: a Dependabot push after a review is still incremental', scope({ author: 'dependabot[bot]' }), { ...INCREMENTAL, since: OLD }],
+      ['scope: a merge from main that left the PR diff alone is unchanged', scope({ prUnchanged: (s) => s === OLD }), { ...INCREMENTAL, since: OLD, unchanged: true }],
+      ['scope: a merge that changed the PR diff is reviewed', scope({ prUnchanged: () => false }), { ...INCREMENTAL, since: OLD }],
+      ['scope: an unreadable PR diff is reviewed', scope({ prUnchanged: () => { throw new Error('git') } }), { ...INCREMENTAL, since: OLD }],
+      ['scope: only true counts as unchanged', scope({ prUnchanged: () => 'yes' }), { ...INCREMENTAL, since: OLD }],
+      ['scope: ready_for_review is full even when unchanged', scope({ action: 'ready_for_review', prUnchanged: () => true }), { ...FULL, since: null }],
       ['scope: the newest summary is the base', lastReviewedSha([...reviewed, bot(`## Claude review\nCommit: ${'c'.repeat(40)}`)]), 'c'.repeat(40)],
     ]
   })(),
