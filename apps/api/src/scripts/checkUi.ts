@@ -886,7 +886,11 @@ async function run(): Promise<void> {
       if (r.status() >= 400) radarFailures.push(`${r.status()} ${r.url()}`)
     }
     page.on('response', watchRadar)
-    const radarLatest = page.waitForResponse((r) => r.url().endsWith('/radar/latest'), { timeout: 30_000 })
+    // Caught where it is made: the steps before its await can outlast the timeout
+    // or throw, and an unhandled rejection would end the run before cleanup.
+    const radarLatest = page
+      .waitForResponse((r) => r.url().endsWith('/radar/latest'), { timeout: 30_000 })
+      .catch(() => null)
     await page.goto(`${WEB}/map`)
     const pin = page.getByRole('button', { name: new RegExp(`^ZZ UI check — Taylors Falls ${STAMP}`) })
     const pinShown = await pin.waitFor({ timeout: 30_000 }).then(() => true).catch(() => false)
@@ -914,7 +918,8 @@ async function run(): Promise<void> {
     await page.waitForTimeout(3_000)
     await screen('map', 5)
 
-    const latestBody = (await (await radarLatest).json().catch(() => null)) as { data?: { valid_at?: string } } | null
+    const latestResponse = await radarLatest
+    const latestBody = (latestResponse === null ? null : await latestResponse.json().catch(() => null)) as { data?: { valid_at?: string } } | null
     const validAt = latestBody?.data?.valid_at ?? ''
     const radarLabel = page.getByRole('button', { name: /^Radar \d{1,2}:\d{2}/ })
     const radarNamed = await radarLabel.waitFor({ timeout: 15_000 }).then(() => true).catch(() => false)
