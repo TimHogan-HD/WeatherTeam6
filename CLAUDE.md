@@ -131,7 +131,7 @@ Run `/review-checklist` before opening a PR.
 
 Lead with what happened and what it means; say what failed, was skipped, or is unverified without being asked; use plain sentences over schema or driver terms.
 
-Every recap, summary, PR body and message that ends a stretch of work ends with this block:
+The final message of a task, and every PR body, ends with this block:
 
 ```
 ## Do you need to do anything?
@@ -144,7 +144,7 @@ a credential, a dashboard setting, a phone, a product decision.>
 <The single next action, and who does it. If it is blocked, say what on.>
 ```
 
-"Yes" is only for things the user alone can do; unstarted work goes under Next step. Name one next step, not a backlog. The block goes in once per stretch of work: when a Stop hook re-fires on a state you have already reported, answer in one line and do not repeat it.
+"Yes" is only for things the user alone can do; unstarted work goes under Next step. Name one next step, not a backlog. **Once per task, never again for the same state** (owner, 2026-11-10: one session repeated it about a dozen times and spent the usage on that): a Stop hook re-firing, a `/goal` check rejecting a stop, a background notification, or a PR event that changes nothing you already reported gets one line and no block. Never start work only to give a hook something new.
 
 ## Known Gotchas
 
