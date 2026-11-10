@@ -1269,8 +1269,8 @@ inputs:
 
 **This is the strongest independent support §18.1 could have got, and it carries a bill.**
 Deriving "rainfall direction" requires **hourly precipitation joined to hourly wind direction**.
-`fetchPrecipHistory` (ACIS) and `fetchArchivePrecip` (Open-Meteo archive) both return **daily
-precipitation totals**. The quantity every source now agrees is the right one cannot be computed
+`fetchPrecipHistory` (ACIS) and `fetchArchivePrecip` (Open-Meteo archive) both returned **daily
+precipitation totals** (both since deleted: scoring Phase 5b and #483). The quantity every source now agrees is the right one cannot be computed
 from the data the app currently fetches.
 
 **And the same aspect flips sign between seasons.** WillDeWorde's two worked examples use the
