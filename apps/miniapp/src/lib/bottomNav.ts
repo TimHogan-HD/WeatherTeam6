@@ -7,8 +7,8 @@ export type SectionKey = NavTab['key']
  * Which section a path belongs to, and whether the bar shows over it.
  *
  * A saved location and its guidebook screens are inside Conditions, which is
- * where they are opened from. `/add`, `/feedback` and a location's editor are
- * tasks you finish and leave (`miniapp-design-v1.md` §2), so they carry their
+ * where they are opened from. `/add`, `/feedback`, `/welcome` and a location's
+ * editor are tasks you finish and leave (`miniapp-design-v1.md` §2), so they carry their
  * own back control and no bar; `null` is that answer. Anything unrecognised is
  * Conditions, because `App` sends an unknown path to `/`.
  */
@@ -17,6 +17,7 @@ export function sectionFor(pathname: string): SectionKey | null {
     pathname === '/add' ||
     pathname === '/feedback' ||
     pathname === '/trips/new' ||
+    pathname === '/welcome' ||
     /^\/(location|trips)\/[^/]+\/edit$/.test(pathname)
   ) {
     return null
