@@ -4,7 +4,7 @@ import {
   riverGaugesFor,
   type Conditions,
   type ForecastSnapshot,
-  type RadarLatest,
+  type RadarLayers,
   type RainNow,
   type RiverGaugeReading,
   type WeatherAlert,
@@ -13,11 +13,11 @@ import {
 /** IEM builds a radar frame every 5 minutes. */
 const RADAR_REFRESH_MS = 5 * 60_000
 
-/** The newest radar frame's time, asked for only while the Map's radar is on, and again every frame after. */
-export function useRadarLatest(enabled: boolean): UseQueryResult<RadarLatest> {
+/** Every Map radar layer's frame times, asked for only while a layer is on, and again every radar frame after. */
+export function useRadarLayers(enabled: boolean): UseQueryResult<RadarLayers> {
   return useQuery({
-    queryKey: ['radar', 'latest'] as const,
-    queryFn: () => apiGet<RadarLatest>('/radar/latest'),
+    queryKey: ['radar', 'layers'] as const,
+    queryFn: () => apiGet<RadarLayers>('/radar/layers'),
     enabled,
     staleTime: RADAR_REFRESH_MS,
     refetchInterval: enabled ? RADAR_REFRESH_MS : false,

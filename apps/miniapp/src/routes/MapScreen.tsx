@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react'
+import type { RadarLayers } from '@weatherteam6/types'
 import { createPortal } from 'react-dom'
 import { useNavigate } from '../hooks/useNavigate.js'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
@@ -13,7 +14,6 @@ import {
   type MapMouseEvent,
   type MapTouchEvent,
   type RasterSourceSpecification,
-  type RasterTileSource,
 } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
@@ -26,7 +26,7 @@ import { glassDock, glassLegend } from '../theme/glass.js'
 import { Sect } from '../components/charts/liquid.js'
 import { withOpacity } from '../theme/tokens.css.js'
 import { useLocations } from '../hooks/useLocations.js'
-import { conditionsQuery, useRadarLatest } from '../hooks/useWeather.js'
+import { conditionsQuery, useRadarLayers } from '../hooks/useWeather.js'
 import { useCurrentPosition, type Fix } from '../hooks/useCurrentPosition.js'
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
 import { prefetchDetail } from '../lib/prefetchDetail.js'
@@ -44,9 +44,24 @@ import {
   appMapStyle,
   positionFeatures,
 } from '../lib/mapStyle.js'
-import { RADAR_BANDS, RADAR_FAINT_NOTE, type RadarBand, RADAR_LAYER, RADAR_LAYER_SPEC, RADAR_SOURCE, radarBeforeId, radarSource, radarTime } from '../lib/radar.js'
+import {
+  RADAR_OPACITY,
+  RADAR_PREFIX,
+  RADAR_SCALE,
+  RAIN_SCALE,
+  frameLabel,
+  radarBeforeId,
+  radarLayerSpec,
+  rainEndOf,
+  rainPeriodLabel,
+  rainSource,
+  timelineFrames,
+  type LegendScale,
+  type RainHours,
+  type TimelineFrame,
+} from '../lib/radar.js'
 import { InlineError } from '../components/States.js'
-import { CrossIcon, LocateIcon } from '../components/Icons.js'
+import { CrossIcon, LocateIcon, PauseIcon, PlayIcon } from '../components/Icons.js'
 
 // MapLibre 6 finds its worker beside its own module, which a bundle moves;
 // Vite builds it as a worker and says where it went.
@@ -196,17 +211,38 @@ export function MapScreen() {
   )
   const locating = reading.kind === 'locating'
 
-  const [radarOn, setRadarOn] = useState(true)
-  const radar = useRadarLatest(radarOn)
-  const radarValidAt = radarOn ? (radar.data?.valid_at ?? null) : null
-  useRadarLayer(map, radarOn, radarValidAt)
-  const radarLabel = !radarOn
-    ? 'Radar'
-    : radar.isError && radar.data === undefined
-      ? 'Radar unavailable'
-      : radarValidAt === null
-        ? 'Radar …'
-        : `Radar ${radarTime(radarValidAt) ?? ''}`.trim()
+  const [layer, setLayer] = useState<RadarLayer | null>('radar')
+  const radar = useRadarLayers(layer !== null)
+  const loop = useRadarLoop(layer === 'radar' ? radar.data : undefined)
+  const rainHours: RainHours | null = layer === 'rain24' ? 24 : layer === 'rain72' ? 72 : null
+  const rainPeriod = rainHours === null || radar.data === undefined ? null : rainHours === 24 ? radar.data.rain_24h : radar.data.rain_72h
+  const rain = useMemo(() => (rainHours === null || rainPeriod === null ? null : rainSource(rainPeriod, rainHours)), [rainHours, rainPeriod])
+  const shownFrame = loop.frames[loop.index] ?? null
+  const visibleUrl = useRadarFrames(
+    map,
+    layer ?? 'off',
+    layer === 'radar' ? loop.wanted : EMPTY_SOURCES,
+    layer === 'radar' ? (shownFrame?.source ?? null) : rain,
+  )
+  usePlayback(loop, visibleUrl)
+  // The time printed is the frame on the map, which stays up until the next one has drawn.
+  const drawnFrame = loop.frames.find((f) => f.source.tiles?.[0] === visibleUrl) ?? null
+  const radarStatus =
+    layer === null
+      ? null
+      : radar.isError && radar.data === undefined
+        ? 'Radar unavailable'
+        : radar.data === undefined
+          ? 'Radar …'
+          : layer === 'radar'
+            ? loop.frames.length === 0
+              ? 'Radar unavailable'
+              : null
+            : rainPeriod === null || rainHours === null
+              ? `${rainHours ?? ''} h rain unavailable`.trim()
+              : // The total on the map, which stays up until a newer one has drawn.
+                rainPeriodLabel({ ...rainPeriod, end_at: rainEndOf(visibleUrl, rainHours) ?? rainPeriod.end_at }, rainHours)
+  const legend: LegendScale | null = visibleUrl === null ? null : layer === 'radar' ? RADAR_SCALE : RAIN_SCALE
 
   const emptyList = locations.isSuccess && !locations.isPlaceholderData && list.length === 0
   const unplaced = list.length - pins.length
@@ -289,25 +325,33 @@ export function MapScreen() {
             </div>
           ) : null}
 
-          <button
-            type="button"
-            aria-pressed={radarOn}
-            onClick={() => setRadarOn((on) => !on)}
-            style={{
-              ...bareButton,
-              ...glassDock,
-              ...interactive,
-              ...typeV2.dayPick,
-              width: 'auto',
-              height: `${LOCATE_SIZE}px`,
-              padding: `0 ${spacing.cardPad}px`,
-              borderRadius: `${radius.full}px`,
-              color: radarOn ? colorsV2.brandInk : colorsV2.txt1,
-              ...(radarOn ? { boxShadow: `inset 0 0 0 1px ${colorsV2.brand}` } : {}),
-            }}
-          >
-            {radarLabel}
-          </button>
+          <div role="group" aria-label="Map layer" style={{ ...row(spacing.tight), ...interactive }}>
+            {RADAR_LAYERS.map(({ id, label }) => {
+              const on = layer === id
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={on}
+                  // A second tap on the lit chip turns the layer off, as the one radar toggle did.
+                  onClick={() => setLayer(on ? null : id)}
+                  style={{
+                    ...bareButton,
+                    ...glassDock,
+                    ...typeV2.dayPick,
+                    width: 'auto',
+                    height: `${LOCATE_SIZE}px`,
+                    padding: `0 ${spacing.cardPad}px`,
+                    borderRadius: `${radius.full}px`,
+                    color: on ? colorsV2.brandInk : colorsV2.txt1,
+                    ...(on ? { boxShadow: `inset 0 0 0 1px ${colorsV2.brand}` } : {}),
+                  }}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
 
           <button
             type="button"
@@ -347,7 +391,14 @@ export function MapScreen() {
             </section>
           )}
 
-          {radarValidAt === null ? null : <RadarLegend />}
+          {radarStatus !== null ? (
+            <p role="status" style={{ ...glassLegend, ...typeV2.legendSm, color: colorsV2.txt1, alignSelf: 'stretch', padding: `${spacing.tight}px ${spacing.cardPad}px`, borderRadius: `${radius.full}px` }}>
+              {radarStatus}
+            </p>
+          ) : layer === 'radar' && shownFrame !== null ? (
+            <RadarTimeline loop={loop} drawn={drawnFrame ?? shownFrame} />
+          ) : null}
+          {legend === null ? null : <RadarLegend scale={legend} />}
         </div>
       </div>
     </main>
@@ -364,7 +415,7 @@ export function MapScreen() {
  * tiles' own ramp (`RADAR_BANDS`), each band as wide as its dBZ span, so a
  * colour on the map sits over the word for it.
  */
-function RadarLegend() {
+function RadarLegend({ scale }: { scale: LegendScale }) {
   const [open, setOpen] = useState(readLegendOpen)
   const noteId = useId()
   const toggle = () => {
@@ -372,12 +423,13 @@ function RadarLegend() {
     setOpen(!open)
   }
   const words: CSSProperties = { ...typeV2.legendSm, color: colorsV2.txt1, whiteSpace: 'nowrap' }
+  const { segments } = scale
   return (
     <button
       type="button"
-      // The label replaces the content as the name, so the open bands are named
+      // The label replaces the content as the name, so the open segments are named
       // in it and the note is the description: a screen reader hears what is shown.
-      aria-label={open ? `Colour key for radar: ${RADAR_BANDS.map((b) => b.label).join(', ')}` : 'Colour key for radar'}
+      aria-label={open ? `Colour key for ${scale.name}: ${segments.map((s) => s.label).join(', ')}` : `Colour key for ${scale.name}`}
       aria-describedby={open ? noteId : undefined}
       aria-expanded={open}
       onClick={toggle}
@@ -395,36 +447,45 @@ function RadarLegend() {
       {open ? (
         <>
           <span style={{ display: 'flex', width: '100%' }}>
-            {RADAR_BANDS.map((band) => (
-              <span key={band.label} style={{ ...stack(spacing.tight), flex: `${band.toDbz - band.fromDbz} 0 0`, minWidth: 0 }}>
-                <span aria-hidden="true" style={{ height: '6px', background: rampOf([band]) }} />
-                <span style={words}>{band.label}</span>
+            {segments.map((segment) => (
+              <span key={segment.label} style={{ ...stack(spacing.tight), flex: `${segment.weight} 0 0`, minWidth: 0 }}>
+                <span aria-hidden="true" style={{ height: '6px', background: rampOf([segment]) }} />
+                <span style={words}>{segment.label}</span>
               </span>
             ))}
           </span>
-          <span id={noteId} style={{ ...typeV2.legendSm }}>{RADAR_FAINT_NOTE}</span>
+          <span id={noteId} style={{ ...row(spacing.tight), ...typeV2.legendSm }}>
+            {scale.noCoverage === null ? null : (
+              <span aria-hidden="true" style={{ flex: 'none', width: '10px', height: '10px', borderRadius: '2px', background: scale.noCoverage }} />
+            )}
+            {scale.note}
+          </span>
         </>
       ) : (
         <>
-          <span style={words}>{RADAR_BANDS[0]?.label}</span>
-          <span aria-hidden="true" style={{ flex: 1, minWidth: 0, height: '6px', borderRadius: `${radius.full}px`, background: rampOf(RADAR_BANDS) }} />
-          <span style={words}>{RADAR_BANDS.at(-1)?.label}</span>
+          <span style={words}>{segments[0]?.label}</span>
+          <span aria-hidden="true" style={{ flex: 1, minWidth: 0, height: '6px', borderRadius: `${radius.full}px`, background: rampOf(segments) }} />
+          <span style={words}>{segments.at(-1)?.label}</span>
         </>
       )}
     </button>
   )
 }
 
-/** One gradient across the bands given, each as wide as its dBZ span. */
-function rampOf(bands: readonly RadarBand[]): string {
-  const from = bands[0]?.fromDbz ?? 0
-  const span = (bands.at(-1)?.toDbz ?? from) - from || 1
-  const stops = bands.flatMap((band) =>
-    band.colors.map((color, i) => {
-      const dbz = band.fromDbz + ((band.toDbz - band.fromDbz) * i) / Math.max(band.colors.length - 1, 1)
-      return `${color} ${(((dbz - from) / span) * 100).toFixed(1)}%`
-    }),
-  )
+/** One gradient across the segments given, each as wide as its weight, its colours spread evenly across it. */
+function rampOf(segments: LegendScale['segments']): string {
+  const total = segments.reduce((sum, s) => sum + s.weight, 0) || 1
+  let start = 0
+  const stops = segments.flatMap((segment) => {
+    const from = start
+    start += segment.weight
+    // One colour is a block: a gradient needs two stops, so it gets both ends.
+    const colors = segment.colors.length === 1 ? [segment.colors[0]!, segment.colors[0]!] : segment.colors
+    return colors.map((color, i) => {
+      const at = from + (segment.weight * i) / Math.max(colors.length - 1, 1)
+      return `${color} ${((at / total) * 100).toFixed(1)}%`
+    })
+  })
   return `linear-gradient(90deg, ${stops.join(', ')})`
 }
 
@@ -594,40 +655,254 @@ function PinMarker({
   )
 }
 
+type RadarLayer = 'radar' | 'rain24' | 'rain72'
+
+const RADAR_LAYERS: readonly { id: RadarLayer; label: string }[] = [
+  { id: 'radar', label: 'Radar' },
+  { id: 'rain24', label: '24h rain' },
+  { id: 'rain72', label: '72h rain' },
+]
+
+const EMPTY_SOURCES: readonly RasterSourceSpecification[] = []
+
+const tileUrl = (source: RasterSourceSpecification): string => source.tiles?.[0] ?? ''
+
+type RadarLoop = {
+  frames: readonly TimelineFrame[]
+  /** The frame asked for; the map shows it once its tiles have drawn. */
+  index: number
+  /** The newest radar frame, where the timeline rests. */
+  nowIndex: number
+  /** Frames to keep on the map: only the one asked for until the reader touches the timeline, then all, so the loop plays without waiting. */
+  wanted: readonly RasterSourceSpecification[]
+  playing: boolean
+  pick: (index: number) => void
+  togglePlay: () => void
+  step: () => void
+}
+
 /**
- * Radar is a layer on the kept map while the toggle is on, and gone when it is
- * off or the tab closes. A new frame swaps the tiles in place rather than
- * rebuilding the layer, so the old frame stays up until the new one arrives.
- * No frame time, no layer: a radar that failed draws nothing, which never
- * reads as "no rain" because the toggle says it is unavailable.
+ * The radar timeline: the last hour of frames, then the forecast. It rests on
+ * the newest radar frame, and a picked frame is remembered by its time, so a
+ * refresh every five minutes keeps it while it is still listed.
  */
-function useRadarLayer(map: MapLibreMap | null, on: boolean, validAt: string | null): void {
-  const source = useMemo<RasterSourceSpecification | null>(() => (validAt === null ? null : radarSource(validAt)), [validAt])
+function useRadarLoop(layers: RadarLayers | undefined): RadarLoop {
+  const frames = useMemo(() => (layers === undefined ? [] : timelineFrames(layers)), [layers])
+  // Radar frames come first, so the newest is the last of them.
+  const nowIndex = frames.filter((f) => f.kind === 'radar').length - 1
+  const [picked, setPicked] = useState<string | null>(null)
+  const [playing, setPlaying] = useState(false)
+  const [loadAll, setLoadAll] = useState(false)
+  const pickedIndex = picked === null ? -1 : frames.findIndex((f) => frameKey(f) === picked)
+  const index = pickedIndex >= 0 ? pickedIndex : nowIndex
+  const wanted = useMemo(() => {
+    if (loadAll) return frames.map((f) => f.source)
+    const shown = frames[index]
+    return shown === undefined ? EMPTY_SOURCES : [shown.source]
+  }, [frames, index, loadAll])
+  const pick = useCallback(
+    (i: number) => {
+      const frame = frames[i]
+      if (frame === undefined) return
+      setLoadAll(true)
+      setPicked(i === nowIndex ? null : frameKey(frame))
+    },
+    [frames, nowIndex],
+  )
+  const step = useCallback(() => pick(frames.length === 0 ? 0 : (index + 1) % frames.length), [frames.length, index, pick])
+  const togglePlay = useCallback(() => {
+    setLoadAll(true)
+    if (!playing && index === frames.length - 1) setPicked(frames[0] === undefined ? null : frameKey(frames[0]))
+    setPlaying(!playing)
+  }, [frames, index, playing])
+  return { frames, index, nowIndex, wanted, playing: playing && frames.length > 1, pick, togglePlay, step }
+}
+
+const frameKey = (frame: TimelineFrame): string => `${frame.kind} ${frame.validAt}`
+
+/**
+ * Plays the loop one frame at a time, moving on only once the frame asked for
+ * is the one drawn, so the time beside the slider is never ahead of the
+ * picture. The newest radar frame and the last frame hold a little longer.
+ */
+function usePlayback(loop: RadarLoop, visibleUrl: string | null): void {
+  const { frames, index, nowIndex, playing, step } = loop
+  const target = frames[index]
+  const drawn = target !== undefined && tileUrl(target.source) === visibleUrl
+  useEffect(() => {
+    if (!playing || !drawn) return
+    const hold = index === nowIndex || index === frames.length - 1
+    const timer = window.setTimeout(step, hold ? motion.radarHoldMs : motion.radarFrameMs)
+    return () => window.clearTimeout(timer)
+  }, [playing, drawn, index, nowIndex, frames.length, step])
+}
+
+/**
+ * Radar layers on the kept map, one source and one layer per frame, named by
+ * tile URL. `wanted` stay loaded at no opacity; `shown` is drawn. Within one
+ * layer the frame drawn stays up until the next has loaded, so a new frame or
+ * a step of the loop never blanks the map between pictures; a change of layer
+ * shows the new one at once. Returns the tile URL drawn, null for none.
+ * No frame, no layer: a radar that failed draws nothing, which never reads as
+ * "no rain" because the status line says it is unavailable.
+ */
+function useRadarFrames(
+  map: MapLibreMap | null,
+  group: string,
+  wanted: readonly RasterSourceSpecification[],
+  shown: RasterSourceSpecification | null,
+): string | null {
+  const ids = useRef(new Map<string, { id: string; group: string }>())
+  const nextId = useRef(0)
+  const [visible, setVisible] = useState<string | null>(null)
+  const visibleRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (map === null || source === null) return
-    const draw = () => {
-      const shown = map.getSource<RasterTileSource>(RADAR_SOURCE)
-      if (shown !== undefined) {
-        shown.setTiles(source.tiles ?? [])
-        return
+    if (map === null) return
+    const shownUrl = shown === null ? null : tileUrl(shown)
+    const keep = new Set(wanted.map(tileUrl))
+    if (shownUrl !== null) keep.add(shownUrl)
+
+    const show = (url: string | null) => {
+      visibleRef.current = url
+      setVisible(url)
+      for (const [u, { id }] of ids.current) {
+        if (map.getLayer(id) !== undefined) map.setPaintProperty(id, 'raster-opacity', u === url ? RADAR_OPACITY : 0)
       }
-      map.addSource(RADAR_SOURCE, source)
-      map.addLayer(RADAR_LAYER_SPEC, radarBeforeId(map.getStyle().layers))
+      for (const [u, { id }] of [...ids.current]) {
+        if (keep.has(u)) continue
+        if (map.getLayer(id) !== undefined) map.removeLayer(id)
+        if (map.getSource(id) !== undefined) map.removeSource(id)
+        ids.current.delete(u)
+      }
     }
+    // The frame drawn now may stay up while the next loads only if it belongs to the same layer.
+    const held = visibleRef.current
+    const canHold = held !== null && held !== shownUrl && ids.current.get(held)?.group === group
+    const tryShow = (): boolean => {
+      if (shownUrl === null) {
+        show(null)
+        return true
+      }
+      const entry = ids.current.get(shownUrl)
+      if (canHold && entry !== undefined && !map.isSourceLoaded(entry.id)) return false
+      show(shownUrl)
+      return true
+    }
+    const draw = () => {
+      const before = radarBeforeId(map.getStyle().layers)
+      for (const source of shown === null ? wanted : [...wanted, shown]) {
+        const url = tileUrl(source)
+        if (ids.current.has(url)) continue
+        const id = `${RADAR_PREFIX}${nextId.current++}`
+        ids.current.set(url, { id, group })
+        map.addSource(id, source)
+        map.addLayer(radarLayerSpec(id, 0), before)
+      }
+      if (tryShow()) return
+      const onData = () => {
+        if (tryShow()) {
+          map.off('sourcedata', onData)
+          map.off('idle', onData)
+        }
+      }
+      map.on('sourcedata', onData)
+      // `idle` always comes, even when a frame's tiles failed, so the loop never stalls on one.
+      map.on('idle', onData)
+      cleanups.push(() => {
+        map.off('sourcedata', onData)
+        map.off('idle', onData)
+      })
+    }
+    const cleanups: (() => void)[] = []
     // `load` may have fired already while tiles are still arriving; `idle` always comes.
     if (map.isStyleLoaded() === true) draw()
-    else map.once('idle', draw)
-    return () => void map.off('idle', draw)
-  }, [map, source])
-
-  useEffect(() => {
-    if (map === null || !on) return
-    return () => {
-      if (map.getLayer(RADAR_LAYER) !== undefined) map.removeLayer(RADAR_LAYER)
-      if (map.getSource(RADAR_SOURCE) !== undefined) map.removeSource(RADAR_SOURCE)
+    else {
+      map.once('idle', draw)
+      cleanups.push(() => void map.off('idle', draw))
     }
-  }, [map, on])
+    return () => cleanups.forEach((c) => c())
+  }, [map, group, wanted, shown])
+
+  // Every frame goes with the tab.
+  useEffect(() => {
+    if (map === null) return
+    const all = ids.current
+    return () => {
+      for (const { id } of all.values()) {
+        if (map.getLayer(id) !== undefined) map.removeLayer(id)
+        if (map.getSource(id) !== undefined) map.removeSource(id)
+      }
+      all.clear()
+      visibleRef.current = null
+    }
+  }, [map])
+
+  return visible
+}
+
+/**
+ * Play, the slider over the last hour and the forecast, and the time of the
+ * frame drawn. A forecast frame says so and names the model, because it is a
+ * prediction and looks softer than radar. The bar under the slider marks
+ * where radar ends and the forecast starts.
+ */
+function RadarTimeline({ loop, drawn }: { loop: RadarLoop; drawn: TimelineFrame }) {
+  const { frames, index, nowIndex, playing } = loop
+  const target = frames[index]
+  const drawnIndex = frames.findIndex((f) => frameKey(f) === frameKey(drawn))
+  // The label names the picture on the map; while the frame asked for is still loading, it says so.
+  const label = [
+    frameLabel(drawn),
+    drawn.kind === 'forecast' ? 'HRRR model' : drawnIndex === nowIndex ? 'latest' : null,
+    target !== undefined && frameKey(target) !== frameKey(drawn) ? 'loading…' : null,
+  ]
+    .filter((part) => part !== null)
+    .join(' · ')
+  const pastCount = nowIndex + 1
+  const aheadCount = frames.length - pastCount
+  const caption: CSSProperties = { ...typeV2.legendSm, whiteSpace: 'nowrap' }
+  return (
+    <div style={{ ...glassLegend, ...interactive, ...row(spacing.listGap), alignSelf: 'stretch', padding: `${spacing.tight}px ${spacing.cardPad}px`, borderRadius: `${radius.chipMd}px` }}>
+      <button
+        type="button"
+        aria-label={playing ? 'Pause radar loop' : 'Play radar loop'}
+        onClick={loop.togglePlay}
+        disabled={frames.length < 2}
+        style={{ ...bareButton, width: '32px', height: '32px', flex: 'none', display: 'grid', placeItems: 'center' }}
+      >
+        {playing ? <PauseIcon color={colorsV2.txt1} /> : <PlayIcon color={colorsV2.txt1} />}
+      </button>
+      <div style={{ ...stack(spacing.tight), flex: 1, minWidth: 0 }}>
+        <span aria-live={playing ? 'off' : 'polite'} style={{ ...typeV2.legendSm, color: colorsV2.txt1 }}>
+          {label}
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={Math.max(frames.length - 1, 0)}
+          step={1}
+          value={index}
+          aria-label="Radar time"
+          aria-valuetext={label}
+          onChange={(e) => loop.pick(Number(e.currentTarget.value))}
+          style={{ width: '100%', margin: 0, accentColor: colorsV2.brand }}
+        />
+        <span style={{ display: 'flex', gap: '2px' }} aria-hidden="true">
+          <span style={{ ...stack(2), flex: `${pastCount} 0 0`, minWidth: 0 }}>
+            <span style={{ height: '3px', borderRadius: `${radius.full}px`, background: colorsV2.txtMuted }} />
+            <span style={caption}>Past hour</span>
+          </span>
+          {aheadCount > 0 ? (
+            <span style={{ ...stack(2), flex: `${aheadCount} 0 0`, minWidth: 0, alignItems: 'flex-end' }}>
+              <span style={{ alignSelf: 'stretch', height: '3px', borderRadius: `${radius.full}px`, background: `repeating-linear-gradient(90deg, ${colorsV2.txtMuted} 0 4px, transparent 4px 7px)` }} />
+              <span style={caption}>Forecast</span>
+            </span>
+          ) : null}
+        </span>
+      </div>
+    </div>
+  )
 }
 
 /** The spot a long-press picked, until it is added or dismissed. */
