@@ -12,7 +12,6 @@ The audience is the owner (account `tim`, on a phone at about 480×1000) and a f
 
 Delete a line when the owner confirms it done. None blocks work.
 
-- Tear down the Telegram webhook. It is registered on Telegram's side, against the bot, pointing at `/api/telegram/webhook` (now a 404) with the Vercel protection-bypass secret in its query string. Get the token from BotFather and call `deleteWebhook`, or delete the bot in BotFather.
 - Paste the `pg_stat_statements` top 15 by `total_exec_time` from Neon's SQL editor, to decide whether any query needs an index.
 
 ## Stack
