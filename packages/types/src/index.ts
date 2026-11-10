@@ -28,6 +28,7 @@ export * from './feedback.js'
 export * from './guidebook.js'
 export * from './logbook.js'
 export * from './preferences.js'
+export * from './setupPreview.js'
 export * from './tripCopy.js'
 
 export type ApiResponse<T> = {

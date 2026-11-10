@@ -19,6 +19,7 @@ import { authRouter } from './routes/auth.js';
 import { feedbackRouter } from './routes/feedback.js';
 import { logbookRouter } from './routes/logbook.js';
 import { preferencesRouter } from './routes/preferences.js';
+import { setupRouter } from './routes/setup.js';
 import { accountRouter } from './routes/account.js';
 import { riverGaugesRouter } from './routes/riverGauges.js'
 import { allowedOriginPatterns, originAllowed } from './lib/cors.js';
@@ -118,6 +119,7 @@ export function createApp(): Express {
     feedbackRouter,
     logbookRouter,
     preferencesRouter,
+    setupRouter,
     accountRouter,
     riverGaugesRouter,
   );

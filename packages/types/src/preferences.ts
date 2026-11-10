@@ -40,6 +40,11 @@ export type Preferences = {
   climb_first_hour: number | null
   /** Last local hour (0-23) the reader climbs, included. Null: the default (6 pm). */
   climb_last_hour: number | null
+  /**
+   * The welcome screen's version this account last finished or skipped (#543).
+   * Null: never seen it. Below `SETUP_VERSION`, the app shows it on open.
+   */
+  setup_version: number | null
 }
 
 /** No row yet reads exactly like a row of nulls. */
@@ -49,6 +54,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   default_tab: null,
   climb_first_hour: null,
   climb_last_hour: null,
+  setup_version: null,
 }
 
 /**
@@ -108,4 +114,17 @@ export function hourLabel(hour: number): string {
 /** `8 am – 6 pm`. */
 export function climbHoursLabel(h: ClimbHours): string {
   return `${hourLabel(h.first)} – ${hourLabel(h.last)}`
+}
+
+/**
+ * **The welcome screen's current version** (#543). Raise it when the screen
+ * gains a setting every account should be asked about: an account whose
+ * `setup_version` is below it sees the screen on its next open. Skip counts as
+ * done, so it saves this too.
+ */
+export const SETUP_VERSION = 1
+
+/** Whether this account still has the welcome screen to see. */
+export function needsSetup(p: Pick<Preferences, 'setup_version'>): boolean {
+  return p.setup_version === null || p.setup_version < SETUP_VERSION
 }

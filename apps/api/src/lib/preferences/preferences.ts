@@ -11,6 +11,7 @@ const COLUMNS = {
   default_tab: userPreferences.default_tab,
   climb_first_hour: userPreferences.climb_first_hour,
   climb_last_hour: userPreferences.climb_last_hour,
+  setup_version: userPreferences.setup_version,
 }
 
 /** The reader's settings; an account that never saved any reads as every default. */
@@ -31,6 +32,7 @@ export async function savePreferences(userId: string, next: Preferences): Promis
     default_tab: next.default_tab,
     climb_first_hour: next.climb_first_hour,
     climb_last_hour: next.climb_last_hour,
+    setup_version: next.setup_version,
   }
   const rows = await db
     .insert(userPreferences)
