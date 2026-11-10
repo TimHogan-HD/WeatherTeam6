@@ -20,6 +20,13 @@ import { reviewCoversHead } from './lib/reviewGate.mjs'
 import { FULL, INCREMENTAL, LIGHT, lastReviewedSha, pickScope } from './lib/reviewScope.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
+
+// Under Claude Code (CLAUDECODE=1) only failures and the totals print: the PASS
+// lines were 10 KB of every run a session read (2026-11-10). People and CI
+// still see every line.
+const logPass = (line) => {
+  if (!process.env.CLAUDECODE) console.log(line)
+}
 const PRE = join(here, 'pre-tool-safety.mjs')
 const POST = join(here, 'post-push-review.mjs')
 const STOP = join(here, 'session-finish-check.mjs')
@@ -203,7 +210,7 @@ for (const [name, hook, payload, expectedCode, fragment] of cases) {
 
   if (codeOk && fragmentOk && silenceOk && shapeOk) {
     passes += 1
-    console.log(`  PASS  ${name}`)
+    logPass(`  PASS  ${name}`)
   } else {
     failures += 1
     console.log(`  FAIL  ${name}`)
@@ -377,7 +384,7 @@ const gateCases = [
 for (const [name, actual, expected] of gateCases) {
   if (JSON.stringify(actual) === JSON.stringify(expected)) {
     passes += 1
-    console.log(`  PASS  ${name}`)
+    logPass(`  PASS  ${name}`)
   } else {
     failures += 1
     console.log(`  FAIL  ${name}`)
@@ -836,7 +843,7 @@ for (const [name, setup, hook, payload, expectedCode, fragment] of gitScenarios)
     const fragmentOk = fragment ? result.out.includes(fragment) : true
     if (codeOk && fragmentOk) {
       passes += 1
-      console.log(`  PASS  ${name}`)
+      logPass(`  PASS  ${name}`)
     } else {
       failures += 1
       console.log(`  FAIL  ${name}`)
@@ -955,7 +962,7 @@ for (const [name, setup, assertion, extra] of sessionScenarios) {
     }
     if (problem === null) {
       passes += 1
-      console.log('  PASS  ' + name)
+      logPass('  PASS  ' + name)
     } else {
       failures += 1
       console.log('  FAIL  ' + name)
@@ -1012,7 +1019,7 @@ for (const [name, setup, assertion, extra] of sessionScenarios) {
   for (const hook of [...registered].sort()) {
     if (exercised.has(hook)) {
       passes += 1
-      console.log('  PASS  [meta] ' + hook + ' is registered and exercised')
+      logPass('  PASS  [meta] ' + hook + ' is registered and exercised')
     } else {
       failures += 1
       console.log('  FAIL  [meta] settings.json registers ' + hook + ', but no scenario runs it')
@@ -1066,7 +1073,7 @@ let ruleCount = 0
     }
     if (problems.length === 0) {
       passes += 1
-      console.log(`  PASS  [rules] ${file}: ${globs.length} path globs, each matches a tracked file`)
+      logPass(`  PASS  [rules] ${file}: ${globs.length} path globs, each matches a tracked file`)
     } else {
       failures += 1
       console.log(`  FAIL  [rules] ${file}`)
