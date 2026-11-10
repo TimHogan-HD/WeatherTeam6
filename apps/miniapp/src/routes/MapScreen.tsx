@@ -65,7 +65,7 @@ import {
   type TimelineFrame,
 } from '../lib/radar.js'
 import { InlineError } from '../components/States.js'
-import { ChevronDownIcon, CrossIcon, LocateIcon, PauseIcon, PlayIcon } from '../components/Icons.js'
+import { ChevronDownIcon, CrossIcon, LayersIcon, LocateIcon, PauseIcon, PlayIcon } from '../components/Icons.js'
 
 // MapLibre 6 finds its worker beside its own module, which a bundle moves;
 // Vite builds it as a worker and says where it went.
@@ -181,7 +181,7 @@ export function MapScreen() {
   const byId = useMemo(() => new Map(list.map((l) => [l.id, l])), [list])
 
   const hostRef = useRef<HTMLDivElement>(null)
-  const chipRef = useRef<HTMLElement>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
   const [map, setMap] = useState<MapLibreMap | null>(null)
   const [controlsHeight, setControlsHeight] = useState(0)
 
@@ -207,9 +207,9 @@ export function MapScreen() {
 
   useEffect(() => {
     if (map === null || firstView === null || !claimFirstFrame()) return
-    // Pins start below the title chip, which sits under the status bar.
-    const chipBottom = chipRef.current?.getBoundingClientRect().bottom ?? 0
-    const top = Math.max(0, chipBottom - map.getContainer().getBoundingClientRect().top)
+    // Pins start below the title chip and the layer pill, which can wrap to a second row.
+    const overlayBottom = overlayRef.current?.getBoundingClientRect().bottom ?? 0
+    const top = Math.max(0, overlayBottom - map.getContainer().getBoundingClientRect().top)
     frame(map, firstView, top)
   }, [map, firstView])
 
@@ -308,6 +308,7 @@ export function MapScreen() {
           drops beneath it.
         */}
         <div
+          ref={overlayRef}
           style={{
             position: 'absolute',
             top: `calc(env(safe-area-inset-top, 0px) + ${spacing.listGap}px)`,
@@ -322,7 +323,6 @@ export function MapScreen() {
           }}
         >
           <header
-            ref={chipRef}
             style={{
               ...glassDock,
               ...row(spacing.listGap),
@@ -706,7 +706,7 @@ const RADAR_LAYERS: readonly { id: RadarLayer | null; label: string }[] = [
 ]
 
 /**
- * The layer menu: one small pill at the top middle naming the layer shown,
+ * The layer menu: one pill at the top middle naming the layer shown,
  * opening a short list beneath it (owner, 2026-11-10, replacing three chips
  * by the locate button). A pick, a tap elsewhere or Escape closes it.
  */
@@ -756,15 +756,18 @@ function LayerPicker({ layer, onPick }: { layer: RadarLayer | null; onPick: (lay
           ...bareButton,
           ...glassDock,
           ...row(spacing.tight),
-          ...typeV2.dayPick,
+          ...typeV2.switcher,
           width: 'auto',
           height: `${PICKER_HEIGHT}px`,
-          padding: `0 ${spacing.listGap}px 0 ${spacing.cardPad}px`,
+          padding: `0 ${spacing.listGap}px 0 ${spacing.listGap}px`,
           borderRadius: `${radius.full}px`,
           color: colorsV2.txt1,
           whiteSpace: 'nowrap',
+          // A layer on rings the pill in the brand colour, so it reads as the map's one control up top.
+          ...(layer === null ? {} : { boxShadow: `inset 0 0 0 1.5px ${colorsV2.brand}, ${String(glassDock.boxShadow)}` }),
         }}
       >
+        <LayersIcon color={layer === null ? colorsV2.txt1 : colorsV2.brandInk} />
         {layer === null ? 'Layers' : current?.label}
         <ChevronDownIcon color={colorsV2.txtMuted} open={open} />
       </button>
@@ -808,8 +811,8 @@ function LayerPicker({ layer, onPick }: { layer: RadarLayer | null; onPick: (lay
   )
 }
 
-/** The layer pill matches the title chip beside it. */
-const PICKER_HEIGHT = 34
+/** Taller than the title chip beside it, and a 40px target: the one control up top (owner, 2026-11-10: "bigger and more noticeable"). */
+const PICKER_HEIGHT = 40
 
 const EMPTY_SOURCES: readonly RasterSourceSpecification[] = []
 

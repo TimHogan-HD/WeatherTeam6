@@ -232,7 +232,7 @@ owner, and not visible in the code's shape:
 score alone (warnings stay on the list and the crag); the pins are the list's own cached
 answers. Hold a finger (right-click on a desktop) to add that spot; locate-me shows the
 phone. Tiles and radar load straight from the hosts `architecture.md` names, and every radar
-frame's time comes from `/radar/layers`. A small pill at the top middle names the layer and
+frame's time comes from `/radar/layers`. A 40px pill at the top middle, a layers glyph and the layer's name, ringed in aqua while a layer is on, names the layer and
 opens a menu of **Radar**, **Past 24h rain**, **Past 72h rain** and **Off** (owner,
 2026-11-10, replacing three chips by the locate button). **Radar** is the last hour of radar
 then the next six of the HRRR forecast on one slim timeline: play, the slider with a hairline
