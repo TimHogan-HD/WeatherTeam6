@@ -9,6 +9,7 @@ import {
   radarSource,
   radarStamp,
   radarTime,
+  rainEndOf,
   rainPeriodLabel,
   rainSource,
   timelineFrames,
@@ -185,5 +186,20 @@ describe('RAIN_SCALE', () => {
     const colors = RAIN_SCALE.segments.flatMap((s) => s.colors)
     const marks = Object.keys(radarRainIn).map(Number).sort((a, b) => a - b)
     expect(colors).toEqual(marks.map((m) => radarRainIn[m as keyof typeof radarRainIn]))
+  })
+})
+
+describe('rainEndOf', () => {
+  const period = { start_at: '2026-11-09T09:00:00Z', end_at: '2026-11-10T09:00:00Z' }
+
+  it("reads the end from the drawn tile's own stamp, not the newest listing", () => {
+    const drawn = rainSource(period, 24)?.tiles?.[0] ?? null
+    expect(rainEndOf(drawn, 24)).toBe('2026-11-10T09:00:00Z')
+  })
+
+  it('is null for a tile of another layer or span', () => {
+    expect(rainEndOf(rainSource(period, 72)?.tiles?.[0] ?? null, 24)).toBeNull()
+    expect(rainEndOf(radarSource('2026-11-10T09:00:00Z')?.tiles?.[0] ?? null, 24)).toBeNull()
+    expect(rainEndOf(null, 24)).toBeNull()
   })
 })

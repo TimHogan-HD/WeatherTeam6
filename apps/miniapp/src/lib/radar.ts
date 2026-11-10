@@ -206,3 +206,15 @@ export const RAIN_SCALE: LegendScale = {
   note: 'Radar’s estimate, not rain gauges, and rough for snow. Grey: no radar reaches there.',
   noCoverage: radarNoCoverage,
 }
+
+/**
+ * The end of the rain total a tile URL draws, read from its own stamp, so the
+ * label names the total on the map while a newer one loads behind it. Null for
+ * any other URL.
+ */
+export function rainEndOf(tileUrl: string | null, hours: RainHours): string | null {
+  const stamp = tileUrl === null ? undefined : new RegExp(`/mrms::p${hours}h-(\\d{12})/`).exec(tileUrl)?.[1]
+  if (stamp === undefined) return null
+  const at = `${stamp.slice(0, 4)}-${stamp.slice(4, 6)}-${stamp.slice(6, 8)}T${stamp.slice(8, 10)}:${stamp.slice(10, 12)}:00Z`
+  return Number.isFinite(Date.parse(at)) ? at : null
+}

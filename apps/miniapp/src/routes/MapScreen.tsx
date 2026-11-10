@@ -52,6 +52,7 @@ import {
   frameLabel,
   radarBeforeId,
   radarLayerSpec,
+  rainEndOf,
   rainPeriodLabel,
   rainSource,
   timelineFrames,
@@ -239,7 +240,8 @@ export function MapScreen() {
               : null
             : rainPeriod === null || rainHours === null
               ? `${rainHours ?? ''} h rain unavailable`.trim()
-              : rainPeriodLabel(rainPeriod, rainHours)
+              : // The total on the map, which stays up until a newer one has drawn.
+                rainPeriodLabel({ ...rainPeriod, end_at: rainEndOf(visibleUrl, rainHours) ?? rainPeriod.end_at }, rainHours)
   const legend: LegendScale | null = visibleUrl === null ? null : layer === 'radar' ? RADAR_SCALE : RAIN_SCALE
 
   const emptyList = locations.isSuccess && !locations.isPlaceholderData && list.length === 0
