@@ -111,9 +111,9 @@ Grip asks four simple questions: could water condense on the rock, is it too hot
 
 #### 3. Turn hourly estimates into a daily score
 
-![Daily score: dryness 4/100 and grip 0.48 give an hourly score of 8; the three-hour block with the better worst hour sets the day at 8](docs/images/crag-a-3-daily-score.png)
+![Daily score: dryness 4/100 and grip 0.48 give an hourly score of 2; the three-hour block with the better worst hour sets the day at 2](docs/images/crag-a-3-daily-score.png)
 
-The score runs from 0 to 100; higher means the model estimates more favorable conditions. For this example, the hourly calculation is `round(100 × 0.04^0.55 × 0.48) = 8`. The daily score uses the best three-hour block between 8 a.m. and 6 p.m.; a block is judged by its worst hour so one brief good hour does not make the whole block look good. A block that contains an unscored hour does not count.
+The score runs from 0 to 100; higher means the model estimates more favorable conditions. For this example, the hourly calculation is `round(100 × 0.04 × 0.48) = 2`. The daily score uses the best three-hour block between 8 a.m. and 6 p.m.; a block is judged by its worst hour so one brief good hour does not make the whole block look good. A block that contains an unscored hour does not count.
 
 Crag A estimates eight vertical faces around the compass and takes their median dryness; it does not score one specific recorded wall. If required inputs are missing, the score is withheld rather than shown as zero or treated as dry conditions. The model does not know about rain before its weather series begins, so it treats the rock as fully soaked at that point. As a result, a newly added crag can read wet for several days.
 

@@ -37,6 +37,16 @@ to `accuracy()`: every line unchanged, crag 28/28, fresh crag 18/18, wall WA 33/
 A3), fresh wall 8/10 (G5, G10). No test day has rain after a partial dry-out, so the test days
 neither argue for nor against it; the argument is the step.
 
+**Fourth divergence, 2026-11-10: no exponent on dryness** (#536, owner). `model.ts` scores
+`dryness^0.55`, which on the squared ramp is drying progress to the power 1.1: the curve #137
+asked for was gone from the number. The port scores `dryness`. Run cut to `accuracy()` on a
+copy of `model.ts` with the port's one-hour drying floor added (the condensation change not
+ported): crag 28/28, fresh crag 18/18, wall WA 33/33, fresh wall 8/10 (G5, G10), all
+unchanged; wall CA 32/33 → 31/33, A1 44 → 24 (a 30° overhang under light rain, which Wall A
+scores 33/33 and Crag A cannot see). Partway-dried days fall: C13 68 → 56, C18 56 → 40, F3
+67 → 53, F12 54 → 33, F17 48 → 26, every one still in its band. Without the floor, C18, F3
+and A1 fall out of band, which is the floor's argument, not this one's.
+
 **2026-11-09: the condensation margin adds the wall's sun and nothing else** (#534).
 `T_surface − air` also carried how far the lagged surface trails the air, and the sky cooling,
 so a warming morning read the rock below its own mass and an evening read it warmer. On 14 days
@@ -78,7 +88,7 @@ printing. One alone, with `NODE_OPTIONS=--max-old-space-size=8000`, finished in 
 ## The model
 
 `score = 100 × dryness^0.55 × friction` (no 0.45 exponent on friction; that weight let heat
-through in v2).
+through in v2). The port drops the 0.55 too since 2026-11-10 (#536, below).
 
 **Friction (Crag A's grip, "H"):** `condensation(T_mass − Td, 0→1 over 2 °C) × heat × humidity × cold`
 - heat `exp(−max(0, Ta − 60 °F)/12 °C)`, humidity `exp(−max(0, Td − 54 °F)/10 °C)`,
