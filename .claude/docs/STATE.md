@@ -27,9 +27,9 @@ None of it blocks work. Neither item has been confirmed done since 2026-09-23.
 
 The audience is the owner (account `tim`) plus a few climbing partners, each with their own
 list. Crag A is the only score, and nothing is validated against outcomes: the forecast checks
-the Report button collects are the only path to that. The app is the hybrid look, with five
-bottom tabs: Conditions, Trips, Map, Crags, Profile. **Crags is still a placeholder**
-(`UnbuiltSection`). Everything else on that bar is built.
+the Report button collects are the only path to that. The app is the hybrid look, with four
+bottom tabs: Conditions, Trips, Map, Profile. The Crags placeholder tab was removed
+(owner, 2026-11-10); every tab on the bar is built.
 
 ### What is running
 

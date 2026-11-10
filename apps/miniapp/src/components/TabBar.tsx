@@ -8,7 +8,7 @@ import { NavIcon } from './Icons.js'
 import { glassBar, selection } from '../theme/glass.js'
 
 /**
- * The app's five sections, fixed to the bottom of the screen (owner,
+ * The app's four sections, fixed to the bottom of the screen (owner,
  * 2026-09-30; the clickable prototype is the "Bottom tab bar options" canvas).
  *
  * Unlit tabs are icons; the lit one carries its name in an aqua pill

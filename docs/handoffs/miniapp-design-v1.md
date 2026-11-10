@@ -81,7 +81,6 @@ route list is `App.tsx`; `vercel.json` rewrites every path to `index.html`.
 /feedback              app feedback and forecast checks
 /map                   saved locations as score pins on a relief map; hold to add a spot
 /trips                 the list, /trips/new, /trips/:tripId, its /edit and /crag/:locationId (§13)
-/crags                 bottom-bar section, "Not built yet."
 /profile               settings, everyone's feedback, invites, How the score works, Sign out
 ```
 
@@ -105,7 +104,7 @@ route list is `App.tsx`; `vercel.json` rewrites every path to `index.html`.
   | `/trips/:tripId/edit`, `/trips/:tripId/crag/:locationId` | the trip |
 
   A swipe in from the left edge is back too (`lib/edgeSwipe.ts`).
-- **The bottom bar** holds **Conditions · Trips · Map · Crags · Profile** (`bottomNav` in
+- **The bottom bar** holds **Conditions · Trips · Map · Profile** (`bottomNav` in
   `packages/design`; `TabBar.tsx`). The lit tab carries its name in a sliding aqua pill.
   Tapping a tab goes to its section's first screen; a section's first screen keeps its
   scroll position, and tapping its lit tab there scrolls to the top (`lib/bottomNav.ts`).
@@ -359,8 +358,7 @@ Not in the app without a new decision from the owner:
 
 ## 10. Open questions
 
-Open design questions and ideas are GitHub issues (`gh issue list`), not a list here. The
-Crags tab is the one unbuilt bottom-bar section.
+Open design questions and ideas are GitHub issues (`gh issue list`), not a list here.
 
 ---
 

@@ -857,7 +857,7 @@ async function run(): Promise<void> {
       pagesSeen.includes('fade') && pageNow === null,
       `seen ${pagesSeen.join(', ') || 'nothing'}; now ${pageNow}`,
     )
-    for (const section of ['Crags', 'Map', 'Trips', 'Profile']) {
+    for (const section of ['Map', 'Trips', 'Profile']) {
       await bar.getByRole('link', { name: section }).click()
       await screen(`section-${section.toLowerCase()}`, 5)
       const lit = await bar.locator('[aria-current="page"]').getAttribute('aria-label')
