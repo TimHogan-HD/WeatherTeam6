@@ -10,7 +10,7 @@
 
 import { execFileSync } from 'node:child_process'
 import { appendFileSync } from 'node:fs'
-import { FULL, pickScope } from '../../.claude/hooks/lib/reviewScope.mjs'
+import { FULL, normalizeDiff, pickScope } from '../../.claude/hooks/lib/reviewScope.mjs'
 
 const { PR_NUMBER, HEAD_SHA, EVENT_ACTION, GITHUB_REPOSITORY, GITHUB_OUTPUT } = process.env
 
@@ -44,18 +44,14 @@ try {
     action: EVENT_ACTION,
     headSha: HEAD_SHA,
     comments,
-    // The PR's own diff, as git patch-id sees it (line numbers ignored, context
-    // kept), at the reviewed commit and at the head. Equal means the push
-    // brought in only main's changes, none of them inside the PR's hunks.
+    // The PR's own diff against its base, at the reviewed commit and at the
+    // head, with only hunk headers and blob ids normalised away. Equal means
+    // the push brought in only main's changes, none inside the PR's hunks.
     prUnchanged: (since) => {
       if (!base) return false
-      const id = (sha) => {
-        const diff = run('git', ['diff', `origin/${base}...${sha}`])
-        if (!diff) return null
-        return execFileSync('git', ['patch-id', '--stable'], { input: diff, encoding: 'utf8' }).split(' ')[0] || null
-      }
-      const before = id(since)
-      return before !== null && before === id(HEAD_SHA)
+      const own = (sha) => normalizeDiff(run('git', ['diff', `origin/${base}...${sha}`]))
+      const before = own(since)
+      return before.trim() !== '' && before === own(HEAD_SHA)
     },
     isAncestor: (sha) => {
       try {

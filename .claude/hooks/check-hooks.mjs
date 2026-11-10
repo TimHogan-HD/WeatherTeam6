@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { classifyPr, latestPerName, onlyRequired, ownPrVerdict, prsToFinish } from './lib/prWait.mjs'
 import { reviewCoversHead } from './lib/reviewGate.mjs'
-import { FULL, INCREMENTAL, LIGHT, lastReviewedSha, pickScope } from './lib/reviewScope.mjs'
+import { FULL, INCREMENTAL, LIGHT, lastReviewedSha, normalizeDiff, pickScope } from './lib/reviewScope.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
@@ -258,6 +258,13 @@ const gateCases = [
       ['scope: an unreadable PR diff is reviewed', scope({ prUnchanged: () => { throw new Error('git') } }), { ...INCREMENTAL, since: OLD }],
       ['scope: only true counts as unchanged', scope({ prUnchanged: () => 'yes' }), { ...INCREMENTAL, since: OLD }],
       ['scope: ready_for_review is full even when unchanged', scope({ action: 'ready_for_review', prUnchanged: () => true }), { ...FULL, since: null }],
+      ...(() => {
+        const d = (at, idx, body) => `diff --git a/x b/x\nindex ${idx}..1111111 100644\n@@ -${at},3 +${at},3 @@ f()\n ${body}`
+        return [
+          ['scope: a moved hunk normalises the same', normalizeDiff(d(10, 'aaaaaaa', '-a\n+b')) === normalizeDiff(d(14, 'bbbbbbb', '-a\n+b')), true],
+          ['scope: a whitespace change is still a change', normalizeDiff(d(10, 'aaaaaaa', '-a\n+  b')) === normalizeDiff(d(10, 'aaaaaaa', '-a\n+ b')), false],
+        ]
+      })(),
       ['scope: the newest summary is the base', lastReviewedSha([...reviewed, bot(`## Claude review\nCommit: ${'c'.repeat(40)}`)]), 'c'.repeat(40)],
     ]
   })(),

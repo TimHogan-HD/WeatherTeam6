@@ -33,6 +33,20 @@ export function isLightReview({ author, changedFiles }) {
   return changedFiles.every((f) => NO_CODE.test(String(f)))
 }
 
+/**
+ * A `git diff` with only what a merge from main moves taken out: whole hunk
+ * headers and the `index` line's blob ids. Every other byte stays, whitespace
+ * included, so a re-indent or an edit inside a string is still a change. Not
+ * `git patch-id`, which ignores whitespace (the review of #564).
+ */
+export function normalizeDiff(diff) {
+  return String(diff ?? '')
+    .split('\n')
+    .filter((line) => !line.startsWith('index '))
+    .map((line) => (line.startsWith('@@ ') ? '@@' : line))
+    .join('\n')
+}
+
 /** The commit the newest reviewer-bot summary names, or null. */
 export function lastReviewedSha(comments) {
   if (!Array.isArray(comments)) return null
