@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from '../hooks/useNavigate.js'
 import { useQueries, useQueryClient } from '@tanstack/react-query'
@@ -364,6 +364,7 @@ export function MapScreen() {
  */
 function RadarLegend() {
   const [open, setOpen] = useState(readLegendOpen)
+  const noteId = useId()
   const toggle = () => {
     writeLegendOpen(!open)
     setOpen(!open)
@@ -372,7 +373,10 @@ function RadarLegend() {
   return (
     <button
       type="button"
-      aria-label="Colour key for radar"
+      // The label replaces the content as the name, so the open bands are named
+      // in it and the note is the description: a screen reader hears what is shown.
+      aria-label={open ? `Colour key for radar: ${RADAR_BANDS.map((b) => b.label).join(', ')}` : 'Colour key for radar'}
+      aria-describedby={open ? noteId : undefined}
       aria-expanded={open}
       onClick={toggle}
       style={{
@@ -397,7 +401,7 @@ function RadarLegend() {
               </span>
             ))}
           </span>
-          <span style={{ ...typeV2.legendSm }}>{RADAR_FAINT_NOTE}</span>
+          <span id={noteId} style={{ ...typeV2.legendSm }}>{RADAR_FAINT_NOTE}</span>
         </>
       ) : (
         <>
