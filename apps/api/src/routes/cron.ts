@@ -102,6 +102,11 @@ cronRouter.post('/check-alerts', async (req: Request, res: Response) => {
  * Answers 200 with the failure list even when some locations failed, because a
  * partial collection is a real outcome the schedule should not retry blindly.
  * `failed` naming the locations is what stops it reading as a clean run.
+ *
+ * It answers 200 even when every location failed and nothing was persisted, so
+ * the scheduler records success. That hid a day-long outage on 2026-09-13.
+ * Whether a run that persisted nothing should answer 5xx is undecided (owner);
+ * do not change it without asking.
  */
 cronRouter.post('/collect-runs', async (req: Request, res: Response) => {
   if (cronGateFailed(req, res)) return

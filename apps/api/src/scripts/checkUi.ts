@@ -38,6 +38,10 @@
  *
  * It reads the screens; it does not judge them. Open the screenshots.
  *
+ * It runs on the vite dev server, so it never applies the production CSP. A
+ * change to `apps/miniapp/vercel.json`'s headers needs the built app served
+ * with them: `vite preview`, plus a Playwright route that adds the header.
+ *
  * `.github/workflows/ui.yml` runs it live every night, and replayed when run by
  * hand (recording when the tape is missing). Not on PRs (owner, 2026-10-26).
  */

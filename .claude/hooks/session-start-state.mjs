@@ -17,7 +17,10 @@
  *   - branch / default branch / working tree / unpushed commits
  *   - open PRs with CI status  (the "is anything left open" question)
  *   - open issues              (replaces `gh issue list` at session start)
- *   - .claude/docs/STATE.md    (the one state document, verbatim)
+ *
+ * It injected .claude/docs/STATE.md too until 2026-11-10. That file needed a
+ * rewrite every session to stay true, and was sixty merges stale when found on
+ * 2026-09-30; its facts now live in the files that govern them.
  *
  * Fails open in every direction. A SessionStart hook that errors or hangs
  * costs a session; one that returns nothing costs a lookup.
@@ -25,14 +28,13 @@
  * Covered by `npm run check:hooks`.
  */
 
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
 import {
   checksArePassing,
   currentBranch,
   defaultBranch,
   gh,
   ghApi,
-  git,
   hasRemote,
   isGitRepo,
   openPullRequests,
@@ -41,13 +43,6 @@ import {
 } from './lib/gitState.mjs'
 import { activePeers } from './lib/sessionClaims.mjs'
 
-const STATE_DOC = '.claude/docs/STATE.md'
-/**
- * Claude Code caps `additionalContext` at 10,000 characters; past that the model
- * sees a file path and a 2,000-character preview instead. The whole injection is
- * kept under this budget, and STATE.md is what gives way.
- */
-const CONTEXT_BUDGET_CHARS = 9500
 /** Issue titles listed; the rest are counted. */
 const ISSUES_SHOWN = 15
 
@@ -195,13 +190,10 @@ function defaultBranchCi() {
 }
 
 /**
- * Warnings about the tooling itself: a pause flag that switches the Stop hook
- * off, and a STATE.md that has fallen behind `main`. Both were found live on
- * 2026-09-30 — a day-old `.wip` and a STATE.md sixty merges out of date that
- * this hook was injecting as current.
+ * Warnings about the tooling itself: another session in this checkout, and a
+ * pause flag that switches the Stop hook off (a day-old one was found live on
+ * 2026-09-30).
  */
-const STATE_DOC_MAX_COMMITS_BEHIND = 15
-
 function toolingWarnings(sessionId) {
   const out = []
   for (const peer of activePeers(sessionId)) {
@@ -218,55 +210,24 @@ function toolingWarnings(sessionId) {
         'checks off. Delete it unless the user asked to pause.',
     )
   }
-  const last = git(['log', '-1', '--format=%H', '--', STATE_DOC])?.trim()
-  if (last) {
-    const behind = Number(git(['rev-list', '--count', `${last}..HEAD`])?.trim())
-    if (Number.isFinite(behind) && behind > STATE_DOC_MAX_COMMITS_BEHIND) {
-      out.push(
-        `!! ${STATE_DOC} was last changed ${behind} commits ago. Treat it as stale where it ` +
-          'disagrees with the code, and rewrite it in /session-end.',
-      )
-    }
-  }
   return out
-}
-
-function stateDoc(maxChars) {
-  try {
-    const text = readFileSync(STATE_DOC, 'utf8')
-    if (text.length > maxChars) {
-      return (
-        `${text.slice(0, Math.max(0, maxChars))}\n\n[TRUNCATED: ${STATE_DOC} did not fit the ` +
-        `session-start budget. Read the rest of it, and shorten it in /session-end.]`
-      )
-    }
-    return text
-  } catch {
-    return `[${STATE_DOC} could not be read.]`
-  }
 }
 
 try {
   let sessionId = null
-  let source = 'startup'
   try {
     const payload = JSON.parse(await readStdin())
     sessionId = payload?.session_id ?? null
-    if (typeof payload?.source === 'string') source = payload.source
   } catch {
     // No payload: every recent session counts as another one.
   }
 
   if (!isGitRepo()) process.exit(0)
 
-  // After a compaction or a resume, STATE.md is already in the conversation (or
-  // its summary); re-injecting it costs ~2k tokens each time and adds nothing.
-  const withStateDoc = source === 'startup' || source === 'clear'
-
   const sections = [
     '# Injected session state (SessionStart hook)',
     '',
-    'Read below rather than re-running `git log`, `gh issue list`, or opening STATE.md.',
+    'Read below rather than re-running `git log` or `gh issue list`.',
     'Building the shared packages is still yours to run.',
     '',
     '## Repository',
@@ -278,14 +239,6 @@ try {
     ...toolingWarnings(sessionId),
     '```',
   ]
-  if (withStateDoc) {
-    const heading = ['', `## ${STATE_DOC}`, '', '']
-    const used = sections.join('\n').length + heading.join('\n').length + 200
-    sections.push(...heading.slice(0, 3), stateDoc(CONTEXT_BUDGET_CHARS - used))
-  } else {
-    sections.push('', `${STATE_DOC} was injected at session start and is not repeated here.`)
-  }
-
   emit(sections.join('\n'))
 } catch {
   // Never let a context-injection failure cost the session.
