@@ -160,7 +160,9 @@ a credential, a dashboard setting, a phone, a product decision.>
 
 **Auto mode will not commit an edit to `.claude/rules/`**, because it reads as self-modification; the owner turns auto mode off for that change.
 
-**Marking a draft ready seconds after opening it starts two `review` runs that cancel each other.** Wait for the first to start.
+**Marking a draft ready seconds after opening it starts two `review` runs; the second cancels the first.** That is cheap (the first is usually cancelled before the reviewer starts) and the second reviews in full. Marking ready later, after a clean review of the same commit, skips the reviewer.
+
+**Generated data files, drizzle snapshots and `package-lock.json` are Read-denied** in `.claude/settings.json`, so the Grep and Read tools skip them: one broad search used to pull ~3,000 snapshot lines. For a deliberate lookup use `rg`, `head` or `npm ls` through Bash.
 
 **An auto-mode permission denial is the harness, not the owner.** Say so once, with the exact command or permission rule that unblocks it, and do not ask again; "do what's best" is an answer.
 

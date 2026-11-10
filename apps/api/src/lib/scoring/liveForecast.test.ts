@@ -9,15 +9,10 @@ import type { LiveForecastLocation } from './liveForecast.js'
  */
 
 const getEnsembleDaily = vi.hoisted(() => vi.fn())
-const fetchNBM = vi.hoisted(() => vi.fn())
 
-// The fetches are stubbed; `localDateString` is the real one. Reimplementing it
-// in the mock would make these tests agree with a copy of the logic rather than
-// with the logic — the failure mode catalogued as class 11 in defect-patterns.md.
-vi.mock('../weather/openMeteo.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../weather/openMeteo.js')>()
-  return { ...actual, fetchNBM }
-})
+// The stored-run read is stubbed; `localDateString` is the real one, imported
+// unmocked — reimplementing it would make these tests agree with a copy of the
+// logic rather than with the logic (class 11 in defect-patterns.md).
 vi.mock('../runs/latestRuns.js', () => ({ getEnsembleDaily }))
 
 const { computeLiveForecast } = await import('./liveForecast.js')
@@ -59,11 +54,8 @@ afterEach(() => {
 })
 
 describe('computeLiveForecast — the daily weather', () => {
-  it('does not call NBM at all', async () => {
-    // NBM requests precipitation quantiles Open-Meteo does not define, so the
-    // call could only ever 400. Issue #22.
+  it('reads the daily weather from the ensemble once', async () => {
     await computeLiveForecast(location, NOW)
-    expect(fetchNBM).not.toHaveBeenCalled()
     expect(getEnsembleDaily).toHaveBeenCalledOnce()
   })
 

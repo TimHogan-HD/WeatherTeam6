@@ -50,6 +50,8 @@ Read this before any weather fetch work. Every source has gotchas that will wast
 ## Open-Meteo Historical
 - **Endpoint:** `https://archive-api.open-meteo.com/v1/archive`
 - Data lags ~5 days for full QC. For yesterday use IEM ASOS obs instead.
+- **No runtime caller.** Only `compareDryness.ts` (an operator script) builds an archive URL;
+  the app's `fetchArchivePrecip` had none and was deleted (#483).
 
 ## Nominatim (Reverse Geocoding a GPS Fix)
 - **Endpoint:** `https://nominatim.openstreetmap.org/reverse?lat=&lon=&format=jsonv2&zoom=14&addressdetails=1`

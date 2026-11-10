@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { classifyPr, latestPerName, onlyRequired, ownPrVerdict, prsToFinish } from './lib/prWait.mjs'
 import { reviewCoversHead } from './lib/reviewGate.mjs'
-import { FULL, INCREMENTAL, lastReviewedSha, pickScope } from './lib/reviewScope.mjs'
+import { FULL, INCREMENTAL, LIGHT, lastReviewedSha, pickScope } from './lib/reviewScope.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const PRE = join(here, 'pre-tool-safety.mjs')
@@ -240,6 +240,12 @@ const gateCases = [
       ['scope: a human-posted summary does not count', scope({ comments: [bot(`## Claude review\nCommit: ${OLD}`, 'TimHogan-HD')] }), { ...FULL, since: null }],
       ['scope: a force-push past the reviewed commit is full', scope({ isAncestor: () => false }), { ...FULL, since: null }],
       ['scope: ready_for_review is full', scope({ action: 'ready_for_review' }), { ...FULL, since: null }],
+      ['scope: a Dependabot PR is a light full review', scope({ comments: [], author: 'dependabot[bot]' }), { ...LIGHT, since: null }],
+      ['scope: a docs-only PR is a light full review', scope({ comments: [], changedFiles: ['CLAUDE.md', 'docs/images/a.png'] }), { ...LIGHT, since: null }],
+      ['scope: one code file keeps Opus', scope({ comments: [], changedFiles: ['CLAUDE.md', 'apps/api/src/app.ts'] }), { ...FULL, since: null }],
+      ['scope: an unreadable diff keeps Opus', scope({ comments: [], changedFiles: [] }), { ...FULL, since: null }],
+      ['scope: unknown files keep Opus', scope({ comments: [], changedFiles: null }), { ...FULL, since: null }],
+      ['scope: a Dependabot push after a review is still incremental', scope({ author: 'dependabot[bot]' }), { ...INCREMENTAL, since: OLD }],
       ['scope: the newest summary is the base', lastReviewedSha([...reviewed, bot(`## Claude review\nCommit: ${'c'.repeat(40)}`)]), 'c'.repeat(40)],
     ]
   })(),
