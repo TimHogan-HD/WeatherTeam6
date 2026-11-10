@@ -13,8 +13,10 @@
  *    land in each margin band, how many hours each candidate would rescore by
  *    10 points or more, and how many day scores (`dayRepresentative`) move by
  *    10 or more. Read from the newest stored `gfs_seamless` run per crag, rain
- *    as stored (the median when `rain_models` is set), so these are the hours
- *    production scored. A stored run carries 7 days back and 7 ahead, and
+ *    as stored (the median when `rain_models` is set) **before the radar check**
+ *    `/hourly` applies at a US crag (`radarChecked`). The margin bands do not
+ *    read rain; both moved counts do, through `wet_rock`, so where radar changed
+ *    an hour they can differ from production's. A stored run carries 7 days back and 7 ahead, and
  *    `T_mass` needs 96 h of it, so about 10 days per crag are scored.
  * 2. **The field checks.** Every forecast check at the owner's crags between
  *    `CHECKS_FROM` and `CHECKS_TO` (the 10/31–11/1 Sandstone and Red Wing
