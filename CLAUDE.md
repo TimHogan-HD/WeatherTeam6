@@ -13,6 +13,8 @@ The audience is the owner (account `tim`, on a phone at about 480×1000) and a f
 Delete a line when the owner confirms it done. None blocks work.
 
 - Paste the `pg_stat_statements` top 15 by `total_exec_time` from Neon's SQL editor, to decide whether any query needs an index.
+- Remove the account-level skills `weatherteam6-architecture-guard` and `weatherteam6-review-checklist` (claude.ai settings): they duplicate this repo's `review-checklist` and load in every session.
+- Fix or remove the 1Password plugin, which fails to start in every cloud session.
 
 ## Stack
 

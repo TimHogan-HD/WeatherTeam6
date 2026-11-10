@@ -1973,6 +1973,10 @@ Fund's own answer is a conditional on the weather since the rain, which is preci
 **6.12 Both rainfall sources hand the drying model snow disguised as rain, and neither asks for the
 variable that would separate them.** Verified in the code, not inferred:
 
+> **Both functions below no longer exist** (2026-11-10): `fetchPrecipHistory` went with `acis.ts`
+> in scoring Phase 5b, and `fetchArchivePrecip` was deleted with no caller (#483). The point about
+> total vs liquid precipitation still applies to whatever replaces them.
+
 - `fetchArchivePrecip` (`openMeteo.ts`) sets `daily=precipitation_sum` — **total** precipitation, in
   which snow appears as its liquid water equivalent. Open-Meteo also exposes `rain_sum` and
   `snowfall_sum`; neither is requested.
