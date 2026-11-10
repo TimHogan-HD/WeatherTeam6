@@ -33,6 +33,20 @@ export function isLightReview({ author, changedFiles }) {
   return changedFiles.every((f) => NO_CODE.test(String(f)))
 }
 
+/**
+ * A `git diff` with only what a merge from main moves taken out: whole hunk
+ * headers and the `index` line's blob ids. Every other byte stays, whitespace
+ * included, so a re-indent or an edit inside a string is still a change. Not
+ * `git patch-id`, which ignores whitespace (the review of #564).
+ */
+export function normalizeDiff(diff) {
+  return String(diff ?? '')
+    .split('\n')
+    .filter((line) => !line.startsWith('index '))
+    .map((line) => (line.startsWith('@@ ') ? '@@' : line))
+    .join('\n')
+}
+
 /** The commit the newest reviewer-bot summary names, or null. */
 export function lastReviewedSha(comments) {
   if (!Array.isArray(comments)) return null
@@ -47,13 +61,36 @@ export function lastReviewedSha(comments) {
 }
 
 /**
- * `{ mode, model, maxTurns, since }`. `isAncestor(sha)` says whether `sha` is
- * still in the head's history; `since` is null for a full review.
+ * `{ mode, model, maxTurns, since }`, plus `unchanged: true` on an incremental
+ * scope whose push changed nothing in the PR's own diff. `isAncestor(sha)` says
+ * whether `sha` is still in the head's history; `since` is null for a full
+ * review.
+ *
+ * `prUnchanged(since)` (2026-11-10) says whether the PR's own changes against
+ * its base are the same at the head as at `since`: a merge from main that
+ * touched none of the PR's hunks. The incremental diff of such a push is
+ * main's already-reviewed code, so the workflow can confirm the earlier review
+ * instead of paying for a Sonnet pass over it. Anything but `true` (false,
+ * unknown, a throw) reviews as before.
  */
-export function pickScope({ action, headSha, comments, isAncestor, author = null, changedFiles = null }) {
+export function pickScope({
+  action,
+  headSha,
+  comments,
+  isAncestor,
+  author = null,
+  changedFiles = null,
+  prUnchanged = () => false,
+}) {
   const since = lastReviewedSha(comments)
   if (action !== 'synchronize' || !since || since === headSha || !isAncestor(since)) {
     return { ...(isLightReview({ author, changedFiles }) ? LIGHT : FULL), since: null }
   }
-  return { ...INCREMENTAL, since }
+  let unchanged = false
+  try {
+    unchanged = prUnchanged(since) === true
+  } catch {
+    // Unknown is reviewed.
+  }
+  return unchanged ? { ...INCREMENTAL, since, unchanged: true } : { ...INCREMENTAL, since }
 }
