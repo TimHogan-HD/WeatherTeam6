@@ -301,28 +301,50 @@ export function MapScreen() {
         <div ref={hostRef} className="wt6-map" style={{ position: 'absolute', inset: 0, ...typeV2.legendSm }} />
 
         {/* No header band: the map runs up under the status bar, and the title rides in a chip (owner pick, 2026-10-02). */}
-        <header
-          ref={chipRef}
+        {/*
+          The title chip and the layer pill share one grid row, so a long meta line
+          never runs under the pill. A long chip (an error with its Retry, or the
+          count of places without coordinates) takes the whole row and the pill
+          drops beneath it.
+        */}
+        <div
           style={{
-            ...glassDock,
-            ...row(spacing.listGap),
             position: 'absolute',
             top: `calc(env(safe-area-inset-top, 0px) + ${spacing.listGap}px)`,
             left: `${spacing.sectionGap}px`,
-            maxWidth: `calc(100% - ${spacing.sectionGap * 2}px)`,
-            padding: `${spacing.tight}px ${spacing.cardPad}px`,
-            alignItems: 'baseline',
+            right: `${spacing.sectionGap}px`,
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)',
+            columnGap: `${spacing.tight}px`,
+            rowGap: `${spacing.tight}px`,
+            alignItems: 'start',
+            pointerEvents: 'none',
           }}
         >
-          <h1 style={{ ...typeV2.switcher, color: colorsV2.txt1 }}>Map</h1>
-          {locations.isError ? (
-            <InlineError message="Couldn't load your locations." onRetry={() => void locations.refetch()} />
-          ) : meta === null ? null : (
-            <p style={{ ...typeV2.rowSmall, color: colorsV2.txtMuted }}>{meta}</p>
-          )}
-        </header>
+          <header
+            ref={chipRef}
+            style={{
+              ...glassDock,
+              ...row(spacing.listGap),
+              ...interactive,
+              gridColumn: locations.isError || unplaced > 0 ? '1 / -1' : '1',
+              justifySelf: 'start',
+              maxWidth: '100%',
+              flexWrap: 'wrap',
+              padding: `${spacing.tight}px ${spacing.cardPad}px`,
+              alignItems: 'baseline',
+            }}
+          >
+            <h1 style={{ ...typeV2.switcher, color: colorsV2.txt1 }}>Map</h1>
+            {locations.isError ? (
+              <InlineError message="Couldn't load your locations." onRetry={() => void locations.refetch()} />
+            ) : meta === null ? null : (
+              <p style={{ ...typeV2.rowSmall, color: colorsV2.txtMuted }}>{meta}</p>
+            )}
+          </header>
 
-        <LayerPicker layer={layer} onPick={setLayer} />
+          <LayerPicker layer={layer} onPick={setLayer} />
+        </div>
 
         {map === null
           ? null
@@ -718,10 +740,8 @@ function LayerPicker({ layer, onPick }: { layer: RadarLayer | null; onPick: (lay
       ref={boxRef}
       style={{
         ...stack(spacing.tight),
-        position: 'absolute',
-        top: `calc(env(safe-area-inset-top, 0px) + ${spacing.listGap}px)`,
-        left: '50%',
-        transform: 'translateX(-50%)',
+        ...interactive,
+        gridColumn: '2',
         alignItems: 'center',
       }}
     >
