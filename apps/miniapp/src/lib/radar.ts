@@ -1,4 +1,5 @@
 import type { LayerSpecification, RasterSourceSpecification } from 'maplibre-gl'
+import { radarN0q } from '@weatherteam6/design/tokens'
 
 /**
  * The Map tab's radar: IEM's US composite reflectivity (N0Q), one frame.
@@ -65,3 +66,30 @@ export function radarTime(validAt: string): string | null {
   if (!Number.isFinite(at.getTime())) return null
   return at.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 }
+
+/**
+ * The legend under the radar, in IEM's own colours (`radarN0q`), so the bar
+ * matches the picture. Bands start at 0 dBZ because below it the ramp is a grey
+ * and tan wash that is not rain. Rough Marshall-Palmer rain rates: 15 dBZ is
+ * about 0.3 mm/hr, 35 about 5, 50 about 50.
+ */
+export type RadarBand = { label: string; fromDbz: number; toDbz: number; colors: readonly string[] }
+
+type RampDbz = keyof typeof radarN0q
+
+function band(label: string, fromDbz: RampDbz, toDbz: RampDbz): RadarBand {
+  const colors = (Object.keys(radarN0q).map(Number) as RampDbz[])
+    .filter((dbz) => dbz >= fromDbz && dbz <= toDbz)
+    .map((dbz) => radarN0q[dbz])
+  return { label, fromDbz, toDbz, colors }
+}
+
+export const RADAR_BANDS: readonly RadarBand[] = [
+  band('Faint', 0, 15),
+  band('Light', 15, 35),
+  band('Moderate', 35, 50),
+  band('Heavy', 50, 65),
+]
+
+/** What the faint band is, said once under the bar: radar echo, not a rain gauge. */
+export const RADAR_FAINT_NOTE = 'Faint speckle is mostly birds, insects or ground clutter. Light snow can show there too.'

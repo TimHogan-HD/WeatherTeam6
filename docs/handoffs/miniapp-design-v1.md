@@ -232,7 +232,9 @@ owner, and not visible in the code's shape:
 score alone (warnings stay on the list and the crag); the pins are the list's own cached
 answers. Hold a finger (right-click on a desktop) to add that spot; locate-me shows the
 phone. Tiles and radar load straight from the hosts `architecture.md` names, and the radar
-frame's time comes from `/radar/latest`.
+frame's time comes from `/radar/latest`. Radar is on when the tab opens (owner, 2026-11-10), with a
+legend above its toggle while a frame is drawn: IEM's own colours (`radarN0q`) in four bands
+from 0 dBZ, Faint to Heavy, and a note that faint speckle is mostly not rain.
 
 ### Profile (`/profile`)
 
