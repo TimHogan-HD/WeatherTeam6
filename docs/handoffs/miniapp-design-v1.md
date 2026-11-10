@@ -232,12 +232,17 @@ owner, and not visible in the code's shape:
 score alone (warnings stay on the list and the crag); the pins are the list's own cached
 answers. Hold a finger (right-click on a desktop) to add that spot; locate-me shows the
 phone. Tiles and radar load straight from the hosts `architecture.md` names, and every radar
-frame's time comes from `/radar/layers`. Three chips pick the layer (owner, 2026-11-10; a
-second tap on the lit one turns it off): **Radar**, the last hour of radar then the next six
-of the HRRR forecast on one timeline with play and a slider, a forecast frame labelled
-`Forecast … · HRRR model` and the bar under the slider dashed where the forecast starts;
-**24h rain** and **72h rain**, MRMS radar-only totals named by their span, with an inch
-legend (`radarRainIn`) and IEM's grey where radar does not reach (`radarNoCoverage`).
+frame's time comes from `/radar/layers`. A small pill at the top middle names the layer and
+opens a menu of **Radar**, **Past 24h rain**, **Past 72h rain** and **Off** (owner,
+2026-11-10, replacing three chips by the locate button). **Radar** is the last hour of radar
+then the next six of the HRRR forecast on one slim timeline: play, the slider with a hairline
+under it dashed where the forecast starts, and the drawn frame's time (`Radar 4:00 PM`,
+`Forecast 5:30 PM`; "latest" and the HRRR model are read aloud and credited, not printed).
+The rain totals are MRMS radar-only, named by their span (`Rain in the past 24 h, to 9:00 AM`),
+with an inch legend (`radarRainIn`). IEM paints no radar coverage solid grey
+(`radarNoCoverage`), which read as a fault over Canada and the sea; each tile comes through
+the map's `wt6hatch` protocol, which redraws that grey as a faint hatch, never a blank, since
+no colour on a rain map reads as no rain.
 Satellite is out for now (owner, 2026-11-10). Display only, never the score. Radar is on when the tab opens (owner, 2026-11-10), with a
 legend while a frame is drawn: a slim full-width Faint–Heavy strip at the foot of the map, under
 the controls, on a thin glass pane (`glassLegend`), until tapped open; the fold is remembered on the device. Open: IEM's own colours (`radarN0q`) in four bands

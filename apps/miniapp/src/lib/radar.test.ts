@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { radarRainIn } from '@weatherteam6/design/tokens'
+import { radarNoCoverage, radarRainIn } from '@weatherteam6/design/tokens'
 import {
+  HATCH_ALPHA,
+  HATCH_SPACING_PX,
   RADAR_BANDS,
   RAIN_SCALE,
   forecastSource,
   frameLabel,
+  hatchNoCoverage,
+  hatchSourceUrl,
   radarBeforeId,
   radarSource,
   radarStamp,
@@ -116,8 +120,13 @@ describe('rainSource', () => {
   const period = { start_at: '2026-11-09T15:00:00Z', end_at: '2026-11-10T15:00:00Z' }
 
   it("asks for the total ending at the period's end, by its hours", () => {
-    expect(rainSource(period, 24)?.tiles).toEqual([`${TILE}/mrms::p24h-202611101500/{z}/{x}/{y}.png`])
-    expect(rainSource(period, 72)?.tiles).toEqual([`${TILE}/mrms::p72h-202611101500/{z}/{x}/{y}.png`])
+    const hatched = TILE.replace(/^https:/, 'wt6hatch:')
+    expect(rainSource(period, 24)?.tiles).toEqual([`${hatched}/mrms::p24h-202611101500/{z}/{x}/{y}.png`])
+    expect(rainSource(period, 72)?.tiles).toEqual([`${hatched}/mrms::p72h-202611101500/{z}/{x}/{y}.png`])
+  })
+
+  it('is fetched from IEM over https once the map unwraps it', () => {
+    expect(hatchSourceUrl(rainSource(period, 24)?.tiles?.[0] ?? '')).toBe(`${TILE}/mrms::p24h-202611101500/{z}/{x}/{y}.png`)
   })
 
   it('credits MRMS, not the radar composite', () => {
@@ -173,11 +182,11 @@ describe('frameLabel', () => {
 
 describe('rainPeriodLabel', () => {
   it('names the hours and when they end', () => {
-    expect(rainPeriodLabel({ start_at: '2026-11-09T15:00:00Z', end_at: '2026-11-10T15:00:00Z' }, 24)).toMatch(/^Rain in the 24 h to \d{1,2}:00/)
+    expect(rainPeriodLabel({ start_at: '2026-11-09T15:00:00Z', end_at: '2026-11-10T15:00:00Z' }, 24)).toMatch(/^Rain in the past 24 h, to \d{1,2}:00/)
   })
 
   it('names no end for an unreadable one', () => {
-    expect(rainPeriodLabel({ start_at: '', end_at: 'soon' }, 72)).toBe('Rain in the last 72 h')
+    expect(rainPeriodLabel({ start_at: '', end_at: 'soon' }, 72)).toBe('Rain in the past 72 h')
   })
 })
 
@@ -201,5 +210,48 @@ describe('rainEndOf', () => {
     expect(rainEndOf(rainSource(period, 72)?.tiles?.[0] ?? null, 24)).toBeNull()
     expect(rainEndOf(radarSource('2026-11-10T09:00:00Z')?.tiles?.[0] ?? null, 24)).toBeNull()
     expect(rainEndOf(null, 24)).toBeNull()
+  })
+})
+
+describe('hatchSourceUrl', () => {
+  it('is null for a tile asked for over https, which the map fetches itself', () => {
+    expect(hatchSourceUrl('https://mesonet.agron.iastate.edu/x.png')).toBeNull()
+  })
+})
+
+describe('hatchNoCoverage', () => {
+  const grey = [1, 3, 5].map((i) => parseInt(radarNoCoverage.slice(i, i + 2), 16))
+  const width = HATCH_SPACING_PX * 2
+  /** A tile row by row: 'g' IEM's grey, 'r' a rain colour, '.' clear. */
+  const tile = (cells: string): Uint8ClampedArray =>
+    new Uint8ClampedArray(
+      [...cells].flatMap((c) => (c === 'g' ? [...grey, 255] : c === 'r' ? [0, 6, 255, 255] : [0, 0, 0, 0])),
+    )
+  const alphaAt = (pixels: Uint8ClampedArray, x: number, y: number) => pixels[(y * width + x) * 4 + 3]
+
+  it('keeps the grey only on every eighth diagonal, faint, and clears the rest', () => {
+    const pixels = tile('g'.repeat(width * 2))
+    expect(hatchNoCoverage(pixels, width)).toBe(true)
+    expect(alphaAt(pixels, 0, 0)).toBe(HATCH_ALPHA)
+    expect(alphaAt(pixels, HATCH_SPACING_PX - 1, 1)).toBe(HATCH_ALPHA)
+    expect(alphaAt(pixels, 1, 0)).toBe(0)
+    expect(alphaAt(pixels, 0, 1)).toBe(0)
+  })
+
+  it('leaves rain and clear pixels as IEM drew them', () => {
+    const cells = 'r.' + 'g'.repeat(width - 2)
+    const pixels = tile(cells)
+    hatchNoCoverage(pixels, width)
+    expect([...pixels.slice(0, 8)]).toEqual([0, 6, 255, 255, 0, 0, 0, 0])
+  })
+
+  it('says when a tile had no grey, so it can be passed on unchanged', () => {
+    expect(hatchNoCoverage(tile('r.'.repeat(width)), width)).toBe(false)
+  })
+
+  it('leaves a half-clear pixel of the same grey alone: only IEM\'s solid fill is no coverage', () => {
+    const pixels = new Uint8ClampedArray([...grey, 128])
+    expect(hatchNoCoverage(pixels, 1)).toBe(false)
+    expect(pixels[3]).toBe(128)
   })
 })

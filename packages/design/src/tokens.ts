@@ -413,7 +413,8 @@ export const radarN0q = {
  * colours at each inch mark, from pyIEM `mrms.make_colorramp()` read through
  * IEM's millimetre-to-index encoding (`scripts/mrms/make_mrms_rasters.py`).
  * Like `radarN0q`, it matches the tiles IEM draws and is never restyled.
- * `radarNoCoverage` is the grey IEM paints where radar does not reach.
+ * `radarNoCoverage` is the grey IEM paints where radar does not reach; the Map
+ * matches it pixel for pixel and redraws it as a hatch (`hatchNoCoverage`).
  */
 export const radarRainIn = {
   0.01: '#0006ff',
