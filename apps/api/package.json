@@ -45,6 +45,7 @@
     "check:forecast-stored": "tsx src/scripts/checkForecastStored.ts",
     "gauges:pull": "tsx src/scripts/pullAsosStations.ts",
     "volunteer-gauges:pull": "tsx src/scripts/pullCocorahsStations.ts",
+    "compare:condensation": "tsx src/scripts/compareCondensation.ts",
     "compare:dryness": "tsx src/scripts/compareDryness.ts",
     "collect:mrms": "tsx src/scripts/collectMrms.ts",
     "compare:mrms": "tsx src/scripts/compareMrms.ts",
