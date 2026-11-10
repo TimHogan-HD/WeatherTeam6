@@ -91,5 +91,5 @@ export const RADAR_BANDS: readonly RadarBand[] = [
   band('Heavy', 50, 65),
 ]
 
-/** What the faint band is, said once under the bar: radar echo, not a rain gauge. */
-export const RADAR_FAINT_NOTE = 'Faint speckle is mostly birds, insects or ground clutter. Light snow can show there too.'
+/** What the faint band can be, said once under the bar. It names drizzle first: 10–15 dBZ is real light rain, and a note that waved it off would read a wet crag as dry. */
+export const RADAR_FAINT_NOTE = 'Faint can be drizzle or light snow, or birds, insects and ground clutter.'

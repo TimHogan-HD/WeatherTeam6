@@ -234,7 +234,7 @@ answers. Hold a finger (right-click on a desktop) to add that spot; locate-me sh
 phone. Tiles and radar load straight from the hosts `architecture.md` names, and the radar
 frame's time comes from `/radar/latest`. Radar is on when the tab opens (owner, 2026-11-10), with a
 legend above its toggle while a frame is drawn: IEM's own colours (`radarN0q`) in four bands
-from 0 dBZ, Faint to Heavy, and a note that faint speckle is mostly not rain.
+from 0 dBZ, Faint to Heavy, and a note that faint can be drizzle, light snow or non-rain echo.
 
 ### Profile (`/profile`)
 
