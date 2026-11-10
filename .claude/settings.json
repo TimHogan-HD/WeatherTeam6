@@ -1,4 +1,5 @@
 {
+  "model": "sonnet",
   "permissions": {
     "allow": [
       "Bash(npm run build:*)",
@@ -91,7 +92,10 @@
       "Read(apps/api/src/lib/weather/climbingAreasMn.ts)",
       "Read(apps/api/src/lib/weather/cocorahsStations.ts)",
       "Read(apps/api/src/lib/weather/asosStations.ts)",
-      "Read(apps/api/src/lib/guidebook/guidebookMn.ts)"
+      "Read(apps/api/src/lib/guidebook/guidebookMn.ts)",
+      "mcp__Oasis_Health",
+      "mcp__Shop",
+      "mcp__Parallel_Search"
     ],
     "ask": [
       "Bash(git push --force:*)",

@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: Fresh-context code reviewer for WeatherTeam6. Use when asked to review code, or to review a large diff without filling the main session's context. Checks for architecture drift, security problems, unsupported verification claims, and deviation from agreed patterns.
-model: opus
+model: sonnet
 tools: Read, Grep, Glob, Bash
 ---
 
