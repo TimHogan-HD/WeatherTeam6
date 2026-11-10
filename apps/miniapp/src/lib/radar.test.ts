@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { radarBeforeId, radarSource, radarStamp, radarTime } from './radar.js'
+import { RADAR_BANDS, radarBeforeId, radarSource, radarStamp, radarTime } from './radar.js'
 
 describe('radarStamp', () => {
   it('names the frame by its UTC minute', () => {
@@ -52,5 +52,25 @@ describe('radarTime', () => {
 
   it('prints hours and minutes', () => {
     expect(radarTime('2026-10-26T19:25:00Z')).toMatch(/\d{1,2}:25/)
+  })
+})
+
+describe('RADAR_BANDS', () => {
+  it('run end to end with no gap or overlap, so every colour on the map has a place on the bar', () => {
+    for (let i = 1; i < RADAR_BANDS.length; i++) {
+      expect(RADAR_BANDS[i]!.fromDbz).toBe(RADAR_BANDS[i - 1]!.toDbz)
+    }
+  })
+
+  it('join in one colour, so the bar reads as one ramp', () => {
+    for (let i = 1; i < RADAR_BANDS.length; i++) {
+      expect(RADAR_BANDS[i]!.colors[0]).toBe(RADAR_BANDS[i - 1]!.colors.at(-1))
+    }
+  })
+})
+
+describe('RADAR_BANDS colours', () => {
+  it("carry IEM's ramp across each band, ends included", () => {
+    expect(RADAR_BANDS.find((b) => b.label === 'Moderate')?.colors).toEqual(['#327308', '#ffe200', '#ffac00', '#f80000'])
   })
 })

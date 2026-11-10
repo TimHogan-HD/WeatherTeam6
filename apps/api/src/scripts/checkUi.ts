@@ -867,6 +867,30 @@ async function run(): Promise<void> {
     // 3m. The Map tab: the crag as a pin, its contours close up, and a
     // right-click (a long-press on a phone) carried through to /add's save form.
     // It runs on the dev server, so the production CSP is not applied here.
+    // Radar is on when the tab opens: the toggle names the frame's time, and the
+    // tiles asked for are that frame's, so both are watched from before the page
+    // loads. A replayed run moves the frame's date to today, a frame IEM may not
+    // have, so its tiles are answered blank here; a live run fetches them.
+    const radarTiles = /mesonet\.agron\.iastate\.edu\/cache\/tile\.py\/1\.0\.0\/ridge::USCOMP-N0Q-(\d{12})\//
+    if (REPLAY) {
+      await page.route(radarTiles, (route) =>
+        route.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from(BLANK_PNG, 'base64') }),
+      )
+    }
+    const radarStamps = new Set<string>()
+    const radarFailures: string[] = []
+    const watchRadar = (r: { url(): string; status(): number }) => {
+      const stamp = radarTiles.exec(r.url())?.[1]
+      if (stamp === undefined) return
+      radarStamps.add(stamp)
+      if (r.status() >= 400) radarFailures.push(`${r.status()} ${r.url()}`)
+    }
+    page.on('response', watchRadar)
+    // Caught where it is made: the steps before its await can outlast the timeout
+    // or throw, and an unhandled rejection would end the run before cleanup.
+    const radarLatest = page
+      .waitForResponse((r) => r.url().endsWith('/radar/latest'), { timeout: 30_000 })
+      .catch(() => null)
     await page.goto(`${WEB}/map`)
     const pin = page.getByRole('button', { name: new RegExp(`^ZZ UI check — Taylors Falls ${STAMP}`) })
     const pinShown = await pin.waitFor({ timeout: 30_000 }).then(() => true).catch(() => false)
@@ -894,27 +918,8 @@ async function run(): Promise<void> {
     await page.waitForTimeout(3_000)
     await screen('map', 5)
 
-    // Radar: the toggle names the frame's time, and the tiles asked for are that
-    // frame's. A replayed run moves the frame's date to today, a frame IEM may not
-    // have, so its tiles are answered blank here; a live run fetches them.
-    const radarTiles = /mesonet\.agron\.iastate\.edu\/cache\/tile\.py\/1\.0\.0\/ridge::USCOMP-N0Q-(\d{12})\//
-    if (REPLAY) {
-      await page.route(radarTiles, (route) =>
-        route.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from(BLANK_PNG, 'base64') }),
-      )
-    }
-    const radarStamps = new Set<string>()
-    const radarFailures: string[] = []
-    const watchRadar = (r: { url(): string; status(): number }) => {
-      const stamp = radarTiles.exec(r.url())?.[1]
-      if (stamp === undefined) return
-      radarStamps.add(stamp)
-      if (r.status() >= 400) radarFailures.push(`${r.status()} ${r.url()}`)
-    }
-    page.on('response', watchRadar)
-    const radarLatest = page.waitForResponse((r) => r.url().endsWith('/radar/latest'), { timeout: 30_000 })
-    await page.getByRole('button', { name: /^Radar/ }).click()
-    const latestBody = (await (await radarLatest).json().catch(() => null)) as { data?: { valid_at?: string } } | null
+    const latestResponse = await radarLatest
+    const latestBody = (latestResponse === null ? null : await latestResponse.json().catch(() => null)) as { data?: { valid_at?: string } } | null
     const validAt = latestBody?.data?.valid_at ?? ''
     const radarLabel = page.getByRole('button', { name: /^Radar \d{1,2}:\d{2}/ })
     const radarNamed = await radarLabel.waitFor({ timeout: 15_000 }).then(() => true).catch(() => false)
@@ -928,6 +933,8 @@ async function run(): Promise<void> {
     )
     const radarCredit = (await page.locator('.maplibregl-ctrl-attrib').innerText().catch(() => '')).replace(/\s+/g, ' ')
     check('with the radar credited to IEM', /Radar: Iowa Environmental Mesonet/.test(radarCredit), radarCredit)
+    const radarLegend = page.getByRole('figure', { name: 'Radar legend' })
+    check('and its legend shown', await radarLegend.isVisible())
     await screen('map-radar', 5)
     await radarLabel.click()
     page.off('response', watchRadar)
@@ -936,7 +943,10 @@ async function run(): Promise<void> {
       .waitFor({ timeout: 5_000 })
       .then(() => true)
       .catch(() => false)
-    check('and turns off again', radarOff && !(await page.locator('.maplibregl-ctrl-attrib').innerText()).includes('Iowa'))
+    check(
+      'and turns off again, its legend with it',
+      radarOff && !(await page.locator('.maplibregl-ctrl-attrib').innerText()).includes('Iowa') && !(await radarLegend.isVisible()),
+    )
 
     await page.locator('.maplibregl-canvas').focus()
     for (let i = 0; i < 3; i++) {

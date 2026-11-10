@@ -386,6 +386,29 @@ export const gradeScale = ['#90cdf4', '#7fd1c4', '#b8f542', '#f6ad55', '#fc8181'
 export const gradeBoulder = '#b794f4';
 
 /**
+ * The Map radar's legend: IEM's N0Q composite colours every 5 dBZ from 0 to
+ * 65 (pyIEM `ramps/composite_n0q.txt`). Not the app's palette and never to be
+ * restyled: the legend has to match the tiles IEM draws, so these change only
+ * if IEM's ramp does.
+ */
+export const radarN0q = {
+  0: '#9098b4',
+  5: '#6376a8',
+  10: '#4568a6',
+  15: '#60b4d4',
+  20: '#43d67e',
+  25: '#0eb314',
+  30: '#0b840e',
+  35: '#327308',
+  40: '#ffe200',
+  45: '#ffac00',
+  50: '#f80000',
+  55: '#aa0000',
+  60: '#ffeaff',
+  65: '#f960fa',
+} as const;
+
+/**
  * Air temperature, as a **diverging ramp around the ideal climbing temperature**.
  *
  * A named scale rather than five loose colours, exactly as `uvScale` above is — it is one
