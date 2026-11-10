@@ -45,11 +45,15 @@ import {
   positionFeatures,
 } from '../lib/mapStyle.js'
 import {
+  HATCH_PROTOCOL,
+  HATCH_SPACING_PX,
   RADAR_OPACITY,
   RADAR_PREFIX,
   RADAR_SCALE,
   RAIN_SCALE,
   frameLabel,
+  hatchNoCoverage,
+  hatchSourceUrl,
   radarBeforeId,
   radarLayerSpec,
   rainEndOf,
@@ -61,7 +65,7 @@ import {
   type TimelineFrame,
 } from '../lib/radar.js'
 import { InlineError } from '../components/States.js'
-import { CrossIcon, LocateIcon, PauseIcon, PlayIcon } from '../components/Icons.js'
+import { ChevronDownIcon, CrossIcon, LocateIcon, PauseIcon, PlayIcon } from '../components/Icons.js'
 
 // MapLibre 6 finds its worker beside its own module, which a bundle moves;
 // Vite builds it as a worker and says where it went.
@@ -96,6 +100,36 @@ const TERRAIN = {
     elevationKey: 'ele',
     levelKey: 'level',
   }),
+}
+
+// The rain totals' tiles come through here so IEM's no-coverage grey is drawn as a hatch (`hatchNoCoverage`).
+addProtocol(HATCH_PROTOCOL, async (params, abort) => {
+  const url = hatchSourceUrl(params.url)
+  if (url === null) throw new Error('Not a hatched tile')
+  const response = await fetch(url, { signal: abort.signal })
+  if (!response.ok) throw new Error(`Tile answered ${response.status}`)
+  return { data: await hatchTile(await response.arrayBuffer()) }
+})
+
+/**
+ * The tile with its no-coverage grey hatched, or as it came when it has none.
+ * Where the browser cannot redraw it, it goes up as IEM drew it: grey, never
+ * blank.
+ */
+async function hatchTile(bytes: ArrayBuffer): Promise<ArrayBuffer> {
+  const image = await createImageBitmap(new Blob([bytes]))
+  const canvas = document.createElement('canvas')
+  canvas.width = image.width
+  canvas.height = image.height
+  const context = canvas.getContext('2d', { willReadFrequently: true })
+  if (context === null) return bytes
+  context.drawImage(image, 0, 0)
+  image.close()
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height)
+  if (!hatchNoCoverage(pixels.data, canvas.width)) return bytes
+  context.putImageData(pixels, 0, 0)
+  const png = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+  return png === null ? bytes : png.arrayBuffer()
 }
 
 /** A long name is cut short on its pin, so the score beside it stays on screen; the full name is still read aloud. */
@@ -288,6 +322,8 @@ export function MapScreen() {
           )}
         </header>
 
+        <LayerPicker layer={layer} onPick={setLayer} />
+
         {map === null
           ? null
           : pins.map((pin) => <PinMarker key={pin.id} map={map} pin={pin} onOpen={openPin} onPress={pressPin} />)}
@@ -324,34 +360,6 @@ export function MapScreen() {
               </button>
             </div>
           ) : null}
-
-          <div role="group" aria-label="Map layer" style={{ ...row(spacing.tight), ...interactive }}>
-            {RADAR_LAYERS.map(({ id, label }) => {
-              const on = layer === id
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  aria-pressed={on}
-                  // A second tap on the lit chip turns the layer off, as the one radar toggle did.
-                  onClick={() => setLayer(on ? null : id)}
-                  style={{
-                    ...bareButton,
-                    ...glassDock,
-                    ...typeV2.dayPick,
-                    width: 'auto',
-                    height: `${LOCATE_SIZE}px`,
-                    padding: `0 ${spacing.cardPad}px`,
-                    borderRadius: `${radius.full}px`,
-                    color: on ? colorsV2.brandInk : colorsV2.txt1,
-                    ...(on ? { boxShadow: `inset 0 0 0 1px ${colorsV2.brand}` } : {}),
-                  }}
-                >
-                  {label}
-                </button>
-              )
-            })}
-          </div>
 
           <button
             type="button"
@@ -456,7 +464,18 @@ function RadarLegend({ scale }: { scale: LegendScale }) {
           </span>
           <span id={noteId} style={{ ...row(spacing.tight), ...typeV2.legendSm }}>
             {scale.noCoverage === null ? null : (
-              <span aria-hidden="true" style={{ flex: 'none', width: '10px', height: '10px', borderRadius: '2px', background: scale.noCoverage }} />
+              <span
+                aria-hidden="true"
+                style={{
+                  flex: 'none',
+                  width: '10px',
+                  height: '10px',
+                  borderRadius: '2px',
+                  boxShadow: `inset 0 0 0 1px ${withOpacity(scale.noCoverage, 0.4)}`,
+                  // The map's hatch, at the swatch's size.
+                  background: `repeating-linear-gradient(135deg, ${scale.noCoverage} 0 1px, transparent 1px ${HATCH_SPACING_PX / 2}px)`,
+                }}
+              />
             )}
             {scale.note}
           </span>
@@ -657,11 +676,120 @@ function PinMarker({
 
 type RadarLayer = 'radar' | 'rain24' | 'rain72'
 
-const RADAR_LAYERS: readonly { id: RadarLayer; label: string }[] = [
+const RADAR_LAYERS: readonly { id: RadarLayer | null; label: string }[] = [
   { id: 'radar', label: 'Radar' },
-  { id: 'rain24', label: '24h rain' },
-  { id: 'rain72', label: '72h rain' },
+  { id: 'rain24', label: 'Past 24h rain' },
+  { id: 'rain72', label: 'Past 72h rain' },
+  { id: null, label: 'Off' },
 ]
+
+/**
+ * The layer menu: one small pill at the top middle naming the layer shown,
+ * opening a short list beneath it (owner, 2026-11-10, replacing three chips
+ * by the locate button). A pick, a tap elsewhere or Escape closes it.
+ */
+function LayerPicker({ layer, onPick }: { layer: RadarLayer | null; onPick: (layer: RadarLayer | null) => void }) {
+  const [open, setOpen] = useState(false)
+  const boxRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const listId = useId()
+  const current = RADAR_LAYERS.find((l) => l.id === layer)
+
+  useEffect(() => {
+    if (!open) return
+    const onPointer = (e: PointerEvent) => {
+      if (!(e.target instanceof Node) || boxRef.current?.contains(e.target) !== true) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setOpen(false)
+      buttonRef.current?.focus()
+    }
+    document.addEventListener('pointerdown', onPointer)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointer)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  return (
+    <div
+      ref={boxRef}
+      style={{
+        ...stack(spacing.tight),
+        position: 'absolute',
+        top: `calc(env(safe-area-inset-top, 0px) + ${spacing.listGap}px)`,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        alignItems: 'center',
+      }}
+    >
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-label={`Map layer: ${current?.label ?? 'Off'}`}
+        aria-expanded={open}
+        aria-controls={listId}
+        onClick={() => setOpen(!open)}
+        style={{
+          ...bareButton,
+          ...glassDock,
+          ...row(spacing.tight),
+          ...typeV2.dayPick,
+          width: 'auto',
+          height: `${PICKER_HEIGHT}px`,
+          padding: `0 ${spacing.listGap}px 0 ${spacing.cardPad}px`,
+          borderRadius: `${radius.full}px`,
+          color: colorsV2.txt1,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {layer === null ? 'Layers' : current?.label}
+        <ChevronDownIcon color={colorsV2.txtMuted} open={open} />
+      </button>
+      {open ? (
+        <div
+          id={listId}
+          role="group"
+          aria-label="Map layer"
+          style={{ ...glassDock, ...stack(0), padding: `${spacing.tight}px`, borderRadius: `${radius.chipMd}px` }}
+        >
+          {RADAR_LAYERS.map(({ id, label }) => {
+            const on = layer === id
+            return (
+              <button
+                key={label}
+                type="button"
+                aria-pressed={on}
+                onClick={() => {
+                  onPick(id)
+                  setOpen(false)
+                }}
+                style={{
+                  ...bareButton,
+                  ...typeV2.dayPick,
+                  minHeight: '40px',
+                  padding: `0 ${spacing.cardPad}px`,
+                  borderRadius: `${radius.chipMd}px`,
+                  textAlign: 'left',
+                  whiteSpace: 'nowrap',
+                  color: on ? colorsV2.brandInk : colorsV2.txt1,
+                  ...(on ? { boxShadow: `inset 0 0 0 1px ${colorsV2.brand}` } : {}),
+                }}
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/** The layer pill matches the title chip beside it. */
+const PICKER_HEIGHT = 34
 
 const EMPTY_SOURCES: readonly RasterSourceSpecification[] = []
 
@@ -859,24 +987,22 @@ function RadarTimeline({ loop, drawn }: { loop: RadarLoop; drawn: TimelineFrame 
   ]
     .filter((part) => part !== null)
     .join(' · ')
+  // On screen the label is the frame's kind and time alone; the model and "latest" are read aloud.
+  const shortLabel = `${frameLabel(drawn)}${target !== undefined && frameKey(target) !== frameKey(drawn) ? ' …' : ''}`
   const pastCount = nowIndex + 1
   const aheadCount = frames.length - pastCount
-  const caption: CSSProperties = { ...typeV2.legendSm, whiteSpace: 'nowrap' }
   return (
-    <div style={{ ...glassLegend, ...interactive, ...row(spacing.listGap), alignSelf: 'stretch', padding: `${spacing.tight}px ${spacing.cardPad}px`, borderRadius: `${radius.chipMd}px` }}>
+    <div style={{ ...glassLegend, ...interactive, ...row(spacing.tight), alignSelf: 'stretch', padding: `0 ${spacing.cardPad}px 0 ${spacing.tight}px`, borderRadius: `${radius.full}px` }}>
       <button
         type="button"
         aria-label={playing ? 'Pause radar loop' : 'Play radar loop'}
         onClick={loop.togglePlay}
         disabled={frames.length < 2}
-        style={{ ...bareButton, width: '32px', height: '32px', flex: 'none', display: 'grid', placeItems: 'center' }}
+        style={{ ...bareButton, width: '28px', height: '28px', flex: 'none', display: 'grid', placeItems: 'center' }}
       >
         {playing ? <PauseIcon color={colorsV2.txt1} /> : <PlayIcon color={colorsV2.txt1} />}
       </button>
-      <div style={{ ...stack(spacing.tight), flex: 1, minWidth: 0 }}>
-        <span aria-live={playing ? 'off' : 'polite'} style={{ ...typeV2.legendSm, color: colorsV2.txt1 }}>
-          {label}
-        </span>
+      <div style={{ ...stack(0), flex: 1, minWidth: 0 }}>
         <input
           type="range"
           min={0}
@@ -886,21 +1012,19 @@ function RadarTimeline({ loop, drawn }: { loop: RadarLoop; drawn: TimelineFrame 
           aria-label="Radar time"
           aria-valuetext={label}
           onChange={(e) => loop.pick(Number(e.currentTarget.value))}
-          style={{ width: '100%', margin: 0, accentColor: colorsV2.brand }}
+          style={{ width: '100%', height: '20px', margin: 0, accentColor: colorsV2.brand }}
         />
+        {/* Where radar ends and the forecast starts: solid, then dashed. */}
         <span style={{ display: 'flex', gap: '2px' }} aria-hidden="true">
-          <span style={{ ...stack(2), flex: `${pastCount} 0 0`, minWidth: 0 }}>
-            <span style={{ height: '3px', borderRadius: `${radius.full}px`, background: colorsV2.txtMuted }} />
-            <span style={caption}>Past hour</span>
-          </span>
+          <span style={{ flex: `${pastCount} 0 0`, height: '2px', borderRadius: `${radius.full}px`, background: colorsV2.txtMuted }} />
           {aheadCount > 0 ? (
-            <span style={{ ...stack(2), flex: `${aheadCount} 0 0`, minWidth: 0, alignItems: 'flex-end' }}>
-              <span style={{ alignSelf: 'stretch', height: '3px', borderRadius: `${radius.full}px`, background: `repeating-linear-gradient(90deg, ${colorsV2.txtMuted} 0 4px, transparent 4px 7px)` }} />
-              <span style={caption}>Forecast</span>
-            </span>
+            <span style={{ flex: `${aheadCount} 0 0`, height: '2px', background: `repeating-linear-gradient(90deg, ${colorsV2.txtMuted} 0 4px, transparent 4px 7px)` }} />
           ) : null}
         </span>
       </div>
+      <span aria-live={playing ? 'off' : 'polite'} style={{ ...typeV2.legendSm, color: colorsV2.txt1, whiteSpace: 'nowrap', flex: 'none' }}>
+        {shortLabel}
+      </span>
     </div>
   )
 }

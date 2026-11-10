@@ -972,18 +972,22 @@ async function run(): Promise<void> {
     check('and its legend shown', await radarLegend.isVisible())
     await screen('map-radar', 5)
 
-    // The 24 hour rain total: its span named, its own tiles and legend.
-    const rainChip = page.getByRole('button', { name: '24h rain', exact: true })
+    // The 24 hour rain total, picked from the layer menu: its span named, its own tiles and legend.
+    const layerPill = page.getByRole('button', { name: /^Map layer:/ })
+    const pickLayer = async (name: string) => {
+      await layerPill.click()
+      await page.getByRole('group', { name: 'Map layer' }).getByRole('button', { name, exact: true }).click()
+    }
     radarStamps.clear()
-    await rainChip.click()
+    await pickLayer('Past 24h rain')
     const rainEnd = layersBody?.data?.rain_24h?.end_at ?? null
     const rainStatus = await page
       .getByRole('status')
-      .filter({ hasText: /^Rain in the 24 h/ })
+      .filter({ hasText: /^Rain in the past 24 h/ })
       .waitFor({ timeout: 10_000 })
       .then(() => true)
       .catch(() => false)
-    check('the 24h rain chip names the span its total covers', rainEnd === null || rainStatus, rainEnd ?? 'no total from IEM')
+    check('the layer menu’s past 24h rain names the span its total covers', rainEnd === null || rainStatus, rainEnd ?? 'no total from IEM')
     await page.waitForTimeout(4_000)
     const rainLayer = rainEnd === null ? null : `mrms::p24h-${stampOf(rainEnd)}`
     check(
@@ -995,7 +999,7 @@ async function run(): Promise<void> {
       `layers ${[...radarStamps].join(',') || 'none'}, expected ${rainLayer ?? 'none'}; ${radarFailures[0] ?? 'no failures'}`,
     )
     await screen('map-rain24', 5)
-    await rainChip.click()
+    await pickLayer('Off')
     page.off('response', watchRadar)
     const radarOff = await page
       .getByRole('button', { name: /^Colour key/ })
@@ -1003,8 +1007,8 @@ async function run(): Promise<void> {
       .then(() => true)
       .catch(() => false)
     check(
-      'and a second tap turns the layer off, its legend and credit with it',
-      radarOff && (await rainChip.getAttribute('aria-pressed')) === 'false' && !(await page.locator('.maplibregl-ctrl-attrib').innerText()).includes('Iowa'),
+      'and Off in the menu turns the layer off, its legend and credit with it',
+      radarOff && (await layerPill.getAttribute('aria-label')) === 'Map layer: Off' && !(await page.locator('.maplibregl-ctrl-attrib').innerText()).includes('Iowa'),
     )
 
     await page.locator('.maplibregl-canvas').focus()
