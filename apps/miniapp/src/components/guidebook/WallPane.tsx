@@ -23,7 +23,8 @@ import { Crumb, GuideCard, WeekStrip, type WeekInput } from './parts.js'
 /**
  * One wall, inside the Crag tab (the mockup's wall screen): the crag's
  * reading now and its week, the wall's grades, and its routes, filterable by
- * kind and sorted by grade or left to right.
+ * kind and sorted by grade or left to right. Tapping the active sort reverses
+ * it (right to left, hardest first); an ungraded route stays last either way.
  *
  * **Left to right is offered only where OpenBeta establishes it** — a third of
  * Minnesota's walls have every route at one position or none — and the list
@@ -86,13 +87,31 @@ export function WallPane({
 }) {
   const ordered = leftToRight(wall)
   const [sort, setSort] = useState<SortMode>(ordered === null ? 'grade' : 'position')
+  // Tapping the active sort flips it: right to left, or hardest first.
+  const [reversed, setReversed] = useState(false)
   const [kind, setKind] = useState<KindFilter>('all')
   const [showAll, setShowAll] = useState(false)
+
+  const pickSort = (mode: SortMode) => {
+    if (mode === sort) {
+      setReversed((r) => !r)
+      return
+    }
+    setSort(mode)
+    setReversed(false)
+  }
 
   const counts = kindCounts(wall.routes)
   // A kind every route on the wall shares would filter to the same list as All.
   const kinds = FILTER_KINDS.filter((k) => counts[k] > 0 && counts[k] < wall.routes.length)
-  const base = sort === 'position' && ordered !== null ? ordered : sortByGrade(wall.routes)
+  const base =
+    sort === 'position' && ordered !== null
+      ? reversed
+        ? [...ordered].reverse()
+        : ordered
+      : sortByGrade(wall.routes, reversed ? 'desc' : 'asc')
+  const positionLabel = sort === 'position' && reversed ? 'Right → left' : 'Left → right'
+  const gradeLabelText = sort === 'grade' && reversed ? 'Grade ↓' : 'Grade ↑'
   const shown = filterByKind(base, kind)
   const visible = showAll ? shown : shown.slice(0, FIRST_ROWS)
   const routeCount = `${wall.routes.length} ${wall.routes.length === 1 ? 'route' : 'routes'}`
@@ -138,14 +157,20 @@ export function WallPane({
             <button
               type="button"
               aria-pressed={sort === 'position'}
-              onClick={() => setSort('position')}
+              onClick={() => pickSort('position')}
               style={{ ...choicePill(sort === 'position'), ...typeV2.dayPick }}
             >
-              Left → right
+              {positionLabel}
             </button>
           )}
-          <button type="button" aria-pressed={sort === 'grade'} onClick={() => setSort('grade')} style={{ ...choicePill(sort === 'grade'), ...typeV2.dayPick }}>
-            Grade ↑
+          <button
+            type="button"
+            aria-pressed={sort === 'grade'}
+            aria-label={sort === 'grade' ? (reversed ? 'Grade, hardest first' : 'Grade, easiest first') : 'Grade'}
+            onClick={() => pickSort('grade')}
+            style={{ ...choicePill(sort === 'grade'), ...typeV2.dayPick }}
+          >
+            {gradeLabelText}
           </button>
         </div>
         <div style={stack(0)}>
