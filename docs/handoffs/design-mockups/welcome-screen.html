@@ -208,7 +208,7 @@ h3{margin:0;font-family:var(--display);font-weight:700;font-size:22px;line-heigh
     <ul>
       <li><b>Saved to the account:</b> units, climbing hours, temperature range, and the tab a crag opens on. All four are existing settings.</li>
       <li><b>Demo:</b> the crag and its sample week, labelled as an example.</li>
-      <li><b>Sliders:</b> one bar each, with a start and an end handle. Hours keep at least 3 hours between the ends; the range keeps at least 10 °F.</li>
+      <li><b>Sliders:</b> one bar each, with a start and an end handle. Hours keep at least 3 hours between the ends. The temperature range uses the setting's own limits (<code>TEMP_RANGE_LIMITS_F</code>): low 0 to 50 °F, high 40 to 85 °F, at least 10 °F apart.</li>
       <li><b>Shown when:</b> every account that has not finished or skipped it, on its next open. Skip counts as done; Profile can run it again.</li>
       <li><b>Install section</b> hides when the app is already opened from the home screen.</li>
       <li><b>Scores here</b> follow the app's day rule (the best 3 hours in a row inside your hours) with a simplified temperature and drying model. The built version scores the sample week with the real scorer.</li>
@@ -230,7 +230,8 @@ h3{margin:0;font-family:var(--display);font-weight:700;font-size:22px;line-heigh
     { name: 'Sun', lo: 72, hi: 92 },
     { name: 'Mon', lo: 44, hi: 58, wetFrom: 3, wetTo: 14, rainIn: 0.35 }
   ];
-  var RANGE_F = { min: -10, max: 100, gap: 10 };
+  // The setting's own limits, TEMP_RANGE_LIMITS_F in packages/types/src/preferences.ts: PUT /preferences refuses anything outside them.
+  var RANGE_F = { min: 0, max: 85, lowMax: 50, highMin: 40, gap: 10 };
   var css = getComputedStyle(document.documentElement);
   function tok(n) { return css.getPropertyValue(n).trim(); }
   var C = { good: tok('--good'), fair: tok('--fair'), poor: tok('--poor') };
@@ -354,8 +355,8 @@ h3{margin:0;font-family:var(--display);font-weight:700;font-size:22px;line-heigh
   $('last').addEventListener('input', function () { s.last = Math.max(+this.value, s.first + 2); s.saved = false; render(); });
   // Temperature: keep at least 10 °F between the ends.
   function readTemp(el) { var v = +el.value; return s.tUnit === 'F' ? v : toF(v); }
-  $('lo').addEventListener('input', function () { s.lo = Math.min(readTemp(this), s.hi - RANGE_F.gap); this.value = shown(s.lo); s.saved = false; render(); });
-  $('hi').addEventListener('input', function () { s.hi = Math.max(readTemp(this), s.lo + RANGE_F.gap); this.value = shown(s.hi); s.saved = false; render(); });
+  $('lo').addEventListener('input', function () { s.lo = Math.max(RANGE_F.min, Math.min(readTemp(this), RANGE_F.lowMax, s.hi - RANGE_F.gap)); this.value = shown(s.lo); s.saved = false; render(); });
+  $('hi').addEventListener('input', function () { s.hi = Math.min(RANGE_F.max, Math.max(readTemp(this), RANGE_F.highMin, s.lo + RANGE_F.gap)); this.value = shown(s.hi); s.saved = false; render(); });
 
   document.querySelectorAll('[data-unit]').forEach(function (b) {
     b.addEventListener('click', function () {
