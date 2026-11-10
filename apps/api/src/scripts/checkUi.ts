@@ -359,6 +359,37 @@ async function run(): Promise<void> {
     })
     check('the login screen signs in and stores a token', token !== null)
     if (token === null) throw new Error('no token after sign-in — stopping')
+
+    // 1b. The welcome screen (#543): a new account opens on it, its example
+    // week scores, a slider rescores it, and Skip leaves it for good.
+    const welcomed = await page
+      .waitForURL((u) => u.pathname === '/welcome', { timeout: 30_000 })
+      .then(() => true, () => false)
+    check('a new account opens on the welcome screen', welcomed, page.url())
+    const dayStatus = page.getByRole('status').filter({ hasText: /on the defaults/ })
+    await dayStatus.waitFor({ timeout: 30_000 })
+    await screen('welcome')
+    const onDefaults = await dayStatus.innerText()
+    // Saturday's heat holds it back on the defaults; an 80 °F high lifts it.
+    await page.getByLabel('Too hot above').fill('80')
+    const rescored = await page
+      .getByRole('status')
+      .filter({ hasText: /with yours/ })
+      .waitFor({ timeout: 30_000 })
+      .then(() => true, () => false)
+    check('a slider rescores the example week', rescored, `${onDefaults} → ${await dayStatus.innerText().catch(() => '')}`)
+    await screen('welcome-moved')
+    const skipPut = page.waitForRequest((r) => r.method() === 'PUT' && r.url().endsWith('/preferences'))
+    await page.getByRole('button', { name: 'Skip for now' }).click()
+    const skipSent = JSON.stringify((await skipPut).postDataJSON())
+    check('Skip saves the version and no setting', skipSent === '{"setup_version":1}', skipSent)
+    const leftWelcome = await page
+      .waitForURL(`${WEB}/`, { timeout: 15_000 })
+      .then(() => true, () => false)
+    check('Skip opens the list', leftWelcome, page.url())
+    await page.reload()
+    await page.waitForLoadState('networkidle', { timeout: 60_000 }).catch(() => undefined)
+    check('and the welcome screen does not come back', new URL(page.url()).pathname === '/', page.url())
     await screen('list-empty', 5)
 
     // 2. Add a known crag through the API the add flow calls.
@@ -1014,6 +1045,24 @@ async function run(): Promise<void> {
     await page.getByRole('status').filter({ hasText: 'Saved.' }).waitFor({ timeout: 15_000 })
     await screen('profile-saved')
 
+    // 3c''. Run setup again (#543) opens the welcome screen on the saved
+    // settings, and Save with nothing moved sends the version alone and
+    // returns to Profile.
+    await page.getByRole('button', { name: 'Run setup again' }).click()
+    await page.waitForURL(`${WEB}/welcome`, { timeout: 15_000 }).catch(() => undefined)
+    const highShown = await page
+      .getByLabel('Too hot above')
+      .getAttribute('aria-valuetext', { timeout: 15_000 })
+      .catch(() => null)
+    check('Run setup again opens the welcome screen on the saved range', highShown === '65°F', `${page.url()} high ${highShown}`)
+    const againPut = page.waitForRequest((r) => r.method() === 'PUT' && r.url().endsWith('/preferences'))
+    await page.getByRole('button', { name: 'Save and start' }).click()
+    const againSent = JSON.stringify((await againPut).postDataJSON())
+    const backOnProfile = await page
+      .waitForURL(`${WEB}/profile`, { timeout: 15_000 })
+      .then(() => true, () => false)
+    check('its Save sends only the version and returns to Profile', againSent === '{"setup_version":1}' && backOnProfile, `${againSent} ${page.url()}`)
+
     // 3c'. Invites: the throwaway user is this process's owner, mints a link on
     // Profile, and a signed-out browser redeems it into a new account.
     process.env['DEFAULT_USER_ID'] = userId
@@ -1036,11 +1085,12 @@ async function run(): Promise<void> {
     const joinShot = join(dir, `${String(passed + failed).padStart(2, '0')}-join.png`)
     await joinPage.screenshot({ path: joinShot, fullPage: true })
     await joinPage.getByRole('button', { name: 'Create account' }).click()
+    // A new account, so the gate sends it on to the welcome screen (#543).
     const landed = await joinPage
-      .waitForURL(`${WEB}/`, { timeout: 15_000 })
+      .waitForURL(`${WEB}/welcome`, { timeout: 15_000 })
       .then(() => true)
       .catch(() => false)
-    check(`join creates the account and opens the list  →  ${joinShot}`, landed && joinProblems.length === 0, `${joinPage.url()} ${joinProblems.join('; ')}`)
+    check(`join creates the account and opens the welcome screen  →  ${joinShot}`, landed && joinProblems.length === 0, `${joinPage.url()} ${joinProblems.join('; ')}`)
     const joinedRow = await db.select({ id: users.id }).from(users).where(eq(users.username, JOIN_USERNAME))
     joinedUserId = joinedRow[0]?.id ?? null
     check('the joined account exists', joinedUserId !== null)

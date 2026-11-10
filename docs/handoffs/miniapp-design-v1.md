@@ -241,7 +241,25 @@ from 0 dBZ, Faint to Heavy, and a note that faint can be drizzle, light snow or 
 
 `routes/Sections.tsx`: Settings (the temperature range friction is judged against, the
 climbing hours, the tab a crag opens on), everyone's feedback, invites, How the score works
-(`ScoreExplainer`), Sign out. Feedback is the corner button on every signed-in screen.
+(`ScoreExplainer`), Run setup again, Sign out. Feedback is the corner button on every
+signed-in screen.
+
+### Welcome (`/welcome`, #543)
+
+`routes/Welcome.tsx`, rules in `lib/welcome.ts`; mockup
+`docs/handoffs/design-mockups/welcome-screen.html` (owner, 2026-11-10). Every account sees
+it on its next open until it saves or skips (`SignedIn` in `App.tsx` redirects while
+`needsSetup`; Skip counts as done and saves only `setup_version`). Profile's Run setup again
+opens it and returns there. No bottom bar.
+
+- Reading the score: the `SCORE_BANDS` legend and four facts.
+- Climbing preferences: two two-handle sliders (`RangeSlider`, two native range inputs on
+  one track) through Profile's clamps, over an example crag and a made-up week scored by
+  `GET /setup/preview` on the draft beside the defaults (`apps/api/src/lib/setup/`). While
+  an answer for the current draft is not in, every figure is a gap (defect class 7).
+- Open a crag on, a Feedback explainer, Add to home screen (hidden when standalone), Save.
+- Units are left out: nothing reads `temp_unit` or `precip_unit`.
+- An absent `setup_version` is an older API and shows nothing, never the screen.
 
 ### A city never gets a score
 

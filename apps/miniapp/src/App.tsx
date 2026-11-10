@@ -26,6 +26,8 @@ import { Join } from './routes/Join.js'
 import { MapFallback, Profile } from './routes/Sections.js'
 import { TripCreate, TripEdit, TripList } from './routes/Trips.js'
 import { TripScreen } from './routes/TripScreen.js'
+import { Welcome } from './routes/Welcome.js'
+import { shouldShowWelcome } from './lib/welcome.js'
 import { TabBar } from './components/TabBar.js'
 import { arrivalScrollY, barGivesWay, sectionFor } from './lib/bottomNav.js'
 
@@ -111,6 +113,7 @@ export function App() {
             <Route path="/trips/:tripId/edit" element={<TripEdit />} />
             <Route path="/trips/:tripId/crag/:locationId" element={<TripScreen />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/welcome" element={<Welcome />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -150,13 +153,16 @@ function SignedIn() {
   // The next screen is in the DOM: a page transition waiting on it may take its snapshot.
   useLayoutEffect(() => pageCommitted(), [key])
   // Asked for once here, so a crag opened later finds its opening tab cached.
-  usePreferences()
+  const prefs = usePreferences()
   useEffect(() => {
     // A failure here costs nothing: the tab's own load tries again and says so.
     const timer = window.setTimeout(() => void loadMapScreen().catch(() => undefined), WARM_MAP_AFTER_MS)
     return () => window.clearTimeout(timer)
   }, [])
   const section = sectionFor(pathname)
+  // The welcome screen (#543) until it is saved or skipped. Decided only once
+  // the settings are in: an unread or older answer shows the app as it is.
+  if (pathname !== '/welcome' && shouldShowWelcome(prefs.data)) return <Navigate to="/welcome" replace />
   return (
     <>
       <Outlet />

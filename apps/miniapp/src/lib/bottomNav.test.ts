@@ -61,6 +61,7 @@ describe('sectionFor', () => {
     expect(sectionFor('/feedback')).toBeNull()
     expect(sectionFor('/location/abc/edit')).toBeNull()
     expect(sectionFor('/trips/new')).toBeNull()
+    expect(sectionFor('/welcome')).toBeNull()
     expect(sectionFor('/trips/abc/edit')).toBeNull()
     expect(sectionFor('/trips/abc')).toBe('trips')
   })

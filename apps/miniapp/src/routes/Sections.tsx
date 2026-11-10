@@ -10,6 +10,8 @@ import { EveryonesFeedbackCard } from '../components/EveryonesFeedbackCard.js'
 import { ScoreExplainer } from '../components/ScoreExplainer.js'
 import { usePreferences } from '../hooks/usePreferences.js'
 import { draftFromPreferences } from '../lib/preferencesForm.js'
+import { useNavigate } from '../hooks/useNavigate.js'
+import type { WelcomeState } from './Welcome.js'
 
 /**
  * A bottom-bar section's first screen, in the Conditions list's header band so
@@ -59,12 +61,17 @@ export function MapFallback({ failed }: { failed: boolean }) {
 export function Profile() {
   const prefs = usePreferences().data
   const range = prefs === undefined ? null : draftFromPreferences(prefs)
+  const navigate = useNavigate()
+  const welcome: WelcomeState = { from: 'profile' }
   return (
     <SectionScreen title="Profile" action={<FeedbackButton />}>
       <Settings />
       <EveryonesFeedbackCard />
       <InviteCard />
       <ScoreExplainer rangeF={range === null ? null : { low: range.lowF, high: range.highF }} />
+      <button type="button" style={{ ...quietButton, alignSelf: 'flex-start', minHeight: '44px' }} onClick={() => navigate('/welcome', { state: welcome })}>
+        Run setup again
+      </button>
       <button type="button" style={{ ...quietButton, alignSelf: 'flex-start', minHeight: '44px' }} onClick={clearToken}>
         Sign out
       </button>

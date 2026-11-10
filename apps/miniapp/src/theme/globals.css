@@ -377,6 +377,65 @@ textarea {
   }
 }
 
+/* The two-handle slider (`RangeSlider`, the welcome screen, #543): two range
+   inputs on one track, of which only the thumbs take the pointer, so either end
+   can be dragged wherever the other sits. The thumb is `--wt6-slider-thumb`
+   wide; the component places the fill with the same figure. */
+.wt6-dual {
+  --wt6-slider-thumb: calc(var(--wt6-space-section-gap) + var(--wt6-space-cell-pad));
+  position: relative;
+  height: calc(var(--wt6-space-section-gap) * 2.25);
+}
+.wt6-dual input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: none;
+  pointer-events: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.wt6-dual input::-webkit-slider-runnable-track {
+  background: none;
+  border: 0;
+}
+.wt6-dual input::-moz-range-track {
+  background: none;
+  border: 0;
+}
+.wt6-dual input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  pointer-events: auto;
+  width: var(--wt6-slider-thumb);
+  height: var(--wt6-slider-thumb);
+  border-radius: 50%;
+  background: var(--wt6-v2-txt1);
+  border: var(--wt6-space-micro) solid var(--wt6-v2-bg);
+  box-shadow: 0 0 0 1px var(--wt6-v2-line);
+  cursor: grab;
+}
+.wt6-dual input::-moz-range-thumb {
+  pointer-events: auto;
+  box-sizing: border-box;
+  width: var(--wt6-slider-thumb);
+  height: var(--wt6-slider-thumb);
+  border-radius: 50%;
+  background: var(--wt6-v2-txt1);
+  border: var(--wt6-space-micro) solid var(--wt6-v2-bg);
+  box-shadow: 0 0 0 1px var(--wt6-v2-line);
+  cursor: grab;
+}
+.wt6-dual input:focus-visible::-webkit-slider-thumb {
+  outline: var(--wt6-space-micro) solid var(--wt6-v2-brand-ink);
+  outline-offset: var(--wt6-space-micro);
+}
+.wt6-dual input:focus-visible::-moz-range-thumb {
+  outline: var(--wt6-space-micro) solid var(--wt6-v2-brand-ink);
+  outline-offset: var(--wt6-space-micro);
+}
+
 /* Reduced motion: everything settles at once, inline transitions included,
    and a press keeps its dim but not its shrink. Colour and opacity still
    change; they just do not move. */
