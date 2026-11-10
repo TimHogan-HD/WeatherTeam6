@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>WeatherTeam6 Setup</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: one phone screen (the app's single dark look), one scroll, centred, with a notes column beside it on wide screens. */
+:root{
+  color-scheme:dark;
+  --bg:#06090b; --ground:#0a0d10; --txt1:#f4f7fa; --txt2:#d3e1e4; --muted:#bccad0;
+  --brand:#1DC5D2; --brandInk:#6fe3ec; --onBrand:#032026; --brandWash:rgba(29,197,210,.16);
+  --good:#b8f542; --fair:#f6ad55; --poor:#fc8181; --none:#8a9aa2; --cold:#bcc7fd;
+  --surface:rgba(255,255,255,.05); --surface2:rgba(255,255,255,.09); --hair:rgba(255,255,255,.1);
+  --btn:#151a1f; --btnLine:#2a333b; --track:#232b31;
+  --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--txt1);font-family:var(--body);padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid var(--brandInk);outline-offset:2px}
+.wrap{max-width:1000px;margin:0 auto;display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start}
+.phone{width:390px;max-width:100%;border-radius:40px;overflow:hidden;box-shadow:0 0 0 8px #040506,0 30px 80px #000c;background:var(--bg);padding:20px 18px 28px;display:flex;flex-direction:column;gap:20px}
+.notes{flex:1 1 300px;min-width:0;max-width:440px;display:flex;flex-direction:column;gap:10px}
+.notes h1{margin:0;font-family:var(--display);font-weight:700;font-size:34px;line-height:1;text-wrap:balance}
+.notes p,.notes li{margin:0;color:var(--muted);line-height:1.55;font-size:15px}
+.notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.notes b{color:var(--txt1);font-weight:600}
+.top{display:flex;justify-content:space-between;align-items:center;min-height:44px;margin-bottom:-12px}
+.eyebrow{font-family:var(--display);font-weight:600;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+.top .eyebrow{color:var(--brandInk);font-size:13px}
+.link{background:none;border:0;min-height:44px;padding:0 4px;font-family:var(--display);font-weight:600;font-size:17px;color:var(--muted)}
+.banner{background:var(--surface);border-radius:16px;padding:12px 14px;font-size:14px;line-height:1.45;color:var(--txt2)}
+.intro{display:flex;flex-direction:column;gap:6px}
+h2.hero{margin:0;font-family:var(--display);font-weight:700;font-size:30px;line-height:1.1;text-wrap:balance}
+.lede{margin:0;font-size:15px;line-height:1.5;color:var(--txt2)}
+section.set{display:flex;flex-direction:column;gap:8px}
+h3{margin:0;font-family:var(--display);font-weight:700;font-size:22px;line-height:1.1}
+.sub{font-size:13px;color:var(--txt2);line-height:1.45}
+.small{font-size:12px;color:var(--muted);line-height:1.4}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.seg{display:flex;gap:4px;flex-wrap:nowrap}
+.seg button{min-height:36px;padding:0 11px;border-radius:999px;border:1px solid var(--btnLine);background:var(--btn);font-family:var(--display);font-weight:600;font-size:15px;color:var(--txt2);white-space:nowrap}
+.seg button[aria-pressed="true"]{border-color:var(--brand);color:var(--brandInk);background:var(--brandWash)}
+.seg.fill{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.seg.fill button{padding:0 6px;min-width:0;overflow:hidden;text-overflow:ellipsis}
+/* Units: a square of four, temperature on top, rain below. */
+.units{display:grid;grid-template-columns:repeat(2,52px);gap:6px}
+.units .seg{display:contents}
+.units .seg button{padding:0;width:52px;height:40px;border-radius:12px}
+.legend{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.legend div{background:var(--surface);border-radius:12px;padding:6px 4px;display:flex;align-items:baseline;justify-content:center;gap:5px}
+.legend b{font-family:var(--display);font-weight:700;font-size:22px;line-height:1;font-variant-numeric:tabular-nums}
+.legend small{font-size:11px;color:var(--muted);white-space:nowrap}
+.facts{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.facts li{font-size:13px;line-height:1.4;color:var(--txt2)}
+.card{border-radius:22px;padding:12px;background:linear-gradient(180deg,var(--surface2),var(--surface));box-shadow:inset 0 1px 0 rgba(255,255,255,.3),inset 0 0 0 1px rgba(255,255,255,.08);display:flex;flex-direction:column;gap:10px}
+.name{font-family:var(--display);font-weight:700;font-size:20px;line-height:1.1}
+.days{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
+.day{background:var(--surface);border:0;border-radius:14px;padding:6px 2px;min-height:76px;display:flex;flex-direction:column;align-items:center;gap:1px}
+.day[aria-pressed="true"]{background:var(--brandWash);box-shadow:inset 0 0 0 1.5px var(--brandInk)}
+.day .dn{font-family:var(--display);font-weight:600;font-size:13px;color:var(--txt2)}
+.day b{font-family:var(--display);font-weight:700;font-size:28px;line-height:1;font-variant-numeric:tabular-nums}
+.day small{font-size:10.5px;font-variant-numeric:tabular-nums;font-family:var(--display);font-weight:600;min-height:13px}
+.detail{display:flex;flex-direction:column;gap:5px;padding-top:8px;border-top:1px solid var(--hair)}
+.detail p{margin:0;font-size:13.5px;line-height:1.4}
+.detail p.why{font-size:12.5px;color:var(--txt2)}
+.strip{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:2px;margin-top:4px}
+.strip i{display:block;height:18px;border-radius:3px;transition:opacity .2s,background .2s}
+.ticks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));font-size:10px;color:var(--muted)}
+/* Two-handle slider: two range inputs on one track; only the thumbs take the pointer. */
+.slider{display:flex;flex-direction:column;gap:2px}
+.slider .row b{font-family:var(--display);font-weight:700;font-size:17px;font-variant-numeric:tabular-nums}
+.slider .row span{font-size:14px;color:var(--txt2)}
+.dual{position:relative;height:36px}
+.dual .track,.dual .fill{position:absolute;top:50%;height:6px;margin-top:-3px;border-radius:3px}
+.dual .track{left:0;right:0;background:var(--track)}
+.dual .fill{background:var(--brand)}
+.dual.temp .fill{background:linear-gradient(90deg,var(--cold),var(--good) 30%,var(--good) 70%,var(--fair))}
+.dual input{position:absolute;inset:0;width:100%;height:100%;margin:0;background:none;pointer-events:none;-webkit-appearance:none;appearance:none}
+.dual input::-webkit-slider-runnable-track{background:none;border:0}
+.dual input::-moz-range-track{background:none;border:0}
+.dual input::-webkit-slider-thumb{-webkit-appearance:none;pointer-events:auto;width:26px;height:26px;border-radius:50%;background:var(--txt1);border:3px solid var(--bg);box-shadow:0 0 0 1px var(--btnLine),0 2px 6px #0008;cursor:grab}
+.dual input::-moz-range-thumb{pointer-events:auto;width:22px;height:22px;border-radius:50%;background:var(--txt1);border:3px solid var(--bg);box-shadow:0 0 0 1px var(--btnLine);cursor:grab}
+.dual .ends{position:absolute;left:0;right:0;bottom:-12px;display:flex;justify-content:space-between;font-size:10px;color:var(--muted);pointer-events:none}
+.reset{align-self:flex-start;background:none;border:0;min-height:36px;padding:0;margin-top:6px;font-size:13px;color:var(--brandInk);text-align:left}
+.fake{display:inline-flex;align-items:center;min-height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--good);font-family:var(--display);font-weight:600;font-size:15px;color:var(--good);flex:none}
+.actions{display:flex;flex-direction:column;gap:4px}
+.primary{min-height:50px;border:0;border-radius:999px;background:var(--brand);color:var(--onBrand);font-family:var(--display);font-weight:700;font-size:19px}
+.secondary{min-height:44px;border:0;background:none;font-size:15px;color:var(--txt2)}
+@media (prefers-reduced-motion:reduce){.strip i{transition:none}}
+</style>
+</head><body>
+
+<div class="wrap">
+  <div class="phone" role="region" aria-label="Welcome screen mockup">
+    <div class="top">
+      <span class="eyebrow">Welcome</span>
+      <button type="button" class="link" data-act="skip">Skip</button>
+    </div>
+    <div class="banner" id="skipped" hidden>Skipped. The app opens on your crags with the default settings. Profile › Run setup again brings this screen back.</div>
+
+    <div class="intro">
+      <h2 class="hero">Welcome to WeatherTeam6</h2>
+      <p class="lede">A few settings before you start. The score depends on them, so they're worth a minute. You can change any of this later on Profile.</p>
+    </div>
+
+    <section class="set" aria-labelledby="h-units">
+      <div class="row">
+        <h3 id="h-units">Units</h3>
+        <div class="units">
+          <span class="seg" role="group" aria-label="Temperature unit">
+            <button type="button" data-unit="t" data-val="F" aria-pressed="true">°F</button>
+            <button type="button" data-unit="t" data-val="C" aria-pressed="false">°C</button>
+          </span>
+          <span class="seg" role="group" aria-label="Rain unit">
+            <button type="button" data-unit="p" data-val="in" aria-pressed="true">in</button>
+            <button type="button" data-unit="p" data-val="mm" aria-pressed="false">mm</button>
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <section class="set" aria-labelledby="h-read">
+      <h3 id="h-read">Reading the score</h3>
+      <div class="legend">
+        <div><b style="color:var(--good)">60</b><small>and up</small></div>
+        <div><b style="color:var(--fair)">40</b><small>to 59</small></div>
+        <div><b style="color:var(--poor)">0</b><small>to 39</small></div>
+        <div><b style="color:var(--none)">—</b><small>no data</small></div>
+      </div>
+      <ul class="facts">
+        <li>0 to 100: how dry the rock is and how good the grip is likely to be.</li>
+        <li>A day's score is its best 3 hours in a row inside your climbing hours.</li>
+        <li>— means forecast data is missing. The app leaves a gap rather than guess.</li>
+        <li>Weather warnings show beside the score and never change it.</li>
+      </ul>
+    </section>
+
+    <section class="set" aria-labelledby="h-you">
+      <div><h3 id="h-you">Climbing preferences</h3><div class="sub">Your climbing hours and temperature range set every score. Change them and watch the example week.</div></div>
+
+      <div class="slider">
+        <div class="row"><span>Climbing hours</span><b id="hoursLabel"></b></div>
+        <div class="dual">
+          <div class="track"></div><div class="fill" id="hoursFill"></div>
+          <input type="range" id="first" min="0" max="23" step="1" aria-label="Start of climbing hours">
+          <input type="range" id="last" min="0" max="23" step="1" aria-label="End of climbing hours">
+          <div class="ends" aria-hidden="true"><span>12 am</span><span>11 pm</span></div>
+        </div>
+      </div>
+      <div class="slider" style="margin-top:8px">
+        <div class="row"><span>Temperature range</span><b id="tempLabel"></b></div>
+        <div class="dual temp">
+          <div class="track"></div><div class="fill" id="tempFill"></div>
+          <input type="range" id="lo" aria-label="Too cold below">
+          <input type="range" id="hi" aria-label="Too hot above">
+          <div class="ends" aria-hidden="true"><span id="tMin"></span><span id="tMax"></span></div>
+        </div>
+      </div>
+      <button type="button" class="reset" data-act="reset" id="resetBtn"></button>
+
+      <div class="card">
+        <div class="row">
+          <span class="name">Red Wing</span>
+          <span class="eyebrow">Example · sample week</span>
+        </div>
+        <div class="days" id="days"></div>
+        <div class="detail">
+          <p id="line"></p>
+          <p class="why" id="why"></p>
+          <div class="strip" id="strip" aria-hidden="true"></div>
+          <div class="ticks" aria-hidden="true"><span>12a</span><span>6a</span><span>12p</span><span>6p</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="set" aria-labelledby="h-tab">
+      <div><h3 id="h-tab">Open a crag on</h3><div class="sub">The tab you see first when you tap a crag.</div></div>
+      <div class="seg fill" role="group" aria-label="Tab a crag opens on" id="tabs"></div>
+    </section>
+
+    <section class="set" aria-labelledby="h-ask">
+      <div class="row">
+        <h3 id="h-ask">Feedback</h3>
+        <span class="fake" aria-hidden="true">Feedback</span>
+      </div>
+      <p class="sub" style="margin:0">It's in the top-right of every screen and comes straight to the person who runs the app. Use it for bugs, ideas, or a score that didn't match the rock. From a crag, it opens with that crag chosen.</p>
+    </section>
+
+    <section class="set" id="install" aria-labelledby="h-inst">
+      <div><h3 id="h-inst">Add to home screen</h3><div class="sub">Opens like an app and keeps you signed in.</div></div>
+      <ul class="facts">
+        <li>iPhone: Safari › Share › Add to Home Screen</li>
+        <li>Android: Chrome › ⋮ › Add to Home screen</li>
+      </ul>
+    </section>
+
+    <div class="actions">
+      <button type="button" class="primary" id="save" data-act="save"></button>
+      <button type="button" class="secondary" data-act="skip">Skip for now</button>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h1>Welcome screen</h1>
+    <p>Rough mockup for issue #543. Drag the slider ends, tap a day, switch units and tabs.</p>
+    <ul>
+      <li><b>Saved to the account:</b> units, climbing hours, temperature range, and the tab a crag opens on. All four are existing settings.</li>
+      <li><b>Demo:</b> the crag and its sample week, labelled as an example.</li>
+      <li><b>Sliders:</b> one bar each, with a start and an end handle. Hours keep at least 3 hours between the ends. The temperature range uses the setting's own limits (<code>TEMP_RANGE_LIMITS_F</code>): low 0 to 50 °F, high 40 to 85 °F, at least 10 °F apart.</li>
+      <li><b>Shown when:</b> every account that has not finished or skipped it, on its next open. Skip counts as done; Profile can run it again.</li>
+      <li><b>Install section</b> hides when the app is already opened from the home screen.</li>
+      <li><b>Scores here</b> follow the app's day rule (the best 3 hours in a row inside your hours) with a simplified temperature and drying model. The built version scores the sample week with the real scorer.</li>
+      <li><b>Sample week:</b> Thu cold, Fri in range, Sat warm (low on the defaults, high once you raise the top of the range), Sun hot (helped by an earlier start), Mon rain into the afternoon (helped by a later finish).</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+(function () {
+  var DEF = { lo: 30, hi: 60, first: 8, last: 18 };
+  // Limits are kept in °F, as in the mockup's only store; the slider works in the chosen unit.
+  var s = { lo: 30, hi: 60, first: 8, last: 18, day: 2, saved: false, tUnit: 'F', pUnit: 'in', tab: 'overview' };
+  var TABS = [['overview', 'Overview'], ['daily', 'Daily'], ['hourly', 'Hourly'], ['precip', 'Precip'], ['rock', 'Rock'], ['crag', 'Crag']];
+  var WEEK = [
+    { name: 'Thu', lo: 0, hi: 16 },
+    { name: 'Fri', lo: 40, hi: 56 },
+    { name: 'Sat', lo: 64, hi: 82 },
+    { name: 'Sun', lo: 72, hi: 92 },
+    { name: 'Mon', lo: 44, hi: 58, wetFrom: 3, wetTo: 14, rainIn: 0.35 }
+  ];
+  // The setting's own limits, TEMP_RANGE_LIMITS_F in packages/types/src/preferences.ts: PUT /preferences refuses anything outside them.
+  var RANGE_F = { min: 0, max: 85, lowMax: 50, highMin: 40, gap: 10 };
+  var css = getComputedStyle(document.documentElement);
+  function tok(n) { return css.getPropertyValue(n).trim(); }
+  var C = { good: tok('--good'), fair: tok('--fair'), poor: tok('--poor') };
+
+  function tempAt(d, h) {
+    var x = h < 6 ? h + 24 : h;
+    var k = x <= 15 ? 0.5 - 0.5 * Math.cos(Math.PI * (x - 6) / 9) : 0.5 + 0.5 * Math.cos(Math.PI * (x - 15) / 15);
+    return d.lo + (d.hi - d.lo) * k;
+  }
+  function dryAt(d, h) {
+    if (d.wetFrom === undefined || h < d.wetFrom) return 1;
+    if (h <= d.wetTo) return 0;
+    return Math.min(1, (h - d.wetTo) / 5);
+  }
+  function hourScore(d, h, p) {
+    var t = tempAt(d, h);
+    var cold = Math.exp(-Math.max(0, p.lo - t) * 5 / 9 / 12);
+    var heat = Math.exp(-Math.max(0, t - p.hi) * 5 / 9 / 12);
+    return 100 * cold * heat * dryAt(d, h);
+  }
+  // The app's day rule: the lowest hour of the best 3 hours in a row inside the climbing hours.
+  function dayScore(d, p) {
+    var best = 0;
+    for (var h = p.first; h + 2 <= p.last; h++) {
+      var m = Math.min(hourScore(d, h, p), hourScore(d, h + 1, p), hourScore(d, h + 2, p));
+      if (m > best) best = m;
+    }
+    return Math.round(best);
+  }
+  function color(v) { return v >= 60 ? C.good : v >= 40 ? C.fair : C.poor; }
+  function hr(h) { var a = h % 12 === 0 ? 12 : h % 12; return a + (h < 12 ? ' am' : ' pm'); }
+  function toC(f) { return (f - 32) * 5 / 9; }
+  function toF(c) { return c * 9 / 5 + 32; }
+  function shown(f) { return Math.round(s.tUnit === 'F' ? f : toC(f)); }
+  function temp(f) { return shown(f) + (s.tUnit === 'F' ? ' °F' : ' °C'); }
+  function rain(inches) { return s.pUnit === 'in' ? inches.toFixed(2) + ' in' : Math.round(inches * 25.4) + ' mm'; }
+  function $(id) { return document.getElementById(id); }
+
+  var dayBtns = WEEK.map(function (d, i) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'day';
+    b.innerHTML = '<span class="dn"></span><b></b><small></small>';
+    b.querySelector('.dn').textContent = d.name;
+    b.addEventListener('click', function () { s.day = i; render(); });
+    $('days').appendChild(b);
+    return b;
+  });
+  var cells = [];
+  for (var k = 0; k < 24; k++) { var c = document.createElement('i'); $('strip').appendChild(c); cells.push(c); }
+  var tabBtns = TABS.map(function (t) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.textContent = t[1];
+    b.addEventListener('click', function () { s.tab = t[0]; s.saved = false; render(); });
+    $('tabs').appendChild(b);
+    return { b: b, key: t[0] };
+  });
+
+  function setTempScale() {
+    var lo = $('lo'), hi = $('hi');
+    var min = shown(RANGE_F.min), max = shown(RANGE_F.max);
+    [lo, hi].forEach(function (el) { el.min = min; el.max = max; el.step = 1; });
+    lo.value = shown(s.lo); hi.value = shown(s.hi);
+    $('tMin').textContent = min + '°'; $('tMax').textContent = max + '°';
+  }
+  function placeFill(fill, a, b, min, max) {
+    var pa = (a - min) / (max - min), pb = (b - min) / (max - min);
+    fill.style.left = 'calc(' + (pa * 100) + '% + ' + (13 - 26 * pa) + 'px)';
+    fill.style.right = 'calc(' + ((1 - pb) * 100) + '% - ' + (13 - 26 * pb) + 'px)';
+  }
+
+  function render() {
+    var scores = WEEK.map(function (d) { return { def: dayScore(d, DEF), mine: dayScore(d, s) }; });
+    dayBtns.forEach(function (b, i) {
+      var sc = scores[i], diff = sc.mine - sc.def;
+      b.setAttribute('aria-pressed', i === s.day ? 'true' : 'false');
+      var big = b.querySelector('b'); big.textContent = sc.mine; big.style.color = color(sc.mine);
+      var sm = b.querySelector('small');
+      sm.textContent = diff === 0 ? '' : (diff > 0 ? '▲ ' + diff : '▼ ' + (-diff));
+      sm.style.color = diff > 0 ? C.good : C.poor;
+      b.setAttribute('aria-label', WEEK[i].name + ': ' + sc.mine + (diff === 0 ? '' : ', default ' + sc.def));
+    });
+
+    var d = WEEK[s.day], cur = scores[s.day];
+    var maxT = -999, minT = 999;
+    for (var h = s.first; h <= s.last; h++) { var t = tempAt(d, h); maxT = Math.max(maxT, t); minT = Math.min(minT, t); }
+    var whys = [];
+    if (d.wetFrom !== undefined) whys.push(rain(d.rainIn) + ' of rain until ' + hr(d.wetTo) + ', then the rock dries into the evening.');
+    if (minT > s.hi) whys.push('Your hours never drop below ' + temp(minT) + ', above your ' + temp(s.hi) + '.');
+    else if (maxT > s.hi) whys.push('It reaches ' + temp(maxT) + ' in your hours, above your ' + temp(s.hi) + '.');
+    if (maxT < s.lo) whys.push('Your hours never get above ' + temp(maxT) + ', below your ' + temp(s.lo) + '.');
+    else if (minT < s.lo) whys.push('It drops to ' + temp(minT) + ' in your hours, below your ' + temp(s.lo) + '.');
+    if (!whys.length) whys.push('Your hours stay between ' + temp(minT) + ' and ' + temp(maxT) + ', inside your range.');
+    $('line').textContent = cur.mine === cur.def
+      ? d.name + ' scores ' + cur.mine + ' on the defaults. Move the sliders to see it change.'
+      : d.name + ': ' + cur.def + ' on the defaults, ' + cur.mine + ' with yours.';
+    $('why').textContent = whys.join(' ');
+    cells.forEach(function (c, k) {
+      c.style.background = color(hourScore(d, k, s));
+      c.style.opacity = (k >= s.first && k <= s.last) ? '1' : '.22';
+    });
+
+    $('first').value = s.first; $('last').value = s.last;
+    $('hoursLabel').textContent = hr(s.first) + ' to ' + hr(s.last);
+    placeFill($('hoursFill'), s.first, s.last, 0, 23);
+    $('tempLabel').textContent = temp(s.lo) + ' to ' + temp(s.hi);
+    placeFill($('tempFill'), s.lo, s.hi, RANGE_F.min, RANGE_F.max);
+    $('resetBtn').textContent = 'Back to the defaults (' + temp(DEF.lo) + ' to ' + temp(DEF.hi) + ', 8 am to 6 pm)';
+
+    document.querySelectorAll('[data-unit]').forEach(function (b) {
+      var u = b.getAttribute('data-unit') === 't' ? s.tUnit : s.pUnit;
+      b.setAttribute('aria-pressed', b.getAttribute('data-val') === u ? 'true' : 'false');
+    });
+    tabBtns.forEach(function (t) { t.b.setAttribute('aria-pressed', t.key === s.tab ? 'true' : 'false'); });
+
+    var custom = s.lo !== DEF.lo || s.hi !== DEF.hi || s.first !== DEF.first || s.last !== DEF.last || s.tUnit !== 'F' || s.pUnit !== 'in' || s.tab !== 'overview';
+    $('save').textContent = s.saved ? 'Saved. Opening your crags…' : (custom ? 'Save and start' : 'Keep the defaults and start');
+  }
+
+  // Hours: keep at least 3 hours, ends included.
+  $('first').addEventListener('input', function () { s.first = Math.min(+this.value, s.last - 2); s.saved = false; render(); });
+  $('last').addEventListener('input', function () { s.last = Math.max(+this.value, s.first + 2); s.saved = false; render(); });
+  // Temperature: keep at least 10 °F between the ends.
+  function readTemp(el) { var v = +el.value; return s.tUnit === 'F' ? v : toF(v); }
+  $('lo').addEventListener('input', function () { s.lo = Math.max(RANGE_F.min, Math.min(readTemp(this), RANGE_F.lowMax, s.hi - RANGE_F.gap)); this.value = shown(s.lo); s.saved = false; render(); });
+  $('hi').addEventListener('input', function () { s.hi = Math.min(RANGE_F.max, Math.max(readTemp(this), RANGE_F.highMin, s.lo + RANGE_F.gap)); this.value = shown(s.hi); s.saved = false; render(); });
+
+  document.querySelectorAll('[data-unit]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (b.getAttribute('data-unit') === 't') { s.tUnit = b.getAttribute('data-val'); setTempScale(); }
+      else s.pUnit = b.getAttribute('data-val');
+      s.saved = false; render();
+    });
+  });
+  // Already opened from the home screen: no install tip.
+  try { if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) $('install').hidden = true; } catch (e) {}
+
+  document.querySelectorAll('[data-act]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var a = b.getAttribute('data-act');
+      if (a === 'reset') { s.lo = DEF.lo; s.hi = DEF.hi; s.first = DEF.first; s.last = DEF.last; s.saved = false; setTempScale(); }
+      if (a === 'save') { s.saved = true; $('skipped').hidden = true; }
+      if (a === 'skip') { s.saved = false; $('skipped').hidden = false; window.scrollTo({ top: 0, behavior: 'smooth' }); }
+      render();
+    });
+  });
+  setTempScale();
+  render();
+})();
+</script>
+</body></html>
