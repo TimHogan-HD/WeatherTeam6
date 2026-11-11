@@ -24,11 +24,15 @@ jobs:
   arm:
     # The actor check matters as much as the author: if a person pushes to a
     # Dependabot branch, the PR carries their change and is not armed.
+    # Drizzle is matched on the title and body, which name every package a PR
+    # updates, not on the branch: a grouped security update's branch is named
+    # after its group, so it could carry a drizzle bump under another name.
     if: >-
       github.event.pull_request.user.login == 'dependabot[bot]' &&
       github.actor == 'dependabot[bot]' &&
       startsWith(github.event.pull_request.head.ref, 'dependabot/npm_and_yarn/') &&
-      !startsWith(github.event.pull_request.head.ref, 'dependabot/npm_and_yarn/drizzle')
+      !contains(github.event.pull_request.title, 'drizzle-') &&
+      !contains(github.event.pull_request.body, 'drizzle-')
     runs-on: ubuntu-latest
     steps:
       - name: Enable auto-merge (squash)
