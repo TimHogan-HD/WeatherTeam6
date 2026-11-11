@@ -112,7 +112,9 @@ through in v2). The port drops the 0.55 too since 2026-11-10 (#536, below).
   (`MIN_HOURS`, and half of `MAX_HOURS`), both scaled by storm size: neither moved F17, because
   48 h had already passed both. The cap moved F17 76 → 39 and kept F18 at 100. It also moved
   F3 86 → 45, C13 86 → 45 and C18 86 → 52, all still inside their expected bands.
-- Wetting = ≥ 0.05 mm in the hour (any measurable rain; v2 only resets at 0.5 mm/h). A
+- Wetting = ≥ 0.05 mm in the hour (v2 only resets at 0.5 mm/h). In the port the hour is the
+  median of six-hour means, so a shower needs about 0.3–0.4 mm in total to wet, not any
+  measurable rain (`scoring-algorithm.md` § Dryness). A
   sheltered overhang keeps 0.5 mm/h on the reduced rain, because its shelter factor
   `max(0.1, 1 − deg_past_vertical/30)` was calibrated against that.
 - Rain unknown in an hour → that hour and every hour after it are withheld until a full
