@@ -184,6 +184,22 @@ export type HourlySeries = {
    */
   model: string | null
   /**
+   * The last hour HRRR's own stored run reached, or null where there is no HRRR run
+   * (outside CONUS, or none stored).
+   *
+   * **Why it exists (#473):** `gfs_seamless` is not plain GFS over the US. Measured
+   * 2026-11-11 at Red Rock against `ncep_hrrr_conus` and `ncep_gfs013`, every variable
+   * equals HRRR's from the start of the window to about three hours before HRRR's last
+   * hour, blends across those three, and equals GFS 0.13° after. So an hour at or before
+   * this instant is HRRR's (or the blend), and after it GFS's — which is what
+   * `seamlessModelName` prints. Applies to every `gfs_seamless` column on this response,
+   * `sky` included.
+   *
+   * Optional because the API and client deploy separately: absent is an older API and
+   * the label falls back to the model id's own name.
+   */
+  hrrr_through?: string | null
+  /**
    * Requested models with nothing to show at this point. **Named, never dropped**: a model
    * that silently disappears makes the response look like it read everything it asked for.
    */

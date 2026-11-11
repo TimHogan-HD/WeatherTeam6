@@ -74,6 +74,30 @@ export function modelName(id: string): string {
   return MODEL_NAMES.find(([prefix]) => id.startsWith(prefix))?.[1] ?? id;
 }
 
+/**
+ * The name for a deterministic model over a span of hours, `fromIso` to `toIso`.
+ *
+ * `gfs_seamless` carries HRRR over the US up to `hrrrThrough` (`HourlySeries.hrrr_through`,
+ * #473), so a span wholly inside it is `HRRR`, one wholly after it `GFS`, and one across
+ * it `HRRR, then GFS`. Any other model, a null or absent `hrrrThrough`, or an unparseable
+ * instant falls back to `modelName` — the id's own name, which is what the API attributes.
+ */
+export function seamlessModelName(
+  model: string,
+  hrrrThrough: string | null | undefined,
+  fromIso: string,
+  toIso: string,
+): string {
+  if (model !== 'gfs_seamless' || hrrrThrough == null) return modelName(model);
+  const through = Date.parse(hrrrThrough);
+  const from = Date.parse(fromIso);
+  const to = Date.parse(toIso);
+  if (!Number.isFinite(through) || !Number.isFinite(from) || !Number.isFinite(to)) return modelName(model);
+  if (to <= through) return 'HRRR';
+  if (from > through) return modelName(model);
+  return 'HRRR, then GFS';
+}
+
 /** `Open-Meteo · GFS, ECMWF` — a set of models named once, in the order given. */
 export function openMeteoModels(ids: readonly string[]): string {
   return `Open-Meteo · ${[...new Set(ids.map(modelName))].join(', ')}`;

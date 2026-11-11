@@ -5,8 +5,8 @@ import {
   cToF,
   formatPrecipIn,
   kmhToMph,
-  modelName,
   mphToKmh,
+  seamlessModelName,
   summarizeReadings,
   type HourlyReading,
   type HourlySample,
@@ -157,7 +157,13 @@ export function DayCharts({ series, selectedDate, onSelectDate, readMs, onRead, 
   const axis = first === undefined || last === undefined ? null : timeAxis(first, Math.max(last, first + HOUR_MS), DAY_SCALES)
   const frame = { axis, instants, utcOffsetSeconds: series.utc_offset_seconds, nowMs: now, read }
   // The deterministic model is named only beside a line it drew.
-  const model = series.model === null ? null : modelName(series.model)
+  // Over the US `gfs_seamless` is HRRR for its first days (#473), so the name follows the day drawn.
+  const dayFrom = hours[0]?.valid_at
+  const dayTo = hours[hours.length - 1]?.valid_at
+  const model =
+    series.model === null || dayFrom === undefined || dayTo === undefined
+      ? null
+      : seamlessModelName(series.model, series.hrrr_through, dayFrom, dayTo)
   const humidModel = hasValues(dewPointSeries(hours)) || hasValues(humiditySeries(hours)) ? model : null
   const gustModel = hasValues(gustSeries(hours)) ? model : null
   const dayLabel = dayChips(series.days).find((c) => c.local_date === selectedDate)?.label ?? null
@@ -165,7 +171,9 @@ export function DayCharts({ series, selectedDate, onSelectDate, readMs, onRead, 
   const sunHours = series.sky?.sun?.filter((h) => h.local_date === selectedDate) ?? []
   // Named only beside bars it drew: a run stored before sunshine was fetched answers no hour.
   const sunModel =
-    series.sky?.model == null || !sunHours.some((h) => h.sun_min !== null) ? null : modelName(series.sky.model)
+    series.sky?.model == null || !sunHours.some((h) => h.sun_min !== null)
+      ? null
+      : seamlessModelName(series.sky.model, series.hrrr_through, sunHours[0]?.valid_at ?? '', sunHours[sunHours.length - 1]?.valid_at ?? '')
 
   return (
     <>
