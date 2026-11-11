@@ -342,23 +342,27 @@ textarea {
   transform: scale(var(--wt6-press-scale));
 }
 
-/* The Overview's Score breakdown (`OverviewTab.tsx`) and the Trips list's
-   Past trips (`Trips.tsx`): no native marker, a chevron that turns down when
-   it opens. */
-.wt6-why > summary {
+/* The Overview's Score breakdown (`OverviewTab.tsx`), the Trips list's
+   Past trips (`Trips.tsx`) and an alert's details (`Alerts.tsx`, #482): no
+   native marker, a chevron that turns down when it opens. */
+.wt6-why > summary,
+.wt6-alert > summary {
   list-style: none;
 }
-.wt6-why > summary::-webkit-details-marker {
+.wt6-why > summary::-webkit-details-marker,
+.wt6-alert > summary::-webkit-details-marker {
   display: none;
 }
-.wt6-why > summary::after {
+.wt6-why > summary::after,
+.wt6-alert > summary::after {
   content: '›';
   font-size: 22px;
   line-height: 1;
   color: var(--wt6-v2-txt-muted);
   transition: transform var(--wt6-motion-disclosure-open-ms) var(--wt6-motion-ease-out);
 }
-.wt6-why[open] > summary::after {
+.wt6-why[open] > summary::after,
+.wt6-alert[open] > summary::after {
   transform: rotate(90deg);
 }
 

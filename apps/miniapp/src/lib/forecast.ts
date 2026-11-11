@@ -1,5 +1,5 @@
 import type { ForecastSnapshot, WeatherAlert } from '@weatherteam6/types'
-import { isSevereAlert } from '@weatherteam6/types'
+import { clock12, hour12, isSevereAlert, meridiem } from '@weatherteam6/types'
 
 /**
  * The row for today, or `null` when the feed starts at tomorrow.
@@ -115,6 +115,61 @@ export function sortBySeverity(alerts: readonly WeatherAlert[]): WeatherAlert[] 
   return [...alerts].sort(
     (a, b) => Number(isSevereAlert(b.severity)) - Number(isSevereAlert(a.severity)),
   )
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/**
+ * The banner's end-time line (#482): `Until 9 PM`, `Until Thu 9 PM`, or
+ * `Until Nov 20, 9 PM`, on the **crag's** clock.
+ *
+ * Read from `ends` only, the hazard's end. `expires` is when the NWS message
+ * lapses and is often hours before the hazard does, so it is never printed as
+ * "until". Null, so the line is absent, when NWS gave no end, when the crag's
+ * offset is not in yet (the reader's own clock would put a travelling reader's
+ * 9 PM at 11 PM), or when the time cannot be read. An end already behind `now`
+ * says `Ended`, never a past "until".
+ */
+export function alertUntil(
+  ends: string | null | undefined,
+  utcOffsetSeconds: number | null,
+  now: number,
+): string | null {
+  if (ends == null || utcOffsetSeconds === null || !Number.isFinite(utcOffsetSeconds) || !Number.isFinite(now)) {
+    return null
+  }
+  const at = Date.parse(ends)
+  if (!Number.isFinite(at)) return null
+
+  const shift = utcOffsetSeconds * 1000
+  const local = new Date(at + shift)
+  const h = local.getUTCHours()
+  const m = local.getUTCMinutes()
+  const time = m === 0 ? clock12(h, 'upper') : `${hour12(h)}:${String(m).padStart(2, '0')}${meridiem(h, 'upper')}`
+
+  const dayOf = (t: number): number => Math.floor((t + shift) / DAY_MS)
+  const daysAhead = dayOf(at) - dayOf(now)
+  const day =
+    daysAhead === 0
+      ? ''
+      : daysAhead > 0 && daysAhead < 7
+        ? `${local.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })} `
+        : `${local.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}, `
+
+  return `${at <= now ? 'Ended' : 'Until'} ${day}${time}`
+}
+
+/**
+ * An NWS text field as paragraphs. NWS hard-wraps at about 69 characters and
+ * separates paragraphs with a blank line, so a single newline is a space and a
+ * blank line is a break. `[]` for a missing or blank field.
+ */
+export function alertParagraphs(text: string | null | undefined): string[] {
+  if (text == null) return []
+  return text
+    .split(/\r?\n[ \t]*\r?\n/)
+    .map((p) => p.replace(/\s*\r?\n\s*/g, ' ').trim())
+    .filter((p) => p !== '')
 }
 
 /**

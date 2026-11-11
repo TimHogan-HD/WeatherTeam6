@@ -458,7 +458,12 @@ export function DetailView({
         // visible rather than looking like "no alerts".
         <InlineError message="Couldn't load alerts." />
       ) : alerts?.data === undefined ? null : (
-        <AlertBanner alerts={alerts.data} unchecked={alertsUnchecked(location?.alerts_checked_at, now)} />
+        <AlertBanner
+          alerts={alerts.data}
+          unchecked={alertsUnchecked(location?.alerts_checked_at, now)}
+          utcOffsetSeconds={utcOffsetSeconds}
+          now={now}
+        />
       )}
 
       {active === 'overview' ? riverOverview : null}

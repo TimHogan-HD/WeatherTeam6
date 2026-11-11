@@ -10,8 +10,13 @@ export type NwsAlert = {
   certainty: string
   headline: string | null
   description: string | null
+  /** NWS's recommended action, separate from `description`. */
+  instruction: string | null
   effective: string | null
+  /** When the NWS message lapses — not always when the hazard does. */
   expires: string | null
+  /** When the hazard ends, when NWS gives it. The only time the app may call "until". */
+  ends: string | null
 }
 
 type NwsFeatureProperties = {
@@ -21,8 +26,10 @@ type NwsFeatureProperties = {
   certainty?: string
   headline?: string | null
   description?: string | null
+  instruction?: string | null
   effective?: string | null
   expires?: string | null
+  ends?: string | null
 }
 
 type NwsFeatureCollection = {
@@ -89,8 +96,10 @@ export async function fetchNwsAlerts(lat: number, lon: number): Promise<NwsAlert
         certainty: props.certainty ?? 'Unknown',
         headline: props.headline ?? null,
         description: props.description ?? null,
+        instruction: props.instruction ?? null,
         effective: props.effective ?? null,
         expires: props.expires ?? null,
+        ends: props.ends ?? null,
       },
     ]
   })

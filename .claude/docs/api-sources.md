@@ -123,6 +123,7 @@ No longer called (deleted 2026-10-01 and 2026-11-03). A source line naming it is
 - **Required header:** `User-Agent: weatherteam6/1.0 your@email.com` — requests without this get blocked
 - **No API key required**
 - **Response:** GeoJSON FeatureCollection. Each feature has `properties.event`, `properties.severity`, `properties.certainty`
+- **Kept** (`nwsAlerts.ts`, `weather_alerts`): `headline`, `description`, `instruction`, `effective`, `expires`, `ends` (#482). `expires` is when the message lapses, often before the hazard does; `ends` is the hazard's end and null when NWS gives none. Only `ends` is ever printed as "until". `onset` is still dropped.
 - **Alert tiers for climbing:** Watch → Advisory → Warning → Active, based on CAPE value in `properties.description` + `properties.event` string
 
 ## IEM NEXRAD radar (Map tab)

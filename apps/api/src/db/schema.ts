@@ -486,8 +486,13 @@ export const weatherAlerts = pgTable(
     certainty: text('certainty').notNull(),
     headline: text('headline'),
     description: text('description'),
+    /** NWS's `instruction`: what to do. Null on rows stored before #482 until the next check. */
+    instruction: text('instruction'),
     effective: timestamp('effective', { withTimezone: true }),
+    /** When the NWS message lapses, not always when the hazard ends. Never printed as "until". */
     expires: timestamp('expires', { withTimezone: true }),
+    /** When the hazard ends, when NWS gives it (#482): the only time a screen calls "until". */
+    ends: timestamp('ends', { withTimezone: true }),
     /**
      * **Dormant since migration Phase 3 — null on every row, and that means
      * nothing.**

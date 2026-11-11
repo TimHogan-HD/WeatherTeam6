@@ -111,8 +111,10 @@ describe('fetchNwsAlerts', () => {
             certainty: 'Likely',
             headline: 'Flash Flood Watch until Saturday',
             description: 'Heavy rain expected across the region.',
+            instruction: 'Move to higher ground.',
             effective: '2026-06-03T00:00:00Z',
             expires: '2026-06-04T00:00:00Z',
+            ends: '2026-06-04T06:00:00-05:00',
           },
         },
       ],
@@ -127,8 +129,10 @@ describe('fetchNwsAlerts', () => {
       certainty: 'Likely',
       headline: 'Flash Flood Watch until Saturday',
       description: 'Heavy rain expected across the region.',
+      instruction: 'Move to higher ground.',
       effective: '2026-06-03T00:00:00Z',
       expires: '2026-06-04T00:00:00Z',
+      ends: '2026-06-04T06:00:00-05:00',
     })
   })
 
@@ -150,6 +154,9 @@ describe('fetchNwsAlerts', () => {
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(payload), { status: 200 }))
     const result = await fetchNwsAlerts(40.0, -105.0)
     expect(result?.[0]?.nws_alert_id).toBe('feature-level-id')
+    // An alert with no end or instruction stores nulls, never `expires` standing in for `ends`.
+    expect(result?.[0]?.instruction).toBeNull()
+    expect(result?.[0]?.ends).toBeNull()
   })
 
   it('skips features with no id at either level', async () => {

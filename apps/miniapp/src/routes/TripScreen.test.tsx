@@ -23,6 +23,9 @@ describe('dayReadingsFor', () => {
   })
 })
 
+// 2026-07-10 15:00 at a crag on UTC-5.
+const NOW = Date.parse('2026-07-10T20:00:00Z')
+
 describe('TripAlerts', () => {
   const heat = {
     id: 'a1',
@@ -34,33 +37,78 @@ describe('TripAlerts', () => {
 
   // The score is no longer withheld under a warning, so the warning itself must be on screen.
   it('shows a crag\'s warning, unlabelled when the trip has one crag', () => {
-    const html = renderToStaticMarkup(<TripAlerts crags={[crag('a', [heat])]} />)
+    const html = renderToStaticMarkup(<TripAlerts crags={[crag('a', [heat])]} now={NOW} />)
     expect(html).toContain('Extreme Heat Warning')
     expect(html).toContain('Dangerously hot through Friday')
     expect(html).not.toContain('Crag a')
   })
 
   it('names the crag each warning is for on a several-crag trip, and skips the quiet ones', () => {
-    const html = renderToStaticMarkup(<TripAlerts crags={[crag('a', []), crag('b', [heat])]} />)
+    const html = renderToStaticMarkup(<TripAlerts crags={[crag('a', []), crag('b', [heat])]} now={NOW} />)
     expect(html).toContain('Crag b')
     expect(html).not.toContain('Crag a')
   })
 
   it('says a failed check failed, never reading it as no warnings', () => {
-    const html = renderToStaticMarkup(<TripAlerts crags={[crag('a', [], () => {})]} />)
+    const html = renderToStaticMarkup(<TripAlerts crags={[crag('a', [], () => {})]} now={NOW} />)
     expect(html).toContain("Couldn&#x27;t load alerts. Tap to retry.")
   })
 
   it('renders nothing when every check answered with no warning', () => {
-    expect(renderToStaticMarkup(<TripAlerts crags={[crag('a', []), crag('b', [])]} />)).toBe('')
+    expect(renderToStaticMarkup(<TripAlerts crags={[crag('a', []), crag('b', [])]} now={NOW} />)).toBe('')
   })
 
   it('says a crag NWS was not asked about lately went unchecked, never reading it as no warnings', () => {
     const html = renderToStaticMarkup(
-      <TripAlerts crags={[crag('a', []), { ...crag('b', []), unchecked: true }]} />,
+      <TripAlerts crags={[crag('a', []), { ...crag('b', []), unchecked: true }]} now={NOW} />,
     )
     expect(html).toContain('Crag b')
     expect(html).toContain('Warnings not checked recently')
     expect(html).not.toContain('Crag a')
+  })
+
+  // #482: the hazard's end on the crag's clock, and the details behind a tap.
+  const flood = {
+    ...heat,
+    id: 'a2',
+    event: 'Flash Flood Warning',
+    severity: 'Severe',
+    description: '* WHAT...Flash flooding.\n\n* WHERE...Goodhue\nCounty.',
+    instruction: 'Turn around, don\'t drown.',
+    expires: '2026-07-10T22:00:00Z',
+    ends: '2026-07-11T02:00:00Z',
+  } as WeatherAlert
+
+  it('prints the end from `ends` on the crag\'s clock, and opens on a tap to the description and what to do', () => {
+    const html = renderToStaticMarkup(<TripAlerts crags={[{ ...crag('a', [flood]), utcOffsetSeconds: -18000 }]} now={NOW} />)
+    expect(html).toContain('Until 9 PM')
+    // `expires` (5 PM local) is when the message lapses, never printed as "until".
+    expect(html).not.toContain('5 PM')
+    expect(html).toMatch(/<details class="wt6-alert"(?![^>]*open)/)
+    expect(html).toContain('* WHERE...Goodhue County.')
+    expect(html).toContain('What to do')
+    expect(html).toContain('Turn around, don&#x27;t drown.')
+  })
+
+  it('withholds the end until the crag\'s offset is in, never reading it on the phone\'s clock', () => {
+    const html = renderToStaticMarkup(<TripAlerts crags={[crag('a', [flood])]} now={NOW} />)
+    expect(html).not.toContain('Until')
+  })
+
+  it('draws a warning with no details as a plain card, not a disclosure that opens on nothing', () => {
+    const html = renderToStaticMarkup(
+      <TripAlerts crags={[{ ...crag('a', [{ ...heat, description: '  \n ', instruction: null }]), utcOffsetSeconds: -18000 }]} now={NOW} />,
+    )
+    expect(html).not.toContain('<details')
+    expect(html).toContain('Extreme Heat Warning')
+  })
+
+  it('reads an alert from an API older than #482 (no `ends`, no `instruction`) with no end line', () => {
+    const html = renderToStaticMarkup(
+      <TripAlerts crags={[{ ...crag('a', [{ ...heat, description: 'Hot.' }]), utcOffsetSeconds: -18000 }]} now={NOW} />,
+    )
+    expect(html).not.toContain('Until')
+    expect(html).not.toContain('What to do')
+    expect(html).toContain('Hot.')
   })
 })

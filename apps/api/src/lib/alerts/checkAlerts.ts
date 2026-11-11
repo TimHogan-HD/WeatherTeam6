@@ -77,8 +77,10 @@ export async function runAlertsCheck(): Promise<void> {
               certainty: alert.certainty,
               headline: alert.headline,
               description: alert.description,
+              instruction: alert.instruction,
               effective: alert.effective ? new Date(alert.effective) : null,
               expires: alert.expires ? new Date(alert.expires) : null,
+              ends: alert.ends ? new Date(alert.ends) : null,
             })
             .onConflictDoUpdate({
               target: [weatherAlerts.location_id, weatherAlerts.nws_alert_id],
@@ -88,8 +90,10 @@ export async function runAlertsCheck(): Promise<void> {
                 certainty: alert.certainty,
                 headline: alert.headline,
                 description: alert.description,
+                instruction: alert.instruction,
                 effective: alert.effective ? new Date(alert.effective) : null,
                 expires: alert.expires ? new Date(alert.expires) : null,
+                ends: alert.ends ? new Date(alert.ends) : null,
               },
             })
         } catch (insertErr) {

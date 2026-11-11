@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import type { ForecastSnapshot, WeatherAlert } from '@weatherteam6/types'
 import {
   ALERTS_CHECK_STALE_MS,
+  alertParagraphs,
+  alertUntil,
   alertsUnchecked,
   findToday,
   forecastSourceLabel,
@@ -150,5 +152,52 @@ describe('alertsUnchecked', () => {
 
   it('reads an unparseable stamp as unchecked, never as fresh', () => {
     expect(alertsUnchecked('not a date', now)).toBe(true)
+  })
+})
+
+describe('alertUntil', () => {
+  const CDT = -5 * 3600
+  // 2026-07-10 15:00 local.
+  const now = Date.parse('2026-07-10T20:00:00Z')
+
+  it('names the hour alone for an end later the same local day', () => {
+    expect(alertUntil('2026-07-11T02:00:00Z', CDT, now)).toBe('Until 9 PM')
+  })
+
+  it('reads the day on the crag\'s clock, not UTC: 11:30 PM local is still today though UTC is tomorrow', () => {
+    expect(alertUntil('2026-07-11T04:30:00Z', CDT, now)).toBe('Until 11:30 PM')
+    expect(alertUntil('2026-07-11T05:00:00Z', CDT, now)).toBe('Until Sat 12 AM')
+  })
+
+  it('names the weekday inside a week and the date beyond it', () => {
+    expect(alertUntil('2026-07-12T23:00:00Z', CDT, now)).toBe('Until Sun 6 PM')
+    expect(alertUntil('2026-07-20T23:00:00Z', CDT, now)).toBe('Until Jul 20, 6 PM')
+  })
+
+  it('says an end already behind now ended, never a past "until"', () => {
+    expect(alertUntil('2026-07-10T19:00:00Z', CDT, now)).toBe('Ended 2 PM')
+  })
+
+  it('withholds the line with no end, no crag offset, or an unreadable time', () => {
+    expect(alertUntil(null, CDT, now)).toBeNull()
+    expect(alertUntil(undefined, CDT, now)).toBeNull()
+    expect(alertUntil('2026-07-11T02:00:00Z', null, now)).toBeNull()
+    expect(alertUntil('2026-07-11T02:00:00Z', Number.NaN, now)).toBeNull()
+    expect(alertUntil('not a time', CDT, now)).toBeNull()
+  })
+})
+
+describe('alertParagraphs', () => {
+  it('joins NWS\'s hard wraps and keeps its blank-line breaks', () => {
+    expect(alertParagraphs('* WHAT...Heavy\nrain.\n\n* WHEN...Until\r\nmidnight.\n \n')).toEqual([
+      '* WHAT...Heavy rain.',
+      '* WHEN...Until midnight.',
+    ])
+  })
+
+  it('is empty for a missing or blank field', () => {
+    expect(alertParagraphs(null)).toEqual([])
+    expect(alertParagraphs(undefined)).toEqual([])
+    expect(alertParagraphs(' \n\n ')).toEqual([])
   })
 })

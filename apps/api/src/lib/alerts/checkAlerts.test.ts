@@ -154,8 +154,10 @@ describe('runAlertsCheck', () => {
         certainty: 'Likely',
         headline: 'Flash Flood Warning',
         description: 'Water',
+        instruction: null,
         effective: null,
         expires: null,
+        ends: null,
       },
     ])
     await runAlertsCheck()
@@ -189,8 +191,10 @@ describe('runAlertsCheck', () => {
         certainty: 'Likely',
         headline: 'Flash Flood Warning',
         description: 'Water',
+        instruction: null,
         effective: null,
         expires: null,
+        ends: null,
       },
     ])
     upsert.mockRejectedValueOnce(new Error('disk full'))

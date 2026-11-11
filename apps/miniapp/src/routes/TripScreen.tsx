@@ -99,6 +99,7 @@ export function TripScreen() {
       // A failed check is said, never read as "no warnings" (defect class 2).
       retry: a?.isError === true ? () => void a.refetch() : null,
       unchecked: a?.data !== undefined && alertsUnchecked(byId.get(id)?.alerts_checked_at, now),
+      utcOffsetSeconds: hourly[ids.indexOf(id)]?.data?.utc_offset_seconds ?? null,
     }
   }
 
@@ -230,7 +231,7 @@ export function TripScreen() {
         feedbackLocationId={focus}
       />
       <div style={{ ...stack(spacing.listGapLg), padding: `0 ${spacing.sectionGap}px`, paddingBottom: navClearance }}>
-        {over ? null : <TripAlerts crags={(focus === null ? ids : [focus]).map(alertsFor)} />}
+        {over ? null : <TripAlerts crags={(focus === null ? ids : [focus]).map(alertsFor)} now={now} />}
         {body}
         {t === undefined ? null : (
           <GuideCard title="Trip" label="Trip">
@@ -297,6 +298,8 @@ export type TripAlertsCrag = {
   retry: (() => void) | null
   /** NWS was not asked about this crag lately (`alertsUnchecked`). */
   unchecked?: boolean
+  /** The crag's offset from `/hourly`, for a warning's end time; null withholds it. */
+  utcOffsetSeconds?: number | null
 }
 
 /**
@@ -304,7 +307,7 @@ export type TripAlertsCrag = {
  * or went unchecked. One crag's are unlabelled, as on its own screen; several
  * crags each name theirs. Nothing renders when every check answered with no warning.
  */
-export function TripAlerts({ crags }: { crags: readonly TripAlertsCrag[] }) {
+export function TripAlerts({ crags, now }: { crags: readonly TripAlertsCrag[]; now: number }) {
   const shown = crags.filter((c) => c.alerts.length > 0 || c.retry !== null || c.unchecked === true)
   if (shown.length === 0) return null
   return (
@@ -312,7 +315,7 @@ export function TripAlerts({ crags }: { crags: readonly TripAlertsCrag[] }) {
       {shown.map((c) => (
         <div key={c.id} style={stack(spacing.micro)}>
           {crags.length > 1 ? <span style={typeV2.lineLabel}>{c.name}</span> : null}
-          {c.retry === null ? <AlertBanner alerts={c.alerts} unchecked={c.unchecked} /> : <InlineError message="Couldn't load alerts." onRetry={c.retry} />}
+          {c.retry === null ? <AlertBanner alerts={c.alerts} unchecked={c.unchecked} utcOffsetSeconds={c.utcOffsetSeconds ?? null} now={now} /> : <InlineError message="Couldn't load alerts." onRetry={c.retry} />}
         </div>
       ))}
     </div>
