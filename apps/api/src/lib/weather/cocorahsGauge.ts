@@ -124,15 +124,20 @@ export function reportUrl(station: string, year: number, month: number): string 
 /**
  * Fetch one station's reports that could stand for any of `days`: each day's
  * own date and the next. Throws on a failed request: the caller decides that
- * a failure writes nothing, never a dry day.
+ * a failure writes nothing, never a dry day. `deadline` is `fetchWithRetry`'s,
+ * shared by every month's read so two months cannot take two budgets.
  */
-export async function fetchVolunteerReports(station: string, days: readonly string[]): Promise<VolunteerReport[]> {
+export async function fetchVolunteerReports(
+  station: string,
+  days: readonly string[],
+  deadline?: number,
+): Promise<VolunteerReport[]> {
   const dates = new Set(days.flatMap((d) => [d, shiftDate(d, 1)]))
   const months = [...new Set([...dates].map((d) => d.slice(0, 7)))].sort()
   const reports: VolunteerReport[] = []
   for (const ym of months) {
     const [year, month] = ym.split('-').map(Number) as [number, number]
-    const res = await fetchWithRetry(reportUrl(station, year, month))
+    const res = await fetchWithRetry(reportUrl(station, year, month), undefined, undefined, deadline)
     if (!res.ok) throw new Error(`IEM daily ${res.status} for ${station}`)
     reports.push(...parseReports(await res.json(), dates))
   }

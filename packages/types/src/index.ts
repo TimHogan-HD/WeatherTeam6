@@ -490,6 +490,32 @@ export type TripDayGauge = {
 }
 
 /**
+ * A crag's rain gauges over the days just past, for the Precip tab (#479):
+ * the same airport and volunteer readings an ended trip's look back shows,
+ * fetched live. `days` are the crag's last complete local days, oldest first;
+ * today is left out, because an airport day is not over and its volunteer has
+ * not read the gauge yet.
+ *
+ * **A failed read is said, never a dry day** (defect class 2): `airport.answered`
+ * is false when the airport gauge's read failed, and `volunteer.failed` counts
+ * the candidates whose read failed, so a day with no report can say why.
+ */
+export type RainGaugeReadings = {
+  /** The nearest usable airport gauge within 25 km, or null when there is none. */
+  airport: { station: string; distance_km: number; answered: boolean } | null
+  /** The volunteer gauges in reach (`stations`), and how many of their reads failed. */
+  volunteer: { stations: number; failed: number }
+  days: RainGaugeDay[]
+}
+
+/** One local day at a crag's gauges. Null fields are no reading; why is on `RainGaugeReadings`. */
+export type RainGaugeDay = {
+  local_date: string
+  gauge: TripDayGauge | null
+  volunteer_gauge: TripDayVolunteerGauge | null
+}
+
+/**
  * One volunteer's daily report (CoCoRaHS) standing for a trip day: read once,
  * at `obs_hour` local on `report_date`, covering the 24 hours before. Not a
  * calendar day, so the screen prints the window as it is.

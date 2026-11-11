@@ -1,7 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { TripDayForecast, TripDayLookBack } from '@weatherteam6/types'
-import { GAUGE_SOURCE, LOOK_BACK_SOURCE, TripLookBackView, checkInState, gaugeLine } from './TripLookBack.js'
+import { LOOK_BACK_SOURCE, TripLookBackView, checkInState } from './TripLookBack.js'
+import { GAUGE_SOURCE, gaugeLine } from '../../lib/gaugeLines.js'
 
 const settled = <T,>(data: T) => ({ data, isPending: false, isError: false, refetch: () => {} })
 

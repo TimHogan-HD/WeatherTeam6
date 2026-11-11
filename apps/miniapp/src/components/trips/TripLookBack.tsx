@@ -3,19 +3,16 @@ import {
   EM_DASH,
   ROCK_LABELS,
   formatPrecipIn,
-  hourLabel,
-  kmToMi,
-  type TripDayGauge,
   type TripDayLookBack,
-  type TripDayVolunteerGauge,
   type TripSummary,
 } from '@weatherteam6/types'
 import { typeV2 } from '../../theme/tokens.css.js'
 import { bareButton, quietButton, row, stack, toneColors } from '../../theme/styles.js'
 import { initialCheckDay } from '../../lib/feedback.js'
+import { GAUGE_SOURCE, gaugeLine, volunteerGaugeLine } from '../../lib/gaugeLines.js'
 import { formatTempDeg } from '../../lib/format.js'
 import { ROCK_TONE } from '../../lib/locationList.js'
-import { dateLabel, dayMonthLabel, forecastWords, hasDayTrend, leadLabel, shortDayLabel, type TrendSeries } from '../../lib/trips.js'
+import { dayMonthLabel, forecastWords, hasDayTrend, leadLabel, shortDayLabel, type TrendSeries } from '../../lib/trips.js'
 import { scoreRampColor } from '../charts/chartStyle.js'
 import { GuideCard } from '../guidebook/parts.js'
 import { InlineError, Skeleton } from '../States.js'
@@ -24,39 +21,6 @@ import { TrendCard, type QueryState } from './TripCragView.js'
 /** Said once under the days: what "turned out" rests on. */
 export const LOOK_BACK_SOURCE =
   'How a day turned out is the forecast model’s own look back at it once it was over, not a weather station’s record.'
-
-/** Said after `LOOK_BACK_SOURCE` only when a day has a gauge line to explain. */
-export const GAUGE_SOURCE =
-  'A rain gauge line is one spot’s measurement, which a passing shower can miss. An airport gauge is summed over the day; a volunteer’s is read once a day and covers the 24 hours shown.'
-
-/**
- * A day's gauge reading as one line, or null when there is none. A day with an
- * hour unreported says so rather than printing a total that may have missed
- * the hour it rained in.
- */
-export function gaugeLine(gauge: TripDayGauge | null | undefined): string | null {
-  if (gauge == null) return null
-  const miles = Math.max(1, Math.round(kmToMi(gauge.distance_km)))
-  const where = `Rain gauge at ${gauge.station}, ${miles} mi away`
-  return gauge.rain_mm === null ? `${where}: not every hour reported` : `${where}: ${formatPrecipIn(gauge.rain_mm)}`
-}
-
-/**
- * A volunteer gauge's report as one line, or null when none reported. It is
- * one reading over the 24 hours before it, not the calendar day, so the
- * window is printed as it is: `7 am 29 Oct – 7 am 30 Oct`.
- */
-export function volunteerGaugeLine(gauge: TripDayVolunteerGauge | null | undefined): string | null {
-  if (gauge == null) return null
-  const miles = Math.max(1, Math.round(kmToMi(gauge.distance_km)))
-  const at = hourLabel(gauge.obs_hour)
-  const window = `${at} ${dateLabel(dateBefore(gauge.report_date))} – ${at} ${dateLabel(gauge.report_date)}`
-  return `Volunteer gauge at ${gauge.name}, ${miles} mi away: ${formatPrecipIn(gauge.rain_mm)}, ${window}`
-}
-
-function dateBefore(iso: string): string {
-  return new Date(Date.parse(`${iso}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
-}
 
 /**
  * What a past day offers for a check-in: `checked` when the reader already has

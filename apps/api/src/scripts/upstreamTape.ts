@@ -101,8 +101,14 @@ export function isUpstream(url: string): boolean {
  * its frames are binary, its listing URL changes by the minute, and a replayed
  * frame is hours old, which the app rightly withholds. It is keyless AWS Open
  * Data with no allowance to protect.
+ *
+ * IEM's rain gauge archives (the Precip tab's gauges, #479): their URLs name
+ * dates as `year1=2026&month1=11&day1=4` and `year=2026&month=11`, which the
+ * tape's date shift cannot move, so a tape would only ever answer on the day
+ * it was recorded. Keyless, a few requests a run.
  */
-const OFF_TAPE = /^https:\/\/noaa-mrms-pds\.s3\.amazonaws\.com\//
+const OFF_TAPE =
+  /^https:\/\/(noaa-mrms-pds\.s3\.amazonaws\.com\/|mesonet\.agron\.iastate\.edu\/(cgi-bin\/request\/asos\.py|api\/1\/daily\.json)\?)/
 
 function onTape(url: string): boolean {
   return isUpstream(url) && !OFF_TAPE.test(url)

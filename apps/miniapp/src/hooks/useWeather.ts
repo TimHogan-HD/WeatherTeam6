@@ -5,6 +5,7 @@ import {
   type Conditions,
   type ForecastSnapshot,
   type RadarLayers,
+  type RainGaugeReadings,
   type RainNow,
   type RiverGaugeReading,
   type WeatherAlert,
@@ -125,4 +126,22 @@ export function useRiverGauges(
   knownCrag: string | null | undefined,
 ): UseQueryResult<RiverGaugeReading[]> {
   return useQuery(riverGaugesQuery(id, knownCrag))
+}
+
+/**
+ * The rain gauges near a place over its last six complete days (#479), for
+ * the Precip tab. Asked only while that tab is open (`enabled`), because each
+ * answer costs up to seven IEM requests; kept an hour, since an airport day
+ * only closes at midnight and a volunteer reads once a day.
+ */
+export const rainGaugesQuery = (id: string | undefined, enabled: boolean) =>
+  queryOptions({
+    queryKey: ['rain-gauges', id ?? ''] as const,
+    queryFn: () => apiGet<RainGaugeReadings>(`/rain-gauges/${id ?? ''}`),
+    enabled: enabled && id !== undefined && id !== '',
+    staleTime: 60 * 60_000,
+  })
+
+export function useRainGauges(id: string | undefined, enabled: boolean): UseQueryResult<RainGaugeReadings> {
+  return useQuery(rainGaugesQuery(id, enabled))
 }

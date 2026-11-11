@@ -5,6 +5,7 @@ import type {
   ForecastSnapshot,
   HourlySample,
   HourlySeries,
+  RainGaugeReadings,
   RecentPrecip,
   WeatherAlert,
 } from '@weatherteam6/types'
@@ -553,7 +554,12 @@ describe('DetailView — Precip tab', () => {
     },
   }
 
-  function renderPrecip(data: RecentPrecip, isClimbingLocation = true, hourlySeries: HourlySeries = series): string {
+  function renderPrecip(
+    data: RecentPrecip,
+    isClimbingLocation = true,
+    hourlySeries: HourlySeries = series,
+    rainGauges?: RainGaugeReadings,
+  ): string {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-15T09:30:00Z'))
     const html = renderInRouter(
@@ -565,6 +571,7 @@ describe('DetailView — Precip tab', () => {
           tabs: { active: 'precip', onTabChange: () => {}, selectedDate: DAY_1, onSelectDate: () => {}, readMs: null, onRead: () => {}, panelId: 'panel' },
         }}
         recentPrecip={ok(data)}
+        {...(rainGauges === undefined ? {} : { rainGauges: ok(rainGauges) })}
       />,
     )
     vi.useRealTimers()
@@ -583,6 +590,65 @@ describe('DetailView — Precip tab', () => {
     expect(html).toContain('rock is dry')
     // Sun 20:00 is unqualified, so the tab says once that the wall direction is not set.
     expect(html).toContain('Wall direction not set, so sunny hours may read warm.')
+  })
+
+  describe('rain gauges (#479)', () => {
+    const noDay = (local_date: string) => ({ local_date, gauge: null, volunteer_gauge: null })
+    const gauges: RainGaugeReadings = {
+      airport: { station: 'DLL', distance_km: 11.8, answered: true },
+      volunteer: { stations: 2, failed: 0 },
+      days: [
+        ...['09', '10', '11', '12'].map((d) => noDay(`2026-09-${d}`)),
+        {
+          local_date: '2026-09-13',
+          gauge: { station: 'DLL', distance_km: 11.8, rain_mm: 10.7, hours_reported: 24, hours_expected: 24 },
+          volunteer_gauge: {
+            station: 'WI-SK-26',
+            name: 'Baraboo 2.1 S',
+            distance_km: 6,
+            rain_mm: 9.6,
+            report_date: '2026-09-14',
+            obs_hour: 7,
+          },
+        },
+        {
+          local_date: '2026-09-14',
+          gauge: { station: 'DLL', distance_km: 11.8, rain_mm: null, hours_reported: 21, hours_expected: 24 },
+          volunteer_gauge: null,
+        },
+      ],
+    }
+
+    it("prints each day's gauges beside the models' total, a short day as not every hour", () => {
+      const html = renderPrecip(recent, true, series, gauges)
+      expect(html).toContain('Rain gauges')
+      expect(html).toContain('Rain gauge at DLL, 7 mi away: 0.42 in')
+      expect(html).toContain('Volunteer gauge at Baraboo 2.1 S, 4 mi away: 0.38 in')
+      expect(html).toContain('Rain gauge at DLL, 7 mi away: not every hour reported')
+      // The models' 13th is the grid's 4.6 mm; the 9th is outside the window the grid drew: a dash, not 0.
+      expect(html).toMatch(/aria-label="Sun"[^]*?Models 0\.18 in/)
+      expect(html).toMatch(/aria-label="Wed"[^]*?Models —/)
+      // Every gauge answered, so an empty day is no report, not a failure.
+      expect(html).toContain('No gauge reported this day')
+      expect(html).not.toContain('did not answer')
+    })
+
+    it('says a failed read, and never calls an empty day unreported then', () => {
+      const html = renderPrecip(recent, true, series, {
+        ...gauges,
+        airport: { station: 'DLL', distance_km: 11.8, answered: false },
+        volunteer: { stations: 2, failed: 1 },
+        days: gauges.days.map((d) => noDay(d.local_date)),
+      })
+      expect(html).toContain('The airport gauge at DLL did not answer. 1 of 2 volunteer gauges did not answer.')
+      expect(html).toContain('No gauge reading')
+      expect(html).not.toContain('No gauge reported this day')
+    })
+
+    it('draws no card where no gauge is in reach', () => {
+      const html = renderPrecip(recent, true, series, { airport: null, volunteer: { stations: 0, failed: 0 }, days: gauges.days.map((d) => noDay(d.local_date)) })
+      expect(html).not.toContain('Rain gauges')
+    })
   })
 
   it('draws no rock for a city, or before /hourly carries the history', () => {

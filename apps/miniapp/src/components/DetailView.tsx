@@ -9,6 +9,7 @@ import type {
   Location,
   RangeF,
   RainNow,
+  RainGaugeReadings,
   RecentPrecip,
   RiverGaugeReading,
   Wall,
@@ -142,6 +143,16 @@ export type DetailViewProps = {
     isError: boolean
     refetch: () => void
   }
+  /**
+   * The rain gauges near the place (#479), for the Precip tab. Asked only while
+   * that tab is open. Optional only so a test can render without it.
+   */
+  rainGauges?: {
+    data: RainGaugeReadings | undefined
+    isPending: boolean
+    isError: boolean
+    refetch: () => void
+  }
   /** Radar's rain at every saved place (#313); `undefined` while loading or failed, which says nothing. */
   rainNow?: RainNow | null
   /** The crag's named walls, for the identity block. Optional only so a test can render without it; `LocationDetail` always passes it. */
@@ -203,6 +214,7 @@ export function DetailView({
   conditions,
   hourly,
   recentPrecip,
+  rainGauges,
   rainNow,
   walls,
   location,
@@ -388,6 +400,7 @@ export function DetailView({
       recentPrecip === undefined ? null : (
         <PrecipTab
           recent={recentPrecip}
+          {...(rainGauges === undefined ? {} : { gauges: rainGauges })}
           isClimbingLocation={showScore}
           rockType={location?.rock_type ?? null}
           hours={hourly?.data?.hours ?? []}

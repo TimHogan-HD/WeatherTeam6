@@ -10,6 +10,7 @@ import {
   UNRECORDED_ASPECT_NOTE,
   type HourlyReadings,
   type HourlySample,
+  type RainGaugeReadings,
   type RecentPrecip,
   type RockType,
 } from '@weatherteam6/types'
@@ -25,6 +26,7 @@ import {
   radarOverrule,
   rockByStamp,
   runningTotal,
+  type PrecipDay,
   type PrecipEvent,
   type PrecipKind,
 } from '../lib/precipHistory.js'
@@ -32,6 +34,7 @@ import { dryAgain, drynessNow, type DryAgain } from '../lib/rockReadings.js'
 import { dryHours } from '../lib/hourlyDay.js'
 import { dayChance } from '../lib/overview.js'
 import { formatLocalHour } from '../lib/format.js'
+import { GAUGE_SOURCE, gaugeGaps, gaugeLine, hasGauges, noReadingLine, volunteerGaugeLine } from '../lib/gaugeLines.js'
 import { useNow } from '../hooks/useNow.js'
 import { CardStack } from './CardStack.js'
 import { DAY_SCALES, RainChart, rainScaleUnit, sectCard } from './charts/DayCharts.js'
@@ -84,9 +87,20 @@ export type PrecipTabProps = {
   /** `/hourly`'s hours, for the next 48 hours and each day. Empty while it loads. */
   hours: readonly HourlySample[]
   utcOffsetSeconds: number | null
+  /**
+   * The rain gauges near the place (#479): observed rain beside the models'.
+   * Absent, or answered with no gauge in reach, draws no card.
+   */
+  gauges?: {
+    data: RainGaugeReadings | undefined
+    isPending: boolean
+    isError: boolean
+    refetch: () => void
+  }
 }
 
 const LOADING_H = 480
+const GAUGE_LOADING_H = 160
 const HOUR_MS = 3_600_000
 const AHEAD_HOURS = 48
 
@@ -125,7 +139,7 @@ function hoursAhead(hours: readonly HourlySample[], nowMs: number): HourlySample
   })
 }
 
-export function PrecipTab({ recent, isClimbingLocation, rockType, rock, hours, utcOffsetSeconds }: PrecipTabProps) {
+export function PrecipTab({ recent, isClimbingLocation, rockType, rock, hours, utcOffsetSeconds, gauges }: PrecipTabProps) {
   const now = useNow()
   const ahead = hoursAhead(hours, now)
   const [readMs, setReadMs] = useState<number | null>(null)
@@ -284,6 +298,13 @@ export function PrecipTab({ recent, isClimbingLocation, rockType, rock, hours, u
               </Card>
             ),
           },
+          gauges === undefined || (gauges.data !== undefined && !hasGauges(gauges.data))
+            ? null
+            : {
+                id: 'gauges',
+                title: 'Rain gauges',
+                node: <GaugeCard gauges={gauges} days={days} today={today} />,
+              },
           axis === null || utcOffsetSeconds === null
             ? null
             : {
@@ -324,6 +345,71 @@ export function PrecipTab({ recent, isClimbingLocation, rockType, rock, hours, u
         mean; its chance is the likeliest of those hours, the share of wet ensemble members.
       </p>
     </>
+  )
+}
+
+/**
+ * Observed rain beside the models' (#479): each of the last complete days
+ * with the models' total the grid above adds up, and the airport and
+ * volunteer gauge lines an ended trip's look back prints. Newest first, as
+ * the grid reads. A day with no line says why: no report, or a read that
+ * failed, never a dry day.
+ */
+function GaugeCard({
+  gauges,
+  days,
+  today,
+}: {
+  gauges: NonNullable<PrecipTabProps['gauges']>
+  days: readonly PrecipDay[]
+  today: string
+}) {
+  if (gauges.isPending) return <Skeleton height={GAUGE_LOADING_H} />
+  if (gauges.isError || gauges.data === undefined) {
+    return <InlineError message="Couldn't load the rain gauges." onRetry={gauges.refetch} />
+  }
+  const data = gauges.data
+  const modelMm = new Map(days.map((d) => [d.localDate, d.totalMm]))
+  const gaps = gaugeGaps(data)
+  return (
+    <Card title="Rain gauges" aside="observed · beside the models">
+      {gaps.length === 0 ? null : <p style={{ ...typeV2.rowSmall, color: colorsV2.txtMuted }}>{gaps.join(' ')}</p>}
+      <div style={stack(0)}>
+        {[...data.days].reverse().map((day, i) => {
+          const lines = [gaugeLine(day.gauge), volunteerGaugeLine(day.volunteer_gauge)].filter((l): l is string => l !== null)
+          const models = modelMm.get(day.local_date)
+          return (
+            <div
+              key={day.local_date}
+              role="group"
+              aria-label={dayLabel(day.local_date, today)}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr auto',
+                rowGap: '2px',
+                padding: '10px 0',
+                borderTop: i === 0 ? 'none' : `1px solid ${colorsV2.line}`,
+              }}
+            >
+              <span style={typeV2.dayPick}>{dayLabel(day.local_date, today)}</span>
+              <span style={{ ...typeV2.rowSmall, textAlign: 'right' }}>
+                {/* Outside the window the grid drew, the models have no figure here: a dash, never 0. */}
+                Models {models == null ? EM_DASH : formatPrecipIn(models)}
+              </span>
+              {(lines.length === 0 ? [noReadingLine(data)] : lines).map((line) => (
+                <small
+                  key={line}
+                  style={{ ...typeV2.rowSmall, gridColumn: '1 / -1', ...(lines.length === 0 ? { color: colorsV2.txtMuted } : {}) }}
+                >
+                  {line}
+                </small>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+      <p style={typeV2.note}>{`${GAUGE_SOURCE} The models’ figure is the day’s total in the grid above.`}</p>
+    </Card>
   )
 }
 
