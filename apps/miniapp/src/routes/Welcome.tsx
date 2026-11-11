@@ -73,7 +73,7 @@ function WelcomeForm({ saved }: { saved: Preferences }) {
   const save = () => update.mutate(welcomeSave(saved, draft), { onSuccess: leave })
   const busy = update.isPending
 
-  let standalone = false
+  let standalone: boolean
   try {
     standalone =
       window.matchMedia('(display-mode: standalone)').matches ||

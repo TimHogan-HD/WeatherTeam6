@@ -276,10 +276,8 @@ async function run(): Promise<void> {
   let userId: string | null = null
   let joinedUserId: string | null = null
   let locationId: string | null = null
-  let gpsLocationId: string | null = null
   let secondLocationId: string | null = null
   const tripIds: string[] = []
-  let token: string | null = null
   // The Map tab draws with WebGL, which headless Chromium has only in software.
   const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] })
 
@@ -346,7 +344,7 @@ async function run(): Promise<void> {
     await page.getByLabel('Passphrase').fill(PASSPHRASE)
     await page.getByRole('button', { name: /sign in|log in/i }).click()
     await page.waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 30_000 })
-    token = await page.evaluate(() => {
+    const token = await page.evaluate(() => {
       for (const store of [localStorage, sessionStorage]) {
         for (let i = 0; i < store.length; i++) {
           const v = store.getItem(store.key(i) ?? '')
@@ -1610,7 +1608,7 @@ async function run(): Promise<void> {
     await screen('add-location-town', 5)
     await page.getByRole('button', { name: 'Save' }).click()
     await page.waitForURL(/\/location\/[0-9a-f-]{36}$/, { timeout: 30_000 }).catch(() => undefined)
-    gpsLocationId = /\/location\/([0-9a-f-]{36})$/.exec(page.url())?.[1] ?? null
+    const gpsLocationId = /\/location\/([0-9a-f-]{36})$/.exec(page.url())?.[1] ?? null
     check('Save opens the saved location', gpsLocationId !== null, `at ${page.url()}`)
     if (gpsLocationId !== null) {
       const saved = await api<Location>('GET', `/locations/${gpsLocationId}`, token)

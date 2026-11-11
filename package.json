@@ -22,7 +22,8 @@
     "wait:pr": "node .claude/hooks/wait-pr.mjs"
   },
   "devDependencies": {
-    "eslint": "^9.39.4",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.14.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.14.0",

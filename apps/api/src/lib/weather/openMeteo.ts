@@ -594,7 +594,7 @@ export async function fetchEnsembleBlock<T extends EnsembleBlockResponse>(
     firstError = err instanceof Error ? err.message : String(err)
     // `fetchWithRetry` throws `HTTP 429` once its attempts are spent. A rate limit is not a
     // broken model, and eight more requests to the same upstream could only deepen it.
-    if (firstError === 'HTTP 429') throw new Error('Open-Meteo ensemble returned 429')
+    if (firstError === 'HTTP 429') throw new Error('Open-Meteo ensemble returned 429', { cause: err })
   }
   if (res !== null) {
     if (res.ok) return (await res.json()) as T
