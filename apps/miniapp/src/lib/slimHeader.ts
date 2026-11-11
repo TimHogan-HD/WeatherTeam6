@@ -3,7 +3,6 @@ import {
   DRYNESS_LABEL,
   ROCK_LABELS,
   cToF,
-  cToFDelta,
   readingNow,
   summarizeReadings,
   type ForecastSnapshot,
@@ -14,6 +13,7 @@ import type { DetailTab } from '../components/DetailView.js'
 import { formatLocalHour } from './format.js'
 import { formatWeekday } from './forecast.js'
 import { dayChance, dayTitle, scoredDays, type DayReadings, type NextDay } from './overview.js'
+import { airDewSpreadF } from './rockReadings.js'
 
 /**
  * The slim header's figure: the key number of the tab under it, beside the
@@ -58,7 +58,7 @@ export type SlimInputs = {
 /**
  * Daily: the best day ahead by its score. Hourly: the hour the charts are
  * reading, its score alone. Precip: today's highest hourly
- * chance of rain. Rock: how far the rock sits above its dew point, now. Crag:
+ * chance of rain. Rock: how far the air sits above its dew point, now. Crag:
  * today's score. A city has no score, so its Daily carries the day's high and
  * its Hourly the hour's air temperature.
  */
@@ -179,23 +179,23 @@ function dayHigh(i: SlimInputs, date: string | null, label: string): SlimFigure 
 }
 
 /**
- * How far the rock sits above its dew point now, in °F: the condensation
- * chart's own series (`condensation_margin_c`), so the header and the chart
- * under it print one number for the hour. Air minus dew point was shown here
- * before the chart came back, and would sit beside a different figure. The
- * line is the rock's Dryness. A city, or an hour the model could not read, is
- * a gap.
+ * How far the air sits above its dew point now, in °F: the Condensation
+ * chart's own series (`airDewSpreadF`, #436), so the header and the chart
+ * under it print one number for the hour. The rock's modelled margin is not
+ * printed as a figure anywhere. The line is the rock's Dryness. An hour
+ * missing its air or dew point, or no hour near now, is a gap.
  */
 function dewMargin(i: SlimInputs): SlimFigure {
+  const sample = readingNow(i.hours, i.nowMs)
+  const nearSample = sample !== null && Math.abs(Date.parse(sample.valid_at) - i.nowMs) <= NOW_TOLERANCE_MS ? sample : null
+  const spread = nearSample === null ? null : airDewSpreadF(nearSample)
   const reading = readingNow(i.hourReadings, i.nowMs)
   const near = reading !== null && Math.abs(Date.parse(reading.valid_at) - i.nowMs) <= NOW_TOLERANCE_MS ? reading : null
-  const margin = near?.condensation_margin_c ?? null
-  const f = margin === null ? null : Math.round(cToFDelta(margin))
   return {
-    // Below the dew point says so, never a negative "above" (owner, 2026-11-02).
-    value: f === null ? null : Math.abs(f),
+    // Air never sits below its dew point; a pair that rounds there reads 0, never a negative.
+    value: spread === null ? null : Math.max(0, Math.round(spread)),
     unit: '°',
-    label: f !== null && f < 0 ? 'rock below dew' : 'rock above dew',
+    label: 'air above dew',
     tone: 'plain',
     line: near?.rock == null ? null : `${DRYNESS_LABEL}: ${ROCK_LABELS[near.rock.level]}`,
   }

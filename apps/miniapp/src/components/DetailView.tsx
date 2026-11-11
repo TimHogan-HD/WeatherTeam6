@@ -420,6 +420,9 @@ export function DetailView({
           ? {
               live: {
                 readings: hourly.data.readings,
+                hours: hourly.data.hours,
+                model: hourly.data.model,
+                hrrrThrough: hourly.data.hrrr_through,
                 utcOffsetSeconds: hourly.data.utc_offset_seconds,
                 recent: recentPrecip?.data,
               },

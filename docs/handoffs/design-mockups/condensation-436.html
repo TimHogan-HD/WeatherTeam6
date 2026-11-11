@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Condensation card mockup (#436)</title>
+<style>
+/* colorsV2 values from packages/design/src/tokens.ts, restated only because a mockup cannot import them. Dark only: the app has no light theme. */
+:root{--bg:#07090c;--card:#171f28;--well:#0f151c;--line:#2a3644;--txt1:#f4f7fa;--muted:#bccad0;--txt2:#d3e1e4;--fairInk:#f8bd72;--poorInk:#ff8b91;--dew:#7fd1c4;--brandInk:#6fe3ec;--grid:rgba(255,255,255,.07)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt1);font:15px/1.4 system-ui,-apple-system,Segoe UI,sans-serif}
+.wrap{max-width:480px;margin:0 auto;padding:16px}
+h2{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:26px 0 8px}
+.cap{font-size:13px;color:var(--muted);margin:6px 2px 0}
+.slim{display:flex;justify-content:space-between;align-items:center;background:var(--card);border-radius:14px;padding:10px 14px;margin-bottom:8px}
+.slim b{font-size:17px}.slim small{display:block;font-size:12px;color:var(--muted)}
+.slim .fig{text-align:right}.slim .fig b{font-size:24px;font-family:ui-monospace,monospace}
+.card{background:var(--card);border-radius:20px;padding:14px}
+.sect{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.sect b{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--brandInk)}.sect span{font-size:12px;color:var(--muted)}
+.head{font-weight:600;margin:0 0 8px}
+.chip{display:inline-flex;gap:10px;font-size:12.5px;background:var(--well);border-radius:999px;padding:3px 12px;margin:0 0 6px;color:var(--muted)}
+.chip b{color:var(--txt1)}
+.key{display:flex;flex-wrap:wrap;gap:12px;font-size:12.5px;color:var(--muted);margin-top:6px}
+.key i{display:inline-block;width:16px;height:8px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.note{font-size:13px;color:var(--txt2);margin:12px 0 0}
+svg text{font:11px ui-monospace,monospace;fill:var(--muted)}
+.strip{display:grid;grid-template-columns:repeat(43,1fr);gap:1px;height:34px;margin-top:4px}
+.strip span{border-radius:2px;background:var(--well)}
+.strip .near{background:rgba(248,189,114,.45)}.strip .dew{background:rgba(255,139,145,.55)}.strip .gap{background:none;outline:1px dashed var(--line);outline-offset:-2px}
+.axis{display:flex;justify-content:space-between;font:11px ui-monospace,monospace;color:var(--muted);margin-top:4px}
+</style></head><body><div class="wrap">
+<p class="cap">One night at a crag: air 57°F at 3 PM falling to 41°F at dawn, dew point about 39°F. The model reads the rock under its dew point from 1 AM. Each variant shows the Rock tab's slim header, then the Condensation card. "Now" is 8 AM. Hours 20–21 are missing in all three, to show the gap.</p>
+
+<h2>Today, as built: the rock's modelled gap as a figure</h2>
+<div class="slim"><div><b>Red Wing</b><small>Dryness: Dry</small></div><div class="fig"><b>7°</b><small>rock above dew</small></div></div>
+<div class="card" id="today"></div>
+
+<h2>Option 1 (recommended, built): air minus dew point, rock in words</h2>
+<div class="slim"><div><b>Red Wing</b><small>Dryness: Dry</small></div><div class="fig"><b>14°</b><small>air above dew</small></div></div>
+<div class="card" id="opt1"></div>
+
+<h2>Option 2: the rock's gap as a word only</h2>
+<div class="slim"><div><b>Red Wing</b><small>Dryness: Dry</small></div><div class="fig"><b style="font-size:18px;font-family:inherit">clear</b><small>rock vs dew (estimate)</small></div></div>
+<div class="card" id="opt2"></div>
+<p class="cap">Option 2 keeps the model's reading but drops every figure for it: no axis, no °F, an hour strip coloured by its word. It is lighter, but it leaves the card with no forecast figure a reader can check, and the word still rests on the modelled rock.</p>
+
+<script>
+const N = 43, W = 448, H = 160, TOP = 10, BOTTOM = 22, LEFT = 30
+const nowLocal = 8
+const hours = Array.from({ length: N }, (_, i) => {
+  const lh = (nowLocal + i) % 24
+  const air = 9.5 + 4.5 * Math.cos(((lh - 15) / 24) * 2 * Math.PI)
+  const dew = 4 + 0.6 * Math.sin(i / 7)
+  const lag = lh >= 18 || lh < 10 ? -1.6 : 1.2
+  const missing = i === 20 || i === 21
+  return { i, lh, spreadF: missing ? null : (air - dew) * 1.8, marginF: missing ? null : (air - dew + lag) * 1.8 }
+})
+const zone = (m) => (m <= 0 ? 'dew' : m < 3.6 ? 'near' : 'clear')
+const x = (i) => LEFT + ((W - LEFT - 6) * i) / (N - 1)
+const lab = (lh) => (lh === 0 ? '12a' : lh === 12 ? '12p' : lh < 12 ? lh + 'a' : lh - 12 + 'p')
+const ticksX = hours.filter((h) => h.lh % 6 === 0)
+function frame(lo, hi, body, field) {
+  const y = (v) => H - BOTTOM - ((H - BOTTOM - TOP - 4) * (v - lo)) / (hi - lo)
+  const ticks = []; for (let v = lo; v <= hi; v += 5) ticks.push(v)
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%">`
+  s += body(y)
+  s += ticks.map((v) => `<line x1="${LEFT}" x2="${W - 6}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="2" y="${y(v) + 3}">${v}°</text>`).join('')
+  const runs = []; let cur = []
+  for (const h of hours) { if (h[field] === null) { if (cur.length) runs.push(cur); cur = [] } else cur.push(h) }
+  if (cur.length) runs.push(cur)
+  s += runs.map((r) => `<polyline fill="none" stroke="var(--dew)" stroke-width="4" stroke-linecap="round" points="${r.map((h) => `${x(h.i)},${y(Math.max(lo, h[field]))}`).join(' ')}"/>`).join('')
+  s += `<line x1="${x(0)}" x2="${x(0)}" y1="${TOP}" y2="${H - BOTTOM}" stroke="var(--brandInk)" stroke-dasharray="2 3"/>`
+  s += `<circle cx="${x(0)}" cy="${y(hours[0][field])}" r="5" fill="var(--dew)"/>`
+  s += ticksX.map((h) => `<text x="${x(h.i)}" y="${H - 2}" text-anchor="middle">${lab(h.lh)}</text>`).join('')
+  return s + '</svg>'
+}
+const headline = 'Rock near its dew point from 11 PM through 3 AM tomorrow, then a gap in the readings. Dew likely on the rock from 1 AM tomorrow. Dew likely on the rock again from 2 AM Fri.'
+const friction = '<p class="cap" style="margin-top:8px">Friction is an estimate based on air temperature, dew point and rock temperature.</p>'
+
+// Today, as built.
+document.getElementById('today').innerHTML =
+  `<div class="sect"><b>Condensation</b><span>°F rock vs dew point · next 42 h</span></div><p class="head">${headline}</p>` +
+  `<div class="chip"><b>8 AM</b> clear of dew <b>7°F above</b></div>` +
+  frame(-5, 25, (y) => `<rect x="${LEFT}" y="${y(0)}" width="${W - LEFT - 6}" height="${y(-5) - y(0)}" fill="var(--poorInk)" opacity=".14"/><rect x="${LEFT}" y="${y(3.6)}" width="${W - LEFT - 6}" height="${y(0) - y(3.6)}" fill="var(--fairInk)" opacity=".14"/><line x1="${LEFT}" x2="${W - 6}" y1="${y(0)}" y2="${y(0)}" stroke="var(--poorInk)"/><line x1="${LEFT}" x2="${W - 6}" y1="${y(3.6)}" y2="${y(3.6)}" stroke="var(--fairInk)" stroke-dasharray="4 4"/>`, 'marginF') +
+  `<div class="key"><span><i style="background:var(--dew)"></i>rock above or below dew point</span></div>` +
+  `<p class="note">Under 3.6°F the score counts condensation against grip. The rock temperature is modelled, so the zones are likely, not certain.</p>` + friction
+
+// Option 1: shaded hours are the model's rock zone, the line is air − dew point.
+const bands = (y) => hours.filter((h) => h.marginF !== null && zone(h.marginF) !== 'clear').map((h) => {
+  const w = x(1) - x(0)
+  return `<rect x="${Math.max(LEFT, x(h.i) - w / 2)}" y="${TOP}" width="${w}" height="${H - BOTTOM - TOP}" fill="${zone(h.marginF) === 'dew' ? 'var(--poorInk)' : 'var(--fairInk)'}" opacity=".16"/>`
+}).join('')
+document.getElementById('opt1').innerHTML =
+  `<div class="sect"><b>Condensation</b><span>°F air above dew point · next 42 h</span></div><p class="head">${headline}</p>` +
+  `<div class="chip"><b>8 AM</b> air above dew <b>14°F</b> rock (estimate) <b>clear</b></div>` +
+  frame(0, 25, bands, 'spreadF') +
+  `<div class="key"><span><i style="background:var(--dew)"></i>air above dew point</span><span><i style="background:var(--fairInk);opacity:.35"></i>rock near dew (estimate)</span><span><i style="background:var(--poorInk);opacity:.35"></i>dew likely (estimate)</span></div>` +
+  `<p class="note">Air temperature minus dew point, from the HRRR, then GFS forecast. Rock colder than the dew point gets wet with no rain, and rock lags the air, so after a cold night it can be wet while the air reads a few degrees clear. Shaded hours are where the score counts condensation against grip: an estimate, because the rock’s temperature is modelled, not measured.</p>` + friction
+
+// Option 2: a word per hour, no figure anywhere for the rock.
+document.getElementById('opt2').innerHTML =
+  `<div class="sect"><b>Condensation</b><span>rock vs dew point (estimate) · next 42 h</span></div><p class="head">${headline}</p>` +
+  `<div class="chip"><b>8 AM</b> rock (estimate) <b>clear</b></div>` +
+  `<div class="strip">${hours.map((h) => `<span class="${h.marginF === null ? 'gap' : zone(h.marginF)}"></span>`).join('')}</div>` +
+  `<div class="axis">${ticksX.map((h) => `<span>${lab(h.lh)}</span>`).join('')}</div>` +
+  `<div class="key"><span><i style="background:var(--well);outline:1px solid var(--line)"></i>clear</span><span><i style="background:rgba(248,189,114,.45)"></i>near dew</span><span><i style="background:rgba(255,139,145,.55)"></i>dew likely</span><span><i style="outline:1px dashed var(--line)"></i>not read</span></div>` +
+  `<p class="note">The model’s estimate of the rock against its dew point. Rock colder than the dew point gets wet with no rain. The rock’s temperature is modelled, not measured, so the words are likely, not certain. Near dew and under it, the score counts condensation against grip.</p>` + friction
+</script>
+</div></body></html>

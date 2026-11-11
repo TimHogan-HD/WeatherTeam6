@@ -1,4 +1,5 @@
 import {
+  EM_DASH,
   ROCK_LABELS,
   SCORE_MODEL_FACTS,
   clock12,
@@ -6,6 +7,7 @@ import {
   readingNow,
   type HourlyReading,
   type HourlyReadings,
+  type HourlySample,
 } from '@weatherteam6/types'
 
 /**
@@ -109,16 +111,84 @@ export function marginZone(marginF: number): MarginZone {
   return marginF <= 0 ? 'dew' : marginF < CONDENSATION_EDGE_F ? 'near' : 'clear'
 }
 
-export const MARGIN_ZONE_LABELS: Record<MarginZone, string> = {
-  dew: 'dew on rock',
-  near: 'close to dew',
-  clear: 'clear of dew',
+/**
+ * The air's temperature minus its dew point, °F, for one forecast hour (#436):
+ * two forecast values, one model's pair (`temp_c` and `dewpoint_c` are the
+ * deterministic run's columns, the pair the Today chart draws). `null` when
+ * either is missing, never a spread of 0.
+ *
+ * It replaces the rock's modelled margin as the figure on screen: no sensor
+ * reads rock, and the model's rock temperature misses ground-surface sensors
+ * by about 9°F in daytime (`compare:rock-temp`), so a "+3°F" rock gap cannot
+ * tell condensing rock from dry. The model's estimate stays, in words only.
+ */
+export function airDewSpreadF(hour: Pick<HourlySample, 'temp_c' | 'dewpoint_c'>): number | null {
+  return hour.temp_c === null || hour.dewpoint_c === null ? null : cToFDelta(hour.temp_c - hour.dewpoint_c)
 }
 
-/** `5°F above`, `5°F below` or `at dew point`, after the zone's name: never a negative "above". */
-export function marginWords(marginF: number): string {
-  const f = Math.round(marginF)
-  return f === 0 ? 'at dew point' : `${Math.abs(f)}°F ${f < 0 ? 'below' : 'above'}`
+export type SpreadHour = {
+  t: number
+  /** Air minus dew point, °F; `null` where either was missing. */
+  spreadF: number | null
+}
+
+/**
+ * Air minus dew point from the hour covering now to `MARGIN_AHEAD_HOURS`
+ * ahead, the Condensation card's chart. A missing hour is absent, a missing
+ * value a gap, as in `marginSeries`.
+ */
+export function spreadSeries(hours: readonly HourlySample[], nowMs: number): SpreadHour[] {
+  const from = nowMs - HOUR_MS / 2
+  const to = nowMs + MARGIN_AHEAD_HOURS * HOUR_MS + HOUR_MS / 2
+  return hours
+    .map((h) => ({ t: Date.parse(h.valid_at), spreadF: airDewSpreadF(h) }))
+    .filter((h) => Number.isFinite(h.t) && h.t >= from && h.t <= to)
+}
+
+/**
+ * `12°F` or `at dew point`. Air never sits below its dew point; a model pair
+ * that rounds there reads `at dew point`, never a negative spread.
+ */
+export function spreadWords(spreadF: number | null): string {
+  if (spreadF === null) return EM_DASH
+  const f = Math.round(spreadF)
+  return f <= 0 ? 'at dew point' : `${f}°F`
+}
+
+/** The model's rock, in words, for the read chip and the shaded hours: an estimate, never a figure. */
+export const ROCK_DEW_WORDS: Record<MarginZone, string> = {
+  dew: 'dew likely',
+  near: 'near dew',
+  clear: 'clear',
+}
+
+export type DampRun = { fromMs: number; toMs: number; zone: Exclude<MarginZone, 'clear'> }
+
+/**
+ * The hours the model reads the rock close to or under its dew point, as
+ * unbroken runs of one zone (epoch ms of each run's first and last hour), so
+ * each hour is shaded as its own zone. Shaded on the chart as an estimate,
+ * never as a figure. An unread or missing hour ends a run.
+ */
+export function dampRuns(series: readonly MarginHour[]): DampRun[] {
+  const runs: DampRun[] = []
+  let open: DampRun | null = null
+  let prevT: number | null = null
+  for (const h of series) {
+    const zone = h.marginF === null ? null : marginZone(h.marginF)
+    const contiguous = prevT !== null && h.t - prevT <= HOUR_MS * 1.5
+    if (open !== null && (zone !== open.zone || !contiguous)) {
+      runs.push(open)
+      open = null
+    }
+    if (zone === 'near' || zone === 'dew') {
+      if (open === null) open = { fromMs: h.t, toMs: h.t, zone }
+      else open.toMs = h.t
+    }
+    prevT = h.t
+  }
+  if (open !== null) runs.push(open)
+  return runs
 }
 
 export type DampSpell = {
@@ -195,16 +265,15 @@ export function whenLabel(t: number, nowMs: number, utcOffsetSeconds: number): s
 /**
  * The condensation card's headline: when the rock is near its dew point, and
  * when dew is likely on it. Times, not a count of hours; "likely" because the
- * rock temperature is modelled (#436).
+ * rock temperature is modelled, and no figure for the rock's gap (#436).
  */
 export function condensationHeadline(series: readonly MarginHour[], nowMs: number, utcOffsetSeconds: number): string {
   const read = series.filter((h) => h.marginF !== null)
   const first = read[0]
   if (first === undefined) return 'No rock readings for the hours ahead.'
   const spell = firstDampSpell(series)
-  if (spell === null) {
-    return `The rock stays more than ${Number(CONDENSATION_EDGE_F.toFixed(1))}°F above its dew point for the next ${read.length} hours.`
-  }
+  // Words only: the rock's gap is modelled, so its size is not printed (#436).
+  if (spell === null) return `The rock stays clear of its dew point for the next ${read.length} hours.`
   const at = (t: number) => whenLabel(t, nowMs, utcOffsetSeconds)
   // The hour covering now, not merely the first hour drawn: that may be a later one when now's is missing.
   const isNow = (t: number) => Math.abs(t - nowMs) <= HOUR_MS / 2

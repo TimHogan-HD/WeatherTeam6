@@ -126,24 +126,34 @@ describe('slimFigure on Precip', () => {
 })
 
 describe('slimFigure on Rock', () => {
-  it('is the rock’s margin over its dew point now, the condensation chart’s series, not air minus dew', () => {
-    // Air 15 °C over dew 5 °C would be 18°F; the rock's own 6 °C margin is 11°F.
+  it('is the air’s spread over its dew point now, the Condensation chart’s series, never the rock’s modelled margin (#436)', () => {
+    // Air 15 °C over dew 5 °C is 18°F; the rock's own 6 °C margin (11°F) must not print.
     const hourReadings = [reading('2026-09-28T16:00:00Z', 70), reading('2026-09-28T17:00:00Z', 80)]
     const f = slimFigure('rock', inputs({ hourReadings }))
-    expect(f).toMatchObject({ value: 11, unit: '°', label: 'rock above dew', line: 'Dryness: Dry' })
+    expect(f).toMatchObject({ value: 18, unit: '°', label: 'air above dew', line: 'Dryness: Dry' })
   })
 
-  it('says below dew with the size of the gap, never a negative "above"', () => {
-    const hourReadings = [{ ...reading('2026-09-28T17:00:00Z', 80), condensation_margin_c: -3 }]
-    expect(slimFigure('rock', inputs({ hourReadings }))).toMatchObject({ value: 5, label: 'rock below dew' })
+  it('prints a saturated hour as 0, and a pair that rounds below dew as 0, never negative', () => {
+    const hours = (temp_c: number, dewpoint_c: number) => [sample('2026-09-28T17:00:00Z', '2026-09-28', { temp_c, dewpoint_c })]
+    expect(slimFigure('rock', inputs({ hours: hours(8, 8) })).value).toBe(0)
+    expect(slimFigure('rock', inputs({ hours: hours(8, 9) })).value).toBe(0)
   })
 
-  it('is a gap with no reading near now, never a far hour’s margin or 0', () => {
+  it('is a gap when the hour near now lacks its air or dew point, or no hour is near now, never 0', () => {
+    const missingDew = [sample('2026-09-28T17:00:00Z', '2026-09-28', { dewpoint_c: null })]
+    expect(slimFigure('rock', inputs({ hours: missingDew })).value).toBeNull()
+    const missingAir = [sample('2026-09-28T17:00:00Z', '2026-09-28', { temp_c: null })]
+    expect(slimFigure('rock', inputs({ hours: missingAir })).value).toBeNull()
+    const far = [sample('2026-09-29T17:00:00Z', '2026-09-29')]
+    expect(slimFigure('rock', inputs({ hours: far })).value).toBeNull()
+    expect(slimFigure('rock', inputs({ hours: [] })).value).toBeNull()
+  })
+
+  it('drops the Dryness line with no rock reading near now, and keeps the air figure', () => {
     const far = [reading('2026-09-29T17:00:00Z', 80)]
-    expect(slimFigure('rock', inputs({ hourReadings: far }))).toMatchObject({ value: null, line: null })
+    expect(slimFigure('rock', inputs({ hourReadings: far }))).toMatchObject({ value: 18, line: null })
     const unread = [{ ...reading('2026-09-28T17:00:00Z', 80), condensation_margin_c: null, rock: null }]
-    expect(slimFigure('rock', inputs({ hourReadings: unread }))).toMatchObject({ value: null, line: null })
-    expect(slimFigure('rock', inputs({ hourReadings: [] })).value).toBeNull()
+    expect(slimFigure('rock', inputs({ hourReadings: unread }))).toMatchObject({ value: 18, line: null })
   })
 })
 

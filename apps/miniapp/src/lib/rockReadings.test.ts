@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import type { HourlyReading, HourlyReadings, RockLevel } from '@weatherteam6/types'
+import type { HourlyReading, HourlyReadings, HourlySample, RockLevel } from '@weatherteam6/types'
 import {
   CONDENSATION_EDGE_F,
+  airDewSpreadF,
   condensationHeadline,
+  dampRuns,
   dryAgain,
   drynessNow,
   firstDampSpell,
   marginSeries,
-  marginWords,
   marginZone,
+  spreadSeries,
+  spreadWords,
   whenLabel,
 } from './rockReadings.js'
 
@@ -85,7 +88,7 @@ describe('marginSeries', () => {
   })
 })
 
-describe('marginZone and marginWords', () => {
+describe('marginZone', () => {
   it('names dew at or under 0°, close under the score’s 3.6° edge, clear at it', () => {
     expect(CONDENSATION_EDGE_F).toBeCloseTo(3.6)
     expect(marginZone(-0.1)).toBe('dew')
@@ -94,11 +97,94 @@ describe('marginZone and marginWords', () => {
     expect(marginZone(3.5)).toBe('near')
     expect(marginZone(CONDENSATION_EDGE_F)).toBe('clear')
   })
+})
 
-  it('says below for a negative margin, never a negative above', () => {
-    expect(marginWords(-5.2)).toBe('5°F below')
-    expect(marginWords(9)).toBe('9°F above')
-    expect(marginWords(-0.3)).toBe('at dew point')
+const sample = (i: number, tempC: number | null, dewC: number | null) =>
+  ({ valid_at: new Date(T0 + i * H).toISOString(), temp_c: tempC, dewpoint_c: dewC }) as HourlySample
+
+describe('airDewSpreadF (#436)', () => {
+  it('is the air minus its dew point as an interval in °F, never through the scale’s 32', () => {
+    // 15 − 5 = 10 °C is 18°F apart; cToF would have made it 50.
+    expect(airDewSpreadF({ temp_c: 15, dewpoint_c: 5 })).toBeCloseTo(18)
+    expect(airDewSpreadF({ temp_c: -3, dewpoint_c: -4 })).toBeCloseTo(1.8)
+  })
+
+  it('is a gap, never a spread of 0, when either value is missing', () => {
+    expect(airDewSpreadF({ temp_c: null, dewpoint_c: 5 })).toBeNull()
+    expect(airDewSpreadF({ temp_c: 5, dewpoint_c: null })).toBeNull()
+    expect(airDewSpreadF({ temp_c: 0, dewpoint_c: null })).toBeNull()
+  })
+
+  it('reads a saturated hour as 0, not a gap: a real 0 and a missing value stay apart', () => {
+    expect(airDewSpreadF({ temp_c: 0, dewpoint_c: 0 })).toBe(0)
+  })
+})
+
+describe('spreadSeries', () => {
+  it('keeps the hour covering now to 42 ahead, a missing value as a gap', () => {
+    const hours = [sample(-2, 10, 5), sample(0, 10, 5), sample(1, null, 5), sample(42, 9, 8), sample(43, 9, 8)]
+    const s = spreadSeries(hours, NOW)
+    expect(s.map((h) => h.t)).toEqual([T0, T0 + H, T0 + 42 * H])
+    expect(s[0]?.spreadF).toBeCloseTo(9)
+    expect(s[1]?.spreadF).toBeNull()
+    expect(s[2]?.spreadF).toBeCloseTo(1.8)
+  })
+
+  it('is empty with no hours', () => {
+    expect(spreadSeries([], NOW)).toEqual([])
+  })
+})
+
+describe('spreadWords', () => {
+  it('rounds to a whole degree', () => {
+    expect(spreadWords(17.6)).toBe('18°F')
+    expect(spreadWords(0.6)).toBe('1°F')
+  })
+
+  it('reads at dew point at 0 and for a pair that rounds below it, never a negative spread', () => {
+    expect(spreadWords(0)).toBe('at dew point')
+    expect(spreadWords(0.4)).toBe('at dew point')
+    expect(spreadWords(-1.8)).toBe('at dew point')
+  })
+
+  it('is an em dash for a gap', () => {
+    expect(spreadWords(null)).toBe('—')
+  })
+})
+
+describe('dampRuns', () => {
+  // Margins in °C: 2 °C is the edge. 1 → near, -1 → dew, 5 → clear.
+  const margins = (marginsC: (number | null)[]) =>
+    marginSeries(readings(marginsC.map((m, i) => hour(i, 'dry', m))), NOW)
+
+  it('is empty when every hour reads clear or unread', () => {
+    expect(dampRuns(margins([5, null, 5]))).toEqual([])
+    expect(dampRuns([])).toEqual([])
+  })
+
+  it('groups unbroken hours of one zone, so each hour is shaded as its own zone', () => {
+    expect(dampRuns(margins([5, 1, -1, -1, 1, 5, 1, 5]))).toEqual([
+      { fromMs: T0 + H, toMs: T0 + H, zone: 'near' },
+      { fromMs: T0 + 2 * H, toMs: T0 + 3 * H, zone: 'dew' },
+      { fromMs: T0 + 4 * H, toMs: T0 + 4 * H, zone: 'near' },
+      { fromMs: T0 + 6 * H, toMs: T0 + 6 * H, zone: 'near' },
+    ])
+  })
+
+  it('ends a run at an unread hour and at a missing one, never reading across either', () => {
+    expect(dampRuns(margins([1, null, 1]))).toEqual([
+      { fromMs: T0, toMs: T0, zone: 'near' },
+      { fromMs: T0 + 2 * H, toMs: T0 + 2 * H, zone: 'near' },
+    ])
+    const gapped = marginSeries(readings([hour(0, 'dry', 1), hour(2, 'dry', -1)]), NOW)
+    expect(dampRuns(gapped)).toEqual([
+      { fromMs: T0, toMs: T0, zone: 'near' },
+      { fromMs: T0 + 2 * H, toMs: T0 + 2 * H, zone: 'dew' },
+    ])
+  })
+
+  it('keeps a run open to the last hour', () => {
+    expect(dampRuns(margins([5, -1, -1]))).toEqual([{ fromMs: T0 + H, toMs: T0 + 2 * H, zone: 'dew' }])
   })
 })
 
@@ -188,10 +274,16 @@ describe('condensationHeadline', () => {
     )
   })
 
-  it('says clear, and counts only read hours, when nothing is under the edge', () => {
+  it('says clear in words, with no figure for the modelled gap, and counts only read hours (#436)', () => {
     expect(condensationHeadline(series([5, null, 5]), NOW, 0)).toBe(
-      'The rock stays more than 3.6°F above its dew point for the next 2 hours.',
+      'The rock stays clear of its dew point for the next 2 hours.',
     )
+  })
+
+  it('prints no °F figure for the rock in any headline (#436)', () => {
+    for (const m of [[5, 5], [5, 1, 5], [-1, -1], [5, 1, null, -2, 5]]) {
+      expect(condensationHeadline(series(m), NOW, 0)).not.toMatch(/°/)
+    }
   })
 
   it('is a gap, not clear, with no readings', () => {

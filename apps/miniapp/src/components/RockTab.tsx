@@ -7,6 +7,7 @@ import {
   rockTypeLabel,
   type DryingPace,
   type HourlyReadings,
+  type HourlySample,
   type RecentPrecip,
   type RockGuide,
   type RockSwatch,
@@ -406,6 +407,10 @@ export type RockTabProps = {
    */
   live?: {
     readings: HourlyReadings | undefined
+    /** `/hourly`'s weather hours and their model: the Condensation card's air and dew point. */
+    hours: readonly HourlySample[]
+    model: string | null
+    hrrrThrough: string | null | undefined
     utcOffsetSeconds: number
     recent: RecentPrecip | undefined
   }
@@ -441,7 +446,15 @@ export function RockTab({ rockType, identity, live, sunWalls, river = null }: Ro
             : {
                 id: 'condensation',
                 title: 'Condensation',
-                node: <CondensationCard readings={live.readings} utcOffsetSeconds={live.utcOffsetSeconds} />,
+                node: (
+                  <CondensationCard
+                    readings={live.readings}
+                    hours={live.hours}
+                    model={live.model}
+                    hrrrThrough={live.hrrrThrough}
+                    utcOffsetSeconds={live.utcOffsetSeconds}
+                  />
+                ),
               },
           river === null ? null : { id: 'river', title: 'River level', node: river },
           sunWalls === null ? null : { id: 'sunOnWall', title: 'Sun on the wall', node: <SunOnWallCard data={sunWalls} /> },
