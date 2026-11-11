@@ -78,6 +78,27 @@ export function workingTreeChanges() {
   return out.split(/\r?\n/).filter(Boolean)
 }
 
+/**
+ * The number of a merged PR whose head was `headSha`, from a REST list of
+ * closed PRs, or null. A squash merge leaves the branch's own commits off the
+ * default branch's history, so after every merge `origin/main..HEAD` still
+ * lists them; this is how the Stop hook tells that from unshipped work. Only
+ * the exact head counts: a commit made after the merge is new work.
+ */
+export function landedPr(closedPrs, headSha) {
+  if (!headSha || !Array.isArray(closedPrs)) return null
+  const hit = closedPrs.find((p) => p?.merged_at && p?.head?.sha === headSha)
+  return hit?.number ?? null
+}
+
+/** `landedPr` for this branch, read from GitHub; null when none or unreadable. */
+export function mergedPullRequestFor(branch, headSha) {
+  const closed = ghApi(
+    `repos/{owner}/{repo}/pulls?state=closed&head={owner}:${encodeURIComponent(branch)}&per_page=30`,
+  )
+  return landedPr(closed, headSha)
+}
+
 /** Commits on the current branch that are not on its upstream. */
 export function unpushedCommits() {
   const branch = currentBranch()
