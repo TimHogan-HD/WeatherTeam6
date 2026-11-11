@@ -77,13 +77,21 @@ describe('buildWallReadings — Red Wing, 2026-10-19', () => {
     expect(pair.sun.walls + pair.shade.walls).toBe(6)
   })
 
-  it('splits the day by sun hours: the south walls are the sun group, the tree-shaded ones the shade', () => {
+  it('splits the day by sun hours, and reads the sun group by its best run, the cool morning (#537)', () => {
     expect(byName('Winter Wall').days[0]!.sun_hours).toBeGreaterThanOrEqual(2)
     expect(byName('Large Roof Area').days[0]!.sun_hours).toBe(0)
     const pair = sunShadeOnDay(out, DAY)!
     expect(pair.shade.walls).toBeGreaterThanOrEqual(4)
-    expect(pair.sun.best!.score).toBeLessThan(pair.shade.best!.score)
-    expect(pair.alike).toBe(false)
+    expect(pair.sun.walls).toBe(2)
+    // The day is its best three-hour run, and since #537 the sun walls' is 8-10 AM, before the
+    // sun has warmed them past 75 °F (10 AM is 45 °F + 28 °F on Winter Wall): the whole day reads alike.
+    expect(pair.sun.best!.score).toBeGreaterThanOrEqual(90)
+    expect(pair.alike).toBe(true)
+    // From 11 AM the morning is gone and the hot hours decide: the sun walls read well under the shade.
+    const late = sunShadeOnDay(build({ now: new Date('2026-10-19T16:00:00Z') }), DAY)!
+    expect(late.sun.best!.score).toBeLessThan(60)
+    expect(late.shade.best!.score).toBeGreaterThanOrEqual(90)
+    expect(late.alike).toBe(false)
   })
 
   it("reads the reader's temperature range: a hotter top edge eases the sunny wall", () => {

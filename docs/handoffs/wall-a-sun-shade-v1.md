@@ -14,8 +14,9 @@ is where the state is kept.
   by `npm run sun:walls`; never hand-edit `sunWallsData.ts`). The skyline is bare earth, so
   tree shade must be a hand-set list. Walls carry no area yet (#293).
 - **Why it matters:** on 10/4 and 10/19 Crag A read 100 at Red Wing while Winter Wall was
-  unbearable. Wall A scores Winter Wall 18–21 at 1 PM on the 10/19 fixture, with the shaded
-  side at 100.
+  unbearable. Wall A scores Winter Wall 31–42 from 11 AM to 2 PM on the 10/19 fixture (16–21
+  before #537 gave sunlit rock its own heat edge, 15 °F above the air's), with the shaded side
+  at 100. The day pair now reads alike: the sun walls' best run is 8–10 AM, before the sun.
 
 ## Decided
 

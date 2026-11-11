@@ -113,9 +113,25 @@ cold         = exp(−max(0, 30 °F − Ta) / 12 °C)
 behind the air and chilled every warming morning (#534). `T_mass` alone is a days-long air average; read as the rock, it zeroed every
 sunlit hour at Red Wing and Sandstone on 10/31–11/1 that friends checked dry. Because the
 margin takes the sun, a missing shortwave withholds friction. Heat, humidity and cold read
-air and dew point only (Wall A's heat and cold add the wall's direct sun), so they cannot see
+air and dew point only (Wall A's heat and cold add the wall's direct sun, below), so they cannot see
 an overhang's shade on a warm humid afternoon (G10 / F13 in the reference README). Any input
 null → null, never a default.
+
+**Wall A's sun** (`sunWarmingC`, the direct beam on that wall, lagged like `T_surface`):
+
+```
+cold = exp(−max(0, 30 °F − (Ta + sun)) / 12 °C)
+heat = exp(−max(0, Ta − 60 °F, (Ta + sun) − 60 °F − 15 °F) / 12 °C)
+```
+
+Cold reads the sunlit rock in full. Heat reads the larger of the air's excess over 60 °F and
+the sunlit rock's over 75 °F (`SUN_HEAT_ALLOWANCE_C`, #537); with no sun the second never wins,
+so a shaded or tree-shaded wall reads as Crag A does. Both edges move with the reader's range.
+Until #537 the rock was read against 60 °F, as if 86 °F rock in 45 °F air were an 86 °F day: a
+sunny 45 °F south wall scored at most 30. The 15 °F was priced against 10–30 °F and against
+reading a share of the sun (the table is in the PR for #537); it keeps Red Wing's 2026-10-19 Winter
+Wall, reported unbearable, at 31–42 from 11 AM to 2 PM and lifts the 45 °F row to 60. A
+judgement call, pending the owner's Winter Wall field test.
 
 ### Withholding
 

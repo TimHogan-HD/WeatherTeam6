@@ -83,6 +83,31 @@ export type TempRangeC = { lowC: number; highC: number }
 const DEFAULT_RANGE: TempRangeC = { lowC: COLD_START_C, highC: HEAT_START_C }
 /** e-folding scale of the heat and cold penalties, °C. */
 export const HEAT_SCALE_C = 12
+
+/**
+ * **Rock the sun warms starts costing heat this far above the air's heat edge,
+ * °C (15 °F)** (#537). Wall A's heat is the larger of two excesses: the air's
+ * over the reader's heat edge (60 °F by default), and the sunlit rock's — air
+ * plus `sunWarmingC` — over that edge plus this. With no sun on the wall the
+ * second never exceeds the first, so a shaded wall reads exactly as before.
+ *
+ * Until #537 the sunlit rock was read against the air's own 60 °F edge, as if
+ * 86 °F rock under 45 °F air were an 86 °F day: a sunny 45 °F south wall
+ * scored at most 30 at Red Wing, 117 °F rock at Chattanooga 7. The edge was
+ * set for air, where the whole body sweats; on sunlit rock in cool air only the
+ * hands and shoes meet the heat. That difference is an inference, not a
+ * measurement. Priced on 2026-11-11 against 10, 20, 25 and 30 °F and against
+ * reading only a share of the sun; 15 °F keeps Red Wing's 2026-10-19 Winter
+ * Wall, reported unbearable, at 31-42 from 11 AM to 2 PM (16-21 before), and
+ * lifts the 45 °F + 41 °F row to 60. Any allowance of 10 °F or more lets that
+ * day's sun walls score 100 from 8 to 10 AM, before the sun is on them, so the
+ * 10/19 day pair reads alike; only the hours split.
+ *
+ * **A judgement call pending the owner's field test** of Winter Wall at 55 °F
+ * and sunny (#445). The cold side is unchanged: sun still warms a cold wall in
+ * full.
+ */
+export const SUN_HEAT_ALLOWANCE_C = (15 * 5) / 9
 /** e-folding scale of the humidity penalty, °C. */
 export const DEW_SCALE_C = 10
 
@@ -208,9 +233,10 @@ export function condensationMarginA(
  * Null when any input is missing — never a default.
  *
  * Heat and cold read air temperature plus `sunWarmingC`, the direct sun on the
- * wall. Crag A passes 0: it does not know which way any wall faces. Wall A
- * passes its own (`sunWarmingC`), and a null one withholds, because sun nobody
- * measured could be the heat that decides the hour.
+ * wall: cold in full, heat against an edge `SUN_HEAT_ALLOWANCE_C` higher for
+ * the sun's share (#537). Crag A passes 0: it does not know which way any wall
+ * faces. Wall A passes its own (`sunWarmingC`), and a null one withholds,
+ * because sun nobody measured could be the heat that decides the hour.
  *
  * Condensation reads `solarGainC`, one wall's lagged solar gain each
  * (`condensationA`): Crag A's eight, Wall A's one. The default is a single
@@ -236,9 +262,11 @@ export function frictionPenaltiesA(
   const condensation = condensationA(massTempC, dewPointC, solarGainC)
   if (condensation === null) return null
   const feltC = airTempC + sunWarmingC
+  // The sunlit rock's own, higher edge (#537); with no sun this is the air's excess.
+  const heatExcessC = Math.max(airTempC - range.highC, feltC - range.highC - SUN_HEAT_ALLOWANCE_C)
   return {
     condensation,
-    heat: Math.exp(-Math.max(0, feltC - range.highC) / HEAT_SCALE_C),
+    heat: Math.exp(-Math.max(0, heatExcessC) / HEAT_SCALE_C),
     humidity: Math.exp(-Math.max(0, dewPointC - DEW_START_C) / DEW_SCALE_C),
     cold: Math.exp(-Math.max(0, range.lowC - feltC) / HEAT_SCALE_C),
   }
@@ -528,7 +556,8 @@ export function sunShareOfHour(skyline: SunWall, endMs: number): number {
  * **How much direct sun warms the wall above air temperature, °C, per hour.**
  * Wall A's heat and cold read air plus this (owner, 2026-10-30): on 2026-10-04
  * and 2026-10-19 Winter Wall at Red Wing was too hot to climb in 60s air while
- * the shaded side was jacket weather, and Crag A scored both 100.
+ * the shaded side was jacket weather, and Crag A scored both 100. Heat reads
+ * the sum against a higher edge than the air's (`SUN_HEAT_ALLOWANCE_C`, #537).
  *
  * Only the sun's disc counts (`wallBeamWm2`), times the share of the hour the
  * skyline lets it through, through the same sol-air term and the same

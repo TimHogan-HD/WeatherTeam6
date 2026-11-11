@@ -18,7 +18,9 @@ import {
   evaluateCragA,
   evaluateWallA,
   frictionFactorA,
+  frictionPenaltiesA,
   heldBackBy,
+  SUN_HEAT_ALLOWANCE_C,
   rockLevelA,
   scoreA,
   shelterScale,
@@ -103,6 +105,63 @@ describe('frictionFactorA', () => {
     expect(frictionFactorA(null, 12, 0)).toBeNull()
     expect(frictionFactorA(12, null, 0)).toBeNull()
     expect(frictionFactorA(12, 12, null)).toBeNull()
+  })
+})
+
+describe('frictionPenaltiesA — sun on the wall (#537)', () => {
+  // °F in, the heat or cold penalty out. Mass well clear of the dew point, so only heat and cold move.
+  const dF = (f: number) => (f * 5) / 9
+  const heat = (airF: number, sunF: number, range?: { lowC: number; highC: number }) =>
+    frictionPenaltiesA(30, fToC(airF), -20, range, dF(sunF))!.heat
+  const cold = (airF: number, sunF: number) => frictionPenaltiesA(30, fToC(airF), -20, undefined, dF(sunF))!.cold
+  const airOnly = (airF: number) => Math.exp(-Math.max(0, fToC(airF) - HEAT_START_C) / HEAT_SCALE_C)
+
+  it('prices the issue’s live rows against the sunlit edge, 15 °F above the air’s', () => {
+    expect(SUN_HEAT_ALLOWANCE_C).toBeCloseTo(dF(15), 9)
+    // Red Wing 11/6 1 PM: 45 °F air + 41 °F sun is 86 °F rock, 11 °F past 75 °F. It read 0.30 as 86 °F air.
+    expect(heat(45, 41)).toBeCloseTo(Math.exp(-dF(11) / HEAT_SCALE_C), 9)
+    expect(heat(45, 41)).toBeGreaterThan(0.55)
+    expect(heat(45, 41)).toBeLessThan(0.65)
+    // Chattanooga: 67 °F air + 50 °F sun is 117 °F rock. Still bad.
+    expect(heat(67, 50)).toBeLessThan(0.2)
+  })
+
+  it('leaves a shaded wall exactly as the air reads it, walked in tenths across the air’s edge', () => {
+    for (let f = 50; f <= 100; f += 0.1) expect(heat(f, 0)).toBeCloseTo(airOnly(f), 12)
+  })
+
+  it('takes the air’s excess when the sun is under the allowance, however hot the air', () => {
+    // 90 °F air with 14.9 °F of sun: the rock's 104.9 °F is under 90 + 15, so the air decides.
+    expect(heat(90, 14.9)).toBeCloseTo(airOnly(90), 12)
+    expect(heat(90, 15)).toBeCloseTo(airOnly(90), 12)
+    expect(heat(90, 15.5)).toBeLessThan(airOnly(90))
+  })
+
+  it('does not step: rock walked in tenths past 75 °F under cool air', () => {
+    // 45 °F air, sun from 29 °F (74 °F rock) to 31 °F (76 °F rock).
+    let previous = heat(45, 29)
+    expect(previous).toBeCloseTo(1, 9)
+    expect(heat(45, 30)).toBeCloseTo(1, 9)
+    for (let s = 29.1; s <= 31; s += 0.1) {
+      const h = heat(45, s)
+      expect(h).toBeLessThanOrEqual(previous)
+      expect(previous - h).toBeLessThan(0.01)
+      previous = h
+    }
+    expect(previous).toBeLessThan(1)
+  })
+
+  it('moves the sunlit edge with the reader’s heat edge', () => {
+    const warm = { lowC: fToC(30), highC: fToC(70) } // sunlit edge 85 °F
+    expect(heat(50, 35, warm)).toBeCloseTo(1, 9)
+    expect(heat(50, 36, warm)).toBeLessThan(1)
+    expect(heat(50, 26)).toBeLessThan(1)
+  })
+
+  it('keeps the cold side in full: sun warms a cold wall by all of its warming', () => {
+    // 15 °F air + 15 °F sun is 30 °F rock, the cold edge.
+    expect(cold(15, 15)).toBeCloseTo(1, 9)
+    expect(cold(15, 0)).toBeCloseTo(Math.exp(-dF(15) / HEAT_SCALE_C), 9)
   })
 })
 
@@ -501,6 +560,12 @@ describe('evaluateWallA — sun on the wall', () => {
     expect(cragA.score).toBeGreaterThanOrEqual(90)
     expect(shaded.score).toBeGreaterThanOrEqual(90)
     expect(winterWall.score!).toBeLessThan(40)
+    // #537 raised the sunlit rock's heat edge 15 °F; the hours climbers called unbearable stay
+    // under the 'mixed' rung (40) at midday and close to it either side: 11 AM is 51 °F + 43 °F sun.
+    const day = evaluateWallA(hours, { rockType: 'carbonate_cherty', wall: orient(winter), skyline: winter })
+    const midday = [onePm - 2, onePm - 1, onePm, onePm + 1].map((i) => day[i]!.score!)
+    for (const s of midday) expect(s).toBeLessThan(45)
+    expect(Math.max(...midday.slice(1))).toBeLessThan(40)
   })
 })
 
