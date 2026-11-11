@@ -270,7 +270,7 @@ describe('condensationHeadline', () => {
       'Rock near its dew point from 1 PM until 2 PM. Dew likely on the rock from 6 PM.',
     )
     expect(condensationHeadline(series([5, -1, 5, 5, -2, 5]), NOW, 0)).toBe(
-      'Rock near its dew point from 1 PM until 2 PM. Dew likely on the rock from 1 PM. Dew likely on the rock again from 4 PM.',
+      'Rock near its dew point from 1 PM until 2 PM. Dew likely on the rock from 1 PM, and again from 4 PM.',
     )
   })
 

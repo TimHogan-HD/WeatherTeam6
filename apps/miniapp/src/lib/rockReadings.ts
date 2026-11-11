@@ -287,18 +287,16 @@ export function condensationHeadline(series: readonly MarginHour[], nowMs: numbe
   const near = single
     ? `Rock near its dew point ${isNow(spell.fromMs) ? 'now' : `at ${at(spell.fromMs)}`}, ${spell.open ? 'the last hour read' : 'then a gap in the readings'}.`
     : `Rock near its dew point ${from} ${to}.`
+  // One dew sentence: this spell's time, then a later spell's as "and again", never the phrase twice.
+  const firstDew = spell.dewFromMs === null ? null : isNow(spell.dewFromMs) ? 'now' : `from ${at(spell.dewFromMs)}`
+  const again = spell.laterDewFromMs === null ? null : `from ${at(spell.laterDewFromMs)}`
   const dew =
-    spell.dewFromMs === null
-      ? ''
-      : isNow(spell.dewFromMs)
-        ? ' Dew likely on the rock now.'
-        : ` Dew likely on the rock from ${at(spell.dewFromMs)}.`
-  // A later spell that reaches dew gets its time; only a later brush with the edge is "near it again".
-  const later =
-    spell.laterDewFromMs !== null
-      ? ` Dew likely on the rock ${spell.dewFromMs === null ? '' : 'again '}from ${at(spell.laterDewFromMs)}.`
-      : spell.laterHours > 0
-        ? ' Near it again later.'
+    firstDew !== null && again !== null
+      ? ` Dew likely on the rock ${firstDew}, and again ${again}.`
+      : firstDew !== null || again !== null
+        ? ` Dew likely on the rock ${firstDew ?? again}.`
         : ''
+  // Only a later brush with the edge that never reaches dew is "near it again".
+  const later = spell.laterDewFromMs === null && spell.laterHours > 0 ? ' Near it again later.' : ''
   return near + dew + later
 }
